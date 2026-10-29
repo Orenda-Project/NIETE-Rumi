@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `migrations/` | Hand-numbered SQL migrations for dashboard tables, RLS, functions and MVs → `migrations/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `README.md` | How to run and create SQL migrations with run-sql-migration.js; tool overview for the dashboard DB folder. |
 | `apply-user-columns-migration.md` | Manual steps to add funnel columns (source, session_id, first_message_at, registered_at) to users in Supabase. |
 | `queries.js` | Big analytics query layer for the admin dashboard (users, stats, retention, MV reads) taking req.dbClient for RLS. |
@@ -30,4 +28,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `queries.js` ← `tests/broadcast/bd-1zyqf-broadcast-language.test.js` · `tests/broadcast/bd-djbrt-direct-send-records-wamid.test.js` · `tests/broadcast/bd-ikkpf-search-mode-registration-flag.test.js` · `tests/broadcast/bd-x4njf-approved-template.test.js` · `tests/portal/analytics-account-not-in-broadcast.test.js`
 
 ## Related (all, generated)
-- docs: `dashboard/CLAUDE.index.md`? · `dashboard/CLAUDE.md`? · `dashboard/database/CLAUDE.index.md`? · `dashboard/database/CLAUDE.md`? · `dashboard/database/README.md`? · `dashboard/database/apply-user-columns-migration.md`? · `dashboard/database/migrations/CLAUDE.index.md`? · `dashboard/database/migrations/CLAUDE.md`? · `tests/broadcast/CLAUDE.md`? · `tests/portal/CLAUDE.index.md`? · `tests/portal/CLAUDE.md`?
+- docs: `dashboard/CLAUDE.md`?

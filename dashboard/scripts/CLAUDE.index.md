@@ -9,8 +9,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `deployment/` | → (no door; 2 files) |
 | `face-lite/` | → (no door; 2 files) |
 | `landing-urdu-face/` | → (no door; 2 files) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `backfill-processed-transcripts.js` | CLI that pre-processes coaching transcripts with GPT-4o-mini and stores results so transcript pages load instantly. |
 | `check-progress.sh` | Ad-hoc shell monitor of re-transcription tracks by tailing /tmp logs for four sessions; one-off. |
 | `link-railway.sh` | Helper that runs `railway link` for the dashboard project (prompts for workspace, project, environment). |
@@ -31,4 +29,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `dashboard/CLAUDE.index.md`? · `dashboard/CLAUDE.md`? · `dashboard/scripts/CLAUDE.index.md`? · `dashboard/scripts/CLAUDE.md`?
+- docs: `dashboard/CLAUDE.md`?

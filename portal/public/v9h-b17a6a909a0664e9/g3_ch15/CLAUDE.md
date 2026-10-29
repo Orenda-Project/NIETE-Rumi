@@ -1,6 +1,6 @@
 # g3_ch15 — Hosted v9 pages, Grade 3 chapter 15 (10 segs: Math 5, Urdu 5)
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch15 kg=61cf35bed125 gen=0b5252a04104 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch15 kg=61cf35bed125 gen=4759b73f0c99 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g3_ch15_Maths_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `g3_ch15_Maths_seg1.v9.html` | Hosted v9 lesson page G3 Math ch15 seg1 (en): Carroll diagrams: represent & interpret data |
 | `g3_ch15_Maths_seg2.v9.html` | Hosted v9 lesson page G3 Math ch15 seg2 (en): Carroll diagrams: Discovery + Skill Sharpener |
 | `g3_ch15_Maths_seg3.v9.html` | Hosted v9 lesson page G3 Math ch15 seg3 (en): Probability language: impossible to certain |

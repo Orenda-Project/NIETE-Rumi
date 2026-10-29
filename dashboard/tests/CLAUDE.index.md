@@ -7,12 +7,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `__golden__/` | Byte-exact switch-OFF response goldens recorded on the base code before each switch → `__golden__/CLAUDE.md` |
-| `fixtures/` | → (no door; 45 test files) |
+| `fixtures/` | → (no door; 45 files: 0 test + 45 support) |
 | `insights/` | Tests for the nightly CoachIP insights job: signals, rollups, ranking, model stage, locks → `insights/CLAUDE.md` |
-| `queue/` | Tests for the portal SQS queue service and worker (transcript and AMA jobs) → `queue/CLAUDE.md` |
+| `queue/` | → (no door; 2 tests) |
 | `support/` | Shared helper for the SA Urdu fit tests, not a test file itself → `support/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
+| `__snapshots__/` | → (not mapped: excluded; 3 files) |
 | `adventure-tokens-equal.service.test.js` | Pins that the adventure look's token CSS inlined in first-touch pages equals the copy in adventure-look.js (TOKENS_CSS) |
 | `ama-service.test.js` | Tests services/ama.service schema validation: column checks, blocking and retry against AMA schema hallucination |
 | `attendance-detail.service.test.js` | bd-60123: tests attendance-detail.service for a principal: group-merged summary (summarizeGroups) and day-wise detail |
@@ -507,41 +506,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `wqc-page-harness.js` | Shared harness running public/wq/wq-challenge.js whole in a vm with a fake DOM, fetch and media |
 
 ## Who reads this (all, generated)
-- env `BASE_ROUTES` read at `dashboard/tests/web-quiz-trail-page.service.test.js:17:ab9677b6`
-- env `BASE_SRC` read at `dashboard/tests/web-quiz-trail-page.service.test.js:16:53ff23e2`
-- env `CHILD_LINT_PAGE_SRC` read at `dashboard/tests/web-quiz-child-screen-lint.service.test.js:18:8265aae7`
-- env `CHILD_LINT_SEED` read at `dashboard/tests/web-quiz-child-screen-lint.service.test.js:434:f368e361`
-- env `FR_GOLDEN_WRITE` read at `dashboard/tests/web-quiz-read-feedback.service.test.js:792:ba3588cb`
-- env `GITHUB_TOKEN` read at `dashboard/tests/github-api.test.js:74:91cbb81f`
-- env `GOLDEN_PRINT` read at `dashboard/tests/web-quiz-rewatch-replay.service.test.js:54:b4471647`
-- env `GOLDEN_WRITE` read at `dashboard/tests/web-quiz-class-link-edge.service.test.js:81:7f08b924` · `dashboard/tests/web-quiz-class-pic-edge.service.test.js:84:a50a1fbc`
-- env `INTERNAL_API_KEY` read at `dashboard/tests/edge-mounts-golden.service.test.js:54:42692577`
-- env `JC_GOLDEN_WRITE` read at `dashboard/tests/web-quiz-jugnu-card-page.service.test.js:205:050c66ed`
-- env `KEEP_JUG_GOLDEN_WRITE` read at `dashboard/tests/web-quiz-hub-keep-after-jug.service.test.js:110:72620e1d`
-- env `MAIN_BOT_URL` read at `dashboard/tests/edge-mounts-golden.service.test.js:54:42692577`
-- env `NODE_ENV` read at `dashboard/tests/health-db-writable.service.test.js:85:b4659750`
-- env `PRINT_OFF_PIN` read at `dashboard/tests/web-quiz-stories-client.service.test.js:3048:d2f6c1d3`
-- env `PWCHROME_EXE` read at `dashboard/tests/sa-coach-lastword-corner.service.test.js:23:dcc5b4a0` · `dashboard/tests/sa-onecell-fit.service.test.js:41:dcc5b4a0` · `dashboard/tests/sa-onecell-ink.service.test.js:50:dcc5b4a0` · `dashboard/tests/sa-ui-dev-jump-row.service.test.js:34:dcc5b4a0` · `dashboard/tests/sa-ur-passage-pitch.service.test.js:36:dcc5b4a0` · `dashboard/tests/sa-ur-screens-fit.service.test.js:120:dcc5b4a0` · `dashboard/tests/sa-ur-tile-fit.service.test.js:48:dcc5b4a0` · `dashboard/tests/sa-ur-tile-ink.service.test.js:45:dcc5b4a0` · `dashboard/tests/sa-ur-word-tile-ink.service.test.js:55:dcc5b4a0`
-- env `PWCORE` read at `dashboard/tests/sa-coach-lastword-corner.service.test.js:17:f9b06513` · `dashboard/tests/sa-onecell-fit.service.test.js:35:f9b06513` · `dashboard/tests/sa-onecell-ink.service.test.js:44:f9b06513` · `dashboard/tests/sa-ui-dev-jump-row.service.test.js:28:f9b06513` · `dashboard/tests/sa-ur-passage-pitch.service.test.js:30:f9b06513` · `dashboard/tests/sa-ur-screens-fit.service.test.js:113:f9b06513` · `dashboard/tests/sa-ur-tile-fit.service.test.js:42:f9b06513` · `dashboard/tests/sa-ur-tile-ink.service.test.js:39:f9b06513` · `dashboard/tests/sa-ur-word-tile-ink.service.test.js:49:f9b06513`
-- env `REFERRAL_BOT_NUMBER` read at `dashboard/tests/quiz-go-edge.service.test.js:130:c715650c` · `dashboard/tests/quiz-teacher-edge.service.test.js:412:6a97d946` · `dashboard/tests/web-quiz-closed-inline.service.test.js:48:063a2991`
-- env `RF_GOLDEN_WRITE` read at `dashboard/tests/web-quiz-read-feedback.service.test.js:24:a56e8649`
-- env `SA_FIT_DEBUG` read at `dashboard/tests/sa-onecell-fit.service.test.js:101:8f52cfcb` · `dashboard/tests/sa-ur-tile-fit.service.test.js:122:b7406ca3` · `dashboard/tests/sa-ur-word-tile-ink.service.test.js:123:9471f5dd`
-- env `SA_INK_DEBUG` read at `dashboard/tests/sa-onecell-ink.service.test.js:126:aee8089b` · `dashboard/tests/sa-ur-tile-ink.service.test.js:121:dc0d5808`
-- env `TEACHER_HOME_RECORD` read at `dashboard/tests/edge-mounts-golden.service.test.js:47:4cdafe7b`
-- env `TEST_BASE_URL` read at `dashboard/tests/video-observability-routes.test.js:12:9a65a078`
-- env `WEB_QUIZ_BASE_URL` read at `dashboard/tests/web-quiz-canonical-host.service.test.js:105:434c7d53`
-- env `WHATSAPP_BOT_NUMBER` read at `dashboard/tests/quiz-go-edge.service.test.js:130:c715650c` · `dashboard/tests/quiz-teacher-edge.service.test.js:401:ec41a4f4` · `dashboard/tests/web-quiz-closed-inline.service.test.js:48:063a2991`
-- env `WQ_G1_GOLDEN_FROM` read at `dashboard/tests/web-quiz-g1-page.service.test.js:210:ce575bec`
-- env `WQ_MIN_VM_LOG` read at `dashboard/tests/wq-min-vm.js:37:e1ef9afd`
-- env `WQ_PRINT_OFF_GOLDEN` read at `dashboard/tests/web-quiz-share-v4-story.service.test.js:282:3f143f2d`
-- env `WQ_SRC` read at `dashboard/tests/web-quiz-handset-page.service.test.js:13:e83922b7` · `dashboard/tests/web-quiz-practice-card.service.test.js:11:e83922b7` · `dashboard/tests/web-quiz-remembered.service.test.js:15:e83922b7` · `dashboard/tests/web-quiz-roll.service.test.js:14:e83922b7` · `dashboard/tests/web-quiz-who-played-page.service.test.js:14:e83922b7`
-- env `WRITE_CARD_GOLDEN` read at `dashboard/tests/web-quiz-page-live.service.test.js:88:62e3d10d`
-- env `WRITE_READ_LIVE_GOLDEN` read at `dashboard/tests/web-quiz-challenge-live.service.test.js:424:ba9e0037`
-- env `WRITE_READ_LIVE_RESULT_GOLDEN` read at `dashboard/tests/web-quiz-challenge-live.service.test.js:554:12aef2c3`
-- env `WRITE_TRAIL_INTRO_GOLDEN` read at `dashboard/tests/web-quiz-trail-intro-title.service.test.js:59:7f5a6da3`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/config/CLAUDE.index.md`? · `bot/shared/data/child-test/sa/CLAUDE.index.md`? · `bot/shared/data/child-test/sa/CLAUDE.md`? · `bot/shared/services/child-test/sa/CLAUDE.index.md`? · `bot/shared/services/child-test/sa/CLAUDE.md`? · `bot/shared/services/child-test/scoring/CLAUDE.index.md`? · `bot/shared/services/first-touch/CLAUDE.index.md`? · `bot/shared/services/observe/CLAUDE.index.md`? · `bot/shared/services/quiz/CLAUDE.index.md`? · `dashboard/CLAUDE.index.md`? · `dashboard/CLAUDE.md`? · `dashboard/lib/CLAUDE.index.md`? · `dashboard/lib/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/public/wq/CLAUDE.index.md`? · `dashboard/public/wq/CLAUDE.md`? · `dashboard/routes/CLAUDE.index.md`? · `dashboard/routes/CLAUDE.md`? · `dashboard/sa/CLAUDE.index.md`? · `dashboard/sa/CLAUDE.md`? · `dashboard/services/CLAUDE.index.md`? · `dashboard/tests/CLAUDE.index.md`? · `dashboard/tests/CLAUDE.md`? · `dashboard/tests/__golden__/CLAUDE.md`? · `dashboard/tests/insights/CLAUDE.index.md`? · `dashboard/tests/insights/CLAUDE.md`? · `dashboard/tests/queue/CLAUDE.md`? · `dashboard/tests/support/CLAUDE.md`? · `portal/src/lib/CLAUDE.index.md`? · `portal/src/lib/CLAUDE.md`?
+- docs: `bot/shared/data/child-test/sa/CLAUDE.md`? · `dashboard/CLAUDE.md`? · `dashboard/lib/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/public/wq/CLAUDE.md`? · `dashboard/routes/CLAUDE.md`? · `dashboard/sa/CLAUDE.md`? · `portal/src/lib/CLAUDE.md`?

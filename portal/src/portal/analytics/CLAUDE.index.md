@@ -11,8 +11,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `AnalyticsOnlyGuard.tsx` | Route-table guard: sends analytics-only accounts to schools analytics and everyone else away from it (bd-s6qbts.3) |
 | `BandToggle.tsx` | Primary / Mid-High teachers toggle kept in ?band=; useBandParam hook shared by LP and Training tabs (bd-97x22y.3) |
 | `BarChart.tsx` | Plain-HTML per-sector bar chart with direct value labels, mirroring the ICT dashboard chart (bd-97x22y.2) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `Filters.tsx` | Region chips and period presets/From-To/All-time bar; both choices live in the URL (view.ts) (bd-s6qbts.3) |
 | `GroupedBarChart.tsx` | Plain-HTML grouped bar chart (a group per sector, a bar per series, 0-100 axis) for tabs comparing series (bd-97x22y.5) |
 | `LpCharts.tsx` | LP Engagement tab's two drawings: RingGauge sector ring and sector-by-subject grouped bars, HTML/SVG (bd-97x22y.3) |
@@ -67,4 +65,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `trainingLevelsFixture.ts` ← `portal/src/portal/analytics/SchoolsAnalytics.test.tsx` · `portal/src/portal/analytics/views/TrainingTab.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/CLAUDE.md`? · `portal/src/portal/analytics/CLAUDE.index.md`? · `portal/src/portal/analytics/CLAUDE.md`? · `portal/src/portal/analytics/views/CLAUDE.index.md`? · `portal/src/portal/analytics/views/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.index.md`? · `portal/src/portal/hooks/CLAUDE.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/lib/CLAUDE.md`? · `portal/src/portal/pages/CLAUDE.index.md`? · `portal/src/portal/services/CLAUDE.index.md`? · `portal/src/portal/services/CLAUDE.md`?
+- docs: `portal/src/portal/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

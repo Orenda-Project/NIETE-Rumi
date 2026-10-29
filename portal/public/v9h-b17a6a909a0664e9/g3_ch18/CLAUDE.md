@@ -1,6 +1,6 @@
 # g3_ch18 — Hosted v9 pages, Grade 3 chapter 18 (2 segs: Urdu 2)
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch18 kg=9354d3a760ac gen=7f469a3964bf overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch18 kg=9354d3a760ac gen=e7ee048cd771 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g3_ch18_Urdu_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `g3_ch18_Urdu_seg1.v9.html` | Hosted v9 lesson page G3 Urdu ch18 seg1 (ur): 'یہ میرا پاکستان ہے' — بلند خوانی (ملی نغمہ) |
 | `g3_ch18_Urdu_seg2.v9.html` | Hosted v9 lesson page G3 Urdu ch18 seg2 (ur): متن کی تفہیم — زبانی سوالات |
 

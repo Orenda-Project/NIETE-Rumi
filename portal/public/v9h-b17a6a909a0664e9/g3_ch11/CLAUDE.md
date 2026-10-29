@@ -1,7 +1,7 @@
 # g3_ch11 — Hosted v9 pages, Grade 3 chapter 11 (16 segs: English 7, Math 4, Urdu 5)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch11 kg=2b38bcdbbd6b gen=1a62b2a997e0 overflow=6 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch11 kg=2b38bcdbbd6b gen=654752d99718 overflow=5 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g3_ch11_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g3_ch11_English_seg1.v9.html` | Hosted v9 lesson page G3 English ch11 seg1 (en): Memory Lane + New Words |
 | `g3_ch11_English_seg2.v9.html` | Hosted v9 lesson page G3 English ch11 seg2 (en): Journey: Fluttering Adventures in Hunza Valley (Pinky's (+ more topics) |
 | `g3_ch11_English_seg3.v9.html` | Hosted v9 lesson page G3 English ch11 seg3 (en): Diving Deeper: Understanding Characters + Reflecting on the Story |
@@ -23,7 +21,8 @@ Full index: `CLAUDE.index.md`
 | `g3_ch11_Maths_seg1.v9.html` | Hosted v9 lesson page G3 Math ch11 seg1 (en): Units of capacity: litres & millilitres |
 | `g3_ch11_Maths_seg2.v9.html` | Hosted v9 lesson page G3 Math ch11 seg2 (en): Capacity word problems: add & subtract (CUBES) |
 | `g3_ch11_Maths_seg3.v9.html` | Hosted v9 lesson page G3 Math ch11 seg3 (en): Capacity: Discovery + Skill Sharpener |
-| … | 6 more → `CLAUDE.index.md` |
+| `g3_ch11_Maths_seg4.v9.html` | Hosted v9 lesson page G3 Math ch11 seg4 (en): Temperature: read/write °C, compare & order (teacher-led) |
+| … | 5 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -36,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g3_ch11/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g3_ch11/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

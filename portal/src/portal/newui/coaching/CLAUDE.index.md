@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `CoachingMain.test.tsx` | bd-5rz1v.26: new Coaching main page (band, lesson list, which Coaching she gets by flags) |
 | `CoachingMain.tsx` | New-UI teacher Coaching main page: lesson list, analysing counts, Record entry; replaces CoachingHome |
 | `LessonView.test.tsx` | bd-5rz1v.26: new lesson page on its way (Hero) and the report, plus which lesson page she gets |
@@ -74,4 +72,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `useSendFlow.ts` ← `portal/src/portal/newui/coaching/useLiveMoves.test.ts` · `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` · `portal/src/portal/teacher/coaching/coaching.ur.test.tsx` · `portal/src/portal/teacher/coaching/picker.ur.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/components/coaching/CLAUDE.index.md`? · `portal/src/portal/fln/share/CLAUDE.index.md`? · `portal/src/portal/fln/share/CLAUDE.md`? · `portal/src/portal/fln/tests/CLAUDE.index.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/lib/CLAUDE.md`? · `portal/src/portal/lib/live/CLAUDE.md`? · `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.md`? · `portal/src/portal/newui/DESIGN.md`? · `portal/src/portal/newui/assessment/CLAUDE.index.md`? · `portal/src/portal/newui/assessment/CLAUDE.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/newui/coaching/CLAUDE.index.md`? · `portal/src/portal/newui/coaching/CLAUDE.md`? · `portal/src/portal/pages/CLAUDE.index.md`? · `portal/src/portal/teacher/coaching/CLAUDE.index.md`? · `portal/src/portal/teacher/coaching/CLAUDE.md`?
+- docs: `portal/src/portal/lib/CLAUDE.md`? · `portal/src/portal/lib/live/CLAUDE.md`? · `portal/src/portal/newui/CLAUDE.md`? · `portal/src/portal/newui/DESIGN.md`? · `portal/src/portal/newui/checks/CLAUDE.md`?

@@ -1,7 +1,7 @@
 # hooks — Auth hooks: the signed-in user is read once and shared
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/hooks kg=70f453bad378 gen=5f128e763a4f overflow=108 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/hooks kg=9a9932830e18 gen=af2bfccd276a overflow=104 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `AuthProvider.tsx` — reads the user once per visit above all routes
@@ -14,9 +14,7 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `useAuth.ts` | useAuth hook returning the shared signed-in user, plus useOwnAuth, login and logout |
 | `authContext.ts` | Context object for the user PortalLayout loaded, in its own module so mocks keep it real |
-| `CLAUDE.index.md` | (unmapped) |
 | `firstPage.test.tsx` | Pins first-page loading: /me instead of /dashboard, parallel /config, 30 s reuse (bd-fxk3t8) |
-| `CLAUDE.md` | (unmapped) |
 | `AuthProvider*` | 3 files; most used `AuthProvider.tsx`: Root provider holding the signed-in user once per visit above all routes (bd-fxk3t8) |
 
 ## Who reads this (generated)
@@ -34,7 +32,12 @@ Full index: `CLAUDE.index.md`
 - `portal/src/portal/hooks/firstPage.test.tsx` (AuthProvider.tsx, useAuth.ts)
 - `portal/src/portal/analytics/guard.test.tsx` (authContext.ts)
 - `portal/src/portal/coach/CoachGate.test.tsx` (useAuth.ts)
-- … 108 more → `CLAUDE.index.md`
+- `portal/src/portal/coach/insights/tests/harness.tsx` (useAuth.ts)
+- `portal/src/portal/coach/insights/tests/more.flagOff.test.tsx` (useAuth.ts)
+- `portal/src/portal/coach/insights/tests/r6b_more.test.tsx` (useAuth.ts)
+- `portal/src/portal/coach/people/schoolsReady.test.tsx` (authContext.ts)
+- `portal/src/portal/coach/profile/CoachMore.test.tsx` (useAuth.ts)
+- … 104 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/CLAUDE.md`? · `portal/src/portal/analytics/CLAUDE.index.md`? · `portal/src/portal/analytics/CLAUDE.md`? · `portal/src/portal/coach/CLAUDE.index.md`? · `portal/src/portal/coach/insights/tests/CLAUDE.index.md`? · `portal/src/portal/coach/people/CLAUDE.index.md`? (+8)
+- docs: `portal/src/portal/CLAUDE.md`?

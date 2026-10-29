@@ -6,10 +6,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `fixtures/` | → (no door; 4 test files) |
+| `fixtures/` | → (no door; 4 files: 0 test + 4 support) |
 | `helpers/` | Shared fake of the supabase query builder for portal route and service tests → `helpers/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `_fln-access-stub.js` | Test helper: faithful stub of dashboard fln-access middleware (noStore, 401, 404 gate) injected into FLN route suites |
 | `_fln-http-get.js` | Test helper: fetch-shaped GET over plain http with Connection: close so FLN route suites leave no open sockets |
 | `account-school-name.test.js` | Pins GET /dashboard user.schoolName (users.school_id to schools.name, legacy fallback) in dashboard/routes/portal.routes |
@@ -200,23 +198,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `video-reco-routes.test.js` | Pins bd-gzfdu9 /v/:token tracked clip page, /v/:token/e beacons and thumbnail route in video-reco.routes |
 
 ## Who reads this (all, generated)
-- table `attendance_sessions` (written by `progress-counts.db.test.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:909:2a982732`? · `bot/shared/services/attendance-portal.service.js:293:2a982732`? · `bot/shared/services/attendance-register-delivery.service.js:79:2a982732`? · `bot/shared/services/attendance-write.service.js:108:2a982732`? (+2: `python3 kg/kg.py who-reads attendance_sessions`)
-- table `niete_lp612_deliveries` (written by `progress-counts.db.test.js`) ← read by `bot/shared/services/lp-app-open-survey.service.js:96:e6842ada`? · `bot/shared/services/portal-ready-whatsapp.service.js:146:57a90568`? · `bot/shared/services/share-send.service.js:125:57a90568`?
-- table `niete_lp_downloads` (written by `progress-counts.db.test.js`) ← read by `bot/shared/calls/call-tools.repo.js:123:bdffbacd`? · `bot/shared/services/coaching/analysis-processor.service.js:88:bdffbacd`? · `bot/shared/services/coaching/lp-coaching/recent-fidelity-lps.service.js:48:bdffbacd`? · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:95:bdffbacd`? (+7: `python3 kg/kg.py who-reads niete_lp_downloads`)
-- table `niete_lp_opens` (written by `progress-counts.db.test.js`) ← read by `bot/shared/services/coaching/weekly-report/reader.js:88:67140352`? · `bot/shared/services/nudges/lp-coaching-ask.service.js:266:916bcc20`? · `bot/shared/services/portal-ready-whatsapp.service.js:169:e41e45ae`? · `dashboard/routes/portal-fln.routes.js:110:77ebca7c`?
-- table `teacher_training_progress` (written by `progress-counts.db.test.js`) ← read by `bot/shared/calls/call-context.repo.js:107:94ec1a3a`? · `bot/shared/routes/teacher-training-endpoint.js:846:9402d340`? · `bot/shared/services/coaching/video-reco/store.js:64:6733ba3c`? · `bot/shared/services/training/capstone-delivery.service.js:115:94ec1a3a`? (+5: `python3 kg/kg.py who-reads teacher_training_progress`)
-- table `training_modules` (written by `progress-counts.db.test.js`) ← read by `bot/shared/calls/call-context.repo.js:115:a5aff531`? · `bot/shared/routes/teacher-training-endpoint.js:845:3c67573c`? · `bot/shared/services/training/capstone-delivery.service.js:107:a5aff531`? · `bot/shared/services/training/certificate.service.js:221:efe9de07`? (+12: `python3 kg/kg.py who-reads training_modules`)
-- env `FLN_DEV_CORPUS` read at `tests/portal/fln-corpus.test.js:317:88dbbc91`
-- env `NIETE_PROGRESS_DB_URL` read at `tests/portal/progress-counts.db.test.js:25:fad59da1`
-- env `R2_BUCKET_NAME` read at `tests/portal/assessment-paper-file.test.js:99:afaf90a3` · `tests/portal/lesson-plan-file-proxy.test.js:116:afaf90a3` · `tests/portal/lp-open-logging.test.js:100:afaf90a3`
-- env `R2_ENDPOINT` read at `tests/portal/assessment-paper-file.test.js:98:8a165670` · `tests/portal/lesson-plan-file-proxy.test.js:115:8a165670` · `tests/portal/lp-open-logging.test.js:99:8a165670`
-- env `RAILWAY_ENVIRONMENT_NAME` read at `tests/portal/child-test-portal-routes.test.js:304:6a8b18be`
-- env `SUPABASE_DB_HOST` read at `tests/portal/local-dev.test.js:62:0b2a0eee`
-- env `VITE_API_BASE_URL` read at `tests/portal/bd-2676-allow-navigation.test.js:127:eff429bc`
-- env `WEB_QUIZ_KID_KEY` read at `tests/portal/fln-userkey-helper.test.js:19:53c39408`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/config/CLAUDE.index.md`? · `bot/shared/handlers/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.index.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.index.md`? · `bot/shared/services/observe/CLAUDE.index.md`? · `bot/shared/services/quiz/CLAUDE.index.md`? · `bot/shared/services/training/CLAUDE.index.md`? · `dashboard/database/CLAUDE.index.md`? · `dashboard/database/CLAUDE.md`? · `dashboard/lib/CLAUDE.index.md`? · `dashboard/lib/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/middleware/rbac/CLAUDE.md`? · `dashboard/routes/CLAUDE.index.md`? · `dashboard/services/CLAUDE.index.md`? · `infrastructure/templates/drafts/README.md`? · `portal/ANDROID.md`? · `portal/CLAUDE.index.md`? · `portal/src/lib/CLAUDE.index.md`? · `scripts/CLAUDE.index.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`? · `tests/portal/CLAUDE.index.md`? · `tests/portal/CLAUDE.md`? · `tests/portal/helpers/CLAUDE.md`?
+- docs: `dashboard/lib/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/middleware/rbac/CLAUDE.md`? · `infrastructure/templates/drafts/README.md`? · `portal/ANDROID.md`? · `tests/CLAUDE.md`?

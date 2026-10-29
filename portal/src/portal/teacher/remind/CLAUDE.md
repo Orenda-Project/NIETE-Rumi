@@ -1,6 +1,6 @@
 # remind — Words for the Evening reminder card
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/remind kg=c7fb9334d92e gen=898b21e4ba44 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/remind kg=c7fb9334d92e gen=b3c79c09db2d overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `copy.ts` — English and Urdu REMIND copy, registered as COPY_ENTRY; drawn by ../notices/RemindCard.tsx
@@ -11,7 +11,6 @@
 | path | purpose |
 |---|---|
 | `copy.ts` | English and Urdu words for the Evening reminder card (REMIND, COPY_ENTRY), gender-neutral, awaiting Urdu review |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - `copy.ts` ← imported by `portal/src/portal/teacher/notices/RemindCard.tsx:7:0add4fca`
@@ -24,4 +23,4 @@ _None found in code comments, tests or git log for this directory._
 - `portal/src/portal/teacher/notices/RemindCard.test.tsx` (copy.ts)
 
 ## Related (generated)
-- docs: `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/notices/CLAUDE.index.md`? · `portal/src/portal/teacher/remind/CLAUDE.md`?
+- docs: `portal/src/portal/teacher/CLAUDE.md`?

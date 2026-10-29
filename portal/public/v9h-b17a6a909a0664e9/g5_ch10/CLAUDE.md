@@ -1,7 +1,7 @@
 # g5_ch10 — Hosted v9 pages, Grade 5 chapter 10 (25 segs: English 7, Math 8, Urdu 10)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch10 kg=5039241a13ee gen=28019ff29da8 overflow=16 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch10 kg=5039241a13ee gen=a6cd6dd1c05f overflow=14 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g5_ch10_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g5_ch10_English_seg1.v9.html` | Hosted v9 lesson page G5 English ch10 seg1 (en): New Words + Report Inspector (Memory Lane) |
 | `g5_ch10_English_seg2.v9.html` | Hosted v9 lesson page G5 English ch10 seg2 (en): Reading: 'Save the Tree!' (Journey Through the Text) |
 | `g5_ch10_English_seg3.v9.html` | Hosted v9 lesson page G5 English ch10 seg3 (en): Diving Deeper: Unravelling the Paragraph + Opposites (+ more topics) |
@@ -22,7 +20,9 @@ Full index: `CLAUDE.index.md`
 | `g5_ch10_English_seg7.v9.html` | Hosted v9 lesson page G5 English ch10 seg7 (en): Connect and Create: 'Our Green Schoolyard' Opinion Piece + Reflection |
 | `g5_ch10_Maths_seg1.v9.html` | Hosted v9 lesson page G5 Math ch10 seg1 (en): Convert units of mass, length & capacity |
 | `g5_ch10_Maths_seg2.v9.html` | Hosted v9 lesson page G5 Math ch10 seg2 (en): Measurement conversion consolidation |
-| … | 16 more → `CLAUDE.index.md` |
+| `g5_ch10_Maths_seg3.v9.html` | Hosted v9 lesson page G5 Math ch10 seg3 (en): Measurement word problems (mass, capacity, length) |
+| `g5_ch10_Maths_seg4.v9.html` | Hosted v9 lesson page G5 Math ch10 seg4 (en): Measurement word-problem consolidation |
+| … | 14 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch10/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch10/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

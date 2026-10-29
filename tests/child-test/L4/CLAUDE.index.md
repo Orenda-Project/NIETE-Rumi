@@ -6,9 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `helpers/` | → (no door; 2 test files) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
+| `helpers/` | → (no door; 2 files: 0 test + 2 support) |
 | `conversation.test.js` | End-to-end coach conversation via L4 handler: /egra, list, Present, three voice notes, strip photo, check (bd-s1oo0.4) |
 | `gate.test.js` | Tests the child-test gate: CHILD_TEST_ENABLED plus coach role plus ICT region, inert otherwise |
 | `integration-l3.test.js` | Coach conversation against L3's real draw and store on in-memory Supabase; skipped if modules absent (bd-s1oo0.3) |
@@ -21,11 +19,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `webhook-routing.test.js` | Asserts on whatsapp-bot.js source that ctst_ buttons and list rows route to ChildTest.handleButton/handleList |
 
 ## Who reads this (all, generated)
-- env `OPENROUTER_API_KEY` read at `tests/child-test/L4/conversation.test.js:23:6d424b49` · `tests/child-test/L4/integration-l3.test.js:29:6d424b49` · `tests/child-test/L4/media-claim.test.js:53:6d424b49`
-- env `RAILWAY_ENVIRONMENT` read at `tests/child-test/L4/media-claim.test.js:98:9ecaaa4e`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/handlers/CLAUDE.index.md`? · `bot/shared/handlers/CLAUDE.md`? · `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/services/child-test/conversation/CLAUDE.index.md`? · `bot/shared/services/child-test/draw/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/observe/CLAUDE.index.md`? · `bot/shared/services/observe/observe2/CLAUDE.index.md`? · `bot/shared/services/observe/observe2/CLAUDE.md`? · `tests/child-test/CLAUDE.md`? · `tests/child-test/L4/CLAUDE.index.md`? · `tests/child-test/L4/CLAUDE.md`?
+- docs: `bot/shared/handlers/CLAUDE.md`? · `tests/child-test/CLAUDE.md`?

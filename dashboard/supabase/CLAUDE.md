@@ -1,6 +1,6 @@
 # supabase — Local Supabase CLI config for the dashboard database
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/supabase kg=c6bb871cf338 gen=ef009050fa3f overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/supabase kg=c6bb871cf338 gen=c9d1c3e4b9b2 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `config.toml` — local project_id, ports, schemas
@@ -11,7 +11,6 @@
 | path | purpose |
 |---|---|
 | `migrations/` | Supabase-CLI migrations: funnel tables (copies) and training_sync_runs ledger → `migrations/CLAUDE.md` |
-| `CLAUDE.md` | (unmapped) |
 | `config.toml` | Local Supabase CLI config (project_id rumi-dashboard, API port, schemas, max_rows) for running the dashboard DB locally. |
 | `.gitignore` | (unmapped) |
 
@@ -26,4 +25,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `dashboard/CLAUDE.index.md`? · `dashboard/CLAUDE.md`? · `dashboard/supabase/CLAUDE.md`? · `dashboard/supabase/migrations/CLAUDE.index.md`? · `dashboard/supabase/migrations/CLAUDE.md`?
+- docs: `dashboard/CLAUDE.md`?

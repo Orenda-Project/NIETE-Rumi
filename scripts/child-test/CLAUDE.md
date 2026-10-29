@@ -1,7 +1,7 @@
 # child-test — Child reading/maths test: scoring evals and sandbox simulation helpers
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/child-test kg=2a614923d7e6 gen=14b84f74ec33 overflow=47 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/child-test kg=a273fd4d6646 gen=ba56396ec443 overflow=46 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `eval-scoring.js` — offline eval of the scoreBlock pipeline against fixture keys
@@ -12,12 +12,10 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
 | `eval*` | 3 files; most used `eval-compare.js`: Shared mark-vs-key comparison functions and tolerance bands used by the child-test eval and the simulation scorer |
-| `CLAUDE.md` | (unmapped) |
 | `score-run-compare.js` | Glue that feeds one simulation run's ai_marks and coach_marks to eval-compare and prints per-field summary (bd-s1oo0.18) |
 | `seed-sandbox.js` | Idempotently seeds the NIETE sandbox with a marked test school, two classes, a coach and teachers for simulation |
-| … | 1 more → `CLAUDE.index.md` |
+| `smoke-sandbox.js` | Live smoke of the child-test draw and store on the sandbox DB; refuses production, deletes what it wrote (bd-s1oo0.3) |
 
 ## Who reads this (generated)
 - table `users` (written by `seed-sandbox.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+170)
@@ -35,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - … 4 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `.claude/qa/agents/niete-child-test-agent.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `docs/CLAUDE.index.md`? · `docs/e2e-mock-lane.md`? · `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? (+6)
+- docs: `.claude/qa/agents/niete-child-test-agent.md`? · `docs/e2e-mock-lane.md`? · `scripts/CLAUDE.md`?

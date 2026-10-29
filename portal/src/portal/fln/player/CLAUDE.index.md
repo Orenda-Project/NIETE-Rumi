@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `bench/` | Dev-only pages for benchmarking and screenshotting the sound player → `bench/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `FlnPlayer.ts` | createFlnPlayer: the audio engine, one clip at a time, prefetch/warm, state events, retry, timing (player.md v2) |
 | `SoundPill.tsx` | Inline sound button in a lesson step: idle/loading/playing/error states by icon, aria-live text, fixed box (A10/A11) |
 | `SoundTile.tsx` | Tile in the sounds grid: big grapheme with keyword caption, narration tile spans two columns; same states as SoundPill |
@@ -37,4 +35,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `useFlnPlayer.ts` ← `portal/src/portal/fln/tests/player.test.ts` · `portal/src/portal/fln/tests/tile-shift.test.tsx` · `portal/src/portal/fln/tests/ui-owner.test.tsx` · `portal/src/portal/fln/tests/ui.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/fln/CLAUDE.index.md`? · `portal/src/portal/fln/CLAUDE.md`? · `portal/src/portal/fln/player/CLAUDE.index.md`? · `portal/src/portal/fln/player/CLAUDE.md`? · `portal/src/portal/fln/player/bench/CLAUDE.md`? · `portal/src/portal/fln/tests/CLAUDE.index.md`?
+- docs: `portal/src/portal/fln/CLAUDE.md`?

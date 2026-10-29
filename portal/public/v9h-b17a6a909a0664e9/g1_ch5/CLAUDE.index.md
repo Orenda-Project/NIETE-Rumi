@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g1_ch5_English_seg1.v9.html` | Hosted v9 lesson page G1 English ch5 seg1 (en): Traffic Key Words + Word-Search Puzzle (Memory Lane) |
 | `g1_ch5_English_seg2.v9.html` | Hosted v9 lesson page G1 English ch5 seg2 (en): Reading 'Crossing the Road' (Traffic Signals & the Zebra Crossing) |
 | `g1_ch5_English_seg3.v9.html` | Hosted v9 lesson page G1 English ch5 seg3 (en): Read the Traffic Lights & Question Words (Who/What/Where) |
@@ -42,4 +40,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch5/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch5/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

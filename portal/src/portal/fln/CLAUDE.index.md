@@ -14,8 +14,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `share/` | Leader sharing: Share bar, send to teachers, share link, WhatsApp text → `share/CLAUDE.md` |
 | `tests/` | Tests for the FLN pages, player, gate, share and flag-off goldens → `tests/CLAUDE.md` |
 | `Bdi.tsx` | Wraps Latin/digit runs in <bdi> inside RTL Urdu text so SLO, 5, 24/48 keep order; LTR text untouched |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `FlnBand.tsx` | Small door on New-lesson page: asks GET /fln/me and lazy-loads FlnBandBody only if lessons are on, else renders null |
 | `FlnBandBody.tsx` | "Reading Hour & Numeracy" band body on New-lesson page: grade chips 1-5, subject entries; defaultGrade/bandGrade helpers |
 | `FlnContext.tsx` | FlnProvider/useFln: the /fln/me user, UI language (ui_lang), direction and chrome words every FLN page reads |
@@ -69,4 +67,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `types.ts` ← `portal/src/portal/fln/tests/backlink.test.tsx` · `portal/src/portal/fln/tests/band.test.tsx` · `portal/src/portal/fln/tests/counts.test.tsx` · `portal/src/portal/fln/tests/fixtures/plans.ts` · `portal/src/portal/fln/tests/fixtures/renderPlan.tsx` · `portal/src/portal/fln/tests/hiddenBand.page.test.tsx` (+6: `python3 kg/kg.py who-reads portal/src/portal/fln/types.ts`)
 
 ## Related (all, generated)
-- docs: `portal/src/portal/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.index.md`? · `portal/src/portal/fln/CLAUDE.index.md`? · `portal/src/portal/fln/CLAUDE.md`? · `portal/src/portal/fln/lib/CLAUDE.md`? · `portal/src/portal/fln/login/CLAUDE.md`? · `portal/src/portal/fln/plan/CLAUDE.index.md`? · `portal/src/portal/fln/plan/CLAUDE.md`? · `portal/src/portal/fln/player/CLAUDE.index.md`? · `portal/src/portal/fln/player/CLAUDE.md`? · `portal/src/portal/fln/share/CLAUDE.index.md`? · `portal/src/portal/fln/share/CLAUDE.md`? · `portal/src/portal/fln/tests/CLAUDE.index.md`? · `portal/src/portal/fln/tests/CLAUDE.md`? · `portal/src/portal/pages/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/lessons/CLAUDE.index.md`? · `portal/src/portal/teacher/lessons/CLAUDE.md`?
+- docs: `portal/src/portal/CLAUDE.md`?

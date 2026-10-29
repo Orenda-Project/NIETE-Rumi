@@ -1,7 +1,7 @@
 # frameworks — Observation frameworks (FICO, OECD, HOTS, MEWAKA, Teach): prompts and scoring
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/frameworks kg=7f3c6a22d8a2 gen=8e2f5a240742 overflow=53 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/frameworks kg=7f3c6a22d8a2 gen=940b5e33c75f overflow=49 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `framework-registry.js` — key to module lookup
@@ -16,12 +16,14 @@ Full index: `CLAUDE.index.md`
 | `mewaka-framework.js` | MEWAKA Tanzanian CPD framework: 25 indicators in 6 domains, scale 0-3, prompt and scoring |
 | `framework-selector.js` | Chooses a user's framework: explicit preference, then region default, then env deployment default |
 | `hots-framework.js` | HOTS (PESRP/PECTAA) framework: 16 indicators, scale 1-3, prompt and scoring |
-| … | 5 more → `CLAUDE.index.md` |
+| `framework-registry.js` | Lazy-loading registry mapping a framework key to its observation framework module |
+| … | 2 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `fico-framework.js` ← imported by `bot/shared/services/coaching/coaching-breakdown.service.js:166:3f55b568` · `bot/shared/services/coaching/coaching-card/prioritized-action.service.js:53:e626b151` (+11)
 - `mewaka-framework.js` ← imported by `bot/scripts/generate-observe-flow-json.js:27:df211ba3` · `bot/shared/services/coaching/report-v2/score-adapters/mewaka-adapter.js:14:159130a0` (+2)
-- … 5 more → `CLAUDE.index.md`
+- `hots-framework.js` ← imported by `bot/shared/services/coaching/report-v2/score-adapters/hots-adapter.js:9:a6cc910e` · `bot/shared/services/observe/observe-framework.js:28:908f5abe` (+1)
+- … 4 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Score adapters read the scale from the framework, never a local copy (report-v2/score-adapters/fico-adapter.js:11)
@@ -34,4 +36,4 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`?
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/frameworks/CLAUDE.index.md`? · `bot/shared/services/coaching/frameworks/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `docs/CLAUDE.index.md`? (+2)
+- docs: `bot/shared/services/coaching/CLAUDE.md`? · `docs/customization.md`?

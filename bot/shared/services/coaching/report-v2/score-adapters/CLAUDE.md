@@ -1,7 +1,7 @@
 # score-adapters — One score adapter per framework, turning analysis into scorecard groups
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-v2/score-adapters kg=cdf34f2d6c28 gen=0c39ccdca192 overflow=10 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-v2/score-adapters kg=cdf34f2d6c28 gen=84c868caf1cf overflow=7 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `dispatch.js` — framework key to adapter
@@ -12,19 +12,19 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `fico-adapter.js` | FICO score adapter: four section groups on a 1-4 scale with not-assessed and lesson-mismatch wording |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `dispatch.js` | Maps framework key to its score adapter, empty scorecard for unknown frameworks |
 | `hots-adapter.js` | HOTS score adapter: five area groups on a 1-3 scale, gathering indicator scores (bd-yy4l2) |
 | `mewaka-adapter.js` | MEWAKA score adapter: six domain groups, Swahili display names when the report is in Swahili |
-| … | 2 more → `CLAUDE.index.md` |
+| `oecd-adapter.js` | OECD score adapter: five goal groups from goalN_total marks and rubric max marks |
+| `teach-adapter.js` | TEACH score adapter: three areas plus time-on-task as four groups, elements scored 1-5 |
 
 ## Who reads this (generated)
 - `fico-adapter.js` ← imported by `bot/shared/services/coaching/report-v2/hero-report.service.js:73:9bf0be34` · `bot/shared/services/coaching/report-v2/narrative.service.js:162:9bf0be34` (+1)
 - `dispatch.js` ← imported by `bot/shared/services/coaching/report-v2/narrative.service.js:140:25bde1fe` · `bot/shared/services/coaching/report-v2/score-adapter.service.js:23:25bde1fe`
 - `hots-adapter.js` ← imported by `bot/shared/services/coaching/report-v2/score-adapters/dispatch.js:16:e71b22d3`
 - `mewaka-adapter.js` ← imported by `bot/shared/services/coaching/report-v2/score-adapters/dispatch.js:19:c27f8f87`
-- … 2 more → `CLAUDE.index.md`
+- `oecd-adapter.js` ← imported by `bot/shared/services/coaching/report-v2/score-adapters/dispatch.js:15:f32d85b5`
+- … 1 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Take the scale from the framework module, not a local copy (fico-adapter.js:11)
@@ -36,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - … 6 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/coaching/report-v2/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/customization.md`? (+3)
+- docs: `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `docs/customization.md`? · `docs/features/coaching.md`?

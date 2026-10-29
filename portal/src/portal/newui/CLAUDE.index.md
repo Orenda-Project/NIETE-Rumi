@@ -15,8 +15,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `Answers.tsx` | bd-5rz1v.25: new-UI answer buttons (AnswerChoices) and progress dots for one-question-per-screen quizzes |
 | `AudioPlayer.tsx` | bd-5rz1v.26.4: new-UI audio player (play, seek, time) replacing the browser's own audio controls |
 | `BottomButton.tsx` | bd-5rz1v.19: new-UI bottom action button, primary/outline/warn/danger tones with pressed-edge look |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `Chip.tsx` | bd-5rz1v.19: new-UI Chip, flat non-tappable info pill whose colour (done/waiting/error/...) is its meaning |
 | `DESIGN.md` | Design rules, tokens and kit contract for every screen behind the portal_new_ui flag; current reference doc |
 | `DateRange.tsx` | bd-5rz1v.19: date-range button and bottom sheet used on Home and its lists |
@@ -112,4 +110,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `useGuardedLogout.ts` ← `portal/src/portal/newui/coaching/LogoutWhileRecording.test.tsx`
 
 ## Related (all, generated)
-- docs: `dashboard/lib/CLAUDE.index.md`? · `dashboard/lib/CLAUDE.md`? · `portal/CLAUDE.index.md`? · `portal/CLAUDE.md`? · `portal/README.md`? · `portal/src/components/ui/CLAUDE.index.md`? · `portal/src/components/ui/CLAUDE.md`? · `portal/src/lib/CLAUDE.index.md`? · `portal/src/portal/CLAUDE.md`? · `portal/src/portal/auth/CLAUDE.index.md`? · `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.md`? · `portal/src/portal/newui/DESIGN.md`? · `portal/src/portal/newui/assessment/CLAUDE.index.md`? · `portal/src/portal/newui/assessment/CLAUDE.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/newui/coaching/CLAUDE.index.md`? · `portal/src/portal/newui/coaching/CLAUDE.md`? · `portal/src/portal/newui/home/CLAUDE.md`? · `portal/src/portal/newui/lessons/CLAUDE.index.md`? · `portal/src/portal/newui/lessons/CLAUDE.md`? · `portal/src/portal/newui/training/CLAUDE.index.md`? · `portal/src/portal/newui/training/CLAUDE.md`? · `portal/src/portal/teacher/coaching/CLAUDE.index.md`? · `portal/src/portal/teacher/coaching/CLAUDE.md`? · `portal/src/portal/teacher/home/look/CLAUDE.index.md`? · `portal/src/portal/teacher/home/look/CLAUDE.md`? · `portal/src/portal/teacher/ui/CLAUDE.index.md`? · `portal/src/portal/teacher/ui/CLAUDE.md`?
+- docs: `dashboard/lib/CLAUDE.md`? · `portal/CLAUDE.md`? · `portal/README.md`? · `portal/src/components/ui/CLAUDE.md`? · `portal/src/portal/CLAUDE.md`? · `portal/src/portal/newui/DESIGN.md`? · `portal/src/portal/newui/coaching/CLAUDE.md`? · `portal/src/portal/newui/lessons/CLAUDE.md`?

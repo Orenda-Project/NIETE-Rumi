@@ -11,8 +11,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `jugnu/` | Jugnu mascot animations (webp, webm) per mood: hello, correct, notyet, idle, sleep → `jugnu/CLAUDE.md` |
 | `snd/` | Sound sprite for the child pages' chimes and fanfare → `snd/CLAUDE.md` |
 | `voice/` | Recorded voice clips and manifests for Jugnu's shared lines and the child welcome → `voice/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `class-link.js` | Standing class link /j/<code> steps (whose turn, teacher letter, name pick) ending at the child's hub /h/<token> |
 | `hub-play.js` | Hub's Jugnu corner: Jugnu card, lantern 'next' line, Story Time shelf with NEW tags; loaded when hub JSON has play |
 | `hub.js` | Kid hub /h/<token>: picks this phone's child, lists teacher quiz, replays, recommended videos, library, challenge |
@@ -83,4 +81,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `wq.js` ← `dashboard/tests/web-quiz-items.service.test.js` · `dashboard/tests/web-quiz-look-latin-feedback.service.test.js` · `dashboard/tests/web-quiz-look-latin-polish.service.test.js` · `dashboard/tests/web-quiz-option-voices.service.test.js` · `dashboard/tests/web-quiz-page-match-pictures.service.test.js` · `dashboard/tests/web-quiz-page-pictures.service.test.js` (+4: `python3 kg/kg.py who-reads dashboard/public/wq/wq.js`)
 
 ## Related (all, generated)
-- docs: `dashboard/public/CLAUDE.md`? · `dashboard/public/wq/CLAUDE.index.md`? · `dashboard/public/wq/CLAUDE.md`? · `dashboard/public/wq/art/CLAUDE.md`? · `dashboard/public/wq/fonts/CLAUDE.md`? · `dashboard/public/wq/jugnu/CLAUDE.md`? · `dashboard/public/wq/snd/CLAUDE.md`? · `dashboard/public/wq/voice/CLAUDE.md`? · `dashboard/tests/CLAUDE.index.md`? · `dashboard/tests/CLAUDE.md`?
+- docs: `dashboard/public/CLAUDE.md`?

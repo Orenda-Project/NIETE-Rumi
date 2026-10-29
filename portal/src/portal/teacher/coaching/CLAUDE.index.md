@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `CoachingAll.test.tsx` | Pins All DC observations: date range, server-counted KPI tiles vs prior period, lessons by day as bands (bd-fmf24g.4) |
 | `CoachingAll.tsx` | All DC observations page (See all from Recent): DateRangeBar, KPI tiles from /teacher/coaching/history, lessons by day |
 | `CoachingHome.tsx` | Digital Coaching main page: Start DC observation card, Summary, Analysing, Recent DC Observations with See all |
@@ -59,7 +57,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `SendPage.tsx` ← imported by `portal/src/portal/teacher/coaching/routes.tsx:10:06580ebf`
 - `VideoRecoCard.tsx` ← imported by `portal/src/portal/teacher/coaching/ReportPage.tsx:26:f1294e79`
 - `api.ts` ← imported by `portal/src/portal/teacher/coaching/CoachingAll.tsx:11:1d1a68ee` · `portal/src/portal/teacher/coaching/CoachingHome.tsx:13:09857597` · `portal/src/portal/teacher/coaching/NewObservation.tsx:31:34c9a5b4` · `portal/src/portal/teacher/coaching/parts.tsx:11:a34ef007`
-- `copy.ts` ← imported by `portal/src/portal/coach/insights/player/FullRecordingLink.tsx:4:dd128a06` · `portal/src/portal/coach/insights/player/MomentPlayer.tsx:3:dd128a06` · `portal/src/portal/teacher/observations/ObservationsHome.tsx:13:2a40a059` · `portal/src/portal/teacher/observations/api.ts:4:127570ec` (+12: `python3 kg/kg.py who-reads copy.ts`)
+- `copy.ts` ← imported by `portal/src/portal/coach/insights/player/FullRecordingLink.tsx:4:dd128a06` · `portal/src/portal/coach/insights/player/MomentPlayer.tsx:4:dd128a06` · `portal/src/portal/teacher/observations/ObservationsHome.tsx:13:2a40a059` · `portal/src/portal/teacher/observations/api.ts:4:127570ec` (+12: `python3 kg/kg.py who-reads copy.ts`)
 - `draft.ts` ← imported by `portal/src/portal/teacher/coaching/CoachingHome.tsx:15:280453e1` · `portal/src/portal/teacher/coaching/NewObservation.tsx:30:dce23d54` · `portal/src/portal/teacher/coaching/SendPage.tsx:21:ea7b2d37` · `portal/src/portal/teacher/coaching/libraryPick.ts:3:f6eddd6f` (+1: `python3 kg/kg.py who-reads draft.ts`)
 - `libraryPick.ts` ← imported by `portal/src/portal/teacher/lessons/ChaptersPage.tsx:13:26410b36` · `portal/src/portal/teacher/lessons/LessonsPage.tsx:16:ee32a9b1` · `portal/src/portal/teacher/lessons/ViewerPage.tsx:18:526ee5ca` · `portal/src/portal/teacher/lessons/useOpenLesson.ts:9:b9946829` (+1: `python3 kg/kg.py who-reads libraryPick.ts`)
 - `micBlocked.ts` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:35:8e26a7fb` · `portal/src/portal/teacher/coaching/SendPage.tsx:23:8e26a7fb`
@@ -88,4 +86,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `routes.tsx` ← `portal/src/portal/teacher/coaching/CoachingAll.test.tsx` · `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` · `portal/src/portal/teacher/coaching/oneScreen.test.tsx` · `portal/src/portal/teacher/coaching/pendingRecording.test.tsx` · `portal/src/portal/teacher/coaching/saveRecording.test.tsx` · `portal/src/portal/teacher/coaching/submitFailure.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/newui/coaching/CLAUDE.index.md`? · `portal/src/portal/newui/coaching/CLAUDE.md`? · `portal/src/portal/newui/lessons/CLAUDE.index.md`? · `portal/src/portal/newui/lessons/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/analytics/CLAUDE.index.md`? · `portal/src/portal/teacher/coaching/CLAUDE.index.md`? · `portal/src/portal/teacher/coaching/CLAUDE.md`? · `portal/src/portal/teacher/lessons/CLAUDE.index.md`? · `portal/src/portal/teacher/share/CLAUDE.md`?
+- docs: `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/newui/coaching/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/share/CLAUDE.md`?

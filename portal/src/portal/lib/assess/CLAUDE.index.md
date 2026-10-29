@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `blocks.test.ts` | Pins blocks.ts: five ordered blocks, start block moves per Pakistan day, pickBlock skips used blocks, "full" option |
 | `blocks.ts` | Learning assessment: which battery block (B1..B5, full, RDF variants) a child takes; rotates by Pakistan day |
 | `cohortStats.test.ts` | Pins exampleCohort (seeded 1,000 synthetic students) and cohortStats/rwpNorms numbers shown on the dashboard |
@@ -61,4 +59,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `urFit.ts` ← `portal/src/portal/lib/assess/urFit.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/components/assess/CLAUDE.index.md`? · `portal/src/portal/components/assess/CLAUDE.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/lib/CLAUDE.md`? · `portal/src/portal/lib/assess/CLAUDE.index.md`? · `portal/src/portal/lib/assess/CLAUDE.md`? · `portal/src/portal/pages/CLAUDE.index.md`? · `portal/src/portal/types/CLAUDE.index.md`? · `portal/src/portal/types/CLAUDE.md`?
+- docs: `portal/src/portal/lib/CLAUDE.md`? · `portal/src/portal/types/CLAUDE.md`?

@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `filtering-chain.js` | Helper: Supabase query stub that APPLIES filters, for the lp_v8 offer suites (vs supabase-chain's canned replay) |
 | `g1-numbers-urdu-fixture.js` | Helper: synthetic Grade 1 numbers 0-4 lesson quizzed in Urdu, shaped like a sandbox quiz that failed validation |
 | `key-verify-agree.js` | Helper: a blind key-solver stub that agrees with every answer key, installed into the generate step's verifyKeys seam |
@@ -29,4 +27,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/services/nudges/CLAUDE.index.md`? · `bot/shared/services/quiz/CLAUDE.index.md`? · `tests/quiz/CLAUDE.index.md`? · `tests/quiz/CLAUDE.md`? · `tests/quiz/helpers/CLAUDE.index.md`? · `tests/quiz/helpers/CLAUDE.md`?
+- docs: `tests/quiz/CLAUDE.md`?

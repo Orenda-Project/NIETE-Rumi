@@ -1,7 +1,7 @@
 # patterns — Board-pattern definitions (FDE grades 1, 2, 5) as frozen data
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/patterns kg=100d789c8c42 gen=aa089dc640b6 overflow=113 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/patterns kg=100d789c8c42 gen=7d8c1ccdd3ac overflow=107 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — registry and derived views used by routes and generator
@@ -13,8 +13,6 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `early/` | Grade 1-2 FDE subject patterns plus their shared chrome → `early/CLAUDE.md` |
 | `index.js` | Board-pattern registry: which patterns exist, who may use them, and derived views for routes and generator |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `fde*` | 3 files; most used `fde-g5-2027.js`: FDE Grade V Feb 2027 centralised exam pattern as frozen data: sections, slots, marks, scheme rules |
 
 ## Who reads this (generated)
@@ -34,7 +32,13 @@ Full index: `CLAUDE.index.md`
 - `tests/assessment/fde-blueprint-check.test.js` (index.js)
 - `tests/assessment/fde-blueprint-wiring.test.js` (index.js)
 - `tests/assessment/fde-chain.test.js` (index.js)
-- … 113 more → `CLAUDE.index.md`
+- `tests/assessment/fde-create.test.js` (index.js)
+- `tests/assessment/fde-early-answers.test.js` (index.js)
+- `tests/assessment/fde-early-asked.test.js` (index.js)
+- `tests/assessment/fde-early-pictures-pattern.test.js` (index.js)
+- `tests/assessment/fde-early-prompt.test.js` (index.js)
+- `tests/assessment/fde-early-registry.test.js` (index.js)
+- … 107 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/assessment/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.md`? · `bot/shared/services/assessment/patterns/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/CLAUDE.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.md`? (+1)
+- docs: `bot/shared/services/assessment/CLAUDE.md`?

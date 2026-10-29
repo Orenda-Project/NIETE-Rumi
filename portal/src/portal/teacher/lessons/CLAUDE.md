@@ -1,7 +1,7 @@
 # lessons — Teacher Lesson Plans: new plan steps, chapters, lists, viewer, All lesson plans
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/lessons kg=5c0fb1624b94 gen=44dcaf3c9958 overflow=68 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/lessons kg=e4fd7fb0918b gen=2ee8c62043d3 overflow=65 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `routes.tsx` — pages under /portal/teacher/lessons; `paths.ts` — URLs carrying state in the query
@@ -14,7 +14,8 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `copy.ts` | English and Urdu words for the Lesson Plans screens (LESSONS bilingual), registered as COPY_ENTRY |
 | `paths.ts` | Path builders for Lesson Plans pages with state in the query so Back and reload land correctly; dcHref for DC prefill |
-| … | 31 more → `CLAUDE.index.md` |
+| `leaders.test.tsx` | Pins Lesson Plans for a leader: viewer hides DC, thing to try, WhatsApp send; teacher view unchanged (bd-4joiqz) |
+| … | 28 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachObservation.tsx:8:8fc97b6c` · `portal/src/portal/coach/pages/CoachReports.tsx:6:8fc97b6c` (+27)
@@ -32,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - … 21 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/CLAUDE.index.md`? · `portal/src/CLAUDE.md`? · `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/fln/CLAUDE.index.md`? · `portal/src/portal/fln/tests/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? (+14)
+- docs: `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/share/CLAUDE.md`?

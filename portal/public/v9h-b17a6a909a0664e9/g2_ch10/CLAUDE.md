@@ -1,7 +1,7 @@
 # g2_ch10 — Hosted v9 pages, Grade 2 chapter 10 (17 segs: English 7, Math 4, Urdu 6)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g2_ch10 kg=b047fc7a4b9b gen=7515a5a21830 overflow=7 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g2_ch10 kg=b047fc7a4b9b gen=184d798ce58f overflow=6 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g2_ch10_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g2_ch10_English_seg1.v9.html` | Hosted v9 lesson page G2 English ch10 seg1 (en): Memory Lane & Chat Time with Sir Riaz |
 | `g2_ch10_English_seg2.v9.html` | Hosted v9 lesson page G2 English ch10 seg2 (en): Reading: Snow Leopards & Silent Letters |
 | `g2_ch10_English_seg3.v9.html` | Hosted v9 lesson page G2 English ch10 seg3 (en): Diving Deeper: Story Jumping & Paragraph Party |
@@ -23,7 +21,8 @@ Full index: `CLAUDE.index.md`
 | `g2_ch10_Maths_seg1.v9.html` | Hosted v9 lesson page G2 Math ch10 seg1 (en): Standard Units of Capacity — Litre & Millilitre (measuring) |
 | `g2_ch10_Maths_seg2.v9.html` | Hosted v9 lesson page G2 Math ch10 seg2 (en): Comparing Capacity using <, >, = |
 | `g2_ch10_Maths_seg3.v9.html` | Hosted v9 lesson page G2 Math ch10 seg3 (en): Adding & Subtracting Capacity (lassi, CUBES + bar model) |
-| … | 7 more → `CLAUDE.index.md` |
+| `g2_ch10_Maths_seg4.v9.html` | Hosted v9 lesson page G2 Math ch10 seg4 (en): Capacity Word Problem Practice + Skill Sharpener |
+| … | 6 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -36,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g2_ch10/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g2_ch10/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

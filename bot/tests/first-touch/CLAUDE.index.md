@@ -6,9 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `__goldens__/` | Recorded byte-for-byte outputs of OFF-switch first-touch behaviour → `__goldens__/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
+| `__goldens__/` | → (no door; 10 files: 0 test + 10 support) |
 | `LOCKOUT.empty-line.md` | Table of every outcome of the empty /quiz line (lessons x quiz_maker_page), run by maker-empty golden and fallback tests |
 | `_ingress-mocks.js` | Shared boundary mocks (Redis as a Map, WhatsApp send, loggers) for the student-ingress door tests |
 | `_json-path-select.js` | Wraps the in-memory Supabase fake so aliased jsonb path selects return the alias like PostgREST and record the columns |
@@ -91,22 +89,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `walk-persona-seam.test.js` | Seam test of the sandbox walk-through row against the real landing router and bindings repo; OFF byte-identical |
 
 ## Who reads this (all, generated)
-- env `INTERNAL_API_KEY` read at `bot/tests/first-touch/maker.cards.test.js:189:399fff7e` · `bot/tests/first-touch/maker.make.test.js:37:496f9535` · `bot/tests/first-touch/maker.prefill.wire.test.js:44:0b46b528` · `bot/tests/first-touch/maker.qlang.test.js:85:0b46b528` · `bot/tests/first-touch/maker.ready.test.js:104:5f1fa7b5` · `bot/tests/first-touch/maker.routes.test.js:38:399fff7e` · `bot/tests/first-touch/maker.share.test.js:35:399fff7e` · `bot/tests/first-touch/maker.token.test.js:35:98acc73a` · `bot/tests/first-touch/maker.tour.test.js:46:dbb62599` · `bot/tests/first-touch/teacher-home.grade-fast-off.golden.test.js:102:1bddb959` · `bot/tests/first-touch/teacher-home.mount.test.js:50:d89c6a0d` · `bot/tests/first-touch/teacher-home.one-lesson.test.js:56:399fff7e` · `bot/tests/first-touch/teacher-home.portal-link.test.js:55:532c11ce` · `bot/tests/first-touch/teacher-home.portal.routes.test.js:75:a7cd6e7e` · `bot/tests/first-touch/teacher-home.quick.test.js:47:399fff7e` · `bot/tests/first-touch/teacher-home.return-line.test.js:38:0b46b528` · `bot/tests/first-touch/teacher-home.routes.test.js:68:399fff7e` · `bot/tests/first-touch/teacher-home.sent-story-paged.test.js:52:5d63722f` · `bot/tests/first-touch/teacher-home.server-timing.test.js:54:399fff7e` · `bot/tests/first-touch/teacher-home.speed.test.js:53:399fff7e` · `bot/tests/first-touch/teacher-home.wait.test.js:49:399fff7e`
-- env `OPENAI_API_KEY` read at `bot/tests/first-touch/maker-fallback.webhook.test.js:17:334ba0e9` · `bot/tests/first-touch/one-door-menu-row.test.js:9:334ba0e9` · `bot/tests/first-touch/one-door-webhook.test.js:18:334ba0e9`
-- env `OPENROUTER_API_KEY` read at `bot/tests/first-touch/maker-fallback.webhook.test.js:18:6d424b49` · `bot/tests/first-touch/one-door-menu-row.test.js:10:6d424b49` · `bot/tests/first-touch/one-door-webhook.test.js:19:6d424b49`
-- env `PAKISTAN_LP_FLOW_ID` read at `bot/tests/first-touch/reg-after-plan-turn.test.js:162:ab1773b3`
-- env `PG_BIN` read at `bot/tests/first-touch/one-door-ledger-migration.test.js:17:0f807607`
-- env `QUIZ_MENU_HANDSET_ROUTING` read at `bot/tests/first-touch/one-door-menu-row.test.js:60:1bc3e2e4`
-- env `REFERRAL_BOT_NUMBER` read at `bot/tests/first-touch/one-door-go-routes.test.js:310:c715650c` · `bot/tests/first-touch/one-door-way-back.test.js:114:c715650c`
-- env `REGISTRATION_AFTER_PLAN` read at `bot/tests/first-touch/reg-after-plan-turn.test.js:162:ab1773b3`
-- env `SUPABASE_SERVICE_ROLE_KEY` read at `bot/tests/first-touch/maker-fallback.webhook.test.js:16:cd796d8a` · `bot/tests/first-touch/one-door-webhook.test.js:17:cd796d8a`
-- env `SUPABASE_URL` read at `bot/tests/first-touch/maker-fallback.webhook.test.js:15:d1ac37ba` · `bot/tests/first-touch/one-door-webhook.test.js:16:d1ac37ba`
-- env `TEACHER_HOME_RECORD` read at `bot/tests/first-touch/mounts-golden.test.js:57:4cdafe7b` · `bot/tests/first-touch/teacher-home.grade-fast-off.golden.test.js:40:3d3fdadc` · `bot/tests/first-touch/teacher-home.page-run.test.js:380:f046f5cb` · `bot/tests/first-touch/teacher-home.quick.test.js:217:03993fc0` · `bot/tests/first-touch/teacher-home.server-timing.test.js:194:f7e1118f` · `bot/tests/first-touch/teacher-home.speed.test.js:120:7561e3f1` · `bot/tests/first-touch/teacher-home.wait.test.js:168:64aa5e60`
-- env `WEB_QUIZ_KID_KEY` read at `bot/tests/first-touch/one-door-go-routes.test.js:630:c78f37b5` · `bot/tests/first-touch/teacher-home.routes.test.js:382:f5dd9452`
-- env `WHATSAPP_BOT_NUMBER` read at `bot/tests/first-touch/one-door-go-routes.test.js:310:c715650c` · `bot/tests/first-touch/one-door-way-back.test.js:114:c715650c` · `bot/tests/first-touch/teacher-home.routes.test.js:744:ec41a4f4`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/scripts/quiz/CLAUDE.index.md`? · `bot/scripts/quiz/CLAUDE.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/database/CLAUDE.index.md`? · `bot/shared/database/CLAUDE.md`? · `bot/shared/handlers/CLAUDE.index.md`? · `bot/shared/handlers/CLAUDE.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/cache/CLAUDE.index.md`? · `bot/shared/services/cache/CLAUDE.md`? · `bot/shared/services/first-touch/CLAUDE.index.md`? · `bot/shared/services/first-touch/CLAUDE.md`? · `bot/shared/services/quiz/CLAUDE.index.md`? · `bot/shared/utils/CLAUDE.index.md`? · `bot/tests/CLAUDE.index.md`? · `bot/tests/CLAUDE.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/first-touch/CLAUDE.md`? · `bot/tests/first-touch/LOCKOUT.empty-line.md`? · `bot/tests/first-touch/__goldens__/CLAUDE.md`? · `dashboard/routes/CLAUDE.index.md`? · `dashboard/routes/CLAUDE.md`?
+- docs: `bot/CLAUDE.md`? · `bot/scripts/quiz/CLAUDE.md`? · `bot/shared/database/CLAUDE.md`? · `bot/shared/handlers/CLAUDE.md`? · `bot/shared/services/cache/CLAUDE.md`? · `bot/shared/services/first-touch/CLAUDE.md`? · `bot/tests/CLAUDE.md`? · `bot/tests/first-touch/LOCKOUT.empty-line.md`?

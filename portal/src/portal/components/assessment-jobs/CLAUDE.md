@@ -1,6 +1,6 @@
 # assessment-jobs — Page-level tracking of exam papers being generated
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/assessment-jobs kg=3917fcffa8db gen=14de8aa3a958 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/assessment-jobs kg=3917fcffa8db gen=6246b490d156 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `usePaperJobs.ts` — polls each requested paper job; kept per user in sessionStorage
@@ -14,7 +14,6 @@
 | `failureMessages.ts` | Maps paper-generation failure codes to plain page copy naming what the teacher can change, with a fallback |
 | `usePaperJobs.test.ts` | bd-t5tow: usePaperJobs polls 4 s then 30 s slow, never gives up, survives refresh via sessionStorage |
 | `BeingMade.tsx` | bd-t5tow: top of My papers listing papers still being made or just failed, with failure reason |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - `failureMessages.ts` ← imported by `portal/src/portal/components/AssessmentGeneratorPanel.tsx:67:5e5bf6e9` · `portal/src/portal/pages/ClassicAssessment.tsx:27:22cdac60` (+3)
@@ -30,4 +29,4 @@
 - `portal/src/portal/pages/ClassicAssessment.tabs.test.tsx` (usePaperJobs.ts)
 
 ## Related (generated)
-- docs: `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/components/CLAUDE.md`? · `portal/src/portal/components/assessment-jobs/CLAUDE.md`? · `portal/src/portal/pages/CLAUDE.index.md`?
+- (none)

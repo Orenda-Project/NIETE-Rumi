@@ -1,7 +1,7 @@
 # roster — /roster pipeline: decrypt photo, vision-extract rows, edit lines, store photos
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/roster kg=fcfbbb70ca36 gen=0184604c4d0f overflow=5 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/roster kg=aeb395291592 gen=22a05839ca62 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `roster-extraction.service.js` — register photo to structured rows
@@ -12,8 +12,6 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `roster*` | 4 files; most used `roster-media.js`: Decrypts WhatsApp PhotoPicker media (CDN url plus encryption metadata) for the roster Flow |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - `roster-media.js` ← imported by `bot/shared/routes/observe2-form-endpoint.js:359:6c4c2981` · `bot/shared/routes/roster-flow-endpoint.js:40:6c4c2981` (+1)
@@ -35,7 +33,11 @@ Full index: `CLAUDE.index.md`
 - `tests/roster/roster-extraction-identity.test.js` (roster-extraction.service.js)
 - `tests/roster/roster-extraction-rows.test.js` (roster-extraction.service.js)
 - `tests/roster/roster-failure-copy.test.js` (roster-extraction.service.js)
-- … 5 more → `CLAUDE.index.md`
+- `tests/roster/roster-identity-not-position.test.js` (roster-lines.js)
+- `tests/roster/roster-lines.test.js` (roster-lines.js)
+- `tests/roster/roster-media.test.js` (roster-media.js)
+- `tests/roster/roster-shift-endpoint.test.js` (roster-storage.js)
+- `tests/roster/roster-storage.test.js` (roster-storage.js)
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/roster/CLAUDE.index.md`? · `bot/shared/services/roster/CLAUDE.md`? · `tests/database/CLAUDE.index.md`? · `tests/database/CLAUDE.md`? (+3)
+- docs: `bot/shared/services/CLAUDE.md`?

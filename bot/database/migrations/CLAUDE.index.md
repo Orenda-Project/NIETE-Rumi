@@ -31,8 +31,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `017_lp_feedback.sql` | Creates lp_feedback for the post-delivery 'was this useful' survey, ported from the main bot |
 | `018_niete_lp_assets_and_downloads.sql` | Creates niete_lp_assets (versioned K-5 v8 lesson-plan assets) and a download-tracking table |
 | `20260119_add_image_analysis_requests.sql` | Creates image_analysis_requests for the multimodal image-analysis feature plus updated_at trigger |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `add-audio-id-column.sql` | Adds coaching_sessions.audio_id (WhatsApp media id needed to download the audio) plus index |
 | `add-report-gamma-url.sql` | Adds coaching_sessions.report_gamma_url for interactive Gamma report links, v3.3.1 |
 | `add-schools-emis-and-role-not-null.sql` | Adds EMIS/source identity and is_active to schools; users.role NOT NULL step after the school backfill script |
@@ -519,4 +517,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/database/CLAUDE.index.md`? · `bot/database/CLAUDE.md`? · `bot/database/migrations/CLAUDE.index.md`? · `bot/database/migrations/CLAUDE.md`? · `docs/features/CLAUDE.index.md`? · `docs/features/CLAUDE.md`? · `docs/features/video-quiz.md`? · `docs/migration/01-lesson-plans.md`? · `docs/migration/CLAUDE.index.md`? · `docs/migration/CLAUDE.md`? · `tests/BASELINE.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`?
+- docs: `bot/database/CLAUDE.md`? · `docs/features/video-quiz.md`? · `docs/migration/01-lesson-plans.md`? · `tests/BASELINE.md`?

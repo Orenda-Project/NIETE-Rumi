@@ -1,6 +1,6 @@
 # video-reco — Builds the training-video catalogue for the recommender
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/video-reco kg=618ea19af953 gen=e74deec08bc6 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/video-reco kg=618ea19af953 gen=22e3d7d1b769 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `build-catalog.js` — writes video-catalog.v1.json and thumbnails
@@ -9,7 +9,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `build-catalog.js` | Builds video-catalog.v1.json and thumbnails from the VIDREC catalog contract for the training-video recommender (bd-gzf… |
 
 ## Who reads this (generated)
@@ -24,4 +23,4 @@ _None found in code comments, tests or git log for this directory._
 - `tests/coaching/video-reco/retrieval-v13.test.js` (build-catalog.js)
 
 ## Related (generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/video-reco/CLAUDE.md`? · `tests/coaching/video-reco/CLAUDE.index.md`? · `tests/coaching/video-reco/CLAUDE.md`?
+- docs: `bot/scripts/CLAUDE.md`?

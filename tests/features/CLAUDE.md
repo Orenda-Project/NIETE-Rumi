@@ -1,6 +1,6 @@
 # features — Gherkin specs for the NIETE bot (WhatsApp) and portal (web) E2E lanes
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/features kg=ea9be83aba76 gen=8cc342480528 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/features kg=2fd4c295082f gen=992161d7b0f9 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `whatsapp/niete/_suite.md` — feature to agent map, targets, run history
@@ -11,9 +11,8 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `web/` | Web-lane Gherkin for the teacher, coach and leader portal and the child quiz page → `web/CLAUDE.md` |
+| `web/` | → (no door; 16 files: 0 test + 16 support) |
 | `whatsapp/` | Gherkin specs for WhatsApp bots; only the NIETE (ICT) tenant lives here → `whatsapp/CLAUDE.md` |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - (none)
@@ -26,4 +25,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`? · `tests/features/web/CLAUDE.index.md`? · `tests/features/web/CLAUDE.md`? · `tests/features/whatsapp/CLAUDE.md`? · `tests/features/whatsapp/niete/CLAUDE.index.md`? (+1)
+- docs: `tests/CLAUDE.md`?

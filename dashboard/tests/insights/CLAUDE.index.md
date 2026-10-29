@@ -6,9 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `fixtures/` | → (no door; 5 test files) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
+| `fixtures/` | → (no door; 5 files: 0 test + 5 support) |
 | `circle.service.test.js` | Tests pickCircle in insights/circle: coachip_circle_items rows and one top-ranked missing moment per coach |
 | `clip-stage.service.test.js` | Tests insights/clip-stage: source URL forms, a 300 s presigned cut, upload under the CHECKed key |
 | `clips.service.test.js` | Tests clipKey (insights/clips): output matches the coachip_moments CHECK and anything the CHECK would refuse is refused |
@@ -38,12 +36,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `windows.service.test.js` | Tests windowFor (insights/windows): Monday-rolled 4 or 8 week windows; bad date or week count throws |
 
 ## Who reads this (all, generated)
-- env `COACHIP_LOCK_DIRECT_URL` read at `dashboard/tests/insights/run-lock-pooler.service.test.js:13:7e927df0`
-- env `COACHIP_LOCK_ONE_URL` read at `dashboard/tests/insights/run-lock-pooler.service.test.js:12:a94380c3`
-- env `COACHIP_LOCK_POOLED_URL` read at `dashboard/tests/insights/run-lock-pooler.service.test.js:11:d97fcdf7`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `dashboard/data/coachip/CLAUDE.md`? · `dashboard/lib/insights/CLAUDE.index.md`? · `dashboard/lib/insights/CLAUDE.md`? · `dashboard/services/CLAUDE.index.md`? · `dashboard/tests/CLAUDE.index.md`? · `dashboard/tests/CLAUDE.md`? · `dashboard/tests/insights/CLAUDE.index.md`? · `dashboard/tests/insights/CLAUDE.md`?
+- docs: `dashboard/data/coachip/CLAUDE.md`? · `dashboard/lib/insights/CLAUDE.md`? · `dashboard/tests/CLAUDE.md`?

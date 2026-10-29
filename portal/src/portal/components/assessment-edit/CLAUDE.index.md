@@ -12,8 +12,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `AssessmentEditor.tsx` | Editor for one exam-paper version: edit, remove, restore, add questions, keep a local draft, save as a new version |
 | `AssessmentVersionsDialog.test.tsx` | Pins AssessmentVersionsDialog listing versions with status, including a failed one with no version number |
 | `AssessmentVersionsDialog.tsx` | Dialog listing every version of a paper (date, status, latest) with an Edit action per version |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `QuestionFields.test.tsx` | Pins QuestionFields: option text and correct-option editing, shape-specific inputs emit onDone edit |
 | `QuestionFields.tsx` | Form fields for editing one existing paper question by shape (options, standard, lines) with RTL support |
 | `draft.test.ts` | Pins draft.ts: empty/dirty, remove/restore, set edit, add question, toChanges and localStorage save/load/clear |
@@ -34,4 +32,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `draft.ts` ← `portal/src/portal/components/assessment-edit/draft.test.ts`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/components/CLAUDE.md`? · `portal/src/portal/components/assessment-edit/CLAUDE.index.md`? · `portal/src/portal/components/assessment-edit/CLAUDE.md`?
+- docs: `portal/src/portal/components/CLAUDE.md`?

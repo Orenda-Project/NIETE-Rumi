@@ -1,7 +1,7 @@
 # sa — Generated Jugnu batteries per surface, grade and language
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data/child-test/sa kg=0c7146f20358 gen=709c99f9c957 overflow=8 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data/child-test/sa kg=0c7146f20358 gen=0839cc2487c7 overflow=6 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `sa.coach.G1.A.en.json` — runtime coach battery example
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
-| `CLAUDE.index.md` | (unmapped) |
 | `sa.coach.G1.A.ur.json` | Runtime Jugnu coach battery, grade 1 set A, Urdu; served by sa-api.service.js |
 | `sa.coach.G3.A.en.json` | Runtime Jugnu coach battery, grade 3 set A, English; served by sa-api.service.js |
 | `coach*` | 5 files; most used `coach.G5.A.json`: Generated Jugnu coach-surface bank, grade 5 set A (all tasks); output of scripts/child-test/build-sa-bank.js |
@@ -23,7 +21,9 @@ Full index: `CLAUDE.index.md`
 | `sa.coach.G3.A.ur.json` | Runtime Jugnu coach battery, grade 3 set A, Urdu; served by sa-api.service.js |
 | `sa.coach.G4.A.en.json` | Runtime Jugnu coach battery, grade 4 set A, English; served by sa-api.service.js |
 | `sa.coach.G4.A.ur.json` | Runtime Jugnu coach battery, grade 4 set A, Urdu; served by sa-api.service.js |
-| … | 8 more → `CLAUDE.index.md` |
+| `sa.coach.G5.A.en.json` | Runtime Jugnu coach battery, grade 5 set A, English; served by sa-api.service.js |
+| `sa.coach.G5.A.ur.json` | Runtime Jugnu coach battery, grade 5 set A, Urdu; served by sa-api.service.js |
+| … | 12 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -37,4 +37,4 @@ Full index: `CLAUDE.index.md`
 - `dashboard/tests/sa-tester-fixes.service.test.js` (sa.coach.G3.A.en.json)
 
 ## Related (generated)
-- docs: `bot/shared/data/child-test/CLAUDE.index.md`? · `bot/shared/data/child-test/CLAUDE.md`? · `bot/shared/data/child-test/sa/CLAUDE.index.md`? · `bot/shared/data/child-test/sa/CLAUDE.md`? · `dashboard/tests/CLAUDE.index.md`? · `dashboard/tests/CLAUDE.md`?
+- docs: `bot/shared/data/child-test/CLAUDE.md`?

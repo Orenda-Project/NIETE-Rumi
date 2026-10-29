@@ -9,8 +9,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `icons/` | → (no door; 1 files) |
 | `ui/` | shadcn/ui primitives (Radix wrappers); generated style, mostly unused by the portal → `ui/CLAUDE.md` |
 | `AlwaysThere.tsx` | Marketing landing section 'always there': title plus list of moments Rumi helps, from i18n alwaysThere |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `FeatureCard.tsx` | Marketing feature card: title, description and an animated sample WhatsApp chat via WhatsAppChat |
 | `FinalCTA.tsx` | Marketing landing closing call-to-action section with the chat-on-WhatsApp button |
 | `GlobalTeachers.tsx` | Marketing landing 'global teachers' section: title, two paragraphs and conclusion from i18n |
@@ -42,4 +40,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `Navigation.tsx` ← `portal/src/lib/whatsapp.botNumber.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/CLAUDE.index.md`? · `portal/src/CLAUDE.md`? · `portal/src/components/CLAUDE.index.md`? · `portal/src/components/CLAUDE.md`? · `portal/src/components/ui/CLAUDE.index.md`? · `portal/src/components/ui/CLAUDE.md`? · `portal/src/lib/CLAUDE.index.md`? · `portal/src/lib/CLAUDE.md`? · `portal/src/portal/teacher/ui/CLAUDE.index.md`? · `portal/src/portal/teacher/ui/CLAUDE.md`?
+- docs: `portal/src/CLAUDE.md`?

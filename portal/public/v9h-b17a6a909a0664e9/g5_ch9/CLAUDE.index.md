@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g5_ch9_English_seg1.v9.html` | Hosted v9 lesson page G5 English ch9 seg1 (en): New Words + Match Me Up + Fill the Missing Words (Memory Lane) |
 | `g5_ch9_English_seg2.v9.html` | Hosted v9 lesson page G5 English ch9 seg2 (en): Reading: 'Democracy: What, Why and How' (Journey Through the Text) |
 | `g5_ch9_English_seg3.v9.html` | Hosted v9 lesson page G5 English ch9 seg3 (en): Diving Deeper: Democracy Fact Finder + Sentence Types + Report Inspector |
@@ -37,4 +35,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch9/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch9/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

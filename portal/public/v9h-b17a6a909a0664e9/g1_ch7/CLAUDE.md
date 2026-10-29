@@ -1,7 +1,7 @@
 # g1_ch7 — Hosted v9 pages, Grade 1 chapter 7 (18 segs: English 7, Maths 4, Urdu 7)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g1_ch7 kg=2b1e3583b86a gen=5602384cc807 overflow=8 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g1_ch7 kg=2b1e3583b86a gen=32ff9eb2d413 overflow=7 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g1_ch7_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g1_ch7_English_seg1.v9.html` | Hosted v9 lesson page G1 English ch7 seg1 (en): Talent Key Words, Picture Match & Circle the Title (Predict) |
 | `g1_ch7_English_seg2.v9.html` | Hosted v9 lesson page G1 English ch7 seg2 (en): Reading 'Pinky and Jojo's Talent Twist' |
 | `g1_ch7_English_seg3.v9.html` | Hosted v9 lesson page G1 English ch7 seg3 (en): Comprehension Check & Recipe Reader (Follow Instructions) |
@@ -23,7 +21,8 @@ Full index: `CLAUDE.index.md`
 | `g1_ch7_Maths_seg1.v9.html` | Hosted v9 lesson page G1 Maths ch7 seg1 (en): Equal Parts & One Half (garden, donut) |
 | `g1_ch7_Maths_seg2.v9.html` | Hosted v9 lesson page G1 Maths ch7 seg2 (en): Quarters: 1/4, 2/4 and 3/4 |
 | `g1_ch7_Maths_seg3.v9.html` | Hosted v9 lesson page G1 Maths ch7 seg3 (en): Colour the Fraction (shapes) |
-| … | 8 more → `CLAUDE.index.md` |
+| `g1_ch7_Maths_seg4.v9.html` | Hosted v9 lesson page G1 Maths ch7 seg4 (en): Connect and Create: Fraction Art |
+| … | 7 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -36,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch7/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch7/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

@@ -8,8 +8,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 |---|---|
 | `patterns/` | Board-pattern definitions (FDE grades 1, 2, 5) as frozen data → `patterns/CLAUDE.md` |
 | `topics/` | Curriculum-matrix rows to the tickable topics of a chapter; pure grouping → `topics/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `assessment-browse.service.js` | Surface-neutral lists of what a teacher may offer/download for assessments; feeds Flow and portal browse |
 | `assessment-changes.js` | Applies a portal-sent list of paper changes (edits, removals, restores, additions) using WhatsApp's edit rules |
 | `assessment-delivery.js` | Sends a finished paper PDF with its Edit Flow button, and the answer key, over WhatsApp; used by the orchestrator |
@@ -144,4 +142,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `topic-key.renderer.js` ← `tests/assessment/topics/topic-key.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/assessment/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.md`? · `bot/shared/services/assessment/patterns/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/CLAUDE.md`? · `bot/shared/services/assessment/topics/CLAUDE.index.md`? · `bot/shared/services/assessment/topics/CLAUDE.md`? · `tests/assessment/CLAUDE.index.md`? · `tests/assessment/topics/CLAUDE.index.md`? · `tests/assessment/topics/CLAUDE.md`? · `tests/portal/CLAUDE.index.md`? · `tests/portal/CLAUDE.md`? · `todo.md`?
+- docs: `bot/shared/services/CLAUDE.md`? · `todo.md`?

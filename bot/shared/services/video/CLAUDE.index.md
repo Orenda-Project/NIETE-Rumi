@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `video-animation.service.js` | Animates start/end video frames via Kling 2.1 Pro on Kie.ai with checkpoint/resume |
 | `video-assembly.service.js` | Assembles the final student video with FFmpeg, makes the PDF and delivers it to the user |
 | `video-image.service.js` | Generates video slide images via Nano Banana Pro on Kie.ai with slide-level checkpoint/resume |
@@ -61,4 +59,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `video-generation`?
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/video/CLAUDE.index.md`? · `bot/shared/services/video/CLAUDE.md`? · `bot/tests/CLAUDE.index.md`? · `bot/tests/CLAUDE.md`? · `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/tests/video/CLAUDE.md`? · `tests/conversation-state/CLAUDE.index.md`? · `tests/conversation-state/CLAUDE.md`? · `tests/student-videos/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.md`?

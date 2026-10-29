@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `CoachAppGuard.dual.test.tsx` | Pins where a user with both coachip and coachipRm lands, by coachesHere (fix-r5 s5) |
 | `CoachAppGuard.loop.test.tsx` | Pins that a v2 coach is never bounced between guard and CoachGate when the flag flips |
 | `CoachAppGuard.rm.test.tsx` | Pins that an RM on coach v2 lands on /portal/rm; dual role keeps This week (fix-r5 s2 item 9) |
@@ -38,4 +36,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `copy.ts` ← `portal/src/portal/coach/training/library.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/coach/CLAUDE.index.md`? · `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/card/CLAUDE.index.md`? · `portal/src/portal/coach/card/CLAUDE.md`? · `portal/src/portal/coach/insights/CLAUDE.index.md`? · `portal/src/portal/coach/insights/tests/CLAUDE.index.md`? · `portal/src/portal/coach/people/CLAUDE.index.md`? · `portal/src/portal/coach/people/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.index.md`? · `portal/src/portal/coach/training/CLAUDE.md`? · `portal/src/portal/fln/CLAUDE.index.md`? · `portal/src/portal/fln/CLAUDE.md`? · `portal/src/portal/fln/tests/CLAUDE.index.md`? · `portal/src/portal/fln/tests/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.index.md`? · `portal/src/portal/hooks/CLAUDE.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/rm/CLAUDE.index.md`? · `portal/src/portal/rm/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`?
+- docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/rm/CLAUDE.md`?

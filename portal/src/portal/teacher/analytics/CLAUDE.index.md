@@ -9,8 +9,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `AnalyticsPage.test.tsx` | Tests AnalyticsPage: /progress and /my-analytics tiles, default range, Back to More (bd-fmf24g.8) |
 | `AnalyticsPage.tsx` | Teacher Analytics page (More > Analytics): date range, Activity and Observation tiles, band chart, areas, remarks |
 | `BandChart.tsx` | Rating-over-time chart on five band rows, a thin wrapper over the kit's TrendChart in band-rows mode |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `SchoolView.test.tsx` | Tests the principal's Analytics: My school | Me tabs, server-owned school (no school param sent), teacher row opens one |
 | `SchoolView.tsx` | Principal's My school view and one-teacher page, from GET /leader/school-analytics and /leader/teachers (bd-fmf24g.27) |
 | `analytics.ur.test.tsx` | Renders Analytics in Urdu and asserts headings, tiles, band rows and chips use the bot's Urdu band names (bd-fmf24g.13) |
@@ -44,4 +42,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `sections.tsx` ← `portal/src/portal/coach/disagreements/sections.test.ts`?
 
 ## Related (all, generated)
-- docs: `portal/src/lib/CLAUDE.index.md`? · `portal/src/portal/coach/analytics/CLAUDE.md`? · `portal/src/portal/coach/disagreements/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/newui/home/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/analytics/CLAUDE.index.md`? · `portal/src/portal/teacher/analytics/CLAUDE.md`? · `portal/src/portal/teacher/coaching/CLAUDE.index.md`? · `portal/src/portal/teacher/lessons/CLAUDE.index.md`? · `portal/src/portal/types/CLAUDE.index.md`? · `portal/src/portal/types/CLAUDE.md`?
+- docs: `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/newui/home/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/types/CLAUDE.md`?

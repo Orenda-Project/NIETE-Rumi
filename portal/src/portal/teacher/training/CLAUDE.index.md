@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `CertificatesPage.tsx` | Training certificates: provider filter, a row each with logo, name, date, and a view/download tray (bd-fmf24g.12) |
 | `CoursePage.tsx` | A course: Part tiles with done, length, best score and Next, module exam and required reading; Continue opens next part |
 | `GradesPage.tsx` | My grades: teaching bands as tick rows with the 48-hour lock chip and Save, via useTrainingGrades |
@@ -57,4 +55,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `routes.tsx` ← `portal/src/portal/teacher/training/checks.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/newui/training/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/training/CLAUDE.index.md`? · `portal/src/portal/teacher/training/CLAUDE.md`?
+- docs: `portal/src/portal/teacher/CLAUDE.md`?

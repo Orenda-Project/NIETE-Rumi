@@ -1,7 +1,7 @@
 # assessment-edit — Editing a made exam paper: question forms, local draft, version list
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/assessment-edit kg=1fb4c71ed29e gen=15dabd41311f overflow=13 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/assessment-edit kg=1fb4c71ed29e gen=cdeea0d2d7cb overflow=9 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `AssessmentEditor.tsx` — edit, remove, restore, add questions and save as a new version
@@ -14,7 +14,9 @@ Full index: `CLAUDE.index.md`
 | `draft.ts` | Pure model of unsaved paper changes as a list of changes (never a rebuilt paper), persisted in localStorage (bd-hb8qs) |
 | `AddQuestionFields.test.tsx` | Pins AddQuestionFields: per-kind inputs (short question, pairs), RTL, error display and onDone payload |
 | `AddQuestionFields.tsx` | Form fields for adding a new question of a chosen kind (AddKind) to an assessment paper being edited |
-| … | 9 more → `CLAUDE.index.md` |
+| `AssessmentEditor.test.tsx` | Pins AssessmentEditor: loads questions, edit/remove/restore/add, draft save and publishing a new version (mocked api) |
+| `AssessmentEditor.tsx` | Editor for one exam-paper version: edit, remove, restore, add questions, keep a local draft, save as a new version |
+| … | 5 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `draft.ts` ← imported by `portal/src/portal/teacher/assessment/EditPages.tsx:10:8ba0e596` · `portal/src/portal/components/assessment-edit/AssessmentEditor.tsx:16:082ec0da`
@@ -33,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - … 3 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/components/CLAUDE.md`? · `portal/src/portal/components/assessment-edit/CLAUDE.index.md`? · `portal/src/portal/components/assessment-edit/CLAUDE.md`?
+- docs: `portal/src/portal/components/CLAUDE.md`?

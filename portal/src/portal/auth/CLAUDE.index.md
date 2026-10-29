@@ -9,8 +9,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `AnalyticsLogin.tsx` | Name-and-password sign-in page for analytics-only accounts, routed at /portal/analytics/login (bd-xxi78f.5) |
 | `AuthField.tsx` | One labelled input of the sign-in pages with icon, show/hide password button and an error row (bd-fmf24g.64) |
 | `AuthFrame.tsx` | Shared frame for the four signed-out pages: indigo band, white card, legal footer (bd-fmf24g.64) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `CodeSlots.tsx` | Six-slot WhatsApp code entry drawn over one real input so paste and autofill work (bd-fmf24g.64) |
 | `RegisterOnWhatsApp.tsx` | Builds the wa.me chat link and the Register on WhatsApp button shown to unregistered numbers (bd-x7aprz.3) |
 | `admin-login.test.tsx` | Pins the NIETE Admin title, Admin badge and Back arrow on AnalyticsLogin, English and Urdu (bd-xxi78f.5) |
@@ -41,4 +39,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `errors.ts` ← `portal/src/portal/auth/errors.test.ts`
 
 ## Related (all, generated)
-- docs: `portal/src/CLAUDE.index.md`? · `portal/src/CLAUDE.md`? · `portal/src/lib/CLAUDE.index.md`? · `portal/src/portal/CLAUDE.md`? · `portal/src/portal/auth/CLAUDE.index.md`? · `portal/src/portal/auth/CLAUDE.md`? · `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/pages/CLAUDE.index.md`? · `portal/src/portal/services/CLAUDE.index.md`? · `portal/src/portal/services/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`?
+- docs: `portal/src/CLAUDE.md`? · `portal/src/portal/CLAUDE.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

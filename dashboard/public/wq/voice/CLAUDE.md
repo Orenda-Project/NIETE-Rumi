@@ -1,6 +1,6 @@
 # voice — Recorded voice clips and manifests for Jugnu's shared lines and the child welcome
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq/voice kg=6f66f7d5ac8a gen=041212e084ee overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq/voice kg=6f66f7d5ac8a gen=19a4f16e8594 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `manifest.json` — shared right/not-yet line texts per language plus the voices table
@@ -14,7 +14,6 @@
 | `one/` | → (no door; 504 files) |
 | `ur/` | → (no door; 55 files) |
 | `welcome/` | → (no door; 15 files) |
-| `CLAUDE.md` | (unmapped) |
 | `manifest.json` | Jugnu's shared right/not-yet line texts per language plus the voices list, for the recorded one-voice clip sets |
 
 ## Who reads this (generated)
@@ -28,4 +27,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `dashboard/public/wq/CLAUDE.index.md`? · `dashboard/public/wq/CLAUDE.md`? · `dashboard/public/wq/voice/CLAUDE.md`?
+- docs: `dashboard/public/wq/CLAUDE.md`?

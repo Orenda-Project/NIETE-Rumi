@@ -7,10 +7,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `fixtures/` | → (no door; 1 files) |
+| `__snapshots__/` | → (not mapped: excluded; 2 files) |
 | `AssessmentAll.tsx` | All papers page (See all from Recent papers): server total, class filter, ready papers by day with Show more paging |
 | `AssessmentHub.tsx` | Assessment main page: New paper entry (plus FDE board-pattern door), Being made jobs, collapsible Recent papers |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `EditPages.tsx` | Edit a finished paper and edit/add one question; Save makes a new version via /assessment/edit routes (bd-fmf24g.6) |
 | `FdeCheck.tsx` | FDE board-pattern 'Check and make' screen: Paper style, Class, Syllabus rows with trays, then Make my paper |
 | `NewPaperSteps.tsx` | New paper step routes: Class, Cover (chapters or pages), Questions, Check and make, all using the shared picks store |
@@ -114,4 +113,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `ui.tsx` ← `portal/src/portal/components/loadingStates.test.tsx` · `portal/src/portal/teacher/assessment/checks.test.tsx` · `portal/src/portal/teacher/assessment/fde.r8.banner.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/lib/CLAUDE.index.md`? · `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/assessment/CLAUDE.index.md`? · `portal/src/portal/teacher/assessment/CLAUDE.md`? · `portal/src/portal/teacher/notices/CLAUDE.index.md`? · `portal/src/portal/teacher/notices/CLAUDE.md`? · `portal/src/portal/teacher/ui/CLAUDE.index.md`?
+- docs: `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/notices/CLAUDE.md`?

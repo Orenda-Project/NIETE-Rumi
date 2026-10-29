@@ -552,8 +552,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `9f4d879810b9.mp3` | (unmapped) |
 | `9faa6bb02bfc.mp3` | (unmapped) |
 | `9fd8fb1634a3.mp3` | (unmapped) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `a0237bf64d44.mp3` | (unmapped) |
 | `a09049fba36e.mp3` | (unmapped) |
 | `a163e3434239.mp3` | (unmapped) |
@@ -874,4 +872,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `dashboard/sa/v4/CLAUDE.md`? · `dashboard/sa/v4/en/CLAUDE.index.md`? · `dashboard/sa/v4/en/CLAUDE.md`?
+- docs: `dashboard/sa/v4/CLAUDE.md`?

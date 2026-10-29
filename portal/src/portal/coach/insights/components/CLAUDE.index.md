@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `Frame.tsx` | Frame of every coach insight page: gate, layout, COACHIP shell, band, trust line, cards |
 | `ListenRow.tsx` | One Listen row: school, short name, date and a time button opening the inline player (G2) |
 | `MethodSheet.tsx` | S2 How this was counted disclosure: grader, window, denominator, exclusions, coverage, query id |
@@ -28,10 +26,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `parts.tsx` | S1's own copy of NO_PART and dropPart to keep the coach-entry bundle under budget |
 
 ## Who reads this (all, generated)
-- `Frame.tsx` ← imported by `portal/src/portal/coach/insights/pages/Listen.tsx:6:d9aad737` · `portal/src/portal/coach/insights/pages/MomentRoute.tsx:5:d9aad737` · `portal/src/portal/coach/insights/pages/Move.tsx:9:cdc99ed1` · `portal/src/portal/coach/insights/pages/Results.tsx:6:27becb62` (+7: `python3 kg/kg.py who-reads Frame.tsx`)
+- `Frame.tsx` ← imported by `portal/src/portal/coach/insights/pages/Listen.tsx:6:d9aad737` · `portal/src/portal/coach/insights/pages/MomentRoute.tsx:5:d9aad737` · `portal/src/portal/coach/insights/pages/Move.tsx:9:27becb62` · `portal/src/portal/coach/insights/pages/Results.tsx:6:27becb62` (+7: `python3 kg/kg.py who-reads Frame.tsx`)
 - `ListenRow.tsx` ← imported by `portal/src/portal/coach/insights/pages/Listen.tsx:8:0c764ddc`
 - `MethodSheet.tsx` ← imported by `portal/src/portal/coach/insights/pages/Weakness.tsx:11:b3e319fa`
-- `MoreCoachip.tsx` ← imported by `portal/src/portal/coach/profile/CoachMore.tsx:17:b542c6c4`
+- `MoreCoachip.tsx` ← imported by `portal/src/portal/coach/profile/CoachMore.tsx:17:4e72810a`
 - `NotYetTile.tsx` ← imported by `portal/src/portal/coach/insights/pages/ThisWeek.tsx:17:180d9a92`
 - `NoteBanner.tsx` ← imported by `portal/src/portal/coach/insights/pages/ThisWeek.tsx:16:c504b0f7`
 - `PhonicsTile.tsx` ← imported by `portal/src/portal/coach/insights/pages/ThisWeek.tsx:18:7d6c192a`
@@ -43,7 +41,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `StepCard.tsx` ← imported by `portal/src/portal/coach/insights/pages/Weakness.tsx:9:12a8cae9`
 - `StepRow.tsx` ← imported by `portal/src/portal/coach/insights/pages/ThisWeek.tsx:19:dc066590` · `portal/src/portal/coach/insights/components/StepCard.tsx:9:4494275b`
 - `WCard.tsx` ← imported by `portal/src/portal/coach/insights/pages/ThisWeek.tsx:20:38dd66b8` · `portal/src/portal/coach/insights/components/PhonicsTile.tsx:5:67e983d3`
-- `WRow.tsx` ← imported by `portal/src/portal/coach/insights/pages/Schools.tsx:7:66865abc` · `portal/src/portal/coach/insights/pages/ThisWeek.tsx:21:66865abc` · `portal/src/portal/rm/components/SectorWRow.tsx:8:0363cf27` · `portal/src/portal/coach/insights/components/NotYetTile.tsx:5:130eaea7`
+- `WRow.tsx` ← imported by `portal/src/portal/coach/insights/pages/Schools.tsx:7:66865abc` · `portal/src/portal/coach/insights/pages/ThisWeek.tsx:21:66865abc` · `portal/src/portal/rm/components/SectorWRow.tsx:9:0363cf27` · `portal/src/portal/coach/insights/components/NotYetTile.tsx:5:130eaea7`
 - `bidi.ts` ← imported by `portal/src/portal/coach/insights/pages/Weakness.tsx:21:a3853dc3` · `portal/src/portal/coach/insights/components/ListenRow.tsx:10:3bb0aae4` · `portal/src/portal/coach/insights/components/WCard.tsx:15:3bb0aae4`
 - `parts.tsx` ← imported by `portal/src/portal/coach/insights/components/StepRow.tsx:8:9e4357d0`
 
@@ -51,4 +49,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `bidi.ts` ← `portal/src/portal/fln/tests/bidi.test.tsx`? · `portal/src/portal/teacher/ui/bidi.test.tsx`?
 
 ## Related (all, generated)
-- docs: `portal/src/portal/coach/insights/CLAUDE.index.md`? · `portal/src/portal/coach/insights/CLAUDE.md`? · `portal/src/portal/coach/insights/components/CLAUDE.index.md`? · `portal/src/portal/coach/insights/components/CLAUDE.md`? · `portal/src/portal/fln/tests/CLAUDE.index.md`? · `portal/src/portal/fln/tests/CLAUDE.md`? · `portal/src/portal/teacher/ui/CLAUDE.index.md`? · `portal/src/portal/teacher/ui/CLAUDE.md`?
+- docs: `portal/src/portal/coach/insights/CLAUDE.md`?

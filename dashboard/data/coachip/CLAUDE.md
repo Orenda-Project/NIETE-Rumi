@@ -1,6 +1,6 @@
 # coachip — COACHIP library, copy and crosswalk JSON loaded by services and the nightly seed
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/data/coachip kg=a8d992175352 gen=0962e59fbcdd overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/data/coachip kg=a8d992175352 gen=fd199d153ee6 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `INTERVENTIONS.json` — frozen v1 intervention library (34 weaknesses)
@@ -13,7 +13,6 @@
 |---|---|
 | `INTERVENTIONS.json` | Frozen COACHIP intervention library v1 (34 weaknesses, intervention cards) loaded by the coachip services; bd-sex15q.22. |
 | `crosswalk.json` | COACHIP crosswalk xw-1.0: maps each weakness id to its source indicator (lp_fidelity, fico_v3), scale and hit rule. |
-| `CLAUDE.md` | (unmapped) |
 | `copy.json` | Generated EN/UR copy for COACHIP weakness short names and sentences (from contracts/COPY.md); do not hand-edit. |
 
 ## Who reads this (generated)
@@ -32,4 +31,4 @@
 - `dashboard/tests/insights/ranking.service.test.js` (INTERVENTIONS.json)
 
 ## Related (generated)
-- docs: `dashboard/data/CLAUDE.md`? · `dashboard/data/coachip/CLAUDE.md`? · `dashboard/tests/insights/CLAUDE.index.md`? · `dashboard/tests/insights/CLAUDE.md`?
+- docs: `dashboard/data/CLAUDE.md`?

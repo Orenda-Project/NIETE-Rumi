@@ -6,9 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `helpers/` | → (no door; 1 test files) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
+| `helpers/` | → (no door; 1 files: 0 test + 1 support) |
 | `generation-failed-attempts.test.js` | Pins lesson_plan.generation.failed attempt number and final flag across SQS retries (limit 3) in the generation worker |
 | `grounded-path.test.js` | Pins grounded (curriculum) LP lifecycle columns written only when switched on, incl. SQS enqueue failure handling |
 | `health-alert.test.js` | Pins lesson-plan health alert: a non-healthy tick sends one message naming all reasons via the quiz watcher channel |
@@ -36,11 +34,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `writer.test.js` | Pins Lifecycle.recordOutcome and LP_LIFECYCLE_PATHS switch: no DB call when off, warns on unknown paths, row shape |
 
 ## Who reads this (all, generated)
-- env `LP_LIFECYCLE_PATHS` read at `tests/lesson-plan-lifecycle/health-route.test.js:62:4a6f98e9` · `tests/lesson-plan-lifecycle/health-worker-wiring.test.js:29:4a6f98e9`
-- env `WORKER_QUEUES` read at `tests/lesson-plan-lifecycle/health-worker-wiring.test.js:28:e4d8257a`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/config/CLAUDE.index.md`? · `bot/shared/handlers/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/monitoring/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.index.md`? · `bot/shared/utils/CLAUDE.index.md`? · `bot/workers/CLAUDE.index.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`? · `tests/lesson-plan-lifecycle/CLAUDE.index.md`? · `tests/lesson-plan-lifecycle/CLAUDE.md`?
+- docs: `bot/shared/services/monitoring/CLAUDE.md`? · `tests/CLAUDE.md`?

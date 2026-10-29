@@ -1,7 +1,7 @@
 # g3_ch8 — Hosted v9 pages, Grade 3 chapter 8 (19 segs: English 9, Math 5, Urdu 5)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch8 kg=4e33e4818647 gen=b2bbb823e623 overflow=10 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch8 kg=4e33e4818647 gen=a0be0fdeaa6a overflow=8 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g3_ch8_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g3_ch8_English_seg1.v9.html` | Hosted v9 lesson page G3 English ch8 seg1 (en): New Words + Word Hunt Crossword (deduce meaning from context) |
 | `g3_ch8_English_seg2.v9.html` | Hosted v9 lesson page G3 English ch8 seg2 (en): Compound Word Builder + Build Your Toolbelt (compound words) |
 | `g3_ch8_English_seg3.v9.html` | Hosted v9 lesson page G3 English ch8 seg3 (en): Journey: A Kind Act (paragraphs organise ideas) |
@@ -22,7 +20,9 @@ Full index: `CLAUDE.index.md`
 | `g3_ch8_English_seg7.v9.html` | Hosted v9 lesson page G3 English ch8 seg7 (en): Present Perfect with Jojo + Contractions Corner |
 | `g3_ch8_English_seg8.v9.html` | Hosted v9 lesson page G3 English ch8 seg8 (en): Imagination Canvas: Pinky's Unfinished Diary (fill words (+ more topics) |
 | `g3_ch8_English_seg9.v9.html` | Hosted v9 lesson page G3 English ch8 seg9 (en): Connect and Create: Thank You Letters (write a (+ more topics) |
-| … | 10 more → `CLAUDE.index.md` |
+| `g3_ch8_Maths_seg1.v9.html` | Hosted v9 lesson page G3 Math ch8 seg1 (en): Increasing & decreasing number patterns |
+| `g3_ch8_Maths_seg2.v9.html` | Hosted v9 lesson page G3 Math ch8 seg2 (en): Patterns: Practice, Discovery + Skill Sharpener |
+| … | 8 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g3_ch8/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g3_ch8/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

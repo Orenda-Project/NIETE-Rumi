@@ -1,7 +1,7 @@
 # routes — Tests the bot's internal HTTP API (portal-to-bot), FLN sends and /go links
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/routes kg=938e5c7f54ab gen=1644468cb13e overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/routes kg=938e5c7f54ab gen=43634434c799 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `internal-training-api.test.js` — the training decision API the portal delegates to (bd-2479)
@@ -14,8 +14,6 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `internal*` | 8 files; most used `internal-fln-send.test.js`: PR-E: POST /api/internal/fln/send over real Express and HTTP: per-teacher sends, 401 without key, event rows |
 | `fln*` | 3 files; most used `fln-send.service.test.js`: PR-E: sendPlanToTeachers sends per-recipient /go tokens, cta_url in-window or template outside, one event each |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `app-login-fln.test.js` | PR-E: a teacher's own /go token with target fln:<id> verifies and 303s to the FLN plan page, tampering refused |
 | `bd-o15qnr.17-portal-booking-announce.test.js` | bd-o15qnr.17: a portal visit book/move/cancel sends the same coach invite and teacher notice as WhatsApp /observe |
 | `_http-post.js` | Test helper: axios.post-shaped call over real HTTP resolving {status, data}, for route tests where axios is stubbed |
@@ -32,4 +30,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.index.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`? · `tests/routes/CLAUDE.index.md`? · `tests/routes/CLAUDE.md`?
+- docs: `tests/CLAUDE.md`?

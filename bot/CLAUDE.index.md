@@ -23,8 +23,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `workers/` | SQS job worker, cron sweeps and per-job handlers run outside the web process → `workers/CLAUDE.md` |
 | `.deploy-marker` | (unmapped) |
 | `.gitignore` | (unmapped) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `Procfile` | Process types for the bot image: web (whatsapp-bot.js), worker (workers/sqs-worker.js), dashboard (dashboard/index.js) |
 | `README.md` | Quick start and architecture sketch for the bot package (install, dev server, CLI simulator); partly historical |
 | `VERSION` | (unmapped) |
@@ -54,8 +52,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `whatsapp-bot.js` ← `bot/tests/coaching/bd-uwpohl-lesson-file-goes-to-app.test.js` · `bot/tests/first-touch/maker-fallback.webhook.test.js` · `bot/tests/first-touch/one-door-webhook.test.js` · `bot/tests/observe/bd-n9832-cancelled-stays-cancelled-taps.test.js` · `bot/tests/quiz/child-quiz-home.test.js` · `bot/tests/quiz/report-delivery-webhook.test.js` (+31: `python3 kg/kg.py who-reads bot/whatsapp-bot.js`)
 
 ## Related (all, generated)
-- skills: `coaching`? · `debugging`? · `digital-coach`? · `feature-tracer`? · `video-generation`? · `whatsapp-flows`?
-- docs: `CLAUDE.md`? · `README.md`? · `SECURITY.md`? · `bot/06_MMS_Inference_Service/CLAUDE.md`? · `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/README.md`? · `bot/dashboard/CLAUDE.md`? · `bot/database/CLAUDE.index.md`? · `bot/database/CLAUDE.md`? · `bot/docs/CLAUDE.md`? · `bot/docs/flows/CLAUDE.md`? · `bot/fonts/CLAUDE.md`? · `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/shared/CLAUDE.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/config/CLAUDE.md`? · `bot/shared/handlers/CLAUDE.index.md`? · `bot/shared/handlers/CLAUDE.md`? · `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.index.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/shared/utils/CLAUDE.index.md`? · `bot/shared/utils/CLAUDE.md`? · `bot/tests/CLAUDE.index.md`? · `bot/tests/CLAUDE.md`? · `bot/tests/coaching/CLAUDE.index.md`? · `bot/tests/coaching/CLAUDE.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/first-touch/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/tests/observe/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/quiz/CLAUDE.md`? · `bot/vendor/CLAUDE.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/workers/CLAUDE.index.md`? · `bot/workers/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/architecture.md`? · `docs/data-standards.md`? · `docs/migration/06-from-main-rumi-bot.md`? · `docs/migration/CLAUDE.index.md`? · `docs/migration/CLAUDE.md`? · `docs/model-switching.md`? · `docs/reports/CLAUDE.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `tests/BASELINE.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`? · `todo.md`?
+- skills: `coaching`? · `video-generation`? · `whatsapp-flows`?
+- docs: `CLAUDE.md`? · `SECURITY.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/architecture.md`? · `docs/data-standards.md`? · `docs/migration/06-from-main-rumi-bot.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `tests/BASELINE.md`? · `todo.md`?
 - service: `railway.json` · `web`
 
 ## Previous notes (human, unverified — moved here from the old CLAUDE.md)

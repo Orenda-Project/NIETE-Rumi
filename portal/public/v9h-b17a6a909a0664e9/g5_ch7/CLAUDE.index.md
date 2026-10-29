@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g5_ch7_English_seg1.v9.html` | Hosted v9 lesson page G5 English ch7 seg1 (en): Memory Lane + New Words: Unscramble Me & Pre-Reading Predictions |
 | `g5_ch7_English_seg2.v9.html` | Hosted v9 lesson page G5 English ch7 seg2 (en): Reading: 'A Visit to the Doctor' from Boy by Roald Dahl (+ more topics) |
 | `g5_ch7_English_seg3.v9.html` | Hosted v9 lesson page G5 English ch7 seg3 (en): Diving Deeper: Paragraph Sandwich + Scan for Answers |
@@ -36,4 +34,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch7/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch7/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

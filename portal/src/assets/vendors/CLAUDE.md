@@ -1,6 +1,6 @@
 # vendors — Training-vendor logos shown on the portal Training screens
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/assets/vendors kg=1fb9db724a39 gen=958a8f32a55c overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/assets/vendors kg=1fb9db724a39 gen=87c0a78ee291 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `niete.png` — vendor logo; siblings beaconhouse, isaps, oxbridge; loaded by src/portal/pages/PortalTrainingV2.tsx
@@ -9,7 +9,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `beaconhouse.png` | (unmapped) |
 | `isaps.png` | (unmapped) |
 | `niete.png` | (unmapped) |
@@ -29,4 +28,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `portal/src/assets/CLAUDE.index.md`? · `portal/src/assets/CLAUDE.md`?
+- docs: `portal/src/assets/CLAUDE.md`?

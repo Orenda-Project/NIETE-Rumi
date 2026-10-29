@@ -1,6 +1,6 @@
 # flows — WhatsApp Flow JSON definitions the bot publishes to Meta
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/docs/flows kg=253f9ffb068e gen=c9c196ae9cf8 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/docs/flows kg=df64ac6e2129 gen=f8eedd611941 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `registration-flow.json` — registration form screens and routing
@@ -11,7 +11,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `registration-flow.json` | WhatsApp Flow JSON (v6.3) for teacher registration: personal, region, professional, org screens |
 | `observe-fico-flow.json` | WhatsApp Flow JSON (v6.3) for the 4-screen FICO coaching review (DOMAIN_B..F); loaded by observe-mewaka-endpoint.js |
 | `observe-visit-flow.json` | WhatsApp Flow JSON (v7.0) for the coach /observe visit menu: debriefs, schedule, school and teacher pick |
@@ -27,5 +26,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/docs/CLAUDE.md`? · `bot/docs/flows/CLAUDE.md`?
-- flows: `observe-fico-flow.json`? · `observe-visit-flow.json`? · `registration-flow.json`?
+- docs: `bot/docs/CLAUDE.md`?

@@ -6,13 +6,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `fixtures/` | → (no door; 3 test files) |
-| `goldens/` | Recorded OFF-switch call-log goldens for the quiz report send-checked tests → `goldens/CLAUDE.md` |
+| `fixtures/` | → (no door; 3 files: 0 test + 3 support) |
+| `goldens/` | → (no door; 2 files: 0 test + 2 support) |
 | `helpers/` | Render-and-measure helpers that read PDFs and pages back as ink for layout tests → `helpers/CLAUDE.md` |
 | `teacher-quiz-menu/` | Tests for the teacher /quiz home, report list and button routing → `teacher-quiz-menu/CLAUDE.md` |
 | `web-quiz/` | Jest suite for the kid-facing web quiz, hub, Challenge, stories and share flows → `web-quiz/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `backfill-bank-quiz-audio.test.js` | Pins the video-bank quiz audio backfill script: ranking, dry-run makes zero calls, real publishQuizAudio with fakes |
 | `backfill-quiz-language.test.js` | Pins backfill-quiz-language: decideLanguage rule (ur if half of questions Arabic-script), dry-run default, filters |
 | `bd-v0toag-126-quiz-offer-window.test.js` | bd-v0toag.126: quiz offer processOffer checks the 24h window first; closed means no claim, digest or send (131047) |
@@ -123,24 +121,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `web-quiz-publish.test.js` | Pins publishQuizAudio: one read-aloud clip per question, option and why line, recorded once to R2 under the quiz |
 
 ## Who reads this (all, generated)
-- env `CHILD_TEST_R2_ENV` read at `bot/tests/quiz/rescore-kept-reads.test.js:190:0fbcac44`
-- env `OPENAI_API_KEY` read at `bot/tests/quiz/child-quiz-home.test.js:15:334ba0e9` · `bot/tests/quiz/lp-quiz-offer-worker-wiring.test.js:14:acce1dae` · `bot/tests/quiz/one-voice-missing-keys.test.js:39:acce1dae` · `bot/tests/quiz/report-delivery-webhook.test.js:23:334ba0e9`
-- env `OPENROUTER_API_KEY` read at `bot/tests/quiz/child-quiz-home.test.js:16:6d424b49` · `bot/tests/quiz/lp-quiz-offer-worker-wiring.test.js:13:1370b6dc` · `bot/tests/quiz/one-voice-missing-keys.test.js:38:1370b6dc` · `bot/tests/quiz/report-delivery-webhook.test.js:24:6d424b49` · `bot/tests/quiz/student-quiz-flow-endpoint.test.js:10:15c21392`
-- env `PHONE_NUMBER_ID` read at `bot/tests/quiz/send-flow-screen-data.test.js:20:a5630cfb` · `bot/tests/quiz/student-join-language.test.js:26:a5630cfb`
-- env `QUIZ_LP612_SOURCE` read at `bot/tests/quiz/quiz-sources.test.js:39:7329412a`
-- env `QUIZ_MULTI_FLOW_ID` read at `bot/tests/quiz/video-quiz-multi-select.test.js:72:a078a073`
-- env `QUIZ_URDU_SPACING_V2` read at `bot/tests/quiz/urdu-line-spacing.test.js:50:01417535`
-- env `RECORD_OFF_GOLDEN` read at `bot/tests/quiz/chat-quiz-report-send-checked.test.js:158:1f33f0ea` · `bot/tests/quiz/report-not-through.test.js:240:1f33f0ea`
-- env `STUDENT_JOIN_FLOW_ID` read at `bot/tests/quiz/send-flow-screen-data.test.js:88:5f0f06fb` · `bot/tests/quiz/student-join-flow.test.js:86:5f0f06fb`
-- env `SUPABASE_SERVICE_ROLE_KEY` read at `bot/tests/quiz/child-quiz-home.test.js:14:cd796d8a` · `bot/tests/quiz/report-delivery-webhook.test.js:22:cd796d8a`
-- env `SUPABASE_URL` read at `bot/tests/quiz/child-quiz-home.test.js:13:d1ac37ba` · `bot/tests/quiz/report-delivery-webhook.test.js:21:d1ac37ba`
-- env `TEACHER_NUDGES_ENABLED` read at `bot/tests/quiz/lp-quiz-offer-worker-wiring.test.js:104:2808cd9c`
-- env `VIDEO_QUIZ_FLOW_ID` read at `bot/tests/quiz/send-flow-screen-data.test.js:103:7812823e`
-- env `WHATSAPP_BOT_NUMBER` read at `bot/tests/quiz/video-quiz-share.test.js:76:5af7de5b`
-- env `WHATSAPP_TOKEN` read at `bot/tests/quiz/send-flow-screen-data.test.js:19:d6c4b7e6` · `bot/tests/quiz/student-join-language.test.js:25:d6c4b7e6`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/CLAUDE.index.md`? · `bot/scripts/quiz/CLAUDE.index.md`? · `bot/scripts/quiz/CLAUDE.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/database/CLAUDE.index.md`? · `bot/shared/database/CLAUDE.md`? · `bot/shared/handlers/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/queue/CLAUDE.index.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/shared/services/quiz/CLAUDE.index.md`? · `bot/shared/services/tts/CLAUDE.index.md`? · `bot/shared/services/tts/CLAUDE.md`? · `bot/shared/templates/CLAUDE.index.md`? · `bot/shared/templates/CLAUDE.md`? · `bot/shared/utils/CLAUDE.index.md`? · `bot/shared/utils/CLAUDE.md`? · `bot/tests/CLAUDE.index.md`? · `bot/tests/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/quiz/CLAUDE.md`? · `bot/tests/quiz/goldens/CLAUDE.md`? · `bot/tests/quiz/helpers/CLAUDE.md`? · `bot/tests/quiz/teacher-quiz-menu/CLAUDE.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.md`? · `bot/workers/CLAUDE.index.md`? · `docs/flows/CLAUDE.index.md`? · `docs/flows/CLAUDE.md`?
+- docs: `bot/scripts/quiz/CLAUDE.md`? · `bot/shared/services/tts/CLAUDE.md`? · `bot/shared/templates/CLAUDE.md`? · `bot/shared/utils/CLAUDE.md`? · `bot/tests/CLAUDE.md`?

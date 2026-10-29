@@ -1,6 +1,6 @@
 # whatsapp — Gherkin specs for WhatsApp bots; only the NIETE (ICT) tenant lives here
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/features/whatsapp kg=4b63da52b5ec gen=07977669bc2c overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/features/whatsapp kg=00ba8cf62f4a gen=77b472750330 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `niete/_suite.md` — scope, feature to agent map, last runs
@@ -11,8 +11,7 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `niete/` | NIETE (ICT) WhatsApp E2E specs, one .feature per bot feature → `niete/CLAUDE.md` |
-| `CLAUDE.md` | (unmapped) |
+| `niete/` | → (no door; 12 files: 0 test + 12 support) |
 
 ## Who reads this (generated)
 - (none)
@@ -25,4 +24,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `tests/features/CLAUDE.md`? · `tests/features/whatsapp/niete/CLAUDE.index.md`? · `tests/features/whatsapp/niete/CLAUDE.md`? · `tests/features/whatsapp/niete/README.md`? · `tests/features/whatsapp/niete/_suite.md`?
+- docs: `tests/features/CLAUDE.md`? · `tests/features/whatsapp/niete/_suite.md`?

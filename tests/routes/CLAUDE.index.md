@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `_http-post.js` | Test helper: axios.post-shaped call over real HTTP resolving {status, data}, for route tests where axios is stubbed |
 | `app-login-fln.test.js` | PR-E: a teacher's own /go token with target fln:<id> verifies and 303s to the FLN plan page, tampering refused |
 | `bd-o15qnr.17-portal-booking-announce.test.js` | bd-o15qnr.17: a portal visit book/move/cancel sends the same coach invite and teacher notice as WhatsApp /observe |
@@ -31,4 +29,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.index.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`? · `tests/routes/CLAUDE.index.md`? · `tests/routes/CLAUDE.md`?
+- docs: `tests/CLAUDE.md`?

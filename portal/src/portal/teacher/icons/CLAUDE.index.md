@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `FeatureArt.tsx` | 48px spot illustrations per feature (Digital Coaching is a phone) in ink outline and hue, with optional shared motion |
 | `FeatureGlyph.tsx` | 24px single-colour menu glyphs per feature using currentColor, with --cut knockouts for filled details |
 | `FeatureMotion.tsx` | One shared timer so every opted-in feature icon plays together on open, then again after a 30-60s gap |
@@ -34,4 +32,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `index.ts` ← `portal/src/portal/teacher/icons/coachArt.test.tsx` · `portal/src/portal/teacher/icons/icons.test.tsx` · `portal/src/portal/teacher/icons/motion.test.tsx` · `portal/src/portal/teacher/ui/coachKit1.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/icons/CLAUDE.index.md`? · `portal/src/portal/teacher/icons/CLAUDE.md`? · `portal/src/portal/teacher/ui/CLAUDE.index.md`?
+- docs: `portal/src/portal/teacher/CLAUDE.md`?

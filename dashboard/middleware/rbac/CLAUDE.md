@@ -1,6 +1,6 @@
 # rbac — Role, feature-access and DB-context middleware for admin routes
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/middleware/rbac kg=13757b567850 gen=b05eaac9287b overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/middleware/rbac kg=13757b567850 gen=1bf9994a6dcc overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `rbac.js` — requireSuperAdmin, requirePartnerAdmin, requireAdmin
@@ -12,7 +12,6 @@
 | path | purpose |
 |---|---|
 | `index.js` | Barrel exporting the RBAC middleware (rbac, feature-access, database-context). |
-| `CLAUDE.md` | (unmapped) |
 | `database-context.js` | Sets the per-request DB client/RLS context and releases it on res finish, avoiding res.send overriding races. |
 | `feature-access.js` | requireFeatureAccess middleware: checks the user's role against the feature_permissions table. |
 | `rbac.js` | Role-based access checks (requireSuperAdmin, requirePartnerAdmin etc.) for dashboard routes. |
@@ -32,4 +31,4 @@
 - `tests/portal/bd-5gyspy.9-10-db-client-timeouts.test.js` (database-context.js)
 
 ## Related (generated)
-- docs: `bot/shared/services/authz/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/middleware/rbac/CLAUDE.md`? · `dashboard/middleware/rbac/USAGE_EXAMPLES.md`? · `tests/portal/CLAUDE.index.md`? · `tests/portal/CLAUDE.md`?
+- docs: `bot/shared/services/authz/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`?

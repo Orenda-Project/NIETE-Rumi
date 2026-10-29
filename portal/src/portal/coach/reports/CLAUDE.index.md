@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `CoachReportsAll.test.tsx` | Pins All Observations: date range, search, four numbers with change, rows by day (bd-4404s7.5) |
 | `CoachReportsAll.tsx` | All Observations page with date range bar, search, KPI numbers and rows by day |
 | `Debrief.test.tsx` | Pins Debrief step: guide, Start/Upload recording, file to R2, failure and retry paths |
@@ -57,4 +55,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `data.ts` ← `portal/src/portal/coach/reports/data.test.ts`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/coach/CLAUDE.index.md`? · `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/observe/CLAUDE.index.md`? · `portal/src/portal/coach/observe/CLAUDE.md`? · `portal/src/portal/coach/reports/CLAUDE.index.md`? · `portal/src/portal/coach/reports/CLAUDE.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`?
+- docs: `portal/src/portal/coach/CLAUDE.md`?

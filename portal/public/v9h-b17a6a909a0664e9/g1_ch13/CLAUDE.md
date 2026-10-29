@@ -1,6 +1,6 @@
 # g1_ch13 — Hosted v9 pages, Grade 1 chapter 13 (6 segs: Urdu 6)
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g1_ch13 kg=6d3c553c22c6 gen=e68fbf4b9359 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g1_ch13 kg=6d3c553c22c6 gen=385e8b112626 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g1_ch13_Urdu_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `g1_ch13_Urdu_seg1.v9.html` | Hosted v9 lesson page G1 Urdu ch13 seg1 (ur): آغازِ سفر — مقابلہ رساکشی (دھکیلنا/کھینچنا کا کھیل) |
 | `g1_ch13_Urdu_seg2.v9.html` | Hosted v9 lesson page G1 Urdu ch13 seg2 (ur): نئے الفاظ — مترادف الفاظ اور پہیلی کے کھیل کا تعارف (+ more topics) |
 | `g1_ch13_Urdu_seg3.v9.html` | Hosted v9 lesson page G1 Urdu ch13 seg3 (ur): متن کا سفر — پہیلی نظمیں (خرگوش، بلی، گڑیا) کی بلند خوانی |

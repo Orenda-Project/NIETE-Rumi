@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `common.js` | Shared v3 task-scorer pieces: clock, EGRA/EGMA stop rules, fluency rate, review rules, ai-marks-v3 shape (bd-s1oo0.50.3) |
 | `engine.js` | The timed and untimed v3 task engines (clip cut, audio-model call, per-item rows, stop rule) used by task scorers |
 | `fluency.js` | Scorer for v3 ma.number_id, ma.add1 and ma.sub1 (20 items, 60s, no stop rule) |
@@ -36,4 +34,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `engine.js` ← `tests/coaching/video-reco/engine.test.js`?
 
 ## Related (all, generated)
-- docs: `bot/shared/services/child-test/scoring/CLAUDE.index.md`? · `bot/shared/services/child-test/scoring/CLAUDE.md`? · `bot/shared/services/child-test/scoring/tasks/CLAUDE.index.md`? · `bot/shared/services/child-test/scoring/tasks/CLAUDE.md`? · `tests/child-test/L37/CLAUDE.md`? · `tests/child-test/L40/CLAUDE.md`? · `tests/coaching/video-reco/CLAUDE.index.md`? · `tests/coaching/video-reco/CLAUDE.md`?
+- docs: `bot/shared/services/child-test/scoring/CLAUDE.md`?

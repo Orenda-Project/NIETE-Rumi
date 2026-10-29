@@ -6,12 +6,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `fidelity/` | Tests for lesson-plan fidelity: grader, scorer, orchestrator, LP linking and selection → `fidelity/CLAUDE.md` |
-| `live-moves/` | Tests for live moves: the live list of v10 card moves ticked during a lesson → `live-moves/CLAUDE.md` |
-| `report-transformers/` | Tests for per-framework report transformers that shape analysis into reportData → `report-transformers/CLAUDE.md` |
+| `fidelity/` | → (no door; 27 tests) |
+| `live-moves/` | → (no door; 9 files: 8 test + 1 support) |
+| `report-transformers/` | → (no door; 3 tests) |
 | `video-reco/` | Tests for video recommendation: clip pick, copy, name redaction, strip, send and A/B → `video-reco/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `ab-v10-arms.test.js` | Pins which v10 A/B group (A-D) a teacher's school falls in via niete_coaching_ab_assignment; null when off (ab-v10-arms) |
 | `ab-v10-switch.test.js` | Pins the v10 coaching test master switch app_settings.ab_v10_enabled: fail-closed on missing row, junk or read error |
 | `analysis-output-language.test.js` | Analysis prompt and reflective extraction run in the teacher's stored language, not the transcriber's label |
@@ -273,22 +271,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `voice-debrief-says-score.test.js` | bd-1r3k2h/bd-895yd: voice debrief prompt tells the coach to say the overall score as a number, in Urdu script too |
 
 ## Who reads this (all, generated)
-- env `DEFAULT_COACH_ROLE_LABEL` read at `tests/coaching/lp-coaching-link.test.js:123:9dd9b3fe`
-- env `ELEVENLABS_API_KEY` read at `tests/coaching/urdu-tts-decimals.test.js:12:6b9b8a4e`
-- env `INTERNAL_API_KEY` read at `tests/coaching/bd-5rz1v-internal-coaching-routes.test.js:31:180f6cef` · `tests/coaching/bd-5rz1v.6-internal-observe-routes.test.js:32:180f6cef` · `tests/coaching/bd-c5reix-portal-start-and-routes.test.js:112:180f6cef` · `tests/coaching/bd-lfzoz-internal-coaching-routes.test.js:35:180f6cef`
-- env `LP_EXTRACTION_VISION_MODEL` read at `tests/coaching/lp-vision-ocr.test.js:44:6310a7c6`
-- env `LP_FIDELITY_ENABLED` read at `tests/coaching/bd-2c1gj-lp-select-confirm.test.js:213:274a8cc3`
-- env `OBSERVE_FICO_FLOW_HAS_FIDELITY` read at `tests/coaching/bd-5n1a2-flow-move-blocks.test.js:83:78acb549` · `tests/coaching/bd-9h2mm-section-b-not-assessed.test.js:263:78acb549` · `tests/coaching/bd-c5zs1-editable-fidelity.test.js:91:78acb549` · `tests/coaching/bd-s192t-fallback-copy.test.js:13:78acb549` · `tests/coaching/observe-gates.test.js:145:78acb549` · `tests/coaching/truncation-coach-line.test.js:89:a5a7ba2f`
-- env `OPENAI_API_KEY` read at `tests/coaching/bd-0wws3e-lp-pdf-nul-and-corpus-link.test.js:22:334ba0e9` · `tests/coaching/bd-fe35j9-urdu-pdf-vision-retry.test.js:21:334ba0e9` · `tests/coaching/bd-jbjrx-step-language.test.js:44:334ba0e9` · `tests/coaching/bd-we73k-pasted-lesson-plan.test.js:35:334ba0e9` · `tests/coaching/urdu-tts-decimals.test.js:13:e5dc7491`
-- env `OPENROUTER_API_KEY` read at `tests/coaching/bd-0wws3e-lp-pdf-nul-and-corpus-link.test.js:21:6d424b49` · `tests/coaching/bd-fe35j9-urdu-pdf-vision-retry.test.js:20:6d424b49` · `tests/coaching/bd-jbjrx-step-language.test.js:45:6d424b49` · `tests/coaching/bd-we73k-pasted-lesson-plan.test.js:34:6d424b49`
-- env `REGION_COACH_ROLE_LABEL_MAP` read at `tests/coaching/lp-coaching-link.test.js:124:2cb2f904`
-- env `SUPABASE_SERVICE_ROLE_KEY` read at `tests/coaching/bd-0wws3e-lp-pdf-nul-and-corpus-link.test.js:20:cd796d8a` · `tests/coaching/bd-fe35j9-urdu-pdf-vision-retry.test.js:19:cd796d8a` · `tests/coaching/bd-jbjrx-step-language.test.js:43:cd796d8a` · `tests/coaching/bd-we73k-pasted-lesson-plan.test.js:33:cd796d8a`
-- env `SUPABASE_URL` read at `tests/coaching/bd-0wws3e-lp-pdf-nul-and-corpus-link.test.js:19:d1ac37ba` · `tests/coaching/bd-fe35j9-urdu-pdf-vision-retry.test.js:18:d1ac37ba` · `tests/coaching/bd-jbjrx-step-language.test.js:42:d1ac37ba` · `tests/coaching/bd-we73k-pasted-lesson-plan.test.js:32:d1ac37ba`
-- env `UPTAKE_ACCEPTANCE` read at `tests/coaching/uptake-loop-acceptance.test.js:19:b5d1776e`
-- env `UPTAKE_LOOP_ENABLED` read at `tests/coaching/uptake-loop-flag.test.js:4:43293fb3`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/handlers/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.index.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.md`? · `bot/shared/services/coaching/coaching-card/CLAUDE.index.md`? · `bot/shared/services/coaching/coaching-card/CLAUDE.md`? · `bot/shared/services/coaching/fidelity/CLAUDE.index.md`? · `bot/shared/services/coaching/fidelity/CLAUDE.md`? · `bot/shared/services/coaching/frameworks/CLAUDE.index.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.md`? · `bot/shared/services/coaching/reflective-questions/CLAUDE.index.md`? · `bot/shared/services/coaching/reflective-questions/CLAUDE.md`? · `bot/shared/services/coaching/report-renderers/CLAUDE.md`? · `bot/shared/services/coaching/report-transformers/CLAUDE.index.md`? · `bot/shared/services/coaching/report-transformers/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? · `bot/shared/services/observe/CLAUDE.index.md`? · `bot/shared/services/observe/assignment/CLAUDE.md`? · `bot/shared/services/observe/observe2/CLAUDE.index.md`? · `bot/shared/templates/CLAUDE.index.md`? · `bot/shared/utils/CLAUDE.index.md`? · `bot/workers/CLAUDE.index.md`? · `dashboard/routes/CLAUDE.index.md`? · `dashboard/services/CLAUDE.index.md`? · `dashboard/services/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/customization.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`? · `tests/coaching/CLAUDE.index.md`? · `tests/coaching/CLAUDE.md`? · `tests/coaching/fidelity/CLAUDE.index.md`? · `tests/coaching/fidelity/CLAUDE.md`? · `tests/coaching/live-moves/CLAUDE.md`? · `tests/coaching/report-transformers/CLAUDE.md`? · `tests/coaching/video-reco/CLAUDE.index.md`? · `tests/coaching/video-reco/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.md`? · `bot/shared/services/coaching/coaching-card/CLAUDE.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.md`? · `bot/shared/services/coaching/reflective-questions/CLAUDE.md`? · `bot/shared/services/coaching/report-renderers/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? · `bot/shared/services/observe/assignment/CLAUDE.md`? · `dashboard/services/CLAUDE.md`? · `docs/customization.md`? · `tests/CLAUDE.md`?

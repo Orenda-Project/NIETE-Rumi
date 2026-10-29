@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `bd-2672-backfill-assignment.test.js` | bd-2672: deriveBands maps grade ids to PRIMARY/MIDDLE/HIGH for backfilling training assignments of new users |
 | `bd-2676-certificate-inline-view.test.js` | bd-2676: the bot's R2 presigner can sign an inline application/pdf URL so certificates open viewable |
 | `bd-43478-band-apply.test.js` | bd-43478: applyBandSelection writes training_bands and assignments for both bot Flow and portal, leaving users.levels |
@@ -136,11 +134,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `web-training-portal-link.test.js` | Pins GET /t/<token>: a genuine link starts a training-only portal session; expired or throwing lookup shows expired page |
 
 ## Who reads this (all, generated)
-- env `NODE_ENV` read at `tests/training/bd-60133-nonprod-certificate-banner.test.js:132:ecc79012`
-- env `OPENROUTER_API_KEY` read at `tests/training/bd-43496-exam-question-body-cap.test.js:106:6d424b49` · `tests/training/bd-w2daa-8-fewer-bubbles.test.js:117:6d424b49` · `tests/training/exam-caption-served-count.test.js:72:6d424b49` · `tests/training/level-unlock-gate.test.js:84:6d424b49` · `tests/training/locked-starts-are-gated.test.js:112:6d424b49` · `tests/training/msq-select-range.test.js:151:6d424b49` · `tests/training/no-exam-level-completes.test.js:83:6d424b49` · `tests/training/portal-level-unlock-logic.test.js:214:6d424b49` · `tests/training/quiz-immediate-feedback.test.js:102:6d424b49`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/scripts/setup/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/services/training/CLAUDE.index.md`? · `bot/shared/services/training/CLAUDE.md`? · `dashboard/routes/CLAUDE.index.md`? · `dashboard/services/CLAUDE.index.md`? · `docs/flows/CLAUDE.index.md`? · `docs/reports/bug131-phase2-portal-quiz-ui.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `docs/reports/bug131-phase4-media-complete.md`? · `scripts/CLAUDE.index.md`? · `scripts/lib/CLAUDE.index.md`? · `scripts/lib/CLAUDE.md`? · `tests/BASELINE.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`? · `tests/training/CLAUDE.index.md`? · `tests/training/CLAUDE.md`?
+- docs: `bot/shared/services/training/CLAUDE.md`? · `docs/reports/bug131-phase2-portal-quiz-ui.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `docs/reports/bug131-phase4-media-complete.md`? · `tests/BASELINE.md`? · `tests/CLAUDE.md`?

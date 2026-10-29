@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `analysis.service.js` | Orchestrates the reading-assessment analysis pipeline: Soniox transcript, student segments, pronunciation, fluency,... |
 | `auto-level-orchestrator.service.js` | ASER-style adaptive level assessment: start at story, 2 attempts per level, move down below 80% accuracy |
 | `benchmark.service.js` | Config-driven JS reimplementation of the benchmark SQL RPCs; thresholds live in config/reading-benchmarks.js |
@@ -58,4 +56,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `reading-assessment`?
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/reading/CLAUDE.index.md`? · `bot/shared/services/reading/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/agent-customization.md`? · `docs/customization.md`? · `tests/reading/CLAUDE.md`? · `tests/reports/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.md`? · `docs/agent-customization.md`? · `docs/customization.md`?

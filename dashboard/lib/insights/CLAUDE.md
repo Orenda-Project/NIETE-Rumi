@@ -1,7 +1,7 @@
 # insights — COACHIP nightly insight job: stage modules run by job.js, writing coachip_* tables
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/lib/insights kg=49af51c92891 gen=c15d1b165f03 overflow=73 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/lib/insights kg=49af51c92891 gen=f40247dd6788 overflow=69 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `job.js` — stage order facts to glosses; read first
@@ -15,7 +15,9 @@ Full index: `CLAUDE.index.md`
 | `prompts/` | Model prompts for COACHIP glosses, re-check, homework and phonics detection → `prompts/CLAUDE.md` |
 | `constants.js` | Named constants every COACHIP nightly stage reads, incl. PIPELINE_VERSION and the PROD_WRITES_ALLOWED guard. |
 | `store.js` | COACHIP job writer: SupabaseStore and MemoryStore (dry run) share one interface; small-batch upserts after env check. |
-| … | 27 more → `CLAUDE.index.md` |
+| `allowlist.js` | The only reader of coaching_sessions.analysis_data for COACHIP; passes allow-listed keys only, dropping evidence text. |
+| `predicates.js` | COACHIP FICO-crosswalk rule 2: phaseOutcome (graded/skipped/done) matching the governed Q2b query so rollups agree. |
+| … | 23 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `constants.js` ← imported by `dashboard/lib/insights/circle.js:16:642d7dc6` · `dashboard/lib/insights/env.js:9:642d7dc6` (+14)
@@ -35,4 +37,4 @@ Full index: `CLAUDE.index.md`
 - … 25 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `dashboard/lib/CLAUDE.index.md`? · `dashboard/lib/CLAUDE.md`? · `dashboard/lib/insights/CLAUDE.index.md`? · `dashboard/lib/insights/CLAUDE.md`? · `dashboard/lib/insights/prompts/CLAUDE.md`? · `dashboard/tests/insights/CLAUDE.index.md`? (+3)
+- docs: `dashboard/lib/CLAUDE.md`?

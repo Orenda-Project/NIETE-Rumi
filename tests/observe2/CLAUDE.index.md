@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `helpers/` | Shared stand-ins for the observe2 tests (not tests themselves) → `helpers/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `added-plan-defaults.test.js` | Proves the default lazy-required collaborators of the added-plan and photo-evidence readers reach the real modules |
 | `check-endpoint.test.js` | Pins POST /api/flows/observe2-check: moments screens, pre-filled levels, sealed pick, then the brief |
 | `check-resume.test.js` | A visit whose "check the moments" message never arrived (Meta #131042 outage) can be resumed from the menu worklist |
@@ -55,12 +53,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `work-on-more.test.js` | Pilot R14: "Work on first", "Also work on" and "Following the plan's steps" selections; repeats refused |
 
 ## Who reads this (all, generated)
-- env `OBSERVE_FICO_FLOW_HAS_FIDELITY` read at `tests/observe2/plan-not-read-words.test.js:45:3bd67597`
-- env `OBSERVE_MEWAKA_FLOW_ID` read at `tests/observe2/record-first.test.js:71:3232e9a7` · `tests/observe2/recording-routing.test.js:48:3232e9a7`
-- env `WHATSAPP_BOT_SRC` read at `tests/observe2/record-first.test.js:284:50aeb596`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.index.md`? · `bot/shared/services/coaching/fidelity/CLAUDE.index.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.index.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.index.md`? · `bot/shared/services/observe/CLAUDE.index.md`? · `bot/shared/services/observe/observe2/CLAUDE.index.md`? · `bot/shared/services/observe/observe2/CLAUDE.md`? · `bot/shared/services/roster/CLAUDE.index.md`? · `bot/shared/services/roster/CLAUDE.md`? · `dashboard/services/CLAUDE.index.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`? · `tests/observe2/CLAUDE.index.md`? · `tests/observe2/CLAUDE.md`? · `tests/observe2/helpers/CLAUDE.md`?
+- docs: `bot/shared/services/observe/observe2/CLAUDE.md`? · `bot/shared/services/roster/CLAUDE.md`? · `tests/CLAUDE.md`?

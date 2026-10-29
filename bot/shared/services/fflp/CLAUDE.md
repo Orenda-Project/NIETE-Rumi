@@ -1,6 +1,6 @@
 # fflp — Free-form lesson-plan engine seam, default OFF behind app_settings.freeform_lp
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/fflp kg=088d33a8f3df gen=680222de9fd4 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/fflp kg=31fa25d28d3c gen=a8b7e07544ab overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — lazy single entry for every cross-module call
@@ -13,7 +13,6 @@
 | `index.js` | Single lazy entry point to the free-form lesson-plan engine modules (fflp) so the seam loads when switch is off |
 | `catalogue-match.js` | Matches a typed lesson-plan topic against catalogue titles by token overlap; hits keep the catalogue |
 | `switch.js` | Reads app_settings.freeform_lp, the default-OFF switch of the free-form lesson-plan engine |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - `index.js` ← imported by `bot/shared/handlers/text-message.handler.js:3023:89db85cc` · `bot/workers/lesson-plan-generation.worker.js:196:075a3ddf`
@@ -33,4 +32,4 @@
 - `tests/fflp/seam-goldens.test.js` (index.js)
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/fflp/CLAUDE.md`? · `tests/fflp/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.md`?

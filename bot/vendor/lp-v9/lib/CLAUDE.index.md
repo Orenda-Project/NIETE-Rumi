@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `clean_figure.py` | Lifts a faint textbook scan's tones before it goes into the LP; CLI taking src and dst |
 | `continuous.js` | Two-page printed layout (teaching page, then teacher-support page) per operator ruling (bd-f01ob v6) |
 | `domtext.js` | Extracts rendered DOM text nodes so gates like MATH_LEAK read what a teacher actually sees |
@@ -46,4 +44,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `validate.js` ← `tests/lp612/fbise-slo-chips.test.js` · `tests/lp612/vendor-integrity.test.js`
 
 ## Related (all, generated)
-- docs: `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/lib/CLAUDE.index.md`? · `bot/vendor/lp-v9/lib/CLAUDE.md`? · `tests/lp612/CLAUDE.index.md`? · `tests/setup/CLAUDE.index.md`?
+- docs: `bot/vendor/lp-v9/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`?

@@ -1,6 +1,6 @@
 # g3_ch16 — Hosted v9 pages, Grade 3 chapter 16 (2 segs: Urdu 2)
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch16 kg=b8adc8620ba8 gen=4f5a1ba79d25 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch16 kg=b8adc8620ba8 gen=ccfe524ad2cb overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g3_ch16_Urdu_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `g3_ch16_Urdu_seg1.v9.html` | Hosted v9 lesson page G3 Urdu ch16 seg1 (ur): نظم 'مجاہد وطن کو سلام' کی بلند خوانی |
 | `g3_ch16_Urdu_seg2.v9.html` | Hosted v9 lesson page G3 Urdu ch16 seg2 (ur): نظم کی تفہیم، نتائج اور تشریح |
 

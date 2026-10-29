@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `bars.js` | Per-field confidence bars for the coach check Flow, read from scoring/thresholds with defaults and a test pin |
 | `check-store.js` | Reads and writes the check Flow needs (sessions, blocks, coach marks written once, timing); delegates to child-test... |
 | `completion.js` | Handles the check Flow's nfm_reply completion: confirms in one line or warns the coach when a session is not checked |
@@ -68,4 +66,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `strings.js` ← `bot/scripts/e2e/child-test-sim/check-play.js` · `tests/child-test/L0/check-count-inputs.test.js` · `tests/child-test/L16/assist-mode.test.js` · `tests/child-test/L6/check-flow-contract.test.js`
 
 ## Related (all, generated)
-- docs: `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.md`? · `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/check-flow/CLAUDE.index.md`? · `bot/shared/services/child-test/check-flow/CLAUDE.md`? · `tests/child-test/L0/CLAUDE.md`? · `tests/child-test/L14/CLAUDE.md`? · `tests/child-test/L16/CLAUDE.md`? · `tests/child-test/L21/CLAUDE.md`? · `tests/child-test/L24/CLAUDE.md`? · `tests/child-test/L25/CLAUDE.md`? · `tests/child-test/L28/CLAUDE.md`? · `tests/child-test/L31/CLAUDE.md`? · `tests/child-test/L32/CLAUDE.md`? · `tests/child-test/L34/CLAUDE.md`? · `tests/child-test/L39/CLAUDE.md`? · `tests/child-test/L40/CLAUDE.md`? · `tests/child-test/L6/CLAUDE.index.md`? · `tests/child-test/L6/CLAUDE.md`?
+- docs: `bot/shared/services/child-test/CLAUDE.md`?

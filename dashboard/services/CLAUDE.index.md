@@ -8,8 +8,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 |---|---|
 | `api-health/` | One module per vendor for the API-health admin page, aggregated → `api-health/CLAUDE.md` |
 | `queue/` | SQS client for portal-only async jobs → `queue/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `access-scope.service.js` | Manages partner access scopes (all/country/school/phone_list/combined) used for RLS on the observability dashboard. |
 | `ama.service.js` | Open-source AMA (Ask Me Anything) stub using safe parameterized queries instead of the removed exec_sql RPC. |
 | `assessment.service.js` | HTTP client to the bot for the Assessment Generator (the portal's only route to making a paper); holds no logic. |
@@ -380,4 +378,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `whatsapp-broadcast.service.js` ← `tests/broadcast/bd-1zyqf-broadcast-language.test.js` · `tests/broadcast/bd-djbrt-direct-send-records-wamid.test.js` · `tests/broadcast/bd-x4njf-approved-template.test.js`
 
 ## Related (all, generated)
-- docs: `dashboard/CLAUDE.index.md`? · `dashboard/CLAUDE.md`? · `dashboard/services/CLAUDE.index.md`? · `dashboard/services/CLAUDE.md`? · `dashboard/services/api-health/CLAUDE.index.md`? · `dashboard/services/api-health/CLAUDE.md`? · `dashboard/services/queue/CLAUDE.md`? · `dashboard/tests/CLAUDE.index.md`? · `dashboard/tests/insights/CLAUDE.index.md`? · `dashboard/tests/insights/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/attendance-bigquery-sync.md`? · `docs/migration/CLAUDE.index.md`? · `docs/migration/CLAUDE.md`? · `docs/migration/DEPLOYMENT.md`? · `infrastructure/templates/CLAUDE.index.md`? · `infrastructure/templates/CLAUDE.md`? · `infrastructure/templates/README.md`? · `tests/attendance/CLAUDE.index.md`? · `tests/attendance/CLAUDE.md`? · `tests/broadcast/CLAUDE.md`? · `tests/coaching/CLAUDE.index.md`? · `tests/coaching/CLAUDE.md`? · `tests/coaching/video-reco/CLAUDE.index.md`? · `tests/coaching/video-reco/CLAUDE.md`? · `tests/coachip-media/CLAUDE.md`? · `tests/coachip-rm/CLAUDE.md`? · `tests/coachip/CLAUDE.index.md`? · `tests/coachip/CLAUDE.md`? · `tests/coachip/helpers/CLAUDE.md`? · `tests/hcp/CLAUDE.index.md`? · `tests/hcp/CLAUDE.md`? · `tests/lp-v8/CLAUDE.index.md`? · `tests/lp-v8/CLAUDE.md`? · `tests/observe/CLAUDE.index.md`? · `tests/observe/CLAUDE.md`? · `tests/observe2/CLAUDE.index.md`? · `tests/observe2/CLAUDE.md`? · `tests/portal/CLAUDE.index.md`? · `tests/training/CLAUDE.index.md`? · `tests/training/CLAUDE.md`?
+- docs: `dashboard/CLAUDE.md`? · `docs/attendance-bigquery-sync.md`? · `docs/migration/DEPLOYMENT.md`? · `infrastructure/templates/README.md`?

@@ -1,7 +1,6 @@
 # web-quiz — Web quiz content loading, backfills and by-hand health runs
-Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/web-quiz kg=b738884661a2 gen=2959d1859b5e overflow=3 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/web-quiz kg=ba0692947b14 gen=10540b000014 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `load-stories.js` — loads storybooks into one environment, --expect-ref guarded
@@ -12,8 +11,6 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `counts/` | Read-only sandbox counts of what web-quiz surfaces serve → `counts/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `backfill-video-language.js` | Fills NULL student_videos.language from each video's lesson quiz language or script majority; --expect-ref guarded |
 | `fixture-students.js` | Prints the web quiz's test-children ids as JSON using the same fixture rule as the weekly numbers |
 | `load-stories.js` | Loads storybooks, voices and questions into one environment's DB and storage via story-load; --expect-ref guarded |
@@ -32,7 +29,9 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/quiz/web-quiz/backfill-video-language.test.js` (backfill-video-language.js)
 - `bot/tests/quiz/web-quiz/fixture-students-cli.test.js` (fixture-students.js)
-- … 3 more → `CLAUDE.index.md`
+- `bot/tests/quiz/web-quiz/load-stories-script.test.js` (load-stories.js)
+- `bot/tests/quiz/web-quiz/readalong-spend-cap.test.js` (readalong-build.js)
+- `bot/tests/quiz/web-quiz/web-quiz-strip-dry.test.js` (strip-dry.js)
 
 ## Related (generated)
-- docs: `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/web-quiz/CLAUDE.index.md`? · `scripts/web-quiz/CLAUDE.md`? · `scripts/web-quiz/counts/CLAUDE.md`?
+- docs: `scripts/CLAUDE.md`?

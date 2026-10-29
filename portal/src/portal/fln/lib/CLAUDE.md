@@ -1,6 +1,6 @@
 # lib — FLN path and sign-in return helpers
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln/lib kg=bbfdac408970 gen=38430dde0bba overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln/lib kg=bbfdac408970 gen=1dd40adcaa1d overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `safeNext.ts` — validates next= after sign-in
@@ -13,7 +13,6 @@
 |---|---|
 | `flnPath.ts` | flnPlanPath(id): the /portal/fln/p/<id> deep-link every reopen list and sent link uses |
 | `safeNext.ts` | safeNext(raw) validates sign-in next= (only /portal/fln, teacher, coach disagreements paths); goAfterSignIn |
-| `CLAUDE.md` | (unmapped) |
 | `safeNext.test.ts` | Vitest: safeNext allows only same-origin paths under allowed prefixes; refuses other origins, schemes, .. |
 
 ## Who reads this (generated)
@@ -29,4 +28,4 @@
 - `portal/src/portal/fln/tests/readers.test.tsx` (flnPath.ts)
 
 ## Related (generated)
-- docs: `portal/src/portal/fln/CLAUDE.index.md`? · `portal/src/portal/fln/CLAUDE.md`? · `portal/src/portal/fln/lib/CLAUDE.md`? · `portal/src/portal/fln/tests/CLAUDE.index.md`?
+- docs: `portal/src/portal/fln/CLAUDE.md`?

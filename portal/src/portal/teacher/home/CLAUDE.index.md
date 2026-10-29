@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `look/` | Teacher Home 'look' (portal_teacher_home_look): navy band, one card, rows, progress strip → `look/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `LessonQuizButton.test.tsx` | Pins 'Quiz this lesson': shown only with the Home card switch and a signed quiz home, logs lp_quiz or coach_quiz |
 | `LessonQuizButton.tsx` | 'Quiz this lesson' button on an open lesson plan and a ready DC report; opens the signed quiz home and logs the tap |
 | `NextCard.test.tsx` | Pins the full Home card per rung in English and Urdu: no score in headline, 48px buttons, RTL lines, tap targets |
@@ -52,4 +50,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `useHomeData.ts` ← `portal/src/portal/teacher/TeacherNavigation.test.tsx` · `portal/src/portal/teacher/home/LessonQuizButton.test.tsx` · `portal/src/portal/teacher/home/QuizTile.test.tsx` · `portal/src/portal/teacher/home/look/LookHome.test.tsx` · `portal/src/portal/teacher/home/useHomeData.test.ts` · `portal/src/portal/teacher/pages/Home.on.test.tsx` (+1: `python3 kg/kg.py who-reads portal/src/portal/teacher/home/useHomeData.ts`)
 
 ## Related (all, generated)
-- docs: `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/home/CLAUDE.index.md`? · `portal/src/portal/teacher/home/CLAUDE.md`? · `portal/src/portal/teacher/home/look/CLAUDE.index.md`? · `portal/src/portal/teacher/home/look/CLAUDE.md`? · `portal/src/portal/teacher/pages/CLAUDE.index.md`? · `portal/src/portal/teacher/pages/CLAUDE.md`?
+- docs: `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/pages/CLAUDE.md`?

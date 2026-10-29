@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `_shared.js` | Shared helpers for dashboard attendance route tests; mirrors hcp/_shared.js, invokeRoute aimed at attendance.routes |
 | `absent-then-leave.test.js` | bd-2727: attendance Flow routes MARK to a separate LEAVE page so a student cannot be both absent and on leave |
 | `attendance-no-class-creation.test.js` | Attendance never creates classes: a teacher with no class is sent to /class, or answered in chat if no school is on file |
@@ -51,4 +49,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/config/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/attendance/CLAUDE.md`? · `bot/shared/services/classes/CLAUDE.index.md`? · `bot/shared/services/classes/CLAUDE.md`? · `bot/shared/utils/CLAUDE.index.md`? · `bot/workers/CLAUDE.index.md`? · `dashboard/routes/CLAUDE.index.md`? · `dashboard/services/CLAUDE.index.md`? · `docs/CLAUDE.index.md`? · `docs/attendance-bigquery-sync.md`? · `docs/flows/CLAUDE.index.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`? · `tests/attendance/CLAUDE.index.md`? · `tests/attendance/CLAUDE.md`?
+- docs: `bot/shared/services/attendance/CLAUDE.md`? · `bot/shared/services/classes/CLAUDE.md`? · `docs/attendance-bigquery-sync.md`? · `tests/CLAUDE.md`?

@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `insights/` | COACHIP nightly insight job: stage modules run by job.js, writing coachip_* tables → `insights/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `analytics-account-name.js` | Lets analytics-only accounts sign in with an account name instead of a phone number; bd-s6qbts.5. |
 | `analytics-lists.js` | One loader of the three school lists (FDE EMIS, RDF, etc.) that every schools-analytics tab counts against. |
 | `analytics-viewer.js` | Middleware gating analytics-only endpoints to user ids listed in app_settings portal_analytics_only; 403/500 on fail. |
@@ -98,4 +96,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `weekday-hours.js` ← `tests/portal/bd-fmf24g.15-weekday-hours.test.js`
 
 ## Related (all, generated)
-- docs: `dashboard/CLAUDE.index.md`? · `dashboard/CLAUDE.md`? · `dashboard/lib/CLAUDE.index.md`? · `dashboard/lib/CLAUDE.md`? · `dashboard/lib/insights/CLAUDE.index.md`? · `dashboard/lib/insights/CLAUDE.md`? · `dashboard/tests/CLAUDE.index.md`? · `dashboard/tests/CLAUDE.md`? · `docs/onboarding/CLAUDE.md`? · `docs/onboarding/local-portal.md`? · `portal/ANDROID.md`? · `portal/CLAUDE.index.md`? · `portal/CLAUDE.md`? · `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.md`? · `portal/src/portal/newui/DESIGN.md`? · `tests/app-redirect/CLAUDE.index.md`? · `tests/app-redirect/CLAUDE.md`? · `tests/coachip-rm/CLAUDE.md`? · `tests/coachip/CLAUDE.index.md`? · `tests/coachip/CLAUDE.md`? · `tests/coachip/helpers/CLAUDE.md`? · `tests/dashboard/CLAUDE.md`? · `tests/hcp/CLAUDE.index.md`? · `tests/hcp/CLAUDE.md`? · `tests/portal/CLAUDE.index.md`? · `tests/portal/CLAUDE.md`?
+- docs: `dashboard/CLAUDE.md`? · `docs/onboarding/local-portal.md`? · `portal/ANDROID.md`? · `portal/src/portal/newui/DESIGN.md`?

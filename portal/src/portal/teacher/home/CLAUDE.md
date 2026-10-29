@@ -1,7 +1,7 @@
 # home — Teacher Home card, score chips, Quizzes tile and Home data hook
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/home kg=3696eb2aa2ae gen=3c01000edae4 overflow=39 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/home kg=3696eb2aa2ae gen=642f958dfd1a overflow=36 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `useHomeData.ts` — switches and GET /me/home load; `api.ts` — the server-shaped card read
@@ -15,7 +15,8 @@ Full index: `CLAUDE.index.md`
 | `look/` | Teacher Home 'look' (portal_teacher_home_look): navy band, one card, rows, progress strip → `look/CLAUDE.md` |
 | `api.ts` | Home card API: GET /api/portal/me/home and POST /me/home/tap; server picks card rung, tile order, scores, quiz home |
 | `copy.ts` | English and Urdu words for the Home card, score chips and LP 'Quiz this lesson' button, registered COPY_ENTRY |
-| … | 18 more → `CLAUDE.index.md` |
+| `QuizTile.test.tsx` | Pins the Home Quizzes tile: 2nd tile after Lesson plans when GET /me/home says quizTile true (27 Oct 2026) |
+| … | 15 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `api.ts` ← imported by `portal/src/portal/teacher/home/LessonQuizButton.tsx:7:e60ade0a` · `portal/src/portal/teacher/home/NextCard.tsx:9:f2ddb384` (+12)
@@ -34,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - … 14 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/home/CLAUDE.index.md`? · `portal/src/portal/teacher/home/CLAUDE.md`? · `portal/src/portal/teacher/home/look/CLAUDE.index.md`? · `portal/src/portal/teacher/home/look/CLAUDE.md`? (+2)
+- docs: `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/pages/CLAUDE.md`?

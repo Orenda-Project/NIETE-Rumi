@@ -1,7 +1,7 @@
 # plan — Parts of the FLN plan page: header, sections, moves, media, time bar
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln/plan kg=4d5c22c5b4ec gen=9a5f3b491e22 overflow=15 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln/plan kg=4d5c22c5b4ec gen=cca7fb106b95 overflow=13 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `Section.tsx` — closed-by-default disclosure band
@@ -16,10 +16,10 @@ Full index: `CLAUDE.index.md`
 | `Move.tsx` | One numbered lesson move: step text, Say/Ask/Answer label, and its audio pills, images, videos, PDFs |
 | `SoundGrid.tsx` | "Sounds in this lesson" tile grid, one per distinct clip; hidden on screeners/no-audio plans; warms clips on mount |
 | `MediaVideo.tsx` | Tap-to-play plan video with poster and size button; offers 360p copy after 5s wait, retries from orig |
-| `CLAUDE.md` | (unmapped) |
 | `MediaImage.tsx` | Plan picture in aspect-ratio reserved box; lazy-loaded, retries once from orig, tap for full screen |
-| `CLAUDE.index.md` | (unmapped) |
-| … | 5 more → `CLAUDE.index.md` |
+| `Details.tsx` | Lesson goal and "Full details" expander: SLOs, Bring, Before class, Summary reference fields |
+| `Section.tsx` | Lesson section as a closed-by-default disclosure band: colour stripe, name, minutes, first move, expands in place |
+| … | 3 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `text.tsx` ← imported by `portal/src/portal/fln/LessonList.tsx:19:a1032afc` · `portal/src/portal/fln/PlanPage.tsx:29:a1032afc` (+7)
@@ -38,4 +38,4 @@ Full index: `CLAUDE.index.md`
 - … 4 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/fln/CLAUDE.index.md`? · `portal/src/portal/fln/CLAUDE.md`? · `portal/src/portal/fln/plan/CLAUDE.index.md`? · `portal/src/portal/fln/plan/CLAUDE.md`? · `portal/src/portal/fln/tests/CLAUDE.index.md`?
+- docs: `portal/src/portal/fln/CLAUDE.md`?

@@ -1,6 +1,6 @@
 # helpers — Shared stand-ins for the observe2 tests (not tests themselves)
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/observe2/helpers kg=c384f8e21182 gen=ee11c8a74d2e overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/observe2/helpers kg=c384f8e21182 gen=7a0091a9113c overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `fake-supabase.js` — in-memory query builder recording chains and filters
@@ -13,7 +13,6 @@
 |---|---|
 | `fake-supabase.js` | Test helper: in-memory Supabase query-builder stand-in recording call chains and applying eq/is/gte filters |
 | `meta-init-types.js` | Test helper: the value type Meta's Flow JSON 7.3 validator expects for each Form init value, by component |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - (none)
@@ -26,4 +25,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `tests/observe2/CLAUDE.index.md`? · `tests/observe2/CLAUDE.md`? · `tests/observe2/helpers/CLAUDE.md`?
+- docs: `tests/observe2/CLAUDE.md`?

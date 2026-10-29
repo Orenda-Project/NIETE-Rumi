@@ -6,8 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
+| `__snapshots__/` | → (not mapped: excluded; 8 files) |
 | `Listen.test.tsx` | Pins Listen tab: base line, W chips, newest-first rows, one inline player, empty and error states |
 | `Move.test.tsx` | Pins S5 move page: library words verbatim, check rule, FLN send, debrief line, flag-off redirect |
 | `Results.test.tsx` | Pins S7 Results: counts at five tested, send links, debrief line, empty states |
@@ -24,6 +23,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `homeBoot.test.ts` | Pins boot-time /coachip/home priming: once, 30 s staleness, only when switch is true (bd-sex15q.34) |
 | `more.flagOff.test.tsx` | Pins coach More with and without COACHIP: extra rows, RM link and the .cp look |
 | `r6_coach_deck.test.tsx` | Pins the R6 coach deck restyle behaviours: hero ring, overlapping card, bidi, laptop layout (bd-sex15q.46) |
+| `r6b_fix.test.tsx` | (unmapped) |
+| `r6b_more.test.tsx` | (unmapped) |
 | `routing.flagOff.test.tsx` | Pins coach routing with COACHIP off versus on: home, menu, reachable pages (B7/B8) |
 
 ## Who reads this (all, generated)
@@ -33,4 +34,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/scripts/urdu-fit/CLAUDE.md`? · `portal/src/portal/coach/CLAUDE.index.md`? · `portal/src/portal/coach/insights/CLAUDE.index.md`? · `portal/src/portal/coach/insights/CLAUDE.md`? · `portal/src/portal/coach/insights/pages/CLAUDE.index.md`? · `portal/src/portal/coach/insights/pages/CLAUDE.md`? · `portal/src/portal/coach/insights/tests/CLAUDE.index.md`? · `portal/src/portal/coach/insights/tests/CLAUDE.md`? · `portal/src/portal/coach/profile/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.index.md`? · `portal/src/portal/coach/training/CLAUDE.md`? · `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/hooks/CLAUDE.index.md`? · `portal/src/portal/hooks/CLAUDE.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/services/CLAUDE.index.md`? · `portal/src/portal/services/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`?
+- docs: `portal/scripts/urdu-fit/CLAUDE.md`? · `portal/src/portal/coach/insights/CLAUDE.md`? · `portal/src/portal/coach/insights/pages/CLAUDE.md`? · `portal/src/portal/coach/profile/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.md`? · `portal/src/portal/coachip-ui/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

@@ -1,7 +1,7 @@
 # routes — Express routers: portal API, coach/teacher app APIs, child-quiz edge pages, admin routes
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/routes kg=a7589d487e0b gen=977edb7554e9 overflow=386 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/routes kg=c1cfd92c1914 gen=e0f9ad4c43da overflow=385 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `portal.routes.js` — main /api/portal API (9k lines)
@@ -14,14 +14,13 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `portal.routes.js` | Main teacher/coach portal API at /api/portal: auth, setup, reset, dashboard, lessons, coaching, training; 9k lines. |
 | `web*` | 15 files; most used `web-quiz.routes.js`: Child web-quiz public edge: /q/:code pages, share art, /api/wq/* forwarded to the bot, hub /h, landing /k; 2.1k lines. |
-| `CLAUDE.index.md` | (unmapped) |
-| … | 40 more → `CLAUDE.index.md` |
+| `sa*` | 5 files; most used `sa-battery-switches.js`: Applies app_settings content switches (practice, passage rotation, RDF W3 forms) to a battery file as served. |
+| … | 60 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - table `users` (written by `portal.routes.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+170)
 - `web-quiz.routes.js` ← imported by `dashboard/index.js:171:a0c5436b` · `dashboard/routes/first-touch.routes.js:23:618f2a96` (+8)
-- column `training_assessment_attempts.user_id` (written by `portal.routes.js`) ← read by `bot/shared/routes/teacher-training-endpoint.js:1222:7cb7cc00` · `bot/shared/services/teacher-state.service.js:413:219f5683` (+6)
-- … 91 more → `CLAUDE.index.md`
+- … 109 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Never let an edge router answer while its switch is off; it must call next() (`edge-mounts.js:5`)
@@ -34,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - … 255 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/tests/child-test/CLAUDE.index.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `dashboard/CLAUDE.index.md`? · `dashboard/CLAUDE.md`? · `dashboard/routes/CLAUDE.index.md`? (+34)
+- docs: `dashboard/CLAUDE.md`? · `docs/app-funnel-telemetry.md`? · `docs/reports/bug131-phase2-portal-quiz-ui.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `docs/reports/bug131-phase4-media-complete.md`? · `tests/BASELINE.md`?

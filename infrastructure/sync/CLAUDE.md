@@ -1,6 +1,6 @@
 # sync — Maintainer-only config for syncing internal code to the public rumi-platform repo
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/sync kg=684b5109469b gen=153b53a9800c overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/sync kg=684b5109469b gen=7feebc308443 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `manifest.json` — internal-to-public path mappings read by sync-from-internal.sh
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `README.md` | Maintainer-only note on how internal code is synced to the public rumi-platform repo; not needed to run the bot |
 | `manifest.json` | Maps internal paths to public monorepo paths and exclusions consumed by sync-from-internal.sh |
 | `exclude.txt` | Human-readable list of paths never synced to the public repo; companion to the manifest.json exclude list |
@@ -26,4 +25,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `SETUP.md`? · `infrastructure/CLAUDE.index.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/scripts/CLAUDE.md`? · `infrastructure/sync/CLAUDE.md`? · `infrastructure/sync/README.md`?
+- docs: `SETUP.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/scripts/CLAUDE.md`? · `infrastructure/sync/README.md`?

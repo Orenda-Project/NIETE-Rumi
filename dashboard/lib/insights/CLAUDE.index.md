@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `prompts/` | Model prompts for COACHIP glosses, re-check, homework and phonics detection → `prompts/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `allowlist.js` | The only reader of coaching_sessions.analysis_data for COACHIP; passes allow-listed keys only, dropping evidence text. |
 | `circle.js` | COACHIP stage 8: picks one moment per coach on a sector's rank-1 weakness for the coaches' circle. |
 | `clip-stage.js` | COACHIP stage 11 on R2: presigns recordings, cuts moment clips and full-lesson MP3s, records clip_status/clip_r2_key. |
@@ -93,4 +91,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `windows.js` ← `dashboard/tests/insights/rollups.service.test.js` · `dashboard/tests/insights/windows.service.test.js`
 
 ## Related (all, generated)
-- docs: `dashboard/lib/CLAUDE.index.md`? · `dashboard/lib/CLAUDE.md`? · `dashboard/lib/insights/CLAUDE.index.md`? · `dashboard/lib/insights/CLAUDE.md`? · `dashboard/lib/insights/prompts/CLAUDE.md`? · `dashboard/tests/insights/CLAUDE.index.md`? · `dashboard/tests/insights/CLAUDE.md`? · `tests/coachip/CLAUDE.index.md`? · `tests/coachip/CLAUDE.md`?
+- docs: `dashboard/lib/CLAUDE.md`?

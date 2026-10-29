@@ -29,8 +29,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `023_fix_mv_permissions.sql` | Grants SELECT on the dashboard materialized views to PUBLIC to fix permission-denied for the portal's DB role. |
 | `024_add_scope_dimensions_to_mvs.sql` | Rebuilds mv_users_activity with country_code, school_name_lower, is_test_user indexed columns for partner reads. |
 | `025_fix_mv_dashboard_stats_refresh.sql` | Fixes mv_dashboard_stats CONCURRENTLY refresh (bad unique index from 024) that left it stale since July; bd-ri5o9.7. |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `add_lesson_plan_pdf_url.sql` | Adds lesson_plans.pdf_url (Gamma-generated PDF link) with a partial index. |
 | `add_portal_authentication.sql` | Adds users.portal_password_hash, invite token/expiry, activation, last-login and reset-code columns for portal login. |
 | `test_connection.sql` | One-off connectivity probe SELECT (database, user, version); not a schema change. |
@@ -147,4 +145,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `dashboard/database/CLAUDE.index.md`? · `dashboard/database/CLAUDE.md`? · `dashboard/database/migrations/CLAUDE.index.md`? · `dashboard/database/migrations/CLAUDE.md`?
+- docs: `dashboard/database/CLAUDE.md`?

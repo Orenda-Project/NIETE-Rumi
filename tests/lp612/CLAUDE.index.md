@@ -6,10 +6,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `__fixtures__/` | Shared JSON fixtures for the lp612 suites (base lesson, colliding books, page-truth) → `__fixtures__/CLAUDE.md` |
+| `__fixtures__/` | → (no door; 7 files: 0 test + 7 support) |
 | `helpers/` | Shared harnesses and doubles for the lp612 E2E and unit suites → `helpers/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `atom-unknown-element.test.js` | bd-8lifl: pins the diagram engine raising ATOM_UNKNOWN_ELEMENT for an unknown atom instead of drawing hydrogen |
 | `author-advisory-prompt.test.js` | bd-owx8t: pins that revision prompts in lp612-author.service carry only blocking defects, not advisory BUDGET lines |
 | `author-brief-gender-neutral.test.js` | bd-oak77.32: pins author brief v3 requiring gender-neutral unnamed characters in worked scenarios |
@@ -222,10 +220,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `worker-queues-boot-warning.test.js` | bd-awqt3: pins resolveWorkerQueuesBootStatus reporting an unset WORKER_QUEUES as defaulted to all three queues |
 
 ## Who reads this (all, generated)
-- env `WORKER_QUEUES` read at `tests/lp612/worker-queues-boot-warning.test.js:43:ea3d3b39`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/data/CLAUDE.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/nudges/CLAUDE.index.md`? · `bot/shared/services/quiz/CLAUDE.index.md`? · `bot/shared/templates/CLAUDE.index.md`? · `bot/shared/utils/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/lib/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/lib/CLAUDE.md`? · `bot/vendor/lp-v9/lib/CLAUDE.index.md`? · `bot/vendor/lp-v9/lib/CLAUDE.md`? · `bot/workers/CLAUDE.index.md`? · `docs/lp612/video-enhancement-test.md`? · `tests/BASELINE.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`? · `tests/lp612/CLAUDE.index.md`? · `tests/lp612/CLAUDE.md`? · `tests/lp612/__fixtures__/CLAUDE.md`? · `tests/lp612/helpers/CLAUDE.md`?
+- docs: `bot/shared/data/CLAUDE.md`? · `bot/vendor/lp-v9/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/lib/CLAUDE.md`? · `bot/vendor/lp-v9/lib/CLAUDE.md`? · `docs/lp612/video-enhancement-test.md`? · `tests/BASELINE.md`? · `tests/CLAUDE.md`?

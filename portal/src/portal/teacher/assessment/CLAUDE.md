@@ -1,7 +1,7 @@
 # assessment — Teacher Assessment: New paper steps, My papers, paper page, editor, FDE board pattern
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/assessment kg=5001d4e48a54 gen=c5bfc387e5f5 overflow=97 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/assessment kg=7cee7e8bde25 gen=4c85dc82b5b7 overflow=94 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `routes.tsx` — all pages under /portal/teacher/assessment; `model.ts` — New paper rules and steps
@@ -13,9 +13,10 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `fixtures/` | → (no door; 1 files) |
+| `__snapshots__/` | → (not mapped: excluded; 2 files) |
 | `copy.ts` | English and Urdu words for every Assessment screen (machine-drafted Urdu), registered as COPY_ENTRY |
 | `paths.ts` | Path builders for every Assessment page under /portal/teacher/assessment: new paper, request, paper, versions, edit |
-| … | 45 more → `CLAUDE.index.md` |
+| … | 51 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `copy.ts` ← imported by `portal/src/portal/teacher/notices/NoticeHost.tsx:6:ecf5e3dc` · `portal/src/portal/teacher/notices/useNoticeWords.ts:2:ecf5e3dc` (+16)
@@ -29,7 +30,8 @@ Full index: `CLAUDE.index.md`
 
 ## Tests (generated)
 - `portal/src/portal/teacher/assessment/assessment.ur.test.tsx` (AssessmentHub.tsx, EditPages.tsx, NewPaperSteps.tsx, PaperPage.tsx, RequestPage.tsx, api.ts, copy.ts, failure.ts, model.ts, paperCache.ts, paths.ts, store.ts)
-- … 28 more → `CLAUDE.index.md`
+- `portal/src/portal/teacher/assessment/fde.r6.test.tsx` (EditPages.tsx, NewPaperSteps.tsx, PaperPage.tsx, RequestPage.tsx, VersionsPage.tsx, api.ts, copy.ts, model.ts, paperCache.ts, paths.ts, store.ts)
+- … 27 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/lib/CLAUDE.index.md`? · `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? (+5)
+- docs: `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/notices/CLAUDE.md`?

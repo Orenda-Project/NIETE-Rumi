@@ -1,7 +1,7 @@
 # coach — Coach app v2 root: gate, flag hook, shared UI, copy and time rules
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach kg=dfafb27c487a gen=acd56c770c94 overflow=44 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach kg=dfafb27c487a gen=459604e06fed overflow=41 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `CoachGate.tsx` — only a coach with portal_coach_v2 sees /portal/coach screens
@@ -14,15 +14,16 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | 12 sub-dirs, each with `CLAUDE.md` | `analytics/` · `card/` · `disagreements/` · `home/` · `insights/` · `observe/` · `pages/` · `people/` · `profile/` · `reports/` · `schedule/` · `training/` |
 | `ui.tsx` | Coach app v2 building blocks: Card, Chip, PendingBanner, CoachPage, useLoad, 56px targets (bd-o15qnr) |
-| `CLAUDE.index.md` | (unmapped) |
 | `types.ts` | TypeScript shapes of /api/portal/coach/* answers from dashboard/services/coach-v2.service.js (bd-o15qnr) |
-| … | 12 more → `CLAUDE.index.md` |
+| `useCoachV2.ts` | Hook reading /config for portal_coach_v2; null while loading, true only for literal true (bd-o15qnr) |
+| … | 21 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `ui.tsx` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:11:3065a692` · `portal/src/portal/coach/card/FeatureGridPage.tsx:4:a108a8ec` (+37)
 - `types.ts` ← imported by `portal/src/portal/services/api.ts:13:e1bc00c4` · `portal/src/portal/coach/analytics/model.ts:1:ed880149` (+19)
 - `CoachGate.tsx` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:9:561961fe` · `portal/src/portal/coach/disagreements/frame.tsx:5:561961fe` (+9)
-- … 4 more → `CLAUDE.index.md`
+- `time.ts` ← imported by `portal/src/portal/coach/home/VisitCards.tsx:5:6e4fb0ef` · `portal/src/portal/coach/pages/CoachNewVisit.tsx:8:2855461c` (+6)
+- … 3 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Flags are fail-closed: only a literal true turns v2 on (useCoachV2.ts:9)
@@ -35,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - … 28 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/CLAUDE.md`? · `portal/src/portal/coach/CLAUDE.index.md`? · `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/analytics/CLAUDE.md`? · `portal/src/portal/coach/card/CLAUDE.index.md`? · `portal/src/portal/coach/card/CLAUDE.md`? (+26)
+- docs: `portal/src/portal/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

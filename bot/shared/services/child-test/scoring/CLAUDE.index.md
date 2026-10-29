@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `tasks/` | Per-task v3 scorers (letters, words, story, listening, maths) on shared engines → `tasks/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `assemble.js` | Assembles one block's scorer outputs into contract ai_marks (v1/v2); missing items become none with confidence 0 |
 | `child-no.js` | Reads the child number off a strip photo with a bounded 8s vision call; null means fall back to list order (bd-s1oo0.38) |
 | `comprehension.js` | Grades comprehension answers from the diarised transcript with a Gemini text grader and accept/reject lists |
@@ -83,4 +81,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `windows.js` ← `tests/child-test/L11/scorer-quick-sums.test.js` · `tests/child-test/L24/story-minute.test.js` · `tests/child-test/L32/coach-switch.test.js` · `tests/child-test/L5/maths-spoken.test.js` · `tests/child-test/L5/story-pure.test.js` · `tests/child-test/L5/windows.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/scoring/CLAUDE.index.md`? · `bot/shared/services/child-test/scoring/CLAUDE.md`? · `bot/shared/services/child-test/scoring/tasks/CLAUDE.index.md`? · `bot/shared/services/child-test/scoring/tasks/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`? · `dashboard/tests/CLAUDE.index.md`? · `dashboard/tests/CLAUDE.md`? · `tests/child-test/L11/CLAUDE.md`? · `tests/child-test/L15/CLAUDE.md`? · `tests/child-test/L16/CLAUDE.md`? · `tests/child-test/L18/CLAUDE.md`? · `tests/child-test/L20/CLAUDE.md`? · `tests/child-test/L24/CLAUDE.md`? · `tests/child-test/L27/CLAUDE.md`? · `tests/child-test/L30/CLAUDE.md`? · `tests/child-test/L32/CLAUDE.md`? · `tests/child-test/L34/CLAUDE.md`? · `tests/child-test/L38/CLAUDE.md`? · `tests/child-test/L40/CLAUDE.md`? · `tests/child-test/L5/CLAUDE.md`? · `tests/child-test/L6/CLAUDE.index.md`? · `tests/child-test/L6/CLAUDE.md`?
+- (none)

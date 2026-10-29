@@ -1,7 +1,7 @@
 # g5_ch7 — Hosted v9 pages, Grade 5 chapter 7 (20 segs: English 8, Math 5, Urdu 7)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch7 kg=88d7617c6e50 gen=a95f820e0d33 overflow=10 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch7 kg=88d7617c6e50 gen=28e41638b6ce overflow=9 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g5_ch7_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g5_ch7_English_seg1.v9.html` | Hosted v9 lesson page G5 English ch7 seg1 (en): Memory Lane + New Words: Unscramble Me & Pre-Reading Predictions |
 | `g5_ch7_English_seg2.v9.html` | Hosted v9 lesson page G5 English ch7 seg2 (en): Reading: 'A Visit to the Doctor' from Boy by Roald Dahl (+ more topics) |
 | `g5_ch7_English_seg3.v9.html` | Hosted v9 lesson page G5 English ch7 seg3 (en): Diving Deeper: Paragraph Sandwich + Scan for Answers |
@@ -23,7 +21,8 @@ Full index: `CLAUDE.index.md`
 | `g5_ch7_English_seg8.v9.html` | Hosted v9 lesson page G5 English ch7 seg8 (en): Connect and Create: My Scary Story (narrative) |
 | `g5_ch7_Maths_seg1.v9.html` | Hosted v9 lesson page G5 Math ch7 seg1 (en): Percentages as fractions & decimals |
 | `g5_ch7_Maths_seg2.v9.html` | Hosted v9 lesson page G5 Math ch7 seg2 (en): %/fraction/decimal consolidation |
-| … | 10 more → `CLAUDE.index.md` |
+| `g5_ch7_Maths_seg3.v9.html` | Hosted v9 lesson page G5 Math ch7 seg3 (en): Convert %/F/D in real-life word contexts |
+| … | 9 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -36,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch7/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch7/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

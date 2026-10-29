@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `class-command.js` | Rule deciding which typed words open the class manager (/classes, /class near misses) |
 | `class-entry.service.js` | Single door opening the class manager Flow; guards teachers with no school on file |
 | `class-label-parser.js` | Parser turning free-text class labels into (grade_code, section) pairs |
@@ -68,4 +66,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `class.service.js` ← `bot/tests/quiz/web-quiz/web-quiz-fix-who-roll.test.js` · `tests/attendance/edit-class-enrolls.test.js` · `tests/classes/add-students-long-race.test.js` · `tests/classes/add-students-overlap.test.js` · `tests/classes/apply-roster-edits.test.js` · `tests/classes/class-manager-endpoint.test.js` (+9: `python3 kg/kg.py who-reads bot/shared/services/classes/class.service.js`)
 
 ## Related (all, generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/classes/CLAUDE.index.md`? · `bot/shared/services/classes/CLAUDE.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `tests/attendance/CLAUDE.index.md`? · `tests/attendance/CLAUDE.md`? · `tests/classes/CLAUDE.index.md`? · `tests/classes/CLAUDE.md`? · `tests/handlers/CLAUDE.index.md`? · `tests/handlers/CLAUDE.md`? · `tests/registration/CLAUDE.index.md`? · `tests/registration/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.md`?

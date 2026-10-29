@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `_shared.js` | Shared helpers for HCP portal-route tests: jest.doMock plus fake-supabase chain boilerplate for /api/portal/hcp/* |
 | `hcp-access-guard.test.js` | bd-6xrimn: /api/portal/hcp/* admits leaders only and each sees only their own patch; teachers refused |
 | `hcp-generate-feedback.test.js` | POST /api/portal/hcp/generate-feedback: auth and validation, then six-box coaching feedback JSON from the LLM client |
@@ -30,4 +28,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `dashboard/lib/CLAUDE.index.md`? · `dashboard/routes/CLAUDE.index.md`? · `dashboard/services/CLAUDE.index.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`? · `tests/hcp/CLAUDE.index.md`? · `tests/hcp/CLAUDE.md`?
+- docs: `tests/CLAUDE.md`?

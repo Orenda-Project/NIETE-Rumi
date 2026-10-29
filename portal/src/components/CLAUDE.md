@@ -1,7 +1,7 @@
 # components — Marketing-site sections (Hero, Navigation, story blocks) plus shared shadcn UI
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/components kg=6a589b8fbdbf gen=1c4fbf17f8a2 overflow=13 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/components kg=673d873c76e0 gen=7731d4a691a9 overflow=11 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `Hero.tsx` — landing hero; the other sections are composed by pages/Index.tsx
@@ -14,14 +14,14 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `icons/` | → (no door; 1 files) |
 | `ui/` | shadcn/ui primitives (Radix wrappers); generated style, mostly unused by the portal → `ui/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `Navigation.tsx` | Marketing site top nav: logo, features anchor, Meet Rumi button, language switcher |
 | `FinalCTA.tsx` | Marketing landing closing call-to-action section with the chat-on-WhatsApp button |
 | `Hero.tsx` | Marketing landing hero: headline, subtitle and Meet Rumi button linking to the tier's bot |
 | `AlwaysThere.tsx` | Marketing landing section 'always there': title plus list of moments Rumi helps, from i18n alwaysThere |
 | `FeatureCard.tsx` | Marketing feature card: title, description and an animated sample WhatsApp chat via WhatsAppChat |
-| … | 6 more → `CLAUDE.index.md` |
+| `GlobalTeachers.tsx` | Marketing landing 'global teachers' section: title, two paragraphs and conclusion from i18n |
+| `LanguageSwitcher.tsx` | Dropdown to switch en/ur on the site and the portal; also saves the choice to the server via portal api language |
+| … | 4 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `Navigation.tsx` ← imported by `portal/src/pages/HowItWorks.tsx:1:4bc1fefe` · `portal/src/pages/Index.tsx:1:4bc1fefe`
@@ -39,4 +39,4 @@ Full index: `CLAUDE.index.md`
 - `portal/src/portal/teacher/ui/FeatureCard.test.tsx`? (FeatureCard.tsx)
 
 ## Related (generated)
-- docs: `portal/src/CLAUDE.index.md`? · `portal/src/CLAUDE.md`? · `portal/src/components/CLAUDE.index.md`? · `portal/src/components/CLAUDE.md`? · `portal/src/components/ui/CLAUDE.index.md`? · `portal/src/components/ui/CLAUDE.md`? (+4)
+- docs: `portal/src/CLAUDE.md`?

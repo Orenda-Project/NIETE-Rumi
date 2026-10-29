@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `add-child-switch.js` | Feature switch (app_settings sa_add_child, default off) letting a coach seat an off-roster child; read by sa-api.service |
 | `all-grades-switch.js` | Feature switch (sa_all_grades, default off): coach picks Grade 1-5 per school for the day's list; read by sa-api.service |
 | `any-school-switch.js` | Switch (sa_any_school) letting listed users see every live programme school, not only their own; used by sa-api.service |
@@ -60,4 +58,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `sa-review.service.js` ← `bot/tests/child-test/sa-review.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/app/CLAUDE.index.md`? · `bot/shared/services/child-test/app/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`? · `bot/tests/child-test/CLAUDE.md`? · `tests/child-test/L0/CLAUDE.md`? · `tests/child-test/L16/CLAUDE.md`? · `tests/child-test/L7/CLAUDE.index.md`? · `tests/child-test/L7/CLAUDE.md`?
+- docs: `bot/shared/services/child-test/CLAUDE.md`?

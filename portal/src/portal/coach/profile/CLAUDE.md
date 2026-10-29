@@ -1,6 +1,6 @@
 # profile — Coach More page and own profile
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/profile kg=f71c1ee55504 gen=323d9a1cbd10 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/profile kg=ba4cafaea3b5 gen=f9459c239cbb overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `CoachMore.tsx` — identity, Language toggle, My profile, Log out
@@ -13,9 +13,8 @@
 |---|---|
 | `CoachMore.test.tsx` | Pins coach More: who they are, Language toggle, My profile, Log out, Learning assessment row (bd-4404s7.2) |
 | `copy.ts` | English and Urdu words for coach More and My profile pages |
-| `CoachProfile.test.tsx` | Pins coach profile: name and phone shown, Schools row, Privacy and Delete account (bd-4404s7.2) |
-| `CLAUDE.md` | (unmapped) |
 | `CoachMore.tsx` | Coach More page: identity card, Language toggle, My profile, Log out, optional child test row |
+| `CoachProfile.test.tsx` | Pins coach profile: name and phone shown, Schools row, Privacy and Delete account (bd-4404s7.2) |
 | `CoachProfile.tsx` | Coach's own profile with read-only name and phone, school counts, privacy and delete links |
 | `useCoachCounts.ts` | Reads school and teacher counts from GET /coach/home for the profile pages |
 
@@ -31,8 +30,9 @@
 
 ## Tests (generated)
 - `portal/src/portal/coach/insights/tests/more.flagOff.test.tsx` (CoachMore.tsx)
+- `portal/src/portal/coach/insights/tests/r6b_more.test.tsx` (CoachMore.tsx)
 - `portal/src/portal/coach/profile/CoachMore.test.tsx` (CoachMore.tsx)
 - `portal/src/portal/coach/profile/CoachProfile.test.tsx` (CoachProfile.tsx)
 
 ## Related (generated)
-- docs: `portal/src/portal/coach/CLAUDE.index.md`? · `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/insights/tests/CLAUDE.index.md`? · `portal/src/portal/coach/profile/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.index.md`? · `portal/src/portal/hooks/CLAUDE.md`? (+1)
+- docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.md`?

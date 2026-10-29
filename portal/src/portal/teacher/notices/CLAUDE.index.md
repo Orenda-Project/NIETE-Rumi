@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `NoticeHost.test.tsx` | Pins the shell notices on a real screen: Being made strip, ready and failed banners, tap targets (bd-fmf24g.15) |
 | `NoticeHost.tsx` | Shell-mounted notices on every teacher v2 screen: Being made strip above the menu, ready/failed banner, tap handling |
 | `ReadyForYou.test.tsx` | Pins Home's Ready for you: server-listed unopened items within 24 weekday hours, max 2, gone once opened (bd-fmf24g.15) |
@@ -46,4 +44,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `tracker.ts` ← `portal/src/portal/coach/observe/sender.test.ts` · `portal/src/portal/coach/pages/CoachBack.test.tsx` · `portal/src/portal/coach/pages/CoachObserveFlow.test.tsx` · `portal/src/portal/coach/pages/CoachOwnPlan.test.tsx` · `portal/src/portal/components/PortalLayout.notices.test.tsx` · `portal/src/portal/teacher/assessment/fde.r5.test.tsx` (+11: `python3 kg/kg.py who-reads portal/src/portal/teacher/notices/tracker.ts`)
 
 ## Related (all, generated)
-- docs: `portal/src/portal/coach/observe/CLAUDE.index.md`? · `portal/src/portal/coach/pages/CLAUDE.index.md`? · `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/assessment/CLAUDE.index.md`? · `portal/src/portal/teacher/lessons/CLAUDE.index.md`? · `portal/src/portal/teacher/notices/CLAUDE.index.md`? · `portal/src/portal/teacher/notices/CLAUDE.md`? · `portal/src/portal/teacher/remind/CLAUDE.md`? · `portal/src/portal/teacher/ui/CLAUDE.index.md`?
+- docs: `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/remind/CLAUDE.md`?

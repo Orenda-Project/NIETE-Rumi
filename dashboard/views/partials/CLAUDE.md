@@ -1,6 +1,6 @@
 # partials — EJS pieces included by the dashboard's admin pages: top navigation bar and login release feed
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/views/partials kg=cab69247a327 gen=cebab5a8d0f0 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/views/partials kg=cab69247a327 gen=a6a1ae981a12 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `navigation.ejs` — the NIETE-styled top bar every admin view includes with currentPage/username/userRole (bd-2458)
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `navigation.ejs` | Shared navigation bar included by observability pages, role-aware via currentPage and userRole. |
 | `release-feed.ejs` | Floating release-notes feed component included on the login page. |
 
@@ -25,4 +24,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `dashboard/views/CLAUDE.index.md`? · `dashboard/views/CLAUDE.md`?
+- docs: `dashboard/views/CLAUDE.md`?

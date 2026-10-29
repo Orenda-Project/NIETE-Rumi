@@ -1,7 +1,7 @@
 # g4_ch8 — Hosted v9 pages, Grade 4 chapter 8 (21 segs: English 9, Math 7, Urdu 5)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g4_ch8 kg=a4afefc95635 gen=2b4a3f8b4a5e overflow=11 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g4_ch8 kg=a4afefc95635 gen=edb2a129932b overflow=10 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g4_ch8_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g4_ch8_English_seg1.v9.html` | Hosted v9 lesson page G4 English ch8 seg1 (en): Chapter Vocabulary (Memory Lane — new space words) |
 | `g4_ch8_English_seg2.v9.html` | Hosted v9 lesson page G4 English ch8 seg2 (en): Reading 'Reaching for the Stars' (Journey through the text) |
 | `g4_ch8_English_seg3.v9.html` | Hosted v9 lesson page G4 English ch8 seg3 (en): Diving deeper: Discovering the Story's World + WH-Questions |
@@ -23,7 +21,8 @@ Full index: `CLAUDE.index.md`
 | `g4_ch8_English_seg8.v9.html` | Hosted v9 lesson page G4 English ch8 seg8 (en): Write: Space Adventure Paragraph (Imagination Canvas) |
 | `g4_ch8_English_seg9.v9.html` | Hosted v9 lesson page G4 English ch8 seg9 (en): Write & Create: Opinion Piece |
 | `g4_ch8_Maths_seg1.v9.html` | Hosted v9 lesson page G4 Math ch8 seg1 (en): Converting units of length (km, m, cm, mm) |
-| … | 11 more → `CLAUDE.index.md` |
+| `g4_ch8_Maths_seg2.v9.html` | Hosted v9 lesson page G4 Math ch8 seg2 (en): Converting units of capacity (l, ml) & mass (kg, g) |
+| … | 10 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -36,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g4_ch8/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g4_ch8/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

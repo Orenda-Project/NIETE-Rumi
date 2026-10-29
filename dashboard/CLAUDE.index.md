@@ -25,8 +25,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `views/` | EJS pages for the observability admin portal plus one static demo HTML → `views/CLAUDE.md` |
 | `workers/` | → (no door; 1 files) |
 | `.gitignore` | (unmapped) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `README.md` | Phase-2 overview of the observability dashboard: features, prerequisites (bot deployed, same Supabase DB), setup. |
 | `cluster.js` | Cluster wrapper that forks up to 4 workers running index.js so slow GPT requests cannot block portal static serving. |
 | `entrypoint.js` | Railway entrypoint: runs the portal server or the SQS worker depending on the WORKER_MODE env var. |
@@ -81,5 +79,5 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `jest.config.js` ← `tests/jest.config.js`?
 
 ## Related (all, generated)
-- docs: `CLAUDE.md`? · `dashboard/CLAUDE.index.md`? · `dashboard/CLAUDE.md`? · `dashboard/README.md`? · `dashboard/data/CLAUDE.md`? · `dashboard/database/CLAUDE.index.md`? · `dashboard/database/CLAUDE.md`? · `dashboard/docs/CLAUDE.md`? · `dashboard/lib/CLAUDE.index.md`? · `dashboard/lib/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/public/CLAUDE.md`? · `dashboard/routes/CLAUDE.index.md`? · `dashboard/routes/CLAUDE.md`? · `dashboard/sa/CLAUDE.index.md`? · `dashboard/sa/CLAUDE.md`? · `dashboard/scripts/CLAUDE.index.md`? · `dashboard/scripts/CLAUDE.md`? · `dashboard/services/CLAUDE.index.md`? · `dashboard/services/CLAUDE.md`? · `dashboard/supabase/CLAUDE.md`? · `dashboard/tests/CLAUDE.index.md`? · `dashboard/tests/CLAUDE.md`? · `dashboard/views/CLAUDE.index.md`? · `dashboard/views/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/app-funnel-telemetry.md`? · `docs/architecture.md`? · `docs/migration/09a-capacitor-wrapping.md`? · `docs/migration/CLAUDE.index.md`? · `docs/migration/CLAUDE.md`? · `docs/migration/DEPLOYMENT.md`? · `docs/monitoring.md`? · `docs/onboarding/CLAUDE.md`? · `docs/onboarding/local-portal.md`? · `portal/ANDROID.md`? · `portal/CLAUDE.index.md`? · `portal/CLAUDE.md`? · `tests/CLAUDE.index.md`?
+- docs: `CLAUDE.md`? · `docs/app-funnel-telemetry.md`? · `docs/architecture.md`? · `docs/migration/09a-capacitor-wrapping.md`? · `docs/migration/DEPLOYMENT.md`? · `docs/monitoring.md`? · `docs/onboarding/local-portal.md`? · `portal/ANDROID.md`?
 - service: `railpack.portal.json` · `railway.toml`

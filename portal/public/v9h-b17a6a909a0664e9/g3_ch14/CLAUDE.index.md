@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g3_ch14_Maths_seg1.v9.html` | Hosted v9 lesson page G3 Math ch14 seg1 (en): Polygons: pentagons, hexagons, octagons, decagons |
 | `g3_ch14_Maths_seg2.v9.html` | Hosted v9 lesson page G3 Math ch14 seg2 (en): Polygons: Discovery + Skill Sharpener |
 | `g3_ch14_Maths_seg3.v9.html` | Hosted v9 lesson page G3 Math ch14 seg3 (en): Prisms & pyramids: attributes and types |
@@ -30,4 +28,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g3_ch14/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g3_ch14/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

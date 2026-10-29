@@ -1,7 +1,7 @@
 # rm — RM (regional manager) sector screens behind portal_coachip_rm
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/rm kg=f07e4439537f gen=562131a61626 overflow=26 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/rm kg=639ea8a7dece gen=27da8eeffbe0 overflow=23 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `RmGate.tsx` — one GET /coachip/me per mount; renders only when rm is set
@@ -17,7 +17,9 @@ Full index: `CLAUDE.index.md`
 | `tests/` | Goldens and rules tests for the RM screens → `tests/CLAUDE.md` |
 | `text.tsx` | How RM COPY strings reach screens: rt() and rtx() with the count contract |
 | `rm.copy.ts` | Generated RM strings, English and Urdu, from contracts COPY.md; never hand-edited |
-| … | 10 more → `CLAUDE.index.md` |
+| `types.ts` | Wire shapes of RM payloads (R17-R21); imports coach fragments and holds no teacher data |
+| `api.ts` | Client for /api/portal/coachip/rm/* (R17-R21) and /coachip/me |
+| … | 6 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `text.tsx` ← imported by `portal/src/portal/rm/RmGate.tsx:6:acd18cca` · `portal/src/portal/rm/RmNav.tsx:11:acd18cca` (+14)
@@ -35,7 +37,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/coach/training/CoachAppGuard.dual.test.tsx` (paths.ts)
 - `portal/src/portal/coach/training/CoachAppGuard.rm.test.tsx` (paths.ts)
-- … 10 more → `CLAUDE.index.md`
+- … 11 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.index.md`? · `portal/src/portal/rm/CLAUDE.index.md`? · `portal/src/portal/rm/CLAUDE.md`? · `portal/src/portal/rm/components/CLAUDE.index.md`? · `portal/src/portal/rm/components/CLAUDE.md`? (+3)
+- docs: `portal/src/portal/CLAUDE.md`?

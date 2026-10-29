@@ -6,9 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `fixtures/` | → (no door; 2 test files) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
+| `fixtures/` | → (no door; 2 files: 0 test + 2 support) |
 | `arm.test.js` | bd-gzfdu9: video-reco A/B arm assigned at recommendation time by a pre-registered salt constant; off means video arm |
 | `build-catalog.test.js` | bd-gzfdu9: build-catalog turns the catalog contract into the bot data file; validator refuses untrustworthy files |
 | `card-image.test.js` | bd-gzfdu9: 480x270 watch-this-clip card image HTML (thumbnail, play circle, m:ss pill, title), fonts embedded |
@@ -98,10 +96,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `whatsapp.sendCtaUrl.header.test.js` | bd-gzfdu9 VIDREC: sendCtaUrl gains an optional image header; payload unchanged without it (whatsapp.service) |
 
 ## Who reads this (all, generated)
-- env `VIDEO_RECO_ENABLED` read at `tests/coaching/video-reco/engine.test.js:81:63e25da7` · `tests/coaching/video-reco/flags.test.js:38:63e25da7`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/scripts/video-reco/CLAUDE.md`? · `bot/shared/data/CLAUDE.md`? · `bot/shared/services/child-test/scoring/tasks/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.index.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.index.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.md`? · `bot/shared/services/nudges/CLAUDE.index.md`? · `bot/shared/services/quiz/CLAUDE.index.md`? · `dashboard/routes/CLAUDE.index.md`? · `dashboard/services/CLAUDE.index.md`? · `portal/src/components/ui/CLAUDE.index.md`? · `tests/coaching/CLAUDE.index.md`? · `tests/coaching/CLAUDE.md`? · `tests/coaching/video-reco/CLAUDE.index.md`? · `tests/coaching/video-reco/CLAUDE.md`?
+- docs: `bot/scripts/video-reco/CLAUDE.md`? · `bot/shared/data/CLAUDE.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.md`? · `tests/coaching/CLAUDE.md`?

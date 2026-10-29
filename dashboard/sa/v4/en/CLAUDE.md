@@ -1,7 +1,7 @@
 # en — English v4 spoken lines: one mp3 and one word-timing json per line, hash named
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa/v4/en kg=45f916d21c98 gen=bfff223a8089 overflow=848 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa/v4/en kg=45f916d21c98 gen=9c5f0e15cd5d overflow=846 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `00189f57ab17.json` — shape {key, text, audio.url, audio.ms, words[{i,t,s_ms,e_ms}]}
@@ -23,7 +23,7 @@ Full index: `CLAUDE.index.md`
 | `0745b9a55c08.json` | English word timings (12 words, 5.1s) for the v4 clip "Here are some numbers. Listen to a…", read by sa-ui |
 | `093203a729a4.json` | English word timings (13 words, 4.7s) for the v4 clip "Now it is your turn! Say the name o…", read by sa-ui |
 | `0959ef8cb443.json` | English word timings (16 words, 6.6s) for the v4 clip "Here are some pictures. Jugnu will…", read by sa-ui |
-| … | 848 more → `CLAUDE.index.md` |
+| … | 846 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -36,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `dashboard/sa/v4/CLAUDE.md`? · `dashboard/sa/v4/en/CLAUDE.index.md`? · `dashboard/sa/v4/en/CLAUDE.md`?
+- docs: `dashboard/sa/v4/CLAUDE.md`?

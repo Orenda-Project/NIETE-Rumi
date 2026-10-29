@@ -1,6 +1,6 @@
 # pages — Public marketing pages: landing, How it works, 404
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/pages kg=0878d27ca3fa gen=3e2e6901216f overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/pages kg=0878d27ca3fa gen=c8289794a74b overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `Index.tsx` — landing page at / on non-portal hosts
@@ -11,7 +11,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `HowItWorks.tsx` | Marketing How-it-works page at /how-it-works with step explainer and chat-on-WhatsApp CTA tracked via funnelTracking |
 | `NotFound.tsx` | 404 page with NIETE logo; logs the missing path; catch-all route in App.tsx |
 | `Index.tsx` | Marketing landing page at / (non-portal hosts): composes Navigation, Hero and story sections, tracks the page visit |
@@ -29,4 +28,4 @@
 - `portal/src/lib/whatsapp.botNumber.test.tsx` (HowItWorks.tsx)
 
 ## Related (generated)
-- docs: `portal/src/CLAUDE.index.md`? · `portal/src/CLAUDE.md`? · `portal/src/lib/CLAUDE.index.md`? · `portal/src/lib/CLAUDE.md`? · `portal/src/pages/CLAUDE.md`?
+- docs: `portal/src/CLAUDE.md`?

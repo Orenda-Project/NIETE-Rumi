@@ -1,6 +1,6 @@
 # page-truth — Page-truth mini book fixtures read by the lp612 author/pagetruth tests
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/lp612/__fixtures__/page-truth kg=35c4acd26b0c gen=d46e0c900bc3 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/lp612/__fixtures__/page-truth kg=18a481812f0e gen=00fbc524d5d9 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `grade_9_chemistry/_book.json` — book record (stem, grade, page offset) the author reads
@@ -10,8 +10,7 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `grade_9_chemistry/` | One tiny grade 9 chemistry book: record, table of contents, one page → `grade_9_chemistry/CLAUDE.md` |
-| `CLAUDE.md` | (unmapped) |
+| `grade_9_chemistry/` | → (no door; 3 files: 0 test + 3 support) |
 
 ## Who reads this (generated)
 - (none)
@@ -24,4 +23,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `tests/lp612/__fixtures__/CLAUDE.md`? · `tests/lp612/__fixtures__/page-truth/grade_9_chemistry/CLAUDE.md`?
+- (none)

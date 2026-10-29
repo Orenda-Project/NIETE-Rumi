@@ -1,7 +1,7 @@
 # views — EJS pages for the observability admin portal plus one static demo HTML
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/views kg=d4aaee62669a gen=6995d8c7893e overflow=25 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/views kg=d4aaee62669a gen=5a2aaa1c2133 overflow=22 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `partials/navigation.ejs` — nav shared by admin pages
@@ -13,8 +13,6 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `partials/` | EJS pieces included by the dashboard's admin pages: top navigation bar and login release feed → `partials/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `ab-testing.ejs` | Observability A/B testing page (/observability/ab-testing) with Chart.js group results. |
 | `admin-invitations.ejs` | Super-admin page listing and managing partner invitations (/observability/admin/invitations). |
 | `admin-users.ejs` | Super-admin user management page (/observability/admin/users): roles, access scopes, deactivation. |
@@ -24,7 +22,10 @@ Full index: `CLAUDE.index.md`
 | `attendance-mark.ejs` | Standalone Teacher Attendance marking page (/observability/attendance-mark) calling the portal attendance API. |
 | `broadcast-history.ejs` | Past WhatsApp broadcasts and delivery stats (/observability/broadcast/history), admin only. |
 | `broadcast.ejs` | Compose and send a WhatsApp broadcast with filters and template approval (/observability/broadcast), admin only. |
-| … | 25 more → `CLAUDE.index.md` |
+| `byof*` | 4 files; most used `byof.ejs`: BYOF home listing the user's bug/feature sessions (/observability/byof). |
+| `change-password.ejs` | Change-password form for dashboard users (rendered by routes/settings.js). |
+| `coaching.ejs` | Coaching sessions list with status and date filters (/observability/coaching). |
+| … | 27 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -38,4 +39,4 @@ _None found in code comments, tests or git log for this directory._
 - `scripts/app-funnel/test_funnel.py`? (funnel.ejs)
 
 ## Related (generated)
-- docs: `dashboard/CLAUDE.index.md`? · `dashboard/CLAUDE.md`? · `dashboard/views/CLAUDE.index.md`? · `dashboard/views/CLAUDE.md`? · `dashboard/views/partials/CLAUDE.md`? · `portal/src/portal/lib/CLAUDE.index.md`? (+2)
+- docs: `dashboard/CLAUDE.md`?

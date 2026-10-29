@@ -1,7 +1,7 @@
 # migrations — Versioned NIETE migrations V1.0.0 to V1.8.3; some carry a ROLLBACK_ file
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/supabase/migrations kg=660873f4d389 gen=33734a2eb2d2 overflow=447 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/supabase/migrations kg=660873f4d389 gen=ebf8b388e0f6 overflow=447 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `V1.8.0__coachip_insights.sql` — largest: 19 coachip_* tables and 25 enum types
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
-| `CLAUDE.index.md` | (unmapped) |
 | `V1.2.8__lp612_runtime_lesson_plans.sql` | Creates niete_lp612_segments (6-12 lesson menu) and niete_lp612_renders (cached renders handed to teachers) |
 | `ROLLBACK_V1.4.0__lp612_render_degraded.sql` | Reverses V1.4.0: drops niete_lp612_renders.render_degraded; roll code back first as worker and serving read it |
 | `ROLLBACK_V1.5.6__assessment_paper_versions.sql` | Reverses V1.5.6: drops edited_from, its check and indexes, renumbering version rows as extra attempts |
@@ -34,4 +32,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `docs/CLAUDE.index.md`? · `docs/LP_PATHS.md`? · `docs/pulling-updates.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/supabase/CLAUDE.index.md`? · `infrastructure/supabase/CLAUDE.md`? (+2)
+- docs: `docs/LP_PATHS.md`? · `docs/pulling-updates.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/supabase/CLAUDE.md`?

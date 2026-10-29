@@ -1,7 +1,7 @@
 # fln — Reading Hour & Numeracy (FLN) lesson pages, sound player and leader send/share
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln kg=f86541ec8626 gen=f6a079220098 overflow=55 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln kg=f86541ec8626 gen=a5f4218a7d01 overflow=51 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `FlnRoutes.tsx` — route table under /portal/fln/*, all behind FlnGate
@@ -17,13 +17,15 @@ Full index: `CLAUDE.index.md`
 | `plan/` | Parts of the FLN plan page: header, sections, moves, media, time bar → `plan/CLAUDE.md` |
 | `player/` | FLN sound player engine and its pill/tile controls → `player/CLAUDE.md` |
 | `send/` | → (no door; 2 files) |
-| … | 23 more → `CLAUDE.index.md` |
+| `share/` | Leader sharing: Share bar, send to teachers, share link, WhatsApp text → `share/CLAUDE.md` |
+| … | 20 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `strings.ts` ← imported by `portal/src/portal/fln/FlnBandBody.tsx:26:2f8deb7e` · `portal/src/portal/fln/FlnContext.tsx:7:8d6a1774` (+13)
 - `types.ts` ← imported by `portal/src/portal/fln/FlnBandBody.tsx:27:09b7cd91` · `portal/src/portal/fln/FlnContext.tsx:8:93f16bf1` (+12)
 - `api.ts` ← imported by `portal/src/portal/fln/FlnBand.tsx:12:3367dabe` · `portal/src/portal/fln/FlnBandBody.tsx:25:3367dabe` (+3)
-- … 13 more → `CLAUDE.index.md`
+- `listShared.tsx` ← imported by `portal/src/portal/fln/FlnBandBody.tsx:28:e4b15f54` · `portal/src/portal/fln/FlnRoutes.tsx:19:09fbb17e` (+3)
+- … 12 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Use plain fetch in fln/api.ts, never services/api.ts: its 401 handler drops the target page (api.ts:2)
@@ -37,4 +39,4 @@ Full index: `CLAUDE.index.md`
 - … 19 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.index.md`? · `portal/src/portal/fln/CLAUDE.index.md`? · `portal/src/portal/fln/CLAUDE.md`? · `portal/src/portal/fln/lib/CLAUDE.md`? · `portal/src/portal/fln/login/CLAUDE.md`? (+12)
+- docs: `portal/src/portal/CLAUDE.md`?

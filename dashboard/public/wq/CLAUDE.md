@@ -1,7 +1,7 @@
 # wq — Browser code and assets for Jugnu's child web pages: quiz, hub, home, stories, challenge
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq kg=deeb66e53556 gen=5c706a81a550 overflow=63 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq kg=deeb66e53556 gen=f8188169bae8 overflow=61 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `wq.js` — quiz page /q/<code>; wq.css is the base stylesheet all child pages share
@@ -18,9 +18,9 @@ Full index: `CLAUDE.index.md`
 | `snd/` | Sound sprite for the child pages' chimes and fanfare → `snd/CLAUDE.md` |
 | `voice/` | Recorded voice clips and manifests for Jugnu's shared lines and the child welcome → `voice/CLAUDE.md` |
 | `wq.js` | Web child quiz page /q/<code>: WQI item renderer, offline answer queue, /api/wq/* calls, results and scorecard |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
-| … | 54 more → `CLAUDE.index.md` |
+| `wq-digits.js` | urDigits helper: ASCII digits to Urdu digits U+06F0-06F9; shared by the edge (web-quiz.routes.js) and pages as WQDigits |
+| `hub.js` | Kid hub /h/<token>: picks this phone's child, lists teacher quiz, replays, recommended videos, library, challenge |
+| … | 58 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `wq-digits.js` ← imported by `dashboard/routes/web-quiz.routes.js:42:35273fa4`
@@ -37,4 +37,4 @@ Full index: `CLAUDE.index.md`
 - … 9 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `dashboard/public/CLAUDE.md`? · `dashboard/public/wq/CLAUDE.index.md`? · `dashboard/public/wq/CLAUDE.md`? · `dashboard/public/wq/art/CLAUDE.md`? · `dashboard/public/wq/fonts/CLAUDE.md`? · `dashboard/public/wq/jugnu/CLAUDE.md`? (+4)
+- docs: `dashboard/public/CLAUDE.md`?

@@ -1,7 +1,7 @@
 # teacher — Teacher app v2 (portal_teacher_v2): frame, menu, route registry, Urdu/English layer
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher kg=8130b2aa75d8 gen=1105e9dd2dcf overflow=109 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher kg=3ff0069d7483 gen=0000ac61d04f overflow=105 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `routes.tsx` — registry: globs ./*/routes.tsx into TEACHER_ROUTES; App.tsx wraps each in TeacherGate
@@ -13,12 +13,14 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | 15 sub-dirs, each with `CLAUDE.md` | `analytics/` · `assessment/` · `attendance/` · `classes/` · `coaching/` · `home/` · `icons/` · `lessons/` · `notices/` · `observations/` · `pages/` · `remind/` · `share/` · `training/` · `ui/` |
-| … | 22 more → `CLAUDE.index.md` |
+| `i18n.ts` | Teacher v2 language layer (flat en/ur): bilingual() with a shape-typed Urdu, langOf, copyIn, untranslated() checker |
+| … | 41 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `i18n.ts` ← imported by `portal/src/portal/analytics/SchoolsAnalytics.tsx:8:0f66c8aa` · `portal/src/portal/auth/AnalyticsLogin.tsx:9:b07c182e` (+241)
 - `TeacherPage.tsx` ← imported by `portal/src/portal/coach/card/FeatureGridPage.tsx:2:e8f36f5c` · `portal/src/portal/coach/card/SchoolCardPage.tsx:4:e8f36f5c` (+48)
-- … 12 more → `CLAUDE.index.md`
+- `routes.tsx` ← imported by `portal/src/App.tsx:16:a9c609d6` · `portal/src/portal/pages/LeaderHome.tsx:12:e4d9854a` (+32)
+- … 10 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Pages go in through lazyPage, never a static import: the registry sits in the first chunk (routes.tsx:26, bd-sex15q.34)
@@ -29,7 +31,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/teacher/TeacherNavigation.coach.test.tsx` (TeacherNavigation.tsx, TeacherPage.tsx, copy.ts, menu.ts)
 - `portal/src/portal/teacher/frame.ur.test.tsx` (TeacherNavigation.tsx, TeacherPage.tsx, copy.ts, format.ts)
-- … 75 more → `CLAUDE.index.md`
+- … 76 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/lib/CLAUDE.index.md`? · `portal/src/portal/CLAUDE.md`? · `portal/src/portal/auth/CLAUDE.index.md`? · `portal/src/portal/coach/card/CLAUDE.index.md`? · `portal/src/portal/coach/disagreements/CLAUDE.index.md`? · `portal/src/portal/coach/insights/tests/CLAUDE.index.md`? (+42)
+- docs: `portal/src/portal/CLAUDE.md`? · `portal/src/portal/teacher/pages/CLAUDE.md`? · `portal/src/portal/teacher/ui/README.md`?

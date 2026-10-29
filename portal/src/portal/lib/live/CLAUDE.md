@@ -1,6 +1,6 @@
 # live — Live moves while a teacher records: tick state and Soniox stream tee
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/lib/live kg=9fd293207cb4 gen=7db5f2eed076 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/lib/live kg=7f112bda7bf7 gen=d51861002bec overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `liveMovesState.ts` — pure state: ticks only add, taps never change a tick, clock moves the now-move
@@ -14,7 +14,6 @@
 | `liveMovesState.ts` | bd-v0toag.31: pure state for live moves while a teacher records (ticks, taps, the "now" move, lesson clock) |
 | `sonioxTee.ts` | bd-v0toag.31: second reader of each recorded chunk, streaming it to Soniox real time; never blocks the recording |
 | `liveMovesState.test.ts` | bd-v0toag.31: pins liveMovesState against the g4_english_ch12 card fixture: ticks only add, taps, now-move, lesson clock |
-| `CLAUDE.md` | (unmapped) |
 | `sonioxTee.test.ts` | bd-v0toag.31: pins sonioxTee: key in first message, tokens, reconnect resends chunk 0; never touches the recording |
 
 ## Who reads this (generated)
@@ -32,4 +31,4 @@
 - `portal/src/portal/newui/coaching/useLiveMoves.test.ts` (sonioxTee.ts)
 
 ## Related (generated)
-- docs: `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/lib/CLAUDE.md`? · `portal/src/portal/lib/live/CLAUDE.md`? · `portal/src/portal/newui/coaching/CLAUDE.index.md`? · `portal/src/portal/newui/coaching/CLAUDE.md`?
+- docs: `portal/src/portal/lib/CLAUDE.md`?

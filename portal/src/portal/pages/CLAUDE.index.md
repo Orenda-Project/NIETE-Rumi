@@ -6,10 +6,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
+| `__snapshots__/` | → (not mapped: excluded; 4 files) |
 | `Analytics.tabs.test.tsx` | Pins SchoolAnalytics's Observations/Attendance/Remarks tabs and the From/To window read from the address |
 | `App.routes.test.tsx` | bd-60160: pins which training page each URL serves through the real router (/portal/training new, /v1 old) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `ClassicAssessment.tabs.test.tsx` | bd-t5tow: pins ClassicAssessment's Create paper / My papers tabs, ?tab=papers and a paper being made in both |
 | `ClassicAssessment.test.tsx` | bd-4n7p4: pins ClassicAssessment as its own page: heading, tabs, generator form, papers panel gets editing from /config |
 | `ClassicAssessment.tsx` | bd-4n7p4: old-UI Assessment Generator (formerly a Curriculum tab), served at /portal/assessment via PortalAssessment |
@@ -222,4 +221,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `legacyLive.ts` ← `portal/src/portal/pages/legacyLive.test.ts`
 
 ## Related (all, generated)
-- docs: `docs/reports/bug131-phase2-portal-quiz-ui.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `docs/reports/bug131-phase4-media-complete.md`? · `portal/src/CLAUDE.index.md`? · `portal/src/CLAUDE.md`? · `portal/src/components/ui/CLAUDE.index.md`? · `portal/src/components/ui/CLAUDE.md`? · `portal/src/hooks/CLAUDE.md`? · `portal/src/lib/CLAUDE.index.md`? · `portal/src/portal/CLAUDE.md`? · `portal/src/portal/analytics/CLAUDE.index.md`? · `portal/src/portal/auth/CLAUDE.index.md`? · `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/components/__testing__/CLAUDE.md`? · `portal/src/portal/components/assess/CLAUDE.index.md`? · `portal/src/portal/components/assess/CLAUDE.md`? · `portal/src/portal/components/assessment-jobs/CLAUDE.md`? · `portal/src/portal/components/coaching/CLAUDE.index.md`? · `portal/src/portal/fln/CLAUDE.index.md`? · `portal/src/portal/hooks/CLAUDE.index.md`? · `portal/src/portal/hooks/CLAUDE.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/lib/assess/CLAUDE.index.md`? · `portal/src/portal/newui/coaching/CLAUDE.index.md`? · `portal/src/portal/newui/training/CLAUDE.index.md`? · `portal/src/portal/newui/training/CLAUDE.md`? · `portal/src/portal/pages/CLAUDE.index.md`? · `portal/src/portal/pages/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`?
+- docs: `docs/reports/bug131-phase2-portal-quiz-ui.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `docs/reports/bug131-phase4-media-complete.md`? · `portal/src/components/ui/CLAUDE.md`? · `portal/src/hooks/CLAUDE.md`? · `portal/src/portal/CLAUDE.md`? · `portal/src/portal/components/__testing__/CLAUDE.md`? · `portal/src/portal/components/assessment-jobs/CLAUDE.md`?

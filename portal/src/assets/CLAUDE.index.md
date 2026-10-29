@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `vendors/` | Training-vendor logos shown on the portal Training screens → `vendors/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `card-classroom-coaching.jpg` | (unmapped) |
 | `card-lesson-plans.jpg` | (unmapped) |
 | `card-media-library.jpg` | (unmapped) |
@@ -68,4 +66,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/src/CLAUDE.index.md`? · `portal/src/CLAUDE.md`? · `portal/src/assets/CLAUDE.index.md`? · `portal/src/assets/CLAUDE.md`? · `portal/src/assets/vendors/CLAUDE.md`?
+- docs: `portal/src/CLAUDE.md`?

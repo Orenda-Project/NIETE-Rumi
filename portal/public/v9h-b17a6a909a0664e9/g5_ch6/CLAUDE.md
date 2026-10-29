@@ -1,7 +1,7 @@
 # g5_ch6 — Hosted v9 pages, Grade 5 chapter 6 (29 segs: English 7, Math 14, Urdu 8)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch6 kg=288557957399 gen=539380704dd4 overflow=20 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch6 kg=288557957399 gen=6e6e918ebcb9 overflow=19 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g5_ch6_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g5_ch6_English_seg1.v9.html` | Hosted v9 lesson page G5 English ch6 seg1 (en): New Words + Sound Detective (Memory Lane) |
 | `g5_ch6_English_seg2.v9.html` | Hosted v9 lesson page G5 English ch6 seg2 (en): Reading: Pinky's Persuasive Essay 'Recycle Today!' (+ more topics) |
 | `g5_ch6_English_seg3.v9.html` | Hosted v9 lesson page G5 English ch6 seg3 (en): Diving Deeper: Adjective Position Play + Compound Word (+ more topics) |
@@ -22,7 +20,8 @@ Full index: `CLAUDE.index.md`
 | `g5_ch6_English_seg7.v9.html` | Hosted v9 lesson page G5 English ch6 seg7 (en): Connect and Create: Crafting Your Recycling Essay (+ more topics) |
 | `g5_ch6_Maths_seg1.v9.html` | Hosted v9 lesson page G5 Math ch6 seg1 (en): Convert fractions to decimals & vice versa |
 | `g5_ch6_Maths_seg10.v9.html` | Hosted v9 lesson page G5 Math ch6 seg10 (en): Real-world decimal word problems (CUBES method) |
-| … | 20 more → `CLAUDE.index.md` |
+| `g5_ch6_Maths_seg11.v9.html` | Hosted v9 lesson page G5 Math ch6 seg11 (en): Decimal word problems consolidation |
+| … | 19 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -35,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch6/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch6/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

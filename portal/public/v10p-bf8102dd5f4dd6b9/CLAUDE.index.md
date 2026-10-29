@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `a-agree.html` | v10 phone prototype (English): 'Do you agree with this report?' screen; static noindex sandbox test page |
 | `a-card.html` | v10 phone prototype (English): G1 English Ch.8 Day 6 lesson Card screen, a static noindex sandbox page |
 | `a-coach.html` | v10 phone prototype (English): 'A teacher would like a visit' coach-ping screen; static noindex sandbox page |
@@ -31,4 +29,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/public/CLAUDE.md`? · `portal/public/v10p-bf8102dd5f4dd6b9/CLAUDE.index.md`? · `portal/public/v10p-bf8102dd5f4dd6b9/CLAUDE.md`?
+- docs: `portal/public/CLAUDE.md`?

@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `CoachingBox.test.tsx` | Pins the Coaching suggestion box: four answers, template then AI version, message/call/visit, flag (bd-tbprit.11) |
 | `CoachingBox.tsx` | Coaching suggestion box for a disagreement: listen, four answers, suggested way, wa.me message (bd-tbprit.11) |
 | `DisagreementCard.test.tsx` | Pins one teacher's disagreement card: evidence, voice note, where to look, report, Mark as done (bd-tbprit.3) |
@@ -82,4 +80,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `whereToLook.tsx` ← `portal/src/portal/coach/disagreements/whereToLook.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/lib/CLAUDE.index.md`? · `portal/src/portal/coach/CLAUDE.index.md`? · `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/disagreements/CLAUDE.index.md`? · `portal/src/portal/coach/disagreements/CLAUDE.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/services/CLAUDE.index.md`? · `portal/src/portal/services/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/analytics/CLAUDE.index.md`? · `portal/src/portal/teacher/analytics/CLAUDE.md`?
+- docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

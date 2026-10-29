@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g5_ch4_English_seg1.v9.html` | Hosted v9 lesson page G5 English ch4 seg1 (en): New Words + Guess the Meaning (Memory Lane) |
 | `g5_ch4_English_seg2.v9.html` | Hosted v9 lesson page G5 English ch4 seg2 (en): Reading: Pinky's Big Speech (Journey Through the Text) |
 | `g5_ch4_English_seg3.v9.html` | Hosted v9 lesson page G5 English ch4 seg3 (en): Diving Deeper: Figurative Language + Fill in the Missing (+ more topics) |
@@ -40,4 +38,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch4/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch4/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

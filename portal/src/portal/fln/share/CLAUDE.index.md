@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `Fill.tsx` | Renders a catalogue string with {slot} values inside <bdi> in chrome digits so numbers keep direction in Urdu |
 | `PlanCard.tsx` | Navy plan card for share panels: kicker (subject, level, lesson n/N) and title in plan language; sharePlanOf, Kicker |
 | `SendSheet.test.tsx` | Vitest for "Send to teacher": keyed teacher ids, multi-select up to 30, POST /send, sent/partial/429/empty, 404 fallback |
@@ -49,4 +47,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `testFetch.ts` ← `portal/src/portal/fln/FlnSendEntry.test.tsx` · `portal/src/portal/fln/hooks.test.tsx` · `portal/src/portal/fln/libraryHook.test.tsx` · `portal/src/portal/fln/login/FlnLoginBanner.test.tsx` · `portal/src/portal/fln/send/SendPage.test.tsx` · `portal/src/portal/fln/share/SendSheet.test.tsx` (+4: `python3 kg/kg.py who-reads portal/src/portal/fln/share/testFetch.ts`)
 
 ## Related (all, generated)
-- docs: `portal/src/lib/CLAUDE.index.md`? · `portal/src/portal/fln/CLAUDE.index.md`? · `portal/src/portal/fln/CLAUDE.md`? · `portal/src/portal/fln/login/CLAUDE.md`? · `portal/src/portal/fln/share/CLAUDE.index.md`? · `portal/src/portal/fln/share/CLAUDE.md`? · `portal/src/portal/fln/tests/CLAUDE.index.md`? · `portal/src/portal/newui/coaching/CLAUDE.index.md`? · `portal/src/portal/newui/coaching/CLAUDE.md`?
+- docs: `portal/src/portal/fln/CLAUDE.md`?

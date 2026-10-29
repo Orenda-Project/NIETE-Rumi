@@ -1,6 +1,6 @@
 # g5_ch13 — Hosted v9 pages, Grade 5 chapter 13 (10 segs: English 7, Urdu 3)
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch13 kg=3f0c87b2c396 gen=24332f6cb0d0 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch13 kg=3f0c87b2c396 gen=99abe4401284 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g5_ch13_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `g5_ch13_English_seg1.v9.html` | Hosted v9 lesson page G5 English ch13 seg1 (en): Digraph & Blend Detective + Gap Attack (Memory Lane) |
 | `g5_ch13_English_seg2.v9.html` | Hosted v9 lesson page G5 English ch13 seg2 (en): Reading: 'Zombie Survival Guide for School' — a (+ more topics) |
 | `g5_ch13_English_seg3.v9.html` | Hosted v9 lesson page G5 English ch13 seg3 (en): Diving Deeper: Team Decoder + Survival Mastermind |

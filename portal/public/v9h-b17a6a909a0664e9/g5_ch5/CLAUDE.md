@@ -1,7 +1,7 @@
 # g5_ch5 — Hosted v9 pages, Grade 5 chapter 5 (26 segs: English 7, Math 9, Urdu 10)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch5 kg=7678c898e868 gen=04e5ad2e6244 overflow=17 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch5 kg=7678c898e868 gen=d29d94e16159 overflow=15 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g5_ch5_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g5_ch5_English_seg1.v9.html` | Hosted v9 lesson page G5 English ch5 seg1 (en): New Words + Context Clues (Memory Lane) |
 | `g5_ch5_English_seg2.v9.html` | Hosted v9 lesson page G5 English ch5 seg2 (en): Reading: How Chocolate Is Made — a Process Text (Journey (+ more topics) |
 | `g5_ch5_English_seg3.v9.html` | Hosted v9 lesson page G5 English ch5 seg3 (en): Diving Deeper: Text Explorer Quest + Adjectives as Nouns (+ more topics) |
@@ -22,7 +20,9 @@ Full index: `CLAUDE.index.md`
 | `g5_ch5_English_seg7.v9.html` | Hosted v9 lesson page G5 English ch5 seg7 (en): Connect and Create: Inventor's Comic Strip |
 | `g5_ch5_Maths_seg1.v9.html` | Hosted v9 lesson page G5 Math ch5 seg1 (en): Compare & order fractions (LCM/common-denominator method) |
 | `g5_ch5_Maths_seg2.v9.html` | Hosted v9 lesson page G5 Math ch5 seg2 (en): Compare/order fractions consolidation |
-| … | 17 more → `CLAUDE.index.md` |
+| `g5_ch5_Maths_seg3.v9.html` | Hosted v9 lesson page G5 Math ch5 seg3 (en): Add & subtract unlike fractions and mixed numbers |
+| `g5_ch5_Maths_seg4.v9.html` | Hosted v9 lesson page G5 Math ch5 seg4 (en): Add & subtract fractions practice |
+| … | 15 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch5/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch5/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

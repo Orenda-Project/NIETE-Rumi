@@ -1,7 +1,7 @@
 # g4_ch9 — Hosted v9 pages, Grade 4 chapter 9 (23 segs: English 8, Math 9, Urdu 6)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g4_ch9 kg=5f51c15e11d7 gen=f386e93f724b overflow=13 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g4_ch9 kg=5f51c15e11d7 gen=9c0ae1b7a69c overflow=11 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g4_ch9_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g4_ch9_English_seg1.v9.html` | Hosted v9 lesson page G4 English ch9 seg1 (en): Chapter Vocabulary + Dance Moves (Memory Lane) |
 | `g4_ch9_English_seg2.v9.html` | Hosted v9 lesson page G4 English ch9 seg2 (en): Reading 'The Dancing Poem' (Journey through the text) |
 | `g4_ch9_English_seg3.v9.html` | Hosted v9 lesson page G4 English ch9 seg3 (en): Diving deeper: Poem Puzzlers (comprehension) |
@@ -23,7 +21,9 @@ Full index: `CLAUDE.index.md`
 | `g4_ch9_English_seg8.v9.html` | Hosted v9 lesson page G4 English ch9 seg8 (en): Write & Create: Story and Poem Weavers (home task) |
 | `g4_ch9_Maths_seg1.v9.html` | Hosted v9 lesson page G4 Math ch9 seg1 (en): Converting 12-hour to 24-hour time |
 | `g4_ch9_Maths_seg2.v9.html` | Hosted v9 lesson page G4 Math ch9 seg2 (en): 12/24-hour conversion — spinners & Skill Sharpener |
-| … | 13 more → `CLAUDE.index.md` |
+| `g4_ch9_Maths_seg3.v9.html` | Hosted v9 lesson page G4 Math ch9 seg3 (en): Converting hours and minutes |
+| `g4_ch9_Maths_seg4.v9.html` | Hosted v9 lesson page G4 Math ch9 seg4 (en): Converting days, weeks, months & years |
+| … | 11 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -36,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g4_ch9/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g4_ch9/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

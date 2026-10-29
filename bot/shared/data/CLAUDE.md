@@ -1,6 +1,6 @@
 # data — Static data the bot loads: child-test banks, LP SLO tags, Urdu term lists
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data kg=db991cad6083 gen=356a6093b4b2 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data kg=5d38b4d719a2 gen=dfcda0883c19 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `child-test/` — EGRA/EGMA item banks and passages
@@ -12,7 +12,6 @@
 |---|---|
 | `child-test/` | Child test (Jugnu) item banks, passages, generated batteries and word lists → `child-test/CLAUDE.md` |
 | `video-catalog.v1.json` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `lp612-fbise-slo-tags.json` | Map of 6-12 LP segment ids to FBISE SLO codes and status (Summative etc.) |
 | `video-reco-urdu-terms.v1.json` | Urdu terms the video-recommendation engine may use in teacher-facing reason lines, owned by the pedagogy panel |
 
@@ -37,4 +36,4 @@ _None found in code comments, tests or git log for this directory._
 - `tests/lp612/fbise-slo-chips.test.js` (lp612-fbise-slo-tags.json)
 
 ## Related (generated)
-- docs: `bot/shared/CLAUDE.md`? · `bot/shared/data/CLAUDE.md`? · `bot/shared/data/child-test/CLAUDE.index.md`? · `bot/shared/data/child-test/CLAUDE.md`? · `tests/coaching/video-reco/CLAUDE.index.md`? · `tests/coaching/video-reco/CLAUDE.md`? (+2)
+- docs: `bot/shared/CLAUDE.md`?

@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `FeatureRows.test.tsx` | Pins the look's 8 feature rows, two per line, tinted icon wells by kind, server order when whole |
 | `FeatureRows.tsx` | Home look's eight white feature rows with green or slate icon wells, in the server's tile order when it is whole |
 | `HomeBand.test.tsx` | Pins the look's navy band in shape A (two rows) and shape B (one row): date and school rules, greeting never cut |
@@ -50,4 +48,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `lookIcons.tsx` ← `portal/src/portal/teacher/home/look/lookIcons.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/home/CLAUDE.index.md`? · `portal/src/portal/teacher/home/CLAUDE.md`? · `portal/src/portal/teacher/home/look/CLAUDE.index.md`? · `portal/src/portal/teacher/home/look/CLAUDE.md`? · `portal/src/portal/teacher/pages/CLAUDE.index.md`? · `portal/src/portal/teacher/pages/CLAUDE.md`?
+- docs: `portal/src/portal/teacher/home/CLAUDE.md`? · `portal/src/portal/teacher/pages/CLAUDE.md`?

@@ -1,7 +1,7 @@
 # g1_ch5 — Hosted v9 pages, Grade 1 chapter 5 (26 segs: English 8, Maths 11, Urdu 7)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g1_ch5 kg=37cd060f7c9f gen=6703288024b1 overflow=16 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g1_ch5 kg=37cd060f7c9f gen=453f807a29b3 overflow=15 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g1_ch5_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g1_ch5_English_seg1.v9.html` | Hosted v9 lesson page G1 English ch5 seg1 (en): Traffic Key Words + Word-Search Puzzle (Memory Lane) |
 | `g1_ch5_English_seg2.v9.html` | Hosted v9 lesson page G1 English ch5 seg2 (en): Reading 'Crossing the Road' (Traffic Signals & the Zebra Crossing) |
 | `g1_ch5_English_seg3.v9.html` | Hosted v9 lesson page G1 English ch5 seg3 (en): Read the Traffic Lights & Question Words (Who/What/Where) |
@@ -23,7 +21,8 @@ Full index: `CLAUDE.index.md`
 | `g1_ch5_English_seg8.v9.html` | Hosted v9 lesson page G1 English ch5 seg8 (en): Parts of a Book: Finding the Title, Author and Illustrator on a Cover |
 | `g1_ch5_Maths_seg1.v9.html` | Hosted v9 lesson page G1 Maths ch5 seg1 (en): Adding Equal Groups: Repeated Addition (candies) |
 | `g1_ch5_Maths_seg10.v9.html` | Hosted v9 lesson page G1 Maths ch5 seg10 (en): Commutativity Practice: Skill Sharpener + Copy Work |
-| … | 16 more → `CLAUDE.index.md` |
+| `g1_ch5_Maths_seg11.v9.html` | Hosted v9 lesson page G1 Maths ch5 seg11 (en): Connect and Create: Draw a Multiplication Fact |
+| … | 15 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -36,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch5/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch5/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

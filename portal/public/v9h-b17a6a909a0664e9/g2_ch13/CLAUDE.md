@@ -1,7 +1,7 @@
 # g2_ch13 — Hosted v9 pages, Grade 2 chapter 13 (13 segs: Math 8, Urdu 5)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g2_ch13 kg=d3e45eb621a1 gen=824899d3dda8 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g2_ch13 kg=d3e45eb621a1 gen=a87b111f0e75 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g2_ch13_Maths_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g2*` | 13 files; most used `g2_ch13_Urdu_seg5.v9.html`: Hosted v9 lesson page G2 Urdu ch13 seg5 (ur): تخلیقی لکھائی — تخیل کی کہانی اور روزگار پروجیکٹ |
 
 ## Who reads this (generated)
@@ -26,4 +24,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g2_ch13/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g2_ch13/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

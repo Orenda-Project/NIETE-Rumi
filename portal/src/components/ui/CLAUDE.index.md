@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `accordion.tsx` | shadcn/ui: Radix accordion; no importer found in portal/src |
 | `alert-dialog.tsx` | shadcn/ui: Radix alert-dialog (confirm modal); imported by portal pages |
 | `alert.tsx` | shadcn/ui: alert box; no importer found in portal/src |
@@ -87,4 +85,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `toaster.tsx` ← `portal/src/portal/pages/ClassicAssessment.tabs.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/components/CLAUDE.index.md`? · `portal/src/components/CLAUDE.md`? · `portal/src/components/ui/CLAUDE.index.md`? · `portal/src/components/ui/CLAUDE.md`? · `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.md`? · `portal/src/portal/pages/CLAUDE.index.md`? · `portal/src/portal/pages/CLAUDE.md`? · `tests/coaching/video-reco/CLAUDE.index.md`? · `tests/coaching/video-reco/CLAUDE.md`?
+- docs: `portal/src/components/CLAUDE.md`?

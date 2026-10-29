@@ -1,6 +1,6 @@
 # public — Static files served as-is: service worker, WhatsApp PDF hand-off pages, robots, prototype
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public kg=7af42dacae1b gen=eaa1fce5bc8b overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public kg=7af42dacae1b gen=16988084c621 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `open-file.html` — landing for 'Open in another app' from WhatsApp's browser
@@ -13,7 +13,6 @@
 |---|---|
 | `v10p-bf8102dd5f4dd6b9/` | Static v10 phone prototype (English and Urdu screens) for sandbox phone testing → `v10p-bf8102dd5f4dd6b9/CLAUDE.md` |
 | `v9h-b17a6a909a0664e9/` | Hosted v9 G1-5 lesson pages (73 chapter dirs, 1,084 pages) linked from v10 cards → `v9h-b17a6a909a0664e9/CLAUDE.md` |
-| `CLAUDE.md` | (unmapped) |
 | `assess-sw.js` | Offline service worker for the leader assessment at /portal/leader/assess: caches shell, assets, GET /api/portal reads |
 | `favicon.ico` | (unmapped) |
 | `favicon.png` | (unmapped) |
@@ -35,4 +34,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `portal/CLAUDE.index.md`? · `portal/CLAUDE.md`? · `portal/public/CLAUDE.md`? · `portal/public/v10p-bf8102dd5f4dd6b9/CLAUDE.index.md`? · `portal/public/v10p-bf8102dd5f4dd6b9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?
+- docs: `portal/CLAUDE.md`?

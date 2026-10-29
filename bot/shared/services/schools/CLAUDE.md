@@ -1,6 +1,6 @@
 # schools — School lookup from the schools table and the legacy-migration transforms
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/schools kg=c0939c547c75 gen=a154283a8d16 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/schools kg=b6fb6143f7e9 gen=33a59a1d7b4c overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `school-resolver.service.js` — user to school via users.school_id
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `school-search.service.js` | Searches schools by typed text for the registration Flow school step; only real, non-test rows (bd-x7aprz.2) |
 | `school-card-door.js` | Parses /school card [EMIS or name] and picks the school whose page the link opens |
 | `school-resolver.service.js` | Resolves a user's school through the users.school_id to schools FK, with EMIS lookup |
@@ -34,4 +33,4 @@
 
 ## Related (generated)
 - skills: `registration`?
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/schools/CLAUDE.md`? · `tests/app-redirect/CLAUDE.index.md`? · `tests/app-redirect/CLAUDE.md`? · `tests/database/CLAUDE.index.md`? (+2)
+- docs: `bot/shared/services/CLAUDE.md`?

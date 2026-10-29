@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `ChaptersPage.tsx` | Step 2 of a new lesson plan: a subject's chapters as rows (number, title, pages, lesson count) linking to lessons |
 | `LessonPages.test.tsx` | Pins Lesson Plans inner pages (chapters, lessons, Preparing, viewer) over the shared lesson-plan client (bd-fmf24g.3) |
 | `LessonsAll.test.tsx` | Pins All lesson plans: range default, API asked for the shown dates and prior period, KPI numbers (bd-fmf24g.3) |
@@ -79,4 +77,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `routes.tsx` ← `portal/src/portal/teacher/coaching/libraryPick.test.tsx` · `portal/src/portal/teacher/lessons/LessonPages.test.tsx` · `portal/src/portal/teacher/lessons/LessonsAll.test.tsx` · `portal/src/portal/teacher/lessons/LessonsHome.test.tsx` · `portal/src/portal/teacher/lessons/leaders.test.tsx` · `portal/src/portal/teacher/lessons/newFlow.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/CLAUDE.index.md`? · `portal/src/CLAUDE.md`? · `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/fln/CLAUDE.index.md`? · `portal/src/portal/fln/tests/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/analytics/CLAUDE.index.md`? · `portal/src/portal/teacher/classes/CLAUDE.index.md`? · `portal/src/portal/teacher/classes/CLAUDE.md`? · `portal/src/portal/teacher/coaching/CLAUDE.index.md`? · `portal/src/portal/teacher/lessons/CLAUDE.index.md`? · `portal/src/portal/teacher/lessons/CLAUDE.md`? · `portal/src/portal/teacher/notices/CLAUDE.index.md`? · `portal/src/portal/teacher/notices/CLAUDE.md`? · `portal/src/portal/teacher/observations/CLAUDE.index.md`? · `portal/src/portal/teacher/observations/CLAUDE.md`? · `portal/src/portal/teacher/share/CLAUDE.md`?
+- docs: `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/share/CLAUDE.md`?

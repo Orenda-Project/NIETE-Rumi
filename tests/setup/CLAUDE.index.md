@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `_audit-helpers/` | Static require-graph helper used by the orphan, cycle and unresolved-require audits → `_audit-helpers/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `added-lines-hygiene-lib.js` | Helper for the added-lines hygiene gate: patterns (built from parts) that find private tracker names in public code |
 | `added-lines-hygiene.allowlist.json` | Shrink-only allowlist by file of existing lines holding private work-tracking names, tokens stored ROT13 |
 | `added-lines-hygiene.test.js` | Gate: no private work-tracking names in added lines under bot, dashboard, scripts, tests, docs; legacy files allowlisted |
@@ -165,21 +163,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `worker-boot.test.js` | Audit: forks every web and worker entry point with a minimal env to assert the require chain loads, reaps children |
 
 ## Who reads this (all, generated)
-- table `students` whole row (`*`) (written by `select-columns-exist.test.js`) ← read by `bot/shared/services/student-list.service.js:362:d2b02c3e`?
-- table `niete_lp612_renders` (written by `schema-completeness.test.js`) ← read by `bot/shared/services/coaching/portal-lesson-plan-library.service.js:117:3534712c`?
-- table `students` (written by `select-columns-exist.test.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:316:2f35b0c2`? · `bot/shared/routes/edit-class-endpoint.js:44:2f35b0c2`? · `bot/shared/routes/roster-flow-endpoint.js:775:3776d591`? · `bot/shared/routes/student-videos-endpoint.js:266:d71c8cd6`? (+42: `python3 kg/kg.py who-reads students`)
-- env `ASSET_BASE_URL` read at `tests/setup/register-all-templates.test.js:431:9abcc777`
-- env `BOT_NAME` read at `tests/setup/no-hardcoded-bot-name.test.js:126:ab910b3a`
-- env `FAKE_JEST_EXIT` read at `tests/setup/run-js-args.test.js:22:9f236ac2`
-- env `INTERNAL_API_KEY` read at `tests/setup/security.test.js:44:d48c04b8`
-- env `MMS_SERVICE_URL` read at `tests/setup/security.test.js:93:fdb6b684`
-- env `NODE_ENV` read at `tests/setup/security.test.js:45:0d319ea4`
-- env `NODE_OPTIONS` read at `tests/setup/run-js-args.test.js:21:6cb25430`
-- env `RUMI_LOGO_R2_KEY` read at `tests/setup/config-overrides.test.js:44:e2f20f39`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
 - skills: `qa-testing`? · `whatsapp-flows`?
-- docs: `.claude/CLAUDE.md`? · `.claude/skills/data-standards/reference/instances/niete-rumi.md`? · `CLAUDE.md`? · `bot/marketing/README.md`? · `bot/scripts/setup/CLAUDE.index.md`? · `bot/scripts/setup/CLAUDE.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/utils/CLAUDE.index.md`? · `bot/vendor/lp-v9/lib/CLAUDE.index.md`? · `docs/CLAUDE.index.md`? · `docs/customization.md`? · `docs/data-standards.md`? · `docs/migration/06-from-main-rumi-bot.md`? · `docs/migration/CLAUDE.index.md`? · `docs/migration/DEPLOYMENT.md`? · `docs/templates/roster-change-notification.md`? · `infrastructure/scripts/CLAUDE.md`? · `tests/BASELINE.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`? · `tests/setup/CLAUDE.index.md`? · `tests/setup/CLAUDE.md`? · `tests/setup/_audit-helpers/CLAUDE.md`?
+- docs: `.claude/CLAUDE.md`? · `.claude/skills/data-standards/reference/instances/niete-rumi.md`? · `CLAUDE.md`? · `bot/marketing/README.md`? · `bot/scripts/setup/CLAUDE.md`? · `docs/customization.md`? · `docs/data-standards.md`? · `docs/migration/06-from-main-rumi-bot.md`? · `docs/migration/DEPLOYMENT.md`? · `docs/templates/roster-change-notification.md`? · `infrastructure/scripts/CLAUDE.md`? · `tests/BASELINE.md`? · `tests/CLAUDE.md`?

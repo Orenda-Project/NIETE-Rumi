@@ -1,6 +1,6 @@
 # __golden__ — Byte-exact switch-OFF response goldens recorded on the base code before each switch
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/tests/__golden__ kg=427c89aa51a2 gen=449c9b0e41dc overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/tests/__golden__ kg=427c89aa51a2 gen=3500c2703e34 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `way-back-closed-off.json` — smallest golden; checked by web-quiz-way-back.service.test.js, read the test for how it records
@@ -11,7 +11,6 @@
 | path | purpose |
 |---|---|
 | `quiz-join-page-off.json` | Golden of join-screen cases with early-tap and wait-word switches off; the two quiz-join tests |
-| `CLAUDE.md` | (unmapped) |
 | `juice-off-inputs.js` | Fixed inputs for the web_quiz_juice golden: pages the edge draws with the switch off (juice-edge test) |
 | `class-link-edge-off.json` | Golden of switch-OFF /j and /q class-link edge responses, loaded by web-quiz-class-link-edge.service.test.js |
 | `class-pic-edge-off.json` | Golden of switch-OFF quiz and story page heads for the class-picture edge; web-quiz-class-pic-edge test |
@@ -29,4 +28,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `dashboard/tests/CLAUDE.index.md`? · `dashboard/tests/CLAUDE.md`? · `dashboard/tests/__golden__/CLAUDE.md`?
+- docs: `dashboard/tests/CLAUDE.md`?

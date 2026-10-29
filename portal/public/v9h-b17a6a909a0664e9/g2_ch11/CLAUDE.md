@@ -1,7 +1,7 @@
 # g2_ch11 — Hosted v9 pages, Grade 2 chapter 11 (15 segs: English 6, Math 3, Urdu 6)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g2_ch11 kg=5a8e2af967d8 gen=800ef233cc78 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g2_ch11 kg=5a8e2af967d8 gen=f7ea4bfa0d19 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g2_ch11_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g2*` | 15 files; most used `g2_ch11_Urdu_seg6.v9.html`: Hosted v9 lesson page G2 Urdu ch11 seg6 (ur): تخلیقی لکھائی — تصویر سے کہانی اور شاداب مستقبل |
 
 ## Who reads this (generated)
@@ -26,4 +24,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g2_ch11/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g2_ch11/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

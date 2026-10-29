@@ -1,7 +1,7 @@
 # checks — Design-rule tests that fail the build when the new UI breaks DESIGN.md
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/checks kg=3550d0cdef43 gen=3e6213f44b80 overflow=57 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/checks kg=3550d0cdef43 gen=cabc9825b654 overflow=52 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `rules.ts` — rule functions (max 4-word labels, allowlist) the *.test files call
@@ -12,8 +12,6 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `rules.ts` | bd-5rz1v.19: design-rule functions (max 4-word labels, allowlist) the checks/*.test files call |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `tap.test.tsx` | bd-5rz1v.19: every interactive kit component keeps the tap-target class contract (at least 56px) |
 | `source.ts` | bd-5rz1v.19: test-only reader of newui source (fs plus TypeScript parser) for the design checks |
 | `copy.test.ts` | bd-5rz1v.19 CHECK 1: new-UI copy is labels not sentences; all words live in copy.ts |
@@ -34,7 +32,12 @@ Full index: `CLAUDE.index.md`
 - `portal/src/portal/newui/coaching/RecordingBar.newUi.test.tsx` (rules.ts, source.ts)
 - `portal/src/portal/teacher/analytics/checks.test.tsx` (rules.ts, source.ts)
 - `portal/src/portal/teacher/assessment/checks.test.tsx` (rules.ts, source.ts)
-- … 57 more → `CLAUDE.index.md`
+- `portal/src/portal/teacher/attendance/checks.test.tsx` (rules.ts, source.ts)
+- `portal/src/portal/teacher/classes/checks.test.tsx` (rules.ts, source.ts)
+- `portal/src/portal/teacher/coaching/checks.test.tsx` (rules.ts, source.ts)
+- `portal/src/portal/teacher/lessons/checks.test.tsx` (rules.ts, source.ts)
+- `portal/src/portal/teacher/notices/checks.test.tsx` (rules.ts, source.ts)
+- … 52 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/auth/CLAUDE.index.md`? · `portal/src/portal/coach/card/CLAUDE.index.md`? · `portal/src/portal/coach/observe/CLAUDE.index.md`? · `portal/src/portal/coach/observe/CLAUDE.md`? · `portal/src/portal/coach/people/CLAUDE.index.md`? · `portal/src/portal/coach/reports/CLAUDE.index.md`? (+28)
+- docs: `portal/src/portal/newui/CLAUDE.md`?

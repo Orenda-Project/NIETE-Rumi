@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `migrations/` | Hand-applied SQL migrations (no runner); newer ones carry a *_rollback.sql file → `migrations/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `SCHEMA_GUIDE.md` | Plain-language guide to the core Rumi tables for non-technical readers; v3.0 Nov 2025, older than the migrations |
 | `SESSION_MIGRATION_GUIDE.md` | How-to for the v3.1.0 chat_sessions migration (30-minute session timeout); historical Nov 2025 rollout note |
 | `schema.sql` | Original v3.0 Rumi base schema (users, conversations, audio_sessions and more); stale vs the numbered migrations |
@@ -45,4 +43,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/database/CLAUDE.index.md`? · `bot/database/CLAUDE.md`? · `bot/database/SCHEMA_GUIDE.md`? · `bot/database/SESSION_MIGRATION_GUIDE.md`? · `bot/database/migrations/CLAUDE.index.md`? · `bot/database/migrations/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/data-standards.md`?
+- docs: `bot/CLAUDE.md`? · `docs/data-standards.md`?

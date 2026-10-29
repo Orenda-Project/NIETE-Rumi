@@ -1,7 +1,7 @@
 # assets — Images for the marketing site and portal chrome: logos, hero art, illustrations
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/assets kg=64c53a7ceb57 gen=38ed17e44d84 overflow=2 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/assets kg=64c53a7ceb57 gen=c4fae55f4296 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `niete-logo.png` — the NIETE logo (used by NotFound and portal chrome)
@@ -13,9 +13,7 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `vendors/` | Training-vendor logos shown on the portal Training screens → `vendors/CLAUDE.md` |
 | `niete*` | 4 files; most used `niete-logo.png`: (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `rumi*` | 7 files; most used `rumi-logo.png`: (unmapped) |
-| `CLAUDE.index.md` | (unmapped) |
 | `hero*` | 9 files; most used `hero-sketch-2.png`: (unmapped) |
 | `illustration*` | 5 files; most used `illustration-voice.png`: (unmapped) |
 | `card*` | 4 files; most used `card-other.jpg`: (unmapped) |
@@ -32,7 +30,8 @@ Full index: `CLAUDE.index.md`
 - `illustration-lonely.png` ← imported by `portal/src/components/LonelyTruth.tsx:1:24513eb0`
 - `illustration-support.png` ← imported by `portal/src/components/AlwaysThere.tsx:3:743e2897`
 - `illustration-voice.png` ← imported by `portal/src/components/AlwaysThere.tsx:2:219cc49d`
-- … 2 more → `CLAUDE.index.md`
+- `niete-logo-white.png` ← imported by `portal/src/portal/coachip-ui/Rail.tsx:3:fc5ff9e5`
+- `niete-mark.png` ← imported by `portal/src/portal/newui/FeatureIcon.tsx:4:90d82587`
 
 ## Never (human)
 _None found in code comments, tests or git log for this directory._
@@ -42,4 +41,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `portal/src/CLAUDE.index.md`? · `portal/src/CLAUDE.md`? · `portal/src/assets/CLAUDE.index.md`? · `portal/src/assets/CLAUDE.md`? · `portal/src/assets/vendors/CLAUDE.md`?
+- docs: `portal/src/CLAUDE.md`?

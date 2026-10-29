@@ -1,7 +1,7 @@
 # classes — Teacher My Classes: list, class detail with roster, Add a class
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/classes kg=75889b22f27c gen=991ced582da0 overflow=18 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/classes kg=0232789baf78 gen=d289ef4c2e99 overflow=15 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `MyClassesPage.tsx` — list at /portal/teacher/classes; `ClassDetailPage.tsx` — roster; `AddClassPage.tsx`
@@ -14,8 +14,9 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `ClassesPages.test.tsx` | Pins My Classes, Class detail and Add a class over GET/POST /classes and student routes (bd-fmf24g.8) |
 | `paths.ts` | Path builders for My Classes pages under /portal/teacher/classes: home, add, class detail |
+| `checks.test.tsx` | Style and copy guard for My Classes pages: logical start/end, motion-safe, copy.ts words, 56px targets |
 | `parts.tsx` | Small pieces shared by Classes and Analytics: section heading with count, load and failed states, empty card |
-| … | 11 more → `CLAUDE.index.md` |
+| … | 8 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `parts.tsx` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:9:145f5b04` · `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:22:0d0ee9fc` (+5)
@@ -30,7 +31,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/teacher/classes/ClassesPages.test.tsx` (AddClassPage.tsx, ClassDetailPage.tsx, MyClassesPage.tsx, copy.ts, paths.ts, routes.tsx)
 - `portal/src/portal/teacher/classes/checks.test.tsx` (copy.ts, paths.ts, routes.tsx)
-- … 3 more → `CLAUDE.index.md`
+- … 6 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? (+5)
+- docs: `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/types/CLAUDE.md`?

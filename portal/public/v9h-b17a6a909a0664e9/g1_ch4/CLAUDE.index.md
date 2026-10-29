@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g1_ch4_English_seg1.v9.html` | Hosted v9 lesson page G1 English ch4 seg1 (en): Siblings & Sharing Key Words + Picture Match (Memory Lane) |
 | `g1_ch4_English_seg2.v9.html` | Hosted v9 lesson page G1 English ch4 seg2 (en): Reading the Poem 'Turn by Turn TV Time!' + Clapping the Rhythm |
 | `g1_ch4_English_seg3.v9.html` | Hosted v9 lesson page G1 English ch4 seg3 (en): Rhyming Words: Music-Symbol Rhymes & Rhyming Rocket Ride |
@@ -37,4 +35,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch4/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch4/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

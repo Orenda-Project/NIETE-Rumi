@@ -1,7 +1,7 @@
 # observations — Teacher Observations: next coach visit, visits in progress, visit reports
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/observations kg=bcffa22a101d gen=6d7fe7390671 overflow=8 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/observations kg=bcffa22a101d gen=6985214907ae overflow=4 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `ObservationsHome.tsx` — page; `api.ts` — GET /teacher/visits and coach-visit sessions
@@ -15,7 +15,9 @@ Full index: `CLAUDE.index.md`
 | `observations.ur.test.tsx` | Renders Observations main page and a visit report in Urdu with the bot's Urdu band words (bd-fmf24g.13.2) |
 | `paths.ts` | Path builders for Observations: OBS_HOME and the report path reusing the shared coaching ReportPage |
 | `Observations.test.tsx` | Pins Observations page: next visit, in-progress stage only, no visit state, reports and visit report (bd-fmf24g.4) |
-| … | 7 more → `CLAUDE.index.md` |
+| `copy.ts` | English and Urdu words for the Observations screens (OBSERVATIONS bilingual), registered as COPY_ENTRY |
+| `ObservationsHome.tsx` | Observations main page (Next visit, In progress, Reports) and the coach-visit report page wrapper |
+| … | 3 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `paths.ts` ← imported by `portal/src/portal/teacher/home/chips.ts:4:614029b8` · `portal/src/portal/teacher/home/look/cardWords.ts:4:55f11086` (+3)
@@ -30,7 +32,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/teacher/observations/observations.ur.test.tsx` (ObservationsHome.tsx, api.ts, copy.ts, paths.ts, routes.tsx)
 - `portal/src/portal/teacher/observations/Observations.test.tsx` (ObservationsHome.tsx, copy.ts, paths.ts, routes.tsx)
-- … 1 more → `CLAUDE.index.md`
+- … 3 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/lessons/CLAUDE.index.md`? · `portal/src/portal/teacher/observations/CLAUDE.index.md`? (+1)
+- docs: `portal/src/portal/teacher/CLAUDE.md`?

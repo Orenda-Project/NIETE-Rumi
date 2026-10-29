@@ -1,7 +1,7 @@
 # newui — New-UI design kit (portal_new_ui flag): tokens, components, screens per feature
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui kg=e3408f39a1ba gen=5abc0662392a overflow=97 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui kg=55d18b720e11 gen=cd58af97a29f overflow=95 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `DESIGN.md` — rules, tokens and kit contract; read before building a screen
@@ -15,7 +15,7 @@ Full index: `CLAUDE.index.md`
 | `checks/` | Design-rule tests that fail the build when the new UI breaks DESIGN.md → `checks/CLAUDE.md` |
 | `coaching/` | New-UI teacher Coaching: record page, lesson view, live moves, send flow → `coaching/CLAUDE.md` |
 | `home/` | New-UI teacher Home: date-range 'what you did' tiles and their lists → `home/CLAUDE.md` |
-| … | 46 more → `CLAUDE.index.md` |
+| … | 44 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `copy.ts` ← imported by `portal/src/portal/teacher/training/copy.ts:14:20bad875` · `portal/src/portal/teacher/ui/copy.ts:15:1956a8ba` (+41)
@@ -34,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - … 29 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `dashboard/lib/CLAUDE.index.md`? · `dashboard/lib/CLAUDE.md`? · `portal/CLAUDE.index.md`? · `portal/CLAUDE.md`? · `portal/README.md`? · `portal/src/components/ui/CLAUDE.index.md`? (+26)
+- docs: `dashboard/lib/CLAUDE.md`? · `portal/CLAUDE.md`? · `portal/README.md`? · `portal/src/components/ui/CLAUDE.md`? · `portal/src/portal/CLAUDE.md`? · `portal/src/portal/newui/DESIGN.md`? (+2)

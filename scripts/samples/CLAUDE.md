@@ -1,6 +1,6 @@
 # samples — Authored sample data for rendering demo coaching reports
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/samples kg=672d593dfff3 gen=3f53617c28dd overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/samples kg=672d593dfff3 gen=f8c6a89df77d overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `_index.js` — maps each framework to its sample
@@ -9,7 +9,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `_index.js` | Index of hand-authored hero-report samples per framework, loaded by render-sample-hero-report.js; no real data |
 | `hero-sample-fico.json` | Authored FICO sample session and analysis for the hero report renderer |
 | `hero-sample-hots.json` | Authored HOTS sample session and analysis for the hero report renderer |
@@ -35,4 +34,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `docs/features/CLAUDE.index.md`? · `docs/features/coaching.md`? · `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/samples/CLAUDE.md`?
+- docs: `docs/features/coaching.md`? · `scripts/CLAUDE.md`?

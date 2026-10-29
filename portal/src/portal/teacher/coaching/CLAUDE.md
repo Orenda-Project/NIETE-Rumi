@@ -1,7 +1,7 @@
 # coaching — Teacher Digital Coaching: hub, one-screen observation, report, All DC observations
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/coaching kg=9ec955140c93 gen=4e235b162b57 overflow=77 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/coaching kg=bd309f41e826 gen=0e2876deb44c overflow=74 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `NewObservation.tsx` — the one screen at /coaching/new; `ReportPage.tsx` — shared report (also coach visits)
@@ -14,10 +14,11 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `copy.ts` | English and Urdu words for all Digital Coaching screens (machine-drafted Urdu), registered as COPY_ENTRY |
 | `paths.ts` | Path builders for Coaching pages: home, send, new (one screen), all, and one lesson's report |
-| … | 38 more → `CLAUDE.index.md` |
+| `coaching.ur.test.tsx` | Renders Digital Coaching hub, one screen, send, report and All DC observations in Urdu (bd-fmf24g.13.2) |
+| … | 39 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `copy.ts` ← imported by `portal/src/portal/coach/insights/player/FullRecordingLink.tsx:4:dd128a06` · `portal/src/portal/coach/insights/player/MomentPlayer.tsx:3:dd128a06` (+14)
+- `copy.ts` ← imported by `portal/src/portal/coach/insights/player/FullRecordingLink.tsx:4:dd128a06` · `portal/src/portal/coach/insights/player/MomentPlayer.tsx:4:dd128a06` (+14)
 - `paths.ts` ← imported by `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:21:d1a155d5` · `portal/src/portal/teacher/home/chips.ts:3:87d7f35f` (+10)
 - … 15 more → `CLAUDE.index.md`
 
@@ -32,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - … 24 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/newui/coaching/CLAUDE.index.md`? · `portal/src/portal/newui/coaching/CLAUDE.md`? (+9)
+- docs: `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/newui/coaching/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/share/CLAUDE.md`?

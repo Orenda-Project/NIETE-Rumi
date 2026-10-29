@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `AttendanceHub.tsx` | Attendance main page: searchable class selector, not-marked first; opens roll call, View or Download |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `DownloadPage.tsx` | A class's month register page: choose month, send the Excel register to WhatsApp via the bot delivery |
 | `MarkPage.tsx` | Roll call page: everyone starts Present, P/A/L per child, All present, Save or Save changes for a marked day |
 | `ViewPage.tsx` | One class's month view: calendar tinted by present share, day detail of who was away, per-child percentages |
@@ -44,4 +42,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `ui.tsx` ← `portal/src/portal/components/loadingStates.test.tsx` · `portal/src/portal/teacher/attendance/checks.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/attendance/CLAUDE.index.md`? · `portal/src/portal/teacher/attendance/CLAUDE.md`?
+- docs: `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`?

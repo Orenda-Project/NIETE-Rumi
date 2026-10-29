@@ -1,6 +1,6 @@
 # jugnu — Jugnu mascot animations (webp, webm) per mood: hello, correct, notyet, idle, sleep
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq/jugnu kg=bb2fc9c295ff gen=a95e057866ee overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq/jugnu kg=bb2fc9c295ff gen=d0514e94bb6e overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `hello.webp` — the still every page preloads and the PWA icon (manifest.webmanifest, push-remind.routes.js)
@@ -9,7 +9,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `celebrate.webp` | (unmapped) |
 | `celebrate_a.webm` | (unmapped) |
 | `celebrate_a.webp` | (unmapped) |
@@ -61,4 +60,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `dashboard/public/wq/CLAUDE.index.md`? · `dashboard/public/wq/CLAUDE.md`?
+- docs: `dashboard/public/wq/CLAUDE.md`?

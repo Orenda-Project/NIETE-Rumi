@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `early/` | Grade 1-2 FDE subject patterns plus their shared chrome → `early/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `fde-g1-2026.js` | FDE Grade 1 2026-27 annual pattern; assembles the early/g1-* subject files |
 | `fde-g2-2026.js` | FDE Grade 2 2026-27 annual pattern; assembles the early/g2-* subject files |
 | `fde-g5-2027.js` | FDE Grade V Feb 2027 centralised exam pattern as frozen data: sections, slots, marks, scheme rules |
@@ -25,4 +23,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `index.js` ← `tests/assessment/assessment-paper-fde.renderer.test.js` · `tests/assessment/composition-criteria.test.js` · `tests/assessment/fde-blueprint-check.test.js` · `tests/assessment/fde-blueprint-wiring.test.js` · `tests/assessment/fde-chain.test.js` · `tests/assessment/fde-create.test.js` (+113: `python3 kg/kg.py who-reads bot/shared/services/assessment/patterns/index.js`)
 
 ## Related (all, generated)
-- docs: `bot/shared/services/assessment/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.md`? · `bot/shared/services/assessment/patterns/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/CLAUDE.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.md`? · `tests/assessment/CLAUDE.index.md`?
+- docs: `bot/shared/services/assessment/CLAUDE.md`?

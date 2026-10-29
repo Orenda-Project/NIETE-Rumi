@@ -6,9 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `helpers/` | → (no door; 1 test files) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
+| `helpers/` | → (no door; 1 files: 0 test + 1 support) |
 | `extract-key-leading-slash.test.js` | bd-8s0dp: r2 extractKeyFromUrl strips leading slashes on bare keys so feature intro videos are sent |
 | `inbound-typing-scope.test.js` | bd-0wrn4: inbound typing scope through the real WhatsApp service: replies to others, same-person replies and reactions |
 | `inbound-typing.test.js` | bd-0wrn4: typing is not left on screen after a reaction-only or empty reply, sticker, or silent receipt |
@@ -29,13 +27,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `webhook-signature.test.js` | Pins POST /webhook and Flow endpoint X-Hub-Signature-256 HMAC checks: signed processed, unsigned 401, tampered refused |
 
 ## Who reads this (all, generated)
-- env `R2_BUCKET_NAME` read at `tests/whatsapp/extract-key-leading-slash.test.js:15:cd560242`
-- env `REDIS_TEST_URL` read at `tests/whatsapp/send-pacing.redis.test.js:14:b0c49f82`
-- env `SUPABASE_SERVICE_ROLE_KEY` read at `tests/whatsapp/extract-key-leading-slash.test.js:14:cd796d8a`
-- env `SUPABASE_URL` read at `tests/whatsapp/extract-key-leading-slash.test.js:13:d1ac37ba`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/utils/CLAUDE.index.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`? · `tests/whatsapp/CLAUDE.index.md`? · `tests/whatsapp/CLAUDE.md`?
+- docs: `bot/shared/routes/CLAUDE.md`? · `tests/CLAUDE.md`?

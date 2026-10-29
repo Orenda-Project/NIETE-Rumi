@@ -1,7 +1,7 @@
 # g3_ch4 — Hosted v9 pages, Grade 3 chapter 4 (22 segs: English 9, Math 7, Urdu 6)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch4 kg=e6332bbf49a0 gen=c122b17f4b5a overflow=13 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch4 kg=e6332bbf49a0 gen=1b85a2add988 overflow=12 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g3_ch4_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g3_ch4_English_seg1.v9.html` | Hosted v9 lesson page G3 English ch4 seg1 (en): Blend and Bond + Break the Word (consonant blends & syllables) |
 | `g3_ch4_English_seg2.v9.html` | Hosted v9 lesson page G3 English ch4 seg2 (en): Journey: Pinky's Travel Log — A Day at Lahore Fort |
 | `g3_ch4_English_seg3.v9.html` | Hosted v9 lesson page G3 English ch4 seg3 (en): Diving Deeper: Pinky's Multiple-Choice Quest |
@@ -22,7 +20,8 @@ Full index: `CLAUDE.index.md`
 | `g3_ch4_English_seg7.v9.html` | Hosted v9 lesson page G3 English ch4 seg7 (en): Masculine & Feminine (grammatical gender) + Action Adventure (verbs) |
 | `g3_ch4_English_seg8.v9.html` | Hosted v9 lesson page G3 English ch4 seg8 (en): Expressive Words in Wondrous Worlds (multi-syllable (+ more topics) |
 | `g3_ch4_English_seg9.v9.html` | Hosted v9 lesson page G3 English ch4 seg9 (en): Connect and Create: My Mini-Travel Diary + Time-Travel Souvenir |
-| … | 13 more → `CLAUDE.index.md` |
+| `g3_ch4_Maths_seg1.v9.html` | Hosted v9 lesson page G3 Math ch4 seg1 (en): Division concept + dividing mentally |
+| … | 12 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -35,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g3_ch4/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g3_ch4/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

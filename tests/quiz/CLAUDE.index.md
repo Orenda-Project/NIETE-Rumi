@@ -6,11 +6,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `__fixtures__/` | Golden recorded sends of the LP quiz offer → `__fixtures__/CLAUDE.md` |
-| `fixtures/` | → (no door; 1 test files) |
+| `__fixtures__/` | → (no door; 1 files: 0 test + 1 support) |
+| `fixtures/` | → (no door; 1 files: 0 test + 1 support) |
 | `helpers/` | Shared stubs and fixtures for quiz suites: Supabase fakes, lesson fixtures → `helpers/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
+| `__snapshots__/` | → (not mapped: excluded; 1 files) |
 | `base-ten-thousands.test.js` | base_ten gets a thousands place: place-value mat columns thousands to ones (also in Urdu), a thousand drawn as a cube |
 | `child-card-subject-and-topic.test.js` | Child scorecard and class card name the subject in the card's language, never the key; English topic cut at its end |
 | `child-copy-urdu-grammar.test.js` | Four Urdu grammar faults on child surfaces: rank ordinals on the class card, scorecard caption, post-join greeting |
@@ -276,18 +275,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `whatsapp-media-cache.test.js` | WhatsApp media-id cache on sendImageWithButtons: download and upload once, send by media id, remember the id for 25 days |
 
 ## Who reads this (all, generated)
-- column `quiz_sessions.status` (written by `quiz-attempts-kept.test.js`) ← read by `bot/shared/routes/quiz-flow-endpoint.js:322:14a4b92a` · `bot/shared/routes/transcript-quiz-flow-endpoint.js:304:66e5988e` · `bot/shared/services/quiz/quiz-delivery.service.js:144:83330cbc` · `bot/shared/services/quiz/quiz-insight.service.js:204:a69ef692` (+24: `python3 kg/kg.py who-reads quiz_sessions.status`)
-- table `quiz_sessions` (written by `quiz-attempts-kept.test.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:144:a4d322ab`? · `bot/shared/handlers/text-message.handler.js:258:e211522c`? · `bot/shared/routes/quiz-flow-endpoint.js:321:e211522c`? · `bot/shared/routes/transcript-quiz-flow-endpoint.js:303:df117d27`? (+44: `python3 kg/kg.py who-reads quiz_sessions`)
-- env `INTERNAL_API_KEY` read at `tests/quiz/lp-quiz-offer-window-template.test.js:254:c3150d4a`
-- env `OPENAI_API_KEY` read at `tests/quiz/lp-quiz-downstream-parity.test.js:242:334ba0e9`
-- env `PORTAL_URL` read at `tests/quiz/web-quiz-forward-message.test.js:67:40c476e1`
-- env `QUIZ_URDU_SPACING_V2` read at `tests/quiz/multi-question-card.test.js:46:c605dd16`
-- env `WEB_QUIZ_AUDIO_BUCKET` read at `tests/quiz/web-quiz-config-bot-boot.test.js:25:882945e1`
-- env `WEB_QUIZ_BASE_URL` read at `tests/quiz/web-quiz-config-bot-boot.test.js:25:882945e1`
-- env `WORKER_QUEUES` read at `tests/quiz/quiz-retest-schedule.test.js:71:deb994b1`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/setup/CLAUDE.index.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/monitoring/CLAUDE.md`? · `bot/shared/services/nudges/CLAUDE.index.md`? · `bot/shared/services/nudges/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.index.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/shared/services/quiz/CLAUDE.index.md`? · `bot/shared/services/quiz/providers/CLAUDE.index.md`? · `bot/shared/services/quiz/providers/CLAUDE.md`? · `bot/shared/templates/CLAUDE.index.md`? · `bot/shared/utils/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/lib/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/lib/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/types/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/types/CLAUDE.md`? · `bot/workers/CLAUDE.index.md`? · `bot/workers/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/flows/CLAUDE.index.md`? · `docs/student-mode.md`? · `infrastructure/templates/drafts/README.md`? · `scripts/qa/render-matrix/CLAUDE.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`? · `tests/quiz/CLAUDE.index.md`? · `tests/quiz/CLAUDE.md`? · `tests/quiz/__fixtures__/CLAUDE.md`? · `tests/quiz/helpers/CLAUDE.index.md`? · `tests/quiz/helpers/CLAUDE.md`?
+- docs: `bot/shared/services/monitoring/CLAUDE.md`? · `bot/shared/services/nudges/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/shared/services/quiz/providers/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/lib/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/types/CLAUDE.md`? · `bot/workers/CLAUDE.md`? · `docs/student-mode.md`? · `infrastructure/templates/drafts/README.md`? · `scripts/qa/render-matrix/CLAUDE.md`? · `tests/CLAUDE.md`?

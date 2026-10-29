@@ -1,7 +1,7 @@
 # g4_ch4 — Hosted v9 pages, Grade 4 chapter 4 (23 segs: English 9, Math 7, Urdu 7)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g4_ch4 kg=26e852d95361 gen=76ab04496110 overflow=14 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g4_ch4 kg=26e852d95361 gen=6e3102842ac8 overflow=12 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g4_ch4_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g4_ch4_English_seg1.v9.html` | Hosted v9 lesson page G4 English ch4 seg1 (en): Chapter Vocabulary + Spell Check (Memory Lane) |
 | `g4_ch4_English_seg2.v9.html` | Hosted v9 lesson page G4 English ch4 seg2 (en): Reading 'The Great Debate' (Journey through the text) |
 | `g4_ch4_English_seg3.v9.html` | Hosted v9 lesson page G4 English ch4 seg3 (en): Diving Deeper: Comprehension + Reflection + Anagram Architects |
@@ -22,7 +20,9 @@ Full index: `CLAUDE.index.md`
 | `g4_ch4_English_seg7.v9.html` | Hosted v9 lesson page G4 English ch4 seg7 (en): Vocabulary & Punctuation: Synonyms/Antonyms, Abbreviations, Hyphen Hunt |
 | `g4_ch4_English_seg8.v9.html` | Hosted v9 lesson page G4 English ch4 seg8 (en): Write: Creative Mission — Draw & Reflect (Imagination Canvas) |
 | `g4_ch4_English_seg9.v9.html` | Hosted v9 lesson page G4 English ch4 seg9 (en): Write & Create: Argumentative Paragraph (Time Capsule Task) |
-| … | 14 more → `CLAUDE.index.md` |
+| `g4_ch4_Maths_seg1.v9.html` | Hosted v9 lesson page G4 Math ch4 seg1 (en): Divisibility rules for 2, 3, 5 and 10 |
+| `g4_ch4_Maths_seg2.v9.html` | Hosted v9 lesson page G4 Math ch4 seg2 (en): Divisibility — apply the rules |
+| … | 12 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g4_ch4/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g4_ch4/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

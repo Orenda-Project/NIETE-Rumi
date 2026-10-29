@@ -1,7 +1,7 @@
 # live-moves — Live move ticking while a teacher records in the app (group D only)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/live-moves kg=8d3aaf1bab40 gen=4076d1099bbb overflow=17 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/live-moves kg=84a9647bc51e gen=0914e78bd17e overflow=14 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `live-moves.service.js` — logic behind /api/internal/coaching/live/*
@@ -15,7 +15,8 @@ Full index: `CLAUDE.index.md`
 | `card-store.js` | Loads the v10 card's moves from the card JSON beside its R2 PDF, 10-minute cache, null on any miss (bd-v0toag.31) |
 | `detector-prompt.js` | Prompt and parser asking which unticked lesson-plan moves the latest live transcript shows done (bd-v0toag.31) |
 | `detector.js` | Calls the fidelity model for live move ticks with a 20s timeout; never throws, ticks nothing on failure |
-| … | 5 more → `CLAUDE.index.md` |
+| `live*` | 3 files; most used `live-record.js`: Validates the live-screen record stored as analysis_data.live_moves; drops malformed records, never refuses upload |
+| … | 4 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - table `coaching_sessions` (written by `live-moves.service.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+87)
@@ -35,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - … 6 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/live-moves/CLAUDE.index.md`? · `bot/shared/services/coaching/live-moves/CLAUDE.md`? · `tests/coaching/live-moves/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.md`?

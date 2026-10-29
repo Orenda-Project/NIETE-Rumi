@@ -1,7 +1,7 @@
 # g2_ch9 — Hosted v9 pages, Grade 2 chapter 9 (17 segs: English 7, Math 5, Urdu 5)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g2_ch9 kg=7ab271d6b847 gen=bea739e1c328 overflow=7 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g2_ch9 kg=7ab271d6b847 gen=c7a4db424f06 overflow=5 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g2_ch9_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g2_ch9_English_seg1.v9.html` | Hosted v9 lesson page G2 English ch9 seg1 (en): Memory Lane & New Words: Memory Chain |
 | `g2_ch9_English_seg2.v9.html` | Hosted v9 lesson page G2 English ch9 seg2 (en): Reading: Pinky's Store Adventure |
 | `g2_ch9_English_seg3.v9.html` | Hosted v9 lesson page G2 English ch9 seg3 (en): Diving Deeper: Fact/Fiction, Questions & Compound Words |
@@ -23,7 +21,9 @@ Full index: `CLAUDE.index.md`
 | `g2_ch9_Maths_seg1.v9.html` | Hosted v9 lesson page G2 Math ch9 seg1 (en): Standard Units of Mass — Kilogram & Gram (reading scales) |
 | `g2_ch9_Maths_seg2.v9.html` | Hosted v9 lesson page G2 Math ch9 seg2 (en): Reading & Recording Mass — Skill Sharpener |
 | `g2_ch9_Maths_seg3.v9.html` | Hosted v9 lesson page G2 Math ch9 seg3 (en): Comparing Mass using <, >, = |
-| … | 7 more → `CLAUDE.index.md` |
+| `g2_ch9_Maths_seg4.v9.html` | Hosted v9 lesson page G2 Math ch9 seg4 (en): Adding & Subtracting Mass (balance, CUBES + bar model) |
+| `g2_ch9_Maths_seg5.v9.html` | Hosted v9 lesson page G2 Math ch9 seg5 (en): Mass Word Problem Practice + Skill Sharpener |
+| … | 5 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -36,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g2_ch9/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g2_ch9/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

@@ -1,7 +1,7 @@
 # topics — Curriculum-matrix rows to the tickable topics of a chapter; pure grouping
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/topics kg=691c853fb865 gen=ecaff0ee1959 overflow=32 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/topics kg=691c853fb865 gen=30097a44ae3d overflow=28 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `group.js` — groupChapter/groupAll, the entry point
@@ -16,13 +16,15 @@ Full index: `CLAUDE.index.md`
 | `group*` | 4 files; most used `group.js`: Entry point groupChapter/groupAll: turns matrix rows into the topics a teacher ticks per chapter |
 | `short-name.js` | Builds short teacher-facing topic names and id slugs, counting Urdu in code points |
 | `collect.js` | Unions the day rows behind one topic: sorted pages and SLO codes in first-seen order |
+| `reconcile.js` | Diffs stored topics against a fresh import into upsert and retire lists, scoped per grade-subject |
 | … | 8 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `short-name.js` ← imported by `bot/shared/services/assessment/topics/distinct-names.js:8:4ea89936` · `bot/shared/services/assessment/topics/group-language.js:13:22aff0f7` (+2)
 - `collect.js` ← imported by `bot/shared/services/assessment/topics/group-language.js:14:3e2764e2` · `bot/shared/services/assessment/topics/group-maths.js:21:3e2764e2` (+1)
 - `group-maths.js` ← imported by `bot/shared/services/assessment/topics/group-science.js:9:4b4fc200` · `bot/shared/services/assessment/topics/group.js:12:9fd2002e`
-- … 10 more → `CLAUDE.index.md`
+- `reconcile.js` ← imported by `bot/scripts/import-assessment-topics.js:27:ad877765` · `bot/shared/services/assessment/topics/topics.repo.js:8:8e75e826`
+- … 9 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Don't treat a topics DB error as 'no topics': the repo throws (topics.repo.js:3-4)
@@ -34,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - … 14 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/assessment/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.md`? · `bot/shared/services/assessment/topics/CLAUDE.index.md`? · `bot/shared/services/assessment/topics/CLAUDE.md`? · `tests/assessment/topics/CLAUDE.index.md`? · `tests/assessment/topics/CLAUDE.md`?
+- docs: `bot/shared/services/assessment/CLAUDE.md`?

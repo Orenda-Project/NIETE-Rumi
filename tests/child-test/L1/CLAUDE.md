@@ -1,6 +1,6 @@
 # L1 — Item bank accessor and content validator for item-bank.v1.json
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/child-test/L1 kg=0f6e77b56d6d gen=876594e52eed overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/child-test/L1 kg=8c86ab3b11f4 gen=3b13bb0f6c92 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `item-bank.test.js` — accessor over the committed bank
@@ -12,12 +12,11 @@
 | path | purpose |
 |---|---|
 | `item-bank.test.js` | Tests the child-test item bank accessor (version, getForm per grade and form) over item-bank.v1.json (bd-s1oo0.1) |
-| `CLAUDE.md` | (unmapped) |
 | `item-bank.schema.test.js` | Jest wrapper running item-bank.schema.mjs on the committed item bank so any bank edit is shape-checked (bd-s1oo0.1) |
 | `item-bank.schema.mjs` | Zero-dependency node:test validator for item-bank.v1.json: ids, token counts, story lengths, maths answers, Urdu text |
 
 ## Who reads this (generated)
-- env read here: `ITEM_BANK_PATH`
+- (none)
 
 ## Never (human)
 - item-bank.schema.mjs is not a .test.js file, so only its wrapper test runs it under root jest (tests/child-test/L1/item-bank.schema.test.js)
@@ -27,4 +26,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `tests/child-test/CLAUDE.md`? · `tests/child-test/L1/CLAUDE.md`?
+- docs: `tests/child-test/CLAUDE.md`?

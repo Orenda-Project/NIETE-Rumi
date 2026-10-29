@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `child-test-sim/` | Simulated coach visit against a fake, mock or sandbox bot for the child test → `child-test-sim/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `dns-pin.js` | node -r preload giving the mock lane a public-resolver DNS fallback when the machine's resolver fails |
 | `flow-emulator.js` | Plays Meta's side of a WhatsApp Flow from stored FLOW_JSON, including endpoint encryption; not a rendering test |
 | `flow-inventory.js` | Fetches each published Flow JSON by id, stores it as a fixture, records drift against repo copies and a component census |
@@ -47,37 +45,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sweep.js` | Runs one worker periodic sweep (teacher-nudges, resume, stale, quiz-offer-prepare) now against the local stack |
 
 ## Who reads this (all, generated)
-- table `lesson_plans` (written by `lp-feedback-e2e.js`) ← read by `bot/shared/database/bot-helpers.js:411:611f2601`? · `bot/shared/routes/quiz-flow-endpoint.js:158:611f2601`? · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:158:611f2601`? · `bot/shared/services/context.service.js:138:611f2601`? (+13: `python3 kg/kg.py who-reads lesson_plans`)
-- table `lp_feedback` (written by `lp-feedback-e2e.js`) ← read by `bot/shared/services/lp-feedback.service.js:305:5cdfa157`? · `bot/scripts/migration/apply-017-lp-feedback.js:74:3f0e2a4e`?
-- env `E2E_DNS_FALLBACK` read at `bot/scripts/e2e/dns-pin.js:14:bc98733d`
-- env `E2E_SWEEP_NOW` read at `bot/scripts/e2e/sweep.js:30:4fe6fe8b`
-- env `GRAPH_API_VERSION` read at `bot/scripts/e2e/flow-inventory.js:25:7eb5071a`
-- env `LOCAL_DB_QUERY_LOG` read at `bot/scripts/e2e/local-db-proxy.js:23:118b736c`
-- env `LOCAL_DB_REQUEST_LOG` read at `bot/scripts/e2e/local-db-proxy.js:20:e214357b`
-- env `LOCAL_DB_TIMING_LOG` read at `bot/scripts/e2e/local-db-proxy.js:28:27e2db35`
-- env `LOCAL_R2_BASE_DIR` read at `bot/scripts/e2e/local-r2.js:38:096d2c74`
-- env `LOCAL_R2_READ_LOG` read at `bot/scripts/e2e/local-r2.js:30:bfc9c4b0`
-- env `LOCAL_R2_UPSTREAM_BUCKET` read at `bot/scripts/e2e/local-r2.js:41:b4b2c5a6`
-- env `LOCAL_R2_UPSTREAM_ENDPOINT` read at `bot/scripts/e2e/local-r2.js:40:fccfe2bc`
-- env `LOCAL_R2_UPSTREAM_KEY_ID` read at `bot/scripts/e2e/local-r2.js:42:05565a03`
-- env `LOCAL_R2_UPSTREAM_SECRET` read at `bot/scripts/e2e/local-r2.js:42:05565a03`
-- env `MOCK_BOT_URL` read at `bot/scripts/e2e/mock-graph-api.js:162:8b4f6f59`
-- env `MOCK_PORT` read at `bot/scripts/e2e/mock-graph-api.js:345:8244f87d`
-- env `MOCK_TRANSCRIPT` read at `bot/scripts/e2e/mock-graph-api.js:178:e4107c22`
-- env `NIETE_ENV_PATH` read at `bot/scripts/e2e/lp-feedback-e2e.js:40:a68be0aa`
-- env `PHONE_NUMBER_ID` read at `bot/scripts/e2e/mock-graph-api.js:161:d4075fb7`
-- env `R2_ACCESS_KEY_ID` read at `bot/scripts/e2e/lp612-doc.js:28:5b9d218a`
-- env `R2_BUCKET_NAME` read at `bot/scripts/e2e/lp612-doc.js:32:1a32f3ec`
-- env `R2_ENDPOINT` read at `bot/scripts/e2e/lp612-doc.js:28:5b9d218a`
-- env `R2_SECRET_ACCESS_KEY` read at `bot/scripts/e2e/lp612-doc.js:28:5b9d218a`
-- env `SUPABASE_URL` read at `bot/scripts/e2e/hero-text.js:17:cf88f718` · `bot/scripts/e2e/lp612-doc.js:20:879bfe5d` · `bot/scripts/e2e/quiz-job.js:26:a87c7f34` · `bot/scripts/e2e/sweep.js:23:a87c7f34`
-- env `TEST_PHONE` read at `bot/scripts/e2e/lp-feedback-e2e.js:42:5acf4d7f`
-- env `TEST_TOPIC` read at `bot/scripts/e2e/lp-feedback-e2e.js:43:c6fc4e30`
-- env `WHATSAPP_TOKEN` read at `bot/scripts/e2e/flow-inventory.js:140:250e68a3`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
 - skills: `niete-mock-e2e`?
-- docs: `.claude/skills/niete-mock-e2e/reference/exit-codes.md`? · `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/e2e/CLAUDE.index.md`? · `bot/scripts/e2e/CLAUDE.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/config/CLAUDE.md`? · `bot/shared/handlers/CLAUDE.index.md`? · `bot/shared/handlers/CLAUDE.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/cache/CLAUDE.index.md`? · `bot/shared/services/cache/CLAUDE.md`? · `bot/shared/utils/CLAUDE.index.md`? · `bot/shared/utils/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/e2e-mock-lane.md`? · `docs/onboarding/CLAUDE.md`? · `docs/onboarding/local-portal.md`?
+- docs: `.claude/skills/niete-mock-e2e/reference/exit-codes.md`? · `bot/scripts/CLAUDE.md`? · `bot/shared/services/cache/CLAUDE.md`? · `docs/e2e-mock-lane.md`? · `docs/onboarding/local-portal.md`?

@@ -1,7 +1,7 @@
 # ui — shadcn/ui primitives (Radix wrappers); generated style, mostly unused by the portal
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/components/ui kg=26d68c48998c gen=e3033ae07133 overflow=60 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/components/ui kg=f2be15fc625d gen=fa2c3275210b overflow=56 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `button.tsx` — most used primitive, with `dialog.tsx`, `card.tsx`, `input.tsx`
@@ -13,14 +13,16 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `button.tsx` | shadcn/ui: button with cva variants; imported by portal pages |
 | `skeleton.tsx` | shadcn/ui: loading skeleton block; imported by portal pages |
-| `CLAUDE.index.md` | (unmapped) |
 | `input.tsx` | shadcn/ui: text input; imported by portal pages |
 | `label.tsx` | shadcn/ui: Radix label; imported by portal pages |
 | `select.tsx` | shadcn/ui: Radix select dropdown; imported by portal pages |
 | `sheet.tsx` | shadcn/ui: slide-over sheet; imported by portal pages |
-| `CLAUDE.md` | (unmapped) |
 | `badge.tsx` | shadcn/ui: badge chip; imported by portal pages |
-| … | 42 more → `CLAUDE.index.md` |
+| `card.tsx` | shadcn/ui: card container; imported by portal pages |
+| `textarea.tsx` | shadcn/ui: textarea input; imported by portal pages |
+| `toast.tsx` | shadcn/ui: Radix toast primitives; imported by portal pages |
+| `dialog.tsx` | shadcn/ui: Radix dialog modal; imported by portal pages |
+| … | 38 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `button.tsx` ← imported by `portal/src/components/FinalCTA.tsx:1:35ef1d8e` · `portal/src/components/Hero.tsx:1:35ef1d8e` (+37)
@@ -39,4 +41,4 @@ _None found in code comments, tests or git log for this directory._
 - … 1 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/components/CLAUDE.index.md`? · `portal/src/components/CLAUDE.md`? · `portal/src/components/ui/CLAUDE.index.md`? · `portal/src/components/ui/CLAUDE.md`? · `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.md`? (+4)
+- docs: `portal/src/components/CLAUDE.md`?

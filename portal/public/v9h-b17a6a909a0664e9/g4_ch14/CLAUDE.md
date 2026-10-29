@@ -1,6 +1,6 @@
 # g4_ch14 — Hosted v9 pages, Grade 4 chapter 14 (5 segs: Urdu 5)
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g4_ch14 kg=1d9fefc7aed0 gen=b667d9dc724c overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g4_ch14 kg=1d9fefc7aed0 gen=7737c2ee0f45 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g4_ch14_Urdu_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `g4_ch14_Urdu_seg1.v9.html` | Hosted v9 lesson page G4 Urdu ch14 seg1 (ur): نئے الفاظ — پیشوں کے الفاظ اور حروفِ تہجی ترتیب |
 | `g4_ch14_Urdu_seg2.v9.html` | Hosted v9 lesson page G4 Urdu ch14 seg2 (ur): بلند خوانی — بنٹی کے انٹرویو (متن ⁦۱–۳⁩) |
 | `g4_ch14_Urdu_seg3.v9.html` | Hosted v9 lesson page G4 Urdu ch14 seg3 (ur): تفہیم — گہرائی تک پہنچنا (مختصر، تفصیلی، منتخب جواب) |

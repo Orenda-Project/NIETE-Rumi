@@ -1,6 +1,6 @@
 # childTest — Coach-app child reading/maths test: stimulus, recorder, 'what Rumi heard' form
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/childTest kg=ca29ae702eea gen=36461808117f overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/childTest kg=ca29ae702eea gen=373277972164 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `BlockRecorder.tsx` — one block: Start, 60 s countdown, record, re-record, Send
@@ -11,7 +11,6 @@
 | path | purpose |
 |---|---|
 | `BlockRecorder.test.tsx` | bd-s1oo0.7: BlockRecorder reading and maths blocks: Start, 60 s countdown tone, Stop, re-record, Send |
-| `CLAUDE.md` | (unmapped) |
 | `StimulusCard.test.tsx` | bd-s1oo0.7: stimulus keeps inline direction so Urdu page does not flip "5 - 1" or right-align English |
 | `BlockRecorder.tsx` | bd-s1oo0.7: coach-app child test block: card, big Start, 60-second countdown, record, re-record and Send |
 | `StimulusCard.tsx` | bd-s1oo0.7: child-facing reading/maths stimulus in large print (story, sums, number strip), Nastaliq for Urdu |
@@ -31,4 +30,4 @@
 - `portal/src/portal/components/childTest/StimulusCard.test.tsx` (StimulusCard.tsx)
 
 ## Related (generated)
-- docs: `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/components/CLAUDE.md`? · `portal/src/portal/components/childTest/CLAUDE.md`? · `portal/src/portal/lib/childTest/CLAUDE.index.md`? · `portal/src/portal/lib/childTest/CLAUDE.md`? · `portal/src/portal/types/CLAUDE.index.md`? (+1)
+- docs: `portal/src/portal/lib/childTest/CLAUDE.md`? · `portal/src/portal/types/CLAUDE.md`?

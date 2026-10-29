@@ -1,6 +1,6 @@
 # home — Coach Home on the kit: visits today and feature tiles
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/home kg=06649af58249 gen=63db79ad0b6b overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/home kg=06649af58249 gen=7bb4ba46c734 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `copy.ts` — Home and reports-waiting words in English and Urdu
@@ -12,7 +12,6 @@
 | path | purpose |
 |---|---|
 | `CoachHome.test.tsx` | Pins the kit-based coach Home: band, waiting banner, today's visits, five tiles, Urdu (bd-4404s7.2) |
-| `CLAUDE.md` | (unmapped) |
 | `copy.ts` | English and Urdu words of the coach Home and its reports-waiting notice (bd-4404s7.2) |
 | `VisitCards.tsx` | Coach Home visit rows as kit HistoryRows and the expanded current visit (bd-4404s7.2) |
 
@@ -28,4 +27,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `portal/src/portal/coach/CLAUDE.index.md`? · `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/home/CLAUDE.md`? · `portal/src/portal/coach/pages/CLAUDE.index.md`? · `portal/src/portal/coach/pages/CLAUDE.md`? · `portal/src/portal/lib/CLAUDE.index.md`? (+2)
+- docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

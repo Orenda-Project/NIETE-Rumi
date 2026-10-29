@@ -1,6 +1,6 @@
 # g4_ch18 — Hosted v9 pages, Grade 4 chapter 18 (2 segs: Urdu 2)
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g4_ch18 kg=8c4323420a1f gen=bdf46d92c57b overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g4_ch18 kg=8c4323420a1f gen=764e0689b249 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g4_ch18_Urdu_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `g4_ch18_Urdu_seg1.v9.html` | Hosted v9 lesson page G4 Urdu ch18 seg1 (ur): سماعت و بلند خوانی — ملی نغمہ 'سوہنی دھرتی' |
 | `g4_ch18_Urdu_seg2.v9.html` | Hosted v9 lesson page G4 Urdu ch18 seg2 (ur): تفہیم — تحریری سوالات |
 

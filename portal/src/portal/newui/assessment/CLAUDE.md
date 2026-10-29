@@ -1,7 +1,7 @@
 # assessment — New-UI Assessment screens: make a paper, writing/ready/failed, My assessments
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/assessment kg=7ce5ed0dd9b4 gen=84dc256cfbaa overflow=9 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/assessment kg=7ce5ed0dd9b4 gen=42274dd1bd50 overflow=5 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `AssessmentHome.tsx` — class, subject, chapter, count, then Make assessment
@@ -15,7 +15,9 @@ Full index: `CLAUDE.index.md`
 | `AssessmentRequest.test.tsx` | bd-5rz1v.13: Writing, polling, Ready and Failed states after Make assessment |
 | `AssessmentHome.test.tsx` | bd-5rz1v.13: Assessment page band, Class/Subject/Chapter sheets, Questions stepper, Make assessment |
 | `assessmentApi.test.ts` | bd-5rz1v.13: eleven failure codes to labels, opening a file, downloadArtifact, banned old words |
-| … | 6 more → `CLAUDE.index.md` |
+| `MyAssessments.test.tsx` | bd-5rz1v.13: My assessments filter chips, per-paper rows with download, paging from GET /assessment/papers |
+| `MyAssessments.tsx` | New-UI My assessments list: class/subject filters, paper rows with download, paging, PaperSheet detail |
+| … | 2 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `assessmentApi.ts` ← imported by `portal/src/portal/newui/coaching/LessonView.tsx:25:f55de06e` · `portal/src/portal/newui/home/HomeList.tsx:20:d056c9e3` (+7)
@@ -33,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - … 3 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.md`? · `portal/src/portal/newui/assessment/CLAUDE.index.md`? · `portal/src/portal/newui/assessment/CLAUDE.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? (+1)
+- docs: `portal/src/portal/newui/CLAUDE.md`?

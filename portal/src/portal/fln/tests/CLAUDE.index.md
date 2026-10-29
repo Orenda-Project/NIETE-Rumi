@@ -6,9 +6,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `fixtures/` | → (no door; 3 test files) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
+| `fixtures/` | → (no door; 3 files: 0 test + 3 support) |
+| `__snapshots__/` | → (not mapped: excluded; 1 files) |
 | `appRoute.test.tsx` | Vitest: real App mounts /portal/fln/* route table; signed-out cold open asks /fln/me and goes to sign-in with next= |
 | `backlink.test.tsx` | Vitest (R5 QL-backlink): Back on a plan reached via link sign-in goes to the subject list, not out of the app |
 | `band.test.tsx` | Vitest for FlnBand on New-lesson page: who sees it, grade chips, counts, lazy chunk, CSS read from disk (bd-4tsjcr) |
@@ -45,4 +44,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/services/child-test/sa/CLAUDE.index.md`? · `portal/src/CLAUDE.index.md`? · `portal/src/CLAUDE.md`? · `portal/src/portal/coach/insights/components/CLAUDE.index.md`? · `portal/src/portal/coach/insights/components/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.index.md`? · `portal/src/portal/coach/training/CLAUDE.md`? · `portal/src/portal/fln/CLAUDE.index.md`? · `portal/src/portal/fln/CLAUDE.md`? · `portal/src/portal/fln/lib/CLAUDE.md`? · `portal/src/portal/fln/login/CLAUDE.md`? · `portal/src/portal/fln/plan/CLAUDE.index.md`? · `portal/src/portal/fln/plan/CLAUDE.md`? · `portal/src/portal/fln/player/CLAUDE.index.md`? · `portal/src/portal/fln/player/CLAUDE.md`? · `portal/src/portal/fln/share/CLAUDE.index.md`? · `portal/src/portal/fln/share/CLAUDE.md`? · `portal/src/portal/fln/tests/CLAUDE.index.md`? · `portal/src/portal/fln/tests/CLAUDE.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/newui/coaching/CLAUDE.index.md`? · `portal/src/portal/newui/coaching/CLAUDE.md`? · `portal/src/portal/newui/home/CLAUDE.md`? · `portal/src/portal/newui/lessons/CLAUDE.index.md`? · `portal/src/portal/newui/lessons/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/lessons/CLAUDE.index.md`? · `portal/src/portal/teacher/lessons/CLAUDE.md`?
+- docs: `portal/src/CLAUDE.md`? · `portal/src/portal/coach/insights/components/CLAUDE.md`? · `portal/src/portal/fln/CLAUDE.md`? · `portal/src/portal/fln/lib/CLAUDE.md`? · `portal/src/portal/fln/login/CLAUDE.md`? · `portal/src/portal/fln/plan/CLAUDE.md`? · `portal/src/portal/fln/player/CLAUDE.md`? · `portal/src/portal/fln/share/CLAUDE.md`? · `portal/src/portal/newui/home/CLAUDE.md`? · `portal/src/portal/newui/lessons/CLAUDE.md`?

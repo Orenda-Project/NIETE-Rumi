@@ -8,8 +8,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 |---|---|
 | `remark-mockups/` | → (no door; 3 files) |
 | `rollback/` | Frozen snapshots of live Flows taken before a cutover, for rollback → `rollback/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `assessment-gen-flow.README.md` | Notes on assessment-gen-flow.json: server-served screen order CLASS to CONFIRM and how review screens are reached |
 | `assessment-gen-flow.json` | Flow JSON v7.3: assessment generator form (class, coverage, pages, question types, counts, confirm), endpoint-driven |
 | `assessment-review-flow.json` | Flow JSON v7.0: review and edit a generated assessment (list, add type, edit options/columns/passage/comprehension) |
@@ -63,5 +61,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `registration`?
-- docs: `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `docs/CLAUDE.index.md`? · `docs/CLAUDE.md`? · `docs/features/CLAUDE.index.md`? · `docs/features/attendance.md`? · `docs/features/registration.md`? · `docs/flows/CLAUDE.index.md`? · `docs/flows/CLAUDE.md`? · `docs/flows/assessment-gen-flow.README.md`? · `docs/flows/rollback/CLAUDE.md`? · `infrastructure/flows/CLAUDE.md`? · `infrastructure/flows/README.md`? · `tests/assessment/CLAUDE.index.md`? · `tests/assessment/CLAUDE.md`? · `tests/attendance/CLAUDE.index.md`? · `tests/attendance/CLAUDE.md`? · `tests/child-test/L39/CLAUDE.md`? · `tests/classes/CLAUDE.index.md`? · `tests/classes/CLAUDE.md`? · `tests/quiz/CLAUDE.index.md`? · `tests/quiz/CLAUDE.md`? · `tests/roster/CLAUDE.index.md`? · `tests/roster/CLAUDE.md`? · `tests/training/CLAUDE.index.md`? · `tests/training/CLAUDE.md`?
-- flows: `assessment-gen-flow.json`? · `assessment-review-flow.json`? · `attendance-marking-flow.json`? · `attendance-setup-flow.json`? · `child-test-check.json`? · `child-test-review.json`? · `class-manager-flow.json`? · `edit-class-flow.json`? · `exam-checker-confirm-students-flow.json`? · `homework-request-flow.json`? · `observe-visit-v2.json`? · `observe2-evidence-check.json`? · `observe2-field-form.json`? · `pakistan-lp-flow-v1.json`? · `pakistan-lp-flow-v2.json`? · `pakistan-lp-flow-v3.json`? · `quiz-flow.json`? · `quiz-multi-select-flow.json`? · `reading-assessment-flow-v2.json`? · `registration-flow-v3.json`? · `registration-flow-v5.1.json`? · `registration-flow-v5.json`? · `remark-flow.json`? · `roster-flow-v1.json`? · `settings-flow.json`? · `status-flow.json`? · `student-join-flow-v2.json`? · `student-join-flow.json`? · `student-quiz-flow.json`? · `student-videos-flow.json`? · `teacher-training-flow-v1.json`? · `training-msq-flow.json`? · `transcript-quiz-flow.json`?
+- docs: `docs/CLAUDE.md`? · `docs/features/attendance.md`? · `docs/features/registration.md`? · `infrastructure/flows/README.md`?

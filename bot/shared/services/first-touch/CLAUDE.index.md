@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `adventure-look.js` | Flags and shared CSS tokens for the 'adventure look' of the first-touch pages (default OFF) |
 | `cards.page.js` | Quiz-maker page's three branch cards (lesson plans, coaching, test paper) linking back to the chat via wa.me |
 | `chat-tap.js` | Builds the one tap back to WhatsApp on dead-end pages (expired/forged/failed links) |
@@ -170,4 +168,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `walk-persona.js` ← `bot/tests/first-touch/walk-persona-seam.test.js` · `bot/tests/settings/switch-outage.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/first-touch/CLAUDE.index.md`? · `bot/shared/services/first-touch/CLAUDE.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/push/CLAUDE.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `bot/tests/settings/CLAUDE.md`? · `dashboard/tests/CLAUDE.index.md`? · `dashboard/tests/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.md`?

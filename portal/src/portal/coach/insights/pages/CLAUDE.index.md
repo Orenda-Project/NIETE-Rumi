@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `Listen.tsx` | Listen tab: this week's moments across the coach's schools with W filter chips (G2) |
 | `MomentRoute.tsx` | Route page for S4 at /portal/coach/insights/m/:momentId with app bar and moment player |
 | `Move.tsx` | S5 the move: library intervention verbatim, check line, evidence, FLN send link (R9) |
@@ -42,4 +40,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `Where.tsx` ← `portal/src/portal/coach/insights/tests/Where.test.tsx`?
 
 ## Related (all, generated)
-- docs: `portal/src/portal/coach/insights/CLAUDE.index.md`? · `portal/src/portal/coach/insights/CLAUDE.md`? · `portal/src/portal/coach/insights/pages/CLAUDE.index.md`? · `portal/src/portal/coach/insights/pages/CLAUDE.md`? · `portal/src/portal/coach/insights/tests/CLAUDE.index.md`? · `portal/src/portal/coach/insights/tests/CLAUDE.md`?
+- docs: `portal/src/portal/coach/insights/CLAUDE.md`?

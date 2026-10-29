@@ -1,6 +1,6 @@
 # helpers — Shared harnesses and doubles for the lp612 E2E and unit suites
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/lp612/helpers kg=d8b76ebb4be0 gen=bcbb737d1d00 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/lp612/helpers kg=d8b76ebb4be0 gen=6e2faa3e1ca5 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `lp612-db-double.js` — PostgREST double used where requestLesson and the worker run together
@@ -16,7 +16,6 @@
 | `lp612-db-double.js` | Test helper: PostgREST double for the lp612 lane with per-call canned results; used by requestLesson and worker E2Es |
 | `overlay-chrome-e2e.js` | Test helper (bd-yhd16): E2E harness running the Urdu-tap chain for real with model, R2, PostgREST, SQS and Meta doubled |
 | `overlay-chrome.js` | Test helper (bd-yhd16): fixtures for the Urdu-chrome reuse gate, varying whether ur_overlay carries provenance pointers |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - (none)
@@ -29,4 +28,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `tests/lp612/CLAUDE.index.md`? · `tests/lp612/CLAUDE.md`? · `tests/lp612/helpers/CLAUDE.md`?
+- docs: `tests/lp612/CLAUDE.md`?

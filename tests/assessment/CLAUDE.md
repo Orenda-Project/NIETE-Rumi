@@ -1,7 +1,7 @@
 # assessment — Tests for the assessment/exam generator: WhatsApp Flow, portal editor, FDE board papers
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/assessment kg=1751f25cf12f gen=8cea0c63054e overflow=220 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/assessment kg=e48a35444a43 gen=b2fa39f1fa19 overflow=219 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `golden.test.js` — start here: pins today's prompts, printed papers/keys, options payloads against fixtures/golden
@@ -12,18 +12,17 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `fixtures/` | → (no door; 213 test files) |
+| `fixtures/` | → (no door; 213 files: 0 test + 213 support) |
 | `helpers/` | Shared fakes and replay helpers for the assessment tests (not test files themselves) → `helpers/CLAUDE.md` |
 | `topics/` | Tests for assessment topics: curriculum-matrix grouping, topic papers, topic answer key → `topics/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
 | `fde-edit.test.js` | Pins editing a board-pattern paper: selection keeps _layout, a changed answer drops worked scheme points (E8.1/E8.2) |
-| `CLAUDE.md` | (unmapped) |
 | `assessment-chat-ack.test.js` | Pins generation and rebuild ending by closing the Flow with an in-chat acknowledgement, not a SUBMITTED screen |
+| `assessment-paper-fde.renderer.test.js` | Pins the printed board-pattern paper and marking scheme: recomputed counts, header total 100, choiceLine (fde renderer) |
 | `fde-r6s2.test.js` | Round 6 second pass: pins that appended source/chapter/level tags never print and the pages-paper covers line |
-| … | 220 more → `CLAUDE.index.md` |
+| … | 222 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- env read here: `ASSESSMENT_GEN_FLOW_ID` · `RT_STRING_PARTS_FIXTURE` · `UPDATE_GOLDEN`
+- (none)
 
 ## Never (human)
 - Do not let non-board papers change: golden tests pin them byte for byte (golden.test.js:5)
@@ -35,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/scripts/assessment/CLAUDE.index.md`? · `bot/scripts/assessment/CLAUDE.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/handlers/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.index.md`? (+17)
+- docs: `bot/scripts/assessment/CLAUDE.md`? · `bot/shared/services/assessment/CLAUDE.md`? · `bot/shared/services/assessment/patterns/CLAUDE.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.md`? · `scripts/assessment/CLAUDE.md`? · `tests/CLAUDE.md`? (+1)

@@ -1,7 +1,7 @@
 # pages — Coach v2 page components: schedule, observe flow, people, reports
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/pages kg=df998b3b750d gen=43e5c80f1820 overflow=76 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/pages kg=df998b3b750d gen=0f1dd315dd8d overflow=73 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `CoachObservation.tsx` — the one observation page every report row opens
@@ -15,7 +15,8 @@ Full index: `CLAUDE.index.md`
 | `CoachObserveFlow.test.tsx` | Pins the Visit page order, square Start/Upload buttons, Record, Pause and Stop flow |
 | `CoachBack.test.tsx` | Pins coach Back arrows: page parent, fixed parent when opened cold, Sending goes to the Visit |
 | `CoachOwnPlan.test.tsx` | Pins Their own plan picker on Check and send: file rules, Camera/Gallery/Files, Remove plan |
-| … | 36 more → `CLAUDE.index.md` |
+| `CoachFeedback1.test.tsx` | Pins operator round 1: teacher phone in pickers, past-day booking, no AM/PM warning (bd-o15qnr.8) |
+| … | 35 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `CoachPeople.tsx` ← imported by `portal/src/App.tsx:118:90c8f423` · `portal/src/portal/coach/card/harness.testdata.tsx:43:4b3728bb` (+1)
@@ -33,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - … 22 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/coach/CLAUDE.index.md`? · `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/home/CLAUDE.md`? · `portal/src/portal/coach/observe/CLAUDE.index.md`? · `portal/src/portal/coach/observe/CLAUDE.md`? · `portal/src/portal/coach/pages/CLAUDE.index.md`? (+9)
+- docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/people/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

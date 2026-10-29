@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `class-round.page.js` | Renders the class round's screens (start, teacher, child, hand-back) and its report-tab card for the phone |
 | `classroom-observation-report.html` | Handlebars-style HTML template for the classroom observation report PDF (teacher name, scores) |
 | `coach-visit-request.template.js` | Meta template definition asking a coach to observe a disagreeing teacher; read by sender and registrar (bd-v0toag.45) |
@@ -73,4 +71,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `reading-assessment`?
-- docs: `bot/shared/CLAUDE.md`? · `bot/shared/templates/CLAUDE.index.md`? · `bot/shared/templates/CLAUDE.md`? · `bot/tests/coaching/weekly-report/CLAUDE.index.md`? · `bot/tests/coaching/weekly-report/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/CLAUDE.index.md`? · `docs/customization.md`? · `tests/coaching/CLAUDE.index.md`? · `tests/lp612/CLAUDE.index.md`? · `tests/quiz/CLAUDE.index.md`? · `tests/reports/CLAUDE.md`?
+- docs: `bot/shared/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/customization.md`?

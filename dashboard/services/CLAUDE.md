@@ -1,7 +1,7 @@
 # services — Business logic: analytics, coach/teacher app reads, COACHIP, bot HTTP clients, email
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/services kg=d8616628c467 gen=15948a6912a2 overflow=312 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/services kg=8030bc10c934 gen=4eb381415335 overflow=310 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `telemetry.service.js` — portal logging; the bot's logger is not usable here
@@ -14,15 +14,15 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `api-health/` | One module per vendor for the API-health admin page, aggregated → `api-health/CLAUDE.md` |
 | `queue/` | SQS client for portal-only async jobs → `queue/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
 | `leader*` | 6 files; most used `leader-patch.service.js`: Resolves a leader's patch teachers (joined to Rumi users, coaching/LP counts, latest score); bd-2387. |
-| … | 54 more → `CLAUDE.index.md` |
+| `telemetry.service.js` | Portal-side structured telemetry sink (Axiom batching) because the bot's pino logger cannot be required in this service. |
+| … | 103 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - table `users` (written by `password-reset.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+170)
 - `telemetry.service.js` ← imported by `dashboard/middleware/latency-logger.js:28:2aa9b460` · `dashboard/routes/app-funnel.routes.js:30:2aa9b460` (+13)
 - `coaching-frameworks.service.js` ← imported by `dashboard/routes/portal.routes.js:124:fb9750c6` · `dashboard/services/coach-school-card.service.js:29:844e9b68` (+9)
-- … 121 more → `CLAUDE.index.md`
+- … 174 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Never require bot modules needing pino; call the bot over HTTP instead (`telemetry.service.js:8`)
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - … 137 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `dashboard/CLAUDE.index.md`? · `dashboard/CLAUDE.md`? · `dashboard/services/CLAUDE.index.md`? · `dashboard/services/CLAUDE.md`? · `dashboard/services/api-health/CLAUDE.index.md`? · `dashboard/services/api-health/CLAUDE.md`? (+35)
+- docs: `dashboard/CLAUDE.md`? · `docs/attendance-bigquery-sync.md`? · `docs/migration/DEPLOYMENT.md`? · `infrastructure/templates/README.md`?

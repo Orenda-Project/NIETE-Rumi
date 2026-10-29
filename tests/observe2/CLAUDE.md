@@ -1,7 +1,7 @@
 # observe2 — Tests /observe2, the live field-form coaching visit: form, moments, check, brief
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/observe2 kg=07b4c24d5423 gen=7553362db86d overflow=33 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/observe2 kg=e006d7d4cd91 gen=7036b1b610ae overflow=29 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `start.test.js` — command to live form; `moments.test.js` — recording to check
@@ -19,10 +19,12 @@ Full index: `CLAUDE.index.md`
 | `lesson-plan-and-fidelity.test.js` | Pins round 2: plan chosen in the form before seal, fidelity screen confirmed by the coach and re-scored, ten photos |
 | `record-first.test.js` | Pilot R19: a recording with no form waiting becomes its own observe2 visit; the coach fills the form afterwards |
 | `recording*` | 3 files; most used `recording-routing.test.js`: Pins that a lesson-length recording goes to the waiting observe2 form, not general chat; armed debrief still wins |
-| … | 33 more → `CLAUDE.index.md` |
+| `start.test.js` | Pins /observe2 from command to the live form: gate, visit planner marker, record created, period question |
+| `moments*` | 6 files; most used `moments.test.js`: Pins the recording-to-check path: capture joins the open form, moments are found and stored, acks per state |
+| … | 36 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- env read here: `OBSERVE_FICO_FLOW_HAS_FIDELITY` · `OBSERVE_MEWAKA_FLOW_ID` · `WHATSAPP_BOT_SRC`
+- (none)
 
 ## Never (human)
 - docs/flows/observe2-*.json must equal the generator output (field-form-flow-contract.test.js:6)
@@ -33,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.index.md`? · `bot/shared/services/coaching/fidelity/CLAUDE.index.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.index.md`? (+12)
+- docs: `bot/shared/services/observe/observe2/CLAUDE.md`? · `bot/shared/services/roster/CLAUDE.md`? · `tests/CLAUDE.md`?

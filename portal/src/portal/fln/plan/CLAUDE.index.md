@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `Details.tsx` | Lesson goal and "Full details" expander: SLOs, Bring, Before class, Summary reference fields |
 | `Header.tsx` | Navy plan header: subject/level/position kicker, title in plan language, chips, total time; headerChips helper |
 | `MediaImage.tsx` | Plan picture in aspect-ratio reserved box; lazy-loaded, retries once from orig, tap for full screen |
@@ -40,4 +38,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `text.tsx` ← `portal/src/portal/fln/tests/qa-r1.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/fln/CLAUDE.index.md`? · `portal/src/portal/fln/CLAUDE.md`? · `portal/src/portal/fln/plan/CLAUDE.index.md`? · `portal/src/portal/fln/plan/CLAUDE.md`? · `portal/src/portal/fln/tests/CLAUDE.index.md`?
+- docs: `portal/src/portal/fln/CLAUDE.md`?

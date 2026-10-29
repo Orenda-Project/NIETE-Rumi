@@ -6,9 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `fixtures/` | → (no door; 3 test files) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
+| `fixtures/` | → (no door; 3 files: 0 test + 3 support) |
 | `collect.test.js` | Task 3: unit tests for topics/collect, the union of curriculum day rows behind one topic |
 | `create-topic-paper.test.js` | Task 6: pins POST /assessment/create with topicIds: all = today's request, a subset resolves pages (paper_kind topic) |
 | `distinct-names.test.js` | Task 3 fix: pins distinctNames so topics in one chapter never share a name |
@@ -39,10 +37,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `topics.repo.test.js` | Task 5: pins topics.repo reading a chapter's assessment_topics in sort_order as camelCase, Supabase mocked |
 
 ## Who reads this (all, generated)
-- env `ASSESSMENT_TOPICS_DB_URL` read at `tests/assessment/topics/pages-match-book.db.test.js:23:b46a441b`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.index.md`? · `bot/shared/services/assessment/topics/CLAUDE.index.md`? · `bot/shared/services/assessment/topics/CLAUDE.md`? · `tests/assessment/CLAUDE.index.md`? · `tests/assessment/CLAUDE.md`? · `tests/assessment/topics/CLAUDE.index.md`? · `tests/assessment/topics/CLAUDE.md`?
+- docs: `bot/shared/services/assessment/topics/CLAUDE.md`? · `tests/assessment/CLAUDE.md`?

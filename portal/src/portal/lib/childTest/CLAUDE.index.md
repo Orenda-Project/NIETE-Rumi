@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `blockMachine.test.ts` | bd-s1oo0.7: pins blockMachine reducer: Start, 60s countdown with one tone, early finish, review, send, retry |
 | `blockMachine.ts` | bd-s1oo0.7: pure reducer for one child-test block (ready, recording, review, sending, sent) with the timed minute |
 | `checkDraft.test.ts` | bd-s1oo0.7: pins checkDraft: confident values kept, doubtful left empty, ai_marks-shaped coach marks, empty form |
@@ -35,4 +33,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `uploader.ts` ← `portal/src/portal/lib/childTest/uploader.test.ts`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/components/childTest/CLAUDE.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/lib/CLAUDE.md`? · `portal/src/portal/lib/childTest/CLAUDE.index.md`? · `portal/src/portal/lib/childTest/CLAUDE.md`? · `portal/src/portal/types/CLAUDE.index.md`? · `portal/src/portal/types/CLAUDE.md`?
+- docs: `portal/src/portal/lib/CLAUDE.md`? · `portal/src/portal/types/CLAUDE.md`?

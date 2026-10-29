@@ -531,8 +531,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `9fe02822e354.mp3` | (unmapped) |
 | `9fede86f31eb.json` | Urdu word timings (20 words, 7.8s) for the v4 clip "یہ ایک قطار میں کچھ نمبر ہیں۔ ایک ن…", read by sa-ui |
 | `9fede86f31eb.mp3` | (unmapped) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `a00c8bfe1495.json` | Urdu word timings (4 words, 2.8s) for the v4 clip "کہیں: ایک، دو، تین۔", read by sa-ui |
 | `a00c8bfe1495.mp3` | (unmapped) |
 | `a0d17a3997ba.mp3` | (unmapped) |
@@ -856,4 +854,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `dashboard/sa/v4/CLAUDE.md`? · `dashboard/sa/v4/ur/CLAUDE.index.md`? · `dashboard/sa/v4/ur/CLAUDE.md`?
+- docs: `dashboard/sa/v4/CLAUDE.md`?

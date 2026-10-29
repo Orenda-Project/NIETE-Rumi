@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `card-image.service.js` | Legacy node-canvas 600x400 coaching card PNG renderer plus commitment-card image wrapper |
 | `card-response.service.js` | Handles teacher button replies to the coaching card and stores them in coaching_sessions.prioritized_action |
 | `card-template.js` | HTML template (en/sw/ur, RTL aware) that Playwright screenshots into the commitment card PNG |
@@ -31,4 +29,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `prioritized-action.service.js` ← `tests/coaching/bd-v0toag.100.10-no-technology-ask.test.js` · `tests/coaching/coaching-card.test.js` · `tests/coaching/coaching-flow-integration.test.js` · `tests/coaching/fallback-card-skips-non-applicable.test.js` · `tests/coaching/observation-score-bands.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/coaching-card/CLAUDE.index.md`? · `bot/shared/services/coaching/coaching-card/CLAUDE.md`? · `bot/tests/coaching/CLAUDE.index.md`? · `bot/tests/coaching/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/customization.md`? · `tests/coaching/CLAUDE.index.md`? · `tests/meta-bill-cut/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.md`? · `docs/customization.md`?

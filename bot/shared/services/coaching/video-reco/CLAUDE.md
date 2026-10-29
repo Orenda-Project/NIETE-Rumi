@@ -1,7 +1,7 @@
 # video-reco — Training-video recommendation engine for coaching reports (VIDREC)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/video-reco kg=b4857e3bb536 gen=886ddba62f4a overflow=125 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/video-reco kg=a3841b858920 gen=6684d8ce8284 overflow=121 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `engine.js` — recommendForReport pipeline
@@ -15,13 +15,15 @@ Full index: `CLAUDE.index.md`
 | `catalog.js` | Loads and caches the versioned training-video catalogue JSON (modules, chapters) the engine reads (bd-gzfdu9) |
 | `engine.js` | recommendForReport: never-throwing pipeline from flag and target to shortlist, one LLM pick, redaction, stored row |
 | `select.js` | The single completeJson pick (coaching.videoReco job) and the validation every answer passes before storage |
-| … | 23 more → `CLAUDE.index.md` |
+| `copy.js` | Fills clip message strings: minutes, Urdu digits, language name, and LTR isolates for English runs in Urdu |
+| … | 20 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - table `users` (written by `clip-pref.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+170)
 - `copy.js` ← imported by `dashboard/routes/video-reco.routes.js:23:acc21039` · `dashboard/services/coaching-report-page.js:17:07c6eb0f` (+8)
 - `flags.js` ← imported by `dashboard/services/video-reco-events.js:75:f1208529` · `bot/shared/services/coaching/video-reco/arm.js:12:0666eb1f` (+5)
-- … 25 more → `CLAUDE.index.md`
+- `store.js` ← imported by `bot/shared/services/coaching/report-generator.service.js:522:dfac1b4e` · `bot/shared/services/observe/observe-send.service.js:1354:4cc1fcfa` (+4)
+- … 27 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Engine and sender never throw; a failed clip must not touch the report (send.js:12, engine.js:173)
@@ -34,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - … 77 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.index.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.md`? · `tests/coaching/video-reco/CLAUDE.index.md`? · `tests/coaching/video-reco/CLAUDE.md`? (+2)
+- docs: `bot/shared/services/coaching/CLAUDE.md`?

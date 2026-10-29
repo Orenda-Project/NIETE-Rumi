@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `TrainingCertificates.test.tsx` | bd-5rz1v.25: Training Certificates list with provider filter chips, View and Download follow CertificatesPanel |
 | `TrainingCertificates.tsx` | New-UI Training certificates page: provider filter chips, one row per certificate with download |
 | `TrainingCourse.test.tsx` | bd-5rz1v.25: a course's parts list (Part not module) and I-SAPS module exam row and Required reading |
@@ -72,4 +70,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `trainingApi.ts` ← `portal/src/portal/newui/training/TrainingLevelExam.test.tsx` · `portal/src/portal/newui/training/continue.test.ts` · `portal/src/portal/newui/training/courseName.test.ts` · `portal/src/portal/newui/training/legacyProviderName.test.ts` · `portal/src/portal/newui/training/providerNames.test.ts` · `portal/src/portal/teacher/training/inner.test.ts` (+2: `python3 kg/kg.py who-reads portal/src/portal/newui/training/trainingApi.ts`)
 
 ## Related (all, generated)
-- docs: `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.md`? · `portal/src/portal/newui/training/CLAUDE.index.md`? · `portal/src/portal/newui/training/CLAUDE.md`? · `portal/src/portal/pages/CLAUDE.index.md`? · `portal/src/portal/teacher/training/CLAUDE.index.md`? · `portal/src/portal/teacher/training/CLAUDE.md`?
+- (none)

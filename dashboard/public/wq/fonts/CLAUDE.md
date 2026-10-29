@@ -1,6 +1,6 @@
 # fonts — Urdu Nastaliq and digit font subsets (woff2) plus their OFL licence texts
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq/fonts kg=9adf5cec0679 gen=75001251ffa1 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq/fonts kg=9adf5cec0679 gen=e982c0764e79 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `wq-nastaliq-6.woff2` — the polished Urdu face; -7 is the light copy, -5 the older teacher/first-touch face
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `OFL-NotoNaskhArabic.txt` | SIL Open Font License text shipped beside the Noto Naskh Arabic font subset used on child web pages |
 | `OFL-NotoNastaliqUrdu.txt` | SIL Open Font License text shipped beside the Noto Nastaliq Urdu font subsets (wq-nastaliq-*.woff2) |
 | `OFL.txt` | SIL Open Font License for the Beaconhouse Nastaliq font behind the Urdu woff2 files the child pages load |
@@ -34,4 +33,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `dashboard/public/wq/CLAUDE.index.md`? · `dashboard/public/wq/CLAUDE.md`?
+- docs: `dashboard/public/wq/CLAUDE.md`?

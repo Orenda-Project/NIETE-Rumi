@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `fidelity-analyzer.js` | LLM grader returning per-move verdicts only (never a score) for lesson-plan fidelity; client injectable (bd-b3pop) |
 | `fidelity-orchestrator.js` | Never-throwing orchestrator: resolves prescribed moves, grades vs transcript, scores, returns the lp_fidelity blob |
 | `fidelity-preflight.js` | Pure recording facts (timestamp count, transcript-vs-audio end) stored as lp_fidelity.recording telemetry (bd-b3pop.5) |
@@ -58,4 +56,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `section-b-backfill.service.js` ← `tests/coaching/fidelity/section-b-backfill-v2-inputs.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/fidelity/CLAUDE.index.md`? · `bot/shared/services/coaching/fidelity/CLAUDE.md`? · `tests/coaching/CLAUDE.index.md`? · `tests/coaching/fidelity/CLAUDE.index.md`? · `tests/coaching/fidelity/CLAUDE.md`? · `tests/config/CLAUDE.index.md`? · `tests/config/CLAUDE.md`? · `tests/observe2/CLAUDE.index.md`? · `tests/observe2/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.md`?

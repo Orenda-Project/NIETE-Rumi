@@ -1,7 +1,7 @@
 # g1_ch10 — Hosted v9 pages, Grade 1 chapter 10 (22 segs: English 8, Maths 8, Urdu 6)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g1_ch10 kg=c6101a1c8900 gen=bd96a7669f75 overflow=13 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g1_ch10 kg=c6101a1c8900 gen=e6f44323fe60 overflow=11 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g1_ch10_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g1_ch10_English_seg1.v9.html` | Hosted v9 lesson page G1 English ch10 seg1 (en): Predict + Word Blender + Using a Dictionary (Memory Lane) |
 | `g1_ch10_English_seg2.v9.html` | Hosted v9 lesson page G1 English ch10 seg2 (en): Reading 'Pinky and the Songbird' + Story Emotions & Following Along |
 | `g1_ch10_English_seg3.v9.html` | Hosted v9 lesson page G1 English ch10 seg3 (en): Imagine & Act (Role-Play) + Discuss the Rescue |
@@ -22,7 +20,9 @@ Full index: `CLAUDE.index.md`
 | `g1_ch10_English_seg7.v9.html` | Hosted v9 lesson page G1 English ch10 seg7 (en): Topic/Opening Sentence & Starting with Capital Letters |
 | `g1_ch10_English_seg8.v9.html` | Hosted v9 lesson page G1 English ch10 seg8 (en): Pinky's Journal: Observe & Write Simple Sentences |
 | `g1_ch10_Maths_seg1.v9.html` | Hosted v9 lesson page G1 Maths ch10 seg1 (en): 2D Shapes: rectangle, square, circle, triangle (sides & corners) |
-| … | 13 more → `CLAUDE.index.md` |
+| `g1_ch10_Maths_seg2.v9.html` | Hosted v9 lesson page G1 Maths ch10 seg2 (en): Shape Hunt & the 2D attribute table |
+| `g1_ch10_Maths_seg3.v9.html` | Hosted v9 lesson page G1 Maths ch10 seg3 (en): 2D Shapes: Skill Sharpener (name, match, identify) |
+| … | 11 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch10/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch10/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

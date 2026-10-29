@@ -1,7 +1,7 @@
 # coaching — Root jest suite for the AI coaching pipeline: analysis, reports, reflection, LP linking
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/coaching kg=b2de4d4e1942 gen=3828470ab0cb overflow=197 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/coaching kg=bc2f829f5bb4 gen=5ce6deedd375 overflow=193 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `bd-s192t-roles-threading.test.js` — model of a test that runs the real chain, not a helper plus a grep
@@ -12,15 +12,17 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `fidelity/` | Tests for lesson-plan fidelity: grader, scorer, orchestrator, LP linking and selection → `fidelity/CLAUDE.md` |
-| `live-moves/` | Tests for live moves: the live list of v10 card moves ticked during a lesson → `live-moves/CLAUDE.md` |
-| `report-transformers/` | Tests for per-framework report transformers that shape analysis into reportData → `report-transformers/CLAUDE.md` |
+| `fidelity/` | → (no door; 27 tests) |
+| `live-moves/` | → (no door; 9 files: 8 test + 1 support) |
+| `report-transformers/` | → (no door; 3 tests) |
 | `video-reco/` | Tests for video recommendation: clip pick, copy, name redaction, strip, send and A/B → `video-reco/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| … | 197 more → `CLAUDE.index.md` |
+| `coaching*` | 7 files; most used `coaching-flow-integration.test.js`: bd-622/bd-618 wiring: LP selection list vs buttons in the coaching flow and the coaching card in the report flow |
+| `bd-9h2mm-section-b-not-assessed.test.js` | bd-9h2mm: Section B leaves the FICO total when no fidelity was measured and every surface says so |
+| `bd-v0toag.38.9-agree-ping-service.test.js` | bd-v0toag.38.9: Do you agree coach ping via template coach_visit_request_v2 (six params), reasons and card link |
+| … | 256 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- env read here: `DEFAULT_COACH_ROLE_LABEL` · `ELEVENLABS_API_KEY` · `INTERNAL_API_KEY` · `LP_EXTRACTION_VISION_MODEL` · `LP_FIDELITY_ENABLED` · `OBSERVE_FICO_FLOW_HAS_FIDELITY` · `OPENAI_API_KEY` · `OPENROUTER_API_KEY` · `REGION_COACH_ROLE_LABEL_MAP` · `SUPABASE_SERVICE_ROLE_KEY` · `SUPABASE_URL` · `UPTAKE_ACCEPTANCE` (+1)
+- (none)
 
 ## Never (human)
 - Do not test a changed line only via a pure helper plus a source grep; run the real path (`bd-s192t-roles-threading.test.js:2-4`, the 44fe3ae ReferenceError)
@@ -31,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/handlers/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? (+39)
+- docs: `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.md`? · `bot/shared/services/coaching/coaching-card/CLAUDE.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.md`? · `bot/shared/services/coaching/reflective-questions/CLAUDE.md`? · `bot/shared/services/coaching/report-renderers/CLAUDE.md`? (+6)

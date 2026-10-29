@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `CoachAddSchool.tsx` | Add a school page: search every school by name or EMIS, add with one tap (WhatsApp /observe parity) |
 | `CoachAddTeacher.tsx` | Add a teacher to a school by WhatsApp number, one question per screen, then confirm |
 | `CoachAttach.tsx` | Upload recording for one scheduled visit: pick and validate a sound file, then go to Check and send (bd-4404s7.4) |
@@ -95,4 +93,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `CoachVisit.tsx` ← `portal/src/portal/coach/pages/CoachBack.test.tsx` · `portal/src/portal/coach/pages/CoachLpEngagement.test.tsx` · `portal/src/portal/coach/pages/CoachObsTrack.test.tsx` · `portal/src/portal/coach/pages/CoachObserve.test.tsx` · `portal/src/portal/coach/pages/CoachObserveFlow.test.tsx` · `portal/src/portal/coach/pages/CoachTodayKarachi.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/coach/CLAUDE.index.md`? · `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/home/CLAUDE.md`? · `portal/src/portal/coach/observe/CLAUDE.index.md`? · `portal/src/portal/coach/observe/CLAUDE.md`? · `portal/src/portal/coach/pages/CLAUDE.index.md`? · `portal/src/portal/coach/pages/CLAUDE.md`? · `portal/src/portal/coach/people/CLAUDE.index.md`? · `portal/src/portal/coach/people/CLAUDE.md`? · `portal/src/portal/coach/schedule/CLAUDE.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/services/CLAUDE.index.md`? · `portal/src/portal/services/CLAUDE.md`? · `portal/src/portal/teacher/notices/CLAUDE.index.md`? · `portal/src/portal/teacher/notices/CLAUDE.md`?
+- docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/people/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

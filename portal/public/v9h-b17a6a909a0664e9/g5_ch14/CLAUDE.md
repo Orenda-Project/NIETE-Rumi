@@ -1,6 +1,6 @@
 # g5_ch14 — Hosted v9 pages, Grade 5 chapter 14 (10 segs: English 7, Urdu 3)
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch14 kg=0c809e292324 gen=a79f6af8d2be overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch14 kg=0c809e292324 gen=147e49f7f1e1 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g5_ch14_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `g5_ch14_English_seg1.v9.html` | Hosted v9 lesson page G5 English ch14 seg1 (en): Team Decoder: Consonant Digraphs (Memory Lane) |
 | `g5_ch14_English_seg2.v9.html` | Hosted v9 lesson page G5 English ch14 seg2 (en): Reading: 'The Human Heart: Our Powerful Pump' — (+ more topics) |
 | `g5_ch14_English_seg3.v9.html` | Hosted v9 lesson page G5 English ch14 seg3 (en): Diving Deeper: Writer's Craft + Heartfelt Questions |

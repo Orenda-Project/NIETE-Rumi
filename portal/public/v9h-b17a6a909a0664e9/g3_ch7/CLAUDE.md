@@ -1,7 +1,7 @@
 # g3_ch7 — Hosted v9 pages, Grade 3 chapter 7 (18 segs: English 9, Math 4, Urdu 5)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch7 kg=e1a9ded343ed gen=0234db8c1f77 overflow=9 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch7 kg=e1a9ded343ed gen=b5e339959bf7 overflow=7 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g3_ch7_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g3_ch7_English_seg1.v9.html` | Hosted v9 lesson page G3 English ch7 seg1 (en): New Words + Wordy Word Map (types of books & how texts are organised) |
 | `g3_ch7_English_seg2.v9.html` | Hosted v9 lesson page G3 English ch7 seg2 (en): Journey: The Whacky Jobs Fair in Taleemabad! |
 | `g3_ch7_English_seg3.v9.html` | Hosted v9 lesson page G3 English ch7 seg3 (en): Diving Deeper: Detail Detective + Fun Job Generator |
@@ -22,7 +20,9 @@ Full index: `CLAUDE.index.md`
 | `g3_ch7_English_seg7.v9.html` | Hosted v9 lesson page G3 English ch7 seg7 (en): Present Continuous Playground! |
 | `g3_ch7_English_seg8.v9.html` | Hosted v9 lesson page G3 English ch7 seg8 (en): Imagination Canvas: Dream Job Routine + Editing with (+ more topics) |
 | `g3_ch7_English_seg9.v9.html` | Hosted v9 lesson page G3 English ch7 seg9 (en): Connect and Create: My Chapter Garden (adjectives in writing) |
-| … | 9 more → `CLAUDE.index.md` |
+| `g3_ch7_Maths_seg1.v9.html` | Hosted v9 lesson page G3 Math ch7 seg1 (en): Tenths: dividing into 10 equal parts (2/10 = 0.2) |
+| `g3_ch7_Maths_seg2.v9.html` | Hosted v9 lesson page G3 Math ch7 seg2 (en): Hundredths & decimal place value |
+| … | 7 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g3_ch7/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g3_ch7/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

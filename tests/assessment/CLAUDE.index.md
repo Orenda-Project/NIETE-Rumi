@@ -6,11 +6,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `fixtures/` | → (no door; 213 test files) |
+| `fixtures/` | → (no door; 213 files: 0 test + 213 support) |
 | `helpers/` | Shared fakes and replay helpers for the assessment tests (not test files themselves) → `helpers/CLAUDE.md` |
 | `topics/` | Tests for assessment topics: curriculum-matrix grouping, topic papers, topic answer key → `topics/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `answer-key-marks.test.js` | Pins renderAnswerKey (assessment-paper.renderer) printing each question's marks beside its answer, comprehension too |
 | `assessment-add-types.test.js` | bd-0eupi: pins portal add-question for every text-only type by layout (assessment-changes/selection/renderer) |
 | `assessment-answer-key-always.test.js` | bd-bfnsk: generator Flow drops the answer-key option; every request is made with a key (endpoint, request.service) |
@@ -239,12 +237,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `worker-assessment-heartbeat.test.js` | Pins the SQS worker keeping an assessment message invisible while a paper is made and finishing it on deploy |
 
 ## Who reads this (all, generated)
-- env `ASSESSMENT_GEN_FLOW_ID` read at `tests/assessment/assessment-delivery.test.js:132:27503c16`
-- env `RT_STRING_PARTS_FIXTURE` read at `tests/assessment/fde-r7-scheme-rt.test.js:18:3f4d53a9`
-- env `UPDATE_GOLDEN` read at `tests/assessment/golden.test.js:37:d301aff9`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/scripts/assessment/CLAUDE.index.md`? · `bot/scripts/assessment/CLAUDE.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/handlers/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.md`? · `bot/shared/services/assessment/patterns/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/CLAUDE.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.md`? · `bot/shared/utils/CLAUDE.index.md`? · `docs/flows/CLAUDE.index.md`? · `scripts/assessment/CLAUDE.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`? · `tests/assessment/CLAUDE.index.md`? · `tests/assessment/CLAUDE.md`? · `tests/assessment/helpers/CLAUDE.md`? · `tests/assessment/topics/CLAUDE.index.md`? · `tests/assessment/topics/CLAUDE.md`? · `todo.md`?
+- docs: `bot/scripts/assessment/CLAUDE.md`? · `bot/shared/services/assessment/CLAUDE.md`? · `bot/shared/services/assessment/patterns/CLAUDE.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.md`? · `scripts/assessment/CLAUDE.md`? · `tests/CLAUDE.md`? · `todo.md`?

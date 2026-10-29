@@ -1,6 +1,6 @@
 # supabase — Schema dump and seed list for the local mock-lane DB
 
-<!-- kg:meta repo=NIETE-Rumi dir=supabase kg=e2c9e28dfb0b gen=8ced8540467d overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=supabase kg=e2c9e28dfb0b gen=e0739720eefc overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `baseline/schema.sql` — sandbox schema-only dump; regenerate with local-db.sh baseline
@@ -10,7 +10,6 @@
 | path | purpose |
 |---|---|
 | `baseline/` | Sandbox schema dump plus seed lists that build the local test database → `baseline/CLAUDE.md` |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - (none)
@@ -23,4 +22,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `CLAUDE.md`? · `supabase/baseline/CLAUDE.index.md`? · `supabase/baseline/CLAUDE.md`?
+- docs: `CLAUDE.md`?

@@ -12,6 +12,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `assessment-jobs/` | Page-level tracking of exam papers being generated → `assessment-jobs/CLAUDE.md` |
 | `childTest/` | Coach-app child reading/maths test: stimulus, recorder, 'what Rumi heard' form → `childTest/CLAUDE.md` |
 | `coaching/` | Old-UI teacher Coaching pieces: record/send panel, lesson page, library picker → `coaching/CLAUDE.md` |
+| `__snapshots__/` | → (not mapped: excluded; 3 files) |
 | `AnalyticsControls.tsx` | Top of both Analytics pages: Observations/Attendance/Principal Remarks tabs plus one From/To window, kept in the URL |
 | `AppFunnelTracker.test.tsx` | bd-4r3rei: tracker turns router moves and browser lifecycle events into appFunnel calls and renders nothing |
 | `AppFunnelTracker.tsx` | bd-4r3rei: renderless component inside the router that reports page opens/leaves to lib/appFunnel |
@@ -35,8 +36,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `BackButtonHandler.test.tsx` | Pins BackButtonHandler: Back closes a dialog, goes back a page, or minimises the app from a home page |
 | `BackButtonHandler.tsx` | Android hardware Back key handler: close dialog, history back, or leave app (rules in lib/back-button.cjs) |
 | `BandPicker.tsx` | bd-43487: lets a teacher pick grade bands (POST /training/bands) so the training catalogue appears |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `CapstoneExamForm.test.tsx` | bd-2673/bd-2490: written capstone exam renders inputs, enforces character floor before submit, shows result |
 | `CapstoneExamForm.tsx` | bd-2673: written level (capstone) exam taken in the portal, free-text answers with a character floor |
 | `CapstoneResultCard.test.tsx` | bd-2489: capstone result card takes its pass mark from API pass_mark_pct, not a hardcoded 70% |
@@ -185,4 +184,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `stepMark.tsx` ← `portal/src/portal/components/stepMark.test.tsx`
 
 ## Related (all, generated)
-- docs: `docs/CLAUDE.index.md`? · `docs/app-funnel-telemetry.md`? · `docs/reports/bug131-phase2-portal-quiz-ui.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `portal/src/lib/CLAUDE.index.md`? · `portal/src/portal/CLAUDE.md`? · `portal/src/portal/auth/CLAUDE.index.md`? · `portal/src/portal/auth/CLAUDE.md`? · `portal/src/portal/coach/insights/tests/CLAUDE.index.md`? · `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/components/CLAUDE.md`? · `portal/src/portal/components/__testing__/CLAUDE.md`? · `portal/src/portal/components/assess/CLAUDE.index.md`? · `portal/src/portal/components/assess/CLAUDE.md`? · `portal/src/portal/components/assessment-edit/CLAUDE.index.md`? · `portal/src/portal/components/assessment-edit/CLAUDE.md`? · `portal/src/portal/components/assessment-jobs/CLAUDE.md`? · `portal/src/portal/components/childTest/CLAUDE.md`? · `portal/src/portal/components/coaching/CLAUDE.index.md`? · `portal/src/portal/components/coaching/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.index.md`? · `portal/src/portal/hooks/CLAUDE.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/newui/coaching/CLAUDE.index.md`? · `portal/src/portal/newui/coaching/CLAUDE.md`? · `portal/src/portal/pages/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/assessment/CLAUDE.index.md`? · `portal/src/portal/teacher/assessment/CLAUDE.md`? · `portal/src/portal/teacher/attendance/CLAUDE.index.md`? · `portal/src/portal/teacher/attendance/CLAUDE.md`? · `portal/src/portal/teacher/classes/CLAUDE.index.md`? · `portal/src/portal/teacher/classes/CLAUDE.md`? · `portal/src/portal/teacher/lessons/CLAUDE.index.md`? · `portal/src/portal/teacher/lessons/CLAUDE.md`? · `portal/src/portal/teacher/notices/CLAUDE.index.md`? · `portal/src/portal/teacher/notices/CLAUDE.md`? · `portal/src/portal/teacher/training/CLAUDE.index.md`? · `portal/src/portal/teacher/training/CLAUDE.md`?
+- docs: `docs/app-funnel-telemetry.md`? · `docs/reports/bug131-phase2-portal-quiz-ui.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `portal/src/portal/CLAUDE.md`? · `portal/src/portal/components/__testing__/CLAUDE.md`?

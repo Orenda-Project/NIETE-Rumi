@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `app-links.cjs` | Android App Links decision: is an appUrlOpen link our /portal/ origin, where to route it; CommonJS shared with root jest |
 | `app-target.cjs` | Decides portal vs marketing site and the API base url (hostname, native, build target); CommonJS shared with root jest |
 | `back-button.cjs` | Android hardware back-key rule: close dialog, leave on home pages, else history back, recording exception (bd-5rz1v.10) |
@@ -62,4 +60,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `whatsapp.ts` ← `portal/src/lib/whatsapp.botNumber.test.tsx` · `portal/src/portal/auth/setup-link.test.tsx` · `portal/src/portal/coach/disagreements/CoachingBox.test.tsx` · `portal/src/portal/coach/disagreements/suggestion.test.ts` · `portal/src/portal/fln/send/SendPage.test.tsx` · `portal/src/portal/fln/share/ShareBar.test.tsx` (+2: `python3 kg/kg.py who-reads portal/src/lib/whatsapp.ts`)
 
 ## Related (all, generated)
-- docs: `dashboard/tests/CLAUDE.index.md`? · `portal/ANDROID.md`? · `portal/CLAUDE.index.md`? · `portal/src/CLAUDE.index.md`? · `portal/src/CLAUDE.md`? · `portal/src/components/CLAUDE.index.md`? · `portal/src/components/CLAUDE.md`? · `portal/src/lib/CLAUDE.index.md`? · `portal/src/lib/CLAUDE.md`? · `portal/src/pages/CLAUDE.md`? · `portal/src/portal/auth/CLAUDE.index.md`? · `portal/src/portal/auth/CLAUDE.md`? · `portal/src/portal/coach/disagreements/CLAUDE.index.md`? · `portal/src/portal/coach/disagreements/CLAUDE.md`? · `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/components/CLAUDE.md`? · `portal/src/portal/components/coaching/CLAUDE.index.md`? · `portal/src/portal/components/coaching/CLAUDE.md`? · `portal/src/portal/fln/share/CLAUDE.index.md`? · `portal/src/portal/fln/share/CLAUDE.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/lib/CLAUDE.md`? · `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/pages/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/analytics/CLAUDE.index.md`? · `portal/src/portal/teacher/analytics/CLAUDE.md`? · `portal/src/portal/teacher/assessment/CLAUDE.index.md`? · `portal/src/portal/teacher/assessment/CLAUDE.md`? · `portal/src/portal/teacher/ui/CLAUDE.index.md`? · `portal/src/portal/teacher/ui/CLAUDE.md`? · `tests/app-funnel/CLAUDE.md`? · `tests/portal/CLAUDE.index.md`?
+- docs: `portal/ANDROID.md`? · `portal/src/CLAUDE.md`? · `portal/src/components/CLAUDE.md`? · `portal/src/pages/CLAUDE.md`? · `portal/src/portal/auth/CLAUDE.md`?

@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g3_ch7_English_seg1.v9.html` | Hosted v9 lesson page G3 English ch7 seg1 (en): New Words + Wordy Word Map (types of books & how texts are organised) |
 | `g3_ch7_English_seg2.v9.html` | Hosted v9 lesson page G3 English ch7 seg2 (en): Journey: The Whacky Jobs Fair in Taleemabad! |
 | `g3_ch7_English_seg3.v9.html` | Hosted v9 lesson page G3 English ch7 seg3 (en): Diving Deeper: Detail Detective + Fun Job Generator |
@@ -34,4 +32,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g3_ch7/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g3_ch7/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

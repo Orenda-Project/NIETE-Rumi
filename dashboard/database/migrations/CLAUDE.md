@@ -1,7 +1,7 @@
 # migrations — Hand-numbered SQL migrations for dashboard tables, RLS, functions and MVs
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/database/migrations kg=300ea2374107 gen=1762153b6025 overflow=124 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/database/migrations kg=300ea2374107 gen=9407ebe4cd9c overflow=122 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `025_fix_mv_dashboard_stats_refresh.sql` — latest numbered one; explains the CONCURRENTLY refresh failure
@@ -12,11 +12,11 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `001*` | 3 files; most used `001_create_funnel_tables.sql`: Creates website_visits, cta_clicks, chat_starts funnel tables (website to registration journey). |
 | `002_add_user_funnel_columns.sql` | Adds source, session_id, first_message_at, registered_at to users plus indexes for funnel attribution. |
 | `002_dashboard_users_rbac.sql` | Creates dashboard_users table (email, role, invite token) for dashboard role-based access control and invitations. |
 | `007_retention_calculation_function.sql` | Defines calculate_retention() Postgres function returning weekly cohort retention rates by feature type. |
+| `013_create_video_requests_table.sql` | Creates video_requests table tracking educational video generation status, steps, script and slide URLs. |
 | … | 22 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
@@ -33,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `dashboard/database/CLAUDE.index.md`? · `dashboard/database/CLAUDE.md`? · `dashboard/database/migrations/CLAUDE.index.md`? · `dashboard/database/migrations/CLAUDE.md`?
+- docs: `dashboard/database/CLAUDE.md`?

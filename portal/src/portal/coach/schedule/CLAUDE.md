@@ -1,6 +1,6 @@
 # schedule — Coach Schedule pieces: booked list, clash rules, tiles and copy
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/schedule kg=95bcdebaae7c gen=4a994981e511 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/schedule kg=95bcdebaae7c gen=eaa6e2ee621a overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `model.ts` — pure clash and booked-on-day rules
@@ -15,7 +15,6 @@
 | `schedule.ur.test.tsx` | Pins the Schedule area in Urdu across hub, My schedule, Team schedule and New visit |
 | `model.test.ts` | Pins schedule rules: bookedOn, clashesAt, sinceTone, sinceText, timeWords |
 | `model.ts` | Pure schedule rules: booked visits per day, slot clashes, visit-age tone, time and day wording |
-| `CLAUDE.md` | (unmapped) |
 | `copy.test.ts` | Pins Schedule copy: Urdu filled, locked words, operator's clash wording |
 | `BookedList.tsx` | Already booked list on New visit step 3 plus the non-blocking Clash alert |
 | `ScheduleTile.tsx` | One big door tile on the Schedule hub with a rose glyph and status chips |
@@ -36,4 +35,4 @@
 - `portal/src/portal/coach/schedule/schedule.ur.test.tsx` (copy.ts)
 
 ## Related (generated)
-- docs: `portal/src/portal/coach/CLAUDE.index.md`? · `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/pages/CLAUDE.index.md`? · `portal/src/portal/coach/schedule/CLAUDE.md`? · `portal/src/portal/teacher/ui/CLAUDE.index.md`?
+- docs: `portal/src/portal/coach/CLAUDE.md`?

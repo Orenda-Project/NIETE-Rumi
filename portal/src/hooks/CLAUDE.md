@@ -1,6 +1,6 @@
 # hooks — Small shared React hooks: toasts, mobile breakpoint, marketing funnel tracking
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/hooks kg=65e18ec3e413 gen=6a466fecb09e overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/hooks kg=5bfd285c63ed gen=bbed4e1925d8 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `use-toast.ts` — toast store behind components/ui/toaster.tsx
@@ -11,7 +11,6 @@
 | path | purpose |
 |---|---|
 | `use-toast.ts` | shadcn toast store (reducer, toast(), useToast) behind the Toaster and portal toasts |
-| `CLAUDE.md` | (unmapped) |
 | `use-mobile.tsx` | useIsMobile hook (matchMedia under 768px); only importer is the unused shadcn sidebar |
 | `useFunnelTracking.ts` | useTrackPageVisit hook: records a funnel page visit on mount via lib/funnelTracking; used by the marketing pages |
 
@@ -28,4 +27,4 @@ _None found in code comments, tests or git log for this directory._
 - `portal/src/portal/pages/ClassicAssessment.tabs.test.tsx` (use-toast.ts)
 
 ## Related (generated)
-- docs: `portal/src/CLAUDE.index.md`? · `portal/src/CLAUDE.md`? · `portal/src/hooks/CLAUDE.md`? · `portal/src/portal/pages/CLAUDE.index.md`?
+- docs: `portal/src/CLAUDE.md`?

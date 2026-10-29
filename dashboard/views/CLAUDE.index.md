@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `partials/` | EJS pieces included by the dashboard's admin pages: top navigation bar and login release feed → `partials/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `ab-testing.ejs` | Observability A/B testing page (/observability/ab-testing) with Chart.js group results. |
 | `admin-invitations.ejs` | Super-admin page listing and managing partner invitations (/observability/admin/invitations). |
 | `admin-users.ejs` | Super-admin user management page (/observability/admin/users): roles, access scopes, deactivation. |
@@ -57,4 +55,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `transcript.ejs` ← `portal/src/portal/lib/transcript.test.ts`?
 
 ## Related (all, generated)
-- docs: `dashboard/CLAUDE.index.md`? · `dashboard/CLAUDE.md`? · `dashboard/views/CLAUDE.index.md`? · `dashboard/views/CLAUDE.md`? · `dashboard/views/partials/CLAUDE.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/lib/CLAUDE.md`? · `scripts/app-funnel/CLAUDE.md`?
+- docs: `dashboard/CLAUDE.md`?

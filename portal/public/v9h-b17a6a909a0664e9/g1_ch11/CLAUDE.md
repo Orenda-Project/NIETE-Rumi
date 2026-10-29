@@ -1,7 +1,7 @@
 # g1_ch11 — Hosted v9 pages, Grade 1 chapter 11 (18 segs: English 8, Maths 4, Urdu 6)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g1_ch11 kg=c6574a5816c5 gen=7c21a35bc994 overflow=9 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g1_ch11 kg=c6574a5816c5 gen=435198d23725 overflow=7 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g1_ch11_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g1_ch11_English_seg1.v9.html` | Hosted v9 lesson page G1 English ch11 seg1 (en): Game-Day Key Words + Word Adventure (Predict the News Report) |
 | `g1_ch11_English_seg2.v9.html` | Hosted v9 lesson page G1 English ch11 seg2 (en): Reading the News Report 'Pinky's Cricket Play' & 'Jojo's Football Fun' |
 | `g1_ch11_English_seg3.v9.html` | Hosted v9 lesson page G1 English ch11 seg3 (en): Long Vowel /oo/ Sound (book, moon) |
@@ -22,7 +20,9 @@ Full index: `CLAUDE.index.md`
 | `g1_ch11_English_seg7.v9.html` | Hosted v9 lesson page G1 English ch11 seg7 (en): Opening-Sentence Challenge & Dictation Time |
 | `g1_ch11_English_seg8.v9.html` | Hosted v9 lesson page G1 English ch11 seg8 (en): Short Sentences & Personal Info, Storyboard (+ more topics) |
 | `g1_ch11_Maths_seg1.v9.html` | Hosted v9 lesson page G1 Maths ch11 seg1 (en): Patterns Are Everywhere - what repeats & what comes next |
-| … | 9 more → `CLAUDE.index.md` |
+| `g1_ch11_Maths_seg2.v9.html` | Hosted v9 lesson page G1 Maths ch11 seg2 (en): Spot & Sort Patterns; match by shape |
+| `g1_ch11_Maths_seg3.v9.html` | Hosted v9 lesson page G1 Maths ch11 seg3 (en): What Comes Next? - identify & extend the pattern |
+| … | 7 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch11/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch11/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

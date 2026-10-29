@@ -1,7 +1,7 @@
 # pages — Top-level route pages: teacher portal, leader/coach, assessment and school analytics
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/pages kg=c802a53ad3c4 gen=17cfc81297f6 overflow=211 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/pages kg=7993cea0787f gen=03ad99d01252 overflow=210 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `PortalRoot.tsx` — what / renders; `PortalLogin.tsx` is the sign-in; routes are mounted in src/App.tsx
@@ -12,9 +12,9 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
+| `__snapshots__/` | → (not mapped: excluded; 4 files) |
 | `PortalCoaching*` | 6 files; most used `PortalCoaching.flagOff.test.tsx`: bd-5rz1v.26: pins every coaching page unchanged when portal_new_ui is off, or /config fails |
-| … | 64 more → `CLAUDE.index.md` |
+| … | 132 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `PortalLogin.tsx` ← imported by `portal/src/App.tsx:10:66a7a677` · `portal/src/portal/pages/PortalRoot.tsx:5:1b16e767`
@@ -33,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - … 113 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `docs/reports/bug131-phase2-portal-quiz-ui.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `docs/reports/bug131-phase4-media-complete.md`? · `portal/src/CLAUDE.index.md`? · `portal/src/CLAUDE.md`? · `portal/src/components/ui/CLAUDE.index.md`? (+23)
+- docs: `docs/reports/bug131-phase2-portal-quiz-ui.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `docs/reports/bug131-phase4-media-complete.md`? · `portal/src/components/ui/CLAUDE.md`? · `portal/src/hooks/CLAUDE.md`? · `portal/src/portal/CLAUDE.md`? (+2)

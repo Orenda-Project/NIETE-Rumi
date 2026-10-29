@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `ROLLBACK_V1.4.0__lp612_render_degraded.sql` | Reverses V1.4.0: drops niete_lp612_renders.render_degraded; roll code back first as worker and serving read it |
 | `ROLLBACK_V1.4.4__drop_first_last_name_columns.sql` | Drops users.first_name/last_name and redefines two portal user functions; run after the code deploys (bd-60092) |
 | `ROLLBACK_V1.5.5__lp612_deliveries.sql` | Reverses V1.5.5: drops niete_lp612_deliveries (the /quiz lesson list source) and its index |
@@ -468,4 +466,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `docs/CLAUDE.index.md`? · `docs/LP_PATHS.md`? · `docs/pulling-updates.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/supabase/CLAUDE.index.md`? · `infrastructure/supabase/CLAUDE.md`? · `infrastructure/supabase/migrations/CLAUDE.index.md`? · `infrastructure/supabase/migrations/CLAUDE.md`?
+- docs: `docs/LP_PATHS.md`? · `docs/pulling-updates.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/supabase/CLAUDE.md`?

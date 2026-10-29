@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g5_ch11_English_seg1.v9.html` | Hosted v9 lesson page G5 English ch11 seg1 (en): New Words + Crossword Puzzle (Memory Lane) |
 | `g5_ch11_English_seg2.v9.html` | Hosted v9 lesson page G5 English ch11 seg2 (en): Reading: 'Dadi's Cookbook' + the Recipe (Journey Through the Text) |
 | `g5_ch11_English_seg3.v9.html` | Hosted v9 lesson page G5 English ch11 seg3 (en): Diving Deeper: Wh-Question Exploration + Essence of the (+ more topics) |
@@ -43,4 +41,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch11/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch11/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

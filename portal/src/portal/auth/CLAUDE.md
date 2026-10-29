@@ -1,7 +1,7 @@
 # auth — Signed-out pages: login, forgot password, set-up link, analytics name login
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/auth kg=a42163ac5817 gen=b0ec596b7cbd overflow=19 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/auth kg=a42163ac5817 gen=8abc17fa1422 overflow=17 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `AuthFrame.tsx` — the one frame (band, card, legal footer) every signed-out page wears
@@ -12,10 +12,10 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
 | `copy.ts` | English and Urdu label copy for the four auth pages and the analytics sign-in (machine-drafted Urdu, bd-fmf24g.64) |
 | `analytics-login.route.test.tsx` | Pins that /portal/analytics/login opens signed out through the real route table and both guards |
 | `auth*` | 3 files; most used `auth.source.test.ts`: Source-scan test: auth pages keep design rules and their copy is registered, filled and label-only (bd-fmf24g.64) |
+| `AuthFrame.tsx` | Shared frame for the four signed-out pages: indigo band, white card, legal footer (bd-fmf24g.64) |
 | … | 12 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - … 3 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/CLAUDE.index.md`? · `portal/src/CLAUDE.md`? · `portal/src/lib/CLAUDE.index.md`? · `portal/src/portal/CLAUDE.md`? · `portal/src/portal/auth/CLAUDE.index.md`? · `portal/src/portal/auth/CLAUDE.md`? (+10)
+- docs: `portal/src/CLAUDE.md`? · `portal/src/portal/CLAUDE.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

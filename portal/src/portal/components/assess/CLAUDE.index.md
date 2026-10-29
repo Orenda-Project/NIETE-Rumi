@@ -16,8 +16,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `AssessPreflight.test.tsx` | Pins AssessPreflight: with sa_mic_required Ready waits for a working mic or explicit continue; off = today's card |
 | `AssessPreflight.tsx` | Pre-flight card once per visit: airplane mode, headphone beep and microphone level/playback check |
 | `AssessVisitBar.tsx` | Sticky visit bar: children done of five, 45-minute timer, and per-child sync state (phone/sending/sent) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `assessSw.test.ts` | Round 8: tests the assess-sw.js service worker (network-first online, kept page/files/reads offline) |
 | `offlineCopy.ts` | English and Urdu copy for the round-8 offline-prep pieces (OFFLINE_COPY), digits kept 0-9 |
 | `offlineReady.test.ts` | Round 8: pageUrls lists the page, reads, prepared lists and engine offline helper that Get ready must keep |
@@ -40,4 +38,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `offlineReady.ts` ← `portal/src/portal/components/assess/offlineReady.test.ts` · `portal/src/portal/pages/LeaderAssess.r8offline.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/components/CLAUDE.md`? · `portal/src/portal/components/assess/CLAUDE.index.md`? · `portal/src/portal/components/assess/CLAUDE.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/lib/assess/CLAUDE.index.md`? · `portal/src/portal/lib/assess/CLAUDE.md`? · `portal/src/portal/pages/CLAUDE.index.md`?
+- docs: `portal/src/portal/components/CLAUDE.md`?

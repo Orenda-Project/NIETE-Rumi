@@ -1,7 +1,7 @@
 # services — Portal HTTP client: every API call the portal makes
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/services kg=90b4308a7ff0 gen=0f412316ac38 overflow=259 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/services kg=3bcb3e84df23 gen=bef4f78421c3 overflow=256 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `api.ts` — axios client with namespaces auth, portal, leader, coach, analytics, childTest
@@ -12,8 +12,6 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `api*` | 6 files; most used `api.ts`: Portal axios client: auth, language, portal, analytics, leader, coach, classes, child test namespaces |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - `api.ts` ← imported by `portal/src/App.tsx:35:53c61c93` · `portal/src/components/LanguageSwitcher.tsx:12:8d38d8b5` (+182)
@@ -35,11 +33,15 @@ Full index: `CLAUDE.index.md`
 - `portal/src/portal/coach/home/CoachHome.test.tsx` (api.ts)
 - `portal/src/portal/coach/insights/tests/harness.tsx` (api.ts)
 - `portal/src/portal/coach/insights/tests/more.flagOff.test.tsx` (api.ts)
+- `portal/src/portal/coach/insights/tests/r6b_more.test.tsx` (api.ts)
 - `portal/src/portal/coach/insights/tests/routing.flagOff.test.tsx` (api.ts)
 - `portal/src/portal/coach/pages/CoachBack.test.tsx` (api.ts)
 - `portal/src/portal/coach/pages/CoachEditTeacher.test.tsx` (api.ts)
 - `portal/src/portal/coach/pages/CoachFeedback1.test.tsx` (api.ts)
-- … 259 more → `CLAUDE.index.md`
+- `portal/src/portal/coach/pages/CoachLpEngagement.test.tsx` (api.ts)
+- `portal/src/portal/coach/pages/CoachManageSchools.test.tsx` (api.ts)
+- `portal/src/portal/coach/pages/CoachNewVisit.test.tsx` (api.ts)
+- … 256 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `docs/migration/09a-capacitor-wrapping.md`? · `docs/migration/CLAUDE.index.md`? · `portal/src/portal/CLAUDE.md`? · `portal/src/portal/analytics/CLAUDE.index.md`? · `portal/src/portal/analytics/views/CLAUDE.index.md`? · `portal/src/portal/analytics/views/CLAUDE.md`? (+10)
+- docs: `docs/migration/09a-capacitor-wrapping.md`? · `portal/src/portal/CLAUDE.md`?

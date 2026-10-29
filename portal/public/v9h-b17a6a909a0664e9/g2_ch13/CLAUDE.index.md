@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g2_ch13_Maths_seg1.v9.html` | Hosted v9 lesson page G2 Math ch13 seg1 (en): Perimeter and Area (concepts) |
 | `g2_ch13_Maths_seg2.v9.html` | Hosted v9 lesson page G2 Math ch13 seg2 (en): 2-D Shapes — Identify, Draw & Characteristics (incl. (+ more topics) |
 | `g2_ch13_Maths_seg3.v9.html` | Hosted v9 lesson page G2 Math ch13 seg3 (en): 2-D Shapes — Skill Sharpener |
@@ -29,4 +27,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g2_ch13/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g2_ch13/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

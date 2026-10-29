@@ -1,6 +1,6 @@
 # g3_ch13 — Hosted v9 pages, Grade 3 chapter 13 (9 segs: Math 5, Urdu 4)
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch13 kg=b9b410f51926 gen=997f7beb6404 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch13 kg=b9b410f51926 gen=ff1c7adaefa8 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g3_ch13_Maths_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `g3_ch13_Maths_seg1.v9.html` | Hosted v9 lesson page G3 Math ch13 seg1 (en): Perimeter of 2-D & irregular figures on a grid |
 | `g3_ch13_Maths_seg2.v9.html` | Hosted v9 lesson page G3 Math ch13 seg2 (en): Perimeter: Discovery + Skill Sharpener |
 | `g3_ch13_Maths_seg3.v9.html` | Hosted v9 lesson page G3 Math ch13 seg3 (en): Area of 2-D & irregular figures on a square grid |

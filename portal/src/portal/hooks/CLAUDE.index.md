@@ -9,8 +9,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `AuthProvider.boot.test.tsx` | Pins that the signed-in user is requested at first frame for coach and RM paths (bd-sex15q.34) |
 | `AuthProvider.test.tsx` | Pins that the signed-in user is read once per visit, with 30 s background re-read (bd-fxk3t8) |
 | `AuthProvider.tsx` | Root provider holding the signed-in user once per visit above all routes (bd-fxk3t8) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `authContext.ts` | Context object for the user PortalLayout loaded, in its own module so mocks keep it real |
 | `firstPage.test.tsx` | Pins first-page loading: /me instead of /dashboard, parallel /config, 30 s reuse (bd-fxk3t8) |
 | `useAuth.ts` | useAuth hook returning the shared signed-in user, plus useOwnAuth, login and logout |
@@ -23,7 +21,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Tests (all, generated)
 - `AuthProvider.tsx` ← `portal/src/portal/components/PortalLayout.loading.test.tsx` · `portal/src/portal/hooks/AuthProvider.boot.test.tsx` · `portal/src/portal/hooks/AuthProvider.test.tsx` · `portal/src/portal/hooks/firstPage.test.tsx`
 - `authContext.ts` ← `portal/src/portal/analytics/guard.test.tsx` · `portal/src/portal/coach/insights/tests/routing.flagOff.test.tsx` · `portal/src/portal/coach/people/schoolsReady.test.tsx` · `portal/src/portal/coach/training/CoachAppGuard.dual.test.tsx` · `portal/src/portal/coach/training/CoachAppGuard.loop.test.tsx` · `portal/src/portal/coach/training/CoachAppGuard.rm.test.tsx` (+3: `python3 kg/kg.py who-reads portal/src/portal/hooks/authContext.ts`)
-- `useAuth.ts` ← `portal/src/portal/coach/CoachGate.test.tsx` · `portal/src/portal/coach/insights/tests/harness.tsx` · `portal/src/portal/coach/insights/tests/more.flagOff.test.tsx` · `portal/src/portal/coach/insights/tests/routing.flagOff.test.tsx` · `portal/src/portal/coach/profile/CoachMore.test.tsx` · `portal/src/portal/coach/profile/CoachProfile.test.tsx` (+97: `python3 kg/kg.py who-reads portal/src/portal/hooks/useAuth.ts`)
+- `useAuth.ts` ← `portal/src/portal/coach/CoachGate.test.tsx` · `portal/src/portal/coach/insights/tests/harness.tsx` · `portal/src/portal/coach/insights/tests/more.flagOff.test.tsx` · `portal/src/portal/coach/insights/tests/r6b_more.test.tsx` · `portal/src/portal/coach/insights/tests/routing.flagOff.test.tsx` · `portal/src/portal/coach/profile/CoachMore.test.tsx` (+98: `python3 kg/kg.py who-reads portal/src/portal/hooks/useAuth.ts`)
 
 ## Related (all, generated)
-- docs: `portal/src/portal/CLAUDE.md`? · `portal/src/portal/analytics/CLAUDE.index.md`? · `portal/src/portal/analytics/CLAUDE.md`? · `portal/src/portal/coach/CLAUDE.index.md`? · `portal/src/portal/coach/insights/tests/CLAUDE.index.md`? · `portal/src/portal/coach/people/CLAUDE.index.md`? · `portal/src/portal/coach/profile/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.index.md`? · `portal/src/portal/coach/training/CLAUDE.md`? · `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/hooks/CLAUDE.index.md`? · `portal/src/portal/hooks/CLAUDE.md`? · `portal/src/portal/pages/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.index.md`?
+- docs: `portal/src/portal/CLAUDE.md`?

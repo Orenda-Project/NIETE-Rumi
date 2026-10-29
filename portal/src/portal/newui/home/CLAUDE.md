@@ -1,6 +1,6 @@
 # home — New-UI teacher Home: date-range 'what you did' tiles and their lists
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/home kg=f778fb4a30ec gen=37addb5658e9 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/home kg=f778fb4a30ec gen=9996099726a9 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `NewHome.tsx` — band, date range and five metric tiles
@@ -14,7 +14,6 @@
 | `HomeList.test.tsx` | bd-5rz1v.17: Home tile lists (Lesson plans used, Coaching and observations) from GET /api/portal/progress/:metric |
 | `homeNav.test.tsx` | bd-5rz1v.17: Home's band avatar opens the shared account sheet; phone top strip hidden on Home |
 | `NewHome.test.tsx` | bd-5rz1v.17: new Home band, date range default This month, five tiles with no rating up front |
-| `CLAUDE.md` | (unmapped) |
 | `HomeList.tsx` | bd-5rz1v.17: inner list page behind a Home tile, fed by /api/portal/progress/:metric with date range |
 | `NewHome.tsx` | New-UI teacher Home: "what you did" band with avatar, date range and five metric tiles |
 
@@ -34,4 +33,4 @@ _None found in code comments, tests or git log for this directory._
 - `portal/src/portal/teacher/analytics/model.test.ts` (progressApi.ts)
 
 ## Related (generated)
-- docs: `portal/src/portal/fln/tests/CLAUDE.index.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.md`? · `portal/src/portal/newui/home/CLAUDE.md`? · `portal/src/portal/teacher/analytics/CLAUDE.index.md`? (+1)
+- docs: `portal/src/portal/newui/CLAUDE.md`?

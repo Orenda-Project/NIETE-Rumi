@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `bank-v3.js` | Conversation's read of the v3 item bank: task ids in visit order, task specs and booklet page numbers (CONTRACT 21.3) |
 | `context.js` | Infers where a child test happens (visit, school, observed teacher's Grade 3/5 class) so the coach is asked nothing... |
 | `copy.js` | Coach copy for the child test from the ux-strings catalog (childTest* keys), Urdu default, Urdu digits |
@@ -66,4 +64,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `switches.js` ← `tests/child-test/L36/journey-v3.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/conversation/CLAUDE.index.md`? · `bot/shared/services/child-test/conversation/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`? · `tests/child-test/L0/CLAUDE.md`? · `tests/child-test/L11/CLAUDE.md`? · `tests/child-test/L13/CLAUDE.md`? · `tests/child-test/L17/CLAUDE.md`? · `tests/child-test/L19/CLAUDE.md`? · `tests/child-test/L20/CLAUDE.md`? · `tests/child-test/L21/CLAUDE.md`? · `tests/child-test/L25/CLAUDE.md`? · `tests/child-test/L26/CLAUDE.md`? · `tests/child-test/L31/CLAUDE.md`? · `tests/child-test/L34/CLAUDE.md`? · `tests/child-test/L36/CLAUDE.md`? · `tests/child-test/L38/CLAUDE.md`? · `tests/child-test/L3b/CLAUDE.md`? · `tests/child-test/L4/CLAUDE.index.md`? · `tests/child-test/L4/CLAUDE.md`? · `tests/e2e-mock/CLAUDE.index.md`? · `tests/e2e-mock/CLAUDE.md`?
+- docs: `bot/shared/services/child-test/CLAUDE.md`?

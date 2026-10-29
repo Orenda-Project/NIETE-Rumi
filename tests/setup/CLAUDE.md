@@ -1,7 +1,7 @@
 # setup — Repo-wide guard tests: schema, migrations, flows, hygiene ratchets and setup scripts
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/setup kg=7f646ede6560 gen=432f4a33d9d5 overflow=81 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/setup kg=b7a3bc269e1a gen=8f64d093ef57 overflow=75 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `ratchet-verdict-lib.js` — shrink-only allowlist verdict most gates here share (fail above list, warn below)
@@ -15,15 +15,15 @@ Full index: `CLAUDE.index.md`
 | `_audit-helpers/` | Static require-graph helper used by the orphan, cycle and unresolved-require audits → `_audit-helpers/CLAUDE.md` |
 | `ratchet-verdict-lib.js` | Shared verdict for shrink-only allowlist gates: fail above the list, warn below, returns failures and warnings |
 | `test-seam-gates-lib.js` | Large shared library of pure readers behind the test-seam gates (repo mocks, copy deck, select columns, fresh-profile) |
-| `CLAUDE.index.md` | (unmapped) |
+| `register*` | 3 files; most used `register-all-flows.test.js`: Tests bot/scripts/setup/register-all-flows: all 24 FLOW_CONFIGS and their registration against a mocked MetaAPI |
 | `source-hygiene.test.js` | Guard for the public repo: no internal ticket refs in shipped source or docs/flows JSON authoring metadata |
-| … | 80 more → `CLAUDE.index.md` |
+| `validate-flows.test.js` | Tests validate-flows preflight: flows and templates exist and are PUBLISHED, encryption configured; returns valid/issues |
+| `migrate.test.js` | Tests infrastructure/scripts/migrate MigrationRunner with a mocked supabase client: applied versions, ordering |
+| `web*` | 3 files; most used `web-quiz-owned-paths.js`: Helper listing the web quiz's own path prefixes so module lists beside query goldens compare only inside them |
+| … | 147 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `students` (written by `select-columns-exist.test.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:316:2f35b0c2`? · `bot/shared/routes/edit-class-endpoint.js:44:2f35b0c2`? (+44)
-- table `niete_lp612_renders` (written by `schema-completeness.test.js`) ← read by `bot/shared/services/coaching/portal-lesson-plan-library.service.js:117:3534712c`?
-- table `students` whole row (`*`) (written by `select-columns-exist.test.js`) ← read by `bot/shared/services/student-list.service.js:362:d2b02c3e`?
-- … 1 more → `CLAUDE.index.md`
+- (none)
 
 ## Never (human)
 - Allowlists only shrink: a new offender or higher count fails (tests/setup/ratchet-verdict-lib.js:7)
@@ -34,4 +34,4 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `qa-testing`? · `whatsapp-flows`?
-- docs: `.claude/CLAUDE.md`? · `.claude/skills/data-standards/reference/instances/niete-rumi.md`? · `CLAUDE.md`? · `bot/marketing/README.md`? · `bot/scripts/setup/CLAUDE.index.md`? · `bot/scripts/setup/CLAUDE.md`? (+18)
+- docs: `.claude/CLAUDE.md`? · `.claude/skills/data-standards/reference/instances/niete-rumi.md`? · `CLAUDE.md`? · `bot/marketing/README.md`? · `bot/scripts/setup/CLAUDE.md`? · `docs/customization.md`? (+7)

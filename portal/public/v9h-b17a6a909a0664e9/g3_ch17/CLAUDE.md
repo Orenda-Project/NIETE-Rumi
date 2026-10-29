@@ -1,6 +1,6 @@
 # g3_ch17 — Hosted v9 pages, Grade 3 chapter 17 (2 segs: Urdu 2)
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch17 kg=2626e54b3151 gen=a4395868a56d overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch17 kg=2626e54b3151 gen=d3ee4c89781f overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g3_ch17_Urdu_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `g3_ch17_Urdu_seg1.v9.html` | Hosted v9 lesson page G3 Urdu ch17 seg1 (ur): 'ایک مایہ ناز حکیم' — بلند خوانی (سوانح) |
 | `g3_ch17_Urdu_seg2.v9.html` | Hosted v9 lesson page G3 Urdu ch17 seg2 (ur): سوانح کی تفہیم — زبانی سوالات |
 

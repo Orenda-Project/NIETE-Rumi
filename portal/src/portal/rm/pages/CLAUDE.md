@@ -1,6 +1,6 @@
 # pages — RM page components: Sector, Coaches, one coach, Circle, Stats
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/rm/pages kg=077149ff9578 gen=31c8fdb5ddf5 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/rm/pages kg=f7ca1320805a gen=c8e6553e7a1c overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `RmHome.tsx` — S8 Monday sector card
@@ -11,7 +11,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `RmCircle.tsx` | S10 Friday coach circle: one moment per coach, sector moves, Set this sector step |
 | `RmCoach.tsx` | S9 one coach for the RM: schools, steps, moves, follow-ups and Send follow-up |
 | `RmCoaches.tsx` | Coaches tab showing S8's two coach groups on their own page |
@@ -36,4 +35,4 @@ _None found in code comments, tests or git log for this directory._
 - `portal/src/portal/rm/tests/RmStats.test.tsx`? (RmStats.tsx)
 
 ## Related (generated)
-- docs: `portal/src/portal/rm/CLAUDE.index.md`? · `portal/src/portal/rm/CLAUDE.md`? · `portal/src/portal/rm/pages/CLAUDE.md`? · `portal/src/portal/rm/tests/CLAUDE.index.md`? · `portal/src/portal/rm/tests/CLAUDE.md`?
+- docs: `portal/src/portal/rm/CLAUDE.md`?

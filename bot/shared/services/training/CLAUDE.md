@@ -1,7 +1,7 @@
 # training — Teacher training: modules, quizzes, certificates, I-SAPS exams and grading
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/training kg=33956c8fc35e gen=4adc78edab7d overflow=168 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/training kg=8ce4bc69a48d gen=685b8ac4500c overflow=165 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `quiz-delivery.service.js` — WhatsApp quiz state machine
@@ -14,11 +14,12 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `quiz-delivery.service.js` | WhatsApp Q-by-Q state machine for grand (level) and module quizzes: serving, grading, retries, certificates |
 | `isaps*` | 12 files; most used `isaps-module-exam.rules.js`: I-SAPS end-of-module exam slot, per-module source quiz id mapping and offer message rules |
-| … | 16 more → `CLAUDE.index.md` |
+| … | 27 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - table `users` (written by `band-selection.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+170)
-- … 71 more → `CLAUDE.index.md`
+- column `training_assessment_attempts.user_id` (written by `capstone-delivery.service.js` (+1)) ← read by `bot/shared/routes/teacher-training-endpoint.js:1222:7cb7cc00` · `bot/shared/services/teacher-state.service.js:413:219f5683` (+7)
+- … 75 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Bot completions write teacher_training_progress only via progress.service.js (:9-14); the portal also upserts it (dashboard/routes/portal.routes.js:5712)
@@ -32,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - … 81 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `CLAUDE.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/training/CLAUDE.index.md`? · `bot/shared/services/training/CLAUDE.md`? · `docs/migration/02-teacher-training.md`? (+8)
+- docs: `bot/shared/services/CLAUDE.md`? · `docs/migration/02-teacher-training.md`? · `docs/reports/bug131-phase3-grand-quiz.md`?

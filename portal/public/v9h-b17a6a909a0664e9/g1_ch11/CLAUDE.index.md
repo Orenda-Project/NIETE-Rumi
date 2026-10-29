@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g1_ch11_English_seg1.v9.html` | Hosted v9 lesson page G1 English ch11 seg1 (en): Game-Day Key Words + Word Adventure (Predict the News Report) |
 | `g1_ch11_English_seg2.v9.html` | Hosted v9 lesson page G1 English ch11 seg2 (en): Reading the News Report 'Pinky's Cricket Play' & 'Jojo's Football Fun' |
 | `g1_ch11_English_seg3.v9.html` | Hosted v9 lesson page G1 English ch11 seg3 (en): Long Vowel /oo/ Sound (book, moon) |
@@ -34,4 +32,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch11/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch11/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

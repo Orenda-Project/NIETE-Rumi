@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `Home.language.test.tsx` | Pins the English | اردو switch in Home's band: current picked, saves via the one writer, same language writes nothing |
 | `Home.on.test.tsx` | Pins Home with portal_teacher_home_card ON: full card, chips, tiles in server order, slim card after tile 1, taps logged |
 | `Home.remind.test.tsx` | Pins that the evening reminder card sits after the feature tiles on both Homes, below the full or slim card |
@@ -21,7 +19,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Who reads this (all, generated)
 - `Home.tsx` ← imported by `portal/src/App.tsx:57:c88a91a7` · `portal/src/portal/teacher/pages/routes.tsx:6:f24d299d`
-- `More.tsx` ← imported by `portal/src/portal/coach/insights/components/MoreCoachip.tsx:3:d14be533` · `portal/src/portal/coach/pages/CoachHome.tsx:10:80ac37a5` · `portal/src/portal/coach/profile/CoachMore.tsx:6:6fd6bd67` · `portal/src/portal/coach/profile/CoachProfile.tsx:7:0f6f4e8b` (+1: `python3 kg/kg.py who-reads More.tsx`)
+- `More.tsx` ← imported by `portal/src/portal/coach/pages/CoachHome.tsx:10:80ac37a5` · `portal/src/portal/coach/profile/CoachMore.tsx:6:6fd6bd67` · `portal/src/portal/coach/profile/CoachProfile.tsx:7:0f6f4e8b` · `portal/src/portal/teacher/pages/routes.tsx:7:38887f9c`
 - `Profile.tsx` ← imported by `portal/src/portal/coach/profile/CoachProfile.tsx:8:0572f196` · `portal/src/portal/teacher/pages/routes.tsx:8:591421e5`
 
 ## Tests (all, generated)
@@ -30,4 +28,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `Profile.tsx` ← `portal/src/portal/teacher/pages/Profile.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/home/CLAUDE.index.md`? · `portal/src/portal/teacher/home/CLAUDE.md`? · `portal/src/portal/teacher/home/look/CLAUDE.index.md`? · `portal/src/portal/teacher/pages/CLAUDE.index.md`? · `portal/src/portal/teacher/pages/CLAUDE.md`?
+- docs: `portal/src/portal/teacher/CLAUDE.md`?

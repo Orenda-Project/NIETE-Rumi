@@ -10,8 +10,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `AttentionDot.tsx` | bd-5rz1v: red pulsing dot meaning "this needs you", used on coaching lessons awaiting an answer |
 | `BottomSheet.test.tsx` | bd-5rz1v.8: BottomSheet carries role=dialog data-state=open so Android Back closes it first |
 | `BottomSheet.tsx` | bd-5rz1v: sheet rising from screen bottom for one decision (Finish recording?, Add lesson plan) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `ChalkboardIcon.tsx` | bd-5rz1v.7: chalkboard-on-easel icon for the Send a lesson button |
 | `CoachingHome.live.test.tsx` | bd-v0toag.31.1: older Coaching home checks live-moves eligibility on arrival, off Record's path |
 | `CoachingHome.tsx` | Older teacher Coaching home: send-a-lesson entry, lesson list, needs-answer banner, live-moves eligibility |
@@ -45,4 +43,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `SendLessonButton.tsx` ← `portal/src/portal/components/coaching/SendLessonButton.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/CLAUDE.index.md`? · `portal/CLAUDE.md`? · `portal/src/lib/CLAUDE.index.md`? · `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/components/CLAUDE.md`? · `portal/src/portal/components/coaching/CLAUDE.index.md`? · `portal/src/portal/components/coaching/CLAUDE.md`? · `portal/src/portal/newui/coaching/CLAUDE.index.md`? · `portal/src/portal/newui/coaching/CLAUDE.md`? · `portal/src/portal/pages/CLAUDE.index.md`?
+- docs: `portal/CLAUDE.md`?

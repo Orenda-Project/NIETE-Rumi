@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `CoachLanding.tsx` | Landing at /portal/coach: slim Coach Home when the School card switch is on, else the old coach Home |
 | `FeatureGridPage.tsx` | School card sub-page: one feature by teacher as a day/week grid with school totals row |
 | `HerItemsPage.tsx` | Teacher's item list for one feature in the period: DC observations, coach visits, plans, papers, training |
@@ -55,4 +53,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `types.ts` ← `portal/src/portal/coach/card/period.test.ts`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/coach/CLAUDE.index.md`? · `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/card/CLAUDE.index.md`? · `portal/src/portal/coach/card/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.index.md`? · `portal/src/portal/coach/training/CLAUDE.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`?
+- docs: `portal/src/portal/coach/CLAUDE.md`?

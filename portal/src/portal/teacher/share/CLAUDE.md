@@ -1,6 +1,6 @@
 # share — Client for sharing a paper or plan to WhatsApp from the teacher app
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/share kg=75d1f128517a gen=b2aa712a42fe overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/share kg=75d1f128517a gen=0f741ae992c5 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `api.ts` — shareToWhatsApp and useShareAvailable against /api/portal/share; used by ../ui/ShareActions.tsx
@@ -11,7 +11,6 @@
 | path | purpose |
 |---|---|
 | `api.ts` | Share API: shareToWhatsApp and useShareAvailable on /api/portal/share; unreachable server is failed, never sent |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - `api.ts` ← imported by `portal/src/portal/teacher/assessment/PaperPage.tsx:12:49f449b2` · `portal/src/portal/teacher/assessment/RequestPage.tsx:9:49f449b2` (+2)
@@ -29,4 +28,4 @@
 - `portal/src/portal/teacher/lessons/leaders.test.tsx` (api.ts)
 
 ## Related (generated)
-- docs: `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/coaching/CLAUDE.index.md`? · `portal/src/portal/teacher/lessons/CLAUDE.index.md`? · `portal/src/portal/teacher/share/CLAUDE.md`?
+- docs: `portal/src/portal/teacher/CLAUDE.md`?

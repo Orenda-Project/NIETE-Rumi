@@ -1,6 +1,6 @@
 # g4_ch15 — Hosted v9 pages, Grade 4 chapter 15 (2 segs: Urdu 2)
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g4_ch15 kg=144c8bf37139 gen=0e0c64c6c94b overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g4_ch15 kg=144c8bf37139 gen=70c641fbacdd overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g4_ch15_Urdu_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `g4_ch15_Urdu_seg1.v9.html` | Hosted v9 lesson page G4 Urdu ch15 seg1 (ur): سماعت و بلند خوانی — یوم پاکستان کی کہانی |
 | `g4_ch15_Urdu_seg2.v9.html` | Hosted v9 lesson page G4 Urdu ch15 seg2 (ur): تفہیم — زبانی سوالات |
 

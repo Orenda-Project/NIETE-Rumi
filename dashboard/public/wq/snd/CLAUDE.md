@@ -1,6 +1,6 @@
 # snd — Sound sprite for the child pages' chimes and fanfare
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq/snd kg=09d4a77dc937 gen=187c6f760a35 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq/snd kg=09d4a77dc937 gen=63291e43e894 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `juice-1.opus` — one sprite with fanfare, badge and giggle cut points read by wq-juice.js
@@ -9,7 +9,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `juice-1.opus` | (unmapped) |
 
 ## Who reads this (generated)
@@ -23,4 +22,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `dashboard/public/wq/CLAUDE.index.md`? · `dashboard/public/wq/CLAUDE.md`?
+- docs: `dashboard/public/wq/CLAUDE.md`?

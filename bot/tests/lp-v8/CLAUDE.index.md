@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `ab-ch310.test.js` | Pins the ICT G1-5 ch3-10 lesson-plan A/B: group A gets the v8 PDF, B the v9 render, by school (bd-5o0ay.10.1) |
 | `backfill-lp-asset-sources.test.js` | Pins backfill-lp-asset-sources: only a matrix row whose link names the served asset's hash is imported (PLAN R8 2.2) |
 | `bd-eb1ec-context-language-pin.test.js` | Pins the lesson context message names the reply language so an Urdu lesson block cannot flip an English reply (bd-eb1ec) |
@@ -62,20 +60,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `voicenote-survey.test.js` | Pins the voicenote survey: thumbs-up asks whether the teacher taught it, silent with no voice note (bd-vw0aj) |
 
 ## Who reads this (all, generated)
-- env `ELEVENLABS_API_KEY` read at `bot/tests/lp-v8/voice-reply-quality.test.js:27:6b9b8a4e`
-- env `LP_SEGMENTATION_DIR` read at `bot/tests/lp-v8/catalog-builder.test.js:408:44438fa6`
-- env `LP_TOC_DIR` read at `bot/tests/lp-v8/catalog-builder.test.js:409:55bd7564`
-- env `LP_V8_MANIFEST` read at `bot/tests/lp-v8/catalog-builder.test.js:368:5bc340e0`
-- env `LP_V8_SAMPLE_PDF` read at `bot/tests/lp-v8/uploader-resumable.test.js:49:179c48d2` · `bot/tests/lp-v8/uploader.test.js:177:63251145`
-- env `OPENAI_API_KEY` read at `bot/tests/lp-v8/elevenlabs-key-fallback.test.js:27:e5dc7491` · `bot/tests/lp-v8/lp-coaching-ask-worker-wiring.test.js:12:acce1dae` · `bot/tests/lp-v8/voice-reply-quality.test.js:28:e5dc7491`
-- env `OPENROUTER_API_KEY` read at `bot/tests/lp-v8/lp-coaching-ask-worker-wiring.test.js:11:1370b6dc` · `bot/tests/lp-v8/lp-shelf-flush-points.test.js:21:f4d0ab1b`
-- env `PAKISTAN_LP_FLOW_ID` read at `bot/tests/lp-v8/menu-entry.test.js:66:edfff9ee`
-- env `PHONE_NUMBER_ID` read at `bot/tests/lp-v8/voice-reply-quality.test.js:30:988fd1ac`
-- env `TEACHER_NUDGES_ENABLED` read at `bot/tests/lp-v8/lp-coaching-ask-worker-wiring.test.js:102:2808cd9c`
-- env `WHATSAPP_TOKEN` read at `bot/tests/lp-v8/voice-reply-quality.test.js:29:da42c668`
+- (none)
 
 ## Tests (all, generated)
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/handlers/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/nudges/CLAUDE.index.md`? · `bot/shared/services/nudges/CLAUDE.md`? · `bot/shared/services/quiz/CLAUDE.index.md`? · `bot/shared/services/video/CLAUDE.index.md`? · `bot/shared/services/video/CLAUDE.md`? · `bot/shared/utils/CLAUDE.index.md`? · `bot/tests/CLAUDE.index.md`? · `bot/tests/CLAUDE.md`? · `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/tests/lp-v8/CLAUDE.md`? · `bot/vendor/lp-v9/lib/CLAUDE.index.md`? · `bot/vendor/lp-v9/lib/CLAUDE.md`? · `bot/workers/CLAUDE.index.md`? · `bot/workers/CLAUDE.md`? · `docs/flows/CLAUDE.index.md`? · `docs/flows/CLAUDE.md`?
+- docs: `bot/scripts/CLAUDE.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/shared/services/CLAUDE.md`? · `bot/tests/CLAUDE.md`? · `docs/flows/CLAUDE.md`?

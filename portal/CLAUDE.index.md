@@ -14,8 +14,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `src/` | Portal source root: app entry, global CSS, i18n; routes and portal code live in src/portal → `src/CLAUDE.md` |
 | `.gitignore` | (unmapped) |
 | `ANDROID.md` | How to build, sync and test the NIETE Android app (Capacitor wrapper of this SPA): JDK 21, SDK 35, fixed appId; current |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `GITHUB_ACTIONS_SETUP.md` | Historic setup guide for the Lovable-to-dashboard auto-deploy GitHub Action (PAT, secrets); superseded, kept as a note |
 | `README.md` | Upstream open-source README: teacher portal as an optional Phase 2 add-on (setup, build, hosting); generic, not NIETE |
 | `capacitor.config.ts` | Capacitor config for the Android app: fixed appId, webDir dist, opt-in NIETE_OTA remote origin, API host allowlist |
@@ -44,4 +42,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `tailwind.config.ts` ← `portal/src/portal/components/coaching/SendLessonButton.test.tsx` · `portal/src/portal/newui/tokens.test.ts`
 
 ## Related (all, generated)
-- docs: `.github/workflows/CLAUDE.index.md`? · `.github/workflows/CLAUDE.md`? · `CLAUDE.md`? · `dashboard/CLAUDE.index.md`? · `dashboard/lib/CLAUDE.index.md`? · `dashboard/lib/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/migration/09-play-store-launch.md`? · `docs/migration/09a-capacitor-wrapping.md`? · `docs/migration/CLAUDE.index.md`? · `docs/migration/DEPLOYMENT.md`? · `docs/monitoring.md`? · `docs/onboarding/local-portal.md`? · `portal/ANDROID.md`? · `portal/CLAUDE.index.md`? · `portal/CLAUDE.md`? · `portal/GITHUB_ACTIONS_SETUP.md`? · `portal/README.md`? · `portal/public/CLAUDE.md`? · `portal/scripts/CLAUDE.md`? · `portal/src/CLAUDE.index.md`? · `portal/src/CLAUDE.md`? · `portal/src/lib/CLAUDE.index.md`? · `portal/src/lib/CLAUDE.md`? · `portal/src/portal/components/coaching/CLAUDE.index.md`? · `portal/src/portal/components/coaching/CLAUDE.md`? · `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.md`? · `portal/src/portal/newui/DESIGN.md`? · `tests/portal/CLAUDE.index.md`? · `tests/portal/CLAUDE.md`?
+- docs: `.github/workflows/CLAUDE.md`? · `CLAUDE.md`? · `dashboard/lib/CLAUDE.md`? · `docs/migration/09-play-store-launch.md`? · `docs/migration/09a-capacitor-wrapping.md`? · `docs/migration/DEPLOYMENT.md`? · `docs/monitoring.md`? · `docs/onboarding/local-portal.md`? · `portal/ANDROID.md`? · `portal/GITHUB_ACTIONS_SETUP.md`? · `portal/src/lib/CLAUDE.md`? · `portal/src/portal/newui/CLAUDE.md`? · `portal/src/portal/newui/DESIGN.md`? · `tests/portal/CLAUDE.md`?

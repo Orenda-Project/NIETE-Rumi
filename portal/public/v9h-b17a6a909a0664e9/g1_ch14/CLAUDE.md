@@ -1,6 +1,6 @@
 # g1_ch14 — Hosted v9 pages, Grade 1 chapter 14 (6 segs: Urdu 6)
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g1_ch14 kg=771f413f70fc gen=d3c48bfdb6bf overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g1_ch14 kg=771f413f70fc gen=8c3e48a33c84 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g1_ch14_Urdu_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `g1_ch14_Urdu_seg1.v9.html` | Hosted v9 lesson page G1 Urdu ch14 seg1 (ur): نئے الفاظ — باب کے پانچ نئے الفاظ اور ان کے معانی |
 | `g1_ch14_Urdu_seg2.v9.html` | Hosted v9 lesson page G1 Urdu ch14 seg2 (ur): ارکان سازی — الفاظ کو آوازوں میں توڑنا اور ارکان جوڑ کر الفاظ بنانا |
 | `g1_ch14_Urdu_seg3.v9.html` | Hosted v9 lesson page G1 Urdu ch14 seg3 (ur): متن کا سفر — 'آسمان کی بلندی اور زمین کا گھر' کی بلند (+ more topics) |

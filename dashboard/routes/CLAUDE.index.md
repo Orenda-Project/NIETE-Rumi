@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `api-health.routes.js` | API-health JSON endpoints at /observability/api/api-health aggregating per-vendor status for the admin page. |
 | `app-funnel.routes.js` | Teacher-app funnel events under /api/portal (page views and key actions) plus the actionLogger; bd-4r3rei. |
 | `app-login.routes.js` | One-tap app login GET /go/:token: validates link, creates a portal session, redirects to its landing; bd-fmf24g.35. |
@@ -235,4 +233,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `web-quiz.routes.js` ← `bot/tests/quiz/web-quiz/teacher-reminder-live-preview.test.js` · `dashboard/tests/class-round-back-edge.service.test.js` · `dashboard/tests/edge-security-headers.service.test.js` · `dashboard/tests/fixtures/closed-lang-scenarios.js` · `dashboard/tests/quiz-join-edge.service.test.js` · `dashboard/tests/quiz-join-one-face.service.test.js` (+60: `python3 kg/kg.py who-reads dashboard/routes/web-quiz.routes.js`)
 
 ## Related (all, generated)
-- docs: `bot/tests/child-test/CLAUDE.index.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `dashboard/CLAUDE.index.md`? · `dashboard/CLAUDE.md`? · `dashboard/routes/CLAUDE.index.md`? · `dashboard/routes/CLAUDE.md`? · `dashboard/tests/CLAUDE.index.md`? · `docs/CLAUDE.index.md`? · `docs/app-funnel-telemetry.md`? · `docs/reports/CLAUDE.md`? · `docs/reports/bug131-phase2-portal-quiz-ui.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `docs/reports/bug131-phase4-media-complete.md`? · `tests/BASELINE.md`? · `tests/CLAUDE.index.md`? · `tests/app-funnel/CLAUDE.md`? · `tests/app-redirect/CLAUDE.index.md`? · `tests/app-redirect/CLAUDE.md`? · `tests/attendance/CLAUDE.index.md`? · `tests/attendance/CLAUDE.md`? · `tests/coaching/CLAUDE.index.md`? · `tests/coaching/CLAUDE.md`? · `tests/coaching/video-reco/CLAUDE.index.md`? · `tests/coaching/video-reco/CLAUDE.md`? · `tests/coachip-media/CLAUDE.md`? · `tests/coachip/CLAUDE.index.md`? · `tests/coachip/CLAUDE.md`? · `tests/coachip/helpers/CLAUDE.md`? · `tests/dashboard/CLAUDE.md`? · `tests/hcp/CLAUDE.index.md`? · `tests/hcp/CLAUDE.md`? · `tests/lp-v8/CLAUDE.index.md`? · `tests/lp-v8/CLAUDE.md`? · `tests/observe/CLAUDE.index.md`? · `tests/observe/CLAUDE.md`? · `tests/portal/CLAUDE.index.md`? · `tests/portal/CLAUDE.md`? · `tests/training/CLAUDE.index.md`? · `tests/training/CLAUDE.md`?
+- docs: `dashboard/CLAUDE.md`? · `docs/app-funnel-telemetry.md`? · `docs/reports/bug131-phase2-portal-quiz-ui.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `docs/reports/bug131-phase4-media-complete.md`? · `tests/BASELINE.md`?

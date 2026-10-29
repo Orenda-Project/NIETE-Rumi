@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `LessonPlanPages.tsx` | New-UI Lesson Plans pages: chapters and lessons lists for the chosen grade and subject |
 | `LoadStatus.tsx` | Loading spinner Hero, "Not loaded" with Try again, or "Nothing yet" for a lesson-plans load state |
 | `NewLessonPlans.test.tsx` | bd-5rz1v.14/bd-k23p38: new Lesson Plans flow for grades 1-12, main page and Recent last 10 |
@@ -31,4 +29,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `lessonPlansApi.ts` ← `portal/src/portal/fln/tests/fln-ab-isolation.client.test.ts` · `portal/src/portal/fln/tests/golden.flagOff.test.tsx` · `portal/src/portal/fln/tests/hiddenBand.page.test.tsx` · `portal/src/portal/newui/lessons/NewLessonPlans.test.tsx` · `portal/src/portal/newui/lessons/lessonPlansApi.lang.test.ts` · `portal/src/portal/newui/lessons/lessonPlansApi.test.ts` (+12: `python3 kg/kg.py who-reads portal/src/portal/newui/lessons/lessonPlansApi.ts`)
 
 ## Related (all, generated)
-- docs: `portal/src/portal/fln/tests/CLAUDE.index.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/newui/CLAUDE.md`? · `portal/src/portal/newui/DESIGN.md`? · `portal/src/portal/newui/lessons/CLAUDE.index.md`? · `portal/src/portal/newui/lessons/CLAUDE.md`? · `portal/src/portal/teacher/coaching/CLAUDE.index.md`? · `portal/src/portal/teacher/coaching/CLAUDE.md`?
+- docs: `portal/src/portal/newui/DESIGN.md`?

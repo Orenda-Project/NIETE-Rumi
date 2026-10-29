@@ -1,6 +1,6 @@
 # monitoring — Lesson-plan health (hourly) and quiz-funnel (2-hourly) watcher alerts to operators
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/monitoring kg=9065e672b996 gen=d523731f2b45 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/monitoring kg=9065e672b996 gen=192c25ab0866 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `lesson-plan-health.service.js` — reads lesson_plan_requests, alerts when unhealthy
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `quiz-funnel-watch.service.js` | Quiz funnel watcher sending the operator one Slack DM stream with chronic-family de-duplication |
 | `lesson-plan-health.service.js` | Hourly lesson-plan health summary over lesson_plan_requests, alerting a person when a path is unhealthy |
 
@@ -28,4 +27,4 @@
 - `tests/quiz/quiz-funnel-watch.test.js` (quiz-funnel-watch.service.js)
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/monitoring/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/quiz-telemetry.md`? · `tests/lesson-plan-lifecycle/CLAUDE.index.md`? (+3)
+- docs: `bot/shared/services/CLAUDE.md`? · `docs/quiz-telemetry.md`?

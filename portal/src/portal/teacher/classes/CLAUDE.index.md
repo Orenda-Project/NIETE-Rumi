@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `AddClassPage.tsx` | Add a class form (options from GET /classes) posting POST /classes; routed at /portal/teacher/classes/add |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `ClassDetailPage.tsx` | One class: title and chips, shortcuts to Attendance and its lesson plans, roster add by paste and remove |
 | `ClassesPages.test.tsx` | Pins My Classes, Class detail and Add a class over GET/POST /classes and student routes (bd-fmf24g.8) |
 | `MyClassesPage.tsx` | My Classes list as Grade-Subject rows linking to each class, with Add a class when the server's canAdd allows |
@@ -41,4 +39,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `routes.tsx` ← `portal/src/portal/teacher/classes/ClassesPages.test.tsx` · `portal/src/portal/teacher/classes/checks.test.tsx` · `portal/src/portal/teacher/classes/classes.ur.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/components/CLAUDE.index.md`? · `portal/src/portal/lib/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/classes/CLAUDE.index.md`? · `portal/src/portal/teacher/classes/CLAUDE.md`? · `portal/src/portal/teacher/lessons/CLAUDE.index.md`? · `portal/src/portal/types/CLAUDE.index.md`? · `portal/src/portal/types/CLAUDE.md`?
+- docs: `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/types/CLAUDE.md`?

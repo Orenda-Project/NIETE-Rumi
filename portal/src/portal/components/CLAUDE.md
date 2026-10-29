@@ -1,7 +1,7 @@
 # components — Shared old-UI portal components: layout, nav, training exams, attendance, lesson plans
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components kg=4439f97fb30a gen=41f4dcb93988 overflow=178 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components kg=4439f97fb30a gen=a2f5dcfb43a1 overflow=177 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `PortalLayout.tsx` — shell every page renders in; picks nav, notices and recording room
@@ -15,7 +15,7 @@ Full index: `CLAUDE.index.md`
 | `__testing__/` | Test helper for driving the one-question module quiz → `__testing__/CLAUDE.md` |
 | `assess/` | Learning-assessment (child test) page parts: engine frame, preflight, offline prep → `assess/CLAUDE.md` |
 | `assessment-edit/` | Editing a made exam paper: question forms, local draft, version list → `assessment-edit/CLAUDE.md` |
-| … | 78 more → `CLAUDE.index.md` |
+| … | 100 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `PortalLayout.tsx` ← imported by `portal/src/portal/coach/insights/components/Frame.tsx:2:ff188793` · `portal/src/portal/coach/ui.tsx:4:ac211a43` (+46)
@@ -34,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - … 62 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `docs/CLAUDE.index.md`? · `docs/app-funnel-telemetry.md`? · `docs/reports/bug131-phase2-portal-quiz-ui.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `portal/src/lib/CLAUDE.index.md`? · `portal/src/portal/CLAUDE.md`? (+34)
+- docs: `docs/app-funnel-telemetry.md`? · `docs/reports/bug131-phase2-portal-quiz-ui.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `portal/src/portal/CLAUDE.md`? · `portal/src/portal/components/__testing__/CLAUDE.md`?

@@ -1,6 +1,6 @@
 # art — Grade and subject cover pictures (webp) for the child video library tiles
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq/art kg=72af0c22f915 gen=98cc28813570 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq/art kg=72af0c22f915 gen=0886ef26ea45 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `grade-1-1.webp` — sample tile; one file per grade (kg to 6) and per subject, suffixed -1
@@ -9,7 +9,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `grade-1-1.webp` | (unmapped) |
 | `grade-2-1.webp` | (unmapped) |
 | `grade-3-1.webp` | (unmapped) |
@@ -38,4 +37,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `dashboard/public/wq/CLAUDE.index.md`? · `dashboard/public/wq/CLAUDE.md`?
+- docs: `dashboard/public/wq/CLAUDE.md`?

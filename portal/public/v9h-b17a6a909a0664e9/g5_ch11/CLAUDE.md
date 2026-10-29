@@ -1,7 +1,7 @@
 # g5_ch11 — Hosted v9 pages, Grade 5 chapter 11 (27 segs: English 6, Math 12, Urdu 9)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch11 kg=3120404de6ca gen=545da56822b2 overflow=18 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch11 kg=3120404de6ca gen=bb51ceece806 overflow=16 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g5_ch11_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g5_ch11_English_seg1.v9.html` | Hosted v9 lesson page G5 English ch11 seg1 (en): New Words + Crossword Puzzle (Memory Lane) |
 | `g5_ch11_English_seg2.v9.html` | Hosted v9 lesson page G5 English ch11 seg2 (en): Reading: 'Dadi's Cookbook' + the Recipe (Journey Through the Text) |
 | `g5_ch11_English_seg3.v9.html` | Hosted v9 lesson page G5 English ch11 seg3 (en): Diving Deeper: Wh-Question Exploration + Essence of the (+ more topics) |
@@ -22,7 +20,9 @@ Full index: `CLAUDE.index.md`
 | `g5_ch11_Maths_seg1.v9.html` | Hosted v9 lesson page G5 Math ch11 seg1 (en): Same area, different perimeter |
 | `g5_ch11_Maths_seg10.v9.html` | Hosted v9 lesson page G5 Math ch11 seg10 (en): Classify triangles by angles & by sides |
 | `g5_ch11_Maths_seg11.v9.html` | Hosted v9 lesson page G5 Math ch11 seg11 (en): Calculate unknown angles in a triangle + consolidation |
-| … | 18 more → `CLAUDE.index.md` |
+| `g5_ch11_Maths_seg12.v9.html` | Hosted v9 lesson page G5 Math ch11 seg12 (en): Connect & Create: Geometric Collage |
+| `g5_ch11_Maths_seg2.v9.html` | Hosted v9 lesson page G5 Math ch11 seg2 (en): Area of parallelograms and triangles |
+| … | 16 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch11/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g5_ch11/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

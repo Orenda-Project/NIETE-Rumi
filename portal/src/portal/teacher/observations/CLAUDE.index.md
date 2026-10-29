@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `Observations.test.tsx` | Pins Observations page: next visit, in-progress stage only, no visit state, reports and visit report (bd-fmf24g.4) |
 | `ObservationsHome.tsx` | Observations main page (Next visit, In progress, Reports) and the coach-visit report page wrapper |
 | `api.ts` | Observations reads: GET /teacher/visits and coach visits from GET /coaching-sessions, with reportGroups shaping |
@@ -31,4 +29,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `routes.tsx` ← `portal/src/portal/teacher/observations/Observations.test.tsx` · `portal/src/portal/teacher/observations/observations.ur.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/lessons/CLAUDE.index.md`? · `portal/src/portal/teacher/observations/CLAUDE.index.md`? · `portal/src/portal/teacher/observations/CLAUDE.md`?
+- docs: `portal/src/portal/teacher/CLAUDE.md`?

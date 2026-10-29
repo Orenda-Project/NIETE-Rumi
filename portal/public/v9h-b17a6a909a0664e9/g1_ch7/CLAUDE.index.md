@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g1_ch7_English_seg1.v9.html` | Hosted v9 lesson page G1 English ch7 seg1 (en): Talent Key Words, Picture Match & Circle the Title (Predict) |
 | `g1_ch7_English_seg2.v9.html` | Hosted v9 lesson page G1 English ch7 seg2 (en): Reading 'Pinky and Jojo's Talent Twist' |
 | `g1_ch7_English_seg3.v9.html` | Hosted v9 lesson page G1 English ch7 seg3 (en): Comprehension Check & Recipe Reader (Follow Instructions) |
@@ -34,4 +32,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch7/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch7/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

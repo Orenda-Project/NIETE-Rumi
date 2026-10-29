@@ -1,7 +1,7 @@
 # render — Renders child cards, print packs and coach sheets from the item bank
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/render kg=ab36e3d3cc6e gen=6adfb8fd0cb0 overflow=16 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/render kg=61ef8843c76c gen=243e7076abcf overflow=13 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — renderInlineCards, renderPrintableCard, renderCoachSheet
@@ -12,12 +12,13 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
 | `html.js` | Pure item-bank-to-HTML for child cards, printable card and coach sheet; child side carries no ids or answers |
 | `.v*.js` | 2 versions — v3 imported; v3: Builds the v3 print pack: child stimulus booklets and coach sheets from the v3 bank (bd-s1oo0.50.4, L38) |
-| `CLAUDE.md` | (unmapped) |
 | `fonts.js` | Base64-embeds the Andika and Urdu fonts as @font-face for the Chromium that renders child-test cards (bd-s1oo0.2) |
-| … | 4 more → `CLAUDE.index.md` |
+| `index.js` | Renders inline PNG cards, A4 printable card and coach sheet PDFs from the item bank (bd-s1oo0.2, L2) |
+| `sizing.js` | Type-size and card-width constants so stimulus text stays legible inside a phone chat bubble (bd-s1oo0.2) |
+| `source.js` | Resolves the item-bank form a render reads, from the accessor or an injected bank (bd-s1oo0.2) |
+| … | 2 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `fonts.js` ← imported by `bot/shared/services/child-test/render/html.js:14:d3e47dca` · `bot/shared/services/child-test/render/v2.js:22:d3e47dca` (+1)
@@ -36,4 +37,4 @@ Full index: `CLAUDE.index.md`
 - … 10 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/render/CLAUDE.index.md`? · `bot/shared/services/child-test/render/CLAUDE.md`? · `tests/child-test/L10/CLAUDE.md`? · `tests/child-test/L11/CLAUDE.md`? (+6)
+- docs: `bot/shared/services/child-test/CLAUDE.md`?

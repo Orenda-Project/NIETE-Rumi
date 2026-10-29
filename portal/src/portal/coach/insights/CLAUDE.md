@@ -1,7 +1,7 @@
 # insights — COACHIP coach screens (This week, Listen, Schools, Stats) behind portal_coachip
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/insights kg=2340d6826d0c gen=e74994636f32 overflow=51 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/insights kg=c8c478ee1f3a gen=8bb29741182d overflow=49 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `api.ts` — client for /api/portal/coachip/* (dashboard routes/portal-coachip.routes.js)
@@ -16,13 +16,15 @@ Full index: `CLAUDE.index.md`
 | `pages/` | COACHIP page components: one file per screen → `pages/CLAUDE.md` |
 | `player/` | Moment player: plays a lesson clip with plan chapters (S4) → `player/CLAUDE.md` |
 | `tests/` | Goldens for each COACHIP coach page plus shared harness and fixtures → `tests/CLAUDE.md` |
-| … | 15 more → `CLAUDE.index.md` |
+| `count.tsx` | DOM count contract: Num, CountSpan, Window provider and domContract so every shown number is marked |
+| … | 12 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `types.ts` ← imported by `portal/src/portal/coachip-ui/Count.tsx:5:9b94861d` · `portal/src/portal/rm/RmGate.tsx:4:3d087302` (+43)
-- `text.tsx` ← imported by `portal/src/portal/coachip-ui/LangToggle.tsx:3:913bacae` · `portal/src/portal/rm/components/CircleRow.tsx:7:f215ee4b` (+36)
+- `types.ts` ← imported by `portal/src/portal/coachip-ui/Count.tsx:5:9b94861d` · `portal/src/portal/rm/RmGate.tsx:4:3d087302` (+44)
+- `text.tsx` ← imported by `portal/src/portal/coachip-ui/LangToggle.tsx:3:913bacae` · `portal/src/portal/rm/components/CircleRow.tsx:7:f215ee4b` (+37)
 - `count.tsx` ← imported by `portal/src/portal/coachip-ui/Count.tsx:3:429b8095` · `portal/src/portal/rm/components/CircleRow.tsx:5:9f5bc583` (+34)
-- … 10 more → `CLAUDE.index.md`
+- `format.ts` ← imported by `portal/src/portal/coachip-ui/Count.tsx:4:76f6a588` · `portal/src/portal/rm/components/CircleRow.tsx:6:160e7b1a` (+27)
+- … 9 more → `CLAUDE.index.md`
 
 ## Never (human)
 - copy.ts is generated from contracts COPY.md; never hand-edit (copy.ts:3)
@@ -32,7 +34,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/coach/insights/player/tests/MomentPlayer.test.tsx` (copy.ts, count.tsx, types.ts)
 - `portal/src/portal/coach/insights/tests/ThisWeek.test.tsx` (copy.ts, count.tsx, format.ts)
-- … 26 more → `CLAUDE.index.md`
+- … 28 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/coach/CLAUDE.index.md`? · `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/insights/CLAUDE.index.md`? · `portal/src/portal/coach/insights/CLAUDE.md`? · `portal/src/portal/coach/insights/components/CLAUDE.index.md`? · `portal/src/portal/coach/insights/components/CLAUDE.md`? (+14)
+- docs: `portal/src/portal/coach/CLAUDE.md`?

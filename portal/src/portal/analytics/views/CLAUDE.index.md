@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `CoachingTab.tsx` | Coaching tab ported from the ICT dashboard: total coaches/visits, sector cards, school visits; own read (bd-97x22y.5) |
 | `InfoTab.tsx` | Information tab: static "how these numbers are worked out" cards grouped like the tabs (bd-97x22y.2) |
 | `LpTab.tsx` | LP Engagement tab: overview, Active/Non-Active teachers, sector rings, subject/grade tables, grouped bars (bd-97x22y.3) |
@@ -42,4 +40,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `TrainingTab.tsx` ← `portal/src/portal/analytics/views/TrainingTab.test.tsx`?
 
 ## Related (all, generated)
-- docs: `portal/src/portal/analytics/CLAUDE.index.md`? · `portal/src/portal/analytics/CLAUDE.md`? · `portal/src/portal/analytics/views/CLAUDE.index.md`? · `portal/src/portal/analytics/views/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.index.md`? · `portal/src/portal/services/CLAUDE.md`?
+- docs: `portal/src/portal/analytics/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

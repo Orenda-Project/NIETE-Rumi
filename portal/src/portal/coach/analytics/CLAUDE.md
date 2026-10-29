@@ -1,6 +1,6 @@
 # analytics — Coach Analytics: lifetime numbers over the coach's own teachers
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/analytics kg=7ca2770b7a32 gen=7e0fc06fb021 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/analytics kg=7ca2770b7a32 gen=60fda05f842d overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `CoachAnalytics.tsx` — list page and one-teacher page, school filter
@@ -12,7 +12,6 @@
 | path | purpose |
 |---|---|
 | `CoachAnalytics.test.tsx` | Pins coach Analytics: lifetime tiles, school filter, teacher rows, Not found for others (bd-fmf24g.27) |
-| `CLAUDE.md` | (unmapped) |
 | `CoachAnalytics.tsx` | Coach Analytics page and one-teacher view built from /coach/people and /coach/teacher/:ext (bd-fmf24g.27) |
 | `model.ts` | Pure lifetime KPI and rating-chip maths for coach Analytics from the coach API rows (bd-fmf24g.27) |
 
@@ -28,4 +27,4 @@
 - `portal/src/portal/coach/analytics/CoachAnalytics.test.tsx` (CoachAnalytics.tsx, model.ts)
 
 ## Related (generated)
-- docs: `portal/src/portal/coach/CLAUDE.index.md`? · `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/analytics/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.index.md`? · `portal/src/portal/services/CLAUDE.md`? · `portal/src/portal/teacher/analytics/CLAUDE.index.md`? (+1)
+- docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

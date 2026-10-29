@@ -11,8 +11,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `v2/` | → (no door; 1311 files) |
 | `v3/` | → (no door; 24 files) |
 | `v4/` | Version-4 recorded clips for the battery's spoken lines, per language → `v4/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `demo-battery.json` | Demo battery (coach G3 set A, ur) with welcome/audio-check lines and tasks; default form of the QA page run.html |
 | `play.html` | The child's battery page /sa/play.html: loads engine scripts; both coach (proctored) and game surfaces open it |
 | `run.html` | QA harness page /sa/run.html: loads sa-core, sa-voice, sa-ui and sa-run to render battery screens without store or sync |
@@ -53,4 +51,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `sw.js` ← `bot/tests/child-test/sa-voice-sustained-sounds.test.js` · `dashboard/tests/sa-offline.service.test.js` · `dashboard/tests/sa-r8-offline-prep.service.test.js` · `dashboard/tests/sa-sw-session.service.test.js` · `dashboard/tests/sa-voice-gate.service.test.js`
 
 ## Related (all, generated)
-- docs: `bot/tests/child-test/CLAUDE.index.md`? · `dashboard/CLAUDE.index.md`? · `dashboard/CLAUDE.md`? · `dashboard/sa/CLAUDE.index.md`? · `dashboard/sa/CLAUDE.md`? · `dashboard/sa/v4/CLAUDE.md`? · `dashboard/tests/CLAUDE.index.md`?
+- docs: `dashboard/CLAUDE.md`?

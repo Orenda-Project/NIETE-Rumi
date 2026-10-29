@@ -1,7 +1,7 @@
 # components — RM page pieces: cards, rows, follow-up picker and frame
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/rm/components kg=28207d16a23d gen=90169099730a overflow=9 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/rm/components kg=44d5e2321540 gen=12689e95c4c4 overflow=6 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `FollowUpPicker.tsx` — picks template, W, schools and date; the server composes the note
@@ -14,18 +14,19 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `CountLine.tsx` | One activity line saying a Count in words under the DOM count contract |
 | `RmFrame.tsx` | Frame of every RM page: COACHIP shell, RM menu, header, windows, trust line |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `FollowUpPicker.tsx` | RM follow-up picker: template, W, one to three schools, date; posts exactly five keys |
 | `SectorWRow.tsx` | Weakness row at sector scope for S8 month list and RM Stats |
 | `WindowLegend.tsx` | Writes once on a card the windows its counts refer to, for data-win resolution |
-| … | 4 more → `CLAUDE.index.md` |
+| `CoachGroups.tsx` | S8 groups Which coach needs me: needs_me and on_track rows with follow-up buttons |
+| `OpeningCard.tsx` | S8 opening sentence: schools visited, not-observed counts, floor line and coverage |
+| `CircleRow.tsx` | One Friday-circle row with coach, school, W and a play button streaming the clip (S10) |
+| … | 1 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `CountLine.tsx` ← imported by `portal/src/portal/rm/pages/RmCircle.tsx:18:2f1940f8` · `portal/src/portal/rm/pages/RmCoach.tsx:17:2f1940f8` (+3)
-- `RmFrame.tsx` ← imported by `portal/src/portal/rm/pages/RmCircle.tsx:14:2e05ddbb` · `portal/src/portal/rm/pages/RmCoach.tsx:12:2e05ddbb` (+3)
-- `FollowUpPicker.tsx` ← imported by `portal/src/portal/rm/pages/RmCoach.tsx:19:ff9fd010` · `portal/src/portal/rm/pages/RmCoaches.tsx:10:ff9fd010` (+1)
-- `SectorWRow.tsx` ← imported by `portal/src/portal/rm/pages/RmCoach.tsx:16:e938babc` · `portal/src/portal/rm/pages/RmHome.tsx:18:9eaf4b64` (+1)
+- `CountLine.tsx` ← imported by `portal/src/portal/rm/pages/RmCircle.tsx:18:2f1940f8` · `portal/src/portal/rm/pages/RmCoach.tsx:18:2f1940f8` (+3)
+- `RmFrame.tsx` ← imported by `portal/src/portal/rm/pages/RmCircle.tsx:14:2e05ddbb` · `portal/src/portal/rm/pages/RmCoach.tsx:13:2e05ddbb` (+3)
+- `FollowUpPicker.tsx` ← imported by `portal/src/portal/rm/pages/RmCoach.tsx:20:ff9fd010` · `portal/src/portal/rm/pages/RmCoaches.tsx:10:ff9fd010` (+1)
+- `SectorWRow.tsx` ← imported by `portal/src/portal/rm/pages/RmCoach.tsx:17:0d1028a1` · `portal/src/portal/rm/pages/RmHome.tsx:18:a270a839` (+1)
 - … 5 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -37,4 +38,4 @@ Full index: `CLAUDE.index.md`
 - `portal/src/portal/rm/tests/r6_rm_deck.test.tsx` (OpeningCard.tsx)
 
 ## Related (generated)
-- docs: `portal/src/portal/rm/CLAUDE.index.md`? · `portal/src/portal/rm/CLAUDE.md`? · `portal/src/portal/rm/components/CLAUDE.index.md`? · `portal/src/portal/rm/components/CLAUDE.md`? · `portal/src/portal/rm/tests/CLAUDE.index.md`? · `portal/src/portal/rm/tests/CLAUDE.md`?
+- docs: `portal/src/portal/rm/CLAUDE.md`?

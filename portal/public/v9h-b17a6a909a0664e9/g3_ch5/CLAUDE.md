@@ -1,7 +1,7 @@
 # g3_ch5 — Hosted v9 pages, Grade 3 chapter 5 (20 segs: English 9, Math 5, Urdu 6)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch5 kg=3fb817a696ba gen=869f2cb73de4 overflow=11 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch5 kg=3fb817a696ba gen=439519e5e9a5 overflow=10 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g3_ch5_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g3_ch5_English_seg1.v9.html` | Hosted v9 lesson page G3 English ch5 seg1 (en): New Words: Piece the Puzzle + Word Twister (extend sight words) |
 | `g3_ch5_English_seg2.v9.html` | Hosted v9 lesson page G3 English ch5 seg2 (en): Journey: Pinky's Special Report on Mangrove Forests |
 | `g3_ch5_English_seg3.v9.html` | Hosted v9 lesson page G3 English ch5 seg3 (en): Word Study: Anagrams, Suffixes, Silent Letters & Missing Letters |
@@ -22,7 +20,8 @@ Full index: `CLAUDE.index.md`
 | `g3_ch5_English_seg7.v9.html` | Hosted v9 lesson page G3 English ch5 seg7 (en): Jojo's Action Adventures: simple present verbs (habitual actions) |
 | `g3_ch5_English_seg8.v9.html` | Hosted v9 lesson page G3 English ch5 seg8 (en): Imagination Canvas: Nature's Daily Dance + My Green (+ more topics) |
 | `g3_ch5_English_seg9.v9.html` | Hosted v9 lesson page G3 English ch5 seg9 (en): Connect and Create: My Nature Report |
-| … | 11 more → `CLAUDE.index.md` |
+| `g3_ch5_Maths_seg1.v9.html` | Hosted v9 lesson page G3 Math ch5 seg1 (en): 2-part word problems: intro with CUBES |
+| … | 10 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -35,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g3_ch5/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g3_ch5/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

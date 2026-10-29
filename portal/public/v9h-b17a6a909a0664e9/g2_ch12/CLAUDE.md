@@ -1,7 +1,7 @@
 # g2_ch12 — Hosted v9 pages, Grade 2 chapter 12 (18 segs: English 7, Math 5, Urdu 6)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g2_ch12 kg=ba4e4a0629c8 gen=84e03b81e3e9 overflow=9 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g2_ch12 kg=ba4e4a0629c8 gen=33fe7bcddf24 overflow=7 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g2_ch12_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g2_ch12_English_seg1.v9.html` | Hosted v9 lesson page G2 English ch12 seg1 (en): Memory Lane: Features of Poetry & New Words |
 | `g2_ch12_English_seg2.v9.html` | Hosted v9 lesson page G2 English ch12 seg2 (en): Reading: Pinky, Jojo, and Crow's Big Lesson (Poem) |
 | `g2_ch12_English_seg3.v9.html` | Hosted v9 lesson page G2 English ch12 seg3 (en): Diving Deeper: Setting, Characters & Complete Sentences |
@@ -22,7 +20,9 @@ Full index: `CLAUDE.index.md`
 | `g2_ch12_English_seg7.v9.html` | Hosted v9 lesson page G2 English ch12 seg7 (en): Connect and Create: Sharing Story & Evils Escape Maze |
 | `g2_ch12_Maths_seg1.v9.html` | Hosted v9 lesson page G2 Math ch12 seg1 (en): Reading & Writing Time — o'clock, quarter past/to, half (+ more topics) |
 | `g2_ch12_Maths_seg2.v9.html` | Hosted v9 lesson page G2 Math ch12 seg2 (en): Reading Time Consolidation — Maze + Skill Sharpener |
-| … | 9 more → `CLAUDE.index.md` |
+| `g2_ch12_Maths_seg3.v9.html` | Hosted v9 lesson page G2 Math ch12 seg3 (en): Showing Time — Drawing Hands on an Analogue Clock |
+| `g2_ch12_Maths_seg4.v9.html` | Hosted v9 lesson page G2 Math ch12 seg4 (en): Calendar — the Solar Calendar (days, weeks, months) |
+| … | 7 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g2_ch12/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g2_ch12/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

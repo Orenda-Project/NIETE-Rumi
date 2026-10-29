@@ -1,7 +1,7 @@
 # player — FLN sound player engine and its pill/tile controls
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln/player kg=dee0897327af gen=e317db8eec71 overflow=14 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln/player kg=dee0897327af gen=c9ee10538c7b overflow=10 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.ts` — the only import surface the page may use
@@ -16,7 +16,9 @@ Full index: `CLAUDE.index.md`
 | `types.ts` | Types for the sound player: structural plan shape, Clip, PlayerState/Event, FlnPlayer API and deps |
 | `useFlnPlayer.ts` | useFlnPlayer hook plus FlnPlayerProvider/context: one player per plan page, stops sound when page hides |
 | `SoundPill.tsx` | Inline sound button in a lesson step: idle/loading/playing/error states by icon, aria-live text, fixed box (A10/A11) |
-| … | 7 more → `CLAUDE.index.md` |
+| `SoundTile.tsx` | Tile in the sounds grid: big grapheme with keyword caption, narration tile spans two columns; same states as SoundPill |
+| `index.ts` | Public surface of the FLN sound player (hook, provider, SoundGrid/Pill/Tile, types); the page imports only from here |
+| … | 3 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `types.ts` ← imported by `portal/src/portal/fln/plan/SoundGrid.tsx:6:06021f22` · `portal/src/portal/fln/player/FlnPlayer.ts:9:716453f5` (+6)
@@ -32,7 +34,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/fln/tests/tile-shift.test.tsx` (SoundPill.tsx, SoundTile.tsx, types.ts, useFlnPlayer.ts)
 - `portal/src/portal/fln/tests/ui-owner.test.tsx` (SoundPill.tsx, SoundTile.tsx, types.ts, useFlnPlayer.ts)
-- … 3 more → `CLAUDE.index.md`
+- … 4 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/fln/CLAUDE.index.md`? · `portal/src/portal/fln/CLAUDE.md`? · `portal/src/portal/fln/player/CLAUDE.index.md`? · `portal/src/portal/fln/player/CLAUDE.md`? · `portal/src/portal/fln/player/bench/CLAUDE.md`? · `portal/src/portal/fln/tests/CLAUDE.index.md`?
+- docs: `portal/src/portal/fln/CLAUDE.md`?

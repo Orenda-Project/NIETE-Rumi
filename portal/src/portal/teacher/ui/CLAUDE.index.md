@@ -9,8 +9,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `AttentionBanner.tsx` | One-line amber 'this needs you' notice (e.g. reports waiting) as link, button or status; coach and teacher |
 | `AudioCard.tsx` | Playable recording card with optional lead, title, second line, action and round play button; claims the one kit sound |
 | `ButtonWithReason.tsx` | Main button that, while disabled, shows the plain-words reason above it in a polite live region |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `ChoiceChips.tsx` | Row of pill choices that narrow or sort a list (e.g. coach Sort options) |
 | `ChosenSoFar.tsx` | Shows plain-text choices made so far in a multi-step flow, for coach and teacher step screens |
 | `ClassPicker.colours.test.tsx` | Pins ClassPicker gradeColours opt-in: the picked class shows as a grade-coloured tile (Digital Coaching one screen) |
@@ -187,4 +185,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `subjects.ts` ← `portal/src/portal/teacher/ui/SubjectTile.test.tsx` · `portal/src/portal/teacher/ui/copy.ur.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/components/CLAUDE.index.md`? · `portal/src/components/CLAUDE.md`? · `portal/src/lib/CLAUDE.index.md`? · `portal/src/portal/coach/CLAUDE.index.md`? · `portal/src/portal/coach/insights/components/CLAUDE.index.md`? · `portal/src/portal/coach/insights/components/CLAUDE.md`? · `portal/src/portal/coach/schedule/CLAUDE.md`? · `portal/src/portal/newui/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.index.md`? · `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.index.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/assessment/CLAUDE.index.md`? · `portal/src/portal/teacher/icons/CLAUDE.index.md`? · `portal/src/portal/teacher/icons/CLAUDE.md`? · `portal/src/portal/teacher/notices/CLAUDE.index.md`? · `portal/src/portal/teacher/ui/CLAUDE.index.md`? · `portal/src/portal/teacher/ui/CLAUDE.md`? · `portal/src/portal/teacher/ui/README.md`?
+- docs: `portal/src/components/CLAUDE.md`? · `portal/src/portal/coach/insights/components/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/ui/README.md`?

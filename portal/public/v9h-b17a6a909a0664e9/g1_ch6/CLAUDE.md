@@ -1,7 +1,7 @@
 # g1_ch6 — Hosted v9 pages, Grade 1 chapter 6 (22 segs: English 6, Maths 9, Urdu 7)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g1_ch6 kg=987f7bd36531 gen=68c330f2d763 overflow=12 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g1_ch6 kg=987f7bd36531 gen=bf65c171dd84 overflow=10 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g1_ch6_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g1_ch6_English_seg1.v9.html` | Hosted v9 lesson page G1 English ch6 seg1 (en): What Do I Know? Predicting 'Our Land's Song' (Memory Lane) |
 | `g1_ch6_English_seg2.v9.html` | Hosted v9 lesson page G1 English ch6 seg2 (en): Reading the Poem 'Our Land's Song' + Following Along |
 | `g1_ch6_English_seg3.v9.html` | Hosted v9 lesson page G1 English ch6 seg3 (en): Pakistan's Pride Group Discussion, Independence-Day Chat & Role-Play |
@@ -23,7 +21,9 @@ Full index: `CLAUDE.index.md`
 | `g1_ch6_Maths_seg2.v9.html` | Hosted v9 lesson page G1 Maths ch6 seg2 (en): Division as Repeated Subtraction |
 | `g1_ch6_Maths_seg3.v9.html` | Hosted v9 lesson page G1 Maths ch6 seg3 (en): Sharing with Pictures: Cupcakes on Plates |
 | `g1_ch6_Maths_seg4.v9.html` | Hosted v9 lesson page G1 Maths ch6 seg4 (en): The Order in Division Matters |
-| … | 12 more → `CLAUDE.index.md` |
+| `g1_ch6_Maths_seg5.v9.html` | Hosted v9 lesson page G1 Maths ch6 seg5 (en): Division Word Problems: Copy Work |
+| `g1_ch6_Maths_seg6.v9.html` | Hosted v9 lesson page G1 Maths ch6 seg6 (en): Word Problems: Multiply or Divide? (samosas) |
+| … | 10 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -36,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch6/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g1_ch6/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

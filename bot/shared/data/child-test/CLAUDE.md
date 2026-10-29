@@ -1,7 +1,7 @@
 # child-test — Child test (Jugnu) item banks, passages, generated batteries and word lists
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data/child-test kg=45ad299f5065 gen=e7e4981a3171 overflow=20 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data/child-test kg=e017918e8810 gen=087a7a4cfcf5 overflow=16 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `item-bank.v3.json` — official-source bank the self-administered batteries are built from
@@ -15,11 +15,11 @@ Full index: `CLAUDE.index.md`
 | `passages/` | One JSON file per Challenge reading/listening passage → `passages/CLAUDE.md` |
 | `sa/` | Generated Jugnu batteries per surface, grade and language → `sa/CLAUDE.md` |
 | `vocab/` | → (no door; 7 files) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `item-bank.v*.json` | 3 versions — v4 imported; v4: v4 Challenge content-registry bank: maths ids over v3 Set A, anchor blocks, period list, draw weights |
 | `item*` | 3 files; most used `item-bank.sa.v1.json`: (unmapped) |
-| … | 3 more → `CLAUDE.index.md` |
+| `sa-lines-reviewed.v1.json` | Reviewer-shortened Jugnu script lines (Oct 2026) applied over the built bank by sa/reviewed-lines.js |
+| `setup-picture-en.png` | (unmapped) |
+| `setup-picture-ur.png` | (unmapped) |
 
 ## Who reads this (generated)
 - `item-bank.v1.json` ← imported by `bot/shared/services/child-test/app/app-api.service.js:101:cceed7b8` · `bot/shared/services/child-test/item-bank.js:14:e4c34bb8` (+1)
@@ -34,7 +34,8 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/child-test/sa-bank.test.js` (item-bank.sa-extra.v1.json, item-bank.sa-w3.v1.json, item-bank.v3.json)
 - `bot/tests/child-test/sa-rdf-w3.test.js` (item-bank.sa-extra.v1.json, item-bank.sa-w3.v1.json, item-bank.v3.json)
-- … 17 more → `CLAUDE.index.md`
+- `bot/tests/child-test/sa-runtime.test.js` (item-bank.sa-extra.v1.json, item-bank.sa-w3.v1.json, item-bank.v3.json)
+- … 16 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/data/CLAUDE.md`? · `bot/shared/data/child-test/CLAUDE.index.md`? · `bot/shared/data/child-test/CLAUDE.md`? · `bot/shared/data/child-test/passages/CLAUDE.index.md`? · `bot/shared/data/child-test/passages/CLAUDE.md`? · `bot/shared/data/child-test/passages/README.md`? (+12)
+- docs: `bot/shared/data/CLAUDE.md`?

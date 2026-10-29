@@ -1,6 +1,6 @@
 # bench — Dev-only pages for benchmarking and screenshotting the sound player
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln/player/bench kg=35674822ad5e gen=57d597f360c7 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln/player/bench kg=35674822ad5e gen=933fc2d9cd42 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `bench.tsx` — drives the player on a fixture plan for tools/fln_audio_bench.py
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `bench.tsx` | Dev-only bench page driving the player on a fixture plan; exposes window.__flnEvents/__flnAudios for the bench tool |
 | `states.tsx` | Dev-only screenshot page showing every sound control in every state with a fake player and synthetic graphemes |
 | `bench.html` | Dev-only Vite page shell for the FLN sound player bench (not in the production build) |
@@ -27,4 +26,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `portal/src/portal/fln/player/CLAUDE.index.md`? · `portal/src/portal/fln/player/CLAUDE.md`? · `portal/src/portal/fln/player/bench/CLAUDE.md`?
+- docs: `portal/src/portal/fln/player/CLAUDE.md`?

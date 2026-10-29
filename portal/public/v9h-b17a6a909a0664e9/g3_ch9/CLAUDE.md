@@ -1,7 +1,7 @@
 # g3_ch9 — Hosted v9 pages, Grade 3 chapter 9 (18 segs: English 8, Math 5, Urdu 5)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch9 kg=3632d404abab gen=05c2cab16b30 overflow=9 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g3_ch9 kg=3632d404abab gen=f3ef55c57dba overflow=7 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g3_ch9_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g3_ch9_English_seg1.v9.html` | Hosted v9 lesson page G3 English ch9 seg1 (en): New Words + Dictionary Dive (find spelling & meaning) |
 | `g3_ch9_English_seg2.v9.html` | Hosted v9 lesson page G3 English ch9 seg2 (en): Journey: Time Travelling TV (read & follow along) |
 | `g3_ch9_English_seg3.v9.html` | Hosted v9 lesson page G3 English ch9 seg3 (en): Diving Deeper: Truth Detector (fact/fiction) + DIY Time (+ more topics) |
@@ -22,7 +20,9 @@ Full index: `CLAUDE.index.md`
 | `g3_ch9_English_seg7.v9.html` | Hosted v9 lesson page G3 English ch9 seg7 (en): Imagination Canvas: Movie Script + Cooking Show with (+ more topics) |
 | `g3_ch9_English_seg8.v9.html` | Hosted v9 lesson page G3 English ch9 seg8 (en): Connect and Create: Favourite Scene! (cartoon strip / speech bubbles) |
 | `g3_ch9_Maths_seg1.v9.html` | Hosted v9 lesson page G3 Math ch9 seg1 (en): Units of length: km, m, cm, mm |
-| … | 9 more → `CLAUDE.index.md` |
+| `g3_ch9_Maths_seg2.v9.html` | Hosted v9 lesson page G3 Math ch9 seg2 (en): Measuring length: Practice, Discovery + Skill Sharpener |
+| `g3_ch9_Maths_seg3.v9.html` | Hosted v9 lesson page G3 Math ch9 seg3 (en): Length word problems: add & subtract (CUBES) |
+| … | 7 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g3_ch9/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g3_ch9/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?

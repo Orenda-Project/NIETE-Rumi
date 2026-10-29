@@ -1,6 +1,6 @@
 # onboarding — First-run guides: API keys, WhatsApp connection, local portal
 
-<!-- kg:meta repo=NIETE-Rumi dir=docs/onboarding kg=66b59b80094f gen=0ab4c0ad7400 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=docs/onboarding kg=3ad4d6b085de gen=97a26a1cbe36 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `local-portal.md` — one-command local portal on demo data
@@ -12,7 +12,6 @@
 |---|---|
 | `local-portal.md` | One-command local NIETE portal on localhost:4000 over a local copy of sandbox data with demo accounts |
 | `whatsapp.md` | How to connect WhatsApp: free test number in about 10 minutes, then business setup; yields the four WhatsApp env values |
-| `CLAUDE.md` | (unmapped) |
 | `api-keys.md` | How to obtain the 8 required and optional API keys; features switch on by key presence (npm run doctor) |
 
 ## Who reads this (generated)
@@ -26,4 +25,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `SETUP.md`? · `bot/scripts/e2e/CLAUDE.index.md`? · `bot/shared/config/CLAUDE.index.md`? · `dashboard/CLAUDE.index.md`? · `dashboard/lib/CLAUDE.index.md`? · `dashboard/lib/CLAUDE.md`? (+13)
+- docs: `SETUP.md`? · `bot/scripts/e2e/CLAUDE.md`? · `dashboard/lib/CLAUDE.md`? · `docs/CLAUDE.md`? · `docs/cost-guide.md`? · `docs/e2e-mock-lane.md`? (+4)

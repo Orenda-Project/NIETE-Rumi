@@ -1,7 +1,7 @@
 # g2_ch4 — Hosted v9 pages, Grade 2 chapter 4 (17 segs: English 7, Math 4, Urdu 6)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g2_ch4 kg=7aab5d5c5016 gen=4504e5e70a11 overflow=7 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g2_ch4 kg=7aab5d5c5016 gen=bc1bb6b99b2a overflow=6 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `g2_ch4_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -11,8 +11,6 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `g2_ch4_English_seg1.v9.html` | Hosted v9 lesson page G2 English ch4 seg1 (en): Memory Lane & New Words: Sound It Out |
 | `g2_ch4_English_seg2.v9.html` | Hosted v9 lesson page G2 English ch4 seg2 (en): Reading: Heroes of History (Journey through the text) |
 | `g2_ch4_English_seg3.v9.html` | Hosted v9 lesson page G2 English ch4 seg3 (en): Diving Deeper: Reading for Meaning & Dictation |
@@ -23,7 +21,8 @@ Full index: `CLAUDE.index.md`
 | `g2_ch4_Maths_seg1.v9.html` | Hosted v9 lesson page G2 Math ch4 seg1 (en): Identifying International Currency & Denominations (dollars, cents) |
 | `g2_ch4_Maths_seg2.v9.html` | Hosted v9 lesson page G2 Math ch4 seg2 (en): Money Problems — Addition of Rupees & Dollars (CUBES) |
 | `g2_ch4_Maths_seg3.v9.html` | Hosted v9 lesson page G2 Math ch4 seg3 (en): Money Problems — Subtraction / Making Change (CUBES + bar model) |
-| … | 7 more → `CLAUDE.index.md` |
+| `g2_ch4_Maths_seg4.v9.html` | Hosted v9 lesson page G2 Math ch4 seg4 (en): Money Word Problem Practice (mixed rupees & dollars) |
+| … | 6 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -36,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`? · `portal/public/v9h-b17a6a909a0664e9/g2_ch4/CLAUDE.index.md`? · `portal/public/v9h-b17a6a909a0664e9/g2_ch4/CLAUDE.md`?
+- docs: `portal/public/v9h-b17a6a909a0664e9/CLAUDE.md`?
