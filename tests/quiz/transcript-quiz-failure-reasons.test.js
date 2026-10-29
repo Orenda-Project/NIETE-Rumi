@@ -108,6 +108,8 @@ const skippedPatch = () => quizUpdates().find((u) => u.status === 'skipped');
 const failedEvent = () => (logEvent.mock.calls.find((c) => c[0] === 'transcript_quiz.failed') || [])[1];
 
 beforeEach(() => {
+  // bd-v0toag.126: processOffer now checks the teacher's 24 h window first; these suites test an open window.
+  jest.spyOn(require('../../bot/shared/services/quiz/quiz-delivery.service'), '_hasOpenMessageWindow').mockResolvedValue(true);
   jest.clearAllMocks();
   mockCreate.mockReset();
   process.env.TRANSCRIPT_QUIZ_ENABLED = 'true';
