@@ -35,6 +35,9 @@ const { oralSheet, ORAL_CSS } = require('./fde-oral-sheet');
 const { answeredParts } = require('./fde-sub-answers');
 const { letterOrder } = require('./fde-order-block');
 const { urduNote } = require('./fde-urdu-notes');
+const { ORDER_TASK } = require('./fde-order-check'); // bd-5jmnfj.4.58.2
+const { taskLine } = require('./fde-task-line');
+const { equalPartsLine } = require('./fde-marks-line');
 const { frameBank } = require('./fde-frame-bank');
 const { acceptText } = require('./fde-accept-line');
 const Cover = require('./fde-scheme-cover');
@@ -291,7 +294,7 @@ function choiceLine(slot, present, lang, items) {
   if (instruction && /\{q\}/.test(raw) && Array.isArray(items) && items.length === 1) {
     instruction = instruction.replace('{q}', String(items[0].question || '').trim());
   }
-  const marksLine = substitute(slot[`marks_line_${lang}`], ctx, lang);
+  const marksLine = substitute(equalPartsLine(slot[`marks_line_${lang}`], slot, items), ctx, lang); // bd-5jmnfj.4.58.2
   const text = [instruction, marksLine].filter(Boolean).join(' ');
   return { instruction, marksLine, text };
 }
@@ -412,7 +415,8 @@ function optionLabel(style, i) {
 function bareOption(text) {
   return String(text ?? '')
     .replace(/^\s*\(?[a-dA-D]\)?[.):]\s+/, '')
-    .replace(/^\s*\(?(الف|ب|ج|د)\)?\s*[.):۔]\s*/, '')
+    // One delimiter only: «الف) ۔ (ختمہ)» is the label «الف)» then the mark «۔» (bd-5jmnfj.4.58.2).
+    .replace(/^\s*\(?(الف|ب|ج|د)\s*(?:\)|[.:۔])\s*/, '')
     .trim();
 }
 
@@ -447,8 +451,8 @@ function workSpace(q, slot) {
     if (q.picture && q.picture.kind === 'plant') return '';
     // Fill in the blank: the child writes on the ___ (bd-5jmnfj.4.39).
     if (/_{3,}/.test(String(q.question || ''))) return '';
-    // A sentence under a picture gets two lines (bd-5jmnfj.4.57).
-    const lines = slotFlag(slot, 'sentence_box') ? 2 : (slot.lines || 1);
+    // A sentence under a picture gets three lines (bd-5jmnfj.4.57, .4.58.2).
+    const lines = slotFlag(slot, 'sentence_box') ? 3 : (slot.lines || 1);
     return `<div class="write-box" style="height:${12 + 8 * Math.max(0, lines - 1)}mm"></div>`;
   }
   if ((slot.lines || 0) >= 2) {
@@ -598,9 +602,10 @@ function itemBody(q, slot, i, ctx, inlineQ) {
   }
   if (printsWords(slot) && !slotFlag(slot, 'answer_box') && Array.isArray(q.words) && q.words.length) parts.push(wordList(q.words, ctx, ctx.medium !== 'ur'));
   // A written answer under each sub-question of an answer-box slot (G2 reading): one box each, none after the set.
-  const eachBox = ctx.answerLines !== false && slotFlag(slot, 'answer_box') && Array.isArray(q.questions) && q.questions.length > 0;
+  const eachBox = ctx.answerLines !== false && slotFlag(slot, 'answer_box') && Array.isArray(q.questions) && q.questions.length > 0 && slot.type !== 'Story Order';
   if (Array.isArray(q.questions) && q.questions.length) parts.push(subQuestions(q.questions, slot.sub_numbering || 'alpha_paren', ctx, undefined, eachBox));
-  if (ctx.answerLines !== false && !eachBox) parts.push(workSpace(q, slot));
+  if (ctx.answerLines !== false && slot.type === 'Story Order') parts.push('<div class="write-box" style="height:12mm"></div>'); // one line for the letters (bd-5jmnfj.4.58.2)
+  else if (ctx.answerLines !== false && !eachBox) parts.push(workSpace(q, slot));
   return parts.join('');
 }
 
@@ -618,7 +623,9 @@ function stemOf(q, slot, inlineQ) {
   if (slotFlag(slot, 'picture_only')) return '';
   if (slot.shape === 'frame' || slot.shape === 'comprehension') return '';
   if (slot.shape === 'words' && !q.question) return '';
-  return withoutOwnLabel(q.question || '', slot);
+  const task = taskLine(q, slot); // bd-5jmnfj.4.58.2
+  if (slot.type === 'Story Order') return `${q.question || ''} ${ORDER_TASK}`.trim();
+  return withoutOwnLabel(task ? `${task} ${q.question || ''}` : (q.question || ''), slot);
 }
 
 function slotBlock(slot, sec, list, ctx) {
@@ -762,7 +769,9 @@ function css(medium, kind) {
      lines, the first row moves with its heading; one row is enough on either side of a break. */
   .pic-grid { orphans: 1; widows: 1; }
   .q.pic-cell { display: inline-block; vertical-align: top; width: 30%; margin: 0 0 4mm; margin-inline-end: 4mm; break-inside: avoid; }
-  .q.pic-cell.wide { display: block; width: 100%; margin-inline-end: 0; }
+  /* border-box: the .q start padding is inside the 100%, so the box closes at the margin (bd-5jmnfj.4.58.2). */
+  .q.pic-cell.wide { display: block; width: 100%; box-sizing: border-box; margin-inline-end: 0; }
+  .q.pic-cell.wide .pic img { height: 44mm; }
   table.data { border-collapse: collapse; margin: 4px 0; }
   table.data th, table.data td { border: 1px solid #000; padding: 2px 10px; text-align: center; }
   table.data th { background: #f0f0f0; }
@@ -1156,7 +1165,8 @@ function writtenRows(slot, list, ctx, Criteria) {
     // An English key names a picture the answer is not (bd-5jmnfj.4.48): v21 Q6 keyed "mat" for a bat.
     const pic = lang === 'en' && q.picture && q.picture.name && String(q.picture.name).trim().toLowerCase() !== String(q.answer ?? '').trim().toLowerCase()
       ? `Picture: ${String(q.picture.name).trim()}. ` : '';
-    const qText = cutAtWord(withoutOwnLabel(q.question || '', slot), 110);
+    // A picture-only slot prints no stem on the paper, so its key repeats none (v26 G1 Urdu Q10 x5, bd-5jmnfj.4.58.2).
+    const qText = slotFlag(slot, 'picture_only') ? '' : cutAtWord(withoutOwnLabel(q.question || '', slot), 110);
     // The question is often just the picture's name: say it once (bd-5jmnfj.4.51.2).
     const sameAsPic = pic && qText.trim().toLowerCase() === String(q.picture.name).trim().toLowerCase();
     const stemHtml = textOf(sameAsPic ? pic.replace(/\.\s*$/, '') : pic + qText, ctx).replace(/☐/g, '<span class="sq"></span>');

@@ -50,12 +50,12 @@ module.exports = makeSubject({
           prompt_rule: 'Five items, each one shape the book teaches (circle, square, triangle, rectangle, oval, star, heart) drawn as picture: {kind:"shapes", shapes:[{shape}]}. The item needs no stem. Answer: the name. Never the same shape twice.' },
         { slot: 'g1.maths.B.Q8', label_en: 'Q8.', type: 'Measurement', generate: 5, marks_each: 1, lines: 1,
           instruction_en: 'Look and answer.', picture: ['scene'],
-          prompt_rule: 'Five compare items from the book\'s measurement pages (longer/shorter, taller/shorter, heavier/lighter, more/less). Each carries picture: {kind:"scene", describe} naming two objects of different kinds side by side that lie straight, e.g. "a pencil and a crayon"; never two of the same thing; never ribbon, rope, string or anything that curls. Stem asks which is longer/heavier etc. Answer: the object, named as in the describe and without a size word ("the pencil", never "the long pencil").',
+          prompt_rule: 'Five compare items from the book\'s measurement pages (longer/shorter, taller/shorter, heavier/lighter, more/less). Each carries picture: {kind:"scene", describe} naming two objects of different kinds side by side that lie straight, standing or lying on one base line with a gap between them, never one above, under or overlapping the other, e.g. "a pencil and a crayon"; never two of the same thing; never ribbon, rope, string or anything that curls. Stem asks which is longer/heavier etc. Answer: the object, named as in the describe and without a size word ("the pencil", never "the long pencil").',
           // v24: "a long ribbon and a short ribbon" keyed "the long ribbon", which only repeats the stem (bd-5jmnfj.4.55).
           answer_ok: (q) => {
             const a = String(q.answer || '').toLowerCase().replace(/^the\s+/, '').trim();
             const d = String((q.picture && q.picture.describe) || '').toLowerCase();
-            return a.length > 0 && !/\b(long|short|tall|small|big|heavy|light|more|less)\b/.test(a) && d.includes(a);
+            return a.length > 0 && !/\b(under|over|above|below|on top of|in front of|behind|overlapping)\b/.test(d) && !/\b(long|short|tall|small|big|heavy|light|more|less)\b/.test(a) && d.includes(a);
           } },
       ],
     },
@@ -66,7 +66,7 @@ module.exports = makeSubject({
         label_en: 'Mental maths', label_ur: 'زبانی ریاضی',
         instruction_en: 'Ask each question aloud once. The child answers aloud; no paper or fingers counted against them.',
         instruction_ur: 'ہر سوال ایک بار بلند آواز سے پوچھیں۔ بچہ زبانی جواب دے۔',
-        ask: 'Five quick questions read aloud: count on, one more/one less, add or take away within 10, which number is bigger. Each with its answer.',
+        ask: 'Five quick questions read aloud: count on, one more/one less, add or take away within 10, which number is bigger. Each with its answer. An item\'s script has no number other than the one(s) it asks about: no story with other counts (never "three flowers, four birds" before "count on from 4").',
         n: 5,
         rubric: [
           { marks: 5, en: 'All five right', ur: 'پانچوں درست' },

@@ -21,7 +21,7 @@ const OK = items(
   'Bunty had 4 cookies. Babloo gave her 3 more. How many cookies does Bunty have now?',
   'Nine cats sat on a wall. Then 3 cats jumped down. How many cats are left on the wall?',
   'Which number is bigger, 5 or 7?',
-);
+).map((it, i) => ({ ...it, answer: ['6, 7, 8', '7 and 5', '7', '6', '7'][i] })); // real keys: the oral numbers check reads them (bd-5jmnfj.4.58.2)
 const V23_NOTE = 'Mano and 8 cats sat on a wall. Then 3 cats jumped down. How many cats are left on the wall? (Note: the book says 9 cats in all, so use 9 cats on the wall.)';
 
 test('a clean oral reply is whole', () => {

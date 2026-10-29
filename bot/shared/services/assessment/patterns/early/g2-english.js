@@ -59,7 +59,7 @@ module.exports = makeSubject({
         S({ slot: 'g2.english.B.Q10', label_en: 'Q10.', type: 'Prepositions', generate: 5, picture: ['scene'],
           instruction_en: 'Look at the picture. Write in, on, under, near or behind.',
           answer_ok: (q) => /^(in|on|under|near|behind)$/i.test(String(q.answer).trim()),
-          prompt_rule: 'Five items, each a scene as picture: {kind:"scene", describe} of one object placed by another (a cat under a table), placed in, on, under, near or behind it, never above, over, beside or next to. Stem: "The cat is ____ the table." Answer: that one word.' }),
+          prompt_rule: 'Five items, each a scene as picture: {kind:"scene", describe} of one object placed by another (a cat under a table), placed in, on, under, near or behind it, never above, over, beside or next to. The describe names the floor and the thing\'s own legs or base ("a ball on the floor under a chair", "a bird on top of the roof"). Stem: "The cat is ____ the table." Answer: that one word.' }),
       ],
     },
     {

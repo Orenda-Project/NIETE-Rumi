@@ -81,7 +81,7 @@ module.exports = makeSubject({
           // for a pencil case. The paper prints the bubble beside the picture (bd-5jmnfj.4.40).
           bubble: true,
           prompt_rule: 'Two greetings or polite words from the book (Good morning, Thank you, Sorry, Please), each a scene as picture: '
-            + '{kind:"scene", describe} of two children. The question names who speaks. The describe has no speech bubble (the paper '
+            + '{kind:"scene", describe} of two children. The question names who speaks. The describe has no speech bubble and never mentions one, not even "next to the printed bubble" (the paper '
             + 'prints it) and shows exactly the thing the question names, in the same words, plain and never wrapped. '
             + 'The child who speaks stands on the right, next to the printed bubble, and the describe says "on the right". '
             + 'The question is about meeting, helping or saying sorry, never a gift or a present. '

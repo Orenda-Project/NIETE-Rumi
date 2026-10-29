@@ -315,12 +315,15 @@ describe('r9 · subjects without a cross-section table lay out as before', () =>
   // restored it hashes to faf7fc6c….
   // urdu and urdu-gen-full again for v26: urdu Q1's prompt_rule asks for plain stems and named punctuation
   // marks; with the old rule restored they hash to the previous values.
+  // urdu and urdu-gen-full again for v27 (bd-5jmnfj.4.58.2): urdu Q4's prompt_rule asks for the task phrase in
+  // `question`, Q7's instruction_ur gains «کوئی سے چھ», Q8's prompt_rule asks for 10-12 sentences; with the base
+  // patterns/fde-g5-2027.js they hash to the previous values under the current code.
   const BEFORE = {
     science: ['science', 'c09d5ceadd74d6dcb519af1330b9b7261318ce0ac6cfcc0c106c1e3c80c0f626'],
     maths: ['maths', 'a6718724d4bcc26940c78ee6ffac4a0b5370da08421eedf462b6e4e3ffb588cf'],
-    urdu: ['urdu', '20764112466aafbec0a596c2adfdb76a93ee8de3819a30740103cf095d394962'],
+    urdu: ['urdu', '2d96fbd3e92b3a6bc94cc043b8201c285143ce9edde1a429e8e4a0543ed79862'],
     'r7-science-full1.exam': ['science', 'ce648f1e8c5b69e1f16b822ff101f812c539f94c5450bf4afb98e59101f2a48a'],
-    'urdu-gen-full': ['urdu', 'f740dee72bb1317ebb755aead2af150b57a813396ac8f5a4781891a3750864b3'],
+    'urdu-gen-full': ['urdu', '917c48acb8d5713d7658109d8ce03e41f387025f9973d90d49f26410eacd1557'],
   };
   test.each(Object.keys(BEFORE))('%s lays out byte-identical to before', (name) => {
     const [subject, sha] = BEFORE[name];

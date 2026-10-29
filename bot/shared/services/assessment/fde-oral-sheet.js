@@ -31,6 +31,18 @@ function contentFor(oral, task) {
   return c;
 }
 
+// A read-aloud script prints each line once: v26 G2 Urdu padded its dialogue to six turns by repeating line 4 as line 6 (bd-5jmnfj.4.58.2).
+function onceEach(script) {
+  const seen = new Set();
+  return script.split('\n').filter((line) => {
+    const k = line.replace(/\s+/g, ' ').trim();
+    if (!k) return true;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  }).join('\n');
+}
+
 function rubricBlock(task, lang, t, w) {
   if (task.scoring === 'each') {
     const r = task.rubric[0];
@@ -47,7 +59,7 @@ function taskBlock(oral, task, lang, t, w) {
   const c = contentFor(oral, task);
   const parts = [`<div class="oral-head"><span class="lab">${t(task[`label_${lang}`])}</span> <span class="m">${t(`(${task.marks})`)}</span></div>`];
   if (task[`instruction_${lang}`]) parts.push(`<div class="oral-ins">${t(task[`instruction_${lang}`])}</div>`);
-  if (c.script) parts.push(`<div class="oral-script"><div class="k">${t(w.script)}</div>${t(c.script)}</div>`);
+  if (c.script) parts.push(`<div class="oral-script"><div class="k">${t(w.script)}</div>${t(task.kind === 'read_aloud' ? onceEach(c.script) : c.script)}</div>`);
   // A read-aloud script with bare, answerless words under it (v25 G2 Urdu dialogue) is no list to ask.
   const bare = task.kind === 'read_aloud' && c.script && Array.isArray(c.items) && c.items.every((it) => !String(it.answer || '').trim());
   if (Array.isArray(c.items) && c.items.length && !bare) {

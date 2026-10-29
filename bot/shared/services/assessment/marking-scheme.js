@@ -22,6 +22,7 @@
  */
 
 const { dropContradictedAccepts, tidyAccepts } = require('./scheme-accept-check');
+const { namesPrintedLetter } = require('./fde-printed-letter-note');
 
 const BLOOMS = Object.freeze({
   remember: 'Remember', r: 'Remember',
@@ -312,6 +313,11 @@ function normaliseOne(holder, marks, questionText, slot, label, log) {
     }
   }
 
+  // A note naming a letter the stem prints is wrong for this item: held back (bd-5jmnfj.4.58.2).
+  if (typeof s.common_error === 'string' && namesPrintedLetter(holder.question, s.common_error)) {
+    log.push(`${label}: common_error names a printed letter, dropped`);
+    delete s.common_error;
+  }
   // An alternative the common error names is that error (bd-5jmnfj.4.50.10).
   if (Array.isArray(s.accept) && typeof s.common_error === 'string') {
     const { accept, dropped } = dropContradictedAccepts(s.accept, holder.answer, s.common_error);
