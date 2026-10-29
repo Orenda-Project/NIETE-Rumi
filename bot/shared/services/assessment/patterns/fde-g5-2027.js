@@ -826,7 +826,7 @@ const URDU = {
           section_pages: 'scope',
           grain: { kind: 'one point per item: lesson facts and word meanings from lessons 4–10, and grammar (اسم معرفہ، اسم صوت، حروف، محاورے، املا، متضاد)', number_size: 'none', steps: 1, unit_choice: false },
           families: null, kinds: null,
-          prompt_rule: 'Twenty four-option MCQs: about half lesson facts and word meanings from lessons 4–10, half grammar found in those lessons\' exercises. Never lessons 1, 2 or 3 (pp 1–27). Options of similar length; the right answer is not the longest.',
+          prompt_rule: 'Twenty four-option MCQs: about half lesson facts and word meanings from lessons 4–10, half grammar found in those lessons\' exercises. Never lessons 1, 2 or 3 (pp 1–27). Options of similar length; the right answer is not the longest. Each stem is plain and states the task directly, with no decorative lead-in phrase before it. A punctuation item names each mark in words in its option, e.g. «۔ (ختمہ)», «؟ (سوالیہ نشان)», «، (سکتہ)», never a bare mark, and its stem describes the mark the key wants.',
           frame: null, teacher_note_en: null, teacher_note_ur: null, alternatives: null, or: false,
         },
       ],

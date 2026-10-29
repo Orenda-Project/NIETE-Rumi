@@ -751,6 +751,7 @@ const { applyLayout, takenNote, firstAskNote, verseLines, scopeLessons, oneStory
 const { normaliseScheme } = require('./marking-scheme');
 const { answerRepeats, giveawayNote, stillGivenAway } = require('./fde-answer-repeats');
 const { mathsCheck } = require('./maths-check');
+const { keyFixes } = require('./fde-g5-key-fixes');
 const { checkBlueprint, missesSplit, levelDistance, levelNote } = require('./blueprint-check');
 const Reader = require('./fde-reader');
 const StemCheck = require('./fde-stem-check');
@@ -2811,6 +2812,9 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   (examJson._layout.notes || []).slice(notesBefore).forEach((note) => {
     logToFile('[assessment] maths key replaced', { slot: note.slot, n: note.n ?? note.index ?? null, computed: note.computed, model: note.model });
   });
+  const keyed = keyFixes(examJson); // bd-5jmnfj.4.57: paragraph length from the template, no lone-letter syllable split
+  examJson = keyed.examJson;
+  keyed.notes.forEach((note) => logToFile('[assessment] key fixed', note));
 
   // Urdu Q6's verses given from a lesson outside the chosen ones: the paper says where they come from.
   const versesPrinted = Object.values(examJson.unseen || {}).flatMap((t) => Object.values(t || {})).flat()
