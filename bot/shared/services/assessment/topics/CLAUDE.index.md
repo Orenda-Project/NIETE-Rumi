@@ -20,6 +20,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `resolve.js` | Turns ticked topic ids into page ranges, SLOs and topics for a paper request |
 | `short-name.js` | Builds short teacher-facing topic names and id slugs, counting Urdu in code points |
 | `stem-bank.js` | (unmapped) |
+| `stem-bank.json` | (unmapped) |
 | `stem-prompt.js` | (unmapped) |
 | `stems.js` | (unmapped) |
 | `topic-oral.js` | (unmapped) |
@@ -40,6 +41,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `resolve.js` ← imported by `bot/shared/routes/internal-api.routes.js:1735:cbc65cf0`
 - `short-name.js` ← imported by `bot/shared/services/assessment/topics/distinct-names.js:8:4ea89936` · `bot/shared/services/assessment/topics/group-language.js:13:22aff0f7` · `bot/shared/services/assessment/topics/group-maths.js:20:22aff0f7` · `bot/shared/services/assessment/topics/group-science.js:7:22aff0f7`
 - `stem-bank.js` ← imported by `bot/shared/services/assessment/topics/stems.js:9:f84e7b6f`
+- `stem-bank.json` ← imported by `bot/shared/services/assessment/topics/stem-bank.js:13:893f4bed`
 - `stem-prompt.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:25:c93ea675`
 - `stems.js` ← imported by `bot/shared/routes/internal-api.routes.js:1493:e3dd3ca4`
 - `topic-oral.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:764:b1d3239b`
@@ -59,6 +61,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `reconcile.js` ← `tests/assessment/topics/import-cli.test.js` · `tests/assessment/topics/reconcile.test.js`
 - `resolve.js` ← `tests/assessment/topics/resolve.test.js`
 - `short-name.js` ← `tests/assessment/topics/short-name.test.js`
+- `stem-bank.js` ← `tests/assessment/topics/topic-stems.test.js`
 - `stem-prompt.js` ← `tests/assessment/topics/topic-stem-prompt.test.js`
 - `stems.js` ← `tests/assessment/topics/topic-stems.test.js`
 - `topic-oral.js` ← `tests/assessment/topics/topic-oral-key.test.js` · `tests/assessment/topics/topic-oral.test.js`
