@@ -129,6 +129,14 @@ describe('create', () => {
     expect(created).toBeNull();
   });
 
+  test('every topic ticked is a whole-chapter paper, and still keeps her stems', async () => {
+    const all = { ...BASE, topicIds: TOPICS.map((t) => t.topicId) };
+    const { statusCode } = await invoke('/assessment/create', { ...all, questionTypes: typesWith(['is-am-are']) });
+    expect(statusCode).toBe(202);
+    expect(created.paperKind).toBeUndefined();
+    expect(created.questionTypes[0].stems).toEqual(['Fill in the blanks with is, am or are.']);
+  });
+
   test('a chapter paper drops the stems: its request is the one without them', async () => {
     await invoke('/assessment/create', { ...BASE, questionTypes: typesWith(null) });
     const plain = created;
