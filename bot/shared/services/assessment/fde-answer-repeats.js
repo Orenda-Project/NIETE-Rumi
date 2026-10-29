@@ -40,6 +40,7 @@ const { nearRepeats } = require('./fde-near-repeats');
 const { situationGiveaways } = require('./fde-situation-check');
 const { oralSentenceRepeats } = require('./fde-oral-sentence-repeats'); // bd-5jmnfj.4.58.4
 const { paperGiveaways } = require('./fde-g5-paper-giveaways'); // MCQ/concept/fraction give-aways (bd-5jmnfj.4.58.4)
+const { stemRepeats } = require('./fde-stem-repeats'); // bd-5jmnfj.33.3: a stem asked twice, a key or its singular in another stem
 const wordsOf = (s) => String(s == null ? '' : s).normalize('NFC').toLowerCase().match(WORD) || [];
 const optionsOf = (q) => (Array.isArray(q.options) ? q.options : []);
 // "الف) گاجر" -> "گاجر", as fde-early-prompt reads a choice.
@@ -243,7 +244,7 @@ function answerRepeats(examJson) {
       answer.filter((w) => st.has(w)).forEach((w) => flag(q.slot, w, 'oral-answer', excerpt({ question: ask }), false));
     });
   }));
-  situationGiveaways(examJson).concat(nearRepeats(examJson), oralSentenceRepeats(examJson), paperGiveaways(examJson)).forEach((f) => f.with.forEach((s, k) => f.words.forEach((w) => flag(f.slot, w, s, f.text[k]))));
+  situationGiveaways(examJson).concat(nearRepeats(examJson), oralSentenceRepeats(examJson), paperGiveaways(examJson), stemRepeats(examJson)).forEach((f) => f.with.forEach((s, k) => f.words.forEach((w) => flag(f.slot, w, s, f.text[k]))));
   return [...out.values()];
 }
 

@@ -24,10 +24,10 @@ module.exports = makeSubject({
       slots: [
         S({ slot: 'g4.english.A.mcq', label_en: 'Q1.', type: 'MCQs', shape: 'mcq', generate: 10,
           instruction_en: 'Choose the correct answer.',
-          prompt_rule: `Ten three-option MCQs. ${CH} Mix meaning of a word, who or what, the right word for the gap and a fact from the text. One option correct; no option "all of the above".` }),
+          prompt_rule: `Ten three-option MCQs. ${CH} Mix meaning of a word, who or what, the right word for the gap and a fact from the text. One option correct; no option "all of the above". A fact is asked once on the paper; a meaning item prints the word it asks about.` }),
         S({ slot: 'g4.english.A.grammar', label_en: 'Q2.', type: 'Grammar', generate: 5, marks_each: 2, lines: 2,
           instruction_en: 'Do as directed.',
-          prompt_rule: `Five do-as-directed items, one each on: articles (a, an, the), collective nouns, a verb tense (change to past or future), question words (who, what, where, when, why), and one more of the same four kinds. ${CH} Each stem names the task in one line. Answer: the corrected or completed sentence. Scheme: K 1 for the right word, A 1 for the whole sentence correct.` }),
+          prompt_rule: `Five do-as-directed items, one each on: articles (a, an, the), collective nouns, a verb tense (change to past or future), question words (who, what, where, when, why), and one more of the same four kinds. ${CH} Each stem names the task in one line. Answer: the corrected or completed sentence. Scheme: K 1 for the right word, A 1 for the whole sentence correct. A collective-noun answer accepts the plain form.` }),
       ],
     },
     {
@@ -37,7 +37,7 @@ module.exports = makeSubject({
       slots: [
         { slot: 'g4.english.B.short', label_en: 'Q3.', type: 'Short Answers', generate: 6, attempt: 5, marks_each: 2, lines: 2,
           instruction_en: 'Answer any five questions.',
-          prompt_rule: `Six comprehension questions. ${CH} Mix recall (who, what) and "why" or "how". Answer: one or two short sentences. Scheme: K 1 per correct idea, two ideas for 2.` },
+          prompt_rule: `Six comprehension questions. ${CH} Mix recall (who, what) and "why" or "how". Answer: one or two short sentences. Scheme: K 1 per correct idea, two ideas for 2. No stem prints another item's key.` },
         S({ slot: 'g4.english.B.sentences', label_en: 'Q4.', type: 'Use in Sentences', generate: 6, attempt: 5, lines: 1,
           instruction_en: 'Use any five words in sentences of your own.',
           prompt_rule: `Six words from the chapter's word list or text, each different and each usable in a sentence. Answer: one model sentence that shows the meaning. Scheme: 1 mark for a correct sentence using the word.` }),

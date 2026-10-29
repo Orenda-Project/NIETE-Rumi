@@ -8,7 +8,7 @@
 const { makeSubject } = require('./chrome');
 
 const S = (o) => ({ marks_each: 1, ...o });
-const CH = 'From the chosen chapter only, no diagram or practical item.';
+const CH = 'From the chosen chapter only, no diagram or practical item. Nothing a child needs out-of-school knowledge for.';
 
 module.exports = makeSubject({
   grade: 4,
@@ -25,7 +25,7 @@ module.exports = makeSubject({
       slots: [
         S({ slot: 'g4.science.A.mcq', label_en: 'Q1.', type: 'MCQs', shape: 'mcq', generate: 10,
           instruction_en: 'Choose the correct answer.',
-          prompt_rule: `Ten three-option MCQs on facts, terms and simple uses of the ideas. ${CH} One option correct; no "all of the above".` }),
+          prompt_rule: `Ten three-option MCQs on facts, terms and simple uses of the ideas. ${CH} One option correct; no "all of the above". An option never states a long answer's steps; a concept appears in at most two items; never the same stem as an MCQ and a short answer.` }),
         S({ slot: 'g4.science.A.fill', label_en: 'Q2.', type: 'Fill in the Blanks', objective: true, generate: 5, print_words: true,
           instruction_en: 'Fill in the blanks with the words from the box.',
           prompt_rule: `Five one-line facts with one blank each; the five answers, mixed, in "words" on the FIRST item. ${CH} Each answer is a single science word the chapter teaches.` }),
@@ -38,10 +38,10 @@ module.exports = makeSubject({
       slots: [
         { slot: 'g4.science.B.short', label_en: 'Q3.', type: 'Short Answers', generate: 7, attempt: 5, marks_each: 2, lines: 2,
           instruction_en: 'Answer any five questions.',
-          prompt_rule: `Seven short-answer questions (define, name, state, list, what happens). ${CH} Answer: one or two short sentences. Scheme: K 1 per correct idea, two ideas for 2.` },
+          prompt_rule: `Seven short-answer questions (define, name, state, list, what happens). ${CH} Answer: one or two short sentences. Scheme: K 1 per correct idea, two ideas for 2. Floating is explained by density or the upthrust, never by spreading weight.` },
         { slot: 'g4.science.B.reasons', label_en: 'Q4.', type: 'Give a Reason', generate: 3, attempt: 2, marks_each: 5, lines: 6,
           instruction_en: 'Give reasons for any two.',
-          prompt_rule: `Three "why" questions that ask for a reason from what the chapter teaches. ${CH} Answer: a reason of 3 to 4 sentences. Scheme (5): K 1 for each correct point up to 3, A 1 for a clear conclusion, 1 for a correct science word used.` },
+          prompt_rule: `Three "why" questions that ask for a reason from what the chapter teaches. ${CH} Answer: a reason of 3 to 4 sentences. Scheme (5): K 1 for each correct point up to 3, A 1 for a clear conclusion, 1 for a correct science word used. Floating is explained by density or the upthrust, never by spreading weight.` },
       ],
     },
     {
@@ -51,7 +51,7 @@ module.exports = makeSubject({
       slots: [
         { slot: 'g4.science.C.extended', label_en: 'Q5.', type: 'Extended Response', generate: 4, attempt: 3, marks_each: 5, lines: 8,
           instruction_en: 'Answer any three questions.',
-          prompt_rule: `Four questions that ask the child to explain, compare, describe a process in steps or apply an idea to an everyday case. ${CH} Answer: a short paragraph or numbered steps. Scheme (5): K 1 per correct point up to 4, L 1 for correct science terms used.` },
+          prompt_rule: `Four questions that ask the child to explain, compare, describe a process in steps or apply an idea to an everyday case. ${CH} Answer: a short paragraph or numbered steps. Scheme (5): K 1 per correct point up to 4, L 1 for correct science terms used. Floating is explained by density or the upthrust, never by spreading weight.` },
       ],
     },
   ],
