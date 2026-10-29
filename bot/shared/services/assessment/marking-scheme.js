@@ -108,6 +108,9 @@ function joinText(a, b) {
   return b ? `${a} (${b})` : a;
 }
 
+// A length written with its unit in the stem: "a base of 12 cm", "15 m long", "in metres".
+const UNIT_IN_STEM = /\b\d[\d,.]*\s*(?:mm|cm|m|km)\b|\b(?:millimet|centimet|met|kilomet)(?:re|er)s?\b/i;
+
 /**
  * Units the child does not choose are part of the answer: every U merges into
  * the last A (marks added, text joined). With no A, the first U becomes it.
@@ -256,7 +259,9 @@ function normaliseOne(holder, marks, questionText, slot, label, log) {
       let points = s.points.map((p) => (isObject(p)
         ? { text: textOf(p.text), marks: roundMarks(p.marks, marks), kind: kindOf(p.kind) }
         : { text: '', marks: NaN, kind: 'K' }));
-      if (!(slot.grain && slot.grain.unit_choice === true)) points = foldUnits(points);
+      // The child chooses a unit only when the stem gives its lengths in one (bd-5jmnfj.4.55).
+      const unitChoice = slot.grain && slot.grain.unit_choice === true && UNIT_IN_STEM.test(String(questionText || ''));
+      if (!unitChoice) points = foldUnits(points);
       const aOnly = slot.shape === 'words' || (typeof questionText === 'string' && /expanded form/i.test(questionText));
       if (aOnly) points.forEach((p) => { if (p.kind === 'M') p.kind = 'A'; });
       points.forEach((p) => { p.text = capCodePoints(p.text, POINT_TEXT_MAX); });

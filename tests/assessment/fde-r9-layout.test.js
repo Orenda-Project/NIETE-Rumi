@@ -321,12 +321,16 @@ describe('r9 · subjects without a cross-section table lay out as before', () =>
   // maths, urdu and urdu-gen-full again for bd-5jmnfj.4.51.11: maths Q4 carries FDE's own obtuse/supplementary/
   // straight wording again, and urdu Q6 drops the Naat alternative; the same three hashes come out of the
   // previous code with only patterns/fde-g5-2027.js changed.
+  // urdu and urdu-gen-full again for the v24 review: urdu Q7's prompt_rule asks for `describe_en`; with the old
+  // rule restored they hash to the previous values.
+  // maths again for bd-5jmnfj.4.55: Q4-8's prompt_rule asks for every length with its unit; with the old rule
+  // restored it hashes to faf7fc6c….
   const BEFORE = {
     science: ['science', 'c09d5ceadd74d6dcb519af1330b9b7261318ce0ac6cfcc0c106c1e3c80c0f626'],
-    maths: ['maths', 'faf7fc6c85d64b69fb201b34420e44ccc9749b48601c491c20aa496be6e1eed4'],
-    urdu: ['urdu', 'ad2764541ca04734ed783cc723362b7c2030f436a9eafa5aedbf4cf7c51bb710'],
+    maths: ['maths', 'a6718724d4bcc26940c78ee6ffac4a0b5370da08421eedf462b6e4e3ffb588cf'],
+    urdu: ['urdu', '42f0f277e15402128c69a6f792a6e9f119a4e66a7c4271bc7d387509721d85a1'],
     'r7-science-full1.exam': ['science', 'ce648f1e8c5b69e1f16b822ff101f812c539f94c5450bf4afb98e59101f2a48a'],
-    'urdu-gen-full': ['urdu', '5be66c43ed60e87a00779d79e1c6fd554d57e9c90b17f97ee777e5e18efb3ab8'],
+    'urdu-gen-full': ['urdu', '4457288ac76d86f9c902ffa8ded3dcc860b776a2f4c297a648c05f1cb83aa93d'],
   };
   test.each(Object.keys(BEFORE))('%s lays out byte-identical to before', (name) => {
     const [subject, sha] = BEFORE[name];

@@ -47,6 +47,24 @@ function placeOf(q) {
   return q && q.picture && q.picture.kind === 'scene' && Object.hasOwn(PLACES, word) ? word : null;
 }
 
+// v24: G1 English Q8 "a child swimming in a pool" drew a girl sitting in a puddle, and G1 Maths Q8 "a long
+// ribbon and a short ribbon" drew two curls; the key took "swimming" and "the long ribbon" (bd-5jmnfj.4.55).
+// A scene whose question asks for the action, or which of two is longer, is told what the child must see.
+const ACTION = (a) => ` The child is plainly ${a}: the whole body and the place show that action and no other, `
+  + `so a child who looks says "${a}" at once.`;
+const COMPARE = ' Two different kinds of thing, each drawn whole, laid straight and flat in a row on one base line, '
+  + 'with their left ends lined up. Neither is curled, coiled, bent, rolled or folded. The difference is plain at a glance.';
+
+/** What a scene item's picture must show for its key: {action} or {compare: true}, or null. */
+function showOf(q) {
+  if (!q || !q.picture || q.picture.kind !== 'scene') return null;
+  const question = String(q.question || '');
+  const answer = String(q.answer || '').trim().toLowerCase();
+  if (/what is the child doing/i.test(question) && /^[a-z]+ing$/.test(answer)) return { action: answer };
+  if (/^which one (is|holds) (longer|shorter|taller|heavier|lighter|more|less)/i.test(question.trim())) return { compare: true };
+  return null;
+}
+
 /** The image-model prompt for a picture. A count draws one of its object; the paper repeats it. */
 function promptFor(picture) {
   const kind = picture && picture.kind;
@@ -59,7 +77,9 @@ function promptFor(picture) {
     const describe = String(picture.describe || '').trim();
     if (!describe) throw new Error('scene picture: nothing to draw');
     const place = Object.hasOwn(PLACES, String(picture.place)) ? ` The position must be plain at a glance. ${PLACES[picture.place]}` : '';
-    return `${STYLE} The picture: ${describe}.${place} ${NO_TEXT}${hands(describe)}`;
+    const show = picture.show || {};
+    const told = (show.action ? ACTION(show.action) : '') + (show.compare ? COMPARE : '');
+    return `${STYLE} The picture: ${describe}.${place}${told} ${NO_TEXT}${hands(describe)}`;
   }
   throw new Error(`${kind}: not an image-model picture`);
 }
@@ -99,4 +119,4 @@ async function generateImage(prompt, {
   throw new Error(`image model: task ${taskId} did not finish`);
 }
 
-module.exports = { promptFor, placeOf, generateImage, KIE_URL, NEGATIVE };
+module.exports = { promptFor, placeOf, showOf, generateImage, KIE_URL, NEGATIVE };
