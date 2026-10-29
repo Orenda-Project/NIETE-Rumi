@@ -1295,7 +1295,9 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   }
   const closed = _closedLists(P, list);
   if (closed) rules.push(closed);
-  if (key === 'urdu') rules.push(fde ? `${RULE.held} Set items only from book pages ${P.scope.page_ranges}.` : RULE.held);
+  // Grade 3–4 mid patterns carry g5_rules: false and skip the Grade-5-only lines below (bd-5jmnfj.33.1).
+  const g5Rules = P.g5_rules !== false;
+  if (key === 'urdu' && g5Rules) rules.push(fde ? `${RULE.held} Set items only from book pages ${P.scope.page_ranges}.` : RULE.held);
   if (key === 'urdu') rules.push(RULE.urduNoMaxims);
   if (key === 'urdu' && list.some((s) => /^urdu\.[AC]\./.test(s.slot))) rules.push(RULE.urduNoDates);
   if (urduPoem) rules.push(RULE.urduQ6Given(urduPoem));
@@ -1314,7 +1316,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if (key === 'urdu' && list.some((s) => /^urdu\.C\.Q(7|8|9|10)$/.test(s.slot))) rules.push(RULE.urduWritingApply);
   if (key === 'urdu' && list.some((s) => /^urdu\.C\.Q(4|5)$/.test(s.slot))) rules.push(RULE.urduSentenceUnderstand);
   if (key === 'urdu' && list.some((s) => s.slot === 'urdu.C.Q6')) rules.push(RULE.urduPoemRemember);
-  if (key === 'maths') rules.push(RULE.mathsTosFloor, RULE.unitsNumerals);
+  if (key === 'maths') rules.push(...(g5Rules ? [RULE.mathsTosFloor] : []), RULE.unitsNumerals);
   if (key === 'maths') {
     const q1b = list.find((s) => s.slot === 'maths.A.Q1b');
     if (q1b) rules.push(RULE.mathsQ1bWords(Math.min(MATHS_Q1B_WORDS, q1b.generate), q1b.generate));
@@ -1330,7 +1332,8 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     }
     if (!fde && list.some((s) => MATHS_PAGES_SLOTS[s.slot])) rules.push(RULE.mathsPagesAB);
   }
-  if (key === 'science' || key === 'english') rules.push(RULE.grade5Words);
+  if (!g5Rules) rules.push(`Use Grade ${P.grade} vocabulary; a term the book does not use is replaced by the book's word.`);
+  else if (key === 'science' || key === 'english') rules.push(RULE.grade5Words);
   if (hasMcq) {
     if (key !== 'maths') rules.push(`In this section, ${RULE.recall}.`);
     rules.push(RULE.spreadKeys, RULE.oneCorrect, RULE.optionsOnly);
