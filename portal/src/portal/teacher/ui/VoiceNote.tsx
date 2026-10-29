@@ -20,8 +20,8 @@ import { claimSound, releaseSound } from './sounding';
  *
  * bd-bmc9a0.4 — ICT feedback (IAB Experience View, Quratulain):
  *   row 33   a speed chip, as WhatsApp's: while it plays (or is part-way) the avatar's place is a 56px speed button, 1× →
- *            1.25× → 1.5× → 2× → 1×. The chosen speed is put back each time the file loads or plays (a browser resets it
- *            to 1 on load).
+ *            1.5× → 2× → 1×, WhatsApp's own steps (bd-bmc9a0.6: the operator, 29 Oct; 1.25× dropped). The chosen speed is
+ *            put back each time the file loads or plays (a browser resets it to 1 on load).
  *   row 34   once it plays it says how far OF its real length ("0:26 / 1:42"), and the waveform is a slider: a tap or
  *            a drag jumps there, the arrows move 5 s, Home and End jump. A tap before it has ever played starts it and
  *            lands there once the file says how long it is.
@@ -45,8 +45,8 @@ export interface VoiceNoteProps {
 
 const BARS = [8, 14, 22, 12, 26, 18, 10, 24, 16, 8, 20, 28, 14, 18, 10, 22, 16, 8, 12, 24, 18, 10, 26, 14, 8, 20, 12, 16];
 
-/** The speed chip's steps (row 33). */
-export const SPEEDS = [1, 1.25, 1.5, 2] as const;
+/** The speed chip's steps (row 33): WhatsApp's. */
+export const SPEEDS = [1, 1.5, 2] as const;
 /** Seconds an arrow key moves. */
 const STEP_S = 5;
 

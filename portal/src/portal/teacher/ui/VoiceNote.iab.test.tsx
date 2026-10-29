@@ -17,7 +17,7 @@ beforeAll(() => {
 /**
  * bd-bmc9a0.4 — ICT feedback (IAB Experience View, Quratulain) on the Digital Coach's voice notes:
  *
- *   row 33   playback speed on every voice note: 1×, 1.25×, 1.5×, 2× — as WhatsApp's, while it plays the avatar's place is
+ *   row 33   playback speed on every voice note: 1×, 1.5×, 2× — as WhatsApp's, while it plays the avatar's place is
  *            one 56px speed button that steps through them
  *   row 34   "the audio is 1–2 minutes but the player shows 15 minutes, and I can't skip ahead": once it plays it says
  *            how far it has played OF its real length, and the waveform is a slider — a tap or a drag jumps there,
@@ -53,14 +53,12 @@ describe("row 33 — playback speed", () => {
     expect(screen.getByTestId("mic-badge")).toBeInTheDocument();
   });
 
-  it("while it plays, one chip steps 1× → 1.25× → 1.5× → 2× → 1×, and the audio plays at it", () => {
+  // bd-bmc9a0.6 — WhatsApp's own steps (operator, 29 Oct: "more like the WhatsApp audio button of 1x, 1.5x"): no 1.25×.
+  it("while it plays, one chip steps 1× → 1.5× → 2× → 1× (WhatsApp's steps), and the audio plays at it", () => {
     const { rate } = note();
     fireEvent.click(screen.getByRole("button", { name: "Play" }));
     const chip = screen.getByRole("button", { name: /Playback speed/ });
     expect(chip.textContent).toBe("1×");
-    fireEvent.click(chip);
-    expect(chip.textContent).toBe("1.25×");
-    expect(rate()).toBe(1.25);
     fireEvent.click(chip);
     expect(chip.textContent).toBe("1.5×");
     expect(rate()).toBe(1.5);
@@ -75,7 +73,6 @@ describe("row 33 — playback speed", () => {
   it("the chosen speed holds when the file loads (a browser resets it to 1 on load)", () => {
     const { audio, rate } = note();
     fireEvent.click(screen.getByRole("button", { name: "Play" }));
-    fireEvent.click(screen.getByRole("button", { name: /Playback speed/ }));
     fireEvent.click(screen.getByRole("button", { name: /Playback speed/ }));
     audio.playbackRate = 1; // the browser loading the file puts it back to 1
     fireEvent(audio, new Event("loadedmetadata"));

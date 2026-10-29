@@ -128,9 +128,9 @@ describe("readHome", () => {
 });
 
 describe("the words", () => {
-  it("English \"Quizzes\"; Urdu the teacher app's own word for a quiz, «فوری جانچ»", () => {
+  it("English \"Quizzes\"; Urdu «کوئز», the bot's word (bd-bmc9a0.6, the operator, 29 Oct)", () => {
     expect(HOME_CARD_COPY.quizTile).toBe("Quizzes");
-    expect(HOME_CARD_COPY_UR.quizTile).toBe("فوری جانچ");
+    expect(HOME_CARD_COPY_UR.quizTile).toBe("کوئز");
     expect([...HOME_CARD_COPY.quizTile].length).toBeLessThanOrEqual(20);
     expect([...HOME_CARD_COPY_UR.quizTile].length).toBeLessThanOrEqual(20);
   });

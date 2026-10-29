@@ -7,7 +7,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
  *
  *   row 34   the audio summary's corner showed the time the report came ("15:47") where a length belongs, so a
  *            1–2 minute summary read as 15 minutes: no clock of the day on the report's voice note
- *   row 35   «فوری جانچ بنائیں» sat between the audio summary and the report: it comes after the report
+ *   row 35   Quick Quiz (now «کوئز بنائیں», bd-bmc9a0.6) sat between the audio summary and the report: it comes after the report
  *   row 36   «دوسری ایپ میں کھولیں» reads as "open in another app": here it is «دوسرے ٹیب میں کھولیں»; and a Close
  *            that ends the session — «آپ کا ڈیجیٹل کوچنگ سیشن مکمل ہو گیا ہے۔» — and closes the link
  *
@@ -39,6 +39,7 @@ import { resetShareAvailability } from "../share/api";
 import { ReportPage } from "./ReportPage";
 import { COACHING_REPORT } from "./paths";
 import { COACHING_V2_COPY as C, COACHING_V2_COPY_UR as U } from "./copy";
+import { PRIMARY_WIDE } from "../ui/styles";
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
 const ID = "0b4e8f9a-1c2d-4e5f-8a9b-0c1d2e3f4a5b";
@@ -129,6 +130,20 @@ describe("row 36 — Open in another tab, and Close", () => {
     expect(close).toHaveBeenCalled();
     // the report is gone: nothing more to do on this page
     expect(screen.queryByRole("heading", { name: C.fullReport })).toBeNull();
+  });
+
+  // bd-bmc9a0.6 — operator, 29 Oct: Close "should look different than the dusry tab wala". Open in another tab is the
+  // white outline; Close is the kit's filled indigo main button (PRIMARY_WIDE), so the two never read as a pair.
+  it("Close looks unlike Open in another tab: the kit's filled indigo, not the white outline", async () => {
+    ready();
+    open();
+    const closeBtn = await screen.findByRole("button", { name: C.close });
+    const openBtn = screen.getByTestId("share-open");
+    // PRIMARY_WIDE's fill and ink (the dock's own height and type size override the rest)
+    expect(PRIMARY_WIDE.split(" ").filter((c) => /^(bg|text-white)/.test(c) && !closeBtn.classList.contains(c))).toEqual([]);
+    expect(closeBtn.classList.contains("bg-[#33374a]")).toBe(true);
+    expect(openBtn.classList.contains("bg-white")).toBe(true);
+    expect(closeBtn.classList.contains("bg-white")).toBe(false);
   });
 
   it("a coach's visit report has no Close (it is not her DC session)", async () => {
