@@ -85,6 +85,8 @@ export type Picks = {
   byTopics?: boolean;
   /** bd-pw1ccr.1 — she came through the A/B report button: the paper is tagged origin report. A new paper clears it. */
   origin?: 'report' | null;
+  /** bd-6clakk.12 — a topic paper's ticked stem ids per type, in the order ticked; none = Rumi chooses. */
+  typeStems?: Record<string, string[]>;
 };
 
 export function newPicks(defaultCount: number): Picks {
@@ -94,7 +96,7 @@ export function newPicks(defaultCount: number): Picks {
     seen: Math.min(5, Math.max(0, defaultCount - 1)), typeCounts: {}, typesSeeded: false,
     marks: null, answerLines: true,
     patternIntent: null, style: null, pattern: null,
-    topicScope: null, topicIds: null, origin: null,
+    topicScope: null, topicIds: null, origin: null, typeStems: {},
   };
 }
 
@@ -251,7 +253,7 @@ export type V2Spec = {
   questionCount: number;
   contentSource: Source;
   seenCount: number | null;
-  questionTypes: Array<{ id: string; count: number }>;
+  questionTypes: Array<{ id: string; count: number; stems?: string[] }>;
   totalMarks: number | null;
   answerLines: boolean;
   outputFormat: 'pdf';
@@ -297,6 +299,9 @@ export function toSpec(p: Picks): V2Spec | FdeSpec {
   }
   const byChapters = p.coverBy === 'chapters';
   const source = sourceOf(p);
+  const onTopics = byChapters && p.chapters.length === 1 && p.topicScope === 'topics' && !!p.topicIds?.length;
+  // Her stems ride only on a topic paper; none ticked sends the type exactly as before.
+  const stemsOf = (id: string) => (onTopics && p.typeStems?.[id]?.length ? { stems: [...p.typeStems[id]] } : {});
   return {
     grade: p.grade as number,
     subject: p.subject as string,
@@ -306,12 +311,12 @@ export function toSpec(p: Picks): V2Spec | FdeSpec {
     contentSource: source,
     seenCount: source === 'both' ? p.seen : null,
     // A seen-only paper sends none: the server holds any types it is sent to the paper's whole count.
-    questionTypes: source === 'seen' ? [] : chosenTypes(p).map(([id, count]) => ({ id, count })),
+    questionTypes: source === 'seen' ? [] : chosenTypes(p).map(([id, count]) => ({ id, count, ...stemsOf(id) })),
     totalMarks: p.marks,
     answerLines: p.answerLines,
     // Word stays off: its flag (assessment_docx_enabled) is false in production.
     outputFormat: 'pdf',
-    ...(byChapters && p.chapters.length === 1 && p.topicScope === 'topics' && p.topicIds?.length ? { topicIds: [...p.topicIds] } : {}),
+    ...(onTopics ? { topicIds: [...(p.topicIds as string[])] } : {}),
     ...(p.origin === 'report' ? { origin: 'report' as const } : {}),
   };
 }
