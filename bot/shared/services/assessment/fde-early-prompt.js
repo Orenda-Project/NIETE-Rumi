@@ -49,6 +49,7 @@ function sectionPrompt(build, args) {
 
 /** A task needs a script when it is read to the child (a story, a poem) or read by the child (a passage). */
 function needsScript(task) {
+  if (typeof task.script === 'boolean') return task.script;
   return task.kind === 'listening' || !task.n;
 }
 
