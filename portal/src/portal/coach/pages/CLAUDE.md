@@ -1,7 +1,7 @@
 # pages — Coach v2 page components: schedule, observe flow, people, reports
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/pages kg=df998b3b750d gen=0f1dd315dd8d overflow=73 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/pages kg=bd5ea9398aa4 gen=8e5b1bf7053a overflow=73 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `CoachObservation.tsx` — the one observation page every report row opens
@@ -19,9 +19,9 @@ Full index: `CLAUDE.index.md`
 | … | 35 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `CoachPeople.tsx` ← imported by `portal/src/App.tsx:118:90c8f423` · `portal/src/portal/coach/card/harness.testdata.tsx:43:4b3728bb` (+1)
-- `CoachRecord.tsx` ← imported by `portal/src/App.tsx:126:7da3ce99` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:23:9e4007c8`
-- `CoachSchool.tsx` ← imported by `portal/src/App.tsx:121:a4567313` · `portal/src/portal/coach/card/harness.testdata.tsx:43:4b3728bb`
+- `CoachPeople.tsx` ← imported by `portal/src/App.tsx:121:90c8f423` · `portal/src/portal/coach/card/harness.testdata.tsx:43:4b3728bb` (+1)
+- `CoachRecord.tsx` ← imported by `portal/src/App.tsx:129:7da3ce99` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:23:9e4007c8`
+- `CoachSchool.tsx` ← imported by `portal/src/App.tsx:124:a4567313` · `portal/src/portal/coach/card/harness.testdata.tsx:43:4b3728bb`
 - … 18 more → `CLAUDE.index.md`
 
 ## Never (human)

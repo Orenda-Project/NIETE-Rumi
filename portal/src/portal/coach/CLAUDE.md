@@ -1,7 +1,7 @@
 # coach — Coach app v2 root: gate, flag hook, shared UI, copy and time rules
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach kg=dfafb27c487a gen=459604e06fed overflow=41 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach kg=b72404e92187 gen=df3dcb7a4aa3 overflow=41 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `CoachGate.tsx` — only a coach with portal_coach_v2 sees /portal/coach screens
@@ -19,7 +19,7 @@ Full index: `CLAUDE.index.md`
 | … | 21 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `ui.tsx` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:11:3065a692` · `portal/src/portal/coach/card/FeatureGridPage.tsx:4:a108a8ec` (+37)
+- `ui.tsx` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:11:3065a692` · `portal/src/portal/coach/card/FeatureGridPage.tsx:4:a108a8ec` (+38)
 - `types.ts` ← imported by `portal/src/portal/services/api.ts:13:e1bc00c4` · `portal/src/portal/coach/analytics/model.ts:1:ed880149` (+19)
 - `CoachGate.tsx` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:9:561961fe` · `portal/src/portal/coach/disagreements/frame.tsx:5:561961fe` (+9)
 - `time.ts` ← imported by `portal/src/portal/coach/home/VisitCards.tsx:5:6e4fb0ef` · `portal/src/portal/coach/pages/CoachNewVisit.tsx:8:2855461c` (+6)

@@ -148,7 +148,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `lp612-subject-order.js` ← `tests/lp612/urdu-plan-english-residue.test.js`
 - `menu-gates.js` ← `tests/menu/menu-role-layouts.test.js`
 - `model-registry.js` ← `bot/tests/llm-cost-attributed.test.js` · `bot/tests/llm-fallback-armed.test.js` · `bot/tests/llm-fallback-per-job.test.js` · `bot/tests/llm-vendor-fallback.test.js` · `bot/tests/model-assessment-registry.test.js` · `bot/tests/model-registry-noop.test.js` (+17: `python3 kg/kg.py who-reads bot/shared/config/model-registry.js`)
-- `model-settings.js` ← `bot/tests/model-pilot-vision.test.js` · `bot/tests/model-settings-backoff.test.js` · `bot/tests/model-settings-no-db.test.js` · `bot/tests/model-settings.test.js` · `tests/app-redirect/app-link-leader-lessons-voice-topic.test.js` · `tests/assessment/fde-prompt-cache.test.js` (+24: `python3 kg/kg.py who-reads bot/shared/config/model-settings.js`)
+- `model-settings.js` ← `bot/tests/model-pilot-vision.test.js` · `bot/tests/model-settings-backoff.test.js` · `bot/tests/model-settings-no-db.test.js` · `bot/tests/model-settings.test.js` · `tests/app-redirect/app-link-leader-lessons-voice-topic.test.js` · `tests/assessment/fde-prompt-cache.test.js` (+26: `python3 kg/kg.py who-reads bot/shared/config/model-settings.js`)
 - `reading-benchmarks.js` ← `tests/reading/benchmark-service.test.js`
 - `region-config.js` ← `tests/coaching/fico-framework-ict.test.js` · `tests/config/branding-defaults.test.js` · `tests/region/coach-role-label.test.js` · `tests/settings/settings-flow.test.js`
 - `registration-data.js` ← `tests/registration/bd-x7aprz2-registration-v5.test.js`

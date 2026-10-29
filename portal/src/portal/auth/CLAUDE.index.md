@@ -24,7 +24,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `setup-link.test.tsx` | Pins no-dead-end flows: Register on WhatsApp for unknown numbers and old /portal/setup/<token> links (bd-x7aprz.3) |
 
 ## Who reads this (all, generated)
-- `AnalyticsLogin.tsx` ← imported by `portal/src/App.tsx:157:bb67d799`
+- `AnalyticsLogin.tsx` ← imported by `portal/src/App.tsx:160:bb67d799`
 - `AuthField.tsx` ← imported by `portal/src/portal/pages/PortalLogin.tsx:15:528d22bb` · `portal/src/portal/pages/PortalPasswordReset.tsx:8:528d22bb` · `portal/src/portal/pages/PortalPasswordResetVerify.tsx:8:528d22bb` · `portal/scripts/urdu-fit/harness.tsx:23:f2917c8a` (+1: `python3 kg/kg.py who-reads AuthField.tsx`)
 - `AuthFrame.tsx` ← imported by `portal/src/portal/pages/PortalLogin.tsx:14:d59c6ee0` · `portal/src/portal/pages/PortalPasswordReset.tsx:7:d59c6ee0` · `portal/src/portal/pages/PortalPasswordResetVerify.tsx:7:d59c6ee0` · `portal/src/portal/pages/PortalSetup.tsx:8:fd012934` (+3: `python3 kg/kg.py who-reads AuthFrame.tsx`)
 - `CodeSlots.tsx` ← imported by `portal/src/portal/pages/PortalPasswordResetVerify.tsx:9:ed444010` · `portal/scripts/urdu-fit/harness.tsx:24:3e57496b`
