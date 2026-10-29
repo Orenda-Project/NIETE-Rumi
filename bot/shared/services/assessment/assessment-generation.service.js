@@ -760,6 +760,8 @@ const { noArrows } = require('./fde-no-arrows');
 const { steerNote } = require('./fde-mid-steer'); // bd-5jmnfj.33.2: Grade 3–4 Sections B/C are told Section A's facts
 const { mcqArithmetic, mcqNote } = require('./fde-mcq-arithmetic'); // bd-5jmnfj.33.2: a Maths MCQ key is its stem's arithmetic
 const { directedTasks } = require('./fde-directed-tasks'); // bd-5jmnfj.33.2: a do-as-directed item prints its task
+const { mcqKeyNote } = require('./fde-maths-slips');
+const { keyTruthFlags, keyTruthNote } = require('./fde-key-truth'); // bd-5jmnfj.33.4: key-only terms, plural keys, restating points
 const { midKeyFixes } = require('./fde-mid-key-fixes'); // bd-5jmnfj.33.3: match split, own labels, compare sign, unasked checks, division digits
 
 // Required on first use: the loader opens a database client, and the prompt
@@ -2630,7 +2632,8 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     .concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall)
     .concat(_emptyQuestionParts(firstLaid.examJson))
     .concat(answerRepeats(firstLaid.examJson)) // an answer printed in another question (bd-5jmnfj.4.51.3)
-    .concat(mcqShort);
+    .concat(mcqShort)
+    .concat(P.g5_rules === false ? keyTruthFlags(firstLaid.examJson) : []);
   const shortSlots = new Set(short.map((f) => f.slot));
   // An item carrying text the paper refuses to print (a review mark the model copied) fails the
   // paper at render; its section is asked once more instead, and a second hit fails it here.
@@ -2665,7 +2668,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
       // re-ask (a part with no marking points, a review mark, a religious maxim) takes the second reply whole.
       const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShortSet.has(f.slot));
       // On a top-up the note also names what the slot keeps, and asks for spares.
-      const note = [takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held }), giveawayNote(shortfall), mcqNote(shortfall, P)]
+      const note = [takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held }), giveawayNote(shortfall), mcqNote(shortfall, P), keyTruthNote(shortfall), mcqKeyNote(shortfall)]
         .filter(Boolean).join('\n\n');
       const second = await writeOne(note
         ? { ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }

@@ -12,6 +12,9 @@
  */
 
 const { divisionSteps } = require('./fde-division-steps');
+const { keyTruth } = require('./fde-key-truth'); // bd-5jmnfj.33.4: key-only terms, quoted accepts, form-only common errors
+const { schemeShape } = require('./fde-scheme-shape'); // bd-5jmnfj.33.4: points that restate the stem, pay for form or for unasked content
+const { mathsSlips } = require('./fde-maths-slips'); // bd-5jmnfj.33.4: slip figures, place-value counts, method marks
 
 const PAIR = /([^،,:：]+?)\s*[:：]\s*([^،,]+)/g;
 const LABEL = /^\s*Q\s*\d+[.)]\s*/i;
@@ -117,11 +120,17 @@ function midKeyFixes(examJson, { subject } = {}) {
     out = unpaidCheck(fixCompare(out, notes), notes);
     const steps = divisionSteps(out);
     notes.push(...steps.notes);
-    return steps.q;
+    const slips = mathsSlips(steps.q);
+    notes.push(...slips.notes);
+    return slips.q;
   });
   const unseen = Object.fromEntries(Object.entries((examJson && examJson.unseen) || {}).map(([cat, byType]) => [cat,
     Object.fromEntries(Object.entries(byType || {}).map(([type, list]) => [type, Array.isArray(list) ? fixList(list) : list]))]));
-  return { examJson: { ...examJson, unseen }, notes };
+  const fixed = { ...examJson, unseen };
+  if (maths) return { examJson: fixed, notes };
+  const truth = keyTruth(fixed);
+  const shape = schemeShape(truth.examJson);
+  return { examJson: shape.examJson, notes: notes.concat(truth.notes, shape.notes) };
 }
 
 module.exports = { midKeyFixes };
