@@ -83,6 +83,10 @@ function oralPrompt({ oral, grade, P, pageContent, saidCheck = true }) {
     ...(saidCheck && oral.tasks.some((t) => t.kind === 'listening')
       ? ['For a listening task, every answer except the last (apply) one is said in the story in words; a question never asks a feeling, reason or detail the story does not say.']
       : []),
+    ...(oral.tasks.some((t) => t.kind === 'listening')
+      ? ['A listening question never asks which line, مصرع or part of the text something is in, and every question names its subject: never start with «ہر ایک» or «وہ» with nothing before it. Each answer is a concrete thing the text says.']
+      : []),
+    'Any title or name from the book is written inside a complete sentence, never after a colon or with a stray word left after it.',
     // v25 G2 Urdu stopped the poem mid-line and keyed «گا رہی ہیں», which it never read (bd-5jmnfj.4.57).
     'Quote whole lines from the book: never stop mid-line. Every answer uses only words the script says, except an apply question about the child\'s own life.',
     'No bracketed notes: what you write is read aloud as it stands, so never add a note to yourself, such as "(Note: use 9)". Make the numbers in each question agree with its answer.',
@@ -94,6 +98,7 @@ function oralPrompt({ oral, grade, P, pageContent, saidCheck = true }) {
 // (bd-5jmnfj.4.51.6). The task is asked again, not stripped: the numbers around the note are wrong too.
 const WRITER_NOTE = /[([]\s*(?:note\b|nb\b|n\.b\b|writer\b|generator\b|نوٹ)[^)\]]*[)\]]/i;
 const { extraNumbers } = require('./fde-oral-numbers'); // bd-5jmnfj.4.58.2
+const { badListeningAsks } = require('./fde-listening-asks'); // bd-5jmnfj.4.58.4
 const hasNote = (t) => typeof t === 'string' && WRITER_NOTE.test(t);
 
 /**
@@ -113,7 +118,8 @@ function oralContent(tree, oral, { saidCheck = true } = {}) {
     const unsaid = saidCheck && task.kind === 'listening' && unsaidWords(script, task.n ? items.slice(0, task.n) : items).length > 0;
     // An oral mental-maths item naming a number it does not ask about is asked again (v26 G1 Maths item 1).
     const extra = task.kind === 'oral_maths' && extraNumbers(items).length > 0;
-    const whole = !noted && !unsaid && !extra && (!needsScript(task) || script) && items.length >= (task.n || 0);
+    const lineAsk = task.kind === 'listening' && badListeningAsks(items).length > 0; // a line-position or subjectless question (v28 G1 Urdu poem)
+    const whole = !noted && !unsaid && !extra && !lineAsk && (!needsScript(task) || script) && items.length >= (task.n || 0);
     if (!got || !whole) { missing.push(task.id); continue; }
     content.push({ id: task.id, ...(script ? { script } : {}), items: task.n ? items.slice(0, task.n) : items });
   }
@@ -247,7 +253,7 @@ function answerShortfall(examJson, P) {
     const sl = slots.get(q.slot);
     if (!sl || (!sameOptions(q) && (!sl.answer_ok || sl.answer_ok(q)))) return;
     const r = out.get(q.slot) || { slot: q.slot, reason: 'answer', items: [] };
-    r.items.push(`${String(q.question).trim()} → ${String(q.answer).trim()}`);
+    r.items.push(`${String(q.question == null ? q.main_question : q.question).trim()} → ${String(q.answer == null ? 'see the questions' : q.answer).trim()}`);
     out.set(q.slot, r);
   });
   // A crude word in an Urdu item is asked again like a key off its rule (bd-5jmnfj.4.51.1); the

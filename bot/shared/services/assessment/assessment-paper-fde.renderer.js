@@ -30,13 +30,16 @@ const path = require('path');
 const { clampLanguage } = require('../../config/ux-strings');
 const Patterns = require('./patterns');
 const { pictureBlock, bubbleBlock, PICTURE_CSS } = require('./fde-picture-block');
+const Fit = require('./fde-slot-fit');
 const { matchOrder, bankOrder, matchTable, matchAnswer, MATCH_CSS } = require('./fde-match-block');
 const { oralSheet, childCard, ORAL_CSS } = require('./fde-oral-sheet');
+const { prepLines } = require('./fde-oral-prep');
 const { answeredParts } = require('./fde-sub-answers');
 const { letterOrder } = require('./fde-order-block');
 const { urduNote } = require('./fde-urdu-notes');
 const { ORDER_TASK } = require('./fde-order-check'); // bd-5jmnfj.4.58.2
 const { taskLine } = require('./fde-task-line');
+const { adjustCriteria, keyStemHidden } = require('./fde-g5-criteria'); // bd-5jmnfj.4.58.4
 const { equalPartsLine } = require('./fde-marks-line');
 const { frameBank } = require('./fde-frame-bank');
 const { acceptText } = require('./fde-accept-line');
@@ -440,7 +443,8 @@ function tableBlock(table, ctx) {
 
 function workSpace(q, slot) {
   if (slot.work_mm && /^\s*draw\b/i.test(String(q.question || ''))) {
-    return `<div class="work-square" style="width:${slot.work_mm}mm;height:${slot.work_mm}mm"></div>`;
+    // A drawing item gets a full-width drawing space, never a small square (G5 Maths Q1 (b) x, bd-5jmnfj.4.58.4).
+    return `<div class="work-square" style="height:${Math.max(45, slot.work_mm)}mm"></div>`;
   }
   // A Grade 1-2 child writes in a box under every written item (bd-5jmnfj.4.8); circling needs none.
   if (slotFlag(slot, 'answer_box')) {
@@ -552,7 +556,8 @@ function subQuestions(list, numbering, ctx, slotLike, space) {
     const opts = sub && Array.isArray(sub.options) && sub.options.length ? optionsBlock(sub, slotLike || {}, ctx) : '';
     // Its own writing space, sized by its own lines (bd-5jmnfj.4.51.8).
     const box = space && !opts ? `<div class="write-box" style="height:${12 + 8 * Math.max(0, ((sub && sub.lines) || 1) - 1)}mm"></div>` : '';
-    return `<div class="sub"><span class="n">${labelHtml(num, ctx)}</span> ${textOf(text, ctx)}${opts}</div>${box}`;
+    const subHtml = `<div class="sub"><span class="n">${labelHtml(num, ctx)}</span> ${textOf(text, ctx)}${opts}</div>`;
+    return box ? `<div class="subq">${subHtml}${box}</div>` : subHtml; // a question never parts from its box (G2 English Q1 h)
   }).join('');
 }
 
@@ -653,6 +658,7 @@ function slotBlock(slot, sec, list, ctx) {
   }
   const body = [];
   const grid = slotFlag(slot, 'picture_only');
+  const soloScene = Fit.soloScene(live, { frame: slot.shape === 'frame', bubble: slotFlag(slot, 'bubble') });
   const or = lang === 'ur' ? 'یا' : 'OR';
   live.forEach((q, i) => {
     if (slot.or && i > 0) body.push(`<div class="or">${textOf(or, ctx)}</div>`);
@@ -670,7 +676,7 @@ function slotBlock(slot, sec, list, ctx) {
     const numHtml = num ? `<span class="n">${labelHtml(num, ctx)}</span>` : '';
     const leadHtml = lead ? `<div class="or-lead">${textOf(lead, ctx)}</div>` : '';
     const stemHtml = stem ? ` ${textOf(stem, ctx).replace(/☐/g, '<span class="sq"></span>')}` : '';
-    body.push(`<div class="q${cont ? ' qcont' : ''}${slot.shape === 'comprehension' ? ' comp' : ''}${grid ? ` pic-cell${slotFlag(slot, 'sentence_box') ? ' wide' : ''}` : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
+    body.push(`<div class="q${cont ? ' qcont' : ''}${slot.shape === 'comprehension' ? ' comp' : ''}${grid ? ` pic-cell${slotFlag(slot, 'sentence_box') ? ' wide' : ''}` : ''}${soloScene ? ' solo-scene' : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
   });
   if (slot.alternatives && !live.length) body.push(fixedAlternatives(slot, null, ctx));
   // An either/or question is read as one choice: never split across a page.
@@ -683,8 +689,10 @@ function slotBlock(slot, sec, list, ctx) {
   const words = bankOrder([...new Set(live.flatMap((q) => (Array.isArray(q.words) ? q.words : [])))], live.map(matchAnswer));
   const bank = printsWords(slot) && slotFlag(slot, 'answer_box') && words.length
     ? `<div class="word-box bank">${words.map((w) => `<span class="w">${textOf(w, ctx)}</span>`).join('')}</div>` : '';
-  if (grid) return `<div class="slot${either}${short}">${head}${bank}<div class="pic-grid">${body.join('')}</div></div>`;
-  return `<div class="slot${either}${short}">${head}${bank}${body.join('')}</div>`;
+  const wide = grid && slotFlag(slot, 'sentence_box');
+  const fit = short ? Fit.fitAttr(live, { grid, wide, bubble: slotFlag(slot, 'bubble') }) : ''; // bd-5jmnfj.4.58.4
+  if (grid) return `<div class="slot${either}${short}"${fit}>${head}${bank}<div class="pic-grid">${Fit.groupRows(body, wide ? 1 : Fit.PER_ROW)}</div></div>`;
+  return `<div class="slot${either}${short}"${fit}>${head}${bank}${body.join('')}</div>`;
 }
 
 // Verses given from a lesson the paper does not cover name it under them, as English Q5 names its
@@ -820,6 +828,7 @@ function css(medium, kind) {
   .sec-head, .slot-head, .part-head, .q, .alt, .or-lead, .s-head, table.rows td { padding-top: .45em; }` : ''}
   .topics { display: flex; gap: 10mm; flex-wrap: wrap; }
   ${PICTURE_CSS}
+  ${Fit.SLOT_FIT_CSS}
   ${MATCH_CSS}
   ${kind === 'scheme' ? schemeCss(medium) + ORAL_CSS : ''}`;
 }
@@ -1038,6 +1047,7 @@ function beforeExamBox(L, live, ctx, examJson) {
   lines[4] = fill(lines[4], { t: L[`total_time_${lang}`] || (lang === 'ur' ? '3 گھنٹے' : '3 hrs') });
   const filled = examJson ? filledByCode(L, examJson) : [];
   if (filled.length) lines.push(FILLED_BY_CODE[lang](filled.length) + filledNames(filled.map((e) => filledName(L, e, lang)), lang));
+  lines.push(...prepLines(L.oral, lang)); // a child-made project the teacher has the class prepare (bd-5jmnfj.4.58.4)
   return `<div class="box before"><div class="bt">${textOf(B[`title_${lang}`], ctx)}</div><ol>${lines.filter((l) => l !== null).map((l) => `<li>${textOf(l, ctx)}</li>`).join('')}</ol></div>`;
 }
 
@@ -1132,7 +1142,7 @@ function pointsHtml(q, ctx, Criteria, slot, idx, marks = null) {
   const s = q.scheme && typeof q.scheme === 'object' ? q.scheme : null;
   if (slot.shape === 'composition' || (slot.shape === 'frame' && slot.frame && slot.frame.kind === 'picture')) {
     const kind = Criteria.kindFor(slot, idx);
-    const rows = kind ? Criteria.criteriaFor(kind, slot.marks_each, lang) : [];
+    const rows = kind ? adjustCriteria(Criteria.criteriaFor(kind, slot.marks_each, lang), slot) : [];
     rows.forEach((r) => out.push(`<span class="crit"><span class="crit-m">${textOf(fmt(r.marks), ctx)}</span> ${textOf(r.name, ctx)}${r.look_for ? ` — ${textOf(r.look_for, ctx)}` : ''}</span>`));
   }
   if (s && Array.isArray(s.points) && !out.length) {
@@ -1195,11 +1205,11 @@ function writtenRows(slot, list, ctx, Criteria) {
     const pic = lang === 'en' && q.picture && q.picture.name && String(q.picture.name).trim().toLowerCase() !== String(q.answer ?? '').trim().toLowerCase()
       ? `Picture: ${String(q.picture.name).trim()}. ` : '';
     // A picture-only slot prints no stem on the paper, so its key repeats none (v26 G1 Urdu Q10 x5, bd-5jmnfj.4.58.2).
-    const qText = slotFlag(slot, 'picture_only') ? '' : cutAtWord(withoutOwnLabel(q.question || '', slot), KEY_ECHO);
+    const qText = slotFlag(slot, 'picture_only') || keyStemHidden(slot) ? '' : cutAtWord(withoutOwnLabel(q.question || '', slot), KEY_ECHO);
     // The question is often just the picture's name: say it once (bd-5jmnfj.4.51.2).
     const sameAsPic = pic && qText.trim().toLowerCase() === String(q.picture.name).trim().toLowerCase();
     const stemHtml = textOf(sameAsPic ? pic.replace(/\.\s*$/, '') : pic + qText, ctx).replace(/☐/g, '<span class="sq"></span>');
-    const stem = q.question || pic ? `<div class="q-line">${stemHtml}</div>` : '';
+    const stem = (q.question && !keyStemHidden(slot)) || pic ? `<div class="q-line">${stemHtml}</div>` : '';
     rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(n, ctx)}</td><td class="ans">${answer}${checkedChip(q, ctx)}${stem}</td><td class="pts">${pointsHtml(q, ctx, Criteria, slot, list.indexOf(q), Number(q.marks) || slot.marks_each)}</td></tr>`);
   });
   if (slot.alternatives) {

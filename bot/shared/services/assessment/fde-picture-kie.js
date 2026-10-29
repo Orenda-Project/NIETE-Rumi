@@ -21,6 +21,11 @@ const ALONE = 'Only one thing in the picture, centred on a plain white backgroun
   + 'no text, no letters, no label, no caption, no heading, no border. '
   // v17: the egg came back with a curve that reads like a smile (bd-5jmnfj.4.37).
   + 'Draw only the outline and the parts the thing really has: no face, no eyes, no smile, no shine or highlight lines.';
+// v28: G1 Urdu Q7 iii-v (grandfather, monkey, teacher) came back faceless or headless because every object was told
+// "no face"; a person or animal (picture.living) is drawn whole with its face (bd-5jmnfj.4.58.4).
+const ALONE_LIVING = 'Only one figure in the picture, centred on a plain white background: no other objects, no ground, '
+  + 'no text, no letters, no label, no caption, no heading, no border. Draw it whole, head included, with its face: eyes and mouth '
+  + 'clearly shown, and the parts it really has: no shine or highlight lines.';
 // v22: the clock's hands came back as arrows pointing at 12 and 3 (bd-5jmnfj.4.50.1).
 const HANDS = 'Its hands are plain straight lines with round ends: no arrowheads, no pointed tips.';
 const hands = (text) => (/\b(clock|watch)/i.test(text) ? ` ${HANDS}` : '');
@@ -28,6 +33,9 @@ const hands = (text) => (/\b(clock|watch)/i.test(text) ? ` ${HANDS}` : '');
 // v26: G1 English Q13's describe said "next to the printed bubble" and the model drew one; the frame prints the bubble (bd-5jmnfj.4.58.2).
 const NO_TEXT = 'No text anywhere: no words, no letters, no label, no caption, no sign, no writing on buildings or boards. '
   + 'No speech bubbles, no thought bubbles, no balloons round anyone.';
+// v28: G2 Urdu Q7's park scene came back with the tree canopy cut at both edges of the bitmap (bd-5jmnfj.4.58.4).
+const WHOLE = 'The whole scene sits inside the picture with a clear white margin all round it: nothing is cut off at any edge, '
+  + 'every tree top and side is drawn to its end.';
 const NEGATIVE = 'text, words, letters, typography, captions, labels, watermark, signature, writing, numbers, digits, symbols, '
   + 'colour, photo, grey background, border, frame, worksheet, heading, title, caption, multiple objects, '
   + 'arrow, pointer, scanned page, paper texture, page edge, shadow, face, smile, eyes, highlight, speech bubble, thought bubble';
@@ -86,7 +94,7 @@ function promptFor(picture) {
     const name = String(picture.name || '').trim();
     if (!name) throw new Error(`${kind} picture: nothing to draw`);
     const who = Describe.genderNote(name);
-    return `${STYLE} The picture: one ${name}. ${ALONE}${hands(name)}${who ? ` ${who}` : ''}`;
+    return `${STYLE} The picture: one ${name}. ${picture.living ? ALONE_LIVING : ALONE}${hands(name)}${who ? ` ${who}` : ''}`;
   }
   if (kind === 'scene') {
     const describe = Describe.withoutBubbles(String(picture.describe || '').trim());
@@ -94,10 +102,14 @@ function promptFor(picture) {
     const place = Object.hasOwn(PLACES, String(picture.place)) ? ` The position must be plain at a glance. ${PLACES[picture.place]}` : '';
     const show = picture.show || {};
     const told = (show.action ? ACTION(show.action) : '') + (show.compare ? COMPARE : '');
-    return `${STYLE} The picture: ${describe}.${place}${told} ${NO_TEXT}${hands(describe)}`;
+    return `${STYLE} The picture: ${describe}.${place}${told} ${NO_TEXT} ${WHOLE}${hands(describe)}`;
   }
   throw new Error(`${kind}: not an image-model picture`);
 }
+
+const NEGATIVE_LIVING = NEGATIVE.replace(', face, smile, eyes,', ', smile,');
+/** The negative prompt for a prompt: a living figure keeps its face and eyes. */
+const negativeFor = (prompt) => (String(prompt).includes(ALONE_LIVING) ? NEGATIVE_LIVING : NEGATIVE);
 
 const realSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -112,7 +124,7 @@ async function generateImage(prompt, {
     headers,
     body: JSON.stringify({
       model: 'nano-banana-pro',
-      input: { prompt, output_format: 'png', aspect_ratio: '1:1', resolution: '1K', negative_prompt: NEGATIVE },
+      input: { prompt, output_format: 'png', aspect_ratio: '1:1', resolution: '1K', negative_prompt: negativeFor(prompt) },
     }),
   })).json();
   const taskId = created && created.data && created.data.taskId;
@@ -134,4 +146,4 @@ async function generateImage(prompt, {
   throw new Error(`image model: task ${taskId} did not finish`);
 }
 
-module.exports = { promptFor, placeOf, showOf, generateImage, KIE_URL, NEGATIVE };
+module.exports = { promptFor, placeOf, showOf, generateImage, KIE_URL, NEGATIVE, negativeFor };
