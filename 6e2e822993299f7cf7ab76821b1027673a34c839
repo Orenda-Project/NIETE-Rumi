@@ -1,0 +1,2 @@
+{"ts":"2026-10-29T09:02:45Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training,lesson-plan,coaching,language,portal-login,teacher-coaching,portal-smoke spec_sync=true","sha":"6e2e82299329","branch":"bd-bmc9a0.8-64430","user":"Hataf Atif"}
+{"ts":"2026-10-29T09:43:09Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"2644f3e1-0470-4c9a-ab9e-ddb897ca9bc2","sha":"6e2e82299329","branch":"bd-bmc9a0.8-64430","user":"Hataf Atif"}
