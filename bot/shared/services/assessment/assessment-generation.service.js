@@ -750,7 +750,7 @@ const Patterns = require('./patterns');
 const { applyLayout, takenNote, firstAskNote, verseLines, scopeLessons, oneStory, STORY_ITEMS } = require('./fde-layout');
 const { normaliseScheme } = require('./marking-scheme');
 const { answerRepeats, giveawayNote, stillGivenAway } = require('./fde-answer-repeats');
-const { paragraphLength } = require('./fde-sentence-count'); // bd-5jmnfj.4.58.2
+const { paragraphLength, lengthNote } = require('./fde-sentence-count'); // bd-5jmnfj.4.58.2
 const { mathsCheck } = require('./maths-check');
 const { keyFixes } = require('./fde-g5-key-fixes');
 const { checkBlueprint, missesSplit, levelDistance, levelNote } = require('./blueprint-check');
@@ -2600,7 +2600,8 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   const short = firstLaid.shortfall
     .concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall)
     .concat(_emptyQuestionParts(firstLaid.examJson))
-    .concat(answerRepeats(firstLaid.examJson)); // an answer printed in another question (bd-5jmnfj.4.51.3)
+    .concat(answerRepeats(firstLaid.examJson)) // an answer printed in another question (bd-5jmnfj.4.51.3)
+    .concat(paragraphLength(firstLaid.examJson)); // a paragraph model answer off its asked length (bd-5jmnfj.4.58.2)
   const shortSlots = new Set(short.map((f) => f.slot));
   // An item carrying text the paper refuses to print (a review mark the model copied) fails the
   // paper at render; its section is asked once more instead, and a second hit fails it here.
@@ -2635,7 +2636,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
       // re-ask (a part with no marking points, a review mark, a religious maxim) takes the second reply whole.
       const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShortSet.has(f.slot));
       // On a top-up the note also names what the slot keeps, and asks for spares.
-      const note = [takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held }), giveawayNote(shortfall)]
+      const note = [takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held }), giveawayNote(shortfall), lengthNote(shortfall)]
         .filter(Boolean).join('\n\n');
       const second = await writeOne(note
         ? { ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }

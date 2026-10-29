@@ -318,10 +318,13 @@ describe('r9 · subjects without a cross-section table lay out as before', () =>
   // urdu and urdu-gen-full again for v27 (bd-5jmnfj.4.58.2): urdu Q4's prompt_rule asks for the task phrase in
   // `question`, Q7's instruction_ur gains «کوئی سے چھ», Q8's prompt_rule asks for 10-12 sentences; with the base
   // patterns/fde-g5-2027.js they hash to the previous values under the current code.
+  // urdu again for the v27 Q8 length re-ask (bd-5jmnfj.4.58.2): the fixture's Q8 paragraph answer is now 11
+  // sentences, so the paper ends differently; `git diff --numstat` on fixtures/fde/urdu.json is 1/1 (only that
+  // answer), and with the old answer restored it hashes to 2d96fbd3… again.
   const BEFORE = {
     science: ['science', 'c09d5ceadd74d6dcb519af1330b9b7261318ce0ac6cfcc0c106c1e3c80c0f626'],
     maths: ['maths', 'a6718724d4bcc26940c78ee6ffac4a0b5370da08421eedf462b6e4e3ffb588cf'],
-    urdu: ['urdu', '2d96fbd3e92b3a6bc94cc043b8201c285143ce9edde1a429e8e4a0543ed79862'],
+    urdu: ['urdu', 'a0066f1fcb6e2f8570ec32480721a0235719b0ebc428c01a9b0fc43a5b8c36e2'],
     'r7-science-full1.exam': ['science', 'ce648f1e8c5b69e1f16b822ff101f812c539f94c5450bf4afb98e59101f2a48a'],
     'urdu-gen-full': ['urdu', '917c48acb8d5713d7658109d8ce03e41f387025f9973d90d49f26410eacd1557'],
   };
