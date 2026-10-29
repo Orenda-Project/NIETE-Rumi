@@ -86,7 +86,7 @@ describe('a lesson plan she sends to her own WhatsApp from the portal', () => {
   });
 
   test.each([
-    ['Meta refused it', { sendTemplate: jest.fn().mockResolvedValue(false) }, { status: 'failed', reason: 'refused' }, 'DELIVERY_FAILED'],
+    ['Meta refused it', { sendTemplate: jest.fn().mockResolvedValue(false) }, { status: 'failed', reason: 'refused', code: null, message: null }, 'DELIVERY_FAILED'],
     ['the template is not configured', { templateName: () => null }, { status: 'unavailable', reason: 'not_configured' }, 'DELIVERY_FAILED'],
   ])('%s → ONE failed row; the answer is unchanged', async (_label, over, answer, code) => {
     const out = await Share.sendShare({ userId: TEACHER, kind: 'lesson', id: 'k5:grade_1_english_ch1_seg3' }, deps(over));
