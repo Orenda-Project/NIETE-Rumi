@@ -106,38 +106,54 @@
   var UPDATE_WAIT_MS = 10000;
 
   /**
-   * reg.update(), then the new worker it finds, active, within UPDATE_WAIT_MS. register() with the same script URL never
-   * looks for a new worker, so a phone on the previous SESSION used to prepare into the old worker's cache, which the new
-   * worker deletes when it activates on the first online child start. Offline (update rejects), with no new worker, or
-   * past the bound: the registration as it is, its active worker unchanged.
+   * reg.update(), then the new worker it finds (or one already installing), followed until it is active, for up to
+   * ACTIVE_WAIT_MS. register() with the same script URL never looks for a new worker, so a phone on the previous SESSION
+   * used to prepare into the old worker's cache, which the new worker deletes when it activates on the first online child
+   * start. → { reg, pending }: pending = that new worker when it is still not active at the bound or its install failed
+   * (redundant); null offline (update rejects), with no new worker, or when the update check itself takes over
+   * UPDATE_WAIT_MS (the active worker as before).
    */
   function updated(reg) {
     return new Promise(function (ok) {
       var done = false;
-      var finish = function () { if (!done) { done = true; clearTimeout(t); ok(reg); } };
-      var t = setTimeout(finish, UPDATE_WAIT_MS);
+      var found = null;
+      var t;
+      function finish() { if (done) return; done = true; clearTimeout(t); ok({ reg: reg, pending: found && reg.active !== found ? found : null }); }
+      function follow(w) {
+        found = w;
+        clearTimeout(t);
+        t = setTimeout(finish, ACTIVE_WAIT_MS);
+        if (w.state === 'activated' || w.state === 'redundant') return finish();
+        w.addEventListener('statechange', function () { if (w.state === 'activated' || w.state === 'redundant') finish(); });
+      }
+      var now = reg.installing || reg.waiting;
+      if (now && typeof now.addEventListener === 'function') return follow(now);
+      t = setTimeout(finish, UPDATE_WAIT_MS);
       Promise.resolve().then(function () { return reg.update(); }).then(function () {
+        if (done) return;
         var w = reg.installing || reg.waiting;
         if (!w || typeof w.addEventListener !== 'function') return finish();
-        w.addEventListener('statechange', function () { if (w.state === 'activated' || w.state === 'redundant') finish(); });
-        if (w.state === 'activated') finish();
+        follow(w);
       }, finish);
     });
   }
 
+  /** Why "ready for offline" waits: the new worker is still installing, or its install failed. */
+  function pendingWhy(w) { return w.state === 'redundant' ? 'worker_update_failed' : 'worker_update_pending'; }
+
   /**
    * The engine's registration, without waiting on the network: register() fetches the worker's script, so with no signal it
    * rejects even when the worker is installed and every file is on the phone (round 8, the school with no signal). An
-   * active registration is updated first (updated(), bounded; a failure keeps the installed worker); a phone with none
-   * registers first.
+   * active registration is updated first (updated(); out.pending tells the caller a new worker is not active yet); a
+   * phone with none registers first.
    */
-  function registration(sw) {
+  function registration(sw, out) {
     var opts = { scope: '/sa/' };
     var fresh = function () { return sw.register('/sa/sw.js', opts); };
     var have = typeof sw.getRegistration === 'function' ? Promise.resolve().then(function () { return sw.getRegistration('/sa/'); }).then(null, function () { return null; }) : Promise.resolve(null);
     return have.then(function (reg) {
       if (reg && reg.active) {
-        if (typeof reg.update === 'function') return updated(reg);
+        if (typeof reg.update === 'function') return updated(reg).then(function (u) { if (out) out.pending = u.pending; return u.reg; });
         Promise.resolve().then(fresh).then(null, function () { /* offline: the installed worker serves */ });
         return reg;
       }
@@ -304,10 +320,10 @@
    * The engine's worker, active, as an ask(msg) → Promise<reply>. A page outside /sa/ (the coach page) is never
    * controlled by it, so serviceWorker.ready would never resolve there: wait on the registration's own worker instead.
    */
-  function workerAsk() {
+  function workerAsk(out) {
     var nav = root.navigator;
     if (!nav || !nav.serviceWorker || !root.MessageChannel) return Promise.resolve(null);
-    return registration(nav.serviceWorker).then(function (reg) {
+    return registration(nav.serviceWorker, out).then(function (reg) {
       if (reg.active) return reg.active;
       var w = reg.installing || reg.waiting;
       if (!w) return null;
@@ -355,8 +371,11 @@
     var progress = typeof o.onProgress === 'function' ? o.onProgress : function () {};
     var read = o.readBattery || readKept;
     var bats = forms.map(batteryUrl);
-    return (o.ask ? Promise.resolve(o.ask) : workerAsk()).then(function (q) {
+    var upd = {};
+    return (o.ask ? Promise.resolve(o.ask) : workerAsk(upd)).then(function (q) {
       if (!q) return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, forms: [], why: 'no_service_worker' };
+      // a new worker that is not active yet would delete what goes into this one: not ready, the next press waits again
+      if (upd.pending) return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, forms: [], why: pendingWhy(upd.pending) };
       var bytes = 0;
       var missingSet = {};
       // fresh: false (the Start gate after a warm-up): a battery on the phone is not read again
@@ -409,8 +428,10 @@
     o = o || {};
     var forms = formsOf(o.forms);
     var read = o.readBattery || readKept;
-    return (o.ask ? Promise.resolve(o.ask) : workerAsk()).then(function (q) {
+    var upd = {};
+    return (o.ask ? Promise.resolve(o.ask) : workerAsk(upd)).then(function (q) {
       if (!q) return { ready: false, total: 0, cached: 0, why: 'no_service_worker' };
+      if (upd.pending) return { ready: false, total: 0, cached: 0, why: pendingWhy(upd.pending) };
       return Promise.all(forms.map(function (f) { return Promise.resolve().then(function () { return read(batteryUrl(f)); }).then(null, function () { return null; }); }))
         .then(function (batteries) {
           var want = [];
