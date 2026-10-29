@@ -1,6 +1,6 @@
 # views — EJS pages of the admin dashboard (Tailwind via CDN)
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/dashboard/views kg=502ff75e0951 gen=1a50c30f0e2c overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/dashboard/views kg=502ff75e0951 gen=63f7237506b1 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `layout.ejs` — base shell wrapping page bodies
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `conversations.ejs` | Admin dashboard EJS view showing one user's conversation history |
 | `dashboard.ejs` | Admin dashboard home EJS view with overall stats and recent activity |
 | `error.ejs` | Admin dashboard error page EJS template |

@@ -1,6 +1,6 @@
 # ops — Operational probes against live infrastructure
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/ops kg=edaefc2d1a1c gen=1f43caa08d15 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/ops kg=206312e85e1c gen=a7899b3925e4 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `r2-cors-preflight.js` — checks R2 CORS for portal uploads without writing
@@ -9,7 +9,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `r2-cors-preflight.js` | Sends only the CORS OPTIONS preflight a browser would send for a portal upload PUT to R2; exit 1 if refused (bd-mzck5) |
 
 ## Who reads this (generated)
@@ -23,4 +22,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/ops/CLAUDE.md`?
+- docs: `scripts/CLAUDE.md`?

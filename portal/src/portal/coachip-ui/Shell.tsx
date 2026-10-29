@@ -34,7 +34,7 @@ export function Shell({ testId, header, nav, aside, wide = false, trust, trustIn
               {header}
               <div className="cp-enter flex flex-col px-5 pt-4 lg:px-0 lg:pt-2">
                 {children}
-                {trust && <div className={trustInRail ? "lg:hidden" : ""}>{trust}</div>}
+                {trust && <div data-cp-trust="" className={trustInRail ? "lg:hidden" : ""}>{trust}</div>}
               </div>
             </div>
             {aside && <aside data-cp-aside="" className="px-5 pt-6 lg:sticky lg:top-9 lg:px-0 lg:pt-12">{aside}</aside>}

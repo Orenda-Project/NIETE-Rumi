@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `class-link-run-off.json` | OFF-switch golden of the class-link run row, loaded by web-quiz-class-link-run.test.js |
 | `class-link-teacher-off.json` | OFF-switch golden of the teacher class-link page HTML, loaded by web-quiz-class-link.test.js |
 | `class-pic-off.json` | OFF-switch golden of class share-picture art and og payloads, loaded by web-quiz-class-pic.test.js |
@@ -28,4 +26,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.md`? · `bot/tests/quiz/web-quiz/__golden__/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/__golden__/CLAUDE.md`?
+- docs: `bot/tests/quiz/web-quiz/CLAUDE.md`?

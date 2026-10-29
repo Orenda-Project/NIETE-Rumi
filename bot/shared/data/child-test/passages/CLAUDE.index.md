@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `README.md` | Rules for the one-file-per-passage Challenge passage registry loaded and deep-frozen by item-bank.js |
 | `en.listen.1.ref01.json` | Challenge reference listening passage, en band 1, check poo |
 | `en.listen.1.story01.json` | Challenge listening passage, en band 1, Story Time practi |
@@ -61,4 +59,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/data/child-test/CLAUDE.index.md`? · `bot/shared/data/child-test/CLAUDE.md`? · `bot/shared/data/child-test/passages/CLAUDE.index.md`? · `bot/shared/data/child-test/passages/CLAUDE.md`? · `bot/shared/data/child-test/passages/README.md`? · `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`?
+- docs: `bot/shared/data/child-test/CLAUDE.md`? · `bot/shared/data/child-test/passages/README.md`? · `bot/shared/services/child-test/CLAUDE.md`?

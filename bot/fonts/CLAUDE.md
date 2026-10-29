@@ -1,6 +1,6 @@
 # fonts — Bundled Urdu/Arabic font files the bot's renderers load from disk
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/fonts kg=f93af059423b gen=880ae2c7d77c overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/fonts kg=f93af059423b gen=8d0020a46db9 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `NotoNastaliqUrdu.ttf` — Nastaliq face used for Urdu rendering
@@ -11,7 +11,6 @@
 | path | purpose |
 |---|---|
 | `ScheherazadeNew-4.000/` | SIL Scheherazade New 4.000 font package, third-party, kept whole with its licence → `ScheherazadeNew-4.000/CLAUDE.md` |
-| `CLAUDE.md` | (unmapped) |
 | `NotoNastaliqUrdu.ttf` | (unmapped) |
 | `NotoSansArabic-Regular.ttf` | (unmapped) |
 | `NotoSansArabic.ttf` | (unmapped) |
@@ -28,4 +27,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/fonts/ScheherazadeNew-4.000/CLAUDE.md`?
+- docs: `bot/CLAUDE.md`?

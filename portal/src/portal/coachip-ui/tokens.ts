@@ -16,7 +16,6 @@ export const CP_COLOURS = {
   track: "#C9CDD3",
   ground: "#F6F8F7",
   surface: "#FFFFFF",
-  "grey-fill": "#ECEEF1",
   trend: "#4F46E5",
 } as const;
 

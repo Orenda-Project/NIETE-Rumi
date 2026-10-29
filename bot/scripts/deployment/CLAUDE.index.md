@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `DEPLOY_NOW.sh` | Reference shell script that pushes the current branch to trigger a Railway auto-deploy |
 | `PUSH_TO_PRODUCTION.sh` | Example template script pushing the current branch to GitHub so Railway auto-deploys; meant to be modified |
 | `README.md` | Warns deployment scripts are Taleemabad-WABA reference code with hardcoded IDs that clones must replace |
@@ -46,12 +44,16 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - column `users.registration_state` (written by `get-portal-test-tokens.js`) ← read by `bot/shared/services/app-redirect.service.js:306:ae2bb76a` · `bot/shared/services/first-touch/teacher-home.data.js:67:67bade35` · `bot/shared/services/quiz/web-quiz-student-join.js:264:4a7f1445` · `dashboard/routes/portal.routes.js:679:b547e081`
 - table `users` whole row (`*`) (written by `get-portal-test-tokens.js`) ← read by `bot/shared/database/bot-helpers.js:28:2ebcf687` · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:687:7a0c163a`? · `dashboard/test-rls-with-supabase-client.js:51:77bc023b`?
 - table `users` (written by `get-portal-test-tokens.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:242:774e00e5`? · `bot/shared/database/bot-helpers.js:17:61dfd735`? (+168: `python3 kg/kg.py who-reads users`)
+- env `AWS_REGION` read at `bot/scripts/deployment/setup-aws-sqs.sh:12:d3d926e2`
 - env `BOT_NAME` read at `bot/scripts/deployment/register-phone-number.js:17:1235cf6f`
 - env `GRAPH_API_VERSION` read at `bot/scripts/deployment/configure-menu-command.js:13:ddcada1f` · `bot/scripts/deployment/resize-and-upload-sticker.js:20:ddcada1f` · `bot/scripts/deployment/upload-listening-animation.js:9:ddcada1f` · `bot/scripts/deployment/upload-loading-sticker.js:18:ddcada1f` · `bot/scripts/deployment/upload-menu-image.js:13:ddcada1f` · `bot/scripts/deployment/upload-pedagogical-animation.js:9:ddcada1f` · `bot/scripts/deployment/upload-registration-success.js:14:ddcada1f`
 - env `MENU_IMAGE_MEDIA_ID` read at `bot/scripts/deployment/upload-menu-image.js:52:2c45e724`
 - env `META_APP_ID` read at `bot/scripts/deployment/update-niete-whatsapp-profile.js:26:f3432018`
 - env `PHONE_NUMBER_ID` read at `bot/scripts/deployment/change-pin.js:5:c79e4792` · `bot/scripts/deployment/configure-menu-command.js:11:c79e4792` · `bot/scripts/deployment/create-carousel-template.js:13:c79e4792` · `bot/scripts/deployment/get-waba-id.js:5:c79e4792` · `bot/scripts/deployment/register-commands-meta.js:19:c79e4792` · `bot/scripts/deployment/register-phone-number.js:5:c79e4792` · `bot/scripts/deployment/resize-and-upload-sticker.js:19:c79e4792` · `bot/scripts/deployment/send-services-list.js:13:c79e4792` · `bot/scripts/deployment/update-display-name.js:12:c79e4792` · `bot/scripts/deployment/update-niete-whatsapp-profile.js:22:c79e4792` · `bot/scripts/deployment/update-whatsapp-profile.js:8:c79e4792` · `bot/scripts/deployment/upload-carousel-images.js:15:c79e4792` · `bot/scripts/deployment/upload-listening-animation.js:8:c79e4792` · `bot/scripts/deployment/upload-loading-sticker.js:17:c79e4792` · `bot/scripts/deployment/upload-menu-image.js:12:35f02dca` · `bot/scripts/deployment/upload-pedagogical-animation.js:8:c79e4792` · `bot/scripts/deployment/upload-registration-success.js:13:c79e4792`
 - env `PORTAL_URL` read at `bot/scripts/deployment/get-portal-test-tokens.js:97:2e403234`
+- env `RAILWAY_SERVICE` read at `bot/scripts/deployment/check-recent-logs.sh:9:1597e566`
+- env `RAILWAY_TOKEN` read at `bot/scripts/deployment/check-recent-logs.sh:8:d9dea95f`
+- env `REDIS_URL` read at `bot/scripts/deployment/SETUP_AND_TEST.sh:47:9d583e6e`
 - env `SUPPORT_EMAIL` read at `bot/scripts/deployment/update-whatsapp-profile.js:102:0e9719ac`
 - env `TEST_PHONE_NUMBER` read at `bot/scripts/deployment/send-services-list.js:14:ce427c5e`
 - env `WABA_ID` read at `bot/scripts/deployment/create-carousel-template.js:12:601afc5a` · `bot/scripts/deployment/update-niete-whatsapp-profile.js:23:601afc5a` · `bot/scripts/deployment/update-whatsapp-profile.js:9:a4122f6a`
@@ -63,4 +65,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `SETUP.md`? · `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/deployment/CLAUDE.index.md`? · `bot/scripts/deployment/CLAUDE.md`? · `bot/scripts/deployment/README.md`?
+- docs: `SETUP.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/deployment/README.md`?

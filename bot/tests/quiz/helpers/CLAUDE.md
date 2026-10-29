@@ -1,6 +1,6 @@
 # helpers — Render-and-measure helpers that read PDFs and pages back as ink for layout tests
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz/helpers kg=feeff1b3e299 gen=69b758957805 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz/helpers kg=feeff1b3e299 gen=34a00a6d9d69 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `pdf-layout.js` — rasterises a PDF with pdftoppm and reports per-page ink extent
@@ -12,7 +12,6 @@
 |---|---|
 | `pdf-layout.js` | Test helper that rasterises a printed PDF with pdftoppm and reports per-page ink extent for layout tests |
 | `line-ink.js` | Test helper that reads a rendered page as lines of ink (DOM Range per word) to detect Nastaliq line collisions |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - (none)
@@ -25,4 +24,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/quiz/CLAUDE.md`? · `bot/tests/quiz/helpers/CLAUDE.md`?
+- docs: `bot/tests/quiz/CLAUDE.md`?

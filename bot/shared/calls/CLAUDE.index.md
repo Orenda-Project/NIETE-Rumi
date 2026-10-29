@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `assets/` | → (no door; 2 files) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `ambience.js` | Loads pre-decoded PCM office/keyboard ambience mixed into live-call audio for a human feel (bd-neeyat) |
 | `budget-governor.js` | Enforces live-call caps in code: weekly spend, calls per caller per day, 80% alarm (bd-1hae7.16) |
 | `call-context.repo.js` | Thin Supabase queries (user, latest coaching, LP, upcoming visit) feeding the call connect context (bd-1hae7.6) |
@@ -98,4 +96,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `uplift-tts.js` ← `bot/tests/calls/uplift-voice.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/CLAUDE.md`? · `bot/shared/calls/CLAUDE.index.md`? · `bot/shared/calls/CLAUDE.md`? · `bot/tests/calls/CLAUDE.index.md`? · `bot/tests/calls/CLAUDE.md`?
+- docs: `bot/shared/CLAUDE.md`?

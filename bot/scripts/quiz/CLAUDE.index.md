@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `backfill-bank-quiz-audio.js` | Pre-records read-aloud clips for video-bank quizzes so a child's first open is not delayed; guarded by --expect-ref |
 | `backfill-quiz-language.js` | Marks each video-bank quiz with the language its questions are written in (quizzes.language); dry run default |
 | `one-voice-missing-keys.js` | Pre-flip check that every voice line served under a web_quiz_one_voice plan is already stored in that voice |
@@ -37,4 +35,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `restore-bank-recorded-voices.js` ← `bot/tests/quiz/restore-bank-recorded-voices.test.js`
 
 ## Related (all, generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/quiz/CLAUDE.index.md`? · `bot/scripts/quiz/CLAUDE.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/first-touch/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/quiz/CLAUDE.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.md`?
+- docs: `bot/scripts/CLAUDE.md`?

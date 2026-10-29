@@ -19,6 +19,10 @@ import { AppBar } from "../../../coachip-ui/AppBar";
  *   top-level page  the band (`Band`): NIETE lockup, the title, `chips` as its line; `hero` replaces it entirely
  *   inner page      the slim app bar (`backTo`): back circle, `crumb` as its eyebrow, the title, `chips` as its line
  *   `aside`         the laptop's right column (the moment, open steps); on a phone it follows the page
+ *
+ * R6 fix cycle 1 (FIX_R6 A6, panel 230201): on a home the trust line is the band's foot on a phone and the rail's on a
+ * laptop, so the page foot does not repeat it; an inner page keeps it at the foot. A line still coming is `null`
+ * (AppBar draws its placeholder, A1); `undefined` means the page has no such line.
  */
 export function InsightsPage({ title, crumb, chips, backTo, windows, testId, hero, aside, wide, children, trust = true }: {
   title?: ReactNode; crumb?: ReactNode; chips?: ReactNode; backTo?: string; windows?: readonly Window[] | null; testId: string; hero?: ReactNode;
@@ -27,12 +31,13 @@ export function InsightsPage({ title, crumb, chips, backTo, windows, testId, her
   const header = hero ?? (backTo
     ? <AppBar testId="insights-appbar" backTo={backTo} eyebrow={crumb} title={title} sub={chips} />
     : <Band title={title} sub={chips} />);
+  const home = Boolean(hero) || !backTo;
   return (
     <InsightsGate>
       <PortalLayout ownHeading>
         <WindowsProvider windows={windows}>
           <Shell testId={testId} header={header} aside={aside} wide={wide} padBottom="layout" fullHeight={false}
-            trust={trust ? <TrustLine /> : null} trustInRail>
+            trust={trust && !home ? <TrustLine /> : null} trustInRail>
             {children}
           </Shell>
         </WindowsProvider>
@@ -47,12 +52,13 @@ export function InsightsPage({ title, crumb, chips, backTo, windows, testId, her
  * a laptop.
  */
 export function Band({ title, sub, date, children }: { title?: ReactNode; sub?: ReactNode; date?: ReactNode; children?: ReactNode }) {
-  return <CpBand testId="insights-band" title={title} sub={sub} date={date}>{children}</CpBand>;
+  const lang = useLang();
+  return <CpBand testId="insights-band" title={title} sub={sub} date={date} foot={t("trust.coach", lang)}>{children}</CpBand>;
 }
 
 export function TrustLine() {
   const lang = useLang();
-  return <p data-testid="trust-line" className="px-1 pt-6 text-[13px] leading-[1.45] text-cp-ink-3">{t("trust.coach", lang)}</p>;
+  return <p data-testid="trust-line" className="cp-trust">{t("trust.coach", lang)}</p>;
 }
 
 /**
@@ -65,7 +71,7 @@ export function MetaLine({ window, className, showChange = true }: { window: Win
   if (window.grader_label) parts.push(pick(window.grader_label, lang));
   if (showChange && window.scoring_changed_on) parts.push(t("meta.changed", lang, { date_short: dateShort(window.scoring_changed_on, lang) }));
   return (
-    <WindowMark window={window} className={className ?? "text-[13px] leading-[1.45] text-cp-ink-3"}>
+    <WindowMark window={window} className={className ?? "cp-meta"}>
       {parts.join(lang === "ur" ? "، " : " · ")}
     </WindowMark>
   );

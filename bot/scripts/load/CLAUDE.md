@@ -1,6 +1,6 @@
 # load — Offline load harness for the quiz queue
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/load kg=3232c5df4e65 gen=6092ad090ff2 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/load kg=a0fe124c1d03 gen=1dc0ad6dfc68 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `quiz-queue-load-harness.js` — real workers on a virtual clock, no network
@@ -9,7 +9,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `quiz-queue-load-harness.js` | Offline load harness running real SQS worker instances on a virtual clock and in-memory SQS to simulate quiz-queue traf… |
 
 ## Who reads this (generated)
@@ -23,4 +22,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/load/CLAUDE.md`?
+- docs: `bot/scripts/CLAUDE.md`?

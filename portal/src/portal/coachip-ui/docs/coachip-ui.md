@@ -8,8 +8,8 @@ pieces; nothing here knows about a payload except `Count` (the G10 number patter
 - **Scope.** Every token is a CSS variable under `.cp` (`tokens.css`). `Shell`, `NavBar` and `Rail` carry the class, so a
   COACHIP page has it and nothing else in the portal does. Outside a `.cp` ancestor, `cp-*` classes resolve to nothing.
 - **Colours** are Tailwind classes through the variables: `text-cp-ink`, `text-cp-ink-2`, `text-cp-ink-3`, `text-cp-navy`,
-  `text-cp-green-ink`, `bg-cp-ground`, `bg-cp-surface`, `bg-cp-green`, `bg-cp-green-tint`, `bg-cp-navy-tint`,
-  `bg-cp-grey-fill`, `border-cp-hairline`, `bg-cp-track`. No new hex in `insights/` or `rm/` (design-qa look.1).
+  `text-cp-green-ink`, `bg-cp-ground`, `bg-cp-surface`, `bg-cp-green`, `bg-cp-green-tint`, `bg-cp-navy-tint` (the one tint; `grey-fill` is
+  withdrawn, FIX_R6 A8), `border-cp-hairline`, `bg-cp-track`. No new hex in `insights/` or `rm/` (design-qa look.1).
   Opacity modifiers (`bg-cp-green/50`) do not work on variable colours; use the token that exists.
 - **Type**: Plus Jakarta Sans on `.cp` (already preloaded, no new request); Urdu stays Nastaliq through index.css. Sizes as
   arbitrary values from DESIGN_SYSTEM §2 (`text-[17px] font-semibold` for a lead, `text-[13px] text-cp-ink-3` for meta).
@@ -40,20 +40,20 @@ pieces; nothing here knows about a payload except `Count` (the G10 number patter
 | Component | Props | One line |
 |---|---|---|
 | `Shell` | `testId`, `header`, `nav`, `aside`, `wide`, `trust`, `trustInRail`, `padBottom`, `fullHeight`, `bleed`, `dir` | The frames use it; a page never does. `<Shell testId="x" header={<AppBar …/>}>…</Shell>` |
-| `Band`, `Eyebrow` | `title`, `date`, `sub`, `trailing`, `children`, `testId` | `<Band title="This week" date={…}><Eyebrow>Notice · Move 1 of 2</Eyebrow><RingCount size="hero" …/><Pill tone="green">…</Pill></Band>` — the body becomes the hero card on a laptop |
-| `AppBar` | `backTo`, `backLabel`, `eyebrow`, `title`, `sub`, `trailing`, `testId` | `<AppBar backTo={paths.thisWeek} eyebrow="Move 1 of 2 · this month" title="Practice never set" sub={<MetaLine …/>} />` |
+| `Band`, `Eyebrow` | `title`, `date`, `sub`, `trailing`, `foot` (12 px white-72 % last line, phone only: the trust line, A6; test id `<testId>-foot`), `children`, `testId` | `<Band title="This week" date={…}><Eyebrow>Notice · Move 1 of 2</Eyebrow><RingCount size="hero" …/><Pill tone="green">…</Pill></Band>` — the body becomes the hero card on a laptop |
+| `AppBar` | `backTo`, `backLabel`, `eyebrow`, `title`, `sub`, `trailing`, `testId`; a line passed as `null` is still coming and draws a placeholder bar in its own line box, `undefined` means no such line (A1) | `<AppBar backTo={paths.thisWeek} eyebrow="Move 1 of 2 · this month" title="Practice never set" sub={<MetaLine …/>} />` |
 | `Surface` | `overlap`, `testId`, `as`, `data-*` | `<Surface overlap testId="s1-first">…</Surface>` — the card right under the band rides up 24 px |
 | `Section` | `label`, `title`, `hint`, `tone` (`green` for "needs me"), `first`, `action`, `testId` | `<Section label="Open steps" hint="What you set, and the next three recordings">…rows</Section>` |
 | `Row` | `title`, `meta`, `lead`, `trail`, `to` or `onClick`, `testId`, `data-*`, children | `<Row title="Phonics check" meta="Starts after 30 hours" to={paths.stats} />` — 44 px, hairline between rows, chevron flips in Urdu |
 | `RingCount` | `count`, `lang`, `size` (`hero` 104 / `card` 64 / `row` 56), children (the sentence), `testId` | `<RingCount count={card.count} lang={lang} size="hero"><p>{sentence}</p></RingCount>` — ONE count node, text = `nOfD`, ring at the inline end in Urdu |
 | `RowCount` | `count`, `lang` | `<RowCount count={c} lang={lang} />` — 22/800 n + 13/600 "of d", one count node |
-| `Ring` | `n`, `d`, `size`, children, `data-*` | the bare ring; a zero draws the track only. Prefer `RingCount` |
-| `FractionBar` | `n`, `d`, `tone` (`green`/`grey`) | `<FractionBar n={11} d={22} className="w-[120px]" />` — fills from the right in Urdu |
+| `Ring` | `n`, `d`, `size`, `tone` (`notice` default: navy arc, white-72 % on the band; `strength`: green; rendered as `data-tone`, A5), children, `data-*` | the bare ring; a zero draws the track only. Prefer `RingCount` |
+| `FractionBar` | `n`, `d`, `tone` (`notice` navy default / `grey` / `green` a strength, A5); the code lives in `Count.tsx` (one chunk with the rings) | `<FractionBar n={11} d={22} className="w-[120px]" />` — fills from the right in Urdu |
 | `Pill` | `tone` (`green` on the band, `tint`, `grey`, `navy-tint`, `on-navy`), `as`, `data-*` | `<Pill tone="green" as="p" data-window={w.id}>…</Pill>` when the pill IS the window element |
 | `Button` | `variant` (`primary`/`secondary`/`quiet`), `size` (`lg` 52 / `md` 44), `block`, `to`/`href`/`onClick`, `icon`, `testId` | `<Button to={paths.w(id)} testId="wcard-see"><span>See the move</span></Button>` — keep the label one inline run |
 | `StepStrip` | `steps` (`{label, state: done/current/todo}`), `dir` | `<StepStrip steps={…} />` — five segments, LTR in Urdu |
 | `Dots` | `states` (`done`/`partial`/`none`) | `<Dots states={["done","none","none"]} />` |
-| `Skeleton` | `band`, `testId` | `<Skeleton band />` for the login landing; `StateBlock` already uses the plain one |
+| `Skeleton` | `band`, `overlap` (the first card rides up over a page's own band and holds `--cp-first-card-h`, A1), `testId` | `<Skeleton band />` for the login landing; `StateBlock` already uses the plain one |
 | `NavBar`, `Rail` | `items` (`{key,to,label,icon,current,dataNav}`), `ariaLabel`, `testId`; Rail: `logoAlt`, `extra`, `lang`, `trust` | the two menus use them; a page never does |
 | `LangToggle` | `prefix` (test ids), `tone` (`light`/`dark`) | EN \| اردو through the one writer |
 | `useLaptop()` | — | true at ≥ 1024; only for things that must not mount on a phone |

@@ -129,7 +129,7 @@ for (const lang of ["en", "ur"] as const) {
         expect(c.className).not.toContain("shadow");
       }
       const notYet = cells[0].querySelector('[data-status="not_measured"] [data-pill="not-yet"]') as HTMLElement;
-      expect(notYet.className).toContain("bg-cp-grey-fill");
+      expect(notYet.className).toContain("bg-cp-navy-tint");
       expect(screen.getByTestId("s7-send").className).toContain("border-cp-navy");
       expect(container.querySelectorAll("[data-surface]")).toHaveLength(0);
       expectContract(container, expect);

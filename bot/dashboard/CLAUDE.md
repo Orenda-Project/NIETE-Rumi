@@ -1,6 +1,6 @@
 # dashboard — Legacy Express admin dashboard: login, users, conversations, stats
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/dashboard kg=90de07ece493 gen=a5c400de3f35 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/dashboard kg=a72d2553a390 gen=425e0920abb7 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — server, session login, routes
@@ -11,7 +11,6 @@
 | path | purpose |
 |---|---|
 | `views/` | EJS pages of the admin dashboard (Tailwind via CDN) → `views/CLAUDE.md` |
-| `CLAUDE.md` | (unmapped) |
 | `index.js` | Express admin dashboard (session login, bcrypt, rate limit) listing users, conversations and activity stats |
 
 ## Who reads this (generated)
@@ -25,5 +24,5 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/dashboard/CLAUDE.md`? · `bot/dashboard/views/CLAUDE.md`?
+- docs: `bot/CLAUDE.md`?
 - service: `dashboard`
