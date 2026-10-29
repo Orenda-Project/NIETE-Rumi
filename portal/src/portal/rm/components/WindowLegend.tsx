@@ -7,19 +7,27 @@ import type { Window } from "../../coach/insights/types";
  * bd-sex15q.17 — the windows a card's counts refer to, written once on the card (B5 add: a multi-number screen carries
  * the window per card), each the element a `data-win` resolves to (G10). Activity windows have no grader (API A7).
  */
-export function WindowLegend({ windows, ids, className }: { windows: readonly Window[]; ids: readonly string[]; className?: string }) {
+export function WindowLegend({ windows, ids, className, sep = false, inline = sep }: {
+  windows: readonly Window[]; ids: readonly string[]; className?: string;
+  /** a span (inside a Section's hint), not a paragraph */
+  inline?: boolean;
+  /** bd-sex15q.47 (R6): inline after a hint ("… never a score · 1 Oct to 28 Oct"), a span led by the separator. */
+  sep?: boolean;
+}) {
   const lang = useLang();
   const list = [...new Set(ids)].map((id) => windows.find((w) => w.id === id)).filter((w): w is Window => !!w);
   if (!list.length) return null;
+  const Tag = inline ? "span" : "p";
   return (
-    <p data-testid="window-legend" className={className ?? "text-[12.5px] leading-snug text-[#6b7280]"}>
+    <Tag data-testid="window-legend" className={className ?? "text-[13px] leading-[1.45] text-cp-ink-3"}>
+      {sep && (lang === "ur" ? "، " : " · ")}
       {list.map((w, i) => (
         <span key={w.id}>
           {i > 0 && (lang === "ur" ? "، " : " · ")}
           <WindowMark window={w} as="span">{range(w.from, w.to, lang)}</WindowMark>
         </span>
       ))}
-    </p>
+    </Tag>
   );
 }
 

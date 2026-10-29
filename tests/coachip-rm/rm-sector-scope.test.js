@@ -401,7 +401,7 @@ run('COACHIP RM sector scope (adversarial; Postgres, HTTP)', () => {
       }
       const me = await get('/me', CT);
       expect(me.body.coach).toEqual({ schoolCount: 1, teacherCount: 1 });
-      expect(me.body.rm).toEqual({ sector: 'Urban-I', schoolCount: 6, coachCount: 3 });
+      expect(me.body.rm).toEqual({ sector: 'Urban-I', schoolCount: 6, coachCount: 3, coachesHere: false });   // fix-r5 s5: they coach in Tarnol
     });
 
     test('on RM routes they see only the Urban-I sector, never their own Tarnol schools, teachers or moments', async () => {

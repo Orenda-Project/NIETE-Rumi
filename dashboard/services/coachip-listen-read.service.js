@@ -459,11 +459,15 @@ async function moments(ctx) {
 }
 
 // ── R6 GET /coachip/m/:momentId (S4): the coach's Moment, or the RM's circle form ───────────────────────────────────
+// `?as=rm` (the RM surface, fix-r5 s5, B22): RM context only. A dual who is RM of the sector they coach in would
+// otherwise get the coach form (T-code, session, full recording) on the RM circle; with it the coach path is never
+// tried, and a session with no RmScope answers the one 404.
 async function moment(ctx) {
   const q = ctx.deps.query;
   const id = ctx.params.momentId;
+  const asRm = ctx.query && ctx.query.as === 'rm';
   // coach: the moment's recording must be one of the coach's current teachers' (inScope), checked before any content
-  if (ctx.coach) {
+  if (ctx.coach && !asRm) {
     const { rows } = await q('SELECT session_id FROM coachip_moments WHERE id = $1', [id]);
     if (rows[0] && await ctx.deps.scope.inScope(ctx.coach, rows[0].session_id)) {
       const built = await buildMomentsWithMeta(q, ctx.deps.codes, ctx.uid, [id], { withPair: true, coachScope: ctx.coach, today: ctx.today });

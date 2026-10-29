@@ -7,7 +7,8 @@ import { resolveRole } from "../../lib/leaderRole";
 import { useChildTestSa } from "../../lib/useChildTestSa";
 import { isCoachV2For, useCoachV2 } from "../useCoachV2";
 import { coachLandingFor, coachPathReady, coachReadyFor } from "./appReady";
-import { useCoachip, useCoachipRm } from "../insights/useCoachip";
+import { useCoachip, useCoachipRm, useRmCoachesHere } from "../insights/useCoachip";
+import { useSchoolCard } from "../card/useSchoolCard";
 
 /**
  * bd-s42dye.2 — the ONE guard around the route table for a coach on the coach app v2: any page that is not one of the
@@ -25,6 +26,10 @@ import { useCoachip, useCoachipRm } from "../insights/useCoachip";
  * of Training (coachLandingFor). The RM switch is read from /config only (no /coachip/ request), and only matters when a
  * redirect is about to happen: while it is read, that redirect waits behind the frame's outline.
  *
+ * fix-r5 s5 — a dual (both switches on) whose RM sector is not one they coach in (/coachip/me rm.coachesHere false)
+ * lands on /portal/rm too. /coachip/me is asked only for a dual about to be redirected (both switches on), never
+ * with either switch off.
+ *
  * Like AnalyticsOnlyGuard it reads the user the app already holds and never asks for it.
  */
 const ASSESS = "/portal/leader/assess";
@@ -39,16 +44,21 @@ const CoachAppGuard = ({ children }: { children: ReactNode }) => {
   const assess = useChildTestSa(isCoach && onAssess);
   const coachip = useCoachip(user?.phoneNumber || null, isCoach);
   const coachipRm = useCoachipRm(isCoach);
+  // The School card switch (fail-closed): on, the slim Home is her landing page and the School card pages open.
+  const schoolCard = useSchoolCard(user?.phoneNumber || null, isCoach);
+  const dual = isCoach && coachip === true && coachipRm === true;
+  const rmCoachesHere = useRmCoachesHere(dual && schoolCard !== null && !coachPathReady(pathname, coachReadyFor(coachip, schoolCard)));
   if (!isCoach || coachPathReady(pathname)) return <>{children}</>;
   if (flag === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
   if (!isCoachV2For(user, flag)) return <>{children}</>;
-  if (coachip === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
-  const ready = coachReadyFor(coachip);
+  if (coachip === null || schoolCard === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
+  const ready = coachReadyFor(coachip, schoolCard);
   if (coachPathReady(pathname, ready)) return <>{children}</>;
   if (onAssess && assess === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
   if (onAssess && assess) return <>{children}</>;
   if (coachip !== true && coachipRm === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
-  return <Navigate to={coachLandingFor(ready, coachip, coachipRm)} replace />;
+  if (dual && rmCoachesHere === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
+  return <Navigate to={coachLandingFor(ready, coachip, coachipRm, rmCoachesHere)} replace />;
 };
 
 export default CoachAppGuard;

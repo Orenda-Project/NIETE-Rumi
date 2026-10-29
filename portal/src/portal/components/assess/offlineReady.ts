@@ -26,6 +26,12 @@ export type R8Switches = { offlineFirst: boolean; offlinePrep: boolean; fastStar
 export const R8_OFF: R8Switches = { offlineFirst: false, offlinePrep: false, fastStart: false };
 
 export const FAST_START_MS = 1500;
+/**
+ * sa_r8_offline_first: the longest Start waits for a part that is not on the phone yet while the phone is online. After
+ * that the test opens as it does without the switch (the part keeps coming down behind it), so no first Start is slower
+ * than today by more than this. With no signal the gate waits for its answer (a test that cannot play never starts).
+ */
+export const GATE_CAP_MS = 2000;
 
 /** This page's round-8 switches (fail-closed: off until read, off when the read fails). */
 export function useR8Switches(enabled: boolean | null): R8Switches {
@@ -65,8 +71,8 @@ export type CheckResult = { ready: boolean; total: number; cached: number; why?:
 export type Part = { block: string; seed: string };
 
 type SaeOffline = {
-  prepVisit: (o: { forms: string[]; part?: Part; onProgress?: (p: Progress) => void }) => Promise<PrepResult>;
-  checkVisit: (o: { forms: string[] }) => Promise<CheckResult>;
+  prepVisit: (o: { forms: string[]; part?: Part; fresh?: boolean; paused?: () => boolean; onProgress?: (p: Progress) => void }) => Promise<PrepResult>;
+  checkVisit: (o: { forms: string[]; part?: Part }) => Promise<CheckResult>;
 };
 
 let engine: Promise<SaeOffline | null> | null = null;
@@ -90,22 +96,23 @@ function offlineEngine(): Promise<SaeOffline | null> {
 }
 
 /** Every listed battery and all its files on the phone (only one child's part when given); never throws. */
-export async function prepForms(forms: string[], onProgress?: (p: Progress) => void, part?: Part): Promise<PrepResult> {
+export type PrepOpts = { fresh?: boolean; paused?: () => boolean };
+export async function prepForms(forms: string[], onProgress?: (p: Progress) => void, part?: Part, opts?: PrepOpts): Promise<PrepResult> {
   try {
     const e = await offlineEngine();
     if (!e) return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, why: 'no_engine' };
-    return await e.prepVisit({ forms, onProgress, ...(part ? { part } : {}) });
+    return await e.prepVisit({ forms, onProgress, ...(part ? { part } : {}), ...(opts || {}) });
   } catch (err) {
     return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, why: String((err as Error)?.message || err) };
   }
 }
 
 /** Are the listed batteries and all their files on the phone (nothing fetched)? Never throws. */
-export async function checkForms(forms: string[]): Promise<CheckResult> {
+export async function checkForms(forms: string[], part?: Part): Promise<CheckResult> {
   try {
     const e = await offlineEngine();
     if (!e) return { ready: false, total: 0, cached: 0, why: 'no_engine' };
-    return await e.checkVisit({ forms });
+    return await e.checkVisit({ forms, ...(part ? { part } : {}) });
   } catch (err) {
     return { ready: false, total: 0, cached: 0, why: String((err as Error)?.message || err) };
   }
@@ -137,7 +144,7 @@ export function pageUrls(lists: string[]): string[] {
       if (u.origin === location.origin && u.pathname.startsWith('/assets/')) assets.add(u.pathname);
     });
   } catch { /* no timing API: the page and the reads still go */ }
-  return [PAGE_SCOPE, ...assets, `${API}/me`, `${API}/config`, `${CTS}/switches`, `${CTS}/schools`, ...lists];
+  return [PAGE_SCOPE, ...assets, `${API}/me`, `${API}/config`, `${CTS}/switches`, `${CTS}/schools`, ...lists, '/sa/sa-offline.js'];
 }
 
 function postAsk(w: ServiceWorker, msg: unknown, waitMs = 60_000): Promise<{ ok: boolean; cached: number; missing: string[] } | null> {

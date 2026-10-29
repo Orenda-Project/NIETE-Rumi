@@ -1,76 +1,51 @@
-import { Link, useLocation } from "react-router-dom";
-import { BarChart3, Headphones } from "lucide-react";
-import nieteLogo from "@/assets/niete-logo.png";
-import { cn } from "@/lib/utils";
+import { useLocation } from "react-router-dom";
+import { BarChart3, Headphones, Home, MoreHorizontal, School } from "lucide-react";
 import { TEACHER_FRAME } from "../../teacher/copy";
 import { useCopy, useLang } from "../../teacher/i18n";
-import { FeatureGlyph } from "../../teacher/icons";
+import { NavBar } from "../../coachip-ui/NavBar";
+import { Rail } from "../../coachip-ui/Rail";
+import { LangToggle } from "../../coachip-ui/LangToggle";
+import { useLaptop } from "../../coachip-ui/useLaptop";
+import "../../coachip-ui/tokens.css";
 import { t } from "./text";
 import { currentInsightsItem, INSIGHTS_NAV, type InsightsNavKey } from "./paths";
 
 /**
- * bd-sex15q.15 — the bottom menu of a coach with portal_coachip on (DESIGN §2, O4): This week · Schools · Listen · Stats ·
- * More. The same bar as the coach v2 menu (teacher/TeacherNavigation: white, 58px targets, green current item, the
- * top bar on a desktop); only the items differ. Training and Lesson Plans are reached from More.
+ * bd-sex15q.15, restyled bd-sex15q.42 (R6) — the menu of a coach with portal_coachip on (DESIGN §2, O4): This week ·
+ * Schools · Listen · Stats · More. coachip-ui's NavBar on a phone (opaque, z-50, lucide 20 px line icons, the current
+ * item green) and its Rail on a laptop (≥ 1024: the wordmark, the menu, EN | اردو and the trust line at its foot).
+ * Training and Lesson Plans are reached from More; on a phone the language lives in More (the kit's Language row).
+ *
+ * It imports the tokens itself: PortalLayout draws it before the page's chunk (which carries the Shell) is in.
  */
-function Glyph({ k, size }: { k: InsightsNavKey; size: number }) {
-  if (k === "listen") return <Headphones size={size} strokeWidth={2} aria-hidden="true" />;
-  if (k === "stats") return <BarChart3 size={size} strokeWidth={2} aria-hidden="true" />;
-  return <FeatureGlyph name={k === "thisWeek" ? "home" : k} size={size} />;
+function Glyph({ k }: { k: InsightsNavKey }) {
+  const p = { size: 20, strokeWidth: 1.5, "aria-hidden": true as const };
+  if (k === "schools") return <School {...p} />;
+  if (k === "listen") return <Headphones {...p} />;
+  if (k === "stats") return <BarChart3 {...p} />;
+  if (k === "more") return <MoreHorizontal {...p} />;
+  return <Home {...p} />;
 }
 
 export default function InsightsNav() {
   const C = useCopy(TEACHER_FRAME);
   const lang = useLang();
   const { pathname } = useLocation();
+  // the toggle reads /me/language when it mounts: only where it is seen (a laptop), never on a phone
+  const laptop = useLaptop();
   const current = currentInsightsItem(pathname);
-  const items = INSIGHTS_NAV.map((i) => ({ ...i, label: t(i.copy, lang) }));
+  const items = INSIGHTS_NAV.map((i) => ({ key: i.key, to: i.to, label: t(i.copy, lang), icon: <Glyph k={i.key} />, current: current === i.key }));
   return (
     <>
-      <nav aria-label={C.menu} data-testid="insights-top-nav" className="hidden border-b border-[#e5e7eb] bg-white md:block">
-        <div className="mx-auto flex h-16 max-w-5xl items-center gap-4 px-6">
-          <div className="flex shrink-0 items-center gap-2.5">
-            <img src={nieteLogo} alt={C.logoAlt} className="h-8 w-8 rounded object-contain" />
-            <span className="text-lg font-bold text-[#1d2025]">{C.brand}</span>
-          </div>
-          <div className="flex flex-1 items-center gap-1">
-            {items.map(({ key, to, label }) => (
-              <Link
-                key={key}
-                to={to}
-                aria-current={current === key ? "page" : undefined}
-                className={cn(
-                  "flex min-h-[56px] items-center gap-2 whitespace-nowrap rounded-xl px-3 text-[15px] font-semibold outline-none focus-visible:ring-[3px] focus-visible:ring-[#f59e0b]",
-                  current === key ? "text-[#48b078]" : "text-[#6b7280] hover:text-[#1d2025]",
-                )}
-              >
-                <Glyph k={key} size={20} />
-                <span>{label}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </nav>
-      <nav
-        aria-label={C.menu}
-        data-testid="insights-nav"
-        className="fixed inset-x-0 bottom-0 z-40 flex justify-around border-t border-[#e5e7eb] bg-white px-1 pb-[calc(14px+env(safe-area-inset-bottom))] pt-1.5 md:hidden"
-      >
-        {items.map(({ key, to, label }) => (
-          <Link
-            key={key}
-            to={to}
-            aria-current={current === key ? "page" : undefined}
-            className={cn(
-              "flex min-h-[58px] min-w-[64px] flex-col items-center justify-center gap-1 whitespace-nowrap rounded-xl text-[11.5px] font-medium outline-none focus-visible:ring-[3px] focus-visible:ring-[#f59e0b]",
-              current === key ? "text-[#48b078]" : "text-[#6b7280]",
-            )}
-          >
-            <Glyph k={key} size={24} />
-            <span>{label}</span>
-          </Link>
-        ))}
-      </nav>
+      <Rail
+        testId="insights-top-nav"
+        ariaLabel={C.menu}
+        logoAlt={C.logoAlt}
+        items={items}
+        lang={laptop ? <LangToggle /> : null}
+        trust={t("trust.coach", lang)}
+      />
+      <NavBar testId="insights-nav" ariaLabel={C.menu} items={items} />
     </>
   );
 }

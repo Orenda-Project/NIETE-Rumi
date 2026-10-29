@@ -61,8 +61,10 @@ async function loadClip(supabase, recommendationId, userId, catalog) {
     const { data: m } = await supabase.from('training_modules').select('id, title, video_url').eq('id', row.module_id).maybeSingle();
     mod = { ...(mod || {}), module_id: row.module_id, title: (mod && mod.title) || (m && m.title) || '', video_url: (m && m.video_url) || (mod && mod.video_url) || null };
   }
-  const { data: u } = await supabase.from('users').select('preferred_language').eq('id', userId).maybeSingle();
-  return { row, module: mod, segment: (hit && hit.segment) || null, language: copy.lang(u && u.preferred_language) };
+  const { data: u } = await supabase.from('users').select('preferred_language, preferences').eq('id', userId).maybeSingle();
+  // bd-9dbhh0.1: whether this teacher stopped the clips, so the page offers "back on" instead of "stop"
+  const stopped = require('../../bot/shared/services/coaching/video-reco/clip-pref').isStopped(u && u.preferences); // eslint-disable-line global-require
+  return { row, module: mod, segment: (hit && hit.segment) || null, language: copy.lang(u && u.preferred_language), stopped };
 }
 
 const insertEvent = (supabase, row) => supabase.from('video_reco_events').insert(row);

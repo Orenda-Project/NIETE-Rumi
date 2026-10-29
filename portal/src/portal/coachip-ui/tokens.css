@@ -1,0 +1,211 @@
+/*
+ * bd-sex15q.42 — the COACHIP design system v1 (design/r6/DESIGN_SYSTEM.md), as CSS custom properties.
+ *
+ * Every rule here is scoped under `.cp`: the root of every COACHIP page (Shell), the coach menu (InsightsNav) and the
+ * RM menu (RmNav). Nothing outside COACHIP changes (B7 goldens): no element selector, no :root, no html rule except
+ * the `html[lang="ur"] .cp …` refinements below, which never touch index.css's own Urdu blocks (CODE_MAP C7).
+ * tokens.ts carries the same values for inline SVG and tests; keep the two in step.
+ */
+.cp {
+  --cp-green: #47ba7d;
+  --cp-green-ink: #237a4c;
+  --cp-green-tint: #e3f4ea;
+  --cp-navy: #333748;
+  --cp-navy-deep: #262937;
+  --cp-navy-tint: #eceef3;
+  --cp-ink: #1f2230;
+  --cp-ink-2: #5c6170;
+  --cp-ink-3: #8a8f9c;
+  --cp-hairline: #e6e8ec;
+  --cp-track: #c9cdd3;
+  --cp-track-on-navy: rgba(255, 255, 255, 0.18);
+  --cp-ground: #f6f8f7;
+  --cp-surface: #ffffff;
+  --cp-grey-fill: #eceef1;
+  --cp-trend: #4f46e5;
+  --cp-shadow: 0 2px 8px rgba(51, 55, 72, 0.08);
+  --cp-shadow-nav: 0 -2px 8px rgba(51, 55, 72, 0.05);
+  --cp-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --cp-font-latin: "Plus Jakarta Sans", -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+  /* a ring on white by default; the band turns these to the on-navy pair below lg */
+  --cp-ring-track: var(--cp-track);
+  --cp-ring-num: var(--cp-navy);
+  font-family: var(--cp-font-latin);
+  color: var(--cp-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* every number node in COACHIP is tabular (DESIGN_SYSTEM §2) */
+.cp [data-num],
+.cp [data-stat],
+.cp .cp-tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── the band (phone homes): navy-slate gradient, the lattice at a whisper, the first card overlaps it ── */
+.cp-band {
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  background: linear-gradient(180deg, var(--cp-navy) 0%, var(--cp-navy-deep) 100%);
+  padding: 20px 20px 44px;
+  --cp-ring-track: var(--cp-track-on-navy);
+  --cp-ring-num: #fff;
+}
+.cp-band > *:not(.cp-lattice) {
+  position: relative;
+}
+.cp-lattice {
+  position: absolute;
+  inset: 0;
+  opacity: 0.1;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96' fill='none' stroke='%2347BA7D' stroke-width='1'%3E%3Cpath d='M48 8l40 40-40 40-40-40z'/%3E%3Cpath d='M48 26l22 22-22 22-22-22z'/%3E%3Cpath d='M48 40l8 8-8 8-8-8z'/%3E%3Cpath d='M0 -14l14 14-14 14-14-14zM96 -14l14 14-14 14-14-14zM0 82l14 14-14 14-14-14zM96 82l14 14-14 14-14-14z'/%3E%3Cpath d='M0 0l96 96M96 0L0 96'/%3E%3C/svg%3E");
+  background-size: 96px 96px;
+}
+.cp-band__date {
+  color: rgba(255, 255, 255, 0.72);
+}
+.cp-band .cp-eyebrow {
+  color: var(--cp-green);
+}
+.cp-band .cp-on-band-2 {
+  color: rgba(255, 255, 255, 0.8);
+}
+/* the content right under a band rides up over it by 24 px, stacked above it (DIRECTION "two additions"); 40 = 24 + the
+   16 px Shell pads the page body with (bd-sex15q.47, ux-lead-2 171155) */
+.cp-overlap {
+  position: relative;
+  z-index: 1;
+  margin-top: -40px;
+}
+
+/* ── laptop (≥ 1024): the band becomes the page head on the ground, its body the one elevated hero card ── */
+@media (min-width: 1024px) {
+  .cp-band {
+    color: var(--cp-navy);
+    background: none;
+    padding: 0 0 8px;
+    overflow: visible;
+    --cp-ring-track: var(--cp-track);
+    --cp-ring-num: var(--cp-navy);
+  }
+  .cp-band .cp-lattice,
+  .cp-band .cp-band__lockup {
+    display: none;
+  }
+  /* the date (and any trailing control) moves to the head's far end, beside the title */
+  .cp-band > .cp-band__top {
+    position: absolute;
+    inset-inline-end: 0;
+    top: 6px;
+    margin-bottom: 0;
+  }
+  .cp-band__date {
+    color: var(--cp-ink-3);
+  }
+  .cp-band .cp-eyebrow {
+    color: var(--cp-green-ink);
+  }
+  .cp-band .cp-on-band-2 {
+    color: var(--cp-ink-2);
+  }
+  .cp-band__body {
+    margin-top: 20px;
+    background: var(--cp-surface);
+    border-radius: 20px;
+    box-shadow: var(--cp-shadow);
+    padding: 28px;
+    color: var(--cp-ink);
+  }
+  .cp-overlap {
+    margin-top: 0;
+  }
+}
+
+/* ── the ring: the arc draws once on mount ── */
+.cp-ring__arc {
+  animation: cp-ring-draw 600ms var(--cp-ease) both;
+}
+@keyframes cp-ring-draw {
+  from {
+    stroke-dashoffset: var(--cp-arc-len, 0);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.cp-ring__n {
+  color: var(--cp-ring-num);
+}
+
+/* ── motion: page enter, sheet rise, pressed button; all off under reduced motion ── */
+.cp-enter {
+  animation: cp-rise 160ms var(--cp-ease) both;
+}
+.cp-sheet {
+  animation: cp-rise 200ms var(--cp-ease) both;
+}
+@keyframes cp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.cp-press {
+  transition: transform 80ms var(--cp-ease);
+}
+.cp-press:active {
+  transform: scale(0.98);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-ring__arc,
+  .cp-enter,
+  .cp-sheet,
+  .cp-skeleton {
+    animation: none;
+  }
+  .cp-press,
+  .cp-press:active {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* ── the skeleton's shimmer (a slow opacity pulse, no movement) ── */
+.cp-skeleton {
+  animation: cp-pulse 1.4s ease-in-out infinite;
+}
+@keyframes cp-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* ── the rail's lattice whisper at its foot ── */
+.cp-rail-lattice {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%2347BA7D' stroke-opacity='.07' stroke-width='1'%3E%3Cpath d='M80 20l60 60-60 60-60-60z'/%3E%3Cpath d='M80 56l24 24-24 24-24-24z'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+  background-repeat: repeat;
+  background-position: left bottom;
+}
+
+/* ── Urdu refinements, COACHIP only (index.css keeps the font, the leading and the Latin islands) ── */
+html[lang="ur"] .cp .cp-label,
+html[lang="ur"] .cp .cp-eyebrow {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+}
+html[lang="ur"] .cp .cp-hero-n {
+  font-size: 40px;
+  line-height: 1.5;
+}
+html[lang="ur"] .cp .cp-band__title {
+  font-size: 22px;
+  letter-spacing: 0;
+}

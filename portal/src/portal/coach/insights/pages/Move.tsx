@@ -1,11 +1,15 @@
 import type { ReactNode } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 import { useLang, type Lang } from "../../../teacher/i18n";
 import InsightsGate from "../InsightsGate";
 import { useLoad } from "../useLoad";
 import { coachip } from "../api";
 import { insightsPaths } from "../paths";
-import { InsightsPage, MetaLine, Eyebrow, Card } from "../components/Frame";
+import { InsightsPage, MetaLine, Eyebrow } from "../components/Frame";
+import { Section as CpSection } from "../../../coachip-ui/Section";
+import { Surface } from "../../../coachip-ui/Surface";
+import { Button } from "../../../coachip-ui/Button";
 import { StateBlock, NoteCard } from "../components/StateBlock";
 import { CodeText, DateText, LibraryText, Num } from "../count";
 import { digits, LRI, PDI, todayKarachi } from "../format";
@@ -41,23 +45,27 @@ function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
 }
 
-function Section({ title, testId, children }: { title: ReactNode; testId?: string; children: ReactNode }) {
+/** R6 (bd-sex15q.46): a block is a flat hairline section with a small-caps label (coachip-ui Section), never a boxed card. */
+function Section({ title, testId, first = false, children }: { title: ReactNode; testId?: string; first?: boolean; children: ReactNode }) {
   return (
-    <Card testId={testId}>
-      <h2 className="text-[15px] font-semibold leading-snug text-[#1d2025]">{title}</h2>
-      {children}
-    </Card>
+    <CpSection label={title} testId={testId} first={first}>
+      <div className="flex flex-col gap-3">{children}</div>
+    </CpSection>
   );
 }
 
-const body = "text-[15px] leading-snug text-[#374151]";
+const body = "text-[15px] leading-[1.5] text-cp-ink";
+/** The 12 px small-caps label inside a section (a second label under the first, as on Facts). */
+const subLabel = "cp-label text-[12px] font-bold uppercase leading-snug tracking-[0.08em] text-cp-ink-3";
+/** The FLN send: the secondary button (navy outline), wrapping, since the library's title can be long. */
+const secondaryWrap = "cp-press flex min-h-[44px] items-center justify-center rounded-[12px] border-2 border-cp-navy bg-white px-4 py-2.5 text-center text-[14px] font-semibold leading-snug text-cp-navy outline-none [overflow-wrap:anywhere] focus-visible:ring-[3px] focus-visible:ring-cp-navy focus-visible:ring-offset-2";
 
 function CheckRule({ data, lang }: { data: MoveDetail; lang: Lang }) {
   const c = data.check_by_default;
   if (c.rule === "visit") {
     const on = c.visit?.date ?? c.date;
     return (
-      <p data-testid="s5-check-rule" data-nonum="" className="text-[13px] leading-snug text-[#6b7280]">
+      <p data-testid="s5-check-rule" data-nonum="" className="border-t border-cp-hairline pt-3 text-[13px] leading-[1.45] text-cp-ink-3">
         {tx("s5.check.rule", lang, {
           date: <DateText iso={on} lang={lang} />,
           days: <span data-nonum="">{digits(daysBetween(todayKarachi(), on), lang)}</span>,
@@ -66,7 +74,7 @@ function CheckRule({ data, lang }: { data: MoveDetail; lang: Lang }) {
     );
   }
   return (
-    <p data-testid="s5-check-rule" data-nonum="" className="text-[13px] leading-snug text-[#6b7280]">
+    <p data-testid="s5-check-rule" data-nonum="" className="border-t border-cp-hairline pt-3 text-[13px] leading-[1.45] text-cp-ink-3">
       {tx("s5.check.rule.14", lang, { date: <DateText iso={c.date} lang={lang} /> })}
     </p>
   );
@@ -82,11 +90,11 @@ function TryTomorrow({ script, lang }: { script: string; lang: Lang }) {
   const pre = COPY["d.try_tomorrow"][lang].split("{step}")[0].trim();
   const framed = Boolean(pre) && script.trimStart().startsWith(pre);
   return (
-    <Card testId="s5-try-tomorrow">
-      <p className="text-[15.5px] font-semibold leading-snug text-[#1d2025]">
+    <Surface testId="s5-try-tomorrow" className="mt-5">
+      <p className="text-[17px] font-semibold leading-[1.45] text-cp-navy">
         {framed ? <LibraryText>{script}</LibraryText> : tx("d.try_tomorrow", lang, { step: <LibraryText>{script}</LibraryText> })}
       </p>
-    </Card>
+    </Surface>
   );
 }
 
@@ -115,23 +123,23 @@ function MoveLoaded() {
       title={i ? <LibraryText>{pick(i.title, lang)}</LibraryText> : data ? pick(data.w.short_name, lang) : ""}
       crumb={i ? tx("s5.chip", lang, { i_id: <CodeText lang={lang}>{i.i_id}</CodeText> }) : null}
       windows={data?.windows}
+      chips={data ? <MetaLine window={data.w.window} /> : null}
     >
       {!data ? <StateBlock error={error} /> : (
         <>
-          <Card testId="s5-w">
+          <section data-testid="s5-w" className="flex flex-col gap-2 pt-1">
             <Eyebrow k="eyebrow.one_move" />
-            <p className="text-[15.5px] leading-snug text-[#1d2025]">
-              <Num count={data.w.count} lang={lang} className="font-bold" /> {pick(data.w.sentence, lang)}
+            <p className="text-[17px] leading-[1.45] text-cp-ink">
+              <Num count={data.w.count} lang={lang} className="text-[22px] font-extrabold tracking-[-0.01em] text-cp-navy" /> {pick(data.w.sentence, lang)}
             </p>
-            <MetaLine window={data.w.window} />
-          </Card>
+          </section>
 
           {!i ? <NoteCard testId="s5-no-i">{t("s5.no_i", lang)}</NoteCard> : (
             <>
               {/* fix-r5 s2 item 7a (panel 094003): the step, then what the coach says tomorrow, then the rehearsal and the
                   moment; the facts; what to listen for and the check; "Why this works" folded; other moves */}
               <Section title={t("s5.step.title", lang)} testId="s5-step">
-                <LibraryText as="p" className={`${body} font-medium text-[#1d2025]`}>{pick(i.teacher_action_step, lang)}</LibraryText>
+                <LibraryText as="p" className="text-[17px] font-semibold leading-[1.45] text-cp-ink">{pick(i.teacher_action_step, lang)}</LibraryText>
               </Section>
 
               <TryTomorrow script={pick(i.debrief_script, lang)} lang={lang} />
@@ -140,25 +148,20 @@ function MoveLoaded() {
                 <p className={body} data-nonum="">
                   {tx("d.rehearse.frame", lang, { script: <LibraryText>{pick(i.rehearsal_script, lang)}</LibraryText> })}
                 </p>
-                <Link
-                  to={`${insightsPaths.w(wId)}#moment`}
-                  data-testid="s5-play"
-                  className="flex min-h-[44px] items-center justify-center rounded-xl border border-[#d1d5db] bg-white px-4 py-2.5 text-center text-[15px] font-semibold text-[#1d2025]"
-                >
-                  {t("s5.play", lang)}
-                </Link>
+                <Button variant="secondary" size="md" to={`${insightsPaths.w(wId)}#moment`} testId="s5-play" className="self-start">
+                  <span>{t("s5.play", lang)}</span>
+                </Button>
               </Section>
 
-              <Card testId="s5-facts">
-                <h2 className="text-[13px] font-semibold text-[#6b7280]">{t("s5.with.title", lang)}</h2>
+              <Section title={t("s5.with.title", lang)} testId="s5-facts">
                 <LibraryText as="p" className={body}>{pick(i.with_whom, lang)}</LibraryText>
-                <h2 className="pt-1 text-[13px] font-semibold text-[#6b7280]">{t("s5.how_long.title", lang)}</h2>
+                <h2 className={`pt-1 ${subLabel}`}>{t("s5.how_long.title", lang)}</h2>
                 <LibraryText as="p" className={body}>{pick(i.duration, lang)}</LibraryText>
-              </Card>
+              </Section>
 
               {i.materials.some((m) => m.kind !== "none") && (
                 <Section title={t("s5.materials.title", lang)} testId="s5-materials">
-                  <ul className="flex flex-col divide-y divide-[#f0f1f3]">
+                  <ul className="flex flex-col divide-y divide-cp-hairline">
                     {i.materials.map((m, k) => {
                       if (m.kind === "none") return null;
                       if (m.kind === "fln") {
@@ -179,15 +182,11 @@ function MoveLoaded() {
                     })}
                   </ul>
                   {data.fln && (data.fln.can_send && flnTitle ? (
-                    <Link
-                      to={FLN_SEND}
-                      data-testid="s5-fln"
-                      className="flex min-h-[44px] items-center justify-center rounded-xl bg-[#33374a] px-4 py-2.5 text-center text-[15px] font-semibold text-white [overflow-wrap:anywhere]"
-                    >
+                    <Link to={FLN_SEND} data-testid="s5-fln" className={secondaryWrap}>
                       <LibraryText>{isolateLatin(pick(flnTitle, lang), lang)}</LibraryText>
                     </Link>
                   ) : !data.fln.can_send ? (
-                    <p data-testid="s5-fln-off" className="text-[13.5px] text-[#6b7280]">{t("s5.fln.off", lang)}</p>
+                    <p data-testid="s5-fln-off" className="text-[13px] leading-[1.45] text-cp-ink-3">{t("s5.fln.off", lang)}</p>
                   ) : null)}
                 </Section>
               )}
@@ -202,14 +201,15 @@ function MoveLoaded() {
               </Section>
 
               {i.evidence.length > 0 && (
-                <details data-testid="s5-evidence" className="rounded-2xl border border-[#e5e7eb] bg-white px-4 py-3">
-                  <summary className="flex min-h-[44px] cursor-pointer items-center text-[15px] font-semibold leading-snug text-[#1d2025]">
-                    {t("s5.why.title", lang)}
+                <details data-testid="s5-evidence" className="group mt-5 border-t border-cp-hairline pt-3">
+                  <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-2 text-[17px] font-semibold leading-[1.4] text-cp-ink outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green [&::-webkit-details-marker]:hidden">
+                    <span className="min-w-0 flex-1">{t("s5.why.title", lang)}</span>
+                    <ChevronRight size={20} strokeWidth={1.5} className="shrink-0 text-cp-ink-3 transition-transform group-open:rotate-90 rtl:rotate-180 rtl:group-open:rotate-90" aria-hidden="true" />
                   </summary>
-                  <ul className="flex flex-col gap-2 pt-1">
+                  <ul className="flex flex-col gap-3 pb-1 pt-2">
                     {i.evidence.map((e, k) => (
                       <li key={k} className={`${body}`}>
-                        <LibraryText as="p" className="font-medium text-[#374151]">{e.source}</LibraryText>
+                        <LibraryText as="p" className="text-[13px] font-semibold text-cp-ink-2">{e.source}</LibraryText>
                         <LibraryText as="p">{pick(e.claim, lang)}</LibraryText>
                       </li>
                     ))}
@@ -219,9 +219,9 @@ function MoveLoaded() {
 
               {data.alternatives.length > 0 && (
                 <Section title={t("s5.alternatives.title", lang)} testId="s5-alternatives">
-                  <ul className="flex flex-col divide-y divide-[#f0f1f3]">
+                  <ul className="flex flex-col divide-y divide-cp-hairline">
                     {data.alternatives.map((a) => (
-                      <li key={a.i_id} data-i={a.i_id} className={`py-2 ${body}`}>
+                      <li key={a.i_id} data-i={a.i_id} className={`flex min-h-[44px] items-center py-2.5 ${body}`}>
                         <LibraryText>{pick(a.title, lang)}</LibraryText>
                       </li>
                     ))}
@@ -229,7 +229,7 @@ function MoveLoaded() {
                 </Section>
               )}
 
-              <p data-testid="s5-footer" className="px-1 text-center text-[12.5px] text-[#6b7280]">{t("s5.footer", lang)}</p>
+              <p data-testid="s5-footer" className="mt-5 border-t border-cp-hairline pt-4 text-center text-[13px] leading-[1.45] text-cp-ink-3">{t("s5.footer", lang)}</p>
             </>
           )}
         </>

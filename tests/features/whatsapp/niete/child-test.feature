@@ -1022,3 +1022,26 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When the phone loses the network at any point after the first item
     Then every instruction, item, picture and clip still plays from the phone, and answers and recordings wait on the phone and sync later
     And "The voice is not ready yet" does not appear
+
+  # ── Round 8 · item 35 · the content owner's question counts per RDF subsection (sa_r8_counts) ─────────────
+  @e2e @wip @draft @config-gated @P1 @CT140 @no-mock-driver
+  # No mock driver: the counts are a served-battery shape (dashboard/tests/sa-r8-counts.service.test.js); the screens are checked on a phone.
+  Scenario: With sa_r8_counts on, each RDF subsection has the practice and scored items the content owner asked for
+    Given sa_r8_counts is on and a child takes the Learning assessment in RDF auto
+    Then Urdu letter sounds has 1 practice and 5 letters, Urdu familiar words 2 practice and 5 words
+    And English letter names and letter sounds have 1 practice and 5 letters each, English familiar words 2 practice and 5 words
+    And which is bigger asks 3, addition 5, subtraction 5 and multiplication 4
+    And number identification, missing number and quick sums are as today
+
+  @e2e @wip @draft @config-gated @P1 @CT141 @no-mock-driver
+  # No mock driver: a timer on the child's screen (dashboard/tests/sa-r8-counts.service.test.js runs the real runner).
+  Scenario: With sa_r8_counts on, a story question waits 15 seconds, one replay, and Next moves on sooner
+    Given sa_r8_counts is on and a child reaches the story questions in RDF auto
+    Then each question waits 15 seconds before it moves on, with one replay
+    And the child can press Next to move on before the 15 seconds are up
+
+  @e2e @wip @draft @config-gated @P1 @CT142 @no-mock-driver
+  # No mock driver: the switch-off form is asserted byte for byte on every coach battery (dashboard/tests/sa-r8-counts.service.test.js).
+  Scenario: With sa_r8_counts off, every RDF subsection is as today
+    Given sa_r8_counts is off
+    Then every RDF subsection has today's practice and scored items, and a story question waits 10 seconds

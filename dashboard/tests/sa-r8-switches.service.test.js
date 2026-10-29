@@ -21,6 +21,7 @@ const R8 = {
   r8LangSwitch: ['sa_r8_lang_switch', 'r8_lang_switch'],
   r8ReadingPosition: ['sa_r8_reading_position', 'r8_reading_position'],
   r8TimeupContinue: ['sa_r8_timeup_continue', 'r8_timeup_continue'],
+  r8Counts: ['sa_r8_counts', 'r8_counts'],
 };
 const BATTERY = { battery_id: 'b', tasks: [{ id: 'ur.letters', items: [] }] };
 

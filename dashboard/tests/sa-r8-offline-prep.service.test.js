@@ -108,7 +108,7 @@ function fakeAsk(onNet, kept) {
 describe('the page (sa-offline.js prepVisit / checkVisit)', () => {
   const FORM = 'sa.coach.G3.A.ur';
   const BURL = `/sa/batteries/${FORM}.json`;
-  const all = [...urls(MINI, 'ur', '/'), ...images(MINI, 'ur')];
+  const all = [...urls(MINI, 'ur', '/'), ...images(MINI, 'ur'), ...require('../sa/sa-offline').ART];
 
   test('prepVisit: the battery fresh first, then every clip and picture in chunks, with progress, all on the phone', async () => {
     const f = fakeAsk(() => true);
@@ -120,7 +120,7 @@ describe('the page (sa-offline.js prepVisit / checkVisit)', () => {
     expect(asked.sort()).toEqual([...new Set(all)].sort());
     expect(r).toMatchObject({ ok: true, total: all.length + 1, cached: all.length + 1, missing: 0 });
     expect(r.bytes).toBe((all.length + 1) * 10);
-    expect(r.forms).toEqual([{ form: FORM, ok: true, files: all.length + 1, missing: 0 }]);
+    expect(r.forms).toEqual([{ form: FORM, ok: true, files: all.length + 1 - require('../sa/sa-offline').ART.length, missing: 0 }]); // Jugnu's pictures are the visit's, not the form's
     expect(seen[seen.length - 1]).toMatchObject({ done: all.length + 1, total: all.length + 1 });
   });
 
@@ -194,11 +194,78 @@ describe('the child\'s own part (sa_r8_offline_first gates Start on it)', () => 
   test('prepVisit with a part: the battery and only that part\'s clips and pictures', async () => {
     const f = fakeAsk(() => true);
     const part = { block: 'B1', seed: 'aaaaaaaa-1' };
-    const want = [...urls(partOf(FULL, 'B1', 'aaaaaaaa-1'), 'ur', '/'), ...images(partOf(FULL, 'B1', 'aaaaaaaa-1'), 'ur')];
+    const want = [...urls(partOf(FULL, 'B1', 'aaaaaaaa-1'), 'ur', '/'), ...images(partOf(FULL, 'B1', 'aaaaaaaa-1'), 'ur'), ...require('../sa/sa-offline').ART];
     const r = await prepVisit({ forms: ['sa.coach.G3.A.ur'], part, ask: f.ask, readBattery: async () => FULL });
     const asked = f.msgs.slice(1).flatMap((m) => m.urls);
     expect(asked.sort()).toEqual([...new Set(want)].sort());
     expect(asked.length).toBeLessThan([...urls(FULL, 'ur', '/'), ...images(FULL, 'ur')].length);
     expect(r).toMatchObject({ ok: true, total: new Set(want).size + 1 });
+  });
+});
+
+describe('Jugnu\'s pictures go on the phone too (they were missing offline: /wq/jugnu_<mood>.webp)', () => {
+  const { ART } = require('../sa/sa-offline');
+  test('ART is every mood the child\'s screens draw, and each file exists', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const ui = fs.readFileSync(path.join(__dirname, '../sa/sa-ui.js'), 'utf8');
+    const moods = new Set([...ui.matchAll(/jugnu\('([a-z]+)'/g)].map((m) => m[1]).concat(['correct', 'notyet']));
+    for (const m of moods) expect(ART).toContain(`/wq/jugnu_${m}.webp`);
+    for (const u of ART) expect(fs.existsSync(path.join(__dirname, '../public', u))).toBe(true);
+  });
+  test('prepVisit asks for them once, after the battery', async () => {
+    const f = fakeAsk(() => true);
+    await prepVisit({ forms: ['sa.coach.G3.A.ur', 'sa.coach.G3.A.en'], ask: f.ask, readBattery: async () => MINI });
+    const asked = f.msgs.slice(1).flatMap((m) => m.urls);
+    for (const u of ART) expect(asked.filter((x) => x === u)).toHaveLength(1);
+  });
+});
+
+describe('slice 4: the Start gate is fast and has the line to itself', () => {
+  const { partOf } = require('../sa/sa-offline');
+  test('fresh: false: the battery is not read again when it is on the phone (the gate after a warm-up)', async () => {
+    const f = fakeAsk(() => true);
+    await prepVisit({ forms: ['sa.coach.G3.A.ur'], fresh: false, ask: f.ask, readBattery: async () => MINI });
+    expect(f.msgs[0]).toEqual({ type: 'prepare', urls: ['/sa/batteries/sa.coach.G3.A.ur.json'] });
+  });
+
+  test('paused(): no new chunk is asked for while it says true; the rest follows when it turns false', async () => {
+    const f = fakeAsk(() => true);
+    let hold = false;
+    let calls = 0;
+    const p = prepVisit({ forms: ['sa.coach.G3.A.ur'], chunk: 5, pauseMs: 5, paused: () => { calls += 1; return hold; }, ask: async (m) => { if (f.msgs.length === 2) hold = true; return f.ask(m); }, readBattery: async () => MINI });
+    await new Promise((r) => setTimeout(r, 60));
+    // the hold is set while the third message goes out; nothing after it is asked for while it holds
+    const asked = f.msgs.length;
+    expect(asked).toBe(3);
+    await new Promise((r) => setTimeout(r, 40));
+    expect(f.msgs.length).toBe(asked);
+    expect(calls).toBeGreaterThan(2);
+    hold = false;
+    const r = await p;
+    expect(f.msgs.length).toBeGreaterThan(asked);
+    expect(r.ok).toBe(true);
+  });
+
+  test('checkVisit with a part: only that part (the gate\'s instant check)', async () => {
+    const part = { block: 'B1', seed: 'x' };
+    const g = fakeAsk(() => false, []);
+    await checkVisit({ forms: ['sa.coach.G3.A.ur'], part, ask: g.ask, readBattery: async () => MINI });
+    const asked = g.msgs.flatMap((m) => m.urls);
+    const want = ['/sa/batteries/sa.coach.G3.A.ur.json', ...urls(partOf(MINI, 'B1', 'x'), 'ur', '/'), ...images(partOf(MINI, 'B1', 'x'), 'ur'), ...require('../sa/sa-offline').ART];
+    expect(asked.sort()).toEqual([...new Set(want)].sort());
+  });
+});
+
+describe('a battery served while a switch read is a guess (X-SA-Switches: unread, sa_r8_switch_hold) is never kept', () => {
+  const { cacheable } = require('../sa/sw');
+  const r = (type, hdrs) => ({ ok: true, status: 200, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? type : (hdrs || {})[h.toLowerCase()] || null) } });
+  test('unread: not kept; fresh / held / no header: kept as before; a clip is unaffected', () => {
+    const B = 'https://p.test/sa/batteries/sa.coach.G3.A.ur.json';
+    expect(cacheable(B, r('application/json', { 'x-sa-switches': 'unread' }))).toBe(false);
+    expect(cacheable(B, r('application/json', { 'x-sa-switches': 'fresh' }))).toBe(true);
+    expect(cacheable(B, r('application/json', { 'x-sa-switches': 'held' }))).toBe(true);
+    expect(cacheable(B, r('application/json'))).toBe(true);
+    expect(cacheable('https://p.test/sa/v1/ur/a.mp3', r('audio/mpeg', { 'x-sa-switches': 'unread' }))).toBe(true);
   });
 });

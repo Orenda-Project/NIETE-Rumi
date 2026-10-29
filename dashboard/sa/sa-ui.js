@@ -150,8 +150,8 @@
       mic_say: 'Say: one, two, three.',
       mic_tap: 'Tap the microphone, then speak',
       mic_skip: 'Skip for now',
-      mic_skip_say: 'If the microphone is not working, tap Skip.',
-      mic_skip_task: 'No microphone, so we skip this part',
+      mic_skip_say: 'If the microphone is not working, tap the Skip button.',
+      mic_skip_task: 'No microphone found. That is fine, let us go on to the next game',
       dev_jump: 'Jump to…',
       mic_speak: 'Speak now…',
       mic_ask: 'Did you hear yourself?',
@@ -166,7 +166,7 @@
       please_go_on: 'Please go on.',
       coach_will_instruct: 'Your coach will now give the instructions.',
       // round 7b (sa_silence_repeat): no voice heard on a read-aloud part
-      silence_repeat: 'Jugnu could not hear you. Say each answer out loud. Let us do this part again.',
+      silence_repeat: 'Jugnu could not hear you. Say your answer out loud again. Let us do this part again.',
       silence_again: 'Try again',
       silence_title: 'Say it out loud',
       coach_read: 'Read this to the child:',
@@ -246,8 +246,8 @@
       mic_say: 'کہیں: ایک، دو، تین۔',
       mic_tap: 'مائیک دبائیں، پھر بولیں',
       mic_skip: 'ابھی چھوڑ دیں',
-      mic_skip_say: 'اگر مائیک کام نہیں کر رہا تو چھوڑ دیں دبائیں۔',
-      mic_skip_task: 'مائیک نہیں ہے، اس لیے یہ حصہ چھوڑ رہے ہیں',
+      mic_skip_say: 'اگر مائیک کام نہیں کر رہا تو "چھوڑ دیں" کا بٹن دبائیں۔',
+      mic_skip_task: 'مائیک نہیں ملا۔ کوئی بات نہیں، اگلے کھیل پر چلتے ہیں',
       dev_jump: 'اس حصے پر جائیں…',
       mic_speak: 'اب بولیں…',
       mic_ask: 'کیا آپ کو اپنی آواز سنائی دی؟',
@@ -261,7 +261,7 @@
       voice_not_ready: 'آواز ابھی تیار نہیں',
       please_go_on: 'آگے چلیں۔',
       coach_will_instruct: 'اب آپ کے کوچ ہدایات دیں گے۔',
-      silence_repeat: 'جگنو آپ کی آواز نہیں سن سکا۔ ہر جواب اونچی آواز میں بولیں۔ آئیے یہ حصہ دوبارہ کرتے ہیں۔',
+      silence_repeat: 'جگنو آپ کی آواز نہیں سن سکا۔ جواب کو دوبار اونچی آواز میں بولیں۔ آئیے یہ حصہ دوبارہ کرتے ہیں۔',
       silence_again: 'دوبارہ کریں',
       silence_title: 'اونچی آواز میں بولیں',
       coach_read: 'یہ بچے کو پڑھ کر سنائیں:',
@@ -566,6 +566,10 @@
     if (typeof window !== 'undefined' && window.addEventListener) {
       window.addEventListener('scroll', function () { if (alive) checkMore(); }, true);
       window.addEventListener('resize', function () { if (alive) checkMore(); });
+    }
+    // Round 8 item 30: a resize fits the missing number above the foot again
+    if (r8Mn && typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('resize', function () { if (alive) mnFit(el.querySelector('.sae-screen')); });
     }
     // Round 8: a resize (the phone turned, the address bar went) places the cards' ink and packs the story's parts again
     var refit = null;
@@ -954,12 +958,43 @@
     function mnRow(seq, mn) {
       var em = (seq.length - 1) * 0.2;
       seq.forEach(function (x) { em += Math.max(isGap(x) ? 1.9 : String(x).length * 0.6 + 0.36, 1.4) + 0.1; });
-      return h('div', { class: 'sae-label sa-label sae-seq is-r8-mn', dir: 'ltr', style: 'font-size:min(96px, calc((min(100vw, 520px) - 48px) / ' + em.toFixed(2) + '))' }, seq.map(function (x) {
+      return h('div', { class: 'sae-label sa-label sae-seq is-r8-mn', dir: 'ltr', style: 'font-size:var(--mn-fs, min(96px, calc((min(100vw, 520px) - 48px) / ' + em.toFixed(2) + ')))' }, seq.map(function (x) {
         if (!isGap(x)) return h('span', { class: 'sae-seq-tile', text: String(x) });
         if (mn.out) return mn.out;
         var on = mn.fill != null;
         return h('span', { class: 'sae-seq-tile sae-gap' + (on ? ' is-filled' + (mn.cls || '') : '') }, [h('span', { class: 'sae-mn-ink', text: on ? String(mn.fill) : '__' })]);
       }));
+    }
+    /**
+     * r8_missing_number (item 30): the row and every choice above the foot (Back / Next) on a short phone, whatever rows
+     * sit above them (the coach's, the sandbox's part list). Measured after drawing; while a choice is still under the
+     * foot: Jugnu's picture goes, the choices come down to 56 px, then the row's type shrinks (not below 26 px).
+     */
+    var MN_OPT_H = 64, MN_OPT_MIN = 56, MN_FS_MIN = 26;
+    function mnFit(s) {
+      var row = s && s.classList.contains('sae-r8-mn') ? s.querySelector('.sae-seq.is-r8-mn') : null;
+      if (!row) return;
+      s.classList.remove('is-mn-tight');
+      s.style.removeProperty('--mn-opt-h');
+      row.style.removeProperty('--mn-fs');
+      var foot = s.querySelector('.sae-foot');
+      function over() {
+        var last = s.querySelector('.sae-opts') || s.querySelector('.sae-keypad');
+        if (!last) return 0;
+        var limit = foot ? foot.getBoundingClientRect().top : window.innerHeight;
+        return last.getBoundingClientRect().bottom - (limit - 4);
+      }
+      if (over() <= 0) return;
+      s.classList.add('is-mn-tight');
+      var oh = MN_OPT_H;
+      var fs = 0;
+      try { fs = parseFloat(getComputedStyle(row).fontSize); } catch (e) { fs = 0; }
+      if (!(fs > 0)) fs = 40;
+      for (var i = 0; i < 12 && over() > 0; i++) {
+        if (oh > MN_OPT_MIN) { oh = Math.max(MN_OPT_MIN, oh - 4); s.style.setProperty('--mn-opt-h', oh + 'px'); continue; }
+        if (fs > MN_FS_MIN) { fs = Math.max(MN_FS_MIN, fs * 0.88); row.style.setProperty('--mn-fs', fs.toFixed(1) + 'px'); continue; }
+        break;
+      }
     }
     function reducedMotion() {
       try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
@@ -1556,7 +1591,8 @@
     }
     function sRunCell(v) {
       var t = v.task, it = v.cell_item;
-      return screen(v, 'sae-run sae-run-rec sae-run-cell', [
+      // r8_layout: the card screen fits the phone (sa.css "Round 8 fit": the card takes what is left above the foot)
+      return screen(v, 'sae-run sae-run-rec sae-run-cell' + (r8Layout ? ' sae-fit' : ''), [
         clock(v),
         // say_then_next: the chip says "say it, then press Next" in place of "Read aloud" (one short line: the cell never
         // slides under the sticky Back / Next on a short phone; the whole line is in the instruction, said and shown)
@@ -1578,7 +1614,7 @@
     }
     function sPracticeSpoken(v) {
       var p = v.practice, t = v.task;
-      return screen(v, 'sae-practice', [
+      return screen(v, 'sae-practice' + (r8Layout ? ' sae-fit' : ''), [
         h('div', { class: 'sae-row' }, [
           h('span', { class: 'sae-chip', text: C.practice }),
           itemSpeaks(p) || (p.model && (!manual || appAsks)) ? replayBtn(function () {
@@ -1623,11 +1659,12 @@
         later(snapPack, 0);
         if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (alive) snapPack(); }, function () {});
       }
+      // r8_story_snap: the arrow beside the star, one row (the story box gets the height a second row would take)
       return screen(v, 'sae-run sae-run-rec' + (snap ? ' sae-snap' : ''), [
         clock(v),
         h('p', { class: 'sae-chip sae-chip-rec', text: C.read_aloud }),
         story,
-      ], [moreEl, starEl]);
+      ], snap ? [h('div', { class: 'sae-snapfoot' }, [moreEl, starEl])] : [moreEl, starEl]);
     }
     /**
      * r8_story_snap: the story packed into parts, each as high as the story box. The unit is a row as it shows on this
@@ -1647,8 +1684,9 @@
       lines.forEach(function (l) { all.appendChild(l); });
       while (box.firstChild) box.removeChild(box.firstChild);
       box.appendChild(all);
-      var pad = 0;
-      try { var cs = getComputedStyle(all); pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0); } catch (_) { pad = 0; }
+      var padTop = 0, padBottom = 0;
+      try { var cs = getComputedStyle(all); padTop = parseFloat(cs.paddingTop) || 0; padBottom = parseFloat(cs.paddingBottom) || 0; } catch (_) { padTop = padBottom = 0; }
+      var pad = padTop + padBottom;
       var full = box.clientHeight;
       var room = full - pad;
       var units = []; // { line, cls, nodes, h }
@@ -1680,6 +1718,9 @@
       box.removeChild(all);
       groups.forEach(function (g) {
         var part = h('div', { class: 'sae-part' });
+        // a part is never taller than the box: when one row and its ink room do not fit, the room above gives way
+        var rows = g.reduce(function (n, u) { return n + u.h; }, 0);
+        if (full > 0 && padTop + rows + padBottom > full) part.style.paddingTop = Math.max(0, full - rows - padBottom) + 'px';
         var line = null, at = null;
         g.forEach(function (u) {
           if (u.line !== at) { line = h('span', { class: u.cls }); part.appendChild(line); at = u.line; }
@@ -2042,7 +2083,8 @@
     }
     function sEnd(v) {
       if (mode === 'proctored') {
-        return h('div', { class: 'sae-screen sae-end is-proctored' }, [
+        // Round 8 (r8_layout / r8_lang_switch): .is-r8-endfit keeps the hand-back line above the coach page's bottom bar
+        return h('div', { class: 'sae-screen sae-end is-proctored' + (r8Layout || r8Lang ? ' is-r8-endfit' : '') }, [
           holdZone(goBack),
           h('div', { class: 'sae-body' }, [
             jugnu('sleep'),
@@ -2179,6 +2221,22 @@
       if (r.raf != null) cancelFrame(r.raf);
       if (r.spans && r.spans[r.idx]) r.spans[r.idx].classList.remove('is-on');
     }
+    /** The lit word kept in sight: on a phone the instruction runs on under the button, inside its scroll box; a word
+     *  outside that box is scrolled up to a third of the way down it. A word already in sight never moves the box. */
+    function hlKeep(w) {
+      var box = null, win = w.ownerDocument && w.ownerDocument.defaultView;
+      if (!win || typeof win.getComputedStyle !== 'function') return;
+      for (var n = w.parentNode; n && n !== el && n.nodeType === 1; n = n.parentNode) {
+        if (n.scrollHeight > n.clientHeight + 1) {
+          var oy = win.getComputedStyle(n).overflowY;
+          if (oy === 'auto' || oy === 'scroll') { box = n; break; }
+        }
+      }
+      if (!box) return;
+      var b = box.getBoundingClientRect(), r = w.getBoundingClientRect();
+      if (r.top >= b.top && r.bottom <= b.bottom) return;
+      box.scrollTop = Math.max(0, Math.round(box.scrollTop + (r.top - b.top) - box.clientHeight / 3));
+    }
     /** Follow a line Jugnu has just started (say()): its words on the screen lit from the playing clip's clock. */
     function hlFollow(textObj, audioObj, done) {
       hlStop();
@@ -2214,7 +2272,7 @@
           for (var j = 0; j < r.words.length && r.words[j].s_ms <= ms; j++) i = j;
           if (i !== r.idx) {
             if (r.spans[r.idx]) r.spans[r.idx].classList.remove('is-on');
-            if (r.spans[i]) r.spans[i].classList.add('is-on');
+            if (r.spans[i]) { r.spans[i].classList.add('is-on'); hlKeep(r.spans[i]); }
             r.idx = i;
           }
         }
@@ -2412,6 +2470,7 @@
         if (coachMenu) el.appendChild(sCoachMenu(v));
       }
       if (r8Digits) latinScreen(el, v.task);
+      if (r8Mn) mnFit(s);
       el.setAttribute('data-phase', showPhase);
       el.setAttribute('data-task-mode', v.task ? v.task.mode : '');
       if (entered) { lastKey = key; enter(v); }

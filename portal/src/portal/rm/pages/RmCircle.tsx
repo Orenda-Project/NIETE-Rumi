@@ -11,7 +11,9 @@ import { useRmSession } from "../RmGate";
 import { addDays, wForIntervention } from "../compose";
 import type { RmCircle as Circle } from "../types";
 import type { RmCopyKey } from "../rm.copy";
-import { RmCard, RmNote, RmPage } from "../components/RmFrame";
+import { RmNote, RmPage } from "../components/RmFrame";
+import { Section } from "../../coachip-ui/Section";
+import { Button } from "../../coachip-ui/Button";
 import { CircleRow } from "../components/CircleRow";
 import { CountLine } from "../components/CountLine";
 import { WindowLegend, windowIds } from "../components/WindowLegend";
@@ -43,7 +45,7 @@ function BasisLine({ data }: { data: Circle }) {
   return (
     <div data-testid="s10-basis" className="flex flex-col gap-0.5">
       <WindowLegend windows={data.windows} ids={[win]} />
-      <p data-nonum="" className="text-[13.5px] leading-snug text-[#374151]">
+      <p data-nonum="" className="text-[13px] leading-[1.45] text-cp-ink-2">
         {rtx("s10.moments.basis.coach", lang, {}, [{ n: "c", d: "3", count: { n: c, d: 3, window_id: win } }])}
       </p>
     </div>
@@ -73,25 +75,24 @@ function SectorMove({ s, today }: { s: Circle["sector_interventions"][number]; t
     }
   };
   return (
-    <li data-testid="sector-move" data-i={s.i_id} className="flex flex-col gap-1 py-2.5">
-      <p className="text-[15px] leading-snug text-[#1d2025]">
+    <li data-testid="sector-move" data-i={s.i_id} className="flex flex-col gap-1 border-t border-cp-hairline py-3.5 first:border-t-0">
+      <p className="text-[17px] font-semibold leading-[1.4] text-cp-ink">
         {s.date
           ? rtx("s10.sector_moves.row", lang, { title: <LibraryText>{pick(s.title, lang)}</LibraryText>, date: <DateText iso={s.date} lang={lang} />, attendees: <LibraryText>{pick(s.attendees, lang)}</LibraryText> })
           : <><LibraryText>{pick(s.title, lang)}</LibraryText>{sep}<LibraryText>{pick(s.attendees, lang)}</LibraryText></>}
       </p>
-      <p className="text-[13.5px] text-[#6b7280]">{rtx("s10.sector_moves.check", lang, { check: <LibraryText>{pick(s.check, lang)}</LibraryText> })}</p>
+      <p className="text-[13px] leading-[1.45] text-cp-ink-3">{rtx("s10.sector_moves.check", lang, { check: <LibraryText>{pick(s.check, lang)}</LibraryText> })}</p>
       {state === "done" && setFor
         ? (
-          <p role="status" data-testid="sector-move-done" className="text-[13.5px] font-semibold text-[#15803d]">
+          <p role="status" data-testid="sector-move-done" className="mt-1 self-start rounded-full bg-cp-green-tint px-3 py-[5px] text-[13px] font-semibold text-cp-green-ink">
             {rtx("s10.sector_moves.done.today", lang, { date: <DateText iso={setFor} lang={lang} />, date2: <DateText iso={addDays(setFor, 14)} lang={lang} /> })}
           </p>
         ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" data-testid="sector-move-set" onClick={save} disabled={!w || state === "saving"}
-              className="min-h-[44px] self-start rounded-full border border-[#d1d5db] px-4 text-[14px] font-semibold text-[#1d2025] disabled:opacity-40">
-              {state === "saving" ? rt("e.saving", lang) : rt("s10.sector_moves.set.today", lang)}
-            </button>
-            {state === "failed" && <span role="status" className="text-[13px] text-[#b91c1c]">{rt("picker.failed", lang)}</span>}
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <Button variant="secondary" size="md" testId="sector-move-set" onClick={save} disabled={!w || state === "saving"} className="self-start">
+              <span>{state === "saving" ? rt("e.saving", lang) : rt("s10.sector_moves.set.today", lang)}</span>
+            </Button>
+            {state === "failed" && <span role="status" className="text-[13px] font-semibold text-cp-navy">{rt("picker.failed", lang)}</span>}
           </div>
         )}
     </li>
@@ -114,41 +115,39 @@ export default function RmCircle() {
     <RmPage title={rt("s10.title", lang, { sector })} sub={data ? <DateText iso={data.week_start} lang={lang} /> : undefined}
       windows={data?.windows} testId="rm-circle" trust={data ? "s8.trust" : null}>
       {!data ? <StateBlock error={error} testId="rm-state" /> : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-          <RmCard testId="s10-moments" title={rt("s10.moments.title", lang)} sub={rt("s10.moments.explain", lang)}>
+        <div className="flex flex-col">
+          <Section testId="s10-moments" first label={rt("s10.moments.title", lang)} hint={rt("s10.moments.explain", lang)}>
             {data.moments.length === 0
               // the floor's "20 graded lessons" is policy, not a count
               ? <RmNote testId="s10-moments-empty"><span data-nonum="">{rt(emptyKey(data), lang)}</span></RmNote>
               : (
                 <>
                   {data.basis === "coach" && <BasisLine data={data} />}
-                  <ul className="flex flex-col divide-y divide-[#f3f4f6]">{data.moments.map((m) => <CircleRow key={m.coach_user_id} m={m} open={open === m.coach_user_id} onOpen={setOpen} />)}</ul>
+                  <ul className="flex flex-col">{data.moments.map((m) => <CircleRow key={m.coach_user_id} m={m} open={open === m.coach_user_id} onOpen={setOpen} />)}</ul>
                 </>
               )}
-          </RmCard>
-          <div className="flex flex-col gap-4">
-            <RmCard testId="s10-sector-moves" title={rt("s10.sector_moves.title", lang)}>
-              {data.sector_interventions.length === 0
-                ? <p className="text-[14px] text-[#374151]">{rt("s10.sector_moves.none", lang)}</p>
-                : <ul className="flex flex-col divide-y divide-[#f3f4f6]">{data.sector_interventions.map((s) => <SectorMove key={s.i_id} s={s} today={today} />)}</ul>}
-            </RmCard>
-            <RmCard testId="s10-checks" title={rt("s10.checks.title", lang)}>
-              <WindowLegend windows={data.windows} ids={windowIds(data.checks_due)} />
-              {/* fix-r5 s2 item 3 (B10): a base of 0 is words, never "0 of 0 open steps" */}
-              {total && (total.d === 0
-                ? <p data-testid="s10-checks-none" className="text-[13.5px] text-[#6b7280]">{rt("s10.checks.sub.none", lang)}</p>
-                : <CountLine k="s10.checks.sub" count={total} className="text-[13.5px] text-[#6b7280]" as="p" />)}
-              <ul className="flex flex-wrap gap-2">
-                {data.checks_due.map((c) => (
-                  <li key={c.coach_label} data-testid="s10-check" className="rounded-full bg-[#f3f4f6] px-3 py-1.5 text-[13.5px] text-[#1d2025]">
-                    {c.count.d === 0
-                      ? rtx("s10.checks.row.none", lang, { coach: <span data-code="" dir="auto">{c.coach_label}</span> })
-                      : rtx("s10.checks.row", lang, { coach: <span data-code="" dir="auto">{c.coach_label}</span> }, [{ n: "n", d: "d", count: c.count }])}
-                  </li>
-                ))}
-              </ul>
-            </RmCard>
-          </div>
+          </Section>
+          <Section testId="s10-sector-moves" label={rt("s10.sector_moves.title", lang)}>
+            {data.sector_interventions.length === 0
+              ? <p className="text-[15px] leading-[1.45] text-cp-ink-2">{rt("s10.sector_moves.none", lang)}</p>
+              : <ul className="flex flex-col">{data.sector_interventions.map((s) => <SectorMove key={s.i_id} s={s} today={today} />)}</ul>}
+          </Section>
+          <Section testId="s10-checks" label={rt("s10.checks.title", lang)}
+            hint={<WindowLegend windows={data.windows} ids={windowIds(data.checks_due)} inline className="" />}>
+            {/* fix-r5 s2 item 3 (B10): a base of 0 is words, never "0 of 0 open steps" */}
+            {total && (total.d === 0
+              ? <p data-testid="s10-checks-none" className="text-[15px] leading-[1.45] text-cp-ink-2">{rt("s10.checks.sub.none", lang)}</p>
+              : <CountLine k="s10.checks.sub" count={total} className="text-[15px] leading-[1.45] text-cp-ink-2" as="p" />)}
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {data.checks_due.map((c) => (
+                <li key={c.coach_label} data-testid="s10-check" className={`rounded-full px-3 py-[5px] text-[13px] font-semibold ${c.count.d === 0 ? "bg-cp-grey-fill text-cp-ink-2" : "bg-cp-green-tint text-cp-green-ink"}`}>
+                  {c.count.d === 0
+                    ? rtx("s10.checks.row.none", lang, { coach: <span data-code="" dir="auto">{c.coach_label}</span> })
+                    : rtx("s10.checks.row", lang, { coach: <span data-code="" dir="auto">{c.coach_label}</span> }, [{ n: "n", d: "d", count: c.count }])}
+                </li>
+              ))}
+            </ul>
+          </Section>
         </div>
       )}
     </RmPage>

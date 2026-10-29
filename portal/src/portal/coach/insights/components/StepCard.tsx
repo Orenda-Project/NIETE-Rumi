@@ -7,6 +7,9 @@ import { insightsPaths } from "../paths";
 import { pick, t, tx } from "../text";
 import type { Step, WDetail } from "../types";
 import { StepTick } from "./StepRow";
+import { Eyebrow as CpEyebrow } from "../../../coachip-ui/Band";
+import { Button } from "../../../coachip-ui/Button";
+import { Surface } from "../../../coachip-ui/Surface";
 
 /**
  * bd-sex15q.15 — S2's step card (G1: the cycle closes in one fold). The library's step for one teacher code, the check
@@ -16,6 +19,9 @@ import { StepTick } from "./StepRow";
  * as S2 lists it (R10 checks it is that teacher's current school); the source session is the moment's only when the
  * moment is the same code's lesson, because R10 accepts only that teacher's session. 201 shows the step's check date,
  * 409 says an open step already exists, anything else says it could not be done.
+ *
+ * R6 (bd-sex15q.46, merged_S2_390): the card is S2's ONE raised surface; "Set this step for T-xx" is the screen's ONE
+ * primary (green, navy label, full width, inside the 704 px fold); "Full step" a quiet green-ink link beside the play.
  */
 export function stepSchoolId(d: WDetail): string | null {
   const code = d.step_card?.code;
@@ -37,34 +43,28 @@ function DoneCard({ detail, step: initial }: { detail: WDetail; step: Step }) {
   const [step, setStep] = useState<Step>(initial);
   const codeNode = <CodeText lang={lang}>{step.code.code}</CodeText>;
   return (
-    <section data-testid="step-card" data-state="done" className="flex flex-col gap-2 rounded-2xl border-2 border-[#33374a] bg-white px-4 py-3.5">
-      <p className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-[#6b7280] rtl:tracking-normal">
-        {tx("s2.step.eyebrow", lang, { code: codeNode })}
-      </p>
-      <LibraryText as="p" className="text-[16.5px] font-semibold leading-snug text-[#1d2025]">{pick(step.step, lang)}</LibraryText>
-      <p data-testid="step-done" role="status" className="rounded-xl bg-[#eef2ff] px-3 py-2.5 text-[15px] font-semibold text-[#312e81]">
+    <Surface testId="step-card" data-state="done">
+      <CpEyebrow>{tx("s2.step.eyebrow", lang, { code: codeNode })}</CpEyebrow>
+      <LibraryText as="p" className="text-[17px] font-semibold leading-[1.4] text-cp-ink">{pick(step.step, lang)}</LibraryText>
+      <p data-testid="step-done" role="status" className="rounded-[12px] bg-cp-green-tint px-3 py-2.5 text-[15px] font-semibold text-cp-green-ink">
         {tx("s5.set.done", lang, { date: <DateText iso={step.check_by} lang={lang} /> })}
       </p>
       <StepTick step={step} onTicked={setStep} />
-      <div className="flex flex-wrap items-stretch gap-2">
+      <div className="flex flex-wrap items-center gap-3">
         {detail.moment && (
-          <Link
-            to={`${insightsPaths.w(detail.card.w_id)}#moment`}
-            data-testid="step-play"
-            className="flex min-h-[44px] flex-1 items-center justify-center rounded-full border border-[#d1d5db] px-4 text-center text-[15px] font-semibold text-[#1d2025]"
-          >
-            {t("s5.play", lang)}
-          </Link>
+          <Button variant="secondary" size="md" to={`${insightsPaths.w(detail.card.w_id)}#moment`} testId="step-play" className="flex-1">
+            <span>{t("s5.play", lang)}</span>
+          </Button>
         )}
         <Link
           to={insightsPaths.move(detail.card.w_id, step.school.school_id)}
           data-testid="step-full"
-          className="flex min-h-[44px] items-center gap-1 rounded-full border border-[#d1d5db] px-4 text-[15px] font-semibold text-[#1d2025]"
+          className="flex min-h-[44px] items-center px-1 text-[15px] font-semibold text-cp-green-ink outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green"
         >
           {t("s2.step.full", lang)}
         </Link>
       </div>
-    </section>
+    </Surface>
   );
 }
 
@@ -103,48 +103,48 @@ export default function StepCard({ detail, openStep = null }: { detail: WDetail;
   };
 
   return (
-    <section data-testid="step-card" className="flex flex-col gap-2 rounded-2xl border-2 border-[#33374a] bg-white px-4 py-3.5">
-      <p className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-[#6b7280] rtl:tracking-normal">
+    <Surface testId="step-card">
+      <CpEyebrow>
         {tx("s2.step.eyebrow", lang, { code: codeNode })}
         {/* R3 picks the moment and the step's code independently: when they are two teachers, the eyebrow says so, on
             its own line's spare width so the card still ends above the fold */}
         {detail.moment && detail.moment.code.code_id !== code.code_id && (
           <>{lang === "ur" ? "، " : " · "}<span data-testid="step-other">{t("s2.step.other", lang)}</span></>
         )}
-      </p>
+      </CpEyebrow>
       {/* the teacher's one step is the card's headline; the intervention's title is on S5, one tap away ("Full step"),
           so the card ends above the 704 px fold (G1, B v2) */}
-      <LibraryText as="p" className="text-[16.5px] font-semibold leading-snug text-[#1d2025]">{pick(sc.teacher_step, lang)}</LibraryText>
-      <LibraryText as="p" className="text-[13px] leading-snug text-[#6b7280]">
+      <LibraryText as="p" className="text-[17px] font-semibold leading-[1.4] text-cp-ink">{pick(sc.teacher_step, lang)}</LibraryText>
+      <LibraryText as="p" className="text-[13px] leading-[1.45] text-cp-ink-3">
         {before}
         {rest.length > 0 && <DateText iso={sc.check_by.date} lang={lang} />}
         {rest.join("{date}")}
       </LibraryText>
-      <div className="flex flex-wrap items-stretch gap-2">
-        <button
-          type="button"
-          data-testid="step-set"
+      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Button
+          testId="step-set"
           onClick={set}
           disabled={state.kind === "saving" || !schoolId}
           aria-busy={state.kind === "saving" ? "true" : undefined}
-          className="min-h-[48px] flex-1 rounded-full bg-[#33374a] px-4 text-[15.5px] font-semibold text-white disabled:opacity-60"
+          block
+          className="!whitespace-normal text-center"
         >
-          {tx("s2.step.set", lang, { code: codeNode })}
-        </button>
+          <span>{tx("s2.step.set", lang, { code: codeNode })}</span>
+        </Button>
         <Link
           to={insightsPaths.move(detail.card.w_id, schoolId)}
           data-testid="step-full"
-          className="flex min-h-[48px] items-center gap-1 rounded-full border border-[#d1d5db] px-4 text-[15.5px] font-semibold text-[#1d2025]"
+          className="flex min-h-[44px] items-center px-1 text-[15px] font-semibold text-cp-green-ink outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green"
         >
           {t("s2.step.full", lang)}
         </Link>
       </div>
       {state.kind === "conflict" && (
-        <p data-testid="step-conflict" role="status" className="text-[14px] text-[#374151]">{tx("s5.conflict", lang, { code: codeNode })}</p>
+        <p data-testid="step-conflict" role="status" className="text-[15px] text-cp-ink-2">{tx("s5.conflict", lang, { code: codeNode })}</p>
       )}
       {state.kind === "failed" && (
-        <p data-testid="step-failed" role="status" className="text-[14px] text-[#374151]">{t("e.failed_load", lang)}</p>
+        <p data-testid="step-failed" role="status" className="text-[15px] text-cp-ink-2">{t("e.failed_load", lang)}</p>
       )}
-    </section>
+    </Surface>
   );
 }

@@ -1,6 +1,8 @@
 import type { Config } from "tailwindcss";
 // bd-5rz1v.12 — the new UI's colours come from ONE file; see src/portal/newui/DESIGN.md.
 import { tailwindColors as newUiColors, tailwindShadows as newUiShadows } from "./src/portal/newui/tokens";
+// bd-sex15q.42 — COACHIP (R6) colours, each through its `--cp-*` variable (scoped under `.cp`): text-cp-green-ink, bg-cp-ground, …
+import { tailwindCpColours } from "./src/portal/coachip-ui/tokens";
 
 export default {
   darkMode: ["class"],
@@ -64,6 +66,7 @@ export default {
         error: "hsl(var(--error))",
         // bd-5rz1v.12 — new UI (Direction B): bg-nu-ink, text-nu-leaf, text-nu-nav-label, …
         nu: newUiColors,
+        cp: tailwindCpColours,
       },
       // bd-5rz1v.19 — the new UI's button edges and menu-bar shadow: shadow-nu-button, shadow-nu-nav, …
       boxShadow: newUiShadows,
@@ -71,6 +74,8 @@ export default {
         // bd-fmf24g.62: Nastaliq for Urdu script, the English font for Latin in the same text (index.css --font-urdu).
         'urdu': ['var(--font-urdu)'],
         'arabic': ['"Noto Sans Arabic"', 'sans-serif'],
+        // bd-sex15q.42 — COACHIP's Latin face (Plus Jakarta Sans, already preloaded by index.html), set on `.cp` only.
+        'cp': ['var(--cp-font-latin)'],
       },
       borderRadius: {
         lg: "var(--radius)",

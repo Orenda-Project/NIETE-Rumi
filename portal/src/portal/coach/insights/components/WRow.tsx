@@ -1,10 +1,36 @@
 import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { useLang } from "../../../teacher/i18n";
-import { CodeText, CountSpan, Num, WindowMark } from "../count";
+import { CodeText, CountSpan, WindowMark } from "../count";
 import { digits, range } from "../format";
 import { pick, t, tx } from "../text";
 import type { WRow as WRowData } from "../types";
+import { RowCount } from "../../../coachip-ui/Count";
+import { FractionBar } from "../../../coachip-ui/FractionBar";
+
+/**
+ * bd-sex15q.42 (R6) — the frame every weakness row shares, coach and sector alike (CODE_MAP C2: SectorWRow is built on
+ * it): a hairline row (no boxed card; the hairline is between rows, never above the first), an optional lead (a ring,
+ * on the RM's rows), the body, and a chevron when it goes somewhere. `agenda` (the cluster session's agenda row) gets
+ * a green rule at its inline start.
+ */
+export function WRowFrame({ testId, w, state, kind, to, agenda, lead, children }: {
+  testId: string; w: string; state: string; kind: "coach" | "sector"; to?: string; agenda?: boolean; lead?: React.ReactNode; children: React.ReactNode;
+}) {
+  const body = (
+    <>
+      {lead}
+      <span className="flex min-w-0 flex-1 flex-col gap-1">{children}</span>
+      {to && <ChevronRight size={20} strokeWidth={1.5} className="shrink-0 self-center text-cp-ink-3 rtl:rotate-180" aria-hidden="true" />}
+    </>
+  );
+  const cls = `flex w-full items-start gap-3 border-t border-cp-hairline py-3.5 text-start first:border-t-0 `; // bd-sex15q.47 (ux-lead-2 183234): no rail (the agenda is the Surface's hint, kept as data-agenda);
+  // the trailing space keeps the coach deck's class string, and so its snapshots, byte-identical
+  const attrs = { "data-testid": testId, "data-w": w, "data-state": state, "data-wrow": kind, "data-agenda": agenda ? "1" : undefined };
+  return to
+    ? <Link to={to} {...attrs} className={`${cls} outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green`}>{body}</Link>
+    : <div {...attrs} className={cls}>{body}</div>;
+}
 
 /**
  * bd-sex15q.15 — G9: ONE row for every weakness that is not the headline (S1's Move 2, S3's per-school top W, S6's rows,
@@ -19,9 +45,7 @@ import type { WRow as WRowData } from "../types";
  */
 export function WRow({ row, to, sectorLabel, testId = "wrow" }: { row: WRowData; to?: string; sectorLabel?: string | null; testId?: string }) {
   const lang = useLang();
-  const sep = lang === "ur" ? "، " : " · ";
   const win = <WindowMark window={row.window} as="span">{range(row.window.from, row.window.to, lang)}</WindowMark>;
-  let lead: React.ReactNode = null;
   let sub: React.ReactNode = null;
   if (row.state === "not_yet" && row.not_yet) {
     const g = row.not_yet.graded;
@@ -39,14 +63,6 @@ export function WRow({ row, to, sectorLabel, testId = "wrow" }: { row: WRowData;
       </>
     );
   } else {
-    if (row.state === "ranked" && row.count) {
-      lead = (
-        <span className="flex w-[64px] shrink-0 flex-col items-center leading-tight">
-          <Num count={row.count} lang={lang} className="text-center text-[15px] font-bold text-[#1d2025]" />
-          <span data-nonum="" className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#6b7280] rtl:tracking-normal">{t("s1.move_2", lang)}</span>
-        </span>
-      );
-    }
     const wf = row.where_first;
     if (wf) {
       const key = row.state === "ranked" ? "wrow.ranked.sub" : "wrow.also_seen.sub";
@@ -56,32 +72,32 @@ export function WRow({ row, to, sectorLabel, testId = "wrow" }: { row: WRowData;
       };
       if (key === "wrow.ranked.sub") vars.grader_label = pick(row.window.grader_label, lang);
       sub = tx(key, lang, vars, [{ n: "n", d: "d", count: wf.count }]);
-    } else if (row.count && row.state !== "ranked") {
-      sub = <><Num count={row.count} lang={lang} />{sep}{win}</>;
     } else {
       sub = win;
     }
   }
-  const body = (
-    <>
-      {lead}
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="text-[15.5px] font-semibold leading-snug text-[#1d2025]">{pick(row.short_name, lang)}</span>
-        {row.state !== "not_yet" && <span className="text-[14px] leading-snug text-[#374151]">{pick(row.sentence, lang)}</span>}
-        {sub && <span className="text-[12.5px] leading-snug text-[#6b7280]">{sub}</span>}
-        {row.sector && sectorLabel && (
-          <span className="text-[12.5px] text-[#6b7280]">
-            {tx("wrow.sector", lang, { sector: sectorLabel }, [{ n: "n", d: "d", count: row.sector }])}
-          </span>
-        )}
-      </span>
-      {to && <ChevronRight className="h-5 w-5 shrink-0 self-center text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />}
-    </>
+  const count = row.state !== "not_yet" ? row.count : null;
+  return (
+    <WRowFrame testId={testId} w={row.w_id} state={row.state} kind="coach" to={to}>
+      {row.state === "ranked" && count && (
+        <span data-nonum="" className="cp-label text-[12px] font-bold uppercase tracking-[0.08em] text-cp-ink-3">{t("s1.move_2", lang)}</span>
+      )}
+      <span className="text-[17px] font-semibold leading-[1.4] text-cp-ink">{pick(row.short_name, lang)}</span>
+      {row.state !== "not_yet" && <span className="text-[15px] leading-[1.45] text-cp-ink-2">{pick(row.sentence, lang)}</span>}
+      {count && (
+        <span className="mt-1 flex items-center gap-3">
+          <RowCount count={count} lang={lang} className="shrink-0" />
+          <FractionBar n={count.n} d={count.d} className="w-full max-w-[160px]" />
+        </span>
+      )}
+      {sub && <span className="text-[13px] leading-[1.45] text-cp-ink-3">{sub}</span>}
+      {row.sector && sectorLabel && (
+        <span className="text-[13px] leading-[1.45] text-cp-ink-3">
+          {tx("wrow.sector", lang, { sector: sectorLabel }, [{ n: "n", d: "d", count: row.sector }])}
+        </span>
+      )}
+    </WRowFrame>
   );
-  const cls = "flex w-full items-start gap-3 rounded-2xl border border-[#e5e7eb] bg-white px-3.5 py-3 text-start";
-  return to
-    ? <Link to={to} data-testid={testId} data-w={row.w_id} data-state={row.state} className={cls}>{body}</Link>
-    : <div data-testid={testId} data-w={row.w_id} data-state={row.state} className={cls}>{body}</div>;
 }
 
 /** Re-exported for screens that list counts beside a row. */

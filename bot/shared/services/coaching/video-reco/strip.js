@@ -16,6 +16,8 @@
  * report page. So, at the render: on the teacher app → 'app' (the app's report page carries the clip card on every
  * path); else the window open with STRIP_WINDOW_MARGIN_MS left → 'next' (the clip message follows the image); else no
  * strip — nothing true to promise. Read only for a 'shown' pick; any failed check is no strip.
+ * bd-9dbhh0.1 (COS 20261028T151950): with VIDEO_RECO_WA_MESSAGE off (the default) there is no clip message, so stripFor()
+ * turns 'next' into 'link' — "tap the link under this picture", the link the report's caption carries (caption-link.js).
  *
  * stripHtml(): ONE block for both templates (hero 794 px, slim 480 px), right under "Try one thing tomorrow": a
  * 16:9 thumbnail with a play badge, "▶ Watch next: {title}" and the hint stripWhere() chose ("{n} min · tap ▶ Watch in
@@ -36,6 +38,17 @@ const ASSETS = path.join(__dirname, '..', '..', '..', '..', 'assets');
 function enabledByDefault() {
   try {
     return require('./flags').videoRecoEnabled() === true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/** VIDEO_RECO_WA_MESSAGE at call time (deps.waMessage in tests); a flags.js without it = off. */
+function waMessageOn(deps = {}) {
+  if (typeof deps.waMessage === 'function') return deps.waMessage() === true;
+  try {
+    const f = require('./flags').videoRecoWaMessage; // eslint-disable-line global-require
+    return typeof f === 'function' && f() === true;
   } catch (_) {
     return false;
   }
@@ -70,8 +83,15 @@ async function stripFor({ coachingSessionId, language, row: given, capMs, phone,
     const row = await Promise.race([pending, new Promise((r) => { timer = setTimeout(() => r(null), capMs); })]);
     clearTimeout(timer);
     if (!row || row.status !== 'shown') return null;
-    const where = await stripWhere({ phone, userId, deps });
+    let where = await stripWhere({ phone, userId, deps });
     if (!where) return null;
+    // bd-9dbhh0.1 (COS 20261028T151950 §1.2): with the clip message off (the default) the window-open image points at the
+    // link in its own caption (caption-link.js), and only when that link can be made — never a promise of a missing link
+    if (where === 'next' && !waMessageOn(deps)) {
+      const url = (deps.linkUrl || require('./link-token').videoLinkUrl)({ recommendationId: row.id, userId: row.user_id, surface: 'wa' }); // eslint-disable-line global-require
+      if (!url) return null;
+      where = 'link';
+    }
     const catalog = deps.catalog || require('./catalog');
     let hit = null;
     try { hit = catalog.segment(row.seg_id); } catch (_) { hit = null; }
@@ -107,8 +127,10 @@ function stripHtml(vs, { language, T, width = 794 }) {
   const ur = copy.dirOf(l) === 'rtl';
   const n = copy.minutesOf(vs.durationS);
   const title = copy.word('videoRecoStripTitle', l, { title: vs.title || '' });
-  // red7 N1 (051537): only an explicit 'next' promises the next message; anything else is the app hint, true on every path
-  const hint = copy.word(vs.where === 'next' ? 'videoRecoStripHint' : 'videoRecoStripHintApp', l, { n: copy.num(n, l) });
+  // red7 N1 (051537): only an explicit 'next' promises the next message, only an explicit 'link' the caption's link
+  // (bd-9dbhh0.1); anything else is the app hint, true on every path
+  const HINT = { next: 'videoRecoStripHint', link: 'videoRecoStripHintLink' };
+  const hint = copy.word(HINT[vs.where] || 'videoRecoStripHintApp', l, { n: copy.num(n, l) });
   const b64 = thumbData(vs.thumbPath);
   const side = width >= 700 ? '42px' : '0';
   const cover = b64 ? `background:#1f2433 url(data:image/jpeg;base64,${b64}) center/cover no-repeat` : 'background:linear-gradient(135deg,#333748,#47BA7D)';

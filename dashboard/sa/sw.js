@@ -24,7 +24,11 @@
 // sa-7: a line held by a hidden page plays on when it is shown again, never in the phone's voice (sa-voice.js, sa-engine.js).
 // sa-8: round 8, the child's flow (no Done line on a reading, story questions wait for Next, practice says its answer).
 // sa-9: round 8 offline: sa-offline.js prepVisit / checkVisit / partOf (the coach page's "ready for offline").
-var VERSION = 'sa-9';
+// sa-10: round 8 offline: Jugnu's pictures go on the phone with "ready for offline" (sa-offline.js ART).
+// sa-11: round 8 offline: the Start gate checks the phone first and the background download gives it the line (sa-offline.js fresh / paused).
+// sa-12: round 8 offline: an installed worker is used without waiting on register() (which rejects with no signal).
+// sa-13: round 8: speak.audio() for the word highlight, the story's ear with r8_reading_position, the v4 word timings kept.
+var VERSION = 'sa-13';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -80,7 +84,9 @@ function cacheable(url, res) {
   var type = String((res.headers && res.headers.get && res.headers.get('content-type')) || '').toLowerCase();
   var p = new URL(url).pathname;
   if (/\.(mp3|m4a|ogg)$/.test(p)) return type.indexOf('audio/') === 0;
-  if (/\.json$/.test(p)) return type.indexOf('json') >= 0;
+  // a battery read while a switch was never read (X-SA-Switches: unread, sa_r8_switch_hold) guessed its OFFs: the page uses it,
+  // the phone never keeps it for the next child
+  if (/\.json$/.test(p)) return type.indexOf('json') >= 0 && String((res.headers.get && res.headers.get('x-sa-switches')) || '').toLowerCase() !== 'unread';
   if (/\.html$/.test(p)) return type.indexOf('text/html') === 0;
   return type.indexOf('text/html') < 0;
 }

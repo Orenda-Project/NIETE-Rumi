@@ -18,7 +18,8 @@ import { boot, renderRm, rmWorld, serve, settle } from "./harness";
 function hiddenBelowMd(el: Element): boolean {
   for (let n: Element | null = el; n; n = n.parentElement) {
     const cls = (n.getAttribute("class") || "").split(/\s+/);
-    if (cls.includes("hidden") && cls.some((c) => /^md:(block|flex|grid|inline)/.test(c))) return true;
+    // bd-sex15q.42 (R6): the laptop menu is now the rail, shown from lg (1024) up, so `hidden lg:flex` is laptop-only too
+    if (cls.includes("hidden") && cls.some((c) => /^(md|lg):(block|flex|grid|inline)/.test(c))) return true;
   }
   return false;
 }

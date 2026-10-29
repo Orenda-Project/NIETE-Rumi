@@ -437,4 +437,52 @@ run('COACHIP coach reads: R14 stats, R15 results, R5 moments, R6 m/:id (Postgres
       expect([as, m, r.status, r.text]).toEqual([as, m, 404, invented.text]);
     }
   });
+
+  // ── fix-r5 s5 (red-3 161102 fail, B22 config B; 161108 challenge): the dual account ─────────────────────────────
+  // C coaches S-01 and S-02 (Urban-I) and is also the RM of Urban-I (config B); D coaches S-03 (Urban-I) and is the
+  // RM of Tarnol (config A: an RM of a sector they do not coach in).
+  const duals = () => seed.setting(pg.query, 'portal_coachip_rm', { [RM]: 'Urban-I', [RM2]: 'Tarnol', [C]: 'Urban-I', [D]: 'Tarnol' });
+
+  test('R6 m/:id?as=rm (B22 config B, red-3 161102 reproduction): a dual RM of Urban-I who also holds S-01 opens coach C\'s circle moment there → the RM circle form, never the coach form', async () => {
+    await listenWorld();
+    await seed.holds(pg.query, { coachId: D, schoolId: SCH(1) });   // D now holds S-01 too: MOM(1)'s recording is in D's coach scope
+    await seed.setting(pg.query, 'portal_coachip_rm', { [RM]: 'Urban-I', [D]: 'Urban-I' });
+    const bare = await app.call('GET', `${P}/m/${MOM(1)}`, { as: D });   // the old call: the coach form (why the RM client must not use it)
+    expectKeys(bare.body, [...K.moment, 'windows', 'computed_at']);
+    const res = await app.call('GET', `${P}/m/${MOM(1)}?as=rm`, { as: D });
+    expect(res.status).toBe(200);
+    const b = res.body;
+    expectKeys(b, K.momentRm);
+    noIdentity(res.text);
+    noTeacherInRm(b);
+    expect(res.text).not.toContain(SESS(1));
+    for (const k of ['code', 'session']) expect(b).not.toHaveProperty(k);
+    expect(b).toMatchObject({ moment_id: MOM(1), coach_label: 'C-01', pair: null, full_recording: null, windows: [] });
+  });
+
+  test('R6 m/:id?as=rm is honoured only for an RM session: a coach-only user → 404; an RM outside the circle → 404; another value → 400', async () => {
+    await listenWorld();
+    const invented = await app.call('GET', `${P}/m/${INVENTED}`, { as: C });
+    const coachOnly = await app.call('GET', `${P}/m/${MOM(1)}?as=rm`, { as: C });   // C is not an RM in the plain world
+    expect([coachOnly.status, coachOnly.text]).toEqual([404, invented.text]);
+    await duals();
+    const notCircle = await app.call('GET', `${P}/m/${MOM(2)}?as=rm`, { as: C });   // C's own moment, not in the circle
+    expect([notCircle.status, notCircle.text]).toEqual([404, invented.text]);
+    const pureRm = await app.call('GET', `${P}/m/${MOM(1)}?as=rm`, { as: RM });
+    expectKeys(pureRm.body, K.momentRm);
+    for (const bad of ['coach', 'RM', '']) {
+      const r = await app.call('GET', `${P}/m/${MOM(1)}?as=${bad}`, { as: C });
+      expect([bad, r.status]).toEqual([bad, 400]);
+    }
+  });
+
+  test('R1 /me rm.coachesHere: true for an RM of a sector they coach in, false for an RM of another sector or with no coach scope', async () => {
+    await duals();
+    const b = (await app.call('GET', `${P}/me`, { as: C })).body;
+    expect(b.rm).toMatchObject({ sector: 'Urban-I', schoolCount: 3, coachesHere: true });
+    const a = (await app.call('GET', `${P}/me`, { as: D })).body;
+    expect(a.rm).toMatchObject({ sector: 'Tarnol', coachesHere: false });
+    const pure = (await app.call('GET', `${P}/me`, { as: RM })).body;
+    expect(pure).toMatchObject({ coach: null, rm: { sector: 'Urban-I', coachesHere: false } });
+  });
 });
