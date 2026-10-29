@@ -5,7 +5,7 @@ import { readVisit, visitKey, writeVisit } from '../../lib/assess/visitStore';
 import type { SaSchool } from '../../types/childTestSa';
 import { OFFLINE_COPY } from './offlineCopy';
 import {
-  checkForms, formsFor, keepPageOffline, listUrl, mb, prepForms, readPrep, today, writePrep, writePreparedList, type Lang, type PrepRecord, type Progress,
+  checkForms, formsFor, isUpdating, keepPageOffline, listUrl, mb, prepForms, readPrep, today, writePrep, writePreparedList, type Lang, type PrepRecord, type Progress,
 } from './offlineReady';
 
 /**
@@ -26,6 +26,8 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
   const c = OFFLINE_COPY[lang];
   const [record, setRecord] = useState<PrepRecord | null>(readPrep);
   const [still, setStill] = useState<boolean | null>(null);
+  // the engine's reason when it is not ready because the phone's worker is being replaced: no file count, tap again
+  const [updating, setUpdating] = useState(() => isUpdating(readPrep()?.why));
   const shown = useMemo(() => {
     const kept = new Set((record?.schools || []).map((s) => s.schoolId));
     const some = schools.filter((s) => s.visitToday || kept.has(s.schoolId));
@@ -48,7 +50,7 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
   useEffect(() => {
     if (!record || !record.forms.length) return undefined;
     let live = true;
-    checkForms(record.forms).then((r) => { if (live) setStill(r.ready); });
+    checkForms(record.forms).then((r) => { if (live) { setStill(r.ready); setUpdating(!r.ready && isUpdating(r.why)); } });
     return () => { live = false; };
   }, [record]);
 
@@ -104,10 +106,11 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
     // before the tests start to download (a coach who loses the signal early can still reopen the page)
     await pageFirst.then(() => keepPageOffline(lists));
     const r = await prepForms(forms, (p) => setProgress(p));
-    const rec: PrepRecord = { at: Date.now(), day: today(), schools: done, forms, ok: r.ok && done.every((d) => d.listed), total: r.total, cached: r.cached, bytes: r.bytes };
+    const rec: PrepRecord = { at: Date.now(), day: today(), schools: done, forms, ok: r.ok && done.every((d) => d.listed), total: r.total, cached: r.cached, bytes: r.bytes, ...(r.why ? { why: r.why } : {}) };
     writePrep(rec);
     setRecord(rec);
     setStill(r.ok);
+    setUpdating(!r.ok && isUpdating(r.why));
     setProgress(null);
   };
 
@@ -120,9 +123,11 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
       <p className="text-sm text-slate-700">{c.prepBody}</p>
       {record && !progress && (
         <div className="space-y-1">
-          {missing === 0 && still !== false
-            ? <p data-testid="assess-offline-ready" role="status" className="font-medium text-emerald-800">{c.ready(record.schools.length, mb(record.bytes), when)}</p>
-            : <p data-testid="assess-offline-partly" role="alert" className="text-sm text-amber-900">{c.partly(Math.max(missing, 1))}</p>}
+          {updating
+            ? <p data-testid="assess-offline-updating" role="alert" className="text-sm text-amber-900">{c.updating}</p>
+            : missing === 0 && still !== false
+              ? <p data-testid="assess-offline-ready" role="status" className="font-medium text-emerald-800">{c.ready(record.schools.length, mb(record.bytes), when)}</p>
+              : <p data-testid="assess-offline-partly" role="alert" className="text-sm text-amber-900">{c.partly(Math.max(missing, 1))}</p>}
           {record.schools.filter((s) => !s.listed).map((s) => (
             <p key={`${s.schoolId}:${s.grade}`} className="text-sm text-amber-900">{c.noList(s.name)}</p>
           ))}
