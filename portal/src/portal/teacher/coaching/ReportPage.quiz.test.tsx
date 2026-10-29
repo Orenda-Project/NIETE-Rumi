@@ -33,7 +33,7 @@ vi.mock("../../services/api", () => ({ default: { get: vi.fn(), post: vi.fn() },
 const nav = vi.hoisted(() => ({ goTo: vi.fn() }));
 vi.mock("./navigate", () => nav);
 
-vi.mock("../home/LessonQuizButton", () => ({ LessonQuizButton: ({ from }: { from?: string }) => <i data-testid="quiz-this" data-from={from ?? "lp"} /> }));
+vi.mock("../home/LessonQuizButton", () => ({ LessonQuizButton: ({ from, sessionId }: { from?: string; sessionId?: string }) => <i data-testid="quiz-this" data-from={from ?? "lp"} data-session={sessionId ?? ""} /> }));
 
 import "../routes";
 import api from "../../services/api";
@@ -84,6 +84,13 @@ describe("the report page — Quiz this lesson", () => {
     portal.getCoachingSession.mockResolvedValue({ session: DETAIL });
     open();
     expect((await screen.findByTestId("quiz-this")).getAttribute("data-from")).toBe("coach");
+  });
+
+  it("the button carries this report's session, so the quiz home makes the quiz for THIS lesson (ICT IAB row 35)", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "completed", stage: "done", reflection: null, reportReady: true });
+    portal.getCoachingSession.mockResolvedValue({ session: DETAIL });
+    open();
+    expect((await screen.findByTestId("quiz-this")).getAttribute("data-session")).toBe(ID);
   });
 
   it("a coach's visit report: no button", async () => {

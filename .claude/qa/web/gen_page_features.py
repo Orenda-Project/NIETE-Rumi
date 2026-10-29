@@ -25,8 +25,10 @@ F = {
       ('/portal/lesson-plans', r'^Lesson Plans$', '/portal/curriculum', '/portal/lesson-plans settles on /portal/curriculum')]),
  ]),
  'teacher-coaching': ('Teacher digital coaching and coach visits', 'portal/src/portal/teacher/coaching/**, teacher/observations/**, PortalCoaching*.tsx', [
+   # bd-bmc9a0.4 (ICT IAB row 30, 2026-10-28): Recent DC Observations moved from the main page into Summary.
    ('TC01', 'Teacher app v2: Digital Coaching lists her recent observations', 'teacher', 'teacherV2',
-     [(T + '/coaching', r'^Recent DC Observations\s+[1-9]', None, 'Digital Coaching shows "Recent DC Observations" with at least one')]),
+     [(T + '/coaching', r'^Digital Coaching$', None, 'Digital Coaching opens on Start DC observation and Summary'),
+      (T + '/coaching/all', r'^Recent DC Observations', None, 'Summary shows "Recent DC Observations"')]),
    ('TC02', 'Teacher app v2: coach visits (Observations) open', 'teacher', 'teacherV2',
      [(T + '/observations', r'^Observations$', None, 'Observations opens')]),
    ('TC03', 'Classic portal: Coaching opens', 'teacher', 'classic',

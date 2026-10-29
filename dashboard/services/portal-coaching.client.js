@@ -67,10 +67,15 @@ function presignUpload({ userId, filename, sizeBytes, kind }) {
  * @param {{userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves}} args
  *   teacherClass (bd-fmf24g.9): { grade, subject, subjectKey? } — the class she picked in the app
  *   liveMoves (bd-v0toag.31): what the live screen saw; the bot validates it
+ *   saveForLater (bd-bmc9a0.2): she tapped "Save recording" (ICT IAB row 31)
  *   lessonPlan (bd-5rz1v): a library pick — { assetId } | { lessonId } | { segmentId, lang }
  */
-function startSession({ userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves }) {
-  return post('start', { userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves });
+function startSession({ userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves, saveForLater }) {
+  return post('start', {
+    userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves,
+    // bd-bmc9a0.2 — "Save recording" (ICT IAB row 31); only ever true.
+    ...(saveForLater === true ? { saveForLater: true } : {}),
+  });
 }
 
 /** @param {{userId, coachingSessionId, answer?, audioKey?}} args — audioKey: her spoken answer (bd-eygg2f) */

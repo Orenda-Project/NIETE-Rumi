@@ -11,9 +11,11 @@
  * changes behaviour never rides `quiz_teacher_home`: it gets its own read, or joins PAGE_KEYS
  * (the strict page read below).
  *
- * The page switches are one list, PAGE_KEYS = [paged, grade_fast, wait, portal_link, practice] (`quiz_teacher_home_grade_fast`:
- * the grade chips answer from the page; `quiz_teacher_home_portal_link`: "Open my portal" in the foot;
- * `web_quiz_practice_play`: "Try it as a student" for every teacher), read together in one `.in('key', PAGE_KEYS)` read,
+ * The page switches are one list, PAGE_KEYS = [paged, grade_fast, wait, portal_link, practice, one_lesson]
+ * (`quiz_teacher_home_grade_fast`: the grade chips answer from the page; `quiz_teacher_home_portal_link`: "Open my
+ * portal" in the foot; `web_quiz_practice_play`: "Try it as a student" for every teacher; `quiz_teacher_home_one_lesson`:
+ * the page opened with ?session=<coaching session id> makes that one lesson's quiz instead of showing the list),
+ * read together in one `.in('key', PAGE_KEYS)` read,
  * so no new read. JSON `true` ONLY; the
  * string "true", an absent row, any other value and a failed read are OFF.
  */
@@ -30,8 +32,11 @@ const PRACTICE_KEY = 'web_quiz_practice_play';
 const TIMING_KEY = 'quiz_teacher_server_timing';
 // the quiz home's way to the portal Home: "Open my portal" in the foot, its signed link in the home's JSON (JSON true only)
 const PORTAL_LINK_KEY = 'quiz_teacher_home_portal_link';
+// the quiz home opened for ONE recorded lesson (a Digital Coach report's "Create Quick Quiz": ?session=<id>): that
+// lesson's "Quiz this" is started after paint and its quiz shown instead of the list (JSON true only)
+const ONE_LESSON_KEY = 'quiz_teacher_home_one_lesson';
 // the page switches: one list, one read, one cache. A key added here is read in the same one `.in`.
-const PAGE_KEYS = [PAGED_KEY, GRADE_FAST_KEY, WAIT_KEY, PORTAL_LINK_KEY, PRACTICE_KEY];
+const PAGE_KEYS = [PAGED_KEY, GRADE_FAST_KEY, WAIT_KEY, PORTAL_LINK_KEY, PRACTICE_KEY, ONE_LESSON_KEY];
 const TTL_MS = 30 * 1000;
 let cache = null; // { at, on }
 let pageCache = null; // { at, on: { [key]: boolean } }
@@ -116,5 +121,5 @@ function reset() { cache = null; pageCache = null; timingCache = null; }
 
 module.exports = {
   on, paged, gradeFast, wait, practice, pageSwitches, timing, reset, resetTiming, KEY, PAGED_KEY, GRADE_FAST_KEY, WAIT_KEY, PRACTICE_KEY, TIMING_KEY,
-  PORTAL_LINK_KEY, PAGE_KEYS, TTL_MS,
+  PORTAL_LINK_KEY, ONE_LESSON_KEY, PAGE_KEYS, TTL_MS,
 };
