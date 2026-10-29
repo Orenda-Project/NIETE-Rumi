@@ -15,7 +15,7 @@ import { Bars, CoachingLines, FEATURE_OF, NumTile, PeriodChips, ScoreChart, char
 import type { ItemsFeature, TeacherCardData } from "./types";
 
 /**
- * A teacher (the switch on): the period chips, then her tiles for the period. Lesson plans, Papers made and Training parts
+ * A teacher (the switch on): the period chips, then her tiles for the period. Lesson plans, Assessments and Training parts
  * each carry her count (and her own small bars for a week or a month) and open her list of them; the days with any NIETE
  * use are flat information. Between them, ONE wide Observations card: her Digital Coaching (count, AI score and its
  * change) and her Coach observations (count, Coach score) on two lines, and the two-series chart. The whole card opens her

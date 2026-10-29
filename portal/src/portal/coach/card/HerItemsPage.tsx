@@ -13,7 +13,7 @@ import { FEATURE_OF, PeriodChips } from "./parts";
 import type { ItemsData, ItemsFeature, LpItem, PaperItem, TrainingCourse } from "./types";
 
 /**
- * Her list of one feature in the period, newest first: Lesson plans, Papers, and Training (each course and its parts, with
+ * Her list of one feature in the period, newest first: Lesson plans, Assessments (her papers), and Training (each course and its parts, with
  * the day each part was done). Her DC observations and coach visits are not lists here: they are her Coaching page (their
  * old addresses open it, CoachingRedirect).
  */

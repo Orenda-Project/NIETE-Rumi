@@ -23,13 +23,21 @@ describe("coach · school card copy", () => {
     expect(COPY_MODULES.some((m) => m.module === COPY_ENTRY.module)).toBe(true);
   });
 
-  it("speaks the ontology: DC observation, Coach observations, Papers made, scores say whose", () => {
+  it("speaks the ontology: DC observation, Coach observations, Assessments, scores say whose", () => {
     expect(SCHOOL_CARD.en.tileLabel.dc(2)).toBe("DC observations");
     expect(SCHOOL_CARD.ur.tileLabel.dc(2)).toBe("ڈیجیٹل کوچنگ مشاہدات");
     expect(SCHOOL_CARD.en.coachObs).toBe("Coach observations");
     expect(SCHOOL_CARD.ur.coachObs).toBe("مشاہدات");
-    expect(SCHOOL_CARD.en.tiles.papers).toBe("Papers made");
-    expect(SCHOOL_CARD.ur.tiles.papers).toBe("بنائے گئے پرچے");
+    // "Papers" reads "Assessments" (the feature's name; ontology: Assessment پرچہ, never "Papers made" in a heading)
+    expect(SCHOOL_CARD.en.tiles.papers).toBe("Assessments");
+    expect(SCHOOL_CARD.ur.tiles.papers).toBe("پرچے");
+    expect(SCHOOL_CARD.en.tileLabel.papers(1)).toBe("assessment");
+    expect(SCHOOL_CARD.en.tileLabel.papers(5)).toBe("assessments");
+    expect(SCHOOL_CARD.en.byTeacher.papers).toBe("Assessments by teacher");
+    expect(SCHOOL_CARD.en.allOf.papers).toBe("All Assessments");
+    expect(SCHOOL_CARD.en.countsSpoken(1, 2, 3, 4)).toContain("assessments 4");
+    const en = collectCopy(SCHOOL_CARD.en).map((c) => c.text).join(" | ");
+    expect(en).not.toMatch(/\bpapers?\b/i);
     expect(SCHOOL_CARD.en.aiScore).toBe("AI score");
     expect(SCHOOL_CARD.en.coachScore).toBe("Coach score");
     const every = [...collectCopy(SCHOOL_CARD.en), ...collectCopy(SCHOOL_CARD.ur)].map((c) => c.text).join(" | ");

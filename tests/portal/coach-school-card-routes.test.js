@@ -91,6 +91,8 @@ const ROUTES = [
   ['/coach/teacher/:ext/card', { ext: EXT }],
   ['/coach/teacher/:ext/items/:feature', { ext: EXT, feature: 'lp' }],
   ['/coach/teacher/:ext/coaching', { ext: EXT }],
+  ['/coach/teacher/:ext/scores/:kind', { ext: EXT, kind: 'dc' }],
+  ['/coach/school/:emis/scores/:kind', { emis: '901', kind: 'coach' }],
   ['/coach/session/:id', { id: '00000000-0000-4000-8000-000000000001' }],
 ];
 
@@ -193,6 +195,8 @@ describe('inputs are checked before any read', () => {
     ['/coach/teacher/:ext/items/:feature', { ext: EXT, feature: 'dc' }],
     ['/coach/teacher/:ext/items/:feature', { ext: EXT, feature: 'coach' }],
     ['/coach/teacher/:ext/coaching', { ext: 'abc' }],
+    ['/coach/teacher/:ext/scores/:kind', { ext: EXT, kind: 'lp' }],
+    ['/coach/school/:emis/scores/:kind', { emis: '901', kind: 'papers' }],
     ['/coach/session/:id', { id: 'not-a-uuid' }],
   ])('%s %o is 404', async (path, params) => {
     expect((await call(path, { params })).statusCode).toBe(404);
@@ -249,6 +253,30 @@ describe('a real answer through the route', () => {
     });
     // the coach the read asks about is the session user
     expect(poolQuery.mock.calls[0][1][0]).toBe('coach-1');
+  });
+
+  test("a teacher's coach-observation scores answer 200 with the kind and the period asked for", async () => {
+    settings.portal_coach_v2 = ['coach-1'];
+    settings.portal_coach_school_card = ['coach-1'];
+    poolQuery = jest.fn(async (sql) => {
+      if (/sc:teacher \*/.test(sql)) return { rows: [{ id: 'u1', phone_number: EXT, name: 'Teacher One', role: 'teacher', school_id: 's1', school_name: 'School One', emis: '901' }] };
+      return { rows: [] };
+    });
+    const out = await call('/coach/teacher/:ext/scores/:kind', { params: { ext: EXT, kind: 'coach' }, query: { period: 'today' } });
+    expect(out.statusCode).toBe(200);
+    expect(out.payload).toMatchObject({ success: true, kind: 'coach', period: { key: 'today' }, count: 0, avg: null, series: [], sections: [], reports: [] });
+  });
+
+  test("the school's DC scores by teacher answer 200", async () => {
+    settings.portal_coach_v2 = ['coach-1'];
+    settings.portal_coach_school_card = ['coach-1'];
+    poolQuery = jest.fn(async (sql) => {
+      if (/sc:school/.test(sql)) return { rows: [{ id: 's1', name: 'School One', emis: '901', school_name: 'School One' }] };
+      return { rows: [] };
+    });
+    const out = await call('/coach/school/:emis/scores/:kind', { params: { emis: '901', kind: 'dc' }, query: { period: 'week' } });
+    expect(out.statusCode).toBe(200);
+    expect(out.payload).toMatchObject({ success: true, kind: 'dc', rows: [], school: { count: 0, avg: null } });
   });
 });
 
