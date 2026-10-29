@@ -61,6 +61,8 @@ const funnel = (stage) => logEvent.mock.calls.filter((c) => c[0] === `quiz_funne
 const isoTime = (v) => typeof v === 'string' && !Number.isNaN(Date.parse(v));
 
 beforeEach(() => {
+  // bd-v0toag.126: processOffer now checks the teacher's 24 h window first; these suites test an open window.
+  jest.spyOn(require('../../bot/shared/services/quiz/quiz-delivery.service'), '_hasOpenMessageWindow').mockResolvedValue(true);
   jest.clearAllMocks();
   WhatsAppService.sendMessage.mockResolvedValue(true);
   WhatsAppService.sendInteractiveButtons.mockResolvedValue(true);
