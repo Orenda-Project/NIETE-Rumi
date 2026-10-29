@@ -16,7 +16,9 @@ function matchOrder(answers) {
   const base = [...answers].sort((x, y) => String(x).localeCompare(String(y)));
   if (n < 2) return base;
   const shifted = (out) => answers.some((_, k) => k > 0 && out.every((a, i) => a === answers[(i + k) % n]));
-  const fits = (out) => out.every((a, i) => a !== answers[i]) && (n < 4 || !shifted(out));
+  // Nor, from four up, the key read backwards (bd-5jmnfj.4.50.9): an Urdu box read left to right.
+  const backwards = (out) => out.every((a, i) => a === answers[n - 1 - i]);
+  const fits = (out) => out.every((a, i) => a !== answers[i]) && (n < 4 || (!shifted(out) && !backwards(out)));
   let found = null;
   const walk = (out, left) => {
     if (found) return;
@@ -29,8 +31,19 @@ function matchOrder(answers) {
       walk([...out, a], [...left.slice(0, j), ...left.slice(j + 1)]);
     });
   };
-  if (n <= 8) walk([], base);
+  if (n <= 10) walk([], base); // ten, not eight: G1 English Q7 boxes nine words (bd-5jmnfj.4.50.9)
   return found || base;
+}
+
+/**
+ * A word box (bd-5jmnfj.4.50.9): dealt like Column B against the items' own answers. v22 sorted
+ * it, and the sort printed G1 Urdu Q4's third word over the third picture, the rest in item order
+ * read backwards. A box that is not one word per item stays sorted as before.
+ */
+function bankOrder(words, answers) {
+  const sorted = [...words].sort((x, y) => String(x).localeCompare(String(y)));
+  const keyed = answers.filter((a, i) => words.includes(a) && answers.indexOf(a) === i);
+  return keyed.length === answers.length && keyed.length === words.length ? matchOrder(keyed) : sorted;
 }
 
 const ARROW = /→|←|->|<-|⇒|=>/;
@@ -61,4 +74,4 @@ const MATCH_CSS = `
   table.match-table td.m-gap { width: 40mm; }
 `;
 
-module.exports = { matchOrder, matchTable, matchAnswer, noArrow, MATCH_CSS };
+module.exports = { matchOrder, bankOrder, matchTable, matchAnswer, noArrow, MATCH_CSS };

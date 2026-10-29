@@ -68,4 +68,4 @@ function dealOrders(examJson) {
   return { ...examJson, unseen };
 }
 
-module.exports = { dealOrders, parseOrder };
+module.exports = { dealOrders, parseOrder, permutations };

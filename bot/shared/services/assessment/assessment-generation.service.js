@@ -129,7 +129,7 @@ const ANSWER_KEY_ON =
   + '(e.g. "b) 4"); MSQs: every correct option, comma-separated.\n'
   + '- True/False: "True" or "False".\n'
   + '- Fill in the blanks / Missing Letters: the word(s) or letters that fill each blank.\n'
-  + '- Match the Column: every correct pair, "left → right", comma-separated.\n'
+  + '- Match the Column: every correct pair, "left: right", comma-separated.\n'
   + '- Questions with a "words" list (Word Meanings, Word Sentences, word bank): '
   + 'one answer per word — its meaning or a model sentence — as "word: answer" lines.\n'
   + '- Brief/short/long answers and word problems: a concise model answer or worked solution.\n'
@@ -750,6 +750,7 @@ const { checkBlueprint, missesSplit, levelDistance, levelNote } = require('./blu
 const Reader = require('./fde-reader');
 const StemCheck = require('./fde-stem-check');
 const { writeEarlyPaper } = require('./fde-early-writer');
+const { noArrows } = require('./fde-no-arrows');
 
 // Required on first use: the loader opens a database client, and the prompt
 // helpers above are loaded by tests and tools that have no database.
@@ -904,7 +905,7 @@ const RULE = {
   noPictures: 'The paper carries no pictures. A slot marked frame prints an empty frame: write the instruction and the labels/word bank only; never \'look at the picture\'.',
   marks: 'Marks: use EXACTLY the marks given per slot.',
   blooms: 'blooms is one of Remember, Understand, Apply.',
-  scheme: 'For every WRITTEN item add scheme: { points: [{text, marks, kind: M|A|U|K|L}] summing EXACTLY to the item\'s marks, accept: [EVERY method the textbook teaches for this item], common_error }. Name a method point generically (e.g. \'a correct method for the common denominator\'), never one route. Give a U point only where the child chooses the unit (cm², m); otherwise fold the unit into the A point. Words / expanded-form items carry A points only. MCQs carry no scheme.',
+  scheme: 'For every WRITTEN item add scheme: { points: [{text, marks, kind: M|A|U|K|L}] summing EXACTLY to the item\'s marks, accept: [EVERY method the textbook teaches for this item], common_error }. Name a method point generically (e.g. \'a correct method for the common denominator\'), never one route. Give a U point only where the child chooses the unit (cm², m); otherwise fold the unit into the A point. Words / expanded-form items carry A points only. Points mark only what the question asks, never a part it does not ask. accept lists only answers that earn full marks; the form common_error describes is never in accept. MCQs carry no scheme.',
   families: 'Q2\'s twelve items are four families of three — one number-sense item, one straight computation, one word problem — from Units 1–2, 3–4, 5–6, 7–8 respectively; Q4–Q8 are one each: draw, area, perimeter, average, missing angle.',
   table: 'Data items: give the data as table: { headers, rows }.',
   picks: 'Section B (ب): the (ب) pick lists must be words that appear in the passage, at least two of each kind.',
@@ -934,7 +935,7 @@ const RULE = {
   optionsOnly: 'Write the four options only in `options`; never list (a), (b), (c), (d) inside the question.',
   urduQ4: 'Each Q4 item\'s `question` starts with its own directive in Urdu (what to do: choose the group word, choose the conditional word, change to the future tense, split into syllables), then the sentence or words.',
   urduQ4Group: 'In the Q4 group-word item the group word is one of its four options and is its key; its scheme `accept` names that option only, never another one.',
-  urduQ4GroupNotListed: 'In the Q4 group-word item the group word is NOT one of the words the item lists: it names what all of them belong to (تھرمامیٹر، نبض، دوا، ڈاکٹر → اسپتال), never the odd one out.',
+  urduQ4GroupNotListed: 'In the Q4 group-word item the group word is NOT one of the words the item lists: it names what all of them belong to (تھرمامیٹر، نبض، دوا اور ڈاکٹر all belong to اسپتال), never the odd one out. The item asks in words: it never prints an arrow (← →).',
   urduQ6Points: 'Q6 (ب) scheme: one idea per point, no point above 2 marks.',
   urduQ4Syllables: 'In the Q4 ارکان سازی item, split every word into its spoken syllables, as the book does (غ – لا – ظت); every answer `accept` lists splits each word exactly as the key does.',
   urduRelationNouns: 'In Q2 (ب), relation words (امی، ابو، بھائی) are اسم نکرہ, never اسم معرفہ: اسم معرفہ is the own name of one person or place.',
@@ -951,7 +952,9 @@ const RULE = {
   noUnderline: 'Never refer to an underlined, bold or italic word; name the word in the stem instead.',
   scienceQ3: 'Q3(a): of the ten short questions, three Remember (state, name, define with the book\'s wording), four Understand (explain, compare, give an example) and three Apply, written as reasoning items (\'Why…\', \'What would happen if…\', \'Is … natural or artificial? Give a reason\'). Q3(b): of the five long questions, three Remember and two Apply (use the idea in a new situation from the book); none Understand.',
   unequalOptions: 'MCQ options are pairwise unequal in value (no two options that simplify to the same number, no 2/5 and 6/15) and written in simplest form.',
-  noRepeats: 'No item repeats another item\'s content, numbers or answer on this paper, in any section.',
+  // bd-5jmnfj.4.50.8: v22 G1 Urdu keyed «بلی» in Q3 and Q7 and printed it in Q1's stem.
+  noRepeats: 'No item repeats another item\'s content, numbers or answer on this paper, in any section. '
+    + 'An answer word appears nowhere else on the paper: never in another item\'s stem, choices or word box, and never as another item\'s answer.',
   // Social Studies: a paraphrase of a fact is not a repeated stem, so noRepeats lets Q5 and Q7 re-ask it.
   // The sections are written in parallel, so the rule names the slots, not their items.
   sstNoReask: 'Q5 and Q7 never ask a fact that a Section A item (stem or key) or a Q6 item on this paper already tests.',
@@ -2860,7 +2863,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   }
 
   const scheme = normaliseScheme(examJson);
-  examJson = scheme.examJson;
+  examJson = noArrows(scheme.examJson); // bd-5jmnfj.4.50.1: no arrow in any text a child or teacher reads
   if (scheme.log.length) logToFile('[assessment] scheme normalised', { pattern, notes: scheme.log.slice(0, 50), count: scheme.log.length });
   if (scheme.shortfall.length) {
     throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: scheme.shortfall, examJson, model });
