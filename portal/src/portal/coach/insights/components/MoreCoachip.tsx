@@ -4,6 +4,7 @@ import { LangToggle } from "../../../coachip-ui/LangToggle";
 import { TEACHER_FRAME } from "../../../teacher/copy";
 import { useCopy, useLang } from "../../../teacher/i18n";
 import { initials } from "../../../teacher/format";
+import { digits } from "../format";
 import { COACH_PROFILE } from "../../profile/copy";
 import { COPY } from "../copy";
 import { rmPaths } from "../../../rm/paths";
@@ -41,7 +42,10 @@ export default function MoreCoachip({ name, phone, schools, rmOn, assess, onLogo
           <span className="truncate text-[17px] font-semibold leading-[1.4]">{name}</span>
           {(phone || counts) && (
             <span className="truncate text-[13px] leading-[1.45] text-white/75">
-              <span dir="ltr">{phone}</span>{phone && counts ? " · " : ""}{counts ? P.schoolsN(counts.schools) : ""}
+              {/* R6 fix cycle 2 (FIX_R6 A12, panel 015902): the count in the page's digits and the Urdu comma, as every other
+                  COACHIP line; the phone stays the one isolated LTR run */}
+              {phone && <bdi dir="ltr">{phone}</bdi>}{phone && counts ? (lang === "ur" ? "، " : " · ") : ""}
+              {counts ? digits(P.schoolsN(counts.schools), lang) : ""}
             </span>
           )}
         </span>
