@@ -309,3 +309,21 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     # not — except an admin-set coach/AEO, whose schools are allocated. The form's INIT pre-fills
     # what is on file, so she only picks the school.
 
+  @e2e @wip @draft @flow @P1 @destructive @R23
+  Scenario Outline: A lesson-plan first message gets the catalogue alone; the registration Flow comes on a later turn
+    # SPEC_FTUE §12 (NIETE row): «registration Flow after, not with, the plan». Behind REGISTRATION_AFTER_PLAN=true on the
+    # bot service; with it unset the plan turn still sends both (today). Unit cover: bot/tests/first-touch/reg-after-plan-turn.test.js.
+    Given the NIETE bot chat is open
+    And REGISTRATION_AFTER_PLAN is "true" on the bot service under test
+    And I am a fresh test number that has never been offered the registration form
+    When I send "<request>"
+    Then the bot sends the lesson-plan catalogue Flow
+    And it does not send the registration Flow in the same turn
+    When I send "hi"
+    Then the bot answers it and sends the registration Flow once
+    Examples:
+      | request                                        |
+      | lesson plan                                    |
+      | I need a lesson plan on fractions for class 4  |
+      | لیسن پلان                                      |
+    # @destructive: stamps users.registration_started_at (reset it to test again on one number).

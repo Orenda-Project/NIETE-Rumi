@@ -3,6 +3,7 @@ const { firstNameOf } = require('../utils/person-name');
 const { verifyOutputLanguage } = require('../utils/output-language-check');
 const { decideChildReplyLanguage } = require('../utils/child-reply-language');
 const { resolveResponseLanguage } = require('../utils/resolve-response-language');
+const { firstReplyLanguage } = require('../utils/first-reply-english-evidence');
 const { canonicalizeSlashCommand } = require('../utils/slash-command');
 const OpenAIService = require('../services/openai.service');
 const ContentService = require('../services/content.service');
@@ -667,7 +668,17 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
       requested: rawOverride, userId: user?.id,
     });
   }
-  let responseLanguage = currentLanguage;
+  // A brand-new row's first message, plainly English (positive evidence, switch
+  // FIRST_REPLY_ENGLISH_EVIDENCE): answer THIS turn in English. Nothing is stored — the row keeps
+  // its language and its lock; only the teacher's own choice (setUserLanguage) changes those. Switch off, an
+  // existing row, or no evidence → null, and every line below is today's.
+  const firstReply = firstReplyLanguage({ user, text: messageBody });
+  if (firstReply.language) {
+    logToFile('🈯 first reply in English on positive evidence (this turn only)', {
+      using: firstReply.language, storedPreference: currentLanguage, reason: firstReply.reason, userId: user?.id,
+    });
+  }
+  let responseLanguage = firstReply.language || currentLanguage;
   let languageSwitched = false;
   // Read at the END of the turn, by when the language resolver below has had its say.
   turn.languageOf = () => responseLanguage;
@@ -1420,6 +1431,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
         return;
       }
       typingController.stop();
+      turn.planTurn = true; // SPEC_FTUE §12: the registration Flow comes after the plan, not with it (REGISTRATION_AFTER_PLAN)
       const responseLanguage = await getUserLanguage(user.id) || 'en';
       await openLpBrowseFlow({ from, userId: user.id, language: responseLanguage, reason: 'bare_command' });
       return;
@@ -1760,10 +1772,15 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
     stored: currentLanguage,
     detected: detectedLanguage,
   });
-  responseLanguage = resolved.language;
+  // The first-reply evidence above outranks only a STORED/floor answer: a locked row or an
+  // Urdu-script message never reaches it (the evidence rule refuses both), so the resolver's own
+  // order — locked > Perso-Arabic > stored — is untouched.
+  responseLanguage = (firstReply.language && (resolved.source === 'stored' || resolved.source === 'floor'))
+    ? firstReply.language
+    : resolved.language;
   logToFile('🈯 response language resolved', {
-    using: resolved.language,
-    source: resolved.source,
+    using: responseLanguage,
+    source: responseLanguage === resolved.language ? resolved.source : 'first_reply_evidence',
     autoAdapted: resolved.autoAdapted,
     storedPreference: currentLanguage,
     detectedLanguage,
@@ -2653,6 +2670,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
       // Clear the state
       await MenuService.clearAwaitingLessonPlanTopic(user.id);
 
+      turn.planTurn = true;
       // Curriculum pre-gen intercept (no-op unless the region enables it)
       if (await tryCurriculumLessonPlanServe(from, messageBody, user, lessonPlanState.language)) {
         return; // curriculum pre-generated LP served instantly
@@ -2762,6 +2780,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   if (await redirectToApp(intentFeature, 'intent')) return;
 
   if (intent.type === 'lesson_plan') {
+    turn.planTurn = true;
     // Curriculum pre-gen intercept (no-op unless the region enables it)
     if (await tryCurriculumLessonPlanServe(from, messageBody, user, responseLanguage)) {
       return; // curriculum pre-generated LP served instantly
@@ -2807,6 +2826,11 @@ async function offerRegistrationAfterReply(turn, from) {
   try {
     const account = turn.user;
     if (!account || !account.id || turn.lookupFailed || turn.invited || turn.oneDoor) return;
+    // SPEC_FTUE §12, NIETE row: «registration Flow after, not with, the plan». A plan turn (the catalogue Flow, the
+    // curriculum serve, the free-form seam) sends no Flow beside it. The offer stays once-only and moves to the teacher's
+    // next non-plan turn; a grounded plan's worker also offers it after delivery (checkAndTriggerRegistration), the v8
+    // catalogue delivery does not. Exactly "true" only.
+    if (turn.planTurn && process.env.REGISTRATION_AFTER_PLAN === 'true') return;
     // Not "is she registered" (a name is enough for that) but "does she still need the form": a
     // name with no school or role counts. Children and admin-set coaches/AEOs never do.
     if (!needsRegistrationForm(account)) return;
