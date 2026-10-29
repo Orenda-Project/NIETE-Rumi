@@ -1,2 +1,3 @@
 {"ts":"2026-10-29T07:37:59Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"16b4a0c1ac0c","branch":"bd-6clakk.12-57056","user":""}
 {"ts":"2026-10-29T07:38:02Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-6clakk.12-57056: training spec: NOT UPDATED e2e: missing","sha":"16b4a0c1ac0c","branch":"bd-6clakk.12-57056","user":""}
+{"ts":"2026-10-29T07:39:15Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-6clakk.12-57056: training spec: NOT UPDATED e2e: missing","sha":"16b4a0c1ac0c","branch":"bd-6clakk.12-57056","user":""}
