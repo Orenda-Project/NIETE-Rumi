@@ -20,6 +20,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `migration-rls.test.js` | SQL-text test of V1.6.19: RLS enabled on assessment_topics with no policies (bot uses the service role) |
 | `migration.test.js` | SQL-text test of V1.6.18: assessment_topics table plus paper_kind on assessment_requests/assessment_papers |
 | `no-duplicate-names.test.js` | Task 3 fix: pins that a teacher never sees two tick boxes with the same name in a chapter (group, matrix sample) |
+| `oral-g35.test.js` | (unmapped) |
 | `orchestrator-topic-slos.test.js` | Task 6: pins buildPaper handing a topic job's SLOs to generateExam and nothing else changing for other jobs |
 | `page-check.test.js` | Pins checkPages: topic pages versus the chapter's textbook_toc page range, using real 20 Oct audit cases |
 | `pages-match-book.db.test.js` | Task 5: read-only DB check that topic pages exist in textbook_pages; skips unless ASSESSMENT_TOPICS_DB_URL names sandbox |
@@ -32,7 +33,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `topic-cta-flag.test.js` | bd-6clakk.6: pins the assessment_topic_cta_enabled switch hiding the WhatsApp topics button, fail closed (feature-flags) |
 | `topic-key-orchestrator.test.js` | Task 7: pins the orchestrator passing ticked topics to the key and paperKind to the student copy |
 | `topic-key.test.js` | Task 7: pins renderTopicSummary and a student copy with no total; chapter papers stay byte-identical (sha256) |
+| `topic-oral-key.test.js` | (unmapped) |
+| `topic-oral.test.js` | (unmapped) |
 | `topic-revision.test.js` | Pins that editing a topic paper keeps its by-topic key summary and header, on rerender and versions paths |
+| `topic-stem-prompt.test.js` | (unmapped) |
+| `topic-stems-routes.test.js` | (unmapped) |
+| `topic-stems.test.js` | (unmapped) |
 | `topics-route.test.js` | Task 5: pins POST /api/internal/assessment/topics returning one chapter's topics for the portal picker, repo mocked |
 | `topics.repo.test.js` | Task 5: pins topics.repo reading a chapter's assessment_topics in sort_order as camelCase, Supabase mocked |
 
@@ -43,4 +49,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/services/assessment/topics/CLAUDE.md`? · `tests/assessment/CLAUDE.md`?
+- docs: `bot/shared/services/assessment/patterns/CLAUDE.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.md`? · `bot/shared/services/assessment/topics/CLAUDE.md`? · `tests/assessment/CLAUDE.md`?

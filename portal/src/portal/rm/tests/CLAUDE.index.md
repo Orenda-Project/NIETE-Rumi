@@ -22,6 +22,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `r6_goldens.test.tsx` | Snapshot goldens of each RM page in English and Urdu (bd-sex15q.47) |
 | `r6_rm_deck.test.tsx` | Pins the R6 RM deck restyle: hero ring, sections, sheet-fixed picker, Urdu line breaks (bd-sex15q.47) |
 | `r6b_fix.test.tsx` | (unmapped) |
+| `r6c_fix.test.tsx` | (unmapped) |
 | `rmMomentAsRm.test.ts` | Pins that the RM client asks GET /coachip/m/:id with ?as=rm |
 | `s3_qa_rm.test.tsx` | Pins S8 circle zero-checks wording and S9 window legend with no moves (fix-r5 s3) |
 | `sector_step_today.test.tsx` | Pins that Set this sector step posts today's Karachi date and says so (fix-r5 s2 item 11) |

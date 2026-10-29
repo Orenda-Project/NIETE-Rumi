@@ -6,10 +6,11 @@
  *
  *   GET /coach/school/:emis/card?period=                    one of her schools for the period
  *   GET /coach/school/:emis/feature/:feature?period=        lp | dc | training | papers, a row per teacher
+ *   GET /coach/school/:emis/scores/:kind?period=            dc | coach: the school's scores by teacher
  *   GET /coach/teacher/:ext/card?period=                    one teacher in her patch
  *   GET /coach/teacher/:ext/items/:feature?period=          lp | papers | training
- *   GET /coach/teacher/:ext/coaching?period=                her DC reports and coach visits, one list (the Coaching page)
- *   GET /coach/session/:id                                  one DC report of a teacher in her patch
+ *   GET /coach/teacher/:ext/scores/:kind?period=            dc | coach: her scores, every practice averaged, her reports
+ *   GET /coach/session/:id                                  one DC report or coach observation of a teacher in her patch
  *
  * period = today | week | month (default week), Pakistan days; anything else is 400. ?today=YYYY-MM-DD is taken
  * only within one day of the Pakistan date (for a page that shows its own day, and for tests).
@@ -83,6 +84,24 @@ function createCoachSchoolCardRouter(deps) {
     return answer(res, 'feature', () => Card.getSchoolFeature(query, coach(req), emis, feature, opts));
   });
 
+  router.get('/coach/school/:emis/scores/:kind', ...guards, async (req, res) => {
+    const emis = String(req.params.emis || '');
+    const kind = String(req.params.kind || '');
+    if (!EMIS_RX.test(emis) || !Card.SCORE_KINDS.includes(kind)) return notFound(res);
+    const opts = optsOf(req, res);
+    if (!opts) return undefined;
+    return answer(res, 'school-scores', () => Card.getSchoolScores(query, coach(req), emis, kind, opts));
+  });
+
+  router.get('/coach/teacher/:ext/scores/:kind', ...guards, async (req, res) => {
+    const ext = String(req.params.ext || '');
+    const kind = String(req.params.kind || '');
+    if (!EXT_RX.test(ext) || !Card.SCORE_KINDS.includes(kind)) return notFound(res);
+    const opts = optsOf(req, res);
+    if (!opts) return undefined;
+    return answer(res, 'teacher-scores', () => Card.getTeacherScores(query, coach(req), ext, kind, opts));
+  });
+
   router.get('/coach/teacher/:ext/card', ...guards, async (req, res) => {
     const ext = String(req.params.ext || '');
     if (!EXT_RX.test(ext)) return notFound(res);
@@ -98,14 +117,6 @@ function createCoachSchoolCardRouter(deps) {
     const opts = optsOf(req, res);
     if (!opts) return undefined;
     return answer(res, 'items', () => Card.getTeacherItems(query, coach(req), ext, feature, opts));
-  });
-
-  router.get('/coach/teacher/:ext/coaching', ...guards, async (req, res) => {
-    const ext = String(req.params.ext || '');
-    if (!EXT_RX.test(ext)) return notFound(res);
-    const opts = optsOf(req, res);
-    if (!opts) return undefined;
-    return answer(res, 'coaching', () => Card.getTeacherCoaching(query, coach(req), ext, opts));
   });
 
   router.get('/coach/session/:id', ...guards, async (req, res) => {

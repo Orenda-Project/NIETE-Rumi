@@ -1,7 +1,7 @@
 # lib — Small shared helpers: feature flags, edge switches, date rules, COACHIP insights job
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/lib kg=68f00140f9e7 gen=18bcc001072b overflow=91 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/lib kg=4240ff7bdbb5 gen=5cfe6e0bb41f overflow=91 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `feature-flags.js` — fail-closed app_settings flags shared with the bot
@@ -20,7 +20,7 @@ Full index: `CLAUDE.index.md`
 
 ## Who reads this (generated)
 - `feature-flags.js` ← imported by `dashboard/routes/app-login.routes.js:115:56e747e4` · `dashboard/routes/coach-card.routes.js:36:2687a7b5` (+15)
-- `analytics-lists.js` ← imported by `dashboard/routes/portal.routes.js:120:de843ac4` · `dashboard/services/coachip-scope.service.js:23:f5343854` (+5)
+- `analytics-lists.js` ← imported by `dashboard/routes/portal.routes.js:121:de843ac4` · `dashboard/services/coachip-scope.service.js:23:f5343854` (+5)
 - `pk-range.js` ← imported by `dashboard/routes/portal-teacher-coaching.routes.js:26:a69bbe61` · `dashboard/routes/portal-teacher-lessons.routes.js:21:150648cb` (+5)
 - … 27 more → `CLAUDE.index.md`
 

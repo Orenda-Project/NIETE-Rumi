@@ -50,7 +50,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `assessment-gen-endpoint.js` ← imported by `bot/shared/handlers/flow-response.handler.js:1076:f26aaaa5` · `bot/shared/routes/flow-endpoint.routes.js:99:c504850d`
 - `attendance-marking-endpoint.js` ← imported by `bot/shared/handlers/voice-message.handler.js:207:70b1b9d8` · `bot/shared/services/attendance-portal.service.js:231:31792ed6` · `bot/shared/routes/flow-endpoint.routes.js:23:21407e82`
 - `attendance-setup-endpoint.js` ← imported by `bot/shared/routes/edit-class-endpoint.js:16:c48898bc` · `bot/shared/routes/flow-endpoint.routes.js:31:04047618`
-- `child-test-app.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2973:035459fa`
+- `child-test-app.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2989:035459fa`
 - `child-test-check-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:264:61a47844`
 - `class-manager-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:40:674712ff` · `bot/shared/routes/internal-api.routes.js:870:c9308276`
 - `class-round-internal.routes.js` ← imported by `bot/shared/routes/teacher-report-internal.routes.js:381:91363601`
@@ -59,11 +59,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `flow-endpoint.routes.js` ← imported by `bot/whatsapp-bot.js:74:d7fbe472`
 - `homework-request-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:74:25e6b28a`
 - `internal-api.routes.js` ← imported by `bot/whatsapp-bot.js:97:1d86e7c5`
-- `internal-assessment-edit.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2026:003972a3`
-- `internal-assessment-view.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2028:709cea0b`
-- `internal-attendance.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2030:39a302ca`
-- `internal-fln-send.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2033:617e0662`
-- `internal-share.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2032:b5701d16`
+- `internal-assessment-edit.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2042:003972a3`
+- `internal-assessment-view.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2044:709cea0b`
+- `internal-attendance.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2046:39a302ca`
+- `internal-fln-send.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2049:617e0662`
+- `internal-share.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2048:b5701d16`
 - `observe-mewaka-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:17:83181884`
 - `observe2-check-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:244:8b919590`
 - `observe2-form-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:211:c6cd7916`
@@ -99,7 +99,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - table `lesson_plan_requests` whole row (`*`) (written by `homework-request-endpoint.js`) ← read by `bot/shared/services/lesson-plan-queue.service.js:320:d2b02c3e`? · `bot/scripts/requeue-lesson-plan.js:42:d2b02c3e`?
 - table `student_lists` whole row (`*`) (written by `attendance-setup-endpoint.js`, `edit-class-endpoint.js`) ← read by `bot/shared/services/student-list.service.js:263:d2b02c3e`?
 - table `students` whole row (`*`) (written by `edit-class-endpoint.js`) ← read by `bot/shared/services/student-list.service.js:362:d2b02c3e`?
-- table `users` whole row (`*`) (written by `settings-endpoint.js`) ← read by `bot/shared/database/bot-helpers.js:28:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:687:7a0c163a`? · `dashboard/routes/portal.routes.js:313:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
+- table `users` whole row (`*`) (written by `settings-endpoint.js`) ← read by `bot/shared/database/bot-helpers.js:28:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:687:7a0c163a`? · `dashboard/routes/portal.routes.js:314:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
 - table `coaching_sessions` (written by `observe2-check-endpoint.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? · `bot/shared/handlers/text-message.handler.js:1920:5911672a`? · `bot/shared/handlers/voice-message.handler.js:741:5911672a`? (+85: `python3 kg/kg.py who-reads coaching_sessions`)
 - table `lesson_plan_requests` (written by `homework-request-endpoint.js`) ← read by `bot/shared/services/lesson-plan-queue.service.js:50:f61b5e94`? · `bot/shared/services/lp-v8-lifecycle.service.js:43:f61b5e94`? · `bot/shared/services/monitoring/lesson-plan-health.service.js:330:c661c05e`? · `bot/shared/services/teacher-state.service.js:93:f61b5e94`? (+2: `python3 kg/kg.py who-reads lesson_plan_requests`)
 - table `student_lists` (written by `attendance-setup-endpoint.js`, `edit-class-endpoint.js`) ← read by `bot/shared/services/attendance-portal.service.js:243:8479d615`? · `bot/shared/services/attendance-register-delivery.service.js:100:97085a82`? · `bot/shared/services/attendance-router.service.js:87:8479d615`? · `bot/shared/services/classes/class.service.js:206:8479d615`? (+24: `python3 kg/kg.py who-reads student_lists`)
@@ -120,7 +120,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `edit-class-endpoint.js` ← `tests/attendance/edit-class-enrolls.test.js` · `tests/database/bd-rbtpr-ledger-gaps.test.js`
 - `exam-confirm-endpoint.js` ← `tests/exam-checker/confirm-students-flow.test.js`
 - `homework-request-endpoint.js` ← `tests/homework/homework-flow.test.js` · `tests/lesson-plan-lifecycle/homework-path.test.js`
-- `internal-api.routes.js` ← `tests/assessment/fde-chain.test.js` · `tests/assessment/fde-create-race.test.js` · `tests/assessment/fde-create.test.js` · `tests/assessment/fde-options.test.js` · `tests/assessment/fde-status-versions.test.js` · `tests/assessment/golden.test.js` (+31: `python3 kg/kg.py who-reads bot/shared/routes/internal-api.routes.js`)
+- `internal-api.routes.js` ← `tests/assessment/fde-chain.test.js` · `tests/assessment/fde-create-race.test.js` · `tests/assessment/fde-create.test.js` · `tests/assessment/fde-options.test.js` · `tests/assessment/fde-status-versions.test.js` · `tests/assessment/golden.test.js` (+32: `python3 kg/kg.py who-reads bot/shared/routes/internal-api.routes.js`)
 - `internal-assessment-edit.routes.js` ← `tests/assessment/assessment-edit-routes.test.js` · `tests/assessment/fde-edit-marks.test.js` · `tests/assessment/fde-edit.test.js` · `tests/assessment/fde-status-versions.test.js`
 - `internal-assessment-view.routes.js` ← `tests/assessment/assessment-paper-view-routes.test.js`
 - `internal-fln-send.routes.js` ← `tests/portal/fln-send-routes.test.js` · `tests/routes/internal-fln-send.test.js`

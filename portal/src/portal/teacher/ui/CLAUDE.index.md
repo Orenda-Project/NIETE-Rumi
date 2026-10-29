@@ -142,13 +142,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `catalogue.ts` ← imported by `portal/src/portal/teacher/ui/ClassPicker.tsx:7:829a71c8` · `portal/src/portal/teacher/ui/index.ts:29:ccb1985a`
 - `copy.ts` ← imported by `portal/src/portal/teacher/ui/AudioCard.tsx:5:5a1954c8` · `portal/src/portal/teacher/ui/ChosenSoFar.tsx:6:5a1954c8` · `portal/src/portal/teacher/ui/ClassPicker.tsx:8:5a1954c8` · `portal/src/portal/teacher/ui/DateRangeBar.tsx:5:5a1954c8` (+23: `python3 kg/kg.py who-reads copy.ts`)
 - `dates.ts` ← imported by `portal/src/portal/teacher/ui/DayStrip.tsx:6:b96b95f3` · `portal/src/portal/teacher/ui/index.ts:45:9c93134e`
-- `digits.ts` ← imported by `portal/src/portal/teacher/assessment/model.ts:224:b13b993e` · `portal/src/portal/teacher/ui/NumberField.tsx:3:f9559031` · `portal/src/portal/teacher/ui/index.ts:61:e8c7a783`
+- `digits.ts` ← imported by `portal/src/portal/teacher/assessment/model.ts:226:b13b993e` · `portal/src/portal/teacher/ui/NumberField.tsx:3:f9559031` · `portal/src/portal/teacher/ui/index.ts:61:e8c7a783`
 - `gradeColours.ts` ← imported by `portal/src/portal/teacher/ui/ClassPicker.tsx:12:986b0bd1` · `portal/src/portal/teacher/ui/HistoryRow.tsx:10:986b0bd1` · `portal/src/portal/teacher/ui/index.ts:14:08870d86`
 - `index.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:5:537d2327` · `portal/src/portal/coach/analytics/model.ts:2:0fe353a8` · `portal/src/portal/coach/card/HerItemsPage.tsx:3:372799f7` · `portal/src/portal/coach/card/HerReportsPage.tsx:3:6d567001` (+94: `python3 kg/kg.py who-reads index.ts`)
 - `range.ts` ← imported by `portal/src/portal/coach/reports/CoachReportsAll.tsx:4:3610659c` · `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:18:8ffffdf7` · `portal/src/portal/teacher/analytics/SchoolView.tsx:11:8ffffdf7` · `portal/src/portal/teacher/coaching/CoachingAll.tsx:10:8ffffdf7` (+3: `python3 kg/kg.py who-reads range.ts`)
 - `recordPair.css` ← imported by `portal/src/portal/teacher/ui/RecordUploadPair.tsx:8:450896da`
 - `sounding.ts` ← imported by `portal/src/portal/teacher/ui/AudioCard.tsx:6:d17991ae` · `portal/src/portal/teacher/ui/VoiceNote.tsx:7:d17991ae`
-- `styles.ts` ← imported by `portal/src/portal/coach/disagreements/CoachingBox.tsx:4:d8e874ab` · `portal/src/portal/coach/disagreements/DisagreementCard.tsx:6:cbd9177e` · `portal/src/portal/coach/disagreements/DisagreementsPage.tsx:7:55bdb8b8` · `portal/src/portal/coach/disagreements/appBar.tsx:6:55bdb8b8` (+112: `python3 kg/kg.py who-reads styles.ts`)
+- `styles.ts` ← imported by `portal/src/portal/coach/disagreements/CoachingBox.tsx:4:d8e874ab` · `portal/src/portal/coach/disagreements/DisagreementCard.tsx:6:cbd9177e` · `portal/src/portal/coach/disagreements/DisagreementsPage.tsx:7:55bdb8b8` · `portal/src/portal/coach/disagreements/appBar.tsx:6:55bdb8b8` (+113: `python3 kg/kg.py who-reads styles.ts`)
 - `subjects.ts` ← imported by `portal/src/portal/teacher/ui/ClassPicker.tsx:13:4527f0db` · `portal/src/portal/teacher/ui/GradeSubjectButton.tsx:8:67fe62e6` · `portal/src/portal/teacher/ui/HistoryRow.tsx:11:8c2f0923` · `portal/src/portal/teacher/ui/SubjectTile.tsx:3:e7ac954f` (+2: `python3 kg/kg.py who-reads subjects.ts`)
 - `useKitCopy.ts` ← imported by `portal/src/portal/coach/card/SessionReportPage.tsx:6:98653aa9` · `portal/src/portal/coach/pages/CoachNewVisit.tsx:11:98653aa9` · `portal/src/portal/coach/pages/CoachTeam.tsx:8:98653aa9` · `portal/src/portal/coach/reports/CoachReportsAll.tsx:3:98653aa9` (+33: `python3 kg/kg.py who-reads useKitCopy.ts`)
 
@@ -181,8 +181,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `gradeColours.ts` ← `portal/src/portal/teacher/ui/gradeColours.test.ts`
 - `index.ts` ← `portal/src/portal/coach/time.test.ts` · `portal/src/portal/teacher/assessment/checks.test.tsx` · `portal/src/portal/teacher/ui/ConfirmTray.test.tsx` · `portal/src/portal/teacher/ui/ListRow.urdu.test.tsx` · `portal/src/portal/teacher/ui/TimeStamp.urdu.test.tsx` · `portal/src/portal/teacher/ui/coachKit1.test.tsx` (+3: `python3 kg/kg.py who-reads portal/src/portal/teacher/ui/index.ts`)
 - `range.ts` ← `portal/src/portal/teacher/ui/DateRangeBar.test.tsx`
-- `styles.ts` ← `portal/src/portal/teacher/ui/HistoryRow.test.tsx`
+- `styles.ts` ← `portal/src/portal/teacher/coaching/ReportPage.iabRows.test.tsx` · `portal/src/portal/teacher/ui/HistoryRow.test.tsx`
 - `subjects.ts` ← `portal/src/portal/teacher/ui/SubjectTile.test.tsx` · `portal/src/portal/teacher/ui/copy.ur.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/components/CLAUDE.md`? · `portal/src/portal/coach/insights/components/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/ui/README.md`?
+- docs: `portal/src/components/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/ui/README.md`?

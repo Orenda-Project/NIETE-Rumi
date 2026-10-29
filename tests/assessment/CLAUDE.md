@@ -1,7 +1,7 @@
 # assessment — Tests for the assessment/exam generator: WhatsApp Flow, portal editor, FDE board papers
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/assessment kg=e48a35444a43 gen=b2fa39f1fa19 overflow=219 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/assessment kg=02af65fd3829 gen=b4f8e223ec08 overflow=244 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `golden.test.js` — start here: pins today's prompts, printed papers/keys, options payloads against fixtures/golden
@@ -12,14 +12,14 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `fixtures/` | → (no door; 213 files: 0 test + 213 support) |
+| `fixtures/` | → (no door; 214 files: 0 test + 214 support) |
 | `helpers/` | Shared fakes and replay helpers for the assessment tests (not test files themselves) → `helpers/CLAUDE.md` |
 | `topics/` | Tests for assessment topics: curriculum-matrix grouping, topic papers, topic answer key → `topics/CLAUDE.md` |
 | `fde-edit.test.js` | Pins editing a board-pattern paper: selection keeps _layout, a changed answer drops worked scheme points (E8.1/E8.2) |
 | `assessment-chat-ack.test.js` | Pins generation and rebuild ending by closing the Flow with an in-chat acknowledgement, not a SUBMITTED screen |
 | `assessment-paper-fde.renderer.test.js` | Pins the printed board-pattern paper and marking scheme: recomputed counts, header total 100, choiceLine (fde renderer) |
 | `fde-r6s2.test.js` | Round 6 second pass: pins that appended source/chapter/level tags never print and the pages-paper covers line |
-| … | 222 more → `CLAUDE.index.md` |
+| … | 247 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

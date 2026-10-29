@@ -47,7 +47,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - table `classes` whole row (`*`) (written by `seed-sandbox.js`) ← read by `bot/shared/services/child-test/store.js:239:b206d846`?
 - table `observation_field_forms` whole row (`*`) (written by `smoke-sandbox.js`) ← read by `bot/shared/services/observe/observe2/field-form.store.js:57:d2b02c3e`?
 - table `students` whole row (`*`) (written by `seed-sandbox.js`) ← read by `bot/shared/services/student-list.service.js:362:d2b02c3e`?
-- table `users` whole row (`*`) (written by `seed-sandbox.js`) ← read by `bot/shared/database/bot-helpers.js:28:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:687:7a0c163a`? · `dashboard/routes/portal.routes.js:313:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
+- table `users` whole row (`*`) (written by `seed-sandbox.js`) ← read by `bot/shared/database/bot-helpers.js:28:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:687:7a0c163a`? · `dashboard/routes/portal.routes.js:314:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
 - table `child_test_blocks` (written by `smoke-sandbox.js`) ← read by `bot/shared/services/child-test/sa/score.js:902:c318f982`?
 - table `child_test_draws` (written by `smoke-sandbox.js`) ← read by `bot/shared/services/child-test/check-flow/check-store.js:145:5bbb6be1`? · `bot/shared/services/child-test/store.js:417:c5aa16bb`?
 - table `child_test_sessions` (written by `smoke-sandbox.js`) ← read by `bot/shared/services/child-test/sa/score.js:1061:a92c1089`?

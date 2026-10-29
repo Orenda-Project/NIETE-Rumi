@@ -1,7 +1,7 @@
 # components — Small COACHIP pieces shared by coach insight pages and RM pages
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/insights/components kg=5d78f2a8df81 gen=4dc2faff48b8 overflow=26 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/insights/components kg=e35613b19620 gen=d8dfa06acd52 overflow=27 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `Frame.tsx` — frame, band, trust line used by every insight page
@@ -32,8 +32,9 @@ Full index: `CLAUDE.index.md`
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
 ## Tests (generated)
+- `portal/src/portal/coach/insights/tests/r6c_fix.test.tsx` (MoreCoachip.tsx)
 - `portal/src/portal/fln/tests/bidi.test.tsx`? (bidi.ts)
-- `portal/src/portal/teacher/ui/bidi.test.tsx`? (bidi.ts)
+- … 1 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/coach/insights/CLAUDE.md`?

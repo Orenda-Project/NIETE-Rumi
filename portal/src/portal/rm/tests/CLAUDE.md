@@ -1,7 +1,7 @@
 # tests — Goldens and rules tests for the RM screens
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/rm/tests kg=62f1110a401f gen=da97e42ab177 overflow=5 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/rm/tests kg=223d30a56087 gen=7fe1075861dc overflow=5 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `harness.tsx` — rmWorld and renderRm on top of the coach insights harness
@@ -16,9 +16,10 @@ Full index: `CLAUDE.index.md`
 | `FollowUpPicker.test.tsx` | Pins the follow-up picker: five exact keys on Send, one to three schools, compose preview |
 | `RmCircle.test.tsx` | Pins S10 circle: single-line rows, gloss on open, clip errors, Set sector step payload |
 | `r6_rm_deck.test.tsx` | Pins the R6 RM deck restyle: hero ring, sections, sheet-fixed picker, Urdu line breaks (bd-sex15q.47) |
+| `r6c_fix.test.tsx` | (unmapped) |
 | `RmHome.test.tsx` | Pins S8 sector card in both languages: counts, groups, moves, circle, empty and stale states |
-| `r6b_fix.test.tsx` | (unmapped) |
 | `copy.test.ts` | COPY section 6 lint over every RM string |
+| `r6b_fix.test.tsx` | (unmapped) |
 | `rmMomentAsRm.test.ts` | Pins that the RM client asks GET /coachip/m/:id with ?as=rm |
 | `RmCoach.test.tsx` | Pins S9 coach page blocks under the count contract and not-available for another sector |
 | `RmStats.test.tsx` | Pins RM Stats rows, marker and the Coaches tab groups |
