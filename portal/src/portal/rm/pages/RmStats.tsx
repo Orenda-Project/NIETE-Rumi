@@ -28,7 +28,8 @@ export default function RmStats() {
     // window folds into the band's sub line; with a marker the card keeps both.
     <RmPage
       title={rt("stats.title", lang, { sector: data?.sector ?? sector })}
-      sub={w && !w.scoring_changed_on
+      // FIX_R6 §7.3 B9: the sub is held as a placeholder line until the read says whether the window joins it
+      sub={!data && !error ? null : w && !w.scoring_changed_on
         ? <>{rt("stats.sub", lang)}{lang === "ur" ? "، " : " · "}<WindowMark window={w} as="span">{windowMeta(w, lang)}</WindowMark></>
         : rt("stats.sub", lang)}
       windows={data?.windows} testId="rm-stats" trust={data ? "s8.trust" : null}>

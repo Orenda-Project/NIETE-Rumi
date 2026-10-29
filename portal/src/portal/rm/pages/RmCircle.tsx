@@ -112,7 +112,7 @@ export default function RmCircle() {
     ? data.checks_due.reduce((a, c) => ({ n: a.n + c.count.n, d: a.d + c.count.d, window_id: a.window_id }), { n: 0, d: 0, window_id: data.checks_due[0].count.window_id })
     : null;
   return (
-    <RmPage title={rt("s10.title", lang, { sector })} sub={data ? <DateText iso={data.week_start} lang={lang} /> : undefined}
+    <RmPage title={rt("s10.title", lang, { sector })} sub={data ? <DateText iso={data.week_start} lang={lang} /> : error ? undefined : null /* FIX_R6 B9: the date line held */}
       windows={data?.windows} testId="rm-circle" trust={data ? "s8.trust" : null}>
       {!data ? <StateBlock error={error} testId="rm-state" /> : (
         <div className="flex flex-col">

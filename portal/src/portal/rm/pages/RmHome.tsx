@@ -14,7 +14,7 @@ import { RmNote, RmPage } from "../components/RmFrame";
 import { Surface } from "../../coachip-ui/Surface";
 import { Section } from "../../coachip-ui/Section";
 import { Button } from "../../coachip-ui/Button";
-import { Coverage, OpeningCard } from "../components/OpeningCard";
+import { Coverage, HeroSkeleton, OpeningCard } from "../components/OpeningCard";
 import { SectorWRow, windowMeta } from "../components/SectorWRow";
 import { WindowMark } from "../../coach/insights/count";
 import { CircleCard, CoachGroups } from "../components/CoachGroups";
@@ -91,9 +91,11 @@ export default function RmHome() {
   }
   return (
     // s8.sub is the date only (COPY v1.1 §8: the coach and school counts had no Count behind them)
-    <RmPage title={title} sub={rtx("s8.sub", lang, { date: <DateText iso={today} lang={lang} /> })} windows={data?.windows} testId="rm-home" trust={data ? "s8.trust" : null}
-      hero={data ? <OpeningCard home={data} /> : undefined}>
-      {!data ? <StateBlock error={error} testId="rm-state" /> : (
+    // FIX_R6 §7.3 B8: the band is whole from the first paint: the trust foot (static, true in every state) and the
+    // hero's skeleton while loading; the body's skeleton rides up over the band as the moves card will
+    <RmPage title={title} sub={rtx("s8.sub", lang, { date: <DateText iso={today} lang={lang} /> })} windows={data?.windows} testId="rm-home" trust="s8.trust"
+      hero={data ? <OpeningCard home={data} /> : error ? undefined : <HeroSkeleton />}>
+      {!data ? <StateBlock error={error} testId="rm-state" overlap /> : (
         <>
           {data.stale && (
             <div className="mb-2 lg:mb-6"><RmNote testId="rm-stale" tone="info">{rtx("s8.empty.stale", lang, { date: <DateText iso={data.stale.as_of} lang={lang} /> })}</RmNote></div>

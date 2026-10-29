@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { useLang } from "../../teacher/i18n";
 import { CodeText, DateText, WindowMark } from "../../coach/insights/count";
@@ -9,6 +9,7 @@ import { rm } from "../api";
 import { useRmLoad } from "../useRmLoad";
 import { useRmSession } from "../RmGate";
 import { rmPaths } from "../paths";
+import { RM_S9_TITLE_HELD } from "../held";
 import type { RmCoach as Detail, RmHome } from "../types";
 import { RmNote, RmPage } from "../components/RmFrame";
 import { Section } from "../../coachip-ui/Section";
@@ -91,6 +92,19 @@ function Notes({ d }: { d: Detail }) {
   );
 }
 
+/**
+ * FIX_R6 §7.3 B9: the title's placeholder while the read is in flight, the live label's two-line box on a phone
+ * (`RM_S9_TITLE_HELD`, per language), one line on a laptop; a pulsing bar across it as the app bar's own placeholders.
+ */
+function TitleHeld() {
+  const lang = useLang();
+  return (
+    <span data-cp-ph="title" aria-hidden="true" className="cp-skeleton block h-[var(--rm-title-h)] lg:h-auto" style={{ "--rm-title-h": `${RM_S9_TITLE_HELD[lang]}px` } as CSSProperties}>
+      <span className="inline-block h-[0.62em] w-3/4 rounded-full bg-cp-hairline align-middle" />{"\u00a0"}
+    </span>
+  );
+}
+
 export default function RmCoach() {
   const lang = useLang();
   const { coachUserId = "" } = useParams();
@@ -109,8 +123,10 @@ export default function RmCoach() {
   return (
     <RmPage
       // FIX_R6 B7: a Latin label is one isolated run that wraps only at a space ("Fixture Coach / 01" never splits mid-word)
-      title={c ? <bdi data-code="" dir={lang === "ur" ? "ltr" : "auto"} className="[overflow-wrap:normal]">{c.coach_label}</bdi> : rt("nav.rm.coaches", lang)}
-      sub={c ? rt(`s9.reason.${c.needs_me_reason ?? "none"}` as const, lang) : undefined}
+      // FIX_R6 §7.3 B9: while the read is in flight the bar draws its title and sub placeholders (`null`), so it does
+      // not grow when the label (two lines in Urdu) and the reason land; a failed read keeps the plain title
+      title={c ? <bdi data-code="" dir={lang === "ur" ? "ltr" : "auto"} className="[overflow-wrap:normal]">{c.coach_label}</bdi> : error ? rt("nav.rm.coaches", lang) : <TitleHeld />}
+      sub={c ? rt(`s9.reason.${c.needs_me_reason ?? "none"}` as const, lang) : error ? undefined : null}
       backTo={rmPaths.coaches}
       windows={data?.windows}
       testId="rm-coach"
