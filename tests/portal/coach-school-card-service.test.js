@@ -732,6 +732,8 @@ describe('a coach observation opens in the same report view', () => {
 
 const FW = require('../../bot/shared/services/coaching/frameworks/fico-framework').getScoringConstants();
 const fwName = (id) => Object.values(FW.domains).flatMap((d) => d.indicators).find((i) => i.id === id).name;
+// The deployed framework's name for a practice it knows, else the report's own (C10 is a FICO v3 practice, not a v4 one).
+const fwNameOr = (id, own) => (Object.values(FW.domains).flatMap((d) => d.indicators).find((i) => i.id === id) || { name: own }).name;
 
 describe('a teacher\'s DC and coach-observation scores, each on its own', () => {
   test('DC: count, average against the week before, each report\'s score, every practice averaged, her reports', async () => {
@@ -742,18 +744,19 @@ describe('a teacher\'s DC and coach-observation scores, each on its own', () => 
       { id: 'd1', date: '2026-10-26', score: 60 },
       { id: 'd5', date: '2026-10-28', score: 70 },
     ]);
-    // B is left out: neither report assessed the plan. Each practice's average is on the framework's own scale (2),
-    // from that report's own scale (C: 48 over 12 practices = 4), framework order, the framework's names.
+    // B is left out: neither report assessed the plan. Each practice's average is on the DEPLOYED framework's own scale
+    // (FW.scaleMax: 4 on FICO v3, 2 on v4), from that report's own scale (C: 48 over 12 practices = 4), framework order,
+    // the framework's names. Written as shares of FW.scaleMax so it holds on either framework.
     // All four sections. B: no report assessed the plan, so no average and no practices ("Not scored").
     expect(out.sections.map((x) => x.code)).toEqual(['B', 'C', 'D', 'F']);
     expect(out.sections[0]).toEqual({ code: 'B', name: 'Lesson Plan Fidelity', avg: null, scoredIn: 0, indicators: [] });
     const c = out.sections[1];
-    expect(c).toMatchObject({ name: 'High-Leverage Practices', avg: 1, scoredIn: 2 });
+    expect(c).toMatchObject({ name: 'High-Leverage Practices', avg: 0.5 * FW.scaleMax, scoredIn: 2 });
     expect(c.indicators).toEqual([
-      { id: 'C1', name: fwName('C1'), avg: 1.5, pct: 75, scaleMax: FW.scaleMax, n: 2 },
-      { id: 'C2', name: fwName('C2'), avg: 1, pct: 50, scaleMax: FW.scaleMax, n: 2 },
-      // not in the deployed framework: the report's own name
-      { id: 'C10', name: 'Practice C10', avg: 0.5, pct: 25, scaleMax: FW.scaleMax, n: 2 },
+      { id: 'C1', name: fwName('C1'), avg: 0.75 * FW.scaleMax, pct: 75, scaleMax: FW.scaleMax, n: 2 },
+      { id: 'C2', name: fwName('C2'), avg: 0.5 * FW.scaleMax, pct: 50, scaleMax: FW.scaleMax, n: 2 },
+      // the framework's name when the deployed framework has it (v3), else the report's own name (v4)
+      { id: 'C10', name: fwNameOr('C10', 'Practice C10'), avg: 0.25 * FW.scaleMax, pct: 25, scaleMax: FW.scaleMax, n: 2 },
     ]);
     // a practice the report did not score (F5, not applicable) is not averaged in
     expect(out.sections[3].indicators.map((i) => i.id)).toEqual(['F1']);
@@ -769,8 +772,8 @@ describe('a teacher\'s DC and coach-observation scores, each on its own', () => 
     d5.analysis_data.scores.has_lesson_plan = true;
     const out = await Card.getTeacherScores(db, 'coach-1', PHONE.t1, 'dc', opts());
     // scored in 1 of her 2 reports: the page says so
-    expect(out.sections[0]).toMatchObject({ code: 'B', name: 'Lesson Plan Fidelity', avg: 1, scoredIn: 1 });
-    expect(out.sections[0].indicators).toEqual([{ id: 'B1', name: fwName('B1'), avg: 1, pct: 50, scaleMax: FW.scaleMax, n: 1 }]);
+    expect(out.sections[0]).toMatchObject({ code: 'B', name: 'Lesson Plan Fidelity', avg: 0.5 * FW.scaleMax, scoredIn: 1 });
+    expect(out.sections[0].indicators).toEqual([{ id: 'B1', name: fwName('B1'), avg: 0.5 * FW.scaleMax, pct: 50, scaleMax: FW.scaleMax, n: 1 }]);
   });
 
   test('coach: every visit counted and listed; only reviewed FICO-form visits averaged, charted and put into the practices', async () => {

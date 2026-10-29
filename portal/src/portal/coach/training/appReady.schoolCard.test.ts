@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { COACH_APP_READY, coachLandingFor, coachPathReady, coachReadyFor, coachReadyHome } from "./appReady";
+import { COACH_APP_READY, coachPathReady, coachReadyFor, coachReadyHome } from "./appReady";
 import { COACH_CARD_NAV_KEYS, coachNavKeysFor, currentCoachCardItem, currentCoachMenuItem } from "../../teacher/menu";
 
 /**
@@ -7,29 +7,25 @@ import { COACH_CARD_NAV_KEYS, coachNavKeysFor, currentCoachCardItem, currentCoac
  * changes; with it on the slim Home is the landing page, the School card pages open, and Schedule, Observe, Reports,
  * Analytics and Insights stay shut.
  */
-const ON = coachReadyFor(false, true);
+const ON = coachReadyFor(true);
 
 describe("coachReadyFor: the switch off is exactly today", () => {
-  it.each([[false, undefined], [false, false], [false, null], [null, false], [undefined, undefined]])("coachip %s, school card %s", (c, s) => {
-    expect(coachReadyFor(c, s)).toBe(COACH_APP_READY);
-  });
-
-  it("COACHIP alone still puts This week first", () => {
-    expect([...coachReadyFor(true, false)]).toEqual(["insights", ...COACH_APP_READY]);
-    expect([...coachReadyFor(true)]).toEqual(["insights", ...COACH_APP_READY]);
+  it.each([[undefined], [false], [null]])("school card %s", (s) => {
+    expect(coachReadyFor(s)).toBe(COACH_APP_READY);
   });
 
   it("only a literal true turns it on", () => {
-    expect(coachReadyFor(false, "true" as unknown as boolean)).toBe(COACH_APP_READY);
-    expect(coachReadyFor(false, 1 as unknown as boolean)).toBe(COACH_APP_READY);
+    expect(coachReadyFor("true" as unknown as boolean)).toBe(COACH_APP_READY);
+    expect(coachReadyFor(1 as unknown as boolean)).toBe(COACH_APP_READY);
   });
 
   it("the landing page stays the Training Library", () => {
-    expect(coachLandingFor(coachReadyFor(false, false), false, false)).toBe("/portal/coach/training");
+    expect(coachReadyHome(coachReadyFor(false))).toBe("/portal/coach/training");
+    expect(coachReadyHome()).toBe("/portal/coach/training");
   });
 
   it.each(["/portal/coach", "/portal/coach/session/s-1", "/portal/coach/session"])("%s stays shut", (p) => {
-    expect(coachPathReady(p, coachReadyFor(false, false))).toBe(false);
+    expect(coachPathReady(p, coachReadyFor(false))).toBe(false);
   });
 });
 
@@ -38,13 +34,8 @@ describe("coachReadyFor: the switch on", () => {
     expect([...ON]).toEqual(["home", "training", "lessons", "schools"]);
   });
 
-  it("wins over COACHIP: no Insights", () => {
-    expect([...coachReadyFor(true, true)]).toEqual([...ON]);
-  });
-
   it("lands on the slim Coach Home", () => {
     expect(coachReadyHome(ON)).toBe("/portal/coach");
-    expect(coachLandingFor(ON, false, false)).toBe("/portal/coach");
   });
 
   it.each([

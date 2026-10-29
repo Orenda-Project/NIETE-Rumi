@@ -12,12 +12,12 @@ vi.setConfig({ testTimeout: 20_000 });
  * Home · Lesson Plans · More, and every School card screen works against the API contract's shapes. Only the network
  * is mocked; the real guard, gates, flag hooks, pages and menu run. No page links anywhere the coach app keeps shut.
  */
-const READY = coachReadyFor(false, true);
+const READY = coachReadyFor(true);
 const SHUT = ["/portal/coach/scheduling", "/portal/coach/schedule", "/portal/coach/new-visit", "/portal/coach/observe", "/portal/coach/visit",
   "/portal/coach/observation", "/portal/coach/reports", "/portal/coach/analytics", "/portal/coach/insights"];
 
 function on(extra: Record<string, unknown> = {}) {
-  net.answers.set("/config", { success: true, features: { coachV2: true, schoolCard: true, coachip: true, ...extra } });
+  net.answers.set("/config", { success: true, features: { coachV2: true, schoolCard: true, ...extra } });
   net.answers.set("/training/library", { vendors: [{ vendor_key: "V", vendor_name: "Vendor", levels: [{ id: 1, name: "L1", order_index: 1, has_level_exam: false, exam_kind: null, courses: [{ id: 1, title: "C1", order_index: 1, has_readings: false, has_module_exam: false, modules: [] }, { id: 2, title: "C2", order_index: 2, has_readings: false, has_module_exam: false, modules: [] }] }] }] });
   net.answers.set("/coach/people", { success: true, schools: [{ emis: EMIS, name: "Model School Nine", teachers: 12, visits: 1, daysSinceVisit: 1, avgHitl: 60 }], teachers: Array.from({ length: 12 }, (_, i) => ({ teacherExtId: `t${i}`, name: `T${i}` })) });
   net.answers.set(`/coach/school/${EMIS}/card`, schoolCard());
@@ -47,7 +47,7 @@ beforeAll(async () => { await loadApp(); }, 120_000);
 beforeEach(async () => { await resetAll(); });
 
 describe("the gate and the menu", () => {
-  it("a coach who opens a page that is not ready lands on the slim Home (it wins over COACHIP)", async () => {
+  it("a coach who opens a page that is not ready lands on the slim Home", async () => {
     on();
     await renderApp("/portal/coach/insights");
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/portal\/coach$/));
