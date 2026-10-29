@@ -268,7 +268,7 @@ describe('the Learning assessment\'s page switches (sa/switches)', () => {
     expect(out.statusCode).toBe(200);
     expect(out.payload).toEqual({
       success: true,
-      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, urFit: true, exampleDashboard: false, realDashboard: false, reviewPage: false, resumeRepick: false, allGrades: false, addChild: false, endTestRestart: false, endSection: false, dashFilters: false, cwpm: false, r8OfflineFirst: false, r8OfflinePrep: false, r8FastStart: false },
+      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, urFit: true, exampleDashboard: false, realDashboard: false, reviewPage: false, resumeRepick: false, allGrades: false, addChild: false, endTestRestart: false, endSection: false, dashFilters: false, cwpm: false, r8OfflineFirst: false, r8OfflinePrep: false, r8FastStart: false, iosMic: false },
     });
     expect(axiosPost).not.toHaveBeenCalled();
   });
@@ -298,6 +298,16 @@ describe('the Learning assessment\'s page switches (sa/switches)', () => {
     expect(out.statusCode).toBe(200);
     expect(out.payload.switches).toEqual(expect.objectContaining({ r8FastStart: true, r8OfflineFirst: true, r8OfflinePrep: false }));
     expect(axiosPost).not.toHaveBeenCalled();
+  });
+
+  test('round 8 iPhone microphone check (sa_r8_ios_mic) is on when its row names this coach', async () => {
+    tableRows.app_settings.push(
+      { key: 'portal_child_test_sa', value: [COACH] },
+      { key: 'sa_r8_ios_mic', value: [COACH] },
+    );
+    const out = await invoke(ROUTES, 'get', '/sa/switches');
+    expect(out.statusCode).toBe(200);
+    expect(out.payload.switches).toEqual(expect.objectContaining({ iosMic: true }));
   });
 
   describe('the example dashboard (synthetic data): sandbox only', () => {
