@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { useLang } from "../../teacher/i18n";
-import { CodeText, DateText } from "../../coach/insights/count";
+import { CodeText, DateText, WindowMark } from "../../coach/insights/count";
+import type { Window } from "../../coach/insights/types";
 import { digits } from "../../coach/insights/format";
 import { StateBlock } from "../../coach/insights/components/StateBlock";
 import { rm } from "../api";
@@ -13,7 +14,7 @@ import { RmNote, RmPage } from "../components/RmFrame";
 import { Section } from "../../coachip-ui/Section";
 import { Button } from "../../coachip-ui/Button";
 import { Pill } from "../../coachip-ui/Pill";
-import { SectorWRow, URDU_ISOLATE } from "../components/SectorWRow";
+import { SectorWRow, URDU_ISOLATE, windowMeta } from "../components/SectorWRow";
 import { CountLine } from "../components/CountLine";
 import { WindowLegend, windowIds } from "../components/WindowLegend";
 import FollowUpPicker from "../components/FollowUpPicker";
@@ -26,6 +27,11 @@ import { rt, rtx } from "../text";
  * with their status; "Send follow-up" (S8's picker); the calibration placeholder; the trust line. No per-teacher number,
  * no code, no disagreement rate, no leniency flag (A8, A9). "No visit in 4 weeks" is the signal, not a fault.
  */
+/** The windows S9's school rows are graded in (the one the schools card states). */
+function schoolWindows(d: Detail): Window[] {
+  return windowIds(d.schools.map((s) => s.graded)).map((id) => d.windows.find((w) => w.id === id)).filter((w): w is Window => !!w);
+}
+
 function Schools({ d, children }: { d: Detail; children?: ReactNode }) {
   const lang = useLang();
   const allOld = d.schools.length > 0 && d.schools.every((s) => s.weeks_since_visit === null || s.weeks_since_visit >= 4);
@@ -33,8 +39,9 @@ function Schools({ d, children }: { d: Detail; children?: ReactNode }) {
     <Section testId="s9-schools" label={rt("s9.schools.title", lang)}>
       {/* fix-r5 s2 items 15 + 17 (design-qa 073628 §5, 073629): said once above the rows; its "4" is policy, not a count */}
       {allOld && <RmNote testId="s9-no-visits"><span data-nonum="">{rt("s9.schools.never", lang)}</span></RmNote>}
-      {/* fix-r5 s3 (qa-rm 171001, B5): the graded counts' window, on this card, so it resolves with no moves block */}
-      <WindowLegend windows={d.windows} ids={windowIds(d.schools.map((s) => s.graded))} />
+      {/* fix-r5 s3 (qa-rm 171001, B5): the graded counts' window, on this card, so it resolves with no moves block;
+          FIX_R6 B1: said once with its grader, and the coach's rows below in the same window drop their own line */}
+      {schoolWindows(d).map((w) => <WindowMark key={w.id} window={w} className="text-[13px] leading-[1.45] text-cp-ink-3">{windowMeta(w, lang)}</WindowMark>)}
       <ul className="flex flex-col">
         {d.schools.map((s) => {
           const school = <CodeText lang={lang}>{s.school.school_name}</CodeText>;
@@ -136,7 +143,7 @@ export default function RmCoach() {
             <Section testId="s9-moves" label={rt("s9.moves.title", lang)}>
               <div className="flex flex-col">
                 {data.moves.map((m) => (
-                  <SectorWRow key={m.row.w_id} row={m.row} testId="s9-wrow"
+                  <SectorWRow key={m.row.w_id} row={m.row} testId="s9-wrow" stated={schoolWindows(data)[0]?.id}
                     sector={m.sector ?? m.row.sector ? { label: sector, count: (m.sector ?? m.row.sector)! } : null} />
                 ))}
               </div>

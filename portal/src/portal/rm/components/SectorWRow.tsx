@@ -60,15 +60,13 @@ export function SectorWRow({ row, bySchool, agenda, sector, stated, testId = "se
   const name = <p className="text-[16px] font-semibold leading-snug text-cp-ink">{pick(row.short_name, lang)}</p>;
   return (
     <WRowFrame testId={testId} w={row.w_id} state={row.state} kind="sector" agenda={agenda}
-      lead={count ? undefined : <Ring n={0} d={1} size="row" className="me-1" data-tone="notice" />}>
+      lead={count ? undefined : <Ring n={0} d={1} size="row" tone="notice" className="me-1" />}>
       {count ? (
-        // FIX_R6 B4: a weakness count is a notice (navy), never a green arc; the tone rides on a layout-neutral wrapper
-        <div data-tone="notice" className="contents">
-          <RingCount count={count} lang={lang} size="row">
-            {name}
-            <p className="mt-0.5 text-[14px] leading-[1.45] text-cp-ink-2">{pick(row.sentence, lang)}</p>
-          </RingCount>
-        </div>
+        // FIX_R6 B4: a weakness count is a notice (navy), never a green arc
+        <RingCount count={count} lang={lang} size="row" tone="notice">
+          {name}
+          <p className="mt-0.5 text-[14px] leading-[1.45] text-cp-ink-2">{pick(row.sentence, lang)}</p>
+        </RingCount>
       ) : name}
       {row.state === "not_yet" && row.not_yet && (
         <>
@@ -86,10 +84,10 @@ export function SectorWRow({ row, bySchool, agenda, sector, stated, testId = "se
         <ul data-testid="by-school" className="mt-2 flex flex-col">
           {bySchool.map((b) => (
             // bd-sex15q.47 (ux-lead-2 183234 #2): the sentence full width, then the bar on its own line (real names are long)
-            <li key={b.school.school_id} data-testid="by-school-row" data-tone="notice" className="flex flex-col gap-1.5 py-2 text-[14px] leading-[1.45] text-cp-ink">
+            <li key={b.school.school_id} data-testid="by-school-row" className="flex flex-col gap-1.5 py-2 text-[14px] leading-[1.45] text-cp-ink">
               {/* ux-coach 185839: in Urdu the name is one atomic box and "۹ میں سے ۶" never splits */}
               <SchoolLine school={b.school.school_name} count={b.count} lang={lang} />
-              <FractionBar n={b.count.n} d={b.count.d} className="w-full" />
+              <FractionBar n={b.count.n} d={b.count.d} tone="notice" className="w-full" />
             </li>
           ))}
         </ul>
