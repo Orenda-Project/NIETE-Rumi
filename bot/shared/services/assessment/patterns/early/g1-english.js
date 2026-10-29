@@ -38,7 +38,7 @@ module.exports = makeSubject({
 
         S({ slot: 'g1.english.A.Q5', label_en: 'Q5.', type: 'Missing Letters', generate: 4, lines: 1, picture: ['object'],
           instruction_en: 'Look at the picture and fill in the missing letter.',
-          prompt_rule: 'Four items, each a book object as picture: {kind:"object", name} and its word with one letter blank, e.g. "b_g". Answer: the full word.' }),
+          prompt_rule: 'Four items, each a book object as picture: {kind:"object", name} and its word with one letter blank, e.g. "b_g". Answer: the missing letter only, e.g. "a"; `accept` the full word.' }),
       ],
     },
     {
@@ -71,10 +71,10 @@ module.exports = makeSubject({
       slots: [
         S({ slot: 'g1.english.C.Q11', label_en: 'Q11.', type: 'Complete the Words', generate: 5, lines: 1, picture: ['object'],
           instruction_en: 'Complete the words.',
-          prompt_rule: 'Five book words with two letters missing, e.g. "m _ _ go"; the picture is the clue, so write no text clue. Answer: the word. Each item also carries picture: {kind:"object", name} of the answer word, in English for the artist; choose only words that can be drawn.' }),
+          prompt_rule: 'Five book words with two letters missing, e.g. "m _ _ go"; the picture is the clue, so write no text clue. Answer: the missing letters only, e.g. "an"; `accept` the full word. Each item also carries picture: {kind:"object", name} of the answer word, in English for the artist; choose only words that can be drawn.' }),
         { slot: 'g1.english.C.Q12', label_en: 'Q12.', type: 'This Is A', generate: 5, marks_each: 2, lines: 1, picture: ['object'], picture_only: true, sentence_box: true,
           instruction_en: 'Look at the picture and write "This is a ____."',
-          prompt_rule: 'Five book objects as picture: {kind:"object", name}. Answer: "This is a <name>." Scheme: K 1 for the word, K 1 for the sentence with capital and full stop.' },
+          prompt_rule: 'Five book objects as picture: {kind:"object", name}. Answer: "This is a <name>." Scheme: K 1 for the word, K 1 for the sentence with capital and full stop. Each object\'s name begins with a consonant sound, so "a" is always right: never egg, apple, umbrella, orange, ant or ice cream. No object that any other question of this paper uses.' },
         { slot: 'g1.english.C.Q13', label_en: 'Q13.', type: 'Speech Bubbles', generate: 2, marks_each: 2, lines: 1, picture: ['scene'],
           instruction_en: 'What will they say? Write in the speech bubble.',
           // v18: the image model left the bubble out, put it over the wrong child, and drew a gift box

@@ -25,7 +25,10 @@ const WORD = /[\p{L}\p{M}]+/gu;
 const ARABIC = /[؀-ۿ]/;
 const STOP = new Set(('what which when where why does while made make makes nobody happens happen statement correct each other '
   + 'before after give reason this that there their they them then than have from with into your these those will would '
-  + 'more less most many much same only some what about because takes take place').split(' '));
+  + 'more less most many much same only some what about because takes take place '
+  // v27 G5 Maths: two word problems sharing only "Find the value … simplest form" / "show your working" are not one
+  // question twice (bd-5jmnfj.4.58.3). Task words carry no content; the list is read before stemming.
+  + 'find value answer answers simplest form following show working number write solve words').split(' '));
 const words = (s) => String(s == null ? '' : s).toLowerCase().match(WORD) || [];
 const stem = (w) => w.replace(/(ing|ed|es|s)$/, '') || w;
 const content = (s) => [...new Set(words(s).filter((w) => w.length >= 4 && !STOP.has(w)).map(stem))];

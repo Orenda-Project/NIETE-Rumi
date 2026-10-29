@@ -63,7 +63,7 @@ describe('either/or questions stay whole on the page', () => {
     const { paper } = chain('urdu');
     const before = paper.slice(0, paper.indexOf('data-slot="urdu.C.Q10"'));
     const opens = before.match(/<div class="slot[" ][^>]*>/g);
-    expect(opens[opens.length - 1]).toBe('<div class="slot either">');
+    expect(opens[opens.length - 1]).toMatch(/^<div class="slot either(?: short)?">$/); // `short` when it has six items or fewer (bd-5jmnfj.4.58.3)
     expect(paper).toMatch(/\.slot\.either \{[^}]*break-inside: avoid/);
     expect(paper).toMatch(/\.or \{[^}]*break-before: avoid; break-after: avoid/);
   });
