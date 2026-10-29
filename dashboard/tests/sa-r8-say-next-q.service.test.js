@@ -56,3 +56,83 @@ test('every hint line has its clip in v1, v2 (and v4, with word timings where th
   }
   expect(missing).toEqual([]);
 });
+
+// The screen side: sa-ui's hintOf picks the question hint where the button reads Next (compWait), and the Done hint
+// everywhere else. Mounts the real UI on a jsdom page with a real runner and records what Jugnu says.
+let JSDOM = null;
+try { ({ JSDOM } = require('jsdom')); } catch (_) { /* not installed here */ }
+const maybe = JSDOM ? describe : describe.skip;
+
+maybe('sa-ui: the spoken hint on a story question names the button it shows', () => {
+  let dom;
+  const keep = {};
+  const views = [];
+  beforeEach(() => {
+    dom = new JSDOM('<!doctype html><main id="m"></main>', { url: 'https://portal.test/sa/play.html', pretendToBeVisual: true });
+    for (const k of ['window', 'document', 'location', 'navigator', 'HTMLElement', 'Node', 'requestAnimationFrame', 'cancelAnimationFrame']) {
+      keep[k] = global[k];
+      global[k] = k === 'window' ? dom.window : dom.window[k];
+    }
+    jest.resetModules();
+  });
+  afterEach(() => {
+    views.splice(0).forEach((v) => { try { v.destroy(); } catch (_) { /* gone */ } });
+    jest.useRealTimers();
+    for (const k of Object.keys(keep)) global[k] = keep[k];
+    dom.window.close();
+  });
+
+  const textOf = (x) => (x == null ? '' : typeof x === 'string' ? x : x.text != null ? x.text : (x.en || x.ur || ''));
+  const LINES = (lang, q) => Object.assign({
+    r7_say_done: { text: R7A.LINES.r7_say_done[lang], audio: R7A.keyOf(lang, R7A.LINES.r7_say_done[lang]) },
+  }, q ? { r7_say_next_q: { text: R7A.LINES.r7_say_next_q[lang], audio: R7A.keyOf(lang, R7A.LINES.r7_say_next_q[lang]) } } : {});
+  const battery = (ui, lines, subtask) => ({
+    battery_id: 'b', ui, lines,
+    tasks: [{ id: 'x.task', subtask, mode: 'oral', question_timeout_s: 10, intro: { en: 'Listen.', ur: 'سنیں۔' },
+      items: [{ id: 'q1', say: 'Who sat?' }, { id: 'q2', say: 'Where?' }] }],
+  });
+  async function toQuestion(b, lang) {
+    const core = require('../sa/sa-core');
+    const ui = require('../sa/sa-ui');
+    const said = [];
+    const runner = core.createRunner({ battery: b, onEvent: () => {}, mic: () => 'ok' });
+    const el = document.getElementById('m');
+    const view = ui.mount(el, { runner, battery: b, lang, mode: 'game', speak: (t, a) => { said.push(t || a); return Promise.resolve(); } });
+    views.push(view);
+    runner.start(); view.render();
+    await jest.advanceTimersByTimeAsync(2000);
+    runner.instructionDone(); runner.begin(); view.render();
+    await jest.advanceTimersByTimeAsync(50);
+    const hint = el.querySelector('.sae-r7-hint');
+    return { said: said.map(textOf), hint: hint ? hint.textContent : null };
+  }
+  const ON = { say_then_next: true, r8_comp_wait_next: true };
+
+  for (const lang of ['en', 'ur']) {
+    test(`${lang}: a story question (button Next) says and shows the Next hint, never the Done one`, async () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      for (const sub of ['reading_comprehension', 'listening_comprehension']) {
+        const x = await toQuestion(battery(ON, LINES(lang, true), sub), lang);
+        expect(x.said).toContain(R7A.LINES.r7_say_next_q[lang]);
+        expect(x.said).not.toContain(R7A.LINES.r7_say_done[lang]);
+        expect(x.hint).toBe(R7A.LINES.r7_say_next_q[lang]);
+        views.splice(0).forEach((v) => v.destroy());
+      }
+    });
+    test(`${lang}: a spoken sum (button Done) keeps the Done hint`, async () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      const x = await toQuestion(battery(ON, LINES(lang, true), 'mental_addition'), lang);
+      expect(x.said).toContain(R7A.LINES.r7_say_done[lang]);
+      expect(x.said).not.toContain(R7A.LINES.r7_say_next_q[lang]);
+    });
+    test(`${lang}: comp_wait OFF, or no question line in the battery: the Done hint, as before`, async () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      let x = await toQuestion(battery({ say_then_next: true }, LINES(lang, true), 'reading_comprehension'), lang);
+      expect(x.said).toContain(R7A.LINES.r7_say_done[lang]);
+      views.splice(0).forEach((v) => v.destroy());
+      x = await toQuestion(battery(ON, LINES(lang, false), 'reading_comprehension'), lang);
+      expect(x.said).toContain(R7A.LINES.r7_say_done[lang]);
+      expect(x.hint).toBe(R7A.LINES.r7_say_done[lang]);
+    });
+  }
+});

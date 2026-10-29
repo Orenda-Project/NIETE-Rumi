@@ -516,7 +516,7 @@
     function hintOf(t) {
       if (!t) return null;
       if (r7.say_then_next === true && cellish(t)) return line('r7_say_next');
-      if (r7.say_then_next === true && t.mode === 'oral') return line('r7_say_done');
+      if (r7.say_then_next === true && t.mode === 'oral') return (compWait(t) && line('r7_say_next_q')) || line('r7_say_done');
       if (r7.tick_prompt === true && t.mode === 'keypad') return line('r7_type_tick');
       if (r7.story_scroll === true && t.mode === 'record' && t.passage) return line('r7_scroll');
       return null;
