@@ -215,7 +215,8 @@ function isSelectVideoButton({ buttonId, buttonPayload, buttonText } = {}) {
 // it can be tested without this module's dependency graph, and widened there to
 // match the plural (`/videos`), which used to fall through to the chat LLM.
 const { isVideoCommand } = require('./video-command');
-const { redirectIfFlagged } = require('../services/app-redirect.service');
+const { redirectIfFlagged, openSchoolCard } = require('../services/app-redirect.service');
+const { parseSchoolCardCommand } = require('../services/schools/school-card-door');
 // A bare request for the quiz menu, in any spelling. The /quiz door and the
 // reason windows below both read it, so a quiz request is never a 👎 reason.
 const { isQuizMenuRequest } = require('../services/quiz/quiz-menu-request');
@@ -1182,6 +1183,22 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
       }
     } catch (error) {
       logToFile('⚠️ Error checking quiz topic state', { userId: user?.id, error: error.message });
+    }
+  }
+
+  // ============================================================
+  // SCHOOL CARD: "/school card [EMIS or school name]" (or "school card …") — a coach on the School card switch and the
+  // coach app gets ONE message with an Open button: one of her schools' page when the rest names exactly one, else My
+  // schools (app-redirect.service openSchoolCard). The query is read from the message as she typed it, not the
+  // lower-cased copy. Anyone else (switch off, not a coach, off the coach app) is not handled and goes on exactly as
+  // before. Reading and picking live in services/schools/school-card-door.js.
+  // ============================================================
+  const schoolCardAsk = user?.id ? parseSchoolCardCommand(messageBody) : null;
+  if (schoolCardAsk) {
+    logToFile('🏫 /school card command detected', { tk: teacherRef(user.id), hasQuery: Boolean(schoolCardAsk.query) });
+    if (await openSchoolCard({ userId: user.id, from, language: responseLanguage, query: schoolCardAsk.query })) {
+      typingController.stop();
+      return;
     }
   }
 
