@@ -28,7 +28,7 @@ module.exports = makeSubject({
           instruction_en: 'Choose the correct answer.',
           prompt_rule: 'Five three-option MCQs from the book: place value, before/after, even/odd, greatest number, half.' }),
         S({ slot: 'g2.maths.A.Q2', label_en: 'Q2.', type: 'Place Value', generate: 5,
-          instruction_en: 'Write the place value of the underlined digit\'s place as asked.',
+          instruction_en: 'Write the value of the digit.',
           prompt_rule: 'Five three-digit numbers up to 999. Stem names the digit in words, e.g. "In 472, what is the value of 7?" (never an underline). Answer: the value (70).' }),
         S({ slot: 'g2.maths.A.Q3', label_en: 'Q3.', type: 'Numbers in Words', generate: 5,
           instruction_en: 'Write in words.',

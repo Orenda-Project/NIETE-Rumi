@@ -316,12 +316,17 @@ describe('r9 · subjects without a cross-section table lay out as before', () =>
   // 2956ee5a…, 2b3b7900…).
   // science again for bd-5jmnfj.4.50.7: its Q1 keys ran «a c d a c d» and are dealt again; only Q1's
   // options and keys differ (each item keys the same option text).
+  // science and r7-science again for bd-5jmnfj.4.51.10: the Q1 (b) frame's book_page is the item's page, not the
+  // pattern's example 168 (with the 168 and the pattern value restored they hash to the earlier values).
+  // maths, urdu and urdu-gen-full again for bd-5jmnfj.4.51.11: maths Q4 carries FDE's own obtuse/supplementary/
+  // straight wording again, and urdu Q6 drops the Naat alternative; the same three hashes come out of the
+  // previous code with only patterns/fde-g5-2027.js changed.
   const BEFORE = {
-    science: ['science', 'baa245419bc772253479adacdd8dde0160fb7a8703d5ed8cbd383a02c16839f5'],
-    maths: ['maths', 'a73eaa01bae0f1c0ac857aba6cfdcc290e7eab1f8a02fe8d0f423385650b2c1a'],
-    urdu: ['urdu', '5158f4b46210756da93975500a8948c87f7a10528955e4ff7baa38282fc24d6a'],
-    'r7-science-full1.exam': ['science', 'c443e2c5661b6bdd9539c8c06c2914c3a6e6f99a2eeb70b449627bbe552b1ad1'],
-    'urdu-gen-full': ['urdu', '06802bc7adfdacfa9ac215ddae580d30c9e14e86cc7c78683685fcaf8cbdb849'],
+    science: ['science', 'c09d5ceadd74d6dcb519af1330b9b7261318ce0ac6cfcc0c106c1e3c80c0f626'],
+    maths: ['maths', 'faf7fc6c85d64b69fb201b34420e44ccc9749b48601c491c20aa496be6e1eed4'],
+    urdu: ['urdu', 'ad2764541ca04734ed783cc723362b7c2030f436a9eafa5aedbf4cf7c51bb710'],
+    'r7-science-full1.exam': ['science', 'ce648f1e8c5b69e1f16b822ff101f812c539f94c5450bf4afb98e59101f2a48a'],
+    'urdu-gen-full': ['urdu', '5be66c43ed60e87a00779d79e1c6fd554d57e9c90b17f97ee777e5e18efb3ab8'],
   };
   test.each(Object.keys(BEFORE))('%s lays out byte-identical to before', (name) => {
     const [subject, sha] = BEFORE[name];

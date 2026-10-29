@@ -10,6 +10,7 @@
  * neighbours are real, so a contract drift between them fails here and not on sandbox.
  */
 const fs = require('fs');
+require('./helpers/skip-giveaway-check'); // recorded replies hold real give-aways (bd-5jmnfj.4.51.3)
 const path = require('path');
 
 const KEY = 'fde-chain-key';

@@ -27,7 +27,7 @@ module.exports = makeSubject({
       slots: [
         S({ slot: 'g1.urdu.A.Q1', label_en: 'Q1.', type: 'MCQs', shape: 'mcq', generate: 10, option_labels: 'ur',
           instruction_ur: 'درست جواب پر دائرہ لگائیں۔',
-          prompt_rule: 'Ten three-option MCQs on letters, joining letters and simple words from the book (which letter starts a word, which word is a fruit, the right spelling).' }),
+          prompt_rule: 'Ten three-option MCQs on letters, joining letters and simple words from the book (which letter starts a word, which word is a fruit, the right spelling). Never print a rude or crude word anywhere, and never split or join a word into parts that form one (چھٹی is never چھ + ٹٹی).' }),
         S({ slot: 'g1.urdu.A.Q2', label_en: 'Q2.', type: 'Alphabetical Order', generate: 5,
           instruction_ur: 'حروف کو حروفِ تہجی کی ترتیب سے لکھیں۔',
           prompt_rule: 'Five items of three Urdu letters out of order. Answer: the ordered letters.' }),

@@ -33,6 +33,8 @@ const { pictureBlock, bubbleBlock, PICTURE_CSS } = require('./fde-picture-block'
 const { matchOrder, bankOrder, matchTable, matchAnswer, MATCH_CSS } = require('./fde-match-block');
 const { oralSheet, ORAL_CSS } = require('./fde-oral-sheet');
 const { answeredParts } = require('./fde-sub-answers');
+const { letterOrder } = require('./fde-order-block');
+const { urduNote } = require('./fde-urdu-notes');
 const { frameBank } = require('./fde-frame-bank');
 const Cover = require('./fde-scheme-cover');
 
@@ -521,13 +523,15 @@ function bareSub(text) {
   return text.replace(/^\s*\(?[a-cA-C]\)\s*/, '').replace(/^\s*\(?(الف|ب|ج)\)\s*/, '');
 }
 
-function subQuestions(list, numbering, ctx, slotLike) {
+function subQuestions(list, numbering, ctx, slotLike, space) {
   if (!Array.isArray(list)) return '';
   return list.map((sub, i) => {
     const text = bareSub(typeof sub === 'string' ? sub : sub && sub.question);
     const num = itemNumber({ numbering }, i, ctx.medium) || `${String.fromCharCode(97 + i)})`;
     const opts = sub && Array.isArray(sub.options) && sub.options.length ? optionsBlock(sub, slotLike || {}, ctx) : '';
-    return `<div class="sub"><span class="n">${textOf(num, ctx)}</span> ${textOf(text, ctx)}${opts}</div>`;
+    // Its own writing space, sized by its own lines (bd-5jmnfj.4.51.8).
+    const box = space && !opts ? `<div class="write-box" style="height:${12 + 8 * Math.max(0, ((sub && sub.lines) || 1) - 1)}mm"></div>` : '';
+    return `<div class="sub"><span class="n">${textOf(num, ctx)}</span> ${textOf(text, ctx)}${opts}</div>${box}`;
   }).join('');
 }
 
@@ -582,8 +586,10 @@ function itemBody(q, slot, i, ctx, inlineQ) {
     parts.push(`<div class="topics">${q.topics.map((t, k) => `<span class="topic">${textOf(itemNumber({ numbering: 'alpha_paren' }, k, ctx.medium), ctx)} ${textOf(t, ctx)}</span>`).join('')}</div>`);
   }
   if (printsWords(slot) && !slotFlag(slot, 'answer_box') && Array.isArray(q.words) && q.words.length) parts.push(wordList(q.words, ctx, ctx.medium !== 'ur'));
-  if (Array.isArray(q.questions) && q.questions.length) parts.push(subQuestions(q.questions, slot.sub_numbering || 'alpha_paren', ctx));
-  if (ctx.answerLines !== false) parts.push(workSpace(q, slot));
+  // A written answer under each sub-question of an answer-box slot (G2 reading): one box each, none after the set.
+  const eachBox = ctx.answerLines !== false && slotFlag(slot, 'answer_box') && Array.isArray(q.questions) && q.questions.length > 0;
+  if (Array.isArray(q.questions) && q.questions.length) parts.push(subQuestions(q.questions, slot.sub_numbering || 'alpha_paren', ctx, undefined, eachBox));
+  if (ctx.answerLines !== false && !eachBox) parts.push(workSpace(q, slot));
   return parts.join('');
 }
 
@@ -666,7 +672,7 @@ function verseSource(ctx) {
   return `<div class="verse verse-src">${textOf(line, ctx)}</div>`;
 }
 
-// Urdu Q6: FDE's Naat line (printed as an instruction only, never verses), OR the lesson-7 lines.
+// Urdu Q6: the lesson-7 lines, after a fixed instruction-only alternative when the pattern has one.
 function fixedAlternatives(slot, q, ctx) {
   const lang = ctx.medium;
   const fixed = slot.alternatives.find((a) => a.kind === 'fixed');
@@ -674,7 +680,7 @@ function fixedAlternatives(slot, q, ctx) {
   const out = [];
   if (fixed) out.push(`<div class="alt">${textOf(fixed[`instruction_${lang}`] || fixed.instruction_ur, ctx)}</div>`);
   if (q && seen) {
-    out.push(`<div class="or">${textOf(lang === 'ur' ? 'یا' : 'OR', ctx)}</div>`);
+    if (fixed) out.push(`<div class="or">${textOf(lang === 'ur' ? 'یا' : 'OR', ctx)}</div>`);
     out.push(`<div class="q" data-slot="${esc(slot.slot)}"><div class="alt">${textOf(seen[`instruction_${lang}`] || seen.instruction_ur, ctx)}</div><div class="verse">${textOf(q.passage, ctx)}</div>${verseSource(ctx)}</div>`);
   }
   return out.join('');
@@ -813,8 +819,9 @@ function schemeCss(medium) {
   .q-line { color: #444; font-size: .92em; }
   .pt { display: block; }
   .chip { display: inline-block; border: 1px solid #000; border-radius: 3px; padding: 0 3px; font-weight: 700; margin-${ur ? 'left' : 'right'}: 3px; font-family: 'PaperLatin', Arial, sans-serif; direction: ltr; unicode-bidi: isolate; }
-  .chip.checked { background: #e8f3e8; border-color: #2a7a2a; color: #1d5e1d; }
   .acc, .err { display: block; color: #333; }
+  .err { unicode-bidi: isolate; }
+  .q-line .sq { width: 5mm; height: 4mm; margin: 0 1mm; }
   .crit { display: block; }
   .crit-m { font-weight: 700; }
   section.record { break-before: page; }
@@ -959,7 +966,7 @@ function beforeExamBox(L, live, ctx, examJson) {
   // inside one item (seven words, any five), or between two alternatives (Urdu Q6).
   const attempts = L.sections.flatMap((s) => s.slots).map((slot) => {
     const label = lang === 'ur' ? slot.label_ur : shortLabel(slot.label_en);
-    if (slot.alternatives) return fill(B[`either_${lang}`], { label });
+    if (slot.alternatives && slot.alternatives.some((a) => a.kind === 'fixed')) return fill(B[`either_${lang}`], { label });
     if (slot.attempt < slot.generate) {
       const n = live.get(slot.slot).length;
       // A group cut to its attempt count (or emptied) offers no choice: nothing to tell.
@@ -1003,6 +1010,7 @@ function legendBox(L, ctx, kinds) {
       if (!keyed.length) return '';
       return `<li>${textOf(lang === 'ur' ? keyed.join('، ') : `${keyed.join(' · ')}.`, ctx)}</li>`;
     }
+    if (!L.oral && /oral|زبانی/i.test(l)) return ''; // a frozen legend can still name an oral part the paper lacks
     return `<li>${textOf(l, ctx)}</li>`;
   });
   return `<div class="box legend"><div class="bt">${textOf(G[`title_${lang}`], ctx)}</div><ul>${lines.join('')}</ul></div>`;
@@ -1069,19 +1077,18 @@ function pointsHtml(q, ctx, Criteria, slot, idx, marks = null) {
     rows.forEach((r) => out.push(`<span class="crit"><span class="crit-m">${textOf(fmt(r.marks), ctx)}</span> ${textOf(r.name, ctx)}${r.look_for ? ` — ${textOf(r.look_for, ctx)}` : ''}</span>`));
   }
   if (s && Array.isArray(s.points) && !out.length) {
-    s.points.forEach((p) => out.push(`<span class="pt"><span class="chip">${esc(`${p.kind || ''}${fmt(Number(p.marks))}`)}</span> ${textOf(p.text, ctx)}</span>`));
+    s.points.forEach((p, k) => out.push(`<span class="pt"><span class="chip">${esc(`${p.kind || ''}${fmt(Number(p.marks))}`)}</span> ${textOf(lang === 'ur' ? urduNote(p.text, 'point', slot.type, k) : p.text, ctx)}</span>`));
   }
   // No points from the model: the row still says what it is worth (DESIGN §5 rule 3).
   if (!out.length && Number.isFinite(marks) && marks > 0) out.push(`<span class="chip">${textOf(fmt(marks), ctx)}</span>`);
-  if (s && Array.isArray(s.accept) && s.accept.length) out.push(`<span class="acc">${textOf(`${lang === 'ur' ? 'یہ بھی درست:' : 'accept:'} ${s.accept.join(lang === 'ur' ? '؛ ' : '; ')}`, ctx)}</span>`); // ur: needs fluent-Urdu review
-  if (s && typeof s.common_error === 'string' && s.common_error) out.push(`<span class="err">${textOf(`${lang === 'ur' ? 'عام غلطی:' : 'common error:'} ${s.common_error}`, ctx)}</span>`); // ur: needs fluent-Urdu review
+  if (s && Array.isArray(s.accept) && s.accept.length) out.push(`<span class="acc">${textOf(`${lang === 'ur' ? 'یہ بھی درست:' : 'accept:'} ${s.accept.map((a) => (lang === 'en' ? letterOrder(q, a) : a)).join(lang === 'ur' ? '؛ ' : '; ')}`, ctx)}</span>`); // ur: needs fluent-Urdu review
+  if (s && typeof s.common_error === 'string' && s.common_error) out.push(`<span class="err">${textOf(`${lang === 'ur' ? 'عام غلطی:' : 'common error:'} ${lang === 'ur' ? urduNote(s.common_error, 'error', slot.type, 0) : s.common_error}`, ctx)}</span>`); // ur: needs fluent-Urdu review
   return out.join('');
 }
 
-function checkedChip(q, ctx) {
-  const c = q.scheme && q.scheme.checked;
-  if (c !== 'ok' && c !== 'replaced') return '';
-  return ` <span class="chip checked">${textOf(ctx.medium === 'ur' ? '✓ جانچا گیا' : '✓ checked', ctx)}</span>`; // ur: needs fluent-Urdu review
+// The "checked" badge was an internal state (bd-5jmnfj.4.51.6): a teacher marking the key has no use for it.
+function checkedChip() {
+  return '';
 }
 
 function writtenRows(slot, list, ctx, Criteria) {
@@ -1123,11 +1130,15 @@ function writtenRows(slot, list, ctx, Criteria) {
       });
       return;
     }
-    const answer = q.answer !== undefined && q.answer !== null ? `<b>${textOf(q.answer, ctx)}</b>` : '';
+    const answer = q.answer !== undefined && q.answer !== null ? `<b>${textOf(lang === 'en' ? letterOrder(q, q.answer) : q.answer, ctx)}</b>` : '';
     // An English key names a picture the answer is not (bd-5jmnfj.4.48): v21 Q6 keyed "mat" for a bat.
     const pic = lang === 'en' && q.picture && q.picture.name && String(q.picture.name).trim().toLowerCase() !== String(q.answer ?? '').trim().toLowerCase()
       ? `Picture: ${String(q.picture.name).trim()}. ` : '';
-    const stem = q.question || pic ? `<div class="q-line">${textOf(pic + cutAtWord(withoutOwnLabel(q.question || '', slot), 110), ctx)}</div>` : '';
+    const qText = cutAtWord(withoutOwnLabel(q.question || '', slot), 110);
+    // The question is often just the picture's name: say it once (bd-5jmnfj.4.51.2).
+    const sameAsPic = pic && qText.trim().toLowerCase() === String(q.picture.name).trim().toLowerCase();
+    const stemHtml = textOf(sameAsPic ? pic.replace(/\.\s*$/, '') : pic + qText, ctx).replace(/☐/g, '<span class="sq"></span>');
+    const stem = q.question || pic ? `<div class="q-line">${stemHtml}</div>` : '';
     rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(n, ctx)}</td><td class="ans">${answer}${checkedChip(q, ctx)}${stem}</td><td class="pts">${pointsHtml(q, ctx, Criteria, slot, list.indexOf(q), Number(q.marks) || slot.marks_each)}</td></tr>`);
   });
   if (slot.alternatives) {
