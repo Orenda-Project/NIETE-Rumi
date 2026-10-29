@@ -14,6 +14,7 @@ and tells you).
 
 | Hook | Fires on | Does | Never |
 |---|---|---|---|
+| `pre-commit` | every commit | refreshes the code map: `python3 kg/heal.py precommit` rebuilds the graph, re-renders the existing doors (`CLAUDE.md`) the commit moved and stages them | warn only, never blocks: gives up after 3 s (the nightly keeper heals), never stages a file that also holds your unstaged edits (`KG_PRECOMMIT_OFF=1` skips it) |
 | `post-commit` | every commit | maps the commit's files to E2E features (`feature-map.yaml`), builds the Gherkin sync brief, writes `.claude/.e2e-pending/git-<sha>.json` + `.sync.json`, prints the affected features and the two commands | fails the commit; writes anything outside `.claude/.e2e-pending/` (gitignored) |
 | `pre-push` | a push to `develop` / `main` / `staging` | runs `scripts/qa/impact.py` over the commits being sent: affected features, whether their `.feature` files were synced, the commands | blocks, unless `QA_HOOKS_STRICT=1` |
 
