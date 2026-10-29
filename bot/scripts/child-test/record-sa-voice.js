@@ -18,10 +18,11 @@
  * the reviewers' samples were made (sa-voice-providers.js). The default is the reviewers' pick, ElevenLabs Chutki (kids
  * storyteller) for both languages at its own pace; --provider soniox defaults to Ishita (Urdu) / Priya (English) at 0.85. Urdu narration is given its tashdeed (sa/ur-tashdeed.js)
  * for every provider, and Soniox alone gets the Urdu respellings (sayAs), as in the samples. --concurrency <n> lines at
- * once (default 1).
+ * once (default 1). In v4 a bare sum ends on "equals" («برابر»), so the child hears a blank to fill; --sums re-records
+ * just the sums, over the clips already on disk.
  *
  *   node scripts/child-test/record-sa-voice.js --lang en|ur [--only item|instruction|…] [--set v1|v2|v3|v4] [--extra <file>]
- *        [--provider soniox|elevenlabs|uplift --voice <id> --speed <x> --concurrency <n>]   (v4 only)
+ *        [--provider soniox|elevenlabs|uplift --voice <id> --speed <x> --concurrency <n> --sums]   (v4 only)
  *        [--apply] [--max-usd 1] [--spend-log <file.jsonl> --spend-extra '<json merged into each line>']
  *
  * Without --apply: prints the line count, the characters and the price, and calls nothing. With --apply: one call a
@@ -46,7 +47,7 @@ const KBPS = 32;
 
 function parseArgs(argv) {
   const args = { lang: null, only: null, set: 'v1', extra: null, apply: false, maxUsd: 1, spendLog: null, spendExtra: {},
-    provider: null, voice: null, speed: null, concurrency: 1 };
+    provider: null, voice: null, speed: null, concurrency: 1, sums: false };
   for (let i = 0; i < (argv || []).length; i += 1) {
     const a = argv[i];
     const next = () => argv[++i];
@@ -55,6 +56,7 @@ function parseArgs(argv) {
     else if (a === '--set') args.set = String(next() || '').trim();
     else if (a === '--extra') args.extra = next();
     else if (a === '--apply') args.apply = true;
+    else if (a === '--sums') args.sums = true;
     else if (a === '--provider') args.provider = String(next() || '').trim();
     else if (a === '--voice') args.voice = String(next() || '').trim();
     else if (a === '--speed') args.speed = Number(next()) || null;
@@ -132,10 +134,11 @@ async function runV4(args, { synth, level, out, outDir, dataDir, env }) {
     for (const r of JSON.parse(fs.readFileSync(args.extra, 'utf8'))) if (r && r.key && r.text && !seen.has(r.key)) { seen.add(r.key); rows.push(r); }
   }
   const tashdeed = new Map(voicedWithTashdeed(rows).map((r) => [r.key, r.say]));
+  const sum = (r) => r.role === 'item' && P.withEquals(r.text, r.lang) !== r.text;
   const jobs = rows
-    .filter((r) => r.lang === args.lang && (!args.only || r.role === args.only))
+    .filter((r) => r.lang === args.lang && (!args.only || r.role === args.only) && (!args.sums || sum(r)))
     .map((r) => {
-      const said = tashdeed.get(r.key) || r.text;
+      const said = sum(r) ? P.withEquals(r.text, r.lang) : (tashdeed.get(r.key) || r.text);
       const spoken = args.provider === 'soniox' ? Voice.sayAs(said, args.lang, { voice })
         : P.spellEnglishNumbers(said);
       const text = P.withTag(args.provider, r.role, spoken, voice);
@@ -154,7 +157,7 @@ async function runV4(args, { synth, level, out, outDir, dataDir, env }) {
     while (next < jobs.length && !stopped) {
       const j = jobs[next]; next += 1;
       const target = path.join(outDir, j.key);
-      if (fs.existsSync(target) && fs.statSync(target).size > 500) continue;
+      if (!args.sums && fs.existsSync(target) && fs.statSync(target).size > 500) continue;
       if (usd >= args.maxUsd) { stopped = 'max_usd'; break; }
       try {
         const res = await say(j.job);
