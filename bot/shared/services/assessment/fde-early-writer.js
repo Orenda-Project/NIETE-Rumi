@@ -24,7 +24,7 @@ const { checkBlueprint } = require('./blueprint-check');
 const Prompt = require('./fde-early-prompt');
 const { dealOrders } = require('./fde-order-block');
 const { noArrows } = require('./fde-no-arrows');
-const { answerRepeats, giveawayNote } = require('./fde-answer-repeats');
+const { answerRepeats, giveawayNote, stillGivenAway } = require('./fde-answer-repeats');
 const { dealScrambles } = require('./fde-scramble-block');
 
 const SCOPE = Object.freeze({ kind: 'fde', chapters: null, pages: null });
@@ -141,14 +141,24 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   const again = built.filter(({ section }) => section.slots.some((s) => shortSlots.has(s.slot)));
 
   let oral = P.oral ? Prompt.oralContent(oralFirst.tree, P.oral) : null;
-  const reaskOral = async () => {
-    d.logToFile('[assessment] oral re-asked', { requestId, pattern, missing: oral.missing });
-    const second = await writeOral(`Last time these tasks came back without what they need: ${oral.missing.join(', ')}. Write every task in full.`);
+  // The oral sheet is not on the layout until the end, so it is attached to a copy for the check.
+  const withOral = (ex) => (oral ? { ...ex, _layout: { ...ex._layout, oral: { ...P.oral, content: oral.content } } } : ex);
+  const oralHits = (ex) => answerRepeats(withOral(ex)).filter((f) => f.with.includes('oral'));
+  const readAloud = P.oral ? P.oral.tasks.filter((t) => t.kind === 'read_aloud').map((t) => t.id) : [];
+  const reaskOral = async (hits) => {
+    const words = [...new Set(hits.flatMap((f) => f.words))];
+    d.logToFile('[assessment] oral re-asked', { requestId, pattern, missing: oral.missing, giveaways: words });
+    const note = [
+      oral.missing.length ? `Last time these tasks came back without what they need: ${oral.missing.join(', ')}. Write every task in full.` : null,
+      words.length ? `Do not use these words in the read-aloud task: ${words.join(', ')}. They are answers on the written paper.` : null,
+    ].filter(Boolean).join(' ');
+    const second = await writeOral(note);
     const next = Prompt.oralContent(second.tree, P.oral);
-    // A task the first reply filled keeps it; the second reply fills the rest.
-    const content = P.oral.tasks
-      .map((t) => oral.content.find((c) => c.id === t.id) || next.content.find((c) => c.id === t.id))
-      .filter(Boolean);
+    // Only the read-aloud task is swapped for a give-away; a task the first reply filled keeps it,
+    // and the second reply fills the rest.
+    const redo = new Set(words.length ? readAloud : []);
+    const find = (from, t) => from.content.find((c) => c.id === t.id);
+    const content = P.oral.tasks.map((t) => (redo.has(t.id) ? find(next, t) || find(oral, t) : find(oral, t) || find(next, t))).filter(Boolean);
     extraUsages.push(...second.usages);
     oral = { content, missing: P.oral.tasks.map((t) => t.id).filter((id) => !content.some((c) => c.id === id)) };
   };
@@ -175,7 +185,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     const i = results.findIndex((r) => r.id === b.section.id);
     d.logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall, after: 're-ask' });
     extraUsages.push(...results[i].usages);
-    const user = `${b.user}\n\n${Prompt.answerNote(shortfall, P)}`;
+    const user = `${b.user}\n\n${[Prompt.answerNote(shortfall, P), giveawayNote(shortfall)].filter(Boolean).join('\n\n')}`;
     const next = await writeOne({ ...b, messages: d.sectionMessages({ system, user, pageContent: b.pageContent, model }) });
     results[i] = { ...next, tree: swapSlots(results[i].tree, next.tree, new Set(shortfall.map((f) => f.slot))) };
   };
@@ -183,13 +193,17 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   const repeats = new Set(short.filter((f) => f.reason === 'repeat').map((f) => f.slot));
   const isRepeat = (b) => b.section.slots.some((s) => repeats.has(s.slot));
   const inTurn = async () => { for (const b of again.filter(isRepeat)) await reask(b); };
-  await Promise.all([...again.filter((b) => !isRepeat(b)).map(reask), inTurn(), oral && oral.missing.length ? reaskOral() : null]);
+  const oralFound = oral ? oralHits(firstLaid.examJson) : [];
+  await Promise.all([...again.filter((b) => !isRepeat(b)).map(reask), inTurn(), oral && (oral.missing.length || oralFound.length) ? reaskOral(oralFound) : null]);
 
   let laid = lay(again.length > 0);
   // A re-asked reply is checked again: v20's Section C, re-asked for Q12's repeated dog and cat, came back
   // with a Q13 about a gift (bd-5jmnfj.4.40). A key still off its rule is asked once more, and only
   // those questions are swapped in, so the rest of the section stays as it was checked.
-  const late = again.length ? Prompt.answerShortfall(laid.examJson, P) : [];
+  // The same check finds a give-away still there, and that is asked again too.
+  const late = again.length
+    ? Prompt.answerShortfall(laid.examJson, P).concat(stillGivenAway(laid.examJson))
+    : [];
   if (late.length) {
     await Promise.all(built.filter(({ section }) => section.slots.some((s) => late.some((f) => f.slot === s.slot)))
       .map((b) => reaskAnswers(b, late)));

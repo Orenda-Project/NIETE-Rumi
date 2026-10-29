@@ -53,4 +53,37 @@ function dropContradictedAccepts(accept, answer, commonError) {
   return { accept: kept, dropped };
 }
 
-module.exports = { dropContradictedAccepts };
+// v23 G1 English Q13 i: a meeting greeting is not only "Good morning" (bd-5jmnfj.4.51.4).
+const MEETING = new Set(['good morning', 'hello', 'hi', 'salam', 'assalam-o-alaikum', 'assalamualaikum', 'assalam o alaikum']);
+const GREETING_ALTERNATIVES = ['Hello', 'Hi', 'Assalam-o-Alaikum', 'Salam'];
+const ACCEPT_CAP = 6;
+const bare = (a) => String(a).trim().toLowerCase().replace(/[.!\s]+$/u, '');
+
+/**
+ * `accept` made consistent with its question: case-insensitive duplicates (a trailing stop ignored) go,
+ * first spelling kept; an -ing question (the slot's rule asks for "the -ing word") keeps only -ing
+ * entries; a meeting greeting key also accepts the usual greetings. A key never loses itself.
+ */
+function tidyAccepts(accept, holder, slot) {
+  if (!Array.isArray(accept)) return accept;
+  const answer = bare(holder && holder.answer !== undefined && holder.answer !== null ? holder.answer : '');
+  const rule = slot && typeof slot.prompt_rule === 'string' ? slot.prompt_rule : '';
+  let list = accept;
+  if (/-ing word/i.test(rule) && /ing$/.test(answer) && !answer.includes(' ')) {
+    list = list.filter((a) => bare(a) === answer || /ing$/.test(bare(a)));
+  }
+  if (slot && slot.slot === 'g1.english.C.Q13' && MEETING.has(answer)) {
+    list = list.concat(GREETING_ALTERNATIVES);
+  }
+  const seen = new Set();
+  const out = [];
+  for (const a of list) {
+    const k = bare(a);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(a);
+  }
+  return out.slice(0, ACCEPT_CAP);
+}
+
+module.exports = { dropContradictedAccepts, tidyAccepts };
