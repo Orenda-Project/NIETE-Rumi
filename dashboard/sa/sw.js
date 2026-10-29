@@ -35,7 +35,8 @@
 // 'prepare', so a phone still on the previous SESSION prepares into the new one, not into a cache it is about to delete.
 // sa-17: round 8 close: a new worker found by update() is waited for up to 30 s; still not active (or its install failed),
 // "ready for offline" says not ready instead of preparing into the old worker.
-var VERSION = 'sa-17';
+// sa-18: round 8 close: "ready for offline" is not ready when a newer worker turned up while it ran (sa-offline.js replaced()).
+var VERSION = 'sa-18';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
