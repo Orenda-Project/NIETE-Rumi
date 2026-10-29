@@ -63,6 +63,30 @@ function withEquals(text, lang) {
   return EQUALS[lang] && SUM.test(text) ? `${text.trim()} ${EQUALS[lang]}` : text;
 }
 
+// A letter SOUND is voiced as a sound, never a letter name (the content owner, round 8 items 8, 10, 22; the voicenote
+// phonics grammar): a held sound is stretched (Urdu «لَ» "lllll", «نَ» "nnnnn"), a stop stays short ("tuh"), and each
+// sound gets its own [slowly]. The screen keeps its text; only what the voice is given changes.
+const EN_SOUND = Object.freeze({ mmm: 'mmmmm', sss: 'sssss', ss: 'sssss', fff: 'fffff', nnn: 'nnnnn', puh: 'puh', tuh: 'tuh', duh: 'duh' });
+const UR_SOUND = Object.freeze({ 'لَ': 'lllll', 'نَ': 'nnnnn', 'ل': 'lllll', 'ن': 'nnnnn', 'م': 'mmmmm', 'ج': 'جَ', 'ا': 'اَ' });
+const SND = Object.keys(EN_SOUND).join('|');
+const EN_SOUNDS = new RegExp(`\\b(?:(${SND}), (ih|ah|aw), (${SND})|(${SND}))\\b`, 'g');
+const slow = (t) => `[slowly] ${t}`;
+function withSounds(text, lang) {
+  if (lang === 'en') {
+    return String(text).replace(EN_SOUNDS, (m, a, v, b, one) => (one ? slow(EN_SOUND[one])
+      : `${slow(EN_SOUND[a])}, ${slow(v)}, ${slow(EN_SOUND[b])}`));
+  }
+  if (lang === 'ur') {
+    const t = String(text).trim();
+    if (UR_SOUND[t]) return slow(UR_SOUND[t]);
+    return String(text).replace(/آواز (\S) ہے/g, (m, x) => (UR_SOUND[x] ? `آواز ${slow(UR_SOUND[x])} ہے` : m));
+  }
+  return text;
+}
+// Praise is said enthusiastically and lovingly (the content owner, round 8 item 9): a praise line goes to ElevenLabs
+// with the [excited] tag in place of the instruction mood tag.
+const PRAISE = /شاباش|^(?:Yes!|Very good\b)|\bWell done\b/;
+const isPraise = (text) => PRAISE.test(String(text));
 // The samples' "cartoon" voices carried a livelier instruction tag than the adult ones.
 const CARTOON_TAG = Object.freeze({ CNKl99QEbWm8RQ4D8GfC: '[cheerfully]' });
 
@@ -121,4 +145,4 @@ async function synthesize(job, { env = process.env, fetchImpl = fetch, attempts 
   throw err;
 }
 
-module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withTag, requestFor, synthesize };
+module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withSounds, isPraise, withTag, requestFor, synthesize };
