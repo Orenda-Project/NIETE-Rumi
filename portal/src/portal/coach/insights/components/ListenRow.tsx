@@ -7,6 +7,7 @@ import { durButton, mmss } from "../format";
 import { insightsPaths } from "../paths";
 import { pick, t, tx } from "../text";
 import type { Moment } from "../types";
+import { isolateRuns } from "./bidi";
 
 /**
  * bd-sex15q.15 — one Listen row (G2): "{school} · {short name}" (or "· What good sounds like ✓" for a good example), the
@@ -15,6 +16,9 @@ import type { Moment } from "../types";
  * from the moment (`lesson_s`), so its button shows the full recording's length.
  *
  * COPY's `l.row` carries no teacher code, so the row shows none; the code is on S4.
+ *
+ * R6 (bd-sex15q.46, SCREENS.md Listen): a hairline row; the play control sits at the row's end as a 44 px green circle
+ * (navy glyph) beside its time; the inline player (MomentSlot, unchanged) opens under the row.
  */
 export default function ListenRow({ moment, playing, onPlay }: { moment: Moment; playing: boolean; onPlay: () => void }) {
   const lang = useLang();
@@ -33,20 +37,20 @@ export default function ListenRow({ moment, playing, onPlay }: { moment: Moment;
     : tx("l.row.sub", lang, { date });
   const dur = durButton(failed ? moment.session.duration_s : moment.clip.duration_s, lang);
   return (
-    <li data-testid="listen-row" data-moment={moment.moment_id} data-kind={moment.kind} className="flex flex-col gap-2 px-3.5 py-3">
-      <div className="flex items-center gap-2">
-        <Link to={insightsPaths.moment(moment.moment_id)} data-testid="listen-open" className="flex min-h-[44px] min-w-0 flex-1 items-center gap-1">
+    <li data-testid="listen-row" data-moment={moment.moment_id} data-kind={moment.kind} className="flex flex-col gap-2 border-t border-cp-hairline py-3 first:border-t-0">
+      <div className="flex items-center gap-3">
+        <Link to={insightsPaths.moment(moment.moment_id)} data-testid="listen-open" className="flex min-h-[44px] min-w-0 flex-1 items-center gap-2 outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green">
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="text-[15.5px] font-semibold leading-snug text-[#1d2025] [overflow-wrap:anywhere]">{head}</span>
-            <span className="text-[13px] leading-snug text-[#6b7280]">{sub}</span>
+            <span className={`text-[17px] font-semibold leading-[1.4] text-cp-ink [overflow-wrap:anywhere] ${isolateRuns(lang)}`}>{head}</span>
+            <span className="text-[13px] leading-[1.45] text-cp-ink-3">{sub}</span>
           </span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
+          <ChevronRight size={20} strokeWidth={1.5} className="shrink-0 text-cp-ink-3 rtl:rotate-180" aria-hidden="true" />
         </Link>
         <button type="button" data-testid="listen-play" aria-pressed={playing ? "true" : "false"} onClick={onPlay}
           aria-label={t("s1.listen", lang, { dur })}
-          className="flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full border border-[#d1d5db] bg-white ps-1.5 pe-3 text-[14.5px] font-semibold text-[#1d2025]">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#33374a] text-white"><Play className="h-4 w-4 rtl:rotate-180" aria-hidden="true" /></span>
+          className="cp-press flex min-h-[44px] shrink-0 items-center gap-2 rounded-full text-[13px] font-semibold text-cp-ink-2 outline-none focus-visible:ring-[3px] focus-visible:ring-cp-navy">
           <span data-clock="">{dur}</span>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-cp-green text-cp-navy"><Play size={20} className="fill-current rtl:rotate-180" aria-hidden="true" /></span>
         </button>
       </div>
       {playing && <MomentSlot moment={moment} />}

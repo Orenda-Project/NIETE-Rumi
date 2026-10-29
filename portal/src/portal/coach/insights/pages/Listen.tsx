@@ -10,6 +10,7 @@ import { CodeText, CountSpan, DateText, Num, WindowMark } from "../count";
 import { range } from "../format";
 import { pick, t, tx } from "../text";
 import type { MomentsFeed } from "../types";
+import { Section } from "../../../coachip-ui/Section";
 
 /**
  * bd-sex15q.15 — the Listen tab (G2; `/listen`, `GET /coachip/moments?w=`): this week's moments across the coach's
@@ -17,6 +18,10 @@ import type { MomentsFeed } from "../types";
  * the W filter chips with their own counts (a chip re-reads the feed with `?w=`), the rows (ListenRow; one inline
  * player at a time), and the sessions whose analysis failed (school and date, never a code; the full recording plays).
  * Empty: no graded recording this week, or no moment for the chosen W. The read sits inside the gate (B7).
+ *
+ * R6 (bd-sex15q.46, SCREENS.md Listen): a top-level tab, so the band, with the week line as its one line; the base
+ * line 13 ink-3; the W filter as pills (on: green with a navy label; off: green tint); the moments as hairline rows;
+ * the analysis-failed sessions their own grey section under them. Colour only through the coachip-ui tokens.
  */
 export default function Listen() {
   return (
@@ -33,18 +38,24 @@ function ListenBody() {
   const { data, error } = useLoad<MomentsFeed>(() => coachip.moments({ w }), [w]);
   const choose = (next: string | null) => { setPlaying(null); setW(next); };
   return (
-    <InsightsPage testId="insights-listen" title={t("l.title", lang)} windows={data?.windows}>
+    <InsightsPage
+      testId="insights-listen"
+      title={t("l.title", lang)}
+      windows={data?.windows}
+      // the week line is the band's one line (R6); it waits for the payload, as before
+      chips={data ? (
+        <p data-testid="listen-week" className="text-[14px] leading-snug">
+          {tx("l.sub", lang, { week_range: <WindowMark window={data.window} as="span">{range(data.window.from, data.window.to, lang)}</WindowMark> })}
+        </p>
+      ) : error ? undefined : null}
+    >
       {!data ? <StateBlock error={error} /> : (
-        <div className="flex flex-col gap-3">
-          {/* the crumb: a top-level page has no crumb slot in TeacherPage, so the week line leads the body */}
-          <p data-testid="listen-week" className="-mt-1 px-1 text-[13px] font-medium text-[#6b7280]">
-            {tx("l.sub", lang, { week_range: <WindowMark window={data.window} as="span">{range(data.window.from, data.window.to, lang)}</WindowMark> })}
-          </p>
+        <div className="flex flex-col gap-4">
           {/* fix-r5 s2 item 3 (B10, design-qa 073628 §1): a week with no graded recording has nothing to count, so no
               "0 of 0" base line and no "All 0 of 0" chip; the empty card speaks alone */}
           {data.base.d > 0 && (
             <>
-              <p data-testid="listen-base" className="px-1 text-[14px] leading-snug text-[#374151]">
+              <p data-testid="listen-base" className="text-[13px] leading-[1.45] text-cp-ink-3">
                 {tx("l.base", lang, { grader_label: pick(data.window.grader_label, lang) }, [{ n: "n", d: "d", count: data.base }])}
               </p>
               <div role="group" className="flex flex-wrap gap-2">
@@ -67,10 +78,10 @@ function ListenBody() {
 function Chip({ on, wId, label, count, onClick }: { on: boolean; wId: string; label: string; count: React.ReactNode; onClick: () => void }) {
   return (
     <button type="button" data-testid="listen-chip" data-w={wId} aria-pressed={on ? "true" : "false"} onClick={onClick}
-      className={`flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 text-[14px] font-semibold ${on
-        ? "border-[#33374a] bg-[#33374a] text-white" : "border-[#d1d5db] bg-white text-[#1d2025]"}`}>
+      className={`cp-press flex min-h-[44px] items-center gap-1.5 rounded-full px-4 text-[14px] font-semibold outline-none focus-visible:ring-[3px] focus-visible:ring-cp-navy ${on
+        ? "bg-cp-green text-cp-navy" : "bg-cp-green-tint text-cp-green-ink"}`}>
       <span>{label}</span>
-      <span className={on ? "text-[12px] font-medium text-white/80" : "text-[12px] font-medium text-[#6b7280]"}>{count}</span>
+      <span className="text-[12px] font-medium">{count}</span>
     </button>
   );
 }
@@ -97,13 +108,17 @@ function Feed({ data, w, playing, setPlaying }: { data: MomentsFeed; w: string |
     return <NoteCard testId="listen-empty-filter">{t("l.empty.filter", lang, { short_name: name })}</NoteCard>;
   }
   return (
-    <ul className="flex flex-col divide-y divide-[#f3f4f6] overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white">
-      {data.moments.map((m) => (
-        <ListenRow key={m.moment_id} moment={m} playing={playing === m.moment_id}
-          onPlay={() => setPlaying(playing === m.moment_id ? null : m.moment_id)} />
-      ))}
-      {failed.map((s) => <FailedRow key={s.session_id} s={s} />)}
-    </ul>
+    <>
+      {data.moments.length > 0 && (
+        <ul className="flex flex-col border-y border-cp-hairline">
+          {data.moments.map((m) => (
+            <ListenRow key={m.moment_id} moment={m} playing={playing === m.moment_id}
+              onPlay={() => setPlaying(playing === m.moment_id ? null : m.moment_id)} />
+          ))}
+        </ul>
+      )}
+      {failed.length > 0 && <FailedList failed={failed} />}
+    </>
   );
 }
 
@@ -113,11 +128,11 @@ type Failed = MomentsFeed["failed_sessions"][number];
 function FailedRow({ s }: { s: Failed }) {
   const lang = useLang();
   return (
-    <li data-testid="listen-failed-session" className="flex flex-col gap-1.5 px-3.5 py-3">
-      <span className="text-[15.5px] font-semibold leading-snug text-[#1d2025] [overflow-wrap:anywhere]">
+    <li data-testid="listen-failed-session" className="flex flex-col gap-1.5 border-t border-cp-hairline px-4 py-3.5 first:border-t-0">
+      <span className="text-[17px] font-semibold leading-[1.4] text-cp-ink [overflow-wrap:anywhere]">
         <CodeText lang={lang}>{s.school.school_name}</CodeText>
       </span>
-      <span className="text-[13px] leading-snug text-[#6b7280]">
+      <span className="text-[13px] leading-[1.45] text-cp-ink-3">
         {tx("l.row.analysis_failed", lang, { date: <DateText iso={s.recorded_on} lang={lang} /> })}
       </span>
       <FullRecording sessionId={s.session_id} />
@@ -125,11 +140,14 @@ function FailedRow({ s }: { s: Failed }) {
   );
 }
 
+/** The analysis-failed sessions: their own grey section (no label: COPY has none; each row says what failed). */
 function FailedList({ failed }: { failed: Failed[] }) {
   return (
-    <ul className="flex flex-col divide-y divide-[#f3f4f6] overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white">
-      {failed.map((s) => <FailedRow key={s.session_id} s={s} />)}
-    </ul>
+    <Section testId="listen-failed" first>
+      <ul className="flex flex-col overflow-hidden rounded-[16px] bg-cp-navy-tint">
+        {failed.map((s) => <FailedRow key={s.session_id} s={s} />)}
+      </ul>
+    </Section>
   );
 }
 

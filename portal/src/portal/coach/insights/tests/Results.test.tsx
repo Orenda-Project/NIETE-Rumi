@@ -111,6 +111,39 @@ for (const lang of ["en", "ur"] as const) {
       expect(container.innerHTML).toMatchSnapshot();
     }, 20000);
 
+    // R6 (bd-sex15q.46, SCREENS S7): the window line is the app bar's; the cells are a grid of flat white tiles (radius 20,
+    // hairline, no shadow); "not yet" is a grey pill; the before-first-visit note is navy tint; the send is secondary.
+    it("R6: app bar window line, a grid of flat tiles, grey not-yet, secondary send", async () => {
+      serve({ "/coachip/results": F.results });
+      const { container } = await renderAt("/stats/results");
+      const bar = screen.getByTestId("insights-appbar");
+      expect(bar.querySelector(`[data-window="${F.results.window.id}"]`)).not.toBeNull();
+      const grid = screen.getByTestId("s7-grid");
+      expect(grid.className).toContain("grid");
+      const cells = Array.from(grid.querySelectorAll<HTMLElement>('[data-testid="s7-cell"]'));
+      expect(cells).toHaveLength(2);
+      for (const c of cells) {
+        expect(c.className).toContain("rounded-[20px]");
+        expect(c.className).toContain("bg-cp-surface");
+        expect(c.className).toContain("border-cp-hairline");
+        expect(c.className).not.toContain("shadow");
+      }
+      const notYet = cells[0].querySelector('[data-status="not_measured"] [data-pill="not-yet"]') as HTMLElement;
+      expect(notYet.className).toContain("bg-cp-navy-tint");
+      expect(screen.getByTestId("s7-send").className).toContain("border-cp-navy");
+      expect(container.querySelectorAll("[data-surface]")).toHaveLength(0);
+      expectContract(container, expect);
+    }, 20000);
+
+    it("R6: the before-first-visit note is a navy-tint note", async () => {
+      const d = clone(F.results);
+      d.cells = [];
+      d.empty = { status: "pending", message: { en: "x", ur: "x" }, detail: { graded: null, widened_to_weeks: null, as_of: "2026-10-27" } };
+      serve({ "/coachip/results": d });
+      await renderAt("/stats/results");
+      expect(screen.getByTestId("s7-empty").className).toContain("bg-cp-navy-tint");
+    }, 20000);
+
     it("a load failure shows the failed state", async () => {
       serve({ "/coachip/results": () => { throw httpError(500, { error: "x" }); } });
       const { container } = await renderAt("/stats/results");

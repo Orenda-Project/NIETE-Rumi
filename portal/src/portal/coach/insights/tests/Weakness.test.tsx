@@ -18,8 +18,10 @@ import { COPY } from "../copy";
 const W = "W-IP-TIME";
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
 const LANGS = ["en", "ur"] as const;
-// G1 one fold: the card, then the moment and the step card above the fold; why, where, good and the method below it.
-const SECTIONS = ["w-number", "w-moment", "step-card", "w-split", "w-where", "w-good", "w-method"];
+// G1 one fold: the card, then the step card above the fold; why, where, good and the method below it. R6 (bd-sex15q.46,
+// DIRECTION delta 5, merged_S2_390): the step card (the screen's one raised surface, its primary inside the fold) comes
+// before the moment, which follows it with the player and the five-segment strip.
+const SECTIONS = ["w-number", "step-card", "w-moment", "w-split", "w-where", "w-good", "w-method"];
 
 function before(a: Element, b: Element) {
   return Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);

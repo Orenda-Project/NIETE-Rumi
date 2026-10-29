@@ -17,10 +17,10 @@ export default function PairCard({ pair, lang, children }: { pair: Moment["pair"
   if (!pair) return null;
   if ("library_clip" in pair) {
     return (
-      <section data-testid="pair-card" data-pair="library" className="flex flex-col gap-1.5 border-t border-[#e5e7eb] pt-3">
-        <h2 className="text-[16px] font-semibold text-[#1d2025]">{t("s4.pair.title", lang)}</h2>
-        <p className="text-[13.5px] leading-snug text-[#6b7280]">{t("s4.pair.none", lang)}</p>
-        <p className="text-[14.5px] leading-snug text-[#374151]">
+      <section data-testid="pair-card" data-pair="library" className="flex flex-col gap-1.5 border-t border-cp-hairline pt-4">
+        <h2 className="text-[17px] font-semibold text-cp-ink">{t("s4.pair.title", lang)}</h2>
+        <p className="text-[13px] leading-snug text-cp-ink-3">{t("s4.pair.none", lang)}</p>
+        <p className="text-[15px] leading-snug text-cp-ink-2">
           {tx("s4.pair.library", lang, { title: <span data-text="library">{pick(pair.library_clip.title, lang)}</span> })}
         </p>
       </section>
@@ -34,12 +34,12 @@ export default function PairCard({ pair, lang, children }: { pair: Moment["pair"
     date_short: <DateText iso={pair.session.recorded_on} lang={lang} short />,
   });
   return (
-    <section data-testid="pair-card" data-pair="moment" className="flex flex-col gap-1.5 border-t border-[#e5e7eb] pt-3">
-      <h2 className="text-[16px] font-semibold text-[#1d2025]">{t("s4.pair.title", lang)}</h2>
-      <p data-testid="pair-sub" className="text-[13.5px] leading-snug text-[#6b7280]">{gs ? sub : dropPart(sub, NO_PART)}</p>
+    <section data-testid="pair-card" data-pair="moment" className="flex flex-col gap-1.5 border-t border-cp-hairline pt-4">
+      <h2 className="text-[17px] font-semibold text-cp-ink">{t("s4.pair.title", lang)}</h2>
+      <p data-testid="pair-sub" className="text-[13px] leading-snug text-cp-ink-3">{gs ? sub : dropPart(sub, NO_PART)}</p>
       {children}
       {pair.gloss_status === "ok" && pair.gloss && (
-        <p className="rounded-xl border-s-4 border-[#47BA7D] bg-[#f9fafb] px-3 py-2 text-[14px] leading-snug" data-text="library">
+        <p className="rounded-[12px] border-s-[3px] border-cp-green bg-cp-ground px-3 py-2 text-[14px] leading-snug" data-text="library">
           {pick(pair.gloss, lang)}
         </p>
       )}

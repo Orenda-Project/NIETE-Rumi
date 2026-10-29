@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 import { useLang } from "../../../teacher/i18n";
 import InsightsGate from "../InsightsGate";
 import { coachip } from "../api";
@@ -7,15 +8,25 @@ import { todayKarachi } from "../format";
 import { insightsPaths } from "../paths";
 import { pick, t, tx } from "../text";
 import { useLoad } from "../useLoad";
+import { lazy, Suspense } from "react";
 import type { Home, WCard as WCardData, WRow as WRowData } from "../types";
-import { InsightsPage, MetaLine } from "../components/Frame";
-import { NoteCard, StateBlock } from "../components/StateBlock";
+
+import { Band, InsightsPage, MetaLine } from "../components/Frame";
+import { StateBlock } from "../components/StateBlock";
 import { NoteBanner } from "../components/NoteBanner";
 import { NotYetTile } from "../components/NotYetTile";
 import { PhonicsTile } from "../components/PhonicsTile";
 import { StepRow } from "../components/StepRow";
-import { WCard } from "../components/WCard";
+import { WCard, WCardHero } from "../components/WCard";
 import { WRow } from "../components/WRow";
+import { Ring } from "../../../coachip-ui/Ring";
+import { Section } from "../../../coachip-ui/Section";
+import { useLaptop } from "../../../coachip-ui/useLaptop";
+
+
+// the laptop's right column carries the moment player (the kit AudioPlayer): its own chunk, so the phone's first
+// open (the coach-entry budget, ≤ 250,000 B gz) never downloads it
+const ThisWeekAside = lazy(() => import("./ThisWeekAside"));
 
 /**
  * bd-sex15q.15 — S1 "This week", the coach's home (DESIGN §3 S1, COPY §S1, API R2 `GET /coachip/home`). Top to bottom:
@@ -28,6 +39,17 @@ import { WRow } from "../components/WRow";
  *
  * Empty states (API R2): no_scope shows its message alone; pending its message, the phonics tile and the stats link;
  * insufficient and failed keep the open steps. Never a zero, never an average.
+ *
+ * R6 (bd-sex15q.46, design/r6 merged_S1_390 / merged_S1_1440): the band carries the headline (WCardHero: eyebrow, the
+ * ring, the sentence, the window pill) or, with no move, the empty sentence beside an empty ring; the stale line sits
+ * in the band under it. The overlapping card (WCard) is the first thing under the band; then the RM's note, Move 2 as a
+ * row, the coverage line, open steps, Not yet and phonics as hairline sections, the stats link. On a laptop the open
+ * steps move to the right column under the moment's player, and where-first with the actions sits inside the hero card.
+ * While loading, the band already holds an empty ring so nothing jumps.
+ *
+ * R6 fix cycle 1 (FIX_R6 A1, A6): the band's body is one height per language on a phone (`cp-hero-body`), the same
+ * loading, fresh or stale: the stale line leaves it for a 13 px ink-3 line directly under the first card (on a laptop, under the
+ * hero card), and the trust line is the band's foot. While loading, the first card's stand-in rides up over the band.
  */
 export default function ThisWeek() {
   return (
@@ -37,20 +59,77 @@ export default function ThisWeek() {
   );
 }
 
+/** Today's date in the band's top line: band.sub, the date only (COPY v1.1 §8). */
+function Today() {
+  const lang = useLang();
+  return <span data-testid="s1-today">{tx("band.sub", lang, { date_short: <DateText iso={todayKarachi()} lang={lang} short /> })}</span>;
+}
+
+/** The band's body before the data lands: the empty ring and two quiet lines, the height of the real body. */
+function HeroLoading() {
+  return (
+    <div className="cp-hero-body flex items-center gap-4" aria-busy="true">
+      <Ring n={0} d={0} size="hero" />
+      <span className="flex flex-1 flex-col gap-2.5">
+        <span className="cp-skeleton block h-4 w-full rounded-full bg-white/15 lg:bg-cp-hairline" />
+        <span className="cp-skeleton block h-4 w-4/5 rounded-full bg-white/15 lg:bg-cp-hairline" />
+      </span>
+    </div>
+  );
+}
+
+/** The window pill on the band (also used by the empty body when the page has no move card). */
+const BAND_PILL = "self-start rounded-full bg-cp-green px-3 py-[5px] text-[12px] font-semibold leading-[1.45] text-cp-navy";
+
+function Stale({ home }: { home: Home }) {
+  const lang = useLang();
+  if (!home.stale) return null;
+  return (
+    <p data-testid="s1-stale" role="status" className="px-1 pt-3 text-[13px] leading-[1.45] text-cp-ink-3">
+      {tx("s1.stale", lang, { date: <DateText iso={home.stale.as_of} lang={lang} /> })}
+    </p>
+  );
+}
+
+function Hero({ home, laptop }: { home: Home | null; laptop: boolean }) {
+  if (!home) return <HeroLoading />;
+  const card = home.moves[0] as WCardData | undefined;
+  return (
+    <div className="cp-hero-body flex flex-col gap-3">
+      {card ? <WCardHero card={card} total={home.moves.length} /> : <EmptyMessage home={home} />}
+      {card && laptop && <WCard card={card} total={home.moves.length} inHero />}
+    </div>
+  );
+}
+
 function ThisWeekLoaded() {
   const lang = useLang();
   const { data, error } = useLoad<Home>(() => coachip.home(), []);
+  const laptop = useLaptop();
   return (
     <InsightsPage
       testId="insights-this-week"
-      title={t("band.title", lang)}
-      // today's date is the band's second line (a top-level page has no crumb): band.sub, the date only (COPY v1.1 §8)
-      chips={<span data-testid="s1-today">{tx("band.sub", lang, { date_short: <DateText iso={todayKarachi()} lang={lang} short /> })}</span>}
+      // on a laptop the band's body is the hero card, and where-first with the two actions sits inside it
+      hero={(
+        <Band title={t("band.title", lang)} date={<Today />}>
+          {error && !data ? null : <Hero home={data} laptop={laptop} />}
+        </Band>
+      )}
       windows={data?.windows}
+      aside={data && laptop && !quietOf(data) ? (
+        <Suspense fallback={<Steps home={data} first />}>
+          <ThisWeekAside home={data}>{(first) => <Steps home={data} first={first} />}</ThisWeekAside>
+        </Suspense>
+      ) : undefined}
     >
-      {!data ? <StateBlock error={error} /> : <Body home={data} />}
+      {!data ? <StateBlock error={error} overlap /> : <Body home={data} laptop={laptop} />}
     </InsightsPage>
   );
+}
+
+function quietOf(home: Home): boolean {
+  const status = home.empty?.status ?? null;
+  return status === "no_scope" || status === "pending";
 }
 
 function EmptyMessage({ home }: { home: Home }) {
@@ -71,70 +150,74 @@ function EmptyMessage({ home }: { home: Home }) {
       line = <CountSpan count={g}>{t("s1.empty.insufficient4", lang, { graded: g.n, needed: g.d })}</CountSpan>;
     }
   }
-  // with no card on screen, the window the page's counts refer to is said here
+  // with no card on screen, the window the page's counts refer to is said here, as the band's pill
   const showWindow = home.moves.length === 0 && (empty.status === "insufficient" || empty.status === "failed");
   return (
-    <div data-testid="s1-empty" data-status={empty.status}>
-      <NoteCard>
-        <p>{line}</p>
-        {showWindow && <MetaLine window={home.window} className="mt-1.5 text-[12.5px] leading-snug text-[#6b7280]" />}
-      </NoteCard>
+    <div data-testid="s1-empty" data-status={empty.status} role="status" className="flex flex-col gap-3">
+      <div className={`flex items-center gap-4 ${lang === "ur" ? "flex-row-reverse" : ""}`}>
+        <Ring n={0} d={0} size="hero" />
+        <p className="min-w-0 flex-1 text-[17px] font-medium leading-[1.42]">{line}</p>
+      </div>
+      {showWindow && <MetaLine window={home.window} className={BAND_PILL} />}
     </div>
   );
 }
 
-function Body({ home }: { home: Home }) {
+/** Open steps: what the coach set, and the next three recordings (a hairline section; the right column on a laptop). */
+function Steps({ home, first = false }: { home: Home; first?: boolean }) {
+  const lang = useLang();
+  return (
+    <Section testId="s1-steps" first={first} label={t("s1.steps.title", lang)} hint={t("s1.steps.sub", lang)}>
+      {home.steps.length ? (
+        <>
+          <ul className="flex flex-col">
+            {home.steps.map((s) => <StepRow key={s.id} step={s} windowId={home.window.id} />)}
+          </ul>
+          <p data-testid="s1-steps-legend" className="pt-1 text-[13px] text-cp-ink-3">{t("s1.steps.legend", lang)}</p>
+        </>
+      ) : (
+        <p data-testid="s1-steps-empty" className="py-2 text-[15px] text-cp-ink-2">{t("s1.steps.empty", lang)}</p>
+      )}
+    </Section>
+  );
+}
+
+function Body({ home, laptop }: { home: Home; laptop: boolean }) {
   const lang = useLang();
   const status = home.empty?.status ?? null;
-  const quiet = status === "no_scope" || status === "pending";
+  const quiet = quietOf(home);
   const card = home.moves[0] as WCardData | undefined;
   const second = home.moves[1] as WRowData | undefined;
   const cov = home.coverage.recordings;
   return (
-    <div className="flex flex-col gap-3 pb-2">
-      {home.stale && (
-        <div data-testid="s1-stale">
-          <NoteCard>{tx("s1.stale", lang, { date: <DateText iso={home.stale.as_of} lang={lang} /> })}</NoteCard>
-        </div>
-      )}
-      {home.note && status !== "no_scope" && <NoteBanner note={home.note} />}
-      <EmptyMessage home={home} />
+    <div className="flex flex-col pb-2">
+      {card && !laptop && <WCard card={card} total={home.moves.length} />}
+      <Stale home={home} />
+      {home.note && status !== "no_scope" && <div className="mt-4"><NoteBanner note={home.note} /></div>}
 
-      {card && <WCard card={card} total={home.moves.length} />}
-      {second && <WRow row={second} to={insightsPaths.w(second.w_id)} />}
+      {second && <div className="mt-2"><WRow row={second} to={insightsPaths.w(second.w_id)} screenWindow={card?.window.id} /></div>}
 
       {!quiet && cov.d > 0 && (
-        <CountSpan as="p" count={cov} className="px-1 text-[13.5px] leading-snug text-[#6b7280]">
+        <CountSpan as="p" count={cov} className="px-1 pt-3 text-[13px] leading-[1.45] text-cp-ink-3">
           {t("s1.coverage", lang, { n: cov.n, d: cov.d })}
         </CountSpan>
       )}
 
-      {!quiet && (
-        <section data-testid="s1-steps" className="flex flex-col rounded-2xl border border-[#e5e7eb] bg-white px-4 pt-3.5 pb-2">
-          <h2 className="text-[17px] font-semibold text-[#1d2025]">{t("s1.steps.title", lang)}</h2>
-          <p className="text-[13.5px] leading-snug text-[#6b7280]">{t("s1.steps.sub", lang)}</p>
-          {home.steps.length ? (
-            <>
-              <ul className="flex flex-col">
-                {home.steps.map((s) => <StepRow key={s.id} step={s} windowId={home.window.id} />)}
-              </ul>
-              <p data-testid="s1-steps-legend" className="pb-1.5 text-[12.5px] text-[#6b7280]">{t("s1.steps.legend", lang)}</p>
-            </>
-          ) : (
-            <p data-testid="s1-steps-empty" className="py-2 text-[14.5px] text-[#374151]">{t("s1.steps.empty", lang)}</p>
-          )}
-        </section>
-      )}
+      {!quiet && !laptop && <Steps home={home} />}
 
       {!quiet && <NotYetTile rows={home.not_yet} />}
 
       {status !== "no_scope" && <PhonicsTile phonics={home.phonics} />}
 
       {status !== "no_scope" && (
-        <Link data-testid="s1-stats-link" to={insightsPaths.stats}
-          className="flex min-h-[48px] w-full items-center justify-center rounded-2xl border border-[#d1d5db] bg-white px-4 text-[16px] font-semibold text-[#1d2025]">
-          {t("s1.stats_link", lang)}
-        </Link>
+        <div className="mt-5 border-t border-cp-hairline pt-4">
+          <Link data-testid="s1-stats-link" to={insightsPaths.stats}
+            className="flex min-h-[44px] items-center gap-1.5 text-[17px] font-semibold text-cp-green-ink outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green">
+            {t("s1.stats_link", lang)}
+            {/* the English label ends in "›"; the Urdu one has none, so the chevron is drawn for it */}
+            {lang === "ur" && <ChevronRight size={20} strokeWidth={1.5} className="rotate-180" aria-hidden="true" />}
+          </Link>
+        </div>
       )}
     </div>
   );

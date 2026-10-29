@@ -56,7 +56,9 @@ for (const lang of ["en", "ur"] as const) {
       expect(page.querySelectorAll('[data-window="fico17-w4-2026-09-28"]')).toHaveLength(1);
       expect(screen.getByTestId("s6-sparkline").getAttribute("aria-hidden")).toBe("true");
       expect(screen.getByTestId("s6-results-link").getAttribute("href")).toBe("/portal/coach/insights/stats/results");
-      expect(container.innerHTML).not.toContain("%");
+      // R6 (bd-sex15q.46): no percentage anywhere a coach can read it. The one "%" allowed is the FractionBar's own fill
+      // width (an inline style on a decorative, aria-hidden bar), stripped before the check.
+      expect(container.innerHTML.replace(/ style="width: [0-9.]+%;?"/g, "")).not.toContain("%");
       expectContract(container, expect);
       expectNoIdentity(container, expect);
       expect(container.innerHTML).toMatchSnapshot();
@@ -110,6 +112,42 @@ for (const lang of ["en", "ur"] as const) {
       expect(container.querySelectorAll('[data-win="w4-2026-08-31"]').length).toBe(5);
       expectContract(container, expect);
       expect(container.innerHTML).toMatchSnapshot();
+    }, 20000);
+
+    // bd-sex15q.46 (R6 ux-coach) — S6 on the design system (SCREENS.md S6): the rows are one hairline section under a
+    // sticky label row, each count a RowCount with its 4 px bar (before's grey), the change pill neutral grey, the FICO
+    // panel and the weekly line sections, the sparkline a 1.5 px green line, and Results a hairline row.
+    it("R6 look: hairline rows with bars, grey pill, sticky heads, results row", async () => {
+      serve({ "/coachip/stats": twoWindows() });
+      const { container } = await renderAt("/stats");
+      expect(screen.getByTestId("s6-rows").hasAttribute("data-section")).toBe(true);
+      expect(screen.getByTestId("s6-col-now").parentElement!.className).toContain("sticky");
+      const ok = screen.getAllByTestId("s6-row").filter((r) => r.getAttribute("data-status") === "ok");
+      expect(ok.length).toBeGreaterThan(0);
+      for (const r of ok) {
+        expect(r.className).toContain("border-cp-hairline");
+        const bars = Array.from(r.querySelectorAll("[data-bar]"));
+        expect(bars.length).toBe(r.querySelectorAll("[data-num]").length);
+        expect(bars.length).toBe(2);
+        expect(bars[1].querySelector("[data-fill]")!.className).toContain("bg-cp-ink-3");
+      }
+      for (const p of Array.from(container.querySelectorAll('[data-testid="s6-pill"]'))) {
+        expect(p.className).toContain("bg-cp-navy-tint");
+      }
+      const link = screen.getByTestId("s6-results-link");
+      expect(link.className).toContain("min-h-[44px]");
+      expect(link.className).toContain("border-cp-hairline");
+      expectContract(container, expect);
+    }, 20000);
+
+    it("R6 look: FICO and weekly are sections; the sparkline is a 1.5 px green line", async () => {
+      serve({ "/coachip/stats": F.stats });
+      await renderAt("/stats");
+      expect(screen.getByTestId("s6-fico").hasAttribute("data-section")).toBe(true);
+      expect(screen.getByTestId("s6-weekly").hasAttribute("data-section")).toBe(true);
+      const path = screen.getByTestId("s6-sparkline").querySelector("path[d^='M']")!;
+      expect(path.getAttribute("stroke")).toBe("var(--cp-green)");
+      expect(path.getAttribute("stroke-width")).toBe("1.5");
     }, 20000);
 
     it("a load failure shows the failed state", async () => {
