@@ -20,7 +20,8 @@ export type Period = {
 };
 
 export type CardFeature = "lp" | "dc" | "training" | "papers";
-export type ItemsFeature = CardFeature | "coach";
+/** Her own lists. Her DC observations and coach visits are not among them: they are the one Coaching list. */
+export type ItemsFeature = "lp" | "papers" | "training";
 
 export type FeatureCounts = Record<CardFeature, number>;
 
@@ -77,43 +78,67 @@ export type FeatureGridData = {
 
 export type ScoreAvg = { avg: number | null; prevAvg: number | null };
 
+/** Her DC observations and her coach visits in the period, each with its average score and the period before's. */
+export type CoachingSummary = {
+  dc: { count: number | null } & ScoreAvg;
+  coach: { count: number | null } & ScoreAvg;
+};
+
+/** The AI score of each DC report and the Coach score of each reviewed visit, by date. */
+export type ChartPoint = { kind: "dc" | "coach"; id: string; date: string; score: number | null };
+
 export type TeacherCardData = {
   teacher: { teacherExtId: string; name: string; school: string | null; emis: string | null };
   period: Period;
   tiles: {
     lp: { count: number | null; series: (number | null)[] };
     papers: { count: number | null; series: (number | null)[] };
-    dc: { count: number | null; series: (number | null)[] };
-    coach: { count: number | null; series?: (number | null)[] };
     training: { parts: number | null; courses: number | null; series: (number | null)[] };
-    aiScore: ScoreAvg;
-    coachScore: ScoreAvg;
     days: { withUse: number | null; schoolDays: number | null };
   };
-  chart: { kind: "dc" | "coach"; id: string; date: string; score: number | null }[];
+  /** The Coaching card: the same summary and chart as the Coaching page. */
+  summary: CoachingSummary;
+  chart: ChartPoint[];
 };
 
-export type DcItem = { sessionId: string; date: string; grade: string | number | null; subject: string | null; aiScore: number | null };
-export type CoachItem = { id: string; date: string; coachName: string | null; score: number | null; form: "v3" | "observe2" };
 export type LpItem = { id: string; date: string; grade: string | number | null; subject: string | null; title: string | null };
 export type PaperItem = { id: string; date: string; grade: string | number | null; subject: string | null; questions: number | null; marks: number | null };
 export type TrainingCourse = { name: string; parts: { name: string; doneAt: string | null }[]; done: boolean };
 
 export type ItemsData = {
   period?: Period;
-  items?: (DcItem | CoachItem | LpItem | PaperItem)[];
+  items?: (LpItem | PaperItem)[];
   courses?: TrainingCourse[];
 };
 
 export type SectionScores = { B: number | null; C: number | null; D: number | null; F: number | null };
 
-/** `form`: "observe2" for a visit on the field form (counted and listed, never averaged with the others). */
-export type ReportsData = {
-  period?: Period;
-  nextSteps: { sessionId: string; date: string; grade: string | number | null; subject: string | null; text: string }[];
-  strengths: { sessionId: string; date: string; text: string; texts?: string[]; grade?: string | number | null; subject?: string | null }[];
-  scores: { kind: "dc" | "coach"; id: string; date: string; overall: number | null; sections: SectionScores; form?: string | null }[];
-  coachVisits: { id: string; date: string; score: number | null; step: string | null; form?: string | null }[];
+/**
+ * One row of the Coaching list: a DC report (opens its report) or a coach visit (information only).
+ * `title`: the report's own lesson label, or null (the page writes "<Subject> lesson"). `quote`: the step she took away
+ * (a DC report: the next step as she received it; a visit: the step agreed). `form`: "observe2" for a visit on the field
+ * form (counted, never scored with the others).
+ */
+export type CoachingItem = {
+  kind: "dc" | "coach";
+  id: string;
+  date: string;
+  grade: string | number | null;
+  subject: string | null;
+  title: string | null;
+  score: number | null;
+  quote: string | null;
+  sections: SectionScores;
+  coachName: string | null;
+  form?: "v3" | "observe2" | null;
+};
+
+export type CoachingData = {
+  teacher: TeacherCardData["teacher"];
+  period: Period;
+  summary: CoachingSummary;
+  chart: ChartPoint[];
+  items: CoachingItem[];
 };
 
 export type SessionReportData = {

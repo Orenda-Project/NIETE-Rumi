@@ -77,12 +77,15 @@ describe.each(CONFIGS)("the switch off (%s): today's coach app", (_l, config) =>
     expect(screen.queryByTestId("page-crumb")).toBeNull();
   });
 
-  it.each([`/portal/coach/school/${EMIS}/feature/lp`, `/portal/coach/teacher/${EXT}/items/dc`, `/portal/coach/teacher/${EXT}/reports`])(
+  it.each([`/portal/coach/school/${EMIS}/feature/lp`, `/portal/coach/teacher/${EXT}/items/lp`, `/portal/coach/teacher/${EXT}/items/dc`,
+    `/portal/coach/teacher/${EXT}/reports`, `/portal/coach/teacher/${EXT}/coaching`])(
     "%s is not a page (as any unknown address today)", async (entry) => {
       today(config);
       await renderApp(entry);
       await waitFor(() => expect(screen.getByText(/404|not found/i)).toBeInTheDocument());
-      expect(net.calls.some((c) => c.includes("/feature/") || c.includes("/items/") || c.includes("/reports"))).toBe(false);
+      // the old addresses do not even move to the Coaching page with the switch off
+      expect(screen.getByTestId("where")).toHaveTextContent(entry);
+      expect(net.calls.some((c) => c.includes("/feature/") || c.includes("/items/") || c.includes("/reports") || c.includes("/coaching"))).toBe(false);
     });
 });
 

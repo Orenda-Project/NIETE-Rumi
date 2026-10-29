@@ -51,6 +51,7 @@ describe("coachReadyFor: the switch on", () => {
     "/portal/coach", "/portal/coach/", "/portal/coach/session/s-1",
     "/portal/coach/people", "/portal/coach/school/E-1", "/portal/coach/school/E-1/feature/lp", "/portal/coach/school/E-1/feature/papers",
     "/portal/coach/teacher/900000000001", "/portal/coach/teacher/900000000001/items/dc", "/portal/coach/teacher/900000000001/reports",
+    "/portal/coach/teacher/900000000001/coaching",
     "/portal/coach/teacher/900000000001/edit", "/portal/coach/school/E-1/add-teacher",
     "/portal/coach/training", "/portal/coach/training/module/m-1", "/portal/teacher/lessons", "/portal/coach/more", "/portal/coach/profile",
   ])("%s is reachable", (p) => expect(coachPathReady(p, ON)).toBe(true));
@@ -74,7 +75,7 @@ describe("the menu with the School card on", () => {
 
   it.each([
     ["/portal/coach", "home"], ["/portal/coach/people", "home"], ["/portal/coach/school/E-1", "home"],
-    ["/portal/coach/school/E-1/feature/dc", "home"], ["/portal/coach/teacher/9/items/lp", "home"], ["/portal/coach/teacher/9/reports", "home"],
+    ["/portal/coach/school/E-1/feature/dc", "home"], ["/portal/coach/teacher/9/items/lp", "home"], ["/portal/coach/teacher/9/reports", "home"], ["/portal/coach/teacher/9/coaching", "home"],
     ["/portal/coach/session/s-1", "home"], ["/portal/coach/training", "home"], ["/portal/coach/training/module/m-1", "home"],
     ["/portal/teacher/lessons", "lessons"], ["/portal/coach/more", "more"], ["/portal/coach/profile", "more"],
   ])("%s marks %s", (p, key) => expect(currentCoachCardItem(p)).toBe(key));
