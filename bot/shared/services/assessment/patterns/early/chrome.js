@@ -63,14 +63,16 @@ function makeSlot(o) {
   const attempt = o.attempt == null ? o.generate : o.attempt;
   const total = attempt * o.marks_each;
   const mcq = o.shape === 'mcq';
+  const each = attempt > 1 && o.marks_each > 1;
   return {
     slot: o.slot,
     label_en: o.label_en,
     label_ur: o.label_ur || String(o.label_en).replace(/^Q(\d+)\.?$/, 'سوال $1'),
     instruction_en: o.instruction_en || null,
     instruction_ur: o.instruction_ur || null,
-    marks_line_en: `({t:${total}})`,
-    marks_line_ur: `{t:${total}}`,
+    // Items worth 2 or more print their sum under a one-mark legend (bd-5jmnfj.4.57): "(5×2=10)".
+    marks_line_en: each ? `({n:${attempt}}×${o.marks_each}={t:${total}})` : `({t:${total}})`,
+    marks_line_ur: each ? `{n:${attempt}}×${o.marks_each}={t:${total}}` : `{t:${total}}`,
     type: o.type,
     category: mcq || o.shape === 'match' || o.objective ? 'objective' : 'subjective',
     shape: o.shape || 'short',
@@ -96,6 +98,7 @@ function makeSlot(o) {
     picture: o.picture || null,
     answer_box: true,
     picture_only: Boolean(o.picture_only),
+    sentence_box: Boolean(o.sentence_box),
     print_words: Boolean(o.print_words),
     bubble: Boolean(o.bubble),
     answer_ok: o.answer_ok || null,
@@ -127,8 +130,8 @@ function makeSection(o) {
 const ORAL_DEFAULT = {
   title_en: 'Oral assessment · teacher sheet',
   title_ur: 'زبانی جائزہ · استاد کی شیٹ',
-  note_en: 'Take the oral part one child at a time, before or after the written paper. Read the script aloud as written.',
-  note_ur: 'زبانی حصہ ہر بچے سے الگ الگ لیں، تحریری پرچے سے پہلے یا بعد میں۔ اسکرپٹ لکھے ہوئے الفاظ میں پڑھ کر سنائیں۔',
+  note_en: 'Take the oral part after the written paper, one child at a time. Read the script aloud as written.',
+  note_ur: 'زبانی حصہ تحریری پرچے کے بعد، ہر بچے سے الگ الگ لیں۔ اسکرپٹ لکھے ہوئے الفاظ میں پڑھ کر سنائیں۔',
 };
 
 /**

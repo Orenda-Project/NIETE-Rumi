@@ -45,6 +45,33 @@ function paperAnswers(examJson) {
   return out;
 }
 
+// v25 G2 Urdu Q2 iv keyed «خواب، مکڑا، ٹڈی»; ٹ comes first. An alphabetical key is worked out here (bd-5jmnfj.4.57).
+const URDU = 'ا آ ب پ ت ٹ ث ج چ ح خ د ڈ ذ ر ڑ ز ژ س ش ص ض ط ظ ع غ ف ق ک گ ل م ن و ہ ھ ء ی ے'.split(' ');
+const SAME = { 'ۂ': 'ہ', 'ة': 'ہ', 'ئ': 'ء', 'ؤ': 'و', 'ي': 'ی', 'ك': 'ک', 'ى': 'ی', 'ه': 'ہ', 'ں': 'ن', 'ۓ': 'ے', 'أ': 'ا' };
+const rank = (ch) => {
+  if (/[a-z]/.test(ch)) return ch.charCodeAt(0);
+  const i = URDU.indexOf(SAME[ch] || ch);
+  return i < 0 ? null : 1000 + i;
+};
+
+/** The words in alphabet order (Urdu or English), or null when a letter is not one the order knows. */
+function alphabetKey(words) {
+  const ranks = words.map((w) => [...String(w).normalize('NFC').toLowerCase().replace(/[ً-ْٰ\s-]/g, '')].map(rank));
+  if (ranks.some((r) => !r.length || r.includes(null))) return null;
+  const cmp = (a, b) => {
+    for (let i = 0; i < Math.min(a.length, b.length); i += 1) if (a[i] !== b[i]) return a[i] - b[i];
+    return a.length - b.length;
+  };
+  return words.map((w, i) => [w, ranks[i]]).sort((x, y) => cmp(x[1], y[1])).map(([w]) => w);
+}
+
+function sortKey(q) {
+  const p = parseScramble(q);
+  const sorted = p && p.truth.length === p.parts.length && alphabetKey(p.truth);
+  if (!sorted || sorted.join('\u0000') === p.truth.join('\u0000')) return q;
+  return { ...q, answer: sorted.join(p.sep), ...(q.scheme ? { scheme: { ...q.scheme, accept: [sorted.join(' ')] } } : {}) };
+}
+
 function dealItems(items, answers) {
   const used = new Set();
   return items.map((q, k) => {
@@ -67,18 +94,19 @@ function dealItems(items, answers) {
 }
 
 function dealScrambles(examJson) {
-  const slots = new Set(((examJson._layout && examJson._layout.sections) || [])
-    .flatMap((s) => s.slots || []).filter((s) => TYPES.has(s.type)).map((s) => s.slot));
+  const laid = ((examJson._layout && examJson._layout.sections) || []).flatMap((s) => s.slots || []);
+  const slots = new Set(laid.filter((s) => TYPES.has(s.type)).map((s) => s.slot));
+  const sorted = new Set(laid.filter((s) => s.type === 'Alphabetical Order').map((s) => s.slot));
   if (!slots.size) return examJson;
   const answers = paperAnswers(examJson);
   const unseen = Object.fromEntries(Object.entries(examJson.unseen || {}).map(([cat, byType]) => [cat,
     Object.fromEntries(Object.entries(byType).map(([type, list]) => {
       if (!Array.isArray(list) || !list.some((q) => slots.has(q.slot))) return [type, list];
-      const mine = dealItems(list.filter((q) => slots.has(q.slot)), answers);
+      const mine = dealItems(list.filter((q) => slots.has(q.slot)).map((q) => (sorted.has(q.slot) ? sortKey(q) : q)), answers);
       let i = 0;
       return [type, list.map((q) => (slots.has(q.slot) ? mine[i++] : q))];
     }))]));
   return { ...examJson, unseen };
 }
 
-module.exports = { dealScrambles, parseScramble };
+module.exports = { dealScrambles, parseScramble, alphabetKey };

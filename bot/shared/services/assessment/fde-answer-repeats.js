@@ -21,6 +21,11 @@
  * an oral item's question, keyed with its answer ('oral-question'); the same labelled diagram twice; and a
  * "name the three" key whose parts another stem prints. Each flag says whether its word is `printed` (a child
  * sees it on the paper) or found only in answer text.
+ *
+ * v26 (bd-5jmnfj.4.57): an Urdu ending stem (بندروں/بندر, اندھیری/اندھیرا); an order list's words and a one-word
+ * stem (Make Sentences «چاند») as targets; a two-word target (دندان ساز) matched as a phrase; a written stem
+ * naming a heard oral item's person beside its answer word ('oral-answer'); and fde-near-repeats' questions
+ * that answer one another in different words.
  */
 
 const WORD = /[\p{L}\p{M}]+/gu;
@@ -28,6 +33,7 @@ const WORD = /[\p{L}\p{M}]+/gu;
 const FUNCTION_WORDS = new Set(('are was were has have had she they you his her him them our their this that these those '
   + 'the and but with from for into over under near behind above below اور ہیں تھا تھی تھے کا کی کے نے کو سے ہے پر یہ وہ تو').split(' '));
 const ARABIC = /[\u0600-\u06FF]/; // an Urdu key of two letters («سچ») is a word; an English one ("is") is not
+const { nearRepeats } = require('./fde-near-repeats');
 const wordsOf = (s) => String(s == null ? '' : s).normalize('NFC').toLowerCase().match(WORD) || [];
 const optionsOf = (q) => (Array.isArray(q.options) ? q.options : []);
 // "الف) گاجر" -> "گاجر", as fde-early-prompt reads a choice.
@@ -35,6 +41,10 @@ const choice = (o) => String(o).replace(/^\s*\(?[^\s)]{1,3}\)\s*/, '').trim();
 
 // Crude plural / -y / -ed stem for the words a picture does not name: a picture item keeps exact words,
 // since its key is spelt from the picture and «flower» is no give-away in "The flowers are red."
+// An Urdu word without its plural or gender ending, while four letters remain (ٹڈی/ٹڈا and شیر/شیریں stay
+// apart). Used only to find a key printed in another slot, not in the checks above it.
+const URDU_END = /(وں|یں|ے|ی|ا)$/;
+const urduStem = (w) => { const m = ARABIC.test(w) && URDU_END.exec(w); return m && [...w].length - [...m[0]].length >= 4 ? w.slice(0, -m[0].length) : w; };
 const stem = (w, loose = true) => {
   if (!loose || !/^[a-z]+$/.test(w) || w.length < 5) return w;
   if (/(ss|us|is)$/.test(w)) return w;
@@ -45,6 +55,9 @@ const stem = (w, loose = true) => {
 };
 const GENERIC = new Set(['more', 'less', 'most', 'many', 'much', 'same', 'only']); // comparatives are not an answer
 const longWord = (w) => [...w].length >= 4 && !FUNCTION_WORDS.has(w) && !GENERIC.has(w);
+const targetWord = (w) => longWord(w) || (ARABIC.test(w) && [...w].length >= 3 && !FUNCTION_WORDS.has(w));
+// The slot types whose whole stem is the word list: an order list («انگور، تربوز، بندر»), a word to use in a sentence («چاند»).
+const WHOLE_STEM_LIST = /alphabetical|order|make sentences|use in sentences/i;
 const subs = (q) => (Array.isArray(q.questions) ? q.questions.filter(Boolean) : []);
 
 /** The item's one-word key, lower-cased; null for a sentence, a sum, a number or a single letter. */
@@ -68,16 +81,25 @@ function distinctive(q) {
 }
 
 // The words a word-list question asks about: the list after the colon in the stem
-// ("write in parts: A, B"), and a one-word topic choice («Recycling»). Answer-line leads are not read:
+// ("write in parts: A, B"), an order list that is the whole stem («انگور، تربوز، بندر»), a one-word stem
+// (Make Sentences «چاند») and a one-word topic choice («Recycling»). Answer-line leads are not read:
 // they are speaker names and field labels.
 const topicsOf = (q) => (Array.isArray(q.topics) ? q.topics : []);
-function targets(q) {
-  const out = new Set();
-  const m = /[:：]([^:：]*)$/.exec(String(q.question == null ? '' : q.question));
-  if (m) m[1].split(/[،,]/).forEach((p) => { const w = wordsOf(p); if (w.length === 1) out.add(w[0]); });
-  topicsOf(q).forEach((t) => { const w = wordsOf(t); if (w.length === 1) out.add(w[0]); });
-  return [...out].filter(longWord);
+function listParts(q, type) {
+  const t = String(q.question == null ? '' : q.question);
+  const m = /[:：]([^:：]*)$/.exec(t);
+  if (m) return m[1].split(/[،,]/).map(wordsOf);
+  const parts = t.split(/[،,]/).map(wordsOf);
+  return WHOLE_STEM_LIST.test(type || '') && parts.every((w) => w.length === 1) ? parts : [];
 }
+function targets(q, type) {
+  const out = new Set();
+  listParts(q, type).forEach((w) => { if (w.length === 1) out.add(w[0]); });
+  topicsOf(q).forEach((t) => { const w = wordsOf(t); if (w.length === 1) out.add(w[0]); });
+  return [...out].filter(targetWord);
+}
+// An Urdu target of two or three words (دندان ساز), matched as a phrase; «اس نے» is no target.
+const phrasesOf = (q) => listParts(q).filter((w) => w.length > 1 && w.length <= 3 && w.every((x) => ARABIC.test(x) && targetWord(x))).map((w) => w.join(' '));
 
 // What a "label" stem asks to draw: its long words after the last "the" (Label the parts of the human
 // respiratory system -> human, respiratory, system). Empty for any other stem.
@@ -117,19 +139,23 @@ function oralAsks(oralLayout) {
 function answerRepeats(examJson) {
   if (!examJson) return [];
   const list = itemsInOrder(examJson);
+  const types = new Map();
+  ((examJson._layout && examJson._layout.sections) || []).forEach((s) => (s.slots || []).forEach((sl) => types.set(sl.slot, sl.type)));
   // A bag of words: exact, and stemmed. A picture item's key is matched exactly (see `stem`).
   const bag = (texts) => {
     const raw = new Set(texts.flatMap(wordsOf));
     const st = new Set([...raw].map((w) => stem(w)));
     return { has: (w, loose) => (loose ? st.has(stem(w)) : raw.has(w)) };
   };
-  const printed = list.map((q) => bag([q.question, ...optionsOf(q), q.picture && q.picture.name, ...topicsOf(q), ...subs(q).map((s) => s.question)]));
+  const printedTexts = list.map((q) => [q.question, ...optionsOf(q), q.picture && q.picture.name, ...topicsOf(q), ...subs(q).map((s) => s.question)]);
+  const printed = printedTexts.map(bag);
+  const urduPrinted = printedTexts.map((t) => new Set(t.flatMap(wordsOf).filter((w) => ARABIC.test(w)).map(urduStem)));
   // Answer text is checked by word of four letters or more: a key of three letters is no give-away there.
   const answered = list.map((q) => bag([q.answer, ...subs(q).map((s) => s.answer)].flatMap(wordsOf).filter(longWord)));
   const banks = list.map((q) => bag(Array.isArray(q.words) ? q.words : []));
   const keys = list.map(answerWord);
   const kws = list.map((q, i) => (keys[i] ? [{ w: keys[i], strict: false }]
-    : distinctive(q).map((w) => ({ w, strict: true, printedOnly: true })).concat(targets(q).map((w) => ({ w, strict: true })))));
+    : distinctive(q).map((w) => ({ w, strict: true, printedOnly: true })).concat(targets(q, types.get(q.slot)).map((w) => ({ w, strict: true })))));
   // The oral sheet's words and questions, not its story: a story read aloud uses everyday words.
   const sheet = oralAsks((examJson._layout && examJson._layout.oral) || {});
   const oralWords = bag(sheet.filter((x) => x.readAloud).flatMap((x) => (x.c.items || []).map((it) => it && it.ask)));
@@ -149,6 +175,7 @@ function answerRepeats(examJson) {
       if (j === i || (optionsOf(q).length && choiceSet(q) === choiceSet(o))) return;
       const other = o.slot !== q.slot;
       const seen = (printedOnly ? printed[j].has(w, loose) && answered[j].has(w, true) : printed[j].has(w, loose)) || (!printedOnly && ((other && banks[j].has(w, loose))
+        || (other && ARABIC.test(w) && urduPrinted[j].has(urduStem(w)))
         || (keys[j] && (loose ? stem(keys[j]) === stem(w) : keys[j] === w)) || (other && kws[j].some((k) => (loose ? stem(k.w) === stem(w) : k.w === w)))));
       const hit = seen || (!printedOnly && loose && w.length > 3 && answered[j].has(w, true));
       if (!hit || (strict && !other)) return;
@@ -184,6 +211,25 @@ function answerRepeats(examJson) {
       if (n && shown.length >= NUM[n[1].toLowerCase()]) shown.forEach((w) => later(i, j, w));
     });
   });
+  // A two-word target another slot prints as a phrase (a choice «د) دندان ساز»).
+  const said = list.map((q) => [q.question, ...optionsOf(q).map(choice), ...subs(q).map((s) => s.question)].map((t) => ` ${wordsOf(t).join(' ')} `));
+  list.forEach((q, i) => phrasesOf(q).forEach((p) => list.forEach((o, j) => {
+    if (o.slot !== q.slot && said[j].some((t) => t.includes(` ${p} `))) later(i, j, p);
+  })));
+  // A written stem naming a heard oral item's person beside a word of its answer: the stem tells the answer.
+  sheet.filter((x) => x.heard).forEach(({ c }) => (c.items || []).forEach((it) => {
+    const ask = String((it && it.ask) || '');
+    const names = (ask.match(/[\p{L}]+/gu) || []).slice(1).filter((w) => /^\p{Lu}/u.test(w)).map((w) => w.toLowerCase());
+    const askWords = new Set(wordsOf(ask));
+    const answer = wordsOf(it && it.answer).filter((w) => longWord(w) && !askWords.has(w));
+    if (!names.length || !answer.length) return;
+    list.forEach((q) => {
+      const st = new Set(wordsOf(q.question));
+      if (!names.some((w) => st.has(w))) return;
+      answer.filter((w) => st.has(w)).forEach((w) => flag(q.slot, w, 'oral-answer', excerpt({ question: ask }), false));
+    });
+  }));
+  nearRepeats(examJson).forEach((f) => f.with.forEach((s, k) => f.words.forEach((w) => flag(f.slot, w, s, f.text[k]))));
   return [...out.values()];
 }
 
