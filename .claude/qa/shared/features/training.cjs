@@ -1976,4 +1976,12 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       }
     }
   }
+
+  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
+  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  rec('T965', 'A NIETE level exam passed in the teacher app certifies the level, and /certificates lists it', 'BLOCKED',
+      { reason: 'the level-exam pass happens in the portal (POST /api/internal/training/certify-level), which this lane '
+          + 'does not drive; needs a step that seeds a passed grand attempt and calls certify-level before /certificates. '
+          + 'Behaviour is unit-tested in bot/tests/training/bd-jtgjt8-chain-level-exam-certifies.test.js (bd-jtgjt8.1)' }, 0);
+
 };
