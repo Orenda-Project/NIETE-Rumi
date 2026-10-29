@@ -11,7 +11,7 @@ pieces; nothing here knows about a payload except `Count` (the G10 number patter
   `text-cp-green-ink`, `bg-cp-ground`, `bg-cp-surface`, `bg-cp-green`, `bg-cp-green-tint`, `bg-cp-navy-tint` (the one tint; `grey-fill` is
   withdrawn, FIX_R6 A8), `border-cp-hairline`, `bg-cp-track`. No new hex in `insights/` or `rm/` (design-qa look.1).
   Opacity modifiers (`bg-cp-green/50`) do not work on variable colours; use the token that exists.
-- **Type**: Plus Jakarta Sans on `.cp` (already preloaded, no new request); Urdu stays Nastaliq through index.css. Sizes as
+- **Type**: Plus Jakarta Sans on `.cp` (already preloaded, no new request), then "Plus Jakarta Sans Fallback" (R6 A11: local Arial/Roboto scaled to its metrics in `tokens.css`, so the first-visit swap moves nothing); Urdu stays Nastaliq through index.css. Sizes as
   arbitrary values from DESIGN_SYSTEM §2 (`text-[17px] font-semibold` for a lead, `text-[13px] text-cp-ink-3` for meta).
   Small caps labels carry `cp-label` (Urdu: no caps, no tracking, 13 px, in tokens.css).
 - **One raised surface per screen** (`Surface`); everything else is flat on the ground, divided by hairlines.

@@ -32,10 +32,13 @@ describe("coachip-ui is reachable only from COACHIP", () => {
   it("every rule in tokens.css is scoped under .cp (no :root, no bare element selector)", () => {
     const css = readFileSync(join(SRC, "portal/coachip-ui/tokens.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
     const selectors = Array.from(css.matchAll(/([^{}@]+)\{/g)).map((m) => m[1].trim())
-      .filter((s) => s && !/^(from|to|\d+%)$/.test(s) && !/^(media|keyframes)\b/.test(s));
+      .filter((s) => s && !/^(from|to|\d+%)$/.test(s) && !/^(media|keyframes|font-face)\b/.test(s));
     expect(selectors.length).toBeGreaterThan(10);
     for (const sel of selectors) for (const one of sel.split(",")) expect(one.trim()).toMatch(/\.cp/);
     expect(css).not.toMatch(/:root/);
+    // R6 fix cycle 2 (A11): the one at-rule that is not a selector is a local fallback face, named for the `.cp` stack only
+    const families = Array.from(css.matchAll(/@font-face\s*\{[^}]*font-family:\s*"([^"]+)"/g)).map((m) => m[1]);
+    expect(families.every((f) => f === "Plus Jakarta Sans Fallback")).toBe(true);
   });
 
   it("index.css, index.html and the shell files are not changed to carry it", () => {

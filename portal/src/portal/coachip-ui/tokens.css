@@ -6,6 +6,53 @@
  * the `html[lang="ur"] .cp …` refinements below, which never touch index.css's own Urdu blocks (CODE_MAP C7).
  * tokens.ts carries the same values for inline SVG and tests; keep the two in step.
  */
+/* R6 fix cycle 2 (FIX_R6 §7.2 A11, design-qa 013450): Plus Jakarta Sans arrives with `display=swap`, so a first visit
+   draws in a system face and re-flows when the webfont lands (S6 EN cold 0.207 on sandbox: the opening note gains a line).
+   These local faces are Arial (Roboto where there is no Arial) scaled to the webfont, one face per weight, because the
+   webfont is wider than Arial in regular and about as wide in bold: Capsize's single figure (createFontStack
+   [plusJakartaSans, arial]: size-adjust 104.98 %) left S6 at 0.202 and moved S1. The size-adjusts are measured on the
+   deck's own copy (ux-coach r6c/sbx_sweep*.json: sandbox QA Coach 1, the webfont held 1.5 s, every gated page < 0.04):
+   400 and 500 at 109 % (the middle of the 108-110 band that passes S6), 600 at 99.25 %, 700 (and 800) at 102 %.
+   ascent/descent are the webfont's (1038 / 222 per 1000, Capsize) divided by size-adjust, since the browser scales the
+   overrides by it. Roboto is within 0.25 % of Arial (Capsize). A font-face only names a family: nothing outside `.cp`
+   asks for this one (coachipUi.flagOff). */
+@font-face {
+  font-family: "Plus Jakarta Sans Fallback";
+  src: local("Arial"), local("ArialMT"), local("Roboto"), local("Roboto Regular"), local("Roboto-Regular"), local("Helvetica Neue");
+  font-weight: 400;
+  size-adjust: 109%;
+  ascent-override: 95.2294%;
+  descent-override: 20.3670%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Plus Jakarta Sans Fallback";
+  src: local("Arial"), local("ArialMT"), local("Roboto"), local("Roboto Regular"), local("Roboto-Regular"), local("Helvetica Neue");
+  font-weight: 500;
+  size-adjust: 109%;
+  ascent-override: 95.2294%;
+  descent-override: 20.3670%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Plus Jakarta Sans Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Roboto Bold"), local("Roboto-Bold"), local("Helvetica Neue Bold"), local("HelveticaNeue-Bold");
+  font-weight: 600;
+  size-adjust: 99.25%;
+  ascent-override: 104.5844%;
+  descent-override: 22.3678%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Plus Jakarta Sans Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Roboto Bold"), local("Roboto-Bold"), local("Helvetica Neue Bold"), local("HelveticaNeue-Bold");
+  font-weight: 700;
+  size-adjust: 102%;
+  ascent-override: 101.7647%;
+  descent-override: 21.7647%;
+  line-gap-override: 0%;
+}
+
 .cp {
   --cp-green: #47ba7d;
   --cp-green-ink: #237a4c;
@@ -25,7 +72,7 @@
   --cp-shadow: 0 2px 8px rgba(51, 55, 72, 0.08);
   --cp-shadow-nav: 0 -2px 8px rgba(51, 55, 72, 0.05);
   --cp-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --cp-font-latin: "Plus Jakarta Sans", -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+  --cp-font-latin: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
   /* a ring on white by default; the band turns these to the on-navy pair below lg */
   --cp-ring-track: var(--cp-track);
   --cp-ring-num: var(--cp-navy);
