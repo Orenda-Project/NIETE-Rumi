@@ -12,15 +12,18 @@ import { SCHOOL_CARD } from "./copy";
 import { card } from "./api";
 import { useCardLoad } from "./frame";
 import { bucketLabels, perDayLine, usePeriod, withPeriod } from "./period";
-import { ActivityTile, Bars, CARD_FEATURES, ChangePill, CountsRow, FEATURE_OF, PeriodChips, Sparkline, StarChip } from "./parts";
+import { ActivityTile, Bars, COUNT_FEATURES, CountsRow, FEATURE_OF, PeriodChips, StarChip } from "./parts";
+import { ScoreLine, ScoreTile } from "./scores";
 import { FEATURE_HUE } from "../../teacher/icons/features";
 import type { CardTeacher, SchoolCardData } from "./types";
 
 /**
- * A school's School card (the switch on): the school, the period (Today · This week · This month), its four feature
- * tiles (plain counts: the total, "by N of M teachers", "about N a day" for a week or a month, a bar per school day or per
- * week; each opens that feature by teacher), its teachers (her four counts, last visit, Contribution %, ★ on the top two)
- * with the ones who did nothing in the period in a neutral fold, the coach observations, and the school's Manage group.
+ * A school's School card (the switch on): the school, the period (Today · This week · This month), then Digital Coaching
+ * and Coach observations first (the average score, a line of daily or weekly averages with the period's average dashed,
+ * "N observations · by N of M teachers"; each opens that kind by teacher), then the count tiles: lesson plans,
+ * assessments, training parts (the total, "by N of M teachers", "about N a day", a bar per school day or per week). Then
+ * its teachers (her four counts, last visit, Contribution %, ★ on the top two) with the ones who did nothing in the
+ * period in a neutral fold, and the school's Manage group.
  * No Share, no Schedule dock. Every number is the server's; one that did not load is "—", never 0.
  */
 
@@ -114,7 +117,17 @@ export default function SchoolCardPage() {
         <>
           <SectionLabel>{C.activity}</SectionLabel>
           <div data-testid="activity" className="flex flex-col gap-2.5">
-            {CARD_FEATURES.map((f) => {
+            {(["dc", "coach"] as const).map((kind) => {
+              const sc = data.scores?.[kind];
+              return (
+                <ScoreTile key={kind} kind={kind} avg={sc?.avg ?? null} count={sc?.count ?? null} makers={sc?.makers ?? null} teachers={data.school.teachers}
+                  to={withPeriod(`${base}/feature/${kind}`, period)} state={linkState}
+                  line={period !== "today" && sc && sc.count > 0 && labels.length
+                    ? <ScoreLine kind={kind} values={sc.series} avg={sc.avg} labels={labels} future={future} />
+                    : undefined} />
+              );
+            })}
+            {COUNT_FEATURES.map((f) => {
               const tile = data.tiles.find((x) => x.feature === f);
               const total = tile?.total ?? null;
               const lines = [
@@ -143,32 +156,6 @@ export default function SchoolCardPage() {
           {none.length > 0 && (
             <Fold title={C.nothing[period]} rows={none.map((t, i) => <TeacherRow key={t.teacherExtId} t={t} to={teacherLink(t.teacherExtId)} state={linkState} first={i === 0} />)} />
           )}
-
-          <SectionLabel count={C.inPeriod[period](data.coachObservations.count)}
-            right={data.coachObservations.teachers.length ? <span className="text-[13px] font-semibold text-[#6b7280]">{C.coachScore}</span> : undefined}>
-            {C.coachObs}
-          </SectionLabel>
-          {data.coachObservations.teachers.length === 0
-            ? <EmptyRow icon={<span>·</span>} testId="no-coach-obs">{C.noCoachObs[period]}</EmptyRow>
-            : (
-              <section data-testid="coach-obs" className={LIST}>
-                {data.coachObservations.teachers.map((o, i) => (
-                  // Information only: a coach observation's report lives in Observe, which the coach app does not show yet.
-                  <div key={o.teacherExtId} data-testid="coach-obs-row" role="group"
-                    className={`grid min-h-[68px] items-center gap-2.5 px-3.5 py-2 ${i ? "border-t border-[#f0f1f3]" : ""}`} style={{ gridTemplateColumns: "minmax(0,1fr) 64px auto" }}>
-                    <span className="min-w-0">
-                      <span dir="auto" className="block truncate text-[16px] font-semibold leading-[1.3]">{o.name}</span>
-                      <span className="text-[13px] leading-[1.3] text-[#6b7280] rtl:leading-[1.75]">{C.obsN(o.count)}</span>
-                    </span>
-                    <Sparkline values={o.points.map((p) => p.score).filter((s): s is number => typeof s === "number")} />
-                    <span className="flex flex-col items-end gap-[3px]">
-                      <b dir="ltr" className="text-[17px] font-bold tabular-nums" style={{ lineHeight: 1.15 }}>{C.pct(o.latest)}</b>
-                      <ChangePill delta={o.change} same={C.same} />
-                    </span>
-                  </div>
-                ))}
-              </section>
-            )}
 
           <ManageSchool emis={emis} name={data.school.name} teacherCount={data.school.teachers ?? teachers.length} />
         </>

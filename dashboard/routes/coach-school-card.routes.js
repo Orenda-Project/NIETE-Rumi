@@ -9,7 +9,6 @@
  *   GET /coach/school/:emis/scores/:kind?period=            dc | coach: the school's scores by teacher
  *   GET /coach/teacher/:ext/card?period=                    one teacher in her patch
  *   GET /coach/teacher/:ext/items/:feature?period=          lp | papers | training
- *   GET /coach/teacher/:ext/coaching?period=                her DC reports and coach visits, one list (the Coaching page)
  *   GET /coach/teacher/:ext/scores/:kind?period=            dc | coach: her scores, every practice averaged, her reports
  *   GET /coach/session/:id                                  one DC report or coach observation of a teacher in her patch
  *
@@ -118,14 +117,6 @@ function createCoachSchoolCardRouter(deps) {
     const opts = optsOf(req, res);
     if (!opts) return undefined;
     return answer(res, 'items', () => Card.getTeacherItems(query, coach(req), ext, feature, opts));
-  });
-
-  router.get('/coach/teacher/:ext/coaching', ...guards, async (req, res) => {
-    const ext = String(req.params.ext || '');
-    if (!EXT_RX.test(ext)) return notFound(res);
-    const opts = optsOf(req, res);
-    if (!opts) return undefined;
-    return answer(res, 'coaching', () => Card.getTeacherCoaching(query, coach(req), ext, opts));
   });
 
   router.get('/coach/session/:id', ...guards, async (req, res) => {

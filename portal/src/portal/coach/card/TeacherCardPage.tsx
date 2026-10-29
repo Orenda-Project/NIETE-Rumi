@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ChevronRight, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
 import { FEATURE_HUE } from "../../teacher/icons/features";
 import { Loading } from "../ui";
@@ -11,15 +11,15 @@ import { SCHOOL_CARD } from "./copy";
 import { card } from "./api";
 import { useCardLoad } from "./frame";
 import { bucketLabels, usePeriod, withPeriod } from "./period";
-import { Bars, CoachingLines, FEATURE_OF, NumTile, PeriodChips, ScoreChart, chartDate } from "./parts";
-import type { ItemsFeature, TeacherCardData } from "./types";
+import { Bars, FEATURE_OF, NumTile, PeriodChips } from "./parts";
+import { DaysUsed, ScoreLine } from "./scores";
+import type { ItemsFeature, ScoreKind, TeacherCardData } from "./types";
 
 /**
- * A teacher (the switch on): the period chips, then her tiles for the period. Lesson plans, Assessments and Training parts
- * each carry her count (and her own small bars for a week or a month) and open her list of them; the days with any NIETE
- * use are flat information. Between them, ONE wide Observations card: her Digital Coaching (count, AI score and its
- * change) and her Coach observations (count, Coach score) on two lines, and the two-series chart. The whole card opens her
- * Observations page (/coaching) for the same period, where her DC reports and coach observations are one list.
+ * A teacher (the switch on; design v9): the period chips, then her tiles. Digital Coaching and Coach observations first,
+ * each with her average score, "AI score · N observations" and a small line (a point per day or week with a report, her
+ * average dashed); each opens her page of that kind. Then Lesson plans, Assessments and Training parts (her count and her
+ * own small bars; each opens her list), and the days she used NIETE (one dot per school day), information only.
  */
 export default function TeacherCardPage() {
   const C = useCopy(SCHOOL_CARD);
@@ -33,8 +33,9 @@ export default function TeacherCardPage() {
 
   const me = `/portal/coach/teacher/${encodeURIComponent(ext)}`;
   const state = t ? { teacherName: t.name } : undefined;
-  const labels = data ? bucketLabels(period, data.period.buckets, C).map(([a]) => [a, ""] as [string, string]) : [];
-  const future = data ? data.period.buckets.map((b) => b.future) : [];
+  const buckets = data?.period.buckets ?? [];
+  const labels = data ? bucketLabels(period, buckets, C).map(([a]) => [a, ""] as [string, string]) : [];
+  const future = buckets.map((b) => b.future);
   const mini = (f: ItemsFeature, series: readonly (number | null)[] | undefined) =>
     period !== "today" && series && labels.length
       ? <Bars mini values={series} labels={labels} future={future} colour={FEATURE_HUE[FEATURE_OF[f]].fg} testId={`mini-${f}`} />
@@ -42,6 +43,32 @@ export default function TeacherCardPage() {
   const list = (f: ItemsFeature) => withPeriod(`${me}/items/${f}`, period);
   const v = (n: number | null | undefined) => (n == null ? C.dash : n.toLocaleString("en-US"));
   const tiles = data?.tiles;
+
+  // Her scores per day (week) or per week (month): the mean of her reports in each, from the card's chart.
+  const bucketOf = (date: string) => {
+    let at = -1;
+    buckets.forEach((b, i) => { if (b.date <= date) at = i; });
+    return period === "week" ? buckets.findIndex((b) => b.date === date) : at;
+  };
+  const line = (kind: ScoreKind) => {
+    if (!data || period === "today" || !labels.length) return undefined;
+    const pts = (data.chart ?? []).filter((p) => p.kind === kind && typeof p.score === "number");
+    if (!pts.length) return undefined;
+    const values = buckets.map((_, i) => {
+      const xs = pts.filter((p) => bucketOf(p.date) === i).map((p) => p.score as number);
+      return xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null;
+    });
+    return <ScoreLine compact kind={kind} values={values} avg={data.summary?.[kind]?.avg ?? null} labels={labels} future={future} />;
+  };
+  const scoreTile = (kind: ScoreKind) => {
+    const sc = data?.summary?.[kind];
+    return (
+      <NumTile testId={`t-${kind}`} feature={FEATURE_OF[kind]} value={C.pct(sc?.avg ?? null)}
+        label={kind === "dc" ? C.digitalCoaching : C.coachObsName}
+        sub={`${kind === "dc" ? C.aiScore : C.coachScore} · ${C.obsN(sc?.count ?? 0)}`}
+        bars={line(kind)} to={withPeriod(`${me}/${kind === "dc" ? "dc" : "observations"}`, period)} state={state} />
+    );
+  };
 
   return (
     <PeopleFrame title={t?.name || C.dash} crumb={t?.school || undefined} feature="schools"
@@ -57,27 +84,15 @@ export default function TeacherCardPage() {
       {!data && !failed && <Loading />}
       {data && tiles && (
         <div data-testid="teacher-tiles" className="[display:grid] grid-cols-2 gap-2.5">
+          {scoreTile("dc")}
+          {scoreTile("coach")}
           <NumTile testId="t-lp" feature="lessons" value={v(tiles.lp?.count)} label={C.tiles.lp} bars={mini("lp", tiles.lp?.series)} to={list("lp")} state={state} />
           <NumTile testId="t-papers" feature="assessment" value={v(tiles.papers?.count)} label={C.tiles.papers} bars={mini("papers", tiles.papers?.series)} to={list("papers")} state={state} />
-
-          {/* ONE Observations card: her DC observations and coach observations, their scores and the chart; it opens her Observations page. */}
-          <Link to={withPeriod(`${me}/coaching`, period)} state={state} data-testid="coaching-card"
-            className="col-span-2 flex flex-col gap-2.5 rounded-[20px] border border-[#e5e7eb] bg-white p-3.5 text-[#1d2025] shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-colors hover:bg-[#f9fafb] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#f59e0b]">
-            <span className="flex min-h-7 items-center gap-2">
-              <span data-testid="coaching-title" className="min-w-0 flex-1 text-[19px] font-bold leading-[1.3] rtl:leading-[1.8]">{C.observations}</span>
-              <ChevronRight className="h-[22px] w-[22px] shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
-            </span>
-            <CoachingLines summary={data.summary} />
-            {data.chart?.some((p) => typeof p.score === "number")
-              ? <ScoreChart points={data.chart} label={C.observations} aiWord={C.aiScore} coachWord={C.coachScore} dateLabel={chartDate(C)} height={118} />
-              : <span data-testid="no-scores" className="py-1 text-[15px] font-semibold text-[#6b7280]">{C.noScores}</span>}
-          </Link>
-
-          <NumTile testId="t-days" flat value={v(tiles.days?.withUse)} label={C.daysWithUse}
-            sub={tiles.days?.schoolDays != null ? C.ofSchoolDays(tiles.days.schoolDays) : undefined} />
           <NumTile testId="t-training" feature="training" value={v(tiles.training?.parts)} label={C.tiles.training}
             sub={tiles.training?.courses != null ? C.coursesDone(tiles.training.courses) : undefined}
             bars={mini("training", tiles.training?.series)} to={list("training")} state={state} />
+          <DaysUsed period={period} today={data.period.today} from={data.period.from} buckets={buckets}
+            used={tiles.days?.used ?? []} withUse={tiles.days?.withUse ?? null} schoolDays={tiles.days?.schoolDays ?? null} />
         </div>
       )}
       {data && !tiles && <EmptyRow icon={<span>·</span>}>{C.dash}</EmptyRow>}

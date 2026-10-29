@@ -43,14 +43,18 @@ describe("coach v2 routes", () => {
   it.each([
     ["/portal/coach/school/:emis/feature/:feature", "CoachFeatureGrid", "FeatureGridPage"],
     ["/portal/coach/teacher/:ext/items/:feature", "CoachHerItems", "HerItemsPage"],
-    ["/portal/coach/teacher/:ext/coaching", "CoachCoaching", "CoachingPage"],
-    // the old Her coaching reports and her DC / coach-visit lists open the Coaching page (nothing 404s)
+    // her Digital Coaching and her Coach observations: one page, two addresses
+    ["/portal/coach/teacher/:ext/dc", "CoachTeacherScores", "TeacherScoresPage"],
+    ["/portal/coach/teacher/:ext/observations", "CoachTeacherScores", "TeacherScoresPage"],
+    // the old Her coaching reports, her DC / coach-visit lists and option A's page open those (nothing 404s)
+    ["/portal/coach/teacher/:ext/coaching", "CoachCoachingRedirect", "CoachingRedirect"],
     ["/portal/coach/teacher/:ext/reports", "CoachCoachingRedirect", "CoachingRedirect"],
     ["/portal/coach/teacher/:ext/items/dc", "CoachCoachingRedirect", "CoachingRedirect"],
     ["/portal/coach/teacher/:ext/items/coach", "CoachCoachingRedirect", "CoachingRedirect"],
     ["/portal/coach/session/:id", "CoachSessionReport", "SessionReportPage"],
   ])("the School card's %s → %s, its own chunk", (path, component, file) => {
     expect(app).not.toContain("HerReportsPage");
+    expect(app).not.toContain("CoachingPage\"");
     expect(app).toContain(`<Route path="${path}" element={<${component} />} />`);
     expect(app).toContain(`const ${component} = page(() => import("./portal/coach/card/${file}"));`);
   });

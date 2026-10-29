@@ -103,8 +103,9 @@ const CoachLanding = page(() => import("./portal/coach/card/CoachLanding"));
 // The School card's own pages (each shows Not found unless the switch is on for her).
 const CoachFeatureGrid = page(() => import("./portal/coach/card/FeatureGridPage"));
 const CoachHerItems = page(() => import("./portal/coach/card/HerItemsPage"));
-// Her DC observations and coach visits, one page; the old Her coaching reports and DC / coach-visit lists open it.
-const CoachCoaching = page(() => import("./portal/coach/card/CoachingPage"));
+// Her Digital Coaching and her Coach observations (one page, two addresses); the old Her coaching reports, her DC and
+// coach-visit lists and /coaching open them.
+const CoachTeacherScores = page(() => import("./portal/coach/card/TeacherScoresPage"));
 const CoachCoachingRedirect = page(() => import("./portal/coach/card/CoachingRedirect"));
 const CoachSessionReport = page(() => import("./portal/coach/card/SessionReportPage"));
 const CoachScheduling = page(() => import("./portal/coach/pages/CoachScheduling"));
@@ -348,7 +349,9 @@ const App = () => {
             <Route path="/portal/coach/school/:emis/remove-teachers" element={<CoachRemoveTeachers />} />
             <Route path="/portal/coach/teacher/:ext" element={<CoachTeacher />} />
             <Route path="/portal/coach/teacher/:ext/items/:feature" element={<CoachHerItems />} />
-            <Route path="/portal/coach/teacher/:ext/coaching" element={<CoachCoaching />} />
+            <Route path="/portal/coach/teacher/:ext/dc" element={<CoachTeacherScores />} />
+            <Route path="/portal/coach/teacher/:ext/observations" element={<CoachTeacherScores />} />
+            <Route path="/portal/coach/teacher/:ext/coaching" element={<CoachCoachingRedirect />} />
             <Route path="/portal/coach/teacher/:ext/reports" element={<CoachCoachingRedirect />} />
             <Route path="/portal/coach/teacher/:ext/items/dc" element={<CoachCoachingRedirect />} />
             <Route path="/portal/coach/teacher/:ext/items/coach" element={<CoachCoachingRedirect />} />

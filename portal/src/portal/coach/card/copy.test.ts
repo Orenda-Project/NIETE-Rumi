@@ -45,31 +45,31 @@ describe("coach · school card copy", () => {
     expect(every).not.toMatch(/HITL|\bHead\b|\bactive\b|usage|engagement %|% of teachers/i);
   });
 
-  it("the Observations card and page: Digital Coaching and Coach observations (never \"Coaching\" alone), a report titled by its lesson", () => {
-    expect(SCHOOL_CARD.en.observations).toBe("Observations");
-    expect(SCHOOL_CARD.ur.observations).toBe("مشاہدات");
+  it("Digital Coaching and Coach observations (v9): averages, days used, practices, reports; observations, never visits", () => {
     expect(SCHOOL_CARD.en.digitalCoaching).toBe("Digital Coaching");
     expect(SCHOOL_CARD.ur.digitalCoaching).toBe("ڈیجیٹل کوچنگ");
-    expect(SCHOOL_CARD.en.coachObsLine).toBe("Coach observations");
-    expect(SCHOOL_CARD.ur.coachObsLine).toBe("کوچ کے مشاہدات");
-    expect(SCHOOL_CARD.en.coachObservation).toBe("Coach observation");
-    expect(SCHOOL_CARD.ur.coachObservation).toBe("کوچ کا مشاہدہ");
-    // the fallback title takes the kit's short subject (subjectShort): "Math lesson", Urdu "ریاضی کا سبق"
+    expect(SCHOOL_CARD.en.coachObsName).toBe("Coach observations");
+    expect(SCHOOL_CARD.ur.coachObsName).toBe("کوچ کے مشاہدات");
+    expect(SCHOOL_CARD.en.avgOf.dc).toBe("average AI score");
+    expect(SCHOOL_CARD.en.avgOf.coach).toBe("average Coach score");
+    expect(SCHOOL_CARD.en.byTeacher.dc).toBe("Digital Coaching by teacher");
+    expect(SCHOOL_CARD.en.byTeacher.coach).toBe("Coach observations by teacher");
+    expect(SCHOOL_CARD.en.daysUsed).toBe("days used");
+    expect(SCHOOL_CARD.en.byPractice).toBe("Average by practice");
+    expect(SCHOOL_CARD.en.across.dc(4, 2)).toBe("Across her 4 reports · out of 2");
+    expect(SCHOOL_CARD.en.across.coach(1, 2)).toBe("Across her 1 observation · out of 2");
+    expect(SCHOOL_CARD.en.scoredIn(1, 4)).toBe("Scored in 1 of 4 (the others had no lesson plan)");
+    expect(SCHOOL_CARD.en.herList.dc).toBe("Her reports");
+    expect(SCHOOL_CARD.en.herList.coach).toBe("Her observations");
+    expect(SCHOOL_CARD.en.noKind.dc.week).toBe("No DC observations this week");
+    expect(SCHOOL_CARD.en.noKind.coach.today).toBe("No coach observations today");
     expect(SCHOOL_CARD.en.lessonOf("Math")).toBe("Math lesson");
-    expect(SCHOOL_CARD.en.lessonOf("")).toBe("Lesson");
     expect(SCHOOL_CARD.ur.lessonOf("ریاضی")).toBe("ریاضی کا سبق");
-    expect(SCHOOL_CARD.ur.lessonOf("")).toBe("سبق");
-    expect(SCHOOL_CARD.en.noObs.week).toBe("No observations this week");
-    expect(SCHOOL_CARD.en.noObs.today).toBe("No observations today");
-    expect(SCHOOL_CARD.en.noObs.month).toBe("No observations this month");
-    expect(SCHOOL_CARD.en.noDc.week).toBe("No DC observations this week");
-    expect(SCHOOL_CARD.en.noCoachObsFilter.week).toBe("No coach observations this week");
-    expect(SCHOOL_CARD.en.obsN(1)).toBe("1 observation");
-    expect(SCHOOL_CARD.en.obsN(2)).toBe("2 observations");
-    // the never list: no "Coaching" on its own, no "Coach visits" as a feature name
-    const every = [...collectCopy(SCHOOL_CARD.en)].map((c) => c.text);
+    // the vocabulary: a coach observation is an observation, never a visit; "Coaching" alone is never a name
+    const every = collectCopy(SCHOOL_CARD.en).map((c) => c.text);
+    // ("Last visit" is the coach's last visit to the school, a different thing)
+    expect(every.join(" | ")).not.toMatch(/\d+ visits?\b|Her visits/i);
     expect(every).not.toContain("Coaching");
-    expect(every).not.toContain("Coach visits");
   });
 
   it("plain counts, never a rate of teachers", () => {
