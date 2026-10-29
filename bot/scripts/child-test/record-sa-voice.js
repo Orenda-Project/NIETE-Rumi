@@ -20,10 +20,10 @@
  * for every provider, and Soniox alone gets the Urdu respellings (sayAs), as in the samples. --concurrency <n> lines at
  * once (default 1). In v4 a bare sum ends on "equals" («برابر»), so the child hears a blank to fill; --sums re-records
  * just the sums, over the clips already on disk. A letter sound is voiced as a sound (withSounds); --sounds re-records
- * just those lines.
+ * just those lines. A praise line is said with [excited] (isPraise); --praise re-records just those.
  *
  *   node scripts/child-test/record-sa-voice.js --lang en|ur [--only item|instruction|…] [--set v1|v2|v3|v4] [--extra <file>]
- *        [--provider soniox|elevenlabs|uplift --voice <id> --speed <x> --concurrency <n> --sums --sounds]   (v4 only)
+ *        [--provider soniox|elevenlabs|uplift --voice <id> --speed <x> --concurrency <n> --sums --sounds --praise]   (v4 only)
  *        [--apply] [--max-usd 1] [--spend-log <file.jsonl> --spend-extra '<json merged into each line>']
  *
  * Without --apply: prints the line count, the characters and the price, and calls nothing. With --apply: one call a
@@ -48,7 +48,7 @@ const KBPS = 32;
 
 function parseArgs(argv) {
   const args = { lang: null, only: null, set: 'v1', extra: null, apply: false, maxUsd: 1, spendLog: null, spendExtra: {},
-    provider: null, voice: null, speed: null, concurrency: 1, sums: false, sounds: false };
+    provider: null, voice: null, speed: null, concurrency: 1, sums: false, sounds: false, praise: false };
   for (let i = 0; i < (argv || []).length; i += 1) {
     const a = argv[i];
     const next = () => argv[++i];
@@ -59,6 +59,7 @@ function parseArgs(argv) {
     else if (a === '--apply') args.apply = true;
     else if (a === '--sums') args.sums = true;
     else if (a === '--sounds') args.sounds = true;
+    else if (a === '--praise') args.praise = true;
     else if (a === '--provider') args.provider = String(next() || '').trim();
     else if (a === '--voice') args.voice = String(next() || '').trim();
     else if (a === '--speed') args.speed = Number(next()) || null;
@@ -139,13 +140,15 @@ async function runV4(args, { synth, level, out, outDir, dataDir, env }) {
   const sum = (r) => r.role === 'item' && P.withEquals(r.text, r.lang) !== r.text;
   // [slowly] is an eleven_v3 tag: the sound respelling goes to ElevenLabs only.
   const sound = (r) => args.provider === 'elevenlabs' && P.withSounds(r.text, r.lang) !== r.text;
+  const praise = (r) => args.provider === 'elevenlabs' && P.isPraise(r.text);
   const jobs = rows
-    .filter((r) => r.lang === args.lang && (!args.only || r.role === args.only) && (!args.sums || sum(r)) && (!args.sounds || sound(r)))
+    .filter((r) => r.lang === args.lang && (!args.only || r.role === args.only) && (!args.sums || sum(r)) && (!args.sounds || sound(r))
+      && (!args.praise || praise(r)))
     .map((r) => {
       const said = sum(r) ? P.withEquals(r.text, r.lang) : sound(r) ? P.withSounds(r.text, r.lang) : (tashdeed.get(r.key) || r.text);
       const spoken = args.provider === 'soniox' ? Voice.sayAs(said, args.lang, { voice })
         : P.spellEnglishNumbers(said);
-      const text = P.withTag(args.provider, r.role, spoken, voice);
+      const text = praise(r) ? `[excited] ${spoken}` : P.withTag(args.provider, r.role, spoken, voice);
       return { ...r, key: r.key.replace(/^sa\/v1\//, 'sa/v4/'), job: { provider: args.provider, voice, speed, lang: args.lang, text } };
     });
   const chars = jobs.reduce((n, j) => n + j.job.text.length, 0);
@@ -161,7 +164,7 @@ async function runV4(args, { synth, level, out, outDir, dataDir, env }) {
     while (next < jobs.length && !stopped) {
       const j = jobs[next]; next += 1;
       const target = path.join(outDir, j.key);
-      if (!args.sums && !args.sounds && fs.existsSync(target) && fs.statSync(target).size > 500) continue;
+      if (!args.sums && !args.sounds && !args.praise && fs.existsSync(target) && fs.statSync(target).size > 500) continue;
       if (usd >= args.maxUsd) { stopped = 'max_usd'; break; }
       try {
         const res = await say(j.job);

@@ -83,6 +83,10 @@ function withSounds(text, lang) {
   }
   return text;
 }
+// Praise is said enthusiastically and lovingly (the content owner, round 8 item 9): a praise line goes to ElevenLabs
+// with the [excited] tag in place of the instruction mood tag.
+const PRAISE = /شاباش|^(?:Yes!|Very good\b)|\bWell done\b/;
+const isPraise = (text) => PRAISE.test(String(text));
 // The samples' "cartoon" voices carried a livelier instruction tag than the adult ones.
 const CARTOON_TAG = Object.freeze({ CNKl99QEbWm8RQ4D8GfC: '[cheerfully]' });
 
@@ -141,4 +145,4 @@ async function synthesize(job, { env = process.env, fetchImpl = fetch, attempts 
   throw err;
 }
 
-module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withSounds, withTag, requestFor, synthesize };
+module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withSounds, isPraise, withTag, requestFor, synthesize };
