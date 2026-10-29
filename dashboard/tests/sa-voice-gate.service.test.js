@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-17'); // sa-17: round 8 close, sa-offline.js (a new worker is waited for; not ready while it is pending)
+    expect(sw.CORE).toBe('sa-core-sa-18'); // sa-18: round 8 close, sa-offline.js (not ready when a newer worker turned up)
   });
 });
 
