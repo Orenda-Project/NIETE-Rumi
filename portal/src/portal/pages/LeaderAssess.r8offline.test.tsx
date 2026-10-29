@@ -21,7 +21,7 @@ vi.mock("../components/assess/offlineReady", async (orig) => {
 });
 
 import { portal, childTestSa } from "../services/api";
-import { prepForms, checkForms, keepPageOffline, dropPageOffline, FAST_START_MS, GATE_CAP_MS } from "../components/assess/offlineReady";
+import { prepForms, checkForms, keepPageOffline, dropPageOffline, FAST_START_MS } from "../components/assess/offlineReady";
 import LeaderAssess from "./LeaderAssess";
 
 const api = childTestSa as any;
@@ -101,8 +101,9 @@ describe("sa_r8_fast_start", () => {
 });
 
 describe("sa_r8_offline_first", () => {
-  it("ON: the child's own part goes on the phone before Start (the whole battery warms from the list), then the test opens", async () => {
+  it("ON, no signal: the child's own part must be on the phone before Start (the whole battery warms from the list), then the test opens", async () => {
     api.getSwitches.mockResolvedValue({ ...SW, r8OfflineFirst: true });
+    const online = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
     check.mockResolvedValue({ ready: false, total: 100, cached: 10 });
     const start = await toHandover();
     await waitFor(() => expect(prep.mock.calls.some((c: any[]) => c[0][0] === "sa.coach.G3.A.en" && !c[2])).toBe(true));
@@ -120,6 +121,7 @@ describe("sa_r8_offline_first", () => {
     expect(api.markOutcome).toHaveBeenCalledTimes(1);
     // the other language follows behind the test
     await waitFor(() => expect(prep.mock.calls.some((c: any[]) => c[0][0] === "sa.coach.G3.A.ur")).toBe(true));
+    online.mockRestore();
   });
 
   it("ON: the part already on the phone → Start opens with no download at all", async () => {
@@ -130,8 +132,9 @@ describe("sa_r8_offline_first", () => {
     expect(prep.mock.calls.filter((c: any[]) => c[2])).toHaveLength(0);
   });
 
-  it("ON: the list's background download holds while the Start gate downloads the part", async () => {
+  it("ON, no signal: the list's background download holds while the Start gate downloads the part", async () => {
     api.getSwitches.mockResolvedValue({ ...SW, r8OfflineFirst: true });
+    const online = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
     check.mockResolvedValue({ ready: false, total: 100, cached: 0 });
     let paused: (() => boolean) | null = null;
     let release: (v: unknown) => void = () => {};
@@ -149,6 +152,7 @@ describe("sa_r8_offline_first", () => {
     release(OK);
     await screen.findByTestId("assess-engine-frame");
     expect(paused!()).toBe(false);
+    online.mockRestore();
   });
 
   it("ON, no signal: when the battery cannot come down, no test and no Present: the coach sees why, with Try again", async () => {
@@ -178,16 +182,19 @@ describe("sa_r8_offline_first", () => {
     online.mockRestore();
   });
 
-  it("ON, online but the part is slow to come down: Start waits at most GATE_CAP_MS, then the test opens as today", async () => {
+  it("ON, online and the part not on the phone: Start does not wait for it (it downloads behind the test), so no first Start is slower than today", async () => {
     api.getSwitches.mockResolvedValue({ ...SW, r8OfflineFirst: true });
-    check.mockResolvedValue({ ready: false, total: 100, cached: 0 });
+    let checked: (v: unknown) => void = () => {};
+    check.mockReturnValue(new Promise((ok) => { checked = ok; }));
     prep.mockImplementation((_f: string[], _p: unknown, part: unknown) => (part ? new Promise(() => {}) : Promise.resolve(OK)));
     const start = await toHandover();
     const t0 = Date.now();
     fireEvent.click(start);
-    await screen.findByTestId("assess-engine-frame", undefined, { timeout: GATE_CAP_MS + 2000 });
-    expect(Date.now() - t0).toBeGreaterThanOrEqual(GATE_CAP_MS - 100);
-    expect(Date.now() - t0).toBeLessThan(GATE_CAP_MS + 1500);
+    await screen.findByTestId("assess-engine-frame");
+    expect(Date.now() - t0).toBeLessThan(800);
+    // the phone check and the part's download still run, behind the test
+    checked({ ready: false, total: 100, cached: 0 });
+    await waitFor(() => expect(prep.mock.calls.some((c: any[]) => c[2])).toBe(true));
   });
 
   it("ON, online and the part fails to come down (a server error): the test opens as today, no stop", async () => {

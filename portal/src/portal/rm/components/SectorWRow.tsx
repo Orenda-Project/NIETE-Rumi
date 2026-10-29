@@ -2,9 +2,10 @@ import { useLang } from "../../teacher/i18n";
 import { CodeText, WindowMark } from "../../coach/insights/count";
 import { dateShort, range } from "../../coach/insights/format";
 import { pick } from "../../coach/insights/text";
-import type { Count, School, WRow } from "../../coach/insights/types";
+import type { Count, School, Window, WRow } from "../../coach/insights/types";
 import { CountLine } from "./CountLine";
-import { rt, rtx } from "../text";
+import { rt, rtx, rtxTemplate } from "../text";
+import { RM_COPY } from "../rm.copy";
 import { WRowFrame } from "../../coach/insights/components/WRow";
 import { RingCount } from "../../coachip-ui/Count";
 import { Ring } from "../../coachip-ui/Ring";
@@ -24,23 +25,45 @@ import { FractionBar } from "../../coachip-ui/FractionBar";
 /** Urdu only: the line breaks before a Latin school name, never inside it, and an "n of d" stays whole (ux-coach 185839). */
 export const URDU_ISOLATE = "[&_[data-code]]:inline-block [&_[data-num]]:whitespace-nowrap";
 
-export function SectorWRow({ row, bySchool, agenda, sector, testId = "sector-wrow" }: {
+/** A fidelity window's one meta line: the range, the grader, the scoring change ("28 Sep to 25 Oct · lesson-plan fidelity"). */
+export function windowMeta(w: Window, lang: "en" | "ur"): string {
+  const meta = [range(w.from, w.to, lang)];
+  if (w.grader_label) meta.push(pick(w.grader_label, lang));
+  if (w.scoring_changed_on) meta.push(rt("meta.changed", lang, { date_short: dateShort(w.scoring_changed_on, lang) }));
+  return meta.join(lang === "ur" ? "، " : " · ");
+}
+
+/** EN one line ("S-01 · 11 of 22 lessons"); UR the school on its own line and the count under it, so no digit crosses
+ *  the bidi boundary (FIX_R6 B6, lander 212337). */
+function SchoolLine({ school, count, lang }: { school: string; count: Count; lang: "en" | "ur" }) {
+  const name = <CodeText lang={lang}>{school}</CodeText>;
+  const slot = [{ n: "n", d: "d", count }];
+  if (lang !== "ur") return <span>{rtx("s8.moves.by_school.row", lang, { school: name }, slot)}</span>;
+  const rest = RM_COPY["s8.moves.by_school.row"].ur.split("{school}")[1].replace(/^[\s،]+/, "");
+  return (
+    <span className={URDU_ISOLATE}>
+      <span className="block">{name}</span>
+      <span className="block">{rtxTemplate(rest, "s8.moves.by_school.row", lang, {}, slot)}</span>
+    </span>
+  );
+}
+
+export function SectorWRow({ row, bySchool, agenda, sector, stated, testId = "sector-wrow" }: {
   row: WRow; bySchool?: readonly { school: School; count: Count }[]; agenda?: boolean;
   /** S9: the row is one coach's and this is the sector's count beside it ("Urban-I: 171 of 505"). */
-  sector?: { label: string; count: Count } | null; testId?: string;
+  sector?: { label: string; count: Count } | null;
+  /** FIX_R6 B1: the window the screen already states (a block's hint, a card); the row then drops its own line. */
+  stated?: string; testId?: string;
 }) {
   const lang = useLang();
-  const sep = lang === "ur" ? "، " : " · ";
-  const meta = [range(row.window.from, row.window.to, lang)];
-  if (row.window.grader_label) meta.push(pick(row.window.grader_label, lang));
-  if (row.window.scoring_changed_on) meta.push(rt("meta.changed", lang, { date_short: dateShort(row.window.scoring_changed_on, lang) }));
   const count = row.state !== "not_yet" ? row.count : null;
   const name = <p className="text-[16px] font-semibold leading-snug text-cp-ink">{pick(row.short_name, lang)}</p>;
   return (
     <WRowFrame testId={testId} w={row.w_id} state={row.state} kind="sector" agenda={agenda}
-      lead={count ? undefined : <Ring n={0} d={1} size="row" className="me-1" />}>
+      lead={count ? undefined : <Ring n={0} d={1} size="row" tone="notice" className="me-1" />}>
       {count ? (
-        <RingCount count={count} lang={lang} size="row">
+        // FIX_R6 B4: a weakness count is a notice (navy), never a green arc
+        <RingCount count={count} lang={lang} size="row" tone="notice">
           {name}
           <p className="mt-0.5 text-[14px] leading-[1.45] text-cp-ink-2">{pick(row.sentence, lang)}</p>
         </RingCount>
@@ -63,8 +86,8 @@ export function SectorWRow({ row, bySchool, agenda, sector, testId = "sector-wro
             // bd-sex15q.47 (ux-lead-2 183234 #2): the sentence full width, then the bar on its own line (real names are long)
             <li key={b.school.school_id} data-testid="by-school-row" className="flex flex-col gap-1.5 py-2 text-[14px] leading-[1.45] text-cp-ink">
               {/* ux-coach 185839: in Urdu the name is one atomic box and "۹ میں سے ۶" never splits */}
-              <span className={lang === "ur" ? URDU_ISOLATE : undefined}>{rtx("s8.moves.by_school.row", lang, { school: <CodeText lang={lang}>{b.school.school_name}</CodeText> }, [{ n: "n", d: "d", count: b.count }])}</span>
-              <FractionBar n={b.count.n} d={b.count.d} className="w-full" />
+              <SchoolLine school={b.school.school_name} count={b.count} lang={lang} />
+              <FractionBar n={b.count.n} d={b.count.d} tone="notice" className="w-full" />
             </li>
           ))}
         </ul>
@@ -74,7 +97,7 @@ export function SectorWRow({ row, bySchool, agenda, sector, testId = "sector-wro
           {rtx("wrow.sector", lang, { sector: <CodeText lang={lang}>{sector.label}</CodeText> }, [{ n: "n", d: "d", count: sector.count }])}
         </p>
       )}
-      <WindowMark window={row.window} className="text-[13px] leading-[1.45] text-cp-ink-3">{meta.join(sep)}</WindowMark>
+      {stated !== row.window.id && <WindowMark window={row.window} className="text-[13px] leading-[1.45] text-cp-ink-3">{windowMeta(row.window, lang)}</WindowMark>}
     </WRowFrame>
   );
 }

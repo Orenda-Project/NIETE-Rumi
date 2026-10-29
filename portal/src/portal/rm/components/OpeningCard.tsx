@@ -37,8 +37,9 @@ export function OpeningCard({ home }: { home: RmHome }) {
   const sep = lang === "ur" ? "، " : " · ";
   return (
     <div data-testid="rm-opening" className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center lg:gap-x-10">
+      {/* FIX_R6 B4: schools visited is a strength count (green as visits happen), the one green ring on the RM deck */}
       <div data-testid="rm-opening-sentence" data-window={o.visited.window_id} className="contents">
-        <RingCount count={o.visited} lang={lang} size="hero">
+        <RingCount count={o.visited} lang={lang} size="hero" tone="strength">
           <p className="text-[17px] font-medium leading-[1.42]">{lead}</p>
         </RingCount>
         {rest && (

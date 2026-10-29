@@ -13,7 +13,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `routing.js` | Routes a TTS use case to an ordered provider chain from configuration (resolveChain) |
 
 ## Who reads this (all, generated)
-- `index.js` ← imported by `bot/scripts/child-test/record-sa-voice.js:97:d4fc4e89` · `bot/scripts/quiz/record-one-voice-shared-lines.js:163:84470ea7` · `bot/scripts/quiz/record-welcome-lines.js:58:d4fc4e89` · `bot/shared/handlers/voice-message.handler.js:11:a571448f` (+7: `python3 kg/kg.py who-reads index.js`)
+- `index.js` ← imported by `bot/scripts/child-test/record-sa-voice.js:99:d4fc4e89` · `bot/scripts/quiz/record-one-voice-shared-lines.js:163:84470ea7` · `bot/scripts/quiz/record-welcome-lines.js:58:d4fc4e89` · `bot/shared/handlers/voice-message.handler.js:11:a571448f` (+7: `python3 kg/kg.py who-reads index.js`)
 - `ogg-opus.js` ← imported by `bot/shared/services/tts/index.js:22:109dfb74` · `bot/shared/services/tts/providers/soniox.provider.js:30:7656355b`
 - `routing.js` ← imported by `bot/shared/services/tts/index.js:21:eda33c95`
 

@@ -55,6 +55,14 @@ function spellEnglishNumbers(text) {
   });
 }
 
+// A bare sum ("18 plus 7", «۱۵ منفی ۷») is read as a sentence to finish, so the child answers it rather than repeating it.
+const SUM = /^\s*[\d۰-۹][\d۰-۹,]*\s+(?:plus|minus|times|جمع|منفی|ضرب|تقسیم)\s+[\d۰-۹][\d۰-۹,]*\s*$/;
+const EQUALS = Object.freeze({ en: 'equals', ur: 'برابر' });
+
+function withEquals(text, lang) {
+  return EQUALS[lang] && SUM.test(text) ? `${text.trim()} ${EQUALS[lang]}` : text;
+}
+
 // The samples' "cartoon" voices carried a livelier instruction tag than the adult ones.
 const CARTOON_TAG = Object.freeze({ CNKl99QEbWm8RQ4D8GfC: '[cheerfully]' });
 
@@ -113,4 +121,4 @@ async function synthesize(job, { env = process.env, fetchImpl = fetch, attempts 
   throw err;
 }
 
-module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withTag, requestFor, synthesize };
+module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withTag, requestFor, synthesize };
