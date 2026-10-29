@@ -103,10 +103,32 @@
     });
   }
 
+  var UPDATE_WAIT_MS = 10000;
+
+  /**
+   * reg.update(), then the new worker it finds, active, within UPDATE_WAIT_MS. register() with the same script URL never
+   * looks for a new worker, so a phone on the previous SESSION used to prepare into the old worker's cache, which the new
+   * worker deletes when it activates on the first online child start. Offline (update rejects), with no new worker, or
+   * past the bound: the registration as it is, its active worker unchanged.
+   */
+  function updated(reg) {
+    return new Promise(function (ok) {
+      var done = false;
+      var finish = function () { if (!done) { done = true; clearTimeout(t); ok(reg); } };
+      var t = setTimeout(finish, UPDATE_WAIT_MS);
+      Promise.resolve().then(function () { return reg.update(); }).then(function () {
+        var w = reg.installing || reg.waiting;
+        if (!w || typeof w.addEventListener !== 'function') return finish();
+        w.addEventListener('statechange', function () { if (w.state === 'activated' || w.state === 'redundant') finish(); });
+        if (w.state === 'activated') finish();
+      }, finish);
+    });
+  }
+
   /**
    * The engine's registration, without waiting on the network: register() fetches the worker's script, so with no signal it
    * rejects even when the worker is installed and every file is on the phone (round 8, the school with no signal). An
-   * active registration is used as it is (the update is asked for behind it, a failure ignored); a phone with none
+   * active registration is updated first (updated(), bounded; a failure keeps the installed worker); a phone with none
    * registers first.
    */
   function registration(sw) {
@@ -115,6 +137,7 @@
     var have = typeof sw.getRegistration === 'function' ? Promise.resolve().then(function () { return sw.getRegistration('/sa/'); }).then(null, function () { return null; }) : Promise.resolve(null);
     return have.then(function (reg) {
       if (reg && reg.active) {
+        if (typeof reg.update === 'function') return updated(reg);
         Promise.resolve().then(fresh).then(null, function () { /* offline: the installed worker serves */ });
         return reg;
       }
