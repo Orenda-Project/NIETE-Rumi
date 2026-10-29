@@ -24,8 +24,8 @@ describe("coach · school card copy", () => {
   });
 
   it("speaks the ontology: DC observation, Coach observations, Papers made, scores say whose", () => {
-    expect(SCHOOL_CARD.en.tiles.dc).toBe("DC observations");
-    expect(SCHOOL_CARD.ur.tiles.dc).toBe("ڈیجیٹل کوچنگ مشاہدات");
+    expect(SCHOOL_CARD.en.tileLabel.dc(2)).toBe("DC observations");
+    expect(SCHOOL_CARD.ur.tileLabel.dc(2)).toBe("ڈیجیٹل کوچنگ مشاہدات");
     expect(SCHOOL_CARD.en.coachObs).toBe("Coach observations");
     expect(SCHOOL_CARD.ur.coachObs).toBe("مشاہدات");
     expect(SCHOOL_CARD.en.tiles.papers).toBe("Papers made");
@@ -35,6 +35,33 @@ describe("coach · school card copy", () => {
     const every = [...collectCopy(SCHOOL_CARD.en), ...collectCopy(SCHOOL_CARD.ur)].map((c) => c.text).join(" | ");
     // ("Student Engagement" is a framework section's own name, not an engagement rate.)
     expect(every).not.toMatch(/HITL|\bHead\b|\bactive\b|usage|engagement %|% of teachers/i);
+  });
+
+  it("the Observations card and page: Digital Coaching and Coach observations (never \"Coaching\" alone), a report titled by its lesson", () => {
+    expect(SCHOOL_CARD.en.observations).toBe("Observations");
+    expect(SCHOOL_CARD.ur.observations).toBe("مشاہدات");
+    expect(SCHOOL_CARD.en.digitalCoaching).toBe("Digital Coaching");
+    expect(SCHOOL_CARD.ur.digitalCoaching).toBe("ڈیجیٹل کوچنگ");
+    expect(SCHOOL_CARD.en.coachObsLine).toBe("Coach observations");
+    expect(SCHOOL_CARD.ur.coachObsLine).toBe("کوچ کے مشاہدات");
+    expect(SCHOOL_CARD.en.coachObservation).toBe("Coach observation");
+    expect(SCHOOL_CARD.ur.coachObservation).toBe("کوچ کا مشاہدہ");
+    // the fallback title takes the kit's short subject (subjectShort): "Math lesson", Urdu "ریاضی کا سبق"
+    expect(SCHOOL_CARD.en.lessonOf("Math")).toBe("Math lesson");
+    expect(SCHOOL_CARD.en.lessonOf("")).toBe("Lesson");
+    expect(SCHOOL_CARD.ur.lessonOf("ریاضی")).toBe("ریاضی کا سبق");
+    expect(SCHOOL_CARD.ur.lessonOf("")).toBe("سبق");
+    expect(SCHOOL_CARD.en.noObs.week).toBe("No observations this week");
+    expect(SCHOOL_CARD.en.noObs.today).toBe("No observations today");
+    expect(SCHOOL_CARD.en.noObs.month).toBe("No observations this month");
+    expect(SCHOOL_CARD.en.noDc.week).toBe("No DC observations this week");
+    expect(SCHOOL_CARD.en.noCoachObsFilter.week).toBe("No coach observations this week");
+    expect(SCHOOL_CARD.en.obsN(1)).toBe("1 observation");
+    expect(SCHOOL_CARD.en.obsN(2)).toBe("2 observations");
+    // the never list: no "Coaching" on its own, no "Coach visits" as a feature name
+    const every = [...collectCopy(SCHOOL_CARD.en)].map((c) => c.text);
+    expect(every).not.toContain("Coaching");
+    expect(every).not.toContain("Coach visits");
   });
 
   it("plain counts, never a rate of teachers", () => {

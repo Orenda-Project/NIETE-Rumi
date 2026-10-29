@@ -6,8 +6,9 @@
  * leader_schools, the roster rule, the window, the status rules). The service is never mocked.
  *
  * Covered: the counting definitions (one function each), the v10 next-step rule (a coach at an A, B or undrawn
- * school never sees the C/D "one thing to try"), no transcript anywhere, and the access rule — another coach's
- * school, a teacher outside her patch and a session of such a teacher are each null (the route's 404).
+ * school never sees the C/D "one thing to try"), the Coaching page (her DC reports and coach visits in ONE list, each
+ * with a title only when the report has a real lesson label), no transcript anywhere, and the access rule — another
+ * coach's school, a teacher outside her patch and a session of such a teacher are each null (the route's 404).
  */
 const Card = require('../../dashboard/services/coach-school-card.service');
 
@@ -25,6 +26,7 @@ function scores(pct) {
 function analysis(pct, extra = {}) {
   return {
     scores: scores(pct),
+    framework: 'fico',
     grade: 3,
     subject: 'math',
     domains: {
@@ -95,14 +97,14 @@ function baseTables() {
     ],
     sessions: [
       // DC
-      { id: 'd1', user_id: 'u1', created_at: pk('2026-10-26 10:00'), status: 'completed', observation_type: null, analysis_data: analysis(60), prioritized_action: { action: 'ACTION-d1 next class', thing_to_try: { text: 'TRY-d1 the exit ticket', move_id: 'm2' } }, conversation_state: { questions: [{ question: 'What went well?', answer: 'The pairs talked.' }, { question: 'Q2', answer: '' }] }, transcript_text: 'TRANSCRIPT child Ali said' },
+      { id: 'd1', user_id: 'u1', created_at: pk('2026-10-26 10:00'), status: 'completed', observation_type: null, analysis_data: analysis(60), prioritized_action: { action: 'ACTION-d1 next class', lesson_label: 'FICO', thing_to_try: { text: 'TRY-d1 the exit ticket', move_id: 'm2' } }, conversation_state: { questions: [{ question: 'What went well?', answer: 'The pairs talked.' }, { question: 'Q2', answer: '' }] }, transcript_text: 'TRANSCRIPT child Ali said' },
       { id: 'd2', user_id: 'u1', created_at: pk('2026-10-27 10:00'), status: 'completed', observation_type: null, duplicate_of_session_id: 'd1', analysis_data: analysis(60) },
       { id: 'd3', user_id: 'u1', created_at: pk('2026-10-27 11:00'), status: 'processing', observation_type: null, analysis_data: analysis(55) },
       { id: 'd4', user_id: 'u1', created_at: pk('2026-10-28 09:00'), status: 'completed', observation_type: null, analysis_data: { grade: 3 } },
-      { id: 'd5', user_id: 'u1', created_at: pk('2026-10-28 10:00'), status: 'completed', observation_type: null, analysis_data: analysis(70), prioritized_action: { action: 'ACTION-d5', thing_to_try: { text: '   ' } } },
+      { id: 'd5', user_id: 'u1', created_at: pk('2026-10-28 10:00'), status: 'completed', observation_type: null, analysis_data: analysis(70, { topic: 'Types of Fractions' }), prioritized_action: { action: 'ACTION-d5', lesson_label: 'Fractions · Halves', thing_to_try: { text: '   ' } } },
       { id: 'd0', user_id: 'u1', created_at: pk('2026-10-20 10:00'), status: 'completed', observation_type: null, analysis_data: analysis(50) },
       // coach observations
-      { id: 'h1', user_id: 'u1', created_at: pk('2026-10-26 12:00'), status: 'observer_review_complete', observation_type: 'leader_observation', observer_user_id: 'coach-1', analysis_data: analysis(50), prioritized_action: { action: 'STEP-h1 agreed' } },
+      { id: 'h1', user_id: 'u1', created_at: pk('2026-10-26 12:00'), status: 'observer_review_complete', observation_type: 'leader_observation', observer_user_id: 'coach-1', analysis_data: analysis(50, { topic: 'Unitary Method' }), prioritized_action: { action: 'STEP-h1 agreed' } },
       { id: 'h2', user_id: 'u1', created_at: pk('2026-10-28 12:00'), status: 'awaiting_observer_review', observation_type: 'leader_observation', observer_user_id: 'coach-2', analysis_data: analysis(65) },
       { id: 'h3', user_id: 'u1', created_at: pk('2026-10-27 12:00'), status: 'failed', observation_type: 'leader_observation', observer_user_id: 'coach-1', analysis_data: analysis(40) },
       { id: 'h4', user_id: 'u1', created_at: pk('2026-10-27 13:00'), status: 'observer_review_complete', observation_type: 'leader_observation', observer_user_id: 'coach-1', analysis_data: analysis(80, { observe2: { rubric: 'fico17' } }) },
@@ -274,14 +276,14 @@ function fakeDb(t) {
         return {
           rows: t.sessions.filter((c) => params[0].includes(c.id)).map((c) => {
             const pa = c.prioritized_action || {};
-            return { id: c.id, action: pa.action == null ? null : pa.action, thing_text: pa.thing_to_try ? pa.thing_to_try.text : null };
-          }),
-        };
-      case 'strengths':
-        return {
-          rows: t.sessions.filter((c) => params[0].includes(c.id)).map((c) => {
             const a = c.analysis_data || {};
-            return { id: c.id, strengths: a.strengths || null, lp_strengths: (a.lp_fidelity && a.lp_fidelity.strengths) || null, narrative: a.report_narrative || null };
+            // The SQL returns the thing to try only for a C or D school ($2), as the real read does.
+            const thing = ['C', 'D'].includes(params[1]) && pa.thing_to_try ? pa.thing_to_try.text : null;
+            return {
+              id: c.id, action: pa.action == null ? null : pa.action, thing_text: thing,
+              topic: a.topic == null ? null : a.topic, lesson_label: pa.lesson_label == null ? null : pa.lesson_label, framework: a.framework || null,
+              focus_try: (a.focus_area && a.focus_area.try_this_tomorrow) || null,
+            };
           }),
         };
       case 'session': {
@@ -466,17 +468,19 @@ describe('the feature grid', () => {
 });
 
 describe('the teacher card', () => {
-  test('her tiles, scores against the week before, days with use', async () => {
+  test('her tiles, days with use, and the Coaching summary and chart (no separate DC, coach or score tiles)', async () => {
     const out = await Card.getTeacherCard(db, 'coach-1', PHONE.t1, opts());
     expect(out.teacher).toEqual({ teacherExtId: PHONE.t1, name: 'Teacher One', school: 'School One (register)', emis: '901' });
     expect(out.tiles.lp).toEqual({ count: 5, series: [2, 2, 1, 0, 0] });
-    expect(out.tiles.dc).toEqual({ count: 2, series: [1, 0, 1, 0, 0] });
     expect(out.tiles.papers).toEqual({ count: 2, series: [1, 0, 1, 0, 0] });
-    expect(out.tiles.coach).toMatchObject({ count: 3 });
     expect(out.tiles.training).toMatchObject({ parts: 2, courses: 1, series: [1, 0, 1, 0, 0] });
-    expect(out.tiles.aiScore).toEqual({ avg: 65, prevAvg: 50 });
-    expect(out.tiles.coachScore).toEqual({ avg: 50, prevAvg: null });
     expect(out.tiles.days).toEqual({ withUse: 3, schoolDays: 3 });
+    expect(Object.keys(out.tiles).sort()).toEqual(['days', 'lp', 'papers', 'training']);
+    expect(out.summary).toEqual({
+      dc: { count: 2, avg: 65, prevAvg: 50 },
+      // h1 reviewed (50), h2 not reviewed yet, h4 on the field form: three visits, one score
+      coach: { count: 3, avg: 50, prevAvg: null },
+    });
     expect(out.chart).toEqual([
       { kind: 'dc', id: 'd1', date: '2026-10-26', score: 60 },
       { kind: 'coach', id: 'h1', date: '2026-10-26', score: 50 },
@@ -492,21 +496,10 @@ describe('the teacher card', () => {
 });
 
 describe('her lists', () => {
-  test('dc: newest first, with class and AI score', async () => {
-    const out = await Card.getTeacherItems(db, 'coach-1', PHONE.t1, 'dc', opts());
-    expect(out.items).toEqual([
-      { sessionId: 'd5', date: '2026-10-28', grade: '3', subject: 'math', aiScore: 70 },
-      { sessionId: 'd1', date: '2026-10-26', grade: '3', subject: 'math', aiScore: 60 },
-    ]);
-  });
-
-  test('coach: every recorded visit, its coach, its form; a score only once reviewed', async () => {
-    const out = await Card.getTeacherItems(db, 'coach-1', PHONE.t1, 'coach', opts());
-    expect(out.items).toEqual([
-      { id: 'h2', date: '2026-10-28', coachName: 'Coach Two', score: null, form: 'v3' },
-      { id: 'h4', date: '2026-10-27', coachName: 'Coach One', score: 80, form: 'observe2' },
-      { id: 'h1', date: '2026-10-26', coachName: 'Coach One', score: 50, form: 'v3' },
-    ]);
+  test('DC observations and coach visits are not lists of their own any more (they are the Coaching page): null', async () => {
+    expect(Card.ITEM_FEATURES).toEqual(['lp', 'papers', 'training']);
+    expect(await Card.getTeacherItems(db, 'coach-1', PHONE.t1, 'dc', opts())).toBeNull();
+    expect(await Card.getTeacherItems(db, 'coach-1', PHONE.t1, 'coach', opts())).toBeNull();
   });
 
   test('lp: one row per counted plan, newest first', async () => {
@@ -540,7 +533,7 @@ describe('her lists', () => {
 
   test('an unknown feature, or a teacher outside her patch, is null', async () => {
     expect(await Card.getTeacherItems(db, 'coach-1', PHONE.t1, 'transcript', opts())).toBeNull();
-    expect(await Card.getTeacherItems(db, 'coach-1', PHONE.t3, 'dc', opts())).toBeNull();
+    expect(await Card.getTeacherItems(db, 'coach-1', PHONE.t3, 'lp', opts())).toBeNull();
   });
 });
 
@@ -560,21 +553,21 @@ describe('the next step she was shown (v10 A/B)', () => {
     expect(Card.nextStepShown(null, 'C')).toBeNull();
   });
 
-  test.each([['A'], ['B'], [null]])('a group %s school: her reports and the session report never carry the thing to try', async (group) => {
+  test.each([['A'], ['B'], [null]])('a group %s school: her Coaching page and the session report never carry the thing to try', async (group) => {
     if (group) tables.ab.push({ school_id: 's1', ab_group: group });
-    const reports = await Card.getTeacherReports(db, 'coach-1', PHONE.t1, opts());
-    expect(reports.nextSteps.map((s) => s.text)).toEqual(['ACTION-d5', 'ACTION-d1 next class']);
+    const coaching = await Card.getTeacherCoaching(db, 'coach-1', PHONE.t1, opts());
+    expect(coaching.items.filter((i) => i.kind === 'dc').map((i) => i.quote)).toEqual(['ACTION-d5', 'ACTION-d1 next class']);
     const session = await Card.getSession(db, 'coach-1', 'd1', opts());
     expect(session.nextStep).toBe('ACTION-d1 next class');
-    expect(JSON.stringify([reports, session])).not.toMatch(/TRY-/);
+    expect(JSON.stringify([coaching, session])).not.toMatch(/TRY-/);
   });
 
   test('a group C school: the thing to try where it has words, the action where it has none', async () => {
     tables.ab.push({ school_id: 's1', ab_group: 'C' });
-    const reports = await Card.getTeacherReports(db, 'coach-1', PHONE.t1, opts());
-    expect(reports.nextSteps).toEqual([
-      { sessionId: 'd5', date: '2026-10-28', grade: '3', subject: 'math', text: 'ACTION-d5' },
-      { sessionId: 'd1', date: '2026-10-26', grade: '3', subject: 'math', text: 'TRY-d1 the exit ticket' },
+    const coaching = await Card.getTeacherCoaching(db, 'coach-1', PHONE.t1, opts());
+    expect(coaching.items.filter((i) => i.kind === 'dc').map((i) => [i.id, i.quote])).toEqual([
+      ['d5', 'ACTION-d5'],
+      ['d1', 'TRY-d1 the exit ticket'],
     ]);
     expect((await Card.getSession(db, 'coach-1', 'd1', opts())).nextStep).toBe('TRY-d1 the exit ticket');
   });
@@ -597,30 +590,89 @@ describe('the next step she was shown (v10 A/B)', () => {
 
   test('the group is read for HER school', async () => {
     tables.ab.push({ school_id: 's2', ab_group: 'D' });
-    await Card.getTeacherReports(db, 'coach-1', PHONE.t1, opts());
+    await Card.getTeacherCoaching(db, 'coach-1', PHONE.t1, opts());
     const g = db.calls.find((c) => c.tag === 'group');
     expect(g.params).toEqual(['s1']);
   });
 });
 
-describe('her coaching reports', () => {
-  test('strengths of her last 3 reports, scores by report (DC and coach), coach visits with the step agreed', async () => {
-    const out = await Card.getTeacherReports(db, 'coach-1', PHONE.t1, opts());
-    expect(out.strengths).toEqual([
-      { sessionId: 'd5', date: '2026-10-28', grade: '3', subject: 'math', text: 'Clear learning goal', texts: ['Clear learning goal', 'Good examples'] },
-      { sessionId: 'd1', date: '2026-10-26', grade: '3', subject: 'math', text: 'Clear learning goal', texts: ['Clear learning goal', 'Good examples'] },
+describe('a report\'s title: its topic, else its lesson label unless that is the framework placeholder, else null', () => {
+  test('reportTitleOf', () => {
+    // analysis_data.topic is on almost every report: it wins
+    expect(Card.reportTitleOf('Types of Fractions', 'Fractions · Halves', 'fico')).toBe('Types of Fractions');
+    expect(Card.reportTitleOf('  Unitary Method ', 'FICO', 'fico')).toBe('Unitary Method');
+    // no topic: the commitment card's lesson label, when the model wrote one
+    expect(Card.reportTitleOf(null, 'Fractions · Halves', 'fico')).toBe('Fractions · Halves');
+    expect(Card.reportTitleOf('', '  ریاضی · کسور ', 'fico')).toBe('ریاضی · کسور');
+    // its fallback paths write the framework's name, upper-cased: no title
+    expect(Card.reportTitleOf(null, 'FICO', 'fico')).toBeNull();
+    expect(Card.reportTitleOf(null, 'fico', null)).toBeNull();
+    expect(Card.reportTitleOf(null, 'FICO_V3', 'fico_v3')).toBeNull();
+    expect(Card.reportTitleOf('FICO', null, 'fico')).toBeNull();
+    expect(Card.reportTitleOf('   ', '   ', 'fico')).toBeNull();
+    expect(Card.reportTitleOf(undefined, undefined, undefined)).toBeNull();
+  });
+});
+
+describe('the Coaching page: her DC reports and coach visits in one list', () => {
+  test('summary, chart, and ONE list newest first, both kinds mixed', async () => {
+    const out = await Card.getTeacherCoaching(db, 'coach-1', PHONE.t1, opts());
+    expect(out.teacher).toEqual({ teacherExtId: PHONE.t1, name: 'Teacher One', school: 'School One (register)', emis: '901' });
+    expect(out.period).toMatchObject({ key: 'week', from: '2026-10-26', to: '2026-10-28' });
+    expect(out.summary).toEqual({ dc: { count: 2, avg: 65, prevAvg: 50 }, coach: { count: 3, avg: 50, prevAvg: null } });
+    expect(out.chart).toEqual([
+      { kind: 'dc', id: 'd1', date: '2026-10-26', score: 60 },
+      { kind: 'coach', id: 'h1', date: '2026-10-26', score: 50 },
+      { kind: 'dc', id: 'd5', date: '2026-10-28', score: 70 },
     ]);
-    expect(out.scores[0]).toEqual({ kind: 'coach', id: 'h2', date: '2026-10-28', overall: null, sections: { B: null, C: null, D: null, F: null }, form: 'v3' });
-    expect(out.scores.find((s) => s.id === 'd1')).toEqual({ kind: 'dc', id: 'd1', date: '2026-10-26', overall: 60, sections: { B: null, C: 63, D: 75, F: 75 }, form: null });
-    expect(out.coachVisits).toEqual([
-      { id: 'h2', date: '2026-10-28', score: null, step: null, form: 'v3' },
-      { id: 'h4', date: '2026-10-27', score: 80, step: null, form: 'observe2' },
-      { id: 'h1', date: '2026-10-26', score: 50, step: 'STEP-h1 agreed', form: 'v3' },
+    const none = { B: null, C: null, D: null, F: null };
+    expect(out.items).toEqual([
+      // not reviewed yet: counted, no score, no sections, no step
+      { kind: 'coach', id: 'h2', date: '2026-10-28', grade: '3', subject: 'math', title: null, score: null, quote: null, sections: none, coachName: 'Coach Two', form: 'v3' },
+      // the report's topic is the title (over its lesson label)
+      { kind: 'dc', id: 'd5', date: '2026-10-28', grade: '3', subject: 'math', title: 'Types of Fractions', score: 70, quote: 'ACTION-d5', sections: { B: null, C: 63, D: 75, F: 75 }, coachName: null, form: null },
+      // the field form: counted and listed, never scored with the FICO form
+      { kind: 'coach', id: 'h4', date: '2026-10-27', grade: '3', subject: 'math', title: null, score: null, quote: null, sections: none, coachName: 'Coach One', form: 'observe2' },
+      // a coach visit's topic, the same way
+      { kind: 'coach', id: 'h1', date: '2026-10-26', grade: '3', subject: 'math', title: 'Unitary Method', score: 50, quote: 'STEP-h1 agreed', sections: { B: null, C: 63, D: 75, F: 75 }, coachName: 'Coach One', form: 'v3' },
+      // no topic, and the placeholder "FICO" is no title: the page shows "<Subject> lesson"
+      { kind: 'dc', id: 'd1', date: '2026-10-26', grade: '3', subject: 'math', title: null, score: 60, quote: 'ACTION-d1 next class', sections: { B: null, C: 63, D: 75, F: 75 }, coachName: null, form: null },
     ]);
   });
 
-  test('a teacher outside her patch is null', async () => {
-    expect(await Card.getTeacherReports(db, 'coach-1', PHONE.t3, opts())).toBeNull();
+  test('no topic: a real lesson label is the title', async () => {
+    delete tables.sessions.find((x) => x.id === 'd5').analysis_data.topic;
+    const out = await Card.getTeacherCoaching(db, 'coach-1', PHONE.t1, opts());
+    expect(out.items.find((i) => i.id === 'd5').title).toBe('Fractions · Halves');
+  });
+
+  test('a coach visit with no action keeps the focus area\'s "try this tomorrow" as the step agreed', async () => {
+    const h1 = tables.sessions.find((x) => x.id === 'h1');
+    h1.prioritized_action = {};
+    h1.analysis_data.focus_area = { try_this_tomorrow: 'FOCUS-h1 try tomorrow' };
+    const out = await Card.getTeacherCoaching(db, 'coach-1', PHONE.t1, opts());
+    expect(out.items.find((i) => i.id === 'h1').quote).toBe('FOCUS-h1 try tomorrow');
+  });
+
+  test('the period bounds the list; an empty period is an empty list, with zero counts', async () => {
+    const today = await Card.getTeacherCoaching(db, 'coach-1', PHONE.t1, { ...opts('today') });
+    expect(today.items.map((i) => i.id)).toEqual(['h2', 'd5']);
+    expect(today.summary.dc).toEqual({ count: 1, avg: 70, prevAvg: null });
+    const other = await Card.getTeacherCoaching(db, 'coach-1', PHONE.t2, opts());
+    expect(other.items).toEqual([]);
+    expect(other.summary).toEqual({ dc: { count: 0, avg: null, prevAvg: null }, coach: { count: 0, avg: null, prevAvg: null } });
+    expect(other.chart).toEqual([]);
+  });
+
+  test('a teacher outside her patch, a test account and an unknown number are null', async () => {
+    expect(await Card.getTeacherCoaching(db, 'coach-1', PHONE.t3, opts())).toBeNull();
+    expect(await Card.getTeacherCoaching(db, 'coach-1', PHONE.tt, opts())).toBeNull();
+    expect(await Card.getTeacherCoaching(db, 'coach-1', ph(9999), opts())).toBeNull();
+  });
+
+  test('her coaching reports page and its strengths read are gone', () => {
+    expect(Card.getTeacherReports).toBeUndefined();
+    expect(Card.SQL.strengths).toBeUndefined();
   });
 });
 
@@ -679,7 +731,7 @@ describe('no read selects the transcript', () => {
   test('across every endpoint', async () => {
     await Card.getSchoolCard(db, 'coach-1', '901', opts());
     await Card.getTeacherCard(db, 'coach-1', PHONE.t1, opts());
-    await Card.getTeacherReports(db, 'coach-1', PHONE.t1, opts());
+    await Card.getTeacherCoaching(db, 'coach-1', PHONE.t1, opts());
     await Card.getSession(db, 'coach-1', 'd1', opts());
     for (const c of db.calls) expect(c.sql).not.toMatch(/transcript|diarization|SELECT \*/i);
   });

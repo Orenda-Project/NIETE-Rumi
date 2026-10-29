@@ -7,8 +7,8 @@
  *   GET /coach/school/:emis/card?period=                    one of her schools for the period
  *   GET /coach/school/:emis/feature/:feature?period=        lp | dc | training | papers, a row per teacher
  *   GET /coach/teacher/:ext/card?period=                    one teacher in her patch
- *   GET /coach/teacher/:ext/items/:feature?period=          dc | coach | lp | papers | training
- *   GET /coach/teacher/:ext/reports?period=                 her coaching reports
+ *   GET /coach/teacher/:ext/items/:feature?period=          lp | papers | training
+ *   GET /coach/teacher/:ext/coaching?period=                her DC reports and coach visits, one list (the Coaching page)
  *   GET /coach/session/:id                                  one DC report of a teacher in her patch
  *
  * period = today | week | month (default week), Pakistan days; anything else is 400. ?today=YYYY-MM-DD is taken
@@ -100,12 +100,12 @@ function createCoachSchoolCardRouter(deps) {
     return answer(res, 'items', () => Card.getTeacherItems(query, coach(req), ext, feature, opts));
   });
 
-  router.get('/coach/teacher/:ext/reports', ...guards, async (req, res) => {
+  router.get('/coach/teacher/:ext/coaching', ...guards, async (req, res) => {
     const ext = String(req.params.ext || '');
     if (!EXT_RX.test(ext)) return notFound(res);
     const opts = optsOf(req, res);
     if (!opts) return undefined;
-    return answer(res, 'reports', () => Card.getTeacherReports(query, coach(req), ext, opts));
+    return answer(res, 'coaching', () => Card.getTeacherCoaching(query, coach(req), ext, opts));
   });
 
   router.get('/coach/session/:id', ...guards, async (req, res) => {

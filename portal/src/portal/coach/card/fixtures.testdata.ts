@@ -2,7 +2,7 @@
  * Made-up answers in the School card API's shapes, for the tests only (never imported by the app). Every name, code and
  * number is invented. "Today" is Wednesday 28 October 2026: This week has three school days so far, Thu and Fri ahead.
  */
-import type { Bucket, FeatureGridData, ItemsData, Period, ReportsData, SchoolCardData, SessionReportData, TeacherCardData } from "./types";
+import type { Bucket, CoachingData, CoachingSummary, FeatureGridData, ItemsData, Period, SchoolCardData, SessionReportData, TeacherCardData } from "./types";
 
 export const EMIS = "E-900";
 export const EXT = "900000000001";
@@ -73,6 +73,14 @@ export function grid(period: Period = WEEK): FeatureGridData {
   return { feature: "lp", period, rows: shuffled, school: [9, 7, 8, null, null], total: 24 };
 }
 
+/** Her DC reports and coach visits this week: two of each; one visit on the field form (counted, never scored). */
+export const COACHING_SUMMARY: CoachingSummary = { dc: { count: 2, avg: 61, prevAvg: 57 }, coach: { count: 2, avg: 60, prevAvg: null } };
+const CHART: TeacherCardData["chart"] = [
+  { kind: "dc", id: SESSION, date: "2026-10-26", score: 58 },
+  { kind: "coach", id: "v-1", date: "2026-10-27", score: 60 },
+  { kind: "dc", id: "s-101", date: "2026-10-28", score: 67 },
+];
+
 export function teacherCard(period: Period = WEEK): TeacherCardData {
   return {
     teacher: { teacherExtId: EXT, name: NAMES[0], school: "Model School Nine", emis: EMIS },
@@ -80,51 +88,41 @@ export function teacherCard(period: Period = WEEK): TeacherCardData {
     tiles: {
       lp: { count: 6, series: [2, 2, 2, null, null] },
       papers: { count: 2, series: [1, 0, 1, null, null] },
-      dc: { count: 3, series: [1, 1, 1, null, null] },
-      coach: { count: 1 },
       training: { parts: 2, courses: 1, series: [0, 2, 0, null, null] },
-      aiScore: { avg: 61, prevAvg: 57 },
-      coachScore: { avg: null, prevAvg: null },
       days: { withUse: 3, schoolDays: 3 },
     },
-    chart: [
-      { kind: "dc", id: SESSION, date: "2026-10-26", score: 58 },
-      { kind: "coach", id: "v-1", date: "2026-10-27", score: 52 },
-      { kind: "dc", id: "s-101", date: "2026-10-28", score: 67 },
-    ],
+    summary: COACHING_SUMMARY,
+    chart: CHART,
   };
 }
 
-export const DC_ITEMS: ItemsData = {
-  items: [
-    { sessionId: "s-101", date: "2026-10-28", grade: 3, subject: "Math", aiScore: 67 },
-    { sessionId: SESSION, date: "2026-10-26", grade: 3, subject: "English", aiScore: 58 },
-  ],
+/** The Coaching page, as the server sends it: newest first, both kinds mixed. */
+export function coaching(period: Period = WEEK): CoachingData {
+  return {
+    teacher: { teacherExtId: EXT, name: NAMES[0], school: "Model School Nine", emis: EMIS },
+    period,
+    summary: COACHING_SUMMARY,
+    chart: CHART,
+    items: [
+      // No topic and no real lesson label: the page titles it "Math lesson".
+      { kind: "dc", id: "s-101", date: "2026-10-28", grade: "3", subject: "Mathematics", title: null, score: 67, quote: "Give students two minutes to talk in pairs.", sections: { B: 73, C: 65, D: 54, F: 79 }, coachName: null, form: null },
+      { kind: "coach", id: "v-1", date: "2026-10-27", grade: "4", subject: "English", title: "Unitary Method", score: 60, quote: "Use pair talk once in every lesson this week.", sections: { B: 56, C: 54, D: 48, F: 74 }, coachName: "Coach Zulu", form: "v3" },
+      { kind: "dc", id: SESSION, date: "2026-10-26", grade: "3", subject: "Mathematics", title: "Fractions · Halves", score: 58, quote: "Call on children in the back rows by name.", sections: { B: null, C: 63, D: 57, F: 75 }, coachName: null, form: null },
+      // The field form: counted and listed, no score, no sections.
+      { kind: "coach", id: "v-2", date: "2026-10-26", grade: "4", subject: "English", title: null, score: null, quote: null, sections: { B: null, C: null, D: null, F: null }, coachName: "Coach Zulu", form: "observe2" },
+    ],
+  };
+}
+export const NO_COACHING: CoachingData = {
+  ...coaching(TODAY),
+  summary: { dc: { count: 0, avg: null, prevAvg: null }, coach: { count: 0, avg: null, prevAvg: null } },
+  chart: [],
+  items: [],
 };
-export const COACH_ITEMS: ItemsData = {
-  items: [
-    { id: "v-1", date: "2026-10-27", coachName: "Coach Zulu", score: 60, form: "v3" },
-    { id: "v-2", date: "2026-10-20", coachName: "Coach Zulu", score: 40, form: "observe2" },
-  ],
-};
+
 export const TRAINING_ITEMS: ItemsData = {
   courses: [{ name: "Course One", done: false, parts: [{ name: "Part A", doneAt: "2026-10-27" }, { name: "Part B", doneAt: null }] }],
 };
-
-export const REPORTS: ReportsData = {
-  nextSteps: [
-    { sessionId: "s-101", date: "2026-10-28", grade: 3, subject: "Math", text: "Give students two minutes to talk in pairs." },
-    { sessionId: SESSION, date: "2026-10-26", grade: 3, subject: "English", text: "Call on children in the back rows by name." },
-  ],
-  strengths: [{ sessionId: "s-101", date: "2026-10-28", text: "You showed halves by folding paper." }],
-  scores: [
-    { kind: "dc", id: "s-101", date: "2026-10-28", overall: 67, sections: { B: 73, C: 65, D: 54, F: 79 } },
-    { kind: "coach", id: "v-1", date: "2026-10-27", overall: 60, sections: { B: 56, C: 54, D: 48, F: 74 } },
-    { kind: "dc", id: SESSION, date: "2026-10-26", overall: 58, sections: { B: null, C: 63, D: 57, F: 75 } },
-  ],
-  coachVisits: [{ id: "v-1", date: "2026-10-27", score: 60, step: "Use pair talk once in every lesson this week." }],
-};
-export const NO_REPORTS: ReportsData = { nextSteps: [], strengths: [], scores: [], coachVisits: [] };
 
 export const SESSION_REPORT: SessionReportData = {
   teacher: { teacherExtId: EXT, name: NAMES[0] },

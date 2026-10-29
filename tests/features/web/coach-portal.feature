@@ -99,8 +99,8 @@ Feature: Coach app
     Then "Lesson plans by teacher" opens for This month, with a row per teacher and the School row
     When she taps a teacher's row
     Then her Teacher page opens with her tiles
-    When she taps "Her coaching reports"
-    Then Her coaching reports opens
+    When she taps her Observations card
+    Then her Observations page opens for This month, with the Digital Coaching and Coach observations lines
     And no page error or 5xx happened
 
   @CP09
@@ -126,6 +126,23 @@ Feature: Coach app
     When she opens /portal/coach/school/DEMO-001
     Then it is today's school page, with "Visits · last 3 months" and no School card
     And the menu has no Home
+    And no page error or 5xx happened
+
+  @CP11
+  Scenario: Coach app v2 with the School card on: a teacher's Observations page lists her DC reports and coach observations together; Digital Coaching filters it, a row opens its DC report, and her old reports address opens the page
+    Given the teacher app v2 is off and the coach app v2 is on
+    And the School card is on
+    And a teacher at one of demo coach 03000000901's schools has a scored DC report this month
+    And demo coach 03000000901 is signed in
+    When she opens that teacher's Observations page for This month, /portal/coach/teacher/<her number>/coaching?period=month
+    Then "Observations" shows the Digital Coaching and Coach observations lines and the filter chips All, Digital Coaching and Coach observations
+    And the list has a Digital Coaching row with a grade-subject tile, a title and its AI score
+    When she taps "Digital Coaching"
+    Then only Digital Coaching rows are listed
+    When she taps the first row
+    Then that DC report opens in the coach's view
+    When she opens /portal/coach/teacher/<her number>/reports
+    Then it settles on her Observations page
     And no page error or 5xx happened
 
   # bd-4joiqz — the coach app's Lesson Plans tab: the teacher Lesson Plans pages, read as a leader. Written by hand; the

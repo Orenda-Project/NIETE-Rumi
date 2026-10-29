@@ -103,7 +103,9 @@ const CoachLanding = page(() => import("./portal/coach/card/CoachLanding"));
 // The School card's own pages (each shows Not found unless the switch is on for her).
 const CoachFeatureGrid = page(() => import("./portal/coach/card/FeatureGridPage"));
 const CoachHerItems = page(() => import("./portal/coach/card/HerItemsPage"));
-const CoachHerReports = page(() => import("./portal/coach/card/HerReportsPage"));
+// Her DC observations and coach visits, one page; the old Her coaching reports and DC / coach-visit lists open it.
+const CoachCoaching = page(() => import("./portal/coach/card/CoachingPage"));
+const CoachCoachingRedirect = page(() => import("./portal/coach/card/CoachingRedirect"));
 const CoachSessionReport = page(() => import("./portal/coach/card/SessionReportPage"));
 const CoachScheduling = page(() => import("./portal/coach/pages/CoachScheduling"));
 const CoachSchedule = page(() => import("./portal/coach/pages/CoachSchedule"));
@@ -346,7 +348,10 @@ const App = () => {
             <Route path="/portal/coach/school/:emis/remove-teachers" element={<CoachRemoveTeachers />} />
             <Route path="/portal/coach/teacher/:ext" element={<CoachTeacher />} />
             <Route path="/portal/coach/teacher/:ext/items/:feature" element={<CoachHerItems />} />
-            <Route path="/portal/coach/teacher/:ext/reports" element={<CoachHerReports />} />
+            <Route path="/portal/coach/teacher/:ext/coaching" element={<CoachCoaching />} />
+            <Route path="/portal/coach/teacher/:ext/reports" element={<CoachCoachingRedirect />} />
+            <Route path="/portal/coach/teacher/:ext/items/dc" element={<CoachCoachingRedirect />} />
+            <Route path="/portal/coach/teacher/:ext/items/coach" element={<CoachCoachingRedirect />} />
             <Route path="/portal/coach/session/:id" element={<CoachSessionReport />} />
             {/* bd-o15qnr.10 — one HITL report, from a teacher's History */}
             <Route path="/portal/coach/observation/:id" element={<CoachObservation />} />
