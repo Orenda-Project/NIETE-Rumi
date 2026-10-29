@@ -25,7 +25,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `NieteLattice.tsx` ← imported by `portal/src/portal/auth/AuthFrame.tsx:8:94edcb97` · `portal/src/portal/teacher/home/look/HomeBand.tsx:4:6ff5aaa7` · `portal/src/portal/teacher/ui/HomeGreeting.tsx:6:7dc51989` · `portal/src/portal/teacher/icons/index.ts:6:013f2db6`
 - `featureMotion.css` ← imported by `portal/src/portal/teacher/icons/FeatureArt.tsx:4:ce13a128`
 - `features.ts` ← imported by `portal/src/portal/coach/card/SchoolCardPage.tsx:16:0a302a7a` · `portal/src/portal/coach/card/TeacherCardPage.tsx:5:0a302a7a` · `portal/src/portal/coach/card/parts.tsx:6:0456a423` · `portal/src/portal/teacher/analytics/sections.tsx:4:6a337f08` (+7: `python3 kg/kg.py who-reads features.ts`)
-- `index.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:5:cea5fb4f` · `portal/src/portal/coach/insights/components/MoreCoachip.tsx:11:2cbe5904` · `portal/src/portal/coach/observe/ObservePage.tsx:7:2b885504` · `portal/src/portal/coach/pages/CoachHome.tsx:6:cea5fb4f` (+18: `python3 kg/kg.py who-reads index.ts`)
+- `index.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:5:cea5fb4f` · `portal/src/portal/coach/insights/components/MoreCoachip.tsx:12:2cbe5904` · `portal/src/portal/coach/observe/ObservePage.tsx:7:2b885504` · `portal/src/portal/coach/pages/CoachHome.tsx:6:cea5fb4f` (+18: `python3 kg/kg.py who-reads index.ts`)
 
 ## Tests (all, generated)
 - `NieteLattice.tsx` ← `portal/src/portal/teacher/icons/NieteLattice.test.tsx`

@@ -1,7 +1,7 @@
 # coachip-ui — COACHIP design kit: chrome and primitives for the coach and RM pages
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coachip-ui kg=acc9784b5dd0 gen=80caa259d15b overflow=43 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coachip-ui kg=f9747458bbde gen=ed170d368f4a overflow=43 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `docs/coachip-ui.md` — rules: .cp scoping, G10 Count, who may import it
@@ -13,7 +13,7 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `docs/` | → (no door; 1 files) |
-| `tests/` | → (no door; 18 tests) |
+| `tests/` | → (no door; 19 tests) |
 | `Section.tsx` | Kit hairline section: small-caps label or h2 title, optional hint, then rows (bd-sex15q.42) |
 | `Button.tsx` | Kit button: primary/secondary/quiet, lg/md, renders as button, router Link or anchor (bd-sex15q.42) |
 | `Count.tsx` | Count display (RingCount/RowCount): big n plus small "of d" from nOfD; keeps data-num/den/win attrs (bd-sex15q.42) |

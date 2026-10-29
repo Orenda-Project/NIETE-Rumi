@@ -72,14 +72,14 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Who reads this (all, generated)
 - `api-health.routes.js` ← imported by `dashboard/index.js:121:868035bb`
-- `app-funnel.routes.js` ← imported by `dashboard/index.js:136:4cb3bcbf` · `dashboard/routes/portal.routes.js:7696:35a5a6e7`
-- `app-login.routes.js` ← imported by `dashboard/index.js:135:fcb52582` · `dashboard/routes/portal.routes.js:111:5b0fb546`
+- `app-funnel.routes.js` ← imported by `dashboard/index.js:136:4cb3bcbf` · `dashboard/routes/portal.routes.js:7698:35a5a6e7`
+- `app-login.routes.js` ← imported by `dashboard/index.js:135:fcb52582` · `dashboard/routes/portal.routes.js:112:5b0fb546`
 - `attendance.routes.js` ← imported by `dashboard/index.js:138:32048bc4`
 - `byof.routes.js` ← imported by `dashboard/index.js:144:7986ca93`
 - `coach-card.routes.js` ← imported by `dashboard/index.js:194:d5e7c191`
-- `coach-disagreements.routes.js` ← imported by `dashboard/routes/portal.routes.js:2300:0eff617f`
-- `coach-school-card.routes.js` ← imported by `dashboard/routes/portal.routes.js:2290:71362c49`
-- `coaching-report.routes.js` ← imported by `dashboard/index.js:191:602cc986` · `dashboard/routes/coach-card.routes.js:47:08e56c4a` · `dashboard/routes/portal.routes.js:2301:08e56c4a`
+- `coach-disagreements.routes.js` ← imported by `dashboard/routes/portal.routes.js:2301:0eff617f`
+- `coach-school-card.routes.js` ← imported by `dashboard/routes/portal.routes.js:2291:71362c49`
+- `coaching-report.routes.js` ← imported by `dashboard/index.js:191:602cc986` · `dashboard/routes/coach-card.routes.js:47:08e56c4a` · `dashboard/routes/portal.routes.js:2302:08e56c4a`
 - `cut-link-page.js` ← imported by `dashboard/routes/quiz-go.routes.js:32:4ffa8049` · `dashboard/routes/quiz-join.routes.js:26:4ffa8049` · `dashboard/routes/quiz-teacher.routes.js:30:4ffa8049`
 - `edge-mounts.js` ← imported by `dashboard/index.js:174:e9b7f5c8`
 - `edge-security-headers.js` ← imported by `dashboard/routes/first-touch.routes.js:24:8ae9ac5b` · `dashboard/routes/quiz-go.routes.js:28:8ae9ac5b` · `dashboard/routes/quiz-teacher.routes.js:31:8ae9ac5b` · `dashboard/routes/teacher-report.routes.js:29:8ae9ac5b` (+2: `python3 kg/kg.py who-reads edge-security-headers.js`)
@@ -167,17 +167,17 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `ATTENDANCE_REPO` read at `dashboard/routes/attendance.routes.js:47:71b56e3d`
 - env `BOT_NAME` read at `dashboard/routes/web-quiz.routes.js:1000:2e83b1e8`
 - env `COACHIP_TEACHER_KEY_SECRET` read at `dashboard/routes/portal-coachip.routes.js:381:c11b2729`
-- env `COACH_SUGGESTION_MODEL` read at `dashboard/routes/portal.routes.js:2308:242c1e69`
+- env `COACH_SUGGESTION_MODEL` read at `dashboard/routes/portal.routes.js:2309:242c1e69`
 - env `HCP_FEEDBACK_MODEL` read at `dashboard/routes/hcp.routes.js:896:d2f68351`
-- env `INTERNAL_API_KEY` read at `dashboard/routes/first-touch.routes.js:92:de0d94d0` · `dashboard/routes/portal-fln-send.routes.js:152:66795115` · `dashboard/routes/portal-share.routes.js:37:66795115` · `dashboard/routes/portal-teacher-home.routes.js:104:66795115` · `dashboard/routes/portal-teacher-push.routes.js:34:de0d94d0` · `dashboard/routes/portal.routes.js:3849:9cd0cfe5` · `dashboard/routes/push-remind.routes.js:96:de0d94d0` · `dashboard/routes/quiz-go.routes.js:89:de0d94d0` · `dashboard/routes/quiz-join.routes.js:240:de0d94d0` · `dashboard/routes/quiz-teacher.routes.js:111:de0d94d0` · `dashboard/routes/sa-game.routes.js:110:de0d94d0` · `dashboard/routes/teacher-report.routes.js:87:de0d94d0` · `dashboard/routes/teacher-stories.routes.js:127:de0d94d0` · `dashboard/routes/web-quiz.routes.js:1244:de0d94d0`
+- env `INTERNAL_API_KEY` read at `dashboard/routes/first-touch.routes.js:92:de0d94d0` · `dashboard/routes/portal-fln-send.routes.js:152:66795115` · `dashboard/routes/portal-share.routes.js:37:66795115` · `dashboard/routes/portal-teacher-home.routes.js:104:66795115` · `dashboard/routes/portal-teacher-push.routes.js:34:de0d94d0` · `dashboard/routes/portal.routes.js:3850:9cd0cfe5` · `dashboard/routes/push-remind.routes.js:96:de0d94d0` · `dashboard/routes/quiz-go.routes.js:89:de0d94d0` · `dashboard/routes/quiz-join.routes.js:240:de0d94d0` · `dashboard/routes/quiz-teacher.routes.js:111:de0d94d0` · `dashboard/routes/sa-game.routes.js:110:de0d94d0` · `dashboard/routes/teacher-report.routes.js:87:de0d94d0` · `dashboard/routes/teacher-stories.routes.js:127:de0d94d0` · `dashboard/routes/web-quiz.routes.js:1244:de0d94d0`
 - env `JEST_WORKER_ID` read at `dashboard/routes/web-quiz.routes.js:1344:f9851af2`
-- env `MAIN_BOT_URL` read at `dashboard/routes/first-touch.routes.js:91:bd3501c5` · `dashboard/routes/portal-fln-send.routes.js:68:1510f110` · `dashboard/routes/portal-share.routes.js:36:0b216bc4` · `dashboard/routes/portal-teacher-home.routes.js:103:0b216bc4` · `dashboard/routes/portal-teacher-push.routes.js:33:bd3501c5` · `dashboard/routes/portal.routes.js:3848:b0d6fe6e` · `dashboard/routes/push-remind.routes.js:95:bd3501c5` · `dashboard/routes/quiz-go.routes.js:88:bd3501c5` · `dashboard/routes/quiz-join.routes.js:239:bd3501c5` · `dashboard/routes/quiz-teacher.routes.js:110:bd3501c5` · `dashboard/routes/sa-game.routes.js:109:bd3501c5` · `dashboard/routes/teacher-report.routes.js:86:bd3501c5` · `dashboard/routes/teacher-stories.routes.js:126:bd3501c5` · `dashboard/routes/web-quiz.routes.js:1243:bd3501c5`
-- env `NODE_ENV` read at `dashboard/routes/billing.routes.js:31:a008d457` · `dashboard/routes/byof.routes.js:122:a008d457` · `dashboard/routes/portal.routes.js:300:85c61416`
+- env `MAIN_BOT_URL` read at `dashboard/routes/first-touch.routes.js:91:bd3501c5` · `dashboard/routes/portal-fln-send.routes.js:68:1510f110` · `dashboard/routes/portal-share.routes.js:36:0b216bc4` · `dashboard/routes/portal-teacher-home.routes.js:103:0b216bc4` · `dashboard/routes/portal-teacher-push.routes.js:33:bd3501c5` · `dashboard/routes/portal.routes.js:3849:b0d6fe6e` · `dashboard/routes/push-remind.routes.js:95:bd3501c5` · `dashboard/routes/quiz-go.routes.js:88:bd3501c5` · `dashboard/routes/quiz-join.routes.js:239:bd3501c5` · `dashboard/routes/quiz-teacher.routes.js:110:bd3501c5` · `dashboard/routes/sa-game.routes.js:109:bd3501c5` · `dashboard/routes/teacher-report.routes.js:86:bd3501c5` · `dashboard/routes/teacher-stories.routes.js:126:bd3501c5` · `dashboard/routes/web-quiz.routes.js:1243:bd3501c5`
+- env `NODE_ENV` read at `dashboard/routes/billing.routes.js:31:a008d457` · `dashboard/routes/byof.routes.js:122:a008d457` · `dashboard/routes/portal.routes.js:301:85c61416`
 - env `ORG_NAME` read at `dashboard/routes/web-quiz.routes.js:1000:2e83b1e8`
-- env `R2_ACCESS_KEY_ID` read at `dashboard/routes/portal.routes.js:176:d6f2a7a2`
-- env `R2_BUCKET_NAME` read at `dashboard/routes/portal.routes.js:2450:452b57b8` · `dashboard/routes/video-reco.routes.js:39:405e21a0`
-- env `R2_ENDPOINT` read at `dashboard/routes/portal.routes.js:174:2684789e`
-- env `R2_SECRET_ACCESS_KEY` read at `dashboard/routes/portal.routes.js:177:5687c9ca`
+- env `R2_ACCESS_KEY_ID` read at `dashboard/routes/portal.routes.js:177:d6f2a7a2`
+- env `R2_BUCKET_NAME` read at `dashboard/routes/portal.routes.js:2451:452b57b8` · `dashboard/routes/video-reco.routes.js:39:405e21a0`
+- env `R2_ENDPOINT` read at `dashboard/routes/portal.routes.js:175:2684789e`
+- env `R2_SECRET_ACCESS_KEY` read at `dashboard/routes/portal.routes.js:178:5687c9ca`
 - env `RAILWAY_ENVIRONMENT_NAME` read at `dashboard/routes/portal-child-test.routes.js:161:3350bca8`
 - env `REFERRAL_BOT_NUMBER` read at `dashboard/routes/app-login.routes.js:48:74270e6d` · `dashboard/routes/quiz-go.routes.js:64:f8a4af8f` · `dashboard/routes/quiz-join.routes.js:252:bfae4aed` · `dashboard/routes/quiz-teacher.routes.js:120:f4d044fe` · `dashboard/routes/teacher-stories.routes.js:111:74270e6d` · `dashboard/routes/web-quiz.routes.js:1376:3411e16e`
 - env `WEB_QUIZ_BASE_URL` read at `dashboard/routes/web-quiz.routes.js:1411:96869db4`

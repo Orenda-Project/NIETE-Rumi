@@ -30,14 +30,14 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `transcription.service.js` ← imported by `bot/shared/services/reading/analysis.service.js:495:b5c5c779`
 - `vocabulary-image.service.js` ← imported by `bot/shared/services/reading/comprehension.service.js:19:63eeea0a`
 - `voice-feedback.service.js` ← imported by `bot/shared/services/reading/analysis.service.js:1004:8efca90d`
-- column `reading_assessments.accuracy_percentage` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8257:6033d135`
-- column `reading_assessments.completed_at` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8257:6033d135`
-- column `reading_assessments.passage_type` (written by `auto-level-orchestrator.service.js`) ← read by `dashboard/routes/portal.routes.js:8257:6033d135`
-- column `reading_assessments.report_pdf_url` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8257:6033d135`
+- column `reading_assessments.accuracy_percentage` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8259:6033d135`
+- column `reading_assessments.completed_at` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8259:6033d135`
+- column `reading_assessments.passage_type` (written by `auto-level-orchestrator.service.js`) ← read by `dashboard/routes/portal.routes.js:8259:6033d135`
+- column `reading_assessments.report_pdf_url` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8259:6033d135`
 - column `reading_assessments.status` (written by `analysis.service.js`, `auto-level-orchestrator.service.js`, `passage-generation.service.js`) ← read by `bot/shared/handlers/voice-message.handler.js:490:1099729a` · `bot/shared/services/context.service.js:170:a69ef692` · `bot/shared/services/reading-assessment.service.js:29:a9e5e72d` · `bot/shared/services/redis-comprehension.service.js:85:64fad2d6` (+3: `python3 kg/kg.py who-reads reading_assessments.status`)
-- column `reading_assessments.voice_feedback_url` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8257:6033d135`
-- column `reading_assessments.wcpm` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8257:6033d135`
-- table `reading_assessments` whole row (`*`) (written by `analysis.service.js`, `auto-level-orchestrator.service.js`, `passage-generation.service.js`) ← read by `bot/shared/handlers/voice-message.handler.js:517:d2b02c3e`? · `bot/shared/services/feature-registration.service.js:147:7a0c163a`? · `dashboard/database/queries.js:749:7a0c163a`? · `dashboard/routes/portal.routes.js:8332:d2b02c3e`? (+2: `python3 kg/kg.py who-reads reading_assessments`)
+- column `reading_assessments.voice_feedback_url` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8259:6033d135`
+- column `reading_assessments.wcpm` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8259:6033d135`
+- table `reading_assessments` whole row (`*`) (written by `analysis.service.js`, `auto-level-orchestrator.service.js`, `passage-generation.service.js`) ← read by `bot/shared/handlers/voice-message.handler.js:517:d2b02c3e`? · `bot/shared/services/feature-registration.service.js:147:7a0c163a`? · `dashboard/database/queries.js:749:7a0c163a`? · `dashboard/routes/portal.routes.js:8334:d2b02c3e`? (+2: `python3 kg/kg.py who-reads reading_assessments`)
 - table `reading_assessments` (written by `analysis.service.js`, `auto-level-orchestrator.service.js`, `passage-generation.service.js`) ← read by `bot/shared/handlers/flow-response.handler.js:326:4337985e`? · `bot/shared/handlers/text-message.handler.js:1734:4337985e`? · `bot/shared/handlers/voice-message.handler.js:323:4337985e`? · `bot/shared/services/context.service.js:165:4337985e`? (+11: `python3 kg/kg.py who-reads reading_assessments`)
 - env `AZURE_SPEECH_KEY` read at `bot/shared/services/reading/pronunciation.service.js:42:b0f86cfa`
 - env `AZURE_SPEECH_REGION` read at `bot/shared/services/reading/pronunciation.service.js:43:996ea854`

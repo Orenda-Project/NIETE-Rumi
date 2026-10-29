@@ -1,7 +1,7 @@
 # patterns — Board-pattern definitions (FDE grades 1, 2, 5) as frozen data
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/patterns kg=100d789c8c42 gen=7d8c1ccdd3ac overflow=107 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/patterns kg=2fab6526cb49 gen=312dab20f11f overflow=125 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — registry and derived views used by routes and generator
@@ -16,7 +16,7 @@ Full index: `CLAUDE.index.md`
 | `fde*` | 3 files; most used `fde-g5-2027.js`: FDE Grade V Feb 2027 centralised exam pattern as frozen data: sections, slots, marks, scheme rules |
 
 ## Who reads this (generated)
-- `index.js` ← imported by `bot/shared/routes/internal-api.routes.js:1496:03aa6a49` · `bot/shared/services/assessment/assessment-browse.service.js:294:1b1f5879` (+4)
+- `index.js` ← imported by `bot/shared/routes/internal-api.routes.js:1503:03aa6a49` · `bot/shared/services/assessment/assessment-browse.service.js:294:1b1f5879` (+5)
 - `fde-g5-2027.js` ← imported by `bot/shared/services/assessment/patterns/early/chrome.js:13:ef4af3ac` · `bot/shared/services/assessment/patterns/index.js:10:c2aca214`
 - `fde-g1-2026.js` ← imported by `bot/shared/services/assessment/patterns/index.js:11:9ab30672`
 - `fde-g2-2026.js` ← imported by `bot/shared/services/assessment/patterns/index.js:12:0bd1792f`
@@ -27,8 +27,10 @@ Full index: `CLAUDE.index.md`
 
 ## Tests (generated)
 - `tests/assessment/fde-pattern-module.test.js` (fde-g5-2027.js, index.js)
+- `tests/assessment/topics/topic-oral.test.js` (fde-g1-2026.js, fde-g2-2026.js)
 - `tests/assessment/assessment-paper-fde.renderer.test.js` (index.js)
 - `tests/assessment/composition-criteria.test.js` (index.js)
+- `tests/assessment/fde-answer-repeats.test.js` (index.js)
 - `tests/assessment/fde-blueprint-check.test.js` (index.js)
 - `tests/assessment/fde-blueprint-wiring.test.js` (index.js)
 - `tests/assessment/fde-chain.test.js` (index.js)
@@ -36,9 +38,7 @@ Full index: `CLAUDE.index.md`
 - `tests/assessment/fde-early-answers.test.js` (index.js)
 - `tests/assessment/fde-early-asked.test.js` (index.js)
 - `tests/assessment/fde-early-pictures-pattern.test.js` (index.js)
-- `tests/assessment/fde-early-prompt.test.js` (index.js)
-- `tests/assessment/fde-early-registry.test.js` (index.js)
-- … 107 more → `CLAUDE.index.md`
+- … 125 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/assessment/CLAUDE.md`?

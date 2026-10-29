@@ -1,7 +1,7 @@
 # services — Business logic: analytics, coach/teacher app reads, COACHIP, bot HTTP clients, email
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/services kg=8030bc10c934 gen=4eb381415335 overflow=310 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/services kg=892b4e832825 gen=815d8077f518 overflow=311 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `telemetry.service.js` — portal logging; the bot's logger is not usable here
@@ -21,7 +21,7 @@ Full index: `CLAUDE.index.md`
 ## Who reads this (generated)
 - table `users` (written by `password-reset.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+170)
 - `telemetry.service.js` ← imported by `dashboard/middleware/latency-logger.js:28:2aa9b460` · `dashboard/routes/app-funnel.routes.js:30:2aa9b460` (+13)
-- `coaching-frameworks.service.js` ← imported by `dashboard/routes/portal.routes.js:124:fb9750c6` · `dashboard/services/coach-school-card.service.js:29:844e9b68` (+9)
+- `coaching-frameworks.service.js` ← imported by `dashboard/routes/portal.routes.js:125:fb9750c6` · `dashboard/services/coach-school-card.service.js:29:844e9b68` (+9)
 - … 174 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -32,7 +32,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/coaching/bd-v0toag.38.9-agree-ping-service.test.js` (coach-card-token.js, coach-ping-reasons.js, coach-visit-request.js)
 - `tests/coaching/bd-v0toag.79-neutral-question.test.js` (coach-ping-page.js, coaching-report-page.js, coaching-report-view.js)
-- … 137 more → `CLAUDE.index.md`
+- … 138 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `dashboard/CLAUDE.md`? · `docs/attendance-bigquery-sync.md`? · `docs/migration/DEPLOYMENT.md`? · `infrastructure/templates/README.md`?
