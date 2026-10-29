@@ -17,7 +17,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `g2-urdu.js` | Grade 2 Urdu FDE pattern: oral 30 plus written 60 |
 
 ## Who reads this (all, generated)
-- `chrome.js` ← imported by `bot/shared/services/assessment/patterns/fde-g1-2026.js:8:bf928fee` · `bot/shared/services/assessment/patterns/fde-g2-2026.js:8:bf928fee` · `bot/shared/services/assessment/patterns/early/g1-english.js:8:58ad1c9e` · `bot/shared/services/assessment/patterns/early/g1-gk.js:9:58ad1c9e` (+6: `python3 kg/kg.py who-reads chrome.js`)
+- `chrome.js` ← imported by `bot/shared/services/assessment/patterns/fde-g1-2026.js:8:bf928fee` · `bot/shared/services/assessment/patterns/fde-g2-2026.js:8:bf928fee` · `bot/shared/services/assessment/topics/topic-oral.js:8:391c5222` · `bot/shared/services/assessment/patterns/early/g1-english.js:8:58ad1c9e` (+7: `python3 kg/kg.py who-reads chrome.js`)
 - `g1-english.js` ← imported by `bot/shared/services/assessment/patterns/fde-g1-2026.js:15:f1cfebac`
 - `g1-gk.js` ← imported by `bot/shared/services/assessment/patterns/fde-g1-2026.js:17:22d4d12d`
 - `g1-maths.js` ← imported by `bot/shared/services/assessment/patterns/fde-g1-2026.js:14:3a21baeb`
@@ -28,7 +28,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `g2-urdu.js` ← imported by `bot/shared/services/assessment/patterns/fde-g2-2026.js:16:75c1d651`
 
 ## Tests (all, generated)
-- `chrome.js` ← `tests/assessment/fde-early-chrome.test.js` · `tests/assessment/fde-early-pictures-pattern.test.js`
+- `chrome.js` ← `tests/assessment/fde-early-chrome.test.js` · `tests/assessment/fde-early-pictures-pattern.test.js` · `tests/assessment/fde-v23-oral-cover-line.test.js` · `tests/assessment/topics/oral-g35.test.js` · `tests/assessment/topics/topic-oral.test.js`
 
 ## Related (all, generated)
 - docs: `bot/shared/services/assessment/patterns/CLAUDE.md`?

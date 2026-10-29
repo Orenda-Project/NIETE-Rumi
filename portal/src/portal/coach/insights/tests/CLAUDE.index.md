@@ -25,6 +25,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `r6_coach_deck.test.tsx` | Pins the R6 coach deck restyle behaviours: hero ring, overlapping card, bidi, laptop layout (bd-sex15q.46) |
 | `r6b_fix.test.tsx` | (unmapped) |
 | `r6b_more.test.tsx` | (unmapped) |
+| `r6c_fix.test.tsx` | (unmapped) |
+| `r6c_results.test.tsx` | (unmapped) |
 | `routing.flagOff.test.tsx` | Pins coach routing with COACHIP off versus on: home, menu, reachable pages (B7/B8) |
 
 ## Who reads this (all, generated)
@@ -34,4 +36,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/scripts/urdu-fit/CLAUDE.md`? · `portal/src/portal/coach/insights/CLAUDE.md`? · `portal/src/portal/coach/insights/pages/CLAUDE.md`? · `portal/src/portal/coach/profile/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.md`? · `portal/src/portal/coachip-ui/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?
+- docs: `portal/scripts/urdu-fit/CLAUDE.md`? · `portal/src/portal/coach/insights/CLAUDE.md`? · `portal/src/portal/coach/insights/components/CLAUDE.md`? · `portal/src/portal/coach/insights/pages/CLAUDE.md`? · `portal/src/portal/coach/profile/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.md`? · `portal/src/portal/coachip-ui/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

@@ -38,10 +38,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `weekday-hours.js` | Counts hours only on Pakistan weekdays so a ready lesson/paper stays on Home for 24 weekday hours; bd-fmf24g.15. |
 
 ## Who reads this (all, generated)
-- `analytics-account-name.js` ← imported by `dashboard/routes/portal.routes.js:116:4a8ca079` · `scripts/create-analytics-user.js:56:7dc5528c`
-- `analytics-lists.js` ← imported by `dashboard/routes/portal.routes.js:120:de843ac4` · `dashboard/services/coachip-scope.service.js:23:f5343854` · `dashboard/services/lp-engagement.service.js:53:9c155943` · `dashboard/services/observations-analytics.service.js:58:e6baeab1` (+3: `python3 kg/kg.py who-reads analytics-lists.js`)
-- `analytics-viewer.js` ← imported by `dashboard/routes/portal.routes.js:114:8016df50`
-- `assessment-rate-limit.js` ← imported by `dashboard/routes/portal.routes.js:3099:69f9223e`
+- `analytics-account-name.js` ← imported by `dashboard/routes/portal.routes.js:117:4a8ca079` · `scripts/create-analytics-user.js:56:7dc5528c`
+- `analytics-lists.js` ← imported by `dashboard/routes/portal.routes.js:121:de843ac4` · `dashboard/services/coachip-scope.service.js:23:f5343854` · `dashboard/services/lp-engagement.service.js:53:9c155943` · `dashboard/services/observations-analytics.service.js:58:e6baeab1` (+3: `python3 kg/kg.py who-reads analytics-lists.js`)
+- `analytics-viewer.js` ← imported by `dashboard/routes/portal.routes.js:115:8016df50`
+- `assessment-rate-limit.js` ← imported by `dashboard/routes/portal.routes.js:3100:69f9223e`
 - `asset-links.js` ← imported by `dashboard/index.js:165:60938a24`
 - `closed-inline-switch.js` ← imported by `dashboard/routes/web-quiz.routes.js:48:13a7f7b2`
 - `closed-way-back-switch.js` ← imported by `dashboard/routes/quiz-go.routes.js:31:03c0d9ed` · `dashboard/routes/web-quiz.routes.js:47:03c0d9ed`
@@ -52,16 +52,16 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `final-error-handler.js` ← imported by `dashboard/index.js:3832:9a939a1b`
 - `fln-access.js` ← imported by `dashboard/routes/portal-fln-links.routes.js:19:9e499725` · `dashboard/routes/portal-fln-send.routes.js:76:06d869fe` · `dashboard/routes/portal-fln.routes.js:40:03f88d41`
 - `health.js` ← imported by `dashboard/index.js:3765:93291bde`
-- `leader-role.js` ← imported by `dashboard/routes/hcp.routes.js:39:7f62b386` · `dashboard/routes/portal-child-test.routes.js:52:7f62b386` · `dashboard/routes/portal-coachip.routes.js:20:3b203e06` · `dashboard/routes/portal.routes.js:107:9cce833e` (+2: `python3 kg/kg.py who-reads leader-role.js`)
+- `leader-role.js` ← imported by `dashboard/routes/hcp.routes.js:39:7f62b386` · `dashboard/routes/portal-child-test.routes.js:52:7f62b386` · `dashboard/routes/portal-coachip.routes.js:20:3b203e06` · `dashboard/routes/portal.routes.js:108:9cce833e` (+2: `python3 kg/kg.py who-reads leader-role.js`)
 - `lesson-plan-file.js` ← imported by `dashboard/routes/portal.routes.js:46:9341eb55`
 - `local-dev.js` ← imported by `dashboard/config/database.js:15:2f21d74f` · `dashboard/index.js:10:8ee1c78d`
-- `media-url.js` ← imported by `dashboard/routes/portal.routes.js:4960:4bdd2404` · `dashboard/routes/video-reco.routes.js:52:d0ee1aba` · `dashboard/services/training-library.service.js:18:e6d2fabe`
-- `pk-range.js` ← imported by `dashboard/routes/portal-teacher-coaching.routes.js:26:a69bbe61` · `dashboard/routes/portal-teacher-lessons.routes.js:21:150648cb` · `dashboard/routes/portal.routes.js:60:150648cb` · `dashboard/services/lp-activity.service.js:119:0070d575` (+3: `python3 kg/kg.py who-reads pk-range.js`)
+- `media-url.js` ← imported by `dashboard/routes/portal.routes.js:4961:4bdd2404` · `dashboard/routes/video-reco.routes.js:52:d0ee1aba` · `dashboard/services/training-library.service.js:18:e6d2fabe`
+- `pk-range.js` ← imported by `dashboard/routes/portal-teacher-coaching.routes.js:26:a69bbe61` · `dashboard/routes/portal-teacher-lessons.routes.js:21:150648cb` · `dashboard/routes/portal.routes.js:61:150648cb` · `dashboard/services/lp-activity.service.js:119:0070d575` (+3: `python3 kg/kg.py who-reads pk-range.js`)
 - `portal-host.js` ← imported by `dashboard/index.js:3785:02854100`
 - `portal-static-cache.js` ← imported by `dashboard/index.js:3795:595624d3`
 - `school-card-period.js` ← imported by `dashboard/routes/coach-school-card.routes.js:19:99711cf0` · `dashboard/services/coach-school-card.service.js:35:fe0880b0`
-- `teacher-observation.js` ← imported by `dashboard/routes/portal-teacher-home.routes.js:39:18c3fdef` · `dashboard/routes/portal.routes.js:123:18c3fdef` · `dashboard/services/progress.service.js:41:18c3fdef` · `dashboard/services/teacher-home-order.service.js:53:18c3fdef`
-- `user-school-name.js` ← imported by `dashboard/routes/portal.routes.js:121:fd6341ed`
+- `teacher-observation.js` ← imported by `dashboard/routes/portal-teacher-home.routes.js:39:18c3fdef` · `dashboard/routes/portal.routes.js:124:18c3fdef` · `dashboard/services/progress.service.js:41:18c3fdef` · `dashboard/services/teacher-home-order.service.js:53:18c3fdef`
+- `user-school-name.js` ← imported by `dashboard/routes/portal.routes.js:122:fd6341ed`
 - `visit-time.js` ← imported by `dashboard/routes/coach-school-card.routes.js:20:b13361c4` · `dashboard/services/coach-school-card.service.js:36:b13361c4` · `dashboard/services/coach-v2.service.js:28:b13361c4` · `dashboard/services/leader-assignment.service.js:67:78fa166f` (+2: `python3 kg/kg.py who-reads visit-time.js`)
 - `weekday-hours.js` ← imported by `dashboard/services/teacher-notices.service.js:36:2b07e944`
 - env `FLAG_CACHE_TTL_MS` read at `dashboard/lib/feature-flags.js:46:15f765ee`

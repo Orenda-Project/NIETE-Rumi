@@ -98,6 +98,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-tbprit.2-coach-disagreement-clip-route.test.js` | Pins bd-tbprit.2 GET /coach/disagreements/:id/clip: disputed step as inline never-cached mp3 for the assigned coach |
 | `bd-tbprit.4-cv-opens-portal-card.test.js` | Pins bd-tbprit.4: WhatsApp /cv/:token 303s to the portal disagreement card only when both flags are on, else v1 card |
 | `bd-v0toag.1.2-report-opened.test.js` | Pins bd-v0toag.1.2: opening one's own report logs coaching.report.opened via dashboard telemetry; none for others |
+| `bd-v0toag.130-thing-to-try-leak.test.js` | (unmapped) |
 | `bd-v0toag.18-report-page.test.js` | Pins bd-v0toag.18 GET /cr/:token read-only coaching report page (groups C/D): private, expired link goes to sign-in |
 | `bd-v0toag.38.9-agree-ping-page.test.js` | Pins bd-v0toag.38.9 Do-you-agree card and /cr/:token/coach reasons page on the C/D report page |
 | `bd-v0toag.38.9-coach-card.test.js` | Pins bd-v0toag.38.9 coach card GET /cv/:token and POST /visited: scores, reasons, voice note, no-store, bad link 404 |

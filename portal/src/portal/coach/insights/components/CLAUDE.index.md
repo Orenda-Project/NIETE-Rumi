@@ -46,6 +46,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `parts.tsx` ← imported by `portal/src/portal/coach/insights/components/StepRow.tsx:8:9e4357d0`
 
 ## Tests (all, generated)
+- `MoreCoachip.tsx` ← `portal/src/portal/coach/insights/tests/r6c_fix.test.tsx`
 - `bidi.ts` ← `portal/src/portal/fln/tests/bidi.test.tsx`? · `portal/src/portal/teacher/ui/bidi.test.tsx`?
 
 ## Related (all, generated)

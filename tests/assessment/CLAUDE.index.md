@@ -6,7 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `fixtures/` | → (no door; 213 files: 0 test + 213 support) |
+| `fixtures/` | → (no door; 214 files: 0 test + 214 support) |
 | `helpers/` | Shared fakes and replay helpers for the assessment tests (not test files themselves) → `helpers/CLAUDE.md` |
 | `topics/` | Tests for assessment topics: curriculum-matrix grouping, topic papers, topic answer key → `topics/CLAUDE.md` |
 | `answer-key-marks.test.js` | Pins renderAnswerKey (assessment-paper.renderer) printing each question's marks beside its answer, comprehension too |
@@ -85,6 +85,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `deploy-killed-paper.test.js` | Pins orchestrator stale take-over and the worker keeping a live paper's row fresh so a deploy cannot strand it |
 | `draw-it-prompt.test.js` | Pins the prompt for Mind Map, Flow Chart and Graph types the child draws from text (generation.service) |
 | `eval-plan.test.js` | Unit tests for scripts/assessment/eval-plan: which chapters get an exam and what each exam spec asks for |
+| `fde-answer-repeats.test.js` | (unmapped) |
 | `fde-blueprint-check.test.js` | bd-5jmnfj.2: pins the blueprint check recomputing totals, slot counts and thinking-level split versus the board pattern |
 | `fde-blueprint-regenerate.test.js` | bd-5jmnfj.18: pins one regeneration of a board paper off FDE's level split, the nearer paper returned, both runs billed |
 | `fde-blueprint-wiring.test.js` | bd-5jmnfj.2: pins that the level target comes from the pattern and every board paper carries the blueprint result |
@@ -105,15 +106,18 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fde-edit.test.js` | Pins editing a board-pattern paper: selection keeps _layout, a changed answer drops worked scheme points (E8.1/E8.2) |
 | `fde-english-levels.test.js` | bd-5jmnfj.26: pins English's thinking-level split counted the way FDE counts it, inside each question |
 | `fde-fixtures-chain.test.js` | Runs three whole board papers (Maths, Urdu, Science) through applyLayout, scheme, maths check and both renderers |
+| `fde-frame-bank.test.js` | (unmapped) |
 | `fde-g1-english-q9.test.js` | bd-5jmnfj.4.38: pins that Grade 1 English Q9 fill-in sentences leave only one right word (patterns) |
 | `fde-generation.test.js` | Pins generatePatternExam: one parallel model call per section and the section prompts (generation.service, patterns) |
 | `fde-held-terms.test.js` | Pins held content on board papers: Social Studies religious-text items held, paper fails; Urdu stock wording passes |
+| `fde-key-pattern.test.js` | (unmapped) |
 | `fde-layout.test.js` | Pins applyLayout: puts model output into FDE's shape, deciding slot placement and marks (fde-layout, patterns) |
 | `fde-match-block.test.js` | bd-5jmnfj.4.23: pins match Column B ordering: sorted, turned so no answer sits beside its stem (fde-match-block) |
 | `fde-match.test.js` | bd-5jmnfj.4.23: pins the Urdu match slot printing two columns of stems and shuffled answers (patterns, fde renderer) |
 | `fde-maths-angle-options.test.js` | bd-5jmnfj.11: pins Maths Q4 printing its three angle options i) ii) iii) through layout, scheme and renderer |
 | `fde-model-switch.test.js` | Pins the separate assessment.generate.fde model job and the per-section output ceiling (generation.service) |
 | `fde-named-child-pronoun.test.js` | bd-5jmnfj.23: pins that a named child or a boy/girl is never 'they' in generated stems (generation.service) |
+| `fde-no-arrows.test.js` | (unmapped) |
 | `fde-no-disclaimer.test.js` | bd-5jmnfj.4.26: pins that no pattern prints the 'not an official paper' disclaimer (patterns, fde renderer) |
 | `fde-options.test.js` | Pins POST /assessment/options telling the app about a board pattern, only when flagged on and grade+subject have one |
 | `fde-oral-sheet.test.js` | bd-5jmnfj.4.4: pins the oral teacher sheet in Grade 1-2 marking schemes: scripts, rubric, class grid (fde-oral-sheet) |
@@ -122,9 +126,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fde-paper-view-choice-items.test.js` | Pins that the phone paper view passes slot items to choiceLine so single-item '{q}' prompts are filled |
 | `fde-paper-view.test.js` | Pins a board-pattern paper on the portal paper page and papers list, built from the laid-out tree (paper-view.service) |
 | `fde-pattern-module.test.js` | Pins the FDE Grade 5 board pattern as frozen data: marks add up, counts consistent, registry lists it |
+| `fde-pic-grid-break.test.js` | (unmapped) |
 | `fde-picture-block.test.js` | bd-5jmnfj.4.3: pins how a Grade 1-2 picture prints; an item without an image fails the render (fde-picture-block) |
 | `fde-picture-frame.test.js` | bd-5jmnfj.4.36/37: pins that framed pictures are rejected and plain objects carry no face (fde-pictures, picture-kie) |
 | `fde-picture-kie.test.js` | bd-5jmnfj.4.3: pins Kie image-model prompt and create/poll/download task for Grade 1-2 pictures, with fetch injected |
+| `fde-picture-place.test.js` | (unmapped) |
 | `fde-picture-svg.test.js` | bd-5jmnfj.4.3: pins SVG drawing of dots, shapes and a clock face; unsupported pictures throw (fde-picture-svg) |
 | `fde-pictures.test.js` | bd-5jmnfj.4.3: pins resolving every Grade 1-2 picture before save: SVG in place, R2 cache, else image model, one retry |
 | `fde-plant-label.test.js` | bd-5jmnfj.4.33: pins the G2 GK Q9 'label the plant' picture and slot, no arrows (fde-picture-svg, early-prompt) |
@@ -204,7 +210,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fde-recorded-replies.test.js` | Replays real board-pattern model replies (Urdu held-lessons filter, Maths cutoff) to pin the first real-paper failures |
 | `fde-render-dispatch.test.js` | Pins renderPaper/renderAnswerKey routing a _layout paper to the FDE renderer and others to the old one |
 | `fde-revision.test.js` | Pins a board-pattern new version re-rendering both paper and marking scheme with their own PDF options (E8.4) |
+| `fde-scheme-cover.test.js` | (unmapped) |
 | `fde-science-q3-levels.test.js` | bd-5jmnfj.14: pins Science Section C's level rule per FDE's table of specification (generation.service, patterns) |
+| `fde-scramble-block.test.js` | (unmapped) |
 | `fde-section-levels.test.js` | bd-5jmnfj.19: pins each section being asked for its own thinking-level split, not the whole paper's |
 | `fde-section-reask.test.js` | Pins a short board-pattern section being asked once more before the paper fails (PATTERN_SHORT_SLOT) |
 | `fde-split-retry-setting.test.js` | bd-5jmnfj.18: pins assessment_fde_split_retry read by the orchestrator per pattern paper and failing safe |
@@ -215,10 +223,26 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fde-stem-check-topics.test.js` | bd-5jmnfj.28: pins the stem check seeing the topics an item prints (English Q8 paragraph topics) |
 | `fde-stem-check.test.js` | bd-5jmnfj.22: pins the stem-check prompt and reply reading that catches self-contradicting questions (fde-stem-check) |
 | `fde-urdu-lesson-scope-probes.test.js` | Probes Urdu Q1 grammar limited to chosen lessons and its hold; full syllabus and other subjects must not move |
+| `fde-urdu-notes.test.js` | (unmapped) |
 | `fde-v18-paper-fixes.test.js` | Pins v18 sandbox paper fixes: all-same MCQ choices (4.35) and G1 GK land-or-water pictures (4.34) |
 | `fde-v19-paper-fixes.test.js` | Pins v19 fixes: match pairs not printed already joined (4.43) and the speech-bubble tail outline (4.40) |
 | `fde-v20-paper-fixes.test.js` | Pins v20 fixes: land-and-water animals keyed both (4.45) and Q13 gift/bubble tail corrections (4.40) |
 | `fde-v21-key-fixes.test.js` | Pins v21 fixes: Column B neither beside its stem nor a shift (4.47) and rhyme key naming the picture (4.48) |
+| `fde-v22-reading-key.test.js` | (unmapped) |
+| `fde-v23-accept-list.test.js` | (unmapped) |
+| `fde-v23-banned-words.test.js` | (unmapped) |
+| `fde-v23-g2-place-value.test.js` | (unmapped) |
+| `fde-v23-g2-reading-answer-space.test.js` | (unmapped) |
+| `fde-v23-g5-keys.test.js` | (unmapped) |
+| `fde-v23-g5-science-label-frame.test.js` | (unmapped) |
+| `fde-v23-key-picture-line.test.js` | (unmapped) |
+| `fde-v23-maths-key-box.test.js` | (unmapped) |
+| `fde-v23-oral-cover-line.test.js` | (unmapped) |
+| `fde-v23-oral-notes.test.js` | (unmapped) |
+| `fde-v23-order-key.test.js` | (unmapped) |
+| `fde-v23-repeats.test.js` | (unmapped) |
+| `fde-v23-urdu-key-notes.test.js` | (unmapped) |
+| `fde-v24-urdu-q6-no-naat.test.js` | (unmapped) |
 | `generation-hardening.test.js` | Pins the paper model call's max_tokens ceiling and one retry on an empty reply (generation.service) |
 | `golden.test.js` | Golden test: pins today's generator prompts, printed papers/keys and options payloads for non-board-pattern papers |
 | `llm-passthrough.test.js` | Pins that max_tokens and a per-call timeout reach the SDK through the shared model client (model-settings) |
@@ -234,6 +258,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `rt-r21u3-probes.test.js` | Red-team probes: Urdu Q1 concept rules on chosen lessons, hold counts, Q4 syllable hold, verse source line |
 | `rt-r21u4-probes.test.js` | Red-team probes: on chosen lessons a grammar concept never prints twice after put-back (recorded sandbox papers) |
 | `rt-r21u5-probes.test.js` | Red-team probes: Urdu one-story Q1 rules: story-item cap across re-layouts, name cue, reader candidate list |
+| `scheme-accept-check.test.js` | (unmapped) |
 | `worker-assessment-heartbeat.test.js` | Pins the SQS worker keeping an assessment message invisible while a paper is made and finishing it on deploy |
 
 ## Who reads this (all, generated)

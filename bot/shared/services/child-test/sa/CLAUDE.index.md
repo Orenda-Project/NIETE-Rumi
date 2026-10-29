@@ -28,8 +28,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `score.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:663:dfafea0e` · `bot/whatsapp-bot.js:2981:1f15208c`
 - `scripts.js` ← imported by `bot/shared/services/child-test/sa/build-w3.js:21:f61e9aac` · `bot/shared/services/child-test/sa/build.js:17:41b0657a`
 - `set-aside.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:68:e5ebbf41` · `bot/shared/services/child-test/app/sa-review.service.js:20:e5ebbf41` · `bot/shared/services/child-test/sa-store.js:224:2ca04ca8` · `bot/shared/services/child-test/sa/score.js:87:1d2f1506`
-- `ur-tashdeed.js` ← imported by `bot/scripts/child-test/record-sa-voice.js:89:46fcd804`
-- `voice-manifest.js` ← imported by `bot/scripts/child-test/record-sa-voice.js:82:f01bc739`
+- `ur-tashdeed.js` ← imported by `bot/scripts/child-test/record-sa-voice.js:92:46fcd804`
+- `voice-manifest.js` ← imported by `bot/scripts/child-test/record-sa-voice.js:85:f01bc739`
 - table `child_test_blocks` whole row (`*`) (written by `score.js`) ← read by `bot/shared/services/child-test/check-flow/check-store.js:49:b0acb96c`?
 - table `child_test_blocks` (written by `score.js`) ← read by `scripts/child-test/smoke-sandbox.js:83:c2d8ba96`?
 - env `CHILD_TEST_R2_ENV` read at `bot/shared/services/child-test/sa/score.js:144:20458b92`
@@ -53,7 +53,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `scripts.js` ← `bot/tests/child-test/sa-reading.test.js` · `bot/tests/child-test/sa-voice-sustained-sounds.test.js`
 - `set-aside.js` ← `bot/tests/child-test/sa-restart.test.js`
 - `ur-tashdeed.js` ← `bot/tests/child-test/record-sa-voice-v4.test.js` · `bot/tests/child-test/sa-voice-tashdeed.test.js`
-- `voice-manifest.js` ← `bot/tests/child-test/record-sa-voice-v4-equals.test.js` · `bot/tests/child-test/record-sa-voice-v4.test.js` · `bot/tests/child-test/sa-rdf-w3.test.js` · `bot/tests/child-test/sa-voice-sustained-sounds.test.js` · `bot/tests/child-test/sa-voice-tashdeed.test.js` · `bot/tests/child-test/sa-voice.test.js` (+1: `python3 kg/kg.py who-reads bot/shared/services/child-test/sa/voice-manifest.js`)
+- `voice-manifest.js` ← `bot/tests/child-test/record-sa-voice-v4-equals.test.js` · `bot/tests/child-test/record-sa-voice-v4-praise.test.js` · `bot/tests/child-test/record-sa-voice-v4-sounds.test.js` · `bot/tests/child-test/record-sa-voice-v4.test.js` · `bot/tests/child-test/sa-rdf-w3.test.js` · `bot/tests/child-test/sa-voice-sustained-sounds.test.js` (+3: `python3 kg/kg.py who-reads bot/shared/services/child-test/sa/voice-manifest.js`)
 
 ## Related (all, generated)
 - (none)

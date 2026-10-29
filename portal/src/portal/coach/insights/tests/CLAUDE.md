@@ -1,7 +1,7 @@
 # tests — Goldens for each COACHIP coach page plus shared harness and fixtures
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/insights/tests kg=b130dadf1306 gen=833dcce3b289 overflow=7 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/insights/tests kg=c76985850d35 gen=fb05bccb9ced overflow=9 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `harness.tsx` — mocks, serve() and boot() every page test starts from
@@ -25,7 +25,7 @@ Full index: `CLAUDE.index.md`
 | `Schools.test.tsx` | Pins Schools tab: API order, WRow per school, never-visited line, error and switch-off |
 | `Stats.test.tsx` | Pins S6 Stats: payload order rows, opening states, change pill rule, FICO panel, sparkline |
 | `Weakness.test.tsx` | Pins S2 one-fold page and Set step posting exactly six keys, 201 and 409 outcomes |
-| … | 7 more → `CLAUDE.index.md` |
+| … | 9 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -38,4 +38,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/scripts/urdu-fit/CLAUDE.md`? · `portal/src/portal/coach/insights/CLAUDE.md`? · `portal/src/portal/coach/insights/pages/CLAUDE.md`? · `portal/src/portal/coach/profile/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.md`? · `portal/src/portal/coachip-ui/CLAUDE.md`? (+2)
+- docs: `portal/scripts/urdu-fit/CLAUDE.md`? · `portal/src/portal/coach/insights/CLAUDE.md`? · `portal/src/portal/coach/insights/components/CLAUDE.md`? · `portal/src/portal/coach/insights/pages/CLAUDE.md`? · `portal/src/portal/coach/profile/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.md`? (+3)

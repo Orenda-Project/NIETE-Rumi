@@ -107,9 +107,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `version-check.js` ← imported by `bot/whatsapp-bot.js:2955:7e4b5ef2`
 - `web-drain.js` ← imported by `bot/whatsapp-bot.js:6:5183c38a`
 - `word-grid-generator.js` ← imported by `bot/shared/services/reading/passage-generation.service.js:28:ab676e5c`
-- column `users.language_locked` (written by `language-cache.js`) ← read by `bot/shared/routes/registration-endpoint.js:104:713d0c02` · `dashboard/routes/portal.routes.js:8817:6505fa79` · `scripts/language-floor-flip.js:314:1ecb6fd7`
+- column `users.language_locked` (written by `language-cache.js`) ← read by `bot/shared/routes/registration-endpoint.js:104:713d0c02` · `dashboard/routes/portal.routes.js:8819:6505fa79` · `scripts/language-floor-flip.js:314:1ecb6fd7`
 - column `users.preferred_language` (written by `language-cache.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:761:6d7fc8d6` · `bot/shared/routes/assessment-gen-endpoint.js:995:578cc074` · `bot/shared/routes/class-manager-endpoint.js:143:aa90cbd2` (+70: `python3 kg/kg.py who-reads users.preferred_language`)
-- table `users` whole row (`*`) (written by `language-cache.js`) ← read by `bot/shared/database/bot-helpers.js:28:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:687:7a0c163a`? · `dashboard/routes/portal.routes.js:313:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
+- table `users` whole row (`*`) (written by `language-cache.js`) ← read by `bot/shared/database/bot-helpers.js:28:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:687:7a0c163a`? · `dashboard/routes/portal.routes.js:314:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
 - table `users` (written by `language-cache.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:242:774e00e5`? · `bot/shared/database/bot-helpers.js:17:61dfd735`? (+168: `python3 kg/kg.py who-reads users`)
 - env `ASSESSMENT_GEN_FLOW_ID` read at `bot/shared/utils/constants.js:75:751abbfb`
 - env `ASSESSMENT_REVIEW_FLOW_ID` read at `bot/shared/utils/constants.js:80:e2729069`
