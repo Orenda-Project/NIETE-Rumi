@@ -79,6 +79,26 @@ async function thingFor(supabase, userId, lessonId) {
   }
 }
 
+/**
+ * bd-v0toag.130: her session's prioritized_action as the app may show it. The bot stores thing_to_try for
+ * every group (A and B's check is the comparison), so it stays only for C and D while the switch is on; for
+ * anyone else, or on any failed read, it is removed and her commitment kept. Never throws.
+ */
+async function actionForTeacher(supabase, userId, prioritizedAction) {
+  if (!prioritizedAction || typeof prioritizedAction !== 'object' || !('thing_to_try' in prioritizedAction)) {
+    return prioritizedAction;
+  }
+  try {
+    if (userId && (await isFlagEnabled(supabase, SWITCH_KEY)) && NEW_REPORT.has(await groupOf(supabase, userId))) {
+      return prioritizedAction;
+    }
+  } catch (error) {
+    console.error('v10 test: group read failed (the thing to try is left off her report)', { error: error && error.message });
+  }
+  const { thing_to_try: _hidden, ...rest } = prioritizedAction;
+  return rest;
+}
+
 /** A tap's body, cleaned: the lesson id when it has a lesson id's shape, a whole step 1-30. Pure. */
 function cleanTap(body) {
   const b = body && typeof body === 'object' ? body : {};
@@ -87,4 +107,4 @@ function cleanTap(body) {
   return { lessonId, step };
 }
 
-module.exports = { SWITCH_KEY, thingFor, cleanTap };
+module.exports = { SWITCH_KEY, thingFor, actionForTeacher, cleanTap };
