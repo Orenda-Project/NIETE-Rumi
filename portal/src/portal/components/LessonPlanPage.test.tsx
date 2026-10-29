@@ -63,4 +63,36 @@ describe("PdfPage", () => {
     expect(document.querySelectorAll('[data-page="2"] [data-testid="step-band"]')).toHaveLength(1);
     expect(document.querySelector('[data-page="2"] [data-testid="band-star"]')).not.toBeNull();
   });
+  // bd-v0toag.129: the canvas is a picture, so a PDF link ("Full details ›" on the v10 card) did nothing.
+  // Each web link gets a tappable box over it, opening outside like the viewer's other links.
+  it("puts a tappable link over each web link on the page", async () => {
+    const page = Object.assign(makePage(), {
+      getAnnotations: vi.fn(async () => [
+        { subtype: "Link", url: "https://portal.niete.edu.pk/v9h-x/g3_ch5/g3_ch5_English_seg2.v9.html#we-do", rect: [60, 700, 180, 720] },
+        { subtype: "Link", url: "javascript:alert(1)", rect: [0, 0, 10, 10] },
+        { subtype: "Link", dest: "page2", rect: [0, 0, 10, 10] },
+        { subtype: "Text", rect: [0, 0, 10, 10] },
+      ]),
+    });
+    render(<PdfPage doc={docOf(page)} pageNumber={1} width={300} ratio={800 / 600} onRatio={vi.fn()} onFailed={vi.fn()} />);
+    const links = await screen.findAllByTestId("lp-link");
+    expect(links).toHaveLength(1);
+    const a = links[0] as HTMLAnchorElement;
+    expect(a.getAttribute("href")).toBe("https://portal.niete.edu.pk/v9h-x/g3_ch5/g3_ch5_English_seg2.v9.html#we-do");
+    expect(a.getAttribute("target")).toBe("_blank");
+    expect(a.getAttribute("rel")).toContain("noopener");
+    // PDF space is bottom-up: x 60-180 of 600, y 700-720 of 800 → left 10%, top 10%, 20% wide, 2.5% high.
+    expect(a.style.left).toBe("10%");
+    expect(a.style.top).toBe("10%");
+    expect(a.style.width).toBe("20%");
+    expect(a.style.height).toBe("2.5%");
+  });
+
+  it("draws no links when the page has none or pdf.js cannot read them", async () => {
+    const page = Object.assign(makePage(), { getAnnotations: vi.fn(async () => { throw new Error("no"); }) });
+    render(<PdfPage doc={docOf(page)} pageNumber={1} width={300} ratio={1.4} onRatio={vi.fn()} onFailed={vi.fn()} />);
+    await waitFor(() => expect(page.render).toHaveBeenCalled());
+    await waitFor(() => expect(page.getAnnotations).toHaveBeenCalled());
+    expect(screen.queryAllByTestId("lp-link")).toHaveLength(0);
+  });
 });
