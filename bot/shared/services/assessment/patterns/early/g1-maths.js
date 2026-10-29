@@ -40,10 +40,10 @@ module.exports = makeSubject({
       levels: { Remember: 2, Understand: 11, Apply: 7 },
       slots: [
         { slot: 'g1.maths.B.Q5', label_en: 'Q5.', type: 'Addition Word Problems', generate: 5, marks_each: 1, lines: 2,
-          instruction_en: 'Solve.',
+          instruction_en: 'Read the story and solve. Show your working.',
           prompt_rule: 'Five one-step addition stories from the book, sums up to 20, one or two short sentences a Grade 1 child can read. Answer: the number sentence and the sum.' },
         { slot: 'g1.maths.B.Q6', label_en: 'Q6.', type: 'Subtraction Word Problems', generate: 5, marks_each: 1, lines: 2,
-          instruction_en: 'Solve.',
+          instruction_en: 'Read the story and solve. Show your working.',
           prompt_rule: 'Five one-step take-away stories from the book, numbers up to 20. Answer: the number sentence and the difference.' },
         { slot: 'g1.maths.B.Q7', label_en: 'Q7.', type: 'Name the Shape', generate: 5, marks_each: 1, lines: 1, picture_only: true,
           instruction_en: 'Write the name of each shape.', picture: ['shapes'],

@@ -26,7 +26,7 @@ module.exports = makeSubject({
       slots: [
         S({ slot: 'g2.urdu.A.Q1', label_en: 'Q1.', type: 'MCQs', shape: 'mcq', generate: 10, option_labels: 'ur',
           instruction_ur: 'درست جواب پر دائرہ لگائیں۔',
-          prompt_rule: 'Ten three-option MCQs on the book lessons and poems (meanings, who said what, the right spelling).' }),
+          prompt_rule: 'Ten three-option MCQs on the book lessons and poems (meanings, who said what, the right spelling). Poet distractors are real poets spelt as the book spells them, and at most one item asks a poet\'s name.' }),
         S({ slot: 'g2.urdu.A.Q2', label_en: 'Q2.', type: 'Alphabetical Order', generate: 4,
           instruction_ur: 'الفاظ کو حروفِ تہجی کی ترتیب سے لکھیں۔',
           prompt_rule: 'Four items of three book words out of order. Answer: the ordered words.' }),
@@ -39,7 +39,7 @@ module.exports = makeSubject({
         S({ slot: 'g2.urdu.A.Q5', label_en: 'Q5.', type: 'Singular Plural', generate: 4, picture: ['object'],
           instruction_ur: 'واحد سے جمع بنائیں۔', prompt_rule: 'Four book nouns. Answer: the plural. Each item also carries picture: {kind:"object", name} of the given noun, one of it, in English for the artist; choose only words that can be drawn.' }),
         S({ slot: 'g2.urdu.A.Q6', label_en: 'Q6.', type: 'Opposites', generate: 4,
-          instruction_ur: 'الٹ لکھیں۔', prompt_rule: 'Four book words with a common opposite. Answer: the opposite.' }),
+          instruction_ur: 'الٹ لکھیں۔', prompt_rule: 'Four book words with a common opposite. Answer: the opposite. The `accept` list holds only a true opposite.' }),
       ],
     },
     {
@@ -65,7 +65,7 @@ module.exports = makeSubject({
       { id: 'poem', kind: 'listening', marks: 10, label_en: 'Poem questions', label_ur: 'نظم سے سوال',
         instruction_en: 'Read the book poem aloud once, then ask the questions.',
         instruction_ur: 'کتاب کی نظم ایک بار پڑھ کر سنائیں، پھر سوال پوچھیں۔',
-        ask: 'The opening lines of one book poem (quote the book exactly) and five questions on it with answers.', n: 5,
+        ask: 'The opening lines of one book poem (quote the book exactly) and five questions on it with answers. Each answer is a full sentence, as the rubric pays for sentences.', n: 5,
         rubric: [{ marks: 2, en: 'Each right answer in a sentence', ur: 'ہر درست جواب جملے میں' }] },
       { id: 'holidays', kind: 'speaking', marks: 10, label_en: 'My summer holidays', label_ur: 'میری گرمیوں کی چھٹیاں',
         instruction_en: 'Ask the child to say five sentences about their summer holidays.',

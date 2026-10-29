@@ -31,7 +31,7 @@ const { clampLanguage } = require('../../config/ux-strings');
 const Patterns = require('./patterns');
 const { pictureBlock, bubbleBlock, PICTURE_CSS } = require('./fde-picture-block');
 const { matchOrder, bankOrder, matchTable, matchAnswer, matchStem, MATCH_CSS } = require('./fde-match-block');
-const { oralSheet, ORAL_CSS } = require('./fde-oral-sheet');
+const { oralSheet, childCard, ORAL_CSS } = require('./fde-oral-sheet');
 const { answeredParts } = require('./fde-sub-answers');
 const { letterOrder } = require('./fde-order-block');
 const { urduNote } = require('./fde-urdu-notes');
@@ -515,13 +515,19 @@ function frameBlock(q, slot, ctx, pic) {
   const title = String(slot.frame[`title_${lang}`] || '').replace('{q}', String(q.question || '').trim());
   const lines = Array.from({ length: slot.frame.lines || 0 }, (_, i) => `<div class="label-line"><span class="num-l">${textOf(String(i + 1), ctx)}.</span></div>`).join('');
   const id = `fde-frame-${slot.slot}`;
+  // A frame with no drawn picture names the teacher's duty in words, so an empty frame is never read
+  // as a missing diagram (v27 G5 Science Q1 b, bd-5jmnfj.4.58.3).
+  const book = slot.frame.book_page;
+  const duty = pic ? '' : `<div class="frame-duty">${textOf(lang === 'ur'
+    ? `استاد: ${slot.frame.duty_ur || 'تصویر'} یہاں بنائیں یا چسپاں کریں${book ? ` (کتاب ص ${book})` : ''}، فوٹو کاپی سے پہلے۔` // needs fluent-Urdu review
+    : `Teacher: draw or paste ${slot.frame.duty_en || 'the picture'} here${book ? ` (book p. ${book})` : ''} before photocopying.`, ctx)}</div>`;
   // A frame that prints no `words` still prints the item's own instruction and bank (bd-5jmnfj.4.50.4).
   const own = slot.frame.word_bank ? { line: '', words: q.words } : frameBank(q, slot[`instruction_${lang}`]);
   const lead = own.line ? `<div class="frame-ins">${textOf(own.line, ctx)}</div>` : '';
   const bank = wordList(own.words, ctx, true);
   return `${lead}${bank}<div class="frame" id="${esc(id)}" style="height:${slot.frame.height_mm}mm">`
     + `<a class="frame-anchor" href="#${esc(id)}"></a>`
-    + (pic || `<div class="frame-title">${textOf(title, ctx)}</div>`)
+    + (pic || `<div class="frame-title">${textOf(title, ctx)}</div>${duty}`)
     + (lines ? `<div class="label-lines">${lines}</div>` : '')
     + '</div>';
 }
@@ -671,13 +677,16 @@ function slotBlock(slot, sec, list, ctx) {
   if (slot.alternatives && !live.length) body.push(fixedAlternatives(slot, null, ctx));
   // An either/or question is read as one choice: never split across a page.
   const either = slot.or || slot.alternatives ? ' either' : '';
+  // A short slot (six items or fewer, not a passage) moves whole, so its items never leave their
+  // instruction at a page break (v27 G1 Maths Q2, G2 English Q1 h, bd-5jmnfj.4.58.3).
+  const short = live.length <= 6 && !['comprehension', 'passage'].includes(slot.shape) ? ' short' : '';
   // A Grade 1-2 slot prints its words once, boxed, above its items (bd-5jmnfj.4.20). The bank is
   // dealt so no word sits at its own item: a model lists them as it wrote them (bd-5jmnfj.4.50.9).
   const words = bankOrder([...new Set(live.flatMap((q) => (Array.isArray(q.words) ? q.words : [])))], live.map(matchAnswer));
   const bank = printsWords(slot) && slotFlag(slot, 'answer_box') && words.length
     ? `<div class="word-box bank">${words.map((w) => `<span class="w">${textOf(w, ctx)}</span>`).join('')}</div>` : '';
-  if (grid) return `<div class="slot${either}">${head}${bank}<div class="pic-grid">${body.join('')}</div></div>`;
-  return `<div class="slot${either}">${head}${bank}${body.join('')}</div>`;
+  if (grid) return `<div class="slot${either}${short}">${head}${bank}<div class="pic-grid">${body.join('')}</div></div>`;
+  return `<div class="slot${either}${short}">${head}${bank}${body.join('')}</div>`;
 }
 
 // Verses given from a lesson the paper does not cover name it under them, as English Q5 names its
@@ -784,6 +793,7 @@ function css(medium, kind) {
   .frame { position: relative; border: 1.2px solid #000; margin: 4px 0; break-inside: avoid; }
   .frame-anchor { position: absolute; inset: 0; }
   .frame-title { position: absolute; top: 2mm; ${start}: 3mm; font-size: ${ur ? '10pt' : '8.5pt'}; color: #555; }
+  .frame-duty { position: absolute; top: 7mm; ${start}: 3mm; font-size: ${ur ? '9pt' : '8pt'}; color: #555; }
   .label-lines { position: absolute; ${end}: 3mm; top: 8mm; bottom: 3mm; display: flex; flex-direction: column; justify-content: space-around; width: 45mm; }
   .label-line { border-bottom: 1px solid #000; height: 6mm; }
   .label-line .num-l { font-size: 8pt; color: #555; }
@@ -804,6 +814,7 @@ function css(medium, kind) {
   .ant-row { display: flex; gap: 14mm; margin: 2px 0; }
   .or { text-align: center; font-weight: 700; margin: 2px 0; break-before: avoid; break-after: avoid; }
   .slot.either { break-inside: avoid; }
+  .slot.short { break-inside: avoid; }
   .or-lead, .alt { font-weight: 700; }
   .sit { margin-top: 3px; }
   ${ur ? `/* Nastaliq ascenders rise above the line box; without room above, a block
@@ -923,7 +934,11 @@ const BOOK_SOURCE = {
   diagram: { en: "the book's diagram", ur: 'کتاب کا خاکہ' }, // ur: needs fluent-Urdu review
 };
 
-// Rows the scheme pass wrote in code (an answer with no points), counted in the box,
+// How much of a question's stem the key column repeats. 110 cut mid-sentence on every G5 Maths
+// Section C stem (v27, bd-5jmnfj.4.58.3); a two-line do-as-directed item reads whole (bd-5jmnfj.33.2).
+const KEY_ECHO = 200;
+
+// Rows the scheme pass wrote in code (an answer with no points), counted in the box and named,
 // in words a teacher acts on.
 const FILLED_BY_CODE = {
   en: (n) => (n === 1
@@ -948,7 +963,21 @@ function filledByCode(L, examJson) {
     if (seen.has(key)) return false;
     seen.add(key);
     return !removed(e);
-  }).length;
+  });
+}
+
+// The question a filled row belongs to, as the paper labels it ("Q3 (a) 1"), so the teacher
+// can find it (v27 G5 Science, bd-5jmnfj.4.58.3).
+function filledName(L, e, lang) {
+  const slot = (L.sections || []).flatMap((s) => s.slots || []).find((s) => s.slot === e.slot);
+  const label = String((slot && slot[`label_${lang}`]) || e.slot).trim().replace(/[.:]$/, '');
+  const num = slot ? String(itemNumber(slot, e.item, lang)).replace(/[.۔]$/, '') : String(e.item + 1);
+  return `${label} ${num}`.trim();
+}
+
+function filledNames(names, lang) {
+  if (lang === 'ur') return ` یہ ${names.join('، ')} ہیں۔`; // needs fluent-Urdu review
+  return names.length === 1 ? ` It is ${names[0]}.` : ` They are ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}.`;
 }
 
 // A supply whose item already prints a drawn picture: nothing for the teacher to add.
@@ -1009,8 +1038,8 @@ function beforeExamBox(L, live, ctx, examJson) {
   if (!attempts.length) lines[3] = lines[3].replace(lang === 'ur' ? '؛ {attempts}' : '; {attempts}', '');
   lines[3] = fill(lines[3], { sections: where, attempts: attempts.join(lang === 'ur' ? '؛ ' : '; ') });
   lines[4] = fill(lines[4], { t: L[`total_time_${lang}`] || (lang === 'ur' ? '3 گھنٹے' : '3 hrs') });
-  const filled = examJson ? filledByCode(L, examJson) : 0;
-  if (filled > 0) lines.push(FILLED_BY_CODE[lang](filled));
+  const filled = examJson ? filledByCode(L, examJson) : [];
+  if (filled.length) lines.push(FILLED_BY_CODE[lang](filled.length) + filledNames(filled.map((e) => filledName(L, e, lang)), lang));
   return `<div class="box before"><div class="bt">${textOf(B[`title_${lang}`], ctx)}</div><ol>${lines.filter((l) => l !== null).map((l) => `<li>${textOf(l, ctx)}</li>`).join('')}</ol></div>`;
 }
 
@@ -1217,9 +1246,6 @@ function partOfAnswer(answer, k) {
 }
 
 // A question shown beside its answer: whole, or cut at the last word that fits.
-// How much of a question the key echoes beside its answer: 200 characters, so a two-line
-// do-as-directed item or a three-part task reads whole (bd-5jmnfj.33.2; v30 cut at 110).
-const KEY_ECHO = 200;
 
 function cutAtWord(text, max) {
   const chars = [...String(text || '')];
@@ -1305,6 +1331,8 @@ ${suppliesBox(L, ctx, live)}`;
   const record = recordPage(L, live, ctx);
   // The Grade 1-2 oral teacher sheet (bd-5jmnfj.4.4); '' for a paper with no oral part.
   const oral = oralSheet(L.oral, { medium: lang, text: (s) => textOf(s, ctx) });
+  // The read-aloud words on a page of their own, so the child never sees the teacher's sheet (v27, bd-5jmnfj.4.58.3).
+  const card = childCard(L.oral, { medium: lang, text: (s) => textOf(s, ctx) });
   return `<!DOCTYPE html>
 <html lang="${lang}"${ur ? ' dir="rtl"' : ''}>
 <head><meta charset="utf-8"><title>${esc(H[`scheme_title_${lang}`])}</title>
@@ -1314,6 +1342,7 @@ ${top}
 ${sections}
 ${notes}
 ${oral}
+${card}
 ${record}
 </body></html>`;
 }

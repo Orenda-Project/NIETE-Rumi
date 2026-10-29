@@ -90,7 +90,7 @@ module.exports = makeSubject({
       { id: 'poem', kind: 'listening', marks: 5, label_en: 'Poem questions', label_ur: 'نظم سے سوال',
         instruction_en: 'Read the book poem aloud once, then ask the questions.',
         instruction_ur: 'کتاب کی نظم ایک بار پڑھ کر سنائیں، پھر سوال پوچھیں۔',
-        ask: 'The opening lines of one book poem (quote the book exactly) and five questions on it with answers.', n: 5,
+        ask: 'The opening lines of one book poem (quote the book exactly) and five questions on it with answers. Each answer is a full sentence.', n: 5,
         rubric: [{ marks: 1, en: 'Each right answer', ur: 'ہر درست جواب' }] },
       { id: 'project', kind: 'speaking', marks: 10, label_en: 'Project talk', label_ur: 'پروجیکٹ',
         instruction_en: 'The child shows a drawing or object they made and talks about it.',
