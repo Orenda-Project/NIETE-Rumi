@@ -66,6 +66,23 @@ describe.each(LANGS)("S3 Where (%s)", (lang) => {
     expect(container.innerHTML).toMatchSnapshot();
   }, 30000);
 
+  // R6 (bd-sex15q.46, SCREENS S3): the window line is the app bar's ONE line; schools are hairline rows, not boxed cards;
+  // each teacher code is a tint chip.
+  it("R6: the window line sits in the app bar; schools are hairline rows; codes are tint chips", async () => {
+    serve({ [`/coachip/w/${W}`]: F[`w_${W}`] });
+    const { container } = await renderAt(`/w/${W}/where`);
+    const bar = screen.getByTestId("insights-appbar");
+    expect(bar.querySelector(`[data-window="${F[`w_${W}`].card.window.id}"]`)).not.toBeNull();
+    const rows = screen.getAllByTestId("school-row");
+    for (const r of rows) {
+      expect(r.className).toContain("border-cp-hairline");
+      expect(r.className).not.toContain("rounded-2xl");
+    }
+    const chip = screen.getAllByTestId("school-code")[0].querySelector('[data-chip="code"]') as HTMLElement;
+    expect(chip.className).toContain("bg-cp-green-tint");
+    expectContract(container, expect);
+  }, 30000);
+
   it("no_graded school states its recordings and no codes", async () => {
     const d = clone(F[`w_${W}`]);
     d.schools[1].state = "no_graded";

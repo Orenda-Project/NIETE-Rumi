@@ -27,7 +27,8 @@ export function WindowsProvider({ windows, children }: { windows: readonly Windo
   return <WindowsCtx.Provider value={windows ?? []}>{children}</WindowsCtx.Provider>;
 }
 
-function useGrader(windowId: string): string {
+/** The grader of a Count's window (the `data-grader` attr); exported for coachip-ui's number pattern (bd-sex15q.42). */
+export function useGrader(windowId: string): string {
   const w = useContext(WindowsCtx).find((x) => x.id === windowId);
   return w?.grader ?? "";
 }

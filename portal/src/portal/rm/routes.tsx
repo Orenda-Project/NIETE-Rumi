@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
-import RmGate, { RmNotAvailable } from "./RmGate";
+import RmGate, { RmLoading, RmNotAvailable } from "./RmGate";
 
 /**
  * bd-sex15q.17 — the RM pages, mounted once in App.tsx at `/portal/rm/*`, all behind RmGate (GET /coachip/me → rm). With
@@ -15,7 +15,8 @@ const RmStats = lazy(() => import("./pages/RmStats"));
 export default function RmRoutes() {
   return (
     <RmGate>
-      <Suspense fallback={null}>
+      {/* the page's chunk: the same held wait as the gate, so the band does not blink out (FIX_R6 B8) */}
+      <Suspense fallback={<RmLoading />}>
         <Routes>
           <Route index element={<RmHome />} />
           <Route path="coaches" element={<RmCoaches />} />

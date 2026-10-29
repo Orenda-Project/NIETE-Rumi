@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useLang, type Lang } from "../../../teacher/i18n";
 import { CodeText, LibraryText, Num, TestedSpan } from "../count";
 import { digits } from "../format";
+import { Pill } from "../../../coachip-ui/Pill";
 import { pick, t, tx } from "../text";
 import type { ResultCell as Cell } from "../types";
 
@@ -41,15 +42,15 @@ export function ResultCell({ cell }: { cell: Cell }) {
       data-testid="s7-cell"
       data-school={cell.school.school_id}
       data-grade={cell.grade}
-      className="flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-white px-4 py-3.5"
+      className="flex flex-col gap-3 rounded-[20px] border border-cp-hairline bg-cp-surface p-5"
     >
-      <h2 className="text-[15.5px] font-semibold leading-snug text-[#1d2025] [overflow-wrap:anywhere]">
+      <h2 className="text-[17px] font-semibold leading-[1.4] text-cp-ink [overflow-wrap:anywhere]">
         {tx("s7.cell", lang, { g, language, school: <CodeText lang={lang}>{cell.school.school_name}</CodeText> })}
       </h2>
       <span data-testid="s7-tested" className="flex">
         <TestedSpan
           tested={cell.tested}
-          className={full ? "text-[12.5px] text-[#6b7280]" : "w-fit rounded-full bg-[#f3f4f6] px-2.5 py-0.5 text-[12.5px] font-semibold text-[#4b5563]"}
+          className={full ? "text-[13px] leading-[1.45] text-cp-ink-3" : "w-fit rounded-full bg-cp-navy-tint px-3 py-[5px] text-[12px] font-semibold leading-[1.4] text-cp-ink-2"}
         >
           {full ? t("s7.tested", lang, { t: cell.tested.n }) : t("s7.filling", lang, { t: cell.tested.n })}
         </TestedSpan>
@@ -57,16 +58,16 @@ export function ResultCell({ cell }: { cell: Cell }) {
 
       {full && (
         <>
-          <ul data-testid="s7-rows" className="flex flex-col divide-y divide-[#f0f1f3]">
+          <ul data-testid="s7-rows" className="flex flex-col divide-y divide-cp-hairline border-t border-cp-hairline">
             {cell.rows.map((r) => (
-              <li key={r.w_id} data-w={r.w_id} data-status={r.status} className="flex flex-col gap-0.5 py-2">
+              <li key={r.w_id} data-w={r.w_id} data-status={r.status} className="flex flex-col gap-0.5 py-3">
                 {r.status === "ok" && r.count && (
-                  <Num count={r.count} lang={lang} className="text-[22px] font-bold leading-tight text-[#1d2025]" />
+                  <Num count={r.count} lang={lang} className="text-[22px] font-extrabold leading-[1.1] tracking-[-0.01em] text-cp-navy" />
                 )}
-                <span className="text-[14.5px] font-semibold leading-snug text-[#1d2025]">{pick(r.short_name, lang)}</span>
-                {r.status === "ok" && r.count && <span className="text-[14px] leading-snug text-[#374151]">{pick(r.sentence, lang)}</span>}
-                {r.status === "not_measured" && <span className="text-[13px] text-[#6b7280]">{t("s7.not_measured", lang)}</span>}
-                {r.status === "not_graded" && <span className="text-[13px] text-[#6b7280]">{t("s7.not_graded", lang)}</span>}
+                <span className="text-[15px] font-semibold leading-snug text-cp-ink">{pick(r.short_name, lang)}</span>
+                {r.status === "ok" && r.count && <span className="text-[15px] leading-[1.45] text-cp-ink-2">{pick(r.sentence, lang)}</span>}
+                {r.status === "not_measured" && <Pill tone="grey" data-pill="not-yet" className="w-fit">{t("s7.not_measured", lang)}</Pill>}
+                {r.status === "not_graded" && <Pill tone="grey" data-pill="not-yet" className="w-fit">{t("s7.not_graded", lang)}</Pill>}
               </li>
             ))}
           </ul>
@@ -75,17 +76,17 @@ export function ResultCell({ cell }: { cell: Cell }) {
             <Link
               to={FLN_SEND}
               data-testid="s7-send"
-              className="flex min-h-[44px] items-center justify-center rounded-xl bg-[#33374a] px-4 py-2.5 text-center text-[15px] font-semibold text-white [overflow-wrap:anywhere]"
+              className="cp-press flex min-h-[44px] items-center justify-center rounded-[12px] border-2 border-cp-navy bg-white px-4 py-2.5 text-center text-[14px] font-semibold leading-snug text-cp-navy outline-none [overflow-wrap:anywhere] focus-visible:ring-[3px] focus-visible:ring-cp-navy focus-visible:ring-offset-2"
             >
               {/* one inline run: the {g} node must not become a flex item of its own (design-qa 092007) */}
               <span data-testid="s7-send-text">{tx(sendKey, lang, { g, language })}</span>
             </Link>
           ) : (
-            <p data-testid="s7-send-off" className="text-[13.5px] text-[#6b7280]">{t("s5.fln.off", lang)}</p>
+            <p data-testid="s7-send-off" className="text-[13px] leading-[1.45] text-cp-ink-3">{t("s5.fln.off", lang)}</p>
           ))}
 
           {cell.debrief_line && (
-            <LibraryText as="p" className="rounded-xl bg-[#f9fafb] px-3 py-2 text-[14.5px] leading-snug text-[#374151]">
+            <LibraryText as="p" className="rounded-[12px] bg-cp-ground px-3.5 py-2.5 text-[15px] leading-[1.45] text-cp-ink-2">
               {pick(cell.debrief_line, lang)}
             </LibraryText>
           )}

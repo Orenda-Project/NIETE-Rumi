@@ -20,7 +20,7 @@ export default function RmCoaches() {
     <RmPage title={rt("coaches.title", lang, { sector: data?.sector ?? sector })} windows={data?.windows} testId="rm-coaches" trust={data ? "s8.trust" : null}>
       {error === "not_found" ? <RmNote testId="rm-no-sector">{rt("s8.empty.no_sector", lang)}</RmNote>
         : !data ? <StateBlock error={error} testId="rm-state" />
-        : <div className="mx-auto max-w-3xl"><CoachGroups home={data} onFollowUp={setCoach} /></div>}
+        : <CoachGroups home={data} first onFollowUp={setCoach} />}
       {coach && data && <FollowUpPicker coach={coach} home={data} onClose={() => { setCoach(null); reload(); }} onSent={() => undefined} />}
     </RmPage>
   );

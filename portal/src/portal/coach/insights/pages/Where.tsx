@@ -32,18 +32,19 @@ function WhereBody() {
       testId="insights-where"
       backTo={insightsPaths.w(wId)}
       title={t("s3.title", lang)}
-      crumb={data ? pick(data.card.short_name, lang) : null}
+      crumb={data ? pick(data.card.short_name, lang) : error ? undefined : null}
       windows={data?.windows}
+      chips={data ? <MetaLine window={data.card.window} /> : error ? undefined : null}
     >
       {!data ? <StateBlock error={error} /> : (
-        <div className="flex flex-col gap-3">
-          <MetaLine window={data.card.window} className="px-1 text-[12.5px] leading-snug text-[#6b7280]" />
-          <ul className="flex flex-col gap-3">
+        <div className="flex flex-col lg:max-w-[560px]">
+          {/* R6 (bd-sex15q.46): hairline rows on the ground, the window line in the app bar (SCREENS S3) */}
+          <ul data-testid="where-list" className="flex flex-col">
             {data.schools.map((s) => <SchoolRow key={s.school.school_id} s={s} />)}
           </ul>
           {/* fix-r5 s2 item 3 (B10, design-qa 073628 §2): at n = 0 there is nothing to say, so no zero sentence */}
           {data.schools_not_showing.n > 0 && (
-            <p data-testid="where-not-showing" className="px-1 text-[13.5px] text-[#6b7280]">
+            <p data-testid="where-not-showing" className="border-t border-cp-hairline pt-4 text-[13px] leading-[1.45] text-cp-ink-3">
               {tx("s3.not_showing", lang, {}, [{ n: "n", d: "d", count: data.schools_not_showing }])}
             </p>
           )}

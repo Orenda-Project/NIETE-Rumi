@@ -5,7 +5,7 @@ import { CodeText, CountSpan, DateText, LibraryText } from "../count";
 import { COPY } from "../copy";
 import { pick, t, tx } from "../text";
 import { LRI, PDI } from "../format";
-import { dropPart, NO_PART } from "../player/PairCard";
+import { dropPart, NO_PART } from "./parts";
 import type { Step, StripHit } from "../types";
 
 /**
@@ -13,11 +13,10 @@ import type { Step, StripHit } from "../types";
  * (code · school · set date · check date, by the step's check rule), the three-dot strip of the next three recordings
  * and the chip (It worked / Not yet / n recordings to come).
  *
- * The strip is never red (m-ui rule 4): done is filled indigo, partial is half-filled indigo, not done is an indigo
- * outline, a recording not in yet is a grey outline. Hits arrive oldest first; the strip is padded to three.
+ * The strip is never red (m-ui rule 4). R6 (bd-sex15q.46, DESIGN_SYSTEM §6/§7 Dots): done is filled green (strength),
+ * partial is half green, not done is a navy outline (notice), a recording not in yet is a grey track outline; 14 px.
+ * Hits arrive oldest first; the strip is padded to three.
  */
-const INDIGO = "#4f46e5";
-const GREY = "#d1d5db";
 
 type DotKind = "done" | "partial" | "not_done" | "missing";
 
@@ -34,19 +33,21 @@ function kindOf(hit: StripHit | undefined): DotKind {
   return "not_done";
 }
 
+const DOT: Record<DotKind, string> = {
+  done: "border-cp-green bg-cp-green",
+  partial: "border-cp-green bg-[linear-gradient(90deg,var(--cp-green)_50%,white_50%)]",
+  not_done: "border-cp-navy bg-white",
+  missing: "border-cp-track bg-white",
+};
+
 function Dot({ kind, label }: { kind: DotKind; label: string | null }) {
-  const colour = kind === "missing" ? GREY : INDIGO;
-  const background = kind === "done" ? INDIGO
-    : kind === "partial" ? `linear-gradient(90deg, ${INDIGO} 50%, transparent 50%)`
-      : "transparent";
   return (
     <span
       data-dot={kind}
       role={label ? "img" : undefined}
       aria-label={label ?? undefined}
       aria-hidden={label ? undefined : true}
-      className="inline-block h-[18px] w-[18px] rounded-full border-2 rtl:-scale-x-100"
-      style={{ borderColor: colour, background }}
+      className={`inline-block h-3.5 w-3.5 rounded-full border-[1.5px] rtl:-scale-x-100 ${DOT[kind]}`}
     />
   );
 }
@@ -65,15 +66,15 @@ export function StepStrip({ step }: { step: Step }) {
 
 export function StepChip({ step, windowId }: { step: Step; windowId: string }) {
   const lang = useLang();
-  const base = "inline-flex min-h-[28px] items-center rounded-full px-2.5 text-[13px] font-semibold";
+  const base = "inline-flex min-h-[28px] items-center rounded-full px-3 text-[13px] font-semibold";
   if (step.chip === "worked") {
-    return <span data-testid="step-chip" data-chip="worked" className={`${base} bg-[#e8f6ee] text-[#1f7a4c]`}>{t("chip.worked", lang)}</span>;
+    return <span data-testid="step-chip" data-chip="worked" className={`${base} bg-cp-green text-cp-navy`}>{t("chip.worked", lang)}</span>;
   }
   if (step.chip === "not_yet") {
-    return <span data-testid="step-chip" data-chip="not_yet" className={`${base} bg-[#f3f4f6] text-[#374151]`}>{t("chip.not_yet", lang)}</span>;
+    return <span data-testid="step-chip" data-chip="not_yet" className={`${base} bg-cp-navy-tint text-cp-ink-2`}>{t("chip.not_yet", lang)}</span>;
   }
   return (
-    <CountSpan count={{ n: step.to_come, d: 3, window_id: windowId }} className={`${base} bg-[#eef2ff] text-[#312e81]`}>
+    <CountSpan count={{ n: step.to_come, d: 3, window_id: windowId }} className={`${base} bg-cp-green-tint text-cp-green-ink`}>
       <span data-testid="step-chip" data-chip="to_come">
         {step.to_come === 1 ? t("chip.to_come.one", lang) : t("chip.to_come", lang, { n: step.to_come })}
       </span>
@@ -92,7 +93,7 @@ export function StepTick({ step, onTicked }: { step: Step; onTicked: (s: Step) =
   const [state, setState] = useState<"idle" | "saving" | "failed">("idle");
   if (step.coach_tick !== "pending") {
     return (
-      <p data-testid="step-ticked" data-tick={step.coach_tick} className="text-[13.5px] font-semibold leading-snug text-[#312e81]">
+      <p data-testid="step-ticked" data-tick={step.coach_tick} className="text-[13px] font-semibold leading-[1.45] text-cp-navy">
         {t("s1.steps.row.ticked", lang, { tick: t(step.coach_tick === "yes" ? "s5.tick.yes" : "s5.tick.no", lang) })}
       </p>
     );
@@ -106,17 +107,17 @@ export function StepTick({ step, onTicked }: { step: Step; onTicked: (s: Step) =
       () => setState("failed"),
     );
   };
-  const chip = "min-h-[44px] rounded-full border px-4 text-[14.5px] font-semibold disabled:opacity-60";
+  const chip = "cp-press min-h-[44px] rounded-[12px] px-4 text-[14px] font-semibold outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green disabled:opacity-60";
   return (
     <div className="flex flex-col gap-1">
       <div className="flex flex-wrap items-center gap-2" aria-busy={state === "saving" ? "true" : undefined}>
         <button type="button" data-testid="step-tick-yes" disabled={state === "saving"} onClick={() => tick("yes")}
-          className={`${chip} border-[#33374a] bg-[#33374a] text-white`}>{t("s5.tick.yes", lang)}</button>
+          className={`${chip} border-2 border-cp-navy bg-white text-cp-navy`}>{t("s5.tick.yes", lang)}</button>
         <button type="button" data-testid="step-tick-no" disabled={state === "saving"} onClick={() => tick("no")}
-          className={`${chip} border-[#d1d5db] bg-white text-[#1d2025]`}>{t("s5.tick.no", lang)}</button>
+          className={`${chip} border border-cp-hairline bg-white text-cp-ink-2`}>{t("s5.tick.no", lang)}</button>
       </div>
       {state === "failed" && (
-        <p data-testid="step-tick-failed" role="status" className="text-[13.5px] text-[#374151]">{t("e.failed_load", lang)}</p>
+        <p data-testid="step-tick-failed" role="status" className="text-[13px] text-cp-ink-2">{t("e.failed_load", lang)}</p>
       )}
     </div>
   );
@@ -139,10 +140,10 @@ export function StepRow({ step: initial, windowId }: { step: Step; windowId: str
     : tx("s1.steps.row.sub14", lang, { code, school, date_short: set, date: <DateText iso={step.check_by} lang={lang} /> });
   const sub = pair ? dropPart(filled, NO_PART) : filled;
   return (
-    <li data-testid="step-row" data-step={step.id} className="flex flex-col gap-1.5 border-b border-[#f3f4f6] py-3 last:border-b-0">
-      <LibraryText as="p" className="text-[15.5px] font-semibold leading-snug text-[#1d2025]">{pick(step.step, lang)}</LibraryText>
-      <p data-testid="step-sub" className="text-[13px] leading-snug text-[#6b7280] [overflow-wrap:anywhere]">{sub}</p>
-      <div className="flex flex-wrap items-center gap-2.5">
+    <li data-testid="step-row" data-step={step.id} className="flex flex-col gap-1.5 border-t border-cp-hairline py-4 first:border-t-0 first:pt-2">
+      <LibraryText as="p" className="text-[17px] font-semibold leading-[1.4] text-cp-ink">{pick(step.step, lang)}</LibraryText>
+      <p data-testid="step-sub" className="text-[13px] leading-[1.45] text-cp-ink-3 [overflow-wrap:anywhere]">{sub}</p>
+      <div className="mt-1 flex flex-wrap items-center gap-3">
         <StepStrip step={step} />
         <StepChip step={step} windowId={windowId} />
       </div>

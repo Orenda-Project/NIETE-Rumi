@@ -1,13 +1,18 @@
 import type { ReactNode } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 import { useLang, type Lang } from "../../../teacher/i18n";
 import InsightsGate from "../InsightsGate";
 import { useLoad } from "../useLoad";
 import { coachip } from "../api";
 import { insightsPaths } from "../paths";
-import { InsightsPage, MetaLine, Eyebrow, Card } from "../components/Frame";
+import { InsightsPage, MetaLine } from "../components/Frame";
+import { Section as CpSection } from "../../../coachip-ui/Section";
+import { Surface } from "../../../coachip-ui/Surface";
+import { Button } from "../../../coachip-ui/Button";
 import { StateBlock, NoteCard } from "../components/StateBlock";
-import { CodeText, DateText, LibraryText, Num } from "../count";
+import { CodeText, DateText, LibraryText } from "../count";
+import { RingCount } from "../../../coachip-ui/Count";
 import { digits, LRI, PDI, todayKarachi } from "../format";
 import { COPY } from "../copy";
 import { pick, t, tx } from "../text";
@@ -22,6 +27,10 @@ import type { MoveDetail } from "../types";
  *   evidence     the citation as text, never a link (API R9: a library url is never passed through).
  *   FLN          the existing send page with NO recipient and no query string (c-api finding 10:09Z).
  *   Set button   needs a teacher `code_id` the S5 payload does not carry, so setting a step lives on S2 (G1).
+ *
+ * R6 fix cycle 1 (FIX_R6 A2, design-qa 224143): the app bar names the weakness (the coach keeps the thread from S2), the
+ * number row comes first (S2's card ring), then ONE MOVE whose lead is the intervention's title in full, the teacher's
+ * step under it, and "Try this tomorrow" carries the screen's one action: play the moment on S2, where the step is set.
  */
 
 /** The FLN send page: no code, no recipient, no query (a pre-selection would be a decode path). */
@@ -41,23 +50,27 @@ function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
 }
 
-function Section({ title, testId, children }: { title: ReactNode; testId?: string; children: ReactNode }) {
+/** R6 (bd-sex15q.46): a block is a flat hairline section with a small-caps label (coachip-ui Section), never a boxed card. */
+function Section({ title, testId, first = false, children }: { title: ReactNode; testId?: string; first?: boolean; children: ReactNode }) {
   return (
-    <Card testId={testId}>
-      <h2 className="text-[15px] font-semibold leading-snug text-[#1d2025]">{title}</h2>
-      {children}
-    </Card>
+    <CpSection label={title} testId={testId} first={first}>
+      <div className="flex flex-col gap-3">{children}</div>
+    </CpSection>
   );
 }
 
-const body = "text-[15px] leading-snug text-[#374151]";
+const body = "text-[15px] leading-[1.5] text-cp-ink";
+/** The 12 px small-caps label inside a section (a second label under the first, as on Facts). */
+const subLabel = "cp-label text-[12px] font-bold uppercase leading-snug tracking-[0.08em] text-cp-ink-3";
+/** The FLN send: the secondary button (navy outline), wrapping, since the library's title can be long. */
+const secondaryWrap = "cp-press flex min-h-[44px] items-center justify-center rounded-[12px] border-2 border-cp-navy bg-white px-4 py-2.5 text-center text-[14px] font-semibold leading-snug text-cp-navy outline-none [overflow-wrap:anywhere] focus-visible:ring-[3px] focus-visible:ring-cp-navy focus-visible:ring-offset-2";
 
 function CheckRule({ data, lang }: { data: MoveDetail; lang: Lang }) {
   const c = data.check_by_default;
   if (c.rule === "visit") {
     const on = c.visit?.date ?? c.date;
     return (
-      <p data-testid="s5-check-rule" data-nonum="" className="text-[13px] leading-snug text-[#6b7280]">
+      <p data-testid="s5-check-rule" data-nonum="" className="border-t border-cp-hairline pt-3 text-[13px] leading-[1.45] text-cp-ink-3">
         {tx("s5.check.rule", lang, {
           date: <DateText iso={on} lang={lang} />,
           days: <span data-nonum="">{digits(daysBetween(todayKarachi(), on), lang)}</span>,
@@ -66,7 +79,7 @@ function CheckRule({ data, lang }: { data: MoveDetail; lang: Lang }) {
     );
   }
   return (
-    <p data-testid="s5-check-rule" data-nonum="" className="text-[13px] leading-snug text-[#6b7280]">
+    <p data-testid="s5-check-rule" data-nonum="" className="border-t border-cp-hairline pt-3 text-[13px] leading-[1.45] text-cp-ink-3">
       {tx("s5.check.rule.14", lang, { date: <DateText iso={c.date} lang={lang} /> })}
     </p>
   );
@@ -77,16 +90,18 @@ function CheckRule({ data, lang }: { data: MoveDetail; lang: Lang }) {
  * The library text goes in verbatim; a line that already opens with the frame's own words is shown as it is, never framed
  * twice (the contract fixture carries the frame inside the text; INTERVENTIONS.json does not).
  */
-function TryTomorrow({ script, lang }: { script: string; lang: Lang }) {
-  if (!script) return null;
+function TryTomorrow({ script, lang, wId }: { script: string; lang: Lang; wId: string }) {
   const pre = COPY["d.try_tomorrow"][lang].split("{step}")[0].trim();
   const framed = Boolean(pre) && script.trimStart().startsWith(pre);
   return (
-    <Card testId="s5-try-tomorrow">
-      <p className="text-[15.5px] font-semibold leading-snug text-[#1d2025]">
-        {framed ? <LibraryText>{script}</LibraryText> : tx("d.try_tomorrow", lang, { step: <LibraryText>{script}</LibraryText> })}
-      </p>
-    </Card>
+    <Surface testId="s5-try-tomorrow" className="mt-5">
+      {script && (
+        <p className="text-[17px] font-semibold leading-[1.45] text-cp-navy">
+          {framed ? <LibraryText>{script}</LibraryText> : tx("d.try_tomorrow", lang, { step: <LibraryText>{script}</LibraryText> })}
+        </p>
+      )}
+      <Button block to={`${insightsPaths.w(wId)}#moment`} testId="s5-play"><span>{t("s5.play", lang)}</span></Button>
+    </Surface>
   );
 }
 
@@ -107,58 +122,54 @@ function MoveLoaded() {
   const { data, error } = useLoad<MoveDetail>(() => coachip.move(wId, school), [wId, school]);
   const i = data?.i ?? null;
   const flnTitle = i?.materials.find((m) => m.kind === "fln")?.title ?? null;
+  // a line still coming is null (the app bar holds its box, FIX_R6 A1); a line that will not come is undefined
+  const coming = error ? undefined : null;
 
   return (
     <InsightsPage
       testId="insights-move"
       backTo={insightsPaths.w(wId)}
-      title={i ? <LibraryText>{pick(i.title, lang)}</LibraryText> : data ? pick(data.w.short_name, lang) : ""}
-      crumb={i ? tx("s5.chip", lang, { i_id: <CodeText lang={lang}>{i.i_id}</CodeText> }) : null}
+      title={data ? pick(data.w.short_name, lang) : coming}
+      crumb={i ? tx("s5.chip", lang, { i_id: <CodeText lang={lang}>{i.i_id}</CodeText> }) : data ? undefined : coming}
       windows={data?.windows}
+      chips={data ? <MetaLine window={data.w.window} /> : coming}
     >
       {!data ? <StateBlock error={error} /> : (
         <>
-          <Card testId="s5-w">
-            <Eyebrow k="eyebrow.one_move" />
-            <p className="text-[15.5px] leading-snug text-[#1d2025]">
-              <Num count={data.w.count} lang={lang} className="font-bold" /> {pick(data.w.sentence, lang)}
-            </p>
-            <MetaLine window={data.w.window} />
-          </Card>
+          <section data-testid="s5-w" data-tone="notice" className="flex flex-col gap-2 pt-2">
+            <RingCount count={data.w.count} lang={lang} size="card">
+              <p className="text-[15px] leading-[1.45] text-cp-ink">{pick(data.w.sentence, lang)}</p>
+            </RingCount>
+          </section>
 
           {!i ? <NoteCard testId="s5-no-i">{t("s5.no_i", lang)}</NoteCard> : (
             <>
               {/* fix-r5 s2 item 7a (panel 094003): the step, then what the coach says tomorrow, then the rehearsal and the
                   moment; the facts; what to listen for and the check; "Why this works" folded; other moves */}
-              <Section title={t("s5.step.title", lang)} testId="s5-step">
-                <LibraryText as="p" className={`${body} font-medium text-[#1d2025]`}>{pick(i.teacher_action_step, lang)}</LibraryText>
-              </Section>
+              <CpSection label={t("eyebrow.one_move", lang)} tone="green" testId="s5-step">
+                <div className="flex flex-col gap-2">
+                  <p data-testid="s5-lead" className="text-[17px] font-semibold leading-[1.45] text-cp-navy"><LibraryText>{pick(i.title, lang)}</LibraryText></p>
+                  <LibraryText as="p" className={body}>{pick(i.teacher_action_step, lang)}</LibraryText>
+                </div>
+              </CpSection>
 
-              <TryTomorrow script={pick(i.debrief_script, lang)} lang={lang} />
+              <TryTomorrow script={pick(i.debrief_script, lang)} lang={lang} wId={wId} />
 
               <Section title={<span data-nonum="">{t("s5.rehearsal.title", lang)}</span>} testId="s5-rehearsal">
                 <p className={body} data-nonum="">
                   {tx("d.rehearse.frame", lang, { script: <LibraryText>{pick(i.rehearsal_script, lang)}</LibraryText> })}
                 </p>
-                <Link
-                  to={`${insightsPaths.w(wId)}#moment`}
-                  data-testid="s5-play"
-                  className="flex min-h-[44px] items-center justify-center rounded-xl border border-[#d1d5db] bg-white px-4 py-2.5 text-center text-[15px] font-semibold text-[#1d2025]"
-                >
-                  {t("s5.play", lang)}
-                </Link>
               </Section>
 
-              <Card testId="s5-facts">
-                <h2 className="text-[13px] font-semibold text-[#6b7280]">{t("s5.with.title", lang)}</h2>
+              <Section title={t("s5.with.title", lang)} testId="s5-facts">
                 <LibraryText as="p" className={body}>{pick(i.with_whom, lang)}</LibraryText>
-                <h2 className="pt-1 text-[13px] font-semibold text-[#6b7280]">{t("s5.how_long.title", lang)}</h2>
+                <h2 className={`pt-1 ${subLabel}`}>{t("s5.how_long.title", lang)}</h2>
                 <LibraryText as="p" className={body}>{pick(i.duration, lang)}</LibraryText>
-              </Card>
+              </Section>
 
               {i.materials.some((m) => m.kind !== "none") && (
                 <Section title={t("s5.materials.title", lang)} testId="s5-materials">
-                  <ul className="flex flex-col divide-y divide-[#f0f1f3]">
+                  <ul className="flex flex-col divide-y divide-cp-hairline">
                     {i.materials.map((m, k) => {
                       if (m.kind === "none") return null;
                       if (m.kind === "fln") {
@@ -179,15 +190,11 @@ function MoveLoaded() {
                     })}
                   </ul>
                   {data.fln && (data.fln.can_send && flnTitle ? (
-                    <Link
-                      to={FLN_SEND}
-                      data-testid="s5-fln"
-                      className="flex min-h-[44px] items-center justify-center rounded-xl bg-[#33374a] px-4 py-2.5 text-center text-[15px] font-semibold text-white [overflow-wrap:anywhere]"
-                    >
+                    <Link to={FLN_SEND} data-testid="s5-fln" className={secondaryWrap}>
                       <LibraryText>{isolateLatin(pick(flnTitle, lang), lang)}</LibraryText>
                     </Link>
                   ) : !data.fln.can_send ? (
-                    <p data-testid="s5-fln-off" className="text-[13.5px] text-[#6b7280]">{t("s5.fln.off", lang)}</p>
+                    <p data-testid="s5-fln-off" className="text-[13px] leading-[1.45] text-cp-ink-3">{t("s5.fln.off", lang)}</p>
                   ) : null)}
                 </Section>
               )}
@@ -202,14 +209,15 @@ function MoveLoaded() {
               </Section>
 
               {i.evidence.length > 0 && (
-                <details data-testid="s5-evidence" className="rounded-2xl border border-[#e5e7eb] bg-white px-4 py-3">
-                  <summary className="flex min-h-[44px] cursor-pointer items-center text-[15px] font-semibold leading-snug text-[#1d2025]">
-                    {t("s5.why.title", lang)}
+                <details data-testid="s5-evidence" className="group mt-5 border-t border-cp-hairline pt-3">
+                  <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-2 text-[17px] font-semibold leading-[1.4] text-cp-ink outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green [&::-webkit-details-marker]:hidden">
+                    <span className="min-w-0 flex-1">{t("s5.why.title", lang)}</span>
+                    <ChevronRight size={20} strokeWidth={1.5} className="shrink-0 text-cp-ink-3 transition-transform group-open:rotate-90 rtl:rotate-180 rtl:group-open:rotate-90" aria-hidden="true" />
                   </summary>
-                  <ul className="flex flex-col gap-2 pt-1">
+                  <ul className="flex flex-col gap-3 pb-1 pt-2">
                     {i.evidence.map((e, k) => (
                       <li key={k} className={`${body}`}>
-                        <LibraryText as="p" className="font-medium text-[#374151]">{e.source}</LibraryText>
+                        <LibraryText as="p" className="text-[13px] font-semibold text-cp-ink-2">{e.source}</LibraryText>
                         <LibraryText as="p">{pick(e.claim, lang)}</LibraryText>
                       </li>
                     ))}
@@ -219,9 +227,9 @@ function MoveLoaded() {
 
               {data.alternatives.length > 0 && (
                 <Section title={t("s5.alternatives.title", lang)} testId="s5-alternatives">
-                  <ul className="flex flex-col divide-y divide-[#f0f1f3]">
+                  <ul className="flex flex-col divide-y divide-cp-hairline">
                     {data.alternatives.map((a) => (
-                      <li key={a.i_id} data-i={a.i_id} className={`py-2 ${body}`}>
+                      <li key={a.i_id} data-i={a.i_id} className={`flex min-h-[44px] items-center py-2.5 ${body}`}>
                         <LibraryText>{pick(a.title, lang)}</LibraryText>
                       </li>
                     ))}
@@ -229,7 +237,7 @@ function MoveLoaded() {
                 </Section>
               )}
 
-              <p data-testid="s5-footer" className="px-1 text-center text-[12.5px] text-[#6b7280]">{t("s5.footer", lang)}</p>
+              <p data-testid="s5-footer" className="mt-5 border-t border-cp-hairline pt-4 text-center text-[13px] leading-[1.45] text-cp-ink-3">{t("s5.footer", lang)}</p>
             </>
           )}
         </>

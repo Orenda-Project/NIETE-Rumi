@@ -14,12 +14,12 @@ import type { MomentStep, Verdict } from "../types";
 type Look = { mark: string; bar: string; text: string };
 
 const LOOK: Record<Verdict, Look> = {
-  executed: { mark: "✓", bar: "bg-[#47BA7D]", text: "text-[#2b7a52]" },
-  partial: { mark: "½", bar: "bg-[#F2C46D]", text: "text-[#8a5a00]" },
-  not_done: { mark: "✗", bar: "bg-[#333748]", text: "text-[#333748]" },
-  not_reached: { mark: "–", bar: "chapter-grey bg-[#e5e7eb]", text: "text-[#9ca3af]" },
-  not_adjudicable: { mark: "–", bar: "chapter-neutral bg-[#d1d5db]", text: "text-[#6b7280]" },
-  substituted: { mark: "–", bar: "chapter-neutral bg-[#d1d5db]", text: "text-[#6b7280]" },
+  executed: { mark: "✓", bar: "bg-cp-green", text: "text-cp-green-ink" },
+  partial: { mark: "½", bar: "bg-[linear-gradient(90deg,var(--cp-green)_50%,var(--cp-track)_50%)]", text: "text-cp-ink-2" },
+  not_done: { mark: "✗", bar: "bg-cp-navy", text: "text-cp-navy" },
+  not_reached: { mark: "–", bar: "chapter-grey bg-cp-hairline", text: "text-cp-ink-3" },
+  not_adjudicable: { mark: "–", bar: "chapter-neutral bg-cp-track", text: "text-cp-ink-3" },
+  substituted: { mark: "–", bar: "chapter-neutral bg-cp-track", text: "text-cp-ink-3" },
 };
 
 /**
@@ -69,17 +69,19 @@ export default function ChapterStrip({ steps, lang, tappable, momentAt, onStep, 
             >
               <span
                 data-testid="chapter-bar"
-                className={`block h-2 w-full rounded-full ${look.bar} ${here ? "ring-2 ring-[#333748] ring-offset-1" : ""}`}
+                className={`block h-2 w-full rounded-full ${look.bar} ${here ? "ring-2 ring-cp-navy ring-offset-1" : ""}`}
               />
-              <span className={`text-[12px] font-medium leading-tight [overflow-wrap:anywhere] ${look.text}`}>
-                <span aria-hidden="true">{look.mark}</span> {label}
+              {/* FIX_R6 A9: wraps at the space only: a hyphen is a no-break hyphen, so "Warm-up" never splits; the mark may sit on
+                  its own line */}
+              <span className={`text-[12px] font-medium leading-tight [hyphens:none] ${look.text}`}>
+                <span aria-hidden="true">{look.mark}</span> {label.replace(/-/g, "\u2011")}
               </span>
             </button>
           );
         })}
       </div>
       {legend && (
-        <p data-testid="chapter-legend" className="text-[12.5px] leading-snug text-[#6b7280]">
+        <p data-testid="chapter-legend" className="text-[13px] leading-snug text-cp-ink-3">
           {t("s4.legend", lang)}
           {tappable && <>{lang === "ur" ? "۔ " : ". "}{t("s4.tap_step", lang)}</>}
         </p>
