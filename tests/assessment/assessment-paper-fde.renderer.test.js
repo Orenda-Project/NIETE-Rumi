@@ -192,9 +192,9 @@ describe('the board-pattern paper', () => {
     expect(visible(html)).not.toMatch(/[⅓⅕]/);
   });
 
-  it('the checked chip is a drawn tick, not a glyph', () => {
+  it('the key prints no checked badge and no tick glyph (bd-5jmnfj.4.51.6)', () => {
     const html = R.renderMarkingScheme({ examJson: mathsPaper(), grade: 5, subject: 'maths' });
-    expect(html).toMatch(/<span class="chip checked"><svg class="sym"/);
+    expect(html).not.toContain('class="chip checked"');
     expect(visible(html.slice(html.indexOf('<body')))).not.toContain('✓');
   });
 
@@ -312,9 +312,10 @@ describe('the Urdu paper', () => {
     expect(visible(html)).not.toMatch(/[۰-۹]\s*·|·\s*[۰-۹]/);
   });
 
-  it('urdu Q6 prints the Naat instruction with no verses, OR, then the lesson-7 lines', () => {
+  it('urdu Q6 prints only the lesson-7 lines, with no Naat and no OR (bd-5jmnfj.4.51.11)', () => {
     const text = visible(R.renderPaper({ examJson: urduPaper(), grade: 5, subject: 'urdu', answerLines: true }));
-    expect(text).toContain('نظم "نعت" کا مرکزی خیال لکھیں۔ یا درج ذیل اشعار کا مفہوم واضح کریں۔');
+    expect(text).toContain('درج ذیل اشعار کا مفہوم واضح کریں۔ سطر ایک');
+    expect(text).not.toContain('نعت');
   });
 
   it('Urdu footer template has Urdu digits', () => {
@@ -371,15 +372,14 @@ describe('the marking scheme', () => {
     expect(text).not.toMatch(/\(\s*pages\)|null pages|undefined/);
   });
 
-  it('the MCQ strip, ✓ checked on an ok row, and the notes block', () => {
+  it('the MCQ strip, no checked badge on an ok row, and the notes block', () => {
     const html = scheme(mathsPaper());
     const text = visible(html);
     // The layout spreads MCQ keys over the letters, so the strip is no longer all (b).
     expect(text).toMatch(/Q1 \(a\) i [a-d] · ii [a-d] · iii [a-d]/);
-    expect((html.match(/class="chip checked"/g) || []).length).toBeGreaterThan(5);
+    expect(html).not.toContain('class="chip checked"');
     expect(text).toContain('Notes');
     expect(text).toContain('Q2 (xii): key corrected by code; the model wrote 44.5.');
-    expect(text).toContain('checked');
     expect(text).not.toMatch(/⚠/);
   });
 

@@ -130,15 +130,17 @@ describe('panel round 1', () => {
     expect(paper).toContain(`<div class="part">${head}<div class="part-head"><span class="ins">سوال: پیراگراف سے چن کر لکھیں۔</span><span class="ml"><span class="num">۰۸</span></span></div>`);
   });
 
-  it('C1: the Urdu box\'s "tell the class" line names every choice on the paper: Q3, Q5, Q6, Q8, Q9, Q10', () => {
+  // Q6 left the list for bd-5jmnfj.4.51.11: it is the lesson-7 lines alone, no Naat, so no «دو میں سے ایک».
+  it('C1: the Urdu box\'s "tell the class" line names every choice on the paper: Q3, Q5, Q8, Q9, Q10', () => {
     const { scheme } = chain('urdu');
     const box = scheme.slice(scheme.indexOf('class="box before"'), scheme.indexOf('</ol>', scheme.indexOf('class="box before"')));
     const line4 = box.split('<li>')[4];
-    const order = ['۳', '۵', '۶', '۸', '۹', '۱۰'].map((d) => line4.indexOf(`سوال نمبر <span class="num">${d}</span>`));
+    const order = ['۳', '۵', '۸', '۹', '۱۰'].map((d) => line4.indexOf(`سوال نمبر <span class="num">${d}</span>`));
     expect(order.every((i) => i > 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(line4).toContain('<span class="num">۷</span> میں سے کوئی سے <span class="num">۵</span>');
-    expect(line4).toContain('دو میں سے ایک');
+    expect(line4).not.toContain('سوال نمبر <span class="num">۶</span>');
+    expect(line4).not.toContain('دو میں سے ایک');
   });
 
   it('C3: every written row group in the scheme opens with its slot head', () => {
@@ -149,7 +151,8 @@ describe('panel round 1', () => {
     const q4 = ur.indexOf('<tr class="slot-row" data-slot-head="urdu.C.Q4">');
     expect(q4).toBeGreaterThan(ur.indexOf('<tr class="slot-row" data-slot-head="urdu.C.Q3">'));
     expect(ur.indexOf('<tr data-row="urdu.C.Q4"')).toBeGreaterThan(q4);
-    expect(ur.indexOf('data-row="urdu.C.Q6-fixed"')).toBeGreaterThan(ur.indexOf('<tr class="slot-row" data-slot-head="urdu.C.Q6">'));
+    expect(ur.indexOf('data-row="urdu.C.Q6"')).toBeGreaterThan(ur.indexOf('<tr class="slot-row" data-slot-head="urdu.C.Q6">'));
+    expect(ur).not.toContain('data-row="urdu.C.Q6-fixed"');
   });
 
   it('C2: a written row with no points prints an A point worth its marks (Science Q2(b) sub-questions, 2.5 each)', () => {

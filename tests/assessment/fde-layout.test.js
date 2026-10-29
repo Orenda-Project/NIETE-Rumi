@@ -191,7 +191,7 @@ describe('applyLayout', () => {
     ]);
   });
 
-  it('urdu: the Naat alternative is a supply line with its lesson page, never a generated item', () => {
+  it('urdu: Q6 has no Naat supply line; only the Q7 picture is supplied (bd-5jmnfj.4.51.11)', () => {
     const raw = { unseen: {
       objective: { MCQs: items(20, 'urdu.A.Q1', 'سوال', { options: ['الف', 'ب', 'ج', 'د'] }) },
       subjective: {
@@ -208,10 +208,7 @@ describe('applyLayout', () => {
     const { examJson, shortfall } = applyLayout(raw, URDU, FDE, { now: NOW });
     expect(shortfall).toEqual([]);
     const lines = examJson._layout.supplies.map((s) => s.slot);
-    expect(lines).toEqual(['urdu.C.Q6', 'urdu.C.Q7']);
-    const naat = examJson._layout.supplies[0];
-    expect(naat).toEqual(expect.objectContaining({ kind: 'naat', book_page: 13 }));
-    expect(naat.line_ur).toContain('نعت');
+    expect(lines).toEqual(['urdu.C.Q7']);
     expect(examJson._layout.medium).toBe('ur');
   });
 

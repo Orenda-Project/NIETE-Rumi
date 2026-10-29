@@ -31,8 +31,8 @@ const SPELLING = {
   ur: ' املا کے نمبر صرف وہاں کٹتے ہیں جہاں کلید میں لکھا ہو۔', // needs fluent-Urdu review
 };
 
-/** The legend: how to mark, with the oral part named. No grade bands: FDE's G1-2 papers print none. */
-function legendFor(key) {
+/** The legend: how to mark, with the oral part named only when the paper has one. No grade bands: FDE's G1-2 papers print none. */
+function legendFor(key, hasOral = true) {
   const spelling = (lang) => (NO_SPELLING.includes(key) ? SPELLING[lang] : '');
   return {
     title_en: 'How to mark',
@@ -40,12 +40,12 @@ function legendFor(key) {
     lines_en: [
       `One mark per correct item unless the paper says otherwise.${spelling('en')}`,
       '',
-      'Written marks only. Record the oral marks from the oral sheet, then add both on the class record.',
+      ...(hasOral ? ['Written marks only. Record the oral marks from the oral sheet, then add both on the class record.'] : []),
     ],
     lines_ur: [
       `جب تک پرچے میں کچھ اور نہ لکھا ہو، ہر درست جواب پر 1 نمبر۔${spelling('ur')}`,
       '',
-      'یہ صرف تحریری نمبر ہیں۔ زبانی نمبر زبانی جائزے کی شیٹ سے لکھیں، پھر کلاس ریکارڈ پر دونوں جمع کریں۔',
+      ...(hasOral ? ['یہ صرف تحریری نمبر ہیں۔ زبانی نمبر زبانی جائزے کی شیٹ سے لکھیں، پھر کلاس ریکارڈ پر دونوں جمع کریں۔'] : []),
     ],
     bands_line: -1,
     bands_lead_ur: '',
@@ -194,7 +194,7 @@ function makeSubject({ grade, key, medium, name_en, name_ur, tos, pages, section
     },
     sections: built,
     oral: orals,
-    legend: legendFor(key),
+    legend: legendFor(key, Boolean(orals)),
     before_exam: G5.subjects.english.before_exam,
     supplies: G5.subjects.english.supplies,
     summary_lines: {
