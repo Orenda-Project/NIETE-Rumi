@@ -62,7 +62,7 @@ describe('buildAdded per layout', () => {
     const out = buildAdded('Match the Column', { pairs: [{ left: 'cat', right: 'meow' }, { left: 'dog', right: 'woof' }, { left: '', right: '' }, { left: 'cow', right: 'moo' }] }, EN3);
     expect(out.column_a).toEqual(['cat', 'dog', 'cow']);
     expect(out.column_b).toEqual(['woof', 'moo', 'meow']);
-    expect(out.answer).toBe('cat → meow; dog → woof; cow → moo');
+    expect(out.answer).toBe('cat: meow; dog: woof; cow: moo');
     expect(out).toMatchObject({ question: 'Match column A with column B.', marks: 2, source: 'teacher' });
   });
 
@@ -89,7 +89,7 @@ describe('buildAdded per layout', () => {
 
   test('Urdu text survives every layout', () => {
     const a = buildAdded('Match the Column', { pairs: [{ left: 'بلی', right: 'میاؤں' }, { left: 'کتا', right: 'بھونکنا' }] }, { subject: 'urdu', grade: 3 });
-    expect(a.answer).toBe('بلی → میاؤں; کتا → بھونکنا');
+    expect(a.answer).toBe('بلی: میاؤں; کتا: بھونکنا');
     const b = buildAdded('Word Meanings', { slots: ['کتاب', 'قلم'], meanings: ['کتاب کا معنی', 'لکھنے کی چیز'] }, { subject: 'urdu', grade: 3 });
     expect(b.words).toEqual(['کتاب', 'قلم']);
     expect(b.answer).toBe('کتاب — کتاب کا معنی\nقلم — لکھنے کی چیز');
@@ -221,7 +221,7 @@ describe('applyChanges with catalogue kinds', () => {
     expect(items.filter((x) => x.type === 'Match the Column')).toHaveLength(2);
     const html = Renderer.renderPaper({ examJson: out.tree, grade: 3, subject: 'english', schoolName: 'S' });
     expect(html).toContain('<td>dog</td><td>meow</td>');
-    expect(Renderer.renderAnswerKey({ examJson: out.tree, grade: 3, subject: 'english', schoolName: 'S' })).toContain('cat → meow');
+    expect(Renderer.renderAnswerKey({ examJson: out.tree, grade: 3, subject: 'english', schoolName: 'S' })).toContain('cat: meow');
   });
 
   test('a refused catalogue kind is collected with its addedIndex', () => {
