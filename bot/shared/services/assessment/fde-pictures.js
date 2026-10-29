@@ -59,7 +59,7 @@ function cacheKey(picture) {
   }
   const name = slug(picture.name);
   // v26: a masculine person was drawn a woman; one drawn before the markers were added is never reused.
-  const rev = REDRAWN[name] || (Describe.genderNote(picture.name) ? 'm1' : '');
+  const rev = REDRAWN[name] || (picture.living ? 'l1' : '') || (Describe.genderNote(picture.name) ? 'm1' : ''); // l1: a living figure drawn with its face (bd-5jmnfj.4.58.4)
   return `${PREFIX}/object/${rev ? `${name}-${rev}` : name}.jpg`;
 }
 

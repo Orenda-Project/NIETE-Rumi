@@ -25,6 +25,8 @@ jest.mock('../../bot/shared/services/llm-client', () => ({
 }));
 const mockLog = jest.fn();
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: (...a) => mockLog(...a) }));
+// The science fixture predates the v29 whole-paper give-away checks (MCQ/concept/fraction); they are pinned in fde-v29-g5-*.test.js (bd-5jmnfj.4.58.4).
+jest.mock('../../bot/shared/services/assessment/fde-g5-paper-giveaways', () => ({ paperGiveaways: () => [] }));
 const mockLoadPages = jest.fn();
 jest.mock('../../bot/shared/services/assessment/book-content.service', () => ({
   loadPageRangeContent: (...a) => mockLoadPages(...a),

@@ -6,6 +6,7 @@
  *   - G1 Maths Q5/Q6 and G2 Maths Q7/Q9/Q11 paid the answer mark for "the sum with the unit" or "with the
  *     word books" behind a bare "Solve.". The clause leaves the point and the common error; the worded
  *     answer is accepted, not required.
+ *   - v28: the same slots' method point asked for "a correct number sentence"; it pays any correct working.
  *   - G1 English Q6 keyed one rhyme where any real rhyme is right: the point says so.
  *   - G1 English Q12 keyed «This is a egg.»: a/an follows the object's first letter.
  *
@@ -85,6 +86,36 @@ function fixUnit(q, notes) {
   return withPoints(q, fixed, extra);
 }
 
+// v28 (bd-5jmnfj.4.58.4): "Show your working." never asked for a number sentence, so the key pays any working.
+const SENTENCE = /number sentence/i;
+const EXPR = /\d+\s*[+\-−x×÷*]\s*\d+/;
+const OPS = { '+': 'column working', '-': 'column working', '−': 'column working', x: 'repeated addition', '×': 'repeated addition', '*': 'repeated addition' };
+
+function fixMethod(q, notes) {
+  const points = q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [];
+  let changed = false;
+  const fixed = points.map((p) => {
+    if (!p || typeof p.text !== 'string' || !SENTENCE.test(p.text)) return p;
+    const expr = EXPR.exec(p.text);
+    let text;
+    if (expr) {
+      const op = /[+\-−x×÷*]/.exec(expr[0].replace(/^\d+\s*/, ''))[0];
+      text = `Shows a correct way to find ${expr[0]} (a number sentence, ${OPS[op] || 'working'} or a drawing)`;
+    } else {
+      const n = NUMBER.exec(String(q.answer || '').replace(/^.*=\s*/, ''));
+      const word = (/\b(sum|difference|product|quotient)\b/i.exec(p.text) || ['', 'answer'])[1].toLowerCase();
+      text = `Correct ${word}${n ? ` ${n[0]}` : ''}, however it is worked out (a number sentence, counting or a drawing)`;
+    }
+    changed = true;
+    return { ...p, text };
+  });
+  if (!changed) return q;
+  notes.push(`${q.slot}: the key pays any correct working, not only a number sentence`);
+  return withPoints(q, fixed);
+}
+
+function fixWordProblem(q, notes) { return fixMethod(fixUnit(q, notes), notes); }
+
 function fixRhyme(q, notes) {
   const answer = String(q.answer || '').trim();
   const given = String(q.question || '').trim();
@@ -118,7 +149,7 @@ function fixerFor(type) {
   if (LETTERS.has(type)) return fixLetters;
   if (type === RHYMES) return fixRhyme;
   if (type === THIS_IS) return fixArticle;
-  if (WORD_PROBLEM.test(String(type || ''))) return fixUnit;
+  if (WORD_PROBLEM.test(String(type || ''))) return fixWordProblem;
   return null;
 }
 

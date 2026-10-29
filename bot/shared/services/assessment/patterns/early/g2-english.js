@@ -13,6 +13,9 @@ const oneBlankEach = (q) => {
   return stem.includes('_') && stem.length === String(q.answer || '').trim().length;
 };
 
+// v28 G2 English Q1 (i) asked for free writing and (j) for a tense change: every question is read from the passage.
+const FROM_PASSAGE = (q) => !(q.questions || []).some((x) => /^\s*Write (one|a) sentence about/i.test(String(x && x.question)) || /Change this sentence/i.test(String(x && x.question)));
+
 module.exports = makeSubject({
   grade: 2,
   key: 'english',
@@ -27,9 +30,9 @@ module.exports = makeSubject({
       label_en: 'Reading',
       levels: { Remember: 8, Understand: 8, Apply: 4 },
       slots: [
-        { slot: 'g2.english.A.Q1', label_en: 'Q1.', type: 'Read and Answer', generate: 1, marks_each: 20, lines: 0,
+        { slot: 'g2.english.A.Q1', label_en: 'Q1.', type: 'Read and Answer', generate: 1, marks_each: 20, lines: 0, answer_ok: FROM_PASSAGE,
           instruction_en: 'Read the passage and answer the questions.',
-          prompt_rule: 'One new passage of 80 to 110 words in "passage", on a book theme, in Grade 2 words. "questions": ten objects { question, answer, marks: 2, scheme } — four recall, four understand, two apply — where scheme.points sum to 2. Do not prefix a question with a letter.' },
+          prompt_rule: 'One new passage of 80 to 110 words in "passage", on a book theme, in Grade 2 words. "questions": ten objects { question, answer, marks: 2, scheme } — four recall, four understand, two apply — where scheme.points sum to 2. Every question is answered from the passage: the two apply questions ask the child to use what the passage says (why, or what would happen if), never to write about themselves and never a grammar or tense change (no "Write one sentence about", no "Change this sentence"). Do not prefix a question with a letter.' },
       ],
     },
     {
@@ -59,7 +62,7 @@ module.exports = makeSubject({
         S({ slot: 'g2.english.B.Q10', label_en: 'Q10.', type: 'Prepositions', generate: 5, picture: ['scene'],
           instruction_en: 'Look at the picture. Write in, on, under, near or behind.',
           answer_ok: (q) => /^(in|on|under|near|behind)$/i.test(String(q.answer).trim()),
-          prompt_rule: 'Five items, each a scene as picture: {kind:"scene", describe} of one object placed by another (a cat under a table), placed in, on, under, near or behind it, never above, over, beside or next to. The describe names the floor and the thing\'s own legs or base ("a ball on the floor under a chair", "a bird on top of the roof"). Stem: "The cat is ____ the table." Answer: that one word.' }),
+          prompt_rule: 'Five items, each a scene as picture: {kind:"scene", describe} of one object placed by another (a cat under a table), placed in, on, under, near or behind it, never above, over, beside or next to. The describe names the floor and the thing\'s own legs or base ("a ball on the floor under a chair", "a bird on top of the roof"). Never a bird or animal in or on a tree, or in any scene where both in and on read true (a bird among the leaves of a branch is both): use in only for a thing inside a container (box, basket, bag, cup). Stem: "The cat is ____ the table." Answer: that one word.' }),
       ],
     },
     {
@@ -68,7 +71,7 @@ module.exports = makeSubject({
       levels: { Remember: 8, Understand: 10, Apply: 14 },
       slots: [
         S({ slot: 'g2.english.C.Q11', label_en: 'Q11.', type: 'Pronouns', generate: 4,
-          instruction_en: 'Use he, she, it or they.', prompt_rule: 'Four sentences naming a person or thing; the child rewrites with the pronoun. Answer: the pronoun.' }),
+          instruction_en: 'Write the sentence again. Use he, she, it or they.', prompt_rule: 'Four sentences naming a person or thing; the child writes each sentence again with the pronoun. Answer: the full rewritten sentence with the pronoun in place of the name, e.g. "He is playing outside." Scheme: A 1 for the correct pronoun in the rewritten sentence.' }),
         { slot: 'g2.english.C.Q12', label_en: 'Q12.', type: 'Paragraph', generate: 1, marks_each: 10, lines: 7,
           instruction_en: 'Write five sentences on "My House".',
           prompt_rule: 'Topic exactly "My House". Answer: a model paragraph of five sentences. Scheme: five K points of 2 — on topic, five sentences, capitals and full stops, spelling, describing words.' },
