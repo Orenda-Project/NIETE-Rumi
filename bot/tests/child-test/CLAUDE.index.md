@@ -7,6 +7,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `record-sa-voice-v4-equals.test.js` | (unmapped) |
+| `record-sa-voice-v4-sounds.test.js` | (unmapped) |
 | `record-sa-voice-v4.test.js` | Pins record-sa-voice.js --set v4: whole bank re-voiced per provider into sa/v4 keys with respellings and tashdeed |
 | `sa-add-child.test.js` | Pins the sa_add_child switch: seating an off-roster child via draw.addChild, refusals, and no name in logs |
 | `sa-all-grade-forms.test.js` | Pins coach forms for Grades 1-5 resolving coach.G<grade>.A with items shared from existing forms |
