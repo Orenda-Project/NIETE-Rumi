@@ -62,6 +62,26 @@ export function OpeningCard({ home }: { home: RmHome }) {
 }
 
 /**
+ * bd-sex15q.47 (R6 fix cycle 2, FIX_R6 §7.3 B8): the band's body while `/rm/home` is in flight, in the live body's boxes:
+ * the empty hero ring with two bars beside it where the lead sentence goes, then a pill-shaped bar where the floor is.
+ */
+export function HeroSkeleton() {
+  const bar = "cp-skeleton block rounded-full bg-white/15 lg:bg-cp-hairline";
+  return (
+    <div data-testid="rm-hero-skeleton" aria-busy="true" className="flex flex-col gap-4">
+      <div className="flex items-center gap-4">
+        <span className="block h-[104px] w-[104px] shrink-0 rounded-full border-[10px] border-white/15 lg:border-cp-hairline" />
+        <span className="flex flex-1 flex-col gap-2.5">
+          <span className={`${bar} h-4 w-full`} />
+          <span className={`${bar} h-4 w-4/5`} />
+        </span>
+      </div>
+      <span className={`${bar} h-[28px] w-44`} />
+    </div>
+  );
+}
+
+/**
  * bd-sex15q.47 (ux-lead-2 183234 #3): the schools no coach holds and the roster coaches with no school, each with its
  * base, as 13 px ink-3 coverage lines under the weaknesses card (S1's coverage pattern), not in the band.
  */

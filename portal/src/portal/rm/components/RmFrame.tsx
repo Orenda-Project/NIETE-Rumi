@@ -11,6 +11,7 @@ import { LangToggle } from "../../coachip-ui/LangToggle";
 import { Surface } from "../../coachip-ui/Surface";
 import RmNav from "../RmNav";
 import { currentRmItem } from "../paths";
+import { heldStyle } from "../held";
 import { rt, type AnyKey } from "../text";
 
 /**
@@ -24,6 +25,10 @@ import { rt, type AnyKey } from "../text";
  *
  * `band` forces either; by default the Sector tab is the home. Both headers carry `rm-band`, the line `rm-page-sub`.
  * On a laptop S8 takes the full width (`wide`, the three-column grid); the others the 720 px column.
+ *
+ * R6 fix cycle 2 (FIX_R6 §7.3 B8): on a phone S8's band holds the RM's own height (`rm/held.ts`, per language) in every
+ * state, so the body stands where it will stay from the first paint. `Band` takes no attribute, so the hold is the
+ * wrapper's: the inline variable (it beats the `.cp` rule) and a min-height on its band child, off on a laptop.
  */
 export function RmPage({ title, sub, backTo, windows, testId, trust, band, hero, wide, aside, children }: {
   title: ReactNode; sub?: ReactNode; backTo?: string; windows?: readonly Window[] | null; testId: string; trust?: AnyKey | null;
@@ -32,10 +37,15 @@ export function RmPage({ title, sub, backTo, windows, testId, trust, band, hero,
   const lang = useLang();
   const { pathname } = useLocation();
   const home = band ?? (!backTo && currentRmItem(pathname) === "sector");
-  const line = sub ? <span data-testid="rm-page-sub">{sub}</span> : undefined;
+  // `null` passes through: the app bar draws a placeholder for a line still to come (FIX_R6 B9)
+  const line = sub ? <span data-testid="rm-page-sub">{sub}</span> : sub === null ? null : undefined;
   const header = home
     // FIX_R6 B5: on S8 the trust line is the band's last line on a phone (the page foot keeps it on a laptop only)
-    ? <Band testId="rm-band" title={title} sub={line} foot={trust ? rt(trust, lang) : undefined} trailing={<span className="lg:hidden"><LangToggle prefix="rm-lang" tone="dark" /></span>}>{hero}</Band>
+    ? (
+      <div data-rm-held="" style={heldStyle(lang)} className="[&>.cp-band]:min-h-[var(--cp-band-min-h)] lg:[&>.cp-band]:min-h-0">
+        <Band testId="rm-band" title={title} sub={line} foot={trust ? rt(trust, lang) : undefined} trailing={<span className="lg:hidden"><LangToggle prefix="rm-lang" tone="dark" /></span>}>{hero}</Band>
+      </div>
+    )
     : <AppBar testId="rm-band" backTo={backTo} backLabel={backTo ? rt("s9.back", lang) : undefined} title={title} sub={line}
         trailing={<span className="lg:hidden"><LangToggle prefix="rm-lang" /></span>} />;
   return (
