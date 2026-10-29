@@ -14,7 +14,7 @@ import { LESSONS } from '../lessons/copy';
 import { ProgressSteps, ReportBody, VoiceNote } from '../ui';
 import { ShareActions } from '../ui/ShareActions';
 import { shareToWhatsApp, useShareAvailable } from '../share/api';
-import { CARD, FOCUS } from '../ui/styles';
+import { CARD, FOCUS, PRIMARY_WIDE } from '../ui/styles';
 import { COACHING } from './copy';
 import { SectionHeading } from './parts';
 import { goTo } from './navigate';
@@ -48,7 +48,8 @@ import { LessonQuizButton } from '../home/LessonQuizButton';
  *   row 35   Quick Quiz sat between the audio summary and the report: it comes after the report
  *   row 36   the dock's Open is "Open in another tab"; Close ends her DC session — one line, and the link is closed
  *            (window.close: WhatsApp's browser and a tab opened by a link close; where a page cannot close itself the
- *            line stays, and nothing else is left to tap)
+ *            line stays, and nothing else is left to tap). Close is the kit's filled indigo PRIMARY_WIDE, never the white
+ *            outline Open in another tab wears, so the two do not read as a pair (bd-bmc9a0.6, the operator, 29 Oct)
  *
  * Polled as today's lesson page polls (5 s for two minutes, then 15 s) until ready or stopped.
  *
@@ -138,7 +139,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
         <button
           type="button"
           onClick={closeSession}
-          className={cn('flex min-h-[64px] w-full items-center justify-center gap-3 rounded-2xl border-2 border-[#33374a] bg-white px-[18px] py-1 text-[18px] font-bold leading-tight text-[#33374a] rtl:leading-[1.9]', FOCUS)}
+          className={cn(PRIMARY_WIDE, 'min-h-[64px] gap-3 px-[18px] py-1 text-[18px] font-bold leading-tight rtl:leading-[1.9]', FOCUS)}
         >
           <X className="h-6 w-6" aria-hidden="true" />
           {C.close}
