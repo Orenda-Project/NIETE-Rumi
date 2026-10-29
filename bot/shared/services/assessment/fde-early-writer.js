@@ -28,6 +28,7 @@ const { answerRepeats, giveawayNote, stillGivenAway, writtenGiveaways } = requir
 const { dealScrambles } = require('./fde-scramble-block');
 const { keyShortfall } = require('./fde-key-checks');
 const { whoSaidShortfall } = require('./fde-who-said-check');
+const { earlyKeyFixes } = require('./fde-early-key-fixes'); // bd-5jmnfj.4.58.3
 
 const SCOPE = Object.freeze({ kind: 'fde', chapters: null, pages: null });
 const ORAL_SECTION = Object.freeze({ id: 'oral', slots: [] });
@@ -262,6 +263,8 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     throw d.fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: scheme.shortfall, examJson, model });
   }
   if (P.key === 'maths') examJson = mathsCheck(examJson, { subject: 'maths' }).examJson;
+  const early = earlyKeyFixes(examJson); examJson = early.examJson; // a letter key, a word-problem key (v27, bd-5jmnfj.4.58.3)
+  early.notes.forEach((n) => d.logToFile('[assessment] key fixed', n));
 
   const sectionLevels = P.sections.every((s) => s.levels) ? Object.fromEntries(P.sections.map((s) => [s.id, s.levels])) : null;
   const blueprint = checkBlueprint(examJson, { tos: P.tos || null, sectionLevels });

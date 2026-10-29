@@ -321,12 +321,16 @@ describe('r9 · subjects without a cross-section table lay out as before', () =>
   // urdu again for the v27 Q8 length re-ask (bd-5jmnfj.4.58.2): the fixture's Q8 paragraph answer is now 11
   // sentences, so the paper ends differently; `git diff --numstat` on fixtures/fde/urdu.json is 1/1 (only that
   // answer), and with the old answer restored it hashes to 2d96fbd3… again.
+  // All five again for v28 (bd-5jmnfj.4.58.3): prompt_rule text only — maths Q1 (a) (the mean at most once),
+  // Q4-8 (Q8 on a pair Q4 does not name), science Q1 (a) and Q2 (a), english Q1 (a) and Q2, urdu Q3, Q4 and Q7;
+  // with the committed patterns/fde-g5-2027.js loaded under the current code they hash to the previous values
+  // (c09d5cea…, a6718724…, a0066f1f…, ce648f1e…, 917c48ac…).
   const BEFORE = {
-    science: ['science', 'c09d5ceadd74d6dcb519af1330b9b7261318ce0ac6cfcc0c106c1e3c80c0f626'],
-    maths: ['maths', 'a6718724d4bcc26940c78ee6ffac4a0b5370da08421eedf462b6e4e3ffb588cf'],
-    urdu: ['urdu', 'a0066f1fcb6e2f8570ec32480721a0235719b0ebc428c01a9b0fc43a5b8c36e2'],
-    'r7-science-full1.exam': ['science', 'ce648f1e8c5b69e1f16b822ff101f812c539f94c5450bf4afb98e59101f2a48a'],
-    'urdu-gen-full': ['urdu', '917c48acb8d5713d7658109d8ce03e41f387025f9973d90d49f26410eacd1557'],
+    science: ['science', '7afbb9c3f04b5f4458f9a92e4b639ff689f6baa15f72386776312c3f1e318e16'],
+    maths: ['maths', '187bc8087a0560c8914a1497bc051da83619ce03a67e281895fc2c0c02b13a92'],
+    urdu: ['urdu', '3e60106db3cc868cdb16dd6dfb45befdfb743de41eb0cd743818e9b61e5dc344'],
+    'r7-science-full1.exam': ['science', 'd0505395b3813ef6772b4f6c332a06657df3497b02bc2d92cfc31e08016dc95b'],
+    'urdu-gen-full': ['urdu', '83777bf9ba03dec5fa861757e134dfd4fc66309e912baf9558991fadf1b0a4ea'],
   };
   test.each(Object.keys(BEFORE))('%s lays out byte-identical to before', (name) => {
     const [subject, sha] = BEFORE[name];

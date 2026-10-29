@@ -60,8 +60,10 @@ function placeOf(q) {
 // v24: G1 English Q8 "a child swimming in a pool" drew a girl sitting in a puddle, and G1 Maths Q8 "a long
 // ribbon and a short ribbon" drew two curls; the key took "swimming" and "the long ribbon" (bd-5jmnfj.4.55).
 // A scene whose question asks for the action, or which of two is longer, is told what the child must see.
+// v27 G1 English Q8 iii: the "jumping" child had no ground under it and read as kneeling (bd-5jmnfj.4.58.3).
 const ACTION = (a) => ` The child is plainly ${a}: the whole body and the place show that action and no other, `
-  + `so a child who looks says "${a}" at once.`;
+  + `so a child who looks says "${a}" at once. The whole figure is drawn head to feet, and a visible ground line `
+  + '(the water surface when the child is in water) runs under the scene, so where the body is against the ground is plain.';
 // v26 G1 Maths Q8 iv: the toothbrush was drawn under the spoon, overlapping it (bd-5jmnfj.4.58.2).
 const COMPARE = ' Two different kinds of thing, each drawn whole and separate, side by side on one shared base line, not one above or below '
   + 'the other, with a clear empty gap between them. They do not touch or overlap, and neither is in front of the other. '

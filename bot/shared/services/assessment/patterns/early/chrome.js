@@ -58,6 +58,11 @@ function legendFor(key, hasOral = true) {
   };
 }
 
+// v27 G1 English Q12 i drew an egg whose outline read as a stone, and small objects sat lost at the back of their
+// scenes (bd-5jmnfj.4.58.3). Every picture slot carries the one rule for what a plain outline can show.
+const PICTURE_RULE = ' The picture is a plain black-outline drawing a child names at once: never a thing whose outline alone is '
+  + 'unreadable (egg, ball, plate, cup, watch, bench, box). A small object placed in a scene is drawn large and in front.';
+
 /** One slot in Grade 5's shape, with the early-paper defaults. `picture` names the kinds an item must draw. */
 function makeSlot(o) {
   const attempt = o.attempt == null ? o.generate : o.attempt;
@@ -89,7 +94,7 @@ function makeSlot(o) {
     grain: null,
     families: null,
     kinds: null,
-    prompt_rule: o.prompt_rule,
+    prompt_rule: o.picture ? `${o.prompt_rule || ''}${PICTURE_RULE}` : o.prompt_rule,
     frame: null,
     teacher_note_en: null,
     teacher_note_ur: null,
