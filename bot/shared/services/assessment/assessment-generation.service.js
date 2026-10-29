@@ -750,6 +750,7 @@ const Patterns = require('./patterns');
 const { applyLayout, takenNote, firstAskNote, verseLines, scopeLessons, oneStory, STORY_ITEMS } = require('./fde-layout');
 const { normaliseScheme } = require('./marking-scheme');
 const { answerRepeats, giveawayNote, stillGivenAway } = require('./fde-answer-repeats');
+const { paragraphLength } = require('./fde-sentence-count'); // bd-5jmnfj.4.58.2
 const { mathsCheck } = require('./maths-check');
 const { keyFixes } = require('./fde-g5-key-fixes');
 const { checkBlueprint, missesSplit, levelDistance, levelNote } = require('./blueprint-check');
@@ -2906,6 +2907,8 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   // An answer word still given away after the re-asks is logged, not failed: the teacher still gets a paper (bd-5jmnfj.4.55).
   const giveaways = answerRepeats(examJson);
   if (giveaways.length) logToFile('[assessment] answers given away', { requestId, pattern, giveaways });
+  const lengths = paragraphLength(examJson);
+  if (lengths.length) logToFile('[assessment] paragraph length off', { requestId, pattern, lengths });
 
   const scheme = normaliseScheme(examJson);
   examJson = noArrows(scheme.examJson); // bd-5jmnfj.4.50.1: no arrow in any text a child or teacher reads

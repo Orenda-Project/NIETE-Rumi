@@ -1,0 +1,480 @@
+{
+ "unseen": {
+  "objective": {
+   "Rewrite Sentences": [
+    {
+     "slot": "english.A.Q1b",
+     "lines": 2,
+     "marks": 1,
+     "answer": "The baby was as quiet as a mouse.",
+     "blooms": "Apply",
+     "question": "The baby was quiet. (Rewrite as a simile using 'as ... as')",
+     "main_question": "Rewrite the sentence as directed"
+    },
+    {
+     "slot": "english.A.Q1b",
+     "lines": 2,
+     "marks": 1,
+     "answer": "The moon is like a silver coin.",
+     "blooms": "Apply",
+     "question": "The moon is a silver coin. (Change into a simile)",
+     "main_question": "Rewrite the sentence as directed"
+    },
+    {
+     "slot": "english.A.Q1b",
+     "lines": 2,
+     "marks": 1,
+     "answer": "Subject: Omar; Verb: kicked; Object: the ball",
+     "blooms": "Apply",
+     "question": "Omar kicked the ball. (Write the subject, verb and object separately)",
+     "main_question": "Rewrite the sentence as directed"
+    },
+    {
+     "slot": "english.A.Q1b",
+     "lines": 2,
+     "marks": 1,
+     "answer": "Sara painted a picture.",
+     "blooms": "Apply",
+     "question": "Sara paints a picture. (Change into simple past)",
+     "main_question": "Rewrite the sentence as directed"
+    },
+    {
+     "slot": "english.A.Q1b",
+     "lines": 2,
+     "marks": 1,
+     "answer": "The sun rises in the east.",
+     "blooms": "Apply",
+     "question": "The sun rose in the east. (Change into simple present)",
+     "main_question": "Rewrite the sentence as directed"
+    }
+   ]
+  },
+  "subjective": {
+   "Word Sentences": [
+    {
+     "slot": "english.C.Q4",
+     "lines": 0,
+     "marks": 10,
+     "words": [
+      "forgiveness",
+      "participate",
+      "responsibility",
+      "freedom",
+      "transformation",
+      "democracy"
+     ],
+     "answer": "forgiveness: Forgiveness helped the two friends become close again. participate: I like to participate in the school quiz. responsibility: Feeding our pet is my responsibility. freedom: Birds enjoy the freedom to fly high. transformation: A caterpillar goes through a transformation to become a butterfly. democracy: In a democracy, people vote for their leaders.",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Any five words used in different correct sentences that show their meaning"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Sentence 1: the word is used with its correct meaning and the sentence is correct",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Sentence 2: the word is used with its correct meaning and the sentence is correct",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Sentence 3: the word is used with its correct meaning and the sentence is correct",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Sentence 4: the word is used with its correct meaning and the sentence is correct",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Sentence 5: the word is used with its correct meaning and the sentence is correct",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing a sentence that does not show the meaning of the word, or one with a grammar mistake"
+     },
+     "question": "Write one sentence for each word.",
+     "main_question": "Use any five of the given words in sentences of your own"
+    }
+   ]
+  }
+ },
+ "_layout": {
+  "v": 2,
+  "notes": [],
+  "pages": {
+   "paper": 4,
+   "scheme": 5
+  },
+  "scope": {
+   "kind": "fde",
+   "pages": null,
+   "line_en": "Units 1–10",
+   "line_ur": "یونٹ 1–10",
+   "chapters": null,
+   "label_en": "FDE syllabus 2026–27",
+   "label_ur": "FDE نصاب 2026–27",
+   "covers_en": null,
+   "covers_ur": null
+  },
+  "header": {
+   "or_en": "OR",
+   "or_ur": "یا",
+   "band_en": "TEACHER'S COPY · Do not give to children",
+   "band_ur": "استاد کی کاپی · بچوں کو نہ دیں",
+   "note_en": "Note: This paper consists of THREE Sections. Section – A needs to be solved on the Question Paper. Sections B & C are to be solved on the Answer Sheet. Cutting, erasing and overwriting is not allowed.",
+   "title_en": "Grade 5 · English · FDE pattern practice paper",
+   "title_ur": "جماعت پنجم · انگریزی · FDE pattern کا مشقی پرچہ",
+   "accept_en": "accept:",
+   "accept_ur": "یہ بھی درست:",
+   "covers_en": "Covers: {scope}.",
+   "covers_ur": "احاطہ: {scope}۔",
+   "checked_en": "✓ checked",
+   "checked_ur": "✓ جانچا گیا",
+   "time_line_en": "Time Allowed: 3 Hours",
+   "total_line_en": "Total Marks: {t:100}",
+   "footer_page_en": "Page {n} of {N}",
+   "footer_page_ur": "صفحہ {n} از {N}",
+   "notes_title_en": "Notes",
+   "notes_title_ur": "نوٹ",
+   "record_cols_en": [
+    "Roll",
+    "Name"
+   ],
+   "record_cols_ur": [
+    "رول نمبر",
+    "نام"
+   ],
+   "school_line_en": "School: ____________",
+   "school_line_ur": "اسکول: ____________",
+   "student_box_en": [
+    "Student Name",
+    "Roll No",
+    "Date",
+    "Total Marks",
+    "Obtained Marks"
+   ],
+   "student_box_ur": [
+    "نام طالب علم",
+    "رول نمبر",
+    "تاریخ",
+    "کل نمبر",
+    "حاصل کردہ نمبر"
+   ],
+   "answer_sheet_en": "answer sheet",
+   "answer_sheet_ur": "جوابی کاپی",
+   "common_error_en": "common error:",
+   "common_error_ur": "عام غلطی:",
+   "record_grade_en": "Grade",
+   "record_grade_ur": "گریڈ",
+   "record_title_en": "Class record",
+   "record_title_ur": "کلاس ریکارڈ",
+   "record_total_en": "Total",
+   "record_total_ur": "کل",
+   "scheme_title_en": "MARKING SCHEME",
+   "scheme_title_ur": "مارکنگ اسکیم",
+   "note_replaced_en": "{n}: key corrected by code; the model wrote {value}.",
+   "note_replaced_ur": "{n}: کلید کوڈ نے درست کی؛ ماڈل نے {value} لکھا۔",
+   "covers_partial_en": "Covers {units}; every section set from these units.",
+   "covers_partial_ur": "احاطہ: {units}؛ ہر حصہ انہی ابواب سے۔"
+  },
+  "legend": {
+   "subject": "english",
+   "key_line": 1,
+   "lines_en": [
+    "MCQs: 1 mark for the letter. Two circles or an overwritten answer = 0.",
+    "M = method · A = answer · U = unit · K = key point · L = label.",
+    "\"Attempt any N\": tell children to answer exactly N. If more are answered, mark all and keep the best N.",
+    "Grades (FDE p.113): A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F below 40. Pass = 40%."
+   ],
+   "lines_ur": [
+    "معروضی: درست حرف پر 1 نمبر۔ دو دائرے یا اوور رائٹنگ = 0۔",
+    "M = طریقہ، A = جواب، U = اکائی، K = اہم نکتہ، L = نام",
+    "«کوئی سے N»: بچوں کو بالکل N سوال حل کرنے کو کہیں۔ زیادہ حل ہوں تو سب جانچ کر بہترین N رکھیں۔",
+    "A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F <40"
+   ],
+   "title_en": "How to mark",
+   "title_ur": "جانچنے کا طریقہ",
+   "bands_line": 3,
+   "maths_lines": [],
+   "key_names_en": {
+    "A": "answer",
+    "K": "key point",
+    "L": "label",
+    "M": "method",
+    "U": "unit"
+   },
+   "key_names_ur": {
+    "A": "جواب",
+    "K": "اہم نکتہ",
+    "L": "نام",
+    "M": "طریقہ",
+    "U": "اکائی"
+   },
+   "bands_lead_ur": "گریڈ (FDE ص 113)؛ پاس = 40٪",
+   "key_from_chips": true
+  },
+  "medium": "en",
+  "subject": "english",
+  "sections": [
+   {
+    "id": "A",
+    "marks": 25,
+    "slots": [
+     {
+      "or": false,
+      "slot": "english.A.Q1b",
+      "type": "Rewrite Sentences",
+      "frame": null,
+      "grain": {
+       "kind": "one-line transformation: rewrite as a simile, identify subject + verb + object, change the tense, simile or metaphor",
+       "steps": 1,
+       "number_size": "none",
+       "unit_choice": false
+      },
+      "kinds": null,
+      "lines": 2,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "work_mm": null,
+      "category": "objective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q1 (b).",
+      "label_ur": "سوال 1 (ب)",
+      "numbering": "roman_dot",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Five one-line items, each ending with the direction in round brackets, e.g. \"The baby is sleeping. (Change into simple past)\". Cover similes/metaphors, S+V+O and simple present/past.",
+      "alternatives": null,
+      "marks_line_en": "({t:5})",
+      "section_pages": "scope",
+      "instruction_en": "Do as directed.",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     }
+    ],
+    "levels": {
+     "Apply": 8,
+     "Remember": 10,
+     "Understand": 7
+    },
+    "note_en": null,
+    "time_en": "Time allowed: 30 Minutes",
+    "label_en": "SECTION A: OBJECTIVE",
+    "marks_en": "Total Marks: {t:25}",
+    "answer_on": "question_paper"
+   },
+   {
+    "id": "C",
+    "marks": 55,
+    "slots": [
+     {
+      "or": false,
+      "slot": "english.C.Q4",
+      "type": "Word Sentences",
+      "frame": null,
+      "grain": {
+       "kind": "six unit vocabulary words, any five used in sentences",
+       "steps": 1,
+       "number_size": "six words",
+       "unit_choice": false
+      },
+      "kinds": null,
+      "lines": 0,
+      "parts": null,
+      "shape": "words",
+      "levels": {
+       "Apply": 3,
+       "Remember": 4,
+       "Understand": 3
+      },
+      "attempt": 1,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 1,
+      "label_en": "Q.4:",
+      "label_ur": "سوال 4",
+      "numbering": "none",
+      "compulsory": true,
+      "marks_each": 10,
+      "print_words": true,
+      "prompt_rule": "One item: `words` = exactly six words from units 1–10; `answer` = one model sentence per word, no definitions. 2 marks a word: the sentence shows what the word means 1 + the sentence is correct 1. The paper asks only for sentences, so never ask for, or mark, a written meaning.",
+      "alternatives": null,
+      "marks_line_en": "({t:10})",
+      "section_pages": "scope",
+      "in_item_choice": {
+       "g": 6,
+       "n": 5
+      },
+      "instruction_en": "Use any five of the following words in meaningful sentences.",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     }
+    ],
+    "levels": {
+     "Apply": 16,
+     "Remember": 22,
+     "Understand": 17
+    },
+    "note_en": null,
+    "time_en": "Time allowed: 2 Hrs.",
+    "label_en": "SECTION C: SUBJECTIVE",
+    "marks_en": "Total Marks: {t:55}",
+    "answer_on": "answer_sheet"
+   }
+  ],
+  "supplies": [
+   {
+    "kind": "picture",
+    "slot": "english.C.Q10",
+    "scene": "students planting a sapling in a school garden",
+    "words": [
+     "students",
+     "garden",
+     "sapling",
+     "spade",
+     "water",
+     "teacher",
+     "soil",
+     "flowers",
+     "planting"
+    ],
+    "line_en": "Q10: Picture: students planting a sapling in a school garden — word bank: students, garden, sapling, spade, water, teacher, soil, flowers, planting",
+    "line_ur": "سوال 10: تصویر: students planting a sapling in a school garden — مددگار الفاظ: students، garden، sapling، spade، water، teacher، soil، flowers، planting",
+    "book_page": null
+   }
+  ],
+  "unplaced": 0,
+  "blueprint": {
+   "ok": true,
+   "total": 100,
+   "levels": {
+    "Apply": {
+     "pct": 30,
+     "marks": 30,
+     "target": 30
+    },
+    "Remember": {
+     "pct": 40,
+     "marks": 40,
+     "target": 40
+    },
+    "Understand": {
+     "pct": 30,
+     "marks": 30,
+     "target": 30
+    }
+   },
+   "expected": 100,
+   "problems": [],
+   "sections": [
+    {
+     "id": "A",
+     "marks": 25,
+     "levels": {
+      "Apply": {
+       "marks": 8,
+       "target": 8
+      },
+      "Remember": {
+       "marks": 10,
+       "target": 10
+      },
+      "Understand": {
+       "marks": 7,
+       "target": 7
+      }
+     },
+     "expected": 25
+    },
+    {
+     "id": "B",
+     "marks": 20,
+     "levels": {
+      "Apply": {
+       "marks": 6,
+       "target": 6
+      },
+      "Remember": {
+       "marks": 8,
+       "target": 8
+      },
+      "Understand": {
+       "marks": 6,
+       "target": 6
+      }
+     },
+     "expected": 20
+    },
+    {
+     "id": "C",
+     "marks": 55,
+     "levels": {
+      "Apply": {
+       "marks": 16,
+       "target": 16
+      },
+      "Remember": {
+       "marks": 22,
+       "target": 22
+      },
+      "Understand": {
+       "marks": 17,
+       "target": 17
+      }
+     },
+     "expected": 55
+    }
+   ]
+  },
+  "preset_id": "fde_g5_2027",
+  "before_exam": {
+   "lines_en": [
+    "This is the marking scheme for {file} ({n} pages). Do not give it to children.",
+    "Photocopy the question paper, all {n} pages, one per child.",
+    "You add: {duty} on the question paper, page {p} (book p. {b}).",
+    "Tell the class: {sections}; {attempts}.",
+    "Time: {t}.",
+    "Mark question by question across all copies, not copy by copy."
+   ],
+   "lines_ur": [
+    "یہ {file} ({n} صفحات) کی مارکنگ اسکیم ہے۔ بچوں کو نہ دیں۔",
+    "سوالیہ پرچے کے تمام {n} صفحات کی فوٹو کاپی کریں، ہر بچے کے لیے ایک۔",
+    "شامل کریں: {duty}، سوالیہ پرچہ صفحہ {p} (کتاب ص {b})۔",
+    "کلاس کو بتائیں: {sections}؛ {attempts}۔",
+    "وقت: {t}۔",
+    "ہر سوال کو تمام کاپیوں میں ایک ساتھ جانچیں، ایک کاپی مکمل کر کے دوسری نہیں۔"
+   ],
+   "title_en": "Teacher: before the exam",
+   "title_ur": "استاد کے لیے: امتحان سے پہلے",
+   "either_en": "{label}: answer one of the two",
+   "either_ur": "{label}: دو میں سے ایک",
+   "attempt_en": "{label}: attempt any {n} of {g}",
+   "attempt_ur": "{label}: {g} میں سے کوئی سے {n}",
+   "nothing_en": "You add: nothing.",
+   "nothing_ur": "شامل کرنے کو کچھ نہیں۔",
+   "on_paper_en": "{sections} on the question paper",
+   "on_paper_ur": "{sections} سوالیہ پرچے پر",
+   "on_sheet_en": "{sections} on the answer sheet",
+   "on_sheet_ur": "{sections} جوابی کاپی پر",
+   "unknown_pages_en": "see the question paper",
+   "unknown_pages_ur": "سوالیہ پرچہ دیکھیں"
+  },
+  "frame_pages": {
+   "english.C.Q10": 4
+  },
+  "total_marks": 100,
+  "generated_at": "2026-10-29T10:46:37.845Z",
+  "total_time_en": "3 hrs",
+  "total_time_ur": "3 گھنٹے"
+ }
+}
