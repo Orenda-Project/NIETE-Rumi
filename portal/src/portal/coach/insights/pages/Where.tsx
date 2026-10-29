@@ -34,7 +34,6 @@ function WhereBody() {
       title={t("s3.title", lang)}
       crumb={data ? pick(data.card.short_name, lang) : error ? undefined : null}
       windows={data?.windows}
-      screenWindow={data?.card.window.id ?? null}
       chips={data ? <MetaLine window={data.card.window} /> : error ? undefined : null}
     >
       {!data ? <StateBlock error={error} /> : (

@@ -22,12 +22,11 @@ import { AppBar } from "../../../coachip-ui/AppBar";
  *
  * R6 fix cycle 1 (FIX_R6 A6, panel 230201): on a home the trust line is the band's foot on a phone and the rail's on a
  * laptop, so the page foot does not repeat it; an inner page keeps it at the foot. A line still coming is `null`
- * (AppBar/Band draw its placeholder, A1); `undefined` means the page has no such line. `screenWindow` is the id of the
- * window `chips` (or the band's pill) states, so a row in that window says no range of its own (A4).
+ * (AppBar draws its placeholder, A1); `undefined` means the page has no such line.
  */
-export function InsightsPage({ title, crumb, chips, backTo, windows, testId, hero, aside, wide, children, trust = true, screenWindow = null }: {
+export function InsightsPage({ title, crumb, chips, backTo, windows, testId, hero, aside, wide, children, trust = true }: {
   title?: ReactNode; crumb?: ReactNode; chips?: ReactNode; backTo?: string; windows?: readonly Window[] | null; testId: string; hero?: ReactNode;
-  aside?: ReactNode; wide?: boolean; children: ReactNode; trust?: boolean; screenWindow?: string | null;
+  aside?: ReactNode; wide?: boolean; children: ReactNode; trust?: boolean;
 }) {
   const header = hero ?? (backTo
     ? <AppBar testId="insights-appbar" backTo={backTo} eyebrow={crumb} title={title} sub={chips} />
@@ -37,7 +36,7 @@ export function InsightsPage({ title, crumb, chips, backTo, windows, testId, her
     <InsightsGate>
       <PortalLayout ownHeading>
         <WindowsProvider windows={windows}>
-          <Shell testId={testId} header={header} aside={aside} wide={wide} padBottom="layout" fullHeight={false} screenWindow={screenWindow}
+          <Shell testId={testId} header={header} aside={aside} wide={wide} padBottom="layout" fullHeight={false}
             trust={trust && !home ? <TrustLine /> : null} trustInRail>
             {children}
           </Shell>
@@ -52,14 +51,14 @@ export function InsightsPage({ title, crumb, chips, backTo, windows, testId, her
  * page's name and one line under it; `children` is its body (S1's ring and sentence), which becomes the hero card on
  * a laptop.
  */
-export function Band({ title, sub, date, fixed, children }: { title?: ReactNode; sub?: ReactNode; date?: ReactNode; fixed?: boolean; children?: ReactNode }) {
+export function Band({ title, sub, date, children }: { title?: ReactNode; sub?: ReactNode; date?: ReactNode; children?: ReactNode }) {
   const lang = useLang();
-  return <CpBand testId="insights-band" title={title} sub={sub} date={date} fixed={fixed} foot={t("trust.coach", lang)}>{children}</CpBand>;
+  return <CpBand testId="insights-band" title={title} sub={sub} date={date} foot={t("trust.coach", lang)}>{children}</CpBand>;
 }
 
 export function TrustLine() {
   const lang = useLang();
-  return <p data-testid="trust-line" className="px-1 pt-6 text-[13px] leading-[1.45] text-cp-ink-3">{t("trust.coach", lang)}</p>;
+  return <p data-testid="trust-line" className="cp-trust">{t("trust.coach", lang)}</p>;
 }
 
 /**

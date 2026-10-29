@@ -14,15 +14,8 @@ export function Skeleton({ band = false, overlap = false, testId = "cp-skeleton"
       {band && (
         <div className="cp-band" data-cp-fixed="">
           <div className="cp-lattice" />
-          <span className={`${bar} h-6 w-40 bg-white/15`} />
-          <div className="mt-5 flex items-center gap-4">
-            <span className="block h-[104px] w-[104px] shrink-0 rounded-full border-[10px] border-white/15" />
-            <span className="flex flex-1 flex-col gap-2.5">
-              <span className={`${bar} h-5 w-20 bg-white/15`} />
-              <span className={`${bar} h-4 w-full bg-white/10`} />
-              <span className={`${bar} h-4 w-4/5 bg-white/10`} />
-            </span>
-          </div>
+          {/* the empty ring track only (ux-lead-2 233515 e): the band's held height is what stops the jump, not bars */}
+          <span className="mt-11 block h-[104px] w-[104px] rounded-full border-[10px] border-white/15" />
         </div>
       )}
       <div className={`${band ? "cp-overlap mx-5 lg:mx-0" : overlap ? "cp-overlap cp-first-card" : ""} ${band ? "cp-first-card" : ""} flex items-center gap-4 rounded-[20px] bg-cp-surface p-5 shadow-[0_2px_8px_rgba(51,55,72,0.08)]`}>

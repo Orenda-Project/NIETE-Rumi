@@ -47,8 +47,8 @@ const ThisWeekAside = lazy(() => import("./ThisWeekAside"));
  * steps move to the right column under the moment's player, and where-first with the actions sits inside the hero card.
  * While loading, the band already holds an empty ring so nothing jumps.
  *
- * R6 fix cycle 1 (FIX_R6 A1, A6): the band is one fixed height per language on a phone (`fixed`), the same loading,
- * fresh or stale: the stale line leaves it for a 13 px ink-3 line directly under the first card (on a laptop, under the
+ * R6 fix cycle 1 (FIX_R6 A1, A6): the band's body is one height per language on a phone (`cp-hero-body`), the same
+ * loading, fresh or stale: the stale line leaves it for a 13 px ink-3 line directly under the first card (on a laptop, under the
  * hero card), and the trust line is the band's foot. While loading, the first card's stand-in rides up over the band.
  */
 export default function ThisWeek() {
@@ -68,7 +68,7 @@ function Today() {
 /** The band's body before the data lands: the empty ring and two quiet lines, the height of the real body. */
 function HeroLoading() {
   return (
-    <div className="flex items-center gap-4" aria-busy="true">
+    <div className="cp-hero-body flex items-center gap-4" aria-busy="true">
       <Ring n={0} d={0} size="hero" />
       <span className="flex flex-1 flex-col gap-2.5">
         <span className="cp-skeleton block h-4 w-full rounded-full bg-white/15 lg:bg-cp-hairline" />
@@ -95,7 +95,7 @@ function Hero({ home, laptop }: { home: Home | null; laptop: boolean }) {
   if (!home) return <HeroLoading />;
   const card = home.moves[0] as WCardData | undefined;
   return (
-    <div className="flex flex-col gap-3">
+    <div className="cp-hero-body flex flex-col gap-3">
       {card ? <WCardHero card={card} total={home.moves.length} /> : <EmptyMessage home={home} />}
       {card && laptop && <WCard card={card} total={home.moves.length} inHero />}
     </div>
@@ -111,12 +111,11 @@ function ThisWeekLoaded() {
       testId="insights-this-week"
       // on a laptop the band's body is the hero card, and where-first with the two actions sits inside it
       hero={(
-        <Band title={t("band.title", lang)} date={<Today />} fixed>
+        <Band title={t("band.title", lang)} date={<Today />}>
           {error && !data ? null : <Hero home={data} laptop={laptop} />}
         </Band>
       )}
       windows={data?.windows}
-      screenWindow={data?.moves[0]?.window.id ?? null}
       aside={data && laptop && !quietOf(data) ? (
         <Suspense fallback={<Steps home={data} first />}>
           <ThisWeekAside home={data}>{(first) => <Steps home={data} first={first} />}</ThisWeekAside>
@@ -196,7 +195,7 @@ function Body({ home, laptop }: { home: Home; laptop: boolean }) {
       <Stale home={home} />
       {home.note && status !== "no_scope" && <div className="mt-4"><NoteBanner note={home.note} /></div>}
 
-      {second && <div className="mt-2"><WRow row={second} to={insightsPaths.w(second.w_id)} /></div>}
+      {second && <div className="mt-2"><WRow row={second} to={insightsPaths.w(second.w_id)} screenWindow={card?.window.id} /></div>}
 
       {!quiet && cov.d > 0 && (
         <CountSpan as="p" count={cov} className="px-1 pt-3 text-[13px] leading-[1.45] text-cp-ink-3">

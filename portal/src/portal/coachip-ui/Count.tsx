@@ -43,8 +43,8 @@ const DEN_SIZE: Record<RingSize, string> = {
  * is `display: contents`, so the ring and "of d" are grid cells while the attributes stay on one element. In Urdu the
  * ring stands at the inline end (DESIGN_SYSTEM §5).
  */
-export function RingCount({ count, lang, size = "card", children, className, testId }: {
-  count: Count; lang: Lang; size?: RingSize; children?: ReactNode; className?: string; testId?: string;
+export function RingCount({ count, lang, size = "card", tone, children, className, testId }: {
+  count: Count; lang: Lang; size?: RingSize; tone?: "notice" | "strength"; children?: ReactNode; className?: string; testId?: string;
 }) {
   const grader = useGrader(count.window_id);
   const { num, rest } = splitNofD(count.n, count.d, lang);
@@ -52,7 +52,7 @@ export function RingCount({ count, lang, size = "card", children, className, tes
   const ringCell = ur ? "col-start-2" : "col-start-1";
   const textCell = ur ? "col-start-1" : "col-start-2";
   const ring = (
-    <Ring key="ring" n={count.n} d={count.d} size={size} className={`${ringCell} row-span-2 row-start-1 self-start`}>
+    <Ring key="ring" n={count.n} d={count.d} size={size} tone={tone} className={`${ringCell} row-span-2 row-start-1 self-start`}>
       <span className={`cp-ring__n font-extrabold ${(String(count.n).length >= 3 ? N_SIZE_3 : N_SIZE)[size]}`}>{num}</span>
     </Ring>
   );

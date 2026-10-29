@@ -8,15 +8,12 @@ import mark from "@/assets/niete-logo.png";
  * over it (`cp-overlap`). On a laptop (≥ 1024) the same markup is the page head on the ground and its body becomes the
  * one elevated hero card (tokens.css), so a page writes ONE header for both widths. `trailing` sits at the top's end
  * (the RM's EN | اردو on a phone).
- *
- * R6 fix cycle 1 (FIX_R6 A1, A6): `foot` is a 12 px white-72 % last line under the body (the trust line on a phone home; on a laptop the rail says it);
- * `fixed` holds the band at `--cp-band-min-h` below lg, so the body landing (or not) never moves what is under it.
  */
-export function Band({ title, date, sub, trailing, foot, fixed = false, children, testId = "cp-band" }: {
-  title?: ReactNode; date?: ReactNode; sub?: ReactNode; trailing?: ReactNode; foot?: ReactNode; fixed?: boolean; children?: ReactNode; testId?: string;
+export function Band({ title, date, sub, trailing, foot, children, testId = "cp-band" }: {
+  title?: ReactNode; date?: ReactNode; sub?: ReactNode; trailing?: ReactNode; foot?: ReactNode; children?: ReactNode; testId?: string;
 }) {
   return (
-    <header data-testid={testId} data-cp-fixed={fixed ? "" : undefined} className="cp-band">
+    <header data-testid={testId} className="cp-band">
       <div className="cp-lattice" aria-hidden="true" />
       <div className="cp-band__top mb-2.5 flex min-h-[28px] items-center justify-between gap-3">
         <span className="cp-band__lockup flex items-center gap-2 text-[12px] font-extrabold tracking-[0.14em]" dir="ltr">
@@ -31,7 +28,7 @@ export function Band({ title, date, sub, trailing, foot, fixed = false, children
       {title && <h1 className="cp-band__title text-[24px] font-extrabold leading-[1.2] tracking-[-0.01em] lg:text-[30px]">{title}</h1>}
       {sub && <div className="cp-on-band-2 mt-1 text-[14px] leading-snug">{sub}</div>}
       {children && <div className="cp-band__body mt-3">{children}</div>}
-      {foot && <p data-testid="band-foot" className="cp-band__foot mt-3 text-[12px] leading-[1.45] lg:hidden">{foot}</p>}
+      {foot && <div data-testid={`${testId}-foot`} className="cp-band__date mt-3 text-[12px] leading-[1.45] lg:hidden">{foot}</div>}
     </header>
   );
 }

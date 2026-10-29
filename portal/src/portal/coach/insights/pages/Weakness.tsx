@@ -68,7 +68,6 @@ function WeaknessBody() {
         : homeLoad.error ? undefined : coming}
       chips={card ? <MetaLine window={card.window} /> : coming}
       windows={data?.windows}
-      screenWindow={card?.window.id ?? null}
       // laptop (SCREENS S2, ux-lead-2 174713 item 4): the step card (the primary, sticky) and the moment on the right
       aside={data && card && laptop ? <Act d={data} home={home} /> : undefined}
     >

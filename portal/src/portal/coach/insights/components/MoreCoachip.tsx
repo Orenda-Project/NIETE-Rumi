@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { CircleUserRound, ClipboardCheck, Languages, Loader2, LogOut, Map as MapIcon, type LucideIcon } from "lucide-react";
-import { useLanguageSwitch } from "../../../teacher/useLanguageSwitch";
+import { CircleUserRound, ClipboardCheck, Languages, LogOut, Map as MapIcon, type LucideIcon } from "lucide-react";
 import { LangToggle } from "../../../coachip-ui/LangToggle";
 import { TEACHER_FRAME } from "../../../teacher/copy";
 import { useCopy, useLang } from "../../../teacher/i18n";
@@ -60,7 +59,10 @@ export default function MoreCoachip({ name, phone, schools, rmOn, assess, onLogo
       </CpGroup>
 
       <CpGroup label={C.more.account}>
-        <CpLanguageRow label={C.more.language} notSaved={C.more.notSaved} />
+        {/* FIX_R6 A7: a .cp row; coachip-ui's EN | اردو is the kit's one writer (useLanguageSwitch → PUT /me/language) and
+            changes the page only once the server accepted it */}
+        <Row testId="more-row-language" className="items-center" lead={<CpIcon icon={Languages} />} title={C.more.language}
+          trail={<LangToggle prefix="more-lang" />} />
         <Row testId="more-row-profile" to="/portal/coach/profile" lead={<CpIcon icon={CircleUserRound} />} title={C.more.profile} />
         <button type="button" data-testid="more-row-logout" onClick={guardedLogout}
           className="flex min-h-[44px] w-full items-start gap-3 border-t border-cp-hairline py-3.5 text-start outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green">
@@ -96,17 +98,5 @@ export function MoreHead({ title }: { title: string }) {
     <div className="cp px-5 pb-1.5 pt-10 min-[576px]:px-1 min-[576px]:pt-6">
       <h1 data-testid="more-title" className="text-[24px] font-extrabold leading-[1.2] tracking-[-0.01em] text-cp-navy lg:text-[30px]">{title}</h1>
     </div>
-  );
-}
-
-/**
- * R6 fix cycle 1: the language row as a `.cp` row. The switch is the kit's one writer (useLanguageSwitch → PUT
- * /me/language → setUserLanguage), shared with the toggle so "Not saved" shows when the server refused.
- */
-function CpLanguageRow({ label, notSaved }: { label: string; notSaved: string }) {
-  const sw = useLanguageSwitch();
-  return (
-    <Row testId="more-row-language" className="items-center" lead={<CpIcon icon={sw.status === "saving" ? Loader2 : Languages} />}
-      title={label} meta={sw.status === "failed" ? notSaved : undefined} trail={<LangToggle prefix="more-lang" sw={sw} />} />
   );
 }
