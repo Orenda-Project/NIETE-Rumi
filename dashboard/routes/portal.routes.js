@@ -47,6 +47,7 @@ const { relayLessonPlanPdf } = require('../lib/lesson-plan-file');
 // bd-5rz1v.15 — every lesson plan she opens here is recorded (niete_lp_opens), fire-and-forget,
 // and read back as her recent plans; bd-5rz1v.17 — the Home's counts for a Pakistan-time range.
 const LpActivity = require('../services/lp-activity.service');
+const ThingToTry = require('../services/thing-to-try.service');
 // bd-qvevax.2 — a plan she read in the portal's own viewer asks the bot for the lesson-plan survey,
 // exactly as one delivered on WhatsApp does (the bot decides; this only says the open happened).
 // bd-4joiqz — both through LpReader: who is opening (a teacher, or a leader reading it) and what that open records.
@@ -7505,7 +7506,8 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
 
         // ── her own words ──────────────────────────────────────────────────
         reflection,
-        prioritizedAction: session.prioritized_action || null,
+        // bd-v0toag.130: the v10 thing to try only for groups C and D.
+        prioritizedAction: await ThingToTry.actionForTeacher(supabase, userId, session.prioritized_action) || null,
 
         analysisData: {
           overall_score: {
