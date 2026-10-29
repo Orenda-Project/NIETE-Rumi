@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-12'); // sa-12: round 8 offline, no register() wait offline
+    expect(sw.CORE).toBe('sa-core-sa-15'); // sa-15: round 8 close, sa-ui.js (the story questions' hint names Next)
   });
 });
 
