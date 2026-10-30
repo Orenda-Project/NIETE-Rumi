@@ -46,6 +46,10 @@
  *                                                   route loaded (lib/analytics-lists).
  *   summarizeLpEngagement(rows, opts)               PURE: rows in, response shape out.
  * No teacher identity leaves the server.
+ *
+ * WHOSE REGIONS (bd-97daxo.3): "the six sectors" is the default; opts.regions — the regions the viewer's
+ * organization owns, from the region registry — replaces it in both halves (the v7 population, the sector cards and
+ * matrices), so a teacher counts only in the viewer's regions (schools-analytics.service's rule).
  */
 
 const { windowBounds, REGION_BUCKETS, bucketOf, ROSTER_TEACHER } = require('./schools-analytics.service');
@@ -134,8 +138,9 @@ function gradeAndSubject(a, band) {
   return { grade: g ? g.grade : null, subject: lpSubjectKey(a.subject) };
 }
 
-/** A counted school when FDE's list is not loaded: the v7 rule — active, not a test, in the six sectors. */
-const v7School = (s) => s.is_active === true && s.is_probable_test !== true && bucketOf(s.region) !== null;
+/** A counted school when FDE's list is not loaded: the v7 rule — active, not a test, in the viewer's regions. */
+const v7School = (s, regions = REGION_BUCKETS) => s.is_active === true && s.is_probable_test !== true
+  && bucketOf(s.region, regions) !== null;
 
 /** A Postgres text[] as the driver hands it back (an array, or '{A,B}' if it was not parsed). */
 function levelList(raw) {
@@ -151,9 +156,9 @@ const inBand = (levels, band) => levelList(levels)
  * school (v7's school rule), each in her school's sector.
  * @returns {Map<string, string>}
  */
-function v7Population(roster, schools, band) {
+function v7Population(roster, schools, band, regions = REGION_BUCKETS) {
   const sectorOf = new Map();
-  for (const s of schools || []) if (s && v7School(s)) sectorOf.set(s.id, bucketOf(s.region));
+  for (const s of schools || []) if (s && v7School(s, regions)) sectorOf.set(s.id, bucketOf(s.region, regions));
   const out = new Map();
   for (const t of roster || []) {
     if (t && inBand(t.bands, band) && sectorOf.has(t.school_id)) out.set(t.id, sectorOf.get(t.school_id));
@@ -169,14 +174,16 @@ function v7Population(roster, schools, band) {
  *   teachers?: Array<{id, school_id}>,             the population's current school
  *   activity?: Array<{user_id, grade?, subject?, ref?}>  one row per plan use in the window
  * }} rows
- * @param {{band?: 'primary'|'midhigh', region?: string|null}} [opts]
+ * @param {{band?: 'primary'|'midhigh', region?: string|null, regions?: readonly string[]}} [opts] regions: the
+ *   viewer's regions (FDE's six when omitted)
  */
 function summarizeLpEngagement(rows = {}, opts = {}) {
   const band = opts.band === 'midhigh' ? 'midhigh' : 'primary';
   const filter = opts.region || null;
+  const regionList = opts.regions || REGION_BUCKETS;
   const src = rows || {};
   const fde = src.fdeSchoolEmis ? new Set([...src.fdeSchoolEmis].map(String)) : null;
-  const listed = (s) => (fde ? s.emis != null && fde.has(String(s.emis)) : v7School(s));
+  const listed = (s) => (fde ? s.emis != null && fde.has(String(s.emis)) : v7School(s, regionList));
 
   const schoolById = new Map();
   for (const s of src.schools || []) {
@@ -187,14 +194,14 @@ function summarizeLpEngagement(rows = {}, opts = {}) {
   // The population, each teacher in her RDF sector, at her FDE-list school or none.
   const teachers = new Map();
   for (const [id, sector] of src.population || []) {
-    const bucket = bucketOf(sector);
+    const bucket = bucketOf(sector, regionList);
     if (!bucket) continue;
     const sid = schoolOf.get(id);
     const at = schoolById.get(sid);
     teachers.set(id, {
       bucket,
       // Her school's row only when the school is counted AND in her sector; else the sector's No school line.
-      schoolId: at && bucketOf(at.region) === bucket ? sid : null,
+      schoolId: at && bucketOf(at.region, regionList) === bucket ? sid : null,
       active: false,
       subjects: new Set(),
       grades: new Set(),
@@ -220,7 +227,7 @@ function summarizeLpEngagement(rows = {}, opts = {}) {
 
   // Overview, the six sector cards, the schools (and each sector's "No school" line).
   const overviewAcc = emptyAcc();
-  const regionAcc = new Map(REGION_BUCKETS.map((b) => [b, emptyAcc()]));
+  const regionAcc = new Map(regionList.map((b) => [b, emptyAcc()]));
   const schoolAcc = new Map();
   for (const t of teachers.values()) {
     addTeacher(regionAcc.get(t.bucket), t.active);
@@ -230,9 +237,9 @@ function summarizeLpEngagement(rows = {}, opts = {}) {
     if (!schoolAcc.has(key)) schoolAcc.set(key, { bucket: t.bucket, schoolId: t.schoolId, acc: emptyAcc() });
     addTeacher(schoolAcc.get(key).acc, t.active);
   }
-  const activeSectors = REGION_BUCKETS.filter((b) => (!filter || b === filter) && regionAcc.get(b).active > 0).length;
+  const activeSectors = regionList.filter((b) => (!filter || b === filter) && regionAcc.get(b).active > 0).length;
 
-  const order = new Map(REGION_BUCKETS.map((b, i) => [b, i]));
+  const order = new Map(regionList.map((b, i) => [b, i]));
   const schools = [...schoolAcc.values()].map(({ bucket, schoolId, acc }) => {
     const s = schoolId ? schoolById.get(schoolId) : null;
     return {
@@ -247,7 +254,7 @@ function summarizeLpEngagement(rows = {}, opts = {}) {
     || (a.noSchool - b.noSchool)
     || String(a.name || '').localeCompare(String(b.name || '')));
 
-  // Subjects (any Active teacher anywhere in the six sectors, by name) and grades (the band's, always).
+  // Subjects (any Active teacher anywhere in the viewer's regions, by name) and grades (the band's, always).
   const subjects = [...subjectKeys]
     .map((key) => ({ key, name: subjectName(key, 'en') }))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -263,10 +270,10 @@ function summarizeLpEngagement(rows = {}, opts = {}) {
   const subjectRows = subjects.map((s) => ({ subject: s.key, name: s.name, ...block(accOver(scoped, (t) => t.subjects.has(s.key))) }));
   const gradeRows = grades.map((g) => ({ grade: g, ...block(accOver(scoped, (t) => t.grades.has(g))) }));
 
-  // The grouped bars: every sector's Active % in every subject / grade (all six, whatever the filter).
-  const bySector = new Map(REGION_BUCKETS.map((b) => [b, []]));
+  // The grouped bars: every sector's Active % in every subject / grade (all of them, whatever the filter).
+  const bySector = new Map(regionList.map((b) => [b, []]));
   for (const t of teachers.values()) bySector.get(t.bucket).push(t);
-  const matrix = (keys, has) => REGION_BUCKETS.map((region) => {
+  const matrix = (keys, has) => regionList.map((region) => {
     const list = bySector.get(region);
     const values = {};
     for (const k of keys) {
@@ -278,7 +285,7 @@ function summarizeLpEngagement(rows = {}, opts = {}) {
 
   return {
     overview: { ...overall, activeSectors },
-    regions: REGION_BUCKETS.map((b) => ({ region: b, ...block(regionAcc.get(b)) })),
+    regions: regionList.map((b) => ({ region: b, ...block(regionAcc.get(b)) })),
     schools,
     bySubject: { rows: subjectRows, overall: subjectRows.length ? overall : null },
     byGrade: { rows: gradeRows, overall },
@@ -369,9 +376,10 @@ function lpActivitySql(bounds, band, ids) {
  * @param {(sql: string, params?: any[]) => Promise<{rows: any[]}>} query
  * @param {{from: string|null, to: string|null}} range from analyticsRange (validated)
  * @param {'primary'|'midhigh'} band
- * @param {{lists?: object}} [opts]
+ * @param {{lists?: object, regions?: readonly string[]}} [opts] regions: the viewer's (the v7 population's); FDE's
+ *   six when omitted
  */
-async function loadLpEngagementRows(query, range = {}, band = 'primary', { lists = {} } = {}) {
+async function loadLpEngagementRows(query, range = {}, band = 'primary', { lists = {}, regions = REGION_BUCKETS } = {}) {
   const b = BANDS.includes(band) ? band : 'primary';
   lists = lists || {};
   const rdf = !(lists.missing && lists.missing.teachers) && lists[BAND_RULES[b].list] ? lists[BAND_RULES[b].list] : null;
@@ -397,7 +405,7 @@ async function loadLpEngagementRows(query, range = {}, band = 'primary', { lists
   const [schoolRes, rosterRes] = await Promise.all([query(SCHOOLS_SQL, []), query(ROSTER_SQL, [])]);
   const schools = schoolRes.rows || [];
   const roster = rosterRes.rows || [];
-  const population = v7Population(roster, schools, b);
+  const population = v7Population(roster, schools, b, regions);
   const lp = lpActivitySql(bounds, b, [...population.keys()]);
   const lpRes = await query(lp.sql, lp.params);
   return {
