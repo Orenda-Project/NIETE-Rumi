@@ -1,0 +1,5528 @@
+{
+ "_meta": {
+  "version": "v2.2",
+  "today": "2026-10-26",
+  "source": "contracts/API.md v1.4",
+  "fictional": true,
+  "owner": "c-api (w-fixtures)",
+  "timezone": "Asia/Karachi",
+  "library_source": "outputs/lanes/x-pedagogy/INTERVENTIONS.json (x-pedagogy W4 v1); contracts/INTERVENTIONS.json replaces it when c-library ships",
+  "subject_coach": "C-03",
+  "sector": "Urban-I"
+ },
+ "me_off": {
+  "coach": null,
+  "rm": null,
+  "decode": false,
+  "lang": "en",
+  "windows": [],
+  "computed_at": "2026-10-26T05:12:00Z"
+ },
+ "me_coach": {
+  "coach": {
+   "schoolCount": 6,
+   "teacherCount": 41
+  },
+  "rm": null,
+  "decode": false,
+  "lang": "en",
+  "windows": [],
+  "computed_at": "2026-10-26T05:12:00Z"
+ },
+ "me_rm": {
+  "coach": null,
+  "rm": {
+   "sector": "Urban-I",
+   "schoolCount": 62,
+   "coachCount": 9
+  },
+  "decode": false,
+  "lang": "ur",
+  "windows": [],
+  "computed_at": "2026-10-26T05:12:00Z"
+ },
+ "home": {
+  "window": {
+   "id": "w4-2026-09-28",
+   "from": "2026-09-28",
+   "to": "2026-10-25",
+   "weeks": 4,
+   "grader": "google/gemini-3.8-flash",
+   "grader_label": {
+    "en": "lesson-plan fidelity",
+    "ur": "سبق کے منصوبے پر عمل"
+   },
+   "framework": "lp_fidelity",
+   "scoring_changed_on": "2026-09-28"
+  },
+  "moves": [
+   {
+    "w_id": "W-IP-TIME",
+    "parent_w_id": "W-IP",
+    "rank": 1,
+    "short_name": {
+     "en": "Ran out of time",
+     "ur": "وقت ختم ہو گیا"
+    },
+    "number_line": {
+     "en": "17 of 49",
+     "ur": "۴۹ میں سے ۱۷"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+     "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+    },
+    "cause": {
+     "text": {
+      "en": "In the lessons that ran out of time, the explanation ran a median of about 6 minutes over the plan.",
+      "ur": "وقت ختم ہونے والے اسباق میں، وسط کے حساب سے، وضاحت منصوبے سے کوئی ۶ منٹ زیادہ چلی۔"
+     },
+     "stat": {
+      "kind": "median",
+      "value": 6.0,
+      "unit": "min",
+      "base": 17,
+      "window_id": "w4-2026-09-28"
+     },
+     "also": {
+      "text": {
+       "en": "7 of these also ended before the closing check.",
+       "ur": "ان میں سے ۷ اختتامی جانچ سے پہلے ہی ختم ہوئے۔"
+      },
+      "count": {
+       "n": 7,
+       "d": 17,
+       "window_id": "w4-2026-09-28"
+      }
+     }
+    },
+    "count": {
+     "n": 17,
+     "d": 49,
+     "window_id": "w4-2026-09-28"
+    },
+    "teacher_count": 29,
+    "teachers": {
+     "n": 11,
+     "d": 29,
+     "window_id": "w4-2026-09-28"
+    },
+    "window": {
+     "id": "w4-2026-09-28",
+     "from": "2026-09-28",
+     "to": "2026-10-25",
+     "weeks": 4,
+     "grader": "google/gemini-3.8-flash",
+     "grader_label": {
+      "en": "lesson-plan fidelity",
+      "ur": "سبق کے منصوبے پر عمل"
+     },
+     "framework": "lp_fidelity",
+     "scoring_changed_on": "2026-09-28"
+    },
+    "status": "ok",
+    "where_first": {
+     "school": {
+      "school_id": "00000000-0000-4000-8000-010000000003",
+      "school_name": "Govt. Primary School Fictional-03"
+     },
+     "count": {
+      "n": 6,
+      "d": 9,
+      "window_id": "w4-2026-09-28"
+     },
+     "visit": {
+      "date": "2026-10-28",
+      "schedule_id": "00000000-0000-4000-8000-080000000003"
+     },
+     "then": [
+      {
+       "school_id": "00000000-0000-4000-8000-010000000005",
+       "school_name": "Govt. Primary School Fictional-05"
+      },
+      {
+       "school_id": "00000000-0000-4000-8000-010000000006",
+       "school_name": "Govt. Primary School Fictional-06"
+      }
+     ]
+    },
+    "moment_id": "00000000-0000-4000-8000-040000000001",
+    "moment_duration_s": 38,
+    "i_id": "I-IP-TIME-1"
+   },
+   {
+    "w_id": "W-EXIT-NOPLAN",
+    "short_name": {
+     "en": "Time left, no closing check",
+     "ur": "وقت تھا، آخر میں جانچ نہیں"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for an exit check had time left and ended without one.",
+     "ur": "جن اسباق کے منصوبے میں اختتامی جانچ شامل تھی، ان میں وقت تھا مگر جانچ نہیں ہوئی۔"
+    },
+    "count": {
+     "n": 12,
+     "d": 47,
+     "window_id": "w4-2026-09-28"
+    },
+    "window": {
+     "id": "w4-2026-09-28",
+     "from": "2026-09-28",
+     "to": "2026-10-25",
+     "weeks": 4,
+     "grader": "google/gemini-3.8-flash",
+     "grader_label": {
+      "en": "lesson-plan fidelity",
+      "ur": "سبق کے منصوبے پر عمل"
+     },
+     "framework": "lp_fidelity",
+     "scoring_changed_on": "2026-09-28"
+    },
+    "state": "ranked",
+    "where_first": {
+     "school": {
+      "school_id": "00000000-0000-4000-8000-010000000005",
+      "school_name": "Govt. Primary School Fictional-05"
+     },
+     "count": {
+      "n": 4,
+      "d": 10,
+      "window_id": "w4-2026-09-28"
+     }
+    },
+    "not_yet": null,
+    "sector": null
+   }
+  ],
+  "note": {
+   "id": "00000000-0000-4000-8000-060000000001",
+   "label": {
+    "en": "From your RM",
+    "ur": "آپ کے آر ایم کی طرف سے"
+   },
+   "template_id": "RM-T1",
+   "w_id": "W-IP-TIME",
+   "lines": {
+    "en": [
+     "This month \"Ran out of time\" shows most at Govt. Primary School Fictional-03.",
+     "Please run \"Peer observation with one look-for: the minute the explanation ended\" there before 30 Oct.",
+     "Bring the moment to the Friday circle."
+    ],
+    "ur": [
+     "اس مہینے «وقت ختم ہو گیا» سب سے زیادہ ⁦Govt. Primary School Fictional-03⁩ میں نظر آیا۔",
+     "براہِ کرم ۳۰ اکتوبر سے پہلے وہاں «ساتھی مشاہدہ، ایک نظر: وضاحت کس منٹ پر ختم ہوئی» چلائیں۔",
+     "لمحہ جمعے کے حلقے میں لائیں۔"
+    ]
+   },
+   "schools": [
+    {
+     "school_id": "00000000-0000-4000-8000-010000000003",
+     "school_name": "Govt. Primary School Fictional-03"
+    }
+   ],
+   "due_on": "2026-10-30",
+   "status": "sent"
+  },
+  "steps": [
+   {
+    "id": "00000000-0000-4000-8000-05000000001f",
+    "scope": "coach",
+    "code": {
+     "code_id": "00000000-0000-4000-8000-02000000014b",
+     "code": "T-31"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000006",
+     "school_name": "Govt. Primary School Fictional-06"
+    },
+    "w_id": "W-IP-TIME",
+    "i_id": "I-IP-TIME-2",
+    "step": {
+     "en": "Name a child timekeeper with the three marks (10, 17, 25) before the lesson; change step when they call",
+     "ur": "سبق سے پہلے ایک بچے کو وقت کا نگران بنائیں، تین نشان (۱۰، ۱۷، ۲۵) دیں؛ آواز پر مرحلہ بدلیں"
+    },
+    "set_on": "2026-10-07",
+    "check_by": "2026-10-21",
+    "check_rule": "14_days",
+    "visit": null,
+    "status": "open",
+    "coach_tick": "pending",
+    "strip": {
+     "needed": 3,
+     "window_days": 14,
+     "hits": [
+      {
+       "session_id": "00000000-0000-4000-8000-030000000137",
+       "hit": true,
+       "recorded_on": "2026-10-09"
+      },
+      {
+       "session_id": "00000000-0000-4000-8000-030000000138",
+       "hit": true,
+       "recorded_on": "2026-10-13"
+      },
+      {
+       "session_id": "00000000-0000-4000-8000-030000000139",
+       "hit": false,
+       "recorded_on": "2026-10-16"
+      }
+     ]
+    },
+    "chip": "worked",
+    "to_come": 0,
+    "rm_note_id": null
+   },
+   {
+    "id": "00000000-0000-4000-8000-050000000007",
+    "scope": "coach",
+    "code": {
+     "code_id": "00000000-0000-4000-8000-020000000133",
+     "code": "T-07"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000003",
+     "school_name": "Govt. Primary School Fictional-03"
+    },
+    "w_id": "W-IP-TIME",
+    "i_id": "I-IP-1",
+    "step": {
+     "en": "Read the plan's practice line aloud at minute 15, say the time, walk the rows for 8 minutes",
+     "ur": "پندرہویں منٹ پر منصوبے کی مشق والی سطر پڑھیں، وقت بتائیں، آٹھ منٹ قطاروں میں چلیں"
+    },
+    "set_on": "2026-10-14",
+    "check_by": "2026-10-28",
+    "check_rule": "visit",
+    "visit": {
+     "date": "2026-10-28",
+     "schedule_id": "00000000-0000-4000-8000-080000000003"
+    },
+    "status": "open",
+    "coach_tick": "pending",
+    "strip": {
+     "needed": 3,
+     "window_days": 14,
+     "hits": [
+      {
+       "session_id": "00000000-0000-4000-8000-030000000047",
+       "hit": true,
+       "recorded_on": "2026-10-16"
+      },
+      {
+       "session_id": "00000000-0000-4000-8000-030000000048",
+       "hit": "partial",
+       "recorded_on": "2026-10-23"
+      }
+     ]
+    },
+    "chip": "to_come",
+    "to_come": 1,
+    "rm_note_id": null
+   },
+   {
+    "id": "00000000-0000-4000-8000-050000000013",
+    "scope": "coach",
+    "code": {
+     "code_id": "00000000-0000-4000-8000-02000000013f",
+     "code": "T-19"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000005",
+     "school_name": "Govt. Primary School Fictional-05"
+    },
+    "w_id": "W-EXIT-NOPLAN",
+    "i_id": "I-EXIT-NOPLAN-1",
+    "step": {
+     "en": "Ask the exit question at minute 22 and read five slates aloud, naming what was right",
+     "ur": "بائیسویں منٹ پر اختتامی سوال پوچھیں اور پانچ سلیٹیں پڑھ کر بتائیں کہ کیا ٹھیک تھا"
+    },
+    "set_on": "2026-10-20",
+    "check_by": "2026-11-03",
+    "check_rule": "visit",
+    "visit": {
+     "date": "2026-11-03",
+     "schedule_id": "00000000-0000-4000-8000-080000000005"
+    },
+    "status": "open",
+    "coach_tick": "pending",
+    "strip": {
+     "needed": 3,
+     "window_days": 14,
+     "hits": []
+    },
+    "chip": "to_come",
+    "to_come": 3,
+    "rm_note_id": null
+   }
+  ],
+  "coverage": {
+   "recordings": {
+    "n": 53,
+    "d": 62,
+    "window_id": "w4-2026-09-28"
+   }
+  },
+  "not_yet": [
+   {
+    "w_id": "W-WARM",
+    "short_name": {
+     "en": "Warm-up skipped",
+     "ur": "ابتدائی سرگرمی نہیں ہوئی"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for a warm-up or recall started without one.",
+     "ur": "جن اسباق کے منصوبے میں ابتدائی سرگرمی یا دہرائی شامل تھی، وہ اس کے بغیر شروع ہوئے۔"
+    },
+    "count": null,
+    "window": {
+     "id": "w4-2026-09-28",
+     "from": "2026-09-28",
+     "to": "2026-10-25",
+     "weeks": 4,
+     "grader": "google/gemini-3.8-flash",
+     "grader_label": {
+      "en": "lesson-plan fidelity",
+      "ur": "سبق کے منصوبے پر عمل"
+     },
+     "framework": "lp_fidelity",
+     "scoring_changed_on": "2026-09-28"
+    },
+    "state": "not_yet",
+    "where_first": null,
+    "not_yet": {
+     "graded": {
+      "n": 12,
+      "d": 20,
+      "window_id": "w4-2026-09-28"
+     },
+     "codes_seen": 2,
+     "codes_needed": 3,
+     "coaches_with_5plus": null
+    },
+    "sector": null
+   }
+  ],
+  "phonics": {
+   "status": "testing",
+   "read": 12,
+   "needed": 30,
+   "kappa_passed": false,
+   "card": null,
+   "reading_hours": null
+  },
+  "stale": null,
+  "empty": null,
+  "method": {
+   "hysteresis_applied": false,
+   "query_id": "q-coachip-home-v1"
+  },
+  "windows": [
+   {
+    "id": "w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   }
+  ],
+  "computed_at": "2026-10-25T21:40:00Z"
+ },
+ "home_stale": {
+  "window": {
+   "id": "w4-2026-09-21",
+   "from": "2026-09-21",
+   "to": "2026-10-18",
+   "weeks": 4,
+   "grader": "google/gemini-3.8-flash",
+   "grader_label": {
+    "en": "lesson-plan fidelity",
+    "ur": "سبق کے منصوبے پر عمل"
+   },
+   "framework": "lp_fidelity",
+   "scoring_changed_on": "2026-09-28"
+  },
+  "moves": [
+   {
+    "w_id": "W-IP-TIME",
+    "parent_w_id": "W-IP",
+    "rank": 1,
+    "short_name": {
+     "en": "Ran out of time",
+     "ur": "وقت ختم ہو گیا"
+    },
+    "number_line": {
+     "en": "16 of 46",
+     "ur": "۴۶ میں سے ۱۶"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+     "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+    },
+    "cause": {
+     "text": {
+      "en": "In the lessons that ran out of time, the explanation ran a median of about 6 minutes over the plan.",
+      "ur": "وقت ختم ہونے والے اسباق میں، وسط کے حساب سے، وضاحت منصوبے سے کوئی ۶ منٹ زیادہ چلی۔"
+     },
+     "stat": {
+      "kind": "median",
+      "value": 6.0,
+      "unit": "min",
+      "base": 16,
+      "window_id": "w4-2026-09-21"
+     },
+     "also": {
+      "text": {
+       "en": "7 of these also ended before the closing check.",
+       "ur": "ان میں سے ۷ اختتامی جانچ سے پہلے ہی ختم ہوئے۔"
+      },
+      "count": {
+       "n": 7,
+       "d": 16,
+       "window_id": "w4-2026-09-21"
+      }
+     }
+    },
+    "count": {
+     "n": 16,
+     "d": 46,
+     "window_id": "w4-2026-09-21"
+    },
+    "teacher_count": 28,
+    "teachers": {
+     "n": 10,
+     "d": 28,
+     "window_id": "w4-2026-09-21"
+    },
+    "window": {
+     "id": "w4-2026-09-21",
+     "from": "2026-09-21",
+     "to": "2026-10-18",
+     "weeks": 4,
+     "grader": "google/gemini-3.8-flash",
+     "grader_label": {
+      "en": "lesson-plan fidelity",
+      "ur": "سبق کے منصوبے پر عمل"
+     },
+     "framework": "lp_fidelity",
+     "scoring_changed_on": "2026-09-28"
+    },
+    "status": "ok",
+    "where_first": {
+     "school": {
+      "school_id": "00000000-0000-4000-8000-010000000003",
+      "school_name": "Govt. Primary School Fictional-03"
+     },
+     "count": {
+      "n": 5,
+      "d": 8,
+      "window_id": "w4-2026-09-21"
+     },
+     "visit": {
+      "date": "2026-10-28",
+      "schedule_id": "00000000-0000-4000-8000-080000000003"
+     },
+     "then": [
+      {
+       "school_id": "00000000-0000-4000-8000-010000000005",
+       "school_name": "Govt. Primary School Fictional-05"
+      },
+      {
+       "school_id": "00000000-0000-4000-8000-010000000006",
+       "school_name": "Govt. Primary School Fictional-06"
+      }
+     ]
+    },
+    "moment_id": "00000000-0000-4000-8000-040000000001",
+    "moment_duration_s": 38,
+    "i_id": "I-IP-TIME-1"
+   },
+   {
+    "w_id": "W-EXIT-NOPLAN",
+    "short_name": {
+     "en": "Time left, no closing check",
+     "ur": "وقت تھا، آخر میں جانچ نہیں"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for an exit check had time left and ended without one.",
+     "ur": "جن اسباق کے منصوبے میں اختتامی جانچ شامل تھی، ان میں وقت تھا مگر جانچ نہیں ہوئی۔"
+    },
+    "count": {
+     "n": 11,
+     "d": 44,
+     "window_id": "w4-2026-09-21"
+    },
+    "window": {
+     "id": "w4-2026-09-21",
+     "from": "2026-09-21",
+     "to": "2026-10-18",
+     "weeks": 4,
+     "grader": "google/gemini-3.8-flash",
+     "grader_label": {
+      "en": "lesson-plan fidelity",
+      "ur": "سبق کے منصوبے پر عمل"
+     },
+     "framework": "lp_fidelity",
+     "scoring_changed_on": "2026-09-28"
+    },
+    "state": "ranked",
+    "where_first": {
+     "school": {
+      "school_id": "00000000-0000-4000-8000-010000000005",
+      "school_name": "Govt. Primary School Fictional-05"
+     },
+     "count": {
+      "n": 4,
+      "d": 9,
+      "window_id": "w4-2026-09-21"
+     }
+    },
+    "not_yet": null,
+    "sector": null
+   }
+  ],
+  "note": {
+   "id": "00000000-0000-4000-8000-060000000001",
+   "label": {
+    "en": "From your RM",
+    "ur": "آپ کے آر ایم کی طرف سے"
+   },
+   "template_id": "RM-T1",
+   "w_id": "W-IP-TIME",
+   "lines": {
+    "en": [
+     "This month \"Ran out of time\" shows most at Govt. Primary School Fictional-03.",
+     "Please run \"Peer observation with one look-for: the minute the explanation ended\" there before 30 Oct.",
+     "Bring the moment to the Friday circle."
+    ],
+    "ur": [
+     "اس مہینے «وقت ختم ہو گیا» سب سے زیادہ ⁦Govt. Primary School Fictional-03⁩ میں نظر آیا۔",
+     "براہِ کرم ۳۰ اکتوبر سے پہلے وہاں «ساتھی مشاہدہ، ایک نظر: وضاحت کس منٹ پر ختم ہوئی» چلائیں۔",
+     "لمحہ جمعے کے حلقے میں لائیں۔"
+    ]
+   },
+   "schools": [
+    {
+     "school_id": "00000000-0000-4000-8000-010000000003",
+     "school_name": "Govt. Primary School Fictional-03"
+    }
+   ],
+   "due_on": "2026-10-30",
+   "status": "sent"
+  },
+  "steps": [
+   {
+    "id": "00000000-0000-4000-8000-05000000001f",
+    "scope": "coach",
+    "code": {
+     "code_id": "00000000-0000-4000-8000-02000000014b",
+     "code": "T-31"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000006",
+     "school_name": "Govt. Primary School Fictional-06"
+    },
+    "w_id": "W-IP-TIME",
+    "i_id": "I-IP-TIME-2",
+    "step": {
+     "en": "Name a child timekeeper with the three marks (10, 17, 25) before the lesson; change step when they call",
+     "ur": "سبق سے پہلے ایک بچے کو وقت کا نگران بنائیں، تین نشان (۱۰، ۱۷، ۲۵) دیں؛ آواز پر مرحلہ بدلیں"
+    },
+    "set_on": "2026-10-07",
+    "check_by": "2026-10-21",
+    "check_rule": "14_days",
+    "visit": null,
+    "status": "open",
+    "coach_tick": "pending",
+    "strip": {
+     "needed": 3,
+     "window_days": 14,
+     "hits": [
+      {
+       "session_id": "00000000-0000-4000-8000-030000000137",
+       "hit": true,
+       "recorded_on": "2026-10-09"
+      },
+      {
+       "session_id": "00000000-0000-4000-8000-030000000138",
+       "hit": true,
+       "recorded_on": "2026-10-13"
+      },
+      {
+       "session_id": "00000000-0000-4000-8000-030000000139",
+       "hit": false,
+       "recorded_on": "2026-10-16"
+      }
+     ]
+    },
+    "chip": "worked",
+    "to_come": 0,
+    "rm_note_id": null
+   },
+   {
+    "id": "00000000-0000-4000-8000-050000000007",
+    "scope": "coach",
+    "code": {
+     "code_id": "00000000-0000-4000-8000-020000000133",
+     "code": "T-07"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000003",
+     "school_name": "Govt. Primary School Fictional-03"
+    },
+    "w_id": "W-IP-TIME",
+    "i_id": "I-IP-1",
+    "step": {
+     "en": "Read the plan's practice line aloud at minute 15, say the time, walk the rows for 8 minutes",
+     "ur": "پندرہویں منٹ پر منصوبے کی مشق والی سطر پڑھیں، وقت بتائیں، آٹھ منٹ قطاروں میں چلیں"
+    },
+    "set_on": "2026-10-14",
+    "check_by": "2026-10-28",
+    "check_rule": "visit",
+    "visit": {
+     "date": "2026-10-28",
+     "schedule_id": "00000000-0000-4000-8000-080000000003"
+    },
+    "status": "open",
+    "coach_tick": "pending",
+    "strip": {
+     "needed": 3,
+     "window_days": 14,
+     "hits": [
+      {
+       "session_id": "00000000-0000-4000-8000-030000000047",
+       "hit": true,
+       "recorded_on": "2026-10-16"
+      },
+      {
+       "session_id": "00000000-0000-4000-8000-030000000048",
+       "hit": "partial",
+       "recorded_on": "2026-10-23"
+      }
+     ]
+    },
+    "chip": "to_come",
+    "to_come": 1,
+    "rm_note_id": null
+   },
+   {
+    "id": "00000000-0000-4000-8000-050000000013",
+    "scope": "coach",
+    "code": {
+     "code_id": "00000000-0000-4000-8000-02000000013f",
+     "code": "T-19"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000005",
+     "school_name": "Govt. Primary School Fictional-05"
+    },
+    "w_id": "W-EXIT-NOPLAN",
+    "i_id": "I-EXIT-NOPLAN-1",
+    "step": {
+     "en": "Ask the exit question at minute 22 and read five slates aloud, naming what was right",
+     "ur": "بائیسویں منٹ پر اختتامی سوال پوچھیں اور پانچ سلیٹیں پڑھ کر بتائیں کہ کیا ٹھیک تھا"
+    },
+    "set_on": "2026-10-20",
+    "check_by": "2026-11-03",
+    "check_rule": "visit",
+    "visit": {
+     "date": "2026-11-03",
+     "schedule_id": "00000000-0000-4000-8000-080000000005"
+    },
+    "status": "open",
+    "coach_tick": "pending",
+    "strip": {
+     "needed": 3,
+     "window_days": 14,
+     "hits": []
+    },
+    "chip": "to_come",
+    "to_come": 3,
+    "rm_note_id": null
+   }
+  ],
+  "coverage": {
+   "recordings": {
+    "n": 50,
+    "d": 58,
+    "window_id": "w4-2026-09-21"
+   }
+  },
+  "not_yet": [
+   {
+    "w_id": "W-WARM",
+    "short_name": {
+     "en": "Warm-up skipped",
+     "ur": "ابتدائی سرگرمی نہیں ہوئی"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for a warm-up or recall started without one.",
+     "ur": "جن اسباق کے منصوبے میں ابتدائی سرگرمی یا دہرائی شامل تھی، وہ اس کے بغیر شروع ہوئے۔"
+    },
+    "count": null,
+    "window": {
+     "id": "w4-2026-09-21",
+     "from": "2026-09-21",
+     "to": "2026-10-18",
+     "weeks": 4,
+     "grader": "google/gemini-3.8-flash",
+     "grader_label": {
+      "en": "lesson-plan fidelity",
+      "ur": "سبق کے منصوبے پر عمل"
+     },
+     "framework": "lp_fidelity",
+     "scoring_changed_on": "2026-09-28"
+    },
+    "state": "not_yet",
+    "where_first": null,
+    "not_yet": {
+     "graded": {
+      "n": 11,
+      "d": 20,
+      "window_id": "w4-2026-09-21"
+     },
+     "codes_seen": 2,
+     "codes_needed": 3,
+     "coaches_with_5plus": null
+    },
+    "sector": null
+   }
+  ],
+  "phonics": {
+   "status": "testing",
+   "read": 12,
+   "needed": 30,
+   "kappa_passed": false,
+   "card": null,
+   "reading_hours": null
+  },
+  "stale": {
+   "as_of": "2026-10-24",
+   "reason": "failed"
+  },
+  "empty": null,
+  "method": {
+   "hysteresis_applied": false,
+   "query_id": "q-coachip-home-v1"
+  },
+  "windows": [
+   {
+    "id": "w4-2026-09-21",
+    "from": "2026-09-21",
+    "to": "2026-10-18",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   }
+  ],
+  "computed_at": "2026-10-23T21:40:00Z"
+ },
+ "home_insufficient": {
+  "window": {
+   "id": "w4-2026-09-28",
+   "from": "2026-09-28",
+   "to": "2026-10-25",
+   "weeks": 4,
+   "grader": "google/gemini-3.8-flash",
+   "grader_label": {
+    "en": "lesson-plan fidelity",
+    "ur": "سبق کے منصوبے پر عمل"
+   },
+   "framework": "lp_fidelity",
+   "scoring_changed_on": "2026-09-28"
+  },
+  "moves": [],
+  "note": null,
+  "steps": [
+   {
+    "id": "00000000-0000-4000-8000-050000000321",
+    "scope": "coach",
+    "code": {
+     "code_id": "00000000-0000-4000-8000-020000000324",
+     "code": "T-04"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000034",
+     "school_name": "Govt. Primary School Fictional-52"
+    },
+    "w_id": "W-IP-TIME",
+    "i_id": "I-IP-TIME-2",
+    "step": {
+     "en": "Name a child timekeeper with the three marks (10, 17, 25) before the lesson; change step when they call",
+     "ur": "سبق سے پہلے ایک بچے کو وقت کا نگران بنائیں، تین نشان (۱۰، ۱۷، ۲۵) دیں؛ آواز پر مرحلہ بدلیں"
+    },
+    "set_on": "2026-10-19",
+    "check_by": "2026-11-02",
+    "check_rule": "visit",
+    "visit": {
+     "date": "2026-11-02",
+     "schedule_id": "00000000-0000-4000-8000-080000000034"
+    },
+    "status": "open",
+    "coach_tick": "pending",
+    "strip": {
+     "needed": 3,
+     "window_days": 14,
+     "hits": [
+      {
+       "session_id": "00000000-0000-4000-8000-030000001f4b",
+       "hit": "partial",
+       "recorded_on": "2026-10-22"
+      }
+     ]
+    },
+    "chip": "to_come",
+    "to_come": 2,
+    "rm_note_id": null
+   }
+  ],
+  "coverage": {
+   "recordings": {
+    "n": 11,
+    "d": 17,
+    "window_id": "w4-2026-09-28"
+   }
+  },
+  "not_yet": [],
+  "phonics": {
+   "status": "testing",
+   "read": 12,
+   "needed": 30,
+   "kappa_passed": false,
+   "card": null,
+   "reading_hours": null
+  },
+  "stale": null,
+  "empty": {
+   "status": "insufficient",
+   "message": {
+    "en": "Not enough recordings yet: 9 graded lessons in the last 4 weeks, 20 needed. Your open steps still show.",
+    "ur": "ابھی کافی ریکارڈنگز نہیں: پچھلے ۴ ہفتوں میں ۹ جانچے گئے اسباق، ۲۰ درکار۔ آپ کے جاری قدم دکھائی دے رہے ہیں۔"
+   },
+   "detail": {
+    "graded": {
+     "n": 9,
+     "d": 20,
+     "window_id": "w4-2026-09-28"
+    },
+    "widened_to_weeks": null,
+    "as_of": null
+   }
+  },
+  "method": {
+   "hysteresis_applied": false,
+   "query_id": "q-coachip-home-v1"
+  },
+  "windows": [
+   {
+    "id": "w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   }
+  ],
+  "computed_at": "2026-10-25T21:40:00Z"
+ },
+ "home_no_scope": {
+  "window": {
+   "id": "w4-2026-09-28",
+   "from": "2026-09-28",
+   "to": "2026-10-25",
+   "weeks": 4,
+   "grader": "google/gemini-3.8-flash",
+   "grader_label": {
+    "en": "lesson-plan fidelity",
+    "ur": "سبق کے منصوبے پر عمل"
+   },
+   "framework": "lp_fidelity",
+   "scoring_changed_on": "2026-09-28"
+  },
+  "moves": [],
+  "note": null,
+  "steps": [],
+  "coverage": {
+   "recordings": {
+    "n": 0,
+    "d": 0,
+    "window_id": "w4-2026-09-28"
+   }
+  },
+  "not_yet": [],
+  "phonics": {
+   "status": "testing",
+   "read": 0,
+   "needed": 30,
+   "kappa_passed": false,
+   "card": null,
+   "reading_hours": null
+  },
+  "stale": null,
+  "empty": {
+   "status": "no_scope",
+   "message": {
+    "en": "No schools are assigned to you yet. Ask your RM.",
+    "ur": "ابھی آپ کو کوئی اسکول تفویض نہیں ہوا۔ اپنے آر ایم سے بات کریں۔"
+   },
+   "detail": {
+    "graded": null,
+    "widened_to_weeks": null,
+    "as_of": null
+   }
+  },
+  "method": {
+   "hysteresis_applied": false,
+   "query_id": "q-coachip-home-v1"
+  },
+  "windows": [
+   {
+    "id": "w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   }
+  ],
+  "computed_at": "2026-10-26T05:12:00Z"
+ },
+ "home_phonics_paused": {
+  "window": {
+   "id": "w4-2026-09-28",
+   "from": "2026-09-28",
+   "to": "2026-10-25",
+   "weeks": 4,
+   "grader": "google/gemini-3.8-flash",
+   "grader_label": {
+    "en": "lesson-plan fidelity",
+    "ur": "سبق کے منصوبے پر عمل"
+   },
+   "framework": "lp_fidelity",
+   "scoring_changed_on": "2026-09-28"
+  },
+  "moves": [
+   {
+    "w_id": "W-IP-TIME",
+    "parent_w_id": "W-IP",
+    "rank": 1,
+    "short_name": {
+     "en": "Ran out of time",
+     "ur": "وقت ختم ہو گیا"
+    },
+    "number_line": {
+     "en": "17 of 49",
+     "ur": "۴۹ میں سے ۱۷"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+     "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+    },
+    "cause": {
+     "text": {
+      "en": "In the lessons that ran out of time, the explanation ran a median of about 6 minutes over the plan.",
+      "ur": "وقت ختم ہونے والے اسباق میں، وسط کے حساب سے، وضاحت منصوبے سے کوئی ۶ منٹ زیادہ چلی۔"
+     },
+     "stat": {
+      "kind": "median",
+      "value": 6.0,
+      "unit": "min",
+      "base": 17,
+      "window_id": "w4-2026-09-28"
+     },
+     "also": {
+      "text": {
+       "en": "7 of these also ended before the closing check.",
+       "ur": "ان میں سے ۷ اختتامی جانچ سے پہلے ہی ختم ہوئے۔"
+      },
+      "count": {
+       "n": 7,
+       "d": 17,
+       "window_id": "w4-2026-09-28"
+      }
+     }
+    },
+    "count": {
+     "n": 17,
+     "d": 49,
+     "window_id": "w4-2026-09-28"
+    },
+    "teacher_count": 29,
+    "teachers": {
+     "n": 11,
+     "d": 29,
+     "window_id": "w4-2026-09-28"
+    },
+    "window": {
+     "id": "w4-2026-09-28",
+     "from": "2026-09-28",
+     "to": "2026-10-25",
+     "weeks": 4,
+     "grader": "google/gemini-3.8-flash",
+     "grader_label": {
+      "en": "lesson-plan fidelity",
+      "ur": "سبق کے منصوبے پر عمل"
+     },
+     "framework": "lp_fidelity",
+     "scoring_changed_on": "2026-09-28"
+    },
+    "status": "ok",
+    "where_first": {
+     "school": {
+      "school_id": "00000000-0000-4000-8000-010000000003",
+      "school_name": "Govt. Primary School Fictional-03"
+     },
+     "count": {
+      "n": 6,
+      "d": 9,
+      "window_id": "w4-2026-09-28"
+     },
+     "visit": {
+      "date": "2026-10-28",
+      "schedule_id": "00000000-0000-4000-8000-080000000003"
+     },
+     "then": [
+      {
+       "school_id": "00000000-0000-4000-8000-010000000005",
+       "school_name": "Govt. Primary School Fictional-05"
+      },
+      {
+       "school_id": "00000000-0000-4000-8000-010000000006",
+       "school_name": "Govt. Primary School Fictional-06"
+      }
+     ]
+    },
+    "moment_id": "00000000-0000-4000-8000-040000000001",
+    "moment_duration_s": 38,
+    "i_id": "I-IP-TIME-1"
+   },
+   {
+    "w_id": "W-EXIT-NOPLAN",
+    "short_name": {
+     "en": "Time left, no closing check",
+     "ur": "وقت تھا، آخر میں جانچ نہیں"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for an exit check had time left and ended without one.",
+     "ur": "جن اسباق کے منصوبے میں اختتامی جانچ شامل تھی، ان میں وقت تھا مگر جانچ نہیں ہوئی۔"
+    },
+    "count": {
+     "n": 12,
+     "d": 47,
+     "window_id": "w4-2026-09-28"
+    },
+    "window": {
+     "id": "w4-2026-09-28",
+     "from": "2026-09-28",
+     "to": "2026-10-25",
+     "weeks": 4,
+     "grader": "google/gemini-3.8-flash",
+     "grader_label": {
+      "en": "lesson-plan fidelity",
+      "ur": "سبق کے منصوبے پر عمل"
+     },
+     "framework": "lp_fidelity",
+     "scoring_changed_on": "2026-09-28"
+    },
+    "state": "ranked",
+    "where_first": {
+     "school": {
+      "school_id": "00000000-0000-4000-8000-010000000005",
+      "school_name": "Govt. Primary School Fictional-05"
+     },
+     "count": {
+      "n": 4,
+      "d": 10,
+      "window_id": "w4-2026-09-28"
+     }
+    },
+    "not_yet": null,
+    "sector": null
+   }
+  ],
+  "note": {
+   "id": "00000000-0000-4000-8000-060000000001",
+   "label": {
+    "en": "From your RM",
+    "ur": "آپ کے آر ایم کی طرف سے"
+   },
+   "template_id": "RM-T1",
+   "w_id": "W-IP-TIME",
+   "lines": {
+    "en": [
+     "This month \"Ran out of time\" shows most at Govt. Primary School Fictional-03.",
+     "Please run \"Peer observation with one look-for: the minute the explanation ended\" there before 30 Oct.",
+     "Bring the moment to the Friday circle."
+    ],
+    "ur": [
+     "اس مہینے «وقت ختم ہو گیا» سب سے زیادہ ⁦Govt. Primary School Fictional-03⁩ میں نظر آیا۔",
+     "براہِ کرم ۳۰ اکتوبر سے پہلے وہاں «ساتھی مشاہدہ، ایک نظر: وضاحت کس منٹ پر ختم ہوئی» چلائیں۔",
+     "لمحہ جمعے کے حلقے میں لائیں۔"
+    ]
+   },
+   "schools": [
+    {
+     "school_id": "00000000-0000-4000-8000-010000000003",
+     "school_name": "Govt. Primary School Fictional-03"
+    }
+   ],
+   "due_on": "2026-10-30",
+   "status": "sent"
+  },
+  "steps": [
+   {
+    "id": "00000000-0000-4000-8000-05000000001f",
+    "scope": "coach",
+    "code": {
+     "code_id": "00000000-0000-4000-8000-02000000014b",
+     "code": "T-31"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000006",
+     "school_name": "Govt. Primary School Fictional-06"
+    },
+    "w_id": "W-IP-TIME",
+    "i_id": "I-IP-TIME-2",
+    "step": {
+     "en": "Name a child timekeeper with the three marks (10, 17, 25) before the lesson; change step when they call",
+     "ur": "سبق سے پہلے ایک بچے کو وقت کا نگران بنائیں، تین نشان (۱۰، ۱۷، ۲۵) دیں؛ آواز پر مرحلہ بدلیں"
+    },
+    "set_on": "2026-10-07",
+    "check_by": "2026-10-21",
+    "check_rule": "14_days",
+    "visit": null,
+    "status": "open",
+    "coach_tick": "pending",
+    "strip": {
+     "needed": 3,
+     "window_days": 14,
+     "hits": [
+      {
+       "session_id": "00000000-0000-4000-8000-030000000137",
+       "hit": true,
+       "recorded_on": "2026-10-09"
+      },
+      {
+       "session_id": "00000000-0000-4000-8000-030000000138",
+       "hit": true,
+       "recorded_on": "2026-10-13"
+      },
+      {
+       "session_id": "00000000-0000-4000-8000-030000000139",
+       "hit": false,
+       "recorded_on": "2026-10-16"
+      }
+     ]
+    },
+    "chip": "worked",
+    "to_come": 0,
+    "rm_note_id": null
+   },
+   {
+    "id": "00000000-0000-4000-8000-050000000007",
+    "scope": "coach",
+    "code": {
+     "code_id": "00000000-0000-4000-8000-020000000133",
+     "code": "T-07"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000003",
+     "school_name": "Govt. Primary School Fictional-03"
+    },
+    "w_id": "W-IP-TIME",
+    "i_id": "I-IP-1",
+    "step": {
+     "en": "Read the plan's practice line aloud at minute 15, say the time, walk the rows for 8 minutes",
+     "ur": "پندرہویں منٹ پر منصوبے کی مشق والی سطر پڑھیں، وقت بتائیں، آٹھ منٹ قطاروں میں چلیں"
+    },
+    "set_on": "2026-10-14",
+    "check_by": "2026-10-28",
+    "check_rule": "visit",
+    "visit": {
+     "date": "2026-10-28",
+     "schedule_id": "00000000-0000-4000-8000-080000000003"
+    },
+    "status": "open",
+    "coach_tick": "pending",
+    "strip": {
+     "needed": 3,
+     "window_days": 14,
+     "hits": [
+      {
+       "session_id": "00000000-0000-4000-8000-030000000047",
+       "hit": true,
+       "recorded_on": "2026-10-16"
+      },
+      {
+       "session_id": "00000000-0000-4000-8000-030000000048",
+       "hit": "partial",
+       "recorded_on": "2026-10-23"
+      }
+     ]
+    },
+    "chip": "to_come",
+    "to_come": 1,
+    "rm_note_id": null
+   },
+   {
+    "id": "00000000-0000-4000-8000-050000000013",
+    "scope": "coach",
+    "code": {
+     "code_id": "00000000-0000-4000-8000-02000000013f",
+     "code": "T-19"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000005",
+     "school_name": "Govt. Primary School Fictional-05"
+    },
+    "w_id": "W-EXIT-NOPLAN",
+    "i_id": "I-EXIT-NOPLAN-1",
+    "step": {
+     "en": "Ask the exit question at minute 22 and read five slates aloud, naming what was right",
+     "ur": "بائیسویں منٹ پر اختتامی سوال پوچھیں اور پانچ سلیٹیں پڑھ کر بتائیں کہ کیا ٹھیک تھا"
+    },
+    "set_on": "2026-10-20",
+    "check_by": "2026-11-03",
+    "check_rule": "visit",
+    "visit": {
+     "date": "2026-11-03",
+     "schedule_id": "00000000-0000-4000-8000-080000000005"
+    },
+    "status": "open",
+    "coach_tick": "pending",
+    "strip": {
+     "needed": 3,
+     "window_days": 14,
+     "hits": []
+    },
+    "chip": "to_come",
+    "to_come": 3,
+    "rm_note_id": null
+   }
+  ],
+  "coverage": {
+   "recordings": {
+    "n": 53,
+    "d": 62,
+    "window_id": "w4-2026-09-28"
+   }
+  },
+  "not_yet": [
+   {
+    "w_id": "W-WARM",
+    "short_name": {
+     "en": "Warm-up skipped",
+     "ur": "ابتدائی سرگرمی نہیں ہوئی"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for a warm-up or recall started without one.",
+     "ur": "جن اسباق کے منصوبے میں ابتدائی سرگرمی یا دہرائی شامل تھی، وہ اس کے بغیر شروع ہوئے۔"
+    },
+    "count": null,
+    "window": {
+     "id": "w4-2026-09-28",
+     "from": "2026-09-28",
+     "to": "2026-10-25",
+     "weeks": 4,
+     "grader": "google/gemini-3.8-flash",
+     "grader_label": {
+      "en": "lesson-plan fidelity",
+      "ur": "سبق کے منصوبے پر عمل"
+     },
+     "framework": "lp_fidelity",
+     "scoring_changed_on": "2026-09-28"
+    },
+    "state": "not_yet",
+    "where_first": null,
+    "not_yet": {
+     "graded": {
+      "n": 12,
+      "d": 20,
+      "window_id": "w4-2026-09-28"
+     },
+     "codes_seen": 2,
+     "codes_needed": 3,
+     "coaches_with_5plus": null
+    },
+    "sector": null
+   }
+  ],
+  "phonics": {
+   "status": "paused",
+   "read": 30,
+   "needed": 30,
+   "kappa_passed": true,
+   "card": null,
+   "reading_hours": null
+  },
+  "stale": null,
+  "empty": null,
+  "method": {
+   "hysteresis_applied": false,
+   "query_id": "q-coachip-home-v1"
+  },
+  "windows": [
+   {
+    "id": "w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   }
+  ],
+  "computed_at": "2026-10-25T21:40:00Z"
+ },
+ "w_W-IP-TIME": {
+  "card": {
+   "w_id": "W-IP-TIME",
+   "parent_w_id": "W-IP",
+   "rank": 1,
+   "short_name": {
+    "en": "Ran out of time",
+    "ur": "وقت ختم ہو گیا"
+   },
+   "number_line": {
+    "en": "17 of 49",
+    "ur": "۴۹ میں سے ۱۷"
+   },
+   "sentence": {
+    "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+    "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+   },
+   "cause": {
+    "text": {
+     "en": "In the lessons that ran out of time, the explanation ran a median of about 6 minutes over the plan.",
+     "ur": "وقت ختم ہونے والے اسباق میں، وسط کے حساب سے، وضاحت منصوبے سے کوئی ۶ منٹ زیادہ چلی۔"
+    },
+    "stat": {
+     "kind": "median",
+     "value": 6.0,
+     "unit": "min",
+     "base": 17,
+     "window_id": "w4-2026-09-28"
+    },
+    "also": {
+     "text": {
+      "en": "7 of these also ended before the closing check.",
+      "ur": "ان میں سے ۷ اختتامی جانچ سے پہلے ہی ختم ہوئے۔"
+     },
+     "count": {
+      "n": 7,
+      "d": 17,
+      "window_id": "w4-2026-09-28"
+     }
+    }
+   },
+   "count": {
+    "n": 17,
+    "d": 49,
+    "window_id": "w4-2026-09-28"
+   },
+   "teacher_count": 29,
+   "teachers": {
+    "n": 11,
+    "d": 29,
+    "window_id": "w4-2026-09-28"
+   },
+   "window": {
+    "id": "w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   },
+   "status": "ok",
+   "where_first": {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000003",
+     "school_name": "Govt. Primary School Fictional-03"
+    },
+    "count": {
+     "n": 6,
+     "d": 9,
+     "window_id": "w4-2026-09-28"
+    },
+    "visit": {
+     "date": "2026-10-28",
+     "schedule_id": "00000000-0000-4000-8000-080000000003"
+    },
+    "then": [
+     {
+      "school_id": "00000000-0000-4000-8000-010000000005",
+      "school_name": "Govt. Primary School Fictional-05"
+     },
+     {
+      "school_id": "00000000-0000-4000-8000-010000000006",
+      "school_name": "Govt. Primary School Fictional-06"
+     }
+    ]
+   },
+   "moment_id": "00000000-0000-4000-8000-040000000001",
+   "moment_duration_s": 38,
+   "i_id": "I-IP-TIME-1"
+  },
+  "split": [
+   {
+    "w_id": "W-IP-TIME",
+    "short_name": {
+     "en": "Ran out of time",
+     "ur": "وقت ختم ہو گیا"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+     "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+    },
+    "count": {
+     "n": 17,
+     "d": 49,
+     "window_id": "w4-2026-09-28"
+    },
+    "window": {
+     "id": "w4-2026-09-28",
+     "from": "2026-09-28",
+     "to": "2026-10-25",
+     "weeks": 4,
+     "grader": "google/gemini-3.8-flash",
+     "grader_label": {
+      "en": "lesson-plan fidelity",
+      "ur": "سبق کے منصوبے پر عمل"
+     },
+     "framework": "lp_fidelity",
+     "scoring_changed_on": "2026-09-28"
+    },
+    "state": "also_seen",
+    "where_first": {
+     "school": {
+      "school_id": "00000000-0000-4000-8000-010000000003",
+      "school_name": "Govt. Primary School Fictional-03"
+     },
+     "count": {
+      "n": 6,
+      "d": 9,
+      "window_id": "w4-2026-09-28"
+     }
+    },
+    "not_yet": null,
+    "sector": null
+   },
+   {
+    "w_id": "W-IP-NOPLAN",
+    "short_name": {
+     "en": "Practice never set",
+     "ur": "مشق دی ہی نہیں گئی"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for independent practice had time left but never set the practice.",
+     "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں وقت تھا مگر مشق دی ہی نہیں گئی۔"
+    },
+    "count": {
+     "n": 5,
+     "d": 49,
+     "window_id": "w4-2026-09-28"
+    },
+    "window": {
+     "id": "w4-2026-09-28",
+     "from": "2026-09-28",
+     "to": "2026-10-25",
+     "weeks": 4,
+     "grader": "google/gemini-3.8-flash",
+     "grader_label": {
+      "en": "lesson-plan fidelity",
+      "ur": "سبق کے منصوبے پر عمل"
+     },
+     "framework": "lp_fidelity",
+     "scoring_changed_on": "2026-09-28"
+    },
+    "state": "also_seen",
+    "where_first": {
+     "school": {
+      "school_id": "00000000-0000-4000-8000-010000000002",
+      "school_name": "Govt. Primary School Fictional-02"
+     },
+     "count": {
+      "n": 2,
+      "d": 8,
+      "window_id": "w4-2026-09-28"
+     }
+    },
+    "not_yet": null,
+    "sector": null
+   }
+  ],
+  "good_looks_like": {
+   "en": "The teacher reads the plan's task aloud in one sentence, says how many items and where, and says the time. A child is timekeeper. The room drops to a murmur. The teacher moves along the aisle and says one specific line to five children, one per row, in under 30 seconds each. A signal ends it with at least three minutes left for the closure check.",
+   "ur": "استاد منصوبے کا کام ایک جملے میں بلند آواز سے پڑھیں، بتائیں کہ کتنے سوال ہیں، کہاں لکھنے ہیں اور کتنا وقت ہے۔ ایک بچہ وقت کا نگران ہو۔ کمرے میں ہلکی سی بھنبھناہٹ رہ جائے۔ استاد قطاروں کے درمیان چل کر پانچ بچوں کو، ہر قطار سے ایک، تیس سیکنڈ سے کم میں ایک واضح جملہ کہیں۔ ایک اشارے پر کام ختم ہو اور اختتامی جانچ کے لیے کم از کم تین منٹ بچیں۔"
+  },
+  "schools": [
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000003",
+     "school_name": "Govt. Primary School Fictional-03"
+    },
+    "count": {
+     "n": 6,
+     "d": 9,
+     "window_id": "w4-2026-09-28"
+    },
+    "last_visit": "2026-10-14",
+    "next_visit": {
+     "date": "2026-10-28",
+     "schedule_id": "00000000-0000-4000-8000-080000000003"
+    },
+    "state": "shows",
+    "codes": [
+     {
+      "code": {
+       "code_id": "00000000-0000-4000-8000-020000000133",
+       "code": "T-07"
+      },
+      "graded": {
+       "n": 4,
+       "d": 5,
+       "window_id": "w4-2026-09-28"
+      },
+      "strip": [
+       {
+        "session_id": "00000000-0000-4000-8000-0300000002bd",
+        "shows": false
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-0300000002be",
+        "shows": true
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-0300000002bf",
+        "shows": false
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-030000000046",
+        "shows": true
+       }
+      ]
+     },
+     {
+      "code": {
+       "code_id": "00000000-0000-4000-8000-020000000138",
+       "code": "T-12"
+      },
+      "graded": {
+       "n": 3,
+       "d": 3,
+       "window_id": "w4-2026-09-28"
+      },
+      "strip": null
+     },
+     {
+      "code": {
+       "code_id": "00000000-0000-4000-8000-02000000013b",
+       "code": "T-15"
+      },
+      "graded": {
+       "n": 3,
+       "d": 4,
+       "window_id": "w4-2026-09-28"
+      },
+      "strip": null
+     }
+    ]
+   },
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000005",
+     "school_name": "Govt. Primary School Fictional-05"
+    },
+    "count": {
+     "n": 5,
+     "d": 11,
+     "window_id": "w4-2026-09-28"
+    },
+    "last_visit": "2026-09-30",
+    "next_visit": {
+     "date": "2026-11-03",
+     "schedule_id": "00000000-0000-4000-8000-080000000005"
+    },
+    "state": "shows",
+    "codes": [
+     {
+      "code": {
+       "code_id": "00000000-0000-4000-8000-02000000013f",
+       "code": "T-19"
+      },
+      "graded": {
+       "n": 4,
+       "d": 4,
+       "window_id": "w4-2026-09-28"
+      },
+      "strip": [
+       {
+        "session_id": "00000000-0000-4000-8000-0300000000bf",
+        "shows": true
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-0300000000c0",
+        "shows": false
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-0300000000c1",
+        "shows": false
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-0300000000c2",
+        "shows": "partial"
+       }
+      ]
+     },
+     {
+      "code": {
+       "code_id": "00000000-0000-4000-8000-020000000142",
+       "code": "T-22"
+      },
+      "graded": {
+       "n": 3,
+       "d": 4,
+       "window_id": "w4-2026-09-28"
+      },
+      "strip": null
+     },
+     {
+      "code": {
+       "code_id": "00000000-0000-4000-8000-020000000145",
+       "code": "T-25"
+      },
+      "graded": {
+       "n": 4,
+       "d": 5,
+       "window_id": "w4-2026-09-28"
+      },
+      "strip": [
+       {
+        "session_id": "00000000-0000-4000-8000-0300000000fb",
+        "shows": false
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-0300000000fc",
+        "shows": true
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-0300000000fd",
+        "shows": false
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-0300000000fa",
+        "shows": true
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000002",
+     "school_name": "Govt. Primary School Fictional-02"
+    },
+    "count": {
+     "n": 2,
+     "d": 8,
+     "window_id": "w4-2026-09-28"
+    },
+    "last_visit": "2026-10-07",
+    "next_visit": {
+     "date": "2026-11-05",
+     "schedule_id": "00000000-0000-4000-8000-080000000002"
+    },
+    "state": "shows",
+    "codes": [
+     {
+      "code": {
+       "code_id": "00000000-0000-4000-8000-02000000012f",
+       "code": "T-03"
+      },
+      "graded": {
+       "n": 5,
+       "d": 5,
+       "window_id": "w4-2026-09-28"
+      },
+      "strip": [
+       {
+        "session_id": "00000000-0000-4000-8000-03000000001f",
+        "shows": false
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-030000000020",
+        "shows": false
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-030000000021",
+        "shows": true
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-030000000022",
+        "shows": false
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-03000000001e",
+        "shows": true
+       }
+      ]
+     },
+     {
+      "code": {
+       "code_id": "00000000-0000-4000-8000-020000000131",
+       "code": "T-05"
+      },
+      "graded": {
+       "n": 4,
+       "d": 5,
+       "window_id": "w4-2026-09-28"
+      },
+      "strip": [
+       {
+        "session_id": "00000000-0000-4000-8000-030000000033",
+        "shows": false
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-030000000034",
+        "shows": true
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-030000000035",
+        "shows": false
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-030000000036",
+        "shows": false
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000001",
+     "school_name": "Govt. Primary School Fictional-01"
+    },
+    "count": {
+     "n": 1,
+     "d": 6,
+     "window_id": "w4-2026-09-28"
+    },
+    "last_visit": "2026-10-20",
+    "next_visit": {
+     "date": "2026-11-09",
+     "schedule_id": "00000000-0000-4000-8000-080000000001"
+    },
+    "state": "too_few",
+    "codes": []
+   },
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000006",
+     "school_name": "Govt. Primary School Fictional-06"
+    },
+    "count": {
+     "n": 3,
+     "d": 7,
+     "window_id": "w4-2026-09-28"
+    },
+    "last_visit": "2026-09-14",
+    "next_visit": null,
+    "state": "shows",
+    "codes": [
+     {
+      "code": {
+       "code_id": "00000000-0000-4000-8000-02000000014b",
+       "code": "T-31"
+      },
+      "graded": {
+       "n": 4,
+       "d": 5,
+       "window_id": "w4-2026-09-28"
+      },
+      "strip": [
+       {
+        "session_id": "00000000-0000-4000-8000-03000000013a",
+        "shows": true
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-03000000013b",
+        "shows": false
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-03000000013c",
+        "shows": false
+       },
+       {
+        "session_id": "00000000-0000-4000-8000-03000000013d",
+        "shows": true
+       }
+      ]
+     },
+     {
+      "code": {
+       "code_id": "00000000-0000-4000-8000-02000000014d",
+       "code": "T-33"
+      },
+      "graded": {
+       "n": 3,
+       "d": 4,
+       "window_id": "w4-2026-09-28"
+      },
+      "strip": null
+     }
+    ]
+   }
+  ],
+  "schools_not_showing": {
+   "n": 1,
+   "d": 6,
+   "window_id": "w4-2026-09-28"
+  },
+  "moment": {
+   "moment_id": "00000000-0000-4000-8000-040000000001",
+   "session": {
+    "session_id": "00000000-0000-4000-8000-030000000046",
+    "grade": 3,
+    "subject": "Urdu",
+    "recorded_on": "2026-10-13",
+    "duration_s": 1660
+   },
+   "code": {
+    "code_id": "00000000-0000-4000-8000-020000000133",
+    "code": "T-07"
+   },
+   "school": {
+    "school_id": "00000000-0000-4000-8000-010000000003",
+    "school_name": "Govt. Primary School Fictional-03"
+   },
+   "w": {
+    "w_id": "W-IP-TIME",
+    "short_name": {
+     "en": "Ran out of time",
+     "ur": "وقت ختم ہو گیا"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+     "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+    }
+   },
+   "kind": "missing",
+   "steps": [
+    {
+     "phase": "warm",
+     "label": {
+      "en": "Warm-up",
+      "ur": "آغاز"
+     },
+     "verdict": "executed",
+     "from_s": 0,
+     "to_s": 150
+    },
+    {
+     "phase": "explain",
+     "label": {
+      "en": "Explain",
+      "ur": "وضاحت"
+     },
+     "verdict": "executed",
+     "from_s": 150,
+     "to_s": 900
+    },
+    {
+     "phase": "guided",
+     "label": {
+      "en": "Guided",
+      "ur": "مل کر"
+     },
+     "verdict": "partial",
+     "from_s": 900,
+     "to_s": 1122
+    },
+    {
+     "phase": "ip",
+     "label": {
+      "en": "Practice",
+      "ur": "خود مشق"
+     },
+     "verdict": "not_done",
+     "from_s": 1122,
+     "to_s": 1500
+    },
+    {
+     "phase": "exit",
+     "label": {
+      "en": "Exit",
+      "ur": "جانچ"
+     },
+     "verdict": "not_done",
+     "from_s": 1500,
+     "to_s": 1660
+    }
+   ],
+   "lesson_s": 1122,
+   "confidence": "high",
+   "clip": {
+    "from_s": 1122,
+    "to_s": 1160,
+    "duration_s": 38,
+    "status": "ready"
+   },
+   "gloss": {
+    "en": "The explanation is still going. The practice should have started here.",
+    "ur": "وضاحت ابھی جاری ہے۔ مشق یہاں شروع ہونی چاہیے تھی۔"
+   },
+   "gloss_status": "ok",
+   "question": {
+    "en": "What did you hear at the moment the practice should have started?",
+    "ur": "جس لمحے مشق شروع ہونی چاہیے تھی، آپ نے وہاں کیا سنا؟"
+   },
+   "pair": {
+    "moment_id": "00000000-0000-4000-8000-040000000002",
+    "session": {
+     "session_id": "00000000-0000-4000-8000-030000000016",
+     "grade": 3,
+     "subject": "Urdu",
+     "recorded_on": "2026-10-21",
+     "duration_s": 1590
+    },
+    "code": {
+     "code_id": "00000000-0000-4000-8000-020000000142",
+     "code": "T-22"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000005",
+     "school_name": "Govt. Primary School Fictional-05"
+    },
+    "w": {
+     "w_id": "W-IP-TIME",
+     "short_name": {
+      "en": "Ran out of time",
+      "ur": "وقت ختم ہو گیا"
+     },
+     "sentence": {
+      "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+      "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+     }
+    },
+    "kind": "good",
+    "steps": [
+     {
+      "phase": "warm",
+      "label": {
+       "en": "Warm-up",
+       "ur": "آغاز"
+      },
+      "verdict": "executed",
+      "from_s": 0,
+      "to_s": 110
+     },
+     {
+      "phase": "explain",
+      "label": {
+       "en": "Explain",
+       "ur": "وضاحت"
+      },
+      "verdict": "executed",
+      "from_s": 110,
+      "to_s": 560
+     },
+     {
+      "phase": "guided",
+      "label": {
+       "en": "Guided",
+       "ur": "مل کر"
+      },
+      "verdict": "executed",
+      "from_s": 560,
+      "to_s": 905
+     },
+     {
+      "phase": "ip",
+      "label": {
+       "en": "Practice",
+       "ur": "خود مشق"
+      },
+      "verdict": "executed",
+      "from_s": 905,
+      "to_s": 1390
+     },
+     {
+      "phase": "exit",
+      "label": {
+       "en": "Exit",
+       "ur": "جانچ"
+      },
+      "verdict": "executed",
+      "from_s": 1390,
+      "to_s": 1590
+     }
+    ],
+    "lesson_s": 905,
+    "confidence": "high",
+    "clip": {
+     "from_s": 905,
+     "to_s": 946,
+     "duration_s": 41,
+     "status": "ready"
+    },
+    "gloss": {
+     "en": "The task is said in one sentence with a time; the room drops to a murmur.",
+     "ur": "کام ایک جملے میں، وقت کے ساتھ کہا گیا؛ کمرے میں ہلکی بھنبھناہٹ رہ گئی۔"
+    },
+    "gloss_status": "ok",
+    "question": {
+     "en": "What did you hear at the moment the practice should have started?",
+     "ur": "جس لمحے مشق شروع ہونی چاہیے تھی، آپ نے وہاں کیا سنا؟"
+    },
+    "pair": null,
+    "full_recording": {
+     "duration_s": 1590
+    }
+   },
+   "full_recording": {
+    "duration_s": 1660
+   }
+  },
+  "step_card": {
+   "i_id": "I-IP-TIME-1",
+   "title": {
+    "en": "Hard cap: explanation ends at minute 10 (rehearse the stop line)",
+    "ur": "سخت حد: وضاحت دسویں منٹ پر ختم (رکنے والا جملہ مشق کریں)"
+   },
+   "teacher_step": {
+    "en": "Write 10 in the board corner; stop explaining at minute 10 and move to 'we do'",
+    "ur": "بورڈ کے کونے میں ۱۰ لکھیں؛ دسویں منٹ پر وضاحت روک کر «ہم کریں» شروع کریں"
+   },
+   "check_line": {
+    "en": "Check by {date} · your tick, then 2 of 3 recordings",
+    "ur": "جانچ {date} تک، آپ کا نشان، پھر ۳ میں سے ۲ ریکارڈنگز"
+   },
+   "check_by": {
+    "date": "2026-11-09",
+    "rule": "14_days"
+   },
+   "code": {
+    "code_id": "00000000-0000-4000-8000-020000000138",
+    "code": "T-12"
+   },
+   "visit": null
+  },
+  "excluded": {
+   "mismatch": 2,
+   "unusable": 1,
+   "duplicates": 1,
+   "failed": 0
+  },
+  "method": {
+   "query_id": "q-coachip-w-ip-time-v1",
+   "grader": "google/gemini-3.8-flash",
+   "framework": "lp_fidelity",
+   "window": {
+    "id": "w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   },
+   "coverage": {
+    "n": 53,
+    "d": 62,
+    "window_id": "w4-2026-09-28"
+   },
+   "caveats": [
+    {
+     "en": "A recording that stops early can look like a lesson that ran out of time.",
+     "ur": "جلد رک جانے والی ریکارڈنگ بھی وقت ختم ہونے والے سبق جیسی لگ سکتی ہے۔"
+    }
+   ],
+   "current_school_rule": {
+    "en": "Every recording counts at the teacher's current school.",
+    "ur": "ہر ریکارڈنگ استاد کے موجودہ اسکول میں گنی جاتی ہے۔"
+   }
+  },
+  "windows": [
+   {
+    "id": "w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   }
+  ],
+  "computed_at": "2026-10-25T21:40:00Z"
+ },
+ "schools": {
+  "window": {
+   "id": "w4-2026-09-28",
+   "from": "2026-09-28",
+   "to": "2026-10-25",
+   "weeks": 4,
+   "grader": "google/gemini-3.8-flash",
+   "grader_label": {
+    "en": "lesson-plan fidelity",
+    "ur": "سبق کے منصوبے پر عمل"
+   },
+   "framework": "lp_fidelity",
+   "scoring_changed_on": "2026-09-28"
+  },
+  "schools": [
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000006",
+     "school_name": "Govt. Primary School Fictional-06"
+    },
+    "top_w": {
+     "w_id": "W-IP-TIME",
+     "short_name": {
+      "en": "Ran out of time",
+      "ur": "وقت ختم ہو گیا"
+     },
+     "sentence": {
+      "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+      "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+     },
+     "count": {
+      "n": 3,
+      "d": 7,
+      "window_id": "w4-2026-09-28"
+     },
+     "window": {
+      "id": "w4-2026-09-28",
+      "from": "2026-09-28",
+      "to": "2026-10-25",
+      "weeks": 4,
+      "grader": "google/gemini-3.8-flash",
+      "grader_label": {
+       "en": "lesson-plan fidelity",
+       "ur": "سبق کے منصوبے پر عمل"
+      },
+      "framework": "lp_fidelity",
+      "scoring_changed_on": "2026-09-28"
+     },
+     "state": "also_seen",
+     "where_first": null,
+     "not_yet": null,
+     "sector": null
+    },
+    "last_visit": "2026-09-14",
+    "next_visit": null,
+    "graded": {
+     "n": 7,
+     "d": 9,
+     "window_id": "w4-2026-09-28"
+    }
+   },
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000005",
+     "school_name": "Govt. Primary School Fictional-05"
+    },
+    "top_w": {
+     "w_id": "W-IP-TIME",
+     "short_name": {
+      "en": "Ran out of time",
+      "ur": "وقت ختم ہو گیا"
+     },
+     "sentence": {
+      "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+      "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+     },
+     "count": {
+      "n": 5,
+      "d": 11,
+      "window_id": "w4-2026-09-28"
+     },
+     "window": {
+      "id": "w4-2026-09-28",
+      "from": "2026-09-28",
+      "to": "2026-10-25",
+      "weeks": 4,
+      "grader": "google/gemini-3.8-flash",
+      "grader_label": {
+       "en": "lesson-plan fidelity",
+       "ur": "سبق کے منصوبے پر عمل"
+      },
+      "framework": "lp_fidelity",
+      "scoring_changed_on": "2026-09-28"
+     },
+     "state": "also_seen",
+     "where_first": null,
+     "not_yet": null,
+     "sector": null
+    },
+    "last_visit": "2026-09-30",
+    "next_visit": {
+     "date": "2026-11-03",
+     "schedule_id": "00000000-0000-4000-8000-080000000005"
+    },
+    "graded": {
+     "n": 11,
+     "d": 13,
+     "window_id": "w4-2026-09-28"
+    }
+   },
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000002",
+     "school_name": "Govt. Primary School Fictional-02"
+    },
+    "top_w": {
+     "w_id": "W-EXIT-NOPLAN",
+     "short_name": {
+      "en": "Time left, no closing check",
+      "ur": "وقت تھا، آخر میں جانچ نہیں"
+     },
+     "sentence": {
+      "en": "lessons whose plan asked for an exit check had time left and ended without one.",
+      "ur": "جن اسباق کے منصوبے میں اختتامی جانچ شامل تھی، ان میں وقت تھا مگر جانچ نہیں ہوئی۔"
+     },
+     "count": {
+      "n": 3,
+      "d": 8,
+      "window_id": "w4-2026-09-28"
+     },
+     "window": {
+      "id": "w4-2026-09-28",
+      "from": "2026-09-28",
+      "to": "2026-10-25",
+      "weeks": 4,
+      "grader": "google/gemini-3.8-flash",
+      "grader_label": {
+       "en": "lesson-plan fidelity",
+       "ur": "سبق کے منصوبے پر عمل"
+      },
+      "framework": "lp_fidelity",
+      "scoring_changed_on": "2026-09-28"
+     },
+     "state": "also_seen",
+     "where_first": null,
+     "not_yet": null,
+     "sector": null
+    },
+    "last_visit": "2026-10-07",
+    "next_visit": {
+     "date": "2026-11-05",
+     "schedule_id": "00000000-0000-4000-8000-080000000002"
+    },
+    "graded": {
+     "n": 9,
+     "d": 10,
+     "window_id": "w4-2026-09-28"
+    }
+   },
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000003",
+     "school_name": "Govt. Primary School Fictional-03"
+    },
+    "top_w": {
+     "w_id": "W-IP-TIME",
+     "short_name": {
+      "en": "Ran out of time",
+      "ur": "وقت ختم ہو گیا"
+     },
+     "sentence": {
+      "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+      "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+     },
+     "count": {
+      "n": 6,
+      "d": 9,
+      "window_id": "w4-2026-09-28"
+     },
+     "window": {
+      "id": "w4-2026-09-28",
+      "from": "2026-09-28",
+      "to": "2026-10-25",
+      "weeks": 4,
+      "grader": "google/gemini-3.8-flash",
+      "grader_label": {
+       "en": "lesson-plan fidelity",
+       "ur": "سبق کے منصوبے پر عمل"
+      },
+      "framework": "lp_fidelity",
+      "scoring_changed_on": "2026-09-28"
+     },
+     "state": "also_seen",
+     "where_first": null,
+     "not_yet": null,
+     "sector": null
+    },
+    "last_visit": "2026-10-14",
+    "next_visit": {
+     "date": "2026-10-28",
+     "schedule_id": "00000000-0000-4000-8000-080000000003"
+    },
+    "graded": {
+     "n": 10,
+     "d": 12,
+     "window_id": "w4-2026-09-28"
+    }
+   },
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000001",
+     "school_name": "Govt. Primary School Fictional-01"
+    },
+    "top_w": {
+     "w_id": "W-IP-TIME",
+     "short_name": {
+      "en": "Ran out of time",
+      "ur": "وقت ختم ہو گیا"
+     },
+     "sentence": {
+      "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+      "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+     },
+     "count": {
+      "n": 1,
+      "d": 6,
+      "window_id": "w4-2026-09-28"
+     },
+     "window": {
+      "id": "w4-2026-09-28",
+      "from": "2026-09-28",
+      "to": "2026-10-25",
+      "weeks": 4,
+      "grader": "google/gemini-3.8-flash",
+      "grader_label": {
+       "en": "lesson-plan fidelity",
+       "ur": "سبق کے منصوبے پر عمل"
+      },
+      "framework": "lp_fidelity",
+      "scoring_changed_on": "2026-09-28"
+     },
+     "state": "also_seen",
+     "where_first": null,
+     "not_yet": null,
+     "sector": null
+    },
+    "last_visit": "2026-10-20",
+    "next_visit": {
+     "date": "2026-11-09",
+     "schedule_id": "00000000-0000-4000-8000-080000000001"
+    },
+    "graded": {
+     "n": 7,
+     "d": 8,
+     "window_id": "w4-2026-09-28"
+    }
+   },
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000004",
+     "school_name": "Govt. Primary School Fictional-04"
+    },
+    "top_w": null,
+    "last_visit": "2026-10-22",
+    "next_visit": {
+     "date": "2026-11-12",
+     "schedule_id": "00000000-0000-4000-8000-080000000004"
+    },
+    "graded": {
+     "n": 9,
+     "d": 10,
+     "window_id": "w4-2026-09-28"
+    }
+   }
+  ],
+  "windows": [
+   {
+    "id": "w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   }
+  ],
+  "computed_at": "2026-10-25T21:40:00Z"
+ },
+ "moments": {
+  "window": {
+   "id": "week-2026-10-19",
+   "from": "2026-10-19",
+   "to": "2026-10-25",
+   "weeks": 1,
+   "grader": "google/gemini-3.8-flash",
+   "grader_label": {
+    "en": "lesson-plan fidelity",
+    "ur": "سبق کے منصوبے پر عمل"
+   },
+   "framework": "lp_fidelity",
+   "scoring_changed_on": "2026-09-28"
+  },
+  "base": {
+   "n": 5,
+   "d": 14,
+   "window_id": "week-2026-10-19"
+  },
+  "recordings": {
+   "n": 14,
+   "d": 17,
+   "window_id": "week-2026-10-19"
+  },
+  "filters": [
+   {
+    "w_id": "W-IP-TIME",
+    "short_name": {
+     "en": "Ran out of time",
+     "ur": "وقت ختم ہو گیا"
+    },
+    "count": {
+     "n": 3,
+     "d": 14,
+     "window_id": "week-2026-10-19"
+    }
+   },
+   {
+    "w_id": "W-EXIT-NOPLAN",
+    "short_name": {
+     "en": "Time left, no closing check",
+     "ur": "وقت تھا، آخر میں جانچ نہیں"
+    },
+    "count": {
+     "n": 1,
+     "d": 14,
+     "window_id": "week-2026-10-19"
+    }
+   },
+   {
+    "w_id": "good",
+    "short_name": {
+     "en": "Good examples",
+     "ur": "اچھی مثالیں"
+    },
+    "count": {
+     "n": 1,
+     "d": 14,
+     "window_id": "week-2026-10-19"
+    }
+   }
+  ],
+  "moments": [
+   {
+    "moment_id": "00000000-0000-4000-8000-040000000004",
+    "session": {
+     "session_id": "00000000-0000-4000-8000-0300000000fa",
+     "grade": 4,
+     "subject": "English",
+     "recorded_on": "2026-10-23",
+     "duration_s": 1620
+    },
+    "code": {
+     "code_id": "00000000-0000-4000-8000-020000000145",
+     "code": "T-25"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000005",
+     "school_name": "Govt. Primary School Fictional-05"
+    },
+    "w": {
+     "w_id": "W-IP-TIME",
+     "short_name": {
+      "en": "Ran out of time",
+      "ur": "وقت ختم ہو گیا"
+     },
+     "sentence": {
+      "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+      "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+     }
+    },
+    "kind": "missing",
+    "steps": [],
+    "lesson_s": 1180,
+    "confidence": "high",
+    "clip": {
+     "from_s": 1180,
+     "to_s": 1214,
+     "duration_s": 34,
+     "status": "ready"
+    },
+    "gloss": {
+     "en": "Words are still being copied from the board; no practice is set.",
+     "ur": "بورڈ سے الفاظ ابھی نقل ہو رہے ہیں؛ کوئی مشق نہیں دی گئی۔"
+    },
+    "gloss_status": "ok",
+    "question": {
+     "en": "What did you hear at the moment the practice should have started?",
+     "ur": "جس لمحے مشق شروع ہونی چاہیے تھی، آپ نے وہاں کیا سنا؟"
+    },
+    "pair": null,
+    "full_recording": {
+     "duration_s": 1620
+    }
+   },
+   {
+    "moment_id": "00000000-0000-4000-8000-040000000003",
+    "session": {
+     "session_id": "00000000-0000-4000-8000-030000000078",
+     "grade": 2,
+     "subject": "Maths",
+     "recorded_on": "2026-10-22",
+     "duration_s": 1710
+    },
+    "code": {
+     "code_id": "00000000-0000-4000-8000-020000000138",
+     "code": "T-12"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000003",
+     "school_name": "Govt. Primary School Fictional-03"
+    },
+    "w": {
+     "w_id": "W-IP-TIME",
+     "short_name": {
+      "en": "Ran out of time",
+      "ur": "وقت ختم ہو گیا"
+     },
+     "sentence": {
+      "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+      "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+     }
+    },
+    "kind": "missing",
+    "steps": [],
+    "lesson_s": 1250,
+    "confidence": "medium",
+    "clip": {
+     "from_s": 1250,
+     "to_s": 1286,
+     "duration_s": 36,
+     "status": "failed"
+    },
+    "gloss": {
+     "en": "The guided item ends and the bell follows; no practice task is said.",
+     "ur": "مل کر والا سوال ختم ہوا اور گھنٹی بج گئی؛ مشق کا کوئی کام نہیں دیا گیا۔"
+    },
+    "gloss_status": "ok",
+    "question": {
+     "en": "What did you hear at the moment the practice should have started?",
+     "ur": "جس لمحے مشق شروع ہونی چاہیے تھی، آپ نے وہاں کیا سنا؟"
+    },
+    "pair": null,
+    "full_recording": {
+     "duration_s": 1710
+    }
+   },
+   {
+    "moment_id": "00000000-0000-4000-8000-040000000002",
+    "session": {
+     "session_id": "00000000-0000-4000-8000-030000000016",
+     "grade": 3,
+     "subject": "Urdu",
+     "recorded_on": "2026-10-21",
+     "duration_s": 1590
+    },
+    "code": {
+     "code_id": "00000000-0000-4000-8000-020000000142",
+     "code": "T-22"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000005",
+     "school_name": "Govt. Primary School Fictional-05"
+    },
+    "w": {
+     "w_id": "W-IP-TIME",
+     "short_name": {
+      "en": "Ran out of time",
+      "ur": "وقت ختم ہو گیا"
+     },
+     "sentence": {
+      "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+      "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+     }
+    },
+    "kind": "good",
+    "steps": [],
+    "lesson_s": 905,
+    "confidence": "high",
+    "clip": {
+     "from_s": 905,
+     "to_s": 946,
+     "duration_s": 41,
+     "status": "ready"
+    },
+    "gloss": {
+     "en": "The task is said in one sentence with a time; the room drops to a murmur.",
+     "ur": "کام ایک جملے میں، وقت کے ساتھ کہا گیا؛ کمرے میں ہلکی بھنبھناہٹ رہ گئی۔"
+    },
+    "gloss_status": "ok",
+    "question": {
+     "en": "What did you hear at the moment the practice should have started?",
+     "ur": "جس لمحے مشق شروع ہونی چاہیے تھی، آپ نے وہاں کیا سنا؟"
+    },
+    "pair": null,
+    "full_recording": {
+     "duration_s": 1590
+    }
+   },
+   {
+    "moment_id": "00000000-0000-4000-8000-040000000005",
+    "session": {
+     "session_id": "00000000-0000-4000-8000-030000000096",
+     "grade": 3,
+     "subject": "Maths",
+     "recorded_on": "2026-10-20",
+     "duration_s": 1500
+    },
+    "code": {
+     "code_id": "00000000-0000-4000-8000-02000000013b",
+     "code": "T-15"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000003",
+     "school_name": "Govt. Primary School Fictional-03"
+    },
+    "w": {
+     "w_id": "W-EXIT-NOPLAN",
+     "short_name": {
+      "en": "Time left, no closing check",
+      "ur": "وقت تھا، آخر میں جانچ نہیں"
+     },
+     "sentence": {
+      "en": "lessons whose plan asked for an exit check had time left and ended without one.",
+      "ur": "جن اسباق کے منصوبے میں اختتامی جانچ شامل تھی، ان میں وقت تھا مگر جانچ نہیں ہوئی۔"
+     }
+    },
+    "kind": "missing",
+    "steps": [],
+    "lesson_s": 1370,
+    "confidence": "high",
+    "clip": {
+     "from_s": 1370,
+     "to_s": 1405,
+     "duration_s": 35,
+     "status": "ready"
+    },
+    "gloss": {
+     "en": "Three minutes are left and the lesson ends on homework, with no question.",
+     "ur": "تین منٹ باقی ہیں اور سبق کسی سوال کے بغیر گھر کے کام پر ختم ہوا۔"
+    },
+    "gloss_status": "ok",
+    "question": {
+     "en": "What did the last three minutes of the lesson sound like?",
+     "ur": "سبق کے آخری تین منٹ کیسے سنائی دیے؟"
+    },
+    "pair": null,
+    "full_recording": {
+     "duration_s": 1500
+    }
+   },
+   {
+    "moment_id": "00000000-0000-4000-8000-040000000006",
+    "session": {
+     "session_id": "00000000-0000-4000-8000-03000000001e",
+     "grade": 1,
+     "subject": "Urdu",
+     "recorded_on": "2026-10-19",
+     "duration_s": 1560
+    },
+    "code": {
+     "code_id": "00000000-0000-4000-8000-02000000012f",
+     "code": "T-03"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000002",
+     "school_name": "Govt. Primary School Fictional-02"
+    },
+    "w": {
+     "w_id": "W-IP-TIME",
+     "short_name": {
+      "en": "Ran out of time",
+      "ur": "وقت ختم ہو گیا"
+     },
+     "sentence": {
+      "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+      "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+     }
+    },
+    "kind": "missing",
+    "steps": [],
+    "lesson_s": null,
+    "confidence": "none",
+    "clip": {
+     "from_s": 0,
+     "to_s": 1560,
+     "duration_s": 1560,
+     "status": "ready"
+    },
+    "gloss": null,
+    "gloss_status": "not_evaluated",
+    "question": {
+     "en": "What did you hear at the moment the practice should have started?",
+     "ur": "جس لمحے مشق شروع ہونی چاہیے تھی، آپ نے وہاں کیا سنا؟"
+    },
+    "pair": null,
+    "full_recording": {
+     "duration_s": 1560
+    }
+   }
+  ],
+  "failed_sessions": [
+   {
+    "session_id": "00000000-0000-4000-8000-030000000190",
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000004",
+     "school_name": "Govt. Primary School Fictional-04"
+    },
+    "recorded_on": "2026-10-21",
+    "duration_s": 1500
+   },
+   {
+    "session_id": "00000000-0000-4000-8000-030000000191",
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000006",
+     "school_name": "Govt. Primary School Fictional-06"
+    },
+    "recorded_on": "2026-10-20",
+    "duration_s": 1480
+   }
+  ],
+  "windows": [
+   {
+    "id": "week-2026-10-19",
+    "from": "2026-10-19",
+    "to": "2026-10-25",
+    "weeks": 1,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   }
+  ],
+  "computed_at": "2026-10-25T21:40:00Z"
+ },
+ "moment": {
+  "moment_id": "00000000-0000-4000-8000-040000000001",
+  "session": {
+   "session_id": "00000000-0000-4000-8000-030000000046",
+   "grade": 3,
+   "subject": "Urdu",
+   "recorded_on": "2026-10-13",
+   "duration_s": 1660
+  },
+  "code": {
+   "code_id": "00000000-0000-4000-8000-020000000133",
+   "code": "T-07"
+  },
+  "school": {
+   "school_id": "00000000-0000-4000-8000-010000000003",
+   "school_name": "Govt. Primary School Fictional-03"
+  },
+  "w": {
+   "w_id": "W-IP-TIME",
+   "short_name": {
+    "en": "Ran out of time",
+    "ur": "وقت ختم ہو گیا"
+   },
+   "sentence": {
+    "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+    "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+   }
+  },
+  "kind": "missing",
+  "steps": [
+   {
+    "phase": "warm",
+    "label": {
+     "en": "Warm-up",
+     "ur": "آغاز"
+    },
+    "verdict": "executed",
+    "from_s": 0,
+    "to_s": 150
+   },
+   {
+    "phase": "explain",
+    "label": {
+     "en": "Explain",
+     "ur": "وضاحت"
+    },
+    "verdict": "executed",
+    "from_s": 150,
+    "to_s": 900
+   },
+   {
+    "phase": "guided",
+    "label": {
+     "en": "Guided",
+     "ur": "مل کر"
+    },
+    "verdict": "partial",
+    "from_s": 900,
+    "to_s": 1122
+   },
+   {
+    "phase": "ip",
+    "label": {
+     "en": "Practice",
+     "ur": "خود مشق"
+    },
+    "verdict": "not_done",
+    "from_s": 1122,
+    "to_s": 1500
+   },
+   {
+    "phase": "exit",
+    "label": {
+     "en": "Exit",
+     "ur": "جانچ"
+    },
+    "verdict": "not_done",
+    "from_s": 1500,
+    "to_s": 1660
+   }
+  ],
+  "lesson_s": 1122,
+  "confidence": "high",
+  "clip": {
+   "from_s": 1122,
+   "to_s": 1160,
+   "duration_s": 38,
+   "status": "ready"
+  },
+  "gloss": {
+   "en": "The explanation is still going. The practice should have started here.",
+   "ur": "وضاحت ابھی جاری ہے۔ مشق یہاں شروع ہونی چاہیے تھی۔"
+  },
+  "gloss_status": "ok",
+  "question": {
+   "en": "What did you hear at the moment the practice should have started?",
+   "ur": "جس لمحے مشق شروع ہونی چاہیے تھی، آپ نے وہاں کیا سنا؟"
+  },
+  "pair": {
+   "moment_id": "00000000-0000-4000-8000-040000000002",
+   "session": {
+    "session_id": "00000000-0000-4000-8000-030000000016",
+    "grade": 3,
+    "subject": "Urdu",
+    "recorded_on": "2026-10-21",
+    "duration_s": 1590
+   },
+   "code": {
+    "code_id": "00000000-0000-4000-8000-020000000142",
+    "code": "T-22"
+   },
+   "school": {
+    "school_id": "00000000-0000-4000-8000-010000000005",
+    "school_name": "Govt. Primary School Fictional-05"
+   },
+   "w": {
+    "w_id": "W-IP-TIME",
+    "short_name": {
+     "en": "Ran out of time",
+     "ur": "وقت ختم ہو گیا"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+     "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+    }
+   },
+   "kind": "good",
+   "steps": [
+    {
+     "phase": "warm",
+     "label": {
+      "en": "Warm-up",
+      "ur": "آغاز"
+     },
+     "verdict": "executed",
+     "from_s": 0,
+     "to_s": 110
+    },
+    {
+     "phase": "explain",
+     "label": {
+      "en": "Explain",
+      "ur": "وضاحت"
+     },
+     "verdict": "executed",
+     "from_s": 110,
+     "to_s": 560
+    },
+    {
+     "phase": "guided",
+     "label": {
+      "en": "Guided",
+      "ur": "مل کر"
+     },
+     "verdict": "executed",
+     "from_s": 560,
+     "to_s": 905
+    },
+    {
+     "phase": "ip",
+     "label": {
+      "en": "Practice",
+      "ur": "خود مشق"
+     },
+     "verdict": "executed",
+     "from_s": 905,
+     "to_s": 1390
+    },
+    {
+     "phase": "exit",
+     "label": {
+      "en": "Exit",
+      "ur": "جانچ"
+     },
+     "verdict": "executed",
+     "from_s": 1390,
+     "to_s": 1590
+    }
+   ],
+   "lesson_s": 905,
+   "confidence": "high",
+   "clip": {
+    "from_s": 905,
+    "to_s": 946,
+    "duration_s": 41,
+    "status": "ready"
+   },
+   "gloss": {
+    "en": "The task is said in one sentence with a time; the room drops to a murmur.",
+    "ur": "کام ایک جملے میں، وقت کے ساتھ کہا گیا؛ کمرے میں ہلکی بھنبھناہٹ رہ گئی۔"
+   },
+   "gloss_status": "ok",
+   "question": {
+    "en": "What did you hear at the moment the practice should have started?",
+    "ur": "جس لمحے مشق شروع ہونی چاہیے تھی، آپ نے وہاں کیا سنا؟"
+   },
+   "pair": null,
+   "full_recording": {
+    "duration_s": 1590
+   }
+  },
+  "full_recording": {
+   "duration_s": 1660
+  },
+  "windows": [],
+  "computed_at": "2026-10-25T21:40:00Z"
+ },
+ "moment_clip_failed": {
+  "moment_id": "00000000-0000-4000-8000-040000000003",
+  "session": {
+   "session_id": "00000000-0000-4000-8000-030000000078",
+   "grade": 2,
+   "subject": "Maths",
+   "recorded_on": "2026-10-22",
+   "duration_s": 1710
+  },
+  "code": {
+   "code_id": "00000000-0000-4000-8000-020000000138",
+   "code": "T-12"
+  },
+  "school": {
+   "school_id": "00000000-0000-4000-8000-010000000003",
+   "school_name": "Govt. Primary School Fictional-03"
+  },
+  "w": {
+   "w_id": "W-IP-TIME",
+   "short_name": {
+    "en": "Ran out of time",
+    "ur": "وقت ختم ہو گیا"
+   },
+   "sentence": {
+    "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+    "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+   }
+  },
+  "kind": "missing",
+  "steps": [
+   {
+    "phase": "warm",
+    "label": {
+     "en": "Warm-up",
+     "ur": "آغاز"
+    },
+    "verdict": "executed",
+    "from_s": 0,
+    "to_s": 130
+   },
+   {
+    "phase": "explain",
+    "label": {
+     "en": "Explain",
+     "ur": "وضاحت"
+    },
+    "verdict": "executed",
+    "from_s": 130,
+    "to_s": 1010
+   },
+   {
+    "phase": "guided",
+    "label": {
+     "en": "Guided",
+     "ur": "مل کر"
+    },
+    "verdict": "executed",
+    "from_s": 1010,
+    "to_s": 1250
+   },
+   {
+    "phase": "ip",
+    "label": {
+     "en": "Practice",
+     "ur": "خود مشق"
+    },
+    "verdict": "not_done",
+    "from_s": 1250,
+    "to_s": 1560
+   },
+   {
+    "phase": "exit",
+    "label": {
+     "en": "Exit",
+     "ur": "جانچ"
+    },
+    "verdict": "not_done",
+    "from_s": 1560,
+    "to_s": 1710
+   }
+  ],
+  "lesson_s": 1250,
+  "confidence": "medium",
+  "clip": {
+   "from_s": 1250,
+   "to_s": 1286,
+   "duration_s": 36,
+   "status": "failed"
+  },
+  "gloss": {
+   "en": "The guided item ends and the bell follows; no practice task is said.",
+   "ur": "مل کر والا سوال ختم ہوا اور گھنٹی بج گئی؛ مشق کا کوئی کام نہیں دیا گیا۔"
+  },
+  "gloss_status": "ok",
+  "question": {
+   "en": "What did you hear at the moment the practice should have started?",
+   "ur": "جس لمحے مشق شروع ہونی چاہیے تھی، آپ نے وہاں کیا سنا؟"
+  },
+  "pair": {
+   "library_clip": {
+    "clip_id": "lib-ip-time-01",
+    "title": {
+     "en": "A practice step that starts on time",
+     "ur": "وقت پر شروع ہونے والا مشق کا مرحلہ"
+    },
+    "duration_s": 45
+   }
+  },
+  "full_recording": {
+   "duration_s": 1710
+  },
+  "windows": [],
+  "computed_at": "2026-10-25T21:40:00Z"
+ },
+ "moment_rm": {
+  "moment_id": "00000000-0000-4000-8000-040000000001",
+  "school": {
+   "school_id": "00000000-0000-4000-8000-010000000003",
+   "school_name": "Govt. Primary School Fictional-03"
+  },
+  "w": {
+   "w_id": "W-IP-TIME",
+   "short_name": {
+    "en": "Ran out of time",
+    "ur": "وقت ختم ہو گیا"
+   },
+   "sentence": {
+    "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+    "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+   }
+  },
+  "kind": "missing",
+  "steps": [
+   {
+    "phase": "warm",
+    "label": {
+     "en": "Warm-up",
+     "ur": "آغاز"
+    },
+    "verdict": "executed",
+    "from_s": 0,
+    "to_s": 150
+   },
+   {
+    "phase": "explain",
+    "label": {
+     "en": "Explain",
+     "ur": "وضاحت"
+    },
+    "verdict": "executed",
+    "from_s": 150,
+    "to_s": 900
+   },
+   {
+    "phase": "guided",
+    "label": {
+     "en": "Guided",
+     "ur": "مل کر"
+    },
+    "verdict": "partial",
+    "from_s": 900,
+    "to_s": 1122
+   },
+   {
+    "phase": "ip",
+    "label": {
+     "en": "Practice",
+     "ur": "خود مشق"
+    },
+    "verdict": "not_done",
+    "from_s": 1122,
+    "to_s": 1500
+   },
+   {
+    "phase": "exit",
+    "label": {
+     "en": "Exit",
+     "ur": "جانچ"
+    },
+    "verdict": "not_done",
+    "from_s": 1500,
+    "to_s": 1660
+   }
+  ],
+  "lesson_s": 1122,
+  "confidence": "high",
+  "clip": {
+   "from_s": 1122,
+   "to_s": 1160,
+   "duration_s": 38,
+   "status": "ready"
+  },
+  "gloss": {
+   "en": "The explanation is still going. The practice should have started here.",
+   "ur": "وضاحت ابھی جاری ہے۔ مشق یہاں شروع ہونی چاہیے تھی۔"
+  },
+  "gloss_status": "ok",
+  "question": {
+   "en": "What did you hear at the moment the practice should have started?",
+   "ur": "جس لمحے مشق شروع ہونی چاہیے تھی، آپ نے وہاں کیا سنا؟"
+  },
+  "coach_label": "C-03",
+  "pair": null,
+  "full_recording": null,
+  "windows": [],
+  "computed_at": "2026-10-25T21:40:00Z"
+ },
+ "i_W-IP-TIME": {
+  "w": {
+   "w_id": "W-IP-TIME",
+   "parent_w_id": "W-IP",
+   "rank": 1,
+   "short_name": {
+    "en": "Ran out of time",
+    "ur": "وقت ختم ہو گیا"
+   },
+   "number_line": {
+    "en": "17 of 49",
+    "ur": "۴۹ میں سے ۱۷"
+   },
+   "sentence": {
+    "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+    "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+   },
+   "cause": {
+    "text": {
+     "en": "In the lessons that ran out of time, the explanation ran a median of about 6 minutes over the plan.",
+     "ur": "وقت ختم ہونے والے اسباق میں، وسط کے حساب سے، وضاحت منصوبے سے کوئی ۶ منٹ زیادہ چلی۔"
+    },
+    "stat": {
+     "kind": "median",
+     "value": 6.0,
+     "unit": "min",
+     "base": 17,
+     "window_id": "w4-2026-09-28"
+    },
+    "also": {
+     "text": {
+      "en": "7 of these also ended before the closing check.",
+      "ur": "ان میں سے ۷ اختتامی جانچ سے پہلے ہی ختم ہوئے۔"
+     },
+     "count": {
+      "n": 7,
+      "d": 17,
+      "window_id": "w4-2026-09-28"
+     }
+    }
+   },
+   "count": {
+    "n": 17,
+    "d": 49,
+    "window_id": "w4-2026-09-28"
+   },
+   "teacher_count": 29,
+   "teachers": {
+    "n": 11,
+    "d": 29,
+    "window_id": "w4-2026-09-28"
+   },
+   "window": {
+    "id": "w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   },
+   "status": "ok",
+   "where_first": {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000003",
+     "school_name": "Govt. Primary School Fictional-03"
+    },
+    "count": {
+     "n": 6,
+     "d": 9,
+     "window_id": "w4-2026-09-28"
+    },
+    "visit": {
+     "date": "2026-10-28",
+     "schedule_id": "00000000-0000-4000-8000-080000000003"
+    },
+    "then": [
+     {
+      "school_id": "00000000-0000-4000-8000-010000000005",
+      "school_name": "Govt. Primary School Fictional-05"
+     },
+     {
+      "school_id": "00000000-0000-4000-8000-010000000006",
+      "school_name": "Govt. Primary School Fictional-06"
+     }
+    ]
+   },
+   "moment_id": "00000000-0000-4000-8000-040000000001",
+   "moment_duration_s": 38,
+   "i_id": "I-IP-TIME-1"
+  },
+  "i": {
+   "i_id": "I-IP-TIME-1",
+   "title": {
+    "en": "Hard cap: explanation ends at minute 10 (rehearse the stop line)",
+    "ur": "سخت حد: وضاحت دسویں منٹ پر ختم (رکنے والا جملہ مشق کریں)"
+   },
+   "teacher_action_step": {
+    "en": "Write 10 in the board corner; stop explaining at minute 10 and move to 'we do'",
+    "ur": "بورڈ کے کونے میں ۱۰ لکھیں؛ دسویں منٹ پر وضاحت روک کر «ہم کریں» شروع کریں"
+   },
+   "with_whom": {
+    "en": "One teacher, in the debrief after a recording that fired W-IP-TIME.",
+    "ur": "ایک استاد، اس ریکارڈنگ کے بعد کی بات چیت میں جس میں مشق سے پہلے وقت ختم ہو گیا۔"
+   },
+   "duration": {
+    "en": "5 min inside a 15 min debrief",
+    "ur": "۱۵ منٹ کی بات چیت کے اندر ۵ منٹ"
+   },
+   "materials": [
+    {
+     "kind": "print",
+     "ref": "printable; described under I-IP-TIME-2",
+     "title": {
+      "en": "Timekeeper card: the board corner shows 10 / 17 / 25; a child says \"time khatam\" at each mark",
+      "ur": "وقت کے نگران کا کارڈ: بورڈ کے کونے میں ۱۰ / ۱۷ / ۲۵؛ ہر نشان پر ایک بچہ «ٹائم ختم» کہے"
+     }
+    },
+    {
+     "kind": "other",
+     "ref": "strings.js:86-92 (EN), 160-166 (UR), key=manage",
+     "title": {
+      "en": "NIETE next-step line \"manage\": One signal for attention and one routine for switching tasks, used every time",
+      "ur": "NIETE کی اگلے قدم والی سطر «manage»: توجہ کا ایک اشارہ اور کام بدلنے کا ایک معمول، ہر بار"
+     }
+    },
+    {
+     "kind": "vidrec",
+     "ref": "47",
+     "title": {
+      "en": "VIDREC module 47 \"Five step lesson plan\"",
+      "ur": "ویڈیو ماڈیول ۴۷ «Five step lesson plan»"
+     }
+    }
+   ],
+   "rehearsal_script": {
+    "en": "The teacher says the stop line as to the class: «بس، وضاحت یہیں ختم۔ اب ایک سوال مل کر کرتے ہیں۔» (that is enough explaining; now one question together). Three times, each time the coach says a minute number first ('nine... ten... stop'). The coach listens for the line coming out without an extra explanation attached.",
+    "ur": "استاد جماعت کو مخاطب کر کے رکنے والا جملہ کہیں: «بس، وضاحت یہیں ختم۔ اب ایک سوال مل کر کرتے ہیں۔» تین بار؛ ہر بار کوچ پہلے منٹ گنے («نو... دس... رکیں»)۔ کوچ کے لیے سننے کی بات: جملہ بغیر کسی اضافی وضاحت کے نکلے۔"
+   },
+   "debrief_script": {
+    "en": "Try this tomorrow: write 10 in the board corner before you start, and at minute 10 say the stop line and move to 'we do', even if you have not finished.",
+    "ur": "کل یہ آزمائیں: شروع کرنے سے پہلے بورڈ کے کونے میں ۱۰ لکھیں، اور دسویں منٹ پر رکنے والا جملہ کہہ کر «ہم کریں» کی طرف بڑھیں، چاہے وضاحت پوری نہ ہوئی ہو۔"
+   },
+   "listen_for": {
+    "en": "The explanation stops by about minute 10 with a sentence like «بس، اتنا کافی ہے، اب مل کر کرتے ہیں» and a guided item follows; the practice stretch and the exit are then both present.",
+    "ur": "وضاحت تقریباً دسویں منٹ تک «بس، اتنا کافی ہے، اب مل کر کرتے ہیں» جیسے جملے پر رکے اور مل کر ایک سوال ہو؛ پھر خود مشق اور اختتامی جانچ دونوں ہوں۔"
+   },
+   "check_it_worked": {
+    "en": "The number 10 was on the board and the teacher moved to 'we do' by minute 11 in the lesson the coach watched.",
+    "ur": "بورڈ پر ۱۰ لکھا تھا اور جس سبق کو کوچ نے دیکھا اس میں گیارہویں منٹ تک «ہم کریں» شروع ہو گیا۔"
+   },
+   "evidence": [
+    {
+     "source": "Rosenshine, B. (2012). Principles of Instruction. American Educator 36(1)",
+     "claim": {
+      "en": "small amounts of material at a time, then guided practice; the FLN plans put 10 minutes on practice, so the explanation cannot run past a third of the period",
+      "ur": "تھوڑا مواد ایک وقت میں، پھر مل کر مشق؛ FLN منصوبے مشق کو ۱۰ منٹ دیتے ہیں، اس لیے وضاحت دورانیے کے ایک تہائی سے آگے نہیں جا سکتی۔"
+     }
+    }
+   ],
+   "library_version": "x-pedagogy W4 v1 (26 Oct 2026)"
+  },
+  "alternatives": [
+   {
+    "i_id": "I-IP-1",
+    "title": {
+     "en": "Coach models the practice step in the teacher's class",
+     "ur": "کوچ استاد کی جماعت میں خود مشق کا مرحلہ کر کے دکھائے"
+    }
+   },
+   {
+    "i_id": "I-IP-TIME-2",
+    "title": {
+     "en": "A child timekeeper and the three marks on the board",
+     "ur": "ایک بچہ وقت کا نگران اور بورڈ پر تین نشان"
+    }
+   }
+  ],
+  "check_by_default": {
+   "date": "2026-11-09",
+   "rule": "14_days",
+   "visit": null
+  },
+  "fln": null,
+  "windows": [
+   {
+    "id": "w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   }
+  ],
+  "computed_at": "2026-10-25T21:40:00Z"
+ },
+ "steps_post_201": {
+  "step": {
+   "id": "00000000-0000-4000-8000-05000000000c",
+   "scope": "coach",
+   "code": {
+    "code_id": "00000000-0000-4000-8000-020000000138",
+    "code": "T-12"
+   },
+   "school": {
+    "school_id": "00000000-0000-4000-8000-010000000003",
+    "school_name": "Govt. Primary School Fictional-03"
+   },
+   "w_id": "W-IP-TIME",
+   "i_id": "I-IP-TIME-1",
+   "step": {
+    "en": "Write 10 in the board corner; stop explaining at minute 10 and move to 'we do'",
+    "ur": "بورڈ کے کونے میں ۱۰ لکھیں؛ دسویں منٹ پر وضاحت روک کر «ہم کریں» شروع کریں"
+   },
+   "set_on": "2026-10-26",
+   "check_by": "2026-11-09",
+   "check_rule": "14_days",
+   "visit": null,
+   "status": "open",
+   "coach_tick": "pending",
+   "strip": {
+    "needed": 3,
+    "window_days": 14,
+    "hits": []
+   },
+   "chip": "to_come",
+   "to_come": 3,
+   "rm_note_id": "00000000-0000-4000-8000-060000000001"
+  },
+  "computed_at": "2026-10-26T05:12:00Z"
+ },
+ "steps_post_409": {
+  "error": "step_exists",
+  "step_id": "00000000-0000-4000-8000-050000000007"
+ },
+ "stats": {
+  "window_pair": {
+   "now": {
+    "id": "w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   },
+   "before": null
+  },
+  "rows": [
+   {
+    "w_id": "W-IP",
+    "short_name": {
+     "en": "No independent practice",
+     "ur": "خود مشق نہیں ہوئی"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for independent practice had none.",
+     "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں خود مشق نہیں ہوئی۔"
+    },
+    "now": {
+     "n": 22,
+     "d": 49,
+     "window_id": "w4-2026-09-28"
+    },
+    "before": null,
+    "change": null,
+    "sector": {
+     "n": 214,
+     "d": 505,
+     "window_id": "w4-2026-09-28"
+    },
+    "status": "ok"
+   },
+   {
+    "w_id": "W-IP-TIME",
+    "short_name": {
+     "en": "Ran out of time",
+     "ur": "وقت ختم ہو گیا"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+     "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+    },
+    "now": {
+     "n": 17,
+     "d": 49,
+     "window_id": "w4-2026-09-28"
+    },
+    "before": null,
+    "change": null,
+    "sector": {
+     "n": 171,
+     "d": 505,
+     "window_id": "w4-2026-09-28"
+    },
+    "status": "ok"
+   },
+   {
+    "w_id": "W-IP-NOPLAN",
+    "short_name": {
+     "en": "Practice never set",
+     "ur": "مشق دی ہی نہیں گئی"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for independent practice had time left but never set the practice.",
+     "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں وقت تھا مگر مشق دی ہی نہیں گئی۔"
+    },
+    "now": {
+     "n": 5,
+     "d": 49,
+     "window_id": "w4-2026-09-28"
+    },
+    "before": null,
+    "change": null,
+    "sector": {
+     "n": 43,
+     "d": 505,
+     "window_id": "w4-2026-09-28"
+    },
+    "status": "ok"
+   },
+   {
+    "w_id": "W-EXIT",
+    "short_name": {
+     "en": "No closing check",
+     "ur": "اختتامی جانچ نہیں ہوئی"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for an exit check ended without one.",
+     "ur": "جن اسباق کے منصوبے میں اختتامی جانچ شامل تھی، وہ بغیر جانچ کے ختم ہوئے۔"
+    },
+    "now": {
+     "n": 19,
+     "d": 47,
+     "window_id": "w4-2026-09-28"
+    },
+    "before": null,
+    "change": null,
+    "sector": {
+     "n": 212,
+     "d": 540,
+     "window_id": "w4-2026-09-28"
+    },
+    "status": "ok"
+   },
+   {
+    "w_id": "W-EXIT-NOPLAN",
+    "short_name": {
+     "en": "Time left, no closing check",
+     "ur": "وقت تھا، آخر میں جانچ نہیں"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for an exit check had time left and ended without one.",
+     "ur": "جن اسباق کے منصوبے میں اختتامی جانچ شامل تھی، ان میں وقت تھا مگر جانچ نہیں ہوئی۔"
+    },
+    "now": {
+     "n": 12,
+     "d": 47,
+     "window_id": "w4-2026-09-28"
+    },
+    "before": null,
+    "change": null,
+    "sector": {
+     "n": 131,
+     "d": 540,
+     "window_id": "w4-2026-09-28"
+    },
+    "status": "ok"
+   },
+   {
+    "w_id": "W-WARM",
+    "short_name": {
+     "en": "Warm-up skipped",
+     "ur": "ابتدائی سرگرمی نہیں ہوئی"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for a warm-up or recall started without one.",
+     "ur": "جن اسباق کے منصوبے میں ابتدائی سرگرمی یا دہرائی شامل تھی، وہ اس کے بغیر شروع ہوئے۔"
+    },
+    "now": {
+     "n": 5,
+     "d": 12,
+     "window_id": "w4-2026-09-28"
+    },
+    "before": null,
+    "change": null,
+    "sector": null,
+    "status": "insufficient"
+   }
+  ],
+  "opening": {
+   "state": "first_window",
+   "first_trend_after": "2026-11-22",
+   "scoring_changed_on": "2026-09-28"
+  },
+  "fico_panel": [
+   {
+    "indicator": "fico17.questioning",
+    "label": {
+     "en": "Questioning",
+     "ur": "سوال پوچھنا"
+    },
+    "lowest_share": {
+     "n": 4,
+     "d": 9,
+     "window_id": "fico17-w4-2026-09-28"
+    }
+   },
+   {
+    "indicator": "fico17.feedback",
+    "label": {
+     "en": "Feedback",
+     "ur": "رائے"
+    },
+    "lowest_share": {
+     "n": 3,
+     "d": 9,
+     "window_id": "fico17-w4-2026-09-28"
+    }
+   }
+  ],
+  "recordings_by_week": [
+   {
+    "week_start": "2026-09-28",
+    "graded": {
+     "n": 12,
+     "d": 14,
+     "window_id": "week-2026-09-28"
+    }
+   },
+   {
+    "week_start": "2026-10-05",
+    "graded": {
+     "n": 13,
+     "d": 15,
+     "window_id": "week-2026-10-05"
+    }
+   },
+   {
+    "week_start": "2026-10-12",
+    "graded": {
+     "n": 14,
+     "d": 16,
+     "window_id": "week-2026-10-12"
+    }
+   },
+   {
+    "week_start": "2026-10-19",
+    "graded": {
+     "n": 14,
+     "d": 17,
+     "window_id": "week-2026-10-19"
+    }
+   }
+  ],
+  "coverage": {
+   "n": 53,
+   "d": 62,
+   "window_id": "w4-2026-09-28"
+  },
+  "method": {
+   "query_id": "q-coachip-stats-v1",
+   "grader": "google/gemini-3.8-flash",
+   "framework": "lp_fidelity",
+   "caveats": [
+    {
+     "en": "Scoring changed on the first day of this window; windows before it are not compared.",
+     "ur": "نمبر دینے کا طریقہ اس مدت کے پہلے دن بدلا؛ اس سے پہلے کی مدت کا موازنہ نہیں کیا جاتا۔"
+    }
+   ]
+  },
+  "windows": [
+   {
+    "id": "fico17-w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "AI coach report",
+     "ur": "اے آئی کوچ کی رپورٹ"
+    },
+    "framework": "fico17",
+    "scoring_changed_on": null
+   },
+   {
+    "id": "w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   },
+   {
+    "id": "week-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-04",
+    "weeks": 1,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   },
+   {
+    "id": "week-2026-10-05",
+    "from": "2026-10-05",
+    "to": "2026-10-11",
+    "weeks": 1,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   },
+   {
+    "id": "week-2026-10-12",
+    "from": "2026-10-12",
+    "to": "2026-10-18",
+    "weeks": 1,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   },
+   {
+    "id": "week-2026-10-19",
+    "from": "2026-10-19",
+    "to": "2026-10-25",
+    "weeks": 1,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   }
+  ],
+  "computed_at": "2026-10-25T21:40:00Z"
+ },
+ "stats_marker": {
+  "window_pair": {
+   "now": {
+    "id": "w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   },
+   "before": {
+    "id": "w4-2026-08-31",
+    "from": "2026-08-31",
+    "to": "2026-09-27",
+    "weeks": 4,
+    "grader": "google/gemini-2.5-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": null
+   }
+  },
+  "rows": [
+   {
+    "w_id": "W-IP",
+    "short_name": {
+     "en": "No independent practice",
+     "ur": "خود مشق نہیں ہوئی"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for independent practice had none.",
+     "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں خود مشق نہیں ہوئی۔"
+    },
+    "now": {
+     "n": 22,
+     "d": 49,
+     "window_id": "w4-2026-09-28"
+    },
+    "before": null,
+    "change": null,
+    "sector": {
+     "n": 214,
+     "d": 505,
+     "window_id": "w4-2026-09-28"
+    },
+    "status": "ok"
+   },
+   {
+    "w_id": "W-IP-TIME",
+    "short_name": {
+     "en": "Ran out of time",
+     "ur": "وقت ختم ہو گیا"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+     "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+    },
+    "now": {
+     "n": 17,
+     "d": 49,
+     "window_id": "w4-2026-09-28"
+    },
+    "before": null,
+    "change": null,
+    "sector": {
+     "n": 171,
+     "d": 505,
+     "window_id": "w4-2026-09-28"
+    },
+    "status": "ok"
+   },
+   {
+    "w_id": "W-IP-NOPLAN",
+    "short_name": {
+     "en": "Practice never set",
+     "ur": "مشق دی ہی نہیں گئی"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for independent practice had time left but never set the practice.",
+     "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں وقت تھا مگر مشق دی ہی نہیں گئی۔"
+    },
+    "now": {
+     "n": 5,
+     "d": 49,
+     "window_id": "w4-2026-09-28"
+    },
+    "before": null,
+    "change": null,
+    "sector": {
+     "n": 43,
+     "d": 505,
+     "window_id": "w4-2026-09-28"
+    },
+    "status": "ok"
+   },
+   {
+    "w_id": "W-EXIT",
+    "short_name": {
+     "en": "No closing check",
+     "ur": "اختتامی جانچ نہیں ہوئی"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for an exit check ended without one.",
+     "ur": "جن اسباق کے منصوبے میں اختتامی جانچ شامل تھی، وہ بغیر جانچ کے ختم ہوئے۔"
+    },
+    "now": {
+     "n": 19,
+     "d": 47,
+     "window_id": "w4-2026-09-28"
+    },
+    "before": null,
+    "change": null,
+    "sector": {
+     "n": 212,
+     "d": 540,
+     "window_id": "w4-2026-09-28"
+    },
+    "status": "ok"
+   },
+   {
+    "w_id": "W-EXIT-NOPLAN",
+    "short_name": {
+     "en": "Time left, no closing check",
+     "ur": "وقت تھا، آخر میں جانچ نہیں"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for an exit check had time left and ended without one.",
+     "ur": "جن اسباق کے منصوبے میں اختتامی جانچ شامل تھی، ان میں وقت تھا مگر جانچ نہیں ہوئی۔"
+    },
+    "now": {
+     "n": 12,
+     "d": 47,
+     "window_id": "w4-2026-09-28"
+    },
+    "before": null,
+    "change": null,
+    "sector": {
+     "n": 131,
+     "d": 540,
+     "window_id": "w4-2026-09-28"
+    },
+    "status": "ok"
+   },
+   {
+    "w_id": "W-WARM",
+    "short_name": {
+     "en": "Warm-up skipped",
+     "ur": "ابتدائی سرگرمی نہیں ہوئی"
+    },
+    "sentence": {
+     "en": "lessons whose plan asked for a warm-up or recall started without one.",
+     "ur": "جن اسباق کے منصوبے میں ابتدائی سرگرمی یا دہرائی شامل تھی، وہ اس کے بغیر شروع ہوئے۔"
+    },
+    "now": {
+     "n": 5,
+     "d": 12,
+     "window_id": "w4-2026-09-28"
+    },
+    "before": null,
+    "change": null,
+    "sector": null,
+    "status": "insufficient"
+   }
+  ],
+  "opening": {
+   "state": "marker",
+   "first_trend_after": "2026-11-22",
+   "scoring_changed_on": "2026-09-28"
+  },
+  "fico_panel": [
+   {
+    "indicator": "fico17.questioning",
+    "label": {
+     "en": "Questioning",
+     "ur": "سوال پوچھنا"
+    },
+    "lowest_share": {
+     "n": 4,
+     "d": 9,
+     "window_id": "fico17-w4-2026-09-28"
+    }
+   },
+   {
+    "indicator": "fico17.feedback",
+    "label": {
+     "en": "Feedback",
+     "ur": "رائے"
+    },
+    "lowest_share": {
+     "n": 3,
+     "d": 9,
+     "window_id": "fico17-w4-2026-09-28"
+    }
+   }
+  ],
+  "recordings_by_week": [
+   {
+    "week_start": "2026-09-28",
+    "graded": {
+     "n": 12,
+     "d": 14,
+     "window_id": "week-2026-09-28"
+    }
+   },
+   {
+    "week_start": "2026-10-05",
+    "graded": {
+     "n": 13,
+     "d": 15,
+     "window_id": "week-2026-10-05"
+    }
+   },
+   {
+    "week_start": "2026-10-12",
+    "graded": {
+     "n": 14,
+     "d": 16,
+     "window_id": "week-2026-10-12"
+    }
+   },
+   {
+    "week_start": "2026-10-19",
+    "graded": {
+     "n": 14,
+     "d": 17,
+     "window_id": "week-2026-10-19"
+    }
+   }
+  ],
+  "coverage": {
+   "n": 53,
+   "d": 62,
+   "window_id": "w4-2026-09-28"
+  },
+  "method": {
+   "query_id": "q-coachip-stats-v1",
+   "grader": "google/gemini-3.8-flash",
+   "framework": "lp_fidelity",
+   "caveats": [
+    {
+     "en": "Scoring changed on the first day of this window; windows before it are not compared.",
+     "ur": "نمبر دینے کا طریقہ اس مدت کے پہلے دن بدلا؛ اس سے پہلے کی مدت کا موازنہ نہیں کیا جاتا۔"
+    }
+   ]
+  },
+  "windows": [
+   {
+    "id": "w4-2026-08-31",
+    "from": "2026-08-31",
+    "to": "2026-09-27",
+    "weeks": 4,
+    "grader": "google/gemini-2.5-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": null
+   },
+   {
+    "id": "fico17-w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "AI coach report",
+     "ur": "اے آئی کوچ کی رپورٹ"
+    },
+    "framework": "fico17",
+    "scoring_changed_on": null
+   },
+   {
+    "id": "w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   },
+   {
+    "id": "week-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-04",
+    "weeks": 1,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   },
+   {
+    "id": "week-2026-10-05",
+    "from": "2026-10-05",
+    "to": "2026-10-11",
+    "weeks": 1,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   },
+   {
+    "id": "week-2026-10-12",
+    "from": "2026-10-12",
+    "to": "2026-10-18",
+    "weeks": 1,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   },
+   {
+    "id": "week-2026-10-19",
+    "from": "2026-10-19",
+    "to": "2026-10-25",
+    "weeks": 1,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   }
+  ],
+  "computed_at": "2026-10-25T21:40:00Z"
+ },
+ "results": {
+  "window": {
+   "id": "egra-2026-09-28",
+   "from": "2026-09-28",
+   "to": "2026-10-25",
+   "weeks": 4,
+   "grader": "egra-coach-tablet-v2",
+   "grader_label": {
+    "en": "reading check",
+    "ur": "پڑھائی کی جانچ"
+   },
+   "framework": "egra",
+   "scoring_changed_on": null
+  },
+  "cells": [
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000003",
+     "school_name": "Govt. Primary School Fictional-03"
+    },
+    "grade": 2,
+    "language": "ur",
+    "tested": {
+     "n": 12,
+     "floor": 5,
+     "window_id": "egra-2026-09-28"
+    },
+    "rows": [
+     {
+      "w_id": "W-LS",
+      "short_name": {
+       "en": "Letter sounds low",
+       "ur": "حروف کی آوازیں کم"
+      },
+      "sentence": {
+       "en": "children tested could not give the sound of most letters.",
+       "ur": "جانچے گئے بچے زیادہ تر حروف کی آواز نہ بتا سکے۔"
+      },
+      "count": {
+       "n": 7,
+       "d": 12,
+       "window_id": "egra-2026-09-28"
+      },
+      "status": "ok"
+     },
+     {
+      "w_id": "W-LN",
+      "short_name": {
+       "en": "Letter names low",
+       "ur": "حروف کے نام کم"
+      },
+      "sentence": {
+       "en": "children tested could not give the name of most letters.",
+       "ur": "جانچے گئے بچے زیادہ تر حروف کا نام نہ بتا سکے۔"
+      },
+      "count": {
+       "n": 5,
+       "d": 12,
+       "window_id": "egra-2026-09-28"
+      },
+      "status": "ok"
+     },
+     {
+      "w_id": "W-FW",
+      "short_name": {
+       "en": "Familiar words low",
+       "ur": "عام الفاظ کم"
+      },
+      "sentence": {
+       "en": "children tested could not read most familiar words.",
+       "ur": "جانچے گئے بچے زیادہ تر عام الفاظ نہ پڑھ سکے۔"
+      },
+      "count": null,
+      "status": "not_measured"
+     }
+    ],
+    "fln": {
+     "plan_ids": [
+      "fln-ur-g2-sounds-01",
+      "fln-ur-g2-sounds-02"
+     ],
+     "can_send": true
+    },
+    "debrief_line": {
+     "en": "Try this tomorrow: run the sound plan I sent, and in your hijje say the sound of each letter, not its name.",
+     "ur": "کل یہ آزمائیں: جو آوازوں کا منصوبہ میں نے بھیجا وہ چلائیں، اور ہجے میں ہر حرف کا نام نہیں، آواز کہیں۔"
+    },
+    "i_id": "I-LS-1"
+   },
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000005",
+     "school_name": "Govt. Primary School Fictional-05"
+    },
+    "grade": 3,
+    "language": "ur",
+    "tested": {
+     "n": 3,
+     "floor": 5,
+     "window_id": "egra-2026-09-28"
+    },
+    "rows": [
+     {
+      "w_id": "W-LS",
+      "short_name": {
+       "en": "Letter sounds low",
+       "ur": "حروف کی آوازیں کم"
+      },
+      "sentence": {
+       "en": "children tested could not give the sound of most letters.",
+       "ur": "جانچے گئے بچے زیادہ تر حروف کی آواز نہ بتا سکے۔"
+      },
+      "count": null,
+      "status": "insufficient"
+     },
+     {
+      "w_id": "W-LN",
+      "short_name": {
+       "en": "Letter names low",
+       "ur": "حروف کے نام کم"
+      },
+      "sentence": {
+       "en": "children tested could not give the name of most letters.",
+       "ur": "جانچے گئے بچے زیادہ تر حروف کا نام نہ بتا سکے۔"
+      },
+      "count": null,
+      "status": "insufficient"
+     },
+     {
+      "w_id": "W-FW",
+      "short_name": {
+       "en": "Familiar words low",
+       "ur": "عام الفاظ کم"
+      },
+      "sentence": {
+       "en": "children tested could not read most familiar words.",
+       "ur": "جانچے گئے بچے زیادہ تر عام الفاظ نہ پڑھ سکے۔"
+      },
+      "count": null,
+      "status": "insufficient"
+     }
+    ],
+    "fln": {
+     "plan_ids": [],
+     "can_send": false
+    },
+    "debrief_line": null,
+    "i_id": null
+   }
+  ],
+  "empty": null,
+  "windows": [
+   {
+    "id": "egra-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "egra-coach-tablet-v2",
+    "grader_label": {
+     "en": "reading check",
+     "ur": "پڑھائی کی جانچ"
+    },
+    "framework": "egra",
+    "scoring_changed_on": null
+   }
+  ],
+  "computed_at": "2026-10-25T21:40:00Z"
+ },
+ "rm_home": {
+  "sector": "Urban-I",
+  "window": {
+   "id": "w4-2026-09-28",
+   "from": "2026-09-28",
+   "to": "2026-10-25",
+   "weeks": 4,
+   "grader": "google/gemini-3.8-flash",
+   "grader_label": {
+    "en": "lesson-plan fidelity",
+    "ur": "سبق کے منصوبے پر عمل"
+   },
+   "framework": "lp_fidelity",
+   "scoring_changed_on": "2026-09-28"
+  },
+  "opening": {
+   "visited": {
+    "n": 41,
+    "d": 62,
+    "window_id": "act-4w-2026-10-26"
+   },
+   "unobserved_schools": {
+    "n": 21,
+    "d": 62,
+    "window_id": "act-4w-2026-10-26"
+   },
+   "unobserved_codes": {
+    "n": 38,
+    "d": 214,
+    "window_id": "act-4w-2026-10-26"
+   },
+   "floor_weeks": 4
+  },
+  "moves": [
+   {
+    "row": {
+     "w_id": "W-IP-TIME",
+     "short_name": {
+      "en": "Ran out of time",
+      "ur": "وقت ختم ہو گیا"
+     },
+     "sentence": {
+      "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+      "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+     },
+     "count": {
+      "n": 171,
+      "d": 505,
+      "window_id": "w4-2026-09-28"
+     },
+     "window": {
+      "id": "w4-2026-09-28",
+      "from": "2026-09-28",
+      "to": "2026-10-25",
+      "weeks": 4,
+      "grader": "google/gemini-3.8-flash",
+      "grader_label": {
+       "en": "lesson-plan fidelity",
+       "ur": "سبق کے منصوبے پر عمل"
+      },
+      "framework": "lp_fidelity",
+      "scoring_changed_on": "2026-09-28"
+     },
+     "state": "ranked",
+     "where_first": {
+      "school": {
+       "school_id": "00000000-0000-4000-8000-010000000011",
+       "school_name": "Govt. Primary School Fictional-17"
+      },
+      "count": {
+       "n": 7,
+       "d": 12,
+       "window_id": "w4-2026-09-28"
+      }
+     },
+     "not_yet": null,
+     "sector": null
+    },
+    "by_school": [
+     {
+      "school": {
+       "school_id": "00000000-0000-4000-8000-010000000011",
+       "school_name": "Govt. Primary School Fictional-17"
+      },
+      "count": {
+       "n": 7,
+       "d": 12,
+       "window_id": "w4-2026-09-28"
+      }
+     },
+     {
+      "school": {
+       "school_id": "00000000-0000-4000-8000-010000000003",
+       "school_name": "Govt. Primary School Fictional-03"
+      },
+      "count": {
+       "n": 6,
+       "d": 9,
+       "window_id": "w4-2026-09-28"
+      }
+     },
+     {
+      "school": {
+       "school_id": "00000000-0000-4000-8000-010000000018",
+       "school_name": "Govt. Primary School Fictional-24"
+      },
+      "count": {
+       "n": 6,
+       "d": 10,
+       "window_id": "w4-2026-09-28"
+      }
+     }
+    ],
+    "agenda": true,
+    "coach_count": 8,
+    "coaches_with_5plus": 7
+   },
+   {
+    "row": {
+     "w_id": "W-WARM",
+     "short_name": {
+      "en": "Warm-up skipped",
+      "ur": "ابتدائی سرگرمی نہیں ہوئی"
+     },
+     "sentence": {
+      "en": "lessons whose plan asked for a warm-up or recall started without one.",
+      "ur": "جن اسباق کے منصوبے میں ابتدائی سرگرمی یا دہرائی شامل تھی، وہ اس کے بغیر شروع ہوئے۔"
+     },
+     "count": null,
+     "window": {
+      "id": "w4-2026-09-28",
+      "from": "2026-09-28",
+      "to": "2026-10-25",
+      "weeks": 4,
+      "grader": "google/gemini-3.8-flash",
+      "grader_label": {
+       "en": "lesson-plan fidelity",
+       "ur": "سبق کے منصوبے پر عمل"
+      },
+      "framework": "lp_fidelity",
+      "scoring_changed_on": "2026-09-28"
+     },
+     "state": "not_yet",
+     "where_first": null,
+     "not_yet": {
+      "graded": null,
+      "codes_seen": 3,
+      "codes_needed": 3,
+      "coaches_with_5plus": 2
+     },
+     "sector": null
+    },
+    "by_school": [],
+    "agenda": false,
+    "coach_count": 6,
+    "coaches_with_5plus": 2
+   }
+  ],
+  "groups": {
+   "needs_me": [
+    {
+     "coach_user_id": "00000000-0000-4000-8000-070000000003",
+     "coach_label": "C-03",
+     "activity": {
+      "schools_unvisited": {
+       "n": 1,
+       "d": 6,
+       "window_id": "act-4w-2026-10-26"
+      },
+      "debriefs_with_step": {
+       "n": 3,
+       "d": 5,
+       "window_id": "act-m-2026-10"
+      },
+      "checks_overdue": {
+       "n": 1,
+       "d": 1,
+       "window_id": "act-4w-2026-10-26"
+      }
+     },
+     "needs_me_reason": "unvisited",
+     "note_open": {
+      "id": "00000000-0000-4000-8000-060000000001",
+      "label": {
+       "en": "From your RM",
+       "ur": "آپ کے آر ایم کی طرف سے"
+      },
+      "template_id": "RM-T1",
+      "w_id": "W-IP-TIME",
+      "lines": {
+       "en": [
+        "This month \"Ran out of time\" shows most at Govt. Primary School Fictional-03.",
+        "Please run \"Peer observation with one look-for: the minute the explanation ended\" there before 30 Oct.",
+        "Bring the moment to the Friday circle."
+       ],
+       "ur": [
+        "اس مہینے «وقت ختم ہو گیا» سب سے زیادہ ⁦Govt. Primary School Fictional-03⁩ میں نظر آیا۔",
+        "براہِ کرم ۳۰ اکتوبر سے پہلے وہاں «ساتھی مشاہدہ، ایک نظر: وضاحت کس منٹ پر ختم ہوئی» چلائیں۔",
+        "لمحہ جمعے کے حلقے میں لائیں۔"
+       ]
+      },
+      "schools": [
+       {
+        "school_id": "00000000-0000-4000-8000-010000000003",
+        "school_name": "Govt. Primary School Fictional-03"
+       }
+      ],
+      "due_on": "2026-10-30",
+      "status": "sent"
+     }
+    },
+    {
+     "coach_user_id": "00000000-0000-4000-8000-070000000002",
+     "coach_label": "C-02",
+     "activity": {
+      "schools_unvisited": {
+       "n": 2,
+       "d": 7,
+       "window_id": "act-4w-2026-10-26"
+      },
+      "debriefs_with_step": {
+       "n": 4,
+       "d": 6,
+       "window_id": "act-m-2026-10"
+      },
+      "checks_overdue": {
+       "n": 0,
+       "d": 2,
+       "window_id": "act-4w-2026-10-26"
+      }
+     },
+     "needs_me_reason": "unvisited",
+     "note_open": null
+    },
+    {
+     "coach_user_id": "00000000-0000-4000-8000-070000000004",
+     "coach_label": "C-04",
+     "activity": {
+      "schools_unvisited": {
+       "n": 3,
+       "d": 8,
+       "window_id": "act-4w-2026-10-26"
+      },
+      "debriefs_with_step": {
+       "n": 0,
+       "d": 4,
+       "window_id": "act-m-2026-10"
+      },
+      "checks_overdue": {
+       "n": 0,
+       "d": 0,
+       "window_id": "act-4w-2026-10-26"
+      }
+     },
+     "needs_me_reason": "unvisited",
+     "note_open": null
+    },
+    {
+     "coach_user_id": "00000000-0000-4000-8000-070000000007",
+     "coach_label": "C-07",
+     "activity": {
+      "schools_unvisited": {
+       "n": 2,
+       "d": 8,
+       "window_id": "act-4w-2026-10-26"
+      },
+      "debriefs_with_step": {
+       "n": 5,
+       "d": 7,
+       "window_id": "act-m-2026-10"
+      },
+      "checks_overdue": {
+       "n": 4,
+       "d": 6,
+       "window_id": "act-4w-2026-10-26"
+      }
+     },
+     "needs_me_reason": "checks_overdue",
+     "note_open": null
+    }
+   ],
+   "on_track": [
+    {
+     "coach_user_id": "00000000-0000-4000-8000-070000000001",
+     "coach_label": "C-01",
+     "activity": {
+      "schools_unvisited": {
+       "n": 2,
+       "d": 7,
+       "window_id": "act-4w-2026-10-26"
+      },
+      "debriefs_with_step": {
+       "n": 4,
+       "d": 5,
+       "window_id": "act-m-2026-10"
+      },
+      "checks_overdue": {
+       "n": 0,
+       "d": 2,
+       "window_id": "act-4w-2026-10-26"
+      }
+     },
+     "needs_me_reason": null,
+     "note_open": null
+    },
+    {
+     "coach_user_id": "00000000-0000-4000-8000-070000000005",
+     "coach_label": "C-05",
+     "activity": {
+      "schools_unvisited": {
+       "n": 3,
+       "d": 8,
+       "window_id": "act-4w-2026-10-26"
+      },
+      "debriefs_with_step": {
+       "n": 6,
+       "d": 8,
+       "window_id": "act-m-2026-10"
+      },
+      "checks_overdue": {
+       "n": 0,
+       "d": 3,
+       "window_id": "act-4w-2026-10-26"
+      }
+     },
+     "needs_me_reason": null,
+     "note_open": null
+    },
+    {
+     "coach_user_id": "00000000-0000-4000-8000-070000000006",
+     "coach_label": "C-06",
+     "activity": {
+      "schools_unvisited": {
+       "n": 2,
+       "d": 7,
+       "window_id": "act-4w-2026-10-26"
+      },
+      "debriefs_with_step": {
+       "n": 3,
+       "d": 4,
+       "window_id": "act-m-2026-10"
+      },
+      "checks_overdue": {
+       "n": 0,
+       "d": 1,
+       "window_id": "act-4w-2026-10-26"
+      }
+     },
+     "needs_me_reason": null,
+     "note_open": null
+    },
+    {
+     "coach_user_id": "00000000-0000-4000-8000-070000000008",
+     "coach_label": "C-08",
+     "activity": {
+      "schools_unvisited": {
+       "n": 2,
+       "d": 7,
+       "window_id": "act-4w-2026-10-26"
+      },
+      "debriefs_with_step": {
+       "n": 2,
+       "d": 3,
+       "window_id": "act-m-2026-10"
+      },
+      "checks_overdue": {
+       "n": 0,
+       "d": 0,
+       "window_id": "act-4w-2026-10-26"
+      }
+     },
+     "needs_me_reason": null,
+     "note_open": null
+    },
+    {
+     "coach_user_id": "00000000-0000-4000-8000-07000000000a",
+     "coach_label": "C-10",
+     "activity": {
+      "schools_unvisited": {
+       "n": 2,
+       "d": 2,
+       "window_id": "act-4w-2026-10-26"
+      },
+      "debriefs_with_step": {
+       "n": 0,
+       "d": 0,
+       "window_id": "act-m-2026-10"
+      },
+      "checks_overdue": {
+       "n": 0,
+       "d": 0,
+       "window_id": "act-4w-2026-10-26"
+      }
+     },
+     "needs_me_reason": null,
+     "note_open": null
+    }
+   ]
+  },
+  "on_track_count": {
+   "n": 5,
+   "d": 9,
+   "window_id": "act-4w-2026-10-26"
+  },
+  "no_scope_coaches": {
+   "n": 1,
+   "d": 10,
+   "window_id": "act-4w-2026-10-26"
+  },
+  "unassigned_schools": {
+   "n": 2,
+   "d": 62,
+   "window_id": "act-4w-2026-10-26"
+  },
+  "circle": {
+   "moments": {
+    "n": 6,
+    "d": 9,
+    "window_id": "week-2026-10-19"
+   },
+   "checks_due": {
+    "n": 7,
+    "d": 23,
+    "window_id": "act-4w-2026-10-26"
+   }
+  },
+  "cluster": {
+   "i_id": "I-IP-TIME-3",
+   "title": {
+    "en": "Peer observation with one look-for: the minute the explanation ended",
+    "ur": "ساتھی مشاہدہ، ایک نظر: وضاحت کس منٹ پر ختم ہوئی"
+   },
+   "date": "2026-10-29"
+  },
+  "monday": {
+   "templates": [
+    {
+     "template_id": "RM-T1",
+     "title": {
+      "en": "The move at a school",
+      "ur": "ایک اسکول میں قدم"
+     }
+    },
+    {
+     "template_id": "RM-T2",
+     "title": {
+      "en": "A visit is due",
+      "ur": "دورہ باقی ہے"
+     }
+    },
+    {
+     "template_id": "RM-T3",
+     "title": {
+      "en": "Checks are due",
+      "ur": "جانچیں باقی ہیں"
+     }
+    },
+    {
+     "template_id": "RM-T4",
+     "title": {
+      "en": "It worked",
+      "ur": "کام کر گیا"
+     }
+    }
+   ]
+  },
+  "stale": null,
+  "empty": null,
+  "windows": [
+   {
+    "id": "w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   },
+   {
+    "id": "act-4w-2026-10-26",
+    "from": "2026-09-29",
+    "to": "2026-10-26",
+    "weeks": 4,
+    "grader": null,
+    "grader_label": null,
+    "framework": "activity",
+    "scoring_changed_on": null
+   },
+   {
+    "id": "act-m-2026-10",
+    "from": "2026-10-01",
+    "to": "2026-10-31",
+    "weeks": null,
+    "grader": null,
+    "grader_label": null,
+    "framework": "activity",
+    "scoring_changed_on": null
+   },
+   {
+    "id": "week-2026-10-19",
+    "from": "2026-10-19",
+    "to": "2026-10-25",
+    "weeks": 1,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   }
+  ],
+  "computed_at": "2026-10-25T21:40:00Z"
+ },
+ "rm_coach": {
+  "coach": {
+   "coach_user_id": "00000000-0000-4000-8000-070000000003",
+   "coach_label": "C-03",
+   "activity": {
+    "schools_unvisited": {
+     "n": 1,
+     "d": 6,
+     "window_id": "act-4w-2026-10-26"
+    },
+    "debriefs_with_step": {
+     "n": 3,
+     "d": 5,
+     "window_id": "act-m-2026-10"
+    },
+    "checks_overdue": {
+     "n": 1,
+     "d": 1,
+     "window_id": "act-4w-2026-10-26"
+    }
+   },
+   "needs_me_reason": "unvisited",
+   "note_open": {
+    "id": "00000000-0000-4000-8000-060000000001",
+    "label": {
+     "en": "From your RM",
+     "ur": "آپ کے آر ایم کی طرف سے"
+    },
+    "template_id": "RM-T1",
+    "w_id": "W-IP-TIME",
+    "lines": {
+     "en": [
+      "This month \"Ran out of time\" shows most at Govt. Primary School Fictional-03.",
+      "Please run \"Peer observation with one look-for: the minute the explanation ended\" there before 30 Oct.",
+      "Bring the moment to the Friday circle."
+     ],
+     "ur": [
+      "اس مہینے «وقت ختم ہو گیا» سب سے زیادہ ⁦Govt. Primary School Fictional-03⁩ میں نظر آیا۔",
+      "براہِ کرم ۳۰ اکتوبر سے پہلے وہاں «ساتھی مشاہدہ، ایک نظر: وضاحت کس منٹ پر ختم ہوئی» چلائیں۔",
+      "لمحہ جمعے کے حلقے میں لائیں۔"
+     ]
+    },
+    "schools": [
+     {
+      "school_id": "00000000-0000-4000-8000-010000000003",
+      "school_name": "Govt. Primary School Fictional-03"
+     }
+    ],
+    "due_on": "2026-10-30",
+    "status": "sent"
+   }
+  },
+  "schools": [
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000001",
+     "school_name": "Govt. Primary School Fictional-01"
+    },
+    "last_visit": "2026-10-20",
+    "next_visit": {
+     "date": "2026-11-09",
+     "schedule_id": "00000000-0000-4000-8000-080000000001"
+    },
+    "graded": {
+     "n": 7,
+     "d": 8,
+     "window_id": "w4-2026-09-28"
+    },
+    "weeks_since_visit": 0
+   },
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000002",
+     "school_name": "Govt. Primary School Fictional-02"
+    },
+    "last_visit": "2026-10-07",
+    "next_visit": {
+     "date": "2026-11-05",
+     "schedule_id": "00000000-0000-4000-8000-080000000002"
+    },
+    "graded": {
+     "n": 9,
+     "d": 10,
+     "window_id": "w4-2026-09-28"
+    },
+    "weeks_since_visit": 2
+   },
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000003",
+     "school_name": "Govt. Primary School Fictional-03"
+    },
+    "last_visit": "2026-10-14",
+    "next_visit": {
+     "date": "2026-10-28",
+     "schedule_id": "00000000-0000-4000-8000-080000000003"
+    },
+    "graded": {
+     "n": 10,
+     "d": 12,
+     "window_id": "w4-2026-09-28"
+    },
+    "weeks_since_visit": 1
+   },
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000004",
+     "school_name": "Govt. Primary School Fictional-04"
+    },
+    "last_visit": "2026-10-22",
+    "next_visit": {
+     "date": "2026-11-12",
+     "schedule_id": "00000000-0000-4000-8000-080000000004"
+    },
+    "graded": {
+     "n": 9,
+     "d": 10,
+     "window_id": "w4-2026-09-28"
+    },
+    "weeks_since_visit": 0
+   },
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000005",
+     "school_name": "Govt. Primary School Fictional-05"
+    },
+    "last_visit": "2026-09-30",
+    "next_visit": {
+     "date": "2026-11-03",
+     "schedule_id": "00000000-0000-4000-8000-080000000005"
+    },
+    "graded": {
+     "n": 11,
+     "d": 13,
+     "window_id": "w4-2026-09-28"
+    },
+    "weeks_since_visit": 3
+   },
+   {
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000006",
+     "school_name": "Govt. Primary School Fictional-06"
+    },
+    "last_visit": "2026-09-14",
+    "next_visit": null,
+    "graded": {
+     "n": 7,
+     "d": 9,
+     "window_id": "w4-2026-09-28"
+    },
+    "weeks_since_visit": 6
+   }
+  ],
+  "steps": {
+   "open": {
+    "n": 3,
+    "d": 4,
+    "window_id": "act-m-2026-10"
+   },
+   "completed": {
+    "n": 1,
+    "d": 4,
+    "window_id": "act-m-2026-10"
+   },
+   "overdue": {
+    "n": 1,
+    "d": 4,
+    "window_id": "act-m-2026-10"
+   }
+  },
+  "moves": [
+   {
+    "row": {
+     "w_id": "W-IP-TIME",
+     "short_name": {
+      "en": "Ran out of time",
+      "ur": "وقت ختم ہو گیا"
+     },
+     "sentence": {
+      "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+      "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+     },
+     "count": {
+      "n": 17,
+      "d": 49,
+      "window_id": "w4-2026-09-28"
+     },
+     "window": {
+      "id": "w4-2026-09-28",
+      "from": "2026-09-28",
+      "to": "2026-10-25",
+      "weeks": 4,
+      "grader": "google/gemini-3.8-flash",
+      "grader_label": {
+       "en": "lesson-plan fidelity",
+       "ur": "سبق کے منصوبے پر عمل"
+      },
+      "framework": "lp_fidelity",
+      "scoring_changed_on": "2026-09-28"
+     },
+     "state": "ranked",
+     "where_first": {
+      "school": {
+       "school_id": "00000000-0000-4000-8000-010000000003",
+       "school_name": "Govt. Primary School Fictional-03"
+      },
+      "count": {
+       "n": 6,
+       "d": 9,
+       "window_id": "w4-2026-09-28"
+      }
+     },
+     "not_yet": null,
+     "sector": null
+    },
+    "sector": {
+     "n": 171,
+     "d": 505,
+     "window_id": "w4-2026-09-28"
+    }
+   },
+   {
+    "row": {
+     "w_id": "W-EXIT-NOPLAN",
+     "short_name": {
+      "en": "Time left, no closing check",
+      "ur": "وقت تھا، آخر میں جانچ نہیں"
+     },
+     "sentence": {
+      "en": "lessons whose plan asked for an exit check had time left and ended without one.",
+      "ur": "جن اسباق کے منصوبے میں اختتامی جانچ شامل تھی، ان میں وقت تھا مگر جانچ نہیں ہوئی۔"
+     },
+     "count": {
+      "n": 12,
+      "d": 47,
+      "window_id": "w4-2026-09-28"
+     },
+     "window": {
+      "id": "w4-2026-09-28",
+      "from": "2026-09-28",
+      "to": "2026-10-25",
+      "weeks": 4,
+      "grader": "google/gemini-3.8-flash",
+      "grader_label": {
+       "en": "lesson-plan fidelity",
+       "ur": "سبق کے منصوبے پر عمل"
+      },
+      "framework": "lp_fidelity",
+      "scoring_changed_on": "2026-09-28"
+     },
+     "state": "ranked",
+     "where_first": {
+      "school": {
+       "school_id": "00000000-0000-4000-8000-010000000005",
+       "school_name": "Govt. Primary School Fictional-05"
+      },
+      "count": {
+       "n": 4,
+       "d": 10,
+       "window_id": "w4-2026-09-28"
+      }
+     },
+     "not_yet": null,
+     "sector": null
+    },
+    "sector": {
+     "n": 131,
+     "d": 540,
+     "window_id": "w4-2026-09-28"
+    }
+   }
+  ],
+  "notes": [
+   {
+    "id": "00000000-0000-4000-8000-060000000001",
+    "label": {
+     "en": "From your RM",
+     "ur": "آپ کے آر ایم کی طرف سے"
+    },
+    "template_id": "RM-T1",
+    "w_id": "W-IP-TIME",
+    "lines": {
+     "en": [
+      "This month \"Ran out of time\" shows most at Govt. Primary School Fictional-03.",
+      "Please run \"Peer observation with one look-for: the minute the explanation ended\" there before 30 Oct.",
+      "Bring the moment to the Friday circle."
+     ],
+     "ur": [
+      "اس مہینے «وقت ختم ہو گیا» سب سے زیادہ ⁦Govt. Primary School Fictional-03⁩ میں نظر آیا۔",
+      "براہِ کرم ۳۰ اکتوبر سے پہلے وہاں «ساتھی مشاہدہ، ایک نظر: وضاحت کس منٹ پر ختم ہوئی» چلائیں۔",
+      "لمحہ جمعے کے حلقے میں لائیں۔"
+     ]
+    },
+    "schools": [
+     {
+      "school_id": "00000000-0000-4000-8000-010000000003",
+      "school_name": "Govt. Primary School Fictional-03"
+     }
+    ],
+    "due_on": "2026-10-30",
+    "status": "sent"
+   }
+  ],
+  "calibration": {
+   "status": "later_bead"
+  },
+  "windows": [
+   {
+    "id": "w4-2026-09-28",
+    "from": "2026-09-28",
+    "to": "2026-10-25",
+    "weeks": 4,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   },
+   {
+    "id": "act-4w-2026-10-26",
+    "from": "2026-09-29",
+    "to": "2026-10-26",
+    "weeks": 4,
+    "grader": null,
+    "grader_label": null,
+    "framework": "activity",
+    "scoring_changed_on": null
+   },
+   {
+    "id": "act-m-2026-10",
+    "from": "2026-10-01",
+    "to": "2026-10-31",
+    "weeks": null,
+    "grader": null,
+    "grader_label": null,
+    "framework": "activity",
+    "scoring_changed_on": null
+   }
+  ],
+  "computed_at": "2026-10-25T21:40:00Z"
+ },
+ "rm_notes_post_201": {
+  "note": {
+   "id": "00000000-0000-4000-8000-060000000002",
+   "label": {
+    "en": "From your RM",
+    "ur": "آپ کے آر ایم کی طرف سے"
+   },
+   "template_id": "RM-T2",
+   "w_id": "W-IP-TIME",
+   "lines": {
+    "en": [
+     "Govt. Primary School Fictional-06 have had no visit for 4 weeks or more.",
+     "Please visit before 30 Oct and set one step from \"Ran out of time\".",
+     "Bring the moment to the Friday circle."
+    ],
+    "ur": [
+     "⁦Govt. Primary School Fictional-06⁩ میں ۴ ہفتوں یا زیادہ سے کوئی دورہ نہیں ہوا۔",
+     "براہِ کرم ۳۰ اکتوبر سے پہلے دورہ کریں اور «وقت ختم ہو گیا» سے ایک قدم طے کریں۔",
+     "لمحہ جمعے کے حلقے میں لائیں۔"
+    ]
+   },
+   "schools": [
+    {
+     "school_id": "00000000-0000-4000-8000-010000000006",
+     "school_name": "Govt. Primary School Fictional-06"
+    }
+   ],
+   "due_on": "2026-10-30",
+   "status": "sent"
+  },
+  "computed_at": "2026-10-26T05:12:00Z"
+ },
+ "rm_circle": {
+  "week_start": "2026-10-26",
+  "basis": "sector",
+  "floor": null,
+  "window": {
+   "id": "week-2026-10-19",
+   "from": "2026-10-19",
+   "to": "2026-10-25",
+   "weeks": 1,
+   "grader": "google/gemini-3.8-flash",
+   "grader_label": {
+    "en": "lesson-plan fidelity",
+    "ur": "سبق کے منصوبے پر عمل"
+   },
+   "framework": "lp_fidelity",
+   "scoring_changed_on": "2026-09-28"
+  },
+  "sector_interventions": [
+   {
+    "i_id": "I-IP-TIME-3",
+    "title": {
+     "en": "Peer observation with one look-for: the minute the explanation ended",
+     "ur": "ساتھی مشاہدہ، ایک نظر: وضاحت کس منٹ پر ختم ہوئی"
+    },
+    "level": "school",
+    "date": "2026-10-29",
+    "attendees": {
+     "en": "Grade 1 to 3 teachers of the schools on the agenda",
+     "ur": "ایجنڈے والے اسکولوں کے پہلی تا تیسری جماعت کے اساتذہ"
+    },
+    "check": {
+     "en": "Both slips are filled with a practice-start minute under 17.",
+     "ur": "دونوں پرچیاں بھری ہوں اور مشق شروع ہونے کا منٹ ۱۷ سے کم ہو۔"
+    }
+   },
+   {
+    "i_id": "I-IP-4",
+    "title": {
+     "en": "Sector push: every coach models the practice step in three classes by the second Friday",
+     "ur": "سیکٹر مہم: ہر کوچ دوسرے جمعے تک تین جماعتوں میں خود مشق کا مرحلہ کر کے دکھائے"
+    },
+    "level": "sector",
+    "date": null,
+    "attendees": {
+     "en": "Every coach in the sector",
+     "ur": "سیکٹر کے سب کوچ"
+    },
+    "check": {
+     "en": "Three modelled lessons per coach by the second Friday",
+     "ur": "دوسرے جمعے تک ہر کوچ کے تین کر کے دکھائے گئے اسباق"
+    }
+   }
+  ],
+  "moments": [
+   {
+    "coach_user_id": "00000000-0000-4000-8000-070000000001",
+    "coach_label": "C-01",
+    "moment_id": "00000000-0000-4000-8000-040000000065",
+    "w_id": "W-EXIT-NOPLAN",
+    "short_name": {
+     "en": "Time left, no closing check",
+     "ur": "وقت تھا، آخر میں جانچ نہیں"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000009",
+     "school_name": "Govt. Primary School Fictional-09"
+    },
+    "duration_s": 31
+   },
+   {
+    "coach_user_id": "00000000-0000-4000-8000-070000000002",
+    "coach_label": "C-02",
+    "moment_id": "00000000-0000-4000-8000-040000000066",
+    "w_id": "W-IP-TIME",
+    "short_name": {
+     "en": "Ran out of time",
+     "ur": "وقت ختم ہو گیا"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000011",
+     "school_name": "Govt. Primary School Fictional-17"
+    },
+    "duration_s": 40
+   },
+   {
+    "coach_user_id": "00000000-0000-4000-8000-070000000003",
+    "coach_label": "C-03",
+    "moment_id": "00000000-0000-4000-8000-040000000001",
+    "w_id": "W-IP-TIME",
+    "short_name": {
+     "en": "Ran out of time",
+     "ur": "وقت ختم ہو گیا"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000003",
+     "school_name": "Govt. Primary School Fictional-03"
+    },
+    "duration_s": 38
+   },
+   {
+    "coach_user_id": "00000000-0000-4000-8000-070000000005",
+    "coach_label": "C-05",
+    "moment_id": "00000000-0000-4000-8000-040000000069",
+    "w_id": "W-WARM",
+    "short_name": {
+     "en": "Warm-up skipped",
+     "ur": "ابتدائی سرگرمی نہیں ہوئی"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-01000000001e",
+     "school_name": "Govt. Primary School Fictional-30"
+    },
+    "duration_s": 29
+   },
+   {
+    "coach_user_id": "00000000-0000-4000-8000-070000000006",
+    "coach_label": "C-06",
+    "moment_id": "00000000-0000-4000-8000-04000000006a",
+    "w_id": "W-IP-TIME",
+    "short_name": {
+     "en": "Ran out of time",
+     "ur": "وقت ختم ہو گیا"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-010000000028",
+     "school_name": "Govt. Primary School Fictional-40"
+    },
+    "duration_s": 44
+   },
+   {
+    "coach_user_id": "00000000-0000-4000-8000-070000000007",
+    "coach_label": "C-07",
+    "moment_id": "00000000-0000-4000-8000-04000000006b",
+    "w_id": "W-EXIT-NOPLAN",
+    "short_name": {
+     "en": "Time left, no closing check",
+     "ur": "وقت تھا، آخر میں جانچ نہیں"
+    },
+    "school": {
+     "school_id": "00000000-0000-4000-8000-01000000002f",
+     "school_name": "Govt. Primary School Fictional-47"
+    },
+    "duration_s": 36
+   }
+  ],
+  "checks_due": [
+   {
+    "coach_label": "C-01",
+    "count": {
+     "n": 1,
+     "d": 3,
+     "window_id": "act-4w-2026-10-26"
+    }
+   },
+   {
+    "coach_label": "C-02",
+    "count": {
+     "n": 1,
+     "d": 2,
+     "window_id": "act-4w-2026-10-26"
+    }
+   },
+   {
+    "coach_label": "C-03",
+    "count": {
+     "n": 1,
+     "d": 3,
+     "window_id": "act-4w-2026-10-26"
+    }
+   },
+   {
+    "coach_label": "C-04",
+    "count": {
+     "n": 0,
+     "d": 1,
+     "window_id": "act-4w-2026-10-26"
+    }
+   },
+   {
+    "coach_label": "C-05",
+    "count": {
+     "n": 2,
+     "d": 4,
+     "window_id": "act-4w-2026-10-26"
+    }
+   },
+   {
+    "coach_label": "C-06",
+    "count": {
+     "n": 0,
+     "d": 2,
+     "window_id": "act-4w-2026-10-26"
+    }
+   },
+   {
+    "coach_label": "C-07",
+    "count": {
+     "n": 2,
+     "d": 6,
+     "window_id": "act-4w-2026-10-26"
+    }
+   },
+   {
+    "coach_label": "C-08",
+    "count": {
+     "n": 0,
+     "d": 2,
+     "window_id": "act-4w-2026-10-26"
+    }
+   },
+   {
+    "coach_label": "C-10",
+    "count": {
+     "n": 0,
+     "d": 0,
+     "window_id": "act-4w-2026-10-26"
+    }
+   }
+  ],
+  "windows": [
+   {
+    "id": "act-4w-2026-10-26",
+    "from": "2026-09-29",
+    "to": "2026-10-26",
+    "weeks": 4,
+    "grader": null,
+    "grader_label": null,
+    "framework": "activity",
+    "scoring_changed_on": null
+   },
+   {
+    "id": "week-2026-10-19",
+    "from": "2026-10-19",
+    "to": "2026-10-25",
+    "weeks": 1,
+    "grader": "google/gemini-3.8-flash",
+    "grader_label": {
+     "en": "lesson-plan fidelity",
+     "ur": "سبق کے منصوبے پر عمل"
+    },
+    "framework": "lp_fidelity",
+    "scoring_changed_on": "2026-09-28"
+   }
+  ],
+  "computed_at": "2026-10-25T21:40:00Z"
+ },
+ "rm_steps_post_201": {
+  "step": {
+   "id": "00000000-0000-4000-8000-0a0000000001",
+   "scope": "sector",
+   "sector": "Urban-I",
+   "w_id": "W-IP-TIME",
+   "i_id": "I-IP-TIME-3",
+   "title": {
+    "en": "Peer observation with one look-for: the minute the explanation ended",
+    "ur": "ساتھی مشاہدہ، ایک نظر: وضاحت کس منٹ پر ختم ہوئی"
+   },
+   "date": "2026-10-29",
+   "status": "open"
+  },
+  "computed_at": "2026-10-26T05:12:00Z"
+ },
+ "errors": {
+  "400": {
+   "error": "bad_request"
+  },
+  "401": {
+   "success": false,
+   "error": "Not authenticated. Please log in."
+  },
+  "404": {
+   "error": "not_found"
+  },
+  "409_exists": {
+   "error": "step_exists",
+   "step_id": "00000000-0000-4000-8000-050000000007"
+  },
+  "409_closed": {
+   "error": "step_closed"
+  },
+  "416": null,
+  "500": {
+   "error": "server_error"
+  },
+  "503_clip": {
+   "error": "clip_unavailable"
+  },
+  "503_audio": {
+   "error": "audio_unavailable"
+  },
+  "503_codec": {
+   "error": "unavailable"
+  }
+ }
+}

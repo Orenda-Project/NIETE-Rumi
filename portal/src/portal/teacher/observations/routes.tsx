@@ -1,6 +1,10 @@
 import type { TeacherRoute } from '../routes';
-import { ObservationReportPage, ObservationsHomePage } from './ObservationsHome';
 import { OBS_HOME, OBS_REPORT } from './paths';
+import { lazyPage as page } from '@/lib/lazyPage';
+
+// bd-sex15q.34 — each page is its own chunk (lib/lazyPage), so the teacher app is not in every first open.
+const ObservationReportPage = page(() => import('./ObservationsHome').then((m) => ({ default: m.ObservationReportPage })));
+const ObservationsHomePage = page(() => import('./ObservationsHome').then((m) => ({ default: m.ObservationsHomePage })));
 
 /**
  * bd-fmf24g.4 — the teacher v2 Observations pages (flag-gated by App's TeacherGate). The main page is

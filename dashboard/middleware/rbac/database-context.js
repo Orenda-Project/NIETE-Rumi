@@ -41,6 +41,9 @@ const logPath = (req) => pathOf(req).split('/').map((seg) => (/^[A-Za-z0-9._~%-]
  * Applies portal_app_user role and sets user context for RLS
  */
 async function setDatabaseContext(req, res, next) {
+  // bd-sex15q.49: a hashed static chunk needs no RLS. Checking a client out for it held a pooler slot for the whole
+  // transfer, so one phone on a slow network opening This week (~30 chunks) filled the session pooler and the chunks 500'd.
+  if ((req.method === 'GET' || req.method === 'HEAD') && pathOf(req).startsWith('/assets/')) return next();
   let client;
   let released = false;
   const startTime = Date.now();

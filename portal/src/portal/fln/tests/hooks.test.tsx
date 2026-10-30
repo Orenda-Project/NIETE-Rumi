@@ -16,6 +16,9 @@ vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { chil
 vi.mock("../../lib/recordingSession", () => ({ useRecordingSession: () => null }));
 vi.mock("../../services/api", () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 vi.mock("../../coach/useCoachV2", async (orig) => ({ ...(await orig<Record<string, unknown>>()), useCoachV2: vi.fn() }));
+// The guard also reads portal_coachip (useCoachip). These cases are that switch OFF, answered false at once, as the
+// guard's own goldens do (CoachAppGuard.test.tsx); without it the guard waits on the skeleton and nothing routes.
+vi.mock("../../coach/insights/useCoachip", async (orig) => ({ ...(await orig<Record<string, unknown>>()), useCoachip: vi.fn(() => false), useCoachipRm: vi.fn(() => false) }));
 
 import api from "../../services/api";
 import { coachPathReady, coachReadyHome } from "../../coach/training/appReady";

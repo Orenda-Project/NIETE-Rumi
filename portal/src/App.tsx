@@ -9,7 +9,6 @@ import { useTranslation } from "react-i18next";
 import NotFound from "./pages/NotFound";
 import PortalLogin from "./portal/pages/PortalLogin";
 import PortalRoot from "./portal/pages/PortalRoot";
-import PortalDashboard from "./portal/pages/PortalDashboard";
 import { ASSESSMENT_ROUTES } from "./portal/lib/assessmentRoutes";
 import { TRAINING_ROUTES } from "./portal/lib/trainingRoutes";
 // bd-fmf24g.1 — the teacher app v2 (behind portal_teacher_v2): every page a feature registers
@@ -31,6 +30,10 @@ import { AuthProvider } from "./portal/hooks/AuthProvider";
 import { FrameSkeleton, LoginSkeleton } from "./portal/components/Skeleton";
 import { readShellHint } from "./portal/lib/shellHint";
 import { lazyPage as page, prefetchPages } from "./lib/lazyPage";
+import { warmFirstScreen } from "./lib/firstScreen";
+import { primeRead, primeWhenCoachipOn } from "./lib/bootReads";
+import houseApi from "./portal/services/api";
+import { readConfigShared } from "./portal/lib/useNewUi";
 /* Reading assessments + video library are not part of NIETE's launch scope. Routes + imports
  * removed so the URLs 404 rather than expose unfinished screens. Restore by re-adding both
  * imports and the /portal/reading-* + /portal/video* routes below. */
@@ -42,6 +45,27 @@ import { lazyPage as page, prefetchPages } from "./lib/lazyPage";
  * (the router's transitions keep it there; no blank, no spinner) — and, once the app is
  * idle, all of them are fetched in the background so a later tap is instant.
  */
+// bd-sex15q.34 — the teacher dashboard is its own chunk too (with its charts it was a third of the first chunk every
+// coach waited for); a teacher's first screen is asked for at boot instead (lib/firstScreen).
+const loadDashboard = () => import("./portal/pages/PortalDashboard");
+const PortalDashboard = page(loadDashboard);
+// Any /portal/ page is the portal whatever the host (sandbox's portal-sandbox.… host is not a "portal." one); "/" only
+// on a portal host (elsewhere it is the marketing site).
+if (typeof window !== "undefined" && (isPortalTarget() || window.location.pathname.startsWith("/portal/"))) {
+  warmFirstScreen(window.location.pathname, readShellHint(), {
+    dashboard: loadDashboard,
+    teacherHome: () => import("./portal/teacher/pages/Home"),
+    coachInsights: () => Promise.all([
+      import("./portal/coach/insights/routes"),
+      import("./portal/coach/insights/pages/ThisWeek"),
+      // COS 105750: This week's data too, once /config says the switch is on (never a /coachip/ request otherwise).
+      // From this chunk, not COACHIP's api chunk, so it does not wait for that chunk to arrive (same key and store).
+      primeWhenCoachipOn(readConfigShared, () => primeRead("coachip/home", () => houseApi.get("/coachip/home").then((r) => r.data))),
+    ]),
+    rm: () => import("./portal/rm/routes"),
+    config: readConfigShared,
+  });
+}
 const Index = page(() => import("./pages/Index"));
 const HowItWorks = page(() => import("./pages/HowItWorks"));
 const PortalSetup = page(() => import("./portal/pages/PortalSetup"));
@@ -118,6 +142,10 @@ const CoachSendReport = page(() => import("./portal/coach/reports/SendReport"));
 const CoachEditTeacher = page(() => import("./portal/coach/pages/CoachEditTeacher"));
 // bd-4404s7.2 — the coach's More and her own profile.
 const CoachMore = page(() => import("./portal/coach/profile/CoachMore"));
+// bd-sex15q.15 — COACHIP, the coach insight pages (each gates itself on portal_coachip).
+const CoachInsights = page(() => import("./portal/coach/insights/routes"));
+// bd-sex15q.17 — COACHIP, the RM pages (their own gate on GET /coachip/me → rm; never CoachGate).
+const RmPages = page(() => import("./portal/rm/routes"));
 const CoachProfile = page(() => import("./portal/coach/profile/CoachProfile"));
 // bd-s42dye.2 — the coach's Training Library (every provider, level, course and part; questions are a read-only preview).
 const CoachLibraryHome = page(() => import("./portal/coach/training/LibraryPages").then((m) => ({ default: m.LibraryHome })));
@@ -340,6 +368,8 @@ const App = () => {
             {/* bd-o15qnr.11 — Edit teacher (saved by the /observe teacher admin) */}
             <Route path="/portal/coach/teacher/:ext/edit" element={<CoachEditTeacher />} />
             {/* bd-4404s7.2 — the coach menu and her own profile. */}
+            <Route path="/portal/coach/insights/*" element={<CoachInsights />} />
+            <Route path="/portal/rm/*" element={<RmPages />} />
             <Route path="/portal/coach/more" element={<CoachMore />} />
             <Route path="/portal/coach/profile" element={<CoachProfile />} />
             {/* bd-s42dye.2 — the Training Library, behind the same CoachGate (each page gates itself). */}

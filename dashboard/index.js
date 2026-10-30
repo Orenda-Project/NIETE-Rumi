@@ -2852,6 +2852,23 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-fln.routes'));
 // bd-s1oo0.7 — the child test in the coach app (relays to the bot; flag portal_child_test).
 app.use('/api/portal/leader/child-test', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, childTestRoutes);
+// bd-sex15q.13 — COACHIP, the coach and RM insight portal: /api/portal/coachip/* only (contracts/API.md). Dark until an
+// app_settings row names a user (portal_coachip / portal_coachip_rm); every route but /coachip/me is a 404 until then.
+// The two media streams are m-player's module, wired here once it is deployed (no index.js change needed then).
+{
+  let coachipMedia;
+  try {
+    coachipMedia = require('./routes/portal-coachip-media.routes').createCoachipMediaRoutes;
+  } catch (err) {
+    if (!(err && err.code === 'MODULE_NOT_FOUND' && String(err.message).includes('portal-coachip-media.routes'))) throw err;
+  }
+  const { router: coachipRouter } = require('./routes/portal-coachip.routes').createCoachipRouterFromEnv({
+    pool: require('./config/database'),
+    supabase,
+    mediaRoutes: coachipMedia ? ({ query, scope, codes }) => coachipMedia({ query, inScope: scope.inScope, circleAllows: scope.circleAllows, audit: codes.audit }) : undefined,
+  });
+  app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, coachipRouter);
+}
 
 // NIETE Teacher Attendance — principal-facing daily mark screen. Inert
 // without a valid portal session; the page
@@ -3730,28 +3747,9 @@ app.get('/observability/api/broadcast/:id/stats', requireAdmin, async (req, res)
 // HEALTH CHECK (before static serving)
 // ============================================================================
 
-app.get('/health', (req, res) => {
-  const fs = require('fs');
-  const versionFile = path.join(__dirname, '../VERSION'); // VERSION file is in parent directory
-  let version = '2.1.0'; // Default fallback
-
-  try {
-    if (fs.existsSync(versionFile)) {
-      version = fs.readFileSync(versionFile, 'utf8').trim();
-    }
-  } catch (err) {
-    console.error('Error reading VERSION file:', err);
-  }
-
-  res.json({
-    status: 'healthy',
-    service: 'Rumi Dashboard',
-    version: version,
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
+// db_writable (bd-sex15q.19, SPEC v2.1 §11.5): a read plus a SET LOCAL round trip; never a session SET.
+const { healthHandler } = require('./lib/health');
+app.get('/health', healthHandler({ pool: require('./config/database'), versionFile: path.join(__dirname, '../VERSION') }));
 
 // ============================================================================
 // TEACHER PORTAL FRONTEND SERVING (React SPA)

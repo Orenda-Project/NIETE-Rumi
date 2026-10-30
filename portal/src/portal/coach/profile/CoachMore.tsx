@@ -1,22 +1,31 @@
-import { CircleUserRound, ClipboardCheck, LogOut } from "lucide-react";
+import { CircleUserRound, ClipboardCheck, LogOut, Map as MapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../hooks/useAuth";
 import { useLogoutGuard } from "../../lib/recordingSession";
 import TeacherPage from "../../teacher/TeacherPage";
 import { Card, LanguageRow, ROW, RowLink, Tile } from "../../teacher/pages/More";
 import { TEACHER_FRAME } from "../../teacher/copy";
-import { useCopy } from "../../teacher/i18n";
+import { useCopy, useLang } from "../../teacher/i18n";
 import { formatPhone, fullName, initials } from "../../teacher/format";
 import CoachGate from "../CoachGate";
 import { COACH_PROFILE } from "./copy";
 import { useCoachCounts } from "./useCoachCounts";
 import { useChildTestSa } from "../../lib/useChildTestSa";
+import { useCoachip, useCoachipRm } from "../insights/useCoachip";
+import { COPY } from "../insights/copy";
+import { rmPaths } from "../../rm/paths";
+import MoreCoachip, { MoreHead } from "../insights/components/MoreCoachip";
 
 /**
- * bd-fmf24g.33 — the coach's More: who she is, then Language (English | اردو), My profile and Log out, as the teacher's.
- * Training is a Home tile, Certificates the Training hub's card, the child test a row on Home when her flag is on.
+ * bd-fmf24g.33 — the coach's More: who they are, then Language (English | اردو), My profile and Log out, as the teacher's.
+ * Training is a Home tile, Certificates the Training hub's card, the child test a row on Home when their flag is on.
  * With portal_child_test_sa on, the Learning assessment is a row here too: a coach on v2 has no Home to reach it from.
- * The school count under her name is the API's (`counts.schools`); nothing is shown when it cannot say.
+ * The school count under their name is the API's (`counts.schools`); nothing is shown when it cannot say.
+ *
+ * R6 (bd-sex15q.46, SCREENS.md More): with COACHIP on, the page wears the design system: its own `.cp` root (More is
+ * outside the Shell, so the tokens paint nothing without it), the who card a navy band with the initials in a green
+ * tint circle, then hairline rows with 20 px lucide icons; the kit's LanguageRow as it is. With COACHIP off, absent or
+ * failing, the markup below is exactly what it was (more.flagOff: no `cp` class anywhere).
  */
 export default function CoachMore() {
   const C = useCopy(TEACHER_FRAME);
@@ -25,8 +34,26 @@ export default function CoachMore() {
   const guardedLogout = useLogoutGuard(logout);
   const counts = useCoachCounts();
   const assess = useChildTestSa() === true;
+  // bd-sex15q.15 — with COACHIP on, the menu is This week · Schools · Listen · Stats · More, so the Training Library and
+  // Lesson Plans move here (the lead's decision: training stays one tap away). Off: nothing changes on this page.
+  const coachip = useCoachip(user?.phoneNumber || null) === true;
+  // fix-r5 (SPEC v2.1 §11.6 option a): a coach who is also the sector's RM reaches the RM pages from here; the bar stays
+  // five. Shown only for a literal `features.coachipRm === true`; the row is a link, it reads nothing from /coachip/.
+  const rmOn = useCoachipRm() === true;
+  const lang = useLang();
   const name = fullName(user);
   const phone = formatPhone(user?.phoneNumber);
+
+  if (coachip) {
+    return (
+      <CoachGate>
+        {/* FIX_R6 A7: the heading is the design system's (MoreHead in the hero slot), not the kit's light title */}
+        <TeacherPage hero={<MoreHead title={C.more.title} />} testId="coach-more">
+          <MoreCoachip name={name} phone={phone} schools={counts ? counts.schools : null} rmOn={rmOn} assess={assess} onLogout={guardedLogout} />
+        </TeacherPage>
+      </CoachGate>
+    );
+  }
 
   return (
     <CoachGate>
@@ -47,6 +74,12 @@ export default function CoachMore() {
             )}
           </span>
         </section>
+
+        {rmOn && (
+          <Card label={COPY["more.rm"][lang]}>
+            <RowLink id="rm" to={rmPaths.sector} icon={MapIcon} label={COPY["more.rm"][lang]} />
+          </Card>
+        )}
 
         {assess && (
           <Card label={P.assess}>

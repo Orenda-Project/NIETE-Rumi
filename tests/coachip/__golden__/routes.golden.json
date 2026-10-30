@@ -1,0 +1,381 @@
+{
+  "_about": "B7 golden route shapes (API.md §13): status + keys/JSON types, never values. No COACHIP app_settings row. GET /config already includes features.coachip/coachipRm/coachipDecode (false). Regenerate: UPDATE_GOLDEN=1.",
+  "not_reached": {
+    "GET /health": "dashboard/index.js:3756 — needs the whole server (index.js) loaded"
+  },
+  "routes": {
+    "GET /coach/home": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /coach/pending": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /coach/schedule": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /coach/team": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /coach/people": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /coach/school/110": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /coach/teacher/fx-teacher-01": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /coach/observation/:id": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /coach/visit/:id": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /coach/reports": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /coach/disagreements": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /coach/disagreements/:id": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /coach/disagreements/:id/clip": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "POST /coach/disagreements/:id/visited": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "POST /coach/disagreements/:id/undone": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "POST /coach/disagreements/:id/plan": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "POST /coach/disagreements/:id/suggestion": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /leader/me": {
+      "status": 200,
+      "body": {
+        "success": "boolean",
+        "user": {
+          "analyticsOnly": "boolean",
+          "country": "null",
+          "firstName": "null",
+          "lastName": "null",
+          "phoneNumber": "string",
+          "role": "string"
+        }
+      }
+    },
+    "GET /leader/overview": {
+      "status": 200,
+      "body": {
+        "overview": {
+          "avgLastScore": "null",
+          "focus": [],
+          "notOnRumi": "number",
+          "onRumi": "number",
+          "scoredTeachers": "number",
+          "teachersInTraining": "number",
+          "teachersMarkingAttendance": "number",
+          "totalAttendanceSessions": "number",
+          "totalCoachingSessions": "number",
+          "totalLessonPlans": "number",
+          "totalTeachers": "number",
+          "totalTrainingModules": "number"
+        },
+        "success": "boolean"
+      }
+    },
+    "GET /leader/teachers": {
+      "status": 200,
+      "body": {
+        "onRumi": "number",
+        "success": "boolean",
+        "teachers": [],
+        "total": "number"
+      }
+    },
+    "GET /leader/teacher/:id": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /leader/attendance": {
+      "status": 403,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /leader/school-analytics": {
+      "status": 403,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /leader/observations": {
+      "status": 200,
+      "body": {
+        "observations": {
+          "completed": [],
+          "pendingDebriefs": [],
+          "upcoming": []
+        },
+        "success": "boolean"
+      }
+    },
+    "GET /leader/schools/search?q=Fictional": {
+      "status": 200,
+      "body": {
+        "results": [],
+        "success": "boolean"
+      }
+    },
+    "GET /leader/teachers/search?q=Fictional": {
+      "status": 200,
+      "body": {
+        "results": [],
+        "success": "boolean"
+      }
+    },
+    "GET /leader/observe/recent-plans": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /leader/observe/active": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /leader/observe/:id": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /leader/observe/:id/draft": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /leader/child-test/visits": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /leader/child-test/list": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /leader/child-test/session/:id": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /leader/child-test/sa/switches": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /leader/child-test/sa/schools": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /leader/child-test/sa/list": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /leader/child-test/sa/sessions": {
+      "status": 404,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /fln/me": {
+      "status": 200,
+      "body": {
+        "lessons": "boolean",
+        "role": "string",
+        "share": "boolean",
+        "ui_lang": "string"
+      }
+    },
+    "GET /fln/catalogue?grade=1&subject=num": {
+      "status": 404,
+      "body": {
+        "error": "string"
+      }
+    },
+    "GET /fln/teachers": {
+      "status": 404,
+      "body": {
+        "error": "string"
+      }
+    },
+    "POST /fln/send": {
+      "status": 404,
+      "body": {
+        "error": "string"
+      }
+    },
+    "GET /analytics/schools": {
+      "status": 403,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /analytics/coaching": {
+      "status": 403,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /analytics/training-levels": {
+      "status": 403,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /analytics/observations": {
+      "status": 403,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /analytics/lp-engagement": {
+      "status": 403,
+      "body": {
+        "error": "string",
+        "success": "boolean"
+      }
+    },
+    "GET /config": {
+      "status": 200,
+      "body": {
+        "features": {
+          "assessmentEditing": "boolean",
+          "assessmentGenerator": "boolean",
+          "assessmentGeneratorMessage": "string",
+          "childTest": "boolean",
+          "childTestSa": "boolean",
+          "coachDisagreements": "boolean",
+          "coachObservation": "boolean",
+          "coachV2": "boolean",
+          "coachip": "boolean",
+          "coachipDecode": "boolean",
+          "coachipRm": "boolean",
+          "newUi": "boolean",
+          "schoolCard": "boolean",
+          "selfObservation": "boolean",
+          "teacherHomeCard": "boolean",
+          "teacherHomeLook": "boolean",
+          "teacherHomeOrder": "boolean",
+          "teacherV2": "boolean"
+        },
+        "success": "boolean"
+      }
+    }
+  }
+}

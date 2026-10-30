@@ -5,6 +5,7 @@ import { auth, portal } from '../services/api';
 import type { User } from '../types/portal';
 import { clearShellHint } from '../lib/shellHint';
 import { forgetConfig } from '../lib/useNewUi';
+import { takeBoot } from '@/lib/bootReads';
 
 /**
  * bd-5rz1v.6.6 — PortalLayout PROVIDES the user it loaded. Everything inside the
@@ -40,6 +41,12 @@ const sameUser = (a: User | null, b: User | null) => a === b || JSON.stringify(a
  * before. A 401/403 is the answer itself.
  */
 async function readSessionUser(): Promise<User> {
+  // bd-sex15q.34 — index.html's boot read of /me on a COACHIP page, taken once; anything else: as before.
+  const boot = takeBoot<{ user?: User }>('me');
+  if (boot) {
+    const answer = await boot;
+    if (answer?.user) return answer.user;
+  }
   const p = portal as typeof portal & { getMe?: () => Promise<{ user: User }> };
   if (typeof p.getMe === 'function') {
     try {

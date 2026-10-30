@@ -94,6 +94,9 @@ const {
   PORTAL_TEACHER_HOME_CARD_KEY,
   PORTAL_TEACHER_HOME_ORDER_KEY,
   PORTAL_TEACHER_HOME_LOOK_KEY,
+  PORTAL_COACHIP_KEY,
+  PORTAL_COACHIP_DECODE_KEY,
+  rmSectorFor,
   isCoachObservationOn,
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
@@ -8890,6 +8893,9 @@ router.get('/config', async (req, res) => {
       teacherHomeCard,
       teacherHomeOrderRaw,
       teacherHomeLookRaw,
+      coachip,
+      coachipRmSector,
+      coachipDecodeRaw,
       schoolCardRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
@@ -8916,6 +8922,11 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_ORDER_KEY, userId),
       // the Home's new look, which also rides with the card on.
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_LOOK_KEY, userId),
+      // bd-sex15q.13 — COACHIP: the coach insight portal, the RM's sector view, and the name-decode tap (per user;
+      // the RM row is an object, read by rmSectorFor). Decode only rides with the coach switch on.
+      isFlagEnabledForUser(supabase, PORTAL_COACHIP_KEY, userId),
+      rmSectorFor(supabase, userId),
+      isFlagEnabledForUser(supabase, PORTAL_COACHIP_DECODE_KEY, userId),
       // The coach School Card, per user; its routes also need the coach app v2, so it rides with that on.
       isFlagEnabledForUser(supabase, PORTAL_COACH_SCHOOL_CARD_KEY, userId),
     ]);
@@ -8936,6 +8947,9 @@ router.get('/config', async (req, res) => {
         teacherHomeCard,
         teacherHomeOrder: teacherHomeCard && teacherHomeOrderRaw,
         teacherHomeLook: teacherHomeCard && teacherHomeLookRaw,
+        coachip,
+        coachipRm: coachipRmSector !== null,
+        coachipDecode: coachip && coachipDecodeRaw,
         schoolCard: coachV2 && schoolCardRaw,
       },
     });
@@ -8959,6 +8973,9 @@ router.get('/config', async (req, res) => {
         teacherHomeCard: false,
         teacherHomeOrder: false,
         teacherHomeLook: false,
+        coachip: false,
+        coachipRm: false,
+        coachipDecode: false,
         schoolCard: false,
       },
     });
