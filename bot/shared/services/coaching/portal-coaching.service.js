@@ -66,6 +66,11 @@ const MAX_DC_PHOTOS = 10;
  *   reflection_audio  reflection_audio/<uid>/<YYYY-MM>/portal_<id> — bd-eygg2f: her spoken answer to the
  *                reflection question. Its own tree, NOT classroom_audio: a classroom_audio portal_ key is
  *                what marks a session as portal-started (PORTAL_KEY_RX). A few minutes of speech is <2 MB.
+ *   feedback_audio  feedback_audio/<uid>/<YYYY-MM>/portal_<id> — bd-x1tl95: a voice message sent from the app's
+ *                "Send feedback" (feedback/app-feedback.service). Not coaching, but the same signer and ownership
+ *                check, so it lives here; its own tree so nothing reads it as a reflection.
+ *   feedback_photo  feedback_images/<uid>/portal_<id> — the same form's screenshots. Its own tree, NOT images/:
+ *                images/ is the coaching photo tree.
  */
 const KINDS = Object.freeze({
   audio: {
@@ -102,6 +107,20 @@ const KINDS = Object.freeze({
     maxBytes: 10 * 1024 * 1024,
     key: (uid, ym, id, ext) => `reflection_audio/${uid}/${ym}/portal_${id}${ext}`,
     rx: (uid) => new RegExp(`^reflection_audio/${escapeRx(uid)}/\\d{4}-\\d{2}/portal_[A-Za-z0-9-]+(\\.[a-z0-9]+)$`),
+  },
+  feedback_audio: {
+    types: {
+      '.m4a': 'audio/mp4', '.mp4': 'audio/mp4', '.ogg': 'audio/ogg', '.opus': 'audio/ogg', '.webm': 'audio/webm',
+    },
+    maxBytes: 10 * 1024 * 1024,
+    key: (uid, ym, id, ext) => `feedback_audio/${uid}/${ym}/portal_${id}${ext}`,
+    rx: (uid) => new RegExp(`^feedback_audio/${escapeRx(uid)}/\\d{4}-\\d{2}/portal_[A-Za-z0-9-]+(\\.[a-z0-9]+)$`),
+  },
+  feedback_photo: {
+    types: { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' },
+    maxBytes: 10 * 1024 * 1024,
+    key: (uid, ym, id, ext) => `feedback_images/${uid}/portal_${id}${ext}`,
+    rx: (uid) => new RegExp(`^feedback_images/${escapeRx(uid)}/portal_[A-Za-z0-9-]+(\\.[a-z0-9]+)$`),
   },
 });
 
@@ -621,5 +640,7 @@ module.exports = {
   startPortalSession,
   afterTranscription,
   submitReflection,
+  // bd-x1tl95: the app's Send feedback transcribes its voice message the same way.
+  transcribeFromR2,
   recentLessonPlans,
 };

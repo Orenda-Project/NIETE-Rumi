@@ -4,6 +4,8 @@ import { COPY_ENTRY as FRAME_ENTRY } from './copy';
 // Urdu completeness checks when its owner adds the line here (a glob would put every coach area under the gate at once).
 import { COPY_ENTRY as COACH_HOME_ENTRY } from '../coach/home/copy';
 import { COPY_ENTRY as COACH_PROFILE_ENTRY } from '../coach/profile/copy';
+// bd-x1tl95 — Send feedback (coach/feedback/copy.ts).
+import { COPY_ENTRY as COACH_FEEDBACK_ENTRY } from '../coach/feedback/copy';
 import { COPY_ENTRY as COACH_LIBRARY_ENTRY } from '../coach/training/copy';
 // The coach's School card screens (coach/card/copy.ts).
 import { COPY_ENTRY as COACH_SCHOOL_CARD_ENTRY } from '../coach/card/copy';
@@ -37,6 +39,7 @@ export const COPY_MODULES: readonly CopyEntry[] = [
   FRAME_ENTRY,
   COACH_HOME_ENTRY,
   COACH_PROFILE_ENTRY,
+  COACH_FEEDBACK_ENTRY,
   COACH_LIBRARY_ENTRY,
   COACH_SCHOOL_CARD_ENTRY,
   AUTH_ENTRY,

@@ -37,7 +37,7 @@ export function currentInsightsItem(pathname: string): InsightsNavKey | null {
   if (p === insightsPaths.listen || p.startsWith(`${insightsPaths.listen}/`)) return "listen";
   if (p === insightsPaths.stats || p.startsWith(`${insightsPaths.stats}/`)) return "stats";
   if (p === INSIGHTS_BASE || p.startsWith(`${INSIGHTS_BASE}/`)) return "thisWeek";
-  if (["/portal/coach/more", "/portal/coach/profile", "/portal/account", "/portal/coach/training", "/portal/teacher/lessons"]
+  if (["/portal/coach/more", "/portal/coach/profile", "/portal/coach/feedback", "/portal/account", "/portal/coach/training", "/portal/teacher/lessons"]
     .some((x) => p === x || p.startsWith(`${x}/`))) return "more";
   return null;
 }
