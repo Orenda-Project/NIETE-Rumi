@@ -714,7 +714,10 @@ function slotBlock(slot, sec, list, ctx) {
   const either = slot.or || slot.alternatives ? ' either' : '';
   // A short slot (six items or fewer, not a passage) moves whole, so its items never leave their
   // instruction at a page break (v27 G1 Maths Q2, G2 English Q1 h, bd-5jmnfj.4.58.3).
-  const short = live.length <= 6 && !['comprehension', 'passage'].includes(slot.shape) ? ' short' : '';
+  // A slot taller than a page is never kept whole: it would jump to a fresh page and split there (bd-5jmnfj.33.8.1).
+  const boxMm = slotFlag(slot, 'answer_box') ? 12 + 8 * Math.max(0, (slot.lines || 1) - 1) : ((slot.lines || 0) >= 2 ? Math.max(16, slot.lines * 8) : 0);
+  const fits = grid || Fit.writeSlotFits({ stems: live.map((q) => q.question), boxMm, ur: lang === 'ur' });
+  const short = live.length <= 6 && fits && !['comprehension', 'passage'].includes(slot.shape) ? ' short' : '';
   // A Grade 1-2 slot prints its words once, boxed, above its items (bd-5jmnfj.4.20). The bank is
   // dealt so no word sits at its own item: a model lists them as it wrote them (bd-5jmnfj.4.50.9).
   const words = bankOrder([...new Set(live.flatMap((q) => (Array.isArray(q.words) ? q.words : [])))], live.map(matchAnswer));
