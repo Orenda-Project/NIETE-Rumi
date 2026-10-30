@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronRight, Smartphone, Users } from "lucide-react";
+import { ChevronDown, ChevronRight, Smartphone, Users } from "lucide-react";
 import { GradeSubjectLead, StatusChip } from "../../teacher/ui";
 import { subjectShort } from "../../teacher/ui/subjects";
 import { FeatureArt } from "../../teacher/icons/FeatureArt";
@@ -8,8 +8,8 @@ import { FEATURE_HUE } from "../../teacher/icons/features";
 import { useCopy, type Lang } from "../../teacher/i18n";
 import { SCHOOL_CARD } from "./copy";
 import { dayLabel } from "./period";
-import { ChangePill, FEATURE_OF } from "./parts";
-import type { Bucket, PeriodKey, ScoreKind, TeacherScoresData } from "./types";
+import { ChangePill, CountsRow, FEATURE_OF } from "./parts";
+import type { Bucket, FeatureCounts, PeriodKey, ScoreKind, TeacherScoresData } from "./types";
 
 /**
  * The School card's Digital Coaching and Coach observations pieces (design v9, 29 Oct): a score tile for the School card,
@@ -156,10 +156,12 @@ type DayState = "used" | "empty" | "future" | "blank";
 /**
  * Days used (variant A): "4/4" over "days used", then one dot per school day, filled where she used NIETE, an empty ring
  * where she did not, dashed for a day still ahead. This week: Mon–Fri in a row. This month: a Mon–Fri calendar of the
- * month (days outside it blank). Today: one dot. Information only.
+ * month (days outside it blank). Today: one dot. Under the dots, how many of those days each instrument was used on
+ * (`perFeature`), and with `to` the tile opens her days, one row per day with what she used (bd-dgfkgs.4).
  */
-export function DaysUsed({ period, today, from, buckets, used, withUse, schoolDays }: {
+export function DaysUsed({ period, today, from, buckets, used, withUse, schoolDays, perFeature, to, state }: {
   period: PeriodKey; today: string; from: string; buckets: readonly Bucket[]; used: readonly string[]; withUse: number | null; schoolDays: number | null;
+  perFeature?: FeatureCounts; to?: string; state?: unknown;
 }) {
   const C = useCopy(SCHOOL_CARD);
   const on = new Set(used);
@@ -205,13 +207,19 @@ export function DaysUsed({ period, today, from, buckets, used, withUse, schoolDa
       </div>
     );
   }
-  return (
-    <div role="group" data-testid="t-days" aria-label={`${withUse ?? C.dash}/${schoolDays ?? C.dash} ${C.daysUsed}`}
-      className="relative flex min-h-[104px] min-w-0 flex-col gap-1 rounded-2xl bg-[#e9ebef] px-3.5 pb-3 pt-3.5">
+  const inner = (
+    <>
       {head}
       {body}
-    </div>
+      {perFeature ? <span className="mt-1.5 pe-[22px]"><CountsRow counts={perFeature} /></span> : null}
+      {to ? <ChevronRight className="absolute bottom-3 end-2.5 h-[22px] w-[22px] text-[#9ca3af] rtl:rotate-180" aria-hidden="true" /> : null}
+    </>
   );
+  const label = `${withUse ?? C.dash}/${schoolDays ?? C.dash} ${C.daysUsed}`;
+  const cls = "relative flex min-h-[104px] min-w-0 flex-col gap-1 rounded-2xl bg-[#e9ebef] px-3.5 pb-3 pt-3.5";
+  return to
+    ? <Link to={to} state={state} data-testid="t-days" aria-label={label} className={`${cls} ${TAP}`}>{inner}</Link>
+    : <div role="group" data-testid="t-days" aria-label={label} className={cls}>{inner}</div>;
 }
 
 /**
@@ -296,30 +304,64 @@ const Value = ({ v, max }: { v: number; max: number }) => (
 
 /**
  * One section of "Average by practice": its letter, its name, its average out of the scale (the mean of its practices),
- * a note when only some of her reports scored it (B: the others had no lesson plan), then every practice the reports
- * scored with its average and a segmented bar. A section no report scored says "Not scored" (B: no lesson plan linked).
+ * a note when only some of her reports scored it (B: the others had no lesson plan). It starts CLOSED (operator, 30 Oct,
+ * bd-dgfkgs.2: open, the page was long and text-heavy): the head is a button, and tapping it shows every practice the
+ * reports scored with its average and a segmented bar. Lesson Plan Fidelity (B) is the plan steps instead (bd-dgfkgs.3):
+ * the share of plan steps followed, and when open each of the five lesson steps with how many of its plan steps were
+ * done. A section no report scored has nothing to open: a flat head that says "Not scored" and why (B: no plan linked).
  */
 export function PracticeSection({ section, reports, kind }: {
   section: TeacherScoresData["sections"][number]; reports: number; kind: ScoreKind;
 }) {
   const C = useCopy(SCHOOL_CARD);
+  const [open, setOpen] = useState(false);
+  const bodyId = useId();
   const colour = kindColour(kind);
   const max = section.indicators[0]?.scaleMax ?? null;
-  const scored = section.avg != null && max != null;
+  const plan = section.code === "B" ? section.plan ?? null : undefined;
+  const scored = plan !== undefined ? plan != null : section.avg != null && max != null;
+  const note = scored
+    ? (section.code === "B" && section.scoredIn < reports ? C.scoredIn(section.scoredIn, reports) : null)
+    : (section.code === "B" ? C.noLpLinked : null);
+  const head = (
+    <>
+      <span dir="ltr" aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#33374a] text-[14px] font-extrabold text-white">{section.code}</span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-start">
+        <b dir="auto" className="text-[17px] font-semibold leading-[1.3] rtl:leading-[1.8]">{section.name}</b>
+        {note ? <small className="text-[12.5px] font-semibold leading-[1.35] text-[#6b7280] rtl:leading-[1.8]">{note}</small> : null}
+      </span>
+      {!scored ? <StatusChip text={C.notScored} tone="info" />
+        : plan ? <span dir="ltr" className="shrink-0 whitespace-nowrap tabular-nums"><b className="text-[17px] font-bold">{C.pct(plan.pct)}</b></span>
+          : <Value v={section.avg as number} max={max as number} />}
+    </>
+  );
+  const HEAD = "flex min-h-[64px] w-full items-center gap-3 bg-[#f9fafb] px-3.5 py-2.5";
   return (
     <section data-testid="practice-section" data-code={section.code} className={`overflow-hidden ${CARD}`}>
-      <div className="flex min-h-[64px] items-center gap-3 bg-[#f9fafb] px-3.5 py-2.5">
-        <span dir="ltr" aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#33374a] text-[14px] font-extrabold text-white">{section.code}</span>
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <b dir="auto" className="text-[17px] font-semibold leading-[1.3] rtl:leading-[1.8]">{section.name}</b>
-          {scored && section.code === "B" && section.scoredIn < reports
-            ? <small className="text-[12.5px] font-semibold leading-[1.35] text-[#6b7280] rtl:leading-[1.8]">{C.scoredIn(section.scoredIn, reports)}</small>
-            : null}
-        </span>
-        {scored ? <Value v={section.avg as number} max={max as number} /> : <StatusChip text={C.notScored} tone="info" />}
-      </div>
       {scored
-        ? section.indicators.map((p) => (
+        ? (
+          <button type="button" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen((o) => !o)} className={`${HEAD} ${TAP}`}>
+            {head}
+            <ChevronDown className={`h-[22px] w-[22px] shrink-0 text-[#6b7280] motion-safe:transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+          </button>
+        )
+        : <div className={HEAD}>{head}</div>}
+      {scored && open && plan && <div id={bodyId}>{
+        plan.steps.map((s) => {
+          const judged = s.done + s.partly + s.skipped;
+          const tone = s.done === judged ? "done" : s.done === 0 && s.partly === 0 ? "skipped" : "partly";
+          return (
+            <div key={s.step} data-testid="plan-step" data-tone={tone} className="flex min-h-[52px] items-center gap-3 border-t border-[#f0f1f3] px-3.5 py-2 text-[15px]">
+              <span dir="auto" className="min-w-0 flex-1 font-semibold leading-[1.35] rtl:leading-[1.8]">{C.stepNames[s.step - 1] ?? C.dash}</span>
+              <span className={`inline-flex h-[26px] shrink-0 items-center rounded-full px-2.5 text-[12px] font-semibold ${tone === "done" ? "bg-[#eaf6ef] text-[#2f7a52]" : "bg-[#f3f4f6] text-[#374151]"}`}>
+                {C.stepsDone(s.done, judged)}
+              </span>
+            </div>
+          );
+        })
+      }</div>}
+      {scored && open && !plan && <div id={bodyId}>{
+        section.indicators.map((p) => (
           <div key={p.id} data-testid="practice-row" className="flex flex-col gap-2 border-t border-[#f0f1f3] px-3.5 py-2.5">
             <span className="flex items-start gap-2">
               <span dir="ltr" className="mt-0.5 shrink-0 text-[12.5px] font-semibold text-[#9ca3af]">{p.id}</span>
@@ -329,11 +371,7 @@ export function PracticeSection({ section, reports, kind }: {
             <Segments avg={p.avg} max={p.scaleMax} colour={colour} />
           </div>
         ))
-        : (
-          <p className="m-0 border-t border-[#f0f1f3] px-3.5 py-3 text-[14.5px] font-semibold text-[#6b7280] rtl:leading-[1.8]">
-            {section.code === "B" ? C.noLpLinked : C.notScored}
-          </p>
-        )}
+      }</div>}
     </section>
   );
 }

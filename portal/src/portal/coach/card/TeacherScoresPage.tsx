@@ -7,7 +7,7 @@ import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
 import { EmptyRow } from "../people/rows";
 import { SCHOOL_CARD } from "./copy";
 import { card } from "./api";
-import { CardOnly, useCardLoad } from "./frame";
+import { CardOnly, useBackTo, useCardLoad } from "./frame";
 import { pkDate, usePeriod, withPeriod } from "./period";
 import { PeriodChips, chartDate } from "./parts";
 import { DetailChart, PracticeSection, ReportRow, ScoreSummary } from "./scores";
@@ -28,6 +28,7 @@ function TeacherScores() {
   const { ext = "" } = useParams();
   const kind: ScoreKind = /\/observations\/?$/.test(useLocation().pathname) ? "coach" : "dc";
   const [period] = usePeriod();
+  const backTo = useBackTo(withPeriod(`/portal/coach/teacher/${encodeURIComponent(ext)}`, period));
   const { data, failed, reload } = useCardLoad<TeacherScoresData>(() => card.teacherScores(ext, kind, period), [ext, kind, period]);
   const known = useRef<TeacherScoresData["teacher"] | null>(null);
   if (data?.teacher) known.current = data.teacher;
@@ -39,7 +40,7 @@ function TeacherScores() {
 
   return (
     <PeopleFrame title={kind === "dc" ? C.digitalCoaching : C.coachObsName} crumb={t?.name || undefined} feature="schools"
-      backTo={withPeriod(`/portal/coach/teacher/${encodeURIComponent(ext)}`, period)}>
+      backTo={backTo}>
       <PeriodChips />
       {failed && <LoadFailed onRetry={reload} />}
       {!data && !failed && <Loading />}

@@ -89,6 +89,8 @@ export const SCHOOL_CARD_EN = {
   avgOf: { dc: "average AI score", coach: "average Coach score" },
   /** "days used" with "4/4" (the days she used NIETE out of the school days so far). */
   daysUsed: "days used",
+  /** Her days page's title (bd-dgfkgs.4). */
+  daysTitle: "Days used",
   /** One letter under each school day's dot (Sun..Sat). */
   dayInitials: ["S", "M", "T", "W", "T", "F", "S"],
   teacherCol: "Teacher",
@@ -145,6 +147,8 @@ export const SCHOOL_CARD_EN = {
   stepDone: "Done",
   stepSkipped: "Skipped",
   stepPartly: "Partly",
+  /** The report card's five lesson steps (bot report-card.js STEPS), in order: Lesson Plan Fidelity's rows (bd-dgfkgs.3). */
+  stepNames: ["Opening", "Explanation", "We Do", "You Do", "Check"],
   noPlan: "No lesson plan linked",
   reflection: "Her reflection",
   gradeSubject: (grade: string, subject: string) => `${grade} · ${subject}`,
@@ -212,6 +216,7 @@ export const SCHOOL_CARD_UR: SchoolCardCopy = {
   coachObsName: "کوچ کے مشاہدات",
   avgOf: { dc: "اوسط اے آئی اسکور", coach: "اوسط کوچ اسکور" },
   daysUsed: "استعمال کے دن",
+  daysTitle: "استعمال کے دن",
   dayInitials: ["ا", "پ", "م", "ب", "ج", "ج", "ہ"],
   teacherCol: "ٹیچر",
   scoresCol: "اسکور",
@@ -261,6 +266,8 @@ export const SCHOOL_CARD_UR: SchoolCardCopy = {
   stepDone: "مکمل",
   stepSkipped: "چھوڑ دیا",
   stepPartly: "جزوی",
+  // Machine-drafted (bd-dgfkgs.3, 30 Oct): no Urdu for the five steps existed anywhere; on the Urdu review list.
+  stepNames: ["آغاز", "وضاحت", "ہم کریں", "آپ کریں", "جانچ"],
   noPlan: "کوئی لیسن پلان نہیں جڑا",
   reflection: "ان کا غور و فکر",
   gradeSubject: (grade, subject) => `${grade} · ${subject}`,

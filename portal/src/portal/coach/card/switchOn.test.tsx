@@ -243,7 +243,7 @@ describe("the School card", () => {
 });
 
 describe("a feature by teacher", () => {
-  it("a column per school day, a School row, zero rows grey at the bottom, days ahead dashed; a row opens her page", async () => {
+  it("a column per school day, a School row, zero rows grey at the bottom, days ahead dashed; a row opens her lesson plans", async () => {
     on();
     const { container } = await renderApp(`/portal/coach/school/${EMIS}/feature/lp`);
     const g = await screen.findByTestId("teacher-grid");
@@ -256,7 +256,7 @@ describe("a feature by teacher", () => {
     expect(rows.slice(7).every((r) => r.getAttribute("data-none") === "1")).toBe(true);
     expect(rows.slice(0, 7).some((r) => r.getAttribute("data-none") === "1")).toBe(false);
     expect(rows[0].querySelectorAll('[data-cell="future"]')).toHaveLength(2);
-    expect(rows[0]).toHaveAttribute("href", `/portal/coach/teacher/${EXT}`);
+    expect(rows[0]).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/items/lp`);
     expect(within(g).getByTestId("grid-school")).toHaveTextContent(/School\s*9\s*7\s*8\s*24/);
     expect(screen.getByTestId("grid-summary")).toHaveTextContent("24 lesson plans");
     expect(screen.getByTestId("grid-summary")).toHaveTextContent("by 7 of 12 teachers");
@@ -264,6 +264,27 @@ describe("a feature by teacher", () => {
     expect(screen.getByTestId("grid-ahead")).toHaveTextContent("Thu and Fri are still ahead");
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Lesson plans by teacher");
     expectOnlyOpenLinks(container);
+  });
+
+  // bd-dgfkgs.1 (operator, 30 Oct): a row opens HER list of that feature (her assessments, her training modules), never
+  // her whole overview; Back returns to the list she came from, in the same period.
+  it.each([
+    ["lp", "Lesson plans by teacher", "All Lesson Plans", { items: [] }],
+    ["papers", "Assessments by teacher", "All Assessments", { items: [] }],
+    ["training", "Training parts by teacher", "Training", TRAINING_ITEMS],
+  ] as const)("%s: a row opens her list of that feature; Back returns to the list", async (feature, heading, herTitle, items) => {
+    on();
+    net.answers.set(`/coach/school/${EMIS}/feature/${feature}?period=month`, { ...grid(MONTH), feature });
+    net.answers.set(`/coach/teacher/${EXT}/items/${feature}?period=month`, items);
+    await renderApp(`/portal/coach/school/${EMIS}/feature/${feature}?period=month`);
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(heading));
+    const row = (await screen.findAllByTestId("grid-row"))[0];
+    expect(row).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/items/${feature}?period=month`);
+    await act(async () => { fireEvent.click(row); });
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(`/portal/coach/teacher/${EXT}/items/${feature}`));
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(herTitle));
+    expect(screen.getByTestId("page-crumb")).toHaveTextContent("Teacher Alpha");
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", `/portal/coach/school/${EMIS}/feature/${feature}?period=month`);
   });
 });
 
@@ -301,6 +322,16 @@ describe("Digital Coaching and Coach observations by teacher", () => {
     expect(rows[0]).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/observations`);
     expect(rows[0].querySelectorAll('[data-point="square"]')).toHaveLength(2);
   });
+
+  // bd-dgfkgs.1: like the three count lists, Back from her page returns to the list she was opened from.
+  it.each([["dc", "dc"], ["coach", "observations"]] as const)("%s by teacher: her page's Back returns to the list", async (kind, page) => {
+    on();
+    await renderApp(`/portal/coach/school/${EMIS}/feature/${kind}`);
+    const row = (await screen.findAllByTestId("score-row"))[0];
+    await act(async () => { fireEvent.click(row); });
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(`/portal/coach/teacher/${EXT}/${page}`));
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", `/portal/coach/school/${EMIS}/feature/${kind}`);
+  });
 });
 
 describe("a teacher", () => {
@@ -325,13 +356,17 @@ describe("a teacher", () => {
     expect(screen.getByTestId("t-papers")).toHaveTextContent("Assessments");
     expect(screen.getByTestId("t-papers")).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/items/papers`);
     expect(screen.getByTestId("t-training")).toHaveTextContent("1 course done");
-    // days used: one dot per school day, filled = used, dashed = still ahead
+    // days used: one dot per school day, filled = used, dashed = still ahead; under them, how many of those days each
+    // instrument was used on, and the tile opens her days (bd-dgfkgs.4)
     const days = screen.getByTestId("t-days");
-    expect(days.tagName).not.toBe("A");
+    expect(days.tagName).toBe("A");
+    expect(days).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/days`);
     expect(days).toHaveTextContent("2/3");
     expect(days).toHaveTextContent("days used");
     const kinds = Array.from(days.querySelectorAll("[data-day]")).map((d) => d.getAttribute("data-day"));
     expect(kinds).toEqual(["used", "empty", "used", "future", "future"]);
+    expect(Array.from(days.querySelectorAll("[data-count]")).map((c) => `${c.getAttribute("data-count")} ${c.textContent}`))
+      .toEqual(["lp 2", "dc 1", "training 1", "papers 1"]);
     for (const id of ["coaching-card", "her-reports", "score-chart"]) expect(screen.queryByTestId(id)).toBeNull();
     expect(container.textContent).not.toMatch(/Her coaching reports|Days with any NIETE use|Papers made/);
     expectOnlyOpenLinks(container);
@@ -347,6 +382,32 @@ describe("a teacher", () => {
     expect(kinds.filter((k) => k === "empty")).toHaveLength(18);
     expect(kinds.filter((k) => k === "future")).toHaveLength(2);
     expect(kinds.filter((k) => k === "blank")).toHaveLength(3);
+  });
+});
+
+describe("her days (bd-dgfkgs.4)", () => {
+  it("each day she used NIETE, newest first, with what she used that day; Back returns to her page", async () => {
+    on();
+    const { container } = await renderApp(`/portal/coach/teacher/${EXT}`);
+    await act(async () => { fireEvent.click(await screen.findByTestId("t-days")); });
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(`/portal/coach/teacher/${EXT}/days`));
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Days used"));
+    expect(screen.getByTestId("page-crumb")).toHaveTextContent("Teacher Alpha");
+    const rows = await screen.findAllByTestId("used-day");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("Today");
+    expect(Array.from(rows[0].querySelectorAll("[data-feature]")).map((f) => f.textContent)).toEqual(["Lesson plans", "Training parts"]);
+    expect(rows[1]).toHaveTextContent("Mon 26 Oct");
+    expect(Array.from(rows[1].querySelectorAll("[data-feature]")).map((f) => f.textContent)).toEqual(["Lesson plans", "Digital Coaching", "Assessments"]);
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", `/portal/coach/teacher/${EXT}`);
+    expectOnlyOpenLinks(container);
+  });
+
+  it("a period with no use says so", async () => {
+    on();
+    net.answers.set(`/coach/teacher/${EXT}/card?period=today`, { ...teacherCard(TODAY), tiles: { ...teacherCard(TODAY).tiles, days: { withUse: 0, schoolDays: 1, used: [], uses: [], perFeature: { lp: 0, dc: 0, training: 0, papers: 0 } } } });
+    await renderApp(`/portal/coach/teacher/${EXT}/days?period=today`);
+    expect(await screen.findByTestId("empty")).toHaveTextContent("Nothing today");
   });
 });
 
@@ -403,16 +464,47 @@ describe("her Digital Coaching page", () => {
     expect(screen.getByTestId("practices-head")).toHaveTextContent("Across her 2 reports · out of 2");
     const sections = screen.getAllByTestId("practice-section");
     expect(sections.map((x) => x.getAttribute("data-code"))).toEqual(["B", "C", "D", "F"]);
-    expect(sections[0]).toHaveTextContent("Lesson Plan Fidelity");
-    expect(sections[0]).toHaveTextContent("1.5/2");
-    expect(sections[0]).toHaveTextContent("Scored in 1 of 2 (the others had no lesson plan)");
-    const b1 = within(sections[0]).getByTestId("practice-row");
-    expect(b1).toHaveTextContent("B1");
-    expect(b1).toHaveTextContent("Instructional Clarity & Learning Objectives");
-    expect(b1).toHaveTextContent("1.5/2");
-    expect(b1.querySelectorAll("[data-seg]")).toHaveLength(2);
+    // bd-dgfkgs.2 (operator, 30 Oct): every domain starts closed; she taps one to see its practices
+    for (const s of sections) {
+      expect(within(s).getByRole("button")).toHaveAttribute("aria-expanded", "false");
+      expect(within(s).queryAllByTestId("practice-row")).toHaveLength(0);
+    }
+    await act(async () => { fireEvent.click(within(sections[1]).getByRole("button")); });
+    expect(within(sections[1]).getByRole("button")).toHaveAttribute("aria-expanded", "true");
+    expect(within(sections[2]).queryAllByTestId("practice-row")).toHaveLength(0);
+    const c1 = within(sections[1]).getAllByTestId("practice-row")[0];
+    expect(c1).toHaveTextContent("C1");
+    expect(c1).toHaveTextContent("Quality Questioning (Bloom's Aligned)");
+    expect(c1).toHaveTextContent("1.4/2");
+    expect(c1.querySelectorAll("[data-seg]")).toHaveLength(2);
     expect(sections[1]).toHaveTextContent("1.2/2");
     expect(sections[1]).not.toHaveTextContent("Scored in");
+    await act(async () => { fireEvent.click(within(sections[1]).getByRole("button")); });
+    expect(within(sections[1]).queryAllByTestId("practice-row")).toHaveLength(0);
+  });
+
+  // bd-dgfkgs.3 (operator, 30 Oct: "moves for both, DC and HITL"): B is the plan steps, never B1-B10
+  it("Lesson Plan Fidelity: the share of plan steps followed, and each of the five steps when opened; no B1-B10", async () => {
+    on();
+    const { container } = await renderApp(`/portal/coach/teacher/${EXT}/dc`);
+    await screen.findByTestId("scores-summary");
+    const b = screen.getAllByTestId("practice-section")[0];
+    expect(b).toHaveTextContent("Lesson Plan Fidelity");
+    expect(b).toHaveTextContent("75%");
+    expect(b).toHaveTextContent("Scored in 1 of 2 (the others had no lesson plan)");
+    expect(within(b).getByRole("button")).toHaveAttribute("aria-expanded", "false");
+    expect(within(b).queryAllByTestId("plan-step")).toHaveLength(0);
+    await act(async () => { fireEvent.click(within(b).getByRole("button")); });
+    const steps = within(b).getAllByTestId("plan-step");
+    expect(steps.map((s) => s.textContent)).toEqual([
+      expect.stringMatching(/^Opening.*2 of 2 steps/),
+      expect.stringMatching(/^Explanation.*1 of 1 steps/),
+      expect.stringMatching(/^We Do.*0 of 1 steps/),
+      expect.stringMatching(/^You Do.*1 of 1 steps/),
+      expect.stringMatching(/^Check.*0 of 1 steps/),
+    ]);
+    expect(steps.map((s) => s.getAttribute("data-tone"))).toEqual(["done", "done", "partly", "done", "skipped"]);
+    expect(container.textContent).not.toMatch(/\bB\d+\b/);
   });
 
   it("her reports: the grade-subject tile, the title (topic, else the subject's lesson), the day, the AI score; each opens its report", async () => {
@@ -457,6 +549,8 @@ describe("her Coach observations page", () => {
     const b = screen.getAllByTestId("practice-section")[0];
     expect(b).toHaveTextContent("Not scored");
     expect(b).toHaveTextContent("No lesson plan linked, so this section was not scored");
+    // nothing to open, so nothing that looks tappable
+    expect(within(b).queryByRole("button")).toBeNull();
     expect(screen.getByTestId("reports-head")).toHaveTextContent("Her observations");
     const rows = screen.getAllByTestId("report-row");
     expect(rows[0]).toHaveTextContent("Unitary Method");
@@ -495,10 +589,10 @@ describe("the coach's view of a DC report", () => {
     expect(screen.getByTestId("coach-view")).toBeInTheDocument();
     expect(screen.getByTestId("went-well")).toHaveTextContent("You explained halves and quarters correctly.");
     expect(screen.getByTestId("next-step")).toHaveTextContent("Give students two minutes to discuss in pairs.");
+    // B is its plan steps below, never B1-B10 here (bd-dgfkgs.3)
     const practices = screen.getAllByTestId("practice");
-    expect(practices.map((p) => p.textContent)).toEqual([expect.stringContaining("B1"), expect.stringContaining("C1")]);
-    expect(practices[0]).toHaveTextContent("2/2");
-    expect(practices[1]).toHaveTextContent("1/2");
+    expect(practices.map((p) => p.textContent)).toEqual([expect.stringContaining("C1")]);
+    expect(practices[0]).toHaveTextContent("1/2");
     expect(screen.getByTestId("not-scored")).toHaveTextContent("Not scored: F6");
     // the fidelity check's own verdicts: executed = Done, not_done = Skipped, not_adjudicable = Not scored (never a miss)
     const steps = screen.getAllByTestId("lp-step");

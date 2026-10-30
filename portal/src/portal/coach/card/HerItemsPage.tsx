@@ -7,7 +7,7 @@ import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
 import { EmptyRow } from "../people/rows";
 import { SCHOOL_CARD } from "./copy";
 import { card } from "./api";
-import { CardOnly, useCardLoad } from "./frame";
+import { CardOnly, useBackTo, useCardLoad } from "./frame";
 import { dayLabel, pkDate, usePeriod, withPeriod } from "./period";
 import { FEATURE_OF, PeriodChips } from "./parts";
 import type { ItemsData, ItemsFeature, LpItem, PaperItem, TrainingCourse } from "./types";
@@ -57,6 +57,7 @@ function HerItems() {
   const feature = (FEATURES as readonly string[]).includes(raw) ? (raw as ItemsFeature) : null;
   const [period] = usePeriod();
   const from = (useLocation().state || {}) as { teacherName?: string };
+  const backTo = useBackTo(withPeriod(`/portal/coach/teacher/${encodeURIComponent(ext)}`, period));
   const { data, failed, reload } = useCardLoad<ItemsData>(
     () => (feature ? card.items(ext, feature, period) : Promise.reject(new Error("unknown feature"))), [ext, feature, period]);
   const today = data?.period?.today ?? pkDate(new Date().toISOString()) ?? undefined;
@@ -80,7 +81,7 @@ function HerItems() {
 
   return (
     <PeopleFrame title={feature ? C.allOf[feature] : C.dash} crumb={from.teacherName || undefined} feature={feature ? FEATURE_OF[feature] : "schools"}
-      backTo={withPeriod(`/portal/coach/teacher/${encodeURIComponent(ext)}`, period)}>
+      backTo={backTo}>
       <PeriodChips />
       {failed && <LoadFailed onRetry={reload} />}
       {!data && !failed && <Loading />}

@@ -92,7 +92,8 @@ export default function TeacherCardPage() {
             sub={tiles.training?.courses != null ? C.coursesDone(tiles.training.courses) : undefined}
             bars={mini("training", tiles.training?.series)} to={list("training")} state={state} />
           <DaysUsed period={period} today={data.period.today} from={data.period.from} buckets={buckets}
-            used={tiles.days?.used ?? []} withUse={tiles.days?.withUse ?? null} schoolDays={tiles.days?.schoolDays ?? null} />
+            used={tiles.days?.used ?? []} withUse={tiles.days?.withUse ?? null} schoolDays={tiles.days?.schoolDays ?? null}
+            perFeature={tiles.days?.perFeature} to={tiles.days?.uses ? withPeriod(`${me}/days`, period) : undefined} state={state} />
         </div>
       )}
       {data && !tiles && <EmptyRow icon={<span>·</span>}>{C.dash}</EmptyRow>}

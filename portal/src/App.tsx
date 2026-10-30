@@ -103,6 +103,8 @@ const CoachLanding = page(() => import("./portal/coach/card/CoachLanding"));
 // The School card's own pages (each shows Not found unless the switch is on for her).
 const CoachFeatureGrid = page(() => import("./portal/coach/card/FeatureGridPage"));
 const CoachHerItems = page(() => import("./portal/coach/card/HerItemsPage"));
+// Her days: each day she used NIETE and what she used (bd-dgfkgs.4).
+const CoachHerDays = page(() => import("./portal/coach/card/DaysUsedPage"));
 // Her Digital Coaching and her Coach observations (one page, two addresses); the old Her coaching reports, her DC and
 // coach-visit lists and /coaching open them.
 const CoachTeacherScores = page(() => import("./portal/coach/card/TeacherScoresPage"));
@@ -349,6 +351,7 @@ const App = () => {
             <Route path="/portal/coach/school/:emis/remove-teachers" element={<CoachRemoveTeachers />} />
             <Route path="/portal/coach/teacher/:ext" element={<CoachTeacher />} />
             <Route path="/portal/coach/teacher/:ext/items/:feature" element={<CoachHerItems />} />
+            <Route path="/portal/coach/teacher/:ext/days" element={<CoachHerDays />} />
             <Route path="/portal/coach/teacher/:ext/dc" element={<CoachTeacherScores />} />
             <Route path="/portal/coach/teacher/:ext/observations" element={<CoachTeacherScores />} />
             <Route path="/portal/coach/teacher/:ext/coaching" element={<CoachCoachingRedirect />} />
