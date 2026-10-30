@@ -1,0 +1,3 @@
+{"ts":"2026-10-30T18:12:05Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"21c9dae55134","branch":"demo/portal-commit-niete","user":"Mah Noor"}
+{"ts":"2026-10-30T18:12:07Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons spec_sync=true","sha":"21c9dae55134","branch":"demo/portal-commit-niete","user":"Mah Noor"}
+{"ts":"2026-10-30T18:12:22Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-lessons=none-needed (the commit adds one comment line to LessonsPage.tsx, which changes nothing a teacher sees)","sha":"21c9dae55134","branch":"demo/portal-commit-niete","user":"Mah Noor"}
