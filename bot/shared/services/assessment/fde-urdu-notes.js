@@ -29,6 +29,9 @@ const isEnglish = (t) => /[A-Za-z]/.test(t) && (!URDU_LETTER.test(t) || (t.match
 function urduNote(text, kind, type, index = 0) {
   const t = String(text ?? '');
   if (!isEnglish(t)) return text;
+  // «English — Urdu»: the Urdu half carries the bands, so print it rather than the bank note (v37r6 g2 Q9).
+  const urduHalf = t.split(/\s[—–]\s/).find((part) => URDU_LETTER.test(part) && !isEnglish(part));
+  if (urduHalf) return urduHalf.trim();
   const note = BANK[type] || GENERIC;
   if (kind === 'error') return note.error;
   return note.point[Math.min(index, note.point.length - 1)];

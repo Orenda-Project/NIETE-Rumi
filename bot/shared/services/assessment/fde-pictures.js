@@ -23,6 +23,9 @@
 const crypto = require('crypto');
 const Svg = require('./fde-picture-svg');
 const Kie = require('./fde-picture-kie');
+const Describe = require('./fde-picture-describe');
+const { circuitPicture } = require('./fde-circuit-frame');
+const { insetFramed } = require('./fde-picture-inset-frame');
 
 // v3: pictures cached under v2 carry arrows and scan edges (bd-5jmnfj.4.30) and are never reused.
 const PREFIX = 'fde-pictures/v3';
@@ -33,7 +36,15 @@ const RATE_WAITS_MS = [5000, 15000, 30000];
 // Pictures whose cached drawing was rejected on review get a fresh key, so they are drawn again.
 // v17: the egg has a curve that reads like a smile (bd-5jmnfj.4.37).
 const REDRAWN = { egg: 'r1' };
+// v29: a scene rejected on review, by its describe hash. The v28 G2 Urdu Q7 park scene was cut off at the edge (bd-5jmnfj.4.58.5).
+const REDRAWN_SCENES = { '72b1e44a': 'r1' };
+// v37 loop 4: G2 English Q10 and Q15 scenes came back framed twice and failed the paper; a framed drawing
+// is tried up to FRAME_TRIES times, each retry told plainly not to draw a box (bd-5jmnfj.4.58.9).
+const FRAME_TRIES = 3;
+const NO_BOX = 'Do not draw any box, rectangle, panel or border line around the picture or inside its edges: no rectangle, '
+  + 'the drawing stands on open white paper.';
 // v17: the framed sock had 34% of its outer 3px grey; scenes whose ground line touches the edge have under 2%.
+const PROMPT_REV = 'r27';
 const RING_PX = 3;
 const FRAME_SHARE = 0.2;
 
@@ -48,12 +59,17 @@ const canon = (text) => String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, 
 function cacheKey(picture) {
   if (picture.kind === 'scene') {
     const told = canon(picture.describe) + (picture.place ? `|${picture.place}` : '')
-      + (picture.show ? `|${JSON.stringify(picture.show)}` : '');
+      + (picture.show ? `|${JSON.stringify(picture.show)}` : '')
+      // v26: a bubble in the describe, and the position and compare wording, changed what is drawn (bd-5jmnfj.4.58.2).
+      + (Describe.hasBubble(picture.describe) ? '|nb1' : '') + (picture.place || picture.show ? `|${PROMPT_REV}` : '');
     const hash = crypto.createHash('sha256').update(told).digest('hex').slice(0, 8);
-    return `${PREFIX}/scene-no-text/${slug(picture.describe)}-${hash}.jpg`;
+    const rev = REDRAWN_SCENES[hash];
+    return `${PREFIX}/scene-no-text/${slug(picture.describe)}-${hash}${rev ? `-${rev}` : ''}.jpg`;
   }
   const name = slug(picture.name);
-  return `${PREFIX}/object/${REDRAWN[name] ? `${name}-${REDRAWN[name]}` : name}.jpg`;
+  // v26: a masculine person was drawn a woman; one drawn before the markers were added is never reused.
+  const rev = REDRAWN[name] || (picture.living ? 'l1' : '') || (Describe.genderNote(picture.name) ? 'm1' : ''); // l1: a living figure drawn with its face (bd-5jmnfj.4.58.4)
+  return `${PREFIX}/object/${rev ? `${name}-${rev}` : name}.jpg`;
 }
 
 /** True when the outer ring of a greyscale image ({data, width, height}) is mostly not white: a frame. */
@@ -67,7 +83,8 @@ function framed({ data, width, height }) {
       if (data[y * width + x] < 235) dark += 1;
     }
   }
-  return ring > 0 && dark / ring > FRAME_SHARE;
+  // v29: a frame drawn a little inside the picture (G2 Urdu Q7, G1 English Q13 ii) is a frame too.
+  return (ring > 0 && dark / ring > FRAME_SHARE) || insetFramed({ data, width, height });
 }
 
 function realDeps() {
@@ -152,13 +169,13 @@ async function modelPicture(picture, d) {
     if (!(await isFramed(cached, d))) return cached;
   }
   const prompt = Kie.promptFor(picture);
-  for (let tries = 0; tries < 2; tries += 1) {
-    const jpg = await d.shrink(await draw(prompt, d));
+  for (let tries = 0; tries < FRAME_TRIES; tries += 1) {
+    const jpg = await d.shrink(await draw(tries ? `${prompt} ${NO_BOX}` : prompt, d));
     if (await isFramed(jpg, d)) continue;
     await d.uploadBuffer(jpg, key, 'image/jpeg', { cacheControl: CACHE_CONTROL });
     return jpg;
   }
-  throw new Error('the picture came back with a grey frame twice');
+  throw new Error(`the picture came back with a grey frame ${FRAME_TRIES} times`);
 }
 
 /** Sets picture.src on every item that carries a picture. Throws PICTURE_FAILED on the first it cannot draw. */
@@ -198,12 +215,31 @@ function pictureFrameSlots(examJson) {
   return new Set(slots.filter((s) => s.frame && s.frame.kind === 'picture').map((s) => s.slot));
 }
 
+// G5 Science Q1 (b): a label frame whose key is the five circuit symbols prints them (bd-5jmnfj.4.58.2).
+function drawCircuitFrames(examJson) {
+  const L = examJson && examJson._layout;
+  const labelSlots = new Set(((L && L.sections) || []).flatMap((s) => s.slots || [])
+    .filter((s) => s.frame && s.frame.kind === 'diagram').map((s) => s.slot));
+  for (const types of Object.values((examJson && examJson.unseen) || {})) {
+    for (const list of Object.values(types || {})) {
+      for (const q of Array.isArray(list) ? list : []) {
+        const picture = q && labelSlots.has(q.slot) ? circuitPicture(q) : null;
+        if (!picture) continue;
+        q.picture = picture;
+        delete q.teacher_note_en;
+        delete q.teacher_note_ur;
+      }
+    }
+  }
+}
+
 /**
  * A G5 picture-description frame (v24 review) gets a plain black-outline scene drawn from the
  * item's English `describe_en`. Unlike a Grade 1-2 picture this never fails the paper: an item
  * whose drawing fails keeps no picture, so it prints today's empty frame and the "You add" line.
  */
 async function resolveFramePictures(examJson, deps = null) {
+  drawCircuitFrames(examJson);
   const wanted = pictureFrameSlots(examJson);
   const items = [];
   for (const types of Object.values((examJson && examJson.unseen) || {})) {
@@ -229,6 +265,7 @@ async function resolveFramePictures(examJson, deps = null) {
       if (d.log) d.log('[assessment] frame picture failed', { slot: q.slot || null, describe: picture.describe, cause: err.message });
     }
   }));
+  require('./fde-picture-scene').noteUndrawnScenes(examJson); // an undrawn scene prints on the teacher line, so the key and the paper agree
   return examJson;
 }
 

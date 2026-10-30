@@ -5,6 +5,7 @@
 ## Entry points
 - `fake-postgrest.js` — in-memory PostgREST used by versioned-editing tests (assessment-versions-service.test.js)
 - `urdu-concept-once.js`, `urdu-spares.js` — Urdu replay helpers for fde-r11/r13-urdu and fde-recorded-replies tests
+- `early-writer-harness.js` — the faked FDE early writer (`run(grade, key, {replies, oralReplies})`) shared by fde-early-writer and fde-v34-urdu-oral-flagged tests
 - No test files here: jest runs them via parents, `node tests/run.js tests/assessment --maxWorkers=2` from repo root
 <!-- read: map-read-niete-portal 2026-10-29 -->
 

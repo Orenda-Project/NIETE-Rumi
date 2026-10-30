@@ -83,6 +83,10 @@ function oralPrompt({ oral, grade, P, pageContent, saidCheck = true }) {
     ...(saidCheck && oral.tasks.some((t) => t.kind === 'listening')
       ? ['For a listening task, every answer except the last (apply) one is said in the story in words; a question never asks a feeling, reason or detail the story does not say.']
       : []),
+    ...(oral.tasks.some((t) => t.kind === 'listening')
+      ? ['A listening question never asks which line, مصرع or part of the text something is in, and every question names its subject: never start with «ہر ایک» or «وہ» with nothing before it. Each answer is a concrete thing the text says.']
+      : []),
+    'Any title or name from the book is written inside a complete sentence, never after a colon or with a stray word left after it.',
     // v25 G2 Urdu stopped the poem mid-line and keyed «گا رہی ہیں», which it never read (bd-5jmnfj.4.57).
     'Quote whole lines from the book: never stop mid-line. Every answer uses only words the script says, except an apply question about the child\'s own life.',
     'No bracketed notes: what you write is read aloud as it stands, so never add a note to yourself, such as "(Note: use 9)". Make the numbers in each question agree with its answer.',
@@ -93,16 +97,21 @@ function oralPrompt({ oral, grade, P, pageContent, saidCheck = true }) {
 // A bracketed note the writer left for itself ("(Note: use 9 cats)"): a teacher must never read it out
 // (bd-5jmnfj.4.51.6). The task is asked again, not stripped: the numbers around the note are wrong too.
 const WRITER_NOTE = /[([]\s*(?:note\b|nb\b|n\.b\b|writer\b|generator\b|نوٹ)[^)\]]*[)\]]/i;
+const { extraNumbers } = require('./fde-oral-numbers'); // bd-5jmnfj.4.58.2
+const { badListeningAsks } = require('./fde-listening-asks'); // bd-5jmnfj.4.58.4
+const { urduOralBad } = require('./fde-early-urdu-oral'); const { orphanPronouns } = require('./fde-read-aloud-antecedent'); // v29 Urdu oral rows; v37 r3 pronoun with no antecedent
 const hasNote = (t) => typeof t === 'string' && WRITER_NOTE.test(t);
 
 /**
- * The reply read against the tasks: `content` for the sheet, `missing` the task ids it did not fill.
+ * The reply read against the tasks: `content` for the sheet, `missing` the task ids it did not fill, `flagged` the Urdu
+ * tasks it filled with the wording off (two asks, a stem said back, a dialogue opening with a reply): asked again once,
+ * mended by urduOralFixes, never missing (v34 g1/g2 Urdu came back ORAL_SHORT on the poem, bd-5jmnfj.4.58.6.1).
  * `saidCheck: false` (a topic paper) skips the listening word check.
  */
 function oralContent(tree, oral, { saidCheck = true } = {}) {
   const list = Array.isArray(tree && tree.oral) ? tree.oral : [];
   const content = [];
-  const missing = [];
+  const missing = []; const flagged = [];
   for (const task of oral.tasks) {
     const got = list.find((x) => x && x.id === task.id);
     const items = got && Array.isArray(got.items) ? got.items.filter((it) => it && String(it.ask || '').trim()) : [];
@@ -110,11 +119,26 @@ function oralContent(tree, oral, { saidCheck = true } = {}) {
     const noted = hasNote(script) || (got && Array.isArray(got.items) && got.items.some((it) => it && (hasNote(it.ask) || hasNote(it.answer))));
     // A listening answer the story never says is asked again (bd-5jmnfj.4.55); an Urdu script is skipped.
     const unsaid = saidCheck && task.kind === 'listening' && unsaidWords(script, task.n ? items.slice(0, task.n) : items).length > 0;
-    const whole = !noted && !unsaid && (!needsScript(task) || script) && items.length >= (task.n || 0);
+    // An oral mental-maths item naming a number it does not ask about is asked again (v26 G1 Maths item 1).
+    const extra = task.kind === 'oral_maths' && extraNumbers(items).length > 0;
+    const lineAsk = task.kind === 'listening' && badListeningAsks(items).length > 0; // a line-position or subjectless question (v28 G1 Urdu poem)
+    const whole = !noted && !unsaid && !extra && !lineAsk && (!needsScript(task) || script) && items.length >= (task.n || 0);
     if (!got || !whole) { missing.push(task.id); continue; }
+    if ((/[\u0600-\u06FF]/.test(script + items.map((it) => it.ask).join(' ')) && urduOralBad(task.id, items, script).length > 0) || (task.kind === 'read_aloud' && orphanPronouns(script).length > 0)) flagged.push(task.id);
     content.push({ id: task.id, ...(script ? { script } : {}), items: task.n ? items.slice(0, task.n) : items });
   }
-  return { content, missing };
+  return { content, missing, flagged };
+}
+
+/**
+ * After the oral re-ask: a task in `redo` (a read-aloud with a give-away, a flagged task) takes the second reply's version
+ * when it has one, every other task keeps the first reply's; a task neither filled is missing, a kept flagged one stays flagged.
+ */
+function mergeOral(tasks, first, next, redo) {
+  const find = (r, t) => r.content.find((c) => c.id === t.id);
+  const picked = tasks.map((t) => [t, (redo.has(t.id) ? [next, first] : [first, next]).find((r) => find(r, t))]).filter(([, r]) => r);
+  const missing = tasks.map((t) => t.id).filter((id) => !picked.some(([t]) => t.id === id));
+  return { content: picked.map(([t, r]) => find(r, t)), missing, flagged: picked.filter(([t, r]) => (r.flagged || []).includes(t.id)).map(([t]) => t.id) };
 }
 
 function eachItem(examJson, fn) {
@@ -244,7 +268,7 @@ function answerShortfall(examJson, P) {
     const sl = slots.get(q.slot);
     if (!sl || (!sameOptions(q) && (!sl.answer_ok || sl.answer_ok(q)))) return;
     const r = out.get(q.slot) || { slot: q.slot, reason: 'answer', items: [] };
-    r.items.push(`${String(q.question).trim()} → ${String(q.answer).trim()}`);
+    r.items.push(`${String(q.question == null ? q.main_question : q.question).trim()} → ${String(q.answer == null ? 'see the questions' : q.answer).trim()}`);
     out.set(q.slot, r);
   });
   // A crude word in an Urdu item is asked again like a key off its rule (bd-5jmnfj.4.51.1); the
@@ -271,6 +295,6 @@ function answerNote(shortfall, P) {
 }
 
 module.exports = {
-  NO_PICTURES, PICTURE_RULE, maskP, sectionPrompt, oralPrompt, oralContent, pictureShortfall, repeatedPictures, takenPicturesNote,
+  NO_PICTURES, PICTURE_RULE, maskP, sectionPrompt, oralPrompt, oralContent, mergeOral, pictureShortfall, repeatedPictures, takenPicturesNote,
   answerShortfall, answerNote, askedNote,
 };

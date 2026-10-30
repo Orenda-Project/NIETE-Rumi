@@ -12,6 +12,12 @@
  * words and a key word is in the other's answer. The later one is flagged. English only: an Urdu stem
  * changes its endings between two questions on one lesson.
  *
+ * v27 (bd-5jmnfj.4.58.2): v26 G5 Science still printed Q3(a)8 (iron nails turn orange) beside Q2(b)(ii)c, keyed
+ * «Rust is a new substance, so it is a chemical change» both times: no rule compared two written answers.
+ * Added: a short answer that is 75% inside another item's answer (shorter one 4 or more content words); an MCQ
+ * key with 3 or more words its own stem lacks, half of them in another item's answer or in one of its mark
+ * points (a long answer was never read, so the drum MCQ's «higher amplitude» was missed against Q3(b)5).
+ *
  * Pure: exam JSON in, flags out.
  */
 
@@ -19,13 +25,19 @@ const WORD = /[\p{L}\p{M}]+/gu;
 const ARABIC = /[؀-ۿ]/;
 const STOP = new Set(('what which when where why does while made make makes nobody happens happen statement correct each other '
   + 'before after give reason this that there their they them then than have from with into your these those will would '
-  + 'more less most many much same only some what about because takes take place').split(' '));
+  + 'more less most many much same only some what about because takes take place '
+  // v27 G5 Maths: two word problems sharing only "Find the value … simplest form" / "show your working" are not one
+  // question twice (bd-5jmnfj.4.58.3). Task words carry no content; the list is read before stemming.
+  + 'find value answer answers simplest form following show working number write solve words').split(' '));
 const words = (s) => String(s == null ? '' : s).toLowerCase().match(WORD) || [];
 const stem = (w) => w.replace(/(ing|ed|es|s)$/, '') || w;
 const content = (s) => [...new Set(words(s).filter((w) => w.length >= 4 && !STOP.has(w)).map(stem))];
 // "b) They repel each other" -> "They repel each other", as fde-early-prompt reads a choice.
 const choice = (o) => String(o == null ? '' : o).replace(/^\s*\(?[^\s)]{1,3}\)\s*/, '').trim();
 const LONG_ANSWER = 40; // a paragraph uses everyday science words; it is not one question's answer
+
+// What an item's mark points say, one content list each (a short sentence, unlike a long model answer).
+const pointsOf = (q) => ((q.scheme && Array.isArray(q.scheme.points)) ? q.scheme.points : []).map((p) => content(p && p.text)).filter((c) => c.length);
 
 /** The questions in paper order: the layout's slot order, then the order the model wrote them. */
 function itemsInOrder(examJson) {
@@ -45,8 +57,8 @@ function itemsInOrder(examJson) {
 function units(q, i) {
   const subs = (Array.isArray(q.questions) ? q.questions : []).filter(Boolean);
   const mcq = Array.isArray(q.options) && q.options.length > 1;
-  return [{ i, stem: q.question, answer: mcq ? '' : q.answer, key: mcq ? choice(q.answer) : null },
-    ...subs.map((s) => ({ i, stem: s.question, answer: s.answer, key: null }))]
+  return [{ i, stem: q.question, answer: mcq ? '' : q.answer, key: mcq ? choice(q.answer) : null, pts: pointsOf(q) },
+    ...subs.map((s) => ({ i, stem: s.question, answer: s.answer, key: null, pts: pointsOf(s) }))]
     .filter((u) => String(u.stem || '').trim() && !ARABIC.test(u.stem))
     .map((u) => ({ ...u, s: content(u.stem), a: words(u.answer).length <= LONG_ANSWER ? content(u.answer) : [], k: u.key ? content(u.key) : [] }));
 }
@@ -61,6 +73,22 @@ function repeat(u, v) {
     const given = shared(x.k, y.a);
     if (x.k.length >= 3 && given.length * 3 >= x.k.length * 2) return given;
     if (stems.length >= 3 && given.length) return given;
+  }
+  return answerPair(u, v);
+}
+
+// v27: two short answers that are the same answer; an MCQ key's own words in the other item's answer or point.
+function answerPair(u, v) {
+  const [lo, hi] = u.a.length <= v.a.length ? [u, v] : [v, u];
+  if (lo.a.length >= 4) {
+    const both = shared(lo.a, hi.a);
+    if (both.length * 4 >= lo.a.length * 3) return both;
+  }
+  for (const [x, y] of [[u, v], [v, u]]) {
+    const own = x.k.filter((w) => !x.s.includes(w));
+    if (own.length < 3) continue;
+    const best = [y.a, ...y.pts].map((t) => shared(own, t)).sort((a, b) => b.length - a.length)[0];
+    if (best.length >= 3 && best.length * 2 >= own.length) return best;
   }
   return null;
 }
@@ -108,4 +136,4 @@ function nearRepeats(examJson) {
   return [...out.values()];
 }
 
-module.exports = { itemsInOrder, nearPairs, nearRepeats };
+module.exports = { itemsInOrder, nearPairs, nearRepeats, content, choice };

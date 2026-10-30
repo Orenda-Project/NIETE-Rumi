@@ -106,16 +106,18 @@ function entryOf(label, q, topics) {
   return lines.join('\n');
 }
 
-function buildStemCheckPrompt(examJson, P) {
+function buildStemCheckPrompt(examJson, P, opts = {}) {
+  const grade = opts.grade || 5;
   const targets = targetsOf(examJson, P);
   const body = [...targets].map(([label, q]) => entryOf(label, q, targets.withTopics.has(q))).join('\n\n');
-  const prompt = `STEM CHECK: Grade 5 board question paper.
+  const prompt = `STEM CHECK: Grade ${grade} board question paper.
 Below is every printed question, each with the answer and marking the teacher holds. A label like Q2b.1 is an item; Q2b.1.c is its sub-question (c), which is read with the item's situation above it. Q2.1.ii.a is sub-question (a) of group ii. under item Q2.1, read with that item's passage above it. "parts:" are printed under their question as i), ii)…, so a question that says "the following" has its list there. "table:" is printed under its question (rows split by /), so a question that says "the table shows" has its data there. "topics:" are printed under their question as (a), (b), (c) for the child to choose from, so a question that says "any one topic" has its topics there.
 
 Flag a question ONLY when one of these is true:
 1. Its wording contradicts itself or is garbled, so a child cannot tell what is being asked (two questions run together, a "but" that joins things that do not clash, a half sentence).
 2. It asks about something its own situation or passage does not contain.
 3. Its answer, points or accept line are about a different question (other objects, another situation).
+4. Its answer, points or accept line contradict its own passage or situation (a True/False keyed against what the passage says, who does what reversed, a fill-in whose word the passage does not use).
 
 Do NOT flag style, difficulty, level, length, spelling, or a question you would merely phrase differently. Most papers have no flags.
 
@@ -219,8 +221,8 @@ function applyStemFixes(examJson, P, flags, { refuses = () => false } = {}) {
 }
 
 // One read and its fixes. `ask(prompt)` resolves to the model's parsed JSON reply.
-async function runStemCheck({ examJson, P, ask, refuses }) {
-  const { prompt, targets } = buildStemCheckPrompt(examJson, P);
+async function runStemCheck({ examJson, P, ask, refuses, grade }) {
+  const { prompt, targets } = buildStemCheckPrompt(examJson, P, { grade });
   const flags = parseStemFlags(await ask(prompt), targets);
   return applyStemFixes(examJson, P, flags, { refuses });
 }

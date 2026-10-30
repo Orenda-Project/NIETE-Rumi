@@ -22,6 +22,9 @@
  */
 
 const { dropContradictedAccepts, tidyAccepts } = require('./scheme-accept-check');
+const { namesPrintedLetter } = require('./fde-printed-letter-note');
+const { dropPassageAnswer } = require('./fde-sub-answers');
+const { splitIdeaPoints } = require('./fde-science-r2'); // v37 round 7: a filled Science Q2 (b) row, one point per idea
 
 const BLOOMS = Object.freeze({
   remember: 'Remember', r: 'Remember',
@@ -312,6 +315,11 @@ function normaliseOne(holder, marks, questionText, slot, label, log) {
     }
   }
 
+  // A note naming a letter the stem prints is wrong for this item: held back (bd-5jmnfj.4.58.2).
+  if (typeof s.common_error === 'string' && namesPrintedLetter(holder.question, s.common_error)) {
+    log.push(`${label}: common_error names a printed letter, dropped`);
+    delete s.common_error;
+  }
   // An alternative the common error names is that error (bd-5jmnfj.4.50.10).
   if (Array.isArray(s.accept) && typeof s.common_error === 'string') {
     const { accept, dropped } = dropContradictedAccepts(s.accept, holder.answer, s.common_error);
@@ -455,8 +463,9 @@ function normaliseSituationParts(q, slot, label, log, ctx) {
     const own = answerOf(sub.answer) || partOfAnswer(q.answer, k);
     if (own) {
       fillPoints(sub, each, own);
+      if (/^science\./.test(slot.slot)) sub.scheme.points = splitIdeaPoints(own, each); // per-idea points, so partial credit is possible
       ctx.filled.push({ slot: slot.slot, item: ctx.item, part, filled_by: 'code' });
-      log.push(`${where}: no points; one A point of ${show(each)} written on the answer`);
+      log.push(`${where}: no points; ${sub.scheme.points.length} A point(s) of ${show(each)} written on the answer`);
     } else if (q.removed !== true) {
       // A situation answer with no letters cannot say which part it answers: still short.
       ctx.shortfall.push({ slot: slot.slot, kind: 'answer', item: ctx.item, part, have: 0, need: 1 });
@@ -550,6 +559,7 @@ function normaliseScheme(examJson) {
           list.forEach((q, i) => {
             const where = `${tree}.${category}.${type}[${i}]`;
             try {
+              if (dropPassageAnswer(q)) log.push(`${where}: passage answer dropped, its parts carry the answers`);
               normaliseQuestion(q, slots, where, log, shortfall, { filled, item: i });
             } catch (err) {
               if (isObject(q)) delete q.scheme;

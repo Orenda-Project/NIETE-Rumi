@@ -25,6 +25,10 @@ jest.mock('@anthropic-ai/sdk', () => function Anthropic() { return { messages: {
 jest.mock('../../bot/shared/utils/model-cost', () => ({ recordModelCost: () => {} }));
 jest.mock('../../bot/shared/config/supabase', () => ({ from: () => ({ select: () => ({ in: async () => ({ data: [], error: null }) }) }) }));
 jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: () => {} }));
+// The science fixture predates the v29 whole-paper give-away checks (MCQ/concept/fraction); they are pinned in fde-v29-g5-*.test.js (bd-5jmnfj.4.58.4).
+jest.mock('../../bot/shared/services/assessment/fde-g5-paper-giveaways', () => ({ paperGiveaways: () => [] }));
+// Same for the Science give-away flags (bd-5jmnfj.4.58 v37 round 8): the stock science fixture overlaps topically (lungs, brain, living things), so first-pass flags would add re-asks this test does not count. The flags are pinned in fde-v37-science-r3.test.js.
+jest.mock('../../bot/shared/services/assessment/fde-science-giveaway-drop', () => ({ ...jest.requireActual('../../bot/shared/services/assessment/fde-science-giveaway-drop'), scienceGiverFlags: () => [] }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: (...a) => mockState.logs.push(a) }));
 jest.mock('../../bot/shared/services/e2e-cassette', () => ({ mode: () => 'off', wrapChatCompletions: () => {} }));
 jest.mock('../../bot/shared/services/assessment/book-content.service', () => ({
