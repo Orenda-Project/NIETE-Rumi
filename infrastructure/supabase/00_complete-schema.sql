@@ -8238,5 +8238,47 @@ ALTER TABLE coach_feedback ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS service_role_coach_feedback ON coach_feedback;
 CREATE POLICY service_role_coach_feedback ON coach_feedback FOR ALL USING (auth.role() = 'service_role');
 GRANT ALL ON coach_feedback TO service_role;
+-- ── app_feedback (migration V1.8.6) — Send feedback from the coach app's More ──────────────────────────────
+-- Mirrors infrastructure/supabase/migrations/V1.8.6__app_feedback.sql: one row per send (a topic, her words and/or a
+-- voice message, up to three screenshots); transcript and notified_at filled in afterwards.
+CREATE TABLE IF NOT EXISTS app_feedback (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           UUID NOT NULL REFERENCES users (id),
+  topic             TEXT NOT NULL CHECK (topic IN ('problem', 'idea', 'other')),
+  message           TEXT CHECK (message IS NULL OR char_length(message) BETWEEN 1 AND 2000),
+  audio_key         TEXT,
+  audio_transcript  TEXT,
+  photo_keys        TEXT[] NOT NULL DEFAULT '{}' CHECK (cardinality(photo_keys) <= 3),
+  context           JSONB NOT NULL DEFAULT '{}'::jsonb,
+  notified_at       TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT app_feedback_says_something CHECK (message IS NOT NULL OR audio_key IS NOT NULL)
+);
+
+-- The service's 24-hour count per person, and the team's newest-first read.
+CREATE INDEX IF NOT EXISTS idx_app_feedback_user_created ON app_feedback (user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_app_feedback_created ON app_feedback (created_at DESC);
+
+COMMENT ON TABLE app_feedback IS 'Send feedback from the app''s More page (bd-x1tl95): one row per send; a topic, her words and/or a voice message, up to three screenshots. Transcript and notified_at filled in after the send. Owner: NIETE portal team. Steward: the NIETE data steward named in the metadata registry.';
+COMMENT ON COLUMN app_feedback.id IS '[Internal] row id (UUID v4)';
+COMMENT ON COLUMN app_feedback.user_id IS '[Internal] who sent it (users.id)';
+COMMENT ON COLUMN app_feedback.topic IS '[Internal] problem = something is not working, idea, other';
+COMMENT ON COLUMN app_feedback.message IS '[Confidential] her own words, trimmed; NULL when she only spoke';
+COMMENT ON COLUMN app_feedback.audio_key IS '[PII] R2 key of her voice message (feedback_audio/<user>/<YYYY-MM>/portal_<id>)';
+COMMENT ON COLUMN app_feedback.audio_transcript IS '[Confidential] the voice message as text; NULL until transcribed, or when it could not be';
+COMMENT ON COLUMN app_feedback.photo_keys IS '[Confidential] R2 keys of her screenshots (feedback_images/<user>/portal_<id>), at most 3';
+COMMENT ON COLUMN app_feedback.context IS '[Internal] where it was sent from: surface, browser class, app build. No user agent, no phone';
+COMMENT ON COLUMN app_feedback.notified_at IS '[Internal] when the team''s Slack post went out (UTC); NULL = not posted';
+COMMENT ON COLUMN app_feedback.created_at IS '[Internal] row written (UTC)';
+COMMENT ON COLUMN app_feedback.updated_at IS '[Internal] row last changed (UTC); set by trigger';
+
+DROP TRIGGER IF EXISTS app_feedback_updated_at ON app_feedback;
+CREATE TRIGGER app_feedback_updated_at BEFORE UPDATE ON app_feedback FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE app_feedback ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS service_role_app_feedback ON app_feedback;
+CREATE POLICY service_role_app_feedback ON app_feedback FOR ALL USING (auth.role() = 'service_role');
+GRANT ALL ON app_feedback TO service_role;
 
 NOTIFY pgrst, 'reload schema';

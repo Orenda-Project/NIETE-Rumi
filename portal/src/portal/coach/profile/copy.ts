@@ -25,6 +25,8 @@ export const COACH_PROFILE_EN = {
   sent: "Sent",
   thanks: "Thank you",
   notSent: "Not sent",
+  // bd-x1tl95 — the More row to Send feedback; the page's own words are coach/feedback/copy.ts
+  feedback: "Send feedback",
 };
 
 export const COACH_PROFILE_UR: Words<typeof COACH_PROFILE_EN> = {
@@ -44,6 +46,7 @@ export const COACH_PROFILE_UR: Words<typeof COACH_PROFILE_EN> = {
   sent: "بھیجا گیا",
   thanks: "شکریہ",
   notSent: "نہیں بھیجا گیا",
+  feedback: "رائے بھیجیں",
 };
 
 export const COACH_PROFILE = bilingual(COACH_PROFILE_EN, COACH_PROFILE_UR);
