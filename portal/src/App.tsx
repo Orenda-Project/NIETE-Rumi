@@ -119,8 +119,6 @@ const CoachSendReport = page(() => import("./portal/coach/reports/SendReport"));
 const CoachEditTeacher = page(() => import("./portal/coach/pages/CoachEditTeacher"));
 // bd-4404s7.2 — the coach's More and her own profile.
 const CoachMore = page(() => import("./portal/coach/profile/CoachMore"));
-// bd-whlsm0: More → Report an issue.
-const CoachReport = page(() => import("./portal/coach/profile/CoachReport"));
 const CoachProfile = page(() => import("./portal/coach/profile/CoachProfile"));
 // bd-x1tl95 — Send feedback, from the coach's More (voice note, words, screenshots).
 const CoachFeedback = page(() => import("./portal/coach/feedback/FeedbackPage"));
@@ -347,7 +345,6 @@ const App = () => {
             <Route path="/portal/coach/teacher/:ext/edit" element={<CoachEditTeacher />} />
             {/* bd-4404s7.2 — the coach menu and her own profile. */}
             <Route path="/portal/coach/more" element={<CoachMore />} />
-            <Route path="/portal/coach/more/report" element={<CoachReport />} />
             <Route path="/portal/coach/profile" element={<CoachProfile />} />
             <Route path="/portal/coach/feedback" element={<CoachFeedback />} />
             {/* bd-s42dye.2 — the Training Library, behind the same CoachGate (each page gates itself). */}

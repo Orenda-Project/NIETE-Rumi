@@ -30,8 +30,8 @@ function presignUpload({ userId, filename, sizeBytes, kind }) {
 }
 
 /** @param {{userId, topic, text, audioKey, photoKeys, context}} args */
-function submitFeedback({ userId, topic, text, audioKey, photoKeys, context }) {
-  return post('submit', { userId, topic, text, audioKey, photoKeys, context });
+function submitFeedback({ userId, topic, text, audioKey, photoKeys, page, context }) {
+  return post('submit', { userId, topic, text, audioKey, photoKeys, page, context });
 }
 
 module.exports = { presignUpload, submitFeedback };

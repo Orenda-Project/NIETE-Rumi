@@ -16,15 +16,6 @@ export const COACH_PROFILE_EN = {
   account: "Account",
   privacy: "Privacy policy",
   deleteAccount: "Delete account",
-  // bd-whlsm0: More → Report an issue (the row and the page's title), its two questions and what it says after Send.
-  report: "Report an issue",
-  reportKind: "Kind of issue",
-  kinds: { broken: "Something isn't working", numbers: "Numbers look wrong", idea: "An idea", other: "Something else" },
-  reportMessage: "Your message",
-  send: "Send",
-  sent: "Sent",
-  thanks: "Thank you",
-  notSent: "Not sent",
   // bd-x1tl95 — the More row to Send feedback; the page's own words are coach/feedback/copy.ts
   feedback: "Send feedback",
 };
@@ -38,14 +29,6 @@ export const COACH_PROFILE_UR: Words<typeof COACH_PROFILE_EN> = {
   account: "اکاؤنٹ",
   privacy: "پرائیویسی پالیسی",
   deleteAccount: "اکاؤنٹ حذف کریں",
-  report: "مسئلہ بتائیں",
-  reportKind: "مسئلے کی قسم",
-  kinds: { broken: "کچھ خراب ہے", numbers: "اعداد غلط ہیں", idea: "ایک تجویز", other: "کچھ اور" },
-  reportMessage: "آپ کا پیغام",
-  send: "بھیجیں",
-  sent: "بھیجا گیا",
-  thanks: "شکریہ",
-  notSent: "نہیں بھیجا گیا",
   feedback: "رائے بھیجیں",
 };
 
