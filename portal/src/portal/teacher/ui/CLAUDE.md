@@ -1,7 +1,7 @@
 # ui — Teacher UI kit: shared components, styles, bidi and copy defaults (see README.md)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/ui kg=ea251c67a8d2 gen=337449438669 overflow=168 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/ui kg=a130c1d32824 gen=a21fbd9747a8 overflow=168 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `README.md` — catalogue of every kit component, props and the rules; `index.ts` — barrel
@@ -19,8 +19,8 @@ Full index: `CLAUDE.index.md`
 | … | 85 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `styles.ts` ← imported by `portal/src/portal/coach/disagreements/CoachingBox.tsx:4:d8e874ab` · `portal/src/portal/coach/disagreements/DisagreementCard.tsx:6:cbd9177e` (+115)
-- `index.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:5:537d2327` · `portal/src/portal/coach/analytics/model.ts:2:0fe353a8` (+96)
+- `styles.ts` ← imported by `portal/src/portal/coach/disagreements/CoachingBox.tsx:4:d8e874ab` · `portal/src/portal/coach/disagreements/DisagreementCard.tsx:6:cbd9177e` (+114)
+- `index.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:5:537d2327` · `portal/src/portal/coach/analytics/model.ts:2:0fe353a8` (+98)
 - … 52 more → `CLAUDE.index.md`
 
 ## Never (human)

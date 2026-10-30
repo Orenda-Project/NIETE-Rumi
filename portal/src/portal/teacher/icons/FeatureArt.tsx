@@ -12,7 +12,10 @@ import './featureMotion.css';
  * given — the tile's words already name the feature.
  */
 
-const ART: Record<AnyFeature, ReactElement> = {
+/** Everything FeatureArt draws: the features, and the Quizzes tile's picture (not a feature: no hue, no menu glyph). */
+export type ArtName = AnyFeature | 'quiz';
+
+const ART: Record<ArtName, ReactElement> = {
   lessons: (
     <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5 13.5c6.5-2.2 13-1.6 19 1.8 6-3.4 12.5-4 19-1.8v24.5c-6.5-2.2-13-1.6-19 1.8-6-3.4-12.5-4-19-1.8z" fill="#2f7a52" />
@@ -157,6 +160,36 @@ const ART: Record<AnyFeature, ReactElement> = {
       </g>
     </g>
   ),
+  // The Quizzes tile's picture (operator, 30 Oct 2026, mockup v6): a question bubble over three answers, the right one
+  // ticked, in Lesson Plans' green (a quiz follows a lesson). The bubble pulses, the answers hop in turn, the tick draws
+  // in, a gold sparkle twinkles. Built from the motion set's own keyframes.
+  quiz: (
+    <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <g className="fm-an fm-bub fm-qbub">
+        <path d="M13 3h22a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-8.5L24 20.5 21.5 17H13a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3z" fill="#2f7a52" />
+        <path d="M21.6 8.3a2.4 2.4 0 1 1 3.4 2.2c-.8.4-1 .9-1 1.6" fill="none" stroke="#fff" strokeWidth="1.8" />
+        <circle cx="24" cy="14.4" r="1" fill="#fff" stroke="none" />
+      </g>
+      <g className="fm-an fm-hop fm-t1">
+        <rect x="8" y="23.5" width="32" height="5.5" rx="2.75" fill="#fff" />
+        <circle cx="11.6" cy="26.25" r="1.5" fill="#fff" />
+        <path d="M15.5 26.25h16" fill="none" stroke="#c9d6ce" strokeWidth="1.6" />
+      </g>
+      <g className="fm-an fm-hop fm-t2">
+        <rect x="8" y="31" width="32" height="5.5" rx="2.75" fill="#eaf6ef" />
+        <circle cx="11.6" cy="33.75" r="2" fill="#2f7a52" />
+        <path className="fm-an fm-dr fm-t5" pathLength={100} d="M10.7 33.8l.8.8 1.6-1.7" fill="none" stroke="#fff" strokeWidth="1.1" />
+        <path d="M15.5 33.75h12" fill="none" stroke="#2f7a52" strokeWidth="1.6" />
+      </g>
+      <g className="fm-an fm-hop fm-t3">
+        <rect x="8" y="38.5" width="32" height="5.5" rx="2.75" fill="#fff" />
+        <circle cx="11.6" cy="41.25" r="1.5" fill="#fff" />
+        <path d="M15.5 41.25h14" fill="none" stroke="#c9d6ce" strokeWidth="1.6" />
+      </g>
+      <path className="fm-an fm-tw fm-t4" d="M42.5 2.5 43.6 5.4 46.5 6.5 43.6 7.6 42.5 10.5 41.4 7.6 38.5 6.5 41.4 5.4z" fill="#d4a017" />
+      <path className="fm-an fm-tw fm-t6" d="M5.5 15.8 6.1 17.4 7.7 18 6.1 18.6 5.5 20.2 4.9 18.6 3.3 18 4.9 17.4z" fill="#2f7a52" />
+    </g>
+  ),
 };
 
 /**
@@ -167,7 +200,7 @@ const ART: Record<AnyFeature, ReactElement> = {
 const STILL = "[animation:none!important] [&_*]:[animation:none!important] [transition:none!important] [&_*]:[transition:none!important]";
 
 export interface FeatureArtProps {
-  feature: AnyFeature;
+  feature: ArtName;
   /** px; 48 is the drawing's own size, Home uses 76–80. */
   size?: number;
   /** Only when the art stands alone: makes it an image with this name. */

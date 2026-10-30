@@ -15,6 +15,7 @@ import { readHome, resetHomeMemo } from "./api";
 import { resetHomeLookMemory, resetHomeOrderMemory } from "./useHomeData";
 import { HOME_CARD_COPY, HOME_CARD_COPY_UR } from "./copy";
 import Home from "../pages/Home";
+import { QuizFeatureTile } from "./QuizTile";
 import { teacherPath } from "../routes";
 import type { TeacherFeature } from "../paths";
 
@@ -70,8 +71,9 @@ beforeEach(() => {
   resetHomeLookMemory();
 });
 
-describe.each([["the card's Home", CARD], ["the new look", LOOK]])("%s", (_name, features) => {
-  it("quizTile true → Quizzes is the 2nd tile of the grid, right after Lesson plans; the 9th tile spans the full width; a tap logs quiz_tile and opens the quiz home", async () => {
+// The card build's grid is two per row (nine → the last spans both); the look's is three per row (nine fill three rows).
+describe.each([["the card's Home", CARD, true], ["the new look", LOOK, false]] as const)("%s", (_name, features, lastSpans) => {
+  it("quizTile true → Quizzes is the 2nd tile of the grid, right after Lesson plans; the grid ends whole; a tap logs quiz_tile and opens the quiz home", async () => {
     const assign = vi.fn();
     const real = window.location;
     Object.defineProperty(window, "location", { configurable: true, value: { ...real, assign } });
@@ -89,8 +91,9 @@ describe.each([["the card's Home", CARD], ["the new look", LOOK]])("%s", (_name,
       expect(cells[2].getAttribute("href")).toBe(teacherPath(FIXED[1] as TeacherFeature));
       // every other tile keeps its order, one place on
       expect(cells.filter((c) => c !== tile).map((c) => c.getAttribute("href"))).toEqual(FIXED.map((k) => teacherPath(k as TeacherFeature)));
-      // nine in two columns: the last one spans both, no other does
-      expect(cells[8].className).toMatch(/\bcol-span-2\b/);
+      // two per row: the 9th spans both, no other does; three per row: none does
+      if (lastSpans) expect(cells[8].className).toMatch(/\bcol-span-2\b/);
+      else expect(cells[8].className).not.toMatch(/\bcol-span-2\b/);
       cells.slice(0, 8).forEach((c) => expect(c.className).not.toMatch(/\bcol-span-2\b/));
       await userEvent.setup().click(tile);
       expect(vi.mocked(api.post)).toHaveBeenCalledWith("/me/home/tap", { kind: "quiz_tile" });
@@ -133,5 +136,17 @@ describe("the words", () => {
     expect(HOME_CARD_COPY_UR.quizTile).toBe("کوئز");
     expect([...HOME_CARD_COPY.quizTile].length).toBeLessThanOrEqual(20);
     expect([...HOME_CARD_COPY_UR.quizTile].length).toBeLessThanOrEqual(20);
+  });
+});
+
+describe("the picture", () => {
+  it("both Homes' Quizzes tile draws the moving quiz picture (80px on the card build's, 44px compact on the look's), not a lucide badge", () => {
+    const { container, rerender } = render(<QuizFeatureTile quizHome="/quiz/teacher/tok" onGo={vi.fn()} />);
+    const big = container.querySelector('svg[data-feature-art="quiz"]');
+    expect(big?.getAttribute("width")).toBe("80");
+    expect(container.querySelector("svg.lucide")).toBeNull();
+    rerender(<QuizFeatureTile quizHome="/quiz/teacher/tok" onGo={vi.fn()} compact />);
+    expect(container.querySelector('svg[data-feature-art="quiz"]')?.getAttribute("width")).toBe("44");
+    expect(screen.getByTestId("tile-quiz").className.split(" ")).toContain("min-h-[104px]");
   });
 });

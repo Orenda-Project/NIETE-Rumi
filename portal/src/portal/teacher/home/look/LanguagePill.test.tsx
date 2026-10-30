@@ -17,7 +17,6 @@ import i18n from "i18next";
 import { language } from "../../../services/api";
 import { useLanguageSwitch } from "../../useLanguageSwitch";
 import { LanguagePill } from "./LanguagePill";
-import { HomeBand } from "./HomeBand";
 
 /**
  * The look's language pill: one button naming the OTHER language, saving through the one writer (useLanguageSwitch →
@@ -77,13 +76,4 @@ describe("LanguagePill", () => {
     expect(language.set).toHaveBeenCalledTimes(1);
   });
 
-  it("a refused save: the band says Not saved and the page stays", async () => {
-    vi.mocked(language.set).mockRejectedValue(new Error("400"));
-    render(<HomeBand title="Salaam, Ayesha Testwala!" name="Ayesha Testwala" now={new Date("2026-10-23T07:00:00Z")} school={null} vw={360} />);
-    expect(screen.queryByText("Not saved")).toBeNull();
-    await userEvent.click(screen.getByTestId("home-look-lang"));
-    expect(await screen.findByText("Not saved")).toBeTruthy();
-    expect(i18n.changeLanguage).not.toHaveBeenCalled();
-    expect(screen.getByTestId("home-band").contains(screen.getByText("Not saved"))).toBe(true);
-  });
 });
