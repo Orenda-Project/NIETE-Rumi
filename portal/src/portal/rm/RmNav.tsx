@@ -8,6 +8,7 @@ import { Rail } from "../coachip-ui/Rail";
 import { LangToggle } from "../coachip-ui/LangToggle";
 import { currentRmItem, RM_NAV, type RmNavKey } from "./paths";
 import { useRmSession } from "./RmGate";
+import { RmLogoutRow } from "./RmLogout";
 import { rt } from "./text";
 
 /**
@@ -15,7 +16,7 @@ import { rt } from "./text";
  * NavBar (phone) and Rail (laptop, ≥ 1024) as the coach's menu (CODE_MAP C1: one owner keeps them one pattern), lucide
  * 20 px line icons. The rail carries EN | اردو at its foot; on a phone it sits in the page's band or app bar (RmFrame).
  * A user who is also a flagged coach gets "This week" back to their own S1. The language toggle writes through the one
- * writer (useLanguageSwitch → setUserLanguage).
+ * writer (useLanguageSwitch → setUserLanguage). fix-r5 s6 (a): the rail's foot also carries Log out (RmLogout).
  */
 function Glyph({ k }: { k: RmNavKey }) {
   const p = { size: 20, strokeWidth: 1.5, "aria-hidden": true as const };
@@ -49,7 +50,7 @@ export default function RmNav() {
             {rt("nav.this_week", lang)}
           </Link>
         )}
-        lang={<LangSwitch />}
+        lang={<><LangSwitch /><RmLogoutRow /></>}
       />
       {/* bd-sex15q.47 (ux-lead-2 164236): a dual's way back to their own S1 on a phone is the bar's first item */}
       <NavBar testId="rm-nav" ariaLabel={C.menu} items={isCoach
