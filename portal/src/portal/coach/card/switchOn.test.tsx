@@ -434,26 +434,47 @@ describe("her Digital Coaching page", () => {
     expect(screen.getByTestId("practices-head")).toHaveTextContent("Across her 2 reports · out of 2");
     const sections = screen.getAllByTestId("practice-section");
     expect(sections.map((x) => x.getAttribute("data-code"))).toEqual(["B", "C", "D", "F"]);
-    expect(sections[0]).toHaveTextContent("Lesson Plan Fidelity");
-    expect(sections[0]).toHaveTextContent("1.5/2");
-    expect(sections[0]).toHaveTextContent("Scored in 1 of 2 (the others had no lesson plan)");
     // bd-dgfkgs.2 (operator, 30 Oct): every domain starts closed; she taps one to see its practices
     for (const s of sections) {
       expect(within(s).getByRole("button")).toHaveAttribute("aria-expanded", "false");
       expect(within(s).queryAllByTestId("practice-row")).toHaveLength(0);
     }
-    await act(async () => { fireEvent.click(within(sections[0]).getByRole("button")); });
-    expect(within(sections[0]).getByRole("button")).toHaveAttribute("aria-expanded", "true");
-    expect(within(sections[1]).queryAllByTestId("practice-row")).toHaveLength(0);
-    const b1 = within(sections[0]).getByTestId("practice-row");
-    expect(b1).toHaveTextContent("B1");
-    expect(b1).toHaveTextContent("Instructional Clarity & Learning Objectives");
-    expect(b1).toHaveTextContent("1.5/2");
-    expect(b1.querySelectorAll("[data-seg]")).toHaveLength(2);
+    await act(async () => { fireEvent.click(within(sections[1]).getByRole("button")); });
+    expect(within(sections[1]).getByRole("button")).toHaveAttribute("aria-expanded", "true");
+    expect(within(sections[2]).queryAllByTestId("practice-row")).toHaveLength(0);
+    const c1 = within(sections[1]).getAllByTestId("practice-row")[0];
+    expect(c1).toHaveTextContent("C1");
+    expect(c1).toHaveTextContent("Quality Questioning (Bloom's Aligned)");
+    expect(c1).toHaveTextContent("1.4/2");
+    expect(c1.querySelectorAll("[data-seg]")).toHaveLength(2);
     expect(sections[1]).toHaveTextContent("1.2/2");
     expect(sections[1]).not.toHaveTextContent("Scored in");
-    await act(async () => { fireEvent.click(within(sections[0]).getByRole("button")); });
-    expect(within(sections[0]).queryAllByTestId("practice-row")).toHaveLength(0);
+    await act(async () => { fireEvent.click(within(sections[1]).getByRole("button")); });
+    expect(within(sections[1]).queryAllByTestId("practice-row")).toHaveLength(0);
+  });
+
+  // bd-dgfkgs.3 (operator, 30 Oct: "moves for both, DC and HITL"): B is the plan steps, never B1-B10
+  it("Lesson Plan Fidelity: the share of plan steps followed, and each of the five steps when opened; no B1-B10", async () => {
+    on();
+    const { container } = await renderApp(`/portal/coach/teacher/${EXT}/dc`);
+    await screen.findByTestId("scores-summary");
+    const b = screen.getAllByTestId("practice-section")[0];
+    expect(b).toHaveTextContent("Lesson Plan Fidelity");
+    expect(b).toHaveTextContent("75%");
+    expect(b).toHaveTextContent("Scored in 1 of 2 (the others had no lesson plan)");
+    expect(within(b).getByRole("button")).toHaveAttribute("aria-expanded", "false");
+    expect(within(b).queryAllByTestId("plan-step")).toHaveLength(0);
+    await act(async () => { fireEvent.click(within(b).getByRole("button")); });
+    const steps = within(b).getAllByTestId("plan-step");
+    expect(steps.map((s) => s.textContent)).toEqual([
+      expect.stringMatching(/^Opening.*2 of 2 steps/),
+      expect.stringMatching(/^Explanation.*1 of 1 steps/),
+      expect.stringMatching(/^We Do.*0 of 1 steps/),
+      expect.stringMatching(/^You Do.*1 of 1 steps/),
+      expect.stringMatching(/^Check.*0 of 1 steps/),
+    ]);
+    expect(steps.map((s) => s.getAttribute("data-tone"))).toEqual(["done", "done", "partly", "done", "skipped"]);
+    expect(container.textContent).not.toMatch(/\bB\d+\b/);
   });
 
   it("her reports: the grade-subject tile, the title (topic, else the subject's lesson), the day, the AI score; each opens its report", async () => {
@@ -538,10 +559,10 @@ describe("the coach's view of a DC report", () => {
     expect(screen.getByTestId("coach-view")).toBeInTheDocument();
     expect(screen.getByTestId("went-well")).toHaveTextContent("You explained halves and quarters correctly.");
     expect(screen.getByTestId("next-step")).toHaveTextContent("Give students two minutes to discuss in pairs.");
+    // B is its plan steps below, never B1-B10 here (bd-dgfkgs.3)
     const practices = screen.getAllByTestId("practice");
-    expect(practices.map((p) => p.textContent)).toEqual([expect.stringContaining("B1"), expect.stringContaining("C1")]);
-    expect(practices[0]).toHaveTextContent("2/2");
-    expect(practices[1]).toHaveTextContent("1/2");
+    expect(practices.map((p) => p.textContent)).toEqual([expect.stringContaining("C1")]);
+    expect(practices[0]).toHaveTextContent("1/2");
     expect(screen.getByTestId("not-scored")).toHaveTextContent("Not scored: F6");
     // the fidelity check's own verdicts: executed = Done, not_done = Skipped, not_adjudicable = Not scored (never a miss)
     const steps = screen.getAllByTestId("lp-step");
