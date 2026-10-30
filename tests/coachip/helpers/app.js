@@ -15,6 +15,9 @@ const { createCoachipCodes } = require('../../../dashboard/services/coachip-code
 const { createCoachipScope } = require('../../../dashboard/services/coachip-scope.service');
 const { isFlagEnabledForUser, rmSectorFor, PORTAL_COACHIP_KEY, PORTAL_COACHIP_DECODE_KEY } = require('../../../dashboard/lib/feature-flags');
 
+// The flag readers cache app_settings for 30 s (1cde063493); these suites switch rows mid-file, so every ask reads.
+process.env.FLAG_CACHE_TTL_MS = '0';
+
 /** supabase.from('app_settings').select('value').eq('key', k).maybeSingle() over pg — the only shape the flag readers use. */
 function pgSupabase(query) {
   return {

@@ -354,7 +354,6 @@
     "GET /config": {
       "status": 200,
       "body": {
-        "bot": "null",
         "features": {
           "assessmentEditing": "boolean",
           "assessmentGenerator": "boolean",
@@ -367,8 +366,8 @@
           "coachip": "boolean",
           "coachipDecode": "boolean",
           "coachipRm": "boolean",
-          "loginIntlNumbers": "boolean",
           "newUi": "boolean",
+          "schoolCard": "boolean",
           "selfObservation": "boolean",
           "teacherHomeCard": "boolean",
           "teacherHomeLook": "boolean",
