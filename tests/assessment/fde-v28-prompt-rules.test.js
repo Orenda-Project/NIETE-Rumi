@@ -127,7 +127,7 @@ describe('G5 Urdu', () => {
   test('Q7 pays for no title and its model answer names only what the picture holds', () => {
     const rule = g5('urdu', 'urdu.C.Q7').prompt_rule;
     expect(rule).toMatch(/never a title \(عنوان\)/);
-    expect(rule).toMatch(/model answer names only what `describe` holds/);
+    expect(rule).toMatch(/model answer states only what `describe_en` lists/);
   });
 });
 

@@ -14,7 +14,7 @@
 
 const { alignCriteria } = require('./fde-g5-criteria-2');
 
-const TITLE = /عنوان/;
+const TITLE = /^عنوان/; // a row that opens with the title; the application form row lists عنوان among its parts (v37 Q10)
 const THIN = /کم از کم آٹھ باتیں/;
 const COUNT = /(\S+)\s+سے\s+(\S+)\s+جملے/;
 

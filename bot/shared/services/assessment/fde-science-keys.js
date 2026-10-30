@@ -15,6 +15,13 @@
  * - Q3 (b) contagious diseases: the accept line adds vaccination (polio vaccine drops).
  * - Q1 (a) non-contagious disease: malaria and cholera are defensible second answers; measles and influenza replace them.
  *
+ * v37 (round 6, v34 review):
+ * - Q3 (b) compass: the model answer said Earth's magnetic north attracts the needle's north end (unlike poles attract).
+ * - Q3 (a) contagious: the accept line paid malaria (a mosquito) and cholera (water) as person-to-person.
+ * - Q3 (b) COVID-19 and polio: the key paid clean water for polio and nothing for the vaccine.
+ * - Q3 (a) «one way different and one way alike»: the key paid three differences; it pays one and the likeness.
+ * - Q3 (b) bulb: a cause a child can meet is a fused or loose bulb, not wires of plastic or wood.
+ *
  * Pure: one item in, the item out; notes are strings pushed on `notes`. Never throws on an item it cannot read.
  */
 
@@ -104,10 +111,63 @@ const nonContagious = (q, notes) => {
   return { ...q, options: opts.map((o) => o.replace(/malaria|cholera/i, (w) => swap[w.toLowerCase()])) };
 };
 
+// v37 compass: unlike poles attract, so the needle's north-seeking end is drawn to Earth's magnetic pole in the north.
+const COMPASS_SENTENCE = /Earth's magnetic north attracts the north end of the needle and the south attracts its south end, so the needle lines up with Earth's magnetic poles\./i;
+const compass = (q, notes) => {
+  if (!COMPASS_SENTENCE.test(String(q.answer))) return q;
+  notes.push(`${q.slot}: the key said a magnetic north attracts the needle's north end; unlike poles attract`);
+  const points = pts(q).map((p) => (/attracts the needle's ends/i.test(text(p))
+    ? { ...p, text: 'Unlike poles attract, so the needle\'s north-seeking end is pulled towards Earth\'s magnetic pole in the north and it lines up north-south' } : p));
+  return { ...withScheme(q, { points }), answer: q.answer.replace(COMPASS_SENTENCE, 'Unlike poles attract, so the needle\'s north-seeking end is pulled towards Earth\'s magnetic pole in the north (a magnetic south pole), and the needle lines up north-south.') };
+};
+
+const contagiousDefine = (q, notes) => {
+  if (!accept(q).some((a) => /malaria|cholera/i.test(a))) return q;
+  notes.push(`${q.slot}: malaria (mosquito) and cholera (water) are not passed from person to person; dropped from the accept line`);
+  return withScheme(q, { accept: accept(q).map((a) => a.replace(/\s*(?:malaria|cholera),?/gi, '').replace(/,\s*,/g, ',').replace(/\s{2,}/g, ' ').trim()) });
+};
+
+// v37 polio: the protection a child knows best is the vaccine; clean water stays as a second way.
+const polio = (q, notes) => {
+  const clean = (p) => /clean water[^|]*protect against polio/i.test(text(p));
+  if (!pts(q).some(clean) || pts(q).some((p) => /vaccin|polio drops/i.test(text(p)))) return q;
+  notes.push(`${q.slot}: polio protection is the vaccine (polio drops); the key paid clean water alone`);
+  const points = pts(q).map((p) => (clean(p) ? { ...p, text: 'The polio vaccine (polio drops) protects against polio; clean water and sanitation also help' } : p));
+  const k = withScheme(q, { points, accept: [...accept(q), 'Polio drops or the polio vaccine as the way to protect against polio'] });
+  return { ...k, answer: String(k.answer).replace(/and clean water and sanitation protect against polio\./i, 'and the polio vaccine (polio drops) protects against polio, with clean water and sanitation helping too.') };
+};
+
+// v37 one way different, one way alike: one difference point (the others become accepted answers) and one likeness point.
+const compare = (q, notes) => {
+  if (!/\bone way\b[^.?]*\bdifferent\b[^.?]*\bone way\b[^.?]*\balike\b/i.test(String(q.question))) return q;
+  const alike = (p) => /^alike/i.test(text(p));
+  const diffs = pts(q).filter((p) => !alike(p));
+  const likes = pts(q).filter(alike);
+  if (diffs.length < 2 || likes.length !== 1) return q;
+  const sum = pts(q).reduce((s, p) => s + (Number(p.marks) || 0), 0);
+  const like = Math.min(2, sum - 1);
+  notes.push(`${q.slot}: asks one difference and one likeness; the key paid ${diffs.length} differences, now one difference (${sum - like}) and the likeness (${like})`);
+  const points = [{ ...diffs[0], text: 'One correct difference (the answers below are all accepted)', marks: sum - like }, { ...likes[0], marks: like }];
+  return withScheme(q, { points, accept: [...diffs.map((d) => `Difference: ${text(d)}`), ...accept(q)] });
+};
+
+// v37 bulb: a fused or loose bulb replaces the wire that is not a conductor (a fault a child cannot meet with two wires).
+const bulb = (q, notes) => {
+  const wire = (p) => /wire may not be a conductor|not a conductor/i.test(text(p));
+  const fix = (p) => /^Fix: use a conductor such as copper wire/i.test(text(p));
+  if (!pts(q).some(wire)) return q;
+  notes.push(`${q.slot}: «wires of plastic or wood» is not a fault a child meets; the third cause is a fused or loose bulb`);
+  const points = pts(q).map((p) => (wire(p) ? { ...p, text: 'The bulb may be fused or loose in its holder' } : fix(p) ? { ...p, text: 'Fix: replace the bulb or tighten it in its holder' } : p));
+  const k = withScheme(q, { points, accept: [...accept(q), 'A fused (broken) bulb or a bulb loose in its holder; replace it or screw it in tightly'] });
+  return { ...k, answer: String(k.answer).replace(/The wires may not be conductors[^.]*\./i, 'The bulb may be fused or loose in its holder, so he should replace it or tighten it.') };
+};
+
 const RULES = [
   [/strokes a sewing needle/i, needle], [/rubbish dump/i, rubbish], [/^Define the word vaccine/i, vaccine],
   [/^Name three fossil fuels/i, fuels], [/Food Chain of four/i, foodChain], [/Draw and label the Respiratory System/i, respiratory],
   [/noise pollution affects/i, noise], [/contagious diseases such as COVID-19/i, contagious], [/non-contagious disease/i, nonContagious],
+  [/needle of a compass/i, compass], [/^What is a contagious disease/i, contagiousDefine], [/COVID-19 and polio/i, polio],
+  [/one way[^.?]*different[^.?]*one way[^.?]*alike/i, compare], [/battery, a bulb and two wires[^.?]*does not glow/i, bulb],
 ];
 
 function scienceKeys(q, notes) {

@@ -123,7 +123,7 @@ function deps(P, reply) {
       section.slots.forEach((sl) => {
         const list = Array.from({ length: sl.generate }, (_, i) => ({
           slot: sl.slot, question: `Question ${i + 1} for ${sl.slot}`, marks: sl.marks_each, blooms: 'Remember',
-          ...(sl.shape === 'mcq' ? { options: ['a) one', 'b) two', 'c) three'], answer: 'a) one' } : { answer: String(i + 1) }),
+          ...(sl.shape === 'mcq' ? { options: [`a) one${i}`, `b) two${i}`, `c) three${i}`], answer: `a) one${i}` } : { answer: String(i + 1) }),
           ...(reply(section.id, n[section.id], sl.slot, i) || {}),
           scheme: { points: [{ kind: 'A', text: 'correct', marks: sl.marks_each }] },
           ...(sl.picture ? { picture: sl.picture[0] === 'object' ? { kind: 'object', name: `${sl.slot} thing ${i}` }

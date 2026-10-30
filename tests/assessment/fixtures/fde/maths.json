@@ -197,12 +197,12 @@
         },
         {
           "slot": "maths.A.Q1a",
-          "question": "5 pencils cost Rs. 60. One pencil costs",
+          "question": "The number of minutes in 3 hours is",
           "options": [
-            "Rs. 12",
-            "Rs. 10",
-            "Rs. 15",
-            "Rs. 300"
+            "180",
+            "120",
+            "300",
+            "90"
           ],
           "answer": "a",
           "blooms": "Apply"
