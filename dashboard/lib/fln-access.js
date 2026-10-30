@@ -19,6 +19,8 @@
 const supabase = require('../config/supabase');
 const { isFlagEnabledForUser } = require('./feature-flags');
 const { isLeaderRole } = require('./leader-role');
+// The portal's one sign-in check (a retired account's session is ended there too); re-exported for the FLN routers.
+const { requirePortalAuth } = require('./portal-auth');
 
 const FLN_LESSONS_KEY = 'portal_fln_lessons';
 const FLN_SHARE_KEY = 'portal_fln_share';
@@ -57,13 +59,6 @@ async function flnAccess(userId) {
 
 function noStore(req, res, next) {
   res.set('Cache-Control', 'no-store');
-  return next();
-}
-
-function requirePortalAuth(req, res, next) {
-  if (!req.session || !req.session.portalUserId) {
-    return res.status(401).json({ success: false, error: 'Not authenticated. Please log in.' });
-  }
   return next();
 }
 

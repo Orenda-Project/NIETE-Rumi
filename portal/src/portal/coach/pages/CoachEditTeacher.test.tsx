@@ -145,6 +145,25 @@ describe("Edit teacher", () => {
     expect(screen.queryByRole("button", { name: /change number/i })).toBeNull();
   });
 
+  it("a number on an old account: before confirming, the coach is told the teacher must log in to the app again with it", async () => {
+    // The old account is retired by the change, and the app ends any session on it: the teacher has to sign in again.
+    C.editTeacher.mockResolvedValue({ success: true, outcome: "shell", phone: "923002220002" });
+    renderAt(EDIT);
+    fireEvent.change(await screen.findByRole("textbox", { name: /phone/i }), { target: { value: "03002220002" } });
+    fireEvent.click(screen.getByRole("button", { name: /check number/i }));
+    expect(await screen.findByTestId("phone-sign-in-again")).toHaveTextContent(/log in to the app again with the new number/i);
+    expect(screen.getByRole("button", { name: /change number/i })).toBeInTheDocument();
+  });
+
+  it("a free number says nothing about logging in again: her own account keeps its session", async () => {
+    C.editTeacher.mockResolvedValue({ success: true, outcome: "free", phone: "923004445556" });
+    renderAt(EDIT);
+    fireEvent.change(await screen.findByRole("textbox", { name: /phone/i }), { target: { value: "03004445556" } });
+    fireEvent.click(screen.getByRole("button", { name: /check number/i }));
+    await screen.findByTestId("phone-result");
+    expect(screen.queryByTestId("phone-sign-in-again")).toBeNull();
+  });
+
   it("an invalid number is refused with its reason", async () => {
     C.editTeacher.mockImplementation(() => rejectWith(400, { success: false, reason: "invalid_phone" }));
     renderAt(EDIT);

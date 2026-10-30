@@ -9,6 +9,9 @@
  * there is one (services/training-levels-analytics.service.js).
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 let tableStates;
 let queries;
 

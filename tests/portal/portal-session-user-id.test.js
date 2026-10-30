@@ -10,8 +10,9 @@
  *
  * The two middlewares are not interchangeable:
  *
- *   requirePortalAuth   (portal.routes.js) checks req.session.portalUserId and
- *                       calls next(). It attaches NOTHING to req.
+ *   requirePortalAuth   (lib/portal-auth.js, shared by every portal router) checks
+ *                       req.session.portalUserId, and that its account is live,
+ *                       then calls next(). It attaches NOTHING to req.
  *   requireLeaderRole   (lib/leader-role.js:81) loads the user row and sets
  *                       req.portalUser — but it is a SCHOOL-LEADER gate that
  *                       403s everyone else, so it cannot be added to a teacher
@@ -73,10 +74,11 @@ function handlerBody(startLine) {
 
 describe('req.portalUser is not available on requirePortalAuth routes', () => {
   test('the two middlewares differ, and only the leader gate attaches the user', () => {
-    // requirePortalAuth's body, up to its closing brace.
-    const start = src.indexOf('const requirePortalAuth = (req, res, next) => {');
-    expect(start).toBeGreaterThan(-1);
-    const body = src.slice(start, src.indexOf('\n};', start));
+    // The shared check, the whole module: portal.routes.js takes it from lib/portal-auth.js.
+    expect(src).toMatch(/const \{ requirePortalAuth \} = require\('\.\.\/lib\/portal-auth'\);/);
+    const body = fs.readFileSync(
+      path.join(__dirname, '..', '..', 'dashboard', 'lib', 'portal-auth.js'), 'utf8');
+    expect(body).toMatch(/function requirePortalAuth\(req, res, next\)/);
 
     // If this ever DOES attach the user, the rule below can be relaxed — but it
     // has to be a deliberate change, not an assumption.

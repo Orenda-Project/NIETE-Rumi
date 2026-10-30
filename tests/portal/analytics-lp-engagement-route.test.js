@@ -10,6 +10,9 @@
  * keyed from|to|region|band that sits behind the gate, its own so this tab never slows the others.
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 let tableStates;
 let queries;
 

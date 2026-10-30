@@ -52,18 +52,9 @@ function getRepo() {
 // ---------------------------------------------------------------------------
 // Auth guards
 // ---------------------------------------------------------------------------
-// Same shape as dashboard/routes/hcp.routes.js — self-contained duplicate of
-// the requirePortalAuth guard in portal.routes.js (not exported from there).
-
-function requirePortalAuth(req, res, next) {
-  if (!req.session || !req.session.portalUserId) {
-    return res.status(401).json({
-      success: false,
-      error: 'Not authenticated. Please log in.',
-    });
-  }
-  return next();
-}
+// The portal's one sign-in check (lib/portal-auth.js), shared by every portal router: it also ends the session of
+// a retired account.
+const { requirePortalAuth } = require('../lib/portal-auth');
 
 /**
  * Loads the authenticated user's {id, role, school_id, name, phone_number}

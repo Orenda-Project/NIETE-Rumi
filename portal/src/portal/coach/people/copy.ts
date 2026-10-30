@@ -147,6 +147,9 @@ export const PEOPLE_EN = {
     removeSchool: 'Only from your list. Its teachers stay at the school.',
     removeTeachersWarn: 'They leave this school for every coach',
     tellTeam: 'No teacher list yet. Tell the team and they will load it.',
+    // A number on an old account: that account is retired and the app ends its session, so the teacher logs in again
+    // ("Log in" is the word on her sign-in button).
+    logInAgain: 'Their history moves with them. They must log in to the app again with the new number.',
   },
 };
 
@@ -273,6 +276,7 @@ export const PEOPLE_UR: Words<typeof PEOPLE_EN> = {
     removeSchool: 'صرف آپ کی فہرست سے۔ اس کے ٹیچرز اسکول میں رہیں گے۔',
     removeTeachersWarn: 'یہ ٹیچرز ہر کوچ کے لیے اس اسکول سے ہٹ جائیں گے',
     tellTeam: 'ابھی ٹیچر فہرست نہیں۔ ٹیم کو بتائیں، وہ اپ لوڈ کر دیں گے۔',
+    logInAgain: 'ان کا ریکارڈ ان کے ساتھ رہے گا۔ انہیں نئے نمبر سے ایپ میں دوبارہ لاگ اِن کرنا ہوگا۔',
   },
 };
 

@@ -4,6 +4,10 @@
  * the bot down or off → quizHome null and the card from rungs 2, 4–5 only, still 200; never a 5xx; the tap is 204 and
  * logged, a bad kind 400. The user is ALWAYS the session's.
  */
+
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 const TEACHER = '6f1c2a7e-0b8d-4c55-9a51-2d7f0e3b9c10';
 const NOW = Date.parse('2026-10-20T12:00:00.000Z');
 const ago = (d) => new Date(NOW - d * 86400000).toISOString();
