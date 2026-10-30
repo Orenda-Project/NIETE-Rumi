@@ -13,12 +13,14 @@
  *   2. Look up the teacher's active `teacher_training_assignments` → set of
  *      program_ids.
  *   3. Look up `training_program_scopes` for those programs → set of vendor_ids.
- *      A scope with NULL level_ids/course_ids/module_ids covers the entire
- *      vendor; this endpoint operates at vendor granularity so any scope row
- *      pulls the vendor in.
- *   4. Rollups are constrained to active levels/courses/modules for those
- *      vendors:
- *        level_count            = active training_levels for the vendor
+ *      Any scope row pulls its vendor in. A NULL level_ids covers every active
+ *      level of the vendor; a listed level_ids covers only those levels; several
+ *      programmes take the union (the same rule as GET /training/levels). A
+ *      vendor whose scope lists no active level is left out.
+ *   4. Rollups are constrained to the visible active levels/courses/modules for
+ *      those vendors (certificate_count excepted: every certificate she holds
+ *      from the vendor's active levels):
+ *        level_count            = visible active training_levels for the vendor
  *        course_count           = active training_courses under those levels
  *        module_count           = active training_modules under those courses
  *        completed_module_count = teacher_training_progress rows for this user
@@ -424,6 +426,193 @@ describe('GET /api/portal/training/vendors', () => {
     expect(byKey.TALEEMABAD).toHaveProperty('certificate_count');
     expect(byKey.TALEEMABAD.certificate_count).toBe(2);
     expect(byKey.OXBRIDGE.certificate_count).toBe(1);
+  });
+
+  /**
+   * The card's percentage must count the same levels the teacher can open.
+   *
+   * A programme can scope a vendor to some of its levels (level_ids). The level
+   * list (/training/levels) honours that; this endpoint used to count every
+   * active level of the vendor, so a teacher scoped to levels 3 and 4 who had
+   * finished all of them read under half on the card while every level she
+   * could open showed complete. Certificates are the exception: every
+   * certificate she holds from the vendor stays on the card, because hiding one
+   * she earned reads as lost work.
+   */
+  describe('level-scoped programmes', () => {
+    // One vendor, four levels. L1: 2 modules, L2: 1, L3: 3 (two courses), L4: 2.
+    function seedLadder() {
+      tableStates.training_vendors = {
+        rows: [{ id: 'v-tab', key: 'TALEEMABAD', name: 'Taleemabad', is_active: true }],
+      };
+      tableStates.training_levels = {
+        rows: [
+          { id: 1, vendor_id: 'v-tab', is_active: true },
+          { id: 2, vendor_id: 'v-tab', is_active: true },
+          { id: 3, vendor_id: 'v-tab', is_active: true },
+          { id: 4, vendor_id: 'v-tab', is_active: true },
+        ],
+      };
+      tableStates.training_courses = {
+        rows: [
+          { id: 10, level_id: 1, is_active: true },
+          { id: 20, level_id: 2, is_active: true },
+          { id: 30, level_id: 3, is_active: true },
+          { id: 31, level_id: 3, is_active: true },
+          { id: 40, level_id: 4, is_active: true },
+        ],
+      };
+      tableStates.training_modules = {
+        rows: [
+          { id: 100, course_id: 10, is_active: true },
+          { id: 101, course_id: 10, is_active: true },
+          { id: 200, course_id: 20, is_active: true },
+          { id: 300, course_id: 30, is_active: true },
+          { id: 301, course_id: 30, is_active: true },
+          { id: 310, course_id: 31, is_active: true },
+          { id: 400, course_id: 40, is_active: true },
+          { id: 401, course_id: 40, is_active: true },
+        ],
+      };
+      // Every L3 + L4 module done, plus one stray L1 module from before her
+      // programme changed.
+      tableStates.teacher_training_progress = {
+        rows: [300, 301, 310, 400, 401, 100].map(module_id => ({ user_id: 'user-1', module_id })),
+      };
+      tableStates.training_assessment_attempts = {
+        rows: [
+          ...[300, 301, 310, 400, 401].map(id => ({
+            user_id: 'user-1', training_module_id: id, quiz_kind: 'training_module',
+            score: 5, total_score: 5, status: 'passed',
+          })),
+          // The stray L1 attempt scored 0: it must not drag the visible average.
+          { user_id: 'user-1', training_module_id: 100, quiz_kind: 'training_module',
+            score: 0, total_score: 5, status: 'failed' },
+        ],
+      };
+      // Certificates for L1 (outside her scope), L3 and L4.
+      tableStates.training_certificates = {
+        rows: [
+          { user_id: 'user-1', level_id: 1 },
+          { user_id: 'user-1', level_id: 3 },
+          { user_id: 'user-1', level_id: 4 },
+        ],
+      };
+    }
+
+    it('counts only the levels her programme shows, so finishing them reads 100%; certificates stay all-held', async () => {
+      seedLadder();
+      tableStates.teacher_training_assignments = {
+        rows: [{ user_id: 'user-1', program_id: 'prog-mh', is_active: true }],
+      };
+      tableStates.training_program_scopes = {
+        rows: [{ program_id: 'prog-mh', vendor_id: 'v-tab', level_ids: [3, 4], course_ids: null, module_ids: null }],
+      };
+
+      const { statusCode, payload } = await invoke({ userId: 'user-1' });
+
+      expect(statusCode).toBe(200);
+      expect(payload.vendors).toEqual([{
+        vendor_key: 'TALEEMABAD',
+        vendor_name: 'Taleemabad',
+        level_count: 2,
+        course_count: 3,
+        module_count: 5,
+        completed_module_count: 5,
+        // Every certificate she holds from the vendor, including L1's.
+        certificate_count: 3,
+        avg_score_pct: 100,
+      }]);
+    });
+
+    it('a NULL level_ids programme still counts every active level (unchanged)', async () => {
+      seedLadder();
+      tableStates.teacher_training_assignments = {
+        rows: [{ user_id: 'user-1', program_id: 'prog-all', is_active: true }],
+      };
+      tableStates.training_program_scopes = {
+        rows: [{ program_id: 'prog-all', vendor_id: 'v-tab', level_ids: null, course_ids: null, module_ids: null }],
+      };
+
+      const { statusCode, payload } = await invoke({ userId: 'user-1' });
+
+      expect(statusCode).toBe(200);
+      expect(payload.vendors).toEqual([{
+        vendor_key: 'TALEEMABAD',
+        vendor_name: 'Taleemabad',
+        level_count: 4,
+        course_count: 5,
+        module_count: 8,
+        completed_module_count: 6,
+        certificate_count: 3,
+        // (5 × 100 + 0) / 6 = 83.3
+        avg_score_pct: 83,
+      }]);
+    });
+
+    it('two programmes take the union of their scopes: a level list plus an all-levels scope is all levels', async () => {
+      seedLadder();
+      tableStates.teacher_training_assignments = {
+        rows: [
+          { user_id: 'user-1', program_id: 'prog-mh', is_active: true },
+          { user_id: 'user-1', program_id: 'prog-all', is_active: true },
+        ],
+      };
+      tableStates.training_program_scopes = {
+        rows: [
+          { program_id: 'prog-mh',  vendor_id: 'v-tab', level_ids: [3, 4], course_ids: null, module_ids: null },
+          { program_id: 'prog-all', vendor_id: 'v-tab', level_ids: null,   course_ids: null, module_ids: null },
+        ],
+      };
+
+      const { payload } = await invoke({ userId: 'user-1' });
+
+      expect(payload.vendors).toHaveLength(1);
+      expect(payload.vendors[0]).toMatchObject({ level_count: 4, module_count: 8, completed_module_count: 6 });
+    });
+
+    it('two level-list programmes take the union of their listed levels', async () => {
+      seedLadder();
+      tableStates.teacher_training_assignments = {
+        rows: [
+          { user_id: 'user-1', program_id: 'prog-a', is_active: true },
+          { user_id: 'user-1', program_id: 'prog-b', is_active: true },
+        ],
+      };
+      tableStates.training_program_scopes = {
+        rows: [
+          { program_id: 'prog-a', vendor_id: 'v-tab', level_ids: [1], course_ids: null, module_ids: null },
+          { program_id: 'prog-b', vendor_id: 'v-tab', level_ids: [4], course_ids: null, module_ids: null },
+        ],
+      };
+
+      const { payload } = await invoke({ userId: 'user-1' });
+
+      // L1 (2 modules, 1 done) + L4 (2 modules, 2 done).
+      expect(payload.vendors[0]).toMatchObject({
+        level_count: 2, course_count: 2, module_count: 4, completed_module_count: 3, certificate_count: 3,
+      });
+    });
+
+    it('drops a vendor whose scope lists no level she can see', async () => {
+      seedLadder();
+      tableStates.training_vendors.rows.push({ id: 'v-ox', key: 'OXBRIDGE', name: 'Oxbridge', is_active: true });
+      tableStates.teacher_training_assignments = {
+        rows: [{ user_id: 'user-1', program_id: 'prog-x', is_active: true }],
+      };
+      tableStates.training_program_scopes = {
+        rows: [
+          // Level 9 is not an active TALEEMABAD level.
+          { program_id: 'prog-x', vendor_id: 'v-tab', level_ids: [9], course_ids: null, module_ids: null },
+          // A NULL-scope vendor with no levels yet still shows, as it always has.
+          { program_id: 'prog-x', vendor_id: 'v-ox', level_ids: null, course_ids: null, module_ids: null },
+        ],
+      };
+
+      const { payload } = await invoke({ userId: 'user-1' });
+
+      expect(payload.vendors.map(v => v.vendor_key)).toEqual(['OXBRIDGE']);
+    });
   });
 
   it('excludes assignments where is_active=false', async () => {
