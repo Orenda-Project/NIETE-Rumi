@@ -124,6 +124,21 @@ describe('topicDefaults', () => {
   it('no suggestion offered: the default mix over 5 questions', () => {
     expect(topicDefaults('english', [ENGLISH[1]], [{ id: 'True/False', category: 'objective' }]).typeCounts).toEqual({ 'True/False': 5 });
   });
+  // bd-pw1ccr.6: a written task gets the marks FDE gives one at that grade (bot/shared/services/assessment/patterns).
+  it('G1 Writing topic: FDE G1 writing block, 5 items of 2 marks, not one 10-mark composition', () => {
+    expect(topicDefaults('english', [ENGLISH[3]], ENG_TYPES, 1)).toEqual({ marks: 10, seen: 0, typesSeeded: true, typeCounts: { 'Simple Writing': 5 } });
+    expect(topicDefaults('urdu', [t('u4', 'تصویری جملے', 'تخلیقی لکھائی', 5, 4)], ENG_TYPES, 1).typeCounts).toEqual({ 'Simple Writing': 5 });
+  });
+  it('G2 on: one composition worth the 10 marks (FDE G2 and G5 paragraph, 1 × 10); no grade keeps 1', () => {
+    const G35 = ENG_TYPES.filter((o) => o.id !== 'Simple Writing').concat({ id: 'Paragraph Writing', category: 'subjective' });
+    expect(topicDefaults('english', [ENGLISH[3]], ENG_TYPES, 2).typeCounts).toEqual({ 'Simple Writing': 1 });
+    expect(topicDefaults('english', [ENGLISH[3]], G35, 3).typeCounts).toEqual({ 'Paragraph Writing': 1 });
+    expect(topicDefaults('english', [ENGLISH[3]], ENG_TYPES).typeCounts).toEqual({ 'Simple Writing': 1 });
+  });
+  it('G1 Writing beside grammar still fits the 10 marks', () => {
+    const d = topicDefaults('english', [ENGLISH[1], ENGLISH[3]], ENG_TYPES, 1);
+    expect(Object.values(d.typeCounts).reduce((s, n) => s + n, 0)).toBeLessThanOrEqual(10);
+  });
 });
 
 describe('the choices', () => {
@@ -155,6 +170,11 @@ describe('the choices', () => {
     expect(sub.marks).toBe(10);
     expect(Object.keys(sub.typeCounts)).toEqual(['MCQs', 'Fill in the Blanks', 'Rewrite Sentences', 'Match the Column']);
     expect(toSpec(sub)).toMatchObject({ topicIds: ['e2', 'e3'], chapterNumbers: [1], totalMarks: 10, contentSource: 'unseen' });
+  });
+
+  it('bd-pw1ccr.6: ticking a G1 Writing topic lands on 5 written items for the 10 marks', () => {
+    const p = { ...ONE(), ...chooseTopics(ONE()) };
+    expect({ ...p, ...setTicked(p, ['e4'], all, offered) }).toMatchObject({ marks: 10, typeCounts: { 'Simple Writing': 5 } });
   });
 
   it('ticking every topic is the whole chapter: topicIds null, today\'s request, the defaults undone', () => {
