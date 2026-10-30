@@ -576,7 +576,7 @@ function comprehensionBlock(q, slot, ctx) {
     const head = `<div class="part-head">${lab}<span class="ins">${textOf(spec[`instruction_${lang}`], ctx)}</span><span class="ml">${textOf(spec[`marks_line_${lang}`], ctx)}</span></div>`;
     let body = '';
     if (spec.pick && ctx.onSheet) {
-      body = ''; // the child writes on the answer copy (G5 Urdu B and C)
+      body = Object.entries(spec.pick).map(([kind, n]) => `<div class="pick-row"><span class="pick-k">${textOf(kind, ctx)}:</span> ${textOf(String(n), ctx)}</div>`).join(''); // labels and counts only; the child writes on the answer copy (G5 Urdu B and C)
     } else if (spec.pick) {
       body = Object.entries(spec.pick).map(([kind, n]) => `<div class="pick-row"><span class="pick-k">${textOf(kind, ctx)}:</span>${Array.from({ length: n }, (_, i) => `<span class="blank">${textOf(String(i + 1), ctx)}</span>`).join('')}</div>`).join('');
     } else if (spec.key === 'antonyms') {
