@@ -34,7 +34,8 @@ function mockBuilder() {
     __rows: () => {
       mockQueries.push({ ...state });
       let rows = mockTable;
-      for (const [c, v] of state.filters) rows = rows.filter((r) => r[c] === v);
+      // V1.8.6 (bd-97daxo.5): a row built without `curriculum` is ICT's — the column's default.
+      for (const [c, v] of state.filters) rows = rows.filter((r) => (c === 'curriculum' && r[c] === undefined ? 'ict' : r[c]) === v);
       // Model PostgREST's `or=(grade.eq.N,also_grades.cs.{N})` — a row matches on its own grade
       // OR by listing that grade. Without this the fake cannot tell the fix from its absence.
       if (state.or) {
