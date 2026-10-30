@@ -56,13 +56,17 @@ describe("CoachMore", () => {
     expect(screen.getByTestId("more-who")).not.toHaveTextContent("school");
   });
 
-  it("exactly three things: Language, My profile, Log out (bd-fmf24g.33)", () => {
+  it("exactly four things: Language, My profile, Send feedback, Log out (bd-fmf24g.33; Send feedback bd-x1tl95)", () => {
     renderMore();
+    // bd-whlsm0 (operator, 30 Oct: "on the more button, add a form they can fill on the issues"): Report an issue joins
+    // the three, before Log out.
     expect(screen.getAllByTestId(/^more-row-/).map((r) => r.getAttribute("data-testid"))).toEqual([
-      "more-row-language", "more-row-profile", "more-row-logout",
+      "more-row-language", "more-row-profile", "more-row-feedback", "more-row-logout",
     ]);
-    expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(screen.getAllByRole("link")).toHaveLength(2);
     expect(screen.getByTestId("more-row-profile")).toHaveAttribute("href", "/portal/coach/profile");
+    expect(screen.getByTestId("more-row-feedback")).toHaveAttribute("href", "/portal/coach/feedback");
+    expect(screen.getByTestId("more-row-feedback")).toHaveTextContent("Send feedback");
     expect(screen.queryByText("Training")).toBeNull();
     expect(screen.queryByText("Certificates")).toBeNull();
   });

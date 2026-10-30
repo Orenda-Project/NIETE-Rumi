@@ -190,6 +190,23 @@ export const portal = {
     return response.data;
   },
 
+  /** bd-x1tl95 — Send feedback (More): sign one direct-to-R2 upload of her voice note or a screenshot. */
+  presignFeedbackUpload: async (args: {
+    filename: string; sizeBytes: number; kind: 'feedback_audio' | 'feedback_photo';
+  }): Promise<{ key: string; uploadUrl: string; contentType: string }> => {
+    const response = await api.post('/feedback/presign', args);
+    return response.data;
+  },
+
+  /** bd-x1tl95 — Send feedback: the topic, her words and the keys of what she uploaded. A refusal rejects with its reason. */
+  sendFeedback: async (body: {
+    topic: 'broken' | 'numbers' | 'idea' | 'other'; text?: string; audioKey?: string; photoKeys: string[];
+    page: string; context: { native?: boolean };
+  }): Promise<{ success: boolean; feedbackId: string }> => {
+    const response = await api.post('/feedback', body);
+    return response.data;
+  },
+
   /**
    * PUT the file straight to R2. Plain XHR rather than the `api` instance: it
    * reports upload progress, and it sends NO session cookie — R2 does not need

@@ -67,6 +67,7 @@ const FEATURE_PATHS: Record<CoachFeature, { prefixes: readonly string[]; exact?:
 /** Always reachable: her account (More, profile, My account) and the signed-out pages. */
 const ALWAYS_OPEN: readonly RegExp[] = [
   /^\/portal\/coach\/more$/,
+  /^\/portal\/coach\/feedback$/, // bd-x1tl95: More → Send feedback, for every coach (bd-whlsm0's Report an issue folded in)
   /^\/portal\/coach\/profile$/,
   /^\/portal\/account$/,
   /^\/portal\/login$/,

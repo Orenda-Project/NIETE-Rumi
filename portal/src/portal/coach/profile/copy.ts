@@ -16,6 +16,8 @@ export const COACH_PROFILE_EN = {
   account: "Account",
   privacy: "Privacy policy",
   deleteAccount: "Delete account",
+  // bd-x1tl95 — the More row to Send feedback; the page's own words are coach/feedback/copy.ts
+  feedback: "Send feedback",
 };
 
 export const COACH_PROFILE_UR: Words<typeof COACH_PROFILE_EN> = {
@@ -27,6 +29,7 @@ export const COACH_PROFILE_UR: Words<typeof COACH_PROFILE_EN> = {
   account: "اکاؤنٹ",
   privacy: "پرائیویسی پالیسی",
   deleteAccount: "اکاؤنٹ حذف کریں",
+  feedback: "رائے بھیجیں",
 };
 
 export const COACH_PROFILE = bilingual(COACH_PROFILE_EN, COACH_PROFILE_UR);

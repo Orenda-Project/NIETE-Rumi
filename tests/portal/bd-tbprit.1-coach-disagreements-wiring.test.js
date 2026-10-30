@@ -85,3 +85,18 @@ describe('coach_disagreement_card wiring', () => {
     ]));
   });
 });
+
+describe('coach feedback wiring (bd-whlsm0 folded into bd-x1tl95)', () => {
+  test('the portal router no longer serves POST /coach/feedback: the one feedback form posts to /api/portal/feedback', () => {
+    const routes = loadRoutes();
+    let found = false;
+    const walk = (stack) => stack.forEach((l) => {
+      if (l.route && l.route.path === '/coach/feedback') found = true;
+      else if (l.handle && l.handle.stack) walk(l.handle.stack);
+    });
+    walk(routes.stack);
+    expect(found).toBe(false);
+    const index = require('fs').readFileSync(require('path').join(__dirname, '../../dashboard/index.js'), 'utf8');
+    expect(index).toContain("require('./routes/app-feedback.routes')");
+  });
+});
