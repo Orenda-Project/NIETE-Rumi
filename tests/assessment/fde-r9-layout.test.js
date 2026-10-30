@@ -331,12 +331,14 @@ describe('r9 · subjects without a cross-section table lay out as before', () =>
   // All five again for v34 (bd-5jmnfj.4.58 round 4): prompt_rule text in patterns/fde-g5-2027.js (science, maths,
   // urdu, english rules), and for maths the fixture's Q1 (a) and Q1 (b) ask a sum, not the mean (the mean is asked
   // once, in Section C); previous values 7662ec1d…, b6ecc3e5…, 2eac934e…, 0887edd6…, 7d9221dd….
+  // All five again for v37 (bd-5jmnfj.4.58 round 6): prompt_rule text in patterns/fde-g5-2027.js (all four subjects)
+  // and the maths fixture's minutes-in-3-hours MCQ; previous values 8f382d52…, 88c09bc5…, 1c2b1895…, 4da72577…, 87150abd….
   const BEFORE = {
-    science: ['science', '8f382d5216d9b236f102aab44dd90aa907b488cec37411d8c9f94fba86b33b7d'],
-    maths: ['maths', '88c09bc5e79fb8da207bc3ea998187cb9cdaae3ac89bde44eebee92e6b2fba92'],
-    urdu: ['urdu', '1c2b1895468fe2799361f42abcb5507725933b3bc6bfd5179cdcbb8d738b0e6a'],
-    'r7-science-full1.exam': ['science', '4da7257780fad415851ccae4c2c2e91561bcb5b1cdc134789a8122a81ac504ff'],
-    'urdu-gen-full': ['urdu', '87150abda64c4faf8ec36b6ce16ae28f457e7055baa7601e22644bd1908c6674'],
+    science: ['science', '7852f46d1ee72d825084e827b85cd20ae3b07d9dc3c30c45d348d34125a7cffb'],
+    maths: ['maths', '7dd7b77fa596d0146573092cfc4f1202f500d17fb050cf46e4b79267f8160351'],
+    urdu: ['urdu', '9439e74b4834fcd04d086837a55813adeece2352cbf6138ad3e756fe7e3e0a0b'],
+    'r7-science-full1.exam': ['science', '168594dc7dbfb6dcbba796a2f4bd2c5a661ae18deef1109a22a3b3aa83dfb761'],
+    'urdu-gen-full': ['urdu', 'c74ccefe52dbd3f581da2b5b62d0cfb4f4e476231de7314a9d7a140b1a467f27'],
   };
   test.each(Object.keys(BEFORE))('%s lays out byte-identical to before', (name) => {
     const [subject, sha] = BEFORE[name];
