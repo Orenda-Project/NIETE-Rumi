@@ -12,10 +12,15 @@
  * Flow:
  * 1. Get user ID from session (req.session.userId)
  * 2. Get database client from pool
- * 3. SET ROLE portal_app_user
- * 4. SELECT set_portal_user_context(userId)
- * 5. Attach client to req.dbClient for use in route handlers
- * 6. Ensure RESET ROLE and release happen after response via res.on('finish')
+ * 3. For a signed-in admin, req.dbClient runs every statement in its own transaction under
+ *    SET LOCAL ROLE portal_app_user + set_config('app.portal_user_id', userId, true)
+ * 4. Release the client after the response via res.on('finish')
+ *
+ * bd-sex15q.50: prod's portal is on the 6543 TRANSACTION pooler, where consecutive statements of one client can run on
+ * different backends and a backend serves whoever comes next. The old session-scope SET ROLE + set_portal_user_context
+ * stayed on whichever backend took them: another request's statements (a coach's, COACHIP's own pool.query) could run
+ * as portal_app_user with this admin's id, and this admin's next statement could run on a backend with neither.
+ * Transaction-local settings end with their transaction, so nothing is left on a pooled backend.
  *
  * Bead: - Fix portal database connection pool leak
  */
@@ -36,6 +41,60 @@ const budgetFor = (req) => Math.max(REQUEST_TIMEOUT_MS, getTimeoutForRoute(pathO
 // above keeps the unmasked path.
 const logPath = (req) => pathOf(req).split('/').map((seg) => (/^[A-Za-z0-9._~%-]{20,}$/.test(seg) ? '…' : seg)).join('/');
 
+const sqlOf = (args) => String((typeof args[0] === 'string' ? args[0] : args[0] && args[0].text) || '').trim().toUpperCase();
+const OPENS = /^(BEGIN|START\s+TRANSACTION)\b/;
+const CLOSES = /^(COMMIT|END|ROLLBACK|ABORT)\b(?!\s+TO\b)/;
+
+/**
+ * bd-sex15q.50: the query surface req.dbClient gets for a signed-in admin. Each statement runs as
+ *   BEGIN; SET LOCAL ROLE portal_app_user; set_config('app.portal_user_id', userId, true); <statement>; COMMIT
+ * so it keeps today's autocommit semantics (a failed statement does not poison the next) and holds a pooled backend only
+ * while it runs. A handler's own BEGIN … COMMIT gets the role and id once, at its BEGIN. Statements are queued, so a
+ * Promise.all on req.dbClient cannot interleave one statement's BEGIN with another's COMMIT.
+ */
+function scopedClient(client, userId) {
+  let queue = Promise.resolve();
+  let pending = 0;
+  let ownTransaction = false;
+  const scope = async () => {
+    await client.query('SET LOCAL ROLE portal_app_user');
+    await client.query("SELECT set_config('app.portal_user_id', $1::uuid::text, true)", [userId]);
+  };
+  const run = async (args) => {
+    const sql = sqlOf(args);
+    if (ownTransaction) {
+      if (CLOSES.test(sql)) ownTransaction = false;
+      return client.query(...args);
+    }
+    if (OPENS.test(sql)) {
+      const opened = await client.query(...args);
+      try { await scope(); } catch (err) { await client.query('ROLLBACK').catch(() => {}); throw err; }
+      ownTransaction = true;
+      return opened;
+    }
+    await client.query('BEGIN');
+    try {
+      await scope();
+      const result = await client.query(...args);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    }
+  };
+  return {
+    query(...args) {
+      pending += 1;
+      const done = queue.then(() => run(args)).finally(() => { pending -= 1; });
+      queue = done.catch(() => {});
+      return done;
+    },
+    // true while a statement is in flight or a handler's transaction is open: the client must not go back to the pool
+    get busy() { return pending > 0 || ownTransaction; },
+  };
+}
+
 /**
  * Database Context Middleware
  * Applies portal_app_user role and sets user context for RLS
@@ -45,6 +104,7 @@ async function setDatabaseContext(req, res, next) {
   // transfer, so one phone on a slow network opening This week (~30 chunks) filled the session pooler and the chunks 500'd.
   if ((req.method === 'GET' || req.method === 'HEAD') && pathOf(req).startsWith('/assets/')) return next();
   let client;
+  let scoped = null;
   let released = false;
   const startTime = Date.now();
 
@@ -57,11 +117,9 @@ async function setDatabaseContext(req, res, next) {
 
     try {
       if (client) {
-        // Reset role if it was set
-        if (req._dbRoleSet) {
-          await client.query('RESET ROLE');
-        }
-        client.release();
+        // bd-sex15q.50: nothing session-scoped is ever set, so there is nothing to reset. A client torn down with a scoped
+        // statement in flight or a handler's transaction open is destroyed, never handed to the next request mid-transaction.
+        client.release(Boolean(scoped && scoped.busy));
         client = null;
         req.dbClient = null;
       }
@@ -87,18 +145,12 @@ async function setDatabaseContext(req, res, next) {
   try {
     // Get a database client from the pool
     client = await pool.connect();
-    req.dbClient = client;
 
     const isAuthenticated = req.session && req.session.userId;
 
-    // Apply RLS context for authenticated users
-    if (isAuthenticated) {
-      await client.query('SET ROLE portal_app_user');
-      await client.query('SELECT set_portal_user_context($1)', [req.session.userId]);
-      req._dbRoleSet = true;
-    } else {
-      req._dbRoleSet = false;
-    }
+    // Apply RLS context for authenticated users, one transaction per statement (bd-sex15q.50)
+    scoped = isAuthenticated ? scopedClient(client, req.session.userId) : null;
+    req.dbClient = scoped || client;
 
     // FIXED: Single cleanup point using 'finish' event
     // This fires for ALL response types: send, json, render, redirect, etc.
