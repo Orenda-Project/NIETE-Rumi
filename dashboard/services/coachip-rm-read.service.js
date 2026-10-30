@@ -28,36 +28,43 @@ const TEMPLATE_TITLES = {   // COPY §RM-T titles; the Urdu is FIXTURES v2.2's c
   'RM-T4': S.text('It worked', 'کام کر گیا'),
 };
 
-/** The Coach shape (API.md §3) for each coach, in the given order. */
+/**
+ * The Coach shape (API.md §3) for each coach, in the given order. fix-r5 s6 (c): every read is one read for all the
+ * coaches (the month's debriefs, the checks, the last visits, the open notes), run side by side; it used to be two reads
+ * per coach in series, which with ten coaches was most of R17's 7-9 s.
+ */
 async function buildCoaches(q, ctx, coaches, w) {
   if (!coaches.length) return [];
   const ids = coaches.map((c) => c.coachUserId);
   const sectorSchools = ctx.rm.schoolIds;
   const month = S.monthOf(ctx.today);
-  const debriefs = await q(
-    `SELECT os.leader_user_id AS coach_user_id, COUNT(DISTINCT os.id)::int AS d,
-            COUNT(DISTINCT os.id) FILTER (WHERE os.session_id IS NOT NULL AND EXISTS (
-              SELECT 1 FROM coachip_steps st WHERE st.coach_user_id = os.leader_user_id AND st.source_session_id = os.session_id))::int AS n
-       FROM observation_schedules os JOIN schools s ON ${rules.OS_SCHOOL}
-      WHERE os.leader_user_id = ANY($1::uuid[]) AND s.id = ANY($2::uuid[]) AND os.status = 'done'
-        AND os.scheduled_for BETWEEN $3::date AND $4::date
-      GROUP BY os.leader_user_id`,
-    [ids, sectorSchools, month.from, ctx.today],
-  );
-  const checks = await q(
-    `SELECT coach_user_id, COUNT(*) FILTER (WHERE check_by <= $3::date)::int AS d,
-            COUNT(*) FILTER (WHERE status = 'open' AND check_by < $3::date)::int AS n
-       FROM coachip_steps
-      WHERE scope = 'coach' AND coach_user_id = ANY($1::uuid[]) AND school_id = ANY($2::uuid[])
-      GROUP BY coach_user_id`,
-    [ids, sectorSchools, ctx.today],
-  );
+  const [debriefs, checks, visits, notes] = await Promise.all([
+    q(
+      `SELECT os.leader_user_id AS coach_user_id, COUNT(DISTINCT os.id)::int AS d,
+              COUNT(DISTINCT os.id) FILTER (WHERE os.session_id IS NOT NULL AND EXISTS (
+                SELECT 1 FROM coachip_steps st WHERE st.coach_user_id = os.leader_user_id AND st.source_session_id = os.session_id))::int AS n
+         FROM observation_schedules os JOIN schools s ON ${rules.OS_SCHOOL}
+        WHERE os.leader_user_id = ANY($1::uuid[]) AND s.id = ANY($2::uuid[]) AND os.status = 'done'
+          AND os.scheduled_for BETWEEN $3::date AND $4::date
+        GROUP BY os.leader_user_id`,
+      [ids, sectorSchools, month.from, ctx.today],
+    ),
+    q(
+      `SELECT coach_user_id, COUNT(*) FILTER (WHERE check_by <= $3::date)::int AS d,
+              COUNT(*) FILTER (WHERE status = 'open' AND check_by < $3::date)::int AS n
+         FROM coachip_steps
+        WHERE scope = 'coach' AND coach_user_id = ANY($1::uuid[]) AND school_id = ANY($2::uuid[])
+        GROUP BY coach_user_id`,
+      [ids, sectorSchools, ctx.today],
+    ),
+    lastVisitsOf(q, coaches),
+    openNotesOf(q, ctx.uid, ids),
+  ]);
   const deb = new Map(debriefs.rows.map((r) => [r.coach_user_id, r]));
   const chk = new Map(checks.rows.map((r) => [r.coach_user_id, r]));
-  const out = [];
-  for (const c of coaches) {
+  return coaches.map((c) => {
     const schoolIds = c.schools.map((s) => s.school_id);
-    const last = await rules.lastVisits(q, c.coachUserId, schoolIds);   // eslint-disable-line no-await-in-loop
+    const last = visits.get(lc(c.coachUserId)) || new Map();
     const unvisitedIn4w = schoolIds.filter((id) => !last.has(id) || last.get(id) < w.act4w.from).length;
     const longUnvisited = schoolIds.some((id) => !last.has(id) || S.daysBetween(last.get(id), ctx.today) >= UNVISITED_DAYS);
     const d = deb.get(c.coachUserId) || { n: 0, d: 0 };
@@ -71,15 +78,54 @@ async function buildCoaches(q, ctx, coaches, w) {
     if (longUnvisited) reason = 'unvisited';
     else if (activity.debriefs_with_step.d >= 1 && activity.debriefs_with_step.n === 0) reason = 'no_steps';
     else if (activity.checks_overdue.n >= 1) reason = 'checks_overdue';
-    const notes = await rules.loadNotes(q, { coachUserId: c.coachUserId, rmUserId: ctx.uid, statuses: ['sent', 'seen'], limit: 1 });   // eslint-disable-line no-await-in-loop
-    out.push({
+    return {
       coach_user_id: c.coachUserId,
       coach_label: c.label,
       activity,
       needs_me_reason: reason,
-      note_open: notes[0] || null,
-    });
-  }
+      note_open: notes.get(lc(c.coachUserId)) || null,
+    };
+  });
+}
+
+/**
+ * rules.lastVisits for many coaches in one read: per coach, the latest completed visit to each of THAT coach's schools
+ * (the coach's own bookings only). → Map(lc(coachUserId) → Map(schoolId → ISO date)).
+ */
+async function lastVisitsOf(q, coaches) {
+  const out = new Map(coaches.map((c) => [lc(c.coachUserId), new Map()]));
+  const pairs = coaches.flatMap((c) => c.schools.map((s) => [c.coachUserId, s.school_id]));
+  if (!pairs.length) return out;
+  const { rows } = await q(
+    `SELECT os.leader_user_id AS coach_user_id, s.id AS school_id, MAX(os.scheduled_for)::text AS date
+       FROM observation_schedules os JOIN schools s ON ${rules.OS_SCHOOL}
+      WHERE os.leader_user_id = ANY($1::uuid[]) AND s.id = ANY($2::uuid[]) AND os.status = 'done'
+      GROUP BY os.leader_user_id, s.id`,
+    [[...new Set(pairs.map((p) => p[0]))], [...new Set(pairs.map((p) => p[1]))]],
+  );
+  const held = new Set(pairs.map(([c, sc]) => `${lc(c)}|${sc}`));
+  for (const r of rows) if (held.has(`${lc(r.coach_user_id)}|${r.school_id}`)) out.get(lc(r.coach_user_id)).set(r.school_id, r.date);
+  return out;
+}
+
+/**
+ * Each coach's newest note from this RM still sent or seen (rules.loadNotes with limit 1, for many coaches in one read):
+ * the ids by coach, then the Note shapes through loadNotes itself. → Map(lc(coachUserId) → Note).
+ */
+async function openNotesOf(q, rmUserId, coachIds) {
+  const out = new Map();
+  if (!coachIds.length) return out;
+  const { rows } = await q(
+    `SELECT DISTINCT ON (n.coach_user_id) n.coach_user_id, n.id
+       FROM coachip_rm_notes n
+      WHERE n.rm_user_id = $1 AND n.coach_user_id = ANY($2::uuid[]) AND n.status::text = ANY($3::text[])
+      ORDER BY n.coach_user_id, n.created_at DESC`,
+    [rmUserId, coachIds, ['sent', 'seen']],
+  );
+  if (!rows.length) return out;
+  const notes = await rules.loadNotes(q, { rmUserId, noteIds: rows.map((r) => r.id), limit: rows.length });
+  const byId = new Map(notes.map((n) => [n.id, n]));
+  for (const r of rows) if (byId.has(r.id)) out.set(lc(r.coach_user_id), byId.get(r.id));
   return out;
 }
 
@@ -99,17 +145,27 @@ function circleWeekWindow(ctx, window) {
   const prev = S.addDays(S.mondayOf(ctx.today), -7);
   return { ...S.weekWindow(prev, window.framework, window.grader), scoring_changed_on: window.scoring_changed_on };
 }
-/** School rollups of one W among some schools, most lessons with the W first, then name: the "shows most at" list. */
-async function bySchool(q, key, wId, schoolIds, window) {
-  const rows = (await H.rollupsAt(q, key, { scopeKind: 'school', scopeIds: schoolIds })).filter((r) => r.w_id === wId && r.n > 0 && r.status === 'ok');
-  if (!rows.length) return { list: [], computed: [] };
-  const names = await q(`SELECT id, name FROM schools WHERE id = ANY($1::uuid[])`, [rows.map((r) => r.school_id)]);
+/**
+ * School rollups of the ranked Ws among the sector's schools, most lessons with the W first, then name: the "shows
+ * most at" list per W. fix-r5 s6 (c): ONE rollups read and one names read for all the ranked Ws (it was one pair per
+ * W, in series). → Map(wId → { list, computed }).
+ */
+async function bySchoolAll(q, key, wIds, schoolIds, window) {
+  const out = new Map(wIds.map((id) => [id, { list: [], computed: [] }]));
+  if (!wIds.length) return out;
+  const all = (await H.rollupsAt(q, key, { scopeKind: 'school', scopeIds: schoolIds })).filter((r) => out.has(r.w_id) && r.n > 0 && r.status === 'ok');
+  if (!all.length) return out;
+  const names = await q(`SELECT id, name FROM schools WHERE id = ANY($1::uuid[])`, [[...new Set(all.map((r) => r.school_id))]]);
   const name = new Map(names.rows.map((r) => [r.id, r.name]));
-  rows.sort((a, b) => b.n - a.n || (name.get(a.school_id) < name.get(b.school_id) ? -1 : 1));
-  return {
-    list: rows.slice(0, 3).map((r) => ({ school: { school_id: r.school_id, school_name: name.get(r.school_id) }, count: S.count(r.n, r.d, window.id) })),
-    computed: rows.map((r) => r.computed_at),
-  };
+  for (const wId of wIds) {
+    const rows = all.filter((r) => r.w_id === wId);
+    rows.sort((a, b) => b.n - a.n || (name.get(a.school_id) < name.get(b.school_id) ? -1 : 1));
+    out.set(wId, {
+      list: rows.slice(0, 3).map((r) => ({ school: { school_id: r.school_id, school_name: name.get(r.school_id) }, count: S.count(r.n, r.d, window.id) })),
+      computed: rows.map((r) => r.computed_at),
+    });
+  }
+  return out;
 }
 function wrow(wId, { count, window, state, whereFirst = null, notYet = null }) {
   const t = H.wText(wId);
@@ -151,41 +207,41 @@ function insufficientMessage(graded, needed) {
 }
 
 // ── R17 GET /coachip/rm/home (S8) ─────────────────────────────────────────────────────────────────────────────────
-async function rmHome(ctx) {
-  const q = ctx.deps.query;
+/**
+ * fix-r5 s6 (c), GO_PACKAGE v5 §0.4 c: the moves (the sector's ranked rows and where each shows most) change only when
+ * the nightly writes rollups, so they are kept per RM, keyed on the graded window's key (its computed_at) and the
+ * rollup rows' own fingerprint (count and newest updated_at of the sector and school rows under that key), for at most
+ * MOVES_TTL_MS. Everything else on S8 (visits, observed codes, coaches, notes, steps, the circle, the run) is live and
+ * read on every open. Memory only, per process.
+ */
+const MOVES_TTL_MS = 10 * 60 * 1000;
+const MOVES_MAX = 500;
+const movesCache = new Map();
+
+async function rollupsPrint(q, key, sector, schoolIds) {
+  const { rows } = await q(
+    `SELECT COUNT(*)::int AS n, MAX(updated_at) AS u
+       FROM coachip_rollups
+      WHERE window_start = $1::date AND window_end = $2::date AND grader_model = $3 AND framework_version = $4 AND pipeline_version = $5
+        AND ((scope_kind = 'sector' AND scope_id = $6) OR (scope_kind = 'school' AND scope_id = ANY($7::text[])))`,
+    [key.from, key.to, key.grader, key.frameworkVersion, key.pipeline, String(sector), schoolIds.map(String)],
+  );
+  const r = rows[0] || {};
+  return `${r.n}|${r.u ? new Date(r.u).toISOString() : ''}`;
+}
+
+/** The sector's ranked moves (stored rank, never re-ranked, §8.3), then B23 not_yet rows to fill two. → { moves, computed } */
+async function sectorMoves(q, ctx, key, window) {
   const rm = ctx.rm;
-  const { key, window } = await sectorWindow(ctx);
-  const w = activityWindows(ctx);
-  const circleWin = circleWeekWindow(ctx, window);
-  const computed = [];
-
-  // the opening: visits and observations in the last 4 weeks, over the sector's schools and teachers
-  const visited = rm.schoolIds.length ? (await q(
-    `SELECT COUNT(DISTINCT s.id)::int AS n FROM observation_schedules os JOIN schools s ON ${rules.OS_SCHOOL}
-      WHERE s.id = ANY($1::uuid[]) AND os.status = 'done' AND os.scheduled_for BETWEEN $2::date AND $3::date`,
-    [rm.schoolIds, w.act4w.from, w.act4w.to],
-  )).rows[0].n : 0;
-  const observed = rm.schoolIds.length ? (await q(
-    `SELECT COUNT(DISTINCT teacher_key)::int AS n FROM coachip_session_facts
-      WHERE school_id = ANY($1::uuid[]) AND (recorded_at AT TIME ZONE 'Asia/Karachi')::date BETWEEN $2::date AND $3::date`,
-    [rm.schoolIds, w.act4w.from, w.act4w.to],
-  )).rows[0].n : 0;
-  const nSchools = rm.schoolIds.length;
-  const opening = {
-    visited: S.count(visited, nSchools, w.act4w.id),
-    unobserved_schools: S.count(nSchools - visited, nSchools, w.act4w.id),
-    unobserved_codes: S.count(Math.max(0, rm.teacherCount - observed), rm.teacherCount, w.act4w.id),
-    floor_weeks: 4,
-  };
-
-  // the moves: the sector's ranked rows (stored rank, never re-ranked, §8.3), then a B23 not_yet row to fill two
   const rows = await H.rollupsAt(q, key, { scopeKind: 'sector', scopeIds: [rm.sector] });
-  computed.push(...rows.map((r) => r.computed_at));
+  const computed = rows.map((r) => r.computed_at);
   const order = H.catalogueIndex();
   const lib = S.library();
   const moves = [];
-  for (const r of rows.filter((x) => x.rank && x.status === 'ok').sort((a, b) => a.rank - b.rank)) {
-    const bs = await bySchool(q, key, r.w_id, rm.schoolIds, window);   // eslint-disable-line no-await-in-loop
+  const ranked = rows.filter((x) => x.rank && x.status === 'ok').sort((a, b) => a.rank - b.rank);
+  const shows = await bySchoolAll(q, key, ranked.map((r) => r.w_id), rm.schoolIds, window);
+  for (const r of ranked) {
+    const bs = shows.get(r.w_id);
     computed.push(...bs.computed);
     moves.push({
       row: wrow(r.w_id, { count: S.count(r.n, r.d, window.id), window, state: 'ranked', whereFirst: bs.list[0] || null }),
@@ -206,26 +262,91 @@ async function rmHome(ctx) {
       by_school: [], agenda: false, coach_count: r.coach_count, coaches_with_5plus: r.coaches_with_5plus,
     });
   }
+  return { moves, computed };
+}
+
+/** sectorMoves through the per-RM cache (no key → nothing to keep: the empty states read live). */
+async function sectorMovesCached(q, ctx, key, window) {
+  if (!key) return sectorMoves(q, ctx, key, window);
+  const rm = ctx.rm;
+  const print = await rollupsPrint(q, key, rm.sector, rm.schoolIds);
+  const id = [lc(ctx.uid), rm.sector, ctx.today, window.id, key.from, key.to, key.grader, key.frameworkVersion, key.pipeline,
+    new Date(key.computedAt).toISOString(), print, [...rm.schoolIds].map(lc).sort().join(',')].join('|');
+  const hit = movesCache.get(id);
+  if (hit && Date.now() - hit.at < MOVES_TTL_MS) return JSON.parse(hit.json);
+  const fresh = await sectorMoves(q, ctx, key, window);
+  movesCache.delete(id);
+  movesCache.set(id, { at: Date.now(), json: JSON.stringify(fresh) });
+  while (movesCache.size > MOVES_MAX) movesCache.delete(movesCache.keys().next().value);
+  return fresh;
+}
+
+async function visitedCount(q, rm, w) {
+  if (!rm.schoolIds.length) return 0;
+  return (await q(
+    `SELECT COUNT(DISTINCT s.id)::int AS n FROM observation_schedules os JOIN schools s ON ${rules.OS_SCHOOL}
+      WHERE s.id = ANY($1::uuid[]) AND os.status = 'done' AND os.scheduled_for BETWEEN $2::date AND $3::date`,
+    [rm.schoolIds, w.act4w.from, w.act4w.to],
+  )).rows[0].n;
+}
+async function observedCount(q, rm, w) {
+  if (!rm.schoolIds.length) return 0;
+  return (await q(
+    `SELECT COUNT(DISTINCT teacher_key)::int AS n FROM coachip_session_facts
+      WHERE school_id = ANY($1::uuid[]) AND (recorded_at AT TIME ZONE 'Asia/Karachi')::date BETWEEN $2::date AND $3::date`,
+    [rm.schoolIds, w.act4w.from, w.act4w.to],
+  )).rows[0].n;
+}
+async function withMomentCount(q, rm, monday, coaches) {
+  if (!coaches.length) return 0;
+  return (await q(
+    `SELECT COUNT(DISTINCT coach_user_id)::int AS n FROM coachip_circle_items WHERE sector = $1 AND week_start = $2::date AND coach_user_id = ANY($3::uuid[])`,
+    [rm.sector, monday, coaches.map((c) => c.coachUserId)],
+  )).rows[0].n;
+}
+
+/**
+ * fix-r5 s6 (c): the reads that do not depend on each other run side by side (Promise.all), in two waves: what needs
+ * nothing (the graded window, the visits, the observed codes, the coaches, the RM's sector steps, the last run), then
+ * what needs the window or the coaches (the moves, the coach rows, the circle count, the checks due). The payload is
+ * byte-identical to the serial version (tests/coachip/__golden__/rm_home_r17_s6*.json).
+ */
+async function rmHome(ctx) {
+  const q = ctx.deps.query;
+  const rm = ctx.rm;
+  const w = activityWindows(ctx);
+  const thisMonday = S.mondayOf(ctx.today);
+  const [{ key, window }, visited, observed, coaches, steps, run] = await Promise.all([
+    sectorWindow(ctx), visitedCount(q, rm, w), observedCount(q, rm, w), sectorCoaches(q, rm), sectorStepDates(q, ctx), latestRun(q),
+  ]);
+  const circleWin = circleWeekWindow(ctx, window);
+  const coachIds = coaches.map((c) => c.coachUserId);
+  const [mv, built, withMoment, due] = await Promise.all([
+    sectorMovesCached(q, ctx, key, window), buildCoaches(q, ctx, coaches, w), withMomentCount(q, rm, thisMonday, coaches), checksDue(q, ctx, coachIds),
+  ]);
+  const { moves } = mv;
+  const computed = [...mv.computed];
+  const lib = S.library();
+
+  // the opening: visits and observations in the last 4 weeks, over the sector's schools and teachers
+  const nSchools = rm.schoolIds.length;
+  const opening = {
+    visited: S.count(visited, nSchools, w.act4w.id),
+    unobserved_schools: S.count(nSchools - visited, nSchools, w.act4w.id),
+    unobserved_codes: S.count(Math.max(0, rm.teacherCount - observed), rm.teacherCount, w.act4w.id),
+    floor_weeks: 4,
+  };
 
   // the coaches, grouped (school-list order inside each group)
-  const coaches = await sectorCoaches(q, rm);
-  const built = await buildCoaches(q, ctx, coaches, w);
   const groups = { needs_me: built.filter((c) => c.needs_me_reason), on_track: built.filter((c) => !c.needs_me_reason) };
   const heldBy = new Set(coaches.map((c) => lc(c.coachUserId)));
   const noScope = rm.rosterCoachUserIds.filter((id) => !heldBy.has(lc(id))).length;
 
   // the circle: coaches with a circle moment this week; open steps due this week
-  const thisMonday = S.mondayOf(ctx.today);
-  const withMoment = coaches.length ? (await q(
-    `SELECT COUNT(DISTINCT coach_user_id)::int AS n FROM coachip_circle_items WHERE sector = $1 AND week_start = $2::date AND coach_user_id = ANY($3::uuid[])`,
-    [rm.sector, thisMonday, coaches.map((c) => c.coachUserId)],
-  )).rows[0].n : 0;
-  const due = await checksDue(q, ctx, coaches.map((c) => c.coachUserId));
   const dueN = [...due.values()].reduce((a, r) => a + r.n, 0);
   const dueD = [...due.values()].reduce((a, r) => a + r.d, 0);
 
   // the cluster session: the RM's open sector step, else the first move's school-level intervention (no date yet)
-  const steps = await sectorStepDates(q, ctx);
   let cluster = null;
   if (steps[0]) {
     const i = lib.intervention(steps[0].i_id);
@@ -236,7 +357,6 @@ async function rmHome(ctx) {
   }
 
   // freshness (coachip_job_runs): no run yet → pending; a failed last run → stale (≤ 7 days), then failed
-  const run = await latestRun(q);
   let stale = null;
   let empty = null;
   if (!run) {
@@ -334,8 +454,10 @@ async function rmCoach(ctx) {
     const rows = await H.rollupsAt(q, coachKey, { scopeKind: 'coach', scopeIds: [me.coachUserId] });
     const sectorRows = await H.rollupsAt(q, coachKey, { scopeKind: 'sector', scopeIds: [rm.sector] });
     computed.push(...rows.map((r) => r.computed_at), ...sectorRows.map((r) => r.computed_at));
-    for (const r of rows.filter((x) => x.rank && x.status === 'ok').sort((a, b) => a.rank - b.rank).slice(0, 2)) {
-      const bs = await bySchool(q, coachKey, r.w_id, schoolIds, window);   // eslint-disable-line no-await-in-loop
+    const ranked = rows.filter((x) => x.rank && x.status === 'ok').sort((a, b) => a.rank - b.rank).slice(0, 2);
+    const shows = await bySchoolAll(q, coachKey, ranked.map((r) => r.w_id), schoolIds, window);
+    for (const r of ranked) {
+      const bs = shows.get(r.w_id);
       computed.push(...bs.computed);
       const sr = sectorRows.find((x) => x.w_id === r.w_id && x.status === 'ok');
       moves.push({

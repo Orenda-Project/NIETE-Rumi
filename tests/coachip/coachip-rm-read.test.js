@@ -527,4 +527,101 @@ run('COACHIP RM reads: R17 rm/home, R18 rm/coach/:id, R20 rm/circle (Postgres, H
       expect([p, t.status]).toEqual([p, 404]);
     }
   });
+
+  // ── fix-r5 s6 (c): R17's server time (GO_PACKAGE v5 §0.4 c; qa-rm 104134, ux-lead-2 152702) ──────────────────────────
+  // The handler awaited ten-plus reads in series and read the school rollups once per ranked move, so every Sector,
+  // Coaches or Stats open waited 7-9 s on sandbox and staging. The payload must not change by a byte; the reads must run
+  // side by side, the per-move and per-coach reads must be one read each, and a second open on the same nightly must not
+  // read the rollups again (a per-RM cache keyed on the rollups' computed_at), while the live counts are read every time.
+  const GOLDEN = require('path').join(__dirname, '__golden__');
+  function golden(name, text) {
+    const f = require('path').join(GOLDEN, name);
+    if (process.env.CAPTURE_GOLDEN === '1') require('fs').writeFileSync(f, `${text}\n`);
+    return require('fs').readFileSync(f, 'utf8').trimEnd();
+  }
+  /** The real router over the same Postgres, every query logged (sql, first param) and counted while in flight. */
+  async function countingApp() {
+    const log = { calls: [], inFlight: 0, maxInFlight: 0 };
+    const query = async (sql, params) => {
+      log.calls.push({ sql: String(sql).replace(/\s+/g, ' ').trim(), p0: params ? params[0] : undefined });
+      log.inFlight += 1;
+      log.maxInFlight = Math.max(log.maxInFlight, log.inFlight);
+      try {
+        await new Promise((r) => { setTimeout(r, 3); });
+        return await pg.query(sql, params);
+      } finally { log.inFlight -= 1; }
+    };
+    const a = await startApp({ ...pg, query }, { now: NOW });
+    return { a, log, reset: () => { log.calls = []; log.maxInFlight = 0; } };
+  }
+  const schoolRollupReads = (log) => log.calls.filter((c) => /FROM coachip_rollups WHERE scope_kind = \$1 AND scope_id = ANY/.test(c.sql) && c.p0 === 'school').length;
+  const sectorRollupReads = (log) => log.calls.filter((c) => /FROM coachip_rollups WHERE scope_kind = \$1 AND scope_id = ANY/.test(c.sql) && c.p0 === 'sector').length;
+  const lastVisitReads = (log) => log.calls.filter((c) => /MAX\(os\.scheduled_for\)/.test(c.sql)).length;
+  const noteReads = (log) => log.calls.filter((c) => /FROM coachip_rm_notes n WHERE/.test(c.sql)).length;
+
+  test('s6c R17 rm/home: the payload is byte-identical to the one before the change (default world and two ranked moves)', async () => {
+    const one = await app.call('GET', `${P}/rm/home`, { as: RM });
+    expect(one.status).toBe(200);
+    expect(one.text).toBe(golden('rm_home_r17_s6.json', one.text));
+    await pg.query("UPDATE coachip_rollups SET rank = 2 WHERE scope_kind = 'sector' AND w_id = 'W-EXIT-NOPLAN'");
+    await pg.query(`INSERT INTO coachip_rollups (scope_kind, school_id, w_id, window_start, window_end, window_weeks, numerator, denominator, teacher_count,
+      coach_count, coaches_with_5plus, recordings, recordings_linked, grader_model, framework_version, pipeline_version, status, job_run_id, computed_at)
+      SELECT 'school', $1::uuid, 'W-EXIT-NOPLAN', window_start, window_end, 4, 5, 9, 3, 1, 1, 0, 0, grader_model, framework_version, pipeline_version, 'ok', job_run_id, computed_at
+        FROM coachip_rollups WHERE scope_kind = 'sector' AND w_id = 'W-EXIT-NOPLAN'`, [SCH(2)]);
+    const two = await app.call('GET', `${P}/rm/home`, { as: RM });
+    expect(two.body.moves.map((m) => [m.row.w_id, m.row.state, m.by_school.length])).toEqual([['W-IP-TIME', 'ranked', 3], ['W-EXIT-NOPLAN', 'ranked', 1]]);
+    expect(two.text).toBe(golden('rm_home_r17_s6_two_ranked.json', two.text));
+    const tarnol = await app.call('GET', `${P}/rm/home`, { as: RM2 });
+    expect(tarnol.text).toBe(golden('rm_home_r17_s6_tarnol.json', tarnol.text));
+  });
+
+  test('s6c R17 rm/home: the reads run side by side, one school-rollup read for every ranked move, one visit and one note read for every coach', async () => {
+    await pg.query("UPDATE coachip_rollups SET rank = 2 WHERE scope_kind = 'sector' AND w_id = 'W-EXIT-NOPLAN'");
+    const { a, log, reset } = await countingApp();
+    try {
+      reset();
+      const res = await a.call('GET', `${P}/rm/home`, { as: RM });
+      expect(res.status).toBe(200);
+      expect(res.body.moves.filter((m) => m.row.state === 'ranked')).toHaveLength(2);
+      expect({
+        side_by_side: log.maxInFlight >= 4,
+        school_rollup_reads: schoolRollupReads(log),
+        last_visit_reads: lastVisitReads(log),
+        note_reads_at_most: noteReads(log) <= 2,
+      }).toEqual({ side_by_side: true, school_rollup_reads: 1, last_visit_reads: 1, note_reads_at_most: true });
+    } finally { await a.close(); }
+  });
+
+  test('s6c R17 rm/home: a second open on the same nightly does not read the rollups again, and says the same bytes', async () => {
+    const { a, log, reset } = await countingApp();
+    try {
+      const cold = await a.call('GET', `${P}/rm/home`, { as: RM });
+      reset();
+      const warm = await a.call('GET', `${P}/rm/home`, { as: RM });
+      expect(warm.text).toBe(cold.text);
+      expect({ sector: sectorRollupReads(log), school: schoolRollupReads(log) }).toEqual({ sector: 0, school: 0 });
+    } finally { await a.close(); }
+  });
+
+  test('s6c R17 rm/home: the cache never holds the live counts, and a changed nightly is read again', async () => {
+    const { a } = await countingApp();
+    try {
+      const first = await a.call('GET', `${P}/rm/home`, { as: RM });
+      expect(first.body.opening.visited).toEqual({ n: 4, d: 6, window_id: 'act-4w-2026-10-26' });
+      // a visit done after the first open, a note dismissed and a step set: all three show on the next open
+      await visit(pg.query, { coach: CB, schoolId: SCH(2), date: '2026-10-24' });
+      await pg.query("UPDATE coachip_rm_notes SET status = 'dismissed' WHERE id = $1", [fid('note', 1)]);
+      const second = await a.call('GET', `${P}/rm/home`, { as: RM });
+      expect(second.body.opening.visited).toEqual({ n: 5, d: 6, window_id: 'act-4w-2026-10-26' });
+      expect(second.body.groups.on_track.concat(second.body.groups.needs_me).find((c) => c.coach_user_id === CA).note_open).toBeNull();
+      // the nightly rewrites the same window: the moves follow it (no stale count from the cache)
+      await pg.query("UPDATE coachip_rollups SET numerator = 21 WHERE scope_kind = 'sector' AND w_id = 'W-IP-TIME'");
+      const third = await a.call('GET', `${P}/rm/home`, { as: RM });
+      expect(third.body.moves[0].row.count).toEqual({ n: 21, d: 50, window_id: 'w4-2026-09-28' });
+      // another RM (Tarnol) never gets Urban-I's cached moves
+      const t = await a.call('GET', `${P}/rm/home`, { as: RM2 });
+      expect(t.body.sector).toBe('Tarnol');
+      for (const id of [CA, CB, CC, SCH(1), SCH(3)]) expect(t.text).not.toContain(id);
+    } finally { await a.close(); }
+  });
 });
