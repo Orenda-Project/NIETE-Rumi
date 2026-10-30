@@ -65,7 +65,10 @@ async function onLessonDelivered({ userId, lessonId, deliveredAt = null, assetKi
     // topics for the same grade+subject+chapter number, which are another book's.
     if (book.opt_in) return no('no_topics');
 
-    const topics = await require('../assessment/topics/topics.repo').listChapterTopics(book.grade, subject, chapter.number);
+    // The topics of THIS book's chapter: an NBF (nbf_snc) book's lesson reads NBF's topics (bd-97daxo.4); an ICT book
+    // (no `curriculum` on its catalog entry) reads exactly as before.
+    const topics = await require('../assessment/topics/topics.repo').listChapterTopics(book.grade, subject, chapter.number,
+      ...(book.curriculum && book.curriculum !== 'ict' ? [{ curriculum: book.curriculum }] : []));
     const hit = topicEndingAt({ lessons: chapter.lessons, topics, segmentIndex: lesson.segment_index });
     if (!hit.topic) return no(hit.reason);
 
