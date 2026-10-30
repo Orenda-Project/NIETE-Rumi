@@ -99,6 +99,17 @@ Feature: NIETE (ICT) Teacher Training
     # loadGrandQuizState (unlocks once all modules done) + quiz-delivery grand-pass branch.
     # @destructive: certifies the level + unlocks the next. @wip — needs a fully-completed level.
 
+  @e2e @certificates @destructive @P1 @T965
+  Scenario: A NIETE level exam passed in the teacher app certifies the level, and /certificates lists it
+    Given a teacher in a NIETE programme has just passed a level's exam in the teacher app
+    When I send "/certificates"
+    Then the bot lists that level under "NIETE Certifications" as "Level <n> · <level name>" with a certificate code
+    # ADDED 2026-10-29 (bd-jtgjt8.1): the app's level-exam submit asks the bot's certify-level guard
+    # (maybeIssueQuizScoreCertificate), which refused every chain vendor, so no NIETE L0-L3 exam passed in the
+    # app was certified (158 passes by 125 teachers; none since 12 Oct). Unit test:
+    # bot/tests/training/bd-jtgjt8-chain-level-exam-certifies.test.js. The pass happens in the portal, which this
+    # lane does not drive, so the driver row is BLOCKED until a step seeds the pass through certify-level.
+
   @e2e @wip @draft @certificates @P2 @T06
   Scenario: Asking for a certificate by its code sends the PDF
     Given the NIETE bot chat is open on a teacher who holds a certificate
