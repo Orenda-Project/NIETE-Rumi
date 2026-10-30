@@ -30,6 +30,9 @@ const { logToFile, logError } = require('../../utils/logger');
 const { allModuleExamsPassed, isPerModuleQuiz } = require('./isaps-module-exam.rules');
 
 const FALLBACK_PREFIX = 'CERT';
+// The quiz types that ARE a level exam (same list as EXAM_QUIZ_TYPES on the
+// training endpoint). A 'diagnostic' shares training_grand_quizzes but is not one.
+const LEVEL_EXAM_QUIZ_TYPES = ['grand_quiz', 'capstone'];
 
 /**
  * Resolve the certificate-code prefix from env. Uppercased, alphanumeric
@@ -185,18 +188,33 @@ async function issueCertificate(supabase, { userId, programId, levelId, attemptI
  *
  * The certificate cites the FIRST passing attempt: a teacher whose pass went
  * uncertified and who passes again keeps the date she first earned it.
+ *
+ * Only the level EXAM counts. A diagnostic is stored as quiz_kind 'grand' too,
+ * but it is a placement check, not the exam (bd-43491, the same rule as
+ * isGrandPass on the training endpoint). Without this, every certify-level
+ * call (a module finished in the app) would certify a teacher who only ever
+ * passed the diagnostic. A pass with no grand_quiz_id predates diagnostics
+ * sharing the table and stays trusted, as isGrandPass trusts it.
  */
 async function certifyOnLevelExam(supabase, { userId, level, programId }) {
+  const { data: levelQuizzes } = await supabase
+    .from('training_grand_quizzes')
+    .select('id, quiz_type')
+    .eq('level_id', level.id);
+  const examQuizIds = new Set((levelQuizzes || [])
+    .filter(q => q && LEVEL_EXAM_QUIZ_TYPES.includes(q.quiz_type))
+    .map(q => q.id));
+
   const { data: passes } = await supabase
     .from('training_assessment_attempts')
-    .select('id, program_id, completed_at')
+    .select('id, program_id, completed_at, grand_quiz_id')
     .eq('user_id', userId)
     .eq('level_id', level.id)
     .eq('quiz_kind', 'grand')
     .eq('is_passed', true)
-    .order('completed_at', { ascending: true })
-    .limit(1);
-  const pass = Array.isArray(passes) ? passes[0] : null;
+    .order('completed_at', { ascending: true });
+  const pass = (Array.isArray(passes) ? passes : [])
+    .find(a => a.grand_quiz_id == null || examQuizIds.has(a.grand_quiz_id));
   if (!pass) return { issued: false };
 
   // Same capped list read as below: one certificate per (user, level).
