@@ -10,6 +10,9 @@
  * A failed count never blocks a teacher (the limit fails open; the flag fails closed).
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 const { setup, invoke, BOT } = require('./portal-proxy-harness');
 
 const NOW = new Date('2026-10-16T06:40:00.000Z'); // 11:40 PKT

@@ -2,6 +2,10 @@
  * Live moves (bd-v0toag.31): the portal relays /api/portal/coaching-live/* to the bot's live/* routes.
  * The user is always the session's, never the body's, and nothing reaches the bot without portal auth.
  */
+
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 let client;
 
 function findRoute(router, method, path) {

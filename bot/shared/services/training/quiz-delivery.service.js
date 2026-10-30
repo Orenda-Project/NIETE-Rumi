@@ -2178,7 +2178,8 @@ async function gradeAttempt(attemptId, phoneNumber, opts = {}) {
 
     // bd-2234 — Oxbridge-style levels certify on quiz scores (all modules
     // complete, best score >= 70% each). Cheap early-outs inside; capstone
-    // levels (BH) and chain vendors are excluded there.
+    // levels (BH) are excluded there, and a chain vendor certifies only on a
+    // passed level exam (bd-jtgjt8.1), never on its units.
     const { maybeIssueQuizScoreCertificate } = require('./certificate.service');
     const certRes = await maybeIssueQuizScoreCertificate(supabase, {
       userId: attempt.user_id,

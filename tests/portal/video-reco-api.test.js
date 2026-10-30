@@ -13,6 +13,10 @@
  * video-reco-portal.js, a virtual mock (keyed by the extension-less path) is never consulted and every flag-on case
  * reads the real env (CI on #3592; reproduced with a primer suite run before this one in one worker).
  */
+
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 let tableRows;
 let tableErrors;
 let selects;

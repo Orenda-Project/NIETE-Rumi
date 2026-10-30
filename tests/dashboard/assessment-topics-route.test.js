@@ -5,6 +5,9 @@
  * which stands in for the bot's POST /api/internal/assessment/topics.
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 const { setup, invoke, BOT } = require('./portal-proxy-harness');
 
 const TOPICS = [
