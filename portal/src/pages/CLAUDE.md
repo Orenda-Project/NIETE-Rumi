@@ -1,6 +1,6 @@
 # pages — Public marketing pages: landing, How it works, 404
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/pages kg=0878d27ca3fa gen=c8289794a74b overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/pages kg=4a568359c398 gen=e0acdc11f87e overflow=0 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `Index.tsx` — landing page at / on non-portal hosts
@@ -16,7 +16,7 @@
 | `Index.tsx` | Marketing landing page at / (non-portal hosts): composes Navigation, Hero and story sections, tracks the page visit |
 
 ## Who reads this (generated)
-- `NotFound.tsx` ← imported by `portal/src/App.tsx:9:086ac2f5` · `portal/src/portal/coach/card/frame.tsx:6:eb976e2e`
+- `NotFound.tsx` ← imported by `portal/src/App.tsx:9:086ac2f5` · `portal/src/portal/coach/card/frame.tsx:7:eb976e2e`
 - `HowItWorks.tsx` ← imported by `portal/src/App.tsx:70:e837ae71`
 - `Index.tsx` ← imported by `portal/src/App.tsx:69:6a073008`
 

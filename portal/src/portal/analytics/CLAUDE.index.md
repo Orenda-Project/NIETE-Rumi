@@ -41,7 +41,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `GroupedBarChart.tsx` ← imported by `portal/src/portal/analytics/views/ObservationsTab.tsx:9:04640dce`
 - `LpCharts.tsx` ← imported by `portal/src/portal/analytics/views/LpTab.tsx:10:34d17319`
 - `Numbers.tsx` ← imported by `portal/src/portal/analytics/SchoolsList.tsx:7:a039d4fc`
-- `SchoolsAnalytics.tsx` ← imported by `portal/src/App.tsx:158:06cbb562`
+- `SchoolsAnalytics.tsx` ← imported by `portal/src/App.tsx:160:06cbb562`
 - `SchoolsList.tsx` ← imported by `portal/src/portal/analytics/views/CoachingTab.tsx:5:ac4d1ff0`
 - `Section.tsx` ← imported by `portal/src/portal/analytics/views/CoachingTab.tsx:6:6bc4f8d8` · `portal/src/portal/analytics/views/InfoTab.tsx:3:709fc92a` · `portal/src/portal/analytics/views/LpTab.tsx:11:709fc92a` · `portal/src/portal/analytics/views/ObservationsTab.tsx:11:6bc4f8d8` (+2: `python3 kg/kg.py who-reads Section.tsx`)
 - `SectorCards.tsx` ← imported by `portal/src/portal/analytics/views/CoachingTab.tsx:7:19a72be4` · `portal/src/portal/analytics/views/LpTab.tsx:12:19a72be4` · `portal/src/portal/analytics/views/ObservationsTab.tsx:12:19a72be4` · `portal/src/portal/analytics/views/TrainingTab.tsx:7:85c16d8b`

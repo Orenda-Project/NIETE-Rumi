@@ -1,7 +1,7 @@
 # database — DB layer: analytics queries and ad-hoc SQL migration runner
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/database kg=6944e529e5dd gen=2f0c71c95a2b overflow=6 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/database kg=6b1a3cb028a5 gen=4682fe5ded4d overflow=8 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `queries.js` — all admin analytics queries; first arg is the RLS dbClient
@@ -21,11 +21,10 @@ Full index: `CLAUDE.index.md`
 
 ## Who reads this (generated)
 - `queries.js` ← imported by `dashboard/index.js:48:4830149d` · `dashboard/services/whatsapp-broadcast.service.js:12:dfc14022`
-- column `broadcast_messages.broadcast_id` (written by `queries.js`) ← read by `bot/whatsapp-bot.js:158:94ad840a`
-- column `broadcast_messages.message_id` (written by `queries.js`) ← read by `bot/whatsapp-bot.js:159:8d350454`
-- column `broadcast_messages.sent_at` (written by `queries.js`) ← read by `bot/whatsapp-bot.js:417:dcdfb840`
-- column `broadcast_messages.status` (written by `queries.js`) ← read by `bot/whatsapp-bot.js:158:94ad840a`
-- … 4 more → `CLAUDE.index.md`
+- column `broadcast_messages.broadcast_id` (written by `queries.js`) ← read by `bot/shared/services/fa-video/broadcast.js:99:00a2e4db` · `bot/whatsapp-bot.js:158:94ad840a`
+- column `broadcast_messages.status` (written by `queries.js`) ← read by `bot/shared/services/fa-video/broadcast.js:99:00a2e4db` · `bot/whatsapp-bot.js:158:94ad840a`
+- column `broadcast_messages.user_id` (written by `queries.js`) ← read by `bot/shared/services/fa-video/broadcast.js:99:00a2e4db` · `bot/whatsapp-bot.js:414:219f5683`
+- … 6 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Never query admin data without the request's RLS dbClient (`queries.js:5`)

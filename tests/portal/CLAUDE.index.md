@@ -91,6 +91,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-o15qnr.9-visit-last.test.js` | Pins bd-o15qnr.9: coach-v2 Visit page Last visit row (id, observer, step, link) via TEACHER_FACTS |
 | `bd-q4g7s-android-mic-camera.test.js` | Pins bd-q4g7s: Android manifest declares only mic and network, optional mic, and the KeepScreen plugin keeps screen on |
 | `bd-s42dye-1-training-library.test.js` | Pins bd-s42dye.1 coach-only read-only Training Library API: role re-read each request, catalogue, module, readings |
+| `bd-sex15q.49-assets-no-db.test.js` | (unmapped) |
 | `bd-tbprit.1-coach-disagreements-routes.test.js` | Pins bd-tbprit.1 coach-disagreements API: list and card for the logged-in coach, 404 when the flag is off |
 | `bd-tbprit.1-coach-disagreements-wiring.test.js` | Pins bd-tbprit.1: coach_disagreement_card flag surfaces as features.coachDisagreements; router mounts the API |
 | `bd-tbprit.11-coach-plan-routes.test.js` | Pins bd-tbprit.11 POST /coach/disagreements/:id/plan and /suggestion: coach-only, 500 on failed save, null on AI failure |

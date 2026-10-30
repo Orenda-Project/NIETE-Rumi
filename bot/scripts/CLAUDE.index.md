@@ -29,6 +29,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `assert-native-modules.js` | Postinstall guard: fails the install when optional native canvas did not install, keeping prior deploy live (bd-vq0mfv) |
 | `backfill-lp-asset-sources.js` | Recovers slide script for lessons uploaded before it was kept; writes nothing without a proof |
 | `backfill-section-b-retranscribe.js` | One-off: re-transcribes Section-B-blank observations from R2 audio and recomputes LP fidelity (bd-2kxxa.5) |
+| `broadcast-fa-video.js` | (unmapped) |
 | `build-lp-catalog.js` | Offline build of bot/data/lp_catalog.json from the K-5 ingestion tree; the LP Flow endpoint reads the output at runtime |
 | `challenge-registry-seed.js` | Prints the SQL seed for the Challenge content registry (periods, Set A passages, maths items) from the banks |
 | `challenge-stock-seed.js` | Prints idempotent SQL inserting one draft challenge_passages row per passage file; never releases or reviews a row |
@@ -54,6 +55,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `quiz-funnel-watch.js` | Dry-run of the quiz funnel watcher: prints the DM summary and due alerts for a window without posting or locking |
 | `register-attendance-flows.js` | Registers the Attendance WhatsApp Flows with Meta via Graph API (created Jan 2026); --production flag |
 | `register-coach-visit-request-template.js` | Registers coach_visit_request_v2 UTILITY template in en_US and ur from the shared template module (bd-v0toag.45) |
+| `register-fa-video-template.js` | (unmapped) |
 | `register-observe-report-template.js` | Registers the observation_report_sw UTILITY template used to reopen the 24h window for the teacher's report (FEAT-053) |
 | `register-observe-visit-templates.js` | Registers the scheduled/rescheduled/cancelled teacher visit-notice UTILITY templates in en_US and ur (bd-xorfy) |
 | `register-student-quiz-flow.js` | Registers the child's /quiz Flow from docs/flows/student-quiz-flow.json on one WABA and prints its id |
@@ -99,7 +101,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `AXIOM_TOKEN` read at `bot/scripts/check-balochi-history.js:11:67663e32` · `bot/scripts/debug-balochi.js:12:67663e32`
 - env `ENV_FILE` read at `bot/scripts/run_upload.sh:63:4c591906`
 - env `FLOW_ENDPOINT_BASE` read at `bot/scripts/register-student-quiz-flow.js:25:5b85a09e`
-- env `GRAPH_API_VERSION` read at `bot/scripts/send-outage-broadcast.js:19:ddcada1f` · `bot/scripts/set-conversational-components.js:36:bbb8581f` · `bot/scripts/upload-staging-video.js:19:ddcada1f`
+- env `GRAPH_API_VERSION` read at `bot/scripts/broadcast-fa-video.js:20:d04e05b0` · `bot/scripts/send-outage-broadcast.js:19:ddcada1f` · `bot/scripts/set-conversational-components.js:36:bbb8581f` · `bot/scripts/upload-staging-video.js:19:ddcada1f`
 - env `LP_SEGMENTATION_DIR` read at `bot/scripts/build-lp-catalog.js:512:010859b5`
 - env `LP_TOC_DIR` read at `bot/scripts/build-lp-catalog.js:513:bfd5f9f4`
 - env `LP_V8_CORPUS` read at `bot/scripts/run_upload.sh:35:f093f4fa`
@@ -108,7 +110,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `NIETE_ENV_FILE` read at `bot/scripts/run_upload.sh:36:8549e2c9`
 - env `OPENAI_API_KEY` read at `bot/scripts/exam-checker-dry-run.js:18:d7d391c6`
 - env `PHONE_NUMBER` read at `bot/scripts/simulate.js:38:ce60a1d4`
-- env `PHONE_NUMBER_ID` read at `bot/scripts/send-outage-broadcast.js:18:c79e4792` · `bot/scripts/set-conversational-components.js:45:89b78868` · `bot/scripts/setup-flow-encryption.js:30:c79e4792` · `bot/scripts/simulate.js:17:2c0e23ec` · `bot/scripts/upload-staging-video.js:17:2cab844a`
+- env `PHONE_NUMBER_ID` read at `bot/scripts/broadcast-fa-video.js:69:6eac9260` · `bot/scripts/send-outage-broadcast.js:18:c79e4792` · `bot/scripts/set-conversational-components.js:45:89b78868` · `bot/scripts/setup-flow-encryption.js:30:c79e4792` · `bot/scripts/simulate.js:17:2c0e23ec` · `bot/scripts/upload-staging-video.js:17:2cab844a`
 - env `PORT` read at `bot/scripts/simulate.js:127:5804ff21`
 - env `R2_ACCESS_KEY_ID` read at `bot/scripts/upload-reading-backgrounds.js:15:d6f2a7a2`
 - env `R2_BUCKET_NAME` read at `bot/scripts/upload-reading-backgrounds.js:20:90ddb4d1`
@@ -118,14 +120,15 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `SQS_QUEUE_URL` read at `bot/scripts/requeue-lesson-plan.js:28:06371e86`
 - env `SUPABASE_SERVICE_ROLE_KEY` read at `bot/scripts/generate-coaching-excel.js:17:90118d4a` · `bot/scripts/requeue-lesson-plan.js:17:90118d4a` · `bot/scripts/seed-niete-leader-roles.js:22:a4b14f4f` · `bot/scripts/send-outage-broadcast.js:13:90118d4a`
 - env `SUPABASE_URL` read at `bot/scripts/apply-lp612-figure-notes.js:61:c2c6132b` · `bot/scripts/apply-lp612-salutation-stamps.js:152:c2c6132b` · `bot/scripts/generate-coaching-excel.js:16:e84bc099` · `bot/scripts/ingest-lp-v9-html.js:157:8f304073` · `bot/scripts/requeue-lesson-plan.js:16:e84bc099` · `bot/scripts/revert-lp612-figure-notes.js:28:c2c6132b` · `bot/scripts/seed-niete-leader-roles.js:21:2a5ea60a` · `bot/scripts/send-outage-broadcast.js:12:e84bc099`
-- env `WABA_ID` read at `bot/scripts/register-attendance-flows.js:30:6007273c` · `bot/scripts/register-coach-visit-request-template.js:25:601afc5a` · `bot/scripts/register-observe-report-template.js:21:601afc5a` · `bot/scripts/register-observe-visit-templates.js:22:601afc5a` · `bot/scripts/register-student-quiz-flow.js:23:601afc5a` · `bot/scripts/register-weekly-usage-templates.js:19:601afc5a`
+- env `WABA_ID` read at `bot/scripts/broadcast-fa-video.js:69:6eac9260` · `bot/scripts/register-attendance-flows.js:30:6007273c` · `bot/scripts/register-coach-visit-request-template.js:25:601afc5a` · `bot/scripts/register-observe-report-template.js:21:601afc5a` · `bot/scripts/register-observe-visit-templates.js:22:601afc5a` · `bot/scripts/register-student-quiz-flow.js:23:601afc5a` · `bot/scripts/register-weekly-usage-templates.js:19:601afc5a`
 - env `WHATSAPP_API_VERSION` read at `bot/scripts/register-student-quiz-flow.js:21:14d03902`
-- env `WHATSAPP_TOKEN` read at `bot/scripts/register-attendance-flows.js:31:651a42a4` · `bot/scripts/register-coach-visit-request-template.js:26:99dd7162` · `bot/scripts/register-observe-report-template.js:22:99dd7162` · `bot/scripts/register-observe-visit-templates.js:23:99dd7162` · `bot/scripts/register-student-quiz-flow.js:24:99dd7162` · `bot/scripts/register-weekly-usage-templates.js:20:99dd7162` · `bot/scripts/send-outage-broadcast.js:17:60bafac2` · `bot/scripts/set-conversational-components.js:46:99dd7162` · `bot/scripts/setup-flow-encryption.js:31:babb0b93` · `bot/scripts/upload-staging-video.js:18:922e7ad9`
+- env `WHATSAPP_TOKEN` read at `bot/scripts/broadcast-fa-video.js:69:6eac9260` · `bot/scripts/register-attendance-flows.js:31:651a42a4` · `bot/scripts/register-coach-visit-request-template.js:26:99dd7162` · `bot/scripts/register-observe-report-template.js:22:99dd7162` · `bot/scripts/register-observe-visit-templates.js:23:99dd7162` · `bot/scripts/register-student-quiz-flow.js:24:99dd7162` · `bot/scripts/register-weekly-usage-templates.js:20:99dd7162` · `bot/scripts/send-outage-broadcast.js:17:60bafac2` · `bot/scripts/set-conversational-components.js:46:99dd7162` · `bot/scripts/setup-flow-encryption.js:31:babb0b93` · `bot/scripts/upload-staging-video.js:18:922e7ad9`
 
 ## Tests (all, generated)
 - `apply-lp612-figure-notes.js` ← `tests/lp612/figure-notes-additive.test.js`
 - `assert-native-modules.js` ← `tests/deploy/assert-native-modules.test.js`?
 - `backfill-lp-asset-sources.js` ← `bot/tests/lp-v8/backfill-lp-asset-sources.test.js`
+- `broadcast-fa-video.js` ← `bot/tests/fa-video/fa-video-broadcast-cli.test.js`
 - `build-lp-catalog.js` ← `bot/tests/lp-v8/catalog-builder.test.js` · `bot/tests/lp-v8/elective-catalog-merge.test.js` · `bot/tests/lp-v8/elective-menu-names.test.js` · `tests/lp-v8/catalog-splits.test.js`
 - `challenge-registry-seed.js` ← `bot/tests/quiz/web-quiz/challenge-bank-v4.test.js` · `bot/tests/quiz/web-quiz/challenge-grade1.test.js` · `bot/tests/quiz/web-quiz/challenge-passage-licence.test.js`
 - `challenge-stock-seed.js` ← `bot/tests/quiz/web-quiz/challenge-stock-seed.test.js`
@@ -141,6 +144,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `lp612-sidecar-audit.js` ← `tests/lp612/sidecar-audit.test.js`
 - `quiz-funnel-watch.js` ← `tests/quiz/quiz-funnel-watch.test.js`
 - `register-coach-visit-request-template.js` ← `tests/coaching/bd-v0toag.38.9-agree-ping-service.test.js` · `tests/coaching/bd-v0toag.45-coach-visit-service.test.js`
+- `register-fa-video-template.js` ← `bot/tests/fa-video/fa-video-template.test.js`
 - `register-weekly-usage-templates.js` ← `bot/tests/coaching/weekly-report/register-script.test.js`
 - `seed-feat059-feat080-pakistan-lps.js` ← `tests/pregen/feat-059-080-pakistan-lps.test.js`
 - `simulate.js` ← `bot/scripts/e2e/child-test-sim/transports.js` · `bot/scripts/e2e/mock-graph-api.js` · `tests/e2e-mock/simulate-builders.test.js`

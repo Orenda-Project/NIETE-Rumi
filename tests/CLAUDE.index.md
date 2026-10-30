@@ -7,7 +7,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `__mocks__/` | → (no door; 24 files: 0 test + 24 support) |
-| `app-funnel/` | → (no door; 8 tests) |
+| `app-funnel/` | → (no door; 9 tests) |
 | `app-redirect/` | → (no door; 22 tests) |
 | `assessment/` | Tests for the assessment/exam generator: WhatsApp Flow, portal editor, FDE board papers → `assessment/CLAUDE.md` |
 | `attendance/` | WhatsApp attendance: router, marking Flow, voice roll call, registers and portal service → `attendance/CLAUDE.md` |
@@ -36,7 +36,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `language/` | → (no door; 5 tests) |
 | `lesson-plan-lifecycle/` | lesson_plan_requests lifecycle rows per LP path, plus the hourly health check → `lesson-plan-lifecycle/CLAUDE.md` |
 | `llm/` | → (no door; 26 tests) |
-| `lp-v8/` | → (no door; 32 tests) |
+| `lp-v8/` | → (no door; 33 tests) |
 | `lp612/` | Grade 6-12 LP lane: author ladder, render, catalogue, Urdu overlay, religious gate → `lp612/CLAUDE.md` |
 | `menu-match/` | → (no door; 4 tests) |
 | `menu/` | → (no door; 6 tests) |
@@ -50,8 +50,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `queue/` | → (no door; 9 tests) |
 | `quiz/` | Tests for the quiz stack: authoring, validator, offers, class reports, web quiz → `quiz/CLAUDE.md` |
 | `reading/` | → (no door; 4 tests) |
-| `region/` | → (no door; 2 tests) |
-| `registration/` | → (no door; 19 tests) |
+| `region/` | → (no door; 3 tests) |
+| `registration/` | → (no door; 20 tests) |
 | `remark/` | → (no door; 1 tests) |
 | `reports/` | → (no door; 5 tests) |
 | `roster/` | → (no door; 23 tests) |

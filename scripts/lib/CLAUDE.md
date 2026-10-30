@@ -1,7 +1,7 @@
 # lib — Pure decision logic imported by the write scripts so judgement is testable
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/lib kg=5030fabd14f3 gen=972e41d34453 overflow=9 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/lib kg=67bccccfb1d7 gen=ed1f8dbb595f overflow=10 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `roster_school_backfill.py` — example pure classifier: no I/O, no database
@@ -19,6 +19,7 @@ Full index: `CLAUDE.index.md`
 | `legacy_taleemabad_import.py` | Pure decision logic (question filters, ordering, insert vs update plan) behind import-legacy-taleemabad.py (bd-s42dye.4) |
 | `mark_test_users.py` | Pure helpers merging predicate rows with an allowlist and counting selections per rule for mark-test-users.py |
 | `roster_school_backfill.py` | Pure classifier (backfill, conflict, ambiguous, skipped) for backfill-school-id-from-roster.py |
+| `schema_ledger.py` | Pure helpers that diff migration files against schema_versions and plan strong/weak probes for schema-ledger-audit.py |
 | … | 2 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
@@ -32,8 +33,8 @@ Full index: `CLAUDE.index.md`
 
 ## Tests (generated)
 - `scripts/lib/test_textbook_import.py` (textbook_import.py)
-- `scripts/tests/test_legacy_taleemabad_import.py`? (legacy_taleemabad_import.py)
-- … 7 more → `CLAUDE.index.md`
+- `scripts/tests/test_gb_migration.py`? (gb_migration.py)
+- … 8 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `scripts/CLAUDE.md`?

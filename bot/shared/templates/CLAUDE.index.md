@@ -9,6 +9,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `class-round.page.js` | Renders the class round's screens (start, teacher, child, hand-back) and its report-tab card for the phone |
 | `classroom-observation-report.html` | Handlebars-style HTML template for the classroom observation report PDF (teacher name, scores) |
 | `coach-visit-request.template.js` | Meta template definition asking a coach to observe a disagreeing teacher; read by sender and registrar (bd-v0toag.45) |
+| `fa-video.template.js` | (unmapped) |
 | `latin-runs.js` | Wraps English phrases in LTR isolates inside RTL Urdu HTML so mixed phrases do not read back to front |
 | `niete-brand.js` | NIETE visual kit shared by rendered artefacts: palette, font stacks, diamond/lattice motifs, Urdu spacing helpers |
 | `observation-report.template.js` | Generates HTML for the classroom observation report with Rumi branding and score labels |
@@ -31,6 +32,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Who reads this (all, generated)
 - `class-round.page.js` ← imported by `bot/shared/routes/class-round-internal.routes.js:28:173dbdb7` · `bot/shared/services/quiz/web-quiz-challenge.js:1689:3b23e4a6` · `bot/shared/services/quiz/web-quiz-class-round.js:34:640ef483`
 - `coach-visit-request.template.js` ← imported by `bot/scripts/register-coach-visit-request-template.js:20:738c66b8` · `dashboard/services/coach-visit-request.js:17:88b16cc3`
+- `fa-video.template.js` ← imported by `bot/scripts/broadcast-fa-video.js:17:7621a3f2` · `bot/scripts/register-fa-video-template.js:17:7621a3f2` · `bot/shared/services/fa-video/broadcast.js:19:91bb5376`
 - `latin-runs.js` ← imported by `bot/shared/services/coaching/coaching-card/card-template.js:23:4338d9d6` · `bot/shared/services/coaching/report-v2/hero-report.template.js:16:4338d9d6` · `bot/shared/services/coaching/report-v2/slim-card.template.js:14:4338d9d6` · `bot/shared/services/coaching/video-reco/card-image.js:14:4338d9d6` (+3: `python3 kg/kg.py who-reads latin-runs.js`)
 - `niete-brand.js` ← imported by `bot/shared/services/quiz/transcript-quiz-card.js:34:636625bf` · `bot/shared/services/quiz/video-quiz-report.service.js:45:51a3e9be` · `bot/shared/templates/class-round.page.js:21:9f673c89` · `bot/shared/templates/teacher-class-week.card.js:12:4555e454` (+6: `python3 kg/kg.py who-reads niete-brand.js`)
 - `observe-visit-notice.template.js` ← imported by `bot/shared/services/observe/observe-teacher-notice.service.js:33:651500a1` · `bot/scripts/register-observe-visit-templates.js:20:45b37a81`
@@ -53,6 +55,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Tests (all, generated)
 - `class-round.page.js` ← `bot/tests/quiz/web-quiz/class-round-amend.test.js` · `bot/tests/quiz/web-quiz/class-round-challenge.test.js` · `bot/tests/quiz/web-quiz/class-round-endcard.test.js` · `bot/tests/quiz/web-quiz/class-round-lines.test.js` · `bot/tests/quiz/web-quiz/class-round-paused-continue.test.js` · `bot/tests/quiz/web-quiz/class-round-retired-still.test.js` (+2: `python3 kg/kg.py who-reads bot/shared/templates/class-round.page.js`)
 - `coach-visit-request.template.js` ← `tests/coaching/bd-v0toag.38.9-agree-ping-service.test.js` · `tests/coaching/bd-v0toag.45-coach-visit-service.test.js`
+- `fa-video.template.js` ← `bot/tests/fa-video/fa-video-template.test.js`
 - `niete-brand.js` ← `bot/tests/quiz/urdu-spacing-kill-switch.test.js` · `bot/tests/quiz/video-quiz-scorecard-v4.test.js` · `bot/tests/quiz/video-quiz-scorecard.test.js` · `bot/tests/quiz/web-quiz/teacher-class-week.test.js` · `tests/lp612/type-scale.test.js` · `tests/quiz/teacher-artefact-type-floor.test.js` (+2: `python3 kg/kg.py who-reads bot/shared/templates/niete-brand.js`)
 - `observe-visit-notice.template.js` ← `bot/tests/observe/bd-xorfy-teacher-visit-notice.test.js`
 - `quiz-report.template.js` ← `tests/quiz/quiz-report-template.test.js`

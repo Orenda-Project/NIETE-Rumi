@@ -21,7 +21,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Who reads this (all, generated)
 - `build-w3.js` ← imported by `bot/shared/services/child-test/sa/build.js:18:4f7a86ac`
 - `build.js` ← imported by `bot/scripts/child-test/build-sa-bank.js:16:34f356b8`
-- `counts.js` ← imported by `dashboard/routes/sa-battery-switches.js:99:c975a915` · `bot/shared/services/child-test/sa/score.js:199:84a91658`
+- `counts.js` ← imported by `dashboard/routes/sa-battery-switches.js:103:c975a915` · `bot/shared/services/child-test/sa/score.js:199:84a91658`
 - `last-word-hint.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:67:048b2c5b`
 - `review-store.js` ← imported by `bot/shared/services/child-test/app/sa-review.service.js:37:2ae41dd9`
 - `reviewed-lines.js` ← imported by `bot/shared/services/child-test/sa/build.js:19:e282362f`

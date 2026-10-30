@@ -15,12 +15,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Who reads this (all, generated)
 - `queries.js` ← imported by `dashboard/index.js:48:4830149d` · `dashboard/services/whatsapp-broadcast.service.js:12:dfc14022`
-- column `broadcast_messages.broadcast_id` (written by `queries.js`) ← read by `bot/whatsapp-bot.js:158:94ad840a`
+- column `broadcast_messages.broadcast_id` (written by `queries.js`) ← read by `bot/shared/services/fa-video/broadcast.js:99:00a2e4db` · `bot/whatsapp-bot.js:158:94ad840a`
 - column `broadcast_messages.message_id` (written by `queries.js`) ← read by `bot/whatsapp-bot.js:159:8d350454`
 - column `broadcast_messages.sent_at` (written by `queries.js`) ← read by `bot/whatsapp-bot.js:417:dcdfb840`
-- column `broadcast_messages.status` (written by `queries.js`) ← read by `bot/whatsapp-bot.js:158:94ad840a`
-- column `broadcast_messages.user_id` (written by `queries.js`) ← read by `bot/whatsapp-bot.js:414:219f5683`
-- table `broadcast_messages` (written by `queries.js`) ← read by `bot/whatsapp-bot.js:157:5e6ab800`?
+- column `broadcast_messages.status` (written by `queries.js`) ← read by `bot/shared/services/fa-video/broadcast.js:99:00a2e4db` · `bot/whatsapp-bot.js:158:94ad840a`
+- column `broadcast_messages.user_id` (written by `queries.js`) ← read by `bot/shared/services/fa-video/broadcast.js:99:00a2e4db` · `bot/whatsapp-bot.js:414:219f5683`
+- table `broadcast_logs` (written by `queries.js`) ← read by `bot/shared/services/fa-video/broadcast.js:95:5623da98`?
+- table `broadcast_messages` (written by `queries.js`) ← read by `bot/shared/services/fa-video/broadcast.js:98:2d012da7`? · `bot/whatsapp-bot.js:157:5e6ab800`?
 - env `SUPABASE_SERVICE_ROLE_KEY` read at `dashboard/database/verify-funnel-migration.js:7:90118d4a`
 - env `SUPABASE_URL` read at `dashboard/database/verify-funnel-migration.js:6:e84bc099`
 

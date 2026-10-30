@@ -136,6 +136,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-r8-maths.service.test.js` | Tests round 8 maths screens showing every number in 0-9 digits (sa-core, sa-ui) |
 | `sa-r8-mn-fit.service.test.js` | Tests round 8 multiple-choice screens tightening until every choice ends above the foot (sa-ui) |
 | `sa-r8-offline-hunks.service.test.js` | Tests sa-voice speak.audio() and offline voice watching in sa-engine/sa-offline |
+| `sa-r8-offline-pending.service.test.js` | Get ready never posts to a worker while update() is unanswered or a newer one exists; replays a slow-update field run |
 | `sa-r8-offline-prep.service.test.js` | Tests sw.js and sa-offline prepare: fresh network read with byte counts; keeps phone copy when network fails |
 | `sa-r8-offline-register.service.test.js` | Tests sa-offline checkVisit offline with the worker installed: register rejection does not break the page |
 | `sa-r8-offline-switches.service.test.js` | Tests the three offline switches in portal-child-test.routes: true or list naming the coach, else off |

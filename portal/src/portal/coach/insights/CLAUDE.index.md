@@ -36,7 +36,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `routes.tsx` ← imported by `portal/src/App.tsx:59:81251d5a`
 - `text.tsx` ← imported by `portal/src/portal/coachip-ui/LangToggle.tsx:3:913bacae` · `portal/src/portal/rm/components/CircleRow.tsx:7:f215ee4b` · `portal/src/portal/rm/components/ClusterCard.tsx:3:f215ee4b` · `portal/src/portal/rm/components/FollowUpPicker.tsx:7:f215ee4b` (+35: `python3 kg/kg.py who-reads text.tsx`)
 - `types.ts` ← imported by `portal/src/portal/coachip-ui/Count.tsx:5:9b94861d` · `portal/src/portal/rm/RmGate.tsx:5:3d087302` · `portal/src/portal/rm/api.ts:8:5f1c0dc1` · `portal/src/portal/rm/components/CoachGroups.tsx:5:f48407d3` (+42: `python3 kg/kg.py who-reads types.ts`)
-- `useCoachip.ts` ← imported by `portal/src/portal/coach/card/harness.testdata.tsx:96:57b8a664` · `portal/src/portal/coach/profile/CoachMore.tsx:14:477e5217` · `portal/src/portal/coach/training/CoachAppGuard.tsx:10:8b7ea756` · `portal/src/portal/components/PortalNavigation.tsx:15:5176035e` (+1: `python3 kg/kg.py who-reads useCoachip.ts`)
+- `useCoachip.ts` ← imported by `portal/src/portal/coach/card/harness.testdata.tsx:98:57b8a664` · `portal/src/portal/coach/profile/CoachMore.tsx:14:477e5217` · `portal/src/portal/coach/training/CoachAppGuard.tsx:10:8b7ea756` · `portal/src/portal/components/PortalNavigation.tsx:15:5176035e` (+1: `python3 kg/kg.py who-reads useCoachip.ts`)
 - `useLoad.ts` ← imported by `portal/src/portal/rm/useRmLoad.ts:1:04df703b` · `portal/src/portal/coach/insights/pages/Listen.tsx:5:b37e540e` · `portal/src/portal/coach/insights/pages/MomentRoute.tsx:4:b37e540e` · `portal/src/portal/coach/insights/pages/Move.tsx:6:b37e540e` (+7: `python3 kg/kg.py who-reads useLoad.ts`)
 
 ## Tests (all, generated)

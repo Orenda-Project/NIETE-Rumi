@@ -1,7 +1,7 @@
 # patterns — Board-pattern definitions (FDE grades 1, 2, 5) as frozen data
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/patterns kg=aabcb8d6978a gen=559452ef847e overflow=131 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/patterns kg=659e646ac2c2 gen=b38dab37e9f1 overflow=134 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — registry and derived views used by routes and generator
@@ -38,7 +38,7 @@ Full index: `CLAUDE.index.md`
 - `tests/assessment/fde-early-answers.test.js` (index.js)
 - `tests/assessment/fde-early-asked.test.js` (index.js)
 - `tests/assessment/fde-early-pictures-pattern.test.js` (index.js)
-- … 131 more → `CLAUDE.index.md`
+- … 134 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/assessment/CLAUDE.md`?

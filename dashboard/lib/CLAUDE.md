@@ -1,7 +1,7 @@
 # lib — Small shared helpers: feature flags, edge switches, date rules, COACHIP insights job
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/lib kg=4240ff7bdbb5 gen=5cfe6e0bb41f overflow=91 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/lib kg=abab12d45861 gen=ece602ffc9ee overflow=92 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `feature-flags.js` — fail-closed app_settings flags shared with the bot
@@ -32,7 +32,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/portal/analytics-schools-route.test.js` (analytics-viewer.js, feature-flags.js, leader-role.js)
 - `dashboard/tests/closed-way-back-switch.service.test.js` (closed-way-back-switch.js)
-- … 45 more → `CLAUDE.index.md`
+- … 46 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `dashboard/CLAUDE.md`? · `docs/onboarding/local-portal.md`? · `portal/ANDROID.md`? · `portal/src/portal/newui/DESIGN.md`?

@@ -15,6 +15,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `cwpm.ts` | Round 7b sa_cwpm: isWordsTask picks the tasks whose rate is labelled CWPM (words/story, not comprehension) |
 | `dashboardCopy.ts` | Urdu/English strings for the results dashboard (example and live), plus the CWPM label overrides |
 | `exampleCohort.ts` | Seeded generator of 1,000 synthetic students for the sandbox-only example results dashboard (sa_example_dashboard) |
+| `micReport.ts` | (unmapped) |
 | `outbox.ts` | Sends one offline-queued assessment outcome via childTestSa and classifies it sent, retry or refused by HTTP status |
 | `qr.test.ts` | Pins qr.ts: qrMatrix equals independent reference encoder output for v2, v8 and v14 symbols; qrSvgPath |
 | `qr.ts` | Dependency-free QR encoder (byte mode, level M, v1-20) so one phone can show a link for another to scan |
@@ -36,6 +37,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `cwpm.ts` ← imported by `portal/src/portal/pages/LeaderAssessResults.tsx:7:29b236b2` · `portal/src/portal/pages/LeaderAssessReview.tsx:8:29b236b2`
 - `dashboardCopy.ts` ← imported by `portal/src/portal/pages/LeaderAssessDashboard.tsx:8:cf3118e2` · `portal/src/portal/pages/LeaderAssessReview.tsx:9:a19bb069`
 - `exampleCohort.ts` ← imported by `portal/src/portal/pages/LeaderAssessDashboard.tsx:9:8bc0d051` · `portal/src/portal/lib/assess/cohortStats.ts:2:53f0d4b3` · `portal/src/portal/lib/assess/realCohort.ts:2:82ac6238` · `portal/src/portal/lib/assess/rwpNorms.ts:1:72baf5a4`
+- `micReport.ts` ← imported by `portal/src/portal/components/assess/AssessPreflight.tsx:6:0750d41a`
 - `outbox.ts` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:23:b9eae346`
 - `qr.ts` ← imported by `portal/src/portal/components/assess/AssessOtherPhone.tsx:6:9ee877b5`
 - `realCohort.ts` ← imported by `portal/src/portal/pages/LeaderAssessDashboard.tsx:10:9f60aacf` · `portal/src/portal/lib/assess/cohortStats.ts:3:72369a27`
@@ -50,7 +52,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Tests (all, generated)
 - `blocks.ts` ← `portal/src/portal/lib/assess/blocks.test.ts` · `portal/src/portal/pages/LeaderAssess.test.tsx`
 - `cohortStats.ts` ← `portal/src/portal/lib/assess/cohortStats.test.ts` · `portal/src/portal/lib/assess/realCohort.test.ts`
-- `copy.ts` ← `portal/src/portal/components/assess/AssessPreflight.test.tsx` · `portal/src/portal/lib/assess/copy.test.ts`
+- `copy.ts` ← `portal/src/portal/components/assess/AssessPreflight.ios.test.tsx` · `portal/src/portal/components/assess/AssessPreflight.test.tsx` · `portal/src/portal/lib/assess/copy.test.ts`
 - `exampleCohort.ts` ← `portal/src/portal/lib/assess/cohortStats.test.ts`
 - `qr.ts` ← `portal/src/portal/lib/assess/qr.test.ts`
 - `realCohort.ts` ← `portal/src/portal/lib/assess/realCohort.test.ts`

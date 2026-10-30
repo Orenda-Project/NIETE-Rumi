@@ -17,9 +17,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Who reads this (all, generated)
 - `ManageSchool.tsx` ← imported by `portal/src/portal/coach/card/SchoolCardPage.tsx:9:bf2e7884` · `portal/src/portal/coach/pages/CoachSchool.tsx:9:bf2e7884`
-- `PeopleFrame.tsx` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:10:5c9f8184` · `portal/src/portal/coach/card/FeatureGridPage.tsx:5:70e8f104` · `portal/src/portal/coach/card/HerItemsPage.tsx:6:70e8f104` · `portal/src/portal/coach/card/SchoolCardPage.tsx:8:70e8f104` (+11: `python3 kg/kg.py who-reads PeopleFrame.tsx`)
+- `PeopleFrame.tsx` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:10:5c9f8184` · `portal/src/portal/coach/card/DaysUsedPage.tsx:5:70e8f104` · `portal/src/portal/coach/card/FeatureGridPage.tsx:5:70e8f104` · `portal/src/portal/coach/card/HerItemsPage.tsx:6:70e8f104` (+12: `python3 kg/kg.py who-reads PeopleFrame.tsx`)
 - `copy.ts` ← imported by `portal/src/portal/coach/card/TeacherCardPage.tsx:7:50f56fe6` · `portal/src/portal/coach/pages/CoachAddSchool.tsx:9:50f56fe6` · `portal/src/portal/coach/pages/CoachAddTeacher.tsx:10:c206095a` · `portal/src/portal/coach/pages/CoachEditTeacher.tsx:8:c206095a` (+7: `python3 kg/kg.py who-reads copy.ts`)
-- `rows.tsx` ← imported by `portal/src/portal/coach/card/HerItemsPage.tsx:7:d9a31d0d` · `portal/src/portal/coach/card/SchoolCardPage.tsx:10:269b69ed` · `portal/src/portal/coach/card/TeacherCardPage.tsx:9:d9a31d0d` · `portal/src/portal/coach/card/TeacherScoresPage.tsx:7:d9a31d0d` (+4: `python3 kg/kg.py who-reads rows.tsx`)
+- `rows.tsx` ← imported by `portal/src/portal/coach/card/DaysUsedPage.tsx:6:d9a31d0d` · `portal/src/portal/coach/card/HerItemsPage.tsx:7:d9a31d0d` · `portal/src/portal/coach/card/SchoolCardPage.tsx:10:269b69ed` · `portal/src/portal/coach/card/TeacherCardPage.tsx:9:d9a31d0d` (+5: `python3 kg/kg.py who-reads rows.tsx`)
 - `visitStatus.ts` ← imported by `portal/src/portal/coach/people/rows.tsx:9:7d0a280e`
 
 ## Tests (all, generated)

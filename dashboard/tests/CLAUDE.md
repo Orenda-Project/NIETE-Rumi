@@ -1,7 +1,7 @@
 # tests — Jest suite for the dashboard server: web-quiz edge, SA runner, leader services
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/tests kg=399dcaa5f5d7 gen=6ce1019e4a8d overflow=455 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/tests kg=f8ae3d0ba004 gen=9164831c7630 overflow=456 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `web-quiz-edge.service.test.js` — start here: the portal edge pages and bot relay pattern; Run: cd dashboard && ./run-tests.sh tests/<file> --maxWorkers=2 (jest.config.js testRegex)
@@ -20,7 +20,7 @@ Full index: `CLAUDE.index.md`
 | `__snapshots__/` | → (not mapped: excluded; 3 files) |
 | `wq*` | 4 files; most used `wq-page-harness.js`: Shared harness for web quiz page tests: runs public/wq/wq.js and wq.css in a vm with fakes |
 | `wqc-page-harness.js` | Shared harness running public/wq/wq-challenge.js whole in a vm with a fake DOM, fetch and media |
-| … | 492 more → `CLAUDE.index.md` |
+| … | 493 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

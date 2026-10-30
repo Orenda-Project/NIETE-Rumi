@@ -44,8 +44,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `stem-bank.json` ← imported by `bot/shared/services/assessment/topics/stem-bank.js:13:893f4bed`
 - `stem-prompt.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:25:c93ea675`
 - `stems.js` ← imported by `bot/shared/routes/internal-api.routes.js:1493:e3dd3ca4`
-- `topic-oral.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:764:b1d3239b`
-- `topics.repo.js` ← imported by `bot/shared/routes/internal-api.routes.js:1565:e4013beb` · `bot/shared/services/nudges/topic-end-nudge.service.js:63:96176bc6`
+- `topic-oral.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:765:b1d3239b`
+- `topics.repo.js` ← imported by `bot/shared/routes/internal-api.routes.js:1565:e4013beb` · `bot/shared/services/nudges/topic-end-nudge.service.js:65:96176bc6`
 
 ## Tests (all, generated)
 - `collect.js` ← `tests/assessment/topics/collect.test.js`
@@ -65,7 +65,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `stem-prompt.js` ← `tests/assessment/topics/topic-stem-prompt.test.js`
 - `stems.js` ← `tests/assessment/topics/topic-stems.test.js`
 - `topic-oral.js` ← `tests/assessment/topics/topic-oral-key.test.js` · `tests/assessment/topics/topic-oral.test.js`
-- `topics.repo.js` ← `tests/assessment/topics/topics.repo.test.js` · `tests/lp-v8/topic-end-nudge.test.js`
+- `topics.repo.js` ← `tests/assessment/topics/topics.repo.test.js` · `tests/lp-v8/topic-end-nudge-recording.test.js` · `tests/lp-v8/topic-end-nudge.test.js`
 
 ## Related (all, generated)
 - docs: `bot/shared/services/assessment/CLAUDE.md`?

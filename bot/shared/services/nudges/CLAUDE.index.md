@@ -17,6 +17,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `teacher-nudges.sweeper.js` | Periodic sweeper for scheduled teacher nudges: expire stuck rows, prepare cohorts, claim due rows, dispatch handlers |
 | `topic-end-arm.js` | (unmapped) |
 | `topic-end-nudge.service.js` | (unmapped) |
+| `topic-end-recording.js` | (unmapped) |
 | `topic-end.js` | (unmapped) |
 | `window-closed-template.js` | UTILITY template (teacher_quiz_reminder_v1) path for the afternoon quiz offer when the 24h window has closed |
 
@@ -30,9 +31,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `reminder-stop.js` ← imported by `bot/shared/handlers/text-message.handler.js:559:7345f2fc`
 - `teacher-nudges.store.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:15:cd646e88` · `bot/shared/services/nudges/lp-coaching-ask.service.js:181:a96e1f66` · `bot/shared/services/nudges/lp-quiz-offer.service.js:42:4c8b8a4a` · `bot/shared/services/nudges/teacher-nudges.sweeper.js:42:a96e1f66` (+1: `python3 kg/kg.py who-reads teacher-nudges.store.js`)
 - `teacher-nudges.sweeper.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:131:a772dfc6` · `bot/workers/sqs-worker.js:2024:17fcff80` · `bot/shared/services/nudges/lp-coaching-ask.service.js:687:029cdc9d` · `bot/shared/services/nudges/lp-quiz-offer.service.js:1181:27d92175` (+1: `python3 kg/kg.py who-reads teacher-nudges.sweeper.js`)
-- `topic-end-arm.js` ← imported by `bot/shared/services/nudges/topic-end-nudge.service.js:27:dc8b1afa`
-- `topic-end-nudge.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:1431:c1e58076` · `bot/shared/services/lp-v8-delivery.service.js:470:2aa4f6b5` · `bot/workers/sqs-worker.js:2036:04310a00`
-- `topic-end.js` ← imported by `bot/shared/services/nudges/topic-end-nudge.service.js:30:a8a24fed`
+- `topic-end-arm.js` ← imported by `bot/shared/services/nudges/topic-end-nudge.service.js:28:dc8b1afa` · `bot/shared/services/nudges/topic-end-recording.js:20:dc8b1afa`
+- `topic-end-nudge.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:1431:c1e58076` · `bot/shared/services/lp-v8-delivery.service.js:470:2aa4f6b5` · `bot/workers/sqs-worker.js:2036:04310a00` · `bot/shared/services/nudges/topic-end-recording.js:63:1efd4e97`
+- `topic-end-recording.js` ← imported by `bot/shared/services/coaching/analysis-processor.service.js:595:3722a4d2`
+- `topic-end.js` ← imported by `bot/shared/services/nudges/topic-end-nudge.service.js:31:a8a24fed`
 - `window-closed-template.js` ← imported by `bot/shared/services/nudges/lp-quiz-offer.service.js:57:e226ae2c` · `bot/shared/services/nudges/reminder-stop.js:23:2a3feced`
 - column `quizzes.coaching_session_id` (written by `lp-quiz-offer.service.js`) ← read by `bot/shared/routes/transcript-quiz-flow-endpoint.js:274:b52fa8e6` · `bot/shared/services/first-touch/teacher-home.send.js:135:9d824125` · `bot/shared/services/quiz/transcript-lesson-provider.js:184:77be8067` · `bot/shared/services/quiz/transcript-quiz-generate.service.js:2197:6bb2eefd` (+5: `python3 kg/kg.py who-reads quizzes.coaching_session_id`)
 - column `quizzes.grade` (written by `lp-quiz-offer.service.js`) ← read by `bot/shared/services/first-touch/maker.bank.js:69:c09109dc` · `bot/shared/services/first-touch/maker.prefill.js:102:94d3eeca` · `bot/shared/services/quiz/handout-class.service.js:119:c28fee2c` · `bot/shared/services/quiz/lp-quiz-cache.js:138:36826a1f` (+13: `python3 kg/kg.py who-reads quizzes.grade`)
@@ -66,8 +68,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `reminder-stop.js` ← `tests/quiz/reminder-stop.test.js`
 - `teacher-nudges.store.js` ← `bot/tests/coaching/weekly-report/migration.test.js` · `bot/tests/nudges/teacher-nudges.store.test.js` · `bot/tests/nudges/topic-end-nudge-migration.test.js` · `tests/lp-v8/lp-coaching-ask-answer.test.js` · `tests/lp-v8/lp-coaching-ask-next-day.test.js` · `tests/lp-v8/lp-coaching-ask-schedule.test.js` (+2: `python3 kg/kg.py who-reads bot/shared/services/nudges/teacher-nudges.store.js`)
 - `teacher-nudges.sweeper.js` ← `bot/tests/nudges/nudge-flags.test.js` · `bot/tests/nudges/teacher-nudges.sweeper.test.js` · `tests/lp-v8/lp-coaching-ask-send.test.js` · `tests/lp-v8/lp-coaching-ask-survey-window.test.js` · `tests/quiz/lp-quiz-offer-send.test.js` · `tests/quiz/lp-quiz-offer-window-template.test.js`
-- `topic-end-arm.js` ← `bot/tests/nudges/topic-end-nudge-migration.test.js` · `tests/lp-v8/topic-end-nudge.test.js`
-- `topic-end-nudge.service.js` ← `tests/lp-v8/topic-end-nudge-wiring.test.js` · `tests/lp-v8/topic-end-nudge.test.js`
+- `topic-end-arm.js` ← `bot/tests/nudges/topic-end-nudge-migration.test.js` · `tests/lp-v8/topic-end-nudge-recording.test.js` · `tests/lp-v8/topic-end-nudge.test.js`
+- `topic-end-nudge.service.js` ← `tests/lp-v8/topic-end-nudge-recording.test.js` · `tests/lp-v8/topic-end-nudge-wiring.test.js` · `tests/lp-v8/topic-end-nudge.test.js`
+- `topic-end-recording.js` ← `tests/coaching/bd-pw1ccr.11-recording-books-topic-nudge.test.js` · `tests/lp-v8/topic-end-nudge-recording.test.js`
 - `topic-end.js` ← `tests/lp-v8/topic-end.test.js`
 - `window-closed-template.js` ← `tests/quiz/lp-quiz-offer-window-template.test.js` · `tests/quiz/reminder-stop.test.js`
 

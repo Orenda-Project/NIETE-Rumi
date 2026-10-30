@@ -1,7 +1,7 @@
 # database — Legacy v3.0 schema, guides and ad-hoc SQL migrations from the main-bot era
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/database kg=b38cbeee2ecf gen=84144a7d1981 overflow=21 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/database kg=b38cbeee2ecf gen=a67f1895f2ab overflow=21 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `migrations/web_quiz_challenge_registry.sql` — requires:/rollback-pair header style; apply sandbox first
@@ -17,8 +17,8 @@ Full index: `CLAUDE.index.md`
 | `SESSION_MIGRATION_GUIDE.md` | How-to for the v3.1.0 chat_sessions migration (30-minute session timeout); historical Nov 2025 rollout note |
 
 ## Who reads this (generated)
-- column `users.id` (written by `schema.sql`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632` · `bot/shared/calls/call-context.repo.js:36:6776a642` (+159)
-- column `users.phone_number` (written by `schema.sql`) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` (+90)
+- column `users.id` (written by `schema.sql`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632` · `bot/shared/calls/call-context.repo.js:36:6776a642` (+160)
+- column `users.phone_number` (written by `schema.sql`) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` (+91)
 - column `users.name` (written by `schema.sql`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/calls/call-tools.repo.js:242:774e00e5` (+62)
 - column `lesson_plans.user_id` (written by `schema.sql`) ← read by `bot/shared/database/bot-helpers.js:413:219f5683` · `bot/shared/routes/quiz-flow-endpoint.js:160:219f5683` (+11)
 - column `lesson_plans.created_at` (written by `schema.sql`) ← read by `bot/shared/database/bot-helpers.js:412:5950c690` · `bot/shared/routes/quiz-flow-endpoint.js:159:d69ad1fa` (+9)

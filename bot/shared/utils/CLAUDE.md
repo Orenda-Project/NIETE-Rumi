@@ -1,7 +1,7 @@
 # utils — Small shared helpers: language, logging, phone, SQS, rendering, text
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/utils kg=12d51cb4463d gen=9522a54ec043 overflow=570 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/utils kg=afbc25b028bc gen=8ccd8f5d2f9c overflow=571 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `resolve-response-language.js` — which language a reply uses
@@ -20,9 +20,9 @@ Full index: `CLAUDE.index.md`
 | … | 46 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `logger.js` ← imported by `bot/shared/calls/call-forwarder.js:18:9949d551` · `bot/shared/calls/call-log.service.js:19:9949d551` (+597)
+- `logger.js` ← imported by `bot/shared/calls/call-forwarder.js:18:9949d551` · `bot/shared/calls/call-log.service.js:19:9949d551` (+598)
 - `structured-logger.js` ← imported by `bot/shared/handlers/exam-checker.handler.js:14:6565d9d3` · `bot/shared/handlers/image-message.handler.js:26:b00ce36f` (+176)
-- table `users` (written by `language-cache.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+172)
+- table `users` (written by `language-cache.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+174)
 - … 117 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -33,7 +33,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/quiz/transcript-quiz-flow-endpoint.test.js` (logger.js, structured-logger.js, text-format.js)
 - `bot/tests/quiz/web-quiz/teacher-report-library-send.test.js` (html-to-pdf.js, logger.js, structured-logger.js)
-- … 477 more → `CLAUDE.index.md`
+- … 478 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`? · `debugging`? · `logging`? · `whatsapp-flows`?

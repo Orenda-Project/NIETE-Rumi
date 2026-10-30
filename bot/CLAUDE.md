@@ -1,7 +1,7 @@
 # bot — NIETE WhatsApp bot: webhook, workers, services, tests, migrations
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot kg=ecce826a9d1d gen=0b8e5c787915 overflow=50 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot kg=bcfffffbde15 gen=e86199a22cef overflow=51 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `whatsapp-bot.js` — the Express webhook (GET/POST /webhook at :467/:488) and button/message routing
@@ -20,8 +20,7 @@ Full index: `CLAUDE.index.md`
 ## Who reads this (generated)
 - table `reading_assessments` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:748:4337985e`? · `dashboard/routes/portal.routes.js:8258:4337985e`? (+12)
 - table `reading_assessments` whole row (`*`) (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:749:7a0c163a`? · `dashboard/routes/portal.routes.js:8334:d2b02c3e`? (+4)
-- `package.json` ← imported by `bot/whatsapp-bot.js:2763:056c465a`
-- … 11 more → `CLAUDE.index.md`
+- … 12 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Require `shared/services/queue` (the index), never a driver file — both drivers share one surface (shared/services/queue/index.js:6-9)

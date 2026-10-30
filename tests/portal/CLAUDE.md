@@ -1,7 +1,7 @@
 # portal — Root jest tests pinning the portal's dashboard routes, services and Android shell
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/portal kg=1ff2597fa9b5 gen=519a0d3abc31 overflow=131 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/portal kg=c0742e081829 gen=87017d206ecb overflow=132 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `portal-teacher-home.routes.test.js` — typical route suite: real Express over dashboard/routes, injected boundaries
@@ -19,7 +19,7 @@ Full index: `CLAUDE.index.md`
 | `bd-o15qnr.8-coach-feedback.test.js` | Pins bd-o15qnr.8 coach v2 round-1 server rules: past-dated visits allowed with no teacher notice, edit and reschedule |
 | `coaching*` | 4 files; most used `coaching-report-page.video.test.js`: Pins bd-gzfdu9: /cr report page adds Watch this next card only with a recommendation, else byte-identical to golden |
 | `bd-z3cadk-report-extras.test.js` | Pins bd-z3cadk report-extras: portal report shows Last time we asked, journey note, repeat-recording date |
-| … | 184 more → `CLAUDE.index.md` |
+| … | 185 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
