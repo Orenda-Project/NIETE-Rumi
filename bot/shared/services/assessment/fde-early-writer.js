@@ -153,20 +153,18 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   const readAloud = P.oral ? P.oral.tasks.filter((t) => t.kind === 'read_aloud').map((t) => t.id) : [];
   const reaskOral = async (hits) => {
     const words = [...new Set(hits.flatMap((f) => f.words))];
-    d.logToFile('[assessment] oral re-asked', { requestId, pattern, missing: oral.missing, giveaways: words });
+    d.logToFile('[assessment] oral re-asked', { requestId, pattern, missing: oral.missing, flagged: oral.flagged, giveaways: words });
     const note = [
       oral.missing.length ? `Last time these tasks came back without what they need: ${oral.missing.join(', ')}. Write every task in full.` : null,
+      // A present task with its Urdu wording off is asked again once, never failed (v34 g1/g2 Urdu poem, bd-5jmnfj.4.58.6.1).
+      oral.flagged.length ? `Rewrite these tasks: ${oral.flagged.join(', ')}. Each item asks one thing; a model answer is the answer alone, never the question's words or «نظم میں»; a dialogue opens with a greeting or a question, never a reply.` : null,
       words.length ? `Do not use these words in the read-aloud task: ${words.join(', ')}. They are answers on the written paper.` : null,
     ].filter(Boolean).join(' ');
     const second = await writeOral(note);
     const next = Prompt.oralContent(second.tree, P.oral, { saidCheck: P.medium !== 'ur' });
-    // Only the read-aloud task is swapped for a give-away; a task the first reply filled keeps it,
-    // and the second reply fills the rest.
-    const redo = new Set(words.length ? readAloud : []);
-    const find = (from, t) => from.content.find((c) => c.id === t.id);
-    const content = P.oral.tasks.map((t) => (redo.has(t.id) ? find(next, t) || find(oral, t) : find(oral, t) || find(next, t))).filter(Boolean);
     extraUsages.push(...second.usages);
-    oral = { content, missing: P.oral.tasks.map((t) => t.id).filter((id) => !content.some((c) => c.id === id)) };
+    // The read-aloud task with a give-away and a flagged task take the second reply's version; every other task keeps the first's.
+    oral = Prompt.mergeOral(P.oral.tasks, oral, next, new Set((words.length ? readAloud : []).concat(oral.flagged)));
   };
 
   const reask = async (b) => {
@@ -200,7 +198,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   const isRepeat = (b) => b.section.slots.some((s) => repeats.has(s.slot));
   const inTurn = async () => { for (const b of again.filter(isRepeat)) await reask(b); };
   const oralFound = oral ? oralHits(firstLaid.examJson) : [];
-  await Promise.all([...again.filter((b) => !isRepeat(b)).map(reask), inTurn(), oral && (oral.missing.length || oralFound.length) ? reaskOral(oralFound) : null]);
+  await Promise.all([...again.filter((b) => !isRepeat(b)).map(reask), inTurn(), oral && (oral.missing.length || oral.flagged.length || oralFound.length) ? reaskOral(oralFound) : null]);
 
   let laid = lay(again.length > 0);
   // The oral re-ask is checked again: a read-aloud word still given away is asked once more (v24 G1 English «cat»).
@@ -252,6 +250,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   if (finalShort.length) {
     throw d.fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: finalShort, examJson, model });
   }
+  if (oral && oral.flagged.length) d.logToFile('[assessment] oral task kept flagged', { requestId, pattern, flagged: oral.flagged }); // mended below by urduOralFixes: a flag never costs the teacher a paper
   if (oral && oral.missing.length) {
     throw d.fail('ORAL_SHORT', 'The oral part came back short.', { missing: oral.missing, examJson, model });
   }

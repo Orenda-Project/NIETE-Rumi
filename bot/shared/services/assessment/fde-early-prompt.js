@@ -103,13 +103,15 @@ const { urduOralBad } = require('./fde-early-urdu-oral'); // v29 Urdu oral rows 
 const hasNote = (t) => typeof t === 'string' && WRITER_NOTE.test(t);
 
 /**
- * The reply read against the tasks: `content` for the sheet, `missing` the task ids it did not fill.
+ * The reply read against the tasks: `content` for the sheet, `missing` the task ids it did not fill, `flagged` the Urdu
+ * tasks it filled with the wording off (two asks, a stem said back, a dialogue opening with a reply): asked again once,
+ * mended by urduOralFixes, never missing (v34 g1/g2 Urdu came back ORAL_SHORT on the poem, bd-5jmnfj.4.58.6.1).
  * `saidCheck: false` (a topic paper) skips the listening word check.
  */
 function oralContent(tree, oral, { saidCheck = true } = {}) {
   const list = Array.isArray(tree && tree.oral) ? tree.oral : [];
   const content = [];
-  const missing = [];
+  const missing = []; const flagged = [];
   for (const task of oral.tasks) {
     const got = list.find((x) => x && x.id === task.id);
     const items = got && Array.isArray(got.items) ? got.items.filter((it) => it && String(it.ask || '').trim()) : [];
@@ -120,12 +122,23 @@ function oralContent(tree, oral, { saidCheck = true } = {}) {
     // An oral mental-maths item naming a number it does not ask about is asked again (v26 G1 Maths item 1).
     const extra = task.kind === 'oral_maths' && extraNumbers(items).length > 0;
     const lineAsk = task.kind === 'listening' && badListeningAsks(items).length > 0; // a line-position or subjectless question (v28 G1 Urdu poem)
-    const urdu = /[\u0600-\u06FF]/.test(script + items.map((it) => it.ask).join(' ')) && urduOralBad(task.id, items, script).length > 0;
-    const whole = !noted && !unsaid && !extra && !lineAsk && !urdu && (!needsScript(task) || script) && items.length >= (task.n || 0);
+    const whole = !noted && !unsaid && !extra && !lineAsk && (!needsScript(task) || script) && items.length >= (task.n || 0);
     if (!got || !whole) { missing.push(task.id); continue; }
+    if (/[\u0600-\u06FF]/.test(script + items.map((it) => it.ask).join(' ')) && urduOralBad(task.id, items, script).length > 0) flagged.push(task.id);
     content.push({ id: task.id, ...(script ? { script } : {}), items: task.n ? items.slice(0, task.n) : items });
   }
-  return { content, missing };
+  return { content, missing, flagged };
+}
+
+/**
+ * After the oral re-ask: a task in `redo` (a read-aloud with a give-away, a flagged task) takes the second reply's version
+ * when it has one, every other task keeps the first reply's; a task neither filled is missing, a kept flagged one stays flagged.
+ */
+function mergeOral(tasks, first, next, redo) {
+  const find = (r, t) => r.content.find((c) => c.id === t.id);
+  const picked = tasks.map((t) => [t, (redo.has(t.id) ? [next, first] : [first, next]).find((r) => find(r, t))]).filter(([, r]) => r);
+  const missing = tasks.map((t) => t.id).filter((id) => !picked.some(([t]) => t.id === id));
+  return { content: picked.map(([t, r]) => find(r, t)), missing, flagged: picked.filter(([t, r]) => (r.flagged || []).includes(t.id)).map(([t]) => t.id) };
 }
 
 function eachItem(examJson, fn) {
@@ -282,6 +295,6 @@ function answerNote(shortfall, P) {
 }
 
 module.exports = {
-  NO_PICTURES, PICTURE_RULE, maskP, sectionPrompt, oralPrompt, oralContent, pictureShortfall, repeatedPictures, takenPicturesNote,
+  NO_PICTURES, PICTURE_RULE, maskP, sectionPrompt, oralPrompt, oralContent, mergeOral, pictureShortfall, repeatedPictures, takenPicturesNote,
   answerShortfall, answerNote, askedNote,
 };

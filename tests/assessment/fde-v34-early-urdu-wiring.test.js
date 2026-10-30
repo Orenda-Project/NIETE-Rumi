@@ -27,19 +27,21 @@ describe('G1 Urdu Q5 word-box clash reaches the key re-ask', () => {
   });
 });
 
-describe('Urdu oral tasks are asked again when they ask two things or a dialogue opens with a reply', () => {
+describe('Urdu oral tasks are flagged for one re-ask, never missing, when they ask two things or a dialogue opens with a reply', () => {
   const oral = (id, kind = 'oral_questions') => ({ tasks: [{ id, kind, n: 1 }] });
   test('v29 G1 «My mother» item 3 asks two things', () => {
     const tree = { oral: [{ id: 'mother', items: [{ ask: 'امی کیا پکاتی ہیں یا انھیں کیا پسند ہے؟', answer: 'روٹی' }] }] };
-    expect(oralContent(tree, oral('mother')).missing).toEqual(['mother']);
+    const r = oralContent(tree, oral('mother'));
+    expect(r.flagged).toEqual(['mother']); expect(r.missing).toEqual([]); // v34: a present task is never ORAL_SHORT (bd-5jmnfj.4.58.6.1)
   });
   test('v29 G2 dialogue opens «ٹھیک ہے، …»', () => {
     const tree = { oral: [{ id: 'dialogue', script: 'احمد: ٹھیک ہے، چلو۔\nعلی: کہاں؟', items: [{ ask: 'احمد کہاں جا رہا ہے؟', answer: 'باغ' }] }] };
-    expect(oralContent(tree, oral('dialogue')).missing).toEqual(['dialogue']);
+    const r = oralContent(tree, oral('dialogue'));
+    expect(r.flagged).toEqual(['dialogue']); expect(r.missing).toEqual([]);
   });
   test('control: an English oral item with two question marks is not an Urdu check', () => {
     const tree = { oral: [{ id: 'mother', items: [{ ask: 'What is it? Is it red?', answer: 'a ball' }] }] };
-    expect(oralContent(tree, oral('mother')).missing).toEqual([]);
+    expect(oralContent(tree, oral('mother'))).toMatchObject({ missing: [], flagged: [] });
   });
 });
 
