@@ -89,6 +89,8 @@ export const SCHOOL_CARD_EN = {
   avgOf: { dc: "average AI score", coach: "average Coach score" },
   /** "days used" with "4/4" (the days she used NIETE out of the school days so far). */
   daysUsed: "days used",
+  /** Her days page's title (bd-dgfkgs.4). */
+  daysTitle: "Days used",
   /** One letter under each school day's dot (Sun..Sat). */
   dayInitials: ["S", "M", "T", "W", "T", "F", "S"],
   teacherCol: "Teacher",
@@ -214,6 +216,7 @@ export const SCHOOL_CARD_UR: SchoolCardCopy = {
   coachObsName: "کوچ کے مشاہدات",
   avgOf: { dc: "اوسط اے آئی اسکور", coach: "اوسط کوچ اسکور" },
   daysUsed: "استعمال کے دن",
+  daysTitle: "استعمال کے دن",
   dayInitials: ["ا", "پ", "م", "ب", "ج", "ج", "ہ"],
   teacherCol: "ٹیچر",
   scoresCol: "اسکور",

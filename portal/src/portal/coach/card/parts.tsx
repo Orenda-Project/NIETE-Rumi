@@ -98,7 +98,7 @@ export function ActivityTile({ feature, total, label, lines, bars, to, state }: 
   );
 }
 
-const GLYPH: Record<CardFeature, typeof BookOpen> = { lp: BookOpen, dc: Smartphone, training: GraduationCap, papers: FileCheck };
+export const GLYPH: Record<CardFeature, typeof BookOpen> = { lp: BookOpen, dc: Smartphone, training: GraduationCap, papers: FileCheck };
 
 /** A teacher's four small counts on her row: the feature's colour on the glyph only; a 0 is grey. */
 export function CountsRow({ counts }: { counts: FeatureCounts }) {

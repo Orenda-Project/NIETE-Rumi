@@ -98,7 +98,11 @@ export function teacherCard(period: Period = WEEK): TeacherCardData {
       lp: { count: 6, series: [2, 2, 2, null, null] },
       papers: { count: 2, series: [1, 0, 1, null, null] },
       training: { parts: 2, courses: 1, series: [0, 2, 0, null, null] },
-      days: { withUse: 2, schoolDays: period.schoolDaysSoFar, used: ["2026-10-26", "2026-10-28"] },
+      days: {
+        withUse: 2, schoolDays: period.schoolDaysSoFar, used: ["2026-10-26", "2026-10-28"],
+        uses: [{ day: "2026-10-26", features: ["lp", "dc", "papers"] }, { day: "2026-10-28", features: ["lp", "training"] }],
+        perFeature: { lp: 2, dc: 1, training: 1, papers: 1 },
+      },
     },
     summary: COACHING_SUMMARY,
     chart: CHART,

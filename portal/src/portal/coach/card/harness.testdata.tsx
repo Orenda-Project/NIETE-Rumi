@@ -42,7 +42,7 @@ export function loadApp() {
   loaded ??= Promise.all([
     import("../training/CoachAppGuard"), import("./CoachLanding"), import("../pages/CoachPeople"), import("../pages/CoachSchool"),
     import("../pages/CoachTeacher"), import("./FeatureGridPage"), import("./HerItemsPage"), import("./TeacherScoresPage"), import("./CoachingRedirect"),
-    import("./SessionReportPage"),
+    import("./SessionReportPage"), import("./DaysUsedPage"),
   ]);
   return loaded;
 }
@@ -52,8 +52,9 @@ type Page = { default: () => JSX.Element };
 /** The coach app's routes that matter here, as App.tsx has them. */
 export async function renderApp(entry: string, lang: "en" | "ur" = "en") {
   const [{ default: CoachAppGuard }, { default: CoachLanding }, { default: CoachPeople }, { default: CoachSchool }, { default: CoachTeacher },
-    { default: FeatureGridPage }, { default: HerItemsPage }, { default: TeacherScoresPage }, { default: CoachingRedirect }, { default: SessionReportPage }] =
-    (await loadApp()) as [{ default: (p: { children: React.ReactNode }) => JSX.Element }, Page, Page, Page, Page, Page, Page, Page, Page, Page];
+    { default: FeatureGridPage }, { default: HerItemsPage }, { default: TeacherScoresPage }, { default: CoachingRedirect }, { default: SessionReportPage },
+    { default: DaysUsedPage }] =
+    (await loadApp()) as [{ default: (p: { children: React.ReactNode }) => JSX.Element }, Page, Page, Page, Page, Page, Page, Page, Page, Page, Page];
   if (!i18n.isInitialized) await i18n.init({ lng: lang, resources: {} });
   await act(async () => { await i18n.changeLanguage(lang); });
   const value: SharedAuth = { user: COACH, loading: false, request: vi.fn() };
@@ -69,6 +70,7 @@ export async function renderApp(entry: string, lang: "en" | "ur" = "en") {
             <Route path="/portal/coach/school/:emis/feature/:feature" element={<FeatureGridPage />} />
             <Route path="/portal/coach/teacher/:ext" element={<CoachTeacher />} />
             <Route path="/portal/coach/teacher/:ext/items/:feature" element={<HerItemsPage />} />
+            <Route path="/portal/coach/teacher/:ext/days" element={<DaysUsedPage />} />
             <Route path="/portal/coach/teacher/:ext/items/dc" element={<CoachingRedirect />} />
             <Route path="/portal/coach/teacher/:ext/items/coach" element={<CoachingRedirect />} />
             <Route path="/portal/coach/teacher/:ext/dc" element={<TeacherScoresPage />} />

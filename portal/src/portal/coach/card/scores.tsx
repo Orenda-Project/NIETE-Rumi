@@ -8,8 +8,8 @@ import { FEATURE_HUE } from "../../teacher/icons/features";
 import { useCopy, type Lang } from "../../teacher/i18n";
 import { SCHOOL_CARD } from "./copy";
 import { dayLabel } from "./period";
-import { ChangePill, FEATURE_OF } from "./parts";
-import type { Bucket, PeriodKey, ScoreKind, TeacherScoresData } from "./types";
+import { ChangePill, CountsRow, FEATURE_OF } from "./parts";
+import type { Bucket, FeatureCounts, PeriodKey, ScoreKind, TeacherScoresData } from "./types";
 
 /**
  * The School card's Digital Coaching and Coach observations pieces (design v9, 29 Oct): a score tile for the School card,
@@ -156,10 +156,12 @@ type DayState = "used" | "empty" | "future" | "blank";
 /**
  * Days used (variant A): "4/4" over "days used", then one dot per school day, filled where she used NIETE, an empty ring
  * where she did not, dashed for a day still ahead. This week: Mon–Fri in a row. This month: a Mon–Fri calendar of the
- * month (days outside it blank). Today: one dot. Information only.
+ * month (days outside it blank). Today: one dot. Under the dots, how many of those days each instrument was used on
+ * (`perFeature`), and with `to` the tile opens her days, one row per day with what she used (bd-dgfkgs.4).
  */
-export function DaysUsed({ period, today, from, buckets, used, withUse, schoolDays }: {
+export function DaysUsed({ period, today, from, buckets, used, withUse, schoolDays, perFeature, to, state }: {
   period: PeriodKey; today: string; from: string; buckets: readonly Bucket[]; used: readonly string[]; withUse: number | null; schoolDays: number | null;
+  perFeature?: FeatureCounts; to?: string; state?: unknown;
 }) {
   const C = useCopy(SCHOOL_CARD);
   const on = new Set(used);
@@ -205,13 +207,19 @@ export function DaysUsed({ period, today, from, buckets, used, withUse, schoolDa
       </div>
     );
   }
-  return (
-    <div role="group" data-testid="t-days" aria-label={`${withUse ?? C.dash}/${schoolDays ?? C.dash} ${C.daysUsed}`}
-      className="relative flex min-h-[104px] min-w-0 flex-col gap-1 rounded-2xl bg-[#e9ebef] px-3.5 pb-3 pt-3.5">
+  const inner = (
+    <>
       {head}
       {body}
-    </div>
+      {perFeature ? <span className="mt-1.5 pe-[22px]"><CountsRow counts={perFeature} /></span> : null}
+      {to ? <ChevronRight className="absolute bottom-3 end-2.5 h-[22px] w-[22px] text-[#9ca3af] rtl:rotate-180" aria-hidden="true" /> : null}
+    </>
   );
+  const label = `${withUse ?? C.dash}/${schoolDays ?? C.dash} ${C.daysUsed}`;
+  const cls = "relative flex min-h-[104px] min-w-0 flex-col gap-1 rounded-2xl bg-[#e9ebef] px-3.5 pb-3 pt-3.5";
+  return to
+    ? <Link to={to} state={state} data-testid="t-days" aria-label={label} className={`${cls} ${TAP}`}>{inner}</Link>
+    : <div role="group" data-testid="t-days" aria-label={label} className={cls}>{inner}</div>;
 }
 
 /**

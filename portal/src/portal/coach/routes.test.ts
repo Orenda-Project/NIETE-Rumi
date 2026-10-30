@@ -43,6 +43,8 @@ describe("coach v2 routes", () => {
   it.each([
     ["/portal/coach/school/:emis/feature/:feature", "CoachFeatureGrid", "FeatureGridPage"],
     ["/portal/coach/teacher/:ext/items/:feature", "CoachHerItems", "HerItemsPage"],
+    // her days: each day she used NIETE and what she used (bd-dgfkgs.4)
+    ["/portal/coach/teacher/:ext/days", "CoachHerDays", "DaysUsedPage"],
     // her Digital Coaching and her Coach observations: one page, two addresses
     ["/portal/coach/teacher/:ext/dc", "CoachTeacherScores", "TeacherScoresPage"],
     ["/portal/coach/teacher/:ext/observations", "CoachTeacherScores", "TeacherScoresPage"],
