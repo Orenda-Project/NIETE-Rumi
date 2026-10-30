@@ -55,7 +55,12 @@ const ARROW = /→|←|->|<-|⇒|=>/;
 function matchAnswer(q) {
   const b = Array.isArray(q.column_b) ? String(q.column_b[0] ?? '').trim() : '';
   if (b) return b;
-  const parts = String(q.answer ?? '').split(ARROW);
+  // A joined pair "A: B" prints B alone: strip only the row's own Column A prefix, never every colon.
+  const a = Array.isArray(q.column_a) ? String(q.column_a[0] ?? '').trim() : '';
+  let ans = String(q.answer ?? '').trim();
+  const m = a && ans.startsWith(a) ? ans.slice(a.length).match(/^\s*[:：]\s*([\s\S]*)$/) : null;
+  if (m) ans = m[1].trim();
+  const parts = ans.split(ARROW);
   return parts[parts.length - 1].trim();
 }
 
