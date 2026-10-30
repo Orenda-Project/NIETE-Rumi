@@ -143,6 +143,8 @@ const CoachSendReport = page(() => import("./portal/coach/reports/SendReport"));
 const CoachEditTeacher = page(() => import("./portal/coach/pages/CoachEditTeacher"));
 // bd-4404s7.2 — the coach's More and her own profile.
 const CoachMore = page(() => import("./portal/coach/profile/CoachMore"));
+// bd-whlsm0: More → Report an issue.
+const CoachReport = page(() => import("./portal/coach/profile/CoachReport"));
 // bd-sex15q.15 — COACHIP, the coach insight pages (each gates itself on portal_coachip).
 const CoachInsights = page(() => import("./portal/coach/insights/routes"));
 // bd-sex15q.17 — COACHIP, the RM pages (their own gate on GET /coachip/me → rm; never CoachGate).
@@ -373,6 +375,7 @@ const App = () => {
             <Route path="/portal/coach/insights/*" element={<CoachInsights />} />
             <Route path="/portal/rm/*" element={<RmPages />} />
             <Route path="/portal/coach/more" element={<CoachMore />} />
+            <Route path="/portal/coach/more/report" element={<CoachReport />} />
             <Route path="/portal/coach/profile" element={<CoachProfile />} />
             {/* bd-s42dye.2 — the Training Library, behind the same CoachGate (each page gates itself). */}
             <Route path="/portal/coach/training" element={<CoachLibraryHome />} />
