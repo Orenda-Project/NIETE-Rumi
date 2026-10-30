@@ -12,6 +12,7 @@ import { bySince } from "./CoachPeople";
 import { coachFeatureReady } from "../training/appReady";
 import { useCardSwitch } from "../card/frame";
 import SchoolCardPage from "../card/SchoolCardPage";
+import { LevelChips, atLevel, levelCounts, useLevel, withLevel } from "../people/level";
 
 /**
  * bd-o15qnr + bd-4404s7.6 — one school: its four numbers (the kit's KpiTiles), then its teachers, never-visited first.
@@ -19,6 +20,9 @@ import SchoolCardPage from "../card/SchoolCardPage";
  * Then Manage (Blueprint: Coach · Manage schools and teachers), the WhatsApp /observe "Manage teachers" for THIS
  * school: Add a teacher, Remove teachers, and Remove school. Removing the school asks first (the kit's ConfirmTray)
  * and takes only HER link: the teachers stay at the school, for every other coach who holds it.
+ *
+ * bd-ewbzns.1 — Teaching level chips over the teachers: the list keeps that level's teachers (the four numbers above
+ * stay the school's; with the switch on, the School card's are the level's).
  */
 function CoachSchoolToday() {
   const C = useCopy(PEOPLE);
@@ -26,9 +30,10 @@ function CoachSchoolToday() {
   const { notice, tellTeam } = useNotice();
   const { data, failed, reload } = useLoad(() => coach.getSchool(emis), [emis]);
   const s = data?.school;
+  const [level] = useLevel();
 
   return (
-    <PeopleFrame title={s?.name || C.dash} crumb={C.title} backTo="/portal/coach/people" feature="schools"
+    <PeopleFrame title={s?.name || C.dash} crumb={C.title} backTo={withLevel("/portal/coach/people", level)} feature="schools"
       // Schedule a visit here opens Schedule: only once Schedule is in the coach app.
       dock={s && coachFeatureReady("schedule") ? <BottomLink to={`/portal/coach/new-visit?${new URLSearchParams({ school: s.schoolExtId }).toString()}`}><Plus className="h-5 w-5" aria-hidden="true" />{C.scheduleVisitHere}</BottomLink> : undefined}>
       <Notice text={notice} />
@@ -46,7 +51,8 @@ function CoachSchoolToday() {
             { value: s.teachers, label: C.teachersCol },
           ]} />
           <SectionLabel right={<span className="text-[13px] font-semibold text-[#6b7280]">{C.sortDays}</span>}>{C.teachersTab}</SectionLabel>
-          {[...data.teachers].sort(bySince).map((t) => <TeacherCard key={t.teacherExtId || t.name} t={t} />)}
+          <LevelChips counts={levelCounts(data.teachers)} />
+          {[...data.teachers].filter((t) => atLevel(t.levels, level)).sort(bySince).map((t) => <TeacherCard key={t.teacherExtId || t.name} t={t} />)}
 
           <ManageSchool emis={emis} name={s.name} teacherCount={data.teachers.length} />
         </>

@@ -20,12 +20,12 @@ const PATCH = [
   {
     teacher_ext_id: '923001110001', name: 'Ayesha Bibi', phone: '923001110001', school_ext_id: 'niete:110',
     role: 'teacher', rumi_user_id: 'u-ayesha', coaching_sessions: 7, observations: 3, training_modules: 4,
-    last_analysis_data: pct(61), school_name: 'IMSG I-10/1',
+    last_analysis_data: pct(61), school_name: 'IMSG I-10/1', teacher_level: ['PRIMARY'],
   },
   {
     teacher_ext_id: '923001110002', name: 'Mehwish Khan', phone: '923001110002', school_ext_id: 'niete:110',
     role: 'teacher', rumi_user_id: 'u-mehwish', coaching_sessions: 11, observations: 4, training_modules: 6,
-    last_analysis_data: pct(72), school_name: 'IMSG I-10/1',
+    last_analysis_data: pct(72), school_name: 'IMSG I-10/1', teacher_level: ['HIGH', 'MIDDLE'],
   },
   {
     teacher_ext_id: '923001110003', name: 'Farah Naz', phone: '923001110003', school_ext_id: 'niete:620',
@@ -140,6 +140,15 @@ describe('getCoachPeople — the Teachers and Schools tabs', () => {
     const facts = q.calls.filter((c) => c.sql === SVC.SQL.TEACHER_FACTS);
     expect(facts).toHaveLength(1);
     expect(facts[0].params[0].sort()).toEqual(['u-ayesha', 'u-farah', 'u-mehwish']);
+  });
+
+  // bd-ewbzns.1 — the Primary / Middle / High filter on My schools reads her levels off her row.
+  test('teachers carry their teaching levels (users.teacher_level, canonical order; none recorded is [])', async () => {
+    const { teachers } = await SVC.getCoachPeople(fakeQuery(), ME, { today: TODAY });
+    const by = Object.fromEntries(teachers.map((t) => [t.name, t.levels]));
+    expect(by['Ayesha Bibi']).toEqual(['PRIMARY']);
+    expect(by['Mehwish Khan']).toEqual(['MIDDLE', 'HIGH']);
+    expect(by['Not On Rumi']).toEqual([]);
   });
 
   test('schools: every assigned school, even one with no teachers yet', async () => {

@@ -435,7 +435,7 @@ describe('contribution % and the star', () => {
 describe('the school card', () => {
   test('one school, its roster (test accounts out), last visit and the period', async () => {
     const out = await Card.getSchoolCard(db, 'coach-1', '901', opts());
-    expect(out.school).toEqual({ emis: '901', name: 'School One', teachers: 3, lastVisitDaysAgo: 0 });
+    expect(out.school).toEqual({ emis: '901', name: 'School One', teachers: 3, roster: 3, lastVisitDaysAgo: 0 });
     expect(out.period).toMatchObject({ key: 'week', from: '2026-10-26', to: '2026-10-28', schoolDaysSoFar: 3 });
     expect(out.tiles.map((t) => t.feature)).toEqual(['lp', 'dc', 'training', 'papers']);
   });
@@ -915,5 +915,63 @@ describe('no read selects the transcript', () => {
     await Card.getSession(db, 'coach-1', 'd1', opts());
     await Card.getSession(db, 'coach-1', 'h1', opts());
     for (const c of db.calls) expect(c.sql).not.toMatch(/transcript|diarization|SELECT \*/i);
+  });
+});
+
+describe('teaching level (bd-ewbzns.1): the school card for her Primary, Middle or High teachers', () => {
+  // Teacher One teaches Primary, Teacher Two Middle and High; the principal has no level recorded.
+  const levelled = () => {
+    tables.users.find((u) => u.id === 'u1').teacher_level = ['primary'];
+    tables.users.find((u) => u.id === 'u2').teacher_level = ['HIGH', 'MIDDLE', 'EARLY_YEARS'];
+  };
+
+  test('with no level: every teacher, her levels on her row, and how many teach at each level', async () => {
+    levelled();
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    expect(out.level).toBeNull();
+    expect(out.levels).toEqual({ PRIMARY: 1, MIDDLE: 1, HIGH: 1 });
+    expect(out.school.teachers).toBe(3);
+    const by = Object.fromEntries(out.teachers.map((t) => [t.name, t.levels]));
+    expect(by).toEqual({ 'Teacher One': ['PRIMARY'], 'Teacher Two': ['MIDDLE', 'HIGH'], 'Principal One': [] });
+  });
+
+  test('Primary: only her Primary teachers, and every number on the card is theirs', async () => {
+    levelled();
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', { ...opts(), level: 'PRIMARY' });
+    expect(out.level).toBe('PRIMARY');
+    expect(out.teachers.map((t) => t.name)).toEqual(['Teacher One']);
+    expect(out.school.teachers).toBe(1);
+    // Manage is the whole school's: three on the roster.
+    expect(out.school.roster).toBe(3);
+    // Teacher Two's typed plan is no longer counted: five, all Teacher One's.
+    expect(out.tiles.find((t) => t.feature === 'lp')).toMatchObject({ total: 5, makers: 1 });
+    // The chips still name every level the school has.
+    expect(out.levels).toEqual({ PRIMARY: 1, MIDDLE: 1, HIGH: 1 });
+  });
+
+  test('High: a teacher of two levels is under each; her plan is the only one counted', async () => {
+    levelled();
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', { ...opts(), level: 'high' });
+    expect(out.level).toBe('HIGH');
+    expect(out.teachers.map((t) => t.name)).toEqual(['Teacher Two']);
+    expect(out.tiles.find((t) => t.feature === 'lp')).toMatchObject({ total: 1, makers: 1 });
+    expect(out.scores.dc.count).toBe(0);
+  });
+
+  test('an unknown level is the whole school, never an empty one', async () => {
+    levelled();
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', { ...opts(), level: 'EARLY_YEARS' });
+    expect(out.level).toBeNull();
+    expect(out.teachers).toHaveLength(3);
+  });
+
+  test('a feature page and a scores page follow the level too', async () => {
+    levelled();
+    const lp = await Card.getSchoolFeature(db, 'coach-1', '901', 'lp', { ...opts(), level: 'MIDDLE' });
+    expect(lp.rows.map((r) => r.name)).toEqual(['Teacher Two']);
+    expect(lp.total).toBe(1);
+    const dc = await Card.getSchoolScores(db, 'coach-1', '901', 'dc', { ...opts(), level: 'PRIMARY' });
+    expect(dc.rows.map((r) => r.name)).toEqual(['Teacher One']);
+    expect(dc.school.teachers).toBe(1);
   });
 });

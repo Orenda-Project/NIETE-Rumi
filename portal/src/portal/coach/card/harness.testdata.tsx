@@ -14,7 +14,10 @@ export const net = { answers: new Map<string, unknown>(), calls: [] as string[] 
 export function axiosMock() {
   const get = vi.fn((url: string, cfg?: { params?: Record<string, string> }) => {
     const period = cfg?.params?.period;
-    const key = period ? `${url}?period=${period}` : url;
+    // bd-ewbzns.1 — a teaching level is keyed after the period: `/coach/school/E-900/card?level=primary`.
+    const level = cfg?.params?.level;
+    const q = [period ? `period=${period}` : "", level ? `level=${level}` : ""].filter(Boolean).join("&");
+    const key = q ? `${url}?${q}` : url;
     net.calls.push(key);
     const hit = net.answers.has(key) ? net.answers.get(key) : net.answers.get(url);
     if (hit === undefined) return new Promise(() => {});

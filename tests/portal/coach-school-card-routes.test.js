@@ -227,6 +227,25 @@ describe('a real answer through the route', () => {
     expect(out.payload.tiles).toHaveLength(4);
   });
 
+  test('?level= reaches the school card: only that level\'s teachers, and the answer names the level (bd-ewbzns.1)', async () => {
+    settings.portal_coach_v2 = ['coach-1'];
+    settings.portal_coach_school_card = ['coach-1'];
+    poolQuery = jest.fn(async (sql) => {
+      if (/sc:school/.test(sql)) return { rows: [{ id: 's1', name: 'School One', emis: '901', school_name: 'School One' }] };
+      if (/sc:roster/.test(sql)) {
+        return { rows: [
+          { id: 'u1', phone_number: EXT, name: 'Teacher One', role: 'teacher', school_id: 's1', teacher_level: ['PRIMARY'] },
+          { id: 'u2', phone_number: `${EXT}9`, name: 'Teacher Two', role: 'teacher', school_id: 's1', teacher_level: ['HIGH'] },
+        ] };
+      }
+      return { rows: [] };
+    });
+    const out = await call('/coach/school/:emis/card', { params: { emis: '901' }, query: { level: 'primary' } });
+    expect(out.statusCode).toBe(200);
+    expect(out.payload).toMatchObject({ level: 'PRIMARY', levels: { PRIMARY: 1, MIDDLE: 0, HIGH: 1 }, school: { teachers: 1 } });
+    expect(out.payload.teachers.map((t) => t.name)).toEqual(['Teacher One']);
+  });
+
   test("a teacher's coach-observation scores answer 200 with the kind and the period asked for", async () => {
     settings.portal_coach_v2 = ['coach-1'];
     settings.portal_coach_school_card = ['coach-1'];

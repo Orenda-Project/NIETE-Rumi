@@ -7,6 +7,7 @@ import { SCHOOL_CARD } from "./copy";
 import { card } from "./api";
 import { useCardLoad } from "./frame";
 import { usePeriod, withPeriod } from "./period";
+import { useLevel, withLevel } from "../people/level";
 import { FEATURE_OF, PeriodChips } from "./parts";
 import { ScoreLine, ScoreSummary, kindColour } from "./scores";
 import type { SchoolScoresData, ScoreKind } from "./types";
@@ -23,15 +24,17 @@ const COLS = "minmax(0,1fr) 92px 64px 22px";
 export default function ScoresByTeacher({ emis, kind }: { emis: string; kind: ScoreKind }) {
   const C = useCopy(SCHOOL_CARD);
   const [period] = usePeriod();
+  // bd-ewbzns.1 — one teaching level's teachers when the school's card was opened for one.
+  const [level] = useLevel();
   const from = (useLocation().state || {}) as { schoolName?: string };
-  const { data, failed, reload } = useCardLoad<SchoolScoresData>(() => card.schoolScores(emis, kind, period), [emis, kind, period]);
+  const { data, failed, reload } = useCardLoad<SchoolScoresData>(() => card.schoolScores(emis, kind, period, level), [emis, kind, period, level]);
   const school = `/portal/coach/school/${encodeURIComponent(emis)}`;
   const her = (ext: string) => withPeriod(`/portal/coach/teacher/${encodeURIComponent(ext)}/${kind === "dc" ? "dc" : "observations"}`, period);
-  const back = { back: withPeriod(`${school}/feature/${kind}`, period) };
+  const back = { back: withLevel(withPeriod(`${school}/feature/${kind}`, period), level) };
   const colour = kindColour(kind);
 
   return (
-    <PeopleFrame title={C.byTeacher[kind]} crumb={data?.school?.name || from.schoolName || undefined} backTo={withPeriod(school, period)} feature={FEATURE_OF[kind]}>
+    <PeopleFrame title={C.byTeacher[kind]} crumb={data?.school?.name || from.schoolName || undefined} backTo={withLevel(withPeriod(school, period), level)} feature={FEATURE_OF[kind]}>
       <PeriodChips />
       {failed && <LoadFailed onRetry={reload} />}
       {!data && !failed && <Loading />}

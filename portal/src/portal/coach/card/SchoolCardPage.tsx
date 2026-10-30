@@ -8,6 +8,8 @@ import { Loading, SearchBox, SectionLabel } from "../ui";
 import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
 import ManageSchool from "../people/ManageSchool";
 import { EmptyRow, Notice, useNotice } from "../people/rows";
+import { LevelChips, useLevel, useLevelNames, withLevel } from "../people/level";
+import { PEOPLE } from "../people/copy";
 import { SCHOOL_CARD } from "./copy";
 import { card } from "./api";
 import { useCardLoad } from "./frame";
@@ -42,7 +44,10 @@ function Avatar({ name }: { name: string }) {
 
 function TeacherRow({ t, to, state, first }: { t: CardTeacher; to: string; state: unknown; first: boolean }) {
   const C = useCopy(SCHOOL_CARD);
+  const levelNames = useLevelNames();
   const active = t.total > 0;
+  // bd-ewbzns.1 — her teaching levels before her last visit ("Primary · Last visit · 2 days ago"), when recorded.
+  const levels = levelNames(t.levels);
   return (
     <Link to={to} state={state} data-testid={active ? "card-teacher" : "card-teacher-none"}
       className={`flex min-h-[76px] items-center gap-3 px-3.5 transition-colors hover:bg-[#f9fafb] ${first ? "" : "border-t border-[#f0f1f3]"}`}>
@@ -51,7 +56,7 @@ function TeacherRow({ t, to, state, first }: { t: CardTeacher; to: string; state
         {active && t.star ? <StarChip text={C.topContributor} /> : null}
         <span dir="auto" className="text-[16px] font-semibold leading-[1.3] [overflow-wrap:anywhere]">{t.name}</span>
         {active ? <CountsRow counts={t.counts} /> : null}
-        <span className="truncate text-[13px] leading-[1.3] text-[#6b7280] rtl:leading-[1.75]">{C.lastVisit(t.lastVisitDaysAgo)}</span>
+        <span className="truncate text-[13px] leading-[1.3] text-[#6b7280] rtl:leading-[1.75]">{levels ? `${levels} · ` : ""}{C.lastVisit(t.lastVisitDaysAgo)}</span>
       </span>
       <span className="flex shrink-0 items-center gap-1.5">
         {active ? <span dir="ltr" data-testid="contribution" className="text-[17px] font-bold tabular-nums">{C.pct(t.contributionPct)}</span> : null}
@@ -79,15 +84,21 @@ function Fold({ title, rows }: { title: string; rows: ReactNode[] }) {
 export default function SchoolCardPage() {
   const C = useCopy(SCHOOL_CARD);
   const F = useCopy(TEACHER_FRAME);
+  const P = useCopy(PEOPLE);
   const { emis = "" } = useParams();
   const [period] = usePeriod();
+  // bd-ewbzns.1 — Primary / Middle / High: the server's card for that level's teachers (every tile and the list).
+  const [level] = useLevel();
   const { notice } = useNotice();
-  const { data, failed, reload } = useCardLoad<SchoolCardData>(() => card.school(emis, period), [emis, period]);
+  const { data, failed, reload } = useCardLoad<SchoolCardData>(() => card.school(emis, period, level), [emis, period, level]);
   const [query, setQuery] = useState("");
   // The school's name and numbers stay in the header while another period loads.
   const known = useRef<SchoolCardData["school"] | null>(null);
   if (data?.school) known.current = data.school;
   const school = data?.school ?? known.current;
+  // The chips stay put while another level loads.
+  const knownLevels = useRef<SchoolCardData["levels"] | null>(null);
+  if (data?.levels) knownLevels.current = data.levels;
 
   const base = `/portal/coach/school/${encodeURIComponent(emis)}`;
   const teachers = data?.teachers ?? [];
@@ -99,10 +110,11 @@ export default function SchoolCardPage() {
   const labels = data ? bucketLabels(period, data.period.buckets, C) : [];
   const future = data ? data.period.buckets.map((b) => b.future) : [];
   const teacherLink = (ext: string) => withPeriod(`/portal/coach/teacher/${encodeURIComponent(ext)}`, period);
+  const schoolPage = (path: string) => withLevel(withPeriod(path, period), level);
   const linkState = school ? { schoolName: school.name, emis: school.emis } : undefined;
 
   return (
-    <PeopleFrame title={school?.name || C.dash} crumb={F.coachNav.schools} backTo="/portal/coach/people" feature="schools"
+    <PeopleFrame title={school?.name || C.dash} crumb={F.coachNav.schools} backTo={withLevel("/portal/coach/people", level)} feature="schools"
       chips={school ? (
         <>
           <PageChip testId="card-emis"><MapPin className="h-3.5 w-3.5" aria-hidden="true" />{C.emis(school.emis || emis)}</PageChip>
@@ -111,6 +123,7 @@ export default function SchoolCardPage() {
       ) : undefined}>
       <Notice text={notice} />
       <PeriodChips />
+      <LevelChips counts={knownLevels.current} />
       {failed && <LoadFailed onRetry={reload} />}
       {!data && !failed && <Loading />}
       {data && (
@@ -121,7 +134,7 @@ export default function SchoolCardPage() {
               const sc = data.scores?.[kind];
               return (
                 <ScoreTile key={kind} kind={kind} avg={sc?.avg ?? null} count={sc?.count ?? null} makers={sc?.makers ?? null} teachers={data.school.teachers}
-                  to={withPeriod(`${base}/feature/${kind}`, period)} state={linkState}
+                  to={schoolPage(`${base}/feature/${kind}`)} state={linkState}
                   line={period !== "today" && sc && sc.count > 0 && labels.length
                     ? <ScoreLine kind={kind} values={sc.series} avg={sc.avg} labels={labels} future={future} />
                     : undefined} />
@@ -136,7 +149,7 @@ export default function SchoolCardPage() {
               ].filter((l): l is string => !!l);
               return (
                 <ActivityTile key={f} feature={f} total={total} label={C.tileLabel[f](total ?? 0)} lines={lines}
-                  to={withPeriod(`${base}/feature/${f}`, period)} state={linkState}
+                  to={schoolPage(`${base}/feature/${f}`)} state={linkState}
                   bars={period !== "today" && tile && labels.length
                     ? <Bars values={tile.series} labels={labels} future={future} colour={FEATURE_HUE[FEATURE_OF[f]].fg} testId={`bars-${f}`} />
                     : undefined} />
@@ -146,7 +159,7 @@ export default function SchoolCardPage() {
 
           <SectionLabel right={<span className="text-[13px] font-semibold text-[#6b7280]">{C.contribution}</span>}>{C.teachers}</SectionLabel>
           {teachers.length > SEARCH_FROM && <SearchBox value={query} onChange={setQuery} placeholder={C.teacherName} />}
-          {teachers.length === 0 && <EmptyRow icon={<span>·</span>} testId="no-teachers">{C.noTeachers}</EmptyRow>}
+          {teachers.length === 0 && <EmptyRow icon={<span>·</span>} testId="no-teachers">{level ? P.noneAtLevel : C.noTeachers}</EmptyRow>}
           {teachers.length > 0 && shown.length === 0 && <EmptyRow icon={<span>·</span>} testId="no-match">{C.noMatch}</EmptyRow>}
           {active.length > 0 && (
             <section data-testid="card-teachers" className={LIST}>
@@ -157,7 +170,8 @@ export default function SchoolCardPage() {
             <Fold title={C.nothing[period]} rows={none.map((t, i) => <TeacherRow key={t.teacherExtId} t={t} to={teacherLink(t.teacherExtId)} state={linkState} first={i === 0} />)} />
           )}
 
-          <ManageSchool emis={emis} name={data.school.name} teacherCount={data.school.teachers ?? teachers.length} />
+          {/* Manage is the whole school's, whatever level is picked. */}
+          <ManageSchool emis={emis} name={data.school.name} teacherCount={data.school.roster ?? data.school.teachers ?? teachers.length} />
         </>
       )}
     </PeopleFrame>

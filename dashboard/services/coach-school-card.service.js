@@ -23,6 +23,11 @@
  * ONE SCHOOL. getCoachSchool reads the coach's whole patch and keeps one school; this reads the one school's
  * roster and then only that roster's rows, bounded by the period.
  *
+ * TEACHING LEVEL (bd-ewbzns.1). `opts.level` (PRIMARY | MIDDLE | HIGH) keeps the school's teachers who teach at it, read
+ * from users.teacher_level by the bot's one reader (utils/teacher-level), and every number on the school's pages is
+ * then theirs. A teacher of two levels is under each; one with no level recorded is only in the whole school. An
+ * unknown level is the whole school. `levels` counts the whole roster at each level, for the chips.
+ *
  * NO TRANSCRIPT. No read selects the lesson's transcript or its speaker turns, and no answer carries them.
  *
  * Every read is tagged `/* sc:<name> *\/` so the tests can answer it at the database boundary. `query` is
@@ -33,6 +38,7 @@ const { getOverall } = require('./coaching-frameworks.service');
 const { createScoreMemo } = require('./schools-analytics.service');
 const { indicatorsOf, movesOf } = require('./coach-disagreement-evidence');
 const { displayNameOf } = require('../../bot/shared/services/observe/patch-resolver.service');
+const { teacherLevelOf, VALID_LEVELS } = require('../../bot/shared/utils/teacher-level');
 // Pure (no requires): the teacher's report card's own "what went well" and step names.
 const { wells, stepOf } = require('../../bot/shared/services/coaching/report-card');
 const P = require('../lib/school-card-period');
@@ -103,7 +109,7 @@ const SQL = Object.freeze({
        AND (lsch.emis = $2 OR (lsch.emis IS NULL AND lsch.school_ext_id = 'niete:' || $2))`,
 
   roster: `/* sc:roster */
-    SELECT u.id, u.phone_number, u.name, u.role, u.school_id
+    SELECT u.id, u.phone_number, u.name, u.role, u.school_id, u.teacher_level
       FROM users u
      WHERE u.school_id = ANY($1::uuid[]) AND ${ROSTER}`,
 
@@ -605,20 +611,35 @@ async function groupOf(query, schoolId) {
   }
 }
 
-/** Her school(s) for this EMIS and their roster, or null when the EMIS is not one of hers. */
-async function schoolContext(query, coachId, emis) {
+/** A teaching level from the address (any case), or null: PRIMARY | MIDDLE | HIGH. */
+function levelOf(raw) {
+  const v = String(raw == null ? '' : raw).trim().toUpperCase();
+  return VALID_LEVELS.includes(v) ? v : null;
+}
+
+/**
+ * Her school(s) for this EMIS and their roster, or null when the EMIS is not one of hers. With a level, `teachers` is
+ * the ones who teach at it; `levels` counts the whole roster at each level either way.
+ */
+async function schoolContext(query, coachId, emis, rawLevel) {
   if (!coachId || !emis) return null;
   const schools = rowsOf(await query(SQL.school, [coachId, String(emis)]));
   if (!schools.length) return null;
   const ids = [...new Set(schools.map((s) => s.id))];
   const roster = rowsOf(await query(SQL.roster, [ids]));
   const seen = new Set();
-  const teachers = roster.filter((u) => !seen.has(u.id) && seen.add(u.id)).map((u) => ({
+  const everyone = roster.filter((u) => !seen.has(u.id) && seen.add(u.id)).map((u) => ({
     id: u.id, teacherExtId: u.phone_number, name: displayNameOf(u), isPrincipal: u.role === 'principal',
+    levels: teacherLevelOf(u),
   }));
+  const level = levelOf(rawLevel);
+  const levels = Object.fromEntries(VALID_LEVELS.map((l) => [l, everyone.filter((t) => t.levels.includes(l)).length]));
   return {
     school: { emis: String(emis), name: text(schools[0].school_name) || text(schools[0].name), ids },
-    teachers,
+    teachers: level ? everyone.filter((t) => t.levels.includes(level)) : everyone,
+    roster: everyone.length,
+    level,
+    levels,
   };
 }
 
@@ -757,7 +778,7 @@ function schoolScoresOf(kind, act, period, teachers) {
 
 /** GET /school/:emis/card */
 async function getSchoolCard(query, coachId, emis, opts = {}) {
-  const ctx = await schoolContext(query, coachId, emis);
+  const ctx = await schoolContext(query, coachId, emis, opts.level);
   if (!ctx) return null;
   const period = resolvePeriod(opts);
   const ids = ctx.teachers.map((t) => t.id);
@@ -792,13 +813,19 @@ async function getSchoolCard(query, coachId, emis, opts = {}) {
   const schoolLast = teacherDays.length ? teacherDays[teacherDays.length - 1] : null;
 
   return {
-    school: { emis: ctx.school.emis, name: ctx.school.name, teachers: ctx.teachers.length, lastVisitDaysAgo: daysAgo(schoolLast, period.today) },
+    school: {
+      emis: ctx.school.emis, name: ctx.school.name, teachers: ctx.teachers.length, roster: ctx.roster,
+      lastVisitDaysAgo: daysAgo(schoolLast, period.today),
+    },
     period: P.publicPeriod(period),
+    level: ctx.level,
+    levels: ctx.levels,
     tiles,
     teachers: rows.map((r, i) => ({
       teacherExtId: r.t.teacherExtId,
       name: r.t.name,
       isPrincipal: r.t.isPrincipal,
+      levels: r.t.levels,
       counts: r.counts,
       total: r.total,
       contributionPct: contributionPct(r.total, schoolTotal),
@@ -819,7 +846,7 @@ async function getSchoolCard(query, coachId, emis, opts = {}) {
  */
 async function getSchoolScores(query, coachId, emis, kind, opts = {}) {
   if (!SCORE_KINDS.includes(kind)) return null;
-  const ctx = await schoolContext(query, coachId, emis);
+  const ctx = await schoolContext(query, coachId, emis, opts.level);
   if (!ctx) return null;
   const period = resolvePeriod(opts);
   const act = await loadActivity(query, ctx.teachers.map((t) => t.id), period, opts);
@@ -849,7 +876,7 @@ async function getSchoolScores(query, coachId, emis, kind, opts = {}) {
 /** GET /school/:emis/feature/:feature */
 async function getSchoolFeature(query, coachId, emis, feature, opts = {}) {
   if (!FEATURES.includes(feature)) return null;
-  const ctx = await schoolContext(query, coachId, emis);
+  const ctx = await schoolContext(query, coachId, emis, opts.level);
   if (!ctx) return null;
   const period = resolvePeriod(opts);
   const ids = ctx.teachers.map((t) => t.id);
@@ -1131,6 +1158,7 @@ module.exports = {
   starsOf,
   nextStepShown,
   reportTitleOf,
+  levelOf,
   getSchoolCard,
   getSchoolFeature,
   getTeacherCard,
