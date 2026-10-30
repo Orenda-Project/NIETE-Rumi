@@ -356,13 +356,17 @@ describe("a teacher", () => {
     expect(screen.getByTestId("t-papers")).toHaveTextContent("Assessments");
     expect(screen.getByTestId("t-papers")).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/items/papers`);
     expect(screen.getByTestId("t-training")).toHaveTextContent("1 course done");
-    // days used: one dot per school day, filled = used, dashed = still ahead
+    // days used: one dot per school day, filled = used, dashed = still ahead; under them, how many of those days each
+    // instrument was used on, and the tile opens her days (bd-dgfkgs.4)
     const days = screen.getByTestId("t-days");
-    expect(days.tagName).not.toBe("A");
+    expect(days.tagName).toBe("A");
+    expect(days).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/days`);
     expect(days).toHaveTextContent("2/3");
     expect(days).toHaveTextContent("days used");
     const kinds = Array.from(days.querySelectorAll("[data-day]")).map((d) => d.getAttribute("data-day"));
     expect(kinds).toEqual(["used", "empty", "used", "future", "future"]);
+    expect(Array.from(days.querySelectorAll("[data-count]")).map((c) => `${c.getAttribute("data-count")} ${c.textContent}`))
+      .toEqual(["lp 2", "dc 1", "training 1", "papers 1"]);
     for (const id of ["coaching-card", "her-reports", "score-chart"]) expect(screen.queryByTestId(id)).toBeNull();
     expect(container.textContent).not.toMatch(/Her coaching reports|Days with any NIETE use|Papers made/);
     expectOnlyOpenLinks(container);
@@ -378,6 +382,32 @@ describe("a teacher", () => {
     expect(kinds.filter((k) => k === "empty")).toHaveLength(18);
     expect(kinds.filter((k) => k === "future")).toHaveLength(2);
     expect(kinds.filter((k) => k === "blank")).toHaveLength(3);
+  });
+});
+
+describe("her days (bd-dgfkgs.4)", () => {
+  it("each day she used NIETE, newest first, with what she used that day; Back returns to her page", async () => {
+    on();
+    const { container } = await renderApp(`/portal/coach/teacher/${EXT}`);
+    await act(async () => { fireEvent.click(await screen.findByTestId("t-days")); });
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(`/portal/coach/teacher/${EXT}/days`));
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Days used"));
+    expect(screen.getByTestId("page-crumb")).toHaveTextContent("Teacher Alpha");
+    const rows = await screen.findAllByTestId("used-day");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("Today");
+    expect(Array.from(rows[0].querySelectorAll("[data-feature]")).map((f) => f.textContent)).toEqual(["Lesson plans", "Training parts"]);
+    expect(rows[1]).toHaveTextContent("Mon 26 Oct");
+    expect(Array.from(rows[1].querySelectorAll("[data-feature]")).map((f) => f.textContent)).toEqual(["Lesson plans", "Digital Coaching", "Assessments"]);
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", `/portal/coach/teacher/${EXT}`);
+    expectOnlyOpenLinks(container);
+  });
+
+  it("a period with no use says so", async () => {
+    on();
+    net.answers.set(`/coach/teacher/${EXT}/card?period=today`, { ...teacherCard(TODAY), tiles: { ...teacherCard(TODAY).tiles, days: { withUse: 0, schoolDays: 1, used: [], uses: [], perFeature: { lp: 0, dc: 0, training: 0, papers: 0 } } } });
+    await renderApp(`/portal/coach/teacher/${EXT}/days?period=today`);
+    expect(await screen.findByTestId("empty")).toHaveTextContent("Nothing today");
   });
 });
 

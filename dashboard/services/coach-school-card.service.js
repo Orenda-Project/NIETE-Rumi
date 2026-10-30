@@ -351,6 +351,27 @@ function daysUsedOf(period, events) {
 const daysWithUse = (period, events) => daysUsedOf(period, events).length;
 
 /**
+ * WHICH INSTRUMENTS MADE EACH USED DAY (bd-dgfkgs.4; operator 30 Oct: "8/21 isn't clear instrument by instrument").
+ * The same days as daysUsedOf, each with the features she used that day (in CARD order: lp, dc, training, papers), and
+ * how many of the days each feature was used on. A day with two features counts once in the total, once under each.
+ * @param {{lp: Array, dc: Array, training: Array, papers: Array}} byFeature each feature's events ({ day })
+ */
+function usesOf(period, byFeature) {
+  const order = ['lp', 'dc', 'training', 'papers'];
+  const days = new Map();
+  for (const f of order) {
+    for (const e of byFeature[f] || []) {
+      if (!P.inPeriod(period, e.day) || !P.isSchoolDay(e.day)) continue;
+      if (!days.has(e.day)) days.set(e.day, new Set());
+      days.get(e.day).add(f);
+    }
+  }
+  const uses = [...days.keys()].sort().map((day) => ({ day, features: order.filter((f) => days.get(day).has(f)) }));
+  const perFeature = Object.fromEntries(order.map((f) => [f, uses.filter((u) => u.features.includes(f)).length]));
+  return { uses, perFeature };
+}
+
+/**
  * CONTRIBUTION %. Her total of the four feature counts over the school's total, × 100, rounded; equal weights.
  * Only for a teacher with a total above 0. A constructed metric (v1 default): kept in this one function.
  */
@@ -925,9 +946,9 @@ async function getTeacherCard(query, coachId, ext, opts = {}) {
       papers: tile(events.papers),
       training: { parts: trn.total, courses: courses.filter((c) => c.done && P.inPeriod(period, c.lastDone)).length, series: trn.cells },
       days: (() => {
-        // the dates too: the page draws one dot per school day, filled on a day she used NIETE
+        // the dates too: the page draws one dot per school day, filled on a day she used NIETE; and what she used each day
         const used = daysUsedOf(period, [...events.lp, ...dc, ...events.training, ...events.papers]);
-        return { withUse: used.length, schoolDays: period.schoolDaysSoFar, used };
+        return { withUse: used.length, schoolDays: period.schoolDaysSoFar, used, ...usesOf(period, { lp: events.lp, dc, training: events.training, papers: events.papers }) };
       })(),
     },
     // Her DC observations and coach visits are ONE Coaching card: this summary and this chart.

@@ -486,8 +486,17 @@ describe('the teacher card', () => {
     expect(out.tiles.lp).toEqual({ count: 5, series: [2, 2, 1, 0, 0] });
     expect(out.tiles.papers).toEqual({ count: 2, series: [1, 0, 1, 0, 0] });
     expect(out.tiles.training).toMatchObject({ parts: 2, courses: 1, series: [1, 0, 1, 0, 0] });
-    // the days she used NIETE (the dots), as dates
-    expect(out.tiles.days).toEqual({ withUse: 3, schoolDays: 3, used: ['2026-10-26', '2026-10-27', '2026-10-28'] });
+    // the days she used NIETE (the dots), as dates; and which instruments made each day, and days per instrument
+    // (bd-dgfkgs.4, operator 30 Oct: "8/21 isn't clear instrument by instrument"). A coach visit is not her use.
+    expect(out.tiles.days).toEqual({
+      withUse: 3, schoolDays: 3, used: ['2026-10-26', '2026-10-27', '2026-10-28'],
+      uses: [
+        { day: '2026-10-26', features: ['lp', 'dc', 'training', 'papers'] },
+        { day: '2026-10-27', features: ['lp'] },
+        { day: '2026-10-28', features: ['lp', 'dc', 'training', 'papers'] },
+      ],
+      perFeature: { lp: 3, dc: 2, training: 2, papers: 2 },
+    });
     expect(Object.keys(out.tiles).sort()).toEqual(['days', 'lp', 'papers', 'training']);
     expect(out.summary).toEqual({
       dc: { count: 2, avg: 65, prevAvg: 50 },

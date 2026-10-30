@@ -142,7 +142,9 @@ export type TeacherCardData = {
     papers: { count: number | null; series: (number | null)[] };
     training: { parts: number | null; courses: number | null; series: (number | null)[] };
     /** `used`: the school days (YYYY-MM-DD) she used NIETE, one dot each. */
-    days: { withUse: number | null; schoolDays: number | null; used?: string[] };
+    /** `uses`: each used day with the instruments she used that day; `perFeature`: how many days each was used on
+     *  (bd-dgfkgs.4). */
+    days: { withUse: number | null; schoolDays: number | null; used?: string[]; uses?: { day: string; features: CardFeature[] }[]; perFeature?: FeatureCounts };
   };
   /** Her Digital Coaching and Coach observations tiles: count, average and the period before's. */
   summary: CoachingSummary;
