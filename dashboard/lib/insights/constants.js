@@ -17,7 +17,9 @@ const EXPECTED_REFS = Object.freeze({ sandbox: SANDBOX_REF, staging: STAGING_REF
 // Each tier's own R2_BUCKET_NAME; staging shares prod's bucket, its clips kept apart under coachip/clips/staging/ (clips.js).
 const CLIP_BUCKETS = Object.freeze({ sandbox: 'rumi-sandbox', staging: 'digital-coach-audio', production: 'digital-coach-audio' });
 
-const SECTORS = Object.freeze(['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol']);
+// FDE's six sectors — THE copy in dashboard/lib/analytics-lists (bd-97daxo.3). The nightly job is FDE's COACHIP
+// pipeline: it counts FDE's sectors only, so another organization's region (Gilgit-Baltistan) never enters a rollup.
+const { SECTORS } = require('../analytics-lists');
 const TZ = 'Asia/Karachi';
 
 // The cause split (WEAKNESS_MAP §A; tuned on the first week, O6).

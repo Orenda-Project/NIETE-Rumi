@@ -9,6 +9,8 @@
  * there is one (services/training-levels-analytics.service.js).
  */
 
+const { REGION_REGISTRY_ROWS } = require('./helpers/region-registry-rows');
+
 let tableStates;
 let queries;
 
@@ -118,7 +120,8 @@ function poolRows(sql) {
 
 beforeEach(() => {
   jest.resetModules();
-  tableStates = {};
+  // bd-97daxo.3 — every analytics route reads the viewer's regions from the region registry.
+  tableStates = { region_features: { rows: REGION_REGISTRY_ROWS } };
   queries = [];
   MEMBERS = [
     mem('p1', { primary_cohort: true, school_id: 's1', cert_levels: ['1', '2', '3', '4'] }),

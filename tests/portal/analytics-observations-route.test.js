@@ -9,6 +9,8 @@
  * /analytics/schools answer (and its cost) stays exactly as it was.
  */
 
+const { REGION_REGISTRY_ROWS } = require('./helpers/region-registry-rows');
+
 let tableStates;
 let queries;
 
@@ -117,7 +119,8 @@ function poolRows(sql, params) {
 
 beforeEach(() => {
   jest.resetModules();
-  tableStates = {};
+  // bd-97daxo.3 — every analytics route reads the viewer's regions from the region registry.
+  tableStates = { region_features: { rows: REGION_REGISTRY_ROWS } };
   queries = [];
   sessionRows = [
     { id: 'c1', updated_at: '2026-10-02T00:00:00Z', user_id: 't1', school_id: 's1', is_test: false, observation_type: null },

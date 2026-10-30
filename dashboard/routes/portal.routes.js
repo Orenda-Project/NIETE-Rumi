@@ -100,6 +100,8 @@ const {
   isPortalAssessmentEditingEnabled,
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
+  PORTAL_ANALYTICS_ORGANIZATIONS_KEY,
+  readUserMapFlag,
   isAnalyticsOnlyUser,
   isLoginIntlNumbersEnabled,
 } = require('../lib/feature-flags');
@@ -112,7 +114,9 @@ const { isRegistered } = require('../../bot/shared/utils/registration-status');
 const { waMeLink, botNumber } = require('./app-login.routes');
 // Analytics-only accounts (federal / sector officials): one app_settings list decides who
 // they are, and they see the school-wise analytics page and nothing else.
-const { makeRequireAnalyticsViewer } = require('../lib/analytics-viewer');
+const { makeRequireAnalyticsViewer, DEFAULT_ANALYTICS_ORGANIZATION } = require('../lib/analytics-viewer');
+// bd-97daxo.3 — which regions an organization owns (region_features rows). Pure, no requires; FAILS CLOSED.
+const RegionRegistry = require('../../bot/shared/services/region-registry');
 // bd-s6qbts.5 — such an account signs in with an account NAME; users.phone_number holds analytics:<name>.
 const { isAccountNameInput, normaliseAccountName, storedPhoneFor } = require('../lib/analytics-account-name');
 const SchoolsAnalytics = require('../services/schools-analytics.service');
@@ -345,8 +349,11 @@ const requireLeaderRole = makeRequireLeaderRole({ getUser: getUserById });
 
 // Server-side gate for the analytics-only page: the session user must be on the
 // portal_analytics_only list. Not on it is 403; a failed read of the list is 500.
+// bd-97daxo.3 — it also attaches req.analyticsOrganization from portal_analytics_organizations
+// (absent = 'niete', FDE's); a failed or malformed read of that map is 500 too.
 const requireAnalyticsViewer = makeRequireAnalyticsViewer({
   getViewerIds: () => readUserListFlag(supabase, PORTAL_ANALYTICS_ONLY_KEY),
+  getViewerOrganizations: () => readUserMapFlag(supabase, PORTAL_ANALYTICS_ORGANIZATIONS_KEY),
 });
 
 /**
@@ -1763,6 +1770,37 @@ function countOutputs(userIds, [from, to]) {
 }
 
 /**
+ * bd-97daxo.3 — whose regions this analytics account sees: the regions its organization (req.analyticsOrganization,
+ * set by requireAnalyticsViewer) owns in the region registry, in dashboard order. FDE's accounts ('niete') get the
+ * six ICT sectors; a Moawin account gets Gilgit-Baltistan. Every analytics route scopes its ?region= check, its
+ * numbers and its response cache to this.
+ *   - The registry unreadable THROWS (the route answers 500): never "every region".
+ *   - An organization owning no region gets [] — an empty answer, never every region.
+ *   - foreignRegions: every other organization's regions, so a member placed nowhere can be told apart from another
+ *     organization's (training-levels). keepsUnplaced: the default organization (FDE's) keeps the people no region
+ *     places, where they always were.
+ *   - fdeLists: FDE's v8 lists are FDE's populations — only FDE's view counts against them.
+ */
+async function analyticsScope(req) {
+  const organization = req.analyticsOrganization;
+  if (typeof organization !== 'string' || organization === '') {
+    throw new Error('analytics organization not resolved (requireAnalyticsViewer did not run)');
+  }
+  const regions = await RegionRegistry.regionsForOrganization(supabase, organization);
+  const foreignRegions = (await RegionRegistry.listRegions(supabase))
+    .filter((r) => r.organization !== organization)
+    .map((r) => r.display_name);
+  const isDefault = organization === DEFAULT_ANALYTICS_ORGANIZATION;
+  return { organization, regions, foreignRegions, keepsUnplaced: isDefault, fdeLists: isDefault };
+}
+/** The lists this scope counts against: FDE's (loaded) for FDE's view, none (every tab's v7 rule) for any other. */
+function listsFor(scope) {
+  return scope.fdeLists ? loadLists() : Promise.resolve(AnalyticsLists.NO_LISTS);
+}
+/** The part of every response-cache key that keeps one organization's answer from ever reaching another's. */
+const scopeKey = (scope) => `${scope.organization}|${scope.regions.join(',')}`;
+
+/**
  * v8: the three lists (FDE schools, RDF teachers, RDF coaches) every analytics tab counts against —
  * dashboard/lib/analytics-lists.js, cached 30 minutes. A missing list comes back null and its tab keeps
  * the v7 rule; `basis` tells the page which rule each number follows, and from which snapshot.
@@ -1805,13 +1843,14 @@ const schoolsAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 *
  */
 router.get('/analytics/schools', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
   try {
-    const region = SchoolsAnalytics.parseRegionFilter(req.query.region);
+    const scope = await analyticsScope(req);
+    const region = SchoolsAnalytics.parseRegionFilter(req.query.region, scope.regions);
     if (!region.ok) {
       return res.status(400).json({ success: false, error: 'Unknown region.' });
     }
     const range = analyticsRange(req.query);
-    const lists = await loadLists();
-    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
+    const lists = await listsFor(scope);
+    const key = `${scopeKey(scope)}|${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
     const body = await schoolsAnalyticsCache.getOrLoad(key, async () => {
       const rows = await SchoolsAnalytics.loadSchoolsAnalyticsRows(dbQuery, range, { lists });
       return {
@@ -1821,7 +1860,7 @@ router.get('/analytics/schools', requirePortalAuth, requireAnalyticsViewer, asyn
         // LP opens are logged from this day on; the page says so for an earlier window (v7 basis only:
         // v8's "lesson plans used" reads lesson_plans too, which go back to the start).
         lpOpensLoggedSince: SchoolsAnalytics.LP_OPENS_LOGGED_SINCE,
-        ...SchoolsAnalytics.summarizeSchoolsAnalytics(rows, { region: region.region, lists }),
+        ...SchoolsAnalytics.summarizeSchoolsAnalytics(rows, { region: region.region, lists, regions: scope.regions }),
       };
     });
     res.json(body);
@@ -1845,20 +1884,21 @@ const coachingAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 
  */
 router.get('/analytics/coaching', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
   try {
-    const region = SchoolsAnalytics.parseRegionFilter(req.query.region);
+    const scope = await analyticsScope(req);
+    const region = SchoolsAnalytics.parseRegionFilter(req.query.region, scope.regions);
     if (!region.ok) {
       return res.status(400).json({ success: false, error: 'Unknown region.' });
     }
     const range = analyticsRange(req.query);
-    const lists = await loadLists();
-    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
+    const lists = await listsFor(scope);
+    const key = `${scopeKey(scope)}|${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
     const body = await coachingAnalyticsCache.getOrLoad(key, async () => {
       const rows = await CoachingAnalytics.loadCoachingAnalyticsRows(dbQuery, range);
       return {
         success: true,
         range,
         basis: listsBasis(lists),
-        ...CoachingAnalytics.summarizeCoachingAnalytics(rows, { region: region.region, lists }),
+        ...CoachingAnalytics.summarizeCoachingAnalytics(rows, { region: region.region, lists, regions: scope.regions }),
       };
     });
     res.json(body);
@@ -1905,7 +1945,8 @@ const trainingLevelsSnapshot = TrainingLevels.createSnapshot({
  */
 router.get('/analytics/training-levels', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
   try {
-    const region = SchoolsAnalytics.parseRegionFilter(req.query.region);
+    const scope = await analyticsScope(req);
+    const region = SchoolsAnalytics.parseRegionFilter(req.query.region, scope.regions);
     if (!region.ok) {
       return res.status(400).json({ success: false, error: 'Unknown region.' });
     }
@@ -1914,11 +1955,19 @@ router.get('/analytics/training-levels', requirePortalAuth, requireAnalyticsView
       return res.status(400).json({ success: false, error: 'Unknown band.' });
     }
     const snap = await trainingLevelsSnapshot.get();
+    // One snapshot for every organization; FDE's lists (in it) count only for FDE's view.
+    const rows = scope.fdeLists ? snap.rows : { ...snap.rows, lists: null };
     res.json({
       success: true,
       band: band.band,
       computedAt: snap.computedAt,
-      ...TrainingLevels.summarizeTrainingLevels(snap.rows, { band: band.band, region: region.region }),
+      ...TrainingLevels.summarizeTrainingLevels(rows, {
+        band: band.band,
+        region: region.region,
+        regions: scope.regions,
+        foreignRegions: scope.foreignRegions,
+        keepsUnplaced: scope.keepsUnplaced,
+      }),
     });
   } catch (error) {
     console.error('analytics/training-levels error:', error);
@@ -1944,20 +1993,21 @@ const observationsAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs:
  */
 router.get('/analytics/observations', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
   try {
-    const region = SchoolsAnalytics.parseRegionFilter(req.query.region);
+    const scope = await analyticsScope(req);
+    const region = SchoolsAnalytics.parseRegionFilter(req.query.region, scope.regions);
     if (!region.ok) {
       return res.status(400).json({ success: false, error: 'Unknown region.' });
     }
     const range = analyticsRange(req.query);
-    const lists = await loadLists();
-    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
+    const lists = await listsFor(scope);
+    const key = `${scopeKey(scope)}|${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
     const body = await observationsAnalyticsCache.getOrLoad(key, async () => {
       const rows = await ObservationsAnalytics.loadObservationsAnalyticsRows(dbQuery, range);
       return {
         success: true,
         range,
         basis: listsBasis(lists),
-        ...ObservationsAnalytics.summarizeObservationsAnalytics(rows, { region: region.region, lists }),
+        ...ObservationsAnalytics.summarizeObservationsAnalytics(rows, { region: region.region, lists, regions: scope.regions }),
       };
     });
     res.json(body);
@@ -9032,7 +9082,8 @@ const lpEngagementCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 
  */
 router.get('/analytics/lp-engagement', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
   try {
-    const region = SchoolsAnalytics.parseRegionFilter(req.query.region);
+    const scope = await analyticsScope(req);
+    const region = SchoolsAnalytics.parseRegionFilter(req.query.region, scope.regions);
     if (!region.ok) {
       return res.status(400).json({ success: false, error: 'Unknown region.' });
     }
@@ -9041,16 +9092,16 @@ router.get('/analytics/lp-engagement', requirePortalAuth, requireAnalyticsViewer
       return res.status(400).json({ success: false, error: 'Unknown band.' });
     }
     const range = analyticsRange(req.query);
-    const lists = await loadLists();
-    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${band.band}|${listsKey(lists)}`;
+    const lists = await listsFor(scope);
+    const key = `${scopeKey(scope)}|${range.from || ''}|${range.to || ''}|${region.key}|${band.band}|${listsKey(lists)}`;
     const body = await lpEngagementCache.getOrLoad(key, async () => {
-      const rows = await LpEngagement.loadLpEngagementRows(dbQuery, range, band.band, { lists });
+      const rows = await LpEngagement.loadLpEngagementRows(dbQuery, range, band.band, { lists, regions: scope.regions });
       return {
         success: true,
         range,
         band: band.band,
         basis: listsBasis(lists),
-        ...LpEngagement.summarizeLpEngagement(rows, { band: band.band, region: region.region }),
+        ...LpEngagement.summarizeLpEngagement(rows, { band: band.band, region: region.region, regions: scope.regions }),
       };
     });
     res.json(body);
