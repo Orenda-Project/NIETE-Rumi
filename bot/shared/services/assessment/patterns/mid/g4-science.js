@@ -28,7 +28,7 @@ module.exports = makeSubject({
           prompt_rule: `Ten three-option MCQs on facts, terms and simple uses of the ideas. ${CH} One option correct; no "all of the above". An option never states a long answer's steps; a concept appears in at most two items; never the same stem as an MCQ and a short answer. A wrong option is wrong for a reason the chapter gives; a cause or use the chapter does not rule out (waterfalls, melting snow) is not set as one.` }),
         S({ slot: 'g4.science.A.fill', label_en: 'Q2.', type: 'Fill in the Blanks', objective: true, generate: 5, print_words: true,
           instruction_en: 'Fill in the blanks with the words from the box.',
-          prompt_rule: `Five one-line facts with one blank each; the five answers, mixed, in "words" on the FIRST item. ${CH} Each answer is a single science word the chapter teaches. The article before a blank is written a/an so it does not give the answer away.` }),
+          prompt_rule: `Five one-line facts with one blank each; the five answers plus ONE spare word, mixed, in "words" on the FIRST item (six words: the spare is a science word the chapter teaches that fits no blank, so the last blank is never free). ${CH} Each answer is a single science word the chapter teaches. The article before a blank is written a/an so it does not give the answer away.` }),
       ],
     },
     {
@@ -41,7 +41,7 @@ module.exports = makeSubject({
           prompt_rule: `Seven short-answer questions (define, name, state, list, what happens). ${CH} Answer: one or two short sentences. Scheme: K 1 per correct idea, two ideas for 2, and only ideas the question asks for: no point for an example or a consequence it does not ask. A definition covers the whole idea (an insulator stops heat as well as electricity). Floating is explained by density or the upthrust, never by spreading weight.` },
         { slot: 'g4.science.B.reasons', label_en: 'Q4.', type: 'Give a Reason', generate: 3, attempt: 2, marks_each: 5, lines: 6,
           instruction_en: 'Give reasons for any two.',
-          prompt_rule: `Three "why" questions that ask for a reason from what the chapter teaches. ${CH} Answer: a reason of 3 to 4 sentences. Scheme (5): K 1 for each correct point up to 3, A 1 for a clear conclusion, 1 for a correct science word used. Floating is explained by density or the upthrust, never by spreading weight.` },
+          prompt_rule: `Three "why" questions that ask for a reason from what the chapter teaches. ${CH} Answer: a reason of 3 to 4 sentences. Scheme (5): K 1 for each different correct point up to 4, A 1 for a clear conclusion that answers the why; no mark for using a word, and no point pays a word another point already paid. Floating is explained by density or the upthrust, never by spreading weight.` },
       ],
     },
     {
@@ -51,7 +51,7 @@ module.exports = makeSubject({
       slots: [
         { slot: 'g4.science.C.extended', label_en: 'Q5.', type: 'Extended Response', generate: 4, attempt: 3, marks_each: 5, lines: 8,
           instruction_en: 'Answer any three questions.',
-          prompt_rule: `Four questions that ask the child to explain, compare, describe a process in steps or apply an idea to an everyday case. ${CH} Answer: a short paragraph or numbered steps. Scheme (5): K 1 per correct point up to 4, L 1 for correct science terms used. Floating is explained by density or the upthrust, never by spreading weight.` },
+          prompt_rule: `Four questions that ask the child to explain, compare, describe a process in steps or apply an idea to an everyday case. ${CH} Answer: a short paragraph or numbered steps. Scheme (5): K 1 per different correct point up to 5, each a new idea or step inside what the stem asks (a process the stem ends at a point stops there); no mark for using a term another point already paid. Floating is explained by density or the upthrust, never by spreading weight.` },
       ],
     },
   ],

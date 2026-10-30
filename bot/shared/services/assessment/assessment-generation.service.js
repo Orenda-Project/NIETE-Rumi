@@ -779,6 +779,7 @@ const { keyTruthFlags, keyTruthNote } = require('./fde-key-truth'); // bd-5jmnfj
 const { meaningKeyShortfall, meaningKeyNote } = require('./fde-meaning-key'); // bd-5jmnfj.33.5: a meaning question's key is the meaning
 const { mcqStemShortfall, mcqStemNote } = require('./fde-mcq-stem'); // bd-5jmnfj.33.5: one question per MCQ stem, key not printed in it
 const { wordBoxShortfall, wordBoxNote } = require('./fde-word-box'); // bd-5jmnfj.33.5.2: a fill word box holds a distractor and is shuffled
+const { addSpareWord } = require('./fde-word-box-spare'); // bd-5jmnfj.33.7.1: a box still without a spare after the re-ask gets one book word
 const { matchRowsShortfall, matchRowsNote } = require('./fde-match-rows'); // bd-5jmnfj.33.5.3: a match item repeats no Column A or Column B entry
 const { midKeyFixes } = require('./fde-mid-key-fixes'); // bd-5jmnfj.33.3: match split, own labels, compare sign, unasked checks, division digits
 
@@ -1363,6 +1364,9 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     // v31 (bd-5jmnfj.33.3): a vacuum asked twice, keys printed in later stems, checks paid unasked, a part labelled "Q5.".
     rules.push('No two items ask the same question or test the same fact; a stem never prints another item\'s answer or target word.');
     rules.push('A model answer states only what the chapter text states; a check is paid only where the stem asks for one and uses a different method; an item never carries its own question number or label.');
+    // v36 (bd-5jmnfj.33.7.2): keys paid the stem's own words, one fact twice, or past the asked end point.
+    rules.push('Each marking point pays a different idea the stem asks for: never the stem\'s own words, never one idea twice, never an idea past what the stem asks (where the stem stops, the answer stops). A stem that asks for any example keys any example the chapter supports, and a common_error never names a correct case.');
+    rules.push('One stem asks one thing. An MCQ\'s options are all different strings. A chapter word is tested in one item only (a meaning, a spelling, a sentence or a question, never two of these), and an MCQ key, a blank sentence or a match pair is never the marking point of a written item.');
   } else if (key === 'science' || key === 'english') rules.push(RULE.grade5Words);
   if (hasMcq) {
     if (key !== 'maths') rules.push(`In this section, ${RULE.recall}.`);
@@ -2602,16 +2606,21 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     // Grade 3–4 end-of-chapter papers (bd-5jmnfj.33.2): Section A is written first and the other
     // sections are handed its items and answers, so Q4/Q5 do not re-ask Q1's facts. The note is
     // written into `built`, so a re-ask of B or C carries it too.
-    const first = await writeOne(built[0]);
-    const note = steerNote(first.tree);
-    if (note) {
-      built.slice(1).forEach((b) => {
+    // bd-5jmnfj.33.7.2 (v36): B and C written beside each other tested one fact twice (G4 Science Q3/Q5),
+    // so each later section is written in turn and told every section before it.
+    results = [await writeOne(built[0])];
+    for (let i = 1; i < built.length; i += 1) {
+      const names = built.slice(0, i).map((b) => b.section.id);
+      const label = names.length === 1 ? `Section ${names[0]}` : `Sections ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+      const note = steerNote(_mergeSections(results.map((r) => JSON.parse(JSON.stringify(r.tree)))), label);
+      const b = built[i];
+      if (note) {
         b.user = `${b.user}\n\n${note}`;
         b.messages = _sectionMessages({ system, user: b.user, pageContent: b.pageContent, model });
-      });
+      }
+      logToFile('[assessment] section steered', { requestId, pattern, section: b.section.id, after: names, steered: Boolean(note), lines: note ? note.split('\n').length : 0 });
+      results.push(await writeOne(b));
     }
-    logToFile('[assessment] section A first', { requestId, pattern, section: built[0].section.id, steered: Boolean(note), lines: note ? note.split('\n').length : 0 });
-    results = [first, ...await Promise.all(built.slice(1).map(writeOne))];
   } else if (iD < 0) {
     results = await Promise.all(built.map(writeOne));
   } else {
@@ -2914,6 +2923,10 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     const mid = midKeyFixes(examJson, { subject: key });
     examJson = mid.examJson;
     mid.notes.forEach((note) => logToFile('[assessment] mid key fixed', { requestId, pattern, ...note }));
+    // bd-5jmnfj.33.7.1 (v36): a word box still holding only its answers gets one spare word the chapter already uses.
+    const spare = addSpareWord(examJson, P, _keptBookText(loaded.content));
+    examJson = spare.examJson;
+    spare.notes.forEach((note) => logToFile('[assessment] word box spare added', { requestId, pattern, ...note }));
   }
   const keyed = keyFixes(examJson); // bd-5jmnfj.4.57: paragraph length from the template, no lone-letter syllable split
   examJson = keyed.examJson;
