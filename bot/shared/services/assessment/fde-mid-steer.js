@@ -49,15 +49,15 @@ function lineOf(q) {
 }
 
 /**
- * steerNote(tree) → the note for the sections written after Section A, or null when A gave
- * nothing to list.
+ * steerNote(tree, earlier) → the note for a section written after `earlier` (default 'Section A';
+ * 'Sections A and B' for Section C, bd-5jmnfj.33.7.2), or null when they gave nothing to list.
  */
-function steerNote(tree) {
+function steerNote(tree, earlier = 'Section A') {
   try {
     const lines = items(tree).flatMap(lineOf);
     if (!lines.length) return null;
     return [
-      'Section A of this paper is already written. Its items, each with its answer:',
+      `${earlier} of this paper ${earlier === 'Section A' ? 'is' : 'are'} already written. Its items, each with its answer:`,
       lines.join('\n'),
       'Never ask any of these facts again in your section, in any shape: no stem, option, blank or passage question '
         + 'may ask for or print one of these answers, and no item\'s answer may be one of them. '

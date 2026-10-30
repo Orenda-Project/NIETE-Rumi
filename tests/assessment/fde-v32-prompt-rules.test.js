@@ -67,7 +67,7 @@ describe('G4', () => {
   test('Maths: the 5-mark scheme pays a check only when asked; division points name the digits used; no shared multiplier or shape', () => {
     const M = G4.subjects.maths;
     ['g4.maths.B.short', 'g4.maths.B.word_problem', 'g4.maths.C.extended'].forEach((id) => {
-      expect(rule(M, id)).toContain('U 1 for the unit or the statement; a check is paid only where the stem asks for one.');
+      expect(rule(M, id)).toContain('a check is paid only where the stem asks for one.'); // v38: the unit/statement mark is gone (bd-5jmnfj.33.7.2)
       expect(rule(M, id)).not.toContain('or a check.');
     });
     expect(rule(M, 'g4.maths.B.short')).toContain('A division method point names the digits actually used first.');

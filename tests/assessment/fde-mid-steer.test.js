@@ -42,3 +42,13 @@ test('an empty or broken tree gives no note', () => {
   expect(steerNote({ unseen: {} })).toBeNull();
   expect(steerNote({ unseen: { objective: { MCQs: [null, 2, { question: '' }] } } })).toBeNull();
 });
+
+// bd-5jmnfj.33.7.2 (v36): Sections B and C were written beside each other after A, so G4 Science Q3 and Q5,
+// G4 Urdu Q2 and Q3 and G4 Maths Q3 and Q5 tested one fact twice. Section C is now written after B and is
+// told both earlier sections, named as such.
+test('a note for a later section names every earlier section it lists', () => {
+  const note = steerNote(tree, 'Sections A and B');
+  expect(note).toContain('Sections A and B of this paper are already written.');
+  expect(note).not.toContain('Section A of this paper is already written.');
+  expect(note).toContain('- What is 8 x 5? — 40 [options: 35, 40, 45]');
+});
