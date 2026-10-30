@@ -2297,6 +2297,14 @@ router.use(require('./coach-school-card.routes').createCoachSchoolCardRouter({
     suggestion: (coachId, id, found) => Plan.suggestionFor(supabase, coachId, id, found, { card: () => cardOf(coachId, id), complete }),
   }));
 }
+// bd-whlsm0: a coach's "Report an issue" from the More page, stored for the session coach (coach_feedback).
+router.use(require('./coach-feedback.routes').createCoachFeedbackRouter({
+  guards: coachV2,
+  save: async ({ userId, kind, message, page }) => {
+    const { error } = await supabase.from('coach_feedback').insert({ user_id: userId, kind, message, page });
+    if (error) throw new Error(error.message);
+  },
+}));
 const pgQuery = (sql, params) => pool.query(sql, params);
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

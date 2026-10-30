@@ -41,6 +41,8 @@ const { displayNameOf } = require('../../bot/shared/services/observe/patch-resol
 const { teacherLevelOf, VALID_LEVELS } = require('../../bot/shared/utils/teacher-level');
 // Pure (no requires): the teacher's report card's own "what went well" and step names.
 const { wells, stepOf } = require('../../bot/shared/services/coaching/report-card');
+// A paper's subject by its printable name (as progress.service and teacher-notices print it).
+const { subjectLabel } = require('../../bot/shared/services/assessment/assessment-vocabulary');
 const P = require('../lib/school-card-period');
 const { karachiToday } = require('../lib/visit-time');
 
@@ -334,7 +336,9 @@ function trainingPartsOf(rows = []) {
  * PAPERS. Her Assessment Generator requests in the period that reached a ready ROOT paper (governed exam rules
  * §2/§3a: never count assessment_papers rows, an edit is not a new paper, status 'ready' on the root is the test).
  * A retry is another paper row of the same request, so a request counts once. The read (SQL.papers) returns one
- * row per such request; this dates each one.
+ * row per such request; this dates each one. Its class is given as the lesson plans give theirs, a grade number and
+ * a subject name ('grade_5' → '5', 'social_studies' → 'Social Studies'), never the request's raw codes: the
+ * grade-subject tile drew a raw code black (bd-u1laoy).
  */
 function papersOf(rows = []) {
   const seen = new Set();
@@ -343,7 +347,12 @@ function papersOf(rows = []) {
     const day = P.pkDayOf(r.at);
     if (!day || !r.user_id || seen.has(r.id)) continue;
     seen.add(r.id);
-    out.push({ id: r.id, userId: r.user_id, day, at: r.at, grade: text(r.grade_code), subject: text(r.subject_code), questions: num(r.questions), marks: num(r.marks) });
+    const subject = text(r.subject_code);
+    out.push({
+      id: r.id, userId: r.user_id, day, at: r.at,
+      grade: text(String(r.grade_code || '').replace(/^grade_/, '')), subject: subject ? subjectLabel(subject) : null,
+      questions: num(r.questions), marks: num(r.marks),
+    });
   }
   return out;
 }

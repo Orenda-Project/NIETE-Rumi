@@ -1,4 +1,4 @@
-import { CircleUserRound, ClipboardCheck, LogOut } from "lucide-react";
+import { CircleUserRound, ClipboardCheck, LogOut, MessageSquareWarning } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../hooks/useAuth";
 import { useLogoutGuard } from "../../lib/recordingSession";
@@ -9,6 +9,7 @@ import { useCopy } from "../../teacher/i18n";
 import { formatPhone, fullName, initials } from "../../teacher/format";
 import CoachGate from "../CoachGate";
 import { COACH_PROFILE } from "./copy";
+import { REPORT_PATH } from "./paths";
 import { useCoachCounts } from "./useCoachCounts";
 import { useChildTestSa } from "../../lib/useChildTestSa";
 
@@ -57,6 +58,7 @@ export default function CoachMore() {
         <Card label={C.more.account}>
           <LanguageRow />
           <RowLink id="profile" to="/portal/coach/profile" icon={CircleUserRound} label={C.more.profile} />
+          <RowLink id="report" to={REPORT_PATH} icon={MessageSquareWarning} label={P.report} />
           <button type="button" data-testid="more-row-logout" onClick={guardedLogout} className={cn(ROW, "text-[#c8331f]")}>
             <Tile icon={LogOut} hue={{ fg: "#c8331f", bg: "#fee4e2" }} />
             <span>{C.more.logout}</span>
