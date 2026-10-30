@@ -117,87 +117,87 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Who reads this (all, generated)
 - `access-scope.service.js` ← imported by `dashboard/index.js:75:1e0a6ccd` · `dashboard/services/invitation.service.js:15:cfcf45a5`
 - `ama.service.js` ← imported by `dashboard/index.js:72:b5ab1a24` · `dashboard/workers/portal-sqs-worker.js:214:cc7134d2`
-- `assessment.service.js` ← imported by `dashboard/routes/portal.routes.js:3099:19fa3ae5` · `dashboard/services/grade-subjects.service.js:142:481bd8c6`
-- `attendance-detail.service.js` ← imported by `dashboard/routes/portal.routes.js:148:ab4e8b67`
+- `assessment.service.js` ← imported by `dashboard/routes/portal.routes.js:3119:19fa3ae5` · `dashboard/services/grade-subjects.service.js:142:481bd8c6`
+- `attendance-detail.service.js` ← imported by `dashboard/routes/portal.routes.js:152:ab4e8b67`
 - `attendance-repository.service.js` ← imported by `bot/workers/attendance-bigquery-export.worker.js:34:34f5025b` · `dashboard/routes/attendance.routes.js:38:d777d415`
 - `auth.service.js` ← imported by `dashboard/index.js:29:8ef35abd` · `dashboard/routes/settings.js:8:fffb4120`
 - `billing.service.js` ← imported by `dashboard/routes/billing.routes.js:10:ac59fdc1`
 - `byof-agent.service.js` ← imported by `dashboard/routes/byof.routes.js:11:16a032fb`
 - `byof.service.js` ← imported by `dashboard/routes/byof.routes.js:10:f7ffd89f` · `dashboard/services/byof-agent.service.js:14:236f5ba4`
-- `certificates.service.js` ← imported by `dashboard/routes/portal.routes.js:4360:987b6967`
+- `certificates.service.js` ← imported by `dashboard/routes/portal.routes.js:4415:987b6967`
 - `coach-card-token.js` ← imported by `dashboard/routes/coach-card.routes.js:19:864c80cf` · `dashboard/services/coach-visit-request.js:21:df247ede`
-- `coach-disagreement-clip.js` ← imported by `dashboard/lib/insights/clips.js:12:baa561a2` · `dashboard/routes/coach-disagreements.routes.js:23:59ca3a41` · `dashboard/routes/portal.routes.js:2333:571db6ca` · `dashboard/routes/web-quiz-story-assets.js:82:4aa7fc7d` (+1: `python3 kg/kg.py who-reads coach-disagreement-clip.js`)
+- `coach-disagreement-clip.js` ← imported by `dashboard/lib/insights/clips.js:12:baa561a2` · `dashboard/routes/coach-disagreements.routes.js:23:59ca3a41` · `dashboard/routes/portal.routes.js:2353:571db6ca` · `dashboard/routes/web-quiz-story-assets.js:82:4aa7fc7d` (+1: `python3 kg/kg.py who-reads coach-disagreement-clip.js`)
 - `coach-disagreement-evidence.js` ← imported by `dashboard/services/coach-disagreements.service.js:25:05ec6692` · `dashboard/services/coach-school-card.service.js:34:7d2dd38e`
 - `coach-disagreement-pattern.js` ← imported by `dashboard/services/coach-disagreements.service.js:26:d65ddfd0`
-- `coach-disagreement-plan.js` ← imported by `dashboard/routes/portal.routes.js:2303:6cffc86f` · `dashboard/services/coach-disagreements.service.js:27:8c18d643`
-- `coach-disagreements.service.js` ← imported by `dashboard/routes/portal.routes.js:2299:b1dd5a42`
-- `coach-note-store.js` ← imported by `dashboard/routes/portal.routes.js:2300:83ebe4aa` · `dashboard/services/coach-visit-request.js:76:a071f04d`
+- `coach-disagreement-plan.js` ← imported by `dashboard/routes/portal.routes.js:2323:6cffc86f` · `dashboard/services/coach-disagreements.service.js:27:8c18d643`
+- `coach-disagreements.service.js` ← imported by `dashboard/routes/portal.routes.js:2319:b1dd5a42`
+- `coach-note-store.js` ← imported by `dashboard/routes/portal.routes.js:2320:83ebe4aa` · `dashboard/services/coach-visit-request.js:76:a071f04d`
 - `coach-ping-page.js` ← imported by `dashboard/routes/coach-card.routes.js:20:138d1d01` · `dashboard/routes/coaching-report.routes.js:26:a6bbd322` · `dashboard/services/coaching-report-page.js:16:45e0e625`
 - `coach-ping-reasons.js` ← imported by `dashboard/routes/coaching-report.routes.js:27:dfa4f06a` · `dashboard/services/coach-disagreement-evidence.js:13:fb11beed` · `dashboard/services/coach-disagreements.service.js:24:fb11beed` · `dashboard/services/coach-ping-page.js:12:f61633ca` (+1: `python3 kg/kg.py who-reads coach-ping-reasons.js`)
-- `coach-school-admin.service.js` ← imported by `dashboard/routes/portal.routes.js:161:89029801`
+- `coach-school-admin.service.js` ← imported by `dashboard/routes/portal.routes.js:165:89029801`
 - `coach-school-card.service.js` ← imported by `dashboard/routes/coach-school-card.routes.js:19:3d906b0e`
-- `coach-teacher-admin.service.js` ← imported by `dashboard/routes/portal.routes.js:158:9e9a1fb0`
-- `coach-v2.service.js` ← imported by `dashboard/routes/portal.routes.js:2276:bf093f00` · `dashboard/services/coach-school-admin.service.js:26:c56d46cd`
+- `coach-teacher-admin.service.js` ← imported by `dashboard/routes/portal.routes.js:162:9e9a1fb0`
+- `coach-v2.service.js` ← imported by `dashboard/routes/portal.routes.js:2296:bf093f00` · `dashboard/services/coach-school-admin.service.js:26:c56d46cd`
 - `coach-visit-request.js` ← imported by `dashboard/routes/coach-card.routes.js:46:fc38d1ea` · `dashboard/routes/coaching-report.routes.js:31:d0d60971`
-- `coaching-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:119:c03c726c`
-- `coaching-breakdown.service.js` ← imported by `dashboard/routes/portal.routes.js:2674:b9ac8227`
-- `coaching-frameworks.service.js` ← imported by `dashboard/routes/portal.routes.js:125:fb9750c6` · `dashboard/services/coach-school-card.service.js:32:844e9b68` · `dashboard/services/coach-v2.service.js:23:844e9b68` · `dashboard/services/leader-observations.service.js:23:844e9b68` (+7: `python3 kg/kg.py who-reads coaching-frameworks.service.js`)
+- `coaching-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:123:c03c726c`
+- `coaching-breakdown.service.js` ← imported by `dashboard/routes/portal.routes.js:2694:b9ac8227`
+- `coaching-frameworks.service.js` ← imported by `dashboard/routes/portal.routes.js:129:fb9750c6` · `dashboard/services/coach-school-card.service.js:32:844e9b68` · `dashboard/services/coach-v2.service.js:23:844e9b68` · `dashboard/services/leader-observations.service.js:23:844e9b68` (+7: `python3 kg/kg.py who-reads coaching-frameworks.service.js`)
 - `coaching-observability.service.js` ← imported by `dashboard/index.js:51:7a03acff`
 - `coaching-report-page.js` ← imported by `dashboard/routes/coach-card.routes.js:21:190caeeb` · `dashboard/routes/coaching-report.routes.js:25:a05add50` · `dashboard/routes/video-reco.routes.js:26:190caeeb`
 - `coaching-report-style.js` ← imported by `dashboard/services/coach-ping-page.js:11:d00a0515` · `dashboard/services/coaching-report-page.js:12:d00a0515` · `dashboard/services/video-reco-page.js:20:1b931c89`
 - `coaching-report-view.js` ← imported by `dashboard/routes/coaching-report.routes.js:28:5f31ca87` · `dashboard/services/coach-disagreements.service.js:179:6ea40ae5` · `dashboard/services/coach-visit-request.js:176:6ea40ae5` · `dashboard/services/coaching-report-page.js:13:aa49823a`
 - `coaching-useful.js` ← imported by `dashboard/routes/coaching-report.routes.js:30:3034ffe3`
 - `coachip-clip.service.js` ← imported by `dashboard/routes/portal-coachip-media.routes.js:16:8fd477a9`
-- `coachip-coach-read.service.js` ← imported by `dashboard/routes/portal-coachip.routes.js:346:8f525311`
-- `coachip-codes.service.js` ← imported by `dashboard/routes/portal-coachip.routes.js:379:2cac9e1b`
-- `coachip-listen-read.service.js` ← imported by `dashboard/routes/portal-coachip.routes.js:347:bbffd9cb` · `dashboard/services/coachip-rm-read.service.js:18:4fe6cb0c`
+- `coachip-coach-read.service.js` ← imported by `dashboard/routes/portal-coachip.routes.js:342:8f525311`
+- `coachip-codes.service.js` ← imported by `dashboard/routes/portal-coachip.routes.js:375:2cac9e1b`
+- `coachip-listen-read.service.js` ← imported by `dashboard/routes/portal-coachip.routes.js:343:bbffd9cb` · `dashboard/services/coachip-rm-read.service.js:18:4fe6cb0c`
 - `coachip-moment.js` ← imported by `dashboard/services/coachip-coach-read.service.js:24:ab395bfb` · `dashboard/services/coachip-listen-read.service.js:16:fde929c2`
-- `coachip-rm-read.service.js` ← imported by `dashboard/routes/portal-coachip.routes.js:348:c13b1a45`
+- `coachip-rm-read.service.js` ← imported by `dashboard/routes/portal-coachip.routes.js:344:c13b1a45`
 - `coachip-rules.service.js` ← imported by `dashboard/services/coachip-coach-read.service.js:23:08d9baee` · `dashboard/services/coachip-rm-read.service.js:17:28b61926` · `dashboard/services/coachip-write.service.js:19:08d9baee`
-- `coachip-scope.service.js` ← imported by `dashboard/routes/portal-coachip.routes.js:378:130c18e3`
+- `coachip-scope.service.js` ← imported by `dashboard/routes/portal-coachip.routes.js:374:130c18e3`
 - `coachip-sector-coaches.js` ← imported by `dashboard/services/coachip-listen-read.service.js:17:4f5f3c96` · `dashboard/services/coachip-rm-read.service.js:19:4f5f3c96`
 - `coachip-shapes.js` ← imported by `dashboard/routes/portal-coachip-media.routes.js:15:95a3542a` · `dashboard/routes/portal-coachip.routes.js:21:95a3542a` · `dashboard/services/coachip-coach-read.service.js:22:1ad0754a` · `dashboard/services/coachip-listen-read.service.js:15:1ad0754a` (+5: `python3 kg/kg.py who-reads coachip-shapes.js`)
-- `coachip-write.service.js` ← imported by `dashboard/routes/portal-coachip.routes.js:349:9c2c7195`
+- `coachip-write.service.js` ← imported by `dashboard/routes/portal-coachip.routes.js:345:9c2c7195`
 - `fln-corpus.service.js` ← imported by `dashboard/routes/portal-fln-links.routes.js:170:9708fa87` · `dashboard/routes/portal-fln-send.routes.js:64:bef7b8ef` · `dashboard/routes/portal-fln.routes.js:41:383b9f08`
 - `fln-media-sign.js` ← imported by `dashboard/routes/portal-fln.routes.js:44:2a70e8f0`
 - `github-api.service.js` ← imported by `dashboard/services/byof-agent.service.js:16:30db2334` · `dashboard/services/redis-cache.service.js:9:30db2334`
 - `gpt-cache.service.js` ← imported by `dashboard/index.js:57:e2d25ad0` · `dashboard/services/transcript-processor.service.js:13:1cac73a0`
 - `grade-subjects.service.js` ← imported by `dashboard/routes/portal-teacher-attendance.routes.js:28:6497bf32` · `dashboard/routes/portal-teacher-lessons.routes.js:18:6497bf32`
 - `invitation.service.js` ← imported by `dashboard/index.js:81:8f00ab4b`
-- `leader-assignment.service.js` ← imported by `dashboard/routes/portal.routes.js:165:07ab842f`
-- `leader-observations.service.js` ← imported by `dashboard/routes/portal.routes.js:153:d05b6158`
-- `leader-overview.service.js` ← imported by `dashboard/routes/portal.routes.js:138:218b7dd3`
-- `leader-patch.service.js` ← imported by `dashboard/routes/hcp.routes.js:40:894affdf` · `dashboard/routes/portal-fln-send.routes.js:27:894affdf` · `dashboard/routes/portal.routes.js:136:2920771b` · `dashboard/services/coach-teacher-admin.service.js:19:0dff6350` (+3: `python3 kg/kg.py who-reads leader-patch.service.js`)
-- `leader-schedule-write.service.js` ← imported by `dashboard/routes/portal.routes.js:155:3962c0c3`
-- `leader-teacher-detail.service.js` ← imported by `dashboard/routes/portal.routes.js:150:dfb3f948`
+- `leader-assignment.service.js` ← imported by `dashboard/routes/portal.routes.js:169:07ab842f`
+- `leader-observations.service.js` ← imported by `dashboard/routes/portal.routes.js:157:d05b6158`
+- `leader-overview.service.js` ← imported by `dashboard/routes/portal.routes.js:142:218b7dd3`
+- `leader-patch.service.js` ← imported by `dashboard/routes/hcp.routes.js:40:894affdf` · `dashboard/routes/portal-fln-send.routes.js:27:894affdf` · `dashboard/routes/portal.routes.js:140:2920771b` · `dashboard/services/coach-teacher-admin.service.js:19:0dff6350` (+3: `python3 kg/kg.py who-reads leader-patch.service.js`)
+- `leader-schedule-write.service.js` ← imported by `dashboard/routes/portal.routes.js:159:3962c0c3`
+- `leader-teacher-detail.service.js` ← imported by `dashboard/routes/portal.routes.js:154:dfb3f948`
 - `lp-activity.service.js` ← imported by `dashboard/routes/portal-fln.routes.js:42:6f3a367c` · `dashboard/routes/portal.routes.js:49:6f3a367c` · `dashboard/services/coach-v2.service.js:25:a12faede` · `dashboard/services/grade-subjects.service.js:140:6583d3cd` (+3: `python3 kg/kg.py who-reads lp-activity.service.js`)
-- `lp-catalogue.service.js` ← imported by `dashboard/routes/portal-teacher-lessons.routes.js:20:5d8c401d` · `dashboard/routes/portal.routes.js:2672:5d8c401d` · `dashboard/services/grade-subjects.service.js:141:01b06451`
-- `lp-engagement.service.js` ← imported by `dashboard/routes/portal.routes.js:9004:4c3828de`
+- `lp-catalogue.service.js` ← imported by `dashboard/routes/portal-teacher-lessons.routes.js:20:5d8c401d` · `dashboard/routes/portal.routes.js:2692:5d8c401d` · `dashboard/services/grade-subjects.service.js:141:01b06451`
+- `lp-engagement.service.js` ← imported by `dashboard/routes/portal.routes.js:9059:4c3828de`
 - `lp-history.service.js` ← imported by `dashboard/routes/portal-teacher-lessons.routes.js:19:5d80e1fc` · `dashboard/services/teacher-coaching.service.js:16:6a9de3e6`
 - `lp-open-survey.client.js` ← imported by `dashboard/services/lp-reader.service.js:44:a9b12197`
 - `lp-reader.service.js` ← imported by `dashboard/routes/portal-fln.routes.js:43:81842d36` · `dashboard/routes/portal.routes.js:59:81842d36`
-- `lp612.service.js` ← imported by `dashboard/routes/portal.routes.js:2858:a4b08fd4` · `dashboard/services/grade-subjects.service.js:182:769b13e4`
+- `lp612.service.js` ← imported by `dashboard/routes/portal.routes.js:2878:a4b08fd4` · `dashboard/services/grade-subjects.service.js:182:769b13e4`
 - `materialized-views.service.js` ← imported by `dashboard/database/queries.js:13:3d4e1345` · `dashboard/index.js:78:3d7a2e1b` · `dashboard/services/mv-refresh-scheduler.service.js:34:6b533c81` · `dashboard/services/retention.service.js:13:6b533c81`
 - `mv-refresh-scheduler.service.js` ← imported by `dashboard/index.js:3862:701d14a4`
-- `observations-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:120:33ff4964`
-- `observe-notice.service.js` ← imported by `dashboard/routes/portal.routes.js:156:f8e36ec7`
-- `observe-teacher-admin.client.js` ← imported by `dashboard/routes/portal.routes.js:159:b350ff3a`
-- `password-reset.service.js` ← imported by `dashboard/routes/portal.routes.js:810:428c28e7`
+- `observations-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:124:33ff4964`
+- `observe-notice.service.js` ← imported by `dashboard/routes/portal.routes.js:160:f8e36ec7`
+- `observe-teacher-admin.client.js` ← imported by `dashboard/routes/portal.routes.js:163:b350ff3a`
+- `password-reset.service.js` ← imported by `dashboard/routes/portal.routes.js:787:428c28e7`
 - `portal-child-test.client.js` ← imported by `dashboard/routes/portal-child-test.routes.js:56:ec0733e4`
-- `portal-coaching.client.js` ← imported by `dashboard/routes/portal.routes.js:7578:e3869eed`
+- `portal-coaching.client.js` ← imported by `dashboard/routes/portal.routes.js:7633:e3869eed`
 - `progress.service.js` ← imported by `dashboard/routes/portal.routes.js:60:f5b0c126`
 - `r2.service.js` ← imported by `dashboard/index.js:88:9abc3fe3` · `dashboard/lib/media-url.js:7:a206d415` · `dashboard/routes/portal.routes.js:42:193f114b` · `dashboard/routes/web-quiz-story-assets.js:112:bacee796` (+1: `python3 kg/kg.py who-reads r2.service.js`)
 - `redis-cache.service.js` ← imported by `dashboard/services/byof-agent.service.js:15:1bd19dde`
-- `report-extras.js` ← imported by `dashboard/routes/portal.routes.js:127:002da4b2`
-- `report-narrative-view.js` ← imported by `dashboard/routes/portal.routes.js:126:7bafb190`
+- `report-extras.js` ← imported by `dashboard/routes/portal.routes.js:131:002da4b2`
+- `report-narrative-view.js` ← imported by `dashboard/routes/portal.routes.js:130:7bafb190`
 - `resend-email.service.js` ← imported by `dashboard/index.js:84:812c3951` · `dashboard/routes/settings.js:9:72f2cdfb`
 - `retention.service.js` ← imported by `dashboard/index.js:69:18ebac15`
-- `school-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:141:30146389`
-- `schools-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:118:58eeeb5b` · `dashboard/services/coach-school-card.service.js:33:5209c65f` · `dashboard/services/coaching-analytics.service.js:59:071acc09` · `dashboard/services/lp-engagement.service.js:51:18636010` (+2: `python3 kg/kg.py who-reads schools-analytics.service.js`)
-- `steps-grid.service.js` ← imported by `dashboard/services/observations-analytics.service.js:59:78aad438` · `dashboard/services/school-analytics.service.js:36:286b03de` · `dashboard/services/schools-analytics.service.js:85:794dfc45`
-- `steps-presence.service.js` ← imported by `dashboard/routes/portal.routes.js:145:69e763b3`
-- `steps-remarks.service.js` ← imported by `dashboard/routes/portal.routes.js:146:f87f3484`
-- `subject-vocabulary.service.js` ← imported by `dashboard/services/grade-subjects.service.js:32:efaeaac2` · `dashboard/services/lp-engagement.service.js:52:4feb8c0d` · `dashboard/services/lp-history.service.js:33:f04fed96` · `dashboard/services/teacher-attendance.service.js:53:4feb8c0d`
+- `school-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:145:30146389`
+- `schools-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:122:58eeeb5b` · `dashboard/services/coach-school-card.service.js:33:5209c65f` · `dashboard/services/coaching-analytics.service.js:63:071acc09` · `dashboard/services/lp-engagement.service.js:55:18636010` (+2: `python3 kg/kg.py who-reads schools-analytics.service.js`)
+- `steps-grid.service.js` ← imported by `dashboard/services/observations-analytics.service.js:63:78aad438` · `dashboard/services/school-analytics.service.js:36:286b03de` · `dashboard/services/schools-analytics.service.js:90:794dfc45`
+- `steps-presence.service.js` ← imported by `dashboard/routes/portal.routes.js:149:69e763b3`
+- `steps-remarks.service.js` ← imported by `dashboard/routes/portal.routes.js:150:f87f3484`
+- `subject-vocabulary.service.js` ← imported by `dashboard/services/grade-subjects.service.js:32:efaeaac2` · `dashboard/services/lp-engagement.service.js:56:4feb8c0d` · `dashboard/services/lp-history.service.js:33:f04fed96` · `dashboard/services/teacher-attendance.service.js:53:4feb8c0d`
 - `teacher-attendance.service.js` ← imported by `dashboard/routes/portal-teacher-attendance.routes.js:27:3486f1f0`
 - `teacher-coaching.service.js` ← imported by `dashboard/routes/portal-teacher-coaching.routes.js:25:5a18e3f1`
 - `teacher-home-order.service.js` ← imported by `dashboard/routes/portal-teacher-home.routes.js:40:f1a55e85`
@@ -205,7 +205,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `telemetry.service.js` ← imported by `dashboard/middleware/latency-logger.js:28:2aa9b460` · `dashboard/routes/app-funnel.routes.js:30:2aa9b460` · `dashboard/routes/app-login.routes.js:21:2aa9b460` · `dashboard/routes/coach-card.routes.js:22:2aa9b460` (+11: `python3 kg/kg.py who-reads telemetry.service.js`)
 - `thing-to-try.service.js` ← imported by `dashboard/routes/portal-teacher-thing-to-try.routes.js:18:2942d56d` · `dashboard/routes/portal.routes.js:50:2942d56d`
 - `training-bands.service.js` ← imported by `dashboard/routes/portal.routes.js:40:eb91bd32`
-- `training-levels-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:1874:79fabdbd`
+- `training-levels-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:1884:79fabdbd`
 - `training-library.service.js` ← imported by `dashboard/routes/training-library.routes.js:18:94154b77`
 - `training-rules.service.js` ← imported by `dashboard/routes/portal.routes.js:64:5f36753b`
 - `transcript-processor.service.js` ← imported by `dashboard/index.js:91:fce50392` · `dashboard/workers/portal-sqs-worker.js:55:ff7cdd25` · `dashboard/scripts/backfill-processed-transcripts.js:17:4befdff3`
@@ -213,7 +213,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `video-observability.service.js` ← imported by `dashboard/index.js:60:eafba43c`
 - `video-reco-events.js` ← imported by `dashboard/routes/coaching-report.routes.js:32:9f83ee11` · `dashboard/routes/video-reco.routes.js:27:f4421b6d`
 - `video-reco-page.js` ← imported by `dashboard/routes/video-reco.routes.js:24:74889a78`
-- `video-reco-portal.js` ← imported by `dashboard/routes/portal.routes.js:128:15432886`
+- `video-reco-portal.js` ← imported by `dashboard/routes/portal.routes.js:132:15432886`
 - `whatsapp-broadcast.service.js` ← imported by `dashboard/index.js:3079:c1295629`
 - `wordcloud.service.js` ← imported by `dashboard/routes/wordcloud.js:7:84d60556`
 - column `coach_visit_requests.status` (written by `coach-visit-request.js`) ← read by `dashboard/services/coach-disagreements.service.js:138:175a43cc`
@@ -230,14 +230,14 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - column `teacher_attendance_records.status` (written by `attendance-repository.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:899:74eda9b1` · `bot/shared/services/attendance-register-delivery.service.js:67:5c2c47be` · `bot/workers/attendance-bigquery-export.worker.js:143:052eb616`
 - column `teacher_attendance_records.teacher_id` (written by `attendance-repository.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:899:74eda9b1` · `bot/shared/services/attendance-register-delivery.service.js:67:5c2c47be` · `bot/shared/services/attendance-write.service.js:224:ce75da8c` · `bot/workers/attendance-bigquery-export.worker.js:143:052eb616`
 - table `dashboard_users` whole row (`*`) (written by `byof.service.js`) ← read by `dashboard/services/auth.service.js:19:d2b02c3e`?
-- table `users` whole row (`*`) (written by `password-reset.service.js`) ← read by `bot/shared/database/bot-helpers.js:28:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:687:7a0c163a`? · `dashboard/routes/portal.routes.js:314:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
+- table `users` whole row (`*`) (written by `password-reset.service.js`) ← read by `bot/shared/database/bot-helpers.js:28:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:687:7a0c163a`? · `dashboard/routes/portal.routes.js:288:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
 - table `access_scopes` (written by `access-scope.service.js`) ← read by `dashboard/services/auth.service.js:43:2be8f4d7`?
-- table `coach_visit_requests` (written by `coach-disagreement-plan.js`, `coach-disagreements.service.js`, `coach-visit-request.js`) ← read by `bot/shared/services/coach-voice-note-retention.service.js:31:447a8a54`? · `dashboard/routes/coach-card.routes.js:33:d4b16243`? · `dashboard/routes/portal.routes.js:2325:1fdcb761`? · `dashboard/services/coach-disagreement-plan.js:29:9ee72eab`? (+2: `python3 kg/kg.py who-reads coach_visit_requests`)
+- table `coach_visit_requests` (written by `coach-disagreement-plan.js`, `coach-disagreements.service.js`, `coach-visit-request.js`) ← read by `bot/shared/services/coach-voice-note-retention.service.js:31:447a8a54`? · `dashboard/routes/coach-card.routes.js:33:d4b16243`? · `dashboard/routes/portal.routes.js:2345:1fdcb761`? · `dashboard/services/coach-disagreement-plan.js:29:9ee72eab`? (+2: `python3 kg/kg.py who-reads coach_visit_requests`)
 - table `coaching_quality_metrics` (written by `coaching-useful.js`) ← read by `bot/shared/services/coaching/coaching-feedback.service.js:99:df6ad5d9`? · `bot/shared/services/coaching/coaching-helpers.service.js:115:d42443b2`? · `bot/shared/services/coaching/weekly-report/reader.js:103:527a292b`?
 - table `dashboard_users` (written by `auth.service.js`, `byof.service.js`, `invitation.service.js`) ← read by `dashboard/index.js:559:36baffc0`? · `dashboard/middleware/auth.js:76:9a69d293`? · `dashboard/middleware/rbac/feature-access.js:53:9a69d293`? · `dashboard/middleware/rbac/rbac.js:49:9a69d293`? (+5: `python3 kg/kg.py who-reads dashboard_users`)
 - table `invitations` (written by `invitation.service.js`) ← read by `dashboard/index.js:2050:535a79c0`?
 - table `teacher_attendance_records` (written by `attendance-repository.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:898:cac7d040`? · `bot/shared/services/attendance-register-delivery.service.js:66:cac7d040`? · `bot/shared/services/attendance-write.service.js:223:cac7d040`? · `bot/workers/attendance-bigquery-export.worker.js:141:cac7d040`? (+1: `python3 kg/kg.py who-reads teacher_attendance_records`)
-- table `users` (written by `password-reset.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:242:774e00e5`? · `bot/shared/database/bot-helpers.js:17:61dfd735`? (+172: `python3 kg/kg.py who-reads users`)
+- table `users` (written by `password-reset.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:242:774e00e5`? · `bot/shared/database/bot-helpers.js:17:61dfd735`? (+173: `python3 kg/kg.py who-reads users`)
 - env `ANTHROPIC_API_KEY` read at `dashboard/services/billing.service.js:11:6137f7d4` · `dashboard/services/byof-agent.service.js:22:4eda5959`
 - env `ATTENDANCE_REPO` read at `dashboard/services/attendance-repository.service.js:359:b04b8587`
 - env `AXIOM_DATASET` read at `dashboard/services/telemetry.service.js:43:2d836a2a`
@@ -357,7 +357,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `report-extras.js` ← `tests/portal/bd-z3cadk-report-extras.test.js`
 - `report-narrative-view.js` ← `tests/portal/bd-fmf24g.10-report-narrative-view.test.js` · `tests/portal/bd-z3cadk-report-extras.test.js`
 - `school-analytics.service.js` ← `dashboard/tests/school-analytics.service.test.js` · `tests/portal/school-analytics-observations.test.js` · `tests/portal/teacher-analytics.test.js`
-- `schools-analytics.service.js` ← `tests/portal/analytics-lists-v8.test.js` · `tests/portal/analytics-v8-services.test.js` · `tests/portal/coaching-analytics.service.test.js` · `tests/portal/lp-engagement.service.test.js` · `tests/portal/observations-analytics.service.test.js` · `tests/portal/schools-analytics.service.test.js` (+1: `python3 kg/kg.py who-reads dashboard/services/schools-analytics.service.js`)
+- `schools-analytics.service.js` ← `tests/portal/analytics-framework-scores.test.js` · `tests/portal/analytics-lists-v8.test.js` · `tests/portal/analytics-organization-scope.test.js` · `tests/portal/analytics-v8-services.test.js` · `tests/portal/coaching-analytics.service.test.js` · `tests/portal/lp-engagement.service.test.js` (+3: `python3 kg/kg.py who-reads dashboard/services/schools-analytics.service.js`)
 - `steps-grid.service.js` ← `tests/portal/observations-analytics.service.test.js` · `tests/portal/steps-removed.test.js`
 - `steps-presence.service.js` ← `dashboard/tests/steps-presence.service.test.js`
 - `steps-remarks.service.js` ← `dashboard/tests/steps-remarks.service.test.js` · `tests/portal/teacher-analytics.test.js`
