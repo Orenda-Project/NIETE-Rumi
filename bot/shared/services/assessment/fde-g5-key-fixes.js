@@ -13,6 +13,11 @@
  */
 
 const { criteriaFor } = require('./composition-criteria');
+const { moreKeyFixes } = require('./fde-g5-key-fixes-2'); // bd-5jmnfj.4.58.4
+const { langFixes } = require('./fde-g5-lang-fixes'); // bd-5jmnfj.4.58.34
+const { sceneAlternatives } = require('./fde-g1-scene-accept'); // v37r2 G1 Maths Q8: usual other names in accept
+const { pictureWordCount } = require('./fde-picture-word-count'); // v37r2 G5 English Q10: one word-bank count
+const { answerSheetWording } = require('./fde-answer-sheet-wording'); // v37r5 G5 Science Q2 (a): no frame on an answer-sheet section
 
 const RANGE = /\b(\d+)\s*[-–]\s*(\d+)\s+sentences\b/;
 const SYLLABLES = /ارکان/;
@@ -64,21 +69,58 @@ function fixSyllables(q, notes) {
   return { ...q, answer, ...(points ? { scheme: { ...q.scheme, points } } : {}) };
 }
 
+// A marking point that pays for what the paper never asked goes; its marks join the first point kept, so the
+// question's total holds. `note(moved)` is the log line (a string, unlike the syllable records above).
+function dropPoint(q, drop, notes, note) {
+  const points = Array.isArray(q.scheme && q.scheme.points) ? q.scheme.points : [];
+  const kept = points.filter((p) => !drop(p));
+  if (kept.length === points.length || !kept.length) return q;
+  const moved = points.filter(drop).reduce((sum, p) => sum + (Number(p.marks) || 0), 0);
+  const first = { ...kept[0], marks: (Number(kept[0].marks) || 0) + moved };
+  notes.push(note(moved));
+  return { ...q, scheme: { ...q.scheme, points: [first, ...kept.slice(1)] } };
+}
+
+// v27 G5 Science Q2 (a): the food-chain key paid 1.5 marks for "arrows pointing from the food to the eater" on a
+// paper whose pictures carry no arrows (bd-5jmnfj.4.58.3). The point goes and the model answer drops its arrows clause.
+const ARROWS = /\barrows?\b/i;
+const ARROW_CLAUSE = /,?\s*(?:with|using|and|showing)\s+(?:the\s+)?arrows?\b[^;.]*/i;
+
+function fixArrows(q, notes) {
+  if (q.slot !== 'science.B.Q2a') return q;
+  const out = dropPoint(q, (p) => p && ARROWS.test(String(p.text || '')), notes,
+    (m) => `science.B.Q2a: dropped the "arrows" marking point (${m} marks moved to the first point); the paper's diagrams carry no arrows`);
+  const answer = typeof out.answer === 'string' && ARROW_CLAUSE.test(out.answer) ? out.answer.replace(ARROW_CLAUSE, '') : out.answer;
+  return answer === out.answer ? out : { ...out, answer };
+}
+
+// v27 G5 Urdu Q7: the key paid 1 mark for a عنوان the printed instruction never asked for (bd-5jmnfj.4.58.3).
+const TITLE = /عنوان/;
+
+function fixTitle(q, slot, notes) {
+  if (q.slot !== 'urdu.C.Q7' || !slot || TITLE.test(String(slot.instruction_ur || ''))) return q;
+  return dropPoint(q, (p) => p && TITLE.test(String(p.text || '')), notes,
+    (m) => `urdu.C.Q7: dropped the عنوان marking point (${m} mark moved to the first point); the instruction asks for no title`);
+}
+
 function keyFixes(examJson) {
   const notes = [];
   const slots = ((examJson && examJson._layout && examJson._layout.sections) || []).flatMap((s) => s.slots || []);
   const paragraphs = new Set(slots.filter((s) => /^english\./.test(s.slot) && (s.kinds || []).includes('paragraph')).map((s) => s.slot));
   const length = paragraphs.size ? paragraphLength() : null;
+  const bySlot = new Map(slots.map((s) => [s.slot, s]));
   const fix = (q) => {
     if (!q || typeof q !== 'object') return q;
     if (length && paragraphs.has(q.slot) && typeof q.answer === 'string' && RANGE.test(q.answer)) {
       return { ...q, answer: q.answer.replace(RANGE, length) };
     }
-    return fixSyllables(q, notes);
+    return moreKeyFixes(langFixes(fixTitle(fixArrows(fixSyllables(q, notes), notes), bySlot.get(q.slot), notes), bySlot.get(q.slot), notes), notes);
   };
   const unseen = Object.fromEntries(Object.entries((examJson && examJson.unseen) || {}).map(([cat, byType]) => [cat,
     Object.fromEntries(Object.entries(byType || {}).map(([type, list]) => [type, Array.isArray(list) ? list.map(fix) : list]))]));
-  return { examJson: { ...examJson, unseen }, notes };
+  const counted = pictureWordCount({ ...examJson, unseen });
+  const sheet = answerSheetWording(counted.examJson);
+  return { examJson: sceneAlternatives(sheet.examJson), notes: notes.concat(counted.notes, sheet.notes) };
 }
 
 module.exports = { keyFixes };

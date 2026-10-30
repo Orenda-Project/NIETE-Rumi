@@ -91,7 +91,7 @@ describe('finding 2: G1 Maths Q8 compare picture draws two straight, flat things
     await Pictures.resolvePictures(exam(), x.d);
     const p = promptWith(x.prompts, RIBBON);
     expect(p).toMatch(/laid straight and flat/);
-    expect(p).toMatch(/left ends lined up/);
+    expect(p).toMatch(/side by side on one shared base line/); // v26: ends lined up in a column drew one over the other (bd-5jmnfj.4.58.2)
     expect(p).toMatch(/not curled|Neither is curled/);
   });
 

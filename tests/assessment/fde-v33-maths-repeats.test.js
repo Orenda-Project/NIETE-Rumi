@@ -5,7 +5,7 @@
  * The flags merge into answerRepeats so the re-ask loop names them.
  */
 
-const { mathsRepeats } = require('../../bot/shared/services/assessment/fde-maths-repeats');
+const { midMathsRepeats: mathsRepeats } = require('../../bot/shared/services/assessment/fde-mid-maths-repeats');
 const { answerRepeats } = require('../../bot/shared/services/assessment/fde-answer-repeats');
 
 const item = (slot, question, extra = {}) => ({ slot, question, answer: 'x', ...extra });

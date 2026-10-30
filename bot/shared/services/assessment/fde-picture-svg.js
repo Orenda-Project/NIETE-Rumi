@@ -135,6 +135,9 @@ const DRAW = { dots, shapes, clock, plant };
 
 /** The SVG for a picture this module draws; null for a kind drawn elsewhere. Throws on a picture it cannot draw. */
 function svgFor(picture) {
+  // v26 G1 Urdu Q4 ii: an object picture named "clock" came back from the image model with arrowheads on its hands
+  // (bd-5jmnfj.4.58.2). A named clock is drawn here, with plain round-capped lines, at 3 o'clock.
+  if (picture && picture.kind === 'object' && /\b(?:clock|watch)\b/i.test(String(picture.name || ''))) return clock({ hour: 3, minute: 0 });
   const draw = DRAW[picture && picture.kind];
   return draw ? draw(picture) : null;
 }

@@ -25,6 +25,10 @@ jest.mock('@anthropic-ai/sdk', () => function Anthropic() { return { messages: {
 jest.mock('../../bot/shared/utils/model-cost', () => ({ recordModelCost: () => {} }));
 jest.mock('../../bot/shared/config/supabase', () => ({ from: () => ({ select: () => ({ in: async () => ({ data: [], error: null }) }) }) }));
 jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: () => {} }));
+// The science fixture predates the v29 whole-paper give-away checks (MCQ/concept/fraction); they are pinned in fde-v29-g5-*.test.js (bd-5jmnfj.4.58.4).
+jest.mock('../../bot/shared/services/assessment/fde-g5-paper-giveaways', () => ({ paperGiveaways: () => [] }));
+// Same for the Science give-away flags (bd-5jmnfj.4.58 v37 round 8): the stock science fixture overlaps topically (lungs, brain, living things), so first-pass flags would add re-asks this test does not count. The flags are pinned in fde-v37-science-r3.test.js.
+jest.mock('../../bot/shared/services/assessment/fde-science-giveaway-drop', () => ({ ...jest.requireActual('../../bot/shared/services/assessment/fde-science-giveaway-drop'), scienceGiverFlags: () => [] }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: (...a) => mockState.logs.push(a) }));
 jest.mock('../../bot/shared/services/e2e-cassette', () => ({ mode: () => 'off', wrapChatCompletions: () => {} }));
 jest.mock('../../bot/shared/services/assessment/book-content.service', () => ({
@@ -68,7 +72,7 @@ function deps(P, family, reply, oralItem) {
       section.slots.forEach((sl) => {
         const list = Array.from({ length: sl.generate }, (_, i) => ({
           slot: sl.slot, question: `Question ${i + 1} for ${sl.slot}`, marks: sl.marks_each, blooms: 'Remember',
-          ...(sl.shape === 'mcq' ? { options: ['a) one', 'b) two', 'c) three'], answer: 'a) one' } : { answer: String(i + 1) }),
+          ...(sl.shape === 'mcq' ? { options: [`a) one${i}`, `b) two${i}`, `c) three${i}`], answer: `a) one${i}` } : { answer: String(i + 1) }),
           ...(reply(section.id, n[section.id], sl.slot, i) || {}),
           scheme: { points: [{ kind: 'A', text: 'correct', marks: sl.marks_each }] },
           ...(sl.picture ? { picture: sl.picture[0] === 'object' ? { kind: 'object', name: `${sl.slot} thing ${i}` }

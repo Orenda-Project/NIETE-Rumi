@@ -63,7 +63,7 @@ describe('either/or questions stay whole on the page', () => {
     const { paper } = chain('urdu');
     const before = paper.slice(0, paper.indexOf('data-slot="urdu.C.Q10"'));
     const opens = before.match(/<div class="slot[" ][^>]*>/g);
-    expect(opens[opens.length - 1]).toBe('<div class="slot either">');
+    expect(opens[opens.length - 1]).toMatch(/^<div class="slot either(?: short)?">$/); // `short` when it has six items or fewer (bd-5jmnfj.4.58.3)
     expect(paper).toMatch(/\.slot\.either \{[^}]*break-inside: avoid/);
     expect(paper).toMatch(/\.or \{[^}]*break-before: avoid; break-after: avoid/);
   });
@@ -127,7 +127,7 @@ describe('panel round 1', () => {
     const { paper } = chain('urdu');
     const head = '<div class="part-head"><span class="lab">ب:</span> <span class="ins">دی گئی ہدایات کے مطابق حل کریں۔</span><span class="ml"><span class="num">۱۰</span></span></div>';
     // Inside the first sub-part's unbreakable block, so the header never ends a page alone.
-    expect(paper).toContain(`<div class="part">${head}<div class="part-head"><span class="ins">سوال: پیراگراف سے چن کر لکھیں۔</span><span class="ml"><span class="num">۰۸</span></span></div>`);
+    expect(paper).toContain(`<div class="part">${head}<div class="part-head"><span class="ins">سوال: پیراگراف سے چن کر لکھیں۔</span><span class="ml"><span class="num">۸</span></span></div>`);
   });
 
   // Q6 left the list for bd-5jmnfj.4.51.11: it is the lesson-7 lines alone, no Naat, so no «دو میں سے ایک».
@@ -159,7 +159,9 @@ describe('panel round 1', () => {
     const { scheme } = chain('science');
     const rows = scheme.match(/<tr data-row="science\.B\.Q2b">[\s\S]*?<\/tr>/g) || [];
     expect(rows.length).toBe(9);
-    for (const r of rows) expect(r).toMatch(/<td class="pts"><span class="pt"><span class="chip">A2\.5<\/span>/);
+    const chipSum = (r) => (r.match(/class="chip">A([\d.]+)</g) || []).reduce((t, c) => t + parseFloat(c.replace(/[^\d.]/g, '')), 0);
+    // v37 round 7: the row is split per idea (A1.5 + A1), never one all-or-nothing A2.5
+    for (const r of rows) expect(chipSum(r)).toBe(2.5);
   });
 
   it('C6: composition criteria marks in an Urdu scheme are Urdu digits', () => {

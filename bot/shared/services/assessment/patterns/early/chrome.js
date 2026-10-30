@@ -58,6 +58,16 @@ function legendFor(key, hasOral = true) {
   };
 }
 
+// v27 G1 English Q12 i drew an egg whose outline read as a stone, and small objects sat lost at the back of their
+// scenes (bd-5jmnfj.4.58.3). Every picture slot carries the one rule for what a plain outline can show.
+const PICTURE_RULE = ' The picture is a plain black-outline drawing a child names at once: never a thing whose outline alone is '
+  + 'unreadable (egg, ball, plate, cup, watch, bench, box). A small object placed in a scene is drawn large and in front.';
+
+// v29 G2 English Q5, Q9, Q13: "Choose is, am or are." told the child nothing to do with the answer (bd-5jmnfj.4.58.4).
+const RESPONDS = /\b(circle|write|tick|underline|colour|color|shade|draw|join|match|mark)\b/i;
+const withResponse = (o) => (o.shape === 'mcq' && o.instruction_en && !o.instruction_ur && !RESPONDS.test(o.instruction_en)
+  ? `${String(o.instruction_en).replace(/\.?\s*$/, '.')} Circle the answer.` : o.instruction_en || null);
+
 /** One slot in Grade 5's shape, with the early-paper defaults. `picture` names the kinds an item must draw. */
 function makeSlot(o) {
   const attempt = o.attempt == null ? o.generate : o.attempt;
@@ -68,7 +78,7 @@ function makeSlot(o) {
     slot: o.slot,
     label_en: o.label_en,
     label_ur: o.label_ur || String(o.label_en).replace(/^Q(\d+)\.?$/, 'سوال $1'),
-    instruction_en: o.instruction_en || null,
+    instruction_en: withResponse(o),
     instruction_ur: o.instruction_ur || null,
     // Items worth 2 or more print their sum under a one-mark legend (bd-5jmnfj.4.57): "(5×2=10)".
     marks_line_en: each ? `({n:${attempt}}×${o.marks_each}={t:${total}})` : `({t:${total}})`,
@@ -89,7 +99,7 @@ function makeSlot(o) {
     grain: null,
     families: null,
     kinds: null,
-    prompt_rule: o.prompt_rule,
+    prompt_rule: o.picture ? `${o.prompt_rule || ''}${PICTURE_RULE}` : o.prompt_rule,
     frame: null,
     teacher_note_en: null,
     teacher_note_ur: null,
@@ -122,7 +132,7 @@ function makeSection(o) {
     marks,
     levels: o.levels,
     answer_on: 'question_paper',
-    note_en: null,
+    note_en: o.note_en || null, // v37 G1 Maths Q5/Q6: a section may print a teacher note
     slots,
   };
 }

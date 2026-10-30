@@ -148,14 +148,16 @@ describe('3. a situation scheme prints every part and the parent scheme once', (
   it('every sub row still says what it is worth (2.5)', () => {
     const subRows = rows.filter((r) => /<td class="n">[^<]*[abc]\)/.test(visible(r)) || /[abc]\)<\/td>/.test(r));
     expect(subRows.length).toBe(6);
-    subRows.forEach((r) => expect(r).toContain('2.5'));
+    const chipSum = (r) => (r.match(/class="chip">A([\d.]+)</g) || []).reduce((t, c) => t + parseFloat(c.replace(/[^\d.]/g, '')), 0);
+    // v37 round 7: an empty-points row is split per idea, so the chips add to 2.5
+    subRows.forEach((r) => expect(r.includes('2.5') || chipSum(r) === 2.5).toBe(true));
   });
 });
 
 // ── 4. the legend carries only this subject's lines ─────────────────────────
 
 describe('4. the Maths-only legend lines stay on the Maths scheme', () => {
-  const MATHS_LINES = /arithmetic slip|no working earns/;
+  const MATHS_LINES = /arithmetic slip|no working (still )?earns/;
 
   it('a Science scheme has no Maths legend line', () => {
     const html = schemeOf(laid('r5-science-q2b', 'science'), 'science');

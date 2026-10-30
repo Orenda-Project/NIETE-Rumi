@@ -315,12 +315,40 @@ describe('r9 · subjects without a cross-section table lay out as before', () =>
   // restored it hashes to faf7fc6c….
   // urdu and urdu-gen-full again for v26: urdu Q1's prompt_rule asks for plain stems and named punctuation
   // marks; with the old rule restored they hash to the previous values.
+  // urdu and urdu-gen-full again for v27 (bd-5jmnfj.4.58.2): urdu Q4's prompt_rule asks for the task phrase in
+  // `question`, Q7's instruction_ur gains «کوئی سے چھ», Q8's prompt_rule asks for 10-12 sentences; with the base
+  // patterns/fde-g5-2027.js they hash to the previous values under the current code.
+  // urdu again for the v27 Q8 length re-ask (bd-5jmnfj.4.58.2): the fixture's Q8 paragraph answer is now 11
+  // sentences, so the paper ends differently; `git diff --numstat` on fixtures/fde/urdu.json is 1/1 (only that
+  // answer), and with the old answer restored it hashes to 2d96fbd3… again.
+  // All five again for v28 (bd-5jmnfj.4.58.3): prompt_rule text only — maths Q1 (a) (the mean at most once),
+  // Q4-8 (Q8 on a pair Q4 does not name), science Q1 (a) and Q2 (a), english Q1 (a) and Q2, urdu Q3, Q4 and Q7;
+  // with the committed patterns/fde-g5-2027.js loaded under the current code they hash to the previous values
+  // (c09d5cea…, a6718724…, a0066f1f…, ce648f1e…, 917c48ac…).
+  // All five again for v29 (bd-5jmnfj.4.58.5): pattern prompt text changed in patterns/fde-g5-2027.js and
+  // patterns/early/*; with the previous text restored they hash to the previous values (7afbb9c3…, 187bc808…,
+  // 3e60106d…, d0505395…, 83777bf9…).
+  // All five again for v34 (bd-5jmnfj.4.58 round 4): prompt_rule text in patterns/fde-g5-2027.js (science, maths,
+  // urdu, english rules), and for maths the fixture's Q1 (a) and Q1 (b) ask a sum, not the mean (the mean is asked
+  // once, in Section C); previous values 7662ec1d…, b6ecc3e5…, 2eac934e…, 0887edd6…, 7d9221dd….
+  // All five again for v37 (bd-5jmnfj.4.58 round 6): prompt_rule text in patterns/fde-g5-2027.js (all four subjects)
+  // and the maths fixture's minutes-in-3-hours MCQ; previous values 8f382d52…, 88c09bc5…, 1c2b1895…, 4da72577…, 87150abd….
+  // All five again for v37 round 6 loop 3 (bd-5jmnfj.4.58.9): prompt_rule text in patterns/fde-g5-2027.js (science A.Q1a,
+  // B.Q2b, C.Q3a/b; maths A.Q1b, B.Q2, C.Q4-8; english B.Q2 and Q10; urdu C.Q4); previous values 7852f46d…,
+  // 7dd7b77f…, 9439e74b…, 168594dc…, c74ccefe….
+  // The two science hashes again for v37r4 (bd-5jmnfj.4.58 W-SC3): prompt_rule text in patterns/fde-g5-2027.js (science C.Q3a
+  // and C.Q3b: a Section C item never re-asks a Section B task; the chemical-change test); with that text removed they hash
+  // to the previous values (6dc5f053…, 51edad82…).
+  // The two urdu hashes again for v37r4 round 6 (bd-5jmnfj.4.58.9): prompt_rule text in patterns/fde-g5-2027.js (urdu B.Q2, C.Q4, C.Q6,
+  // C.Q10); previous values bc5bcd1f…, 5386cbee….
+  // The maths hash again for v37r4 W-MA4 (bd-5jmnfj.4.58.9.1): prompt_rule text in patterns/fde-g5-2027.js (maths C.Q4-8 names
+  // the pair exactly; the legend says an answer with no working still earns the answer mark); previous value c0522816….
   const BEFORE = {
-    science: ['science', 'c09d5ceadd74d6dcb519af1330b9b7261318ce0ac6cfcc0c106c1e3c80c0f626'],
-    maths: ['maths', 'a6718724d4bcc26940c78ee6ffac4a0b5370da08421eedf462b6e4e3ffb588cf'],
-    urdu: ['urdu', '20764112466aafbec0a596c2adfdb76a93ee8de3819a30740103cf095d394962'],
-    'r7-science-full1.exam': ['science', 'ce648f1e8c5b69e1f16b822ff101f812c539f94c5450bf4afb98e59101f2a48a'],
-    'urdu-gen-full': ['urdu', 'f740dee72bb1317ebb755aead2af150b57a813396ac8f5a4781891a3750864b3'],
+    science: ['science', '90bebc288d5b245fc3581bb92a153af779c178aab3267ead620aab0e5a2b43ba'],
+    maths: ['maths', '7ff2552237f205f264b8969cb749e8e905151f7c2be1fd7c004135dd76bd7002'],
+    urdu: ['urdu', 'eecd4f53c4760033651c2aaa4b3654f41c539cd475003f35b052462bdf676063'],
+    'r7-science-full1.exam': ['science', '787ef5328a502ced90e8614eab43795726b1ebf8f006d070be099932134adbaf'],
+    'urdu-gen-full': ['urdu', '11a091678828c9e170ad68a3a6cf4809f01cdb63e6f86e6dcc823379c2dcadc8'],
   };
   test.each(Object.keys(BEFORE))('%s lays out byte-identical to before', (name) => {
     const [subject, sha] = BEFORE[name];

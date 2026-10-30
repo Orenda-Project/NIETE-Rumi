@@ -73,7 +73,7 @@ describe('Maths Q4 angle options print i) ii) iii) (bd-5jmnfj.11)', () => {
   it('asks the model for exactly the three FDE angles as the item\'s questions, attempt any two', () => {
     expect(SLOT.sub_numbering).toBe('roman');
     expect(SLOT.prompt_rule).toMatch(/`questions` = exactly three/);
-    expect(SLOT.prompt_rule).toMatch(/obtuse, supplementary, straight/);
+    expect(SLOT.prompt_rule).toMatch(/never a straight angle/);
     expect(SLOT.prompt_rule).toMatch(/any two/);
   });
 });

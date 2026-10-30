@@ -160,7 +160,9 @@ describe('finding 2: G2 English listening answer not said in the story', () => {
         ] },
       { id: 'holidays', items: [
         { ask: 'گرمیوں کی چھٹیوں میں آپ کہاں گئے؟', answer: 'x' },
+        { ask: 'آپ کس کے ساتھ گئے؟', answer: 'x' },
         { ask: 'آپ نے چھٹیوں میں کون سا کھیل کھیلا؟', answer: 'x' },
+        { ask: 'آپ نے چھٹیوں میں کیا کھایا؟', answer: 'x' },
         { ask: 'چھٹیوں میں آپ کو سب سے زیادہ کیا اچھا لگا؟', answer: 'x' },
       ] },
       { id: 'dialogue', items: [], script: 'غصیلا بھنورا: آداب۔۔۔ آپ کون؟\nتَلیّا: میں۔۔۔ میں تَلیّا۔' },

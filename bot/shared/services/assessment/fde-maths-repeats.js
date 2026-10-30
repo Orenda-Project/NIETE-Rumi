@@ -1,68 +1,73 @@
 'use strict';
 /**
- * Repeated calculations on a Grade 3-4 Maths paper (bd-5jmnfj.33.4, the v32 review): G3 Q2 iv orders 6 x 9,
- * 7 x 7 and 8 x 6 after Q1 ii asked 9 x 6 and Q2 ii compared 6 x 8 with 7 x 7; Q5 Task 2 (a) asks 306 x 7
- * after Q3 iii asked 305 x 7. A child who did the earlier item has done the later one.
+ * G5 Maths items that repeat or hand each other answers (bd-5jmnfj.4.58 round 4). v29 asked the mean twice (Q1 (b) ix and
+ * Q7), asked 35% as a decimal twice with the same key 0.35 (Q1 (b) viii and Q2 x), and Q1 (a) iii («a right angle is 90
+ * degrees») gave Q8 its first K1 while Q1 (a) ix («a straight angle is 180 degrees») gave Q4 iii its pair. fde-mcq-giveaway
+ * compares words, never a number, and no module counted a topic across the paper.
  *
- * Two items repeat when a calculation in their stems has the same operands (a product in either order, a
- * division in the stated order), or a product whose factors are equal but for one digit of a factor of three
- * or more digits (305 x 7 and 306 x 7; table facts like 7 x 8 and 7 x 9 are different questions). The later
- * item is flagged. Only the stems are read, never the keys.
- *
- * Pure: exam JSON in, `{slot, reason:'giveaway', words, with, text, printed}` flags out, the shape
- * fde-stem-repeats gives; fde-answer-repeats merges them so the re-ask loop names them.
+ * - The mean (the average is the same ask) is asked once: a later ask is flagged.
+ * - A decimal of 2 or more places that a written item keys and its own stem does not print is the key of one item only:
+ *   a later item with the same key number is flagged.
+ * - A multiple-choice item asking how many degrees a right, straight or complete angle measures is flagged when a written
+ *   item of another slot has a key line saying the same number of that angle (or of angles «adding up to» it).
+ * Flags go on the later item, or the multiple-choice item, naming the earlier slots. Maths only. Pure: exam JSON in, flags
+ * `{slot, reason:'giveaway', words, with, text, printed}` out.
  */
 
-const { itemsInOrder } = require('./fde-near-repeats');
+const { itemsInOrder, choice } = require('./fde-near-repeats');
 
-const MATHS = /^g[34]\.maths/;
-const PRODUCT = /(\d[\d,]*)\s*[x×]\s*(\d[\d,]*)/g;
-const DIVISION = [/\bdivide\s+(\d[\d,]*)\s+by\s+(\d[\d,]*)/gi, /(\d[\d,]*)\s*÷\s*(\d[\d,]*)/g];
+const isMcq = (q) => Array.isArray(q.options) && q.options.length > 1;
+const str = (v) => (typeof v === 'string' ? v : '');
+const excerpt = (t) => str(t).replace(/\s+/g, ' ').trim().slice(0, 70);
+const subs = (q) => (Array.isArray(q.questions) ? q.questions.filter((s) => s && typeof s === 'object') : []);
+const unique = (list) => [...new Set(list)];
+const linesOf = (o) => [...str(o.answer).split(/(?<=[.;])\s+/), ...((o.scheme && o.scheme.points) || []).map((p) => str(p && p.text)), ...((o.scheme && o.scheme.accept) || []).map(str)];
 
-const plain = (n) => String(n).replace(/,/g, '');
-const excerpt = (q) => String(q.question || '').replace(/\s+/g, ' ').trim().slice(0, 70);
+const flag = (slot, word, earlier) => ({ slot, reason: 'giveaway', words: [word],
+  with: unique(earlier.map((e) => e.slot)), text: earlier.map((e) => excerpt(e.stem)), printed: true });
 
-// Every calculation a stem states: {op, a, b} with plain digits, products ordered small to large (`shown` keeps the stem's order).
-function calcs(question) {
-  const text = String(question == null ? '' : question);
-  const out = [];
-  for (const m of text.matchAll(PRODUCT)) {
-    const [a, b] = [plain(m[1]), plain(m[2])].sort((x, y) => Number(x) - Number(y));
-    out.push({ op: 'x', a, b, shown: `${plain(m[1])} x ${plain(m[2])}` });
-  }
-  DIVISION.forEach((re) => { for (const m of text.matchAll(re)) out.push({ op: '÷', a: plain(m[1]), b: plain(m[2]) }); });
-  return out;
+// One ask per MCQ, per written item without sub-questions, per sub-question.
+function asksOf(q) {
+  const own = (o, stem) => ({ slot: q.slot, stem, o, mcq: isMcq(o) });
+  if (subs(q).length) return subs(q).map((s) => own(s, str(s.question)));
+  return [own(q, str(q.question))];
 }
 
-// 305 and 306: three or more digits, one digit apart.
-const nearNumber = (x, y) => x.length >= 3 && x.length === y.length && [...x].filter((c, k) => c !== y[k]).length === 1;
-
-function sameCalc(p, q) {
-  if (p.op !== q.op) return false;
-  if (p.a === q.a && p.b === q.b) return true;
-  if (p.op !== 'x') return false;
-  const [pa, pb, qa, qb] = [p.a, p.b, q.a, q.b];
-  return (pa === qa && nearNumber(pb, qb)) || (pb === qb && nearNumber(pa, qa))
-    || (pa === qb && nearNumber(pb, qa)) || (pb === qa && nearNumber(pa, qb));
+function meanTwice(asks) {
+  const hits = asks.filter((a) => /\b(?:mean|average)\b/i.test(a.stem));
+  return hits.slice(1).map((a) => flag(a.slot, 'the mean', hits.slice(0, 1)));
 }
 
-const say = (c) => c.shown || `${c.a} ${c.op} ${c.b}`;
+const DECIMAL = /(?<![\d.])\d+\.\d{2,}(?!\d)/g;
 
-/** The flags for each later Grade 3-4 Maths item whose stem repeats an earlier item's calculation. */
+function sameKeyNumber(asks) {
+  const written = asks.filter((a) => !a.mcq);
+  const keys = written.map((a) => ({ a, nums: unique(str(a.o.answer).match(DECIMAL) || []).filter((n) => !a.stem.includes(n)) }));
+  return keys.flatMap(({ a, nums }, i) => nums.flatMap((n) => {
+    const before = keys.slice(0, i).filter((k) => k.nums.includes(n)).map((k) => k.a);
+    return before.length ? [flag(a.slot, n, before)] : [];
+  }));
+}
+
+const ANGLES = [['right', 'right'], ['straight', 'straight'], ['complete', 'complete|full']];
+const SUMS = /\b(?:add(?:ing|s)? up to|sum of|together make|total of)\b/i;
+
+function angleFacts(asks) {
+  const mcqs = asks.filter((a) => a.mcq && /degrees/i.test(a.stem));
+  return mcqs.flatMap((m) => {
+    const name = ANGLES.find(([, re]) => new RegExp(`\\b(?:${re}) angle\\b`, 'i').test(m.stem));
+    const n = (/\d+/.exec(choice(m.o.answer)) || [])[0];
+    if (!name || !n) return [];
+    const says = (line) => new RegExp(`\\b${n}\\b`).test(line) && /angle/i.test(line) && (new RegExp(`\\b(?:${name[1]}) angle\\b`, 'i').test(line) || SUMS.test(line));
+    const given = asks.filter((a) => !a.mcq && a.slot !== m.slot && linesOf(a.o).some(says));
+    return given.length ? [flag(m.slot, `${n} degrees`, given)] : [];
+  });
+}
+
 function mathsRepeats(examJson) {
   if (!examJson) return [];
-  const list = itemsInOrder(examJson).filter((q) => MATHS.test(String(q.slot || '')));
-  const sums = list.map((q) => calcs(q.question));
-  const out = new Map();
-  list.forEach((q, j) => list.slice(0, j).forEach((earlier, i) => {
-    const shared = sums[j].filter((c) => sums[i].some((e) => sameCalc(c, e)));
-    if (!shared.length) return;
-    const r = out.get(q.slot) || { slot: q.slot, reason: 'giveaway', words: [], with: [], text: [], printed: true };
-    shared.map(say).forEach((w) => { if (!r.words.includes(w)) r.words.push(w); });
-    if (!r.with.includes(earlier.slot)) { r.with.push(earlier.slot); r.text.push(excerpt(earlier)); }
-    out.set(q.slot, r);
-  }));
-  return [...out.values()];
+  const asks = itemsInOrder(examJson).filter((q) => /^maths\./.test(q.slot || '')).flatMap(asksOf);
+  return [...meanTwice(asks), ...sameKeyNumber(asks), ...angleFacts(asks)];
 }
 
 module.exports = { mathsRepeats };
