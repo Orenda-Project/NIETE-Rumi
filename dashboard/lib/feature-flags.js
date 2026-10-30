@@ -255,7 +255,7 @@ const PORTAL_COACH_SCHOOL_CARD_KEY = 'portal_coach_school_card';
 
 /**
  * bd-sex15q.13 — COACHIP, the coach and RM insight portal (SPEC v2 §2, API.md §5). Three switches, every one off with
- * no row; turning one on is one app_settings upsert, and it takes effect on the next request (nothing here caches).
+ * no row; turning one on is one app_settings upsert, and it takes effect within the flag cache's TTL (readFlagRow, 30 s).
  *
  *   portal_coachip         list of users.id (or true)            the coach routes answer; S1 is the coach's home
  *   portal_coachip_rm      OBJECT {"<users.id>": "<sector>"}       the RM routes answer for that sector (rmSectorFor)
@@ -355,11 +355,7 @@ async function isCoachAppUser(supabase, userId) {
 async function rmSectorFor(supabase, userId) {
   if (!userId || typeof userId !== 'string') return null;
   try {
-    const { data, error } = await supabase
-      .from('app_settings')
-      .select('value')
-      .eq('key', PORTAL_COACHIP_RM_KEY)
-      .maybeSingle();
+    const { data, error } = await readFlagRow(supabase, PORTAL_COACHIP_RM_KEY);
     if (error || !data) return null;
     let value = data.value;
     if (typeof value === 'string') {
