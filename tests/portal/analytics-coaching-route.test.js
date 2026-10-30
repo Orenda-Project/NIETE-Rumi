@@ -8,6 +8,8 @@
  * so the Coaching tab's cost never slows the other tabs.
  */
 
+const { REGION_REGISTRY_ROWS } = require('./helpers/region-registry-rows');
+
 let tableStates;
 let queries;
 
@@ -106,7 +108,8 @@ function poolRows(sql) {
 
 beforeEach(() => {
   jest.resetModules();
-  tableStates = {};
+  // bd-97daxo.3 — every analytics route reads the viewer's regions from the region registry.
+  tableStates = { region_features: { rows: REGION_REGISTRY_ROWS } };
   queries = [];
   visitRows = { s1: 3, s2: 2, s5: 0 };
   jest.doMock('../../dashboard/config/supabase', () => ({

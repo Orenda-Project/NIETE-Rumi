@@ -11,6 +11,8 @@
 // The flag cache would hold the first read, so it is off here; tests/portal/feature-flags-cache.test.js covers it.
 process.env.FLAG_CACHE_TTL_MS = '0';
 
+const { REGION_REGISTRY_ROWS } = require('./helpers/region-registry-rows');
+
 let tableStates;
 let supabaseFrom;
 let queries;
@@ -113,7 +115,8 @@ function poolRows(sql, params) {
 
 beforeEach(() => {
   jest.resetModules();
-  tableStates = {};
+  // bd-97daxo.3 — every analytics route reads the viewer's regions from the region registry.
+  tableStates = { region_features: { rows: REGION_REGISTRY_ROWS } };
   queries = [];
   supabaseFrom = jest.fn((tbl) => makeChain(tbl));
   jest.doMock('../../dashboard/config/supabase', () => ({

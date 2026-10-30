@@ -10,6 +10,8 @@
  * keyed from|to|region|band that sits behind the gate, its own so this tab never slows the others.
  */
 
+const { REGION_REGISTRY_ROWS } = require('./helpers/region-registry-rows');
+
 let tableStates;
 let queries;
 
@@ -120,7 +122,8 @@ function poolRows(sql) {
 
 beforeEach(() => {
   jest.resetModules();
-  tableStates = {};
+  // bd-97daxo.3 — every analytics route reads the viewer's regions from the region registry.
+  tableStates = { region_features: { rows: REGION_REGISTRY_ROWS } };
   queries = [];
   activity = [
     // Primary: u1 a WhatsApp plan, u3 an app open; u2 and u4 nothing.
