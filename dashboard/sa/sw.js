@@ -17,9 +17,6 @@
  */
 'use strict';
 
-// sa-14: drop the battery copies fetched while the offline-first gate was on (switch now off).
-// sa-13: a new version so every phone drops the battery copies kept before the reviewed lines and the v4 voice
-// went live (a battery is cache-first under one URL; only a version change clears it).
 // sa-3: the install of sa-2 may have kept the portal's page for an engine file the folder did not have yet.
 // sa-4: the prepare queue (six at a time, one retry): phones take the new worker and the new engine files.
 // sa-5: round 7 (RDF auto with no last-word step): the new engine files.
@@ -30,7 +27,18 @@
 // sa-10: round 8 offline: Jugnu's pictures go on the phone with "ready for offline" (sa-offline.js ART).
 // sa-11: round 8 offline: the Start gate checks the phone first and the background download gives it the line (sa-offline.js fresh / paused).
 // sa-12: round 8 offline: an installed worker is used without waiting on register() (which rejects with no signal).
-var VERSION = 'sa-14';
+// sa-13: round 8: the engine files (speak.audio() for the word highlight, the story's ear with r8_reading_position).
+// sa-14 (production only): the engine files again. Each VERSION bump drops only the sa-core-* cache; the batteries, clips
+// and word timings stay in SESSION, so neither of these two refreshed a battery or clip copy a phone already held.
+// sa-15: round 8 close: sa-ui.js (the story questions' hint names Next / «آگے»).
+// sa-16: round 8 close: sa-offline.js asks the registration to update() and waits (bounded) for a new worker before
+// 'prepare', so a phone still on the previous SESSION prepares into the new one, not into a cache it is about to delete.
+// sa-17: round 8 close: a new worker found by update() is waited for up to 30 s; still not active (or its install failed),
+// "ready for offline" says not ready instead of preparing into the old worker.
+// sa-18: round 8 close: "ready for offline" is not ready when a newer worker turned up while it ran (sa-offline.js replaced()).
+// sa-19: round 8 close: nothing goes to a worker while update() is unanswered (up to 30 s, then not ready) or a newer worker
+// exists; checked before every message (sa-offline.js guarded()), and a newer worker that activates gets the whole visit.
+var VERSION = 'sa-19';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -39,7 +47,11 @@ var CORE = 'sa-core-' + VERSION;
 // v5: round 7: the letter name ثے re-voiced under its key ("se", not a "t" word) and the batteries' new lines.
 // v6: round 7b: a battery served while its switches are ON carries their ui flags and new lines (sa-battery-switches.js); a copy
 // kept under v5 would keep the old behaviour on a phone that already took it. Turn the switches on BEFORE this reaches a tier.
-var SESSION = 'sa-session-v6';
+// v7: round 8 close: v4 clips re-made under their keys (sums end on "equals", letter sounds held, praise excited) and the
+// battery files' new lines; a kept copy would play the old one. Phones re-download their clips on the next prepare.
+// clips.lock.json records the bytes each SESSION was taken with (dashboard/scripts/sa-clips-lock.js); the dashboard test
+// sa-clips-lock fails when a locked file changes under the same SESSION.
+var SESSION = 'sa-session-v7';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
