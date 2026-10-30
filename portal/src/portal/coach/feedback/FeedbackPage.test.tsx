@@ -24,7 +24,6 @@ vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false }
 import { portal } from "../../services/api";
 import FeedbackPage from "./FeedbackPage";
 import { currentCoachMenuItem } from "../../teacher/menu";
-import { currentInsightsItem } from "../insights/paths";
 
 const png = (name = "shot.png", size = 2000) => new File([new Uint8Array(size)], name, { type: "image/png" });
 
@@ -268,8 +267,8 @@ describe("Send feedback — Urdu, and its place in the menu", () => {
     expect(screen.getByRole("button", { name: "آگے بڑھیں" })).toBeEnabled();
   });
 
-  it("the page belongs to More in both menus", () => {
+  // production has no COACHIP menu (insights/paths); the coach menu is the one
+  it("the page belongs to More in the coach menu", () => {
     expect(currentCoachMenuItem("/portal/coach/feedback")).toBe("more");
-    expect(currentInsightsItem("/portal/coach/feedback")).toBe("more");
   });
 });
