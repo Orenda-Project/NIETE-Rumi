@@ -45,6 +45,18 @@
  * no teacher lists: the sector is her school's when that school counts (active, not a probable test, in the six);
  * no school list: every counted school is a row. The population and every count never depend on the lists.
  *
+ * WHOSE MEMBERS (bd-97daxo.3). The population is every programme member in the deployment, and a member the
+ * allocation does not place lands in noSector — so without a rule, another organization's teachers (Moawin's
+ * Gilgit-Baltistan, on the same programmes) would land in FDE's noSector and overview. opts.regions is the viewer's
+ * organization's regions (the region registry, read by the route); opts.foreignRegions every other organization's.
+ * A member's HOME is the registry region her school's region names, else the one her users.region names, else none:
+ *   - placed in one of `regions` (her sector above)          counted, as before;
+ *   - home in `regions`                                      counted (in noSector when not placed);
+ *   - home in another organization's region                  NOT counted, anywhere;
+ *   - no home (no school, a junk region, nothing on record)  counted only when opts.keepsUnplaced — the default
+ *                                                            organization's (FDE's) view, where it always was.
+ * No regions passed = FDE's six, keepsUnplaced, no foreign regions: the answer before organizations.
+ *
  * WHY A SNAPSHOT. The read touches every member's whole training history (~680k progress rows on prod) and the answer
  * moves slowly, so it is computed at most every 30 minutes per process and kept in memory: the first request computes,
  * concurrent requests share that one computation, and once a snapshot exists a request never waits for a refresh — it
@@ -122,10 +134,10 @@ function emptyAcc(ladder, catalogue, withPartners) {
   };
 }
 
-/** The school's sector when v7 counts it (active, not a probable test, in the six), else null. */
-function countedBucket(s) {
+/** The school's sector when v7 counts it (active, not a probable test, in `regions`), else null. */
+function countedBucket(s, regions = REGION_BUCKETS) {
   if (!s || s.is_active !== true || s.is_probable_test === true) return null;
-  return bucketOf(s.region);
+  return bucketOf(s.region, regions);
 }
 
 /** Did this member pass all levels on this tab (see the header)? */
@@ -234,7 +246,8 @@ function block(ladder, acc, catalogue, { withName = false, detailed = false } = 
  *                    isaps_active}>,
  *   lists?: {fdeSchoolEmis: Set<string>|null, primary: Map|null, midHigh: Map|null, missing: object}|null
  * }} rows  one members row per programme member (the RDF population), and loadAnalyticsLists' answer
- * @param {{band?: 'primary'|'midhigh'|'all', region?: string|null}} [opts]
+ * @param {{band?: 'primary'|'midhigh'|'all', region?: string|null, regions?: readonly string[],
+ *          foreignRegions?: readonly string[], keepsUnplaced?: boolean}} [opts] see WHOSE MEMBERS in the header
  * @returns {{overview: object, regions: object[], noSector: object, schools: object[]}}
  */
 function summarizeTrainingLevels(rows = {}, opts = {}) {
@@ -242,6 +255,9 @@ function summarizeTrainingLevels(rows = {}, opts = {}) {
   const band = BANDS[bandKey];
   const withPartners = bandKey === 'midhigh';
   const filter = opts.region || null;
+  const regionList = opts.regions || REGION_BUCKETS;
+  const known = [...regionList, ...(opts.foreignRegions || [])];
+  const keepsUnplaced = opts.keepsUnplaced !== false;
   const src = rows || {};
   const catalogue = readCatalogue(src.partners);
   const lists = src.lists || null;
@@ -251,10 +267,20 @@ function summarizeTrainingLevels(rows = {}, opts = {}) {
   const schoolsById = new Map((src.schools || []).map((s) => [s.id, s]));
   // FAIL-CLOSED: without the teacher lists, v7's sector — her school's, when it counts.
   const sectorOf = rdfSectors
-    ? (m) => bucketOf(rdfSectors.get(m.user_id)) || null
-    : (m) => countedBucket(schoolsById.get(m.school_id));
+    ? (m) => bucketOf(rdfSectors.get(m.user_id), regionList) || null
+    : (m) => countedBucket(schoolsById.get(m.school_id), regionList);
   // FAIL-CLOSED: without the school list, v7's schools — every counted one.
-  const listed = (s) => (schoolListUsable ? onFdeList(lists, s.emis) : countedBucket(s) !== null);
+  const listed = (s) => (schoolListUsable ? onFdeList(lists, s.emis) : countedBucket(s, regionList) !== null);
+  // Whose member she is when no sector places her (WHOSE MEMBERS, in the header).
+  const homeOf = (m) => {
+    const s = schoolsById.get(m.school_id);
+    return bucketOf(s && s.region, known) || bucketOf(m.region, known);
+  };
+  const counts = (m, sector) => {
+    if (sector) return true;
+    const home = homeOf(m);
+    return home ? regionList.includes(home) : keepsUnplaced;
+  };
 
   const ladder = (src.levels || [])
     .map((l) => ({ id: Number(l.id), key: String(l.id), name: l.name, order: Number(l.order_index) }))
@@ -264,12 +290,13 @@ function summarizeTrainingLevels(rows = {}, opts = {}) {
   const acc = () => emptyAcc(ladder, catalogue, withPartners);
   const overview = acc();
   const noSector = acc();
-  const regionAcc = new Map(REGION_BUCKETS.map((b) => [b, acc()]));
+  const regionAcc = new Map(regionList.map((b) => [b, acc()]));
   const schoolRows = new Map();
 
   for (const m of src.members || []) {
     if (!m || !band.has(m)) continue;
     const sector = sectorOf(m);
+    if (!counts(m, sector)) continue;
     addMember(sector ? regionAcc.get(sector) : noSector, m, ladder, catalogue, bandKey);
     if (filter && sector !== filter) continue;
     addMember(overview, m, ladder, catalogue, bandKey);
@@ -281,7 +308,7 @@ function summarizeTrainingLevels(rows = {}, opts = {}) {
     addMember(schoolRows.get(key).acc, m, ladder, catalogue, bandKey);
   }
 
-  const order = new Map(REGION_BUCKETS.map((b, i) => [b, i]));
+  const order = new Map(regionList.map((b, i) => [b, i]));
   const schools = [...schoolRows.values()]
     .sort((a, b) => (order.get(a.sector) - order.get(b.sector))
       || ((a.school ? 0 : 1) - (b.school ? 0 : 1))
@@ -303,7 +330,7 @@ function summarizeTrainingLevels(rows = {}, opts = {}) {
 
   return {
     overview: block(ladder, overview, catalogue, { withName: true, detailed: true }),
-    regions: REGION_BUCKETS.map((b) => ({ region: b, ...block(ladder, regionAcc.get(b), catalogue) })),
+    regions: regionList.map((b) => ({ region: b, ...block(ladder, regionAcc.get(b), catalogue) })),
     noSector: block(ladder, noSector, catalogue),
     schools,
   };
@@ -380,7 +407,7 @@ const PARTNERS_SQL = `
 
 /** The columns every branch of the per-member fold carries, with the value a branch that does not set one gives. */
 const FOLD = [
-  ['school_id', 'NULL'], ['mine', 'false'],
+  ['school_id', 'NULL'], ['region', 'NULL::text'], ['mine', 'false'],
   ['primary_cohort', 'false'], ['mh_cohort', 'false'], ['middle_band', 'false'], ['high_band', 'false'],
   ['level_id', 'NULL::bigint'], ['cert', 'false'], ['active', 'false'],
   ['ox_mask', '0'], ['ox_cert', 'false'], ['ox_active', 'false'],
@@ -418,7 +445,8 @@ function trainingStatesSql() {
   members AS MATERIALIZED (
     -- the RDF's population: an ACTIVE assignment on the primary or middle/high programme, the user row live (no
     -- deleted_at, the phone not a merged: tombstone); any role, any school or none. Middle / high from teacher_level.
-    SELECT u.id AS user_id, u.school_id, pm.primary_cohort, pm.mh_cohort,
+    -- users.region rides along: whose member she is when no school places her (bd-97daxo.3).
+    SELECT u.id AS user_id, u.school_id, u.region, pm.primary_cohort, pm.mh_cohort,
            ${band("= 'MIDDLE'")} AS middle_band,
            ${band("= 'HIGH'")} AS high_band
       FROM (
@@ -557,6 +585,7 @@ function trainingStatesSql() {
   member_facts AS MATERIALIZED (
     SELECT f.user_id,
            (array_agg(f.school_id) FILTER (WHERE f.mine))[1] AS school_id,
+           (array_agg(f.region) FILTER (WHERE f.mine))[1] AS region,
            bool_or(f.primary_cohort) AS primary_cohort,
            bool_or(f.mh_cohort) AS mh_cohort,
            bool_or(f.middle_band) AS middle_band,
@@ -575,7 +604,7 @@ function trainingStatesSql() {
       FROM (
         -- the member herself
         ${fold('m.user_id', {
-    school_id: 'm.school_id', mine: 'true', primary_cohort: 'm.primary_cohort', mh_cohort: 'm.mh_cohort',
+    school_id: 'm.school_id', region: 'm.region::text', mine: 'true', primary_cohort: 'm.primary_cohort', mh_cohort: 'm.mh_cohort',
     middle_band: 'm.middle_band', high_band: 'm.high_band',
   }, 'FROM members m')}
         UNION ALL

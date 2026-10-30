@@ -44,6 +44,13 @@
  * Cached for 30 minutes per process, with in-flight sharing (two cold requests share one load).
  */
 
+/**
+ * FDE's six ICT sectors as schools.region / users.region store them, in dashboard order — THE one copy in code
+ * (bd-97daxo.3): every dashboard module imports it from here. It is the list the region registry seeds for
+ * organization 'niete' (V1.8.5; tests/region/region-registry.test.js holds the two equal). The analytics routes
+ * read a viewer's regions from the registry; this constant is FDE's lists' own vocabulary and the default for a
+ * caller that passes no regions.
+ */
 const SECTORS = Object.freeze(['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol']);
 
 const LIST_KEYS = Object.freeze({
@@ -296,6 +303,21 @@ function populationSectors(lists) {
   return out;
 }
 
+/**
+ * bd-97daxo.3 — the lists as an organization that has none sees them: every list missing, so every tab keeps its v7
+ * rule. FDE's lists are FDE's populations; another organization's view (Moawin's Gilgit-Baltistan) never counts
+ * against them.
+ */
+const NO_LISTS = Object.freeze({
+  fdeSchoolEmis: null,
+  primary: null,
+  midHigh: null,
+  sectorByUser: null,
+  coaches: null,
+  asOf: Object.freeze({ schools: null, teachers: null, coaches: null }),
+  missing: Object.freeze({ schools: true, teachers: true, coaches: true }),
+});
+
 /** The school-list row a sector's teachers with no (listed) school are summed into. */
 const NO_SCHOOL_ID_PREFIX = 'no-school:';
 const noSchoolId = (sector) => `${NO_SCHOOL_ID_PREFIX}${sector}`;
@@ -303,6 +325,7 @@ const noSchoolId = (sector) => `${NO_SCHOOL_ID_PREFIX}${sector}`;
 module.exports = {
   LIST_KEYS,
   SECTORS,
+  NO_LISTS,
   loadAnalyticsLists,
   createAnalyticsListsLoader,
   resolveLists,
