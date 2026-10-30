@@ -27,7 +27,7 @@ const GOOD = {
 function itemsFor(slot, { noPicture = false, names = [], keys = [] } = {}) {
   return Array.from({ length: slot.generate }, (_, i) => ({
     slot: slot.slot, question: `Question ${i + 1} for ${slot.slot}`, marks: slot.marks_each, blooms: 'Remember',
-    ...(slot.shape === 'mcq' ? { options: ['a) one', 'b) two', 'c) three'], answer: 'a) one' } : { answer: String(i + 1) }),
+    ...(slot.shape === 'mcq' ? { options: [`a) one${i}`, `b) two${i}`, `c) three${i}`], answer: `a) one${i}` } : { answer: String(i + 1) }),
     ...(keys[i] || (GOOD[slot.slot] ? GOOD[slot.slot](i) : {})),
     scheme: { points: [{ kind: 'A', text: 'correct', marks: slot.marks_each }] },
     ...(slot.picture && !noPicture ? { picture: { ...SAMPLE[slot.picture[0]],

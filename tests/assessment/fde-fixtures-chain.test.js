@@ -127,7 +127,7 @@ describe('panel round 1', () => {
     const { paper } = chain('urdu');
     const head = '<div class="part-head"><span class="lab">ب:</span> <span class="ins">دی گئی ہدایات کے مطابق حل کریں۔</span><span class="ml"><span class="num">۱۰</span></span></div>';
     // Inside the first sub-part's unbreakable block, so the header never ends a page alone.
-    expect(paper).toContain(`<div class="part">${head}<div class="part-head"><span class="ins">سوال: پیراگراف سے چن کر لکھیں۔</span><span class="ml"><span class="num">۰۸</span></span></div>`);
+    expect(paper).toContain(`<div class="part">${head}<div class="part-head"><span class="ins">سوال: پیراگراف سے چن کر لکھیں۔</span><span class="ml"><span class="num">۸</span></span></div>`);
   });
 
   // Q6 left the list for bd-5jmnfj.4.51.11: it is the lesson-7 lines alone, no Naat, so no «دو میں سے ایک».

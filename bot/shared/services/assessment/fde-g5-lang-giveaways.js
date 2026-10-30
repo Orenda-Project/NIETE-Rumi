@@ -11,11 +11,12 @@ const { mcqTruthFlags } = require('./fde-mcq-truth');
 const { keyTellFlags } = require('./fde-mcq-key-tells');
 const { crossAskFlags } = require('./fde-lang-cross-asks');
 const { tenseFlags } = require('./fde-tense-count');
+const { poemPaysPrinted } = require('./fde-g5-lang-checks'); // v35 G5 Urdu Q6: points that are the printed verses
 
 const LANG = /^(?:urdu|english)\./;
 
 const langGiveaways = (examJson) => (examJson
-  ? mcqTruthFlags(examJson).concat(keyTellFlags(examJson), crossAskFlags(examJson), tenseFlags(examJson)).filter((f) => LANG.test(f.slot || ''))
+  ? mcqTruthFlags(examJson).concat(keyTellFlags(examJson), crossAskFlags(examJson), tenseFlags(examJson), poemPaysPrinted(examJson)).filter((f) => LANG.test(f.slot || ''))
   : []);
 
 module.exports = { langGiveaways };

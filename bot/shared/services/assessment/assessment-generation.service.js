@@ -762,6 +762,8 @@ const { placeholderShortfall, placeholderNote } = require('./fde-placeholder-che
 const { glyphShortfall, glyphNote } = require('./fde-glyph-check'); // bd-5jmnfj.4.58.7.7
 const { punctuateShortfall, punctuateNote } = require('./fde-punctuate-check'); // bd-5jmnfj.4.58.4
 const { schemeShortfall, schemeNote } = require('./fde-scheme-checks'); // bd-5jmnfj.4.58.7
+const { ONE_FIT_RULE, alternativeShortfall, acceptAlternatives } = require('./fde-accept-alternatives'); // two right answers, one keyed (bd-5jmnfj.4.58.9.1)
+const { correctMisreads } = require('./fde-urdu-nonword'); // a stored-text misread in Urdu book text (bd-5jmnfj.4.58.9.3)
 const { urduPunctFixes } = require('./fde-urdu-punct'); // bd-5jmnfj.4.58.3
 
 // Required on first use: the loader opens a database client, and the prompt
@@ -1357,7 +1359,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   }
   // A section with a picture-description frame (G5 Urdu Q7, English Q10) gets a drawn scene (v24 review).
   const framePicture = list.some((s) => s.frame && s.frame.kind === 'picture');
-  rules.push(framePicture ? RULE.framePictures : RULE.noPictures, RULE.marks, RULE.blooms, RULE.scheme, RULE.accept);
+  rules.push(framePicture ? RULE.framePictures : RULE.noPictures, RULE.marks, RULE.blooms, RULE.scheme, RULE.accept, ONE_FIT_RULE);
   if (fde && key === 'maths' && list.some((s) => (Array.isArray(s.families) && s.families.length) || (Array.isArray(s.kinds) && s.kinds.length))) {
     rules.push(RULE.families);
   }
@@ -1988,8 +1990,9 @@ async function religiousFilter(examJson, P, { grade, subject, allowedText = '', 
 /** Where a pattern paper's pages come from: the pattern's syllabus, the job's pages, or a chapter. */
 async function _loadPatternContent({ grade, subject, P, scope, pageRanges, chapterNumber }) {
   const pages = scope && scope.kind === 'fde' ? P.scope.page_ranges : (pageRanges || (scope && scope.pages) || null);
-  if (pages) return BookContent().loadPageRangeContent({ grade, subject, pageRanges: pages });
-  if (chapterNumber != null) return BookContent().loadChapterContent({ grade, subject, chapterNumber });
+  // A known stored-text misread (دیکے for the printed دمکے) is mended before any writer reads it (bd-5jmnfj.4.58.9.3).
+  if (pages) return correctMisreads(await BookContent().loadPageRangeContent({ grade, subject, pageRanges: pages })).value;
+  if (chapterNumber != null) return correctMisreads(await BookContent().loadChapterContent({ grade, subject, chapterNumber })).value;
   throw fail('NO_CONTENT', 'No pages were given for this paper.');
 }
 
@@ -2610,6 +2613,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     .concat(punctuateShortfall(firstLaid.examJson)) // a Punctuation model answer that is not the printed words (v28 G5 English Q3, bd-5jmnfj.4.58.4)
     .concat(schemeShortfall(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).examJson, P)) // an open answer without an accept line, a cut-off common_error (v34 G5, bd-5jmnfj.4.58.7)
     .concat(placeholderShortfall(firstLaid.examJson)) // a stem or key left with a template hole (v27 G5 English Q2, bd-5jmnfj.4.58.3)
+    .concat(alternativeShortfall(firstLaid.examJson, P)) // a second listed choice that also fits (v35 round 6, bd-5jmnfj.4.58.9.1)
     .concat(glyphShortfall(firstLaid.examJson)); // a U+FFFD or control character in a printed string (v35 G5 Urdu Q4, bd-5jmnfj.4.58.7.7)
   const shortSlots = new Set(short.map((f) => f.slot));
   // An item carrying text the paper refuses to print (a review mark the model copied) fails the
@@ -2818,6 +2822,8 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   const lengths = paragraphLength(examJson);
   if (lengths.length) logToFile('[assessment] paragraph length off', { requestId, pattern, lengths });
 
+  const alts = acceptAlternatives(examJson, P); examJson = alts.examJson; // a second true preposition goes to accept (bd-5jmnfj.4.58.9.1)
+  if (alts.notes.length) logToFile('[assessment] accept widened', { requestId, pattern, notes: alts.notes });
   const scheme = normaliseScheme(examJson);
   examJson = noArrows(scheme.examJson); // bd-5jmnfj.4.50.1: no arrow in any text a child or teacher reads
   if (scheme.log.length) logToFile('[assessment] scheme normalised', { pattern, notes: scheme.log.slice(0, 50), count: scheme.log.length });

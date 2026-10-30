@@ -44,6 +44,7 @@ const { equalPartsLine } = require('./fde-marks-line');
 const { frameBank } = require('./fde-frame-bank');
 const { acceptText } = require('./fde-accept-line');
 const Cover = require('./fde-scheme-cover');
+const V37 = require('./fde-render-v37'); // round 6 layout: marks, alphabet strip, ruled lines, passage reprint
 
 // ── fonts ──────────────────────────────────────────────────────────────────
 
@@ -549,8 +550,9 @@ function labelHtml(num, ctx) {
   return ctx.medium === 'ur' && typeof num === 'string' && /[A-Za-z]/.test(num) ? `<bdi class="ltr" dir="ltr">${esc(num)}</bdi>` : textOf(num, ctx);
 }
 
-function subQuestions(list, numbering, ctx, slotLike, space) {
+function subQuestions(list, numbering, ctx, slotLike, space, reprint) {
   if (!Array.isArray(list)) return '';
+  const again = reprint ? V37.reprintAt(list.length) : 0; // v37 G2 English Q1: the passage is in view for (h)-(j)
   return list.map((sub, i) => {
     const text = bareSub(typeof sub === 'string' ? sub : sub && sub.question);
     const num = itemNumber({ numbering }, i, ctx.medium) || `${String.fromCharCode(97 + i)})`;
@@ -558,7 +560,8 @@ function subQuestions(list, numbering, ctx, slotLike, space) {
     // Its own writing space, sized by its own lines (bd-5jmnfj.4.51.8).
     const box = space && !opts ? `<div class="write-box" style="height:${12 + 8 * Math.max(0, ((sub && sub.lines) || 1) - 1)}mm"></div>` : '';
     const subHtml = `<div class="sub"><span class="n">${labelHtml(num, ctx)}</span> ${textOf(text, ctx)}${opts}</div>`;
-    return box ? `<div class="subq">${subHtml}${box}</div>` : subHtml; // a question never parts from its box (G2 English Q1 h)
+    const one = box ? `<div class="subq">${subHtml}${box}</div>` : subHtml; // a question never parts from its box (G2 English Q1 h)
+    return again && i === again ? V37.passageAgain(reprint, ctx.medium) + one : one;
   }).join('');
 }
 
@@ -571,9 +574,9 @@ function comprehensionBlock(q, slot, ctx) {
     // FDE groups some sub-parts under one lettered header (Urdu p.57 «ب: …»); the
     // sub-parts under it then print their own line and marks, without the letter.
     const g = spec.group_head;
-    const groupHead = g ? `<div class="part-head"><span class="lab">${textOf(g.label, ctx)}</span> <span class="ins">${textOf(g[`instruction_${lang}`], ctx)}</span><span class="ml">${textOf(g[`marks_line_${lang}`], ctx)}</span></div>` : '';
+    const groupHead = g ? `<div class="part-head"><span class="lab">${textOf(g.label, ctx)}</span> <span class="ins">${textOf(g[`instruction_${lang}`], ctx)}</span><span class="ml">${textOf(V37.marksText(g[`marks_line_${lang}`]), ctx)}</span></div>` : '';
     const lab = g ? '' : `<span class="lab">${textOf(spec.label, ctx)}</span> `;
-    const head = `<div class="part-head">${lab}<span class="ins">${textOf(spec[`instruction_${lang}`], ctx)}</span><span class="ml">${textOf(spec[`marks_line_${lang}`], ctx)}</span></div>`;
+    const head = `<div class="part-head">${lab}<span class="ins">${textOf(spec[`instruction_${lang}`], ctx)}</span><span class="ml">${textOf(V37.marksText(spec[`marks_line_${lang}`]), ctx)}</span></div>`;
     let body = '';
     if (spec.pick && ctx.onSheet) {
       body = Object.entries(spec.pick).map(([kind, n]) => `<div class="pick-row"><span class="pick-k">${textOf(kind, ctx)}:</span> ${textOf(String(n), ctx)}</div>`).join(''); // labels and counts only; the child writes on the answer copy (G5 Urdu B and C)
@@ -598,6 +601,12 @@ function situationBlock(q, slot, i, ctx) {
   return head + lead + subQuestions(q.questions, 'alpha_paren', ctx).replace(/\((a|b|c)\)/g, '$1)');
 }
 
+// v37 G2 Urdu Q7-Q9: five sentences or turns asked, five numbered ruled lines given (not one unruled box).
+function ruledFor(q, slot, ctx) {
+  const n = slotFlag(slot, 'answer_box') && !(q.questions && q.questions.length) ? V37.lineCount(slot) : 0;
+  return n ? V37.ruledLines(n, (d) => textOf(d, ctx)) : '';
+}
+
 /** The body of one item (its number and stem are added by the caller where they apply). */
 function itemBody(q, slot, i, ctx, inlineQ) {
   const shape = slot.shape;
@@ -617,9 +626,9 @@ function itemBody(q, slot, i, ctx, inlineQ) {
   if (printsWords(slot) && !slotFlag(slot, 'answer_box') && Array.isArray(q.words) && q.words.length) parts.push(wordList(q.words, ctx, ctx.medium !== 'ur'));
   // A written answer under each sub-question of an answer-box slot (G2 reading): one box each, none after the set.
   const eachBox = ctx.answerLines !== false && slotFlag(slot, 'answer_box') && Array.isArray(q.questions) && q.questions.length > 0 && slot.type !== 'Story Order';
-  if (Array.isArray(q.questions) && q.questions.length) parts.push(subQuestions(q.questions, slot.sub_numbering || 'alpha_paren', ctx, undefined, eachBox));
+  if (Array.isArray(q.questions) && q.questions.length) parts.push(subQuestions(q.questions, slot.sub_numbering || 'alpha_paren', ctx, undefined, eachBox, eachBox && q.passage ? textOf(q.passage, ctx) : ''));
   if (ctx.answerLines !== false && slot.type === 'Story Order') parts.push('<div class="write-box" style="height:12mm"></div>'); // one line for the letters (bd-5jmnfj.4.58.2)
-  else if (ctx.answerLines !== false && !eachBox) parts.push(workSpace(q, slot));
+  else if (ctx.answerLines !== false && !eachBox) parts.push(ruledFor(q, slot, ctx) || workSpace(q, slot));
   return parts.join('');
 }
 
@@ -664,6 +673,7 @@ function slotBlock(slot, sec, list, ctx) {
     return `<div class="slot">${head}<div class="q" data-slot="${esc(slot.slot)}">${matchTable(stems, column)}</div></div>`;
   }
   const body = [];
+  const strip = lang === 'ur' && slot.type === 'Alphabetical Order' ? V37.alphabetStrip() : ''; // v37 G2 Urdu Q2
   const pair = !slotFlag(slot, 'sentence_box') && Fit.sceneGrid(live, { frame: slot.shape === 'frame', bubble: slotFlag(slot, 'bubble'), mcq: slot.shape === 'mcq' }); // v29 G1 Maths Q8
   const grid = slotFlag(slot, 'picture_only') || pair;
   const soloScene = Fit.soloScene(live, { frame: slot.shape === 'frame', bubble: slotFlag(slot, 'bubble') });
@@ -699,8 +709,8 @@ function slotBlock(slot, sec, list, ctx) {
     ? `<div class="word-box bank">${words.map((w) => `<span class="w">${textOf(w, ctx)}</span>`).join('')}</div>` : '';
   const wide = grid && slotFlag(slot, 'sentence_box');
   const fit = short ? Fit.fitAttr(live, { grid, wide, pair, bubble: slotFlag(slot, 'bubble') }) : ''; // bd-5jmnfj.4.58.4
-  if (grid) return `<div class="slot${either}${short}"${fit}>${head}${bank}<div class="pic-grid">${Fit.groupRows(body, wide ? 1 : (pair ? Fit.PAIR : Fit.PER_ROW))}</div></div>`;
-  return `<div class="slot${either}${short}"${fit}>${head}${bank}${body.join('')}</div>`;
+  if (grid) return `<div class="slot${either}${short}"${fit}>${head}${strip}${bank}<div class="pic-grid">${Fit.groupRows(body, wide ? 1 : (pair ? Fit.PAIR : Fit.PER_ROW))}</div></div>`;
+  return `<div class="slot${either}${short}"${fit}>${head}${strip}${bank}${body.join('')}</div>`;
 }
 
 // Verses given from a lesson the paper does not cover name it under them, as English Q5 names its
@@ -813,6 +823,7 @@ function css(medium, kind) {
   .label-line .num-l { font-size: 8pt; color: #555; }
   .word-box { border: 1px solid #000; padding: 2px 8px; margin: 3px 0; text-align: center; }
   .word-line { margin: 3px 0; }
+  ${V37.V37_CSS}
   .passage { border: 1px solid #888; padding: 4px 8px; margin: 3px 0 5px; text-align: justify; break-inside: avoid; }
   /* A passage and its parts are too tall to move as one block: the page may break between parts. */
   .q.comp { break-inside: auto; }

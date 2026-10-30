@@ -41,7 +41,8 @@ function items(examJson) {
   return out;
 }
 
-const printedText = (q) => [q.question, q.passage, ...(Array.isArray(q.options) ? q.options : []),
+// v35: a word box prints its words (G1 Q9 printed «sing» and «train», the answers of Q6 and Q11) (bd-5jmnfj.4.58.9).
+const printedText = (q) => [q.question, q.passage, ...(Array.isArray(q.options) ? q.options : []), ...(Array.isArray(q.words) ? q.words : []),
   ...(Array.isArray(q.questions) ? q.questions.map((x) => (x && x.question) || x) : [])].filter((s) => typeof s === 'string').join(' ');
 
 function keyWords(q) {
@@ -87,10 +88,36 @@ function merged(flags) {
   return [...out.values()];
 }
 
+const PLAIN = new Set(['that', 'this', 'with', 'they', 'them', 'were', 'from', 'have', 'what', 'when', 'then', 'will', 'would', 'could', 'should', 'into', 'there', 'their', 'about', 'after', 'before']);
+const content = (s) => wordsOf(s).map((w) => w.toLowerCase()).filter((w) => w.length >= 4 && !PLAIN.has(w));
+
+/**
+ * v35 G1 Q9 iii (bd-5jmnfj.4.58.9): a written stem printing two words in a row of a heard oral answer («sweet songs»
+ * in «It sang sweet songs.») tells the child the answer before the oral part. Flagged as 'oral-answer', which the
+ * written re-ask reads. A pair already in the oral question is the question's own wording, not a give-away.
+ */
+function oralPhraseGiveaways(examJson, all) {
+  const oral = (examJson && examJson._layout && examJson._layout.oral) || {};
+  const heard = new Set((oral.tasks || []).filter((t) => t.kind !== 'read_aloud').map((t) => t.id));
+  const flags = [];
+  (oral.content || []).filter((c) => heard.has(c.id)).forEach((c) => (c.items || []).forEach((it) => {
+    const ask = ` ${wordsOf(it && it.ask).join(' ').toLowerCase()} `;
+    const ans = wordsOf(it && it.answer).map((w) => w.toLowerCase());
+    const pairs = ans.slice(1).map((w, i) => [ans[i], w]).filter(([a, b]) => content(a).length && content(b).length)
+      .map((p) => p.join(' ')).filter((p) => !ask.includes(` ${p} `));
+    all.forEach((p) => {
+      const text = ` ${wordsOf(printedText(p.q)).join(' ').toLowerCase()} `;
+      const hit = pairs.filter((x) => text.includes(` ${x} `));
+      if (hit.length) flags.push({ slot: p.q.slot, reason: 'giveaway', words: hit, with: 'oral-answer', text: String((it && it.ask) || ''), printed: true });
+    });
+  }));
+  return flags;
+}
+
 function earlyGiveaways(examJson) {
   try {
     const all = items(examJson);
-    return merged(wordGiveaways(all).concat(capitalGiveaways(all)));
+    return merged(wordGiveaways(all).concat(capitalGiveaways(all), oralPhraseGiveaways(examJson, all)));
   } catch (e) { return []; }
 }
 
