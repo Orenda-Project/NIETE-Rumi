@@ -1,9 +1,13 @@
 'use strict';
 /**
- * bd-pw1ccr.8.4 — the one-off 2 Nov formative-assessment video to group B teachers of the topic-nudge A/B.
+ * bd-pw1ccr.8.4 — the one-off 2 Nov formative-assessment video to the teachers of the topic-nudge A/B.
+ * bd-pw1ccr.12 — both arms hear it: every teacher in a school of niete_topic_nudge_ab_assignment, control (A, from
+ * v10 groups A+C) and treatment (B, from v10 groups B+D). The dry run prints the split and the cost: the template's
+ * category comes from its approved status (deps.templateStatus); MARKETING is costed at Meta's Pakistan rate,
+ * anything else, or a status that cannot be read, prints "rate unknown". No other rate is ever assumed.
  *
- * Audience: teachers (role 'teacher', not deleted, not test users, a real phone) whose school is in group B of
- * niete_topic_nudge_ab_assignment. One message per phone. Nothing to families, principals or other groups.
+ * Audience: teachers (role 'teacher', not deleted, not test users, a real phone) whose school is in the test.
+ * One message per phone. Nothing to families, principals or schools outside the test.
  * Switch: app_settings.fa_video_broadcast_enabled (V1.8.5, false). Fails closed. Only --live checks it.
  * Modes:  (default) dry run: prints the counts, sends and writes nothing.
  *         --to <n,n>  review copies to operator/test numbers only; no switch, no log rows.
@@ -19,6 +23,7 @@ const GROUP_TABLE = 'niete_topic_nudge_ab_assignment';
 const PAGE = 1000;
 const CHUNK = 200;
 const PACE_MS = 120;
+const RATE_USD = { MARKETING: 0.0473 }; // Meta, Pakistan, per delivered template message
 
 // Operator/test numbers (docs/environments.md) come from the env, never source: the repo is public.
 function testNumbersFrom(env) {
@@ -65,12 +70,13 @@ async function rows(label, build) {
 }
 
 async function audience(db) {
-  const schools = (await rows('group B schools', () => db.from(GROUP_TABLE).select('school_id, ab_group').eq('ab_group', 'B')))
-    .map((r) => r.school_id);
+  const groupOf = new Map((await rows('test schools', () => db.from(GROUP_TABLE).select('school_id, ab_group')))
+    .map((r) => [r.school_id, r.ab_group]));
+  const schools = [...groupOf.keys()];
   const byPhone = new Map();
   for (let i = 0; i < schools.length; i += CHUNK) {
     // eslint-disable-next-line no-await-in-loop
-    const users = await rows('group B teachers', () => db.from('users')
+    const users = await rows('test teachers', () => db.from('users')
       .select('id, school_id, phone_number, is_test_user')
       .in('school_id', schools.slice(i, i + CHUNK))
       .eq('role', 'teacher')
@@ -79,7 +85,7 @@ async function audience(db) {
     for (const u of users) {
       const phone = u.phone_number || '';
       if (u.is_test_user === true || !/^\d{10,15}$/.test(phone) || byPhone.has(phone)) continue;
-      byPhone.set(phone, { id: u.id, phone_number: phone });
+      byPhone.set(phone, { id: u.id, phone_number: phone, group: groupOf.get(u.school_id) });
     }
   }
   return [...byPhone.values()];
@@ -132,7 +138,7 @@ async function liveSend(todo, opts, d) {
   const log = await must('broadcast_logs insert', d.db.from('broadcast_logs').insert({
     admin_username: 'scripts/broadcast-fa-video.js (bd-pw1ccr.8.4)',
     message_content: TEMPLATE.body,
-    filters: { ab_table: GROUP_TABLE, ab_group: 'B', role: 'teacher' },
+    filters: { ab_table: GROUP_TABLE, ab_groups: ['A', 'B'], role: 'teacher' },
     template_name: TEMPLATE.name,
     total_recipients: todo.length,
     status: 'sending',
@@ -154,6 +160,22 @@ async function liveSend(todo, opts, d) {
   return { mode: 'live', broadcastId: log.id, ...r };
 }
 
+async function readTemplate(d) {
+  try {
+    const t = d.templateStatus ? await d.templateStatus() : null;
+    return { status: (t && t.status) || null, category: (t && t.category) || null };
+  } catch (_) {
+    return { status: null, category: null };
+  }
+}
+
+function costLine(toSend, category) {
+  const rate = RATE_USD[category];
+  if (rate === undefined) return { costUsd: null, line: `cost: rate unknown for category ${category || 'unread'}` };
+  const costUsd = Math.round(toSend * rate * 100) / 100;
+  return { costUsd, line: `cost: ${toSend} x $${rate} (${category}, Pakistan) = $${costUsd.toFixed(2)}` };
+}
+
 async function run(argv, d) {
   const opts = parseArgs(argv);
   if (opts.to.length) return testSend(opts, d);
@@ -161,9 +183,17 @@ async function run(argv, d) {
   const all = await audience(d.db);
   const done = await alreadySent(d.db);
   const todo = all.filter((u) => !done.has(u.id));
-  const counts = { switchOn: on, audience: all.length, alreadySent: all.length - todo.length, toSend: todo.length };
-  d.print(`${TEMPLATE.name}: group B teachers ${counts.audience}, already sent ${counts.alreadySent}, `
-    + `to send ${counts.toSend}; switch ${FLAG_KEY} is ${on ? 'ON' : 'OFF'}`);
+  const t = await readTemplate(d);
+  const cost = costLine(todo.length, t.category);
+  const counts = {
+    switchOn: on, audience: all.length, alreadySent: all.length - todo.length, toSend: todo.length,
+    control: all.filter((u) => u.group === 'A').length, treatment: all.filter((u) => u.group === 'B').length,
+    templateStatus: t.status, category: t.category, costUsd: cost.costUsd,
+  };
+  d.print(`${TEMPLATE.name}: teachers in the test ${counts.audience} (control (A+C) ${counts.control}, `
+    + `treatment (B+D) ${counts.treatment}), already sent ${counts.alreadySent}, to send ${counts.toSend}; `
+    + `switch ${FLAG_KEY} is ${on ? 'ON' : 'OFF'}`);
+  d.print(`template ${t.status || 'status unread'}; ${cost.line}`);
   if (!opts.live) return { mode: 'dry-run', ...counts };
   if (!on) throw new Error(`${FLAG_KEY} is off: nothing sent. Turn it on for the send, then off again.`);
   if (!opts.video) throw new Error('--live needs --video <mp4>');

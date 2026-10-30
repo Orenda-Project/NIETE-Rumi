@@ -1,13 +1,14 @@
 /**
- * bd-pw1ccr.8.4 — send the 2 Nov formative-assessment video (template niete_fa_video_ab_v1) to group B
- * teachers of the topic-nudge A/B. Logic and modes: shared/services/fa-video/broadcast.js.
+ * bd-pw1ccr.8.4 / .12 — send the 2 Nov formative-assessment video (template niete_fa_video_ab_v1) to every
+ * teacher of the topic-nudge A/B, both arms. Logic and modes: shared/services/fa-video/broadcast.js.
  *
  *   node scripts/broadcast-fa-video.js                                   # dry run: counts only
  *   node scripts/broadcast-fa-video.js --to <n> --video <mp4>            # review copy; <n> must be in FA_VIDEO_TEST_NUMBERS
  *   node scripts/broadcast-fa-video.js --live --video <mp4>              # the send (switch must be on)
  *
- * Reads SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / WHATSAPP_TOKEN / PHONE_NUMBER_ID from the env, so the
- * environment is whichever .env you load. The video goes up to /{PHONE_NUMBER_ID}/media once per run.
+ * Reads SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / WHATSAPP_TOKEN / PHONE_NUMBER_ID / WABA_ID
+ * from the env, so the environment is whichever .env you load. The WABA id is only read for the template's
+ * status and category (the dry run's cost); without it the cost prints "rate unknown". The video goes up to /{PHONE_NUMBER_ID}/media once per run.
  */
 
 /* eslint-disable no-console */
@@ -18,9 +19,16 @@ const { run, testNumbersFrom } = require('../shared/services/fa-video/broadcast'
 
 const GRAPH = `https://graph.facebook.com/${process.env.GRAPH_API_VERSION || 'v21.0'}`;
 
-function makeDeps({ token, phoneId, fetchFn = fetch, readFile = fs.readFileSync }) {
+function makeDeps({ token, phoneId, wabaId, fetchFn = fetch, readFile = fs.readFileSync }) {
   const auth = { Authorization: `Bearer ${token}` };
   return {
+    async templateStatus() {
+      if (!wabaId) return { status: null, category: null };
+      const r = await fetchFn(`${GRAPH}/${wabaId}/message_templates?name=${TEMPLATE.name}&fields=name,status,category`, { headers: auth });
+      const d = await r.json();
+      const t = (d.data || []).find((x) => x.name === TEMPLATE.name);
+      return t ? { status: t.status || null, category: t.category || null } : { status: null, category: null };
+    },
     async upload(file) {
       const form = new FormData();
       form.append('messaging_product', 'whatsapp');
@@ -58,13 +66,13 @@ function makeDeps({ token, phoneId, fetchFn = fetch, readFile = fs.readFileSync 
 }
 
 async function main() {
-  const { WHATSAPP_TOKEN, PHONE_NUMBER_ID } = process.env;
+  const { WHATSAPP_TOKEN, PHONE_NUMBER_ID, WABA_ID } = process.env;
   if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
     console.error('Set WHATSAPP_TOKEN and PHONE_NUMBER_ID'); process.exit(1);
   }
   const db = require('../shared/config/supabase');
   const r = await run(process.argv.slice(2), {
-    db, testNumbers: testNumbersFrom(process.env), ...makeDeps({ token: WHATSAPP_TOKEN, phoneId: PHONE_NUMBER_ID }),
+    db, testNumbers: testNumbersFrom(process.env), ...makeDeps({ token: WHATSAPP_TOKEN, phoneId: PHONE_NUMBER_ID, wabaId: WABA_ID }),
   });
   console.log(JSON.stringify(r));
 }
