@@ -14,6 +14,9 @@
  * Harness cloned from tests/training/portal-quiz-questions.test.js.
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 let supabaseFrom;
 let tableStates;
 

@@ -23,14 +23,8 @@ const { resolveRange, RangeInputError } = require('../lib/pk-range');
 const router = express.Router();
 const dbQuery = (sql, params) => pool.query(sql, params);
 
-// Self-contained duplicate of portal.routes.js's guard (not exported there), as
-// attendance.routes.js and hcp.routes.js do.
-function requirePortalAuth(req, res, next) {
-  if (!req.session || !req.session.portalUserId) {
-    return res.status(401).json({ success: false, error: 'Not authenticated. Please log in.' });
-  }
-  return next();
-}
+// The portal's one sign-in check (lib/portal-auth.js): it also ends the session of a retired account.
+const { requirePortalAuth } = require('../lib/portal-auth');
 
 router.get('/me/grade-subjects', requirePortalAuth, async (req, res) => {
   const feature = req.query.feature ? String(req.query.feature) : null;

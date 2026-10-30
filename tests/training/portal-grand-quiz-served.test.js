@@ -19,6 +19,9 @@
  * because the setting is.
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 const { createMemorySupabase } = require('../fixtures/memory-supabase');
 
 const USER = 'user-1';

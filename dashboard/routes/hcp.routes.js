@@ -42,20 +42,9 @@ const { getPatchTeachers } = require('../services/leader-patch.service');
 // ---------------------------------------------------------------------------
 // Auth guard
 // ---------------------------------------------------------------------------
-// Duplicated with intent: dashboard/routes/portal.routes.js exports a similar
-// guard, but not from an importable module. Reproducing the minimal contract
-// here keeps this router self-contained and avoids reaching into another
-// route file's internals.
-
-function requirePortalAuth(req, res, next) {
-  if (!req.session || !req.session.portalUserId) {
-    return res.status(401).json({
-      success: false,
-      error: 'Not authenticated. Please log in.',
-    });
-  }
-  return next();
-}
+// The portal's one sign-in check (lib/portal-auth.js), shared by every portal router: it also ends the session of
+// a retired account.
+const { requirePortalAuth } = require('../lib/portal-auth');
 
 // The leader family only. Teachers and role-less accounts get 403.
 async function getCaller(userId) {
