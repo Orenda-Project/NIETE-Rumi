@@ -6,6 +6,10 @@
  * the flag readers, the scope and the codec are stubbed (no Postgres needed). The read tests over the fixture world
  * (coachip-*-read.test.js) are the false-positive check: they run through the same wrapper.
  */
+
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 const path = require('path');
 const http = require('http');
 

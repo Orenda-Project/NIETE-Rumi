@@ -9,6 +9,9 @@
  * /analytics/schools answer (and its cost) stays exactly as it was.
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 let tableStates;
 let queries;
 

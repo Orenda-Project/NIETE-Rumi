@@ -29,8 +29,9 @@ function call(handler, session) {
     json(b) { payload = b; return this; },
   };
   let advanced = false;
-  handler(req, res, () => { advanced = true; });
-  return { advanced, statusCode, payload };
+  // The shared check answers a signed-in request after its account lookup (a promise); a refusal answers at once.
+  return Promise.resolve(handler(req, res, () => { advanced = true; }))
+    .then(() => ({ advanced, statusCode, payload }));
 }
 
 beforeEach(() => {
@@ -53,18 +54,18 @@ beforeEach(() => {
 afterEach(() => { logSpy.mockRestore(); jest.resetModules(); });
 
 describe('requirePortalAuth: log only a refusal, on one line', () => {
-  test('a signed-in request passes and writes nothing to the log', () => {
+  test('a signed-in request passes and writes nothing to the log', async () => {
     const handler = authHandler();
     logSpy.mockClear();
-    const out = call(handler, { id: 's-1', portalUserId: 'u-1' });
+    const out = await call(handler, { id: 's-1', portalUserId: 'u-1' });
     expect(out.advanced).toBe(true);
     expect(logSpy).not.toHaveBeenCalled();
   });
 
-  test('a request with no signed-in user is refused with 401 and one single-line log entry', () => {
+  test('a request with no signed-in user is refused with 401 and one single-line log entry', async () => {
     const handler = authHandler();
     logSpy.mockClear();
-    const out = call(handler, { id: 's-2' });
+    const out = await call(handler, { id: 's-2' });
     expect(out.advanced).toBe(false);
     expect(out.statusCode).toBe(401);
     expect(out.payload).toMatchObject({ success: false });
@@ -75,10 +76,10 @@ describe('requirePortalAuth: log only a refusal, on one line', () => {
     expect(line).toMatch(/Portal Auth Failed/);
   });
 
-  test('a request with no session object at all is refused the same way', () => {
+  test('a request with no session object at all is refused the same way', async () => {
     const handler = authHandler();
     logSpy.mockClear();
-    const out = call(handler, undefined);
+    const out = await call(handler, undefined);
     expect(out.statusCode).toBe(401);
     expect(logSpy).toHaveBeenCalledTimes(1);
     expect(logSpy.mock.calls[0]).toHaveLength(1);

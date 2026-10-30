@@ -15,6 +15,10 @@
  *   - the question payload carries no key, rubric, explanation or anything that reveals either (deep scan).
  *   - ZERO write calls (insert / update / upsert / delete) on any table, across all four endpoints.
  */
+
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 const { createFakePostgrest } = require('./helpers/fake-postgrest');
 
 const COACH = 'coach-user-1';

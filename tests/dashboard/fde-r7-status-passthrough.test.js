@@ -10,6 +10,9 @@
  * portal router handler -> the REAL assessment.service -> axios (the only mock).
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 const { setup, invoke, BOT } = require('./portal-proxy-harness');
 
 const BOT_BODIES = {

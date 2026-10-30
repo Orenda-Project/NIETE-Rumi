@@ -18,6 +18,7 @@
 
 let tables;
 let applyBandSelection;
+let failUpdate; // table names whose UPDATE answers an error
 
 function fakeSupabase() {
   return {
@@ -29,17 +30,23 @@ function fakeSupabase() {
       let inserted = null;
       let headCount = false;
       let single = false;
+      let returning = false;
       const match = (row) => filters.every(([kind, c, v]) => (kind === 'eq' ? row[c] === v : v.includes(row[c])));
       const run = () => {
         if (op === 'insert') { t.push(...inserted); return { data: null, error: null }; }
         const hits = t.filter(match);
-        if (op === 'update') { hits.forEach((r) => Object.assign(r, patch)); return { data: null, error: null }; }
+        if (op === 'update') {
+          if (failUpdate.has(name)) return { data: null, error: { message: `update ${name} refused` } };
+          hits.forEach((r) => Object.assign(r, patch));
+          // PostgREST returns the written rows only when .select() follows .update().
+          return { data: returning ? hits.map((r) => ({ ...r })) : null, error: null };
+        }
         if (headCount) return { data: null, count: hits.length, error: null };
         if (single) return { data: hits[0] ? { ...hits[0] } : null, error: null };
         return { data: hits.map((r) => ({ ...r })), error: null };
       };
       const chain = {
-        select(_cols, opts) { if (opts && opts.head) headCount = true; return chain; },
+        select(_cols, opts) { if (opts && opts.head) headCount = true; if (op === 'update') returning = true; return chain; },
         eq(c, v) { filters.push(['eq', c, v]); return chain; },
         in(c, v) { filters.push(['in', c, v]); return chain; },
         limit() { return chain; },
@@ -78,6 +85,7 @@ beforeEach(() => {
     observation_schedules: [{ id: 'v1', teacher_ext_id: '923001110001', status: 'upcoming' }],
     leader_roster_audit: [],
   };
+  failUpdate = new Set();
   jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
   jest.doMock('../../bot/shared/config/supabase', () => fakeSupabase());
   applyBandSelection = jest.fn().mockResolvedValue({ ok: true, programs: [] });
@@ -222,6 +230,105 @@ describe('phone — teacher_edit_phone_commit', () => {
     expect(out).toMatchObject({ ok: false, reason: 'taken' });
     expect(user('u-ayesha').phone_number).toBe('923001110001');
     expect(user('u-real').phone_number).toBe('923003330003');
+  });
+});
+
+describe("phone — a shell's own rows follow her to the surviving account", () => {
+  // The shell is retired, but anything it owns stays keyed to its id, where neither the teacher (once she signs in
+  // on the new number) nor any report reads it. Its classes, lesson-plan opens and nudges move to the survivor at
+  // commit, guarded by each table's unique key: a row the survivor already has an equal of stays where it is.
+  const SURVIVOR = 'u-ayesha';
+  const SHELL = 'u-shell';
+  const YEAR = '2026-27';
+
+  beforeEach(() => {
+    tables.student_lists = [
+      { id: 'sl-3a', user_id: SHELL, class_name: 'Grade 3-A', academic_year: YEAR, is_active: true },
+      { id: 'sl-4a', user_id: SHELL, class_name: 'Grade 4-A', academic_year: YEAR, is_active: true },
+      { id: 'sl-4a-hers', user_id: SURVIVOR, class_name: 'grade 4-a', academic_year: YEAR, is_active: true },
+    ];
+    tables.class_teachers = [
+      { id: 'ct-3a', class_id: 'cls-3a', teacher_user_id: SHELL, is_active: true },
+      { id: 'ct-5a', class_id: 'cls-5a', teacher_user_id: SHELL, is_active: true },
+      { id: 'ct-5a-hers', class_id: 'cls-5a', teacher_user_id: SURVIVOR, is_active: true },
+    ];
+    tables.niete_lp_opens = [
+      { id: 'o1', user_id: SHELL }, { id: 'o2', user_id: SHELL }, { id: 'o3', user_id: SHELL },
+    ];
+    tables.teacher_nudges = [
+      { id: 'n-26', user_id: SHELL, nudge_date: '2026-10-26', kind: 'lp_quiz_offer' },
+      { id: 'n-27', user_id: SHELL, nudge_date: '2026-10-27', kind: 'lp_quiz_offer' },
+      { id: 'n-27-hers', user_id: SURVIVOR, nudge_date: '2026-10-27', kind: 'lp_quiz_offer' },
+    ];
+  });
+
+  const row = (table, id) => tables[table].find((r) => r.id === id);
+
+  test("a class the shell made moves to the survivor (student_lists.user_id = survivor)", async () => {
+    const out = await svc().commitPhone({ ...base, phone: '923002220002' });
+    expect(out).toMatchObject({ ok: true, outcome: 'moved', case: 'shell' });
+    expect(row('student_lists', 'sl-3a').user_id).toBe(SURVIVOR);
+  });
+
+  test('LP opens, class-teacher links and nudges move too; an equal the survivor already has stays on the shell', async () => {
+    await svc().commitPhone({ ...base, phone: '923002220002' });
+    expect(tables.niete_lp_opens.every((r) => r.user_id === SURVIVOR)).toBe(true);
+    expect(row('class_teachers', 'ct-3a').teacher_user_id).toBe(SURVIVOR);
+    expect(row('class_teachers', 'ct-5a').teacher_user_id).toBe(SHELL); // she already teaches cls-5a
+    expect(row('student_lists', 'sl-4a').user_id).toBe(SHELL);          // she already has Grade 4-A this year
+    expect(row('teacher_nudges', 'n-26').user_id).toBe(SURVIVOR);
+    expect(row('teacher_nudges', 'n-27').user_id).toBe(SHELL);           // one nudge per day per kind
+  });
+
+  test('the edit_phone audit row records what moved and what stayed', async () => {
+    await svc().commitPhone({ ...base, phone: '923002220002' });
+    const a = audit().find((r) => r.action === 'edit_phone');
+    expect(a.detail.retired_user_id).toBe(SHELL);
+    expect(a.detail.reparented).toEqual({
+      niete_lp_opens: 3, student_lists: 1, class_teachers: 1, teacher_nudges: 1,
+      teacher_training_progress: 0, training_assessment_attempts: 0, training_certificates: 0, coaching_sessions: 0,
+    });
+    expect(a.detail.reparent_skipped).toEqual({ student_lists: 1, class_teachers: 1, teacher_nudges: 1 });
+  });
+
+  test('a free number has no shell: nothing is re-parented and the audit says so', async () => {
+    await svc().commitPhone({ ...base, phone: '03004445556' });
+    expect(row('student_lists', 'sl-3a').user_id).toBe(SHELL);
+    const a = audit().find((r) => r.action === 'edit_phone');
+    expect(a.detail.reparented).toBeUndefined();
+  });
+
+  test('a re-parent write that fails does not undo the number change: the edit stands and the audit names the table', async () => {
+    failUpdate.add('student_lists');
+    const out = await svc().commitPhone({ ...base, phone: '923002220002' });
+    expect(out).toMatchObject({ ok: true, outcome: 'moved', case: 'shell' });
+    expect(user(SURVIVOR).phone_number).toBe('923002220002');
+    expect(tables.niete_lp_opens.every((r) => r.user_id === SURVIVOR)).toBe(true);
+    const a = audit().find((r) => r.action === 'edit_phone');
+    expect(a.detail.reparent_failed).toEqual(['student_lists']);
+  });
+
+  test('training rows a shell picked up after the check move too, never onto a module or level she already holds', async () => {
+    tables.teacher_training_progress = [
+      { id: 'p-1', user_id: SHELL, module_id: 1 },
+      { id: 'p-2', user_id: SHELL, module_id: 2 },
+      { id: 'p-2-hers', user_id: SURVIVOR, module_id: 2 },
+    ];
+    tables.training_assessment_attempts = [{ id: 'a-1', user_id: SHELL }];
+    tables.training_certificates = [
+      { id: 'c-l1', user_id: SHELL, level_id: 1 },
+      { id: 'c-l1-hers', user_id: SURVIVOR, level_id: 1 },
+      { id: 'c-l2', user_id: SHELL, level_id: 2 },
+    ];
+    const { reparentShellRows } = svc();
+    const out = await reparentShellRows(require('../../bot/shared/config/supabase'), SHELL, SURVIVOR);
+    expect(row('teacher_training_progress', 'p-1').user_id).toBe(SURVIVOR);
+    expect(row('teacher_training_progress', 'p-2').user_id).toBe(SHELL);
+    expect(row('training_assessment_attempts', 'a-1').user_id).toBe(SURVIVOR);
+    expect(row('training_certificates', 'c-l1').user_id).toBe(SHELL);
+    expect(row('training_certificates', 'c-l2').user_id).toBe(SURVIVOR);
+    expect(out.reparented).toMatchObject({ teacher_training_progress: 1, training_assessment_attempts: 1, training_certificates: 1 });
+    expect(out.skipped).toMatchObject({ teacher_training_progress: 1, training_certificates: 1 });
   });
 });
 

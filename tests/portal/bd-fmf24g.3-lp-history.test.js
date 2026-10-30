@@ -19,6 +19,9 @@
  *   - the bot names plans (at most 200 a call); a naming failure is a 502, never unnamed rows.
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 const TEACHER = '6f1c2a7e-0b8d-4c55-9a51-2d7f0e3b9c10';
 const H = () => require('../../dashboard/services/lp-history.service');
 

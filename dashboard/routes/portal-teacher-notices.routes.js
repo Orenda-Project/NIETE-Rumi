@@ -23,13 +23,8 @@ const Notices = require('../services/teacher-notices.service');
 const router = express.Router();
 const dbQuery = (sql, params) => pool.query(sql, params);
 
-// Self-contained duplicate of portal.routes.js's guard (not exported there), as the other teacher modules do.
-function requirePortalAuth(req, res, next) {
-  if (!req.session || !req.session.portalUserId) {
-    return res.status(401).json({ success: false, error: 'Not authenticated. Please log in.' });
-  }
-  return next();
-}
+// The portal's one sign-in check (lib/portal-auth.js): it also ends the session of a retired account.
+const { requirePortalAuth } = require('../lib/portal-auth');
 
 async function requireTeacherV2(req, res, next) {
   let on = false;

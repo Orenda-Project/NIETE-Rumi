@@ -17,6 +17,9 @@
  * telemetry. The route and the training client are the real code.
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 const http = require('http');
 
 const ANSWER = 'In my class I group the children by reading level and give each group a text it can read. '.repeat(6);
