@@ -3,7 +3,7 @@
  * teachers of the topic-nudge A/B. Logic and modes: shared/services/fa-video/broadcast.js.
  *
  *   node scripts/broadcast-fa-video.js                                   # dry run: counts only
- *   node scripts/broadcast-fa-video.js --to 923333232533 --video <mp4>   # review copy to a test number
+ *   node scripts/broadcast-fa-video.js --to <n> --video <mp4>            # review copy; <n> must be in FA_VIDEO_TEST_NUMBERS
  *   node scripts/broadcast-fa-video.js --live --video <mp4>              # the send (switch must be on)
  *
  * Reads SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / WHATSAPP_TOKEN / PHONE_NUMBER_ID from the env, so the
@@ -14,6 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const { TEMPLATE } = require('../shared/templates/fa-video.template');
+const { run, testNumbersFrom } = require('../shared/services/fa-video/broadcast');
 
 const GRAPH = `https://graph.facebook.com/${process.env.GRAPH_API_VERSION || 'v21.0'}`;
 
@@ -62,8 +63,9 @@ async function main() {
     console.error('Set WHATSAPP_TOKEN and PHONE_NUMBER_ID'); process.exit(1);
   }
   const db = require('../shared/config/supabase');
-  const { run } = require('../shared/services/fa-video/broadcast');
-  const r = await run(process.argv.slice(2), { db, ...makeDeps({ token: WHATSAPP_TOKEN, phoneId: PHONE_NUMBER_ID }) });
+  const r = await run(process.argv.slice(2), {
+    db, testNumbers: testNumbersFrom(process.env), ...makeDeps({ token: WHATSAPP_TOKEN, phoneId: PHONE_NUMBER_ID }),
+  });
   console.log(JSON.stringify(r));
 }
 

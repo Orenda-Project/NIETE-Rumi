@@ -2,12 +2,14 @@
 /** bd-pw1ccr.8.4 — the one-off FA video broadcast to group B teachers: switch, audience, dry run, send. */
 const { fakeDb } = require('./fake-db');
 const {
-  FLAG_KEY, TEST_NUMBERS, parseArgs, switchOn, audience, run,
+  FLAG_KEY, parseArgs, switchOn, audience, run, testNumbersFrom,
 } = require('../../shared/services/fa-video/broadcast');
 
 const T = (id, school, extra = {}) => ({
   id, school_id: school, role: 'teacher', phone_number: `92300000${id}`, deleted_at: null, is_test_user: null, ...extra,
 });
+
+const OPERATOR = '15550000001'; // not a real number: the repo is public
 
 function tables(flag = false) {
   return {
@@ -40,8 +42,8 @@ function deps(db, over = {}) {
 
 test('parseArgs: dry run by default; --live, --to list, --video path', () => {
   expect(parseArgs([])).toEqual({ live: false, to: [], video: null });
-  expect(parseArgs(['--live', '--video', 'v.mp4', '--to', '923333232533,923365709413'])).toEqual({
-    live: true, video: 'v.mp4', to: ['923333232533', '923365709413'],
+  expect(parseArgs(['--live', '--video', 'v.mp4', '--to', '15550000001,15550000003'])).toEqual({
+    live: true, video: 'v.mp4', to: ['15550000001', '15550000003'],
   });
 });
 
@@ -111,14 +113,27 @@ test('a re-run skips teachers already sent this template', async () => {
 test('--to sends only to operator/test numbers, needs no switch, writes no log rows', async () => {
   const db = fakeDb(tables(false));
   const d = deps(db);
-  const r = await run(['--to', TEST_NUMBERS[0], '--video', 'v.mp4'], d);
+  d.testNumbers = [OPERATOR];
+  const r = await run(['--to', OPERATOR, '--video', 'v.mp4'], d);
   expect(r).toMatchObject({ mode: 'test', sent: 1 });
-  expect(d.send).toHaveBeenCalledWith(TEST_NUMBERS[0], expect.any(Array));
+  expect(d.send).toHaveBeenCalledWith(OPERATOR, expect.any(Array));
   expect(db.writes).toEqual([]);
 });
 
 test('--to refuses any number that is not an operator/test number', async () => {
   const d = deps(fakeDb(tables(true)));
-  await expect(run(['--to', '923000000001', '--video', 'v.mp4'], d)).rejects.toThrow(/test number/);
+  d.testNumbers = [OPERATOR];
+  await expect(run(['--to', '15550000002', '--video', 'v.mp4'], d)).rejects.toThrow(/test number/);
   expect(d.send).not.toHaveBeenCalled();
+});
+
+test('--to refuses every number when no operator numbers are configured', async () => {
+  const d = deps(fakeDb(tables(true)));
+  await expect(run(['--to', OPERATOR, '--video', 'v.mp4'], d)).rejects.toThrow(/FA_VIDEO_TEST_NUMBERS/);
+  expect(d.send).not.toHaveBeenCalled();
+});
+
+test('operator numbers come from FA_VIDEO_TEST_NUMBERS, never from source', () => {
+  expect(testNumbersFrom({ FA_VIDEO_TEST_NUMBERS: ' 15550000001, 15550000003 ,' })).toEqual(['15550000001', '15550000003']);
+  expect(testNumbersFrom({})).toEqual([]);
 });

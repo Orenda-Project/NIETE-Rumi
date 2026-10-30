@@ -16,11 +16,14 @@ const { TEMPLATE, sendComponents } = require('../../templates/fa-video.template'
 
 const FLAG_KEY = 'fa_video_broadcast_enabled';
 const GROUP_TABLE = 'niete_topic_nudge_ab_assignment';
-// Operator/test numbers (docs/environments.md): Mashhood, Haroon.
-const TEST_NUMBERS = ['923333232533', '923365709413'];
 const PAGE = 1000;
 const CHUNK = 200;
 const PACE_MS = 120;
+
+// Operator/test numbers (docs/environments.md) come from the env, never source: the repo is public.
+function testNumbersFrom(env) {
+  return String(env.FA_VIDEO_TEST_NUMBERS || '').split(',').map((n) => n.trim()).filter(Boolean);
+}
 
 function parseArgs(argv) {
   const at = (f) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : undefined; };
@@ -113,7 +116,9 @@ async function sendAll(recipients, components, d, onEach) {
 }
 
 async function testSend(opts, d) {
-  const bad = opts.to.filter((n) => !TEST_NUMBERS.includes(n));
+  const allowed = d.testNumbers || [];
+  if (!allowed.length) throw new Error('--to: no operator/test numbers set; put them in FA_VIDEO_TEST_NUMBERS');
+  const bad = opts.to.filter((n) => !allowed.includes(n));
   if (bad.length) throw new Error(`--to takes operator/test numbers only; not a test number: ${bad.join(', ')}`);
   if (!opts.video) throw new Error('--to needs --video <mp4>');
   const components = sendComponents(await d.upload(opts.video));
@@ -165,4 +170,4 @@ async function run(argv, d) {
   return { ...counts, ...(await liveSend(todo, opts, d)) };
 }
 
-module.exports = { FLAG_KEY, TEST_NUMBERS, parseArgs, switchOn, audience, alreadySent, run };
+module.exports = { FLAG_KEY, testNumbersFrom, parseArgs, switchOn, audience, alreadySent, run };
