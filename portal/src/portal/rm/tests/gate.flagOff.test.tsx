@@ -81,6 +81,6 @@ describe("the coach app guard lets /portal/rm through (an RM may be a v2 coach) 
     }
     expect(coachPathReady("/portal/coach/training")).toBe(true);
     expect(coachReadyHome()).toBe("/portal/coach/training");
-    expect(COACH_APP_READY).toEqual(["training", "lessons"]);
+    expect(COACH_APP_READY).toEqual(["training", "lessons", "schools"]);
   });
 });
