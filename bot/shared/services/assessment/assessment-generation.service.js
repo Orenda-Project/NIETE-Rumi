@@ -776,6 +776,9 @@ const { correctMisreads } = require('./fde-urdu-nonword'); // a stored-text misr
 const { urduPunctFixes } = require('./fde-urdu-punct'); // bd-5jmnfj.4.58.3
 const { mcqKeyNote } = require('./fde-maths-slips');
 const { keyTruthFlags, keyTruthNote } = require('./fde-key-truth'); // bd-5jmnfj.33.4: key-only terms, plural keys, restating points
+const { meaningKeyShortfall, meaningKeyNote } = require('./fde-meaning-key'); // bd-5jmnfj.33.5: a meaning question's key is the meaning
+const { mcqStemShortfall, mcqStemNote } = require('./fde-mcq-stem'); // bd-5jmnfj.33.5: one question per MCQ stem, key not printed in it
+const { wordBoxShortfall, wordBoxNote } = require('./fde-word-box'); // bd-5jmnfj.33.5.2: a fill word box holds a distractor and is shuffled
 const { midKeyFixes } = require('./fde-mid-key-fixes'); // bd-5jmnfj.33.3: match split, own labels, compare sign, unasked checks, division digits
 
 // Required on first use: the loader opens a database client, and the prompt
@@ -2657,7 +2660,10 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     .concat(alternativeShortfall(firstLaid.examJson, P)) // a second listed choice that also fits (v35 round 6, bd-5jmnfj.4.58.9.1)
     .concat(key === 'urdu' ? g5UrduShortfall(firstLaid.examJson) : []) // a «سب سے پہلے» stem keyed with two actions (v37r4 G5 Urdu Q2)
     .concat(glyphShortfall(firstLaid.examJson)) // a U+FFFD or control character in a printed string (v35 G5 Urdu Q4, bd-5jmnfj.4.58.7.7)
-    .concat(P.g5_rules === false ? keyTruthFlags(firstLaid.examJson) : []); // G3/G4 key truth (bd-5jmnfj.33.4)
+    .concat(P.g5_rules === false ? keyTruthFlags(firstLaid.examJson) : []) // G3/G4 key truth (bd-5jmnfj.33.4)
+    .concat(P.g5_rules === false ? meaningKeyShortfall(firstLaid.examJson, P, _keptBookText(loaded.content)) : [])
+    .concat(P.g5_rules === false ? mcqStemShortfall(firstLaid.examJson, P) : [])
+    .concat(P.g5_rules === false ? wordBoxShortfall(firstLaid.examJson, P) : []);
   const shortSlots = new Set(short.map((f) => f.slot));
   // An item carrying text the paper refuses to print (a review mark the model copied) fails the
   // paper at render; its section is asked once more instead, and a second hit fails it here.
@@ -2692,7 +2698,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
       // re-ask (a part with no marking points, a review mark, a religious maxim) takes the second reply whole.
       const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShortSet.has(f.slot));
       // On a top-up the note also names what the slot keeps, and asks for spares.
-      const note = [takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held }), giveawayNote(shortfall), mcqNote(shortfall, P), lengthNote(shortfall), placeholderNote(shortfall), punctuateNote(shortfall), schemeNote(shortfall), glyphNote(shortfall), repeatedPointsNote(shortfall), g5UrduNote(shortfall), keyTruthNote(shortfall), mcqKeyNote(shortfall)]
+      const note = [takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held }), giveawayNote(shortfall), mcqNote(shortfall, P), lengthNote(shortfall), placeholderNote(shortfall), punctuateNote(shortfall), schemeNote(shortfall), glyphNote(shortfall), repeatedPointsNote(shortfall), g5UrduNote(shortfall), keyTruthNote(shortfall), mcqKeyNote(shortfall), meaningKeyNote(shortfall), mcqStemNote(shortfall), wordBoxNote(shortfall)]
         .filter(Boolean).join('\n\n');
       const second = await writeOne(note
         ? { ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
