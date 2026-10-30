@@ -437,6 +437,14 @@ describe("her Digital Coaching page", () => {
     expect(sections[0]).toHaveTextContent("Lesson Plan Fidelity");
     expect(sections[0]).toHaveTextContent("1.5/2");
     expect(sections[0]).toHaveTextContent("Scored in 1 of 2 (the others had no lesson plan)");
+    // bd-dgfkgs.2 (operator, 30 Oct): every domain starts closed; she taps one to see its practices
+    for (const s of sections) {
+      expect(within(s).getByRole("button")).toHaveAttribute("aria-expanded", "false");
+      expect(within(s).queryAllByTestId("practice-row")).toHaveLength(0);
+    }
+    await act(async () => { fireEvent.click(within(sections[0]).getByRole("button")); });
+    expect(within(sections[0]).getByRole("button")).toHaveAttribute("aria-expanded", "true");
+    expect(within(sections[1]).queryAllByTestId("practice-row")).toHaveLength(0);
     const b1 = within(sections[0]).getByTestId("practice-row");
     expect(b1).toHaveTextContent("B1");
     expect(b1).toHaveTextContent("Instructional Clarity & Learning Objectives");
@@ -444,6 +452,8 @@ describe("her Digital Coaching page", () => {
     expect(b1.querySelectorAll("[data-seg]")).toHaveLength(2);
     expect(sections[1]).toHaveTextContent("1.2/2");
     expect(sections[1]).not.toHaveTextContent("Scored in");
+    await act(async () => { fireEvent.click(within(sections[0]).getByRole("button")); });
+    expect(within(sections[0]).queryAllByTestId("practice-row")).toHaveLength(0);
   });
 
   it("her reports: the grade-subject tile, the title (topic, else the subject's lesson), the day, the AI score; each opens its report", async () => {
@@ -488,6 +498,8 @@ describe("her Coach observations page", () => {
     const b = screen.getAllByTestId("practice-section")[0];
     expect(b).toHaveTextContent("Not scored");
     expect(b).toHaveTextContent("No lesson plan linked, so this section was not scored");
+    // nothing to open, so nothing that looks tappable
+    expect(within(b).queryByRole("button")).toBeNull();
     expect(screen.getByTestId("reports-head")).toHaveTextContent("Her observations");
     const rows = screen.getAllByTestId("report-row");
     expect(rows[0]).toHaveTextContent("Unitary Method");

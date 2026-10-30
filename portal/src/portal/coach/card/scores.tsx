@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronRight, Smartphone, Users } from "lucide-react";
+import { ChevronDown, ChevronRight, Smartphone, Users } from "lucide-react";
 import { GradeSubjectLead, StatusChip } from "../../teacher/ui";
 import { subjectShort } from "../../teacher/ui/subjects";
 import { FeatureArt } from "../../teacher/icons/FeatureArt";
@@ -296,30 +296,46 @@ const Value = ({ v, max }: { v: number; max: number }) => (
 
 /**
  * One section of "Average by practice": its letter, its name, its average out of the scale (the mean of its practices),
- * a note when only some of her reports scored it (B: the others had no lesson plan), then every practice the reports
- * scored with its average and a segmented bar. A section no report scored says "Not scored" (B: no lesson plan linked).
+ * a note when only some of her reports scored it (B: the others had no lesson plan). It starts CLOSED (operator, 30 Oct,
+ * bd-dgfkgs.2: open, the page was long and text-heavy): the head is a button, and tapping it shows every practice the
+ * reports scored with its average and a segmented bar. A section no report scored has nothing to open: a flat head
+ * that says "Not scored" and why (B: no lesson plan linked).
  */
 export function PracticeSection({ section, reports, kind }: {
   section: TeacherScoresData["sections"][number]; reports: number; kind: ScoreKind;
 }) {
   const C = useCopy(SCHOOL_CARD);
+  const [open, setOpen] = useState(false);
+  const bodyId = useId();
   const colour = kindColour(kind);
   const max = section.indicators[0]?.scaleMax ?? null;
   const scored = section.avg != null && max != null;
+  const note = scored
+    ? (section.code === "B" && section.scoredIn < reports ? C.scoredIn(section.scoredIn, reports) : null)
+    : (section.code === "B" ? C.noLpLinked : null);
+  const head = (
+    <>
+      <span dir="ltr" aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#33374a] text-[14px] font-extrabold text-white">{section.code}</span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-start">
+        <b dir="auto" className="text-[17px] font-semibold leading-[1.3] rtl:leading-[1.8]">{section.name}</b>
+        {note ? <small className="text-[12.5px] font-semibold leading-[1.35] text-[#6b7280] rtl:leading-[1.8]">{note}</small> : null}
+      </span>
+      {scored ? <Value v={section.avg as number} max={max as number} /> : <StatusChip text={C.notScored} tone="info" />}
+    </>
+  );
+  const HEAD = "flex min-h-[64px] w-full items-center gap-3 bg-[#f9fafb] px-3.5 py-2.5";
   return (
     <section data-testid="practice-section" data-code={section.code} className={`overflow-hidden ${CARD}`}>
-      <div className="flex min-h-[64px] items-center gap-3 bg-[#f9fafb] px-3.5 py-2.5">
-        <span dir="ltr" aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#33374a] text-[14px] font-extrabold text-white">{section.code}</span>
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <b dir="auto" className="text-[17px] font-semibold leading-[1.3] rtl:leading-[1.8]">{section.name}</b>
-          {scored && section.code === "B" && section.scoredIn < reports
-            ? <small className="text-[12.5px] font-semibold leading-[1.35] text-[#6b7280] rtl:leading-[1.8]">{C.scoredIn(section.scoredIn, reports)}</small>
-            : null}
-        </span>
-        {scored ? <Value v={section.avg as number} max={max as number} /> : <StatusChip text={C.notScored} tone="info" />}
-      </div>
       {scored
-        ? section.indicators.map((p) => (
+        ? (
+          <button type="button" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen((o) => !o)} className={`${HEAD} ${TAP}`}>
+            {head}
+            <ChevronDown className={`h-[22px] w-[22px] shrink-0 text-[#6b7280] motion-safe:transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+          </button>
+        )
+        : <div className={HEAD}>{head}</div>}
+      {scored && open && <div id={bodyId}>{
+        section.indicators.map((p) => (
           <div key={p.id} data-testid="practice-row" className="flex flex-col gap-2 border-t border-[#f0f1f3] px-3.5 py-2.5">
             <span className="flex items-start gap-2">
               <span dir="ltr" className="mt-0.5 shrink-0 text-[12.5px] font-semibold text-[#9ca3af]">{p.id}</span>
@@ -329,11 +345,7 @@ export function PracticeSection({ section, reports, kind }: {
             <Segments avg={p.avg} max={p.scaleMax} colour={colour} />
           </div>
         ))
-        : (
-          <p className="m-0 border-t border-[#f0f1f3] px-3.5 py-3 text-[14.5px] font-semibold text-[#6b7280] rtl:leading-[1.8]">
-            {section.code === "B" ? C.noLpLinked : C.notScored}
-          </p>
-        )}
+      }</div>}
     </section>
   );
 }
