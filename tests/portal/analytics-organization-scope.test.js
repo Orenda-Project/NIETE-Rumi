@@ -569,8 +569,11 @@ describe('one list of FDE\'s six sectors', () => {
     expect(require('../../scripts/load-analytics-lists').SECTORS).toBe(SECTORS);
   });
 
-  it('the Python organization fixer names the same six (it cannot import them)', () => {
-    const py = fs.readFileSync(path.join(__dirname, '../../scripts/lib/set_organization.py'), 'utf8');
+  // The script is promoted on its own schedule (it is on sandbox before staging), so a tree without it has nothing
+  // that could drift; the guard holds wherever the script exists (bd-97daxo.9).
+  const fixer = path.join(__dirname, '../../scripts/lib/set_organization.py');
+  (fs.existsSync(fixer) ? it : it.skip)('the Python organization fixer names the same six (it cannot import them)', () => {
+    const py = fs.readFileSync(fixer, 'utf8');
     const m = py.match(/^SIX = \(([^)]*)\)/m);
     expect(m).not.toBeNull();
     const six = [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
