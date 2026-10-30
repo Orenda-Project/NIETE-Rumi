@@ -136,7 +136,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   // item asking an oral item's question is the written section's to fix (bd-5jmnfj.4.55).
   const withOral = (ex) => (oral ? { ...ex, _layout: { ...ex._layout, oral: { ...P.oral, content: oral.content } } } : ex);
   // A key off its word box, or a who question keyed with a sentence, is asked again like a key off its rule (bd-5jmnfj.4.57).
-  const keysOff = (ex) => Prompt.answerShortfall(ex, P).concat(keyShortfall(ex, P), whoSaidShortfall(ex, loaded.content, P)); // names the book text lacks (bd-5jmnfj.4.58.2)
+  const keysOff = (ex) => Prompt.answerShortfall(ex, P).concat(keyShortfall(ex, P, loaded.content), whoSaidShortfall(ex, loaded.content, P)); // names the book text lacks (bd-5jmnfj.4.58.2)
   const firstLaid = lay(false);
   const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
   const short = firstLaid.shortfall

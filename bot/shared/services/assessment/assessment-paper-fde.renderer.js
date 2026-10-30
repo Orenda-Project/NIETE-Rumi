@@ -454,7 +454,8 @@ function workSpace(q, slot) {
     // A plant to label carries its own blank lines (bd-5jmnfj.4.33).
     if (q.picture && q.picture.kind === 'plant') return '';
     // Fill in the blank: the child writes on the ___ (bd-5jmnfj.4.39).
-    if (/_{3,}/.test(String(q.question || ''))) return '';
+    // A picture-only item prints no stem, so its blank is not on the page: it keeps its box (G1 English Q12).
+    if (/_{3,}/.test(String(q.question || '')) && !slotFlag(slot, 'picture_only')) return '';
     // A sentence under a picture gets three lines (bd-5jmnfj.4.57, .4.58.2).
     const lines = slotFlag(slot, 'sentence_box') ? 3 : (slot.lines || 1);
     return `<div class="write-box" style="height:${12 + 8 * Math.max(0, lines - 1)}mm"></div>`;
@@ -574,10 +575,12 @@ function comprehensionBlock(q, slot, ctx) {
     const lab = g ? '' : `<span class="lab">${textOf(spec.label, ctx)}</span> `;
     const head = `<div class="part-head">${lab}<span class="ins">${textOf(spec[`instruction_${lang}`], ctx)}</span><span class="ml">${textOf(spec[`marks_line_${lang}`], ctx)}</span></div>`;
     let body = '';
-    if (spec.pick) {
+    if (spec.pick && ctx.onSheet) {
+      body = ''; // the child writes on the answer copy (G5 Urdu B and C)
+    } else if (spec.pick) {
       body = Object.entries(spec.pick).map(([kind, n]) => `<div class="pick-row"><span class="pick-k">${textOf(kind, ctx)}:</span>${Array.from({ length: n }, (_, i) => `<span class="blank">${textOf(String(i + 1), ctx)}</span>`).join('')}</div>`).join('');
     } else if (spec.key === 'antonyms') {
-      body = (part.antonyms || []).map((pair) => `<span class="ant">${textOf(Array.isArray(pair) ? pair[0] : pair, ctx)} <span class="blank"></span></span>`).join('');
+      body = (part.antonyms || []).map((pair) => `<span class="ant">${textOf(Array.isArray(pair) ? pair[0] : pair, ctx)} ${ctx.onSheet ? '' : '<span class="blank"></span>'}</span>`).join('');
       body = `<div class="ant-row">${body}</div>`;
     } else {
       body = subQuestions(part.questions, spec.numbering || 'urdu', ctx, slot);
@@ -601,7 +604,7 @@ function itemBody(q, slot, i, ctx, inlineQ) {
   // A Grade 1-2 picture (bd-5jmnfj.4.3) prints above the body, whatever its shape.
   const pic = pictureBlock(q);
   if (pic && slotFlag(slot, 'bubble')) return bubbleBlock(pic);
-  if (shape === 'mcq') return pic + optionsBlock(q, slot, ctx);
+  if (shape === 'mcq') return pic + tableBlock(q.table, ctx) + optionsBlock(q, slot, ctx); // a table the stem refers to prints (G5 Maths Q1 (a) xviii)
   if (shape === 'frame') return frameBlock(q, slot, ctx, pic);
   if (shape === 'comprehension') return pic + comprehensionBlock(q, slot, ctx);
   const parts = pic ? [pic] : [];
@@ -640,8 +643,12 @@ function stemOf(q, slot, inlineQ) {
 }
 
 function slotBlock(slot, sec, list, ctx) {
+  // A section the teacher note sends to the answer copy prints no writing space on the paper.
+  if (sec.answer_on === 'answer_sheet') ctx = { ...ctx, answerLines: false, onSheet: true };
   const lang = ctx.medium;
   const live = list.filter((q) => q.removed !== true);
+  // A blank is as long as the longest box word (G1 Urdu Q5).
+  const blankLen = Math.max(0, ...live.flatMap((q) => (Array.isArray(q.words) ? q.words : []).map((w) => codePoints(String(w)))));
   const line = choiceLine(slot, live.length, lang, live);
   const inlineQ = /\{q\}/.test(slot[`instruction_${lang}`] || '') && live.length === 1;
   const instruction = line.instruction;
@@ -673,7 +680,7 @@ function slotBlock(slot, sec, list, ctx) {
       return;
     }
     const num = itemNumber(slot, i, lang);
-    const stem = stemOf(q, slot, inlineQ);
+    const stem = blankLen > 3 ? String(stemOf(q, slot, inlineQ)).replace(/_{3,}/g, (m) => '_'.repeat(Math.max(m.length, blankLen))) : stemOf(q, slot, inlineQ);
     const numHtml = num ? `<span class="n">${labelHtml(num, ctx)}</span>` : '';
     const leadHtml = lead ? `<div class="or-lead">${textOf(lead, ctx)}</div>` : '';
     const stemHtml = stem ? ` ${textOf(stem, ctx).replace(/☐/g, '<span class="sq"></span>')}` : '';
