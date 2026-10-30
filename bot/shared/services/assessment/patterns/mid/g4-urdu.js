@@ -44,7 +44,7 @@ module.exports = makeSubject({
           prompt_rule: `Five different words from the chapter with a clear Urdu meaning. ${SAFE} Answer: the meaning in one or two Urdu words, the word's own sense and never a description of the chapter's example (a satellite, ثقلی گرفت).` }),
         S({ slot: 'g4.urdu.B.grammar', label_en: 'Q4.', type: 'Grammar', generate: 5, marks_each: 2, lines: 2,
           instruction_ur: 'ہدایت کے مطابق لکھیں۔',
-          prompt_rule: `Five do-as-directed items on Grade IV Urdu grammar: singular and plural, masculine and feminine, opposites, noun or verb, tense. ${SAFE} Each stem names the task in one Urdu line. Answer: the changed word or sentence. Scheme: one K point of 2 for the right form; no mark pays for writing the word or sentence in full. No stem prints another item's antonym pair or target word.` }),
+          prompt_rule: `Five do-as-directed items on Grade IV Urdu grammar: singular and plural, masculine and feminine, opposites, noun or verb, tense. ${SAFE} Each item prints one short chapter sentence and names one change in one Urdu line (rewrite it in the plural, the feminine, with the opposite, in the past). Answer: the rewritten sentence. Scheme: K 1 for the changed word, K 1 for the rest of the sentence agreeing with it. No stem prints another item's antonym pair or target word.` }),
       ],
     },
     {
