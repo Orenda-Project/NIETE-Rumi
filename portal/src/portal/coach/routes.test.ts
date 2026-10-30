@@ -61,6 +61,11 @@ describe("coach v2 routes", () => {
     expect(app).toContain(`const ${component} = page(() => import("./portal/coach/card/${file}"));`);
   });
 
+  it("More → Report an issue (bd-whlsm0): its own route and chunk", () => {
+    expect(app).toContain('<Route path="/portal/coach/more/report" element={<CoachReport />} />');
+    expect(app).toContain('const CoachReport = page(() => import("./portal/coach/profile/CoachReport"));');
+  });
+
   it("Analytics (bd-fmf24g.27): the page and one teacher, each its own chunk", () => {
     expect(app).toContain('<Route path="/portal/coach/analytics" element={<CoachAnalytics />} />');
     expect(app).toContain('<Route path="/portal/coach/analytics/teacher/:ext" element={<CoachTeacherAnalytics />} />');
