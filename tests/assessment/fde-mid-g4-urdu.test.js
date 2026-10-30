@@ -60,3 +60,11 @@ test('Urdu medium, Urdu instructions, and the rules forbid religious text', () =
   slots.forEach((x) => expect(x.instruction_ur).toMatch(/[\u0600-\u06FF]/));
   slots.forEach((x) => expect(x.prompt_rule).toMatch(/[Nn]o religious text/));
 });
+
+// v40 round-6 (bd-5jmnfj.33.7.1): Q6 and Q7 paid opening, closing, points, order, language and spelling that the printed instructions never asked for.
+test('Q6 and Q7 instructions ask in words for what their schemes pay', () => {
+  const by = Object.fromEntries(slots.map((s) => [s.slot.split('.').pop(), s]));
+  expect(by.letter.instruction_ur).toBe('کوئی سا ایک خط یا درخواست لکھیں۔ آغاز اور اختتام درست طریقے سے لکھیں اور زبان و املا کا خیال رکھیں۔');
+  expect(by.essay.instruction_ur).toBe('کوئی سا ایک مضمون لکھیں۔ کم از کم تین باتیں ترتیب سے لکھیں اور زبان و املا کا خیال رکھیں۔');
+  expect(by.essay.prompt_rule).toContain('Scheme (5): three different points about the topic 3 (1 each), order of ideas 1, language and spelling 1.');
+});
