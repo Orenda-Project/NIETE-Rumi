@@ -39,7 +39,8 @@ function world(extra = {}) {
       { id: 1701, course_id: 170, is_active: true },
     ],
     training_grand_quizzes: [
-      { id: 'gq-l2', level_id: 3, quiz_type: 'grand', source_quiz_id: 12, is_active: true },
+      { id: 'gq-l2', level_id: 3, quiz_type: 'grand_quiz', source_quiz_id: 12, is_active: true },
+      { id: 'dq-l2', level_id: 3, quiz_type: 'diagnostic', source_quiz_id: 13, is_active: true },
     ],
     teacher_training_progress: [],
     training_assessment_attempts: [],
@@ -114,6 +115,42 @@ describe('bd-jtgjt8.1 chain vendor: the level exam is the certification rule', (
 
     expect(res.issued).toBe(false);
     expect(db.tables.training_certificates).toHaveLength(1);
+  });
+
+  // A diagnostic is stored as quiz_kind 'grand' too, but it is a placement check, not the level exam
+  // (bd-43491). 1,358 NIETE teacher-levels on prod hold a diagnostic pass and nothing else; any
+  // certify-level call (a module finished in the app) must not certify them.
+  test('a passed DIAGNOSTIC at the level certifies nothing', async () => {
+    const db = world({
+      training_assessment_attempts: [passedExam({ id: 'att-diag', grand_quiz_id: 'dq-l2', completed_at: '2026-03-01T00:00:00Z' })],
+    });
+
+    const res = await maybeIssueQuizScoreCertificate(db, { userId: USER, levelId: 3, attemptId: null });
+
+    expect(res.issued).toBe(false);
+    expect(db.tables.training_certificates).toHaveLength(0);
+  });
+
+  test('an earlier diagnostic pass is ignored: the certificate cites the level exam', async () => {
+    const db = world({
+      training_assessment_attempts: [
+        passedExam({ id: 'att-diag', grand_quiz_id: 'dq-l2', completed_at: '2026-03-01T00:00:00Z' }),
+        passedExam(),
+      ],
+    });
+
+    const res = await maybeIssueQuizScoreCertificate(db, { userId: USER, levelId: 3, attemptId: 'att-l2-pass' });
+
+    expect(res.issued).toBe(true);
+    expect(db.tables.training_certificates[0]).toMatchObject({ attempt_id: 'att-l2-pass' });
+  });
+
+  test('a pass from before diagnostics existed (no grand_quiz_id) still counts', async () => {
+    const db = world({ training_assessment_attempts: [passedExam({ id: 'att-old', grand_quiz_id: null })] });
+
+    const res = await maybeIssueQuizScoreCertificate(db, { userId: USER, levelId: 3, attemptId: null });
+
+    expect(res.issued).toBe(true);
   });
 
   test('a certificate write that fails is reported as NOT issued', async () => {
