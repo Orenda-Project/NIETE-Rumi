@@ -40,7 +40,7 @@ router.get('/me/grade-subjects', requirePortalAuth, async (req, res) => {
   try {
     const userId = req.session.portalUserId;
     const { combos } = await GradeSubjects.gradeSubjects(userId, GradeSubjects.defaultDeps(dbQuery));
-    const out = feature ? await GradeSubjects.withFeatureKeys(combos, GradeSubjects.catalogueFor(feature)) : combos;
+    const out = feature ? await GradeSubjects.withFeatureKeys(combos, GradeSubjects.catalogueFor(feature, userId)) : combos;
     return res.json({ success: true, combos: out });
   } catch (error) {
     console.error('❌ Portal me/grade-subjects failed', { feature, error: error && error.message });

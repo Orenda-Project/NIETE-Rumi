@@ -19,8 +19,15 @@
 
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const BookCurriculum = require('../book-curriculum.service');
 
-const CURRICULUM = 'ict';
+/**
+ * ICT unless told otherwise. `curriculum` on every entry point below is the TEACHER's curriculum
+ * (bd-97daxo.4): her book where that curriculum has one for the grade and subject, ICT's
+ * otherwise — the rule in book-curriculum.service. A caller that passes nothing reads exactly
+ * the ICT book it always read, with no extra lookup.
+ */
+const CURRICULUM = BookCurriculum.ICT;
 
 // The Flow speaks in short codes; the tables speak in the `subjects` lookup's
 // canonical values. One map, applied at the boundary, so a book can never be
@@ -78,15 +85,16 @@ function parsePageRanges(input) {
 }
 
 /** The book row, or a typed refusal naming what we could not find. */
-async function _book(grade, subject) {
+async function _book(grade, subject, curriculum = CURRICULUM) {
   const code = normaliseSubject(subject);
   if (!code) {
     throw fail('BOOK_NOT_FOUND', `We do not have a ${subject} book.`, { grade, subject });
   }
+  const bookCurriculum = await BookCurriculum.textbookCurriculum(curriculum, grade, code);
   const { data, error } = await supabase
     .from('textbooks')
     .select('id, total_pages, pdf_page_offset')
-    .eq('curriculum', CURRICULUM)
+    .eq('curriculum', bookCurriculum)
     .eq('grade', Number(grade))
     .eq('subject', code)
     .maybeSingle();
@@ -129,8 +137,8 @@ function _assemble(rows) {
 }
 
 /** What the chapter picker offers her. */
-async function listChapters({ grade, subject }) {
-  const book = await _book(grade, subject);
+async function listChapters({ grade, subject, curriculum }) {
+  const book = await _book(grade, subject, curriculum);
   const { data, error } = await supabase
     .from('textbook_toc')
     .select('chapter_number, chapter_title, page_start, page_end')
@@ -153,8 +161,8 @@ async function listChapters({ grade, subject }) {
 }
 
 /** Everything one chapter says. The path a teacher takes by default. */
-async function loadChapterContent({ grade, subject, chapterNumber }) {
-  const book = await _book(grade, subject);
+async function loadChapterContent({ grade, subject, chapterNumber, curriculum }) {
+  const book = await _book(grade, subject, curriculum);
 
   const { data: chapter, error } = await supabase
     .from('textbook_toc')
@@ -190,8 +198,8 @@ async function loadChapterContent({ grade, subject, chapterNumber }) {
 }
 
 /** Exactly the pages she typed. The escape hatch from the chapter list. */
-async function loadPageRangeContent({ grade, subject, pageRanges }) {
-  const book = await _book(grade, subject);
+async function loadPageRangeContent({ grade, subject, pageRanges, curriculum }) {
+  const book = await _book(grade, subject, curriculum);
   const wanted = parsePageRanges(pageRanges);
 
   // Say the range is wrong before fetching nothing and blaming the content —

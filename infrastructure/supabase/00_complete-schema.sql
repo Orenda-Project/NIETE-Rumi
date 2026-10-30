@@ -3439,7 +3439,13 @@ CREATE TABLE IF NOT EXISTS region_features (
     default_framework TEXT DEFAULT 'oecd',
     supported_languages JSONB DEFAULT '["en"]',
     created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    -- V1.8.5 region registry (bd-97daxo.2): owner (users.organization of the region's teachers), the
+    -- region as schools.region spells it, dashboard order, and a retire switch. NULL organization = not a region.
+    organization TEXT,
+    display_name TEXT,
+    sort_order INTEGER,
+    is_active BOOLEAN NOT NULL DEFAULT true
 );
 
 -- Key/value application settings — feature flags + A/B toggles read by the bot
@@ -4977,7 +4983,10 @@ CREATE TABLE IF NOT EXISTS niete_lp612_segments (
   corpus_version        TEXT    NOT NULL DEFAULT 'v1',
   is_current            BOOLEAN NOT NULL DEFAULT TRUE,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- Whose book (V1.8.6, bd-97daxo.5): a teacher gets her region's curriculum segments for a grade+subject
+  -- where any exist, ICT's otherwise. A non-ICT book_stem starts with its curriculum (nbf_snc_...).
+  curriculum            TEXT    NOT NULL DEFAULT 'ict'
 );
 
 CREATE INDEX IF NOT EXISTS idx_lp612_segments_menu
@@ -5320,7 +5329,9 @@ CREATE TABLE IF NOT EXISTS assessment_topics (
   days              INTEGER[],
   is_current        BOOLEAN NOT NULL DEFAULT true,
   matrix_version    TEXT,
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Whose book these topics belong to (V1.8.6, bd-97daxo.4). A non-ICT topic_id starts with its curriculum (nbf_snc_...).
+  curriculum        TEXT NOT NULL DEFAULT 'ict'
 );
 
 CREATE INDEX IF NOT EXISTS idx_assessment_topics_current

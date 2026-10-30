@@ -307,7 +307,9 @@ describe('POST /assessment/create — a board-pattern paper', () => {
     // Without a pattern the flag is not read and the guard does not run.
     expect(reads).toEqual([]);
     const supabase = require('../../bot/shared/config/supabase');
-    expect(supabase.from.mock.calls.map((c) => c[0])).toEqual(['assessment_requests']);
+    // `users`: her region, for her curriculum's books (bd-97daxo.4). An ICT teacher's request is otherwise
+    // exactly today's — the createAndQueue call above has no curriculum key.
+    expect(supabase.from.mock.calls.map((c) => c[0])).toEqual(['users', 'assessment_requests']);
   });
 
   test('job payload carries pattern and scope; a non-pattern payload has neither key', async () => {

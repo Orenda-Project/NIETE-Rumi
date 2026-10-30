@@ -243,7 +243,8 @@ describe('GET /me/grade-subjects', () => {
 
   test('?feature=lessons adds the lesson-plan keys', async () => {
     const { payload } = await invoke('/me/grade-subjects', { query: { feature: 'lessons' } });
-    expect(svc.catalogueFor).toHaveBeenCalledWith('lessons');
+    // With the SESSION's teacher, so the bot answers from her region's books (bd-97daxo.5).
+    expect(svc.catalogueFor).toHaveBeenCalledWith('lessons', TEACHER);
     expect(payload.combos[0]).toEqual(expect.objectContaining({ featureKey: 'math', available: true }));
   });
 

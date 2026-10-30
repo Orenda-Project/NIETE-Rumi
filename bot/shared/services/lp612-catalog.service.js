@@ -39,6 +39,7 @@ const { compareSubjects } = require('../config/lp612-subject-order');
 // Urdu in the wrong script. A third language added to the registry gets a correct
 // tag with no edit to this file.
 const { getLanguage } = require('../config/languages');
+const BookCurriculum = require('./book-curriculum.service');
 
 const TABLE = 'niete_lp612_segments';
 
@@ -108,8 +109,10 @@ function bookTags(books) {
  * religious. The hold is checked per call rather than cached, so flipping
  * LP_612_RELIGIOUS_ENABLED takes effect on the next tap with no restart.
  */
-function menuQuery(columns) {
+function menuQuery(columns, curricula = [BookCurriculum.ICT]) {
   let q = supabase.from(TABLE).select(columns).eq('is_current', true);
+  // Whose books (V1.8.6, bd-97daxo.5): ICT's unless the teacher's curriculum is asked for too.
+  q = curricula.length === 1 ? q.eq('curriculum', curricula[0]) : q.in('curriculum', curricula);
   if (!isReligiousEnabled()) q = q.eq('is_religious', false);
   return q;
 }
@@ -125,6 +128,18 @@ function menuQuery(columns) {
 function byGrade(q, grade) {
   const g = Number(grade);
   return q.or(`grade.eq.${g},also_grades.cs.{${g}}`);
+}
+
+/**
+ * Whose segments a teacher reads for ONE grade+subject (bd-97daxo.5): her curriculum's where it has
+ * any, ICT's otherwise (book-curriculum.service). `curriculum` is HER curriculum; ICT asks nothing.
+ */
+function curriculumOf(grade, subject, curriculum) {
+  return BookCurriculum.chooseCurriculum(curriculum, async (c) => {
+    const { data, error } = await byGrade(menuQuery('segment_id', [c]), grade).eq('subject', subject).limit(1);
+    if (error) throw new Error(error.message);
+    return (data || []).length > 0;
+  });
 }
 
 async function run(q, what) {
@@ -162,7 +177,8 @@ async function runAll(buildQuery, what) {
  * dropdown, an empty grade here would dead-end: there is no "no LPs yet"
  * fallback corpus behind it, so it is simply not offered.
  */
-async function buildGradeItems() {
+async function buildGradeItems({ curriculum } = {}) {
+  const curricula = BookCurriculum.curriculaFor(curriculum);
   // ONE BOUNDED PROBE PER GRADE — never a scan.
   //
   // This used to derive the DISTINCT list in JS from `select('grade')` across
@@ -182,7 +198,7 @@ async function buildGradeItems() {
   for (let g = LP612_MIN_GRADE; g <= LP612_MAX_GRADE; g++) candidates.push(g);
 
   const present = await Promise.all(candidates.map(async (g) => {
-    const rows = await run(byGrade(menuQuery('grade'), g).limit(1), `grade ${g}`);
+    const rows = await run(byGrade(menuQuery('grade', curricula), g).limit(1), `grade ${g}`);
     return rows.length ? g : null;
   }));
 
@@ -203,17 +219,21 @@ async function buildGradeItems() {
 
 // ── subject ─────────────────────────────────────────────────────────────────
 
-async function buildSubjectItems(grade) {
+async function buildSubjectItems(grade, { curriculum } = {}) {
+  const curricula = BookCurriculum.curriculaFor(curriculum);
   // PAGED, NOT UNBOUNDED. This read pulls every servable row of the grade in
   // order to count each subject's chapters and lessons, so its result set grows
   // with the corpus: 863 rows on grade 10 today against a server cap of 1000. An
   // unbounded select would stop returning rows at the cap without an error, and
   // a subject whose rows sat past it would simply not be in `bySubject` — the
   // grade-picker bug (6, 7, 8, 10, 11) one screen further in. bd-oak77.27.
-  const rows = await runAll(
-    () => byGrade(menuQuery('subject, book_stem, chapter_key, language'), grade),
+  const read = await runAll(
+    () => byGrade(menuQuery(`subject, book_stem, chapter_key, language${curricula.length > 1 ? ', curriculum' : ''}`,
+      curricula), grade),
     'subjects',
   );
+  // One curriculum: the rows as read. Hers and ICT's: per subject, hers where she has any.
+  const rows = curricula.length > 1 ? BookCurriculum.preferPerKey(read, (r) => r.subject, curriculum) : read;
 
   const bySubject = new Map();
   for (const r of rows) {
@@ -278,13 +298,14 @@ async function buildSubjectItems(grade) {
  *
  * @returns {Promise<{items: object[], hasMore: boolean, total: number, page: number}>}
  */
-async function buildChapterItems(grade, subject, page = 1) {
+async function buildChapterItems(grade, subject, page = 1, { curriculum } = {}) {
+  const own = await curriculumOf(grade, subject, curriculum);
   // Paged for the same reason as the subject list: the chapter rows are counted
   // and de-duplicated in JS, so a page-1 truncation loses whole chapters
   // silently. 172 rows on the largest (grade, subject) pair today.
   const rows = await runAll(
     () => byGrade(menuQuery('book_stem, subject, chapter_key, chapter_number, chapter_title, part, ' +
-              'language, order_index'), grade)
+              'language, order_index', [own]), grade)
       .eq('subject', subject),
     'chapters',
   );
@@ -505,10 +526,11 @@ async function buildChapterItems(grade, subject, page = 1) {
  * Page 1 carries PAGE_SIZE-1 real rows plus a More row, because Meta rejects a
  * row that routes back to its own screen — overflow has to be a second screen.
  */
-async function buildSegmentItems(grade, subject, chapterKey, page = 1, bookStem = null) {
+async function buildSegmentItems(grade, subject, chapterKey, page = 1, bookStem = null, { curriculum } = {}) {
+  const own = await curriculumOf(grade, subject, curriculum);
   const buildQuery = () => {
     let q = byGrade(menuQuery('segment_id, menu_title, subtopic_title, printed_page_start, ' +
-              'printed_page_end, order_index, lp_type, language, yt'), grade)
+              'printed_page_end, order_index, lp_type, language, yt', [own]), grade)
       .eq('subject', subject)
       .eq('chapter_key', chapterKey);
     // WITHOUT THIS the chapter row is fixed and the LESSON list is still pooled.

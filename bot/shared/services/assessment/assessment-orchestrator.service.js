@@ -565,6 +565,9 @@ async function buildPaper(job, user = {}) {
     userId, requestId, grade, subject, chapterNumber, pageRanges,
     questionTypes = [], contentSource = 'unseen', questionCount, totalMarks = null, seenCount = null,
     outputFormat = 'pdf', answerLines = true, pattern = null, scope = null,
+    // The teacher's curriculum (bd-97daxo.4): set by the request only when it is not ICT, so an ICT
+    // job reads its ICT book exactly as before.
+    curriculum = undefined,
   } = job;
 
   // Open the record before doing any work, so a job that dies mid-flight leaves
@@ -599,9 +602,10 @@ async function buildPaper(job, user = {}) {
     // and the same duplicate guard. Without `pattern` nothing below changes.
     if (pattern) return await _buildPatternPaper({ job, user, paperId });
 
+    const own = curriculum ? { curriculum } : {};
     const source = chapterNumber != null
-      ? await BookContent.loadChapterContent({ grade, subject, chapterNumber })
-      : await BookContent.loadPageRangeContent({ grade, subject, pageRanges });
+      ? await BookContent.loadChapterContent({ grade, subject, chapterNumber, ...own })
+      : await BookContent.loadPageRangeContent({ grade, subject, pageRanges, ...own });
 
     // A topic paper carries its ticked topics in its own tree, so an edit can
     // rebuild the key's summary (scope is not stored on the request).

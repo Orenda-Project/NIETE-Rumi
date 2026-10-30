@@ -2679,7 +2679,7 @@ const CoachingBreakdown = require('../services/coaching-breakdown.service');
  */
 router.get('/curriculum/grades', requirePortalAuth, async (req, res) => {
   try {
-    const grades = await LpCatalogue.listGrades();
+    const grades = await LpCatalogue.listGrades(req.session.portalUserId);
     res.json({ success: true, grades });
   } catch (error) {
     console.error('❌ Portal curriculum/grades failed', { error: error?.message });
@@ -2697,7 +2697,7 @@ router.get('/curriculum/subjects', requirePortalAuth, async (req, res) => {
     if (!Number.isFinite(grade)) {
       return res.status(400).json({ success: false, error: 'grade required' });
     }
-    const subjects = await LpCatalogue.listSubjects(grade);
+    const subjects = await LpCatalogue.listSubjects(grade, req.session.portalUserId);
     res.json({ success: true, subjects });
   } catch (error) {
     console.error('❌ Portal curriculum/subjects failed', { error: error?.message });
@@ -2719,7 +2719,7 @@ router.get('/curriculum/chapters', requirePortalAuth, async (req, res) => {
     if (!Number.isFinite(grade) || !subjectKey) {
       return res.status(400).json({ success: false, error: 'grade + subject required' });
     }
-    const chapters = await LpCatalogue.listChapters(grade, subjectKey);
+    const chapters = await LpCatalogue.listChapters(grade, subjectKey, req.session.portalUserId);
     res.json({ success: true, chapters });
   } catch (error) {
     console.error('❌ Portal curriculum/chapters failed', { error: error?.message });
@@ -2863,7 +2863,7 @@ const isOpenHint = (v) => v === '1' || v === 'true';
 /** GET /api/portal/lp612/grades → { success, grades: [{ grade }] } */
 router.get('/lp612/grades', requirePortalAuth, async (req, res) => {
   try {
-    res.json({ success: true, grades: await Lp612.listGrades() });
+    res.json({ success: true, grades: await Lp612.listGrades(req.session.portalUserId) });
   } catch (error) {
     console.error('❌ Portal lp612/grades failed', { error: error?.message });
     res.status(502).json({ success: false, error: 'Could not load grades' });
@@ -2877,7 +2877,7 @@ router.get('/lp612/subjects', requirePortalAuth, async (req, res) => {
     if (!Number.isFinite(grade)) {
       return res.status(400).json({ success: false, error: 'grade required' });
     }
-    res.json({ success: true, subjects: await Lp612.listSubjects(grade) });
+    res.json({ success: true, subjects: await Lp612.listSubjects(grade, req.session.portalUserId) });
   } catch (error) {
     console.error('❌ Portal lp612/subjects failed', { error: error?.message });
     res.status(502).json({ success: false, error: 'Could not load subjects' });
@@ -2892,7 +2892,7 @@ router.get('/lp612/chapters', requirePortalAuth, async (req, res) => {
     if (!Number.isFinite(grade) || !subject) {
       return res.status(400).json({ success: false, error: 'grade + subject required' });
     }
-    res.json({ success: true, chapters: await Lp612.listChapters(grade, subject) });
+    res.json({ success: true, chapters: await Lp612.listChapters(grade, subject, req.session.portalUserId) });
   } catch (error) {
     console.error('❌ Portal lp612/chapters failed', { error: error?.message });
     res.status(502).json({ success: false, error: 'Could not load chapters' });
@@ -3134,6 +3134,8 @@ router.get('/assessment/options', requirePortalAuth, async (req, res) => {
     const data = await Assessment.options({
       grade: Number.isFinite(grade) ? grade : null,
       subject,
+      // Her region's books (bd-97daxo.4): the session's teacher, never a request's.
+      userId: req.session.portalUserId,
     });
     res.json({ success: true, ...data });
   } catch (error) {
@@ -3152,7 +3154,7 @@ router.get('/assessment/chapters', requirePortalAuth, async (req, res) => {
     if (!Number.isFinite(grade) || !subject) {
       return res.status(400).json({ success: false, error: 'grade + subject required' });
     }
-    const chapters = await Assessment.listChapters(grade, subject);
+    const chapters = await Assessment.listChapters(grade, subject, req.session.portalUserId);
     res.json({ success: true, chapters });
   } catch (error) {
     assessmentFailure(res, error, 'Could not load chapters');
@@ -3172,7 +3174,7 @@ router.get('/assessment/topics', requirePortalAuth, async (req, res) => {
     if (!Number.isFinite(grade) || !subject || !Number.isFinite(chapterNumber)) {
       return res.status(400).json({ success: false, error: 'grade + subject + chapter required' });
     }
-    const topics = await Assessment.listTopics(grade, subject, chapterNumber);
+    const topics = await Assessment.listTopics(grade, subject, chapterNumber, req.session.portalUserId);
     res.json({ success: true, topics });
   } catch (error) {
     assessmentFailure(res, error, 'Could not load topics');

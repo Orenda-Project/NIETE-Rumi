@@ -72,21 +72,28 @@ async function ask(path, body) {
   return data;
 }
 
+
+/**
+ * `userId` (the SESSION's teacher, never a request's) lets the bot give her her region's books
+ * (bd-97daxo.5). Sent only when known, so a call without one is the body it always was.
+ */
+const who = (userId) => (userId ? { userId } : {});
+
 /** Grades with at least one servable 6-12 segment. */
-async function listGrades() {
-  const data = await ask('grades', {});
+async function listGrades(userId = null) {
+  const data = await ask('grades', { ...who(userId) });
   return data.grades || [];
 }
 
 /** Subjects within a grade, with lesson counts. */
-async function listSubjects(grade) {
-  const data = await ask('subjects', { grade });
+async function listSubjects(grade, userId = null) {
+  const data = await ask('subjects', { grade, ...who(userId) });
   return data.subjects || [];
 }
 
 /** Chapters within a grade+subject. Keyed by chapter_key — two books can share a number. */
-async function listChapters(grade, subject) {
-  const data = await ask('chapters', { grade, subject });
+async function listChapters(grade, subject, userId = null) {
+  const data = await ask('chapters', { grade, subject, ...who(userId) });
   return data.chapters || [];
 }
 

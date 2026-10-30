@@ -3,7 +3,7 @@
 /**
  * Load teacher topics (grouped from the G1-5 curriculum matrix) into `assessment_topics`.
  *
- *   node bot/scripts/import-assessment-topics.js <dir> --matrix-version <v> [--dry-run] [--allow-page-errors] [--review out.csv]
+ *   node bot/scripts/import-assessment-topics.js <dir> --matrix-version <v> [--curriculum <key>] [--dry-run] [--allow-page-errors] [--review out.csv]
  *
  * <dir> holds the matrix tabs exported as CSV: English.csv, Urdu.csv, Maths.csv, Science.csv (the bot has
  * no Sheets client). Tabs that are missing are skipped and named; reconcile() is scoped to the
@@ -17,6 +17,11 @@
  *  - with a DB client, every topic's pages are checked against its chapter's page range in `textbook_toc` before
  *    any write (page-check.js). A topic wholly outside its chapter stops a load unless --allow-page-errors;
  *    --dry-run only reports it. Spills and chapters with no range are logged, never blocking.
+ *
+ *  - --curriculum (default ict; V1.8.6, bd-97daxo.4) names whose book the matrix is for. Another curriculum's
+ *    topics are written with that tag, their ids prefixed `<key>_` so they never meet an ICT topic_id, their pages
+ *    checked against THAT curriculum's contents page, and reconcile only ever sees (and retires) rows of the same
+ *    curriculum — an nbf_snc load never retires an ICT topic, nor the reverse.
  *
  * The DB client is injectable (run(argv, {client})) so tests never touch a live database.
  */
@@ -32,7 +37,8 @@ const CHUNK = 250;
 const PAGE = 1000;
 const TABS = [['English', 'english'], ['Urdu', 'urdu'], ['Maths', 'maths'], ['Science', 'science']];
 const REVIEW_HEADER = ['grade', 'subject', 'chapter', 'heading', 'name', 'days', 'pages', 'slo_codes'];
-const USAGE = 'usage: import-assessment-topics.js <dir> --matrix-version <v> [--dry-run] [--allow-page-errors] [--review out.csv]';
+const USAGE = 'usage: import-assessment-topics.js <dir> --matrix-version <v> [--curriculum <key>] [--dry-run] [--allow-page-errors] [--review out.csv]';
+const ICT = 'ict';
 
 /** RFC 4180 CSV -> 2-D array of strings. Quoted cells may hold commas, "" and newlines. */
 function parseCsv(text) {
@@ -74,12 +80,21 @@ function parseArgs(argv) {
     const i = argv.indexOf(flag);
     return i >= 0 ? argv[i + 1] : undefined;
   };
-  const flagValues = new Set([valueOf('--matrix-version'), valueOf('--review')]);
+  const flagValues = new Set([valueOf('--matrix-version'), valueOf('--review'), valueOf('--curriculum')]);
   const dir = argv.find((a) => !a.startsWith('--') && !flagValues.has(a));
   if (!dir) throw new Error(USAGE);
   const matrixVersion = valueOf('--matrix-version');
   if (!matrixVersion || matrixVersion.startsWith('--')) throw new Error(`--matrix-version is required\n${USAGE}`);
-  return { dir, matrixVersion, dryRun: argv.includes('--dry-run'), allowPageErrors: argv.includes('--allow-page-errors'), review: valueOf('--review') };
+  const curriculum = String(valueOf('--curriculum') || ICT).trim().toLowerCase();
+  if (!/^[a-z][a-z0-9_]*$/.test(curriculum)) throw new Error(`--curriculum must be a curriculum key like ict or nbf_snc\n${USAGE}`);
+  return { dir, matrixVersion, curriculum, dryRun: argv.includes('--dry-run'), allowPageErrors: argv.includes('--allow-page-errors'), review: valueOf('--review') };
+}
+
+/** A non-ICT curriculum's topic ids carry its key, so they never collide with ICT's on the topic_id key. */
+function tagIds(topics, curriculum) {
+  if (curriculum === ICT) return topics;
+  const prefix = `${curriculum}_`;
+  return topics.map((t) => (String(t.topicId).startsWith(prefix) ? t : { ...t, topicId: `${prefix}${t.topicId}` }));
 }
 
 function loadTopics(dir, log) {
@@ -102,24 +117,27 @@ function resolveClient(given, env, dryRun) {
   throw new Error('a load needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or use --dry-run)');
 }
 
-async function readExisting(client, subjects, pageSize) {
+async function readExisting(client, subjects, pageSize, curriculum = ICT) {
   if (!client) return [];
+  // Only this curriculum's rows reach reconcile, so a load retires nothing of another's. Filtered here
+  // rather than in the query so an ICT read is the query it always was (a row with no tag is ICT's).
+  const ours = (r) => (r.curriculum || ICT) === curriculum;
   const rows = [];
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await client.from(TABLE).select('*').in('subject', subjects)
       .order('topic_id').range(from, from + pageSize - 1); // stable pages: unordered range() can skip/repeat rows
     if (error) throw new Error(`read failed: ${error.message}`);
     rows.push(...data);
-    if (data.length < pageSize) return rows.map(fromRow);
+    if (data.length < pageSize) return rows.filter(ours).map(fromRow);
   }
 }
 
-/** textbook_toc rows (ict) for the imported subjects: each chapter's page_start..page_end. */
-async function readToc(client, subjects, pageSize) {
+/** textbook_toc rows (this curriculum's) for the imported subjects: each chapter's page_start..page_end. */
+async function readToc(client, subjects, pageSize, curriculum = ICT) {
   const rows = [];
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await client.from('textbook_toc').select('grade,subject,chapter_number,page_start,page_end')
-      .eq('curriculum', 'ict').in('subject', subjects).order('id').range(from, from + pageSize - 1);
+      .eq('curriculum', curriculum).in('subject', subjects).order('id').range(from, from + pageSize - 1);
     if (error) throw new Error(`textbook_toc read failed: ${error.message}`);
     rows.push(...data);
     if (data.length < pageSize) return rows;
@@ -130,12 +148,12 @@ const findingLine = (kind, f) =>
   `  ${kind}: ${f.topicId} G${f.grade} ${f.subject} ch${f.chapterNumber} pages [${f.pages}] book ${f.pageStart}-${f.pageEnd} stray [${f.stray}]`;
 
 /** Check topic pages against the book; log findings; throw on `outside` unless dry-run or allowed. */
-async function pageCheck(db, subjects, topics, { dryRun, allowPageErrors, pageSize, log }) {
+async function pageCheck(db, subjects, topics, { dryRun, allowPageErrors, pageSize, log, curriculum = ICT }) {
   if (!db) {
     log('page check skipped: no DB client to read textbook_toc');
     return { outside: 0, spill: 0, noRange: 0 };
   }
-  const found = checkPages(topics, await readToc(db, subjects, pageSize), REPEATED_PRINTED_PAGES);
+  const found = checkPages(topics, await readToc(db, subjects, pageSize, curriculum), REPEATED_PRINTED_PAGES);
   found.outside.forEach((f) => log(findingLine('outside', f)));
   found.spill.forEach((f) => log(findingLine('spill', f)));
   if (found.noRange.length) log(`  no range: ${found.noRange.join(', ')}`);
@@ -146,8 +164,9 @@ async function pageCheck(db, subjects, topics, { dryRun, allowPageErrors, pageSi
   return { outside: found.outside.length, spill: found.spill.length, noRange: found.noRange.length };
 }
 
-async function write(client, upsert, retire, matrixVersion, now) {
-  const rows = upsert.map((t) => toRow(t, matrixVersion, now));
+async function write(client, upsert, retire, matrixVersion, now, curriculum = ICT) {
+  // An ICT row is written as it always was (the column's default is 'ict'); any other carries its tag.
+  const rows = upsert.map((t) => (curriculum === ICT ? toRow(t, matrixVersion, now) : { ...toRow(t, matrixVersion, now), curriculum }));
   for (let i = 0; i < rows.length; i += CHUNK) {
     const { error } = await client.from(TABLE).upsert(rows.slice(i, i + CHUNK), { onConflict: 'topic_id' });
     if (error) throw new Error(`upsert failed: ${error.message}`);
@@ -169,18 +188,20 @@ function countByPair(topics) {
 
 /** Testable entry point. Returns {counts, upsert, retire, pageCheck} (numbers). */
 async function run(argv, { client, log = console.log, env = process.env, now = new Date().toISOString(), pageSize = PAGE } = {}) {
-  const { dir, matrixVersion, dryRun, allowPageErrors, review } = parseArgs(argv);
-  const { subjects, topics } = loadTopics(dir, log);
+  const { dir, matrixVersion, curriculum, dryRun, allowPageErrors, review } = parseArgs(argv);
+  const loaded = loadTopics(dir, log);
+  const { subjects } = loaded;
+  const topics = tagIds(loaded.topics, curriculum);
   const db = resolveClient(client, env, dryRun);
-  const existing = await readExisting(db, subjects, pageSize);
-  const pages = await pageCheck(db, subjects, topics, { dryRun, allowPageErrors, pageSize, log });
+  const existing = await readExisting(db, subjects, pageSize, curriculum);
+  const pages = await pageCheck(db, subjects, topics, { dryRun, allowPageErrors, pageSize, log, curriculum });
   const diff = reconcile(existing, topics);
   const counts = countByPair(topics);
 
   if (review) fs.writeFileSync(review, toCsv([REVIEW_HEADER, ...topics.map(reviewRow)]));
-  if (!dryRun) await write(db, diff.upsert, diff.retire, matrixVersion, now);
+  if (!dryRun) await write(db, diff.upsert, diff.retire, matrixVersion, now, curriculum);
 
-  log(`\nassessment topic import ${dryRun ? '(DRY RUN) ' : ''}— matrix ${matrixVersion}${db ? '' : ' (no DB: existing treated as empty)'}`);
+  log(`\nassessment topic import ${dryRun ? '(DRY RUN) ' : ''}— matrix ${matrixVersion}${curriculum === ICT ? '' : ` — curriculum ${curriculum}`}${db ? '' : ' (no DB: existing treated as empty)'}`);
   for (const [key, n] of Object.entries(counts)) log(`  G${key}  ${n}`);
   log(`  topics     ${topics.length}`);
   log(`  ${dryRun ? 'would upsert' : 'upserted'}  ${diff.upsert.length}`);
