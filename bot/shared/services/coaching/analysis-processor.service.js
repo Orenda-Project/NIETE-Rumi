@@ -559,6 +559,13 @@ class AnalysisProcessorService {
         return;
       }
 
+      // bd-pw1ccr.11: her own recording of a topic's end books the topic-end nudge (the module skips observations).
+      try {
+        await require('../nudges/topic-end-recording').onRecording({ session });
+      } catch (nudgeErr) {
+        logToFile('topic nudge (recording) failed (non-blocking)', { coachingSessionId, error: nudgeErr.message }, 'warn');
+      }
+
       // Ported from the main bot — leader
       // observations NEVER auto-flow to the reflective conversation or the teacher
       // report. Instead: freeze v1 (autofill_analysis_data) and send the observer

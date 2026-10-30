@@ -1414,7 +1414,8 @@ router.post('/lp/describe', requireInternalKey, async (req, res) => {
  * The portal calls it fire-and-forget, so a skip is a 200 with its reason, not an error.
  *
  * The same open also books the coaching ask ("record this lesson?") a WhatsApp-delivered K-5 plan
- * books (lp-coaching-ask.service onAppOpen); its decision is returned as `coachingAsk`.
+ * books (lp-coaching-ask.service onAppOpen); its decision is returned as `coachingAsk`. It also books the
+ * topic-end nudge (topic-end-nudge.service onAppOpen), returned as `topicNudge`.
  */
 router.post('/lp/open-survey', requireInternalKey, async (req, res) => {
   const openId = String((req.body || {}).openId || '').trim();
@@ -1427,7 +1428,14 @@ router.post('/lp/open-survey', requireInternalKey, async (req, res) => {
   // its own once-a-day row). Never throws; its answer rides along for the logs.
   const LpCoachingAsk = require('../services/nudges/lp-coaching-ask.service');
   const coachingAsk = await LpCoachingAsk.onAppOpen({ openId });
-  return res.json({ success: true, ...result, coachingAsk });
+  // The same open books the topic-end nudge (bd-pw1ccr.4) if the plan ends a topic.
+  let topicNudge;
+  try {
+    topicNudge = await require('../services/nudges/topic-end-nudge.service').onAppOpen({ openId });
+  } catch (_) {
+    topicNudge = { scheduled: false, reason: 'guard_unavailable' };
+  }
+  return res.json({ success: true, ...result, coachingAsk, topicNudge });
 });
 
 // ─── assessment generator ───────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readLink, reportPicks } from './linkPicks';
+import { readLink, readTopicLink, reportPicks, topicPicks } from './linkPicks';
 import { newPicks, toSpec } from './model';
 import type { Catalogue } from './api';
 
@@ -51,5 +51,36 @@ describe('toSpec carries the tag', () => {
   });
   it('a new paper starts untagged', () => {
     expect(newPicks(15).origin).toBeNull();
+  });
+});
+
+/** bd-pw1ccr.4.3 — the topic-end nudge's link: ?by=topics with grade, subject and chapter, untagged, lands on Topics. */
+describe('readTopicLink', () => {
+  it('reads the pre-fill of a topics link', () => {
+    expect(readTopicLink(q('by=topics&grade=3&subject=english&chapter=4'))).toEqual({ grade: 3, subject: 'english', chapter: 4 });
+  });
+  it('by=topics alone (the hub offer): no pre-fill', () => {
+    expect(readTopicLink(q('by=topics'))).toBeNull();
+  });
+  it('a pre-fill without by=topics is not a topics link', () => {
+    expect(readTopicLink(q('grade=3&subject=english&chapter=4'))).toBeNull();
+  });
+  it('the report link is not a topics link', () => {
+    expect(readTopicLink(q('origin=report&by=topics&grade=3&subject=english&chapter=4'))).toBeNull();
+  });
+  it.each(['grade=13&subject=english&chapter=4', 'grade=3&subject=English&chapter=4', 'grade=3&subject=english&chapter=100'])(
+    'a malformed pre-fill is dropped: %s', (s) => {
+      expect(readTopicLink(q(`by=topics&${s}`))).toBeNull();
+    });
+});
+
+describe('topicPicks', () => {
+  it('a fresh, untagged paper on that one chapter that opens Topics on Select topics', () => {
+    expect(topicPicks({ grade: 3, subject: 'english', chapter: 4 }, CAT, 15)).toEqual({
+      ...newPicks(15), grade: 3, subject: 'english', subjectName: 'English', coverBy: 'chapters', chapters: [4], byTopics: true,
+    });
+  });
+  it('a subject the catalogue does not offer for that grade: null', () => {
+    expect(topicPicks({ grade: 3, subject: 'science', chapter: 4 }, CAT, 15)).toBeNull();
   });
 });
