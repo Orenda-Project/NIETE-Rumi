@@ -8205,4 +8205,38 @@ DROP POLICY IF EXISTS service_role_coach_feedback ON coach_feedback;
 CREATE POLICY service_role_coach_feedback ON coach_feedback FOR ALL USING (auth.role() = 'service_role');
 GRANT ALL ON coach_feedback TO service_role;
 
+-- ─── coach_feedback (bot/database/migrations/coach_feedback.sql, bd-whlsm0) ──────────────────────────────────
+-- A coach's "Report an issue" from the portal's More page, written by POST /api/portal/coach/feedback for the session
+-- coach only. Owner: NIETE portal team; steward: Hataf Atif.
+CREATE TABLE IF NOT EXISTS coach_feedback (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind        text NOT NULL CHECK (kind IN ('broken', 'numbers', 'idea', 'other')),
+  message     text NOT NULL CHECK (char_length(btrim(message)) BETWEEN 1 AND 2000),
+  page        text CHECK (page IS NULL OR (page LIKE '/portal/%' AND char_length(page) <= 200)),
+  status      text NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'seen', 'done')),
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS coach_feedback_created_at_idx ON coach_feedback (created_at DESC);
+CREATE INDEX IF NOT EXISTS coach_feedback_user_id_idx ON coach_feedback (user_id);
+
+COMMENT ON TABLE coach_feedback IS
+  'A coach''s report from the portal (More → Report an issue), bd-whlsm0. Owner: NIETE portal team; steward: Hataf Atif. Written only by the server for the session coach.';
+COMMENT ON COLUMN coach_feedback.id IS '[Internal] the report';
+COMMENT ON COLUMN coach_feedback.user_id IS '[Confidential] the coach who sent it (users.id)';
+COMMENT ON COLUMN coach_feedback.kind IS '[Internal] broken = something is not working; numbers = numbers look wrong; idea; other';
+COMMENT ON COLUMN coach_feedback.message IS '[Confidential] what she wrote, trimmed, 1-2000 characters; free text that may name people; never logged';
+COMMENT ON COLUMN coach_feedback.page IS '[Internal] the portal address she sent it from, when known';
+COMMENT ON COLUMN coach_feedback.status IS '[Internal] the review: new, seen or done';
+COMMENT ON COLUMN coach_feedback.created_at IS '[Internal] when she sent it (UTC)';
+COMMENT ON COLUMN coach_feedback.updated_at IS '[Internal] row last changed (UTC); set by trigger';
+DROP TRIGGER IF EXISTS coach_feedback_updated_at ON coach_feedback;
+CREATE TRIGGER coach_feedback_updated_at BEFORE UPDATE ON coach_feedback FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+ALTER TABLE coach_feedback ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS service_role_coach_feedback ON coach_feedback;
+CREATE POLICY service_role_coach_feedback ON coach_feedback FOR ALL USING (auth.role() = 'service_role');
+GRANT ALL ON coach_feedback TO service_role;
+
 NOTIFY pgrst, 'reload schema';
