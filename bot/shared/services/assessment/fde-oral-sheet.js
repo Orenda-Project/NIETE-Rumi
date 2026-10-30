@@ -17,11 +17,13 @@
  * Pure: `ctx.text` (the renderer's textOf) does all escaping and script handling.
  */
 
+const { LISTEN_LABEL, scriptLabel } = require('./fde-render-v37'); // v37 G1 English key: a listening story box is not «Read aloud»
+
 const GRID_ROWS = 12;
 
 const COPY = {
-  en: { script: 'Read aloud', items: 'Ask', answer: 'Answer', each: 'marks each', eachOne: 'mark each', circle: 'Circle one', score: 'Score', child: 'Child', total: 'Total', grid: 'Class record: oral marks' },
-  ur: { script: 'پڑھ کر سنائیں', items: 'پوچھیں', answer: 'جواب', each: 'نمبر فی جواب', circle: 'ایک پر دائرہ لگائیں', score: 'نمبر', child: 'بچے کا نام', total: 'کل', grid: 'جماعت کا ریکارڈ: زبانی نمبر' },
+  en: { script: 'Read aloud', items: 'Ask', answer: 'Answer', each: 'marks each', eachOne: 'mark each', circle: 'Circle one', score: 'Score', child: 'Child', total: 'Total', grid: 'Class record: oral marks', card: 'The child reads from the reading card printed after this sheet, never from this page.' },
+  ur: { script: 'پڑھ کر سنائیں', items: 'پوچھیں', answer: 'جواب', each: 'نمبر فی جواب', circle: 'ایک پر دائرہ لگائیں', score: 'نمبر', child: 'بچے کا نام', total: 'کل', grid: 'جماعت کا ریکارڈ: زبانی نمبر', card: 'بچہ اس صفحے سے نہیں بلکہ اس شیٹ کے بعد چھپے ریڈنگ کارڈ سے پڑھے۔' },
 };
 
 function contentFor(oral, task) {
@@ -29,6 +31,18 @@ function contentFor(oral, task) {
   const hasItems = c && Array.isArray(c.items) && c.items.length;
   if (!c || (!c.script && !hasItems)) throw new Error(`oral task ${task.id}: nothing was generated for it`);
   return c;
+}
+
+// A read-aloud script prints each line once: v26 G2 Urdu padded its dialogue to six turns by repeating line 4 as line 6 (bd-5jmnfj.4.58.2).
+function onceEach(script) {
+  const seen = new Set();
+  return script.split('\n').filter((line) => {
+    const k = line.replace(/\s+/g, ' ').trim();
+    if (!k) return true;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  }).join('\n');
 }
 
 function rubricBlock(task, lang, t, w) {
@@ -47,7 +61,8 @@ function taskBlock(oral, task, lang, t, w) {
   const c = contentFor(oral, task);
   const parts = [`<div class="oral-head"><span class="lab">${t(task[`label_${lang}`])}</span> <span class="m">${t(`(${task.marks})`)}</span></div>`];
   if (task[`instruction_${lang}`]) parts.push(`<div class="oral-ins">${t(task[`instruction_${lang}`])}</div>`);
-  if (c.script) parts.push(`<div class="oral-script"><div class="k">${t(w.script)}</div>${t(c.script)}</div>`);
+  if (task.kind === 'read_aloud') parts.push(`<div class="oral-reads-from">${t(w.card)}</div>`);
+  if (c.script) parts.push(`<div class="oral-script"><div class="k">${t(task.kind === 'listening' ? scriptLabel(task, lang, c) : w.script)}</div>${t(task.kind === 'read_aloud' ? onceEach(c.script) : c.script)}</div>`);
   // A read-aloud script with bare, answerless words under it (v25 G2 Urdu dialogue) is no list to ask.
   const bare = task.kind === 'read_aloud' && c.script && Array.isArray(c.items) && c.items.every((it) => !String(it.answer || '').trim());
   if (Array.isArray(c.items) && c.items.length && !bare) {
@@ -75,8 +90,33 @@ function oralSheet(oral, ctx) {
     + `<div class="oral-note">${t(oral[`note_${lang}`])}</div>${tasks}${gridBlock(oral, lang, t, w)}</section>`;
 }
 
+/**
+ * The child's reading card (bd-5jmnfj.4.58.3): the read-aloud tasks' words or script alone, large, on a page of
+ * their own, so the child reads from a card and never from the teacher's sheet with its answers (v27 G1/G2 Urdu).
+ * '' when the paper has no oral part or no read-aloud task.
+ */
+function childCard(oral, ctx) {
+  if (!oral) return '';
+  const tasks = (oral.tasks || []).filter((task) => task && task.kind === 'read_aloud');
+  if (!tasks.length) return '';
+  const lang = ctx.medium === 'ur' ? 'ur' : 'en';
+  const t = ctx.text;
+  const blocks = tasks.map((task) => {
+    const c = (oral.content || []).find((x) => x && x.id === task.id) || {};
+    const body = c.script ? `<div class="card-script">${t(onceEach(c.script))}</div>`
+      : `<div class="card-words">${(c.items || []).filter((it) => it && it.ask).map((it) => `<span>${t(it.ask)}</span>`).join('')}</div>`;
+    return `<div class="card-task" data-task="${task.id}"><div class="card-head">${t(task[`label_${lang}`])}</div>${body}</div>`;
+  });
+  return `<section class="oral-card">${blocks.join('')}</section>`;
+}
+
 const ORAL_CSS = `
   section.oral { break-before: page; }
+  section.oral-card { break-before: page; font-size: 22pt; line-height: 1.9; text-align: center; }
+  .card-task { margin-bottom: 10mm; }
+  .card-head { font-weight: 700; font-size: 0.75em; margin: 6px 0 10px; }
+  .card-words span { display: inline-block; margin: 4px 14px; }
+  .card-script { white-space: pre-line; text-align: start; }
   .oral-title { text-align: center; font-weight: 700; font-size: 1.15em; margin-bottom: 4px; }
   .oral-note { border: 1px solid #000; padding: 4px 8px; margin-bottom: 8px; }
   .oral-task { border-top: 1px solid #000; padding: 4px 0 6px; break-inside: avoid; }
@@ -94,4 +134,4 @@ const ORAL_CSS = `
   .oral-grid tr.child td { height: 7mm; }
 `;
 
-module.exports = { oralSheet, ORAL_CSS };
+module.exports = { oralSheet, childCard, ORAL_CSS };

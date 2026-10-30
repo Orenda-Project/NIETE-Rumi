@@ -26,6 +26,9 @@
  * stem (Make Sentences «چاند») as targets; a two-word target (دندان ساز) matched as a phrase; a written stem
  * naming a heard oral item's person beside its answer word ('oral-answer'); and fde-near-repeats' questions
  * that answer one another in different words.
+ *
+ * v27 (bd-5jmnfj.4.58.2): near-repeats also compares two written answers and an MCQ key with a mark point; a
+ * situation part that states what an earlier part asks (fde-situation-check).
  */
 
 const WORD = /[\p{L}\p{M}]+/gu;
@@ -34,6 +37,9 @@ const FUNCTION_WORDS = new Set(('are was were has have had she they you his her 
   + 'the and but with from for into over under near behind above below اور ہیں تھا تھی تھے کا کی کے نے کو سے ہے پر یہ وہ تو').split(' '));
 const ARABIC = /[\u0600-\u06FF]/; // an Urdu key of two letters («سچ») is a word; an English one ("is") is not
 const { nearRepeats } = require('./fde-near-repeats');
+const { situationGiveaways } = require('./fde-situation-check');
+const { oralSentenceRepeats } = require('./fde-oral-sentence-repeats'); // bd-5jmnfj.4.58.4
+const { paperGiveaways } = require('./fde-g5-paper-giveaways'); // MCQ/concept/fraction give-aways (bd-5jmnfj.4.58.4)
 const wordsOf = (s) => String(s == null ? '' : s).normalize('NFC').toLowerCase().match(WORD) || [];
 const optionsOf = (q) => (Array.isArray(q.options) ? q.options : []);
 // "الف) گاجر" -> "گاجر", as fde-early-prompt reads a choice.
@@ -182,6 +188,14 @@ function answerRepeats(examJson) {
       if (j > i) flag(o.slot, w, q.slot, excerpt(q), seen); else flag(q.slot, w, o.slot, excerpt(o), seen);
     });
   }));
+  // v27 G1/G2 Urdu (bd-5jmnfj.4.58.3): a word the child reads aloud from the card and then meets printed in a stem, an
+  // option or a key is read twice. Every read-aloud word is checked against each item's print and key, not only the keys.
+  const readAloud = [...new Set(sheet.filter((x) => x.readAloud).flatMap(({ c }) => (c.items || []).flatMap((it) => wordsOf(it && it.ask)))
+    .filter((w) => [...w].length >= 3 && !FUNCTION_WORDS.has(w) && !GENERIC.has(w)))];
+  readAloud.forEach((w) => list.forEach((q, j) => {
+    const inPrint = printed[j].has(w, true) || (ARABIC.test(w) && urduPrinted[j].has(urduStem(w)));
+    if (inPrint || (keys[j] && stem(keys[j]) === stem(w))) flag(q.slot, w, 'oral', 'the oral sheet', false);
+  }));
   // A written item asking a heard oral item's question, keyed with that item's answer, is the same question twice.
   sheet.filter((x) => x.heard).forEach(({ c }) => (c.items || []).forEach((it) => {
     const ask = wordsOf(it && it.ask).filter((w) => [...w].length >= 3 && !FUNCTION_WORDS.has(w));
@@ -229,7 +243,7 @@ function answerRepeats(examJson) {
       answer.filter((w) => st.has(w)).forEach((w) => flag(q.slot, w, 'oral-answer', excerpt({ question: ask }), false));
     });
   }));
-  nearRepeats(examJson).forEach((f) => f.with.forEach((s, k) => f.words.forEach((w) => flag(f.slot, w, s, f.text[k]))));
+  situationGiveaways(examJson).concat(nearRepeats(examJson), oralSentenceRepeats(examJson), paperGiveaways(examJson)).forEach((f) => f.with.forEach((s, k) => f.words.forEach((w) => flag(f.slot, w, s, f.text[k]))));
   return [...out.values()];
 }
 

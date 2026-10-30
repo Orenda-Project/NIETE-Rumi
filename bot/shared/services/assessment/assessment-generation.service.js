@@ -750,6 +750,7 @@ const Patterns = require('./patterns');
 const { applyLayout, takenNote, firstAskNote, verseLines, scopeLessons, oneStory, STORY_ITEMS } = require('./fde-layout');
 const { normaliseScheme } = require('./marking-scheme');
 const { answerRepeats, giveawayNote, stillGivenAway } = require('./fde-answer-repeats');
+const { paragraphLength, lengthNote } = require('./fde-sentence-count'); // bd-5jmnfj.4.58.2
 const { mathsCheck } = require('./maths-check');
 const { keyFixes } = require('./fde-g5-key-fixes');
 const { checkBlueprint, missesSplit, levelDistance, levelNote } = require('./blueprint-check');
@@ -757,6 +758,19 @@ const Reader = require('./fde-reader');
 const StemCheck = require('./fde-stem-check');
 const { writeEarlyPaper } = require('./fde-early-writer');
 const { noArrows } = require('./fde-no-arrows');
+const { placeholderShortfall, placeholderNote } = require('./fde-placeholder-check'); // bd-5jmnfj.4.58.3
+const { glyphShortfall, glyphNote } = require('./fde-glyph-check'); // bd-5jmnfj.4.58.7.7
+const { punctuateShortfall, punctuateNote } = require('./fde-punctuate-check'); // bd-5jmnfj.4.58.4
+const { schemeShortfall, schemeNote } = require('./fde-scheme-checks'); // bd-5jmnfj.4.58.7
+const { repeatedPoints, repeatedPointsNote } = require('./fde-science-key-points'); // G5 Science: one idea paid as several marks (v37 round 8)
+const { scienceGiverFlags } = require('./fde-science-giveaway-drop'); // G5 Science: a give-away item never ships (v37 round 8)
+const { settleScienceGivers } = require('./fde-science-mcq-reask'); // a kept Section A giver is re-asked alone (v37r4)
+const { mendG5Urdu, g5UrduShortfall, g5UrduNote } = require('./fde-g5-urdu-mends'); // round 6 G5 Urdu (bd-5jmnfj.4.58.9.1)
+const { mendUrduQ10 } = require('./fde-urdu-g5-checks'); const { mendPictureNames } = require('./fde-urdu-r3-checks'); const { mendUrduOpposites } = require('./fde-urdu-r4'); const { wholeMarks } = require('./fde-whole-marks'); // round 6 Urdu
+const { ONE_FIT_RULE, alternativeShortfall, acceptAlternatives } = require('./fde-accept-alternatives'); // two right answers, one keyed (bd-5jmnfj.4.58.9.1)
+const { mendPlaceDigits } = require('./fde-place-digit'); // a key naming the wrong place digit (v37 G5 Maths Q2 i)
+const { correctMisreads } = require('./fde-urdu-nonword'); // a stored-text misread in Urdu book text (bd-5jmnfj.4.58.9.3)
+const { urduPunctFixes } = require('./fde-urdu-punct'); // bd-5jmnfj.4.58.3
 
 // Required on first use: the loader opens a database client, and the prompt
 // helpers above are loaded by tests and tools that have no database.
@@ -1167,7 +1181,7 @@ const HELD_TERMS_URDU_AUTHORED = Object.freeze([
   { term: 'روزہ رکھ', pattern: `روز[ہے] ?رکھ${URDU_EXHORT}`, open: true },
   // «فرض» is also "duty" («اپنا فرض سمجھا»): only the obligation predicate is held.
   { term: 'فرض', pattern: '(?:نماز|روز[ہے])[^۔.!?؟]{0,40}?(?:پر (?:فرض|لازم)|(?:فرض|لازم) ہ(?:ے|یں))' },
-].map(({ term, pattern, open }) => Object.freeze({
+].concat(require('./fde-religious-terms').SUPPLICATION_HELD).map(({ term, pattern, open }) => Object.freeze({
   term, re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${pattern})${open ? '' : '(?![\\p{L}\\p{N}])'}`, 'u'),
 })));
 
@@ -1395,7 +1409,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   }
   // A section with a picture-description frame (G5 Urdu Q7, English Q10) gets a drawn scene (v24 review).
   const framePicture = list.some((s) => s.frame && s.frame.kind === 'picture');
-  rules.push(framePicture ? RULE.framePictures : RULE.noPictures, RULE.marks, RULE.blooms, RULE.scheme, RULE.accept);
+  rules.push(framePicture ? RULE.framePictures : RULE.noPictures, RULE.marks, RULE.blooms, RULE.scheme, RULE.accept, ONE_FIT_RULE);
   if (fde && key === 'maths' && list.some((s) => (Array.isArray(s.families) && s.families.length) || (Array.isArray(s.kinds) && s.kinds.length))) {
     rules.push(RULE.families);
   }
@@ -2044,8 +2058,9 @@ async function religiousFilter(examJson, P, { grade, subject, allowedText = '', 
 /** Where a pattern paper's pages come from: the pattern's syllabus, the job's pages, or a chapter. */
 async function _loadPatternContent({ grade, subject, P, scope, pageRanges, chapterNumber }) {
   const pages = scope && scope.kind === 'fde' ? P.scope.page_ranges : (pageRanges || (scope && scope.pages) || null);
-  if (pages) return BookContent().loadPageRangeContent({ grade, subject, pageRanges: pages });
-  if (chapterNumber != null) return BookContent().loadChapterContent({ grade, subject, chapterNumber });
+  // A known stored-text misread (دیکے for the printed دمکے) is mended before any writer reads it (bd-5jmnfj.4.58.9.3).
+  if (pages) return correctMisreads(await BookContent().loadPageRangeContent({ grade, subject, pageRanges: pages })).value;
+  if (chapterNumber != null) return correctMisreads(await BookContent().loadChapterContent({ grade, subject, chapterNumber })).value;
   throw fail('NO_CONTENT', 'No pages were given for this paper.');
 }
 
@@ -2542,7 +2557,7 @@ async function _stemCheck({ examJson, P, model, ownModel, job, usages, requestId
     return content && typeof content === 'object' ? content : extractJsonFromResponse(content || '');
   };
   try {
-    const out = await StemCheck.runStemCheck({ examJson, P, ask, refuses: (t) => refused.some((re) => re.test(t)) });
+    const out = await StemCheck.runStemCheck({ examJson, P, ask, refuses: (t) => refused.some((re) => re.test(t)), grade: (Patterns.get(pattern) || {}).grade });
     out.examJson._layout.stem_check = { flags: out.record };
     logToFile('[assessment] stem check', { requestId, pattern, flags: out.record });
     return out.examJson;
@@ -2703,7 +2718,16 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   const short = firstLaid.shortfall
     .concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall)
     .concat(_emptyQuestionParts(firstLaid.examJson))
-    .concat(answerRepeats(firstLaid.examJson)); // an answer printed in another question (bd-5jmnfj.4.51.3)
+    .concat(answerRepeats(firstLaid.examJson)) // an answer printed in another question (bd-5jmnfj.4.51.3)
+    .concat(paragraphLength(firstLaid.examJson)) // a paragraph model answer off its asked length (bd-5jmnfj.4.58.2)
+    .concat(punctuateShortfall(firstLaid.examJson)) // a Punctuation model answer that is not the printed words (v28 G5 English Q3, bd-5jmnfj.4.58.4)
+    .concat(key === 'science' ? scienceGiverFlags(firstLaid.examJson) : []) // a giver is asked again with the give-away note
+    .concat(key === 'science' ? repeatedPoints(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).examJson) : [])
+    .concat(schemeShortfall(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).examJson, P)) // an open answer without an accept line, a cut-off common_error (v34 G5, bd-5jmnfj.4.58.7)
+    .concat(placeholderShortfall(firstLaid.examJson)) // a stem or key left with a template hole (v27 G5 English Q2, bd-5jmnfj.4.58.3)
+    .concat(alternativeShortfall(firstLaid.examJson, P)) // a second listed choice that also fits (v35 round 6, bd-5jmnfj.4.58.9.1)
+    .concat(key === 'urdu' ? g5UrduShortfall(firstLaid.examJson) : []) // a «سب سے پہلے» stem keyed with two actions (v37r4 G5 Urdu Q2)
+    .concat(glyphShortfall(firstLaid.examJson)); // a U+FFFD or control character in a printed string (v35 G5 Urdu Q4, bd-5jmnfj.4.58.7.7)
   const shortSlots = new Set(short.map((f) => f.slot));
   // An item carrying text the paper refuses to print (a review mark the model copied) fails the
   // paper at render; its section is asked once more instead, and a second hit fails it here.
@@ -2738,7 +2762,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
       // re-ask (a part with no marking points, a review mark, a religious maxim) takes the second reply whole.
       const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShortSet.has(f.slot));
       // On a top-up the note also names what the slot keeps, and asks for spares.
-      const note = [takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held }), giveawayNote(shortfall)]
+      const note = [takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held }), giveawayNote(shortfall), lengthNote(shortfall), placeholderNote(shortfall), punctuateNote(shortfall), schemeNote(shortfall), repeatedPointsNote(shortfall), glyphNote(shortfall), g5UrduNote(shortfall)]
         .filter(Boolean).join('\n\n');
       const second = await writeOne(note
         ? { ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
@@ -2801,7 +2825,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     // A re-asked reply is checked again: a give-away still there is asked once more, naming the words.
     // Only when the first check found one: a paper with none is not laid out again for this.
     const lateLaid = short.some((f) => f.reason === 'giveaway') ? applyLayout(merged(), P, layoutScope, layOpts(true)) : null;
-    const late = lateLaid ? stillGivenAway(lateLaid.examJson) : [];
+    const late = lateLaid ? stillGivenAway(lateLaid.examJson).concat(key === 'science' ? scienceGiverFlags(lateLaid.examJson) : []) : [];
     const reaskGiveaways = async (flags, flagsLaid) => {
       const lateBuilt = built.filter(({ section }) => section.slots.some((s) => flags.some((f) => f.slot === s.slot)));
       for (const b of lateBuilt) {
@@ -2821,7 +2845,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     // A give-away a child can see, still there after that, is asked exactly once more. A repeat never costs the
     // teacher a paper: one still there after this ships and is logged below (bd-5jmnfj.4.55).
     const lastLaid = late.length ? await reaskGiveaways(late, lateLaid) : null;
-    if (lastLaid) await reaskGiveaways(stillGivenAway(lastLaid.examJson).filter((f) => f.printed), lastLaid);
+    if (lastLaid) await reaskGiveaways(stillGivenAway(lastLaid.examJson).concat(key === 'science' ? scienceGiverFlags(lastLaid.examJson) : []).filter((f) => f.printed), lastLaid);
     const still = _reviewTextHits(results);
     if (still.size) {
       throw fail('REVIEW_TEXT', 'A question carries text that must never print.', { sections: [...still.keys()], examJson: merged(), model });
@@ -2899,16 +2923,41 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   if (emptyParts.length) {
     throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: emptyParts, examJson, model });
   }
+  // A template hole still printed after the re-ask fails the paper: no child reads "[Insert word]" (bd-5jmnfj.4.58.3).
+  const placeholders = placeholderShortfall(examJson).concat(punctuateShortfall(examJson), glyphShortfall(examJson));
+  if (placeholders.length) {
+    throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: placeholders, examJson, model });
+  }
   // The stem check (bd-5jmnfj.22): one read of the whole paper for a question that does not make sense.
   if (stemCheck && StemCheck.STEM_CHECK_SUBJECTS.includes(key)) {
     examJson = await _stemCheck({ examJson, P, model, ownModel, job, usages: extraUsages, requestId, pattern });
   }
   // An answer word still given away after the re-asks is logged, not failed: the teacher still gets a paper (bd-5jmnfj.4.55).
+  if (key === 'science') { // after the re-asks, a giver is taken off only where the slot keeps its count; never a failed paper (v37 round 8)
+    const bA = built.find((x) => x.section.slots.some((s) => s.slot === 'science.A.Q1a')); // a giver with no spare is re-asked alone
+    const askA = async (note) => { const r = await writeOne({ ...bA, messages: _sectionMessages({ system, user: `${bA.user}\n\n${note}`, pageContent: bA.pageContent, model }) }); stripImageKeys(r.tree); normaliseAnswers(r.tree); return r.tree; };
+    examJson = (await settleScienceGivers(examJson, { spares: ((firstLaid && firstLaid.held) || []).map((h) => h && h.q), ask: bA ? askA : null, log: (m, d) => logToFile(m, { requestId, pattern, ...d }) })).examJson;
+  }
   const giveaways = answerRepeats(examJson);
   if (giveaways.length) logToFile('[assessment] answers given away', { requestId, pattern, giveaways });
+  const lengths = paragraphLength(examJson);
+  if (lengths.length) logToFile('[assessment] paragraph length off', { requestId, pattern, lengths });
 
+  const alts = acceptAlternatives(examJson, P); examJson = alts.examJson; // a second true preposition goes to accept (bd-5jmnfj.4.58.9.1)
+  if (alts.notes.length) logToFile('[assessment] accept widened', { requestId, pattern, notes: alts.notes });
+  const digits = mendPlaceDigits(examJson); examJson = digits.examJson;
+  if (digits.notes.length || digits.wrong.length) logToFile('[assessment] place digit', { requestId, pattern, notes: digits.notes, wrong: digits.wrong });
+  const q10 = mendUrduQ10(examJson); examJson = q10.examJson; // G5 Urdu Q10: one gender, a real sender, the current year (round 6)
+  if (q10.notes.length) logToFile('[assessment] urdu Q10 mended', { requestId, pattern, notes: q10.notes });
+  const g5u = mendG5Urdu(examJson); examJson = g5u.examJson; // antonym alternatives, Q10 form lines, a title give-away point, a box key in its box (v37r4 G5 Urdu)
+  if (g5u.notes.length) logToFile('[assessment] G5 urdu mended', { requestId, pattern, notes: g5u.notes });
+  const pn = mendPictureNames(examJson); examJson = pn.examJson; // G1 Urdu Q10: لڑکی / لڑکا / بچہ, never a name no picture shows
+  if (pn.notes.length) logToFile('[assessment] urdu picture names mended', { requestId, pattern, notes: pn.notes });
+  const opp = mendUrduOpposites(examJson); examJson = opp.examJson; // G1 Urdu Q8: a keyed opposite takes its true synonym (round 4)
+  if (opp.notes.length) logToFile('[assessment] urdu opposites widened', { requestId, pattern, notes: opp.notes });
   const scheme = normaliseScheme(examJson);
-  examJson = noArrows(scheme.examJson); // bd-5jmnfj.4.50.1: no arrow in any text a child or teacher reads
+  scheme.examJson = wholeMarks(scheme.examJson);
+  examJson = noArrows(scheme.examJson); // a quarter mark a teacher cannot award becomes half marks (G5 Urdu Q4); bd-5jmnfj.4.50.1: no arrow in any text a child or teacher reads
   if (scheme.log.length) logToFile('[assessment] scheme normalised', { pattern, notes: scheme.log.slice(0, 50), count: scheme.log.length });
   if (scheme.shortfall.length) {
     throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: scheme.shortfall, examJson, model });
@@ -2922,6 +2971,12 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   const keyed = keyFixes(examJson); // bd-5jmnfj.4.57: paragraph length from the template, no lone-letter syllable split
   examJson = keyed.examJson;
   keyed.notes.forEach((note) => logToFile('[assessment] key fixed', note));
+  if (key === 'urdu') { // an Urdu option or key carrying a Latin full stop or question mark (v27, bd-5jmnfj.4.58.3)
+    const punct = urduPunctFixes(examJson);
+    const spelt = require('./fde-urdu-spelling').urduSpelling(punct.examJson); punct.notes.push(...spelt.notes); // bd-5jmnfj.4.58.4
+    examJson = spelt.examJson;
+    punct.notes.forEach((note) => logToFile('[assessment] urdu punctuation fixed', note));
+  }
 
   // Urdu Q6's verses given from a lesson outside the chosen ones: the paper says where they come from.
   const versesPrinted = Object.values(examJson.unseen || {}).flatMap((t) => Object.values(t || {})).flat()
@@ -2985,6 +3040,7 @@ module.exports = {
   _versesReference,
   _dropProseVerses,
   religiousFilter,
+  _authoredReligiousOf,
   _blankWordsStems,
   _askReader,
   sstStemLevel,

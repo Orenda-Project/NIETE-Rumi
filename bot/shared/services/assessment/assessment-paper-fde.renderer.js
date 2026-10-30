@@ -29,15 +29,24 @@ const fs = require('fs');
 const path = require('path');
 const { clampLanguage } = require('../../config/ux-strings');
 const Patterns = require('./patterns');
+const WorkSpace = require('./fde-work-space');
 const { pictureBlock, bubbleBlock, PICTURE_CSS } = require('./fde-picture-block');
+const Fit = require('./fde-slot-fit');
 const { matchOrder, bankOrder, matchTable, matchAnswer, MATCH_CSS } = require('./fde-match-block');
-const { oralSheet, ORAL_CSS } = require('./fde-oral-sheet');
+const { oralSheet, childCard, ORAL_CSS } = require('./fde-oral-sheet');
+const { prepLines } = require('./fde-oral-prep');
 const { answeredParts } = require('./fde-sub-answers');
 const { letterOrder } = require('./fde-order-block');
 const { urduNote } = require('./fde-urdu-notes');
+const PickKey = require('./fde-pick-key');
+const { ORDER_TASK } = require('./fde-order-check'); // bd-5jmnfj.4.58.2
+const { taskLine } = require('./fde-task-line');
+const { adjustCriteria, keyStemHidden } = require('./fde-g5-criteria'); // bd-5jmnfj.4.58.4
+const { equalPartsLine } = require('./fde-marks-line');
 const { frameBank } = require('./fde-frame-bank');
 const { acceptText } = require('./fde-accept-line');
 const Cover = require('./fde-scheme-cover');
+const V37 = require('./fde-render-v37'); // round 6 layout: marks, alphabet strip, ruled lines, passage reprint
 
 // ── fonts ──────────────────────────────────────────────────────────────────
 
@@ -291,7 +300,7 @@ function choiceLine(slot, present, lang, items) {
   if (instruction && /\{q\}/.test(raw) && Array.isArray(items) && items.length === 1) {
     instruction = instruction.replace('{q}', String(items[0].question || '').trim());
   }
-  const marksLine = substitute(slot[`marks_line_${lang}`], ctx, lang);
+  const marksLine = substitute(equalPartsLine(slot[`marks_line_${lang}`], slot, items), ctx, lang); // bd-5jmnfj.4.58.2
   const text = [instruction, marksLine].filter(Boolean).join(' ');
   return { instruction, marksLine, text };
 }
@@ -412,7 +421,8 @@ function optionLabel(style, i) {
 function bareOption(text) {
   return String(text ?? '')
     .replace(/^\s*\(?[a-dA-D]\)?[.):]\s+/, '')
-    .replace(/^\s*\(?(الف|ب|ج|د)\)?\s*[.):۔]\s*/, '')
+    // One delimiter only: «الف) ۔ (ختمہ)» is the label «الف)» then the mark «۔» (bd-5jmnfj.4.58.2).
+    .replace(/^\s*\(?(الف|ب|ج|د)\s*(?:\)|[.:۔])\s*/, '')
     .trim();
 }
 
@@ -435,8 +445,14 @@ function tableBlock(table, ctx) {
 }
 
 function workSpace(q, slot) {
+  // A tool drawing (protractor, compass) or an item with a method mark needs room the slot's two ruled lines
+  // do not give (G5 Maths Q1 (b), bd-5jmnfj.4.58.9.1).
+  const boxed = !slotFlag(slot, 'answer_box');
+  const need = boxed ? WorkSpace.workMm(q) : null;
+  if (need && WorkSpace.asksToolDrawing(q)) return `<div class="work-square" style="height:${Math.max(need, (slot.work_mm && /^\s*draw\b/i.test(String(q.question || ''))) ? Math.max(45, slot.work_mm) : 0)}mm"></div>`;
   if (slot.work_mm && /^\s*draw\b/i.test(String(q.question || ''))) {
-    return `<div class="work-square" style="width:${slot.work_mm}mm;height:${slot.work_mm}mm"></div>`;
+    // A drawing item gets a full-width drawing space, never a small square (G5 Maths Q1 (b) x, bd-5jmnfj.4.58.4).
+    return `<div class="work-square" style="height:${Math.max(45, slot.work_mm)}mm"></div>`;
   }
   // A Grade 1-2 child writes in a box under every written item (bd-5jmnfj.4.8); circling needs none.
   if (slotFlag(slot, 'answer_box')) {
@@ -446,15 +462,18 @@ function workSpace(q, slot) {
     // A plant to label carries its own blank lines (bd-5jmnfj.4.33).
     if (q.picture && q.picture.kind === 'plant') return '';
     // Fill in the blank: the child writes on the ___ (bd-5jmnfj.4.39).
-    if (/_{3,}/.test(String(q.question || ''))) return '';
-    // A sentence under a picture gets two lines (bd-5jmnfj.4.57).
-    const lines = slotFlag(slot, 'sentence_box') ? 2 : (slot.lines || 1);
+    // A picture-only item prints no stem, so its blank is not on the page: it keeps its box (G1 English Q12).
+    if (/_{3,}/.test(String(q.question || '')) && !slotFlag(slot, 'picture_only')) return '';
+    // A sentence under a picture gets three lines (bd-5jmnfj.4.57, .4.58.2).
+    const lines = slotFlag(slot, 'sentence_box') ? 3 : (slot.lines || 1);
     return `<div class="write-box" style="height:${12 + 8 * Math.max(0, lines - 1)}mm"></div>`;
   }
   if ((slot.lines || 0) >= 2) {
-    const h = Math.max(16, slot.lines * 8);
+    const h = Math.max(16, slot.lines * 8, need || 0);
     return `<div class="work-box" style="height:${h}mm"></div>`;
   }
+  // A method mark with no ruled lines still gets a working box (bd-5jmnfj.4.58.9.1).
+  if (need) return `<div class="work-box" style="height:${need}mm"></div>`;
   return '';
 }
 
@@ -510,13 +529,19 @@ function frameBlock(q, slot, ctx, pic) {
   const title = String(slot.frame[`title_${lang}`] || '').replace('{q}', String(q.question || '').trim());
   const lines = Array.from({ length: slot.frame.lines || 0 }, (_, i) => `<div class="label-line"><span class="num-l">${textOf(String(i + 1), ctx)}.</span></div>`).join('');
   const id = `fde-frame-${slot.slot}`;
+  // A frame with no drawn picture names the teacher's duty in words, so an empty frame is never read
+  // as a missing diagram (v27 G5 Science Q1 b, bd-5jmnfj.4.58.3).
+  const book = slot.frame.book_page;
+  const duty = pic ? '' : `<div class="frame-duty">${textOf(lang === 'ur'
+    ? `استاد: ${slot.frame.duty_ur || 'تصویر'} یہاں بنائیں یا چسپاں کریں${book ? ` (کتاب ص ${book})` : ''}، فوٹو کاپی سے پہلے۔` // needs fluent-Urdu review
+    : `Teacher: draw or paste ${slot.frame.duty_en || 'the picture'} here${book ? ` (book p. ${book})` : ''} before photocopying.`, ctx)}</div>`;
   // A frame that prints no `words` still prints the item's own instruction and bank (bd-5jmnfj.4.50.4).
   const own = slot.frame.word_bank ? { line: '', words: q.words } : frameBank(q, slot[`instruction_${lang}`]);
   const lead = own.line ? `<div class="frame-ins">${textOf(own.line, ctx)}</div>` : '';
   const bank = wordList(own.words, ctx, true);
   return `${lead}${bank}<div class="frame" id="${esc(id)}" style="height:${slot.frame.height_mm}mm">`
     + `<a class="frame-anchor" href="#${esc(id)}"></a>`
-    + (pic || `<div class="frame-title">${textOf(title, ctx)}</div>`)
+    + (pic || `<div class="frame-title">${textOf(title, ctx)}</div>${duty}`)
     + (lines ? `<div class="label-lines">${lines}</div>` : '')
     + '</div>';
 }
@@ -534,15 +559,18 @@ function labelHtml(num, ctx) {
   return ctx.medium === 'ur' && typeof num === 'string' && /[A-Za-z]/.test(num) ? `<bdi class="ltr" dir="ltr">${esc(num)}</bdi>` : textOf(num, ctx);
 }
 
-function subQuestions(list, numbering, ctx, slotLike, space) {
+function subQuestions(list, numbering, ctx, slotLike, space, reprint) {
   if (!Array.isArray(list)) return '';
+  const again = reprint ? V37.reprintAt(list.length) : 0; // v37 G2 English Q1: the passage is in view for (h)-(j)
   return list.map((sub, i) => {
     const text = bareSub(typeof sub === 'string' ? sub : sub && sub.question);
     const num = itemNumber({ numbering }, i, ctx.medium) || `${String.fromCharCode(97 + i)})`;
     const opts = sub && Array.isArray(sub.options) && sub.options.length ? optionsBlock(sub, slotLike || {}, ctx) : '';
     // Its own writing space, sized by its own lines (bd-5jmnfj.4.51.8).
     const box = space && !opts ? `<div class="write-box" style="height:${12 + 8 * Math.max(0, ((sub && sub.lines) || 1) - 1)}mm"></div>` : '';
-    return `<div class="sub"><span class="n">${labelHtml(num, ctx)}</span> ${textOf(text, ctx)}${opts}</div>${box}`;
+    const subHtml = `<div class="sub"><span class="n">${labelHtml(num, ctx)}</span> ${textOf(text, ctx)}${opts}</div>`;
+    const one = box ? `<div class="subq">${subHtml}${box}</div>` : subHtml; // a question never parts from its box (G2 English Q1 h)
+    return again && i === again ? V37.passageAgain(reprint, ctx.medium) + one : one;
   }).join('');
 }
 
@@ -555,14 +583,16 @@ function comprehensionBlock(q, slot, ctx) {
     // FDE groups some sub-parts under one lettered header (Urdu p.57 «ب: …»); the
     // sub-parts under it then print their own line and marks, without the letter.
     const g = spec.group_head;
-    const groupHead = g ? `<div class="part-head"><span class="lab">${textOf(g.label, ctx)}</span> <span class="ins">${textOf(g[`instruction_${lang}`], ctx)}</span><span class="ml">${textOf(g[`marks_line_${lang}`], ctx)}</span></div>` : '';
+    const groupHead = g ? `<div class="part-head"><span class="lab">${textOf(g.label, ctx)}</span> <span class="ins">${textOf(g[`instruction_${lang}`], ctx)}</span><span class="ml">${textOf(V37.marksText(g[`marks_line_${lang}`]), ctx)}</span></div>` : '';
     const lab = g ? '' : `<span class="lab">${textOf(spec.label, ctx)}</span> `;
-    const head = `<div class="part-head">${lab}<span class="ins">${textOf(spec[`instruction_${lang}`], ctx)}</span><span class="ml">${textOf(spec[`marks_line_${lang}`], ctx)}</span></div>`;
+    const head = `<div class="part-head">${lab}<span class="ins">${textOf(spec[`instruction_${lang}`], ctx)}</span><span class="ml">${textOf(V37.marksText(spec[`marks_line_${lang}`]), ctx)}</span></div>`;
     let body = '';
-    if (spec.pick) {
+    if (spec.pick && ctx.onSheet) {
+      body = Object.entries(spec.pick).map(([kind, n]) => `<div class="pick-row"><span class="pick-k">${textOf(kind, ctx)}:</span> ${textOf(String(n), ctx)}</div>`).join(''); // labels and counts only; the child writes on the answer copy (G5 Urdu B and C)
+    } else if (spec.pick) {
       body = Object.entries(spec.pick).map(([kind, n]) => `<div class="pick-row"><span class="pick-k">${textOf(kind, ctx)}:</span>${Array.from({ length: n }, (_, i) => `<span class="blank">${textOf(String(i + 1), ctx)}</span>`).join('')}</div>`).join('');
     } else if (spec.key === 'antonyms') {
-      body = (part.antonyms || []).map((pair) => `<span class="ant">${textOf(Array.isArray(pair) ? pair[0] : pair, ctx)} <span class="blank"></span></span>`).join('');
+      body = (part.antonyms || []).map((pair) => `<span class="ant">${textOf(Array.isArray(pair) ? pair[0] : pair, ctx)} ${ctx.onSheet ? '' : '<span class="blank"></span>'}</span>`).join('');
       body = `<div class="ant-row">${body}</div>`;
     } else {
       body = subQuestions(part.questions, spec.numbering || 'urdu', ctx, slot);
@@ -580,13 +610,19 @@ function situationBlock(q, slot, i, ctx) {
   return head + lead + subQuestions(q.questions, 'alpha_paren', ctx).replace(/\((a|b|c)\)/g, '$1)');
 }
 
+// v37 G2 Urdu Q7-Q9: five sentences or turns asked, five numbered ruled lines given (not one unruled box).
+function ruledFor(q, slot, ctx) {
+  const n = slotFlag(slot, 'answer_box') && !(q.questions && q.questions.length) ? V37.lineCount(slot) : 0;
+  return n ? V37.ruledLines(n, (d) => textOf(d, ctx)) : '';
+}
+
 /** The body of one item (its number and stem are added by the caller where they apply). */
 function itemBody(q, slot, i, ctx, inlineQ) {
   const shape = slot.shape;
   // A Grade 1-2 picture (bd-5jmnfj.4.3) prints above the body, whatever its shape.
   const pic = pictureBlock(q);
   if (pic && slotFlag(slot, 'bubble')) return bubbleBlock(pic);
-  if (shape === 'mcq') return pic + optionsBlock(q, slot, ctx);
+  if (shape === 'mcq') return pic + tableBlock(q.table, ctx) + optionsBlock(q, slot, ctx); // a table the stem refers to prints (G5 Maths Q1 (a) xviii)
   if (shape === 'frame') return frameBlock(q, slot, ctx, pic);
   if (shape === 'comprehension') return pic + comprehensionBlock(q, slot, ctx);
   const parts = pic ? [pic] : [];
@@ -598,9 +634,10 @@ function itemBody(q, slot, i, ctx, inlineQ) {
   }
   if (printsWords(slot) && !slotFlag(slot, 'answer_box') && Array.isArray(q.words) && q.words.length) parts.push(wordList(q.words, ctx, ctx.medium !== 'ur'));
   // A written answer under each sub-question of an answer-box slot (G2 reading): one box each, none after the set.
-  const eachBox = ctx.answerLines !== false && slotFlag(slot, 'answer_box') && Array.isArray(q.questions) && q.questions.length > 0;
-  if (Array.isArray(q.questions) && q.questions.length) parts.push(subQuestions(q.questions, slot.sub_numbering || 'alpha_paren', ctx, undefined, eachBox));
-  if (ctx.answerLines !== false && !eachBox) parts.push(workSpace(q, slot));
+  const eachBox = ctx.answerLines !== false && slotFlag(slot, 'answer_box') && Array.isArray(q.questions) && q.questions.length > 0 && slot.type !== 'Story Order';
+  if (Array.isArray(q.questions) && q.questions.length) parts.push(subQuestions(q.questions, slot.sub_numbering || 'alpha_paren', ctx, undefined, eachBox, eachBox && q.passage ? textOf(q.passage, ctx) : ''));
+  if (ctx.answerLines !== false && slot.type === 'Story Order') parts.push('<div class="write-box" style="height:12mm"></div>'); // one line for the letters (bd-5jmnfj.4.58.2)
+  else if (ctx.answerLines !== false && !eachBox) parts.push(ruledFor(q, slot, ctx) || workSpace(q, slot));
   return parts.join('');
 }
 
@@ -618,12 +655,18 @@ function stemOf(q, slot, inlineQ) {
   if (slotFlag(slot, 'picture_only')) return '';
   if (slot.shape === 'frame' || slot.shape === 'comprehension') return '';
   if (slot.shape === 'words' && !q.question) return '';
-  return withoutOwnLabel(q.question || '', slot);
+  const task = taskLine(q, slot); // bd-5jmnfj.4.58.2
+  if (slot.type === 'Story Order') return `${q.question || ''} ${ORDER_TASK}`.trim();
+  return withoutOwnLabel(task ? `${task} ${q.question || ''}` : (q.question || ''), slot);
 }
 
 function slotBlock(slot, sec, list, ctx) {
+  // A section the teacher note sends to the answer copy prints no writing space on the paper.
+  if (sec.answer_on === 'answer_sheet') ctx = { ...ctx, answerLines: false, onSheet: true };
   const lang = ctx.medium;
   const live = list.filter((q) => q.removed !== true);
+  // A blank is as long as the longest box word (G1 Urdu Q5).
+  const blankLen = Math.max(0, ...live.flatMap((q) => (Array.isArray(q.words) ? q.words : []).map((w) => codePoints(String(w)))));
   const line = choiceLine(slot, live.length, lang, live);
   const inlineQ = /\{q\}/.test(slot[`instruction_${lang}`] || '') && live.length === 1;
   const instruction = line.instruction;
@@ -639,7 +682,10 @@ function slotBlock(slot, sec, list, ctx) {
     return `<div class="slot">${head}<div class="q" data-slot="${esc(slot.slot)}">${matchTable(stems, column)}</div></div>`;
   }
   const body = [];
-  const grid = slotFlag(slot, 'picture_only');
+  const strip = lang === 'ur' && slot.type === 'Alphabetical Order' ? V37.alphabetStrip() : ''; // v37 G2 Urdu Q2
+  const pair = !slotFlag(slot, 'sentence_box') && Fit.sceneGrid(live, { frame: slot.shape === 'frame', bubble: slotFlag(slot, 'bubble'), mcq: slot.shape === 'mcq' }); // v29 G1 Maths Q8
+  const grid = slotFlag(slot, 'picture_only') || pair;
+  const soloScene = Fit.soloScene(live, { frame: slot.shape === 'frame', bubble: slotFlag(slot, 'bubble') });
   const or = lang === 'ur' ? 'یا' : 'OR';
   live.forEach((q, i) => {
     if (slot.or && i > 0) body.push(`<div class="or">${textOf(or, ctx)}</div>`);
@@ -653,22 +699,27 @@ function slotBlock(slot, sec, list, ctx) {
       return;
     }
     const num = itemNumber(slot, i, lang);
-    const stem = stemOf(q, slot, inlineQ);
+    const stem = blankLen > 3 ? String(stemOf(q, slot, inlineQ)).replace(/_{3,}/g, (m) => '_'.repeat(Math.max(m.length, blankLen))) : stemOf(q, slot, inlineQ);
     const numHtml = num ? `<span class="n">${labelHtml(num, ctx)}</span>` : '';
     const leadHtml = lead ? `<div class="or-lead">${textOf(lead, ctx)}</div>` : '';
     const stemHtml = stem ? ` ${textOf(stem, ctx).replace(/☐/g, '<span class="sq"></span>')}` : '';
-    body.push(`<div class="q${cont ? ' qcont' : ''}${slot.shape === 'comprehension' ? ' comp' : ''}${grid ? ` pic-cell${slotFlag(slot, 'sentence_box') ? ' wide' : ''}` : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
+    body.push(`<div class="q${cont ? ' qcont' : ''}${slot.shape === 'comprehension' ? ' comp' : ''}${grid ? ` pic-cell${pair ? ' pair' : ''}${slotFlag(slot, 'sentence_box') ? ' wide' : ''}` : ''}${soloScene ? ' solo-scene' : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
   });
   if (slot.alternatives && !live.length) body.push(fixedAlternatives(slot, null, ctx));
   // An either/or question is read as one choice: never split across a page.
   const either = slot.or || slot.alternatives ? ' either' : '';
+  // A short slot (six items or fewer, not a passage) moves whole, so its items never leave their
+  // instruction at a page break (v27 G1 Maths Q2, G2 English Q1 h, bd-5jmnfj.4.58.3).
+  const short = live.length <= 6 && !['comprehension', 'passage'].includes(slot.shape) ? ' short' : '';
   // A Grade 1-2 slot prints its words once, boxed, above its items (bd-5jmnfj.4.20). The bank is
   // dealt so no word sits at its own item: a model lists them as it wrote them (bd-5jmnfj.4.50.9).
   const words = bankOrder([...new Set(live.flatMap((q) => (Array.isArray(q.words) ? q.words : [])))], live.map(matchAnswer));
   const bank = printsWords(slot) && slotFlag(slot, 'answer_box') && words.length
     ? `<div class="word-box bank">${words.map((w) => `<span class="w">${textOf(w, ctx)}</span>`).join('')}</div>` : '';
-  if (grid) return `<div class="slot${either}">${head}${bank}<div class="pic-grid">${body.join('')}</div></div>`;
-  return `<div class="slot${either}">${head}${bank}${body.join('')}</div>`;
+  const wide = grid && slotFlag(slot, 'sentence_box');
+  const fit = short ? Fit.fitAttr(live, { grid, wide, pair, bubble: slotFlag(slot, 'bubble') }) : ''; // bd-5jmnfj.4.58.4
+  if (grid) return `<div class="slot${either}${short}"${fit}>${head}${strip}${bank}<div class="pic-grid">${Fit.groupRows(body, wide ? 1 : (pair ? Fit.PAIR : Fit.PER_ROW))}</div></div>`;
+  return `<div class="slot${either}${short}"${fit}>${head}${strip}${bank}${body.join('')}</div>`;
 }
 
 // Verses given from a lesson the paper does not cover name it under them, as English Q5 names its
@@ -756,13 +807,15 @@ function css(medium, kind) {
   /* Inset from the end: a border on the content edge is clipped from the PDF (bd-5jmnfj.4.20). */
   .write-box { border: 1.2px solid #000; margin: 2mm 0 1mm; margin-${end}: 0.5mm; }
   .sq { display: inline-block; width: 9mm; height: 7mm; border: 1.2px solid #000; vertical-align: middle; margin: 0 2mm; }
-  .word-box.bank { display: flex; flex-wrap: wrap; justify-content: center; gap: 2mm 8mm; padding: 2mm 4mm; font-size: 13pt; break-after: avoid; }
+  .word-box.bank { display: flex; flex-wrap: wrap; justify-content: center; gap: 2mm 8mm; padding: 2mm 4mm; font-size: 13pt; break-after: avoid; break-inside: avoid; }
   /* Picture cells sit in lines, not a flex grid (bd-5jmnfj.4.50.6): Chromium starts a flex grid on
      its heading's page and pushes only the cells, so v22 left headings alone at a page foot. As
      lines, the first row moves with its heading; one row is enough on either side of a break. */
   .pic-grid { orphans: 1; widows: 1; }
   .q.pic-cell { display: inline-block; vertical-align: top; width: 30%; margin: 0 0 4mm; margin-inline-end: 4mm; break-inside: avoid; }
-  .q.pic-cell.wide { display: block; width: 100%; margin-inline-end: 0; }
+  /* border-box: the .q start padding is inside the 100%, so the box closes at the margin (bd-5jmnfj.4.58.2). */
+  .q.pic-cell.wide { display: block; width: 100%; box-sizing: border-box; margin-inline-end: 0; }
+  .q.pic-cell.wide .pic img { height: 44mm; }
   table.data { border-collapse: collapse; margin: 4px 0; }
   table.data th, table.data td { border: 1px solid #000; padding: 2px 10px; text-align: center; }
   table.data th { background: #f0f0f0; }
@@ -773,11 +826,13 @@ function css(medium, kind) {
   .frame { position: relative; border: 1.2px solid #000; margin: 4px 0; break-inside: avoid; }
   .frame-anchor { position: absolute; inset: 0; }
   .frame-title { position: absolute; top: 2mm; ${start}: 3mm; font-size: ${ur ? '10pt' : '8.5pt'}; color: #555; }
+  .frame-duty { position: absolute; top: 7mm; ${start}: 3mm; font-size: ${ur ? '9pt' : '8pt'}; color: #555; }
   .label-lines { position: absolute; ${end}: 3mm; top: 8mm; bottom: 3mm; display: flex; flex-direction: column; justify-content: space-around; width: 45mm; }
   .label-line { border-bottom: 1px solid #000; height: 6mm; }
   .label-line .num-l { font-size: 8pt; color: #555; }
-  .word-box { border: 1px solid #000; padding: 2px 8px; margin: 3px 0; text-align: center; }
+  .word-box { border: 1px solid #000; padding: 2px 8px; margin: 3px 0; text-align: center; break-inside: avoid; }
   .word-line { margin: 3px 0; }
+  ${V37.V37_CSS}
   .passage { border: 1px solid #888; padding: 4px 8px; margin: 3px 0 5px; text-align: justify; break-inside: avoid; }
   /* A passage and its parts are too tall to move as one block: the page may break between parts. */
   .q.comp { break-inside: auto; }
@@ -793,6 +848,7 @@ function css(medium, kind) {
   .ant-row { display: flex; gap: 14mm; margin: 2px 0; }
   .or { text-align: center; font-weight: 700; margin: 2px 0; break-before: avoid; break-after: avoid; }
   .slot.either { break-inside: avoid; }
+  .slot.short { break-inside: avoid; }
   .or-lead, .alt { font-weight: 700; }
   .sit { margin-top: 3px; }
   ${ur ? `/* Nastaliq ascenders rise above the line box; without room above, a block
@@ -800,6 +856,7 @@ function css(medium, kind) {
   .sec-head, .slot-head, .part-head, .q, .alt, .or-lead, .s-head, table.rows td { padding-top: .45em; }` : ''}
   .topics { display: flex; gap: 10mm; flex-wrap: wrap; }
   ${PICTURE_CSS}
+  ${Fit.SLOT_FIT_CSS}
   ${MATCH_CSS}
   ${kind === 'scheme' ? schemeCss(medium) + ORAL_CSS : ''}`;
 }
@@ -912,33 +969,11 @@ const BOOK_SOURCE = {
   diagram: { en: "the book's diagram", ur: 'کتاب کا خاکہ' }, // ur: needs fluent-Urdu review
 };
 
-// Rows the scheme pass wrote in code (an answer with no points), counted in the box,
-// in words a teacher acts on.
-const FILLED_BY_CODE = {
-  en: (n) => (n === 1
-    ? '1 marking row was written from the answer. Check it before marking.'
-    : `${n} marking rows were written from the answer. Check them before marking.`),
-  ur: (n) => (n === 1 // needs fluent-Urdu review
-    ? 'مارکنگ اسکیم کی 1 سطر جواب سے بنائی گئی ہے۔ نمبر دینے سے پہلے اسے جانچ لیں۔'
-    : `مارکنگ اسکیم کی ${n} سطریں جواب سے بنائی گئی ہیں۔ نمبر دینے سے پہلے انہیں جانچ لیں۔`),
-};
+// How much of a question's stem the key column repeats. 110 cut mid-sentence on every G5 Maths
+// Section C stem (v27, bd-5jmnfj.4.58.3).
+const KEY_ECHO = 200;
 
-// `item` is the index in the model's own type list (seen/unseen → category →
-// type), as marking-scheme.js writes it; an entry whose item was removed is not counted.
-function filledByCode(L, examJson) {
-  const list = Array.isArray(L.scheme_shortfall) ? L.scheme_shortfall : [];
-  const removed = (e) => ['seen', 'unseen'].some((branch) => Object.values(examJson[branch] || {})
-    .some((types) => types && typeof types === 'object' && Object.values(types)
-      .some((items) => Array.isArray(items) && items[e.item] && items[e.item].slot === e.slot && items[e.item].removed === true)));
-  const seen = new Set();
-  return list.filter((e) => {
-    if (!e || typeof e !== 'object') return false;
-    const key = `${e.slot}|${e.item}|${e.part}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return !removed(e);
-  }).length;
-}
+// The rows the scheme pass wrote in code stay in `_layout.scheme_shortfall`; the key prints no note about them (panel, bd-5jmnfj.4.58.9.1).
 
 // A supply whose item already prints a drawn picture: nothing for the teacher to add.
 function pictured(live, supply) {
@@ -998,8 +1033,7 @@ function beforeExamBox(L, live, ctx, examJson) {
   if (!attempts.length) lines[3] = lines[3].replace(lang === 'ur' ? '؛ {attempts}' : '; {attempts}', '');
   lines[3] = fill(lines[3], { sections: where, attempts: attempts.join(lang === 'ur' ? '؛ ' : '; ') });
   lines[4] = fill(lines[4], { t: L[`total_time_${lang}`] || (lang === 'ur' ? '3 گھنٹے' : '3 hrs') });
-  const filled = examJson ? filledByCode(L, examJson) : 0;
-  if (filled > 0) lines.push(FILLED_BY_CODE[lang](filled));
+  lines.push(...prepLines(L.oral, lang)); // a child-made project the teacher has the class prepare (bd-5jmnfj.4.58.4)
   return `<div class="box before"><div class="bt">${textOf(B[`title_${lang}`], ctx)}</div><ol>${lines.filter((l) => l !== null).map((l) => `<li>${textOf(l, ctx)}</li>`).join('')}</ol></div>`;
 }
 
@@ -1094,7 +1128,7 @@ function pointsHtml(q, ctx, Criteria, slot, idx, marks = null) {
   const s = q.scheme && typeof q.scheme === 'object' ? q.scheme : null;
   if (slot.shape === 'composition' || (slot.shape === 'frame' && slot.frame && slot.frame.kind === 'picture')) {
     const kind = Criteria.kindFor(slot, idx);
-    const rows = kind ? Criteria.criteriaFor(kind, slot.marks_each, lang) : [];
+    const rows = kind ? adjustCriteria(Criteria.criteriaFor(kind, slot.marks_each, lang), slot) : [];
     rows.forEach((r) => out.push(`<span class="crit"><span class="crit-m">${textOf(fmt(r.marks), ctx)}</span> ${textOf(r.name, ctx)}${r.look_for ? ` — ${textOf(r.look_for, ctx)}` : ''}</span>`));
   }
   if (s && Array.isArray(s.points) && !out.length) {
@@ -1146,7 +1180,7 @@ function writtenRows(slot, list, ctx, Criteria) {
     if (parts) {
       parts.forEach((sub, k) => {
         const label = `${n} ${itemNumber({ numbering: slot.sub_numbering || 'alpha_paren' }, k, lang)}`;
-        const stem = sub && sub.question ? `<div class="q-line">${textOf(cutAtWord(bareSub(sub.question), 110), ctx)}</div>` : '';
+        const stem = sub && sub.question ? `<div class="q-line">${textOf(cutAtWord(bareSub(sub.question), KEY_ECHO), ctx)}</div>` : '';
         const each = sub && Number(sub.marks) > 0 ? Number(sub.marks) : slot.marks_each / parts.length;
         rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(label, ctx)}</td><td class="ans"><b>${textOf(sub && sub.answer, ctx)}</b>${stem}</td><td class="pts">${pointsHtml(sub || {}, ctx, { kindFor: () => null, criteriaFor: () => [] }, slot, k, each)}</td></tr>`);
       });
@@ -1156,11 +1190,12 @@ function writtenRows(slot, list, ctx, Criteria) {
     // An English key names a picture the answer is not (bd-5jmnfj.4.48): v21 Q6 keyed "mat" for a bat.
     const pic = lang === 'en' && q.picture && q.picture.name && String(q.picture.name).trim().toLowerCase() !== String(q.answer ?? '').trim().toLowerCase()
       ? `Picture: ${String(q.picture.name).trim()}. ` : '';
-    const qText = cutAtWord(withoutOwnLabel(q.question || '', slot), 110);
+    // A picture-only slot prints no stem on the paper, so its key repeats none (v26 G1 Urdu Q10 x5, bd-5jmnfj.4.58.2).
+    const qText = slotFlag(slot, 'picture_only') || keyStemHidden(slot) ? '' : cutAtWord(withoutOwnLabel(q.question || '', slot), KEY_ECHO);
     // The question is often just the picture's name: say it once (bd-5jmnfj.4.51.2).
     const sameAsPic = pic && qText.trim().toLowerCase() === String(q.picture.name).trim().toLowerCase();
     const stemHtml = textOf(sameAsPic ? pic.replace(/\.\s*$/, '') : pic + qText, ctx).replace(/☐/g, '<span class="sq"></span>');
-    const stem = q.question || pic ? `<div class="q-line">${stemHtml}</div>` : '';
+    const stem = (q.question && !keyStemHidden(slot)) || pic ? `<div class="q-line">${stemHtml}</div>` : '';
     rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(n, ctx)}</td><td class="ans">${answer}${checkedChip(q, ctx)}${stem}</td><td class="pts">${pointsHtml(q, ctx, Criteria, slot, list.indexOf(q), Number(q.marks) || slot.marks_each)}</td></tr>`);
   });
   if (slot.alternatives) {
@@ -1220,11 +1255,14 @@ function comprehensionRows(slot, q, ctx) {
   for (const spec of slot.parts_spec || []) {
     const part = parts.find((p) => p && p.key === spec.key) || {};
     if (spec.pick) {
-      for (const kind of Object.keys(spec.pick)) {
+      const kinds = Object.keys(spec.pick);
+      for (const kind of kinds) {
         const words = (part.pick && part.pick[kind]) || [];
-        const tail = lang === 'ur' ? `، یا پیراگراف کا کوئی اور ${kind}` : `, or any other ${kind.toLowerCase().replace(/s$/, '')} in the passage`; // ur: needs fluent-Urdu review
-        rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(spec.label, ctx)}</td><td class="ans"><b>${textOf(kind, ctx)}:</b> ${textOf(words.join(lang === 'ur' ? '، ' : ', ') + tail, ctx)}</td><td class="pts"><span class="chip">${esc(`K${fmt(spec.marks_each)}`)}</span> ${textOf(lang === 'ur' ? 'ہر درست لفظ' : 'each correct word', ctx)}</td></tr>`); // ur: needs fluent-Urdu review
+        // Model words + open rule; the common error prints below (bd-5jmnfj.4.58.9.3).
+        rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(spec.label, ctx)}</td><td class="ans"><b>${textOf(kind, ctx)}:</b> ${textOf(PickKey.pickKeyText(kind, words, part.scheme, lang), ctx)}</td><td class="pts"><span class="chip">${esc(`K${fmt(spec.marks_each)}`)}</span> ${textOf(lang === 'ur' ? 'ہر درست لفظ' : 'each correct word', ctx)}</td></tr>`); // ur: needs fluent-Urdu review
       }
+      const pickErr = PickKey.pickKeyError(part.scheme);
+      if (pickErr) rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n"></td><td class="ans"><span class="err">${textOf(`${lang === 'ur' ? 'عام غلطی:' : 'common error:'} ${pickErr}`, ctx)}</span></td><td class="pts"></td></tr>`); // ur: needs fluent-Urdu review
     } else if (spec.key === 'antonyms') {
       // «جلدی: دیر», as the model writes the pair; v22 printed «جلدی ← دیر» (bd-5jmnfj.4.50.1).
       (part.antonyms || []).forEach((pair) => {
@@ -1289,6 +1327,8 @@ ${suppliesBox(L, ctx, live)}`;
   const record = recordPage(L, live, ctx);
   // The Grade 1-2 oral teacher sheet (bd-5jmnfj.4.4); '' for a paper with no oral part.
   const oral = oralSheet(L.oral, { medium: lang, text: (s) => textOf(s, ctx) });
+  // The read-aloud words on a page of their own, so the child never sees the teacher's sheet (v27, bd-5jmnfj.4.58.3).
+  const card = childCard(L.oral, { medium: lang, text: (s) => textOf(s, ctx) });
   return `<!DOCTYPE html>
 <html lang="${lang}"${ur ? ' dir="rtl"' : ''}>
 <head><meta charset="utf-8"><title>${esc(H[`scheme_title_${lang}`])}</title>
@@ -1298,6 +1338,7 @@ ${top}
 ${sections}
 ${notes}
 ${oral}
+${card}
 ${record}
 </body></html>`;
 }
@@ -1434,6 +1475,7 @@ async function framePages(pdfBuffer) {
 }
 
 module.exports = {
+  workSpace,
   renderPaper,
   renderMarkingScheme,
   totalMarks,

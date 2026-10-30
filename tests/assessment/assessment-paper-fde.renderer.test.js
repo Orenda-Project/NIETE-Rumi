@@ -432,10 +432,11 @@ describe('the marking scheme', () => {
   });
 
   it('a long question stem in the scheme is cut at a word, not mid-word', () => {
-    const exam = mathsPaper({ mutate: (raw) => { raw.unseen.subjective['Word Problems'][0].question = 'A school had Rs. 750,000 for the year. It spent Rs. 286,450 on furniture and Rs. 135,800 on books. How much money is left over at the end?'; } });
+    // The key column repeats up to 200 characters of a stem (bd-5jmnfj.4.58.3), so this one runs to 246.
+    const exam = mathsPaper({ mutate: (raw) => { raw.unseen.subjective['Word Problems'][0].question = 'A school had Rs. 750,000 for the year. It spent Rs. 286,450 on furniture, Rs. 135,800 on books and Rs. 92,300 on sports kit for the junior classes, then set aside Rs. 50,000 for repairs to the library roof. How much money is left over at the end?'; } });
     const text = visible(scheme(exam));
-    expect(text).toContain('Rs. 135,800 on books. How much…');
-    expect(text).not.toMatch(/How much m…/);
+    expect(text).toContain('Rs. 50,000 for repairs to the…');
+    expect(text).not.toMatch(/to the l…/);
   });
 
   it('framePages is exported for the engine', () => {

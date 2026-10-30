@@ -27,6 +27,8 @@ const { noArrows } = require('./fde-no-arrows');
 const { answerRepeats, giveawayNote, stillGivenAway, writtenGiveaways } = require('./fde-answer-repeats');
 const { dealScrambles } = require('./fde-scramble-block');
 const { keyShortfall } = require('./fde-key-checks');
+const { whoSaidShortfall } = require('./fde-who-said-check'); const { freshReadWords } = require('./fde-oral-fresh-words'); const { urduOralFixes } = require('./fde-early-urdu-oral'); const { citePoemPage } = require('./fde-urdu-r4'); // bd-5jmnfj.4.58.4
+const { earlyKeyFixes } = require('./fde-early-key-fixes'); const { commonErrorNumbers } = require('./fde-common-error-numbers'); const { earlyEnglishFixes } = require('./fde-early-english-fixes'); const { earlyUrduFixes } = require('./fde-early-urdu-fixes'); const { acceptAlternatives } = require('./fde-accept-alternatives'); const { mendReadAloud } = require('./fde-read-aloud-grammar'); const { correctMisreads } = require('./fde-urdu-nonword'); const { keepMissing } = require('./fde-keep-missing'); // bd-5jmnfj.4.58.3/.4/.9.1/.9.2/.9.3
 
 const SCOPE = Object.freeze({ kind: 'fde', chapters: null, pages: null });
 const ORAL_SECTION = Object.freeze({ id: 'oral', slots: [] });
@@ -132,9 +134,9 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   let oral = P.oral ? Prompt.oralContent(oralFirst.tree, P.oral, { saidCheck: P.medium !== 'ur' }) : null;
   // The oral sheet is not on the layout until the end, so it is attached to a copy for the check: a written
   // item asking an oral item's question is the written section's to fix (bd-5jmnfj.4.55).
-  const withOral = (ex) => (oral ? { ...ex, _layout: { ...ex._layout, oral: { ...P.oral, content: oral.content } } } : ex);
+  const withOral = (ex) => (oral ? { ...ex, _layout: { ...ex._layout, oral: { ...P.oral, content: citePoemPage(oral.content, loaded.content) } } } : ex);
   // A key off its word box, or a who question keyed with a sentence, is asked again like a key off its rule (bd-5jmnfj.4.57).
-  const keysOff = (ex) => Prompt.answerShortfall(ex, P).concat(keyShortfall(ex, P));
+  const keysOff = (ex) => Prompt.answerShortfall(ex, P).concat(keyShortfall(ex, P, loaded.content), whoSaidShortfall(ex, loaded.content, P)); // names the book text lacks (bd-5jmnfj.4.58.2)
   const firstLaid = lay(false);
   const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
   const short = firstLaid.shortfall
@@ -151,20 +153,18 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   const readAloud = P.oral ? P.oral.tasks.filter((t) => t.kind === 'read_aloud').map((t) => t.id) : [];
   const reaskOral = async (hits) => {
     const words = [...new Set(hits.flatMap((f) => f.words))];
-    d.logToFile('[assessment] oral re-asked', { requestId, pattern, missing: oral.missing, giveaways: words });
+    d.logToFile('[assessment] oral re-asked', { requestId, pattern, missing: oral.missing, flagged: oral.flagged, giveaways: words });
     const note = [
       oral.missing.length ? `Last time these tasks came back without what they need: ${oral.missing.join(', ')}. Write every task in full.` : null,
+      // A present task with its Urdu wording off is asked again once, never failed (v34 g1/g2 Urdu poem, bd-5jmnfj.4.58.6.1).
+      oral.flagged.length ? `Rewrite these tasks: ${oral.flagged.join(', ')}. Each item asks one thing; a model answer is the answer alone, never the question's words or «نظم میں»; a poem is never a hamd, naat, prayer or any poem that names God: choose a different, non-religious book poem about nature, family, school, animals or play; a poem question never names God, prayer or a religious form the poem does not print, and never prints another question's answer; a dialogue opens with a greeting or a question, never a reply; a read-aloud card is one continuous passage from one place in the book whose first sentence names who it is about, so every he, she, they or it has a name or noun before it.` : null,
       words.length ? `Do not use these words in the read-aloud task: ${words.join(', ')}. They are answers on the written paper.` : null,
     ].filter(Boolean).join(' ');
     const second = await writeOral(note);
     const next = Prompt.oralContent(second.tree, P.oral, { saidCheck: P.medium !== 'ur' });
-    // Only the read-aloud task is swapped for a give-away; a task the first reply filled keeps it,
-    // and the second reply fills the rest.
-    const redo = new Set(words.length ? readAloud : []);
-    const find = (from, t) => from.content.find((c) => c.id === t.id);
-    const content = P.oral.tasks.map((t) => (redo.has(t.id) ? find(next, t) || find(oral, t) : find(oral, t) || find(next, t))).filter(Boolean);
     extraUsages.push(...second.usages);
-    oral = { content, missing: P.oral.tasks.map((t) => t.id).filter((id) => !content.some((c) => c.id === id)) };
+    // The read-aloud task with a give-away and a flagged task take the second reply's version; every other task keeps the first's.
+    oral = Prompt.mergeOral(P.oral.tasks, oral, next, new Set((words.length ? readAloud : []).concat(oral.flagged)));
   };
 
   const reask = async (b) => {
@@ -182,7 +182,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     const second = await writeOne(note
       ? { ...b, messages: d.sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
       : b);
-    results[i] = topUp ? { ...second, tree: d.topUp(first.tree, second.tree, new Set(shortfall.map((f) => f.slot))) } : second;
+    results[i] = topUp ? { ...second, tree: d.topUp(first.tree, second.tree, new Set(shortfall.map((f) => f.slot))) } : { ...second, tree: keepMissing(second.tree, first.tree, b.section.slots.map((s) => s.slot)) }; // never a question lost (v37 G2 C.Q16)
   };
   const reaskAnswers = async (b, late) => {
     const shortfall = late.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
@@ -191,14 +191,14 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     extraUsages.push(...results[i].usages);
     const user = `${b.user}\n\n${[Prompt.answerNote(shortfall, P), giveawayNote(shortfall)].filter(Boolean).join('\n\n')}`;
     const next = await writeOne({ ...b, messages: d.sectionMessages({ system, user, pageContent: b.pageContent, model }) });
-    results[i] = { ...next, tree: swapSlots(results[i].tree, next.tree, new Set(shortfall.map((f) => f.slot))) };
+    results[i] = { ...next, tree: keepMissing(swapSlots(results[i].tree, next.tree, new Set(shortfall.map((f) => f.slot))), results[i].tree, b.section.slots.map((s) => s.slot)) };
   };
   // A section re-asked for a repeated picture goes one at a time, so each sees the others' new pictures.
   const repeats = new Set(short.filter((f) => f.reason === 'repeat').map((f) => f.slot));
   const isRepeat = (b) => b.section.slots.some((s) => repeats.has(s.slot));
   const inTurn = async () => { for (const b of again.filter(isRepeat)) await reask(b); };
   const oralFound = oral ? oralHits(firstLaid.examJson) : [];
-  await Promise.all([...again.filter((b) => !isRepeat(b)).map(reask), inTurn(), oral && (oral.missing.length || oralFound.length) ? reaskOral(oralFound) : null]);
+  await Promise.all([...again.filter((b) => !isRepeat(b)).map(reask), inTurn(), oral && (oral.missing.length || oral.flagged.length || oralFound.length) ? reaskOral(oralFound) : null]);
 
   let laid = lay(again.length > 0);
   // The oral re-ask is checked again: a read-aloud word still given away is asked once more (v24 G1 English «cat»).
@@ -221,6 +221,19 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   // teacher a paper: one still there after this ships and is logged below (bd-5jmnfj.4.55).
   const lastly = late.length ? writtenGiveaways(stillGivenAway(withOral(laid.examJson))).filter((f) => f.printed) : [];
   if (lastly.length) await reaskLate(lastly);
+  // A picture still repeated after those is asked once more, a section at a time so each sees the others' new
+  // pictures; one still there ships and is logged below (bd-5jmnfj.4.58.2: v26 G1 English spoon in Q7 v and Q12 i).
+  const stuck = Prompt.repeatedPictures(laid.examJson, P);
+  for (const b of built.filter(({ section }) => section.slots.some((s) => stuck.some((f) => f.slot === s.slot)))) {
+    const i = results.findIndex((r) => r.id === b.section.id);
+    const mine = stuck.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
+    const note = Prompt.takenPicturesNote(results.filter((r) => r.id !== b.section.id).map((r) => r.tree), mine);
+    d.logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall: mine, after: 'picture repeat' });
+    extraUsages.push(...results[i].usages);
+    const next = await writeOne({ ...b, messages: d.sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });
+    results[i] = { ...next, tree: swapSlots(results[i].tree, next.tree, new Set(mine.map((f) => f.slot))) };
+  }
+  if (stuck.length) laid = lay(true);
   let examJson = laid.examJson;
   const layout = { placed: laid.placed, unplaced: firstLaid.unplaced };
   d.logToFile('[assessment] layout applied', {
@@ -237,6 +250,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   if (finalShort.length) {
     throw d.fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: finalShort, examJson, model });
   }
+  if (oral && oral.flagged.length) d.logToFile('[assessment] oral task kept flagged', { requestId, pattern, flagged: oral.flagged }); // mended below by urduOralFixes: a flag never costs the teacher a paper
   if (oral && oral.missing.length) {
     throw d.fail('ORAL_SHORT', 'The oral part came back short.', { missing: oral.missing, examJson, model });
   }
@@ -248,12 +262,15 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     throw d.fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: scheme.shortfall, examJson, model });
   }
   if (P.key === 'maths') examJson = mathsCheck(examJson, { subject: 'maths' }).examJson;
+  const early = earlyEnglishFixes(earlyKeyFixes(acceptAlternatives(examJson, P).examJson)); examJson = early.examJson; // a letter key, a word-problem key (v27, bd-5jmnfj.4.58.3)
+  const slips = commonErrorNumbers(examJson); const urdu = earlyUrduFixes(slips.examJson, loaded.content); examJson = urdu.examJson; // a common error the numbers cannot give (v28, bd-5jmnfj.4.58.4)
+  early.notes.concat(slips.notes, urdu.notes).forEach((n) => d.logToFile('[assessment] key fixed', n));
 
   const sectionLevels = P.sections.every((s) => s.levels) ? Object.fromEntries(P.sections.map((s) => [s.id, s.levels])) : null;
   const blueprint = checkBlueprint(examJson, { tos: P.tos || null, sectionLevels });
   examJson._layout.blueprint = blueprint;
   d.logToFile('[assessment] blueprint checked', { pattern, subject: P.key, ok: blueprint.ok, total: blueprint.total, levels: blueprint.levels, problems: blueprint.problems });
-  if (P.oral) examJson._layout.oral = { ...P.oral, content: oral.content };
+  if (P.oral) { const ra = mendReadAloud(urduOralFixes(freshReadWords({ ...examJson, _layout: { ...examJson._layout, oral: { ...P.oral, content: citePoemPage(oral.content, loaded.content) } } }, (n) => d.logToFile('[assessment] oral word replaced', n)).examJson).examJson); examJson = correctMisreads(ra.examJson).value; ra.notes.forEach((n) => d.logToFile('[assessment] read-aloud grammar', n)); } // a read-aloud word the paper prints; v29 Urdu oral fixes (bd-5jmnfj.4.58)
   // An answer word still given away after the re-ask, or by the oral sheet, is logged (bd-5jmnfj.4.50.8).
   const giveaways = answerRepeats(examJson);
   if (giveaways.length) d.logToFile('[assessment] answers given away', { requestId, pattern, giveaways });

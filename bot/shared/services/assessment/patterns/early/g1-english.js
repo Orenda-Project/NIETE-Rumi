@@ -2,7 +2,8 @@
 /**
  * Grade 1 English, FDE 2023-24 model paper: 100 marks. Oral: listening 5, speaking 5,
  * read aloud 6 (16). Written: reading 24 + writing 60 (84). ToS K40 / U40 / A20.
- * The writing slot is "Rhyming Pairs", never "Rhyming Words" (the layout tests that type as a poem).
+ * Marks inside a section are balanced by demand within each section total (r3): choosing from a box pays 1, writing a rhyme pays 2;
+ * the model paper we hold gives section totals only. The writing slot is "Rhyming Pairs", never "Rhyming Words" (the layout tests that type as a poem).
  */
 
 const { makeSubject } = require('./chrome');
@@ -38,7 +39,7 @@ module.exports = makeSubject({
 
         S({ slot: 'g1.english.A.Q5', label_en: 'Q5.', type: 'Missing Letters', generate: 4, lines: 1, picture: ['object'],
           instruction_en: 'Look at the picture and fill in the missing letter.',
-          prompt_rule: 'Four items, each a book object as picture: {kind:"object", name} and its word with one letter blank, e.g. "b_g". Answer: the full word.' }),
+          prompt_rule: 'Four items, each a book object as picture: {kind:"object", name} and its word with one letter blank, e.g. "b_g". Answer: the missing letter only, e.g. "a"; `accept` the full word.' }),
       ],
     },
     {
@@ -46,22 +47,22 @@ module.exports = makeSubject({
       label_en: 'Writing (1)',
       levels: { Remember: 12, Understand: 13, Apply: 7 },
       slots: [
-        S({ slot: 'g1.english.B.Q6', label_en: 'Q6.', type: 'Rhyming Pairs', generate: 4, lines: 1, picture: ['object'],
+        S({ slot: 'g1.english.B.Q6', label_en: 'Q6.', type: 'Rhyming Pairs', generate: 4, marks_each: 2, lines: 1, picture: ['object'],
           instruction_en: 'Write a word that rhymes.',
-          prompt_rule: 'Four simple book words, e.g. "cat". Answer: one rhyming word; accept lists other real rhymes. Each item also carries picture: {kind:"object", name} of the given word, in English for the artist; choose only words that can be drawn.' }),
+          prompt_rule: 'Four simple book words, e.g. "cat". Answer: one rhyming word; accept lists other real rhymes. Scheme: K 1 for a word that rhymes, K 1 for spelling it right. Each item also carries picture: {kind:"object", name} of the given word, in English for the artist; choose only words that can be drawn.' }),
         S({ slot: 'g1.english.B.Q7', label_en: 'Q7.', type: 'Name the Picture', generate: 9, lines: 1, picture: ['object'], picture_only: true, print_words: true,
           instruction_en: 'Write the name of each picture from the box.',
           prompt_rule: 'Nine book objects (animals, fruit, school things), each as picture: {kind:"object", name}. Put all nine words, mixed, in "words" on the FIRST item only. Answer: the word.' }),
-        S({ slot: 'g1.english.B.Q8', label_en: 'Q8.', type: 'Action Words', generate: 4, lines: 1, picture: ['scene'],
+        S({ slot: 'g1.english.B.Q8', label_en: 'Q8.', type: 'Action Words', generate: 5, lines: 1, picture: ['scene'],
           instruction_en: 'What is the child doing? Write the action word.',
           answer_ok: (q) => /ing$/i.test(String(q.answer).trim()),
-          prompt_rule: 'Four items, each a child doing one action from the book (run, jump, read, eat, sleep, swim) as picture: {kind:"scene", describe}. Answer: the -ing word the question asks for ("running"); accept holds only other -ing spellings the question allows, never the plain word ("run").' }),
-        { slot: 'g1.english.B.Q9', label_en: 'Q9.', type: 'Complete the Sentences', generate: 5, marks_each: 2, lines: 1, print_words: true,
+          prompt_rule: 'Five items, each a child doing one action from the book (run, jump, read, eat, sleep, swim) as picture: {kind:"scene", describe}. Answer: the -ing word the question asks for ("running"); the plain verb ("run") is also accepted and is never listed as an error. Each picture shows ONE action that has one clear word: never a child holding an object that could name the action (a book and a bag, a ball and a bat), and never an action another word fits (sit, rest and read on one picture).' }),
+        { slot: 'g1.english.B.Q9', label_en: 'Q9.', type: 'Complete the Sentences', generate: 5, marks_each: 1, lines: 1, print_words: true,
           instruction_en: 'Fill in the blanks with words from the box.',
-          prompt_rule: 'Five short sentences from the book, each with one blank. Each sentence rules out every other word: only one word from the box fits each blank (never "likes to ___ in the park", where play, run or paint all fit). Put the five answer words, mixed, in "words" on the FIRST item. Scheme: K 2 for the right word.' },
+          prompt_rule: 'Five short sentences from the book, each with one blank. Each sentence rules out every other word: only one word from the box fits each blank (never "likes to ___ in the park", where play, run or paint all fit). Put the five answer words, mixed, in "words" on the FIRST item. Scheme: K 1 for the right word. v35 (bd-5jmnfj.4.58.9): after writing each sentence, try every other box word in the blank and rewrite the sentence if a second word makes a sensible sentence ("The little bird can ___ sweet songs" fits sing and hear; "Dadi cannot ___ Pinky" fits hear and wash); a distractor never fits the grammar and the sense of the blank. No person\'s name in a Q9 sentence (use "we", "I", "the bird", "my mother"): the child has no context for a name. No sentence repeats a phrase of the oral listening story, which the child hears after this page.' },
         S({ slot: 'g1.english.B.Q10', label_en: 'Q10.', type: 'Match Capital and Small Letters', generate: 5, shape: 'mcq',
-          instruction_en: 'Match the capital letter with its small letter.',
-          prompt_rule: 'Five items: a capital letter as the stem and four small letters as options (a, b, c, d). Answer: the matching small letter.' }),
+          instruction_en: 'Circle the small letter that matches the capital letter.',
+          prompt_rule: 'Five items: a capital letter as the stem and four small letters as options (a, b, c, d). Never use I, l or L as a capital or as an option, since I and l look alike in print. Answer: the matching small letter.' }),
       ],
     },
     {
@@ -71,17 +72,17 @@ module.exports = makeSubject({
       slots: [
         S({ slot: 'g1.english.C.Q11', label_en: 'Q11.', type: 'Complete the Words', generate: 5, lines: 1, picture: ['object'],
           instruction_en: 'Complete the words.',
-          prompt_rule: 'Five book words with two letters missing, e.g. "m _ _ go"; the picture is the clue, so write no text clue. Answer: the word. Each item also carries picture: {kind:"object", name} of the answer word, in English for the artist; choose only words that can be drawn.' }),
+          prompt_rule: 'Five book words with two letters missing, e.g. "m _ _ go"; the picture is the clue, so write no text clue. Answer: the missing letters only, e.g. "an"; `accept` the full word. Each item also carries picture: {kind:"object", name} of the answer word, in English for the artist; choose only words that can be drawn.' }),
         { slot: 'g1.english.C.Q12', label_en: 'Q12.', type: 'This Is A', generate: 5, marks_each: 2, lines: 1, picture: ['object'], picture_only: true, sentence_box: true,
           instruction_en: 'Look at the picture and write "This is a ____."',
-          prompt_rule: 'Five book objects as picture: {kind:"object", name}. Answer: "This is a <name>." Scheme: K 1 for the word, K 1 for the sentence with capital and full stop.' },
+          prompt_rule: 'Five book objects as picture: {kind:"object", name}. Answer: "This is a <name>." Scheme: K 1 for naming the object, K 1 for spelling the word right; the frame "This is a ____." is printed, so no mark pays copying its capital letter or full stop. Each object\'s name begins with a consonant sound, so "a" is always right: never egg, apple, umbrella, orange, ant or ice cream. No object that any other question of this paper uses.' },
         { slot: 'g1.english.C.Q13', label_en: 'Q13.', type: 'Speech Bubbles', generate: 2, marks_each: 2, lines: 1, picture: ['scene'],
           instruction_en: 'What will they say? Write in the speech bubble.',
           // v18: the image model left the bubble out, put it over the wrong child, and drew a gift box
           // for a pencil case. The paper prints the bubble beside the picture (bd-5jmnfj.4.40).
           bubble: true,
           prompt_rule: 'Two greetings or polite words from the book (Good morning, Thank you, Sorry, Please), each a scene as picture: '
-            + '{kind:"scene", describe} of two children. The question names who speaks. The describe has no speech bubble (the paper '
+            + '{kind:"scene", describe} of two children. The question names who speaks. The describe has no speech bubble and never mentions one, not even "next to the printed bubble" (the paper '
             + 'prints it) and shows exactly the thing the question names, in the same words, plain and never wrapped. '
             + 'The child who speaks stands on the right, next to the printed bubble, and the describe says "on the right". '
             + 'The question is about meeting, helping or saying sorry, never a gift or a present. '
@@ -94,8 +95,8 @@ module.exports = makeSubject({
               && !/gift|present/i.test(String(q.question || ''));
           } },
         S({ slot: 'g1.english.C.Q14', label_en: 'Q14.', type: 'Capital Letters', generate: 4, lines: 1,
-          instruction_en: 'Rewrite the sentence with a capital letter.',
-          prompt_rule: 'Four short sentences written all in small letters, each needing one capital (start or a name). Answer: the corrected sentence.' }),
+          instruction_en: 'Rewrite the sentence with capital letters.',
+          prompt_rule: 'Four short sentences written all in small letters, each needing the capitals it names: the first letter, and a name or a day where the sentence has one (two capitals for "dani helps dadi."). Use names and days that no other question of this paper prints, and no word that Q6 answers or accepts. Answer: the corrected sentence. Scheme: one A point that names every capital the sentence needs.' }),
         S({ slot: 'g1.english.C.Q15', label_en: 'Q15.', type: 'Is Am Are', generate: 5, shape: 'mcq', option_labels: 'a',
           instruction_en: 'Choose is, am or are.',
           prompt_rule: 'Five short sentences with one blank; options exactly is, am, are. Answer: the right word.' }),
@@ -107,23 +108,24 @@ module.exports = makeSubject({
       { id: 'listening', kind: 'listening', marks: 5, label_en: 'Listening', label_ur: 'سننا',
         instruction_en: 'Read the short story aloud twice. Then ask the questions; the child answers aloud.',
         instruction_ur: 'مختصر کہانی دو بار بلند آواز سے پڑھیں، پھر سوال پوچھیں؛ بچہ زبانی جواب دے۔',
-        ask: 'A story of 4 to 6 short sentences on a book theme, then five questions (2 recall, 2 understand, 1 apply), one mark each, with answers.',
+        ask: 'A story of 4 to 6 short sentences on a book theme, then five questions (2 recall, 2 understand, 1 apply), one mark each, with answers. The story has at most two names (other characters are "her mother" or "the teacher"), and the fifth question is about the story (what would happen if, what should the character do), never about the child: no "you" or "your". No sentence of the story and no answer is a phrase the written paper prints (v35: the story said "sang sweet songs" and Q9 printed "sweet songs"): never a phrase the written paper prints.',
         n: 5,
         rubric: [{ marks: 1, en: 'Each right answer', ur: 'ہر درست جواب' }] },
       { id: 'speaking', kind: 'speaking', marks: 5, label_en: 'Speaking', label_ur: 'بولنا',
-        instruction_en: 'Ask the child to talk about the topic for about a minute. Prompt with the questions if they stop.',
-        instruction_ur: 'بچے سے موضوع پر تقریباً ایک منٹ بات کرنے کو کہیں۔ رک جائے تو سوالوں سے مدد کریں۔',
+        instruction_en: 'Ask the child to talk about the topic for about half a minute. Prompt with the questions if they stop.',
+        instruction_ur: 'بچے سے موضوع پر تقریباً آدھے منٹ بات کرنے کو کہیں۔ رک جائے تو سوالوں سے مدد کریں۔',
         ask: 'One topic a Grade 1 child knows (my family, my school, my favourite food), with three prompt questions.',
         n: 3,
         rubric: [
-          { marks: 2, en: 'Speaks with confidence', ur: 'اعتماد سے بولتا ہے' },
-          { marks: 2, en: 'Says three or more things about the topic', ur: 'موضوع پر تین یا زیادہ باتیں' },
+          // v35 (bd-5jmnfj.4.58.9): the task and the rubric both say half a minute; a 2-mark row says what earns 1.
+          { marks: 2, en: 'Keeps talking for half a minute: 2 with no more than two prompts from the teacher, 1 with three or four prompts, 0 with more', ur: 'آدھے منٹ تک بولتا ہے: استاد کے دو یا کم سوال پر 2، تین یا چار پر 1، اس سے زیادہ پر 0' },
+          { marks: 2, en: 'Says different things about the topic: 2 for three or more, 1 for one or two, 0 for none', ur: 'موضوع پر مختلف باتیں کہتا ہے: تین یا زیادہ پر 2، ایک یا دو پر 1، کوئی نہیں تو 0' },
           { marks: 1, en: 'Uses English words and short sentences', ur: 'انگریزی الفاظ اور مختصر جملے' },
         ] },
       { id: 'read_aloud', kind: 'read_aloud', marks: 6, label_en: 'Read aloud', label_ur: 'بلند خوانی',
         instruction_en: 'Point to each word in turn. The child reads it aloud. One mark per word read right.',
         instruction_ur: 'ہر لفظ پر باری باری انگلی رکھیں۔ بچہ اسے بلند آواز سے پڑھے۔ ہر درست لفظ پر 1 نمبر۔',
-        ask: 'Six simple book words (three-letter and sight words) printed large for the child to read.',
+        ask: 'Six simple book words (three-letter and sight words) printed large for the child to read. Never a word the written paper prints or answers.',
         n: 6,
         rubric: [{ marks: 1, en: 'Each word read right', ur: 'ہر درست پڑھا گیا لفظ' }] },
     ],
