@@ -29,3 +29,8 @@ test('GK choice instructions are Urdu: any 5 of 7, any 2 of 3', () => {
   expect(by.short.instruction_ur).toContain('کوئی سے پانچ');
   expect(by.long.instruction_ur).toContain('کوئی سے دو');
 });
+
+test('GK written items never have their key printed by an objective item, and Q5 never repeats Q4', () => {
+  ['short', 'long'].forEach((k) => expect(by[k].prompt_rule).toMatch(/No key point is printed on the paper as an MCQ key or option, a match pair, or a blank sentence or box word/));
+  expect(by.long.prompt_rule).toMatch(/never asks for the facts or examples a short question asks/);
+});

@@ -19,6 +19,10 @@ const QUOTES = /["“”«»'‘’]/g;
 const choice = (o) => String(o == null ? '' : o).replace(/^\s*\(?[^\s)]{1,3}\)\s*/, '');
 const norm = (s) => String(s == null ? '' : s).normalize('NFC').replace(MARKS, '').replace(QUOTES, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
 const isMcq = (q) => Array.isArray(q.options) && q.options.length > 1;
+// v38 G3 Maths Q1 iv: «Which multiplication sentence …?» keyed «30». A stem that asks for a sentence keys one.
+const ASKS_SENTENCE = /\b(?:multiplication|addition|subtraction|division|number)\s+(?:sentence|fact|statement)\b/i;
+const HAS_OP = /[+×x*÷/=−–-]/i;
+const sentenceNotKeyed = (stem, key) => ASKS_SENTENCE.test(stem) && !HAS_OP.test(choice(key).replace(/\b[a-wyz]+\b/gi, ''));
 
 function printsKey(stem, key) {
   const k = norm(choice(key));
@@ -36,6 +40,7 @@ function mcqStemShortfall(examJson, P) {
     const why = [];
     if ((stem.replace(QUOTED, ' ').match(/[؟?]/g) || []).length >= 2) why.push('two_questions');
     if (printsKey(stem, q.answer)) why.push('key_in_stem');
+    if (sentenceNotKeyed(stem, q.answer)) why.push('sentence_not_keyed');
     if (why.length) out.push({ slot: q.slot, reason: 'mcq_stem', why, text: [stem.replace(/\s+/g, ' ').trim()] });
   });
   return out;
@@ -44,6 +49,7 @@ function mcqStemShortfall(examJson, P) {
 const SAY = {
   two_questions: 'asks two questions in one stem; ask one question',
   key_in_stem: 'prints its keyed answer in the stem; the stem must not contain the key',
+  sentence_not_keyed: 'asks for a number sentence but keys a bare number; make the right option a sentence and every option a sentence',
 };
 
 /** The re-ask note for the mcq_stem flags in `shortfall`, or null. */

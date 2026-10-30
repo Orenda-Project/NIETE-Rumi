@@ -59,6 +59,8 @@ describe('G4 marking', () => {
 describe('the Grade 3-4 shared rules (v38)', () => {
   const PAID = 'Each marking point pays a different idea the stem asks for: never the stem\'s own words, never one idea twice';
   const ONE = 'A chapter word is tested in one item only';
+  // v38 round-6 panel: G3 Maths Q4, G4 Maths Q4, G3 English Q3/Q6, G4 English Q6 paid what the stem never asked for.
+  const UNASKED = 'A unit, a number sentence, a complete sentence, a greeting or closing, or a reason earns a mark only when the stem or instruction asks for it in words';
   const mid = (grade, key) => C.makeSubject({
     grade, key, medium: 'en', name_en: key, name_ur: key, tos: { Remember: 20, Understand: 30, Apply: 50 },
     sections: [{ id: 'A', label_en: 'A', levels: { Remember: 5 }, slots: [{ slot: `${key}.A.Q1`, label_en: 'Q1.', type: 'MCQs', shape: 'mcq', generate: 5, marks_each: 1, prompt_rule: 'r' }] }],
@@ -73,7 +75,7 @@ describe('the Grade 3-4 shared rules (v38)', () => {
     const g3 = promptFor(mid(3, 'urdu'), { kind: 'chapters', chapters: [3], pages: '40-48' });
     const g4 = promptFor(mid(4, 'science'), { kind: 'chapters', chapters: [4], pages: '40-48' });
     const g5 = promptFor(Patterns.subjectOf('fde_g5_2027', 'maths'), { kind: 'fde', chapters: null, pages: null });
-    [PAID, ONE].forEach((r) => {
+    [PAID, ONE, UNASKED].forEach((r) => {
       expect(g3).toContain(r);
       expect(g4).toContain(r);
       expect(g5).not.toContain(r);

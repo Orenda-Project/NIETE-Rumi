@@ -8,7 +8,7 @@
 const { makeSubject } = require('./chrome');
 
 const NO_STORY = ' No story or word problem: bare numbers and figures-free wording only.';
-const FIVE = 'Scheme: M 2 for the method, M 1 for the working, A 1 for the answer, U 1 for the unit or the statement. A common error names the figure its slip gives.';
+const FIVE = 'Scheme: M 2 for the method, M 1 for the working, A 1 for the answer, U 1 for the unit or the statement. A common error names the figure its slip gives. No stem prescribes the method; the key pays any correct method.';
 const S = (o) => ({ marks_each: 1, ...o, prompt_rule: `${o.prompt_rule}${NO_STORY}` });
 
 module.exports = makeSubject({
@@ -42,7 +42,7 @@ module.exports = makeSubject({
           instruction_en: 'Solve. Show your working.',
           prompt_rule: `Three calculations from the chosen chapter, each needing two or three steps with numbers only (e.g. a column sum then a check, a multiplication with carrying, a division with a remainder). Answer: the working and the result. ${FIVE}` }),
         { slot: 'g3.maths.B.word_problem', label_en: 'Q4.', type: 'Word Problem', generate: 1, marks_each: 5, lines: 4, work_mm: 40, word_problems: 1,
-          instruction_en: 'Solve the word problem. Show your working.',
+          instruction_en: 'Solve the word problem. Write the number sentence, show your working and write the answer with its unit.',
           prompt_rule: `One word problem from the chosen chapter: a short everyday situation in two or three sentences with the numbers the chapter uses, a single question. Answer: the number sentence, the working and the answer with its unit. ${FIVE}` },
       ],
     },

@@ -45,10 +45,10 @@ module.exports = makeSubject({
       slots: [
         { slot: 'g3.general_knowledge.B.short', label_en: 'Q4.', type: 'Short Answers', generate: 7, attempt: 5, marks_each: 3, lines: 3,
           instruction_ur: 'کوئی سے پانچ سوالوں کے جواب لکھیں۔',
-          prompt_rule: `Seven short-answer questions on the chapter (name, what is, where, why, how many), each one short Urdu line. ${SAFE} Answer: one or two short Urdu sentences. Scheme: K 1 per correct idea, three ideas for 3. Marks match the ask: one definition is one point, never three. No point pays for a clear or full sentence. A "when" key names the moment or cause the chapter gives, never a means such as effort, and two questions on one idea carry keys that agree.` },
+          prompt_rule: `Seven short-answer questions on the chapter (name, what is, where, why, how many), each one short Urdu line. ${SAFE} Answer: one or two short Urdu sentences. Scheme: K 1 per correct idea, three ideas for 3. Marks match the ask: one definition is one point, never three. No point pays for a clear or full sentence. A "when" key names the moment or cause the chapter gives, never a means such as effort, and two questions on one idea carry keys that agree. No key point is printed on the paper as an MCQ key or option, a match pair, or a blank sentence or box word.` },
         { slot: 'g3.general_knowledge.B.long', label_en: 'Q5.', type: 'Long Answers', generate: 3, attempt: 2, marks_each: 5, lines: 8,
           instruction_ur: 'کوئی سے دو سوالوں کے تفصیلی جواب لکھیں۔',
-          prompt_rule: `Three questions that ask the child to describe, explain or give uses or reasons from the chapter in a few sentences (how we keep clean, why plants matter, what our city has). ${ISLAMIAT} Answer: a model of 4 to 5 short Urdu sentences. Scheme (5): K 1 per correct point up to 4, L 1 for clear order.` },
+          prompt_rule: `Three questions that ask the child to describe, explain or give uses or reasons from the chapter in a few sentences (how we keep clean, why plants matter, what our city has). ${ISLAMIAT} Answer: a model of 4 to 5 short Urdu sentences. Scheme (5): K 1 per correct point up to 4, L 1 for clear order. No key point is printed on the paper as an MCQ key or option, a match pair, or a blank sentence or box word. A long question never asks for the facts or examples a short question asks.` },
       ],
     },
   ],
