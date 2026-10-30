@@ -10,6 +10,8 @@
 const FDE_G5_2027 = require('./fde-g5-2027');
 const FDE_G1_2026 = require('./fde-g1-2026');
 const FDE_G2_2026 = require('./fde-g2-2026');
+const FDE_G3_2026 = require('./fde-g3-2026'); // end-of-chapter papers, no pinned pages (bd-5jmnfj.33.1)
+const FDE_G4_2026 = require('./fde-g4-2026');
 
 // The same subject aliases as question-types.js's normalise (not exported there).
 const SUBJECT_ALIAS = {
@@ -26,6 +28,8 @@ const REGISTRY = Object.freeze({
   [FDE_G5_2027.id]: FDE_G5_2027,
   [FDE_G1_2026.id]: FDE_G1_2026,
   [FDE_G2_2026.id]: FDE_G2_2026,
+  [FDE_G3_2026.id]: FDE_G3_2026,
+  [FDE_G4_2026.id]: FDE_G4_2026,
 });
 
 function list() {

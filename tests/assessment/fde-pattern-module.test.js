@@ -38,8 +38,8 @@ function allStrings(node, out = []) {
 }
 
 describe('the registry', () => {
-  it('lists Grade 5 first, then the early grades', () => {
-    expect(Patterns.list()).toEqual([ID, 'fde_g1_2026', 'fde_g2_2026']);
+  it('lists Grade 5 first, then the early grades, then the mid grades (bd-5jmnfj.33.1)', () => {
+    expect(Patterns.list()).toEqual([ID, 'fde_g1_2026', 'fde_g2_2026', 'fde_g3_2026', 'fde_g4_2026']);
   });
 
   it('returns null for an unknown id', () => {

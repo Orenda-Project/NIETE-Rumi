@@ -32,7 +32,8 @@ const Patterns = require('./patterns');
 const WorkSpace = require('./fde-work-space');
 const { pictureBlock, bubbleBlock, PICTURE_CSS } = require('./fde-picture-block');
 const Fit = require('./fde-slot-fit');
-const { matchOrder, bankOrder, matchTable, matchAnswer, MATCH_CSS } = require('./fde-match-block');
+const { matchOrder, bankOrder, matchTable, matchAnswer, matchStem, MATCH_CSS } = require('./fde-match-block');
+const MidMatch = require('./fde-mid-match');
 const { oralSheet, childCard, ORAL_CSS } = require('./fde-oral-sheet');
 const { prepLines } = require('./fde-oral-prep');
 const { answeredParts } = require('./fde-sub-answers');
@@ -461,9 +462,10 @@ function workSpace(q, slot) {
     if (/☐/.test(String(q.question || ''))) return '';
     // A plant to label carries its own blank lines (bd-5jmnfj.4.33).
     if (q.picture && q.picture.kind === 'plant') return '';
-    // Fill in the blank: the child writes on the ___ (bd-5jmnfj.4.39).
+    // Fill in the blank: the child writes on the ___ (bd-5jmnfj.4.39). Only a one-line slot with no
+    // working space: a Grade 3-4 "___ x 25 = 4,000" still gets its box (bd-5jmnfj.33.2).
     // A picture-only item prints no stem, so its blank is not on the page: it keeps its box (G1 English Q12).
-    if (/_{3,}/.test(String(q.question || '')) && !slotFlag(slot, 'picture_only')) return '';
+    if ((slot.lines || 1) < 2 && !slot.work_mm && /_{3,}/.test(String(q.question || '')) && !slotFlag(slot, 'picture_only')) return '';
     // A sentence under a picture gets three lines (bd-5jmnfj.4.57, .4.58.2).
     const lines = slotFlag(slot, 'sentence_box') ? 3 : (slot.lines || 1);
     return `<div class="write-box" style="height:${12 + 8 * Math.max(0, lines - 1)}mm"></div>`;
@@ -677,9 +679,11 @@ function slotBlock(slot, sec, list, ctx) {
     : '';
   if (slot.shape === 'match') {
     // Two columns for the child to join with a line; Column B never follows the stems (bd-5jmnfj.4.23).
-    const stems = live.map((q, i) => `<span class="n">${labelHtml(itemNumber(slot, i, lang), ctx)}</span> ${textOf(stemOf(q, slot, false), ctx)}`);
+    // Column A is the item's own column_a when it has one (bd-5jmnfj.33.2), else its stem as before.
+    const stems = live.map((q, i) => `<span class="n">${labelHtml(itemNumber(slot, i, lang), ctx)}</span> ${textOf(Array.isArray(q.column_a) ? matchStem(q) : stemOf(q, slot, false), ctx)}`);
     const column = matchOrder(live.map(matchAnswer)).map((a) => textOf(a, ctx));
-    return `<div class="slot">${head}<div class="q" data-slot="${esc(slot.slot)}">${matchTable(stems, column)}</div></div>`;
+    const table = MidMatch.isMidMatch(slot) ? MidMatch.midMatchTable(stems, column, lang) : matchTable(stems, column); // G3/G4: heads, letters, boxes (bd-5jmnfj.33.4)
+    return `<div class="slot">${head}<div class="q" data-slot="${esc(slot.slot)}">${table}</div></div>`;
   }
   const body = [];
   const strip = lang === 'ur' && slot.type === 'Alphabetical Order' ? V37.alphabetStrip() : ''; // v37 G2 Urdu Q2
@@ -710,7 +714,10 @@ function slotBlock(slot, sec, list, ctx) {
   const either = slot.or || slot.alternatives ? ' either' : '';
   // A short slot (six items or fewer, not a passage) moves whole, so its items never leave their
   // instruction at a page break (v27 G1 Maths Q2, G2 English Q1 h, bd-5jmnfj.4.58.3).
-  const short = live.length <= 6 && !['comprehension', 'passage'].includes(slot.shape) ? ' short' : '';
+  // A slot taller than a page is never kept whole: it would jump to a fresh page and split there (bd-5jmnfj.33.8.1).
+  const boxMm = slotFlag(slot, 'answer_box') ? 12 + 8 * Math.max(0, (slot.lines || 1) - 1) : ((slot.lines || 0) >= 2 ? Math.max(16, slot.lines * 8) : 0);
+  const fits = grid || Fit.writeSlotFits({ stems: live.map((q) => q.question), boxMm, ur: lang === 'ur' });
+  const short = live.length <= 6 && fits && !['comprehension', 'passage'].includes(slot.shape) ? ' short' : '';
   // A Grade 1-2 slot prints its words once, boxed, above its items (bd-5jmnfj.4.20). The bank is
   // dealt so no word sits at its own item: a model lists them as it wrote them (bd-5jmnfj.4.50.9).
   const words = bankOrder([...new Set(live.flatMap((q) => (Array.isArray(q.words) ? q.words : [])))], live.map(matchAnswer));
@@ -791,6 +798,7 @@ function css(medium, kind) {
   .slot-head { display: flex; gap: 6px; align-items: baseline; font-weight: 700; margin: 6px 0 3px; break-after: avoid; break-inside: avoid; }
   .slot-head .ml { margin-${start}: auto; white-space: nowrap; font-weight: 700; }
   .slot-head .ins { font-weight: 700; }
+  .slot-head .lab { white-space: nowrap; flex: none; }
   .q { margin: 3px 0 5px; padding-${start}: 6mm; break-inside: avoid; }
   /* A slot's last item never sits alone at the top of a page. */
   .slot > .q:last-child { break-before: avoid; }
@@ -970,7 +978,7 @@ const BOOK_SOURCE = {
 };
 
 // How much of a question's stem the key column repeats. 110 cut mid-sentence on every G5 Maths
-// Section C stem (v27, bd-5jmnfj.4.58.3).
+// Section C stem (v27, bd-5jmnfj.4.58.3); a two-line do-as-directed item reads whole (bd-5jmnfj.33.2).
 const KEY_ECHO = 200;
 
 // The rows the scheme pass wrote in code stay in `_layout.scheme_shortfall`; the key prints no note about them (panel, bd-5jmnfj.4.58.9.1).
@@ -1113,8 +1121,9 @@ function mcqStrip(slot, list, ctx) {
   const lang = ctx.medium;
   const live = list.filter((q) => q.removed !== true);
   const sep = lang === 'ur' ? '، ' : ' · ';
-  const key = (q) => (slot.shape === 'match' ? matchAnswer(q) : answerLetter(q, slot));
-  const cells = live.map((q, i) => `${itemNumber(slot, i, lang).replace(/[)۔.]$/, '')} ${key(q)}`);
+  const midKeys = MidMatch.midMatchStripKeys(slot, live, lang); // G3/G4 match: "letter) text" (bd-5jmnfj.33.4)
+  const key = (q, i) => (midKeys ? midKeys[i] : slot.shape === 'match' ? matchAnswer(q) : answerLetter(q, slot));
+  const cells = live.map((q, i) => `${itemNumber(slot, i, lang).replace(/[)۔.]$/, '')} ${key(q, i)}`);
   const label = lang === 'ur' ? slot.label_ur : shortLabel(slot.label_en);
   // A line may break only between answers, and a separator never starts or ends a line alone.
   const last = cells.length - 1;

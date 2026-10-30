@@ -55,12 +55,28 @@ const ARROW = /→|←|->|<-|⇒|=>/;
 function matchAnswer(q) {
   const b = Array.isArray(q.column_b) ? String(q.column_b[0] ?? '').trim() : '';
   if (b) return b;
-  const parts = String(q.answer ?? '').split(ARROW);
+  // A joined pair "A: B" prints B alone: strip only the row's own Column A prefix, never every colon.
+  const a = Array.isArray(q.column_a) ? String(q.column_a[0] ?? '').trim() : '';
+  let ans = String(q.answer ?? '').trim();
+  const m = a && ans.startsWith(a) ? ans.slice(a.length).match(/^\s*[:：]\s*([\s\S]*)$/) : null;
+  if (m) ans = m[1].trim();
+  const parts = ans.split(ARROW);
   return parts[parts.length - 1].trim();
 }
 
 /** A match answer is Column B alone, never the pair with an arrow. */
 const noArrow = (q) => !ARROW.test(String(q.answer ?? ''));
+
+/**
+ * What an item prints in Column A (bd-5jmnfj.33.2): its own Column A, else its question. v30 G3
+ * General Knowledge Q2 wrote the instruction as every item's question and the term in column_a,
+ * so the paper printed "کالم الف کو کالم ب سے ملائیں۔" five times with nothing to match.
+ */
+function matchStem(q) {
+  if (!q) return '';
+  const a = Array.isArray(q.column_a) ? String(q.column_a[0] ?? '').trim() : '';
+  return a || String(q.question ?? '');
+}
 
 /** One row per pair: stem, gap, Column B. Cells arrive as HTML. */
 function matchTable(stems, column) {
@@ -74,4 +90,4 @@ const MATCH_CSS = `
   table.match-table td.m-gap { width: 40mm; }
 `;
 
-module.exports = { matchOrder, bankOrder, matchTable, matchAnswer, noArrow, MATCH_CSS };
+module.exports = { matchOrder, bankOrder, matchTable, matchAnswer, matchStem, noArrow, MATCH_CSS };
