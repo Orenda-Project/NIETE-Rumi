@@ -23,8 +23,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `routes.test.ts` | Pins that the Training Library routes sit under /portal/coach and the guard wraps them |
 
 ## Who reads this (all, generated)
-- `CoachAppGuard.tsx` ← imported by `portal/src/App.tsx:25:dd40c5c7` · `portal/src/portal/coach/card/harness.testdata.tsx:43:4b3728bb`
-- `LibraryPages.tsx` ← imported by `portal/src/App.tsx:151:5c536921`
+- `CoachAppGuard.tsx` ← imported by `portal/src/App.tsx:25:dd40c5c7` · `portal/src/portal/coach/card/harness.testdata.tsx:46:4b3728bb`
+- `LibraryPages.tsx` ← imported by `portal/src/App.tsx:152:5c536921`
 - `appReady.ts` ← imported by `portal/src/portal/coach/insights/InsightsGate.tsx:6:f4172066` · `portal/src/portal/coach/insights/paths.ts:1:72012f5c` · `portal/src/portal/coach/pages/CoachPeople.tsx:12:b015a408` · `portal/src/portal/coach/pages/CoachSchool.tsx:12:b015a408` (+6: `python3 kg/kg.py who-reads appReady.ts`)
 - `copy.ts` ← imported by `portal/src/portal/teacher/copyRegistry.ts:7:3ff9d825` · `portal/src/portal/coach/training/LibraryPages.tsx:21:f965f797`
 - `libraryApi.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:11:fd553941` · `portal/src/portal/coach/training/LibraryPages.tsx:27:592b21d3`

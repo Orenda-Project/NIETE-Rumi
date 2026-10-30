@@ -11,6 +11,7 @@ import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
 import { SchoolCard, SchoolGroup, EmptyRow, Notice, useNotice } from "../people/rows";
 import { coachFeatureReady } from "../training/appReady";
 import { useCardSwitch } from "../card/frame";
+import { LevelChips, atLevel, levelCounts, useLevel, withLevel } from "../people/level";
 
 /**
  * bd-o15qnr + bd-4404s7.6 — Schools & teachers: one page, Schools | Teachers tabs (Schools first), numbers only.
@@ -19,6 +20,10 @@ import { useCardSwitch } from "../card/frame";
  *             chip on each row in a status tone with a legend.
  *   Teachers  grouped by school (the Blueprint's Coach_TeachersB): a school opens in place to its first two teachers
  *             and "Show all N" shows the rest; no search and no school filter, the groups are the filter.
+ *
+ * bd-ewbzns.1 — Teaching level (All · Primary · Middle · High) on both tabs, above the sort: a school is under a level
+ * when one of its teachers teaches at it, the Teachers tab keeps that level's teachers, and the pick (in the address)
+ * stays across the tabs and opens a school for that level.
  *
  * The dock is her way to change the list (Blueprint: Coach · Manage schools and teachers): Add a school on the
  * Schools tab, Add a teacher on the Teachers tab — the WhatsApp /observe "Add or remove a school" and
@@ -68,13 +73,19 @@ const CoachPeople = () => {
   const [tSort, setTSort] = useState<TeacherSort>("days");
   const [sSort, setSSort] = useState<SchoolSort>("least");
   const { notice } = useNotice();
+  const [level] = useLevel();
 
-  const groups = useMemo(() => groupBySchool(data?.teachers || [], tSort), [data, tSort]);
+  const counts = useMemo(() => levelCounts(data?.teachers || []), [data]);
+  const teachers = useMemo(() => (data?.teachers || []).filter((t) => atLevel(t.levels, level)), [data, level]);
+  const groups = useMemo(() => groupBySchool(teachers, tSort), [teachers, tSort]);
   const schools = useMemo(() => {
     const cmp = sSort === "most" ? (a: CoachSchool, b: CoachSchool) => b.visits - a.visits
       : sSort === "days" ? bySince : (a: CoachSchool, b: CoachSchool) => a.visits - b.visits;
-    return [...(data?.schools || [])].sort(cmp as (a: CoachSchool, b: CoachSchool) => number);
-  }, [data, sSort]);
+    // A school is under a level when one of its teachers teaches at it.
+    const held = level ? new Set(teachers.flatMap((t) => [t.schoolExtId, t.emis ? `niete:${t.emis}` : null]).filter(Boolean)) : null;
+    const shown = (data?.schools || []).filter((s) => !held || held.has(s.schoolExtId) || (!!s.emis && held.has(`niete:${s.emis}`)));
+    return [...shown].sort(cmp as (a: CoachSchool, b: CoachSchool) => number);
+  }, [data, sSort, level, teachers]);
 
   // A menu page while the coach Home is not in the coach app: no Back to it (that tap would land on the Training Library).
   // With the School card on, the slim Home is in the coach app and My schools opens from it.
@@ -87,16 +98,18 @@ const CoachPeople = () => {
         : <BottomLink to="/portal/coach/schools/add"><Plus className="h-5 w-5" aria-hidden="true" />{C.addSchool}</BottomLink>}>
       <Notice text={notice} />
       <Tabs label={C.title} items={[
-        { to: "/portal/coach/people", label: C.schoolsTab, count: data?.schools.length, active: tab === "schools" },
-        { to: "/portal/coach/people?tab=teachers", label: C.teachersTab, count: data?.teachers.length, active: tab === "teachers" },
+        { to: withLevel("/portal/coach/people", level), label: C.schoolsTab, count: data ? schools.length : undefined, active: tab === "schools" },
+        { to: withLevel("/portal/coach/people?tab=teachers", level), label: C.teachersTab, count: data ? teachers.length : undefined, active: tab === "teachers" },
       ]} />
+      {data && <LevelChips counts={counts} />}
       {failed && <LoadFailed onRetry={reload} />}
       {!data && !failed && <Loading />}
       {data && tab === "teachers" && (
         <>
           <ChoiceChips<TeacherSort> label={C.sort} value={tSort} onChange={setTSort}
             options={[{ value: "days", label: C.sortDays }, { value: "avg", label: C.sortAvg }, { value: "az", label: C.sortAz }]} />
-          {groups.map((g, i) => <SchoolGroup key={`${g.id}:${tSort}`} id={g.id} name={g.name} teachers={g.teachers} defaultOpen={i === 0} />)}
+          {level && groups.length === 0 && <EmptyRow testId="none-at-level" icon={<School className="h-5 w-5" />}>{C.noneAtLevel}</EmptyRow>}
+          {groups.map((g, i) => <SchoolGroup key={`${g.id}:${tSort}:${level}`} id={g.id} name={g.name} teachers={g.teachers} defaultOpen={i === 0} />)}
         </>
       )}
       {data && tab === "schools" && (
@@ -111,9 +124,9 @@ const CoachPeople = () => {
               <StatusChip text={C.legendRecent} tone="done" />
             </span>
           </div>
-          {schools.length === 0 && <EmptyRow testId="no-schools" icon={<School className="h-5 w-5" />}>{C.noSchoolsYet}</EmptyRow>}
+          {schools.length === 0 && <EmptyRow testId={level && data.schools.length ? "none-at-level" : "no-schools"} icon={<School className="h-5 w-5" />}>{level && data.schools.length ? C.noneAtLevel : C.noSchoolsYet}</EmptyRow>}
           {schools.length > 0 && <div className="px-1 text-[13px] font-semibold text-[#6b7280]">{C.visitsLast3}</div>}
-          {schools.map((s) => <SchoolCard key={s.schoolExtId} s={s} />)}
+          {schools.map((s) => <SchoolCard key={s.schoolExtId} s={s} level={level} />)}
         </>
       )}
     </PeopleFrame>

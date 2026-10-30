@@ -1,7 +1,7 @@
 # card — School card: per-school and per-teacher coach views behind a switch
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/card kg=494175621b96 gen=93e984380668 overflow=36 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/card kg=af1cda46593c gen=1835d63e430d overflow=39 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `SchoolCardPage.tsx` — the school card with period chips and feature tiles
@@ -18,12 +18,12 @@ Full index: `CLAUDE.index.md`
 | `period.ts` | School card period (Today, This week, This month) in the ?period= address plus label helpers |
 | `parts.tsx` | School card pieces: period chips, bars, activity tiles, teacher grid, score chart, sparkline |
 | `api.ts` | School card reads GET /api/portal/coach/... (404 when switch off or not her school); read only |
-| … | 19 more → `CLAUDE.index.md` |
+| … | 20 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `copy.ts` ← imported by `portal/src/portal/teacher/copyRegistry.ts:9:1838e6da` · `portal/src/portal/coach/card/DaysUsedPage.tsx:7:b8c88189` (+11)
+- `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachPickTeacher.tsx:7:bb80576a` · `portal/src/portal/teacher/copyRegistry.ts:9:1838e6da` (+12)
 - `frame.tsx` ← imported by `portal/src/portal/coach/pages/CoachPeople.tsx:13:7a39566b` · `portal/src/portal/coach/pages/CoachSchool.tsx:13:7a39566b` (+11)
-- `types.ts` ← imported by `portal/src/portal/coach/card/DaysUsedPage.tsx:12:a9641473` · `portal/src/portal/coach/card/FeatureGridPage.tsx:12:e56fb790` (+11)
+- `types.ts` ← imported by `portal/src/portal/coach/card/DaysUsedPage.tsx:12:a9641473` · `portal/src/portal/coach/card/FeatureGridPage.tsx:13:e56fb790` (+11)
 - `period.ts` ← imported by `portal/src/portal/coach/card/DaysUsedPage.tsx:10:b405e2b8` · `portal/src/portal/coach/card/FeatureGridPage.tsx:9:7dd7d4b5` (+8)
 - … 15 more → `CLAUDE.index.md`
 
@@ -34,8 +34,8 @@ Full index: `CLAUDE.index.md`
 
 ## Tests (generated)
 - `portal/src/portal/coach/card/period.test.ts` (copy.ts, period.ts, types.ts)
-- `portal/src/portal/coach/card/switchOff.test.tsx` (fixtures.testdata.ts, harness.testdata.tsx)
-- … 3 more → `CLAUDE.index.md`
+- `portal/src/portal/coach/card/level.test.tsx` (fixtures.testdata.ts, harness.testdata.tsx)
+- … 4 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/coach/CLAUDE.md`?

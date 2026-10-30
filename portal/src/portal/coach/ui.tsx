@@ -253,7 +253,7 @@ export function Initials({ name, size = 48, round = false }: { name: string | nu
 }
 
 /** A tappable row card (a link with ›). */
-export function TapRow({ to, children, emphasis = false, muted = false, testId }: { to: string; children: ReactNode; emphasis?: boolean; muted?: boolean; testId?: string }) {
+export function TapRow({ to, state, children, emphasis = false, muted = false, testId }: { to: string; state?: unknown; children: ReactNode; emphasis?: boolean; muted?: boolean; testId?: string }) {
   // bd-o15qnr.12: one set of edge/fill/shadow per state. Adding the state's
   // classes on top of TAP left two border colours (and two fills) in the class
   // list, and Tailwind's own order — not ours — picked TAP's grey.
@@ -263,7 +263,7 @@ export function TapRow({ to, children, emphasis = false, muted = false, testId }
       ? "rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] shadow-none [&_[data-testid=name]]:text-[#6b7280]"
       : TAP;
   return (
-    <Link to={to} data-testid={testId}
+    <Link to={to} state={state} data-testid={testId}
       className={`${look} flex min-h-[84px] items-center gap-3.5 p-3 pe-3.5`}>
       {children}
       <Chevron />

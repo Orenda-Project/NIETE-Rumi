@@ -9,6 +9,7 @@ import { CardOnly, useCardLoad } from "./frame";
 import { aheadLine, bucketLabels, perDayLine, perDayOf, usePeriod, withPeriod } from "./period";
 import { CARD_FEATURES, FEATURE_OF, PeriodChips, TeacherGrid } from "./parts";
 import ScoresByTeacher from "./ScoresByTeacher";
+import { useLevel, withLevel } from "../people/level";
 import type { CardFeature, FeatureGridData } from "./types";
 
 /**
@@ -23,12 +24,14 @@ function FeatureGrid() {
   const { emis = "", feature: raw = "" } = useParams();
   const feature = (CARD_FEATURES as readonly string[]).includes(raw) ? (raw as CardFeature) : null;
   const [period] = usePeriod();
+  // bd-ewbzns.1 — opened from a school's card for one teaching level: that level's teachers, and Back keeps it.
+  const [level] = useLevel();
   const from = (useLocation().state || {}) as { schoolName?: string };
   const { data, failed, reload } = useCardLoad<FeatureGridData | null>(
-    () => (feature ? card.grid(emis, feature, period) : Promise.reject(new Error("unknown feature"))), [emis, feature, period]);
+    () => (feature ? card.grid(emis, feature, period, level) : Promise.reject(new Error("unknown feature"))), [emis, feature, period, level]);
 
   const school = `/portal/coach/school/${encodeURIComponent(emis)}`;
-  const here = withPeriod(`${school}/feature/${raw}`, period);
+  const here = withLevel(withPeriod(`${school}/feature/${raw}`, period), level);
   const title = feature ? C.byTeacher[feature] : C.dash;
   const columns = data ? bucketLabels(period, data.period.buckets, C) : [];
   const future = data ? data.period.buckets.map((b) => b.future) : [];
@@ -37,7 +40,7 @@ function FeatureGrid() {
   const rate = data ? perDayLine(period, perDayOf(data.total, data.period.schoolDaysSoFar), data.total, C) : null;
 
   return (
-    <PeopleFrame title={title} crumb={from.schoolName || undefined} backTo={withPeriod(school, period)} feature={feature ? FEATURE_OF[feature] : "schools"}>
+    <PeopleFrame title={title} crumb={from.schoolName || undefined} backTo={withLevel(withPeriod(school, period), level)} feature={feature ? FEATURE_OF[feature] : "schools"}>
       <PeriodChips />
       {failed && <LoadFailed onRetry={reload} />}
       {!data && !failed && <Loading />}

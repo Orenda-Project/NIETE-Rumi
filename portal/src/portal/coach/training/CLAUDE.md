@@ -1,7 +1,7 @@
 # training — Coach app guard and read-only Training Library
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/training kg=e373b2256c37 gen=af947cfd6472 overflow=18 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/training kg=a1295533cb96 gen=67e6f21cdb60 overflow=18 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `appReady.ts` — allow-list of ready coach features, menu and landing
@@ -21,7 +21,7 @@ Full index: `CLAUDE.index.md`
 
 ## Who reads this (generated)
 - `appReady.ts` ← imported by `portal/src/portal/coach/insights/InsightsGate.tsx:6:f4172066` · `portal/src/portal/coach/insights/paths.ts:1:72012f5c` (+8)
-- `CoachAppGuard.tsx` ← imported by `portal/src/App.tsx:25:dd40c5c7` · `portal/src/portal/coach/card/harness.testdata.tsx:43:4b3728bb`
+- `CoachAppGuard.tsx` ← imported by `portal/src/App.tsx:25:dd40c5c7` · `portal/src/portal/coach/card/harness.testdata.tsx:46:4b3728bb`
 - `copy.ts` ← imported by `portal/src/portal/teacher/copyRegistry.ts:7:3ff9d825` · `portal/src/portal/coach/training/LibraryPages.tsx:21:f965f797`
 - `libraryApi.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:11:fd553941` · `portal/src/portal/coach/training/LibraryPages.tsx:27:592b21d3`
 - … 1 more → `CLAUDE.index.md`

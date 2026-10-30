@@ -12,6 +12,7 @@
  *   GET /coach/teacher/:ext/scores/:kind?period=            dc | coach: her scores, every practice averaged, her reports
  *   GET /coach/session/:id                                  one DC report or coach observation of a teacher in her patch
  *
+ * level = primary | middle | high on the three school routes: that level's teachers only (bd-ewbzns.1).
  * period = today | week | month (default week), Pakistan days; anything else is 400. ?today=YYYY-MM-DD is taken
  * only within one day of the Pakistan date (for a page that shows its own day, and for tests).
  */
@@ -54,7 +55,10 @@ function createCoachSchoolCardRouter(deps) {
       return null;
     }
     res.set('Cache-Control', 'private, no-store');
-    return { period, today: todayOf(req, now), ...(memo ? { memo } : {}) };
+    // bd-ewbzns.1 — ?level=primary|middle|high: a school's pages for the teachers of that level (the service reads
+    // it, and anything else is the whole school).
+    const level = req.query && typeof req.query.level === 'string' ? req.query.level : null;
+    return { period, today: todayOf(req, now), ...(level ? { level } : {}), ...(memo ? { memo } : {}) };
   };
   const coach = (req) => req.session.portalUserId;
   const answer = async (res, where, load) => {

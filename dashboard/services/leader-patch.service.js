@@ -25,6 +25,8 @@ const { getOverall } = require('./coaching-frameworks.service');
 const {
   fullNameOf, displayNameOf,
 } = require('../../bot/shared/services/observe/patch-resolver.service');
+// The one level reader, pure as well (bot/shared/utils/teacher-level: no fallback, every band, canonical order).
+const { teacherLevelOf } = require('../../bot/shared/utils/teacher-level');
 
 // One round-trip. LATERALs return 0 / no rows for teachers with no Rumi user,
 // so the LEFT JOINs yield 0 counts / null score for off-Rumi teachers.
@@ -69,7 +71,9 @@ const PATCH_SELECT = `
     -- feature needs a number here or the view cannot be organised by one.
     COALESCE(att.n, 0)    AS attendance_sessions,
     COALESCE(trn.n, 0)    AS training_modules,
-    COALESCE(exm.n, 0)    AS exams_generated
+    COALESCE(exm.n, 0)    AS exams_generated,
+    -- bd-ewbzns.1: her teaching levels, for the coach app's Primary / Middle / High filter.
+    u.teacher_level       AS teacher_level
 `;
 
 // The four per-person stat LATERALs. Identical for every caller: they key on
@@ -244,6 +248,8 @@ function shapeTeacher(r) {
     // 354 principals join patches that never had them. An unlabelled principal
     // in a teacher list is how the wrong person gets observed.
     isPrincipal: r.role === 'principal',
+    // bd-ewbzns.1 — PRIMARY / MIDDLE / HIGH in canonical order, read by the bot's one reader; [] when none recorded.
+    levels: teacherLevelOf(r),
   };
 }
 
