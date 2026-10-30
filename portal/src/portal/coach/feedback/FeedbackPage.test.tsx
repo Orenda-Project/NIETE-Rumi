@@ -63,12 +63,12 @@ beforeEach(async () => {
 });
 
 describe("Send feedback — step 1, Topic", () => {
-  it("three big choices, nothing picked, Next waits for a pick", async () => {
+  it("four big choices (Report an issue's four), nothing picked, Next waits for a pick", async () => {
     const user = userEvent.setup();
     renderPage();
     expect(screen.getByRole("heading", { name: "Send feedback" })).toBeInTheDocument();
     expect(screen.getByText("Step 1 of 3")).toBeInTheDocument();
-    for (const t of ["Something isn’t working", "An idea", "Something else"]) {
+    for (const t of ["Something isn’t working", "Numbers look wrong", "An idea", "Something else"]) {
       expect(tile(t)).toHaveAttribute("aria-pressed", "false");
     }
     expect(next()).toBeDisabled();
@@ -176,7 +176,7 @@ describe("Send feedback — step 3, Screenshots, and Send", () => {
     expect(screen.getByText("Step 3 of 3")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Send" }));
     expect(portal.sendFeedback).toHaveBeenCalledWith({
-      topic: "problem", text: "Schools does not open", audioKey: undefined, photoKeys: [], context: { surface: "coach_more" },
+      topic: "broken", text: "Schools does not open", audioKey: undefined, photoKeys: [], page: "/portal/coach/more", context: {},
     });
     expect(await screen.findByText("Thank you")).toBeInTheDocument();
   });
@@ -219,7 +219,7 @@ describe("Send feedback — step 3, Screenshots, and Send", () => {
     expect(portal.presignFeedbackUpload).toHaveBeenCalledWith({ filename: "a.png", sizeBytes: 2000, kind: "feedback_photo" });
     expect(portal.uploadToR2).toHaveBeenCalledTimes(2);
     expect(portal.sendFeedback).toHaveBeenCalledWith({
-      topic: "idea", text: undefined, audioKey: "feedback_audio/voice.webm", photoKeys: ["feedback_photo/a.png"], context: { surface: "coach_more" },
+      topic: "idea", text: undefined, audioKey: "feedback_audio/voice.webm", photoKeys: ["feedback_photo/a.png"], page: "/portal/coach/more", context: {},
     });
     expect(await screen.findByText("Thank you")).toBeInTheDocument();
     expect(screen.getByText("We got your feedback.")).toBeInTheDocument();

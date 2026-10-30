@@ -62,11 +62,11 @@ describe("More and COACHIP", () => {
     expect(screen.getByTestId("more-row-lessons").getAttribute("href")).toBe("/portal/teacher/lessons");
   });
 
-  // bd-whlsm0: Report an issue is on More whichever way the switch is
-  it.each(["on", "off"] as const)("switch %s: Report an issue opens the form", async (mode) => {
+  // bd-whlsm0's Report an issue is folded into Send feedback: one feedback row on More, whichever way the switch is
+  it.each(["on", "off"] as const)("switch %s: no separate Report an issue row", async (mode) => {
     await renderMore(mode);
-    expect(screen.getByTestId("more-row-report").getAttribute("href")).toBe("/portal/coach/more/report");
-    expect(screen.getByTestId("more-row-report").textContent).toContain("Report an issue");
+    expect(screen.queryByTestId("more-row-report")).toBeNull();
+    expect(screen.queryByText("Report an issue")).toBeNull();
   });
 
   // fix-r5 item 5d (SPEC v2.1 §11.6, dual-role users): a "Sector (RM)" row only when features.coachipRm === true

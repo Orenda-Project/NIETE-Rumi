@@ -11,7 +11,9 @@ import type { CopyEntry } from "../../teacher/copyRegistry";
 export const FEEDBACK_EN = {
   title: "Send feedback",
   topic: "Topic",
-  problem: "Something isn’t working",
+  // The four kinds of Report an issue (bd-whlsm0), folded into this form; the bot's TOPICS, same order.
+  broken: "Something isn’t working",
+  numbers: "Numbers look wrong",
   idea: "An idea",
   other: "Something else",
   yourFeedback: "Your feedback",
@@ -44,7 +46,8 @@ export const FEEDBACK_EN = {
 export const FEEDBACK_UR: Words<typeof FEEDBACK_EN> = {
   title: "رائے بھیجیں",
   topic: "موضوع",
-  problem: "کچھ کام نہیں کر رہا",
+  broken: "کچھ کام نہیں کر رہا",
+  numbers: "اعداد غلط ہیں",
   idea: "ایک تجویز",
   other: "کچھ اور",
   yourFeedback: "آپ کی رائے",
@@ -80,5 +83,5 @@ export type FeedbackCopy = typeof FEEDBACK_EN;
 export const COPY_ENTRY: CopyEntry = {
   screen: "Coach Send feedback",
   module: FEEDBACK as Bilingual<unknown>,
-  longOk: ["problem", "optional", "gotIt", "couldNotSend", "tooMany", "micHint", "notPicture", "tooLarge", "removeVoice", "removeScreenshot", "addScreenshot", "record"],
+  longOk: ["broken", "optional", "gotIt", "couldNotSend", "tooMany", "micHint", "notPicture", "tooLarge", "removeVoice", "removeScreenshot", "addScreenshot", "record"],
 };

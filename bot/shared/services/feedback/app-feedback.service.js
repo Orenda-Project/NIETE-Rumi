@@ -3,11 +3,15 @@
  * from /portal, and in the Android app). Coaches asked to give it by voice, so a voice message is a first-class
  * answer; she may also write, and add up to three screenshots.
  *
+ * ONE FORM, ONE TABLE. "Report an issue" (bd-whlsm0) asked the same thing in words only and started coach_feedback;
+ * this form took its four kinds and writes the same table (bot/database/migrations/coach_feedback.sql, then
+ * coach_feedback_voice.sql). The app's word is `topic`; the column is `kind`.
+ *
  * THE ORDER
  * ---------
  *   1. presignUpload   the voice message and each screenshot go straight to R2 (kinds feedback_audio and
  *                      feedback_photo of portal-coaching.service: one signer, one ownership check).
- *   2. submitFeedback  checks every key is hers and arrived, keeps ONE app_feedback row, and answers. Nothing
+ *   2. submitFeedback  checks every key is hers and arrived, keeps ONE coach_feedback row, and answers. Nothing
  *                      slow happens before she has her answer.
  *   3. followUp        afterwards (d.later): the voice message is transcribed onto the row, then ONE Slack post
  *                      tells the team it arrived, and notified_at is set. Slack is off until
@@ -22,8 +26,12 @@
 
 const crypto = require('crypto');
 
-const TOPICS = Object.freeze(['problem', 'idea', 'other']);
-const TOPIC_LABEL = Object.freeze({ problem: 'Something isn’t working', idea: 'An idea', other: 'Something else' });
+const TOPICS = Object.freeze(['broken', 'numbers', 'idea', 'other']);
+const TOPIC_LABEL = Object.freeze({
+  broken: 'Something isn’t working', numbers: 'Numbers look wrong', idea: 'An idea', other: 'Something else',
+});
+const TABLE = 'coach_feedback';
+const MAX_PAGE_CHARS = 200;
 const MAX_TEXT_CHARS = 2000;
 const MAX_FEEDBACK_PHOTOS = 3;
 // A day's sends per person. Far above what anyone writes by hand; it stops a stuck tap or a loop flooding Slack.
@@ -33,7 +41,6 @@ const UPLOAD_KINDS = Object.freeze(['feedback_audio', 'feedback_photo']);
 
 // The context the app may send, each with its check. Anything else is dropped, never stored.
 const CONTEXT_FIELDS = Object.freeze({
-  surface: (v) => typeof v === 'string' && /^[a-z_]{1,40}$/.test(v),
   // dashboard app-funnel.routes browserClass(): classified from the request's own user agent
   browser: (v) => ['whatsapp-iab', 'webview', 'browser', 'native'].includes(v),
   appBuild: (v) => Number.isInteger(v) && v > 0 && v < 1e7,
@@ -71,6 +78,11 @@ async function presignUpload({ userId, filename, sizeBytes, kind }, deps) {
   return d.coaching.presignUpload({ userId, filename, sizeBytes, kind }, { r2: d.r2, now: d.now, newId: d.newId });
 }
 
+/** The portal address she sent it from (coach_feedback.page's CHECK), else null. */
+function pageOf(raw) {
+  return typeof raw === 'string' && raw.startsWith('/portal/') && raw.length <= MAX_PAGE_CHARS ? raw : null;
+}
+
 function cleanContext(raw) {
   const out = {};
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
@@ -84,7 +96,7 @@ function cleanContext(raw) {
  * Keep what she sent and answer.
  * @returns {{status:'ok', feedbackId} | {status:'invalid', reason, key?}}
  */
-async function submitFeedback({ userId, topic, text, audioKey, photoKeys, context }, deps) {
+async function submitFeedback({ userId, topic, text, audioKey, photoKeys, page, context }, deps) {
   if (!userId) return { status: 'invalid', reason: 'no_user' };
   if (!TOPICS.includes(topic)) return { status: 'invalid', reason: 'bad_topic' };
   const message = String(text == null ? '' : text).trim();
@@ -107,16 +119,17 @@ async function submitFeedback({ userId, topic, text, audioKey, photoKeys, contex
 
   const since = new Date(d.now().getTime() - 24 * 60 * 60 * 1000).toISOString();
   const { count, error: countError } = await d.supabase
-    .from('app_feedback').select('id', { count: 'exact', head: true })
+    .from(TABLE).select('id', { count: 'exact', head: true })
     .eq('user_id', userId).gte('created_at', since);
-  if (countError) throw new Error(`app_feedback count failed: ${countError.message}`);
+  if (countError) throw new Error(`${TABLE} count failed: ${countError.message}`);
   if ((count || 0) >= DAILY_CAP) return { status: 'invalid', reason: 'too_many' };
 
   const row = {
-    user_id: userId, topic, message: message || null, audio_key: audio, photo_keys: photos, context: cleanContext(context),
+    user_id: userId, kind: topic, message: message || null, page: pageOf(page),
+    audio_key: audio, photo_keys: photos, context: cleanContext(context),
   };
-  const { data, error } = await d.supabase.from('app_feedback').insert(row).select('id').single();
-  if (error || !data) throw new Error(`app_feedback insert failed: ${error ? error.message : 'no row'}`);
+  const { data, error } = await d.supabase.from(TABLE).insert(row).select('id').single();
+  if (error || !data) throw new Error(`${TABLE} insert failed: ${error ? error.message : 'no row'}`);
 
   d.later(() => followUp({ id: data.id, ...row }, deps).catch((e) => {
     d.logError('❌ App feedback follow-up threw', { feedbackId: data.id, error: e && e.message });
@@ -137,7 +150,7 @@ async function followUp(row, deps) {
       const heard = await d.transcribe(row.audio_key, language);
       transcript = String((heard && heard.text) || '').trim() || null;
       if (transcript) {
-        const { error } = await d.supabase.from('app_feedback').update({ audio_transcript: transcript }).eq('id', row.id);
+        const { error } = await d.supabase.from(TABLE).update({ audio_transcript: transcript }).eq('id', row.id);
         if (error) d.logWarn('⚠️ App feedback transcript not saved', { feedbackId: row.id, error: error.message });
       }
     } catch (e) {
@@ -166,7 +179,7 @@ async function followUp(row, deps) {
     d.logError('❌ App feedback Slack post failed', { feedbackId: row.id, error: e && e.message });
     return { notified: false, reason: 'post_failed', transcript };
   }
-  const { error } = await d.supabase.from('app_feedback').update({ notified_at: d.now().toISOString() }).eq('id', row.id);
+  const { error } = await d.supabase.from(TABLE).update({ notified_at: d.now().toISOString() }).eq('id', row.id);
   if (error) d.logWarn('⚠️ App feedback notified_at not saved', { feedbackId: row.id, error: error.message });
   return { notified: true, transcript };
 }
@@ -174,9 +187,9 @@ async function followUp(row, deps) {
 /** The one Slack message: who, what about, her words, what she said, the files, and where she sent it from. */
 function slackText({ row, name, transcript, audioUrl, photoUrls }) {
   const ctx = row.context || {};
-  const where = [ctx.surface, ctx.browser, ctx.appBuild ? `build ${ctx.appBuild}` : null].filter(Boolean).join(' · ');
+  const where = [row.page, ctx.browser, ctx.appBuild ? `build ${ctx.appBuild}` : null].filter(Boolean).join(' · ');
   const lines = [
-    `:speech_balloon: *App feedback* from ${name || 'a coach'} — ${TOPIC_LABEL[row.topic] || row.topic}`,
+    `:speech_balloon: *App feedback* from ${name || 'a coach'} — ${TOPIC_LABEL[row.kind] || row.kind}`,
   ];
   if (row.message) lines.push(`> ${row.message.replace(/\n/g, '\n> ')}`);
   if (audioUrl) lines.push(`:studio_microphone: <${audioUrl}|Voice message>${transcript ? `: “${transcript}”` : ''}`);

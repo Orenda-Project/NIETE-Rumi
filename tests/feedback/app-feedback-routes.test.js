@@ -56,7 +56,9 @@ describe('bot — /api/internal/app-feedback/*', () => {
   });
 
   test('submit passes what she sent through, and a refusal is a 400 with its reason', async () => {
-    const body = { userId: 'u1', topic: 'idea', text: 'hi', audioKey: 'a', photoKeys: ['p'], context: { surface: 'coach_more' } };
+    const body = {
+      userId: 'u1', topic: 'idea', text: 'hi', audioKey: 'a', photoKeys: ['p'], page: '/portal/coach/more', context: { appBuild: 1216 },
+    };
     expect(await invoke(router, '/app-feedback/submit', { body })).toMatchObject({ status: 200, body: { success: true, feedbackId: 'fb-1' } });
     expect(svc.submitFeedback).toHaveBeenCalledWith(body);
 
@@ -104,14 +106,14 @@ describe('portal — /api/portal/feedback*', () => {
       session: signedIn,
       headers: { 'user-agent': 'Mozilla/5.0 (Linux; Android 13; wv) WA4A/2.24.1' },
       body: {
-        userId: 'someone-else', topic: 'problem', text: 'x', audioKey: 'a', photoKeys: ['p'],
-        context: { surface: 'coach_more', appBuild: 1216, browser: 'native-lie' },
+        userId: 'someone-else', topic: 'numbers', text: 'x', audioKey: 'a', photoKeys: ['p'], page: '/portal/coach/more',
+        context: { appBuild: 1216, browser: 'native-lie' },
       },
     });
     expect(out).toMatchObject({ status: 200, body: { success: true, feedbackId: 'fb-1' } });
     expect(client.submitFeedback).toHaveBeenCalledWith({
-      userId: 'session-user', topic: 'problem', text: 'x', audioKey: 'a', photoKeys: ['p'],
-      context: { surface: 'coach_more', appBuild: 1216, browser: 'whatsapp-iab' },
+      userId: 'session-user', topic: 'numbers', text: 'x', audioKey: 'a', photoKeys: ['p'], page: '/portal/coach/more',
+      context: { appBuild: 1216, browser: 'whatsapp-iab' },
     });
   });
 
@@ -135,5 +137,26 @@ describe('portal — /api/portal/feedback*', () => {
     const router = routes.createAppFeedbackRouter({ requirePortalAuth: (_q, _s, next) => next() });
     expect(await invoke(router, '/feedback', { session: signedIn, body: { topic: 'idea', text: 'x' } }))
       .toMatchObject({ status: 502, body: { success: false } });
+  });
+});
+
+describe('portal → bot client', () => {
+  test('passes every field she sent on to the bot, page included', async () => {
+    jest.resetModules();
+    const post = jest.fn().mockResolvedValue({ status: 200, data: { success: true, feedbackId: 'fb-1' } });
+    jest.dontMock('../../dashboard/services/app-feedback.client');
+    jest.doMock('axios', () => ({ post }));
+    const OLD = { url: process.env.MAIN_BOT_URL, key: process.env.INTERNAL_API_KEY };
+    process.env.MAIN_BOT_URL = 'http://bot.test';
+    process.env.INTERNAL_API_KEY = 'secret';
+    const client = require('../../dashboard/services/app-feedback.client');
+    const body = {
+      userId: 'u1', topic: 'numbers', text: 'x', audioKey: 'a', photoKeys: ['p'], page: '/portal/coach/more', context: { browser: 'native' },
+    };
+    await client.submitFeedback(body);
+    expect(post.mock.calls[0][0]).toBe('http://bot.test/api/internal/app-feedback/submit');
+    expect(post.mock.calls[0][1]).toEqual(body);
+    process.env.MAIN_BOT_URL = OLD.url;
+    process.env.INTERNAL_API_KEY = OLD.key;
   });
 });
