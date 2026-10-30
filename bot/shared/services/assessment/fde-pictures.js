@@ -25,6 +25,7 @@ const Svg = require('./fde-picture-svg');
 const Kie = require('./fde-picture-kie');
 const Describe = require('./fde-picture-describe');
 const { circuitPicture } = require('./fde-circuit-frame');
+const { insetFramed } = require('./fde-picture-inset-frame');
 
 // v3: pictures cached under v2 carry arrows and scan edges (bd-5jmnfj.4.30) and are never reused.
 const PREFIX = 'fde-pictures/v3';
@@ -77,7 +78,8 @@ function framed({ data, width, height }) {
       if (data[y * width + x] < 235) dark += 1;
     }
   }
-  return ring > 0 && dark / ring > FRAME_SHARE;
+  // v29: a frame drawn a little inside the picture (G2 Urdu Q7, G1 English Q13 ii) is a frame too.
+  return (ring > 0 && dark / ring > FRAME_SHARE) || insetFramed({ data, width, height });
 }
 
 function realDeps() {

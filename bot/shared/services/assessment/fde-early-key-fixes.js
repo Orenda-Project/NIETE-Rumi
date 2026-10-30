@@ -17,6 +17,7 @@
 const LETTERS = new Set(['Missing Letters', 'Complete the Words']);
 const RHYMES = 'Rhyming Pairs';
 const THIS_IS = 'This Is A';
+const { mergeMethodMarks } = require('./fde-early-maths-fixes');
 const WORD_PROBLEM = /\bWord Problems?$/;
 const EARLY = /^g[12]\./;
 
@@ -114,7 +115,7 @@ function fixMethod(q, notes) {
   return withPoints(q, fixed);
 }
 
-function fixWordProblem(q, notes) { return fixMethod(fixUnit(q, notes), notes); }
+function fixWordProblem(q, notes) { return mergeMethodMarks(fixMethod(fixUnit(q, notes), notes), notes); }
 
 function fixRhyme(q, notes) {
   const answer = String(q.answer || '').trim();

@@ -12,6 +12,9 @@
  * Pure: one item in, the item out; notes are strings pushed on `notes`. Never throws on an item it cannot read.
  */
 
+const { scienceKeys } = require('./fde-science-keys'); // bd-5jmnfj.4.58 round 4
+const { mathsKeys } = require('./fde-maths-keys');
+
 const WORD = 'تمثیلی';
 const WRONG = 'مثالی';
 const meaningsOf = (line) => line.slice(line.indexOf(':') + 1).split('،').map((m) => m.trim()).filter(Boolean);
@@ -48,7 +51,7 @@ function fixPolarity(q, notes) {
 }
 
 function moreKeyFixes(q, notes) {
-  return fixPolarity(fixAllegorical(q, notes), notes);
+  return mathsKeys(scienceKeys(fixPolarity(fixAllegorical(q, notes), notes), notes), notes);
 }
 
 module.exports = { moreKeyFixes };

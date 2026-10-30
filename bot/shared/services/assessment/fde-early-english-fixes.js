@@ -11,6 +11,8 @@
  * Runs after earlyKeyFixes in fde-early-writer. Pure: takes and returns {examJson, notes}.
  */
 
+const { earlyEnglishFixes2 } = require('./fde-early-english-fixes-2');
+
 const RHYMES = 'Rhyming Pairs';
 const PRONOUNS = 'Pronouns';
 const PREPOSITIONS = 'Prepositions';
@@ -101,7 +103,7 @@ function earlyEnglishFixes(prev) {
   const unseen = Object.fromEntries(Object.entries(examJson.unseen).map(([cat, byType]) => [cat,
     !byType || typeof byType !== 'object' ? byType
       : Object.fromEntries(Object.entries(byType).map(([type, list]) => [type, Array.isArray(list) ? list.map(fix) : list]))]));
-  return { examJson: { ...examJson, unseen }, notes };
+  return earlyEnglishFixes2({ examJson: { ...examJson, unseen }, notes });
 }
 
 module.exports = { earlyEnglishFixes, rime };

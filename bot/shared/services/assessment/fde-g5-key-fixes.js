@@ -14,6 +14,7 @@
 
 const { criteriaFor } = require('./composition-criteria');
 const { moreKeyFixes } = require('./fde-g5-key-fixes-2'); // bd-5jmnfj.4.58.4
+const { langFixes } = require('./fde-g5-lang-fixes'); // bd-5jmnfj.4.58.34
 
 const RANGE = /\b(\d+)\s*[-–]\s*(\d+)\s+sentences\b/;
 const SYLLABLES = /ارکان/;
@@ -110,7 +111,7 @@ function keyFixes(examJson) {
     if (length && paragraphs.has(q.slot) && typeof q.answer === 'string' && RANGE.test(q.answer)) {
       return { ...q, answer: q.answer.replace(RANGE, length) };
     }
-    return moreKeyFixes(fixTitle(fixArrows(fixSyllables(q, notes), notes), bySlot.get(q.slot), notes), notes);
+    return moreKeyFixes(langFixes(fixTitle(fixArrows(fixSyllables(q, notes), notes), bySlot.get(q.slot), notes), bySlot.get(q.slot), notes), notes);
   };
   const unseen = Object.fromEntries(Object.entries((examJson && examJson.unseen) || {}).map(([cat, byType]) => [cat,
     Object.fromEntries(Object.entries(byType || {}).map(([type, list]) => [type, Array.isArray(list) ? list.map(fix) : list]))]));

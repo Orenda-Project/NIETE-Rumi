@@ -11,6 +11,8 @@
  * Whole numbers only; anything else is returned as it was. Pure: {examJson, notes}; never throws.
  */
 
+const { seriesError } = require('./fde-common-error-series');
+
 const MINUS = /(?<![\d.,])(\d+)\s*[-−]\s*(\d+)(?![\d.,]\d)/;
 const PLUS = /(?<![\d.,])(\d+)\s*\+\s*(\d+)(?![\d.,]\d)/;
 const SMALLER = /\bsmaller\s+(?:digit\s+)?(?:from|of|than)\s+(?:the\s+)?(?:larger|bigger)|\b(?:larger|bigger)\s+(?:digit\s+)?from\s+(?:the\s+)?smaller|\bwrong way round\b|\b(?:not|without|instead of)\s+(?:regroup|borrow)\w*|\bforg[eo]t\w*\s+to\s+(?:regroup|borrow)/i;
@@ -59,6 +61,8 @@ function lastFigure(text) {
 
 /** The corrected common_error, null to drop it, undefined to leave it. */
 function review(q) {
+  const series = seriesError(q);
+  if (series !== undefined) return series;
   const error = q.scheme.common_error;
   if (SMALLER.test(error)) {
     const ab = operands(q, MINUS);

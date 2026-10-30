@@ -84,8 +84,10 @@ describe('a picture slot of six items or fewer fits on one page, so break-inside
   const fitOf = (slot) => Number((slotHtml(html, slot).match(/--pic-fit:\s*([\d.]+)mm/) || [])[1]);
 
   test('G1 English Q8 (four scenes) and Q11 (five objects) print smaller pictures', () => {
-    expect(fitOf('g1.english.B.Q8')).toBeGreaterThan(20);
-    expect(fitOf('g1.english.B.Q8')).toBeLessThan(45);
+    // v34: Q8's four scenes now print two to a line at 50 mm (fde-v34-layout), two lines that fit the page
+    // without shrinking; before v34 they printed one to a line and shrank below 45 mm.
+    expect(slotHtml(html, 'g1.english.B.Q8')).toMatch(/q pic-cell pair/);
+    expect(Fit.slotHeightMm({ n: 4, pic: Fit.PAIR_SCENE_MM, perRow: Fit.PAIR })).toBeLessThanOrEqual(245);
     expect(fitOf('g1.english.C.Q11')).toBeGreaterThan(15);
     expect(fitOf('g1.english.C.Q11')).toBeLessThan(28);
   });

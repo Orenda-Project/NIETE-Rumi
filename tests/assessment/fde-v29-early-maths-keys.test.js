@@ -24,8 +24,8 @@ describe('G2 Maths word problems: the method mark pays any correct working', () 
     });
     expect(q.scheme.points[0].text).toBe('Shows a correct way to find 326 + 258 (a number sentence, column working or a drawing)');
     expect(q.scheme.points[0].kind).toBe('M');
-    expect(q.scheme.points[1].text).toMatch(/correct method/);
-    expect(q.scheme.points[2].text).toBe('Correct answer 584');
+    expect(q.scheme.points[1].text).toBe('Correct answer 584');
+    expect(q.scheme.points[1].marks).toBe(2);
     expect(JSON.stringify(q.scheme.points)).not.toMatch(/number sentence 326/);
   });
 
