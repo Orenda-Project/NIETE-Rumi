@@ -657,7 +657,8 @@ function slotBlock(slot, sec, list, ctx) {
     return `<div class="slot">${head}<div class="q" data-slot="${esc(slot.slot)}">${matchTable(stems, column)}</div></div>`;
   }
   const body = [];
-  const grid = slotFlag(slot, 'picture_only');
+  const pair = !slotFlag(slot, 'sentence_box') && Fit.sceneGrid(live, { frame: slot.shape === 'frame', bubble: slotFlag(slot, 'bubble'), mcq: slot.shape === 'mcq' }); // v29 G1 Maths Q8
+  const grid = slotFlag(slot, 'picture_only') || pair;
   const soloScene = Fit.soloScene(live, { frame: slot.shape === 'frame', bubble: slotFlag(slot, 'bubble') });
   const or = lang === 'ur' ? 'یا' : 'OR';
   live.forEach((q, i) => {
@@ -676,7 +677,7 @@ function slotBlock(slot, sec, list, ctx) {
     const numHtml = num ? `<span class="n">${labelHtml(num, ctx)}</span>` : '';
     const leadHtml = lead ? `<div class="or-lead">${textOf(lead, ctx)}</div>` : '';
     const stemHtml = stem ? ` ${textOf(stem, ctx).replace(/☐/g, '<span class="sq"></span>')}` : '';
-    body.push(`<div class="q${cont ? ' qcont' : ''}${slot.shape === 'comprehension' ? ' comp' : ''}${grid ? ` pic-cell${slotFlag(slot, 'sentence_box') ? ' wide' : ''}` : ''}${soloScene ? ' solo-scene' : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
+    body.push(`<div class="q${cont ? ' qcont' : ''}${slot.shape === 'comprehension' ? ' comp' : ''}${grid ? ` pic-cell${pair ? ' pair' : ''}${slotFlag(slot, 'sentence_box') ? ' wide' : ''}` : ''}${soloScene ? ' solo-scene' : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
   });
   if (slot.alternatives && !live.length) body.push(fixedAlternatives(slot, null, ctx));
   // An either/or question is read as one choice: never split across a page.
@@ -690,8 +691,8 @@ function slotBlock(slot, sec, list, ctx) {
   const bank = printsWords(slot) && slotFlag(slot, 'answer_box') && words.length
     ? `<div class="word-box bank">${words.map((w) => `<span class="w">${textOf(w, ctx)}</span>`).join('')}</div>` : '';
   const wide = grid && slotFlag(slot, 'sentence_box');
-  const fit = short ? Fit.fitAttr(live, { grid, wide, bubble: slotFlag(slot, 'bubble') }) : ''; // bd-5jmnfj.4.58.4
-  if (grid) return `<div class="slot${either}${short}"${fit}>${head}${bank}<div class="pic-grid">${Fit.groupRows(body, wide ? 1 : Fit.PER_ROW)}</div></div>`;
+  const fit = short ? Fit.fitAttr(live, { grid, wide, pair, bubble: slotFlag(slot, 'bubble') }) : ''; // bd-5jmnfj.4.58.4
+  if (grid) return `<div class="slot${either}${short}"${fit}>${head}${bank}<div class="pic-grid">${Fit.groupRows(body, wide ? 1 : (pair ? Fit.PAIR : Fit.PER_ROW))}</div></div>`;
   return `<div class="slot${either}${short}"${fit}>${head}${bank}${body.join('')}</div>`;
 }
 

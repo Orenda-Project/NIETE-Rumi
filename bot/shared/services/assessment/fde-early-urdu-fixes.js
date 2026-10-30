@@ -12,6 +12,10 @@
  */
 
 const { urduSpelling } = require('./fde-urdu-spelling');
+const { fillTopics } = require('./fde-early-urdu-topic');
+const { wordBoxFix } = require('./fde-early-urdu-wordbox');
+const { verbFix } = require('./fde-early-urdu-verbs');
+const { writingMarking } = require('./fde-early-urdu-marking');
 
 const URDU_EARLY = /^g[12]\.urdu\./;
 const PICTURE_SENTENCES = 'Picture Sentences';
@@ -56,8 +60,13 @@ function fixPicture(q, notes) {
 
 function earlyUrduFixes(examJson) {
   if (!examJson || typeof examJson !== 'object') return { examJson, notes: [] };
-  const spelt = urduSpelling(examJson);
-  const notes = [...spelt.notes];
+  const first = urduSpelling(examJson);
+  const topics = fillTopics(first.examJson); // a topic line for «دیے گئے موضوع پر» (v29 blocker)
+  const boxes = wordBoxFix(topics.examJson); // two box words that fit each other's blank are both accepted (v29 blocker)
+  const marked = writingMarking(boxes.examJson); // 2 / 1 / 0 levels on every G2 writing point (v29 Q7-Q9)
+  const verbs = verbFix(marked.examJson); // a converb is a second verb form; a shorter accepted form is named (v29 Q4)
+  const spelt = { examJson: verbs.examJson };
+  const notes = [...first.notes, ...topics.notes, ...boxes.notes, ...marked.notes, ...verbs.notes];
   const types = new Map();
   ((spelt.examJson._layout && spelt.examJson._layout.sections) || []).forEach((s) => (s.slots || []).forEach((sl) => types.set(sl.slot, sl.type)));
   const out = { ...spelt.examJson };

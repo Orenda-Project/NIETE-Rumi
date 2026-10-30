@@ -22,6 +22,10 @@ const FLOOR = 0.7; // a picture is never drawn under 70% of its size: below that
 // The default heights in fde-picture-block's PICTURE_CSS.
 const DEFAULT_MM = { object: 28, count: 14, dots: 24, clock: 24, shapes: 22, scene: 45, plant: 60, circuit: 62 };
 const WIDE_PIC_MM = 44;
+// v29 G1 Maths Q8: five compare scenes one to a line measured 360 mm and split over two pages. Two to a
+// line take three lines of 75 mm, and each scene prints larger than the 45 mm it had (bd-5jmnfj.4.58).
+const PAIR_SCENE_MM = 50;
+const PAIR = 2;
 
 /** The estimated height of a slot of `n` items, in mm. */
 function slotHeightMm({ n, pic, wide = false, perRow = 1 }) {
@@ -37,20 +41,32 @@ function fitHeightMm({ n, pic, wide = false, perRow = 1 }) {
   return avail >= Math.round(pic * FLOOR) ? avail : null;
 }
 
-const defaultOf = (q, wide) => (wide ? WIDE_PIC_MM : DEFAULT_MM[q.picture && q.picture.kind] || 28);
+const defaultOf = (q, wide, pair) => (wide ? WIDE_PIC_MM : (pair ? PAIR_SCENE_MM : DEFAULT_MM[q.picture && q.picture.kind] || 28));
 
 /** ` style="--pic-fit:34mm"` for a short slot whose pictures need it, else ''. */
-function fitAttr(live, { grid = false, wide = false, bubble = false } = {}) {
+function fitAttr(live, { grid = false, wide = false, bubble = false, pair = false } = {}) {
   const pics = live.filter((q) => q && q.picture);
   if (!pics.length || bubble) return '';
-  const pic = Math.max(...pics.map((q) => defaultOf(q, wide)));
-  const mm = fitHeightMm({ n: live.length, pic, wide, perRow: grid && !wide ? PER_ROW : 1 });
+  const pic = Math.max(...pics.map((q) => defaultOf(q, wide, pair)));
+  const perRow = pair ? PAIR : (grid && !wide ? PER_ROW : 1);
+  const mm = fitHeightMm({ n: live.length, pic, wide, perRow });
   return mm ? ` style="--pic-fit:${mm}mm"` : '';
 }
 
 /** One item that is a scene and the slot's only prompt, outside a frame and a speech bubble. */
 function soloScene(live, { frame = false, bubble = false } = {}) {
   return !frame && !bubble && live.length === 1 && Boolean(live[0].picture) && live[0].picture.kind === 'scene';
+}
+
+/**
+ * Two or more items that are each a scene, a stem and an answer box (no options, sub-questions, table or
+ * passage), outside a frame and a speech bubble: they print two to a line (v29 G1 Maths Q8).
+ */
+function sceneGrid(live, { frame = false, bubble = false, mcq = false } = {}) {
+  if (frame || bubble || mcq || live.length < 2) return false;
+  return live.every((q) => q && q.picture && q.picture.kind === 'scene'
+    && !(Array.isArray(q.options) && q.options.length) && !(Array.isArray(q.questions) && q.questions.length)
+    && !q.table && !q.passage);
 }
 
 /** Cells in lines of `perRow`; the last two lines (or all, when there are two or fewer) are one unbreakable block. */
@@ -66,6 +82,8 @@ const SLOT_FIT_CSS = `
   .pic-row, .pic-tail { break-inside: avoid; }
   /* Three cells to a line: border-box keeps the start padding inside the width (content-box fitted two). */
   .q.pic-cell { box-sizing: border-box; width: calc(33.333% - 4.2mm); }
+  .q.pic-cell.pair { width: calc(50% - 4.2mm); }
+  .q.pic-cell.pair .pic-scene img { height: 50mm; }
   .q.pic-cell.wide { display: grid; grid-template-columns: 56mm 1fr; column-gap: 4mm; align-items: center; width: 100%; }
   .q.pic-cell.wide > .n { grid-column: 1 / -1; }
   .q.pic-cell.wide > .pic { grid-column: 1; margin: 0; }
@@ -75,4 +93,4 @@ const SLOT_FIT_CSS = `
   .q.solo-scene .pic-scene { text-align: center; }
   .q.solo-scene .pic-scene img { height: auto; width: 130mm; max-width: 100%; max-height: none; }`;
 
-module.exports = { slotHeightMm, fitHeightMm, fitAttr, soloScene, groupRows, SLOT_FIT_CSS, PER_ROW };
+module.exports = { slotHeightMm, fitHeightMm, fitAttr, soloScene, sceneGrid, groupRows, SLOT_FIT_CSS, PER_ROW, PAIR, PAIR_SCENE_MM };

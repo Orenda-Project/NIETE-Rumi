@@ -47,6 +47,10 @@ const PICTURE_CSS = `
   .pic-plant img { height: 60mm; }
   .pic-circuit img { height: 62mm; }
   .frame .pic-circuit { margin: 3mm; }
+  /* A G5 picture frame (Urdu Q7, English Q10): the scene fills the 70mm frame, centred, inside its border.
+     v29 printed it at the Grade 1-2 45mm height, a quarter of the frame, at the frame's start. */
+  .frame > .pic-scene { position: absolute; inset: 3mm; margin: 0; display: flex; align-items: center; justify-content: center; }
+  .frame > .pic-scene img { width: 100%; height: 100%; object-fit: contain; }
   .bubble-row { display: flex; align-items: flex-start; gap: 6mm; break-inside: avoid; }
   .bubble { position: relative; width: 62mm; height: 26mm; margin-top: 4mm; border: 0.5mm solid #000; border-radius: 50%; }
   /* The tail is an outline, a white triangle over a black one: a solid one read as an arrowhead (bd-5jmnfj.4.40).

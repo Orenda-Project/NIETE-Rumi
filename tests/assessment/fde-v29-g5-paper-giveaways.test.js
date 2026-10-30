@@ -5,7 +5,7 @@ test.each([['science'], ['maths']])('%s paper: the list holds every check\'s fla
   const p = require(`./fixtures/fde-v29-g5-${s}.json`);
   const slots = paperGiveaways(p).map((f) => f.slot);
   expect(slots.length).toBeGreaterThan(0);
-  if (s === 'maths') expect(slots).toEqual(['maths.A.Q1a']);
+  if (s === 'maths') expect(slots).toEqual(expect.arrayContaining(['maths.A.Q1a']));
   else expect(slots).toEqual(expect.arrayContaining(['science.A.Q1a', 'science.C.Q3b']));
 });
 

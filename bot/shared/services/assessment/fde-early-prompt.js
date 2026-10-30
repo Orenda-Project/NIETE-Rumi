@@ -99,6 +99,7 @@ function oralPrompt({ oral, grade, P, pageContent, saidCheck = true }) {
 const WRITER_NOTE = /[([]\s*(?:note\b|nb\b|n\.b\b|writer\b|generator\b|نوٹ)[^)\]]*[)\]]/i;
 const { extraNumbers } = require('./fde-oral-numbers'); // bd-5jmnfj.4.58.2
 const { badListeningAsks } = require('./fde-listening-asks'); // bd-5jmnfj.4.58.4
+const { urduOralBad } = require('./fde-early-urdu-oral'); // v29 Urdu oral rows (bd-5jmnfj.4.58)
 const hasNote = (t) => typeof t === 'string' && WRITER_NOTE.test(t);
 
 /**
@@ -119,7 +120,8 @@ function oralContent(tree, oral, { saidCheck = true } = {}) {
     // An oral mental-maths item naming a number it does not ask about is asked again (v26 G1 Maths item 1).
     const extra = task.kind === 'oral_maths' && extraNumbers(items).length > 0;
     const lineAsk = task.kind === 'listening' && badListeningAsks(items).length > 0; // a line-position or subjectless question (v28 G1 Urdu poem)
-    const whole = !noted && !unsaid && !extra && !lineAsk && (!needsScript(task) || script) && items.length >= (task.n || 0);
+    const urdu = /[\u0600-\u06FF]/.test(script + items.map((it) => it.ask).join(' ')) && urduOralBad(task.id, items, script).length > 0;
+    const whole = !noted && !unsaid && !extra && !lineAsk && !urdu && (!needsScript(task) || script) && items.length >= (task.n || 0);
     if (!got || !whole) { missing.push(task.id); continue; }
     content.push({ id: task.id, ...(script ? { script } : {}), items: task.n ? items.slice(0, task.n) : items });
   }

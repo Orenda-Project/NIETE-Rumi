@@ -27,7 +27,7 @@ const { noArrows } = require('./fde-no-arrows');
 const { answerRepeats, giveawayNote, stillGivenAway, writtenGiveaways } = require('./fde-answer-repeats');
 const { dealScrambles } = require('./fde-scramble-block');
 const { keyShortfall } = require('./fde-key-checks');
-const { whoSaidShortfall } = require('./fde-who-said-check'); const { freshReadWords } = require('./fde-oral-fresh-words'); // bd-5jmnfj.4.58.4
+const { whoSaidShortfall } = require('./fde-who-said-check'); const { freshReadWords } = require('./fde-oral-fresh-words'); const { urduOralFixes } = require('./fde-early-urdu-oral'); // bd-5jmnfj.4.58.4
 const { earlyKeyFixes } = require('./fde-early-key-fixes'); const { commonErrorNumbers } = require('./fde-common-error-numbers'); const { earlyEnglishFixes } = require('./fde-early-english-fixes'); const { earlyUrduFixes } = require('./fde-early-urdu-fixes'); // bd-5jmnfj.4.58.3/.4
 
 const SCOPE = Object.freeze({ kind: 'fde', chapters: null, pages: null });
@@ -271,7 +271,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   const blueprint = checkBlueprint(examJson, { tos: P.tos || null, sectionLevels });
   examJson._layout.blueprint = blueprint;
   d.logToFile('[assessment] blueprint checked', { pattern, subject: P.key, ok: blueprint.ok, total: blueprint.total, levels: blueprint.levels, problems: blueprint.problems });
-  if (P.oral) examJson = freshReadWords({ ...examJson, _layout: { ...examJson._layout, oral: { ...P.oral, content: oral.content } } }, (n) => d.logToFile('[assessment] oral word replaced', n)).examJson; // a read-aloud word the paper prints (bd-5jmnfj.4.58.4)
+  if (P.oral) examJson = urduOralFixes(freshReadWords({ ...examJson, _layout: { ...examJson._layout, oral: { ...P.oral, content: oral.content } } }, (n) => d.logToFile('[assessment] oral word replaced', n)).examJson).examJson; // a read-aloud word the paper prints; v29 Urdu oral fixes (bd-5jmnfj.4.58)
   // An answer word still given away after the re-ask, or by the oral sheet, is logged (bd-5jmnfj.4.50.8).
   const giveaways = answerRepeats(examJson);
   if (giveaways.length) d.logToFile('[assessment] answers given away', { requestId, pattern, giveaways });
