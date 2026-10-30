@@ -80,13 +80,19 @@ describe('booking (onLessonDelivered)', () => {
     expect(await take()).toEqual(expect.objectContaining({ scheduled: true }));
     const [row] = await nudges();
     expect(row).toEqual(expect.objectContaining({ kind: 'topic_end_nudge', nudge_date: '2026-11-02', scheduled_at: MON_1430.toISOString() }));
-    expect(row.context).toEqual(expect.objectContaining({ topic_id: 'b', topic_name: 'Plurals', grade: 1, subject: 'english', chapter: 4, lesson_id: LAST_DAY_OF_B }));
+    expect(row.context).toEqual(expect.objectContaining({ topic_id: 'b', topic_name: 'Plurals', grade: 1, subject: 'english', chapter: 4, lesson_id: LAST_DAY_OF_B, trigger: 'lp' }));
     expect(listChapterTopics).toHaveBeenCalledWith(1, 'english', 4);
   });
 
-  test('a day inside a topic books nothing', async () => {
-    expect(await take('grade_1_english_ch4_seg4')).toEqual({ scheduled: false, reason: 'topic_continues' });
+  test('a day early in a topic books nothing', async () => {
+    expect(await take('grade_1_english_ch4_seg3')).toEqual({ scheduled: false, reason: 'topic_continues' });
     expect(await nudges()).toEqual([]);
+  });
+
+  test('bd-pw1ccr.11: the day before the last of a 3-day topic books it too', async () => {
+    expect(await take('grade_1_english_ch4_seg4')).toEqual(expect.objectContaining({ scheduled: true }));
+    const [row] = await nudges();
+    expect(row.context).toEqual(expect.objectContaining({ topic_id: 'b', trigger: 'lp' }));
   });
 
   test('switch off: nothing, and the topics are not read', async () => {

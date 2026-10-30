@@ -1,5 +1,8 @@
 'use strict';
-/** bd-pw1ccr.8.4 — the one-off FA video broadcast to group B teachers: switch, audience, dry run, send. */
+/**
+ * bd-pw1ccr.8.4 — the one-off FA video broadcast: switch, audience, dry run, send.
+ * bd-pw1ccr.12 — to every teacher in the test schools, both arms; the dry run prints the arm split and the cost.
+ */
 const { fakeDb } = require('./fake-db');
 const {
   FLAG_KEY, parseArgs, switchOn, audience, run, testNumbersFrom,
@@ -54,9 +57,37 @@ test('the switch fails closed: missing row, non-true value, read error', async (
   expect(await switchOn(fakeDb(tables(true), { failOn: 'app_settings' }))).toBe(false);
 });
 
-test('audience: group B schools, live teachers only, real phones, one per phone', async () => {
+test('audience: every school in the test, both arms; live teachers only, real phones, one per phone', async () => {
   const a = await audience(fakeDb(tables()));
-  expect(a.map((u) => u.id).sort()).toEqual(['01', '02', '04']);
+  expect(a.map((u) => u.id).sort()).toEqual(['01', '02', '03', '04']);
+  expect(a.find((u) => u.id === '03').group).toBe('A');
+  expect(a.find((u) => u.id === '04').group).toBe('B');
+});
+
+test('a school outside the test hears nothing', async () => {
+  const t = tables();
+  t.users.push(T('11', 's9'));
+  expect((await audience(fakeDb(t))).map((u) => u.id)).not.toContain('11');
+});
+
+test('dry run prints the split control (A+C) / treatment (B+D) and the cost at the Pakistan marketing rate', async () => {
+  const d = deps(fakeDb(tables()), { templateStatus: jest.fn().mockResolvedValue({ status: 'APPROVED', category: 'MARKETING' }) });
+  const r = await run([], d);
+  expect(r).toMatchObject({ control: 1, treatment: 3, category: 'MARKETING', templateStatus: 'APPROVED', costUsd: 0.19 });
+  const out = d.out.join('\n');
+  expect(out).toMatch(/control \(A\+C\) 1/);
+  expect(out).toMatch(/treatment \(B\+D\) 3/);
+  expect(out).toMatch(/\$0\.0473/);
+  expect(out).toMatch(/\$0\.19/);
+});
+
+test('any other category, or a status that cannot be read: rate unknown, never a guessed rate', async () => {
+  for (const ts of [jest.fn().mockResolvedValue({ status: 'APPROVED', category: 'UTILITY' }), jest.fn().mockRejectedValue(new Error('x')), undefined]) {
+    const d = deps(fakeDb(tables()), { templateStatus: ts });
+    const r = await run([], d);
+    expect(r.costUsd).toBeNull();
+    expect(d.out.join('\n')).toMatch(/rate unknown/);
+  }
 });
 
 test('dry run (default) prints the count and sends or writes nothing, switch on or off', async () => {
@@ -64,11 +95,11 @@ test('dry run (default) prints the count and sends or writes nothing, switch on 
     const db = fakeDb(tables(flag));
     const d = deps(db);
     const r = await run([], d);
-    expect(r).toMatchObject({ mode: 'dry-run', audience: 3, switchOn: flag });
+    expect(r).toMatchObject({ mode: 'dry-run', audience: 4, switchOn: flag });
     expect(d.send).not.toHaveBeenCalled();
     expect(d.upload).not.toHaveBeenCalled();
     expect(db.writes).toEqual([]);
-    expect(d.out.join('\n')).toMatch(/3/);
+    expect(d.out.join('\n')).toMatch(/4/);
   }
 });
 
@@ -90,14 +121,15 @@ test('--live with the switch on: one upload, one send per teacher, logged', asyn
   const d = deps(db, { send: jest.fn().mockResolvedValueOnce({ ok: false, error: 'x' }).mockResolvedValue({ ok: true, id: 'wamid.X' }) });
   const r = await run(['--live', '--video', 'v.mp4'], d);
   expect(d.upload).toHaveBeenCalledTimes(1);
-  expect(d.send).toHaveBeenCalledTimes(3);
+  expect(d.send).toHaveBeenCalledTimes(4);
   expect(d.send.mock.calls[0][1]).toEqual([{ type: 'header', parameters: [{ type: 'video', video: { id: 'MEDIA_1' } }] }]);
-  expect(r).toMatchObject({ mode: 'live', sent: 2, failed: 1 });
+  expect(r).toMatchObject({ mode: 'live', sent: 3, failed: 1 });
   expect(t.broadcast_logs).toHaveLength(1);
   expect(t.broadcast_logs[0]).toMatchObject({
-    template_name: 'niete_fa_video_ab_v1', total_recipients: 3, sent_count: 2, failed_count: 1, status: 'completed',
+    template_name: 'niete_fa_video_ab_v1', total_recipients: 4, sent_count: 3, failed_count: 1, status: 'completed',
   });
-  expect(t.broadcast_messages.map((m) => m.status).sort()).toEqual(['failed', 'sent', 'sent']);
+  expect(t.broadcast_logs[0].filters).toMatchObject({ ab_groups: ['A', 'B'] });
+  expect(t.broadcast_messages.map((m) => m.status).sort()).toEqual(['failed', 'sent', 'sent', 'sent']);
   expect(t.broadcast_messages.find((m) => m.status === 'sent').message_id).toBe('wamid.X');
 });
 
@@ -107,7 +139,7 @@ test('a re-run skips teachers already sent this template', async () => {
   await run(['--live', '--video', 'v.mp4'], d1);
   const d2 = deps(fakeDb(t));
   const r = await run([], d2);
-  expect(r).toMatchObject({ audience: 3, alreadySent: 3, toSend: 0 });
+  expect(r).toMatchObject({ audience: 4, alreadySent: 4, toSend: 0 });
 });
 
 test('--to sends only to operator/test numbers, needs no switch, writes no log rows', async () => {

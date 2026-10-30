@@ -21,9 +21,24 @@ describe('topicEndingAt', () => {
     expect(T.topicEndingAt({ lessons: LESSONS, topics: TOPICS, segmentIndex: 8 })).toEqual({ topic: TOPICS[2] });
   });
 
-  test('a day inside a topic finishes nothing', () => {
-    expect(T.topicEndingAt({ lessons: LESSONS, topics: TOPICS, segmentIndex: 4 })).toEqual({ reason: 'topic_continues' });
+  test('a day early in a topic finishes nothing', () => {
+    // seg3 = day 29, the first of three days of Plurals.
+    expect(T.topicEndingAt({ lessons: LESSONS, topics: TOPICS, segmentIndex: 3 })).toEqual({ reason: 'topic_continues' });
   });
+
+  test('bd-pw1ccr.11: the day before the last also counts, for a topic of 3+ days', () => {
+    // seg4 = day 30 of Plurals (29-31); seg7 = day 33 of ABC Order (32-34).
+    expect(T.topicEndingAt({ lessons: LESSONS, topics: TOPICS, segmentIndex: 4 })).toEqual({ topic: TOPICS[1] });
+    expect(T.topicEndingAt({ lessons: LESSONS, topics: TOPICS, segmentIndex: 7 })).toEqual({ topic: TOPICS[2] });
+  });
+
+  test('bd-pw1ccr.11: a topic of 1-2 days uses its last day only', () => {
+    // seg1 = day 27, the first of Poem's two days.
+    expect(T.topicEndingAt({ lessons: LESSONS, topics: TOPICS, segmentIndex: 1 })).toEqual({ reason: 'topic_continues' });
+    const one = [{ topicId: 'x', days: [27] }, { topicId: 'y', days: [28, 29, 30, 31, 32, 33, 34] }];
+    expect(T.topicEndingAt({ lessons: LESSONS, topics: one, segmentIndex: 1 })).toEqual({ topic: one[0] });
+  });
+
 
   test('a split day counts once, both parts map to the same day', () => {
     expect(T.topicEndingAt({ lessons: LESSONS, topics: TOPICS, segmentIndex: 5 })).toEqual({ topic: TOPICS[1] });

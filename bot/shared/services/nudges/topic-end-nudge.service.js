@@ -2,7 +2,8 @@
 /**
  * THE TOPIC-END NUDGE (bd-pw1ccr.4) — one button, after she teaches the last day of a topic.
  *
- * A group B teacher takes the plan for a topic's last day (WhatsApp delivery, or a read in the app). At 14:30 PKT,
+ * A group B teacher takes the plan for a topic's last day or the day before it (WhatsApp delivery, a read in the app,
+ * or, bd-pw1ccr.11, a recording of that lesson: topic-end-recording.js). At 14:30 PKT,
  * after the lesson is taught, the bot offers "Make my paper": one signed-in tap opens the paper generator on the
  * Topics step for that chapter (app-login-link feature assessment_topic_nudge). Which topic, and when: topic-end.js.
  *
@@ -44,10 +45,11 @@ const STALE_OPEN_MS = 6 * 60 * 60 * 1000;
 const no = (reason) => ({ scheduled: false, reason });
 
 /**
- * Book the nudge if this lesson is the last day of a topic. Never throws.
+ * Book the nudge if this lesson is at the end of a topic. Never throws.
+ * @param {{trigger?: 'lp'|'recording'}} p trigger: what booked it, kept on the row's context
  * @returns {Promise<{scheduled: boolean, reason?: string, nudgeId?: string, nudgeDate?: string}>}
  */
-async function onLessonDelivered({ userId, lessonId, deliveredAt = null, assetKind = 'lesson' } = {}) {
+async function onLessonDelivered({ userId, lessonId, deliveredAt = null, assetKind = 'lesson', trigger = 'lp' } = {}) {
   try {
     if (!(await Arm.enabled())) return no('disabled');
     if (assetKind !== 'lesson') return no('not_a_lesson');
@@ -74,12 +76,13 @@ async function onLessonDelivered({ userId, lessonId, deliveredAt = null, assetKi
       chapter: chapter.number,
       lesson_id: lessonId,
       taken_at: taken.toISOString(),
+      trigger, // bd-pw1ccr.11: 'lp' (she took the plan) or 'recording' (she recorded the lesson)
     };
     const store = require('./teacher-nudges.store');
     const { row, created } = await store.schedule({ userId, kind: KIND, nudgeDate, scheduledAt, context });
 
     logEvent('topic_nudge.scheduled', {
-      userId, lessonId, topicId: context.topic_id, nudgeId: row && row.id, nudgeDate, created: Boolean(created),
+      userId, lessonId, topicId: context.topic_id, nudgeId: row && row.id, nudgeDate, created: Boolean(created), trigger,
     });
     return {
       scheduled: Boolean(created),
