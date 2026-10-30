@@ -49,6 +49,7 @@ const {
   isReligiousEnabled, LP612_MIN_GRADE, LP612_MAX_GRADE, templateVersion,
 } = require('../config/lp612-flags');
 const { compareSubjects } = require('../config/lp612-subject-order');
+const BookCurriculum = require('./book-curriculum.service');
 
 const TABLE = 'niete_lp612_segments';
 const RENDERS = 'niete_lp612_renders';
@@ -79,16 +80,32 @@ async function readAll(build, what) {
   }
 }
 
-/** The servable set: current, in range, and not under the religious hold. */
-function servable(columns) {
+/**
+ * The servable set: current, in range, not under the religious hold — and of the curricula asked
+ * for (V1.8.6, bd-97daxo.5). Every read here takes `{ curriculum }`, the TEACHER's curriculum
+ * (book-curriculum.service): her segments for a grade+subject where her curriculum has any, ICT's
+ * otherwise. Absent = 'ict', so an ICT teacher never sees another curriculum's rows.
+ */
+function servable(columns, curricula = [BookCurriculum.ICT]) {
   let q = supabase
     .from(TABLE)
     .select(columns)
     .eq('is_current', true)
     .gte('grade', LP612_MIN_GRADE)
     .lte('grade', LP612_MAX_GRADE);
+  // null = any curriculum: a lookup by segment_id names its own book.
+  if (curricula) q = curricula.length === 1 ? q.eq('curriculum', curricula[0]) : q.in('curriculum', curricula);
   if (!isReligiousEnabled()) q = q.eq('is_religious', false);
   return q;
+}
+
+/** Whose segments she reads for ONE grade+subject: hers where any are servable, else ICT's. */
+function curriculumOf(grade, subject, curriculum) {
+  return BookCurriculum.chooseCurriculum(curriculum, async (c) => {
+    const { data, error } = await servable('segment_id', [c]).eq('grade', grade).eq('subject', subject).limit(1);
+    if (error) throw new Error(error.message);
+    return (data || []).length > 0;
+  });
 }
 
 /**
@@ -98,12 +115,13 @@ function servable(columns) {
  * this in bounded work and cannot degrade as the corpus grows; deriving the distinct list in JS
  * from a full read is what produced the missing-grades bug described above.
  */
-async function listGrades() {
+async function listGrades({ curriculum } = {}) {
+  const curricula = BookCurriculum.curriculaFor(curriculum);
   const candidates = [];
   for (let g = LP612_MIN_GRADE; g <= LP612_MAX_GRADE; g++) candidates.push(g);
 
   const present = await Promise.all(candidates.map(async (grade) => {
-    const { data, error } = await servable('grade').eq('grade', grade).limit(1);
+    const { data, error } = await servable('grade', curricula).eq('grade', grade).limit(1);
     if (error) {
       logToFile('LP 6-12 browse: grade probe failed', { grade, error: error.message });
       throw new Error('lp612 browse: grades failed');
@@ -115,8 +133,15 @@ async function listGrades() {
 }
 
 /** Subjects within one grade, with how many lessons each holds. */
-async function listSubjects(grade) {
-  const rows = await readAll(() => servable('subject').eq('grade', grade), 'subjects');
+async function listSubjects(grade, { curriculum } = {}) {
+  const curricula = BookCurriculum.curriculaFor(curriculum);
+  const rows = curricula.length === 1
+    ? await readAll(() => servable('subject', curricula).eq('grade', grade), 'subjects')
+    // Hers and ICT's together; per subject, her rows where she has any (book-curriculum.preferPerKey).
+    : BookCurriculum.preferPerKey(
+      await readAll(() => servable('subject, curriculum', curricula).eq('grade', grade), 'subjects'),
+      (r) => r.subject, curriculum,
+    );
 
   const counts = new Map();
   for (const r of rows) counts.set(r.subject, (counts.get(r.subject) || 0) + 1);
@@ -134,9 +159,10 @@ async function listSubjects(grade) {
  * Keyed by `chapter_key` rather than by number: a grade+subject can span more than one book, and
  * two books can both have a chapter 1. The number is carried for display and ordering only.
  */
-async function listChapters(grade, subject) {
+async function listChapters(grade, subject, { curriculum } = {}) {
+  const own = await curriculumOf(grade, subject, curriculum);
   const rows = await readAll(
-    () => servable('chapter_key, chapter_number, chapter_title, book_stem')
+    () => servable('chapter_key, chapter_number, chapter_title, book_stem', [own])
       .eq('grade', grade).eq('subject', subject),
     'chapters',
   );
@@ -171,10 +197,11 @@ async function listChapters(grade, subject) {
  * tap either, and reporting it as ready here would promise an instant download that then takes
  * three minutes.
  */
-async function listLessons(grade, subject, chapterKey, lang = 'en', userId = null) {
+async function listLessons(grade, subject, chapterKey, lang = 'en', userId = null, { curriculum } = {}) {
+  const own = await curriculumOf(grade, subject, curriculum);
   const rows = await readAll(
     () => servable(
-      'segment_id, subtopic_title, menu_title, printed_page_start, printed_page_end, order_index',
+      'segment_id, subtopic_title, menu_title, printed_page_start, printed_page_end, order_index', [own],
     ).eq('grade', grade).eq('subject', subject).eq('chapter_key', chapterKey),
     'lessons',
   );
@@ -234,7 +261,7 @@ function pagesLabel(row) {
 async function segmentById(segmentId) {
   const { data, error } = await servable(
     'segment_id, grade, subject, chapter_number, chapter_title, subtopic_title, menu_title, '
-    + 'printed_page_start, printed_page_end',
+    + 'printed_page_start, printed_page_end', null,
   ).eq('segment_id', segmentId).maybeSingle();
 
   if (error) {

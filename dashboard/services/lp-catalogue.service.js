@@ -80,21 +80,28 @@ async function ask(path, body) {
   return post(`/api/internal/lp/v8/${path}`, body);
 }
 
+
+/**
+ * `userId` (the SESSION's teacher, never a request's) lets the bot give her her region's books
+ * (bd-97daxo.5). Sent only when known, so a call without one is the body it always was.
+ */
+const who = (userId) => (userId ? { userId } : {});
+
 /** Grades with at least one servable lesson. */
-async function listGrades() {
-  const data = await ask('grades', {});
+async function listGrades(userId = null) {
+  const data = await ask('grades', { ...who(userId) });
   return data.grades || [];
 }
 
 /** Subjects for a grade, with servable lesson counts. */
-async function listSubjects(grade) {
-  const data = await ask('subjects', { grade });
+async function listSubjects(grade, userId = null) {
+  const data = await ask('subjects', { grade, ...who(userId) });
   return data.subjects || [];
 }
 
 /** Chapters for a book — full titles, only those with servable lessons. */
-async function listChapters(grade, subjectKey) {
-  const data = await ask('chapters', { grade, subjectKey });
+async function listChapters(grade, subjectKey, userId = null) {
+  const data = await ask('chapters', { grade, subjectKey, ...who(userId) });
   return data.chapters || [];
 }
 

@@ -48,21 +48,26 @@
 const V8Catalog = require('./lp-v8-catalog.service');
 const V8Delivery = require('./lp-v8-delivery.service');
 
+/*
+ * `{ curriculum }` on each list below is the TEACHER's curriculum (bd-97daxo.5): her book for a
+ * grade+subject where her curriculum has one with lessons up, ICT's otherwise — the same rule, from
+ * the same catalog functions, as the WhatsApp menu. Absent = 'ict' = exactly the lists of before.
+ */
+
 /** Grades that have at least one servable lesson. */
-async function listGrades() {
+async function listGrades({ curriculum } = {}) {
   const available = await V8Delivery.availableLessonIds();
-  const grades = V8Catalog.gradesWithContent(available);
+  const grades = V8Catalog.gradesWithContent(available, curriculum);
   return grades.map((grade) => ({
     grade,
-    subject_count: subjectsFor(grade, available).length,
+    subject_count: subjectsFor(grade, available, curriculum).length,
   }));
 }
 
 /** Books for one grade that have at least one servable lesson. */
-function subjectsFor(grade, available) {
+function subjectsFor(grade, available, curriculum) {
   const out = [];
-  for (const book of V8Catalog.catalog().books) {
-    if (Number(book.grade) !== Number(grade)) continue;
+  for (const book of V8Catalog.booksFor(grade, curriculum, available)) {
     const lessons = countAvailable(book, available);
     if (!lessons) continue;
     out.push({
@@ -75,9 +80,9 @@ function subjectsFor(grade, available) {
   return out.sort(V8Catalog.bySubjectOrder); // same order as the WhatsApp menu (bd-6640j.1.8.8)
 }
 
-async function listSubjects(grade) {
+async function listSubjects(grade, { curriculum } = {}) {
   const available = await V8Delivery.availableLessonIds();
-  return subjectsFor(grade, available);
+  return subjectsFor(grade, available, curriculum);
 }
 
 /**
@@ -87,9 +92,9 @@ async function listSubjects(grade) {
  * same rule buildChapterItems applies, so the two surfaces list the same
  * chapters. Titles are FULL here; the Flow clips its own.
  */
-async function listChapters(grade, subjectKey) {
+async function listChapters(grade, subjectKey, { curriculum } = {}) {
   const available = await V8Delivery.availableLessonIds();
-  const book = V8Catalog.bookFor(grade, subjectKey);
+  const book = V8Catalog.bookFor(grade, subjectKey, curriculum, available);
   if (!book) return [];
 
   const chapters = [];
@@ -116,13 +121,13 @@ async function listChapters(grade, subjectKey) {
  * No pagination: the Flow pages at 20 because Meta caps a NavigationList
  * there. A browser has no such limit and a chapter is a handful of lessons.
  */
-async function listLessons(grade, subjectKey, chapterNumber, userId = null) {
+async function listLessons(grade, subjectKey, chapterNumber, userId = null, { curriculum } = {}) {
   const [available, downloaded] = await Promise.all([
     V8Delivery.availableLessonIds(),
     userId ? V8Delivery.downloadedLessonIds(userId) : Promise.resolve(new Set()),
   ]);
 
-  const chapter = V8Catalog.chapterFor(grade, subjectKey, chapterNumber);
+  const chapter = V8Catalog.chapterFor(grade, subjectKey, chapterNumber, curriculum, available);
   if (!chapter) return [];
 
   // ch3-10 A/B (bd-5o0ay.10.16): group A never sees a lesson it has no August plan for.

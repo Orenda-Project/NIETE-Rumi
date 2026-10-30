@@ -288,9 +288,18 @@ const intOrNull = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
-function toRow(segment, { corpusVersion = 'v1' } = {}) {
+function toRow(segment, { corpusVersion = 'v1', curriculum = null } = {}) {
   const s = segment || {};
+  // Whose book (V1.8.6, bd-97daxo.5): the segment's own tag, else the file's `_meta.curriculum`, else
+  // ICT. Written only when it is not ICT (the column defaults to 'ict'), so an ICT row is unchanged.
+  // A non-ICT book_stem must start with its curriculum (nbf_snc_grade_9_chemistry): segment_id is built from
+  // the stem, so that is what keeps an NBF segment from ever overwriting an ICT one.
+  const tag = String(s.curriculum || curriculum || 'ict').trim().toLowerCase();
+  if (tag !== 'ict' && !String(s.book_stem || '').startsWith(`${tag}_`)) {
+    throw new Error(`a ${tag} segment's book_stem must start with "${tag}_" (got "${s.book_stem}")`);
+  }
   return {
+    ...(tag !== 'ict' ? { curriculum: tag } : {}),
     segment_id: s.segment_id,
     book_stem: s.book_stem,
     grade: (parseGradeSpan(s.grade) || {}).grade ?? null,
@@ -479,7 +488,7 @@ function parseFile(file) {
 
 // ── main ────────────────────────────────────────────────────────────────────
 
-async function importFile({ supabase, file, segments, corpusVersion, dryRun, report, ytCovered }) {
+async function importFile({ supabase, file, segments, corpusVersion, dryRun, report, ytCovered, curriculum = null }) {
   const rows = [];
   for (const s of segments) {
     const { errors, warnings } = validateSegment(s);
@@ -490,7 +499,7 @@ async function importFile({ supabase, file, segments, corpusVersion, dryRun, rep
     if (warnings.length) {
       report.warnings.push({ file, segment_id: s.segment_id, warnings });
     }
-    rows.push(toRow(s, { corpusVersion }));
+    rows.push(toRow(s, { corpusVersion, curriculum }));
   }
   if (!rows.length) return;
 
@@ -581,7 +590,7 @@ async function main(argv = process.argv.slice(2)) {
   };
 
   for (const file of readSegmentFiles(target)) {
-    const { segments } = parseFile(file);
+    const { segments, meta } = parseFile(file);
     report.files += 1;
 
     // The overlay is per BOOK and by filename, because that is how both fleets
@@ -603,7 +612,7 @@ async function main(argv = process.argv.slice(2)) {
       }
     }
 
-    await importFile({ supabase, file, segments: merged, corpusVersion, dryRun, report, ytCovered });
+    await importFile({ supabase, file, segments: merged, corpusVersion, dryRun, report, ytCovered, curriculum: meta.curriculum || null });
   }
 
   console.log(`\nlp612 segment import ${dryRun ? '(DRY RUN) ' : ''}—`);
