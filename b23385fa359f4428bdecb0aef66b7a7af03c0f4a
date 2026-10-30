@@ -1,0 +1,2 @@
+{"ts":"2026-10-30T05:25:20Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-assessment,fde-board-pattern spec_sync=true","sha":"b23385fa359f","branch":"bd-pw1ccr.6-writing-topic-default","user":""}
+{"ts":"2026-10-30T05:25:27Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-pw1ccr.6-writing-topic-default: teacher-assessment web lane spec: NOT UPDATED e2e: missing;fde-board-pattern web lane spec: NOT UPDATED e2e: missing","sha":"b23385fa359f","branch":"bd-pw1ccr.6-writing-topic-default","user":""}
