@@ -188,16 +188,20 @@ async function loadNotes(q, { coachUserId = null, rmUserId = null, noteIds = nul
     if (!byNote.has(s.rm_note_id)) byNote.set(s.rm_note_id, []);
     byNote.get(s.rm_note_id).push({ school_id: s.school_id, school_name: s.school_name });
   }
-  return rows.map((r) => ({
+  return rows.map((r) => noteShape(r, byNote.get(r.id) || []));
+}
+/** The Note shape (API.md §3) from a coachip_rm_notes row and its schools in position order. */
+function noteShape(r, schools) {
+  return {
     id: r.id,
     label: S.text('From your RM', 'آپ کے آر ایم کی طرف سے'),
     template_id: r.template_id,
     w_id: r.w_id,
     lines: { en: splitLines(r.body_en), ur: splitLines(r.body_ur) },
-    schools: byNote.get(r.id) || [],
+    schools,
     due_on: r.due_on,
     status: r.status,
-  }));
+  };
 }
 function splitLines(body) {
   const l = String(body).split('\n');
@@ -245,5 +249,6 @@ function firstSchoolLevelTitle(wId) {
 }
 
 module.exports = {
-  OS_SCHOOL, nextVisits, lastVisits, checkByFor, chipFor, loadSteps, loadSectorSteps, loadNotes, composeNoteLines,
+  OS_SCHOOL, nextVisits, lastVisits, checkByFor, chipFor, loadSteps, loadSectorSteps, loadNotes, noteShape,
+  composeNoteLines,
 };

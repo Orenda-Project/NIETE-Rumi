@@ -72,17 +72,20 @@ function createCoachipScope({ query, codes, now = () => new Date() }) {
       `SELECT s.id FROM schools AS s WHERE s.region = $1 AND NOT s.is_probable_test AND s.name NOT LIKE 'NIETE%'`, [sector],
     );
     const schoolIds = schools.rows.map((r) => r.id);
-    const held = schoolIds.length ? await query(
-      `SELECT DISTINCT u.id AS coach_user_id, s.id AS school_id
-         FROM leader_schools ls JOIN schools s ON ${SCHOOL_JOIN} JOIN users u ON u.id = ls.leader_user_id
-        WHERE s.id = ANY($1::uuid[]) AND ls.name_match_quality IS DISTINCT FROM 'test'
-          AND u.role = 'coach' AND u.deleted_at IS NULL AND NOT COALESCE(u.is_test_user, false) AND u.id <> $2`,
-      [schoolIds, userId],
-    ) : { rows: [] };
+    // fix-r5 s6 (c2): the three reads after the schools need only the school list (or nothing), so they run side by side
+    const [held, teachers, roster] = await Promise.all([
+      schoolIds.length ? query(
+        `SELECT DISTINCT u.id AS coach_user_id, s.id AS school_id
+           FROM leader_schools ls JOIN schools s ON ${SCHOOL_JOIN} JOIN users u ON u.id = ls.leader_user_id
+          WHERE s.id = ANY($1::uuid[]) AND ls.name_match_quality IS DISTINCT FROM 'test'
+            AND u.role = 'coach' AND u.deleted_at IS NULL AND NOT COALESCE(u.is_test_user, false) AND u.id <> $2`,
+        [schoolIds, userId],
+      ) : { rows: [] },
+      teachersAt(schoolIds),
+      query('SELECT value FROM app_settings WHERE key = $1', [LIST_KEYS.coaches]),
+    ]);
     const coachUserIds = [...new Set(held.rows.map((r) => r.coach_user_id))];
     const heldSchools = new Set(held.rows.map((r) => r.school_id));
-    const teachers = await teachersAt(schoolIds);
-    const roster = await query('SELECT value FROM app_settings WHERE key = $1', [LIST_KEYS.coaches]);
     const parsed = roster.rows[0] ? parseCoaches(roster.rows[0].value) : null;
     const rosterCoachUserIds = parsed
       ? [...new Set(parsed.coaches.filter((c) => c.sector === sector).flatMap((c) => c.userIds))].filter((id) => id !== userId)
