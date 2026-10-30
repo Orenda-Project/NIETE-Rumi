@@ -98,7 +98,11 @@ export function teacherCard(period: Period = WEEK): TeacherCardData {
       lp: { count: 6, series: [2, 2, 2, null, null] },
       papers: { count: 2, series: [1, 0, 1, null, null] },
       training: { parts: 2, courses: 1, series: [0, 2, 0, null, null] },
-      days: { withUse: 2, schoolDays: period.schoolDaysSoFar, used: ["2026-10-26", "2026-10-28"] },
+      days: {
+        withUse: 2, schoolDays: period.schoolDaysSoFar, used: ["2026-10-26", "2026-10-28"],
+        uses: [{ day: "2026-10-26", features: ["lp", "dc", "papers"] }, { day: "2026-10-28", features: ["lp", "training"] }],
+        perFeature: { lp: 2, dc: 1, training: 1, papers: 1 },
+      },
     },
     summary: COACHING_SUMMARY,
     chart: CHART,
@@ -128,10 +132,13 @@ export function teacherScores(kind: ScoreKind, period: Period = WEEK): TeacherSc
     prevAvg: dc ? 57 : null,
     series: reports.filter((r) => r.score != null).map((r) => ({ id: r.id, date: r.date, score: r.score as number })).reverse(),
     sections: [
-      // B: the plan was assessed in one of the two reports (DC); never for the coach
+      // B is the plan steps (bd-dgfkgs.3): measured in one of the two reports (DC); never for the coach
       dc
-        ? { code: "B", name: "Lesson Plan Fidelity", avg: 1.5, scoredIn: 1, indicators: [{ id: "B1", name: "Instructional Clarity & Learning Objectives", avg: 1.5, pct: 75, scaleMax: 2, n: 1 }] }
-        : { code: "B", name: "Lesson Plan Fidelity", avg: null, scoredIn: 0, indicators: [] },
+        ? { code: "B", name: "Lesson Plan Fidelity", avg: null, scoredIn: 1, indicators: [], plan: { pct: 75, steps: [
+          { step: 1, done: 2, partly: 0, skipped: 0 }, { step: 2, done: 1, partly: 0, skipped: 0 }, { step: 3, done: 0, partly: 1, skipped: 0 },
+          { step: 4, done: 1, partly: 0, skipped: 0 }, { step: 5, done: 0, partly: 0, skipped: 1 },
+        ] } }
+        : { code: "B", name: "Lesson Plan Fidelity", avg: null, scoredIn: 0, indicators: [], plan: null },
       { code: "C", name: "High-Leverage Practices", avg: 1.2, scoredIn: dc ? 2 : 1, indicators: [
         { id: "C1", name: "Quality Questioning (Bloom's Aligned)", avg: 1.4, pct: 70, scaleMax: 2, n: dc ? 2 : 1 },
         { id: "C2", name: "Responsive Re-explanation & Adaptive Teaching", avg: 1, pct: 50, scaleMax: 2, n: dc ? 2 : 1 },
@@ -183,7 +190,6 @@ export const SESSION_REPORT: SessionReportData = {
   nextStep: "Give students two minutes to discuss in pairs.",
   sections: [{ code: "B", name: "Lesson Plan Fidelity", pct: 73 }, { code: "C", name: "High-Leverage Practices", pct: 65 }],
   practices: [
-    { id: "B1", name: "Instructional Clarity", section: "B", score: 2, scaleMax: 2 },
     { id: "C1", name: "Quality Questioning", section: "C", score: 1, scaleMax: 2 },
     { id: "F6", name: "Subject-Specific Pedagogy: SCIENCE", section: "F", score: null, scaleMax: 2 },
   ],

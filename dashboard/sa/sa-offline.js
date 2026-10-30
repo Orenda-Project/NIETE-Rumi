@@ -111,18 +111,66 @@
     });
   }
 
+  var UPDATE_WAIT_MS = 10000;
+  // "Get ready" and its check: an update() still unanswered after this is "not ready" (worker_update_pending), never "none"
+  var VISIT_UPDATE_WAIT_MS = 30000;
+  /** pending when update() did not answer in time: a new worker may still be on its way. */
+  var UNANSWERED = { state: 'update_unanswered' };
+
+  /**
+   * reg.update(), then the new worker it finds (or one already installing), followed until it is active, for up to
+   * ACTIVE_WAIT_MS. register() with the same script URL never looks for a new worker, so a phone on the previous SESSION
+   * used to prepare into the old worker's cache, which the new worker deletes when it activates on the first online child
+   * start. → { reg, pending }: pending = that new worker when it is still not active at the bound or its install failed
+   * (redundant); null offline (update rejects) or with no new worker. An update check that takes over UPDATE_WAIT_MS gives
+   * null for the child page (the active worker as before) and, with strict (Get ready, its check), UNANSWERED after
+   * VISIT_UPDATE_WAIT_MS: a slow answer is unknown, and work given to the old worker meanwhile keeps the new one from
+   * activating.
+   */
+  function updated(reg, strict) {
+    return new Promise(function (ok) {
+      var done = false;
+      var found = null;
+      var t;
+      function finish() { if (done) return; done = true; clearTimeout(t); ok({ reg: reg, pending: found && reg.active !== found ? found : null }); }
+      function follow(w) {
+        found = w;
+        clearTimeout(t);
+        t = setTimeout(finish, ACTIVE_WAIT_MS);
+        if (w.state === 'activated' || w.state === 'redundant') return finish();
+        w.addEventListener('statechange', function () { if (w.state === 'activated' || w.state === 'redundant') finish(); });
+      }
+      var now = reg.installing || reg.waiting;
+      if (now && typeof now.addEventListener === 'function') return follow(now);
+      t = setTimeout(function () {
+        if (strict && !found) { done = true; return ok({ reg: reg, pending: UNANSWERED }); }
+        finish();
+      }, strict ? VISIT_UPDATE_WAIT_MS : UPDATE_WAIT_MS);
+      Promise.resolve().then(function () { return reg.update(); }).then(function () {
+        if (done) return;
+        var w = reg.installing || reg.waiting;
+        if (!w || typeof w.addEventListener !== 'function') return finish();
+        follow(w);
+      }, finish);
+    });
+  }
+
+  /** Why "ready for offline" waits: the new worker is still installing, or its install failed. */
+  function pendingWhy(w) { return w.state === 'redundant' ? 'worker_update_failed' : 'worker_update_pending'; }
+
   /**
    * The engine's registration, without waiting on the network: register() fetches the worker's script, so with no signal it
    * rejects even when the worker is installed and every file is on the phone (round 8, the school with no signal). An
-   * active registration is used as it is (the update is asked for behind it, a failure ignored); a phone with none
-   * registers first.
+   * active registration is updated first (updated(); out.pending tells the caller a new worker is not active yet); a
+   * phone with none registers first.
    */
-  function registration(sw) {
+  function registration(sw, out) {
     var opts = { scope: '/sa/' };
     var fresh = function () { return sw.register('/sa/sw.js', opts); };
     var have = typeof sw.getRegistration === 'function' ? Promise.resolve().then(function () { return sw.getRegistration('/sa/'); }).then(null, function () { return null; }) : Promise.resolve(null);
     return have.then(function (reg) {
       if (reg && reg.active) {
+        if (typeof reg.update === 'function') return updated(reg, !!out).then(function (u) { if (out) out.pending = u.pending; return u.reg; });
         Promise.resolve().then(fresh).then(null, function () { /* offline: the installed worker serves */ });
         return reg;
       }
@@ -292,10 +340,11 @@
    * The engine's worker, active, as an ask(msg) → Promise<reply>. A page outside /sa/ (the coach page) is never
    * controlled by it, so serviceWorker.ready would never resolve there: wait on the registration's own worker instead.
    */
-  function workerAsk() {
+  function workerAsk(out) {
     var nav = root.navigator;
     if (!nav || !nav.serviceWorker || !root.MessageChannel) return Promise.resolve(null);
-    return registration(nav.serviceWorker).then(function (reg) {
+    return registration(nav.serviceWorker, out).then(function (reg) {
+      if (out) out.reg = reg;
       if (reg.active) return reg.active;
       var w = reg.installing || reg.waiting;
       if (!w) return null;
@@ -307,8 +356,73 @@
         });
       });
     }).then(function (sw) {
+      if (out) out.sw = sw;
       return sw ? function (msg) { return ask(sw, msg); } : null;
     }, function () { return null; });
+  }
+
+  /**
+   * After the work: a worker newer than the one it went to (installing, waiting, or already active) deletes that worker's
+   * SESSION cache when it takes over, so what was just kept will not stay. An update() that answered "none" while another
+   * page's update was about to find one ends here.
+   */
+  function replaced(out) {
+    var r = out && out.reg;
+    if (!r || !out.sw) return false;
+    return !!(r.installing || r.waiting || (r.active && r.active !== out.sw));
+  }
+
+  /** A worker newer than the one the work goes to (installing, waiting, or another active one), else null. */
+  function newerOf(upd) {
+    var r = upd && upd.reg;
+    if (!r || !upd.sw) return null;
+    return r.installing || r.waiting || (r.active && r.active !== upd.sw ? r.active : null);
+  }
+
+  /**
+   * Wait (up to ACTIVE_WAIT_MS) for the newer worker w to take over → { turn, sw } (start again on it), or { turn, why } when
+   * it did not activate in time or its install failed.
+   */
+  function settle(upd, w) {
+    var r = upd.reg;
+    function now() { return r.active && r.active !== upd.sw && r.active.state === 'activated' ? r.active : null; }
+    return new Promise(function (ok) {
+      if (now()) return ok({ turn: true, sw: now() });
+      if (w.state === 'redundant') return ok({ turn: true, why: pendingWhy(w) });
+      var t = setTimeout(function () { ok(now() ? { turn: true, sw: now() } : { turn: true, why: pendingWhy(w) }); }, ACTIVE_WAIT_MS);
+      if (typeof w.addEventListener !== 'function') return;
+      w.addEventListener('statechange', function () {
+        if (w.state === 'activated' || now()) { clearTimeout(t); ok({ turn: true, sw: now() || w }); }
+        else if (w.state === 'redundant') { clearTimeout(t); ok({ turn: true, why: pendingWhy(w) }); }
+      });
+    });
+  }
+
+  /**
+   * q, checked before EVERY message: while a newer worker exists nothing is posted; the call waits for it (settle) and
+   * rejects with the turn, so the caller starts again on the new worker or answers not ready.
+   */
+  function guarded(q, upd) {
+    return function (msg) {
+      var w = newerOf(upd);
+      if (!w) return q(msg);
+      return settle(upd, w).then(function (turn) { throw turn; });
+    };
+  }
+
+  /**
+   * run(q) once, and again on the new worker when one takes over mid-way (what the old one kept goes with it), at most
+   * twice; a newer worker that does not activate → failed(why).
+   */
+  function onWorker(q, upd, run, failed) {
+    var turns = 0;
+    function again(e) {
+      if (!e || !e.turn) throw e;
+      if (e.why || !e.sw || turns++ >= 2) return failed(e.why || 'worker_update_pending');
+      upd.sw = e.sw;
+      return run(guarded(function (msg) { return ask(e.sw, msg); }, upd)).then(null, again);
+    }
+    return run(guarded(q, upd)).then(null, again);
   }
 
   /** A kept battery file (the worker's copy), else null. */
@@ -343,57 +457,69 @@
     var progress = typeof o.onProgress === 'function' ? o.onProgress : function () {};
     var read = o.readBattery || readKept;
     var bats = forms.map(batteryUrl);
-    return (o.ask ? Promise.resolve(o.ask) : workerAsk()).then(function (q) {
+    var upd = {};
+    return (o.ask ? Promise.resolve(o.ask) : workerAsk(upd)).then(function (q) {
       if (!q) return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, forms: [], why: 'no_service_worker' };
-      var bytes = 0;
-      var missingSet = {};
-      // fresh: false (the Start gate after a warm-up): a battery on the phone is not read again
-      return q(o.fresh === false ? { type: 'prepare', urls: bats } : { type: 'prepare', urls: bats, fresh: bats }).then(function (r) {
-        r = r || { missing: bats };
-        bytes += r.bytes || 0;
-        (r.missing || []).forEach(function (u) { missingSet[u] = true; });
-        return Promise.all(bats.map(function (u) { return Promise.resolve().then(function () { return read(u); }).then(null, function () { return null; }); }));
-      }).then(function (batteries) {
-        var per = forms.map(function (f, i) { return { form: f, files: [bats[i]].concat(batteries[i] ? filesOf(batteries[i], f, o.part) : []), read: !!batteries[i] }; });
-        var all = [];
-        var inAll = {};
-        per.forEach(function (p) { p.files.slice(1).forEach(function (u) { if (!inAll[u]) { inAll[u] = true; all.push(u); } }); });
-        // Jugnu's pictures, once for the visit (without them the screens show no Jugnu offline)
-        if (forms.length) ART.forEach(function (u) { if (!inAll[u]) { inAll[u] = true; all.push(u); } });
-        var total = bats.length + all.length;
-        var done = bats.length;
-        progress({ done: done, total: total, bytes: bytes });
-        var chunks = [];
-        for (var i = 0; i < all.length; i += size) chunks.push(all.slice(i, i + size));
-        // paused() (the coach page's Start gate is downloading a child's part): no new chunk until it says false
-        var held = typeof o.paused === 'function' ? o.paused : null;
-        var waitMs = o.pauseMs > 0 ? o.pauseMs : 400;
-        var whileHeld = function () {
-          if (!held || !held()) return Promise.resolve();
-          return new Promise(function (ok) { setTimeout(ok, waitMs); }).then(whileHeld);
-        };
-        return chunks.reduce(function (chain, c) {
-          return chain.then(whileHeld).then(function () { return q({ type: 'prepare', urls: c }); }).then(function (r) {
-            r = r || { missing: c };
-            bytes += r.bytes || 0;
-            (r.missing || []).forEach(function (u) { missingSet[u] = true; });
-            done += c.length;
-            progress({ done: done, total: total, bytes: bytes });
-          });
-        }, Promise.resolve()).then(function () {
-          // the v4 clips' word timings, best effort: what the server has not got is not counted
-          var timings = timingUrls(all);
-          return timings.length ? q({ type: 'prepare', urls: timings }).then(null, function () {}) : null;
-        }).then(function () {
-          var missing = Object.keys(missingSet).length;
-          var out = per.map(function (p) {
-            var m = p.files.filter(function (u) { return missingSet[u]; }).length;
-            return { form: p.form, ok: p.read && m === 0, files: p.files.length, missing: m };
-          });
-          return { ok: missing === 0 && out.every(function (f) { return f.ok; }), total: total, cached: total - missing, missing: missing, bytes: bytes, forms: out };
-        });
-      });
+      // a new worker that is not active yet would delete what goes into this one: not ready, the next press waits again
+      if (upd.pending) return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, forms: [], why: pendingWhy(upd.pending) };
+      return onWorker(q, upd, function (q) { return prepOn(q, o, forms, bats, size, progress, read, upd); },
+        function (why) { return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, forms: [], why: why }; });
     }).then(null, function (e) { return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, forms: [], why: String(e && e.message || e) }; });
+  }
+
+  /** One pass of prepVisit through q (one worker); a turn (newer worker) rejects out of it. */
+  function prepOn(q, o, forms, bats, size, progress, read, upd) {
+    var bytes = 0;
+    var missingSet = {};
+    // fresh: false (the Start gate after a warm-up): a battery on the phone is not read again
+    return q(o.fresh === false ? { type: 'prepare', urls: bats } : { type: 'prepare', urls: bats, fresh: bats }).then(function (r) {
+      r = r || { missing: bats };
+      bytes += r.bytes || 0;
+      (r.missing || []).forEach(function (u) { missingSet[u] = true; });
+      return Promise.all(bats.map(function (u) { return Promise.resolve().then(function () { return read(u); }).then(null, function () { return null; }); }));
+    }).then(function (batteries) {
+      var per = forms.map(function (f, i) { return { form: f, files: [bats[i]].concat(batteries[i] ? filesOf(batteries[i], f, o.part) : []), read: !!batteries[i] }; });
+      var all = [];
+      var inAll = {};
+      per.forEach(function (p) { p.files.slice(1).forEach(function (u) { if (!inAll[u]) { inAll[u] = true; all.push(u); } }); });
+      // Jugnu's pictures, once for the visit (without them the screens show no Jugnu offline)
+      if (forms.length) ART.forEach(function (u) { if (!inAll[u]) { inAll[u] = true; all.push(u); } });
+      var total = bats.length + all.length;
+      var done = bats.length;
+      progress({ done: done, total: total, bytes: bytes });
+      var chunks = [];
+      for (var i = 0; i < all.length; i += size) chunks.push(all.slice(i, i + size));
+      // paused() (the coach page's Start gate is downloading a child's part): no new chunk until it says false
+      var held = typeof o.paused === 'function' ? o.paused : null;
+      var waitMs = o.pauseMs > 0 ? o.pauseMs : 400;
+      var whileHeld = function () {
+        if (!held || !held()) return Promise.resolve();
+        return new Promise(function (ok) { setTimeout(ok, waitMs); }).then(whileHeld);
+      };
+      return chunks.reduce(function (chain, c) {
+        return chain.then(whileHeld).then(function () { return q({ type: 'prepare', urls: c }); }).then(function (r) {
+          r = r || { missing: c };
+          bytes += r.bytes || 0;
+          (r.missing || []).forEach(function (u) { missingSet[u] = true; });
+          done += c.length;
+          progress({ done: done, total: total, bytes: bytes });
+        });
+      }, Promise.resolve()).then(function () {
+        // the v4 clips' word timings, best effort: what the server has not got is not counted
+        var timings = timingUrls(all);
+        return timings.length ? q({ type: 'prepare', urls: timings }).then(null, function (e) { if (e && e.turn) throw e; }) : null;
+      }).then(function () {
+        var missing = Object.keys(missingSet).length;
+        var out = per.map(function (p) {
+          var m = p.files.filter(function (u) { return missingSet[u]; }).length;
+          return { form: p.form, ok: p.read && m === 0, files: p.files.length, missing: m };
+        });
+        var res = { ok: missing === 0 && out.every(function (f) { return f.ok; }), total: total, cached: total - missing, missing: missing, bytes: bytes, forms: out };
+        // a newer worker is the reason, ahead of any file count: what this one kept goes when it takes over
+        if (replaced(upd)) { res.ok = false; res.why = 'worker_update_pending'; }
+        return res;
+      });
+    });
   }
 
   /** checkVisit — see the header. Never fetches: a battery not kept counts as its own file missing. */
@@ -401,25 +527,35 @@
     o = o || {};
     var forms = formsOf(o.forms);
     var read = o.readBattery || readKept;
-    return (o.ask ? Promise.resolve(o.ask) : workerAsk()).then(function (q) {
+    var upd = {};
+    return (o.ask ? Promise.resolve(o.ask) : workerAsk(upd)).then(function (q) {
       if (!q) return { ready: false, total: 0, cached: 0, why: 'no_service_worker' };
-      return Promise.all(forms.map(function (f) { return Promise.resolve().then(function () { return read(batteryUrl(f)); }).then(null, function () { return null; }); }))
-        .then(function (batteries) {
-          var want = [];
-          var seen = {};
-          forms.forEach(function (f, i) {
-            [batteryUrl(f)].concat(batteries[i] ? filesOf(batteries[i], f, o.part) : []).forEach(function (u) { if (!seen[u]) { seen[u] = true; want.push(u); } });
-          });
-          if (forms.length) ART.forEach(function (u) { if (!seen[u]) { seen[u] = true; want.push(u); } });
-          var chunks = [];
-          for (var i = 0; i < want.length; i += 200) chunks.push(want.slice(i, i + 200));
-          return Promise.all(chunks.map(function (c) { return q({ type: 'check', urls: c }); })).then(function (rs) {
-            var missing = 0;
-            rs.forEach(function (r, i) { missing += r ? (r.missing || []).length : chunks[i].length; });
-            return { ready: want.length > 0 && missing === 0 && batteries.every(Boolean), total: want.length, cached: want.length - missing };
-          });
-        });
+      if (upd.pending) return { ready: false, total: 0, cached: 0, why: pendingWhy(upd.pending) };
+      return onWorker(q, upd, function (q) { return checkOn(q, o, forms, read, upd); },
+        function (why) { return { ready: false, total: 0, cached: 0, why: why }; });
     }).then(null, function (e) { return { ready: false, total: 0, cached: 0, why: String(e && e.message || e) }; });
+  }
+
+  /** One pass of checkVisit through q (one worker). */
+  function checkOn(q, o, forms, read, upd) {
+    return Promise.all(forms.map(function (f) { return Promise.resolve().then(function () { return read(batteryUrl(f)); }).then(null, function () { return null; }); }))
+      .then(function (batteries) {
+        var want = [];
+        var seen = {};
+        forms.forEach(function (f, i) {
+          [batteryUrl(f)].concat(batteries[i] ? filesOf(batteries[i], f, o.part) : []).forEach(function (u) { if (!seen[u]) { seen[u] = true; want.push(u); } });
+        });
+        if (forms.length) ART.forEach(function (u) { if (!seen[u]) { seen[u] = true; want.push(u); } });
+        var chunks = [];
+        for (var i = 0; i < want.length; i += 200) chunks.push(want.slice(i, i + 200));
+        return Promise.all(chunks.map(function (c) { return q({ type: 'check', urls: c }); })).then(function (rs) {
+          var missing = 0;
+          rs.forEach(function (r, i) { missing += r ? (r.missing || []).length : chunks[i].length; });
+          var ready = want.length > 0 && missing === 0 && batteries.every(Boolean);
+          if (replaced(upd)) return { ready: false, total: want.length, cached: want.length - missing, why: 'worker_update_pending' };
+          return { ready: ready, total: want.length, cached: want.length - missing };
+        });
+      });
   }
 
   return { urls: urls, lineUrls: lineUrls, openingUrls: openingUrls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice,

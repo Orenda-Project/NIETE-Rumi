@@ -215,9 +215,10 @@ const SQL = Object.freeze({
       FROM coaching_sessions c LEFT JOIN users ou ON ou.id = c.observer_user_id
      WHERE c.id = $1::uuid`,
 
-  // Every practice's score of these reports (analysis_data.domains, detoasted once each) and whether a plan was linked.
+  // Every practice's score of these reports (analysis_data.domains, detoasted once each), whether a plan was linked,
+  // and the plan steps the grader judged (analysis_data.lp_fidelity: Lesson Plan Fidelity, bd-dgfkgs.3).
   domains: `/* sc:domains */
-    SELECT s.id, s.a -> 'domains' AS domains, s.a #> '{scores,has_lesson_plan}' AS has_plan
+    SELECT s.id, s.a -> 'domains' AS domains, s.a #> '{scores,has_lesson_plan}' AS has_plan, s.a -> 'lp_fidelity' AS lp_fidelity
       FROM (SELECT id, analysis_data #> '{}'::text[] AS a
               FROM coaching_sessions
              WHERE id = ANY($1::uuid[])
@@ -350,6 +351,27 @@ function daysUsedOf(period, events) {
 const daysWithUse = (period, events) => daysUsedOf(period, events).length;
 
 /**
+ * WHICH INSTRUMENTS MADE EACH USED DAY (bd-dgfkgs.4; operator 30 Oct: "8/21 isn't clear instrument by instrument").
+ * The same days as daysUsedOf, each with the features she used that day (in CARD order: lp, dc, training, papers), and
+ * how many of the days each feature was used on. A day with two features counts once in the total, once under each.
+ * @param {{lp: Array, dc: Array, training: Array, papers: Array}} byFeature each feature's events ({ day })
+ */
+function usesOf(period, byFeature) {
+  const order = ['lp', 'dc', 'training', 'papers'];
+  const days = new Map();
+  for (const f of order) {
+    for (const e of byFeature[f] || []) {
+      if (!P.inPeriod(period, e.day) || !P.isSchoolDay(e.day)) continue;
+      if (!days.has(e.day)) days.set(e.day, new Set());
+      days.get(e.day).add(f);
+    }
+  }
+  const uses = [...days.keys()].sort().map((day) => ({ day, features: order.filter((f) => days.get(day).has(f)) }));
+  const perFeature = Object.fromEntries(order.map((f) => [f, uses.filter((u) => u.features.includes(f)).length]));
+  return { uses, perFeature };
+}
+
+/**
  * CONTRIBUTION %. Her total of the four feature counts over the school's total, × 100, rounded; equal weights.
  * Only for a teacher with a total above 0. A constructed metric (v1 default): kept in this one function.
  */
@@ -423,16 +445,60 @@ function frameworkConstants() {
   return fwCache;
 }
 
+/** A plan step's verdict as the report page reads it (portal SessionReportPage verdictOf): done | partly | skipped | null. */
+function verdictOf(raw) {
+  const v = String(raw || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  if (['executed', 'substituted_equivalent', 'substituted_better', 'done'].includes(v)) return 'done';
+  if (['not_done', 'skipped'].includes(v)) return 'skipped';
+  if (['partial', 'partly'].includes(v)) return 'partly';
+  return null;
+}
+
+/** A report's measured plan: { pct, moves } when the grader judged its plan steps and gave the share followed, else null. */
+function measuredPlanOf(lp) {
+  const pct = lp && lp.status === 'ok' ? num(lp.fidelity_pct) : null;
+  return pct == null ? null : { pct, moves: Array.isArray(lp.moves) ? lp.moves.filter(Boolean) : [] };
+}
+
+/**
+ * LESSON PLAN FIDELITY (B), ACROSS HER REPORTS (bd-dgfkgs.3; operator 30 Oct: "moves for both, DC and HITL"). B is the
+ * plan steps the grader judged (analysis_data.lp_fidelity), the same measure her report card and voice note give, never
+ * the removed B1-B10 practices. `pct`: the mean share of plan steps followed over the reports that measured one;
+ * `steps`: for each of the report card's five steps (report-card stepOf: 1 Opening … 5 Check) that any report judged, how
+ * many of its plan steps were done, partly done or skipped. Null when no report measured its plan.
+ */
+function planAcross(rows) {
+  const plans = rows.map((r) => measuredPlanOf(r && r.lp_fidelity)).filter(Boolean);
+  if (!plans.length) return { scoredIn: 0, plan: null };
+  const steps = new Map();
+  for (const p of plans) {
+    for (const m of p.moves) {
+      const step = stepOf(m.phase);
+      const v = verdictOf(m.verdict);
+      if (!step || !v) continue;
+      if (!steps.has(step.index)) steps.set(step.index, { step: step.index, done: 0, partly: 0, skipped: 0 });
+      steps.get(step.index)[v] += 1;
+    }
+  }
+  return {
+    scoredIn: plans.length,
+    plan: {
+      pct: Math.round(plans.reduce((t, p) => t + p.pct, 0) / plans.length),
+      steps: [...steps.values()].sort((a, b) => a.step - b.step),
+    },
+  };
+}
+
 /**
  * EVERY PRACTICE, AVERAGED ACROSS HER REPORTS. For each practice (indicator) a report scored, the mean of its score
  * as a share of that report's own scale (a section's domain_max over its practices, scaleMaxOf), given back on the
  * deployed framework's scale (FICO v3: 2) and as a %. A practice the report did not score (not applicable, no score) is
- * not averaged in. Lesson Plan Fidelity (B) is left out of a report whose plan was not assessed. All four sections, B C
- * D F, each with its average (the mean of its practices' averages; null = Not scored) and `scoredIn` (how many reports
- * scored it); the practices in framework order, the framework's names (one it does not know keeps the report's name).
- * Only reports whose score counts are passed in (a coach observation: reviewed, FICO form), so a /observe2 field-form
- * visit is never mixed in.
- * @param {Array<{domains: object, has_plan: boolean|null}>} rows
+ * not averaged in. All four sections, B C D F, each with its average (the mean of its practices' averages; null = Not
+ * scored) and `scoredIn` (how many reports scored it); the practices in framework order, the framework's names (one it
+ * does not know keeps the report's name). Lesson Plan Fidelity (B) has no practices: it is the plan steps (planAcross,
+ * its `plan`). Only reports whose score counts are passed in (a coach observation: reviewed, FICO form), so a /observe2
+ * field-form visit is never mixed in.
+ * @param {Array<{domains: object, has_plan: boolean|null, lp_fidelity: object|null}>} rows
  */
 function practiceAveragesOf(rows) {
   const fw = frameworkConstants();
@@ -446,8 +512,7 @@ function practiceAveragesOf(rows) {
     for (const sec of indicatorsOf({ domains })) {
       const meta = SECTIONS.find((x) => x.key === sec.key);
       const d = domains[sec.key] || {};
-      if (!meta) continue;
-      if (sec.key === 'lesson_plan_fidelity' && (d.assessed === false || d.assessed === 'false' || r.has_plan === false || r.has_plan === 'false')) continue;
+      if (!meta || sec.key === 'lesson_plan_fidelity') continue;
       const max = scaleMaxOf(d);
       if (!max) continue;
       let counted = false;
@@ -464,7 +529,9 @@ function practiceAveragesOf(rows) {
   }
   if (!reports) return [];
   const tenths = (x) => Math.round(x * 10) / 10;
+  const b = planAcross(rows.filter((r) => r && r.domains && typeof r.domains === 'object'));
   return SECTIONS.map(({ code, name }) => {
+    if (code === 'B') return { code, name, avg: null, scoredIn: b.scoredIn, indicators: [], plan: b.plan };
     const indicators = [...acc.values()].filter((e) => e.code === code)
       .sort((x, y) => practiceOrder(x.id) - practiceOrder(y.id) || x.id.localeCompare(y.id))
       .map((e) => {
@@ -879,9 +946,9 @@ async function getTeacherCard(query, coachId, ext, opts = {}) {
       papers: tile(events.papers),
       training: { parts: trn.total, courses: courses.filter((c) => c.done && P.inPeriod(period, c.lastDone)).length, series: trn.cells },
       days: (() => {
-        // the dates too: the page draws one dot per school day, filled on a day she used NIETE
+        // the dates too: the page draws one dot per school day, filled on a day she used NIETE; and what she used each day
         const used = daysUsedOf(period, [...events.lp, ...dc, ...events.training, ...events.papers]);
-        return { withUse: used.length, schoolDays: period.schoolDaysSoFar, used };
+        return { withUse: used.length, schoolDays: period.schoolDaysSoFar, used, ...usesOf(period, { lp: events.lp, dc, training: events.training, papers: events.papers }) };
       })(),
     },
     // Her DC observations and coach visits are ONE Coaching card: this summary and this chart.
@@ -1025,10 +1092,15 @@ async function getSession(query, coachId, sessionId, opts = {}) {
     nextStep: visit
       ? text(pa.action) || text(a.focus_area && a.focus_area.try_this_tomorrow)
       : nextStepShown(row.prioritized_action, group),
+    // B is the share of plan steps followed (bd-dgfkgs.3), never the old B section's own score.
     sections: SECTIONS.filter((s) => domains[s.key]).map((s) => ({
-      code: s.code, name: s.name, pct: reviewed ? sectionPctOf(domains[s.key].domain_score, domains[s.key].domain_max, domains[s.key].assessed) : null,
+      code: s.code, name: s.name,
+      pct: !reviewed ? null
+        : s.key === 'lesson_plan_fidelity' ? round((measuredPlanOf(a.lp_fidelity) || {}).pct)
+          : sectionPctOf(domains[s.key].domain_score, domains[s.key].domain_max, domains[s.key].assessed),
     })),
-    practices: indicatorsOf(a).flatMap((sec) => {
+    // Every practice but B's: Lesson Plan Fidelity is the plan steps (lpSteps), not the removed B1-B10.
+    practices: indicatorsOf(a).filter((sec) => sec.key !== 'lesson_plan_fidelity').flatMap((sec) => {
       const code = (SECTIONS.find((s) => s.key === sec.key) || {}).code || null;
       const scaleMax = scaleMaxOf(domains[sec.key]);
       return sec.items.filter((i) => i.id)

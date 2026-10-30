@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-13'); // sa-13: round 8, speak.audio + the story's ear + v4 timings
+    expect(sw.CORE).toBe('sa-core-sa-19'); // sa-19: round 8 close, sa-offline.js (nothing to a worker while an update is unanswered or a newer one exists)
   });
 });
 

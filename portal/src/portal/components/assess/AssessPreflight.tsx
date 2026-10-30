@@ -3,6 +3,7 @@ import { Headphones, Mic, PlaneTakeoff, Timer, Volume2 } from 'lucide-react';
 import type { AssessCopy } from '../../lib/assess/copy';
 import { clearMic, type MicCheck } from '../../lib/assess/visitStore';
 import { pickRecordingType } from '../../lib/recordingSupport';
+import { reportMicCheck, trackSettings, type MicProbe } from '../../lib/assess/micReport';
 import AssessActions from './AssessActions';
 
 /**
@@ -15,6 +16,12 @@ import AssessActions from './AssessActions';
  * With sa_mic_required (micRequired), Ready waits until the microphone works or
  * the coach picks the explicit second choice, going on without recording (the
  * engine then skips listening, the stories and their questions).
+ *
+ * With sa_r8_ios_mic (iosMic), for iPhones: the AudioContext is made inside the
+ * coach's tap and resumed (iOS starts one made later suspended, and its meter
+ * then reads silence), and the recording can be played again by a tap (iOS
+ * refuses a play-back that no tap started). Every check is reported to the logs
+ * (micReport.ts), switch or not.
  */
 
 export const RECORD_MS = 2000;
@@ -54,15 +61,16 @@ export function rmsOf(buf: Uint8Array): number {
   return Math.min(1, Math.sqrt(sum / buf.length));
 }
 
-type Props = { copy: AssessCopy; onMic: (m: MicCheck) => void; onReady: () => void; micRequired?: boolean };
+type Props = { copy: AssessCopy; onMic: (m: MicCheck) => void; onReady: () => void; micRequired?: boolean; iosMic?: boolean };
 
-export default function AssessPreflight({ copy, onMic, onReady, micRequired = false }: Props) {
+export default function AssessPreflight({ copy, onMic, onReady, micRequired = false, iosMic = false }: Props) {
   const [mic, setMic] = useState<MicState>('idle');
   const [tried, setTried] = useState(false);
   const [withoutMic, setWithoutMic] = useState(false);
   const [level, setLevel] = useState(0);
   const peak = useRef(0);
   const cleanup = useRef<() => void>(() => {});
+  const recording = useRef<string | null>(null);
 
   const probed = useRef(false);
 
@@ -78,18 +86,30 @@ export default function AssessPreflight({ copy, onMic, onReady, micRequired = fa
     setWithoutMic(false);
     cleanup.current();
     peak.current = 0;
+    recording.current = null;
     setLevel(0);
+    // iosMic: made here, inside the tap, before anything is awaited
+    const early = iosMic ? audioContext() : null;
+    const report: MicProbe = {
+      phase: 'probe', iosMic, gum: 'ok', recorder: false, mimeType: '', bytes: 0, chunks: 0, peak: 0,
+      ctxStart: early ? early.state : 'none', ctxEnd: 'none', play: 'none', playError: '', ...trackSettings(null),
+    };
     let stream: MediaStream;
     try {
-      if (!navigator.mediaDevices?.getUserMedia) throw new Error('no microphone');
+      if (!navigator.mediaDevices?.getUserMedia) throw Object.assign(new Error('no microphone'), { name: 'no_api' });
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
+    } catch (e) {
+      if (early) void early.close().catch(() => {});
+      reportMicCheck({ ...report, gum: String((e as { name?: string })?.name || 'unknown').slice(0, 40) });
       setMic('denied');
       finish(false);
       return;
     }
     setMic('recording');
-    const ctx = audioContext();
+    const ctx = early || audioContext();
+    if (ctx && !early) report.ctxStart = ctx.state;
+    if (iosMic && ctx && ctx.state === 'suspended') void ctx.resume().catch(() => {});
+    Object.assign(report, trackSettings(stream));
     let meter: number | null = null;
     let timer: number | null = null;
     let url: string | null = null;
@@ -126,16 +146,38 @@ export default function AssessPreflight({ copy, onMic, onReady, micRequired = fa
       recorder = typeof MediaRecorder === 'undefined' ? null : new MediaRecorder(stream, type ? { mimeType: type.mimeType } : undefined);
     } catch { recorder = null; }
     const chunks: Blob[] = [];
+    const sendReport = () => {
+      report.peak = Math.round(peak.current * 10000) / 10000;
+      reportMicCheck(report);
+    };
     const playBack = () => {
+      report.ctxEnd = ctx ? ctx.state : 'none';
+      report.recorder = Boolean(recorder);
+      report.mimeType = (recorder?.mimeType || type?.mimeType || '').slice(0, 60);
+      report.chunks = chunks.length;
+      report.bytes = chunks.reduce((n, c) => n + (c.size || 0), 0);
       stopAll();
       setLevel(0);
+      let sent = false;
       if (chunks.length) {
         try {
           url = URL.createObjectURL(new Blob(chunks, { type: type?.mimeType || chunks[0].type }));
+          recording.current = url;
           const p = new Audio(url).play();
-          if (p && typeof p.catch === 'function') p.catch(() => {});
-        } catch { /* the coach can still say what they heard */ }
+          if (p && typeof p.then === 'function') {
+            sent = true;
+            p.then(() => { report.play = 'ok'; }, (e: unknown) => {
+              const name = String((e as { name?: string })?.name || '');
+              report.play = name === 'NotAllowedError' ? 'blocked' : 'error';
+              report.playError = name.slice(0, 40);
+            }).finally(sendReport);
+          } else report.play = 'ok';
+        } catch (e) {
+          report.play = 'error';
+          report.playError = String((e as { name?: string })?.name || '').slice(0, 40);
+        }
       }
+      if (!sent) sendReport();
       setMic('asking');
     };
     if (recorder) {
@@ -151,8 +193,19 @@ export default function AssessPreflight({ copy, onMic, onReady, micRequired = fa
     }, RECORD_MS);
   };
 
-  const heard = () => { cleanup.current(); setMic('ok'); finish(true); };
-  const goWithout = () => { cleanup.current(); setWithoutMic(true); finish(false); };
+  const answer = (a: 'heard' | 'again' | 'skip' | 'replay') => reportMicCheck({ phase: 'answer', iosMic, answer: a });
+  const heard = () => { answer('heard'); cleanup.current(); setMic('ok'); finish(true); };
+  const again = () => { answer('again'); void check(); };
+  const goWithout = () => { answer('skip'); cleanup.current(); setWithoutMic(true); finish(false); };
+  // iosMic: the play-back by the coach's own tap, which iOS lets play
+  const playAgain = () => {
+    answer('replay');
+    if (!recording.current) return;
+    try {
+      const p = new Audio(recording.current).play();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch { /* the coach can still say what they heard */ }
+  };
   const blocked = micRequired && mic !== 'ok' && !withoutMic;
 
   return (
@@ -189,8 +242,13 @@ export default function AssessPreflight({ copy, onMic, onReady, micRequired = fa
             <p className="text-slate-800">{copy.micListen}</p>
             <div className="flex gap-2">
               <button type="button" onClick={heard} className="min-h-[48px] flex-1 rounded-xl bg-emerald-600 font-medium text-white">{copy.micHeard}</button>
-              <button type="button" onClick={check} className="min-h-[48px] flex-1 rounded-xl border border-slate-300 bg-white">{copy.tryAgain}</button>
+              <button type="button" onClick={again} className="min-h-[48px] flex-1 rounded-xl border border-slate-300 bg-white">{copy.tryAgain}</button>
             </div>
+            {iosMic && (
+              <button type="button" data-testid="assess-mic-play" onClick={playAgain} className="flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white">
+                <Volume2 className="h-4 w-4" aria-hidden /> {copy.micPlayAgain}
+              </button>
+            )}
           </div>
         )}
         {mic === 'ok' && <p data-testid="assess-mic-ok" className="flex items-center gap-2 font-medium text-emerald-800"><Mic className="h-4 w-4" aria-hidden /> {copy.micOk}</p>}
