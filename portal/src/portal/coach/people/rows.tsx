@@ -6,6 +6,7 @@ import { useCopy } from "../../teacher/i18n";
 import { Stats } from "../ui";
 import type { CoachSchool, CoachTeacher } from "../types";
 import { PEOPLE } from "./copy";
+import { withLevel, type TeachingLevel } from "./level";
 import { visitChip } from "./visitStatus";
 
 /**
@@ -18,12 +19,13 @@ import { visitChip } from "./visitStatus";
 const CARD = "overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)]";
 
 /** A school in the Schools tab: avatar, name, teachers, the visit-status chip, then four flat numbers. */
-export function SchoolCard({ s }: { s: CoachSchool }) {
+/** `level` (bd-ewbzns.1): the school opens for that teaching level, as My schools was showing it. */
+export function SchoolCard({ s, level = null }: { s: CoachSchool; level?: TeachingLevel | null }) {
   const C = useCopy(PEOPLE);
   return (
     <section data-testid="school-card" className={CARD}>
       <HistoryRow lead="school" wrapTitle title={s.name || C.dash} extra={C.teachersN(s.teachers)} chip={visitChip(s.daysSinceVisit, C)}
-        to={`/portal/coach/school/${encodeURIComponent(s.emis || "")}`} />
+        to={withLevel(`/portal/coach/school/${encodeURIComponent(s.emis || "")}`, level)} />
       <Stats items={[
         { value: s.visits, label: C.visitsCol }, { value: C.daysShort(s.daysSinceVisit), label: C.sinceVisit },
         { value: s.teachers, label: C.teachersCol }, { value: C.pct(s.avgHitl), label: C.avgHitl },

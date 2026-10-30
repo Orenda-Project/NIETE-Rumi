@@ -1,4 +1,5 @@
 import api from "../../services/api";
+import type { TeachingLevel } from "../people/level";
 import type { CardFeature, FeatureGridData, ItemsData, ItemsFeature, PeriodKey, SchoolCardData, SchoolScoresData, ScoreKind, SessionReportData, TeacherCardData, TeacherScoresData } from "./types";
 
 /**
@@ -12,17 +13,18 @@ const coachDay = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-const get = <T>(path: string, period?: PeriodKey): Promise<T> =>
-  api.get(path, { params: period ? { period, today: coachDay() } : { today: coachDay() } }).then((r) => r.data as T);
+const get = <T>(path: string, period?: PeriodKey, level?: TeachingLevel | null): Promise<T> =>
+  api.get(path, { params: { ...(period ? { period } : {}), ...(level ? { level: level.toLowerCase() } : {}), today: coachDay() } }).then((r) => r.data as T);
 
 const seg = encodeURIComponent;
 
 export const card = {
-  school: (emis: string, period: PeriodKey) => get<SchoolCardData>(`/coach/school/${seg(emis)}/card`, period),
-  grid: (emis: string, feature: CardFeature, period: PeriodKey) => get<FeatureGridData>(`/coach/school/${seg(emis)}/feature/${seg(feature)}`, period),
+  // bd-ewbzns.1 — a school's three reads take the teaching level: that level's teachers only (none: the whole school).
+  school: (emis: string, period: PeriodKey, level?: TeachingLevel | null) => get<SchoolCardData>(`/coach/school/${seg(emis)}/card`, period, level),
+  grid: (emis: string, feature: CardFeature, period: PeriodKey, level?: TeachingLevel | null) => get<FeatureGridData>(`/coach/school/${seg(emis)}/feature/${seg(feature)}`, period, level),
   teacher: (ext: string, period: PeriodKey) => get<TeacherCardData>(`/coach/teacher/${seg(ext)}/card`, period),
   items: (ext: string, feature: ItemsFeature, period: PeriodKey) => get<ItemsData>(`/coach/teacher/${seg(ext)}/items/${seg(feature)}`, period),
   teacherScores: (ext: string, kind: ScoreKind, period: PeriodKey) => get<TeacherScoresData>(`/coach/teacher/${seg(ext)}/scores/${seg(kind)}`, period),
-  schoolScores: (emis: string, kind: ScoreKind, period: PeriodKey) => get<SchoolScoresData>(`/coach/school/${seg(emis)}/scores/${seg(kind)}`, period),
+  schoolScores: (emis: string, kind: ScoreKind, period: PeriodKey, level?: TeachingLevel | null) => get<SchoolScoresData>(`/coach/school/${seg(emis)}/scores/${seg(kind)}`, period, level),
   session: (id: string) => get<SessionReportData>(`/coach/session/${seg(id)}`),
 };

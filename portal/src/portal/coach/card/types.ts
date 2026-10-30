@@ -45,6 +45,9 @@ export type CardTeacher = {
   contributionPct: number | null;
   star: boolean;
   lastVisitDaysAgo: number | null;
+  /** bd-ewbzns.1 — PRIMARY / MIDDLE / HIGH, canonical order; [] when none is recorded. */
+  levels?: string[];
+  isPrincipal?: boolean;
 };
 
 export type ScorePoint = { date: string; score: number | null };
@@ -73,12 +76,16 @@ export type SchoolScores = {
 };
 
 export type SchoolCardData = {
-  school: { emis: string; name: string; teachers: number; lastVisitDaysAgo: number | null };
+  /** `teachers` is the level's when a level is asked for; `roster` (bd-ewbzns.1) is always the whole school's. */
+  school: { emis: string; name: string; teachers: number; roster?: number; lastVisitDaysAgo: number | null };
   period: Period;
   tiles: ActivityTile[];
   teachers: CardTeacher[];
   coachObservations: { count: number; teachers: CoachObsTeacher[] };
   scores?: Record<ScoreKind, SchoolScores>;
+  /** bd-ewbzns.1 — the level this card is for (null: the whole school), and the whole roster's count at each level. */
+  level?: string | null;
+  levels?: Partial<Record<"PRIMARY" | "MIDDLE" | "HIGH", number>>;
 };
 
 /** GET /coach/school/:emis/scores/:kind — per teacher, sorted by count then name; teachers with none last. */
@@ -98,7 +105,8 @@ export type PlanAcross = { pct: number; steps: { step: number; done: number; par
 
 /** GET /coach/teacher/:ext/scores/:kind — her DC reports or her coach observations on their own. */
 export type TeacherScoresData = {
-  teacher: { teacherExtId: string; name: string; school: string | null; emis: string | null };
+  /** bd-ewbzns.2 — `isPrincipal` and `levels` (PRIMARY / MIDDLE / HIGH; [] when none recorded): what Edit teacher sets. */
+  teacher: { teacherExtId: string; name: string; school: string | null; emis: string | null; isPrincipal?: boolean; levels?: string[] };
   period: Period;
   kind: ScoreKind;
   count: number;
@@ -135,7 +143,8 @@ export type CoachingSummary = {
 export type ChartPoint = { kind: "dc" | "coach"; id: string; date: string; score: number | null };
 
 export type TeacherCardData = {
-  teacher: { teacherExtId: string; name: string; school: string | null; emis: string | null };
+  /** bd-ewbzns.2 — `isPrincipal` and `levels` (PRIMARY / MIDDLE / HIGH; [] when none recorded): what Edit teacher sets. */
+  teacher: { teacherExtId: string; name: string; school: string | null; emis: string | null; isPrincipal?: boolean; levels?: string[] };
   period: Period;
   tiles: {
     lp: { count: number | null; series: (number | null)[] };
