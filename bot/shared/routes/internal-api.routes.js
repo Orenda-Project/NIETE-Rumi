@@ -2993,6 +2993,22 @@ router.post('/coaching/class-check', requireInternalKey, portalCoachingRoute('cl
     userId: b.userId, coachingSessionId: b.coachingSessionId, answer: b.answer,
   })));
 
+/**
+ * bd-x1tl95 — "Send feedback" from the app's More page (feedback/app-feedback.service), relayed by the portal's
+ * /api/portal/feedback* with the session's user. No logic here.
+ * POST /api/internal/app-feedback/presign-upload  Body { userId, filename, sizeBytes, kind: 'feedback_audio'|'feedback_photo' }
+ * POST /api/internal/app-feedback/submit          Body { userId, topic, text?, audioKey?, photoKeys?, context? }
+ *   Ok 200 { status:'ok', feedbackId } — answered before the transcript and the Slack post, which follow.
+ */
+const loadAppFeedback = () => require('../services/feedback/app-feedback.service');
+router.post('/app-feedback/presign-upload', requireInternalKey, portalCoachingRoute('feedback-presign',
+  (Svc, b) => Svc.presignUpload({ userId: b.userId, filename: b.filename, sizeBytes: b.sizeBytes, kind: b.kind }),
+  loadAppFeedback));
+router.post('/app-feedback/submit', requireInternalKey, portalCoachingRoute('feedback-submit',
+  (Svc, b) => Svc.submitFeedback({
+    userId: b.userId, topic: b.topic, text: b.text, audioKey: b.audioKey, photoKeys: b.photoKeys, context: b.context,
+  }), loadAppFeedback));
+
 // bd-s1oo0.7 — the coach app's child test (portal → bot). Its own file; the
 // router checks the internal key itself.
 router.use('/child-test', require('./child-test-app.routes').router);
