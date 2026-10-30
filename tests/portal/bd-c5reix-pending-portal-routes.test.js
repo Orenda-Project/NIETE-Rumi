@@ -10,6 +10,9 @@
  * row when waiting recordings are shown, when one is sent, and when a repeat is caught — joined on the journey id.
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 let tableRows;
 let client;
 let events;

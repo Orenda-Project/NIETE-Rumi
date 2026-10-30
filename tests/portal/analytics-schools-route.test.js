@@ -7,6 +7,10 @@
  * (true, "teachers") would turn every account into analytics-only — locking teachers out of
  * their own portal and showing every teacher every school — so it reads as nobody.
  */
+
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 // These tests change app_settings rows under one shared client, sometimes mid-test, to check each value's rule.
 // The flag cache would hold the first read, so it is off here; tests/portal/feature-flags-cache.test.js covers it.
 process.env.FLAG_CACHE_TTL_MS = '0';

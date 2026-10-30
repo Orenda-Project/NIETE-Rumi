@@ -266,40 +266,10 @@ function sanitizePhoneNumber(phone) {
 }
 
 /**
- * Middleware to check if user is authenticated for portal.
- * Logs only a refusal, on one line: a signed-in request writes nothing. Logging every request (a fifteen-line object plus a
- * success line) made a crowd signing in at once overrun the host's log-rate cap and drop lines, real errors included.
+ * The portal's one sign-in check, shared by every portal router (lib/portal-auth.js): a session user is required, and
+ * a session whose account was retired (users.deleted_at) or is gone is ended with a 401. Logs only a refusal.
  */
-const requirePortalAuth = (req, res, next) => {
-  if (!req.session || !req.session.portalUserId) {
-    const authDebugInfo = {
-      hasSession: !!req.session,
-      hasPortalUserId: !!(req.session && req.session.portalUserId),
-      sessionId: req.session ? req.session.id : null,
-      userAgent: req.get('User-Agent'),
-      hasCookieHeader: !!req.headers.cookie,
-      cookieHeaderLength: req.headers.cookie ? req.headers.cookie.length : 0,
-      origin: req.get('Origin'),
-      referer: req.get('Referer'),
-      method: req.method,
-      path: req.path,
-      ip: req.ip
-    };
-    console.log(`❌ Portal Auth Failed: ${JSON.stringify({
-      reason: !req.session ? 'No session object' : 'No portalUserId in session',
-      ...authDebugInfo
-    })}`);
-
-    return res.status(401).json({
-      success: false,
-      error: 'Not authenticated. Please log in.',
-      // MOBILE DEBUGGING: Include debug info in response (only for non-production)
-      debug: process.env.NODE_ENV !== 'production' ? authDebugInfo : undefined
-    });
-  }
-
-  next();
-};
+const { requirePortalAuth } = require('../lib/portal-auth');
 
 /**
  * Get user by phone number

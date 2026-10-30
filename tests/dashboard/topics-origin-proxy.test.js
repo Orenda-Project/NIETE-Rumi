@@ -3,6 +3,10 @@
  * `topicIds` and the report button's `origin` to the bot. Without topicIds the bot builds the whole chapter.
  * Absent (not null) when the app does not send them, so a plain request's payload is unchanged (fde-proxy golden).
  */
+
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 const { setup, invoke, BOT } = require('./portal-proxy-harness');
 
 let axios;
