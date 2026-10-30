@@ -104,7 +104,10 @@ if [ -d "$ROOT/.githooks" ]; then
     say "qa: core.hooksPath is '$H', not ours — left alone. Commits will not arm the E2E here."
     say "    To use ours: git config core.hooksPath .githooks"
   fi
-  chmod +x "$ROOT/.githooks/"* 2>/dev/null
+  # Hooks only (a git hook's name has no dot): a README beside them keeps the mode it was committed with (bd-9157r.9.1).
+  for h in "$ROOT"/.githooks/*; do
+    case "${h##*/}" in *.*) ;; *) [ -f "$h" ] && chmod +x "$h" 2>/dev/null ;; esac
+  done
 fi
 say "qa: engine linked ($REL) · its skills + commands too · commits in this clone now arm the targeted E2E and run the mock lane"
 exit 0
