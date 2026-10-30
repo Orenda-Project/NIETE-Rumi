@@ -1,0 +1,1751 @@
+{
+ "unseen": {
+  "objective": {
+   "MCQs": [
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "فاطمہ جناح نے کس شعبے کی ڈگری حاصل کی تھی؟",
+     "options": [
+      "الف) دندان سازی",
+      "ب) معلمی",
+      "ج) صحافت",
+      "د) وکالت"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "الف) دندان سازی",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "فاطمہ جناح نے مسلم لیگ کی مالی مدد کے لیے خواتین سے کس چیز کے انعقاد کا کہا؟",
+     "options": [
+      "الف) مینا بازار",
+      "ب) کھیلوں کے مقابلے",
+      "ج) تقریری مقابلے",
+      "د) کتاب میلے"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "الف) مینا بازار",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "«ہراول دستہ» سے کیا مراد ہے؟",
+     "options": [
+      "الف) فوج کا باورچی خانہ",
+      "ب) فوج کا پچھلا حصہ",
+      "ج) فوج کا وہ دستہ جو باقی فوج سے آگے چلے",
+      "د) فوج کا آرام کرنے والا حصہ"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ج) فوج کا وہ دستہ جو باقی فوج سے آگے چلے",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "شیخ سعدی کی کتاب جس میں حکایات موجود ہیں، کون سی ہے؟",
+     "options": [
+      "الف) بوستان",
+      "ب) گلستان",
+      "ج) کلیات",
+      "د) دیوان"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ب) گلستان",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "سدرہ کے گھر کے باہر کس شہر پر ایٹم بم کا حملہ ہوا؟",
+     "options": [
+      "الف) اوساکا",
+      "ب) ٹوکیو",
+      "ج) ناگاساکی",
+      "د) ہیروشیما"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "د) ہیروشیما",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "«تاب کاری» کا کیا مطلب ہے؟",
+     "options": [
+      "الف) تاب کار عناصر سے شعاعیں خارج ہونے کا عمل",
+      "ب) تیز ہوا چلنا",
+      "ج) بارش کا برسنا",
+      "د) روشنی بجھانا"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "الف) تاب کار عناصر سے شعاعیں خارج ہونے کا عمل",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "«ماہرِ نفسیات» کسے کہتے ہیں؟",
+     "options": [
+      "الف) دانتوں کے علاج کے ماہر کو",
+      "ب) علمِ نفسیات کے ماہر کو",
+      "ج) آنکھوں کے ڈاکٹر کو",
+      "د) ہڈیوں کے ڈاکٹر کو"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ب) علمِ نفسیات کے ماہر کو",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "عبدالشکور کے والد کون تھے؟",
+     "options": [
+      "الف) استاد",
+      "ب) دکان دار",
+      "ج) ڈاکو",
+      "د) سپاہی"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ج) ڈاکو",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "«آتش زدہ» کا مطلب کون سا ہے؟",
+     "options": [
+      "الف) جو نیا بنا ہو",
+      "ب) جس میں آگ لگ جائے",
+      "ج) جو پانی میں ڈوب جائے",
+      "د) جو بہت ٹھنڈا ہو"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ب) جس میں آگ لگ جائے",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "جو لفظ کسی ہتھیار یا اوزار کا نام ہو، اسے کیا کہتے ہیں؟",
+     "options": [
+      "الف) اسم معرفہ",
+      "ب) اسم آلہ",
+      "ج) اسم صوت",
+      "د) اسم نکرہ"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ب) اسم آلہ",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "«ککڑوں کوں» اور «چیں چیں» جیسے الفاظ کس قسم کے اسم ہیں؟",
+     "options": [
+      "الف) اسم آلہ",
+      "ب) اسم صفت",
+      "ج) اسم صوت",
+      "د) اسم ذات"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ج) اسم صوت",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "جملے «بادشاہی مسجد بہت بڑی ہے» میں اسم معرفہ کون سا ہے؟",
+     "options": [
+      "الف) بڑی",
+      "ب) بادشاہی مسجد",
+      "ج) ہے",
+      "د) بہت"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ب) بادشاہی مسجد",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "«اور»، «و» اور «پھر» کس قسم کے حروف ہیں؟",
+     "options": [
+      "الف) حروفِ عطف",
+      "ب) حروفِ تعجب",
+      "ج) حروفِ ندا",
+      "د) حروفِ جار"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "الف) حروفِ عطف",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "جس چیز کی صفت بیان کی جائے، اسے کیا کہتے ہیں؟",
+     "options": [
+      "الف) فاعل",
+      "ب) مفعول",
+      "ج) موصوف",
+      "د) صفت"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ج) موصوف",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "«جو کچھ کسی بہانے کے بغیر صاف سچ سچ ہو جائے» کے معنی میں کون سا محاورہ استعمال ہوتا ہے؟",
+     "options": [
+      "الف) سبق سکھانا",
+      "ب) خواب چکنا چور ہونا",
+      "ج) آنکھیں دکھانا",
+      "د) دودھ کا دودھ اور پانی کا پانی"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "د) دودھ کا دودھ اور پانی کا پانی",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "جس لفظ کا مطلب «چوڑائی» ہے، اس کی درست املا کون سی ہے؟",
+     "options": [
+      "الف) عرض",
+      "ب) عالم",
+      "ج) کرم",
+      "د) ارض"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "الف) عرض",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "محترمہ فاطمہ جناح کو کس لقب سے پکارا جاتا ہے؟",
+     "options": [
+      "الف) خاتونِ اول",
+      "ب) قوم کی بیٹی",
+      "ج) ملکۂ پاکستان",
+      "د) مادرِ ملت"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "د) مادرِ ملت",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "سدرہ اور اس کے ساتھیوں نے جنگ کے خلاف پیغام پھیلانے کے لیے کیا بنایا؟",
+     "options": [
+      "الف) کتب خانہ",
+      "ب) اخبار",
+      "ج) تھیٹر کمپنی",
+      "د) کھیل کا میدان"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ج) تھیٹر کمپنی",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "جملہ «آپ کیا کھا رہے ہیں» کے آخر میں کون سی علامت لگے گی؟",
+     "options": [
+      "الف) ؟ (سوالیہ نشان)",
+      "ب) ؛ (وقفہ)",
+      "ج) ۔ (ختمہ)",
+      "د) ، (سکتہ)"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "الف) ؟ (سوالیہ نشان)",
+     "blooms": "Remember"
+    },
+    {
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "«مشکلات ہر ایک کی زندگی کا حصہ ہیں» کس نے لکھا؟",
+     "options": [
+      "الف) ببلو",
+      "ب) وزیرِ تعلیم",
+      "ج) مس افشاں",
+      "د) سدرہ"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ب) وزیرِ تعلیم",
+     "blooms": "Remember",
+     "slot": "urdu.A.Q1"
+    }
+   ]
+  },
+  "subjective": {
+   "Comprehension Passage": [
+    {
+     "slot": "urdu.B.Q2",
+     "main_question": "عبارت پڑھ کر سوالوں کے جواب دیں",
+     "passage": "کراچی کے ایک چھوٹے سے محلے میں ثنا اپنے گھر والوں کے ساتھ رہتی ہے۔ ہر صبح وہ جلدی اٹھتی ہے اور امی کے ساتھ ناشتہ تیار کرواتی ہے۔ پھر وہ اپنا بستہ اٹھاتی ہے اور بھائی کے ساتھ پیدل اسکول جاتی ہے۔ راستے میں ایک خوب صورت باغ آتا ہے جہاں رنگ برنگے پھول کھلے ہوتے ہیں۔ اسکول میں اس کی استانی بچوں کو نئی نئی کہانیاں سناتی ہیں۔ ثنا اپنی سہیلی کے ساتھ بیٹھ کر مزے سے کھانا کھاتی ہے۔ چھٹی کے بعد وہ گھر آتی ہے اور ابو کے ساتھ بیٹھ کر اپنا کام مکمل کرتی ہے۔ شام کو دادی اسے پیاری باتیں بتاتی ہیں۔ رات کو وہ جلدی سو جاتی ہے تاکہ اگلے دن تازہ دم اٹھ سکے۔",
+     "parts": [
+      {
+       "key": "questions",
+       "questions": [
+        {
+         "question": "ثنا کس شہر کے محلے میں رہتی ہے؟",
+         "marks": 2,
+         "lines": 2,
+         "answer": "ثنا کراچی کے ایک چھوٹے سے محلے میں رہتی ہے۔",
+         "scheme": {
+          "checked": null,
+          "points": [
+           {
+            "kind": "A",
+            "marks": 2,
+            "text": "ثنا کراچی کے ایک چھوٹے سے محلے میں رہتی ہے۔"
+           }
+          ]
+         }
+        },
+        {
+         "question": "ثنا صبح اسکول کس کے ساتھ جاتی ہے؟",
+         "marks": 2,
+         "lines": 2,
+         "answer": "ثنا اپنے بھائی کے ساتھ پیدل اسکول جاتی ہے۔",
+         "scheme": {
+          "checked": null,
+          "points": [
+           {
+            "kind": "A",
+            "marks": 2,
+            "text": "ثنا اپنے بھائی کے ساتھ پیدل اسکول جاتی ہے۔"
+           }
+          ]
+         }
+        },
+        {
+         "question": "راستے میں کون سی خوب صورت جگہ آتی ہے؟",
+         "marks": 2,
+         "lines": 2,
+         "answer": "راستے میں ایک خوب صورت باغ آتا ہے جہاں رنگ برنگے پھول کھلے ہوتے ہیں۔",
+         "scheme": {
+          "checked": null,
+          "points": [
+           {
+            "kind": "A",
+            "marks": 2,
+            "text": "راستے میں ایک خوب صورت باغ آتا ہے جہاں رنگ برنگے پھول کھلے ہوتے ہیں۔"
+           }
+          ]
+         }
+        },
+        {
+         "question": "ثنا شام کو کس سے پیاری باتیں سنتی ہے؟",
+         "marks": 2,
+         "lines": 2,
+         "answer": "ثنا شام کو دادی سے پیاری باتیں سنتی ہے۔",
+         "scheme": {
+          "checked": null,
+          "points": [
+           {
+            "kind": "A",
+            "marks": 2,
+            "text": "ثنا شام کو دادی سے پیاری باتیں سنتی ہے۔"
+           }
+          ]
+         }
+        },
+        {
+         "question": "اس عبارت کے لیے ایک مناسب عنوان لکھیں۔",
+         "marks": 2,
+         "lines": 2,
+         "answer": "ثنا کا ایک دن",
+         "scheme": {
+          "checked": null,
+          "points": [
+           {
+            "kind": "A",
+            "marks": 2,
+            "text": "ثنا کا ایک دن"
+           }
+          ]
+         }
+        }
+       ]
+      },
+      {
+       "key": "pick",
+       "pick": {
+        "اسم معرفہ": [
+         "کراچی",
+         "ثنا"
+        ],
+        "اسم نکرہ": [
+         "محلے",
+         "بستہ"
+        ],
+        "اسم صفت": [
+         "چھوٹے",
+         "خوب صورت"
+        ],
+        "فعل": [
+         "اٹھتی",
+         "جاتی"
+        ]
+       }
+      },
+      {
+       "key": "antonyms",
+       "antonyms": [
+        [
+         "جلدی",
+         "دیر"
+        ],
+        [
+         "نئی",
+         "پرانی"
+        ]
+       ]
+      }
+     ],
+     "marks": 20,
+     "lines": 0,
+     "blooms": "Understand",
+     "answer": "سوالات: ثنا کراچی کے محلے میں رہتی ہے؛ بھائی کے ساتھ جاتی ہے؛ باغ آتا ہے؛ دادی سے باتیں سنتی ہے؛ عنوان: ثنا کا ایک دن۔ اسم معرفہ: کراچی، ثنا۔ اسم نکرہ: محلے، بستہ۔ اسم صفت: چھوٹے، خوب صورت۔ فعل: اٹھتی، جاتی۔ متضاد: جلدی - دیر، نئی - پرانی۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "پانچ سوالوں کے درست اور مکمل جواب (ہر جواب کے 2 نمبر، کل 10)",
+        "marks": 10,
+        "kind": "A"
+       },
+       {
+        "text": "ہر قسم کے دو درست الفاظ کی نشان دہی (آٹھ الفاظ، ہر ایک کا 1 نمبر)",
+        "marks": 8,
+        "kind": "A"
+       },
+       {
+        "text": "دو الفاظ کے درست متضاد (ہر ایک کا 1 نمبر)",
+        "marks": 2,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "اسم معرفہ: ثنا، کراچی",
+       "اسم نکرہ: امی بھی نکرہ نہیں؛ بستہ، باغ",
+       "اسم صفت: چھوٹے، پیاری",
+       "متضاد: جلدی - دیر، نئی - پرانی",
+       "عنوان: ثنا کا معمول",
+       "فعل: جاتی، اٹھتی"
+      ],
+      "common_error": "رشتے کے الفاظ جیسے امی، ابو اور بھائی کو اسم معرفہ لکھ دینا، اور فعل کی جگہ اسم لکھ دینا۔",
+      "checked": null
+     }
+    }
+   ],
+   "Word Meanings": [
+    {
+     "main_question": "دیے گئے الفاظ کے معنی لکھیں",
+     "question": "",
+     "words": [
+      "شانہ بشانہ",
+      "ارادہ",
+      "لقب",
+      "شاطر",
+      "حریص",
+      "مشغول",
+      "بوسیدہ"
+     ],
+     "marks": 5,
+     "lines": 0,
+     "slot": "urdu.C.Q3",
+     "blooms": "Remember",
+     "answer": "شانہ بشانہ: ساتھ ساتھ، ہم راہ\nارادہ: عزم، پکا فیصلہ\nلقب: خطاب، اعزازی نام\nشاطر: چالاک، مکار، چال باز\nحریص: لالچی، لالچ کرنے والا\nمشغول: مصروف، کسی کام میں لگا ہوا\nبوسیدہ: پرانا، گلا سڑا، خستہ",
+     "scheme": {
+      "points": [
+       {
+        "text": "ہر درست معنی کا ایک نمبر (کوئی سے پانچ الفاظ)",
+        "marks": 5,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "شانہ بشانہ: ساتھ ساتھ",
+       "شاطر: چالاک",
+       "حریص: لالچی",
+       "مشغول: مصروف",
+       "بوسیدہ: پرانا"
+      ],
+      "common_error": "لفظ کا ملتا جلتا مگر مختلف معنی لکھ دینا",
+      "checked": null
+     }
+    }
+   ],
+   "Rewrite Sentences": [
+    {
+     "main_question": "ہدایات کے مطابق حل کریں",
+     "question": "گروہی الفاظ کی پہچان کریں: «قلم، کاپی، بستہ، کتاب» یہ سب الفاظ کس کے متلازم ہیں؟ الف) باورچی خانہ ب) اسکول ج) باغ د) بازار",
+     "marks": 1.25,
+     "lines": 0,
+     "slot": "urdu.C.Q4",
+     "blooms": "Understand",
+     "answer": "ب) اسکول",
+     "scheme": {
+      "points": [
+       {
+        "text": "درست گروہی لفظ کا انتخاب",
+        "marks": 1.25,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "ب) اسکول"
+      ],
+      "common_error": "کسی ایک لفظ کو گروہ کا نام سمجھ لینا",
+      "checked": null
+     }
+    },
+    {
+     "main_question": "ہدایات کے مطابق حل کریں",
+     "question": "درست حرفِ شرط و جزا کا انتخاب کریں: ___ تم محنت کرو گے ___ کامیاب ہو گے۔ الف) اگر، تو ب) اور، پھر ج) لیکن، مگر د) کیوں کہ، یا",
+     "marks": 1.25,
+     "lines": 0,
+     "slot": "urdu.C.Q4",
+     "blooms": "Understand",
+     "answer": "الف) اگر، تو",
+     "scheme": {
+      "points": [
+       {
+        "text": "درست جوڑے کا انتخاب",
+        "marks": 1.25,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "الف) اگر، تو"
+      ],
+      "common_error": "حرفِ عطف کو حرفِ شرط سمجھ لینا",
+      "checked": null
+     }
+    },
+    {
+     "main_question": "ہدایات کے مطابق حل کریں",
+     "question": "فعلِ حال کو فعلِ مستقبل میں تبدیل کریں: احمد روز کتاب پڑھتا ہے۔",
+     "marks": 1.25,
+     "lines": 0,
+     "slot": "urdu.C.Q4",
+     "blooms": "Understand",
+     "answer": "احمد روز کتاب پڑھے گا۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "فعل کو درست مستقبل کی شکل میں لکھنا",
+        "marks": 1.25,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "احمد روز کتاب پڑھے گا۔"
+      ],
+      "common_error": "فعل کے ساتھ «گا» نہ لگانا",
+      "checked": null
+     }
+    },
+    {
+     "main_question": "ہدایات کے مطابق حل کریں",
+     "question": "ارکان الگ کریں (لفظ کے حصے): دامن، غلاظت",
+     "marks": 1.25,
+     "lines": 0,
+     "slot": "urdu.C.Q4",
+     "blooms": "Understand",
+     "answer": "دامن: دا – من؛ غلاظت: غ – لا – ظت",
+     "scheme": {
+      "points": [
+       {
+        "text": "دونوں الفاظ کے ارکان درست الگ کرنا",
+        "marks": 1.25,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "دا – من، غ – لا – ظت"
+      ],
+      "common_error": "الفاظ کو حروف کی بجائے غلط جگہ سے توڑنا",
+      "checked": null
+     }
+    }
+   ],
+   "Word Sentences": [
+    {
+     "main_question": "دیے گئے الفاظ کو جملوں میں استعمال کریں",
+     "question": "",
+     "words": [
+      "راہ گیر",
+      "رضامند",
+      "اہل و عیال",
+      "نو دو گیارہ ہو جانا",
+      "آگ بگولا ہونا",
+      "پانی پانی ہونا",
+      "سبق سکھانا"
+     ],
+     "marks": 5,
+     "lines": 0,
+     "slot": "urdu.C.Q5",
+     "blooms": "Understand",
+     "answer": "راہ گیر: راہ گیر نے راستہ بتایا۔\nرضامند: امی سیر پر جانے کے لیے رضامند ہو گئیں۔\nاہل و عیال: وہ اپنے اہل و عیال کے ساتھ رہتا ہے۔\nنو دو گیارہ ہو جانا: پولیس کو دیکھ کر چور نو دو گیارہ ہو گئے۔\nآگ بگولا ہونا: شرارت دیکھ کر استاد آگ بگولا ہو گئے۔\nپانی پانی ہونا: غلطی پر علی شرم سے پانی پانی ہو گیا۔\nسبق سکھانا: ہمیں جھوٹ بولنے والے کو سبق سکھانا چاہیے۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "ہر درست اور بامعنی جملے کا ایک نمبر (کوئی سے پانچ)",
+        "marks": 5,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "کوئی بھی درست اور بامعنی جملہ"
+      ],
+      "common_error": "محاورے کا لفظی مطلب لے کر جملہ بنانا",
+      "checked": null
+     }
+    }
+   ],
+   "Poem Explanation": [
+    {
+     "main_question": "درج ذیل اشعار کا مفہوم واضح کریں",
+     "passage": "ندی کی فریاد\nپاکیزہ مجھ کو کر دو کرکے مری صفائی\nمیرا بھی فائدہ ہے انساں کی بھی بھلائی\nتم مجھ کو صاف رکھ کے خود بھی سکھی رہوگے\nپانی جو صاف ہوگا بیماری سے بچوگے",
+     "question": "درج ذیل اشعار کا مفہوم واضح کریں۔",
+     "marks": 5,
+     "lines": 0,
+     "slot": "urdu.C.Q6",
+     "blooms": "Remember",
+     "answer": "ندی انسانوں سے کہتی ہے کہ مجھے صاف کر دو۔ ایسا کرنے میں میرا بھی فائدہ ہے اور انسان کی بھی بھلائی ہے۔ اگر ندی کو صاف رکھو گے تو خود بھی خوش رہو گے، کیوں کہ صاف پانی سے بیماری سے بچاؤ ہوتا ہے۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "ندی کی صفائی کی درخواست",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "صفائی میں ندی اور انسان دونوں کا فائدہ",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "صاف پانی سے انسان کا خوش اور صحت مند رہنا",
+        "marks": 2,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "ندی کو صاف رکھنے کا فائدہ انسان کو ملتا ہے"
+      ],
+      "common_error": "ندی کی بجائے شاعر کو بولنے والا سمجھ لینا",
+      "checked": null
+     }
+    }
+   ],
+   "Picture Description": [
+    {
+     "main_question": "تصویر کو دیکھ کر دیے گئے الفاظ کی مدد سے جملے لکھیں",
+     "question": "چڑیا گھر کی سیر",
+     "words": [
+      "شیر",
+      "ہاتھی",
+      "بچے",
+      "ٹکٹ",
+      "پنجرہ",
+      "درخت",
+      "خوشی"
+     ],
+     "marks": 10,
+     "lines": 0,
+     "slot": "urdu.C.Q7",
+     "blooms": "Apply",
+     "describe_en": "Children visiting a zoo, looking at a lion in a cage and an elephant near trees, with a ticket booth nearby.",
+     "answer": "بچے چڑیا گھر کی سیر کو آئے ہیں۔ انھوں نے ٹکٹ خریدا۔ پنجرے میں شیر ہے۔ ہاتھی درخت کے پاس کھڑا ہے۔ سب بچے خوشی سے جانور دیکھ رہے ہیں۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "چھ دیے گئے الفاظ کا درست استعمال (ہر لفظ آدھا نمبر)",
+        "marks": 3,
+        "kind": "A"
+       },
+       {
+        "text": "جملوں کی درستی، ترتیب اور املا",
+        "marks": 7,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "تصویر کے مطابق کوئی بھی درست جملے"
+      ],
+      "common_error": "تصویر سے ہٹ کر لکھنا یا عنوان لکھ کر رہ جانا",
+      "checked": null
+     },
+     "picture": {
+      "kind": "scene",
+      "describe": "Children visiting a zoo, looking at a lion in a cage and an elephant near trees, with a ticket booth nearby.",
+      "src": "data:image/jpeg;base64,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"
+     }
+    }
+   ],
+   "Paragraph Writing": [
+    {
+     "main_question": "درج ذیل میں سے کوئی ایک کام کریں",
+     "question": "میرا وطن",
+     "marks": 10,
+     "lines": 0,
+     "slot": "urdu.C.Q8",
+     "blooms": "Apply",
+     "answer": "میرا وطن پاکستان ہے۔ یہ ہمارا پیارا ملک ہے۔ اس میں پہاڑ، دریا اور میدان ہیں۔ یہاں مختلف موسم آتے ہیں۔ اردو ہماری قومی زبان ہے۔ ہمارے ملک کے لوگ محنتی ہیں۔ یہاں کے پھل بہت میٹھے ہیں۔ ہم سب مل جل کر رہتے ہیں۔ ہمیں اپنے وطن سے محبت ہے۔ ہم اسے صاف ستھرا رکھتے ہیں۔ ہم دل لگا کر پڑھیں گے۔ پاکستان ہمیشہ زندہ باد۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "موضوع سے متعلق درست معلومات",
+        "marks": 4,
+        "kind": "K"
+       },
+       {
+        "text": "دس سے بارہ جملے، ہر جملہ ۔ پر ختم",
+        "marks": 3,
+        "kind": "A"
+       },
+       {
+        "text": "زبان، املا اور ترتیب",
+        "marks": 3,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "موضوع سے متعلق کوئی بھی درست پیراگراف"
+      ],
+      "common_error": "دس جملوں سے کم لکھنا",
+      "checked": null
+     }
+    },
+    {
+     "main_question": "درج ذیل میں سے کوئی ایک کام کریں",
+     "question": "دو دوستوں کے درمیان وقت کی پابندی پر مکالمہ تحریر کریں۔",
+     "marks": 10,
+     "lines": 0,
+     "slot": "urdu.C.Q8",
+     "blooms": "Apply",
+     "answer": "علی: السلام علیکم سلمان! آج تم دیر سے آئے۔\nسلمان: وعلیکم السلام! آج میں دیر سے اٹھا تھا۔\nعلی: اسمبلی ختم ہو چکی تھی۔\nسلمان: مجھے افسوس ہے۔\nعلی: وقت کی پابندی بہت اچھی عادت ہے۔\nسلمان: ہاں، اس سے کام وقت پر ہوتے ہیں۔\nعلی: تم رات کو جلدی سویا کرو۔\nسلمان: ٹھیک ہے، میں ایسا ہی کروں گا۔\nعلی: پھر تم صبح وقت پر اٹھ سکو گے۔\nسلمان: شکریہ دوست، کل میں وقت پر آؤں گا۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "موضوع سے متعلق مکالمہ",
+        "marks": 4,
+        "kind": "K"
+       },
+       {
+        "text": "دس سے بارہ جملے (باریاں) دو کرداروں کے درمیان",
+        "marks": 3,
+        "kind": "A"
+       },
+       {
+        "text": "زبان، املا اور ترتیب",
+        "marks": 3,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "کوئی بھی روزمرہ موضوع پر درست مکالمہ"
+      ],
+      "common_error": "مکالمے کی بجائے عام پیراگراف لکھ دینا",
+      "checked": null
+     }
+    }
+   ],
+   "Story Writing": [
+    {
+     "main_question": "درج ذیل میں سے کوئی ایک کہانی لکھیں",
+     "question": "«اتفاق میں برکت ہے»",
+     "marks": 10,
+     "lines": 0,
+     "slot": "urdu.C.Q9",
+     "blooms": "Apply",
+     "answer": "چار بھائی ہر وقت لڑتے رہتے تھے۔ ایک دن ان کے ابو نے لکڑیوں کا گٹھا دیا اور توڑنے کو کہا۔ کوئی نہ توڑ سکا۔ پھر ابو نے لکڑیاں الگ الگ کیں تو سب نے آسانی سے توڑ دیں۔ بھائیوں کو بات سمجھ آ گئی۔ وہ مل جل کر رہنے لگے۔ سبق: اتفاق میں برکت ہے۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "کہانی کا آغاز اور کردار",
+        "marks": 3,
+        "kind": "K"
+       },
+       {
+        "text": "واقعات کی ترتیب اور انجام",
+        "marks": 3,
+        "kind": "A"
+       },
+       {
+        "text": "سبق",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "زبان اور املا",
+        "marks": 2,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "عنوان کے مطابق کوئی بھی درست کہانی"
+      ],
+      "common_error": "سبق نہ لکھنا",
+      "checked": null
+     }
+    },
+    {
+     "main_question": "درج ذیل میں سے کوئی ایک کہانی لکھیں",
+     "question": "ایک دن سارہ اسکول سے واپس آ رہی تھی کہ راستے میں اسے ایک ننھا پرندہ زخمی حالت میں …",
+     "marks": 10,
+     "lines": 0,
+     "slot": "urdu.C.Q9",
+     "blooms": "Apply",
+     "answer": "سارہ نے پرندے کو اٹھایا اور گھر لے آئی۔ امی کے ساتھ مل کر اس کی مرہم پٹی کی اور پانی پلایا۔ کچھ دن میں پرندہ ٹھیک ہو گیا۔ سارہ نے اسے آزاد کر دیا۔ پرندہ خوشی سے اڑ گیا۔ سبق: جانوروں پر رحم کرنا چاہیے۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "دیے گئے جملے سے مربوط آغاز",
+        "marks": 3,
+        "kind": "K"
+       },
+       {
+        "text": "واقعات کی ترتیب اور انجام",
+        "marks": 3,
+        "kind": "A"
+       },
+       {
+        "text": "سبق",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "زبان اور املا",
+        "marks": 2,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "کوئی بھی مربوط اور مکمل کہانی"
+      ],
+      "common_error": "کہانی کو ادھورا چھوڑ دینا",
+      "checked": null
+     }
+    }
+   ],
+   "Letter Writing": [
+    {
+     "main_question": "درج ذیل میں سے کوئی ایک کام کریں",
+     "question": "اپنی والدہ کے نام خط لکھ کر انھیں اپنی صحت پر توجہ دینے کی تلقین کریں۔",
+     "marks": 10,
+     "lines": 0,
+     "slot": "urdu.C.Q10",
+     "blooms": "Apply",
+     "answer": "تاریخ، پیاری امی جان! السلام علیکم! امید ہے آپ خیریت سے ہوں گی۔ مجھے معلوم ہوا کہ آپ اپنی صحت کا خیال نہیں رکھتیں۔ آپ وقت پر کھانا کھایا کریں، پھل کھائیں اور آرام کریں۔ ڈاکٹر سے معائنہ بھی کروائیں۔ ہمیں آپ کی بہت ضرورت ہے۔ آپ کا بیٹا/بیٹی، نام",
+     "scheme": {
+      "points": [
+       {
+        "text": "تاریخ، القاب اور آداب",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "صحت کے بارے میں مناسب مشورے",
+        "marks": 4,
+        "kind": "A"
+       },
+       {
+        "text": "اختتامی کلمات اور نام",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "زبان اور املا",
+        "marks": 2,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "خط کی درست ساخت میں کوئی بھی مناسب مشورے"
+      ],
+      "common_error": "خط کے اجزا ادھورے چھوڑ دینا",
+      "checked": null
+     }
+    },
+    {
+     "main_question": "درج ذیل میں سے کوئی ایک کام کریں",
+     "question": "ہیڈ مسٹریس صاحبہ / ہیڈ ماسٹر صاحب کے نام بیماری کی چھٹی کی درخواست لکھیں۔",
+     "marks": 10,
+     "lines": 0,
+     "slot": "urdu.C.Q10",
+     "blooms": "Apply",
+     "answer": "بخدمت جناب ہیڈ ماسٹر صاحب، جناب عالی! گزارش ہے کہ مجھے بخار ہے، اس لیے میں اسکول نہیں آ سکتا/سکتی۔ مجھے دو دن کی چھٹی عنایت فرمائیں۔ آپ کا شکر گزار شاگرد، نام، جماعت، تاریخ",
+     "scheme": {
+      "points": [
+       {
+        "text": "مخاطب اور موضوع",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "درخواست کی وجہ اور چھٹی کی مدت",
+        "marks": 4,
+        "kind": "A"
+       },
+       {
+        "text": "اختتام، نام، جماعت اور تاریخ",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "زبان اور املا",
+        "marks": 2,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "درخواست کی درست ساخت میں کوئی بھی مناسب وجہ"
+      ],
+      "common_error": "چھٹی کی مدت نہ لکھنا",
+      "checked": null
+     }
+    }
+   ]
+  }
+ },
+ "_layout": {
+  "v": 2,
+  "preset_id": "fde_g5_2027",
+  "subject": "urdu",
+  "medium": "ur",
+  "scope": {
+   "kind": "fde",
+   "chapters": null,
+   "pages": null,
+   "label_en": "FDE syllabus 2026–27",
+   "label_ur": "FDE نصاب 2026–27",
+   "line_en": "Lessons 4–10 · grammar · 1–3 from the book",
+   "line_ur": "اسباق 4–10 · قواعد · 1–3 کتاب سے",
+   "covers_en": null,
+   "covers_ur": null
+  },
+  "header": {
+   "school_line_en": "School: ____________",
+   "student_box_en": [
+    "Student Name",
+    "Roll No",
+    "Date",
+    "Total Marks",
+    "Obtained Marks"
+   ],
+   "footer_page_en": "Page {n} of {N}",
+   "scheme_title_en": "MARKING SCHEME",
+   "band_en": "TEACHER'S COPY · Do not give to children",
+   "covers_en": "Covers: {scope}.",
+   "covers_partial_en": "Covers {units}; every section set from these lessons.",
+   "record_title_en": "Class record",
+   "record_cols_en": [
+    "Roll",
+    "Name"
+   ],
+   "record_total_en": "Total",
+   "record_grade_en": "Grade",
+   "checked_en": "✓ checked",
+   "notes_title_en": "Notes",
+   "note_replaced_en": "{n}: key corrected by code; the model wrote {value}.",
+   "accept_en": "accept:",
+   "common_error_en": "common error:",
+   "answer_sheet_en": "answer sheet",
+   "or_en": "OR",
+   "school_line_ur": "اسکول: ____________",
+   "student_box_ur": [
+    "نام طالب علم",
+    "رول نمبر",
+    "تاریخ",
+    "کل نمبر",
+    "حاصل کردہ نمبر"
+   ],
+   "footer_page_ur": "صفحہ {n} از {N}",
+   "scheme_title_ur": "مارکنگ اسکیم",
+   "band_ur": "استاد کی کاپی · بچوں کو نہ دیں",
+   "covers_ur": "احاطہ: {scope}۔",
+   "covers_partial_ur": "احاطہ: {units}؛ ہر حصہ انہی اسباق سے۔",
+   "record_title_ur": "کلاس ریکارڈ",
+   "record_cols_ur": [
+    "رول نمبر",
+    "نام"
+   ],
+   "record_total_ur": "کل",
+   "record_grade_ur": "گریڈ",
+   "checked_ur": "✓ جانچا گیا",
+   "notes_title_ur": "نوٹ",
+   "note_replaced_ur": "{n}: کلید کوڈ نے درست کی؛ ماڈل نے {value} لکھا۔",
+   "accept_ur": "یہ بھی درست:",
+   "common_error_ur": "عام غلطی:",
+   "answer_sheet_ur": "جوابی کاپی",
+   "or_ur": "یا",
+   "title_en": "Grade 5 · Urdu · FDE pattern practice paper",
+   "title_ur": "جماعت پنجم · اردو · FDE pattern کا مشقی پرچہ",
+   "time_line_ur": "وقت: 3 گھنٹے",
+   "total_line_ur": "کل نمبر: {t:100}",
+   "note_ur": "نوٹ: اس پرچے کے تین حصے ہیں۔ حصہ الف سوالیہ پرچے پر حل کریں۔ باقی حصے جوابی کاپی پر حل کریں۔ کاٹ چھانٹ، مٹانا اور اوور رائٹنگ کی اجازت نہیں۔"
+  },
+  "sections": [
+   {
+    "id": "A",
+    "time_ur": "وقت: 20 منٹ",
+    "label_ur": "حصہ الف معروضی",
+    "marks_ur": "(کل نمبر {t:20})",
+    "label_en": "Section A (objective)",
+    "marks": 20,
+    "levels": {
+     "Remember": 20,
+     "Understand": 0,
+     "Apply": 0
+    },
+    "answer_on": "question_paper",
+    "note_ur": null,
+    "slots": [
+     {
+      "slot": "urdu.A.Q1",
+      "label_en": "Q1",
+      "label_ur": "سوال نمبر 1",
+      "instruction_ur": "درج ذیل میں سے درست جواب کا انتخاب کریں۔",
+      "marks_line_ur": "{t:20}",
+      "type": "MCQs",
+      "category": "objective",
+      "shape": "mcq",
+      "generate": 20,
+      "attempt": 20,
+      "marks_each": 1,
+      "parts": null,
+      "numbering": "urdu",
+      "option_labels": "ur",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "one point per item: lesson facts and word meanings from lessons 4–10, and grammar (اسم معرفہ، اسم صوت، حروف، محاورے، املا، متضاد)",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "Twenty four-option MCQs: about half lesson facts and word meanings from lessons 4–10, half grammar found in those lessons' exercises. Never lessons 1, 2 or 3 (pp 1–27). Options of similar length; the right answer is not the longest. Each stem is plain and states the task directly, with no decorative lead-in phrase before it. A punctuation item names each mark in words in its option, e.g. «۔ (ختمہ)», «؟ (سوالیہ نشان)», «، (سکتہ)», never a bare mark, and its stem describes the mark the key wants.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     }
+    ]
+   },
+   {
+    "id": "B",
+    "time_ur": "وقت: 20 منٹ",
+    "label_ur": "حصہ ب موضوعی",
+    "marks_ur": "(کل نمبر {t:20})",
+    "label_en": "Section B (subjective)",
+    "marks": 20,
+    "levels": {
+     "Remember": 0,
+     "Understand": 20,
+     "Apply": 0
+    },
+    "answer_on": "answer_sheet",
+    "note_ur": null,
+    "slots": [
+     {
+      "slot": "urdu.B.Q2",
+      "label_en": "Q2",
+      "label_ur": "سوال نمبر 2",
+      "instruction_ur": "درج ذیل پیراگراف کو غور سے پڑھیں اور سوالات کے جواب دیں۔",
+      "marks_line_ur": "{t:20}",
+      "type": "Comprehension Passage",
+      "category": "subjective",
+      "shape": "comprehension",
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 20,
+      "parts": [
+       10,
+       8,
+       2
+      ],
+      "parts_spec": [
+       {
+        "key": "questions",
+        "label": "الف:",
+        "instruction_ur": "سوالات",
+        "marks_line_ur": "10",
+        "n": 5,
+        "marks_each": 2,
+        "numbering": "urdu"
+       },
+       {
+        "key": "pick",
+        "label": "ب:",
+        "group_head": {
+         "label": "ب:",
+         "instruction_ur": "دی گئی ہدایات کے مطابق حل کریں۔",
+         "marks_line_ur": "10"
+        },
+        "instruction_ur": "سوال: پیراگراف سے چن کر لکھیں۔",
+        "marks_line_ur": "08",
+        "n": 8,
+        "marks_each": 1,
+        "pick": {
+         "اسم معرفہ": 2,
+         "اسم نکرہ": 2,
+         "اسم صفت": 2,
+         "فعل": 2
+        }
+       },
+       {
+        "key": "antonyms",
+        "label": "",
+        "instruction_ur": "دیے گئے الفاظ کے متضاد لکھیں۔",
+        "marks_line_ur": "02",
+        "n": 2,
+        "marks_each": 1
+       }
+      ],
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "an unseen paragraph of 100–140 words; four questions and a title; two of each word class picked from the paragraph; two antonyms",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "One item: `passage` = an unseen paragraph of 100–140 words about everyday school or family life (no real people, no religious text); `parts` = [{key:\"questions\", questions:[5, the fifth asks for a suitable title (مناسب عنوان)]}, {key:\"pick\", pick:{\"اسم معرفہ\":[4], \"اسم نکرہ\":[4], \"اسم صفت\":[4], \"فعل\":[4]}} — every word copied exactly as written in the paragraph, inflection included (two spares of each kind; the scheme keeps the first two that are in the paragraph), {key:\"antonyms\", antonyms:[[word from the paragraph, its antonym], two pairs]}].",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     }
+    ]
+   },
+   {
+    "id": "C",
+    "time_ur": "وقت: 2 گھنٹے 20 منٹ",
+    "label_ur": "حصہ ج موضوعی",
+    "marks_ur": "(کل نمبر {t:60})",
+    "label_en": "Section C (subjective)",
+    "marks": 60,
+    "levels": {
+     "Remember": 10,
+     "Understand": 10,
+     "Apply": 40
+    },
+    "answer_on": "answer_sheet",
+    "note_ur": null,
+    "slots": [
+     {
+      "slot": "urdu.C.Q3",
+      "label_en": "Q3",
+      "label_ur": "سوال نمبر 3",
+      "instruction_ur": "مندرجہ ذیل الفاظ کے معنی لکھیں۔ (کوئی سے پانچ)",
+      "marks_line_ur": "{t:5}",
+      "type": "Word Meanings",
+      "category": "subjective",
+      "shape": "words",
+      "in_item_choice": {
+       "n": 5,
+       "g": 7
+      },
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 5,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "seven words from the lessons' new-word lists; any five",
+       "number_size": "seven words",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "One item: `words` = exactly seven words from the نئے الفاظ lists of lessons 4–10; `answer` = each word with its meaning from the book. 1 mark a word. Meanings are respectful: never اپاہج or لنگڑا for a person; use the book's own respectful word. Accepted meanings share the word's meaning: never a look-alike word from the same root letters (تمثیلی is never «مثالی»).",
+      "print_words": true,
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "urdu.C.Q4",
+      "label_en": "Q4",
+      "label_ur": "سوال نمبر 4",
+      "instruction_ur": "ہدایات کے مطابق حل کریں۔",
+      "marks_line_ur": "{t:5}",
+      "type": "Rewrite Sentences",
+      "category": "subjective",
+      "shape": "short",
+      "generate": 4,
+      "attempt": 4,
+      "marks_each": 1.25,
+      "parts": null,
+      "numbering": "urdu",
+      "option_labels": "ur_paren",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "grammar as directed, one each: گروہی الفاظ (choose), حروفِ شرط و جزا (choose), present to future tense, ارکان سازی of two words",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": [
+       "group_words",
+       "conditional",
+       "tense",
+       "syllables"
+      ],
+      "prompt_rule": "Four items in this order: (1) گروہی الفاظ — a stem with four options; (2) حروفِ شرط و جزا — a sentence and four options; (3) فعلِ حال کو فعلِ مستقبل میں تبدیل کریں — one sentence; (4) ارکان سازی — two words. Each item's `question` begins with its task phrase in Urdu (e.g. «گروہی الفاظ کی پہچان کریں: …», «درست حرفِ شرط و جزا کا انتخاب کریں: …», «فعلِ حال کو فعلِ مستقبل میں تبدیل کریں: …», «ارکان الگ کریں (لفظ کے حصے): …»), because the paper prints only `question` under the instruction «ہدایات کے مطابق حل کریں»; never leave the task in `main_question` alone. A points only.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "urdu.C.Q5",
+      "label_en": "Q5",
+      "label_ur": "سوال نمبر 5",
+      "instruction_ur": "درج ذیل الفاظ اور محاورات میں سے کوئی سے پانچ کے جملے بنائیں۔",
+      "marks_line_ur": "{t:5}",
+      "type": "Word Sentences",
+      "category": "subjective",
+      "shape": "words",
+      "in_item_choice": {
+       "n": 5,
+       "g": 7
+      },
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 5,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "four words and three idioms from lessons 4–10; any five in sentences",
+       "number_size": "seven entries",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "One item: `words` = four words and three محاورات from lessons 4–10 (seven entries); `answer` = one model sentence each. 1 mark each (1 / ½ / 0).",
+      "print_words": true,
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "urdu.C.Q6",
+      "label_en": "Q6",
+      "label_ur": "سوال نمبر 6",
+      "instruction_ur": null,
+      "marks_line_ur": "{t:5}",
+      "type": "Poem Explanation",
+      "category": "subjective",
+      "shape": "fixed",
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 5,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": false,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "explain four quoted lines of lesson 7",
+       "number_size": "four lines",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "One item only, from lesson 7 «ندی کی فریاد»: `passage`: the first line of `passage` is the poem's title «ندی کی فریاد», then four consecutive lines of the poem copied exactly from the book, so the child sees who speaks; `question` = «درج ذیل اشعار کا مفہوم واضح کریں۔»; `answer` = the meaning in simple Urdu, relying only on what is printed (a speaker or subject the answer names must appear in the printed title or verses). Never use lessons 1, 2 or 3.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "or": false,
+      "alternatives": [
+       {
+        "kind": "seen_verses",
+        "instruction_ur": "درج ذیل اشعار کا مفہوم واضح کریں۔",
+        "source_chapter": 7,
+        "generate": true
+       }
+      ]
+     },
+     {
+      "slot": "urdu.C.Q7",
+      "label_en": "Q7",
+      "label_ur": "سوال نمبر 7",
+      "instruction_ur": "کوئی سے چھ مددگار الفاظ کی مدد سے تصویر کی وضاحت مکمل کریں۔",
+      "marks_line_ur": "{t:10}",
+      "type": "Picture Description",
+      "category": "subjective",
+      "shape": "frame",
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 10,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "seven helper words for an everyday scene (park, zoo, market)",
+       "number_size": "seven words",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": [
+       "picture_description"
+      ],
+      "prompt_rule": "One item: `question` = a one-line scene for the teacher (e.g. «چڑیا گھر کی سیر»), `words` = seven helper words a child would use for it. The paper prints a frame and the helper words; a picture of the scene prints in the frame (the teacher adds one if it cannot be drawn). Never describe the picture to the child. `describe_en` = a short English description of the scene that names the things behind the words, drawn as a plain black outline picture in the frame; it is never shown to the child. The scheme pays for the six words and the sentences, never a title (عنوان); the model answer names only what `describe` holds.",
+      "frame": {
+       "kind": "picture",
+       "height_mm": 70,
+       "lines": 0,
+       "book_page": null,
+       "word_bank": true,
+       "title_en": "Picture (pasted or drawn by the teacher)",
+       "title_ur": "تصویر (استاد چسپاں کریں یا بنائیں)",
+       "supply_en": "Picture: {q}",
+       "supply_ur": "تصویر: {q}",
+       "duty_en": "the picture",
+       "duty_ur": "تصویر"
+      },
+      "teacher_note_en": "Paste or draw a picture that fits the helper words in the frame before photocopying.",
+      "teacher_note_ur": "فوٹو کاپی سے پہلے مددگار الفاظ سے میل کھاتی کوئی تصویر خانے میں چسپاں کریں یا بنائیں۔",
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "urdu.C.Q8",
+      "label_en": "Q8",
+      "label_ur": "سوال نمبر 8",
+      "instruction_ur": null,
+      "or_parts_ur": [
+       "نیچے دیے گئے موضوع پر دس سے بارہ جملے تحریر کریں۔",
+       null
+      ],
+      "marks_line_ur": "{t:10}",
+      "type": "Paragraph Writing",
+      "category": "subjective",
+      "shape": "composition",
+      "generate": 2,
+      "attempt": 1,
+      "marks_each": 10,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": false,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "a paragraph of 10–12 sentences on a closed-list title OR a dialogue between two friends on an everyday topic",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": [
+       "paragraph",
+       "dialogue"
+      ],
+      "prompt_rule": "Two items: (a) `question` = one title from closed_lists.paragraphs exactly as listed; (b) `question` = «دو دوستوں کے درمیان … پر مکالمہ تحریر کریں۔» with an everyday topic (punctuality, cleanliness, a school trip). The model answer to (a) is a paragraph of 10 to 12 sentences, each ending ۔, never fewer; the answer to (b) is a dialogue of دس سے بارہ جملے (turns), never «آٹھ باتیں». It states only true facts: Urdu is Pakistan's قومی زبان (national language), never مادری زبان (mother tongue) as a national fact.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": true
+     },
+     {
+      "slot": "urdu.C.Q9",
+      "label_en": "Q9",
+      "label_ur": "سوال نمبر 9",
+      "instruction_ur": null,
+      "or_parts_ur": [
+       "دیے گئے عنوان پر کہانی تحریر کریں اور نتیجہ بھی لکھیں۔",
+       "ابتدائی جملے کی مدد سے کہانی مکمل کریں اور نتیجہ بھی تحریر کریں۔"
+      ],
+      "marks_line_ur": "{t:10}",
+      "type": "Story Writing",
+      "category": "subjective",
+      "shape": "composition",
+      "generate": 2,
+      "attempt": 1,
+      "marks_each": 10,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": false,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "a story on a given title with its moral OR a story completed from an opening line with its moral",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": [
+       "story_title",
+       "story_opening"
+      ],
+      "prompt_rule": "Two items: (a) `question` = a proverb-like title in quotes (e.g. «اتفاق میں برکت ہے»); (b) `question` = an opening line of one or two sentences that stops mid-way with «…». Fictional names only.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": true
+     },
+     {
+      "slot": "urdu.C.Q10",
+      "label_en": "Q10",
+      "label_ur": "سوال نمبر 10",
+      "instruction_ur": null,
+      "or_parts_ur": [
+       null,
+       null
+      ],
+      "marks_line_ur": "{t:10}",
+      "type": "Letter Writing",
+      "category": "subjective",
+      "shape": "composition",
+      "generate": 2,
+      "attempt": 1,
+      "marks_each": 10,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": false,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "a letter OR an application on a closed-list topic, each one line",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": [
+       "letter",
+       "application"
+      ],
+      "prompt_rule": "Two items, each one full instruction line in Urdu: (a) a letter from closed_lists.letters (e.g. «اپنی والدہ کے نام خط لکھ کر انھیں اپنی صحت پر توجہ دینے کی تلقین کریں۔»); (b) an application from closed_lists.applications addressed «ہیڈ مسٹریس صاحبہ / ہیڈ ماسٹر صاحب».",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": true
+     }
+    ]
+   }
+  ],
+  "legend": {
+   "title_en": "How to mark",
+   "title_ur": "جانچنے کا طریقہ",
+   "lines_en": [
+    "MCQs: 1 mark for the letter. Two circles or an overwritten answer = 0.",
+    "M = method · A = answer · U = unit · K = key point · L = label.",
+    "\"Attempt any N\": tell children to answer exactly N. If more are answered, mark all and keep the best N.",
+    "Grades (FDE p.113): A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F below 40. Pass = 40%."
+   ],
+   "lines_ur": [
+    "معروضی: درست حرف پر 1 نمبر۔ دو دائرے یا اوور رائٹنگ = 0۔",
+    "M = طریقہ، A = جواب، U = اکائی، K = اہم نکتہ، L = نام",
+    "«کوئی سے N»: بچوں کو بالکل N سوال حل کرنے کو کہیں۔ زیادہ حل ہوں تو سب جانچ کر بہترین N رکھیں۔",
+    "A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F <40"
+   ],
+   "bands_line": 3,
+   "bands_lead_ur": "گریڈ (FDE ص 113)؛ پاس = 40٪",
+   "key_line": 1,
+   "maths_lines": [],
+   "key_names_en": {
+    "M": "method",
+    "A": "answer",
+    "U": "unit",
+    "K": "key point",
+    "L": "label"
+   },
+   "key_names_ur": {
+    "M": "طریقہ",
+    "A": "جواب",
+    "U": "اکائی",
+    "K": "اہم نکتہ",
+    "L": "نام"
+   },
+   "subject": "urdu",
+   "key_from_chips": true
+  },
+  "before_exam": {
+   "title_en": "Teacher: before the exam",
+   "title_ur": "استاد کے لیے: امتحان سے پہلے",
+   "lines_en": [
+    "This is the marking scheme for {file} ({n} pages). Do not give it to children.",
+    "Photocopy the question paper, all {n} pages, one per child.",
+    "You add: {duty} on the question paper, page {p} (book p. {b}).",
+    "Tell the class: {sections}; {attempts}.",
+    "Time: {t}.",
+    "Mark question by question across all copies, not copy by copy."
+   ],
+   "lines_ur": [
+    "یہ {file} ({n} صفحات) کی مارکنگ اسکیم ہے۔ بچوں کو نہ دیں۔",
+    "سوالیہ پرچے کے تمام {n} صفحات کی فوٹو کاپی کریں، ہر بچے کے لیے ایک۔",
+    "شامل کریں: {duty}، سوالیہ پرچہ صفحہ {p} (کتاب ص {b})۔",
+    "کلاس کو بتائیں: {sections}؛ {attempts}۔",
+    "وقت: {t}۔",
+    "ہر سوال کو تمام کاپیوں میں ایک ساتھ جانچیں، ایک کاپی مکمل کر کے دوسری نہیں۔"
+   ],
+   "nothing_en": "You add: nothing.",
+   "nothing_ur": "شامل کرنے کو کچھ نہیں۔",
+   "unknown_pages_en": "see the question paper",
+   "unknown_pages_ur": "سوالیہ پرچہ دیکھیں",
+   "on_paper_en": "{sections} on the question paper",
+   "on_paper_ur": "{sections} سوالیہ پرچے پر",
+   "on_sheet_en": "{sections} on the answer sheet",
+   "on_sheet_ur": "{sections} جوابی کاپی پر",
+   "attempt_en": "{label}: attempt any {n} of {g}",
+   "attempt_ur": "{label}: {g} میں سے کوئی سے {n}",
+   "either_en": "{label}: answer one of the two",
+   "either_ur": "{label}: دو میں سے ایک"
+  },
+  "supplies": [
+   {
+    "slot": "urdu.C.Q7",
+    "kind": "picture",
+    "book_page": null,
+    "scene": "چڑیا گھر کی سیر",
+    "words": [
+     "شیر",
+     "ہاتھی",
+     "بچے",
+     "ٹکٹ",
+     "پنجرہ",
+     "درخت",
+     "خوشی"
+    ],
+    "line_en": "Q7: Picture: چڑیا گھر کی سیر — word bank: شیر, ہاتھی, بچے, ٹکٹ, پنجرہ, درخت, خوشی",
+    "line_ur": "سوال نمبر 7: تصویر: چڑیا گھر کی سیر — مددگار الفاظ: شیر، ہاتھی، بچے، ٹکٹ، پنجرہ، درخت، خوشی"
+   }
+  ],
+  "total_marks": 100,
+  "total_time_en": "3 hrs",
+  "total_time_ur": "3 گھنٹے",
+  "unplaced": 3,
+  "generated_at": "2026-10-30T00:13:53.972Z",
+  "pages": {
+   "paper": 6,
+   "scheme": 6
+  },
+  "frame_pages": {
+   "urdu.C.Q7": 5
+  },
+  "notes": [],
+  "holds": [
+   {
+    "slot": "urdu.A.Q1",
+    "rule": "name_in_key",
+    "n": 1
+   },
+   {
+    "slot": "urdu.A.Q1",
+    "rule": "section_a",
+    "n": 2
+   },
+   {
+    "slot": "urdu.A.Q1",
+    "rule": "twin",
+    "n": 1
+   }
+  ],
+  "reader": {
+   "flagged": 1,
+   "replaced": 1,
+   "still_flagged": 0,
+   "put_back": 0,
+   "top_ups": 1,
+   "rechecked": true,
+   "items": [
+    {
+     "label": "Q1.7",
+     "by": "Q6",
+     "reason": "The verse says clean water saves one from illness, which is the answer to what an unclean river leads to.",
+     "outcome": "replaced"
+    }
+   ]
+  },
+  "scheme_shortfall": [
+   {
+    "slot": "urdu.B.Q2",
+    "item": 0,
+    "part": "questions[0]",
+    "filled_by": "code"
+   },
+   {
+    "slot": "urdu.B.Q2",
+    "item": 0,
+    "part": "questions[1]",
+    "filled_by": "code"
+   },
+   {
+    "slot": "urdu.B.Q2",
+    "item": 0,
+    "part": "questions[2]",
+    "filled_by": "code"
+   },
+   {
+    "slot": "urdu.B.Q2",
+    "item": 0,
+    "part": "questions[3]",
+    "filled_by": "code"
+   },
+   {
+    "slot": "urdu.B.Q2",
+    "item": 0,
+    "part": "questions[4]",
+    "filled_by": "code"
+   }
+  ],
+  "blueprint": {
+   "ok": true,
+   "total": 100,
+   "expected": 100,
+   "sections": [
+    {
+     "id": "A",
+     "marks": 20,
+     "expected": 20,
+     "levels": {
+      "Remember": {
+       "marks": 20,
+       "target": 20
+      },
+      "Understand": {
+       "marks": 0,
+       "target": 0
+      },
+      "Apply": {
+       "marks": 0,
+       "target": 0
+      }
+     }
+    },
+    {
+     "id": "B",
+     "marks": 20,
+     "expected": 20,
+     "levels": {
+      "Remember": {
+       "marks": 0,
+       "target": 0
+      },
+      "Understand": {
+       "marks": 20,
+       "target": 20
+      },
+      "Apply": {
+       "marks": 0,
+       "target": 0
+      }
+     }
+    },
+    {
+     "id": "C",
+     "marks": 60,
+     "expected": 60,
+     "levels": {
+      "Remember": {
+       "marks": 10,
+       "target": 10
+      },
+      "Understand": {
+       "marks": 10,
+       "target": 10
+      },
+      "Apply": {
+       "marks": 40,
+       "target": 40
+      }
+     }
+    }
+   ],
+   "levels": {
+    "Remember": {
+     "marks": 30,
+     "pct": 30,
+     "target": 30
+    },
+    "Understand": {
+     "marks": 30,
+     "pct": 30,
+     "target": 30
+    },
+    "Apply": {
+     "marks": 40,
+     "pct": 40,
+     "target": 40
+    }
+   },
+   "problems": []
+  }
+ }
+}

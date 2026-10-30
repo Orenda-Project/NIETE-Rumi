@@ -8,7 +8,7 @@ const { makeSubject } = require('./chrome');
 
 const S = (o) => ({ marks_each: 1, ...o });
 const WP = (o) => ({ marks_each: 3, generate: 1, lines: 3, ...o,
-  prompt_rule: `${o.prompt_rule} Scheme: M 1 for a correct way to find the answer, M 1 for the working carried out, A 1 for the answer. The method mark pays any correct working (a number sentence, column working or a drawing): the paper says only "Show your working", so never write "writes the number sentence" as a requirement. The unit word is accepted, not required.` });
+  prompt_rule: `${o.prompt_rule} Scheme: M 1 for a correct method carried out (a one-step problem has one method), A 2 for the correct answer: never two separate M marks for one step. The method mark pays any correct working (a number sentence, column working or a drawing): the paper says only "Show your working", so never write "writes the number sentence" as a requirement. The unit word is accepted, not required.` });
 
 module.exports = makeSubject({
   grade: 2,

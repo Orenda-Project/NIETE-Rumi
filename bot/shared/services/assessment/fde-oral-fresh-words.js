@@ -15,7 +15,12 @@ const { answerRepeats } = require('./fde-answer-repeats');
 // Grade 1 book words of two to four letters, easy to read large; none rude or religious.
 const BANK = ['آم', 'باغ', 'قلم', 'ناک', 'کان', 'ہاتھ', 'دودھ', 'جوتا', 'ٹوپی', 'تارا', 'پنکھا', 'مرچ', 'نمک', 'بادل',
   'پتنگ', 'چمچ', 'تالا', 'سورج', 'ہوا', 'دال', 'گھاس', 'مکھی', 'بکری', 'کیلا', 'انڈا', 'مور', 'بطخ', 'کتاب', 'بستہ', 'میز'];
+// English read-aloud words: Grade 1 book words of two to four letters, easy to read large (v29 G1 English read
+// cat, sun and dog aloud, all printed on the written paper: only Arabic words were ever replaced).
+const BANK_EN = ['pen', 'hen', 'bus', 'cup', 'jam', 'net', 'pig', 'box', 'fox', 'map', 'van', 'bed', 'leg', 'red', 'sit', 'hop',
+  'top', 'lip', 'nut', 'web', 'yes', 'big', 'run', 'hat', 'kid', 'lid', 'mud', 'tap', 'wet', 'zip', 'he', 'we', 'is', 'my', 'go'];
 const ARABIC = /[؀-ۿ]/;
+const LATIN = /^[A-Za-z]+$/;
 const WORD = /[\p{L}\p{M}]+/gu;
 const wordsOf = (s) => String(s == null ? '' : s).normalize('NFC').match(WORD) || [];
 
@@ -33,10 +38,10 @@ function freshReadWords(examJson, log) {
   const flagged = () => new Set(answerRepeats(out).filter((f) => f.with.includes('oral')).flatMap((f) => f.words));
   const items = readAloudItems(out);
   const bad = flagged();
-  items.filter((it) => ARABIC.test(it.ask) && wordsOf(it.ask).some((w) => bad.has(w))).forEach((it) => {
+  items.filter((it) => (ARABIC.test(it.ask) || LATIN.test(String(it.ask).trim())) && wordsOf(it.ask).some((w) => bad.has(w))).forEach((it) => {
     const was = it.ask;
     const used = new Set(items.map((x) => x.ask));
-    for (const cand of BANK.filter((w) => !used.has(w))) {
+    for (const cand of (ARABIC.test(was) ? BANK : BANK_EN).filter((w) => !used.has(w))) {
       it.ask = cand;
       if (!flagged().has(cand)) { notes.push({ was, now: cand }); return; }
     }
@@ -46,4 +51,4 @@ function freshReadWords(examJson, log) {
   return { examJson: out, notes };
 }
 
-module.exports = { freshReadWords, BANK };
+module.exports = { freshReadWords, BANK, BANK_EN };

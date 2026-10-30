@@ -53,11 +53,15 @@ describe('G5 Urdu Q7: no title row when the instruction asks for no title', () =
 describe('G5 Urdu Q8: the dialogue row follows the stem count', () => {
   const rows = () => criteriaFor('dialogue', 10, 'ur');
 
-  test('«کم از کم آٹھ باتیں» becomes the stem\'s «دس سے بارہ جملے»', () => {
+  test('«کم از کم آٹھ باتیں» goes: the dialogue part prints no count and asks no result (v34, fde-g5-criteria-2)', () => {
     const out = adjustCriteria(rows(), slotOf('urdu.C.Q8'));
-    expect(out.map((r) => r.name).join('|')).not.toMatch(/آٹھ/);
+    expect(out.map((r) => r.name).join('|')).not.toMatch(/آٹھ|نتیجہ/);
+    expect(out.map((r) => r.marks)).toEqual([6, 3, 1]);
+  });
+
+  test('a stub with no kinds and a count in its stem still takes the count', () => {
+    const out = adjustCriteria(rows(), { slot: 'urdu.C.Q9', instruction_ur: 'دس سے بارہ جملے لکھیں۔' });
     expect(out.map((r) => r.name).join('|')).toMatch(/مواد: دس سے بارہ جملے اور نتیجہ/);
-    expect(out.map((r) => r.marks)).toEqual(rows().map((r) => r.marks));
   });
 
   test('a slot whose stem gives no count keeps the template row', () => {
@@ -78,9 +82,8 @@ describe('the printed Urdu key (real pattern, fixture items)', () => {
     expect(q7).not.toMatch(/اسکول میں کھیلوں کا دن/);
   });
 
-  test('Q8 prints the stem count and never «آٹھ باتیں»', () => {
+  test('Q8 never prints «آٹھ باتیں» or an unasked «اور نتیجہ»', () => {
     const q8 = rowOf('urdu.C.Q8');
-    expect(q8).toMatch(/دس سے بارہ جملے/);
-    expect(q8).not.toMatch(/آٹھ باتیں/);
+    expect(q8).not.toMatch(/آٹھ باتیں|اور نتیجہ/);
   });
 });

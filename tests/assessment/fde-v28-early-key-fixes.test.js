@@ -74,10 +74,10 @@ describe('early maths word problems: a bare "Solve." pays for the number, not th
   test('G2: the answer point is the number; the unit word is accepted, not required; the common error drops it', () => {
     const { examJson, notes } = earlyKeyFixes(g2());
     const q = itemsOf(examJson)[0];
-    expect(q.scheme.points[2].text).toBe('Answer 377');
+    expect(q.scheme.points[1].text).toBe('Answer 377');
     expect(q.scheme.accept).toEqual(expect.arrayContaining(['377 books']));
     expect(q.scheme.common_error).toBe('Subtracting instead of adding.');
-    expect(q.scheme.points).toHaveLength(3);
+    expect(q.scheme.points).toHaveLength(2);
     expect(notes.length).toBeGreaterThan(0);
   });
 });

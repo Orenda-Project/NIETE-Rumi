@@ -132,11 +132,11 @@ describe('G5 Urdu', () => {
 });
 
 describe('G2 Urdu', () => {
-  test('Q1 poet distractors are real poets spelt as the book spells them, and one poet item only', () => {
+  test('Q1 asks no poet or recall items (v34 replaced v28 "one poet item only": the review asked for none)', () => {
     const rule = slotOf('fde_g2_2026', 'urdu', 'g2.urdu.A.Q1').prompt_rule;
-    expect(rule).toMatch(/poet/);
-    expect(rule).toMatch(/spelt as the book spells/);
-    expect(rule).toMatch(/at most one item/);
+    expect(rule).toMatch(/No item asks a poet's name, who said what or what happened/);
+    expect(rule).toMatch(/poets never appear in this section/);
+    expect(rule).not.toMatch(/\(meanings, who said what/);
   });
 
   test('Q6 accepts only true opposites', () => {

@@ -20,8 +20,8 @@
 const GRID_ROWS = 12;
 
 const COPY = {
-  en: { script: 'Read aloud', items: 'Ask', answer: 'Answer', each: 'marks each', eachOne: 'mark each', circle: 'Circle one', score: 'Score', child: 'Child', total: 'Total', grid: 'Class record: oral marks' },
-  ur: { script: 'پڑھ کر سنائیں', items: 'پوچھیں', answer: 'جواب', each: 'نمبر فی جواب', circle: 'ایک پر دائرہ لگائیں', score: 'نمبر', child: 'بچے کا نام', total: 'کل', grid: 'جماعت کا ریکارڈ: زبانی نمبر' },
+  en: { script: 'Read aloud', items: 'Ask', answer: 'Answer', each: 'marks each', eachOne: 'mark each', circle: 'Circle one', score: 'Score', child: 'Child', total: 'Total', grid: 'Class record: oral marks', card: 'The child reads from the reading card printed after this sheet, never from this page.' },
+  ur: { script: 'پڑھ کر سنائیں', items: 'پوچھیں', answer: 'جواب', each: 'نمبر فی جواب', circle: 'ایک پر دائرہ لگائیں', score: 'نمبر', child: 'بچے کا نام', total: 'کل', grid: 'جماعت کا ریکارڈ: زبانی نمبر', card: 'بچہ اس صفحے سے نہیں بلکہ اس شیٹ کے بعد چھپے ریڈنگ کارڈ سے پڑھے۔' },
 };
 
 function contentFor(oral, task) {
@@ -59,6 +59,7 @@ function taskBlock(oral, task, lang, t, w) {
   const c = contentFor(oral, task);
   const parts = [`<div class="oral-head"><span class="lab">${t(task[`label_${lang}`])}</span> <span class="m">${t(`(${task.marks})`)}</span></div>`];
   if (task[`instruction_${lang}`]) parts.push(`<div class="oral-ins">${t(task[`instruction_${lang}`])}</div>`);
+  if (task.kind === 'read_aloud') parts.push(`<div class="oral-reads-from">${t(w.card)}</div>`);
   if (c.script) parts.push(`<div class="oral-script"><div class="k">${t(w.script)}</div>${t(task.kind === 'read_aloud' ? onceEach(c.script) : c.script)}</div>`);
   // A read-aloud script with bare, answerless words under it (v25 G2 Urdu dialogue) is no list to ask.
   const bare = task.kind === 'read_aloud' && c.script && Array.isArray(c.items) && c.items.every((it) => !String(it.answer || '').trim());
