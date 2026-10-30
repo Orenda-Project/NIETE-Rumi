@@ -63,7 +63,7 @@ describe('either/or questions stay whole on the page', () => {
     const { paper } = chain('urdu');
     const before = paper.slice(0, paper.indexOf('data-slot="urdu.C.Q10"'));
     const opens = before.match(/<div class="slot[" ][^>]*>/g);
-    expect(opens[opens.length - 1]).toBe('<div class="slot either">');
+    expect(opens[opens.length - 1]).toMatch(/^<div class="slot either(?: short)?">$/); // `short` when it has six items or fewer (bd-5jmnfj.4.58.3)
     expect(paper).toMatch(/\.slot\.either \{[^}]*break-inside: avoid/);
     expect(paper).toMatch(/\.or \{[^}]*break-before: avoid; break-after: avoid/);
   });
@@ -78,10 +78,10 @@ describe('the Urdu egress rule reaches list numbers', () => {
   });
 });
 
-describe('the paper file name is printed as it is saved', () => {
-  it('an Urdu scheme names Grade5_Urdu_FDE.pdf with an ASCII 5, isolated left-to-right', () => {
+describe('the scheme prints no file name (bd-5jmnfj.4.50.5)', () => {
+  it('an Urdu scheme names no .pdf file and no Grade<5> file stem', () => {
     const { scheme } = chain('urdu');
-    expect(scheme).toContain('<bdi class="file" dir="ltr">Grade5_Urdu_FDE.pdf</bdi>');
+    expect(scheme).not.toContain('Grade5_Urdu_FDE.pdf');
     expect(scheme).not.toMatch(/Grade<span class="num">۵<\/span>/);
   });
 });
@@ -97,12 +97,10 @@ describe('the MCQ key strip wraps between answers, never inside one', () => {
   });
 });
 
-describe('the fallback file name is the name the bot saves', () => {
-  it('with no paperFileName the box names Grade5_Maths_FDE.pdf (the orchestrator\'s SUBJECT_LABEL), never "Mathematics"', () => {
-    const { scheme } = chain('maths');
-    expect(scheme).toContain('<bdi class="file" dir="ltr">Grade5_Maths_FDE.pdf</bdi>');
-    expect(scheme).not.toContain('Grade5_Mathematics_FDE.pdf');
-    expect(chain('science').scheme).toContain('Grade5_Science_FDE.pdf');
+describe('the box names the question paper, not a file (bd-5jmnfj.4.50.5)', () => {
+  it('maths and science schemes print no _FDE.pdf name', () => {
+    expect(chain('maths').scheme).not.toMatch(/_FDE\.pdf/);
+    expect(chain('science').scheme).not.toMatch(/_FDE\.pdf/);
   });
 });
 
@@ -129,18 +127,20 @@ describe('panel round 1', () => {
     const { paper } = chain('urdu');
     const head = '<div class="part-head"><span class="lab">ب:</span> <span class="ins">دی گئی ہدایات کے مطابق حل کریں۔</span><span class="ml"><span class="num">۱۰</span></span></div>';
     // Inside the first sub-part's unbreakable block, so the header never ends a page alone.
-    expect(paper).toContain(`<div class="part">${head}<div class="part-head"><span class="ins">سوال: پیراگراف سے چن کر لکھیں۔</span><span class="ml"><span class="num">۰۸</span></span></div>`);
+    expect(paper).toContain(`<div class="part">${head}<div class="part-head"><span class="ins">سوال: پیراگراف سے چن کر لکھیں۔</span><span class="ml"><span class="num">۸</span></span></div>`);
   });
 
-  it('C1: the Urdu box\'s "tell the class" line names every choice on the paper: Q3, Q5, Q6, Q8, Q9, Q10', () => {
+  // Q6 left the list for bd-5jmnfj.4.51.11: it is the lesson-7 lines alone, no Naat, so no «دو میں سے ایک».
+  it('C1: the Urdu box\'s "tell the class" line names every choice on the paper: Q3, Q5, Q8, Q9, Q10', () => {
     const { scheme } = chain('urdu');
     const box = scheme.slice(scheme.indexOf('class="box before"'), scheme.indexOf('</ol>', scheme.indexOf('class="box before"')));
     const line4 = box.split('<li>')[4];
-    const order = ['۳', '۵', '۶', '۸', '۹', '۱۰'].map((d) => line4.indexOf(`سوال نمبر <span class="num">${d}</span>`));
+    const order = ['۳', '۵', '۸', '۹', '۱۰'].map((d) => line4.indexOf(`سوال نمبر <span class="num">${d}</span>`));
     expect(order.every((i) => i > 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(line4).toContain('<span class="num">۷</span> میں سے کوئی سے <span class="num">۵</span>');
-    expect(line4).toContain('دو میں سے ایک');
+    expect(line4).not.toContain('سوال نمبر <span class="num">۶</span>');
+    expect(line4).not.toContain('دو میں سے ایک');
   });
 
   it('C3: every written row group in the scheme opens with its slot head', () => {
@@ -151,14 +151,17 @@ describe('panel round 1', () => {
     const q4 = ur.indexOf('<tr class="slot-row" data-slot-head="urdu.C.Q4">');
     expect(q4).toBeGreaterThan(ur.indexOf('<tr class="slot-row" data-slot-head="urdu.C.Q3">'));
     expect(ur.indexOf('<tr data-row="urdu.C.Q4"')).toBeGreaterThan(q4);
-    expect(ur.indexOf('data-row="urdu.C.Q6-fixed"')).toBeGreaterThan(ur.indexOf('<tr class="slot-row" data-slot-head="urdu.C.Q6">'));
+    expect(ur.indexOf('data-row="urdu.C.Q6"')).toBeGreaterThan(ur.indexOf('<tr class="slot-row" data-slot-head="urdu.C.Q6">'));
+    expect(ur).not.toContain('data-row="urdu.C.Q6-fixed"');
   });
 
   it('C2: a written row with no points prints an A point worth its marks (Science Q2(b) sub-questions, 2.5 each)', () => {
     const { scheme } = chain('science');
     const rows = scheme.match(/<tr data-row="science\.B\.Q2b">[\s\S]*?<\/tr>/g) || [];
     expect(rows.length).toBe(9);
-    for (const r of rows) expect(r).toMatch(/<td class="pts"><span class="pt"><span class="chip">A2\.5<\/span>/);
+    const chipSum = (r) => (r.match(/class="chip">A([\d.]+)</g) || []).reduce((t, c) => t + parseFloat(c.replace(/[^\d.]/g, '')), 0);
+    // v37 round 7: the row is split per idea (A1.5 + A1), never one all-or-nothing A2.5
+    for (const r of rows) expect(chipSum(r)).toBe(2.5);
   });
 
   it('C6: composition criteria marks in an Urdu scheme are Urdu digits', () => {

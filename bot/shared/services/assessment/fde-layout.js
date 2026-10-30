@@ -213,6 +213,17 @@ function suppliesFor(P, bySlot) {
   return out;
 }
 
+// A frame carries the page its own item names, or none (bd-5jmnfj.4.51.10).
+function withFramePages(sections, bySlot) {
+  for (const sec of sections) {
+    for (const slot of sec.slots) {
+      const q = slot.frame && (bySlot.get(slot.slot) || [])[0];
+      if (q) slot.frame.book_page = pageOf(q.book_page);
+    }
+  }
+  return sections;
+}
+
 // ── Urdu Q6: the four lesson-7 lines ──────────────────────────────────────
 
 const VERSES_NEEDED = 4;
@@ -358,6 +369,8 @@ function monotonic(v) {
   return up || down;
 }
 
+const { keyPattern, letterOption } = require('./fde-key-pattern');
+
 // Where the key points and how to write it again at another letter; null when unsure.
 function readKey(q) {
   const opts = q.options;
@@ -380,6 +393,8 @@ function readKey(q) {
     if (rest && rest !== answer.trim() && rest !== texts[index]) return null;
     // "A cat" is a text key that starts like a letter, not the letter (a).
     if (rest === answer.trim() && !/^\s*\(?\S{1,3}\)?\s*$/.test(answer)) return null;
+    // bd-5jmnfj.4.50.7: a bare letter on options that are letters themselves would read as their text.
+    if (rest === answer.trim() && letterOption(texts)) return null;
     // A bare-text key that only looks like a letter ("a cat") is left alone too.
     if (byText >= 0 && byText !== index) return null;
     const write = (to) => {
@@ -439,21 +454,16 @@ function random(seed) {
  * letter is above it. A balanced paper is left as it is. Returns how many
  * items were turned.
  *
- * Social Studies (`subjectKey`): keys that run in a strict period (الف ب ج د five times over) are
- * dealt again. A balanced strip passes the count test, but a child who sees the period answers
- * Section A without reading it. The movable items' letters are shuffled among themselves (each
- * letter keeps its count) until the strip has no period; an item never takes a letter beyond its
- * own options.
+ * Every subject: keys that form a pattern (الف ب ج د five times over, «a b c d a b c d», every
+ * fourth key (d); see fde-key-pattern.js) are dealt again. A balanced strip passes the count test,
+ * but a child who sees the pattern answers Section A without reading it. The movable items' letters
+ * are shuffled among themselves (each letter keeps its count) until the strip has no pattern; an
+ * item never takes a letter beyond its own options.
  */
-// The shortest strict period, 2 to 4, of a strip at least two periods long; 0 when there is none.
-const KEY_PERIODS = [2, 3, 4];
-const DEALS = 50;
-function periodOf(letters) {
-  return KEY_PERIODS.find((p) => letters.length >= 2 * p && letters.every((x, i) => i < p || x === letters[i - p])) || 0;
-}
+const DEALS = 200;
 function breakPeriod(mcqs, next) {
   const strip = mcqs.map((q) => { const key = readKey(q); return { q, key, at: key ? key.index : keyAt(q) }; });
-  if (!periodOf(strip.map((e) => e.at))) return 0;
+  if (!keyPattern(strip.map((e) => e.at))) return 0;
   const movable = strip.filter((e) => e.key);
   for (let deal = 0; deal < DEALS; deal += 1) {
     const letters = movable.map((e) => e.at);
@@ -463,7 +473,7 @@ function breakPeriod(mcqs, next) {
     }
     if (movable.some((e, i) => letters[i] >= e.q.options.length)) continue;
     const dealt = new Map(movable.map((e, i) => [e, letters[i]]));
-    if (periodOf(strip.map((e) => (dealt.has(e) ? dealt.get(e) : e.at)))) continue;
+    if (keyPattern(strip.map((e) => (dealt.has(e) ? dealt.get(e) : e.at)))) continue;
     let moved = 0;
     for (const [e, to] of dealt) {
       if (to === e.at) continue;
@@ -477,7 +487,7 @@ function breakPeriod(mcqs, next) {
   return 0;
 }
 
-function spreadKeys(slots, bySlot, subjectKey = null) {
+function spreadKeys(slots, bySlot) {
   const mcqs = [];
   for (const slot of slots) {
     if (slot.shape !== 'mcq') continue;
@@ -518,7 +528,7 @@ function spreadKeys(slots, bySlot, subjectKey = null) {
     m.q.answer = m.key.write(to);
     moved += 1;
   }
-  if (subjectKey === 'social_studies') moved += breakPeriod(mcqs, next);
+  moved += breakPeriod(mcqs, next); // bd-5jmnfj.4.50.7: every subject, not Social Studies alone
   return moved;
 }
 
@@ -1237,6 +1247,10 @@ function keyInPoints(others) {
     }));
   };
 }
+// Science Q1(b) prints its `question` as the frame title «Diagram: …»: it must be the diagram's
+// name («Layers of the Earth»), never an instruction («Label any five parts…») (v24 review).
+const DIAGRAM_SLOT = 'science.A.Q1b';
+const notDiagramName = (q) => /^\s*(label|draw|name)\b/i.test(String((q && q.question) || ''));
 // The point-set rows, laid in this order: a Q6 against the Q5s, a Q6 against the Q6s placed before
 // it (one online disagreement told twice with the same four points), then a Q7 against the Q5s and
 // the Q6s now placed. The held slot's item is held, never the other one.
@@ -1436,7 +1450,8 @@ function bookSplit(q, P) {
 // The list is the stem's first line after its last colon, up to its first «۔» or «؟», cut at «،».
 // Urdu Q4: four kinds, one item each, in FDE's order. An item's kind is read from its heading or stem;
 // a second item of a kind never takes another kind's place.
-const Q4_KINDS = [[/گروہی/, 'گروہی الفاظ'], [/شرط|جزا/, 'حروفِ شرط و جزا'], [/مستقبل/, 'فعلِ حال کو فعلِ مستقبل میں تبدیل کریں'], [/ارکان/, 'ارکان سازی']];
+const { Q4_KINDS, q4TaskKnown } = require('./fde-task-line'); // bd-5jmnfj.4.58.2
+const { finallyNotLast } = require('./fde-order-check'); // bd-5jmnfj.4.58.2
 const q4Kind = (q) => Q4_KINDS.findIndex(([re]) => re.test(`${q.main_question || ''} ${q.question || ''}`));
 const sameQ4Kind = (a, b) => q4Kind(a) >= 0 && q4Kind(a) === q4Kind(b);
 const GROUP_ASK = /گروہی/;
@@ -2207,9 +2222,12 @@ function applyLayout(examJson, P, scope, opts = {}) {
       && (w.inSlot ? (samePoints(bySlot.get(slot.slot)) || (() => false))(q) : w.rule(q)));
     const fits = (slot, q) => {
       if (!settleVerses(slot, q) || !printable(slot, q)) return no(slot, 'unprintable');
+      if (slot.slot === DIAGRAM_SLOT && notDiagramName(q)) return no(slot, 'diagram_not_named');
       if (P.key === 'social_studies' && tierSlip(q)) return false;
       if (P.key === 'urdu' && DATE_KEY_SLOTS.has(slot.slot) && keyedOnDate(q)) return no(slot, 'date_key');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && bySlot.get(slot.slot).some((p) => sameQ4Kind(p, q))) return no(slot, 'q4_kind_repeat');
+      if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && !q4TaskKnown(q)) return no(slot, 'q4_task_unknown');
+      if (slot.type === 'Story Order' && finallyNotLast(q)) return no(slot, 'order_finally_not_last');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && keyAcceptSplit(q)) return no(slot, 'key_accept_split');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && groupWordListed(q)) return no(slot, 'group_word_listed');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && syllableSplit(q)) { keep(slot.slot, q, 'syllable_split'); return false; }
@@ -2366,7 +2384,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
     const rank = (q) => { const k = q4Kind(q); return k < 0 ? Q4_KINDS.length : k; };
     bySlot.get('urdu.C.Q4').sort((a, b) => rank(a) - rank(b));
   }
-  spreadKeys(slots, bySlot, P.key);
+  spreadKeys(slots, bySlot);
 
   // Marks, lines and the canonical tag come from the pattern, never the model.
   const unseen = {};
@@ -2413,7 +2431,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
     medium: P.medium,
     scope: scopeBlock(P, scope),
     header: clone(P.header),
-    sections: clone(P.sections),
+    sections: withFramePages(clone(P.sections), bySlot),
     legend: clone(P.legend),
     before_exam: clone(P.before_exam),
     supplies: suppliesFor(P, bySlot),

@@ -2,13 +2,15 @@
 /**
  * The Grade 1-2 pictures that are drawn, not generated (bd-5jmnfj.4.3): dots to
  * count, shapes to name (whole, or cut into equal parts with some shaded) and a
- * clock face. Black on white, so they print on any school photocopier.
+ * clock face. Black on white, so they print on any school photocopier. And a
+ * plant to label (bd-5jmnfj.4.33): its blank lines sit beside the leaf, stem and
+ * root, joined by plain leader lines, never arrows.
  *
  * A picture this module cannot draw throws: the paper fails rather than print an
  * empty box. Pure: no I/O.
  */
 
-const SVG_KINDS = ['dots', 'shapes', 'clock'];
+const SVG_KINDS = ['dots', 'shapes', 'clock', 'plant'];
 const INK = '#000';
 const SHADE = '#999';
 const CELL = 100; // one shape's box
@@ -111,10 +113,31 @@ function clock({ hour, minute }) {
     + '<circle cx="60" cy="60" r="4" fill="#000"/>');
 }
 
-const DRAW = { dots, shapes, clock };
+// One plant above a ground line, and a blank line for each part, top to bottom.
+const PLANT_BLANKS = [['leaf', 150, 62, 60], ['stem', 103, 118, 118], ['root', 128, 196, 200]];
+
+function plant() {
+  const stroke = `fill="none" stroke="${INK}" stroke-linecap="round"`;
+  const body = [
+    `<line x1="20" y1="150" x2="180" y2="150" stroke="${INK}" stroke-width="3"/>`,
+    `<path data-part="stem" d="M100,150 C96,112 104,82 100,36" ${stroke} stroke-width="4"/>`,
+    `<path data-part="leaf" d="M100,96 C82,76 58,78 46,90 C62,104 86,106 100,96 Z" ${stroke} stroke-width="3"/>`,
+    `<path data-part="leaf" d="M100,72 C118,52 142,54 154,64 C140,78 116,82 100,72 Z" ${stroke} stroke-width="3"/>`,
+    `<path data-part="leaf" d="M100,40 C90,26 78,24 70,28 C78,40 90,44 100,40 Z" ${stroke} stroke-width="3"/>`,
+    `<path data-part="root" d="M100,150 C98,174 103,194 98,216 M100,164 C88,176 76,184 66,198 M100,170 C112,182 124,190 134,204 M99,190 C91,199 85,207 80,216" ${stroke} stroke-width="2.5"/>`,
+    ...PLANT_BLANKS.map(([part, fromX, fromY, y]) => `<line data-leader="${part}" x1="${fromX}" y1="${fromY}" x2="206" y2="${y}" stroke="${INK}" stroke-width="1.5"/>`
+      + `<line data-blank="${part}" x1="206" y1="${y}" x2="316" y2="${y}" stroke="${INK}" stroke-width="2"/>`),
+  ];
+  return svg(320, 230, body.join(''));
+}
+
+const DRAW = { dots, shapes, clock, plant };
 
 /** The SVG for a picture this module draws; null for a kind drawn elsewhere. Throws on a picture it cannot draw. */
 function svgFor(picture) {
+  // v26 G1 Urdu Q4 ii: an object picture named "clock" came back from the image model with arrowheads on its hands
+  // (bd-5jmnfj.4.58.2). A named clock is drawn here, with plain round-capped lines, at 3 o'clock.
+  if (picture && picture.kind === 'object' && /\b(?:clock|watch)\b/i.test(String(picture.name || ''))) return clock({ hour: 3, minute: 0 });
   const draw = DRAW[picture && picture.kind];
   return draw ? draw(picture) : null;
 }

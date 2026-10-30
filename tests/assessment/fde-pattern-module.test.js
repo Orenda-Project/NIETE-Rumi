@@ -38,8 +38,8 @@ function allStrings(node, out = []) {
 }
 
 describe('the registry', () => {
-  it('lists Grade 5 first, then the early grades', () => {
-    expect(Patterns.list()).toEqual([ID, 'fde_g1_2026', 'fde_g2_2026']);
+  it('lists Grade 5 first, then the early grades, then the mid grades (bd-5jmnfj.33.1)', () => {
+    expect(Patterns.list()).toEqual([ID, 'fde_g1_2026', 'fde_g2_2026', 'fde_g3_2026', 'fde_g4_2026']);
   });
 
   it('returns null for an unknown id', () => {
@@ -251,7 +251,7 @@ describe('expandTypes', () => {
     ]);
   });
 
-  it('urdu never asks the model for the Naat alternative', () => {
+  it('urdu asks the model for one Q6 item', () => {
     const q6 = Patterns.expandTypes(ID, 'urdu').find((t) => t.slot === 'urdu.C.Q6');
     expect(q6.count).toBe(1);
   });
@@ -314,12 +314,10 @@ describe('slot details the engine and renderer read', () => {
     expect(text).not.toMatch(/look at the (picture|figure)/i);
   });
 
-  it('urdu Q6 has the fixed Naat alternative with no key and the 3·1·1 split', () => {
+  it('urdu Q6 is only the lesson-7 verses: the Naat option is dropped (bd-5jmnfj.4.51.11)', () => {
     const q6 = slotsOf(Patterns.get(ID).subjects.urdu).find((s) => s.slot === 'urdu.C.Q6');
-    expect(q6.alternatives).toHaveLength(2);
-    expect(q6.alternatives[0]).toEqual(expect.objectContaining({ kind: 'fixed', key: null, split: [3, 1, 1] }));
-    expect(typeof q6.alternatives[0].instruction_ur).toBe('string');
-    expect(q6.alternatives[1]).toEqual(expect.objectContaining({ kind: 'seen_verses', source_chapter: 7, generate: true }));
+    expect(q6.alternatives).toHaveLength(1);
+    expect(q6.alternatives[0]).toEqual(expect.objectContaining({ kind: 'seen_verses', source_chapter: 7, generate: true }));
   });
 
   it('the legend has its title and six lines in both languages; the box six', () => {

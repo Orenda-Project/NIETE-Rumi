@@ -7,103 +7,9 @@
  */
 
 const Patterns = require('../../bot/shared/services/assessment/patterns');
-const { writeEarlyPaper, ORAL_SYSTEM } = require('../../bot/shared/services/assessment/fde-early-writer');
+const { ORAL_SYSTEM } = require('../../bot/shared/services/assessment/fde-early-writer');
 const { NO_PICTURES } = require('../../bot/shared/services/assessment/fde-early-prompt');
-
-const SAMPLE = { count: { kind: 'count', name: 'apple', n: 3 }, dots: { kind: 'dots', n: 4 }, shapes: { kind: 'shapes', shapes: [{ shape: 'circle' }] },
-  object: { kind: 'object', name: 'cat' }, scene: { kind: 'scene', describe: 'children in a park' }, clock: { kind: 'clock', hour: 3, minute: 0 } };
-
-// A slot with an answer rule gets keys that fit it unless a reply gives its own (`keys`: slot -> {question, answer} by item).
-const GOOD = {
-  'g1.english.B.Q8': (i) => ({ question: `What is child ${i + 1} doing?`, answer: ['running', 'reading', 'eating', 'sleeping'][i] }),
-  'g2.english.B.Q6': (i) => ({ question: ['c_t', 'd_g', 's_n'][i], answer: ['cat', 'dog', 'sun'][i] }),
-  'g2.english.B.Q10': (i) => ({ question: `Thing ${i + 1} is ____ the box.`, answer: ['in', 'on', 'under', 'near', 'behind'][i] }),
-  'g2.english.C.Q14': (i) => ({ question: `Is it hot ${i + 1}`, answer: `Is it hot ${i + 1}?` }),
-};
-
-// Every object picture is a different thing unless a reply names it (`names`: slot -> names by item).
-function itemsFor(slot, { noPicture = false, names = [], keys = [] } = {}) {
-  return Array.from({ length: slot.generate }, (_, i) => ({
-    slot: slot.slot, question: `Question ${i + 1} for ${slot.slot}`, marks: slot.marks_each, blooms: 'Remember',
-    ...(slot.shape === 'mcq' ? { options: ['a) one', 'b) two', 'c) three'], answer: 'a) one' } : { answer: String(i + 1) }),
-    ...(keys[i] || (GOOD[slot.slot] ? GOOD[slot.slot](i) : {})),
-    scheme: { points: [{ kind: 'A', text: 'correct', marks: slot.marks_each }] },
-    ...(slot.picture && !noPicture ? { picture: { ...SAMPLE[slot.picture[0]],
-      ...(slot.picture[0] === 'object' ? { name: names[i] || `${slot.slot} thing ${i}` } : {}) } } : {}),
-  }));
-}
-
-function treeFor(section, opts = {}) {
-  const tree = { unseen: { objective: {}, subjective: {} } };
-  section.slots.forEach((slot) => {
-    const list = itemsFor(slot, { noPicture: (opts.noPicture || []).includes(slot.slot), names: (opts.names || {})[slot.slot], keys: (opts.keys || {})[slot.slot] });
-    (tree.unseen[slot.category][slot.type] = tree.unseen[slot.category][slot.type] || []).push(...list);
-  });
-  return tree;
-}
-
-function oralTree(oral, drop = []) {
-  return { oral: oral.tasks.filter((t) => !drop.includes(t.id)).map((t) => ({
-    id: t.id, script: 'A short story read aloud.', items: Array.from({ length: t.n }, (_, i) => ({ ask: `ask ${i + 1}`, answer: 'yes' })),
-  })) };
-}
-
-function deps(P, { replies = {}, oralReplies = [], pictures = null } = {}) {
-  const calls = { sections: [], oral: [], prompts: [] };
-  const sectionN = {};
-  const d = {
-    family: 'eng',
-    loadPatternContent: jest.fn(async () => ({ content: 'BOOK', pageReference: '1-50' })),
-    ensureCurrent: jest.fn(async () => {}),
-    patternModel: () => ({ model: 'test/model', job: 'assessment.generate' }),
-    resolveModelForJob: () => ({ model: 'test/model' }),
-    buildSystemPrompt: () => 'SYSTEM',
-    sectionText: (section, loaded) => ({ content: loaded.content, pageReference: loaded.pageReference }),
-    buildPatternUserPrompt: ({ section }) => { calls.prompts.push(section.id); return `PROMPT ${section.id}\n${NO_PICTURES}`; },
-    sectionMessages: ({ system, user }) => [{ role: 'system', content: system }, { role: 'user', content: user }],
-    warmSharedPrefixes: async () => [],
-    writeSection: jest.fn(async ({ messages, section }) => {
-      const usages = [{ prompt_tokens: 10, completion_tokens: 5, total_tokens: 15, cost: 0.01 }];
-      if (section.id === 'oral') {
-        calls.oral.push(messages);
-        const r = oralReplies[calls.oral.length - 1];
-        return { tree: r || oralTree(P.oral), usages };
-      }
-      calls.sections.push({ id: section.id, user: messages[1].content });
-      sectionN[section.id] = (sectionN[section.id] || 0) + 1;
-      const opts = (replies[section.id] || [])[sectionN[section.id] - 1] || {};
-      return { tree: treeFor(section, opts), usages };
-    }),
-    mergeSections: (trees) => {
-      const out = { unseen: { objective: {}, subjective: {} } };
-      trees.forEach((t) => Object.entries(t.unseen).forEach(([cat, types]) => Object.entries(types).forEach(([type, list]) => {
-        out.unseen[cat][type] = (out.unseen[cat][type] || []).concat(JSON.parse(JSON.stringify(list)));
-      })));
-      return out;
-    },
-    stripImageKeys: () => {},
-    normaliseAnswers: () => {},
-    emptyQuestionParts: () => [],
-    topUp: (first, second) => second,
-    sumUsage: (us) => ({ prompt_tokens: us.reduce((n, u) => n + u.prompt_tokens, 0), completion_tokens: 0, total_tokens: 0, cost: us.reduce((n, u) => n + u.cost, 0) }),
-    countQuestions: () => 1,
-    fail: (code, message, extra) => Object.assign(new Error(message), { code }, extra),
-    logToFile: jest.fn(),
-    resolvePictures: pictures || jest.fn(async (examJson) => {
-      Object.values(examJson.unseen).forEach((t) => Object.values(t).forEach((l) => l.forEach((q) => { if (q.picture) q.picture.src = 'data:x'; })));
-      return examJson;
-    }),
-  };
-  return { d, calls };
-}
-
-const run = (grade, key, opts) => {
-  const P = Patterns.get(`fde_g${grade}_2026`).subjects[key];
-  const { d, calls } = deps(P, opts);
-  return { P, d, calls, go: () => writeEarlyPaper({ grade, subject: key, pattern: `fde_g${grade}_2026`, P }, d) };
-};
-
-const items = (examJson) => Object.values(examJson.unseen).flatMap((t) => Object.values(t)).flat();
+const { run, oralTree, slotOf1, items } = require('./helpers/early-writer-harness'); // the faked writer, shared with the v34 oral tests
 
 test.each([[1, 'maths'], [1, 'english'], [1, 'urdu'], [1, 'general_knowledge'], [2, 'maths'], [2, 'english'], [2, 'urdu'], [2, 'general_knowledge']])(
   'Grade %i %s lays out whole, with its real subject, its pictures and its oral part', async (grade, key) => {
@@ -186,9 +92,25 @@ test('a section whose picture repeats an earlier question is asked once more, to
   expect(cats.map((q) => q.slot)).toEqual(['g1.english.A.Q1']);
 });
 
-test('a repeat left after the re-ask is logged and the paper still comes back', async () => {
+// v37 loop 4 G2 English: C re-asked whole came back without Q16 and the paper failed (bd-5jmnfj.4.58.9.1).
+test('a section re-asked whole that leaves a question out keeps the first reply\'s question, never a short paper', async () => {
+  const { go } = run(1, 'english', { replies: { C: [{ names: { 'g1.english.C.Q11': ['cat'] } }, { drop: ['g1.english.C.Q13'] }], A: [{ names: { 'g1.english.A.Q1': ['cat'] } }] } });
+  const out = await go();
+  expect(items(out.examJson).filter((q) => q.slot === 'g1.english.C.Q13')).toHaveLength(2);
+});
+
+test('two questions in one section showing one thing: that section is re-asked, told which items repeat', async () => {
+  const { calls, go } = run(1, 'english', { replies: { A: [{ names: { 'g1.english.A.Q1': ['cat'], 'g1.english.A.Q4': ['cat'] } }] } });
+  await go();
+  const a = calls.sections.filter((x) => x.id === 'A');
+  expect(a).toHaveLength(2);
+  expect(a[1].user).toMatch(/\bcat\b/);
+  expect(a[1].user).toMatch(/different word/i);
+});
+
+test('a repeat left after the re-ask and one more ask is logged and the paper still comes back', async () => {
   const again = { names: { 'g1.english.C.Q11': ['cat'] } };
-  const { d, go } = run(1, 'english', { replies: { A: [{ names: { 'g1.english.A.Q1': ['cat'] } }], C: [again, again] } });
+  const { d, go } = run(1, 'english', { replies: { A: [{ names: { 'g1.english.A.Q1': ['cat'] } }], C: [again, again, again] } }); // the last reply is the one extra ask (bd-5jmnfj.4.58.2)
   const out = await go();
   expect(out.examJson).toBeDefined();
   expect(d.logToFile).toHaveBeenCalledWith('[assessment] repeated pictures', expect.objectContaining({
@@ -209,11 +131,77 @@ test('a section keyed off its own rule is asked once more, told the item and the
   expect(d.logToFile).not.toHaveBeenCalledWith('[assessment] answers off the rule', expect.anything());
 });
 
-test('a key still off its rule after the re-ask is logged and the paper still comes back', async () => {
-  const { d, go } = run(2, 'english', { replies: { B: [above, above] } });
+// v20 G1 English: Section C was re-asked for Q12's repeated dog and cat; its new Q13 asked about a gift,
+// and nothing checked the second reply (bd-5jmnfj.4.40).
+const gift = { keys: { 'g1.english.C.Q13': [{ question: 'A child gets a gift from a friend. What will she say?' }] } };
+
+test('a key off its rule in a re-asked reply is asked once more, and only that question is swapped in', async () => {
+  const { d, calls, go } = run(1, 'english', { replies: {
+    A: [{ names: { 'g1.english.A.Q1': ['cat'] } }], C: [{ names: { 'g1.english.C.Q11': ['cat'] } }, gift],
+  } });
+  const out = await go();
+  const c = calls.sections.filter((x) => x.id === 'C');
+  expect(c).toHaveLength(3);
+  expect(c[2].user).toMatch(/gift from a friend/);
+  expect(items(out.examJson).filter((q) => /gift/.test(q.question))).toHaveLength(0);
+  expect(items(out.examJson).filter((q) => q.slot === 'g1.english.C.Q13')).toHaveLength(slotOf1('g1.english.C.Q13').generate);
+  expect(items(out.examJson).filter((q) => q.picture && q.picture.name === 'cat').map((q) => q.slot)).toEqual(['g1.english.A.Q1']);
+  expect(d.logToFile).not.toHaveBeenCalledWith('[assessment] answers off the rule', expect.anything());
+});
+
+test('a key off its rule after the re-ask is asked once more', async () => {
+  const { calls, go } = run(2, 'english', { replies: { B: [above, above] } });
+  await go();
+  expect(calls.sections.filter((c) => c.id === 'B')).toHaveLength(3);
+});
+
+test('a key still off its rule after both re-asks is logged and the paper still comes back', async () => {
+  const { d, go } = run(2, 'english', { replies: { B: [above, above, above] } });
   const out = await go();
   expect(out.examJson).toBeDefined();
   expect(d.logToFile).toHaveBeenCalledWith('[assessment] answers off the rule', expect.objectContaining({
     answers: [{ slot: 'g2.english.B.Q10', reason: 'answer', items: ['The bird is ____ the tree. → above'] }],
   }));
+});
+
+// v17 G2 GK asked the capital, the national animal and the root in two questions each: the sections
+// were written at once, blind to each other (bd-5jmnfj.4.16).
+test('sections are written in turn, each told what the earlier ones asked', async () => {
+  const { P, d, calls, go } = run(2, 'general_knowledge');
+  let running = 0;
+  let most = 0;
+  const write = d.writeSection.getMockImplementation();
+  d.writeSection.mockImplementation(async (args) => {
+    running += 1; most = Math.max(most, running);
+    await new Promise((r) => setTimeout(r, 2));
+    running -= 1;
+    return write(args);
+  });
+  await go();
+  expect(calls.sections.map((c) => c.id)).toEqual(P.sections.map((s) => s.id));
+  expect(calls.sections[0].user).not.toMatch(/already asks/);
+  expect(calls.sections[1].user).toMatch(/already asks/);
+  expect(calls.sections[1].user).toContain('Question 1 for g2.general_knowledge.A.Q1 → 1');
+  expect(most).toBeLessThanOrEqual(1 + (P.oral ? 1 : 0));
+});
+
+test('a re-asked section keeps the note of what the earlier sections asked', async () => {
+  const { calls, go } = run(1, 'maths', { replies: { B: [{ noPicture: ['g1.maths.B.Q7'] }] } });
+  await go();
+  const b = calls.sections.filter((c) => c.id === 'B');
+  expect(b).toHaveLength(2);
+  expect(b[1].user).toMatch(/already asks/);
+});
+
+// v26 G2 Urdu Q1 iv: the who-said MCQ offered names the book dialogue does not hold (bd-5jmnfj.4.58.2).
+const BOOK_URDU = 'غصیلا بھنورا: میں تم سے لڑائی کروں گا۔ تتلیا: میں تتلیا ہوں۔ ٹڈی: آؤ سب دوست بن جائیں۔ '.repeat(6);
+const garbled = { keys: { 'g2.urdu.A.Q1': [{ question: 'لڑائی کے بعد کس نے سب کو دوست بننے کو کہا؟', options: ['الف) غصیلے کیڑے نے', 'ب) ٹڈی نے', 'ج) تگیا نے'], answer: 'الف) غصیلے کیڑے نے' }] } };
+
+test('a who-said item with names the book text lacks is asked once more, told the item', async () => {
+  const { calls, go } = run(2, 'urdu', { replies: { A: [garbled] }, book: BOOK_URDU });
+  await go();
+  const a = calls.sections.filter((c) => c.id === 'A');
+  expect(a).toHaveLength(2);
+  expect(a[1].user).toMatch(/تگیا/);
+  expect(a[1].user).toMatch(/book text does not hold/);
 });

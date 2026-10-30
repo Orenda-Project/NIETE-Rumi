@@ -7,8 +7,9 @@
  * Pure: no I/O. With no stems ticked both are no-ops, so every other paper is unchanged.
  */
 
-const withStems = (types) => (Array.isArray(types) ? types : [])
-  .filter((t) => t && Array.isArray(t.stems) && t.stems.length);
+const withStems = (types) => (Array.isArray(types)
+  ? types.filter((t) => t && Array.isArray(t.stems) && t.stems.length)
+  : []);
 
 /** Prompt lines for the types that carry stems; '' when none do. */
 function stemsBlock(types) {
@@ -29,11 +30,11 @@ const norm = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').replace(/
 function applyStems(examJson, types) {
   const misses = [];
   const unseen = examJson && examJson.unseen;
-  if (!unseen || typeof unseen !== 'object') return { misses };
+  if (!unseen) return { misses };
   for (const t of withStems(types)) {
     const byNorm = new Map(t.stems.map((s) => [norm(s), s]));
     for (const section of Object.values(unseen)) {
-      if (!section || typeof section !== 'object') continue;
+      if (!section) continue;
       // The writer may key a type in another case ("Fill in the blanks" for "Fill in the Blanks").
       const key = Object.keys(section).find((k) => norm(k) === norm(t.id));
       const items = key && section[key];

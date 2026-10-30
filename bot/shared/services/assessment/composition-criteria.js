@@ -104,7 +104,7 @@ const TEMPLATES = deepFreeze({
     rows: [
       { name: 'عنوان', marks: 1 }, // needs fluent-Urdu review
       { name: 'تصویر کا بیان', marks: 4 }, // needs fluent-Urdu review
-      { name: 'مددگار الفاظ کا درست استعمال (ہر لفظ ½)', marks: 3 }, // needs fluent-Urdu review
+      { name: 'کوئی سے چھ مددگار الفاظ کا درست استعمال (ہر لفظ ½)', marks: 3 }, // needs fluent-Urdu review
       { name: 'زبان', marks: 1 }, // needs fluent-Urdu review
       { name: 'صفائی', marks: 1 }, // needs fluent-Urdu review
     ],

@@ -3,7 +3,8 @@
  * Writes a Grade 1-2 FDE practice paper (bd-5jmnfj.4.1): Grade 5's pattern writer,
  * cut down to what an early paper needs, plus pictures and the oral part.
  *
- *   1. every section is written from the whole book, in parallel with the oral part;
+ *   1. every section is written from the whole book, one after another, each told what the
+ *      earlier ones asked so no fact is asked twice; the oral part is written beside them;
  *   2. the paper is laid out on the masked pattern (fde-early-prompt maskP), so none
  *      of Grade 5's per-subject layout rules apply;
  *   3. a section short of items, marking points or pictures is asked once more (a
@@ -21,6 +22,13 @@ const { normaliseScheme } = require('./marking-scheme');
 const { mathsCheck } = require('./maths-check');
 const { checkBlueprint } = require('./blueprint-check');
 const Prompt = require('./fde-early-prompt');
+const { dealOrders } = require('./fde-order-block');
+const { noArrows } = require('./fde-no-arrows');
+const { answerRepeats, giveawayNote, stillGivenAway, writtenGiveaways } = require('./fde-answer-repeats');
+const { dealScrambles } = require('./fde-scramble-block');
+const { keyShortfall } = require('./fde-key-checks');
+const { whoSaidShortfall } = require('./fde-who-said-check'); const { freshReadWords } = require('./fde-oral-fresh-words'); const { urduOralFixes } = require('./fde-early-urdu-oral'); const { citePoemPage } = require('./fde-urdu-r4'); // bd-5jmnfj.4.58.4
+const { earlyKeyFixes } = require('./fde-early-key-fixes'); const { commonErrorNumbers } = require('./fde-common-error-numbers'); const { earlyEnglishFixes } = require('./fde-early-english-fixes'); const { earlyUrduFixes } = require('./fde-early-urdu-fixes'); const { acceptAlternatives } = require('./fde-accept-alternatives'); const { mendReadAloud } = require('./fde-read-aloud-grammar'); const { correctMisreads } = require('./fde-urdu-nonword'); const { keepMissing } = require('./fde-keep-missing'); // bd-5jmnfj.4.58.3/.4/.9.1/.9.2/.9.3
 
 const SCOPE = Object.freeze({ kind: 'fde', chapters: null, pages: null });
 const ORAL_SECTION = Object.freeze({ id: 'oral', slots: [] });
@@ -28,6 +36,30 @@ const ORAL_SYSTEM = 'You write the oral part of primary-school practice papers f
 
 function realPictures() {
   return require('./fde-pictures').resolvePictures;
+}
+
+const eachList = (tree, fn) => Object.values(tree || {}).forEach((branch) => Object.values(branch || {}).forEach((types) => {
+  if (types && typeof types === 'object') Object.keys(types).forEach((k) => { if (Array.isArray(types[k])) fn(types, k); });
+}));
+
+// The kept tree with the fresh reply's items in place of its own for `slots`; a slot the reply left
+// empty keeps what it had.
+function swapSlots(kept, fresh, slots) {
+  const got = new Map();
+  eachList(fresh, (types, k) => types[k].forEach((q) => {
+    if (q && slots.has(q.slot)) got.set(q.slot, (got.get(q.slot) || []).concat(q));
+  }));
+  const out = JSON.parse(JSON.stringify(kept));
+  eachList(out, (types, k) => {
+    const done = new Set();
+    types[k] = types[k].flatMap((q) => {
+      if (!q || !got.has(q.slot)) return [q];
+      if (done.has(q.slot)) return [];
+      done.add(q.slot);
+      return got.get(q.slot);
+    });
+  });
+  return out;
 }
 
 async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, requestId = null }, d) {
@@ -69,7 +101,21 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     return d.writeSection({ messages, model, ownModel, job, pattern, section: ORAL_SECTION });
   };
 
-  const [results, oralFirst] = await Promise.all([Promise.all(built.map(writeOne)), P.oral ? writeOral(null) : null]);
+  // In turn, so each section sees what the ones before it asked (bd-5jmnfj.4.16). The note goes on
+  // the section's own prompt, so a re-ask keeps it.
+  const writeInTurn = async () => {
+    const done = [];
+    for (const b of built) {
+      const asked = Prompt.askedNote(done.map((r) => r.tree));
+      if (asked) {
+        b.user = `${b.user}\n\n${asked}`;
+        b.messages = d.sectionMessages({ system, user: b.user, pageContent: b.pageContent, model });
+      }
+      done.push(await writeOne(b));
+    }
+    return done;
+  };
+  const [results, oralFirst] = await Promise.all([writeInTurn(), P.oral ? writeOral(null) : null]);
   const extraUsages = [];
   const now = new Date().toISOString();
   const merged = () => {
@@ -85,6 +131,12 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     return laid;
   };
 
+  let oral = P.oral ? Prompt.oralContent(oralFirst.tree, P.oral, { saidCheck: P.medium !== 'ur' }) : null;
+  // The oral sheet is not on the layout until the end, so it is attached to a copy for the check: a written
+  // item asking an oral item's question is the written section's to fix (bd-5jmnfj.4.55).
+  const withOral = (ex) => (oral ? { ...ex, _layout: { ...ex._layout, oral: { ...P.oral, content: citePoemPage(oral.content, loaded.content) } } } : ex);
+  // A key off its word box, or a who question keyed with a sentence, is asked again like a key off its rule (bd-5jmnfj.4.57).
+  const keysOff = (ex) => Prompt.answerShortfall(ex, P).concat(keyShortfall(ex, P, loaded.content), whoSaidShortfall(ex, loaded.content, P)); // names the book text lacks (bd-5jmnfj.4.58.2)
   const firstLaid = lay(false);
   const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
   const short = firstLaid.shortfall
@@ -92,21 +144,27 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     .concat(d.emptyQuestionParts(firstLaid.examJson))
     .concat(Prompt.pictureShortfall(firstLaid.examJson, P))
     .concat(Prompt.repeatedPictures(firstLaid.examJson, P))
-    .concat(Prompt.answerShortfall(firstLaid.examJson, P));
+    .concat(keysOff(firstLaid.examJson))
+    .concat(writtenGiveaways(answerRepeats(withOral(firstLaid.examJson))));
   const shortSlots = new Set(short.map((f) => f.slot));
   const again = built.filter(({ section }) => section.slots.some((s) => shortSlots.has(s.slot)));
 
-  let oral = P.oral ? Prompt.oralContent(oralFirst.tree, P.oral) : null;
-  const reaskOral = async () => {
-    d.logToFile('[assessment] oral re-asked', { requestId, pattern, missing: oral.missing });
-    const second = await writeOral(`Last time these tasks came back without what they need: ${oral.missing.join(', ')}. Write every task in full.`);
-    const next = Prompt.oralContent(second.tree, P.oral);
-    // A task the first reply filled keeps it; the second reply fills the rest.
-    const content = P.oral.tasks
-      .map((t) => oral.content.find((c) => c.id === t.id) || next.content.find((c) => c.id === t.id))
-      .filter(Boolean);
+  const oralHits = (ex) => answerRepeats(withOral(ex)).filter((f) => f.with.includes('oral'));
+  const readAloud = P.oral ? P.oral.tasks.filter((t) => t.kind === 'read_aloud').map((t) => t.id) : [];
+  const reaskOral = async (hits) => {
+    const words = [...new Set(hits.flatMap((f) => f.words))];
+    d.logToFile('[assessment] oral re-asked', { requestId, pattern, missing: oral.missing, flagged: oral.flagged, giveaways: words });
+    const note = [
+      oral.missing.length ? `Last time these tasks came back without what they need: ${oral.missing.join(', ')}. Write every task in full.` : null,
+      // A present task with its Urdu wording off is asked again once, never failed (v34 g1/g2 Urdu poem, bd-5jmnfj.4.58.6.1).
+      oral.flagged.length ? `Rewrite these tasks: ${oral.flagged.join(', ')}. Each item asks one thing; a model answer is the answer alone, never the question's words or «نظم میں»; a poem is never a hamd, naat, prayer or any poem that names God: choose a different, non-religious book poem about nature, family, school, animals or play; a poem question never names God, prayer or a religious form the poem does not print, and never prints another question's answer; a dialogue opens with a greeting or a question, never a reply; a read-aloud card is one continuous passage from one place in the book whose first sentence names who it is about, so every he, she, they or it has a name or noun before it.` : null,
+      words.length ? `Do not use these words in the read-aloud task: ${words.join(', ')}. They are answers on the written paper.` : null,
+    ].filter(Boolean).join(' ');
+    const second = await writeOral(note);
+    const next = Prompt.oralContent(second.tree, P.oral, { saidCheck: P.medium !== 'ur' });
     extraUsages.push(...second.usages);
-    oral = { content, missing: P.oral.tasks.map((t) => t.id).filter((id) => !content.some((c) => c.id === id)) };
+    // The read-aloud task with a give-away and a flagged task take the second reply's version; every other task keeps the first's.
+    oral = Prompt.mergeOral(P.oral.tasks, oral, next, new Set((words.length ? readAloud : []).concat(oral.flagged)));
   };
 
   const reask = async (b) => {
@@ -117,22 +175,65 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     extraUsages.push(...first.usages);
     const topUp = shortfall.every((f) => layoutShort.has(f.slot));
     const pictures = shortfall.some((f) => f.reason === 'repeat')
-      ? Prompt.takenPicturesNote(results.filter((r) => r.id !== b.section.id).map((r) => r.tree))
+      ? Prompt.takenPicturesNote(results.filter((r) => r.id !== b.section.id).map((r) => r.tree), shortfall)
       : null;
-    const note = [takenNote(MP, b.section, firstLaid.examJson, { topUp, shortfall, held: firstLaid.held }), pictures, Prompt.answerNote(shortfall, P)]
+    const note = [takenNote(MP, b.section, firstLaid.examJson, { topUp, shortfall, held: firstLaid.held }), pictures, Prompt.answerNote(shortfall, P), giveawayNote(shortfall)]
       .filter(Boolean).join('\n\n');
     const second = await writeOne(note
       ? { ...b, messages: d.sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
       : b);
-    results[i] = topUp ? { ...second, tree: d.topUp(first.tree, second.tree, new Set(shortfall.map((f) => f.slot))) } : second;
+    results[i] = topUp ? { ...second, tree: d.topUp(first.tree, second.tree, new Set(shortfall.map((f) => f.slot))) } : { ...second, tree: keepMissing(second.tree, first.tree, b.section.slots.map((s) => s.slot)) }; // never a question lost (v37 G2 C.Q16)
+  };
+  const reaskAnswers = async (b, late) => {
+    const shortfall = late.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
+    const i = results.findIndex((r) => r.id === b.section.id);
+    d.logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall, after: 're-ask' });
+    extraUsages.push(...results[i].usages);
+    const user = `${b.user}\n\n${[Prompt.answerNote(shortfall, P), giveawayNote(shortfall)].filter(Boolean).join('\n\n')}`;
+    const next = await writeOne({ ...b, messages: d.sectionMessages({ system, user, pageContent: b.pageContent, model }) });
+    results[i] = { ...next, tree: keepMissing(swapSlots(results[i].tree, next.tree, new Set(shortfall.map((f) => f.slot))), results[i].tree, b.section.slots.map((s) => s.slot)) };
   };
   // A section re-asked for a repeated picture goes one at a time, so each sees the others' new pictures.
   const repeats = new Set(short.filter((f) => f.reason === 'repeat').map((f) => f.slot));
   const isRepeat = (b) => b.section.slots.some((s) => repeats.has(s.slot));
   const inTurn = async () => { for (const b of again.filter(isRepeat)) await reask(b); };
-  await Promise.all([...again.filter((b) => !isRepeat(b)).map(reask), inTurn(), oral && oral.missing.length ? reaskOral() : null]);
+  const oralFound = oral ? oralHits(firstLaid.examJson) : [];
+  await Promise.all([...again.filter((b) => !isRepeat(b)).map(reask), inTurn(), oral && (oral.missing.length || oral.flagged.length || oralFound.length) ? reaskOral(oralFound) : null]);
 
-  const laid = lay(again.length > 0);
+  let laid = lay(again.length > 0);
+  // The oral re-ask is checked again: a read-aloud word still given away is asked once more (v24 G1 English «cat»).
+  const oralLeft = oralFound.length ? oralHits(laid.examJson) : [];
+  if (oralLeft.length) await reaskOral(oralLeft);
+  // A re-asked reply is checked again: v20's Section C, re-asked for Q12's repeated dog and cat, came back
+  // with a Q13 about a gift (bd-5jmnfj.4.40). A key still off its rule is asked once more, and only
+  // those questions are swapped in, so the rest of the section stays as it was checked.
+  // The same check finds a give-away still there, and that is asked again too.
+  const late = again.length
+    ? keysOff(laid.examJson).concat(writtenGiveaways(stillGivenAway(withOral(laid.examJson))))
+    : [];
+  const reaskLate = async (flags) => {
+    await Promise.all(built.filter(({ section }) => section.slots.some((s) => flags.some((f) => f.slot === s.slot)))
+      .map((b) => reaskAnswers(b, flags)));
+    laid = lay(true);
+  };
+  if (late.length) await reaskLate(late);
+  // A give-away a child can see, still there after that, is asked exactly once more. A repeat never costs the
+  // teacher a paper: one still there after this ships and is logged below (bd-5jmnfj.4.55).
+  const lastly = late.length ? writtenGiveaways(stillGivenAway(withOral(laid.examJson))).filter((f) => f.printed) : [];
+  if (lastly.length) await reaskLate(lastly);
+  // A picture still repeated after those is asked once more, a section at a time so each sees the others' new
+  // pictures; one still there ships and is logged below (bd-5jmnfj.4.58.2: v26 G1 English spoon in Q7 v and Q12 i).
+  const stuck = Prompt.repeatedPictures(laid.examJson, P);
+  for (const b of built.filter(({ section }) => section.slots.some((s) => stuck.some((f) => f.slot === s.slot)))) {
+    const i = results.findIndex((r) => r.id === b.section.id);
+    const mine = stuck.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
+    const note = Prompt.takenPicturesNote(results.filter((r) => r.id !== b.section.id).map((r) => r.tree), mine);
+    d.logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall: mine, after: 'picture repeat' });
+    extraUsages.push(...results[i].usages);
+    const next = await writeOne({ ...b, messages: d.sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });
+    results[i] = { ...next, tree: swapSlots(results[i].tree, next.tree, new Set(mine.map((f) => f.slot))) };
+  }
+  if (stuck.length) laid = lay(true);
   let examJson = laid.examJson;
   const layout = { placed: laid.placed, unplaced: firstLaid.unplaced };
   d.logToFile('[assessment] layout applied', {
@@ -143,28 +244,36 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   const repeated = Prompt.repeatedPictures(examJson, P);
   if (repeated.length) d.logToFile('[assessment] repeated pictures', { requestId, pattern, repeated });
   // So is a key still off its slot's rule: one wrong item is better than no paper for the teacher.
-  const answers = Prompt.answerShortfall(examJson, P);
+  const answers = keysOff(examJson);
   if (answers.length) d.logToFile('[assessment] answers off the rule', { requestId, pattern, answers });
   const finalShort = laid.shortfall.concat(d.emptyQuestionParts(examJson), Prompt.pictureShortfall(examJson, P));
   if (finalShort.length) {
     throw d.fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: finalShort, examJson, model });
   }
+  if (oral && oral.flagged.length) d.logToFile('[assessment] oral task kept flagged', { requestId, pattern, flagged: oral.flagged }); // mended below by urduOralFixes: a flag never costs the teacher a paper
   if (oral && oral.missing.length) {
     throw d.fail('ORAL_SHORT', 'The oral part came back short.', { missing: oral.missing, examJson, model });
   }
 
   const scheme = normaliseScheme(examJson);
   examJson = scheme.examJson;
+  examJson = noArrows(dealScrambles(dealOrders(examJson))); // bd-5jmnfj.4.50.1: no arrow in any text a child or teacher reads
   if (scheme.shortfall.length) {
     throw d.fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: scheme.shortfall, examJson, model });
   }
   if (P.key === 'maths') examJson = mathsCheck(examJson, { subject: 'maths' }).examJson;
+  const early = earlyEnglishFixes(earlyKeyFixes(acceptAlternatives(examJson, P).examJson)); examJson = early.examJson; // a letter key, a word-problem key (v27, bd-5jmnfj.4.58.3)
+  const slips = commonErrorNumbers(examJson); const urdu = earlyUrduFixes(slips.examJson, loaded.content); examJson = urdu.examJson; // a common error the numbers cannot give (v28, bd-5jmnfj.4.58.4)
+  early.notes.concat(slips.notes, urdu.notes).forEach((n) => d.logToFile('[assessment] key fixed', n));
 
   const sectionLevels = P.sections.every((s) => s.levels) ? Object.fromEntries(P.sections.map((s) => [s.id, s.levels])) : null;
   const blueprint = checkBlueprint(examJson, { tos: P.tos || null, sectionLevels });
   examJson._layout.blueprint = blueprint;
   d.logToFile('[assessment] blueprint checked', { pattern, subject: P.key, ok: blueprint.ok, total: blueprint.total, levels: blueprint.levels, problems: blueprint.problems });
-  if (P.oral) examJson._layout.oral = { ...P.oral, content: oral.content };
+  if (P.oral) { const ra = mendReadAloud(urduOralFixes(freshReadWords({ ...examJson, _layout: { ...examJson._layout, oral: { ...P.oral, content: citePoemPage(oral.content, loaded.content) } } }, (n) => d.logToFile('[assessment] oral word replaced', n)).examJson).examJson); examJson = correctMisreads(ra.examJson).value; ra.notes.forEach((n) => d.logToFile('[assessment] read-aloud grammar', n)); } // a read-aloud word the paper prints; v29 Urdu oral fixes (bd-5jmnfj.4.58)
+  // An answer word still given away after the re-ask, or by the oral sheet, is logged (bd-5jmnfj.4.50.8).
+  const giveaways = answerRepeats(examJson);
+  if (giveaways.length) d.logToFile('[assessment] answers given away', { requestId, pattern, giveaways });
 
   try {
     await (d.resolvePictures || realPictures())(examJson);

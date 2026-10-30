@@ -8,7 +8,7 @@ const { makeSubject } = require('./chrome');
 
 const S = (o) => ({ marks_each: 1, ...o });
 const WP = (o) => ({ marks_each: 3, generate: 1, lines: 3, ...o,
-  prompt_rule: `${o.prompt_rule} Scheme: M 1 for the number sentence, M 1 for the working, A 1 for the answer with its word.` });
+  prompt_rule: `${o.prompt_rule} Scheme: M 1 for a correct method carried out (a one-step problem has one method), A 2 for the correct answer: never two separate M marks for one step. The method mark pays any correct working (a number sentence, column working or a drawing): the paper says only "Show your working", so never write "writes the number sentence" as a requirement. The unit word is accepted, not required.` });
 
 module.exports = makeSubject({
   grade: 2,
@@ -28,7 +28,7 @@ module.exports = makeSubject({
           instruction_en: 'Choose the correct answer.',
           prompt_rule: 'Five three-option MCQs from the book: place value, before/after, even/odd, greatest number, half.' }),
         S({ slot: 'g2.maths.A.Q2', label_en: 'Q2.', type: 'Place Value', generate: 5,
-          instruction_en: 'Write the place value of the underlined digit\'s place as asked.',
+          instruction_en: 'Write the value of the digit.',
           prompt_rule: 'Five three-digit numbers up to 999. Stem names the digit in words, e.g. "In 472, what is the value of 7?" (never an underline). Answer: the value (70).' }),
         S({ slot: 'g2.maths.A.Q3', label_en: 'Q3.', type: 'Numbers in Words', generate: 5,
           instruction_en: 'Write in words.',
@@ -47,16 +47,16 @@ module.exports = makeSubject({
       levels: { Remember: 5, Understand: 8, Apply: 12 },
       slots: [
         S({ slot: 'g2.maths.B.Q6', label_en: 'Q6.', type: 'Addition', generate: 4, lines: 2,
-          instruction_en: 'Add.', prompt_rule: 'Four column sums of two- and three-digit numbers, two with carrying. Answer: the sum.' }),
-        WP({ slot: 'g2.maths.B.Q7', label_en: 'Q7.', type: 'Addition Word Problem', instruction_en: 'Solve.',
+          instruction_en: 'Add.', prompt_rule: 'Four column sums of two- and three-digit numbers, two with carrying. Answer: the sum. The common error must be one these numbers can produce (no carry slip where no column carries), with the number that mistake gives.' }),
+        WP({ slot: 'g2.maths.B.Q7', label_en: 'Q7.', type: 'Addition Word Problem', instruction_en: 'Solve. Show your working.',
           prompt_rule: 'One addition story from the book, numbers up to 999.' }),
         S({ slot: 'g2.maths.B.Q8', label_en: 'Q8.', type: 'Subtraction', generate: 4, lines: 2,
-          instruction_en: 'Subtract.', prompt_rule: 'Four column subtractions, two- and three-digit, two with borrowing. Answer: the difference.' }),
-        WP({ slot: 'g2.maths.B.Q9', label_en: 'Q9.', type: 'Subtraction Word Problem', instruction_en: 'Solve.',
+          instruction_en: 'Subtract.', prompt_rule: 'Four column subtractions, two- and three-digit, two with borrowing. Answer: the difference. The common error must be one these numbers can produce (no borrowing slip where no column regroups), with the number that mistake gives (smaller digit taken from the larger in each place: 703 - 248 gives 545).' }),
+        WP({ slot: 'g2.maths.B.Q9', label_en: 'Q9.', type: 'Subtraction Word Problem', instruction_en: 'Solve. Show your working.',
           prompt_rule: 'One subtraction story from the book, numbers up to 999.' }),
         S({ slot: 'g2.maths.B.Q10', label_en: 'Q10.', type: 'Multiplication', generate: 3, lines: 1,
           instruction_en: 'Multiply.', prompt_rule: 'Three facts from the 2, 3, 4, 5 and 10 tables. Answer: the product.' }),
-        WP({ slot: 'g2.maths.B.Q11', label_en: 'Q11.', type: 'Multiplication Word Problem', instruction_en: 'Solve.',
+        WP({ slot: 'g2.maths.B.Q11', label_en: 'Q11.', type: 'Multiplication Word Problem', instruction_en: 'Solve. Show your working.',
           prompt_rule: 'One equal-groups story from the book using the 2, 3, 4, 5 or 10 tables.' }),
         S({ slot: 'g2.maths.B.Q12', label_en: 'Q12.', type: 'Division', generate: 5, lines: 1,
           instruction_en: 'Divide.', prompt_rule: 'Five sharing facts from the 2, 3, 4, 5 and 10 tables, no remainder. Answer: the quotient.' }),
