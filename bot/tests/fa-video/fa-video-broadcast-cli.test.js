@@ -40,3 +40,16 @@ test('send reports a Meta refusal or a network error as not ok, never throws', a
   const down = makeDeps({ token: 'T', phoneId: 'P1', fetchFn: jest.fn().mockRejectedValue(new Error('ECONNRESET')) });
   expect(await down.send('9', [])).toEqual({ ok: false, error: 'ECONNRESET' });
 });
+
+test('bd-pw1ccr.12: templateStatus reads the approved status and category from the WABA', async () => {
+  const fetchFn = jest.fn().mockResolvedValue(reply({ data: [{ name: 'niete_fa_video_ab_v1', status: 'APPROVED', category: 'MARKETING' }] }));
+  const d = makeDeps({ token: 'T', phoneId: 'P1', wabaId: 'W1', fetchFn });
+  expect(await d.templateStatus()).toEqual({ status: 'APPROVED', category: 'MARKETING' });
+  expect(fetchFn.mock.calls[0][0]).toMatch(/\/W1\/message_templates\?name=niete_fa_video_ab_v1/);
+});
+
+test('bd-pw1ccr.12: no WABA id, or no such template: status and category unknown', async () => {
+  expect(await makeDeps({ token: 'T', phoneId: 'P1', fetchFn: jest.fn() }).templateStatus()).toEqual({ status: null, category: null });
+  const none = makeDeps({ token: 'T', phoneId: 'P1', wabaId: 'W1', fetchFn: jest.fn().mockResolvedValue(reply({ data: [] })) });
+  expect(await none.templateStatus()).toEqual({ status: null, category: null });
+});

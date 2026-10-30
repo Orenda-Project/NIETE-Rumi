@@ -5,7 +5,8 @@
  * WHICH TOPIC. A lesson plan knows its chapter and its `segment_index` (1..n); a topic knows its
  * curriculum-matrix days (`assessment_topics.days`, a running count across the grade-subject). The two
  * line up by offset: lesson day = the chapter's first topic day + segment_index − 1. A topic ends at the
- * lesson whose day is the topic's last. Checked on sandbox, 29 Oct 2026: 230 of 233 chapters align; the
+ * lesson whose day is the topic's last; near the end (bd-pw1ccr.11) also counts the day before the last
+ * when the topic runs 3+ days. Checked on sandbox, 29 Oct 2026: 230 of 233 chapters align; the
  * three that do not (G1 Maths ch2-4) fail the guard below and are skipped, never guessed.
  *
  * Worksheet (995) and revision (990) plans are not teaching days. A split day (seg4 + seg4b) shares one
@@ -51,8 +52,14 @@ function topicEndingAt({ lessons = [], topics = [], segmentIndex }) {
   const contiguous = teaching.every((i, k) => i === k + 1);
   if (!contiguous || teaching.length !== span) return { reason: 'chapter_unaligned' };
 
+  // bd-pw1ccr.11: the topic's last day, or the day before it when the topic runs 3+ days.
   const day = first + seg - 1;
-  const topic = topics.find((t) => Array.isArray(t.days) && t.days.length && Math.max(...t.days.map(Number)) === day);
+  const topic = topics.find((t) => {
+    const td = Array.isArray(t.days) ? t.days.map(Number) : [];
+    if (!td.length) return false;
+    const last = Math.max(...td);
+    return day === last || (td.length >= 3 && day === last - 1);
+  });
   return topic ? { topic } : { reason: 'topic_continues' };
 }
 
