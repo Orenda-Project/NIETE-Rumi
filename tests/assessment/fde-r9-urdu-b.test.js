@@ -172,6 +172,10 @@ describe('urdu backstop: an authored maxim in model text', () => {
     ['an obligation to pray', 'نماز ہم سب پر لازم ہے۔'],
     ['a saying with فرمایا', 'آپ نے فرمایا کہ سچ بولو'],
     ['Arabic letter forms', 'صفائي ايمان كا حصہ ہے'],
+    // v38 G4 Urdu Q5 accept line: a creator premise is authored religious text.
+    ['a creator premise (بنائی)', 'اللہ کی بنائی ہوئی کائنات بہت وسیع ہے۔'],
+    ['a creator premise (پیدا کیا)', 'اللہ تعالیٰ نے سورج کو پیدا کیا۔'],
+    ['a creator premise (بنایا)', 'اللہ نے زمین بنائی۔'],
   ])('held: %s', async (_name, text) => {
     book();
     fakeModel({ slot: 'urdu.C.Q8', patch: (q) => { q.answer = text; }, times: 2 });

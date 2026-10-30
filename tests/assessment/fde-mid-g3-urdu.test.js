@@ -32,3 +32,16 @@ test('letter and essay ask secular everyday topics', () => {
   expect(by.letter.prompt_rule).toMatch(/everyday/i);
   expect(by.essay.prompt_rule).toMatch(/everyday/i);
 });
+
+// v39 round-6 panel (bd-5jmnfj.33.7.1): the essay key paid three points and their order, which the printed Q7 instruction never asked for.
+test('Q7 instruction asks in words for the three points and their order that its scheme pays', () => {
+  const essay = slots.find((s) => s.slot === 'g3.urdu.C.essay');
+  expect(essay.instruction_ur).toBe('کوئی سے ایک موضوع پر مضمون لکھیں۔ کم از کم تین باتیں ترتیب سے لکھیں اور زبان و املا کا خیال رکھیں۔');
+  expect(essay.prompt_rule).toContain('Scheme (5): three different points about the topic 3 (1 each), order of ideas 1, language and spelling 1.');
+});
+
+// v40 round-6 (bd-5jmnfj.33.7.1): Q6 paid format, closing, language and spelling that its printed instruction never asked for.
+test('Q6 instruction asks in words for the opening, closing, language and spelling its scheme pays', () => {
+  const letter = slots.find((s) => s.slot === 'g3.urdu.C.letter');
+  expect(letter.instruction_ur).toBe('کوئی سے ایک خط یا درخواست لکھیں۔ آغاز اور اختتام درست طریقے سے لکھیں اور زبان و املا کا خیال رکھیں۔');
+});

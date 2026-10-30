@@ -1139,6 +1139,9 @@ const HELD_TERMS_URDU_AUTHORED = Object.freeze([
   { term: 'قرآن', pattern: 'قران(?:ی|ے)?' },
   { term: 'آیت', pattern: 'ایت(?:یں|وں)?|ایات' },
   { term: 'ارشاد', pattern: 'ارشاد' },
+  // v38 G4 Urdu Q5 accept «اللہ کی بنائی ہوئی کائنات»: a creator premise is the model's own religious claim.
+  // «اللہ تعالیٰ کرے» (a wish) is operator-allowed and does not match.
+  { term: 'اللہ کی بنائی', pattern: 'اللہ(?: تعالی)?(?: کی بنا(?:ئ|ی)|(?: نے| ہی نے)[^۔.!?؟]{0,40}?(?:پیدا ک|بنا(?:ی|ئ)))', open: true },
   // Worship is held as an exhortation or an obligation («نماز پڑھو», «پڑھنی چاہیے», «روزہ رکھنا فرض ہے»);
   // a narrated routine («صبح اٹھ کر نماز پڑھتا») is the prompt line's, not a maxim.
   { term: 'نماز پڑھ', pattern: `نماز ?پڑھ${URDU_EXHORT}`, open: true },
@@ -1355,6 +1358,8 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     rules.push('A model answer states only what the chapter text states; a check is paid only where the stem asks for one and uses a different method; an item never carries its own question number or label.');
     // v36 (bd-5jmnfj.33.7.2): keys paid the stem's own words, one fact twice, or past the asked end point.
     rules.push('Each marking point pays a different idea the stem asks for: never the stem\'s own words, never one idea twice, never an idea past what the stem asks (where the stem stops, the answer stops). A stem that asks for any example keys any example the chapter supports, and a common_error never names a correct case.');
+    // v38 round-6 panel (bd-5jmnfj.33.7.1): number sentences, units, greetings and reasons paid where the stem never asked.
+    rules.push('A unit, a number sentence, a complete sentence, a greeting or closing, or a reason earns a mark only when the stem or instruction asks for it in words.');
     rules.push('One stem asks one thing. An MCQ\'s options are all different strings. A chapter word is tested in one item only (a meaning, a spelling, a sentence or a question, never two of these), and an MCQ key, a blank sentence or a match pair is never the marking point of a written item.');
   } else if (key === 'science' || key === 'english') rules.push(RULE.grade5Words);
   if (hasMcq) {

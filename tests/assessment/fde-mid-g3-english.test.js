@@ -20,3 +20,18 @@ test('English shapes: MCQ is mcq, the rest subjective, the choice slots are any 
   expect(by.grammar.prompt_rule).toMatch(/do as directed|as directed/i);
   expect(by.present_continuous.prompt_rule).toMatch(/present continuous/i);
 });
+
+// v39 re-panel: Q7 printed bare under "Writing"; the example the model put in main_question never reaches the page.
+test('Q7 prints its own worked example and its section names the grammar it holds', () => {
+  const C = S.sections.find((s) => s.id === 'C');
+  const q7 = C.slots.find((s) => s.slot === 'g3.english.C.present_continuous');
+  expect(C.label_en).toBe('Writing and grammar');
+  expect(q7.instruction_en).toBe('Rewrite in the present continuous tense. Example: Mina reads a book. Mina is reading a book.');
+});
+
+// v40 round-6 (bd-5jmnfj.33.7.1): Q2 paid two marks for one changed word.
+test('Q2 do-as-directed items make two changes at one mark each', () => {
+  const g = S.sections.flatMap((x) => x.slots).find((s) => s.slot === 'g3.english.A.grammar');
+  expect(g.prompt_rule).toContain('A 1 for each of the two changes; never two marks for one changed word.');
+  expect(g.prompt_rule).not.toContain('A 2 for the correct sentence');
+});
