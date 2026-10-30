@@ -38,3 +38,27 @@ test('the table puts each stem beside a Column B cell, one row per pair', () => 
   expect((html.match(/<tr>/g) || [])).toHaveLength(2);
   expect(html).toContain('<td class="m-a">1 A</td><td class="m-gap"></td><td class="m-b">q</td>');
 });
+
+// bd-5jmnfj.33.5.4: G3 General Knowledge ch3 returned column_b [] with the pair joined by a colon in answer;
+// Column B printed the row's own Column A term and all five marks were free.
+describe('bd-5jmnfj.33.5.4 matchAnswer with a colon-joined pair', () => {
+  const { matchAnswer } = require('../../bot/shared/services/assessment/fde-match-block');
+  const A = 'قابو سے باہر اختلاف';
+
+  test('ASCII colon: Column B is the tail after the colon', () => {
+    expect(matchAnswer({ column_a: [A], column_b: [], answer: `${A}: لڑائی` })).toBe('لڑائی');
+  });
+
+  test('full-width colon: Column B is the tail after the colon', () => {
+    expect(matchAnswer({ column_a: [A], column_b: [], answer: `${A}：لڑائی` })).toBe('لڑائی');
+  });
+
+  test('guard: a real column_b still wins', () => {
+    expect(matchAnswer({ column_a: [A], column_b: ['لڑائی'], answer: `${A}: لڑائی` })).toBe('لڑائی');
+  });
+
+  test('only the row\'s own Column A prefix is stripped, so a time in Column B survives', () => {
+    expect(matchAnswer({ column_a: ['اسکول کا وقت'], column_b: [], answer: 'اسکول کا وقت: 10:30' })).toBe('10:30');
+    expect(matchAnswer({ column_a: ['وقت'], column_b: [], answer: '10:30' })).toBe('10:30');
+  });
+});
