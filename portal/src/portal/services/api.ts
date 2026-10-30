@@ -1156,6 +1156,11 @@ const coachDay = () => {
 };
 
 export const coach = {
+  /** bd-whlsm0: More → Report an issue, for the logged-in coach. */
+  reportIssue: async (body: { kind: 'broken' | 'numbers' | 'idea' | 'other'; message: string; page?: string }): Promise<{ success: boolean }> => {
+    const response = await api.post('/coach/feedback', body);
+    return response.data;
+  },
   getHome: async (): Promise<{ success: boolean; home: CoachHomeData }> => {
     const response = await api.get('/coach/home', { params: { today: coachDay() } });
     return response.data;
