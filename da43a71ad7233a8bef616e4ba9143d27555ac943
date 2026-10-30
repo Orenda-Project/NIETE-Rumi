@@ -1,1 +1,3 @@
 {"ts":"2026-10-30T16:33:10Z","hook":"post-commit","event":"switch-off","switch":"QA_HOOKS_OFF","detail":"","sha":"da43a71ad723","branch":"bd-9157r.1-74344","user":"Mah Noor"}
+{"ts":"2026-10-30T16:33:11Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"da43a71ad723","branch":"bd-9157r.1-74344","user":"Mah Noor"}
+{"ts":"2026-10-30T16:33:38Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (merge of sandbox: its training change bd-jtgjt8.1 came with its own spec+driver sync 60c56b3f8; this merge adds no behaviour; validate_specs --only training OK)","sha":"da43a71ad723","branch":"bd-9157r.1-74344","user":"Mah Noor"}
