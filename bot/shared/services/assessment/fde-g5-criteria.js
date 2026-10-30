@@ -12,6 +12,8 @@
  * Pure: rows in, rows out; never throws.
  */
 
+const { alignCriteria } = require('./fde-g5-criteria-2');
+
 const TITLE = /عنوان/;
 const THIN = /کم از کم آٹھ باتیں/;
 const COUNT = /(\S+)\s+سے\s+(\S+)\s+جملے/;
@@ -22,7 +24,7 @@ const stemOf = (slot) => [slot && slot.instruction_ur, ...((slot && slot.or_part
 function adjustCriteria(rows, slot) {
   if (!Array.isArray(rows) || !slot) return rows;
   const stem = stemOf(slot);
-  let out = rows;
+  let out = alignCriteria(rows, slot);
   if (/^urdu\./.test(slot.slot) && !TITLE.test(stem) && out.some((r) => TITLE.test(r.name))) {
     const moved = out.filter((r) => TITLE.test(r.name)).reduce((s, r) => s + r.marks, 0);
     const kept = out.filter((r) => !TITLE.test(r.name));

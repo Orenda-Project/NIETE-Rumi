@@ -328,12 +328,15 @@ describe('r9 · subjects without a cross-section table lay out as before', () =>
   // All five again for v29 (bd-5jmnfj.4.58.5): pattern prompt text changed in patterns/fde-g5-2027.js and
   // patterns/early/*; with the previous text restored they hash to the previous values (7afbb9c3…, 187bc808…,
   // 3e60106d…, d0505395…, 83777bf9…).
+  // All five again for v34 (bd-5jmnfj.4.58 round 4): prompt_rule text in patterns/fde-g5-2027.js (science, maths,
+  // urdu, english rules), and for maths the fixture's Q1 (a) and Q1 (b) ask a sum, not the mean (the mean is asked
+  // once, in Section C); previous values 7662ec1d…, b6ecc3e5…, 2eac934e…, 0887edd6…, 7d9221dd….
   const BEFORE = {
-    science: ['science', '7662ec1d825c8196d0713ef9aea79f9b95d7e72722bbfd8c128df47da4f28e41'],
-    maths: ['maths', 'b6ecc3e5fc7bb5c9c1febc2d00934a62fbeacd954dc6af4a4cef4d76b0e6b7eb'],
-    urdu: ['urdu', '2eac934ebbc4a45a206dbbecadf576fc20532a55a00a4cb3ca5b919f6809e00b'],
-    'r7-science-full1.exam': ['science', '0887edd6a5b92728e731213ae292cbce36e1e0e394e44032683ac7c1abbdd34b'],
-    'urdu-gen-full': ['urdu', '7d9221ddd5360755eef20c9fc4357155a7f34bf2d21c99b5f42e458f6f749355'],
+    science: ['science', '8f382d5216d9b236f102aab44dd90aa907b488cec37411d8c9f94fba86b33b7d'],
+    maths: ['maths', '88c09bc5e79fb8da207bc3ea998187cb9cdaae3ac89bde44eebee92e6b2fba92'],
+    urdu: ['urdu', '1c2b1895468fe2799361f42abcb5507725933b3bc6bfd5179cdcbb8d738b0e6a'],
+    'r7-science-full1.exam': ['science', '4da7257780fad415851ccae4c2c2e91561bcb5b1cdc134789a8122a81ac504ff'],
+    'urdu-gen-full': ['urdu', '87150abda64c4faf8ec36b6ce16ae28f457e7055baa7601e22644bd1908c6674'],
   };
   test.each(Object.keys(BEFORE))('%s lays out byte-identical to before', (name) => {
     const [subject, sha] = BEFORE[name];

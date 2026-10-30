@@ -1,0 +1,1839 @@
+{
+ "unseen": {
+  "objective": {
+   "MCQs": [
+    {
+     "main_question": "Choose the correct option",
+     "question": "Which of these is a collective noun?",
+     "options": [
+      "a) ladder",
+      "b) team",
+      "c) pencil",
+      "d) river"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "b) team",
+     "blooms": "Remember",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "Which of these is a proper noun?",
+     "options": [
+      "a) city",
+      "b) river",
+      "c) country",
+      "d) Lahore"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "d) Lahore",
+     "blooms": "Remember",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "Choose the correct article to complete the sentence: Amna ate ___ orange.",
+     "options": [
+      "a) a",
+      "b) an",
+      "c) many",
+      "d) much"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "b) an",
+     "blooms": "Understand",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "What is the correct plural of the word 'child'?",
+     "options": [
+      "a) childs",
+      "b) childes",
+      "c) children",
+      "d) childrens"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "c) children",
+     "blooms": "Remember",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "Which pronoun correctly completes the sentence: The teacher ___ lent me a pen is very kind.",
+     "options": [
+      "a) which",
+      "b) whose",
+      "c) who",
+      "d) where"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "c) who",
+     "blooms": "Understand",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "Which word has four syllables?",
+     "options": [
+      "a) garden",
+      "b) pencil",
+      "c) umbrella",
+      "d) celebration"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "d) celebration",
+     "blooms": "Understand",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "Which word is an adverb of frequency?",
+     "options": [
+      "a) never",
+      "b) yesterday",
+      "c) here",
+      "d) slowly"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "a) never",
+     "blooms": "Remember",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "Which word is formed by adding the suffix '-less' to the word 'care'?",
+     "options": [
+      "a) careful",
+      "b) careless",
+      "c) recare",
+      "d) miscare"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "b) careless",
+     "blooms": "Understand",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "Which sentence is written in the simple past tense?",
+     "options": [
+      "a) Sara plays chess.",
+      "b) Sara will play chess.",
+      "c) Sara is playing chess.",
+      "d) Sara played chess."
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "d) Sara played chess.",
+     "blooms": "Apply",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "Choose the correct word to complete the sentence in the present perfect tense: They ___ just finished their lunch.",
+     "options": [
+      "a) has",
+      "b) have",
+      "c) is",
+      "d) was"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "b) have",
+     "blooms": "Apply",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "Which word sounds the same as 'knight' but has a different spelling and meaning?",
+     "options": [
+      "a) kite",
+      "b) knit",
+      "c) night",
+      "d) nine"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "c) night",
+     "blooms": "Remember",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "Which of these is a compound word?",
+     "options": [
+      "a) rapid",
+      "b) rainbow",
+      "c) rabbit",
+      "d) rainy"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "b) rainbow",
+     "blooms": "Understand",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "What is the superlative form of the adjective 'tall'?",
+     "options": [
+      "a) tallest",
+      "b) taller",
+      "c) most tall",
+      "d) more tall"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "a) tallest",
+     "blooms": "Remember",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "Choose the modal verb that gives advice: You ___ wear a helmet when you ride a bicycle.",
+     "options": [
+      "a) might",
+      "b) would",
+      "c) should",
+      "d) could"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "c) should",
+     "blooms": "Understand",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "Which phrase uses the apostrophe correctly to show possession?",
+     "options": [
+      "a) the girls book",
+      "b) the girl book's",
+      "c) the girls's book",
+      "d) the girl's book"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "d) the girl's book",
+     "blooms": "Remember",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "Which word is spelled correctly with its silent letter?",
+     "options": [
+      "a) knife",
+      "b) nife",
+      "c) nnife",
+      "d) kniff"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "a) knife",
+     "blooms": "Remember",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "What type of sentence is 'What a lovely garden this is!'?",
+     "options": [
+      "a) declarative",
+      "b) exclamatory",
+      "c) interrogative",
+      "d) imperative"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "b) exclamatory",
+     "blooms": "Understand",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "Choose the correct quantifier to complete the sentence: There is very ___ milk left in the glass.",
+     "options": [
+      "a) few",
+      "b) many",
+      "c) little",
+      "d) several"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "c) little",
+     "blooms": "Apply",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "Which word is the adjective in the sentence 'A tiny ant carried a crumb.'?",
+     "options": [
+      "a) carried",
+      "b) ant",
+      "c) crumb",
+      "d) tiny"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "d) tiny",
+     "blooms": "Remember",
+     "slot": "english.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option",
+     "question": "Which word is the opposite of 'ancient'?",
+     "options": [
+      "a) modern",
+      "b) old",
+      "c) huge",
+      "d) quiet"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "a) modern",
+     "blooms": "Remember",
+     "slot": "english.A.Q1a"
+    }
+   ],
+   "Rewrite Sentences": [
+    {
+     "main_question": "Rewrite the sentence as directed",
+     "question": "The runner was fast. (Rewrite as a simile using 'as ... as')",
+     "marks": 1,
+     "lines": 2,
+     "answer": "The runner was as fast as a cheetah.",
+     "blooms": "Apply",
+     "slot": "english.A.Q1b"
+    },
+    {
+     "main_question": "Rewrite the sentence as directed",
+     "question": "The moon is like a silver coin. (Rewrite as a metaphor)",
+     "marks": 1,
+     "lines": 2,
+     "answer": "The moon is a silver coin.",
+     "blooms": "Apply",
+     "slot": "english.A.Q1b"
+    },
+    {
+     "main_question": "Rewrite the sentence as directed",
+     "question": "The cat chased the mouse. (Write S, V and O after the subject, verb and object)",
+     "marks": 1,
+     "lines": 2,
+     "answer": "The cat (S) chased (V) the mouse (O).",
+     "blooms": "Apply",
+     "slot": "english.A.Q1b"
+    },
+    {
+     "main_question": "Rewrite the sentence as directed",
+     "question": "Farmers carry the wheat to the market. (Change into simple past)",
+     "marks": 1,
+     "lines": 2,
+     "answer": "Farmers carried the wheat to the market.",
+     "blooms": "Apply",
+     "slot": "english.A.Q1b"
+    },
+    {
+     "main_question": "Rewrite the sentence as directed",
+     "question": "The baby laughed at the clown. (Change into simple present)",
+     "marks": 1,
+     "lines": 2,
+     "answer": "The baby laughs at the clown.",
+     "blooms": "Apply",
+     "slot": "english.A.Q1b"
+    }
+   ]
+  },
+  "subjective": {
+   "Comprehension Passage": [
+    {
+     "slot": "english.B.Q2",
+     "main_question": "Read the passage and answer the questions.",
+     "passage": "A young fox lived near a quiet stream. Every morning, the fox searched for food along the banks. One day, the fox saw a shiny object near the water. It was a silver coin that someone had dropped. The fox was curious and picked it up. He carried the coin to his den and placed it on a flat rock. The next morning, the fox found a second coin in the same spot. He took it to the den as well. Over the next week, the fox collected five coins. He did not know what they were for, but he liked how they sparkled in the sunlight. The fox felt happy with his new collection and spent his afternoons watching the coins shine.",
+     "parts": [
+      {
+       "key": "questions",
+       "questions": [
+        {
+         "question": "Where did the young fox live?",
+         "marks": 2,
+         "lines": 2,
+         "answer": "The young fox lived near a quiet stream.",
+         "blooms": "Remember",
+         "scheme": {
+          "points": [
+           {
+            "text": "The young fox lived near a quiet stream.",
+            "marks": 2,
+            "kind": "A"
+           }
+          ],
+          "accept": [
+           "He lived near a quiet stream.",
+           "Near a quiet stream."
+          ],
+          "common_error": "He lived in a den.",
+          "checked": null
+         }
+        },
+        {
+         "question": "What did the fox do every morning?",
+         "marks": 2,
+         "lines": 2,
+         "answer": "Every morning, the fox searched for food along the banks.",
+         "blooms": "Remember",
+         "scheme": {
+          "points": [
+           {
+            "text": "Every morning, the fox searched for food along the banks.",
+            "marks": 2,
+            "kind": "A"
+           }
+          ],
+          "accept": [
+           "He searched for food.",
+           "The fox searched for food."
+          ],
+          "common_error": "He looked for coins.",
+          "checked": null
+         }
+        },
+        {
+         "question": "What did the fox find near the water on the first day?",
+         "marks": 2,
+         "lines": 2,
+         "answer": "The fox found a silver coin near the water.",
+         "blooms": "Remember",
+         "scheme": {
+          "points": [
+           {
+            "text": "The fox found a silver coin near the water.",
+            "marks": 2,
+            "kind": "A"
+           }
+          ],
+          "accept": [
+           "A silver coin.",
+           "He found a shiny object that was a silver coin."
+          ],
+          "common_error": "He found food.",
+          "checked": null
+         }
+        },
+        {
+         "question": "How many coins did the fox collect over the week?",
+         "marks": 2,
+         "lines": 2,
+         "answer": "The fox collected five coins over the week.",
+         "blooms": "Remember",
+         "scheme": {
+          "points": [
+           {
+            "text": "The fox collected five coins over the week.",
+            "marks": 2,
+            "kind": "A"
+           }
+          ],
+          "accept": [
+           "He collected five coins.",
+           "Five coins."
+          ],
+          "common_error": "He collected two coins.",
+          "checked": null
+         }
+        },
+        {
+         "question": "Why did the fox like the coins?",
+         "marks": 2,
+         "lines": 2,
+         "answer": "The fox liked the coins because they sparkled in the sunlight.",
+         "blooms": "Understand",
+         "scheme": {
+          "points": [
+           {
+            "text": "The fox liked the coins because they sparkled in the sunlight.",
+            "marks": 2,
+            "kind": "A"
+           }
+          ],
+          "accept": [
+           "He liked how they sparkled.",
+           "Because they were shiny."
+          ],
+          "common_error": "He wanted to buy food.",
+          "checked": null
+         }
+        }
+       ]
+      },
+      {
+       "key": "do_as_directed",
+       "questions": [
+        {
+         "question": "What part of speech is the word \"quiet\" in the passage?",
+         "marks": 1,
+         "lines": 1,
+         "answer": "Adjective",
+         "blooms": "Understand",
+         "scheme": {
+          "points": [
+           {
+            "text": "Adjective",
+            "marks": 1,
+            "kind": "A"
+           }
+          ],
+          "accept": [
+           "An adjective"
+          ],
+          "common_error": "Noun",
+          "checked": null
+         }
+        },
+        {
+         "question": "Change the tense of this sentence to the simple present tense: \"The fox collected five coins.\"",
+         "marks": 1,
+         "lines": 1,
+         "answer": "The fox collects five coins.",
+         "blooms": "Apply",
+         "scheme": {
+          "points": [
+           {
+            "text": "The fox collects five coins.",
+            "marks": 1,
+            "kind": "A"
+           }
+          ],
+          "accept": [
+           "The fox collects 5 coins."
+          ],
+          "common_error": "The fox is collecting five coins.",
+          "checked": null
+         }
+        },
+        {
+         "question": "Fill in the blank with a word from the passage: The fox felt _________ with his new collection.",
+         "marks": 1,
+         "lines": 1,
+         "answer": "happy",
+         "blooms": "Understand",
+         "scheme": {
+          "points": [
+           {
+            "text": "happy",
+            "marks": 1,
+            "kind": "A"
+           }
+          ],
+          "accept": [
+           "Happy"
+          ],
+          "common_error": "sad",
+          "checked": null
+         }
+        },
+        {
+         "question": "True or False: The fox knew what the coins were for.",
+         "marks": 1,
+         "lines": 1,
+         "answer": "False",
+         "blooms": "Understand",
+         "scheme": {
+          "points": [
+           {
+            "text": "False",
+            "marks": 1,
+            "kind": "A"
+           }
+          ],
+          "accept": [
+           "false",
+           "F"
+          ],
+          "common_error": "True",
+          "checked": null
+         }
+        }
+       ]
+      },
+      {
+       "key": "pick",
+       "pick": {
+        "Nouns": [
+         "fox",
+         "stream",
+         "food"
+        ],
+        "Verbs": [
+         "lived",
+         "searched",
+         "saw"
+        ]
+       },
+       "marks": 6,
+       "lines": 3,
+       "answer": "Nouns: fox, stream, food. Verbs: lived, searched, saw.",
+       "blooms": "Apply",
+       "scheme": {
+        "points": [
+         {
+          "text": "Three correct nouns and three correct verbs from the passage.",
+          "marks": 6,
+          "kind": "A"
+         }
+        ],
+        "accept": [
+         "Any three nouns and any three verbs found in the passage."
+        ],
+        "common_error": "Words that are not nouns or verbs."
+       }
+      }
+     ],
+     "marks": 20,
+     "lines": 0,
+     "answer": "Model answers provided in the parts.",
+     "blooms": "Apply"
+    }
+   ],
+   "Punctuation": [
+    {
+     "slot": "english.C.Q3",
+     "main_question": "Rewrite the passage with correct capital letters and punctuation marks.",
+     "question": "what a lovely morning is pinkys farm far from here rani packed apples pears and plums",
+     "marks": 5,
+     "lines": 0,
+     "blooms": "Remember",
+     "answer": "What a lovely morning! Is Pinky's farm far from here? Rani packed apples, pears and plums.",
+     "scheme": {
+      "points": [
+       {
+        "text": "Capital letters used correctly at the start of each sentence and for the names Pinky and Rani",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Exclamation mark placed after 'What a lovely morning'",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Question mark placed after 'far from here'",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Apostrophe used correctly in Pinky's",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Commas placed in the list of fruits and a full stop at the end",
+        "marks": 1,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "Commas after apples and pears with 'and' before plums",
+       "Comma also placed before 'and' (apples, pears, and plums)"
+      ],
+      "common_error": "Leaving out the apostrophe in Pinky's or using a full stop instead of a question mark or exclamation mark",
+      "checked": null
+     }
+    }
+   ],
+   "Word Sentences": [
+    {
+     "slot": "english.C.Q4",
+     "main_question": "Use any five of the given words in lines of your own. Show clearly what each word means.",
+     "words": [
+      "forgiveness",
+      "responsibility",
+      "democracy",
+      "ancient",
+      "transformation",
+      "rustle"
+     ],
+     "marks": 10,
+     "lines": 0,
+     "blooms": "Remember",
+     "answer": "forgiveness: Saying sorry and getting forgiveness made Ali feel light and happy.\nresponsibility: Feeding the pet every day is my responsibility.\ndemocracy: In a democracy, people vote to pick their leaders.\nancient: We saw an ancient temple that was thousands of years old.\ntransformation: A caterpillar goes through a transformation to become a butterfly.\nrustle: The dry leaves rustle when the wind blows.",
+     "scheme": {
+      "points": [
+       {
+        "text": "First word: the line shows the meaning of the word, and the line is correct",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "Second word: the line shows the meaning of the word, and the line is correct",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "Third word: the line shows the meaning of the word, and the line is correct",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "Fourth word: the line shows the meaning of the word, and the line is correct",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "Fifth word: the line shows the meaning of the word, and the line is correct",
+        "marks": 2,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "Any correct line in which the context makes the meaning of the word clear"
+      ],
+      "common_error": "Writing a line that is grammatically correct but does not show the meaning, e.g. 'I like democracy.'",
+      "checked": null
+     }
+    }
+   ],
+   "Rhyming Words": [
+    {
+     "slot": "english.C.Q5",
+     "main_question": "Read the poem lines. Write two pairs of rhyming words from them.",
+     "question": "City Life vs. Farm Life: A Friendly Debate",
+     "passage": "Rani replies with a smile so bright,\n\"But the farm's a peaceful land,\nAnimals play, fields so grand.\nTrees so tall they touch the sky,\nBirds and butterflies fly by.\"\nPinky speaks of urban thrill,\n\"In the city, there's always play,\nFriends and games just steps away.\nSounds of life in every street,\nMusic plays, a lively beat.\"",
+     "marks": 4,
+     "lines": 0,
+     "blooms": "Remember",
+     "answer": "land – grand; sky – by",
+     "scheme": {
+      "points": [
+       {
+        "text": "First rhyming pair written correctly from the lines",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "Second rhyming pair written correctly from the lines",
+        "marks": 2,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "play – away; street – beat",
+       "land – grand; play – away",
+       "sky – by; street – beat",
+       "Any two correct rhyming pairs from the lines, in any order"
+      ],
+      "common_error": "Pairing words that look alike but do not rhyme, or writing only one word from a pair",
+      "checked": null
+     }
+    }
+   ],
+   "Mind Map": [
+    {
+     "slot": "english.C.Q6",
+     "main_question": "Draw a mind map on the topic given below. Draw five branches.",
+     "question": "Making Chocolate",
+     "marks": 5,
+     "lines": 0,
+     "blooms": "Remember",
+     "answer": "Cocoa beans; Harvesting; Roasting in a factory; Tempering; Moulding into shapes",
+     "scheme": {
+      "points": [
+       {
+        "text": "Topic written in the centre of a drawn map",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Five branches drawn from the centre",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "First branch relates correctly to the topic",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Second and third branches relate correctly to the topic",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Fourth and fifth branches relate correctly to the topic",
+        "marks": 1,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "Cocoa trees",
+       "Drying beans in the sun",
+       "Adding sugar and milk",
+       "Chocolate liquor",
+       "Chocolate bars and shapes"
+      ],
+      "common_error": "Writing a list instead of drawing a map with branches, or adding branches unrelated to chocolate making",
+      "checked": null
+     }
+    }
+   ],
+   "Application Writing": [
+    {
+     "slot": "english.C.Q7",
+     "main_question": "Write an application to your principal for sick leave.",
+     "question": "Write an application to your principal for sick leave.",
+     "marks": 10,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "Correct format: To The Principal, school name, date, subject line (Sick leave), salutation, body saying the student is ill and asks for leave for a stated number of days, polite closing, Yours obediently, name, class.",
+     "scheme": {
+      "points": [
+       {
+        "text": "Correct format: address to the principal, date and subject",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "Respectful salutation",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Reason for leave (illness) clearly stated",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "Number of days or dates of leave stated with a polite request",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "Polite closing, name and class",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Correct spelling, capitals and punctuation",
+        "marks": 2,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "Any suitable illness such as fever or stomach ache",
+       "Either 'Respected Sir/Madam' or 'Dear Sir/Madam' as a respectful opening"
+      ],
+      "common_error": "Writing in an informal tone or leaving out the subject line and the dates of leave",
+      "checked": null
+     }
+    },
+    {
+     "slot": "english.C.Q7",
+     "main_question": "Write a letter to your friend telling them about your favourite book.",
+     "question": "Write a letter to your friend telling them about your favourite book.",
+     "marks": 10,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "Correct letter format: address, date, Dear (friend's name), opening greeting, body naming the book and saying what it is about and why it is liked, closing greeting, Your friend, name.",
+     "scheme": {
+      "points": [
+       {
+        "text": "Correct letter format: address and date",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "Greeting and friendly opening",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Name of the favourite book given",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "What the book is about, in a few clear details",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "Reasons why the book is liked",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Friendly closing, 'Your friend' and name",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Correct spelling, capitals and punctuation",
+        "marks": 2,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "Any suitable book the child names",
+       "Closing with 'Yours lovingly' or 'Your friend'"
+      ],
+      "common_error": "Writing only about the story with no letter format or no reasons for liking the book",
+      "checked": null
+     }
+    }
+   ],
+   "Paragraph Writing": [
+    {
+     "slot": "english.C.Q8",
+     "main_question": "Write a paragraph of about 8 to 10 lines on any one of the following topics.",
+     "topics": [
+      "My Country",
+      "A Cultural Festival",
+      "My Super Hero"
+     ],
+     "marks": 10,
+     "lines": 0,
+     "blooms": "Understand",
+     "answer": "A paragraph with a topic sentence, 5 to 7 supporting details with facts and examples, and a concluding sentence.",
+     "scheme": {
+      "points": [
+       {
+        "text": "A clear topic sentence introducing the chosen topic",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "Supporting details that stay on the topic",
+        "marks": 3,
+        "kind": "A"
+       },
+       {
+        "text": "Ideas in a logical order",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "A concluding sentence",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Correct grammar and tense",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Correct spelling, capitals and punctuation",
+        "marks": 2,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "Any of the three topics, written with relevant details"
+      ],
+      "common_error": "A list of unconnected sentences with no topic sentence or conclusion",
+      "checked": null
+     }
+    }
+   ],
+   "Story Writing": [
+    {
+     "slot": "english.C.Q9",
+     "main_question": "Complete the story using the outline given below.",
+     "question": "A boy finds a lost kitten near the park — The kitten is cold and hungry — He takes it home — His mother gives it milk — They put up notices on trees — Days pass and nobody comes — A girl arrives looking for her pet — The boy returns the kitten gladly — The girl thanks him — Moral",
+     "marks": 5,
+     "lines": 0,
+     "blooms": "Understand",
+     "answer": "A story that follows every cue in order, e.g. the boy finds the kitten, cares for it, searches for the owner and returns it, ending with the moral: Kindness and honesty bring happiness.",
+     "scheme": {
+      "points": [
+       {
+        "text": "The story follows the outline cues in order",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "A clear beginning, middle and end with some detail",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "A suitable moral at the end",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Correct tense, spelling and punctuation",
+        "marks": 1,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "Moral: Be kind to animals",
+       "Moral: Honesty is the best policy",
+       "Moral: Helping others brings joy"
+      ],
+      "common_error": "Leaving out the moral or retelling only a few of the cues",
+      "checked": null
+     }
+    }
+   ],
+   "Picture Description": [
+    {
+     "slot": "english.C.Q10",
+     "main_question": "Write 5 to 6 lines about the picture. Use the given words to help you.",
+     "question": "a busy fruit and vegetable market",
+     "words": [
+      "vendor",
+      "basket",
+      "customer",
+      "fruits",
+      "vegetables",
+      "crowd",
+      "busy",
+      "buy",
+      "shop",
+      "weighing"
+     ],
+     "describe_en": "A busy market stall: a vendor weighing fruits on a scale, baskets of vegetables and fruits, a customer buying, and a crowd of shoppers behind.",
+     "marks": 6,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "This is a busy market. A vendor is weighing fruits for a customer. There are baskets of fresh vegetables near the shop. A crowd of people has come to buy things.",
+     "scheme": {
+      "points": [
+       {
+        "text": "Description matches the scene shown in the picture",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "At least five of the given words used correctly",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "Lines joined in a sensible order",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Correct tense, spelling and punctuation",
+        "marks": 1,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "Present continuous or simple present used consistently",
+       "Any other correct details about the market scene"
+      ],
+      "common_error": "Writing a list of the given words without making complete lines about the picture",
+      "checked": null
+     },
+     "picture": {
+      "kind": "scene",
+      "describe": "A busy market stall: a vendor weighing fruits on a scale, baskets of vegetables and fruits, a customer buying, and a crowd of shoppers behind.",
+      "src": "data:image/jpeg;base64,/9j/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAFAAUADASIAAhEBAxEB/8QAHAAAAgMBAQEBAAAAAAAAAAAAAAYEBQcDAQII/8QAUxAAAgIBAwIEAwUEBgYGCAMJAQIDBAUABhESIQcTMUEUIlEVMmFxgSNCUpEWM2JygqEkJUOSscEIF6KjwtEmJ1Njc5SywzSTszU2RVV0g5Wk8f/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwD9UjRoGjQGjRo0Bo0aNAaNGjQGjRo0Bo0aNAaNGjQGjRo0Bo0aNAaNGjQGjRo0Bo0aNAaNGjQGjRo0Bo0aNAaNGjQGjRo0Bo0aNAaNGjQGjRo0ANGgaNAaNGjQGjRo0Bo0aNAaNGjQGjRrjbt16cDTW54oIV9ZJXCqP1PbQdtGoWOyuPyQY469VthfvGCZZOPz6SdTdAaNGjQGjRo0Bo0aNAaNGjQGjRo0Bo0aNAaNGjQGjRo0Bo0aNAaNGjQGjRo0Bo0aNAaNGjQGjRo0Bo0aNAaNGjQGjRqgze7sRh7y0J55Z8kyeYtKnA9mfp/iKRglR+J4Ggv9GlJd/YaIr9qJksQrHgSZKhLXi/WRl6B+pGmuN1kRXjYMjAEMp5BH1GgpN55ixhcIZqEKWL80sdatC7dPXJI4UfnwCW47dlPceultcDtzC2KT70yMWVy9nqWGzmGVlUgAlYlI6Ixyfp1Hkck6tfEiT4HFUMyys1fD3Y71gKpY+SAySMAPXpWQt/h1BSC7unIW7FunexkVekIK8cqREu0p6pCCepW+VI178gFm7cjsEjcGF2ckZluR4/H2o4jPHarFa9mNR++jpw3b9QfQg+mp2wMxNmNvh7U6WbNeV672EXpWcKfllA9upCrEexJGqSzisXiqWMhg29Rq5PJIIlAYRsk6r5gRpIx1cfK3LoOOQO3B1P8ACenDS2ZFDAvAFu4GJPJYizIOT/IaBnyVyLHY+1dsdXk1onmfpHJ6VBJ4H14Gkqhc3NkxWsJmMRSvWawuw4lqplVISRx5kgYMT8wBKgDn0BA51Z+JV1IdtSY7qVLGXJx0LOwRFaRTyWY9gAoY/UngDkkDVPa2wmFxlvN00np3qYZ1rrekkhNaKYyCIBjwoZB6ccKWIHYaDlm5M0MvjKe7crFjsTY8xY7WJmkreZY7eXHIzclAR1lQG4ZhwfYG+2HkbdmPMY+9a+OkxN5qS3eADOvQjgt09utevobgAcrzwOeB2w+Vi3EMhjcri1ieERGavMyzoySAsvPtz2PK+3buQQdQvCWCKvsHHR1kVaytP5AVQAYvOfyz+PKdJ59/XQNN+7Vx9SS1fsQ1q0Y5eWZwiKPqSew0tx+Iu1HkVftmBFY8LLIrpEfykZQv+eo2GpR7pzl3M5VBYp0bclXGV5B1RoYj0ST8ehcuHAJ+6qjjjk8uborqyuAVI4IPcEaDyKRJY1kjdXjYBlZTyCD6EH3196zCS7jcNuWVdtrJTFS5Xr2qsbc1bazSLG4jTnhZI2dSSvHrweee134o5l8Th6oMtiGvPMyzPWPTK6rE7iKNv3XkZVQEd/mPHB4Ogtbm7sRXvy0Y5prl2L+sgo15LLRn6P0KQp/BiDqprbkyudyN+LbiY2NKLiOSHI+bHYckA8mPpBjQ9wGIPVwSBx69du7n2pDDFjMXZp0408pIYORH1+YeF6R7nr5U+4cEHv6ys5BHX3ft3IRALYneWhIwA5eIxPKAT+DRAj6cn6nQTduZsZUWoLNZqWTpuEtVXYN0EjlWVh95GHcN257ggEEC4dgilmICgckn0GlOvy/infMZ+SPDwCXg/vGeUpz+gb+evfFRnXYOXCc9LxqkvB45iZ1Eg/3C2g5Vstmd0h5tvSQ47D8kRX7EBlktf24o+QBH9Hbnq9QvHBP0+O3bjgZ6merZUqOTVv1FhD/gssXHQfxKsPw1W5KOnk9wXXuDJvi6Pk4+tWoyTIDY+Z5G6YiOwVo16m7DpPHHvZ5LbqUq7z1L25nVeP2FbINIxHPt5rH/ACOgudt5qHO4xbcMUsEiu0M9eYASQSqeGjbjtyD7jsRwRyCNWukDwx+KGW3dHbmaZq+QSs0rcBpWSFOJGA/eKGME8dypOrjdG5pMdejxmLrw2Mi8YmkazN5NerEW6VeV+CfmbsqgEsQfQAkAz8jUbI36mNpyW8jagq1Y+7zTyBEX8yew0tLtjMW1EmV3blFsHuUxyRV4U/BQUZj/AImOlPfOA3Li5sfmkysefx2KZpjWyVNXkh5A5mHldAkZQD+71BS5XqbgaDSMLncTnIpJMNkqd9Izw5rTLJ0H6Hg9v11ZazPPXKlva9PfmNgSrlaRVmeJgTNGJAksDMO0iEdXSfr0sONaZoDRo0aA0aNGgBo0aNADRoGqnd2WOB2tl8ssJnajUlsiIAnrKIWA7fXjQV24t5U8VkUxVOtby2ckTzFx9FA0iofR5GJCRLz7uRz7c6gC94gWgJIcJt2ip9I7WSllf9eiLpH6E6UNub82ntDbthzZtZXMNYT7VtV67HzbcnSCXlYBEUMwVepgFC8D00zS+LW04stHSN5vLeFpvjGQpAwB6eI2bgykt2AjDeh0Eh95XsDIo3zi4cXSY9IylWz59QN7CQlVeLn0BZennt1ckAseT3BiMXhRl8jkqlbGFVcWpZQsbBhyvB9+fbj11XYHOY3elLJxDH2TTgn+GkjyFUx+aehX58t+/Twy/eAP4aQH2k1bdNnbtOWMCJzuDDfGIbFeMH9jNWaMntGCysCvBHmcjuO4MlvxIhvUp/6I4y9mLJjb4d+lIIWfj5eppXQ9PPHJAPbS7goN07fokJVzC2Z2865ZbGVbDWJT952KWepvoB7KABwBqg3zVr3NyYqjn9t4nFMkLyTHqjNeZA3VI4lC9QUJEynqUEBzx9dPWW2Ht21t+a3izDhbaQicWsdaevFGwXr+bpIHlkevI+6ee3bQV1/f+TrNFRnOK861KsCveqWqRj6ueS0MgIdeBx8snuPX0154Q7lrTZKfF0KdurirUQuUoJFHRVfpVpoEPPPl/tI3TsBw5A44A1HxNHNwzY2jmc5PXgy0Mi15orIvQSyqAwQidX5Dp1MvDd+kjtqNktr5jbG4MbLgBjlyNzzYop6MZpq3CeYySQMXifqCeq+WeVHzDQbPPFHPC8UyLJFIpV0YchgRwQR7jWf1ydg7hoY45Ca5hszYWvTqzzNJNSkC+iFuS0P3R3PKHp9ee3zjPEOyuIysefwlnH7kxyITQJ5W2ZH8uJoXHIKu/C+p6T68+p8u7Fuy1UvTWIMhuCypivSWXdYmjYg9MXT3jWJ1R0C8HlTyQzFtBAyeYlr73arh7uWu5iRpJ4MVPHNDFx09HU8jkJ5Kty3yAsfQc8af9p4j7C29SxxmM8kKftZiOPMkYlnfj25ZmPH46QquwMpmcmZt35AWY6cyRQsiBJLEccLrHOJFIaKTrmdiB25XkcabNl5C4Wv4TMT/ABGSxjqPiSADagcExTEDsCQGVuO3UjEcAgaC4z+NizOFvY6c9MdqFoi3Tz0cjgMB9QeCPy0p4ncM9R8dtzN4zJrlbXVEZvMjljmKgl5Fcvz0cd+6gjkDjnjmz3Ll7smRhwG3ii5WePzprMi9SUYOePMK/vOSCEX0JBJ7Kec9yO1xt7xLx8tbJZKtJfj6PtHzRJNIzdKMJOsFXXzFhPTwAPOPSF4Ggvq+EyC5PK7Tp26tLGy/6dPbiBFyWGZnHlDnsGHQU83kkL0gAEchoz+RO3sdjsZg6cUl+yRTx9Zj0RJ0oT1OfURoq8njueAB3I1WZPZt+5F8bNn7M2dqoxx1kRJCkDng91QfOrcAMrEgjngA99fLNa3ThMBuTDxxR5ak7SGpYYqrMQ0U9dmA+UghgG4PDIO3HOgZNr4hcFgaeOWZp2hQ+ZMw4MsjEs78e3LFjx+Oqrcs9/I52rt/HW3oRy13tW7UQHmiMMqBIieysxJ5bg8Adu5BERfEGnFdmp3sTm69mt0/FhaZsLW6hypdoiw4PHtyeO5AGqS1u1cxv3HNtOo16epTsLYNgtTWRXMRCIXTliOA3pxx6H10EiLD4/Cb327Ukhg8hWtrj4fOMsiFkibzCrdx3SYFhz3YEnqbTF4kVDd2NmYIqb3Jmrt5MSJ1MJP3GA9eVbhu3ft2765bP25Njr2Ry+TK/aN5uBCkzSx1IQSwiRn7nlmZmIABJ4AAA1Nz+7sDgJkgy2TghtSDlKwJkmcfVY1Bc/oNBUYWntnJrZqpLi71i515DmGvGjqsnHDdhyGHI+Y/N6c6ULd2DbW7oo7+Ruyw1L8BMdqYz2Ji0M4ayEX0jAkVT0gD9mxIHTqFu3MUMUt2/tebO4m1c5LGzjpK1YckszebLAfLBPJ6QVDMeT09205SQpvfIYvI4xchjoakbsmVQiOWQOB+zjB5DoSFZiwK8qvHPJID7wmUow+IV/yrCW1zcEEtWaswlUCJGDK3Tz0DuGDHsevjnntq78QMdby2z8nRx6mSeeMKYg4Qyp1AvGGP3SyBlB9i3PbVbtuy+GzRw2aq04r9kM9bIVYBEl8L3YMB92VR3K8kEcsvoQrloEnatHDZbbWRxdWPL1IhcYWYLczpaikJWTgv1FuCCvB6jyp9dSspTr5zO+RK0FjEz1HgsR/FdpmVwyhVU8hlIbk/Q8e3Zd33nIsJu+Gxt2WN8xHCr5ev1cwiirKDJKB3Dp5nKkd+nq55UdoG8s1k8TYWTHYjC05LcMlq5lMc4sWoqi9PXMimNQSer5eonkg8BiACF/4f45pN2bxzoZBXt3jViVB98QgKzMff5wyj6AH69qLc2JjueKr4vKvA+LytdLIRpxG5lRTEigEfMV5eRQP3vm/dGtC2dHiYds4+PbsscuLSPiGRH6+ocnklvUsTzzz355576U/ECjzuWGV5Jokv4yejFLDGHcTowlVFBI7unmqByCeCAQTzoPTY3rh8xDTRsbnIpD53eYV5vJVQrEqee5JUgr8oYkHgMOlswe4qGXXoSQQXVeSKSnM6iaN0PDqVBPPHIPI5BBBB4Oq3Z+do7jtT2a2MaB6kKQradYzyr/MYlKk9PHSpZCex6ee+kneGSOX3nJQ2lhKdnMUbkDz3wpDCVEJCySBeFRQwDEuWILIqkkkBabH262Rx/wANbvs+AxmVtR1cdFEERvJsv5fmPyS6qQCFHSOVHPVxrTRqp2rhkwGApY2OVpzAh8yZhwZZGJZ3I9izMzfrrrns5jNv4572avV6NRSAZJ3Cgk+ij6k+wHc6Cx0aQjvrKZM/+iuz8vfiP3bd8rj4GHsR5n7Qj8o9fSnxKn5cjaFIEciI/E2SPwLfJ/w0D3o0s7L3JLmlvUcrVSjnsZIIr1ZH60+YcpLGxALRuO4JAPYg9wdM2gNGjRoAa5W4I7VWavOvXDKhjdT7qRwR/I666D6aDG/Ciart7bMNPK5K7NRgivSdE1VDXKxXXj6mk6eTKT08Lz39hp93nN5LYcQ5Cxj7dm2KsEkNNLALsrELJ1KSqfIeSCvt30oYilHZ2RkqM9/4CXBZ+zM0kkJljBWy08fmR8gshWVG9R7Hntp5wO5KGasPDjHltpEgaS3HEwg6ueOkOezN78Dngep9OQWsnloNl7yvy2nmlqZqBbUdaJOp2tRlImEY5H3kMZPJ4HQWJA51yxGbqbo8TcZbxolEdHD2lsrKhR4ZJLEaCN1Po3MEnb8ORyCDrp4x5nH4nGY2OzhquayFyz5NOnKSGchetgvSrMeelVKgcN1AN251M8LNrWsBjL9/NiE7hzdlr+QMP3I3b7sSn3VF7c+55PvoFveskb+JlPJzAfA4M1K9nrA6em2ZkYt/ZHMXP5n6aa8Scfj7F7b9sz5GxdsyySh6MhVo5OTxI3HQVC8JzyBwFXjka7bu2iuble3TtindkgNWfzIRPBagJJ8qaIkdS924IKsOo8HgkFI2zd3PQ3NX2tV3Jj8qsTt8Qi0ZJWoQKvo07SfM/UUUI3U4DcknjuDrvl8XWwdTF2cQuT+LljrVcbH0oXK/NyvJAUIqlueRwF1n+5qeM23tfbsG6J6dBPttrq49LTKK1Z+tXSNlIYrGsgYleFHcDtxq53nenwvidUyFaaIxtiithmpvcNNFk/rGCuGhR+eCwBBMfccLyFbw721Y8UbP9LPEGutjyJ4xjfKjVK0scUjt1RqfnMbEg/P3bhfYcaCXTqZfPGnN4ebUo4jDpaS79pZx5Fe+yKwjbyhzKVBbrUuw57dhplTE+KcE81mLP7Vnlk6f2EuPnWNeB7ESEjnnvrQrd+nSeJLduvA8p6YxLIqFz9Bye/6alc6DOF3B4jYztltmY/KoPvTYbJhTx+EcwU/9rSdi8zuvFTY/Jw7EyiyY/ES07smQtw1oSissiN1BmJ6Qr/u/v/rra6WVx9+SaOleq2HhcxSrFKrGNx2KsAexH0OkzxlbbVrZ1rH7n3FLhqsvBb4WdVmm4/2YTgmQH3QDvoOO2MpHh9iruq5DJZzG4THdFdT+0lklUeTWQn2ROleT2ADMeO+o+6I7G4fDDEZ630QXkgjuytEDxEsiDr4/BOpXB9/KB0lVcjmKvhrjN05mWe3EDeipGZEEtaKdPLqs6xgIG6lCHgfKJSPrrc6ONhr4Kvi3RZK0dZazIw5DKECkH9NBSnMtlPDu1k15isGjMZFX1jmRGDqP7rqw/TS9js0u0X3E14dUMtFM9BGvq7lAkyL+JlCN+c2qjbt6DbUW4dr5yz5UcnmR1pHBZpX6ApAA5JZkMUnABJLSfQ6+XaLPbJ2TlMhHNBaxF+rTycEoKOhLJG8bgjnp8wQydx3AB0Gg7MxZwG24hkpU+0JybeQnYgB7Endzz9AeFH0VVHtqBv6CKhbwu5URBPjrccM0hHc1pmETg/gC6v8Ah0n6nVh4gxSTbGzqwDqmWlLIgHuyqWA/mNcd5TUsl4cZaee1DXpWcc8gsStwkYZOVcn8CQdB870yl5J8ZgsLKIMrlWcCyV6hVgjAMs3B7Fh1Kqg9upxz2BGuVSDaXh/UYzW6GOkn+ea1dsKJ7Te7PI56nY//APONImWfOZ2/is5cXJ4iSxTalTxdDpF+6HKPI7u3asnKLyfvBfUqxC6qqFanisbHl8tK+GFuxNXhgwsAksyskjIfNvTgyMSUJ5BTgaDT4/ETblgE1JshcX+Kpi7U6n/EkZB/npQobw23trfUFehbGPwuYWTz69uvLTStbX5lkUSqoUSDqDAduoKfVjzIg2E8+OaW9XuXchalEiNPl7M8VWM8AJz5ylyAOSRwCWPHYDVBNLVw++qeFoZW9PSt5GOAxm1JZgCtGyyV5IpS4Xh0Dq3uC688roHDdeeo5/bktWhFZsbjh4nq1aa+ZLXsp3Ri3ZVXn95iAysR36uNWud3NP8A0Jx13EGI5PMeRXo9iyLNMPvEH1CDrcg+yEaqMGMdjfEFMbsp0OPaKV8vSrN1Vaj8DymAHyxyseQUXjleWIHAJg7ZUz+IsOF9K+3pL9sKPQGd18kfoksw0DGdhUosfjK9C5cpy1ZHkntRsPPueYvE3mOe/U5CksO46RxxwOKLbmxcdaXKpDParxRZRoOiNh0tViZStYg9vLB6uPccng9zzd7Y3JjcbsrG3Nw5ipT+JRpxJdsrH1BnZhwWI9iNUuzfEPZldclFPuvBJJNkrMydV6MBkaQlTzzx3HGguclH/Rbd9PIVB5eKzc4q3oV7Klph+ynA9ixHlt9SUPqO7BumDFWMBc/pAIvsyNPOmaRiojCfN1hh3UrxyCO4I7d9KdwR7qxG9Mfj7aWWZ456UsUodVfyI3jKkEjgSx8/z1Wbz3NDlsPg5PLD480H3FdhJ+/HCqtHC396Zk5HuIyNBJ8PmzF3c9qSW7lo8HVrIYamRnWSZ2l+ZHfhAy8IPuszN8w54II1DizmWwe9s1jMBXiy1A2/iHqEdEyyOnmThJOengcqwDDu0nT1Adw3Nt6/LMuQrZefG5GzBEl7yYY5EldV+8FcHpYckcjtxxyDwNKWzxTxPiPbqIZm62mrpJI3WzykIzM7H1ZvJc8/Xt2Gg0rDZOrmMXWyGPk8ytYTrRuOD9CCD3BBBBB7ggjSPMad7xntyZUwGHC4iu9Tz2HTFLPLL1yLz2DdMSDq9QOR765WNwVNi7wymOsR2Z4csoyVCnTgaaZ5yemeNEH1ISTk8AF3JI1VWduZvJ5/Iboy239rw/F14a8dTNy+c9ZYi56iyoVDN191UkDpHc+wPVzfW1qZKzZ/GtL6eVFYWWT/AHU5b/LUM7zs3WKbe21msh/DPPD8FB+fVNwxH91DpIm3eMODWk3n4f4Uenk4yq1mX8gokH/0nUR8vUzVtKstjf27J5IzItaCucXVkQEAnuIeV5IHdm9dBOz2Sv4nfuLzby0rmd4+At4HDBp52psS3WzHglo34YFlQcFwO50y3PE6tjqstvLbZ3Tj6UK9ctmxQXy41+pKuT/lzpcxVrcFbIpt7A4fAbP81Q7x160mRmiB56XlMQSGMnpPBd2J499WfhztijuTDYfdO5rF3OZd0Eo+0JA0NaUEhvKhUCNeGB4PSW/HQabDIs0SSxklHUMCQR2I59Dr70aNAaNGjQKGawWTo5+bP7Wes1qyiR3qFpikVvo7I4dQTHIB8vVwQRwCOwIqdq74zG7LditjsJXpCv0NJas3PNjdGZlDwhF5kUmNwDyoPHuNS/E2e/klp7Twdp6l/MRztLajPD160a/OwPsWZo0B9uskdxrLmw+4obP9GrE+OjuvTrVnqVFcLOsKEQxnk9TV+HYyOSv9WVA5YKQaLu6oKniLa3TI9SxtSutfDNkJOy1pXeTzGifnpKh/KWQjt6d/kI1sEUiTRJJEyvG4DKynkEH0IPuNIuCw97OZGjbzmKjxOMxC+XSxSlWRp+ko0xC/L0AFljH0JYgEgD5w6DY+7KuAjLDbmX62xqk/LTsKCz11+iMvLoP3SrqO3AAWXiTmZsVgkr0bC1r+Qk+GinPf4dQrPLNx/wC7iR2/MKPfVJcpTbas7csbRws9uuaFijHCOQEeQxSJJMx7qCUcu55PJ9ydVXiQ5yeTzlp+o47BV61SXt2/bzxPa/lXVB+Ttpgv+IRi3HdxeO2/lMlHQk8u3YrmMhD0B+FTq6mPBPHIHJVgpJHGgovFDGS7Z8Ft3WFtNYzFytzevkdLTM7KjcfwoqsVVR2VR9eSdRxlWCjjqtSoipXgiSKJV9FVVAAH6DS7u2rV3z4c5enjJ4rEWToSJBIp5HUycofw78djqi8OfE3buYwe36djMVIs5YqxRy1XfhhYC8NHye3XyD8vPP4aD58Qcdjs74k7Kxd+hVyKLFfsWIZ4llVYPKVOSCDxzI0fB+oOpx8OK9L/APdfPZ7b6D0gqWvNrg/hFMHVfyXjXnh2PtTN7vzljhr7ZObFxsw58qvXPSiL9AWLufqW/Aaj4bBbZwO9cfBkspcyW9LUMtqOxcnkZ5EHZ+lAfLRRyQEA9B25450ECPwbxuQ3CMxvC8dwWRG0YEtGvXD9XHeQxIGcjjsSe2kjxj2Nt/EYvFy7ExeMiyM984aZIOGY/FRPGCx7kMrdLAn0IP1Ov0BayFWtcp1Z5eie2zLApB+cqpYjn69IJ/Q/TWL7vG0FyDRbdw9Wjk8DuLFRXJYaiw9QlnRuzD7w7+/v/PQXe/ttfYtGxZjWTIbesP8A6Tin6ikdmVlQWERB1P8AMeoxc92PWvDas9u5PeENtcc+NnuQmIyR28r0136RwAHaEOpZueeCFYcHke+rrxNPTtGR/wCC5Sf+VuI6atBk2ZoZabe1jIW6MC5mvSgvY+OlakcOIZXWZDyqgsyTdHcfveuqjfmbSJt2xQ07sNbM41bVY2q0iNLYg+WR0QL1jhPIPLhR8vPPAJ01YyzlN2UMZunD/AtepXb1Za8kjRxy1vNaIozgMQ3MUb88ccjjjvzrNt0bn3Da3nakuX8VUsYqtcr/AArMVrcmNiV6yOuRm6UI7KD0+nbuH6MXonrg/LJHIvP1DAjWYZChap7aG1sxXya1KU0T47KUqpuI0cUiyQrLGoLcr0qrAr0sByCCe1l4Q7toZjbWKxZsL9rVKapLDwe4jCr1g8cdwVJHqOrjWgHQYnLuncNnclXI058NdrUsaJo5vgrMHmrak4RShLFeTXPzeg5H11wwlDIV8ZYj3GJJ87Ux6WsbjoclLQ89pep5SW5RusyEhh6Lwo4HPeU2PvU9qbczGJsWqN6ok+LtXK8Pn9MCNKE8yHpbrRZVXuByoYn0J06Yu9S3l4f4/LWcVUytl4Axq2IVcJYHyupDD5eHBB7cgDQJWaymexWD3dc25mXkwWMKojSq12ZWMY87y5mfkiMsD36uG6h7dOqXfNnAJhGkguJakXJV0orYzs15chCFDMZIvMPTyS68cAggH34L1ka9qxVjxtrbueVFjEMlPGy10oWVU89iWBRD7/dPHYg6+svU+Iy21cfdx9KDKWck920IEUhoa6u3WTxyfmeId/dtB03LewuxocLdhWnjcdRLrPQrdKP0yoAOiJeOtusIOAOTySNUOJ23u3cmezWcEj7OoZoQCWNeJckY4lKgc/cgLA8n77A/TQKOAj8UspZs16dHCbMox23PlgKbc4ZjM59WKRIOOeSC3bvrpmru4JKeO3/kTZqYrHWltR4ZE+eOiytHJNN7tL0P5nR6Iqkd25OgadueF2zcCqmrgak9kAA2rq/EzHj+3JyR+Q4GmWfBYmeLyp8ZRli9Oh66EfyI1Eubjq1b+FjYo1LLcx17auChl6Q8a8+nzqGIPPcrx7jV5oM/yXhPtqSwbuBhm21lPVbmFk+GP1+ZB8jj6hlPOs4yqXto089h96vCXu4lqWIzMUfRWnMfmyiKRf8AZysX9Put0gL6a/Q+qXeW28fu3bV/C5aMPVtxlCeO6N+66/2lPBH5aBX3du/I1ty4LB4dYI578HxE0s0ZfpUkBQg5Abv1c9+w6frzpbsUdxUt2ywPi4MhkmeLJQz1rCwxOqWCZBw56lPTJ08ct94d/pZ7EqLu3CJHn3nr7r25LJiLFyrKYpOU6SHHsVdeh+4I5J1wwWWy9PfueSWla3FNABXgmSaGKaKupBKlCEQku3JYHkjp7dtBYb+23jszufZ13KVJo57UkmPsCK1JE5jMEkojZo2HIDoD68euqfZewdqS7z3nVvYOnbNG5XWtHcBsiOJq0bAjzC3q/mHn6j8NSt9ZfMy28Hl58RZxeOxds2EWxNGZ55BG3KlELKEMfnLyW5LMvYD1vt4Ym9WydbeG1FexkIIliuUUcBclVBJ6R7eavUWRvxKns3YFXINk6+4s7X2ekWLTF2a9OGrSpwCJ3khEoewOjrMbsyx8oV6O7d+Dw3bDxmUs5TKbm3JDLWu3uIKdGVlZqVRTyEJXsXZizMeT+6Oe2lLI28fu/e2LjxFHcOI3FFKgyrL5lNoqS9TBZmVuhwx4CAFj3bggc62MemgqsjjbFnL4q3XyEtWCrI72K6KOm2DGVVXP0UkMPxGlXYNj7D3BkdltLFZgqxnIUZo2BZYJJW5ilHsyOSAf3lI9wdW28reXw6yZunZpNjKNaSS1Ttcxh1ALGQSqGIYBQAOkg8n34IieEWBiwmxcUTThr5C5Atq6yRhXeWTlz1njliOrjv8ATQOmjRo0Bo0a+ZXWKNnkYKigsxPoAPXQZtUyanxQz+TkTzI670tvVyDwA7gzyn/vI+f7utH8mIzCfy087p6OvpHV0888c/Tn21kG3kkk23s6+6FJ8/uV8q4Pr0SLPKn8o0jH6a2Ieg0HKe1BXkrxzSKjTyeXED++3SW4H48Kx/TS34m4ybJbPuPQQNk6BTIUvr58LCRQP73SVP4Mdc/FLrg2hPlIFLTYmaLJKB/DC4Zx+sfWP101o6vGrowZGAII9CNBleTt0qPgLl8rZnjkfNUJbckqeks9pflVefoXRB+CjVvVo57aEmWnx2KgzVS3KbrLHZ8qyshRetArL0uCykg9QPzcH66zalir0+3pcNk54mxWK3IuIxtdUIYlranrc89wkLEL2H3mJ9AdbjuvLPg8BayEMC2JY+kRxs/QrMzhV5bg8DlhyeDoM621tjA5jZtu1jo6DbqKWJZp6LGCevbdnfoYqVdSrN08Nx6emqvbG3V3J4W7QpYew32PYrpUydNkRVgcI5lm56etbCzqCDzwCO4786+tobDyeWxb3rkmAWzZlYvYanNJZidCY3USLLGR86ufzJ1Ov+FF3FYzN5DbO5s1Tz08LypHTZIK884UlS8fDckngFueo+5Ogd/DzbFvbGOyEWRyaZK3duyXZJkr+QvU4UHhepvUr1Hv6sfTV1PhcbPmq2XmpwPk60Tww2SvzojfeUH6H/z+p1C2Nn4t0bRxOZh7C5XWR1/gk44dD+KsGB/LVT4lZHceHpUcjt41WqwT/wCsI5qrzt5JBHWAhDcKeCekE8d/YghH8UcrgkwdyC5n6GMy9BVv1GknUSwzLyY2EfPLBiCvSB8wZl99UnipJJc8H4cpPSWjkrU+LszRdPDJKbEHysfUleeO/wBNQ8tvW7PTgvVsdsjL5PlVofD5VrEskhPAEa+T1A8nk9xwASSONXHi08tuhtHATGN72VzVNZUjB4KQt58rKD36QI/8xoL7xPIOzrMf781itEg9yzWIwONXe4MgMTgclkX+7UrS2D/gUt/y1R7rIv7l2ziYwWZbLZObg/dihUhSfzlePj8j9NeeIbC5Sx+317y5m0ld1B7iuv7Sc/l0KV/NxoEjbqz7d8Otx4hHlr2YYK0wdGKuhsQRhypHcHzBKeR76vdu+Gu2J6VO7YpSWHK9bJYlLhm7jlzwDIRyRy5J49edR/ESGwM7l0rQySm7hY5RHGpZmNa0CeAO5PTN6DV1Q39tSCvHWr5eGxOCQK1aN5pj8x/2aqW/y0Hm7PKwGX2pcpUz5C2ZqPw1VFUkSxMwABKr9+Jfcak2N05doZGobOzEjoCf9JmrwIeB9fMY/wAlOq5sjPvHN0qkVeLH1MfZivSrbmX4xyhJUCBSTGpPHLOQeO3T350w72zy7Z2veyghNieJQleuPWeZyEjjH952UfroFDb25ZsdgKdChUTJ7hynm5SChWkPl1oZ5GlVppWA6EHXxyRyxBCqdL2Dp5WpUpbmx2WywhykXmZdoIFsCK4GIkZ6xBPSvHl/s+GXyxz1Akhq2ng5fDzA0FkWG1HN0DLWQD5olbhRICT3iTlUC9ulACPQjXXcOzctLJk0wOVSpjL0nxk9Ih0aWccdSCZGDRxycAsV+YNyR6kEKaxvjP2PhaGFtbVyF+3MsEc1aeZ2jDHgyPB0/IFXluGk78cDknU7wdtUslDcu3Llm7uxf2GRkuALIiq7hVjUAKsJKtx0AAkHn5geFdY8juu/iNv370jPTs+Y6AvDkK6oO8lgrwAyqfLSRCRIZOscdPGrzd2H/oZiMdl8HfJyuJLtZntqJHnpTTczmRV6eoIziQenBU/xHkF/xKxtyh4nwV46E+Qxm6ZalieGEr1SSUUkcw8MQOHHknuQOFbWx4WzbyOLD5fGHHzsWV6zzJMOPr1L2II1ks0may++9tV5cjDLlqkOcaOda4ijjkQpXjITknj5uo8k+unnZWXuxHH7ay1lMpn6VFZMvbgP7OGU8dKseB8z9yB2PC8kDkcgpby2hb21tu/Vw3TktqSkMcLP5olqP1cq1OaNXZOG4YKykKRyCo7a82B4j5eDb0Njd2Mt2cZ1NHHm6IW0OFPH+kxRctG49GIXjnnkL6ad/EXNZzB4uhPtrDnLWpr8FeWIAny4WJ637enHAHJ7Dnk9hpiqUq1RrDVoI4WsSmaUovHW5ABY/U8KO/4aCNgM7i9w48XsHfrX6hYp5sEgcBh6qePQjkdj31ZazF83V2FvnPw5WOz8JnnjyGPFas8zT2BGsU0KqgJL/JG/H0Yn2OnDa26cduRbS0hagt1HCWalyBoJ4Cw5XqRhzwR3BHIPsdAp4T/V3jzuemg4jymHqZFh7dcbvCT+fHT/ACGl7H5O3T8WM1Vxkdf4i1NPCJ7vmJArcV3Cgqvztwx+Xlfbv3ALJSHxP/SBykyHlae269d/waSxI4H8l1Dr46la3dnaOQXqEuWdQyuUdPNqV5UZWB5U9UB4I910DBc2hLmIiN15y3egDCT4Wp/oVccdwfkPmHj8XOk6PdMqeGljC4mea1mLFubA4d+rh5QVJhmLcfdWFlcv7hee/I0ybhh21ilFfdG4LtwPwFx9m2ZGn/s+RGA0vP8ACQwP01V+HUNbdW+s1vD4KWpXpf6nx8E8flsrRgCeUp3AYnpj+oWPj8NBVY3FY7bEkUWNFnYmZkCRkzcWMbfdRwOpuegk8fWKTvqz3P4iZjCzYrCZGlTw2bv2PIGQth5sd0BSTIjL0kknhQjFSCeSeO51C1Wht15K9qGOaCRSrxyKGVwfUEHsRrIvFvZVyn4fZqLA3enBw15LcuMn6nEYjjZumBueUU+hQ8rx93p9CDO+y8xm2jj3luQZHGq6yNjqVFasMzKeQJSWd3UEA9PIB478jtp81Bwcy2MLQmSTzUkrxuJP4gVB5/XU7QGjRo0ANJfitbsHbseDxrFcln51xkLDuY0cEzSf4IhI3P1406ay/cWerUPF6KfIRWp6OLw/LSQx+YKbzynmR0HzlSkQHWAQvvwG50Fxn44am69g4utGEghnsSIg9FSKo6D+XmKNPGsvzO79ut4mbWtHNY6SkcfcjWZLCtHHJIYSnW3PC9SxyAcnv0nWl17ENmFZa8qSxN3DxsGB/UaCPm60dzDXq0wDRTQSRuD7gqQf+Oqbwznez4c7XmmJMj4usWJ9z5S99WW6LXwW28taH+wqTS/7qE/8tQvD2EwbA23CfvR4ysh/MRLoEKGJJd9NRHBRt3vbI+nl4xGP/bZdNvi1IYdhZBx+7JXP/wDsR6TdjE5DxXy0hH7Ovcyc/wCvNWsv/wCjKP0OtM3bhU3FtvI4mSQxfFQlFkA58tvVW49+GAPH4aCpkw+cxN+7LtqfHyU7kzWHqXg6+VK332R05+Vj8xUr6kkHvxpF3iMrtXDZW7mNwCKbK2AIMXjnImtzN8qwRSyHlASwBZVDKo7MOkautzb23NhJsfhFwmMu7lyfUlRK91zH2HzTyKUBSJfU9yfYE6U94eHv2c9TKbiycuVuZj/VeQyU6DmjNKR8NPXH+xRJQqlQe4cE9xoGXwSqWNt2NybYyssCX4La3468KeXEIZok5aFf/ZiUSL7nkd+501y7923WycuOyuUgxV+MkeTkT8MXHP3kL8K4P1UnS/j6q7+wlWxankw+9cJI1aazW48ypZAHWOD2eGQcN0n5WVh6Ecj6pbmhs3p9t77p4qe9ArMJoOmarYKJ1lSjcmKXo+by25+XkgsAeAl5TfWw8FM9tcliZsjN8qxY8JYtTsf3QsfLMT/LUbZ+Jyud3S+9d1VGx7pA1bEYyUgvThbgvJLx2Er8DkD7qjjuedYBNi9u2MRsnNYi01fI0qz/AGlLjB8PNEQPO8xTwOrpQz8NwVby+nk8HjbDuTO4ivPtTeF2vBkr8LwYfcSp0VrkhUhRIB/VTeh49G/d+hBr2MjZKS/uewD15RgtRT6x00JEQ/Dq5aQ/3wPbXztdft3PXNzP3qhDRxn4whuZJR/8R1HH1WND76RKtGze29cwe2LEu3M2sXlW9u2px5IXjhmgYqWCP34eM9PzEkBudantrIU7e3689SH4StEphMDcL8OYyUaM8dh0lSO3bt9NBV55jHv7arj1eK7CfxBSN/8Aig0gbhgvb73rmJMP9ott3FwrjrgoWFgkyc6uWaBJCR0Rp1cOwIJPyjXPcmdyfiFuGOLw/tNSgxtW5JBmCikXZQqoY64YEFQzIGl/E9P10zbanp0/B6iNo3KNCGOr0tYyJPFdhz57SKO7Sq3WSpI5YHkgaDCtyYTH7a3jihkcFh8OthnVKOJvNPeicQSLGeUUMpd/I6eWP7RSR95ta1tjM3N5t4f1MnH1T02tXMgwcOks9M/Dhgw9QZZA49uw+msRyOPwVbLpFtxcrFRimiKtLXkeaZUgm8ydgGQ9PUzMVLqwBJ4UfLrTNlYzc+16GKjxD44XK0jytiZ6wgkNORjLJ1SgMqMW6D2ARfuhm6dBveU+GGNtm8VFTyn84t6BOk9XP6c67w9JiQo3UvSOG555HHrpGubkTdHg/mM1Sr2KonxdsokwHIKxuOQQSGUkchgSCOCNN+EkMuGoyEgl4I2PH4qNBKcpErSOVUAcsx7cAfU/TWWb33LicjuCpRxTpnWs4m9XnrUJVf5JPK6S789CL8rcsxHH48gF73s9UbQzQv2Iq9V6cscksjhVUMhXuf11mGFm2hlsfHFuXIYzHXXWrMpFmKpPKj1YxJC/BDdJbzAynv3/AC0FV4fzWK+7dhZHIteaXJ07lWWS1WFdTM8UMq+WB6qwhY8k8k8ntzxrQsde23tXd+erybopVXuyLdmxluWOMxTOo6pEZuCQwUfL3AI7cemkzxJ2lVrSbWpbUk6NwZLIq9XJ253nMa14pJkXkn7nYIB6BXb6nm6xslXfs/xdedcFvKjCKmUxtqsljpAPIDxNx1oGJaOVSOzHv3I0D9h9z4LNXZqmIy9C/ZhQSSJWnWUqpPAJ6SffVxpc2ntiLAmxPNbkv5OyFWazIiR/KvPTGkaAKiDkkKPckkknnVvlsjWxOKuZG8/l1KkLzzPx91FUsx/kNAqeKGUxa4qTB2s7XwuUyEEjVJ5pxAPkK9X7Q+g7gEAhipPHHqK3w5FXLbuy2dwiEYCCjXxFOwOei2Ynkd5ELHlkUyBA3cHhuDxrtsjADcFSXc+8KNexkMuiPFTsRrKlGqPmihAYH5u/W592P0A1oMaLGipGoVFHCqBwAPoNBnGBnXG+Oe6qdwdEuYx1O3Sc+kiQh45FB+oLA8fQ86a87tHA5y3Hby2LrWLUa9CzEFXAHoOoEHgcnj6cnSn481jX2hDuOlIa+YwVqG1TsKvUy9UixyJx7qyOQV9+Bqs2Rd3PuiZocluqamJKcN2EUaUEbSROzqe7h+CrJweP4h9dBN35XwHh1i8fn8ZjKVFadmRpDDEqNL1VpgFY+rct0ep1H8FcZYqyNXstJ/qahBTk5bkNcnAtWmP48yRD9Dpb8Stq18fmaePsyXci24JqNCK3kJ2nli4s9VkIT2QNFxyFAHCnWh+DT/GbNOZKkPmr1rJd/wCGSZvL/wC7CDQPOqenZrbn248iowp3Y5IwG79SEsnP5Ed/yOoXiTmJMFsbNZCtz8Ulcx1wPUzP8kY/32XVnt3Gphtv43GIepKVaOuG+vQoXn/LQJX/AEe8s2U8K8TDM/VaxnXjJx9GhYoP+z0H9daPrCvBRm27vzcOIchaeUu3nhHPYWK9hg4/NoZYW/wHW686A0aNGg5Wp46taWeZumKJC7n6ADk/8NfnvG5PGZatkMjm6XObEz5OxcgsvFbrRtGnkQQshDhm6lRU+6QpY8k8H9B3a0d2nPVnBMM0bRuAfVWHB/yOscoeEGWTOVHvbhgmx1eWOUtFVKWJQnHEZ5JUDhVBI78L240HTKbXsYjbmzqvxUsO5MjmY5Lt8hJnaeSvL5xIYFWHQpQAjjgD89S7HhvkoyDFT2Xcb1MjYuSlI35mKQgn9Bpj3gfO8Qth1eOQs9y4R/crlAf5zDU3xAt3sLhpM/j7DgYxDNYqsoaOeEEGQH3DBQSrA+o7gjQZ9mNmW8di7N3KY7ZVSjXiZ5p51tXAicHkiNmUE/Qc+vHGq3H3t47Y2LC9uHeNcUseJHPRj7MShE555ciRQAO6sCR6d+NNPj9nDU2vRx9GRPtC9cgliLL1IqRSo5dh7jnoAHuSPbnStf8AFVZ/DyLEzUMllMnkMatP4v4do4pp5YlUkuyheOqTgkHjkHj20Dr4UYp6GSypsESWIa1SvNKW6jJO6vZmfn0PU9gn+WtDtTxVa8s9iRY4YkLu7HgKoHJJ/IaR8RgFyOIx+a23m72Ls3KdcyvGqSxWOI1UGSJwR1AADlSp7cEnjSFu7L7vzOwcVjrd3Eyf0ptLiP8AR6skU0YZ2ErffZSAiPz2HroG/wAIqr56fJb/AMjEwt5w9FBHHevj0JESD6dfeQ/XqH0017+wv9Idl5rFKP2tmrIkR/hk45Rh+IYKf01c0asNGlXq1YxHXgjWKNF9FVRwAP0A1HzGUr4qGvJaLcT2YasYUckvI4Vf+PJ/AHQY0Jsvc3htfde2Z4Y8jndvCSWpOxWvdkhKM0UhAJV+mY9Lj0KcEEE6ud4bQGM8EbdW3/pOTrD7Us2FPDSWevzJn6vX5gZF/unjUfbePuV9obYyGLoTZGfb+avxNXgZBI9cy2YWCdbKpIBQ8Ej7umW7uy7kqNilN4f7plisRtDJHIKqBlYcEc+f9DoK7xD21iTuHY0zVYYq4lsYYCNQoEM1SZVTgfugrwB7c6stkVKe8vCXEU9x047kUtNatqKYchpIiY2P1B6kJBHcH01Hnqbn3Tbw4vYSrgsZjr0N3mxcFiy/l88KqRjoXkEgkufX0118KLEy3N44pwBWxubnSAfRZf25/wA5dAp7mxk20akNPduKG9NpI/RSmdUfI0iQeIz1EeavA++pDAA9QIHOrDFbWym86Vavlqa7a2NGoMGAquomuKe/Nh0PCoeefLU8nn5jrQN1bdg3DUMViRkYQzxIfUKZYmjLcfUKx/mdXUSCONEX0UAD9NAv5nAlVxE2Cjr1rGKkAgi46ImhYBZIew+UFeCOB2ZV9udYLuOnBuzN7lnw200ykmegZ8TNzCrRRwuI7FjoYjoaRvuSfeYheeAOdbjvzeVba9avDDA+Rzl5jFj8ZCf2lmT/AMKD1Zz2A/lrD8htvO7Gmnmt5DOJmLNErhnw8YeqtyeSR5qaqVbpTq8sr1cDhSwIPI0H3ZxO1Jc9WzkG1svFsSjC9G+h8xALnX0gtB1eY4UsyOQDy7fvcE65U72Q21dk6cFm/LqGWaX7TveWYq804WlOWLu4MahkcqvIX5WB411e9t37Wr7Yfc+4sbtCxE1u+L9doHiul1ZUM8sfWvWweQjnpLLwDwenUG5cs5mzTt2bObzmWNhK2Sq3IPgaslEzkU+siMcCVzG/C8luX5+UcANh2ztfLvtTceGyPTh69y3YNOKtMtgQQSqOpByoHT1mQheBwCB21ZVNrZ+KnBVbeNyKGGNYwKtGvGeAAB3ZX9hr5teI2IxeOs2NxQX8NNX4DV7lcgyMTwFiYcpKSf4GPbueBqi3N407exuLJxpe3mWZFXG2UkqOgZ1UtKXT9mg6ueo9j7fXQRa+IlXxAxcGZyuUytaG9OkUVycNGJUrxzQuUVVXqAMxB49QP4RxbeKMYx9OCSm09WF/Maf4YyRq3oSz9EEgJ9e7cfrpI3Xlp94V9wW4+dvWsVCokotMRkfihysLgLwI1JkZBIrP1q3Hbtw8YjZWGxe6mWfFxWYUoRP8XeDWGM/WwYiSUsQeAp457aCh25tbK5vwvws1GaOhlsddbJYSSZPlEfLdKygKpKyI7c/KpAcduRqJu7P4C1LSHibtTM4HLRBhDlKYaRY+Byxis1z1hO/PDAevca2xGVl+RlIHbsedZ14vZO1ibO25sIkVjPz2palCrITw7yQsvW3H7idnb8B+Ogze7k8JPlNuU9o+I2585NdycEFikuUd+KzEh2LKisnHKnkt+HvrZN47YGS8N8ztzFFo2s0Jq8BkkZz1sp46mYknk+pJJ76UKO17Ph5m6ebrUb24fiakkOXs11V7clhnVxP0EjqT5SvQvdQF4B76YZN0Z/NR+Rtjbd2nI/ym9m4vh4YR9RFz5kh/s8KD7sNBO8P910NyYeFInWvlayLFex0h6ZqsqjhlZD3A5B4PHBHBGvrdW/8Aa21JEizuaq1rD/crgmSZvyjQFv8ALUGHwy23PUBz1CDN5N3Ms+RuxKZ5ZD6nqHHSvAACLwoAAGlPYOFpeGXiFPtoU64xud67WJv+WPODr3kqSScdTcD5kJPpyO+g7y5W14n2aL1aNqhsahYW9Zt3Y/LfIvC3UkccZ7iMOoZmYDnp4A9dT9u4u7F4dbRzOMj8zM4+hHKIQePiopFDSQE/VhwVPs6r7c68SR6vg7lYK/Inlnu0IfweW5JCn+bjWkUq0dSnDWgXphhRY0H0VRwP8hoMg8YM5DepbZyGNk8yFK2TysTccEGGhKF5HsQ0g5HqCONaPsOkmO2Rt+lEAEr4+vEP0jUazTxGxMEu+LWPpxlTY2zmLRjB+XzZRDGWA9i3HJ+pJPqTrSfD62L+xNuWwQRPja0vb8YlOgp/EdDfy2zMQP6u1mUsTD2KV43n4P8AjSPTvx20k7vT/wBY2wpD6Ca7GPzNYn/wnTvoMbGCt5GTeq4YrHuDDbj+1MczHhWd6sLGNj/DIrOh/vc+2tM2jnqu5tv08rSDIk6/PE/Z4ZAeHjcezKwKn8Rpe2mPL8Td9p7OKE/H4mFk/wDtjS9tvcWKpeLWShxdnjC5wdKycj4ebJxf1oiPPcmPoDEDpLrxz1cjQa1o0aNAaNA0aBHtH4jxpxyMOVp4GxIPwaWxEv8AwjOvPFHc1LFYuTEWcXlcpLk6lhTDjoBKyRABHd+SOFHmL37+vpr6xo8/xjz0vtWwtGH8i81hv+Q1V7nlm/6xbc9aQq9HEVYgyngq1i6Bx+ohGgx/cpyuaiwN7Jz4jyY6kNWCOHJpLPKyQyAuEUdwXLE8ntwvbldX247N3d206KJlZ7nwlYTQ18PgLBTrEXy9diR+jgEDuOPTWi7Z2jiM7syzFLVSpNNkLha1VjRJgy25QD1dJ5PA4789tP8Aj6UNGhXp11IggiWFAx54VQAB39ew0GK+Gm4tx4mKuk8FOxtabLfBxOzdE1fzyHjVOnkOgMg+90kc9iRxr72cv2t4nYLHnn4fbkGUukewlmuywx8/iEVyPz05+LEMGG8Nb1mhUijTGS176QwgRj9jPHIQPYdlI50seB9WQb28QbtqWvNYls1gWrv1xp1o05RG/eAM5HPvxzoNk1n3iNOs28Ni42VwkC3Z8rO3PHEdaBiCfw65E/lpvz16zj6LT06Pxjr3YGdIVRQOSzMx7D9DrBt55y9ujd1WvDW+EfMY2TA0bMViOzX6pp1ay6yoenlYU7A8MSeADoNY8Ho5R4c4iewpWS6Jb5B9f28rzD/Jxpy7fTXKnXip04K1ZBHBCixxoPRVA4A/kNdtB57axenW3XU8St/WtpW6cyxXass2Iur0xWQ9WP5klA6o5PlI7gqe3I7a2nSDtBv/AFs+ICf+7xr/AM4pB/4dBHTxaw2PIg3jUyW17w7GPI12MTH36J0DRsPx5H5aj2PEuzuFzT8NcRPmJm+U5O1G9fH1/wAWdgGk4/hQd/rrTSoYEEAj6HSj4rLnxsTJvtKSRcrEqyKsXHmPGrAyJGSDw5TqAPBPPp30HPZOyI8FbsZnL3JMxui4oW1kpl44X1EUS+kcY/hHr6nXvihUgye07or2fKy1FTexzRTokiWo1Jj46uR3PykEcEMRrLdvY2jncXDkbWycpuipKO1yHcpvhj7gpNJEVI91Kgg9uNX0GM2dUHB8Hcgp/tYatMf5iRtAmR7hikqXag3IbeIz6RNm83eoSJJjbHQimHlUEaswHyKQPLI79XUvLZhMXdtbZoZ3JT372VzOcoiWe1GIy1SC0TARGqgRgoOsgjnlyT7cQb1JrOQtQUdv72r7bv2I7V3DR4uuscsiBeyyNIGjRvLTqUevHbjk69zWGxNGrPkovDy1t2FPnkv2M8mLWP8AtEwyOf8Asn8tAx+PuItWMVic5SjlmOKmfz4o/XyJV6JHPyP2XgEjocEc8jjS/wCGe0qe4o54czjoLe2xWBihdI5azyMx+eFkZ0XhVPJhMYPUOpFI05+EFrMV9hyZHeF10heaSeq16XmSCp26PMkcKSexblgDww576jpgNo5/cGQbamVs4fNRBJrNjCT+Us3WOVZl4MU3r3PSSORye40FDvfak1fw3gvywyrltrhlM3mgPaoo3zp5hPcGIB16u4dB7682rvHL5vKvWqmDIW5K3D4nOscdY8snqjmMQSRH+UsC0fAI6eVUjXW1Vzdzf1TZG78/HkcJPCuUSSaolea+Y3PNXlPkdVIR37BiOBwQSdaPu3aWH3XUjhzFbrlhbrr2YmMc9d/4o5F+ZT+R4+vOgVcNlt2XMPLZoY/aeGowyzxyNJYmlEZidkdioSMccoT94dtK21slbv2pfEPMlLk1iSPC7bg8swq6SSBWnCEkr5jctzzyET11Zv4cbosVhtnJbir3Nmy2TZtSmIx5CwpYu0DsvyFXY8s44Yjkcd9XWcijn8Wdl4dEWKjjaFvJRwqOE8xRHBGAPT5Vlfj89Bonrr0aANGgNIHjhhJ8v4f3bONaSPL4kjKUZYzw6yxcsQp+pXqX9dXNHIzJ4h5XFTys0TY+tcrofRfnljk4/UR/z0yOqujKwBUjggj1GgxXHbogzWN21j9v2MJBVe3Ssx0ILD3LTr5ySOXPACEfMzE9R5B5IOtr57azfwLX7O25lttt2OAy9qigPr5RfzYj+XTIP5a0nQZBHlBk/wDpBxJIYVrxYy7jBDz+15Vq8jO49lbr4X6hCffsxeB8jJ4c4/HTn/SsTJNi5191aCVkAP5qFP5Ea+/F7bsmV2pcyOI8+DceMgks46zWkMcquF7oCPUOB0lTyDyO3bWU0tuy5jdVa5i56W523BiUynxGTlejLCkZWMAyVVHUx8wA8qDzH3Og1bxCniTc+wwkifGDMnph6h1tG1adWYL68DkcnTyPQawG/tHObZ3DtTI1Ku08M7ZFq/nV689tzJLC6IJpXZXdSeVA7cMVPfT3lsN4gz4+zIN4Y+rIkTsiY/DhWZgp4HVLI/Hfj20CxufbN7cm/wDeZxN+SGzWqY/qqPI4rXVKzEwzKjKSD24IPbng8gkFHr57Ey0khyGAbNpkqSVrluRPIGPUE9UFWuqkIsTBuOCpZ4n+YleQybI8QMThseJaVLJ3Mll4lmmyuUyFdFsWEhQlOqSReBGZAvAAHrwD30mbZOGaZptx147U7U6/7OXOR00cGSZz1DrBkBf5uRyOfz7hsvgXvE7g20uMyNxLeYxfVXksLIJFtRo5RZlYdm54HJ+vB/eHOm6/LWHzj7W3pbzWIxuPNZ5AyUcfaDx+TKrR9PVGhAIeGDsFPt6euv0LsfdNTd2DXIU4rFd1byrFaxE0ckEoVWZGDAegYd/Qg86BgGjRoPodAjbSJk8Td+OfSP4CAfpAX/8AuaqwjW9x7usqS6tmcXQXj+GLyZG/kZW1aeHp+J3Bv25zyXzfkD8oqsCf8edLeLy1vbu485isgIK1u1lJ8jSisof9ZqxUqsMn3OoIOOnkv1cdgO5B28OxxgLC/wAOTyAH/wA3Lpn0q+G8qz4C1NH1GOTKX2XkcHj4qX1Htq2zG4cNhVLZfK0KIA5/0mwkf/E6CD4i1Fv7A3JVYcibG2E4/ExNxrPPCq5Lhd626masiWXdNCpl6NjyxGs7pCqSxgDt1KAjcepBJ1fZfxCpZhBiNr4+9mLmRiljgl8o16p4X5j50gAYAMCegMePQHWGeIu757uzqOJrFEq4GpDLVtV1/wBKdoR5a2hI39TGzoQoALuvr0hgCH6qzGHoZqGGHK1ktQRyCURSclGYA8dS+jAc88EEc8H1A1x3Dt3Fbhwz4vL0orNFuOIyOOgj0ZSOCpHsRwRrItk+Mb4/GVYd+d1VI1lykMRQwuyghbVfjrhY+zgGN+eQRraMZkaeUoxXMbagt1JR1RzQSB0Yfgw7HQZ+0W7dhKXglm3ZtuPuYp5FGSqr/Zc8LOB9G4f0HJ04bV3Tht1UPi8HeitIvaRAeJIW/hkQ/MjD6EDUDIocxvaChMOqhjK6XpI/aSd3ZYuoe4URyNx9Sp9hpNxe2aviBuLK7qa3kMbHFYkxtCXGTCtJNDEeiSR3UdTdUgYDk9gg49ToNc51nm0eR4x+IHPoauLI/Lom1V7u2TPhcV8btqxu29kUJPEW4ZPNPCkghJi0b9wOVI9OSOT2NXterVzLWGi3xk63iFbqKtgTRCq4ZFPC/COgBRCzdwCe5PV6aDWq2cxlrL2MVWvVpcjXQSTV0cM8Y54+YD09v56sTrNPCHHnG3M7RyYRs7j5I600kI6YWhZTLG0Y9R1F3ZyxLF+okntpr37nxtjaGUy6p5s1eH9hF/7WZiFjT/E7KP10Gabun2ZNuu9Ht6puNt1K5S1LtdXhYuPUSsSsLkc9+rqI99VWRm8T8VVS/LlMtj8Ok0Ucv2hDUv2kjZwpforw+igknlvbWm7V2Nj6exsXhc9Uq5KeKMyWZJ4w/XYkJeVwT3BLsx5Hf01zu4WPB2cdTxt/J1qGRmNR4/jHk8o+W7qYy/UU5KdPY8cN9eNBmMlvxMuYyxloN31YsIlmSGP4utFi57EakdMiPLEygMPTkDXLEQ4rKqhylHLz7ksiWDF5TO3hkagnCFv2LRHoDgAsoCKSV7HnVvLjadv7S3PHYmx2CoylEvFfibllEk8uWc2JlkKICG6UTjkL1E8EASfEinuCphnxli/Lk4ZZEkxWQliVZ6V9GL1gzqqq6SMnRyFBUuAeoMCAqLFrMW9u0JM7mspb25XjiElmvVjklhto6HptIwDTKrADgIrFm4IbjqEXOTSxZXGieWrtiy1yVrNFh9nmKtLGzeaZ4WY9EjIgc+z8AFSvJq461TKQVrda9iLZydeC0Y5rrY64rmUSuxY8xzTdzGJPlK9HA441b529uKnicq94360M6nHQSyXcfYWdW6isU7HqkYgPIB0jnp4J5IJ0EOeje3DiZKFO1ZsrFP8AGVqMcrNdxzqV6ZoJrBEkkbqsjp08dyFJIJA0DaPiJNjlx9DfcsUa3FU43PKhjq5BSOVD8/1M3HqjcDnnj6aR8/CzYtMhmc3iKnnKJMXaFxLWRMcXdI45wqxwp5hPVIAezcE+h1YmlkplubcsX8le2tiqogv1vhq1iWWwsUTiBf2fZCJeAzdyVPDDjqIbyGBAPI4PfWNb+3vtin4g7Ry1TPUJ5KFmahkEgl6xFBOndnZeQoSRIyeT25OkXfdD+iuPx2Lx2TyWOqWrPkZDb0+Ta3DBCysYwvSvXwxX+qDgvyFH3udav4NXVkxFiiI5DBE3CEgGMEdmj6kVYeocd44QypwQWY86DQqF6rkKkdqjZhs1pR1JLDIHRh9Qw7HUjWdbv2HRr0Mrk9r3b22ska0sjvi5BFFMwQkGSIgoT/aADfjqDgvD2tmdvYvINuXedeS3VisMseen4BdAxHcn3Ogsd62kwniVszLTSpBUtrbxNiWRgqjrRZo+Sf7UJH+LWgggryDyDr85bx2JUxu86tV8jkrMj2KliO9emFmYLM71XR/MBWRFdq7AMD2Lj302+D1tdv5m/tezVgqGSaVkSIECOxGFMsS89zGyMk0XPcI7L36NBcbPBp+NO/6vpHbr4++o/tdDxMf16BrSdZvhT5/j5uV4u6VsHSgl49naWVwP93WkaD4mcRxs7fdUFj+mvzFsOzJsGrs/cUzTfZGUxaozTKWgqNLZjknJcdkBUBlB7dRPHPPGv0Jvm79m7Kz97q6fhsfYm5/uxsf+WqbbO3Kt7wfw+3sjHzXlw0FWYe45hUEj6EHuD9RoM5+37nipksRhql+Co8DQ3rnkL5gRVgrykEdXZhNIFUn0Kt2PB1vR0h+DzwvttoJ6VStnMZK2LyRghWPrliPZ+wHIdWEg/vnT7oMd8EcdXxuRy+GjVOcXYuQunHoGts6H9U6DrRdt7Yo7elvPSadvi5RIRKwYRgc8InAHCjk8c8nv66VdrVo8Z42b2iI6WydGhkIx/d8yJ/8ANV5/PWjaCpym3qGTyuPyFpJTYosWi6ZWVT3BHUAeGAIBHPoRqh2VMw3pv2oT8qZGvMv+OnD/AM1OnXSLtEdPidv0fxfZ8n84GH/h0D1r5ldI42aRgqKOSxPAA+p15MzJC7IhdlUkIDwWPHpr85pk9s7ioRjxCvZVtwGRZbVW5IVrwEHloVrdagLx8vUV6uQG6udA5+Gu45IMdlsnXxVjJYvJ5W1dSfGyJYkh6pOkJLFyGB4QH5ersRzxqfuZMbvLd+1Kl6jLNjTFkJJK+QqPF1OqRKPldQeQJGII9OOx7aVpch4VwQoYzLDaUf8A42pZ+FsMeB3Lo6E+noe3r276uvCn4XL70yuUo3cxksZSpw16k+SsmfolkZ2mCNyQeyQ89yRx+OgZIvC3ayRGJq+Rlg6mYQy5W00YJJJ+UycdySf10l5DH4nw33tYWjQ21Qx+TrC3Xt5VxCleaLhJER+klupSj9HUvcMR6njbDrFY5sfu+8+589uGGktaWatj8dE/LQQrKVdnAPWZZPL9uOkcDg9+Qrt15y9bxB3FUnsZUYuaLIDJPG1KmixtyYKcZ5aV5VLIXPUpDfe9F0keMdLEUsfkExVrI28JRx/xEGPnn5rw2bYZoUROAfkjE03zFun5QOB21pimTxX3BDFHHImzMa/7Qk8Cy47eWOPUn0bj7qkr952CQfGzYaVtvbw3F9pzSVWrTXPs94lKrZMC1xIJPvdIj5AQ8gEkgj00Hzar5uzmPDaHdGLw9md70LQZmqOmVkStJIYnjYcrzxyelip49F7DTrkPC7FJbkvbVuZDa2QkPW8mJkCQyt9XgIMbfyB/HXLdTQV92+HIsSJFBWe3Yd3YKqKlJwWJPYAdXrqq3D4pDIA0trFKcTt+1zl9o0hqwcEtYWF2DyLwOFYqELMvcg9wso8V4h4SaSzVyO3dwySqqStaqvQndV56fnQuhI6j6oBqp2TiN8eHm3KUMyQbix0YImx9VgLNQc88wuwUTAksSjdJHPyk+mqLBW4s1vIYvbviVm44DAGls2rCSyX5G5+StHJGEXpA5LKD94ADsTq33NT37tvB27+N3NdelBaVJUyUFe3OtfqAaeNkVR2B6vLYE9IPcHtoKzxM8RMPmYa+PigmkZWBejexcpkEvPAHQCk8bj2kj6h3OqTZ+exVnctOxufMT0nxVhzXwM+Ss3LUlkAqjeVIodOAW4Uliee/AGn7Pbf3JVEUEe6d3XpLyGE26kdMxwM3bqaPy16V4JIYNyCPUeuqVsXWfY2S2dJhcbQydGzWo27FeBTGteVh/pqF+SCUDnliSrg8k8ckPcPN4gyU89u/EVNtVvthVuRU8jLL50cCRBYg7AhFPSC3B7cseWGl+tk5MluPa+T3Ll90XNvRzfG2b93HGrjjKAPh1REX5UDt1eY5I+RfmPPOrS9tzb7TZvG4/Ytt69KZKIyuOsiS6ZDHHIXkDkFo+mT3Zw3SQV7jmJvDxOyOQvX8ZjBjLeDuF4ay2as0TXIhAeuIFiOrqcSJ1L3VlUcHrBAfoTS/vdUTFVrch4FS9Vn6voomUMf91m1+aqu98qsGGllyZvnDTvLBPP8Asi0YHCv0jhhEyAcrIpYKxZXf0G05DxA25uPa1qjLZlxVnI0JGrJlIHqLIShI6JJAEfg8fdJ9OfTvoIuycQmY8LcntCeda1tYrOInIJd0dCyMxU9uCHRhwe4cHnvrrvbHPhfDDHYWW42Qy8aVKFexICryzGaIIwHccgqG9eQF559dcNx5Lbk7VsrjtxCluDIwIr18ai3mu9IBCvXXq6yp7Bx0kenVx20lZ3P38RakyeUvRjL0oZrNWrahWaeJihLSLRrkiMtyQZZpT0gnsO4IWdyvew+fzG0q09WvFPkvPom7ALFcQW1kkAWIkAsLKNGDyOBIPXtx8VqWI2/g8JntswRVMxiKAgsRrCFazOnlrLWmVgCkx6x0ydmAZv3TpdGKyOXz2TfP5KaLK0FrNNkoo45ZoZmVJEdlI5SqshCgQEEdLFz3J113Ndzv9ILmGkhWxkbORR56sEjSoj8KqdMjKp6XVmHSw7CEEcjuQboY8dtQ34rlT4/JZKozZyaJlLSTzuyR1YVPyjlzLwo6Rwpdj6k1eF23joaWVye8JcjkJsdUBzIqzGGgWghUJAAODK6gAE88dXPP7o0t2svIuYvTO+Rtu9idnlgrCQRcQtB5y/xyd5On0UHq79zq+pWznTLhUo5g4hH8s43G2DJygPJltWlDEszc8RxkL6kk86D7rHIzU8btbPVKebny+ONp6tG18LbjKdCI8kkrjznAVelwAR5RI5HJ1WZTaMcl7ZdPJYfI9FjLQVYr9vJqZlgjikJhijgCrCgCeqcEkd+fXVzviPD7MxsWVn3GYc2k4yMeJyk6WnuTdBjTqbhZU+VivPIVfUjtqxXKbey/insTH7YvQXIar3b9ryLLWFV1riNR1kkHjrPofb20DDmvC+axgclVxu7t0rZnrvHXFrKPLFGxUgdQ45ZfY8knjXtbeeZ21ShqZ/YmYir1oljWziHS/D0qvHPAKyAcD3XWkyOsUbPIwVFBJY9gAPfWR5fxWw+7KGXwWx62TzuTmqywo9WFYo42dCFYvKyfL3B5APb00ClvnfuC3PkVyeGlttFQxyT2POqSxFQt+jKvAZR1fL3+XnsR9Rr53pvTGZPfNe5tIXXyTRiRRYozVkkt1w0sK8uqnmSFrERHqQ6fTS5msfmMBj8hTzFahQlGIs2Y44rnxMsQj+z4wZFUAAAQAjgnnkjtxq8z2JtZ17Ocx43duXPwGO5Vt/BJjMeksHLRsEfpZ+AWX98kN+WgfvA7KYi1iVyU+Zp2t07nJylqHzFWVQB0iNY+SQkajpHP4n31qw1+cNseHdXdyWIsRLi8JSpWTaqXaVaRci0VlFnjYyh1XsknQOQ33D6emtN8NJLmJz+5dp5DJ3smuNavZp2b8nmTvBNH6M3A6uJI5Bz+I0H146zOfDi/jK3U17MvHi6sajkyPK4BA/wdZJPsDp8gjWGFI4xwiKFUfQAcDWf5F/6UeLNLGqC2O2vEL9kj0N2VSsKfmsZd/wDEutE9BoM6vzxbX8YaLmRUq7srNXdCeP8AS64BR/8AFGxQ/iia0XWH72x8u98xu7MUG4bakCQYicDkC/EwsTEf7sUR/wAQ1sG3ckuYwGNycYCpdrR2QAeQA6Bv+egQ9/5GHbHiXtLOzpYNa3Xt4qf4eB5nJISaMBEBY9439B7nVz/1j4U8dNTcLMfRRgrnJ/7rUDxlBrY3beYB4XFZ6lYkb6Ru5gf/ACl1oI0CYN+iVuKu191z8+h+zDCP+9ZdGyaWRfdW5s7kMbNjYciKscEFiSNpSIkYFmCMwHJbsOee3tp04B9tGgNR7dKtcULbrwzqPQSoHH+epGjQQYcRjoDzBQqRn6pAo/4DU0AAcDsNe6S/FXNXMXg6VLEzfDZLM3osbBZ6eo1+sMzyhfcqiOQPduNB7urxFwu37kuPRbeVy0aB5KONi86SJf4pT2SJe47uy9u+sI3VmIrOfylybbG3I52mg4qvB8YjNJyG8yaGRYjPyOsxseCh56uQeZm28Tkc/g713a+Hqy42jaevBDNGZntTdQDyOrsiySHszSzFlU8KqfKWOjYppvDGStDuO1Sm2/lbUsz3ZIkhkqXHBk6ZOk9Dq3SVUgKQQq9wRwFFtenlc5mpNvb7ns4yOOv14nFV6/wFawoUdbcwSsJAhI4i8wcD5iO/aH4ibby23tt43FDOXjjs4z429Qq12vcyNGzIayTOZFB6eCOvgchu3B11/plhPE/ceCo5iw+HxtfqnCCZ4ms225RIVsALx+yYllUhiXC+x5m7i2v/ANX9rIbrx92pXhxy+bRoyWHZZYuP28fTKW4kZR2kjYHlVBHHIIJ28s3u58zhl3Pj6Aq492JmtQmrHwygrFK0Uk6KXKIArAdXp6Nq+22+3m3dtrF7nxcmCswwyZCSDMdAfIX5GURzNJ92VuDKQDwVbt0jpA09+IWaw9rGZbCUsccpeyWPMln4bykWGJkIjlnldlVB/DyS3ykgcDnWeYivHvPBxfbFzIndF2iUgr5ExTY+8kPeSBGjHDAlOokkTKfmB4B5DZ8ngq24XqXL/wAUkcALJTn48vrBPTI6+vUDwRwR7e+kjbe3Dvo43c26a9PLUchHLOlS4GaOnGSBAsUXPRyV5Z3YFuTwCANJ+383nvOix+2c9nZMdJjob9GrBWq35KsLEq0MpkKuSjcAHqPKkfTk86uayGycXSwV3ceax1dIQtWGzWx1SUJyeeqSWVuF9gent+PGgfs/Rxvhjbx+dxEqYzb0tlKuUpdZFZFk5CzopPEbq3SD08BlJ5HIB0iZPO5/c+4NwXsFgcgaGTqRUvJsxwRtPTj6+qRVlbkOxmYryCOleSDzwI+ZsNjstj/6RxLcuTQtZoz5Wy+UjaNuxl6UAi5jBB6I4yW7fOqknX1u3b0lPBbbx+OvW89t1q5+CyNeFpDEqsrKjeVDN5hJPyjpQAKQSfcFOvGmKxl2jjqk0NGSVGeC1HJZieOKQ+WLaIG8hxwUfp7AesY4D640tvZH7Iysu3sVksmacrSoIYRMnmFeuMtKs3EkycryyIx7KQw57WWxNv1dzbtELscTF9nPenuVarQPNDHKFQ1/MHVGQeoMw9AOkADgDV8Go8N6UuD3FXtWtqGw9qrmgpk8vrfzClwKOVIYn9px0MD83SdBUYPwy2vuHadK1trIWntyxczZMzs6SSBgzRTV2PT09fPVGAnA5HbTYLWO3tFNtPe+LrRZhI2NilI5KSp7WKrfvKTxww+ZO4PB9fqzt5Mwn9KNnXK+NyV2MmYKwmp5FO4AnVDwTx6SIepeeOWA41GuXMZu40sFu6jNgM6sgmpOko+dlHPXSsrwCeOO3ZuOQV40CDurZH9HJ2GdwmCyGDRT5ObXFlLEX0+LauVYcf8AtVUr7sF1yxtH7Cp3Y9tWvs/FWyPPWaT7Sw9tHHDu1gASxg8kdXPAPrp1tbv3RsWSGHeGOny+KnmEEGXoopkX5iFWeEEBXb+JTwSQOkHtqDZ/oJkrFyfau5INqZ+UFZoeo0hK5HpYqydPV78kAN68NoM72xPfo5WUX4jjs9j6ZrzTpDJYp36vV0K8ojPmcfIgFiMHgr84B9bvb9vMQ1cjepU5M/kVkeOjdx1yG7FD1KsYYgFJGaOEMB1JySWHbk6gY3cFerY2lkx0068WQtMkbo0vk0/hlEzKQSPhTPwUPCqPlPI78a/Lg9s7lhydmxjcVfeRRagslYZWKMvPKvy/YHkc8BfoD66DLIMBWemtKHa+7Viqr5VGo9IqrgFeqzYd2VJZm6R0hj0IAvyngjVeZMhYpwYWtkspjBI/my4yjk/j7bKeT5ccUQ/Z8dvnklA92HtrWx4ebONPGywYehKJnQnqVZFlHv2YMOPyA/Mag5zKY7Ez3tv7Qo4+fOTzxiDGVY06EVQCJJlXlY4w3BJYKTwQOTxoK7wfxy1JNyZrJULEl6a2MXHA07Xp3EI+frmc/MxdmBPIRegAdhybDxSgyeJwab6rNVx+U27DM8NTp86KWCTpDxSEcdyVUgr90j97Vjt/Jw4DCVts7UhfceWpgpamR+iuk7EtI883cKS7MxRep+/3ffSb45BaHh5mP6Wbjjs5+5X6amOgYwwJy68+XCCWfgc8ySE/h088aBozG8Nz1tvZFNw7IvIDUl5t4y3DZh48s/NwzI6j/Cf10tDD4rK4jwypZekkkK08d+2jZopuXrTLx5iEN08qnbn31p/iE4g8NtyyE8eXibLc/lC2s4zz/Z2H2i3YClSw8x/JbcEZ/wCzIdAw7k8K8fLBXj2rVxeJV4ZqdsiueqSGUxlm6h3Z1MY46iR3POtM416PTRoKnA7dxO3/AIr7HpRVPiX8yXo57n2A5PYDvwo4A57DWeeJOarbF8R8Num9z8BcxdvG2eP3ni/bwqPqxIkUfi2tZ1mn/SArRDY0GXniWVMJk6eTKMvUCiTKH7fToZv5aC78LsFaw+2RPlwPtzKStksi30nk79H5IvSg/BdSPEfcUm2trzWKSCbK2XWnjoD/ALW1IemMfkD8x/BTq8xWSpZajHcxlqC3Uk7pNA4dW/UaRKC/0x8UrGQJ68LtbqqVv4Zb7r+2f8fLQhB9GZvpoGjZO3YdrbVoYeN/OMEf7eZu5nlYlpJD+LMWP66ofBaQw7Rmw0hJlwV+zi25/hjkJj/7to9PvHbWfbdb7J8Yt1Y09o8tTrZeED0615gl/X5Yj+ugsPGLHvlPC7c9aLkzfASyxAevXGPMXj9VGmHAZBctg8dkY/6u5WjsL+ToG/56mTxJPDJFKoaORSrA+4PY6SPBKV/+rnG0Z25sYp5sXID7GvK0Q/7Kqf10D2NGjRoAaNGjQGkHxtpPLsWfLVLCV8hgZVzFSSTjp8yEE9J59mUsv66p95+I96HcORwuG+AxdbHskVzOZVZGrwyMgfy0VBwX6WBHWygnsOdRqG1aWQyNG7ugZPdk0pDxTZP+oA/jhqRgxov9qTg/idAtbD3hbwktkYLHvaqTvDZtbfncR368kyqXnrs3yzRO5J4545IIYdXSGKru3bO4/FOvPlby01xuNBp0sqhqSRW3kYSt0ScftFRUAI54DNwe+qnbm1sb/SBtj7soT2lol2xcjzqOurzzHLEx4kRkHEbeU3qqll79WrOXZmcy8N3HxZj4yhGzRtU3BFDlK5YHjhJkZZlI7ffHIP10DpDtDa0O1Mzj6FGB8dkhJNaAkMxldgSXLMSS3PcHnseONKGxNh1dweHGOymasC7uTK0IpXytmCOzJEpQdKIsilVULwDwByeSTyedKUGx4rGQWJdl7IyFuFXSzDjslNQkfjt1eWYx0EEfUjg/lr4XZKQZaOsNg4KsjKI1o3t1Oyhv3SihSRz7rwQe3HHfkG7z9teF+9Kca5HF47F5alMchADHDELEITolWMHhS6s6lV7HgcDkHS/4p7wpZza9NsIljB4CvbE0W4JoDCDIqv8AJVh48yR2BderpCjv3OpdTZeW2/YrRY7F7awloEtFLisRNkLIUnjpadxGnA+sn0GluvjLWY3rbo3czNcsZPLWcHDcvKrS1YIYi1p4VCiJHlZSg4XkAc9++gkbV2/urL5fJ5DZMsu24cPHVxVGtelSbmDo82SN2Cv3HmqQOSASAfTgXWz8iu2cznDuejlc1uKG0Vu36DixX8uQIIllY+WnWoAUJ08jqJA4bVvmsLgtgyVE2b9pjccXRY+z6jz2jdh6gHE0fdVDDqCuQvDAcHgEa57E3LgcRtV62Zjvy5yzasJYw7U5JLU0jTSS9Zr8c/MjKS5+XgAc9tBU7AxGRkyO5LWw56GIoy5YxHzqfXdii4B6SkhURRAlmSPjkhufl1E2VtS3VzW6re7tzyYrCYzISxynH35aEFiSTpk7r5nTGgDg9K8Es7ck8Dljx6ne/iHlGW5mtrwx0IIvgQrUrV7pZm81uRz5aGToHQeSSeTxwDC+zKmxNzYibfGSS5jZ47dmH4gmYQ3uY/mBI65WaPsnIZlPUBzyOATsTiqtrf0u3vDO0litCUyVXNR2OpsSzgrKpPSTPGwC/syfmY/MTwSHHaW9c7WnzdKWs+5/s3KzV5pquQiS+FWUqgeuwVSp57dDenbjnnVZviKu+Tq7hxWz9xwi5dWG3LYuPT+LEvyIgiEvmkeYUfo6VB6T6ck6Xd5bSxu3MvLFbjgvrgBTvhkiZT5Nqw8c9Z3DFuOeZYyzFlJI6iONA52sjhqdu1fwdDeGzsmz8ziPCSzVJWPH9dBGGjYn+JSrd/va8/p/BuWk2D3ftfMXogA7SYnE2nhm456flkjWWFgeCCOeCOzaYMRs2tLSvslzcNBa7MUWDJ3Yo2459jLID6fuk6+8bsyvfxEl9s5uebq54jXNW+lgPqCUb/h+egShmd9Li71K3i/jtrSE1vO3d5dJ/IYAASOrl2YckElO4APIPOqLibcQqT5Sy275KAFPmFDWxAjBHaaywL2SWCN0r1ckfd5OtO23s3a64bI5EYelYvRFwli0i2HQ8c8gzTSDnk88s6/jxqPndyJidjxQNJPey+Vm8mjWqTCSafj+AJ0KFHfkr1Io9Sw0Ff4TYywPEPPZPJ2pblujh6lOY+T0LEzlpPJijHJVVjWL5TyxLEnueAw3to7Skn+ITCW8Xl5yWSHE2HqWHHP32ELhRz9X7fU89tdNnw0fDfaCHdF2CPMZOdrVlYQWaaw/A8qGNR1P0qFQBR6LzwNRZLWbzImgxcMm3Md9+boKNfkHHPVLIeUrjj69cnHsp0EHP7d2vSlioZO1unO5eaPlcPHmrNiRlP8AGBIoVOfVnKr29dQIcfjsbiJWybY/BbaiPM+PxEgr1h+Fm52aZ+/Hlx+p7Hq9dfOGsQ2hYxewMbFmmaQmzdZnTFpJ7tNOeZLj/UcsD/Z1fW8HgNpxwbg8Rc3Hk8rGemrJbjAhgf2SpVXkc+noGc8eug4R57J5PEQwbRpxbQ2qnEcWTuVQs0oPoKlTj39mcd+eynSb4pVtt7b8PtxY+Pr/AKRZWCMtJdkNnJWVEsZMkxHPlR8DsD0r+APbTlSx26t22viovitt49xwchdVXykqH1EMX3Kqnv6gv6Ejnvrj4q7Uw+1fBbdMeIq9Es0SPYsysZJ7DeanzSSNyzH8z29uNA2+MT+V4TbvI/8A5TZX+cZH/PSh4l49n2fJIg7wbYklH5wvXlH/ANOn3xHw9ncOwNwYmj0m3doywwhjwC5U8An276zJ9yRZbE3cbcvSV9yzQtWlwF+EVZErPGYzHAHPEh9H61Y9ZTjsOAA2+CVZoUljPKOoYH8COdfelTYuXrnw425kL9qGBZMbXd5JnCLz5a89z+POqbO+MuxcQs3OehvSxDqaPHK1oj27lAVH6kaDRNLviLSrZLYW4aV2SOKCehPG0kjBVTlDwxJ7Dg8HSRe8QN25PMYzF4Haww5yXm+Rb3BJ0kCNAzc14iWHYjjqYeuqjfHhxuW7Wq5TL5qxuyWsxefFGJIIOOQVeCHnod04+5L1BwSOVPB0FBjt1Va+HwWWubdyWP3LkacEtaxhrq+XkXZQqCwoI6Qz8AtIhA9mPGtu8P8Ab42ts/F4glXmrxDz5F5/azN80j8nuSXLHk/XWePn9vb+26uMzxkrmFhHL8JFKY+R6q0fBMMg47LKvKHuhbgNqZgc/NhN54PD1Nw3M9iMq0sATIRH4mpIkbSBhL0r5iEKQQ3LA8Hk99BrGs63/wCbR8RNjZKlA01pmu0miDqnnRtXMnR1MeOrqiUgH8e41omlzxC25Fujal2gVYWxG0tKZJGjeCwFby5FZSCCCf5Eg9joKHOZ7c8dNrOQ+wdoYxf6y5krYsygf2UXpjB/N2/I6Qtr79g2tn9w2YsZuW/ty6IrKWmroHksiJ3mmEbMhVHjRX+6PTngBhzI2bc8Psft3FbgmwUs2WaujT2LcMkrRTAcSATWW6QQ4YchvbUnLeKGO3GJ6WJwcOWeRSvRCGvScEAHkQKUHIAB5lXsPXQPOP8AEKpLlKdDL4bOYKS64iqyZKsqxTSEciMOjsA5HPCtwT7d9Ousdh2pu3e2Qp2d3yNjcTXsR2lqmRTM7owdQEjJSIcj7zNK/HIBXnWxaA0HRo0GRZpL+0d1bnuXcJev7dzNupdNuggsNWMaRq6ywj5+k+Xz1KGHfuNTds4rbudimynh1uJca5kLNHi5A1fv6Caq/wAqt9eAjfjrTzr88bLwWGyPh5UvTVGgzERsLWyVGQ17MR6rD8mROCw5j+63I7+mgbPEBslaqQ4vc+AiyEkZ+Igy+JeUPT6Tx54iX9sjAkdo2fnnueOdctspn6ztlts3tub1jC+XLNMoo5Edh8jyIpVj29HVT9Tqr2hlN5Jhdv5axcx+53yOLjY0rXFC4RKqMwik/q5eCPcKfqffTJTy2y9xXoKFsWtv7ohjWKOO31Ub6gDgBZOeJR29mdT9NB6m781RyTz5TaW94VY8tVrJVu1+eOOzI3Xx78c/pr4l3i9jNRXYtt74YKBxW+xIlXn/AOI/DD/e0wtBurEI6ddfc1EggpL01bgX6dQ/ZSHj6iP89c137jfi4MPTpWo846/JjLSCqyD0BLN8vT+KF+eDwDwdBS3Le7dx5KNsdts4gxhWWXM5U9KgHsxqV2Ic/wB5h6azXMwvg9y5Tb2bytiWrJPDuGHcUKBExlqRmSSVo05BTrQqOflXrIY9+da4MfHFO1XJu9mxKfMbFYtWEff96aQkM/5yMqn+HS34rRpt/d21cxHFDXrWa82Hk5LRojHpliXqQHp5KSKD0lfm7ggnQV+3rs2JfI5DxDxNnIVr9yLIQ53GQPLUeKONViMkaMXjA6S3DAryxOrvau79sZjxQzV2LN4q0Z8ZVioypYTtEHkMsfryG6yhIPcgr9NV17a9Gjmqke0sqNtplYlmEVS4pgkZueT8NIphlHp/VMh7+hBB1F3Fgc4+Yr18/itm7gaMBY5LWJs1lkLcAFnVJUJHcccgDk9vQ6Bg35Vxk93aW38JfNK8txphLUscTVqYjcTt1kkqrdSpz9SOO4HFFuqHZmztxbazlTN1jNTuCCapdyj2+I5h0PMiyOzK6/KSw9VDA6p7e1KePyzLkfDnYcVyZVEcTZF+gjkgdMYrdyTzz7+n01OO09y4Y04aWD2ripzP8SJcTi5bb9YJIBY+VGigkcAnj5R699BP31vCfdJxibKx8832ZZXLvkclG9OkI4lYH5nAeQcsPurx+Okh0t7l3HQwmKyjW/ty/wCbks/LCGgutXiWZYYogw6oY3j6SVPA546iSdaBuDZbWMtjk3Hk7257s5QyQz12FdUDj0hi6YQvr80zNx7BjwNG3YUyvjxkGrxwrQ25QaHiKu0YjmmKhV5Y/NxFGfugKOrsO5JCTGm/ttPfs2MdtnI17DFpZIMg1DuT97homIPf3c6kYrLb8FEw1dm1jDJzxPc3K0jEHtyG8otx9P56ZZI4b+TNqjF9ozRsei3abmtW/wDhqOzMPqvf2Lj01WR7nsXp5qu0EbP3weibIyv5ePrn3HWvZyD+5GGPszD10FNaxu8YMPYbN7g25tfDrzJPJCj3pAD6gzWSEHt+4fwGou0cNK9ie5s+naWa0vRPuvcQaW1On0ghbhun045EaenCsNWGZTBbXt1MlvrJzbh3HI3NGosPWQ/0qVF54P8AbPLfV9fV2lu7d0YfNSWdt4SQ8Ji8dIGv2R9Jpx8sIPuqd+/BbQQ71nAbfy89HDQ5HdW95hxYaGUPZC/wzT9krR8/ur0/gupcey7GToi14kX6aYquPMGEosYMfAB35mc8NMR6nq4Tnn5dR493bf2gau0djYetez0jFBjqEoWGOQKWPn2G7dQVSTz1OePTSxnakmZxlnN71ykmTuYqRLE+EWBoKNWPzAjqYz8zuFJZZH59FIHGgsM/4uRyQy4jwxo1rJgjVYrUi+XAeZBEFrRdjMepgO3Sg7EnjXLbGQwW2szfsbuWbL7/AIHWFZFkN6WZnXqWKvwipE3cgxgL0j5iSvfVvmblKBotuYfEQTzYyepDg3ZuOmdk6wQ/DHgRrI7t/CQOCW0YW8+Ahp7dFrrmDR2JpqCeZLcll+d/L5556nZizngKidyOoEA7bZ3NZyOVs4rM4iTEZKKBLSRNOk6yQsxXqDJ2BDKQR+I4JB1T+PcTTeD26gncrTMn+6yt/wAtcprLw+MMK4mY3LVmpHFl67R9SUa6LK0TrL26Sztx0d+rue3HOr/xLqfHeHO6KoHLTYuygH4mJuP89Bf05RPUhlXuJEVh+o51l25sBi8142xUs7j616hf226+VOgYdcNlSCPoQJT3HfTt4eXPtDYW27nPPxGNrSk/iYlJ0t7/ALcWN8TPDq1Iek2LFzHk/USQhgP9+NNB0xvg3sDHurxbZpzFfui2z2Qo+gEjMAPw40ueKFOrW2lunGUKsFWCa3iqqxQRiNQHniHoBx7nWyA9tZH4zH4TC7hskDitNiMgf7qWgG/kE0Fxn42XxZ2iT6E5Fh/8vCP/AD1omkbdJA8Tdj/2lyAH/wCSh/5aedAubg2PtrcNsW8xhaVm4BwLBj6ZePp1rw3H4c68wGx9t4C98bisTXhudJQTnqkkCn1AZiSAfw0yaNAaNGjQLLbA2i+TlyMm2cM96VzI87042YsTyW5I9effTHDDHDGscKKkajgKo4A/Qa+9GgNGjRoDRo0aDw6wbYKPB4WVpOOOpsiV/wD7YuKf82XW8nWI7HQyeHAjA+SJM+35cWHUf/UdBU48ZzBzYLA7enrZXF3nNZMRnPnijEdKOxxFKAXUfMygN1AdvTV1kcpgZ4BiN8YyfAhzwtPcMYt49m4/2Nrkhfw+dSP4de0FZt8eHLkEAzTt+f8AqmEa2axBFZgeGxEksMg6XR1DKw+hB7HQZzQ2pncPRisbH3EFrFepMXlJWv0yPYRTdpUHHp3Yfhqln3BDWz2T/wCtLbT4zH3K9aITyoLtAvG0vLeaq/s+RIOOsKRwdMtrw3r4+Z7Wxsna2vaYlmhqgSUpD/brN8n6p0n8dV9vfmY2lbqUN/4ZJo7ZdIcjhFeeOTpUs3XXI8xOFBJ46x66CXtrAX6WGit7S3HFPDKzyCvZf42pICx46JAfMTtwOzMBx93VT4j5ePI7YsYPeuGuYqe0QK16vMJK0cynqSVZwOYukjq5dV7A+upOO2vtPcayZvw4zjYa255ksYOZREzfSauQUJ+oZQ346kTZDeW33gfceGh3LSrOXW9hB5dhflK8vVc/N2Y/1bH+7oFH+mlzBUsHDu8zssJEYzNSzFLQyC88q4Z18tX5B5DFHHqrN3075m8rblxuRxqQ2KtlIybEXxZB+Y+skAaJ+37rgfmR6VuOrbK3Yt61tHItjskFY24KB8iQng8iepIvS30+eM/npaGwoMZUTMNgYpaskCztd21akxVpFK9RLQK4if8ANWH4LoH7fFkVM1RPnyqZFA8sZd6itw38AU9X5jufQ6+/EOD4h6AaAyIpZnMlaaaJRyO7BZEj7ev7Q8f56S9s7cxudsTVzvneVa4v/wDCpMxPDYiH1dXAc/mo6foT669yWxtk7euwz7o+O3DlZh/omMsWJr8kpHusTser8XYBB78aDvubdM+49z0qewIYM/NTIMtjzZDQgkHo0rDiMlTweF637cAL97Vrh5sbtOpbwdMT7q3Vbla1klgVS0sz+rTMT0QJwAFVj2UAAN7+xUsrmDHj8lMu3MSijjC4ZwJ1j/8Af2F4WJeP3Y+Pwc6j1t2UasMuC8KcLVvJWJE94HyMZUb95pJv9q3uQnUT7kaCwymMaTHSZLxLy9Oph4RycXXlMVJB7CWQ8NOfT5T0of4DqJXy+4t2wR1di0l27txVCJmLtbpkkT2+FrHjgcccPJwOPRTqEmDxdNId3b9zUGYkhYuLuRHlU6v0FWv6En2c8seOQT6ar93+Im4clHXg2xj7uNp2nAilesZMndi6gJJK1YjhFVTz5k3A7jgckaBi/wDRHwykDSNayW58gOATzcyd8/Qe/T2/soPw0lbvz248yblXedmxsXEseivB5LvFaBA/r7sR6Yx6/IpX8SR68J9tPiLVPI4zbm6cXfsOITlpNwQLkLsjdwrxOzRyE9PPSxX07D21dYnxEydSOvHNmNubkScdJqTzpisojc9JjeFyY2cEEdPKckdtBRV+K218bHh6eImr4jIVWyUOOkEMDNG4aG1E5+6JQQGfnjlSCQAxDHf3J12pc5BWW3icljLRnRogpl+HimYV5V78OpMisAe4A+h1z+z/AA6zGZaNIrey9zWFMbQ9Jx00wPqpQ8wzg+4AcHXSp4fbs2uJfsPIYvPVWeKUQZGNqsoaNSnJeMMjloz0MWUdQA78jkgt17M2MhoTtaFu3QrTF2i+7EHqx1a/U38TshkHckRgtx7mfYzWOwuzfNyORu187YmRLNimTXSLgALA0wU8KidJ8pCX6hxx1E65YLYe4shg8ft6vSr7fx2PAWzYlspakksE8yOqRnuSvSil2HSnI4PI4lU6mKxKwZDBrBG3Jgg3BmU+JsSkEgrRqJx78/dCA+vDjvoKDI7Os5SDObjxWHs7fxdbHvPHkslLK2TsSxqz+cgLdURbgDl27r+6e3G7YB5czsfGvcYvNdx0ZlJ92eIdX+ZOk/PzZmDwM3XNuGWV7jY++YzYREmELBxEJAgCh+kryB6enrrQMFXFTCY+uBwIq8UfH04UD/loFHwInNjwh2qW9Y6Swn80JT/w6ov+kBFImNo5SBeZ8Gpy8fHr+xsVi3/YL6tPAMmLw9FJjyaORv1T+HTak7f566+LPQcRmzLwY123k+QfQ8iP/wAtA+wyJNEkkTBo3AZSPcHuNZx4uY05DF7jqj1ubcthB9XiYMv+cmrTwTyxznhRta67dbmjHE7fVo/2bH+aam7wr+dlcUhBIsRW6h/J4er/AO3oFfZs+R3xldq7jNGSliMbSdo57J4kuyzRKpKR8crGOD8zHlvYcdzqOknwSn+J8I9oufbGwp/ur0/8tO+gNGjRoPNe6NGgNGjRoDRo0aA0aBo0AfTWOeGrRv4W31K/tCuZZW/sm1KCP5ga2I6x/wAM4GHhTam/dWLMRn8zblP/AC0ErgDcXhCQAOqvY5/E/Aj/AMtavrF608jbl8MyzEpFaMKfgrYkNx/PnWz6D3nWa+LNx8NuLY2bFaxfWtkZoBSqgGeV5a7gMgPAPSFYkEjnn17ca0rWXeNluziL+y83Elc1MflGeeS07RwR9cEiKZHVW6By3AcjgEjntoKfP5Pw8zFwZG/U3Bt/Ogdr1fFXKdtT/adI+H/Juoao63i5kMP5Hw9mxvPATTCv9oDHy4+aBmPSoeV1EDnngc8oeda3t/eGPzcsdC1DLj8jNF5iVbJUidOO7QyKSkq9/VSeO3IHOqbP+GlTOX5FtTI2MkjKtHLGJ3TnkCOIScxwxgcfcTqJ9xx3Cmv2dm+INqGrZqLHuesO1bIB8dk4voY3HDHj+ySp+uuDJubblRsbVyC5bGtGYBjNwAVbPRxx0RXEBjc9+wYE/jrzO4GLa9Sni94wx7l2K0qV4Ll1Q1vFM5Cp1yDgtH1EASDhl5HPI76v5No7mwSMu1NwDIY/jg4ncINiPj+FLA/aKPp1dY0EEb92ZuK6MPvKiuJy1aYR/C5qFQEl4VuI5hyhPBUjpYEgjtpZwu6sbjdvVoserWs/bieW5XxUfVdlCyOAZp2PEMYAHzueePu8auNnf653HuqDcmIhhWTJsLdGdlsxD/Qa/vxwynp5HYevoDq4wOKxuF29v2nh6VWlUjtSKkdeMIoBqQt7fixP66BQwGNu7qbMQbrruKGNvtUG38VIUqOyxxyF7Vg8NL/WDnqIBKk9Lan2tyG9XkpbPxdbOLjwQWgXy8Njgo59Rx8Q6+vSgP4BTqBR2HLvu5v6G1uDI0scu4JVSlWVPKeVYoSWmBHMqkcDoJA7H3Pa1y1HdWPrUMZuHCQ5XalQN5q7ZHkNMoACLJWLA9A7kpGzdXbtwCCHXZmx8VvPDUc9ve8248zZhjsd7BSGj1gMEhjjIEZAI+b7xI551E2tZy+M3BuG/tvF2tzYgiOCvlcnkVhKpF1dcMcjgtKiuWIkPYknlm6edcbjbSz2Rw9Xw1GOxO5ZJmSSevB8LNTgReZRNX4VnBBChGAHJ6gR086usi1/ww25SfIZqrlduV1ipS07NWOGYR8BP2JU8SMB3MZUlhzwefUKnd27ftbbzU8bjc7WsQ3/AInIz2aklhcbLCRME616lPLLGF6OVCv1Egettgp9l4jw+xl7Jz1ZqOZpRdVWSNbDXZ2BaRggUvLKzMQ33vQdhxqu2nLvTMDMXsdQj2tSyds25L2TjDTxxLGkcaxV+eAQkakvIQOWPCkDnUfC5DaWy4LGR2ph7Oe8uULfz7svSTJKAwjmYAOxZ+fLhHTz6kHQWO39sZ7P4KLDZmumP2nDOzQQX41s356/XzHE4bqWIKp6efmfgD7h76ZPBOeSz4X4V5ZHkKrLEC7EkKk0iqOT7AKAPwGnckAcnsBrKvAXdGDl2BhcUmUqLk0jdmqSSBJfmkduQrcFgefUcjQOGyyTc3Orfu5eQD/8qI/89S8HtXB4Kd5sVjYK8zcjzByzKpPJVSxJVeST0jgfhqhoZ7FbbO6LedvQUa5y7BWmbgyHyIeyL6sfwUEnXE5Lde7vlwVZ9tYdvXI5CENclH1hrntH/el7/wBjQcPHDI15NnXNt1pfOzmZRa9SjEpeWUM6hm6R3CBeoljwBx66fr9gU8fYsdPIhiaTp+vSCeP8tLFPFba8OsPfy1qbyeQHvZS9IZbE59B1yH5mPPACjtyeANKW5957wylWP+jmE+wcZaPkx5bNrwxduyAQDkx9RPAeUcckAr3HIfPhdLuPD7LoZCriYs7FnWfMymtZSs8D2OJGjEcnysoJPDdYP4ak73TObmw+ciOAvYpJsLap+dcmgKozDq54jkZj93j099Vfh74f5/GYzycZuLcODqIgavHO0U4BLMHjkgkVlVlI7NGwRgQQB7+eKeH3Zh/D3OZG/vu/cgrQdTV69GCqJVLAMpdQW7qSOxGgmf8ARkycF7Y1+Gsqxw18lK0cKsGEaSqkwXkfQyEfpp+3XMkFvATykJHHkPmdjwFDQTLyT9O+sN2e+w8U+YxGUxOSQYvJ2oIsniorDxeS0nXGjTVj1cqrhSG9CONM1bI7Ca7HNgNt7j3PkIyPK8ypbsKjex67REaf3ue2gaPACVD4W4moCwsUDLTsRupVopEkblSD6dip/IjWi6z3wUllyO3srn5Y1rjOZSe8tZX6zXA6YehjwOW5iJPHbk60HQe6NGg6A0a817oDRo0aA0aNGgBo0aNAHWK7TztLb20Mvs/cLvis6GyLwxW1MaWkkkldWhkPyydnHYHkHntratQM1h8bnKElLMUa16m/3obEYkU/jwff8dBkGJu4/M5fw6o4CQ3chj5Ib2UMALpVT4Bov2jj5VYkqAvPP4a24eg1AwmHx2Dx8dHD0a1GnH92GvGEUfjwPf8AHU/QGvmWNJY3jlVXjYFWVhyCD6gjX1o0GYbm8I8bNG820/hsNOz+a9Tyi9Kdx6M0QIMbj2kiKuPqfTVPHe8RtuIYrGMydyJOyvXMGUjP5F3gm4/v9Z/E62fXh76DC8zX354hY6bDWqOQxuOt8RzzWa0FKNF5BJKCWaWQ9uygoCeOTx21uijpQDkngep17xxoPpoMv27KU3N4sn2jtQsPz+Bj/wDLVk6BMN4gKO/TaP8AlTr6h7Qri1vbxRrkgCS/VU8//wBHFqTjJvP3HuPGSHiC7kZ4349flp1SP+J0Hz4RH/T/ABAB9Ruex/8Aow60PWbeFVusu5vEOh8RD8YM/JOYOseYEaCEBun145BHPp21pProKHc20MBueNBncXWtuneOZl6ZY/xSReGU/kRqq2ltfALabKxV7FvIVppqsdrI2HtSwiORkIjaQnoHy+3BPuTpz0r+Hzl8blCfbMZAD9LMmgrvE7b2Vzy4dcbXoX6sE7vZoX53igm5QiNpAqnrVG4boI4P6DX3hNhxi5VyW6LhzWTrENWQx+VTpEenkVwSqkezt1N29Rp1/PSpunfWNwlwYyrHNl9wSLzFiqADzH6M/tEn9pyB+egZb0iRU53kdURY2ZmY8BQAeST7DWc+Fm3sRnvBraNfO4qnfiGOiKpagWTp5HqOR2/MakV9m5TdUqXfEWxHLX5DxbfqOfg4vcec3Y2GHb14Tn0U+utDijSKNY40VEUBVVRwAB6ADQK+3/D7a238gb+Lw8Ed3jhZ5WaZ4x9ELklB+C8DTV6aNGgQvGHAZfOYbFTYBVmt4vJQ5D4Vig88IGHSOv5eoFgwDcDlfUdjpMym7t05DGW8Vk9u53y7ETQycbaMhII45DLbKc+4PPrrcNHA+mgxUZTxGvxL8Nis3FEFAeW1JRxy8AdyefPcfU8aVcLtbc/itg5bmRajSwjyEQPZnsW5ryK3cqzkCGNuOzrGGI7gca/Rt2tHcpT1ZeoRzRtG3SeDwwIPB/XWK43Z3iDtDHQ4rCWEyWNrKIoHhypqv0DsOqOWKVVP9xgPwGguNhbNxVHIsYYmxcmIKq1PqHmVTz1L0WV6WlrOvV8sgbk/wkEav9w+JWDxlSWenPFdjjbpez5wjqRt9GnPyk/2U63/ALOk7+gG8M7YMuXOFo9ahGmtTzZeYAEkARv5cA4JPHKNxz6adtt+HGDw9uK/aWfMZeMcJeybiZ4vwiXgJEPwRRoIngbWuV9hRvfgaubN25aijZGTiKSd3Q9LAMAQ3IBAPBHOtA0aNAaNGjQGjRo0Bo0aNAaNGjQGjRo0Bo0aNAa817o0Bo0aNB5r3Ro0Brz217oPpoMw2haNXxJ34vHIs5mpAP8A5BGP+S6lY1Qu+r7Dt/ruVf8AexsJ/wDDqFteLzfEXdbcfc3FCx//AMYB/wA9WeBrvZ3nuGRBytXOq7/gDjY1/wCLDQLW39l4Xc+69/tlarC7WzgaterSNDZgJqwn5JVIYflzx+GmJqe+9sf/ALNtV9241fSvfZat5R9FmUeXJ/iVT+OvfDhg29vEfpPIGXh9Pr8JDz/w1oOgSMP4k4O3dTHZY2cBl27Cjl4/h3c/2GPySf4WOoNPdOJ2diri5qZ0t2creerSijaWzZ6rDkeXEvzNz9eOO/rp4y+Jx+ZpPTy9GreqP96GzEsiH9GBGqzbWzNu7YkllwWJq05pQFeVFJcqPReokkKPZQeB9NAsrDvPei823k2dg3/2MLLJkpl/tP3SDkey9TD6jTXtba2G2rRarg6MdZHbrlfu0kzfxSOeWdvxJOrvRoDRo0aDzXvGjRoDRo0aA0aNGgNGjRoDXmvdGgNGjRoDRo0aA0aNGgNGjRoAaNGjQGjRo0Bo0aNAaNGjQGjRo0Bo0aNAmbg2S9jL2M3tvMXMFm7AXzpIgJq9npHSvnQN8rcAcdS9Lce+lnF7R39byOZTM5vGYqhkbK2LE+FV/iZ+IUi6UMnaAEICSOpuSeCPXWs6NBU7Z29i9sYpMdhKcdWqpLELyWdj6u7HuzH3Ykk6ttGjQGjRo0Bo0aNAaNGjQGvNe6NAaNGjQGjRo0Bo0aNAaNGjQGjRo0Bo0aNAaNGjQGjRo0H/2Q=="
+     }
+    }
+   ]
+  }
+ },
+ "_layout": {
+  "v": 2,
+  "preset_id": "fde_g5_2027",
+  "subject": "english",
+  "medium": "en",
+  "scope": {
+   "kind": "fde",
+   "chapters": null,
+   "pages": null,
+   "label_en": "FDE syllabus 2026–27",
+   "label_ur": "FDE نصاب 2026–27",
+   "line_en": "Units 1–10",
+   "line_ur": "یونٹ 1–10",
+   "covers_en": null,
+   "covers_ur": null
+  },
+  "header": {
+   "school_line_en": "School: ____________",
+   "student_box_en": [
+    "Student Name",
+    "Roll No",
+    "Date",
+    "Total Marks",
+    "Obtained Marks"
+   ],
+   "footer_page_en": "Page {n} of {N}",
+   "scheme_title_en": "MARKING SCHEME",
+   "band_en": "TEACHER'S COPY · Do not give to children",
+   "covers_en": "Covers: {scope}.",
+   "covers_partial_en": "Covers {units}; every section set from these units.",
+   "record_title_en": "Class record",
+   "record_cols_en": [
+    "Roll",
+    "Name"
+   ],
+   "record_total_en": "Total",
+   "record_grade_en": "Grade",
+   "checked_en": "✓ checked",
+   "notes_title_en": "Notes",
+   "note_replaced_en": "{n}: key corrected by code; the model wrote {value}.",
+   "accept_en": "accept:",
+   "common_error_en": "common error:",
+   "answer_sheet_en": "answer sheet",
+   "or_en": "OR",
+   "school_line_ur": "اسکول: ____________",
+   "student_box_ur": [
+    "نام طالب علم",
+    "رول نمبر",
+    "تاریخ",
+    "کل نمبر",
+    "حاصل کردہ نمبر"
+   ],
+   "footer_page_ur": "صفحہ {n} از {N}",
+   "scheme_title_ur": "مارکنگ اسکیم",
+   "band_ur": "استاد کی کاپی · بچوں کو نہ دیں",
+   "covers_ur": "احاطہ: {scope}۔",
+   "covers_partial_ur": "احاطہ: {units}؛ ہر حصہ انہی ابواب سے۔",
+   "record_title_ur": "کلاس ریکارڈ",
+   "record_cols_ur": [
+    "رول نمبر",
+    "نام"
+   ],
+   "record_total_ur": "کل",
+   "record_grade_ur": "گریڈ",
+   "checked_ur": "✓ جانچا گیا",
+   "notes_title_ur": "نوٹ",
+   "note_replaced_ur": "{n}: کلید کوڈ نے درست کی؛ ماڈل نے {value} لکھا۔",
+   "accept_ur": "یہ بھی درست:",
+   "common_error_ur": "عام غلطی:",
+   "answer_sheet_ur": "جوابی کاپی",
+   "or_ur": "یا",
+   "title_en": "Grade 5 · English · FDE pattern practice paper",
+   "title_ur": "جماعت پنجم · انگریزی · FDE pattern کا مشقی پرچہ",
+   "time_line_en": "Time Allowed: 3 Hours",
+   "total_line_en": "Total Marks: {t:100}",
+   "note_en": "Note: This paper consists of THREE Sections. Section – A needs to be solved on the Question Paper. Sections B & C are to be solved on the Answer Sheet. Cutting, erasing and overwriting is not allowed."
+  },
+  "sections": [
+   {
+    "id": "A",
+    "time_en": "Time allowed: 30 Minutes",
+    "label_en": "SECTION A: OBJECTIVE",
+    "marks_en": "Total Marks: {t:25}",
+    "marks": 25,
+    "levels": {
+     "Remember": 10,
+     "Understand": 7,
+     "Apply": 8
+    },
+    "answer_on": "question_paper",
+    "note_en": null,
+    "slots": [
+     {
+      "slot": "english.A.Q1a",
+      "label_en": "Q1 (a):",
+      "label_ur": "سوال 1 (الف)",
+      "instruction_en": "Read each question carefully and choose the correct option. Each question carries 1 mark.",
+      "marks_line_en": "({t:20})",
+      "type": "MCQs",
+      "category": "objective",
+      "shape": "mcq",
+      "generate": 20,
+      "attempt": 20,
+      "marks_each": 1,
+      "parts": null,
+      "numbering": "arabic",
+      "option_labels": "A",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "one grammar or vocabulary point per item",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "Twenty four-option MCQs, one point each, covering: collective and proper nouns, articles, irregular plurals, antonyms, pronouns, syllables, adverbs, suffixes, tenses, homophones, compound words, degrees of adjectives, modals, apostrophe, spelling, anagrams, sentence types, quantifiers, adjectives. Never refer to an underline the paper cannot show; quote the word instead. An antonym item has one exact opposite among its options.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "english.A.Q1b",
+      "label_en": "Q1 (b).",
+      "label_ur": "سوال 1 (ب)",
+      "instruction_en": "Do as directed.",
+      "marks_line_en": "({t:5})",
+      "type": "Rewrite Sentences",
+      "category": "objective",
+      "shape": "short",
+      "generate": 5,
+      "attempt": 5,
+      "marks_each": 1,
+      "parts": null,
+      "numbering": "roman_dot",
+      "compulsory": true,
+      "lines": 2,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "one-line transformation: rewrite as a simile, identify subject + verb + object, change the tense, simile or metaphor",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "Five one-line items, each ending with the direction in round brackets, e.g. \"The baby is sleeping. (Change into simple past)\". Cover similes/metaphors, S+V+O and simple present/past.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     }
+    ]
+   },
+   {
+    "id": "B",
+    "time_en": "Time allowed: 30 min",
+    "label_en": "SECTION B: COMPREHENSION",
+    "marks_en": "Total Marks: {t:20}",
+    "marks": 20,
+    "levels": {
+     "Remember": 8,
+     "Understand": 6,
+     "Apply": 6
+    },
+    "answer_on": "answer_sheet",
+    "note_en": null,
+    "slots": [
+     {
+      "slot": "english.B.Q2",
+      "label_en": "Q.2:",
+      "label_ur": "سوال 2",
+      "levels": {
+       "Remember": 8,
+       "Understand": 6,
+       "Apply": 6
+      },
+      "instruction_en": "Read the following passage and answer the questions given at the end.",
+      "marks_line_en": null,
+      "type": "Comprehension Passage",
+      "category": "subjective",
+      "shape": "comprehension",
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 20,
+      "parts": [
+       10,
+       4,
+       6
+      ],
+      "parts_spec": [
+       {
+        "key": "questions",
+        "label": "i.",
+        "instruction_en": "Answer the following questions.",
+        "marks_line_en": "(2 × 5 = 10)",
+        "n": 5,
+        "marks_each": 2,
+        "numbering": "alpha_paren"
+       },
+       {
+        "key": "do_as_directed",
+        "label": "ii.",
+        "instruction_en": "Do as directed.",
+        "marks_line_en": "(4)",
+        "n": 4,
+        "marks_each": 1,
+        "numbering": "alpha_paren"
+       },
+       {
+        "key": "pick",
+        "label": "iii.",
+        "instruction_en": "Choose three nouns and three verbs from the given passage.",
+        "marks_line_en": "(6)",
+        "n": 6,
+        "marks_each": 1,
+        "pick": {
+         "Nouns": 3,
+         "Verbs": 3
+        }
+       }
+      ],
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "an unseen narrative passage of about 120 words; five literal or inference questions; four do-as-directed items tied to the passage; three nouns and three verbs",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "One item: `passage` = an unseen story of 120–160 words; `parts` = [{key:\"questions\", questions:[5]}, {key:\"do_as_directed\", questions:[4: a part of speech of a quoted word, a tense change, a fill-in from the passage, a true/false]}, {key:\"pick\", pick:{\"Nouns\":[5 nouns], \"Verbs\":[5 verbs]}}]. Every picked word is copied exactly as written in the passage, inflection included (\"walked\", never \"walk\"); two spares of each kind, the scheme keeps the first three that are in the passage. Never refer to an underlined, bold or italic word; quote the word instead (What part of speech is \"quickly\"?). A tense rewrite's `accept` never holds another tense.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     }
+    ]
+   },
+   {
+    "id": "C",
+    "time_en": "Time allowed: 2 Hrs.",
+    "label_en": "SECTION C: SUBJECTIVE",
+    "marks_en": "Total Marks: {t:55}",
+    "marks": 55,
+    "levels": {
+     "Remember": 22,
+     "Understand": 17,
+     "Apply": 16
+    },
+    "answer_on": "answer_sheet",
+    "note_en": null,
+    "slots": [
+     {
+      "slot": "english.C.Q3",
+      "label_en": "Q.3:",
+      "label_ur": "سوال 3",
+      "levels": {
+       "Remember": 2,
+       "Understand": 2,
+       "Apply": 1
+      },
+      "instruction_en": "Punctuate the following passage.",
+      "marks_line_en": "({t:5})",
+      "type": "Punctuation",
+      "category": "subjective",
+      "shape": "words",
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 5,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "one or two sentences (about 25 words) with capitals, full stops, a question or exclamation mark, commas and an apostrophe removed",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "One item: `question` = the unpunctuated passage (lower case, no punctuation), `answer` = the punctuated passage: the printed words exactly, only capitals and punctuation added, nothing reworded, added or dropped; never turn a reported question into direct speech. A points only, one per mark, each for punctuation the printed words can carry (a question mark only where the printed words ask a direct question).",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "english.C.Q4",
+      "label_en": "Q.4:",
+      "label_ur": "سوال 4",
+      "levels": {
+       "Remember": 4,
+       "Understand": 3,
+       "Apply": 3
+      },
+      "instruction_en": "Use any five of the following words in meaningful sentences.",
+      "marks_line_en": "({t:10})",
+      "type": "Word Sentences",
+      "category": "subjective",
+      "shape": "words",
+      "in_item_choice": {
+       "n": 5,
+       "g": 6
+      },
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 10,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "six unit vocabulary words, any five used in sentences",
+       "number_size": "six words",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "One item: `words` = exactly six words from units 1–10; `answer` = one model sentence per word, no definitions. 2 marks a word: the sentence shows what the word means 1 + the sentence is correct 1. The paper asks only for sentences, so never ask for, or mark, a written meaning.",
+      "print_words": true,
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "english.C.Q5",
+      "label_en": "Q.5",
+      "label_ur": "سوال 5",
+      "levels": {
+       "Remember": 2,
+       "Understand": 1,
+       "Apply": 1
+      },
+      "instruction_en": "Write down FOUR rhyming words from the poem “{q}”",
+      "marks_line_en": "({t:4})",
+      "type": "Rhyming Words",
+      "category": "subjective",
+      "shape": "words",
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 4,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "match four cue words to their rhymes in a 9–10 line poem from the book",
+       "number_size": "four cue words",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "One item: `question` = the title of a poem from units 1–10 exactly as in the book; `passage` = 6–10 of its lines exactly as printed in the book, holding at least two rhyming pairs; no `words` (the four rhyming words are the answer, so nothing on the paper may list them); `answer` = the four rhyming words as two pairs, each word copied from the passage (e.g. \"white – night; wet – yet\").",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "english.C.Q6",
+      "label_en": "Q.6:",
+      "label_ur": "سوال 6",
+      "levels": {
+       "Remember": 2,
+       "Understand": 2,
+       "Apply": 1
+      },
+      "instruction_en": "Develop a mind map about “{q}”.",
+      "marks_line_en": "({t:5})",
+      "type": "Mind Map",
+      "category": "subjective",
+      "shape": "composition",
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 5,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "a textbook topic; the child draws a map with five branches",
+       "number_size": "five branches",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "One item: `question` = a short topic from units 1–10 (2–4 words). The child draws the map; never refer to boxes or branches printed on the paper. `answer` = five possible branches.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "english.C.Q7",
+      "label_en": "Q.7:",
+      "label_ur": "سوال 7",
+      "levels": {
+       "Remember": 4,
+       "Understand": 3,
+       "Apply": 3
+      },
+      "instruction_en": "Attempt {w:ONE} of the following.",
+      "marks_line_en": "({t:10})",
+      "type": "Application Writing",
+      "category": "subjective",
+      "shape": "composition",
+      "generate": 2,
+      "attempt": 1,
+      "marks_each": 10,
+      "parts": null,
+      "numbering": "alpha_paren",
+      "compulsory": false,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "a formal application OR an informal letter from FDE's closed lists",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": [
+       "application",
+       "letter"
+      ],
+      "prompt_rule": "Two items: (a) \"Write an application to your principal for …\" with a topic from closed_lists.applications; (b) \"Write a letter …\" with a topic from closed_lists.informal_letters.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": true
+     },
+     {
+      "slot": "english.C.Q8",
+      "label_en": "Q.8:",
+      "label_ur": "سوال 8",
+      "levels": {
+       "Remember": 4,
+       "Understand": 3,
+       "Apply": 3
+      },
+      "instruction_en": "Write a paragraph on any ONE of the following topics.",
+      "marks_line_en": "({t:10})",
+      "type": "Paragraph Writing",
+      "category": "subjective",
+      "shape": "composition",
+      "in_item_choice": {
+       "n": 1,
+       "g": 3
+      },
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 10,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "three paragraph topics from FDE's closed list; the child writes one",
+       "number_size": "three topics",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": [
+       "paragraph"
+      ],
+      "prompt_rule": "One item: `topics` = three different titles from closed_lists.paragraphs, exactly as listed.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "english.C.Q9",
+      "label_en": "Q.9:",
+      "label_ur": "سوال 9",
+      "levels": {
+       "Remember": 2,
+       "Understand": 1,
+       "Apply": 2
+      },
+      "instruction_en": "Develop a story with a moral from the given outline. Also suggest a suitable title.",
+      "marks_line_en": "({t:5})",
+      "type": "Story Writing",
+      "category": "subjective",
+      "shape": "composition",
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 5,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "an outline of 8–12 cues separated by dashes, ending with \"Moral\"",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": [
+       "story_outline"
+      ],
+      "prompt_rule": "One item: `question` = the outline, 8–12 short cues separated by \" — \", ending \"— Moral\". No title.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "english.C.Q10",
+      "label_en": "Q.10:",
+      "label_ur": "سوال 10",
+      "levels": {
+       "Remember": 2,
+       "Understand": 2,
+       "Apply": 2
+      },
+      "instruction_en": "Describe the picture with the help of the given word bank. Also suggest a suitable title.",
+      "marks_line_en": "({t:6})",
+      "type": "Picture Description",
+      "category": "subjective",
+      "shape": "frame",
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 6,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "a nine-word bank for an everyday scene (classroom, park, market)",
+       "number_size": "eight to ten words",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": [
+       "picture_description"
+      ],
+      "prompt_rule": "One item: `question` = a one-line scene for the teacher (e.g. \"children painting in an art lesson\"), `words` = 8–10 words a child would use to describe that scene. The paper prints a frame and the word bank; a picture of the scene prints in the frame (the teacher adds one if it cannot be drawn). Never describe the picture to the child. `describe_en` = a short English description of the scene that names the things behind the words, drawn as a plain black outline picture in the frame; it is never shown to the child.",
+      "frame": {
+       "kind": "picture",
+       "height_mm": 70,
+       "lines": 0,
+       "book_page": null,
+       "word_bank": true,
+       "title_en": "Picture (pasted or drawn by the teacher)",
+       "title_ur": "تصویر (استاد چسپاں کریں یا بنائیں)",
+       "supply_en": "Picture: {q}",
+       "supply_ur": "تصویر: {q}",
+       "duty_en": "the picture",
+       "duty_ur": "تصویر"
+      },
+      "teacher_note_en": "Paste or draw a picture that fits the word bank in the frame before photocopying.",
+      "teacher_note_ur": "فوٹو کاپی سے پہلے مددگار الفاظ سے میل کھاتی کوئی تصویر خانے میں چسپاں کریں یا بنائیں۔",
+      "alternatives": null,
+      "or": false
+     }
+    ]
+   }
+  ],
+  "legend": {
+   "title_en": "How to mark",
+   "title_ur": "جانچنے کا طریقہ",
+   "lines_en": [
+    "MCQs: 1 mark for the letter. Two circles or an overwritten answer = 0.",
+    "M = method · A = answer · U = unit · K = key point · L = label.",
+    "\"Attempt any N\": tell children to answer exactly N. If more are answered, mark all and keep the best N.",
+    "Grades (FDE p.113): A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F below 40. Pass = 40%."
+   ],
+   "lines_ur": [
+    "معروضی: درست حرف پر 1 نمبر۔ دو دائرے یا اوور رائٹنگ = 0۔",
+    "M = طریقہ، A = جواب، U = اکائی، K = اہم نکتہ، L = نام",
+    "«کوئی سے N»: بچوں کو بالکل N سوال حل کرنے کو کہیں۔ زیادہ حل ہوں تو سب جانچ کر بہترین N رکھیں۔",
+    "A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F <40"
+   ],
+   "bands_line": 3,
+   "bands_lead_ur": "گریڈ (FDE ص 113)؛ پاس = 40٪",
+   "key_line": 1,
+   "maths_lines": [],
+   "key_names_en": {
+    "M": "method",
+    "A": "answer",
+    "U": "unit",
+    "K": "key point",
+    "L": "label"
+   },
+   "key_names_ur": {
+    "M": "طریقہ",
+    "A": "جواب",
+    "U": "اکائی",
+    "K": "اہم نکتہ",
+    "L": "نام"
+   },
+   "subject": "english",
+   "key_from_chips": true
+  },
+  "before_exam": {
+   "title_en": "Teacher: before the exam",
+   "title_ur": "استاد کے لیے: امتحان سے پہلے",
+   "lines_en": [
+    "This is the marking scheme for {file} ({n} pages). Do not give it to children.",
+    "Photocopy the question paper, all {n} pages, one per child.",
+    "You add: {duty} on the question paper, page {p} (book p. {b}).",
+    "Tell the class: {sections}; {attempts}.",
+    "Time: {t}.",
+    "Mark question by question across all copies, not copy by copy."
+   ],
+   "lines_ur": [
+    "یہ {file} ({n} صفحات) کی مارکنگ اسکیم ہے۔ بچوں کو نہ دیں۔",
+    "سوالیہ پرچے کے تمام {n} صفحات کی فوٹو کاپی کریں، ہر بچے کے لیے ایک۔",
+    "شامل کریں: {duty}، سوالیہ پرچہ صفحہ {p} (کتاب ص {b})۔",
+    "کلاس کو بتائیں: {sections}؛ {attempts}۔",
+    "وقت: {t}۔",
+    "ہر سوال کو تمام کاپیوں میں ایک ساتھ جانچیں، ایک کاپی مکمل کر کے دوسری نہیں۔"
+   ],
+   "nothing_en": "You add: nothing.",
+   "nothing_ur": "شامل کرنے کو کچھ نہیں۔",
+   "unknown_pages_en": "see the question paper",
+   "unknown_pages_ur": "سوالیہ پرچہ دیکھیں",
+   "on_paper_en": "{sections} on the question paper",
+   "on_paper_ur": "{sections} سوالیہ پرچے پر",
+   "on_sheet_en": "{sections} on the answer sheet",
+   "on_sheet_ur": "{sections} جوابی کاپی پر",
+   "attempt_en": "{label}: attempt any {n} of {g}",
+   "attempt_ur": "{label}: {g} میں سے کوئی سے {n}",
+   "either_en": "{label}: answer one of the two",
+   "either_ur": "{label}: دو میں سے ایک"
+  },
+  "supplies": [
+   {
+    "slot": "english.C.Q10",
+    "kind": "picture",
+    "book_page": null,
+    "scene": "a busy fruit and vegetable market",
+    "words": [
+     "vendor",
+     "basket",
+     "customer",
+     "fruits",
+     "vegetables",
+     "crowd",
+     "busy",
+     "buy",
+     "shop",
+     "weighing"
+    ],
+    "line_en": "Q10: Picture: a busy fruit and vegetable market — word bank: vendor, basket, customer, fruits, vegetables, crowd, busy, buy, shop, weighing",
+    "line_ur": "سوال 10: تصویر: a busy fruit and vegetable market — مددگار الفاظ: vendor، basket، customer، fruits، vegetables، crowd، busy، buy، shop، weighing"
+   }
+  ],
+  "total_marks": 100,
+  "total_time_en": "3 hrs",
+  "total_time_ur": "3 گھنٹے",
+  "unplaced": 0,
+  "generated_at": "2026-10-30T00:04:33.265Z",
+  "pages": {
+   "paper": 4,
+   "scheme": 5
+  },
+  "frame_pages": {
+   "english.C.Q10": 4
+  },
+  "notes": [],
+  "stem_check": {
+   "flags": []
+  },
+  "blueprint": {
+   "ok": true,
+   "total": 100,
+   "expected": 100,
+   "sections": [
+    {
+     "id": "A",
+     "marks": 25,
+     "expected": 25,
+     "levels": {
+      "Remember": {
+       "marks": 10,
+       "target": 10
+      },
+      "Understand": {
+       "marks": 7,
+       "target": 7
+      },
+      "Apply": {
+       "marks": 8,
+       "target": 8
+      }
+     }
+    },
+    {
+     "id": "B",
+     "marks": 20,
+     "expected": 20,
+     "levels": {
+      "Remember": {
+       "marks": 8,
+       "target": 8
+      },
+      "Understand": {
+       "marks": 6,
+       "target": 6
+      },
+      "Apply": {
+       "marks": 6,
+       "target": 6
+      }
+     }
+    },
+    {
+     "id": "C",
+     "marks": 55,
+     "expected": 55,
+     "levels": {
+      "Remember": {
+       "marks": 22,
+       "target": 22
+      },
+      "Understand": {
+       "marks": 17,
+       "target": 17
+      },
+      "Apply": {
+       "marks": 16,
+       "target": 16
+      }
+     }
+    }
+   ],
+   "levels": {
+    "Remember": {
+     "marks": 40,
+     "pct": 40,
+     "target": 40
+    },
+    "Understand": {
+     "marks": 30,
+     "pct": 30,
+     "target": 30
+    },
+    "Apply": {
+     "marks": 30,
+     "pct": 30,
+     "target": 30
+    }
+   },
+   "problems": []
+  }
+ }
+}
