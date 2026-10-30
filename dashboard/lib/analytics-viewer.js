@@ -54,7 +54,8 @@ function makeRequireAnalyticsViewer({ getViewerIds, getViewerOrganizations = asy
       const map = await getViewerOrganizations();
       if (map && Object.prototype.hasOwnProperty.call(map, userId)) {
         const v = map[userId];
-        if (typeof v !== 'string' || v.trim() === '') throw new Error(`organization entry for ${userId} is malformed`);
+        // No id in the message: it is logged below, and a raw person id never goes on a log line.
+        if (typeof v !== 'string' || v.trim() === '') throw new Error('the organization entry for this account is malformed');
         organization = v.trim().toLowerCase();
       }
     } catch (err) {
