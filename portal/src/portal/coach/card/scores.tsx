@@ -298,8 +298,9 @@ const Value = ({ v, max }: { v: number; max: number }) => (
  * One section of "Average by practice": its letter, its name, its average out of the scale (the mean of its practices),
  * a note when only some of her reports scored it (B: the others had no lesson plan). It starts CLOSED (operator, 30 Oct,
  * bd-dgfkgs.2: open, the page was long and text-heavy): the head is a button, and tapping it shows every practice the
- * reports scored with its average and a segmented bar. A section no report scored has nothing to open: a flat head
- * that says "Not scored" and why (B: no lesson plan linked).
+ * reports scored with its average and a segmented bar. Lesson Plan Fidelity (B) is the plan steps instead (bd-dgfkgs.3):
+ * the share of plan steps followed, and when open each of the five lesson steps with how many of its plan steps were
+ * done. A section no report scored has nothing to open: a flat head that says "Not scored" and why (B: no plan linked).
  */
 export function PracticeSection({ section, reports, kind }: {
   section: TeacherScoresData["sections"][number]; reports: number; kind: ScoreKind;
@@ -309,7 +310,8 @@ export function PracticeSection({ section, reports, kind }: {
   const bodyId = useId();
   const colour = kindColour(kind);
   const max = section.indicators[0]?.scaleMax ?? null;
-  const scored = section.avg != null && max != null;
+  const plan = section.code === "B" ? section.plan ?? null : undefined;
+  const scored = plan !== undefined ? plan != null : section.avg != null && max != null;
   const note = scored
     ? (section.code === "B" && section.scoredIn < reports ? C.scoredIn(section.scoredIn, reports) : null)
     : (section.code === "B" ? C.noLpLinked : null);
@@ -320,7 +322,9 @@ export function PracticeSection({ section, reports, kind }: {
         <b dir="auto" className="text-[17px] font-semibold leading-[1.3] rtl:leading-[1.8]">{section.name}</b>
         {note ? <small className="text-[12.5px] font-semibold leading-[1.35] text-[#6b7280] rtl:leading-[1.8]">{note}</small> : null}
       </span>
-      {scored ? <Value v={section.avg as number} max={max as number} /> : <StatusChip text={C.notScored} tone="info" />}
+      {!scored ? <StatusChip text={C.notScored} tone="info" />
+        : plan ? <span dir="ltr" className="shrink-0 whitespace-nowrap tabular-nums"><b className="text-[17px] font-bold">{C.pct(plan.pct)}</b></span>
+          : <Value v={section.avg as number} max={max as number} />}
     </>
   );
   const HEAD = "flex min-h-[64px] w-full items-center gap-3 bg-[#f9fafb] px-3.5 py-2.5";
@@ -334,7 +338,21 @@ export function PracticeSection({ section, reports, kind }: {
           </button>
         )
         : <div className={HEAD}>{head}</div>}
-      {scored && open && <div id={bodyId}>{
+      {scored && open && plan && <div id={bodyId}>{
+        plan.steps.map((s) => {
+          const judged = s.done + s.partly + s.skipped;
+          const tone = s.done === judged ? "done" : s.done === 0 && s.partly === 0 ? "skipped" : "partly";
+          return (
+            <div key={s.step} data-testid="plan-step" data-tone={tone} className="flex min-h-[52px] items-center gap-3 border-t border-[#f0f1f3] px-3.5 py-2 text-[15px]">
+              <span dir="auto" className="min-w-0 flex-1 font-semibold leading-[1.35] rtl:leading-[1.8]">{C.stepNames[s.step - 1] ?? C.dash}</span>
+              <span className={`inline-flex h-[26px] shrink-0 items-center rounded-full px-2.5 text-[12px] font-semibold ${tone === "done" ? "bg-[#eaf6ef] text-[#2f7a52]" : "bg-[#f3f4f6] text-[#374151]"}`}>
+                {C.stepsDone(s.done, judged)}
+              </span>
+            </div>
+          );
+        })
+      }</div>}
+      {scored && open && !plan && <div id={bodyId}>{
         section.indicators.map((p) => (
           <div key={p.id} data-testid="practice-row" className="flex flex-col gap-2 border-t border-[#f0f1f3] px-3.5 py-2.5">
             <span className="flex items-start gap-2">
