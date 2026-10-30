@@ -534,10 +534,23 @@ describe('her lists', () => {
 
   test('papers: questions and marks of the ready root paper', async () => {
     const out = await Card.getTeacherItems(db, 'coach-1', PHONE.t1, 'papers', opts());
+    // bd-u1laoy (operator 30 Oct: the tile was black with an underscore): the grade as its number and the subject by its
+    // printable name, as the lesson plans list sends them, never the raw grade_code / subject_code
     expect(out.items).toEqual([
-      { id: 'r4', date: '2026-10-28', grade: 'grade_3', subject: 'english', questions: 8, marks: 16 },
-      { id: 'r1', date: '2026-10-26', grade: 'grade_3', subject: 'math', questions: 10, marks: 20 },
+      { id: 'r4', date: '2026-10-28', grade: '3', subject: 'English', questions: 8, marks: 16 },
+      // a code the vocabulary does not know keeps its own word
+      { id: 'r1', date: '2026-10-26', grade: '3', subject: 'math', questions: 10, marks: 20 },
     ]);
+  });
+
+  test('papers: production codes (grade_5, maths, social_studies) reach the page as a grade and a subject name', async () => {
+    const reqs = tables.requests;
+    const r4 = reqs.find((r) => r.id === 'r4');
+    Object.assign(r4, { grade_code: 'grade_5', subject_code: 'social_studies' });
+    const r1 = reqs.find((r) => r.id === 'r1');
+    Object.assign(r1, { grade_code: 'grade_2', subject_code: 'maths' });
+    const out = await Card.getTeacherItems(db, 'coach-1', PHONE.t1, 'papers', opts());
+    expect(out.items.map((p) => [p.grade, p.subject])).toEqual([['5', 'Social Studies'], ['2', 'Maths']]);
   });
 
   test('training: the courses she worked in, every part with its done date', async () => {
