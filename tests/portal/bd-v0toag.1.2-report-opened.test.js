@@ -5,6 +5,10 @@
  * dashboard telemetry (no correlation context in this process). A session with no report yet, or a session
  * that is not hers, logs nothing. WhatsApp read receipts are not used.
  */
+
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 let tableRows;
 let selects;
 let telemetry;

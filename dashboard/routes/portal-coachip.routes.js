@@ -20,14 +20,10 @@ const express = require('express');
 const { isLeaderRole } = require('../lib/leader-role');
 const S = require('../services/coachip-shapes');
 
-const NOT_AUTHED = S.BODIES[401];
 const send = (res, answer) => res.status(answer.status).json(answer.body);
 
-/** The house sign-in check (dashboard/lib/fln-access.js requirePortalAuth), with the house 401 body. */
-function requirePortalAuth(req, res, next) {
-  if (!req.session || !req.session.portalUserId) return res.status(401).json(NOT_AUTHED);
-  return next();
-}
+// The portal's one sign-in check (lib/portal-auth.js): it also ends the session of a retired account.
+const { requirePortalAuth } = require('../lib/portal-auth');
 
 // ── body and query grammar (API.md §2): exact keys, typed values; anything else is 400 ─────────────────────────
 const V = {

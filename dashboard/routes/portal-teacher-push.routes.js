@@ -18,12 +18,8 @@ const { createBotClient, clientIp } = require('./web-quiz.routes');
 const BOT_BASE = '/api/internal/wqpush';
 const OFF = { success: false, off: true };
 
-function requirePortalAuth(req, res, next) {
-  if (!req.session || !req.session.portalUserId) {
-    return res.status(401).json({ success: false, error: 'Not authenticated. Please log in.' });
-  }
-  return next();
-}
+// The portal's one sign-in check (lib/portal-auth.js): it also ends the session of a retired account.
+const { requirePortalAuth } = require('../lib/portal-auth');
 
 const bodyOf = (req) => (req.body && typeof req.body === 'object' ? req.body : {});
 const LANGS = ['en', 'ur'];

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Check, School, Trash2 } from "lucide-react";
+import { Check, School, Trash2, TriangleAlert } from "lucide-react";
 import { coach } from "../../services/api";
 import { StatusChip } from "../../teacher/ui";
 import { useCopy } from "../../teacher/i18n";
@@ -19,7 +19,9 @@ type Words = typeof PEOPLE_EN;
  *   · School → commitAdd (moves her); Remove from school → commitRemovals.
  * Phone is CHECKED first (main's teacher_edit_phone_check): a free number, an
  * account that gets folded in, or a real teacher's number — refused, with main's
- * words — and changed only when the coach confirms.
+ * words — and changed only when the coach confirms. Folding an account in retires
+ * it and ends its app session, so the coach is told, before confirming, that the
+ * teacher logs in again with the new number.
  */
 const LEVELS = ["PRIMARY", "MIDDLE", "HIGH"] as const;
 type Role = "teacher" | "principal";
@@ -181,6 +183,13 @@ const CoachEditTeacher = () => {
                   </>
                 )}
               </div>
+            )}
+            {phoneResult && phoneResult.kind === "shell" && (
+              // The old account is retired and the app ends its session: said BEFORE the coach confirms.
+              <p role="note" data-testid="phone-sign-in-again" className="m-0 flex gap-2.5 rounded-2xl bg-[#fef3c7] px-3.5 py-3 text-[15px] font-medium leading-snug text-[#b45309]">
+                <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                <span className="min-w-0 flex-1">{C.lines.logInAgain}</span>
+              </p>
             )}
           </div>
 

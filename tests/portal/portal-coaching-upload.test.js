@@ -12,6 +12,9 @@
  * always the session's, never a body field — and the progress read's shape.
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 let tableRows;
 let client;
 

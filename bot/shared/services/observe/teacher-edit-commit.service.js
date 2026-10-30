@@ -23,6 +23,11 @@
  * short words). The refusal copy for a TAKEN number is main's, unchanged —
  * deliberately vague so it never reveals that the number reaches someone else.
  *
+ * ONE ADDITION main's handler does not have yet: when her number takes a
+ * shell's, the shell's own rows (classes, lesson-plan opens, nudges) move to
+ * her, see reparentShellRows. main's inline commit should call the same
+ * function when it is next touched.
+ *
  * ONE ADAPTATION — the level column. main renamed users.training_bands to
  * users.teacher_level. Sandbox's code has not taken that rename: its
  * one writer, applyBandSelection, still writes training_bands and stamps
@@ -135,6 +140,85 @@ async function loadTargetWithHistory(phone) {
   } catch (_) {
     return row;
   }
+}
+
+/**
+ * What a retired shell owns, and moves to the survivor when she takes its number.
+ *
+ * The shell is retired, but anything keyed to its id stays there, where neither the teacher (once signed in on the
+ * new number) nor any report reads it. A shell holds nothing irreplaceable when the commit re-classifies it
+ * (classifyTarget), but it may hold what its app session made: classes, lesson-plan opens, nudges. The training rows
+ * and coaching are listed too, for anything written between the re-classification and the retirement.
+ *
+ * Each table's unique key decides what may move: a row the survivor already has an equal of stays on the shell
+ * (moving it would break the index). `activeOnly`: the index is partial (WHERE is_active), so an inactive row always
+ * moves. Mirrors the operator's manual merge, table for table; teacher_training_assignments is NOT moved: her
+ * programmes are written by applyBandSelection from her own level, never inherited from a shell.
+ */
+const REPARENT = Object.freeze([
+  { table: 'niete_lp_opens', owner: 'user_id' },
+  { table: 'student_lists', owner: 'user_id', cols: 'id, class_name, academic_year, is_active', activeOnly: true,
+    key: (r) => `${String(r.class_name == null ? '' : r.class_name).toLowerCase()}|${r.academic_year}` },
+  { table: 'class_teachers', owner: 'teacher_user_id', cols: 'id, class_id, is_active', activeOnly: true,
+    key: (r) => String(r.class_id) },
+  { table: 'teacher_nudges', owner: 'user_id', cols: 'id, nudge_date, kind', key: (r) => `${r.nudge_date}|${r.kind}` },
+  { table: 'teacher_training_progress', owner: 'user_id', cols: 'id, module_id', key: (r) => String(r.module_id) },
+  { table: 'training_assessment_attempts', owner: 'user_id' },
+  { table: 'training_certificates', owner: 'user_id', cols: 'id, level_id', key: (r) => String(r.level_id) },
+  { table: 'coaching_sessions', owner: 'user_id' },
+]);
+
+/** Moves one table's shell rows to the survivor. Returns { moved, skipped }; throws on a refused read or write. */
+async function reparentTable(supabase, spec, shellId, survivorId) {
+  const { table, owner } = spec;
+  if (!spec.key) {
+    const { data, error } = await supabase.from(table)
+      .update({ [owner]: survivorId }).eq(owner, shellId).select('id');
+    if (error) throw new Error(error.message || 'update refused');
+    return { moved: (data || []).length, skipped: 0 };
+  }
+  const { data: mine, error: mineErr } = await supabase.from(table).select(spec.cols).eq(owner, shellId);
+  if (mineErr) throw new Error(mineErr.message || 'read refused');
+  if (!mine || mine.length === 0) return { moved: 0, skipped: 0 };
+  const { data: hers, error: hersErr } = await supabase.from(table).select(spec.cols).eq(owner, survivorId);
+  if (hersErr) throw new Error(hersErr.message || 'read refused');
+  const held = new Set((hers || []).filter((r) => !spec.activeOnly || r.is_active).map(spec.key));
+  const ids = mine.filter((r) => (spec.activeOnly && !r.is_active) || !held.has(spec.key(r))).map((r) => r.id);
+  if (ids.length === 0) return { moved: 0, skipped: mine.length };
+  const { data, error } = await supabase.from(table)
+    .update({ [owner]: survivorId }).in('id', ids).eq(owner, shellId).select('id');
+  if (error) throw new Error(error.message || 'update refused');
+  const moved = (data || []).length;
+  return { moved, skipped: mine.length - moved };
+}
+
+/**
+ * Re-parents a retired shell's rows to the survivor, table by table. Never throws: a table that fails is named in
+ * `failed` and the rest still move; the number change it follows has already been made and stands.
+ *
+ * @returns {Promise<{reparented: Object<string, number>, skipped: Object<string, number>, failed: string[]}>}
+ *   reparented: every table, with how many rows moved; skipped: only tables where a row stayed (the survivor held
+ *   its equal); failed: tables whose read or write was refused.
+ */
+async function reparentShellRows(supabase, shellId, survivorId) {
+  const reparented = {};
+  const skipped = {};
+  const failed = [];
+  for (const spec of REPARENT) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const out = await reparentTable(supabase, spec, shellId, survivorId);
+      reparented[spec.table] = out.moved;
+      if (out.skipped > 0) skipped[spec.table] = out.skipped;
+    } catch (e) {
+      reparented[spec.table] = 0;
+      failed.push(spec.table);
+      logToFile('shell re-parent failed for one table - the number change stands', {
+        table: spec.table, message: e && e.message,
+      }, 'error');
+    }
+  }
+  return { reparented, skipped, failed };
 }
 
 const notFound = () => ({ ok: false, reason: 'not_found' });
@@ -251,9 +335,16 @@ async function commitPhone({ actorLeaderUserId, schoolExtId, userId, phone: raw 
   // The roster and any booked visit key on the phone STRING, so they follow.
   await supabase.from('observation_schedules').update({ teacher_ext_id: phone }).eq('teacher_ext_id', oldPhone);
 
+  // What the retired shell owns moves to her, after the number has (a failure here never undoes the move).
+  const retiredId = verdict === E.CASE_SHELL && target ? target.id : null;
+  const moved = retiredId ? await reparentShellRows(supabase, retiredId, userId) : null;
+
   await _editAudit(actorLeaderUserId, person, 'edit_phone', {
     from_phone: oldPhone, to_phone: phone, case: verdict,
-    retired_user_id: verdict === E.CASE_SHELL && target ? target.id : null,
+    retired_user_id: retiredId,
+    ...(moved ? { reparented: moved.reparented } : {}),
+    ...(moved && Object.keys(moved.skipped).length ? { reparent_skipped: moved.skipped } : {}),
+    ...(moved && moved.failed.length ? { reparent_failed: moved.failed } : {}),
   });
   return { ok: true, outcome: 'moved', phone, case: verdict };
 }
@@ -274,4 +365,6 @@ module.exports = {
   writeRosterAudit,
   buildEditAuditRow,
   loadTargetWithHistory,
+  reparentShellRows,
+  REPARENT,
 };
