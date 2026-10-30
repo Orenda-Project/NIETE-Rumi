@@ -15,7 +15,7 @@ const { createMemorySupabase } = require('../fixtures/memory-supabase');
 
 const SCHOOL_B = 'b0000000-0000-4000-8000-00000000000b';
 const USER = {
-  id: '6f1c2a7e-0b8d-4c55-9a51-2d7f0e3b9c10', phone_number: '923001234567', preferred_language: 'en',
+  id: '6f1c2a7e-0b8d-4c55-9a51-2d7f0e3b9c10', phone_number: '15550000002', preferred_language: 'en',
   role: 'teacher', school_id: SCHOOL_B, last_message_at: '2026-11-02T03:00:00Z',
 };
 
