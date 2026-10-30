@@ -571,6 +571,13 @@ const SCHOOLS_ONLY_SQL = `
   SELECT id, name, emis, region, is_active, is_probable_test
     FROM schools`;
 
+/**
+ * Frameworks whose scores are not FICO's (bd-97daxo.10): Gilgit-Baltistan's coaching history, migrated from main
+ * Rumi, is scored on HOTS. 'oecd' is NOT here: FDE's populations hold oecd-era sessions that its averages have
+ * always taken in, and re-basing FDE's numbers is not this change.
+ */
+const NOT_FICO_SCORED = new Set(['hots']);
+
 function sessionsSql(bounds) {
   // One row per counted session — ids and flags only, no analysis_data (see the header).
   // A teacher with no school is read too (v8: she counts in her RDF sector's No-school row); v7
@@ -578,7 +585,7 @@ function sessionsSql(bounds) {
   return `
   SELECT c.id, c.updated_at, c.user_id, u.school_id,
          (u.is_test_user IS TRUE) AS is_test,
-         c.observation_type
+         c.observation_type, c.framework
     FROM coaching_sessions c
     JOIN users u ON u.id = c.user_id
    WHERE u.role = 'teacher'
@@ -670,7 +677,9 @@ async function loadCountedSessions(query, range, { memo = defaultMemo } = {}) {
 
   return {
     sessions: sessions.map((s) => {
-      const hit = memo.get(s.id, s.updated_at);
+      // A session scored on another rubric still counts as an observation, but its percentage is not
+      // a FICO one, so it carries no score into the FICO / HITL / section averages (bd-97daxo.10).
+      const hit = NOT_FICO_SCORED.has(s.framework) ? null : memo.get(s.id, s.updated_at);
       return {
         id: s.id,
         school_id: s.school_id,
