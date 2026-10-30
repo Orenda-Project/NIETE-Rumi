@@ -11,6 +11,9 @@
  * app_settings.portal_self_observation.
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 let tableRows;
 let client;
 let selects;

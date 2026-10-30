@@ -19,6 +19,9 @@
  * lp-activity, lp-open-survey.client, the reader — is real.
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 const { PassThrough } = require('stream');
 const http = require('http');
 const express = require('express');

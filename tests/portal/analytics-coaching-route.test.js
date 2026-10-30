@@ -8,6 +8,9 @@
  * so the Coaching tab's cost never slows the other tabs.
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 const { REGION_REGISTRY_ROWS } = require('./helpers/region-registry-rows');
 
 let tableStates;

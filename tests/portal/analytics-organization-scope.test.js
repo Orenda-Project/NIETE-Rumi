@@ -18,6 +18,10 @@
  * The fixtures are the ones the five route tests use (analytics-*-route.test.js), plus a GB block: two GB schools,
  * GB teachers with sessions, coach visits, training-programme members and lesson-plan activity.
  */
+
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 process.env.FLAG_CACHE_TTL_MS = '0';
 
 const fs = require('fs');

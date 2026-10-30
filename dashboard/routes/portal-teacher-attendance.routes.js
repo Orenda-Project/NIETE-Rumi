@@ -33,13 +33,8 @@ const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const STATUS = { NOT_FOUND: 404, BAD_DATE: 400, BAD_MONTH: 400, EMPTY_ROSTER: 409 };
 
-// Self-contained duplicate of portal.routes.js's guard (not exported there), as the other teacher modules do.
-function requirePortalAuth(req, res, next) {
-  if (!req.session || !req.session.portalUserId) {
-    return res.status(401).json({ success: false, error: 'Not authenticated. Please log in.' });
-  }
-  return next();
-}
+// The portal's one sign-in check (lib/portal-auth.js): it also ends the session of a retired account.
+const { requirePortalAuth } = require('../lib/portal-auth');
 
 async function requireTeacherV2(req, res, next) {
   let on = false;

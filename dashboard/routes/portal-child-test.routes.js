@@ -57,12 +57,8 @@ const Client = require('../services/portal-child-test.client');
 
 const router = express.Router();
 
-function requirePortalAuth(req, res, next) {
-  if (!req.session || !req.session.portalUserId) {
-    return res.status(401).json({ success: false, error: 'Not authenticated. Please log in.' });
-  }
-  return next();
-}
+// The portal's one sign-in check (lib/portal-auth.js): it also ends the session of a retired account.
+const { requirePortalAuth } = require('../lib/portal-auth');
 
 async function getUserById(userId) {
   const { data, error } = await supabase.from('users').select('id, role').eq('id', userId).maybeSingle();

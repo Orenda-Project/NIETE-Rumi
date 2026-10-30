@@ -20,12 +20,8 @@ const telemetry = require('../services/telemetry.service');
 
 const router = express.Router();
 
-function requirePortalAuth(req, res, next) {
-  if (!req.session || !req.session.portalUserId) {
-    return res.status(401).json({ success: false, error: 'Not authenticated. Please log in.' });
-  }
-  return next();
-}
+// The portal's one sign-in check (lib/portal-auth.js): it also ends the session of a retired account.
+const { requirePortalAuth } = require('../lib/portal-auth');
 
 async function requireTeacherV2(req, res, next) {
   let on = false;

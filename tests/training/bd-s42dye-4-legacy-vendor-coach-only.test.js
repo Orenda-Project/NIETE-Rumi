@@ -13,6 +13,9 @@
  * These tests pin both, so a later change that breaks the data contract fails here.
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 let supabaseFrom;
 let tableStates;
 

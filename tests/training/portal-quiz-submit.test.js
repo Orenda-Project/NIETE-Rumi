@@ -12,6 +12,9 @@
  * the portal router on a bare req/res and pokes the matching handler.
  */
 
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 let supabaseFrom;
 let tableStates;
 let inserts;   // [{ table, row }]  — every .insert() call captured for shape assertions

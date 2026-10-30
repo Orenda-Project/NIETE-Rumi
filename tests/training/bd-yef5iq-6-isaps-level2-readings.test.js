@@ -11,6 +11,10 @@
  *    Level 1's list had silently disappeared. The vendor KEY never changes, so the
  *    match is on the key.
  */
+
+// Not a suite about the sign-in account check: every session user reads as live (tests/fixtures/portal-auth-live.js).
+require('../fixtures/portal-auth-live').installLivePortalAccounts();
+
 const { EventEmitter } = require('events'); // eslint-disable-line no-unused-vars
 
 const RULES = '../../bot/shared/services/training/isaps-readings.rules';
