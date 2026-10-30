@@ -35,7 +35,8 @@ function mockBuilder(table) {
   const state = { table, filters: [], or: null, limit: null, ranges: [] };
   const rowsNow = () => {
     let rows = mockTable.filter((r) => r.__t === table);
-    for (const [c, v] of state.filters) rows = rows.filter((r) => r[c] === v);
+    // V1.8.6 (bd-97daxo.5): a row built without `curriculum` is ICT's — the column's default.
+    for (const [c, v] of state.filters) rows = rows.filter((r) => (c === 'curriculum' && r[c] === undefined ? 'ict' : r[c]) === v);
     if (state.or) {
       const m = /grade\.eq\.(\d+)/.exec(state.or);
       if (m) {
