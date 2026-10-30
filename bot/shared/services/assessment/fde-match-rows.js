@@ -21,10 +21,21 @@ function safe(fn, q) {
   try { return String(fn(q) ?? '').trim(); } catch (e) { return ''; }
 }
 
-// Column B as printed, and when the row has no column_b, the tail after the last colon as well as the arrow.
-function colB(q) {
-  const b = safe(matchAnswer, q);
-  return Array.isArray(q.column_b) && String(q.column_b[0] ?? '').trim() ? b : b.split(/[:：]/).pop().trim();
+// Column B exactly as the renderer prints it: the check and the renderer must see the same string.
+const colB = (q) => safe(matchAnswer, q);
+
+const LEAK_WHY = 'column A text printed in column B (pair leak)';
+
+/** Rows whose printed Column B holds the row's own Column A text, as `{a, b, row}`. */
+function leakedRows(rows) {
+  const out = [];
+  (Array.isArray(rows) ? rows : []).forEach((r, i) => {
+    const q = isRow(r) ? r : {};
+    const a = safe(matchStem, q);
+    const b = colB(q);
+    if (norm(a) && norm(b).includes(norm(a))) out.push({ a, b, row: i });
+  });
+  return out;
 }
 
 function repeats(cells, why) {
@@ -58,14 +69,17 @@ function matchRowsShortfall(examJson, P) {
   const out = [];
   bySlot.forEach((rows, slot) => {
     const found = distinctMatchRows(rows);
-    if (!found.length) return;
-    const why = [...new Set(found.map((f) => f.why))];
+    const leaks = leakedRows(rows);
+    if (!found.length && !leaks.length) return;
+    const why = [...new Set([...found.map((f) => f.why), ...(leaks.length ? [LEAK_WHY] : [])])];
+    const leakLines = leaks.map((l) => `Column B «${l.b}» prints the Column A text «${l.a}» in row ${l.row + 1}`);
     out.push({
       slot,
       reason: 'match_rows',
       why,
-      line: found.map((f) => `${f.why === 'dup_a' ? 'Column A' : 'Column B'} «${f.text}» in rows ${f.rows.map((r) => r + 1).join(' and ')}`).join('; '),
-      text: found.map((f) => f.text),
+      leaks,
+      line: [...found.map((f) => `${f.why === 'dup_a' ? 'Column A' : 'Column B'} «${f.text}» in rows ${f.rows.map((r) => r + 1).join(' and ')}`), ...leakLines].join('; '),
+      text: [...found.map((f) => f.text), ...leaks.map((l) => l.a)],
     });
   });
   return out;
@@ -75,9 +89,13 @@ function matchRowsShortfall(examJson, P) {
 function matchRowsNote(shortfall) {
   const flags = (Array.isArray(shortfall) ? shortfall : []).filter((f) => f && f.reason === 'match_rows');
   if (!flags.length) return '';
-  const lines = flags.map((f) => `Match item ${f.slot || ''}: ${f.line || (Array.isArray(f.text) ? f.text.join(', ') : '')}.`);
-  return `${lines.join(' ')} Rewrite the match item so every Column A entry and every Column B entry appears once, `
-    + 'and each Column B meaning fits exactly one Column A word.';
+  const lines = flags.filter((f) => (Array.isArray(f.why) ? f.why : [f.why]).some((w) => w !== LEAK_WHY)).map((f) => `Match item ${f.slot || ''}: ${f.line || (Array.isArray(f.text) ? f.text.join(', ') : '')}.`);
+  const leaks = flags.flatMap((f) => (Array.isArray(f.leaks) ? f.leaks : []))
+    .map((l) => `Column B holds its own Column A text «${l.a}» in row ${l.row + 1}; Column B must hold only the right-hand word.`);
+  const dup = flags.some((f) => (Array.isArray(f.why) ? f.why : []).some((w) => w !== LEAK_WHY));
+  const tail = dup ? ' Rewrite the match item so every Column A entry and every Column B entry appears once, '
+    + 'and each Column B meaning fits exactly one Column A word.' : '';
+  return [lines.join(' '), ...leaks, tail.trim()].filter(Boolean).join(' ');
 }
 
 module.exports = { distinctMatchRows, matchRowsShortfall, matchRowsNote };
