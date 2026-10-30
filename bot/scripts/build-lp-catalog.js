@@ -25,6 +25,18 @@
  *
  *   --check  build and compare against the committed file; exit 1 on drift
  *            (no write). Used to prove determinism.
+ *
+ * WHOSE BOOK (bd-97daxo.5). A segmentation file whose `_meta.curriculum` names a curriculum other
+ * than ICT (e.g. 'nbf_snc', Gilgit-Baltistan's NBF books) becomes a book entry tagged
+ * `curriculum: 'nbf_snc'`; a teacher whose region's curriculum is nbf_snc gets it for that grade
+ * and subject, everyone else keeps
+ * ICT's (lp-v8-catalog bookFor). An ICT book is written with NO curriculum key (absent = 'ict'), so
+ * the committed catalog does not change.
+ *
+ * A non-ICT book's stem MUST start with its curriculum (`nbf_snc_grade_3_maths`). Lesson ids are
+ * `<stem>_ch<n>_seg<k>` and are the keys of niete_lp_assets, downloads and opens, so this is what
+ * keeps `nbf_snc_grade_3_maths_ch1_seg1` from ever colliding with ICT's `grade_3_maths_ch1_seg1` (and
+ * the two books' TOCs, keyed by stem, from overwriting each other). The build refuses otherwise.
  */
 
 const fs = require('fs');
@@ -77,6 +89,7 @@ function rtlFirst(s) {
 }
 
 const CATALOG_VERSION = 'v8';
+const CURRICULUM_ICT = 'ict';
 
 // Multi-clause topic separators. These join what are really two lessons' worth
 // of prose in one field; the row shows the first clause only.
@@ -413,6 +426,11 @@ function buildCatalog({ segmentationDir, tocDir, builtAt, splits }) {
     const d = JSON.parse(fs.readFileSync(path.join(segmentationDir, file), 'utf8'));
     const meta = d._meta || {};
     const stem = meta.book_stem;
+    const curriculum = String(meta.curriculum || CURRICULUM_ICT).trim().toLowerCase();
+    if (curriculum !== CURRICULUM_ICT && !String(stem).startsWith(`${curriculum}_`)) {
+      throw new Error(`${file}: a ${curriculum} book's stem must start with "${curriculum}_" `
+        + `(got "${stem}") so its lesson ids can never collide with ICT's`);
+    }
     const menu = bookMenu(meta);
     const rtl = menu.rtl;
     const tocMap = tocs[stem] || {};
@@ -474,11 +492,15 @@ function buildCatalog({ segmentationDir, tocDir, builtAt, splits }) {
       subject: menu.subject,
       subject_key: menu.subject_key,
       rtl,
+      // Only a non-ICT book says whose it is; an ICT entry is byte-identical to before.
+      ...(curriculum !== CURRICULUM_ICT ? { curriculum } : {}),
       chapters,
     });
   }
 
-  books.sort((a, b) => (a.grade - b.grade) || a.subject_key.localeCompare(b.subject_key));
+  // ICT first within a grade+subject (a tie only exists once another curriculum's book is loaded).
+  books.sort((a, b) => (a.grade - b.grade) || a.subject_key.localeCompare(b.subject_key)
+    || String(a.curriculum || '').localeCompare(String(b.curriculum || '')));
 
   // Lessons split into two teaching days (data/lp_splits.json) survive a rebuild.
   return applySplits({

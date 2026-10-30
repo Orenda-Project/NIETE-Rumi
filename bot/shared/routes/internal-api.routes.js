@@ -111,6 +111,20 @@ function num(value) {
 }
 
 /**
+ * The curriculum of the teacher a portal call is for (bd-97daxo.4/.5): her registry region's
+ * books, else ICT's. `body.userId` is the portal SESSION's teacher, as on every route here. No
+ * userId (an older portal build) or any failure is ICT — exactly the book the route served before.
+ */
+async function teacherCurriculum(body) {
+  const userId = String((body && body.userId) || '').trim();
+  if (!userId) return 'ict';
+  return require('../services/book-curriculum.service').curriculumForUser(userId);
+}
+
+/** A browse service's trailing options for that curriculum: none for ICT, so its call is unchanged. */
+const curriculumArgs = (curriculum) => (curriculum && curriculum !== 'ict' ? [{ curriculum }] : []);
+
+/**
  * Wrap a training handler with the two things every one of them needs:
  * lazy module resolution, and fail-CLOSED error handling.
  *
@@ -1265,7 +1279,7 @@ function lpBrowseRoute(name, handler) {
  * Body {} → { success, grades: [{ grade, subject_count }] }
  */
 router.post('/lp/v8/grades', requireInternalKey, lpBrowseRoute('grades', async (Browse, req, res) => {
-  const grades = await Browse.listGrades();
+  const grades = await Browse.listGrades(...curriculumArgs(await teacherCurriculum(req.body)));
   return res.json({ success: true, grades });
 }));
 
@@ -1277,7 +1291,7 @@ router.post('/lp/v8/subjects', requireInternalKey, lpBrowseRoute('subjects', asy
   const grade = num((req.body || {}).grade);
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
 
-  const subjects = await Browse.listSubjects(grade);
+  const subjects = await Browse.listSubjects(grade, ...curriculumArgs(await teacherCurriculum(req.body)));
   return res.json({ success: true, subjects });
 }));
 
@@ -1291,7 +1305,7 @@ router.post('/lp/v8/chapters', requireInternalKey, lpBrowseRoute('chapters', asy
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subjectKey) return res.status(400).json({ success: false, error: 'subjectKey is required' });
 
-  const chapters = await Browse.listChapters(grade, subjectKey);
+  const chapters = await Browse.listChapters(grade, subjectKey, ...curriculumArgs(await teacherCurriculum(req.body)));
   return res.json({ success: true, chapters });
 }));
 
@@ -1312,7 +1326,8 @@ router.post('/lp/v8/lessons', requireInternalKey, lpBrowseRoute('lessons', async
   if (!subjectKey) return res.status(400).json({ success: false, error: 'subjectKey is required' });
   if (chapterNumber === null) return res.status(400).json({ success: false, error: 'chapterNumber is required' });
 
-  const lessons = await Browse.listLessons(grade, subjectKey, chapterNumber, body.userId || null);
+  const lessons = await Browse.listLessons(grade, subjectKey, chapterNumber, body.userId || null,
+    ...curriculumArgs(await teacherCurriculum(body)));
   return res.json({ success: true, lessons });
 }));
 
@@ -1480,10 +1495,11 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
   const grade = num(body.grade);
   const subject = String(body.subject || '').trim();
 
-  const grades = await Browse.listGrades();
+  const own = curriculumArgs(await teacherCurriculum(body));
+  const grades = await Browse.listGrades(...own);
   const out = { success: true, grades };
 
-  if (grade !== null) out.subjects = await Browse.listSubjects(grade);
+  if (grade !== null) out.subjects = await Browse.listSubjects(grade, ...own);
   if (grade !== null && subject) {
     Object.assign(out, Browse.questionOptions(subject, grade));
     // bd-6clakk.12 — the stems a teacher may tick on a topic paper, ADDED only while topic papers
@@ -1538,7 +1554,7 @@ router.post('/assessment/chapters', requireInternalKey, assessmentRoute('chapter
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
 
-  const chapters = await Browse.listChapters(grade, subject);
+  const chapters = await Browse.listChapters(grade, subject, ...curriculumArgs(await teacherCurriculum(body)));
   return res.json({ success: true, chapters });
 }));
 
@@ -1562,12 +1578,24 @@ router.post('/assessment/topics', requireInternalKey, assessmentRoute('topics', 
   const { isAssessmentTopicCtaEnabled } = require('../config/feature-flags');
   if (!(await isAssessmentTopicCtaEnabled().catch(() => false))) return res.json({ success: true, topics: [] });
 
-  const { listChapterTopics } = require('../services/assessment/topics/topics.repo');
-  const topics = (await listChapterTopics(grade, subject, chapterNumber)).map((t) => ({
+  const topics = (await chapterTopics(grade, subject, chapterNumber, await teacherCurriculum(body))).map((t) => ({
     topicId: t.topicId, name: t.name, heading: t.heading, headingOrder: t.headingOrder, sortOrder: t.sortOrder,
   }));
   return res.json({ success: true, topics });
 }));
+
+/**
+ * One chapter's topics, from the book she gets (bd-97daxo.4): topics are keyed by the BOOK's
+ * curriculum, which is hers where she has that book and ICT's otherwise. ICT asks nothing extra.
+ */
+async function chapterTopics(grade, subject, chapterNumber, curriculum) {
+  const { listChapterTopics } = require('../services/assessment/topics/topics.repo');
+  if (!curriculum || curriculum === 'ict') return listChapterTopics(grade, subject, chapterNumber);
+  const book = await require('../services/book-curriculum.service').textbookCurriculum(curriculum, grade, subject);
+  return book === 'ict'
+    ? listChapterTopics(grade, subject, chapterNumber)
+    : listChapterTopics(grade, subject, chapterNumber, { curriculum: book });
+}
 
 /**
  * Her chapters as one tidy list: numbers only, each once, in book order.
@@ -1727,13 +1755,12 @@ function rememberQueued(key, id) {
  * { partial: true, pageRanges, scope: {kind:'topics', topicIds, slos} }. Exactly one chapter is needed,
  * and an id that is not that chapter's (unknown, or another chapter's) is refused.
  */
-async function resolveTopicScope(body, { grade, subject, picked }) {
+async function resolveTopicScope(body, { grade, subject, picked, curriculum = 'ict' }) {
   const ids = Array.isArray(body.topicIds) ? body.topicIds.map((t) => String(t)).filter(Boolean) : [];
   if (!ids.length) return { partial: false };
   if (picked.length !== 1) return { error: 'Topics belong to one chapter. Pick one chapter.' };
-  const { listChapterTopics } = require('../services/assessment/topics/topics.repo');
   const { resolveTopics, TopicNotFound } = require('../services/assessment/topics/resolve');
-  const all = await listChapterTopics(grade, subject, picked[0]);
+  const all = await chapterTopics(grade, subject, picked[0], curriculum);
   let resolved;
   try { resolved = resolveTopics(all, ids); } catch (err) {
     if (err instanceof TopicNotFound) return { error: 'One of those topics is not in this chapter.' };
@@ -1859,7 +1886,12 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
 
   // A paper on some of one chapter's topics. None, or every one ticked, is the whole chapter: that
   // request goes on below exactly as it always has.
-  const topicScope = await resolveTopicScope(body, { grade, subject, picked });
+  // Her curriculum (bd-97daxo.4) — a plain paper only: a board pattern is written against ICT's
+  // books (its own page ranges), so createPatternRequest above never asks.
+  const curriculum = await teacherCurriculum(body);
+  const own = curriculumArgs(curriculum);
+
+  const topicScope = await resolveTopicScope(body, { grade, subject, picked, curriculum });
   if (topicScope.error) return res.status(400).json({ success: false, error: topicScope.error });
   const byTopics = topicScope.partial;
   // She came by the topics door (some or every topic ticked): her stems ride along either way.
@@ -1873,7 +1905,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     questionCount === null ? QuestionTypes.DEFAULT_QUESTIONS : questionCount);
   if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.message });
 
-  const book = await Browse.bookFor(grade, subject);
+  const book = await Browse.bookFor(grade, subject, ...own);
   if (!book) {
     return res.status(400).json({ success: false, error: 'We do not have that book yet.' });
   }
@@ -1943,7 +1975,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   // page that a re-import can change underneath it.
   let pages = byTopics ? topicScope.pageRanges : pageRanges;
   if (!pages && picked.length) {
-    const chapters = await Browse.listChapters(grade, subject);
+    const chapters = await Browse.listChapters(grade, subject, ...own);
     if (picked.some((n) => !chapters.some((c) => c.chapter_number === n))) {
       return res.status(400).json({ success: false, error: 'That chapter is not in this book.' });
     }
@@ -1976,6 +2008,8 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     outputFormat: body.outputFormat || 'pdf',
     ...(byTopics ? { paperKind: 'topic', scope: topicScope.scope } : {}),
     ...(origin ? { origin } : {}),
+    // The worker reads her book's pages (bd-97daxo.4); absent for ICT, so the call is unchanged.
+    ...(own.length ? { curriculum } : {}),
   });
 
   return res.status(202).json({ success: true, requestId });
@@ -2143,7 +2177,7 @@ function lp612Route(name, handler) {
  * Body {} → { success, grades: [{ grade }] }
  */
 router.post('/lp612/grades', requireInternalKey, lp612Route('grades', async (Browse, req, res) => {
-  const grades = await Browse.listGrades();
+  const grades = await Browse.listGrades(...curriculumArgs(await teacherCurriculum(req.body)));
   return res.json({ success: true, grades });
 }));
 
@@ -2155,7 +2189,7 @@ router.post('/lp612/subjects', requireInternalKey, lp612Route('subjects', async 
   const grade = num((req.body || {}).grade);
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
 
-  const subjects = await Browse.listSubjects(grade);
+  const subjects = await Browse.listSubjects(grade, ...curriculumArgs(await teacherCurriculum(req.body)));
   return res.json({ success: true, subjects });
 }));
 
@@ -2170,7 +2204,7 @@ router.post('/lp612/chapters', requireInternalKey, lp612Route('chapters', async 
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
 
-  const chapters = await Browse.listChapters(grade, subject);
+  const chapters = await Browse.listChapters(grade, subject, ...curriculumArgs(await teacherCurriculum(body)));
   return res.json({ success: true, chapters });
 }));
 
@@ -2195,7 +2229,8 @@ router.post('/lp612/lessons', requireInternalKey, lp612Route('lessons', async (B
   const lang = body.lang === 'ur' ? 'ur' : 'en';
   // bd-5rz1v.14 — the teacher whose ✓✓ Sent marks the list (the portal passes its session's).
   const userId = String(body.userId || '').trim() || null;
-  const lessons = await Browse.listLessons(grade, subject, chapterKey, lang, userId);
+  const lessons = await Browse.listLessons(grade, subject, chapterKey, lang, userId,
+    ...curriculumArgs(await teacherCurriculum(body)));
   return res.json({ success: true, lessons });
 }));
 

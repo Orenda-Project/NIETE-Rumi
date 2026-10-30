@@ -4983,7 +4983,10 @@ CREATE TABLE IF NOT EXISTS niete_lp612_segments (
   corpus_version        TEXT    NOT NULL DEFAULT 'v1',
   is_current            BOOLEAN NOT NULL DEFAULT TRUE,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- Whose book (V1.8.6, bd-97daxo.5): a teacher gets her region's curriculum segments for a grade+subject
+  -- where any exist, ICT's otherwise. A non-ICT book_stem starts with its curriculum (nbf_snc_...).
+  curriculum            TEXT    NOT NULL DEFAULT 'ict'
 );
 
 CREATE INDEX IF NOT EXISTS idx_lp612_segments_menu
@@ -5326,7 +5329,9 @@ CREATE TABLE IF NOT EXISTS assessment_topics (
   days              INTEGER[],
   is_current        BOOLEAN NOT NULL DEFAULT true,
   matrix_version    TEXT,
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Whose book these topics belong to (V1.8.6, bd-97daxo.4). A non-ICT topic_id starts with its curriculum (nbf_snc_...).
+  curriculum        TEXT NOT NULL DEFAULT 'ict'
 );
 
 CREATE INDEX IF NOT EXISTS idx_assessment_topics_current

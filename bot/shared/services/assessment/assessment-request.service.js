@@ -89,6 +89,9 @@ async function createAndQueue(spec) {
     paperKind = null,
     // 'report' when the Class Quiz Traffic Light report's button opened the generator (bd-pw1ccr.1); NULL otherwise.
     origin = null,
+    // The TEACHER's curriculum (bd-97daxo.4): the worker reads her book's pages through it. Job payload
+    // only, and only when it is not ICT — the row's textbook_id already names the book.
+    curriculum = null,
   } = spec;
 
   // Every paper gets an answer key, and she is no longer asked (bd-bfnsk). A
@@ -160,6 +163,8 @@ async function createAndQueue(spec) {
     // an undefined key, so it stays byte-for-byte the job it was before.
     ...(pattern ? { pattern, scope } : {}),
     ...(!pattern && paperKind === 'topic' ? { scope } : {}),
+    // A board pattern is written against ICT's books (its own page ranges), so it never carries one.
+    ...(!pattern && curriculum && curriculum !== 'ict' ? { curriculum } : {}),
   });
 
   logToFile('[assessment] queued', {

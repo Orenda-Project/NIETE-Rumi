@@ -25,22 +25,33 @@ const { logToFile } = require('../../utils/logger');
 const r2 = require('../../storage/r2');
 const QuestionTypes = require('./question-types');
 const { subjectLabel, taughtIn } = require('./assessment-vocabulary');
+const BookCurriculum = require('../book-curriculum.service');
 
 /**
- * The curriculum the assessment generator can actually read.
+ * The curriculum the assessment generator can actually read, by default.
  *
  * Not decoration: `textbooks` also holds a punjab_snc_2020 book, and the ICT
  * prompts and page-content pipeline cannot generate from it. Dropping this
  * filter would offer a book that fails at generation time.
+ *
+ * bd-97daxo.4 — every book-picking read takes `{ curriculum }`, the TEACHER's
+ * curriculum (book-curriculum.service: her registry region's key, else 'ict').
+ * She gets that curriculum's book where it has one for the grade and subject,
+ * ICT's otherwise. Absent or 'ict' is every query exactly as it was.
  */
-const CURRICULUM = 'ict';
+const CURRICULUM = BookCurriculum.ICT;
 
-/** Every grade we hold at least one ICT book for. */
-async function listGrades() {
-  const { data, error } = await supabase
+/** The textbooks query narrowed to the curricula a list for her draws from. */
+function inCurricula(q, curriculum) {
+  const list = BookCurriculum.curriculaFor(curriculum);
+  return list.length === 1 ? q.eq('curriculum', list[0]) : q.in('curriculum', list);
+}
+
+/** Every grade we hold at least one book for — ICT's, or hers. */
+async function listGrades({ curriculum = CURRICULUM } = {}) {
+  const { data, error } = await inCurricula(supabase
     .from('textbooks')
-    .select('grade')
-    .eq('curriculum', CURRICULUM);
+    .select('grade'), curriculum);
 
   if (error) {
     logToFile('[assessment-browse] grade list failed', { error: error.message });
@@ -58,11 +69,11 @@ async function listGrades() {
  * Two filters, both required and asking different questions: do we HOLD the
  * book (the query), and is the subject TAUGHT in this grade (the band).
  */
-async function listSubjects(grade) {
-  const { data, error } = await supabase
+async function listSubjects(grade, { curriculum = CURRICULUM } = {}) {
+  // Hers or ICT's, per subject: either way the subject is on offer once.
+  const { data, error } = await inCurricula(supabase
     .from('textbooks')
-    .select('subject')
-    .eq('curriculum', CURRICULUM)
+    .select('subject'), curriculum)
     .eq('grade', Number(grade));
 
   if (error) {
@@ -79,11 +90,12 @@ async function listSubjects(grade) {
 }
 
 /** The chapters of one book, with the pages each covers. */
-async function listChapters(grade, subject) {
+async function listChapters(grade, subject, { curriculum = CURRICULUM } = {}) {
+  const bookCurriculum = await BookCurriculum.textbookCurriculum(curriculum, grade, subject);
   const { data: book, error: bookErr } = await supabase
     .from('textbooks')
     .select('id')
-    .eq('curriculum', CURRICULUM)
+    .eq('curriculum', bookCurriculum)
     .eq('grade', Number(grade))
     .eq('subject', subject)
     .maybeSingle();
@@ -209,12 +221,13 @@ async function paperDownloadUrl(paperId, userId, artifact = 'paper') {
   };
 }
 
-/** The book behind a grade+subject, or null. The FK a request row needs. */
-async function bookFor(grade, subject) {
+/** The book behind a grade+subject (hers where she has one), or null. The FK a request row needs. */
+async function bookFor(grade, subject, { curriculum = CURRICULUM } = {}) {
+  const bookCurriculum = await BookCurriculum.textbookCurriculum(curriculum, grade, subject);
   const { data, error } = await supabase
     .from('textbooks')
     .select('id, total_pages')
-    .eq('curriculum', CURRICULUM)
+    .eq('curriculum', bookCurriculum)
     .eq('grade', Number(grade))
     .eq('subject', subject)
     .maybeSingle();
