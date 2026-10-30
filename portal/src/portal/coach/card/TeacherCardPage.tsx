@@ -1,7 +1,9 @@
 import { useRef } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Pencil } from "lucide-react";
+import { Layers, Pencil, UserRound } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
+import { PageChip } from "../../teacher/TeacherPage";
+import { useLevelNames } from "../people/level";
 import { FEATURE_HUE } from "../../teacher/icons/features";
 import { Loading } from "../ui";
 import { PEOPLE } from "../people/copy";
@@ -30,6 +32,9 @@ export default function TeacherCardPage() {
   const known = useRef<TeacherCardData["teacher"] | null>(null);
   if (data?.teacher) known.current = data.teacher;
   const t = data?.teacher ?? known.current;
+  // bd-ewbzns.2 — her role and teaching levels under her name, so what Edit teacher changed shows here.
+  const levelNames = useLevelNames();
+  const levels = t ? levelNames(t.levels) : "";
 
   const me = `/portal/coach/teacher/${encodeURIComponent(ext)}`;
   const state = t ? { teacherName: t.name } : undefined;
@@ -78,6 +83,12 @@ export default function TeacherCardPage() {
           className="flex min-h-[56px] min-w-[56px] shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#e5e7eb] bg-white px-3.5 text-sm font-semibold text-[#33374a]">
           <Pencil className="h-4 w-4" aria-hidden="true" />{P.edit}
         </Link>
+      ) : undefined}
+      chips={t && t.isPrincipal != null ? (
+        <>
+          <PageChip testId="card-role"><UserRound className="h-3.5 w-3.5" aria-hidden="true" />{t.isPrincipal ? P.rolePrincipal : P.roleTeacher}</PageChip>
+          {levels && <PageChip testId="card-levels"><Layers className="h-3.5 w-3.5" aria-hidden="true" />{levels}</PageChip>}
+        </>
       ) : undefined}>
       <PeriodChips />
       {failed && <LoadFailed onRetry={reload} />}

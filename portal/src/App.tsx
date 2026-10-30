@@ -103,6 +103,7 @@ const CoachSchool = page(() => import("./portal/coach/pages/CoachSchool"));
 const CoachAddSchool = page(() => import("./portal/coach/pages/CoachAddSchool"));
 const CoachAddTeacher = page(() => import("./portal/coach/pages/CoachAddTeacher"));
 const CoachRemoveTeachers = page(() => import("./portal/coach/pages/CoachRemoveTeachers"));
+const CoachPickTeacher = page(() => import("./portal/coach/pages/CoachPickTeacher"));
 const CoachTeacher = page(() => import("./portal/coach/pages/CoachTeacher"));
 const CoachRecord = page(() => import("./portal/coach/pages/CoachRecord"));
 const CoachAttach = page(() => import("./portal/coach/pages/CoachAttach"));
@@ -321,6 +322,7 @@ const App = () => {
             <Route path="/portal/coach/add-teacher" element={<CoachAddTeacher />} />
             <Route path="/portal/coach/school/:emis/add-teacher" element={<CoachAddTeacher />} />
             <Route path="/portal/coach/school/:emis/remove-teachers" element={<CoachRemoveTeachers />} />
+            <Route path="/portal/coach/school/:emis/edit-teacher" element={<CoachPickTeacher />} />
             <Route path="/portal/coach/teacher/:ext" element={<CoachTeacher />} />
             <Route path="/portal/coach/teacher/:ext/items/:feature" element={<CoachHerItems />} />
             <Route path="/portal/coach/teacher/:ext/days" element={<CoachHerDays />} />

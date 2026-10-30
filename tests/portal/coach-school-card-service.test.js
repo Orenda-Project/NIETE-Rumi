@@ -482,7 +482,7 @@ describe('the feature grid', () => {
 describe('the teacher card', () => {
   test('her tiles, days with use, and the Coaching summary and chart (no separate DC, coach or score tiles)', async () => {
     const out = await Card.getTeacherCard(db, 'coach-1', PHONE.t1, opts());
-    expect(out.teacher).toEqual({ teacherExtId: PHONE.t1, name: 'Teacher One', school: 'School One (register)', emis: '901' });
+    expect(out.teacher).toEqual({ teacherExtId: PHONE.t1, name: 'Teacher One', school: 'School One (register)', emis: '901', isPrincipal: false, levels: [] });
     expect(out.tiles.lp).toEqual({ count: 5, series: [2, 2, 1, 0, 0] });
     expect(out.tiles.papers).toEqual({ count: 2, series: [1, 0, 1, 0, 0] });
     expect(out.tiles.training).toMatchObject({ parts: 2, courses: 1, series: [1, 0, 1, 0, 0] });
@@ -973,5 +973,23 @@ describe('teaching level (bd-ewbzns.1): the school card for her Primary, Middle 
     const dc = await Card.getSchoolScores(db, 'coach-1', '901', 'dc', { ...opts(), level: 'PRIMARY' });
     expect(dc.rows.map((r) => r.name)).toEqual(['Teacher One']);
     expect(dc.school.teachers).toBe(1);
+  });
+});
+
+describe('her role and teaching levels on her page (bd-ewbzns.2): what Edit teacher changed shows where she is', () => {
+  test('a teacher: not a principal, her levels in canonical order', async () => {
+    tables.users.find((u) => u.id === 'u1').teacher_level = ['MIDDLE', 'primary'];
+    const out = await Card.getTeacherCard(db, 'coach-1', PHONE.t1, opts());
+    expect(out.teacher).toMatchObject({ isPrincipal: false, levels: ['PRIMARY', 'MIDDLE'] });
+  });
+
+  test('a principal with no level recorded', async () => {
+    const out = await Card.getTeacherCard(db, 'coach-1', PHONE.p1, opts());
+    expect(out.teacher).toMatchObject({ isPrincipal: true, levels: [] });
+  });
+
+  test('the school card row says principal', async () => {
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    expect(out.teachers.find((t) => t.name === 'Principal One').isPrincipal).toBe(true);
   });
 });

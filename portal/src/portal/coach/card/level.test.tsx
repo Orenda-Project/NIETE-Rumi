@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { loadApp, moves, net, renderApp, resetAll } from "./harness.testdata";
-import { EMIS, grid, schoolCard, schoolScores } from "./fixtures.testdata";
+import { EMIS, EXT, grid, schoolCard, schoolScores, teacherCard } from "./fixtures.testdata";
 
 vi.mock("axios", async () => (await import("./harness.testdata")).axiosMock());
 vi.setConfig({ testTimeout: 20_000 });
@@ -91,5 +91,34 @@ describe("the School card by teaching level", () => {
     await renderApp(`/portal/coach/school/${EMIS}`);
     await screen.findByTestId("card-teachers");
     expect(screen.queryByTestId("level-chips")).toBeNull();
+  });
+});
+
+describe("her role and teaching levels where the coach sees her (bd-ewbzns.2)", () => {
+  it("her page says her role and her levels under her name", async () => {
+    on();
+    const c = teacherCard();
+    net.answers.set(`/coach/teacher/${EXT}/card`, { ...c, teacher: { ...c.teacher, isPrincipal: true, levels: ["MIDDLE", "HIGH"] } });
+    await renderApp(`/portal/coach/teacher/${EXT}`);
+    expect(await screen.findByTestId("card-role")).toHaveTextContent("Principal");
+    expect(screen.getByTestId("card-levels")).toHaveTextContent("Middle · High");
+  });
+
+  it("a teacher with no level recorded: her role only", async () => {
+    on();
+    const c = teacherCard();
+    net.answers.set(`/coach/teacher/${EXT}/card`, { ...c, teacher: { ...c.teacher, isPrincipal: false, levels: [] } });
+    await renderApp(`/portal/coach/teacher/${EXT}`);
+    expect(await screen.findByTestId("card-role")).toHaveTextContent("Teacher");
+    expect(screen.queryByTestId("card-levels")).toBeNull();
+  });
+
+  it("a principal's row on the school's card says so", async () => {
+    on();
+    const c = all();
+    net.answers.set(`/coach/school/${EMIS}/card`, { ...c, teachers: c.teachers.map((t, i) => (i === 0 ? { ...t, isPrincipal: true } : t)) });
+    await renderApp(`/portal/coach/school/${EMIS}`);
+    const rows = within(await screen.findByTestId("card-teachers")).getAllByTestId("card-teacher");
+    expect(rows[0]).toHaveTextContent("Principal · Primary · Last visit");
   });
 });
