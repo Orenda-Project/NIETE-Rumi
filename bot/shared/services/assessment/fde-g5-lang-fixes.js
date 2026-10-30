@@ -9,6 +9,8 @@
  * Pure: item in, item out; never throws.
  */
 
+const { mendLangKey } = require('./fde-g5-lang-key-mends'); // v35 G5 English Q1(b) accept rule, Q3 printed apostrophe
+
 const NOT_SHOWN = new Set(['خوشی']);
 const LENGTH_POINT = /\blength\b|\b\d+\s*(?:to|-|–)\s*\d+\s+(?:words|sentences)\b/i;
 const STATED = /\b\d+\s*(?:to|-|–)?\s*\d*\s+(?:words|sentences)\b/i;
@@ -35,6 +37,8 @@ function dropUnshown(q, notes) {
 /** `slot` is the item's layout slot (may be undefined). */
 function langFixes(q, slot, notes) {
   if (!q || typeof q !== 'object' || !slot) return q;
+  const mended = mendLangKey(q, slot, notes);
+  if (mended !== q) return mended;
   if (/^english\.C\.Q(7|8)$/.test(q.slot) && /^english\./.test(slot.slot)) return dropLength(q, slot, notes);
   if (q.slot === 'urdu.C.Q7' && (slot.kinds || []).includes('picture_description')) return dropUnshown(q, notes);
   return q;

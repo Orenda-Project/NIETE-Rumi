@@ -12,6 +12,8 @@ const { boxClashes } = require('./fde-early-urdu-wordbox');
 const { letterShortfall } = require('./fde-early-urdu-letters');
 const { supplicationShortfall } = require('./fde-religious-terms');
 const { earlyDupeShortfall } = require('./fde-early-dupes');
+const { alternativeShortfall } = require('./fde-accept-alternatives');
+const { boxWordRepeats, mcqRepeats } = require('./fde-early-urdu-repeat');
 const BOX_TYPES = new Set(['Complete the Sentences', 'Fill in the Blanks']);
 const WHO = /کس نے|\bwho\b/i;
 const label = (o) => String(o == null ? '' : o).replace(/^\s*\(?[^\s)]{1,3}\)\s*/, '').trim().normalize('NFC');
@@ -52,7 +54,11 @@ function keyShortfall(examJson, P, bookText) {
   const clashes = boxClashes(examJson, { ...P, sections: ((P && P.sections) || []).map((s) => ({ ...s, slots: (s.slots || []).filter((sl) => /\.urdu\./.test(sl.slot)) })) });
   // v34 G1 Urdu letter items and an authored supplication (bd-5jmnfj.4.58): asked again like the rest.
   // v34 accept-line prose and a target word or sentence asked twice (fde-early-dupes, bd-5jmnfj.4.58).
-  return out.concat(clashes, letterShortfall(examJson, P, bookText), supplicationShortfall(examJson, P), earlyDupeShortfall(examJson, P));
+  // v35 round 6: a second listed choice that also fits (bd-5jmnfj.4.58.9.1); an Urdu Q5 box word handed to Q10, two Q1
+  // MCQs with one option set and key (fde-early-urdu-repeat).
+  const urduRepeats = boxWordRepeats(examJson).concat(mcqRepeats(examJson)).filter((r) => /\.urdu\./.test(r.slot));
+  return out.concat(clashes, letterShortfall(examJson, P, bookText), supplicationShortfall(examJson, P), earlyDupeShortfall(examJson, P),
+    alternativeShortfall(examJson, P), urduRepeats);
 }
 
 module.exports = { keyShortfall };

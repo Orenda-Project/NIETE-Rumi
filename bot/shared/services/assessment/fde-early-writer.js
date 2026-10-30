@@ -28,7 +28,7 @@ const { answerRepeats, giveawayNote, stillGivenAway, writtenGiveaways } = requir
 const { dealScrambles } = require('./fde-scramble-block');
 const { keyShortfall } = require('./fde-key-checks');
 const { whoSaidShortfall } = require('./fde-who-said-check'); const { freshReadWords } = require('./fde-oral-fresh-words'); const { urduOralFixes } = require('./fde-early-urdu-oral'); // bd-5jmnfj.4.58.4
-const { earlyKeyFixes } = require('./fde-early-key-fixes'); const { commonErrorNumbers } = require('./fde-common-error-numbers'); const { earlyEnglishFixes } = require('./fde-early-english-fixes'); const { earlyUrduFixes } = require('./fde-early-urdu-fixes'); // bd-5jmnfj.4.58.3/.4
+const { earlyKeyFixes } = require('./fde-early-key-fixes'); const { commonErrorNumbers } = require('./fde-common-error-numbers'); const { earlyEnglishFixes } = require('./fde-early-english-fixes'); const { earlyUrduFixes } = require('./fde-early-urdu-fixes'); const { acceptAlternatives } = require('./fde-accept-alternatives'); const { mendReadAloud } = require('./fde-read-aloud-grammar'); const { correctMisreads } = require('./fde-urdu-nonword'); // bd-5jmnfj.4.58.3/.4/.9.1/.9.2/.9.3
 
 const SCOPE = Object.freeze({ kind: 'fde', chapters: null, pages: null });
 const ORAL_SECTION = Object.freeze({ id: 'oral', slots: [] });
@@ -262,7 +262,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     throw d.fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: scheme.shortfall, examJson, model });
   }
   if (P.key === 'maths') examJson = mathsCheck(examJson, { subject: 'maths' }).examJson;
-  const early = earlyEnglishFixes(earlyKeyFixes(examJson)); examJson = early.examJson; // a letter key, a word-problem key (v27, bd-5jmnfj.4.58.3)
+  const early = earlyEnglishFixes(earlyKeyFixes(acceptAlternatives(examJson, P).examJson)); examJson = early.examJson; // a letter key, a word-problem key (v27, bd-5jmnfj.4.58.3)
   const slips = commonErrorNumbers(examJson); const urdu = earlyUrduFixes(slips.examJson); examJson = urdu.examJson; // a common error the numbers cannot give (v28, bd-5jmnfj.4.58.4)
   early.notes.concat(slips.notes, urdu.notes).forEach((n) => d.logToFile('[assessment] key fixed', n));
 
@@ -270,7 +270,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   const blueprint = checkBlueprint(examJson, { tos: P.tos || null, sectionLevels });
   examJson._layout.blueprint = blueprint;
   d.logToFile('[assessment] blueprint checked', { pattern, subject: P.key, ok: blueprint.ok, total: blueprint.total, levels: blueprint.levels, problems: blueprint.problems });
-  if (P.oral) examJson = urduOralFixes(freshReadWords({ ...examJson, _layout: { ...examJson._layout, oral: { ...P.oral, content: oral.content } } }, (n) => d.logToFile('[assessment] oral word replaced', n)).examJson).examJson; // a read-aloud word the paper prints; v29 Urdu oral fixes (bd-5jmnfj.4.58)
+  if (P.oral) { const ra = mendReadAloud(urduOralFixes(freshReadWords({ ...examJson, _layout: { ...examJson._layout, oral: { ...P.oral, content: oral.content } } }, (n) => d.logToFile('[assessment] oral word replaced', n)).examJson).examJson); examJson = correctMisreads(ra.examJson).value; ra.notes.forEach((n) => d.logToFile('[assessment] read-aloud grammar', n)); } // a read-aloud word the paper prints; v29 Urdu oral fixes (bd-5jmnfj.4.58)
   // An answer word still given away after the re-ask, or by the oral sheet, is logged (bd-5jmnfj.4.50.8).
   const giveaways = answerRepeats(examJson);
   if (giveaways.length) d.logToFile('[assessment] answers given away', { requestId, pattern, giveaways });

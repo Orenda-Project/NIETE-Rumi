@@ -32,7 +32,7 @@ module.exports = makeSubject({
       slots: [
         { slot: 'g2.english.A.Q1', label_en: 'Q1.', type: 'Read and Answer', generate: 1, marks_each: 20, lines: 0, answer_ok: FROM_PASSAGE,
           instruction_en: 'Read the passage and answer the questions.',
-          prompt_rule: 'One new passage of 80 to 110 words in "passage", on a book theme, in Grade 2 words. "questions": ten objects { question, answer, marks: 2, scheme } — four recall, four understand, two apply — where scheme.points sum to 2. Every question is answered from the passage: the two apply questions ask the child to use what the passage says (why, or what would happen if), never to write about themselves and never a grammar or tense change (no "Write one sentence about", no "Change this sentence"). Do not prefix a question with a letter. Two-mark questions: one answer earns both marks (2 for a complete answer, 1 for part of it); split into two marks only a question that asks for two things and says so ("What two things...?"). No question needs a grammar word the class has not met, and none asks the child to infer beyond one clause of the passage.' },
+          prompt_rule: 'One new passage of 80 to 110 words in "passage", on a book theme, in Grade 2 words. "questions": ten objects { question, answer, marks: 2, scheme } — four recall, four understand, two apply — where scheme.points sum to 2. Every question is answered from the passage: the two apply questions ask the child to use what the passage says (why, or what would happen if), never to write about themselves and never a grammar or tense change (no "Write one sentence about", no "Change this sentence"). Do not prefix a question with a letter. Two-mark questions: one answer earns both marks (2 for a complete answer, 1 for part of it); split into two marks only a question that asks for two things and says so ("What two things...?"). No question needs a grammar word the class has not met, and none asks the child to infer beyond one clause of the passage. v35 (bd-5jmnfj.4.58.9): a question never prints the answer to an earlier question ("Why does Sana thank the old man?" after a question keyed "An old man sells balloons"): before writing, read each stem against every earlier answer and say "he", "she", "it" or "they" instead of the earlier answer\'s words. No two questions pay the same fact (the ducks need bread or food, once only).' },
       ],
     },
     {
@@ -62,7 +62,7 @@ module.exports = makeSubject({
         S({ slot: 'g2.english.B.Q10', label_en: 'Q10.', type: 'Prepositions', generate: 5, picture: ['scene'],
           instruction_en: 'Look at the picture. Write in, on, under, near or behind.',
           answer_ok: (q) => /^(in|on|under|near|behind)$/i.test(String(q.answer).trim()),
-          prompt_rule: 'Five items, each a scene as picture: {kind:"scene", describe} of one object placed by another (a cat under a table), placed in, on, under, near or behind it, never above, over, beside or next to. The describe names the floor and the thing\'s own legs or base ("a ball on the floor under a chair", "a bird on top of the roof"). Never a bird or animal in or on a tree, or in any scene where both in and on read true (a bird among the leaves of a branch is both): use in only for a thing inside a container (box, basket, bag, cup). Stem: "The cat is ____ the table." Answer: that one word.' }),
+          prompt_rule: 'Five items, each a scene as picture: {kind:"scene", describe} of one object placed by another (a cat under a table), placed in, on, under, near or behind it, never above, over, beside or next to. The describe names the floor and the thing\'s own legs or base ("a ball on the floor under a chair", "a bird on top of the roof"). Never a bird or animal in or on a tree, or in any scene where both in and on read true (a bird among the leaves of a branch is both): use in only for a thing inside a container (box, basket, bag, cup). Stem: "The cat is ____ the table." Answer: that one word. v35 (bd-5jmnfj.4.58.9): in each scene only one of the five words is true; near is true of anything at, under, behind or beside another thing, so put the thing clearly apart for near, or for any other answer list near in scheme.accept when it is also true (a duck at the foot of a trunk is near it). Repeat one word across two items, so the last item cannot be found by using each word once.' }),
       ],
     },
     {
@@ -97,18 +97,19 @@ module.exports = makeSubject({
         ask: 'A story of 5 to 7 sentences on a book theme, then five questions (2 recall, 2 understand, 1 apply, in that order, apply last) with answers. The story has at most two names (other characters are "her mother" or "the teacher"), and the fifth question is about the story (what would happen if, what should the character do), never about the child: no "you" or "your".', n: 5,
         rubric: [{ marks: 1, en: 'Each right answer', ur: 'ہر درست جواب' }] },
       { id: 'speaking', kind: 'speaking', marks: 5, label_en: 'Speaking', label_ur: 'بولنا',
-        instruction_en: 'Ask the child to talk about the topic for about a minute.',
-        instruction_ur: 'بچے سے موضوع پر تقریباً ایک منٹ بات کرنے کو کہیں۔',
+        instruction_en: 'Ask the child to talk about the topic for about half a minute.',
+        instruction_ur: 'بچے سے موضوع پر تقریباً آدھے منٹ بات کرنے کو کہیں۔',
         ask: 'One topic (my best friend, my favourite game) and three prompt questions.', n: 3,
         rubric: [
           { marks: 1, en: 'Keeps talking for half a minute with no more than two prompts from the teacher', ur: 'استاد کے دو سے زیادہ سوال کے بغیر آدھے منٹ تک بولتا ہے' },
-          { marks: 2, en: 'Gives three or more different details about the topic', ur: 'موضوع پر تین یا زیادہ مختلف تفصیلات دیتا ہے' },
-          { marks: 2, en: 'Speaks in full sentences; at most two sentences have a wrong is, am, are, has, have or plural', ur: 'مکمل جملوں میں بولتا ہے؛ زیادہ سے زیادہ دو جملوں میں is، am، are، has، have یا جمع غلط ہو' },
+          // v35 (bd-5jmnfj.4.58.9): a 2-mark row says what earns 1.
+          { marks: 2, en: 'Gives different details about the topic: 2 for three or more, 1 for one or two, 0 for none', ur: 'موضوع پر مختلف تفصیلات دیتا ہے: تین یا زیادہ پر 2، ایک یا دو پر 1، کوئی نہیں تو 0' },
+          { marks: 2, en: 'Speaks in full sentences: 2 if at most two sentences have a wrong is, am, are, has, have or plural, 1 if three or four, 0 if more', ur: 'مکمل جملوں میں بولتا ہے: زیادہ سے زیادہ دو جملوں میں is، am، are، has، have یا جمع غلط ہو تو 2، تین یا چار میں 1، اس سے زیادہ میں 0' },
         ] },
       { id: 'read_aloud', kind: 'read_aloud', marks: 10, label_en: 'Read aloud', label_ur: 'بلند خوانی',
         instruction_en: 'The child reads the passage aloud. Mark against the rubric.',
         instruction_ur: 'بچہ عبارت بلند آواز سے پڑھے۔ روبرک کے مطابق نمبر دیں۔',
-        ask: 'A passage of 40 to 50 words from a book lesson (quote the book exactly).', n: 0,
+        ask: 'A passage of 40 to 50 words from a book lesson (quote the book exactly). The text is grammatical and keeps every apostrophe and possessive as printed in the book ("Pinky\'s eyes", never "Pinky eyes"): the child reads it aloud and is scored on accuracy.', n: 0,
         rubric: [
           { marks: 2, en: 'Sounds out long words part by part: 2 if every long word, 1 if some, 0 if none', ur: 'لمبے الفاظ ٹکڑوں میں پڑھتا ہے: ہر لفظ پر 2، کچھ پر 1، کسی پر نہیں تو 0' },
           { marks: 3, en: 'Accuracy: 3 for 0 to 2 words wrong, 2 for 3 to 5, 1 for 6 to 9, 0 for 10 or more', ur: 'درستگی: 0 سے 2 غلط الفاظ پر 3، 3 سے 5 پر 2، 6 سے 9 پر 1، 10 یا زیادہ پر 0' },
