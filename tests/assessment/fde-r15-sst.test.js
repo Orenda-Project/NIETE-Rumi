@@ -23,6 +23,11 @@ jest.mock('../../bot/shared/services/llm-client', () => ({
   getClient: () => ({ chat: { completions: { create: (...a) => mockCreate(...a) } } }),
 }));
 const mockLog = jest.fn();
+// Staging lacks the sandbox Social Studies holds, so this recorded paper keeps A.Q1's «سندھ», the key of D.Q6,
+// and the v23 giveaway re-ask would add D asks; these tests pin the held-item re-ask, fde-v23-repeats pins giveaways.
+jest.mock('../../bot/shared/services/assessment/fde-answer-repeats', () => ({
+  ...jest.requireActual('../../bot/shared/services/assessment/fde-answer-repeats'), answerRepeats: () => [],
+}));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: (...a) => mockLog(...a), logError: jest.fn(), logWarn: jest.fn() }));
 jest.mock('../../bot/shared/services/assessment/book-content.service', () => ({
   loadPageRangeContent: async ({ pageRanges }) => ({ content: '=== Page 40 ===\nسبق کا متن', pageReference: String(pageRanges), chapterTitle: null }),
