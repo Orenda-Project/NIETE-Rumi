@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { cn } from '@/lib/utils';
 import { useAuth } from '../../../hooks/useAuth';
 import TeacherPage from '../../TeacherPage';
 import { TEACHER_FRAME } from '../../copy';
-import { useCopy } from '../../i18n';
-import { cleanSchool, fullName } from '../../format';
+import { useCopy, useLang } from '../../i18n';
+import { HomeGreeting, StatusChip } from '../../ui';
+import { useLanguageSwitch } from '../../useLanguageSwitch';
+import { LanguagePill } from './LanguagePill';
+import { cleanSchool, fullName, todayLabel } from '../../format';
 import { ReadyForYou } from '../../notices/ReadyForYou';
 import { noticeTracker } from '../../notices/tracker';
 import { FULL_KINDS } from '../NextCard';
@@ -14,18 +16,15 @@ import { pickChips } from '../chips';
 import type { HomeData, HomeTileKey } from '../api';
 import type { TapKind } from '../api';
 import type { AnyFeature } from '../../icons';
-import { HomeBand } from './HomeBand';
 import { LookCard } from './LookCard';
 import { LookScores } from './LookScores';
-import { FeatureRows } from './FeatureRows';
+import { FeatureTiles } from './FeatureTiles';
 
 /**
- * The first thing under the band climbs into it: 20 px of overlap plus TeacherPage's 12 px top padding, and it paints
- * above the band (which is positioned for its lattice).
+ * The first thing under the band climbs into it: 28 px of overlap plus TeacherPage's 12 px top padding (as on the card
+ * build's Home, which HomeGreeting's 52 px bottom is made for), and it paints above the band (positioned for its lattice).
  */
-const CLIMB = 'relative z-[1] first:-mt-8';
-/** With no climber the band ends short, and the first block (the question, or the rows while loading) starts 16 px under it. */
-const UNDER = 'first:-mt-3 first:pt-2';
+const CLIMB = 'relative z-[1] first:-mt-10';
 
 /**
  * The slot while /me/home loads: last time's block above the rows for this teacher (`teacher-home-slot:v1:<key>` =
@@ -79,15 +78,17 @@ export interface LookHomeProps {
 }
 
 /**
- * The Home's new look (portal_teacher_home_look, only ever on with portal_teacher_home_card): the navy band, then
- * "Ready for you", the card (tinted by kind), the progress strip, a heading or the section label, the features, and the
- * evening reminder last. The card ladder, the chips' rule, the yield to the tray and where every tap goes are the card
- * build's, unchanged. The first thing under the band climbs 20 px into it (the card, or the strip on a no-card day);
- * the no-card question never does, so no text lands on the navy. No arrival animation.
+ * The Home's new look (portal_teacher_home_look, only ever on with portal_teacher_home_card): the kit's HomeGreeting
+ * with the small language pill in its logo row, then "Ready for you", the card (tinted by kind), the progress strip, the
+ * section label on a card day, the features three per row, and the evening reminder last. The card ladder, the chips'
+ * rule, the yield to the tray and where every tap goes are the card build's, unchanged. The first thing under the band
+ * climbs 28 px into it (the card, the strip, or the tiles on a plain day), as on the card build's Home. No question line
+ * (operator, 30 Oct 2026: "this is not a chat app").
  */
 export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
   const C = useCopy(TEACHER_FRAME);
   const H = useCopy(HOME_CARD);
+  const lang = useLang();
   const { user } = useAuth();
   const tray = useSyncExternalStore(noticeTracker.subscribe, noticeTracker.getHome, noticeTracker.getHome);
   const card = data?.card ?? null;
@@ -148,12 +149,27 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
     const d = Math.max(0, Math.round(underSlot.current - (top - spacer)));
     if (d !== spacer) setSpacer(d);
   }, [slot, data, cardDay, chips.length, spacer]);
-  const climb = !!slot || cardDay || chips.length > 0;
+  const switcher = useLanguageSwitch();
 
   return (
     <TeacherPage
       testId="teacher-home"
-      hero={<HomeBand title={C.home.greeting(fullName(user))} name={fullName(user)} now={new Date()} school={cleanSchool(user?.schoolName)} climb={climb} />}
+      hero={(
+        // The kit's Home header, as on the card build's Home (operator, 30 Oct 2026, mockup v6): the mark and NIETE,
+        // "Salaam, <name>!", today's date, her school; the language is the look's small pill at the end of the logo row
+        // (it saves through the one writer), not the full-width English | اردو switch. "Not saved" when the server refuses.
+        <HomeGreeting
+          testId="home-band"
+          title={C.home.greeting(fullName(user))}
+          name={fullName(user)}
+          date={todayLabel(new Date(), lang)}
+          school={cleanSchool(user?.schoolName)}
+          brand={C.brand}
+          logoAlt={C.logoAlt}
+          corner={<LanguagePill lang={switcher} />}
+          footer={switcher.status === 'failed' ? <StatusChip text={C.more.notSaved} tone="error" className="bg-white/10 text-white" /> : undefined}
+        />
+      )}
     >
       {user?.phoneNumber && <ReadyForYou userKey={user.phoneNumber} />}
       {slot ? (
@@ -165,22 +181,18 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
         <LookCard card={drawn} quizHome={data?.quizHome ?? null} userKey={user?.phoneNumber} onGo={onGo} onDrawn={onDrawn} className={CLIMB} />
       ) : null}
       {data && chips.length ? <LookScores scores={data.scores} cardKind={drawn?.kind ?? null} onGo={onGo} className={CLIMB} /> : null}
-      {/* Neither line until /me/home answers: a question that the card then replaces would be read and taken away. */}
-      {!data ? null : cardDay ? (
+      {/* The section label on a card day only, and not until /me/home answers. */}
+      {data && cardDay ? (
         <p data-testid="home-look-all" className="mt-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#636878] rtl:text-[13px] rtl:normal-case rtl:tracking-normal">
           {H.look.all}
         </p>
-      ) : (
-        <h2 data-testid="home-look-ask" className={cn("mb-0.5 mt-1 text-[18px] font-semibold text-[#333748] rtl:text-[17px]", UNDER)}>
-          {H.look.ask}
-        </h2>
-      )}
+      ) : null}
       {holding ? null : (
         <>
           {/* The spacer cancels its own block gap, so the rows sit exactly `spacer` px lower. */}
           {spacer ? <div data-testid="home-look-spacer" aria-hidden="true" style={{ height: spacer, marginTop: -BLOCK_GAP }} /> : null}
-          {/* The "Quizzes" row (portal_teacher_home_quiz_tile): in the grid after Lesson plans, only with a quiz home. */}
-          <FeatureRows tiles={tiles} order={order} className={UNDER} quiz={data?.quizTile && data.quizHome ? { quizHome: data.quizHome, onGo } : null} />
+          {/* The "Quizzes" tile (portal_teacher_home_quiz_tile): in the grid after Lesson plans, only with a quiz home. */}
+          <FeatureTiles tiles={tiles} order={order} className={CLIMB} quiz={data?.quizTile && data.quizHome ? { quizHome: data.quizHome, onGo } : null} />
         </>
       )}
     </TeacherPage>
