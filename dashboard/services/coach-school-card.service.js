@@ -115,13 +115,13 @@ const SQL = Object.freeze({
 
   // The access check for a teacher: on the roster of a school she holds.
   teacher: `/* sc:teacher */
-    SELECT u.id, u.phone_number, u.name, u.role, u.school_id, u.preferred_language, sch.name AS school_name, sch.emis
+    SELECT u.id, u.phone_number, u.name, u.role, u.school_id, u.preferred_language, u.teacher_level, sch.name AS school_name, sch.emis
       FROM users u JOIN schools sch ON sch.id = u.school_id
      WHERE u.phone_number = $2 AND ${ROSTER} AND ${PATCH_HAS_SCHOOL}
      ORDER BY u.id LIMIT 1`,
 
   teacherById: `/* sc:teacher-by-id */
-    SELECT u.id, u.phone_number, u.name, u.role, u.school_id, u.preferred_language, sch.name AS school_name, sch.emis
+    SELECT u.id, u.phone_number, u.name, u.role, u.school_id, u.preferred_language, u.teacher_level, sch.name AS school_name, sch.emis
       FROM users u JOIN schools sch ON sch.id = u.school_id
      WHERE u.id = $2::uuid AND ${ROSTER} AND ${PATCH_HAS_SCHOOL}
      LIMIT 1`,
@@ -952,6 +952,8 @@ function coachingChartOf(act, dc, visits, inP) {
 
 const teacherOut = (teacher) => ({
   teacherExtId: teacher.phone_number, name: teacher.displayName, school: text(teacher.school_name), emis: teacher.emis == null ? null : String(teacher.emis),
+  // bd-ewbzns.2 — her role and teaching levels, so what Edit teacher changed shows on her page.
+  isPrincipal: teacher.role === 'principal', levels: teacherLevelOf(teacher),
 });
 
 /** GET /teacher/:ext/card */

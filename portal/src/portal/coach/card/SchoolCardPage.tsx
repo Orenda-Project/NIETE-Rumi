@@ -44,10 +44,12 @@ function Avatar({ name }: { name: string }) {
 
 function TeacherRow({ t, to, state, first }: { t: CardTeacher; to: string; state: unknown; first: boolean }) {
   const C = useCopy(SCHOOL_CARD);
+  const P = useCopy(PEOPLE);
   const levelNames = useLevelNames();
   const active = t.total > 0;
-  // bd-ewbzns.1 — her teaching levels before her last visit ("Primary · Last visit · 2 days ago"), when recorded.
-  const levels = levelNames(t.levels);
+  // bd-ewbzns.1 + .2 — "Principal" and her teaching levels before her last visit ("Principal · Primary · Last visit ·
+  // 2 days ago"), when known; a teacher's row names no role (most rows are teachers).
+  const levels = [t.isPrincipal ? P.rolePrincipal : "", levelNames(t.levels)].filter(Boolean).join(" · ");
   return (
     <Link to={to} state={state} data-testid={active ? "card-teacher" : "card-teacher-none"}
       className={`flex min-h-[76px] items-center gap-3 px-3.5 transition-colors hover:bg-[#f9fafb] ${first ? "" : "border-t border-[#f0f1f3]"}`}>
