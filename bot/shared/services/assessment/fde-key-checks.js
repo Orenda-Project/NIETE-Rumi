@@ -8,6 +8,8 @@
  * Pure: exam JSON and pattern in, flags out; never throws.
  */
 
+const { alternativeShortfall } = require('./fde-accept-alternatives'); // two right answers, one keyed (bd-5jmnfj.4.58.9.1)
+
 const BOX_TYPES = new Set(['Complete the Sentences', 'Fill in the Blanks']);
 const WHO = /کس نے|\bwho\b/i;
 const label = (o) => String(o == null ? '' : o).replace(/^\s*\(?[^\s)]{1,3}\)\s*/, '').trim().normalize('NFC');
@@ -44,7 +46,7 @@ function keyShortfall(examJson, P) {
       .forEach((q) => bad.push(line(q, 'a who question is answered with a name, not a sentence; every choice is a name')));
     if (bad.length) out.push({ slot, reason: 'answer', items: bad });
   });
-  return out;
+  return out.concat(alternativeShortfall(examJson, P));
 }
 
 module.exports = { keyShortfall };
