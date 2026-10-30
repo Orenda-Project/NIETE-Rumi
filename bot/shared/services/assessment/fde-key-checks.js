@@ -13,7 +13,10 @@ const { letterShortfall } = require('./fde-early-urdu-letters');
 const { supplicationShortfall } = require('./fde-religious-terms');
 const { earlyDupeShortfall } = require('./fde-early-dupes');
 const { alternativeShortfall } = require('./fde-accept-alternatives');
+const { obliquePluralShortfall } = require('./fde-urdu-r3-checks');
 const { boxWordRepeats, mcqRepeats } = require('./fde-early-urdu-repeat');
+const { quotedWordShortfall } = require('./fde-urdu-quoted-word');
+const { useWordShortfall } = require('./fde-urdu-use-word');
 const BOX_TYPES = new Set(['Complete the Sentences', 'Fill in the Blanks']);
 const WHO = /کس نے|\bwho\b/i;
 const label = (o) => String(o == null ? '' : o).replace(/^\s*\(?[^\s)]{1,3}\)\s*/, '').trim().normalize('NFC');
@@ -58,7 +61,8 @@ function keyShortfall(examJson, P, bookText) {
   // MCQs with one option set and key (fde-early-urdu-repeat).
   const urduRepeats = boxWordRepeats(examJson).concat(mcqRepeats(examJson)).filter((r) => /\.urdu\./.test(r.slot));
   return out.concat(clashes, letterShortfall(examJson, P, bookText), supplicationShortfall(examJson, P), earlyDupeShortfall(examJson, P),
-    alternativeShortfall(examJson, P), urduRepeats);
+    alternativeShortfall(examJson, P), urduRepeats, obliquePluralShortfall(examJson),
+    quotedWordShortfall(examJson, P, bookText), useWordShortfall(examJson, P)); // v37r4: a quoted word off the source, a model sentence without its word
 }
 
 module.exports = { keyShortfall };

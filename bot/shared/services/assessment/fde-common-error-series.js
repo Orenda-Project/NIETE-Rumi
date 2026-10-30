@@ -10,7 +10,7 @@
  * seriesError(q) returns the corrected common_error, null to drop it, undefined to leave it. Pure; never throws.
  */
 
-const WRITES = /(writes?\s+)(\d+(?:\s+and\s+\d+)*)/i;
+const WRITES = /(writes?\s+)(\d+(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+)\d+)*)/i; // «7 and 8» or «7, 8» (v37 loop 4)
 const ON_INSTEAD = /counts?\s+on\s+instead\s+of\s+(?:counting\s+)?back/i;
 const ON_BY = /counts?\s+on\s+by\s+(\d+)/i;
 
@@ -23,14 +23,15 @@ function parse(question) {
   return step === null || step === 0 ? null : { nums, step };
 }
 
-/** For each blank: the number printed or worked out just before it. */
-function previous({ nums, step }) {
-  const truth = nums.slice();
+/** The child's answer for each blank: the number before it + k, and a blank after a blank goes on from the
+ *  child's own previous answer (v37 G1 Q2: «2, 4, 6, __, __» counted on by 1 is 7, 8, never 7, 9). */
+function wrongAnswers(nums, k) {
   const out = [];
-  truth.forEach((v, i) => {
-    if (v !== null) return;
-    truth[i] = (truth[i - 1] === undefined || truth[i - 1] === null ? 0 : truth[i - 1]) + step;
-    out.push(truth[i - 1]);
+  let before = null;
+  nums.forEach((v, i) => {
+    if (v !== null) { before = v; return; }
+    before = (before === null ? 0 : before) + k;
+    out.push(before);
   });
   return out;
 }
@@ -41,19 +42,18 @@ function seriesError(q) {
     if (typeof error !== 'string') return undefined;
     const series = parse(q.question);
     if (!series) return undefined;
-    const prev = previous(series);
     const onBy = ON_BY.exec(error);
     const instead = ON_INSTEAD.test(error);
     if (!onBy && !instead) return undefined;
     if (instead && series.step > 0) return null;
     const k = instead ? Math.abs(series.step) : Number(onBy[1]);
-    const wrong = prev.map((p) => p + k);
+    const wrong = wrongAnswers(series.nums, k);
     const printed = new Set(series.nums.filter((n) => n !== null));
     if (!instead && wrong.some((w) => printed.has(w))) return null;
-    const figures = wrong.join(' and ');
     const m = WRITES.exec(error);
     if (!m) return undefined;
-    return m[2].replace(/\s+/g, ' ') === figures ? undefined : error.replace(WRITES, `$1${figures}`);
+    if (m[2].match(/\d+/g).map(Number).join() === wrong.join()) return undefined;
+    return error.replace(WRITES, `$1${wrong.join(/,/.test(m[2]) ? ', ' : ' and ')}`);
   } catch (e) { return undefined; }
 }
 

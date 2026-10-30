@@ -64,14 +64,14 @@ describe('G2 Q12 paper paragraph', () => {
   });
 });
 
-describe('G2 Q16 story order marks each sentence by what it follows', () => {
+describe('G2 Q16 story order is banded by position (r3, replaces adjacency marks)', () => {
   const out = earlyEnglishFixes2(G2).examJson;
   const q = of(out, 'g2.english.C.Q16')[0];
   test('one misplacement does not zero the others', () => {
     const t = q.scheme.points.map((p) => p.text).join(' ');
-    expect(t).toMatch(/straight after|directly after|follows/i);
+    expect(t).toMatch(/minus 1 for each sentence out of place/i);
     expect(sum(q)).toBe(q.marks);
-    expect(q.scheme.points.length).toBe(6);
+    expect(q.scheme.points.length).toBe(1);
   });
 });
 

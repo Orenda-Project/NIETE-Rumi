@@ -35,12 +35,43 @@ const fromPoem = (ask, answer, script) => {
   return words(answer).some((w) => w.length > 1 && !q.has(w) && !FILLER.has(w) && poem.has(w));
 };
 
-function urduOralBad(id, items, script) {
+const contentOf = (s) => words(s).filter((w) => w.length > 1 && !QWORDS.has(w) && !FILLER.has(w));
+
+/** v37: poem questions need distinct answers, and no ask may print another question's answer. */
+// v37 loop 2: G1 poem Q5 «اللہ تعالیٰ کی تعریف والی نظم کو کیا کہتے ہیں؟ … حمد» — religious wording the model wrote.
+const FAITH = /^(?:اللہ|خدا|حمد|نعت|دعا(?:ئیں|ئے|ؤں)?|نماز|رب|نبی|رسول|عبادت|تعالیٰ|تعالی)$/u;
+const faithNotInPoem = (text, script) => { const poem = new Set(words(script)); return words(text).some((w) => FAITH.test(w) && !poem.has(w)); };
+
+/** v37 round 4: the oral poem is never a hamd, naat, prayer or a poem naming God; religious text the model reproduces cannot be checked. */
+const religiousPoem = (script) => words(script).some((w) => FAITH.test(w));
+
+function poemCrossFlags(items, script) {
   const flags = [];
+  const poem = new Set(words(script));
+  const list = items.map((x) => ({ ask: String((x && x.ask) || ''), answer: String((x && x.answer) || '') }));
+  list.forEach((a, i) => list.forEach((b, j) => {
+    if (j <= i || !a.answer.trim()) return;
+    if (words(a.answer).join(' ') === words(b.answer).join(' ')) flags.push({ id: 'poem', reason: 'repeats-answer', text: b.answer });
+  }));
+  list.forEach((a, i) => list.forEach((b, j) => {
+    const need = contentOf(a.answer);
+    if (i === j || !need.length) return;
+    const said = new Set(words(b.ask));
+    const own = new Set(words(a.ask));
+    const fresh = need.filter((w) => w.length > 2 && poem.has(w) && !own.has(w));
+    if (need.every((w) => said.has(w)) || fresh.some((w) => said.has(w))) flags.push({ id: 'poem', reason: 'gives-away', text: b.ask });
+  }));
+  return flags;
+}
+
+function urduOralBad(id, items, script) {
+  const flags = id === 'poem' && Array.isArray(items) ? poemCrossFlags(items, script) : [];
+  if (id === 'poem' && religiousPoem(script)) flags.push({ id, reason: 'religious-poem', text: String(script).split('\n')[0] });
   (Array.isArray(items) ? items : []).forEach((x) => {
     const ask = String((x && x.ask) || ''); const answer = String((x && x.answer) || '');
     if (id !== 'read_words' && twoAsks(ask)) flags.push({ id, reason: 'two-asks', text: ask });
     if (id === 'poem' && answer && restates(ask, answer)) flags.push({ id, reason: 'restates-stem', text: answer });
+    if (id === 'poem' && faithNotInPoem(`${ask} ${answer}`, script)) flags.push({ id, reason: 'religious-not-in-poem', text: ask });
     if (id === 'poem' && POINTS_AT.test(answer)) flags.push({ id, reason: 'points-at-poem', text: answer });
     else if (id === 'poem' && answer && /[\u0600-\u06FF]/.test(script || '') && !fromPoem(ask, answer, script)) flags.push({ id, reason: 'answer-not-from-poem', text: answer });
   });

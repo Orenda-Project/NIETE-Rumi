@@ -132,7 +132,7 @@ function makeSection(o) {
     marks,
     levels: o.levels,
     answer_on: 'question_paper',
-    note_en: null,
+    note_en: o.note_en || null, // v37 G1 Maths Q5/Q6: a section may print a teacher note
     slots,
   };
 }

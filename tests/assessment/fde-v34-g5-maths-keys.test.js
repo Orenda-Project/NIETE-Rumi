@@ -11,6 +11,7 @@ const items = [];
 }(exam.unseen));
 const find = (re) => items.find((q) => re.test(q.question));
 const run = (re) => { const notes = []; const q = find(re); return { q, out: mathsKeys(q, notes), notes }; };
+const NO_WORKING = 'A correct answer with no working still earns the answer mark(s); the working mark is only for steps shown.';
 const total = (q) => q.scheme.points.reduce((s, p) => s + p.marks, 0);
 
 describe('G5 Maths keys, v29 review', () => {
@@ -32,9 +33,11 @@ describe('G5 Maths keys, v29 review', () => {
   });
 
   test('Q2 ii: count-up is not accepted for the vertical method; the vertical methods stay', () => {
-    const { out } = run(/using the vertical method/);
+    const { q, out } = run(/using the vertical method/);
     expect(out.scheme.accept.join(' ')).not.toMatch(/Count-up/);
-    expect(out.scheme.accept).toEqual(['Vertical subtraction with borrowing', 'Column subtraction with regrouping']);
+    // v37 round 7 (bd-5jmnfj.4.58): every key that pays working now ends with the one no-working line; the vertical methods are still the only methods listed.
+    expect(out.scheme.accept).toEqual(['Vertical subtraction with borrowing', 'Column subtraction with regrouping', NO_WORKING]);
+    expect(out.scheme.points).toEqual(q.scheme.points);
   });
 
   test('Q7 and Q8: the unit mark is its own U1 point and the total holds', () => {
@@ -50,7 +53,11 @@ describe('G5 Maths keys, v29 review', () => {
 
   test('Q5 and Q6 already have a U1 point and are untouched', () => {
     const q = find(/perimeter/);
-    expect(mathsKeys(q, [])).toBe(q);
+    const out = mathsKeys(q, []);
+    // v37 round 7 (bd-5jmnfj.4.58): the key pays method marks, so the one no-working line is appended to accept; the points, the U1 point and the total are untouched.
+    expect(out.scheme.points).toEqual(q.scheme.points);
+    expect(out.scheme.accept).toEqual([...q.scheme.accept, NO_WORKING]);
+    expect(out.scheme.points.filter((p) => p.kind === 'U')).toHaveLength(1);
   });
 
   test('items it does not know pass through; null passes', () => {

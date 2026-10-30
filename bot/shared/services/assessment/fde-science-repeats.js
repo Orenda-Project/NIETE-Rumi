@@ -10,6 +10,8 @@
  */
 
 const { itemsInOrder, content, choice } = require('./fde-near-repeats');
+const { sharedKeyFacts } = require('./fde-science-shared-facts'); // v37 round 7: two items paying one key fact
+const { crossSectionRepeats } = require('./fde-science-task-repeats'); // v37r4: a C item asking a B item's task
 
 const BIO = /\b(?:non-?)?biodegradable\b|\brot(?:s|ting)? (?:away )?naturally\b|\bstays? (?:in the (?:environment|water) )?for (?:many|hundreds of) years\b/i;
 const MOST_BIO = 2;
@@ -50,7 +52,7 @@ function acceptExamples(list) {
 function scienceRepeats(examJson) {
   if (!examJson) return [];
   const list = itemsInOrder(examJson).filter((q) => /^science\./.test(q.slot || ''));
-  return [...biodegradableCap(list.flatMap(asksOf)), ...acceptExamples(list)];
+  return [...biodegradableCap(list.flatMap(asksOf)), ...acceptExamples(list), ...sharedKeyFacts(examJson), ...crossSectionRepeats(examJson)];
 }
 
 module.exports = { scienceRepeats };

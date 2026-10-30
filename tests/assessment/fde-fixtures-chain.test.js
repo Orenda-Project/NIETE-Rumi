@@ -159,7 +159,9 @@ describe('panel round 1', () => {
     const { scheme } = chain('science');
     const rows = scheme.match(/<tr data-row="science\.B\.Q2b">[\s\S]*?<\/tr>/g) || [];
     expect(rows.length).toBe(9);
-    for (const r of rows) expect(r).toMatch(/<td class="pts"><span class="pt"><span class="chip">A2\.5<\/span>/);
+    const chipSum = (r) => (r.match(/class="chip">A([\d.]+)</g) || []).reduce((t, c) => t + parseFloat(c.replace(/[^\d.]/g, '')), 0);
+    // v37 round 7: the row is split per idea (A1.5 + A1), never one all-or-nothing A2.5
+    for (const r of rows) expect(chipSum(r)).toBe(2.5);
   });
 
   it('C6: composition criteria marks in an Urdu scheme are Urdu digits', () => {

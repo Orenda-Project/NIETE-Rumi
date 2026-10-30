@@ -12,6 +12,9 @@
  * Pure: takes {examJson, notes} (or an exam) and returns {examJson, notes}; never throws.
  */
 
+const { describe210, bandStoryOrder } = require('./fde-english-r3-mends'); // v37 r3: 2/1/0 descriptors, story order by position
+const { earlyEnglishAccepts } = require('./fde-early-english-accepts'); // v37r6: no «near» / non-opposite accepts
+
 const E_VERBS = new Set(['writ', 'danc', 'rid', 'driv', 'mak', 'tak', 'com', 'hav', 'giv', 'liv', 'smil', 'wav', 'bak', 'lov', 'shar', 'chas', 'skat']);
 const STEM_CUE = /\b(and|two|three|both)\b/i;
 const ONE_IDEA = /^(why|how|what would)\b/i;
@@ -93,9 +96,27 @@ function fixRhyme(q, notes) {
   return out;
 }
 
+// G1 Q4 «b e e» for bee: letters printed in the answer's own order are copied, not built (v37 round 6). A fixed rotation
+// of the letters is printed instead; a word with no other order is flagged in the notes and kept.
+function fixUnscramble(q, notes) {
+  const answer = String(q.answer || '').trim().toLowerCase();
+  const letters = String(q.question || '').trim().split(/\s+/);
+  if (!answer || letters.join('').toLowerCase() !== answer) return q;
+  for (let k = 1; k < letters.length; k += 1) {
+    const turned = letters.slice(k).concat(letters.slice(0, k));
+    if (turned.join('').toLowerCase() !== answer) {
+      notes.push(`${q.slot}: «${q.question}» printed the answer's own order; now «${turned.join(' ')}»`);
+      return { ...q, question: turned.join(' ') };
+    }
+  }
+  notes.push(`${q.slot}: «${q.question}» has no other order than the answer; replace the word`);
+  return q;
+}
+
 const BY_SLOT = [
+  [/^g1\.english\.A\.Q4$/, fixUnscramble],
   [/^g1\.english\.B\.Q8$/, fixAction], [/^g1\.english\.C\.Q14$/, fixCapitals], [/^g1\.english\.C\.Q12$/, fixThisIsA],
-  [/^g2\.english\.C\.Q12$/, fixParagraph], [/^g2\.english\.C\.Q16$/, fixStoryOrder],
+  [/^g2\.english\.C\.Q12$/, (q, n) => describe210(fixParagraph(q, n), n)], [/^g2\.english\.C\.Q15$/, describe210], [/^g2\.english\.C\.Q16$/, (q, n) => bandStoryOrder(fixStoryOrder(q, n), n)],
   [/^g1\.english\.B\.Q6$|^g2\.english\.B\.Q3$/, fixRhyme],
 ];
 
@@ -116,7 +137,7 @@ function earlyEnglishFixes2(input) {
   const unseen = Object.fromEntries(Object.entries(examJson.unseen).map(([cat, byType]) => [cat,
     !byType || typeof byType !== 'object' ? byType
       : Object.fromEntries(Object.entries(byType).map(([type, list]) => [type, Array.isArray(list) ? list.map((q) => fixOne(q, notes)) : list]))]));
-  return { examJson: { ...examJson, unseen }, notes };
+  return earlyEnglishAccepts({ examJson: { ...examJson, unseen }, notes });
 }
 
 module.exports = { earlyEnglishFixes2 };

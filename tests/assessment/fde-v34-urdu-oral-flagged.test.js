@@ -11,15 +11,16 @@ const Prompt = require('../../bot/shared/services/assessment/fde-early-prompt');
 const { run } = require('./helpers/early-writer-harness');
 
 const P = Patterns.subjectOf('fde_g1_2026', 'urdu');
-const ASKS = ['خدا نے کیا بنایا؟', 'پھول کس نے بنائے؟', 'چاند کس نے بنایا؟', 'ہم کس کا شکر ادا کرتے ہیں؟', 'نظم کا عنوان کیا ہے؟'];
+const ASKS = ['نظم میں کس کو بنایا گیا؟', 'پھول کس نے بنائے؟', 'چاند کس نے بنایا؟', 'ہم کس کا شکر ادا کرتے ہیں؟', 'نظم کا عنوان کیا ہے؟'];
 const STEM = ASKS.map((ask) => ({ ask, answer: 'نظم میں سب کو میرے خدا نے بنایا' })); // every model answer opens «نظم میں»
-const CLEAN = ASKS.map((ask, i) => ({ ask, answer: ['سب کو', 'خدا نے', 'خدا نے', 'خدا کا', 'میرا خدا'][i] }));
+// v37 (round 6): two poem answers may not be the same (urduOralBad repeats-answer), so the third differs, and no ask prints another's answer (the first ask no longer names خدا).
+const CLEAN = ASKS.map((ask, i) => ({ ask, answer: ['سب کو', 'ستارا ہی', 'بناتا ہے', 'ستارا کا', 'میرا ستارا'][i] })); // round 4: the poem is never religious, so no خدا in the fixture
 const TASKS = ['read_words', 'likes', 'mother', 'poem', 'project'];
 
 /** A G1 Urdu oral reply with every task filled; the poem's items are the test's. `drop` leaves a task out. */
 const tree = (poem, drop = []) => ({
   oral: P.oral.tasks.filter((t) => !drop.includes(t.id)).map((t) => ({
-    id: t.id, script: 'میرا خدا سب کو بناتا ہے۔',
+    id: t.id, script: 'میرا ستارا سب کو بناتا ہے۔ ستارا ہی ستارا کا',
     items: t.id === 'poem' ? poem : Array.from({ length: t.n }, (_, i) => ({ ask: `ask ${i + 1}`, answer: 'yes' })),
   })),
 });

@@ -15,6 +15,9 @@
 const { criteriaFor } = require('./composition-criteria');
 const { moreKeyFixes } = require('./fde-g5-key-fixes-2'); // bd-5jmnfj.4.58.4
 const { langFixes } = require('./fde-g5-lang-fixes'); // bd-5jmnfj.4.58.34
+const { sceneAlternatives } = require('./fde-g1-scene-accept'); // v37r2 G1 Maths Q8: usual other names in accept
+const { pictureWordCount } = require('./fde-picture-word-count'); // v37r2 G5 English Q10: one word-bank count
+const { answerSheetWording } = require('./fde-answer-sheet-wording'); // v37r5 G5 Science Q2 (a): no frame on an answer-sheet section
 
 const RANGE = /\b(\d+)\s*[-–]\s*(\d+)\s+sentences\b/;
 const SYLLABLES = /ارکان/;
@@ -115,7 +118,9 @@ function keyFixes(examJson) {
   };
   const unseen = Object.fromEntries(Object.entries((examJson && examJson.unseen) || {}).map(([cat, byType]) => [cat,
     Object.fromEntries(Object.entries(byType || {}).map(([type, list]) => [type, Array.isArray(list) ? list.map(fix) : list]))]));
-  return { examJson: { ...examJson, unseen }, notes };
+  const counted = pictureWordCount({ ...examJson, unseen });
+  const sheet = answerSheetWording(counted.examJson);
+  return { examJson: sceneAlternatives(sheet.examJson), notes: notes.concat(counted.notes, sheet.notes) };
 }
 
 module.exports = { keyFixes };
