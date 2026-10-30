@@ -4,7 +4,7 @@
  *
  *   POST /api/portal/feedback/presign  { filename, sizeBytes, kind: 'feedback_audio' | 'feedback_photo' }
  *     → { key, uploadUrl, contentType }: the app PUTs the voice message or the screenshot straight to R2
- *   POST /api/portal/feedback          { topic, text?, audioKey?, photoKeys?, context? } → { success, feedbackId }
+ *   POST /api/portal/feedback          { topic, text?, audioKey?, photoKeys?, page?, context? } → { success, feedbackId }
  *
  * The user is ALWAYS the session's; a userId in the body is ignored. Which browser she is in is read from the request
  * (app-funnel.routes browserClass, the in-app-browser rule: classify server-side); the app's own claim is believed only
@@ -13,7 +13,7 @@
 const express = require('express');
 const AppFeedbackClient = require('../services/app-feedback.client');
 
-const CONTEXT_FROM_APP = ['surface', 'appBuild'];
+const CONTEXT_FROM_APP = ['appBuild'];
 
 function contextOf(req) {
   const raw = (req.body && req.body.context) || {};
@@ -45,9 +45,9 @@ function createAppFeedbackRouter({ requirePortalAuth }) {
   });
 
   router.post('/feedback', requirePortalAuth, (req, res) => {
-    const { topic, text, audioKey, photoKeys } = req.body || {};
+    const { topic, text, audioKey, photoKeys, page } = req.body || {};
     return relay(res, 'send', () => AppFeedbackClient.submitFeedback({
-      userId: req.session.portalUserId, topic, text, audioKey, photoKeys, context: contextOf(req),
+      userId: req.session.portalUserId, topic, text, audioKey, photoKeys, page, context: contextOf(req),
     }));
   });
 

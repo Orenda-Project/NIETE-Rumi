@@ -1,7 +1,8 @@
 /**
  * A coach's "Send feedback" from the app's More page: what she sends (a topic, her words and/or a voice
- * message, up to three screenshots) is checked against her own uploads, kept in app_feedback, and only
- * then transcribed and posted to the team's Slack channel — after the app has its answer.
+ * message, up to three screenshots) is checked against her own uploads, kept in coach_feedback (the table
+ * "Report an issue" started, bd-whlsm0: one table for one form), and only then transcribed and posted to
+ * the team's Slack channel — after the app has its answer.
  */
 
 const SERVICE = '../../bot/shared/services/feedback/app-feedback.service';
@@ -69,11 +70,13 @@ describe('app feedback — submitFeedback', () => {
 
   test('a typed message is saved for her and answered before anything else happens', async () => {
     const { d, db, later } = deps();
-    const out = await Svc.submitFeedback({ userId: UID, topic: 'problem', text: '  Schools will not open  ' }, d);
+    const out = await Svc.submitFeedback({ userId: UID, topic: 'broken', text: '  Schools will not open  ' }, d);
     expect(out).toEqual({ status: 'ok', feedbackId: 'fb-1' });
     expect(db.calls.inserts).toEqual([{
-      table: 'app_feedback',
-      row: { user_id: UID, topic: 'problem', message: 'Schools will not open', audio_key: null, photo_keys: [], context: {} },
+      table: 'coach_feedback',
+      row: {
+        user_id: UID, kind: 'broken', message: 'Schools will not open', page: null, audio_key: null, photo_keys: [], context: {},
+      },
     }]);
     // Transcription and Slack wait until she has her answer.
     expect(later).toHaveLength(1);
@@ -89,12 +92,13 @@ describe('app feedback — submitFeedback', () => {
   });
 
   test.each([
-    ['nothing said', { topic: 'problem' }, 'empty'],
-    ['only spaces', { topic: 'problem', text: '   ' }, 'empty'],
+    ['nothing said', { topic: 'broken' }, 'empty'],
+    ['only spaces', { topic: 'broken', text: '   ' }, 'empty'],
     ['an unknown topic', { topic: 'complaint', text: 'x' }, 'bad_topic'],
-    ['2001 characters', { topic: 'problem', text: 'x'.repeat(2001) }, 'too_long'],
-    ['four screenshots', { topic: 'problem', text: 'x', photoKeys: [SHOT(1), SHOT(2), SHOT(3), SHOT(4)] }, 'too_many_photos'],
-    ['screenshots that are not a list', { topic: 'problem', text: 'x', photoKeys: 'not-a-list' }, 'bad_photos'],
+    ['the old "problem" topic', { topic: 'problem', text: 'x' }, 'bad_topic'],
+    ['2001 characters', { topic: 'broken', text: 'x'.repeat(2001) }, 'too_long'],
+    ['four screenshots', { topic: 'broken', text: 'x', photoKeys: [SHOT(1), SHOT(2), SHOT(3), SHOT(4)] }, 'too_many_photos'],
+    ['screenshots that are not a list', { topic: 'broken', text: 'x', photoKeys: 'not-a-list' }, 'bad_photos'],
   ])('refuses %s as %s, and writes nothing', async (_label, args, reason) => {
     const { d, db } = deps();
     const out = await Svc.submitFeedback({ userId: UID, ...args }, d);
@@ -117,36 +121,52 @@ describe('app feedback — submitFeedback', () => {
   test('a signed upload that never arrived is refused', async () => {
     const { d, db } = deps();
     d.r2.headObject.mockResolvedValue({ exists: false });
-    const out = await Svc.submitFeedback({ userId: UID, topic: 'problem', audioKey: AUDIO }, d);
+    const out = await Svc.submitFeedback({ userId: UID, topic: 'broken', audioKey: AUDIO }, d);
     expect(out).toMatchObject({ status: 'invalid', reason: 'upload_missing' });
     expect(db.calls.inserts).toEqual([]);
   });
 
   test('more than twenty in a day is refused, so a stuck tap cannot flood the channel', async () => {
     const { d, db } = deps({ db: { recent: 20 } });
-    const out = await Svc.submitFeedback({ userId: UID, topic: 'problem', text: 'again' }, d);
+    const out = await Svc.submitFeedback({ userId: UID, topic: 'broken', text: 'again' }, d);
     expect(out).toEqual({ status: 'invalid', reason: 'too_many' });
     expect(db.calls.inserts).toEqual([]);
+  });
+
+  test('the four kinds of Report an issue are the topics, numbers among them', async () => {
+    expect(Svc.TOPICS).toEqual(['broken', 'numbers', 'idea', 'other']);
+    const { d, db } = deps();
+    expect((await Svc.submitFeedback({ userId: UID, topic: 'numbers', text: 'Visits show 0' }, d)).status).toBe('ok');
+    expect(db.calls.inserts[0].row.kind).toBe('numbers');
+  });
+
+  test('the page she sent it from is kept only as a portal address', async () => {
+    const { d, db } = deps();
+    await Svc.submitFeedback({ userId: UID, topic: 'idea', text: 'x', page: '/portal/coach/more' }, d);
+    expect(db.calls.inserts[0].row.page).toBe('/portal/coach/more');
+    const again = deps();
+    await Svc.submitFeedback({ userId: UID, topic: 'idea', text: 'x', page: 'https://evil.example/' }, again.d);
+    expect(again.db.calls.inserts[0].row.page).toBeNull();
   });
 
   test('only the context fields we read are kept, each checked', async () => {
     const { d, db } = deps();
     await Svc.submitFeedback({
-      userId: UID, topic: 'problem', text: 'x',
-      context: { surface: 'coach_more', browser: 'whatsapp-iab', appBuild: 1216, phone: '0300', surfaceX: 'y' },
+      userId: UID, topic: 'broken', text: 'x',
+      context: { surface: 'coach_more', browser: 'whatsapp-iab', appBuild: 1216, phone: '0300' },
     }, d);
-    expect(db.calls.inserts[0].row.context).toEqual({ surface: 'coach_more', browser: 'whatsapp-iab', appBuild: 1216 });
+    expect(db.calls.inserts[0].row.context).toEqual({ browser: 'whatsapp-iab', appBuild: 1216 });
 
     const again = deps();
     await Svc.submitFeedback({
-      userId: UID, topic: 'problem', text: 'x', context: { surface: 'DROP TABLE', browser: 'netscape', appBuild: 'x' },
+      userId: UID, topic: 'broken', text: 'x', context: { browser: 'netscape', appBuild: 'x' },
     }, again.d);
     expect(again.db.calls.inserts[0].row.context).toEqual({});
   });
 
   test('no user is refused before anything is read', async () => {
     const { d } = deps();
-    expect(await Svc.submitFeedback({ topic: 'problem', text: 'x' }, d)).toEqual({ status: 'invalid', reason: 'no_user' });
+    expect(await Svc.submitFeedback({ topic: 'broken', text: 'x' }, d)).toEqual({ status: 'invalid', reason: 'no_user' });
   });
 });
 
@@ -156,12 +176,12 @@ describe('app feedback — afterwards: transcript, then Slack', () => {
 
   test('the voice message is transcribed onto the row, then one Slack post names her, the topic and the links', async () => {
     const { d, db, later } = deps();
-    await Svc.submitFeedback({ userId: UID, topic: 'problem', text: 'see the picture', audioKey: AUDIO, photoKeys: [SHOT(1)] }, d);
+    await Svc.submitFeedback({ userId: UID, topic: 'broken', text: 'see the picture', audioKey: AUDIO, photoKeys: [SHOT(1)] }, d);
     await later[0]();
 
     expect(d.transcribe).toHaveBeenCalledWith(AUDIO, 'ur');
     expect(db.calls.updates[0]).toEqual({
-      table: 'app_feedback', row: { audio_transcript: 'The Schools page does not open' }, where: ['id', 'fb-1'],
+      table: 'coach_feedback', row: { audio_transcript: 'The Schools page does not open' }, where: ['id', 'fb-1'],
     });
     expect(d.postToSlack).toHaveBeenCalledTimes(1);
     const [text, target] = d.postToSlack.mock.calls[0];
@@ -173,7 +193,7 @@ describe('app feedback — afterwards: transcript, then Slack', () => {
     expect(text).toContain(`https://r2.example/${AUDIO}?ttl=604800`);
     expect(text).toContain(`https://r2.example/${SHOT(1)}?ttl=604800`);
     expect(text).not.toMatch(/03\d{2}|\+92/);
-    expect(db.calls.updates[1]).toMatchObject({ table: 'app_feedback', where: ['id', 'fb-1'] });
+    expect(db.calls.updates[1]).toMatchObject({ table: 'coach_feedback', where: ['id', 'fb-1'] });
     expect(db.calls.updates[1].row.notified_at).toBe('2026-10-30T10:00:00.000Z');
   });
 
@@ -189,7 +209,7 @@ describe('app feedback — afterwards: transcript, then Slack', () => {
   test('a failed transcription still posts, with the audio link', async () => {
     const { d, later } = deps();
     d.transcribe.mockRejectedValue(new Error('asr down'));
-    await Svc.submitFeedback({ userId: UID, topic: 'problem', audioKey: AUDIO }, d);
+    await Svc.submitFeedback({ userId: UID, topic: 'broken', audioKey: AUDIO }, d);
     const out = await later[0]();
     expect(out).toMatchObject({ notified: true });
     expect(d.postToSlack.mock.calls[0][0]).toContain(AUDIO);

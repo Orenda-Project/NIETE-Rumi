@@ -36,9 +36,11 @@ describe("coach v2 routes", () => {
     ));
   });
 
-  it("More → Report an issue (bd-whlsm0): its own route and chunk", () => {
-    expect(app).toContain('<Route path="/portal/coach/more/report" element={<CoachReport />} />');
-    expect(app).toContain('const CoachReport = page(() => import("./portal/coach/profile/CoachReport"));');
+  it("More → Send feedback (bd-x1tl95): its own route and chunk; Report an issue (bd-whlsm0) folded into it", () => {
+    expect(app).toContain('<Route path="/portal/coach/feedback" element={<CoachFeedback />} />');
+    expect(app).toContain('const CoachFeedback = page(() => import("./portal/coach/feedback/FeedbackPage"));');
+    expect(app).not.toContain("/portal/coach/more/report");
+    expect(app).not.toContain("CoachReport ");
   });
 
   it("Analytics (bd-fmf24g.27): the page and one teacher, each its own chunk", () => {

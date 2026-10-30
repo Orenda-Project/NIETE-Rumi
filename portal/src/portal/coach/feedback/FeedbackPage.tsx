@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CircleCheck, CircleHelp, ImagePlus, Lightbulb, Mic, Square, TriangleAlert, Trash2, X } from "lucide-react";
+import { Calculator, CircleCheck, CircleHelp, ImagePlus, Lightbulb, Mic, Square, TriangleAlert, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CoachGate from "../CoachGate";
 import TeacherPage from "../../teacher/TeacherPage";
@@ -28,7 +28,7 @@ import { checkScreenshot, failureText, MAX_SCREENSHOTS, SCREENSHOT_TYPES, sendFe
  */
 type Step = 1 | 2 | 3 | "sent";
 
-const TOPIC_GLYPH: Record<Topic, typeof Lightbulb> = { problem: TriangleAlert, idea: Lightbulb, other: CircleHelp };
+const TOPIC_GLYPH: Record<Topic, typeof Lightbulb> = { broken: TriangleAlert, numbers: Calculator, idea: Lightbulb, other: CircleHelp };
 const MORE = "/portal/coach/more";
 
 export default function FeedbackPage() {
