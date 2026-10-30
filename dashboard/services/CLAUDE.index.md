@@ -127,7 +127,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `certificates.service.js` ← imported by `dashboard/routes/portal.routes.js:4415:987b6967`
 - `coach-card-token.js` ← imported by `dashboard/routes/coach-card.routes.js:19:864c80cf` · `dashboard/services/coach-visit-request.js:21:df247ede`
 - `coach-disagreement-clip.js` ← imported by `dashboard/lib/insights/clips.js:12:baa561a2` · `dashboard/routes/coach-disagreements.routes.js:23:59ca3a41` · `dashboard/routes/portal.routes.js:2353:571db6ca` · `dashboard/routes/web-quiz-story-assets.js:82:4aa7fc7d` (+1: `python3 kg/kg.py who-reads coach-disagreement-clip.js`)
-- `coach-disagreement-evidence.js` ← imported by `dashboard/services/coach-disagreements.service.js:25:05ec6692` · `dashboard/services/coach-school-card.service.js:34:7d2dd38e`
+- `coach-disagreement-evidence.js` ← imported by `dashboard/services/coach-disagreements.service.js:25:05ec6692` · `dashboard/services/coach-school-card.service.js:39:7d2dd38e`
 - `coach-disagreement-pattern.js` ← imported by `dashboard/services/coach-disagreements.service.js:26:d65ddfd0`
 - `coach-disagreement-plan.js` ← imported by `dashboard/routes/portal.routes.js:2323:6cffc86f` · `dashboard/services/coach-disagreements.service.js:27:8c18d643`
 - `coach-disagreements.service.js` ← imported by `dashboard/routes/portal.routes.js:2319:b1dd5a42`
@@ -135,13 +135,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `coach-ping-page.js` ← imported by `dashboard/routes/coach-card.routes.js:20:138d1d01` · `dashboard/routes/coaching-report.routes.js:26:a6bbd322` · `dashboard/services/coaching-report-page.js:16:45e0e625`
 - `coach-ping-reasons.js` ← imported by `dashboard/routes/coaching-report.routes.js:27:dfa4f06a` · `dashboard/services/coach-disagreement-evidence.js:13:fb11beed` · `dashboard/services/coach-disagreements.service.js:24:fb11beed` · `dashboard/services/coach-ping-page.js:12:f61633ca` (+1: `python3 kg/kg.py who-reads coach-ping-reasons.js`)
 - `coach-school-admin.service.js` ← imported by `dashboard/routes/portal.routes.js:165:89029801`
-- `coach-school-card.service.js` ← imported by `dashboard/routes/coach-school-card.routes.js:19:3d906b0e`
+- `coach-school-card.service.js` ← imported by `dashboard/routes/coach-school-card.routes.js:20:3d906b0e`
 - `coach-teacher-admin.service.js` ← imported by `dashboard/routes/portal.routes.js:162:9e9a1fb0`
 - `coach-v2.service.js` ← imported by `dashboard/routes/portal.routes.js:2296:bf093f00` · `dashboard/services/coach-school-admin.service.js:26:c56d46cd`
 - `coach-visit-request.js` ← imported by `dashboard/routes/coach-card.routes.js:46:fc38d1ea` · `dashboard/routes/coaching-report.routes.js:31:d0d60971`
 - `coaching-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:123:c03c726c`
 - `coaching-breakdown.service.js` ← imported by `dashboard/routes/portal.routes.js:2694:b9ac8227`
-- `coaching-frameworks.service.js` ← imported by `dashboard/routes/portal.routes.js:129:fb9750c6` · `dashboard/services/coach-school-card.service.js:32:844e9b68` · `dashboard/services/coach-v2.service.js:23:844e9b68` · `dashboard/services/leader-observations.service.js:23:844e9b68` (+7: `python3 kg/kg.py who-reads coaching-frameworks.service.js`)
+- `coaching-frameworks.service.js` ← imported by `dashboard/routes/portal.routes.js:129:fb9750c6` · `dashboard/services/coach-school-card.service.js:37:844e9b68` · `dashboard/services/coach-v2.service.js:23:844e9b68` · `dashboard/services/leader-observations.service.js:23:844e9b68` (+7: `python3 kg/kg.py who-reads coaching-frameworks.service.js`)
 - `coaching-observability.service.js` ← imported by `dashboard/index.js:51:7a03acff`
 - `coaching-report-page.js` ← imported by `dashboard/routes/coach-card.routes.js:21:190caeeb` · `dashboard/routes/coaching-report.routes.js:25:a05add50` · `dashboard/routes/video-reco.routes.js:26:190caeeb`
 - `coaching-report-style.js` ← imported by `dashboard/services/coach-ping-page.js:11:d00a0515` · `dashboard/services/coaching-report-page.js:12:d00a0515` · `dashboard/services/video-reco-page.js:20:1b931c89`
@@ -193,7 +193,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `resend-email.service.js` ← imported by `dashboard/index.js:84:812c3951` · `dashboard/routes/settings.js:9:72f2cdfb`
 - `retention.service.js` ← imported by `dashboard/index.js:69:18ebac15`
 - `school-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:145:30146389`
-- `schools-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:122:58eeeb5b` · `dashboard/services/coach-school-card.service.js:33:5209c65f` · `dashboard/services/coaching-analytics.service.js:63:071acc09` · `dashboard/services/lp-engagement.service.js:55:18636010` (+2: `python3 kg/kg.py who-reads schools-analytics.service.js`)
+- `schools-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:122:58eeeb5b` · `dashboard/services/coach-school-card.service.js:38:5209c65f` · `dashboard/services/coaching-analytics.service.js:63:071acc09` · `dashboard/services/lp-engagement.service.js:55:18636010` (+2: `python3 kg/kg.py who-reads schools-analytics.service.js`)
 - `steps-grid.service.js` ← imported by `dashboard/services/observations-analytics.service.js:63:78aad438` · `dashboard/services/school-analytics.service.js:36:286b03de` · `dashboard/services/schools-analytics.service.js:90:794dfc45`
 - `steps-presence.service.js` ← imported by `dashboard/routes/portal.routes.js:149:69e763b3`
 - `steps-remarks.service.js` ← imported by `dashboard/routes/portal.routes.js:150:f87f3484`
