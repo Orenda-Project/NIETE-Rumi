@@ -3468,17 +3468,30 @@ async function _filterLevelsByScopes(userId, levels) {
     .in('program_id', programIds);
   if (!scopes || scopes.length === 0) return [];
 
+  const allowedByVendor = _levelScopeByVendor(scopes);
+  return levels.filter(l => _levelInScope(allowedByVendor, l));
+}
+
+/**
+ * The union of a set of training_program_scopes rows, per vendor: 'all' when
+ * any row leaves level_ids NULL/empty, otherwise the listed level ids. The one
+ * rule behind both the level list and the vendor cards, so the card's counts
+ * and the levels she can open never disagree.
+ */
+function _levelScopeByVendor(scopes) {
   const allowedByVendor = new Map();
-  for (const s of scopes) {
+  for (const s of scopes || []) {
     const cur = allowedByVendor.get(s.vendor_id);
     if (cur === 'all') continue;
     if (!s.level_ids || s.level_ids.length === 0) allowedByVendor.set(s.vendor_id, 'all');
     else allowedByVendor.set(s.vendor_id, [...(cur || []), ...s.level_ids]);
   }
-  return levels.filter(l => {
-    const allow = allowedByVendor.get(l.vendor_id);
-    return allow === 'all' || (Array.isArray(allow) && allow.includes(l.id));
-  });
+  return allowedByVendor;
+}
+
+function _levelInScope(allowedByVendor, level) {
+  const allow = allowedByVendor.get(level.vendor_id);
+  return allow === 'all' || (Array.isArray(allow) && allow.includes(level.id));
 }
 
 /**
@@ -3574,9 +3587,19 @@ async function _computeLevelStates(userId, levels) {
  *     → training_program_scopes → vendor_ids
  *       → training_vendors / training_levels / training_courses / training_modules
  *
- * A scope row with NULL level_ids/course_ids/module_ids covers the vendor's
- * entire active tree. This endpoint operates at vendor granularity, so any
- * scope row pulls the vendor in.
+ * Any scope row pulls its vendor in. The rollups then follow the same level
+ * scope as GET /training/levels (_levelScopeByVendor): a NULL/empty level_ids
+ * covers every active level of the vendor, a listed level_ids covers only
+ * those levels, and several programmes take the union. A vendor whose scope
+ * lists no active level is left out, since she has nothing of it to open.
+ * level/course/module counts, completions and avg_score_pct all count the
+ * visible levels only, so a teacher who finishes every level she can see
+ * reads 100%.
+ *
+ * certificate_count is the exception: it counts every certificate she holds
+ * from the vendor's active levels, visible or not. A certificate earned before
+ * her programme changed is still hers, and dropping it from the card would
+ * read as lost work.
  *
  * `avg_score_pct` is computed from the teacher's training_assessment_attempts
  * rows with quiz_kind='training_module' whose training_module_id belongs to
@@ -3662,13 +3685,15 @@ router.get('/training/vendors', requirePortalAuth, async (req, res) => {
     }
 
     // 2. Program scopes → vendor_ids (dedup — a single program can list a
-    //    vendor multiple times via multiple scope rows)
+    //    vendor multiple times via multiple scope rows), and per vendor the
+    //    levels those scopes show (the same union GET /training/levels uses)
     const { data: scopes, error: sErr } = await supabase
       .from('training_program_scopes')
-      .select('vendor_id')
+      .select('vendor_id, level_ids')
       .in('program_id', programIds);
     if (sErr) throw sErr;
 
+    const levelScope = _levelScopeByVendor(scopes);
     const vendorIds = Array.from(new Set((scopes || []).map(s => s.vendor_id).filter(Boolean)));
     if (vendorIds.length === 0) {
       return res.json({ success: true, vendors: [] });
@@ -3687,16 +3712,20 @@ router.get('/training/vendors', requirePortalAuth, async (req, res) => {
     }
     const activeVendorIds = vendors.map(v => v.id);
 
-    // 4. Active levels for those vendors
-    const { data: levels, error: lErr } = await supabase
+    // 4. Active levels for those vendors, then the ones her programmes show.
+    //    Every rollup below counts the visible levels only; certificates
+    //    count all of the vendor's active levels (see the docblock).
+    const { data: activeLevels, error: lErr } = await supabase
       .from('training_levels')
       .select('id, vendor_id')
       .in('vendor_id', activeVendorIds)
       .eq('is_active', true);
     if (lErr) throw lErr;
 
-    const levelIds = (levels || []).map(l => l.id);
-    const levelToVendor = new Map((levels || []).map(l => [l.id, l.vendor_id]));
+    const levels = (activeLevels || []).filter(l => _levelInScope(levelScope, l));
+    const levelIds = levels.map(l => l.id);
+    const levelToVendor = new Map(levels.map(l => [l.id, l.vendor_id]));
+    const anyLevelToVendor = new Map((activeLevels || []).map(l => [l.id, l.vendor_id]));
 
     // 5. Active courses under those levels
     const { data: courses, error: cErr } = levelIds.length
@@ -3751,9 +3780,13 @@ router.get('/training/vendors', requirePortalAuth, async (req, res) => {
       : { data: [], error: null };
     if (attErr) throw attErr;
 
-    // 9. Roll up per vendor
+    // 9. Roll up per vendor. A vendor whose scope lists levels, none of them
+    //    active, has nothing for her to open and gets no card. An all-levels
+    //    scope keeps its card even with no levels yet, as it always has.
+    const visibleVendorIds = new Set(levels.map(l => l.vendor_id));
     const perVendor = new Map();
     for (const v of vendors) {
+      if (levelScope.get(v.id) !== 'all' && !visibleVendorIds.has(v.id)) continue;
       perVendor.set(v.id, {
         vendor_key: v.key,
         vendor_name: v.name,
@@ -3769,13 +3802,15 @@ router.get('/training/vendors', requirePortalAuth, async (req, res) => {
       });
     }
 
-    // Certificates held, attributed to the vendor that owns the level.
-    const { data: certRows } = levelIds.length
+    // Certificates held, attributed to the vendor that owns the level: every
+    // active level of the vendor, not only the visible ones.
+    const certLevelIds = [...anyLevelToVendor.keys()];
+    const { data: certRows } = certLevelIds.length
       ? await supabase.from('training_certificates')
-        .select('level_id').eq('user_id', userId).in('level_id', levelIds)
+        .select('level_id').eq('user_id', userId).in('level_id', certLevelIds)
       : { data: [] };
     for (const c of certRows || []) {
-      const agg = perVendor.get(levelToVendor.get(c.level_id));
+      const agg = perVendor.get(anyLevelToVendor.get(c.level_id));
       if (agg) agg.certificate_count += 1;
     }
 
