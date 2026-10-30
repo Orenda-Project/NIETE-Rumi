@@ -14,8 +14,9 @@ import type { CardFeature, FeatureGridData } from "./types";
 /**
  * One feature of a school by teacher ("Lesson plans by teacher"): a column per school day (This week) or per week (This
  * month), only the totals for Today. The School row adds each column up; teachers with nothing stay in, grey, at the
- * bottom; days still ahead are dashed. A row opens her Teacher page. Digital Coaching and Coach observations are scores,
- * not counts: their address (feature dc | coach) opens ScoresByTeacher.
+ * bottom; days still ahead are dashed. A row opens HER list of this feature (HerItemsPage: her lesson plans, her
+ * assessments, her training courses and modules), and its Back returns here (bd-dgfkgs.1). Digital Coaching and Coach
+ * observations are scores, not counts: their address (feature dc | coach) opens ScoresByTeacher.
  */
 function FeatureGrid() {
   const C = useCopy(SCHOOL_CARD);
@@ -27,6 +28,7 @@ function FeatureGrid() {
     () => (feature ? card.grid(emis, feature, period) : Promise.reject(new Error("unknown feature"))), [emis, feature, period]);
 
   const school = `/portal/coach/school/${encodeURIComponent(emis)}`;
+  const here = withPeriod(`${school}/feature/${raw}`, period);
   const title = feature ? C.byTeacher[feature] : C.dash;
   const columns = data ? bucketLabels(period, data.period.buckets, C) : [];
   const future = data ? data.period.buckets.map((b) => b.future) : [];
@@ -48,7 +50,8 @@ function FeatureGrid() {
           </div>
           <TeacherGrid feature={feature} columns={columns} future={future} school={data.school} total={data.total}
             rows={data.rows.map((r) => ({ key: r.teacherExtId, name: r.name, cells: r.cells, total: r.total }))}
-            linkOf={(ext) => (ext ? withPeriod(`/portal/coach/teacher/${encodeURIComponent(ext)}`, period) : null)}
+            linkOf={(ext) => (ext ? withPeriod(`/portal/coach/teacher/${encodeURIComponent(ext)}/items/${feature}`, period) : null)}
+            stateOf={(_, name) => ({ teacherName: name, back: here })}
             schoolWord={C.schoolRow} totalWord={C.total} />
           {ahead && <p data-testid="grid-ahead" className="m-0 mx-1 -mt-1 text-[14px] leading-[1.4] text-[#6b7280] rtl:leading-[1.8]">{ahead}</p>}
         </>

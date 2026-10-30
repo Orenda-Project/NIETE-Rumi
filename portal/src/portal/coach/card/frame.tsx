@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { resolveRole } from "../../lib/leaderRole";
 import { FrameSkeleton } from "../../components/Skeleton";
@@ -30,6 +31,15 @@ export function CardOnly({ children }: { children: ReactNode }) {
   if (on === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
   if (!on) return <NotFound />;
   return <>{children}</>;
+}
+
+/**
+ * Where her page's Back goes: the School card list the coach opened it from (a by-teacher row passes `back` in the link
+ * state), else `fallback`. Only a coach address is followed, so a stray state never sends Back off the coach app.
+ */
+export function useBackTo(fallback: string): string {
+  const back = ((useLocation().state || {}) as { back?: unknown }).back;
+  return typeof back === "string" && back.startsWith("/portal/coach/") ? back : fallback;
 }
 
 /** A read that starts over (data back to null) whenever its inputs change; `reload` asks again. */

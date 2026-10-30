@@ -243,7 +243,7 @@ describe("the School card", () => {
 });
 
 describe("a feature by teacher", () => {
-  it("a column per school day, a School row, zero rows grey at the bottom, days ahead dashed; a row opens her page", async () => {
+  it("a column per school day, a School row, zero rows grey at the bottom, days ahead dashed; a row opens her lesson plans", async () => {
     on();
     const { container } = await renderApp(`/portal/coach/school/${EMIS}/feature/lp`);
     const g = await screen.findByTestId("teacher-grid");
@@ -256,7 +256,7 @@ describe("a feature by teacher", () => {
     expect(rows.slice(7).every((r) => r.getAttribute("data-none") === "1")).toBe(true);
     expect(rows.slice(0, 7).some((r) => r.getAttribute("data-none") === "1")).toBe(false);
     expect(rows[0].querySelectorAll('[data-cell="future"]')).toHaveLength(2);
-    expect(rows[0]).toHaveAttribute("href", `/portal/coach/teacher/${EXT}`);
+    expect(rows[0]).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/items/lp`);
     expect(within(g).getByTestId("grid-school")).toHaveTextContent(/School\s*9\s*7\s*8\s*24/);
     expect(screen.getByTestId("grid-summary")).toHaveTextContent("24 lesson plans");
     expect(screen.getByTestId("grid-summary")).toHaveTextContent("by 7 of 12 teachers");
@@ -264,6 +264,27 @@ describe("a feature by teacher", () => {
     expect(screen.getByTestId("grid-ahead")).toHaveTextContent("Thu and Fri are still ahead");
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Lesson plans by teacher");
     expectOnlyOpenLinks(container);
+  });
+
+  // bd-dgfkgs.1 (operator, 30 Oct): a row opens HER list of that feature (her assessments, her training modules), never
+  // her whole overview; Back returns to the list she came from, in the same period.
+  it.each([
+    ["lp", "Lesson plans by teacher", "All Lesson Plans", { items: [] }],
+    ["papers", "Assessments by teacher", "All Assessments", { items: [] }],
+    ["training", "Training parts by teacher", "Training", TRAINING_ITEMS],
+  ] as const)("%s: a row opens her list of that feature; Back returns to the list", async (feature, heading, herTitle, items) => {
+    on();
+    net.answers.set(`/coach/school/${EMIS}/feature/${feature}?period=month`, { ...grid(MONTH), feature });
+    net.answers.set(`/coach/teacher/${EXT}/items/${feature}?period=month`, items);
+    await renderApp(`/portal/coach/school/${EMIS}/feature/${feature}?period=month`);
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(heading));
+    const row = (await screen.findAllByTestId("grid-row"))[0];
+    expect(row).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/items/${feature}?period=month`);
+    await act(async () => { fireEvent.click(row); });
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(`/portal/coach/teacher/${EXT}/items/${feature}`));
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(herTitle));
+    expect(screen.getByTestId("page-crumb")).toHaveTextContent("Teacher Alpha");
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", `/portal/coach/school/${EMIS}/feature/${feature}?period=month`);
   });
 });
 
@@ -300,6 +321,16 @@ describe("Digital Coaching and Coach observations by teacher", () => {
     const rows = screen.getAllByTestId("score-row");
     expect(rows[0]).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/observations`);
     expect(rows[0].querySelectorAll('[data-point="square"]')).toHaveLength(2);
+  });
+
+  // bd-dgfkgs.1: like the three count lists, Back from her page returns to the list she was opened from.
+  it.each([["dc", "dc"], ["coach", "observations"]] as const)("%s by teacher: her page's Back returns to the list", async (kind, page) => {
+    on();
+    await renderApp(`/portal/coach/school/${EMIS}/feature/${kind}`);
+    const row = (await screen.findAllByTestId("score-row"))[0];
+    await act(async () => { fireEvent.click(row); });
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(`/portal/coach/teacher/${EXT}/${page}`));
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", `/portal/coach/school/${EMIS}/feature/${kind}`);
   });
 });
 
