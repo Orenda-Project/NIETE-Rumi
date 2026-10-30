@@ -762,6 +762,10 @@ const { mcqArithmetic, mcqNote } = require('./fde-mcq-arithmetic'); // bd-5jmnfj
 const { directedTasks } = require('./fde-directed-tasks'); // bd-5jmnfj.33.2: a do-as-directed item prints its task
 const { mcqKeyNote } = require('./fde-maths-slips');
 const { keyTruthFlags, keyTruthNote } = require('./fde-key-truth'); // bd-5jmnfj.33.4: key-only terms, plural keys, restating points
+const { meaningKeyShortfall, meaningKeyNote } = require('./fde-meaning-key'); // bd-5jmnfj.33.5: a meaning question's key is the meaning
+const { mcqStemShortfall, mcqStemNote } = require('./fde-mcq-stem'); // bd-5jmnfj.33.5: one question per MCQ stem, key not printed in it
+const { wordBoxShortfall, wordBoxNote } = require('./fde-word-box'); // bd-5jmnfj.33.5.2: a fill word box holds a distractor and is shuffled
+const { schemeShortfall, schemeNote } = require('./fde-scheme-checks'); // bd-5jmnfj.4.58.7 (shared file with the .4.58 PR)
 const { midKeyFixes } = require('./fde-mid-key-fixes'); // bd-5jmnfj.33.3: match split, own labels, compare sign, unasked checks, division digits
 
 // Required on first use: the loader opens a database client, and the prompt
@@ -2737,7 +2741,11 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     .concat(_emptyQuestionParts(firstLaid.examJson))
     .concat(answerRepeats(firstLaid.examJson)) // an answer printed in another question (bd-5jmnfj.4.51.3)
     .concat(mcqShort)
-    .concat(P.g5_rules === false ? keyTruthFlags(firstLaid.examJson) : []);
+    .concat(P.g5_rules === false ? keyTruthFlags(firstLaid.examJson) : [])
+    .concat(P.g5_rules === false ? meaningKeyShortfall(firstLaid.examJson, P, _keptBookText(loaded.content)) : [])
+    .concat(P.g5_rules === false ? mcqStemShortfall(firstLaid.examJson, P) : [])
+    .concat(P.g5_rules === false ? wordBoxShortfall(firstLaid.examJson, P) : [])
+    .concat(schemeShortfall(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).examJson, P)); // an open answer without an accept line, a cut-off common_error (bd-5jmnfj.4.58.7)
   const shortSlots = new Set(short.map((f) => f.slot));
   // An item carrying text the paper refuses to print (a review mark the model copied) fails the
   // paper at render; its section is asked once more instead, and a second hit fails it here.
@@ -2772,7 +2780,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
       // re-ask (a part with no marking points, a review mark, a religious maxim) takes the second reply whole.
       const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShortSet.has(f.slot));
       // On a top-up the note also names what the slot keeps, and asks for spares.
-      const note = [takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held }), giveawayNote(shortfall), mcqNote(shortfall, P), keyTruthNote(shortfall), mcqKeyNote(shortfall)]
+      const note = [takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held }), giveawayNote(shortfall), mcqNote(shortfall, P), keyTruthNote(shortfall), mcqKeyNote(shortfall), meaningKeyNote(shortfall), mcqStemNote(shortfall), wordBoxNote(shortfall), schemeNote(shortfall)]
         .filter(Boolean).join('\n\n');
       const second = await writeOne(note
         ? { ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
