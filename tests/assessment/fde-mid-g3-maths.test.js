@@ -34,3 +34,13 @@ test('every other slot forbids a story, section C has no kinds, 5-mark items sta
   S.sections.find((s) => s.id === 'C').slots.forEach((s) => expect(s.kinds).toBeNull());
   slots.filter((s) => s.marks_each === 5).forEach((s) => expect(s.prompt_rule).toMatch(/Scheme:/));
 });
+
+// v39 round-6 panel (bd-5jmnfj.33.7.1): the key paid a number sentence and a unit the printed Q4 instruction never asked for.
+test('Q4 instruction asks in words for every part its scheme pays: number sentence, working, answer with unit', () => {
+  expect(wp.instruction_en).toBe('Solve the word problem. Write the number sentence, show your working and write the answer with its unit.');
+});
+
+// v40 round-6 panel (bd-5jmnfj.33.7.1): Q3 stems said "using the vertical method" while the key paid partitioning too.
+test('every 5-mark scheme forbids a stem that prescribes the method', () => {
+  slots.filter((s) => s.marks_each === 5).forEach((s) => expect(s.prompt_rule).toContain('No stem prescribes the method; the key pays any correct method.'));
+});

@@ -744,6 +744,7 @@ function css(medium, kind) {
   .slot-head { display: flex; gap: 6px; align-items: baseline; font-weight: 700; margin: 6px 0 3px; break-after: avoid; break-inside: avoid; }
   .slot-head .ml { margin-${start}: auto; white-space: nowrap; font-weight: 700; }
   .slot-head .ins { font-weight: 700; }
+  .slot-head .lab { white-space: nowrap; flex: none; }
   .q { margin: 3px 0 5px; padding-${start}: 6mm; break-inside: avoid; }
   /* A slot's last item never sits alone at the top of a page. */
   .slot > .q:last-child { break-before: avoid; }

@@ -27,7 +27,7 @@ module.exports = makeSubject({
           prompt_rule: 'Ten three-option MCQs from the chosen chapter only: word meaning, who or what, the right word for the gap, spelling and one fact from the text. One option is right; the other two are plausible but wrong. No item gives away another item\'s answer. Read every option against the sentence: where two options fit (up, down or back), rewrite the stem.' }),
         S({ slot: 'g3.english.A.grammar', label_en: 'Q2.', type: 'Grammar Do As Directed', generate: 5, marks_each: 2, lines: 2,
           instruction_en: 'Do as directed.',
-          prompt_rule: 'Five "do as directed" items on grammar the chapter teaches (plural, opposite, correct form of the verb, a/an, pronoun), each a short sentence from the chapter with one clear direction (e.g. "Change into the plural: The child plays."). Answer: the whole corrected sentence. Scheme: A 2 for the correct sentence; A 1 if only the changed word is right.' }),
+          prompt_rule: 'Five "do as directed" items on grammar the chapter teaches (plural, opposite, correct form of the verb, a/an, pronoun), each a short sentence from the chapter with one clear direction that makes two changes (e.g. "Change into the plural: The child plays." becomes children and play; "Change into the feminine: The king and the prince waited." becomes queen and princess). No item tests a grammar point another item on the paper tests, and no item reuses a story fact used elsewhere. Answer: the whole corrected sentence. Scheme: A 1 for each of the two changes; never two marks for one changed word.' }),
       ],
     },
     {
@@ -45,7 +45,7 @@ module.exports = makeSubject({
     },
     {
       id: 'C',
-      label_en: 'Writing',
+      label_en: 'Writing and grammar',
       levels: { Remember: 2, Understand: 3, Apply: 10 },
       slots: [
         { slot: 'g3.english.C.paragraph', label_en: 'Q5.', type: 'Paragraph from Clues', generate: 2, attempt: 1, marks_each: 5, lines: 6,
@@ -55,7 +55,7 @@ module.exports = makeSubject({
           instruction_en: 'Write an invitation card or a note. Answer any one.',
           prompt_rule: 'Two tasks: an invitation card (birthday, school function) or a short note (to a friend or a parent), each with the details to include (who, what, when, where). Answer: a model card or note. Scheme: 1 mark each for the greeting or heading, the message, the details, correct English and the closing, 5 in all.' },
         S({ slot: 'g3.english.C.present_continuous', label_en: 'Q7.', type: 'Present Continuous', generate: 5, lines: 1,
-          instruction_en: 'Rewrite in the present continuous tense.',
+          instruction_en: 'Rewrite in the present continuous tense. Example: Mina reads a book. Mina is reading a book.',
           prompt_rule: 'Five short simple-present sentences on the chapter\'s people and things. Answer: the sentence rewritten in the present continuous (is, am or are with the -ing verb). Scheme: A 1 for the whole sentence correct.' + NO_ARROW }),
       ],
     },
