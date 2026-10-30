@@ -38,6 +38,11 @@ const RATE_WAITS_MS = [5000, 15000, 30000];
 const REDRAWN = { egg: 'r1' };
 // v29: a scene rejected on review, by its describe hash. The v28 G2 Urdu Q7 park scene was cut off at the edge (bd-5jmnfj.4.58.5).
 const REDRAWN_SCENES = { '72b1e44a': 'r1' };
+// v37 loop 4: G2 English Q10 and Q15 scenes came back framed twice and failed the paper; a framed drawing
+// is tried up to FRAME_TRIES times, each retry told plainly not to draw a box (bd-5jmnfj.4.58.9).
+const FRAME_TRIES = 3;
+const NO_BOX = 'Do not draw any box, rectangle, panel or border line around the picture or inside its edges: no rectangle, '
+  + 'the drawing stands on open white paper.';
 // v17: the framed sock had 34% of its outer 3px grey; scenes whose ground line touches the edge have under 2%.
 const PROMPT_REV = 'r27';
 const RING_PX = 3;
@@ -164,13 +169,13 @@ async function modelPicture(picture, d) {
     if (!(await isFramed(cached, d))) return cached;
   }
   const prompt = Kie.promptFor(picture);
-  for (let tries = 0; tries < 2; tries += 1) {
-    const jpg = await d.shrink(await draw(prompt, d));
+  for (let tries = 0; tries < FRAME_TRIES; tries += 1) {
+    const jpg = await d.shrink(await draw(tries ? `${prompt} ${NO_BOX}` : prompt, d));
     if (await isFramed(jpg, d)) continue;
     await d.uploadBuffer(jpg, key, 'image/jpeg', { cacheControl: CACHE_CONTROL });
     return jpg;
   }
-  throw new Error('the picture came back with a grey frame twice');
+  throw new Error(`the picture came back with a grey frame ${FRAME_TRIES} times`);
 }
 
 /** Sets picture.src on every item that carries a picture. Throws PICTURE_FAILED on the first it cannot draw. */
@@ -260,6 +265,7 @@ async function resolveFramePictures(examJson, deps = null) {
       if (d.log) d.log('[assessment] frame picture failed', { slot: q.slot || null, describe: picture.describe, cause: err.message });
     }
   }));
+  require('./fde-picture-scene').noteUndrawnScenes(examJson); // an undrawn scene prints on the teacher line, so the key and the paper agree
   return examJson;
 }
 

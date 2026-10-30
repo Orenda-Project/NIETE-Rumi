@@ -13,6 +13,14 @@ const LISTEN_LABEL = {
   ur: 'سننے کی کہانی (استاد پڑھ کر سنائیں)',
 };
 
+// A poem box is named for the poem (v37 round 4: «سننے کی کہانی» on a poem). Urdu only; a cited book page prints beside it.
+const POEM_LABEL = { ur: 'سننے کی نظم (استاد پڑھ کر سنائیں)' };
+function scriptLabel(task, lang, c) {
+  const poem = lang === 'ur' && task.id === 'poem' && task.kind === 'listening';
+  const base = poem ? POEM_LABEL.ur : LISTEN_LABEL[lang];
+  return poem && c && c.page ? `${base} — صفحہ ${c.page}` : base;
+}
+
 /** A bare number with a leading zero loses it; «0», «10», «{t:20}» and any text pass through. */
 function marksText(s) {
   return typeof s === 'string' ? s.replace(/^0+(?=[0-9])/, '') : s;
@@ -59,4 +67,4 @@ const V37_CSS = `
   .passage.reprint { break-before: page; }
   .rp-head { font-weight: 700; font-size: .85em; }`;
 
-module.exports = { LISTEN_LABEL, marksText, alphabetStrip, lineCount, ruledLines, reprintAt, passageAgain, REPRINT_AT, V37_CSS };
+module.exports = { LISTEN_LABEL, POEM_LABEL, scriptLabel, marksText, alphabetStrip, lineCount, ruledLines, reprintAt, passageAgain, REPRINT_AT, V37_CSS };

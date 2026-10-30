@@ -69,9 +69,13 @@ function placeOf(q) {
 // ribbon and a short ribbon" drew two curls; the key took "swimming" and "the long ribbon" (bd-5jmnfj.4.55).
 // A scene whose question asks for the action, or which of two is longer, is told what the child must see.
 // v27 G1 English Q8 iii: the "jumping" child had no ground under it and read as kneeling (bd-5jmnfj.4.58.3).
-const ACTION = (a) => ` The child is plainly ${a}: the whole body and the place show that action and no other, `
+// v37 loop 4 G1 English Q8 ii: "the water surface" in this line drew the jumping child over water, so swimming fit too
+// (bd-5jmnfj.4.58.9.1). Only a swimming child is told about water; every other action stands on dry ground.
+const ACTION = (a, dry) => ` The child is plainly ${a}: the whole body and the place show that action and no other, `
   + `so a child who looks says "${a}" at once. The whole figure is drawn head to feet, and a visible ground line `
-  + '(the water surface when the child is in water) runs under the scene, so where the body is against the ground is plain.';
+  + (dry ? 'of dry ground runs under the scene, so where the body is against the ground is plain. There is no water, pool, river or sea anywhere in the picture.'
+    : '(the water surface when the child is in water) runs under the scene, so where the body is against the ground is plain.');
+const WET = /^(swimming|diving|floating|splashing)$/;
 // v26 G1 Maths Q8 iv: the toothbrush was drawn under the spoon, overlapping it (bd-5jmnfj.4.58.2).
 const COMPARE = ' Two different kinds of thing, each drawn whole and separate, side by side on one shared base line, not one above or below '
   + 'the other, with a clear empty gap between them. They do not touch or overlap, and neither is in front of the other. '
@@ -82,7 +86,7 @@ function showOf(q) {
   if (!q || !q.picture || q.picture.kind !== 'scene') return null;
   const question = String(q.question || '');
   const answer = String(q.answer || '').trim().toLowerCase();
-  if (/what is the child doing/i.test(question) && /^[a-z]+ing$/.test(answer)) return { action: answer };
+  if (/what is the child doing/i.test(question) && /^[a-z]+ing$/.test(answer)) return WET.test(answer) ? { action: answer } : { action: answer, ground: 'dry' };
   if (/^which (one )?(is|holds) (longer|shorter|taller|heavier|lighter|more|less)/i.test(question.trim())) return { compare: true };
   return null;
 }
@@ -101,7 +105,7 @@ function promptFor(picture) {
     if (!describe) throw new Error('scene picture: nothing to draw');
     const place = Object.hasOwn(PLACES, String(picture.place)) ? ` The position must be plain at a glance. ${PLACES[picture.place]}` : '';
     const show = picture.show || {};
-    const told = (show.action ? ACTION(show.action) : '') + (show.compare ? COMPARE : '');
+    const told = (show.action ? ACTION(show.action, show.ground === 'dry') : '') + (show.compare ? COMPARE : '');
     return `${STYLE} The picture: ${describe}.${place}${told} ${NO_TEXT} ${WHOLE}${hands(describe)}`;
   }
   throw new Error(`${kind}: not an image-model picture`);

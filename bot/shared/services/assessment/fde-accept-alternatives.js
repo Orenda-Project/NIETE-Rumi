@@ -24,9 +24,9 @@ const ONE_FIT_RULE = 'Where the child picks from a list (a word box, words liste
 
 const BOX_TYPES = new Set(['Complete the Sentences', 'Fill in the Blanks']);
 // The error says why the word is wrong, or names a class of word: not a second fit.
-const QUALIFIED = /\b(does ?n[o']t|do not|not (fit|make|match|right)|wrong|incorrect|such as|like|different|instead of|spell|unrelated|any other|another|confus|mix)/i;
+const QUALIFIED = /\b(does ?n[o']t|do not|not (fit|make|match|right)|wrong|incorrect|such as|like|different|instead of|spell|unrelated|any other|another|confus|mix|because|for (a|an|one|two|both|many|more than one)\b)/i; // v37 loop 4: «… for one boy», «… because the dog is below»
 // List answers that make another listed choice true as well (v35 G2 Q10 v: the duck behind the tree is near it).
-const IMPLIES = { behind: ['near'] };
+const IMPLIES = { behind: ['near'], under: ['near'], 'in front of': ['near'] }; // v37 G2 Q10 v: a shoe under the bed is near it
 const LIST = /\b(?:with|from|use|using|write|choose)\s+((?:[a-z']+\s*,\s*)+[a-z']+\s*,?\s+or\s+[a-z']+)\s*\.?\s*$/i;
 
 const norm = (w) => String(w == null ? '' : w).replace(/^\s*\(?[^\s)]{1,3}\)\s+/, '').replace(/[.,!?؟۔،]+$/u, '').trim().toLowerCase().normalize('NFC');
@@ -83,11 +83,29 @@ function bySlot(examJson, defs, fn) {
   });
 }
 
+const PAIR_IF = /اگر\s*،\s*تو/u;
+const PAIR_WHEN = /جب\s*،\s*تب/u;
+const PAIR_BECAUSE = /(?:چوں\s*کہ|چونکہ)\s*،\s*اس\s*لیے/u; // v37 G5 Q4: «تم وقت پر پہنچے» is a past fact, so this pair fits too
+
+/** v37 G5 Urdu Q4 2: options holding both «اگر، تو» and «جب، تب» (both finish a future condition) are flagged for a re-ask. */
+function conditionalPairShortfall(examJson) {
+  const out = new Map();
+  eachList(examJson, (type, list) => list.forEach((q) => {
+    const opts = q && Array.isArray(q.options) ? q.options.map(String) : [];
+    if (!opts.some((o) => PAIR_IF.test(o))) return;
+    const rival = opts.some((o) => PAIR_WHEN.test(o)) ? 'جب، تب' : (opts.some((o) => PAIR_BECAUSE.test(o)) ? 'چوں کہ، اس لیے' : '');
+    if (!rival) return;
+    const line = `${String(q.question).trim()} → ${String(q.answer).trim()} (the options hold both «اگر، تو» and «${rival}», which can both complete the sentence; offer only one pair that fits its tense and meaning)`;
+    out.set(q.slot, (out.get(q.slot) || []).concat(line));
+  }));
+  return [...out].map(([slot, items]) => ({ slot, reason: 'answer', items }));
+}
+
 /** Items with a second listed choice that fits, as re-ask flags `{slot, reason:'answer', items}`. */
 function alternativeShortfall(examJson, P) {
   try {
     const defs = slotDefs(P);
-    const out = [];
+    const out = conditionalPairShortfall(examJson);
     bySlot(examJson, defs, (slot, items, def) => {
       const oneUse = isMatch(def) || isBox(def, items);
       const bad = [];
@@ -143,4 +161,4 @@ function acceptAlternatives(examJson, P) {
   }
 }
 
-module.exports = { ONE_FIT_RULE, choicesOf, alternativeShortfall, acceptAlternatives };
+module.exports = { ONE_FIT_RULE, choicesOf, alternativeShortfall, conditionalPairShortfall, acceptAlternatives };

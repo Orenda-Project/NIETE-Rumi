@@ -76,9 +76,23 @@ describe('resolvePictures', () => {
     expect(x.calls.upload).toHaveLength(1);
   });
 
-  test('two framed drawings fail the paper rather than print a frame', async () => {
-    const x = deps({ frames: [true, true] });
+  // v37 loop 4 (bd-5jmnfj.4.58.9): G2 English Q10 (cat under a table) and Q15 (park) scenes came back framed
+  // twice in a row and failed the whole paper; a third try, told plainly not to draw a box, is allowed.
+  test('two framed drawings are followed by a third, told not to draw a box', async () => {
+    const x = deps({ frames: [true, true, false] });
+    const out = await Pictures.resolvePictures(paper(sock), x.d);
+    expect(x.calls.generate).toHaveLength(3);
+    expect(x.calls.generate[0]).not.toMatch(/no rectangle/i);
+    expect(x.calls.generate[1]).toMatch(/no rectangle/i);
+    expect(x.calls.generate[2]).toMatch(/no rectangle/i);
+    expect(x.calls.upload).toHaveLength(1);
+    expect(out.unseen.subjective.Q[0].picture.src).toContain(Buffer.from('clean').toString('base64'));
+  });
+
+  test('three framed drawings fail the paper rather than print a frame', async () => {
+    const x = deps({ frames: [true, true, true] });
     await expect(Pictures.resolvePictures(paper(sock), x.d)).rejects.toMatchObject({ code: 'PICTURE_FAILED' });
+    expect(x.calls.generate).toHaveLength(3);
     expect(x.calls.upload).toHaveLength(0);
   });
 });

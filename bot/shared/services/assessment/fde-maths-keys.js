@@ -14,6 +14,7 @@
  * Pure: one item in, the item out; notes are strings pushed on `notes`. Never throws on an item it cannot read.
  */
 
+const { mathsMarking } = require('./fde-maths-marking'); // v37 round 7: no-working line, any correct method, mixed/improper forms
 const pts = (q) => (q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : []);
 const withScheme = (q, patch) => ({ ...q, scheme: { ...q.scheme, ...patch } });
 
@@ -61,7 +62,7 @@ function unitMark(q, notes) {
 
 function mathsKeys(q, notes) {
   if (!q || typeof q !== 'object' || !/^maths\./.test(q.slot || '')) return q;
-  return unitMark(excludedMethods(orderingError(q, notes), notes), notes);
+  return mathsMarking(unitMark(excludedMethods(orderingError(q, notes), notes), notes), notes);
 }
 
 module.exports = { mathsKeys };

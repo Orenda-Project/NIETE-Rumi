@@ -212,7 +212,7 @@ describe('prompt rules', () => {
   test('Maths Q4-8: each angle names what is drawn, supplementary needs two angles, a straight angle one line, equal pay per angle', () => {
     const r = rule(G5, 'maths', 'maths.C.Q4-8');
     expect(r).toMatch(/Supplementary = TWO angles/);
-    expect(r).toMatch(/Straight = one straight line marked 180/);
+    expect(r).toMatch(/Complementary = TWO angles/);
     expect(r).toMatch(/never says .first angle. or .second angle./);
     expect(r).toMatch(/at least two working steps/);
     expect(r).toMatch(/no skill .* appears in both Section A and Section C/i);

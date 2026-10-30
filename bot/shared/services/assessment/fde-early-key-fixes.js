@@ -18,6 +18,8 @@ const LETTERS = new Set(['Missing Letters', 'Complete the Words']);
 const RHYMES = 'Rhyming Pairs';
 const THIS_IS = 'This Is A';
 const { mergeMethodMarks } = require('./fde-early-maths-fixes');
+const { askStoryQuestion } = require('./fde-g1-story-question'); // v37 G1 Maths Q5/Q6
+const { mathsMarking } = require('./fde-maths-marking'); // v37 round 7: the one no-working rule
 const WORD_PROBLEM = /\bWord Problems?$/;
 const EARLY = /^g[12]\./;
 
@@ -115,7 +117,7 @@ function fixMethod(q, notes) {
   return withPoints(q, fixed);
 }
 
-function fixWordProblem(q, notes) { return mergeMethodMarks(fixMethod(fixUnit(q, notes), notes), notes); }
+function fixWordProblem(q, notes) { return mathsMarking(mergeMethodMarks(fixMethod(fixUnit(askStoryQuestion(q, notes), notes), notes), notes), notes); }
 
 function fixRhyme(q, notes) {
   const answer = String(q.answer || '').trim();

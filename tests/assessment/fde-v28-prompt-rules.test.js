@@ -21,8 +21,8 @@ const g5 = (subject, slot) => slotOf('fde_g5_2027', subject, slot);
 
 describe('early maths word problems ask for the working the key pays for', () => {
   test.each([
-    ['fde_g1_2026', 'g1.maths.B.Q5', 'Read the story and solve. Show your working.'],
-    ['fde_g1_2026', 'g1.maths.B.Q6', 'Read the story and solve. Show your working.'],
+    ['fde_g1_2026', 'g1.maths.B.Q5', 'Listen to the story and solve. Show your working.'],
+    ['fde_g1_2026', 'g1.maths.B.Q6', 'Listen to the story and solve. Show your working.'],
     ['fde_g2_2026', 'g2.maths.B.Q7', 'Solve. Show your working.'],
     ['fde_g2_2026', 'g2.maths.B.Q9', 'Solve. Show your working.'],
     ['fde_g2_2026', 'g2.maths.B.Q11', 'Solve. Show your working.'],
@@ -78,7 +78,7 @@ describe('G5 Maths', () => {
   // as Q4 ii, and its stem never names the relation it asks the child to name (v27 G5 Maths Q4 ii, Q8).
   test('Q4 keeps FDE\'s three angles; Q8 asks a pair Q4 does not name and never names the relation it asks for', () => {
     const rule = g5('maths', 'maths.C.Q4-8').prompt_rule;
-    expect(rule).toMatch(/obtuse, supplementary, straight/);
+    expect(rule).toMatch(/never a straight angle/);
     expect(rule).toMatch(/pair Q4 does not name/);
     expect(rule).not.toMatch(/Two angles are supplementary/);
     expect(rule).toMatch(/never names the relation/);

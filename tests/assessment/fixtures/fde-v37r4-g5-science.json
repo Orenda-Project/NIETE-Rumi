@@ -1,0 +1,1745 @@
+{
+ "unseen": {
+  "objective": {
+   "MCQs": [
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Which part of the body acts as the control centre that reads messages from the senses?",
+     "options": [
+      "a) Brain",
+      "b) Lungs",
+      "c) Stomach",
+      "d) Heart"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "a) Brain",
+     "blooms": "Remember",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Which part of the body lets a child tell sweet food from sour food?",
+     "options": [
+      "a) Tongue",
+      "b) Ear",
+      "c) Knee",
+      "d) Elbow"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "a) Tongue",
+     "blooms": "Remember",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A hazy layer that hangs over a big city because of vehicle smoke is called:",
+     "options": [
+      "a) Rainbow",
+      "b) Dew",
+      "c) Frost",
+      "d) Smog"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "d) Smog",
+     "blooms": "Remember",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Which of these is a man-made source of light?",
+     "options": [
+      "a) Candle",
+      "b) Sun",
+      "c) Lightning",
+      "d) Firefly"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "a) Candle",
+     "blooms": "Remember",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Which gas do we breathe out because the body does not need it?",
+     "options": [
+      "a) Carbon dioxide",
+      "b) Hydrogen",
+      "c) Methane",
+      "d) Helium"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "a) Carbon dioxide",
+     "blooms": "Understand",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "After a race, a child breathes faster and their heart beats faster. The body needs more:",
+     "options": [
+      "a) Sunlight",
+      "b) Sleep",
+      "c) Oxygen",
+      "d) Dust"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "c) Oxygen",
+     "blooms": "Apply",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Which of these diseases does not pass from one person to another?",
+     "options": [
+      "a) Measles",
+      "b) Influenza",
+      "c) Chickenpox",
+      "d) Diabetes"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "d) Diabetes",
+     "blooms": "Understand",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A frog catches and eats only insects. What is the frog called?",
+     "options": [
+      "a) Decomposer",
+      "b) Herbivore",
+      "c) Omnivore",
+      "d) Carnivore"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "d) Carnivore",
+     "blooms": "Apply",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A child throws rubbish onto an empty field. Which kind of pollution does this cause?",
+     "options": [
+      "a) Air pollution",
+      "b) Land pollution",
+      "c) Light pollution",
+      "d) Heat pollution"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "b) Land pollution",
+     "blooms": "Apply",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Which of these will rot naturally if it is buried in garden soil?",
+     "options": [
+      "a) Plastic cup",
+      "b) Wooden stick",
+      "c) Tin can",
+      "d) Glass jar"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "b) Wooden stick",
+     "blooms": "Apply",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Which of these changes forms a new substance?",
+     "options": [
+      "a) Milk turning sour",
+      "b) Crushing chalk",
+      "c) Folding a cloth",
+      "d) Stretching a rubber band"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "a) Milk turning sour",
+     "blooms": "Apply",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A factory dumps poison into a pond and the fish there take it in. A bird that eats those fish falls sick. What does this show?",
+     "options": [
+      "a) Fish make poison themselves",
+      "b) Poison vanishes in a pond",
+      "c) Poison can travel from one living thing to the next that eats it",
+      "d) Birds cannot eat fish"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "c) Poison can travel from one living thing to the next that eats it",
+     "blooms": "Apply",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Why do people wear masks when a viral outbreak is going around?",
+     "options": [
+      "a) To keep warm",
+      "b) To block tiny droplets from coughs and sneezes",
+      "c) To breathe faster",
+      "d) To make their voices louder"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "b) To block tiny droplets from coughs and sneezes",
+     "blooms": "Understand",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Sound travels fastest through which state of matter?",
+     "options": [
+      "a) Liquid",
+      "b) Solid",
+      "c) All are equal",
+      "d) Gas"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "b) Solid",
+     "blooms": "Understand",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "What must a guitar string do for it to give out sound?",
+     "options": [
+      "a) Stay still",
+      "b) Get wet",
+      "c) Vibrate",
+      "d) Get hot"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "c) Vibrate",
+     "blooms": "Understand",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Which of these does not make light itself but shines by reflecting light?",
+     "options": [
+      "a) Sun",
+      "b) Star",
+      "c) Firefly",
+      "d) Moon"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "d) Moon",
+     "blooms": "Understand",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Two bar magnets are placed with their north ends facing each other and pushed closer. What happens?",
+     "options": [
+      "a) They stick together",
+      "b) They push each other apart",
+      "c) They lose their colour",
+      "d) They become heavier"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "b) They push each other apart",
+     "blooms": "Understand",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Which of these would be pulled towards a magnet?",
+     "options": [
+      "a) Plastic comb",
+      "b) Rubber band",
+      "c) Wooden spoon",
+      "d) Iron nail"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "d) Iron nail",
+     "blooms": "Understand",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Which of these devices uses a magnet to work?",
+     "options": [
+      "a) Spoon",
+      "b) Doorbell",
+      "c) Pencil",
+      "d) Chair"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "b) Doorbell",
+     "blooms": "Apply",
+     "slot": "science.A.Q1a"
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A child smells smoke coming from a kitchen. Which part of the body first picks up the smell?",
+     "options": [
+      "a) Ear",
+      "b) Knee",
+      "c) Nose",
+      "d) Elbow"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "c) Nose",
+     "blooms": "Apply",
+     "slot": "science.A.Q1a"
+    }
+   ]
+  },
+  "subjective": {
+   "Label the Diagram": [
+    {
+     "main_question": "Label the diagram. Write the name of each numbered symbol on the lines.",
+     "question": "Symbols used in a circuit diagram",
+     "book_page": 142,
+     "marks": 5,
+     "lines": 0,
+     "answer": "1. Wire, 2. Cell, 3. Closed switch, 4. Open switch, 5. Lamp",
+     "blooms": "Remember",
+     "slot": "science.A.Q1b",
+     "scheme": {
+      "points": [
+       {
+        "text": "Symbol 1 labelled Wire",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Symbol 2 labelled Cell",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Symbol 3 labelled Closed switch",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Symbol 4 labelled Open switch",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Symbol 5 labelled Lamp",
+        "marks": 1,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "Bulb for Lamp",
+       "Battery for Cell",
+       "Switch (closed) for Closed switch",
+       "Switch (open) for Open switch"
+      ],
+      "common_error": "Mixing up the open switch and the closed switch.",
+      "checked": null
+     },
+     "picture": {
+      "kind": "circuit",
+      "name": "Symbols used in a circuit diagram",
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMjAwIiB3aWR0aD0iMTAwIiBoZWlnaHQ9IjIwMCI+PHJlY3QgeD0iMyIgeT0iMyIgd2lkdGg9Ijk0IiBoZWlnaHQ9IjM2IiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS42IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48dGV4dCB4PSI5IiB5PSIyNSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiBmaWxsPSIjMDAwIj4xPC90ZXh0PjxsaW5lIHgxPSIyNiIgeTE9IjIxIiB4Mj0iOTAiIHkyPSIyMSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PHJlY3QgeD0iMyIgeT0iNDIiIHdpZHRoPSI5NCIgaGVpZ2h0PSIzNiIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PHRleHQgeD0iOSIgeT0iNjQiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzAwMCI+MjwvdGV4dD48bGluZSB4MT0iMjYiIHkxPSI2MCIgeDI9IjUyIiB5Mj0iNjAiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIxLjYiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxsaW5lIHgxPSI1MiIgeTE9IjUxIiB4Mj0iNTIiIHkyPSI2OSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PGxpbmUgeDE9IjYyIiB5MT0iNTUiIHgyPSI2MiIgeTI9IjY1IiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS42IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48bGluZSB4MT0iNjIiIHkxPSI2MCIgeDI9IjkwIiB5Mj0iNjAiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIxLjYiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxyZWN0IHg9IjMiIHk9IjgxIiB3aWR0aD0iOTQiIGhlaWdodD0iMzYiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIxLjYiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjx0ZXh0IHg9IjkiIHk9IjEwMyIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiBmaWxsPSIjMDAwIj4zPC90ZXh0PjxsaW5lIHgxPSIyNiIgeTE9Ijk5IiB4Mj0iMzgiIHkyPSI5OSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PGNpcmNsZSBjeD0iMzgiIGN5PSI5OSIgcj0iMiIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PGxpbmUgeDE9IjQwIiB5MT0iOTkiIHgyPSI3NiIgeTI9Ijk5IiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS42IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48Y2lyY2xlIGN4PSI3OCIgY3k9Ijk5IiByPSIyIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS42IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48bGluZSB4MT0iODAiIHkxPSI5OSIgeDI9IjkwIiB5Mj0iOTkiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIxLjYiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxyZWN0IHg9IjMiIHk9IjEyMCIgd2lkdGg9Ijk0IiBoZWlnaHQ9IjM2IiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS42IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48dGV4dCB4PSI5IiB5PSIxNDIiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzAwMCI+NDwvdGV4dD48bGluZSB4MT0iMjYiIHkxPSIxMzgiIHgyPSIzOCIgeTI9IjEzOCIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PGNpcmNsZSBjeD0iMzgiIGN5PSIxMzgiIHI9IjIiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIxLjYiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxsaW5lIHgxPSI0MCIgeTE9IjEzNyIgeDI9Ijc0IiB5Mj0iMTI0IiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS42IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48Y2lyY2xlIGN4PSI3OCIgY3k9IjEzOCIgcj0iMiIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PGxpbmUgeDE9IjgwIiB5MT0iMTM4IiB4Mj0iOTAiIHkyPSIxMzgiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIxLjYiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxyZWN0IHg9IjMiIHk9IjE1OSIgd2lkdGg9Ijk0IiBoZWlnaHQ9IjM2IiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS42IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48dGV4dCB4PSI5IiB5PSIxODEiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzAwMCI+NTwvdGV4dD48bGluZSB4MT0iMjYiIHkxPSIxNzciIHgyPSI0NCIgeTI9IjE3NyIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PGNpcmNsZSBjeD0iNTgiIGN5PSIxNzciIHI9IjE0IiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS42IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48bGluZSB4MT0iNDgiIHkxPSIxNjciIHgyPSI2OCIgeTI9IjE4NyIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PGxpbmUgeDE9IjQ4IiB5MT0iMTg3IiB4Mj0iNjgiIHkyPSIxNjciIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIxLjYiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxsaW5lIHgxPSI3MiIgeTE9IjE3NyIgeDI9IjkwIiB5Mj0iMTc3IiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS42IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4="
+     }
+    }
+   ],
+   "Draw and Label": [
+    {
+     "slot": "science.B.Q2a",
+     "main_question": "Draw a neat diagram of the following and label the parts asked.",
+     "question": "Respiratory System. Draw the human respiratory system and label any five of its parts.",
+     "marks": 7,
+     "lines": 0,
+     "answer": "A neat drawing showing the nose, throat, voice box, windpipe and two lungs, with five correct labels such as nose, throat, voice box, windpipe, lungs.",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "text": "A neat, recognisable drawing of the respiratory system with the lungs and the tube leading to them",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "Five parts correctly labelled (1 mark for each correct label)",
+        "marks": 5,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "Any five of: nose, mouth, throat, voice box, windpipe, lungs"
+      ],
+      "common_error": "Labelling the stomach or heart as a part of the respiratory system.",
+      "checked": null
+     }
+    },
+    {
+     "slot": "science.B.Q2a",
+     "main_question": "Draw a neat diagram of the following and label the parts asked.",
+     "question": "Food Chain. Draw a food chain of four living things, starting with a plant. Label the Sun and each of the four living things.",
+     "marks": 7,
+     "lines": 0,
+     "answer": "Sun, grass, grasshopper, mouse, snake drawn in order, each correctly labelled.",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "text": "A neat drawing showing the Sun and four living things in the correct feeding order, starting with a plant",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "Five labels correct: Sun and the four living things (1 mark for each correct label)",
+        "marks": 5,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "Grass, grasshopper, frog, snake with producer and consumer labels",
+       "Sun, grass, grasshopper, mouse, snake"
+      ],
+      "common_error": "Starting the chain with an animal or placing a plant-eater after a meat-eater.",
+      "checked": null
+     }
+    }
+   ],
+   "Logical Reasoning": [
+    {
+     "slot": "science.B.Q2b",
+     "main_question": "Give answers with logical reasons.",
+     "question": "A student lights a candle inside a glass jar and covers it for a short time. They see smoke, and after the candle goes out, a black powder is left on the inside of the jar.",
+     "marks": 5,
+     "lines": 0,
+     "answer": "See each sub-question.",
+     "blooms": "Apply",
+     "questions": [
+      {
+       "question": "What does the black powder tell the student about burning a fuel like candle wax or coal?",
+       "answer": "Burning a fuel puts smoke and tiny solid bits like soot into the air, which pollutes the air.",
+       "scheme": {
+        "points": [
+         {
+          "text": "Burning a fuel gives out smoke and soot (These harmful bits pollute the air)",
+          "marks": 2.5,
+          "kind": "A"
+         }
+        ],
+        "accept": [
+         "It shows burning makes air pollution",
+         "Soot is a pollutant released by burning fuels"
+        ],
+        "common_error": "Saying the black powder is dust that was already in the jar.",
+        "checked": null
+       }
+      },
+      {
+       "question": "Burning coal and oil also gives out carbon dioxide. What happens to the Earth when too much of this gas collects in the air?",
+       "answer": "It traps the Sun's heat in the air around the Earth, so the Earth gets warmer; this is global warming.",
+       "scheme": {
+        "points": [
+         {
+          "text": "Carbon dioxide, a greenhouse gas, traps the Sun's heat (The Earth warms up, causing global warming and climate change)",
+          "marks": 2.5,
+          "kind": "A"
+         }
+        ],
+        "accept": [
+         "The greenhouse effect gets stronger",
+         "Weather patterns change and the planet heats up"
+        ],
+        "common_error": "Saying the gas makes the Earth colder.",
+        "checked": null
+       }
+      },
+      {
+       "question": "Name one place in a town where a lot of dark smoke like this is made, and say how it can harm people.",
+       "answer": "Factories or vehicles make dark smoke. It can cause smog, which irritates the eyes, nose and throat and makes breathing hard.",
+       "scheme": {
+        "points": [
+         {
+          "text": "A correct source such as factories, power plants or vehicles (A correct harm such as hard breathing, coughing or irritated eyes and throat)",
+          "marks": 2.5,
+          "kind": "A"
+         }
+        ],
+        "accept": [
+         "Burning garbage or crop fires; coughing and smog",
+         "Cars and buses; breathing trouble"
+        ],
+        "common_error": "Saying smoke only harms plants and not people.",
+        "checked": null
+       }
+      }
+     ]
+    },
+    {
+     "slot": "science.B.Q2b",
+     "main_question": "Give answers with logical reasons.",
+     "question": "Jojo holds a magnet close to a steel pin, a wooden spoon and a piece of aluminium foil. Then he places two bar magnets on a table with their north poles facing each other and slides one toward the other.",
+     "marks": 5,
+     "lines": 0,
+     "answer": "See each sub-question.",
+     "blooms": "Apply",
+     "questions": [
+      {
+       "question": "Which of the three objects will the magnet pick up, and why do the other two not stick?",
+       "answer": "The steel pin is picked up because it is made of a magnetic material containing iron. Wood and aluminium are not magnetic materials, so they do not stick.",
+       "scheme": {
+        "points": [
+         {
+          "text": "Only the steel pin sticks, because it contains iron, a magnetic material (Wood and aluminium are not magnetic materials)",
+          "marks": 2.5,
+          "kind": "A"
+         }
+        ],
+        "accept": [
+         "Magnets attract only iron, cobalt and nickel materials"
+        ],
+        "common_error": "Saying a magnet attracts every metal.",
+        "checked": null
+       }
+      },
+      {
+       "question": "The magnet starts moving the pin before touching it. How is this possible?",
+       "answer": "A magnet has a magnetic field around it, and anything inside the field feels the magnetic force without being touched.",
+       "scheme": {
+        "points": [
+         {
+          "text": "A magnet has a magnetic field around it (Objects inside the field feel the force without touching)",
+          "marks": 2.5,
+          "kind": "A"
+         }
+        ],
+        "accept": [
+         "The magnetic force acts over a distance"
+        ],
+        "common_error": "Saying the magnet must touch an object for the force to act.",
+        "checked": null
+       }
+      },
+      {
+       "question": "What will Jojo see when the two north poles come close, and why?",
+       "answer": "The magnets push away from each other because like poles repel.",
+       "scheme": {
+        "points": [
+         {
+          "text": "The magnets push each other away (repel) (Because the poles facing each other are the same (like poles repel))",
+          "marks": 2.5,
+          "kind": "A"
+         }
+        ],
+        "accept": [
+         "Same poles repel; north and south would attract"
+        ],
+        "common_error": "Saying the two north poles attract each other.",
+        "checked": null
+       }
+      }
+     ]
+    }
+   ],
+   "Brief Answers": [
+    {
+     "slot": "science.C.Q3a",
+     "main_question": "Answer any 8 of the following 10 questions.",
+     "question": "Name any five parts of the human respiratory system.",
+     "marks": 5,
+     "lines": 0,
+     "blooms": "Remember",
+     "answer": "Nose, mouth, throat, voice box, windpipe, lungs (any five).",
+     "scheme": {
+      "points": [
+       {
+        "text": "First correct part named",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Second correct part named",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Third correct part named",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Fourth correct part named",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Fifth correct part named",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "nasal cavity",
+       "pharynx",
+       "larynx",
+       "trachea",
+       "bronchi",
+       "diaphragm"
+      ],
+      "common_error": "Naming the heart or the stomach, which belong to other body systems.",
+      "checked": null
+     }
+    },
+    {
+     "slot": "science.C.Q3a",
+     "main_question": "Answer any 8 of the following 10 questions.",
+     "question": "Jojo's pulse is 70 beats a minute at rest. After running, his pulse is higher and he breathes deeply. Explain why this happens.",
+     "marks": 5,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "His muscles need more oxygen while running. The lungs take in more air and fill the blood with oxygen. The heart pumps blood more quickly to carry oxygen and nutrients to the muscles. The heart and lungs team up and work harder, so the pulse and breathing rise.",
+     "scheme": {
+      "points": [
+       {
+        "text": "Muscles need more oxygen during exercise",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Lungs take in more air and fill the blood with oxygen",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Heart pumps blood more quickly",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Blood carries oxygen and nutrients to the muscles",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Heart and lungs work harder together",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "the body needs more energy so the heart beats more times",
+       "deep breaths bring in extra oxygen for the muscles"
+      ],
+      "common_error": "Saying only that the legs get tired, without linking the heart and lungs to oxygen.",
+      "checked": null
+     }
+    },
+    {
+     "slot": "science.C.Q3a",
+     "main_question": "Answer any 8 of the following 10 questions.",
+     "question": "Explain how germs pass from one person to another, and how washing hands with soap helps to stop them.",
+     "marks": 5,
+     "lines": 0,
+     "blooms": "Understand",
+     "answer": "Germs pass through touch, such as handshakes and shared surfaces, and through droplets when a sick person sneezes or coughs. Germs on hands can reach the face. Washing with soap removes the germs from the hands, so they cannot be passed on.",
+     "scheme": {
+      "points": [
+       {
+        "text": "Germs pass by touching infected people, hands or surfaces",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Germs pass in droplets when a sick person sneezes or coughs",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Germs on hands can reach the face and enter the body",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Soap removes germs from the hands",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Hands must be washed thoroughly, and clean hands cannot pass germs on",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "sharing drinks or close contact",
+       "hugs and eating together"
+      ],
+      "common_error": "Saying handwashing kills every germ in the body.",
+      "checked": null
+     }
+    },
+    {
+     "slot": "science.C.Q3a",
+     "main_question": "Answer any 8 of the following 10 questions.",
+     "question": "Write what each of these is: producer, herbivore, carnivore, decomposer, food web.",
+     "marks": 5,
+     "lines": 0,
+     "blooms": "Remember",
+     "answer": "Producer: a plant that uses sunlight to make its own food. Herbivore: an animal that eats plants. Carnivore: an animal that eats other animals. Decomposer: bacteria and other organisms that break down dead plants and animals. Food web: a network of many food chains joined together.",
+     "scheme": {
+      "points": [
+       {
+        "text": "Producer: makes its own food using sunlight",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Herbivore: eats plants",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Carnivore: eats other animals",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Decomposer: breaks down dead plants and animals",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Food web: many food chains linked together",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "primary consumer for herbivore",
+       "secondary consumer for carnivore",
+       "plants for producer"
+      ],
+      "common_error": "Saying a herbivore eats animals, or that a food web is one straight chain.",
+      "checked": null
+     }
+    },
+    {
+     "slot": "science.C.Q3a",
+     "main_question": "Answer any 8 of the following 10 questions.",
+     "question": "The buses, cars and kitchens of a city burn petrol, diesel and LPG. Explain what this does to the air and to Earth's temperature.",
+     "marks": 5,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "Burning these fuels puts smoke, soot and harmful gases into the air. It releases greenhouse gases such as carbon dioxide. These gases trap the Sun's heat. Earth slowly warms, which is global warming, and weather patterns change.",
+     "scheme": {
+      "points": [
+       {
+        "text": "Smoke, soot or harmful gases enter the air",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Greenhouse gases such as carbon dioxide are released",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "These gases trap the Sun's heat",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Earth warms up (global warming)",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Weather patterns and ecosystems change",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "smog forms over the city",
+       "the air becomes hazy and hard to breathe"
+      ],
+      "common_error": "Saying the burning fuels clean the air or cool the Earth.",
+      "checked": null
+     }
+    },
+    {
+     "slot": "science.C.Q3a",
+     "main_question": "Answer any 8 of the following 10 questions.",
+     "question": "What is combustion? Name the three things needed for it and state what it gives out.",
+     "marks": 5,
+     "lines": 0,
+     "blooms": "Remember",
+     "answer": "Combustion is the rapid burning of a fuel. It needs fuel, oxygen and heat. It gives out ash, gases, heat and light.",
+     "scheme": {
+      "points": [
+       {
+        "text": "Combustion is a rapid reaction in which a fuel burns",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Fuel is needed",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Oxygen is needed",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Heat is needed",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "It gives out new substances such as ash and gases, with heat and light",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "air for oxygen",
+       "the fire triangle of oxygen, heat and fuel"
+      ],
+      "common_error": "Listing sunlight or soil as one of the three needs.",
+      "checked": null
+     }
+    },
+    {
+     "slot": "science.C.Q3a",
+     "main_question": "Answer any 8 of the following 10 questions.",
+     "question": "A thin cloth curtain lets some light through, but a wooden door lets none. Explain how each kind of material affects light and the shadow it forms.",
+     "marks": 5,
+     "lines": 0,
+     "blooms": "Understand",
+     "answer": "The curtain is translucent. It lets some light pass and scatters it, so things look blurry and the shadow is faint. The wooden door is opaque. It blocks all the light, so it forms a solid dark shadow.",
+     "scheme": {
+      "points": [
+       {
+        "text": "Curtain lets some light pass through",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "It scatters the light, so things look blurry",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Its shadow is faint or light",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Door blocks all the light",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Its shadow is solid and dark",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "translucent for the curtain and opaque for the door"
+      ],
+      "common_error": "Saying the door is transparent because it is solid.",
+      "checked": null
+     }
+    },
+    {
+     "slot": "science.C.Q3a",
+     "main_question": "Answer any 8 of the following 10 questions.",
+     "question": "Explain how a sound from a speaker reaches a child's ear.",
+     "marks": 5,
+     "lines": 0,
+     "blooms": "Understand",
+     "answer": "The speaker vibrates. It pushes the air molecules together and then apart. These molecules bump into the next ones, passing the vibrations along like a chain reaction. The vibrations reach the ear, so sound is energy travelling as vibrations.",
+     "scheme": {
+      "points": [
+       {
+        "text": "The speaker vibrates",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "The vibration pushes air molecules together and apart",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Molecules bump into others and pass the vibration along",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "The vibrations reach the ear",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Sound is energy travelling as vibrations through a medium",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "sound waves travel through the air to the ear"
+      ],
+      "common_error": "Saying that sound can travel with no air or other medium.",
+      "checked": null
+     }
+    },
+    {
+     "slot": "science.C.Q3a",
+     "main_question": "Answer any 8 of the following 10 questions.",
+     "question": "Explain the difference between a conductor and an insulator of electric current. Name one of each, and say what happens to the bulb of an open circuit if its gap is closed with a plastic strip.",
+     "marks": 5,
+     "lines": 0,
+     "blooms": "Understand",
+     "answer": "A conductor lets current flow through it easily, but an insulator does not. Copper is a conductor and plastic is an insulator. A plastic strip blocks the current, so the bulb stays off.",
+     "scheme": {
+      "points": [
+       {
+        "text": "A conductor lets electric current flow easily",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "An insulator does not let current flow",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "One correct conductor named",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "One correct insulator named",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "The bulb stays off, as plastic blocks the current",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "aluminium foil, coin or paper clip as conductor",
+       "wood or rubber as insulator"
+      ],
+      "common_error": "Saying all metals are insulators or that plastic lets current flow.",
+      "checked": null
+     }
+    },
+    {
+     "slot": "science.C.Q3a",
+     "main_question": "Answer any 8 of the following 10 questions.",
+     "question": "A child has an iron sewing needle, a plastic bottle, a leaf and a piece of aluminium foil. Which of these will a magnet pick up? Give a reason for each one it will not pick up.",
+     "marks": 5,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "The magnet picks up the iron needle, as iron is a magnetic material. It does not pick up the plastic bottle or the leaf, as these are not magnetic. It does not pick up the foil, as aluminium is not iron, cobalt or nickel.",
+     "scheme": {
+      "points": [
+       {
+        "text": "The iron needle is picked up",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Iron is a magnetic material",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Plastic is not magnetic",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "A leaf is not magnetic",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Aluminium is not one of iron, cobalt or nickel, so foil is not attracted",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "only iron, cobalt and nickel are attracted"
+      ],
+      "common_error": "Saying a magnet attracts all metals.",
+      "checked": null
+     }
+    }
+   ],
+   "Long Question": [
+    {
+     "slot": "science.C.Q3b",
+     "main_question": "Answer any 2 of the following 5 questions.",
+     "question": "Describe how the nervous system works when a child touches something hot and quickly pulls their hand away.",
+     "marks": 9,
+     "lines": 0,
+     "blooms": "Remember",
+     "answer": "The sense organ gathers the information that the object is hot. It sends the information as electrical signals along the nerves. The signals pass up the spinal cord, the major highway to the brain. The brain sorts out the signals and works out what is happening. It then sends a message back along the nerves to the muscles. The muscles move the hand away. The nervous system is very quick, so this happens almost instantly.",
+     "scheme": {
+      "points": [
+       {
+        "text": "A sense organ gathers the information about the hot object",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "The information is sent as electrical signals",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Nerves carry the messages to and from the body",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "The spinal cord carries the signals to the brain",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "The brain sorts out and interprets the signals",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "The brain sends a message back to the body",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Muscles move the hand away",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "The brain is the control centre of the system",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "The whole reaction is very quick",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "the nervous system works like a fast messenger"
+      ],
+      "common_error": "Saying that the heart or the stomach tells the hand to move.",
+      "checked": null
+     }
+    },
+    {
+     "slot": "science.C.Q3b",
+     "main_question": "Answer any 2 of the following 5 questions.",
+     "question": "Describe how loud noise harms health and what a student can do to reduce noise pollution.",
+     "marks": 9,
+     "lines": 0,
+     "blooms": "Remember",
+     "answer": "Noise pollution is extreme, unpleasant and unwanted sound. It can bring sleep problems, headaches, high blood pressure and problems with memory and attention. Loud noise also harms animals. A student can turn down the volume of a television or music, avoid blowing vehicle horns, turn off appliances that are not in use, and wear earmuffs or earplugs in a noisy area.",
+     "scheme": {
+      "points": [
+       {
+        "text": "Noise pollution is extreme, unwanted sound",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "It can bring sleep problems",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "It can bring headaches",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "It can raise blood pressure",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "It can harm memory and attention",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Loud noise harms animals too",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Keep the volume of television or music low",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Avoid blowing horns and use silencers on vehicles",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Turn off unused appliances or wear earplugs in noisy places",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "hearing damage",
+       "advocate for noise rules"
+      ],
+      "common_error": "Saying that loud noise only annoys and never harms health.",
+      "checked": null
+     }
+    },
+    {
+     "slot": "science.C.Q3b",
+     "main_question": "Answer any 2 of the following 5 questions.",
+     "question": "In one town most children took polio drops, but in another town few did. Explain how this affects the spread of polio in each town.",
+     "marks": 9,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "Polio drops are a vaccine that teaches the immune system to recognise and defend against the germ. Children who took the drops are protected and do not easily fall ill. In the town with few vaccinated children, polio can spread easily to unvaccinated children, often through contaminated food or drinking supplies. In the town where most are vaccinated, the spread slows down and the risk is lower for everyone. Clean drinking supplies and proper sanitation also help prevent polio.",
+     "scheme": {
+      "points": [
+       {
+        "text": "The drops are a vaccine that teaches the immune system",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "The immune system learns to recognise and defend against the germ",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Vaccinated children are protected from falling ill",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "In the town with few vaccinated, unprotected children fall ill easily",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Polio spreads through contaminated food or drinking supplies",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "In the town with most vaccinated, the spread slows down",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "The risk is lower for everyone in that town",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Clean drinking supplies are a second way to prevent polio",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "fewer unvaccinated children means less spread",
+       "vaccination of a whole community protects it"
+      ],
+      "common_error": "Saying the drops cure children who are already ill.",
+      "checked": null
+     }
+    },
+    {
+     "slot": "science.C.Q3b",
+     "main_question": "Answer any 2 of the following 5 questions.",
+     "question": "Hamza leaves one apple on a table for a week. Rani cuts another apple into pieces. Explain how the two changes differ and how a student can tell the difference.",
+     "marks": 9,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "Cutting the apple only changes its shape. It is still apple, and no new substance forms. The apple left on the table rots, and new substances form that were not there before. The rotten apple has a different smell, colour and texture, and these clues show new substances. A student can ask whether the change can be reversed. A rotten apple cannot be turned back into a fresh one, so rotting forms new substances, while cutting does not.",
+     "scheme": {
+      "points": [
+       {
+        "text": "Cutting only changes the shape or form of the apple",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "The cut apple is still the same substance, with no new substance",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Rotting forms new substances that were not there before",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "The new substances have different properties, such as smell, colour and texture",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "A student can test by asking if the change can be reversed; rotting cannot",
+        "marks": 2,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "a rotten apple cannot be unrotted",
+       "cutting is a change that forms nothing new, rotting a change that forms something new"
+      ],
+      "common_error": "Saying that both changes form a new substance because the apple looks different.",
+      "checked": null
+     }
+    }
+   ]
+  }
+ },
+ "_layout": {
+  "v": 2,
+  "preset_id": "fde_g5_2027",
+  "subject": "science",
+  "medium": "en",
+  "scope": {
+   "kind": "fde",
+   "chapters": null,
+   "pages": null,
+   "label_en": "FDE syllabus 2026–27",
+   "label_ur": "FDE نصاب 2026–27",
+   "line_en": "Chapters 1–6 · Ch 7 diagrams",
+   "line_ur": "ابواب 1–6 · باب 7 کے خاکے",
+   "covers_en": null,
+   "covers_ur": null
+  },
+  "header": {
+   "school_line_en": "School: ____________",
+   "student_box_en": [
+    "Student Name",
+    "Roll No",
+    "Date",
+    "Total Marks",
+    "Obtained Marks"
+   ],
+   "footer_page_en": "Page {n} of {N}",
+   "scheme_title_en": "MARKING SCHEME",
+   "band_en": "TEACHER'S COPY · Do not give to children",
+   "covers_en": "Covers: {scope}.",
+   "covers_partial_en": "Covers {units}; every section set from these chapters.",
+   "record_title_en": "Class record",
+   "record_cols_en": [
+    "Roll",
+    "Name"
+   ],
+   "record_total_en": "Total",
+   "record_grade_en": "Grade",
+   "checked_en": "✓ checked",
+   "notes_title_en": "Notes",
+   "note_replaced_en": "{n}: key corrected by code; the model wrote {value}.",
+   "accept_en": "accept:",
+   "common_error_en": "common error:",
+   "answer_sheet_en": "answer sheet",
+   "or_en": "OR",
+   "school_line_ur": "اسکول: ____________",
+   "student_box_ur": [
+    "نام طالب علم",
+    "رول نمبر",
+    "تاریخ",
+    "کل نمبر",
+    "حاصل کردہ نمبر"
+   ],
+   "footer_page_ur": "صفحہ {n} از {N}",
+   "scheme_title_ur": "مارکنگ اسکیم",
+   "band_ur": "استاد کی کاپی · بچوں کو نہ دیں",
+   "covers_ur": "احاطہ: {scope}۔",
+   "covers_partial_ur": "احاطہ: {units}؛ ہر حصہ انہی ابواب سے۔",
+   "record_title_ur": "کلاس ریکارڈ",
+   "record_cols_ur": [
+    "رول نمبر",
+    "نام"
+   ],
+   "record_total_ur": "کل",
+   "record_grade_ur": "گریڈ",
+   "checked_ur": "✓ جانچا گیا",
+   "notes_title_ur": "نوٹ",
+   "note_replaced_ur": "{n}: کلید کوڈ نے درست کی؛ ماڈل نے {value} لکھا۔",
+   "accept_ur": "یہ بھی درست:",
+   "common_error_ur": "عام غلطی:",
+   "answer_sheet_ur": "جوابی کاپی",
+   "or_ur": "یا",
+   "title_en": "Grade 5 · Science · FDE pattern practice paper",
+   "title_ur": "جماعت پنجم · سائنس · FDE pattern کا مشقی پرچہ",
+   "time_line_en": "Time Allowed: 3 Hours",
+   "total_line_en": "Total Marks: {t:100}",
+   "note_en": "Note: This paper consists of THREE Sections. Section – A needs to be solved on the Question Paper. Section B&C to be solved on the Answer Sheet. Cutting, erasing and overwriting is not allowed."
+  },
+  "sections": [
+   {
+    "id": "A",
+    "time_en": "Time Allowed: 30 minutes",
+    "label_en": "Section A",
+    "marks_en": "Total Marks: {t:25}",
+    "marks": 25,
+    "answer_on": "question_paper",
+    "note_en": null,
+    "slots": [
+     {
+      "slot": "science.A.Q1a",
+      "label_en": "Q1 (a):",
+      "label_ur": "سوال 1 (الف)",
+      "instruction_en": "Encircle the correct answer.",
+      "marks_line_en": "(1×{n:20}={t:20})",
+      "type": "MCQs",
+      "category": "objective",
+      "shape": "mcq",
+      "generate": 20,
+      "attempt": 20,
+      "marks_each": 1,
+      "parts": null,
+      "numbering": "roman",
+      "option_labels": "a",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "one concept per item across chapters 1–6: body systems, diseases, food chains, pollution, physical and chemical change, light, sound, magnets, circuits",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "Twenty four-option MCQs from chapters 1–6 only (Skill Sharpener and Mastery Challenge included); 3 to 5 of them pure recall. Never set an item on chapter 7 here. Detailed respiratory (alveoli) or circulatory (chambers, valves) knowledge is not required. An item never states a marking point of a Section C answer, nor a key of a Section B answer: no stem or option prints a word, a number or a name that another item's key asks for (the fuels a child names, the feeding order or a label of a food chain, the group a microorganism belongs to, the parts of a body system, a conductor or the gap in a circuit). Physical or chemical change is tested in at most 2 items of the whole paper, transparent, translucent and opaque in at most 2, the respiratory system is labelled once, and the Sun's heat trapped by greenhouse gases is a key point of one item only. A disease item never asks which disease is contagious or non-contagious with malaria (carried by a mosquito) or cholera (carried by water) among the options: set diabetes against measles, influenza, chickenpox or mumps. No MCQ tests a concept that a Section B or Section C question of this paper asks, and no stem or option states a fact that a later question asks the child to explain. Each concept (physical or chemical change, vaccines, light and materials) is asked at most twice in the whole paper, never by two items of one section; a stem never states another item's answer. Round 6 (v37): Section A uses its own objects and settings, never an object or example named in Section B or C (a ceramic mug in an MCQ is not also the written example). Biodegradable and non-biodegradable is asked in at most two items of the whole paper. Round 7 (v37): an item never prints the word a Section B or C key asks for, in the stem or in any option: a window that is frosted with blurry shapes (the key is translucent), a vaccine that teaches the body to recognise and fight a germ, tiny organisms that turn leaves into soil, banana peel that rots, waves with the lowest crests (the key is a low amplitude) are all another item's answer, so Section A asks those concepts through a different object, a different setting and different words, or leaves them to Sections B and C. Round 8 (v38): no stem or option names a word that is the answer to a Section B or Section C item; check every stem and option against the keys of Q2 (b) and Q3 before writing it, and set the item on another word.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "science.A.Q1b",
+      "label_en": "Q1 (b):",
+      "label_ur": "سوال 1 (ب)",
+      "instruction_en": "Label the given Diagram",
+      "marks_line_en": "({t:5} Marks)",
+      "type": "Label the Diagram",
+      "category": "subjective",
+      "shape": "frame",
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 5,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "label an unlabelled book diagram with 5 parts (chapters 1–7)",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "One item, and always the symbols of a circuit diagram, because the paper draws that picture itself: `question` is \"Symbols used in a circuit diagram\", `book_page` the book page it is on, `answer` exactly the five labels in this order: \"1. Wire, 2. Cell, 3. Closed switch, 4. Open switch, 5. Lamp\" (wire, cell, closed switch, open switch and lamp). The paper draws the five numbered symbols in the frame, so no item depends on a picture a teacher must draw or paste: never another diagram here (never the layers of the Earth, a food chain or a body part). Never describe the picture and never send the child to a picture.",
+      "frame": {
+       "kind": "diagram",
+       "height_mm": 70,
+       "lines": 5,
+       "word_bank": false,
+       "title_en": "Diagram: {q}",
+       "title_ur": "خاکہ: {q}",
+       "supply_en": "Diagram: {q}",
+       "supply_ur": "خاکہ: {q}",
+       "duty_en": "the diagram to label",
+       "duty_ur": "نشان دہی والا خاکہ",
+       "book_page": 142
+      },
+      "teacher_note_en": "Draw this diagram on the board or paste the book's figure into the frame before photocopying.",
+      "teacher_note_ur": "فوٹو کاپی سے پہلے یہ خاکہ بورڈ پر بنائیں یا کتاب سے چسپاں کریں۔",
+      "alternatives": null,
+      "or": false
+     }
+    ]
+   },
+   {
+    "id": "B",
+    "time_en": "Time Allowed: 2 hrs. 30 min",
+    "label_en": "Section B",
+    "marks_en": "Total Marks: {t:17}",
+    "marks": 17,
+    "answer_on": "answer_sheet",
+    "note_en": "NOTE: Section B consists of 2 parts (a) and (b)",
+    "slots": [
+     {
+      "slot": "science.B.Q2a",
+      "label_en": "Q2 (a)",
+      "label_ur": "سوال 2 (الف)",
+      "instruction_en": "Draw and label any {w:one} of the following:",
+      "marks_line_en": "({t:7} Marks)",
+      "type": "Draw and Label",
+      "category": "subjective",
+      "shape": "draw",
+      "generate": 2,
+      "attempt": 1,
+      "marks_each": 7,
+      "parts": null,
+      "numbering": "paren_roman",
+      "compulsory": false,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "name a body or ecology diagram the child can draw and label from the book",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "Two items, each just the name of a diagram the child draws and labels from chapters 1–7 (e.g. \"Respiratory System\", \"Food Chain\"). The scheme lists the labels expected (L points). Not the detailed alveoli or heart chambers. A food chain names exactly four living things, starting with a plant; the scheme lists exactly the asked count of labels and never the word \"arrows\". The two alternatives are equal: the labels a stem asks are exactly the label marks its scheme pays (for a 7-mark item with a 2-mark drawing, 5 labels), and both alternatives carry the same drawing marks and label marks. The respiratory system is drawn and labelled here only, so Q1 (b) is never the respiratory system. Round 7 (v37): labels are the Grade 5 book's own terms: the layers of the Earth are keyed crust, mantle, outer core and inner core, never continental or oceanic plate, and crust is never listed as a common error; the stem asks only as many labels as the scheme pays.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": true
+     },
+     {
+      "slot": "science.B.Q2b",
+      "label_en": "Q2 (b)",
+      "label_ur": "سوال 2 (ب)",
+      "instruction_en": "Read and attempt any {w:TWO} of the following given situations carefully.",
+      "marks_line_en": "({n:2} × 5 = {t:10})",
+      "type": "Logical Reasoning",
+      "category": "subjective",
+      "shape": "situation",
+      "generate": 3,
+      "attempt": 2,
+      "marks_each": 5,
+      "parts": null,
+      "item_parts": {
+       "per_item": 3,
+       "attempt": 2,
+       "marks_each": 2.5,
+       "line_en": "Answer any two of the given questions.",
+       "marks_line_en": "(2 × 2.5 = 5)"
+      },
+      "numbering": "paren_roman",
+      "compulsory": false,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "an activity situation in words, then three sub-questions (a, b, c), answer any two",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "Three situations, each from a different one of these book activities only: textures and sounds; spreading diseases; microorganisms at work; how pollution affects our world; solubility and state changes; rusting; physical vs chemical change; shadow and transparency; magnets. Each item: `question` = the situation in words (what the child does and sees), `questions` = three sub-questions, each an object {question, answer, scheme: {points, accept, common_error}} whose points add up to 2.5; a sub-question's `question` carries no letter or number in front (the paper letters them a, b, c). Never refer to a picture. Each concept (physical or chemical change, vaccines, light and materials) is asked at most twice in the whole paper, never by two items of one section; a stem never states another item's answer. Round 6 (v37): biodegradable and non-biodegradable is asked in at most two items of the whole paper. Round 7 (v37): a stem states only true science (warm milk left two days does not stay as milk: it sours or spoils, so a control jar is a jar with no yoghurt that stays unchanged for the hour of the activity, never \"two days as milk\"). Every sub-question writes its `scheme.points`, one point per idea the answer needs (two or three), adding to 2.5; never leave `points` empty and never one point that copies the model answer. A \"how do you know\" or \"why\" key accepts each reasonable idea the question allows (a child who says the bird sound differs from the car horn in pitch or loudness is right as well as the child who says the ears send signals to the brain), each idea its own point or accept line. Two items of the paper never pay the same key fact: bacteria turning milk into yoghurt, or fungi breaking down dead matter, is the key of one item only (Q3 (a) 4 asks microorganisms, so no situation here repeats it). Round 8 (v38): Q2 (b) offers one level of choice: the child answers any two of the three sub-questions, and no sub-question offers a choice inside it. Every item in an \"any N of M\" set asks for the same kind and amount of work at the same marks. The marks are given in whole marks per part where the key allows (a part of 2.5 is two points, 1.5 and 1), never one all-or-nothing half-mark row. An accept line belongs to the part it names, and a common_error fits its own part (a wrong idea a child could hold about that part). A key pays only what the stem asks and pays one fact once.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     }
+    ]
+   },
+   {
+    "id": "C",
+    "time_en": null,
+    "label_en": "Section C",
+    "marks_en": "Total Marks: {t:58}",
+    "marks": 58,
+    "answer_on": "answer_sheet",
+    "note_en": "Note: Section C consists of two parts: Q3 (a) and Q3 (b)",
+    "slots": [
+     {
+      "slot": "science.C.Q3a",
+      "label_en": "Q3 (a).",
+      "label_ur": "سوال 3 (الف)",
+      "instruction_en": "Answer any {w:eight} of the following questions briefly.",
+      "marks_line_en": "({n:8}×5={t:40})",
+      "type": "Brief Answers",
+      "category": "subjective",
+      "shape": "short",
+      "generate": 10,
+      "attempt": 8,
+      "marks_each": 5,
+      "parts": null,
+      "numbering": "arabic",
+      "compulsory": false,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "short constructed response, 1 to 3 sentences, recall or explain",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "Ten short-answer questions from chapters 1–6, one or two per chapter. Key points (K) that add to 5 marks each. A point pays only what the stem asks: never the form a thing comes in (an injection, a pill), never a restatement of the stem. Accept lines name what a child in Islamabad meets (petrol, diesel and LPG as fossil fuels; the polio vaccine drops). A feeding order in a key is true (a hawk never eats a fox). A question asks for one thing of a topic another item pays for: the Sun's heat trapped by greenhouse gases is paid in one item only. Each concept (physical or chemical change, vaccines, light and materials) is asked at most twice in the whole paper, never by two items of one section; a stem never states another item's answer. Round 6 (v37): a compare item has exactly one difference point and one likeness point, so the marks match the demand. Contagious means passing from person to person: malaria is carried by a mosquito and cholera by contaminated water, so neither is keyed as contagious. For protection against polio, polio is prevented by the vaccine (polio drops); clean water is the second way. Round 7 (v37): a question never fixes a count for a classification the paper extends elsewhere: pollution is air, water and soil, and noise is also pollution, so ask for \"any three\" kinds, never \"the three main forms\". Two items never pay the same key fact: what a microorganism does (bacteria turn milk to yoghurt, fungi break down dead matter) is the key of one item only, so a Section B situation that already asks it means Q3 (a) asks another topic. Round 8 (v38): each mark is one distinct point the question asks for: a key never splits one idea into several marks, pays one fact once, and pays only what the stem asks (never a point the stem does not ask for). Every item in an \"any N of M\" set asks for the same kind and amount of work at the same marks. A stem never prints the keyed answer of another Section B or Section C item.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "science.C.Q3b",
+      "label_en": "Q3 (b).",
+      "label_ur": "سوال 3 (ب)",
+      "instruction_en": "Answer any {w:two} of the following questions comprehensively.",
+      "marks_line_en": "({n:2} × 9 = {t:18})",
+      "type": "Long Question",
+      "category": "subjective",
+      "shape": "short",
+      "generate": 5,
+      "attempt": 2,
+      "marks_each": 9,
+      "parts": null,
+      "numbering": "arabic",
+      "compulsory": false,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "extended response: explain a process or relationship in a paragraph",
+       "number_size": "none",
+       "steps": 3,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "Five explain/discuss questions from chapters 1–6 needing a 6–10 sentence answer; the scheme lists the key points (K) a full answer contains, adding to 9. A key pays only for points the stem asks: never a point that repeats the stem (stroking in one direction, a cork) and never an unasked point (the magnetism fading; reuse or plastic substitutes when the stem asks about sorting, recycling and biodegradable items). A model answer never says that animals hear louder noises than humans; it says loud noise harms animals. Never pay for battery direction (positive and negative terminals) in a one-battery, one-bulb circuit; there only a closed loop, a working battery and a conductor matter. Each concept (physical or chemical change, vaccines, light and materials) is asked at most twice in the whole paper, never by two items of one section; a stem never states another item's answer. Round 6 (v37): compass answers keep the poles straight: the needle has a north-seeking end that is pulled towards Earth's magnetic pole in the north, never that Earth's magnetic north attracts the needle's north end. A bulb that does not glow has a fused or loose bulb as one cause, never wires made of plastic or wood. Note that cholera spreads by contaminated water, not from person to person. Marks follow demand: a point that asks more earns more. Round 8 (v38): each mark is one distinct point the question asks for: a key never splits one idea into several marks, pays one fact once, and pays only what the stem asks (never a point the stem does not ask for). Every item in an \"any N of M\" set asks for the same kind and amount of work at the same marks. A stem never prints the keyed answer of another Section B or Section C item.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     }
+    ]
+   }
+  ],
+  "legend": {
+   "title_en": "How to mark",
+   "title_ur": "جانچنے کا طریقہ",
+   "lines_en": [
+    "MCQs: 1 mark for the letter. Two circles or an overwritten answer = 0.",
+    "M = method · A = answer · U = unit · K = key point · L = label.",
+    "\"Attempt any N\": tell children to answer exactly N. If more are answered, mark all and keep the best N.",
+    "Grades (FDE p.113): A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F below 40. Pass = 40%."
+   ],
+   "lines_ur": [
+    "معروضی: درست حرف پر 1 نمبر۔ دو دائرے یا اوور رائٹنگ = 0۔",
+    "M = طریقہ، A = جواب، U = اکائی، K = اہم نکتہ، L = نام",
+    "«کوئی سے N»: بچوں کو بالکل N سوال حل کرنے کو کہیں۔ زیادہ حل ہوں تو سب جانچ کر بہترین N رکھیں۔",
+    "A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F <40"
+   ],
+   "bands_line": 3,
+   "bands_lead_ur": "گریڈ (FDE ص 113)؛ پاس = 40٪",
+   "key_line": 1,
+   "maths_lines": [],
+   "key_names_en": {
+    "M": "method",
+    "A": "answer",
+    "U": "unit",
+    "K": "key point",
+    "L": "label"
+   },
+   "key_names_ur": {
+    "M": "طریقہ",
+    "A": "جواب",
+    "U": "اکائی",
+    "K": "اہم نکتہ",
+    "L": "نام"
+   },
+   "subject": "science",
+   "key_from_chips": true
+  },
+  "before_exam": {
+   "title_en": "Teacher: before the exam",
+   "title_ur": "استاد کے لیے: امتحان سے پہلے",
+   "lines_en": [
+    "This is the marking scheme for {file} ({n} pages). Do not give it to children.",
+    "Photocopy the question paper, all {n} pages, one per child.",
+    "You add: {duty} on the question paper, page {p} (book p. {b}).",
+    "Tell the class: {sections}; {attempts}.",
+    "Time: {t}.",
+    "Mark question by question across all copies, not copy by copy."
+   ],
+   "lines_ur": [
+    "یہ {file} ({n} صفحات) کی مارکنگ اسکیم ہے۔ بچوں کو نہ دیں۔",
+    "سوالیہ پرچے کے تمام {n} صفحات کی فوٹو کاپی کریں، ہر بچے کے لیے ایک۔",
+    "شامل کریں: {duty}، سوالیہ پرچہ صفحہ {p} (کتاب ص {b})۔",
+    "کلاس کو بتائیں: {sections}؛ {attempts}۔",
+    "وقت: {t}۔",
+    "ہر سوال کو تمام کاپیوں میں ایک ساتھ جانچیں، ایک کاپی مکمل کر کے دوسری نہیں۔"
+   ],
+   "nothing_en": "You add: nothing.",
+   "nothing_ur": "شامل کرنے کو کچھ نہیں۔",
+   "unknown_pages_en": "see the question paper",
+   "unknown_pages_ur": "سوالیہ پرچہ دیکھیں",
+   "on_paper_en": "{sections} on the question paper",
+   "on_paper_ur": "{sections} سوالیہ پرچے پر",
+   "on_sheet_en": "{sections} on the answer sheet",
+   "on_sheet_ur": "{sections} جوابی کاپی پر",
+   "attempt_en": "{label}: attempt any {n} of {g}",
+   "attempt_ur": "{label}: {g} میں سے کوئی سے {n}",
+   "either_en": "{label}: answer one of the two",
+   "either_ur": "{label}: دو میں سے ایک"
+  },
+  "supplies": [
+   {
+    "slot": "science.A.Q1b",
+    "kind": "diagram",
+    "book_page": 142,
+    "scene": "Symbols used in a circuit diagram",
+    "words": [],
+    "line_en": "Q1 (b): Diagram: Symbols used in a circuit diagram (book p. 142)",
+    "line_ur": "سوال 1 (ب): خاکہ: Symbols used in a circuit diagram (کتاب ص 142)"
+   }
+  ],
+  "total_marks": 100,
+  "total_time_en": "3 hrs",
+  "total_time_ur": "3 گھنٹے",
+  "unplaced": 1,
+  "generated_at": "2026-10-30T09:37:04.852Z",
+  "pages": {
+   "paper": 3,
+   "scheme": 6
+  },
+  "frame_pages": {
+   "science.A.Q1b": 2
+  },
+  "notes": [],
+  "blueprint": {
+   "ok": false,
+   "total": 100,
+   "expected": 100,
+   "sections": [
+    {
+     "id": "A",
+     "marks": 25,
+     "expected": 25,
+     "levels": {
+      "Remember": {
+       "marks": 9
+      },
+      "Understand": {
+       "marks": 8
+      },
+      "Apply": {
+       "marks": 8
+      }
+     }
+    },
+    {
+     "id": "B",
+     "marks": 17,
+     "expected": 17,
+     "levels": {
+      "Remember": {
+       "marks": 7
+      },
+      "Understand": {
+       "marks": 0
+      },
+      "Apply": {
+       "marks": 10
+      }
+     }
+    },
+    {
+     "id": "C",
+     "marks": 58,
+     "expected": 58,
+     "levels": {
+      "Remember": {
+       "marks": 21
+      },
+      "Understand": {
+       "marks": 16
+      },
+      "Apply": {
+       "marks": 21
+      }
+     }
+    }
+   ],
+   "levels": {
+    "Remember": {
+     "marks": 37,
+     "pct": 37,
+     "target": 30
+    },
+    "Understand": {
+     "marks": 24,
+     "pct": 24,
+     "target": 30
+    },
+    "Apply": {
+     "marks": 39,
+     "pct": 39,
+     "target": 40
+    }
+   },
+   "problems": [
+    {
+     "code": "LEVEL",
+     "level": "Remember",
+     "pct": 37,
+     "target": 30,
+     "off": 7
+    },
+    {
+     "code": "LEVEL",
+     "level": "Understand",
+     "pct": 24,
+     "target": 30,
+     "off": -6
+    }
+   ]
+  }
+ }
+}

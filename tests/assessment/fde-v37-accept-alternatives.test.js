@@ -77,6 +77,11 @@ describe('alternativeShortfall', () => {
     const items = [prepItem('The duck is ____ the tree.', 'behind', 'Writing near or under')];
     expect(A.alternativeShortfall(exam({ Prepositions: items }), P)).toHaveLength(1);
   });
+  test('an error that says why the choice is wrong is not a second fit (v37 loop 4 G2 «Writes She, It or They for one boy.»)', () => {
+    const items = [prepItem('The dog is ____ the table.', 'under', 'Writing on, because the dog is below the tabletop'),
+      prepItem('The cat is ____ the box.', 'in', 'Writing on for a cat inside the box')];
+    expect(A.alternativeShortfall(exam({ Prepositions: items }), P)).toEqual([]);
+  });
   test('a reusable list item whose second fit is mended into accept (behind ⇒ near, also_fits) is not asked again', () => {
     const items = [prepItem('The duck is ____ the tree.', 'behind', 'Writing under instead of behind'),
       prepItem('The ball is ____ the chair.', 'under', '', { also_fits: ['near'] })];
@@ -103,6 +108,11 @@ describe('acceptAlternatives', () => {
     expect(examJson.seen.english.Prepositions[0].scheme.accept).toEqual(['behind', 'near']);
     expect(notes).toHaveLength(1);
     expect(q.scheme.accept).toEqual(['behind']);
+  });
+  test('under also reads near: a shoe below and in front of the bed is near it (v37 G2 Q10 v)', () => {
+    const q = prepItem('The shoe is ____ the bed.', 'under', 'Writing on instead of under');
+    const out = A.acceptAlternatives(exam({ Prepositions: [q] }), P).examJson.seen.english.Prepositions[0];
+    expect(out.scheme.accept).toEqual(['under', 'near']);
   });
   test('a reusable list item takes the writer\'s also_fits into accept, only listed choices', () => {
     const q = prepItem('The ball is ____ the chair.', 'under', '', { also_fits: ['near', 'beside'] });
