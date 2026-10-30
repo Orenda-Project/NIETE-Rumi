@@ -333,12 +333,22 @@ describe('r9 · subjects without a cross-section table lay out as before', () =>
   // once, in Section C); previous values 7662ec1d…, b6ecc3e5…, 2eac934e…, 0887edd6…, 7d9221dd….
   // All five again for v37 (bd-5jmnfj.4.58 round 6): prompt_rule text in patterns/fde-g5-2027.js (all four subjects)
   // and the maths fixture's minutes-in-3-hours MCQ; previous values 8f382d52…, 88c09bc5…, 1c2b1895…, 4da72577…, 87150abd….
+  // All five again for v37 round 6 loop 3 (bd-5jmnfj.4.58.9): prompt_rule text in patterns/fde-g5-2027.js (science A.Q1a,
+  // B.Q2b, C.Q3a/b; maths A.Q1b, B.Q2, C.Q4-8; english B.Q2 and Q10; urdu C.Q4); previous values 7852f46d…,
+  // 7dd7b77f…, 9439e74b…, 168594dc…, c74ccefe….
+  // The two science hashes again for v37r4 (bd-5jmnfj.4.58 W-SC3): prompt_rule text in patterns/fde-g5-2027.js (science C.Q3a
+  // and C.Q3b: a Section C item never re-asks a Section B task; the chemical-change test); with that text removed they hash
+  // to the previous values (6dc5f053…, 51edad82…).
+  // The two urdu hashes again for v37r4 round 6 (bd-5jmnfj.4.58.9): prompt_rule text in patterns/fde-g5-2027.js (urdu B.Q2, C.Q4, C.Q6,
+  // C.Q10); previous values bc5bcd1f…, 5386cbee….
+  // The maths hash again for v37r4 W-MA4 (bd-5jmnfj.4.58.9.1): prompt_rule text in patterns/fde-g5-2027.js (maths C.Q4-8 names
+  // the pair exactly; the legend says an answer with no working still earns the answer mark); previous value c0522816….
   const BEFORE = {
-    science: ['science', '7852f46d1ee72d825084e827b85cd20ae3b07d9dc3c30c45d348d34125a7cffb'],
-    maths: ['maths', '7dd7b77fa596d0146573092cfc4f1202f500d17fb050cf46e4b79267f8160351'],
-    urdu: ['urdu', '9439e74b4834fcd04d086837a55813adeece2352cbf6138ad3e756fe7e3e0a0b'],
-    'r7-science-full1.exam': ['science', '168594dc7dbfb6dcbba796a2f4bd2c5a661ae18deef1109a22a3b3aa83dfb761'],
-    'urdu-gen-full': ['urdu', 'c74ccefe52dbd3f581da2b5b62d0cfb4f4e476231de7314a9d7a140b1a467f27'],
+    science: ['science', '90bebc288d5b245fc3581bb92a153af779c178aab3267ead620aab0e5a2b43ba'],
+    maths: ['maths', '7ff2552237f205f264b8969cb749e8e905151f7c2be1fd7c004135dd76bd7002'],
+    urdu: ['urdu', 'eecd4f53c4760033651c2aaa4b3654f41c539cd475003f35b052462bdf676063'],
+    'r7-science-full1.exam': ['science', '787ef5328a502ced90e8614eab43795726b1ebf8f006d070be099932134adbaf'],
+    'urdu-gen-full': ['urdu', '11a091678828c9e170ad68a3a6cf4809f01cdb63e6f86e6dcc823379c2dcadc8'],
   };
   test.each(Object.keys(BEFORE))('%s lays out byte-identical to before', (name) => {
     const [subject, sha] = BEFORE[name];

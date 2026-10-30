@@ -16,6 +16,10 @@ const { fillTopics } = require('./fde-early-urdu-topic');
 const { wordBoxFix } = require('./fde-early-urdu-wordbox');
 const { verbFix } = require('./fde-early-urdu-verbs');
 const { writingMarking } = require('./fde-early-urdu-marking');
+const { boxKeyFix } = require('./fde-early-urdu-boxkeys');
+const { quotedWordFix } = require('./fde-urdu-quoted-word');
+const { useWordFix } = require('./fde-urdu-use-word');
+const { urduCommonErrors } = require('./fde-urdu-common-error-lang');
 
 const URDU_EARLY = /^g[12]\.urdu\./;
 const PICTURE_SENTENCES = 'Picture Sentences';
@@ -58,15 +62,19 @@ function fixPicture(q, notes) {
   return out;
 }
 
-function earlyUrduFixes(examJson) {
+function earlyUrduFixes(examJson, bookText) {
   if (!examJson || typeof examJson !== 'object') return { examJson, notes: [] };
-  const first = urduSpelling(examJson);
+  const quoted = quotedWordFix(examJson, bookText); // a quoted word is spelled as the source pages print it (v37r4 g2 Q1 ii, bd-5jmnfj.4.58.9.3)
+  const first = urduSpelling(quoted.examJson);
   const topics = fillTopics(first.examJson); // a topic line for «دیے گئے موضوع پر» (v29 blocker)
-  const boxes = wordBoxFix(topics.examJson); // two box words that fit each other's blank are both accepted (v29 blocker)
-  const marked = writingMarking(boxes.examJson); // 2 / 1 / 0 levels on every G2 writing point (v29 Q7-Q9)
+  const keyed = boxKeyFix(topics.examJson); // every box-fill key is in its box (v37r4 g2 Q3 iv, bd-5jmnfj.4.58.9.1)
+  const boxes = wordBoxFix(keyed.examJson); // two box words that fit each other's blank are both accepted (v29 blocker)
+  const used = useWordFix(boxes.examJson); // an alternate sentence holds the asked word, one clean accept clause (v37r4 g1 Q9 i)
+  const marked = writingMarking(used.examJson); // 2 / 1 / 0 levels on every G2 writing point (v29 Q7-Q9)
   const verbs = verbFix(marked.examJson); // a converb is a second verb form; a shorter accepted form is named (v29 Q4)
-  const spelt = { examJson: verbs.examJson };
-  const notes = [...first.notes, ...topics.notes, ...boxes.notes, ...marked.notes, ...verbs.notes];
+  const lang = urduCommonErrors(verbs.examJson); // common-error lines in Urdu, not «choosing ریل» (v37r6 g1, bd-5jmnfj.4.58.9.3)
+  const spelt = { examJson: lang.examJson };
+  const notes = [...quoted.notes, ...first.notes, ...topics.notes, ...keyed.notes, ...boxes.notes, ...used.notes, ...marked.notes, ...verbs.notes, ...lang.notes];
   const types = new Map();
   ((spelt.examJson._layout && spelt.examJson._layout.sections) || []).forEach((s) => (s.slots || []).forEach((sl) => types.set(sl.slot, sl.type)));
   const out = { ...spelt.examJson };

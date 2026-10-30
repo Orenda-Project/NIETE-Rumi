@@ -29,6 +29,7 @@ const fs = require('fs');
 const path = require('path');
 const { clampLanguage } = require('../../config/ux-strings');
 const Patterns = require('./patterns');
+const WorkSpace = require('./fde-work-space');
 const { pictureBlock, bubbleBlock, PICTURE_CSS } = require('./fde-picture-block');
 const Fit = require('./fde-slot-fit');
 const { matchOrder, bankOrder, matchTable, matchAnswer, MATCH_CSS } = require('./fde-match-block');
@@ -37,6 +38,7 @@ const { prepLines } = require('./fde-oral-prep');
 const { answeredParts } = require('./fde-sub-answers');
 const { letterOrder } = require('./fde-order-block');
 const { urduNote } = require('./fde-urdu-notes');
+const PickKey = require('./fde-pick-key');
 const { ORDER_TASK } = require('./fde-order-check'); // bd-5jmnfj.4.58.2
 const { taskLine } = require('./fde-task-line');
 const { adjustCriteria, keyStemHidden } = require('./fde-g5-criteria'); // bd-5jmnfj.4.58.4
@@ -443,6 +445,11 @@ function tableBlock(table, ctx) {
 }
 
 function workSpace(q, slot) {
+  // A tool drawing (protractor, compass) or an item with a method mark needs room the slot's two ruled lines
+  // do not give (G5 Maths Q1 (b), bd-5jmnfj.4.58.9.1).
+  const boxed = !slotFlag(slot, 'answer_box');
+  const need = boxed ? WorkSpace.workMm(q) : null;
+  if (need && WorkSpace.asksToolDrawing(q)) return `<div class="work-square" style="height:${Math.max(need, (slot.work_mm && /^\s*draw\b/i.test(String(q.question || ''))) ? Math.max(45, slot.work_mm) : 0)}mm"></div>`;
   if (slot.work_mm && /^\s*draw\b/i.test(String(q.question || ''))) {
     // A drawing item gets a full-width drawing space, never a small square (G5 Maths Q1 (b) x, bd-5jmnfj.4.58.4).
     return `<div class="work-square" style="height:${Math.max(45, slot.work_mm)}mm"></div>`;
@@ -462,9 +469,11 @@ function workSpace(q, slot) {
     return `<div class="write-box" style="height:${12 + 8 * Math.max(0, lines - 1)}mm"></div>`;
   }
   if ((slot.lines || 0) >= 2) {
-    const h = Math.max(16, slot.lines * 8);
+    const h = Math.max(16, slot.lines * 8, need || 0);
     return `<div class="work-box" style="height:${h}mm"></div>`;
   }
+  // A method mark with no ruled lines still gets a working box (bd-5jmnfj.4.58.9.1).
+  if (need) return `<div class="work-box" style="height:${need}mm"></div>`;
   return '';
 }
 
@@ -798,7 +807,7 @@ function css(medium, kind) {
   /* Inset from the end: a border on the content edge is clipped from the PDF (bd-5jmnfj.4.20). */
   .write-box { border: 1.2px solid #000; margin: 2mm 0 1mm; margin-${end}: 0.5mm; }
   .sq { display: inline-block; width: 9mm; height: 7mm; border: 1.2px solid #000; vertical-align: middle; margin: 0 2mm; }
-  .word-box.bank { display: flex; flex-wrap: wrap; justify-content: center; gap: 2mm 8mm; padding: 2mm 4mm; font-size: 13pt; break-after: avoid; }
+  .word-box.bank { display: flex; flex-wrap: wrap; justify-content: center; gap: 2mm 8mm; padding: 2mm 4mm; font-size: 13pt; break-after: avoid; break-inside: avoid; }
   /* Picture cells sit in lines, not a flex grid (bd-5jmnfj.4.50.6): Chromium starts a flex grid on
      its heading's page and pushes only the cells, so v22 left headings alone at a page foot. As
      lines, the first row moves with its heading; one row is enough on either side of a break. */
@@ -821,7 +830,7 @@ function css(medium, kind) {
   .label-lines { position: absolute; ${end}: 3mm; top: 8mm; bottom: 3mm; display: flex; flex-direction: column; justify-content: space-around; width: 45mm; }
   .label-line { border-bottom: 1px solid #000; height: 6mm; }
   .label-line .num-l { font-size: 8pt; color: #555; }
-  .word-box { border: 1px solid #000; padding: 2px 8px; margin: 3px 0; text-align: center; }
+  .word-box { border: 1px solid #000; padding: 2px 8px; margin: 3px 0; text-align: center; break-inside: avoid; }
   .word-line { margin: 3px 0; }
   ${V37.V37_CSS}
   .passage { border: 1px solid #888; padding: 4px 8px; margin: 3px 0 5px; text-align: justify; break-inside: avoid; }
@@ -964,47 +973,7 @@ const BOOK_SOURCE = {
 // Section C stem (v27, bd-5jmnfj.4.58.3).
 const KEY_ECHO = 200;
 
-// Rows the scheme pass wrote in code (an answer with no points), counted in the box and named,
-// in words a teacher acts on.
-const FILLED_BY_CODE = {
-  en: (n) => (n === 1
-    ? '1 marking row was written from the answer. Check it before marking.'
-    : `${n} marking rows were written from the answer. Check them before marking.`),
-  ur: (n) => (n === 1 // needs fluent-Urdu review
-    ? 'مارکنگ اسکیم کی 1 سطر جواب سے بنائی گئی ہے۔ نمبر دینے سے پہلے اسے جانچ لیں۔'
-    : `مارکنگ اسکیم کی ${n} سطریں جواب سے بنائی گئی ہیں۔ نمبر دینے سے پہلے انہیں جانچ لیں۔`),
-};
-
-// `item` is the index in the model's own type list (seen/unseen → category →
-// type), as marking-scheme.js writes it; an entry whose item was removed is not counted.
-function filledByCode(L, examJson) {
-  const list = Array.isArray(L.scheme_shortfall) ? L.scheme_shortfall : [];
-  const removed = (e) => ['seen', 'unseen'].some((branch) => Object.values(examJson[branch] || {})
-    .some((types) => types && typeof types === 'object' && Object.values(types)
-      .some((items) => Array.isArray(items) && items[e.item] && items[e.item].slot === e.slot && items[e.item].removed === true)));
-  const seen = new Set();
-  return list.filter((e) => {
-    if (!e || typeof e !== 'object') return false;
-    const key = `${e.slot}|${e.item}|${e.part}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return !removed(e);
-  });
-}
-
-// The question a filled row belongs to, as the paper labels it ("Q3 (a) 1"), so the teacher
-// can find it (v27 G5 Science, bd-5jmnfj.4.58.3).
-function filledName(L, e, lang) {
-  const slot = (L.sections || []).flatMap((s) => s.slots || []).find((s) => s.slot === e.slot);
-  const label = String((slot && slot[`label_${lang}`]) || e.slot).trim().replace(/[.:]$/, '');
-  const num = slot ? String(itemNumber(slot, e.item, lang)).replace(/[.۔]$/, '') : String(e.item + 1);
-  return `${label} ${num}`.trim();
-}
-
-function filledNames(names, lang) {
-  if (lang === 'ur') return ` یہ ${names.join('، ')} ہیں۔`; // needs fluent-Urdu review
-  return names.length === 1 ? ` It is ${names[0]}.` : ` They are ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}.`;
-}
+// The rows the scheme pass wrote in code stay in `_layout.scheme_shortfall`; the key prints no note about them (panel, bd-5jmnfj.4.58.9.1).
 
 // A supply whose item already prints a drawn picture: nothing for the teacher to add.
 function pictured(live, supply) {
@@ -1064,8 +1033,6 @@ function beforeExamBox(L, live, ctx, examJson) {
   if (!attempts.length) lines[3] = lines[3].replace(lang === 'ur' ? '؛ {attempts}' : '; {attempts}', '');
   lines[3] = fill(lines[3], { sections: where, attempts: attempts.join(lang === 'ur' ? '؛ ' : '; ') });
   lines[4] = fill(lines[4], { t: L[`total_time_${lang}`] || (lang === 'ur' ? '3 گھنٹے' : '3 hrs') });
-  const filled = examJson ? filledByCode(L, examJson) : [];
-  if (filled.length) lines.push(FILLED_BY_CODE[lang](filled.length) + filledNames(filled.map((e) => filledName(L, e, lang)), lang));
   lines.push(...prepLines(L.oral, lang)); // a child-made project the teacher has the class prepare (bd-5jmnfj.4.58.4)
   return `<div class="box before"><div class="bt">${textOf(B[`title_${lang}`], ctx)}</div><ol>${lines.filter((l) => l !== null).map((l) => `<li>${textOf(l, ctx)}</li>`).join('')}</ol></div>`;
 }
@@ -1288,11 +1255,14 @@ function comprehensionRows(slot, q, ctx) {
   for (const spec of slot.parts_spec || []) {
     const part = parts.find((p) => p && p.key === spec.key) || {};
     if (spec.pick) {
-      for (const kind of Object.keys(spec.pick)) {
+      const kinds = Object.keys(spec.pick);
+      for (const kind of kinds) {
         const words = (part.pick && part.pick[kind]) || [];
-        const tail = lang === 'ur' ? `، یا پیراگراف کا کوئی اور ${kind}` : `, or any other ${kind.toLowerCase().replace(/s$/, '')} in the passage`; // ur: needs fluent-Urdu review
-        rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(spec.label, ctx)}</td><td class="ans"><b>${textOf(kind, ctx)}:</b> ${textOf(words.join(lang === 'ur' ? '، ' : ', ') + tail, ctx)}</td><td class="pts"><span class="chip">${esc(`K${fmt(spec.marks_each)}`)}</span> ${textOf(lang === 'ur' ? 'ہر درست لفظ' : 'each correct word', ctx)}</td></tr>`); // ur: needs fluent-Urdu review
+        // Model words + open rule; the common error prints below (bd-5jmnfj.4.58.9.3).
+        rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(spec.label, ctx)}</td><td class="ans"><b>${textOf(kind, ctx)}:</b> ${textOf(PickKey.pickKeyText(kind, words, part.scheme, lang), ctx)}</td><td class="pts"><span class="chip">${esc(`K${fmt(spec.marks_each)}`)}</span> ${textOf(lang === 'ur' ? 'ہر درست لفظ' : 'each correct word', ctx)}</td></tr>`); // ur: needs fluent-Urdu review
       }
+      const pickErr = PickKey.pickKeyError(part.scheme);
+      if (pickErr) rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n"></td><td class="ans"><span class="err">${textOf(`${lang === 'ur' ? 'عام غلطی:' : 'common error:'} ${pickErr}`, ctx)}</span></td><td class="pts"></td></tr>`); // ur: needs fluent-Urdu review
     } else if (spec.key === 'antonyms') {
       // «جلدی: دیر», as the model writes the pair; v22 printed «جلدی ← دیر» (bd-5jmnfj.4.50.1).
       (part.antonyms || []).forEach((pair) => {
@@ -1505,6 +1475,7 @@ async function framePages(pdfBuffer) {
 }
 
 module.exports = {
+  workSpace,
   renderPaper,
   renderMarkingScheme,
   totalMarks,

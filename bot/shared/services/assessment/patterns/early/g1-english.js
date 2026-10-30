@@ -2,7 +2,8 @@
 /**
  * Grade 1 English, FDE 2023-24 model paper: 100 marks. Oral: listening 5, speaking 5,
  * read aloud 6 (16). Written: reading 24 + writing 60 (84). ToS K40 / U40 / A20.
- * The writing slot is "Rhyming Pairs", never "Rhyming Words" (the layout tests that type as a poem).
+ * Marks inside a section are balanced by demand within each section total (r3): choosing from a box pays 1, writing a rhyme pays 2;
+ * the model paper we hold gives section totals only. The writing slot is "Rhyming Pairs", never "Rhyming Words" (the layout tests that type as a poem).
  */
 
 const { makeSubject } = require('./chrome');
@@ -46,19 +47,19 @@ module.exports = makeSubject({
       label_en: 'Writing (1)',
       levels: { Remember: 12, Understand: 13, Apply: 7 },
       slots: [
-        S({ slot: 'g1.english.B.Q6', label_en: 'Q6.', type: 'Rhyming Pairs', generate: 4, lines: 1, picture: ['object'],
+        S({ slot: 'g1.english.B.Q6', label_en: 'Q6.', type: 'Rhyming Pairs', generate: 4, marks_each: 2, lines: 1, picture: ['object'],
           instruction_en: 'Write a word that rhymes.',
-          prompt_rule: 'Four simple book words, e.g. "cat". Answer: one rhyming word; accept lists other real rhymes. Each item also carries picture: {kind:"object", name} of the given word, in English for the artist; choose only words that can be drawn.' }),
+          prompt_rule: 'Four simple book words, e.g. "cat". Answer: one rhyming word; accept lists other real rhymes. Scheme: K 1 for a word that rhymes, K 1 for spelling it right. Each item also carries picture: {kind:"object", name} of the given word, in English for the artist; choose only words that can be drawn.' }),
         S({ slot: 'g1.english.B.Q7', label_en: 'Q7.', type: 'Name the Picture', generate: 9, lines: 1, picture: ['object'], picture_only: true, print_words: true,
           instruction_en: 'Write the name of each picture from the box.',
           prompt_rule: 'Nine book objects (animals, fruit, school things), each as picture: {kind:"object", name}. Put all nine words, mixed, in "words" on the FIRST item only. Answer: the word.' }),
-        S({ slot: 'g1.english.B.Q8', label_en: 'Q8.', type: 'Action Words', generate: 4, lines: 1, picture: ['scene'],
+        S({ slot: 'g1.english.B.Q8', label_en: 'Q8.', type: 'Action Words', generate: 5, lines: 1, picture: ['scene'],
           instruction_en: 'What is the child doing? Write the action word.',
           answer_ok: (q) => /ing$/i.test(String(q.answer).trim()),
-          prompt_rule: 'Four items, each a child doing one action from the book (run, jump, read, eat, sleep, swim) as picture: {kind:"scene", describe}. Answer: the -ing word the question asks for ("running"); the plain verb ("run") is also accepted and is never listed as an error. Each picture shows ONE action that has one clear word: never a child holding an object that could name the action (a book and a bag, a ball and a bat), and never an action another word fits (sit, rest and read on one picture).' }),
-        { slot: 'g1.english.B.Q9', label_en: 'Q9.', type: 'Complete the Sentences', generate: 5, marks_each: 2, lines: 1, print_words: true,
+          prompt_rule: 'Five items, each a child doing one action from the book (run, jump, read, eat, sleep, swim) as picture: {kind:"scene", describe}. Answer: the -ing word the question asks for ("running"); the plain verb ("run") is also accepted and is never listed as an error. Each picture shows ONE action that has one clear word: never a child holding an object that could name the action (a book and a bag, a ball and a bat), and never an action another word fits (sit, rest and read on one picture).' }),
+        { slot: 'g1.english.B.Q9', label_en: 'Q9.', type: 'Complete the Sentences', generate: 5, marks_each: 1, lines: 1, print_words: true,
           instruction_en: 'Fill in the blanks with words from the box.',
-          prompt_rule: 'Five short sentences from the book, each with one blank. Each sentence rules out every other word: only one word from the box fits each blank (never "likes to ___ in the park", where play, run or paint all fit). Put the five answer words, mixed, in "words" on the FIRST item. Scheme: K 2 for the right word. v35 (bd-5jmnfj.4.58.9): after writing each sentence, try every other box word in the blank and rewrite the sentence if a second word makes a sensible sentence ("The little bird can ___ sweet songs" fits sing and hear; "Dadi cannot ___ Pinky" fits hear and wash); a distractor never fits the grammar and the sense of the blank. No person\'s name in a Q9 sentence (use "we", "I", "the bird", "my mother"): the child has no context for a name. No sentence repeats a phrase of the oral listening story, which the child hears after this page.' },
+          prompt_rule: 'Five short sentences from the book, each with one blank. Each sentence rules out every other word: only one word from the box fits each blank (never "likes to ___ in the park", where play, run or paint all fit). Put the five answer words, mixed, in "words" on the FIRST item. Scheme: K 1 for the right word. v35 (bd-5jmnfj.4.58.9): after writing each sentence, try every other box word in the blank and rewrite the sentence if a second word makes a sensible sentence ("The little bird can ___ sweet songs" fits sing and hear; "Dadi cannot ___ Pinky" fits hear and wash); a distractor never fits the grammar and the sense of the blank. No person\'s name in a Q9 sentence (use "we", "I", "the bird", "my mother"): the child has no context for a name. No sentence repeats a phrase of the oral listening story, which the child hears after this page.' },
         S({ slot: 'g1.english.B.Q10', label_en: 'Q10.', type: 'Match Capital and Small Letters', generate: 5, shape: 'mcq',
           instruction_en: 'Circle the small letter that matches the capital letter.',
           prompt_rule: 'Five items: a capital letter as the stem and four small letters as options (a, b, c, d). Never use I, l or L as a capital or as an option, since I and l look alike in print. Answer: the matching small letter.' }),

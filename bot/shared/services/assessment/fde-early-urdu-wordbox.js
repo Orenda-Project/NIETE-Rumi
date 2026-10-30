@@ -79,6 +79,17 @@ function boxClashes(examJson, P) {
   }).filter(Boolean);
 }
 
+const POSTPOSITION = new Set(['میں', 'پر', 'سے', 'کو', 'کا', 'کی', 'کے', 'تک']);
+
+/** The oblique spelling (ا to ے) of a masculine -ا key when the blank sits between an oblique modifier (اپنے) and a postposition. */
+function obliqueOf(q) {
+  const t = tokensOf(q.question);
+  const at = t.findIndex((w) => /^_{2,}$|^…+$/u.test(w));
+  const key = bare(q.answer);
+  if (at < 1 || !POSTPOSITION.has(t[at + 1]) || !/ے$/u.test(t[at - 1]) || !/ا$/u.test(key)) return null;
+  return key.replace(/ا$/u, 'ے');
+}
+
 /** Two box words that each fit the other's open blank are accepted in both keys. */
 function wordBoxFix(examJson) {
   const notes = [];
@@ -93,7 +104,9 @@ function wordBoxFix(examJson) {
       extra.set(item, (extra.get(item) || []).concat(word));
     });
   });
-  const out = mapItems(examJson, (q) => {
+  const out = mapItems(examJson, (q, type) => {
+    const ob = BOX_TYPES.has(type) ? obliqueOf(q) : null;
+    if (ob && !(extra.get(q) || []).includes(ob)) extra.set(q, (extra.get(q) || []).concat(ob));
     const add = extra.get(q);
     if (!add) return q;
     const scheme = { ...(q.scheme || {}) };

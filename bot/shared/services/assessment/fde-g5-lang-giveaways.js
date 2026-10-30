@@ -13,10 +13,12 @@ const { crossAskFlags } = require('./fde-lang-cross-asks');
 const { tenseFlags } = require('./fde-tense-count');
 const { poemPaysPrinted } = require('./fde-g5-lang-checks'); // v35 G5 Urdu Q6: points that are the printed verses
 
+const { sameDirection, outlineFromPassage } = require('./fde-g5-lang-repeats'); // v37 round 6: Q1(b) one direction twice, Q9 outline = Q2 passage
+
 const LANG = /^(?:urdu|english)\./;
 
 const langGiveaways = (examJson) => (examJson
-  ? mcqTruthFlags(examJson).concat(keyTellFlags(examJson), crossAskFlags(examJson), tenseFlags(examJson), poemPaysPrinted(examJson)).filter((f) => LANG.test(f.slot || ''))
+  ? mcqTruthFlags(examJson).concat(keyTellFlags(examJson), crossAskFlags(examJson), tenseFlags(examJson), poemPaysPrinted(examJson), sameDirection(examJson), outlineFromPassage(examJson)).filter((f) => LANG.test(f.slot || ''))
   : []);
 
 module.exports = { langGiveaways };

@@ -15,7 +15,7 @@ const SAMPLE = { count: { kind: 'count', name: 'apple', n: 3 }, dots: { kind: 'd
 
 // A slot with an answer rule gets keys that fit it unless a reply gives its own (`keys`: slot -> {question, answer} by item).
 const GOOD = {
-  'g1.english.B.Q8': (i) => ({ question: `What is child ${i + 1} doing?`, answer: ['running', 'reading', 'eating', 'sleeping'][i] }),
+  'g1.english.B.Q8': (i) => ({ question: `What is child ${i + 1} doing?`, answer: ['running', 'reading', 'eating', 'sleeping', 'swimming'][i] }),
   'g2.english.B.Q6': (i) => ({ question: ['c_t', 'd_g', 's_n'][i], answer: ['cat', 'dog', 'sun'][i] }),
   'g2.english.B.Q10': (i) => ({ question: `Thing ${i + 1} is ____ the box.`, answer: ['in', 'on', 'under', 'near', 'behind'][i] }),
   'g2.english.C.Q14': (i) => ({ question: `Is it hot ${i + 1}`, answer: `Is it hot ${i + 1}?` }),
@@ -37,7 +37,7 @@ function itemsFor(slot, { noPicture = false, names = [], keys = [] } = {}) {
 
 function treeFor(section, opts = {}) {
   const tree = { unseen: { objective: {}, subjective: {} } };
-  section.slots.forEach((slot) => {
+  section.slots.filter((slot) => !(opts.drop || []).includes(slot.slot)).forEach((slot) => { // `drop`: a reply that left a slot out
     const list = itemsFor(slot, { noPicture: (opts.noPicture || []).includes(slot.slot), names: (opts.names || {})[slot.slot], keys: (opts.keys || {})[slot.slot] });
     (tree.unseen[slot.category][slot.type] = tree.unseen[slot.category][slot.type] || []).push(...list);
   });

@@ -92,6 +92,13 @@ test('a section whose picture repeats an earlier question is asked once more, to
   expect(cats.map((q) => q.slot)).toEqual(['g1.english.A.Q1']);
 });
 
+// v37 loop 4 G2 English: C re-asked whole came back without Q16 and the paper failed (bd-5jmnfj.4.58.9.1).
+test('a section re-asked whole that leaves a question out keeps the first reply\'s question, never a short paper', async () => {
+  const { go } = run(1, 'english', { replies: { C: [{ names: { 'g1.english.C.Q11': ['cat'] } }, { drop: ['g1.english.C.Q13'] }], A: [{ names: { 'g1.english.A.Q1': ['cat'] } }] } });
+  const out = await go();
+  expect(items(out.examJson).filter((q) => q.slot === 'g1.english.C.Q13')).toHaveLength(2);
+});
+
 test('two questions in one section showing one thing: that section is re-asked, told which items repeat', async () => {
   const { calls, go } = run(1, 'english', { replies: { A: [{ names: { 'g1.english.A.Q1': ['cat'], 'g1.english.A.Q4': ['cat'] } }] } });
   await go();

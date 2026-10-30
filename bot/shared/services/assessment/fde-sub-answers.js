@@ -13,4 +13,16 @@ function answeredParts(q) {
   return q.questions.some((s) => s && typeof s === 'object' && filled(s.answer)) ? q.questions : null;
 }
 
-module.exports = { answeredParts };
+// v37 G2 English Q1: a passage item whose every part carries its own answer has none of its
+// own. A model-written parent answer ("See the answer to each question.") became a 20-mark key
+// row that hid the ten part answers. Returns true when it removed one.
+function dropPassageAnswer(q) {
+  if (!q || !filled(q.passage) || !Array.isArray(q.questions) || !q.questions.length) return false;
+  if (!q.questions.every((s) => s && typeof s === 'object' && filled(s.answer))) return false;
+  if (!filled(q.answer) && !('scheme' in q)) return false;
+  delete q.answer;
+  delete q.scheme;
+  return true;
+}
+
+module.exports = { answeredParts, dropPassageAnswer };
