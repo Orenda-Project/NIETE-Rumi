@@ -35,10 +35,11 @@ function treeFor(subject, custom = () => null) {
   return tree;
 }
 
-function paperFor(presetId, subjectKey, grade, custom) {
+function paperFor(presetId, subjectKey, grade, custom, tweak) {
   const P = Patterns.get(presetId).subjects[subjectKey];
   const tree = treeFor(P, custom);
   const { examJson } = applyLayout(tree, P, { kind: 'pages', chapters: null, pages: '1-100' }, { now: NOW });
+  if (tweak) tweak(examJson);
   return { P, tree, html: R.renderPaper({ examJson, grade, subject: subjectKey, allowShort: true }) };
 }
 
@@ -119,5 +120,34 @@ describe('a section the note sends to the answer copy prints no blanks on the pa
     const secB = bodyOf(html).split('data-section="B"')[1].split('<section')[0];
     expect(secB).not.toMatch(/class="blank"/);
     expect(secB).not.toMatch(/class="(write-box|work-box|work-square)"/);
+  });
+});
+
+describe('bd-5jmnfj.4.58.7.6: a pick part on the answer copy still prints its word-class labels', () => {
+  const KINDS = ['اسم معرفہ', 'اسم نکرہ', 'اسم صفت', 'فعل'];
+  const pickItem = (slot) => (slot.shape === 'comprehension'
+    ? [{
+      slot: slot.slot, question: 'q', marks: slot.marks_each, blooms: 'Understand', answer: 'x', passage: 'پیراگراف',
+      parts: [{ key: 'pick', pick: Object.fromEntries(KINDS.map((k) => [k, ['الف', 'ب', 'ج', 'د']])) }],
+      scheme: { points: [{ kind: 'A', text: 'correct', marks: slot.marks_each }] },
+    }] : null);
+  const pickPart = (html) => {
+    const secB = bodyOf(html).split('data-section="B"')[1].split('<section')[0];
+    return secB.split('سوال: پیراگراف سے چن کر لکھیں')[1].split('<div class="part">')[0];
+  };
+
+  test('on the answer sheet every pick kind label prints and no blank span does', () => {
+    const { html } = paperFor('fde_g5_2027', 'urdu', 5, pickItem);
+    const part = pickPart(html);
+    KINDS.forEach((k) => expect(part).toContain(k));
+    expect(part).not.toMatch(/class="blank"/);
+  });
+
+  test('on the question paper the labels and the blanks both still print', () => {
+    const onPaper = (ex) => { ex._layout.sections.find((x) => x.id === 'B').answer_on = 'question_paper'; };
+    const { html } = paperFor('fde_g5_2027', 'urdu', 5, pickItem, onPaper);
+    const part = pickPart(html);
+    KINDS.forEach((k) => expect(part).toContain(k));
+    expect(part).toMatch(/class="blank"/);
   });
 });
