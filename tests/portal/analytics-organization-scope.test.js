@@ -13,6 +13,8 @@
  *   FDE's lists             analytics_fde_schools / analytics_rdf_* are FDE's populations: never applied to
  *                           another organization, whose view keeps the v7 rule.
  *
+ * (The BigQuery export's GB guard is in tests/attendance/bigquery-export-worker.test.js, with that worker's mocks.)
+ *
  * The fixtures are the ones the five route tests use (analytics-*-route.test.js), plus a GB block: two GB schools,
  * GB teachers with sessions, coach visits, training-programme members and lesson-plan activity.
  */
@@ -573,29 +575,5 @@ describe('one list of FDE\'s six sectors', () => {
     expect(m).not.toBeNull();
     const six = [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
     expect(six.sort()).toEqual([...SIX].sort());
-  });
-});
-
-describe('the BigQuery attendance export stays FDE-only', () => {
-  const load = () => {
-    jest.resetModules();
-    jest.doMock('dotenv', () => ({ config: () => ({}) }), { virtual: true });
-    jest.doMock('../../bot/shared/config/supabase', () => ({ from: jest.fn(), rpc: jest.fn() }), { virtual: true });
-    jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: () => {} }), { virtual: true });
-    return require('../../bot/workers/attendance-bigquery-export.worker');
-  };
-
-  it('drops a Gilgit-Baltistan teacher (any spelling) and keeps B.K → Barakahu', () => {
-    const { aggregatePresence } = load();
-    const day = '2026-10-28';
-    const row = (teacher_id, region) => ({
-      id: `r-${teacher_id}`, teacher_id, school_id: null, date: day, status: 'present', leave_type: null,
-      teacher: { id: teacher_id, phone_number: `92300${teacher_id}`, school_id: null, region },
-    });
-    const out = aggregatePresence([
-      row('1', 'B.K'), row('2', 'Gilgit-Baltistan'), row('3', 'gilgit-baltistan'), row('4', ' Gilgit-Baltistan '), row('5', 'Nilore'),
-    ], day);
-    expect(out.rows.map((r) => [r.teacher_id, r.sector])).toEqual([['1', 'Barakahu'], ['5', 'Nilore']]);
-    expect(out.droppedCount).toBe(3);
   });
 });
