@@ -38,6 +38,21 @@ function slotHeightMm({ n, pic, wide = false, perRow = 1 }) {
   return HEAD_MM + Math.ceil(n / perRow) * ((perRow > 1 ? GRID_ITEM_MM : ITEM_MM) + pic);
 }
 
+// A written slot is kept whole only when it fits one page (bd-5jmnfj.33.8.1). Calibrated on the v42
+// sandbox renders: G4 Maths Q3 (four 52 mm boxes) and Q5 (three 68 mm boxes, one-line English stems)
+// fit; G3 GK Q5 (three 68 mm boxes, two-line Urdu stems) and G4 Science Q5 (four 68 mm boxes) do not.
+const WRITE_BUDGET_MM = 258;
+const ITEM_GAP_MM = 4;
+const LINE_MM = { en: 5, ur: 9 };
+const CHARS_PER_LINE = { en: 100, ur: 85 };
+
+/** True when written items with these stems, each over a `boxMm` answer box, fit one page. */
+function writeSlotFits({ stems = [], boxMm = 0, ur = false }) {
+  const lang = ur ? 'ur' : 'en';
+  const text = stems.reduce((mm, s) => mm + LINE_MM[lang] * Math.max(1, Math.ceil(String(s || '').length / CHARS_PER_LINE[lang])), 0);
+  return HEAD_MM + text + stems.length * (boxMm + ITEM_GAP_MM) <= WRITE_BUDGET_MM;
+}
+
 /** The picture height that lets `n` items fit one page, or null when the default already fits or no fit is worth it. */
 function fitHeightMm({ n, pic, wide = false, perRow = 1 }) {
   const lines = wide ? n : Math.ceil(n / perRow);
@@ -98,4 +113,4 @@ const SLOT_FIT_CSS = `
   .q.solo-scene .pic-scene { text-align: center; }
   .q.solo-scene .pic-scene img { height: auto; width: 130mm; max-width: 100%; max-height: none; }`;
 
-module.exports = { slotHeightMm, fitHeightMm, fitAttr, soloScene, sceneGrid, groupRows, SLOT_FIT_CSS, PER_ROW, PAIR, PAIR_SCENE_MM };
+module.exports = { slotHeightMm, fitHeightMm, writeSlotFits, fitAttr, soloScene, sceneGrid, groupRows, SLOT_FIT_CSS, PER_ROW, PAIR, PAIR_SCENE_MM };
