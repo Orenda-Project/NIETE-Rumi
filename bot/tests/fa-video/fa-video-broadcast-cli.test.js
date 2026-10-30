@@ -26,10 +26,10 @@ test('send posts the template with its components and returns the wamid', async 
   const fetchFn = jest.fn().mockResolvedValue(reply({ messages: [{ id: 'wamid.1' }] }));
   const d = makeDeps({ token: 'T', phoneId: 'P1', fetchFn });
   const comps = [{ type: 'header', parameters: [] }];
-  expect(await d.send('923333232533', comps)).toEqual({ ok: true, id: 'wamid.1' });
+  expect(await d.send('15550000001', comps)).toEqual({ ok: true, id: 'wamid.1' });
   const body = JSON.parse(fetchFn.mock.calls[0][1].body);
   expect(body).toMatchObject({
-    messaging_product: 'whatsapp', to: '923333232533', type: 'template',
+    messaging_product: 'whatsapp', to: '15550000001', type: 'template',
     template: { name: 'niete_fa_video_ab_v1', language: { code: 'ur' }, components: comps },
   });
 });
