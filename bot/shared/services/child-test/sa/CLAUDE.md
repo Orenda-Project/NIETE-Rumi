@@ -1,7 +1,7 @@
 # sa — Self-administered battery: bank builder, in-bot spoken-task scorer, Jugnu lines
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/sa kg=487d74c788a0 gen=fda606de6470 overflow=47 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/sa kg=bf0af304907f gen=29271fea03ba overflow=47 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `build.js` — builds the SA bank and runtime batteries from official banks
@@ -21,7 +21,7 @@ Full index: `CLAUDE.index.md`
 
 ## Who reads this (generated)
 - `set-aside.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:68:e5ebbf41` · `bot/shared/services/child-test/app/sa-review.service.js:20:e5ebbf41` (+2)
-- `counts.js` ← imported by `dashboard/routes/sa-battery-switches.js:99:c975a915` · `bot/shared/services/child-test/sa/score.js:199:84a91658`
+- `counts.js` ← imported by `dashboard/routes/sa-battery-switches.js:103:c975a915` · `bot/shared/services/child-test/sa/score.js:199:84a91658`
 - `score.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:663:dfafea0e` · `bot/whatsapp-bot.js:2981:1f15208c`
 - `scripts.js` ← imported by `bot/shared/services/child-test/sa/build-w3.js:21:f61e9aac` · `bot/shared/services/child-test/sa/build.js:17:41b0657a`
 - … 18 more → `CLAUDE.index.md`

@@ -98,6 +98,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-lfzoz-portal-coaching.test.js` | bd-lfzoz: portal-coaching.service presigns audio PUTs and starts a session from a portal-uploaded recording |
 | `bd-lfzoz-portal-pipeline.test.js` | bd-lfzoz: the three places a portal row (R2 key portal_<id>) differs from WhatsApp: hand-off, handlers, stale recovery |
 | `bd-pv2tl-classroom-photo-vm.test.js` | bd-pv2tl: report photo strip builder caps at 2, returns base64 data URIs, skips a failed download (classroom-photo-vm) |
+| `bd-pw1ccr.11-recording-books-topic-nudge.test.js` | (unmapped) |
 | `bd-pzs9a-photo-add-another.test.js` | bd-pzs9a: Add another keeps the session on the photo step; a redelivered tap is not counted twice (add-another) |
 | `bd-s192t-fallback-copy.test.js` | bd-s192t.4: Section B fallback copy states the true cause per failure state (observe-draft.service) |
 | `bd-s192t-roles-threading.test.js` | bd-s192t.1: regression for the 44fe3ae roles ReferenceError; runs the real transcription chain (audio.service) |

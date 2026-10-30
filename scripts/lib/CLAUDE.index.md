@@ -6,6 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
+| `gb_migration.py` | (unmapped) |
 | `legacy-media-rehost.rules.js` | Pure rules: which legacy training media need re-hosting, and target refs; used by rehost-legacy-training-media.js |
 | `legacy_taleemabad_import.py` | Pure decision logic (question filters, ordering, insert vs update plan) behind import-legacy-taleemabad.py (bd-s42dye.4) |
 | `mark_test_users.py` | Pure helpers merging predicate rows with an allowlist and counting selections per rule for mark-test-users.py |
@@ -22,6 +23,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `training-band-derivation.js` ← imported by `scripts/backfill-training-assignments.js:63:f4d9178f`
 
 ## Tests (all, generated)
+- `gb_migration.py` ← `scripts/tests/test_gb_migration.py`?
 - `legacy-media-rehost.rules.js` ← `tests/training/bd-s42dye-4-legacy-media-rehost.test.js`
 - `legacy_taleemabad_import.py` ← `scripts/tests/test_legacy_taleemabad_import.py`?
 - `mark_test_users.py` ← `scripts/tests/test_mark_test_users.py`?

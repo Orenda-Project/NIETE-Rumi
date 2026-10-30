@@ -735,12 +735,14 @@ async function handlePersonalInfoV5(userId, fullName, screenData, flowToken) {
   const language = clampLanguage(screenData.language || offerDefaultLanguage());
   const user = await readUser(userId);
 
+  // Organization is no longer asked: the deployment's own, only where the row has none (an
+  // organization a roster import set is kept). Remembered as a DEFAULT, so the school she picks
+  // next can replace it with its region's owner (bd-97daxo.6).
+  const orgDefaulted = !(user && user.organization);
   await persistToUser(userId, {
     name: fullName,
     country: 'PK',
-    // Organization is no longer asked: the deployment's own, only where the row has none (an
-    // organization a roster import set is kept).
-    organization: user && user.organization ? undefined : NIETE_ORGANIZATION,
+    organization: orgDefaulted ? NIETE_ORGANIZATION : undefined,
   });
 
   // She chose it — through the ONE writer, locked, so a later recording cannot flip it.
@@ -752,7 +754,7 @@ async function handlePersonalInfoV5(userId, fullName, screenData, flowToken) {
     logToFile('⚠️ registration: language write threw', { userId, language, error: e.message }, 'warn');
   }
 
-  await storeRegData(flowToken, { v: 5, full_name: fullName, language });
+  await storeRegData(flowToken, { v: 5, full_name: fullName, language, org_defaulted: orgDefaulted });
   const response = await roleSchoolResponse(userId, user, language);
   logToFile('📤 PERSONAL_INFO → ROLE_SCHOOL (v5)', { userId, language, showRole: response.data.show_role });
   return response;
@@ -785,6 +787,32 @@ async function schoolPickResponse(userId, user, language, query) {
   };
 }
 
+/**
+ * The organization to write when she picks a school, or undefined to leave hers as it is (bd-97daxo.6).
+ *
+ * A teacher at a Gilgit-Baltistan school belongs to Moawin, not FDE: the owner of each region is in
+ * the region registry (region_features.organization). Only a teacher whose organization was the
+ * form's own default — none on her row when the form began — takes it from her school; one a roster
+ * import or a migration set is hers and stays. A region the registry does not list, or a registry
+ * that cannot be read, gives the deployment's own, as before: registration never stops over this.
+ */
+async function organizationForPickedSchool(userId, user, stored, school) {
+  // Her row unreadable and no note from the first screen → write nothing: an unknown organization
+  // may be one an import set (the same caution as the role).
+  const defaulted = (stored && stored.org_defaulted === true) || Boolean(user && !user.organization);
+  if (!defaulted) return undefined;
+  let owner = null;
+  try {
+    const { organizationForRegion } = require('../services/region-registry');
+    owner = await organizationForRegion(require('../config/supabase'), school.region);
+  } catch (e) {
+    let tk = null;
+    try { tk = require('../services/quiz/web-quiz-kid').tk(userId); } catch (_) { /* no key → no reference */ }
+    logToFile('⚠️ registration: region registry unreadable — organization stays the default', { tk, region: school.region, error: e.message }, 'warn');
+  }
+  return owner || NIETE_ORGANIZATION;
+}
+
 function idsFrom(value, allowed) {
   let list = value;
   if (typeof list === 'string') {
@@ -806,8 +834,13 @@ async function handleSchoolPickSubmit(userId, screenData, flowToken) {
     const school = await findPickableSchool(picked);
     if (school) {
       schoolId = school.id;
-      // The school's sector is what every school-scoped read expects in users.region (bd-z8p96).
-      await persistToUser(userId, { school_id: school.id, region: school.region || undefined });
+      // The school's sector is what every school-scoped read expects in users.region (bd-z8p96),
+      // and the region's owner is her organization when she had none of her own (bd-97daxo.6).
+      await persistToUser(userId, {
+        school_id: school.id,
+        region: school.region || undefined,
+        organization: await organizationForPickedSchool(userId, user, stored, school),
+      });
     } else {
       logToFile('⚠️ registration: picked school is not pickable — nothing stored', { userId, picked: picked.slice(0, 40) }, 'warn');
     }

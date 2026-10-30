@@ -47,27 +47,27 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `CoachVisit.tsx` | One scheduled visit: teacher card, Start/Upload recording squares, Reschedule and Cancel |
 
 ## Who reads this (all, generated)
-- `CoachAddSchool.tsx` ← imported by `portal/src/App.tsx:125:cceabff9`
-- `CoachAddTeacher.tsx` ← imported by `portal/src/App.tsx:126:05ba7594`
-- `CoachAttach.tsx` ← imported by `portal/src/App.tsx:130:275f6ea3`
-- `CoachCheckSend.tsx` ← imported by `portal/src/App.tsx:131:e909be90`
-- `CoachEditTeacher.tsx` ← imported by `portal/src/App.tsx:140:f2cadfd8`
+- `CoachAddSchool.tsx` ← imported by `portal/src/App.tsx:127:cceabff9`
+- `CoachAddTeacher.tsx` ← imported by `portal/src/App.tsx:128:05ba7594`
+- `CoachAttach.tsx` ← imported by `portal/src/App.tsx:132:275f6ea3`
+- `CoachCheckSend.tsx` ← imported by `portal/src/App.tsx:133:e909be90`
+- `CoachEditTeacher.tsx` ← imported by `portal/src/App.tsx:142:f2cadfd8`
 - `CoachHome.tsx` ← imported by `portal/src/portal/coach/card/CoachLanding.tsx:3:f585e580`
-- `CoachNewVisit.tsx` ← imported by `portal/src/App.tsx:114:ba1e5868`
-- `CoachObservation.tsx` ← imported by `portal/src/App.tsx:133:29242f44`
-- `CoachObserve.tsx` ← imported by `portal/src/App.tsx:115:034cb9cf`
-- `CoachObservePick.tsx` ← imported by `portal/src/App.tsx:116:545aba11`
-- `CoachPeople.tsx` ← imported by `portal/src/App.tsx:121:90c8f423` · `portal/src/portal/coach/card/harness.testdata.tsx:43:4b3728bb` · `portal/src/portal/coach/pages/CoachSchool.tsx:11:ec5002d2`
-- `CoachRecord.tsx` ← imported by `portal/src/App.tsx:129:7da3ce99` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:23:9e4007c8`
-- `CoachRemoveTeachers.tsx` ← imported by `portal/src/App.tsx:127:d86660b8`
-- `CoachReports.tsx` ← imported by `portal/src/App.tsx:118:1fa94ad3`
-- `CoachSchedule.tsx` ← imported by `portal/src/App.tsx:112:e2039db2`
-- `CoachScheduling.tsx` ← imported by `portal/src/App.tsx:111:90cdf75d`
-- `CoachSchool.tsx` ← imported by `portal/src/App.tsx:124:a4567313` · `portal/src/portal/coach/card/harness.testdata.tsx:43:4b3728bb`
-- `CoachSending.tsx` ← imported by `portal/src/App.tsx:132:254fef38`
-- `CoachTeacher.tsx` ← imported by `portal/src/App.tsx:128:6c98160d` · `portal/src/portal/coach/card/harness.testdata.tsx:44:e793bea8`
-- `CoachTeam.tsx` ← imported by `portal/src/App.tsx:113:6ebe5b32`
-- `CoachVisit.tsx` ← imported by `portal/src/App.tsx:117:399d7ba2`
+- `CoachNewVisit.tsx` ← imported by `portal/src/App.tsx:116:ba1e5868`
+- `CoachObservation.tsx` ← imported by `portal/src/App.tsx:135:29242f44`
+- `CoachObserve.tsx` ← imported by `portal/src/App.tsx:117:034cb9cf`
+- `CoachObservePick.tsx` ← imported by `portal/src/App.tsx:118:545aba11`
+- `CoachPeople.tsx` ← imported by `portal/src/App.tsx:123:90c8f423` · `portal/src/portal/coach/card/harness.testdata.tsx:43:4b3728bb` · `portal/src/portal/coach/pages/CoachSchool.tsx:11:ec5002d2`
+- `CoachRecord.tsx` ← imported by `portal/src/App.tsx:131:7da3ce99` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:23:9e4007c8`
+- `CoachRemoveTeachers.tsx` ← imported by `portal/src/App.tsx:129:d86660b8`
+- `CoachReports.tsx` ← imported by `portal/src/App.tsx:120:1fa94ad3`
+- `CoachSchedule.tsx` ← imported by `portal/src/App.tsx:114:e2039db2`
+- `CoachScheduling.tsx` ← imported by `portal/src/App.tsx:113:90cdf75d`
+- `CoachSchool.tsx` ← imported by `portal/src/App.tsx:126:a4567313` · `portal/src/portal/coach/card/harness.testdata.tsx:43:4b3728bb`
+- `CoachSending.tsx` ← imported by `portal/src/App.tsx:134:254fef38`
+- `CoachTeacher.tsx` ← imported by `portal/src/App.tsx:130:6c98160d` · `portal/src/portal/coach/card/harness.testdata.tsx:44:e793bea8`
+- `CoachTeam.tsx` ← imported by `portal/src/App.tsx:115:6ebe5b32`
+- `CoachVisit.tsx` ← imported by `portal/src/App.tsx:119:399d7ba2`
 
 ## Tests (all, generated)
 - `CoachAddSchool.tsx` ← `portal/src/portal/coach/pages/CoachManageSchools.test.tsx` · `portal/src/portal/coach/people/checks.test.tsx`

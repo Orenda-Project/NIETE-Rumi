@@ -1,7 +1,7 @@
 # scripts — Operator tools: data migrations, backfills, Flow publishers, QA
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts kg=5b0397ff6efb gen=e51ea7fc462a overflow=63 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts kg=c7d0213afe63 gen=f7360795a8ae overflow=63 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `smoke-test.js` — pre-deploy load check of bot entry, workers and dashboard routes
@@ -13,15 +13,15 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | 11 sub-dirs, each with `CLAUDE.md` | `app-funnel/` · `assessment/` · `child-test/` · `lib/` · `llm/` · `migrations/` · `ops/` · `predicates/` · `qa/` · `samples/` · `web-quiz/` |
-| 1 sub-dirs without a door | `tests/` (7 tests) |
+| 1 sub-dirs without a door | `tests/` (8 tests) |
 | `row-history-audit.js` | Pure JS mirror of the record_history trigger rules (watched columns, no-op writes, actor) so tests can pin them |
 | `create-analytics-user.js` | Creates or reuses an analytics-only portal account (phone or name login) with dry-run default and --commit (bd-s6qbts.5) |
-| … | 70 more → `CLAUDE.index.md` |
+| … | 71 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `backfill-names-from-fde.js` (+4)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+173)
-- table `app_settings` (written by `create-analytics-user.js` (+1)) ← read by `bot/shared/config/feature-flags.js:92:8d5282ae`? · `bot/shared/config/model-settings.js:162:19a9a79a`? (+125)
-- … 54 more → `CLAUDE.index.md`
+- table `users` (written by `backfill-names-from-fde.js` (+4)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+175)
+- table `app_settings` (written by `create-analytics-user.js` (+1)) ← read by `bot/shared/config/feature-flags.js:92:8d5282ae`? · `bot/shared/config/model-settings.js:162:19a9a79a`? (+126)
+- … 56 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Write to a DB without asserting its project ref first: a worktree .env can point at another DB (migrate-schools.py:72, bd-2536)

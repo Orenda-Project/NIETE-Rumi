@@ -1,7 +1,7 @@
 # icons — Teacher feature art, menu glyphs, shared icon motion, NIETE lattice
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/icons kg=eea6968ae120 gen=a15a5a73c122 overflow=13 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/icons kg=606b48781def gen=5ecaf34342e4 overflow=13 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.ts` — barrel; `FeatureArt.tsx` — 48px illustrations; `FeatureGlyph.tsx` — 24px menu glyphs
@@ -20,7 +20,7 @@ Full index: `CLAUDE.index.md`
 
 ## Who reads this (generated)
 - `index.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:5:cea5fb4f` · `portal/src/portal/coach/insights/components/MoreCoachip.tsx:12:2cbe5904` (+20)
-- `features.ts` ← imported by `portal/src/portal/coach/card/SchoolCardPage.tsx:17:0a302a7a` · `portal/src/portal/coach/card/TeacherCardPage.tsx:5:0a302a7a` (+10)
+- `features.ts` ← imported by `portal/src/portal/coach/card/DaysUsedPage.tsx:3:0a302a7a` · `portal/src/portal/coach/card/SchoolCardPage.tsx:17:0a302a7a` (+11)
 - `FeatureArt.tsx` ← imported by `portal/src/portal/coach/card/parts.tsx:5:f39dad9e` · `portal/src/portal/coach/card/scores.tsx:6:f39dad9e` (+6)
 - `NieteLattice.tsx` ← imported by `portal/src/portal/auth/AuthFrame.tsx:8:94edcb97` · `portal/src/portal/teacher/home/look/HomeBand.tsx:4:6ff5aaa7` (+2)
 - … 3 more → `CLAUDE.index.md`

@@ -253,6 +253,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fde-v25-render-labels.test.js` | (unmapped) |
 | `fde-v25-repeats-writers.test.js` | (unmapped) |
 | `fde-v25-repeats.test.js` | (unmapped) |
+| `fde-v26-common-errors.test.js` | (unmapped) |
+| `fde-v26-g1.test.js` | (unmapped) |
+| `fde-v26-g5-patterns.test.js` | (unmapped) |
+| `fde-v26-key-checks.test.js` | (unmapped) |
+| `fde-v26-oral.test.js` | (unmapped) |
+| `fde-v26-repeats.test.js` | (unmapped) |
 | `generation-hardening.test.js` | Pins the paper model call's max_tokens ceiling and one retry on an empty reply (generation.service) |
 | `golden.test.js` | Golden test: pins today's generator prompts, printed papers/keys and options payloads for non-board-pattern papers |
 | `llm-passthrough.test.js` | Pins that max_tokens and a per-call timeout reach the SDK through the shared model client (model-settings) |

@@ -1,7 +1,7 @@
 # coaching — Coaching pipeline: recording to analysis, reflection, report, video clips, weekly report
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching kg=b0fe8144a914 gen=e110bea62526 overflow=298 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching kg=fc99add4c0c4 gen=02fdfbcf1a13 overflow=299 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `coaching-session.service.js` — session lifecycle and status writes; the funnel every job uses
@@ -29,7 +29,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/observe/observe-pipeline-fork.test.js` (analysis-processor.service.js, coaching-session.service.js, reflective-conversation.service.js, report-generator.service.js)
 - `tests/coaching/bd-v0toag.57-slim-report.test.js` (ab-v10-arms.js, report-link-token.js, slim-report.js, thing-to-try-pick.js)
-- … 177 more → `CLAUDE.index.md`
+- … 178 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`?

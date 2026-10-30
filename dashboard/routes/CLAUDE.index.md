@@ -104,7 +104,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `portal.routes.js` ← imported by `dashboard/index.js:133:11af011f`
 - `sa-battery-switches.js` ← imported by `dashboard/routes/sa-engine.routes.js:34:37620dd3`
 - `sa-engine.routes.js` ← imported by `dashboard/index.js:205:e7a5a475`
-- `sa-r7a-content.js` ← imported by `dashboard/routes/sa-battery-switches.js:98:6e065f1e`
+- `sa-r7a-content.js` ← imported by `dashboard/routes/sa-battery-switches.js:102:6e065f1e`
 - `sa-switch.js` ← imported by `dashboard/routes/sa-engine.routes.js:33:db4ada6e` · `dashboard/routes/sa-game.routes.js:30:db4ada6e`
 - `settings.js` ← imported by `dashboard/index.js:127:a35f0675`
 - `teacher-report.routes.js` ← imported by `dashboard/index.js:177:d2a002ab`
@@ -162,7 +162,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - table `teacher_training_progress` (written by `portal.routes.js`) ← read by `bot/shared/calls/call-context.repo.js:107:94ec1a3a`? · `bot/shared/routes/teacher-training-endpoint.js:846:9402d340`? · `bot/shared/services/coaching/video-reco/store.js:64:6733ba3c`? · `bot/shared/services/training/capstone-delivery.service.js:115:94ec1a3a`? (+4: `python3 kg/kg.py who-reads teacher_training_progress`)
 - table `training_assessment_answers` (written by `portal.routes.js`) ← read by `bot/shared/services/training/capstone-delivery.service.js:639:63b6a734`? · `bot/shared/services/training/isaps-held-release.service.js:130:63b6a734`? · `bot/shared/services/training/isaps-level-grade.service.js:98:f4be22b1`? · `bot/shared/services/training/quiz-delivery.service.js:370:63b6a734`?
 - table `training_assessment_attempts` (written by `portal.routes.js`) ← read by `bot/shared/routes/teacher-training-endpoint.js:1222:7cb7cc00`? · `bot/shared/services/teacher-state.service.js:411:2a4bc949`? · `bot/shared/services/training/capstone-delivery.service.js:163:2a4bc949`? · `bot/shared/services/training/certificate.service.js:266:2a4bc949`? (+4: `python3 kg/kg.py who-reads training_assessment_attempts`)
-- table `users` (written by `portal.routes.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:242:774e00e5`? · `bot/shared/database/bot-helpers.js:17:61dfd735`? (+170: `python3 kg/kg.py who-reads users`)
+- table `users` (written by `portal.routes.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:242:774e00e5`? · `bot/shared/database/bot-helpers.js:17:61dfd735`? (+172: `python3 kg/kg.py who-reads users`)
 - table `website_visits` (written by `funnel-tracking.routes.js`) ← read by `dashboard/database/queries.js:962:340a8e70`?
 - env `ATTENDANCE_REPO` read at `dashboard/routes/attendance.routes.js:47:71b56e3d`
 - env `BOT_NAME` read at `dashboard/routes/web-quiz.routes.js:1000:2e83b1e8`
@@ -178,13 +178,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `R2_BUCKET_NAME` read at `dashboard/routes/portal.routes.js:2451:452b57b8` · `dashboard/routes/video-reco.routes.js:39:405e21a0`
 - env `R2_ENDPOINT` read at `dashboard/routes/portal.routes.js:175:2684789e`
 - env `R2_SECRET_ACCESS_KEY` read at `dashboard/routes/portal.routes.js:178:5687c9ca`
-- env `RAILWAY_ENVIRONMENT_NAME` read at `dashboard/routes/portal-child-test.routes.js:161:3350bca8`
+- env `RAILWAY_ENVIRONMENT_NAME` read at `dashboard/routes/portal-child-test.routes.js:164:3350bca8`
 - env `REFERRAL_BOT_NUMBER` read at `dashboard/routes/app-login.routes.js:48:74270e6d` · `dashboard/routes/quiz-go.routes.js:64:f8a4af8f` · `dashboard/routes/quiz-join.routes.js:252:bfae4aed` · `dashboard/routes/quiz-teacher.routes.js:120:f4d044fe` · `dashboard/routes/teacher-stories.routes.js:111:74270e6d` · `dashboard/routes/web-quiz.routes.js:1376:3411e16e`
 - env `WEB_QUIZ_BASE_URL` read at `dashboard/routes/web-quiz.routes.js:1411:96869db4`
 - env `WHATSAPP_BOT_NUMBER` read at `dashboard/routes/app-login.routes.js:48:74270e6d` · `dashboard/routes/quiz-go.routes.js:64:f8a4af8f` · `dashboard/routes/quiz-join.routes.js:252:bfae4aed` · `dashboard/routes/quiz-teacher.routes.js:120:f4d044fe` · `dashboard/routes/teacher-stories.routes.js:111:74270e6d` · `dashboard/routes/web-quiz.routes.js:1376:3411e16e`
 
 ## Tests (all, generated)
-- `app-funnel.routes.js` ← `tests/app-funnel/action-logger.test.js` · `tests/app-funnel/dc-upload-failed-route.test.js` · `tests/app-funnel/funnel-events-route.test.js` · `tests/portal/fln-routes.test.js`
+- `app-funnel.routes.js` ← `tests/app-funnel/action-logger.test.js` · `tests/app-funnel/dc-upload-failed-route.test.js` · `tests/app-funnel/funnel-events-route.test.js` · `tests/app-funnel/mic-check-route.test.js` · `tests/portal/fln-routes.test.js`
 - `app-login.routes.js` ← `tests/app-funnel/app-login-journey.test.js` · `tests/app-redirect/app-link-coach-training.test.js` · `tests/app-redirect/app-link-leader-lesson-plan.test.js` · `tests/app-redirect/app-link-leader-lessons-doors.test.js` · `tests/app-redirect/app-link-leader-lessons-rescue.test.js` · `tests/app-redirect/app-link-leader-lessons-voice-topic.test.js` (+7: `python3 kg/kg.py who-reads dashboard/routes/app-login.routes.js`)
 - `attendance.routes.js` ← `tests/attendance/_shared.js`
 - `coach-card.routes.js` ← `tests/portal/bd-tbprit.4-cv-opens-portal-card.test.js` · `tests/portal/bd-v0toag.38.9-coach-card.test.js`

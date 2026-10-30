@@ -9,6 +9,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `calls/` | → (no door; 30 files: 29 test + 1 support) |
 | `child-test/` | Jest tests for the child test: draw, SA scorer, results dashboard, voice, stop rules → `child-test/CLAUDE.md` |
 | `coaching/` | Jest suites for coaching: guards, report sending, language, subject resolution → `coaching/CLAUDE.md` |
+| `fa-video/` | (no description yet) → `fa-video/CLAUDE.md` |
 | `first-touch/` | Tests for one door, quiz maker and teacher home, with recorded goldens → `first-touch/CLAUDE.md` |
 | `fixtures/` | → (no door; 2 files: 0 test + 2 support) |
 | `handlers/` | → (no door; 10 tests) |

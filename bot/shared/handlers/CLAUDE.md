@@ -1,7 +1,7 @@
 # handlers — Inbound WhatsApp message handlers and slash-command doors
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/handlers kg=34d434c67ef5 gen=5d41c7172577 overflow=181 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/handlers kg=34d434c67ef5 gen=98b51f0d1aee overflow=181 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `text-message.handler.js` — main text router
@@ -19,7 +19,7 @@ Full index: `CLAUDE.index.md`
 | … | 16 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `flow-response.handler.js` (+1)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+173)
+- table `users` (written by `flow-response.handler.js` (+1)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+175)
 - table `coaching_sessions` (written by `text-message.handler.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+87)
 - column `coaching_sessions.status` (written by `text-message.handler.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:52:23fca46d` (+41)
 - … 53 more → `CLAUDE.index.md`

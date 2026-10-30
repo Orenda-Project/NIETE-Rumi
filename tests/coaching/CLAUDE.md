@@ -1,7 +1,7 @@
 # coaching — Root jest suite for the AI coaching pipeline: analysis, reports, reflection, LP linking
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/coaching kg=bc2f829f5bb4 gen=5ce6deedd375 overflow=193 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/coaching kg=baa0e0396e21 gen=53f981e4a072 overflow=194 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `bd-s192t-roles-threading.test.js` — model of a test that runs the real chain, not a helper plus a grep
@@ -19,7 +19,7 @@ Full index: `CLAUDE.index.md`
 | `coaching*` | 7 files; most used `coaching-flow-integration.test.js`: bd-622/bd-618 wiring: LP selection list vs buttons in the coaching flow and the coaching card in the report flow |
 | `bd-9h2mm-section-b-not-assessed.test.js` | bd-9h2mm: Section B leaves the FICO total when no fidelity was measured and every surface says so |
 | `bd-v0toag.38.9-agree-ping-service.test.js` | bd-v0toag.38.9: Do you agree coach ping via template coach_visit_request_v2 (six params), reasons and card link |
-| … | 256 more → `CLAUDE.index.md` |
+| … | 257 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

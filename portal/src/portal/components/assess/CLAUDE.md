@@ -1,7 +1,7 @@
 # assess — Learning-assessment (child test) page parts: engine frame, preflight, offline prep
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/assess kg=e1cf9e873734 gen=aab2f8dcaba4 overflow=17 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/assess kg=2155537c3b6c gen=5bc1ce8f9bf7 overflow=17 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `AssessEngineSlot.tsx` — full-screen iframe running the SA engine's play page for one child
@@ -15,7 +15,7 @@ Full index: `CLAUDE.index.md`
 | `offlineReady.ts` | Round 8 offline-first helpers: sa_r8 switches, prep records, list/form URLs and caching for weak-signal testing |
 | `AssessActions.tsx` | Learning-assessment fixed action bar and useAboveTabBar hook giving bottom offsets per tab-bar variant |
 | `AssessEngineSlot*` | 3 files; most used `AssessEngineSlot.tsx`: Full-screen same-origin iframe running the SA engine play page for one child, reporting why the test finished |
-| … | 11 more → `CLAUDE.index.md` |
+| … | 12 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `AssessActions.tsx` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:10:12a1ff1f` · `portal/src/portal/components/assess/AssessOtherPhone.tsx:7:5b0826a6` (+1)
@@ -32,7 +32,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/components/assess/AssessEngineSlot.r7b.test.tsx` (AssessEngineSlot.tsx)
 - `portal/src/portal/components/assess/AssessEngineSlot.test.tsx` (AssessEngineSlot.tsx)
-- … 3 more → `CLAUDE.index.md`
+- … 4 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/components/CLAUDE.md`?

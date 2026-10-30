@@ -36,8 +36,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - column `reading_assessments.comprehension_answers` (written by `whatsapp-bot.js`) ← read by `bot/shared/services/redis-comprehension.service.js:85:64fad2d6`
 - column `reading_assessments.comprehension_score` (written by `whatsapp-bot.js`) ← read by `dashboard/routes/portal.routes.js:8259:6033d135`
 - table `reading_assessments` whole row (`*`) (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:749:7a0c163a`? · `dashboard/routes/portal.routes.js:8334:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:517:d2b02c3e`? · `bot/shared/services/feature-registration.service.js:147:7a0c163a`? (+2: `python3 kg/kg.py who-reads reading_assessments`)
-- table `broadcast_logs` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:1750:d5d1db20`?
-- table `broadcast_messages` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:1868:5e6ab800`?
+- table `broadcast_logs` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:1750:d5d1db20`? · `bot/shared/services/fa-video/broadcast.js:95:5623da98`?
+- table `broadcast_messages` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:1868:5e6ab800`? · `bot/shared/services/fa-video/broadcast.js:98:2d012da7`?
 - table `reading_assessments` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:748:4337985e`? · `dashboard/routes/portal.routes.js:8258:4337985e`? · `bot/shared/handlers/flow-response.handler.js:326:4337985e`? · `bot/shared/handlers/text-message.handler.js:1734:4337985e`? (+10: `python3 kg/kg.py who-reads reading_assessments`)
 - env `CALLS_REPLICA_COUNT` read at `bot/calls-server.js:65:3b9b933c`
 - env `INTERNAL_API_KEY` read at `bot/whatsapp-bot.js:2797:1b3e4b05`

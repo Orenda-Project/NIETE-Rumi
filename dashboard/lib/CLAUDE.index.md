@@ -71,7 +71,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Tests (all, generated)
 - `analytics-account-name.js` ← `tests/portal/portal-login-account-name.test.js`
-- `analytics-lists.js` ← `tests/portal/analytics-lists-v8.test.js` · `tests/portal/analytics-training-levels-route.test.js` · `tests/portal/analytics-v8-services.test.js`
+- `analytics-lists.js` ← `tests/portal/analytics-lists-v8.test.js` · `tests/portal/analytics-training-levels-route.test.js` · `tests/portal/analytics-v8-services.test.js` · `tests/region/region-registry.test.js`
 - `analytics-viewer.js` ← `tests/portal/analytics-schools-route.test.js`
 - `assessment-rate-limit.js` ← `tests/dashboard/assessment-rate-limit.test.js`
 - `asset-links.js` ← `tests/portal/android-app-links-assetlinks.test.js`

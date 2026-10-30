@@ -1,6 +1,6 @@
 # schools — School lookup from the schools table and the legacy-migration transforms
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/schools kg=b6fb6143f7e9 gen=33a59a1d7b4c overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/schools kg=c4209c2d9931 gen=c549add2aa41 overflow=0 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `school-resolver.service.js` — user to school via users.school_id
@@ -28,6 +28,7 @@
 - `tests/app-redirect/app-link-coach-school-card.test.js` (school-card-door.js)
 - `tests/database/bd-2533-school-migration.test.js` (school-migration.transform.js)
 - `tests/database/bd-2533-school-resolver.test.js` (school-resolver.service.js)
+- `tests/registration/bd-97daxo6-organization-from-region.test.js` (school-search.service.js)
 - `tests/registration/bd-x7aprz2-registration-v5.test.js` (school-search.service.js)
 - `tests/registration/bd-x7aprz9-finish-closes-flow.test.js` (school-search.service.js)
 

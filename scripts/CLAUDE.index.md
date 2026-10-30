@@ -16,7 +16,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `predicates/` | Reviewed SQL predicates that select accounts for bulk flagging → `predicates/CLAUDE.md` |
 | `qa/` | E2E runners, QA impact check, hooks and the scheduled LaunchAgent → `qa/CLAUDE.md` |
 | `samples/` | Authored sample data for rendering demo coaching reports → `samples/CLAUDE.md` |
-| `tests/` | → (no door; 7 tests) |
+| `tests/` | → (no door; 8 tests) |
 | `web-quiz/` | Web quiz content loading, backfills and by-hand health runs → `web-quiz/CLAUDE.md` |
 | `assessment-parity.sh` | Gate: assessment-feature files must be identical on origin/main and origin/sandbox; run before calling a fix done |
 | `audit-reason-usage.js` | Read-only audit of how often coaches type a removal reason in leader_roster_audit.detail |
@@ -47,6 +47,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `migrate-beacon-house.py` | One-shot fork of Beacon House curriculum (levels, courses, modules) from legacy fde_production into NIETE tables |
 | `migrate-coaching-observations.py` | One-time pull of fde_production coaching_* tables into nietemigrated_* tables for the leader dashboard (FEAT-061) |
 | `migrate-exam-question-bank.py` | One-shot fork of TALEEMABAD exam questions into exam_question_bank and generation of exam-composer blueprints |
+| `migrate-gb-from-rumi.py` | (unmapped) |
 | `migrate-lesson-plans.py` | One-shot upsert of Oxbridge lesson plans from the legacy DB into lesson_plan_catalog keyed on source row |
 | `migrate-schools.py` | Migrates schools and principals from fde_production, links teachers, backfills roles; dry-run default (bd-2533) |
 | `migrate-teacher-training.py` | One-shot fork of TALEEMABAD training content (vendor, levels, courses, modules, quizzes, programs) from fde_production |
@@ -82,24 +83,24 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `verify-users-migration.py` | Parity check re-deriving eligible Taleemabad users and diffing them against NIETE users by normalized phone |
 
 ## Who reads this (all, generated)
-- column `app_settings.key` (written by `create-analytics-user.js`) ← read by `bot/shared/config/feature-flags.js:94:b7610a0c` · `bot/shared/config/model-settings.js:162:19a9a79a` · `bot/shared/config/web-quiz-brand.js:127:110366bd` · `bot/shared/services/app-redirect.service.js:281:8f3e60a7` (+121: `python3 kg/kg.py who-reads app_settings.key`)
-- column `app_settings.value` (written by `create-analytics-user.js`) ← read by `bot/shared/config/feature-flags.js:93:2cf61275` · `bot/shared/config/model-settings.js:162:19a9a79a` · `bot/shared/config/web-quiz-brand.js:127:110366bd` · `bot/shared/services/app-redirect.service.js:281:8f3e60a7` (+121: `python3 kg/kg.py who-reads app_settings.value`)
+- column `app_settings.key` (written by `create-analytics-user.js`) ← read by `bot/shared/config/feature-flags.js:94:b7610a0c` · `bot/shared/config/model-settings.js:162:19a9a79a` · `bot/shared/config/web-quiz-brand.js:127:110366bd` · `bot/shared/services/app-redirect.service.js:281:8f3e60a7` (+122: `python3 kg/kg.py who-reads app_settings.key`)
+- column `app_settings.value` (written by `create-analytics-user.js`) ← read by `bot/shared/config/feature-flags.js:93:2cf61275` · `bot/shared/config/model-settings.js:162:19a9a79a` · `bot/shared/config/web-quiz-brand.js:127:110366bd` · `bot/shared/services/app-redirect.service.js:281:8f3e60a7` (+122: `python3 kg/kg.py who-reads app_settings.value`)
 - column `training_modules.audio_url` (written by `fix-pdf-in-audio-url.js`) ← read by `bot/shared/services/training/content-delivery.service.js:247:393812ae` · `dashboard/routes/hcp.routes.js:614:4e5165b9` · `dashboard/routes/portal.routes.js:5085:08b11a5f` · `dashboard/services/training-library.service.js:175:f4746f5c`
 - column `training_modules.source_media_url` (written by `fix-pdf-in-audio-url.js`) ← read by `bot/shared/services/training/content-delivery.service.js:247:393812ae` · `dashboard/routes/portal.routes.js:5085:08b11a5f` · `dashboard/services/training-library.service.js:175:f4746f5c` · `scripts/verify-training-media-inline.js:55:f6c5c963`
 - column `users.name` (written by `backfill-names-from-fde.js`, `create-analytics-user.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/calls/call-tools.repo.js:242:774e00e5` · `bot/shared/database/queries.js:106:fef21f32` · `bot/shared/handlers/flow-response.handler.js:543:e1438837` (+60: `python3 kg/kg.py who-reads users.name`)
-- column `users.phone_number` (written by `create-analytics-user.js`) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` · `bot/shared/routes/homework-request-endpoint.js:51:0b64c13f` · `bot/shared/routes/internal-fln-send.routes.js:45:9c6e16c1` (+87: `python3 kg/kg.py who-reads users.phone_number`)
+- column `users.phone_number` (written by `create-analytics-user.js`) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` · `bot/shared/routes/homework-request-endpoint.js:51:0b64c13f` · `bot/shared/routes/internal-fln-send.routes.js:45:9c6e16c1` (+88: `python3 kg/kg.py who-reads users.phone_number`)
 - column `users.portal_activated` (written by `create-analytics-user.js`) ← read by `bot/shared/services/portal-invite.service.js:203:d17654ef` · `bot/shared/services/quiz/web-quiz-student-join.js:264:4a7f1445` · `dashboard/routes/portal.routes.js:407:af8b00f9` · `bot/scripts/deployment/get-portal-test-tokens.js:46:0cecdbb4`
 - column `users.portal_password_hash` (written by `create-analytics-user.js`) ← read by `dashboard/routes/portal.routes.js:407:af8b00f9`
-- column `users.role` (written by `create-analytics-user.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:543:e1438837` · `bot/shared/routes/attendance-marking-endpoint.js:381:10ac4b67` · `bot/shared/routes/registration-endpoint.js:104:713d0c02` (+32: `python3 kg/kg.py who-reads users.role`)
-- column `users.school_id` (written by `create-analytics-user.js`) ← read by `bot/shared/handlers/flow-response.handler.js:543:e1438837` · `bot/shared/routes/attendance-marking-endpoint.js:381:10ac4b67` · `bot/shared/routes/class-manager-endpoint.js:143:aa90cbd2` · `bot/shared/routes/internal-api.routes.js:893:aa90cbd2` (+25: `python3 kg/kg.py who-reads users.school_id`)
+- column `users.role` (written by `create-analytics-user.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:543:e1438837` · `bot/shared/routes/attendance-marking-endpoint.js:381:10ac4b67` · `bot/shared/routes/registration-endpoint.js:104:713d0c02` (+33: `python3 kg/kg.py who-reads users.role`)
+- column `users.school_id` (written by `create-analytics-user.js`) ← read by `bot/shared/handlers/flow-response.handler.js:543:e1438837` · `bot/shared/routes/attendance-marking-endpoint.js:381:10ac4b67` · `bot/shared/routes/class-manager-endpoint.js:143:aa90cbd2` · `bot/shared/routes/internal-api.routes.js:893:aa90cbd2` (+26: `python3 kg/kg.py who-reads users.school_id`)
 - table `users` whole row (`*`) (written by `backfill-names-from-fde.js`, `create-analytics-user.js`) ← read by `bot/shared/database/bot-helpers.js:28:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:687:7a0c163a`? · `dashboard/routes/portal.routes.js:314:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
-- table `app_settings` (written by `create-analytics-user.js`, `load-analytics-lists.js`) ← read by `bot/shared/config/feature-flags.js:92:8d5282ae`? · `bot/shared/config/model-settings.js:162:19a9a79a`? · `bot/shared/config/web-quiz-brand.js:127:110366bd`? · `bot/shared/services/app-redirect.service.js:280:8d5282ae`? (+123: `python3 kg/kg.py who-reads app_settings`)
+- table `app_settings` (written by `create-analytics-user.js`, `load-analytics-lists.js`) ← read by `bot/shared/config/feature-flags.js:92:8d5282ae`? · `bot/shared/config/model-settings.js:162:19a9a79a`? · `bot/shared/config/web-quiz-brand.js:127:110366bd`? · `bot/shared/services/app-redirect.service.js:280:8d5282ae`? (+124: `python3 kg/kg.py who-reads app_settings`)
 - table `coach_directory` (written by `seed-coach-directory.js`) ← read by `bot/shared/services/observe/observe-calendar.service.js:51:d8b7d39b`?
-- table `leader_schools` (written by `fold-duplicate-leader-schools.sql`) ← read by `bot/shared/calls/call-tools.repo.js:269:8704fd93`? · `bot/shared/handlers/observe-command.handler.js:51:bdb5dbab`? · `bot/shared/routes/roster-flow-endpoint.js:210:bdb5dbab`? · `bot/shared/services/child-test/app/app-api.service.js:92:7e334d3a`? (+12: `python3 kg/kg.py who-reads leader_schools`)
+- table `leader_schools` (written by `fold-duplicate-leader-schools.sql`) ← read by `bot/shared/calls/call-tools.repo.js:269:8704fd93`? · `bot/shared/handlers/observe-command.handler.js:51:bdb5dbab`? · `bot/shared/routes/roster-flow-endpoint.js:210:bdb5dbab`? · `bot/shared/services/child-test/app/app-api.service.js:92:7e334d3a`? (+13: `python3 kg/kg.py who-reads leader_schools`)
 - table `leader_teachers` (written by `fold-duplicate-leader-schools.sql`) ← read by `bot/shared/routes/roster-flow-endpoint.js:243:4bf60e0b`? · `bot/shared/services/observe/observe-school-admin.service.js:248:d85551ca`?
 - table `teacher_training_assignments` (written by `backfill-training-assignments.js`) ← read by `bot/shared/routes/teacher-training-endpoint.js:1151:1d73b094`? · `bot/shared/services/training/band-selection.service.js:238:1d73b094`? · `bot/shared/services/training/capstone-delivery.service.js:269:1d73b094`? · `bot/shared/services/training/quiz-delivery.service.js:463:1d73b094`? (+2: `python3 kg/kg.py who-reads teacher_training_assignments`)
 - table `training_modules` (written by `fix-pdf-in-audio-url.js`, `rehost-legacy-training-media.js`, `sync-rehosted-urls-to-staging.js`) ← read by `bot/shared/calls/call-context.repo.js:115:a5aff531`? · `bot/shared/routes/teacher-training-endpoint.js:845:3c67573c`? · `bot/shared/services/training/capstone-delivery.service.js:107:a5aff531`? · `bot/shared/services/training/certificate.service.js:221:efe9de07`? (+12: `python3 kg/kg.py who-reads training_modules`)
-- table `users` (written by `backfill-names-from-fde.js`, `backfill-school-id-from-roster.py`, `create-analytics-user.js`, `mark-test-users.py`, `migrate-schools.py`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:242:774e00e5`? · `bot/shared/database/bot-helpers.js:17:61dfd735`? (+171: `python3 kg/kg.py who-reads users`)
+- table `users` (written by `backfill-names-from-fde.js`, `backfill-school-id-from-roster.py`, `create-analytics-user.js`, `mark-test-users.py`, `migrate-schools.py`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:242:774e00e5`? · `bot/shared/database/bot-helpers.js:17:61dfd735`? (+173: `python3 kg/kg.py who-reads users`)
 - env `BACKFILL_PROD_GO` read at `scripts/backfill-school-id-from-roster.py:300:15cf6021`
 - env `CHROME_BIN` read at `scripts/render-sample-report.js:75:6d368b54`
 - env `COACHIP_LOCK_BPORT` read at `scripts/coachip_lock_harness.sh:17:a34aa449`
@@ -108,6 +109,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `DEV_PORTAL_BUILD_CMD` read at `scripts/dev-portal.sh:66:30b8faeb`
 - env `DEV_PORTAL_RUN` read at `scripts/dev-portal.sh:43:6176e9dd`
 - env `FLOW_ENV_FILE` read at `scripts/publish-teacher-training-flow.py:32:e8100f0d`
+- env `GB_MIGRATION_PROD_GO` read at `scripts/migrate-gb-from-rumi.py:313:0e0bfecc`
 - env `LOCAL_DB_PG_PORT` read at `scripts/dev-portal.sh:45:1b81e5f1`
 - env `MARK_PROD_GO` read at `scripts/mark-test-users.py:105:3f8f1283`
 - env `MOVES_DIR` read at `scripts/backfill-lp-fidelity-moves.js:22:178478f2`
@@ -122,6 +124,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `R2_ENDPOINT` read at `scripts/rehost-legacy-training-media.js:183:2684789e`
 - env `R2_SECRET_ACCESS_KEY` read at `scripts/rehost-legacy-training-media.js:186:5687c9ca`
 - env `REDIS_URL` read at `scripts/language-floor-flip.js:349:4f5341dc`
+- env `RUMI_SOURCE_DATABASE_URL` read at `scripts/migrate-gb-from-rumi.py:323:4ee19798`
 - env `SANDBOX_REFRESH` read at `scripts/dev-portal.sh:108:8811d7b9`
 - env `SET_ORG_PROD_GO` read at `scripts/set-organization.py:106:f8ebac71`
 - env `SMOKE_MODULES` read at `scripts/smoke-test.js:176:d57b4a1b`

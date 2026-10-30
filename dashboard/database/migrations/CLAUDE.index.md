@@ -45,18 +45,18 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - column `broadcast_logs.completed_at` (written by `015_create_broadcast_tables.sql`) ← read by `dashboard/database/queries.js:1955:cf8671c6`
 - column `broadcast_logs.created_at` (written by `015_create_broadcast_tables.sql`) ← read by `dashboard/database/queries.js:1752:e8356999`
 - column `broadcast_logs.filters` (written by `015_create_broadcast_tables.sql`) ← read by `dashboard/database/queries.js:1976:74f3f5ef`
-- column `broadcast_logs.id` (written by `015_create_broadcast_tables.sql`) ← read by `dashboard/database/queries.js:1769:63b406ac`
+- column `broadcast_logs.id` (written by `015_create_broadcast_tables.sql`) ← read by `bot/shared/services/fa-video/broadcast.js:95:5623da98` · `dashboard/database/queries.js:1769:63b406ac`
 - column `broadcast_logs.message_content` (written by `015_create_broadcast_tables.sql`) ← read by `dashboard/database/queries.js:1934:7c047fd6`
 - column `broadcast_logs.status` (written by `015_create_broadcast_tables.sql`) ← read by `dashboard/database/queries.js:1906:df477af9`
-- column `broadcast_logs.template_name` (written by `015_create_broadcast_tables.sql`) ← read by `dashboard/database/queries.js:1976:74f3f5ef`
-- column `broadcast_messages.broadcast_id` (written by `015_create_broadcast_tables.sql`) ← read by `bot/whatsapp-bot.js:158:94ad840a` · `dashboard/database/queries.js:1870:d1becd29`
+- column `broadcast_logs.template_name` (written by `015_create_broadcast_tables.sql`) ← read by `bot/shared/services/fa-video/broadcast.js:95:5623da98` · `dashboard/database/queries.js:1976:74f3f5ef`
+- column `broadcast_messages.broadcast_id` (written by `015_create_broadcast_tables.sql`) ← read by `bot/shared/services/fa-video/broadcast.js:99:00a2e4db` · `bot/whatsapp-bot.js:158:94ad840a` · `dashboard/database/queries.js:1870:d1becd29`
 - column `broadcast_messages.id` (written by `015_create_broadcast_tables.sql`) ← read by `bot/whatsapp-bot.js:158:94ad840a` · `dashboard/database/queries.js:1889:ac337155`
 - column `broadcast_messages.message_id` (written by `015_create_broadcast_tables.sql`) ← read by `bot/whatsapp-bot.js:159:8d350454`
 - column `broadcast_messages.phone_number` (written by `015_create_broadcast_tables.sql`) ← read by `dashboard/database/queries.js:1889:ac337155`
 - column `broadcast_messages.replied_at` (written by `015_create_broadcast_tables.sql`) ← read by `bot/whatsapp-bot.js:416:4580dbde`
 - column `broadcast_messages.sent_at` (written by `015_create_broadcast_tables.sql`) ← read by `bot/whatsapp-bot.js:417:dcdfb840`
-- column `broadcast_messages.status` (written by `015_create_broadcast_tables.sql`) ← read by `bot/whatsapp-bot.js:158:94ad840a` · `dashboard/database/queries.js:1891:f2fa95b2`
-- column `broadcast_messages.user_id` (written by `015_create_broadcast_tables.sql`) ← read by `bot/whatsapp-bot.js:414:219f5683` · `dashboard/database/queries.js:1871:9437903a`
+- column `broadcast_messages.status` (written by `015_create_broadcast_tables.sql`) ← read by `bot/shared/services/fa-video/broadcast.js:99:00a2e4db` · `bot/whatsapp-bot.js:158:94ad840a` · `dashboard/database/queries.js:1891:f2fa95b2`
+- column `broadcast_messages.user_id` (written by `015_create_broadcast_tables.sql`) ← read by `bot/shared/services/fa-video/broadcast.js:99:00a2e4db` · `bot/whatsapp-bot.js:414:219f5683` · `dashboard/database/queries.js:1871:9437903a`
 - column `byof_approval_log.action` (written by `017_create_byof_tables.sql`) ← read by `dashboard/services/byof.service.js:1022:e179198b`
 - column `byof_approval_log.created_at` (written by `017_create_byof_tables.sql`) ← read by `dashboard/services/byof.service.js:1022:e179198b`
 - column `byof_approval_log.id` (written by `017_create_byof_tables.sql`) ← read by `dashboard/services/byof.service.js:1022:e179198b`

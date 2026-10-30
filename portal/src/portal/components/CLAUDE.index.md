@@ -148,7 +148,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `RemarksSection.tsx` ← imported by `portal/src/portal/pages/PortalCoachingAnalytics.tsx:7:db857156` · `portal/src/portal/pages/SchoolAnalytics.tsx:10:87ca9ab4`
 - `ScoreBreakdown.tsx` ← imported by `portal/src/portal/pages/PortalCoachingDetail.tsx:6:0a83fdf7`
 - `ScoreIndicator.tsx` ← imported by `portal/src/portal/pages/LeaderObservations.tsx:9:1255d77f` · `portal/src/portal/pages/LeaderTeacherDetail.tsx:9:1255d77f` · `portal/src/portal/pages/LeaderTeachers.tsx:10:1255d77f` · `portal/src/portal/pages/PortalCoaching.tsx:2:6bc5406c` (+6: `python3 kg/kg.py who-reads ScoreIndicator.tsx`)
-- `Skeleton.tsx` ← imported by `portal/src/App.tsx:30:2648ae31` · `portal/src/portal/auth/AnalyticsLogin.tsx:8:e21a4d15` · `portal/src/portal/coach/card/CoachLanding.tsx:1:c2987858` · `portal/src/portal/coach/card/frame.tsx:4:c2987858` (+26: `python3 kg/kg.py who-reads Skeleton.tsx`)
+- `Skeleton.tsx` ← imported by `portal/src/App.tsx:30:2648ae31` · `portal/src/portal/auth/AnalyticsLogin.tsx:8:e21a4d15` · `portal/src/portal/coach/card/CoachLanding.tsx:1:c2987858` · `portal/src/portal/coach/card/frame.tsx:5:c2987858` (+26: `python3 kg/kg.py who-reads Skeleton.tsx`)
 - `StatCard.tsx` ← imported by `portal/src/portal/pages/LeaderHome.tsx:7:273f3985` · `portal/src/portal/pages/LeaderTeacherDetail.tsx:6:273f3985` · `portal/src/portal/pages/PortalDashboard.tsx:16:a854d5cb`
 - `UrduAware.tsx` ← imported by `portal/src/portal/pages/PortalCoachingDetail.tsx:7:023eb6ee` · `portal/src/portal/components/ScoreBreakdown.tsx:20:8be957ab`
 - `stepMark.tsx` ← imported by `portal/src/portal/components/LessonPlanPage.tsx:2:37cb3e3d` · `portal/src/portal/components/LessonPlanViewer.tsx:6:bcbb0e1b`

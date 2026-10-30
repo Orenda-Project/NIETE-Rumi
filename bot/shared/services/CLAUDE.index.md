@@ -15,6 +15,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `classes/` | Classes model: write surface, label parsing, vocabulary and class manager door → `classes/CLAUDE.md` |
 | `coaching/` | Coaching pipeline: recording to analysis, reflection, report, video clips, weekly report → `coaching/CLAUDE.md` |
 | `exam-checker/` | Exam-paper checker: OCR, grading, annotation and delivery behind one orchestrator → `exam-checker/CLAUDE.md` |
+| `fa-video/` | (no description yet) → `fa-video/CLAUDE.md` |
 | `fflp/` | Free-form lesson-plan engine seam, default OFF behind app_settings.freeform_lp → `fflp/CLAUDE.md` |
 | `first-touch/` | One-door /quiz entry, quiz-maker and teacher-home pages, all switch-gated → `first-touch/CLAUDE.md` |
 | `monitoring/` | Lesson-plan health (hourly) and quiz-funnel (2-hourly) watcher alerts to operators → `monitoring/CLAUDE.md` |
@@ -134,6 +135,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `reading-assessment.service.js` | Reading assessment service managing EGRA/ASER-style reading fluency assessments |
 | `redis-comprehension.service.js` | Comprehension flow state stored in the database (not Redis) for active question flows |
 | `region-features.service.js` | DB-driven region gating from the region_features table, replacing hardcoded region checks |
+| `region-registry.js` | (unmapped) |
 | `registration-invite.service.js` | The one registration Flow invite sender used by every door that offers the form |
 | `roster-entry.service.js` | Single door opening the class-roster builder Flow, applying the leader gate |
 | `session.service.js` | Message dedup and user tracking with Redis persistence and in-memory fallback |
@@ -262,6 +264,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `reading-assessment.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:28:d507b8b8` · `bot/shared/handlers/voice-message.handler.js:649:d507b8b8` · `bot/whatsapp-bot.js:25:dcc1f3ca`
 - `redis-comprehension.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:1702:d7e6f29b` · `bot/shared/handlers/voice-message.handler.js:289:d7e6f29b` · `bot/whatsapp-bot.js:1130:081b24ae` · `bot/shared/services/reading/analysis.service.js:1223:aca19c51`
 - `region-features.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:35:f7f1b1e6`
+- `region-registry.js` ← imported by `bot/shared/routes/registration-endpoint.js:806:590329aa`
 - `registration-invite.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:47:ade62736` · `bot/shared/services/feature-registration.service.js:24:763ca180`
 - `roster-entry.service.js` ← imported by `bot/shared/services/menu.service.js:362:eee93c89`
 - `session.service.js` ← imported by `bot/whatsapp-bot.js:21:7247c8f3`
@@ -346,14 +349,14 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - table `lp_feedback` (written by `lp-feedback.service.js`) ← read by `bot/scripts/migration/apply-017-lp-feedback.js:74:3f0e2a4e`?
 - table `niete_lp612_deliveries` (written by `portal-ready-whatsapp.service.js`) ← read by `bot/shared/services/lp-app-open-survey.service.js:96:e6842ada`? · `bot/shared/services/share-send.service.js:125:57a90568`?
 - table `niete_lp612_renders` (written by `lp612-serving.service.js`) ← read by `bot/shared/services/coaching/portal-lesson-plan-library.service.js:117:3534712c`?
-- table `niete_lp_downloads` (written by `lp-v8-delivery.service.js`) ← read by `bot/shared/calls/call-tools.repo.js:123:bdffbacd`? · `bot/shared/services/coaching/analysis-processor.service.js:88:bdffbacd`? · `bot/shared/services/coaching/lp-coaching/recent-fidelity-lps.service.js:48:bdffbacd`? · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:95:bdffbacd`? (+6: `python3 kg/kg.py who-reads niete_lp_downloads`)
+- table `niete_lp_downloads` (written by `lp-v8-delivery.service.js`) ← read by `bot/shared/calls/call-tools.repo.js:123:bdffbacd`? · `bot/shared/services/coaching/analysis-processor.service.js:88:bdffbacd`? · `bot/shared/services/coaching/lp-coaching/recent-fidelity-lps.service.js:48:bdffbacd`? · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:95:bdffbacd`? (+7: `python3 kg/kg.py who-reads niete_lp_downloads`)
 - table `reading_assessments` (written by `reading-assessment.service.js`, `redis-comprehension.service.js`) ← read by `bot/shared/handlers/flow-response.handler.js:326:4337985e`? · `bot/shared/handlers/text-message.handler.js:1734:4337985e`? · `bot/shared/handlers/voice-message.handler.js:323:4337985e`? · `bot/whatsapp-bot.js:1196:4337985e`? (+11: `python3 kg/kg.py who-reads reading_assessments`)
 - table `student_lists` (written by `student-list.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:298:8479d615`? · `bot/shared/routes/attendance-setup-endpoint.js:174:8479d615`? · `bot/shared/routes/edit-class-endpoint.js:33:8479d615`? · `bot/shared/routes/quiz-flow-endpoint.js:120:8479d615`? (+23: `python3 kg/kg.py who-reads student_lists`)
 - table `students` (written by `student-list.service.js`, `student-mode.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:316:2f35b0c2`? · `bot/shared/routes/edit-class-endpoint.js:44:2f35b0c2`? · `bot/shared/routes/roster-flow-endpoint.js:775:3776d591`? · `bot/shared/routes/student-videos-endpoint.js:266:d71c8cd6`? (+42: `python3 kg/kg.py who-reads students`)
 - table `teacher_attendance_records` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:898:cac7d040`? · `bot/workers/attendance-bigquery-export.worker.js:141:cac7d040`? · `dashboard/routes/portal.routes.js:1448:271b593d`? · `dashboard/services/attendance-repository.service.js:118:cac7d040`? (+1: `python3 kg/kg.py who-reads teacher_attendance_records`)
 - table `textbook_toc` (written by `toc-loading.service.js`) ← read by `bot/scripts/import-assessment-topics.js:121:2986a134`? · `bot/scripts/migration/survey-lp-inventory.js:83:10cc8589`? · `scripts/assessment/eval-run.js:80:5ce6536d`? · `bot/shared/services/assessment/assessment-browse.service.js:97:10cc8589`? (+1: `python3 kg/kg.py who-reads textbook_toc`)
 - table `user_feature_first_use` (written by `app-redirect.service.js`, `feature-intro.service.js`) ← read by `bot/shared/services/app-redirect.service.js:454:f6f893d9`? · `bot/shared/services/feature-intro.service.js:53:f6f893d9`?
-- table `users` (written by `conversation-state.service.js`, `feature-registration.service.js`, `portal-invite.service.js`, `registration-invite.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:242:774e00e5`? · `bot/shared/database/bot-helpers.js:17:61dfd735`? (+171: `python3 kg/kg.py who-reads users`)
+- table `users` (written by `conversation-state.service.js`, `feature-registration.service.js`, `portal-invite.service.js`, `registration-invite.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:242:774e00e5`? · `bot/shared/database/bot-helpers.js:17:61dfd735`? (+173: `python3 kg/kg.py who-reads users`)
 - env `ANTHROPIC_API_KEY` read at `bot/shared/services/llm-client.js:903:5bd0a625`
 - env `APP_SETTINGS_FLAG_TTL_MS` read at `bot/shared/services/webhook-signature.js:45:7b1a7c4a`
 - env `APP_URL` read at `bot/shared/services/llm-client.js:278:a6f65934`
@@ -483,7 +486,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `lp-shelf.service.js` ← `bot/tests/lp-v8/lp-shelf-flush-points.test.js` · `bot/tests/lp-v8/lp-shelf-plumbing.test.js` · `tests/quiz/lp-shelf.test.js`
 - `lp-v10-card.service.js` ← `tests/lp-v8/lp-v10-card.test.js`
 - `lp-v8-browse.service.js` ← `bot/tests/lp-v8/ab-ch310.test.js` · `bot/tests/lp-v8/portal-subject-order.test.js` · `bot/tests/lp-v8/tick-app-opens.test.js` · `tests/lp-v8/lp-v10-card-wiring.test.js` · `tests/lp-v8/split-lesson-consumers.test.js`
-- `lp-v8-catalog.service.js` ← `bot/tests/lp-v8/ab-ch310.test.js` · `bot/tests/lp-v8/bd-oak77-endpoint-route-all.test.js` · `bot/tests/lp-v8/delivery.test.js` · `bot/tests/lp-v8/elective-menu-names.test.js` · `bot/tests/lp-v8/endpoint-dispatch.test.js` · `bot/tests/lp-v8/endpoint-items.test.js` (+29: `python3 kg/kg.py who-reads bot/shared/services/lp-v8-catalog.service.js`)
+- `lp-v8-catalog.service.js` ← `bot/tests/lp-v8/ab-ch310.test.js` · `bot/tests/lp-v8/bd-oak77-endpoint-route-all.test.js` · `bot/tests/lp-v8/delivery.test.js` · `bot/tests/lp-v8/elective-menu-names.test.js` · `bot/tests/lp-v8/endpoint-dispatch.test.js` · `bot/tests/lp-v8/endpoint-items.test.js` (+30: `python3 kg/kg.py who-reads bot/shared/services/lp-v8-catalog.service.js`)
 - `lp-v8-delivery.service.js` ← `bot/tests/lp-v8/ab-ch310.test.js` · `bot/tests/lp-v8/delivery.test.js` · `bot/tests/lp-v8/live-schema-limits.test.js` · `bot/tests/lp-v8/lp-shelf-plumbing.test.js` · `bot/tests/lp-v8/portal-subject-order.test.js` · `bot/tests/lp-v8/voicenote-delivery.test.js` (+5: `python3 kg/kg.py who-reads bot/shared/services/lp-v8-delivery.service.js`)
 - `lp-v8-lifecycle.service.js` ← `tests/lesson-plan-lifecycle/v8-portal-path.test.js`
 - `lp-vision-ocr.service.js` ← `tests/coaching/lp-vision-ocr.test.js`
@@ -521,6 +524,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `reading-assessment.service.js` ← `bot/tests/menu/issue-56-reading-assessment.test.js`
 - `redis-comprehension.service.js` ← `tests/handlers/voice-note-temp-collision.test.js`
 - `region-features.service.js` ← `bot/tests/handlers/try-curriculum-lp-serve.test.js` · `bot/tests/lp-v8/bd-oak77-route-all.test.js` · `tests/lp-v8/bd-oak77-9-route-all.test.js` · `tests/region/region-features.test.js`
+- `region-registry.js` ← `tests/region/region-registry.test.js` · `tests/registration/bd-97daxo6-organization-from-region.test.js`
 - `registration-invite.service.js` ← `tests/registration/front-door-invite.test.js` · `tests/registration/registration-invite.service.test.js`
 - `settings-group.js` ← `bot/tests/quiz/report-send-checked.test.js` · `bot/tests/services/settings-group.test.js`
 - `share-send.service.js` ← `bot/tests/coaching/bd-v0toag-127-template-error-detail.test.js` · `tests/lesson-plan-lifecycle/share-path.test.js` · `tests/portal/bd-fmf24g.30-share-send.test.js`

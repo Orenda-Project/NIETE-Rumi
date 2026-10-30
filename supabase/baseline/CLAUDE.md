@@ -1,7 +1,7 @@
 # baseline — Sandbox schema dump plus seed lists that build the local test database
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=supabase/baseline kg=a976f94c10aa gen=ff39c09854ac overflow=842 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=supabase/baseline kg=a976f94c10aa gen=3f0805177baf overflow=842 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `schema.sql` — schema-only dump; regenerate, never hand-edit (line 2)
@@ -16,11 +16,11 @@ Full index: `CLAUDE.index.md`
 | `schema.objects.txt` | Flat list of every public column and function in the sandbox schema, compared by local-db.sh drift |
 
 ## Who reads this (generated)
-- column `users.id` (written by `schema.sql`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632` · `bot/shared/calls/call-context.repo.js:36:6776a642` (+159)
-- table `app_settings` (written by `seed-overrides.sql`) ← read by `bot/shared/config/feature-flags.js:92:8d5282ae`? · `bot/shared/config/model-settings.js:162:19a9a79a`? (+125)
-- column `app_settings.key` (written by `schema.sql`) ← read by `bot/shared/config/feature-flags.js:94:b7610a0c` · `bot/shared/config/model-settings.js:162:19a9a79a` (+124)
-- column `app_settings.value` (written by `schema.sql`) ← read by `bot/shared/config/feature-flags.js:93:2cf61275` · `bot/shared/config/model-settings.js:162:19a9a79a` (+124)
-- column `users.phone_number` (written by `schema.sql`) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` (+90)
+- column `users.id` (written by `schema.sql`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632` · `bot/shared/calls/call-context.repo.js:36:6776a642` (+160)
+- table `app_settings` (written by `seed-overrides.sql`) ← read by `bot/shared/config/feature-flags.js:92:8d5282ae`? · `bot/shared/config/model-settings.js:162:19a9a79a`? (+126)
+- column `app_settings.key` (written by `schema.sql`) ← read by `bot/shared/config/feature-flags.js:94:b7610a0c` · `bot/shared/config/model-settings.js:162:19a9a79a` (+125)
+- column `app_settings.value` (written by `schema.sql`) ← read by `bot/shared/config/feature-flags.js:93:2cf61275` · `bot/shared/config/model-settings.js:162:19a9a79a` (+125)
+- column `users.phone_number` (written by `schema.sql`) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` (+91)
 - column `users.preferred_language` (written by `schema.sql`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:761:6d7fc8d6` (+74)
 - … 842 more → `CLAUDE.index.md`
 

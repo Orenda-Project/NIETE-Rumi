@@ -13,6 +13,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `AssessEngineSlot.tsx` | Full-screen same-origin iframe running the SA engine play page for one child, reporting why the test finished |
 | `AssessOfflineCard.tsx` | "Get ready for offline" card (sa_r8_offline_prep): coach pre-keeps schools' child lists and test files on the phone |
 | `AssessOtherPhone.tsx` | Opens a child's test on another phone via a one-hour server token shown as a QR code, never carrying a child name |
+| `AssessPreflight.ios.test.tsx` | (unmapped) |
 | `AssessPreflight.test.tsx` | Pins AssessPreflight: with sa_mic_required Ready waits for a working mic or explicit continue; off = today's card |
 | `AssessPreflight.tsx` | Pre-flight card once per visit: airplane mode, headphone beep and microphone level/playback check |
 | `AssessVisitBar.tsx` | Sticky visit bar: children done of five, 45-minute timer, and per-child sync state (phone/sending/sent) |
@@ -22,7 +23,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `offlineReady.ts` | Round 8 offline-first helpers: sa_r8 switches, prep records, list/form URLs and caching for weak-signal testing |
 
 ## Who reads this (all, generated)
-- `AssessActions.tsx` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:10:12a1ff1f` · `portal/src/portal/components/assess/AssessOtherPhone.tsx:7:5b0826a6` · `portal/src/portal/components/assess/AssessPreflight.tsx:6:5b0826a6`
+- `AssessActions.tsx` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:10:12a1ff1f` · `portal/src/portal/components/assess/AssessOtherPhone.tsx:7:5b0826a6` · `portal/src/portal/components/assess/AssessPreflight.tsx:7:5b0826a6`
 - `AssessDrain.tsx` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:5:a2fe763a`
 - `AssessEngineSlot.tsx` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:6:bc815264`
 - `AssessOfflineCard.tsx` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:11:fdb9d134`
@@ -34,7 +35,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Tests (all, generated)
 - `AssessEngineSlot.tsx` ← `portal/src/portal/components/assess/AssessEngineSlot.r7b.test.tsx` · `portal/src/portal/components/assess/AssessEngineSlot.test.tsx`
-- `AssessPreflight.tsx` ← `portal/src/portal/components/assess/AssessPreflight.test.tsx`
+- `AssessPreflight.tsx` ← `portal/src/portal/components/assess/AssessPreflight.ios.test.tsx` · `portal/src/portal/components/assess/AssessPreflight.test.tsx`
 - `offlineReady.ts` ← `portal/src/portal/components/assess/offlineReady.test.ts` · `portal/src/portal/pages/LeaderAssess.r8offline.test.tsx`
 
 ## Related (all, generated)

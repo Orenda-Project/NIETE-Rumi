@@ -1,7 +1,7 @@
 # tests — Jest suite for the NIETE bot: unit, handler, worker, LP and call tests
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests kg=ef2f80c78e26 gen=b61d1e930772 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests kg=84a3fa6bb2b5 gen=42bb450f65ab overflow=0 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `setup-loopback.js` — jest setupFile blocking live DB/Redis/LLM/WhatsApp in every test
@@ -11,7 +11,7 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| 7 sub-dirs, each with `CLAUDE.md` | `child-test/` · `coaching/` · `first-touch/` · `helpers/` · `lp-v8/` · `observe/` · `quiz/` |
+| 8 sub-dirs, each with `CLAUDE.md` | `child-test/` · `coaching/` · `fa-video/` · `first-touch/` · `helpers/` · `lp-v8/` · `observe/` · `quiz/` |
 | 17 sub-dirs without a door | `calls/` (30 tests) · `fixtures/` (2 tests) · `handlers/` (10 tests) · `i18n/` (1 tests) · `menu/` (2 tests) · +12 more → `CLAUDE.index.md` |
 | `student-video-feedback.test.js` | Tests StudentVideoFeedbackService thumbs-up/down button handling, snapshot insert and reason flag (bd-1598) |
 | `whatsapp-status-pricing.test.js` | Pins pricedFields and the whatsapp.status.priced event per delivered/read status keyed by users.id (bd-v0toag.65) |

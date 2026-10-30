@@ -78,7 +78,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `language-detector.js` ← imported by `bot/shared/handlers/text-message.handler.js:67:d7dd6af3` · `bot/shared/handlers/voice-message.handler.js:1047:d7dd6af3` · `bot/shared/services/coaching/transcription-processor.service.js:25:c4974a5b`
 - `lazy-client.js` ← imported by `bot/shared/services/aws-textract.service.js:3:cefd900d` · `bot/shared/services/coaching/reflective-questions/llm-router.service.js:45:ce0c2ed9` · `bot/shared/services/coaching/transcript-enhancer.service.js:19:0f3248c3` · `bot/shared/storage/r2.js:10:cefd900d`
 - `letter-name-mapping.js` ← imported by `bot/shared/services/reading/fluency.service.js:26:8cdbddc5`
-- `logger.js` ← imported by `bot/shared/calls/call-forwarder.js:18:9949d551` · `bot/shared/calls/call-log.service.js:19:9949d551` · `bot/shared/config/feature-flags.js:13:9949d551` · `bot/shared/config/model-settings.js:21:9949d551` (+595: `python3 kg/kg.py who-reads logger.js`)
+- `logger.js` ← imported by `bot/shared/calls/call-forwarder.js:18:9949d551` · `bot/shared/calls/call-log.service.js:19:9949d551` · `bot/shared/config/feature-flags.js:13:9949d551` · `bot/shared/config/model-settings.js:21:9949d551` (+596: `python3 kg/kg.py who-reads logger.js`)
 - `lp-intent.js` ← imported by `bot/shared/handlers/text-message.handler.js:48:ac1a2b1e`
 - `merge-within-cap.js` ← imported by `bot/shared/services/nudges/lp-quiz-offer.service.js:56:22be3b58` · `bot/shared/services/observe/observe-debrief.service.js:28:22be3b58` · `bot/shared/services/observe/observe-send.service.js:26:22be3b58`
 - `model-cost.js` ← imported by `bot/shared/services/llm-client.js:39:6fa1282d`
@@ -110,7 +110,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - column `users.language_locked` (written by `language-cache.js`) ← read by `bot/shared/routes/registration-endpoint.js:104:713d0c02` · `dashboard/routes/portal.routes.js:8819:6505fa79` · `scripts/language-floor-flip.js:314:1ecb6fd7`
 - column `users.preferred_language` (written by `language-cache.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:761:6d7fc8d6` · `bot/shared/routes/assessment-gen-endpoint.js:995:578cc074` · `bot/shared/routes/class-manager-endpoint.js:143:aa90cbd2` (+71: `python3 kg/kg.py who-reads users.preferred_language`)
 - table `users` whole row (`*`) (written by `language-cache.js`) ← read by `bot/shared/database/bot-helpers.js:28:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:687:7a0c163a`? · `dashboard/routes/portal.routes.js:314:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
-- table `users` (written by `language-cache.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:242:774e00e5`? · `bot/shared/database/bot-helpers.js:17:61dfd735`? (+170: `python3 kg/kg.py who-reads users`)
+- table `users` (written by `language-cache.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:242:774e00e5`? · `bot/shared/database/bot-helpers.js:17:61dfd735`? (+172: `python3 kg/kg.py who-reads users`)
 - env `ASSESSMENT_GEN_FLOW_ID` read at `bot/shared/utils/constants.js:75:751abbfb`
 - env `ASSESSMENT_REVIEW_FLOW_ID` read at `bot/shared/utils/constants.js:80:e2729069`
 - env `ATTENDANCE_MARKING_FLOW_ID` read at `bot/shared/utils/constants.js:23:e080b7be`
@@ -194,7 +194,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `language-cache.js` ← `bot/tests/first-touch/first-reply-english.text-turn.test.js` · `tests/cache/language-writer.test.js` · `tests/language/resolver-floors.test.js` · `tests/registration/bd-x7aprz2-registration-v5.test.js`
 - `language-canon.js` ← `tests/config/language-canon.test.js`
 - `language-detector.js` ← `tests/coaching/bd2413-output-language.test.js`
-- `logger.js` ← `bot/scripts/e2e/dns-pin.js` · `bot/tests/child-test/sa-score-timeouts.test.js` · `bot/tests/first-touch/maker-fallback.test.js` · `bot/tests/first-touch/maker.routes.test.js` · `bot/tests/first-touch/mount-failed.test.js` · `bot/tests/first-touch/teacher-home.quick.test.js` (+147: `python3 kg/kg.py who-reads bot/shared/utils/logger.js`)
+- `logger.js` ← `bot/scripts/e2e/dns-pin.js` · `bot/tests/child-test/sa-score-timeouts.test.js` · `bot/tests/first-touch/maker-fallback.test.js` · `bot/tests/first-touch/maker.routes.test.js` · `bot/tests/first-touch/mount-failed.test.js` · `bot/tests/first-touch/teacher-home.quick.test.js` (+148: `python3 kg/kg.py who-reads bot/shared/utils/logger.js`)
 - `lp-intent.js` ← `bot/tests/first-touch/maker.cards.test.js` · `bot/tests/handlers/template-button-fallthrough.test.js` · `bot/tests/lp-v8/lp-intent.test.js`
 - `model-cost.js` ← `tests/llm/cost-user-attribution.test.js` · `tests/lp612/cost-names-the-lesson.test.js`
 - `output-language-check.js` ← `tests/config/output-language-check.test.js`
