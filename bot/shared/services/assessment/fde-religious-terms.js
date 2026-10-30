@@ -24,6 +24,8 @@ const SUPPLICATION_TERMS = Object.freeze([
   { term: 'یا اللہ', pattern: 'یا اللہ' },
   { term: 'یا رب', pattern: 'یا رب' },
   { term: 'امین', pattern: 'امین|[Aa]meen' },
+  { term: 'دعا گو', pattern: 'دعا ?گو' },
+  { term: 'اللہ کا شکر', pattern: `${ALLAH} کا شکر` },
   { term: 'دعا', pattern: 'دعا(?:ئیں|ئے|ؤں|یں)?' },
   { term: 'اللہ', pattern: ALLAH },
   { term: 'خدا', pattern: 'خدا(?! ?بخش)' },

@@ -37,6 +37,12 @@ describe('seriesError', () => {
   test('a wrong number that is the next printed number is dropped (15, 20, __, 30, __ by 10 gives 30)', () => {
     expect(seriesError(mk('15, 20, __, 30, __', '25, 35', 'Counts on by 10 and writes 30 and 40.'))).toBeNull();
   });
+  // v37 loop 4 G1 Q2: «Counts on by 1 and writes 7, 8» was turned into «writes 7 and 9, 8» (bd-5jmnfj.4.58.9.1).
+  test('two blanks in a row: the child counts on from its own first answer, and a comma list is read whole', () => {
+    expect(seriesError(mk('2, 4, 6, __, __', '8, 10', 'Counts on by 1 and writes 7, 8'))).toBeUndefined();
+    expect(seriesError(mk('5, 10, 15, __, __', '20, 25', 'Counts on by 1 and writes 16 and 21'))).toBe('Counts on by 1 and writes 16 and 17');
+    expect(seriesError(mk('30, 40, 50, __, __', '60, 70', 'Counts on by 1 and writes 51, 61'))).toBe('Counts on by 1 and writes 51, 52');
+  });
   test('anything else is left alone', () => {
     expect(seriesError(mk('81, 82, __, 84, __', '83, 85', 'Repeats a number already in the series.'))).toBeUndefined();
     expect(seriesError({ scheme: {} })).toBeUndefined();

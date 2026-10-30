@@ -26,4 +26,10 @@ describe('urduNote keeps an Urdu note that quotes one Latin token', () => {
     expect(urduNote('کلاس K-2 کا جواب', 'point', 'Opposites')).toBe('کلاس K-2 کا جواب');
     expect(urduNote('COVID-19 کا ذکر', 'error', 'Opposites')).toBe('COVID-19 کا ذکر');
   });
+
+  test('a mixed note keeps its Urdu half rather than the generic note (v37r6 g2 Q9, bd-5jmnfj.4.58.9.3)', () => {
+    const t = "turn 1: speaker's name (1) and a sentence that fits the plan (1) — 2 نمبر: نام اور درست جملہ؛ 1 نمبر: ان میں سے ایک؛ 0 نمبر: دونوں نہیں";
+    expect(urduNote(t, 'point', 'Dialogue')).toBe('2 نمبر: نام اور درست جملہ؛ 1 نمبر: ان میں سے ایک؛ 0 نمبر: دونوں نہیں');
+    expect(urduNote('correct word written correctly', 'point', 'Dialogue')).toBe('درست جواب');
+  });
 });

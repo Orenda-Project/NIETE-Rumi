@@ -17,7 +17,7 @@
  * Pure: `ctx.text` (the renderer's textOf) does all escaping and script handling.
  */
 
-const { LISTEN_LABEL } = require('./fde-render-v37'); // v37 G1 English key: a listening story box is not «Read aloud»
+const { LISTEN_LABEL, scriptLabel } = require('./fde-render-v37'); // v37 G1 English key: a listening story box is not «Read aloud»
 
 const GRID_ROWS = 12;
 
@@ -62,7 +62,7 @@ function taskBlock(oral, task, lang, t, w) {
   const parts = [`<div class="oral-head"><span class="lab">${t(task[`label_${lang}`])}</span> <span class="m">${t(`(${task.marks})`)}</span></div>`];
   if (task[`instruction_${lang}`]) parts.push(`<div class="oral-ins">${t(task[`instruction_${lang}`])}</div>`);
   if (task.kind === 'read_aloud') parts.push(`<div class="oral-reads-from">${t(w.card)}</div>`);
-  if (c.script) parts.push(`<div class="oral-script"><div class="k">${t(task.kind === 'listening' ? LISTEN_LABEL[lang] : w.script)}</div>${t(task.kind === 'read_aloud' ? onceEach(c.script) : c.script)}</div>`);
+  if (c.script) parts.push(`<div class="oral-script"><div class="k">${t(task.kind === 'listening' ? scriptLabel(task, lang, c) : w.script)}</div>${t(task.kind === 'read_aloud' ? onceEach(c.script) : c.script)}</div>`);
   // A read-aloud script with bare, answerless words under it (v25 G2 Urdu dialogue) is no list to ask.
   const bare = task.kind === 'read_aloud' && c.script && Array.isArray(c.items) && c.items.every((it) => !String(it.answer || '').trim());
   if (Array.isArray(c.items) && c.items.length && !bare) {

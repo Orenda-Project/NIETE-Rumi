@@ -99,7 +99,7 @@ function oralPrompt({ oral, grade, P, pageContent, saidCheck = true }) {
 const WRITER_NOTE = /[([]\s*(?:note\b|nb\b|n\.b\b|writer\b|generator\b|نوٹ)[^)\]]*[)\]]/i;
 const { extraNumbers } = require('./fde-oral-numbers'); // bd-5jmnfj.4.58.2
 const { badListeningAsks } = require('./fde-listening-asks'); // bd-5jmnfj.4.58.4
-const { urduOralBad } = require('./fde-early-urdu-oral'); // v29 Urdu oral rows (bd-5jmnfj.4.58)
+const { urduOralBad } = require('./fde-early-urdu-oral'); const { orphanPronouns } = require('./fde-read-aloud-antecedent'); // v29 Urdu oral rows; v37 r3 pronoun with no antecedent
 const hasNote = (t) => typeof t === 'string' && WRITER_NOTE.test(t);
 
 /**
@@ -124,7 +124,7 @@ function oralContent(tree, oral, { saidCheck = true } = {}) {
     const lineAsk = task.kind === 'listening' && badListeningAsks(items).length > 0; // a line-position or subjectless question (v28 G1 Urdu poem)
     const whole = !noted && !unsaid && !extra && !lineAsk && (!needsScript(task) || script) && items.length >= (task.n || 0);
     if (!got || !whole) { missing.push(task.id); continue; }
-    if (/[\u0600-\u06FF]/.test(script + items.map((it) => it.ask).join(' ')) && urduOralBad(task.id, items, script).length > 0) flagged.push(task.id);
+    if ((/[\u0600-\u06FF]/.test(script + items.map((it) => it.ask).join(' ')) && urduOralBad(task.id, items, script).length > 0) || (task.kind === 'read_aloud' && orphanPronouns(script).length > 0)) flagged.push(task.id);
     content.push({ id: task.id, ...(script ? { script } : {}), items: task.n ? items.slice(0, task.n) : items });
   }
   return { content, missing, flagged };

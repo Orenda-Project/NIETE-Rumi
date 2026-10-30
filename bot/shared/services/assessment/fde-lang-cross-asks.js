@@ -48,6 +48,10 @@ function boxWords(examJson, list, out) {
       const said = new Set(tokens(a.text));
       boxList.filter((w) => said.has(w)).forEach((w) => add(out, a.slot, w, box.slot,
         `the word box of ${box.slot}, which asks its meaning; «${excerpt(a.text)}» prints «${w}»`));
+      // v37 G5 Urdu: a box word printed in the Q6 poem hands over its meaning; the box (not the book's verses) is asked again.
+      const poem = new Set(tokens(a.item && a.item.passage));
+      boxList.filter((w) => poem.has(w) && !said.has(w)).forEach((w) => add(out, box.slot, w, a.slot,
+        `the word box of ${box.slot} holds «${w}», which the poem of ${a.slot} prints: choose another word`));
     });
   });
 }

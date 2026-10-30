@@ -25,6 +25,8 @@
  * Pure: one item in, the item out; notes are strings pushed on `notes`. Never throws on an item it cannot read.
  */
 
+const { dropPaidCommonError } = require('./fde-science-r2'); // v37 round 7: a common error that restates a paid point
+
 const pts = (q) => (q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : []);
 const accept = (q) => (q.scheme && Array.isArray(q.scheme.accept) ? q.scheme.accept : []);
 const withScheme = (q, patch) => ({ ...q, scheme: { ...q.scheme, ...patch } });
@@ -173,7 +175,7 @@ const RULES = [
 function scienceKeys(q, notes) {
   if (!q || typeof q !== 'object' || !/^science\./.test(q.slot || '')) return q;
   const rule = RULES.find(([re]) => re.test(String(q.question || '')));
-  return rule ? rule[1](q, notes) : q;
+  return dropPaidCommonError(rule ? rule[1](q, notes) : q, notes);
 }
 
 module.exports = { scienceKeys };

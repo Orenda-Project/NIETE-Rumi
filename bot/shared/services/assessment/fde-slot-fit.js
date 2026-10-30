@@ -13,11 +13,16 @@
 
 const PAGE_BUDGET_MM = 245; // what a slot may take of the ~270 mm of a page, the rest is the page's own margin
 const HEAD_MM = 10;
-const ITEM_MM = 25; // stem line, margins and one-line answer box under a picture
-const WIDE_ITEM_MM = 13; // number line and margins; the picture and its box sit side by side
+// Stem line, margins and one-line answer box under a picture, as Chromium measures them (v37r4 G1 Urdu:
+// 51.1 mm item - 22 mm picture = 29.1 mm; 25 left five fitted items at 272.5 mm, over the 263 mm page).
+const ITEM_MM = 29.5;
+const GRID_ITEM_MM = 25; // a line of cells side by side (two or three to a line): G1 Maths Q8 measured 232 mm for 3 lines of 50 mm pictures
+// Number line (13.5 mm) and the cell's 4 mm bottom margin; the picture and its box sit side by side. Measured on
+// G1 Urdu Q10 (v37r4): five cells at 47.5 mm with a 34 mm picture, the slot 265 mm against the 13 mm assumed.
+const WIDE_ITEM_MM = 17.5;
 const WIDE_BOX_MM = 28;
 const PER_ROW = 3;
-const FLOOR = 0.7; // a picture is never drawn under 70% of its size: below that it is not worth the fit
+const FLOOR = 0.6; // a picture is never drawn under 60% of its size: below that it is not worth the fit
 
 // The default heights in fde-picture-block's PICTURE_CSS.
 const DEFAULT_MM = { object: 28, count: 14, dots: 24, clock: 24, shapes: 22, scene: 45, plant: 60, circuit: 62 };
@@ -30,13 +35,13 @@ const PAIR = 2;
 /** The estimated height of a slot of `n` items, in mm. */
 function slotHeightMm({ n, pic, wide = false, perRow = 1 }) {
   if (wide) return HEAD_MM + n * (WIDE_ITEM_MM + Math.max(pic, WIDE_BOX_MM));
-  return HEAD_MM + Math.ceil(n / perRow) * (ITEM_MM + pic);
+  return HEAD_MM + Math.ceil(n / perRow) * ((perRow > 1 ? GRID_ITEM_MM : ITEM_MM) + pic);
 }
 
 /** The picture height that lets `n` items fit one page, or null when the default already fits or no fit is worth it. */
 function fitHeightMm({ n, pic, wide = false, perRow = 1 }) {
   const lines = wide ? n : Math.ceil(n / perRow);
-  const avail = Math.floor((PAGE_BUDGET_MM - HEAD_MM) / lines - (wide ? WIDE_ITEM_MM : ITEM_MM));
+  const avail = Math.floor((PAGE_BUDGET_MM - HEAD_MM) / lines - (wide ? WIDE_ITEM_MM : (perRow > 1 ? GRID_ITEM_MM : ITEM_MM)));
   if (avail >= pic) return null;
   return avail >= Math.round(pic * FLOOR) ? avail : null;
 }

@@ -60,7 +60,7 @@ describe('the key echoes a question whole up to 200 characters', () => {
   });
 });
 
-describe('the teacher box names the marking rows written from the answer', () => {
+describe('the teacher box does not print the rows-written-from-the-answer note (4.58.9.1)', () => {
   const keyWith = (shortfall) => {
     const ex = full1();
     ex._layout.scheme_shortfall = shortfall;
@@ -69,12 +69,12 @@ describe('the teacher box names the marking rows written from the answer', () =>
 
   test('one row: "It is Q3 (a) 1."', () => {
     expect(keyWith([{ slot: 'science.C.Q3a', item: 0, part: null, filled_by: 'code' }]))
-      .toMatch(/1 marking row was written from the answer\. Check it before marking\. It is Q3 \(a\) 1\./);
+      .not.toMatch(/written from the answer|It is Q3/);
   });
 
   test('two rows: "They are Q3 (a) 1 and Q3 (b) 2."', () => {
     expect(keyWith([{ slot: 'science.C.Q3a', item: 0, part: null }, { slot: 'science.C.Q3b', item: 1, part: null }]))
-      .toMatch(/2 marking rows were written from the answer\. Check them before marking\. They are Q3 \(a\) 1 and Q3 \(b\) 2\./);
+      .not.toMatch(/written from the answer|They are Q3/);
   });
 
   test('no rows: the sentence is not printed', () => {

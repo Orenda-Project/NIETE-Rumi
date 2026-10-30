@@ -14,6 +14,7 @@ const NEGATION = /\bnot (?:allowed|accepted|acceptable|correct)\b|\bwrong\b|\bin
 const JOINED = /[;；؛]/;
 const MIN_SENTENCE_WORDS = 3;
 const MIN_TARGET_LETTERS = 2;
+const ARABIC = /[\u0600-\u06FF]/;
 
 const text = (v) => (typeof v === 'string' ? v : '');
 const choice = (o) => text(o).replace(/^\s*\(?[^\s)]{1,3}\)\s*/, '').trim();
@@ -83,6 +84,12 @@ function targetOf(q) {
   return [...word].length >= MIN_TARGET_LETTERS ? word : '';
 }
 
+/** The one Urdu word an item keys, three letters or more. */
+function keyOf(q) {
+  const k = norm(choice(q.answer));
+  return ARABIC.test(k) && !k.includes(' ') && [...k].length >= 3 ? k : '';
+}
+
 /** The sentences an item prints: quoted in a stem, the stem itself (not a choice question), sub-questions, a long answer. */
 function sentencesOf(q) {
   const hasOptions = Array.isArray(q.options) && q.options.length > 0;
@@ -96,6 +103,7 @@ function dupeShortfall(examJson, P) {
     const list = itemsOf(examJson, P);
     const firstWord = new Map();
     const firstSentence = new Map();
+    const firstKey = new Map();
     const hits = new Map(); // item -> reasons
     const note = (q, why) => { if (!hits.has(q)) hits.set(q, []); if (!hits.get(q).includes(why)) hits.get(q).push(why); };
     list.forEach((q) => {
@@ -104,6 +112,13 @@ function dupeShortfall(examJson, P) {
       if (word) {
         if (firstWord.has(word) && firstWord.get(word) !== q) note(q, `the target word «${word}» is already asked in ${where(firstWord.get(word))}; ask a different word`);
         else firstWord.set(word, q);
+      }
+      // v37 round 6 loop 2: a keyed Urdu answer word (G1 Q5 and Q7 both «گائے») shared by two slots; also a key that is another slot's target.
+      const key = keyOf(q);
+      if (key) {
+        const seenKey = firstKey.get(key) || firstWord.get(key);
+        if (seenKey && seenKey.slot !== q.slot) note(q, `the answer «${key}» is already the answer or target word of ${where(seenKey)}; key a different word`);
+        else if (!firstKey.has(key)) firstKey.set(key, q);
       }
       sentencesOf(q).forEach((s) => {
         if (firstSentence.has(s) && firstSentence.get(s).slot !== q.slot) note(q, `the sentence «${s}» is already printed in ${where(firstSentence.get(s))}; write a different sentence`);
