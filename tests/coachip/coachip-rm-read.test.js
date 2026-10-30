@@ -624,4 +624,36 @@ run('COACHIP RM reads: R17 rm/home, R18 rm/coach/:id, R20 rm/circle (Postgres, H
       for (const id of [CA, CB, CC, SCH(1), SCH(3)]) expect(t.text).not.toContain(id);
     } finally { await a.close(); }
   });
+
+  /**
+   * fix-r5 s6 (c2): the critical path of one open, in reads. Every query takes the same 15 ms, and a query's level is one
+   * more than the highest level among the queries that had FINISHED before it started, so reads that run side by side
+   * share a level and the deepest level is the number of round trips one after another (router scope + handler). On a
+   * pooler at rest each level is a round trip (≈ 150-250 ms on staging), so this is the server time's floor.
+   */
+  async function depthApp() {
+    const st = { done: [], depth: 0 };
+    const query = async (sql, params) => {
+      const level = 1 + st.done.reduce((m, l) => Math.max(m, l), 0);
+      await new Promise((r) => { setTimeout(r, 15); });
+      const res = await pg.query(sql, params);
+      st.done.push(level);
+      st.depth = Math.max(st.depth, level);
+      return res;
+    };
+    const a = await startApp({ ...pg, query }, { now: NOW });
+    return { a, st, reset: () => { st.done = []; st.depth = 0; } };
+  }
+
+  test('s6c2 R17 rm/home: a warm open is at most 7 reads deep, the RM scope included, and says the same bytes', async () => {
+    const { a, st, reset } = await depthApp();
+    try {
+      const cold = await a.call('GET', `${P}/rm/home`, { as: RM });
+      reset();
+      const warm = await a.call('GET', `${P}/rm/home`, { as: RM });
+      expect(warm.text).toBe(cold.text);
+      expect(warm.text).toBe(golden('rm_home_r17_s6.json', warm.text));
+      expect({ warm_depth_at_most_7: st.depth <= 7, depth: st.depth <= 7 ? 'ok' : st.depth }).toEqual({ warm_depth_at_most_7: true, depth: 'ok' });
+    } finally { await a.close(); }
+  });
 });

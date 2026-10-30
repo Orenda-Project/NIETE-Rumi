@@ -109,23 +109,23 @@ async function lastVisitsOf(q, coaches) {
 }
 
 /**
- * Each coach's newest note from this RM still sent or seen (rules.loadNotes with limit 1, for many coaches in one read):
- * the ids by coach, then the Note shapes through loadNotes itself. → Map(lc(coachUserId) → Note).
+ * Each coach's newest note from this RM still sent or seen (rules.loadNotes with limit 1, for many coaches): ONE read,
+ * the note row and its schools (position order) together, shaped by rules.noteShape. → Map(lc(coachUserId) → Note).
  */
 async function openNotesOf(q, rmUserId, coachIds) {
   const out = new Map();
   if (!coachIds.length) return out;
   const { rows } = await q(
-    `SELECT DISTINCT ON (n.coach_user_id) n.coach_user_id, n.id
+    `SELECT DISTINCT ON (n.coach_user_id) n.coach_user_id, n.id, n.template_id, n.w_id, n.body_en, n.body_ur,
+            n.due_on::text AS due_on, n.status::text AS status,
+            COALESCE((SELECT json_agg(json_build_object('school_id', s.id, 'school_name', s.name) ORDER BY ns.position)
+                        FROM coachip_rm_note_schools ns JOIN schools s ON s.id = ns.school_id WHERE ns.rm_note_id = n.id), '[]'::json) AS schools
        FROM coachip_rm_notes n
       WHERE n.rm_user_id = $1 AND n.coach_user_id = ANY($2::uuid[]) AND n.status::text = ANY($3::text[])
       ORDER BY n.coach_user_id, n.created_at DESC`,
     [rmUserId, coachIds, ['sent', 'seen']],
   );
-  if (!rows.length) return out;
-  const notes = await rules.loadNotes(q, { rmUserId, noteIds: rows.map((r) => r.id), limit: rows.length });
-  const byId = new Map(notes.map((n) => [n.id, n]));
-  for (const r of rows) if (byId.has(r.id)) out.set(lc(r.coach_user_id), byId.get(r.id));
+  for (const r of rows) out.set(lc(r.coach_user_id), rules.noteShape(r, r.schools));
   return out;
 }
 
@@ -306,24 +306,28 @@ async function withMomentCount(q, rm, monday, coaches) {
 }
 
 /**
- * fix-r5 s6 (c): the reads that do not depend on each other run side by side (Promise.all), in two waves: what needs
- * nothing (the graded window, the visits, the observed codes, the coaches, the RM's sector steps, the last run), then
- * what needs the window or the coaches (the moves, the coach rows, the circle count, the checks due). The payload is
- * byte-identical to the serial version (tests/coachip/__golden__/rm_home_r17_s6*.json).
+ * fix-r5 s6 (c, c2): the reads that do not depend on each other run side by side; what needs the graded window (the
+ * moves) or the coaches (the coach rows, the circle count, the checks due) starts as soon as that one read is in. The
+ * payload is byte-identical to the serial version (tests/coachip/__golden__/rm_home_r17_s6*.json).
  */
 async function rmHome(ctx) {
   const q = ctx.deps.query;
   const rm = ctx.rm;
   const w = activityWindows(ctx);
   const thisMonday = S.mondayOf(ctx.today);
-  const [{ key, window }, visited, observed, coaches, steps, run] = await Promise.all([
-    sectorWindow(ctx), visitedCount(q, rm, w), observedCount(q, rm, w), sectorCoaches(q, rm), sectorStepDates(q, ctx), latestRun(q),
+  // fix-r5 s6 (c2): each read starts the moment what it needs is in: the moves after the window, the coach rows, the
+  // circle count and the checks after the coaches; the rest at once
+  const windowP = sectorWindow(ctx);
+  const coachesP = sectorCoaches(q, rm);
+  const coachIdsP = coachesP.then((cs) => cs.map((c) => c.coachUserId));
+  const [{ key, window }, visited, observed, coaches, steps, run, mv, built, withMoment, due] = await Promise.all([
+    windowP, visitedCount(q, rm, w), observedCount(q, rm, w), coachesP, sectorStepDates(q, ctx), latestRun(q),
+    windowP.then((x) => sectorMovesCached(q, ctx, x.key, x.window)),
+    coachesP.then((cs) => buildCoaches(q, ctx, cs, w)),
+    coachesP.then((cs) => withMomentCount(q, rm, thisMonday, cs)),
+    coachIdsP.then((ids) => checksDue(q, ctx, ids)),
   ]);
   const circleWin = circleWeekWindow(ctx, window);
-  const coachIds = coaches.map((c) => c.coachUserId);
-  const [mv, built, withMoment, due] = await Promise.all([
-    sectorMovesCached(q, ctx, key, window), buildCoaches(q, ctx, coaches, w), withMomentCount(q, rm, thisMonday, coaches), checksDue(q, ctx, coachIds),
-  ]);
   const { moves } = mv;
   const computed = [...mv.computed];
   const lib = S.library();
