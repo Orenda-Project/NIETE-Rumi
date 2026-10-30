@@ -7,6 +7,7 @@ import { insightsPaths } from "../paths";
 import { pick, t, tx } from "../text";
 import type { Step, WDetail } from "../types";
 import { StepTick } from "./StepRow";
+import ShowName from "./ShowName";
 import { Eyebrow as CpEyebrow } from "../../../coachip-ui/Band";
 import { Button } from "../../../coachip-ui/Button";
 import { Surface } from "../../../coachip-ui/Surface";
@@ -22,6 +23,8 @@ import { Surface } from "../../../coachip-ui/Surface";
  *
  * R6 (bd-sex15q.46, merged_S2_390): the card is S2's ONE raised surface; "Set this step for T-xx" is the screen's ONE
  * primary (green, navy label, full width, inside the 704 px fold); "Full step" a quiet green-ink link beside the play.
+ *
+ * fix-r5 s6 (b): with the decode switch on for this coach, "Show name" sits under the actions (ShowName), both forms.
  */
 export function stepSchoolId(d: WDetail): string | null {
   const code = d.step_card?.code;
@@ -64,6 +67,7 @@ function DoneCard({ detail, step: initial }: { detail: WDetail; step: Step }) {
           {t("s2.step.full", lang)}
         </Link>
       </div>
+      <ShowName codeId={step.code.code_id} />
     </Surface>
   );
 }
@@ -145,6 +149,7 @@ export default function StepCard({ detail, openStep = null }: { detail: WDetail;
       {state.kind === "failed" && (
         <p data-testid="step-failed" role="status" className="text-[15px] text-cp-ink-2">{t("e.failed_load", lang)}</p>
       )}
+      <ShowName codeId={code.code_id} />
     </Surface>
   );
 }

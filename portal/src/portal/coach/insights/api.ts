@@ -44,6 +44,9 @@ export const coachip = {
     api.post(`/coachip/steps/${encodeURIComponent(stepId)}/status`, { status }).then((r) => r.data),
   noteStatus: (noteId: string, status: "seen" | "dismissed"): Promise<{ note: Note }> =>
     api.post(`/coachip/notes/${encodeURIComponent(noteId)}/status`, { status }).then((r) => r.data),
+  /** R16 (fix-r5 s6 b): the one route that answers a name; the code_id travels in the body only (B21). Never cached. */
+  teacherName: (codeId: string): Promise<{ name: string }> =>
+    api.post("/coachip/teacher-name", { code_id: codeId }).then((r) => r.data),
 };
 
 /** Where an error leaves a screen (COPY §E). */
