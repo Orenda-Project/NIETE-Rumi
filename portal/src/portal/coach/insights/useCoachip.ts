@@ -80,6 +80,26 @@ export function useRmCoachesHere(ask: boolean): boolean | null {
   return ask ? here : true;
 }
 
+/**
+ * fix-r5 s6 (b), GO_PACKAGE v5 §0.4 b: may this coach see "Show name" (the operator's ruling 1, decode for their own
+ * teachers)? Only for a literal `features.coachipDecode === true` in /config AND a literal `decode: true` from
+ * `/coachip/me` (decode on and the caller is a coach). With the /config switch off, no /coachip/ request is made.
+ * Any error or missing key is false. Not remembered: asked once per step card.
+ */
+export function useDecode(): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    let live = true;
+    readConfigShared()
+      .then((cfg) => (cfg?.features as { coachipDecode?: unknown } | undefined)?.coachipDecode === true)
+      .then((switched) => (switched ? coachipApi.me().then((m) => m?.decode === true) : false))
+      .catch(() => false)
+      .then((value) => { if (live) setOn(value); });
+    return () => { live = false; };
+  }, []);
+  return on;
+}
+
 /** Tests only. */
 export function resetCoachipMemory(): void {
   remembered = null;
