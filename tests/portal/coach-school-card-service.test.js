@@ -300,7 +300,7 @@ function fakeDb(t) {
         return {
           rows: t.sessions.filter((c) => params[0].includes(c.id)).map((c) => {
             const a = c.analysis_data || {};
-            return { id: c.id, domains: a.domains || null, has_plan: a.scores && a.scores.has_lesson_plan != null ? a.scores.has_lesson_plan : null };
+            return { id: c.id, domains: a.domains || null, has_plan: a.scores && a.scores.has_lesson_plan != null ? a.scores.has_lesson_plan : null, lp_fidelity: a.lp_fidelity || null };
           }),
         };
       default:
@@ -486,8 +486,17 @@ describe('the teacher card', () => {
     expect(out.tiles.lp).toEqual({ count: 5, series: [2, 2, 1, 0, 0] });
     expect(out.tiles.papers).toEqual({ count: 2, series: [1, 0, 1, 0, 0] });
     expect(out.tiles.training).toMatchObject({ parts: 2, courses: 1, series: [1, 0, 1, 0, 0] });
-    // the days she used NIETE (the dots), as dates
-    expect(out.tiles.days).toEqual({ withUse: 3, schoolDays: 3, used: ['2026-10-26', '2026-10-27', '2026-10-28'] });
+    // the days she used NIETE (the dots), as dates; and which instruments made each day, and days per instrument
+    // (bd-dgfkgs.4, operator 30 Oct: "8/21 isn't clear instrument by instrument"). A coach visit is not her use.
+    expect(out.tiles.days).toEqual({
+      withUse: 3, schoolDays: 3, used: ['2026-10-26', '2026-10-27', '2026-10-28'],
+      uses: [
+        { day: '2026-10-26', features: ['lp', 'dc', 'training', 'papers'] },
+        { day: '2026-10-27', features: ['lp'] },
+        { day: '2026-10-28', features: ['lp', 'dc', 'training', 'papers'] },
+      ],
+      perFeature: { lp: 3, dc: 2, training: 2, papers: 2 },
+    });
     expect(Object.keys(out.tiles).sort()).toEqual(['days', 'lp', 'papers', 'training']);
     expect(out.summary).toEqual({
       dc: { count: 2, avg: 65, prevAvg: 50 },
@@ -647,9 +656,9 @@ describe('the DC report, coach view', () => {
       { code: 'D', name: 'Student Engagement', pct: 75 },
       { code: 'F', name: 'Teacher Subject Knowledge', pct: 75 },
     ]);
-    expect(out.practices.map((p) => p.id)).toEqual(['B1', 'C1', 'C2', 'C10', 'D1', 'F1', 'F5']);
+    // bd-dgfkgs.3: Lesson Plan Fidelity is the plan steps (lpSteps), never the old B1-B10 practices
+    expect(out.practices.map((p) => p.id)).toEqual(['C1', 'C2', 'C10', 'D1', 'F1', 'F5']);
     expect(out.practices.find((p) => p.id === 'C2')).toEqual({ id: 'C2', name: 'Practice C2', section: 'C', score: 2, scaleMax: 4 });
-    expect(out.practices.find((p) => p.id === 'B1').scaleMax).toBe(2);
     expect(out.practices.find((p) => p.id === 'F5').score).toBeNull();
     expect(out.lpSteps).toEqual([
       { step: 'Opening', verdict: 'executed', text: 'Warm up', mustHappen: true },
@@ -660,6 +669,16 @@ describe('the DC report, coach view', () => {
   test('no plan checked: lpSteps is null', async () => {
     tables.sessions.find((s) => s.id === 'd1').analysis_data.lp_fidelity = { status: 'lp_absent' };
     expect((await Card.getSession(db, 'coach-1', 'd1', opts())).lpSteps).toBeNull();
+  });
+
+  test('B\'s figure is the share of plan steps followed, even where the old B section was assessed (bd-dgfkgs.3)', async () => {
+    const a = tables.sessions.find((s) => s.id === 'd1').analysis_data;
+    a.lp_fidelity.fidelity_pct = 75;
+    a.domains.lesson_plan_fidelity.assessed = true;
+    a.scores.has_lesson_plan = true;
+    const out = await Card.getSession(db, 'coach-1', 'd1', opts());
+    expect(out.sections[0]).toEqual({ code: 'B', name: 'Lesson Plan Fidelity', pct: 75 });
+    expect(out.practices.some((p) => p.section === 'B')).toBe(false);
   });
 
   test('no transcript: the row carries one, the answer never does', async () => {
@@ -747,9 +766,9 @@ describe('a teacher\'s DC and coach-observation scores, each on its own', () => 
     // B is left out: neither report assessed the plan. Each practice's average is on the DEPLOYED framework's own scale
     // (FW.scaleMax: 4 on FICO v3, 2 on v4), from that report's own scale (C: 48 over 12 practices = 4), framework order,
     // the framework's names. Written as shares of FW.scaleMax so it holds on either framework.
-    // All four sections. B: no report assessed the plan, so no average and no practices ("Not scored").
+    // All four sections. B: no report measured its plan steps (no fidelity_pct), so no plan ("Not scored").
     expect(out.sections.map((x) => x.code)).toEqual(['B', 'C', 'D', 'F']);
-    expect(out.sections[0]).toEqual({ code: 'B', name: 'Lesson Plan Fidelity', avg: null, scoredIn: 0, indicators: [] });
+    expect(out.sections[0]).toEqual({ code: 'B', name: 'Lesson Plan Fidelity', avg: null, scoredIn: 0, indicators: [], plan: null });
     const c = out.sections[1];
     expect(c).toMatchObject({ name: 'High-Leverage Practices', avg: 0.5 * FW.scaleMax, scoredIn: 2 });
     expect(c.indicators).toEqual([
@@ -766,14 +785,56 @@ describe('a teacher\'s DC and coach-observation scores, each on its own', () => 
     ]);
   });
 
-  test('B comes in once a report assessed the plan', async () => {
+  // bd-dgfkgs.3 (operator, 30 Oct: "moves for both, DC and HITL"): B is the plan steps the grader judged
+  // (analysis_data.lp_fidelity), never the removed B1-B10 practices, even on a report that still carries them.
+  test('B is the plan steps: the share followed and how each of the five steps went, never B1-B10', async () => {
     const d5 = tables.sessions.find((x) => x.id === 'd5');
     d5.analysis_data.domains.lesson_plan_fidelity.assessed = true;
     d5.analysis_data.scores.has_lesson_plan = true;
-    const out = await Card.getTeacherScores(db, 'coach-1', PHONE.t1, 'dc', opts());
-    // scored in 1 of her 2 reports: the page says so
-    expect(out.sections[0]).toMatchObject({ code: 'B', name: 'Lesson Plan Fidelity', avg: 0.5 * FW.scaleMax, scoredIn: 1 });
-    expect(out.sections[0].indicators).toEqual([{ id: 'B1', name: fwName('B1'), avg: 0.5 * FW.scaleMax, pct: 50, scaleMax: FW.scaleMax, n: 1 }]);
+    d5.analysis_data.lp_fidelity = {
+      status: 'ok', fidelity_pct: 75,
+      moves: [
+        { move_id: 'm1', phase: 'recall', verdict: 'done' },
+        { move_id: 'm2', phase: 'hook', verdict: 'executed' },
+        { move_id: 'm3', phase: 'explain', verdict: 'done' },
+        { move_id: 'm4', phase: 'guided', verdict: 'partial' },
+        { move_id: 'm5', phase: 'independent', verdict: 'done' },
+        { move_id: 'm6', phase: 'exit', verdict: 'not_done' },
+        { move_id: 'm7', phase: 'mystery', verdict: 'done' },
+        { move_id: 'm8', phase: 'explain', verdict: null },
+      ],
+    };
+    let out = await Card.getTeacherScores(db, 'coach-1', PHONE.t1, 'dc', opts());
+    // measured in 1 of her 2 reports (d1's plan has no fidelity_pct): the page says so
+    expect(out.sections[0]).toEqual({
+      code: 'B', name: 'Lesson Plan Fidelity', avg: null, scoredIn: 1, indicators: [],
+      plan: {
+        pct: 75,
+        steps: [
+          { step: 1, done: 2, partly: 0, skipped: 0 },
+          { step: 2, done: 1, partly: 0, skipped: 0 },
+          { step: 3, done: 0, partly: 1, skipped: 0 },
+          { step: 4, done: 1, partly: 0, skipped: 0 },
+          { step: 5, done: 0, partly: 0, skipped: 1 },
+        ],
+      },
+    });
+    // a second measured report: the share is the mean of the two, the steps add up; a step nobody judged is left out
+    tables.sessions.find((x) => x.id === 'd1').analysis_data.lp_fidelity.fidelity_pct = 50;
+    out = await Card.getTeacherScores(db, 'coach-1', PHONE.t1, 'dc', opts());
+    expect(out.sections[0]).toMatchObject({ scoredIn: 2, plan: { pct: 63 } });
+    expect(out.sections[0].plan.steps[0]).toEqual({ step: 1, done: 3, partly: 0, skipped: 0 });
+    expect(out.sections[0].plan.steps[4]).toEqual({ step: 5, done: 0, partly: 0, skipped: 2 });
+  });
+
+  test('a coach visit with a plan gets its plan steps too (HITL)', async () => {
+    const h1 = tables.sessions.find((x) => x.id === 'h1');
+    h1.analysis_data.lp_fidelity = { status: 'ok', fidelity_pct: 80, moves: [{ move_id: 'm1', phase: 'warm_up', verdict: 'done' }] };
+    const out = await Card.getTeacherScores(db, 'coach-1', PHONE.t1, 'coach', opts());
+    expect(out.sections[0]).toEqual({
+      code: 'B', name: 'Lesson Plan Fidelity', avg: null, scoredIn: 1, indicators: [],
+      plan: { pct: 80, steps: [{ step: 1, done: 1, partly: 0, skipped: 0 }] },
+    });
   });
 
   test('coach: every visit counted and listed; only reviewed FICO-form visits averaged, charted and put into the practices', async () => {

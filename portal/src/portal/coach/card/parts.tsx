@@ -98,7 +98,7 @@ export function ActivityTile({ feature, total, label, lines, bars, to, state }: 
   );
 }
 
-const GLYPH: Record<CardFeature, typeof BookOpen> = { lp: BookOpen, dc: Smartphone, training: GraduationCap, papers: FileCheck };
+export const GLYPH: Record<CardFeature, typeof BookOpen> = { lp: BookOpen, dc: Smartphone, training: GraduationCap, papers: FileCheck };
 
 /** A teacher's four small counts on her row: the feature's colour on the glyph only; a 0 is grey. */
 export function CountsRow({ counts }: { counts: FeatureCounts }) {
@@ -173,12 +173,13 @@ export function NumTile({ value, label, feature, sub, extra, bars, to, state, fl
 /**
  * One feature by teacher: a row per teacher, a column per bucket, a count per cell (the feature's tint), a dot for 0,
  * dashed for a day still ahead, the row's total, and the School row of bucket totals. Rows are sorted by total, then
- * name; teachers with nothing stay in, grey, at the bottom. Each row is a link to her Teacher page.
+ * name; teachers with nothing stay in, grey, at the bottom. Each row is a link (`linkOf`, with `stateOf` as its state).
  */
-export function TeacherGrid({ rows, school, total, columns, future, feature, linkOf, schoolWord, totalWord }: {
+export function TeacherGrid({ rows, school, total, columns, future, feature, linkOf, stateOf, schoolWord, totalWord }: {
   rows: readonly { key: string; name: string; cells: readonly (number | null)[]; total: number }[];
   school: readonly (number | null)[]; total: number; columns: readonly [string, string][]; future: readonly boolean[];
-  feature: CardFeature; linkOf: (key: string) => string | null; schoolWord: string; totalWord: string;
+  feature: CardFeature; linkOf: (key: string) => string | null; stateOf?: (key: string, name: string) => unknown;
+  schoolWord: string; totalWord: string;
 }) {
   const hue = FEATURE_HUE[FEATURE_OF[feature]];
   const sorted = [...rows].sort((a, b) => (b.total - a.total) || a.name.localeCompare(b.name));
@@ -213,7 +214,7 @@ export function TeacherGrid({ rows, school, total, columns, future, feature, lin
         );
         const cls = "grid min-h-[38px] items-center gap-[3px] rounded-lg";
         return to
-          ? <Link key={r.key} to={to} data-testid="grid-row" data-none={none ? "1" : undefined} aria-label={`${r.name}, ${totalWord} ${r.total}`}
+          ? <Link key={r.key} to={to} state={stateOf?.(r.key, r.name)} data-testid="grid-row" data-none={none ? "1" : undefined} aria-label={`${r.name}, ${totalWord} ${r.total}`}
               className={`${cls} ${TAP}`} style={{ gridTemplateColumns: template }}>{inner}</Link>
           : <div key={r.key} data-testid="grid-row" data-none={none ? "1" : undefined} className={cls} style={{ gridTemplateColumns: template }}>{inner}</div>;
       })}

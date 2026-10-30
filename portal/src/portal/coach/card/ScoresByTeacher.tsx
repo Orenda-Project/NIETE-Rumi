@@ -27,6 +27,7 @@ export default function ScoresByTeacher({ emis, kind }: { emis: string; kind: Sc
   const { data, failed, reload } = useCardLoad<SchoolScoresData>(() => card.schoolScores(emis, kind, period), [emis, kind, period]);
   const school = `/portal/coach/school/${encodeURIComponent(emis)}`;
   const her = (ext: string) => withPeriod(`/portal/coach/teacher/${encodeURIComponent(ext)}/${kind === "dc" ? "dc" : "observations"}`, period);
+  const back = { back: withPeriod(`${school}/feature/${kind}`, period) };
   const colour = kindColour(kind);
 
   return (
@@ -45,7 +46,7 @@ export default function ScoresByTeacher({ emis, kind }: { emis: string; kind: Sc
             {data.rows.map((r, i) => {
               const none = r.count === 0;
               return (
-                <Link key={r.teacherExtId} to={her(r.teacherExtId)} data-testid="score-row" data-none={none ? "1" : undefined}
+                <Link key={r.teacherExtId} to={her(r.teacherExtId)} state={back} data-testid="score-row" data-none={none ? "1" : undefined}
                   className={`grid min-h-[68px] items-center gap-2 px-4 py-2 transition-colors hover:bg-[#f9fafb] ${i ? "border-t border-[#f0f1f3]" : ""}`}
                   style={{ gridTemplateColumns: COLS }}>
                   <span className="flex min-w-0 flex-col">

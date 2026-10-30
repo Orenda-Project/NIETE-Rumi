@@ -92,6 +92,10 @@ export type SchoolScoresData = {
 /** One practice averaged across her scored reports: on the framework's scale (`scaleMax`) and as a %; `n` reports. */
 export type PracticeAverage = { id: string; name: string; avg: number; pct: number; scaleMax: number; n: number };
 
+/** Lesson Plan Fidelity across her reports: the mean share of plan steps followed (0-100), and for each of the five
+ *  lesson steps any report judged (1 Opening, 2 Explanation, 3 We Do, 4 You Do, 5 Check) how its plan steps went. */
+export type PlanAcross = { pct: number; steps: { step: number; done: number; partly: number; skipped: number }[] };
+
 /** GET /coach/teacher/:ext/scores/:kind — her DC reports or her coach observations on their own. */
 export type TeacherScoresData = {
   teacher: { teacherExtId: string; name: string; school: string | null; emis: string | null };
@@ -101,9 +105,10 @@ export type TeacherScoresData = {
   avg: number | null;
   prevAvg: number | null;
   series: { id: string; date: string; score: number }[];
-  /** B C D F in order. `avg`: the mean of its practices' averages, null = Not scored (B: no plan assessed). `scoredIn`:
-   *  how many of her scored reports scored the section. */
-  sections: { code: string; name: string; avg: number | null; scoredIn: number; indicators: PracticeAverage[] }[];
+  /** B C D F in order. `avg`: the mean of its practices' averages, null = Not scored. `scoredIn`: how many of her scored
+   *  reports scored the section. B (Lesson Plan Fidelity) has no practices: it is `plan`, the plan steps the grader
+   *  judged (bd-dgfkgs.3), null = no report measured its plan. */
+  sections: { code: string; name: string; avg: number | null; scoredIn: number; indicators: PracticeAverage[]; plan?: PlanAcross | null }[];
   /** Newest first. `title`: the report's topic or real lesson label, else null. `score` null: not reviewed or field form. */
   reports: { id: string; date: string; grade: string | number | null; subject: string | null; title: string | null; score: number | null; form: "v3" | "observe2" | null; coachName: string | null }[];
 };
@@ -137,7 +142,9 @@ export type TeacherCardData = {
     papers: { count: number | null; series: (number | null)[] };
     training: { parts: number | null; courses: number | null; series: (number | null)[] };
     /** `used`: the school days (YYYY-MM-DD) she used NIETE, one dot each. */
-    days: { withUse: number | null; schoolDays: number | null; used?: string[] };
+    /** `uses`: each used day with the instruments she used that day; `perFeature`: how many days each was used on
+     *  (bd-dgfkgs.4). */
+    days: { withUse: number | null; schoolDays: number | null; used?: string[]; uses?: { day: string; features: CardFeature[] }[]; perFeature?: FeatureCounts };
   };
   /** Her Digital Coaching and Coach observations tiles: count, average and the period before's. */
   summary: CoachingSummary;
