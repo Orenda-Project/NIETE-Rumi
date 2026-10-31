@@ -133,8 +133,8 @@ export function providerInitials(key: string, name?: string | null): string {
 }
 
 /** NIETE first, then I-SAPS, Beacon House, Oxbridge, then anything else in the server's order. */
-export function sortVendors(vendors: Vendor[]): Vendor[] {
-  const rank = (v: Vendor) => PROVIDERS[v.vendor_key]?.rank ?? 100;
+export function sortVendors<V extends Pick<Vendor, 'vendor_key'>>(vendors: V[]): V[] {
+  const rank = (v: V) => PROVIDERS[v.vendor_key]?.rank ?? 100;
   return vendors.map((v, i) => ({ v, i })).sort((a, b) => rank(a.v) - rank(b.v) || a.i - b.i).map((x) => x.v);
 }
 

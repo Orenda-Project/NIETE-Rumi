@@ -128,6 +128,63 @@ function baseTables() {
       { id: 13, course_id: 101, title: 'Other part', order_index: 1, is_active: true },
     ],
     courses: [{ id: 100, title: 'Course A', order_index: 1 }, { id: 101, title: 'Course B', order_index: 2 }],
+    // bd-hl4a4y — the training catalogue and who is assigned what (for each teacher's progress per training).
+    trn: {
+      assignments: [
+        { user_id: 'u1', program_id: 'P1', is_active: true },
+        { user_id: 'u1', program_id: 'P2', is_active: true },
+        { user_id: 'u1', program_id: 'P0', is_active: false },
+      ],
+      scopes: [
+        { program_id: 'P1', vendor_id: 'vN', level_ids: [1] },
+        { program_id: 'P1', vendor_id: 'vS', level_ids: null },
+        // several programmes take the union; a bigint[] reaches node as strings
+        { program_id: 'P2', vendor_id: 'vN', level_ids: ['2'] },
+        // a scope that lists only an inactive level: nothing of it to open, so no training
+        { program_id: 'P2', vendor_id: 'vA', level_ids: [20] },
+        { program_id: 'P2', vendor_id: 'vX', level_ids: null },
+        // all levels of a training that has none yet: it stays, at 0 of 0
+        { program_id: 'P2', vendor_id: 'vE', level_ids: [] },
+        // an inactive assignment's programme shows nothing
+        { program_id: 'P0', vendor_id: 'vZ', level_ids: null },
+      ],
+      vendors: [
+        { id: 'vN', key: 'TALEEMABAD', name: 'NIETE', unlock_logic: 'chain', is_active: true },
+        { id: 'vS', key: 'OXBRIDGE', name: 'Smart Schools', unlock_logic: 'all_modules', is_active: true },
+        { id: 'vA', key: 'BEACONHOUSE', name: 'AI Pedagogy', unlock_logic: 'all_modules', is_active: true },
+        { id: 'vX', key: 'OLD', name: 'Old Training', unlock_logic: 'chain', is_active: false },
+        { id: 'vE', key: 'EMPTY', name: 'Empty Training', unlock_logic: 'chain', is_active: true },
+        { id: 'vZ', key: 'ZED', name: 'Zed Training', unlock_logic: 'chain', is_active: true },
+      ],
+      levels: [
+        { id: 1, vendor_id: 'vN', order_index: 0, is_active: true },
+        { id: 2, vendor_id: 'vN', order_index: 1, is_active: true },
+        { id: 3, vendor_id: 'vN', order_index: 2, is_active: false },
+        { id: 10, vendor_id: 'vS', order_index: 0, is_active: true },
+        { id: 20, vendor_id: 'vA', order_index: 0, is_active: false },
+        { id: 30, vendor_id: 'vZ', order_index: 0, is_active: true },
+      ],
+      courses: [
+        { id: 'c1', level_id: 1, is_active: true },
+        { id: 'c2', level_id: 2, is_active: true },
+        { id: 'c3', level_id: 2, is_active: false },
+        { id: 'c10', level_id: 10, is_active: true },
+        { id: 'c30', level_id: 30, is_active: true },
+      ],
+      modules: [
+        { id: 1, course_id: 'c1', is_active: true }, { id: 2, course_id: 'c1', is_active: true },
+        { id: 3, course_id: 'c2', is_active: true }, { id: 4, course_id: 'c2', is_active: true },
+        { id: 5, course_id: 'c3', is_active: true }, { id: 6, course_id: 'c2', is_active: false },
+        { id: 10, course_id: 'c10', is_active: true }, { id: 11, course_id: 'c10', is_active: true },
+        { id: 30, course_id: 'c30', is_active: true },
+      ],
+      // UNIQUE (user_id, module_id); a part of an inactive course or an inactive part does not count
+      progress: [
+        { user_id: 'u1', module_id: 1 }, { user_id: 'u1', module_id: 3 }, { user_id: 'u1', module_id: 5 },
+        { user_id: 'u1', module_id: 6 }, { user_id: 'u1', module_id: 10 }, { user_id: 'u1', module_id: 30 },
+        { user_id: 'u2', module_id: 1 },
+      ],
+    },
     requests: [
       { id: 'r1', user_id: 'u1', created_at: pk('2026-10-26 16:00'), grade_code: 'grade_3', subject_code: 'math' },
       { id: 'r2', user_id: 'u1', created_at: pk('2026-10-27 16:00'), grade_code: 'grade_3', subject_code: 'math' },
@@ -260,6 +317,42 @@ function fakeDb(t) {
           }),
         };
       }
+      case 'training-scopes': {
+        const rows = [];
+        for (const a of t.trn.assignments) {
+          if (!params[0].includes(a.user_id) || !a.is_active) continue;
+          for (const s of t.trn.scopes) if (s.program_id === a.program_id) rows.push({ user_id: a.user_id, vendor_id: s.vendor_id, level_ids: s.level_ids });
+        }
+        return { rows };
+      }
+      case 'training-levels': {
+        const rows = [];
+        for (const v of t.trn.vendors) {
+          if (!params[0].includes(v.id) || !v.is_active) continue;
+          const levels = t.trn.levels.filter((l) => l.vendor_id === v.id && l.is_active);
+          const base = { vendor_id: v.id, vendor_key: v.key, vendor_name: v.name, unlock_logic: v.unlock_logic };
+          if (!levels.length) rows.push({ ...base, level_id: null, order_index: null, parts: null });
+          for (const l of levels) {
+            const courses = t.trn.courses.filter((c) => c.level_id === l.id && c.is_active).map((c) => c.id);
+            const parts = t.trn.modules.filter((m) => courses.includes(m.course_id) && m.is_active).length;
+            // bigint ids reach node as strings
+            rows.push({ ...base, level_id: String(l.id), order_index: l.order_index, parts: String(parts) });
+          }
+        }
+        return { rows };
+      }
+      case 'training-done': {
+        const per = new Map();
+        for (const p of t.trn.progress) {
+          if (!params[0].includes(p.user_id)) continue;
+          const m = t.trn.modules.find((x) => x.id === p.module_id && x.is_active);
+          const c = m && t.trn.courses.find((x) => x.id === m.course_id && x.is_active);
+          if (!c) continue;
+          const k = `${p.user_id}|${c.level_id}`;
+          per.set(k, { user_id: p.user_id, level_id: String(c.level_id), done: ((per.get(k) || {}).done || 0) + 1 });
+        }
+        return { rows: [...per.values()] };
+      }
       case 'papers': {
         const [ids, lo, hi] = params;
         const rows = [];
@@ -313,6 +406,18 @@ function fakeDb(t) {
 
 let tables;
 let db;
+
+/**
+ * bd-hl4a4y — Teacher One's trainings, as GET /training/vendors counts them for her: the levels her ACTIVE programmes
+ * show (P1 NIETE level 1 + P2 NIETE level 2; Smart Schools all), their active parts and the ones she finished.
+ * Not AI Pedagogy (its scope lists only an inactive level), not Old Training (inactive), not Zed (inactive assignment);
+ * Empty Training stays at 0 of 0 (all levels, none yet). By name, as that endpoint sorts them.
+ */
+const U1_TRAININGS = [
+  { vendor_key: 'EMPTY', vendor_name: 'Empty Training', module_count: 0, completed_module_count: 0 },
+  { vendor_key: 'TALEEMABAD', vendor_name: 'NIETE', module_count: 4, completed_module_count: 2 },
+  { vendor_key: 'OXBRIDGE', vendor_name: 'Smart Schools', module_count: 2, completed_module_count: 1 },
+];
 const opts = (period = 'week') => ({ period, today: TODAY, memo: Card.createMemo() });
 beforeEach(() => {
   tables = baseTables();
@@ -473,6 +578,20 @@ describe('the feature grid', () => {
     expect(out.total).toBe(6);
   });
 
+  // bd-hl4a4y (operator, 31 Oct: "show the progress of all the trainings ... instead of parts"): Training by teacher is
+  // each teacher's trainings as her own Training page counts them, not parts per day.
+  test('training: a row per teacher with each of her trainings, its parts done of its parts; teachers with none last', async () => {
+    const out = await Card.getSchoolFeature(db, 'coach-1', '901', 'training', opts());
+    expect(out).toEqual({
+      feature: 'training',
+      rows: [
+        { teacherExtId: PHONE.t1, name: 'Teacher One', vendors: U1_TRAININGS },
+        { teacherExtId: PHONE.p1, name: 'Principal One', vendors: [] },
+        { teacherExtId: PHONE.t2, name: 'Teacher Two', vendors: [] },
+      ],
+    });
+  });
+
   test('an unknown feature or another coach\'s school is null', async () => {
     expect(await Card.getSchoolFeature(db, 'coach-1', '901', 'coach', opts())).toBeNull();
     expect(await Card.getSchoolFeature(db, 'coach-1', '902', 'lp', opts())).toBeNull();
@@ -553,17 +672,37 @@ describe('her lists', () => {
     expect(out.items.map((p) => [p.grade, p.subject])).toEqual([['5', 'Social Studies'], ['2', 'Maths']]);
   });
 
-  test('training: the courses she worked in, every part with its done date', async () => {
-    const out = await Card.getTeacherItems(db, 'coach-1', PHONE.t1, 'training', opts());
-    expect(out.courses).toEqual([{
-      name: 'Course A',
-      done: true,
-      parts: [
-        { name: 'Part 1', doneAt: '2026-09-01' },
-        { name: 'Part 2', doneAt: '2026-10-26' },
-        { name: 'Part 3', doneAt: '2026-10-28' },
-      ],
-    }]);
+  // bd-hl4a4y: her Training page is her trainings, each with the numbers her own Training page shows (the same
+  // counts, and the bot's level states for "Level N of M"); no courses, no parts.
+  test('training: her trainings and their levels, with the level states the bot gives her own page', async () => {
+    const levelStates = jest.fn(async () => [
+      { id: 1, state: 'certified', courses_total: 1, courses_completed: 1 },
+      { id: 2, state: 'in_progress', courses_total: 1, courses_completed: 0 },
+    ]);
+    const out = await Card.getTeacherItems(db, 'coach-1', PHONE.t1, 'training', { ...opts(), levelStates });
+    expect(levelStates).toHaveBeenCalledWith('u1');
+    expect(out.vendors).toEqual(U1_TRAININGS);
+    expect(out.levels).toEqual([
+      { id: 1, vendor_key: 'TALEEMABAD', order_index: 0, unlock_logic: 'chain', state: 'certified', courses_total: 1, courses_completed: 1 },
+      { id: 2, vendor_key: 'TALEEMABAD', order_index: 1, unlock_logic: 'chain', state: 'in_progress', courses_total: 1, courses_completed: 0 },
+      // a level the bot does not name reads as not started, as on her own page
+      { id: 10, vendor_key: 'OXBRIDGE', order_index: 0, unlock_logic: 'all_modules', state: 'not_started', courses_total: 0, courses_completed: 0 },
+    ]);
+    expect(out).not.toHaveProperty('courses');
+  });
+
+  test('training: when the bot cannot say her levels, her progress still shows and the levels are null', async () => {
+    const out = await Card.getTeacherItems(db, 'coach-1', PHONE.t1, 'training', { ...opts(), levelStates: async () => { throw new Error('bot down'); } });
+    expect(out.vendors).toEqual(U1_TRAININGS);
+    expect(out.levels).toBeNull();
+  });
+
+  test('training: a teacher with no programme has no trainings, and the bot is not asked', async () => {
+    const levelStates = jest.fn();
+    const out = await Card.getTeacherItems(db, 'coach-1', PHONE.t2, 'training', { ...opts(), levelStates });
+    expect(out.vendors).toEqual([]);
+    expect(out.levels).toEqual([]);
+    expect(levelStates).not.toHaveBeenCalled();
   });
 
   test('an unknown feature, or a teacher outside her patch, is null', async () => {

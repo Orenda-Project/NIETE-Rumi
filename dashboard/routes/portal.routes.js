@@ -2311,6 +2311,8 @@ async function requireSchoolCard(req, res, next) {
 router.use(require('./coach-school-card.routes').createCoachSchoolCardRouter({
   guards: [...coachV2, requireSchoolCard],
   query: (sql, params) => pool.query(sql, params),
+  // bd-hl4a4y: her Training page's "Level N of M", from the bot as her own Training page reads it.
+  levelStates: (userId) => TrainingRules.getLevelStates(userId),
 }));
 
 // bd-tbprit.1: the coach's disagreements (v10 coaching test) — her To do / Done and the evidence card.
