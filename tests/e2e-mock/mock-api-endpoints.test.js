@@ -6,22 +6,23 @@
  * env var's stem when the routes file declares it, and refuses anything the bot does not mount.
  * Red-first: fails on develop — endpointPathFor is not exported.
  */
-const { endpointPathFor } = require('../../.claude/qa/shared/mock-api.cjs');
+const { describeWithEngine, testWithEngine, HAVE_ENGINE } = require('./engine');   // the shared engine, borrowed (bd-9157r.1)
+const { endpointPathFor } = HAVE_ENGINE ? require('../../.claude/qa/engine/bin/mock-api.cjs') : {};
 const ROUTES = `
 router.post('/settings', async (req, res) => {});
 router.post('/teacher-training', async (req, res) => {});
 router.post('/pakistan-lp', async (req, res) => {});
 `;
 
-test('the registry wins when it has the Flow', () => {
+testWithEngine('the registry wins when it has the Flow', () => {
   expect(endpointPathFor('SETTINGS_FLOW_ID', { SETTINGS_FLOW_ID: '/api/flows/settings-v2' }, ROUTES)).toBe('/api/flows/settings-v2');
 });
 
-test('a Flow missing from the registry resolves to /api/flows/<stem> when the bot mounts that route', () => {
+testWithEngine('a Flow missing from the registry resolves to /api/flows/<stem> when the bot mounts that route', () => {
   expect(endpointPathFor('TEACHER_TRAINING_FLOW_ID', {}, ROUTES)).toBe('/api/flows/teacher-training');
   expect(endpointPathFor('PAKISTAN_LP_FLOW_ID', {}, ROUTES)).toBe('/api/flows/pakistan-lp');
 });
 
-test('a Flow the bot does not mount stays unresolved — the scenario must say NO_ENDPOINT_PATH, not guess', () => {
+testWithEngine('a Flow the bot does not mount stays unresolved — the scenario must say NO_ENDPOINT_PATH, not guess', () => {
   expect(endpointPathFor('READING_ASSESSMENT_FLOW_ID', {}, ROUTES)).toBe(null);
 });

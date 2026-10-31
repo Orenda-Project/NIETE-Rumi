@@ -1,6 +1,6 @@
 @whatsapp @ict @profile:niete @feature:child-test @persona:coach
 Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute EGRA/EGMA test per child)
-  # Non-determinism: see .claude/qa/shared/non-determinism-contract.md (assert contracts/shape; AI marks are @content-driven).
+  # Non-determinism: see .claude/qa/engine/bin/non-determinism-contract.md (assert contracts/shape; AI marks are @content-driven).
   # ═══════════════════════════════════════════════════════════════════════════
   # STATUS: SPEC AHEAD OF CODE (2026-10-02, bd-s1oo0.9). Written from the build contract while the
   # lanes build it, so EVERY scenario is @wip @draft until it is driven against merged code. The

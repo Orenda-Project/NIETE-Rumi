@@ -1,40 +1,36 @@
-# qa — E2E runners, QA impact check, hooks and the scheduled LaunchAgent
+# qa — the shared engine link, the web lane, ledger masking and the scheduled LaunchAgent
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/qa kg=af69fe628860 gen=e58e2d4a4859 overflow=6 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/qa kg=8f41bbd9e993 gen=c1e35c0aa9b5 overflow=5 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
-- `e2e-mock.sh` — one-command mock-lane E2E run
-- `impact.py` — which features a commit range touched and whether specs synced
-- `install-hooks.sh` — one-time git hooksPath setup
-<!-- read: map-read-niete-bot 2026-10-29 -->
+- `link-engine.sh` — borrow the shared E2E engine from rumi-agent-home and point git at `.githooks` (`npm install` runs it)
+- `e2e-web.sh` — the portal browser E2E lane on a local stack at this HEAD
+- `niete-e2e-schedule.sh` — install, inspect or fire the two-hourly scheduled E2E run
+- The mock lane and the impact check run from the engine: `npm run e2e:mock`, `npm run qa:impact` (bd-9157r.1)
+<!-- read: bd-9157r.9 2026-10-30 -->
 
 ## Children (generated)
 | path | purpose |
 |---|---|
 | `look-gate/` | Phone-size layout gate for child-facing web quiz screens → `look-gate/CLAUDE.md` |
 | `render-matrix/` | Render matrix: every web-quiz item shape drawn and checked for defects → `render-matrix/CLAUDE.md` |
-| `impact.py` | Deterministic QA impact of a commit range: features touched, Gherkin specs synced, E2E run recorded; hook and CI |
-| `install-hooks.sh` | Sets git core.hooksPath to .githooks/ (run by npm prepare); supports --quiet, --force, --uninstall |
-| `e2e*` | 4 files; most used `e2e-web.test.sh`: Pins the web lane's wiring without a browser: never touches :4000, made-up data, ledger-valid row, scenario/code parity |
+| `link-engine.sh` | Links the shared E2E engine from rumi-agent-home into .claude/qa/engine and sets core.hooksPath; npm prepare runs it |
+| `e2e-web.test.sh` | Pins the web lane's wiring without a browser: never touches :4000, made-up data, ledger-valid row, scenario/code parity |
+| `engine-bridge.test.sh` | Holds the borrowed-engine line: no engine copy committed here; every git, npm and Claude entry point still works |
 | `mask-ledger.py` | Rewrites the QA runs ledger masking phones and home paths, in place and idempotent; --check for CI (bd-5gyspy.3) |
-| `test_impact.py` | Stdlib assertion tests for qa/impact.py: feature mapping, spec-sync trailers, recorded-run detection on temp git repos |
-| … | 8 more → `CLAUDE.index.md` |
+| … | 5 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `impact.py` ← imported by `scripts/qa/test_impact.py:21:6ecef21a`
-- env read here: `CHECK_ONLY` · `CI` · `COMMIT` · `DATA` · `DB_POOL_MIN` · `DB_POOL_SIZE` · `E2E_BOT_PORT` · `E2E_CHROME_ON` · `E2E_LOCAL_DB` · `E2E_MOCK_FEATURES` · `E2E_MOCK_RUN_SUITE` · `E2E_NO_COMMIT` (+16)
+- env read here: `CHECK_ONLY` · `CI` · `COMMIT` · `DATA` · `DB_POOL_MIN` · `DB_POOL_SIZE` · `E2E_BOT_PORT` · `E2E_ENGINE` · `E2E_NO_COMMIT` · `E2E_TRIGGER` · `E2E_WEB_PARALLEL` · `LOCAL_DB_PG_BIN` (+10)
 
 ## Never (human)
-- Let commit-ledger-row.sh push or stage anything but runs.jsonl (commit-ledger-row.sh:7)
+- Copy an engine file back in here: the harness is borrowed through `link-engine.sh`, and `engine-bridge.test.sh` fails on a copy (bd-9157r.1)
 - Leave raw phones or home paths in the ledger: the repo is public (mask-ledger.py:4, bd-5gyspy.3)
-<!-- read: map-read-niete-bot 2026-10-29 -->
+<!-- read: bd-9157r.9 2026-10-30 -->
 
 ## Tests (generated)
-- `scripts/qa/e2e-mock.test.sh`? (e2e-mock.sh)
 - `scripts/qa/e2e-web.test.sh`? (e2e-web.sh)
-- … 1 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- skills: `niete-mock-e2e`?
-- docs: `.claude/qa/SCHEDULE.md`? · `.claude/qa/ledgers/README.md`? · `.githooks/README.md`? · `docs/qa-automation.md`? · `scripts/CLAUDE.md`?
+- docs: `.claude/CLAUDE.md`? · `.claude/commands/niete-e2e.md`? · `.claude/qa/README.md`? · `.claude/qa/SCHEDULE.md`? · `.claude/qa/ledgers/README.md`? · `.githooks/README.md`? (+2)

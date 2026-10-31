@@ -27,7 +27,7 @@ Interaction map: [`../shared/whatsapp-interaction-map.md`](../shared/whatsapp-in
    because this step being an instruction rather than a fact is what produced the 4h23m run of
    2026-08-21 and `"wa_drive_loaded": false` on 2026-08-25. If it reports `undefined` — a page
    reload drops it — re-inject with
-   `node .claude/qa/shared/inject-wa-drive.js --run-dir <run-dir>`, or paste
+   `node .claude/qa/engine/bin/inject-wa-drive.js --run-dir <run-dir>`, or paste
    [`../shared/wa-drive.js`](../shared/wa-drive.js) via `evaluate_script`. Everything below assumes `wa.*` exists. Use `wa.sendAndWait(text)` (send + submit + wait
    in ONE round-trip); if you use the three-call form, **pass the baseline `wa.send()` returned** into
    `wa.waitForNew(baseline)` — passing `null` re-reads the baseline after the reply may already have
@@ -45,7 +45,7 @@ Interaction map: [`../shared/whatsapp-interaction-map.md`](../shared/whatsapp-in
 
 ## Step 1: Load Scenarios
 ```bash
-python3 .claude/qa/shared/parse-gherkin.py tests/features/whatsapp/niete/status.feature --tag @e2e
+python3 .claude/qa/engine/bin/parse-gherkin.py tests/features/whatsapp/niete/status.feature --tag @e2e
 ```
 Execute every returned scenario. `@config-gated` = only where `STATUS_FLOW_ID` is set (prod runtime has it
 UNSET → text fallback); mark `BLOCKED` otherwise. The "nothing running" and "no account" scenarios are
@@ -144,7 +144,7 @@ evidence under `../results/whatsapp/niete/<run>/`.
 scenario a stable short id (`R01`, `M12`, `LP10`, `C9`, `L21`, `S4` — `^[A-Z]{1,2}\d{1,2}$`) and a
 one-line `evidence` that QUOTES what rendered, not a restatement of the assertion. `status` must be
 one of `PASS` · `FAIL` · `BLOCKED` · `SKIP` · `PARTIAL` · `DEFERRED` · `NOT DRIVEN`
-(`PASS → PROMOTE` for a promoted `@wip`). `python3 .claude/qa/shared/validate-run.py <run-dir>`
+(`PASS → PROMOTE` for a promoted `@wip`). `python3 .claude/qa/engine/bin/validate-run.py <run-dir>`
 rejects anything that does not classify, and cross-checks the count against the `.feature` file.
 **Mapping**: `HEALTHY` = all PASS · `DEGRADED` = 1–2 FAIL · `CRITICAL` = 3+ FAIL or any BLOCKED.
 (On prod the `@config-gated` Flow scenario is expected `BLOCKED`; "nothing running" / "no account" need the

@@ -18,7 +18,7 @@ const fs = require('fs');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const run = promisify(execFile);
-const SC = require('./stack-control.cjs');
+const SC = require(path.join(__dirname, '..', 'engine', 'bin', 'stack-control.cjs'));   // the shared engine, linked in at .claude/qa/engine (scripts/qa/link-engine.sh)
 
 const MEDIA = path.resolve(__dirname, '..', 'fixtures', 'whatsapp', 'niete', 'media');
 const FX = {

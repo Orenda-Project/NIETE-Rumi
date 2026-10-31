@@ -21,6 +21,7 @@
  *
  * Red-first: every assertion fails on the branch before the fix.
  */
+const { describeWithEngine, testWithEngine, HAVE_ENGINE } = require('./engine');   // the shared engine, borrowed (bd-9157r.1)
 const fs = require('fs');
 const path = require('path');
 const REPO = path.resolve(__dirname, '..', '..');
@@ -58,8 +59,8 @@ describe('COA09 — the second recording goes in while the analysis is still in 
     expect(src.slice(i, i + 900)).toMatch(/!obs\.steps\.includes\('5'\)/);
     expect(src).not.toMatch(/Date\.now\(\) - t0 > 45000/);
   });
-  test('run-suite sets 0 on the mock lane', () => {
-    expect(read('.claude/qa/shared/run-suite.sh')).toMatch(/E2E_COACHING_DEFER_AFTER_MS="\$\{E2E_COACHING_DEFER_AFTER_MS:-0\}"/);
+  testWithEngine('run-suite sets 0 on the mock lane', () => {
+    expect(read('.claude/qa/engine/bin/run-suite.sh')).toMatch(/E2E_COACHING_DEFER_AFTER_MS="\$\{E2E_COACHING_DEFER_AFTER_MS:-0\}"/);
   });
 });
 
@@ -82,8 +83,8 @@ describe('T74 — the promise rides in the PDF caption and the forward message i
 });
 
 describe('M10/M21 — the WhatsApp mock lane composes an https portal URL so the cta_url button is sent', () => {
-  test('run-suite sets E2E_PORTAL_URL and local-stack composes it after the lane file', () => {
-    expect(read('.claude/qa/shared/run-suite.sh')).toMatch(/E2E_PORTAL_URL="\$\{E2E_PORTAL_URL:-https:\/\/127\.0\.0\.1:5173\}"/);
+  testWithEngine('run-suite sets E2E_PORTAL_URL and local-stack composes it after the lane file', () => {
+    expect(read('.claude/qa/engine/bin/run-suite.sh')).toMatch(/E2E_PORTAL_URL="\$\{E2E_PORTAL_URL:-https:\/\/127\.0\.0\.1:5173\}"/);
     const stack = read('bot/scripts/e2e/local-stack.sh');
     expect(stack).toMatch(/echo "PORTAL_URL=\$\{E2E_PORTAL_URL\}"/);
     expect(stack.indexOf('echo "PORTAL_URL=${E2E_PORTAL_URL}"')).toBeGreaterThan(stack.indexOf('cat "$lane_cfg"'));
