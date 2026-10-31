@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { Check, ChevronRight, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -32,6 +32,8 @@ export interface ListRowProps {
   prefix?: string;
   number?: string | number;
   icon?: ListRowIcon;
+  /** bd-x1tl95 — a screen's own icon (a 24px lucide icon) in the lead box, instead of `icon` or the number. */
+  glyph?: ReactNode;
   label: string;
   subtitle?: string;
   chip?: ChipData | null;
@@ -74,7 +76,7 @@ const URDU_PREFIX_LINE = { lineHeight: 1.5 } as const;
 const URDU_NUMBER_LINE = { lineHeight: 1.4 } as const;
 
 export function ListRow({
-  prefix = '', number = '', icon, label, subtitle, chip, state = 'default', variant = 'card', first = true, to, onPress,
+  prefix = '', number = '', icon, glyph, label, subtitle, chip, state = 'default', variant = 'card', first = true, to, onPress,
   copy, className, testId,
 }: ListRowProps) {
   const bidi = useBidi();
@@ -104,10 +106,10 @@ export function ListRow({
         // (tight, ink still free: the box does not clip) and the box may grow instead of holding a fixed 52px.
         ur ? 'min-h-[56px] w-[56px]' : 'h-[52px] w-[52px] leading-none',
         selected ? 'bg-[#e8e9f0]' : 'bg-[#f3f4f6]',
-        icon ? 'flex-row' : 'flex-col',
+        icon || glyph ? 'flex-row' : 'flex-col',
       )}
     >
-      {icon ? (
+      {glyph ? glyph : icon ? (
         <svg data-icon={icon} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           {ICON[icon]}
         </svg>

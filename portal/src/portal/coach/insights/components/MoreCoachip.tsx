@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CircleUserRound, ClipboardCheck, Languages, LogOut, Map as MapIcon, type LucideIcon } from "lucide-react";
+import { CircleUserRound, ClipboardCheck, Languages, LogOut, Map as MapIcon, MessageSquareText, type LucideIcon } from "lucide-react";
 import { LangToggle } from "../../../coachip-ui/LangToggle";
 import { TEACHER_FRAME } from "../../../teacher/copy";
 import { useCopy, useLang } from "../../../teacher/i18n";
@@ -68,6 +68,8 @@ export default function MoreCoachip({ name, phone, schools, rmOn, assess, onLogo
         <Row testId="more-row-language" className="items-center" lead={<CpIcon icon={Languages} />} title={C.more.language}
           trail={<LangToggle prefix="more-lang" />} />
         <Row testId="more-row-profile" to="/portal/coach/profile" lead={<CpIcon icon={CircleUserRound} />} title={C.more.profile} />
+        {/* bd-x1tl95 — Send feedback, as on More without COACHIP (the words are COACH_PROFILE's, not the generated COPY) */}
+        <Row testId="more-row-feedback" to="/portal/coach/feedback" lead={<CpIcon icon={MessageSquareText} />} title={P.feedback} />
         <button type="button" data-testid="more-row-logout" onClick={guardedLogout}
           className="flex min-h-[44px] w-full items-start gap-3 border-t border-cp-hairline py-3.5 text-start outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green">
           <CpIcon icon={LogOut} />

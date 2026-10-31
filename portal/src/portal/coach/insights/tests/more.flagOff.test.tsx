@@ -48,10 +48,25 @@ describe("More and COACHIP", () => {
     expect(screen.getByTestId("more-row-profile")).toBeTruthy();
   });
 
+  // bd-x1tl95: Send feedback is on More whatever the switch says — the coaches asked for it, not the COACHIP pilot.
+  it.each(["on", "off", "absent", "fails"] as const)("switch %s: a Send feedback row opens /portal/coach/feedback", async (mode) => {
+    await renderMore(mode);
+    const row = screen.getByTestId("more-row-feedback");
+    expect(row.getAttribute("href")).toBe("/portal/coach/feedback");
+    expect(row.textContent).toContain("Send feedback");
+  });
+
   it("switch on: Training Library and Lesson Plans are rows on More", async () => {
     await renderMore("on");
     expect(screen.getByTestId("more-row-training").getAttribute("href")).toBe("/portal/coach/training");
     expect(screen.getByTestId("more-row-lessons").getAttribute("href")).toBe("/portal/teacher/lessons");
+  });
+
+  // bd-whlsm0's Report an issue is folded into Send feedback: one feedback row on More, whichever way the switch is
+  it.each(["on", "off"] as const)("switch %s: no separate Report an issue row", async (mode) => {
+    await renderMore(mode);
+    expect(screen.queryByTestId("more-row-report")).toBeNull();
+    expect(screen.queryByText("Report an issue")).toBeNull();
   });
 
   // fix-r5 item 5d (SPEC v2.1 §11.6, dual-role users): a "Sector (RM)" row only when features.coachipRm === true
@@ -94,7 +109,7 @@ describe("More and the COACHIP look (R6)", () => {
     const who = screen.getByTestId("more-who");
     expect(who.closest(".cp")).not.toBeNull();
     expect(who.className).toContain("bg-cp-navy");
-    for (const id of ["training", "lessons", "rm", "profile", "logout"]) {
+    for (const id of ["training", "lessons", "rm", "profile", "feedback", "logout"]) {
       const row = screen.getByTestId(`more-row-${id}`);
       expect(row.closest(".cp")).not.toBeNull();
       expect(row.className).toContain("border-cp-hairline");

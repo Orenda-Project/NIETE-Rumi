@@ -377,4 +377,5 @@ function logAppAction(req, action, feature, extra = {}) {
   } catch (_) { /* never */ }
 }
 
-module.exports = { createAppFunnelRouter, actionLogger, logAppAction };
+// browserClass: bd-x1tl95, the app's Send feedback records which browser it came from the same way.
+module.exports = { createAppFunnelRouter, actionLogger, logAppAction, browserClass };

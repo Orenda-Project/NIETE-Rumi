@@ -19,6 +19,7 @@ describe("COACH_APP_READY", () => {
   it.each([
     "/portal/coach/training", "/portal/coach/training/ISAPS", "/portal/coach/training/module/m-1", "/portal/coach/training/preview",
     "/portal/coach/more", "/portal/coach/profile", "/portal/account", "/portal/login",
+    "/portal/coach/feedback", // bd-x1tl95: More → Send feedback (the one feedback form; bd-whlsm0 folded in)
   ])("%s is reachable", (p) => expect(coachPathReady(p)).toBe(true));
 
   it.each([
