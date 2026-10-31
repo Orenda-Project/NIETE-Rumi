@@ -1,6 +1,6 @@
 import api from "../../services/api";
 import type { TeachingLevel } from "../people/level";
-import type { CardFeature, FeatureGridData, ItemsData, ItemsFeature, PeriodKey, SchoolCardData, SchoolScoresData, ScoreKind, SessionReportData, TeacherCardData, TeacherScoresData } from "./types";
+import type { CardFeature, FeatureGridData, ItemsData, TrainingByTeacherData, ItemsFeature, PeriodKey, SchoolCardData, SchoolScoresData, ScoreKind, SessionReportData, TeacherCardData, TeacherScoresData } from "./types";
 
 /**
  * The School card's reads: GET /api/portal/coach/... (the dashboard answers 404 when the switch is off for her, when the
@@ -21,7 +21,8 @@ const seg = encodeURIComponent;
 export const card = {
   // bd-ewbzns.1 — a school's three reads take the teaching level: that level's teachers only (none: the whole school).
   school: (emis: string, period: PeriodKey, level?: TeachingLevel | null) => get<SchoolCardData>(`/coach/school/${seg(emis)}/card`, period, level),
-  grid: (emis: string, feature: CardFeature, period: PeriodKey, level?: TeachingLevel | null) => get<FeatureGridData>(`/coach/school/${seg(emis)}/feature/${seg(feature)}`, period, level),
+  // Training answers TrainingByTeacherData (bd-hl4a4y): her trainings' progress, not a grid.
+  grid: (emis: string, feature: CardFeature, period: PeriodKey, level?: TeachingLevel | null) => get<FeatureGridData | TrainingByTeacherData>(`/coach/school/${seg(emis)}/feature/${seg(feature)}`, period, level),
   teacher: (ext: string, period: PeriodKey) => get<TeacherCardData>(`/coach/teacher/${seg(ext)}/card`, period),
   items: (ext: string, feature: ItemsFeature, period: PeriodKey) => get<ItemsData>(`/coach/teacher/${seg(ext)}/items/${seg(feature)}`, period),
   teacherScores: (ext: string, kind: ScoreKind, period: PeriodKey) => get<TeacherScoresData>(`/coach/teacher/${seg(ext)}/scores/${seg(kind)}`, period),

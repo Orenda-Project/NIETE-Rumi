@@ -186,6 +186,35 @@ const SQL = Object.freeze({
       FROM training_modules m JOIN training_courses c ON c.id = m.course_id
      WHERE m.is_active AND m.course_id IN (SELECT course_id FROM training_modules WHERE id = ANY($1::bigint[]))`,
 
+  // bd-hl4a4y — her trainings, read as GET /training/vendors reads them for her own Training page: her ACTIVE
+  // programmes' scopes (a provider, and its levels: none listed = all), ...
+  trainingScopes: `/* sc:training-scopes */
+    SELECT a.user_id, s.vendor_id, s.level_ids
+      FROM teacher_training_assignments a
+      JOIN training_program_scopes s ON s.program_id = a.program_id
+     WHERE a.user_id = ANY($1::uuid[]) AND a.is_active`,
+
+  // ... every active provider of those scopes with its active levels, each with its active parts (active modules of
+  // active courses); a provider with no active level is one row with a null level ...
+  trainingLevels: `/* sc:training-levels */
+    SELECT v.id AS vendor_id, v.key AS vendor_key, v.name AS vendor_name, v.unlock_logic,
+           l.id AS level_id, l.order_index,
+           (SELECT count(*) FROM training_courses c
+              JOIN training_modules m ON m.course_id = c.id AND m.is_active
+             WHERE c.level_id = l.id AND c.is_active) AS parts
+      FROM training_vendors v
+      LEFT JOIN training_levels l ON l.vendor_id = v.id AND l.is_active
+     WHERE v.is_active AND v.id = ANY($1::uuid[])`,
+
+  // ... and the parts each finished, by level (one progress row per part: UNIQUE (user_id, module_id)).
+  trainingDone: `/* sc:training-done */
+    SELECT tp.user_id, c.level_id, count(*) AS done
+      FROM teacher_training_progress tp
+      JOIN training_modules m ON m.id = tp.module_id AND m.is_active
+      JOIN training_courses c ON c.id = m.course_id AND c.is_active
+     WHERE tp.user_id = ANY($1::uuid[])
+     GROUP BY tp.user_id, c.level_id`,
+
   // A request counts once when a ROOT paper (not an edit) of it is ready; the latest ready root gives its size.
   papers: `/* sc:papers */
     SELECT r.id, r.user_id, r.created_at AS at, r.grade_code, r.subject_code,
@@ -887,8 +916,15 @@ async function getSchoolFeature(query, coachId, emis, feature, opts = {}) {
   if (!FEATURES.includes(feature)) return null;
   const ctx = await schoolContext(query, coachId, emis, opts.level);
   if (!ctx) return null;
-  const period = resolvePeriod(opts);
   const ids = ctx.teachers.map((t) => t.id);
+  if (feature === 'training') {
+    // bd-hl4a4y — Training by teacher: her trainings' progress, not parts per day; teachers with none last.
+    const trainings = await trainingsOf(query, ids);
+    const rows = ctx.teachers.map((t) => ({ teacherExtId: t.teacherExtId, name: t.name, vendors: trainings.get(t.id).vendors }))
+      .sort((a, b) => (Number(!a.vendors.length) - Number(!b.vendors.length)) || byName(a, b));
+    return { feature, rows };
+  }
+  const period = resolvePeriod(opts);
   const act = await loadActivity(query, ids, period, opts);
   const per = tally(period, featureEvents(act)[feature], ids);
   const rows = ctx.teachers.map((t) => ({ teacherExtId: t.teacherExtId, name: t.name, cells: per.get(t.id).cells, total: per.get(t.id).total }))
@@ -916,6 +952,87 @@ async function coursesOf(query, userId, moduleIds) {
     const done = parts.length > 0 && parts.every((p) => p.doneAt);
     return { name: c.name, done, parts, lastDone: done ? parts.map((p) => p.doneAt).sort().pop() : null };
   });
+}
+
+/**
+ * bd-hl4a4y — each teacher's trainings as her own Training page counts them (GET /training/vendors, the same rules):
+ * a provider of her active programmes, the levels those programmes show (a scope listing none shows all; several
+ * programmes take the union), and in those levels the active parts and the ones she finished. A provider whose scopes
+ * list only inactive levels is left out; one scoped to all levels stays with none yet (0 of 0). By provider name, as
+ * that endpoint sorts them. `levels` are the levels she sees, for the "Level N of M" line.
+ * @returns {Map<string, { vendors: Array, levels: Array }>} by user id
+ */
+function trainingProgressOf(userIds, scopeRows = [], levelRows = [], doneRows = []) {
+  const id = (v) => String(v);
+  const providers = new Map();
+  for (const r of levelRows) {
+    if (!providers.has(id(r.vendor_id))) {
+      providers.set(id(r.vendor_id), { key: text(r.vendor_key), name: text(r.vendor_name), unlock: text(r.unlock_logic) || 'chain', levels: [] });
+    }
+    if (r.level_id != null) providers.get(id(r.vendor_id)).levels.push({ id: num(r.level_id), order: num(r.order_index) || 0, parts: num(r.parts) || 0 });
+  }
+  const done = new Map(doneRows.map((r) => [`${r.user_id}|${id(r.level_id)}`, num(r.done) || 0]));
+  const scopeOf = new Map();
+  for (const s of scopeRows) {
+    if (!s.vendor_id) continue;
+    if (!scopeOf.has(s.user_id)) scopeOf.set(s.user_id, new Map());
+    const mine = scopeOf.get(s.user_id);
+    const cur = mine.get(id(s.vendor_id));
+    if (cur === 'all') continue;
+    const listed = Array.isArray(s.level_ids) ? s.level_ids.map(id) : [];
+    mine.set(id(s.vendor_id), listed.length ? new Set([...(cur || []), ...listed]) : 'all');
+  }
+  return new Map(userIds.map((u) => {
+    const mine = [];
+    for (const [vendor, scope] of scopeOf.get(u) || []) {
+      const p = providers.get(vendor);
+      if (!p) continue;
+      const seen = p.levels.filter((l) => scope === 'all' || scope.has(id(l.id)));
+      if (scope !== 'all' && !seen.length) continue;
+      mine.push({ p, seen });
+    }
+    mine.sort((a, b) => String(a.p.name).localeCompare(String(b.p.name)));
+    return [u, {
+      vendors: mine.map(({ p, seen }) => ({
+        vendor_key: p.key,
+        vendor_name: p.name,
+        module_count: seen.reduce((n, l) => n + l.parts, 0),
+        completed_module_count: seen.reduce((n, l) => n + (done.get(`${u}|${id(l.id)}`) || 0), 0),
+      })),
+      levels: mine.flatMap(({ p, seen }) => seen.slice().sort((a, b) => a.order - b.order)
+        .map((l) => ({ id: l.id, vendor_key: p.key, order_index: l.order, unlock_logic: p.unlock }))),
+    }];
+  }));
+}
+
+/**
+ * Her levels with the bot's state for each, as GET /training/levels gives them to her own page (a level the bot does
+ * not name reads not_started). Null when the bot cannot be asked or does not answer: say nothing rather than guess.
+ */
+async function levelStatesOf(userId, levels, levelStates) {
+  if (typeof levelStates !== 'function') return null;
+  let states;
+  try {
+    states = await levelStates(userId);
+  } catch (err) {
+    console.error('[coach-school-card] level states unavailable:', err.message);
+    return null;
+  }
+  const byId = new Map((states || []).map((s) => [String(s.id), s]));
+  return levels.map((l) => {
+    const s = byId.get(String(l.id)) || {};
+    return { ...l, state: s.state || 'not_started', courses_total: num(s.courses_total) || 0, courses_completed: num(s.courses_completed) || 0 };
+  });
+}
+
+/** The trainings of these teachers (trainingProgressOf), three reads for the whole list. */
+async function trainingsOf(query, ids) {
+  if (!ids.length) return trainingProgressOf([]);
+  const scopes = rowsOf(await query(SQL.trainingScopes, [ids]));
+  const vendorIds = [...new Set(scopes.map((s) => s.vendor_id).filter(Boolean))];
+  if (!vendorIds.length) return trainingProgressOf(ids);
+  const [levels, done] = await Promise.all([query(SQL.trainingLevels, [vendorIds]), query(SQL.trainingDone, [ids])]);
+  return trainingProgressOf(ids, scopes, rowsOf(levels), rowsOf(done));
 }
 
 /** Her activity for the period (sessions also for the period before), shaped once for her card, lists and reports. */
@@ -1012,9 +1129,10 @@ async function getTeacherItems(query, coachId, ext, feature, opts = {}) {
     case 'papers':
       return { ...base, items: inPeriodOnly(events.papers).map((p) => ({ id: p.id, date: p.day, grade: p.grade, subject: p.subject, questions: p.questions, marks: p.marks })) };
     default: {
-      const moduleIds = [...new Set(inPeriodOnly(events.training).map((p) => p.moduleId))];
-      const courses = await coursesOf(query, teacher.id, moduleIds);
-      return { ...base, courses: courses.map(({ name, parts, done }) => ({ name, done, parts })) };
+      // bd-hl4a4y — her trainings, each with what her own Training page shows: the parts done of its parts, and
+      // (from the bot's level states, as GET /training/levels) where she is in its levels. Bot down: levels null.
+      const { vendors, levels } = (await trainingsOf(query, [teacher.id])).get(teacher.id);
+      return { ...base, vendors, levels: vendors.length ? await levelStatesOf(teacher.id, levels, opts.levelStates) : [] };
     }
   }
 }
@@ -1163,6 +1281,7 @@ module.exports = {
   isDcObservation,
   isCoachObservation,
   trainingPartsOf,
+  trainingProgressOf,
   papersOf,
   daysWithUse,
   contributionPct,

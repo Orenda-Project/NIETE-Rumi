@@ -13,7 +13,7 @@ import {
   certificateSummary, continueCard, courseTiles, teachingLevels, TRAINING_V2_BASE,
   type Bands, type CertLike, type CourseTile,
 } from './model';
-import { EmptyNote, LoadState, ProviderMark, ProviderTile, TrainingPageV2 } from './TrainingFrame';
+import { EmptyNote, LoadState, ProviderMark, ProviderTile, TrainingPageV2, useTileLine } from './TrainingFrame';
 
 /**
  * bd-fmf24g.5 — the teacher v2 Training page (v28 canvas Training.dc.html).
@@ -144,7 +144,7 @@ export function TrainingHub() {
 
 function CourseTileCard({ tile: t }: { tile: CourseTile }) {
   const C = useCopy(TRAINING);
-  const sub = t.sub?.kind === 'level' ? C.levelOf(t.sub.n, t.sub.of) : t.sub?.kind === 'courses' ? C.coursesOf(t.sub.done, t.sub.total) : null;
+  const line = useTileLine();
   return (
     <ProviderTile
       to={t.to}
@@ -155,7 +155,7 @@ function CourseTileCard({ tile: t }: { tile: CourseTile }) {
       ring={{ pct: t.pct, done: t.done, label: t.done ? C.done : C.pct(t.pct) }}
     >
       {t.done ? <StatusChip text={C.done} tone="done" /> : (
-        <span className="text-[13px] text-[#6b7280]">{[C.pct(t.pct), sub].filter(Boolean).join(' · ')}</span>
+        <span className="text-[13px] text-[#6b7280]">{line(t)}</span>
       )}
     </ProviderTile>
   );

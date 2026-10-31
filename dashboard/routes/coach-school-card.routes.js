@@ -42,10 +42,11 @@ function todayOf(req, now) {
 }
 
 /**
- * @param {{ guards?: Function[], query: Function, memo?: object, now?: () => Date }} deps
+ * @param {{ guards?: Function[], query: Function, memo?: object, now?: () => Date, levelStates?: (userId: string) => Promise<Array> }} deps
+ *   levelStates: the bot's training level states for a teacher (bd-hl4a4y: her Training page's "Level N of M").
  */
 function createCoachSchoolCardRouter(deps) {
-  const { guards = [], query, memo, now } = deps;
+  const { guards = [], query, memo, now, levelStates } = deps;
   const router = express.Router();
 
   const optsOf = (req, res) => {
@@ -120,7 +121,7 @@ function createCoachSchoolCardRouter(deps) {
     if (!EXT_RX.test(ext) || !Card.ITEM_FEATURES.includes(feature)) return notFound(res);
     const opts = optsOf(req, res);
     if (!opts) return undefined;
-    return answer(res, 'items', () => Card.getTeacherItems(query, coach(req), ext, feature, opts));
+    return answer(res, 'items', () => Card.getTeacherItems(query, coach(req), ext, feature, { ...opts, ...(levelStates ? { levelStates } : {}) }));
   });
 
   router.get('/coach/session/:id', ...guards, async (req, res) => {
