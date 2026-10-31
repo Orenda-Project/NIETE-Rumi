@@ -7,6 +7,7 @@ import TeacherPage from '../TeacherPage';
 import { CARD, FOCUS } from '../ui/styles';
 import { TRAINING } from './copy';
 import { SkeletonList } from '../../components/Skeleton';
+import type { CourseTile } from './model';
 
 /**
  * bd-fmf24g.5 — every teacher v2 Training page is the shared v2 page (TeacherPage, bd-fmf24g.1) with the
@@ -70,6 +71,37 @@ export function ProviderMark({ logo, initials, size = 28, className }: { logo: s
 }
 
 /**
+ * A provider tile's line under its name: "76% · Level 3 of 4" (a ladder), "76% · 3 of 5 courses" (one level), or the %
+ * alone. The hub's tiles and the coach's School card (bd-hl4a4y) write it the same way.
+ */
+export function useTileLine() {
+  const C = useCopy(TRAINING);
+  return (t: Pick<CourseTile, 'pct' | 'sub'>) => {
+    const sub = t.sub?.kind === 'level' ? C.levelOf(t.sub.n, t.sub.of) : t.sub?.kind === 'courses' ? C.coursesOf(t.sub.done, t.sub.total) : null;
+    return [C.pct(t.pct), sub].filter(Boolean).join(' · ');
+  };
+}
+
+/**
+ * A provider's mark inside its progress ring (parts done, or a full green disc when all are). The hub's tile draws it,
+ * and the coach's School card draws the same one for a teacher's trainings (bd-hl4a4y).
+ */
+export function ProviderRing({ logo, initials, ring }: { logo: string | null; initials: string; ring: { pct: number; done: boolean; label: string } }) {
+  return (
+    <span
+      role="img"
+      aria-label={ring.label}
+      className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full"
+      style={{ background: ring.done ? '#2f7a52' : `conic-gradient(#2f7a52 0 ${ring.pct}%, #e5e7eb ${ring.pct}% 100%)` }}
+    >
+      <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white">
+        <ProviderMark logo={logo} initials={initials} size={28} />
+      </span>
+    </span>
+  );
+}
+
+/**
  * bd-s42dye.6 — a provider's tile (the teacher hub's, extracted so the coach's Training Library draws the same one):
  * its mark inside a ring (or, in the library, alone on a white tile), its name, a line under it (`children`). `ring` is the hub's progress ring (parts done, or a
  * full green disc when all are); with none the mark stands alone on a white tile, so the library shows no progress.
@@ -95,16 +127,7 @@ export function ProviderTile({
       className={cn(CARD, 'flex min-h-[150px] flex-col items-start justify-between gap-3 rounded-[18px] p-4', FOCUS, className)}
     >
       {ring ? (
-        <span
-          role="img"
-          aria-label={ring.label}
-          className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full"
-          style={{ background: ring.done ? '#2f7a52' : `conic-gradient(#2f7a52 0 ${ring.pct}%, #e5e7eb ${ring.pct}% 100%)` }}
-        >
-          <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white">
-            <ProviderMark logo={logo} initials={initials} size={28} />
-          </span>
-        </span>
+        <ProviderRing logo={logo} initials={initials} ring={ring} />
       ) : (
         // No ring, no progress: the mark alone on a white tile, as the page's feature tile is drawn.
         <span aria-hidden="true" className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-[14px] border border-[#e5e7eb] bg-white">

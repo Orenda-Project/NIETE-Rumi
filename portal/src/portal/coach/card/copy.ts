@@ -72,7 +72,7 @@ export const SCHOOL_CARD_EN = {
     `Lesson plans ${lp}, DC observations ${dc}, training parts ${training}, assessments ${papers}`,
 
   // A feature by teacher
-  byTeacher: { lp: "Lesson plans by teacher", dc: "Digital Coaching by teacher", coach: "Coach observations by teacher", training: "Training parts by teacher", papers: "Assessments by teacher" },
+  byTeacher: { lp: "Lesson plans by teacher", dc: "Digital Coaching by teacher", coach: "Coach observations by teacher", training: "Training by teacher", papers: "Assessments by teacher" },
   schoolRow: "School",
   total: "Total",
 
@@ -122,9 +122,9 @@ export const SCHOOL_CARD_EN = {
   fieldForm: "Field form",
   questionsMarks: (q: number, m: number) => `${q} questions · ${m} marks`,
   questionsN: (q: number) => `${q} questions`,
-  partsDone: (a: number, b: number) => `${a} of ${b} parts done`,
   done: "Done",
-  notDone: "Not done",
+  // bd-hl4a4y — Training: a teacher with no training programme (her page, and her row on Training by teacher).
+  noTraining: "No training yet",
 
   // A report
   wentWell: "What went well",
@@ -202,7 +202,7 @@ export const SCHOOL_CARD_UR: SchoolCardCopy = {
   same: "برابر",
   countsSpoken: (lp, dc, training, papers) => `لیسن پلان ${lp}، ڈیجیٹل کوچنگ مشاہدات ${dc}، ٹریننگ کے حصے ${training}، پرچے ${papers}`,
 
-  byTeacher: { lp: "ٹیچر کے حساب سے لیسن پلان", dc: "ٹیچر کے حساب سے ڈیجیٹل کوچنگ", coach: "ٹیچر کے حساب سے کوچ کے مشاہدات", training: "ٹیچر کے حساب سے ٹریننگ کے حصے", papers: "ٹیچر کے حساب سے پرچے" },
+  byTeacher: { lp: "ٹیچر کے حساب سے لیسن پلان", dc: "ٹیچر کے حساب سے ڈیجیٹل کوچنگ", coach: "ٹیچر کے حساب سے کوچ کے مشاہدات", training: "ٹیچر کے حساب سے ٹریننگ", papers: "ٹیچر کے حساب سے پرچے" },
   schoolRow: "اسکول",
   total: "کل",
 
@@ -244,9 +244,8 @@ export const SCHOOL_CARD_UR: SchoolCardCopy = {
   fieldForm: "فیلڈ فارم",
   questionsMarks: (q, m) => `${q} سوالات · ${m} نمبر`,
   questionsN: (q) => `${q} سوالات`,
-  partsDone: (a, b) => `${b} میں سے ${a} حصے مکمل`,
   done: "مکمل",
-  notDone: "مکمل نہیں",
+  noTraining: "ابھی کوئی ٹریننگ نہیں",
 
   wentWell: "کیا اچھا رہا",
   notScored: "اسکور نہیں ہوا",
@@ -282,5 +281,5 @@ export const COPY_ENTRY: CopyEntry = {
   same: ["dash", "dayMonth", "sectionKey", "gradeSubject", "emis", "pct", "scoreOf", "outOf"],
   // Lines that are a whole phrase by design: "by 8 of 14 teachers", "Thu and Fri are still ahead", the screen-reader
   // reading of the four counts, the report headings as drawn, and the empty lines that name the period.
-  longOk: ["noKind", "across", "scoredIn", "noLpLinked", "tapDot", "sectionNames", "reflection", "byN", "oneAhead", "manyAhead", "countsSpoken", "noMatch", "byTeacher", "allOf", "schoolsTeachers", "partsDone", "questionsMarks", "lastVisit", "noPlan", "lessThanOneDay", "notScoredList", "stepsDone", "weekdayDayMonth"],
+  longOk: ["noKind", "across", "scoredIn", "noLpLinked", "tapDot", "sectionNames", "reflection", "byN", "oneAhead", "manyAhead", "countsSpoken", "noMatch", "byTeacher", "allOf", "schoolsTeachers", "questionsMarks", "lastVisit", "noPlan", "lessThanOneDay", "notScoredList", "stepsDone", "weekdayDayMonth"],
 };
