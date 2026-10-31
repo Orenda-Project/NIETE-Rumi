@@ -41,7 +41,7 @@ export { HomeGreeting, type HomeGreetingProps } from './HomeGreeting';
 export { TimeStamp, parseTime, type Meridiem, type TimeStampProps, type TimeTone } from './TimeStamp';
 export { ChosenSoFar, type ChosenItem, type ChosenSoFarProps } from './ChosenSoFar';
 export { AttentionBanner, type AttentionBannerProps } from './AttentionBanner';
-export { FeatureTile, type FeatureTileProps } from './FeatureTile';
+export { FeatureTile, tileArtSize, tileShell, tileWords, type FeatureTileProps } from './FeatureTile';
 export { addDays, dayNumber, weekdayOf, weekOf } from './dates';
 export { DayStrip, type DayStripProps } from './DayStrip';
 export { TimePicker, PICKER_HOURS, type TimePickerProps } from './TimePicker';

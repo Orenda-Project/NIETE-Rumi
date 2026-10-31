@@ -105,11 +105,12 @@ describe("TeacherNavigation — look ON", () => {
     }
   });
 
-  it("the glyphs are the look's, 22px", async () => {
+  it("the glyphs are the kit's colourful D2 menu glyphs, as without the look (no lucide line icons), 24px", async () => {
     await on();
-    const glyphs = items().map((a) => a.querySelector("svg[data-look-glyph]")!);
-    expect(glyphs.map((g) => g.getAttribute("data-look-glyph"))).toEqual(["home", "lessons", "coaching", "training", "more"]);
-    glyphs.forEach((g) => expect(g.getAttribute("width")).toBe("22"));
+    const glyphs = items().map((a) => a.querySelector("svg[data-glyph]")!);
+    expect(glyphs.map((g) => g?.getAttribute("data-glyph"))).toEqual(["home", "lessons", "coaching", "training", "more"]);
+    glyphs.forEach((g) => expect(g.getAttribute("width")).toBe("24"));
+    items().forEach((a) => expect(a.querySelector("svg.lucide")).toBeNull());
     expect(items().map((a) => a.textContent)).toEqual(["Home", "Lesson Plans", "Digital Coaching", "Training", "More"]);
   });
 

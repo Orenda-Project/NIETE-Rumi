@@ -12,8 +12,9 @@ import { HOME_LOOK } from "../../../newui/tokens";
 
 /**
  * The look's one card for all five rungs, in English and in Urdu: the tint and medal by kind, the eyebrow's colour,
- * a full-width primary and a text-link secondary, taps that go exactly where NextCard and SlimCard send them, the
- * lesson's lead-in with its topic on its own line, and the lesson's cool-down (3 home loads, then not drawn).
+ * the compact size (operator, 31 Oct 2026, mockup v8: 12 px padding, a 40 px medal, a 16 px title, a 14 px topic, the
+ * primary and its text-link secondary side by side on one row), taps that go exactly where NextCard and SlimCard send
+ * them, the lesson's lead-in with its topic on its own line, and the lesson's cool-down (3 home loads, then not drawn).
  */
 const QUIZ = "/quiz/teacher/tok123";
 const KEY = "user-key-1";
@@ -66,7 +67,7 @@ for (const code of ["en", "ur"] as const) {
     afterEach(async () => { vi.restoreAllMocks(); await lang("en"); });
 
     for (const kind of LOOK_KINDS) {
-      it(`${kind}: tint, medal, eyebrow, one full-width primary, one 44 px secondary, title rules`, () => {
+      it(`${kind}: tint, 12 px padding, a 40 px medal, eyebrow, the primary and its 44 px secondary on one row, a 16 px title`, () => {
         const { card } = draw(CARDS[kind]);
         expect(card.getAttribute("data-home-card")).toBe(kind);
         expect(card.getAttribute("data-kind")).toBe(kind);
@@ -76,14 +77,20 @@ for (const code of ["en", "ur"] as const) {
         // the literal classes are the HOME_LOOK tokens
         expect(card.className).toContain(`bg-[${green ? HOME_LOOK.tileGreen : HOME_LOOK.tileSlate}]`);
         expect(card.className).toMatch(/rounded-\[20px\]/);
+        expect(card.className.split(" ")).toContain("p-3");
+        expect(card.className).not.toMatch(/(^|\s)(p-4|pb-2)(\s|$)/);
         expect(card.querySelector(`svg.${GLYPH[kind]}`)).toBeTruthy();
+        const medal = card.querySelector(`svg.${GLYPH[kind]}`)!.parentElement!;
+        expect(medal.className.split(" ")).toEqual(expect.arrayContaining(["h-10", "w-10", "rounded-full", "bg-white"]));
         const eyebrow = within(card).getByText(C.eyebrow);
         expect(eyebrow.className).toContain(green ? "text-[#1e5c3f]" : "text-[#333748]");
         expect(eyebrow.className).not.toContain("text-[#2e7d57]");
         const primaries = card.querySelectorAll("[data-primary]");
         expect(primaries).toHaveLength(1);
         expect(primaries[0].className).toContain("bg-[#2e7d57]");
-        expect(primaries[0].className).toMatch(/\bw-full\b/);
+        // the primary takes the row's room; the secondary sits beside it
+        expect(primaries[0].className.split(" ")).toContain("flex-1");
+        expect(primaries[0].className).not.toMatch(/\bw-full\b/);
         expect(primaries[0].className).toMatch(/min-h-\[48px\]/);
         expect(primaries[0].className).toMatch(/\bwhitespace-normal\b/);
         // Nastaliq tops at 160% stay inside the green
@@ -91,20 +98,25 @@ for (const code of ["en", "ur"] as const) {
         const secondaries = within(card).getAllByRole("button").filter((b) => !b.hasAttribute("data-primary"));
         expect(secondaries).toHaveLength(1);
         expect(secondaries[0].className).toMatch(/min-h-\[44px\]/);
-        expect(secondaries[0].className).toMatch(/\bw-full\b/);
+        expect(secondaries[0].className).not.toMatch(/\bw-full\b/);
+        expect(secondaries[0].className.split(" ")).toContain("shrink-0");
+        const row = primaries[0].parentElement!;
+        expect(secondaries[0].parentElement).toBe(row);
+        expect(row.className.split(" ")).toEqual(expect.arrayContaining(["flex", "items-center", "mt-2.5"]));
         expect(secondaries[0].querySelector("svg.lucide-chevron-right")?.getAttribute("class")).toMatch(/rtl:rotate-180/);
         const title = screen.getByTestId("home-look-title");
         expect(title.tagName).toBe("H2");
         if (code === "ur") {
           expect(title.className).not.toMatch(/line-clamp/);
           expect(title.className).toMatch(/overflow-visible/);
+          expect(title.className.split(" ")).toContain("text-[16px]");
           // a Nastaliq ascender rises above the h2's line box: the gap above grows with the font
           expect(title.className).toMatch(/(^|\s)mt-\[0\.4em\](\s|$)/);
           expect(title.className).not.toMatch(/(^|\s)mt-0\.5(\s|$)/);
           expect(card.getAttribute("dir")).toBe("rtl");
         } else {
           expect(title.className).toMatch(/\bline-clamp-2\b/);
-          expect(title.className).toBe("mt-0.5 font-semibold text-[#333748] line-clamp-2 text-[18px] leading-snug");
+          expect(title.className).toBe("mt-0.5 font-semibold text-[#333748] line-clamp-2 text-[16px] leading-snug");
         }
         if (kind === "lesson") {
           expect(screen.queryByTestId("home-look-sub")).toBeNull();
@@ -137,9 +149,10 @@ for (const code of ["en", "ur"] as const) {
       });
     }
 
-    it("coach report with no quiz home: no secondary, the same as NextCard", async () => {
+    it("coach report with no quiz home: no secondary (the primary fills its row), the same as NextCard", async () => {
       const { card, onGo } = draw(COACH, null);
       expect(within(card).getAllByRole("button")).toHaveLength(1);
+      expect(within(card).getByRole("button").className.split(" ")).toContain("flex-1");
       const look = await taps(card, onGo);
       cleanup();
       const onOld = vi.fn();
@@ -167,6 +180,7 @@ for (const code of ["en", "ur"] as const) {
       expect(title.textContent).toBe(C.look.leadIn);
       expect(topic.textContent).toBe("Parts of a Plant");
       expect(topic.className).toMatch(/\btruncate\b/);
+      expect(topic.className.split(" ")).toContain("text-[14px]");
       // the lead-in comes first, the topic on its own line after it
       expect(title.compareDocumentPosition(topic) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(card.textContent?.indexOf(C.look.leadIn)).toBeLessThan(card.textContent?.indexOf("Parts of a Plant") ?? -1);

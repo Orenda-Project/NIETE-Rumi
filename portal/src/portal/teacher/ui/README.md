@@ -37,7 +37,7 @@ import { FeatureArt, FeatureGlyph, FEATURE_HUE, TEACHER_FEATURES } from '@/porta
 ## Components
 
 ### `HomeGreeting`
-`title` ("Salaam, {full name}!", composed by the page), `date` (her language, "Thursday 8 October"), `school` (null shows no row), `brand`, `logoAlt`, `markSrc` (the NIETE logo), `className`.
+`title` ("Salaam, {full name}!", composed by the page), `date` (her language, "Thursday 8 October"), `school` (null shows no row), `brand`, `logoAlt`, `markSrc` (the NIETE logo), `footer` (a control under the school), `corner` (a small control at the end of the logo row: the Home look's language pill), `testId` (`home-greeting`), `className`.
 The top of Home, option C (chosen 9 Oct 2026): a full-bleed brand navy-slate `#333748` band, the N/ن mark + "NIETE", a faint `NieteLattice` at the far end, the page's h1, then the date and school as PLAIN 17px text (no pills, nothing tappable). Bottom padding leaves 28px for the first thing under it to climb into the band (Home's `-mt-10` body; `TeacherPage`'s `hero` slot gives the full-bleed edges on a phone). Real data only: `firstName`, `schoolName`, the clock. The coach Home takes the same band later (no school, no overlap).
 
 ### `SubjectTile`
@@ -341,8 +341,12 @@ nor `onPress` it is a plain `role="status"` note. Never stack it with the ready 
 | chip | `ChipData` (`{ text, tone }`, tones `info` · `waiting` · `done`) shown under the label; none or empty text draws none | — |
 | wide | the 132px tile spanning two columns | false |
 | motion | play the shared icon movement (inside a `FeatureMotionProvider`) | true |
+| compact | the Home look's three-per-row tile: 104px, 44px art, 14px/600 words that may wrap | false |
 
-Home's tile, now the kit's (teacher Home uses it). 176px, 80px art, 18px/600 label. Lay tiles out in `[display:grid] grid-cols-2 gap-3`
+Home's tile, now the kit's (teacher Home uses it). 176px, 80px art, 18px/600 label. `compact` (operator, 30 Oct 2026, mockup v6
+option B) is the Home look's size, three per row in `[display:grid] grid-cols-3 gap-2.5`, so all nine fit a phone's first screen.
+`tileShell()`, `tileArtSize()` and `tileWords()` are the shell, art size and words, shared with the Quizzes tile
+(`home/QuizTile.tsx`, a button with the `quiz` FeatureArt), so the two never drift. Lay tiles out in `[display:grid] grid-cols-2 gap-3`
 inside ONE `FeatureMotionProvider`, so they all move together, once on arrival and again at one random 30–60 s gap; nothing under
 reduced motion. Chips use status tones only.
 
