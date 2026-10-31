@@ -12,14 +12,17 @@ import { noticeTracker } from '../../notices/tracker';
 import { RemindCard } from '../../notices/RemindCard';
 import { FULL_KINDS } from '../NextCard';
 import { SLIM_KINDS } from '../SlimCard';
+import { HOME_CARD } from '../copy';
+import { pickChips } from '../chips';
 import type { HomeData, HomeTileKey } from '../api';
 import type { TapKind } from '../api';
 import type { AnyFeature } from '../../icons';
 import { LookCard } from './LookCard';
+import { LookScores } from './LookScores';
 import { FeatureTiles } from './FeatureTiles';
 
 /**
- * The first thing under the band (the card, or the tiles on a plain day) climbs into it: 28 px of overlap plus
+ * The first thing under the band (the card, the strip, or the tiles on a plain day) climbs into it: 28 px of overlap plus
  * TeacherPage's 12 px top padding (as on the card build's Home, which HomeGreeting's 52 px bottom is made for), and it
  * paints above the band (positioned for its lattice).
  */
@@ -27,13 +30,13 @@ const CLIMB = 'relative z-[1] first:-mt-10';
 
 /**
  * The slot while /me/home loads: last time's block above the rows for this teacher (`teacher-home-slot:v1:<key>` =
- * `{ card, total }`: the card's height, and how far the rows sat under it), so a warm open holds the whole block and
- * the rows never move under a finger. Measured after each answer,
+ * `{ card, total }`: the card's height, and how far the rows sat under the climber: card and strip), so a warm open
+ * holds the whole block and the rows never move under a finger. Measured after each answer,
  * removed on a day with no climber; no memory, no slot. A slot that is never answered (a failed read) goes after SLOT_MAX_MS.
  */
 export const SLOT_MAX_MS = 4000;
 /**
- * A cold open (no slot memory) draws nothing tappable before /me/home answers: the card and the rows arrive in one commit,
+ * A cold open (no slot memory) draws nothing tappable before /me/home answers: the card, strip and rows arrive in one commit,
  * so none of them moves under a finger. After ROWS_WAIT_MS unanswered the rows draw anyway (a late card pushes once).
  */
 export const ROWS_WAIT_MS = 1500;
@@ -41,7 +44,7 @@ type Slot = { card: number; total: number };
 const slotKey = (userKey: string) => `teacher-home-slot:v1:${userKey}`;
 /** TeacherPage's gap between blocks: the slot keeps one before the rows, so it is left out of the remembered height. */
 const BLOCK_GAP = 10;
-const CLIMBER = 'home-look-card';
+const CLIMBERS = ['home-look-card', 'home-scores'];
 
 const px = (n: unknown): number => (typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.round(n) : 0);
 
@@ -78,20 +81,24 @@ export interface LookHomeProps {
 
 /**
  * The Home's new look (portal_teacher_home_look, only ever on with portal_teacher_home_card): the kit's HomeGreeting
- * with the small language pill in its logo row, then "Ready for you", the card (tinted by kind), the features three per
- * row, and the evening reminder last. The card ladder, the yield to the tray and where every tap goes are the card
- * build's, unchanged. The first thing under the band climbs 28 px into it (the card, or the tiles on a plain day), as on
- * the card build's Home. No question line (operator, 30 Oct 2026: "this is not a chat app"); no progress strip and no
- * "All features" label, so the Home fits one phone screen (operator, 31 Oct 2026, mockup v8).
+ * with the small language pill in its logo row, then "Ready for you", the card (tinted by kind), the progress strip,
+ * the features three per row, and the evening reminder last. The card ladder, the chips' rule, the yield to the tray and
+ * where every tap goes are the card build's, unchanged. The first thing under the band climbs 28 px into it (the card,
+ * the strip, or the tiles on a plain day), as on the card build's Home. No question line (operator, 30 Oct 2026: "this
+ * is not a chat app"); no "All features" label (31 Oct, mockup v8). The strip stays: what she should know first, then
+ * the features (operator, 31 Oct 2026, mockup v10 option A: "The Coach 31/40 strip was not supposed to be removed").
+ * English fits one 390x844 screen with it; in Urdu the last tile row's names sit under the phone menu.
  */
 export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
   const C = useCopy(TEACHER_FRAME);
+  const H = useCopy(HOME_CARD);
   const lang = useLang();
   const { user } = useAuth();
   const tray = useSyncExternalStore(noticeTracker.subscribe, noticeTracker.getHome, noticeTracker.getHome);
   const card = data?.card ?? null;
   // A full kind yields to a tray with rows; a slim kind does not (its own cool-down decides).
   const drawn = card && ((FULL_KINDS.includes(card.kind) && tray.length === 0) || SLIM_KINDS.includes(card.kind)) ? card : null;
+  const chips = data ? pickChips(data.scores, drawn?.kind ?? null, H) : [];
   // The card that the lesson's cool-down left out on this load: the day reads as a no-card day.
   const [hiddenId, setHiddenId] = useState<string | null>(null);
   const cardId = drawn ? `${drawn.kind}:${drawn.id ?? ''}` : null;
@@ -99,21 +106,22 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
   const onDrawn = useCallback((shown: boolean) => { setHiddenId(shown ? null : cardId); }, [cardId]);
   const cardDay = !!drawn && hiddenId !== cardId;
   const [spacer, setSpacer] = useState(0);
-  // Once answered: remember the rows' offset under the card (again when the Urdu font lands); with no card, forget it.
+  // Once answered: remember the rows' offset under the first climber (again when the Urdu font lands); with no climber, forget it.
   useLayoutEffect(() => {
     if (!data) return undefined;
     const measure = () => {
       const page = document.querySelector('[data-testid="teacher-home"]');
-      const climber = page?.querySelector<HTMLElement>(`[data-testid="${CLIMBER}"]`);
+      const climber = CLIMBERS.map((id) => page?.querySelector<HTMLElement>(`[data-testid="${id}"]`)).find(Boolean);
       const rows = page?.querySelector<HTMLElement>('[data-testid="feature-tiles"]');
       const total = climber && rows ? rows.getBoundingClientRect().top - climber.getBoundingClientRect().top - BLOCK_GAP - spacer : 0;
-      writeSlot(key, climber && total > 0 ? { card: climber.offsetHeight, total } : null);
+      const card = page?.querySelector<HTMLElement>('[data-testid="home-look-card"]')?.offsetHeight ?? 0;
+      writeSlot(key, total > 0 ? { card, total } : null);
     };
     measure();
     let live = true;
     document.fonts?.ready.then(() => { if (live) measure(); }).catch(() => {});
     return () => { live = false; };
-  }, [data, cardDay, key, spacer]);
+  }, [data, cardDay, chips.length, key, spacer]);
   const remembered = useMemo(() => readSlot(key), [key]);
   const [slotGone, setSlotGone] = useState(false);
   const slot = !data && !slotGone ? remembered : null;
@@ -144,7 +152,7 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
     if (underSlot.current == null) return;
     const d = Math.max(0, Math.round(underSlot.current - (top - spacer)));
     if (d !== spacer) setSpacer(d);
-  }, [slot, data, cardDay, spacer]);
+  }, [slot, data, cardDay, chips.length, spacer]);
   const switcher = useLanguageSwitch();
 
   return (
@@ -176,6 +184,7 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
       {drawn ? (
         <LookCard card={drawn} quizHome={data?.quizHome ?? null} userKey={user?.phoneNumber} onGo={onGo} onDrawn={onDrawn} className={CLIMB} />
       ) : null}
+      {data && chips.length ? <LookScores scores={data.scores} cardKind={drawn?.kind ?? null} onGo={onGo} className={CLIMB} /> : null}
       {holding ? null : (
         <>
           {/* The spacer cancels its own block gap, so the rows sit exactly `spacer` px lower. */}
