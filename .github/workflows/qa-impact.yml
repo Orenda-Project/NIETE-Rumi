@@ -72,7 +72,7 @@ jobs:
             echo "::warning::There is no .github/qa-impact/ in this repo, so the Gherkin/E2E check did NOT run. On a laptop with the engine linked, run: bash .claude/qa/engine/bin/ci-copy.sh, then commit .github/qa-impact/."
             exit 0
           fi
-          head -1 "$Q/SOURCE" 2>/dev/null || true
+          if [ -f "$Q/SOURCE" ]; then head -1 "$Q/SOURCE"; fi
           echo "bin=$Q" >> "$GITHUB_OUTPUT"
           echo "have=1" >> "$GITHUB_OUTPUT"
           echo "marker=$(python3 "$Q/tenants_lite.py" --root . --get comment_marker)" >> "$GITHUB_OUTPUT"
