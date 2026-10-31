@@ -412,6 +412,37 @@ async function readUserListFlag(supabase, key) {
 }
 
 /**
+ * bd-97daxo.3 — app_settings key: which ORGANIZATION each analytics-only account belongs to, a JSON object
+ * {"<users.id>": "<organization>"} (region_features.organization values: 'niete', 'moawin'). An account on
+ * portal_analytics_only and absent from this map is FDE's ('niete'), so FDE's accounts need no row here.
+ */
+const PORTAL_ANALYTICS_ORGANIZATIONS_KEY = 'portal_analytics_organizations';
+
+/**
+ * The {users.id → value} map a MAP flag holds, as stored (a JSON object, or its JSON string). No row is an empty
+ * map. Unlike readUserListFlag, a malformed value (a list, true, a number, unparseable JSON) THROWS rather than
+ * reading as empty: an empty organization map makes every analytics account FDE's, which would show FDE's numbers
+ * to another organization's account. A failed read throws too. The caller validates the entry it reads.
+ *
+ * @param {object} supabase
+ * @param {string} key app_settings.key
+ * @returns {Promise<Record<string, unknown>>}
+ */
+async function readUserMapFlag(supabase, key) {
+  const { data, error } = await readFlagRow(supabase, key);
+  if (error) throw new Error(`app_settings read failed for ${key}: ${error.message || error}`);
+  if (!data) return {};
+  let value = data.value;
+  if (typeof value === 'string') {
+    try { value = JSON.parse(value); } catch (_) { throw new Error(`app_settings ${key} is malformed: not JSON`); }
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`app_settings ${key} is malformed: not a JSON object`);
+  }
+  return value;
+}
+
+/**
  * Is this user named on a list-only flag? Fail-closed: no user, no row, a broadcast or
  * malformed value, or a failed read are all "no".
  */
@@ -472,6 +503,8 @@ async function isCoachObservationOn(supabase, userId) {
 module.exports = {
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
+  PORTAL_ANALYTICS_ORGANIZATIONS_KEY,
+  readUserMapFlag,
   isAnalyticsOnlyUser,
   PORTAL_ASSESSMENT_EDITING_KEY,
   isPortalAssessmentEditingEnabled,

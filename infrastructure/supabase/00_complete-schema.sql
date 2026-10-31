@@ -3438,7 +3438,13 @@ CREATE TABLE IF NOT EXISTS region_features (
     default_framework TEXT DEFAULT 'oecd',
     supported_languages JSONB DEFAULT '["en"]',
     created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    -- V1.8.5 region registry (bd-97daxo.2): owner (users.organization of the region's teachers), the
+    -- region as schools.region spells it, dashboard order, and a retire switch. NULL organization = not a region.
+    organization TEXT,
+    display_name TEXT,
+    sort_order INTEGER,
+    is_active BOOLEAN NOT NULL DEFAULT true
 );
 
 -- Key/value application settings — feature flags + A/B toggles read by the bot
