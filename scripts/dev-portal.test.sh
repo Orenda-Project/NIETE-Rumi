@@ -25,11 +25,19 @@ trap cleanup EXIT
 CALLS="$TMP/calls.log"; BUILDS="$TMP/builds.log"; : > "$CALLS"; : > "$BUILDS"
 PP=$((47000 + RANDOM % 900))
 
+# The engine the post-commit shim runs: this checkout's link (scripts/qa/link-engine.sh), resolved to its real path.
+ENGINE_DIR=$(cd "$ROOT/.claude/qa/engine" 2>/dev/null && pwd -P) || ENGINE_DIR=""
 mkrepo() {   # a checkout with this branch's dev-portal.sh + post-commit hook, a stub stack and a stub portal
   local r="$1"
   mkdir -p "$r/scripts" "$r/bot/scripts/e2e" "$r/dashboard/node_modules" "$r/dashboard/portal-frontend/dist" "$r/portal/src" "$r/supabase/baseline" "$r/.githooks"
   cp "$ROOT/scripts/dev-portal.sh" "$r/scripts/"
   cp "$ROOT/.githooks/post-commit" "$r/.githooks/"
+  # .githooks/post-commit is a shim into the SHARED engine (bd-9157r.1): the refresh lives in the engine's post-commit,
+  # which acts only in a guarded repo. Link the same engine and give the repo NIETE's manifest.
+  if [ -n "$ENGINE_DIR" ]; then
+    mkdir -p "$r/.claude/qa/config"; ln -s "$ENGINE_DIR" "$r/.claude/qa/engine"
+    cp "$ROOT/.claude/qa/config/tenants.yaml" "$r/.claude/qa/config/"
+  fi
   cat > "$r/bot/scripts/e2e/local-stack.sh" <<EOF
 #!/usr/bin/env bash
 echo "\$*" >> "$CALLS"
@@ -45,7 +53,7 @@ require('http').createServer((q, s) => { s.writeHead(200); s.end('ok'); }).liste
 JS
   : > "$r/dashboard/portal-frontend/dist/index.html"
   printf 'one\n' > "$r/portal/src/a.tsx"; printf 'create table t();\n' > "$r/supabase/baseline/schema.sql"
-  printf 'v1\n' > "$r/bot/app.js"; printf 'node_modules/\ndist/\n' > "$r/.gitignore"
+  printf 'v1\n' > "$r/bot/app.js"; printf 'node_modules/\ndist/\n/.claude/qa/engine\n' > "$r/.gitignore"
   git -C "$r" init -q -b sandbox; git -C "$r" config user.email t@l; git -C "$r" config user.name t
   git -C "$r" add -A; git -C "$r" commit -qm base
 }
@@ -127,6 +135,10 @@ curl -sf -m 2 "http://127.0.0.1:$PP/health" >/dev/null 2>&1 && ok "R13e …and t
 rm -f "$TMP/fail-bot"
 
 echo "dev-portal — the post-commit hook"
+if [ -z "$ENGINE_DIR" ]; then
+  echo "  SKIP  no shared engine linked here (bash scripts/qa/link-engine.sh): the post-commit refresh lives in it"
+  echo; echo "dev-portal: $PASS passed, $FAIL failed"; exit $([ "$FAIL" -eq 0 ] && echo 0 || echo 1)
+fi
 : > "$CALLS"
 git -C "$R" config core.hooksPath .githooks
 printf '%s\n' "$RANDOM" >> "$R/bot/app.js"; git -C "$R" add -A

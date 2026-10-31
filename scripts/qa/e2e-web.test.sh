@@ -42,7 +42,7 @@ res=$(mktemp); cat >"$res" <<'JSON'
 JSON
 row=$(bash "$SH" --row-from "$res" --run-id 20261013-0000-portal-login --commit abc123 2>&1)
 probs=$(printf '%s' "$row" | python3 -c "
-import json,sys; sys.path.insert(0,'$ROOT/.claude/qa/shared'); import ledger
+import json,sys; sys.path.insert(0,'$ROOT/.claude/qa/engine/bin'); import ledger
 r=json.load(sys.stdin); print(';'.join(ledger.validate_run(r)) or 'valid')" 2>&1)
 chk "W3 row passes ledger.validate_run" "$probs" "valid"
 fields=$(printf '%s' "$row" | python3 -c "
@@ -133,8 +133,8 @@ grep -q 'bash scripts/qa/e2e-web.sh \$ARGUMENTS' "$CMD" 2>/dev/null && ok "W13e 
 
 # W16 — the row a run appends is COMMITTED on the branch being tested (operator, 15 Oct: "you need to commit that file
 # as well automatically"): only runs.jsonl, never on main/staging/sandbox/develop or a detached HEAD, never pushed,
-# other changes left alone, and E2E_NO_COMMIT=1 turns it off. scripts/qa/commit-ledger-row.sh does it.
-CLR="$ROOT/scripts/qa/commit-ledger-row.sh"
+# other changes left alone, and E2E_NO_COMMIT=1 turns it off. .claude/qa/engine/bin/commit-ledger-row.sh does it.
+CLR="$ROOT/.claude/qa/engine/bin/commit-ledger-row.sh"
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 mkrepo(){ local d="$T/$1"; mkdir -p "$d/.claude/qa/ledgers"; git -C "$d" init -q -b "$2"; git -C "$d" config user.email t@t; git -C "$d" config user.name t
   echo '{"run_id":"old"}' > "$d/.claude/qa/ledgers/runs.jsonl"; echo a > "$d/other.txt"; git -C "$d" add -A; git -C "$d" commit -q -m base; echo "$d"; }
@@ -170,7 +170,7 @@ chk "W17f --run-id is honoured" "$(bash "$SH" portal-login --run-id my-run-porta
 grep -qE '^ +E2E_NO_COMMIT=1 bash "\$0" "\$f" --slot "\$s" --run-id' "$SH" && ok "W17g real children start commit-off with the shared run id" \
   || no "W17g real child launch" "$(grep -n 'bash "\$0" "\$f" --slot "\$s"' "$SH")"
 chk "W17h commit-ledger-row.sh is called twice in all: the single-run record + the parallel parent" \
-    "$(grep -c 'bash "\$REPO/scripts/qa/commit-ledger-row.sh"' "$SH")" "2"
+    "$(grep -c 'bash "\$REPO/.claude/qa/engine/bin/commit-ledger-row.sh"' "$SH")" "2"
 
 # W5 — wired into npm, like e2e:mock.
 chk "W5 npm run e2e:web" "$(node -p "require('$ROOT/package.json').scripts['e2e:web']" 2>/dev/null)" "bash scripts/qa/e2e-web.sh"

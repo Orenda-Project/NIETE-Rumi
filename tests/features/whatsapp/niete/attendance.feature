@@ -1,6 +1,6 @@
 @whatsapp @ict @profile:niete @feature:attendance @persona:teacher @draft
 Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + principal teacher-marking)
-  # Non-determinism: see .claude/qa/shared/non-determinism-contract.md (assert contracts/shape; @content-driven answers resolved live).
+  # Non-determinism: see .claude/qa/engine/bin/non-determinism-contract.md (assert contracts/shape; @content-driven answers resolved live).
   # ═══════════════════════════════════════════════════════════════════════════
   # STATUS: DRAFT (2026-08-04). Grounded in CODE (file:line from a full deep-map
   # of the attendance domain) but NOT driven live. Confirm exact bot copy via a

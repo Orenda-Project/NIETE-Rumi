@@ -42,7 +42,7 @@ Mock lane: [`../shared/features/child-test.cjs`](../shared/features/child-test.c
 1. **Resolve tenant** — `@profile:niete` from the feature line (fallback `default_profile` in
    `../config/whatsapp-targets.yaml`).
 2. **Load target** — `../config/whatsapp-targets.yaml` → `profiles.niete` → `{number, env, method}`.
-   `method: mock` → run `bash .claude/qa/shared/commit-e2e.sh <sha> --features child-test` and
+   `method: mock` → run `bash .claude/qa/engine/bin/commit-e2e.sh <sha> --features child-test` and
    return its row; the rest of this file is the chrome lane.
 3. **Open WhatsApp Web**, verify linked, open the bot chat, check `window.__wa` is injected —
    exactly as Step 0 of the other NIETE agents (`niete-status-agent.md` steps 3–8).
@@ -50,7 +50,7 @@ Mock lane: [`../shared/features/child-test.cjs`](../shared/features/child-test.c
 
 ## Step 1: Load Scenarios
 ```bash
-python3 .claude/qa/shared/parse-gherkin.py tests/features/whatsapp/niete/child-test.feature --tag @e2e
+python3 .claude/qa/engine/bin/parse-gherkin.py tests/features/whatsapp/niete/child-test.feature --tag @e2e
 ```
 `@wip` / `@draft` are excluded from the default/SAFE subset and RUN under `all`/by name; one that
 passes is promoted in the same pass. `@config-gated` → `BLOCKED` unless the gate above holds.

@@ -24,6 +24,14 @@ TMP=$(mktemp -d "${TMPDIR:-/tmp}/e2esched.XXXXXX"); trap 'rm -rf "$TMP"' EXIT
 R="$TMP/niete-e2e"
 mkdir -p "$R/bot/shared/services" "$R/tests/features/whatsapp" "$R/.claude" "$R/scripts"
 cp -R "$ROOT/.claude/qa" "$R/.claude/qa"; cp -R "$ROOT/scripts/qa" "$R/scripts/qa"
+# The harness is the SHARED engine, linked in at .claude/qa/engine (bd-9157r.1). `cp -R` copies that link as a RELATIVE
+# symlink, which points nowhere from here: point the copy at the real engine. No engine linked = nothing to schedule.
+rm -f "$R/.claude/qa/engine"
+ENGINE_DIR=$(cd "$ROOT/.claude/qa/engine" 2>/dev/null && pwd -P) || ENGINE_DIR=""
+if [ -z "$ENGINE_DIR" ]; then
+  echo "  SKIP  no shared engine linked here (bash scripts/qa/link-engine.sh): the scheduled run's selector lives in it"; exit 0
+fi
+ln -s "$ENGINE_DIR" "$R/.claude/qa/engine"
 cp -R "$ROOT/tests/features/whatsapp/niete" "$R/tests/features/whatsapp/niete"
 rm -rf "$R/.claude/qa/results"; mkdir -p "$R/.claude/qa/ledgers" "$R/.claude/qa/results/whatsapp/niete"
 printf 'module.exports={ROWS:["Teacher Training"]};\n' > "$R/bot/shared/services/menu.service.js"
@@ -99,5 +107,12 @@ out=$(resolve coaching)
 has  "an explicit feature list is honoured"            "$out" "coaching" yes
 has  "…without consulting the ledger"                  "$out" "$BASE"    no
 
+echo "schedule — a clone with no shared engine reachable (bd-9157r.1)"
+# launchd cannot read ~/Desktop, so the scheduler's clone lives outside any workspace: without a rumi-agent-home
+# beside it there is no engine to borrow. The fire must say so and stand down, not die inside a python traceback.
+rm -f "$R/.claude/qa/engine"
+out=$(cd "$R" && env -u E2E_ENGINE NIETE_E2E_DRIVER=1 bash scripts/qa/niete-e2e-scheduled.sh --resolve-scope 2>&1); rc=$?
+say  "…the fire stands down cleanly"                  "$rc" "0"
+has  "…and says how to give it an engine"             "$out" "rumi-agent-home" yes
 echo "  ---"
 if [ "$FAILED" -eq 0 ]; then echo "  all cases pass"; else echo "  $FAILED case(s) failing"; exit 1; fi

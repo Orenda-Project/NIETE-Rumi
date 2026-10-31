@@ -42,7 +42,7 @@ kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
 # ---- run-suite.sh --slot N: a slot another run is using
 SLOT=37; BUSY=$((3100+SLOT))
 pid=$(listen $BUSY); for i in $(seq 1 20); do [ "$(alive $BUSY)" = alive ] && break; sleep 0.2; done
-out=$(cd "$ROOT" && E2E_LEDGER_COMMIT_OFF=1 bounded 30 bash .claude/qa/shared/run-suite.sh menu --method mock --slot $SLOT --commit HEAD --run-id "slot-busy-test-$$"); rc=$?
+out=$(cd "$ROOT" && E2E_LEDGER_COMMIT_OFF=1 bounded 30 bash .claude/qa/engine/bin/run-suite.sh menu --method mock --slot $SLOT --commit HEAD --run-id "slot-busy-test-$$"); rc=$?
 R="$ROOT/.claude/qa/results/whatsapp/niete/slot-busy-test-$$"
 survived=$(alive $BUSY); had_dir=$([ -d "$R" ] && echo created || echo none)
 [ -e "$R/ports" ] && bash "$HERE/local-stack.sh" down "$R" >/dev/null 2>&1

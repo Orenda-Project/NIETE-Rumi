@@ -13,7 +13,7 @@ import os
 import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
-sys.path.insert(0, os.path.join(ROOT, ".claude", "qa", "shared"))
+sys.path.insert(0, os.path.join(ROOT, ".claude", "qa", "engine", "bin"))   # the shared engine's ledger module, through the link
 import ledger  # noqa: E402
 
 DEFAULT = os.path.join(ROOT, ".claude", "qa", "ledgers", "runs.jsonl")

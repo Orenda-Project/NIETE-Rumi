@@ -9,9 +9,9 @@
 | `skills/<name>/SKILL.md` | On-demand domain knowledge an agent loads when a task matches |
 | `settings.json` | MCP servers (e.g. Supabase) — secrets via `${ENV_VAR}` interpolation, never inline. Also registers the `PreToolUse` schema-standards warning (see `hooks/`) |
 | `hooks/data-standards-warn.sh` | Warns (never blocks) when a `git commit`/`push` stages a schema change with standards findings. Ours; wraps the vendored validator |
-| `hooks/e2e-autorun.sh` · `e2e-autorun-stop.sh` · `e2e-pending-banner.sh` | The QA auto-run: a commit arms the Gherkin sync + targeted E2E for the features it touched; Stop holds the turn once; SessionStart announces markers left by terminal commits (`.githooks/`). See [docs/qa-automation.md](../docs/qa-automation.md) |
-| `qa/` | The E2E system: feature map, selector, spec-sync brief builder, validator, runner, one executor agent per feature, fixtures, ledgers — [qa/README.md](qa/README.md) |
-| `commands/` | `/niete-e2e` (drive the suite) · `/e2e-mock` (WhatsApp bot on the mock lane, local) · `/e2e-web` (the portal in a browser, local) · `/sync-specs` (phase 1) · `/testcases` (author Gherkin from a ticket) · `/apply-discoveries` |
+| `hooks/e2e-autorun.sh` · `e2e-autorun-stop.sh` · `e2e-pending-banner.sh` | The QA auto-run: a commit arms the Gherkin sync + targeted E2E for the features it touched; Stop holds the turn once; SessionStart announces markers left by terminal commits (`.githooks/`). Each is a shim into the shared E2E engine's hook of the same name: it links the engine itself the first time it fires in a clone that has none, and exits 0 on a machine without the engine. See [docs/qa-automation.md](../docs/qa-automation.md) |
+| `qa/` | This repo's side of the E2E system: `config/` (tenants.yaml, feature map), the mock-lane and web drivers, one executor agent per feature, fixtures, ledgers. The selector, spec-sync brief builder, validator and runner are the shared engine at `qa/engine`, a gitignored link that `scripts/qa/link-engine.sh` makes (`npm install` runs it) — [qa/README.md](qa/README.md) |
+| `commands/` | This repo's: `/niete-e2e` (drive the suite) · `/e2e-web` (the portal in a browser, local). The shared engine's, linked in by `scripts/qa/link-engine.sh` and kept out of git: `/e2e-mock` (WhatsApp bot on the mock lane, local) · `/sync-specs` (phase 1) · `/testcases` (author Gherkin from a ticket) · `/apply-discoveries` · `/e2e` |
 | `skills/data-standards/` | **Vendored verbatim from the Data Team's own repo — never edit anything in it.** `scripts/data-standards-verify.sh` fails CI if it is modified. Adaptation lives in `.data-standards.json` at the repo root. See [../docs/data-standards.md](../docs/data-standards.md) |
 
 ## Skills
@@ -42,6 +42,10 @@ folder with a `SKILL.md` (+ optional reference files).
 | [gherkin-test-cases](skills/gherkin-test-cases/SKILL.md) | How a scenario is designed and written — risk model, positive-first order, quality gate (what `/testcases` and the sync author through) |
 | [chrome-mcp-whatsapp-e2e](skills/chrome-mcp-whatsapp-e2e/SKILL.md) | Driving WhatsApp Web over Chrome DevTools, incl. native Flows — the method behind `/niete-e2e` |
 | [apply-discoveries](skills/apply-discoveries/SKILL.md) | Fold human-approved E2E discoveries / intended drift back into the specs |
+
+> `gherkin-spec-sync`, `gherkin-test-cases`, `chrome-mcp-whatsapp-e2e` and `apply-discoveries` are the shared E2E
+> engine's skills: `scripts/qa/link-engine.sh` links them in at these paths and keeps them out of git, so they are
+> here once the engine is linked.
 
 > Skills are loaded **on demand** — an agent reads the one whose description matches the task. The set above
 > is the operational core (run / extend / debug the open bot); internal-ops skills from the production bot

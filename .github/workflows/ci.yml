@@ -67,6 +67,14 @@ jobs:
       - name: Install root dependencies
         run: npm ci
 
+      # The E2E harness is the SHARED engine, borrowed from rumi-agent-home (bd-9157r.1) and linked in on a laptop. CI has
+      # no engine (rumi-agent-home is private and no token is used, bd-9157r.7), so the jest suites that load it
+      # (tests/e2e-mock) skip here with their reason and run where it is linked: `npm run qa:test`. This step holds that
+      # no copy of the engine creeps back in beyond the PR check's own .github/qa-impact/, and that every entry point
+      # (git hooks, session hooks, npm's prepare) works without the engine; the engine half skips and says so.
+      - name: E2E engine bridge
+        run: bash scripts/qa/engine-bridge.test.sh
+
       # `npm test` IS the baseline gate — it runs every suite via tests/run.js and
       # then judges the delta against tests/baseline.snapshot.json. Use
       # `npm run test:raw` for unfiltered jest output when debugging a failure.

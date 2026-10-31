@@ -13,6 +13,7 @@
  *
  * Red-first: fails on the branch — neither helper is exported, and T15 sends straight away.
  */
+const { describeWithEngine, testWithEngine, HAVE_ENGINE } = require('./engine');   // the shared engine, borrowed (bd-9157r.1)
 const fs = require('fs');
 const path = require('path');
 const QA = path.resolve(__dirname, '..', '..', '.claude', 'qa', 'shared');
@@ -41,8 +42,9 @@ describe('training.cjs questionLineOf — the question line, never the merged fe
   });
 });
 
-describe('status.cjs isUrduIdleReply — the Urdu idle copy with bidi isolates around /menu', () => {
-  const { isUrduIdleReply } = require(path.join(QA, 'features', 'status.cjs'));
+describeWithEngine('status.cjs isUrduIdleReply — the Urdu idle copy with bidi isolates around /menu', () => {
+  // status.cjs loads the engine's db-target at require time; a skipped block still runs its body, so load it only with the engine
+  const { isUrduIdleReply } = HAVE_ENGINE ? require(path.join(QA, 'features', 'status.cjs')) : {};
   test('the bot\'s exact string matches', () => {
     expect(isUrduIdleReply('اس وقت کچھ نہیں چل رہا۔ کچھ شروع کرنے کے لیے ⁦/menu⁩ بھیجیں۔')).toBe(true);
     expect(isUrduIdleReply('اس وقت کچھ نہیں چل رہا۔ کچھ شروع کرنے کے لیے /menu بھیجیں۔')).toBe(true);

@@ -223,8 +223,8 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
 
   // 2. Stack + data preconditions. Anything missing blocks the remaining ids with the reason.
   let stack = stackArg;
-  if (!stack) { try { stack = require('../stack-control.cjs'); } catch (_) { stack = null; } }
-  const { url: sbUrl, key: sbKey } = require('../db-target.cjs').dbCreds(env), driver = env.E2E_DRIVER;
+  if (!stack) { try { stack = require(path.join(__dirname, '..', '..', 'engine', 'bin', 'stack-control.cjs')); } catch (_) { stack = null; } }
+  const { url: sbUrl, key: sbKey } = require(path.join(__dirname, '..', '..', 'engine', 'bin', 'db-target.cjs')).dbCreds(env), driver = env.E2E_DRIVER;
   if (!stack || !stack.runDir || !stack.runDir()) return blockRest('no RUN_DIR: the CHILD_TEST_ENABLED switch is flipped with stack-control.restart, which needs a local stack (commit-e2e.sh)');
   if (!sbUrl || !sbKey || !driver) return blockRest('no sandbox creds (NIETE_SANDBOX_SUPABASE_*) or E2E_DRIVER — the SIM-school assignment and the DB assertions need them');
   if (/ihzciabopbttygxxgrkm|jlpenspfdcwxkopaidys/.test(sbUrl)) return blockRest('refused: the Supabase URL is a production project, not sandbox');
@@ -238,7 +238,7 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
   let [sim] = await get(`schools?select=id,name,emis&is_probable_test=eq.true&name=like.SIM*&limit=1`);
   // On the local lane the database is this run's own, so the run seeds the SIM school itself with the same
   // seeder the sandbox was seeded with (bd-z3ze4.2). On the shared sandbox it stays an operator step.
-  if (!sim && require('../db-target.cjs').dbCreds(env).kind === 'local') {
+  if (!sim && require(path.join(__dirname, '..', '..', 'engine', 'bin', 'db-target.cjs')).dbCreds(env).kind === 'local') {
     const seeded = seedSimSchoolLocally(stack.runDir(), sbUrl, sbKey);
     if (!seeded.ok) return blockRest('could not seed the SIM school on the local database: ' + seeded.err);
     [sim] = await get(`schools?select=id,name,emis&is_probable_test=eq.true&name=like.SIM*&limit=1`);

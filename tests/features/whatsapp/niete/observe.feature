@@ -1,6 +1,6 @@
 @whatsapp @ict @profile:niete @feature:observe @persona:coach
 Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/officer)
-  # Non-determinism: see .claude/qa/shared/non-determinism-contract.md (assert contracts/shape; @content-driven answers resolved live).
+  # Non-determinism: see .claude/qa/engine/bin/non-determinism-contract.md (assert contracts/shape; @content-driven answers resolved live).
   # ═══════════════════════════════════════════════════════════════════════════
   # STATUS: PARTIALLY PROMOTED (2026-08-04). The entry + scheduling path was driven
   # LIVE on niete-prod (923206281951) from a coach account (role flipped to 'coach'
