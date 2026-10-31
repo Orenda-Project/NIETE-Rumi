@@ -63,9 +63,10 @@ export const HOME_CARD_COPY = {
   },
   /** The Home's "Quizzes" tile (portal_teacher_home_quiz_tile): the quiz home, one tap. */
   quizTile: 'Quizzes',
-  /** The Home's new look (portal_teacher_home_look): the lesson card's lead-in. */
+  /** The Home's new look (portal_teacher_home_look): the lesson card's lead-in, the progress strip's label. */
   look: {
     leadIn: 'Quiz from your last lesson:',
+    progress: 'Your progress',
   },
 };
 
@@ -111,6 +112,7 @@ export const HOME_CARD_COPY_UR = {
   quizTile: 'کوئز',
   look: {
     leadIn: 'آپ کے پچھلے سبق کا کوئز:',
+    progress: 'آپ کی پیش رفت',
   },
 };
 

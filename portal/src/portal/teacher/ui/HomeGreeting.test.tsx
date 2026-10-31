@@ -75,9 +75,16 @@ describe("HomeGreeting", () => {
     expect(iso.hasAttribute("data-latin")).toBe(true);
   });
 
-  it("Urdu: a Latin name is set a size down, so the greeting stays on one line at 360 px", () => {
+  // Operator, 31 Oct 2026 ("the urdu Assalamoalikum font is so big"; mockup v10: "i like smaller font"): Nastaliq at the
+  // English 32 px draws far taller letters, so the Urdu greeting is 24 px. A Latin name keeps the 22 px it had (0.7em of 32).
+  it("Urdu: the greeting is a size down (24 px), and a Latin name stays 22 px, so the greeting stays on one line at 360 px", () => {
     render(<HomeGreeting {...base} title="السلام علیکم، Amina Testwala!" name="Amina Testwala" />);
-    expect(screen.getByTestId("home-greeting-name").className).toMatch(/rtl:text-\[0\.7em\]/);
+    const h1 = screen.getByRole("heading", { level: 1 }).className.split(" ");
+    expect(h1).toContain("text-[32px]");
+    expect(h1).toContain("rtl:text-[24px]");
+    const name = screen.getByTestId("home-greeting-name").className.split(" ");
+    expect(name).toContain("rtl:text-[22px]");
+    expect(name).not.toContain("rtl:text-[0.7em]");
   });
 
   it("an Urdu-script name is isolated too, without the Latin font", () => {
