@@ -13,13 +13,13 @@ Profiling is **on by default** for every mock-lane run — nothing to switch on:
 
 ```bash
 npm run e2e:mock -- menu            # or any feature / all; each feature ends with a "profile:" line in runner.log
-bash .claude/qa/shared/commit-e2e.sh HEAD --all-mock
+bash .claude/qa/engine/bin/commit-e2e.sh HEAD --all-mock
 ```
 
 Then look at it:
 
 ```bash
-bash .claude/qa/shared/profile-dashboard.sh          # → http://127.0.0.1:8765/shared/profile-dashboard.html
+bash .claude/qa/engine/bin/profile-dashboard.sh          # → http://127.0.0.1:8765/shared/profile-dashboard.html
 ```
 
 The dashboard is one static HTML file served next to `.claude/qa/profiles/` (python `http.server`, bound to
@@ -28,8 +28,8 @@ The dashboard is one static HTML file served next to `.claude/qa/profiles/` (pyt
 Rebuild a profile by hand (e.g. after changing the profiler, or for a run dir the suite did not finish):
 
 ```bash
-python3 .claude/qa/shared/profile_run.py .claude/qa/results/whatsapp/niete/<run> --feature menu --publish .claude/qa/profiles
-python3 .claude/qa/shared/profile_run.py --compare .claude/qa/profiles/<A>.json .claude/qa/profiles/<B>.json
+python3 .claude/qa/engine/bin/profile_run.py .claude/qa/results/whatsapp/niete/<run> --feature menu --publish .claude/qa/profiles
+python3 .claude/qa/engine/bin/profile_run.py --compare .claude/qa/profiles/<A>.json .claude/qa/profiles/<B>.json
 ```
 
 ## What is measured, and by what
@@ -91,7 +91,7 @@ Every profile carries a `gaps` list; the standing ones:
 
 ```bash
 npm run test:raw -- tests/e2e-mock/profile-trace.test.js tests/e2e-mock/local-db-proxy-timing.test.js tests/e2e-mock/cassette-trace.test.js --forceExit
-python3 .claude/qa/shared/test_profile_run.py
+python3 .claude/qa/engine/bin/test_profile_run.py
 ```
 
 ## Findings — run `20261023-1006-par` (commit `479f4a70f0ec`, every mock-lane feature, one slot each)

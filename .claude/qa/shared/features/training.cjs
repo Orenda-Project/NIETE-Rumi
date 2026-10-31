@@ -1152,7 +1152,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
         try {
           const png = pdf.saved.replace(/\.pdf$/, '-p1.png');
           execFileSync('sips', ['-s', 'format', 'png', pdf.saved, '--out', png], { encoding: 'utf8', timeout: 60000 });
-          ink = JSON.parse(execFileSync('python3', [path.join(__dirname, '..', 'png_ink.py'), png], { encoding: 'utf8', timeout: 120000 }));
+          ink = JSON.parse(execFileSync('python3', [path.join(__dirname, '..', '..', 'engine', 'bin', 'png_ink.py'), png], { encoding: 'utf8', timeout: 120000 }));
         } catch (e) { ink = { err: String((e && e.message) || e).slice(0, 120) }; }
         const ev45 = { secondChildFinished: r8.ok, pages: pdf.pages.length, pageTextLengths: lens, ink,
                        nearlyEmptyBeforeLast: lens.length > 1 && lens.slice(0, -1).some((n) => n < 0.25 * Math.max(...lens)), saved: pdf.saved,
@@ -1898,7 +1898,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
     const HOME_TITLE = { T692: 'A child\'s /quiz sends one "Home" button that opens their home page with the last quiz on top',
       T693: 'A teacher\'s /quiz never opens the child\'s home page, even when children played on the teacher\'s phone',
       T695: 'With the home switch off, a child\'s /quiz is exactly today\'s' };
-    const { dbCreds, canFlipGlobal } = require('../db-target.cjs');
+    const { dbCreds, canFlipGlobal } = require(path.join(__dirname, '..', '..', 'engine', 'bin', 'db-target.cjs'));
     const HOME_RX = /^(🏠 )?(Home|ہوم)$/;
     const isCta = (x) => x && x.type === 'interactive.cta_url';
     const isHub = (x) => !!x && ((isCta(x) && /\/h\//.test((x.cta && x.cta.url) || '')) || /\/h\//.test(String(x.txt || '')));
@@ -1930,7 +1930,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       const seeded = [];
       // The lane's bot runs without the door's child verdict (STUDENT_MODE_ENABLED) and without a portal to link
       // to: this block restarts it with both (stack-control, as T72/T73 and child-test do) and puts it back after.
-      const SC = require('../stack-control.cjs');
+      const SC = require(path.join(__dirname, '..', '..', 'engine', 'bin', 'stack-control.cjs'));
       const LANE_ENV = { STUDENT_MODE_ENABLED: 'true', WEB_QUIZ_BASE_URL: 'https://portal.example.test', WEB_QUIZ_TOKEN_SECRET: 'mock-lane-home-secret' };
       let restarted = null;
       try {

@@ -155,3 +155,16 @@ bot/vendor/lp-v9/.figcache/
 .stryker-tmp-topics/
 # mock-lane performance profiles (profile_run.py) — local, per machine; the dashboard reads them
 .claude/qa/profiles/*.json
+
+# The shared E2E engine is BORROWED, never committed (bd-9157r.1): scripts/qa/link-engine.sh links it in from
+# rumi-agent-home, with its skills and slash commands.
+/.claude/qa/engine
+/.claude/skills/gherkin-spec-sync
+/.claude/skills/gherkin-test-cases
+/.claude/skills/apply-discoveries
+/.claude/skills/chrome-mcp-whatsapp-e2e
+/.claude/commands/sync-specs.md
+/.claude/commands/testcases.md
+/.claude/commands/apply-discoveries.md
+/.claude/commands/e2e-mock.md
+/.claude/commands/e2e.md
