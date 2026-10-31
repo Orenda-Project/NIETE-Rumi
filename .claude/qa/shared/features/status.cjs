@@ -29,7 +29,7 @@ const pickLang = async (api, row) => {
 };
 const canSeed = (api) => !!(api.caps && api.caps.method === 'mock' && api.caps.upload);
 const MEDIA = require('path').resolve(__dirname, '..', '..', 'fixtures', 'whatsapp', 'niete', 'media');
-const { dbCreds } = require('../db-target.cjs');
+const { dbCreds } = require(require('path').join(__dirname, '..', '..', 'engine', 'bin', 'db-target.cjs'));   // the shared engine, linked in at .claude/qa/engine (scripts/qa/link-engine.sh)
 const ITEM_CHROME = /^(Open status|Back|Close|Powered by|Done)/i;
 
 /** Read the /status Flow listing: { claimed, items, surface, err }. */

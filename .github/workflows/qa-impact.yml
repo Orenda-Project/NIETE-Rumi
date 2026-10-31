@@ -1,7 +1,8 @@
 name: qa-impact
 
-# Server-side half of the NIETE QA pipeline: Gherkin spec freshness + E2E impact,
-# on every PR into a branch that deploys.
+# Server-side half of the E2E pipeline: Gherkin spec freshness + E2E impact, on every PR into a branch that
+# deploys. A TEMPLATE: each bot repo commits a copy at .github/workflows/qa-impact.yml (GitHub reads workflows from
+# the repo itself) and edits only the `branches:` list below to its own landing/promotion/release branches.
 #
 # WHY THIS EXISTS (2026-09-09, bd-c3jx8). The pipeline was "hooks only, no CI" by
 # decision on 2026-09-07. Two days later NIETE-Rumi PRs #835 and #836 changed
@@ -13,10 +14,16 @@ name: qa-impact
 # seamless"). This job is the piece that cannot be skipped by a clone that never
 # ran `npm install`.
 #
-# WHAT IT DOES. Runs scripts/qa/impact.py — the SAME analysis the pre-push hook
+# WHAT IT DOES. Runs impact.py — the SAME analysis the pre-push hook
 # prints — over base...head of the PR, with the PR body available for a
 # `Spec-Sync: <feature>=none-needed (<why>)` declaration, and posts the result as
-# one PR comment that is edited in place (marker `<!-- niete-qa-impact -->`).
+# one PR comment that is edited in place (marker: tenants.yaml comment_marker).
+#
+# THE CHECK RUNS FROM THE REPO'S OWN COPY (bd-9157r.7). A bot repo borrows the engine: on a laptop link-engine.sh
+# links it in from the workspace. This machine has only the bot repo, and rumi-agent-home is private, so the files
+# this check runs are committed at .github/qa-impact/ — no token, no download. Refresh them on a laptop with the
+# engine linked: `bash .claude/qa/engine/bin/ci-copy.sh` (then commit); `--check` says when the copy is behind.
+# No copy → the job warns, says the check did not run, and passes: it never blocks a PR for its own setup.
 #
 #   spec freshness  BLOCK  — a feature's own files changed but its .feature did
 #                            not, and nobody declared none-needed  -> job fails
@@ -32,7 +39,7 @@ name: qa-impact
 # and posts nothing — so this is safe to mark as a REQUIRED check.
 #
 # WHAT IT CANNOT DO. Author a scenario or drive WhatsApp. It tells the author, in
-# the PR, exactly which `/sync-specs` and `/niete-e2e` to run in Claude Code.
+# the PR, exactly which `/sync-specs` and E2E command to run in Claude Code.
 
 on:
   pull_request:
@@ -58,19 +65,36 @@ jobs:
           # pass, guarding nothing.
           fetch-depth: 0
 
+      - name: The check's own copy of the engine (.github/qa-impact, committed in this repo)
+        id: engine
+        run: |
+          if [ -f .github/qa-impact/impact.py ]; then Q=.github/qa-impact
+          elif [ -f .claude/qa/engine/bin/impact.py ]; then Q=.claude/qa/engine/bin   # a repo that vendors the engine
+          else
+            echo "have=0" >> "$GITHUB_OUTPUT"
+            echo "::warning::There is no .github/qa-impact/ in this repo, so the Gherkin/E2E check did NOT run. On a laptop with the engine linked, run: bash .claude/qa/engine/bin/ci-copy.sh, then commit .github/qa-impact/."
+            exit 0
+          fi
+          head -1 "$Q/SOURCE" 2>/dev/null || true
+          echo "bin=$Q" >> "$GITHUB_OUTPUT"
+          echo "have=1" >> "$GITHUB_OUTPUT"
+          echo "marker=$(python3 "$Q/tenants_lite.py" --root . --get comment_marker)" >> "$GITHUB_OUTPUT"
+
       - name: PR body to a file (Spec-Sync declarations may live there)
+        if: steps.engine.outputs.have == '1'
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.txt"
 
       - name: Analyse the PR range
         id: impact
+        if: steps.engine.outputs.have == '1'
         env:
           BASE_REF: ${{ github.base_ref || 'sandbox' }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set +e
-          python3 scripts/qa/impact.py --repo . \
+          python3 "${{ steps.engine.outputs.bin }}/impact.py" --repo . \
             --base "origin/$BASE_REF" --head "$HEAD_SHA" \
             --pr-body-file "$RUNNER_TEMP/pr-body.txt" --target-branch "$BASE_REF" \
             --format text --freshness block --proof warn \
@@ -85,14 +109,15 @@ jobs:
           cat "$RUNNER_TEMP/impact.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Post or update the PR comment
-        if: github.event_name == 'pull_request' && (steps.impact.outputs.features != '0' || steps.impact.outputs.web != '0')
+        if: steps.engine.outputs.have == '1' && github.event_name == 'pull_request' && (steps.impact.outputs.features != '0' || steps.impact.outputs.web != '0')
         uses: actions/github-script@v7
         env:
           MD_PATH: ${{ runner.temp }}/impact.md
+          MARKER: ${{ steps.engine.outputs.marker }}
         with:
           script: |
             const fs = require('fs');
-            const marker = '<!-- niete-qa-impact -->';
+            const marker = process.env.MARKER || '<!-- qa-impact -->';   // tenants.yaml comment_marker
             const body = fs.readFileSync(process.env.MD_PATH, 'utf8');
             const { owner, repo } = context.repo;
             const issue_number = context.payload.pull_request.number;
@@ -105,6 +130,7 @@ jobs:
             }
 
       - name: Gate — a Gherkin scenario with no driver fails the PR
+        if: steps.engine.outputs.have == '1'
         # Spec freshness proves the .feature CHANGED. It says nothing about whether the scenario can
         # RUN: feature-runner.cjs loads the driver and never opens the spec, so prose alone passes
         # every existing check and executes nothing (bd-bufzl — coaching: 33 @e2e, 15 driven).
@@ -112,7 +138,7 @@ jobs:
         # green on arrival and each feature is enrolled deliberately by tagging its scenarios.
         run: |
           set +e
-          python3 .claude/qa/shared/check-scenario-coverage.py
+          python3 "${{ steps.engine.outputs.bin }}/check-scenario-coverage.py"
           rc=$?
           if [ "$rc" != "0" ]; then
             echo "::error::A Gherkin scenario has no driver code, so it can never pass, fail or block — it is absent from every run. Append a stub with scaffold-driver.py --sync and implement it, or declare it @no-mock-driver with a reason."
@@ -120,6 +146,7 @@ jobs:
           exit "$rc"
 
       - name: Gate — stale Gherkin spec fails the PR
+        if: steps.engine.outputs.have == '1'
         run: |
           rc="${{ steps.impact.outputs.rc }}"
           if [ "$rc" != "0" ]; then

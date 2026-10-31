@@ -1,0 +1,65 @@
+# tenants.yaml — NIETE-Rumi's manifest for the shared E2E engine (bd-9157r.1).
+#
+# The engine is authored in rumi-agent-home (.claude/qa/engine) and borrowed here through a link that
+# scripts/qa/link-engine.sh makes (npm install runs it). This file is the only place the engine learns NIETE's facts.
+# Every value reproduces what NIETE's own harness hard-coded until the switch, so switching changed no behaviour:
+# the same features, branches, keys, database prefixes, tools, shard plan and portal paths.
+version: 1
+repo: NIETE-Rumi
+command: /niete-e2e
+runtime_scope:
+  - bot/**
+spec_suite: niete
+branches:
+  landing: sandbox
+  promotion: staging
+  release: main
+  deploy_triggers:          # develop is frozen and deploys nowhere; it stays so a push to it is surfaced, as
+    - sandbox               # lib/git-push-match.sh did before the switch
+    - staging
+    - main
+    - develop
+  full_suite_on:
+    - main
+keys:
+  local: keys/niete-local.env
+  record: keys/niete-record.env
+db:
+  env_prefix: NIETE_SANDBOX_SUPABASE
+  local_env_prefix: NIETE_LOCAL_SUPABASE
+  forbidden_project_refs:
+    - ihzciabopbttygxxgrkm  # NIETE production
+comment_marker: "<!-- niete-qa-impact -->"
+tenant_tools:
+  training_db: .claude/qa/shared/niete_training_db.py
+  registration_db: .claude/qa/shared/niete_registration_db.py
+  coaching_db: .claude/qa/shared/niete_coaching_db.py
+  sandbox_driver: .claude/qa/shared/niete_sandbox_driver.py
+  training_program: niete_standard
+  roster_source: niete_ict
+  roster_ext_namespace: niete
+mock_lane:                  # run-suite --parallel's split, exactly as run-suite.sh hard-coded it
+  shards: "training=T35-T45,T56-T58|T25,T28-T34,T46-T55,T59-T84,T696;coaching=COA16,COA20,COA27-COA30,COA33,COA59|COA10,COA35,COA39-COA49,COA51-COA55"
+  shard_order: "training#2 coaching#3 coaching#2 coaching training#3 training lesson-plan menu language status registration"
+run_by_name_only:           # excluded from `all`, run by name only (child-test: sandbox-only, all @wip)
+  - attendance
+  - observe
+  - child-test
+web:
+  dev_portal_run: "~/.cache/niete-dev-portal/run"
+tenants:
+  niete:
+    region_code: default
+    notion_region: pk-ict
+    features:
+      - registration
+      - menu
+      - training
+      - lesson-plan
+      - coaching
+      - language
+      - status
+      - observe
+      - attendance
+      - child-test
+    chrome: niete-sandbox

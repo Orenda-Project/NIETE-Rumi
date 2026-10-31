@@ -3,7 +3,7 @@
 Three scripts, three code spaces. `commit-e2e.sh` exit `3` wraps whatever the stack returned;
 the stack's own code is in the run log.
 
-## `commit-e2e.sh` (`.claude/qa/shared/`)
+## `commit-e2e.sh` (`.claude/qa/engine/bin/`, the shared engine)
 
 | Exit | Meaning | Next |
 |---|---|---|

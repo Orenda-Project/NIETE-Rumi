@@ -1,6 +1,6 @@
 # Reading a runs.jsonl row and the PR comment
 
-One row per (run × feature), appended by `.claude/qa/shared/ledger_row.py` to
+One row per (run × feature), appended by `.claude/qa/engine/bin/ledger_row.py` to
 `.claude/qa/ledgers/runs.jsonl`.
 
 ```json

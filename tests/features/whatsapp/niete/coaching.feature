@@ -1,6 +1,6 @@
 @whatsapp @ict @profile:niete @feature:coaching @persona:teacher
 Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
-  # Non-determinism: see .claude/qa/shared/non-determinism-contract.md (assert contracts/shape; @content-driven answers resolved live).
+  # Non-determinism: see .claude/qa/engine/bin/non-determinism-contract.md (assert contracts/shape; @content-driven answers resolved live).
   # ICT-region only. The NIETE bot (E2E_TARGET_NUMBER) driven from a linked
   # WhatsApp Web session via Chrome MCP. "Classroom Coaching" is the 3rd ICT menu
   # row. Entry: the /menu "Classroom Coaching" row (menu.service.js:110-112 →
