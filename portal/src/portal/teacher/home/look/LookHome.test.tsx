@@ -20,7 +20,8 @@ import type { TeacherFeature } from "../../paths";
 
 /**
  * The Home's new look (portal_teacher_home_look, riding on portal_teacher_home_card), drawn through the real Home page:
- * the band is the hero, then the card, the progress strip, the rows (today's tiles in this car), then the reminder.
+ * the band is the hero, then the card, the tiles, then the reminder. No progress strip and no "All features" label
+ * (operator, 31 Oct 2026, mockup v8: "Remove the Coach 31/40 line", the Home fits one phone screen).
  * The card switch alone keeps the card build's tree.
  */
 const TEACHER = { firstName: "Amina Testwala", lastName: null, role: "teacher", phoneNumber: "test-teacher-1", schoolName: "IMSG I-10/1" };
@@ -98,15 +99,16 @@ describe("teacher Home, the new look", () => {
     expect(screen.queryByTestId("home-band")).toBeNull();
   });
 
-  it("look ON, card day: band, then the card, the strip, the section label, the 8 rows in the fixed order, then the reminder", async () => {
+  it("look ON, card day with scores: band, then the card, then the 8 tiles in the fixed order; no progress strip, no section label", async () => {
     serve({ home: body({ card: COACH_CARD, scores: { coach: null, observation: OBS } }) });
     renderHome();
     const card = await screen.findByTestId("home-look-card");
     const band = screen.getByTestId("home-band");
-    const strip = await screen.findByTestId("home-scores");
-    const all = screen.getByTestId("home-look-all");
-    const grid = screen.getByTestId("feature-tiles");
-    expect(follows(band, card) && follows(card, strip) && follows(strip, all) && follows(all, grid)).toBe(true);
+    const grid = await screen.findByTestId("feature-tiles");
+    expect(follows(band, card) && follows(card, grid)).toBe(true);
+    expect(screen.queryByTestId("home-scores")).toBeNull();
+    expect(screen.queryByTestId("home-look-all")).toBeNull();
+    expect(screen.queryByText("All features")).toBeNull();
     expect(rows()).toEqual(FIXED);
     expect(screen.queryByTestId("home-look-ask")).toBeNull();
     expect(screen.queryByTestId("home-next-card")).toBeNull();
@@ -127,11 +129,16 @@ describe("teacher Home, the new look", () => {
     expect(screen.queryByTestId("home-look-card")).toBeNull();
   });
 
-  it("no card, scores: the strip sits under the band, then the tiles (no question line)", async () => {
+  it("no card, scores: no progress strip; the tiles climb into the band (no question line)", async () => {
     serve({ home: body({ scores: { coach: null, observation: OBS } }) });
     renderHome();
-    const strip = await screen.findByTestId("home-scores");
-    expect(follows(strip, screen.getByTestId("feature-tiles"))).toBe(true);
+    // the card build's grid can paint before /config turns the look on: wait for the look's band first
+    await screen.findByTestId("home-band");
+    await waitFor(() => expect(screen.getByTestId("feature-tiles").className.split(" ")).toContain("z-[1]"));
+    const tiles = screen.getByTestId("feature-tiles");
+    expect(follows(screen.getByTestId("home-band"), tiles)).toBe(true);
+    for (const c of ["first:-mt-10", "relative", "z-[1]"]) expect(tiles.className.split(" ")).toContain(c);
+    expect(screen.queryByTestId("home-scores")).toBeNull();
     expect(screen.queryByTestId("home-look-ask")).toBeNull();
   });
 
@@ -263,7 +270,7 @@ describe("teacher Home, the new look", () => {
     answer({ data: body({ card: COACH_CARD }) });
     const card = await screen.findByTestId("home-look-card");
     expect(screen.getByTestId("feature-tiles")).toBeTruthy();
-    expect(screen.getByTestId("home-look-all")).toBeTruthy();
+    expect(screen.queryByTestId("home-look-all")).toBeNull();
     expect(follows(card, screen.getByTestId("feature-tiles"))).toBe(true);
   });
 
@@ -297,14 +304,9 @@ describe("teacher Home, the new look", () => {
     const card = await screen.findByTestId("home-look-card");
     for (const c of ["first:-mt-10", "relative", "z-[1]"]) expect(card.className.split(" ")).toContain(c);
     first.unmount();
-    resetHomeMemo();
-    serve({ home: body({ scores: { coach: null, observation: OBS } }) });
-    renderHome();
-    const strip = await screen.findByTestId("home-scores");
-    for (const c of ["first:-mt-10", "relative", "z-[1]"]) expect(strip.className.split(" ")).toContain(c);
   });
 
-  it("the band keeps HomeGreeting's 52 px foot; with no card and no strip (or while /me/home loads) the tiles are what climbs into it", async () => {
+  it("the band keeps HomeGreeting's 52 px foot; with no card (or while /me/home loads) the tiles are what climbs into it", async () => {
     const cls = (id: string) => screen.getByTestId(id).className.split(" ");
     serve({ home: body({ card: COACH_CARD }) });
     const a = renderHome();
@@ -424,7 +426,7 @@ describe("teacher Home, the new look", () => {
       renderHome();
       await screen.findByTestId("home-look-slot");
       base.v = 150;
-      answer({ data: body({ scores: { coach: null, observation: OBS } }) });
+      answer({ data: body({ card: COACH_CARD }) });
       expect((await screen.findByTestId("home-look-spacer")).style.height).toBe("190px");
       await waitFor(() => expect(JSON.parse(localStorage.getItem(SLOT) ?? "null")).toEqual({ card: 0, total: 140 }));
       r.mockRestore();
@@ -470,23 +472,26 @@ describe("teacher Home, the new look", () => {
       return { top, bottom: top, left: 0, right: 0, width: 0, height: 0, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
     });
 
-    it("the slot holds the whole block above the rows: card + strip + label (less the one gap the slot keeps)", async () => {
+    it("the slot holds the whole block above the rows: the card (less the one gap the slot keeps)", async () => {
       const r = tops({ "home-look-card": 100, "feature-tiles": 420 });
       const h = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) { return this.dataset.testid === "home-look-card" ? 205 : 0; });
       serve({ home: body({ card: COACH_CARD, scores: { coach: null, observation: OBS } }) });
       renderHome();
-      await screen.findByTestId("home-scores");
+      await screen.findByTestId("home-look-card");
       await waitFor(() => expect(JSON.parse(localStorage.getItem(SLOT) ?? "null")).toEqual({ card: 205, total: 310 }));
       r.mockRestore();
       h.mockRestore();
     });
 
-    it("a no-card day with the strip remembers the strip, so its rows hold too", async () => {
+    it("a no-card day with scores has nothing above the rows (no strip): the memory is forgotten", async () => {
+      localStorage.setItem(SLOT, JSON.stringify({ card: 0, total: 90 }));
       const r = tops({ "home-scores": 100, "feature-tiles": 200 });
       serve({ home: body({ scores: { coach: null, observation: OBS } }) });
       renderHome();
-      await screen.findByTestId("home-scores");
-      await waitFor(() => expect(JSON.parse(localStorage.getItem(SLOT) ?? "null")).toEqual({ card: 0, total: 90 }));
+      await screen.findByTestId("home-band");
+      await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/home"));
+      await waitFor(() => expect(localStorage.getItem(SLOT)).toBeNull());
+      expect(screen.queryByTestId("home-scores")).toBeNull();
       r.mockRestore();
     });
 
