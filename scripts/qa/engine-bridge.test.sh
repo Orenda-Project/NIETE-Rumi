@@ -49,11 +49,18 @@ for h in post-commit pre-push; do
   grep -q "\.claude/qa/engine/githooks/$h" ".githooks/$h" 2>/dev/null || bad ".githooks/$h is not a shim into the engine's $h"
 done
 [ "$F" = "$n" ] && ok "the two git hooks are shims into the engine's"
-[ "$(git ls-files .githooks | LC_ALL=C sort | tr '\n' ' ')" = ".githooks/README.md .githooks/post-commit .githooks/pre-commit .githooks/pre-push " ] \
-  && ok ".githooks is the two shims, the code-map pre-commit and their README" || bad ".githooks holds: $(git ls-files .githooks | tr '\n' ' ')"
-# pre-commit is the vendored code-map hook (kg/), this repo's own: never a third way back in for the engine.
-grep -q 'kg/heal.py' .githooks/pre-commit 2>/dev/null && ! grep -q '\.claude/qa/engine' .githooks/pre-commit \
-  && ok ".githooks/pre-commit is the code-map hook, not the engine's" || bad ".githooks/pre-commit is not the code-map (kg) hook"
+gh=$(git ls-files .githooks | LC_ALL=C sort | tr '\n' ' ')
+case "$gh" in
+  ".githooks/README.md .githooks/post-commit .githooks/pre-commit .githooks/pre-push "|".githooks/README.md .githooks/post-commit .githooks/pre-push ")
+    ok ".githooks is the two shims and their README (plus the code-map pre-commit where kg/ is vendored)" ;;
+  *) bad ".githooks holds: $gh" ;;
+esac
+# pre-commit is there only on a branch that vendors the code map (kg/: sandbox has it, staging does not). Where it is, it
+# is that hook, this repo's own: never a third way back in for the engine.
+if [ -f .githooks/pre-commit ]; then
+  grep -q 'kg/heal.py' .githooks/pre-commit && ! grep -q '\.claude/qa/engine' .githooks/pre-commit \
+    && ok ".githooks/pre-commit is the code-map hook, not the engine's" || bad ".githooks/pre-commit is not the code-map (kg) hook"
+fi
 # The shims are the engine's templates, byte for byte: they link the engine themselves the first time a hook fires in a
 # clone that has none (bd-9157r.8), so a stale copy here would bring back the manual `npm install` step.
 if [ -d .claude/qa/engine/config-templates ]; then
