@@ -54,6 +54,10 @@ export function teachingLevels(bands: Bands): string[] {
 
 export type TileSub = { kind: 'level'; n: number; of: number } | { kind: 'courses'; done: number; total: number } | null;
 
+/** What a tile reads of GET /training/vendors and /training/levels (the coach's School card sends the same fields). */
+export type TileVendor = Pick<Vendor, 'vendor_key' | 'vendor_name' | 'module_count' | 'completed_module_count'>;
+export type TileLevel = Pick<Level, 'id' | 'vendor_key' | 'order_index' | 'unlock_logic' | 'state' | 'courses_total' | 'courses_completed'>;
+
 export type CourseTile = {
   key: string;
   label: string;
@@ -66,7 +70,7 @@ export type CourseTile = {
   to: string;
 };
 
-export function courseTiles(vendors: Vendor[], levels: Level[], paths: Paths): CourseTile[] {
+export function courseTiles(vendors: TileVendor[], levels: TileLevel[], paths: Paths): CourseTile[] {
   return sortVendors(vendors).map((v) => {
     const own = levels.filter((l) => l.vendor_key === v.vendor_key).sort((a, b) => a.order_index - b.order_index);
     const pct = percent(v.completed_module_count, v.module_count);

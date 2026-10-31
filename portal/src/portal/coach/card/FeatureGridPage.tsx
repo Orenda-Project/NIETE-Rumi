@@ -9,14 +9,15 @@ import { CardOnly, useCardLoad } from "./frame";
 import { aheadLine, bucketLabels, perDayLine, perDayOf, usePeriod, withPeriod } from "./period";
 import { CARD_FEATURES, FEATURE_OF, PeriodChips, TeacherGrid } from "./parts";
 import ScoresByTeacher from "./ScoresByTeacher";
+import { TrainingByTeacher } from "./training";
 import { useLevel, withLevel } from "../people/level";
-import type { CardFeature, FeatureGridData } from "./types";
+import type { CardFeature, FeatureGridData, TrainingByTeacherData } from "./types";
 
 /**
  * One feature of a school by teacher ("Lesson plans by teacher"): a column per school day (This week) or per week (This
  * month), only the totals for Today. The School row adds each column up; teachers with nothing stay in, grey, at the
  * bottom; days still ahead are dashed. A row opens HER list of this feature (HerItemsPage: her lesson plans, her
- * assessments, her training courses and modules), and its Back returns here (bd-dgfkgs.1). Digital Coaching and Coach
+ * assessments; Training by teacher is its own page, TrainingGrid, bd-hl4a4y), and its Back returns here (bd-dgfkgs.1). Digital Coaching and Coach
  * observations are scores, not counts: their address (feature dc | coach) opens ScoresByTeacher.
  */
 function FeatureGrid() {
@@ -28,7 +29,8 @@ function FeatureGrid() {
   const [level] = useLevel();
   const from = (useLocation().state || {}) as { schoolName?: string };
   const { data, failed, reload } = useCardLoad<FeatureGridData | null>(
-    () => (feature ? card.grid(emis, feature, period, level) : Promise.reject(new Error("unknown feature"))), [emis, feature, period, level]);
+    () => (feature ? card.grid(emis, feature, period, level) as Promise<FeatureGridData> : Promise.reject(new Error("unknown feature"))),
+    [emis, feature, period, level]);
 
   const school = `/portal/coach/school/${encodeURIComponent(emis)}`;
   const here = withLevel(withPeriod(`${school}/feature/${raw}`, period), level);
@@ -63,9 +65,36 @@ function FeatureGrid() {
   );
 }
 
+/**
+ * bd-hl4a4y — Training by teacher: each teacher's trainings with the progress her own Training page shows, not parts
+ * per day. Progress is not of a period, so no period chips; the period rides along only so Back and her page keep it.
+ */
+function TrainingGrid({ emis }: { emis: string }) {
+  const C = useCopy(SCHOOL_CARD);
+  const [period] = usePeriod();
+  const [level] = useLevel();
+  const from = (useLocation().state || {}) as { schoolName?: string };
+  const { data, failed, reload } = useCardLoad<TrainingByTeacherData>(
+    () => card.grid(emis, "training", period, level) as Promise<TrainingByTeacherData>, [emis, period, level]);
+  const school = `/portal/coach/school/${encodeURIComponent(emis)}`;
+  const here = withLevel(withPeriod(`${school}/feature/training`, period), level);
+  return (
+    <PeopleFrame title={C.byTeacher.training} crumb={from.schoolName || undefined} backTo={withLevel(withPeriod(school, period), level)} feature={FEATURE_OF.training}>
+      {failed && <LoadFailed onRetry={reload} />}
+      {!data && !failed && <Loading />}
+      {data && (
+        <TrainingByTeacher rows={data.rows}
+          linkOf={(ext) => (ext ? withPeriod(`/portal/coach/teacher/${encodeURIComponent(ext)}/items/training`, period) : null)}
+          stateOf={(_, name) => ({ teacherName: name, back: here })} />
+      )}
+    </PeopleFrame>
+  );
+}
+
 function FeatureOrScores() {
   const { emis = "", feature = "" } = useParams();
   if (feature === "dc" || feature === "coach") return <ScoresByTeacher emis={emis} kind={feature} />;
+  if (feature === "training") return <TrainingGrid emis={emis} />;
   return <FeatureGrid />;
 }
 

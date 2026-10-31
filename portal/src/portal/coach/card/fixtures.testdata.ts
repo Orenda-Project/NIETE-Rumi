@@ -2,7 +2,8 @@
  * Made-up answers in the School card API's shapes, for the tests only (never imported by the app). Every name, code and
  * number is invented. "Today" is Wednesday 28 October 2026: This week has three school days so far, Thu and Fri ahead.
  */
-import type { Bucket, CoachingSummary, FeatureGridData, ItemsData, Period, SchoolCardData, SchoolScoresData, ScoreKind, SessionReportData, TeacherCardData, TeacherScoresData } from "./types";
+import type { Bucket, CoachingSummary, FeatureGridData, ItemsData, Period, SchoolCardData, SchoolScoresData, ScoreKind, SessionReportData, TeacherCardData, TeacherScoresData, TrainingByTeacherData } from "./types";
+import type { LevelState } from "../../newui/training/trainingApi";
 
 export const EMIS = "E-900";
 export const EXT = "900000000001";
@@ -178,8 +179,35 @@ export const VISIT_REPORT: SessionReportData = {
   reflection: [],
 };
 
+/**
+ * bd-hl4a4y — her trainings as her own Training page counts them (GET /training/vendors' numbers) and her levels with the
+ * bot's states. NIETE 130 of 171 parts (76%), at level 3 of 4; AI Pedagogy a set of subjects (no level line), not
+ * started; Smart Schools all done. The server sends them by name; the page orders them as her Training page does.
+ */
+const NIETE = { vendor_key: "TALEEMABAD", vendor_name: "NIETE", module_count: 171, completed_module_count: 130 };
+const GBTLA = { vendor_key: "OXBRIDGE", vendor_name: "Smart Schools Project: Game-Based Teaching, Learning and Assessment (GBTLA), 6-10", module_count: 7, completed_module_count: 7 };
+const AIP = { vendor_key: "BEACONHOUSE", vendor_name: "AI-Powered Subject Pedagogy, 6-10", module_count: 206, completed_module_count: 0 };
+const lvl = (id: number, vendor_key: string, order_index: number, unlock_logic: string, state: LevelState, courses_total = 9, courses_completed = 0) =>
+  ({ id, vendor_key, order_index, unlock_logic, state, courses_total, courses_completed });
+
 export const TRAINING_ITEMS: ItemsData = {
-  courses: [{ name: "Course One", done: false, parts: [{ name: "Part A", doneAt: "2026-10-27" }, { name: "Part B", doneAt: null }] }],
+  vendors: [AIP, NIETE, GBTLA],
+  levels: [
+    lvl(1, "TALEEMABAD", 0, "chain", "certified", 9, 9), lvl(2, "TALEEMABAD", 1, "chain", "certified", 9, 9),
+    lvl(3, "TALEEMABAD", 2, "chain", "in_progress", 9, 4), lvl(4, "TALEEMABAD", 3, "chain", "locked"),
+    lvl(17, "OXBRIDGE", 4, "chain", "certified", 1, 1),
+    lvl(18, "BEACONHOUSE", 1, "all_modules", "not_started"), lvl(19, "BEACONHOUSE", 2, "all_modules", "not_started"),
+  ],
+};
+
+/** bd-hl4a4y — Training by teacher: each teacher's trainings, as the server sends them (by name); one with none. */
+export const TRAINING_BY_TEACHER: TrainingByTeacherData = {
+  feature: "training",
+  rows: [
+    { teacherExtId: ext(0), name: NAMES[0], vendors: [NIETE, GBTLA] },
+    { teacherExtId: ext(1), name: NAMES[1], vendors: [{ ...NIETE, completed_module_count: 0 }] },
+    { teacherExtId: ext(2), name: NAMES[2], vendors: [] },
+  ],
 };
 
 export const SESSION_REPORT: SessionReportData = {

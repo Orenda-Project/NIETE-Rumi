@@ -4,6 +4,8 @@
  * server could not fill is null and the screen shows "—".
  */
 
+import type { TileLevel, TileVendor } from "../../teacher/training/model";
+
 export type PeriodKey = "today" | "week" | "month";
 
 /** A day (This week) or a Monday-start week (This month). `future`: still ahead. `partial`: cut by the month or today. */
@@ -162,12 +164,25 @@ export type TeacherCardData = {
 
 export type LpItem = { id: string; date: string; grade: string | number | null; subject: string | null; title: string | null };
 export type PaperItem = { id: string; date: string; grade: string | number | null; subject: string | null; questions: number | null; marks: number | null };
-export type TrainingCourse = { name: string; parts: { name: string; doneAt: string | null }[]; done: boolean };
+/**
+ * bd-hl4a4y — a teacher's training as her own Training page counts it (GET /training/vendors' fields: its parts in the
+ * levels her programmes show, and the ones she finished), and a level of it with the bot's state (GET /training/levels').
+ */
+export type TrainingProgress = TileVendor;
+export type TrainingLevelState = TileLevel;
 
 export type ItemsData = {
   period?: Period;
   items?: (LpItem | PaperItem)[];
-  courses?: TrainingCourse[];
+  /** Training: her trainings, and her levels with their states (null when the bot could not say). */
+  vendors?: TrainingProgress[];
+  levels?: TrainingLevelState[] | null;
+};
+
+/** bd-hl4a4y — Training by teacher: each teacher's trainings (none: an empty list). */
+export type TrainingByTeacherData = {
+  feature: "training";
+  rows: { teacherExtId: string | null; name: string; vendors: TrainingProgress[] }[];
 };
 
 export type SectionScores = { B: number | null; C: number | null; D: number | null; F: number | null };

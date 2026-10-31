@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { linkPaths, loadApp, moves, net, renderApp, resetAll } from "./harness.testdata";
-import { EMIS, EXT, MONTH, NO_SCORES, SESSION, SESSION_REPORT, TODAY, TRAINING_ITEMS, VISIT_REPORT, grid, schoolCard, schoolScores, teacherCard, teacherScores } from "./fixtures.testdata";
+import { EMIS, EXT, MONTH, NO_SCORES, SESSION, SESSION_REPORT, TODAY, TRAINING_BY_TEACHER, TRAINING_ITEMS, VISIT_REPORT, grid, schoolCard, schoolScores, teacherCard, teacherScores } from "./fixtures.testdata";
 import { coachPathReady, coachReadyFor } from "../training/appReady";
 
 vi.mock("axios", async () => (await import("./harness.testdata")).axiosMock());
@@ -271,7 +271,6 @@ describe("a feature by teacher", () => {
   it.each([
     ["lp", "Lesson plans by teacher", "All Lesson Plans", { items: [] }],
     ["papers", "Assessments by teacher", "All Assessments", { items: [] }],
-    ["training", "Training parts by teacher", "Training", TRAINING_ITEMS],
   ] as const)("%s: a row opens her list of that feature; Back returns to the list", async (feature, heading, herTitle, items) => {
     on();
     net.answers.set(`/coach/school/${EMIS}/feature/${feature}?period=month`, { ...grid(MONTH), feature });
@@ -285,6 +284,45 @@ describe("a feature by teacher", () => {
     await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(herTitle));
     expect(screen.getByTestId("page-crumb")).toHaveTextContent("Teacher Alpha");
     expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", `/portal/coach/school/${EMIS}/feature/${feature}?period=month`);
+  });
+});
+
+// bd-hl4a4y (operator, 31 Oct: "The trainings page with the Parts is unintuitive ... just show the progress of all the
+// trainings ... NIETE 9/10 done or percentage ... instead of parts"; picked: the % her own Training page shows).
+describe("Training by teacher", () => {
+  const PAGE = `/portal/coach/school/${EMIS}/feature/training?period=month`;
+  const answer = () => net.answers.set(`/coach/school/${EMIS}/feature/training?period=month`, TRAINING_BY_TEACHER);
+
+  it("a row per teacher with each of her trainings and its %; one with none says so, last; no parts, no period", async () => {
+    on();
+    answer();
+    const { container } = await renderApp(PAGE);
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Training by teacher"));
+    const rows = await screen.findAllByTestId("training-row");
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveTextContent("Teacher Alpha");
+    expect(within(rows[0]).getAllByTestId("teacher-training").map((c) => c.textContent)).toEqual(["NIETE76%", "GBTLADone"]);
+    expect(within(rows[1]).getAllByTestId("teacher-training").map((c) => c.textContent)).toEqual(["NIETE0%"]);
+    expect(rows[2]).toHaveAttribute("data-none", "1");
+    expect(rows[2]).toHaveTextContent("No training yet");
+    expect(container.textContent).not.toMatch(/\bparts?\b/i);
+    expect(screen.queryByRole("radio", { name: "This week" })).toBeNull();
+    expect(screen.queryByText("This week")).toBeNull();
+    expectOnlyOpenLinks(container);
+  });
+
+  it("a row opens her Training page; Back returns to the list", async () => {
+    on();
+    answer();
+    net.answers.set(`/coach/teacher/${EXT}/items/training?period=month`, TRAINING_ITEMS);
+    await renderApp(PAGE);
+    const row = (await screen.findAllByTestId("training-row"))[0];
+    expect(row).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/items/training?period=month`);
+    await act(async () => { fireEvent.click(row); });
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(`/portal/coach/teacher/${EXT}/items/training`));
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Training"));
+    expect(screen.getByTestId("page-crumb")).toHaveTextContent("Teacher Alpha");
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", PAGE);
   });
 });
 
@@ -412,13 +450,47 @@ describe("her days (bd-dgfkgs.4)", () => {
 });
 
 describe("her lists", () => {
-  it("Training: courses, their parts and the day each was done", async () => {
+  // bd-hl4a4y: her trainings, each as her own Training page shows it (ring, %, where she is); no courses, no parts.
+  it("Training: each of her trainings with its %, where she is in its levels, or Done; in her Training page's order", async () => {
     on();
+    const { container } = await renderApp(`/portal/coach/teacher/${EXT}/items/training`);
+    const rows = await screen.findAllByTestId("training-progress");
+    expect(rows.map((r) => r.querySelector("b")?.textContent)).toEqual([
+      "NIETE", "AI-Powered Subject Pedagogy, 6-10", "Smart Schools Project: Game-Based Teaching, Learning and Assessment (GBTLA), 6-10",
+    ]);
+    expect(rows[0]).toHaveTextContent("76% · Level 3 of 4");
+    expect(within(rows[0]).getByRole("img")).toHaveAttribute("aria-label", "76%");
+    expect(rows[1]).toHaveTextContent("0%");
+    expect(rows[1]).not.toHaveTextContent("Level");
+    expect(rows[2]).toHaveTextContent("Done");
+    expect(container.textContent).not.toMatch(/\bparts?\b/i);
+    expect(screen.queryByText("This week")).toBeNull();
+    // information, not a way in: the rows open nothing
+    expect(rows.every((r) => !r.closest("a"))).toBe(true);
+  });
+
+  it("Training: when her levels could not be read, the % still shows and no level line is made up", async () => {
+    on();
+    net.answers.set(`/coach/teacher/${EXT}/items/training`, { ...TRAINING_ITEMS, levels: null });
     await renderApp(`/portal/coach/teacher/${EXT}/items/training`);
-    const course = await screen.findByTestId("course");
-    expect(course).toHaveTextContent("Course One");
-    expect(course).toHaveTextContent("1 of 2 parts done");
-    expect(course).toHaveTextContent("Not done");
+    const rows = await screen.findAllByTestId("training-progress");
+    expect(rows[0]).toHaveTextContent("76%");
+    expect(rows[0]).not.toHaveTextContent("Level");
+  });
+
+  it("Training: none says so", async () => {
+    on();
+    net.answers.set(`/coach/teacher/${EXT}/items/training`, { vendors: [], levels: [] });
+    await renderApp(`/portal/coach/teacher/${EXT}/items/training`);
+    expect(await screen.findByTestId("empty")).toHaveTextContent("No training yet");
+  });
+
+  it("Training in Urdu: her Training page's words", async () => {
+    on();
+    await renderApp(`/portal/coach/teacher/${EXT}/items/training`, "ur");
+    const rows = await screen.findAllByTestId("training-progress");
+    expect(rows[0]).toHaveTextContent("درجہ 3/4");
+    expect(rows[2]).toHaveTextContent("مکمل");
   });
 
   it.each([
