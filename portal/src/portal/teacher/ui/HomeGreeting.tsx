@@ -43,19 +43,24 @@ export interface HomeGreetingProps {
   markSrc?: string;
   /** A control under the date and school, inside the band (Home's language switch). */
   footer?: ReactNode;
+  /** A small control at the end of the logo row (the Home look's language pill: operator, 30 Oct 2026). */
+  corner?: ReactNode;
+  /** The header's test id; `home-greeting` by default. */
+  testId?: string;
   className?: string;
 }
 
-export function HomeGreeting({ title, name, date, school, brand, logoAlt, markSrc = nieteLogo, footer, className }: HomeGreetingProps) {
+export function HomeGreeting({ title, name, date, school, brand, logoAlt, markSrc = nieteLogo, footer, corner, testId = "home-greeting", className }: HomeGreetingProps) {
   return (
     <header
-      data-testid="home-greeting"
+      data-testid={testId}
       className={cn("relative flex flex-col gap-3.5 overflow-hidden bg-[#333748] px-5 pb-[52px] pt-[calc(18px+env(safe-area-inset-top))] text-white", className)}
     >
       <NieteLattice className="absolute inset-y-0 end-0 w-[70%]" strength={0.5} />
       <div className="relative flex min-h-[44px] items-center gap-2.5">
         <img src={markSrc} alt={logoAlt} className="ms-[-6px] h-11 w-11 object-contain" />
         <span dir="ltr" className="text-[17px] font-bold tracking-[0.14em]">{brand}</span>
+        {corner ? <span className="ms-auto flex">{corner}</span> : null}
       </div>
       <div className="relative flex flex-col gap-3">
         <h1 className="break-words text-[32px] font-light leading-[1.15] tracking-[-0.015em] [overflow-wrap:anywhere] rtl:leading-[1.5]">{greetingParts(title, name)}</h1>

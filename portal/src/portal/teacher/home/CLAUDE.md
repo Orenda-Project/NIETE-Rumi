@@ -1,7 +1,7 @@
 # home — Teacher Home card, score chips, Quizzes tile and Home data hook
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/home kg=3696eb2aa2ae gen=642f958dfd1a overflow=36 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/home kg=6ca919d8ca8a gen=f0b31183d5d8 overflow=36 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `useHomeData.ts` — switches and GET /me/home load; `api.ts` — the server-shaped card read
@@ -19,9 +19,9 @@ Full index: `CLAUDE.index.md`
 | … | 15 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `api.ts` ← imported by `portal/src/portal/teacher/home/LessonQuizButton.tsx:7:e60ade0a` · `portal/src/portal/teacher/home/NextCard.tsx:9:f2ddb384` (+12)
+- `api.ts` ← imported by `portal/src/portal/teacher/home/LessonQuizButton.tsx:7:e60ade0a` · `portal/src/portal/teacher/home/NextCard.tsx:9:f2ddb384` (+11)
 - `copy.ts` ← imported by `portal/src/portal/teacher/home/LessonQuizButton.tsx:6:b95df8e3` · `portal/src/portal/teacher/home/NextCard.tsx:7:b95df8e3` (+8)
-- `chips.ts` ← imported by `portal/src/portal/teacher/home/ScoresRow.tsx:6:ab21523c` · `portal/src/portal/teacher/home/look/LookHome.tsx:14:4190547a` (+1)
+- `chips.ts` ← imported by `portal/src/portal/teacher/home/ScoresRow.tsx:6:ab21523c` · `portal/src/portal/teacher/home/look/LookHome.tsx:16:4190547a` (+1)
 - … 7 more → `CLAUDE.index.md`
 
 ## Never (human)

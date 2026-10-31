@@ -8,7 +8,6 @@ import { teacherPath } from "./routes";
 import { FeatureGlyph, type GlyphName } from "./icons";
 import { AuthContext } from "../hooks/authContext";
 import { useHomeLook } from "./home/useHomeData";
-import { LOOK_ICONS } from "./home/look/lookIcons";
 import { COACH_CARD_NAV_KEYS, COACH_MENU_PATHS, COACH_NAV_KEYS, coachNavKeysFor, currentCoachCardItem, currentCoachMenuItem, currentMenuItem, type CoachNavKey, type NavFeature } from "./menu";
 
 /**
@@ -112,8 +111,8 @@ const TeacherNavigation = ({ role = "teacher", ready, schoolCard = false }: { ro
         {items.map(({ feature, label, to, glyph }) => {
           const on = current === feature;
           if (look) {
-            // The look: the current item is a green pill with a green glyph and an ink bold label; the others muted.
-            const Icon = LOOK_ICONS[feature as NavFeature];
+            // The look: the current item sits in a green pill with an ink bold label; the others muted. The glyphs are the
+            // kit's colourful D2 menu glyphs, the same as without the look (the operator brought them back, 30 Oct 2026).
             return (
               <Link
                 key={feature}
@@ -122,7 +121,7 @@ const TeacherNavigation = ({ role = "teacher", ready, schoolCard = false }: { ro
                 className={cn(LOOK_ITEM, on ? "text-[#333748] font-bold" : "text-[#636878]")}
               >
                 <span data-look-pill aria-hidden="true" className={cn("flex h-7 w-[52px] items-center justify-center rounded-full", on && "bg-[#e7f5ed] text-[#2e7d57]")}>
-                  <Icon size={22} data-look-glyph={feature} />
+                  <FeatureGlyph name={glyph} size={24} />
                 </span>
                 {/* index.css gives every Urdu element line-height 2, so the label carries its own 1.5 (inherited from the item it would never land). */}
                 <span className="max-w-full rtl:!leading-[1.5]">{label}</span>

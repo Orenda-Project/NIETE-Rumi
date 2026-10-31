@@ -28,12 +28,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Who reads this (all, generated)
 - `LessonQuizButton.tsx` ← imported by `portal/src/portal/teacher/coaching/ReportPage.tsx:27:18b028fe` · `portal/src/portal/teacher/lessons/ViewerPage.tsx:20:18b028fe`
-- `NextCard.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:15:f37f5d85` · `portal/src/portal/teacher/home/look/LookHome.tsx:11:6cf38df8`
-- `QuizTile.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:20:a8ed77a2` · `portal/src/portal/teacher/home/look/FeatureRows.tsx:8:0f102e63`
+- `NextCard.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:15:f37f5d85` · `portal/src/portal/teacher/home/look/LookHome.tsx:13:6cf38df8`
+- `QuizTile.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:20:a8ed77a2` · `portal/src/portal/teacher/home/look/FeatureTiles.tsx:8:e549d3a4`
 - `ScoresRow.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:17:34259cf6`
-- `SlimCard.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:16:d625f5f2` · `portal/src/portal/teacher/home/look/LookHome.tsx:12:1c8bea70`
-- `api.ts` ← imported by `portal/src/portal/teacher/home/LessonQuizButton.tsx:7:e60ade0a` · `portal/src/portal/teacher/home/NextCard.tsx:9:f2ddb384` · `portal/src/portal/teacher/home/QuizTile.tsx:6:4de7cdaf` · `portal/src/portal/teacher/home/ScoresRow.tsx:7:9663c29b` (+10: `python3 kg/kg.py who-reads api.ts`)
-- `chips.ts` ← imported by `portal/src/portal/teacher/home/ScoresRow.tsx:6:ab21523c` · `portal/src/portal/teacher/home/look/LookHome.tsx:14:4190547a` · `portal/src/portal/teacher/home/look/LookScores.tsx:6:f0104c46`
+- `SlimCard.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:16:d625f5f2` · `portal/src/portal/teacher/home/look/LookHome.tsx:14:1c8bea70`
+- `api.ts` ← imported by `portal/src/portal/teacher/home/LessonQuizButton.tsx:7:e60ade0a` · `portal/src/portal/teacher/home/NextCard.tsx:9:f2ddb384` · `portal/src/portal/teacher/home/QuizTile.tsx:6:4de7cdaf` · `portal/src/portal/teacher/home/ScoresRow.tsx:7:9663c29b` (+9: `python3 kg/kg.py who-reads api.ts`)
+- `chips.ts` ← imported by `portal/src/portal/teacher/home/ScoresRow.tsx:6:ab21523c` · `portal/src/portal/teacher/home/look/LookHome.tsx:16:4190547a` · `portal/src/portal/teacher/home/look/LookScores.tsx:6:f0104c46`
 - `coolDown.ts` ← imported by `portal/src/portal/teacher/home/SlimCard.tsx:7:c984ca6b` · `portal/src/portal/teacher/home/look/LookCard.tsx:8:b4937ac5`
 - `copy.ts` ← imported by `portal/src/portal/teacher/home/LessonQuizButton.tsx:6:b95df8e3` · `portal/src/portal/teacher/home/NextCard.tsx:7:b95df8e3` · `portal/src/portal/teacher/home/QuizTile.tsx:5:3834b44c` · `portal/src/portal/teacher/home/ScoresRow.tsx:5:b95df8e3` (+6: `python3 kg/kg.py who-reads copy.ts`)
 - `useHomeData.ts` ← imported by `portal/src/portal/teacher/TeacherNavigation.tsx:10:4f102628` · `portal/src/portal/teacher/pages/Home.tsx:18:5e28519f` · `portal/src/portal/teacher/home/LessonQuizButton.tsx:8:b9500ee2`

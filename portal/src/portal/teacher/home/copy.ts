@@ -63,12 +63,9 @@ export const HOME_CARD_COPY = {
   },
   /** The Home's "Quizzes" tile (portal_teacher_home_quiz_tile): the quiz home, one tap. */
   quizTile: 'Quizzes',
-  /** The Home's new look (portal_teacher_home_look): the rows' label, the no-card heading, the lesson lead-in, the strip. */
+  /** The Home's new look (portal_teacher_home_look): the lesson card's lead-in. */
   look: {
-    all: 'All features',
-    ask: 'What would you like to do today?',
     leadIn: 'Quiz from your last lesson:',
-    progress: 'Your progress',
   },
 };
 
@@ -113,10 +110,7 @@ export const HOME_CARD_COPY_UR = {
   },
   quizTile: 'کوئز',
   look: {
-    all: 'تمام سہولیات',
-    ask: 'آج کیا کریں؟',
     leadIn: 'آپ کے پچھلے سبق کا کوئز:',
-    progress: 'آپ کی پیش رفت',
   },
 };
 
@@ -129,5 +123,5 @@ export const COPY_ENTRY: CopyEntry = {
   // Every line has its own Urdu (the topic is data, so "Quiz: {topic}" still differs by its word).
   same: [],
   // The titles are sentences (the build contract), the lesson's sub line names three things, and the LP button mirrors the bot.
-  longOk: ['class.title', 'coach.title', 'lesson.title', 'lesson.sub', 'obs.title', 'first.title', 'lp.quizThis', 'look.ask', 'look.leadIn'],
+  longOk: ['class.title', 'coach.title', 'lesson.title', 'lesson.sub', 'obs.title', 'first.title', 'lp.quizThis', 'look.leadIn'],
 };
