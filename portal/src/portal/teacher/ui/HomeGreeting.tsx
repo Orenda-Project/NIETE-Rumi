@@ -26,8 +26,12 @@ import { NieteLattice } from "../icons/NieteLattice";
  * the atom keeps its punctuation inside its isolate). A Latin name is set in the English font with an English line
  * height (`!leading-[1.15]`, important because index.css gives every Urdu span line-height 2): mixed into the
  * Nastaliq h1 it used to stretch each line box, and the Urdu band stood ~30 px taller than it should. In Urdu it is
- * also set a size down (0.7em): at the h1's 32 px a Latin name is far wider than the Nastaliq around it and pushed the
- * greeting onto a second line at 360 px (another ~50 px of band).
+ * 22 px: at 32 px a Latin name is far wider than the Nastaliq around it and pushed the greeting onto a second line
+ * at 360 px (another ~50 px of band).
+ *
+ * The Urdu greeting is 24 px, not the English 32 px: Nastaliq at the same size draws far taller letters (ا ل ک reach
+ * well above a Latin capital) and has no light weight, so it read much bigger than the English (operator, 31 Oct 2026:
+ * "the urdu Assalamoalikum font is so big"; mockup v10, "i like smaller font").
  */
 export interface HomeGreetingProps {
   title: string;
@@ -63,7 +67,7 @@ export function HomeGreeting({ title, name, date, school, brand, logoAlt, markSr
         {corner ? <span className="ms-auto flex">{corner}</span> : null}
       </div>
       <div className="relative flex flex-col gap-3">
-        <h1 className="break-words text-[32px] font-light leading-[1.15] tracking-[-0.015em] [overflow-wrap:anywhere] rtl:leading-[1.5]">{greetingParts(title, name)}</h1>
+        <h1 className="break-words text-[32px] font-light leading-[1.15] tracking-[-0.015em] [overflow-wrap:anywhere] rtl:text-[24px] rtl:leading-[1.5]">{greetingParts(title, name)}</h1>
         <div className="flex flex-col gap-2">
           <p data-testid="home-date" className="flex items-start gap-2 text-[17px] font-medium leading-[1.35] text-[#d5d9e4] rtl:leading-[1.6]">
             <CalendarDays className="mt-[3px] h-5 w-5 shrink-0" aria-hidden="true" />
@@ -102,7 +106,7 @@ export function greetingParts(title: string, name?: string | null, options: Gree
   return (
     <>
       {title.slice(0, at)}
-      <bdi data-testid="home-greeting-name" {...(latin ? { "data-latin": "" } : {})} className={cn(latin ? "!leading-[1.15] rtl:text-[0.7em]" : "!leading-[1.15]", WRAP[options.nameWrap ?? "inherit"])}>
+      <bdi data-testid="home-greeting-name" {...(latin ? { "data-latin": "" } : {})} className={cn(latin ? "!leading-[1.15] rtl:text-[22px]" : "!leading-[1.15]", WRAP[options.nameWrap ?? "inherit"])}>
         {title.slice(at, end)}
       </bdi>
       {title.slice(end) || null}
