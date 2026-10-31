@@ -570,9 +570,8 @@ describe('one list of FDE\'s six sectors', () => {
     expect([...SECTORS]).toEqual(SIX);
     expect(require('../../dashboard/services/schools-analytics.service').REGION_BUCKETS).toBe(SECTORS);
     // The insights job is promoted on its own schedule (bd-97daxo.11): where it exists, it shares the one list.
-    if (fs.existsSync(path.join(__dirname, '../../dashboard/lib/insights/constants.js'))) {
-      expect(require('../../dashboard/lib/insights/constants').SECTORS).toBe(SECTORS);
-    }
+    const insights = path.join(__dirname, '../../dashboard/lib/insights/constants.js');
+    if (fs.existsSync(insights)) expect(require(insights).SECTORS).toBe(SECTORS);
     expect(require('../../scripts/load-analytics-lists').SECTORS).toBe(SECTORS);
   });
 
