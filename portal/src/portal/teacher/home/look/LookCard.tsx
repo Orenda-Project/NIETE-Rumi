@@ -10,11 +10,11 @@ import { lookCardWords } from './cardWords';
 import type { HomeCard, HomeCardKind, TapKind } from '../api';
 
 /**
- * The look's Home card (portal_teacher_home_look): ONE shape for all five rungs, tinted by kind. A medal (a lucide
- * glyph in a white disc), the eyebrow ("Next for you"), the title (18 px, at most 2 lines in English; 17 px and never
- * clamped in Urdu, where a clamp shaves Nastaliq ascenders), one sub line, then a full-width green primary and, when the
- * kind has one, the secondary as a text link under it. In Urdu the section carries dir="rtl", so the medal sits on the
- * right and the chevron turns.
+ * The look's Home card (portal_teacher_home_look): ONE shape for all five rungs, tinted by kind, compact so the Home
+ * fits one phone screen (operator, 31 Oct 2026, mockup v8). A medal (a lucide glyph in a 40 px white disc), the eyebrow
+ * ("Next for you"), the title (16 px, at most 2 lines in English; never clamped in Urdu, where a clamp shaves Nastaliq
+ * ascenders), one sub line, then one row: the green primary taking the room and, when the kind has one, the secondary
+ * as a text link beside it. In Urdu the section carries dir="rtl", so the medal sits on the right and the chevron turns.
  *
  * The lesson rung's title is the registry lead-in alone; its topic is its own block, set by its own script: an English
  * topic on an Urdu page is an LTR run (dir="ltr" + data-latin on the truncating element, so the ellipsis cuts its END),
@@ -27,7 +27,7 @@ export const LOOK_KINDS: readonly HomeCardKind[] = ['class', 'coach_report', 'le
 
 /** The green kinds (a plan to make or quiz); the rest are slate. */
 const GREEN_KINDS: readonly HomeCardKind[] = ['lesson', 'first_plan'];
-/** The slim rungs take the smaller medal. */
+/** The slim rungs take the smaller glyph. */
 const SMALL_MEDAL: readonly HomeCardKind[] = ['class', 'lesson'];
 
 const MEDAL: Record<HomeCardKind, LucideIcon> = {
@@ -81,13 +81,10 @@ export function LookCard({ card, quizHome, userKey, onGo, className, onDrawn }: 
       data-kind={kind}
       dir={ur ? 'rtl' : undefined}
       aria-label={lesson ? C.lesson.title(card.title) : C.eyebrow}
-      className={cn('rounded-[20px] p-4 pb-2 shadow-[0_1px_3px_rgba(16,24,40,0.08)]', tone.tint, className)}
+      className={cn('rounded-[20px] p-3 shadow-[0_1px_3px_rgba(16,24,40,0.08)]', tone.tint, className)}
     >
       <div className="flex items-start gap-3">
-        <span
-          className={cn('flex shrink-0 items-center justify-center rounded-full bg-white', small ? 'h-10 w-10' : 'h-12 w-12')}
-          aria-hidden="true"
-        >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white" aria-hidden="true">
           <Medal size={small ? 22 : 26} color={tone.glyph} strokeWidth={2} />
         </span>
         <div className="min-w-0 flex-1">
@@ -97,7 +94,7 @@ export function LookCard({ card, quizHome, userKey, onGo, className, onDrawn }: 
           <h2
             data-testid="home-look-title"
             // A Nastaliq ascender rises above the h2's line box: in Urdu the gap above it is in em, so it grows with the font
-            className={cn(ur ? 'mt-[0.4em]' : 'mt-0.5', 'font-semibold text-[#333748]', ur ? 'overflow-visible text-[17px]' : 'line-clamp-2 text-[18px] leading-snug')}
+            className={cn(ur ? 'mt-[0.4em]' : 'mt-0.5', 'font-semibold text-[#333748]', ur ? 'overflow-visible text-[16px]' : 'line-clamp-2 text-[16px] leading-snug')}
           >
             {words.title}
           </h2>
@@ -107,7 +104,7 @@ export function LookCard({ card, quizHome, userKey, onGo, className, onDrawn }: 
               data-testid="home-look-topic"
               {...ltrOf(card.title)}
               dir={latinTopic ? 'ltr' : 'auto'}
-              className={cn('truncate text-[16px] font-semibold text-[#333748]', !latinTopic && 'font-urdu leading-[2]')}
+              className={cn('truncate text-[14px] font-semibold text-[#333748]', !latinTopic && 'font-urdu leading-[2]')}
             >
               {card.title}
             </p>
@@ -116,28 +113,29 @@ export function LookCard({ card, quizHome, userKey, onGo, className, onDrawn }: 
           ) : null}
         </div>
       </div>
-      <button
-        type="button"
-        data-primary=""
-        onClick={() => onGo(kind, words.primary.href)}
-        className={cn(
-          'flex w-full min-h-[48px] items-center justify-center whitespace-normal rounded-full bg-[#2e7d57] px-3 text-center text-[16px] font-semibold leading-tight text-white shadow-[0_2px_0_#1e5c3f] rtl:py-1.5 rtl:text-[15px]',
-          small ? 'mt-2.5' : 'mt-3',
-          FOCUS,
-        )}
-      >
-        {words.primary.label}
-      </button>
-      {words.secondary ? (
+      <div className="mt-2.5 flex items-center gap-2">
         <button
           type="button"
-          onClick={() => onGo(kind, (words.secondary as NonNullable<typeof words.secondary>).href)}
-          className={cn('flex w-full min-h-[44px] items-center justify-center gap-1 text-[15px] font-medium text-[#333748]', FOCUS)}
+          data-primary=""
+          onClick={() => onGo(kind, words.primary.href)}
+          className={cn(
+            'flex flex-1 min-h-[48px] items-center justify-center whitespace-normal rounded-full bg-[#2e7d57] px-3 text-center text-[16px] font-semibold leading-tight text-white shadow-[0_2px_0_#1e5c3f] rtl:py-1.5 rtl:text-[15px]',
+            FOCUS,
+          )}
         >
-          {words.secondary.label}
-          <ChevronRight className="h-4 w-4 shrink-0 rtl:rotate-180" strokeWidth={2.4} aria-hidden="true" />
+          {words.primary.label}
         </button>
-      ) : null}
+        {words.secondary ? (
+          <button
+            type="button"
+            onClick={() => onGo(kind, (words.secondary as NonNullable<typeof words.secondary>).href)}
+            className={cn('flex shrink-0 min-h-[44px] items-center justify-center gap-1 px-1.5 text-[15px] font-medium text-[#333748]', FOCUS)}
+          >
+            {words.secondary.label}
+            <ChevronRight className="h-4 w-4 shrink-0 rtl:rotate-180" strokeWidth={2.4} aria-hidden="true" />
+          </button>
+        ) : null}
+      </div>
     </section>
   );
 }
