@@ -86,6 +86,12 @@ const REGIONS_DROPDOWN = [
   { id: 'gilgit_baltistan', title: 'Gilgit-Baltistan' }
 ];
 
+// The users.organization value of this deployment's own teachers: one value across FDE's six ICT
+// sectors. Registration writes it, so does a coach adding a teacher at a sector school, and
+// scripts/set-organization.py backfills existing rows to it (its CANON). Declared once, here: a
+// second spelling anywhere splits the column again.
+const NIETE_ORGANIZATION = 'niete';
+
 const ORGANIZATIONS_DROPDOWN = [
   { id: 'fde', title: 'FDE' },
   { id: 'niete', title: 'NIETE' },
@@ -150,6 +156,7 @@ module.exports = {
   COUNTRY_NAMES,
   COUNTRIES_DROPDOWN,
   REGIONS_DROPDOWN,
+  NIETE_ORGANIZATION,
   ORGANIZATIONS_DROPDOWN,
   GRADES_DROPDOWN,
   SUBJECTS_DROPDOWN,
