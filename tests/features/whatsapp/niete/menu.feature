@@ -1,6 +1,6 @@
 @whatsapp @ict @profile:niete @feature:menu @persona:teacher
 Feature: NIETE (ICT) WhatsApp bot — the /menu surface
-  # Non-determinism: see .claude/qa/shared/non-determinism-contract.md (assert contracts/shape; @content-driven answers resolved live).
+  # Non-determinism: see .claude/qa/engine/bin/non-determinism-contract.md (assert contracts/shape; @content-driven answers resolved live).
   # Target: the NIETE bot (E2E_TARGET_NUMBER) driven from a linked WhatsApp Web
   # session via Chrome MCP. Region: ICT / Islamabad — ICT-region features ONLY.
   # This file covers the /menu surface itself (the list rows) plus the ancillary

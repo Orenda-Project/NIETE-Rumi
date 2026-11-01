@@ -1,45 +1,25 @@
-# `.githooks/` — the QA pipeline for commits made from a terminal
+# `.githooks/` — what git runs for a commit made from a terminal
 
-Git does not run hooks from a tracked directory by itself. These travel with the
-clone; one local setting makes git use them:
+Git does not run hooks from a tracked directory by itself. These travel with the clone; one local setting makes git
+use them:
 
 ```bash
-bash scripts/qa/install-hooks.sh      # sets core.hooksPath = .githooks (idempotent)
+bash scripts/qa/link-engine.sh        # links the shared E2E engine, sets core.hooksPath = .githooks (idempotent)
 ```
 
-`npm install` at the repo root runs the same thing through the `prepare` script,
-so a normal setup already has them. `--uninstall` removes the setting; `--force`
-takes over a `core.hooksPath` that points somewhere else (by default it refuses
-and tells you).
+`npm install` at the repo root runs the same thing through the guarded `prepare` script, so a normal setup already has
+them. `--unlink` removes the engine link and leaves the repo untouched; a `core.hooksPath` that points somewhere else is
+left alone.
 
 | Hook | Fires on | Does | Never |
 |---|---|---|---|
-| `post-commit` | every commit | maps the commit's files to E2E features (`feature-map.yaml`), builds the Gherkin sync brief, writes `.claude/.e2e-pending/git-<sha>.json` + `.sync.json`, prints the affected features and the two commands | fails the commit; writes anything outside `.claude/.e2e-pending/` (gitignored) |
-| `pre-push` | a push to `develop` / `main` / `staging` | runs `scripts/qa/impact.py` over the commits being sent: affected features, whether their `.feature` files were synced, the commands | blocks, unless `QA_HOOKS_STRICT=1` |
+| `post-commit` | every commit | a shim: links the shared E2E engine in when this clone has none (`scripts/qa/link-engine.sh`), then runs the engine's `githooks/post-commit` — maps the commit's files to E2E features (`feature-map.yaml`), writes the Gherkin sync brief and the pending marker (`.claude/.e2e-pending/`), starts the mock lane in the background | blocks a commit; does anything when no engine is on the machine |
+| `pre-push` | a push | a shim to the engine's `githooks/pre-push`: the impact report over the commits being sent (affected features, whether their `.feature` files were synced, the commands) | blocks, unless `QA_HOOKS_STRICT=1` |
 
-What happens next is in [`docs/qa-automation.md`](../docs/qa-automation.md): the
-next Claude Code session in the clone is told about the pending marker at start
-and held once at end of turn until the specs are synced and the targeted E2E is
-driven. There is no CI counterpart by design: the pipeline is hooks only.
+`post-commit` and `pre-push` are the shared engine's: the two files here are its shim templates, byte for byte. The E2E half — what the engine's two hooks do, their switches (`QA_HOOKS_OFF`, `QA_HOOKS_QUIET`, `QA_HOOKS_STRICT`),
+the off-switch ledger and its git notes — lives with the shared engine, authored in rumi-agent-home:
+[`.claude/qa/engine/githooks/README.md`](../.claude/qa/engine/githooks/README.md) (bd-9157r.1). What happens after a
+commit is in [`docs/qa-automation.md`](../docs/qa-automation.md).
 
-Switches: `QA_HOOKS_OFF=1` (both hooks silent) · `QA_HOOKS_QUIET=1` (post-commit
-arms but prints nothing) · `QA_HOOKS_STRICT=1` (pre-push blocks on a stale spec).
-
-**Every off switch is on the record** (bd-61jjzd). `QA_HOOKS_OFF`, `E2E_SPEC_SYNC_OFF`
-and `E2E_AUTORUN_OFF`, the Stop hook giving up on a stale spec after its holds, and every
-`--clear` / `--clear --force` each append one JSON line to `<git common dir>/qa-events.jsonl`
-(`.git/qa-events.jsonl` in a plain clone; shared by all its worktrees; `QA_LEDGER=` overrides).
-Fields: `ts hook event switch detail sha branch user cwd`; events are `switch-off`, `gave-up`,
-`cleared`, `force-cleared`, plus `armed` (a commit armed the run), `declared` (a local
-`--declare … none-needed (<why>)`) and `pushed-stale` (pushed with a spec not updated).
-Read it: `jq -c . "$(git rev-parse --git-common-dir)/qa-events.jsonl"`.
-
-**…and it leaves the laptop** (bd-amxdhg). Each commit's lines (without `cwd`) become a git
-note on that commit (`refs/notes/qa-hooks`), pushed to origin as `refs/qa-hooks/<clone-id>`:
-at once for a switch-off, give-up, clear or declare, and for every pushed commit at pre-push.
-The sandbox QA dashboard reads them to say why a PR missed its spec. Pushing is in the
-background with `--no-verify` and never fails a commit or push. Off: `QA_NOTES_OFF=1` (and
-always off under `CI`). Backfill an older clone: `bash .claude/hooks/lib/qa-ledger.sh --publish`.
-
-Tests: `bash .githooks/githooks.test.sh` · `bash .claude/hooks/qa-ledger.test.sh` (the ledger) ·
-`bash .claude/hooks/qa-notes.test.sh` (publishing).
+Tests: `bash scripts/qa/engine-bridge.test.sh` (this directory holds exactly these two hooks and this page) ·
+`bash .claude/qa/engine/githooks/githooks.test.sh` (the E2E hooks themselves).

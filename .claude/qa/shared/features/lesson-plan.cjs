@@ -274,7 +274,7 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   // run's private Redis (lp_shelf:<user id>, lp-shelf.service), seeded with the entry lp612-serving pushes.
   const L12 = 'Asking for a new lesson plan after a 6-12 lesson is answered by the lesson-plan feature, not as an edit';
   const r12 = await withRedirect(api, 'app_redirect_lesson_plan', async () => {
-    const SC = require('../stack-control.cjs');
+    const SC = require(require('path').join(__dirname, '..', '..', 'engine', 'bin', 'stack-control.cjs'));
     const u = (() => { try { const o = api.db('driver-user'); const line = String(o.out || '').trim().split('\n').reverse().find((l) => l.trim().startsWith('{')); return line ? JSON.parse(line) : {}; } catch (_) { return {}; } })();
     const key = 'lp_shelf:' + u.id;
     const entry = { lane: 'lp612', segment_id: 'qa-lp612-g6-math-ch1-s1', grade: '6', subject: 'Mathematics', chapter_number: 1, chapter_title: 'QA chapter', topic: 'QA topic', pages_label: '', one_screen: null, lang: 'en', delivery_type: 'segment', delivered_at: new Date().toISOString() };

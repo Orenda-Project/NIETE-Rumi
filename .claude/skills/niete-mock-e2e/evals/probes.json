@@ -29,7 +29,7 @@
       "type": "SPINE",
       "question": "How do I run the mock E2E for just the lesson-plan feature on my current commit?",
       "must_contain": [
-        "bash .claude/qa/shared/commit-e2e.sh HEAD --features lesson-plan, from a NIETE-Rumi worktree",
+        "bash .claude/qa/engine/bin/commit-e2e.sh HEAD --features lesson-plan, from a NIETE-Rumi worktree",
         "exit 0 means it ran; verdicts are in the printed rows"
       ]
     },
