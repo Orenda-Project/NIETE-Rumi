@@ -26,6 +26,7 @@
  */
 
 const { clampLanguage } = require('../../config/ux-strings');
+const { NIETE_ORGANIZATION } = require('../../config/registration-data');
 
 // ── the number the coach types ─────────────────────────────────────────
 
@@ -58,11 +59,13 @@ function _supabaseDb() {
         .eq('school_ext_id', schoolExtId).limit(1);
       if (!mine || !mine[0]) return null;
       const emis = String(schoolExtId).split(':').pop();
-      const { data: s } = await supabase.from('schools').select('id, name, emis').eq('emis', emis).limit(1);
+      const { data: s } = await supabase.from('schools')
+        .select('id, name, emis, region, is_probable_test').eq('emis', emis).limit(1);
       if (!s || !s[0]) return null;
       return {
         school_ext_id: schoolExtId, school_id: s[0].id,
         school_name: s[0].name, emis: String(s[0].emis),
+        region: s[0].region || null, is_probable_test: s[0].is_probable_test === true,
       };
     },
 
@@ -78,8 +81,44 @@ function _supabaseDb() {
 
     async userByPhone(phone) {
       const { data } = await supabase.from('users')
-        .select('id, phone_number, role, school_id, name').eq('phone_number', phone).limit(1);
+        .select('id, phone_number, role, school_id, name, organization, is_test_user, deleted_at')
+        .eq('phone_number', phone).limit(1);
       return (data && data[0]) || null;
+    },
+
+    /**
+     * The organization the region registry gives a region, or null for one it
+     * does not list. Never throws: a registry that cannot be read leaves the
+     * teacher's organization as it is, and the add still goes through.
+     */
+    async regionOwner(region) {
+      try {
+        const { organizationForRegion } = require('../region-registry');
+        return await organizationForRegion(supabase, region);
+      } catch (e) {
+        const { logToFile } = require('../../utils/logger');
+        logToFile('⚠️ observe: region registry unreadable, organization left as it is', { region, error: e.message }, 'warn');
+        return null;
+      }
+    },
+
+    /**
+     * Fill a BLANK organization, and only a blank: the NULL guard is in the
+     * write itself, so a value that arrived since the plan is never overwritten.
+     */
+    async fillOrganization({ userId, organization }) {
+      try {
+        const { error } = await supabase.from('users').update({ organization })
+          .eq('id', userId).is('organization', null);
+        if (error) throw new Error(error.message);
+        return true;
+      } catch (e) {
+        const { logToFile } = require('../../utils/logger');
+        let tk = null;
+        try { tk = require('../quiz/web-quiz-kid').tk(userId); } catch (_) { /* no key → no reference */ }
+        logToFile('⚠️ observe: organization not filled', { tk, error: e.message }, 'warn');
+        return false;
+      }
     },
 
     /**
@@ -94,9 +133,11 @@ function _supabaseDb() {
       return !error;
     },
 
-    async createTeacher({ phone, name, schoolId, role }) {
+    async createTeacher({ phone, name, schoolId, role, organization }) {
+      const row = { phone_number: phone, name: name, role: role || 'teacher', school_id: schoolId };
+      if (organization) row.organization = organization;
       const { data, error } = await supabase.from('users')
-        .insert({ phone_number: phone, name: name, role: role || 'teacher', school_id: schoolId })
+        .insert(row)
         .select('id').limit(1);
       if (error) throw new Error(`createTeacher: ${error.message}`);
       return (data && data[0]) || null;
@@ -173,6 +214,8 @@ async function planAdd({ actorLeaderUserId, schoolExtId, rawPhone }, deps = {}) 
 
   const person = {
     userId: u.id, name: u.name, role: u.role, isPrincipal: u.role === 'principal',
+    organization: u.organization == null ? null : u.organization,
+    isTestOrDeleted: u.is_test_user === true || Boolean(u.deleted_at),
   };
   if (u.school_id && u.school_id === target.school_id) {
     return { outcome: 'already_here', phone, person, toSchoolName: target.school_name, target };
@@ -362,6 +405,35 @@ function refusalBody(lang, key) {
   return t[key] || t.failed;
 }
 
+// ── the organization a placed teacher takes ────────────────────────────
+
+/** A head-office row, not a school: its name starts with NIETE. */
+const HQ_NAME = /^\s*NIETE/i;
+
+/**
+ * The organization to write when a coach places someone at `target`, or null
+ * to leave the column exactly as it is. `person` is null for a new account.
+ *
+ * Teachers are counted by `users.organization`, so a teacher a coach added with
+ * only a school fell out of every count. The rule is the backfill script's
+ * (scripts/set-organization.py), so the two never disagree about a row:
+ *
+ *   · only a BLANK is filled; any value already there is hers and stays;
+ *   · only at a school whose region the registry gives to this deployment
+ *     (FDE's six sectors), never a probable-test school or a head-office row;
+ *   · never a test or deleted account.
+ *
+ * Anywhere else — another organization's region, a region the registry does
+ * not list, a registry that cannot be read — nothing is written.
+ */
+async function organizationForPlacement(db, target, person) {
+  if (person && (person.organization != null || person.isTestOrDeleted)) return null;
+  if (!target || !target.region || target.is_probable_test) return null;
+  if (HQ_NAME.test(String(target.school_name || ''))) return null;
+  const owner = await db.regionOwner(target.region);
+  return owner === NIETE_ORGANIZATION ? NIETE_ORGANIZATION : null;
+}
+
 // ── committing ─────────────────────────────────────────────────────────
 
 /** Put someone on one of the coach's schools. One write, then the record. */
@@ -379,8 +451,10 @@ async function commitAdd({ actorLeaderUserId, schoolExtId, rawPhone, name }, dep
     if (!clean) return { outcome: 'name_required', phone: plan.phone };
     // role is explicit at the call site: this creates a TEACHER, and that is a
     // decision worth reading here rather than buried in the port.
+    const organization = await organizationForPlacement(db, target, null);
     const created = await db.createTeacher({
       phone: plan.phone, name: clean, schoolId: target.school_id, role: 'teacher',
+      ...(organization ? { organization } : {}),
     });
     await db.writeAudit([_auditRow({
       action: 'add', actor_user_id: actorLeaderUserId, affected_leader_user_id: actorLeaderUserId,
@@ -391,12 +465,16 @@ async function commitAdd({ actorLeaderUserId, schoolExtId, rawPhone, name }, dep
     return { outcome: 'new', wrote: true, name: clean, phone: plan.phone, toSchoolName: target.school_name };
   }
 
-  await db.setUserSchool({
+  const organization = await organizationForPlacement(db, target, plan.person);
+  const placed = await db.setUserSchool({
     userId: plan.person.userId,
     schoolId: target.school_id,
     // A coach putting someone on a school register is asserting they teach there.
     promoteToTeacher: !['teacher', 'principal'].includes(plan.person.role),
   });
+  // Only once she is at the school, and never instead of it: a fill that fails
+  // costs a blank the backfill script picks up, not the move the coach asked for.
+  if (placed && organization) await db.fillOrganization({ userId: plan.person.userId, organization });
   await db.writeAudit([_auditRow({
     action: 'move', actor_user_id: actorLeaderUserId, affected_leader_user_id: actorLeaderUserId,
     teacher_ext_id: plan.phone, teacher_phone_e164: plan.phone, teacher_name: plan.person.name,
