@@ -79,6 +79,7 @@ const { clampLanguage } = require('../config/ux-strings');
 const {
   COUNTRIES_DROPDOWN,
   REGIONS_DROPDOWN,
+  NIETE_ORGANIZATION,
   ORGANIZATIONS_DROPDOWN,
   GRADES_DROPDOWN,
   SUBJECTS_DROPDOWN,
@@ -607,7 +608,6 @@ async function handleRegistrationBack(userId, screen, flowToken) {
 // writes what it collected to her row as it is submitted, as v4 does, so nothing depends on the
 // terminal payload. Screens after the first speak the language she picked on it.
 
-const NIETE_ORGANIZATION = 'niete';
 const SCHOOL_RESULTS = 10;
 const NONE = 'none';
 
