@@ -483,6 +483,8 @@
     var r8Layout = r7.r8_layout === true;
     var r8Snap = r7.r8_story_snap === true;
     var snapPos = { id: null, top: 0 }; // r8_story_snap: where the story box was scrolled to, kept over a redraw
+    // Round 9 item 6 (r9_comp_text): a question on the story the child read is written on the screen as well as said
+    var r9Comp = r7.r9_comp_text === true;
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
@@ -821,6 +823,8 @@
     if (r7.r8_nudges === true) el.classList.add('is-r8-cues');
     // round 8 (item 32, r8_highlight): the word being said, lit
     if (r7.r8_highlight === true) el.classList.add('is-r8-hl');
+    // round 9 item 6 (r9_comp_text): the story question's styles (sa.css "Round 9 item 6")
+    if (r9Comp) el.classList.add('is-r9-comp');
     el.setAttribute('lang', lang);
     el.setAttribute('dir', lang === 'ur' ? 'rtl' : 'ltr');
     el.setAttribute('data-mode', mode);
@@ -1847,18 +1851,34 @@
     function sRunOral(v) {
       var it = v.item, t = v.task;
       var on = sectionRec ? recording === t : !!(oralRec && oralRec.key === keyOf(v));
-      return screen(v, 'sae-run sae-run-oral' + (compWait(t) ? ' is-r8-wait' : ''), [
+      var asked = compText(it, t);
+      var mic = h('div', { class: 'sae-mic sa-mic' + (on ? ' is-on' : ''), 'aria-hidden': 'true' }, [h('span', { text: '🎤' })]);
+      // r9_comp_text: the written question first, then Jugnu, the replay and the mic on one row (all in view on a phone)
+      return screen(v, 'sae-run sae-run-oral' + (compWait(t) ? ' is-r8-wait' : '') + (asked ? ' is-r9-q' : ''), [
         h('p', { class: 'sae-task-tag', text: tx(t.title) }),
-        h('div', { class: 'sae-row' }, [jugnu('idle', true), replayBtn(function () { sayItem(it, t); })]),
-        coachSays(it),
+        asked,
+        h('div', { class: 'sae-row' }, [jugnu('idle', true), replayBtn(function () { sayItem(it, t); }), asked ? mic : null]),
+        asked ? null : coachSays(it),
         /^mental_/.test(t.subtask || '') && shownOf(it) != null ? labelOf(it, t) : null,
-        h('div', { class: 'sae-mic sa-mic' + (on ? ' is-on' : ''), 'aria-hidden': 'true' }, [h('span', { text: '🎤' })]),
+        asked ? null : mic,
         hintOf(t) ? hintEl(t, 'sae-sub') : h('p', { class: 'sae-sub', text: C.say_answer }),
       ], (compWait(t) ? [stuckEl()] : []).concat(itemFoot(v, [btn(compWait(t) ? C.next : C.answered, function () {
         busy = true;
         runner.answer('spoken');
         later(function () { busy = false; draw(); }, PRESS_MS);
       }, compWait(t) ? 'sae-primary sa-next' : 'sae-primary')])));
+    }
+
+    /** r9_comp_text: a story question in writing for the child (Jugnu still says it on arrival), in the task's language.
+     *  Only the story's questions: a listening question written down would turn listening into reading. In RDF manual
+     *  these are the coach's words too, so the coach's own copy gives way (one copy on the screen); a coach who reads
+     *  the question keeps the cue to read it aloud. */
+    function compText(it, t) {
+      if (!r9Comp || !t || t.subtask !== 'reading_comprehension' || !itemWords(it)) return null;
+      var said = it.prompt && typeof it.say !== 'string' ? (it.say || it.prompt) : null;
+      var q = h('p', { class: 'sae-r9-q', lang: taskLang(t), dir: dirOf(t) }, [hlText(itemWords(it), said)]);
+      if (manual && !appAsks) return h('div', { class: 'sae-r9-qbox' }, [h('p', { class: 'sae-chip', text: C.coach_read }), q]);
+      return q;
     }
 
     // ---------- session gates ----------
