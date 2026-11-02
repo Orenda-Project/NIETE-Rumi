@@ -151,7 +151,12 @@ def header_map(rows):
     return {}
 
 
-OPT_LINE = re.compile(r"^\s*([A-D])\s*[\.\)]?\s*(\S.*)$")
+# An option line is the letter plus "." or ")" (a space after it optional: 'B.To achieve…'), or the
+# letter, a space and a capital or digit (no full stop: 'D They feared…'). A bare letter is not enough.
+# bd-arghnv.3: with the dot and the space both optional, a stem line opening "A teacher…", "After…",
+# "At…" read as option A and lost its "A"; the real "A. …" line was then folded into it, and 43
+# items were seeded with question_text ''.
+OPT_LINE = re.compile(r"^\s*([A-D])(?:\s*[\.\)]\s*|\s+(?=[A-Z0-9]))(\S.*)$")
 
 
 def split_options(text):
@@ -171,6 +176,19 @@ def split_options(text):
         else:
             stem.append(line.rstrip())
     return "\n".join(stem).strip(), opts
+
+
+def item_problem(stem, opts, key, typ, key_cell=""):
+    """Why an item cannot be seeded, or None. A question with no stem is never written (bd-arghnv.3)."""
+    if "MCQ" not in (typ or "").upper():
+        return f"type {typ!r}"
+    if [o[0] for o in opts] != ["A", "B", "C", "D"]:
+        return f"options parsed {''.join(o[0] for o in opts)!r}"
+    if not key:
+        return f"answer key {key_cell!r}"
+    if not stem.strip():
+        return "empty stem"
+    return None
 
 
 def key_index(cell):
@@ -261,12 +279,9 @@ def collect(content):
                 stem, opts = split_options(g("text"))
                 key = key_index(g("key"))
                 where = f"M{n} {kind} row {rn} (Q {g('qno')})"
-                if "MCQ" not in g("type").upper():
-                    warn(f"{where}: type {g('type')!r} — skipped"); continue
-                if [o[0] for o in opts] != ["A", "B", "C", "D"]:
-                    warn(f"{where}: options parsed {''.join(o[0] for o in opts)!r} — skipped"); continue
-                if not key:
-                    warn(f"{where}: answer key {g('key')!r} — skipped"); continue
+                problem = item_problem(stem, opts, key, g("type"), g("key"))
+                if problem:
+                    warn(f"{where}: {problem} — skipped"); continue
                 out.append({"row": rn, "unit": unit_code(g("unit")), "stem": stem,
                             "options": [o[1] for o in opts], "key": key})
             return out
