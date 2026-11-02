@@ -47,7 +47,7 @@
 /**
  * FDE's six ICT sectors as schools.region / users.region store them, in dashboard order — THE one copy in code
  * (bd-97daxo.3): every dashboard module imports it from here. It is the list the region registry seeds for
- * organization 'niete' (V1.8.5; tests/region/region-registry.test.js holds the two equal). The analytics routes
+ * organization 'niete' (V1.8.8; tests/region/region-registry.test.js holds the two equal). The analytics routes
  * read a viewer's regions from the registry; this constant is FDE's lists' own vocabulary and the default for a
  * caller that passes no regions.
  */

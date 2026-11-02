@@ -34,7 +34,7 @@ const TEACHER = 'bbbbbbbb-0000-4000-8000-000000000002';
 const SIX = ['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol'];
 const GB = 'Gilgit-Baltistan';
 
-/** region_features as V1.8.5 leaves it: the six under 'niete', GB under 'moawin', the 'niete' LP row not a region. */
+/** region_features as V1.8.8 leaves it: the six under 'niete', GB under 'moawin', the 'niete' LP row not a region. */
 const { REGION_REGISTRY_ROWS: REGISTRY } = require('./helpers/region-registry-rows');
 
 // ── a supabase stand-in (the route tests' chain, plus a per-row read error for one app_settings key) ──
@@ -204,8 +204,15 @@ function fixtures({ fde = true, gb = true } = {}) {
   };
 }
 
+// The regions a read is narrowed to: its one parameter that is a list of region names (never ids).
+const REGION_LIST = (params) => (params || []).find((p) => Array.isArray(p) && p.length && p.every((x) => typeof x === 'string' && !/^[a-z]+\d+$/.test(x) && !/^[0-9a-f-]{36}$/.test(x)));
+const schoolRegion = (schoolId) => (data.schools.find((s) => s.id === schoolId) || {}).region;
+
 // Answers every read of the five routes (each test file's poolRows, merged; order matters).
 function poolRows(sql, params) {
+  const only = REGION_LIST(params);
+  if (only && /FROM coaching_sessions c\s+JOIN users u/i.test(sql)) return data.sessions.filter((s) => only.includes(schoolRegion(s.school_id)));
+  if (only && /FROM schools/i.test(sql) && !/FROM coaching_sessions/i.test(sql)) return data.schools.filter((s) => only.includes(s.region));
   if (/'scores'/.test(sql)) return params[0].filter((id) => data.sessions.some((s) => s.id === id)).map(scoreRow);
   if (/member_facts/.test(sql)) return data.members;
   if (/'oxbridge' AS partner/.test(sql)) return CATALOGUE;
@@ -498,6 +505,29 @@ describe('a GB (Moawin) account sees only Gilgit-Baltistan', () => {
   });
 });
 
+// Production (2 Nov): a GB view that read every school and all ~31,000 sessions, then kept GB's 217, ran past a
+// minute on a cold replica and took portal replicas down. A view reads its own regions' rows; FDE's reads stay as they were.
+describe('a non-FDE view reads only its own regions\' rows', () => {
+  const sessionsRead = () => queries.filter((q) => /FROM coaching_sessions c\s+JOIN users u/i.test(q.sql));
+  const schoolsRead = () => queries.filter((q) => /FROM schools/i.test(q.sql) && !/FROM coaching_sessions/i.test(q.sql));
+  const scoresAsked = () => queries.filter((q) => /'scores'/.test(q.sql)).flatMap((q) => q.params[0]);
+
+  for (const p of ['/analytics/schools', '/analytics/observations']) {
+    it(`${p}: GB asks for GB's schools, GB's sessions and GB's scores only`, async () => {
+      await answer(p, WINDOW, GB_VIEWER);
+      expect(sessionsRead().length).toBeGreaterThan(0);
+      for (const q of [...sessionsRead(), ...schoolsRead()]) expect(REGION_LIST(q.params)).toEqual([GB]);
+      expect(scoresAsked().sort()).toEqual(['gc1', 'gc2', 'gc3']);
+    });
+
+    it(`${p}: FDE's reads carry no region list — its numbers are read exactly as before`, async () => {
+      await answer(p, WINDOW, FDE_VIEWER);
+      for (const q of [...sessionsRead(), ...schoolsRead()]) expect(REGION_LIST(q.params)).toBeUndefined();
+      expect(scoresAsked()).toEqual(expect.arrayContaining(['c1', 'c2', 'c3', 'c4']));
+    });
+  }
+});
+
 describe('?region= is validated against the viewer\'s own regions', () => {
   it('GB asking for an FDE sector is a 400, and FDE asking for GB is a 400 — no data read', async () => {
     for (const [p] of ENDPOINTS) {
@@ -564,7 +594,7 @@ describe('the registry decides, and it fails closed', () => {
 });
 
 describe('one list of FDE\'s six sectors', () => {
-  it('every dashboard copy IS dashboard/lib/analytics-lists SECTORS (the one V1.8.5 seeds for niete — tests/region)', () => {
+  it('every dashboard copy IS dashboard/lib/analytics-lists SECTORS (the one V1.8.8 seeds for niete — tests/region)', () => {
     jest.resetModules();
     const { SECTORS } = require('../../dashboard/lib/analytics-lists');
     expect([...SECTORS]).toEqual(SIX);
