@@ -302,6 +302,7 @@ describe('RDF auto / RDF manual forms (Wave 3)', () => {
   });
 
   // Round 7 (the pilot's tester): "now your turn" says what the child does next, task by task, in both languages.
+  const REVIEWED = require('../../shared/services/child-test/sa/reviewed-lines').loadReviewed() || {};
   test('RDF auto: each task\'s "your turn" line names what the child does next (UR and EN)', () => {
     const TURN = {
       letter_names5: ['Now it is your turn to say the name of each letter.', 'اب ہر حرف کا نام بتانے کی آپ کی باری ہے۔'],
@@ -324,7 +325,13 @@ describe('RDF auto / RDF manual forms (Wave 3)', () => {
         const want = TURN[kindOf(t.id)] || TURN[t.id.split('.').slice(1).join('.')];
         expect([t.id, !!want]).toEqual([t.id, true]);
         const line = t.script.test_intro;
-        expect([t.id, line && line.text]).toEqual([t.id, `${want[li]} ${AFTER[lang]}`]);
+        // the content reviewers' wording wins where they changed it (sa-lines-reviewed.v1.json: their task line, then
+        // the "every line" table's replace); otherwise the built line
+        const built = `${want[li]} ${AFTER[lang]}`;
+        const own = ((REVIEWED.tasks || {})[t.id] || {}).test_intro;
+        const before = own && typeof own[lang] === 'string' ? own[lang] : built;
+        const rep = (REVIEWED.replace || []).find((r) => r.lang === lang && r.from === before);
+        expect([t.id, line && line.text]).toEqual([t.id, rep ? rep.to : before]);
         expect([t.id, /^sa\/v1\/(en|ur)\/[0-9a-f]{12}\.mp3$/.test(line.audio)]).toEqual([t.id, true]);
       }
     }
