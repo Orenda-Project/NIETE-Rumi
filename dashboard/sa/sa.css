@@ -549,3 +549,13 @@ button{font:inherit;color:inherit}
 .sae.is-r9-skip .sae-r9-skip{width:auto;max-width:100%;min-height:56px;padding:6px 18px;font-size:18px;font-weight:700;border-style:dashed;box-shadow:none}
 .sae.is-r9-skip[lang=ur] .sae-r9-skip{font-size:20px;line-height:2;padding:4px 18px}
 .sae.is-r9-skip .sae-row .sae-r9-skip{flex:0 1 auto}
+/* Round 9 item 7 (sa_r9_scroll_cue): "Scroll down" with a moving arrow, at the top of the foot (above Next) while more of
+   the screen is below; never takes a tap (what is under it, or Next, gets it). Every rule under .is-r9-scroll. */
+.sae.is-r9-scroll .sae-r9-scroll{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;max-width:360px;min-height:36px;margin:0 auto;padding:2px 14px;box-sizing:border-box;border-radius:999px;border:2px dashed var(--sae-accent);background:var(--sae-accent-l);color:var(--sae-ink);font-size:17px;font-weight:800;line-height:1.3;pointer-events:none;user-select:none;-webkit-user-select:none}
+.sae.is-r9-scroll .sae-r9-scroll[hidden]{display:none}
+.sae.is-r9-scroll .sae-r9-scroll-ico{font-size:24px;line-height:1;font-family:var(--sae-f);animation:sae-more-bob 1.2s ease-in-out infinite}
+.sae.is-r9-scroll[lang=ur] .sae-r9-scroll{font-weight:700;line-height:1.9;font-size:18px;min-height:40px;padding-top:2px;padding-bottom:2px}
+.sae.is-r9-scroll .sae-screen>.sae-r9-scroll{position:sticky;bottom:8px;z-index:2}
+@media (prefers-reduced-motion:reduce){.sae.is-r9-scroll .sae-r9-scroll-ico{animation:none}}
+@media (min-width:700px){.sae.is-r9-scroll .sae-r9-scroll{max-width:480px;min-height:48px;font-size:21px}.sae.is-r9-scroll[lang=ur] .sae-r9-scroll{font-size:23px;min-height:52px}.sae.is-r9-scroll .sae-r9-scroll-ico{font-size:28px}}
+/* end round 9 item 7 */
