@@ -137,6 +137,26 @@ async function alreadyNudged(row) {
   return history.some((r) => r && r.id !== row.id && r.status === 'sent' && r.context && r.context.topic_id === topicId);
 }
 
+/**
+ * She already made a paper for this chapter since she took the plan (bd-pw1ccr.26), e.g. from the
+ * portal card while the nudge was held. A failed read counts as no paper: the nudge still goes.
+ */
+async function madePaper(row) {
+  const c = row.context || {};
+  if (!c.grade || !c.subject || !c.chapter) return false;
+  const since = Number.isFinite(Date.parse(c.taken_at)) ? c.taken_at : row.created_at;
+  let q = supabase.from('assessment_requests').select('id')
+    .eq('user_id', row.user_id).eq('grade_code', `grade_${c.grade}`)
+    .eq('subject_code', c.subject).eq('chapter_number', Number(c.chapter));
+  if (since) q = q.gte('created_at', since);
+  const { data, error } = await q.limit(1);
+  if (error) {
+    logToFile('topic nudge: paper check failed — sending anyway', { nudgeId: row.id, error: error.message }, 'warn');
+    return false;
+  }
+  return (data || []).length > 0;
+}
+
 /** Book the same nudge for the next school day of this week, if there is one. Returns the date or null. */
 async function bookRetry(row) {
   const next = retryDate(row.nudge_date);
@@ -163,6 +183,7 @@ async function send(row, { now = new Date() } = {}) {
   if (!user || !user.phone_number) return skip(row, 'no_lesson', { why: 'user_missing' });
   if (!(await Arm.inGroupB(userId))) return skip(row, 'disabled', { why: 'not_in_group_b' });
   if (await alreadyNudged(row)) return skip(row, 'already_nudged_topic', { topic_id: context.topic_id || null });
+  if (await madePaper(row)) return skip(row, 'made_paper', { topic_id: context.topic_id || null });
   if (!(await require('../app-redirect.service').isOnTeacherApp(userId))) return skip(row, 'not_on_app');
 
   const last = user.last_message_at ? Date.parse(user.last_message_at) : NaN;

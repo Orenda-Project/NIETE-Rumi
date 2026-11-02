@@ -9,6 +9,7 @@ import { LanguagePill } from './LanguagePill';
 import { cleanSchool, fullName, todayLabel } from '../../format';
 import { ReadyForYou } from '../../notices/ReadyForYou';
 import { noticeTracker } from '../../notices/tracker';
+import { TopicPaperCard } from '../../notices/TopicPaperCard';
 import { FULL_KINDS } from '../NextCard';
 import { SLIM_KINDS } from '../SlimCard';
 import { HOME_CARD } from '../copy';
@@ -190,6 +191,8 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
           {spacer ? <div data-testid="home-look-spacer" aria-hidden="true" style={{ height: spacer, marginTop: -BLOCK_GAP }} /> : null}
           {/* The "Quizzes" tile (portal_teacher_home_quiz_tile): in the grid after Lesson plans, only with a quiz home. */}
           <FeatureTiles tiles={tiles} order={order} className={CLIMB} quiz={data?.quizTile && data.quizHome ? { quizHome: data.quizHome, onGo } : null} />
+          {/* bd-pw1ccr.26 — "Make my paper" while her topic-end nudge waits (topic_nudge_portal_card_enabled). */}
+          <TopicPaperCard />
         </>
       )}
     </TeacherPage>
