@@ -29,16 +29,16 @@ function bootWorker(existing) {
   return { listeners, kept, deleted };
 }
 
-test('the session cache is sa-session-v7 (round 8 close: v4 clips re-made under their keys, the batteries\' new lines)', () => {
-  expect(require('../sa/sw').SESSION).toBe('sa-session-v7');
+test('the session cache is sa-session-v8 (round 9: v4 clips levelled again and re-made under their keys, the batteries\' new lines)', () => {
+  expect(require('../sa/sw').SESSION).toBe('sa-session-v8');
 });
 
-test('activate deletes every older sa-session cache (v1 to v6) and keeps v7, the current core and other caches', async () => {
+test('activate deletes every older sa-session cache (v1 to v7) and keeps v8, the current core and other caches', async () => {
   const { CORE } = require('../sa/sw');
-  const w = bootWorker(['sa-session-v1', 'sa-session-v2', 'sa-session-v3', 'sa-session-v4', 'sa-session-v5', 'sa-session-v6', 'sa-session-v7', CORE, 'sa-core-sa-3', 'sa-core-sa-4', 'sa-core-sa-5', 'sa-core-sa-14', 'wq-cache']);
+  const w = bootWorker(['sa-session-v1', 'sa-session-v2', 'sa-session-v3', 'sa-session-v4', 'sa-session-v5', 'sa-session-v6', 'sa-session-v7', 'sa-session-v8', CORE, 'sa-core-sa-3', 'sa-core-sa-4', 'sa-core-sa-5', 'sa-core-sa-14', 'wq-cache']);
   let done;
   w.listeners.activate({ waitUntil: (p) => { done = p; } });
   await done;
-  expect(w.deleted.sort()).toEqual(['sa-core-sa-14', 'sa-core-sa-3', 'sa-core-sa-4', 'sa-core-sa-5', 'sa-session-v1', 'sa-session-v2', 'sa-session-v3', 'sa-session-v4', 'sa-session-v5', 'sa-session-v6']);
-  expect([...w.kept].sort()).toEqual([CORE, 'sa-session-v7', 'wq-cache'].sort());
+  expect(w.deleted.sort()).toEqual(['sa-core-sa-14', 'sa-core-sa-3', 'sa-core-sa-4', 'sa-core-sa-5', 'sa-session-v1', 'sa-session-v2', 'sa-session-v3', 'sa-session-v4', 'sa-session-v5', 'sa-session-v6', 'sa-session-v7']);
+  expect([...w.kept].sort()).toEqual([CORE, 'sa-session-v8', 'wq-cache'].sort());
 });
