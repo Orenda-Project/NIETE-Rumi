@@ -4,6 +4,8 @@
  * record-sa-voice.js --set v4: a sum ends on "equals" («برابر»), so Jugnu reads "18 plus 7 equals" and the child hears a
  * blank to fill, not a sum to repeat. v4 only, same keys: with sa_voice_v4 OFF the served clips are unchanged.
  * --sums re-records just the sums over the clips already on disk.
+ * Round 9 (the content owner, item 5): in the Urdu battery the operation is said in English too, in Urdu script —
+ * «۱۵ مائنس ۷ ایکولز», "plus", "minus", "times", "equals" — never «جمع», «منفی», «ضرب», «برابر».
  */
 
 const fs = require('fs');
@@ -28,7 +30,11 @@ async function record(argv, dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sa-v4eq
 
 test('withEquals: a bare sum gains the spoken equals; anything else is left alone', () => {
   expect(P.withEquals('18 plus 7', 'en')).toBe('18 plus 7 equals');
-  expect(P.withEquals('۱۵ منفی ۷', 'ur')).toBe('۱۵ منفی ۷ برابر');
+  expect(P.withEquals('۱۵ منفی ۷', 'ur')).toBe('۱۵ مائنس ۷ ایکولز');
+  expect(P.withEquals('۱۳ جمع ۶', 'ur')).toBe('۱۳ پلس ۶ ایکولز');
+  expect(P.withEquals('۳ ضرب ۴', 'ur')).toBe('۳ ٹائمز ۴ ایکولز');
+  expect(P.withEquals('۸ تقسیم ۲', 'ur')).toBe('۸ ڈیوائیڈڈ بائی ۲ ایکولز');
+  expect(P.withEquals('واپسی پر بلال نے کیا جمع کیے؟', 'ur')).toBe('واپسی پر بلال نے کیا جمع کیے؟');
   expect(P.withEquals('6 times 3', 'en')).toBe('6 times 3 equals');
   expect(P.withEquals('What number is this? 1,000 + 300 + 80 + 3', 'en')).toBe('What number is this? 1,000 + 300 + 80 + 3');
   expect(P.withEquals('Now it is your turn to solve each addition problem.', 'en')).toBe('Now it is your turn to solve each addition problem.');
@@ -36,13 +42,14 @@ test('withEquals: a bare sum gains the spoken equals; anything else is left alon
 });
 
 test('v4 Chutki: every sum item is sent ending on equals, every other line as before', async () => {
-  for (const [lang, word] of [['en', 'equals'], ['ur', 'برابر']]) {
+  for (const [lang, word] of [['en', 'equals'], ['ur', 'ایکولز']]) {
     const { sent } = await record(['--set', 'v4', '--lang', lang]);
     const sums = manifest.filter((r) => r.lang === lang && r.role === 'item' && P.withEquals(r.text, lang) !== r.text);
     expect(sums.length).toBeGreaterThan(80);
     const ends = sent.filter((j) => j.text.endsWith(` ${word}`));
     expect(ends.length).toBe(sums.length);
-    expect(sent.some((j) => j.text === `${P.spellEnglishNumbers(sums[0].text)} ${word}`)).toBe(true);
+    expect(sent.some((j) => j.text === P.spellEnglishNumbers(P.withEquals(sums[0].text, lang)))).toBe(true);
+    if (lang === 'ur') expect(sent.filter((j) => /جمع|منفی|ضرب|تقسیم|برابر/.test(j.text) && j.text.endsWith(` ${word}`))).toEqual([]);
   }
 });
 
