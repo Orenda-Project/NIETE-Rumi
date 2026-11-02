@@ -148,6 +148,19 @@ describe("I-SAPS — assessed per module", () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith("/training/level/9/certificate"));
     expect(await screen.findByTestId("level-certificate-download")).toBeInTheDocument();
   });
+
+  it("every exam passed but the level below has no certificate: names it, and offers no Receive", async () => {
+    // bd-arghnv.2 — I-SAPS locks the certificate, not the level.
+    vi.mocked(api.get).mockImplementation(trainingGet({
+      "/training/level/9/certificate": certificate({ exams_done: 9, needs_previous: "Level 1: Novice" }),
+    }) as never);
+    renderAt(ISAPS);
+    const row = await screen.findByTestId("level-certificate-row");
+    expect(within(row).getByText("9/9 exams")).toBeInTheDocument();
+    expect(within(row).getByText("Level 1: Novice first")).toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /Receive/ })).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
 });
 
 describe("Beacon House — the written quiz result", () => {

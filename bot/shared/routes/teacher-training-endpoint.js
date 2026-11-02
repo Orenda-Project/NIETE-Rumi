@@ -1145,6 +1145,61 @@ function isGrandPass(a, examQuizIds) {
   return examQuizIds instanceof Set && examQuizIds.has(a.grand_quiz_id);
 }
 
+/**
+ * bd-arghnv.1 — fetch-or-issue. A level that qualifies for its certificate but
+ * holds none is certified the next time she looks, through the one guard
+ * (maybeIssueQuizScoreCertificate), so the list never says less than the
+ * truth and a gap like the Beacon House one (every app pass since 11 Oct
+ * uncertified) mends itself on her next visit.
+ *
+ * Only levels that COULD qualify are asked about, from facts already in hand:
+ *   a passed level exam (NIETE grand quiz, Beacon House capstone),
+ *   every active per-module exam passed (I-SAPS), or
+ *   no exam at all and every unit done (Oxbridge).
+ * The guard makes the real decision (units, quick-check bar, the previous
+ * level's certificate for I-SAPS) and refuses quietly. A level that already
+ * holds its certificate is a plain read: nothing is asked.
+ *
+ * The programme on the certificate is the one whose scope shows her the level.
+ * Issued levels are added to `certifiedLevelIds` in place.
+ */
+async function settleCertificates(userId, facts) {
+  const {
+    visibleLevels, scopes, attempts, quizzes, courses, modulesByCourse, doneModuleIds,
+    examQuizIds, perModuleExamsByLevel, certifiedLevelIds,
+  } = facts;
+  const passedQuizIds = new Set((attempts || []).filter(a => a.is_passed === true).map(a => a.grand_quiz_id));
+  const unitIdsOf = lv => (courses || [])
+    .filter(c => c.level_id === lv.id && c.is_active)
+    .flatMap(c => modulesByCourse.get(c.id) || []);
+  const couldQualify = (lv) => {
+    if ((attempts || []).some(a => a.level_id === lv.id && isGrandPass(a, examQuizIds))) return true;
+    const perModule = perModuleExamsByLevel.get(lv.id) || [];
+    if (perModule.length > 0) return perModule.every(id => passedQuizIds.has(id));
+    if ((quizzes || []).some(q => q.level_id === lv.id && examQuizIds.has(q.id))) return false;
+    const units = unitIdsOf(lv);
+    return units.length > 0 && units.every(id => doneModuleIds.has(id));
+  };
+  const programOf = lv => ((scopes || []).find(s => s.vendor_id === lv.vendor_id
+    && (!s.level_ids || s.level_ids.length === 0 || s.level_ids.includes(lv.id))) || {}).program_id || null;
+
+  const { maybeIssueQuizScoreCertificate } = require('../services/training/certificate.service');
+  // In level order: an I-SAPS Level 2 certificate needs Level 1's, which may be
+  // issued one step earlier in this same loop.
+  const candidates = visibleLevels
+    .filter(lv => !certifiedLevelIds.has(lv.id) && couldQualify(lv))
+    .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  for (const lv of candidates) {
+    const res = await maybeIssueQuizScoreCertificate(supabase, {
+      userId, levelId: lv.id, programId: programOf(lv), attemptId: null, moduleId: null,
+    });
+    if (res && res.issued) {
+      certifiedLevelIds.add(lv.id);
+      logToFile('🎓 Certificate issued on view — the level qualified with none held', { userId, levelId: lv.id });
+    }
+  }
+}
+
 async function loadVisibleLevelsWithProgress(userId) {
   // 1. Active program assignments for this teacher
   const { data: assignments, error: aErr } = await supabase
@@ -1159,7 +1214,7 @@ async function loadVisibleLevelsWithProgress(userId) {
   // 2. Scopes referenced by those programs
   const { data: scopes, error: sErr } = await supabase
     .from('training_program_scopes')
-    .select('vendor_id, level_ids')
+    .select('program_id, vendor_id, level_ids')
     .in('program_id', programIds);
   if (sErr || !scopes || scopes.length === 0) return [];
 
@@ -1220,7 +1275,7 @@ async function loadVisibleLevelsWithProgress(userId) {
     // passing the exam-id set to isGrandPass (or the reverse) leaves it blind
     // again, which is how bd-2485 happened one axis over.
     supabase.from('training_assessment_attempts').select('level_id, status, is_passed, cooldown_until, completed_at, quiz_kind, grand_quiz_id').eq('user_id', userId).in('quiz_kind', EXAM_QUIZ_KINDS).in('level_id', levelIds),
-    supabase.from('training_grand_quizzes').select('id, level_id, quiz_type').in('level_id', levelIds).in('quiz_type', EXAM_QUIZ_TYPES).eq('is_active', true),
+    supabase.from('training_grand_quizzes').select('id, level_id, quiz_type, source_quiz_id').in('level_id', levelIds).in('quiz_type', EXAM_QUIZ_TYPES).eq('is_active', true),
     // bd-2503 — some levels have NO exam at all (Oxbridge). For an all_modules
     // vendor with no capstone, maybeIssueQuizScoreCertificate certifies the
     // level off completed modules alone, so the certificate row is the ONLY
@@ -1233,7 +1288,21 @@ async function loadVisibleLevelsWithProgress(userId) {
   // above is already filtered to EXAM_QUIZ_TYPES + is_active, so its ids are
   // exactly that set; a diagnostic's id is absent by construction rather than
   // by a second filter that could drift out of step with the first.
-  const examQuizIds = new Set((quizzes || []).map(q => q.id));
+  //
+  // bd-arghnv.2 — and only LEVEL exams. I-SAPS puts a summative exam after each
+  // of a level's nine modules (source_quiz_id PER_MODULE_SOURCE_BASE and up);
+  // counting one of those as the level's exam made a single passed module read
+  // "Certified" here, and chain-unlocked the next level: 235 production
+  // teachers shown Certified with no certificate, 51 of them into Level 2. The
+  // level page already draws this line (bd-60119, loadGrandQuizState); the two
+  // reads must agree. A per-module level is certified by its certificate.
+  const isLevelExam = q => q.source_quiz_id == null || q.source_quiz_id < PER_MODULE_SOURCE_BASE;
+  const examQuizIds = new Set((quizzes || []).filter(isLevelExam).map(q => q.id));
+  const perModuleExamsByLevel = new Map();
+  for (const q of (quizzes || []).filter(q => !isLevelExam(q))) {
+    if (!perModuleExamsByLevel.has(q.level_id)) perModuleExamsByLevel.set(q.level_id, []);
+    perModuleExamsByLevel.get(q.level_id).push(q.id);
+  }
 
   // bd-2447 — a course is complete when EVERY active module under it is done.
   //
@@ -1260,6 +1329,11 @@ async function loadVisibleLevelsWithProgress(userId) {
     modulesByCourse.get(m.course_id).push(m.id);
   }
   const doneModuleIds = new Set((progressRows || []).map(p => p.module_id));
+
+  await settleCertificates(userId, {
+    visibleLevels, scopes, attempts, quizzes, courses, modulesByCourse, doneModuleIds,
+    examQuizIds, perModuleExamsByLevel, certifiedLevelIds,
+  });
 
   return visibleLevels.map(lv => {
     // A course with no active modules is excluded from the denominator
