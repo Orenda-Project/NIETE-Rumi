@@ -70,7 +70,7 @@ async function rows(label, build) {
 }
 
 async function audience(db) {
-  const groupOf = new Map((await rows('test schools', () => db.from(GROUP_TABLE).select('school_id, ab_group')))
+  const groupOf = new Map((await rows('test schools', () => db.from(GROUP_TABLE).select('school_id, ab_group').order('school_id')))
     .map((r) => [r.school_id, r.ab_group]));
   const schools = [...groupOf.keys()];
   const byPhone = new Map();
@@ -80,7 +80,8 @@ async function audience(db) {
       .select('id, school_id, phone_number, is_test_user')
       .in('school_id', schools.slice(i, i + CHUNK))
       .eq('role', 'teacher')
-      .is('deleted_at', null));
+      .is('deleted_at', null)
+      .order('id'));
     // is_test_user filtered here: .neq would drop the NULL rows, which is most real teachers.
     for (const u of users) {
       const phone = u.phone_number || '';
@@ -92,12 +93,18 @@ async function audience(db) {
 }
 
 async function alreadySent(db) {
-  const logs = await rows('earlier runs', () => db.from('broadcast_logs').select('id').eq('template_name', TEMPLATE.name));
+  const logs = await rows('earlier runs', () => db.from('broadcast_logs').select('id').eq('template_name', TEMPLATE.name).order('id'));
   const ids = logs.map((l) => l.id);
-  if (!ids.length) return new Set();
+  const done = { users: new Set(), phones: new Set() };
+  if (!ids.length) return done;
+  // Every row but a failed one: a sent row moves on to delivered and read, and must still count.
   const sent = await rows('earlier sends', () => db.from('broadcast_messages')
-    .select('user_id, status').in('broadcast_id', ids).eq('status', 'sent'));
-  return new Set(sent.map((m) => m.user_id));
+    .select('id, user_id, phone_number, status').in('broadcast_id', ids).neq('status', 'failed').order('id'));
+  for (const m of sent) {
+    if (m.user_id) done.users.add(m.user_id);
+    if (m.phone_number) done.phones.add(m.phone_number);
+  }
+  return done;
 }
 
 async function must(label, p) {
@@ -182,7 +189,7 @@ async function run(argv, d) {
   const on = await switchOn(d.db);
   const all = await audience(d.db);
   const done = await alreadySent(d.db);
-  const todo = all.filter((u) => !done.has(u.id));
+  const todo = all.filter((u) => !done.users.has(u.id) && !done.phones.has(u.phone_number));
   const t = await readTemplate(d);
   const cost = costLine(todo.length, t.category);
   const counts = {
