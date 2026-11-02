@@ -11,6 +11,7 @@ import type { TeacherFeature } from "../paths";
 import { ReadyForYou } from "../notices/ReadyForYou";
 import { noticeTracker } from "../notices/tracker";
 import { RemindCard } from "../notices/RemindCard";
+import { TopicPaperCard } from "../notices/TopicPaperCard";
 import { LanguageTabs } from "../LanguageTabs";
 import { NextCard, FULL_KINDS } from "../home/NextCard";
 import { SlimCard, SLIM_KINDS } from "../home/SlimCard";
@@ -102,6 +103,8 @@ export default function Home() {
         </nav>
         </FeatureMotionProvider>
         {/* The evening reminder (portal_push_remind): after the tiles, so row 1 and the card stay on top (DESIGN R3). */}
+        {/* bd-pw1ccr.26 — "Make my paper" while her topic-end nudge waits (topic_nudge_portal_card_enabled). */}
+        <TopicPaperCard />
         <RemindCard />
       </TeacherPage>
     );
@@ -135,6 +138,8 @@ export default function Home() {
       </nav>
       </FeatureMotionProvider>
       {/* The evening reminder (portal_push_remind): after the tiles; web push on a plain browser only; nothing drawn while off. */}
+      {/* bd-pw1ccr.26 — "Make my paper" while her topic-end nudge waits (topic_nudge_portal_card_enabled). */}
+      <TopicPaperCard />
       <RemindCard />
     </TeacherPage>
   );
