@@ -1,5 +1,14 @@
 # QA — E2E test system
 
+> **The harness is the SHARED E2E engine** (bd-9157r.1), authored once in rumi-agent-home at `.claude/qa/engine` for
+> NIETE-Rumi and whatsapp-ai-bot, and **borrowed** here through a link at `.claude/qa/engine` that
+> `scripts/qa/link-engine.sh` makes (`npm install` runs it, and so do the E2E hooks the first time they fire in a clone that has none). Nothing of the engine is committed in this repo, so it cannot
+> drift; edit it in rumi-agent-home, never through the link. Everything else under `.claude/qa/` is NIETE's own tenant
+> layer and is edited here: `config/tenants.yaml` (the engine's view of this repo), the feature map, targets, known
+> findings, the agents, the drivers and `niete_*` tools in `shared/`, fixtures and ledgers. On a machine without
+> rumi-agent-home the link script says so in one sentence, the hooks stay silent and every commit is a plain commit.
+> `scripts/qa/engine-bridge.test.sh` holds that line.
+>
 > **How a commit reaches this system from any machine** — git hooks and Claude Code hooks, and
 > what each guarantees — is in [docs/qa-automation.md](../../docs/qa-automation.md). This file is the
 > system itself.
@@ -13,7 +22,8 @@ tests/features/<surface>/<tenant>/*.feature   # SPECS (source of truth) — web/
   agents/       niete-<feature>-agent.md       # EXECUTORS — one self-contained agent per feature file
   config/       whatsapp-targets.yaml          # targets per tenant/env; tags.md = tag vocabulary
                 test-credentials.yaml          # web login profiles
-  shared/       parse-gherkin.py               # tag filter (zero-dep); interaction maps
+  engine/       → the shared engine (a gitignored link): runners, selector, validator, hooks, skills, commands
+  shared/       features/<feature>.cjs          # NIETE's mock-lane drivers; niete_* DB tools and NIETE-only helpers
   fixtures/     <surface>/<tenant>/*.yaml       # expected values, answer keys (out of specs)
   results/      <surface>/<tenant>/<run>/…      # JSON + evidence (gitignored)
 ```
@@ -21,7 +31,7 @@ tests/features/<surface>/<tenant>/*.feature   # SPECS (source of truth) — web/
 ## Run an e2e suite
 ```bash
 # 1. list the scenarios a run will cover
-python3 .claude/qa/shared/parse-gherkin.py tests/features/whatsapp/niete/menu.feature --tag @e2e
+python3 .claude/qa/engine/bin/parse-gherkin.py tests/features/whatsapp/niete/menu.feature --tag @e2e
 # 2. invoke that feature's agent, e.g. agents/niete-menu-agent.md
 #    (resolves @profile:<tenant> → whatsapp-targets.yaml → target+method)
 #    → drives each scenario, writes results/whatsapp/niete/<run>/run.json
@@ -42,9 +52,9 @@ commit → select_e2e.py    which features the diff touched   (feature-map.yaml)
 ```
 
 ```bash
-python3 .claude/qa/shared/spec_sync.py --repo <repo> --committed        # the brief
-python3 .claude/qa/shared/validate_specs.py --only menu,status          # the gate
-python3 .claude/qa/shared/validate_specs.py --json                      # machine-readable
+python3 .claude/qa/engine/bin/spec_sync.py --repo <repo> --committed        # the brief
+python3 .claude/qa/engine/bin/validate_specs.py --only menu,status          # the gate
+python3 .claude/qa/engine/bin/validate_specs.py --json                      # machine-readable
 ```
 
 Two rules the sync will not bend:
@@ -61,9 +71,9 @@ Off switch for phase 1 alone: `export E2E_SPEC_SYNC_OFF=1`.
 Tests:
 
 ```bash
-python3 .claude/qa/shared/test_spec_sync.py          # the brief builder
-python3 .claude/qa/shared/test_validate_specs.py     # the gate
-bash    .claude/hooks/spec-sync-pipeline.test.sh     # the whole chain, end to end
+python3 .claude/qa/engine/bin/test_spec_sync.py          # the brief builder
+python3 .claude/qa/engine/bin/test_validate_specs.py     # the gate
+bash    .claude/qa/engine/hooks/spec-sync-pipeline.test.sh     # the whole chain, end to end
 ```
 
 The last one is the one to run after touching any part of this: it drives a real

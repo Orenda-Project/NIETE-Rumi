@@ -148,4 +148,4 @@ if [ -n "$QUIET" ]; then
 fi
 echo "wrote $TARGET (0600)$WROTE_SBX: SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY (from $SBX_SOURCE) + 4 placeholders + LOG_LEVEL + $N from $SOURCE:"
 printf '%s\n' "$EXTRACT" | cut -d= -f1 | tr '\n' ' '; echo
-echo "next: bash .claude/qa/shared/commit-e2e.sh HEAD   (docs/e2e-mock-lane.md)"
+echo "next: bash .claude/qa/engine/bin/commit-e2e.sh HEAD   (docs/e2e-mock-lane.md)"

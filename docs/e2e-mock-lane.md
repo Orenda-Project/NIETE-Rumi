@@ -33,12 +33,12 @@ npm run e2e:mock -- coaching --only 'coaching=COA09,COA20'
 To test what a commit touched:
 
 ```bash
-bash .claude/qa/shared/commit-e2e.sh HEAD                      # what this commit touched (mock-capable subset)
-bash .claude/qa/shared/commit-e2e.sh <sha> --features menu     # a specific feature
-bash .claude/qa/shared/commit-e2e.sh HEAD --all-mock           # every mock-lane feature regardless of the diff
+bash .claude/qa/engine/bin/commit-e2e.sh HEAD                      # what this commit touched (mock-capable subset)
+bash .claude/qa/engine/bin/commit-e2e.sh <sha> --features menu     # a specific feature
+bash .claude/qa/engine/bin/commit-e2e.sh HEAD --all-mock           # every mock-lane feature regardless of the diff
 ```
 
-Or the runner directly: `bash .claude/qa/shared/run-suite.sh menu,status --method mock --commit <sha>`.
+Or the runner directly: `bash .claude/qa/engine/bin/run-suite.sh menu,status --method mock --commit <sha>`.
 Every existing chrome invocation is unchanged; `--method` defaults from `whatsapp-targets.yaml`.
 
 ## What is guaranteed
@@ -133,7 +133,7 @@ on the sandbox they stay BLOCKED, since the switch would reach every tester.
 ## Setup (automatic — no manual step)
 
 1. `keys/niete-local.env` is **provisioned for you**. The SessionStart banner, `.githooks/post-commit` and
-   `commit-e2e.sh` all call `e2e_mock_lane_autofix` (`.claude/hooks/lib/mock-lane.sh`), which runs
+   `commit-e2e.sh` all call `e2e_mock_lane_autofix` (`.claude/qa/engine/hooks/lib/mock-lane.sh`), which runs
    `bot/scripts/e2e/provision-local-keys.sh --quiet` whenever the file is missing:
    - the two sandbox Supabase lines come from the **Railway sandbox environment** (or from a hand-made
      `keys/niete-sandbox.env` if one exists); the project ref is asserted against `ENV_REFS` in
@@ -260,7 +260,7 @@ the outbox).
   (`bot/shared/services/e2e-cassette.js`). Ignored whenever the cassette is off, so never live on
   production. A scripted answer is never recorded into the real cassette library.
 - **A driver's async view of all four levers**, plus a private Redis command and the faults file:
-  `.claude/qa/shared/stack-control.cjs` (`restart`, `redis`, `job`, `lp612Doc`, `faults` /
+  `.claude/qa/engine/bin/stack-control.cjs` (`restart`, `redis`, `job`, `lp612Doc`, `faults` /
   `clearFaults` / `faultsLeft`). Every lever that shells out is async and awaited — a synchronous
   wait past a restart can outlive the mock's dropped keep-alive sockets and the next request rides a
   dead one. Absent `RUN_DIR`, every lever reports `{ ok: false }` and the driver records `BLOCKED`
@@ -332,7 +332,7 @@ Recorded once, they are replayed by every run and every clone — no keys, no ne
 Populating them is a one-time, un-sealing step that makes LIVE, paid calls, so it is gated:
 
 ```
-bash .claude/qa/shared/commit-e2e.sh HEAD --features coaching --record
+bash .claude/qa/engine/bin/commit-e2e.sh HEAD --features coaching --record
 ```
 
 `--record` uses a SEPARATE keys file, `keys/niete-record.env`, that carries real vendor keys (and `R2_*`
@@ -401,15 +401,15 @@ the lane's feature list.
 | Stack launcher (redis · mock · bot · worker) | `bot/scripts/e2e/local-stack.sh` |
 | Strict cassette | `bot/shared/services/e2e-cassette.js` (`E2E_CASSETTE=replay-strict`, `E2E_CASSETTE_MISS_LOG`) |
 | Vendor cassette fixtures + record | `.claude/qa/fixtures/cassettes/` (committed); `commit-e2e.sh --record` + `keys/niete-record.env` to populate |
-| Mock driver | `.claude/qa/shared/mock-api.cjs` (selected by `E2E_METHOD=mock` in `feature-runner.cjs`) |
-| Runner, profile, ledger | `.claude/qa/shared/run-suite.sh` (`--method`, `--commit`), `whatsapp-targets.yaml` (`niete-local`), `ledger_row.py` |
+| Mock driver | `.claude/qa/engine/bin/mock-api.cjs` (selected by `E2E_METHOD=mock` in `feature-runner.cjs`) |
+| Runner, profile, ledger | `.claude/qa/engine/bin/run-suite.sh` (`--method`, `--commit`), `whatsapp-targets.yaml` (`niete-local`), `ledger_row.py` |
 | Sandbox driver account | `.claude/qa/shared/niete_sandbox_driver.py` |
 | Quiz job, on demand (enqueue through the driver, or run its handler now) | `bot/scripts/e2e/quiz-job.js` |
 | Grades 6-12 lesson document, seeded into the lane's R2 bucket | `bot/scripts/e2e/lp612-doc.js` |
 | DNS resolver fallback for the mock lane (`E2E_DNS_FALLBACK`) | `bot/scripts/e2e/dns-pin.js` |
-| A driver's async view of restart/redis/job/lp612Doc/faults | `.claude/qa/shared/stack-control.cjs` |
+| A driver's async view of restart/redis/job/lp612Doc/faults | `.claude/qa/engine/bin/stack-control.cjs` |
 | Training's quiz-generation scenario cluster (T25 T28 T29, T46–T84) | `.claude/qa/shared/training-quiz-gen.cjs` |
 | Quiz/coaching/6-12 seed + purge helpers | `.claude/qa/shared/niete_training_db.py` |
 | Flow definitions + census | `bot/scripts/e2e/flow-inventory.js` → `.claude/qa/fixtures/flows/` |
 | Flow emulator (client side of a Flow, encrypted exchange) | `bot/scripts/e2e/flow-emulator.js`, used by `mock-api.cjs` (`E2E_FLOWS_DIR`, `E2E_FLOW_PUBLIC_KEY_B64`, `E2E_BOT_URL`) |
-| Tests | `tests/e2e-mock/*.test.js` (54), `.claude/qa/shared/test_mock_api.js` (23), `test_ledger_row.py`, `test_niete_sandbox_driver.py`, `test_preflight.py`, `test_niete_training_db.py`, `.claude/hooks/e2e-autorun.test.sh` |
+| Tests | `tests/e2e-mock/*.test.js` (54), `.claude/qa/engine/bin/test_mock_api.js` (23), `test_ledger_row.py`, `test_niete_sandbox_driver.py`, `test_preflight.py`, `test_niete_training_db.py`, `.claude/qa/engine/hooks/e2e-autorun.test.sh` |

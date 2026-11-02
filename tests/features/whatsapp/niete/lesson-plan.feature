@@ -1,7 +1,7 @@
 # NIETE (ICT) Lesson Plans — WhatsApp E2E, driven via a linked WhatsApp Web session (Chrome-MCP).
 # Target: staging 923222482222 (.claude/qa/config/whatsapp-targets.yaml). Values that vary by DB state
 # (grades, subjects, chapters, filenames) resolve live from answer-keys.yaml → lesson_plan; assert shape,
-# not exact wording. Non-determinism contract: .claude/qa/shared/non-determinism-contract.md.
+# not exact wording. Non-determinism contract: .claude/qa/engine/bin/non-determinism-contract.md.
 @whatsapp @ict @profile:niete @feature:lesson-plan @persona:teacher
 Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # Entry points: the "Lesson Plans" menu row, a keyword (lp | lesson plan | lesson-plan | /lp | لیسن پلان,

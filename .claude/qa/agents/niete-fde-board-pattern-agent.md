@@ -28,7 +28,7 @@ scenarios (switch, door, Check and make, refusals, soft limit) are run by the we
 
 ## Step 1: Load Scenarios
 ```bash
-python3 .claude/qa/shared/parse-gherkin.py tests/features/web/fde-board-pattern.feature --tag @sandbox
+python3 .claude/qa/engine/bin/parse-gherkin.py tests/features/web/fde-board-pattern.feature --tag @sandbox
 ```
 `@real-paper` scenarios make a real paper (one model run each, about three minutes): run them in order, one at a time,
 and reuse a ready paper across the editor scenarios instead of making another. `@urdu` runs with the app in Urdu.

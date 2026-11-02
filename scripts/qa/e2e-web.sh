@@ -23,7 +23,7 @@
 #   4. .claude/qa/web/web-runner.cjs drives the feature in headless Chromium (playwright-core, already a portal
 #      dependency; the browser is installed on first use) — screenshot per failed scenario;
 #   5. one row in .claude/qa/ledgers/runs.jsonl (surface web, method browser) — committed on the branch being tested
-#      (scripts/qa/commit-ledger-row.sh; not on main/staging/sandbox/develop; E2E_NO_COMMIT=1 turns it off) — evidence in
+#      (.claude/qa/engine/bin/commit-ledger-row.sh; not on main/staging/sandbox/develop; E2E_NO_COMMIT=1 turns it off) — evidence in
 #      .claude/qa/results/web/niete/<run_id>/ (gitignored);
 #   6. the stack is taken down unless --keep.
 # Exit: 0 all passed · 1 a scenario failed · 2 usage · 3+ the stack could not start (dev-portal.sh's code + 10).
@@ -35,7 +35,7 @@ log() { echo "[e2e-web] $*" >&2; }
 
 known_features() { ls "$FEATURES_DIR" 2>/dev/null | sed -n 's/\.cjs$//p' | tr '\n' ' '; }
 
-# The same slot rule as .claude/qa/shared/run-suite.sh slot_ports(), plus the portal's own port.
+# The same slot rule as .claude/qa/engine/bin/run-suite.sh slot_ports(), plus the portal's own port.
 slot_ports() { local n=$1
   printf '%s\n' "MOCK_PORT=$((4010+n))" "E2E_BOT_PORT=$((3100+n))" "E2E_REDIS_PORT=$((6390+n))" "E2E_WORKER_HEALTH_PORT=$((3201+n))" \
                  "E2E_SUPABASE_PORT=$((54400+n))" "LOCAL_DB_REST_PORT=$((54500+n))" "LOCAL_R2_PORT=$((54600+n))" \
@@ -53,7 +53,7 @@ row_from() {   # $1 results.json  $2 run_id  $3 commit  [$4 evidence_dir]
   python3 - "$1" "$2" "$3" "${4:-}" "$REPO" <<'PY'
 import json, os, subprocess, sys, datetime
 res_path, run_id, commit, evidence, repo = sys.argv[1:6]
-sys.path.insert(0, os.path.join(repo, ".claude/qa/shared"))
+sys.path.insert(0, os.path.join(repo, ".claude/qa/engine/bin"))
 import ledger
 res = json.load(open(res_path))
 rs = res.get("results") or []
@@ -197,7 +197,7 @@ if [ -n "$PARALLEL" ]; then
   # every child appended its row with committing off: ONE commit carries them all (the mock lane's rule)
   sum=$(cat "$LOGDIR"/*.log 2>/dev/null | sed -nE 's/.*row appended .*\([A-Z]+ ([0-9]+) \/ ([0-9]+)\).*/\1 \2/p' \
         | awk '{p+=$1; t+=$2} END {print p+0 "/" t+0}')
-  bash "$REPO/scripts/qa/commit-ledger-row.sh" "$REPO" "${#FEATS[@]} features $sum ($PRUN)"
+  bash "$REPO/.claude/qa/engine/bin/commit-ledger-row.sh" "$REPO" "${#FEATS[@]} features $sum ($PRUN)"
   exit $rc
 fi
 
@@ -276,12 +276,12 @@ rc=$?
 if [ -f "$EVIDENCE/results.json" ]; then
   row="$(row_from "$EVIDENCE/results.json" "$RUN_ID" "$(git -C "$REPO" rev-parse HEAD)" "$EVIDENCE_REL/")"
   printf '%s' "$row" | python3 -c "
-import json,sys; sys.path.insert(0,'$REPO/.claude/qa/shared'); import ledger
+import json,sys; sys.path.insert(0,'$REPO/.claude/qa/engine/bin'); import ledger
 ledger.append_run(json.load(sys.stdin), '$REPO/.claude/qa/ledgers/runs.jsonl')" \
     && log "row appended to .claude/qa/ledgers/runs.jsonl ($(printf '%s' "$row" | python3 -c 'import json,sys;r=json.load(sys.stdin);print(r["status"],r["summary"]["passed"],"/",r["summary"]["total"])'))" \
     || log "could not append the run row"
   # The PR's "E2E run recorded" check reads commits: commit the row on the branch being tested (E2E_NO_COMMIT=1: don't).
-  bash "$REPO/scripts/qa/commit-ledger-row.sh" "$REPO" \
+  bash "$REPO/.claude/qa/engine/bin/commit-ledger-row.sh" "$REPO" \
     "$FEATURE $(printf '%s' "$row" | python3 -c 'import json,sys;r=json.load(sys.stdin);print(r["status"],"%s/%s" % (r["summary"]["passed"],r["summary"]["total"]),"(%s)" % r["run_id"])')"
 else
   log "no results.json — the runner did not finish (exit $rc)"
