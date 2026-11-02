@@ -95,6 +95,11 @@
  * Round 8: battery.ui.r8_comp_wait_next — a reading or listening comprehension question has no per-question timeout:
  * the child answers, then presses Next (the page says a stuck child can press it). Other spoken parts keep theirs.
  *
+ * Round 9: battery.ui.r9_question_time — a question in a part with no clock of its own waits twice as long before it
+ * moves on by itself, never under 30 s (a story question 15 s → 30 s, a spoken sum 10 s → 30 s, a word problem 60 s →
+ * 120 s); the cell pace no longer moves such a sum on early. Next or an answer still moves on at once. A part with its
+ * own clock (the one-minute reads and sums) is the measure and keeps every timing it has. Coach-led: as before.
+ *
  * UMD: window.SAE.core in the browser, module.exports under Node.
  */
 (function (root, factory) {
@@ -131,6 +136,7 @@
   var FLUENCY_ITEM_S = 5;
   var CELL_PACE_FLOOR_S = 5; // sa_cell_pace: no item moves on by itself before 5 s on screen
   var CELL_PACE_CAP_S = 10; // sa_cell_pace: and every item moves on by itself at 10 s on screen, whatever the sound
+  var R9_WAIT_MIN_S = 30; // r9_question_time: no question in an untimed part moves on by itself before this
   var COMP_ALL_MIN_WORDS = 10; // RWP May 2026 rdcomp_*: asked when 10+ words were attempted (2,233/2,233 rows)
   // Round 8 (r8_reading_position): under this many voiced seconds on the passage, the child read nothing. 1.0 s, not 2.0:
   // a reader of 3 words measured 1.6-1.8 s; silent and noisy rooms 0.0-0.4 s.
@@ -298,6 +304,12 @@
     // Round 8 (battery.ui.r8_comp_wait_next): a story or listening question never moves on by itself; only Next does.
     var compWait = !!(battery.ui && battery.ui.r8_comp_wait_next === true);
     var countsOn = !!(battery.ui && battery.ui.r8_counts === true);
+    // Round 9 item 4 (battery.ui.r9_question_time): the untimed parts' per-question waits, doubled, at least 30 s.
+    var longerWaits = !!(battery.ui && battery.ui.r9_question_time === true);
+    /** r9_question_time: a part's wait in seconds as the child gets it (a timed part, the measure, keeps its own). */
+    function waitS(t, s) { return longerWaits && s && !t.time_limit_s ? Math.max(2 * s, R9_WAIT_MIN_S) : s; }
+    // Round 9 item 3 (battery.ui.r9_skip_instructions): coach-led only, the coach may skip a part's instructions.
+    var skipInstrOn = manual && !!(battery.ui && battery.ui.r9_skip_instructions === true);
     // Round 8: the story's questions by the voice heard (RDF auto, no last-word step); a time-up ends only its own part.
     var positionOn = skipLW && (!!opts.reading_position || !!(battery.ui && battery.ui.r8_reading_position === true));
     var timeupGoesOn = incompleteOn && (!!opts.timeup_continue || !!(battery.ui && battery.ui.r8_timeup_continue === true));
@@ -319,7 +331,7 @@
       if (manual && t.mode === 'oral') return null; // coach-led: the coach reads the question; the coach moves on
       // round 8 item 35 (battery.ui.r8_counts): the story questions keep their 15 s (the content owner's later rule)
       if (compWait && !countsOn && t.mode === 'oral' && /comprehension$/.test(t.subtask || '')) return null;
-      return t.item_timeout_s;
+      return waitS(t, t.item_timeout_s);
     }
     /** The cell on show ends: its time is kept; how = tap | auto | the stop reason. */
     function closeCell(how) {
@@ -756,6 +768,20 @@
         if (st.practice_i >= task().practice.length) st.phase = 'ready';
         return { ok: ok, retry: retry, shown: !ok && !retry ? p.target : null, feedback: p.feedback || null };
       },
+      /**
+       * Round 9 item 3 (r9_skip_instructions, RDF manual): the coach skips the part's instruction and practice. It lands
+       * on the part's Ready screen, never past it: Go still starts the clock and the first item is still asked (a timed
+       * part's clock must not start before the child holds the phone). A session gate (mic check, oral practice, keypad
+       * warm-up) is not an instruction. One skip_instructions event { by: 'coach', from, practice_left }. → true when it skipped.
+       */
+      skipInstructions: function () {
+        if (!skipInstrOn || (st.phase !== 'instruction' && st.phase !== 'practice') || !task()) return false;
+        var from = st.phase;
+        var left = Math.max(0, task().practice.length - (from === 'practice' ? st.practice_i : 0));
+        st.phase = 'ready';
+        ev('skip_instructions', { task_id: st.task_id, value: { by: 'coach', from: from, practice_left: left } });
+        return true;
+      },
       /** "Go!": the clock starts (timed tasks) and the first item shows. */
       begin: function () {
         if (st.phase !== 'ready') return;
@@ -826,7 +852,10 @@
         if (st.cell) {
           var auto = t.cell_auto_s;
           if (manual || !auto || holdsCell(t)) return null;
-          if (cellPace) {
+          if (longerWaits && !t.time_limit_s) {
+            // r9_question_time: an untimed sum gets its whole wait, voice or not (the pace would cut it to 10 s)
+            if (now() - st.cell.at < waitS(t, auto) * 1000) return null;
+          } else if (cellPace) {
             // EGRA: move on when the child has not responded for 3 s, so the wait counts from the last voice heard.
             // A noisy room never goes quiet: the cap moves the item on at 10 s on screen.
             var shown = now() - st.cell.at;
