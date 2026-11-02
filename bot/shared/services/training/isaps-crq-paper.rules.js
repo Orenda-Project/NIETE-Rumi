@@ -26,6 +26,7 @@
  */
 
 const { seededShuffle } = require('../../utils/seeded-random');
+const { hasQuestionStem } = require('./question-stem.rules');
 
 /**
  * Is this question answered in free text rather than by picking an option?
@@ -214,14 +215,14 @@ function scoreMixedPaper({ answers, mcqCount, crqMaxPoints, mcqMarks = MCQ_MARKS
  *
  * The bank now holds a module's MCQs and all four of its CRQs. Only
  * one CRQ is sat per attempt, drawn on the attempt id so a resume is stable and
- * a re-sit differs (doc §5.3).
+ * a re-sit differs (doc §5.3). A question with a blank stem, MCQ or CRQ, is never on it (bd-arghnv.3).
  *
  * @param {Array<object>|null} bank ordered questions for the module's quiz
  * @param {string} attemptId
  * @returns {Array<object>}
  */
 function selectPaperWithOneCrq(bank, attemptId) {
-  const items = Array.isArray(bank) ? bank.filter(Boolean) : [];
+  const items = Array.isArray(bank) ? bank.filter(Boolean).filter(hasQuestionStem) : [];
   if (items.length === 0) return [];
   const mcqs = items.filter(q => !isOpenEndedQuestion(q));
   const crqs = items.filter(isOpenEndedQuestion);

@@ -247,6 +247,21 @@ describe('GET /api/portal/training/module/:id/questions', () => {
     expect(JSON.stringify(payload)).not.toContain('correct_option');
   });
 
+  it('bd-arghnv.3 — never lists a question with a blank stem', async () => {
+    seedModule();
+    const rows = tableStates.training_questions.rows;
+    tableStates.training_questions = {
+      rows: (filters) => [
+        ...rows(filters),
+        { id: 105, training_module_id: 42, question_text: '', options: ['p', 'q'], correct_option: '1', order_index: 4, is_active: true },
+        { id: 106, training_module_id: 42, question_text: '   ', options: ['r', 's'], correct_option: '1', order_index: 5, is_active: true },
+      ],
+    };
+    const { statusCode, payload } = await invoke({ userId: 'user-1', params: { id: '42' } });
+    expect(statusCode).toBe(200);
+    expect(payload.questions.map(q => q.id)).toEqual([101, 102, 103]);
+  });
+
   it('returns an empty questions list when the module has no active questions', async () => {
     seedModule();
     tableStates.training_questions = { rows: [] };
