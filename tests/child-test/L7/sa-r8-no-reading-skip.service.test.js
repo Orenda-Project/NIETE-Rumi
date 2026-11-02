@@ -46,7 +46,7 @@ describe('no_reading_skip reaches the session', () => {
     expect(deps.saStore.markSynced.mock.calls[0][1].events).toEqual([{ seq: 1, type: 'no_reading_skip', task_id: 'ur.story_comp_w3', at: '2026-10-28T09:00:01Z', data: value }]);
     expect(deps.saStore.putResults.mock.calls[0][1][0]).toMatchObject({ stop_reason: 'skipped_no_voice' });
   });
-  test('STOP_TYPES is unchanged', () => {
-    expect(require(SVC).STOP_TYPES).toEqual(['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on']);
+  test('STOP_TYPES has no no_reading_skip (round 9 item 3 added skip_instructions)', () => {
+    expect(require(SVC).STOP_TYPES).toEqual(['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on', 'skip_instructions']);
   });
 });

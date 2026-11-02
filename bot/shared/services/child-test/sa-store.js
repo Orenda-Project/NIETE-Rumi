@@ -25,7 +25,8 @@ const DEVICE_FIELDS = ['ua', 'bundle_v', 'offline', 'skew_ms', 'mic_ok', 'mic_rm
 // the ruling events a session keeps (device.events); past the cap the oldest are kept
 const MAX_KEPT_EVENTS = 200;
 // round 7b: a skip or stop (sa-api.service.js STOP_TYPES) is never dropped by the cap — the dashboard audits them
-const AUDIT = new Set(['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on']);
+// (round 9 item 3: skip_instructions, the coach skipped a part's instructions)
+const AUDIT = new Set(['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on', 'skip_instructions']);
 
 function keepEvents(had, events) {
   const list = Array.isArray(had) ? had.slice() : [];

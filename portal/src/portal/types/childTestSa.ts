@@ -145,7 +145,8 @@ export type SaResults = {
 };
 
 /** The six skips and stops the dashboard audits (round 7b; the bot's STOP_TYPES). */
-export type SaStopType = "back" | "end_section" | "end_test" | "restart" | "silence_repeat" | "incomplete_move_on" | "under20_move_on";
+export type SaStopType = "back" | "end_section" | "end_test" | "restart" | "silence_repeat" | "incomplete_move_on" | "under20_move_on"
+  | "skip_instructions"; // round 9 item 3: the coach skipped a part's instructions (coach-led RDF)
 
 /** One skip or stop kept on a session (sa_dash_filters): its subtask, when (the phone's clock) and who did it. */
 export type SaStop = {
