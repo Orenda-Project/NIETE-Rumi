@@ -153,7 +153,7 @@ describe('SKIP_REASONS — the closed vocabulary of "we deliberately did not ask
       'weekly_cap', 'declined_streak', 'consecutive_day', 'quiet_hours', 'assessment_day',
       'no_lesson', 'no_quiz_source', 'religious_review_pending', 'disabled', 'sector_not_piloted',
       'not_school_day', 'in_progress_coaching', 'template_not_approved', 'window_closed_template',
-      'already_nudged_topic', 'not_on_app',
+      'already_nudged_topic', 'not_on_app', 'card_used', 'made_paper',
     ]);
     expect(Object.isFrozen(store.SKIP_REASONS)).toBe(true);
   });
