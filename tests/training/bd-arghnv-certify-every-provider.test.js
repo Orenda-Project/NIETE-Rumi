@@ -172,10 +172,10 @@ describe('I-SAPS — a level certificate needs the previous level certificate', 
 });
 
 // ─── the level list: "Certified" means certified, and a qualifying level is issued on view ───────────────────────
+// The REAL guard runs here too, against the same stub: the signal is the certificate row written (or not), and the
+// state the list returns. (A mocked guard was tried first; reading its calls proved order-sensitive in a full run.)
 describe('the level list (app + WhatsApp)', () => {
-  let guard;
-
-  function loadEndpoint(guardImpl) {
+  function loadEndpoint() {
     jest.resetModules();
     jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
     jest.doMock('../../bot/shared/utils/structured-logger', () => ({
@@ -184,10 +184,8 @@ describe('the level list (app + WhatsApp)', () => {
     }));
     jest.doMock('../../bot/shared/config/supabase', () => supabase);
     jest.doMock('../../bot/shared/services/whatsapp.service', () => ({ sendMessage: jest.fn() }));
-    guard = jest.fn(guardImpl);
-    jest.doMock('../../bot/shared/services/training/certificate.service', () => ({
-      ...jest.requireActual('../../bot/shared/services/training/certificate.service'),
-      maybeIssueQuizScoreCertificate: guard,
+    jest.doMock('../../bot/shared/services/training/certificate-pdf.service', () => ({
+      generateAndStoreCertificatePdf: jest.fn().mockResolvedValue(null),
     }));
     return require('../../bot/shared/routes/teacher-training-endpoint');
   }
@@ -214,44 +212,52 @@ describe('the level list (app + WhatsApp)', () => {
       training_grand_quizzes: exams,
       training_certificates: [],
       training_questions: [],
+      app_settings: [{ key: 'isaps_crq_results_released', value: true }],
+      users: [{ id: 'u1', name: 'Sana' }],
     };
   }
 
   test('THE BUG: one module exam of nine passed is NOT "certified"', async () => {
     seedIsaps({ examsPassed: 1 });
-    const ep = loadEndpoint(async () => ({ issued: false }));
-    const levels = await ep.loadVisibleLevelsWithProgress('u1');
+    const levels = await loadEndpoint().loadVisibleLevelsWithProgress('u1');
     expect(levels.find(l => l.id === 27).state).not.toBe('certified');
+    expect(issued()).toHaveLength(0);
   });
 
   test('Level 2 stays open: the lock is on the certificate, not the level', async () => {
     seedIsaps({ examsPassed: 1 });
-    const ep = loadEndpoint(async () => ({ issued: false }));
-    const levels = await ep.loadVisibleLevelsWithProgress('u1');
+    const levels = await loadEndpoint().loadVisibleLevelsWithProgress('u1');
     expect(levels.find(l => l.id === 28).state).not.toBe('locked');
   });
 
-  test('fetch-or-issue: all nine passed and no certificate → the guard is asked, and the level reads certified', async () => {
+  test('fetch-or-issue: all nine passed and no certificate → issued on view, and the level reads certified', async () => {
     seedIsaps({ examsPassed: 9 });
-    const ep = loadEndpoint(async () => ({ issued: true, certificate_code: 'NEW' }));
-    const levels = await ep.loadVisibleLevelsWithProgress('u1');
-    expect(guard).toHaveBeenCalledWith(supabase, expect.objectContaining({ userId: 'u1', levelId: 27, programId: 'p-mh' }));
+    const levels = await loadEndpoint().loadVisibleLevelsWithProgress('u1');
+    expect(issued()).toHaveLength(1);
+    expect(issued()[0].row).toEqual(expect.objectContaining({ user_id: 'u1', level_id: 27, program_id: 'p-mh' }));
     expect(levels.find(l => l.id === 27).state).toBe('certified');
   });
 
   test('fetch-or-issue asks only about levels that could qualify', async () => {
     seedIsaps({ examsPassed: 3 });
-    const ep = loadEndpoint(async () => ({ issued: false }));
-    await ep.loadVisibleLevelsWithProgress('u1');
-    expect(guard).not.toHaveBeenCalled();
+    const touched = [];
+    const spy = jest.spyOn(supabase, 'from').mockImplementation((t) => { touched.push(t); return from(t); });
+    await loadEndpoint().loadVisibleLevelsWithProgress('u1');
+    spy.mockRestore();
+    // The list reads training_certificates once (its own read); the guard would read it again.
+    expect(touched.filter(t => t === 'training_certificates')).toHaveLength(1);
+    expect(issued()).toHaveLength(0);
   });
 
   test('a level that already holds its certificate is a fetch, not a re-check', async () => {
     seedIsaps({ examsPassed: 9 });
     tables.training_certificates.push({ user_id: 'u1', level_id: 27, certificate_code: 'OLD' });
-    const ep = loadEndpoint(async () => ({ issued: true }));
-    const levels = await ep.loadVisibleLevelsWithProgress('u1');
-    expect(guard).not.toHaveBeenCalled();
+    const touched = [];
+    const spy = jest.spyOn(supabase, 'from').mockImplementation((t) => { touched.push(t); return from(t); });
+    const levels = await loadEndpoint().loadVisibleLevelsWithProgress('u1');
+    spy.mockRestore();
+    expect(touched.filter(t => t === 'training_certificates')).toHaveLength(1);
+    expect(issued()).toHaveLength(0);
     expect(levels.find(l => l.id === 27).state).toBe('certified');
   });
 
@@ -264,13 +270,15 @@ describe('the level list (app + WhatsApp)', () => {
       training_courses: [{ id: 80, level_id: 8, is_active: true }],
       training_modules: [{ id: 801, course_id: 80, is_active: true }],
       teacher_training_progress: [{ user_id: 'u1', module_id: 801 }],
-      training_assessment_attempts: [{ user_id: 'u1', level_id: 8, quiz_kind: 'capstone', grand_quiz_id: 11, is_passed: true, status: 'passed' }],
+      training_assessment_attempts: [{ id: 'cap-1', user_id: 'u1', level_id: 8, quiz_kind: 'capstone', grand_quiz_id: 11, is_passed: true, status: 'passed', program_id: 'p-mh', completed_at: '2026-10-21T09:00:00Z' }],
       training_grand_quizzes: [{ id: 11, level_id: 8, quiz_type: 'capstone', is_active: true, source_quiz_id: 8 }],
       training_certificates: [],
       training_questions: [],
+      users: [{ id: 'u1', name: 'Sana' }],
     };
-    const ep = loadEndpoint(async () => ({ issued: true, certificate_code: 'BH1' }));
-    await ep.loadVisibleLevelsWithProgress('u1');
-    expect(guard).toHaveBeenCalledWith(supabase, expect.objectContaining({ userId: 'u1', levelId: 8, programId: 'p-mh' }));
+    const levels = await loadEndpoint().loadVisibleLevelsWithProgress('u1');
+    expect(issued()).toHaveLength(1);
+    expect(issued()[0].row).toEqual(expect.objectContaining({ level_id: 8, program_id: 'p-mh', attempt_id: 'cap-1' }));
+    expect(levels.find(l => l.id === 8).state).toBe('certified');
   });
 });
