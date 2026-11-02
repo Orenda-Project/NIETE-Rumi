@@ -1768,6 +1768,12 @@ async function analyticsScope(req) {
   return { organization, regions, foreignRegions, keepsUnplaced: isDefault, fdeLists: isDefault };
 }
 /** The lists this scope counts against: FDE's (loaded) for FDE's view, none (every tab's v7 rule) for any other. */
+/**
+ * The regions a view's reads are narrowed to: its own, for any organization but FDE's. FDE's view keeps reading every
+ * row (it counts unplaced schools too), so its numbers are read exactly as before. A view that read every school and
+ * session to keep GB's 217 ran past a minute on a cold prod replica and took replicas down (bd-97daxo.12).
+ */
+const readRegions = (scope) => (scope.keepsUnplaced ? null : scope.regions);
 function listsFor(scope) {
   return scope.fdeLists ? loadLists() : Promise.resolve(AnalyticsLists.NO_LISTS);
 }
@@ -1826,7 +1832,7 @@ router.get('/analytics/schools', requirePortalAuth, requireAnalyticsViewer, asyn
     const lists = await listsFor(scope);
     const key = `${scopeKey(scope)}|${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
     const body = await schoolsAnalyticsCache.getOrLoad(key, async () => {
-      const rows = await SchoolsAnalytics.loadSchoolsAnalyticsRows(dbQuery, range, { lists });
+      const rows = await SchoolsAnalytics.loadSchoolsAnalyticsRows(dbQuery, range, { lists, regions: readRegions(scope) });
       return {
         success: true,
         range,
@@ -1976,7 +1982,7 @@ router.get('/analytics/observations', requirePortalAuth, requireAnalyticsViewer,
     const lists = await listsFor(scope);
     const key = `${scopeKey(scope)}|${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
     const body = await observationsAnalyticsCache.getOrLoad(key, async () => {
-      const rows = await ObservationsAnalytics.loadObservationsAnalyticsRows(dbQuery, range);
+      const rows = await ObservationsAnalytics.loadObservationsAnalyticsRows(dbQuery, range, { regions: readRegions(scope) });
       return {
         success: true,
         range,

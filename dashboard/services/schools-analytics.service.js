@@ -439,7 +439,7 @@ const ROSTER_TEACHER = `u.role = 'teacher'
          AND u.school_id IS NOT NULL
          AND u.is_test_user IS NOT TRUE`;
 
-function schoolsSql(bounds) {
+function schoolsSql(bounds, regionParam = null) {
   // Every school, each with its roster in the same read: today's teachers (test accounts
   // out), their LP opens and their training completions in the window. Opens count
   // DIFFERENT plans per teacher; summed over teachers that is distinct (user, kind, ref).
@@ -491,7 +491,8 @@ function schoolsSql(bounds) {
         JOIN users u ON u.id = t.user_id
        WHERE ${ROSTER_TEACHER}
        GROUP BY u.school_id
-    ) trn ON trn.school_id = sch.id`;
+    ) trn ON trn.school_id = sch.id${regionParam ? `
+   WHERE sch.region = ANY(${regionParam}::text[])` : ''}`;
 }
 
 /**
@@ -578,7 +579,7 @@ const SCHOOLS_ONLY_SQL = `
  */
 const NOT_FICO_SCORED = new Set(['hots']);
 
-function sessionsSql(bounds) {
+function sessionsSql(bounds, regionParam = null) {
   // One row per counted session — ids and flags only, no analysis_data (see the header).
   // A teacher with no school is read too (v8: she counts in her RDF sector's No-school row); v7
   // drops her session, as before, because it names no counted school.
@@ -591,7 +592,8 @@ function sessionsSql(bounds) {
    WHERE u.role = 'teacher'
      AND ((c.observation_type IS NULL AND c.status = 'completed')
           OR (c.observation_type = '${HUMAN_OBSERVATION}' AND c.status IN ${TERMINAL}))
-     AND ${windowClause('c.created_at', [bounds.fromTs, bounds.toTs])}`;
+     AND ${windowClause('c.created_at', [bounds.fromTs, bounds.toTs])}${regionParam ? `
+     AND u.school_id IN (SELECT id FROM schools WHERE region = ANY(${regionParam}::text[]))` : ''}`;
 }
 
 // The fields of a FICO section the score read keeps — what sectionPct reads, nothing else —
@@ -646,9 +648,12 @@ function sectionsOf(row) {
  *
  * @returns {Promise<{sessions: Array<{id, school_id, user_id, is_test, observation_type, pct, sections}>, scoreReads: number}>}
  */
-async function loadCountedSessions(query, range, { memo = defaultMemo } = {}) {
+async function loadCountedSessions(query, range, { memo = defaultMemo, regions = null } = {}) {
   const bounds = windowBounds(range);
-  const sessionRes = await query(sessionsSql(bounds), present(bounds.fromTs, bounds.toTs));
+  const instants = present(bounds.fromTs, bounds.toTs);
+  const sessionRes = regions
+    ? await query(sessionsSql(bounds, `$${instants.length + 1}`), [...instants, regions])
+    : await query(sessionsSql(bounds), instants);
   const sessions = (sessionRes.rows || []).map((r) => ({ ...r, updated_at: stamp(r.updated_at) }));
 
   const waits = new Set();
@@ -701,10 +706,11 @@ async function loadCountedSessions(query, range, { memo = defaultMemo } = {}) {
  *
  * @param {(sql: string, params?: any[]) => Promise<{rows: any[]}>} query
  * @param {{from: string|null, to: string|null}} range
- * @param {{memo?: ReturnType<typeof createScoreMemo>}} [opts]
+ * @param {{memo?: ReturnType<typeof createScoreMemo>, lists?: object, regions?: string[]}} [opts] regions: a non-FDE
+ *   view's own regions — only their schools and sessions are read, never the whole deployment's (null = FDE's view)
  * @returns {Promise<{schools: any[], sessions: any[], scoreReads: number}>}
  */
-async function loadSchoolsAnalyticsRows(query, range, { memo = defaultMemo, lists = null } = {}) {
+async function loadSchoolsAnalyticsRows(query, range, { memo = defaultMemo, lists = null, regions = null } = {}) {
   const bounds = windowBounds(range);
   const instants = present(bounds.fromTs, bounds.toTs);
   const population = populationSectors(lists);
@@ -714,7 +720,7 @@ async function loadSchoolsAnalyticsRows(query, range, { memo = defaultMemo, list
     const [schoolRes, teacherRes, counted] = await Promise.all([
       query(SCHOOLS_ONLY_SQL, []),
       query(teachersSql(bounds, `$${instants.length + 1}`), [...instants, ids]),
-      loadCountedSessions(query, range, { memo }),
+      loadCountedSessions(query, range, { memo, regions }),
     ]);
     return {
       schools: schoolRes.rows || [],
@@ -724,8 +730,8 @@ async function loadSchoolsAnalyticsRows(query, range, { memo = defaultMemo, list
     };
   }
   const [schoolRes, counted] = await Promise.all([
-    query(schoolsSql(bounds), instants),
-    loadCountedSessions(query, range, { memo }),
+    regions ? query(schoolsSql(bounds, `$${instants.length + 1}`), [...instants, regions]) : query(schoolsSql(bounds), instants),
+    loadCountedSessions(query, range, { memo, regions }),
   ]);
 
   return {
