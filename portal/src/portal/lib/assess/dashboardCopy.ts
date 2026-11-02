@@ -92,6 +92,7 @@ const en = {
     back: 'Back', end_section: 'End section', end_test: 'End test', restart: 'Restart',
     silence_repeat: 'Silence repeat', incomplete_move_on: 'Moved on: part not finished',
     under20_move_on: 'Under 20% move-on (earlier rule)',
+    skip_instructions: 'Skipped instructions', // round 9 item 3
   } as Record<string, string>,
   stopBy: { child: 'child', coach: 'coach', app: 'app' } as Record<string, string>,
   colCoach: 'Coach',
@@ -215,6 +216,7 @@ const ur: DashCopy = {
     back: 'واپس', end_section: 'حصہ ختم', end_test: 'جائزہ ختم', restart: 'دوبارہ شروع',
     silence_repeat: 'خاموشی پر دہرایا', incomplete_move_on: 'آگے بڑھایا: حصہ مکمل نہیں ہوا',
     under20_move_on: '⁦۲۰⁩٪ سے کم، آگے بڑھایا (پہلا اصول)',
+    skip_instructions: 'ہدایات چھوڑ دی گئیں', // round 9 item 3
   },
   stopBy: { child: 'بچہ', coach: 'کوچ', app: 'ایپ' },
   colCoach: 'کوچ',
