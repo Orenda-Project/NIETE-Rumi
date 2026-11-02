@@ -41,9 +41,13 @@ const SCANNED_FILES = [path.join(ROOT, 'bot', 'whatsapp-bot.js')];
 // template default is intentional (env overrides it) and must not be flagged.
 // `web-quiz-brand.js` is the web quiz's brand TABLE: each brand's name is data a
 // deployment selects by configuration (app_settings / ORG_NAME), not a self-name.
+// `fa-video.template.js` is a copy of a WhatsApp template body Meta has already
+// approved, sign-off included. The body sent must match the approved text exactly,
+// so it cannot route through `botName`; renaming it means a new template version.
 const SKIP_FILES = new Set([
   path.join(ROOT, 'bot', 'shared', 'config', 'branding.js'),
   path.join(ROOT, 'bot', 'shared', 'config', 'web-quiz-brand.js'),
+  path.join(ROOT, 'bot', 'shared', 'templates', 'fa-video.template.js'),
 ]);
 
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '__mocks__', '__snapshots__']);
