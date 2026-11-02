@@ -160,16 +160,16 @@ def read_target(cur, src):
            "session_ids": present("coaching_sessions",
                                   [gb.niete_id("coaching_sessions", s["id"]) for s in src["sessions"]])}
 
-    # Prerequisites: the GB region row (V1.8.5) and every column this run writes.
+    # Prerequisites: the GB region row (V1.8.8) and every column this run writes.
     pre = {}
     cur.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' "
                 "AND table_name = 'region_features' AND column_name IN ('organization', 'display_name')")
     row = None
-    if len(cur.fetchall()) == 2:            # before V1.8.5 the columns themselves are absent
+    if len(cur.fetchall()) == 2:            # before V1.8.8 the columns themselves are absent
         cur.execute("SELECT organization, display_name FROM region_features WHERE region = 'gilgit-baltistan'")
         row = cur.fetchone()
     if not row or row.get("organization") != "moawin" or row.get("display_name") != gb.GB_REGION:
-        pre["region_registry_missing_gb"] = ["apply V1.8.5__region_registry.sql to this database first"]
+        pre["region_registry_missing_gb"] = ["apply V1.8.8__region_registry.sql to this database first"]
     for table, cols in WRITTEN.items():
         cur.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' "
                     "AND table_name = %s", (table,))
