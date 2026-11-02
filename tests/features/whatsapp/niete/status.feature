@@ -1,6 +1,6 @@
 @whatsapp @ict @profile:niete @feature:status @persona:teacher
 Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
-  # Non-determinism: see .claude/qa/shared/non-determinism-contract.md (assert contracts/shape; @content-driven answers resolved live).
+  # Non-determinism: see .claude/qa/engine/bin/non-determinism-contract.md (assert contracts/shape; @content-driven answers resolved live).
   # ICT-region only. Driven from a linked WhatsApp Web session via Chrome MCP.
   # /status is a cross-feature snapshot: "what do I have in flight, and stop any of it."
   # In-flight work is probed by teacher-state.service.js: coaching (non-terminal, last hour),

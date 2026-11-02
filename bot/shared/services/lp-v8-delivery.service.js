@@ -441,6 +441,18 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
     } catch (err) {
       logToFile('LP v8: coaching ask not scheduled (non-fatal)', { userId, lessonId, error: err.message });
     }
+    // The topic-end nudge (bd-pw1ccr.4): taking the plan for a topic's last day books "Make my paper".
+    // Its own try, so it can never cost the coaching ask or the PDF.
+    try {
+      await require('./nudges/topic-end-nudge.service').onLessonDelivered({
+        userId,
+        lessonId,
+        deliveredAt: new Date().toISOString(),
+        assetKind: asset.asset_kind || 'lesson',
+      });
+    } catch (err) {
+      logToFile('LP v8: topic nudge not scheduled (non-fatal)', { userId, lessonId, error: err.message });
+    }
   }
 
   if (!ok) {

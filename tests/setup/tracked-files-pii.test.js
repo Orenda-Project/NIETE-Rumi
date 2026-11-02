@@ -28,7 +28,7 @@ describe('the rule (executed on in-memory strings)', () => {
   });
 
   test('test and fixture paths are out of scope; code, docs and the ledger are in', () => {
-    for (const p of ['tests/setup/x.test.js', 'bot/tests/a.js', 'bot/x/fixtures/y.json', 'a/b.spec.ts', '.claude/qa/shared/test_ledger.py', '.claude/qa/shared/test_mock_api.js', 'portal/src/x/tests/h.tsx', 'bot/shared/database/__mocks__/m.js', 'scripts/qa/e2e-web.test.sh']) {
+    for (const p of ['tests/setup/x.test.js', 'bot/tests/a.js', 'bot/x/fixtures/y.json', 'a/b.spec.ts', '.claude/qa/engine/bin/test_ledger.py', '.claude/qa/engine/bin/test_mock_api.js', 'portal/src/x/tests/h.tsx', 'bot/shared/database/__mocks__/m.js', 'scripts/qa/e2e-web.test.sh']) {
       expect(isTestPath(p)).toBe(true);
     }
     for (const p of [LEDGER, 'bot/shared/services/x.js', 'docs/a.md', '.github/workflows/ci.yml']) {

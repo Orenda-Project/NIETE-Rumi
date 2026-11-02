@@ -10,6 +10,7 @@
  *
  * Red-first: fails before the driver exists (Cannot find module).
  */
+const { testWithEngine } = require('./engine');   // the shared engine, borrowed (bd-9157r.1)
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -64,7 +65,7 @@ describe('child-test driver: honest BLOCKED until the code lands', () => {
     expect(r.CT07.evidence.reason).toMatch(/^pending L3\+L4\+L5\+L6:.*child-test-check-endpoint\.js/);
   });
 
-  test('only L3+L4 landed → list scenarios pass the lane check, scoring and Flow scenarios stay pending', async () => {
+  testWithEngine('only L3+L4 landed → list scenarios pass the lane check, scoring and Flow scenarios stay pending', async () => {
     const { out, rec } = collect();
     await driver.run({ api: {}, rec, root: tmpRoot(['L3', 'L4']), env: {}, stack: { runDir: () => '' } });
     const r = byId(out);
@@ -74,7 +75,7 @@ describe('child-test driver: honest BLOCKED until the code lands', () => {
     expect(out.every((x) => x.verdict === 'BLOCKED')).toBe(true);
   });
 
-  test('a production Supabase URL is refused before anything is written', async () => {
+  testWithEngine('a production Supabase URL is refused before anything is written', async () => {
     const { out, rec } = collect();
     const env = { NIETE_SANDBOX_SUPABASE_URL: 'https://ihzciabopbttygxxgrkm.supabase.co', NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY: 'k', E2E_DRIVER: '923000000001' };
     const fetchSpy = jest.fn();
@@ -123,7 +124,7 @@ describe('child-test driver: the gate, driven against a scripted bot', () => {
     return { api, stack, st };
   }
 
-  test('flag off is inert, a teacher is denied, a non-ICT coach gets nothing, a school with no class list is told so', async () => {
+  testWithEngine('flag off is inert, a teacher is denied, a non-ICT coach gets nothing, a school with no class list is told so', async () => {
     const { out, rec } = collect();
     const { api, stack } = scriptedBot();
     const env = { NIETE_SANDBOX_SUPABASE_URL: 'https://olvritwoqujtjvwfulbh.supabase.co', NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY: 'k', E2E_DRIVER: '923000000001' };
@@ -144,7 +145,7 @@ describe('child-test driver: the gate, driven against a scripted bot', () => {
     expect(ls[ls.length - 1].method).toBe('DELETE');
   });
 
-  test('a failing CHILD_TEST_ENABLED restart blocks the rest with the reason instead of driving a gated-off bot', async () => {
+  testWithEngine('a failing CHILD_TEST_ENABLED restart blocks the rest with the reason instead of driving a gated-off bot', async () => {
     const { out, rec } = collect();
     const { api } = scriptedBot();
     const stack = { runDir: () => '/run', restart: async (_p, e) => (e.CHILD_TEST_ENABLED === 'true' ? { ok: false, err: 'boom' } : { ok: true }) };
