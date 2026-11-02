@@ -167,6 +167,11 @@
         var micReady = rec ? rec.ready() : Promise.resolve(false);
         var cancelSilence = null;
         var cancelVoice = null;
+        function meterOpts() {
+          var mo = w3.r8_ios_mic === true ? { ios: true } : null;
+          if (w3.r9_audio === true) { mo = mo || {}; mo.no_aec = true; }
+          return mo || undefined;
+        }
         function endVoice() { if (cancelVoice) { try { cancelVoice(); } catch (_) { /* ended */ } cancelVoice = null; } }
         // A recording still open when the phone goes back (the last spoken answer, a coach's early end) is closed
         // first, so its final marker is on the phone before the last flush and it goes up with it.
@@ -266,7 +271,8 @@
           } : undefined,
           // round 8 (battery.ui.r8_ios_mic): the meter's AudioContext made inside the tap, for iPhones
           micProbe: micMod ? function () { return micMod.probe(2000, w3.r8_ios_mic === true ? { ios: true } : undefined); } : null,
-          micLevel: micMod ? function (cb) { return micMod.level(cb, w3.r8_ios_mic === true ? { ios: true } : undefined); } : null,
+          // round 9 (battery.ui.r9_audio): a meter's own microphone without echo cancellation (no call mode)
+          micLevel: micMod ? function (cb) { return micMod.level(cb, meterOpts()); } : null,
           manual: manual, passage_punct: w3.passage_punct === true, opening: opts.opening || null, section_recording: w3.section_recording === true,
           coach_last_word: w3.coach_last_word === true, lastWordHint: lastWordHint, auto_child_last_word: w3.auto_child_last_word === true,
           app_asks: manual && w3.app_asks === true,
