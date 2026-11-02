@@ -294,12 +294,13 @@ describe('bd-bos0ki (d) — the rubric never reaches a client', () => {
     });
   });
 
-  test('loadQuestionBank is NOT widened: the shared bank projection stays free of rubric and text', async () => {
+  test('loadQuestionBank is NOT widened with the rubric: the shared bank projection stays free of it', async () => {
     await svc.routeOpenEndedAnswer('923000000000', ANSWER);
     const bankSelect = selects.find(c => c && c.includes('bloom_level'));
     expect(bankSelect).toBeDefined();
     expect(bankSelect).not.toContain('rubric');
-    expect(bankSelect).not.toContain('question_text');
+    // bd-arghnv.3 widened it with question_text on purpose: a blank-stem row is dropped from the bank
+    // before anything is drawn from it. The rubric still comes only from loadQuestionForGrading.
   });
 
   test('every client-facing training_questions select in the portal and endpoints is free of `rubric`', () => {

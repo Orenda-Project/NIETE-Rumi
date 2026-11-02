@@ -50,6 +50,7 @@
  */
 
 const { makeRng, seededShuffle } = require('../../utils/seeded-random');
+const { hasQuestionStem } = require('./question-stem.rules');
 
 /** Module-quiz strategies. Add here + to the training_vendors CHECK, together. */
 const STRATEGY_ALL = 'all';
@@ -190,12 +191,15 @@ function selectRandomCapped(questions, attemptId, cap) {
 /**
  * The served question set for an attempt.
  *
+ * A question with a blank stem is never chosen (bd-arghnv.3), whoever loaded the bank: the loaders
+ * drop and log them too, this is the line no caller can skip.
+ *
  * @param {object[]} questions full active bank, any order
  * @param {{attemptId: string, isModuleQuiz: boolean, config: object}} opts
  * @returns {object[]} the questions to serve, in presentation order
  */
 function selectServedQuestions(questions, { attemptId, isModuleQuiz, config } = {}) {
-  const all = Array.isArray(questions) ? questions : [];
+  const all = Array.isArray(questions) ? questions.filter(hasQuestionStem) : [];
   if (all.length === 0) return [];
   const cfg = config || DEFAULT_SERVING_CONFIG;
 
