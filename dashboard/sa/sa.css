@@ -520,3 +520,10 @@ button{font:inherit;color:inherit}
 .sae[lang=ur] .sae-end.is-r8-endfit .sae-h1{line-height:2;padding-top:0}
 @media (max-height:760px){.sae-end.is-r8-endfit .sae-jugnu{width:120px;height:120px}}
 @media (max-height:600px){.sae-end.is-r8-endfit .sae-jugnu{width:88px;height:88px}}
+
+/* Round 9 item 3 (r9_skip_instructions, RDF manual): the coach's Skip instructions. A coach control (dashed, like the
+   coach's boxes), smaller than the hand-over and under it; on a practice screen it sits in the Practice row, clear of
+   the answers. Tap target 56 px. */
+.sae.is-r9-skip .sae-r9-skip{width:auto;max-width:100%;min-height:56px;padding:6px 18px;font-size:18px;font-weight:700;border-style:dashed;box-shadow:none}
+.sae.is-r9-skip[lang=ur] .sae-r9-skip{font-size:20px;line-height:2;padding:4px 18px}
+.sae.is-r9-skip .sae-row .sae-r9-skip{flex:0 1 auto}

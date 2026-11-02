@@ -241,6 +241,20 @@ describe("LeaderAssessDashboard: round 7b filters and stops (sa_dash_filters)", 
     expect(b.getAttribute("data-total")).toBe("2");
   });
 
+  it("round 9 item 3: a coach's skip_instructions is a skip of its own, counted and listed with its label", async () => {
+    api.getSwitches.mockResolvedValue({ realDashboard: true, dashFilters: true });
+    const f = fixture();
+    f.sessions[4].stops = [{ ...stop("skip_instructions", "2026-10-23T04:05:00Z", "ur.letter_names5", "coach"), data: { by: "coach", from: "practice", practice_left: 1 } }];
+    api.getSessions.mockResolvedValue(f);
+    renderPage();
+    const stops = await screen.findByTestId("dash-stops");
+    expect(within(stops).getByTestId("dash-stop-total-skip_instructions")).toHaveTextContent(/Skipped instructions\s*1/);
+    const items = within(within(stops).getByTestId("dash-stops-list")).getAllByTestId("dash-stops-item");
+    expect(items.find((i) => i.getAttribute("data-type") === "skip_instructions")).toHaveTextContent(/Skipped instructions · coach · Letter names \(Urdu\)/);
+    const a = within(within(stops).getByTestId("dash-stops-by-coach")).getAllByTestId("dash-stops-coach-row").find((r) => r.getAttribute("data-coach") === "coach-a") as HTMLElement;
+    expect(a.getAttribute("data-total")).toBe("8"); // the fixture's 7, and this skip
+  });
+
   it("item 15: children from the random draw vs added by the coach, in total and per coach (most added first), with the filters", async () => {
     api.getSwitches.mockResolvedValue({ realDashboard: true, dashFilters: true });
     const f = fixture();

@@ -35,7 +35,8 @@ import { GRADES, rwpOrf } from '../lib/assess/rwpNorms';
  * are left out of everything by default, and one toggle, "Include practice schools", adds them back.
  */
 // Amendment 1: the completion rule's incomplete_move_on replaced under20_move_on; an old under20_move_on still lists
-const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on'] as const;
+// Round 9 item 3: skip_instructions, the coach skipped a part's instructions (coach-led RDF)
+const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on', 'skip_instructions'] as const;
 const LISTED_STOPS = [...STOP_TYPES, 'under20_move_on'];
 const STOPS_SHOWN = 300;
 
