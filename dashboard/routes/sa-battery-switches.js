@@ -67,6 +67,15 @@
  *                           recording only, so no echo-cancelled input holds the phone in call mode while Jugnu speaks
  *                           (dashboard/sa/sa-rec.js idle_release).
  *
+ *   Round 9 (the reviewer's 2 Nov list), the test screens, one per item, each ON adds battery.ui.r9_<flag> = true:
+ *   sa_r9_question_time     item 4: every per-question wait that moves a question on by itself is doubled, never under
+ *                           30 s; Next still moves on early. A part with its own clock (the one-minute reads and sums,
+ *                           the measure) keeps its timings.
+ *   sa_r9_comp_text         item 6: the story's questions are written on the screen as well as spoken.
+ *   sa_r9_scroll_cue        item 7: a screen whose content runs past the bottom shows a scroll cue until the end is in view.
+ *   sa_r9_skip_instructions item 3: coach-led (RDF manual), the coach can skip a part's instructions (never the part);
+ *                           one skip_instructions event on the session.
+ *
  * Pure: applySwitches(battery, on) never changes its input.
  */
 const SWITCHES = {
@@ -91,6 +100,8 @@ const SWITCHES = {
   r8IosMic: 'sa_r8_ios_mic',
   // round 9
   r9Audio: 'sa_r9_audio',
+  r9QuestionTime: 'sa_r9_question_time', r9CompText: 'sa_r9_comp_text', r9ScrollCue: 'sa_r9_scroll_cue',
+  r9SkipInstructions: 'sa_r9_skip_instructions',
 };
 const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual', voiceGateV2: 'voice_gate_v2',
   compAllQuestions: 'comp_all_questions', cellPace: 'cell_pace',
@@ -103,7 +114,9 @@ const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManu
   r8LatinDigits: 'r8_latin_digits', r8MissingNumber: 'r8_missing_number', r8Layout: 'r8_layout', r8StorySnap: 'r8_story_snap',
   r8Nudges: 'r8_nudges', r8Highlight: 'r8_highlight', r8LangSwitch: 'r8_lang_switch',
   r8ReadingPosition: 'r8_reading_position', r8TimeupContinue: 'r8_timeup_continue', r8Counts: 'r8_counts',
-  r8IosMic: 'r8_ios_mic', r9Audio: 'r9_audio' };
+  r8IosMic: 'r8_ios_mic', r9Audio: 'r9_audio',
+  r9QuestionTime: 'r9_question_time', r9CompText: 'r9_comp_text', r9ScrollCue: 'r9_scroll_cue',
+  r9SkipInstructions: 'r9_skip_instructions' };
 const { applyR7a } = require('./sa-r7a-content');
 const { withCounts } = require('../../bot/shared/services/child-test/sa/counts');
 
