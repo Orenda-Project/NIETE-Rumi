@@ -1,0 +1,2 @@
+{"ts":"2026-11-02T12:26:26Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching,portal-login,teacher-home,portal-smoke spec_sync=true","sha":"c480a58820c3","branch":"bd-pw1ccr.26-16273","user":""}
+{"ts":"2026-11-02T12:26:30Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-pw1ccr.26-16273: lesson-plan spec: NOT UPDATED e2e: missing;coaching spec: NOT UPDATED e2e: missing;portal-login web lane spec: NOT UPDATED e2e: missing","sha":"c480a58820c3","branch":"bd-pw1ccr.26-16273","user":""}
