@@ -86,6 +86,9 @@ const SKIP_REASONS = Object.freeze([
   // no longer uses the teacher app the button opens.
   'already_nudged_topic',
   'not_on_app',
+  // A held topic-end nudge (bd-pw1ccr.26): she tapped the portal card, or made the paper herself.
+  'card_used',
+  'made_paper',
 ]);
 
 /** What a teacher can have answered. `class:<key>` is the list-row pick. */
@@ -314,6 +317,24 @@ async function recordAnswer(id, { choice, quizId = null } = {}) {
 }
 
 /** A teacher's nudges, newest day first. Serves the weekly cap and the declined streak. */
+/**
+ * Skip every pending row of `kind` for one topic (context.topic_id), guarded on status so a row the
+ * sweeper has already claimed is left alone. Throws on an unknown reason before touching a row.
+ * Returns how many rows it skipped.
+ */
+async function skipPendingForTopic({ userId, kind, topicId, reason }) {
+  if (!SKIP_REASONS.includes(reason)) {
+    throw new Error(`teacher_nudges: unknown skip reason "${reason}" — add it to SKIP_REASONS`);
+  }
+  const rows = await rowsFor(userId, { kind });
+  let skipped = 0;
+  for (const r of rows) {
+    if (r.status !== STATUS.PENDING || !r.context || r.context.topic_id !== topicId) continue;
+    if (await patchRow(r.id, { status: STATUS.SKIPPED }, { skip_reason: reason }, ['status', STATUS.PENDING])) skipped += 1;
+  }
+  return skipped;
+}
+
 async function rowsFor(userId, { kind = null, fromDate = null, toDate = null } = {}) {
   let q = supabase.from(TABLE).select('*').eq('user_id', userId);
   if (kind) q = q.eq('kind', kind);
@@ -376,6 +397,7 @@ async function byId(id) {
 }
 
 module.exports = {
+  skipPendingForTopic,
   TABLE,
   KINDS,
   STATUS,

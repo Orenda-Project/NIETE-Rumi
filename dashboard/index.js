@@ -2843,6 +2843,8 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-thing-to-try.routes'));
 // bd-fmf24g.15 — teacher app v2: what she asked for that takes a while (strip, ready banner, Home's "Ready for you").
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-notices.routes'));
+// bd-pw1ccr.26 — teacher Home's "Make my paper" card while her topic-end nudge is held (window shut).
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-topic-paper.routes'));
 // bd-fmf24g.30 — Send on WhatsApp from a teacher-app screen (template only; the bot answers the real result).
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-share.routes'));
 // Teacher Home card — the teacher Home's one card, scores row and per-teacher order (behind portal_teacher_home_card / _order).
