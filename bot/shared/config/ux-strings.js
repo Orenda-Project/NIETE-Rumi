@@ -220,6 +220,12 @@ const UX_STRINGS = {
     en: '{n} min · tap the link under this picture',
     ur: '{n} منٹ · اس تصویر کے نیچے لنک دبائیں',
   },
+  // bd-22gf7p (COS 20261031T144349 §2): window closed, the report goes as the clip template, whose "Watch the clip" URL
+  // button sits under the image (video-reco/clip-button.js). Only on that path; every fallback gets the app hint.
+  videoRecoStripHintTemplate: {
+    en: '{n} min · tap the button under this picture',
+    ur: '{n} منٹ · اس تصویر کے نیچے بٹن دبائیں',
+  },
   videoRecoCaptionLink: {
     en: '▶ Watch next ({n} min): {title}',
     ur: '▶\u200F اگلا دیکھیں ({n} منٹ): {title}',

@@ -57,4 +57,16 @@ function videoRecoWaMessage(env = process.env) {
   return on(env.VIDEO_RECO_WA_MESSAGE);
 }
 
-module.exports = { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason, videoRecoCrCard, videoRecoWaMessage };
+/**
+ * The closed-window report template that carries a "Watch the clip" URL button (bd-22gf7p, COS 20261031T144349 §2): the
+ * template's name on this deployment's WABA, e.g. share_dc_report_clip_v1. Unset or blank = null = share_dc_report_v1 as
+ * today (no button anywhere).
+ */
+function videoRecoClipTemplate(env = process.env) {
+  return String(env.VIDEO_RECO_CLIP_TEMPLATE || '').trim() || null;
+}
+
+module.exports = {
+  videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason, videoRecoCrCard, videoRecoWaMessage,
+  videoRecoClipTemplate,
+};

@@ -24,6 +24,11 @@
  *   share_observation_report_v1  IMAGE header (the report) · {{1}} topic {{2}} class line
  * Meta rejects a variable with a newline, a tab or four spaces in a row, and an empty one: every variable is one line
  * and never empty. A missing title falls back to the app's own word for the item, in her language (ux-strings share*).
+ *
+ * bd-22gf7p — the closed-window coaching report only (report-window-send, never the app's Share button): `clip` =
+ * { template, token } sends `template` (VIDEO_RECO_CLIP_TEMPLATE, e.g. share_dc_report_clip_v1: the dc header and body
+ * plus a URL button `<PORTAL_URL>/v/{{1}}`) with the /v token as the button's parameter. Kind 'dc' only; no clip = the
+ * send above, byte for byte.
  */
 
 const { logToFile } = require('../utils/logger');
@@ -224,8 +229,8 @@ function classLineOf(item, lang) {
   return parts.length ? oneLine(parts.join(' · '), 40) : word('shareClassFallback', lang);
 }
 
-/** The template's parameters for one item, in her language. */
-function componentsFor(item, { lang = 'en' } = {}) {
+/** The template's parameters for one item, in her language. `buttonToken`: the dc clip template's URL button (bd-22gf7p). */
+function componentsFor(item, { lang = 'en', buttonToken = null } = {}) {
   const text = (t) => ({ type: 'text', text: t });
   if (item.kind === 'paper' || item.kind === 'lesson') {
     const body = [titleOf(item, lang), item.grade ? String(item.grade) : '-', subjectOf(item, lang)];
@@ -235,10 +240,20 @@ function componentsFor(item, { lang = 'en' } = {}) {
       { type: 'body', parameters: body.map(text) },
     ];
   }
-  return [
+  const out = [
     { type: 'header', parameters: [{ type: 'image', image: { link: item.imageUrl } }] },
     { type: 'body', parameters: [text(titleOf(item, lang)), text(classLineOf(item, lang))] },
   ];
+  if (buttonToken) out.push({ type: 'button', sub_type: 'url', index: '0', parameters: [text(String(buttonToken))] });
+  return out;
+}
+
+/** A usable clip for this send: the dc kind, a template name and a token (bd-22gf7p). Anything else = no clip. */
+function clipOf(kind, clip) {
+  if (kind !== 'dc' || !clip || typeof clip !== 'object') return null;
+  const template = typeof clip.template === 'string' ? clip.template.trim() : '';
+  const token = typeof clip.token === 'string' ? clip.token.trim() : '';
+  return template && token ? { template, token } : null;
 }
 
 function defaultDeps() {
@@ -262,12 +277,12 @@ function defaultDeps() {
  * @param {{ userId: string, kind: string, id: string }} req
  * @returns {Promise<{status:'sent', at:string}|{status:'failed'|'unavailable', reason:string}|{status:'not_found'|'bad_request'}>}
  */
-async function sendShare({ userId, kind, id } = {}, deps) {
+async function sendShare({ userId, kind, id, clip } = {}, deps) {
   if (!userId || !KINDS.includes(kind) || !id || typeof id !== 'string') return { status: 'bad_request' };
   const d = deps || defaultDeps();
   const askedAt = new Date().toISOString();
   const seen = {};
-  const out = await attemptShare({ userId, kind, id }, d, seen);
+  const out = await attemptShare({ userId, kind, id, clip: clipOf(kind, clip) }, d, seen);
   // A lesson plan she sends herself is an ask of its own: its lifecycle row (LP_LIFECYCLE_PATHS on).
   // Never throws, never changes the answer.
   if (kind === 'lesson') await recordLessonShare({ userId, id, seen, out, askedAt });
@@ -275,9 +290,9 @@ async function sendShare({ userId, kind, id } = {}, deps) {
 }
 
 /** The share itself — exactly the send it always was. `seen` collects what the lifecycle row needs. */
-async function attemptShare({ userId, kind, id }, d, seen) {
+async function attemptShare({ userId, kind, id, clip }, d, seen) {
   try {
-    const name = d.templateName(kind);
+    const name = clip ? clip.template : d.templateName(kind);
     if (!name) return { status: 'unavailable', reason: 'not_configured' };
 
     const user = await d.user(userId);
@@ -290,12 +305,12 @@ async function attemptShare({ userId, kind, id }, d, seen) {
 
     const lang = LANGS.includes(user.preferred_language) ? user.preferred_language : 'en';
     seen.lang = lang;
-    const components = componentsFor(item, { lang });
+    const components = componentsFor(item, { lang, buttonToken: clip ? clip.token : null });
     const report = {};
     const ok = (await d.sendTemplate(user.phone_number, name, lang, components, { report })) === true;
     // itemRef names WHAT was shared (lesson:k5:<lessonId>:<assetKind> / lesson:<segmentId>:<lang> / paper:<id> / report:<id>), so a
     // share can be matched to the lesson-open or delivery record of the same item. Ids only, never a title or a phone.
-    try { logEvent(ok ? 'share_send.sent' : 'share_send.refused', { kind, userId, itemRef: item.itemRef || null, template: name, lang, code: report.code || null }); } catch (_) { /* logging never decides */ }
+    try { logEvent(ok ? 'share_send.sent' : 'share_send.refused', { kind, userId, itemRef: item.itemRef || null, template: name, lang, code: report.code || null, ...(clip ? { button: true } : {}) }); } catch (_) { /* logging never decides */ }
     if (ok) return { status: 'sent', at: d.now().toISOString() };
     if (TEMPLATE_GONE.includes(Number(report.code))) return { status: 'unavailable', reason: 'template_missing' };
     return { status: 'failed', reason: 'refused', code: report.code ?? null, message: report.message ?? null }; // bd-v0toag.127
