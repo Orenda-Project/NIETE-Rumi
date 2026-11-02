@@ -47,8 +47,17 @@ function deps() {
     // A ❌ message must be visible to the error-level monitor, so failures go
     // through logError rather than a plain info-level write.
     logError: require('../../utils/logger').logError,
+    // A teacher's keyed reference for a log line, never the raw id. A failed
+    // key never decides the save.
+    teacherRef: (id) => {
+      try { return id ? require('../quiz/web-quiz-kid').tk(id) : null; } catch (_) { return null; }
+    },
   };
 }
+
+// The one reader of users.teacher_level. Pure (no requires, no I/O), so a
+// top-level require keeps this module importable anywhere.
+const { teacherLevelOf } = require('../../utils/teacher-level');
 
 const PROGRAM_PRIMARY = 'niete_primary';
 const PROGRAM_MIDDLE_HIGH = 'niete_middle_high';
@@ -86,6 +95,17 @@ function normalizeBands(selection) {
     if (VALID_BANDS.has(key) && !out.includes(key)) out.push(key);
   }
   return out;
+}
+
+/**
+ * Do two selections name the same bands? Order- and case-insensitive, because
+ * both sides go through normalizeBands — ['high', 'MIDDLE'] stored and
+ * ['MIDDLE', 'HIGH'] submitted are the same answer.
+ */
+function sameBands(a, b) {
+  const x = normalizeBands(a);
+  const y = normalizeBands(b);
+  return x.length === y.length && x.every(k => y.includes(k));
 }
 
 /**
@@ -197,7 +217,7 @@ const SELF_SELECT_TAG = 'teacher_self_select';
  * @returns {Promise<{ok: boolean, reason?: string, message?: string, unchanged?: boolean, programs?: string[]}>}
  */
 async function applyBandSelection(userId, selection, now = Date.now()) {
-  const { supabase, logToFile, logError } = deps();
+  const { supabase, logToFile, logError, teacherRef } = deps();
   const bands = normalizeBands(selection);
 
   // An empty selection is a rejected input, NOT an instruction to revoke
@@ -245,9 +265,18 @@ async function applyBandSelection(userId, selection, now = Date.now()) {
   const toAdd = wantedIds.filter(id => !activeIds.includes(id));
   const toDrop = activeIds.filter(id => !wantedIds.includes(id));
 
-  // Nothing to reconcile — do not stamp a new timestamp, or re-saving an
-  // unchanged selection would start a 48h cooldown for no reason.
-  if (toAdd.length === 0 && toDrop.length === 0) {
+  // "Unchanged" is decided on the BANDS, not only the programmes.
+  //
+  // MIDDLE and HIGH share niete_middle_high, so a teacher switching Middle ->
+  // High, or ticking High beside Middle, has no programme to add or drop. This
+  // used to return `unchanged` whenever the programmes matched — before the
+  // users write — so the portal said "Saved" and the reload showed the old
+  // band: nothing had been stored.
+  const programmesChange = toAdd.length > 0 || toDrop.length > 0;
+  if (!programmesChange && sameBands(teacherLevelOf(user), bands)) {
+    // Nothing to reconcile and nothing new to record — do not stamp a new
+    // timestamp, or re-saving an unchanged selection would start a 48h
+    // cooldown for no reason.
     return { ok: true, unchanged: true, programs: wantedKeys };
   }
 
@@ -279,18 +308,32 @@ async function applyBandSelection(userId, selection, now = Date.now()) {
     }
   }
 
+  // The 48h lock protects ACCESS changes. Different bands with the same
+  // programmes change nothing she can reach, so they are recorded WITHOUT a
+  // stamp and no new lock starts. The cooldown gate above still applies to
+  // them, so a switch while an earlier real change's lock is running is
+  // refused; this only stops a same-programme switch from STARTING a lock.
   const stamp = new Date(now instanceof Date ? now.getTime() : now).toISOString();
+  const patch = programmesChange
+    ? { teacher_level: bands, teacher_level_updated_at: stamp }
+    : { teacher_level: bands };
   const { error: wErr } = await supabase
     .from('users')
-    .update({ teacher_level: bands, teacher_level_updated_at: stamp })
+    .update(patch)
     .eq('id', userId);
   if (wErr) {
+    if (!programmesChange) {
+      // The users row is the ONLY write on this path, so a failure means
+      // nothing was stored. Report it — a "Saved" here is the bug above.
+      logError('Band selection: teacher_level update failed, nothing saved', { tk: teacherRef(userId), error: wErr.message });
+      return { ok: false, reason: 'write_failed', message: 'We could not save that just now. Please try again.' };
+    }
     // Assignments are already correct, so the teacher can train; only the
     // cooldown stamp is missing. Surface it rather than claiming a clean save.
     logToFile('⚠️ Band selection: assignments written but teacher_level update failed', { userId, error: wErr.message });
   }
 
-  logToFile('🎓 Band selection saved', { userId, bands, added: toAdd.length, dropped: toDrop.length });
+  logToFile('🎓 Band selection saved', { userId, bands, added: toAdd.length, dropped: toDrop.length, locked: programmesChange });
   return { ok: true, programs: wantedKeys, added: toAdd.length, dropped: toDrop.length };
 }
 
