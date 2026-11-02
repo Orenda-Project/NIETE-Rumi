@@ -231,14 +231,17 @@ const SCHOOLS_SQL = `
  *
  * @param {(sql: string, params?: any[]) => Promise<{rows: any[]}>} query
  * @param {{from: string|null, to: string|null}} range from analyticsRange (validated YYYY-MM-DD or null)
- * @param {{memo?: object}} [opts] the score memo (schools-analytics' own by default)
+ * @param {{memo?: object, regions?: string[]}} [opts] the score memo (schools-analytics' own by default); regions:
+ *   a non-FDE view's own regions — only their schools and sessions are read (null = every row, FDE's view)
  * @returns {Promise<{schools: any[], sessions: any[], scoreReads: number}>}
  */
 async function loadObservationsAnalyticsRows(query, range = {}, opts = {}) {
   const r = { from: range.from || null, to: range.to || null };
+  const regions = opts.regions || null;
   const [schoolRes, counted] = await Promise.all([
-    query(SCHOOLS_SQL, []),
-    loadCountedSessions(query, r, opts.memo ? { memo: opts.memo } : undefined),
+    regions ? query(`${SCHOOLS_SQL}
+   WHERE region = ANY($1::text[])`, [regions]) : query(SCHOOLS_SQL, []),
+    loadCountedSessions(query, r, { ...(opts.memo ? { memo: opts.memo } : {}), regions }),
   ]);
   return {
     schools: schoolRes.rows || [],
