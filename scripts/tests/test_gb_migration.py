@@ -227,7 +227,8 @@ class Sessions(unittest.TestCase):
         self.assertEqual(r["framework"], "hots")
         self.assertEqual(r["status"], "observer_review_complete")
         self.assertFalse(r["can_resume"])
-        self.assertEqual(r["analysis_data"], s["analysis_data"])
+        kept = {k: v for k, v in r["analysis_data"].items() if k != "teacher_delivery"}
+        self.assertEqual(kept, s["analysis_data"])
 
     def test_main_rumi_only_links_are_dropped_and_columns_are_niete_ones(self):
         r = gb.transform_session(session(2, self.t, fw="oecd"), self.ids, set())
@@ -242,6 +243,42 @@ class Sessions(unittest.TestCase):
         self.assertIsNone(gb.transform_session(session(3, person(9)), self.ids, set()))
         r = gb.transform_session(session(4, self.t, observer=person(8)), self.ids, set())
         self.assertIsNone(r["observer_user_id"])
+
+    # Main Rumi started these deliveries. Once the rows sit in NIETE prod, NIETE's sweepers would chase them
+    # from the NIETE number (untapped-report chase, undelivered-report chase, debrief retry) before GB moves.
+    def test_an_unfinished_teacher_delivery_arrives_closed(self):
+        for n, td in enumerate([{"status": "awaiting_teacher_tap", "template_sent_at": "2026-10-20T09:00:00Z"},
+                                {"status": "awaiting_confirm"}, {"status": "previewing"}, None], start=10):
+            analysis = {"framework": "hots", **({"teacher_delivery": td} if td else {})}
+            s = session(n, self.t, observer=self.fmo, status="observer_review_complete", analysis_data=analysis)
+            r = gb.transform_session(s, self.ids, set(), closed_at="2026-11-02T10:00:00+00:00")
+            got = r["analysis_data"]["teacher_delivery"]
+            self.assertEqual(got["gave_up_at"], "2026-11-02T10:00:00+00:00", td)
+            self.assertEqual(got["gave_up_reason"], "main_rumi_import", td)
+            for k, v in (td or {}).items():
+                self.assertEqual(got[k], v)               # what main Rumi recorded is kept
+
+    def test_a_finished_teacher_delivery_and_a_plain_session_are_untouched(self):
+        for td in ({"status": "sent", "sent_at": "x"}, {"status": "awaiting_teacher_tap", "tapped_at": "y"},
+                   {"status": "awaiting_confirm", "gave_up_at": "z", "gave_up_reason": "expired"}):
+            s = session(20, self.t, observer=self.fmo, status="observer_review_complete",
+                        analysis_data={"framework": "hots", "teacher_delivery": td})
+            r = gb.transform_session(s, self.ids, set(), closed_at="now")
+            self.assertEqual(r["analysis_data"]["teacher_delivery"], td)
+        r = gb.transform_session(session(21, self.t), self.ids, set(), closed_at="now")   # not a leader observation
+        self.assertNotIn("teacher_delivery", r["analysis_data"])
+
+    def test_a_pending_debrief_arrives_skipped_so_the_retry_sweep_leaves_it(self):
+        s = session(22, self.t, observer=self.fmo, status="observer_review_complete", debrief_status="pending")
+        self.assertEqual(gb.transform_session(s, self.ids, set(), closed_at="now")["debrief_status"], "skipped")
+        s = session(23, self.t, observer=self.fmo, status="observer_review_complete", debrief_status="done")
+        self.assertEqual(gb.transform_session(s, self.ids, set(), closed_at="now")["debrief_status"], "done")
+
+    def test_the_plan_closes_with_the_run_stamp(self):
+        s = session(24, self.t, observer=self.fmo, status="observer_review_complete")
+        p = gb.plan(source([self.t, self.fmo], sessions=[s]), target(), fake=True, migrated_at="2026-11-02T10:00:00+00:00")
+        td = p["coaching_sessions"][0]["analysis_data"]["teacher_delivery"]
+        self.assertEqual(td["gave_up_at"], "2026-11-02T10:00:00+00:00")
 
     def test_duplicate_link_kept_only_inside_the_migrated_set(self):
         dup = "30000000-0000-4000-8000-000000000099"

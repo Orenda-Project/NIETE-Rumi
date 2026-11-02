@@ -34,7 +34,7 @@ const TEACHER = 'bbbbbbbb-0000-4000-8000-000000000002';
 const SIX = ['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol'];
 const GB = 'Gilgit-Baltistan';
 
-/** region_features as V1.8.5 leaves it: the six under 'niete', GB under 'moawin', the 'niete' LP row not a region. */
+/** region_features as V1.8.8 leaves it: the six under 'niete', GB under 'moawin', the 'niete' LP row not a region. */
 const { REGION_REGISTRY_ROWS: REGISTRY } = require('./helpers/region-registry-rows');
 
 // ── a supabase stand-in (the route tests' chain, plus a per-row read error for one app_settings key) ──
@@ -564,7 +564,7 @@ describe('the registry decides, and it fails closed', () => {
 });
 
 describe('one list of FDE\'s six sectors', () => {
-  it('every dashboard copy IS dashboard/lib/analytics-lists SECTORS (the one V1.8.5 seeds for niete — tests/region)', () => {
+  it('every dashboard copy IS dashboard/lib/analytics-lists SECTORS (the one V1.8.8 seeds for niete — tests/region)', () => {
     jest.resetModules();
     const { SECTORS } = require('../../dashboard/lib/analytics-lists');
     expect([...SECTORS]).toEqual(SIX);
