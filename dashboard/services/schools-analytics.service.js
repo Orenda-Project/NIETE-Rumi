@@ -79,16 +79,20 @@
  *   teachersUsedLp    distinct population teachers with one ("x of N"; also as teachersOpenedLp).
  *   every other count the same definitions, over the population teachers placed as above.
  * A list that is missing (null) keeps its v7 rule (the loader has logged it).
+ *
+ * WHOSE REGIONS (bd-97daxo.3). "The six sectors" above is the default: every summariser takes opts.regions, the
+ * regions the viewer's organization owns (the region registry, read by the route), and counts ONLY schools in those
+ * — so FDE's account sees its six and a Gilgit-Baltistan account sees Gilgit-Baltistan, neither ever the other's.
+ * No regions passed = FDE's six (dashboard/lib/analytics-lists SECTORS); an empty list counts nothing.
  */
 
 const { getOverall } = require('./coaching-frameworks.service');
 const { HUMAN_OBSERVATION, FICO_SECTIONS, sectionPct } = require('./steps-grid.service');
 // Imported, never respelled: two spellings of "finished" is how observations went missing once.
 const { TERMINAL } = require('./leader-patch.service');
-const { onFdeList, populationSectors, noSchoolId } = require('../lib/analytics-lists');
+const { SECTORS, onFdeList, populationSectors, noSchoolId } = require('../lib/analytics-lists');
 
-/** The six ICT sectors as schools.region stores them — the only regions counted. */
-const SECTORS = Object.freeze(['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol']);
+/** FDE's six ICT sectors (THE copy, analytics-lists) — the regions counted when a caller names none. */
 const REGION_BUCKETS = SECTORS;
 
 const SECTOR_BY_LOWER = new Map(SECTORS.map((s) => [s.toLowerCase(), s]));
@@ -96,23 +100,33 @@ const SECTOR_BY_LOWER = new Map(SECTORS.map((s) => [s.toLowerCase(), s]));
 /** niete_lp_opens has rows from this Pakistan day on; earlier windows undercount opens. */
 const LP_OPENS_LOGGED_SINCE = '2026-10-04';
 
-/** schools.region → its sector, or null for a school outside the six (it is not counted). */
-function bucketOf(region) {
+/**
+ * schools.region (or users.region, or an RDF sector) → the region of `regions` it names, in that list's spelling, or
+ * null for a value outside them (it is not counted). Case and surrounding space do not matter.
+ * @param {string|null} region
+ * @param {readonly string[]} [regions] the viewer's regions; FDE's six when omitted
+ */
+function bucketOf(region, regions = SECTORS) {
   if (typeof region !== 'string') return null;
-  return SECTOR_BY_LOWER.get(region.trim().toLowerCase()) || null;
+  const v = region.trim().toLowerCase();
+  if (regions === SECTORS) return SECTOR_BY_LOWER.get(v) || null;
+  return regions.find((r) => typeof r === 'string' && r.trim().toLowerCase() === v) || null;
 }
 
 /**
- * The ?region= filter. Blank or "all" is every region; a sector in any case is that
- * sector; anything else ("unassigned" included) is refused rather than guessed at.
+ * The ?region= filter. Blank or "all" is every region; one of `regions` in any case is that
+ * region; anything else ("unassigned", or another organization's region) is refused rather than
+ * guessed at.
+ * @param {unknown} raw
+ * @param {readonly string[]} [regions] the viewer's regions; FDE's six when omitted
  * @returns {{ok: true, region: string|null, key: string} | {ok: false}}
  */
-function parseRegionFilter(raw) {
+function parseRegionFilter(raw, regions = SECTORS) {
   if (raw === undefined || raw === null) return { ok: true, region: null, key: 'all' };
   if (typeof raw !== 'string') return { ok: false };
   const v = raw.trim().toLowerCase();
   if (v === '' || v === 'all') return { ok: true, region: null, key: 'all' };
-  const sector = SECTOR_BY_LOWER.get(v);
+  const sector = bucketOf(v, regions);
   return sector ? { ok: true, region: sector, key: sector } : { ok: false };
 }
 
@@ -200,10 +214,10 @@ const rollup = (acc) => ({ schools: acc.schools, ...metrics(acc) });
 const metricsV8 = (a) => ({ ...metrics(a), lpsUsed: a.lpsOpened, teachersUsedLp: a.teachersOpenedLp });
 const rollupV8 = (acc) => ({ schools: acc.schools, ...metricsV8(acc) });
 
-/** The v7 school rule, and (v8) FDE's list on top when it is usable. */
-function countedSchoolBucket(s, lists) {
+/** The v7 school rule within `regions` (FDE's six when omitted), and (v8) FDE's list on top when it is usable. */
+function countedSchoolBucket(s, lists, regions = SECTORS) {
   if (!s || s.is_active !== true || s.is_probable_test === true) return null;
-  const bucket = bucketOf(s.region);
+  const bucket = bucketOf(s.region, regions);
   if (!bucket || !onFdeList(lists, s.emis)) return null;
   return bucket;
 }
@@ -216,14 +230,16 @@ function countedSchoolBucket(s, lists) {
  *   sessions?: Array<{school_id, user_id, is_test, observation_type, pct}>
  * }} rows  a school row carries its own roster numbers, test teachers already left out
  *          by the read; a missing number is 0
- * @param {{region?: string|null}} [opts] a bucket name from parseRegionFilter, or null for all
+ * @param {{region?: string|null, lists?: object|null, regions?: readonly string[]}} [opts] region: a bucket name
+ *   from parseRegionFilter, or null for all; regions: the viewer's regions (FDE's six when omitted)
  * @returns {{overview: object, regions: object[], schools: object[]}}
  */
 function summarizeSchoolsAnalytics(rows = {}, opts = {}) {
   const filter = opts.region || null;
   const lists = opts.lists || null;
+  const regions = opts.regions || REGION_BUCKETS;
   const population = populationSectors(lists);
-  if (population) return summarizeV8(rows, filter, lists, population);
+  if (population) return summarizeV8(rows, filter, lists, population, regions);
 
   // Included schools only: active, not a probable test school, and in one of the six
   // sectors (v8: and on FDE's list, when that list is usable). The roster arrives on the
@@ -231,7 +247,7 @@ function summarizeSchoolsAnalytics(rows = {}, opts = {}) {
   // fall out below.
   const bySchool = new Map();
   for (const s of rows.schools || []) {
-    const bucket = countedSchoolBucket(s, lists);
+    const bucket = countedSchoolBucket(s, lists, regions);
     if (!bucket) continue;
     const acc = emptyAcc();
     acc.teachers = count(s.teachers);
@@ -259,7 +275,7 @@ function summarizeSchoolsAnalytics(rows = {}, opts = {}) {
     }
   }
 
-  const regionAcc = new Map(REGION_BUCKETS.map((b) => [b, emptyAcc()]));
+  const regionAcc = new Map(regions.map((b) => [b, emptyAcc()]));
   const overviewAcc = emptyAcc();
   const schools = [];
 
@@ -279,13 +295,13 @@ function summarizeSchoolsAnalytics(rows = {}, opts = {}) {
     });
   }
 
-  const order = new Map(REGION_BUCKETS.map((b, i) => [b, i]));
+  const order = new Map(regions.map((b, i) => [b, i]));
   schools.sort((a, b) => (order.get(a.region) - order.get(b.region))
     || String(a.name || '').localeCompare(String(b.name || '')));
 
   return {
     overview: rollup(overviewAcc),
-    regions: REGION_BUCKETS.map((b) => ({ region: b, ...rollup(regionAcc.get(b)) })),
+    regions: regions.map((b) => ({ region: b, ...rollup(regionAcc.get(b)) })),
     schools,
   };
 }
@@ -293,12 +309,13 @@ function summarizeSchoolsAnalytics(rows = {}, opts = {}) {
 /**
  * v8, the teacher lists usable: one row per population teacher (rows.teachers: user_id, school_id,
  * lps_used, training_modules) placed on her school's row or her RDF sector's No-school row; sessions of
- * population teachers only, placed the same way. PURE.
+ * population teachers only, placed the same way. PURE. A population teacher whose RDF sector is not one of
+ * `regions` is not counted (FDE's lists name only FDE's six, which are FDE's regions).
  */
-function summarizeV8(rows, filter, lists, population) {
+function summarizeV8(rows, filter, lists, population, regions) {
   const bySchool = new Map();
   for (const s of rows.schools || []) {
-    const bucket = countedSchoolBucket(s, lists);
+    const bucket = countedSchoolBucket(s, lists, regions);
     if (bucket) bySchool.set(s.id, { school: s, bucket, acc: emptyAcc(), dcTeacherIds: new Set() });
   }
   const noSchool = new Map();
@@ -311,6 +328,7 @@ function summarizeV8(rows, filter, lists, population) {
 
   const teacherRow = new Map((rows.teachers || []).filter(Boolean).map((t) => [String(t.user_id), t]));
   for (const [uid, sector] of population) {
+    if (!regions.includes(sector)) continue;
     const t = teacherRow.get(uid) || {};
     const e = place(t.school_id, sector);
     const lps = count(t.lps_used);
@@ -323,7 +341,7 @@ function summarizeV8(rows, filter, lists, population) {
   }
 
   for (const s of rows.sessions || []) {
-    if (!s || !population.has(s.user_id)) continue;
+    if (!s || !population.has(s.user_id) || !regions.includes(population.get(s.user_id))) continue;
     const e = place(s.school_id, population.get(s.user_id));
     const pct = typeof s.pct === 'number' && Number.isFinite(s.pct) ? s.pct : null;
     if (s.observation_type === null || s.observation_type === undefined) {
@@ -336,7 +354,7 @@ function summarizeV8(rows, filter, lists, population) {
     }
   }
 
-  const regionAcc = new Map(REGION_BUCKETS.map((b) => [b, emptyAcc()]));
+  const regionAcc = new Map(regions.map((b) => [b, emptyAcc()]));
   const overviewAcc = emptyAcc();
   const schools = [];
   const add = (e, row) => {
@@ -354,14 +372,14 @@ function summarizeV8(rows, filter, lists, population) {
     add(e, { schoolId: noSchoolId(e.bucket), emis: null, name: null, noSchool: true });
   }
 
-  const order = new Map(REGION_BUCKETS.map((b, i) => [b, i]));
+  const order = new Map(regions.map((b, i) => [b, i]));
   schools.sort((a, b) => (order.get(a.region) - order.get(b.region))
     || (a.noSchool ? 1 : 0) - (b.noSchool ? 1 : 0)
     || String(a.name || '').localeCompare(String(b.name || '')));
 
   return {
     overview: rollupV8(overviewAcc),
-    regions: REGION_BUCKETS.map((b) => ({ region: b, ...rollupV8(regionAcc.get(b)) })),
+    regions: regions.map((b) => ({ region: b, ...rollupV8(regionAcc.get(b)) })),
     schools,
   };
 }
@@ -553,6 +571,13 @@ const SCHOOLS_ONLY_SQL = `
   SELECT id, name, emis, region, is_active, is_probable_test
     FROM schools`;
 
+/**
+ * Frameworks whose scores are not FICO's (bd-97daxo.10): Gilgit-Baltistan's coaching history, migrated from main
+ * Rumi, is scored on HOTS. 'oecd' is NOT here: FDE's populations hold oecd-era sessions that its averages have
+ * always taken in, and re-basing FDE's numbers is not this change.
+ */
+const NOT_FICO_SCORED = new Set(['hots']);
+
 function sessionsSql(bounds) {
   // One row per counted session — ids and flags only, no analysis_data (see the header).
   // A teacher with no school is read too (v8: she counts in her RDF sector's No-school row); v7
@@ -560,7 +585,7 @@ function sessionsSql(bounds) {
   return `
   SELECT c.id, c.updated_at, c.user_id, u.school_id,
          (u.is_test_user IS TRUE) AS is_test,
-         c.observation_type
+         c.observation_type, c.framework
     FROM coaching_sessions c
     JOIN users u ON u.id = c.user_id
    WHERE u.role = 'teacher'
@@ -652,7 +677,9 @@ async function loadCountedSessions(query, range, { memo = defaultMemo } = {}) {
 
   return {
     sessions: sessions.map((s) => {
-      const hit = memo.get(s.id, s.updated_at);
+      // A session scored on another rubric still counts as an observation, but its percentage is not
+      // a FICO one, so it carries no score into the FICO / HITL / section averages (bd-97daxo.10).
+      const hit = NOT_FICO_SCORED.has(s.framework) ? null : memo.get(s.id, s.updated_at);
       return {
         id: s.id,
         school_id: s.school_id,

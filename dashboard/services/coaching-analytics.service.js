@@ -51,6 +51,10 @@
  *                   count, its names (coachNames) and its sectors, whatever leader_schools says. The overview
  *                   counts the entries in scope. Visits are unchanged (any role-coach visit at a counted school).
  *   The roster missing (null) keeps the v7 coaches above.
+ *
+ * WHOSE REGIONS (bd-97daxo.3): "the six sectors" is the default; opts.regions — the regions the viewer's
+ * organization owns, from the region registry — replaces it, so a school, its visits and its coaches count only in
+ * the viewer's regions (schools-analytics.service's rule). A roster entry outside them is not counted.
  */
 
 const {
@@ -65,10 +69,10 @@ const nameOf = (v) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ') : '
 const byName = (a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }) || (a < b ? -1 : a > b ? 1 : 0);
 
 /**
- * The school's sector when it is counted (active, not a probable test, in the six — and, v8, on FDE's
- * list when that list is usable), else null.
+ * The school's sector when it is counted (active, not a probable test, in the viewer's regions — and, v8, on
+ * FDE's list when that list is usable), else null.
  */
-const countedBucket = (s, lists) => countedSchoolBucket(s, lists);
+const countedBucket = (s, lists, regions) => countedSchoolBucket(s, lists, regions);
 
 // ── the pure summariser ──────────────────────────────────────────────────────
 
@@ -77,21 +81,23 @@ const countedBucket = (s, lists) => countedSchoolBucket(s, lists);
  *   schools?: Array<{id, name, emis, region, is_active, is_probable_test, coach_visits}>,
  *   coachSchools?: Array<{coach_id, school_id, coach_name}>
  * }} rows  coachSchools already holds only non-test coaches; a missing number is 0
- * @param {{region?: string|null}} [opts] a bucket name from parseRegionFilter, or null for all
+ * @param {{region?: string|null, lists?: object|null, regions?: readonly string[]}} [opts] region: a bucket name
+ *   from parseRegionFilter, or null for all; regions: the viewer's regions (FDE's six when omitted)
  * @returns {{overview: object, regions: object[], schools: object[]}}
  */
 function summarizeCoachingAnalytics(rows = {}, opts = {}) {
   const filter = opts.region || null;
   const src = rows || {};
   const lists = opts.lists || null;
+  const regionList = opts.regions || REGION_BUCKETS;
   const roster = lists && Array.isArray(lists.coaches) ? lists.coaches : null;
 
   const bucketBySchool = new Map();
-  const regionAcc = new Map(REGION_BUCKETS.map((b) => [b, { coaches: new Map(), coachVisits: 0, schoolsVisited: 0, schools: 0 }]));
+  const regionAcc = new Map(regionList.map((b) => [b, { coaches: new Map(), coachVisits: 0, schoolsVisited: 0, schools: 0 }]));
   const schools = [];
 
   for (const s of src.schools || []) {
-    const bucket = countedBucket(s, lists);
+    const bucket = countedBucket(s, lists, regionList);
     if (!bucket) continue;
     bucketBySchool.set(s.id, bucket);
     const visits = count(s.coach_visits);
@@ -129,11 +135,11 @@ function summarizeCoachingAnalytics(rows = {}, opts = {}) {
     if (!filter || bucket === filter) overviewCoaches.add(p.coach_id);
   }
 
-  const order = new Map(REGION_BUCKETS.map((b, i) => [b, i]));
+  const order = new Map(regionList.map((b, i) => [b, i]));
   schools.sort((a, b) => (order.get(a.region) - order.get(b.region))
     || String(a.name || '').localeCompare(String(b.name || '')));
 
-  const regions = REGION_BUCKETS.map((b) => {
+  const regions = regionList.map((b) => {
     const acc = regionAcc.get(b);
     return {
       region: b,

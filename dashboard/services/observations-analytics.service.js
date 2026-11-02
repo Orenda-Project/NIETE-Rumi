@@ -48,6 +48,10 @@
  * RDF populations (Primary ∪ 6-12, no test filter — the RDF's), on her school's row when that school is counted
  * and in her RDF sector, else on her RDF sector's "No school" row (noSchool: true, schoolId 'no-school:<sector>',
  * no EMIS or name; it adds to no `schools` count), so sectors still sum to the total.
+ *
+ * WHOSE REGIONS (bd-97daxo.3): "the six sectors" is the default; opts.regions — the regions the viewer's
+ * organization owns, from the region registry — replaces it (schools-analytics.service's rule). A v8 population
+ * teacher whose RDF sector is outside them is not counted.
  */
 
 const {
@@ -123,20 +127,22 @@ function metrics(acc) {
  *   schools?: Array<{id, name, emis, region, is_active, is_probable_test}>,
  *   sessions?: Array<{school_id, user_id, is_test, observation_type, sections: {b, c, d}}>
  * }} rows
- * @param {{region?: string|null}} [opts] a bucket name from parseRegionFilter, or null for all
+ * @param {{region?: string|null, lists?: object|null, regions?: readonly string[]}} [opts] region: a bucket name
+ *   from parseRegionFilter, or null for all; regions: the viewer's regions (FDE's six when omitted)
  * @returns {{dc: {overview, regions, schools}, human: {overview, regions, schools}}}
  */
 function summarizeObservationsAnalytics(rows = {}, opts = {}) {
   const filter = opts.region || null;
   const src = rows || {};
+  const regionList = opts.regions || REGION_BUCKETS;
 
   const lists = opts.lists || null;
   const population = populationSectors(lists);
 
-  // Counted schools only: active, not a probable test, in one of the six sectors (v8: on FDE's list).
+  // Counted schools only: active, not a probable test, in the viewer's regions (v8: on FDE's list).
   const bySchool = new Map();
   for (const s of src.schools || []) {
-    const bucket = countedSchoolBucket(s, lists);
+    const bucket = countedSchoolBucket(s, lists, regionList);
     if (!bucket) continue;
     bySchool.set(s.id, { school: s, bucket, acc: { dc: emptyAcc(), human: emptyAcc() } });
   }
@@ -149,6 +155,7 @@ function summarizeObservationsAnalytics(rows = {}, opts = {}) {
     if (population) {
       if (!s || !population.has(s.user_id)) continue;
       const sector = population.get(s.user_id);
+      if (!regionList.includes(sector)) continue;
       entry = s.school_id != null ? bySchool.get(s.school_id) : null;
       if (!entry || entry.bucket !== sector) {
         if (!noSchool.has(sector)) noSchool.set(sector, { school: null, bucket: sector, noSchool: true, acc: { dc: emptyAcc(), human: emptyAcc() } });
@@ -164,14 +171,14 @@ function summarizeObservationsAnalytics(rows = {}, opts = {}) {
     }
   }
 
-  const order = new Map(REGION_BUCKETS.map((b, i) => [b, i]));
+  const order = new Map(regionList.map((b, i) => [b, i]));
   const entries = [...bySchool.values(), ...noSchool.values()].sort((a, b) => (order.get(a.bucket) - order.get(b.bucket))
     || (a.noSchool ? 1 : 0) - (b.noSchool ? 1 : 0)
     || String((a.school && a.school.name) || '').localeCompare(String((b.school && b.school.name) || '')));
 
   const out = {};
   for (const kind of Object.keys(KINDS)) {
-    const regionAcc = new Map(REGION_BUCKETS.map((b) => [b, { schools: 0, acc: emptyAcc(), schoolAccs: [] }]));
+    const regionAcc = new Map(regionList.map((b) => [b, { schools: 0, acc: emptyAcc(), schoolAccs: [] }]));
     const overview = { schools: 0, acc: emptyAcc() };
     const schools = [];
     for (const e of entries) {
@@ -195,7 +202,7 @@ function summarizeObservationsAnalytics(rows = {}, opts = {}) {
         ...metrics(acc),
       });
     }
-    const regions = REGION_BUCKETS.map((b) => {
+    const regions = regionList.map((b) => {
       const r = regionAcc.get(b);
       return { region: b, schools: r.schools, ...metrics(r.acc), ...sectorSections(r.schoolAccs) };
     });

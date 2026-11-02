@@ -231,3 +231,19 @@ describe('aggregatePresence', () => {
     expect(out.droppedTeacherIds).toHaveLength(20);
   });
 });
+
+describe('bd-97daxo.3 — the export stays FDE-only when Gilgit-Baltistan (Moawin) joins the deployment', () => {
+  test('drops a Gilgit-Baltistan teacher in any spelling, and still writes B.K as Barakahu', () => {
+    const day = '2026-10-28';
+    const row = (teacher_id, region) => ({
+      id: `r-${teacher_id}`, teacher_id, school_id: null, date: day, status: 'present', leave_type: null,
+      teacher: { id: teacher_id, phone_number: `92300${teacher_id}`, school_id: null, region },
+    });
+    const out = aggregatePresence([
+      row('1', 'B.K'), row('2', 'Gilgit-Baltistan'), row('3', 'gilgit-baltistan'), row('4', ' Gilgit-Baltistan '), row('5', 'Nilore'),
+    ], day);
+    expect(out.rows.map((r) => [r.teacher_id, r.sector])).toEqual([['1', 'Barakahu'], ['5', 'Nilore']]);
+    expect(out.droppedCount).toBe(3);
+    expect(out.droppedTeacherIds.sort()).toEqual(['2', '3', '4']);
+  });
+});

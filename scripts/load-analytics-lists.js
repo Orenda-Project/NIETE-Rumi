@@ -39,7 +39,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const SECTORS = Object.freeze(['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol']);
+// FDE's six sectors — THE copy in dashboard/lib/analytics-lists (bd-97daxo.3); the lists name these only.
+const { SECTORS } = require('../dashboard/lib/analytics-lists');
 
 const KEYS = Object.freeze({
   schools: 'analytics_fde_schools',
@@ -326,6 +327,7 @@ function main() {
 if (require.main === module) main();
 
 module.exports = {
+  SECTORS,
   KEYS,
   norm,
   buildTeacherLists,
