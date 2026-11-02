@@ -79,7 +79,9 @@ beforeEach(() => {
     return lesson ? { lesson, chapter: CHAPTER, book: BOOK } : null;
   });
   listChapterTopics.mockResolvedValue(TOPICS);
+  jest.spyOn(Date, 'now').mockReturnValue(Date.parse(MON_11AM) + 30 * 60 * 1000); // analysis lands 30 min later
 });
+afterEach(() => jest.restoreAllMocks());
 
 describe('which lesson the recording was taught from', () => {
   test('the plan linked to the session: books the nudge, trigger recording, from the recording time', async () => {
@@ -168,5 +170,25 @@ describe('one nudge a teacher a topic, across both triggers', () => {
     expect(again.context.trigger).toBe('recording');
     expect(await Nudge.send(again, { now: new Date('2026-11-03T09:30:00Z') }))
       .toEqual(expect.objectContaining({ skipped: 'already_nudged_topic' }));
+  });
+});
+
+describe('a stale recording', () => {
+  test('a recording whose analysis lands hours late (a backlog or a re-run) books nothing', async () => {
+    Date.now.mockReturnValue(Date.parse(MON_11AM) + Recording.STALE_RECORDING_MS + 60 * 1000);
+    const out = await Recording.onRecording({ session: session({ lesson_plan_structured: linked(LAST_OF_B) }) });
+    expect(out).toEqual({ scheduled: false, reason: 'stale_recording' });
+    expect(await nudges()).toHaveLength(0);
+  });
+
+  test('a recording with no time on it books nothing', async () => {
+    const out = await Recording.onRecording({ session: session({ created_at: null, lesson_plan_structured: linked(LAST_OF_B) }) });
+    expect(out).toEqual({ scheduled: false, reason: 'stale_recording' });
+  });
+
+  test('inside the window it still books', async () => {
+    Date.now.mockReturnValue(Date.parse(MON_11AM) + Recording.STALE_RECORDING_MS - 60 * 1000);
+    const out = await Recording.onRecording({ session: session({ lesson_plan_structured: linked(LAST_OF_B) }) });
+    expect(out).toEqual(expect.objectContaining({ scheduled: true }));
   });
 });
