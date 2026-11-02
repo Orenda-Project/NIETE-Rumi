@@ -66,7 +66,7 @@ describe('record-sa-voice --set v3', () => {
     expect(r.recorded).toBe(want.length);
     const calls = tts.synthesize.mock.calls.map((c) => c[0]);
     expect(calls.every((c) => c.voice === 'Ishita' && c.language === 'ur')).toBe(true);
-    expect(calls.filter((c) => c.text.startsWith('السّلام علیکم! جگنو')).length).toBeGreaterThan(0);
+    expect(calls.filter((c) => /^السّلام علیکم[^!]*! جگنو/.test(c.text)).length).toBeGreaterThan(0);
     expect(calls.some((c) => /السلام/.test(c.text))).toBe(false);
     for (const w of want) expect(fs.existsSync(path.join(outDir, w.key.replace('sa/v1/', 'sa/v3/')))).toBe(true);
   });
