@@ -142,6 +142,39 @@ test('a re-run skips teachers already sent this template', async () => {
   expect(r).toMatchObject({ audience: 4, alreadySent: 4, toSend: 0 });
 });
 
+test('a re-run also skips teachers whose send has since moved to delivered or read', async () => {
+  const t = tables(true);
+  await run(['--live', '--video', 'v.mp4'], deps(fakeDb(t)));
+  t.broadcast_messages.forEach((m, i) => { m.status = i % 2 ? 'read' : 'delivered'; });
+  const d2 = deps(fakeDb(t));
+  const r = await run(['--live', '--video', 'v.mp4'], d2);
+  expect(d2.send).not.toHaveBeenCalled();
+  expect(r).toMatchObject({ sent: 0 });
+});
+
+test('a re-run retries only the failed sends', async () => {
+  const t = tables(true);
+  await run(['--live', '--video', 'v.mp4'], deps(fakeDb(t), { send: jest.fn().mockResolvedValueOnce({ ok: false, error: 'x' }).mockResolvedValue({ ok: true, id: 'wamid.X' }) }));
+  const d2 = deps(fakeDb(t));
+  await run(['--live', '--video', 'v.mp4'], d2);
+  expect(d2.send).toHaveBeenCalledTimes(1);
+});
+
+test('a phone already sent under another account is not sent again', async () => {
+  const t = tables(true);
+  t.broadcast_logs.push({ id: 'old', template_name: 'niete_fa_video_ab_v1' });
+  t.broadcast_messages.push({ broadcast_id: 'old', user_id: 'gone', phone_number: '9230000001', status: 'sent' });
+  const r = await run([], deps(fakeDb(t)));
+  expect(r).toMatchObject({ audience: 4, alreadySent: 1, toSend: 3 });
+});
+
+test('every paged read is ordered, so no teacher is skipped or doubled between pages', async () => {
+  const t = tables(true);
+  await run(['--live', '--video', 'v.mp4'], deps(fakeDb(t)));
+  const r = await run([], deps(fakeDb(t, { strictPaging: true })));
+  expect(r).toMatchObject({ audience: 4, alreadySent: 4, toSend: 0 });
+});
+
 test('--to sends only to operator/test numbers, needs no switch, writes no log rows', async () => {
   const db = fakeDb(tables(false));
   const d = deps(db);
