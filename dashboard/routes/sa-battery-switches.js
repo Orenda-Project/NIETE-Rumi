@@ -63,6 +63,9 @@
  *                           (bot/shared/services/child-test/sa/counts.js, which the scorer reads too).
  *   sa_r8_ios_mic           the game's mic check on an iPhone: the meter's AudioContext is made inside the tap and resumed
  *                           (dashboard/sa/sa-mic.js); the coach's pre-flight reads the same row (portal /sa/switches).
+ *   sa_r9_audio             round 9 item 2 (Jugnu very low on some phones): the recorder opens the microphone for each
+ *                           recording only, so no echo-cancelled input holds the phone in call mode while Jugnu speaks
+ *                           (dashboard/sa/sa-rec.js idle_release).
  *
  * Pure: applySwitches(battery, on) never changes its input.
  */
@@ -86,6 +89,8 @@ const SWITCHES = {
   r8StorySnap: 'sa_r8_story_snap', r8Nudges: 'sa_r8_nudges', r8Highlight: 'sa_r8_highlight', r8LangSwitch: 'sa_r8_lang_switch',
   r8ReadingPosition: 'sa_r8_reading_position', r8TimeupContinue: 'sa_r8_timeup_continue', r8Counts: 'sa_r8_counts',
   r8IosMic: 'sa_r8_ios_mic',
+  // round 9
+  r9Audio: 'sa_r9_audio',
 };
 const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual', voiceGateV2: 'voice_gate_v2',
   compAllQuestions: 'comp_all_questions', cellPace: 'cell_pace',
@@ -98,7 +103,7 @@ const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManu
   r8LatinDigits: 'r8_latin_digits', r8MissingNumber: 'r8_missing_number', r8Layout: 'r8_layout', r8StorySnap: 'r8_story_snap',
   r8Nudges: 'r8_nudges', r8Highlight: 'r8_highlight', r8LangSwitch: 'r8_lang_switch',
   r8ReadingPosition: 'r8_reading_position', r8TimeupContinue: 'r8_timeup_continue', r8Counts: 'r8_counts',
-  r8IosMic: 'r8_ios_mic' };
+  r8IosMic: 'r8_ios_mic', r9Audio: 'r9_audio' };
 const { applyR7a } = require('./sa-r7a-content');
 const { withCounts } = require('../../bot/shared/services/child-test/sa/counts');
 
