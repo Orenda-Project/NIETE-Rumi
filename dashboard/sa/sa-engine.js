@@ -162,7 +162,8 @@
         // The microphone: asked once, up front, only when the battery has something to record (the passage, the
         // spoken answers). One recording per passage, one per spoken answer ("<task>/<item>").
         var needsMic = battery.tasks.some(function (t) { return t.mode === 'record' || t.mode === 'oral'; });
-        var rec = needsMic && recMod ? recMod.create({ store: store, session_id: sessionId }) : null;
+        // round 9 (battery.ui.r9_audio): the microphone is open only while a recording runs, never while Jugnu speaks
+        var rec = needsMic && recMod ? recMod.create(w3.r9_audio === true ? { store: store, session_id: sessionId, idle_release: true } : { store: store, session_id: sessionId }) : null;
         var micReady = rec ? rec.ready() : Promise.resolve(false);
         var cancelSilence = null;
         var cancelVoice = null;
