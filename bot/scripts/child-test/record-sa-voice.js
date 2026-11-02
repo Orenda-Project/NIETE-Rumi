@@ -145,16 +145,17 @@ async function runV4(args, { synth, level, out, outDir, dataDir, env }) {
   }
   const tashdeed = new Map(voicedWithTashdeed(rows).map((r) => [r.key, r.say]));
   const sum = (r) => r.role === 'item' && P.withEquals(r.text, r.lang) !== r.text;
+  const ops = (r) => r.role === 'item' && !sum(r) && P.withEnglishOps(r.text, r.lang) !== r.text;
   // [slowly] is an eleven_v3 tag: the sound respelling goes to ElevenLabs only.
   const sound = (r) => args.provider === 'elevenlabs' && P.withSounds(r.text, r.lang) !== r.text;
   const praise = (r) => args.provider === 'elevenlabs' && P.isPraise(r.text);
   const jobs = rows
-    .filter((r) => r.lang === args.lang && (!args.only || r.role === args.only) && (!args.sums || sum(r)) && (!args.sounds || sound(r))
+    .filter((r) => r.lang === args.lang && (!args.only || r.role === args.only) && (!args.sums || sum(r) || ops(r)) && (!args.sounds || sound(r))
       && (!args.praise || praise(r)))
     .map((r) => {
-      const said = sum(r) ? P.withEquals(r.text, r.lang) : sound(r) ? P.withSounds(r.text, r.lang) : (tashdeed.get(r.key) || r.text);
+      const said = sum(r) ? P.withEquals(r.text, r.lang) : ops(r) ? P.withEnglishOps(r.text, r.lang) : sound(r) ? P.withSounds(r.text, r.lang) : (tashdeed.get(r.key) || r.text);
       const spoken = args.provider === 'soniox' ? Voice.sayAs(said, args.lang, { voice })
-        : P.spellEnglishNumbers(said);
+        : P.spellEnglishNumbers(P.withEnglishWords(said, args.lang));
       const text = praise(r) ? `[excited] ${spoken}` : P.withTag(args.provider, r.role, spoken, voice);
       return { ...r, key: r.key.replace(/^sa\/v1\//, 'sa/v4/'), job: { provider: args.provider, voice, speed, lang: args.lang, text } };
     });
