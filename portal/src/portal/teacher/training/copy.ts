@@ -161,6 +161,7 @@ export const TRAINING_INNER_UR: TrainingWords = {
   levelCertificate: 'درجے کا سرٹیفکیٹ',
   exams: (done?: number, total?: number) => `${done ?? 0}/${total ?? 0} امتحان`,
   receive: 'حاصل کریں',
+  previousFirst: (name?: string) => `پہلے \u2068${name ?? ''}\u2069`,
   download: 'ڈاؤن لوڈ',
   myScores: 'میرے اسکور',
   notTaken: 'نہیں دیا',

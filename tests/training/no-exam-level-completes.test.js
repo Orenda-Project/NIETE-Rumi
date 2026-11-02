@@ -122,9 +122,22 @@ describe('bd-2503 — a certificate is what makes a no-exam level terminal', () 
     expect(s.body).not.toMatch(/finish all sessions/i);
   });
 
-  it('finished but not yet certified is not falsely marked certified', async () => {
+  // bd-arghnv.1 — fetch-or-issue: a finished level with no certificate asks the
+  // guard on view. "Certified" still means a certificate: when the guard refuses
+  // (here a quick check under the 70% bar), the level is not marked certified.
+  it('finished, but the guard refuses: not falsely marked certified', async () => {
     seed({ allDone: true, certified: false });
+    tableStates.training_assessment_attempts={rows:[
+      {user_id:UID,level_id:LEVEL,training_module_id:172,quiz_kind:'training_module',score:1,total_questions:5,is_passed:false},
+    ]};
     const lv=(await ep().loadVisibleLevelsWithProgress(UID)).find(l=>l.id===LEVEL);
     expect(lv.state).not.toBe('certified');
+  });
+
+  it('finished and qualifying, with none held: the certificate is issued on view', async () => {
+    seed({ allDone: true, certified: false });
+    const lv=(await ep().loadVisibleLevelsWithProgress(UID)).find(l=>l.id===LEVEL);
+    expect(lv.state).toBe('certified');
+    expect(supabaseFrom.mock.calls.filter(([t]) => t === 'training_certificates').length).toBeGreaterThan(1);
   });
 });

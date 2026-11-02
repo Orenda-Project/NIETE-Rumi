@@ -4250,9 +4250,32 @@ async function _levelCertificateState(userId, levelId) {
   // the bot's guard (certify-level) still makes the final call on tap.
   const grade = null;
 
+  // bd-arghnv.2 — I-SAPS locks the certificate, not the level (operator, 2 Nov):
+  // a level's certificate waits for the level below's. Named here so the row
+  // says so, instead of offering a Receive the bot's guard will refuse.
+  let needsPrevious = null;
+  if (perModule.length) {
+    const { data: lvl } = await supabase
+      .from('training_levels').select('vendor_id, order_index').eq('id', levelId).maybeSingle();
+    const { data: siblings } = lvl
+      ? await supabase.from('training_levels').select('id, name, order_index')
+        .eq('vendor_id', lvl.vendor_id).eq('is_active', true)
+      : { data: [] };
+    const below = (siblings || [])
+      .filter(l => l.order_index != null && l.order_index < lvl.order_index)
+      .sort((a, b) => b.order_index - a.order_index)[0];
+    if (below) {
+      const { data: belowHeld } = await supabase
+        .from('training_certificates').select('certificate_code')
+        .eq('user_id', userId).eq('level_id', below.id).limit(1);
+      if (!(Array.isArray(belowHeld) && belowHeld.length > 0)) needsPrevious = below.name;
+    }
+  }
+
   return {
     state: 'locked',
     certificate: null,
+    needs_previous: needsPrevious,
     units_total: unitIds.length,
     units_done: unitIds.filter(id => doneIds.has(id)).length,
     exams_total: perModule.length,

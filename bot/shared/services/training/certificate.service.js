@@ -240,14 +240,105 @@ async function certifyOnLevelExam(supabase, { userId, level, programId }) {
 }
 
 /**
+ * The level's active units, and whether she has finished every one. A
+ * teacher_training_progress row means the unit's quick check was PASSED (or it
+ * had no quiz, bd-2390), so "every unit has a row" is "every unit done".
+ * A level with no active units is unbuilt, not done.
+ */
+async function levelUnits(supabase, userId, levelId) {
+  const { data: courses } = await supabase
+    .from('training_courses').select('id').eq('level_id', levelId).eq('is_active', true);
+  const courseIds = (courses || []).map(c => c.id);
+  const { data: modules } = await supabase
+    .from('training_modules').select('id').eq('is_active', true).in('course_id', courseIds);
+  const moduleIds = (modules || []).map(m => m.id);
+  if (moduleIds.length === 0) return { moduleIds, allDone: false };
+  const { data: progress } = await supabase
+    .from('teacher_training_progress').select('module_id').eq('user_id', userId).in('module_id', moduleIds);
+  const done = new Set((progress || []).map(p => p.module_id));
+  return { moduleIds, allDone: moduleIds.every(id => done.has(id)) };
+}
+
+/**
+ * bd-arghnv.1 — the capstone rule (Beacon House): a PASSED written exam at the
+ * level and every unit done certifies it.
+ *
+ * The guard used to answer { issued: false } for any level with a capstone,
+ * because the WhatsApp capstone (capstone-delivery.service) issued its own
+ * certificate. The app's capstone submit asks this guard instead, so from the
+ * day training moved into the app (11 Oct) no Beacon House pass was
+ * certified: 124 levels for 64 teachers on production by 2 Nov, while the
+ * level list read "Certified". The app is now the only exam route, so the rule
+ * lives here, once, for every surface.
+ *
+ * The certificate cites her FIRST passing attempt, and takes its programme
+ * from that attempt when the caller has none (the level list does not).
+ */
+async function certifyOnCapstone(supabase, { userId, level, programId }) {
+  const { data: passes } = await supabase
+    .from('training_assessment_attempts')
+    .select('id, program_id, completed_at')
+    .eq('user_id', userId)
+    .eq('level_id', level.id)
+    .eq('quiz_kind', 'capstone')
+    .eq('is_passed', true)
+    .order('completed_at', { ascending: true });
+  const pass = (Array.isArray(passes) ? passes : [])[0];
+  if (!pass) return { issued: false };
+
+  const { allDone } = await levelUnits(supabase, userId, level.id);
+  if (!allDone) return { issued: false };
+
+  const { data: existingRows } = await supabase
+    .from('training_certificates')
+    .select('certificate_code')
+    .eq('user_id', userId)
+    .eq('level_id', level.id)
+    .limit(1);
+  if (Array.isArray(existingRows) && existingRows.length > 0) return { issued: false };
+
+  const cert = await issueCertificate(supabase, {
+    userId, programId: programId || pass.program_id, levelId: level.id, attemptId: pass.id,
+  });
+  if (cert.issued === false) return { issued: false };
+  return {
+    issued: true,
+    certificate_code: cert.certificate_code,
+    level_name: cert.level_name,
+    teacher_name: cert.teacher_name,
+    pdf_r2_key: cert.pdf_r2_key || null,
+  };
+}
+
+/**
+ * bd-arghnv.2 — I-SAPS locks the CERTIFICATE, not the level (operator, 2 Nov:
+ * "make the lock only on the certificate. Before issuing the new certificate
+ * for Level 2, make sure Level 1 is there"). Level 2 is open to study; its
+ * certificate waits for the Level 1 certificate. The level just below in the
+ * same vendor's order; none for the first level.
+ */
+async function previousLevelCertified(supabase, { userId, level }) {
+  const { data: siblings } = await supabase
+    .from('training_levels').select('id, order_index')
+    .eq('vendor_id', level.vendor_id).eq('is_active', true);
+  const below = (siblings || [])
+    .filter(l => l.order_index != null && level.order_index != null && l.order_index < level.order_index)
+    .sort((a, b) => b.order_index - a.order_index)[0];
+  if (!below) return true;
+  const { data: held } = await supabase
+    .from('training_certificates').select('certificate_code')
+    .eq('user_id', userId).eq('level_id', below.id).limit(1);
+  return Array.isArray(held) && held.length > 0;
+}
+
+/**
  * bd-2234 — quiz-score certificate for all_modules vendors WITHOUT a
  * capstone (Oxbridge). NIETE team rule (21 Jul): complete every module of
  * the level with a best module-quiz score of >= 70% each → certificate.
  * bd-43811 — "each" means each module that WAS quizzed. A module with no
  * attempt row is skipped, not treated as a zero.
- * Beacon House levels certify through the capstone path instead
- * (capstone-delivery.service), so levels WITH an active capstone quiz are
- * excluded here.
+ * Beacon House levels certify on the capstone pass (certifyOnCapstone) and
+ * I-SAPS levels on their module exams; both are decided here too.
  *
  * Fires after a module quiz is graded; cheap early-outs, never throws.
  * @returns {Promise<{issued: boolean, certificate_code?: string, level_name?: string, teacher_name?: string}>}
@@ -276,7 +367,7 @@ async function maybeIssueQuizScoreCertificate(
     let levelRow = null;
     if (levelId !== null && levelId !== undefined) {
       const { data: lvl } = await supabase
-        .from('training_levels').select('id, name, vendor_id').eq('id', levelId).maybeSingle();
+        .from('training_levels').select('id, name, vendor_id, order_index').eq('id', levelId).maybeSingle();
       levelRow = lvl || null;
     } else {
       const { data: mod } = await supabase
@@ -286,7 +377,7 @@ async function maybeIssueQuizScoreCertificate(
         .from('training_courses').select('id, level_id').eq('id', mod.course_id).maybeSingle();
       if (!course) return { issued: false };
       const { data: lvl } = await supabase
-        .from('training_levels').select('id, name, vendor_id').eq('id', course.level_id).maybeSingle();
+        .from('training_levels').select('id, name, vendor_id, order_index').eq('id', course.level_id).maybeSingle();
       levelRow = lvl || null;
     }
     if (!levelRow) return { issued: false };
@@ -305,7 +396,7 @@ async function maybeIssueQuizScoreCertificate(
       return await certifyOnLevelExam(supabase, { userId, level, programId });
     }
 
-    // Capstone levels certify via the capstone pass.
+    // Capstone levels (Beacon House) certify on the capstone pass.
     const { data: capstone } = await supabase
       .from('training_grand_quizzes')
       .select('id')
@@ -313,7 +404,7 @@ async function maybeIssueQuizScoreCertificate(
       .eq('quiz_type', 'capstone')
       .eq('is_active', true)
       .maybeSingle();
-    if (capstone) return { issued: false };
+    if (capstone) return await certifyOnCapstone(supabase, { userId, level, programId });
 
     // A per-module-assessed level certifies on its module EXAMS,
     // not on its unit quick-checks.
@@ -374,9 +465,15 @@ async function maybeIssueQuizScoreCertificate(
         logToFile('🎓 Certificate held — I-SAPS written-answer results not released', { userId, levelId: level.id });
         return { issued: false, held: true };
       }
+      if (!(await previousLevelCertified(supabase, { userId, level }))) {
+        logToFile('🎓 Certificate waits — the previous level has no certificate yet', { userId, levelId: level.id });
+        return { issued: false, reason: 'previous_level' };
+      }
       const cert = await issueCertificate(supabase, {
         userId, programId, levelId: level.id, attemptId,
       });
+      // A failed insert is not a certificate (see issueCertificate).
+      if (cert.issued === false) return { issued: false };
       return {
         issued: true,
         certificate_code: cert.certificate_code,
@@ -387,17 +484,8 @@ async function maybeIssueQuizScoreCertificate(
     }
 
     // Every active module of the level complete?
-    const { data: courses } = await supabase
-      .from('training_courses').select('id').eq('level_id', level.id).eq('is_active', true);
-    const courseIds = (courses || []).map(c => c.id);
-    const { data: modules } = await supabase
-      .from('training_modules').select('id').eq('is_active', true).in('course_id', courseIds);
-    const moduleIds = (modules || []).map(m => m.id);
-    if (moduleIds.length === 0) return { issued: false };
-    const { data: progress } = await supabase
-      .from('teacher_training_progress').select('module_id').eq('user_id', userId).in('module_id', moduleIds);
-    const done = new Set((progress || []).map(p => p.module_id));
-    if (!moduleIds.every(id => done.has(id))) return { issued: false };
+    const { moduleIds, allDone } = await levelUnits(supabase, userId, level.id);
+    if (!allDone) return { issued: false };
 
     // Best quiz score per module must clear the bar.
     const { data: attempts } = await supabase
