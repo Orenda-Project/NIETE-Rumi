@@ -520,3 +520,26 @@ button{font:inherit;color:inherit}
 .sae[lang=ur] .sae-end.is-r8-endfit .sae-h1{line-height:2;padding-top:0}
 @media (max-height:760px){.sae-end.is-r8-endfit .sae-jugnu{width:120px;height:120px}}
 @media (max-height:600px){.sae-end.is-r8-endfit .sae-jugnu{width:88px;height:88px}}
+
+/* Round 9 item 6 (r9_comp_text, .is-r9-comp only): a story question written on the child's screen, large, in its own
+   language (Nastaliq for Urdu with room above its first line for the tall letters), wrapping inside a card. Below it
+   Jugnu, the replay and the mic share one row. On a short phone the task's tag leaves (the question is the heading) and
+   the question's lines tighten, so the question, the mic, "say your answer" and Next are all in view at 360x640. */
+.sae.is-r9-comp .sae-r9-qbox{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%}
+.sae.is-r9-comp .sae-r9-q{margin:0;width:100%;max-width:30ch;padding:10px 16px;border-radius:var(--sae-r);background:var(--sae-card);border:2px solid var(--sae-line);font-size:26px;line-height:1.35;font-weight:700;text-align:center;overflow-wrap:anywhere}
+.sae.is-r9-comp .sae-r9-q[lang=ur]{font-family:var(--sae-fu);font-weight:400;font-size:26px;line-height:2.6;padding:calc(2px + .7em) calc(12px + .6em) 4px;word-spacing:.12em}
+.sae.is-r9-comp .sae-run-oral.is-r9-q .sae-body{gap:8px}
+.sae.is-r9-comp .sae-run-oral.is-r9-q .sae-row .sae-mic{flex:0 0 auto;width:72px;height:72px;font-size:32px;margin:0}
+@media (max-height:760px){
+  .sae.is-r9-comp .sae-run-oral.is-r9-q .sae-task-tag{display:none}
+  .sae.is-r9-comp .sae-run-oral.is-r9-q .sae-jugnu-s{max-height:64px}
+  .sae.is-r9-comp .sae-run-oral.is-r9-q .sae-row .sae-mic{width:64px;height:64px;font-size:28px}
+  .sae.is-r9-comp .sae-r9-q{font-size:22px}
+  .sae.is-r9-comp .sae-r9-q[lang=ur]{font-size:22px;line-height:2.5}
+}
+@media (min-width:600px){
+  .sae.is-r9-comp .sae-r9-q{font-size:34px;max-width:24ch}
+  .sae.is-r9-comp .sae-r9-q[lang=ur]{font-size:34px}
+  .sae.is-r9-comp .sae-run-oral.is-r9-q .sae-row .sae-mic{width:120px;height:120px;font-size:52px}
+}
+/* end round 9 item 6 */
