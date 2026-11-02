@@ -14,6 +14,13 @@
  * running (Android starts one made outside a tap suspended) is no ear, never silence: the watch ends with
  * cb({kind:'ear_unavailable'}). The context is resumed at the watch's start and on every tap (wake()).
  *
+ * o.idle_release (round 9, battery.ui.r9_audio, switch sa_r9_audio): ready() asks for the microphone once (the
+ * permission) and closes it; each start() opens it, records on it, and the recording's end (stop, discard) closes it.
+ * An open microphone with echo cancellation puts an Android phone in its call mode (Chromium sets MODE_IN_COMMUNICATION
+ * while such an input stream is open), and a clip then plays at call volume: kept open for the battery, Jugnu was
+ * quiet on phones. Here no microphone is open while Jugnu speaks between recordings. start() still answers at once;
+ * its MediaRecorder starts when the microphone opens, and a watch (onSilence, onVoice) counts from that moment.
+ *
  * UMD: window.SAE.rec in the browser, module.exports under Node.
  */
 (function (root, factory) {
@@ -87,8 +94,38 @@
     var analyser = null;
     var watches = [];
     var earState = null;
+    var idle = o.idle_release === true;
+    var granted = false;
+    var src = null;
+    var CONSTRAINTS = { audio: { echoCancellation: true, noiseSuppression: true } };
+
+    function stopTracks(s) { if (s && s.getTracks) s.getTracks().forEach(function (t) { t.stop(); }); }
+
+    /** idle_release: the analyser exists before the microphone does; the recording's stream is plugged in when it opens. */
+    function plug() {
+      if (!analyser || !stream || src) return;
+      try { src = ctx.createMediaStreamSource(stream); src.connect(analyser); } catch (_) { src = null; }
+    }
+    /** idle_release: a recording's end closes its own microphone (never a newer recording's). */
+    function closeOwn(c) {
+      if (!c.stream) return;
+      if (stream === c.stream) {
+        if (src && src.disconnect) { try { src.disconnect(); } catch (_) { /* gone */ } }
+        src = null;
+        stream = null;
+      }
+      stopTracks(c.stream);
+      c.stream = null;
+    }
 
     function ear() {
+      if (idle) {
+        if (!analyser && AC) {
+          try { ctx = new AC(); analyser = ctx.createAnalyser(); analyser.fftSize = 2048; } catch (_) { analyser = null; }
+        }
+        plug();
+        return analyser;
+      }
       if (analyser) return analyser;
       if (!stream || !AC) return null;
       try {
@@ -126,6 +163,8 @@
         // A context that is not running reads flat: that is no ear, never silence.
         if (!running()) { earState = 'unavailable'; end(); cb({ kind: 'ear_unavailable' }); return; }
         earState = 'running';
+        // idle_release: the recording's microphone is still opening; the watch begins when it is plugged in
+        if (idle && !src) { t0 = now(); return; }
         var t = now();
         an.getByteTimeDomainData(buf);
         var r = rmsOf(buf);
@@ -154,6 +193,7 @@
       function end() { if (h != null) { interval.clear(h); h = null; } watches = watches.filter(function (w) { return w !== end; }); }
       h = interval.set(function () {
         if (!running()) return;
+        if (idle && !src) { t0 = now(); return; }
         an.getByteTimeDomainData(buf);
         var r = rmsOf(buf);
         floor = floor == null ? r : Math.min(floor, r);
@@ -167,21 +207,48 @@
 
     function ready() {
       if (!type) return Promise.resolve(false);
-      if (stream) return Promise.resolve(true);
-      return Promise.resolve().then(function () { return gum({ audio: { echoCancellation: true, noiseSuppression: true } }); })
+      if (stream || granted) return Promise.resolve(true);
+      return Promise.resolve().then(function () { return gum(CONSTRAINTS); })
         .then(function (s) {
-          stream = s;
+          if (idle) { granted = true; stopTracks(s); } else stream = s;
           if (o.taps !== false && root.addEventListener) root.addEventListener('pointerdown', wake, true);
           return true;
         }, function () { return false; });
     }
 
     function start(taskId) {
+      if (idle) return startIdle(taskId);
       if (!stream || !type) return false;
       if (cur) return false;
-      var mr = new MR(stream, { mimeType: type.mimeType });
-      var c = { task_id: taskId, mr: mr, part: 0, t0: now(), writes: Promise.resolve(), done: null };
+      var c = { task_id: taskId, mr: null, part: 0, t0: now(), writes: Promise.resolve(), done: null };
       c.done = new Promise(function (ok) { c.resolve = ok; });
+      begin(c, stream);
+      cur = c;
+      return true;
+    }
+
+    /** idle_release: open the microphone for this recording; stop() before it opens resolves null and closes it. */
+    function startIdle(taskId) {
+      if (!granted || !type || cur) return false;
+      var c = { task_id: taskId, mr: null, part: 0, t0: now(), writes: Promise.resolve(), done: null };
+      c.done = new Promise(function (ok) { c.resolve = ok; });
+      cur = c;
+      Promise.resolve().then(function () { return gum(CONSTRAINTS); }).then(function (s) {
+        if (cur !== c) { stopTracks(s); return; }
+        c.stream = s;
+        stream = s;
+        src = null;
+        plug();
+        c.t0 = now();
+        try { begin(c, s); } catch (_) { cur = null; closeOwn(c); c.resolve(null); }
+      }, function () { if (cur === c) cur = null; c.resolve(null); });
+      return true;
+    }
+
+    function begin(c, s) {
+      var taskId = c.task_id;
+      var mr = new MR(s, { mimeType: type.mimeType });
+      c.mr = mr;
       mr.ondataavailable = function (e) {
         if (!e.data || !e.data.size) return;
         var part = c.part++;
@@ -193,18 +260,25 @@
         var dur = Math.round(now() - c.t0);
         if (c.discard) {
           // round 7b (discard): no final marker, and the chunks leave the phone, so the sync never uploads this one
+          closeOwn(c);
           c.writes = c.writes.then(function () { return o.store.dropChunks ? o.store.dropChunks(o.session_id, taskId) : null; })
             .then(null, function () { return null; }).then(function () { c.resolve(null); });
           return;
         }
+        closeOwn(c);
         c.writes = c.writes.then(function () {
           // The closing marker: no audio of its own, it tells the sync the file is whole.
           return o.store.putChunk(o.session_id, taskId, c.part, null, { mime: type.mimeType, ext: type.ext, final: true, duration_ms: dur });
         }).then(function () { c.resolve({ task_id: taskId, parts: c.part, duration_ms: dur, mime: type.mimeType }); });
       };
       mr.start(SLICE_MS);
-      cur = c;
-      return true;
+    }
+
+    /** End the recording c: its MediaRecorder's stop, or (idle_release, the microphone not open yet) null at once. */
+    function endRec(c) {
+      if (!c.mr) { c.resolve(null); return c.done; }
+      try { c.mr.stop(); } catch (_) { closeOwn(c); c.resolve(null); }
+      return c.done;
     }
 
     function stop() {
@@ -212,8 +286,7 @@
       if (!cur) return Promise.resolve(null);
       var c = cur;
       cur = null;
-      try { c.mr.stop(); } catch (_) { c.resolve(null); }
-      return c.done;
+      return endRec(c);
     }
 
     /** Round 7b (sa_silence_repeat): end the recording without keeping it (a silent attempt). → Promise<null>. */
@@ -223,8 +296,7 @@
       var c = cur;
       cur = null;
       c.discard = true;
-      try { c.mr.stop(); } catch (_) { c.resolve(null); }
-      return c.done;
+      return endRec(c);
     }
 
     function release() {
@@ -233,8 +305,10 @@
       if (ctx && ctx.close) { try { ctx.close(); } catch (_) { /* already closed */ } }
       ctx = null;
       analyser = null;
-      if (stream && stream.getTracks) stream.getTracks().forEach(function (t) { t.stop(); });
+      stopTracks(stream);
       stream = null;
+      src = null;
+      granted = false;
     }
 
     var api = { supported: function () { return !!type; }, type: function () { return type; }, ready: ready, start: start, stop: stop, discard: discard, release: release, recording: function () { return !!cur; }, onSilence: onSilence, onVoice: onVoice, wake: wake,
