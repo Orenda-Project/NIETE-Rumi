@@ -141,7 +141,9 @@ export default function LeaderAssessDashboard() {
     }
     const coachRows = [...byCoach.values()].sort((a, b) => (b.total - a.total) || ((b.total / b.sessions) - (a.total / a.sessions)) || (a.name || '~').localeCompare(b.name || '~'));
     items.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
-    return { totals, coachRows, items };
+    // Round 9 item 3: skip_instructions gets its tile and column only once a session carries one (until then, today's view)
+    const shown = STOP_TYPES.filter((t) => t !== 'skip_instructions' || totals[t] > 0);
+    return { totals, coachRows, items, shown };
   }, [stopRows]);
   const narrowed = Boolean(filter.mode || filter.coachId || filter.from || filter.to);
   // item 15: each child tested (the same filtered sessions as the stops view) from the random draw or added by the coach
@@ -304,7 +306,7 @@ export default function LeaderAssessDashboard() {
         <p className="text-xs text-slate-500">{c.stopsHint}</p>
       </div>
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        {STOP_TYPES.map((t) => (
+        {stopsView.shown.map((t) => (
           <li key={t} data-testid={`dash-stop-total-${t}`} className="rounded-xl bg-slate-50 p-2">
             <p className="text-xs text-slate-600">{c.stopTypes[t]}</p>
             <p className="text-xl font-bold text-slate-900">{count(stopsView.totals[t])}</p>
@@ -319,7 +321,7 @@ export default function LeaderAssessDashboard() {
               <tr className="text-xs text-slate-600">
                 <th className="px-2 py-1 text-start font-medium">{c.colCoach}</th>
                 <th className="whitespace-nowrap px-2 py-1 text-end font-medium">{c.colSessions}</th>
-                {STOP_TYPES.map((t) => <th key={t} className="whitespace-nowrap px-2 py-1 text-end font-medium">{c.stopTypes[t]}</th>)}
+                {stopsView.shown.map((t) => <th key={t} className="whitespace-nowrap px-2 py-1 text-end font-medium">{c.stopTypes[t]}</th>)}
                 <th className="whitespace-nowrap px-2 py-1 text-end font-medium">{c.colTotal}</th>
                 <th className="whitespace-nowrap px-2 py-1 text-end font-medium">{c.colPerSession}</th>
               </tr>
@@ -329,7 +331,7 @@ export default function LeaderAssessDashboard() {
                 <tr key={k.id || 'none'} data-testid="dash-stops-coach-row" data-coach={k.id} data-total={k.total} data-sessions={k.sessions}>
                   <td className="px-2 py-2 text-slate-900"><bdi>{k.name || c.unknownCoach}</bdi></td>
                   <td className="px-2 py-2 text-end tabular-nums">{count(k.sessions)}</td>
-                  {STOP_TYPES.map((t) => <td key={t} className={`px-2 py-2 text-end tabular-nums ${k.counts[t] ? 'font-semibold text-slate-900' : 'text-slate-400'}`}>{count(k.counts[t])}</td>)}
+                  {stopsView.shown.map((t) => <td key={t} className={`px-2 py-2 text-end tabular-nums ${k.counts[t] ? 'font-semibold text-slate-900' : 'text-slate-400'}`}>{count(k.counts[t])}</td>)}
                   <td className="px-2 py-2 text-end font-bold tabular-nums">{count(k.total)}</td>
                   <td className="px-2 py-2 text-end tabular-nums">{one(k.sessions ? k.total / k.sessions : null)}</td>
                 </tr>

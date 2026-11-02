@@ -255,6 +255,16 @@ describe("LeaderAssessDashboard: round 7b filters and stops (sa_dash_filters)", 
     expect(a.getAttribute("data-total")).toBe("8"); // the fixture's 7, and this skip
   });
 
+  it("round 9 item 3: with no skip_instructions on any session, the stops view is today's (no new tile or column)", async () => {
+    api.getSwitches.mockResolvedValue({ realDashboard: true, dashFilters: true });
+    api.getSessions.mockResolvedValue(fixture());
+    renderPage();
+    const stops = await screen.findByTestId("dash-stops");
+    expect(within(stops).queryByTestId("dash-stop-total-skip_instructions")).toBeNull();
+    expect(within(stops).queryByText("Skipped instructions")).toBeNull();
+    expect(within(stops).getAllByTestId(/^dash-stop-total-/)).toHaveLength(6);
+  });
+
   it("item 15: children from the random draw vs added by the coach, in total and per coach (most added first), with the filters", async () => {
     api.getSwitches.mockResolvedValue({ realDashboard: true, dashFilters: true });
     const f = fixture();
