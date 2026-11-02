@@ -198,6 +198,16 @@ async function generateHeroReport(session, analysis, opts = {}) {
   // bd-fmf24g.10: the narrative travels back with the image so the caller can keep it
   // (narrative-store) — the app's report page reads the session, not the PNG.
   const out = { png, caption: buildReportCaption(vm), narrative: narrative || null, partialNote };
+  // bd-22gf7p: an image whose strip promises the clip template's button also gets an app-hint copy (same view model, no
+  // second narrative call), stored and sent instead if that template is refused at the send. Null when it fails to render.
+  if (opts.videoStrip && opts.videoStrip.where === 'button') {
+    try {
+      out.fallbackPng = await htmlToImage(buildHeroReportHtml({ ...vm, videoStrip: { ...opts.videoStrip, where: 'app' } }), shot);
+    } catch (e) {
+      out.fallbackPng = null;
+      logToFile('hero-report: app-hint copy failed to render (non-fatal)', { error: e.message });
+    }
+  }
 
   // bd-v0toag.57: groups C and D are sent a slim image, the /cr page's card (slim-report.js, slim-card.template.js);
   // the full one above is still the stored report. With no strengths stored, the narrative's strength is what she
