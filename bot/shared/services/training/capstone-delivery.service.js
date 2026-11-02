@@ -23,6 +23,9 @@
  * quiz_kind/quiz_type) stays inert.
  */
 
+// bd-arghnv.3 — pure and require-free, so this one is safe at top level (unlike deps() below).
+const { servableQuestions } = require('./question-stem.rules');
+
 // bd-60085 — REQUIRED LAZILY, and this is load-bearing rather than tidy.
 //
 // The portal imports this module for four things that need no I/O at all:
@@ -82,15 +85,19 @@ async function loadCapstoneQuiz(levelId) {
   return data || null;
 }
 
+/** The written exam's prompts, in order. A blank prompt is never asked (bd-arghnv.3). */
 async function loadCapstoneQuestions(grandQuizId) {
-  const { supabase } = deps();
+  const { supabase, logToFile } = deps();
   const { data } = await supabase
     .from('training_questions')
     .select('id, question_text, order_index')
     .eq('grand_quiz_id', grandQuizId)
     .eq('is_active', true)
     .order('order_index', { ascending: true });
-  return data || [];
+  return servableQuestions(data || [], {
+    log: (msg, d) => logToFile(msg, d, 'warn'),
+    where: { quizKind: KIND_CAPSTONE, grandQuizId },
+  });
 }
 
 async function levelFullyComplete(userId, levelId) {
@@ -798,6 +805,8 @@ module.exports = {
   capstonePointsForLevel,
   // exported for the certificate trigger tests
   levelFullyComplete,
+  // exported for the blank-stem guard test (bd-arghnv.3)
+  loadCapstoneQuestions,
   BUTTON_PREFIX,
   // bd-2489 — the portal's capstone result card used to hardcode "70%". It is
   // the same number as this constant, which made the copy correct by
