@@ -67,6 +67,21 @@ function withEquals(text, lang) {
   return `${sum} ${EQUALS[lang]}`;
 }
 
+// Any other Urdu item with an operation between two numbers (the expanded number «۱۰۰۰ جمع ۳۰۰ جمع ۸۰ جمع ۳») says each
+// operation in English too, with no "equals": it is read, not finished.
+function withEnglishOps(text, lang) {
+  if (lang !== 'ur') return text;
+  return String(text).replace(/([\d۰-۹][\d۰-۹,]*\s+)(جمع|منفی|ضرب|تقسیم)(?=\s+[\d۰-۹])/g, (m, n, w) => `${n}${UR_OPS[w]}`);
+}
+
+// An English word an Urdu line names in Urdu script that the voice does not say as English (round 9, staging STT: «سبٹریکشن»
+// heard as "separation"): the voice is given the English word, as it is given English numbers. The screen keeps the Urdu script.
+const UR_SAY_EN = Object.freeze({ 'سبٹریکشن': 'subtraction' });
+function withEnglishWords(text, lang) {
+  if (lang !== 'ur') return text;
+  return Object.entries(UR_SAY_EN).reduce((t, [w, en]) => t.split(w).join(en), String(text));
+}
+
 // A letter SOUND is voiced as a sound, never a letter name (the content owner, round 8 items 8, 10, 22; the voicenote
 // phonics grammar): a held sound is stretched (Urdu «لَ» "lllll", «نَ» "nnnnn"), a stop stays short ("tuh"), and each
 // sound gets its own [slowly]. The screen keeps its text; only what the voice is given changes.
@@ -149,4 +164,4 @@ async function synthesize(job, { env = process.env, fetchImpl = fetch, attempts 
   throw err;
 }
 
-module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withSounds, isPraise, withTag, requestFor, synthesize };
+module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withEnglishOps, withEnglishWords, withSounds, isPraise, withTag, requestFor, synthesize };
