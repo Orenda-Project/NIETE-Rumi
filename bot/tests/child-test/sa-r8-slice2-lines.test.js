@@ -2,7 +2,8 @@
 /**
  * Round 8, the content owner's items 28 and 31 (spoken side), in every coach form's built bank and served battery:
  * - 28: the story questions' instruction tells a stuck child to press the Next button («آگے») to go on;
- * - 31: the Urdu maths instructions say the English operation word (in Urdu script) beside the Urdu one.
+ * - 31: the Urdu maths instructions name the operation in English (in Urdu script). Round 9 (the content owner, 2 Nov,
+ *   item 5: "addition should always say addition and not just jama"): the English word alone, no «جمع یعنی».
  * Each changed line carries the clip key its words hash to, so the screen and the voice change together.
  */
 const crypto = require('crypto');
@@ -31,14 +32,15 @@ test('item 28: the story questions intro says how to go on when stuck, in every 
   }
 });
 
-test('item 31: the Urdu maths instructions say the English operation word (in Urdu script) beside the Urdu one', () => {
+test('item 31 / round 9 item 5: the Urdu maths instructions name the operation in English (Urdu script), not in Urdu', () => {
   for (const [task, [ur, en]] of Object.entries(OPS)) {
     const forms = coach(task);
     expect(forms.length).toBeGreaterThan(0);
     for (const [, t] of forms) {
       for (const line of ['intro', 'test_intro']) {
         const s = t.script[line];
-        expect(s.ur).toContain(`${ur} یعنی ${en}`);
+        expect(s.ur).toContain(en);
+        expect(s.ur).not.toContain(ur);
         expect(s.audio.ur).toBe(key('ur', s.ur));
       }
     }
