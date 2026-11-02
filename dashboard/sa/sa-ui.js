@@ -190,6 +190,8 @@
       // round 8 (items 25/26): the quiet cue's spoken name (screen readers)
       cue_speak: 'Answer by speaking',
       cue_tap: 'Answer by tapping',
+      // round 9 item 3 (r9_skip_instructions): the coach's skip, on the coach-led instruction and practice screens
+      skip_instr: 'Skip instructions',
     },
     ur: {
       hello: 'السلام علیکم! میں جگنو ہوں۔',
@@ -284,6 +286,8 @@
       // round 8 (items 25/26)
       cue_speak: 'بول کر جواب دیں',
       cue_tap: 'دبا کر جواب دیں',
+      // round 9 item 3
+      skip_instr: 'ہدایات چھوڑیں',
     },
   };
 
@@ -485,6 +489,8 @@
     var snapPos = { id: null, top: 0 }; // r8_story_snap: where the story box was scrolled to, kept over a redraw
     // Round 9 item 6 (r9_comp_text): a question on the story the child read is written on the screen as well as said
     var r9Comp = r7.r9_comp_text === true;
+    // Round 9 item 3 (r9_skip_instructions): coach-led only, the coach's Skip instructions (never in RDF auto or the game)
+    var r9Skip = manual && r7.r9_skip_instructions === true;
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
@@ -817,6 +823,7 @@
     // Round 8 (sa.css "Round 8": every rule under these classes, so OFF the page is as before)
     if (r8Layout) el.classList.add('is-r8-layout');
     if (r8Snap) el.classList.add('is-r8-snap');
+    if (r9Skip) el.classList.add('is-r9-skip'); // round 9 item 3 (sa.css "Round 9 item 3")
     // in the coach page's frame, under its corner hold (sa.css keeps the scrolling body below it)
     if (opts.ur_fit && opts.embed) el.classList.add('is-embed');
     // round 8 (items 25/26, r8_nudges): the speak / tap cue's styles (sa.css "Round 8")
@@ -1169,8 +1176,23 @@
           appAsks ? h('p', { class: 'sae-sub sae-coach-by' }, [C.answers_by + ' ' + answersBy(t)]) : null,
           h('p', { class: 'sae-sub', text: C.coach_then }),
         ]),
-        h('div', { class: 'sae-foot' }, [btn(C.handover_anon, function () { runner.instructionDone(); draw(); }, 'sae-primary')]),
+        h('div', { class: 'sae-foot' }, [btn(C.handover_anon, function () { runner.instructionDone(); draw(); }, 'sae-primary'), skipInstrBtn(v)]),
       ]);
+    }
+    /**
+     * Round 9 item 3 (r9_skip_instructions, RDF manual): the coach's Skip instructions on the part's instruction and
+     * practice screens. The runner lands on the part's own Ready screen; the part itself is never skipped.
+     */
+    function skipInstrBtn(v) {
+      if (!r9Skip || (v.phase !== 'instruction' && v.phase !== 'practice')) return null;
+      return btn(C.skip_instr, function () { skipInstr(); draw(); }, 'sae-secondary is-coach sae-r9-skip');
+    }
+    function skipInstr() {
+      if (!runner.skipInstructions || !runner.skipInstructions()) return false;
+      hold = null;
+      busy = false; // from the coach menu, a practice answer's feedback may still be in flight: Go must not wait for it
+      gen++; // a practice line still being said is not followed by the next one
+      return true;
     }
     /** Every item the auto run speaks, in order, for the coach to read out one by one. */
     function coachItems(t) {
@@ -1272,6 +1294,7 @@
         h('div', { class: 'sae-row' }, [
           h('span', { class: 'sae-chip', text: C.practice }),
           itemSpeaks(p) ? replayBtn(function () { gen++; sayItem(p, t); }) : null,
+          skipInstrBtn(v),
         ]),
         coachSays(p, t.mode !== 'oral'),
         t.mode === 'keypad' || t.mode === 'keyboard' ? null : labelOf(p, t),
@@ -1625,6 +1648,7 @@
             if (autoAnswer(t, p)) { sayAgainWithAnswer(p, t); return; }
             gen++; if (itemSpeaks(p)) sayItem(p, t); else sayChain(modelOf(p));
           }) : null,
+          skipInstrBtn(v),
         ]),
         oneCell(p.show != null ? p.show : p.target, t, null),
         coachSays(p),
@@ -2157,6 +2181,8 @@
         h('div', { class: 'sae-coach-card' }, [
           h('p', { class: 'sae-chip', text: C.coach }),
           v.task ? h('p', { class: 'sae-sub', text: tx(v.task.title) }) : null,
+          r9Skip && (v.phase === 'instruction' || v.phase === 'practice')
+            ? h('button', { class: 'sae-btn sae-secondary is-coach sae-r9-skip', type: 'button', onclick: function () { skipInstr(); closeCoach(); } }, [C.skip_instr]) : null,
           canEnd ? btn(C.end_task, function () { hold = null; listening = null; runner.coachEnd(); closeCoach(); }, 'sae-secondary sae-danger') : null,
           btn(C.cont, closeCoach, 'sae-primary'),
         ]),

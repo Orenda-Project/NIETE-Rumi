@@ -543,3 +543,9 @@ button{font:inherit;color:inherit}
   .sae.is-r9-comp .sae-run-oral.is-r9-q .sae-row .sae-mic{width:120px;height:120px;font-size:52px}
 }
 /* end round 9 item 6 */
+/* Round 9 item 3 (r9_skip_instructions, RDF manual): the coach's Skip instructions. A coach control (dashed, like the
+   coach's boxes), smaller than the hand-over and under it; on a practice screen it sits in the Practice row, clear of
+   the answers. Tap target 56 px. */
+.sae.is-r9-skip .sae-r9-skip{width:auto;max-width:100%;min-height:56px;padding:6px 18px;font-size:18px;font-weight:700;border-style:dashed;box-shadow:none}
+.sae.is-r9-skip[lang=ur] .sae-r9-skip{font-size:20px;line-height:2;padding:4px 18px}
+.sae.is-r9-skip .sae-row .sae-r9-skip{flex:0 1 auto}

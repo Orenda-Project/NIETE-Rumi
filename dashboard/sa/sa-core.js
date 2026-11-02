@@ -308,6 +308,8 @@
     var longerWaits = !!(battery.ui && battery.ui.r9_question_time === true);
     /** r9_question_time: a part's wait in seconds as the child gets it (a timed part, the measure, keeps its own). */
     function waitS(t, s) { return longerWaits && s && !t.time_limit_s ? Math.max(2 * s, R9_WAIT_MIN_S) : s; }
+    // Round 9 item 3 (battery.ui.r9_skip_instructions): coach-led only, the coach may skip a part's instructions.
+    var skipInstrOn = manual && !!(battery.ui && battery.ui.r9_skip_instructions === true);
     // Round 8: the story's questions by the voice heard (RDF auto, no last-word step); a time-up ends only its own part.
     var positionOn = skipLW && (!!opts.reading_position || !!(battery.ui && battery.ui.r8_reading_position === true));
     var timeupGoesOn = incompleteOn && (!!opts.timeup_continue || !!(battery.ui && battery.ui.r8_timeup_continue === true));
@@ -765,6 +767,20 @@
         if (!retry) { st.practice_i++; st.practice_tries = 0; }
         if (st.practice_i >= task().practice.length) st.phase = 'ready';
         return { ok: ok, retry: retry, shown: !ok && !retry ? p.target : null, feedback: p.feedback || null };
+      },
+      /**
+       * Round 9 item 3 (r9_skip_instructions, RDF manual): the coach skips the part's instruction and practice. It lands
+       * on the part's Ready screen, never past it: Go still starts the clock and the first item is still asked (a timed
+       * part's clock must not start before the child holds the phone). A session gate (mic check, oral practice, keypad
+       * warm-up) is not an instruction. One skip_instructions event { by: 'coach', from, practice_left }. → true when it skipped.
+       */
+      skipInstructions: function () {
+        if (!skipInstrOn || (st.phase !== 'instruction' && st.phase !== 'practice') || !task()) return false;
+        var from = st.phase;
+        var left = Math.max(0, task().practice.length - (from === 'practice' ? st.practice_i : 0));
+        st.phase = 'ready';
+        ev('skip_instructions', { task_id: st.task_id, value: { by: 'coach', from: from, practice_left: left } });
+        return true;
       },
       /** "Go!": the clock starts (timed tasks) and the first item shows. */
       begin: function () {
