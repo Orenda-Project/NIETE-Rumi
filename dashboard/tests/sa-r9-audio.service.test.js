@@ -219,3 +219,69 @@ describe('the switch sa_r9_audio', () => {
     expect(off.ui && off.ui.r9_audio).toBeFalsy();
   });
 });
+
+describe('round 9, sandbox finding: no echo-cancelled microphone outlives the recording or opens for a meter', () => {
+  beforeEach(() => { FakeMR.made = []; });
+
+  test('stop() closes the microphone at once, before the recorder\'s own stop event (the end line plays right after)', async () => {
+    class LateMR extends FakeMR { stop() { setTimeout(() => this.onstop && this.onstop(), 50); } }
+    const m = mics();
+    const s = await storeMod.open({ idb: null });
+    const r = rec.create({ store: s, session_id: 'x', MediaRecorder: LateMR, getUserMedia: m.gum, taps: false, idle_release: true });
+    await r.ready();
+    r.start('t1');
+    await tick();
+    const done = r.stop();
+    expect(m.live()).toBe(0);
+    expect(await done).toMatchObject({ task_id: 't1' });
+  });
+
+  const mic = require('../sa/sa-mic');
+  function meterRig() {
+    const asked = [];
+    const o = {
+      getUserMedia: async (c) => { asked.push(c); return { getTracks: () => [{ readyState: 'live', stop() {} }] }; },
+      AudioContext: class { createMediaStreamSource() { return { connect() {} }; } createAnalyser() { return { fftSize: 1024, getByteTimeDomainData() {} }; } close() {} },
+    };
+    return { asked, o };
+  }
+  test('ON (o.no_aec): a meter with no recording to borrow opens its own microphone without echo cancellation', async () => {
+    const { asked, o } = meterRig();
+    const stop = mic.level(() => {}, { ...o, no_aec: true });
+    await tick();
+    stop();
+    expect(asked).toEqual([{ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }]);
+  });
+  test('OFF: the meter asks as today', async () => {
+    const { asked, o } = meterRig();
+    const stop = mic.level(() => {}, o);
+    await tick();
+    stop();
+    expect(asked).toEqual([{ audio: { echoCancellation: true, noiseSuppression: true } }]);
+  });
+
+  test('the engine asks the meter for no_aec when ON (with the iPhone way when that switch is on too), nothing when OFF', async () => {
+    const calls = [];
+    const micMod = { state: () => 'unknown', remember() {}, probe: async () => ({ ok: true, rms: 0.02 }), level: (cb, o) => { calls.push(o); return () => {}; } };
+    const b = (ui) => ({ battery_id: 'm', ...(ui ? { ui } : {}), tasks: [{ id: 'story', mode: 'record', time_limit_s: 60, passage: { text: 'a' }, items: [{ id: 'w', target: 'a', line: 1 }] }] });
+    async function meterOpts(ui) {
+      let uiOpts = null;
+      const deps = {
+        core, mic: micMod,
+        store: { open: () => storeMod.open({ idb: null }) },
+        ui: { mount: (el, o) => { uiOpts = o; return { destroy() {} }; } },
+        voice: { create: () => ({ speak: () => Promise.resolve(), stop() {}, setMuted() {} }) },
+        rec: { create: () => ({ ready: async () => true, start: () => true, stop: async () => null, release() {}, recording: () => false }) },
+        now: (() => { let t = 0; return () => (t += 100); })(),
+      };
+      await start({ mount: {}, battery: b(ui), mode: 'game', lang: 'ur', audio_check: false, warmup: false }, deps);
+      calls.length = 0;
+      uiOpts.micLevel(() => {});
+      return calls[0];
+    }
+    expect(await meterOpts({ r9_audio: true })).toEqual({ no_aec: true });
+    expect(await meterOpts({ r9_audio: true, r8_ios_mic: true })).toEqual({ ios: true, no_aec: true });
+    expect(await meterOpts(null)).toBeUndefined();
+    expect(await meterOpts({ r8_ios_mic: true })).toEqual({ ios: true });
+  });
+});

@@ -18,7 +18,8 @@
  * permission) and closes it; each start() opens it, records on it, and the recording's end (stop, discard) closes it.
  * An open microphone with echo cancellation puts an Android phone in its call mode (Chromium sets MODE_IN_COMMUNICATION
  * while such an input stream is open), and a clip then plays at call volume: kept open for the battery, Jugnu was
- * quiet on phones. Here no microphone is open while Jugnu speaks between recordings. start() still answers at once;
+ * quiet on phones. Here no microphone is open while Jugnu speaks between recordings, and stop() closes it at once (its
+ * final chunk is already on the way). start() still answers at once;
  * its MediaRecorder starts when the microphone opens, and a watch (onSilence, onVoice) counts from that moment.
  *
  * UMD: window.SAE.rec in the browser, module.exports under Node.
@@ -278,6 +279,8 @@
     function endRec(c) {
       if (!c.mr) { c.resolve(null); return c.done; }
       try { c.mr.stop(); } catch (_) { closeOwn(c); c.resolve(null); }
+      // idle_release: closed now, not at the recorder's stop event (the next line Jugnu says starts before that)
+      closeOwn(c);
       return c.done;
     }
 
