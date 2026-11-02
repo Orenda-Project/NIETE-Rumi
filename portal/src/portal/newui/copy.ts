@@ -540,6 +540,8 @@ export const TRAINING_COPY = {
   levelCertificate: 'Level certificate',
   exams: (done?: number, total?: number) => `${done ?? 0}/${total ?? 0} exams`,
   receive: 'Receive',
+  /** I-SAPS (bd-arghnv.2): a level's certificate waits for the level below's. The name is data. */
+  previousFirst: (name?: string) => `${name ?? ''} first`,
   download: 'Download',
   myScores: 'My scores',
   notTaken: 'Not taken',

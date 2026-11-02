@@ -191,6 +191,8 @@ type CertState = {
   units_done: number;
   exams_total?: number;
   exams_done?: number;
+  /** I-SAPS (bd-arghnv.2): the level below, when its certificate must come first; null otherwise. */
+  needs_previous?: string | null;
   scores?: { modules: Array<{ course_id: number; title: string; units: Array<{ id: number; title: string; best_pct: number | null }>; exam: ExamMarks | null }> } | null;
 };
 
@@ -225,6 +227,8 @@ export function LevelCertificate({ levelId, onIssued, words }: { levelId: number
   const done = examsTotal > 0 ? Math.min(examsTotal, d.exams_done || 0) : Math.min(d.units_total || 0, d.units_done || 0);
   const total = examsTotal > 0 ? examsTotal : d.units_total || 0;
   const ready = total > 0 && done >= total;
+  // Finished, but the level below has no certificate yet: say which, and offer no Receive (the server would refuse).
+  const waitsFor = ready && d.needs_previous ? d.needs_previous : null;
   const failChip = failed ? <Chip tone="error">{T.notLoaded}</Chip> : null;
 
   let row;
@@ -247,10 +251,10 @@ export function LevelCertificate({ levelId, onIssued, words }: { levelId: number
       <Row
         icon={ready ? Award : Lock}
         title={T.levelCertificate}
-        chips={<><Chip>{examsTotal > 0 ? T.exams(done, total) : T.of(done, total)}</Chip>{failChip}</>}
+        chips={<><Chip>{examsTotal > 0 ? T.exams(done, total) : T.of(done, total)}</Chip>{waitsFor ? <Chip tone="waiting">{T.previousFirst(waitsFor)}</Chip> : null}{failChip}</>}
         progress={percent(done, total)}
-        value={ready ? T.receive : undefined}
-        onClick={ready && !claiming ? claim : undefined}
+        value={ready && !waitsFor ? T.receive : undefined}
+        onClick={ready && !waitsFor && !claiming ? claim : undefined}
         testId="level-certificate-claim"
       />
     );
