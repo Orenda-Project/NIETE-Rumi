@@ -190,6 +190,10 @@
       // round 8 (items 25/26): the quiet cue's spoken name (screen readers)
       cue_speak: 'Answer by speaking',
       cue_tap: 'Answer by tapping',
+      // round 9 item 3 (r9_skip_instructions): the coach's skip, on the coach-led instruction and practice screens
+      skip_instr: 'Skip instructions',
+      // round 9 item 7 (r9_scroll_cue): the cue on a screen that runs past the bottom
+      r9_scroll: 'Scroll down',
     },
     ur: {
       hello: 'السلام علیکم! میں جگنو ہوں۔',
@@ -284,6 +288,10 @@
       // round 8 (items 25/26)
       cue_speak: 'بول کر جواب دیں',
       cue_tap: 'دبا کر جواب دیں',
+      // round 9 item 3
+      skip_instr: 'ہدایات چھوڑیں',
+      // round 9 item 7
+      r9_scroll: 'نیچے کی طرف سرکائیں',
     },
   };
 
@@ -483,6 +491,15 @@
     var r8Layout = r7.r8_layout === true;
     var r8Snap = r7.r8_story_snap === true;
     var snapPos = { id: null, top: 0 }; // r8_story_snap: where the story box was scrolled to, kept over a redraw
+    // Round 9 item 6 (r9_comp_text): a question on the story the child read is written on the screen as well as said
+    var r9Comp = r7.r9_comp_text === true;
+    // Round 9 item 3 (r9_skip_instructions): coach-led only, the coach's Skip instructions (never in RDF auto or the game)
+    var r9Skip = manual && r7.r9_skip_instructions === true;
+    // Round 9 item 7 (r9_scroll_cue): a scroll cue on any screen whose content runs past the bottom
+    var r9Scroll = r7.r9_scroll_cue === true;
+    var scrollCue = null; // { s, el, ro, type, phase, task, asked }: the cue of the screen on show
+    var scrollSaid = {};  // screen types (phase, or running:<mode>) the cue line was said on
+    var talk = null, talkN = 0; // r9Scroll: Jugnu's latest line, and how many are still playing
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
@@ -567,6 +584,12 @@
       window.addEventListener('scroll', function () { if (alive) checkMore(); }, true);
       window.addEventListener('resize', function () { if (alive) checkMore(); });
     }
+    // Round 9 item 7: the cue is checked again on a scroll (the page or the body), a resize, a picture that came late
+    if (r9Scroll && typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('scroll', function () { if (alive) scrollCheck(); }, true);
+      window.addEventListener('resize', function () { if (alive) scrollCheck(); });
+      el.addEventListener('load', function () { if (alive) scrollCheck(); }, true);
+    }
     // Round 8 item 30: a resize fits the missing number above the foot again
     if (r8Mn && typeof window !== 'undefined' && window.addEventListener) {
       window.addEventListener('resize', function () { if (alive) mnFit(el.querySelector('.sae-screen')); });
@@ -605,6 +628,7 @@
       if (r8Lang && lang !== homeLang) { var tagged = langSaid(textObj, audioObj); textObj = tagged[0]; audioObj = tagged[1]; }
       try {
         var p = Promise.resolve(speakFn(textObj || null, audioObj || null)).catch(function () {});
+        if (r9Scroll) { talk = p; talkN++; p.then(function () { talkN--; }); }
         if (r7.r8_highlight === true) { try { hlFollow(textObj, audioObj, p); } catch (e) { /* the plain words */ } }
         return p;
       } catch (e) { return Promise.resolve(); }
@@ -815,12 +839,17 @@
     // Round 8 (sa.css "Round 8": every rule under these classes, so OFF the page is as before)
     if (r8Layout) el.classList.add('is-r8-layout');
     if (r8Snap) el.classList.add('is-r8-snap');
+    if (r9Skip) el.classList.add('is-r9-skip'); // round 9 item 3 (sa.css "Round 9 item 3")
+    // Round 9 item 7 (sa.css "Round 9 item 7": every rule under this class)
+    if (r9Scroll) el.classList.add('is-r9-scroll');
     // in the coach page's frame, under its corner hold (sa.css keeps the scrolling body below it)
     if (opts.ur_fit && opts.embed) el.classList.add('is-embed');
     // round 8 (items 25/26, r8_nudges): the speak / tap cue's styles (sa.css "Round 8")
     if (r7.r8_nudges === true) el.classList.add('is-r8-cues');
     // round 8 (item 32, r8_highlight): the word being said, lit
     if (r7.r8_highlight === true) el.classList.add('is-r8-hl');
+    // round 9 item 6 (r9_comp_text): the story question's styles (sa.css "Round 9 item 6")
+    if (r9Comp) el.classList.add('is-r9-comp');
     el.setAttribute('lang', lang);
     el.setAttribute('dir', lang === 'ur' ? 'rtl' : 'ltr');
     el.setAttribute('data-mode', mode);
@@ -1165,8 +1194,23 @@
           appAsks ? h('p', { class: 'sae-sub sae-coach-by' }, [C.answers_by + ' ' + answersBy(t)]) : null,
           h('p', { class: 'sae-sub', text: C.coach_then }),
         ]),
-        h('div', { class: 'sae-foot' }, [btn(C.handover_anon, function () { runner.instructionDone(); draw(); }, 'sae-primary')]),
+        h('div', { class: 'sae-foot' }, [btn(C.handover_anon, function () { runner.instructionDone(); draw(); }, 'sae-primary'), skipInstrBtn(v)]),
       ]);
+    }
+    /**
+     * Round 9 item 3 (r9_skip_instructions, RDF manual): the coach's Skip instructions on the part's instruction and
+     * practice screens. The runner lands on the part's own Ready screen; the part itself is never skipped.
+     */
+    function skipInstrBtn(v) {
+      if (!r9Skip || (v.phase !== 'instruction' && v.phase !== 'practice')) return null;
+      return btn(C.skip_instr, function () { skipInstr(); draw(); }, 'sae-secondary is-coach sae-r9-skip');
+    }
+    function skipInstr() {
+      if (!runner.skipInstructions || !runner.skipInstructions()) return false;
+      hold = null;
+      busy = false; // from the coach menu, a practice answer's feedback may still be in flight: Go must not wait for it
+      gen++; // a practice line still being said is not followed by the next one
+      return true;
     }
     /** Every item the auto run speaks, in order, for the coach to read out one by one. */
     function coachItems(t) {
@@ -1268,6 +1312,7 @@
         h('div', { class: 'sae-row' }, [
           h('span', { class: 'sae-chip', text: C.practice }),
           itemSpeaks(p) ? replayBtn(function () { gen++; sayItem(p, t); }) : null,
+          skipInstrBtn(v),
         ]),
         coachSays(p, t.mode !== 'oral'),
         t.mode === 'keypad' || t.mode === 'keyboard' ? null : labelOf(p, t),
@@ -1621,6 +1666,7 @@
             if (autoAnswer(t, p)) { sayAgainWithAnswer(p, t); return; }
             gen++; if (itemSpeaks(p)) sayItem(p, t); else sayChain(modelOf(p));
           }) : null,
+          skipInstrBtn(v),
         ]),
         oneCell(p.show != null ? p.show : p.target, t, null),
         coachSays(p),
@@ -1847,18 +1893,34 @@
     function sRunOral(v) {
       var it = v.item, t = v.task;
       var on = sectionRec ? recording === t : !!(oralRec && oralRec.key === keyOf(v));
-      return screen(v, 'sae-run sae-run-oral' + (compWait(t) ? ' is-r8-wait' : ''), [
+      var asked = compText(it, t);
+      var mic = h('div', { class: 'sae-mic sa-mic' + (on ? ' is-on' : ''), 'aria-hidden': 'true' }, [h('span', { text: '🎤' })]);
+      // r9_comp_text: the written question first, then Jugnu, the replay and the mic on one row (all in view on a phone)
+      return screen(v, 'sae-run sae-run-oral' + (compWait(t) ? ' is-r8-wait' : '') + (asked ? ' is-r9-q' : ''), [
         h('p', { class: 'sae-task-tag', text: tx(t.title) }),
-        h('div', { class: 'sae-row' }, [jugnu('idle', true), replayBtn(function () { sayItem(it, t); })]),
-        coachSays(it),
+        asked,
+        h('div', { class: 'sae-row' }, [jugnu('idle', true), replayBtn(function () { sayItem(it, t); }), asked ? mic : null]),
+        asked ? null : coachSays(it),
         /^mental_/.test(t.subtask || '') && shownOf(it) != null ? labelOf(it, t) : null,
-        h('div', { class: 'sae-mic sa-mic' + (on ? ' is-on' : ''), 'aria-hidden': 'true' }, [h('span', { text: '🎤' })]),
+        asked ? null : mic,
         hintOf(t) ? hintEl(t, 'sae-sub') : h('p', { class: 'sae-sub', text: C.say_answer }),
       ], (compWait(t) ? [stuckEl()] : []).concat(itemFoot(v, [btn(compWait(t) ? C.next : C.answered, function () {
         busy = true;
         runner.answer('spoken');
         later(function () { busy = false; draw(); }, PRESS_MS);
       }, compWait(t) ? 'sae-primary sa-next' : 'sae-primary')])));
+    }
+
+    /** r9_comp_text: a story question in writing for the child (Jugnu still says it on arrival), in the task's language.
+     *  Only the story's questions: a listening question written down would turn listening into reading. In RDF manual
+     *  these are the coach's words too, so the coach's own copy gives way (one copy on the screen); a coach who reads
+     *  the question keeps the cue to read it aloud. */
+    function compText(it, t) {
+      if (!r9Comp || !t || t.subtask !== 'reading_comprehension' || !itemWords(it)) return null;
+      var said = it.prompt && typeof it.say !== 'string' ? (it.say || it.prompt) : null;
+      var q = h('p', { class: 'sae-r9-q', lang: taskLang(t), dir: dirOf(t) }, [hlText(itemWords(it), said)]);
+      if (manual && !appAsks) return h('div', { class: 'sae-r9-qbox' }, [h('p', { class: 'sae-chip', text: C.coach_read }), q]);
+      return q;
     }
 
     // ---------- session gates ----------
@@ -2137,6 +2199,8 @@
         h('div', { class: 'sae-coach-card' }, [
           h('p', { class: 'sae-chip', text: C.coach }),
           v.task ? h('p', { class: 'sae-sub', text: tx(v.task.title) }) : null,
+          r9Skip && (v.phase === 'instruction' || v.phase === 'practice')
+            ? h('button', { class: 'sae-btn sae-secondary is-coach sae-r9-skip', type: 'button', onclick: function () { skipInstr(); closeCoach(); } }, [C.skip_instr]) : null,
           canEnd ? btn(C.end_task, function () { hold = null; listening = null; runner.coachEnd(); closeCoach(); }, 'sae-secondary sae-danger') : null,
           btn(C.cont, closeCoach, 'sae-primary'),
         ]),
@@ -2264,6 +2328,81 @@
       }
       step();
       Promise.resolve(done).then(function () { if (hlRun === r) hlStop(); });
+    }
+
+    // ---------- round 9, item 7 (r9_scroll_cue): "scroll down" on a screen that runs past the bottom ----------
+    var R9_SAY_GAP_MS = 400; // the cue line waits this long after Jugnu's last word on the screen
+    /** The cue at the top of the screen's foot (above Next), else at its end; hidden until scrollCheck finds more below.
+     *  The story keeps its own arrow (.sae-more): no second cue there. */
+    function scrollCueOn(v, phase, s) {
+      scrollCueOff();
+      if (!s || s.querySelector('.sae-more')) return;
+      var c = h('div', { class: 'sae-r9-scroll', role: 'note', hidden: '' }, [
+        h('span', { class: 'sae-r9-scroll-ico', 'aria-hidden': 'true', text: '↓' }),
+        h('span', { class: 'sae-r9-scroll-w', text: C.r9_scroll }),
+      ]);
+      var foot = null;
+      for (var i = 0; i < s.children.length; i++) if (s.children[i].classList.contains('sae-foot')) foot = s.children[i];
+      if (foot) foot.insertBefore(c, foot.firstChild);
+      else s.appendChild(c);
+      var sc = scrollCue = { s: s, el: c, ro: null, phase: phase, task: v.task || null, type: phase + (phase === 'running' && v.task ? ':' + v.task.mode : ''), asked: false };
+      // a screen can grow after it is drawn (a picture, the Urdu font): watch its size where the browser can
+      if (typeof window !== 'undefined' && typeof window.ResizeObserver === 'function') {
+        try {
+          sc.ro = new window.ResizeObserver(function () { if (alive && scrollCue === sc) scrollCheck(); });
+          sc.ro.observe(s);
+          var body = s.querySelector('.sae-body');
+          if (body) { sc.ro.observe(body); Array.prototype.forEach.call(body.children, function (k) { sc.ro.observe(k); }); }
+        } catch (e) { sc.ro = null; }
+      }
+      if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (alive && scrollCue === sc) scrollCheck(); }, function () {});
+      scrollCheck();
+      later(scrollCheck, 0);
+    }
+    function scrollCueOff() {
+      var sc = scrollCue;
+      scrollCue = null;
+      if (sc && sc.ro) { try { sc.ro.disconnect(); } catch (e) { /* gone */ } }
+    }
+    /** More below in n (a scroll box): it overflows and its bottom is not in view. */
+    function moreIn(n) { return !!n && n.scrollHeight > n.clientHeight + 4 && n.scrollTop + n.clientHeight < n.scrollHeight - 8; }
+    /** The cue shown while more of the screen is below, in its body (when the body scrolls itself) or the page. */
+    function scrollCheck() {
+      var sc = scrollCue;
+      if (!alive || !sc || !sc.el.isConnected) return;
+      var body = sc.s.querySelector('.sae-body');
+      var oy = '';
+      if (body) { try { oy = getComputedStyle(body).overflowY; } catch (_) { oy = ''; } }
+      var more = ((oy === 'auto' || oy === 'scroll') && moreIn(body)) || moreIn(document.scrollingElement || document.documentElement);
+      if (sc.el.hidden === !more) return;
+      sc.el.hidden = !more;
+      if (more) scrollSay(sc);
+    }
+    /** Never on a screen whose recording may be open (a reading, a spoken answer, the mic checks), nor on one that
+     *  moves itself on or is Jugnu's own opening; never in a coach-led run (the coach speaks there). */
+    function scrollMaySpeak(sc) {
+      if (manual || recording || oralRec) return false;
+      if (/^(battery_intro|audio_check|mic_check|oral_practice|handover|refused|task_end|listen|silence_reminder)$/.test(sc.phase)) return false;
+      if (sc.phase === 'running' && sc.task && (sc.task.mode === 'record' || sc.task.mode === 'oral')) return false;
+      return true;
+    }
+    /** lines.r9_scroll_cue (when the battery has it): said once per screen type, after the screen's own words. */
+    function scrollSay(sc) {
+      var ln = line('r9_scroll_cue');
+      if (!ln || sc.asked || scrollSaid[sc.type] || !scrollMaySpeak(sc)) return;
+      sc.asked = true;
+      (function wait() {
+        var p = talk;
+        Promise.resolve(p).then(function () {
+          later(function () {
+            if (scrollCue !== sc || !sc.el.isConnected) return;
+            if (talkN > 0 || talk !== p) { wait(); return; } // more words started meanwhile: after them
+            if (sc.el.hidden || scrollSaid[sc.type] || !scrollMaySpeak(sc)) { sc.asked = false; return; }
+            scrollSaid[sc.type] = true;
+            say(ln);
+          }, R9_SAY_GAP_MS);
+        });
+      })();
     }
 
     // ---------- the frame ----------
@@ -2449,6 +2588,7 @@
       el.appendChild(s);
       cueOn(v, showPhase, s);
       fitCells(s);
+      if (r9Scroll) scrollCueOn(v, showPhase, s);
       if (mode === 'proctored' && showPhase !== 'handover' && showPhase !== 'refused') {
         coachLayer(v).forEach(function (n) { el.appendChild(n); });
         if (coachMenu) el.appendChild(sCoachMenu(v));
@@ -2551,6 +2691,7 @@
         stopMeter();
         cueStop();
         hlStop();
+        if (r9Scroll) scrollCueOff();
         alive = false;
         loop(false);
         timers.forEach(clearTimeout);

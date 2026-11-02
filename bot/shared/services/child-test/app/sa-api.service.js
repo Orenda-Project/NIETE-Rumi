@@ -443,7 +443,8 @@ const RDF_W3 = ['rdf_auto', 'rdf_manual'];
 const TIMED = ['session_start', 'audio_check', 'task_start', 'task_end', 'handover_in', 'handover_out', 'coach_unlock', 'reload_resume', 'battery_end'];
 // the events the session keeps as they are (device.events): what the timings cannot say
 // Round 7b: every skip and stop, one record each (the session, child and coach are the session row's; task_id the subtask).
-const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on'];
+// Round 9 item 3: skip_instructions, the coach skipped a part's instructions in coach-led RDF { by, from, practice_left }.
+const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on', 'skip_instructions'];
 // voice_held: Jugnu's line held by a hidden page (parked, paused, resumed, gave_up), from sa-voice.js
 // Round 8 (sa_r8_lang_switch): a language switch during the test, { from, to, item_id } on the task it starts at.
 // no_reading_skip (round 8, sa_r8_reading_position): the story's questions skipped because the child read nothing aloud
