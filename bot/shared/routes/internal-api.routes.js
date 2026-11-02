@@ -698,8 +698,15 @@ router.post('/training/serve-paper', requireInternalKey, async (req, res) => {
 
   try {
     const Serving = require('../services/training/quiz-serving.service');
+    // bd-arghnv.3 — a blank-stem question is never served. The selector drops it too; this is the
+    // line that says which, for the portal's level exams and quick checks.
+    const { servableQuestions } = require('../services/training/question-stem.rules');
+    const servable = servableQuestions(questions, {
+      log: (msg, d) => logToFile(msg, d, 'warn'),
+      where: { route: 'serve-paper', attemptId, isModuleQuiz: isModuleQuiz === true },
+    });
     const config = Serving.normalizeServingConfig(vendor || null);
-    const served = Serving.selectServedQuestions(questions, {
+    const served = Serving.selectServedQuestions(servable, {
       attemptId,
       isModuleQuiz: isModuleQuiz === true,
       config,

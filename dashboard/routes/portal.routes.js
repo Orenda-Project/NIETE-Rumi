@@ -75,6 +75,10 @@ const { CAPSTONE_MARKING_DEADLINE_MS } = require('../middleware/timeout');
 const { isMultiKey } = require('../../bot/shared/services/training/paper-marking.service');
 const { readingsForCourse } = require('../../bot/shared/services/training/isaps-readings.rules');
 const { buildIsapsScoreSheet } = require('../../bot/shared/services/training/isaps-score-sheet.rules');
+// bd-arghnv.3 — a question with a blank stem is never served or counted as a quiz. The bot's own rule
+// (zero requires, like paper-marking.service.js); the portal hands it its logger.
+const { servableQuestions } = require('../../bot/shared/services/training/question-stem.rules');
+const _logBlankStems = (msg, data) => console.warn(msg, JSON.stringify(data));
 // bd-2460 — Assessment Generator availability. Fail-closed, shared with the
 // bot via one app_settings row (see dashboard/lib/feature-flags.js).
 const {
@@ -4656,13 +4660,16 @@ router.get('/training/level/:id/capstone/questions', requirePortalAuth, async (r
       .maybeSingle();
     if (!quiz) return res.status(404).json({ success: false, error: 'This level has no written exam' });
 
-    const { data: questions, error: qErr } = await supabase
+    const { data: questionRows, error: qErr } = await supabase
       .from('training_questions')
       .select('id, question_text, order_index')
       .eq('grand_quiz_id', quiz.id)
       .eq('is_active', true)
       .order('order_index', { ascending: true });
     if (qErr) throw qErr;
+    const questions = servableQuestions(questionRows, {
+      log: _logBlankStems, where: { route: 'capstone/questions', grandQuizId: quiz.id },
+    });
 
     const {
       CAPSTONE_PASS_PCT, MIN_ANSWER_CHARS, POINTS_PER_QUESTION,
@@ -4670,7 +4677,7 @@ router.get('/training/level/:id/capstone/questions', requirePortalAuth, async (r
 
     return res.json({
       success: true,
-      questions: (questions || []).map(q => ({
+      questions: questions.map(q => ({
         id: q.id,
         question_text: q.question_text || '',
         order_index: q.order_index,
@@ -4746,7 +4753,10 @@ router.post('/training/level/:id/capstone/attempts', requirePortalAuth, async (r
       .eq('is_active', true)
       .order('order_index', { ascending: true });
     if (qErr) throw qErr;
-    const qList = questions || [];
+    // The list the GET served: a blank-stem prompt was never shown, so it is never owed an answer.
+    const qList = servableQuestions(questions, {
+      log: _logBlankStems, where: { route: 'capstone/attempts', grandQuizId: quiz.id },
+    });
     if (qList.length === 0) return res.status(404).json({ success: false, error: 'This exam has no questions' });
 
     if (answers.length !== qList.length) {
@@ -5172,12 +5182,13 @@ router.get('/training/modules', requirePortalAuth, async (req, res) => {
     // reports this per unit; the LIST needs it too, in one query.
     const qMap = new Map();
     if (moduleIds.length) {
+      // bd-arghnv.3 — only a question with a stem makes a quick check.
       const { data: qRows } = await supabase
         .from('training_questions')
-        .select('training_module_id')
+        .select('training_module_id, question_text')
         .in('training_module_id', moduleIds)
         .eq('is_active', true);
-      for (const r of qRows || []) qMap.set(r.training_module_id, true);
+      for (const r of servableQuestions(qRows)) qMap.set(r.training_module_id, true);
     }
 
     // bd-vej4h — display only; the open gate refuses a locked unit anyway. Best
@@ -5315,14 +5326,15 @@ router.get('/training/module/:id', requirePortalAuth, async (req, res) => {
 
     // Whether this module has an active quiz — the frontend uses this to
     // decide between "complete via quiz" (quiz submit marks progress) and
-    // the explicit "Mark complete" control for quiz-less modules. Existence
-    // probe (limit 1) rather than a count — we only need the boolean.
-    const { data: activeQuestions } = await supabase
+    // the explicit "Mark complete" control for quiz-less modules. Only a
+    // question with a stem makes a quiz (bd-arghnv.3), so the probe reads the
+    // unit's handful of rows rather than stopping at the first.
+    const { data: questionRows } = await supabase
       .from('training_questions')
-      .select('id')
+      .select('id, question_text')
       .eq('training_module_id', moduleId)
-      .eq('is_active', true)
-      .limit(1);
+      .eq('is_active', true);
+    const activeQuestions = servableQuestions(questionRows);
 
     res.json({
       success: true,
@@ -5512,15 +5524,19 @@ router.get('/training/module/:id/questions', requirePortalAuth, async (req, res)
     //    will grade against (answer count must match this list's length).
     //    correct_option is fetched ONLY to compute the multi flag server-side
     //    and is never included in the response.
-    const { data: questions, error: qErr } = await supabase
+    const { data: questionRows, error: qErr } = await supabase
       .from('training_questions')
       .select('id, question_text, options, order_index, correct_option')
       .eq('training_module_id', moduleId)
       .eq('is_active', true)
       .order('order_index', { ascending: true });
     if (qErr) throw qErr;
+    // bd-arghnv.3 — a blank-stem question is never listed (the POST grades this same list).
+    const questions = servableQuestions(questionRows, {
+      log: _logBlankStems, where: { route: 'module/questions', moduleId },
+    });
 
-    const rows = (questions || []).map(q => ({
+    const rows = questions.map(q => ({
       id: q.id,
       question_text: q.question_text || '',
       options: (Array.isArray(q.options) ? q.options : []).map(o =>
@@ -5631,12 +5647,15 @@ router.post('/training/module/:id/quiz-attempts', requirePortalAuth, async (req,
     //    the answer set must exhaustively cover.
     const { data: questions, error: qErr } = await supabase
       .from('training_questions')
-      .select('id, correct_option, order_index')
+      .select('id, correct_option, order_index, question_text')
       .eq('training_module_id', moduleId)
       .eq('is_active', true)
       .order('order_index', { ascending: true });
     if (qErr) throw qErr;
-    const qList = questions || [];
+    // bd-arghnv.3 — the list GET /questions served: no blank-stem question, so none is owed an answer.
+    const qList = servableQuestions(questions, {
+      log: _logBlankStems, where: { route: 'module/quiz-attempts', moduleId },
+    });
     if (qList.length === 0) {
       return res.status(400).json({ success: false, error: 'This module has no active questions' });
     }
@@ -7214,15 +7233,16 @@ router.post('/training/module/:id/complete', requirePortalAuth, async (req, res)
     }
 
     // 3. Quiz-less check — modules WITH active questions must complete via
-    //    quiz submission, never via this shortcut. Existence probe (limit 1).
-    const { data: activeQuestions, error: qErr } = await supabase
+    //    quiz submission, never via this shortcut. Only a question with a stem
+    //    makes a quiz (bd-arghnv.3): one made only of blank rows serves nothing,
+    //    and refusing here too would leave the unit impossible to finish.
+    const { data: questionRows, error: qErr } = await supabase
       .from('training_questions')
-      .select('id')
+      .select('id, question_text')
       .eq('training_module_id', moduleId)
-      .eq('is_active', true)
-      .limit(1);
+      .eq('is_active', true);
     if (qErr) throw qErr;
-    if ((activeQuestions || []).length > 0) {
+    if (servableQuestions(questionRows).length > 0) {
       return res.status(409).json({
         success: false,
         error: 'This module has a quiz — completion is recorded when you submit it.',

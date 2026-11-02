@@ -63,6 +63,7 @@ const { logToFile, logError } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { issueCertificate } = require('./certificate.service');
 const { hasImageOptions, parseOptionImages, imageOptionRows } = require('./question-images.rules');
+const { servableQuestions } = require('./question-stem.rules');
 const {
   isPerModuleQuiz, moduleSourceQuizId, isLevelCertifyingAttempt, moduleExamPassMessage,
 } = require('./isaps-module-exam.rules');
@@ -279,8 +280,9 @@ async function getServingConfig({ levelId, moduleId }) {
 
 /**
  * The active question bank for an attempt (or a not-yet-inserted attempt
- * shape), lightest columns only — the bank can be 400+ rows and all the
- * selection needs is identity, order and Bloom level.
+ * shape), light columns only — the bank can be 400+ rows, and selection needs
+ * identity, order, Bloom level, the answer shape and whether there is a stem.
+ * Blank-stem rows never leave this function (bd-arghnv.3).
  */
 async function loadQuestionBank({ quizKind, trainingModuleId, grandQuizId }) {
   // `options` and `correct_option` are part of the projection
@@ -288,9 +290,14 @@ async function loadQuestionBank({ quizKind, trainingModuleId, grandQuizId }) {
   // them, isOpenEndedQuestion cannot tell an MCQ from a written answer: every
   // row read as open-ended, Module 1's 12-row bank collapsed to a single
   // question, and the exam resolved the module on one CRQ.
+  //
+  // `question_text` is here for the same kind of reason (bd-arghnv.3): a row
+  // with a blank stem is dropped from the bank before anything is sized or
+  // drawn from it, so a quick check made only of blank rows reads as no quick
+  // check, and the skip is logged once with the ids.
   let qBuilder = supabase
     .from('training_questions')
-    .select('id, order_index, bloom_level, options, correct_option')
+    .select('id, order_index, bloom_level, options, correct_option, question_text')
     .eq('is_active', true)
     .order('order_index', { ascending: true });
   qBuilder = quizKind === KIND_TRAINING_MODULE
@@ -301,7 +308,10 @@ async function loadQuestionBank({ quizKind, trainingModuleId, grandQuizId }) {
     logToFile('❌ Question bank lookup failed', { quizKind, error: error.message });
     return [];
   }
-  return data || [];
+  return servableQuestions(data || [], {
+    log: (msg, d) => logToFile(msg, d, 'warn'),
+    where: { quizKind, trainingModuleId: trainingModuleId || null, grandQuizId: grandQuizId || null },
+  });
 }
 
 /**
