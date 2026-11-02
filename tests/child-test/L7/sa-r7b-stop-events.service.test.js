@@ -47,7 +47,8 @@ describe('the stop events reach the session', () => {
     expect(kept[0]).toEqual({ seq: 1, type: 'back', task_id: 'ur.letters', at: '2026-10-27T09:00:00Z', data: { by: 'coach' } });
   });
   test('STOP_TYPES is exported for the dashboard', () => {
-    expect(require(SVC).STOP_TYPES).toEqual(STOP_TYPES);
+    // round 9 item 3 added the coach's skip_instructions after round 7b's six
+    expect(require(SVC).STOP_TYPES).toEqual([...STOP_TYPES, 'skip_instructions']);
   });
 });
 
