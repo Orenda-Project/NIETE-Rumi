@@ -1865,7 +1865,6 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
     }
   }
 
-};
 
   // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
   //    but had no driver. Implement each one, then turn BLOCKED into V(...).
@@ -1935,3 +1934,5 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
   // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
   rec('T691', 'No second button after ten minutes, mid chat quiz, once the page has opened, or for a slash command', 'BLOCKED',
       { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+};
