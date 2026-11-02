@@ -18,6 +18,9 @@
  * strip — nothing true to promise. Read only for a 'shown' pick; any failed check is no strip.
  * bd-9dbhh0.1 (COS 20261028T151950): with VIDEO_RECO_WA_MESSAGE off (the default) there is no clip message, so stripFor()
  * turns 'next' into 'link' — "tap the link under this picture", the link the report's caption carries (caption-link.js).
+ * bd-22gf7p (COS 20261031T144349 §2): off the app with the window already closed, and VIDEO_RECO_CLIP_TEMPLATE able to
+ * carry this row's button (clip-button.js forRow) → 'button' — "tap the button under this picture". The hero render also
+ * keeps an app-hint copy of the image (fallbackPng), stored instead if the button template is refused at the send.
  *
  * stripHtml(): ONE block for both templates (hero 794 px, slim 480 px), right under "Try one thing tomorrow": a
  * 16:9 thumbnail with a play badge, "▶ Watch next: {title}" and the hint stripWhere() chose ("{n} min · tap ▶ Watch in
@@ -63,12 +66,18 @@ function stripWaitMs(env = process.env) {
   return flags.videoRecoReason(env) === 'card' ? CARD_CAP_MS : CAP_MS;
 }
 
-/** 'app' | 'next' | null — see the header. Throws are the caller's (stripFor: no strip). */
-async function stripWhere({ phone, userId, deps = {} }) {
+/**
+ * 'app' | 'next' | 'button' | null — see the header. Throws are the caller's (stripFor: no strip).
+ * 'button' (bd-22gf7p): off the app, the window already CLOSED (no margin: a window with minutes left still gets today's
+ * free-form image, so no strip), and the clip template can carry this row's button. The send then goes as that template
+ * whatever the window does next (report-window-send `promised`), so the image never says "button" over a free-form send.
+ */
+async function stripWhere({ phone, userId, button = false, deps = {} }) {
   const onApp = deps.onTeacherApp || ((id) => require('../../app-redirect.service').isOnTeacherApp(id));
   const windowOpen = deps.windowOpen || ((p, o) => require('../../quiz/quiz-delivery.service')._hasOpenMessageWindow(p, o));
   if (userId && await onApp(userId)) return 'app';
   if (phone && await windowOpen(phone, { marginMs: STRIP_WINDOW_MARGIN_MS })) return 'next';
+  if (button && phone && !(await windowOpen(phone, { marginMs: 0 }))) return 'button';
   return null;
 }
 
@@ -83,7 +92,9 @@ async function stripFor({ coachingSessionId, language, row: given, capMs, phone,
     const row = await Promise.race([pending, new Promise((r) => { timer = setTimeout(() => r(null), capMs); })]);
     clearTimeout(timer);
     if (!row || row.status !== 'shown') return null;
-    let where = await stripWhere({ phone, userId, deps });
+    // bd-22gf7p: the closed-window template can carry the clip's button for this row (env set, row shown, token made)
+    const button = !!(deps.clipButton || require('./clip-button').forRow)(row); // eslint-disable-line global-require
+    let where = await stripWhere({ phone, userId, button, deps });
     if (!where) return null;
     // bd-9dbhh0.1 (COS 20261028T151950 §1.2): with the clip message off (the default) the window-open image points at the
     // link in its own caption (caption-link.js), and only when that link can be made — never a promise of a missing link
@@ -129,7 +140,8 @@ function stripHtml(vs, { language, T, width = 794 }) {
   const title = copy.word('videoRecoStripTitle', l, { title: vs.title || '' });
   // red7 N1 (051537): only an explicit 'next' promises the next message, only an explicit 'link' the caption's link
   // (bd-9dbhh0.1); anything else is the app hint, true on every path
-  const HINT = { next: 'videoRecoStripHint', link: 'videoRecoStripHintLink' };
+  // bd-22gf7p: only an explicit 'button' promises the template's "Watch the clip" button
+  const HINT = { next: 'videoRecoStripHint', link: 'videoRecoStripHintLink', 'button': 'videoRecoStripHintTemplate' };
   const hint = copy.word(HINT[vs.where] || 'videoRecoStripHintApp', l, { n: copy.num(n, l) });
   const b64 = thumbData(vs.thumbPath);
   const side = width >= 700 ? '42px' : '0';
