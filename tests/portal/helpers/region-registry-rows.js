@@ -1,5 +1,5 @@
 /**
- * region_features as migration V1.8.5 leaves it (bd-97daxo.2), for route tests whose supabase stand-in must answer
+ * region_features as migration V1.8.8 leaves it (bd-97daxo.2), for route tests whose supabase stand-in must answer
  * the region registry (bot/shared/services/region-registry.js): FDE's six ICT sectors owned by 'niete', in dashboard
  * order, Gilgit-Baltistan owned by 'moawin', and the deployment-wide 'niete' LP row, which is not a region.
  *
