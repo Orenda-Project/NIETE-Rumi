@@ -396,15 +396,19 @@ class ReportGeneratorService {
         const CaptionLink = require('./video-reco/caption-link');
         const clipLink = await CaptionLink.linkBlock({ row: videoReco, language: outputLanguage, coachingSessionId }).catch(() => null);
         const caption = clipLink ? CaptionLink.withLink(reportResult.caption || '', clipLink) : (reportResult.caption || '');
+        let heroPng = reportResult.slimPng || reportResult.png; // bd-v0toag.57: C/D get the slim image; R2 keeps the full one
+        // bd-22gf7p (COS 20261031T144349 §2): window closed + row 'shown' + VIDEO_RECO_CLIP_TEMPLATE set → the report template
+        // carries a "Watch the clip" button. Env unset → null without waiting, and the send is exactly as before.
+        const clip = await this._clipForSend({ videoReco, videoStrip, reportResult, session, coachingSessionId, onSwap: (png) => { heroPng = png; } });
         try {
           heroSent = await this.sendHeroImageReport(
             from,
             coachingSessionId,
-            reportResult.slimPng || reportResult.png, // bd-v0toag.57: C/D get the slim image; R2 keeps the full one
+            heroPng,
             caption,
             session.users.name,
             session.created_at,
-            { ...track.opts('image'), userId: session.user_id }
+            { ...track.opts('image'), userId: session.user_id, ...(clip ? { clip } : {}) }
           );
           // bd-v0toag.106 — window closed: the report went as the share template; the free-form follow-ups would be refused.
           followUps = require('./report-window-send').followUpsAllowed(heroSent);
@@ -1580,11 +1584,58 @@ class ReportGeneratorService {
    * @returns {Promise<void>}
    * @private
    */
+  /**
+   * bd-22gf7p — the clip button for the closed-window template (report-window-send `clip`), or null. `promised` when the
+   * image's strip says "tap the button under this picture"; useFallbackImage() stores the hero's app-hint copy in R2 (the
+   * plain template's header) and returns it (null when there is none). A strip that promised the button when no button can
+   * go (the env changed under the render) swaps the image at once, through onSwap. Never throws.
+   * @private
+   */
+  static async _clipForSend({ videoReco, videoStrip, reportResult, session, coachingSessionId, onSwap }) {
+    try {
+      const promised = !!videoStrip && videoStrip.where === 'button';
+      const useFallbackImage = async () => {
+        const png = reportResult && reportResult.fallbackPng;
+        if (!Buffer.isBuffer(png)) return null;
+        await uploadReportImage(png, session.user_id, coachingSessionId);
+        return png;
+      };
+      const button = await require('./video-reco/clip-button').buttonFor({ row: videoReco, coachingSessionId });
+      if (!button) {
+        const png = promised ? await useFallbackImage().catch(() => null) : null;
+        if (png) onSwap(png);
+        else if (promised) {
+          logToFile('❌ strip promised the clip button but none can go, and the app-hint image could not be stored', { coachingSessionId }, 'error');
+        }
+        return null;
+      }
+      return { ...button, promised, imageStrip: Boolean(videoStrip), useFallbackImage };
+    } catch (err) {
+      logToFile('⚠️ clip button skipped (non-fatal)', { coachingSessionId, error: err && err.message }, 'warn');
+      return null;
+    }
+  }
+
   static async sendHeroImageReport(phoneNumber, coachingSessionId, pngBuffer, caption, teacherFirstName = 'Teacher', observationDate = null, sendOpts = undefined) {
     // bd-v0toag.106 — outside her 24 h window a free-form image is refused (131047): send the share template.
     const { sendReportByTemplateIfWindowClosed } = require('./report-window-send');
     const userId = sendOpts && sendOpts.userId;
-    if (await sendReportByTemplateIfWindowClosed({ phone: phoneNumber, userId, sessionId: coachingSessionId }) === 'template') {
+    // bd-22gf7p: the clip button rides on the template; a refused button template puts the app-hint image in place
+    // (R2 for the plain template, and this send's own image should it go free-form after all). `clip` never reaches sendImage.
+    const clip = sendOpts && sendOpts.clip;
+    if (clip) {
+      const { clip: _clip, ...rest } = sendOpts;
+      sendOpts = rest;
+    }
+    const windowReq = { phone: phoneNumber, userId, sessionId: coachingSessionId };
+    if (clip) {
+      windowReq.clip = { ...clip, useFallbackImage: async () => {
+        const png = typeof clip.useFallbackImage === 'function' ? await clip.useFallbackImage() : null;
+        if (Buffer.isBuffer(png)) pngBuffer = png;
+        return png;
+      } };
+    }
+    if (await sendReportByTemplateIfWindowClosed(windowReq) === 'template') {
       return 'template';
     }
     let tempImagePath = null;
