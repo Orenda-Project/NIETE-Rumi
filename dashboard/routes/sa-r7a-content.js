@@ -10,6 +10,8 @@
  *                     reads Next (sa-ui.js), so its hint names Next; the other spoken screens keep r7_say_done
  *   sa_story_scroll   lines.r7_scroll    the story goes on below: slide the page up to read all of it
  *   sa_tick_prompt    lines.r7_type_tick a typed number: type it, then press the tick
+ *   sa_r9_scroll_cue  lines.r9_scroll_cue  round 9 item 7: a screen runs past the bottom, there is more below (said once
+ *                     per screen type by the engine, with the visual cue)
  *   sa_t_sound_ta     the English letter sound of T: "ta" (its own clip, under a new key), not "tuh"
  *
  * Words for children: Urdu in Urdu script, gender-neutral (imperatives in -یں), the button names as the screen shows them
@@ -22,11 +24,11 @@ const keyOf = (lang, text) => `sa/v1/${lang}/${crypto.createHash('sha1').update(
 
 const LINES = Object.freeze({
   r7_say_next: Object.freeze({
-    en: 'Say each one out loud, then press the Next button.',
+    en: 'Say each one out loud, then press Next.',
     ur: 'ہر ایک کو اونچی آواز میں بولیں، پھر «آگے» کا بٹن دبائیں۔',
   }),
   r7_say_done: Object.freeze({
-    en: 'Say your answer out loud, then press the Done button.',
+    en: 'Say your answer out loud, then press Done.',
     ur: 'اپنا جواب اونچی آواز میں بتائیں، پھر «ہو گیا» کا بٹن دبائیں۔',
   }),
   r7_say_next_q: Object.freeze({
@@ -41,11 +43,15 @@ const LINES = Object.freeze({
     en: 'Type the number, then press the tick.',
     ur: 'نمبر لکھیں، پھر صحیح کے نشان والا بٹن دبائیں۔',
   }),
+  r9_scroll_cue: Object.freeze({
+    en: 'There is more below. Move the screen up with your finger to see it.',
+    ur: 'نیچے اور بھی ہے۔ دیکھنے کے لیے انگلی سے اسکرین کو اوپر کی طرف سرکائیں۔',
+  }),
 });
 
 // The switch (sa-battery-switches.js SWITCHES name) that adds each line.
 const LINE_SWITCH = Object.freeze({ r7_say_next: 'sayThenNext', r7_say_done: 'sayThenNext', r7_say_next_q: 'sayThenNext',
-  r7_scroll: 'storyScroll', r7_type_tick: 'tickPrompt' });
+  r7_scroll: 'storyScroll', r7_type_tick: 'tickPrompt', r9_scroll_cue: 'r9ScrollCue' });
 // A line that needs a second switch ON as well.
 const LINE_ALSO = Object.freeze({ r7_say_next_q: 'r8CompWaitNext' });
 

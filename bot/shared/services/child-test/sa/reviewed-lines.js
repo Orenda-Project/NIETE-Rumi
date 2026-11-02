@@ -8,6 +8,8 @@
  *   script  { <script line>: { en?, ur? } }                          every task's script that has the line
  *   tasks   { <task id>: { <script line> | practice_frame: { en?, ur? } } }   that task in every form; practice_frame is
  *           the words Jugnu says before a practice item's answer ("The name of this letter is:")
+ *   replace [{ lang, from, to }]                                     applied last: the line changes wherever that exact
+ *           text is said (the reviewers' "every line" table: one row = one text, every place it plays)
  *
  * A changed text gets the clip key its words hash to (sa/v1/<lang>/<sha1(lang|text)[0,12]>.mp3, the builder's rule), so
  * the screen and the voice change together and an unchanged language keeps its key. No file, nothing changes.
@@ -59,6 +61,29 @@ function relayTask(task, script, own) {
   return t;
 }
 
+/**
+ * replace [{ lang, from, to }]: a line changes wherever that exact text is said (battery lines, every script line or list
+ * of lines, practice frames), in that language. A practice answer is never a frame, so it never changes.
+ */
+function replaceSpoken(bank, list) {
+  if (!Array.isArray(list) || !list.length) return bank;
+  const by = { en: new Map(), ur: new Map() };
+  for (const r of list) if (by[r.lang] && typeof r.from === 'string' && typeof r.to === 'string') by[r.lang].set(r.from, r.to);
+  const one = (l) => (l && l.audio ? relay(l, { en: by.en.get(l.en), ur: by.ur.get(l.ur) }) : l);
+  const lines = Object.fromEntries(Object.entries(bank.lines || {}).map(([k, l]) => [k, one(l)]));
+  const tasks = {};
+  for (const [id, t] of Object.entries(bank.tasks || {})) {
+    const script = t.script && Object.fromEntries(Object.entries(t.script).map(([k, v]) => [k, Array.isArray(v) ? v.map(one) : one(v)]));
+    let u = script ? { ...t, script } : t;
+    for (const field of ['practice', 'practice_v2']) {
+      if (!Array.isArray(u[field])) continue;
+      u = { ...u, [field]: u[field].map((p) => (Array.isArray(p.model) ? { ...p, model: p.model.map((m) => (isFrame(m) ? one(m) : m)) } : p)) };
+    }
+    tasks[id] = u;
+  }
+  return { ...bank, lines, tasks };
+}
+
 /** The bank with the reviewed lines in place. Pure: the bank passed in is not changed. */
 function applyReviewed(bank, reviewed) {
   if (!bank || !reviewed) return bank;
@@ -68,7 +93,7 @@ function applyReviewed(bank, reviewed) {
   for (const [id, t] of Object.entries(bank.tasks || {})) {
     tasks[id] = relayTask(t, reviewed.script || {}, (reviewed.tasks || {})[id.split('/').pop()] || {});
   }
-  return { ...bank, lines, tasks };
+  return replaceSpoken({ ...bank, lines, tasks }, reviewed.replace);
 }
 
 module.exports = { FILE, applyReviewed, loadReviewed, audioKey };
