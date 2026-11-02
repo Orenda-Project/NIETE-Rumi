@@ -1,0 +1,41 @@
+{
+  "name": "share_dc_report_clip_v1",
+  "category": "UTILITY",
+  "language": "en",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "IMAGE",
+      "example": {
+        "header_handle": [
+          "<SAMPLE PNG HANDLE: submit.js uploads one and fills this in>"
+        ]
+      }
+    },
+    {
+      "type": "BODY",
+      "text": "Your Digital Coach report: *{{1}}*\n{{2}} class\n\nA short training clip was picked for this lesson. Tap Watch the clip below.",
+      "example": {
+        "body_text": [
+          [
+            "Parts of a plant",
+            "Grade 4 · Science"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "URL",
+          "text": "Watch the clip",
+          "url": "https://portal.niete.edu.pk/v/{{1}}",
+          "example": [
+            "https://portal.niete.edu.pk/v/eyJrIjoidnIiLCJyIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwidSI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMiIsInMiOiJ3YSIsImV4cCI6MTc5MjAwMDAwMH0.3TxIajJUt4sBl7xeLmR2FI"
+          ]
+        }
+      ]
+    }
+  ]
+}
