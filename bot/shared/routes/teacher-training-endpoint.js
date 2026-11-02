@@ -1195,7 +1195,9 @@ async function settleCertificates(userId, facts) {
     });
     if (res && res.issued) {
       certifiedLevelIds.add(lv.id);
-      logToFile('🎓 Certificate issued on view — the level qualified with none held', { userId, levelId: lv.id });
+      let tk = null;
+      try { tk = require('../services/quiz/web-quiz-kid').tk(userId); } catch (_) { /* no key → no reference */ }
+      logToFile('🎓 Certificate issued on view — the level qualified with none held', { tk, levelId: lv.id });
     }
   }
 }

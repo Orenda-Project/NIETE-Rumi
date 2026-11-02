@@ -466,7 +466,9 @@ async function maybeIssueQuizScoreCertificate(
         return { issued: false, held: true };
       }
       if (!(await previousLevelCertified(supabase, { userId, level }))) {
-        logToFile('🎓 Certificate waits — the previous level has no certificate yet', { userId, levelId: level.id });
+        let tk = null;
+        try { tk = require('../quiz/web-quiz-kid').tk(userId); } catch (_) { /* no key → no reference */ }
+        logToFile('🎓 Certificate waits — the previous level has no certificate yet', { tk, levelId: level.id });
         return { issued: false, reason: 'previous_level' };
       }
       const cert = await issueCertificate(supabase, {
