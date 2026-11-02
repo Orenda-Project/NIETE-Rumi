@@ -25,6 +25,7 @@
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const { hasQuestionStem } = require('./question-stem.rules');
 
 /**
  * Record a module as completed for a teacher. Idempotent — a repeat call
@@ -56,15 +57,21 @@ async function markModuleComplete(userId, moduleId) {
  * handleModuleDone's own call fails the same way and takes the no-quiz path.
  * Wrong-but-consistent beats a button that contradicts its handler.
  *
+ * Only questions with a stem count (bd-arghnv.3), the same rule the bank
+ * loader applies: a quick check made only of blank-stem rows serves nothing,
+ * so it must read as no quick check, or the teacher is sent to a quiz that
+ * cannot start and the module never completes. A unit's quick check is a
+ * handful of rows, so they are read rather than counted by the database.
+ *
  * @param {number} moduleId training_modules.id
  * @returns {Promise<number>}
  */
 async function countActiveQuestions(moduleId) {
   const moduleIdNum = (typeof moduleId === 'number' ? moduleId : parseInt(moduleId, 10));
   if (!Number.isFinite(moduleIdNum) || moduleIdNum <= 0) return 0;
-  const { count, error } = await supabase
+  const { data, error } = await supabase
     .from('training_questions')
-    .select('id', { count: 'exact', head: true })
+    .select('id, question_text')
     .eq('training_module_id', moduleIdNum)
     .eq('is_active', true);
   if (error) {
@@ -73,7 +80,7 @@ async function countActiveQuestions(moduleId) {
     });
     return 0;
   }
-  return count || 0;
+  return (data || []).filter(hasQuestionStem).length;
 }
 
 /**
