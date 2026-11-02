@@ -57,10 +57,14 @@ function spellEnglishNumbers(text) {
 
 // A bare sum ("18 plus 7", «۱۵ منفی ۷») is read as a sentence to finish, so the child answers it rather than repeating it.
 const SUM = /^\s*[\d۰-۹][\d۰-۹,]*\s+(?:plus|minus|times|جمع|منفی|ضرب|تقسیم)\s+[\d۰-۹][\d۰-۹,]*\s*$/;
-const EQUALS = Object.freeze({ en: 'equals', ur: 'برابر' });
+// Round 9 (the content owner, item 5): the Urdu battery says the operation in English as well, in Urdu script.
+const EQUALS = Object.freeze({ en: 'equals', ur: 'ایکولز' });
+const UR_OPS = Object.freeze({ 'جمع': 'پلس', 'منفی': 'مائنس', 'ضرب': 'ٹائمز', 'تقسیم': 'ڈیوائیڈڈ بائی' });
 
 function withEquals(text, lang) {
-  return EQUALS[lang] && SUM.test(text) ? `${text.trim()} ${EQUALS[lang]}` : text;
+  if (!EQUALS[lang] || !SUM.test(text)) return text;
+  const sum = lang === 'ur' ? text.trim().replace(/جمع|منفی|ضرب|تقسیم/, (w) => UR_OPS[w]) : text.trim();
+  return `${sum} ${EQUALS[lang]}`;
 }
 
 // A letter SOUND is voiced as a sound, never a letter name (the content owner, round 8 items 8, 10, 22; the voicenote

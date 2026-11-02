@@ -18,9 +18,10 @@
  * the reviewers' samples were made (sa-voice-providers.js). The default is the reviewers' pick, ElevenLabs Chutki (kids
  * storyteller) for both languages at its own pace; --provider soniox defaults to Ishita (Urdu) / Priya (English) at 0.85. Urdu narration is given its tashdeed (sa/ur-tashdeed.js)
  * for every provider, and Soniox alone gets the Urdu respellings (sayAs), as in the samples. --concurrency <n> lines at
- * once (default 1). In v4 a bare sum ends on "equals" («برابر»), so the child hears a blank to fill; --sums re-records
+ * once (default 1). In v4 a bare sum ends on "equals" (Urdu: «ایکولز», its operation said in English too, «پلس», «مائنس», «ٹائمز»), so the child hears a blank to fill; --sums re-records
  * just the sums, over the clips already on disk. A letter sound is voiced as a sound (withSounds); --sounds re-records
- * just those lines. A praise line is said with [excited] (isPraise); --praise re-records just those.
+ * just those lines. A praise line is said with [excited] (isPraise); --praise re-records just those. v4 is levelled to
+ * -16 LUFS (round 9: quiet on some phones); --relevel re-levels the v4 clips already on disk to it, no voice call.
  *
  *   node scripts/child-test/record-sa-voice.js --lang en|ur [--only item|instruction|…] [--set v1|v2|v3|v4] [--extra <file>]
  *        [--provider soniox|elevenlabs|uplift --voice <id> --speed <x> --concurrency <n> --sums --sounds --praise]   (v4 only)
@@ -45,10 +46,14 @@ const V4_DEFAULT = Object.freeze({ provider: 'elevenlabs', voice: 'CNKl99QEbWm8R
 const V4_SPEED = 0.85;
 const LUFS = -21;
 const KBPS = 32;
+// Round 9 item 2 (low volume on some phones): the v4 set is levelled louder, true peak still at most -1.5 dBTP.
+const V4_LUFS = -16;
+const V4_TP = -1.5;
+const V4_CEIL = -3;
 
 function parseArgs(argv) {
   const args = { lang: null, only: null, set: 'v1', extra: null, apply: false, maxUsd: 1, spendLog: null, spendExtra: {},
-    provider: null, voice: null, speed: null, concurrency: 1, sums: false, sounds: false, praise: false };
+    provider: null, voice: null, speed: null, concurrency: 1, sums: false, sounds: false, praise: false, relevel: false };
   for (let i = 0; i < (argv || []).length; i += 1) {
     const a = argv[i];
     const next = () => argv[++i];
@@ -60,6 +65,7 @@ function parseArgs(argv) {
     else if (a === '--sums') args.sums = true;
     else if (a === '--sounds') args.sounds = true;
     else if (a === '--praise') args.praise = true;
+    else if (a === '--relevel') args.relevel = true;
     else if (a === '--provider') args.provider = String(next() || '').trim();
     else if (a === '--voice') args.voice = String(next() || '').trim();
     else if (a === '--speed') args.speed = Number(next()) || null;
@@ -75,10 +81,11 @@ function loadBank(dataDir = DATA) {
   return JSON.parse(fs.readFileSync(path.join(dataDir, 'item-bank.sa.v1.json'), 'utf8'));
 }
 
-async function run(argv, { tts = null, synth = null, level = null, out = console.log, outDir = path.join(REPO, 'dashboard'), dataDir = DATA, env = process.env } = {}) {
+async function run(argv, { tts = null, synth = null, level = null, measure = null, out = console.log, outDir = path.join(REPO, 'dashboard'), dataDir = DATA, env = process.env } = {}) {
   const args = parseArgs(argv);
   if (!['en', 'ur'].includes(args.lang)) throw new Error('--lang en|ur is required');
   if (!SETS[args.set]) throw new Error('--set v1|v2|v3|v4');
+  if (args.set === 'v4' && args.relevel) return relevelV4(args, { level, measure, out, outDir, dataDir });
   if (args.set === 'v4') return runV4(args, { synth, level, out, outDir, dataDir, env });
   const voice = SETS[args.set][args.lang];
   if (!voice) throw new Error(`--set ${args.set} has no ${args.lang} voice`);
@@ -157,7 +164,7 @@ async function runV4(args, { synth, level, out, outDir, dataDir, env }) {
   out(`sa voice set=v4 provider=${args.provider} voice=${voice} speed=${speed || 'native'} lang=${args.lang} lines=${jobs.length} chars=${chars} usd≈${estUsd.toFixed(3)}${args.apply ? '' : ' (dry run)'}`);
   if (!args.apply) return { lines: jobs.length, chars, recorded: 0, usd: 0 };
   const say = synth || ((job) => P.synthesize(job, { env }));
-  const levelMp3 = level || require('../quiz/record-one-voice-shared-lines').levelMp3;
+  const levelMp3 = level || levelV4;
   let usd = 0; let recorded = 0; let stopped = null; let next = 0;
   const failed = [];
   const worker = async () => {
@@ -168,7 +175,7 @@ async function runV4(args, { synth, level, out, outDir, dataDir, env }) {
       if (usd >= args.maxUsd) { stopped = 'max_usd'; break; }
       try {
         const res = await say(j.job);
-        const mp3 = await levelMp3(res.audio, { lufs: LUFS, kbps: KBPS });
+        const mp3 = await levelMp3(res.audio, { lufs: V4_LUFS, kbps: KBPS });
         fs.mkdirSync(path.dirname(target), { recursive: true });
         fs.writeFileSync(target, mp3);
         const sec = mp3.length / (KBPS * 125);
@@ -189,8 +196,102 @@ async function runV4(args, { synth, level, out, outDir, dataDir, env }) {
   return { lines: jobs.length, recorded, usd, failed, ...(stopped ? { stopped } : {}) };
 }
 
+const ffmpegBin = () => {
+  if (process.env.FFMPEG_PATH) return process.env.FFMPEG_PATH;
+  try { return require('@ffmpeg-installer/ffmpeg').path; } catch (_) { return 'ffmpeg'; }
+};
+
+async function withTmp(fn) {
+  const os = require('os');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sa-lv-'));
+  try { return await fn(tmp); } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+}
+
+const ff = (args) => new Promise((resolve, reject) => require('child_process').execFile(ffmpegBin(), args,
+  { timeout: 60000, maxBuffer: 4 * 1024 * 1024 }, (err, _o, stderr) => (err ? reject(err) : resolve(String(stderr || '')))));
+
+/** A clip's integrated loudness and true peak (ffmpeg loudnorm, measure pass only). */
+async function measureMp3(audio) {
+  return withTmp(async (tmp) => {
+    const src = path.join(tmp, 'in');
+    fs.writeFileSync(src, audio);
+    const said = await ff(['-hide_banner', '-nostats', '-i', src, '-af', `loudnorm=I=${V4_LUFS}:TP=${V4_TP}:LRA=11:print_format=json`, '-f', 'null', '-']);
+    const m = JSON.parse((said.match(/\{[^{}]*\}/g) || []).pop());
+    return { i: Number(m.input_i), tp: Number(m.input_tp) };
+  });
+}
+
+/**
+ * The v4 clip as the set keeps it: mp3 44.1 kHz mono at `kbps`, at `lufs` integrated with the true peak at most V4_TP.
+ * One gain to the target, then a limiter (sample ceiling V4_CEIL dBFS) so the low-bitrate encode's overshoot stays under
+ * the peak limit; the written clip is measured and, if it misses, made again from the same source with the gain and
+ * the ceiling corrected (at most 5 tries).
+ */
+async function levelV4(audio, { lufs = V4_LUFS, kbps = KBPS } = {}) {
+  const first = await measureMp3(audio);
+  let gain = Number.isFinite(first.i) ? lufs - first.i : 0;
+  let ceil = V4_CEIL;
+  let best = null;
+  for (let n = 0; n < 5; n += 1) {
+    const mp3 = await withTmp(async (tmp) => {
+      const src = path.join(tmp, 'in');
+      const out = path.join(tmp, 'out.mp3');
+      fs.writeFileSync(src, audio);
+      await ff(['-y', '-loglevel', 'error', '-i', src, '-af',
+        `volume=${gain.toFixed(2)}dB,alimiter=limit=${(10 ** (ceil / 20)).toFixed(4)}:attack=1:release=50:level=disabled`,
+        '-ac', '1', '-ar', '44100', '-c:a', 'libmp3lame', '-b:a', `${kbps}k`, '-map_metadata', '-1', '-id3v2_version', '0', out]);
+      return fs.readFileSync(out);
+    });
+    const m = await measureMp3(mp3);
+    const miss = Math.max(0, m.tp - V4_TP) + Math.max(0, Math.abs(m.i - lufs) - 0.5);
+    if (!best || miss < best.miss) best = { mp3, miss };
+    if (miss === 0) break;
+    if (m.tp > V4_TP) ceil -= m.tp - V4_TP + 0.3;
+    if (Math.abs(m.i - lufs) > 0.5) gain += lufs - m.i;
+  }
+  return best.mp3;
+}
+
+/**
+ * --relevel (v4): every v4 clip on disk for the language, levelled again to V4_LUFS in place (gain only; same key, same
+ * format; no voice call, no spend). A clip already within 0.5 LU of the target, true peak at most -1.5 dBTP, is left as it is.
+ */
+async function relevelV4(args, { level, measure, out, outDir, dataDir }) {
+  const { voiceManifest } = require('../../shared/services/child-test/sa/voice-manifest');
+  const rows = voiceManifest(loadBank(dataDir));
+  if (args.extra) {
+    const seen = new Set(rows.map((r) => r.key));
+    for (const r of JSON.parse(fs.readFileSync(args.extra, 'utf8'))) if (r && r.key && r.text && !seen.has(r.key)) { seen.add(r.key); rows.push(r); }
+  }
+  const keys = [...new Set(rows.filter((r) => r.lang === args.lang).map((r) => r.key.replace(/^sa\/v1\//, 'sa/v4/')))]
+    .filter((k) => fs.existsSync(path.join(outDir, k)));
+  const levelMp3 = level || levelV4;
+  const loud = measure || measureMp3;
+  out(`sa voice set=v4 relevel lang=${args.lang} clips=${keys.length} target=${V4_LUFS} LUFS${args.apply ? '' : ' (dry run)'}`);
+  if (!args.apply) return { clips: keys.length, relevelled: 0, skipped: 0, usd: 0 };
+  let relevelled = 0; let skipped = 0; let next = 0;
+  const failed = [];
+  const worker = async () => {
+    while (next < keys.length) {
+      const k = keys[next]; next += 1;
+      const f = path.join(outDir, k);
+      try {
+        const buf = fs.readFileSync(f);
+        const m = await loud(buf, k);
+        if (Math.abs(m.i - V4_LUFS) <= 0.5 && m.tp <= V4_TP) { skipped += 1; continue; }
+        fs.writeFileSync(f, await levelMp3(buf, { lufs: V4_LUFS, kbps: KBPS }));
+        relevelled += 1;
+      } catch (e) { failed.push({ key: k, error: String((e && e.message) || e).slice(0, 200) }); }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, args.concurrency) }, worker));
+  for (const x of failed) out(`FAILED ${x.key} ${x.error}`);
+  out(`RELEVEL relevelled=${relevelled} skipped=${skipped} failed=${failed.length}`);
+  return { clips: keys.length, relevelled, skipped, failed, usd: 0 };
+}
+
 if (require.main === module) {
   run(process.argv.slice(2)).catch((e) => { console.error(String((e && e.message) || e)); process.exit(1); });
 }
 
-module.exports = { V4_DEFAULT, run, parseArgs, loadBank, SETS };
+module.exports = { V4_DEFAULT, V4_LUFS, run, parseArgs, loadBank, SETS, levelV4, measureMp3, ffmpegBin };
