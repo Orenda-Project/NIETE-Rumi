@@ -29,7 +29,7 @@ import unicodedata
 import uuid
 from urllib.parse import urlparse
 
-GB_REGION = "Gilgit-Baltistan"            # region_features.display_name of the 'gilgit-baltistan' row (V1.8.5)
+GB_REGION = "Gilgit-Baltistan"            # region_features.display_name of the 'gilgit-baltistan' row (V1.8.8)
 SOURCE_REGION = "gilgit_baltistan"        # main Rumi's spelling
 SOURCE_SYSTEM = "main_rumi"               # schools.source_system
 USER_SOURCE = "main_rumi_gb"              # users.source (VARCHAR 50)
@@ -247,13 +247,35 @@ def transform_user(src, *, school, phone, fake, migrated_at):
     }
 
 
-def transform_session(src, user_ids, session_ids):
-    """A NIETE coaching_sessions row, or None when its teacher is not migrated."""
+# A teacher_delivery main Rumi left open: NIETE's untapped and undelivered sweeps would pick it up and chase the
+# teacher or the coach from the NIETE number. Closed on import with gave_up_at, which both sweeps skip.
+OPEN_DELIVERY_DONE = ("tapped_at", "gave_up_at")
+
+
+def close_imported_delivery(src, analysis, closed_at):
+    """analysis_data with an unfinished leader-observation delivery marked given up; anything else as it was."""
+    if src.get("observation_type") != "leader_observation":
+        return src.get("analysis_data")
+    td = _as_dict(analysis.get("teacher_delivery"))
+    if td.get("status") == "sent" or any(td.get(k) for k in OPEN_DELIVERY_DONE):
+        return src.get("analysis_data")
+    return {**analysis, "teacher_delivery": {**td, "gave_up_at": closed_at, "gave_up_reason": "main_rumi_import"}}
+
+
+def transform_session(src, user_ids, session_ids, *, closed_at=None):
+    """A NIETE coaching_sessions row, or None when its teacher is not migrated.
+
+    Imported history arrives closed: NIETE never resumes a delivery or a debrief main Rumi started.
+    """
     uid = user_ids.get(src.get("user_id"))
     if not uid:
         return None
     analysis = _as_dict(src.get("analysis_data"))
+    closed_at = closed_at or src.get("updated_at") or src.get("created_at")   # the run stamp; a plan stays deterministic
     row = {c: src.get(c) for c in SESSION_COPY}
+    row["analysis_data"] = close_imported_delivery(src, analysis, closed_at)
+    if row.get("debrief_status") == "pending":
+        row["debrief_status"] = "skipped"   # the debrief-retry sweep reads 'pending' only
     obs = src.get("observer_user_id")
     dup = src.get("duplicate_of_session_id")
     row.update({
@@ -413,7 +435,7 @@ def plan(source, target, *, fake, migrated_at=None):
         if s.get("status") not in COACHING_STATUSES:
             report["sessions_skipped_status"] += 1
             continue
-        row = transform_session(s, user_ids, written_ids)
+        row = transform_session(s, user_ids, written_ids, closed_at=migrated_at)
         if row is None:
             report["sessions_skipped_teacher_not_migrated"] += 1
             continue

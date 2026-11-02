@@ -93,9 +93,21 @@ describe('region-registry', () => {
   });
 });
 
-describe('V1.8.5 region registry migration', () => {
-  const readSql = () => fs.readFileSync(
-    path.join(__dirname, '../../infrastructure/supabase/migrations/V1.8.5__region_registry.sql'), 'utf8');
+const MIGRATIONS = path.join(__dirname, '../../infrastructure/supabase/migrations');
+const REGISTRY_MIGRATION = 'V1.8.8__region_registry.sql';
+
+describe('V1.8.8 region registry migration', () => {
+  const readSql = () => fs.readFileSync(path.join(MIGRATIONS, REGISTRY_MIGRATION), 'utf8');
+
+  it('owns its version number: the ledger is keyed by version alone, so a twin would be skipped as applied', () => {
+    const { MigrationRunner } = require('../../infrastructure/scripts/migrate');
+    const runner = new MigrationRunner({ supabaseUrl: 'http://x', supabaseKey: 'x', migrationsDir: MIGRATIONS });
+    const mine = runner.extractVersion(REGISTRY_MIGRATION);
+    const twins = fs.readdirSync(MIGRATIONS)
+      .filter((f) => /^V\d+\.\d+\.\d+__.*\.sql$/.test(f) && f !== REGISTRY_MIGRATION)
+      .filter((f) => runner.extractVersion(f) === mine);
+    expect(twins).toEqual([]);
+  });
 
   it("seeds FDE's six sectors in the order the dashboards already show them", () => {
     const { SECTORS } = require('../../dashboard/lib/analytics-lists');

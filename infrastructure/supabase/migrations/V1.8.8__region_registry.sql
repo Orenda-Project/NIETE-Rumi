@@ -1,7 +1,8 @@
--- V1.8.5 — region registry: region_features names each region, its owner, and its dashboard order (bd-97daxo.2).
+-- V1.8.8 — region registry: region_features names each region, its owner, and its dashboard order (bd-97daxo.2).
+-- Renumbered from V1.8.5 (2 Nov): V1.8.5 is fa_video_broadcast on main, and the ledger is keyed by version alone.
 -- Flyway-style versioned migration (D8). Applied to sandbox (olvritwoqujtjvwfulbh), then staging (rpqkekcfvumypldbejhp),
 -- through MigrationRunner.applyMigration ALONE; to prod (ihzciabopbttygxxgrkm) only with the operator's go.
--- Rollback: ROLLBACK_V1.8.5__region_registry.sql.
+-- Rollback: ROLLBACK_V1.8.8__region_registry.sql.
 --
 -- WHY. Gilgit-Baltistan joins NIETE-Rumi as a region owned by Moawin, not FDE. The six ICT sectors were a constant
 -- copied into ~10 files; FDE's dashboards must keep showing exactly those six, and a Moawin dashboard must show only
