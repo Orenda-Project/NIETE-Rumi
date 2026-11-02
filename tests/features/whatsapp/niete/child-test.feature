@@ -1044,3 +1044,18 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: With sa_r8_counts off, every RDF subsection is as today
     Given sa_r8_counts is off
     Then every RDF subsection has today's practice and scored items, and a story question waits 10 seconds
+
+  @e2e @wip @draft @config-gated @P1 @CT150 @no-mock-driver
+  # No mock driver: the mock browser has no loudspeaker or call mode. The recorder opening and closing the microphone per
+  # recording is asserted in dashboard/tests/sa-r9-audio.service.test.js; the loudness itself needs a real phone.
+  Scenario: With sa_r9_audio on, Jugnu speaks with no microphone open, so a phone plays him at full media volume
+    Given sa_r9_audio is on and a child runs a battery with spoken answers on a phone
+    When Jugnu says a line between two recordings
+    Then no microphone is open while he speaks
+    And the microphone opens when a recording starts and closes when it ends
+
+  @e2e @wip @draft @config-gated @P1 @CT150 @no-mock-driver
+  # No mock driver: the switch-off recorder is asserted in dashboard/tests/sa-r9-audio.service.test.js.
+  Scenario: With sa_r9_audio off, the microphone stays open for the whole battery as today
+    Given sa_r9_audio is off
+    Then the microphone is asked for once and kept open until the battery ends
