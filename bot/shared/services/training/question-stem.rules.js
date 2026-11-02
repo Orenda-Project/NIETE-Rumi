@@ -22,8 +22,8 @@ const SKIP_MESSAGE = '⚠️ Question(s) with a blank stem skipped — never ser
  * Does this row carry a question to ask?
  *
  * A row loaded WITHOUT a question_text column says nothing about its stem, so it is kept: a thin
- * projection read as "blank" would empty every bank (the bd-60131 lesson, where a thin row was read as
- * a written question). Every serving path loads the column.
+ * projection read as "blank" would empty every bank (the same lesson as isOpenEndedQuestion's, where a
+ * thin row was once read as a written question). Every serving path loads the column.
  *
  * @param {object} q training_questions row (or a projection of one)
  * @returns {boolean}
