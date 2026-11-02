@@ -20,6 +20,8 @@ const { logToFile } = require('../../utils/logger');
 const Arm = require('./topic-end-arm');
 
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
+// Same bound as a stale app open: an analysis that lands hours late (a backlog, a re-run) is not today's lesson.
+const STALE_RECORDING_MS = 6 * 60 * 60 * 1000;
 
 const no = (reason) => ({ scheduled: false, reason });
 
@@ -57,7 +59,9 @@ async function onRecording({ session } = {}) {
   if (!session || !session.user_id || session.observation_type === 'leader_observation') return no('not_self_recording');
   try {
     if (!(await Arm.enabled())) return no('disabled');
-    const recordedAt = session.created_at ? new Date(session.created_at) : new Date();
+    const recordedAt = new Date(session.created_at || NaN);
+    const age = Date.now() - recordedAt.getTime();
+    if (!Number.isFinite(age) || age > STALE_RECORDING_MS) return no('stale_recording');
     const lessonId = linkedLesson(session) || (await latestPlan(session.user_id, recordedAt));
     if (!lessonId) return no('no_plan');
     return await require('./topic-end-nudge.service').onLessonDelivered({
@@ -69,4 +73,4 @@ async function onRecording({ session } = {}) {
   }
 }
 
-module.exports = { onRecording, LOOKBACK_MS };
+module.exports = { onRecording, LOOKBACK_MS, STALE_RECORDING_MS };
