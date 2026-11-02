@@ -38,7 +38,9 @@
 // sa-18: round 8 close: "ready for offline" is not ready when a newer worker turned up while it ran (sa-offline.js replaced()).
 // sa-19: round 8 close: nothing goes to a worker while update() is unanswered (up to 30 s, then not ready) or a newer worker
 // exists; checked before every message (sa-offline.js guarded()), and a newer worker that activates gets the whole visit.
-var VERSION = 'sa-19';
+// sa-20: round 9: the engine files (sa-rec.js lets go of the call-mode microphone between recordings; a phone that loads
+// the page offline gets it only through this bump).
+var VERSION = 'sa-20';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -51,7 +53,10 @@ var CORE = 'sa-core-' + VERSION;
 // battery files' new lines; a kept copy would play the old one. Phones re-download their clips on the next prepare.
 // clips.lock.json records the bytes each SESSION was taken with (dashboard/scripts/sa-clips-lock.js); the dashboard test
 // sa-clips-lock fails when a locked file changes under the same SESSION.
-var SESSION = 'sa-session-v7';
+// v8: round 9: every v4 clip levelled again to -16 LUFS under its key (quiet on some phones), the Urdu sums re-voiced under
+// their keys with the operation in English ("plus", "minus", "times", "equals"), and the battery files' new lines (the
+// reviewers' Section 11 edits, "my friend" / «پیارے دوست», operations named in English); a kept copy would play the old one.
+var SESSION = 'sa-session-v11';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;

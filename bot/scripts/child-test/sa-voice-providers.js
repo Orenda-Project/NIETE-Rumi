@@ -57,10 +57,29 @@ function spellEnglishNumbers(text) {
 
 // A bare sum ("18 plus 7", «۱۵ منفی ۷») is read as a sentence to finish, so the child answers it rather than repeating it.
 const SUM = /^\s*[\d۰-۹][\d۰-۹,]*\s+(?:plus|minus|times|جمع|منفی|ضرب|تقسیم)\s+[\d۰-۹][\d۰-۹,]*\s*$/;
-const EQUALS = Object.freeze({ en: 'equals', ur: 'برابر' });
+// Round 9 (the content owner, item 5): the Urdu battery says the operation in English as well, in Urdu script.
+const EQUALS = Object.freeze({ en: 'equals', ur: 'ایکولز' });
+const UR_OPS = Object.freeze({ 'جمع': 'پلس', 'منفی': 'مائنس', 'ضرب': 'ٹائمز', 'تقسیم': 'ڈیوائیڈڈ بائی' });
 
 function withEquals(text, lang) {
-  return EQUALS[lang] && SUM.test(text) ? `${text.trim()} ${EQUALS[lang]}` : text;
+  if (!EQUALS[lang] || !SUM.test(text)) return text;
+  const sum = lang === 'ur' ? text.trim().replace(/جمع|منفی|ضرب|تقسیم/, (w) => UR_OPS[w]) : text.trim();
+  return `${sum} ${EQUALS[lang]}`;
+}
+
+// Any other Urdu item with an operation between two numbers (the expanded number «۱۰۰۰ جمع ۳۰۰ جمع ۸۰ جمع ۳») says each
+// operation in English too, with no "equals": it is read, not finished.
+function withEnglishOps(text, lang) {
+  if (lang !== 'ur') return text;
+  return String(text).replace(/([\d۰-۹][\d۰-۹,]*\s+)(جمع|منفی|ضرب|تقسیم)(?=\s+[\d۰-۹])/g, (m, n, w) => `${n}${UR_OPS[w]}`);
+}
+
+// An English word an Urdu line names in Urdu script that the voice does not say as English (round 9, staging STT: «سبٹریکشن»
+// heard as "separation"): the voice is given the English word, as it is given English numbers. The screen keeps the Urdu script.
+const UR_SAY_EN = Object.freeze({ 'سبٹریکشن': 'subtraction' });
+function withEnglishWords(text, lang) {
+  if (lang !== 'ur') return text;
+  return Object.entries(UR_SAY_EN).reduce((t, [w, en]) => t.split(w).join(en), String(text));
 }
 
 // A letter SOUND is voiced as a sound, never a letter name (the content owner, round 8 items 8, 10, 22; the voicenote
@@ -145,4 +164,4 @@ async function synthesize(job, { env = process.env, fetchImpl = fetch, attempts 
   throw err;
 }
 
-module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withSounds, isPraise, withTag, requestFor, synthesize };
+module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withEnglishOps, withEnglishWords, withSounds, isPraise, withTag, requestFor, synthesize };

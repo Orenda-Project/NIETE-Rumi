@@ -69,6 +69,55 @@ describe('applyReviewed', () => {
   });
 });
 
+// Round 9 (the reviewers' "every line" table): a row is one text with every place it plays, so a change is made by the
+// text itself, wherever that exact text is said — never by task id, which the coach test and the home game share.
+describe('applyReviewed: replace (by the exact text said)', () => {
+  const bank = {
+    lines: { section_urdu: line('Now some Urdu reading.', 'اب کچھ اردو پڑھتے ہیں۔') },
+    tasks: {
+      'coach.G1.A/en.letters': { script: { hand_back: line('Well done! Give the phone back.', 'شاباش! فون واپس دیں۔'),
+        begin: line('Ready? Begin.', 'تیار ہو جائیں۔') } },
+      'game.G1/en.letters': { script: { hand_back: line('Well done! Back to the map.', 'شاباش! نقشے پر چلتے ہیں۔'),
+        begin: line('Ready? Begin.', 'تیار ہو جائیں۔'), practice_models: [line('Listen.', 'سنیں۔')] },
+        practice: [{ model: [line('The answer is:', 'جواب ہے:'), line('17', '۱۷')] }] },
+    },
+  };
+  const out = applyReviewed(bank, { replace: [
+    { lang: 'en', from: 'Well done! Back to the map.', to: 'Well done, my friend! Back to the map.' },
+    { lang: 'ur', from: 'تیار ہو جائیں۔', to: 'تیار ہو جائیں تو شروع کریں۔' },
+    { lang: 'ur', from: 'اب کچھ اردو پڑھتے ہیں۔', to: 'پیارے دوست، اب کچھ اردو پڑھتے ہیں۔' },
+    { lang: 'en', from: 'Listen.', to: 'Please listen.' },
+    { lang: 'en', from: 'The answer is:', to: 'Answer:' },
+    { lang: 'en', from: '17', to: 'seventeen' },
+  ] });
+
+  test('the line changes where that text is said, and only there (the coach test keeps its own words)', () => {
+    expect(out.tasks['game.G1/en.letters'].script.hand_back.en).toBe('Well done, my friend! Back to the map.');
+    expect(out.tasks['game.G1/en.letters'].script.hand_back.audio.en).toBe(audioKey('en', 'Well done, my friend! Back to the map.'));
+    expect(out.tasks['coach.G1.A/en.letters'].script.hand_back).toEqual(bank.tasks['coach.G1.A/en.letters'].script.hand_back);
+  });
+
+  test('every place that says it changes, in that language only; battery lines too', () => {
+    for (const id of ['coach.G1.A/en.letters', 'game.G1/en.letters']) {
+      expect(out.tasks[id].script.begin.ur).toBe('تیار ہو جائیں تو شروع کریں۔');
+      expect(out.tasks[id].script.begin.audio.ur).toBe(audioKey('ur', 'تیار ہو جائیں تو شروع کریں۔'));
+      expect(out.tasks[id].script.begin.en).toBe('Ready? Begin.');
+    }
+    expect(out.lines.section_urdu.ur).toBe('پیارے دوست، اب کچھ اردو پڑھتے ہیں۔');
+  });
+
+  test('a list of spoken lines and a practice frame change; a practice answer (a number) never does', () => {
+    expect(out.tasks['game.G1/en.letters'].script.practice_models[0].en).toBe('Please listen.');
+    const m = out.tasks['game.G1/en.letters'].practice[0].model;
+    expect(m[0].en).toBe('Answer:');
+    expect(m[1]).toEqual(line('17', '۱۷'));
+  });
+
+  test('pure: the bank passed in is unchanged', () => {
+    expect(bank.tasks['game.G1/en.letters'].script.hand_back.en).toBe('Well done! Back to the map.');
+  });
+});
+
 describe('the committed bank carries the reviewed lines', () => {
   const built = buildSaBank({ v3: read('item-bank.v3.json'), extra: read('item-bank.sa-extra.v1.json'), w3: read('item-bank.sa-w3.v1.json') });
   const files = splitSaBankWithRuntime(built);
@@ -84,9 +133,13 @@ describe('the committed bank carries the reviewed lines', () => {
     }
   });
 
+  // replace is applied last: a reviewed line the table changed again says the table's words
+  const after = (lang, t) => ((reviewed.replace || []).find((r) => r.lang === lang && r.from === t) || { to: t }).to;
+
   test('each reviewed battery line is in the bank with its new key', () => {
     for (const [k, change] of Object.entries(reviewed.lines)) {
-      for (const [lang, text] of Object.entries(change)) {
+      for (const [lang, raw] of Object.entries(change)) {
+        const text = after(lang, raw);
         expect(built.lines[k][lang]).toBe(text);
         expect(built.lines[k].audio[lang]).toBe(audioKey(lang, text));
       }
@@ -97,7 +150,8 @@ describe('the committed bank carries the reviewed lines', () => {
     let seen = 0;
     for (const [task, slots] of Object.entries(reviewed.tasks)) {
       for (const [slot, change] of Object.entries(slots)) {
-        for (const [lang, text] of Object.entries(change)) {
+        for (const [lang, raw] of Object.entries(change)) {
+          const text = after(lang, raw);
           const forms = Object.keys(files).filter((f) => /^sa\/sa\.coach\..+\.json$/.test(f) && f.endsWith(`.${lang}.json`));
           expect(forms.length).toBe(5);
           for (const f of forms) {
@@ -112,6 +166,17 @@ describe('the committed bank carries the reviewed lines', () => {
       }
     }
     expect(seen).toBeGreaterThan(0);
+  });
+
+  test('each replaced line: its old words are said nowhere, its new words are said with their key (every served battery)', () => {
+    const served = Object.entries(files).filter(([f]) => /^sa\/sa\..+\.json$/.test(f));
+    expect((reviewed.replace || []).length).toBeGreaterThan(0);
+    for (const r of reviewed.replace) {
+      const mine = served.map(([, b]) => JSON.stringify(b));
+      const said = (t) => `"text":${JSON.stringify(t)},"audio":"${audioKey(r.lang, t)}"`;
+      expect([r.from, mine.some((b) => b.includes(said(r.from)))]).toEqual([r.from, false]);
+      expect([r.to, mine.some((b) => b.includes(said(r.to)))]).toEqual([r.to, true]);
+    }
   });
 
   test('the engine\'s own copy of a line (sa-ui.js COPY) says what the battery line says', () => {
