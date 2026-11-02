@@ -14,6 +14,8 @@
  * tap, before the microphone is asked for, and resumed. On an iPhone a context made after the microphone answers can
  * start suspended; its meter then reads silence and a working microphone fails the check. o.getUserMedia,
  * o.AudioContext and o.MediaRecorder stand in for the browser's (tests), as in sa-rec.js.
+ * o.no_aec (battery.ui.r9_audio, switch sa_r9_audio): a level meter that opens its own microphone opens it without echo
+ * cancellation, noise suppression or gain control, so no call mode quietens Jugnu while the bar shows.
  *
  * UMD: window.SAE.mic in the browser, module.exports under Node.
  */
@@ -70,12 +72,16 @@
   }
 
   var CONSTRAINTS = { audio: { echoCancellation: true, noiseSuppression: true } };
+  // Round 9 (o.no_aec, battery.ui.r9_audio): a meter only reads a level, so its own microphone needs no echo
+  // cancellation, the effect that holds an Android phone in call mode (Jugnu at call volume) while it is open.
+  var METER = { audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } };
 
-  function open(o) {
-    if (o && o.getUserMedia) return Promise.resolve().then(function () { return o.getUserMedia(CONSTRAINTS); });
+  function open(o, c) {
+    c = c || CONSTRAINTS;
+    if (o && o.getUserMedia) return Promise.resolve().then(function () { return o.getUserMedia(c); });
     var nav = root.navigator;
     if (!nav || !nav.mediaDevices || !nav.mediaDevices.getUserMedia) return Promise.reject(new Error('no_mic'));
-    return nav.mediaDevices.getUserMedia(CONSTRAINTS);
+    return nav.mediaDevices.getUserMedia(c);
   }
 
   function context(o) {
@@ -162,7 +168,7 @@
     var timer = null;
     var borrowed = live(o && o.stream) || shared();
     var ctx = early(o);
-    (borrowed ? Promise.resolve(borrowed) : open(o)).then(function (s) {
+    (borrowed ? Promise.resolve(borrowed) : open(o, o && o.no_aec === true ? METER : null)).then(function (s) {
       stream = borrowed ? null : s; // a borrowed stream is the recorder's to stop
       if (stopped) { stopStream(stream); if (ctx) { try { ctx.close(); } catch (_) { /* closed */ } } return; }
       an = analyser(s, ctx, o);
