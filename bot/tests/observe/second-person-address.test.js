@@ -191,18 +191,24 @@ describe('B1 — the debrief guide: checked and logged, still delivered', () => 
     status: 'observer_review_complete', debrief_status: 'pending',
     analysis_data: { framework: 'fico', strengths: [{ evidence: 'جوڑیوں میں کام' }], focus_area: { title: 'سوال پوچھنا' } },
   });
+  // The rubric-shaped notes: the conversation lines are what the coach says to the teacher.
   const guide = (sayThis) => ({
     intro: 'یہ رہنمائی سامنے رکھیں۔',
-    sections: {
-      strengths: { title: 'اچھا لمحہ', body: 'ایک مثال بتائیں۔', say_this: sayThis },
-      growth: { title: 'ایک قدم', body: 'ایک بات پر زور دیں۔', say_this: 'اگلی بار سوال کے بعد تھوڑا رکنا مفید ہوگا۔' },
-      action: { title: 'اگلا قدم', body: 'دن طے کریں۔', say_this: 'اس ہفتے یہ آزما کر دیکھیں۔' },
-    },
-    reflection_question: 'اس سبق میں کون سا لمحہ سب سے اچھا لگا؟',
+    went_well: ['جوڑیوں میں کام: ہر بچے نے حصہ لیا۔'],
+    work_on_first: { title: 'سوال پوچھنا', seen: 'زیادہ تر سوال بند تھے۔', next_step: 'صحیح جواب کے بعد «کیوں» پوچھیں۔' },
+    moment: null,
+    conversation: [
+      sayThis,
+      'جوڑیوں والے کام کے بعد کا لمحہ ساتھ دیکھیں۔',
+      'اس سبق میں کون سا لمحہ سب سے اچھا لگا؟',
+      'اگلی بار سوال کے بعد تھوڑا رکنا مفید ہوگا۔',
+      'اگلی بار کیا مختلف کرنا ہے؟ اپنے الفاظ میں بتائیں۔',
+      'یہ قدم ابھی مجھے کہہ کر دکھائیں۔',
+    ],
     outro: 'ایک خوبی اور ایک قدم۔',
   });
 
-  test('«آپ … کرتے ہیں» in a say_this line: the event names the surface, the field and the form; the guide still goes out', async () => {
+  test('«آپ … کرتے ہیں» in a conversation line: the event names the surface, the field and the form; the guide still goes out', async () => {
     db.session = row();
     mockCreate.mockResolvedValue(reply(guide('آپ بچوں کو جوڑیوں میں بہت اچھا کام کرواتے ہیں۔')));
     await startDebrief('sess-g', COACH_PHONE, FO);
@@ -212,7 +218,7 @@ describe('B1 — the debrief guide: checked and logged, still delivered', () => 
     const ev = addressEvents();
     expect(ev).toHaveLength(1);
     expect(ev[0]).toEqual(expect.objectContaining({ surface: 'debrief_guide', sessionId: 'sess-g', language: 'ur' }));
-    expect(ev[0].fields).toEqual(['sections.strengths.say_this']);
+    expect(ev[0].fields).toEqual(['conversation.0']);
     expect(ev[0].forms.join(' ')).toContain('کرواتے ہیں');
   });
 
