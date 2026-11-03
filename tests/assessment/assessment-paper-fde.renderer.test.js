@@ -192,9 +192,9 @@ describe('the board-pattern paper', () => {
     expect(visible(html)).not.toMatch(/[⅓⅕]/);
   });
 
-  it('the checked chip is a drawn tick, not a glyph', () => {
+  it('the key prints no checked badge and no tick glyph (bd-5jmnfj.4.51.6)', () => {
     const html = R.renderMarkingScheme({ examJson: mathsPaper(), grade: 5, subject: 'maths' });
-    expect(html).toMatch(/<span class="chip checked"><svg class="sym"/);
+    expect(html).not.toContain('class="chip checked"');
     expect(visible(html.slice(html.indexOf('<body')))).not.toContain('✓');
   });
 
@@ -312,9 +312,10 @@ describe('the Urdu paper', () => {
     expect(visible(html)).not.toMatch(/[۰-۹]\s*·|·\s*[۰-۹]/);
   });
 
-  it('urdu Q6 prints the Naat instruction with no verses, OR, then the lesson-7 lines', () => {
+  it('urdu Q6 prints only the lesson-7 lines, with no Naat and no OR (bd-5jmnfj.4.51.11)', () => {
     const text = visible(R.renderPaper({ examJson: urduPaper(), grade: 5, subject: 'urdu', answerLines: true }));
-    expect(text).toContain('نظم "نعت" کا مرکزی خیال لکھیں۔ یا درج ذیل اشعار کا مفہوم واضح کریں۔');
+    expect(text).toContain('درج ذیل اشعار کا مفہوم واضح کریں۔ سطر ایک');
+    expect(text).not.toContain('نعت');
   });
 
   it('Urdu footer template has Urdu digits', () => {
@@ -350,16 +351,16 @@ describe('the marking scheme', () => {
     return R.renderMarkingScheme({ examJson: exam, grade: 5, subject: 'maths', ...extra });
   }
 
-  it('scheme prints the band, the box with the file name and page count, the six legend lines', () => {
+  it('scheme prints the band, the box with the page count (no file name), the six legend lines', () => {
     const exam = mathsPaper();
     exam._layout.pages = { paper: 4, scheme: 5 };
     const text = visible(scheme(exam));
     expect(text).toContain("TEACHER'S COPY · Do not give to children");
     expect(text).toContain('MARKING SCHEME');
     expect(text).toContain('Teacher: before the exam');
-    expect(text).toContain('This is the marking scheme for Grade5_Maths_FDE.pdf (4 pages). Do not give it to children.');
+    expect(text).toContain('This is the marking scheme for the question paper (4 pages). Do not give it to children.');
     expect(text).toContain('Photocopy the question paper, all 4 pages, one per child.');
-    expect(text).toContain('You add: nothing.');
+    expect(text).not.toContain('You add');
     expect(text).toContain('Q2: attempt any 8 of 12');
     expect(text).toContain('Time: 3 hrs.');
     for (const line of P.subjects.maths.legend.lines_en) expect(text).toContain(line);
@@ -367,20 +368,18 @@ describe('the marking scheme', () => {
 
   it('an unknown page count says so instead of guessing', () => {
     const text = visible(scheme(mathsPaper()));
-    // visible() turns the file name's <bdi> boundary into a space; the page prints none.
-    expect(text).toMatch(/This is the marking scheme for Grade5_Maths_FDE\.pdf ?\. Do not give it to children\./);
+    expect(text).toContain('This is the marking scheme for the question paper. Do not give it to children.');
     expect(text).not.toMatch(/\(\s*pages\)|null pages|undefined/);
   });
 
-  it('the MCQ strip, ✓ checked on an ok row, and the notes block', () => {
+  it('the MCQ strip, no checked badge on an ok row, and the notes block', () => {
     const html = scheme(mathsPaper());
     const text = visible(html);
     // The layout spreads MCQ keys over the letters, so the strip is no longer all (b).
     expect(text).toMatch(/Q1 \(a\) i [a-d] · ii [a-d] · iii [a-d]/);
-    expect((html.match(/class="chip checked"/g) || []).length).toBeGreaterThan(5);
+    expect(html).not.toContain('class="chip checked"');
     expect(text).toContain('Notes');
     expect(text).toContain('Q2 (xii): key corrected by code; the model wrote 44.5.');
-    expect(text).toContain('checked');
     expect(text).not.toMatch(/⚠/);
   });
 
@@ -433,10 +432,11 @@ describe('the marking scheme', () => {
   });
 
   it('a long question stem in the scheme is cut at a word, not mid-word', () => {
-    const exam = mathsPaper({ mutate: (raw) => { raw.unseen.subjective['Word Problems'][0].question = 'A school had Rs. 750,000 for the year. It spent Rs. 286,450 on furniture and Rs. 135,800 on books. How much money is left over at the end?'; } });
+    // The key column repeats up to 200 characters of a stem (bd-5jmnfj.4.58.3), so this one runs to 246.
+    const exam = mathsPaper({ mutate: (raw) => { raw.unseen.subjective['Word Problems'][0].question = 'A school had Rs. 750,000 for the year. It spent Rs. 286,450 on furniture, Rs. 135,800 on books and Rs. 92,300 on sports kit for the junior classes, then set aside Rs. 50,000 for repairs to the library roof. How much money is left over at the end?'; } });
     const text = visible(scheme(exam));
-    expect(text).toContain('Rs. 135,800 on books. How much…');
-    expect(text).not.toMatch(/How much m…/);
+    expect(text).toContain('Rs. 50,000 for repairs to the…');
+    expect(text).not.toMatch(/to the l…/);
   });
 
   it('framePages is exported for the engine', () => {

@@ -197,12 +197,12 @@
         },
         {
           "slot": "maths.A.Q1a",
-          "question": "5 pencils cost Rs. 60. One pencil costs",
+          "question": "The number of minutes in 3 hours is",
           "options": [
-            "Rs. 12",
-            "Rs. 10",
-            "Rs. 15",
-            "Rs. 300"
+            "180",
+            "120",
+            "300",
+            "90"
           ],
           "answer": "a",
           "blooms": "Apply"
@@ -233,12 +233,12 @@
         },
         {
           "slot": "maths.A.Q1a",
-          "question": "The average of 4, 6 and 8 is",
+          "question": "The sum of 4, 6 and 8 is",
           "options": [
-            "5",
-            "7",
-            "18",
-            "6"
+            "16",
+            "17",
+            "14",
+            "18"
           ],
           "answer": "d",
           "blooms": "Understand"
@@ -420,18 +420,18 @@
         },
         {
           "slot": "maths.A.Q1b",
-          "question": "Find the average of 12, 15, 18, 21 and 24.",
-          "answer": "18",
+          "question": "Find the sum of 12, 15, 18, 21 and 24.",
+          "answer": "90",
           "blooms": "Understand",
           "scheme": {
             "points": [
               {
-                "text": "total 90 ÷ 5",
+                "text": "12 + 15 + 18 + 21 + 24",
                 "marks": 1,
                 "kind": "M"
               },
               {
-                "text": "18",
+                "text": "90",
                 "marks": 1,
                 "kind": "A"
               }

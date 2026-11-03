@@ -22,6 +22,11 @@ const mockCreate = jest.fn();
 jest.mock('../../bot/shared/services/llm-client', () => ({
   getClient: () => ({ chat: { completions: { create: (...a) => mockCreate(...a) } } }),
 }));
+// These tests pin the held-item re-ask on recorded replies. A giveaway on a recorded paper never clears, so the
+// giveaway re-ask (v23) would add D asks they do not count; fde-v23-repeats pins giveaways.
+jest.mock('../../bot/shared/services/assessment/fde-answer-repeats', () => ({
+  ...jest.requireActual('../../bot/shared/services/assessment/fde-answer-repeats'), answerRepeats: () => [],
+}));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
 jest.mock('../../bot/shared/services/assessment/book-content.service', () => ({
   loadPageRangeContent: async ({ pageRanges }) => ({ content: '=== Page 40 ===\nسبق کا متن', pageReference: String(pageRanges), chapterTitle: null }),

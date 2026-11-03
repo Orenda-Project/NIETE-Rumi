@@ -38,19 +38,26 @@ module.exports = makeSubject({
       id: 'B',
       label_en: 'Sums, shapes and measuring',
       levels: { Remember: 2, Understand: 11, Apply: 7 },
+      note_en: 'Teacher: the teacher reads each story in Q5 and Q6 aloud, twice; the child listens and writes the working.', // v37 G1 Maths Q5/Q6: a 6-year-old hears the story
       slots: [
         { slot: 'g1.maths.B.Q5', label_en: 'Q5.', type: 'Addition Word Problems', generate: 5, marks_each: 1, lines: 2,
-          instruction_en: 'Solve.',
-          prompt_rule: 'Five one-step addition stories from the book, sums up to 20, one or two short sentences a Grade 1 child can read. Answer: the number sentence and the sum.' },
+          instruction_en: 'Listen to the story and solve. Show your working.',
+          prompt_rule: 'Five one-step addition stories from the book, sums up to 20; each story is one sentence of at most 10 words with one name, one object and numbers up to 20, never two-part stories (morning and evening); each story ends with its question ("How many ... now?"), never facts alone; the teacher reads each story aloud, so the child hears it rather than reads it. Answer: the number sentence and the sum. The key pays the number: any correct working earns it (a number sentence, counting or a drawing); never write "writes the number sentence" or the unit as a requirement, the paper only says "Show your working". One rule: a correct answer with no working still earns the mark (the key says so in its accept line).' },
         { slot: 'g1.maths.B.Q6', label_en: 'Q6.', type: 'Subtraction Word Problems', generate: 5, marks_each: 1, lines: 2,
-          instruction_en: 'Solve.',
-          prompt_rule: 'Five one-step take-away stories from the book, numbers up to 20. Answer: the number sentence and the difference.' },
+          instruction_en: 'Listen to the story and solve. Show your working.',
+          prompt_rule: 'Five one-step take-away stories from the book, numbers up to 20; each story is one sentence of at most 10 words with one name and one object, never two-part stories; each story ends with its question ("How many ... are left?"), never facts alone; the teacher reads each story aloud. Answer: the number sentence and the difference. The key pays the number: any correct working earns it (a number sentence, counting or a drawing); never write "writes the number sentence" or the unit as a requirement, the paper only says "Show your working". One rule: a correct answer with no working still earns the mark (the key says so in its accept line).' },
         { slot: 'g1.maths.B.Q7', label_en: 'Q7.', type: 'Name the Shape', generate: 5, marks_each: 1, lines: 1, picture_only: true,
           instruction_en: 'Write the name of each shape.', picture: ['shapes'],
           prompt_rule: 'Five items, each one shape the book teaches (circle, square, triangle, rectangle, oval, star, heart) drawn as picture: {kind:"shapes", shapes:[{shape}]}. The item needs no stem. Answer: the name. Never the same shape twice.' },
         { slot: 'g1.maths.B.Q8', label_en: 'Q8.', type: 'Measurement', generate: 5, marks_each: 1, lines: 1,
           instruction_en: 'Look and answer.', picture: ['scene'],
-          prompt_rule: 'Five compare items from the book\'s measurement pages (longer/shorter, taller/shorter, heavier/lighter, more/less). Each carries picture: {kind:"scene", describe} naming two objects side by side, e.g. "a long pencil and a short pencil". Stem asks which is longer/heavier etc. Answer: the object.' },
+          prompt_rule: 'Five compare items from the book\'s measurement pages (longer/shorter, taller/shorter, heavier/lighter, more/less). Each carries picture: {kind:"scene", describe} naming two objects of different kinds side by side that lie straight, standing or lying on one base line with a gap between them, never one above, under or overlapping the other; the two objects differ by at least double in the compared measure and the picture draws that difference plainly; heavier/lighter pairs are ones every Grade 1 child knows without the picture (a brick and a feather, an elephant and a mouse), never judged from drawn size; e.g. "a pencil and a crayon"; never two of the same thing; never ribbon, rope, string or anything that curls. Stem asks which is longer/heavier etc. Name each object with one plain word a Grade 1 child can say and spell (pencil, crayon, bus, motorbike, brick, feather, elephant, mouse), the same word in the describe and in the answer, never a made-up or two-word brand name. Only objects a 6-year-old names one way, drawn plainly (bus, pencil, crayon, elephant, mouse, tree, flower, brick as a red wall brick with its pattern of lines, never a plain grey block that could be an eraser or a box); the child writes the name, so the key lists the usual other names in accept (`scheme.accept`: block for brick, bike or motorcycle for motorbike). Answer: the object, named as in the describe and without a size word ("the pencil", never "the long pencil").',
+          // v24: "a long ribbon and a short ribbon" keyed "the long ribbon", which only repeats the stem (bd-5jmnfj.4.55).
+          answer_ok: (q) => {
+            const a = String(q.answer || '').toLowerCase().replace(/^the\s+/, '').trim();
+            const d = String((q.picture && q.picture.describe) || '').toLowerCase();
+            return a.length > 0 && !/\b(under|over|above|below|on top of|in front of|behind|overlapping)\b/.test(d) && !/\b(long|short|tall|small|big|heavy|light|more|less)\b/.test(a) && d.includes(a);
+          } },
       ],
     },
   ],
@@ -60,7 +67,7 @@ module.exports = makeSubject({
         label_en: 'Mental maths', label_ur: 'زبانی ریاضی',
         instruction_en: 'Ask each question aloud once. The child answers aloud; no paper or fingers counted against them.',
         instruction_ur: 'ہر سوال ایک بار بلند آواز سے پوچھیں۔ بچہ زبانی جواب دے۔',
-        ask: 'Five quick questions read aloud: count on, one more/one less, add or take away within 10, which number is bigger. Each with its answer.',
+        ask: 'Five quick questions read aloud: count on, one more/one less, add or take away within 10, which number is bigger. Each with its answer. An item\'s script has no number other than the one(s) it asks about: no story with other counts (never "three flowers, four birds" before "count on from 4").',
         n: 5,
         rubric: [
           { marks: 5, en: 'All five right', ur: 'پانچوں درست' },

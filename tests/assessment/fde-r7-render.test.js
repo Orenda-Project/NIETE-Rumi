@@ -193,7 +193,7 @@ describe('3. rows filled by code are counted in the before-the-exam box', () => 
   test('one row filled by code', () => {
     const slot = 'social_studies.A.Q1';
     const html = schemeOf(sst([{ slot, item: 0, part: null, filled_by: 'code' }]), 'social_studies');
-    expect(box(html)).toContain('1 marking row was written from the answer. Check it before marking.');
+    expect(box(html)).not.toMatch(/written from the answer/);
     expect(box(html)).not.toContain('rows were written');
   });
 
@@ -205,7 +205,7 @@ describe('3. rows filled by code are counted in the before-the-exam box', () => 
     ]);
     const list = itemsOf(exam).filter((q) => q.slot === 'social_studies.A.Q1');
     list[2].removed = true;
-    expect(box(schemeOf(exam, 'social_studies'))).toContain('2 marking rows were written from the answer.');
+    expect(box(schemeOf(exam, 'social_studies'))).not.toMatch(/written from the answer/);
   });
 
   test('item is the index in the type list; a repeated entry counts once', () => {
@@ -213,18 +213,18 @@ describe('3. rows filled by code are counted in the before-the-exam box', () => 
       { slot: 'social_studies.A.Q1', item: 4, part: null, filled_by: 'code' },
       { slot: 'social_studies.A.Q1', item: 4, part: null, filled_by: 'code' },
     ]);
-    expect(box(schemeOf(clone(exam), 'social_studies'))).toContain('1 marking row was written from the answer.');
+    expect(box(schemeOf(clone(exam), 'social_studies'))).not.toMatch(/written from the answer/);
     exam.unseen.objective.MCQs[4].removed = true;
     expect(box(schemeOf(exam, 'social_studies'))).not.toMatch(/written from the answer/);
   });
 
   test('Urdu box line, Urdu digits', () => {
     const one = box(schemeOf(sst([{ slot: 'social_studies.A.Q1', item: 0, part: null, filled_by: 'code' }], 'ur'), 'social_studies'));
-    expect(one).toContain('مارکنگ اسکیم کی ۱ سطر جواب سے بنائی گئی ہے۔');
+    expect(one).not.toContain('سطر جواب سے بنائی گئی');
     const two = box(schemeOf(sst([
       { slot: 'social_studies.A.Q1', item: 0, part: null, filled_by: 'code' },
       { slot: 'social_studies.A.Q1', item: 1, part: 'a', filled_by: 'code' },
     ], 'ur'), 'social_studies'));
-    expect(two).toContain('مارکنگ اسکیم کی ۲ سطریں جواب سے بنائی گئی ہیں۔');
+    expect(two).not.toContain('سطریں جواب سے بنائی گئی');
   });
 });

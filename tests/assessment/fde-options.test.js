@@ -126,17 +126,26 @@ describe('POST /assessment/options — the board pattern', () => {
     expect(payload.patterns[0].generateTotal).toBe(48);
     expect(payload.patterns[0].totalMarks).toBe(100);
     expect(payload.patterns[0].scope.chapters).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 11, 12]);
-    expect(payload.patternGrades).toEqual([1, 2, 5]);
+    expect(payload.patternGrades).toEqual([1, 2, 3, 4, 5]);
     // Everything today's form reads is still there, unchanged.
     const { patterns, patternGrades, ...rest } = payload;
     expect(rest).toEqual(today('options.5.maths.json'));
   });
 
-  test('flag on + G4 → absent', async () => {
+  test('flag on + G4 maths → the Grade 4 end-of-chapter pattern (bd-5jmnfj.33.1)', async () => {
     settings[FLAG] = 'true';
     const { payload } = await invoke('/assessment/options', { grade: 4, subject: 'maths' });
+    expect(payload.patterns).toHaveLength(1);
+    expect(payload.patterns[0].id).toBe('fde_g4_2026');
+    expect(payload.patterns[0].totalMarks).toBe(50);
+    expect(payload.patternGrades).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  test('flag on + G3 social studies → absent (Class III has no such paper)', async () => {
+    settings[FLAG] = 'true';
+    const { payload } = await invoke('/assessment/options', { grade: 3, subject: 'social_studies' });
     expect(payload).not.toHaveProperty('patterns');
-    expect(payload.patternGrades).toEqual([1, 2, 5]);
+    expect(payload.patternGrades).toEqual([1, 2, 3, 4, 5]);
   });
 
   test('islamiat → absent', async () => {
@@ -145,12 +154,12 @@ describe('POST /assessment/options — the board pattern', () => {
     expect(payload).not.toHaveProperty('patterns');
   });
 
-  test('grade-level → patternGrades [1, 2, 5]', async () => {
+  test('grade-level → patternGrades [1, 2, 3, 4, 5]', async () => {
     settings[FLAG] = true;
     for (const body of [{}, { grade: 5 }, { grade: 2 }]) {
       // eslint-disable-next-line no-await-in-loop
       const { payload } = await invoke('/assessment/options', body);
-      expect(payload.patternGrades).toEqual([1, 2, 5]);
+      expect(payload.patternGrades).toEqual([1, 2, 3, 4, 5]);
       expect(payload).not.toHaveProperty('patterns');
     }
   });
@@ -169,7 +178,7 @@ describe('POST /assessment/options — the board pattern', () => {
     settings[SUBJECTS] = ['maths', 'science', 'english'];
     const urdu = await invoke('/assessment/options', { grade: 5, subject: 'urdu' });
     expect(urdu.payload).not.toHaveProperty('patterns');
-    expect(urdu.payload.patternGrades).toEqual([1, 2, 5]);
+    expect(urdu.payload.patternGrades).toEqual([1, 2, 3, 4, 5]);
     const maths = await invoke('/assessment/options', { grade: 5, subject: 'math' });
     expect(maths.payload.patterns[0].id).toBe('fde_g5_2027');
   });
