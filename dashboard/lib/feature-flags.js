@@ -484,6 +484,22 @@ function isAnalyticsOnlyUser(supabase, userId) {
   return isUserListedInFlag(supabase, PORTAL_ANALYTICS_ONLY_KEY, userId);
 }
 
+/**
+ * bd-tacnwy — app_settings key: the internal staff (our own testers) who may switch their OWN users.role from the
+ * portal's profile pages (POST /api/portal/me/role, routes/portal-role-switch.routes.js). A JSON array of users.id and
+ * nothing else: it is LIST-ONLY, read like portal_analytics_only, so true, "true", "teachers", an object or bad JSON
+ * is nobody. Real teachers and coaches are never on it: for them the route is a 404 and /config says roleSwitch false.
+ */
+const PORTAL_ROLE_SWITCH_KEY = 'portal_role_switch';
+
+/** The profile types a listed user may pick: users.role's CHECK allows these three and 'unregistered'. */
+const ROLE_SWITCH_ROLES = Object.freeze(['teacher', 'coach', 'principal']);
+
+/** Is this user on portal_role_switch? Fail-closed: no user, no row, a broadcast or malformed value, or a failed read is no. */
+function isRoleSwitchUser(supabase, userId) {
+  return isUserListedInFlag(supabase, PORTAL_ROLE_SWITCH_KEY, userId);
+}
+
 /** bd-6faz8m — app_settings key for editing a generated paper from the PORTAL only. */
 const PORTAL_ASSESSMENT_EDITING_KEY = 'portal_assessment_editing_enabled';
 
@@ -528,6 +544,9 @@ module.exports = {
   PORTAL_ANALYTICS_ORGANIZATIONS_KEY,
   readUserMapFlag,
   isAnalyticsOnlyUser,
+  PORTAL_ROLE_SWITCH_KEY,
+  ROLE_SWITCH_ROLES,
+  isRoleSwitchUser,
   PORTAL_ASSESSMENT_EDITING_KEY,
   isPortalAssessmentEditingEnabled,
   PORTAL_SELF_OBSERVATION_KEY,

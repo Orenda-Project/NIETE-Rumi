@@ -8,6 +8,8 @@ import { TEACHER_FRAME } from "../copy";
 import { useCopy } from "../i18n";
 import { cleanSchool, formatPhone, fullName, initials } from "../format";
 import { teacherPath } from "../routes";
+// bd-tacnwy — internal testers only (portal_role_switch); draws nothing for anyone else.
+import RoleSwitch from "../roleSwitch/RoleSwitch";
 
 /**
  * bd-fmf24g.1 — teacher v2 My profile (canvas v28 Profile, change 8).
@@ -206,6 +208,8 @@ export default function Profile() {
           </div>
         )}
       </div>
+
+      <RoleSwitch />
     </TeacherPage>
   );
 }

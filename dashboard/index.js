@@ -2858,6 +2858,8 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-thing-to-try.routes'));
 // bd-fmf24g.15 — teacher app v2: what she asked for that takes a while (strip, ready banner, Home's "Ready for you").
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-notices.routes'));
+// bd-tacnwy — internal testers switch their OWN profile type (POST /me/role); 404 unless on portal_role_switch.
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-role-switch.routes'));
 // bd-pw1ccr.26 — teacher Home's "Make my paper" card while her topic-end nudge is held (window shut).
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-topic-paper.routes'));
 // bd-fmf24g.30 — Send on WhatsApp from a teacher-app screen (template only; the bot answers the real result).
