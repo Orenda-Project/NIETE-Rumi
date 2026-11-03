@@ -15,6 +15,7 @@
  * The papers are local model output (people in them are the model's own fictional ones).
  */
 
+require('./helpers/skip-giveaway-check'); // recorded replies hold real give-aways (bd-5jmnfj.4.51.3)
 const fs = require('fs');
 const path = require('path');
 

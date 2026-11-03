@@ -302,12 +302,53 @@ describe('r9 · subjects without a cross-section table lay out as before', () =>
   // All five again for bd-5jmnfj.4.26: the header lost disclaimer_*, footer_* and the covers suffix; nothing
   // else in the layout differs (with those six strings restored they hash to c89b21fc…, de227f21…, 8c2c920f…,
   // 2956ee5a…, 2b3b7900…).
+  // science again for bd-5jmnfj.4.50.7: its Q1 keys ran «a c d a c d» and are dealt again; only Q1's
+  // options and keys differ (each item keys the same option text).
+  // science and r7-science again for bd-5jmnfj.4.51.10: the Q1 (b) frame's book_page is the item's page, not the
+  // pattern's example 168 (with the 168 and the pattern value restored they hash to the earlier values).
+  // maths, urdu and urdu-gen-full again for bd-5jmnfj.4.51.11: maths Q4 carries FDE's own obtuse/supplementary/
+  // straight wording again, and urdu Q6 drops the Naat alternative; the same three hashes come out of the
+  // previous code with only patterns/fde-g5-2027.js changed.
+  // urdu and urdu-gen-full again for the v24 review: urdu Q7's prompt_rule asks for `describe_en`; with the old
+  // rule restored they hash to the previous values.
+  // maths again for bd-5jmnfj.4.55: Q4-8's prompt_rule asks for every length with its unit; with the old rule
+  // restored it hashes to faf7fc6c….
+  // urdu and urdu-gen-full again for v26: urdu Q1's prompt_rule asks for plain stems and named punctuation
+  // marks; with the old rule restored they hash to the previous values.
+  // urdu and urdu-gen-full again for v27 (bd-5jmnfj.4.58.2): urdu Q4's prompt_rule asks for the task phrase in
+  // `question`, Q7's instruction_ur gains «کوئی سے چھ», Q8's prompt_rule asks for 10-12 sentences; with the base
+  // patterns/fde-g5-2027.js they hash to the previous values under the current code.
+  // urdu again for the v27 Q8 length re-ask (bd-5jmnfj.4.58.2): the fixture's Q8 paragraph answer is now 11
+  // sentences, so the paper ends differently; `git diff --numstat` on fixtures/fde/urdu.json is 1/1 (only that
+  // answer), and with the old answer restored it hashes to 2d96fbd3… again.
+  // All five again for v28 (bd-5jmnfj.4.58.3): prompt_rule text only — maths Q1 (a) (the mean at most once),
+  // Q4-8 (Q8 on a pair Q4 does not name), science Q1 (a) and Q2 (a), english Q1 (a) and Q2, urdu Q3, Q4 and Q7;
+  // with the committed patterns/fde-g5-2027.js loaded under the current code they hash to the previous values
+  // (c09d5cea…, a6718724…, a0066f1f…, ce648f1e…, 917c48ac…).
+  // All five again for v29 (bd-5jmnfj.4.58.5): pattern prompt text changed in patterns/fde-g5-2027.js and
+  // patterns/early/*; with the previous text restored they hash to the previous values (7afbb9c3…, 187bc808…,
+  // 3e60106d…, d0505395…, 83777bf9…).
+  // All five again for v34 (bd-5jmnfj.4.58 round 4): prompt_rule text in patterns/fde-g5-2027.js (science, maths,
+  // urdu, english rules), and for maths the fixture's Q1 (a) and Q1 (b) ask a sum, not the mean (the mean is asked
+  // once, in Section C); previous values 7662ec1d…, b6ecc3e5…, 2eac934e…, 0887edd6…, 7d9221dd….
+  // All five again for v37 (bd-5jmnfj.4.58 round 6): prompt_rule text in patterns/fde-g5-2027.js (all four subjects)
+  // and the maths fixture's minutes-in-3-hours MCQ; previous values 8f382d52…, 88c09bc5…, 1c2b1895…, 4da72577…, 87150abd….
+  // All five again for v37 round 6 loop 3 (bd-5jmnfj.4.58.9): prompt_rule text in patterns/fde-g5-2027.js (science A.Q1a,
+  // B.Q2b, C.Q3a/b; maths A.Q1b, B.Q2, C.Q4-8; english B.Q2 and Q10; urdu C.Q4); previous values 7852f46d…,
+  // 7dd7b77f…, 9439e74b…, 168594dc…, c74ccefe….
+  // The two science hashes again for v37r4 (bd-5jmnfj.4.58 W-SC3): prompt_rule text in patterns/fde-g5-2027.js (science C.Q3a
+  // and C.Q3b: a Section C item never re-asks a Section B task; the chemical-change test); with that text removed they hash
+  // to the previous values (6dc5f053…, 51edad82…).
+  // The two urdu hashes again for v37r4 round 6 (bd-5jmnfj.4.58.9): prompt_rule text in patterns/fde-g5-2027.js (urdu B.Q2, C.Q4, C.Q6,
+  // C.Q10); previous values bc5bcd1f…, 5386cbee….
+  // The maths hash again for v37r4 W-MA4 (bd-5jmnfj.4.58.9.1): prompt_rule text in patterns/fde-g5-2027.js (maths C.Q4-8 names
+  // the pair exactly; the legend says an answer with no working still earns the answer mark); previous value c0522816….
   const BEFORE = {
-    science: ['science', 'b29d8b25035f442ff8b932ebd310e6954a648908c15e53d6d1ce779f37a8d2c6'],
-    maths: ['maths', 'a73eaa01bae0f1c0ac857aba6cfdcc290e7eab1f8a02fe8d0f423385650b2c1a'],
-    urdu: ['urdu', '5158f4b46210756da93975500a8948c87f7a10528955e4ff7baa38282fc24d6a'],
-    'r7-science-full1.exam': ['science', 'c443e2c5661b6bdd9539c8c06c2914c3a6e6f99a2eeb70b449627bbe552b1ad1'],
-    'urdu-gen-full': ['urdu', '06802bc7adfdacfa9ac215ddae580d30c9e14e86cc7c78683685fcaf8cbdb849'],
+    science: ['science', '90bebc288d5b245fc3581bb92a153af779c178aab3267ead620aab0e5a2b43ba'],
+    maths: ['maths', '7ff2552237f205f264b8969cb749e8e905151f7c2be1fd7c004135dd76bd7002'],
+    urdu: ['urdu', 'eecd4f53c4760033651c2aaa4b3654f41c539cd475003f35b052462bdf676063'],
+    'r7-science-full1.exam': ['science', '787ef5328a502ced90e8614eab43795726b1ebf8f006d070be099932134adbaf'],
+    'urdu-gen-full': ['urdu', '11a091678828c9e170ad68a3a6cf4809f01cdb63e6f86e6dcc823379c2dcadc8'],
   };
   test.each(Object.keys(BEFORE))('%s lays out byte-identical to before', (name) => {
     const [subject, sha] = BEFORE[name];

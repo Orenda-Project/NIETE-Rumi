@@ -94,3 +94,61 @@ describe('the writer prompt', () => {
     expect(buildUserPrompt(args([plain, MCQ]))).not.toMatch(/QUESTION INSTRUCTIONS/);
   });
 });
+
+describe('stemsBlock, word for word (bd-6clakk.13)', () => {
+  test('one line per type, stems joined by " / ", lines by a newline', () => {
+    const MCQ_STEMS = { ...MCQ, stems: ['Choose the correct answer.'] };
+    const line = (id, quoted) => `• For ${id}: set every question's main_question to one of these instructions, `
+      + `word for word, and write questions that fit it: ${quoted}`;
+    expect(stemsBlock([FILL, MCQ_STEMS])).toBe('\nTHE TEACHER CHOSE THESE QUESTION INSTRUCTIONS:\n'
+      + `${line('Fill in the Blanks', `"${FILL.stems[0]}" / "${FILL.stems[1]}"`)}\n`
+      + `${line('MCQs', '"Choose the correct answer."')}\n`);
+  });
+
+  test('a types value that is not a list is no stems', () => {
+    expect(stemsBlock('Fill in the Blanks')).toBe('');
+    expect(stemsBlock({ id: 'MCQs' })).toBe('');
+  });
+});
+
+describe('applyStems, the edges of "the same stem" (bd-6clakk.13)', () => {
+  const one = (main) => ({ unseen: { objective: { 'Fill in the Blanks': [{ main_question: main, question: 'q' }] } } });
+
+  test.each([
+    ['a leading space', '  Fill in the blanks with has or have.'],
+    ['two end marks', 'Fill in the blanks with has or have?!'],
+    ['a space before the end mark', 'Fill in the blanks with has or have .'],
+    ['a line break inside', 'Fill in the blanks\nwith has or have.'],
+  ])('%s is still the stem, and is set to it exactly', (_, main) => {
+    const exam = one(main);
+    expect(applyStems(exam, [FILL]).misses).toEqual([]);
+    expect(exam.unseen.objective['Fill in the Blanks'][0].main_question).toBe(FILL.stems[1]);
+  });
+
+  test('words run together are not the stem', () => {
+    expect(applyStems(one('Fill in the blanks with hasor have.'), [FILL]).misses).toHaveLength(1);
+  });
+
+  test('only the type\'s own list is checked, wherever it sits in the section', () => {
+    const exam = { unseen: { objective: {
+      MCQs: [{ main_question: 'Choose the correct answer.', question: 'x' }],
+      'Fill in the Blanks': [{ main_question: FILL.stems[0], question: 'q' }],
+    } } };
+    expect(applyStems(exam, [FILL]).misses).toEqual([]);
+  });
+
+  test('a section without the type, an empty section and odd items are passed over', () => {
+    const exam = { unseen: {
+      empty: null,
+      subjective: { 'Short Answers': [{ main_question: 'Answer.', question: 'q' }] },
+      objective: { 'Fill in the Blanks': [null, 'loose text', { main_question: 'Fill in the blanks.', question: 'q' }] },
+    } };
+    expect(applyStems(exam, [FILL]).misses).toEqual([{ type: 'Fill in the Blanks', main_question: 'Fill in the blanks.' }]);
+    expect(exam.unseen.objective['Fill in the Blanks'][1]).toBe('loose text');
+  });
+
+  test('an unseen that is text or a number is no paper', () => {
+    expect(applyStems({ unseen: 'Fill in the Blanks' }, [FILL]).misses).toEqual([]);
+    expect(applyStems({ unseen: 7 }, [FILL]).misses).toEqual([]);
+  });
+});

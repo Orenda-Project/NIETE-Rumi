@@ -134,7 +134,7 @@ describe('urdu Q2 (الف): questions left with no scheme get a chip from their 
     const rows = html.split('<tr').filter((r) => r.includes('data-row="urdu.B.Q2"') && r.includes('الف:'));
     expect(rows).toHaveLength(5);
     rows.forEach((r) => expect(r).toMatch(/<span class="chip">A2<\/span>/));
-    expect(html).toContain('مارکنگ اسکیم کی <span class="num">۵</span> سطریں جواب سے بنائی گئی ہیں۔');
+    expect(html).not.toContain('سطریں جواب سے بنائی گئی ہیں'); // the process note is not printed on the key (bd-5jmnfj.4.58.9.1)
   });
 
   test('a question with its own points is left as it is (chapters_1 shape)', () => {
