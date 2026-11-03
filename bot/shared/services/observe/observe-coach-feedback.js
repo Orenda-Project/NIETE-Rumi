@@ -68,6 +68,12 @@ const RUBRIC_DEFINITIONS_SW = {
  */
 const PROMPT_LANG_NAMES = { ur: 'Urdu (اردو)', en: 'English' };
 
+// The ur/en judge also scores rehearsal, the coach-debrief rubric's eighth behaviour (Swahili does not: its prompt
+// stays byte-identical). Its definition is the rubric's own, so the judge is not left guessing from a key name.
+const REHEARSAL_KEY = 'rehearsed_the_step';
+const REHEARSAL_DEFINITION = 'the teacher said or demonstrated the agreed next step out loud, in their own words, as they would do it in the actual lesson, before the debrief ended. Merely describing the plan ("I will try X") does not satisfy this; the words or action must actually have been rehearsed.';
+const RUBRIC_KEYS_I18N = [...RUBRIC_KEYS.slice(0, -1), REHEARSAL_KEY, RUBRIC_KEYS[RUBRIC_KEYS.length - 1]];
+
 /**
  * FEAT-093 bd-53 — the language-parametric coach-feedback prompt for markets
  * whose officers are locked to ur/en. The Swahili prompt below is UNTOUCHED
@@ -85,7 +91,7 @@ SPEAK DIRECTLY TO THE OFFICER, in the SECOND PERSON ("you said…", "you asked�
 GENDER (mandatory): BOTH the officer and the teacher may be a man or a woman (مرد بھی ہو سکتے ہیں اور خاتون بھی) — never assume either. Keep every sentence gender-neutral. In Urdu the card speaks to the officer as آپ: ${URDU_ADDRESS_RULE} ${URDU_THIRD_PERSON_RULE}
 
 First, silently judge the rubric (true/false each, internal only — never shown):
-${RUBRIC_KEYS.map((k) => `- ${k}`).join('\n')}
+${RUBRIC_KEYS_I18N.map((k) => (k === REHEARSAL_KEY ? `- ${k}: ${REHEARSAL_DEFINITION}` : `- ${k}`)).join('\n')}
 
 THE HARD RULES (breaking any of these harms a real teacher):
 1. If the officer DISPARAGED the teacher (insults, humiliation, "you don't know how to teach", "your class is filthy") or made it about the PERSON instead of the teaching moves — that is a HARMFUL debrief: "wins" MUST be an empty list, "praise_line" MUST be null, and "concern" MUST be filled honestly (what_happened + why it costs the teacher's trust + what to do instead). NEVER manufacture praise for cruelty.
@@ -98,8 +104,10 @@ THE HARD RULES (breaking any of these harms a real teacher):
 
 8. "reflection_question": ONE short, open question for the officer to sit with before their next debrief — about how they coached, never about the teacher's lesson. It closes the card, the same way the officer's own guide ends on a question to the teacher. Never yes/no, never leading, never a disguised instruction.
 
+9. "focus": the rubric key (from the list above) that "try" targets: one you judged FALSE. null when every key is TRUE.
+
 Return JSON with EXACTLY this structure:
-{ "praise_line": "..." (or null if harmful), "wins": [ { "behaviour": "...", "evidence": "..." } ] (or [] if harmful), "concern": { "what_happened": "...", "why_it_matters": "...", "instead": "..." } (or null if not harmful), "try": { "move": "...", "evidence": "...", "instead": "..." }, "reflection_question": "...", "value": "imani"|"heshima"|"usikivu"|"ukuaji"|"ushirikiano"|null, "rubric": { ${RUBRIC_KEYS.map((k) => `"${k}": true/false`).join(', ')} } }
+{ "praise_line": "..." (or null if harmful), "wins": [ { "behaviour": "...", "evidence": "..." } ] (or [] if harmful), "concern": { "what_happened": "...", "why_it_matters": "...", "instead": "..." } (or null if not harmful), "try": { "move": "...", "evidence": "...", "instead": "..." }, "reflection_question": "...", "value": "imani"|"heshima"|"usikivu"|"ukuaji"|"ushirikiano"|null, "focus": "<a rubric key judged false>"|null, "rubric": { ${RUBRIC_KEYS_I18N.map((k) => `"${k}": true/false`).join(', ')} } }
 
 TRANSCRIPT OF THE OFFICER'S DEBRIEF:
 ${transcript}`;
@@ -194,7 +202,12 @@ function _allFeedbackText(fb) {
   return parts.join('\n');
 }
 
-function validateCoachFeedback(fb) {
+/**
+ * @param {object} fb    the model's card
+ * @param {{rehearsal?: boolean}} [opts]  rehearsal: the ur/en judge was asked to score rehearsed_the_step, so it must
+ *   be there (a card without it would show seven marks for a debrief judged on eight)
+ */
+function validateCoachFeedback(fb, opts = {}) {
   // bd-44: the value is OPTIONAL decoration (D36) — normalize, never reject.
   {
     const { normalizeCoachValue } = require('./observe-coach-card');
@@ -209,6 +222,13 @@ function validateCoachFeedback(fb) {
       throw new Error(`rubric incomplete: ${key} must be judged true/false`);
     }
   }
+
+  if (opts.rehearsal && typeof fb.rubric[REHEARSAL_KEY] !== 'boolean') {
+    throw new Error(`rubric incomplete: ${REHEARSAL_KEY} must be judged true/false`);
+  }
+  if (REHEARSAL_KEY in fb.rubric && typeof fb.rubric[REHEARSAL_KEY] !== 'boolean') delete fb.rubric[REHEARSAL_KEY];
+  // The focus links the card to a Coach Training module: kept only if it names a behaviour the judge scored false.
+  if ('focus' in fb) fb.focus = require('./observe-coach-rubric').validFocus(fb);
 
   const harmful = isHarmfulDebrief(fb.rubric);
 
@@ -251,6 +271,34 @@ function validateCoachFeedback(fb) {
 
 // ── Render — the prototype's shape: warm praise bubble, then the card ──
 
+// The rubric on the card (ur/en, label-gated): the marks and Respect from the judge's booleans, never the model's words.
+function _marksBlock(fb, S) {
+  const R = require('./observe-coach-rubric');
+  const m = R.rubricMarks(fb.rubric);
+  const lines = [];
+  if (m.total) {
+    lines.push(`*${S.coach_card_marks_label}*`, `${R.stars(m)}  ${m.done}/${m.total}`);
+    for (const x of m.marks) lines.push(`${x.done ? '✓' : '○'} ${S.coach_rubric_names[x.key]}`);
+  }
+  if (m.respectHeld) lines.push(S.coach_card_respect_line);
+  return lines;
+}
+
+// Each miss with its fixed "why it matters" line (catalog strings, never model text). Nothing missed, no section.
+function _missedBlock(fb, S) {
+  const missed = require('./observe-coach-rubric').missedBehaviours(fb.rubric);
+  if (!missed.length) return [];
+  return ['', `⚠️ *${S.coach_card_missed_label}*`, ...missed.map((k) => `○ *${S.coach_rubric_names[k]}*: ${S.coach_rubric_why[k]}`)];
+}
+
+// The next focus's Coach Training module, with its link: the card's one link.
+function _moduleBlock(fb, S) {
+  const R = require('./observe-coach-rubric');
+  const mod = R.focusModule(fb);
+  if (!mod) return [];
+  return ['', R.moduleLine(mod, S, S.coach_card_module_lang), R.moduleUrl(mod)];
+}
+
 function renderCoachFeedbackMessages(fb, S) {
   // bd-30 — the harmful path. No celebration card, no ✓ ticks, no manufactured
   // praise. An honest, warm concern that names what happened, says why it costs
@@ -290,7 +338,23 @@ function renderCoachFeedbackMessages(fb, S) {
     ? ['', `❓ *${S.coach_card_reflect_label}*`, `_"${fb.reflection_question}"_`]
     : [];
 
-  let card = [
+  let card = (S.coach_card_marks_label ? [
+    `🌟 *${S.coach_card_title}*`,
+    '',
+    ..._marksBlock(fb, S),
+    '',
+    `💪 *${S.coach_card_wins_label}*`,
+    winLines,
+    ..._missedBlock(fb, S),
+    '',
+    `🌱 *${S.coach_card_try_label}: ${fb.try.move}*`,
+    fb.try.evidence,
+    ...actionBlock,
+    ..._moduleBlock(fb, S),
+    ...reflectBlock,
+    '',
+    S.coach_card_closing,
+  ] : [
     `🌟 *${S.coach_card_title}*`,
     '',
     `💪 *${S.coach_card_wins_label}*`,
@@ -302,7 +366,7 @@ function renderCoachFeedbackMessages(fb, S) {
     ...reflectBlock,
     '',
     S.coach_card_closing,
-  ].filter((line, i, arr) => !(line === '' && arr[i - 1] === '')).join('\n').trim();
+  ]).filter((line, i, arr) => !(line === '' && arr[i - 1] === '')).join('\n').trim();
 
   // WhatsApp hard cap is 4096 chars and sendMessage fails silently past it
   // (returns false, never throws) — truncate ONLY when genuinely over the cap,
@@ -326,6 +390,7 @@ function renderCoachFeedbackMessages(fb, S) {
 }
 
 module.exports = {
+  REHEARSAL_KEY,
   buildCoachFeedbackPromptI18n,
   MIN_TRANSCRIPT_CHARS,
   RUBRIC_KEYS,
