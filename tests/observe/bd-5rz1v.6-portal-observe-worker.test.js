@@ -97,7 +97,7 @@ const QuizDelivery = require('../../bot/shared/services/quiz/quiz-delivery.servi
 const { observeStrings } = require('../../bot/shared/services/observe/observe-strings');
 
 const COACH = { id: 'coach-1', name: 'Sana Malik', phone_number: COACH_PHONE, preferred_language: 'en' };
-const rubric = { disparaged_teacher: false, opened_with_specific_praise: true, anchored_in_real_moment: true, asked_and_waited: true, one_improvement_only: true, moves_not_teacher: true, elicited_if_then: true, righting_reflex_held: true };
+const rubric = { disparaged_teacher: false, opened_with_specific_praise: true, anchored_in_real_moment: true, asked_and_waited: true, one_improvement_only: true, moves_not_teacher: true, elicited_if_then: true, righting_reflex_held: true, rehearsed_the_step: true }; // ur/en judge scores rehearsal too
 const FEEDBACK = {
   praise_line: 'You let her find her own next step.',
   wins: [{ behaviour: 'Opened with a strength', evidence: 'you folded the paper again' }, { behaviour: 'Asked, then waited', evidence: 'which lesson this week?' }],
