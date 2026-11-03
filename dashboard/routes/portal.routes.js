@@ -108,6 +108,8 @@ const {
   readUserMapFlag,
   isAnalyticsOnlyUser,
   isLoginIntlNumbersEnabled,
+  isRoleSwitchUser,
+  ROLE_SWITCH_ROLES,
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
@@ -9013,6 +9015,7 @@ router.get('/config', async (req, res) => {
       coachipRmSector,
       coachipDecodeRaw,
       schoolCardRaw,
+      roleSwitch,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9047,12 +9050,17 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_COACHIP_DECODE_KEY, userId),
       // The coach School Card, per user; its routes also need the coach app v2, so it rides with that on.
       isFlagEnabledForUser(supabase, PORTAL_COACH_SCHOOL_CARD_KEY, userId),
+      // bd-tacnwy — the internal tester's "Switch profile" (POST /me/role). List-only and per user: everyone else,
+      // and a signed-out read, is false, and the app draws nothing.
+      isRoleSwitchUser(supabase, userId),
     ]);
     return res.json({
       success: true,
       // This deployment's WhatsApp bot (digits) for the portal's chat buttons, or null with none configured — then the
       // portal shows no chat button. One build serves every tier, so the number comes from here, never the bundle.
       bot: botNumber(),
+      // bd-tacnwy — the profile types the switch offers; empty unless features.roleSwitch.
+      roleSwitchRoles: roleSwitch ? [...ROLE_SWITCH_ROLES] : [],
       features: {
         assessmentGenerator,
         assessmentEditing,
@@ -9073,6 +9081,7 @@ router.get('/config', async (req, res) => {
         coachipRm: coachipRmSector !== null,
         coachipDecode: coachip && coachipDecodeRaw,
         schoolCard: coachV2 && schoolCardRaw,
+        roleSwitch,
       },
     });
   } catch (error) {
@@ -9101,7 +9110,9 @@ router.get('/config', async (req, res) => {
         coachipRm: false,
         coachipDecode: false,
         schoolCard: false,
+        roleSwitch: false,
       },
+      roleSwitchRoles: [],
     });
   }
 });
