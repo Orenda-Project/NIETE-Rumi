@@ -399,6 +399,33 @@ const STRINGS = {
     guide_cue_name_it: '(استاد کو خود بتانے دیں)',
     guide_cue_rehearse: '(تین سے پانچ سیکنڈ انتظار کریں)',
     coach_card_try_label: 'بہتری کا شعبہ',
+    // The coach-debrief rubric's words (behaviour names, why each matters, the module line), read by the coach's report
+    // page in the app (coach-report.service.js). On staging the WhatsApp card stays as it is: no marks label, so neither
+    // the card image nor the text card draws the rubric (the round-2 card stays on sandbox; the report is a page now).
+    coach_card_respect_line: '✓ احترام برقرار رہا — ہمیشہ کی طرح',
+    coach_card_missed_label: 'اس بار کیا رہ گیا',
+    coach_card_module_line: '📘 کوچ ٹریننگ، ماڈیول {n}: {title}',
+    coach_card_module_lang: 'ur',
+    coach_rubric_names: {
+      opened_with_specific_praise: 'مخصوص تعریف',
+      anchored_in_real_moment: 'سبق کے لمحے کا حوالہ',
+      asked_and_waited: 'سوال کے بعد انتظار',
+      one_improvement_only: 'صرف ایک بہتری',
+      moves_not_teacher: 'تدریس پر بات',
+      elicited_if_then: 'استاد کا اپنا اگلا قدم',
+      righting_reflex_held: 'استاد کو بولنے کا موقع',
+      rehearsed_the_step: 'زبانی مشق',
+    },
+    coach_rubric_why: {
+      opened_with_specific_praise: 'مخصوص تعریف سے پتا چلتا ہے کہ سبق واقعی دیکھا گیا، اور آگے کی بات سننا آسان ہو جاتا ہے۔',
+      anchored_in_real_moment: 'بات کو سبق کے اصل لمحے سے جوڑنے سے واضح رہتا ہے کہ کس لمحے کا ذکر ہے۔',
+      asked_and_waited: 'سوال کے بعد خاموشی سے استاد کو خود سوچنے کا وقت ملتا ہے۔',
+      one_improvement_only: 'ایک بہتری پر کل ہی عمل ہو سکتا ہے، پوری فہرست پر نہیں۔',
+      moves_not_teacher: 'طریقے پر بات ہو تو گفتگو کھلی رہتی ہے، ذات پر بات ہو تو رک جاتی ہے۔',
+      elicited_if_then: 'جو قدم استاد اپنے الفاظ میں خود طے کریں، اس پر عمل کا امکان زیادہ ہوتا ہے۔',
+      righting_reflex_held: 'استاد جتنا زیادہ بولیں، سبق کے بارے میں اتنی ہی زیادہ سوچ ان کی اپنی ہوتی ہے۔',
+      rehearsed_the_step: 'ایک بار زبانی کہہ لینے سے کلاس میں اسے کرنا کہیں آسان ہو جاتا ہے۔',
+    },
     coach_card_closing: 'فیصلہ آپ کا ہے — کوچ آپ ہیں۔ 🌱',
     coach_concern_opener: 'آپ کی ڈی بریف سن لی۔ ایک بات کھل کر کہنی ہے — کیونکہ آپ کا بڑھنا اسی میں ہے۔',
     coach_concern_title: 'کھل کر کہنے کی بات',
@@ -663,6 +690,33 @@ const STRINGS = {
     manage_back_btn: 'Back',
     manage_removed_ack: '✅ {name} removed from your list.',
     coach_card_try_label: 'Areas for growth',
+    // The coach-debrief rubric's words (behaviour names, why each matters, the module line), read by the coach's report
+    // page in the app (coach-report.service.js). On staging the WhatsApp card stays as it is: no marks label, so neither
+    // the card image nor the text card draws the rubric (the round-2 card stays on sandbox; the report is a page now).
+    coach_card_respect_line: '✓ Respect held — as always',
+    coach_card_missed_label: 'What was missed this time',
+    coach_card_module_line: '📘 Coach Training, Module {n}: {title}',
+    coach_card_module_lang: 'en',
+    coach_rubric_names: {
+      opened_with_specific_praise: 'Specific praise',
+      anchored_in_real_moment: 'Real moment',
+      asked_and_waited: 'Asked & waited',
+      one_improvement_only: 'One improvement',
+      moves_not_teacher: 'Moves, not person',
+      elicited_if_then: 'Teacher’s own step',
+      righting_reflex_held: 'Talked less',
+      rehearsed_the_step: 'Rehearsed aloud',
+    },
+    coach_rubric_why: {
+      opened_with_specific_praise: 'Specific praise shows the teacher you really saw the lesson, so what comes next is easier to hear.',
+      anchored_in_real_moment: 'Tying it to a real moment lets the teacher see exactly what you mean.',
+      asked_and_waited: 'Waiting after a question gives the teacher time to think it through.',
+      one_improvement_only: 'One improvement can be tried tomorrow; a list cannot.',
+      moves_not_teacher: 'Talking about the moves keeps the conversation open; talking about the person shuts it down.',
+      elicited_if_then: 'A step the teacher names in their own words is the one they are more likely to try.',
+      righting_reflex_held: 'When the teacher talks more, they do more of the thinking about their own lesson.',
+      rehearsed_the_step: 'Saying it once out loud makes it far easier to do in class.',
+    },
     coach_card_closing: 'The choice is yours — you are the coach. 🌱',
     // bd-30 — the harm gate: the officer disparaged the teacher. Honest, not congratulatory.
     coach_concern_opener:

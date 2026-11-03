@@ -799,7 +799,7 @@ async function _markDebriefDone(sessionId, feedback) {
  * — a repair that still fails validation throws; there is no bypass and no
  * manufactured praise.
  */
-async function coachFeedbackWithRepair(prompt, sessionId) {
+async function coachFeedbackWithRepair(prompt, sessionId, validateOpts = {}) {
   const { validateCoachFeedback } = require('./observe-coach-feedback');
   // Soft, log only (observe.gendered_address): the card is returned exactly as
   // written and never re-asked for a verb — the repair below is for shape only.
@@ -808,7 +808,7 @@ async function coachFeedbackWithRepair(prompt, sessionId) {
     maxTokens: 6000, label: 'observeCoachFeedback', job: 'coaching.observeDebrief',
   });
   try {
-    validateCoachFeedback(result);
+    validateCoachFeedback(result, validateOpts);
     noteGenderedAddress('coach_feedback', feedbackFields(result), { sessionId });
     return result;
   } catch (vErr) {
@@ -819,7 +819,7 @@ async function coachFeedbackWithRepair(prompt, sessionId) {
     const { result: repaired } = await GPT5MiniService.completeJson(repairPrompt, {
       maxTokens: 6000, label: 'observeCoachFeedbackRepair', job: 'coaching.observeDebrief',
     });
-    validateCoachFeedback(repaired);   // still strict — throws on a second miss
+    validateCoachFeedback(repaired, validateOpts);   // still strict — throws on a second miss
     noteGenderedAddress('coach_feedback', feedbackFields(repaired), { sessionId, repaired: true });
     return repaired;
   }
@@ -1164,7 +1164,8 @@ async function processDebriefRecording(sessionId, payload = {}) {
         diarization,
         language: lang,
       });
-      feedback = await coachFeedbackWithRepair(prompt, sessionId);
+      // ur/en: the judge scores rehearsal too (the rubric's eighth behaviour); Swahili's prompt does not ask for it.
+      feedback = await coachFeedbackWithRepair(prompt, sessionId, { rehearsal: _fbLang !== 'sw' });
     } catch (llmErr) {
       logToFile('⚠️ observe debrief: coach-feedback LLM failed/invalid', {
         sessionId, error: llmErr.message,
