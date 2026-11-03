@@ -2773,7 +2773,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     }
     // A re-asked reply is checked again: a give-away still there is asked once more, naming the words.
     // Only when the first check found one: a paper with none is not laid out again for this.
-    const lateLaid = short.some((f) => f.reason === 'giveaway') ? applyLayout(merged(), P, layoutScope, layOpts(true)) : null;
+    const lateLaid = short.some((f) => f.reason === 'giveaway') ? applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: true }) : null;
     const late = lateLaid ? stillGivenAway(lateLaid.examJson).concat(key === 'science' ? scienceGiverFlags(lateLaid.examJson) : []) : [];
     const reaskGiveaways = async (flags, flagsLaid) => {
       const lateBuilt = built.filter(({ section }) => section.slots.some((s) => flags.some((f) => f.slot === s.slot)));
@@ -2782,7 +2782,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
       }
       // That reply is taken whole, after the Section A top-up above, so a section it left short is
       // topped up once for exactly what it misses (v24 G5 Urdu, bd-5jmnfj.4.54).
-      const afterLate = lateBuilt.length ? applyLayout(merged(), P, layoutScope, layOpts(true)) : null;
+      const afterLate = lateBuilt.length ? applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: true }) : null;
       for (const b of lateBuilt) {
         const mine = afterLate.shortfall.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
         if (!mine.length) continue;
