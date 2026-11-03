@@ -3,7 +3,7 @@
 export type TeacherFeature = 'lessons' | 'coaching' | 'observations' | 'training' | 'assessment' | 'attendance' | 'classes';
 
 /** bd-4404s7.1 — the features only a coach has: Schedule (rose), Schools & teachers (teal), Reports (olive; the Observe screen's tile and the Reports headers). */
-export type CoachFeature = 'schedule' | 'schools' | 'reports';
+export type CoachFeature = 'schedule' | 'schools' | 'reports' | 'coachTraining';
 
 /** Every feature the art, the glyphs and the hues cover. A teacher page uses `TeacherFeature`; a coach page may use any. */
 export type AnyFeature = TeacherFeature | CoachFeature;
@@ -30,4 +30,7 @@ export const FEATURE_HUE: Record<AnyFeature, { fg: string; bg: string }> = {
   schools: { fg: '#0f766e', bg: '#ccfbf1' },
   // ReportsIcon board: its own illustration, not Assessment's.
   reports: { fg: '#4d7c0f', bg: '#ecfccb' },
+  // Coach Training: Training's purple (it is training, for the coach), on its own drawing (a debrief conversation), so it
+  // is never taken for the teacher Training Library's cap.
+  coachTraining: { fg: '#6e52e0', bg: '#eeeafd' },
 };

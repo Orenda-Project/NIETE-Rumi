@@ -15,6 +15,8 @@ import CoachGate from "../CoachGate";
 import { COACH_HOME } from "../home/copy";
 import { CurrentVisit, visitItem } from "../home/VisitCards";
 import { Failed, Loading, SectionLabel, useLoad } from "../ui";
+import { COACH_TRAINING } from "../coachTraining/copy";
+import { COACH_TRAINING_PATH } from "../coachTraining/modules";
 
 /**
  * bd-o15qnr / bd-4404s7.2 — coach Home on the shared kit (Coach_Home, Coach_HomeBusy, Coach_Home_Urdu):
@@ -25,6 +27,7 @@ import { Failed, Loading, SectionLabel, useLoad } from "../ui";
  */
 const CoachHome = () => {
   const F = useCopy(TEACHER_FRAME);
+  const CT = useCopy(COACH_TRAINING);
   const W = useCopy(COACH_HOME);
   const P = useCopy(COACH_PROFILE);
   const childTest = useChildTest() === true;
@@ -77,6 +80,7 @@ const CoachHome = () => {
             <FeatureTile feature="schools" label={W.tiles.schools} to="/portal/coach/people"
               chip={home ? { text: W.chips.teachers(home.counts.teachers), tone: "info" } : null} />
             <FeatureTile feature="training" label={F.home.tiles.training} to="/portal/training" />
+            <FeatureTile feature="coachTraining" label={CT.title} to={COACH_TRAINING_PATH} wide />
             {/* bd-fmf24g.33 — Analytics left More. No illustration of its own yet: the kit's Reports art (bars and a % badge). */}
             <FeatureTile feature="reports" label={W.tiles.analytics} to="/portal/coach/analytics" wide />
           </nav>
