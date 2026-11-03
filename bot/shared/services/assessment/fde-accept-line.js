@@ -9,6 +9,11 @@
  * «بلبل، ساز، کوئل»), and an accept whose every word is a word of the answer (G5 Urdu Q4: the key «جھکڑ: جھ ۔ کڑ»
  * accepted «جھ ۔ کڑ، سا ۔ ن ۔ حہ», the same pieces joined with «،») is the answer again and is not printed.
  *
+ * v42 (bd-5jmnfj.33.8): only that case. A shorter answer («مفت کھانا» under a full sentence) or a turned-round
+ * fact («5 x 6 = 30» under «6 x 5 = 30») is real marking guidance and prints. The dropped case is the key with
+ * each item's «word:» label removed (items split on a new line, «؛» or «;»),
+ * and an accept that is one of a several-item key's own items (G5 Urdu Q3 «شاطر: چالاک»), compared loosely.
+ *
  * Pure: strings in, string out.
  */
 
@@ -23,8 +28,10 @@ const loose = (s) => String(s == null ? '' : s).replace(LABEL, '').replace(NOISE
 /** The accepts to print after the label, or '' when none is more than the key. */
 function acceptText(key, accept, lang) {
   const own = loose(key);
-  const keyWords = new Set(tokens(key));
-  const madeOfKey = (a) => { const t = tokens(a); return t.length > 1 && t.every((w) => keyWords.has(w)); };
+  const items = String(key == null ? '' : key).split(/[\n؛;]/);
+  const unlabelled = loose(items.map((l) => l.replace(/^[^:]*:/, '')).join(' '));
+  const oneItem = new Set(items.length > 1 ? items.map(loose).filter(Boolean) : []);
+  const madeOfKey = (a) => (tokens(a).length > 1 && loose(a) === unlabelled) || oneItem.has(loose(a));
   const list = (Array.isArray(accept) ? accept : []).map((a) => String(a == null ? '' : a).trim())
     .filter((a) => a && loose(a) !== own && !madeOfKey(a));
   if (!list.length) return '';
