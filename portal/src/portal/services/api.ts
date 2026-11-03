@@ -460,7 +460,9 @@ export const portal = {
           coachip: false,
           coachipRm: false,
           coachipDecode: false,
+          roleSwitch: false,
         },
+        roleSwitchRoles: [],
       };
     }
   },
@@ -689,7 +691,11 @@ export type PortalConfig = {
     coachipRm?: boolean;
     /** COACHIP's "Show name" tap (portal_coachip_decode, and only with coachip on; fail-closed). bd-sex15q.13 */
     coachipDecode?: boolean;
+    /** bd-tacnwy — this user is an internal tester on portal_role_switch (list-only; fail-closed): draw "Profile type". */
+    roleSwitch?: boolean;
   };
+  /** bd-tacnwy — the profile types the switch offers (teacher, coach, principal); empty unless features.roleSwitch. */
+  roleSwitchRoles?: string[];
 };
 
 // ── bd-5rz1v.6: a coach's /observe observation, run from the portal ────────

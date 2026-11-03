@@ -12,6 +12,8 @@ import { formatPhone, fullName, initials } from "../../teacher/format";
 import CoachGate from "../CoachGate";
 import { COACH_PROFILE } from "./copy";
 import { useCoachCounts } from "./useCoachCounts";
+// bd-tacnwy — internal testers only (portal_role_switch); draws nothing for anyone else.
+import RoleSwitch from "../../teacher/roleSwitch/RoleSwitch";
 
 /**
  * bd-4404s7.2 — the coach's own profile (Coach_Profile board). Name and phone are SHOWN, not edited (no route lets
@@ -62,6 +64,8 @@ export default function CoachProfile() {
             </Link>
           </div>
         )}
+
+        <RoleSwitch />
 
         <div className="flex flex-col gap-1.5 pt-1">
           <span className="px-1 text-[13px] font-semibold text-[#6b7280]">{P.account}</span>

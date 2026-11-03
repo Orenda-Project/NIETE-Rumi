@@ -106,6 +106,8 @@ const {
   PORTAL_ANALYTICS_ORGANIZATIONS_KEY,
   readUserMapFlag,
   isAnalyticsOnlyUser,
+  isRoleSwitchUser,
+  ROLE_SWITCH_ROLES,
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
@@ -8985,6 +8987,7 @@ router.get('/config', async (req, res) => {
       coachip,
       coachipRmSector,
       coachipDecodeRaw,
+      roleSwitch,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9015,9 +9018,14 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_COACHIP_KEY, userId),
       rmSectorFor(supabase, userId),
       isFlagEnabledForUser(supabase, PORTAL_COACHIP_DECODE_KEY, userId),
+      // bd-tacnwy — the internal tester's "Switch profile" (POST /me/role). List-only and per user: everyone else,
+      // and a signed-out read, is false, and the app draws nothing.
+      isRoleSwitchUser(supabase, userId),
     ]);
     return res.json({
       success: true,
+      // bd-tacnwy — the profile types the switch offers; empty unless features.roleSwitch.
+      roleSwitchRoles: roleSwitch ? [...ROLE_SWITCH_ROLES] : [],
       features: {
         assessmentGenerator,
         assessmentEditing,
@@ -9036,6 +9044,7 @@ router.get('/config', async (req, res) => {
         coachip,
         coachipRm: coachipRmSector !== null,
         coachipDecode: coachip && coachipDecodeRaw,
+        roleSwitch,
       },
     });
   } catch (error) {
@@ -9061,7 +9070,9 @@ router.get('/config', async (req, res) => {
         coachip: false,
         coachipRm: false,
         coachipDecode: false,
+        roleSwitch: false,
       },
+      roleSwitchRoles: [],
     });
   }
 });
