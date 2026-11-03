@@ -191,7 +191,10 @@ describe('the praise line rides on the coach card', () => {
     const [to, png, caption] = mockWa.sendImageFromBuffer.mock.calls[0];
     expect(to).toBe(COACH_PHONE);
     expect(Buffer.isBuffer(png)).toBe(true);
-    expect(caption).toBe(`${fb.praise_line}\n\n${S.coach_card_closing}`);
+    // The praise, then the next focus's Coach Training module with its link (the rubric Feedback Report), then the closing.
+    expect(caption.startsWith(`${fb.praise_line}\n\n📘 `)).toBe(true);
+    expect(caption).toContain('https://claude.ai/artifact/');
+    expect(caption.endsWith(`\n\n${S.coach_card_closing}`)).toBe(true);
     // The praise line is no longer its own bubble.
     expect(texts(COACH_PHONE)).not.toContain(fb.praise_line);
     // Delivery still completes: the debrief is marked done and the send offer follows.
@@ -229,7 +232,10 @@ describe('the praise line rides on the coach card', () => {
     withStoredFeedback(fb);
     await Debrief().processDebriefRecording(SESSION_ID, { from: COACH_PHONE });
     expect(texts(COACH_PHONE)[0]).toBe(fb.praise_line);
-    expect(mockWa.sendImageFromBuffer.mock.calls[0][2]).toBe(S.coach_card_closing);
+    // The caption still carries the module link (an image cannot), then the closing line.
+    const caption = mockWa.sendImageFromBuffer.mock.calls[0][2];
+    expect(caption.startsWith('📘 ')).toBe(true);
+    expect(caption.endsWith(`\n\n${S.coach_card_closing}`)).toBe(true);
   });
 });
 

@@ -6,6 +6,9 @@
  *
  * BEHAVIOUR_MODULE maps the judge's rubric keys (bot observe-coach-feedback RUBRIC_KEYS + rehearsed_the_step) to their
  * module: the coach's Feedback Report links a missed behaviour to it.
+ *
+ * The bot holds the same map (bot/shared/config/coach-training-modules.js, for the Feedback Report's link); change both
+ * or neither: modules.pin.test.ts fails the moment they disagree.
  */
 export type CoachModule = { n: number; key: string; artifact: string; title: { en: string; ur: string } };
 

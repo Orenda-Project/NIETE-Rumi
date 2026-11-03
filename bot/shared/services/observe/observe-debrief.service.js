@@ -828,11 +828,13 @@ async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, la
   // Only with a rendered card (never on the harmful path, where renderCoachCard
   // returns null) and only when the caption fits 1,024 code points; otherwise the
   // praise goes first as its own message, exactly as before.
-  const praiseCaption = png ? mergeWithinCap([praiseMsg, S.coach_card_closing], FIELD_CAPS.caption) : null;
+  // ur/en: the caption also carries the next focus's Coach Training module link (an image cannot be tapped).
+  const { coachCardCaption } = require('./observe-coach-feedback');
+  const praiseCaption = png ? coachCardCaption(praiseMsg, feedback, S) : null;
   let sentPraise = true;
   if (!praiseCaption) sentPraise = await WhatsAppService.sendMessage(from, praiseMsg);
   if (png) {
-    sentCard = await WhatsAppService.sendImageFromBuffer(from, png, praiseCaption || S.coach_card_closing);
+    sentCard = await WhatsAppService.sendImageFromBuffer(from, png, praiseCaption || coachCardCaption(null, feedback, S) || S.coach_card_closing);
   }
   if (!png || sentCard === false) {
     // The card image was refused: if the praise was riding on it, it goes first.
@@ -882,7 +884,7 @@ async function _markDebriefDone(sessionId, feedback) {
  * — a repair that still fails validation throws; there is no bypass and no
  * manufactured praise.
  */
-async function coachFeedbackWithRepair(prompt, sessionId) {
+async function coachFeedbackWithRepair(prompt, sessionId, validateOpts = {}) {
   const { validateCoachFeedback } = require('./observe-coach-feedback');
   // Soft, log only (observe.gendered_address): the card is returned exactly as
   // written and never re-asked for a verb — the repair below is for shape only.
@@ -891,7 +893,7 @@ async function coachFeedbackWithRepair(prompt, sessionId) {
     maxTokens: 6000, label: 'observeCoachFeedback', job: 'coaching.observeDebrief',
   });
   try {
-    validateCoachFeedback(result);
+    validateCoachFeedback(result, validateOpts);
     noteGenderedAddress('coach_feedback', feedbackFields(result), { sessionId });
     return result;
   } catch (vErr) {
@@ -902,7 +904,7 @@ async function coachFeedbackWithRepair(prompt, sessionId) {
     const { result: repaired } = await GPT5MiniService.completeJson(repairPrompt, {
       maxTokens: 6000, label: 'observeCoachFeedbackRepair', job: 'coaching.observeDebrief',
     });
-    validateCoachFeedback(repaired);   // still strict — throws on a second miss
+    validateCoachFeedback(repaired, validateOpts);   // still strict — throws on a second miss
     noteGenderedAddress('coach_feedback', feedbackFields(repaired), { sessionId, repaired: true });
     return repaired;
   }
@@ -1199,7 +1201,8 @@ async function processDebriefRecording(sessionId, payload = {}) {
         diarization,
         language: lang,
       });
-      feedback = await coachFeedbackWithRepair(prompt, sessionId);
+      // ur/en: the judge scores rehearsal too (the rubric's eighth behaviour); Swahili's prompt does not ask for it.
+      feedback = await coachFeedbackWithRepair(prompt, sessionId, { rehearsal: _fbLang !== 'sw' });
     } catch (llmErr) {
       logToFile('⚠️ observe debrief: coach-feedback LLM failed/invalid', {
         sessionId, error: llmErr.message,

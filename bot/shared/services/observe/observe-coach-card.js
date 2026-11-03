@@ -87,6 +87,27 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+/** The rubric's styles, only on a card that shows it (ur/en): the Swahili card's HTML stays byte-identical. */
+function rubricCss(rtl) {
+  return `.mk{background:#f7f8fb;border-radius:14px;padding:4px 20px 14px;margin:20px 0 4px}
+.mkh{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.mkh .sec{margin:16px 0 12px}
+.stars{font-family:'Lexend',sans-serif;font-size:20px;color:#d99a1e;letter-spacing:2px;white-space:nowrap}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}
+.cell{display:flex;align-items:center;gap:10px;font-size:${rtl ? '14.5px' : '15px'};line-height:${rtl ? '2.2' : '1.6'};color:#2a3040}
+.cell .dot{flex:none;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.cell.on .dot{background:#e7f3ec;color:#1d7a46}
+.cell.off .dot{border:2px dashed #c4c9d4}
+.cell.off{color:#6a7284}
+.ok{margin-top:12px;font-size:${rtl ? '14.5px' : '15px'};color:#1d7a46;font-weight:700;line-height:${rtl ? '2.2' : '1.6'}}
+.miss{display:flex;gap:14px;margin-bottom:14px;align-items:flex-start}
+.miss .mi{flex:none;width:28px;height:28px;border-radius:50%;background:#fdf1e3;color:#b4690e;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:15px;margin-top:4px}
+.miss .wt{font-size:${rtl ? '16.5px' : '17px'};font-weight:700;color:#7a4a12;line-height:${rtl ? '2.2' : '1.9'}}
+.miss .why{font-size:${rtl ? '15px' : '15.5px'};color:#4a4436;line-height:${rtl ? '2.4' : '2'}}
+.mod{margin:-4px 0 16px;font-size:${rtl ? '15px' : '15.5px'};color:#1d4ed8;font-weight:700;line-height:${rtl ? '2.2' : '1.8'}}
+`;
+}
+
 /**
  * Card HTML — same visual family as the hero report: navy #0c1a4e header,
  * Lexend-ish system stack, soft panels. Rendered by htmlToImage (Playwright)
@@ -112,6 +133,23 @@ function buildCoachCardHtml(fb, { lang = 'sw', brand } = {}) {
 
   const t = fb.try || {};
   const A = CARD_ASSETS;
+  // The rubric (ur/en, gated on the marks label, so the Swahili card is untouched): the same marks, Respect line,
+  // misses and module the text card shows (observe-coach-feedback.js), computed from the judge's booleans.
+  const R = require('./observe-coach-rubric');
+  const rubricOn = !!S.coach_card_marks_label;
+  const m = rubricOn ? R.rubricMarks(fb.rubric) : null;
+  const marksHtml = rubricOn && m.total ? `
+    <div class="mk"><div class="mkh"><span class="sec">${esc(S.coach_card_marks_label)}</span><span class="stars" dir="ltr">${esc(R.stars(m))}&nbsp; ${m.done}/${m.total}</span></div>
+      <div class="grid">${m.marks.map((x) => `<div class="cell ${x.done ? 'on' : 'off'}" data-mark="${x.done ? 'done' : 'missed'}"><span class="dot">${x.done ? '✓' : ''}</span><span>${esc(S.coach_rubric_names[x.key])}</span></div>`).join('')}</div>
+      ${m.respectHeld ? `<div class="ok">${esc(S.coach_card_respect_line)}</div>` : ''}
+    </div>` : '';
+  const missed = rubricOn ? R.missedBehaviours(fb.rubric) : [];
+  const missedHtml = missed.length ? `
+    <div class="sec">${esc(S.coach_card_missed_label)}</div>
+    ${missed.map((k) => `<div class="miss"><div class="mi">!</div><div><div class="wt">${esc(S.coach_rubric_names[k])}</div><div class="why">${esc(S.coach_rubric_why[k])}</div></div></div>`).join('')}` : '';
+  const mod = rubricOn ? R.focusModule(fb) : null;
+  const moduleHtml = mod ? `
+    <div class="mod">${esc(R.moduleLine(mod, S, S.coach_card_module_lang))}</div>` : '';
   // bd-63 (operator escalation): the old header hand-drew the smile as an
   // absolutely-positioned SVG at right:36px — in RTL that is exactly where
   // the eyebrow text begins, so the two collided into a garble. And with no
@@ -157,7 +195,7 @@ function buildCoachCardHtml(fb, { lang = 'sw', brand } = {}) {
 .try .tl{font-size:13px;color:#1d7a46;font-weight:700;letter-spacing:${rtl ? '0' : '.14em'};${rtl ? '' : 'text-transform:uppercase;'}}
 .try h2{font-size:${rtl ? '19px' : '22px'};color:#14532d;font-weight:700;margin:8px 0 6px;line-height:${rtl ? '2.3' : '1.9'}}
 .try p{font-size:${rtl ? '15px' : '15.5px'};color:#2f4a3a;line-height:${rtl ? '2.4' : '2'};margin-top:6px}
-.ft{border-top:1px solid #e7ebf4;padding:16px 38px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+${rubricOn ? rubricCss(rtl) : ''}.ft{border-top:1px solid #e7ebf4;padding:16px 38px;display:flex;justify-content:space-between;align-items:center;gap:12px}
 .ft .brand{display:flex;align-items:center;gap:9px}
 .ft .brand img{width:30px;height:auto}
 .ft .brand span{font-weight:700;color:${P.deep};font-size:16px;font-family:'Lexend',sans-serif}
@@ -172,9 +210,9 @@ function buildCoachCardHtml(fb, { lang = 'sw', brand } = {}) {
     <div class="sub">${esc(S.coach_card_subtitle)}</div>
   </div>
   <div class="bd">
-    <div class="praise">${esc(fb.praise_line || '')}</div>
+    <div class="praise">${esc(fb.praise_line || '')}</div>${marksHtml}
     <div class="sec">${esc(S.coach_card_wins_label)}</div>
-    ${wins}
+    ${wins}${missedHtml}
     <div class="try">
       <div class="tl">${esc(S.coach_card_try_label)}</div>
       <h2>${esc(t.move || '')}</h2>
@@ -182,7 +220,7 @@ function buildCoachCardHtml(fb, { lang = 'sw', brand } = {}) {
       ${S.coach_card_action_label ? '' : `<p><b>${esc(t.instead || '')}</b></p>`}
     </div>
     ${S.coach_card_action_label && t.instead ? `<div class="sec">${esc(S.coach_card_action_label)}</div>
-    <div class="act"><p>${esc(t.instead)}</p></div>` : ''}
+    <div class="act"><p>${esc(t.instead)}</p></div>` : ''}${moduleHtml}
     ${S.coach_card_reflect_label && fb.reflection_question ? `<div class="sec">${esc(S.coach_card_reflect_label)}</div>
     <div class="ask"><p>${esc(fb.reflection_question)}</p></div>` : ''}
   </div>
