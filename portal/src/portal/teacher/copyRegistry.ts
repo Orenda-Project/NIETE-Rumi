@@ -7,6 +7,8 @@ import { COPY_ENTRY as COACH_PROFILE_ENTRY } from '../coach/profile/copy';
 // bd-x1tl95 — Send feedback (coach/feedback/copy.ts).
 import { COPY_ENTRY as COACH_FEEDBACK_ENTRY } from '../coach/feedback/copy';
 import { COPY_ENTRY as COACH_LIBRARY_ENTRY } from '../coach/training/copy';
+// Coach Training, the coaching modules (coach/coachTraining/copy.ts).
+import { COPY_ENTRY as COACH_TRAINING_ENTRY } from '../coach/coachTraining/copy';
 // The coach's School card screens (coach/card/copy.ts).
 import { COPY_ENTRY as COACH_SCHOOL_CARD_ENTRY } from '../coach/card/copy';
 // bd-fmf24g.64 — the four auth pages (login, forgot password, enter code, setup): signed-out, so outside teacher/.
@@ -41,6 +43,7 @@ export const COPY_MODULES: readonly CopyEntry[] = [
   COACH_PROFILE_ENTRY,
   COACH_FEEDBACK_ENTRY,
   COACH_LIBRARY_ENTRY,
+  COACH_TRAINING_ENTRY,
   COACH_SCHOOL_CARD_ENTRY,
   AUTH_ENTRY,
   ...Object.keys(found).sort().flatMap((k) => [found[k].COPY_ENTRY, ...(found[k].COPY_ENTRIES ?? [])])
