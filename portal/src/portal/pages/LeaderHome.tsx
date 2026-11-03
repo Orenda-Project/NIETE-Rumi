@@ -11,6 +11,8 @@ import { useCoachV2, isCoachV2For } from "../coach/useCoachV2";
 import { useTeacherV2, isTeacherV2For } from "../teacher/useTeacherV2";
 import { teacherPath } from "../teacher/routes";
 import FlnSendCard from "../fln/FlnSendCard";
+// bd-tacnwy — internal testers only (portal_role_switch): a principal lands here, so she can switch back from here.
+import RoleSwitch from "../teacher/roleSwitch/RoleSwitch";
 
 /**
  * Leader Portal — "My Patch" home (bd-2434, NIETE port of upstream bd-2391).
@@ -148,6 +150,7 @@ const LeaderHome = () => {
             </section>
           </>
         )}
+        <RoleSwitch className="mt-8 max-w-md" />
       </div>
     </PortalLayout>
   );

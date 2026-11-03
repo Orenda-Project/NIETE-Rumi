@@ -459,7 +459,9 @@ export const portal = {
           coachV2: false,
           coachDisagreements: false,
           teacherV2: false,
+          roleSwitch: false,
         },
+        roleSwitchRoles: [],
       };
     }
   },
@@ -682,7 +684,11 @@ export type PortalConfig = {
     teacherHomeOrder?: boolean;
     /** The teacher Home's new look (portal_teacher_home_look; read only with the card's switch; fail-closed). */
     teacherHomeLook?: boolean;
+    /** bd-tacnwy — this user is an internal tester on portal_role_switch (list-only; fail-closed): draw "Profile type". */
+    roleSwitch?: boolean;
   };
+  /** bd-tacnwy — the profile types the switch offers (teacher, coach, principal); empty unless features.roleSwitch. */
+  roleSwitchRoles?: string[];
 };
 
 // ── bd-5rz1v.6: a coach's /observe observation, run from the portal ────────
