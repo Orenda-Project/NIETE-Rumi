@@ -1,0 +1,1081 @@
+{
+ "unseen": {
+  "objective": {
+   "MCQs": [
+    {
+     "main_question": "درست جواب کا انتخاب کریں",
+     "question": "مسئلے کے حل کے طریقے میں پہلا قدم کون سا ہے؟",
+     "options": [
+      "الف) چنیں",
+      "ب) رکیں",
+      "ج) سنیں"
+     ],
+     "marks": 2,
+     "lines": 1,
+     "answer": "ب) رکیں",
+     "blooms": "Remember",
+     "slot": "g3.general_knowledge.A.mcq"
+    },
+    {
+     "main_question": "درست جواب کا انتخاب کریں",
+     "question": "درج ذیل میں سے کون سی بات لڑائی کی وجہ بنتی ہے؟",
+     "options": [
+      "الف) غلط فہمی پیدا ہونا",
+      "ب) ایک دوسرے کی مدد کرنا",
+      "ج) مل جل کر کھیلنا"
+     ],
+     "marks": 2,
+     "lines": 1,
+     "answer": "الف) غلط فہمی پیدا ہونا",
+     "blooms": "Remember",
+     "slot": "g3.general_knowledge.A.mcq"
+    },
+    {
+     "main_question": "درست جواب کا انتخاب کریں",
+     "question": "لوگوں کی رائے میں فرق ہونے کے بارے میں کون سی بات درست ہے؟",
+     "options": [
+      "الف) صرف اسکول میں ہوتا ہے",
+      "ب) کبھی ختم نہیں ہوتا",
+      "ج) روزمرہ زندگی کا حصہ ہے"
+     ],
+     "marks": 2,
+     "lines": 1,
+     "answer": "ج) روزمرہ زندگی کا حصہ ہے",
+     "blooms": "Remember",
+     "slot": "g3.general_knowledge.A.mcq"
+    },
+    {
+     "main_question": "درست جواب کا انتخاب کریں",
+     "question": "آپ کا دوست بات کرتے ہوئے ناراض ہو جائے تو سب سے اچھا کام کون سا ہے؟",
+     "options": [
+      "الف) آپ بھی ناراض ہو جائیں",
+      "ب) اس کی بات پوری طرح سن لیں",
+      "ج) بات کرنا چھوڑ دیں"
+     ],
+     "marks": 2,
+     "lines": 1,
+     "answer": "ب) اس کی بات پوری طرح سن لیں",
+     "blooms": "Understand",
+     "slot": "g3.general_knowledge.A.mcq"
+    },
+    {
+     "main_question": "درست جواب کا انتخاب کریں",
+     "question": "دو بچے ایک ہی کتاب مانگ رہے ہیں اور بات بڑھ رہی ہے۔ سب سے مناسب حل کون سا ہے؟",
+     "options": [
+      "الف) کتاب پھاڑ دیں",
+      "ب) ایک بچے کو چپ کرا دیں",
+      "ج) ایک کے بعد دوسرا پڑھے"
+     ],
+     "marks": 2,
+     "lines": 1,
+     "answer": "ج) ایک کے بعد دوسرا پڑھے",
+     "blooms": "Apply",
+     "slot": "g3.general_knowledge.A.mcq"
+    }
+   ],
+   "Match Columns": [
+    {
+     "main_question": "کالم الف کو کالم ب سے ملائیں",
+     "question": "ملاپ کریں",
+     "column_a": [
+      "پسند ناپسند"
+     ],
+     "column_b": [
+      "لڑائی کی وجہ"
+     ],
+     "marks": 1,
+     "lines": 1,
+     "answer": "پسند ناپسند: لڑائی کی وجہ",
+     "blooms": "Remember",
+     "slot": "g3.general_knowledge.A.match"
+    },
+    {
+     "main_question": "کالم الف کو کالم ب سے ملائیں",
+     "question": "ملاپ کریں",
+     "column_a": [
+      "جماعت"
+     ],
+     "column_b": [
+      "بیٹھنے کی جگہ"
+     ],
+     "marks": 1,
+     "lines": 1,
+     "answer": "جماعت: بیٹھنے کی جگہ",
+     "blooms": "Remember",
+     "slot": "g3.general_knowledge.A.match"
+    },
+    {
+     "main_question": "کالم الف کو کالم ب سے ملائیں",
+     "question": "ملاپ کریں",
+     "column_a": [
+      "غلطی ماننا"
+     ],
+     "column_b": [
+      "مسئلے کا حل"
+     ],
+     "marks": 1,
+     "lines": 1,
+     "answer": "غلطی ماننا: مسئلے کا حل",
+     "blooms": "Understand",
+     "slot": "g3.general_knowledge.A.match"
+    },
+    {
+     "main_question": "کالم الف کو کالم ب سے ملائیں",
+     "question": "ملاپ کریں",
+     "column_a": [
+      "آہستہ بولنا"
+     ],
+     "column_b": [
+      "ناراضی کم کرنا"
+     ],
+     "marks": 1,
+     "lines": 1,
+     "answer": "آہستہ بولنا: ناراضی کم کرنا",
+     "blooms": "Understand",
+     "slot": "g3.general_knowledge.A.match"
+    },
+    {
+     "main_question": "کالم الف کو کالم ب سے ملائیں",
+     "question": "ملاپ کریں",
+     "column_a": [
+      "خود حل نہ ہو سکے"
+     ],
+     "column_b": [
+      "والدین کو بتانا"
+     ],
+     "marks": 1,
+     "lines": 1,
+     "answer": "خود حل نہ ہو سکے: والدین کو بتانا",
+     "blooms": "Apply",
+     "slot": "g3.general_knowledge.A.match"
+    }
+   ],
+   "Fill in the Blanks": [
+    {
+     "main_question": "دیے گئے خانے کے درست لفظ سے خالی جگہ پر کریں",
+     "question": "دوسروں کی بات ___________ سے سننی چاہیے۔",
+     "words": [
+      "معافی",
+      "جھگڑے",
+      "غور",
+      "ملکیت",
+      "مثبت",
+      "باری",
+      "احترام",
+      "غصہ",
+      "پرسکون",
+      "بڑے"
+     ],
+     "marks": 1,
+     "lines": 1,
+     "answer": "غور",
+     "blooms": "Remember",
+     "slot": "g3.general_knowledge.A.fill"
+    },
+    {
+     "main_question": "دیے گئے خانے کے درست لفظ سے خالی جگہ پر کریں",
+     "question": "بات کرنے کے لیے اپنی ___________ کا انتظار کرنا چاہیے۔",
+     "marks": 1,
+     "lines": 1,
+     "answer": "باری",
+     "blooms": "Remember",
+     "slot": "g3.general_knowledge.A.fill"
+    },
+    {
+     "main_question": "دیے گئے خانے کے درست لفظ سے خالی جگہ پر کریں",
+     "question": "___________ کرنے سے بات بڑھتی ہے، کم نہیں ہوتی۔",
+     "marks": 1,
+     "lines": 1,
+     "answer": "غصہ",
+     "blooms": "Understand",
+     "slot": "g3.general_knowledge.A.fill"
+    },
+    {
+     "main_question": "دیے گئے خانے کے درست لفظ سے خالی جگہ پر کریں",
+     "question": "اپنی غلطی پر ___________ مانگ لینی چاہیے۔",
+     "marks": 1,
+     "lines": 1,
+     "answer": "معافی",
+     "blooms": "Remember",
+     "slot": "g3.general_knowledge.A.fill"
+    },
+    {
+     "main_question": "دیے گئے خانے کے درست لفظ سے خالی جگہ پر کریں",
+     "question": "دوسروں کی رائے کا ___________ کرنا چاہیے۔",
+     "marks": 1,
+     "lines": 1,
+     "answer": "احترام",
+     "blooms": "Understand",
+     "slot": "g3.general_knowledge.A.fill"
+    },
+    {
+     "main_question": "دیے گئے خانے کے درست لفظ سے خالی جگہ پر کریں",
+     "question": "بحث کے وقت ہمیں ___________ رہنا چاہیے۔",
+     "marks": 1,
+     "lines": 1,
+     "answer": "پرسکون",
+     "blooms": "Understand",
+     "slot": "g3.general_knowledge.A.fill"
+    },
+    {
+     "main_question": "دیے گئے خانے کے درست لفظ سے خالی جگہ پر کریں",
+     "question": "مسئلہ حل نہ ہو تو کسی ___________ سے کہنا چاہیے۔",
+     "marks": 1,
+     "lines": 1,
+     "answer": "بڑے",
+     "blooms": "Understand",
+     "slot": "g3.general_knowledge.A.fill"
+    },
+    {
+     "main_question": "دیے گئے خانے کے درست لفظ سے خالی جگہ پر کریں",
+     "question": "قابو نہ پایا جائے تو بات ___________ میں بدل سکتی ہے۔",
+     "marks": 1,
+     "lines": 1,
+     "answer": "جھگڑے",
+     "blooms": "Understand",
+     "slot": "g3.general_knowledge.A.fill"
+    },
+    {
+     "main_question": "دیے گئے خانے کے درست لفظ سے خالی جگہ پر کریں",
+     "question": "ایک دوسرے کی مدد کے لیے ___________ انداز میں سوچنا چاہیے۔",
+     "marks": 1,
+     "lines": 1,
+     "answer": "مثبت",
+     "blooms": "Understand",
+     "slot": "g3.general_knowledge.A.fill"
+    },
+    {
+     "main_question": "دیے گئے خانے کے درست لفظ سے خالی جگہ پر کریں",
+     "question": "بہن بھائیوں میں چیزوں کے استعمال اور ___________ پر بات ہو سکتی ہے۔",
+     "marks": 1,
+     "lines": 1,
+     "answer": "ملکیت",
+     "blooms": "Remember",
+     "slot": "g3.general_knowledge.A.fill"
+    }
+   ]
+  },
+  "subjective": {
+   "Short Answers": [
+    {
+     "main_question": "درج ذیل میں سے کوئی پانچ سوالات کے مختصر جواب دیں",
+     "question": "اختلاف کی کوئی سی تین وجوہات لکھیں۔",
+     "marks": 3,
+     "lines": 3,
+     "slot": "g3.general_knowledge.B.short",
+     "answer": "دوسروں کی بات غور سے نہ سننا، اپنے فرائض اچھے طریقے سے ادا نہ کرنا، خواہشات کا پورا نہ ہونا۔",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "text": "پہلی درست وجہ",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "دوسری درست وجہ",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "تیسری درست وجہ",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "پسند ناپسند کا فرق ہونا",
+       "دوسروں کی رائے کا خیال نہ رکھنا",
+       "دوسروں کی بات غور سے نہ سننا"
+      ],
+      "common_error": "وجہ کی جگہ اختلاف کا حل لکھ دینا",
+      "checked": null
+     }
+    },
+    {
+     "main_question": "درج ذیل میں سے کوئی پانچ سوالات کے مختصر جواب دیں",
+     "question": "دوسروں کی بات کو توجہ سے سننے کا کیا فائدہ ہے؟",
+     "marks": 3,
+     "lines": 3,
+     "slot": "g3.general_knowledge.B.short",
+     "answer": "جب ہم توجہ سے سنتے ہیں تو دوسرے کی بات سمجھ آتی ہے۔ ہم اس پر غور کرتے ہیں۔ اس سے اختلاف ختم کیا جا سکتا ہے۔",
+     "blooms": "Understand",
+     "scheme": {
+      "points": [
+       {
+        "text": "دوسرے کی بات پر غور کرنے کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "اختلاف ختم ہونے کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "واضح اور مکمل جملہ",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "بات سمجھ آتی ہے اور لڑائی کم ہوتی ہے",
+       "بات توجہ سے سننے سے مسئلہ حل ہو سکتا ہے"
+      ],
+      "common_error": "کہنا کہ سننے سے اختلاف بڑھ جاتا ہے",
+      "checked": null
+     }
+    },
+    {
+     "main_question": "درج ذیل میں سے کوئی پانچ سوالات کے مختصر جواب دیں",
+     "question": "اگر آپ کو معلوم ہو جائے کہ آپ کی بات ٹھیک نہیں تو آپ کو کیا کرنا چاہیے؟",
+     "marks": 3,
+     "lines": 3,
+     "slot": "g3.general_knowledge.B.short",
+     "answer": "مجھے اپنی غلطی ماننی چاہیے۔ مجھے دوسرے سے اچھے طریقے سے بات کرنی چاہیے۔",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "text": "اپنی غلطی ماننے کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "اچھے طریقے سے بات کرنے کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "اختلاف ختم کرنے کی کوشش کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "اپنی غلطی قبول کر لینا اور بات ختم کرنے کی کوشش کرنا"
+      ],
+      "common_error": "اپنی بات پر ڈٹے رہنا",
+      "checked": null
+     }
+    },
+    {
+     "main_question": "درج ذیل میں سے کوئی پانچ سوالات کے مختصر جواب دیں",
+     "question": "عام طور پر اختلاف یا جھگڑا کب پیدا ہوتا ہے؟",
+     "marks": 3,
+     "lines": 3,
+     "slot": "g3.general_knowledge.B.short",
+     "answer": "جب ہم ایک دوسرے کی بات نہیں سنتے تو اختلاف پیدا ہوتا ہے۔ ہم اپنی بات کو درست ثابت کرنے کی کوشش کرتے ہیں۔",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "text": "ایک دوسرے کی بات نہ سننے کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "اپنی بات کو درست ثابت کرنے کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "واضح جملہ",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "جب لوگ دوسروں کی سنے بغیر اپنی بات منوانا چاہیں"
+      ],
+      "common_error": "اختلاف کی وجہ موسم یا وقت بتانا",
+      "checked": null
+     }
+    },
+    {
+     "main_question": "درج ذیل میں سے کوئی پانچ سوالات کے مختصر جواب دیں",
+     "question": "ایک بچہ کھیل میں دوسرے بچوں کی بات بالکل نہیں سنتا۔ اس سے کیا ہو سکتا ہے؟",
+     "marks": 3,
+     "lines": 3,
+     "slot": "g3.general_knowledge.B.short",
+     "answer": "بچوں کے درمیان اختلاف پیدا ہو سکتا ہے۔ اگر قابو نہ پایا جائے تو لڑائی ہو سکتی ہے۔",
+     "blooms": "Apply",
+     "scheme": {
+      "points": [
+       {
+        "text": "اختلاف پیدا ہونے کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "قابو نہ پانے پر لڑائی کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "واضح اور مکمل جملہ",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "دوسرے بچے ناراض ہو سکتے ہیں اور لڑائی ہو سکتی ہے"
+      ],
+      "common_error": "کہنا کہ کوئی مسئلہ نہیں ہوگا",
+      "checked": null
+     }
+    },
+    {
+     "main_question": "درج ذیل میں سے کوئی پانچ سوالات کے مختصر جواب دیں",
+     "question": "اختلافات کب ہو سکتے ہیں اور کس کوشش سے ختم کیے جا سکتے ہیں؟",
+     "marks": 3,
+     "lines": 3,
+     "slot": "g3.general_knowledge.B.short",
+     "answer": "اختلافات کسی بھی وقت ہو سکتے ہیں۔ یہ کوشش سے ختم کیے جا سکتے ہیں۔",
+     "blooms": "Understand",
+     "scheme": {
+      "points": [
+       {
+        "text": "کسی بھی وقت ہونے کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "کوشش سے ختم ہونے کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "واضح جملہ",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "اختلاف کبھی بھی ہو سکتا ہے مگر کوشش سے حل ہو جاتا ہے"
+      ],
+      "common_error": "کہنا کہ اختلاف ختم نہیں ہو سکتے",
+      "checked": null
+     }
+    },
+    {
+     "main_question": "درج ذیل میں سے کوئی پانچ سوالات کے مختصر جواب دیں",
+     "question": "پسند ناپسند کا فرق دو بچوں کے درمیان اختلاف کیسے پیدا کر سکتا ہے؟ ایک مثال دیں۔",
+     "marks": 3,
+     "lines": 3,
+     "slot": "g3.general_knowledge.B.short",
+     "answer": "ایک بچے کو ایک کھیل پسند ہو اور دوسرے کو دوسرا پسند ہو تو دونوں اپنی بات منوانا چاہتے ہیں۔ اس سے اختلاف ہو جاتا ہے۔",
+     "blooms": "Understand",
+     "scheme": {
+      "points": [
+       {
+        "text": "پسند مختلف ہونے کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "مناسب مثال",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "اختلاف پیدا ہونے کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "accept": [
+       "دو بچوں کے پسندیدہ رنگ یا کھانے مختلف ہوں اور ہر ایک اپنی پسند چاہے"
+      ],
+      "common_error": "مثال کے بغیر صرف وجہ دہرانا",
+      "checked": null
+     }
+    }
+   ],
+   "Long Answers": [
+    {
+     "main_question": "درج ذیل میں سے کوئی دو سوالات کے تفصیلی جواب دیں",
+     "question": "اختلافات پر قابو پانے کے چار طریقے لکھیں۔",
+     "marks": 5,
+     "lines": 8,
+     "slot": "g3.general_knowledge.B.long",
+     "answer": "ہم دوسروں کی بات غور سے سنیں۔ بات آہستہ کریں۔ اپنی غلطی کو مانیں۔ ہر اختلاف کو اچھے طریقے سے ختم کریں۔",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "text": "پہلا درست طریقہ",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "دوسرا درست طریقہ",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "تیسرا درست طریقہ",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "چوتھا درست طریقہ",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "واضح ترتیب سے لکھنا",
+        "marks": 1,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "دوسروں کی غلطی پر در گزر کرنا",
+       "اپنی بات آہستہ کہنا",
+       "دوسروں کی بات پوری سننا"
+      ],
+      "common_error": "لڑائی اور اونچی آواز کو حل بتانا",
+      "checked": null
+     }
+    },
+    {
+     "main_question": "درج ذیل میں سے کوئی دو سوالات کے تفصیلی جواب دیں",
+     "question": "اختلاف ختم کرنے میں ہمارا رویہ اہم کردار کیوں ادا کرتا ہے؟ اپنی بات کی وضاحت کریں۔",
+     "marks": 5,
+     "lines": 8,
+     "slot": "g3.general_knowledge.B.long",
+     "answer": "اچھے رویے سے ہم دوسرے کی بات سنتے ہیں۔ ہم اپنی غلطی مان لیتے ہیں۔ ہم پیار سے بات کرتے ہیں۔ اس سے اختلاف بڑھتا نہیں۔ اسی لیے ہمارا رویہ اہم ہے۔",
+     "blooms": "Understand",
+     "scheme": {
+      "points": [
+       {
+        "text": "اچھے رویے میں سننے کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "غلطی ماننے کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "اچھے انداز سے بات کرنے کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "اختلاف نہ بڑھنے کا ذکر",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "واضح ترتیب",
+        "marks": 1,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "اچھا رویہ اختلاف کو لڑائی بننے سے روکتا ہے"
+      ],
+      "common_error": "کہنا کہ رویے کا اختلاف سے کوئی تعلق نہیں",
+      "checked": null
+     }
+    },
+    {
+     "main_question": "درج ذیل میں سے کوئی دو سوالات کے تفصیلی جواب دیں",
+     "question": "کھیل کے میدان میں دو دوستوں کے درمیان بحث ہو رہی ہے۔ مسئلے کے حل کے طریقے کے قدموں کے مطابق آپ ان کی مدد کیسے کریں گے؟ ترتیب سے لکھیں۔",
+     "marks": 5,
+     "lines": 8,
+     "slot": "g3.general_knowledge.B.long",
+     "answer": "پہلے دونوں کو رکنے کو کہوں گا۔ پھر دونوں سے بات کروں گا اور سنوں گا کہ ہر ایک کیا چاہتا ہے۔ پھر ایک دوسرے کی مدد کا اچھا طریقہ سوچنے کو کہوں گا۔ اگر دونوں مطمئن نہ ہوں تو کسی بڑے سے کہوں گا۔",
+     "blooms": "Apply",
+     "scheme": {
+      "points": [
+       {
+        "text": "رکنے کا قدم",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "بات کرنے اور سننے کا قدم",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "اچھا حل سوچنے کا قدم",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "بڑے سے مدد لینے کا قدم",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "قدموں کی درست ترتیب",
+        "marks": 1,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "پہلے روکنا، پھر بات سننا، پھر حل سوچنا اور آخر میں بڑے سے کہنا"
+      ],
+      "common_error": "ایک دوست کی طرف داری کرنا",
+      "checked": null
+     }
+    }
+   ]
+  }
+ },
+ "_layout": {
+  "v": 2,
+  "preset_id": "fde_g3_2026",
+  "subject": "general_knowledge",
+  "medium": "ur",
+  "scope": {
+   "kind": "chapters",
+   "chapters": [
+    3
+   ],
+   "pages": null,
+   "label_en": "Chosen chapter",
+   "label_ur": "منتخب باب",
+   "line_en": "The chapter or pages the teacher chose.",
+   "line_ur": "استاد کے منتخب کردہ باب یا صفحات۔",
+   "covers_en": "Covers Unit 3.",
+   "covers_ur": "احاطہ: باب 3۔"
+  },
+  "header": {
+   "school_line_en": "School: ____________",
+   "student_box_en": [
+    "Student Name",
+    "Roll No",
+    "Date",
+    "Total Marks",
+    "Obtained Marks"
+   ],
+   "footer_page_en": "Page {n} of {N}",
+   "scheme_title_en": "MARKING SCHEME",
+   "band_en": "TEACHER'S COPY · Do not give to children",
+   "covers_en": "Covers: {scope}.",
+   "record_title_en": "Class record",
+   "record_cols_en": [
+    "Roll",
+    "Name"
+   ],
+   "record_total_en": "Total",
+   "record_grade_en": "Grade",
+   "checked_en": "✓ checked",
+   "notes_title_en": "Notes",
+   "note_replaced_en": "{n}: key corrected by code; the model wrote {value}.",
+   "accept_en": "accept:",
+   "common_error_en": "common error:",
+   "answer_sheet_en": "answer sheet",
+   "or_en": "OR",
+   "school_line_ur": "اسکول: ____________",
+   "student_box_ur": [
+    "نام طالب علم",
+    "رول نمبر",
+    "تاریخ",
+    "کل نمبر",
+    "حاصل کردہ نمبر"
+   ],
+   "footer_page_ur": "صفحہ {n} از {N}",
+   "scheme_title_ur": "مارکنگ اسکیم",
+   "band_ur": "استاد کی کاپی · بچوں کو نہ دیں",
+   "covers_ur": "احاطہ: {scope}۔",
+   "record_title_ur": "کلاس ریکارڈ",
+   "record_cols_ur": [
+    "رول نمبر",
+    "نام"
+   ],
+   "record_total_ur": "کل",
+   "record_grade_ur": "گریڈ",
+   "checked_ur": "✓ جانچا گیا",
+   "notes_title_ur": "نوٹ",
+   "note_replaced_ur": "{n}: کلید کوڈ نے درست کی؛ ماڈل نے {value} لکھا۔",
+   "accept_ur": "یہ بھی درست:",
+   "common_error_ur": "عام غلطی:",
+   "answer_sheet_ur": "جوابی کاپی",
+   "or_ur": "یا",
+   "title_en": "Grade III · General Knowledge · End-of-chapter paper",
+   "title_ur": "جماعت سوم · واقفیتِ عامہ · باب کے اختتام کا پرچہ",
+   "time_line_en": "",
+   "time_line_ur": "",
+   "total_line_en": "Total Marks: {t:50}",
+   "total_line_ur": "کل نمبر: {t:50}",
+   "note_en": null,
+   "note_ur": null,
+   "covers_partial_en": "Covers {units}.",
+   "covers_partial_ur": "احاطہ: {units}۔"
+  },
+  "sections": [
+   {
+    "id": "A",
+    "time_en": null,
+    "label_en": "Objective",
+    "label_ur": "معروضی",
+    "marks_en": "Total Marks: {t:25}",
+    "marks_ur": "کل نمبر: {t:25}",
+    "marks": 25,
+    "levels": {
+     "Remember": 12,
+     "Understand": 10,
+     "Apply": 3
+    },
+    "answer_on": "question_paper",
+    "note_en": null,
+    "slots": [
+     {
+      "slot": "g3.general_knowledge.A.mcq",
+      "label_en": "Q1.",
+      "label_ur": "سوال 1",
+      "instruction_en": null,
+      "instruction_ur": "درست جواب پر دائرہ لگائیں۔",
+      "marks_line_en": "({n:5}×2={t:10})",
+      "marks_line_ur": "{n:5}×2={t:10}",
+      "type": "MCQs",
+      "category": "objective",
+      "shape": "mcq",
+      "generate": 5,
+      "attempt": 5,
+      "marks_each": 2,
+      "parts": null,
+      "numbering": "roman",
+      "option_labels": "ur",
+      "compulsory": true,
+      "lines": 1,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": null,
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "Five three-option MCQs on the chapter's facts, in short plain Urdu a Grade III child reads alone. From the chosen chapter only, on everyday general knowledge (our country, our city, family and community, health and safety, plants and animals, Earth and sky): no religious content, no Hamd, Naat, Quran or Hadith. One option right; no item gives away another item's answer. One idea is tested once across the MCQ, blank, short and long items.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false,
+      "picture": null,
+      "answer_box": true,
+      "picture_only": false,
+      "sentence_box": false,
+      "print_words": false,
+      "bubble": false,
+      "answer_ok": null,
+      "word_problems": 0
+     },
+     {
+      "slot": "g3.general_knowledge.A.match",
+      "label_en": "Q2.",
+      "label_ur": "سوال 2",
+      "instruction_en": null,
+      "instruction_ur": "کالم الف کو کالم ب سے ملائیں۔",
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "type": "Match Columns",
+      "category": "objective",
+      "shape": "match",
+      "generate": 5,
+      "attempt": 5,
+      "marks_each": 1,
+      "parts": null,
+      "numbering": "roman",
+      "compulsory": true,
+      "lines": 1,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": null,
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "Five pairs from the chapter: a thing, place or person in column A and what it is, does or belongs to in column B, each side one or two Urdu words. From the chosen chapter only, on everyday general knowledge (our country, our city, family and community, health and safety, plants and animals, Earth and sky): no religious content, no Hamd, Naat, Quran or Hadith. Every column-B entry matches exactly one column-A entry.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false,
+      "picture": null,
+      "answer_box": true,
+      "picture_only": false,
+      "sentence_box": false,
+      "print_words": false,
+      "bubble": false,
+      "answer_ok": null,
+      "word_problems": 0
+     },
+     {
+      "slot": "g3.general_knowledge.A.fill",
+      "label_en": "Q3.",
+      "label_ur": "سوال 3",
+      "instruction_en": null,
+      "instruction_ur": "خالی جگہ دیے گئے الفاظ سے پُر کریں۔",
+      "marks_line_en": "({t:10})",
+      "marks_line_ur": "{t:10}",
+      "type": "Fill in the Blanks",
+      "category": "objective",
+      "shape": "short",
+      "generate": 10,
+      "attempt": 10,
+      "marks_each": 1,
+      "parts": null,
+      "numbering": "roman",
+      "compulsory": true,
+      "lines": 1,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": null,
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "Ten one-line facts from the chapter with one blank each; the ten answers, mixed, in \"words\" on the FIRST item. From the chosen chapter only, on everyday general knowledge (our country, our city, family and community, health and safety, plants and animals, Earth and sky): no religious content, no Hamd, Naat, Quran or Hadith. Each answer is a single Urdu word the chapter uses. Each blank takes exactly one of the box words and no other box word fits it. A box word is never a Q4 or Q5 answer point.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false,
+      "picture": null,
+      "answer_box": true,
+      "picture_only": false,
+      "sentence_box": false,
+      "print_words": true,
+      "bubble": false,
+      "answer_ok": null,
+      "word_problems": 0
+     }
+    ]
+   },
+   {
+    "id": "B",
+    "time_en": null,
+    "label_en": "Short and long answers",
+    "label_ur": "مختصر اور تفصیلی جواب",
+    "marks_en": "Total Marks: {t:25}",
+    "marks_ur": "کل نمبر: {t:25}",
+    "marks": 25,
+    "levels": {
+     "Remember": 8,
+     "Understand": 11,
+     "Apply": 6
+    },
+    "answer_on": "question_paper",
+    "note_en": null,
+    "slots": [
+     {
+      "slot": "g3.general_knowledge.B.short",
+      "label_en": "Q4.",
+      "label_ur": "سوال 4",
+      "instruction_en": null,
+      "instruction_ur": "کوئی سے پانچ سوالوں کے جواب لکھیں۔",
+      "marks_line_en": "({n:5}×3={t:15})",
+      "marks_line_ur": "{n:5}×3={t:15}",
+      "type": "Short Answers",
+      "category": "subjective",
+      "shape": "short",
+      "generate": 7,
+      "attempt": 5,
+      "marks_each": 3,
+      "parts": null,
+      "numbering": "roman",
+      "compulsory": true,
+      "lines": 3,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": null,
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "Seven short-answer questions on the chapter (name, what is, where, why, how many), each one short Urdu line. From the chosen chapter only, on everyday general knowledge (our country, our city, family and community, health and safety, plants and animals, Earth and sky): no religious content, no Hamd, Naat, Quran or Hadith. Answer: one or two short Urdu sentences. Scheme: K 1 per correct idea, three ideas for 3. Marks match the ask: one definition is one point, never three.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false,
+      "picture": null,
+      "answer_box": true,
+      "picture_only": false,
+      "sentence_box": false,
+      "print_words": false,
+      "bubble": false,
+      "answer_ok": null,
+      "word_problems": 0
+     },
+     {
+      "slot": "g3.general_knowledge.B.long",
+      "label_en": "Q5.",
+      "label_ur": "سوال 5",
+      "instruction_en": null,
+      "instruction_ur": "کوئی سے دو سوالوں کے تفصیلی جواب لکھیں۔",
+      "marks_line_en": "({n:2}×5={t:10})",
+      "marks_line_ur": "{n:2}×5={t:10}",
+      "type": "Long Answers",
+      "category": "subjective",
+      "shape": "short",
+      "generate": 3,
+      "attempt": 2,
+      "marks_each": 5,
+      "parts": null,
+      "numbering": "roman",
+      "compulsory": true,
+      "lines": 8,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": null,
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "Three questions that ask the child to describe, explain or give uses or reasons from the chapter in a few sentences (how we keep clean, why plants matter, what our city has). No religious content: Islamiat is a separate subject, so no Quran, Hadith, Hamd, Naat or Islamiat item here. Answer: a model of 4 to 5 short Urdu sentences. Scheme (5): K 1 per correct point up to 4, L 1 for clear order.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false,
+      "picture": null,
+      "answer_box": true,
+      "picture_only": false,
+      "sentence_box": false,
+      "print_words": false,
+      "bubble": false,
+      "answer_ok": null,
+      "word_problems": 0
+     }
+    ]
+   }
+  ],
+  "legend": {
+   "title_en": "How to mark",
+   "title_ur": "جانچنے کا طریقہ",
+   "lines_en": [
+    "One mark per correct item unless the paper says otherwise. Spelling is not marked unless the key says so.",
+    ""
+   ],
+   "lines_ur": [
+    "جب تک پرچے میں کچھ اور نہ لکھا ہو، ہر درست جواب پر 1 نمبر۔ املا کے نمبر صرف وہاں کٹتے ہیں جہاں کلید میں لکھا ہو۔",
+    ""
+   ],
+   "bands_line": -1,
+   "bands_lead_ur": "",
+   "key_line": 1,
+   "maths_lines": [],
+   "key_names_en": {
+    "M": "method",
+    "A": "answer",
+    "U": "unit",
+    "K": "key point",
+    "L": "label"
+   },
+   "key_names_ur": {
+    "M": "طریقہ",
+    "A": "جواب",
+    "U": "اکائی",
+    "K": "اہم نکتہ",
+    "L": "نام"
+   },
+   "subject": "general_knowledge",
+   "key_from_chips": true
+  },
+  "before_exam": {
+   "title_en": "Teacher: before the exam",
+   "title_ur": "استاد کے لیے: امتحان سے پہلے",
+   "lines_en": [
+    "This is the marking scheme for {file} ({n} pages). Do not give it to children.",
+    "Photocopy the question paper, all {n} pages, one per child.",
+    "You add: {duty} on the question paper, page {p} (book p. {b}).",
+    "Tell the class: {sections}; {attempts}.",
+    "Time: {t}.",
+    "Mark question by question across all copies, not copy by copy."
+   ],
+   "lines_ur": [
+    "یہ {file} ({n} صفحات) کی مارکنگ اسکیم ہے۔ بچوں کو نہ دیں۔",
+    "سوالیہ پرچے کے تمام {n} صفحات کی فوٹو کاپی کریں، ہر بچے کے لیے ایک۔",
+    "شامل کریں: {duty}، سوالیہ پرچہ صفحہ {p} (کتاب ص {b})۔",
+    "کلاس کو بتائیں: {sections}؛ {attempts}۔",
+    "وقت: {t}۔",
+    "ہر سوال کو تمام کاپیوں میں ایک ساتھ جانچیں، ایک کاپی مکمل کر کے دوسری نہیں۔"
+   ],
+   "nothing_en": "You add: nothing.",
+   "nothing_ur": "شامل کرنے کو کچھ نہیں۔",
+   "unknown_pages_en": "see the question paper",
+   "unknown_pages_ur": "سوالیہ پرچہ دیکھیں",
+   "on_paper_en": "{sections} on the question paper",
+   "on_paper_ur": "{sections} سوالیہ پرچے پر",
+   "on_sheet_en": "{sections} on the answer sheet",
+   "on_sheet_ur": "{sections} جوابی کاپی پر",
+   "attempt_en": "{label}: attempt any {n} of {g}",
+   "attempt_ur": "{label}: {g} میں سے کوئی سے {n}",
+   "either_en": "{label}: answer one of the two",
+   "either_ur": "{label}: دو میں سے ایک"
+  },
+  "supplies": [],
+  "total_marks": 50,
+  "total_time_en": "as the school sets",
+  "total_time_ur": "اسکول کے مطابق",
+  "unplaced": 0,
+  "generated_at": "2026-10-29T22:19:07.918Z",
+  "pages": {
+   "paper": 5,
+   "scheme": 5
+  },
+  "frame_pages": null,
+  "notes": [],
+  "blueprint": {
+   "ok": true,
+   "total": 50,
+   "expected": 50,
+   "sections": [
+    {
+     "id": "A",
+     "marks": 25,
+     "expected": 25,
+     "levels": {
+      "Remember": {
+       "marks": 12,
+       "target": 12
+      },
+      "Understand": {
+       "marks": 10,
+       "target": 10
+      },
+      "Apply": {
+       "marks": 3,
+       "target": 3
+      }
+     }
+    },
+    {
+     "id": "B",
+     "marks": 25,
+     "expected": 25,
+     "levels": {
+      "Remember": {
+       "marks": 9.761904761904763,
+       "target": 8
+      },
+      "Understand": {
+       "marks": 9.761904761904763,
+       "target": 11
+      },
+      "Apply": {
+       "marks": 5.476190476190476,
+       "target": 6
+      }
+     }
+    }
+   ],
+   "levels": {
+    "Remember": {
+     "marks": 21.76190476190476,
+     "pct": 43.52380952380952,
+     "target": 41
+    },
+    "Understand": {
+     "marks": 19.76190476190476,
+     "pct": 39.52380952380952,
+     "target": 41
+    },
+    "Apply": {
+     "marks": 8.476190476190476,
+     "pct": 16.952380952380953,
+     "target": 18
+    }
+   },
+   "problems": []
+  }
+ }
+}

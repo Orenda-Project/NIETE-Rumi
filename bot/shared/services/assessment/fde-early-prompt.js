@@ -14,13 +14,18 @@
  * Pure: the builder is passed in, so this never requires the service.
  */
 
+const { bannedShortfall } = require('./fde-banned-words');
+const { unsaidWords } = require('./fde-listening-check');
+
 const NO_PICTURES = 'The paper carries no pictures. A slot marked frame prints an empty frame: write the instruction and the labels/word bank only; never \'look at the picture\'.';
 
 const PICTURE_RULE = 'Pictures: a slot whose rule names a picture gives EVERY item one "picture" object, in one of the shapes that slot lists. '
   + 'Write object names and scene descriptions in plain English, even on an Urdu paper. A picture never carries words, letters or numbers to read. '
   + 'A slot that names no picture carries none, and no item says "look at the picture" unless it has one. '
   + 'Each picture shows exactly that item\'s own word, one plain thing alone: for "h_t" a hat, never a cap or a scene. '
-  + 'No two items show the same thing, even in different questions: a teacher never draws the cat twice on one paper.';
+  + 'No two items show the same thing, even in different questions: a teacher never draws the cat twice on one paper. '
+  + 'Another name for the same thing is still a repeat: "rooster" and "male chicken" are one picture. '
+  + 'No fact is asked twice on one paper, in any two items or any two questions.';
 
 /** What each picture kind must carry for the pipeline to draw it. */
 const PICTURE_FIELDS = {
@@ -30,6 +35,7 @@ const PICTURE_FIELDS = {
   object: (p) => Boolean(p.name),
   scene: (p) => Boolean(p.describe),
   clock: (p) => Number.isInteger(p.hour),
+  plant: () => true, // the paper draws it whole: nothing for the writer to fill in
 };
 
 /** The pattern with its key masked, so the builder and the layout skip Grade 5's subject rules. */
@@ -56,8 +62,8 @@ function taskLine(task, lang) {
     + (task[`instruction_${lang}`] ? ` The teacher will: ${task[`instruction_${lang}`]}` : '');
 }
 
-/** The oral part's prompt: one entry per task, in the paper's medium. */
-function oralPrompt({ oral, grade, P, pageContent }) {
+/** The oral part's prompt: one entry per task, in the paper's medium. `saidCheck: false` (a topic paper) leaves out the listening rule. */
+function oralPrompt({ oral, grade, P, pageContent, saidCheck = true }) {
   const lang = P.medium === 'ur' ? 'ur' : 'en';
   const language = lang === 'ur' ? 'Urdu' : 'English';
   return [
@@ -74,24 +80,65 @@ function oralPrompt({ oral, grade, P, pageContent }) {
     '',
     'A "script" is what is read aloud: a story or poem the teacher reads, or a passage the child reads. '
       + 'Each item is {"ask", "answer"}: a question with its answer, or, for a reading task, one word or line the child reads as "ask" with no answer.',
+    ...(saidCheck && oral.tasks.some((t) => t.kind === 'listening')
+      ? ['For a listening task, every answer except the last (apply) one is said in the story in words; a question never asks a feeling, reason or detail the story does not say.']
+      : []),
+    ...(oral.tasks.some((t) => t.kind === 'listening')
+      ? ['A listening question never asks which line, مصرع or part of the text something is in, and every question names its subject: never start with «ہر ایک» or «وہ» with nothing before it. Each answer is a concrete thing the text says.']
+      : []),
+    'Any title or name from the book is written inside a complete sentence, never after a colon or with a stray word left after it.',
+    // v25 G2 Urdu stopped the poem mid-line and keyed «گا رہی ہیں», which it never read (bd-5jmnfj.4.57).
+    'Quote whole lines from the book: never stop mid-line. Every answer uses only words the script says, except an apply question about the child\'s own life.',
+    'No bracketed notes: what you write is read aloud as it stands, so never add a note to yourself, such as "(Note: use 9)". Make the numbers in each question agree with its answer.',
     'Return JSON only: {"oral":[{"id":"<task id>","script":"<text or empty>","items":[{"ask":"…","answer":"…"}]}]}, one entry per task.',
   ].join('\n');
 }
 
-/** The reply read against the tasks: `content` for the sheet, `missing` the task ids it did not fill. */
-function oralContent(tree, oral) {
+// A bracketed note the writer left for itself ("(Note: use 9 cats)"): a teacher must never read it out
+// (bd-5jmnfj.4.51.6). The task is asked again, not stripped: the numbers around the note are wrong too.
+const WRITER_NOTE = /[([]\s*(?:note\b|nb\b|n\.b\b|writer\b|generator\b|نوٹ)[^)\]]*[)\]]/i;
+const { extraNumbers } = require('./fde-oral-numbers'); // bd-5jmnfj.4.58.2
+const { badListeningAsks } = require('./fde-listening-asks'); // bd-5jmnfj.4.58.4
+const { urduOralBad } = require('./fde-early-urdu-oral'); const { orphanPronouns } = require('./fde-read-aloud-antecedent'); // v29 Urdu oral rows; v37 r3 pronoun with no antecedent
+const hasNote = (t) => typeof t === 'string' && WRITER_NOTE.test(t);
+
+/**
+ * The reply read against the tasks: `content` for the sheet, `missing` the task ids it did not fill, `flagged` the Urdu
+ * tasks it filled with the wording off (two asks, a stem said back, a dialogue opening with a reply): asked again once,
+ * mended by urduOralFixes, never missing (v34 g1/g2 Urdu came back ORAL_SHORT on the poem, bd-5jmnfj.4.58.6.1).
+ * `saidCheck: false` (a topic paper) skips the listening word check.
+ */
+function oralContent(tree, oral, { saidCheck = true } = {}) {
   const list = Array.isArray(tree && tree.oral) ? tree.oral : [];
   const content = [];
-  const missing = [];
+  const missing = []; const flagged = [];
   for (const task of oral.tasks) {
     const got = list.find((x) => x && x.id === task.id);
     const items = got && Array.isArray(got.items) ? got.items.filter((it) => it && String(it.ask || '').trim()) : [];
     const script = got && typeof got.script === 'string' ? got.script.trim() : '';
-    const whole = (!needsScript(task) || script) && items.length >= (task.n || 0);
+    const noted = hasNote(script) || (got && Array.isArray(got.items) && got.items.some((it) => it && (hasNote(it.ask) || hasNote(it.answer))));
+    // A listening answer the story never says is asked again (bd-5jmnfj.4.55); an Urdu script is skipped.
+    const unsaid = saidCheck && task.kind === 'listening' && unsaidWords(script, task.n ? items.slice(0, task.n) : items).length > 0;
+    // An oral mental-maths item naming a number it does not ask about is asked again (v26 G1 Maths item 1).
+    const extra = task.kind === 'oral_maths' && extraNumbers(items).length > 0;
+    const lineAsk = task.kind === 'listening' && badListeningAsks(items).length > 0; // a line-position or subjectless question (v28 G1 Urdu poem)
+    const whole = !noted && !unsaid && !extra && !lineAsk && (!needsScript(task) || script) && items.length >= (task.n || 0);
     if (!got || !whole) { missing.push(task.id); continue; }
+    if ((/[\u0600-\u06FF]/.test(script + items.map((it) => it.ask).join(' ')) && urduOralBad(task.id, items, script).length > 0) || (task.kind === 'read_aloud' && orphanPronouns(script).length > 0)) flagged.push(task.id);
     content.push({ id: task.id, ...(script ? { script } : {}), items: task.n ? items.slice(0, task.n) : items });
   }
-  return { content, missing };
+  return { content, missing, flagged };
+}
+
+/**
+ * After the oral re-ask: a task in `redo` (a read-aloud with a give-away, a flagged task) takes the second reply's version
+ * when it has one, every other task keeps the first reply's; a task neither filled is missing, a kept flagged one stays flagged.
+ */
+function mergeOral(tasks, first, next, redo) {
+  const find = (r, t) => r.content.find((c) => c.id === t.id);
+  const picked = tasks.map((t) => [t, (redo.has(t.id) ? [next, first] : [first, next]).find((r) => find(r, t))]).filter(([, r]) => r);
+  const missing = tasks.map((t) => t.id).filter((id) => !picked.some(([t]) => t.id === id));
+  return { content: picked.map(([t, r]) => find(r, t)), missing, flagged: picked.filter(([t, r]) => (r.flagged || []).includes(t.id)).map(([t]) => t.id) };
 }
 
 function eachItem(examJson, fn) {
@@ -125,10 +172,24 @@ function thingKey(name) {
   return k.length > 3 && /[^s]s$/.test(k) ? k.slice(0, -1) : k;
 }
 
+/** The item's own word when the question is one word (Urdu Q6 «مرغا»), else null; "c + at = ____" is not. */
+function itemWord(q) {
+  const w = String((q && q.question) || '').trim();
+  return /^[\p{L}\p{M}]+$/u.test(w) ? w.toLowerCase() : null;
+}
+
+/** "male chicken (مرغا)": the artist's name, and the word it pictures when there is one. */
+function pictureLabel(q) {
+  const name = String(q.picture.name).trim();
+  const word = itemWord(q);
+  return word && word !== name.toLowerCase() ? `${name} (${String(q.question).trim()})` : name;
+}
+
 /**
  * Object pictures shown more than once, as `{slot, reason:'repeat', pictures}` for each question
  * that repeats one. The question set first on the paper keeps the thing; a later one is flagged.
- * Scenes, counts, dots and shapes are not one thing, so they never repeat.
+ * Two items repeat when their pictures share a name or picture one word: v14 drew «مرغا» as "rooster"
+ * in Q6 and "male chicken" in Q7. Scenes, counts, dots and shapes are not one thing, so they never repeat.
  */
 function repeatedPictures(examJson, P) {
   const order = new Map();
@@ -136,62 +197,104 @@ function repeatedPictures(examJson, P) {
   const objects = [];
   eachItem(examJson, (q) => {
     const p = q.picture;
-    if (p && p.kind === 'object' && p.name && order.has(q.slot)) objects.push({ slot: q.slot, name: String(p.name).trim(), at: objects.length });
+    if (p && p.kind === 'object' && p.name && order.has(q.slot)) {
+      const keys = [thingKey(p.name), itemWord(q)].filter(Boolean);
+      objects.push({ slot: q.slot, keys, label: pictureLabel(q), at: objects.length });
+    }
   });
   objects.sort((a, b) => order.get(a.slot) - order.get(b.slot) || a.at - b.at);
   const seen = new Set();
   const out = new Map();
   for (const o of objects) {
-    const k = thingKey(o.name);
-    if (!seen.has(k)) { seen.add(k); continue; }
+    const again = o.keys.some((k) => seen.has(k));
+    o.keys.forEach((k) => seen.add(k));
+    if (!again) continue;
     const r = out.get(o.slot) || { slot: o.slot, reason: 'repeat', pictures: [] };
-    if (!r.pictures.includes(o.name)) r.pictures.push(o.name);
+    if (!r.pictures.includes(o.label)) r.pictures.push(o.label);
     out.set(o.slot, r);
   }
   return [...out.values()];
 }
 
-/** A re-ask's note naming the object pictures the paper's other sections already show; null if none. */
-function takenPicturesNote(trees) {
+/**
+ * A re-ask's note naming the object pictures the paper's other sections already show, and the items in this
+ * section that repeat an earlier question (`repeats`, from repeatedPictures); null if there is neither.
+ */
+function takenPicturesNote(trees, repeats = []) {
   const names = new Map();
   trees.forEach((t) => eachItem(t, (q) => {
     const p = q.picture;
-    if (p && p.kind === 'object' && p.name && !names.has(thingKey(p.name))) names.set(thingKey(p.name), String(p.name).trim());
+    if (p && p.kind === 'object' && p.name && !names.has(thingKey(p.name))) names.set(thingKey(p.name), pictureLabel(q));
   }));
-  if (!names.size) return null;
-  return `These pictures are already on this paper, in other questions: ${[...names.values()].join(', ')}. `
-    + 'Draw none of them again, and no two items you write may show the same thing.';
+  const own = repeats.filter((f) => f.reason === 'repeat').flatMap((f) => f.pictures);
+  const parts = [];
+  if (names.size) {
+    parts.push(`These pictures are already on this paper, in other questions: ${[...names.values()].join(', ')}. `
+      + 'Draw none of them again, and no two items you write may show the same thing.');
+  }
+  if (own.length) {
+    parts.push(`In this section these items repeat a picture or word from an earlier question: ${[...new Set(own)].join(', ')}. `
+      + 'Give each a different word, not another name for the same thing.');
+  }
+  return parts.length ? parts.join(' ') : null;
+}
+
+/**
+ * What a later section is told before it is written (bd-5jmnfj.4.16): every question the earlier
+ * sections ask, with its answer, and never to ask those facts again; null when nothing is written yet.
+ */
+function askedNote(trees) {
+  const lines = [];
+  trees.forEach((t) => eachItem(t, (q) => {
+    if (q.question) lines.push(`- ${String(q.question).trim()} → ${String(q.answer == null ? '' : q.answer).trim()}`);
+  }));
+  if (!lines.length) return null;
+  return `The paper already asks these (question → answer):\n${lines.join('\n')}\n`
+    + 'Never ask any of these facts again, in any form (a blank, a choice, true or false, a match, a short answer), '
+    + 'and give none of these answers as an answer.';
 }
 
 const slotsOf = (P) => new Map(P.sections.flatMap((s) => s.slots).map((sl) => [sl.slot, sl]));
 
-/** Items whose key breaks their slot's `answer_ok`, as `{slot, reason:'answer', items}` ("question → answer"). */
+// v18 G2 Urdu: a "which spelling is correct" item offered آلودگی three times (bd-5jmnfj.4.35).
+const choice = (o) => String(o).replace(/^\s*\(?[^\s)]{1,3}\)\s*/, '').trim().normalize('NFC');
+const sameOptions = (q) => Array.isArray(q.options) && new Set(q.options.map(choice)).size < q.options.length;
+
+/** Items whose key breaks their slot's `answer_ok`, or whose choices repeat, as `{slot, reason:'answer', items}` ("question → answer"). */
 function answerShortfall(examJson, P) {
   const slots = slotsOf(P);
   const out = new Map();
   eachItem(examJson, (q) => {
     const sl = slots.get(q.slot);
-    if (!sl || !sl.answer_ok || sl.answer_ok(q)) return;
+    if (!sl || (!sameOptions(q) && (!sl.answer_ok || sl.answer_ok(q)))) return;
     const r = out.get(q.slot) || { slot: q.slot, reason: 'answer', items: [] };
-    r.items.push(`${String(q.question).trim()} → ${String(q.answer).trim()}`);
+    r.items.push(`${String(q.question == null ? q.main_question : q.question).trim()} → ${String(q.answer == null ? 'see the questions' : q.answer).trim()}`);
     out.set(q.slot, r);
   });
-  return [...out.values()];
+  // A crude word in an Urdu item is asked again like a key off its rule (bd-5jmnfj.4.51.1); the
+  // writer runs this at the first check, the late re-check and the final log.
+  return [...out.values()].concat(bannedShortfall(examJson));
 }
 
 /** A re-ask's note naming each item keyed off its slot's rule, and the rule; null if none. */
 function answerNote(shortfall, P) {
   const slots = slotsOf(P);
-  const notes = shortfall.filter((f) => f.reason === 'answer' && slots.has(f.slot)).map((f) => {
+  const banned = shortfall.filter((f) => f.reason === 'banned' && slots.has(f.slot)).map((f) => {
+    const sl = slots.get(f.slot);
+    return `${sl.label_en || f.slot} printed a rude word in these items (question → word):\n${f.items.map((i) => `- ${i}`).join('\n')}\n`
+      + `Write ${sl.label_en || f.slot} again with no rude or crude word anywhere, and never split a word into parts that form a rude word. ${sl.prompt_rule}`;
+  });
+  const notes = banned.concat(shortfall.filter((f) => f.reason === 'answer' && slots.has(f.slot)).map((f) => {
     const sl = slots.get(f.slot);
     const label = sl.label_en || f.slot;
     return `${label} broke its rule in these items (question → answer):\n${f.items.map((i) => `- ${i}`).join('\n')}\n`
-      + `Write ${label} again so every item follows it: ${sl.prompt_rule}`;
-  });
+      + `Write ${label} again so every item follows it: ${sl.prompt_rule}`
+      + (sl.shape === 'mcq' ? '\nEvery choice must be different. A which-spelling item gives one right spelling and wrong ones.' : '');
+  }));
   return notes.length ? notes.join('\n\n') : null;
 }
 
 module.exports = {
-  NO_PICTURES, PICTURE_RULE, maskP, sectionPrompt, oralPrompt, oralContent, pictureShortfall, repeatedPictures, takenPicturesNote,
-  answerShortfall, answerNote,
+  NO_PICTURES, PICTURE_RULE, maskP, sectionPrompt, oralPrompt, oralContent, mergeOral, pictureShortfall, repeatedPictures, takenPicturesNote,
+  answerShortfall, answerNote, askedNote,
 };

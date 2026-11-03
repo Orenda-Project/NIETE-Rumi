@@ -24,20 +24,28 @@ function commonHeader() {
   return out;
 }
 
-/** The legend: how to mark, with the oral part named. No grade bands: FDE's G1-2 papers print none. */
-function legendFor(key) {
+// The spelling line is for Maths and GK keys only: a language key marks spelling (bd-5jmnfj.4.50.5).
+const NO_SPELLING = ['maths', 'general_knowledge'];
+const SPELLING = {
+  en: ' Spelling is not marked unless the key says so.',
+  ur: ' املا کے نمبر صرف وہاں کٹتے ہیں جہاں کلید میں لکھا ہو۔', // needs fluent-Urdu review
+};
+
+/** The legend: how to mark, with the oral part named only when the paper has one. No grade bands: FDE's G1-2 papers print none. */
+function legendFor(key, hasOral = true) {
+  const spelling = (lang) => (NO_SPELLING.includes(key) ? SPELLING[lang] : '');
   return {
     title_en: 'How to mark',
     title_ur: 'جانچنے کا طریقہ',
     lines_en: [
-      'One mark per correct item unless the paper says otherwise. Spelling is not marked in Maths or GK.',
+      `One mark per correct item unless the paper says otherwise.${spelling('en')}`,
       '',
-      'Written marks only. Record the oral marks from the oral sheet, then add both on the class record.',
+      ...(hasOral ? ['Written marks only. Record the oral marks from the oral sheet, then add both on the class record.'] : []),
     ],
     lines_ur: [
-      'جب تک پرچے میں کچھ اور نہ لکھا ہو، ہر درست جواب پر 1 نمبر۔ ریاضی اور معلومات عامہ میں املا کے نمبر نہیں کٹتے۔',
+      `جب تک پرچے میں کچھ اور نہ لکھا ہو، ہر درست جواب پر 1 نمبر۔${spelling('ur')}`,
       '',
-      'یہ صرف تحریری نمبر ہیں۔ زبانی نمبر زبانی جائزے کی شیٹ سے لکھیں، پھر کلاس ریکارڈ پر دونوں جمع کریں۔',
+      ...(hasOral ? ['یہ صرف تحریری نمبر ہیں۔ زبانی نمبر زبانی جائزے کی شیٹ سے لکھیں، پھر کلاس ریکارڈ پر دونوں جمع کریں۔'] : []),
     ],
     bands_line: -1,
     bands_lead_ur: '',
@@ -50,21 +58,33 @@ function legendFor(key) {
   };
 }
 
+// v27 G1 English Q12 i drew an egg whose outline read as a stone, and small objects sat lost at the back of their
+// scenes (bd-5jmnfj.4.58.3). Every picture slot carries the one rule for what a plain outline can show.
+const PICTURE_RULE = ' The picture is a plain black-outline drawing a child names at once: never a thing whose outline alone is '
+  + 'unreadable (egg, ball, plate, cup, watch, bench, box). A small object placed in a scene is drawn large and in front.';
+
+// v29 G2 English Q5, Q9, Q13: "Choose is, am or are." told the child nothing to do with the answer (bd-5jmnfj.4.58.4).
+const RESPONDS = /\b(circle|write|tick|underline|colour|color|shade|draw|join|match|mark)\b/i;
+const withResponse = (o) => (o.shape === 'mcq' && o.instruction_en && !o.instruction_ur && !RESPONDS.test(o.instruction_en)
+  ? `${String(o.instruction_en).replace(/\.?\s*$/, '.')} Circle the answer.` : o.instruction_en || null);
+
 /** One slot in Grade 5's shape, with the early-paper defaults. `picture` names the kinds an item must draw. */
 function makeSlot(o) {
   const attempt = o.attempt == null ? o.generate : o.attempt;
   const total = attempt * o.marks_each;
   const mcq = o.shape === 'mcq';
+  const each = attempt > 1 && o.marks_each > 1;
   return {
     slot: o.slot,
     label_en: o.label_en,
     label_ur: o.label_ur || String(o.label_en).replace(/^Q(\d+)\.?$/, 'سوال $1'),
-    instruction_en: o.instruction_en || null,
+    instruction_en: withResponse(o),
     instruction_ur: o.instruction_ur || null,
-    marks_line_en: `({t:${total}})`,
-    marks_line_ur: `{t:${total}}`,
+    // Items worth 2 or more print their sum under a one-mark legend (bd-5jmnfj.4.57): "(5×2=10)".
+    marks_line_en: each ? `({n:${attempt}}×${o.marks_each}={t:${total}})` : `({t:${total}})`,
+    marks_line_ur: each ? `{n:${attempt}}×${o.marks_each}={t:${total}}` : `{t:${total}}`,
     type: o.type,
-    category: mcq || o.objective ? 'objective' : 'subjective',
+    category: mcq || o.shape === 'match' || o.objective ? 'objective' : 'subjective',
     shape: o.shape || 'short',
     generate: o.generate,
     attempt,
@@ -79,7 +99,7 @@ function makeSlot(o) {
     grain: null,
     families: null,
     kinds: null,
-    prompt_rule: o.prompt_rule,
+    prompt_rule: o.picture ? `${o.prompt_rule || ''}${PICTURE_RULE}` : o.prompt_rule,
     frame: null,
     teacher_note_en: null,
     teacher_note_ur: null,
@@ -88,7 +108,9 @@ function makeSlot(o) {
     picture: o.picture || null,
     answer_box: true,
     picture_only: Boolean(o.picture_only),
+    sentence_box: Boolean(o.sentence_box),
     print_words: Boolean(o.print_words),
+    bubble: Boolean(o.bubble),
     answer_ok: o.answer_ok || null,
   };
 }
@@ -110,7 +132,7 @@ function makeSection(o) {
     marks,
     levels: o.levels,
     answer_on: 'question_paper',
-    note_en: null,
+    note_en: o.note_en || null, // v37 G1 Maths Q5/Q6: a section may print a teacher note
     slots,
   };
 }
@@ -118,8 +140,8 @@ function makeSection(o) {
 const ORAL_DEFAULT = {
   title_en: 'Oral assessment · teacher sheet',
   title_ur: 'زبانی جائزہ · استاد کی شیٹ',
-  note_en: 'Take the oral part one child at a time, before or after the written paper. Read the script aloud as written.',
-  note_ur: 'زبانی حصہ ہر بچے سے الگ الگ لیں، تحریری پرچے سے پہلے یا بعد میں۔ اسکرپٹ لکھے ہوئے الفاظ میں پڑھ کر سنائیں۔',
+  note_en: 'Take the oral part after the written paper, one child at a time. Read the script aloud as written.',
+  note_ur: 'زبانی حصہ تحریری پرچے کے بعد، ہر بچے سے الگ الگ لیں۔ اسکرپٹ لکھے ہوئے الفاظ میں پڑھ کر سنائیں۔',
 };
 
 /**
@@ -185,7 +207,7 @@ function makeSubject({ grade, key, medium, name_en, name_ur, tos, pages, section
     },
     sections: built,
     oral: orals,
-    legend: legendFor(key),
+    legend: legendFor(key, Boolean(orals)),
     before_exam: G5.subjects.english.before_exam,
     supplies: G5.subjects.english.supplies,
     summary_lines: {

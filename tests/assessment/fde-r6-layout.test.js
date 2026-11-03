@@ -67,8 +67,8 @@ describe('B. keys are spread with the fewest turns', () => {
 
   it('a balanced paper is untouched', () => {
     const words = ['river', 'mountain', 'desert', 'forest'];
-    // 6 / 5 / 5 / 4 across a–d: nothing above the cap of 6.
-    const at = [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 0];
+    // 6 / 5 / 5 / 4 across a–d: nothing above the cap of 6, and no pattern (bd-5jmnfj.4.50.7).
+    const at = [...'acbdbcadbdacabcaadbc'].map((l) => 'abcd'.indexOf(l));
     const raw = mcqExam('english.A.Q1a', (i) => ({
       question: `Which place is number ${i + 1}?`,
       options: words.map((w, k) => `${'abcd'[k]}) ${w} ${i + 1}`),
