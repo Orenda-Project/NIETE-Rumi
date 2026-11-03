@@ -43,7 +43,27 @@ const V2 = {
   },
 };
 
+// The ur/en guide has since moved from the 3+1 shape to the rubric-shaped notes (went well · work on
+// first · a moment · six conversation lines in rubric order — rubric-debrief-notes.test.js pins those).
+// What this file still guards for the guide: Swahili keeps its 6 steps, the score gate, the budget,
+// and that a guide stored in the 3+1 shape still renders in its order.
 const goodGuide = () => ({
+  intro: 'Your conversation guide — about 15 minutes.',
+  went_well: ['Pair work: you had every child answer in pairs.'],
+  work_on_first: { title: 'Checking for understanding', next_step: 'ask two children to explain the step back to you' },
+  moment: null,
+  conversation: [
+    'I loved this moment: you had every child answer in pairs.',
+    'Let us look at the moment after the pair work.',
+    'How did you know they had understood?',
+    'If we work on one thing: checking understanding with two children.',
+    'What will you try tomorrow, in your own words?',
+    'Say it to me now, as you will in class.',
+  ],
+  outro: 'No number to hand over. 💛',
+});
+
+const storedThreePlusOne = () => ({
   intro: 'Your conversation guide — about 15 minutes.',
   sections: {
     strengths: { title: 'Strengths', body: 'Name the real moment.', say_this: 'I loved this moment: you had every child answer in pairs.' },
@@ -56,15 +76,12 @@ const goodGuide = () => ({
 
 // ── A. The guide the coach reads ───────────────────────────────────────
 
-describe('bd-y7jr8 · the debrief guide asks for 3 sections + 1 question', () => {
+describe('bd-y7jr8 · the debrief guide (now the rubric-shaped notes for ur/en)', () => {
   for (const lang of ['ur', 'en']) {
-    it(`prompt for ${lang} names the three sections and the closing question`, () => {
+    it(`prompt for ${lang} asks for the rubric-shaped notes, not the 3+1 sections`, () => {
       const p = buildGuidePrompt(V2, { language: lang });
-      expect(p).toMatch(/strengths/i);
-      expect(p).toMatch(/areas for growth|growth/i);
-      expect(p).toMatch(/action plan/i);
-      expect(p).toMatch(/reflection_question/);
-      expect(p).toMatch(/"sections"/);
+      expect(p).toMatch(/"conversation"/);
+      expect(p).not.toMatch(/"sections"/);
     });
   }
 
@@ -74,34 +91,29 @@ describe('bd-y7jr8 · the debrief guide asks for 3 sections + 1 question', () =>
     const p = buildGuidePrompt(V2, { language: 'sw' });
     expect(p).toMatch(/hatua 6|steps/i);
     expect(p).not.toMatch(/reflection_question/);
+    expect(p).not.toMatch(/"conversation"/);
   });
 
-  it('accepts the 3+1 shape for ur/en', () => {
+  it('accepts the rubric-shaped notes for ur/en', () => {
     for (const lang of ['ur', 'en']) {
       expect(validateGuide(goodGuide(), observeStrings(lang), lang)).toBe(true);
     }
   });
 
-  it('rejects a guide missing any of the three sections', () => {
-    for (const drop of ['strengths', 'growth', 'action']) {
+  it('rejects notes missing a part', () => {
+    for (const drop of ['went_well', 'work_on_first', 'conversation']) {
       const g = goodGuide();
-      delete g.sections[drop];
+      delete g[drop];
       expect(() => validateGuide(g, observeStrings('en'), 'en')).toThrow(new RegExp(drop, 'i'));
     }
-  });
-
-  it('rejects a guide with no reflection question — the coaching stance must survive', () => {
-    const g = goodGuide();
-    g.reflection_question = '';
-    expect(() => validateGuide(g, observeStrings('en'), 'en')).toThrow(/question/i);
   });
 
   it('still requires the 6-step shape for sw', () => {
     expect(() => validateGuide(goodGuide(), observeStrings('sw'), 'sw')).toThrow(/6 steps/i);
   });
 
-  it('renders Strengths, then Growth, then Action, with the question LAST', () => {
-    const out = renderGuideMessage(goodGuide(), observeStrings('en'));
+  it('a guide stored in the 3+1 shape still renders Strengths, Growth, Action, with the question LAST', () => {
+    const out = renderGuideMessage(storedThreePlusOne(), observeStrings('en'));
     const iS = out.indexOf('Strengths');
     const iG = out.indexOf('Areas for growth');
     const iA = out.indexOf('Action plan');
@@ -119,14 +131,12 @@ describe('bd-y7jr8 · the debrief guide asks for 3 sections + 1 question', () =>
     expect(out).toContain(sw.steps[5].title);
   });
 
-  it('the no-LLM fallback also hands over the 3+1 shape for ur/en', () => {
+  it('the no-LLM fallback hands over the rubric-shaped notes for ur/en', () => {
     for (const lang of ['ur', 'en']) {
       const g = buildFallbackGuide(V2, { language: lang });
-      expect(g.sections).toBeTruthy();
-      expect(g.sections.strengths.say_this).toBeTruthy();
-      expect(g.sections.growth.say_this).toBeTruthy();
-      expect(g.sections.action.say_this).toBeTruthy();
-      expect(g.reflection_question).toBeTruthy();
+      expect(g.went_well.length).toBeGreaterThanOrEqual(1);
+      expect(g.work_on_first.next_step).toBeTruthy();
+      expect(g.conversation).toHaveLength(6);
       expect(validateGuide(g, observeStrings(lang), lang)).toBe(true);   // and it passes its own gates
     }
   });
@@ -140,7 +150,7 @@ describe('bd-y7jr8 · the debrief guide asks for 3 sections + 1 question', () =>
 
   it('never leaks a score into the guide', () => {
     const g = goodGuide();
-    g.sections.strengths.body = 'you scored 72% overall';
+    g.work_on_first.seen = 'you scored 72% overall';
     expect(() => validateGuide(g, observeStrings('en'), 'en')).toThrow(/score/i);
   });
 });

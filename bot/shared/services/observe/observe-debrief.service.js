@@ -31,6 +31,7 @@ const {
   validateGuide,
   renderGuideMessage,
   buildFallbackGuide,
+  groundMomentTime,
 } = require('./observe-debrief-guide');
 
 const BUTTON_NOW_PREFIX = 'observe_debrief_now_';
@@ -597,7 +598,8 @@ async function buildDebriefGuide(session, lang) {
       maxTokens: 4000, label: 'observeDebriefGuide', job: 'coaching.observeDebrief',
     });
     validateGuide(result, S, lang);
-    guide = result;
+    // A moment's time stays only when the observation data holds it (the model is told never to invent one).
+    guide = groundMomentTime(result, v2);
     // Soft, log only: a verb that speaks to the teacher or the coach with a
     // gender is counted on observe.gendered_address; the guide goes out as is.
     const { noteGenderedAddress, guideFields } = require('./observe-gender-address');

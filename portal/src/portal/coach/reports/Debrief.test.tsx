@@ -90,6 +90,35 @@ describe("Debrief", () => {
     expect(guide.getByText("What will you try in tomorrow's lesson?")).toBeInTheDocument();
   });
 
+  // The rubric-shaped notes (went well · work on first · a moment · six lines in rubric order): the guide the bot now
+  // writes for ur/en coaches. The wait cues come from the app, on lines 3, 5 and 6.
+  it("the rubric-shaped guide: went well, work on first, the moment, six numbered lines with their cues", async () => {
+    L.getTalkGuide.mockResolvedValue({ guide: {
+      intro: "Notes for your talk.",
+      went_well: ["Pair work: every child answered in pairs."],
+      work_on_first: { title: "Asking why", seen: "most questions were closed.", next_step: "add a why after a right answer." },
+      moment: { time: "12:40", text: "You asked if it was common or proper." },
+      conversation: ["I liked the pair work.", "Let us look at 12:40.", "What were you hoping for?", "One thing: a why.", "What will you try?", "Say it to me now."],
+      outro: "No number to hand over.",
+    } });
+    renderPage();
+    const guide = within(await screen.findByTestId("talk-guide"));
+    expect(guide.getByText("Went well")).toBeInTheDocument();
+    expect(guide.getByText("Pair work: every child answered in pairs.")).toBeInTheDocument();
+    expect(guide.getByText(/Work on first/)).toHaveTextContent("Work on first: Asking why");
+    expect(guide.getByText(/most questions were closed/)).toHaveTextContent("What you saw: most questions were closed.");
+    expect(guide.getByText(/add a why after a right answer/)).toHaveTextContent("The next step: add a why after a right answer.");
+    expect(guide.getByText(/A moment to raise/)).toHaveTextContent("A moment to raise (12:40)");
+    const lines = guide.getAllByTestId("guide-line");
+    expect(lines).toHaveLength(6);
+    expect(lines[0]).toHaveTextContent("I liked the pair work.");
+    expect(lines[2]).toHaveTextContent("Wait in silence");
+    expect(lines[4]).toHaveTextContent("Teacher names it");
+    expect(lines[5]).toHaveTextContent("Wait 3–5 seconds");
+    expect(lines[0]).not.toHaveTextContent(/Wait/);
+    expect(guide.queryByText("Ask this last")).toBeNull();
+  });
+
   it("Start recording and Upload recording are the kit's pair", async () => {
     renderPage();
     expect(await screen.findByRole("button", { name: "Start recording" })).toBeInTheDocument();

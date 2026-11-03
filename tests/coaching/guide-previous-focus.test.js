@@ -30,13 +30,13 @@ describe('buildGuidePrompt', () => {
 });
 
 describe('buildFallbackGuide', () => {
-  test('en/ur growth step recalls last time\'s ask when a record exists; unchanged otherwise', () => {
+  test('en/ur "work on first" recalls last time\'s ask when a record exists; unchanged otherwise', () => {
     const en = buildFallbackGuide(V2, { language: 'en', previousFocus: PF });
-    expect(en.sections.growth.body).toMatch(/Last time/);
-    expect(en.sections.growth.body).toContain(PF.try_this_tomorrow);
+    expect(en.work_on_first.recall).toMatch(/Last time/);
+    expect(en.work_on_first.recall).toContain(PF.try_this_tomorrow);
     const ur = buildFallbackGuide(V2, { language: 'ur', previousFocus: PF });
-    expect(ur.sections.growth.body).toMatch(/پچھلی بار/);
-    expect(ur.sections.growth.body).toContain(PF.try_this_tomorrow);
+    expect(ur.work_on_first.recall).toMatch(/پچھلی بار/);
+    expect(ur.work_on_first.recall).toContain(PF.try_this_tomorrow);
     expect(buildFallbackGuide(V2, { language: 'en' })).toEqual(buildFallbackGuide(V2, { language: 'en', previousFocus: null }));
   });
 });
