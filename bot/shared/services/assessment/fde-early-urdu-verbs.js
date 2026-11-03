@@ -38,8 +38,11 @@ function fixItem(q, notes) {
     points = [{ ...points[0], text: `${String(points[0].text || '').trim()} (مختصر شکل بھی درست: ${hidden.map(bare).join('، ')})` }, ...points.slice(1)];
     notes.push(`${q.slot}: the shorter accepted form «${hidden.map(bare).join('، ')}» is named in the marking point`);
   }
-  if (!added.length && points === scheme.points) return q;
-  scheme = { ...scheme, accept, points };
+  // Named in the point, the shorter form leaves the accept line so the key does not print it twice (bd-5jmnfj.33.8).
+  const named = hidden.length && Array.isArray(points) && points.length && String(points[0].text || '').includes(bare(hidden[0]));
+  const kept = named ? accept.filter((a) => !hidden.includes(a)) : accept;
+  if (!added.length && points === scheme.points && kept.length === accept.length) return q;
+  scheme = { ...scheme, accept: kept, points };
   return { ...q, scheme };
 }
 
