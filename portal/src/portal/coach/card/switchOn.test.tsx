@@ -60,12 +60,13 @@ describe("the gate and the menu", () => {
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/portal\/coach$/));
   });
 
-  it("Home has the navy band and exactly two tiles: Training Library and My schools, with their counts", async () => {
+  it("Home has the navy band and three tiles: Training Library and My schools, with their counts, then Coach Training", async () => {
     on();
     const { container } = await renderApp("/portal/coach");
     const tiles = await screen.findByTestId("feature-tiles");
     const links = within(tiles).getAllByRole("link");
-    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/portal/coach/training", "/portal/coach/people"]);
+    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/portal/coach/training", "/portal/coach/people", "/portal/coach/coach-training"]);
+    expect(links[2]).toHaveTextContent("Coach Training");
     await waitFor(() => expect(tiles).toHaveTextContent("2 courses"));
     await waitFor(() => expect(tiles).toHaveTextContent("1 school · 12 teachers"));
     expect(container.textContent).toContain("Salaam, Test Coach!");
@@ -81,6 +82,21 @@ describe("the gate and the menu", () => {
     expect(links.map((a) => a.textContent)).toEqual(["Home", "Lesson Plans", "More"]);
     expect(links.map((a) => a.getAttribute("href"))).toEqual(["/portal/coach", "/portal/teacher/lessons", "/portal/coach/more"]);
     expect(links[0]).toHaveAttribute("aria-current", "page");
+  });
+
+  it("Coach Training opens from Home: the guard lets it through", async () => {
+    on();
+    await renderApp("/portal/coach/coach-training");
+    await waitFor(() => expect(screen.getByTestId("coach-training-page")).toBeInTheDocument());
+    expect(screen.getByTestId("where")).toHaveTextContent(/^\/portal\/coach\/coach-training$/);
+  });
+
+  it("in Urdu the tile is «کوچ ٹریننگ», apart from «ٹریننگ لائبریری»", async () => {
+    on();
+    await renderApp("/portal/coach", "ur");
+    const tiles = await screen.findByTestId("feature-tiles");
+    expect(tiles).toHaveTextContent("کوچ ٹریننگ");
+    expect(tiles).toHaveTextContent("ٹریننگ لائبریری");
   });
 
   it("My schools is reached from Home: its crumb says Home", async () => {

@@ -160,6 +160,21 @@ const ART: Record<ArtName, ReactElement> = {
       </g>
     </g>
   ),
+  // Coach Training: a debrief conversation, the coach's bubble (Training's purple, its three dots twinkling in turn) over
+  // the teacher's answer, and a gold sparkle. Built from the motion set's own keyframes.
+  coachTraining: (
+    <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <g className="fm-an fm-bub">
+        <path d="M8 6h22a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H15l-5 5v-5H8a4 4 0 0 1-4-4V10a4 4 0 0 1 4-4z" fill="#6e52e0" />
+      </g>
+      <circle className="fm-an fm-tw fm-t1" cx="12" cy="15" r="1.8" fill="#fff" />
+      <circle className="fm-an fm-tw fm-t2" cx="19" cy="15" r="1.8" fill="#fff" />
+      <circle className="fm-an fm-tw fm-t3" cx="26" cy="15" r="1.8" fill="#fff" />
+      <path d="M22 24h18a4 4 0 0 1 4 4v8a4 4 0 0 1-4 4h-1v5l-5-5H22a4 4 0 0 1-4-4v-8a4 4 0 0 1 4-4z" fill="#eeeafd" />
+      <path d="M23 30h14M23 34.5h9" fill="none" stroke="#6e52e0" strokeWidth="1.6" />
+      <path className="fm-an fm-tw fm-t4" d="M42.5 2.5 43.6 5.4 46.5 6.5 43.6 7.6 42.5 10.5 41.4 7.6 38.5 6.5 41.4 5.4z" fill="#d4a017" />
+    </g>
+  ),
   // The Quizzes tile's picture (operator, 30 Oct 2026, mockup v6): a question bubble over three answers, the right one
   // ticked, in Lesson Plans' green (a quiz follows a lesson). The bubble pulses, the answers hop in turn, the tick draws
   // in, a gold sparkle twinkles. Built from the motion set's own keyframes.

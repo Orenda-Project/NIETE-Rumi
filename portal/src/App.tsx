@@ -150,6 +150,7 @@ const RmPages = page(() => import("./portal/rm/routes"));
 // bd-whlsm0: More → Report an issue.
 const CoachReport = page(() => import("./portal/coach/profile/CoachReport"));
 const CoachProfile = page(() => import("./portal/coach/profile/CoachProfile"));
+const CoachTrainingPage = page(() => import("./portal/coach/coachTraining/CoachTrainingPage"));
 // bd-s42dye.2 — the coach's Training Library (every provider, level, course and part; questions are a read-only preview).
 const CoachLibraryHome = page(() => import("./portal/coach/training/LibraryPages").then((m) => ({ default: m.LibraryHome })));
 const CoachLibraryProvider = page(() => import("./portal/coach/training/LibraryPages").then((m) => ({ default: m.LibraryProvider })));
@@ -377,6 +378,7 @@ const App = () => {
             <Route path="/portal/coach/more" element={<CoachMore />} />
             <Route path="/portal/coach/more/report" element={<CoachReport />} />
             <Route path="/portal/coach/profile" element={<CoachProfile />} />
+            <Route path="/portal/coach/coach-training" element={<CoachTrainingPage />} />
             {/* bd-s42dye.2 — the Training Library, behind the same CoachGate (each page gates itself). */}
             <Route path="/portal/coach/training" element={<CoachLibraryHome />} />
             <Route path="/portal/coach/training/module/:id" element={<CoachLibraryModule />} />
