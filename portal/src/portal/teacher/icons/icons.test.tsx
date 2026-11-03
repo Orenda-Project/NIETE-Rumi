@@ -55,6 +55,8 @@ describe("FeatureArt (the 48px illustrations)", () => {
       schedule: { fg: "#be185d", bg: "#fce7f3" },
       schools: { fg: "#0f766e", bg: "#ccfbf1" },
       reports: { fg: "#4d7c0f", bg: "#ecfccb" },
+      // Coach Training: Training's purple on its own drawing (a debrief conversation).
+      coachTraining: { fg: "#6e52e0", bg: "#eeeafd" },
     });
   });
 });
