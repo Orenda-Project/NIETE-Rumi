@@ -152,11 +152,15 @@ describe('the committed bank carries the reviewed lines', () => {
       for (const [slot, change] of Object.entries(slots)) {
         for (const [lang, raw] of Object.entries(change)) {
           const text = after(lang, raw);
-          const forms = Object.keys(files).filter((f) => /^sa\/sa\.coach\..+\.json$/.test(f) && f.endsWith(`.${lang}.json`));
-          expect(forms.length).toBe(5);
-          for (const f of forms) {
+          // every served battery of that language that has the task (a home-game-only task is in no coach form);
+          // a task the coach test has is in all five coach forms
+          const forms = Object.keys(files).filter((f) => /^sa\/sa\..+\.json$/.test(f) && f.endsWith(`.${lang}.json`));
+          const having = forms.filter((f) => files[f].tasks.some((x) => x.id === task || x.task === task));
+          const coach = having.filter((f) => f.startsWith('sa/sa.coach.'));
+          expect([task, having.length > 0]).toEqual([task, true]);
+          if (coach.length) expect([task, coach.length]).toEqual([task, 5]);
+          for (const f of having) {
             const t = files[f].tasks.find((x) => x.id === task || x.task === task);
-            expect(t).toBeTruthy();
             const said = JSON.stringify(t);
             expect(said).toContain(JSON.stringify(text));
             expect(said).toContain(audioKey(lang, text));
