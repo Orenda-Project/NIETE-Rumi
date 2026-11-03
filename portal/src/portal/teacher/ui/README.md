@@ -144,6 +144,7 @@ column belongs to grade·subject only, and a time, count, score or person must n
 | prefix | over the number, carrying any "#" ("Chap", "LP #", "Part") | — (number alone) |
 | number | string \| number (a leading "#" is dropped) | — |
 | icon | `worksheet` · `revision` · `file` (replaces the number) | — |
+| glyph | a screen's own 24px icon (lucide) in the lead box, replacing `icon` and the number (bd-x1tl95, Send feedback's Topic) | — |
 | label, subtitle | title (2 lines), muted second line | — |
 | chip | `ChipData` | — |
 | state | `default` · `used` (✓ Used) · `locked` (55%, lock, not tappable) · `selected` | `default` |

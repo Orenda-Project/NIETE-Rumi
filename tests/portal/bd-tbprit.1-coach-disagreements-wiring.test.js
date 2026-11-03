@@ -7,11 +7,9 @@
 const { COACH_DISAGREEMENT_CARD_KEY } = require('../../dashboard/lib/feature-flags');
 
 let settings;
-const inserted = []; // bd-whlsm0: rows the routes insert, as [table, row]
 function makeChain(table) {
   let key = null;
   const chain = {
-    insert: async (row) => { inserted.push([table, row]); return { data: null, error: null }; },
     select: () => chain,
     eq: (_col, val) => { key = val; return chain; },
     order: () => chain,
@@ -88,24 +86,17 @@ describe('coach_disagreement_card wiring', () => {
   });
 });
 
-describe('coach Report an issue wiring (bd-whlsm0)', () => {
-  test('the portal router serves POST /coach/feedback and stores the report in coach_feedback for the coach', async () => {
+describe('coach feedback wiring (bd-whlsm0 folded into bd-x1tl95)', () => {
+  test('the portal router no longer serves POST /coach/feedback: the one feedback form posts to /api/portal/feedback', () => {
     const routes = loadRoutes();
-    let layer = null;
+    let found = false;
     const walk = (stack) => stack.forEach((l) => {
-      if (l.route && l.route.path === '/coach/feedback' && l.route.methods.post) layer = l;
+      if (l.route && l.route.path === '/coach/feedback') found = true;
       else if (l.handle && l.handle.stack) walk(l.handle.stack);
     });
     walk(routes.stack);
-    expect(layer).not.toBeNull();
-    // the last handler stores; the guards before it (coach app v2) are the coach app's own
-    const handlers = layer.route.stack.map((x) => x.handle);
-    expect(handlers.length).toBeGreaterThan(3);
-    let sent = null;
-    const res = { status() { return this; }, json(v) { sent = v; return this; }, set() { return this; } };
-    inserted.length = 0;
-    await handlers[handlers.length - 1]({ coachId: 'coach-1', body: { kind: 'idea', message: ' More tiles ', page: '/portal/coach/more' } }, res);
-    expect(sent).toEqual({ success: true });
-    expect(inserted).toEqual([['coach_feedback', { user_id: 'coach-1', kind: 'idea', message: 'More tiles', page: '/portal/coach/more' }]]);
+    expect(found).toBe(false);
+    const index = require('fs').readFileSync(require('path').join(__dirname, '../../dashboard/index.js'), 'utf8');
+    expect(index).toContain("require('./routes/app-feedback.routes')");
   });
 });
