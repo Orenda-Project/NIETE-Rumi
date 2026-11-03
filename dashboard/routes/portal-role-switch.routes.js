@@ -5,7 +5,7 @@
  *
  *   POST /api/portal/me/role   { role: 'teacher' | 'coach' | 'principal' }
  *     200 { success, changed: false, role }                                   already that role: nothing written
- *     200 { success, changed: true, from, to, cleared, redis, correlationId } switched; the app reloads into /portal
+ *     200 { success, changed: true, from, to, cleared, redis, correlationId } switched; the app reloads into the new role's home
  *     400 { success: false, error, roles }                                    not one of the three
  *     401                                                                     signed out
  *     404 { success: false, error: 'Not found' }                              not on app_settings.portal_role_switch

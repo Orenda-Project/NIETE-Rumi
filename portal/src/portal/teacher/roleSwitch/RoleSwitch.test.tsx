@@ -107,7 +107,7 @@ describe("who sees it", () => {
 });
 
 describe("one switch", () => {
-  it("another type asks first, with the recording warning; Switch posts it and reloads into /portal", async () => {
+  it("another type asks first, with the recording warning; Switch posts it and reloads into her new home", async () => {
     renderSwitch("teacher");
     const user = userEvent.setup();
     await user.click(within(await screen.findByTestId("role-switch")).getByRole("button", { name: /Coach/ }));
@@ -118,8 +118,21 @@ describe("one switch", () => {
 
     await user.click(within(dialog).getByRole("button", { name: "Switch" }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith("/me/role", { role: "coach" }));
-    await waitFor(() => expect(leaveTo).toHaveBeenCalledWith("/portal"));
+    // the new role's home, as sign-in picks it (lib/homeRoute homeFor): a bare /portal is not a route (404 on sandbox)
+    await waitFor(() => expect(leaveTo).toHaveBeenCalledWith("/portal/leader"));
   });
+
+  it.each([["teacher", "coach", "/portal/leader"], ["coach", "teacher", "/portal/dashboard"], ["teacher", "principal", "/portal/leader"]])(
+    "%s → %s reloads into %s, the page sign-in sends that role to", async (from, to, home) => {
+      renderSwitch(from);
+      const user = userEvent.setup();
+      const label = { teacher: /Teacher/, coach: /Coach/, principal: /Principal/ }[to as "teacher" | "coach" | "principal"];
+      await user.click(within(await screen.findByTestId("role-switch")).getByRole("button", { name: label }));
+      await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Switch" }));
+      await waitFor(() => expect(leaveTo).toHaveBeenCalledWith(home));
+      expect(leaveTo).not.toHaveBeenCalledWith("/portal");
+    },
+  );
 
   it("tapping the type she already is does nothing", async () => {
     renderSwitch("teacher");

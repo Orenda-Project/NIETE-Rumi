@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import api from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
 import { readConfigShared } from "../../lib/useNewUi";
+import { homeFor } from "../../lib/homeRoute";
 import { useCopy } from "../i18n";
 import { ConfirmTray, ListRow, StatusChip } from "../ui";
 import { ROLE_SWITCH } from "./copy";
@@ -20,7 +21,8 @@ import { leave } from "./leave";
  *
  * The rows are the server's (`roleSwitchRoles`); hers is selected. Another one asks first (the kit's ConfirmTray,
  * with the warning to finish any recording: a recording half-way through belongs to the old type), then posts and
- * reloads the whole app into /portal, which reads her new role from /dashboard and lands her in that type's app.
+ * reloads the whole app into the new type's home (lib/homeRoute homeFor, as sign-in does), which reads her new role
+ * from /dashboard and forwards her into that type's app.
  * The role is read once per load, so nothing short of a reload would move her.
  *
  * Placed on every app a tester can land in, so she can always switch back: the teacher's My profile, the coach's
@@ -70,7 +72,9 @@ export default function RoleSwitch({ className }: { className?: string } = {}) {
     setFailed(false);
     try {
       await api.post("/me/role", { role: asking });
-      leave.to("/portal");
+      // The new role's home, exactly as sign-in picks it (leader family → My Patch, which forwards a coach to the coach
+      // app; a teacher → the dashboard, which forwards to the teacher app). A bare /portal is not a route.
+      leave.to(homeFor({ role: asking }));
     } catch {
       setFailed(true);
       setAsking(null);
