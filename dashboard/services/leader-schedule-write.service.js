@@ -132,7 +132,7 @@ async function createSchedule(query, leaderUserId, input = {}, opts = {}) {
     leaderUserId, schoolExtId, teacherExtId,
     // The FK comes from PATCH_SQL, which already joined users to authorise this
     // booking — so it is the SAME row that proved the teacher is in her patch,
-    // not a second lookup that could disagree (bd-60097).
+    // not a second lookup that could disagree.
     teacher.teacher_user_id || null,
     teacher.teacher_name || null, teacher.school_name || null, date, slot || null,
   ]);

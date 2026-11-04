@@ -568,7 +568,7 @@ async function commitRemovals({ actorLeaderUserId, schoolExtId, userIds, reason 
  */
 function rosterTeacherNextTarget(next) {
   switch (next) {
-    // bd-60117: the result screen offers Main menu or Close, so 'menu' is the
+    // The result screen offers Main menu or Close, so 'menu' is the
     // only live reopen. The rest are kept because a Flow client can still be
     // holding a previously published version of the screen — an old tap must
     // not dead-end. `teacher_again` reopens ON the action picker (the caller
