@@ -23,7 +23,7 @@ import "../routes";
 import { classes as classesApi } from "../../services/api";
 import { loadGradeSubjects } from "../../lib/gradeSubjects";
 import classRoutes from "./routes";
-import { CLASSES_ADD, CLASSES_HOME, classPath } from "./paths";
+import { CLASSES_ADD, CLASSES_HOME, addStudentsPath, classPath } from "./paths";
 import { CLASSES_V2_COPY_UR as U } from "./copy";
 
 const api = classesApi as unknown as Record<"list" | "students", ReturnType<typeof vi.fn>>;
@@ -65,8 +65,19 @@ describe("My Classes in Urdu", () => {
     at(classPath("c1"));
     expect(await screen.findByText("Child 1")).toBeTruthy();
     expect(plain(document.body.textContent)).toContain(U.students);
-    expect(screen.getByRole("button", { name: U.addStudents })).toBeTruthy();
+    expect(screen.getByRole("link", { name: U.addStudents })).toBeTruthy();
     expect(screen.queryByText("Students")).toBeNull();
+  });
+
+  it("Add students (bd-2dn4vu): roll no, name, Add student and Save in Urdu; no English left", async () => {
+    at(addStudentsPath("c1"));
+    expect(await screen.findByRole("button", { name: U.addStudent })).toBeTruthy();
+    const text = plain(document.body.textContent);
+    expect(text).toContain(U.rollNo);
+    expect(text).toContain(U.name);
+    expect(screen.getByRole("button", { name: U.saveStudents(0) })).toBeTruthy();
+    expect(screen.queryByText("Add student")).toBeNull();
+    expect(screen.queryByText("Roll no")).toBeNull();
   });
 
   it("Add a class: the fields and Save class in Urdu", async () => {

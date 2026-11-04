@@ -1126,18 +1126,19 @@ router.post('/classes/students/list', requireInternalKey, async (req, res) => {
  * paste cap dropped, so the caller can tell the teacher rather than leave her
  * wondering where her students went.
  *
- * Body   { userId, classId, rawText }
+ * Body   { userId, classId, rawText } or { userId, classId, names: [...] } (the portal's rows,
+ *        one child each, taken as typed)
  * Errors 400 (missing input / no_names), 403 (not_assigned)
  * Ok     201 { success: true, added, duplicates, dropped }
  */
 router.post('/classes/students/add', requireInternalKey, async (req, res) => {
-  const { userId, classId, rawText } = req.body || {};
+  const { userId, classId, rawText, names } = req.body || {};
   if (!userId || !classId) {
     return res.status(400).json({ success: false, error: 'userId and classId are required' });
   }
   try {
     const ClassService = require('../services/classes/class.service');
-    const result = await ClassService.addStudents({ classId, teacherUserId: userId, rawText });
+    const result = await ClassService.addStudents({ classId, teacherUserId: userId, rawText, names });
 
     if (result.error === 'not_assigned') {
       return res.status(403).json({ success: false, error: 'not_assigned' });
