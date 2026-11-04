@@ -44,7 +44,6 @@ jest.mock('../shared/services/cache/railway-redis.service', () => ({
 
 jest.mock('../shared/services/audio.service', () => ({
   getAudioDuration: jest.fn(),
-  transcribeAudio: jest.fn().mockResolvedValue('test transcription'),
   convertToWav: jest.fn(),
   generateSpeechForLanguage: jest.fn().mockResolvedValue(Buffer.from('speech'))
 }));

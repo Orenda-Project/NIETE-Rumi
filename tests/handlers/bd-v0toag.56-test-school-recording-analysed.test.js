@@ -34,7 +34,6 @@ jest.mock('../../bot/shared/services/audio.service', () => ({
   transcribeWithLanguagePreference: jest.fn(() => Promise.resolve({
     text: global.__SR_TRANSCRIPT, language: 'ur', engine: 'soniox',
   })),
-  transcribeAudio: jest.fn(() => Promise.resolve(global.__SR_TRANSCRIPT)),
   generateSpeechForLanguage: jest.fn(() => Promise.resolve(Buffer.from('mp3'))),
   getASREngine: jest.fn(() => 'soniox'),
 }));
