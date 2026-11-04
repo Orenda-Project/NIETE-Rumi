@@ -35,6 +35,25 @@ describe('BARE — the whole message is the artefact name', () => {
   });
 });
 
+describe('bd-xw56ed.7 — "IP" is "LP" typed with a capital I (they look the same on a phone)', () => {
+  // Sandbox, 4 Nov 2026: "Ip" and "/Ip" reached the LP door through the classifier, but "IP" and "/IP" were answered
+  // "not sure" + the menu, as on production (21 and 27 Oct). The whole message only, like every BARE form.
+  const ip = ['IP', '/IP', 'Ip', '/Ip', 'ip', '/ip', 'iP', '/ IP', 'IP/', 'IP.', 'IP?', ' IP '];
+  test.each(ip)('fires on %p', (t) => {
+    expect(isLessonPlanRequest(t)).toBe(true);
+    expect(matchDetail(t).tier).toBe('bare');
+  });
+
+  // No false positives: a sentence that mentions IP, and words that merely start or end with the letters.
+  const notIp = [
+    'IP address', 'What is my IP address?', 'my ip is blocked', 'send IP', 'IP lesson', 'I P',
+    'IPs', 'ips', 'IPL', 'ipad', 'iPhone', 'tip', 'zip', 'hip', 'IT', 'PE', 'I',
+  ];
+  test.each(notIp)('never fires on %p', (t) => {
+    expect(isLessonPlanRequest(t)).toBe(false);
+  });
+});
+
 describe('CONTENT — anything beyond the name goes to the LLM', () => {
   // The ten follow-up phrasings that fired under the old matcher and hijacked
   // a teacher who had just been sent a lesson.
