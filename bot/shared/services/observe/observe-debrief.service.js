@@ -20,6 +20,7 @@ const supabase = require('../../config/supabase');
 const { observeStrings, observeLang } = require('./observe-strings');
 const { isTerminalStatus } = require('../coaching/session-terminal');
 const { languageFor } = require('./observe-language');
+const { coachOf } = require('./observe-people');
 const { logToFile } = require('../../utils/logger');
 const ObserveState = require('./observe-state.service');
 const GPT5MiniService = require('../gpt5-mini.service');
@@ -1049,6 +1050,35 @@ async function _refuseIfAlreadyAnalysed(session, sessionId, from, audioHash, obs
 }
 
 /**
+ * bd-7vcy1p — who a debrief speaks to: the COACH, resolved from the row.
+ *
+ *   1. `observer_user_id` → her users row (coachOf). The row is the source of
+ *      truth, as in bd-wwcgf: never the join, which rides `user_id` (the
+ *      observed teacher on a bound session).
+ *   2. Her row has no phone or the lookup failed → `payload.from`. Only the
+ *      intakes set it, and both resolved the coach first: the WhatsApp voice
+ *      note (startDebrief checked the sender is the observer) and the portal
+ *      upload (its coach lookup). The retry sweep never sets it.
+ *   3. A row with no observer at all is not a bound observation, so its
+ *      `user_id` is its owner: `payload.from`, else that owner's phone.
+ *   Otherwise null — the caller sends nothing.
+ *
+ * @returns {Promise<{phone: string|null, name: string|null}>}
+ */
+async function _debriefCoach(session, payload = {}) {
+  const fromPayload = payload.from || null;
+  if (session.observer_user_id) {
+    const coach = await coachOf(session);
+    return {
+      phone: (coach && coach.phone) || fromPayload,
+      name: (coach && coach.name) || null,
+    };
+  }
+  const owner = session.users || {};
+  return { phone: fromPayload || owner.phone_number || null, name: owner.name || null };
+}
+
+/**
  * bd-28 (worker side) — transcribe the debrief recording and coach the coach.
  * Success: praise line + 2-wins-1-try card, debrief_status → 'done', rubric
  * booleans persisted for the study. Any failure keeps status 'pending' (the
@@ -1078,13 +1108,20 @@ async function processDebriefRecording(sessionId, payload = {}) {
     throw new Error(`observe debrief: session not found: ${error && error.message}`);
   }
 
-  const from = payload.from || (session.users && session.users.phone_number);
   // Everything this function says goes to the COACH: the praise line, the card
   // and its caption, the send prompt and its buttons, and every failure notice.
   // `session.users` rides `user_id`, which is the observed TEACHER once one is
   // bound — reading it wrote to an English coach in the teacher's Urdu, and made
   // the send flow mixed-language end to end. The teacher's own artefacts are
   // resolved separately, for her, in observe-send.
+  //
+  // bd-7vcy1p: the same join chose the RECIPIENT, whenever the payload had no
+  // `from` — and the debrief retry sweep never sends one. On NIETE production
+  // the coach's praise, card and send-report buttons went to 4 teachers and the
+  // failure notice to 8 more (3 Sep, 13 Oct 2026). The recipient now comes from
+  // the row: the coach (`observer_user_id`), never `session.users`.
+  const coach = await _debriefCoach(session, payload);
+  const from = coach.phone;
   const lang = await languageFor('coach', session);
   const S = observeStrings(lang);
   const observerDebrief = (session.analysis_data && session.analysis_data.observer_debrief) || {};
@@ -1098,6 +1135,16 @@ async function processDebriefRecording(sessionId, payload = {}) {
   // Redelivery guards (in order of how far the previous attempt got):
   if (session.debrief_status === 'done') {
     logToFile('🔭 observe debrief: already done — redelivery no-op', { sessionId });
+    return;
+  }
+  // bd-7vcy1p: no coach to tell means silence, not the teacher (the rule
+  // bd-go4tl set for the stale-session sweep). Checked before any transcription
+  // or LLM spend; the row stays 'pending' with its recording, so the /observe
+  // list still shows it and a later retry can finish it.
+  if (!from && !portal) {
+    logToFile('❌ observe debrief: no coach recipient — nothing sent, row left pending', {
+      sessionId, observerUserId: session.observer_user_id || null, trigger: payload.trigger || null,
+    }, 'error');
     return;
   }
   if (observerDebrief.feedback) {
@@ -1196,7 +1243,9 @@ async function processDebriefRecording(sessionId, payload = {}) {
     try {
       const { buildCoachFeedbackPromptI18n } = require('./observe-coach-feedback');
       const prompt = _fbLang !== 'sw' ? buildCoachFeedbackPromptI18n(transcript, {
-        foName: session.users && session.users.name,
+        // bd-7vcy1p: the officer is the coach. `session.users` named the bound
+        // teacher here, on every bound debrief, live or retried.
+        foName: coach.name,
       }, _fbLang) : buildCoachFeedbackPrompt(transcript, {
         guide: observerDebrief.guide_snapshot || null,
         diarization,

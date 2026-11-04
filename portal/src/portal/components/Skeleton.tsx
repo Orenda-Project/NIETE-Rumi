@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import type { ShellHint } from "../lib/shellHint";
+import type { FrameVariant, ShellHint } from "../lib/shellHint";
 import nieteLogo from "@/assets/niete-logo.png";
 
 /**
@@ -105,14 +105,14 @@ export function TopBarSkeleton({ variant }: { variant: ShellHint }) {
 }
 
 /** The phone tab bar's place. */
-export function TabBarSkeleton({ variant }: { variant: ShellHint }) {
+export function TabBarSkeleton({ variant }: { variant: FrameVariant }) {
   return (
     <div
       data-nav-placeholder=""
       aria-hidden="true"
       className={cn(
         "fixed inset-x-0 bottom-0 z-50 flex items-center justify-around border-t border-[#e5e7eb] bg-white pb-[env(safe-area-inset-bottom)] md:hidden",
-        variant === "teacher" ? "h-[78px]" : "h-16",
+        variant === "teacher" ? "h-[78px]" : variant === "teacher-look" ? "h-[71px]" : "h-16",
       )}
     >
       {Array.from({ length: 5 }, (_, i) => <Block key={i} className="h-[26px] w-[26px] rounded-[9px]" />)}
@@ -121,17 +121,61 @@ export function TabBarSkeleton({ variant }: { variant: ShellHint }) {
 }
 
 /**
+ * bd-1q4z4o — one compact Home tile's outline (FeatureTiles' compact tile: 114px tall as drawn, 20px corners, a 44px
+ * picture over its words). The teacher Home look draws nine of these while its tiles are on their way, and so does the
+ * look's placeholder frame (index.html's `.as-lktile` is the same shape).
+ */
+export function SkeletonLookTile({ className, testId }: Cls & { testId?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      data-testid={testId}
+      className={cn("flex h-[114px] flex-col items-center justify-center gap-2.5 rounded-[20px] border border-[#e5e7eb] bg-white", className)}
+    >
+      <Block className="h-11 w-11 rounded-xl" />
+      <SkeletonLine className="h-2.5 w-3/5" />
+    </div>
+  );
+}
+
+/**
+ * bd-1q4z4o — the teacher Home look's frame (index.html's `teacher-look` outline, drawn by React): the navy band, then
+ * nine tile outlines three per row climbing 28px into it, and the look's 71px tab bar. What shows on the Home while the
+ * session and the flags are read, so the first paint continues straight into the Home.
+ */
+function LookFrame() {
+  return (
+    <div data-frame="teacher-look" aria-busy="true" className="min-h-screen bg-[#f3f4f6]">
+      <TopBarSkeleton variant="teacher" />
+      <div className="mx-auto max-w-xl min-[576px]:px-4 min-[576px]:pt-4">
+        <div data-testid="frame-look-band" aria-hidden="true" className="h-[231px] bg-[#333748] px-5 pt-[calc(18px+env(safe-area-inset-top))] min-[576px]:rounded-[28px]">
+          <Block className="h-11 w-11 rounded-xl bg-white/20" />
+          <Block className="mt-[18px] h-[30px] w-[62%] bg-white/20" />
+          <Block className="mt-3.5 h-3.5 w-[44%] bg-white/20" />
+        </div>
+        <div data-testid="frame-look-tiles" className="relative -mt-7 [display:grid] grid-cols-3 gap-2.5 px-4 min-[576px]:px-0">
+          {Array.from({ length: 9 }, (_, i) => <SkeletonLookTile key={i} />)}
+        </div>
+      </div>
+      <TabBarSkeleton variant="teacher-look" />
+    </div>
+  );
+}
+
+/**
  * The app's frame with placeholder blocks: what shows while the signed-in user (or the flag
  * that decides her frame) is read, instead of a white screen or a full-screen spinner.
  */
-export function FrameSkeleton({ variant, bare = false, children }: { variant: ShellHint; bare?: boolean; children?: ReactNode }) {
+export function FrameSkeleton({ variant, bare = false, children }: { variant: FrameVariant; bare?: boolean; children?: ReactNode }) {
+  if (variant === "teacher-look" && !bare && !children) return <LookFrame />;
+  const frame: ShellHint = variant === "teacher-look" ? "teacher" : variant;
   return (
-    <div data-frame={variant} aria-busy="true" className="min-h-screen bg-[#f3f4f6]">
-      {!bare && <TopBarSkeleton variant={variant} />}
+    <div data-frame={frame} aria-busy="true" className="min-h-screen bg-[#f3f4f6]">
+      {!bare && <TopBarSkeleton variant={frame} />}
       <main className="mx-auto max-w-[1152px] px-4 pb-[calc(96px+env(safe-area-inset-bottom))] pt-6 md:px-8 md:pb-12 md:pt-8">
         {children ?? <PageSkeleton />}
       </main>
-      {!bare && <TabBarSkeleton variant={variant} />}
+      {!bare && <TabBarSkeleton variant={frame} />}
     </div>
   );
 }
