@@ -10,7 +10,8 @@
  */
 export const HASH_MAX_BYTES = 48 * 1024 * 1024;
 
-function readBytes(blob: Blob): Promise<ArrayBuffer> {
+/** A blob's bytes, whole (FileReader where arrayBuffer() is missing). Also used by coachingSend's upload copy. */
+export function readBytes(blob: Blob): Promise<ArrayBuffer> {
   if (typeof blob.arrayBuffer === "function") return blob.arrayBuffer();
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

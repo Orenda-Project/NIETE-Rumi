@@ -60,6 +60,13 @@ describe("All DC observations", () => {
     expect(screen.getByText(C.analysing)).toBeTruthy();
   });
 
+  // bd-bmc9a0.4 — ICT feedback (IAB Experience View, row 30): Recent DC Observations moved here from the main page.
+  it("its list is Recent DC Observations (moved here from the main page)", async () => {
+    render(<MemoryRouter initialEntries={[COACHING_ALL]}><Routes><Route path={COACHING_ALL} element={<CoachingAllPage />} /></Routes></MemoryRouter>);
+    expect(await screen.findByText(C.recent)).toBeTruthy();
+    expect(screen.getByText("Naming words")).toBeTruthy();
+  });
+
   it("is registered under Digital Coaching", () => {
     expect(coachingRoutes.map((r) => r.path)).toContain(COACHING_ALL);
   });

@@ -293,13 +293,16 @@ describe("the page: no class, the recording first", () => {
     expect(screen.queryByRole("button", { name: C.submit })).toBeNull();
   });
 
-  it("the main page: an unscored lesson under Analysing, the scored ones under Recent DC Observations, open", async () => {
+  // bd-bmc9a0.4 — ICT feedback (IAB Experience View, row 30): the main page had three sections and felt heavy. Two
+  // options now — Start DC observation and Summary; Recent DC Observations lives inside Summary (CoachingAll.test).
+  it("the main page: Start and Summary, an unscored lesson under Analysing, and no Recent DC Observations", async () => {
     at(COACHING_HOME);
     const analysing = await screen.findByRole("region", { name: C.analysing }, { timeout: 5000 });
     expect(within(analysing).getByText("Parts of a plant")).toBeTruthy();
-    expect(screen.getByText("Naming words")).toBeTruthy();
-    expect(screen.getByText("Good")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: new RegExp(C.recent) })).toBeNull(); // not a fold: open
+    expect(screen.getByText(C.startObservation)).toBeTruthy();
+    expect(screen.getByText(C.summary)).toBeTruthy();
+    expect(screen.queryByText(C.recent)).toBeNull();
+    expect(screen.queryByText("Naming words")).toBeNull(); // a scored lesson is in Summary, not here
   });
 });
 

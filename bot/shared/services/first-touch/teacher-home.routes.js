@@ -4,8 +4,10 @@
  * which forwards path-for-path with x-api-key). WHO is asking comes only from the signed `th` token
  * (teacher-home.token.js), never from the request.
  *
- *   GET  /quiz/teacher/:token[?lang]     the page shell (HTML). Reads NOTHING: the token check is CPU, every list
- *                                        comes after paint. Expired → the mk.stale page (200); forged → the same (404)
+ *   GET  /quiz/teacher/:token[?lang][&session]  the page shell (HTML). Reads NOTHING: the token check is CPU, every list
+ *                                        comes after paint. Expired → the mk.stale page (200); forged → the same (404).
+ *                                        ?session=<coaching session id> with quiz_teacher_home_one_lesson ON: the
+ *                                        one-lesson page (teacher-home.page ONE_SWAPS); off, or not a UUID: ignored
  *   GET  /api/th/home?t&g&lang           the home's JSON (teacher-home.model) with the cards that send from the page
  *                                        already carrying their class message and wa.me link (no fetch between the
  *                                        tap and the navigation); logs teacher_home_open
@@ -29,6 +31,10 @@
  * shell carries the script whose grade chips answer from the page (teacher-home.page FAST_SWAPS); off → today's shell.
  * Switch quiz_teacher_home_portal_link ON (JSON true; the page read): the shell's foot carries "Open my portal" and the
  * home's JSON `portalHref`, the /portal command's own signed link to the portal Home (portalHref below). OFF: today's.
+ * Switch quiz_teacher_home_one_lesson ON (JSON true; the page read): the shell opened with ?session=<a coaching session
+ * id> is the one-lesson page — it starts that lesson's "Quiz this" after paint (the same POST /api/th/quiz/make, whose
+ * providers answer not_found → 404 for a lesson that is not this teacher's) and shows that one quiz, not the list.
+ * OFF: ?session is ignored and the shell is today's, byte for byte.
  * Switch quiz_teacher_home OFF (absent, false, anything but true, or a failed read): EVERY route answers 404
  * {off:true} before anything else is read or verified; the edge then falls through to today's page.
  * Switch quiz_teacher_server_timing ON (JSON true; read with quiz_teacher_home, never on its own): every 200 answer of
@@ -114,6 +120,7 @@ function createRouter(deps = null) {
     req.thWait = sw ? sw.then((v) => v[Flags.WAIT_KEY] === true) : null;
     req.thGradeFast = sw ? sw.then((v) => v[Flags.GRADE_FAST_KEY] === true) : null;
     req.thPortal = sw ? sw.then((v) => v[Flags.PORTAL_LINK_KEY] === true) : null;
+    req.thOne = sw ? sw.then((v) => v[Flags.ONE_LESSON_KEY] === true) : null;
     return next();
   });
   router.use(express.json({ limit: '4kb' }));
@@ -339,7 +346,9 @@ function createRouter(deps = null) {
     const [named, early, counts, gradeFast] = await Promise.all([MoreFlags.namedOn(), MoreFlags.earlyOn(), Data.dep(deps, 'CountsFlag').on(), req.thGradeFast]);
     const wait = await req.thWait;
     const portal = (await req.thPortal) === true;
-    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}), ...(wait ? { wait: true } : {}), ...(portal ? { portal: true } : {}) });
+    // the one-lesson page: only with its switch on and a session id that is a UUID (whose it is, quiz/make checks)
+    const one = (await req.thOne) === true ? uuidIn(req.query.session) : null;
+    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}), ...(wait ? { wait: true } : {}), ...(portal ? { portal: true } : {}), ...(one ? { one } : {}) });
     headers(res, built.csp);
     return res.status(200).type('html').send(built.html);
   }));
@@ -599,7 +608,7 @@ function createRouter(deps = null) {
     res.status(204).end();
   }));
 
-  const STEPS = new Set(['share_tap', 'share_copy', 'copy_failed', 'more', 'grade', 'story_tile', 'videos', 'make', 'children', 'try_student', 'card_lp', 'card_coach', 'card_exam', 'home_slow', 'home_retry', 'portal']);
+  const STEPS = new Set(['share_tap', 'share_copy', 'copy_failed', 'more', 'grade', 'story_tile', 'videos', 'make', 'children', 'try_student', 'card_lp', 'card_coach', 'card_exam', 'home_slow', 'home_retry', 'portal', 'one_lesson']);
   const SEND_KIND = { video: 'video', share: 'video', again: 'quiz', story: 'story' };
   const ORIGINS = new Set(['library', 'again', 'lesson_plan', 'coaching']);
   const PROMPTED_VIAS = new Set(['report']);

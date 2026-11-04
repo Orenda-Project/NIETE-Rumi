@@ -92,6 +92,7 @@ const {
   PORTAL_NEW_UI_KEY,
   isPortalAssessmentEditingEnabled,
   PORTAL_COACH_V2_KEY,
+  PORTAL_COACH_SCHOOL_CARD_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,
@@ -2308,6 +2309,19 @@ async function requireCoachV2(req, res, next) {
 }
 const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
 
+// The coach School Card: its own switch on top of the coach app v2 chain. Off for her → 404, nothing is read.
+async function requireSchoolCard(req, res, next) {
+  const on = await isFlagEnabledForUser(supabase, PORTAL_COACH_SCHOOL_CARD_KEY, req.session && req.session.portalUserId);
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  return next();
+}
+router.use(require('./coach-school-card.routes').createCoachSchoolCardRouter({
+  guards: [...coachV2, requireSchoolCard],
+  query: (sql, params) => pool.query(sql, params),
+  // bd-hl4a4y: her Training page's "Level N of M", from the bot as her own Training page reads it.
+  levelStates: (userId) => TrainingRules.getLevelStates(userId),
+}));
+
 // bd-tbprit.1: the coach's disagreements (v10 coaching test) — her To do / Done and the evidence card.
 // Behind the coach app guards AND its own flag, so week 1 of the test sees nothing new.
 {
@@ -2350,6 +2364,14 @@ const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
     suggestion: (coachId, id, found) => Plan.suggestionFor(supabase, coachId, id, found, { card: () => cardOf(coachId, id), complete }),
   }));
 }
+// bd-whlsm0: a coach's "Report an issue" from the More page, stored for the session coach (coach_feedback).
+router.use(require('./coach-feedback.routes').createCoachFeedbackRouter({
+  guards: coachV2,
+  save: async ({ userId, kind, message, page }) => {
+    const { error } = await supabase.from('coach_feedback').insert({ user_id: userId, kind, message, page });
+    if (error) throw new Error(error.message);
+  },
+}));
 const pgQuery = (sql, params) => pool.query(sql, params);
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -7757,7 +7779,8 @@ function teacherClassPick(raw) {
 
 /**
  * POST /api/portal/coaching-upload/start
- * Body { key, lessonPlanKey?, lessonPlan?, photoKeys?, teacherClass?, liveMoves? } — keys returned by /presign, uploaded.
+ * Body { key, lessonPlanKey?, lessonPlan?, photoKeys?, teacherClass?, liveMoves?, saveForLater? } — keys returned by /presign, uploaded.
+ *   saveForLater (bd-bmc9a0.2): "Save recording" — the same start, marked saved to come back to (only `true` passes)
  *   liveMoves (bd-v0toag.31): what the live screen saw; the bot validates it and drops a bad one
  *   teacherClass (bd-fmf24g.9): { grade, subject, subjectKey? } — the class she picked; the bot stores it
  *   lessonPlan: a library pick — { assetId } | { lessonId } | { segmentId, lang }
@@ -7765,10 +7788,12 @@ function teacherClassPick(raw) {
  *   400 { reason: 'plan_not_found' | 'plan_not_ready' | … }
  */
 router.post('/coaching-upload/start', requirePortalAuth, requireSelfObservation, (req, res) => {
-  const { key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves } = req.body || {};
+  const { key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves, saveForLater } = req.body || {};
   return relayToBot(res, 'start', () => PortalCoachingClient.startSession({
     userId: req.session.portalUserId, key, lessonPlanKey, photoKeys, lessonPlan: libraryPlanPick(lessonPlan),
     teacherClass: teacherClassPick(teacherClass), liveMoves,
+    // bd-bmc9a0.2 — "Save recording" (ICT IAB row 31): a real boolean true, or nothing.
+    ...(saveForLater === true ? { saveForLater: true } : {}),
   }), (status) => {
     // bd-c5reix — a recording kept from WhatsApp, sent from the app (the funnel's "pending submitted").
     if (status === 200 && isWhatsAppKey(key)) logAppAction(req, 'coaching.pending_sent', 'ai_coaching');
@@ -8987,6 +9012,7 @@ router.get('/config', async (req, res) => {
       coachip,
       coachipRmSector,
       coachipDecodeRaw,
+      schoolCardRaw,
       roleSwitch,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
@@ -9018,6 +9044,8 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_COACHIP_KEY, userId),
       rmSectorFor(supabase, userId),
       isFlagEnabledForUser(supabase, PORTAL_COACHIP_DECODE_KEY, userId),
+      // The coach School Card, per user; its routes also need the coach app v2, so it rides with that on.
+      isFlagEnabledForUser(supabase, PORTAL_COACH_SCHOOL_CARD_KEY, userId),
       // bd-tacnwy — the internal tester's "Switch profile" (POST /me/role). List-only and per user: everyone else,
       // and a signed-out read, is false, and the app draws nothing.
       isRoleSwitchUser(supabase, userId),
@@ -9044,6 +9072,7 @@ router.get('/config', async (req, res) => {
         coachip,
         coachipRm: coachipRmSector !== null,
         coachipDecode: coachip && coachipDecodeRaw,
+        schoolCard: coachV2 && schoolCardRaw,
         roleSwitch,
       },
     });
@@ -9070,6 +9099,7 @@ router.get('/config', async (req, res) => {
         coachip: false,
         coachipRm: false,
         coachipDecode: false,
+        schoolCard: false,
         roleSwitch: false,
       },
       roleSwitchRoles: [],

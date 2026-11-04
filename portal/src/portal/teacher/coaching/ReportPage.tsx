@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronDown, Download, Mic, Send, Square, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Download, Mic, Send, Square, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import { AudioPlayer } from '../../newui/AudioPlayer';
@@ -14,7 +14,7 @@ import { LESSONS } from '../lessons/copy';
 import { ProgressSteps, ReportBody, VoiceNote } from '../ui';
 import { ShareActions } from '../ui/ShareActions';
 import { shareToWhatsApp, useShareAvailable } from '../share/api';
-import { CARD, FOCUS } from '../ui/styles';
+import { CARD, FOCUS, PRIMARY_WIDE } from '../ui/styles';
 import { COACHING } from './copy';
 import { SectionHeading } from './parts';
 import { goTo } from './navigate';
@@ -37,8 +37,19 @@ import { LessonQuizButton } from '../home/LessonQuizButton';
  *   reflection    the one question, answered here by text or by voice (bd-eygg2f, ICT feedback row 5: a mic
  *                 where Send is while the box is empty; tap, speak, Stop, listen, Send — the bot transcribes it);
  *                 answered, it folds into "Your answer"
- *   quiz          "Quiz this lesson" once a Digital Coach report is ready (the Home card's switch; home/LessonQuizButton)
  *   report        ReportBody — the report's own scores, photos, journey, next step, the coach's note
+ *   quiz          "Quiz this lesson" once a Digital Coach report is ready (the Home card's switch; home/LessonQuizButton),
+ *                 carrying this session: the quiz home makes the quiz for THIS lesson (bd-bmc9a0.3, ICT IAB row 35)
+ *   dock          Send on WhatsApp and Open in another tab (ShareActions); on her own DC report, Close
+ *
+ * bd-bmc9a0.4 — ICT feedback (IAB Experience View, Quratulain):
+ *   row 34   the audio summary's corner showed the time the report came ("15:47") where a length belongs, so a 1–2 minute
+ *            summary read as 15 minutes: the report's voice note shows no clock (VoiceNote shows its real length)
+ *   row 35   Quick Quiz sat between the audio summary and the report: it comes after the report
+ *   row 36   the dock's Open is "Open in another tab"; Close ends her DC session — one line, and the link is closed
+ *            (window.close: WhatsApp's browser and a tab opened by a link close; where a page cannot close itself the
+ *            line stays, and nothing else is left to tap). Close is the kit's filled indigo PRIMARY_WIDE, never the white
+ *            outline Open in another tab wears, so the two do not read as a pair (bd-bmc9a0.6, the operator, 29 Oct)
  *
  * Polled as today's lesson page polls (5 s for two minutes, then 15 s) until ready or stopped.
  *
@@ -57,6 +68,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
   const navigate = useNavigate();
   const { state, missing, sent } = r;
   const [answersOpen, setAnswersOpen] = useState(false);
+  const [closed, setClosed] = useState(false);
 
   const { progress, detail, journey } = state;
   const ready = progress?.stage === 'done' && !!detail;
@@ -95,6 +107,47 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
     </button>
   ) : undefined;
 
+  const closeSession = () => {
+    setClosed(true);
+    try { window.close(); } catch { /* a page that cannot close itself keeps the line */ }
+  };
+
+  if (closed) {
+    return (
+      <TeacherPage feature="coaching" title={title} crumb={crumb} backTo={backTo} testId="dc-report">
+        <section aria-live="polite" className={cn(CARD, 'flex flex-col items-center gap-3 px-4 py-8 text-center')}>
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#2f7a52] text-white">
+            <Check className="h-7 w-7" aria-hidden="true" />
+          </span>
+          <p className="m-0 text-[18px] font-semibold leading-[1.6]">{C.sessionComplete}</p>
+        </section>
+      </TeacherPage>
+    );
+  }
+
+  const dock = ready && (reportImage || !isVisit) ? (
+    <div className="flex flex-col gap-3">
+      {reportImage ? (
+        <ShareActions
+          available={canSend}
+          onSend={() => shareToWhatsApp(isVisit ? 'observation' : 'dc', id)}
+          open={{ fileUrl: () => portal.getCoachingReportFile(id, 'inline') }}
+          copy={{ open: C.openInTab }}
+        />
+      ) : null}
+      {!isVisit ? (
+        <button
+          type="button"
+          onClick={closeSession}
+          className={cn(PRIMARY_WIDE, 'min-h-[64px] gap-3 px-[18px] py-1 text-[18px] font-bold leading-tight rtl:leading-[1.9]', FOCUS)}
+        >
+          <X className="h-6 w-6" aria-hidden="true" />
+          {C.close}
+        </button>
+      ) : null}
+    </div>
+  ) : undefined;
+
   if (missing) {
     return (
       <TeacherPage feature={isVisit ? 'observations' : 'coaching'} title={C.notFound} crumb={crumb} backTo={backTo} testId="dc-report">
@@ -111,13 +164,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
       backTo={backTo}
       action={action}
       testId="dc-report"
-      dock={ready && reportImage ? (
-        <ShareActions
-          available={canSend}
-          onSend={() => shareToWhatsApp(isVisit ? 'observation' : 'dc', id)}
-          open={{ fileUrl: () => portal.getCoachingReportFile(id, 'inline') }}
-        />
-      ) : undefined}
+      dock={dock}
     >
       {!progress ? <p aria-live="polite" className="mx-1 text-[15px] text-[#6b7280]">{C.loading}</p> : null}
 
@@ -145,7 +192,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
       {ready && detail?.debriefAudioUrl ? (
         <>
           <SectionHeading>{C.voiceNote}</SectionHeading>
-          <VoiceNote from={C.title} avatar="dc" duration="" time={toTime(detail.date)} src={detail.debriefAudioUrl} />
+          <VoiceNote from={C.title} avatar="dc" duration="" time="" src={detail.debriefAudioUrl} copy={C.audio} />
         </>
       ) : null}
 
@@ -159,10 +206,6 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
       ) : null}
 
       <Reflection r={r} />
-
-      {ready && !isVisit ? (
-        <LessonQuizButton from="coach" className={cn(CARD, 'flex min-h-[56px] w-full items-center gap-2 px-4 text-[15px] font-semibold text-[#33374a]')} />
-      ) : null}
 
       {ready && isVisit && answered.length ? (
         <>
@@ -209,16 +252,12 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
             )}
         </div>
       ) : null}
+
+      {ready && !isVisit ? (
+        <LessonQuizButton from="coach" sessionId={id} className={cn(CARD, 'flex min-h-[56px] w-full items-center gap-2 px-4 text-[15px] font-semibold text-[#33374a]')} />
+      ) : null}
     </TeacherPage>
   );
-}
-
-/** The time of day a report came, for the voice note's corner (Pakistan time). */
-function toTime(iso: string | null | undefined): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Karachi' });
 }
 
 /** bd-z3cadk — the bot's repeat-recording message (coaching-messages.js duplicateRecording), in her language. */

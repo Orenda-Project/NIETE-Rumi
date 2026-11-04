@@ -93,6 +93,9 @@ export const PEOPLE_EN = {
   notYourSchool: 'Not your school',
   teachingLevel: 'Teaching level',
   levelNames: { PRIMARY: 'Primary', MIDDLE: 'Middle', HIGH: 'High' },
+  // bd-ewbzns.1 — the Primary / Middle / High filter on My schools and a school's page ("All" as the assessment chips say it)
+  allLevels: 'All',
+  noneAtLevel: 'None at this level',
   canObserve: 'Can observe teachers',
   checkNumber: 'Check number',
   changeNumber: 'Change number',
@@ -224,6 +227,8 @@ export const PEOPLE_UR: Words<typeof PEOPLE_EN> = {
   notYourSchool: 'آپ کا اسکول نہیں',
   teachingLevel: 'تدریسی سطح',
   levelNames: { PRIMARY: 'پرائمری', MIDDLE: 'مڈل', HIGH: 'ہائی' },
+  allLevels: 'سب',
+  noneAtLevel: 'کوئی ٹیچر نہیں',
   canObserve: 'مشاہدے کی اجازت',
   checkNumber: 'نمبر چیک کریں',
   changeNumber: 'نمبر تبدیل کریں',

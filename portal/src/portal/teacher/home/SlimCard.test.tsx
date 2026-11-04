@@ -106,7 +106,7 @@ describe("SlimCard", () => {
     try {
       render(<SlimCard card={{ ...LESSON, title: "All About Me: Key Words" }} userKey={KEY} onGo={vi.fn()} />);
       const line = screen.getByTestId("home-slim-line");
-      // no lead-in: the pill says فوری جانچ بنائیں, so the line gives the topic the width (the lead's ruling, 21 Oct)
+      // no lead-in: the pill says کوئز بنائیں, so the line gives the topic the width (the lead's ruling, 21 Oct)
       expect(line.textContent).toBe("All About Me: Key Words");
       expect(screen.getByTestId("home-slim-topic").getAttribute("dir")).toBe("auto");
       expect(line.className).toMatch(/rtl:!leading-\[1\.5\]/);

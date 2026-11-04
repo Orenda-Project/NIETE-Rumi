@@ -21,6 +21,8 @@
 /* bd-4404s7.1 — Reports' bars rise from their foot with the sound bars' keyframes */
 .fm-brs{transform-box:fill-box;transform-origin:50% 100%}
 .fm-bub{transform-box:view-box;transform-origin:28.5px 21px}
+/* the quiz picture's question bubble pulses on its own centre (Observations' bubble sits elsewhere) */
+.fm-bub.fm-qbub{transform-origin:24px 12px}
 .fm-tas{transform-box:view-box;transform-origin:39.5px 21.7px}
 .fm-bdg{transform-box:view-box;transform-origin:35px 35px}
 /* bd-4404s7.1 — Schedule's clock hand turns on the badge's centre, Schools' flag on its pole's foot (the tassel's keyframes) */

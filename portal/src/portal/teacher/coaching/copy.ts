@@ -94,6 +94,11 @@ export const COACHING_V2_COPY = {
   tryAgain: 'Try again',
   /* the recording on the page, and the page's one Submit */
   submit: 'Submit',
+  /* bd-bmc9a0.2 — ICT IAB row 31: save the recording now, come back later for the reflection and feedback. ICT's
+     mockup words. The confirmation is a sentence on purpose (longOk). */
+  saveRecording: 'Save recording',
+  saved: 'Saved',
+  recordingSaved: 'Recording saved. Come back here later for the reflection and feedback.',
   /** A DC observation with no topic or subject: its own name. */
   dcObservation: 'DC observation',
   minutes: (n: number) => `${n} min`,
@@ -114,6 +119,12 @@ export const COACHING_V2_COPY = {
   sent: 'Sent',
   openLesson: 'Open DC observation',
   noInternet: 'No internet',
+  /* bd-bmc9a0.1 — ICT IAB rows 28–29: a send that failed with the phone online names the part that did not go. */
+  notSent: 'Not sent',
+  recordingNotSent: 'Recording not sent',
+  planNotSent: 'Lesson plan not sent',
+  photoNotSent: (n: number) => `Photo ${n} not sent`,
+  fileWontOpen: 'File will not open',
   savedOnPhone: 'Saved on phone',
   planNotUsed: 'Lesson plan not used',
   changePlan: 'Change lesson plan',
@@ -145,6 +156,11 @@ export const COACHING_V2_COPY = {
   answerSent: 'Answer sent',
   couldNotSend: 'Could not send',
   download: 'Download',
+  /* bd-bmc9a0.4 — ICT IAB row 36: the report's Open said "another app"; it opens the report in another tab. And Close, which
+     ends her DC session with one line (a sentence on purpose: ICT's words). */
+  openInTab: 'Open in another tab',
+  close: 'Close',
+  sessionComplete: 'Your DC coaching session is now complete.',
   /* bd-gzfdu9 (VIDREC, SPEC §4.2/§4.7) — the recommended clip's card under "Try next class"; the /cr card's words. */
   videoRecoCardTitle: '🎬 Watch this next',
   videoRecoCardButton: (n: number) => `Watch (${n} min)`,
@@ -185,6 +201,8 @@ export const COACHING_V2_COPY = {
     play: 'Play',
     pause: 'Pause',
     cantPlay: "Can't play",
+    /** bd-bmc9a0.4 (ICT IAB row 33) — VoiceNote's speed chip, for a screen reader. */
+    speed: 'Playback speed',
   },
   /* All DC observations */
   allTitle: 'All DC Observations',
@@ -270,6 +288,10 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   tryAgain: 'دوبارہ کوشش کریں',
   // The training portal's own word for Submit (teacher/training/copy.ts submit).
   submit: 'جمع کرائیں',
+  // bd-bmc9a0.2 — the words ICT saw in the before/after mockup (row 31).
+  saveRecording: 'ریکارڈنگ محفوظ کریں',
+  saved: 'محفوظ',
+  recordingSaved: 'ریکارڈنگ محفوظ ہو گئی۔ بعد میں یہیں سے Reflection اور فیڈ بیک پر جائیں۔',
   dcObservation: 'ڈیجیٹل کوچنگ مشاہدہ',
   minutes: (n: number) => `${n} منٹ`,
   listen: 'سنیں',
@@ -287,6 +309,11 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   sent: 'بھیجا گیا',
   openLesson: 'ڈیجیٹل کوچنگ مشاہدہ کھولیں',
   noInternet: 'انٹرنیٹ نہیں',
+  notSent: 'نہیں بھیجا گیا',
+  recordingNotSent: 'ریکارڈنگ نہیں بھیجی گئی',
+  planNotSent: 'لیسن پلان نہیں بھیجا گیا',
+  photoNotSent: (n: number) => `تصویر ${n} نہیں بھیجی گئی`,
+  fileWontOpen: 'فائل نہیں کھل رہی',
   savedOnPhone: 'فون میں محفوظ',
   planNotUsed: 'لیسن پلان استعمال نہیں',
   changePlan: 'لیسن پلان تبدیل کریں',
@@ -313,6 +340,9 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   answerSent: 'جواب بھیجا گیا',
   couldNotSend: 'بھیجا نہیں جا سکا',
   download: 'ڈاؤن لوڈ',
+  openInTab: 'دوسرے ٹیب میں کھولیں',
+  close: 'بند کریں',
+  sessionComplete: 'آپ کا ڈیجیٹل کوچنگ سیشن مکمل ہو گیا ہے۔',
   videoRecoCardTitle: '🎬 اگلا یہ دیکھیں',
   videoRecoCardButton: (n: number) => `دیکھیں (${n} منٹ)`,
   videoRecoCardButtonPlain: 'دیکھیں',
@@ -347,6 +377,7 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
     play: 'چلائیں',
     pause: 'روکیں',
     cantPlay: 'چل نہیں سکا',
+    speed: 'آواز کی رفتار',
   },
   allTitle: 'تمام ڈیجیٹل کوچنگ مشاہدات',
   kpiSessions: 'ڈیجیٹل کوچنگ مشاہدات',
@@ -403,5 +434,11 @@ export const COPY_ENTRY: CopyEntry = {
     // bd-z3cadk: the bot's repeat-recording message, word for word.
     'duplicateRecordingLead', 'duplicateRecordingNext',
     // bd-c5reix: the same repeat line, said before she sends it.
-    'duplicateBeforeLead'],
+    'duplicateBeforeLead',
+    // bd-bmc9a0.4: ICT IAB row 36, the line Close ends her session with, in ICT's words.
+    'sessionComplete',
+    // bd-bmc9a0.1: "not sent" is three Urdu words (نہیں بھیجا گیا) after the part's own name.
+    'planNotSent', 'photoNotSent',
+    // bd-bmc9a0.2: ICT's "recording saved, come back later" confirmation (row 31).
+    'recordingSaved'],
 };

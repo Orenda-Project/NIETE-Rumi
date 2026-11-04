@@ -109,7 +109,7 @@ Feature: Teacher home, analytics, more and profile
     And the bot gives demo teacher 03000000911 a quiz home
     And demo teacher 03000000911 is signed in on a 360 px phone
     When the teacher opens /portal/teacher
-    Then the feature grid has 9 tiles: Lesson plans, then "Quizzes" (Urdu «فوری جانچ», to the left of Lesson plans in Urdu), then the other 7 in today's order
+    Then the feature grid has 9 tiles: Lesson plans, then "Quizzes" (Urdu «کوئز», to the left of Lesson plans in Urdu), then the other 7 in today's order
     And the 9th tile spans both columns
     When the teacher taps "Quizzes"
     Then the page goes to /quiz/teacher/<token>

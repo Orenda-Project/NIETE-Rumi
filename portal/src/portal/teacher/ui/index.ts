@@ -13,7 +13,7 @@ export { SubjectTile, type SubjectTileProps, type SubjectTileTone } from './Subj
 export { GradeSubjectButton, type GradeSubjectButtonProps, type GradeSubjectState } from './GradeSubjectButton';
 export { GRADE_COLOURS, NEUTRAL_COLOURS, gradeColoursFor, type GradeColours } from './gradeColours';
 export {
-  HistoryRow, leadColours, type HistoryAction, type HistoryLead, type HistoryLeadTone, type HistoryRowProps, type HistoryRowState, type LeadColours,
+  HistoryRow, GradeSubjectLead, leadColours, type HistoryAction, type HistoryLead, type HistoryLeadTone, type HistoryRowProps, type HistoryRowState, type LeadColours,
 } from './HistoryRow';
 export { HistoryList, type HistoryGroup, type HistoryItem, type HistoryListProps } from './HistoryList';
 export { ListRow, type ListRowIcon, type ListRowProps, type ListRowState } from './ListRow';
@@ -41,7 +41,7 @@ export { HomeGreeting, type HomeGreetingProps } from './HomeGreeting';
 export { TimeStamp, parseTime, type Meridiem, type TimeStampProps, type TimeTone } from './TimeStamp';
 export { ChosenSoFar, type ChosenItem, type ChosenSoFarProps } from './ChosenSoFar';
 export { AttentionBanner, type AttentionBannerProps } from './AttentionBanner';
-export { FeatureTile, type FeatureTileProps } from './FeatureTile';
+export { FeatureTile, tileArtSize, tileShell, tileWords, type FeatureTileProps } from './FeatureTile';
 export { addDays, dayNumber, weekdayOf, weekOf } from './dates';
 export { DayStrip, type DayStripProps } from './DayStrip';
 export { TimePicker, PICKER_HOURS, type TimePickerProps } from './TimePicker';

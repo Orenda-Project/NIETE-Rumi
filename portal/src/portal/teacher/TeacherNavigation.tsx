@@ -8,8 +8,7 @@ import { teacherPath } from "./routes";
 import { FeatureGlyph, type GlyphName } from "./icons";
 import { AuthContext } from "../hooks/authContext";
 import { useHomeLook } from "./home/useHomeData";
-import { LOOK_ICONS } from "./home/look/lookIcons";
-import { COACH_MENU_PATHS, COACH_NAV_KEYS, coachNavKeysFor, currentCoachMenuItem, currentMenuItem, type CoachNavKey, type NavFeature } from "./menu";
+import { COACH_CARD_NAV_KEYS, COACH_MENU_PATHS, COACH_NAV_KEYS, coachNavKeysFor, currentCoachCardItem, currentCoachMenuItem, currentMenuItem, type CoachNavKey, type NavFeature } from "./menu";
 
 /**
  * bd-fmf24g.1 — the teacher v2 menu (canvas v28): a white bottom bar on a phone with
@@ -53,14 +52,17 @@ export type MenuRole = "teacher" | "coach";
 const LOOK_ITEM =
   "flex flex-1 min-w-0 flex-col items-center justify-center gap-0.5 min-h-[56px] rounded-xl text-[11px] leading-[1.15] rtl:!leading-[1.5] font-medium text-center whitespace-normal [overflow-wrap:anywhere] hyphens-auto outline-none focus-visible:ring-[3px] focus-visible:ring-[#f59e0b]";
 
-/** `ready` (coach only): the features that are ready, others are left out (bd-s42dye.2). `role` picks the items (default: the teacher's); the bar, the glyphs and the current-item rule are the same. */
-const TeacherNavigation = ({ role = "teacher", ready }: { role?: MenuRole; ready?: readonly string[] } = {}) => {
+/**
+ * `ready` (coach only): the features that are ready, others are left out (bd-s42dye.2). `role` picks the items (default: the teacher's); the bar, the glyphs and the current-item rule are the same.
+ * `schoolCard` (coach only): the School card's menu, Home · Lesson Plans · More, with Home current on the pages it opens.
+ */
+const TeacherNavigation = ({ role = "teacher", ready, schoolCard = false }: { role?: MenuRole; ready?: readonly string[]; schoolCard?: boolean } = {}) => {
   const C = useCopy(TEACHER_FRAME);
   const { pathname } = useLocation();
   const items: { feature: string; label: string; to: string; glyph: GlyphName }[] = role === "coach"
-    ? (ready ? coachNavKeysFor(ready) : COACH_NAV_KEYS).map((k) => ({ feature: k, label: C.coachNav[k], to: COACH_MENU_PATHS[k], glyph: COACH_ICONS[k] }))
+    ? (schoolCard ? COACH_CARD_NAV_KEYS : ready ? coachNavKeysFor(ready) : COACH_NAV_KEYS).map((k) => ({ feature: k, label: C.coachNav[k], to: COACH_MENU_PATHS[k], glyph: COACH_ICONS[k] }))
     : ITEMS.map((f) => ({ feature: f, label: C.nav[f], to: teacherPath(f), glyph: NAV_ICONS[f] }));
-  const current: string | null = role === "coach" ? currentCoachMenuItem(pathname) : currentMenuItem(pathname);
+  const current: string | null = role === "coach" ? (schoolCard ? currentCoachCardItem(pathname) : currentCoachMenuItem(pathname)) : currentMenuItem(pathname);
   // The Home look reaches the teacher's phone bar only; a coach's menu never reads it (nothing is asked, always off).
   const userKey = useContext(AuthContext)?.user?.phoneNumber;
   const look = useHomeLook(role === "teacher" ? userKey : null, role === "teacher");
@@ -109,8 +111,8 @@ const TeacherNavigation = ({ role = "teacher", ready }: { role?: MenuRole; ready
         {items.map(({ feature, label, to, glyph }) => {
           const on = current === feature;
           if (look) {
-            // The look: the current item is a green pill with a green glyph and an ink bold label; the others muted.
-            const Icon = LOOK_ICONS[feature as NavFeature];
+            // The look: the current item sits in a green pill with an ink bold label; the others muted. The glyphs are the
+            // kit's colourful D2 menu glyphs, the same as without the look (the operator brought them back, 30 Oct 2026).
             return (
               <Link
                 key={feature}
@@ -119,7 +121,7 @@ const TeacherNavigation = ({ role = "teacher", ready }: { role?: MenuRole; ready
                 className={cn(LOOK_ITEM, on ? "text-[#333748] font-bold" : "text-[#636878]")}
               >
                 <span data-look-pill aria-hidden="true" className={cn("flex h-7 w-[52px] items-center justify-center rounded-full", on && "bg-[#e7f5ed] text-[#2e7d57]")}>
-                  <Icon size={22} data-look-glyph={feature} />
+                  <FeatureGlyph name={glyph} size={24} />
                 </span>
                 {/* index.css gives every Urdu element line-height 2, so the label carries its own 1.5 (inherited from the item it would never land). */}
                 <span className="max-w-full rtl:!leading-[1.5]">{label}</span>

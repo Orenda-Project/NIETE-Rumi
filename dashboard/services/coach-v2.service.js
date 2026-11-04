@@ -337,6 +337,8 @@ async function loadTeachers(query, leaderUserId, today) {
       examsGenerated: p.examsGenerated,
       // bd-o15qnr.11 — shown (not edited) on Edit teacher
       isPrincipal: !!p.isPrincipal,
+      // bd-ewbzns.1 — her teaching levels (users.teacher_level), for the Primary / Middle / High filter
+      levels: p.levels || [],
       scores: mine.map(scoreOf).filter((s) => s != null),
       latest,
     };
