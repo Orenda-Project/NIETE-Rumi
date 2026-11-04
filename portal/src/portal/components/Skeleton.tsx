@@ -145,7 +145,8 @@ export function SkeletonLookTile({ className, testId }: Cls & { testId?: string 
  */
 function LookFrame() {
   return (
-    <div data-frame="teacher-look" aria-busy="true" className="min-h-screen bg-[#f3f4f6]">
+    // dir="ltr": the outline's boxes are identical, so it never mirrors when the page turns Urdu under it (bd-43f1sk).
+    <div data-frame="teacher-look" dir="ltr" aria-busy="true" className="min-h-screen bg-[#f3f4f6]">
       <TopBarSkeleton variant="teacher" />
       <div className="mx-auto max-w-xl min-[576px]:px-4 min-[576px]:pt-4">
         <div data-testid="frame-look-band" aria-hidden="true" className="h-[231px] bg-[#333748] px-5 pt-[calc(18px+env(safe-area-inset-top))] min-[576px]:rounded-[28px]">
