@@ -31,4 +31,9 @@ describe("the teacher Home's placeholder frame", () => {
     localStorage.removeItem(SHELL_HINT_KEY);
     expect(frameFor("/portal/dashboard")).toBe("classic");
   });
+
+  it("bd-43f1sk: the outline does not mirror when the page turns Urdu under it (identical boxes; the move was counted as a shift)", () => {
+    render(<FrameSkeleton variant="teacher-look" />);
+    expect(document.querySelector('[data-frame="teacher-look"]')!.getAttribute("dir")).toBe("ltr");
+  });
 });

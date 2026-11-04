@@ -132,4 +132,16 @@ describe("the teacher app is drawn once, in her language (bd-43f1sk)", () => {
     expect(screen.getByText("v2 page")).toBeTruthy();
     expect(get).toHaveBeenCalledTimes(1);
   });
+
+  it("the Latin face is loaded before the page draws too (a late swap re-wrapped the school line and moved the band)", async () => {
+    get.mockResolvedValue({ language: "ur", locked: false });
+    let latinLanded!: () => void;
+    fontLoad.mockImplementation((font: string) => (font.includes("Plus Jakarta Sans") ? new Promise((r) => { latinLanded = () => r([]); }) : Promise.resolve([])));
+    visit();
+    await flush();
+    expect(fontLoad).toHaveBeenCalledWith(expect.stringContaining("Plus Jakarta Sans"), expect.any(String));
+    expect(screen.queryByText("v2 page")).toBeNull();
+    latinLanded();
+    expect(await screen.findByText("v2 page")).toBeTruthy();
+  });
 });
