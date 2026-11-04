@@ -1,2 +1,3 @@
 {"ts":"2026-11-04T10:04:50Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-classes spec_sync=true","sha":"db33cf13e532","branch":"bd-2dn4vu-78647","user":"Fatima"}
 {"ts":"2026-11-04T10:05:28Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-classes=none-needed (heading row removed and roll shown as a badge; TK04 finds rows by the unchanged Name, roll no N label, so its steps still hold)","sha":"db33cf13e532","branch":"bd-2dn4vu-78647","user":"Fatima"}
+{"ts":"2026-11-04T10:05:28Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"be5cdd93-76bb-4084-9bd5-feb2ad09cd67","sha":"db33cf13e532","branch":"bd-2dn4vu-78647","user":"Fatima"}
