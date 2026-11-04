@@ -61,6 +61,9 @@ function feedbackFields(fb) {
   (Array.isArray(f.wins) ? f.wins : []).forEach((w, i) => out.push([`wins.${i}.behaviour`, WRITTEN, w && w.behaviour]));
   ['what_happened', 'why_it_matters', 'instead'].forEach((k) => out.push([`concern.${k}`, WRITTEN, f.concern && f.concern[k]]));
   ['move', 'instead'].forEach((k) => out.push([`try.${k}`, WRITTEN, f.try && f.try[k]]));
+  // The judge's per-miss lines and its reason for the focus (ur/en) are written to the coach too.
+  Object.entries(f.missed && typeof f.missed === 'object' ? f.missed : {}).forEach(([k, v]) => out.push([`missed.${k}`, WRITTEN, v]));
+  out.push(['focus_why', WRITTEN, f.focus_why]);
   return out;
 }
 
