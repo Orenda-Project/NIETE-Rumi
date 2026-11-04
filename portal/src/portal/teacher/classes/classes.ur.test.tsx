@@ -69,15 +69,16 @@ describe("My Classes in Urdu", () => {
     expect(screen.queryByText("Students")).toBeNull();
   });
 
-  it("Add students (bd-2dn4vu): roll no, name, Add student and Save in Urdu; no English left", async () => {
+  it("Add students (bd-2dn4vu): name hint, Add student and Save in Urdu; no heading row, no English left", async () => {
     at(addStudentsPath("c1"));
     expect(await screen.findByRole("button", { name: U.addStudent })).toBeTruthy();
-    const text = plain(document.body.textContent);
-    expect(text).toContain(U.rollNo);
-    expect(text).toContain(U.name);
+    expect(screen.getAllByPlaceholderText(U.name)).toHaveLength(2);
+    // One child on the class (roll 1), so the new rows are roll 2 and 3.
+    expect(screen.getByLabelText(U.nameOfRoll(2))).toBeTruthy();
     expect(screen.getByRole("button", { name: U.saveStudents(0) })).toBeTruthy();
     expect(screen.queryByText("Add student")).toBeNull();
-    expect(screen.queryByText("Roll no")).toBeNull();
+    expect(screen.queryByText("Name")).toBeNull();
+    expect(plain(document.body.textContent)).not.toContain("رول نمبر");
   });
 
   it("Add a class: the fields and Save class in Urdu", async () => {

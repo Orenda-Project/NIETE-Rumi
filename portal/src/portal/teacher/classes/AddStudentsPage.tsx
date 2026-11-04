@@ -17,13 +17,16 @@ import { classPath } from './paths';
 /** Rows on a fresh page, so she sees the pattern before she adds one. */
 const FIRST_ROWS = 2;
 
-const ROW = '[display:grid] grid-cols-[60px_minmax(0,1fr)_56px] items-start gap-2';
+const ROW = '[display:grid] grid-cols-[48px_minmax(0,1fr)_56px] items-start gap-2';
+/** The roll badge the class page's student list draws, so the number reads as the same thing on both. */
+const ROLL = 'flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#f3f4f6] text-[14px] font-bold tabular-nums text-[#33374a]';
 const SAVE = cn(PRIMARY_WIDE, 'text-[17px] disabled:bg-[#d1d5db] disabled:text-[#6b7280]');
 
 interface Row { key: number; name: string }
 
 /**
- * bd-2dn4vu — Add students, one row per child (design picked 4 Nov 2026: roll no + name, no father's name).
+ * bd-2dn4vu — Add students, one row per child (design picked 4 Nov 2026: roll no + name, no father's name; no
+ * heading row — the number is the class page's roll badge and each empty box says "Name").
  *
  * The roll no is SHOWN, never typed: the server numbers new children after the class's highest roll, as it
  * always has, and these rows show that same count. Two rows to start; Add student adds one; ✕ takes one away
@@ -150,20 +153,19 @@ export function AddStudentsPage() {
 
   return (
     <TeacherPage feature="classes" crumb={classTitle(cls, C)} title={C.addStudents} backTo={backTo} dock={dock} testId="add-students">
-      <div aria-hidden="true" className={cn(ROW, 'px-3 text-[14px] font-semibold text-[#4b5563]')}>
-        <span className="text-center">{C.rollNo}</span>
-        <span>{C.name}</span>
-      </div>
       <ol className="flex flex-col gap-2.5">
         {rows.map((r, i) => {
           const roll = firstRoll + i;
           return (
             <li key={r.key} className={cn(CARD, ROW, 'p-2')}>
-              <span aria-hidden="true" className="flex min-h-[56px] items-center justify-center text-[19px] font-extrabold tabular-nums text-[#33374a]">{roll}</span>
+              <span aria-hidden="true" className="flex min-h-[56px] items-center justify-center">
+                <span className={ROLL}>{roll}</span>
+              </span>
               <textarea
                 ref={boxRef(r.key)}
                 rows={1}
                 dir="auto"
+                placeholder={C.name}
                 aria-label={C.nameOfRoll(roll)}
                 value={r.name}
                 onChange={(e) => setName(r.key, e.target.value)}

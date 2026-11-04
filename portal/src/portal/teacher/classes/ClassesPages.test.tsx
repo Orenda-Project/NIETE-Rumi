@@ -153,6 +153,10 @@ describe("Class detail", () => {
     expect(screen.getByLabelText(C.nameOfRoll(5))).toBeTruthy();
     expect(screen.queryByLabelText(C.nameOfRoll(6))).toBeNull();
     expect(screen.queryByRole("spinbutton")).toBeNull();
+    // No column heading: the number is the class page's own roll badge, and each empty box says "Name".
+    expect(screen.queryByText("Roll no")).toBeNull();
+    expect(screen.getAllByPlaceholderText(C.name)).toHaveLength(2);
+    expect(screen.getByText("4")).toBeTruthy();
     const save = () => screen.getByRole("button", { name: /^Save/ }) as HTMLButtonElement;
     expect(save().disabled).toBe(true);
 

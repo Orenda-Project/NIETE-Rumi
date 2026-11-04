@@ -29,7 +29,6 @@ export const CLASSES_V2_COPY = {
   showAll: (n: number) => `Show all ${n}`,
   addStudents: 'Add students',
   /* Add students (bd-2dn4vu): one row per child, roll no shown, name typed */
-  rollNo: 'Roll no',
   name: 'Name',
   nameOfRoll: (roll: number) => `Name, roll no ${roll}`,
   removeRoll: (roll: number) => `Remove roll no ${roll}`,
@@ -79,7 +78,6 @@ export const CLASSES_V2_COPY_UR: ClassesCopy = {
   noStudentsYet: 'کوئی طالب علم نہیں',
   showAll: (n: number) => `تمام ${n} دکھائیں`,
   addStudents: 'طلبہ شامل کریں',
-  rollNo: 'رول نمبر',
   name: 'نام',
   nameOfRoll: (roll: number) => `نام، رول نمبر ${roll}`,
   removeRoll: (roll: number) => `رول نمبر ${roll} ہٹائیں`,
