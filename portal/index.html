@@ -27,7 +27,11 @@
             return r;
           };
           var boot = { config: read("config", "/api/portal/config"), me: read("me", "/api/portal/me"), done: done };
-          if (home) boot.home = read("home", "/api/portal/me/home");
+          if (home) {
+            boot.home = read("home", "/api/portal/me/home");
+            // bd-43f1sk — her stored language too, so the app draws the Home once, in her language.
+            boot.language = read("language", "/api/portal/me/language");
+          }
           window.__nieteBoot = boot;
         } catch (e) { /* the app reads as before */ }
       })();
