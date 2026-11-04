@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { portal } from '../services/api';
 import type { PortalConfig } from '../services/api';
 import { forgetNewUi, rememberedNewUiFor, rememberNewUi } from './newUiMemory';
+import { takeBoot } from '@/lib/bootReads';
 
 /**
  * bd-5rz1v.12 — is the new UI (Direction B) on for this user?
@@ -45,8 +46,10 @@ let kept: { at: number; config: PortalConfig } | null = null;
 export function readConfigShared(): Promise<PortalConfig | null> {
   if (kept && Date.now() - kept.at < CONFIG_FRESH_MS) return Promise.resolve(kept.config);
   if (!inflight) {
+    // bd-sex15q.34 — index.html's boot read, when there is one (a COACHIP page); otherwise, or if it failed, as before.
+    const boot = takeBoot<PortalConfig>('config');
     const read: Promise<PortalConfig | null> = Promise.resolve()
-      .then(() => portal.getConfig())
+      .then(() => (boot ? boot.then((cfg) => cfg ?? portal.getConfig()) : portal.getConfig()))
       .then((config) => {
         // a read that was forgotten mid-flight (sign-in, sign-out) is not kept
         if (config && inflight === read) kept = { at: Date.now(), config };

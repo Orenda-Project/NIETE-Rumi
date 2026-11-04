@@ -2,6 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- bd-sex15q.34 — a coach's or an RM's first open: the session and the flags are asked for now, not after the
+         app's first chunk has arrived (seconds on a slow line). The app takes each answer once (src/lib/bootReads.ts);
+         an answer that is not OK is handed over as null and the app reads as before. Never a /coachip/ request here:
+         the app reads the switch first. Not in the Android app (its API is on another origin). First in <head>: an inline script after a stylesheet
+         waits for that stylesheet, which on a slow line is seconds. -->
+    <script id="coachip-boot">
+      (function () {
+        try {
+          if (!/^\/portal\/(coach\/insights|rm)(\/|$)/.test(location.pathname)) return;
+          var cap = window.Capacitor;
+          if (cap && cap.isNativePlatform && cap.isNativePlatform()) return;
+          var read = function (u) {
+            return fetch(u, { credentials: "include", headers: { Accept: "application/json" } })
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .catch(function () { return null; });
+          };
+          window.__nieteBoot = { config: read("/api/portal/config"), me: read("/api/portal/me") };
+        } catch (e) { /* the app reads as before */ }
+      })();
+    </script>
     <link rel="icon" href="/favicon.png" type="image/png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#333748" />
