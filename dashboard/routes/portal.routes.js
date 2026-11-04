@@ -4211,11 +4211,12 @@ router.get('/classes/:classId/students', requirePortalAuth, async (req, res) => 
 
 router.post('/classes/:classId/students', requirePortalAuth, async (req, res) => {
   const userId = req.session.portalUserId;
-  const { rawText } = req.body || {};
+  const { rawText, names } = req.body || {};
 
   try {
+    // `names` is the teacher app's rows (one child each); `rawText` the older paste.
     const botRes = await callBotInternal('/api/internal/classes/students/add', {
-      userId, classId: req.params.classId, rawText,
+      userId, classId: req.params.classId, rawText, names: Array.isArray(names) ? names : undefined,
     });
     const data = botRes.data || {};
 
