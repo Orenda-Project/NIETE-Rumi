@@ -4172,6 +4172,53 @@ const UX_STRINGS = {
     en: 'For today\'s reading and maths check, please send these children from {cls} to the coach one at a time, in this order:\n{children}\nWhen one comes back, send the next.',
     ur: 'آج کے پڑھائی اور حساب کے جائزے کے لیے {cls} کے یہ بچے ایک ایک کر کے اسی ترتیب سے کوچ کے پاس بھیجیں:\n{children}\nایک بچہ واپس آئے تو اگلا بھیجیں۔',
   },
+  // ─── /feedback and /bug on WhatsApp (services/feedback/whatsapp-feedback-intake.service.js) ───────────────────────
+  // The Urdu is a first draft for review. "Feedback" is رائے, as in remarkCommentLabel and the coaching survey.
+  // Commands and the reference are isolated (LRI…PDI) in Urdu so they are not painted "feedback/" or "Q9K3-NF".
+  // The three topic labels are reply-button titles: 20 code points at most.
+  waFeedbackPickTopic: {
+    en: 'What is it about? Pick one, then send me your message.',
+    ur: 'یہ کس بارے میں ہے؟ ایک چنیں، پھر اپنا پیغام بھیجیں۔',
+  },
+  waFeedbackTopicBroken: { en: 'Not working', ur: 'کچھ کام نہیں کر رہا' },
+  waFeedbackTopicIdea: { en: 'An idea', ur: 'ایک تجویز' },
+  waFeedbackTopicOther: { en: 'Something else', ur: 'کچھ اور' },
+  waFeedbackAsk: {
+    en: 'Tell me in one message: type it, or send a voice note.\n\n(Send /menu to cancel.)',
+    ur: 'ایک پیغام میں بتائیں: لکھ دیں یا وائس نوٹ بھیجیں۔\n\n(منسوخ کرنے کے لیے ⁦/menu⁩ بھیجیں۔)',
+  },
+  waFeedbackBugAsk: {
+    en: 'What isn\'t working? Tell me in one message: type it, or send a voice note.\n\n(Send /menu to cancel.)',
+    ur: 'کیا چیز کام نہیں کر رہی؟ ایک پیغام میں بتائیں: لکھ دیں یا وائس نوٹ بھیجیں۔\n\n(منسوخ کرنے کے لیے ⁦/menu⁩ بھیجیں۔)',
+  },
+  waFeedbackThanks: {
+    en: 'Thank you, I\'ve passed this to the team. Your reference is {ref}.',
+    ur: 'شکریہ، یہ ٹیم تک پہنچا دیا گیا ہے۔ آپ کا حوالہ نمبر ⁦{ref}⁩ ہے۔',
+  },
+  waFeedbackFailed: {
+    en: 'Sorry, I couldn\'t save that just now. Reply *retry* in a few minutes and I\'ll try again.',
+    ur: 'معذرت، یہ ابھی محفوظ نہیں ہو سکا۔ چند منٹ بعد ⁦*retry*⁩ یا «دوبارہ» لکھیں، میں پھر کوشش کروں گی۔',
+  },
+  waFeedbackFailedVoice: {
+    en: 'Sorry, I couldn\'t save that voice note just now. Please send it again in a few minutes.',
+    ur: 'معذرت، یہ وائس نوٹ ابھی محفوظ نہیں ہو سکا۔ براہ کرم چند منٹ بعد دوبارہ بھیجیں۔',
+  },
+  waFeedbackUnclear: {
+    en: 'I couldn\'t hear that clearly. Please send it again, or type it.',
+    ur: 'یہ وائس نوٹ واضح سنائی نہیں دیا۔ براہ کرم دوبارہ بھیجیں یا لکھ دیں۔',
+  },
+  waFeedbackStartFailed: {
+    en: 'Sorry, I couldn\'t start that just now. Please send /feedback again in a few minutes.',
+    ur: 'معذرت، یہ ابھی شروع نہیں ہو سکا۔ چند منٹ بعد دوبارہ ⁦/feedback⁩ بھیجیں۔',
+  },
+  waFeedbackDailyCap: {
+    en: 'That\'s a lot of feedback for one day, thank you! Please send more tomorrow.',
+    ur: 'آج کے لیے رائے کی حد پوری ہو گئی ہے، شکریہ! مزید کل بھیجیں۔',
+  },
+  waFeedbackRegisterFirst: {
+    en: 'Please register first, then send /feedback. Type /register to start.',
+    ur: 'پہلے رجسٹر کریں، پھر ⁦/feedback⁩ بھیجیں۔ شروع کرنے کے لیے ⁦/register⁩ لکھیں۔',
+  },
 };
 
 /**

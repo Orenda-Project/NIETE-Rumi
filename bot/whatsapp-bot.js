@@ -730,6 +730,17 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
         if (await ConversationResume.handleResumeButton(user, from, buttonId)) return;
       }
 
+      // /feedback's three topic buttons (nfb_topic_<topic>): the tap opens the one-message report. false (switch off,
+      // no user) → the chain below runs as before.
+      if (buttonId.startsWith('nfb_topic_')) {
+        try {
+          const WaFeedback = require('./shared/services/feedback/whatsapp-feedback-intake.service');
+          if (await WaFeedback.tryHandleButton({ user, from, buttonId })) return;
+        } catch (err) {
+          logToFile('⚠️ WhatsApp feedback topic tap failed — today\'s handling', { error: err && err.message }, 'error');
+        }
+      }
+
       // ── first touch: the maker fallback's three buttons (quiz_maker_page; off or a throw → today's chain) ──
       if (buttonId.startsWith('ft_fb_')) {
         try {
