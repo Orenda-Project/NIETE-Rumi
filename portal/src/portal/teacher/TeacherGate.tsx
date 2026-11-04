@@ -31,12 +31,14 @@ const TeacherGate = ({ children, leaders = false }: { children: ReactNode; leade
   const { user, loading } = useAuth();
   const { pathname } = useLocation();
   const flag = useTeacherV2(user?.phoneNumber || null, !loading && !!user);
-  useFollowPreferredLanguage(!loading && isTeacherV2For(user, flag));
+  const languageReady = useFollowPreferredLanguage(!loading && isTeacherV2For(user, flag));
   // bd-1q4z4o — on the Home, the Home look's own outline (frameFor), continuing index.html's.
   if (loading) return <FrameSkeleton variant={frameFor(pathname)} />;
   if (!user) return <Navigate to={"/portal/login?next=" + encodeURIComponent(window.location.pathname + window.location.search)} replace />;
   if (flag === null) return <FrameSkeleton variant={frameFor(pathname)} />;
   if (!isTeacherV2For(user, flag) && !(leaders && isLeader(user))) return <Navigate to="/portal/dashboard" replace />;
+  // bd-43f1sk — a v2 page is drawn once, in her language: the outline until it is applied (capped, see i18n.ts).
+  if (isTeacherV2For(user, flag) && !languageReady) return <FrameSkeleton variant={frameFor(pathname)} />;
   return <>{children}</>;
 };
 

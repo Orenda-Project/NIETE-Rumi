@@ -48,7 +48,6 @@ jest.mock('../../bot/shared/services/audio.service', () => ({
   getAudioDuration: jest.fn(() => Promise.resolve(8)),
   convertToWav: jest.fn(() => Promise.resolve()),
   transcribeWithLanguagePreference: jest.fn(() => Promise.resolve({ text: 'میری جماعت کے لیے کوئی سرگرمی بتائیں', language: 'ur', engine: 'soniox' })),
-  transcribeAudio: jest.fn(() => Promise.resolve('میری جماعت کے لیے کوئی سرگرمی بتائیں')),
   getASREngine: jest.fn(() => 'soniox'),
 }));
 jest.mock('fs', () => ({

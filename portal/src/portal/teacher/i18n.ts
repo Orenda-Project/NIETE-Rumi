@@ -1,6 +1,7 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import i18n from 'i18next';
 import { language as languageApi } from '../services/api';
+import { takeBoot } from '@/lib/bootReads';
 
 /**
  * bd-fmf24g.13 — the teacher v2 language layer (language-protocol: NIETE is flat en/ur).
@@ -93,23 +94,89 @@ export function useCopy<T>(m: Bilingual<T>): Words<T> {
 
 /* ── following her stored language ───────────────────────────────────────── */
 
-let followed = false;
+/**
+ * bd-43f1sk — the longest the gate holds a v2 page for her language (and, in Urdu, its font). Past it the page draws in
+ * the language it has, and turns when the read lands, as before.
+ */
+export const LANGUAGE_WAIT_MS = 1500;
 
-/** v2 only: take her stored preferred_language, locked or not, once per page load. Never writes. */
-export function useFollowPreferredLanguage(ready: boolean): void {
-  useEffect(() => {
-    if (!ready || followed) return;
-    followed = true;
-    Promise.resolve()
-      .then(() => languageApi.get())
-      .then(({ language }) => {
-        if (isOffered(language) && language !== snapshot()) void i18n.changeLanguage(language);
+/** The Urdu face (index.css). Loading it before the page draws keeps a late font swap from growing the text. */
+const URDU_FONT = '16px "NIETE Nastaliq"';
+const URDU_SAMPLE = 'اردو';
+/** The Latin face (index.html's Google Fonts link): names and schools in either language. A late swap re-wraps them. */
+const LATIN_FONT = '500 16px "Plus Jakarta Sans"';
+const LATIN_SAMPLE = 'Aa';
+
+/**
+ * index.html loads the Google Fonts stylesheet without blocking (a preload that turns into a stylesheet on load). Until it
+ * is applied the Latin face is not declared, and asking for it returns at once with nothing loaded: wait for it first.
+ * Resolves when it is applied, when there is no such link, or after LANGUAGE_WAIT_MS.
+ */
+function latinStylesheet(): Promise<void> {
+  if (typeof document === 'undefined') return Promise.resolve();
+  const link = document.querySelector<HTMLLinkElement>('link[href*="fonts.googleapis.com/css2"]');
+  if (!link) return Promise.resolve();
+  const applied = () => link.rel === 'stylesheet' && !!link.sheet;
+  if (applied()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const finish = () => { clearInterval(poll); clearTimeout(cap); link.removeEventListener('load', check); resolve(); };
+    const check = () => { if (applied()) finish(); };
+    const poll = setInterval(check, 50);
+    const cap = setTimeout(finish, LANGUAGE_WAIT_MS);
+    link.addEventListener('load', check);
+  });
+}
+
+/** This page load's one read of her language, shared by every gate that asks (a page change re-mounts the gate). */
+let following: Promise<void> | null = null;
+let followedDone = false;
+
+function follow(): Promise<void> {
+  if (!following) {
+    // bd-43f1sk — index.html's boot read of /me/language on the Home (taken once), else the read as before.
+    const boot = takeBoot<{ language?: unknown }>('language');
+    following = Promise.resolve()
+      .then(() => (boot ? boot.then((b) => b ?? languageApi.get()) : languageApi.get()))
+      .then((answer) => {
+        const language = (answer as { language?: unknown } | null)?.language;
+        if (isOffered(language) && language !== snapshot()) return i18n.changeLanguage(language).then(() => undefined);
+        return undefined;
       })
-      .catch(() => { /* the page keeps the language it has */ });
-  }, [ready]);
+      .then(() => {
+        // The faces this page draws with, loaded before it draws (a late swap re-wraps the band's lines and moves it).
+        const fonts = typeof document !== 'undefined' ? (document as Document & { fonts?: { load?: (f: string, t?: string) => Promise<unknown> } }).fonts : undefined;
+        if (!fonts?.load) return undefined;
+        const faces = [latinStylesheet().then(() => fonts.load!(LATIN_FONT, LATIN_SAMPLE))];
+        if (snapshot() === 'ur') faces.push(fonts.load(URDU_FONT, URDU_SAMPLE));
+        return Promise.all(faces).then(() => undefined);
+      })
+      .catch(() => { /* the page keeps the language it has */ })
+      .then(() => { followedDone = true; });
+  }
+  return following;
+}
+
+/**
+ * v2 only: take her stored preferred_language, locked or not, once per page load. Never writes.
+ * bd-43f1sk — returns true once her language is applied (and, for Urdu, the Nastaliq face has loaded), or after
+ * LANGUAGE_WAIT_MS, or when it was already done on this page load: the gate draws the page then, so it is drawn once,
+ * in her language, instead of in English and then turned.
+ */
+export function useFollowPreferredLanguage(ready: boolean): boolean {
+  const [settled, setSettled] = useState(followedDone);
+  useEffect(() => {
+    if (!ready || settled) return undefined;
+    let live = true;
+    const done = () => { if (live) setSettled(true); };
+    const cap = setTimeout(done, LANGUAGE_WAIT_MS);
+    void follow().then(() => { clearTimeout(cap); done(); });
+    return () => { live = false; clearTimeout(cap); };
+  }, [ready, settled]);
+  return settled || followedDone;
 }
 
 /** Tests only. */
 export function resetLanguageFollow(): void {
-  followed = false;
+  following = null;
+  followedDone = false;
 }
