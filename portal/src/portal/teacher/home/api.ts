@@ -1,4 +1,5 @@
 import api from '../../services/api';
+import { peekBoot, takeBoot } from '@/lib/bootReads';
 
 /**
  * What the Home card reads and writes: GET /api/portal/me/home and POST /api/portal/me/home/tap
@@ -113,11 +114,26 @@ export function readHome(body: unknown): HomeData | null {
 
 let quizHomeMemo: Promise<string | null> | null = null;
 
-/** GET /me/home. Null when the switch is off (404), the server fails, or the answer cannot be read. Never throws. */
+/**
+ * bd-1q4z4o — the answer of index.html's boot read of /me/home (the teacher Home's own path), when it has ALREADY
+ * arrived: shaped now, synchronously, so Home's first render can be its final one. Null otherwise.
+ */
+export function settledHome(): HomeData | null {
+  const body = peekBoot('home');
+  return body ? readHome(body) : null;
+}
+
+/**
+ * GET /me/home. Null when the switch is off (404), the server fails, or the answer cannot be read. Never throws.
+ * bd-1q4z4o: takes index.html's boot read once when there is one (a teacher Home load), instead of asking again; a boot
+ * read that was not OK asks as before.
+ */
 export async function fetchHome(): Promise<HomeData | null> {
+  const boot = takeBoot<unknown>('home');
+  const ask = () => api.get('/me/home').then((res) => res?.data);
   const read = Promise.resolve()
-    .then(() => api.get('/me/home'))
-    .then((res) => readHome(res?.data))
+    .then(() => (boot ? boot.then((b) => b ?? ask()) : ask()))
+    .then((body) => readHome(body))
     .catch(() => null);
   // The quiz home is the same for the whole session: the next reader (the LP page) reuses this answer.
   quizHomeMemo = read.then((d) => d?.quizHome ?? null);

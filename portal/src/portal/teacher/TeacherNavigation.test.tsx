@@ -3,7 +3,8 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import i18n from "i18next";
 
-vi.mock("../lib/useNewUi", () => ({ readConfigShared: vi.fn() }));
+// bd-1q4z4o: peekConfig is null here (no /config answer yet), so the bar starts from the remembered look or all off.
+vi.mock("../lib/useNewUi", () => ({ readConfigShared: vi.fn(), peekConfig: () => null }));
 import { readConfigShared } from "../lib/useNewUi";
 import TeacherNavigation from "./TeacherNavigation";
 import { resetHomeLookMemory } from "./home/useHomeData";
