@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
 vi.mock("./api", async (orig) => ({ ...(await orig<typeof import("./api")>()), fetchHome: vi.fn(), tapHome: vi.fn() }));
-vi.mock("../../lib/useNewUi", () => ({ readConfigShared: vi.fn() }));
+// bd-1q4z4o: peekConfig is null here (no /config answer yet), so each test starts from the remembered look or all off.
+vi.mock("../../lib/useNewUi", () => ({ readConfigShared: vi.fn(), peekConfig: () => null }));
 import { createElement, type ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { fetchHome, tapHome, type HomeData } from "./api";

@@ -11,6 +11,9 @@
  */
 export type ShellHint = "teacher" | "classic";
 
+/** The frames a placeholder can draw: a remembered hint, or (bd-1q4z4o) the teacher Home look's own outline. */
+export type FrameVariant = ShellHint | "teacher-look";
+
 /** The key index.html reads too — keep them the same. */
 export const SHELL_HINT_KEY = "niete:shell";
 
@@ -37,4 +40,18 @@ export function clearShellHint(): void {
   } catch {
     /* nothing to clear */
   }
+}
+
+const TEACHER_HOME = /^\/portal\/teacher\/?$/;
+
+/**
+ * bd-1q4z4o — the placeholder frame for this page. The teacher Home (WhatsApp's "open the app" link lands there, often
+ * with no memory at all) gets the Home look's own outline (the navy band and three tiles per row), unless this device
+ * last showed the classic portal; any other page, the remembered frame. index.html's static shell makes the same choice.
+ * Only a picture: no decision reads it.
+ */
+export function frameFor(pathname: string): FrameVariant {
+  const hint = readShellHint();
+  if (TEACHER_HOME.test(pathname) && hint !== "classic") return "teacher-look";
+  return hint ?? "classic";
 }

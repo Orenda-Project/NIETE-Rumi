@@ -28,7 +28,7 @@ import { RecordingSessionProvider } from "./portal/lib/recordingSession";
 // bd-fxk3t8 — the signed-in user, read once per visit above every route.
 import { AuthProvider } from "./portal/hooks/AuthProvider";
 import { FrameSkeleton, LoginSkeleton } from "./portal/components/Skeleton";
-import { readShellHint } from "./portal/lib/shellHint";
+import { frameFor, readShellHint } from "./portal/lib/shellHint";
 import { lazyPage as page, prefetchPages } from "./lib/lazyPage";
 import { warmFirstScreen } from "./lib/firstScreen";
 import { primeRead, primeWhenCoachipOn } from "./lib/bootReads";
@@ -172,7 +172,7 @@ function RouteFallback() {
   if (/^\/portal\/(setup|reset-password|delete-account|privacy|analytics\/login)/.test(pathname) || pathname === "/how-it-works") {
     return <LoginSkeleton />;
   }
-  return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
+  return <FrameSkeleton variant={frameFor(pathname)} />;
 }
 
 const queryClient = new QueryClient();

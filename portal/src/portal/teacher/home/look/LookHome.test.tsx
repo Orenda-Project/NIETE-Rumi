@@ -358,114 +358,59 @@ describe("teacher Home, the new look", () => {
       expect(screen.queryByTestId("home-look-slot")).toBeNull();
     });
 
-    it("an older memory (a bare card height): a skeleton of that height climbs into the band, then the card replaces it", async () => {
+    it("an older memory (a bare card height): the outline holds a block of that height, climbing into the band, then the card replaces it", async () => {
       localStorage.setItem(SLOT, "184");
       const answer = pending();
       renderHome();
       const slot = await screen.findByTestId("home-look-slot");
       expect(slot.getAttribute("aria-hidden")).toBe("true");
       expect(slot.style.minHeight).toBe("184px");
-      for (const c of ["first:-mt-10", "relative", "z-[1]"]) expect(slot.className.split(" ")).toContain(c);
+      for (const c of ["first:-mt-10", "relative", "z-[1]"]) expect(screen.getByTestId("home-look-hold").className.split(" ")).toContain(c);
       expect(screen.getByTestId("home-band").className.split(" ")).toContain("pb-[52px]");
       answer({ data: body({ card: COACH_CARD }) });
       await screen.findByTestId("home-look-card");
       expect(screen.queryByTestId("home-look-slot")).toBeNull();
     });
 
-    it("a warm open (slot memory): the rows draw at first paint under the slot, before /me/home answers, and stay the same rows when it does", async () => {
+    // bd-1q4z4o — before, a warm open drew the rows at first paint under the slot, and a late Quizzes tile then pushed
+    // seven of them along (CLS 0.10 on sandbox, 4 Nov 2026). Now no row is drawn before the answer, cold or warm.
+    it("a warm open (slot memory): the outline holds the block and three rows of tile outlines; no rows until /me/home answers, then the card and the rows in one commit", async () => {
       localStorage.setItem(`teacher-home-look:v1:${TEACHER.phoneNumber}`, "1");
       localStorage.setItem(SLOT, JSON.stringify({ card: 213, total: 300 }));
       const answer = pending();
       renderHome();
-      const slot = await screen.findByTestId("home-look-slot");
-      const tiles = screen.getByTestId("feature-tiles");
-      expect(follows(slot, tiles)).toBe(true);
-      expect(rows()).toEqual(FIXED);
+      const hold = await screen.findByTestId("home-look-hold");
+      expect(within(hold).getByTestId("home-look-slot")).toBeTruthy();
+      expect(within(hold).getAllByTestId("home-look-hold-tile")).toHaveLength(9);
+      expect(screen.queryByTestId("feature-tiles")).toBeNull();
       answer({ data: body({ card: COACH_CARD }) });
       const card = await screen.findByTestId("home-look-card");
-      expect(screen.queryByTestId("home-look-slot")).toBeNull();
-      expect(screen.getByTestId("feature-tiles")).toBe(tiles);
-      expect(follows(card, tiles)).toBe(true);
-      expect(screen.queryByTestId("home-look-spacer")).toBeNull();
-    });
-
-    // The rows' top (relative to the page) as the browser would lay it out: `base`, plus a drawn spacer's height.
-    const rowsAt = (base: { v: number }) => vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
-      const sp = document.querySelector<HTMLElement>('[data-testid="home-look-spacer"]');
-      const top = this.dataset.testid === "feature-tiles" ? base.v + (sp ? parseFloat(sp.style.height) : 0) : 0;
-      return { top, bottom: top, left: 0, right: 0, width: 0, height: 0, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
-    });
-
-    it("rows painted under a slot never move UP: a smaller answer (no card) fills the gap with a spacer, and the memory is rewritten", async () => {
-      localStorage.setItem(`teacher-home-look:v1:${TEACHER.phoneNumber}`, "1");
-      localStorage.setItem(SLOT, JSON.stringify({ card: 213, total: 300 }));
-      const base = { v: 340 };
-      const r = rowsAt(base);
-      const answer = pending();
-      renderHome();
-      await screen.findByTestId("home-look-slot");
       const tiles = screen.getByTestId("feature-tiles");
-      base.v = 96;
+      expect(rows()).toEqual(FIXED);
+      expect(follows(card, tiles)).toBe(true);
+      expect(screen.queryByTestId("home-look-hold")).toBeNull();
+    });
+
+    it("a smaller answer than remembered (no card today): nothing was drawn under the outline, so nothing moves up; the memory is rewritten from the real block", async () => {
+      localStorage.setItem(`teacher-home-look:v1:${TEACHER.phoneNumber}`, "1");
+      localStorage.setItem(SLOT, JSON.stringify({ card: 213, total: 300 }));
+      const answer = pending();
+      renderHome();
+      await screen.findByTestId("home-look-hold");
       answer({ data: body() });
-      await waitFor(() => expect(screen.queryByTestId("home-look-slot")).toBeNull());
-      const spacer = await screen.findByTestId("home-look-spacer");
-      expect(spacer.style.height).toBe("244px");
-      expect(spacer.getAttribute("aria-hidden")).toBe("true");
-      expect(follows(spacer, tiles)).toBe(true);
-      expect(follows(screen.getByTestId("home-band"), spacer)).toBe(true);
-      expect(screen.getByTestId("feature-tiles")).toBe(tiles);
-      expect(tiles.getBoundingClientRect().top).toBe(340);
-      await waitFor(() => expect(localStorage.getItem(SLOT)).toBeNull());
-      r.mockRestore();
-    });
-
-    it("the memory written on a spacer load is the real block, without the spacer", async () => {
-      localStorage.setItem(`teacher-home-look:v1:${TEACHER.phoneNumber}`, "1");
-      localStorage.setItem(SLOT, JSON.stringify({ card: 213, total: 300 }));
-      const base = { v: 340 };
-      const r = rowsAt(base);
-      const answer = pending();
-      renderHome();
-      await screen.findByTestId("home-look-slot");
-      base.v = 150;
-      answer({ data: body({ card: COACH_CARD }) });
-      expect((await screen.findByTestId("home-look-spacer")).style.height).toBe("190px");
-      await waitFor(() => expect(JSON.parse(localStorage.getItem(SLOT) ?? "null")).toEqual({ card: 0, total: 140 }));
-      r.mockRestore();
-    });
-
-    it("a taller answer moves the rows down, as today's card does: no spacer", async () => {
-      localStorage.setItem(`teacher-home-look:v1:${TEACHER.phoneNumber}`, "1");
-      localStorage.setItem(SLOT, JSON.stringify({ card: 213, total: 300 }));
-      const base = { v: 340 };
-      const r = rowsAt(base);
-      const answer = pending();
-      renderHome();
-      await screen.findByTestId("home-look-slot");
-      base.v = 400;
-      answer({ data: body({ card: COACH_CARD, scores: { coach: null, observation: OBS } }) });
-      await screen.findByTestId("home-look-card");
-      expect(screen.queryByTestId("home-look-spacer")).toBeNull();
-      r.mockRestore();
-    });
-
-    it("no slot memory: never a spacer (the cold hold draws the rows with the answer)", async () => {
-      const r = rowsAt({ v: 96 });
-      serve({ home: body() });
-      renderHome();
-      await screen.findByTestId("home-band");
-      await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/home"));
       await screen.findByTestId("feature-tiles");
+      expect(screen.queryByTestId("home-look-hold")).toBeNull();
       expect(screen.queryByTestId("home-look-spacer")).toBeNull();
-      r.mockRestore();
+      await waitFor(() => expect(localStorage.getItem(SLOT)).toBeNull());
     });
 
-    it("no memory: no skeleton", async () => {
+    it("no memory: the outline has no remembered block, only the tile outlines", async () => {
       pending();
       renderHome();
       await screen.findByTestId("home-band");
       await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/home"));
       expect(screen.queryByTestId("home-look-slot")).toBeNull();
+      expect(screen.getAllByTestId("home-look-hold-tile")).toHaveLength(9);
     });
 
     // jsdom lays nothing out: each block's top is given, so the remembered height is the rows' offset under the climber.

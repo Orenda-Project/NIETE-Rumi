@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import TeacherPage from '../../TeacherPage';
 import { TEACHER_FRAME } from '../../copy';
@@ -21,6 +21,8 @@ import type { AnyFeature } from '../../icons';
 import { LookCard } from './LookCard';
 import { LookScores } from './LookScores';
 import { FeatureTiles } from './FeatureTiles';
+import { SkeletonLookTile } from '../../../components/Skeleton';
+import './reveal.css';
 
 /**
  * The first thing under the band (the card, the strip, or the tiles on a plain day) climbs into it: 28 px of overlap plus
@@ -30,15 +32,19 @@ import { FeatureTiles } from './FeatureTiles';
 const CLIMB = 'relative z-[1] first:-mt-10';
 
 /**
- * The slot while /me/home loads: last time's block above the rows for this teacher (`teacher-home-slot:v1:<key>` =
- * `{ card, total }`: the card's height, and how far the rows sat under the climber: card and strip), so a warm open
- * holds the whole block and the rows never move under a finger. Measured after each answer,
- * removed on a day with no climber; no memory, no slot. A slot that is never answered (a failed read) goes after SLOT_MAX_MS.
- */
-export const SLOT_MAX_MS = 4000;
-/**
- * A cold open (no slot memory) draws nothing tappable before /me/home answers: the card, strip and rows arrive in one commit,
- * so none of them moves under a finger. After ROWS_WAIT_MS unanswered the rows draw anyway (a late card pushes once).
+ * bd-1q4z4o — the Home does not move after it first paints (operator, 4 Nov 2026: "show the Assalamu Alaikum text at the
+ * top first, and then let the page load for a bit until we have all the buttons, and then we can show the buttons as
+ * well. And then they will do a nice blinky animation"). Until /me/home answers, the band is drawn and under it a calm
+ * outline (HomeHold: nothing tappable); then the card, the strip and ALL the tiles (Quizzes included) arrive in one
+ * commit and fade in together, and the tiles' arrival play runs once, on that final set. index.html asks for /me/home
+ * with the page itself, so on most opens the answer is already here and the first render is the final Home.
+ *
+ * The outline's height is last time's block above the rows for this teacher (`teacher-home-slot:v1:<key>` =
+ * `{ card, total }`: the card's height, and how far the rows sat under the climber: card and strip), then three rows of
+ * tile outlines (eight or nine tiles are three rows either way). Measured after each answer, removed on a day with no
+ * climber; no memory, no block.
+ *
+ * After ROWS_WAIT_MS unanswered the rows draw anyway (a failed or very late read: a late card then pushes once).
  */
 export const ROWS_WAIT_MS = 1500;
 type Slot = { card: number; total: number };
@@ -67,6 +73,29 @@ function writeSlot(userKey: string | null | undefined, slot: Slot | null): void 
     if (slot) localStorage.setItem(slotKey(userKey), JSON.stringify({ card: px(slot.card), total: px(slot.total) }));
     else localStorage.removeItem(slotKey(userKey));
   } catch { /* no store: no slot next time */ }
+}
+
+/** The blocks under the band arrive together and fade in together (reveal.css; opacity only, nothing under reduced motion). */
+const REVEAL = `${CLIMB} home-reveal`;
+
+/**
+ * bd-1q4z4o — the calm outline under the band while /me/home is on its way: last time's block above the rows (when this
+ * phone remembers one: a white card of its height at the top), then three rows of tile outlines, climbing into the band
+ * like the real first block. Nothing in it is tappable or read out; the page says it is busy.
+ */
+function HomeHold({ slot }: { slot: Slot | null }) {
+  return (
+    <div data-testid="home-look-hold" aria-busy="true" className={`${CLIMB} flex flex-col gap-2.5`}>
+      {slot ? (
+        <div data-testid="home-look-slot" aria-hidden="true" style={{ minHeight: slot.total }}>
+          {slot.card ? <div data-testid="home-look-slot-card" className="rounded-[20px] bg-white" style={{ height: slot.card }} /> : null}
+        </div>
+      ) : null}
+      <div aria-hidden="true" className="[display:grid] grid-cols-3 gap-2.5">
+        {Array.from({ length: 9 }, (_, i) => <SkeletonLookTile key={i} testId="home-look-hold-tile" />)}
+      </div>
+    </div>
+  );
 }
 
 export type LookTile = { key: HomeTileKey; art: AnyFeature };
@@ -106,7 +135,6 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
   const key = user?.phoneNumber;
   const onDrawn = useCallback((shown: boolean) => { setHiddenId(shown ? null : cardId); }, [cardId]);
   const cardDay = !!drawn && hiddenId !== cardId;
-  const [spacer, setSpacer] = useState(0);
   // Once answered: remember the rows' offset under the first climber (again when the Urdu font lands); with no climber, forget it.
   useLayoutEffect(() => {
     if (!data) return undefined;
@@ -114,7 +142,7 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
       const page = document.querySelector('[data-testid="teacher-home"]');
       const climber = CLIMBERS.map((id) => page?.querySelector<HTMLElement>(`[data-testid="${id}"]`)).find(Boolean);
       const rows = page?.querySelector<HTMLElement>('[data-testid="feature-tiles"]');
-      const total = climber && rows ? rows.getBoundingClientRect().top - climber.getBoundingClientRect().top - BLOCK_GAP - spacer : 0;
+      const total = climber && rows ? rows.getBoundingClientRect().top - climber.getBoundingClientRect().top - BLOCK_GAP : 0;
       const card = page?.querySelector<HTMLElement>('[data-testid="home-look-card"]')?.offsetHeight ?? 0;
       writeSlot(key, total > 0 ? { card, total } : null);
     };
@@ -122,38 +150,16 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
     let live = true;
     document.fonts?.ready.then(() => { if (live) measure(); }).catch(() => {});
     return () => { live = false; };
-  }, [data, cardDay, chips.length, key, spacer]);
+  }, [data, cardDay, chips.length, key]);
   const remembered = useMemo(() => readSlot(key), [key]);
-  const [slotGone, setSlotGone] = useState(false);
-  const slot = !data && !slotGone ? remembered : null;
-  useEffect(() => {
-    if (!slot) return undefined;
-    const t = setTimeout(() => setSlotGone(true), SLOT_MAX_MS);
-    return () => clearTimeout(t);
-  }, [slot]);
   const [waited, setWaited] = useState(false);
   useEffect(() => {
     if (data) return undefined;
     const t = setTimeout(() => setWaited(true), ROWS_WAIT_MS);
     return () => clearTimeout(t);
   }, [data]);
-  // A warm open's slot already holds the whole block above the rows, so they draw at first paint and never move.
-  const holding = !data && !waited && !slot;
-  // Rows painted under a slot never move UP when the answer draws a smaller block (the lesson card in its cool-down, a
-  // card day followed by a no-card day): their top under the slot is kept, and the gap is filled for this load only. A
-  // taller block still pushes them down. The memory is rewritten from the real block, so the next open has no gap.
-  const underSlot = useRef<number | null>(null);
-  useLayoutEffect(() => {
-    const page = document.querySelector('[data-testid="teacher-home"]');
-    const rows = page?.querySelector<HTMLElement>('[data-testid="feature-tiles"]');
-    if (!page || !rows) return;
-    const top = rows.getBoundingClientRect().top - page.getBoundingClientRect().top;
-    if (slot) { underSlot.current = top; return; }
-    if (!data) { underSlot.current = null; return; } // the slot went unanswered: nothing to keep
-    if (underSlot.current == null) return;
-    const d = Math.max(0, Math.round(underSlot.current - (top - spacer)));
-    if (d !== spacer) setSpacer(d);
-  }, [slot, data, cardDay, chips.length, spacer]);
+  // Cold or warm, nothing under the band is drawn before the answer (or the cap): the outline holds its place.
+  const holding = !data && !waited;
   const switcher = useLanguageSwitch();
 
   return (
@@ -177,21 +183,15 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
       )}
     >
       {user?.phoneNumber && <ReadyForYou userKey={user.phoneNumber} />}
-      {slot ? (
-        <div data-testid="home-look-slot" aria-hidden="true" className={CLIMB} style={{ minHeight: slot.total }}>
-          {slot.card ? <div data-testid="home-look-slot-card" className="rounded-[20px] bg-white" style={{ height: slot.card }} /> : null}
-        </div>
-      ) : null}
+      {holding ? <HomeHold slot={remembered} /> : null}
       {drawn ? (
-        <LookCard card={drawn} quizHome={data?.quizHome ?? null} userKey={user?.phoneNumber} onGo={onGo} onDrawn={onDrawn} className={CLIMB} />
+        <LookCard card={drawn} quizHome={data?.quizHome ?? null} userKey={user?.phoneNumber} onGo={onGo} onDrawn={onDrawn} className={REVEAL} />
       ) : null}
-      {data && chips.length ? <LookScores scores={data.scores} cardKind={drawn?.kind ?? null} onGo={onGo} className={CLIMB} /> : null}
+      {data && chips.length ? <LookScores scores={data.scores} cardKind={drawn?.kind ?? null} onGo={onGo} className={REVEAL} /> : null}
       {holding ? null : (
         <>
-          {/* The spacer cancels its own block gap, so the rows sit exactly `spacer` px lower. */}
-          {spacer ? <div data-testid="home-look-spacer" aria-hidden="true" style={{ height: spacer, marginTop: -BLOCK_GAP }} /> : null}
           {/* The "Quizzes" tile (portal_teacher_home_quiz_tile): in the grid after Lesson plans, only with a quiz home. */}
-          <FeatureTiles tiles={tiles} order={order} className={CLIMB} quiz={data?.quizTile && data.quizHome ? { quizHome: data.quizHome, onGo } : null} />
+          <FeatureTiles tiles={tiles} order={order} className={REVEAL} quiz={data?.quizTile && data.quizHome ? { quizHome: data.quizHome, onGo } : null} />
           {/* The evening reminder (portal_push_remind): last, as in the card build. */}
           {/* bd-pw1ccr.26 — "Make my paper" while her topic-end nudge waits (topic_nudge_portal_card_enabled). */}
           <TopicPaperCard />

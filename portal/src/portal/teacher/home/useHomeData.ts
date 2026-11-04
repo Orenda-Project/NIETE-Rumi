@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { readConfigShared } from '../../lib/useNewUi';
+import { peekConfig, readConfigShared } from '../../lib/useNewUi';
 import { getPortalOrigin, isNativeApp } from '@/lib/runtime';
-import { fetchHome, tapHome, type HomeData, type HomeTileKey, type TapKind } from './api';
+import { fetchHome, settledHome, tapHome, type HomeData, type HomeTileKey, type TapKind } from './api';
 
 /**
  * The Home card's data and switches (the build contract, §3 "Loading").
@@ -45,8 +45,23 @@ function rememberLook(userKey: string, on: boolean): void {
   } catch { /* no store: the next open waits for /config */ }
 }
 
-/** A remembered look starts with the card on too: the server only ever answers the look with the card. */
-const startFor = (userKey?: string | null): HomeSwitches => (recallLook(userKey) ? { card: true, order: false, look: true } : OFF);
+/** The switches a /config answer gives (the order and the look are read only when the card's switch is on). */
+function switchesFrom(cfg: { features?: unknown } | null | undefined): HomeSwitches {
+  const f = (cfg?.features ?? {}) as { teacherHomeCard?: unknown; teacherHomeOrder?: unknown; teacherHomeLook?: unknown };
+  const card = f.teacherHomeCard === true;
+  return { card, order: card && f.teacherHomeOrder === true, look: card && f.teacherHomeLook === true };
+}
+
+/**
+ * Where the switches start. bd-1q4z4o: first the /config answer this session already has (the gate read it before Home
+ * mounted), so the first render is the real Home; then a look remembered for this user (it starts with the card on:
+ * the server only ever answers the look with the card); else all off.
+ */
+function startFor(userKey?: string | null): HomeSwitches {
+  const cfg = peekConfig();
+  if (cfg) return switchesFrom(cfg);
+  return recallLook(userKey) ? { card: true, order: false, look: true } : OFF;
+}
 
 const same = (a: HomeSwitches, b: HomeSwitches) => a.card === b.card && a.order === b.order && a.look === b.look;
 
@@ -74,14 +89,9 @@ function useSwitches(userKey: string | null | undefined, enabled: boolean): Home
     if (!enabled) return undefined;
     let live = true;
     // The user can arrive after the first render: take their remembered look if /config has not answered yet.
-    if (!answered.current) { const s = startFor(userKey); if (s.look) setSw(s); }
+    if (!answered.current) { const s = startFor(userKey); if (s.look) setSw((prev) => (same(prev, s) ? prev : s)); }
     readConfigShared()
-      .then((cfg) => {
-        const f = (cfg?.features ?? {}) as { teacherHomeCard?: unknown; teacherHomeOrder?: unknown; teacherHomeLook?: unknown };
-        const card = f.teacherHomeCard === true;
-        // The order and the look are read only when the card's switch is on (the build contract).
-        return { card, order: card && f.teacherHomeOrder === true, look: card && f.teacherHomeLook === true };
-      })
+      .then((cfg) => switchesFrom(cfg))
       .catch(() => OFF)
       .then((v) => {
         if (!live) return;
@@ -129,7 +139,8 @@ export type HomeState = {
  * @param userKey whose remembered order to use (her phone number, memory only)
  */
 export function useHomeData(on: boolean, orderOn: boolean, userKey?: string | null): HomeState {
-  const [data, setData] = useState<HomeData | null>(null);
+  // bd-1q4z4o — index.html's boot read of /me/home, when it has already answered: the first render is the final Home.
+  const [data, setData] = useState<HomeData | null>(() => (on ? settledHome() : null));
   const [order, setOrder] = useState<HomeTileKey[] | null>(() => (orderOn && userKey ? recall(userKey) : null));
   const painted = useRef(Date.now());
   const touched = useRef(false);
@@ -161,7 +172,8 @@ export function useHomeData(on: boolean, orderOn: boolean, userKey?: string | nu
     let live = true;
     (read.current?.userKey === userKey && userKey ? read.current.answer : fetchHome()).then((d) => {
       if (!live || !d) return;
-      setData(d);
+      // The same answer the first render already drew (the boot read) is kept as it is: nothing re-renders for it.
+      setData((prev) => (prev && JSON.stringify(prev) === JSON.stringify(d) ? prev : d));
       if (!orderOn || !d.orderOn) return;
       if (userKey) remember(userKey, d.order);
       const inTime = Date.now() - painted.current <= REORDER_BUDGET_MS && !touched.current;
