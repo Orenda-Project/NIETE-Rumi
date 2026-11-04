@@ -93,4 +93,51 @@ module.exports = [
       if (!removed) await api(page, ctx, 'DELETE', '/classes/' + encodeURIComponent(classId));
     }
   } },
+
+  // bd-2dn4vu — Add students is a page of rows (roll no shown + name), not a paste box. Same throwaway-class
+  // pattern: the students and the class are taken off again at the end, so nothing accumulates on the demo school.
+  { id: 'TK04', title: 'Teacher app v2: Add students is rows, numbered from 1, and saves each name as typed', run: async (page, ctx) => {
+    await asRole(page, ctx, 'teacher', 'teacherV2');
+    const before = await mine(page, ctx);
+    expect(before.canAdd, 'the demo teacher cannot add a class (no school or no academic session on this run)');
+    const combo = freshCombo(before);
+    expect(combo, 'no grade·section·shift left that the demo teacher is not already on');
+    const added = await api(page, ctx, 'POST', '/classes', { ...combo, subjectCodes: [], isClassTeacher: false });
+    expect(added.status === 201 && added.json.success, 'adding the throwaway class failed: ' + added.status);
+    const classId = added.json.class.classId;
+    const tag = String(Date.now()).slice(-6);
+    const names = ['Ayesha ' + tag, 'Khan, Bilal ' + tag, 'Hira ' + tag];
+    try {
+      await visit(page, ctx, classPath(classId), {});
+      const w = watch(page);
+      await page.getByRole('link', { name: /^(Add students|طلبہ شامل کریں)$/ }).click();
+      await page.waitForURL((u) => new URL(u).pathname === classPath(classId) + '/add-students', { timeout: 15000 });
+
+      // An empty class: two rows, roll 1 and 2, and no paste box.
+      const row = (n) => page.getByLabel(new RegExp('^(Name, roll no|نام، رول نمبر) ' + n + '$'));
+      await row(1).waitFor({ state: 'visible', timeout: 15000 });
+      expect(await row(2).isVisible(), 'the page does not open with two rows');
+      expect(!(await row(3).count()), 'more than two rows on a fresh page');
+      await row(1).fill(names[0]);
+      await row(2).fill(names[1]);
+      await page.getByRole('button', { name: /^(Add student|طالب علم شامل کریں)$/ }).click();
+      await row(3).fill(names[2]);
+      await page.getByRole('button', { name: /^(Save 3 students|3 طلبہ محفوظ کریں)$/ }).click();
+      await page.getByText(/^(3 students added|3 طلبہ شامل)$/).waitFor({ state: 'visible', timeout: 15000 });
+
+      const r = await api(page, ctx, 'GET', '/classes/' + encodeURIComponent(classId) + '/students');
+      const got = (r.json && r.json.students || []).map((s) => [s.rollNumber, s.studentName]).sort((a, b) => a[0] - b[0]);
+      expect(JSON.stringify(got) === JSON.stringify(names.map((n, i) => [i + 1, n])),
+        'saved roster is not the three names as typed with rolls 1-3: ' + JSON.stringify(got));
+      expect(!w.errors.length, 'uncaught page error — ' + w.errors[0]);
+      expect(!w.fivexx.length, 'API returned ' + [...new Set(w.fivexx)].join(', '));
+      return { classId, saved: got.length };
+    } finally {
+      const r = await api(page, ctx, 'GET', '/classes/' + encodeURIComponent(classId) + '/students');
+      for (const s of (r.json && r.json.students) || []) {
+        await api(page, ctx, 'DELETE', '/classes/' + encodeURIComponent(classId) + '/students/' + encodeURIComponent(s.studentId));
+      }
+      await api(page, ctx, 'DELETE', '/classes/' + encodeURIComponent(classId));
+    }
+  } },
 ];

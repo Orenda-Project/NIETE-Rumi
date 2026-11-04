@@ -1043,6 +1043,42 @@ describe('adding a whole class at once', () => {
     expect(res).toMatchObject({ error: 'not_assigned' });
     expect(mockDb._tables.students).toHaveLength(0);
   });
+
+  // The portal's add-students screen sends one name per row, not a paste. A row is
+  // already one child, so nothing in it is parsed: a comma stays in the name rather
+  // than becoming a father's name, and a leading number is part of what she typed.
+  it('takes a list of names exactly as typed, one child per row', async () => {
+    const cls = await aClass();
+    const res = await svc.addStudents({
+      classId: cls.id, teacherUserId: TEACHER,
+      names: ['Ayesha Bibi', '  Khan, Bilal  ', '7up Ali'],
+    });
+
+    expect(res.error).toBeUndefined();
+    expect(res.added).toBe(3);
+    const kids = mockDb._tables.students;
+    expect(kids.map((k) => k.student_name).sort()).toEqual(['7up Ali', 'Ayesha Bibi', 'Khan, Bilal']);
+    expect(kids.every((k) => k.father_name === null)).toBe(true);
+  });
+
+  it('numbers a list of names after the roster already there, skipping blank rows', async () => {
+    const cls = await aClass();
+    await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, rawText: 'Ayesha Bibi' });
+    const res = await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, names: ['Bilal Ahmed', '', '   ', 'ayesha bibi', 'Fatima Noor'] });
+
+    expect(res.added).toBe(2);
+    expect(res.duplicates).toBe(1);
+    const roll = (await svc.listStudents({ classId: cls.id, teacherUserId: TEACHER }))
+      .map((s) => [s.studentName, s.rollNumber]);
+    expect(roll).toEqual([['Ayesha Bibi', 1], ['Bilal Ahmed', 2], ['Fatima Noor', 3]]);
+  });
+
+  it('rejects a list with no names in it', async () => {
+    const cls = await aClass();
+    const res = await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, names: ['', '  '] });
+    expect(res).toMatchObject({ error: 'no_names' });
+    expect(mockDb._tables.students).toHaveLength(0);
+  });
 });
 
 describe('the shared roster parser handles the markers teachers actually paste', () => {
