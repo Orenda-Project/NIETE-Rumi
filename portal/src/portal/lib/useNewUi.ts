@@ -62,6 +62,16 @@ export function readConfigShared(): Promise<PortalConfig | null> {
   return inflight;
 }
 
+/**
+ * bd-1q4z4o — the last /config answer for this session, now, synchronously (whatever its age), or null when none was
+ * read yet. A starting point only, for a hook's FIRST render: the teacher Home mounts after its gate has read /config,
+ * so it can draw its real switches at once instead of one frame of "all off" (today's two-column Home flashed before
+ * the look). The hook still reads /config as before, and that answer wins. Forgotten with the rest on sign-in/out.
+ */
+export function peekConfig(): PortalConfig | null {
+  return kept?.config ?? null;
+}
+
 /** Signing in or out: the next read asks the server (the flags are per user). */
 export function forgetConfig(): void {
   kept = null;

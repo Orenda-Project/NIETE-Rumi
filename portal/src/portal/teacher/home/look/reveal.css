@@ -1,0 +1,9 @@
+/*
+ * bd-1q4z4o — the teacher Home's blocks under the band (the card, the Coach strip, the tiles) arrive together, in one
+ * commit, and fade in together: opacity only, so nothing moves; nothing at all under reduced motion. The tiles' own
+ * arrival play (icons/featureMotion.css, .2s after mount) then runs on the settled layout.
+ */
+@keyframes home-reveal { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) {
+  .home-reveal { animation: home-reveal .24s ease-out both; }
+}
