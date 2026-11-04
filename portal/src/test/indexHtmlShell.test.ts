@@ -67,3 +67,45 @@ describe("index.html — fonts", () => {
     expect(html).toMatch(new RegExp(`<noscript><link rel="stylesheet" href="${FONTS.replace(/[.]/g, "\\.")}`));
   });
 });
+
+/**
+ * bd-1q4z4o — WhatsApp's "open the app" link lands on /portal/teacher, the teacher Home. Its outline is the Home look's
+ * own shape (the navy band, then three tiles per row climbing into it, the look's shorter tab bar), so the first paint
+ * does not jump from a grey two-column outline to the navy Home.
+ */
+describe("index.html — the teacher Home's outline (bd-1q4z4o)", () => {
+  const pick = doc.querySelectorAll("head script:not([src])");
+  const chooser = [...pick].map((s) => s.textContent ?? "").find((t) => t.includes("data-shell")) ?? "";
+  const shellAt = (pathname: string, hint: string | null) => {
+    const attrs: Record<string, string> = {};
+    const store = { getItem: () => hint };
+    new Function("window", "location", "document", chooser)(
+      { localStorage: store }, { pathname },
+      { documentElement: { setAttribute: (k: string, v: string) => { attrs[k] = v; } } },
+    );
+    return attrs["data-shell"] ?? null;
+  };
+
+  it("/portal/teacher: the look's outline, on a device with no memory and on one that knows the teacher app", () => {
+    expect(shellAt("/portal/teacher", null)).toBe("teacher-look");
+    expect(shellAt("/portal/teacher/", "teacher")).toBe("teacher-look");
+    expect(shellAt("/portal/teacher", "teacher-look")).toBe("teacher-look");
+  });
+
+  it("a device that last showed the classic portal keeps its outline; other pages are unchanged", () => {
+    expect(shellAt("/portal/teacher", "classic")).toBe("classic");
+    expect(shellAt("/portal/teacher/lessons", "teacher")).toBe("teacher");
+    expect(shellAt("/portal/dashboard", null)).toBeNull();
+    expect(shellAt("/portal/login", "teacher")).toBe("login");
+  });
+
+  it("the outline is there: a band, then nine tiles three per row, in inline CSS only", () => {
+    const look = doc.querySelector("[data-app-shell] .as-look")!;
+    expect(look).not.toBeNull();
+    expect(look.querySelector(".as-lkband")).not.toBeNull();
+    expect(look.querySelectorAll(".as-lktile")).toHaveLength(9);
+    const css = doc.getElementById("app-shell-css")!.textContent!.replace(/\s+/g, " ");
+    expect(css).toMatch(/\.as-lkgrid \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+    expect(css).toMatch(/\[data-shell="teacher-look"\] \.as-look \{ display: block; \}/);
+  });
+});

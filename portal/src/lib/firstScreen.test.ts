@@ -85,3 +85,21 @@ describe("warmFirstScreen (bd-sex15q.34)", () => {
     await Promise.resolve();
   });
 });
+
+describe("warmFirstScreen: the teacher Home opened from WhatsApp (bd-1q4z4o)", () => {
+  it("/portal/teacher (where the /go link lands): the Home chunk and the flags start at boot, whatever this device remembers", () => {
+    for (const [path, hint] of [["/portal/teacher", null], ["/portal/teacher/", "teacher"], ["/portal/teacher", "classic"]] as const) {
+      const l = loaders();
+      warmFirstScreen(path, hint, l);
+      expect(l.teacherHome).toHaveBeenCalledTimes(1);
+      expect(l.config).toHaveBeenCalledTimes(1);
+      expect(l.dashboard).not.toHaveBeenCalled();
+    }
+  });
+
+  it("a teacher feature page is not the Home: nothing extra", () => {
+    const l = loaders();
+    warmFirstScreen("/portal/teacher/lessons", null, l);
+    expect(l.teacherHome).not.toHaveBeenCalled();
+  });
+});
