@@ -95,12 +95,12 @@ describe("the teacher app is drawn once, in her language (bd-43f1sk)", () => {
     expect(firstDrawn).toEqual(["ur"]);
   });
 
-  it("English stored on an English page: drawn as soon as the read answers, no font wait", async () => {
+  it("English stored on an English page: drawn as soon as the read (and the Latin face) answer; the Urdu face is not loaded", async () => {
     get.mockResolvedValue({ language: "en", locked: true });
     visit();
     expect(await screen.findByText("v2 page")).toBeTruthy();
     expect(firstDrawn).toEqual(["en"]);
-    expect(fontLoad).not.toHaveBeenCalled();
+    expect(fontLoad.mock.calls.some(([f]) => f.includes("NIETE Nastaliq"))).toBe(false);
   });
 
   it(`an unanswered read never keeps her waiting: the page draws after ${LANGUAGE_WAIT_MS} ms, in the language it has`, async () => {

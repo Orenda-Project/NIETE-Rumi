@@ -103,6 +103,9 @@ export const LANGUAGE_WAIT_MS = 1500;
 /** The Urdu face (index.css). Loading it before the page draws keeps a late font swap from growing the text. */
 const URDU_FONT = '16px "NIETE Nastaliq"';
 const URDU_SAMPLE = 'اردو';
+/** The Latin face (index.html's Google Fonts link): names and schools in either language. A late swap re-wraps them. */
+const LATIN_FONT = '500 16px "Plus Jakarta Sans"';
+const LATIN_SAMPLE = 'Aa';
 
 /** This page load's one read of her language, shared by every gate that asks (a page change re-mounts the gate). */
 let following: Promise<void> | null = null;
@@ -120,9 +123,12 @@ function follow(): Promise<void> {
         return undefined;
       })
       .then(() => {
-        if (snapshot() !== 'ur') return undefined;
+        // The faces this page draws with, loaded before it draws (a late swap re-wraps the band's lines and moves it).
         const fonts = typeof document !== 'undefined' ? (document as Document & { fonts?: { load?: (f: string, t?: string) => Promise<unknown> } }).fonts : undefined;
-        return fonts?.load ? fonts.load(URDU_FONT, URDU_SAMPLE).then(() => undefined) : undefined;
+        if (!fonts?.load) return undefined;
+        const faces = [fonts.load(LATIN_FONT, LATIN_SAMPLE)];
+        if (snapshot() === 'ur') faces.push(fonts.load(URDU_FONT, URDU_SAMPLE));
+        return Promise.all(faces).then(() => undefined);
       })
       .catch(() => { /* the page keeps the language it has */ })
       .then(() => { followedDone = true; });
