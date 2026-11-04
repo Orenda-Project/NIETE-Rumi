@@ -1,21 +1,31 @@
-# `main` may only ever receive `staging`.
+# `main` may only receive commits that `staging` already has.
 #
-# GitHub branch protection cannot express this. It can require a pull request,
-# require reviews, and require status checks, but it has no rule for "only accept
-# a PR whose head is branch X". So the constraint has to be a check, and that
-# check has to be required in protection alongside the CI gate.
+# The ladder is sandbox -> staging -> main, one rung at a time. A PR can reach `main`
+# by two lanes, and both are legitimate (agreed 2026-11-04, bd-mft11s):
 #
-# Why it matters here: `staging` is cut from `main` and only ever receives work
-# that was deliberately promoted from `sandbox`. That is what makes
-# `staging -> main` a fast-forward. A PR into `main` from anywhere else
-# reintroduces the divergence the three-branch model exists to remove — which is
-# how `develop` ended up 631 commits from `main`.
+#   lane A, the whole branch  a PR whose head is `staging`.
+#   lane B, one feature       `git cherry-pick -x` of the staging merge (add `-m 1`
+#                             for a merge commit) onto a branch off `main`, so one
+#                             feature ships on its own go while other work waits on
+#                             staging for its own.
 #
-# Emergencies: this deliberately has no hotfix exception. Protection is applied
-# with enforce_admins=false, so a repo admin can still merge past a failing check
-# when something is genuinely on fire. That keeps the escape hatch visible and
-# accountable rather than encoded here as a branch-name pattern people drift into
-# using routinely.
+# Neither lane may carry content staging does not have. Between 28 Oct and 3 Nov 2026,
+# with nothing enforcing that, about 20 features reached production before staging.
+#
+# This replaces the head-name check `main only accepts staging` (2026-09-03). That check
+# failed every lane-B PR by design, so it was red on most PRs into `main` and had stopped
+# meaning anything. The rule now lives in scripts/ci/needs-upstream.sh (tested in
+# tests/setup/needs-upstream.test.js): the three tests `staging needs sandbox` runs in
+# staging-source-branch.yml, one rung up, plus one more. A commit whose files end
+# byte-identical to staging's copies carries nothing staging lacks, so it passes and is
+# listed by name. Merge commits are skipped. promotion-invariant.yml checks the result on
+# `main` after every push.
+#
+# ADVISORY UNTIL REQUIRED. This job blocks nothing on its own. It becomes the rule when
+# "main needs staging" is added to main's required checks, which happens once staging has
+# caught up with main (bd-mft11s step 4). An outage fix that must skip staging is merged
+# past this check by a named release owner and back-filled to staging and sandbox the same
+# day. Do not make the check quieter.
 name: PR source branch
 
 on:
@@ -23,22 +33,23 @@ on:
     branches: [main]
 
 jobs:
-  source-branch:
-    name: main only accepts staging
+  main-needs-staging:
+    name: main needs staging
     runs-on: ubuntu-latest
     steps:
-      - name: Check the head branch
-        # Passed through env rather than interpolated into the script: a branch
-        # name is attacker-controllable text and `${{ }}` inside `run` is a
-        # script-injection sink.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the whole graph; a shallow clone cannot answer this
+
+      - name: Every new commit is already on staging
+        # SHAs come through env, never `${{ }}` inside `run`: PR data is
+        # attacker-controllable text and `${{ }}` in a script is an injection sink.
+        # GitHub runs this as `bash -eo pipefail`; the script is tested under the same.
+        shell: bash
         env:
-          HEAD_REF: ${{ github.head_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          if [ "$HEAD_REF" != "staging" ]; then
-            echo "::error::PRs into main must come from 'staging'. This one is from '$HEAD_REF'."
-            echo ""
-            echo "The promotion path is:  sandbox -> staging -> main"
-            echo "Open this against 'staging' instead, then promote staging to main."
-            exit 1
-          fi
-          echo "Head branch is 'staging'. OK."
+          set -euo pipefail
+          git fetch -q origin staging
+          bash scripts/ci/needs-upstream.sh origin/staging "$BASE_SHA" "$HEAD_SHA"
