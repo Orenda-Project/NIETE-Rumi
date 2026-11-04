@@ -29,8 +29,18 @@
           var boot = { config: read("config", "/api/portal/config"), me: read("me", "/api/portal/me"), done: done };
           if (home) {
             boot.home = read("home", "/api/portal/me/home");
-            // bd-43f1sk — her stored language too, so the app draws the Home once, in her language.
+            // bd-43f1sk — her stored language too, so the app draws the Home once, in her language; and for Urdu its
+            // face (src/index.css "NIETE Nastaliq", the same file; a test keeps the two URLs in step) starts downloading
+            // now, not after the app has loaded, so the page does not re-wrap when it lands.
             boot.language = read("language", "/api/portal/me/language");
+            boot.language.then(function (v) {
+              if (!v || v.language !== "ur") return;
+              var f = document.createElement("link");
+              f.setAttribute("rel", "preload"); f.setAttribute("as", "font"); f.setAttribute("type", "font/woff2");
+              f.setAttribute("crossorigin", "anonymous");
+              f.href = "https://fonts.gstatic.com/s/notonastaliqurdu/v23/LhW4MUPbN-oZdNFcBy1-DJYsEoTq5pu3SvoMC9Y.woff2";
+              document.head.appendChild(f);
+            });
           }
           window.__nieteBoot = boot;
         } catch (e) { /* the app reads as before */ }
