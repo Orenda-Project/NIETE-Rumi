@@ -76,6 +76,52 @@ function _redactScores(analysis) {
   return clone;
 }
 
+// ── Plain words, never codes (ur/en) ───────────────────────────────────
+// The model copies the snake_case keys it is shown: notes on sandbox labelled their strengths "clear_objective:" and
+// "story_connection:". The ur/en data block is therefore shown with plain-word keys ("student engagement", "focus
+// area") and plain-word enum values ("not done"), and any key-shaped word still in the notes is made plain before the
+// coach sees it. The Swahili prompt is untouched.
+const CODE_WORD = /\b[a-z]+(?:_[a-z0-9]+)+\b/g;
+const plainWord = (w) => w.replace(/_/g, ' ');
+
+function _plainKeys(value) {
+  if (Array.isArray(value)) return value.map(_plainKeys);
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[plainWord(k)] = _plainKeys(v);
+    return out;
+  }
+  if (typeof value === 'string' && /^[a-z]+(?:_[a-z0-9]+)+$/.test(value)) return plainWord(value);
+  return value;
+}
+
+function _plainText(s) {
+  if (typeof s !== 'string') return s;
+  return s.replace(CODE_WORD, (m, at) => {
+    const w = plainWord(m);
+    return at === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w;
+  });
+}
+
+/**
+ * Key-shaped words ("clear_objective") left in the model's notes, as plain words ("Clear objective"). Only the
+ * rubric-shaped notes (ur/en); any other shape is returned as it came.
+ */
+function plainCodeNames(guide) {
+  if (!guide || !Array.isArray(guide.conversation)) return guide;
+  const w = guide.work_on_first;
+  return {
+    ...guide,
+    intro: _plainText(guide.intro),
+    outro: _plainText(guide.outro),
+    went_well: Array.isArray(guide.went_well) ? guide.went_well.map(_plainText) : guide.went_well,
+    work_on_first: w && typeof w === 'object'
+      ? Object.fromEntries(Object.entries(w).map(([k, v]) => [k, _plainText(v)])) : w,
+    moment: guide.moment && typeof guide.moment === 'object' ? { ...guide.moment, text: _plainText(guide.moment.text) } : guide.moment,
+    conversation: guide.conversation.map(_plainText),
+  };
+}
+
 // ── Prompt ─────────────────────────────────────────────────────────────
 
 function buildGuidePrompt(v2Analysis, options = {}) {
@@ -100,25 +146,25 @@ function buildGuidePrompt(v2Analysis, options = {}) {
     return `You are the NIETE Teaching Assistant, preparing a school officer for their debrief conversation with a teacher they just observed. Build SHORT debrief notes from the observation data below (scores have been deliberately removed — the notes must NEVER contain or imply a number, score or percentage).
 
 After the debrief, the officer's conversation is judged against a coaching rubric. These notes teach that rubric by example, so the officer knows beforehand what a good debrief does. THE SHAPE — four parts:
-  1. "went_well" — ONE or TWO things that went well, never more: each a short label, a colon, then what the teacher actually did, from the data.
-  2. "work_on_first" — exactly ONE thing to improve, framed as a teaching MOVE: "title" (a few words), "seen" (what the officer saw, from the data), "next_step" (one concrete move for next time).
-  3. "moment" — ONE real moment from the lesson to bring up, tied to work_on_first: "text" (what was said or done, quoted from the data where possible) and "time" (a time such as "17:25" ONLY if that exact time is in the data, otherwise null — never invent a time). If the data holds no clear moment, "moment" is null.
+  1. "went_well" — ONE or TWO things that went well, never more: each a short label in plain ${langName} words, a colon, then what the teacher actually did, from the data. A label is never a code, a key or a word_with_underscores: write "Clear aim", never "clear_objective".
+  2. "work_on_first" — exactly ONE thing to improve, framed as a teaching MOVE: "title" (a few words), "seen" (what the officer saw, from the data), "next_step" (one concrete move for next time; it is for the officer to know, not to say). The step must fit the moment: if the moment shows a wrong answer, the step is to correct it kindly (thank the student, give the right answer or a hint, ask again); a partly right answer is built on.
+  3. "moment" — ONE real moment from the lesson to bring up, tied to work_on_first: "text" says what happened at that moment: the question asked, the student's answer and what the teacher did (quoted from the data where possible), not just a name. "time": the time of that moment (such as "17:25") ONLY if that exact time is in the data, otherwise null — never invent a time. If the data holds no clear moment, "moment" is null.
   4. "conversation" — what the officer can say, exactly 6 lines, in this order (the rubric):
      1. specific praise — open with one specific, real thing from this lesson, never a generic "well done".
      2. the real moment — name the moment from part 3 so the teacher knows exactly which one.
      3. ask, then wait — ONE open, reflective question about that moment; the officer then waits in silence for the answer.
-     4. one improvement — only the ONE move from part 2, offered as an invitation; nothing else.
+     4. one improvement — name only the AREA from part 2 (e.g. "what to do when a student's answer is wrong"), never the step itself: the teacher names the step in line 5.
      5. the teacher names the step — an open question so the TEACHER says their own next step; the officer never supplies it.
      6. rehearse aloud — ask the teacher to say or do that step now, exactly as they will in class.
      Each line is only the words the officer says. No stage directions such as "(wait)": the app adds those.
 ${prevBlock}
-Rules on every line: talk less — one or two short sentences, so the teacher does most of the talking; about the teaching moves, never about the teacher as a person; questions open, never yes/no, never leading, never "could you have done better". Warm, specific, anchored ONLY to real moments in the data — if the data doesn't clearly support something, keep it general rather than inventing it. Write ALL text in ${langName}. Keep it SHORT: the whole notes, rendered, must stay under ${guideBudget(language)} characters — tight lines, no filler.
+Rules on every line: talk less — one or two short sentences, so the teacher does most of the talking; about the teaching moves, never about the teacher as a person; questions open, never yes/no, never leading, never "could you have done better". Plain words only: never a code, a key or a word_with_underscores from the data. Warm, specific, anchored ONLY to real moments in the data — if the data doesn't clearly support something, keep it general rather than inventing it. Write ALL text in ${langName}. Keep it SHORT: the whole notes, rendered, must stay under ${guideBudget(language)} characters — tight lines, no filler.
 GENDER (mandatory): the officer AND the teacher may each be a man or a woman (مرد بھی ہو سکتے ہیں اور خاتون بھی) — never assume. Every "conversation" line is spoken TO the teacher, and every other line TO the officer, so all of them must be gender-neutral. ${URDU_ADDRESS_RULE} ${URDU_THIRD_PERSON_RULE}
 
 Return JSON EXACTLY: { "intro": "<one short opening line to the officer>", "went_well": ["<label: what the teacher did>", "<optional second>"], "work_on_first": { "title": "<a few words>", "seen": "<what you saw>", "next_step": "<one move for next time>" }, "moment": { "time": "<the time from the data, or null>", "text": "<the moment>" }, "conversation": ["<1 specific praise>", "<2 the real moment>", "<3 the open question>", "<4 the one improvement>", "<5 the question that lets the teacher name the step>", "<6 the ask to rehearse it aloud>"], "outro": "<one short closing line: no number to hand over>" }
 
 OBSERVATION DATA (scores removed):
-${JSON.stringify(data)}
+${JSON.stringify(_plainKeys(data))}
 ${teacherContext}`;
   }
 
@@ -426,7 +472,7 @@ function buildFallbackGuide(v2Analysis, options = {}) {
         `شکریہ کہ آپ نے مجھے کلاس میں آنے دیا۔ مجھے یہ بہت اچھا لگا: ${praise || strengthEvidence}`,
         `آئیں سبق کے ایک لمحے کو ساتھ دیکھیں: ${focusTitle}۔`,
         lever,
-        `اگر ہم صرف ایک چیز پر کام کریں: ${tryThis}`,
+        `اگر ہم صرف ایک چیز پر کام کریں: ${focusTitle}۔`,
         'اگلی بار کیا مختلف کرنا ہے؟ اپنے الفاظ میں بتائیں۔',
         'یہ قدم ابھی مجھے کہہ کر دکھائیں، بالکل ویسے جیسے کلاس میں کہنا ہے۔',
       ],
@@ -448,7 +494,7 @@ function buildFallbackGuide(v2Analysis, options = {}) {
       `Thank you for having me in your classroom. I really liked this: ${praise || strengthEvidence}`,
       `Let's look together at one moment in the lesson: ${focusTitle}.`,
       lever,
-      `If we work on just one thing: ${tryThis}`,
+      `If we work on just one thing: ${focusTitle}.`,
       'Next time, what will you do differently? Say it in your own words.',
       'Say it to me now, exactly as you will say it in class.',
     ],
@@ -476,6 +522,7 @@ module.exports = {
   GUIDE_SECTIONS,
   CONVERSATION_STEPS,
   groundMomentTime,
+  plainCodeNames,
   GUIDE_CHAR_BUDGET,
   SUBJECT_FLAG_MIN_CONFIDENCE,
   buildGuidePrompt,

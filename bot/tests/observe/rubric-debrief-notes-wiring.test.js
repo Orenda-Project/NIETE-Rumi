@@ -99,3 +99,16 @@ test('an invented moment time is dropped before the coach sees it', async () => 
   expect(sent()).toContain('moved on after one word');           // the moment itself stays
   expect(armedGuide().moment.time).toBeNull();
 });
+
+// bd-rlxkkt.4: the notes on sandbox showed "clear_objective:" labels; the coach must read plain words.
+test('key-shaped labels the model writes reach the coach as plain words', async () => {
+  const notes = modelNotes('12:40');
+  notes.went_well = ['clear_objective: the aim was stated', 'story_connection: the story was linked to daily life'];
+  GPT5MiniService.completeJson.mockResolvedValue({ result: notes });
+  await startDebrief(SID, FROM, FO);
+  const out = sent();
+  expect(out).toContain('Clear objective: the aim was stated');
+  expect(out).toContain('Story connection: the story was linked to daily life');
+  expect(out).not.toMatch(/clear_objective|story_connection/);
+  expect(armedGuide().went_well[0]).toBe('Clear objective: the aim was stated');
+});

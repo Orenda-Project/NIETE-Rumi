@@ -212,7 +212,9 @@ describe('the PNG says what the text says', () => {
       expect(html.match(/data-mark="done"/g)).toHaveLength(5);
       expect(html.match(/data-mark="missed"/g)).toHaveLength(3);
       expect(html).toContain('5/8');
-      expect(html).toContain(esc(S.coach_card_respect_line));
+      // bd-rlxkkt.4: the image draws its tick as a shape (the worker has no font with ✓), so the words come without it.
+      expect(html).toContain(esc(Card.stripPictographs(S.coach_card_respect_line)));
+      expect(html).not.toContain('✓');
       for (const k of ['elicited_if_then', 'righting_reflex_held', 'rehearsed_the_step']) expect(html).toContain(esc(S.coach_rubric_why[k]));
       expect(html).toContain(esc(M.moduleFor('rehearsed_the_step').title[lang]));
     });

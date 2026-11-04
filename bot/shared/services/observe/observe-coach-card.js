@@ -87,24 +87,52 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+/**
+ * The ur/en card draws its symbols as shapes. The card embeds only Lexend and Noto Nastaliq, and the worker's Chromium
+ * has no system font with ★ ☆ ✓ or emoji, so a symbol printed as text came out as an empty box on sandbox. Shapes
+ * need no font. Any symbol or emoji in the words themselves (a label's ✓, the model's 👏) is dropped from the image;
+ * the text card keeps them (a phone has the fonts).
+ */
+const ICON = {
+  star: (on) => `<svg data-star="${on ? 'on' : 'off'}" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.85 5.95 6.55.8-4.8 4.5 1.25 6.5L12 17.15l-5.85 3.2 1.25-6.5-4.8-4.5 6.55-.8z" fill="${on ? '#e0a21b' : '#dfe3ea'}"/></svg>`,
+  tick: (color, size = 14) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12.5l4.5 4.5L19.5 6.5" fill="none" stroke="${color}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  book: '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5zM4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 20.5z" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linejoin="round"/></svg>',
+  lock: '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>',
+};
+
+// Symbols and emoji (arrows, shapes, stars, ticks, dingbats, pictographs, joiners); never Urdu, Arabic or Latin.
+const PICTOGRAPH = /[\u2190-\u2BFF\u{1F000}-\u{1FAFF}\uFE0F\u200D]/gu;
+function stripPictographs(s) {
+  return String(s == null ? '' : s).replace(PICTOGRAPH, '').replace(/[ \t]{2,}/g, ' ').trim();
+}
+
+function starsHtml(m) {
+  return [...Array(m.done).fill(true), ...Array(m.total - m.done).fill(false)].map((on) => ICON.star(on)).join('');
+}
+
 /** The rubric's styles, only on a card that shows it (ur/en): the Swahili card's HTML stays byte-identical. */
 function rubricCss(rtl) {
   return `.mk{background:#f7f8fb;border-radius:14px;padding:4px 20px 14px;margin:20px 0 4px}
 .mkh{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .mkh .sec{margin:16px 0 12px}
-.stars{font-family:'Lexend',sans-serif;font-size:20px;color:#d99a1e;letter-spacing:2px;white-space:nowrap}
+.stars{display:inline-flex;align-items:center;gap:2px;font-family:'Lexend',sans-serif;font-size:20px;color:#d99a1e;white-space:nowrap}
+.stars b{margin-inline-start:10px;font-size:19px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}
 .cell{display:flex;align-items:center;gap:10px;font-size:${rtl ? '14.5px' : '15px'};line-height:${rtl ? '2.2' : '1.6'};color:#2a3040}
 .cell .dot{flex:none;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
 .cell.on .dot{background:#e7f3ec;color:#1d7a46}
 .cell.off .dot{border:2px dashed #c4c9d4}
 .cell.off{color:#6a7284}
-.ok{margin-top:12px;font-size:${rtl ? '14.5px' : '15px'};color:#1d7a46;font-weight:700;line-height:${rtl ? '2.2' : '1.6'}}
+.ok{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:${rtl ? '14.5px' : '15px'};color:#1d7a46;font-weight:700;line-height:${rtl ? '2.2' : '1.6'}}
 .miss{display:flex;gap:14px;margin-bottom:14px;align-items:flex-start}
 .miss .mi{flex:none;width:28px;height:28px;border-radius:50%;background:#fdf1e3;color:#b4690e;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:15px;margin-top:4px}
 .miss .wt{font-size:${rtl ? '16.5px' : '17px'};font-weight:700;color:#7a4a12;line-height:${rtl ? '2.2' : '1.9'}}
+.miss .what{font-size:${rtl ? '15px' : '15.5px'};color:#2a3040;line-height:${rtl ? '2.4' : '2'}}
 .miss .why{font-size:${rtl ? '15px' : '15.5px'};color:#4a4436;line-height:${rtl ? '2.4' : '2'}}
-.mod{margin:-4px 0 16px;font-size:${rtl ? '15px' : '15.5px'};color:#1d4ed8;font-weight:700;line-height:${rtl ? '2.2' : '1.8'}}
+.miss b,.try .fw b{font-weight:700}
+.try .fw{border-top:1px solid #cfe6d6;margin-top:12px;padding-top:10px}
+.mod{display:flex;align-items:center;gap:8px;margin:-4px 0 16px;font-size:${rtl ? '15px' : '15.5px'};color:#1d4ed8;font-weight:700;line-height:${rtl ? '2.2' : '1.8'}}
+.ft .lock{display:inline-flex;align-items:center;gap:6px}
 `;
 }
 
@@ -122,34 +150,54 @@ function buildCoachCardHtml(fb, { lang = 'sw', brand } = {}) {
   const header = valueKey ? (COACH_VALUES[valueKey][lang] || COACH_VALUES[valueKey].en) : S.coach_card_title;
   const eyebrow = valueKey ? S.coach_card_value_eyebrow : S.coach_card_eyebrow;
 
+  // The rubric (ur/en, gated on the marks label, so the Swahili card is untouched): the same marks, Respect line,
+  // misses and module the text card shows (observe-coach-feedback.js), computed from the judge's booleans.
+  const R = require('./observe-coach-rubric');
+  const rubricOn = !!S.coach_card_marks_label;
+  // ur/en: every word on the image goes through E, which drops symbols the embedded fonts cannot draw.
+  const E = rubricOn ? (v) => esc(stripPictographs(v)) : esc;
+
   const wins = (fb.wins || []).map((w) => `
       <div class="win">
-        <div class="tick">✓</div>
+        <div class="tick">${rubricOn ? ICON.tick('#1d7a46', 15) : '✓'}</div>
         <div>
-          <div class="wt">${esc(w.behaviour)}</div>
-          <div class="wq">“${esc(w.evidence)}”</div>
+          <div class="wt">${E(w.behaviour)}</div>
+          <div class="wq">“${E(w.evidence)}”</div>
         </div>
       </div>`).join('');
 
   const t = fb.try || {};
   const A = CARD_ASSETS;
-  // The rubric (ur/en, gated on the marks label, so the Swahili card is untouched): the same marks, Respect line,
-  // misses and module the text card shows (observe-coach-feedback.js), computed from the judge's booleans.
-  const R = require('./observe-coach-rubric');
-  const rubricOn = !!S.coach_card_marks_label;
   const m = rubricOn ? R.rubricMarks(fb.rubric) : null;
   const marksHtml = rubricOn && m.total ? `
-    <div class="mk"><div class="mkh"><span class="sec">${esc(S.coach_card_marks_label)}</span><span class="stars" dir="ltr">${esc(R.stars(m))}&nbsp; ${m.done}/${m.total}</span></div>
-      <div class="grid">${m.marks.map((x) => `<div class="cell ${x.done ? 'on' : 'off'}" data-mark="${x.done ? 'done' : 'missed'}"><span class="dot">${x.done ? '✓' : ''}</span><span>${esc(S.coach_rubric_names[x.key])}</span></div>`).join('')}</div>
-      ${m.respectHeld ? `<div class="ok">${esc(S.coach_card_respect_line)}</div>` : ''}
+    <div class="mk"><div class="mkh"><span class="sec">${E(S.coach_card_marks_label)}</span><span class="stars" dir="ltr">${starsHtml(m)}<b>${m.done}/${m.total}</b></span></div>
+      <div class="grid">${m.marks.map((x) => `<div class="cell ${x.done ? 'on' : 'off'}" data-mark="${x.done ? 'done' : 'missed'}"><span class="dot">${x.done ? ICON.tick('#1d7a46', 14) : ''}</span><span>${E(S.coach_rubric_names[x.key])}</span></div>`).join('')}</div>
+      ${m.respectHeld ? `<div class="ok">${ICON.tick('#1d7a46', 16)}<span>${E(S.coach_card_respect_line)}</span></div>` : ''}
     </div>` : '';
+  // Each miss: what happened in THIS debrief (the judge's own line), then why it matters. A card judged before the
+  // judge wrote those lines shows the coach's own words, labelled, under the focus miss (they used to sit, unlabelled,
+  // in the focus box), and the why line for every miss.
   const missed = rubricOn ? R.missedBehaviours(fb.rubric) : [];
+  const focusKey = rubricOn ? R.nextFocusKey(fb) : null;
+  const whatOf = (k) => {
+    const said = fb.missed && fb.missed[k];
+    if (said) return `<div class="what"><b>${E(S.coach_card_what_happened_label)}</b> ${E(said)}</div>`;
+    if (k === focusKey && t.evidence) return `<div class="what"><b>${E(S.coach_card_you_said_label)}</b> “${E(t.evidence)}”</div>`;
+    return '';
+  };
   const missedHtml = missed.length ? `
-    <div class="sec">${esc(S.coach_card_missed_label)}</div>
-    ${missed.map((k) => `<div class="miss"><div class="mi">!</div><div><div class="wt">${esc(S.coach_rubric_names[k])}</div><div class="why">${esc(S.coach_rubric_why[k])}</div></div></div>`).join('')}` : '';
+    <div class="sec">${E(S.coach_card_missed_label)}</div>
+    ${missed.map((k) => `<div class="miss"><div class="mi">!</div><div><div class="wt">${E(S.coach_rubric_names[k])}</div>${whatOf(k)}<div class="why"><b>${E(S.coach_card_why_label)}</b> ${E(S.coach_rubric_why[k])}</div></div></div>`).join('')}` : '';
   const mod = rubricOn ? R.focusModule(fb) : null;
   const moduleHtml = mod ? `
-    <div class="mod">${esc(R.moduleLine(mod, S, S.coach_card_module_lang))}</div>` : '';
+    <div class="mod">${ICON.book}<span>${E(R.moduleLine(mod, S, S.coach_card_module_lang))}</span></div>` : '';
+  // The one next focus and why it was chosen. No second behaviour: the old Action plan box is gone (ur/en).
+  const rubricTryHtml = `
+    <div class="try">
+      <div class="tl">${E(S.coach_card_try_label)}</div>
+      <h2>${E(t.move || '')}</h2>
+      ${fb.focus_why ? `<p class="fw"><b>${E(S.coach_card_focus_why_label)}</b> ${E(fb.focus_why)}</p>` : ''}
+    </div>`;
   // bd-63 (operator escalation): the old header hand-drew the smile as an
   // absolutely-positioned SVG at right:36px — in RTL that is exactly where
   // the eyebrow text begins, so the two collided into a garble. And with no
@@ -204,29 +252,29 @@ ${rubricOn ? rubricCss(rtl) : ''}.ft{border-top:1px solid #e7ebf4;padding:16px 3
   <div class="hd">
     <div class="top">
       <img src="data:image/png;base64,${A.logoWhite}" alt=""/>
-      <div class="eb">${esc(eyebrow)}</div>
+      <div class="eb">${E(eyebrow)}</div>
     </div>
-    <h1>${esc(header)}</h1>
-    <div class="sub">${esc(S.coach_card_subtitle)}</div>
+    <h1>${E(header)}</h1>
+    <div class="sub">${E(S.coach_card_subtitle)}</div>
   </div>
   <div class="bd">
-    <div class="praise">${esc(fb.praise_line || '')}</div>${marksHtml}
-    <div class="sec">${esc(S.coach_card_wins_label)}</div>
-    ${wins}${missedHtml}
+    <div class="praise">${E(fb.praise_line || '')}</div>${marksHtml}
+    <div class="sec">${E(S.coach_card_wins_label)}</div>
+    ${wins}${missedHtml}${rubricOn ? rubricTryHtml : `
     <div class="try">
       <div class="tl">${esc(S.coach_card_try_label)}</div>
       <h2>${esc(t.move || '')}</h2>
       <p>${esc(t.evidence || '')}</p>
       ${S.coach_card_action_label ? '' : `<p><b>${esc(t.instead || '')}</b></p>`}
-    </div>
-    ${S.coach_card_action_label && t.instead ? `<div class="sec">${esc(S.coach_card_action_label)}</div>
+    </div>`}
+    ${!rubricOn && S.coach_card_action_label && t.instead ? `<div class="sec">${esc(S.coach_card_action_label)}</div>
     <div class="act"><p>${esc(t.instead)}</p></div>` : ''}${moduleHtml}
-    ${S.coach_card_reflect_label && fb.reflection_question ? `<div class="sec">${esc(S.coach_card_reflect_label)}</div>
-    <div class="ask"><p>${esc(fb.reflection_question)}</p></div>` : ''}
+    ${S.coach_card_reflect_label && fb.reflection_question ? `<div class="sec">${E(S.coach_card_reflect_label)}</div>
+    <div class="ask"><p>${E(fb.reflection_question)}</p></div>` : ''}
   </div>
   <div class="ft">
     <div class="brand"><img src="data:image/png;base64,${A.logoNavy}" alt=""/><span>NIETE</span></div>
-    <span class="lock">🔒 ${esc(S.coach_card_closing)}</span>
+    <span class="lock">${rubricOn ? `${ICON.lock}<span>${E(S.coach_card_closing)}</span>` : `🔒 ${esc(S.coach_card_closing)}`}</span>
   </div>
 </div></body></html>`;
 }
@@ -249,4 +297,6 @@ async function renderCoachCard(fb, { lang = 'sw', brand } = {}) {
   }
 }
 
-module.exports = { COACH_VALUES, normalizeCoachValue, shouldRenderCard, buildCoachCardHtml, renderCoachCard };
+module.exports = {
+  COACH_VALUES, normalizeCoachValue, shouldRenderCard, buildCoachCardHtml, renderCoachCard, stripPictographs,
+};
