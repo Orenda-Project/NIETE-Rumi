@@ -37,6 +37,13 @@ export function warmFirstScreen(pathname: string, hint: ShellHint | null, load: 
     load.config().catch(() => undefined);
     return;
   }
+  // bd-1q4z4o — the teacher Home, where WhatsApp's "open the app" link lands: its chunk and the flags start with the app
+  // (index.html has already asked for /me/home), so the Home is not one router hop and one gate later.
+  if (path === "/portal/teacher") {
+    load.teacherHome().catch(() => undefined);
+    load.config().catch(() => undefined);
+    return;
+  }
   const dashboard = path === "/portal/dashboard";
   // "/" with no hint is a signed-out device: it is going to the sign-in page, which is in the app's own chunk.
   if (!dashboard && !(path === "/" && hint !== null)) return;
