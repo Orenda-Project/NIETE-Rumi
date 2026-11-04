@@ -404,6 +404,11 @@ const STRINGS = {
     // the card image nor the text card draws the rubric (the round-2 card stays on sandbox; the report is a page now).
     coach_card_respect_line: '✓ احترام برقرار رہا — ہمیشہ کی طرح',
     coach_card_missed_label: 'اس بار کیا رہ گیا',
+    // Each miss: what happened in this debrief, then why it matters; the focus says why it was chosen.
+    coach_card_what_happened_label: 'کیا ہوا:',
+    coach_card_why_label: 'کیوں اہم ہے:',
+    coach_card_focus_why_label: 'یہی کیوں:',
+    coach_card_you_said_label: 'آپ نے کہا:',
     coach_card_module_line: '📘 کوچ ٹریننگ، ماڈیول {n}: {title}',
     coach_card_module_lang: 'ur',
     coach_rubric_names: {
@@ -695,6 +700,11 @@ const STRINGS = {
     // the card image nor the text card draws the rubric (the round-2 card stays on sandbox; the report is a page now).
     coach_card_respect_line: '✓ Respect held — as always',
     coach_card_missed_label: 'What was missed this time',
+    // Each miss: what happened in this debrief, then why it matters; the focus says why it was chosen.
+    coach_card_what_happened_label: 'What happened:',
+    coach_card_why_label: 'Why it matters:',
+    coach_card_focus_why_label: 'Why this one:',
+    coach_card_you_said_label: 'You said:',
     coach_card_module_line: '📘 Coach Training, Module {n}: {title}',
     coach_card_module_lang: 'en',
     coach_rubric_names: {
