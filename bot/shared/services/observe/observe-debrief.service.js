@@ -596,8 +596,10 @@ async function buildDebriefGuide(session, lang) {
   let guide;
   try {
     const prompt = buildGuidePrompt(v2, { language: lang, previousFocus });
+    // 6,000 like the judge: gpt-5-mini's reasoning counts against the cap, and the rubric-shaped Urdu notes reached
+    // 4,000 in a replay (3 of 6 cut off), which sends the coach the canned fallback.
     const { result } = await GPT5MiniService.completeJson(prompt, {
-      maxTokens: 4000, label: 'observeDebriefGuide', job: 'coaching.observeDebrief',
+      maxTokens: 6000, label: 'observeDebriefGuide', job: 'coaching.observeDebrief',
     });
     validateGuide(result, S, lang);
     // A moment's time stays only when the observation data holds it (the model is told never to invent one).
