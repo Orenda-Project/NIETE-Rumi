@@ -326,40 +326,25 @@ const trackingLimiter = rateLimit({
   legacyHeaders: false
 });
 
-// SECURITY: Aggressive rate limiting for portal authentication endpoints
-// TEMPORARY: DISABLED FOR TESTING - MUST RE-ENABLE BEFORE PRODUCTION
-// PRODUCTION VALUES: windowMs: 60 * 60 * 1000 (1 hour), max: 10
+// The whole-portal ceilings on every /api/portal route, sign-in and data alike: per IP, per cluster worker. They are
+// NOT the sign-in limits; those are lib/auth-rate-limits.js (bd-e0dqwz). Do not "re-enable" the old 10 an hour here:
+// on every route that is what signed teachers out in 2025-11 (a page makes several calls per path; digital-coach-
+// dashboard ad61fd2). A real ceiling has to be sized from per-IP data-route traffic first (bd-lgxklv).
 const portalAuthLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // TEMP: 1 minute
-  max: 10000, // TEMP: Effectively disabled
+  windowMs: 1 * 60 * 1000,
+  max: 10000,
   message: 'Too many requests. Please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: false, // Count all requests, not just failed ones
-  // Generate key using IP + endpoint to prevent cross-endpoint abuse
+  skipSuccessfulRequests: false,
   keyGenerator: (req) => {
     return `${req.ip}-${req.path}`;
   }
 });
 
-// SECURITY: Extra strict rate limiting for public validation endpoints (prevent enumeration)
-// TEMPORARY: DISABLED FOR TESTING - MUST RE-ENABLE BEFORE PRODUCTION
-// PRODUCTION VALUES: windowMs: 60 * 60 * 1000 (1 hour), max: 5
-const publicValidationLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // TEMP: 1 minute
-  max: 10000, // TEMP: Effectively disabled
-  message: 'Too many requests. Please try again in an hour.',
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: false
-});
-
-// Rate limiting for portal data endpoints (more generous)
-// TEMPORARY: DISABLED FOR TESTING - MUST RE-ENABLE BEFORE PRODUCTION
-// PRODUCTION VALUES: windowMs: 1 * 60 * 1000 (1 minute), max: 30
 const portalDataLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 10000, // TEMP: Effectively disabled (was 30)
+  windowMs: 1 * 60 * 1000,
+  max: 10000,
   message: 'Too many requests, please slow down.',
   standardHeaders: true,
   legacyHeaders: false
