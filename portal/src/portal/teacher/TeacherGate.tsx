@@ -1,10 +1,10 @@
 import { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useTeacherV2, isTeacherV2For } from "./useTeacherV2";
 import { isLeader } from "../lib/leaderRole";
 import { FrameSkeleton } from "../components/Skeleton";
-import { readShellHint } from "../lib/shellHint";
+import { frameFor } from "../lib/shellHint";
 import { useFollowPreferredLanguage } from "./i18n";
 
 /**
@@ -29,11 +29,13 @@ import { useFollowPreferredLanguage } from "./i18n";
  */
 const TeacherGate = ({ children, leaders = false }: { children: ReactNode; leaders?: boolean }) => {
   const { user, loading } = useAuth();
+  const { pathname } = useLocation();
   const flag = useTeacherV2(user?.phoneNumber || null, !loading && !!user);
   useFollowPreferredLanguage(!loading && isTeacherV2For(user, flag));
-  if (loading) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
+  // bd-1q4z4o — on the Home, the Home look's own outline (frameFor), continuing index.html's.
+  if (loading) return <FrameSkeleton variant={frameFor(pathname)} />;
   if (!user) return <Navigate to={"/portal/login?next=" + encodeURIComponent(window.location.pathname + window.location.search)} replace />;
-  if (flag === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
+  if (flag === null) return <FrameSkeleton variant={frameFor(pathname)} />;
   if (!isTeacherV2For(user, flag) && !(leaders && isLeader(user))) return <Navigate to="/portal/dashboard" replace />;
   return <>{children}</>;
 };
