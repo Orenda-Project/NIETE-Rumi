@@ -1105,18 +1105,30 @@ const MAX_PASTE = 300;
  * are applied here; attendance's parser has them but drops father names. Reusing one
  * parser and carrying the other's guards beats writing a third.
  *
+ * `names` (an array) is the portal's add-students screen: one row per child, so each name is
+ * taken exactly as typed — nothing is parsed out of it, a comma stays in the name. Blank rows
+ * are skipped. The roll numbers, dedupe, cap and lock are the paste's own.
+ *
  * @returns {Promise<{added, duplicates, dropped, students?, error?, notAdded?}>}
  *   `notAdded` (with `error`) is how many of the paste did not land, for the teacher's screen.
  */
-async function addStudents({ classId, teacherUserId, rawText } = {}) {
+async function addStudents({ classId, teacherUserId, rawText, names } = {}) {
   if (!classId) return { error: 'missing_class' };
   if (!teacherUserId) return { error: 'missing_teacher' };
   if (!(await findAssignment(classId, teacherUserId))) return { error: 'not_assigned' };
 
-  // Required lazily: student-list.service is a heavier legacy module and this keeps
-  // the classes services loadable without it.
-  const StudentListService = require('../student-list.service');
-  const parsed = StudentListService.parseStudentText(typeof rawText === 'string' ? rawText : '');
+  let parsed;
+  if (Array.isArray(names)) {
+    parsed = names
+      .map((n) => (typeof n === 'string' ? n.trim() : ''))
+      .filter(Boolean)
+      .map((studentName) => ({ studentName, fatherName: null }));
+  } else {
+    // Required lazily: student-list.service is a heavier legacy module and this keeps
+    // the classes services loadable without it.
+    const StudentListService = require('../student-list.service');
+    parsed = StudentListService.parseStudentText(typeof rawText === 'string' ? rawText : '');
+  }
   if (!parsed.length) return { error: 'no_names' };
 
   // A paste submitted twice is two callers on one class. Serialise them inside this process so the

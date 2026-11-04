@@ -28,7 +28,7 @@ import { MyClassesPage } from "./MyClassesPage";
 import { ClassDetailPage } from "./ClassDetailPage";
 import { AddClassPage } from "./AddClassPage";
 import classRoutes from "./routes";
-import { CLASSES_ADD, CLASSES_HOME, CLASS_DETAIL, classPath } from "./paths";
+import { CLASSES_ADD, CLASSES_HOME, CLASS_ADD_STUDENTS, CLASS_DETAIL, addStudentsPath, classPath } from "./paths";
 import { CLASSES_V2_COPY as C } from "./copy";
 import { LESSONS_HOME } from "../lessons/paths";
 import { beforeAll as preloadFirst } from "vitest";
@@ -77,8 +77,8 @@ beforeEach(() => {
 });
 
 describe("routes", () => {
-  it("registers My Classes, Add a class and Class detail under /portal/teacher/classes — no timetable", () => {
-    expect(classRoutes.map((r) => r.path)).toEqual([CLASSES_HOME, CLASSES_ADD, CLASS_DETAIL]);
+  it("registers My Classes, Add a class, Class detail and Add students under /portal/teacher/classes — no timetable", () => {
+    expect(classRoutes.map((r) => r.path)).toEqual([CLASSES_HOME, CLASSES_ADD, CLASS_DETAIL, CLASS_ADD_STUDENTS]);
     expect(CLASSES_HOME).toBe("/portal/teacher/classes");
   });
 });
@@ -138,18 +138,55 @@ describe("Class detail", () => {
     expect(within(list).getAllByRole("listitem")).toHaveLength(10);
   });
 
-  it("Add students: the pasted names go to the existing route, the roster reloads, the result is said", async () => {
-    api.addStudents.mockResolvedValue({ success: true, added: 2, duplicates: 1, dropped: 0 });
+  it("Add students opens its own page; there is no paste box on the class page", async () => {
     at(classPath("c1"));
     await screen.findByRole("list", { name: C.students });
-    fireEvent.click(screen.getByRole("button", { name: C.addStudents }));
-    const dialog = await screen.findByRole("dialog");
-    fireEvent.change(within(dialog).getByLabelText(C.studentNames), { target: { value: "Sara\nOmar\nChild 1" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: C.add }));
-    await waitFor(() => expect(api.addStudents).toHaveBeenCalledWith("c1", "Sara\nOmar\nChild 1"));
-    await waitFor(() => expect(api.students).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("link", { name: C.addStudents }).getAttribute("href")).toBe(addStudentsPath("c1"));
+    expect(screen.queryByRole("textbox")).toBeNull();
+  });
+
+  it("Add students page: two rows numbered after the roster, Add student adds one, X removes one, Save sends only named rows", async () => {
+    api.addStudents.mockResolvedValue({ success: true, added: 2, duplicates: 1, dropped: 0 });
+    at(addStudentsPath("c1"));
+    // STUDENTS(3) is on the class, so the new rows are roll 4 and 5. The roll is shown, never typed.
+    const first = await screen.findByLabelText(C.nameOfRoll(4));
+    expect(screen.getByLabelText(C.nameOfRoll(5))).toBeTruthy();
+    expect(screen.queryByLabelText(C.nameOfRoll(6))).toBeNull();
+    expect(screen.queryByRole("spinbutton")).toBeNull();
+    // No column heading: the number is the class page's own roll badge, and each empty box says "Name".
+    expect(screen.queryByText("Roll no")).toBeNull();
+    expect(screen.getAllByPlaceholderText(C.name)).toHaveLength(2);
+    expect(screen.getByText("4")).toBeTruthy();
+    const save = () => screen.getByRole("button", { name: /^Save/ }) as HTMLButtonElement;
+    expect(save().disabled).toBe(true);
+
+    fireEvent.change(first, { target: { value: "Sara" } });
+    expect(save().textContent).toBe(C.saveStudents(1));
+    fireEvent.click(screen.getByRole("button", { name: C.addStudent }));
+    fireEvent.change(screen.getByLabelText(C.nameOfRoll(6)), { target: { value: "  Child 1 " } });
+    // Roll 5 stays empty; removing it renumbers the row below, as the roster will.
+    fireEvent.click(screen.getByRole("button", { name: C.removeRoll(5) }));
+    expect((screen.getByLabelText(C.nameOfRoll(5)) as HTMLTextAreaElement).value).toBe("  Child 1 ");
+    expect(save().textContent).toBe(C.saveStudents(2));
+
+    fireEvent.click(save());
+    await waitFor(() => expect(api.addStudents).toHaveBeenCalledWith("c1", ["Sara", "Child 1"]));
     expect(await screen.findByText(C.added(2))).toBeTruthy();
     expect(screen.getByText(C.alreadyThere(1))).toBeTruthy();
+    expect(screen.getByRole("link", { name: C.back }).getAttribute("href")).toBe(classPath("c1"));
+    // Add more starts again, numbered after what was just saved.
+    api.students.mockResolvedValue({ success: true, students: STUDENTS(5) });
+    fireEvent.click(screen.getByRole("button", { name: C.addMore }));
+    expect(await screen.findByLabelText(C.nameOfRoll(6))).toBeTruthy();
+  });
+
+  it("Add students page: a failed save says so and keeps every name she typed", async () => {
+    api.addStudents.mockRejectedValue(new Error("502"));
+    at(addStudentsPath("c1"));
+    fireEvent.change(await screen.findByLabelText(C.nameOfRoll(4)), { target: { value: "Sara" } });
+    fireEvent.click(screen.getByRole("button", { name: C.saveStudents(1) }));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect((screen.getByLabelText(C.nameOfRoll(4)) as HTMLTextAreaElement).value).toBe("Sara");
   });
 
   it("Remove asks first; Keep leaves the child, Remove deletes through the existing route", async () => {

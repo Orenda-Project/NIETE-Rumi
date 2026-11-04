@@ -1,9 +1,10 @@
 import type { TeacherRoute } from '../routes';
-import { CLASSES_ADD, CLASSES_HOME, CLASS_DETAIL } from './paths';
+import { CLASSES_ADD, CLASSES_HOME, CLASS_ADD_STUDENTS, CLASS_DETAIL } from './paths';
 import { lazyPage as page } from '@/lib/lazyPage';
 
 // bd-sex15q.34 — each page is its own chunk (lib/lazyPage), so the teacher app is not in every first open.
 const AddClassPage = page(() => import('./AddClassPage').then((m) => ({ default: m.AddClassPage })));
+const AddStudentsPage = page(() => import('./AddStudentsPage').then((m) => ({ default: m.AddStudentsPage })));
 const ClassDetailPage = page(() => import('./ClassDetailPage').then((m) => ({ default: m.ClassDetailPage })));
 const MyClassesPage = page(() => import('./MyClassesPage').then((m) => ({ default: m.MyClassesPage })));
 
@@ -15,6 +16,7 @@ const routes: TeacherRoute[] = [
   { path: CLASSES_HOME, element: <MyClassesPage /> },
   { path: CLASSES_ADD, element: <AddClassPage /> },
   { path: CLASS_DETAIL, element: <ClassDetailPage /> },
+  { path: CLASS_ADD_STUDENTS, element: <AddStudentsPage /> },
 ];
 
 export default routes;

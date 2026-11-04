@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils';
 import { classes as classesApi } from '../../services/api';
 import { loadGradeSubjects } from '../../lib/gradeSubjects';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
-import type { AddStudentsResponse } from '../../types/portal';
 import TeacherPage from '../TeacherPage';
 import { teacherPath } from '../routes';
 import { FeatureArt } from '../icons';
@@ -15,19 +14,18 @@ import { CLASSES } from './copy';
 import { useCopy } from '../i18n';
 import { classChips, classRows, classTitle, lessonPlansLink, rosterRows, type RosterRow } from './model';
 import { EmptyCard, LoadFailed, LoadState, SectionHeading } from './parts';
-import { CLASSES_HOME } from './paths';
+import { CLASSES_HOME, addStudentsPath } from './paths';
 
 /** How many children show before Show all. */
 const FIRST_STUDENTS = 7;
 
 const SQUARE = 'flex min-h-[150px] flex-col items-center justify-center gap-3 rounded-[20px] border border-[#e5e7eb] bg-white px-2.5 py-4 text-center text-[17px] font-semibold shadow-[0_1px_3px_rgba(16,24,40,0.08)]';
-const PRIMARY = 'flex min-h-[56px] flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] px-4 text-[16px] font-semibold text-white disabled:bg-[#d1d5db] disabled:text-[#6b7280]';
 const DANGER = 'flex min-h-[56px] flex-1 items-center justify-center gap-2 rounded-2xl bg-[#c8331f] px-4 text-[16px] font-semibold text-white';
 
 /**
  * bd-fmf24g.8 — one class (v28 canvas ClassDetail): its title and chips, shortcuts to Attendance and to
- * that grade·subject's lesson plans, and its students (the existing roster routes: add by pasting
- * names, remove one after asking).
+ * that grade·subject's lesson plans, and its students (the existing roster routes: remove one after
+ * asking). bd-2dn4vu — Add students is its own page (AddStudentsPage: one row per child).
  *
  * bd-ql2j3p — Remove class, after asking: off her list, then back to My Classes.
  */
@@ -43,31 +41,10 @@ export function ClassDetailPage() {
   const roster = useMemo(() => rosterRows(dataOf(rosterState)?.students ?? []), [rosterState]);
 
   const [showAll, setShowAll] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [names, setNames] = useState('');
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [result, setResult] = useState<AddStudentsResponse | null>(null);
   const [removing, setRemoving] = useState<RosterRow | null>(null);
   const [removingClass, setRemovingClass] = useState(false);
-
-  const addStudents = async () => {
-    if (!names.trim() || busy) return;
-    setBusy(true);
-    setFailed(false);
-    try {
-      const res = await classesApi.addStudents(classId, names);
-      if (!res || res.success !== true) throw new Error('not added');
-      setResult(res);
-      setAdding(false);
-      setNames('');
-      reloadRoster();
-    } catch {
-      setFailed(true);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const removeStudent = async () => {
     if (!removing || busy) return;
@@ -108,13 +85,6 @@ export function ClassDetailPage() {
 
   const [row] = classRows([cls], C);
   const shown = showAll ? roster : roster.slice(0, FIRST_STUDENTS);
-  const resultChips = result
-    ? [
-        result.added ? C.added(result.added) : null,
-        result.duplicates ? C.alreadyThere(result.duplicates) : null,
-        result.dropped ? C.notAdded(result.dropped) : null,
-      ].filter((x): x is string => !!x)
-    : [];
 
   return (
     <TeacherPage feature="classes" crumb={C.title} title={classTitle(cls, C)} backTo={CLASSES_HOME}>
@@ -141,11 +111,6 @@ export function ClassDetailPage() {
       </div>
 
       <SectionHeading count={dataOf(rosterState) ? roster.length : undefined} countTestId="students-count">{C.students}</SectionHeading>
-      {resultChips.length ? (
-        <div role="status" className="flex flex-wrap gap-1.5 px-1">
-          {resultChips.map((t, i) => <StatusChip key={t} text={t} tone={i === 0 && result?.added ? 'done' : 'info'} />)}
-        </div>
-      ) : null}
       {dataOf(rosterState) ? (
         roster.length ? (
           <div className={LIST_CARD}>
@@ -186,32 +151,15 @@ export function ClassDetailPage() {
         <LoadState status={rosterState.status} onRetry={reloadRoster} />
       )}
 
-      <button type="button" onClick={() => { setFailed(false); setAdding(true); }} className={cn(OUTLINE_WIDE, FOCUS)}>
+      <Link to={addStudentsPath(classId)} className={cn(OUTLINE_WIDE, FOCUS)}>
         <UserPlus className="h-5 w-5" aria-hidden="true" />
         {C.addStudents}
-      </button>
+      </Link>
 
       <button type="button" onClick={() => { setFailed(false); setRemovingClass(true); }} className={cn(OUTLINE_WIDE, FOCUS)}>
         <Trash2 className="h-5 w-5" aria-hidden="true" />
         {C.removeClass}
       </button>
-
-      <Tray open={adding} title={C.addStudents} onClose={() => setAdding(false)} closeLabel={C.close}>
-        <div className="flex flex-col gap-3">
-          <label htmlFor="add-students-names" className="px-1 text-[14px] font-semibold text-[#4b5563]">{C.studentNames}</label>
-          <textarea
-            id="add-students-names"
-            value={names}
-            onChange={(e) => setNames(e.target.value)}
-            rows={6}
-            className={cn('min-h-[140px] w-full rounded-2xl border border-[#d1d5db] bg-white p-3 text-[16px]', FOCUS)}
-          />
-          {failed ? <p role="alert" className="px-1 text-[14px] font-semibold text-[#c8331f]">{C.saveFailed}</p> : null}
-          <button type="button" onClick={addStudents} disabled={!names.trim() || busy} className={cn(PRIMARY, FOCUS)}>
-            {busy ? C.adding : C.add}
-          </button>
-        </div>
-      </Tray>
 
       <Tray open={!!removing} title={C.removeStudent} onClose={() => setRemoving(null)} closeLabel={C.close}>
         <div className="flex flex-col gap-3">

@@ -34,7 +34,7 @@ vi.mock("../../lib/gradeSubjects", () => ({ loadGradeSubjects: vi.fn(async () =>
 import "../routes";
 import classRoutes from "./routes";
 import { CLASSES_V2_COPY } from "./copy";
-import { CLASSES_ADD, CLASSES_HOME, classPath } from "./paths";
+import { CLASSES_ADD, CLASSES_HOME, addStudentsPath, classPath } from "./paths";
 import { beforeAll as preloadFirst } from "vitest";
 import { preloadAll } from "@/lib/lazyPage";
 
@@ -83,8 +83,15 @@ describe("classes: every target is 56px or more", () => {
     const { container } = at(classPath("c1"));
     await screen.findByText("Child 0");
     expect(tapProblems(container)).toEqual([]);
-    fireEvent.click(screen.getByRole("button", { name: CLASSES_V2_COPY.addStudents }));
+    fireEvent.click(screen.getByRole("button", { name: CLASSES_V2_COPY.removeClass }));
     expect(tapProblems(document.body)).toEqual([]);
+  });
+
+  it("Add students (bd-2dn4vu), with a row added", async () => {
+    const { container } = at(addStudentsPath("c1"));
+    await screen.findByRole("button", { name: CLASSES_V2_COPY.addStudent });
+    fireEvent.click(screen.getByRole("button", { name: CLASSES_V2_COPY.addStudent }));
+    expect(tapProblems(container)).toEqual([]);
   });
 
   it("Add a class", async () => {
