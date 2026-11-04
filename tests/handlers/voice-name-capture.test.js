@@ -118,6 +118,10 @@ test('the audio.service mock stubs only methods the real class has', () => {
   const phantom = Object.keys(AudioService).filter((k) => typeof Real[k] !== 'function');
   expect(phantom).toEqual([]);
   expect(typeof Real.transcribeAudio).toBe('undefined');
+  // The seam the fix leans on: (buffer, wavPath) and (wavPath, language), the latter returning { text, … }.
+  expect(Real.convertToWav.length).toBe(2);
+  expect(Real.transcribeWithLanguagePreference.length).toBe(2);
+  expect(Real.transcribeWithLanguagePreference.toString()).toMatch(/return\s*{\s*text:/);
 });
 
 test('a voice note while waiting for her name is transcribed and saved as her name', async () => {
