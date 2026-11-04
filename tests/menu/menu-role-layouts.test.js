@@ -387,7 +387,7 @@ describe('every id reaches its handler, with her language', () => {
     await MenuService.handleMenuButtonResponse(USER('teacher'), FROM, 'menu_roster', 'ur');
 
     expect(calls).toHaveLength(0);
-    expect(said).toContain(rx('rosterLeadersOnly', { language: 'ur' }));
+    expect(said).toContain(rx('rosterRoleRefusal', { language: 'ur' }));
     expect(said).not.toContain(rx('menuUnknownOption', { language: 'ur' }));
 
     // And a principal, same tap, does get it.

@@ -805,13 +805,14 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
     // "tell me about the lesson you observed".
     if (visitAction === 'roster_teacher') {
       const { rosterTeacherNextTarget } = require('../services/observe/observe-teacher-admin.service');
-      await _continueObserveLoop(rosterTeacherNextTarget(responseJson.roster_next), user, phoneNumber, userId, loopToken);
+      await _continueObserveLoop(rosterTeacherNextTarget(responseJson.roster_next), user, phoneNumber, userId,
+        { schoolExtId: responseJson.school_ext_id, flowToken: loopToken });
       return;
     }
 
     if (visitAction === 'roster') {
       const { rosterNextTarget } = require('../services/observe/observe-school-admin.service');
-      await _continueObserveLoop(rosterNextTarget(responseJson.roster_next), user, phoneNumber, userId, loopToken);
+      await _continueObserveLoop(rosterNextTarget(responseJson.roster_next), user, phoneNumber, userId, { flowToken: loopToken });
       return true;
     }
 
@@ -824,7 +825,7 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
         command: loopToken ? '/observe2' : '/observe',
         teacherName: responseJson.teacher_name,
       }));
-      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId, loopToken);
+      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId, { flowToken: loopToken });
       return true;
     }
 
@@ -835,7 +836,7 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
         date: responseJson.sched_date || responseJson.date,
         slot: responseJson.sched_slot || responseJson.slot,
       }));
-      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId, loopToken);
+      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId, { flowToken: loopToken });
       return true;
     }
 
@@ -846,7 +847,7 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
         date: responseJson.sched_date,
         slot: responseJson.sched_slot,
       }));
-      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId, loopToken);
+      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId, { flowToken: loopToken });
       return true;
     }
 
@@ -895,15 +896,60 @@ function _visitNextTarget(next) {
 }
 
 /**
+ * The TEACHER_ACTION screen's data for a reopen straight from the chat, or null
+ * when the school is no longer hers.
+ *
+ * The same declared-key rule as MANAGE_SCHOOLS below. TEACHER_ACTION
+ * declares `items`, `heading` and `school_ext_id`; in navigate mode there
+ * is no endpoint round trip to fill them, so the shape must match exactly
+ * what the endpoint's own `teacher_action_open` step returns — a missing
+ * key renders nothing and the coach's tap looks dead.
+ */
+async function _teacherActionScreenData(userId, schoolExtIdRaw) {
+  // The coach's own schools come from the school-admin service, as in the endpoint's teacher_action_open step.
+  const admin = require('../services/observe/observe-school-admin.service');
+  const schoolExtId = String(schoolExtIdRaw || '');
+  const mine = await admin.listMySchools(userId).catch(() => []);
+  const school = mine.find((x) => x.school_ext_id === schoolExtId);
+  if (!school) return null;
+  const act = (id, title, metadata) => ({
+    id,
+    'main-content': { title, metadata },
+    'on-click-action': {
+      name: 'data_exchange',
+      payload: { step: 'teacher_action_pick', choice: id, school_ext_id: schoolExtId },
+    },
+  });
+  return {
+    school_ext_id: schoolExtId,
+    heading: school.school_name || 'This school',
+    items: [
+      act('add', 'Add a teacher', 'By WhatsApp number - moves them if they are elsewhere'),
+      act('edit', 'Edit a teacher', 'Name, level, role or number'),
+      act('remove', 'Remove a teacher', 'Takes them off this school'),
+    ],
+  };
+}
+
+/**
  * Reopen the picker for the next turn of the loop. Best-effort by design: if
  * the reopen fails the coach has still had her action confirmed on-screen, and
  * /observe always gets her back in. Never throws into the caller.
+ *
+ * ctx.schoolExtId: the school a teacher-level roster change was made in; ctx.flowToken: the
+ * loop's token (an /observe2 visit's planner carries a marker in it).
  */
-async function _continueObserveLoop(target, user, phoneNumber, userId, flowToken) {
+async function _continueObserveLoop(target, user, phoneNumber, userId, ctx = {}) {
+  const { flowToken } = ctx;
   if (!target || !target.reopen || !user) return;
   try {
     const { reopenObserveVisitFlow } = require('./observe-command.handler');
     let screenData;
+    if (target.screen === 'TEACHER_ACTION') {
+      // A school she no longer holds: the menu, not an action picker for nothing.
+      screenData = await _teacherActionScreenData(userId, ctx.schoolExtId);
+      if (!screenData) return reopenObserveVisitFlow(user, phoneNumber, null, undefined, flowToken);
+    }
     if (target.screen === 'MANAGE_SCHOOLS') {
       // MANAGE_SCHOOLS declares `options`; opening straight onto it in navigate
       // mode means WE supply them — there is no endpoint round-trip to do it.

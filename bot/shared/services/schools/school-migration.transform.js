@@ -192,7 +192,7 @@ function resolveBackfillRole(user) {
   const looksLikeTeacher =
     user.registration_completed === true ||
     Boolean(user.teacher_uuid) ||
-    (Array.isArray(user.levels) && user.levels.length > 0) ||
+    (Array.isArray(user.teacher_level) && user.teacher_level.length > 0) ||
     user.has_training_progress === true;
 
   return looksLikeTeacher ? 'teacher' : 'unregistered';

@@ -50,7 +50,7 @@ const row = (over = {}) => ({
   school_id: 's1',
   school_name: 'IMSB (VI-X), Rawal Dam',
   emis: '409',
-  training_bands: ['primary'],
+  teacher_level: ['primary'],
   grades_taught: null,
   ...over,
 });
@@ -113,7 +113,9 @@ describe('bd-43530 · both queries actually ASK for the name columns', () => {
       return q;
     };
     const sb = { from: (t) => table({
-      leader_schools: [{ school_ext_id: 'niete:409', school_id: null }],
+      // A holding names its school by the school_id foreign key; the resolver
+      // no longer parses school_ext_id, so a holding with none resolves nothing.
+      leader_schools: [{ school_ext_id: 'niete:409', school_id: 's1' }],
       schools: [{ id: 's1', name: 'IMSB', emis: '409' }],
       users: [row({ id: 'u1' })],
     }[t] || []) };
@@ -129,10 +131,12 @@ describe('bd-43530 · both queries actually ASK for the name columns', () => {
       return q;
     };
     const sb = { from: (t) => table({
-      leader_schools: [{ school_ext_id: 'niete:409', school_id: null }],
+      // A holding names its school by the school_id foreign key; the resolver
+      // no longer parses school_ext_id, so a holding with none resolves nothing.
+      leader_schools: [{ school_ext_id: 'niete:409', school_id: 's1' }],
       schools: [{ id: 's1', name: 'IMSB', emis: '409' }],
       users: [{ id: 'u1', phone_number: '923001234567', first_name: 'Irene', last_name: null,
-                name: 'Irene Khan', role: 'teacher', school_id: 's1', training_bands: ['primary'] }],
+                name: 'Irene Khan', role: 'teacher', school_id: 's1', teacher_level: ['primary'] }],
     }[t] || []) };
     const out = await listPatchViaSupabase(sb, 'coach-1', null);
     expect(out[0].name).toBe('Irene Khan');

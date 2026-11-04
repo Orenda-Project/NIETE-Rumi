@@ -39,7 +39,8 @@
       "libxrandr2",
       "fonts-liberation",
       "fonts-noto-color-emoji",
-      "poppler-utils"
+      "poppler-utils",
+      "ffmpeg"
     ]
   }
 }

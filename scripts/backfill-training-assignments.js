@@ -136,7 +136,7 @@ async function main() {
   const users = await selectAll(
     sb,
     'users',
-    'id,phone_number,first_name,levels,grades_taught,organization,role,created_at',
+    'id,phone_number,name,teacher_level,grades_taught,organization,role,created_at',
     (q) => q.eq('registration_completed', true)
   );
   const existing = await selectAll(sb, 'teacher_training_assignments', 'user_id,program_id', (q) =>
@@ -167,7 +167,7 @@ async function main() {
       decisions.push({
         phone: u.phone_number,
         user_id: u.id,
-        levels: JSON.stringify(u.levels),
+        levels: JSON.stringify(u.teacher_level),
         grades_taught: u.grades_taught,
         derived_bands: '',
         programs: '',
@@ -198,11 +198,11 @@ async function main() {
     decisions.push({
       phone: u.phone_number,
       user_id: u.id,
-      levels: JSON.stringify(u.levels),
+      levels: JSON.stringify(u.teacher_level),
       grades_taught: u.grades_taught,
       derived_bands: (bands || []).join('+'),
       programs: inserted.join('+'),
-      source: isOverride ? 'HUMAN OVERRIDE (sheet Row 8)' : bands && u.levels ? 'users.levels' : 'grades_taught',
+      source: isOverride ? 'HUMAN OVERRIDE (sheet Row 8)' : 'teacher_level or grades_taught',
       action: inserted.length ? 'ASSIGN' : 'already assigned (idempotent skip)',
     });
   }

@@ -166,8 +166,16 @@ describe('bd-88krt · the Flow wiring for search and roster admin', () => {
   });
 
   it('ACTION_DONE is data-driven, so its copy can be in the coach\'s language', () => {
-    const texts = byId.ACTION_DONE.layout.children.map((c) => c.text);
-    expect(texts).toEqual(['${data.heading}', '${data.body}']);
+    // The copy is the heading and the body, and both come from data. The two
+    // one-tap exits every result screen now ends with (an EmbeddedLink "Main
+    // menu" and a Footer "Close") are fixed navigation labels, as the radio
+    // options and the "Continue" Footer they replaced were.
+    const copy = byId.ACTION_DONE.layout.children
+      .filter((c) => /^(Text|RichText)/.test(c.type))
+      .map((c) => c.text);
+    expect(copy).toEqual(['${data.heading}', '${data.body}']);
+    const rest = byId.ACTION_DONE.layout.children.filter((c) => !/^(Text|RichText)/.test(c.type));
+    expect(rest.map((c) => c.type).sort()).toEqual(['EmbeddedLink', 'Footer']);
     expect(Object.keys(byId.ACTION_DONE.data)).toEqual(expect.arrayContaining(['heading', 'body']));
   });
 
@@ -226,11 +234,28 @@ describe('bd-88krt · a coach can always finish, and can reach remove', () => {
     return out.find((c) => c.type === 'Footer');
   };
 
-  it('every terminal screen has a Footer that COMPLETES the flow', () => {
-    for (const id of ['ACTION_DONE', 'SUCCESS']) {
+  it('every terminal screen has a Footer that ends the flow', async () => {
+    // The Footer used to `complete` the Flow itself. The result screens now end
+    // with two one-tap exits that round-trip through the endpoint (an
+    // EmbeddedLink cannot `complete`, and the Footer takes the same path). The
+    // endpoint answers with extension_message_response, which closes the Flow
+    // and hands the chat side the same *_next value the old Footer payload
+    // carried. So "can always finish" is checked end to end: tap Close, get the
+    // close back.
+    const handler = require('../../shared/handlers/observe-visit-flow.handler');
+    for (const id of ['ACTION_DONE', 'SUCCESS', 'TEACHER_DONE']) {
       const f = footerOf(id);
       expect(f).toBeTruthy();                                   // "Done" in the header is a title
-      expect(f['on-click-action'].name).toBe('complete');
+      const action = f['on-click-action'];
+      if (action.name === 'complete') continue;
+      expect(action.name).toBe('data_exchange');
+      // ${data.x} bindings are filled by the client; any value stands in for them.
+      const payload = Object.fromEntries(Object.entries(action.payload)
+        .map(([k, v]) => [k, /^\$\{/.test(String(v)) ? 'sample' : v]));
+      const res = await handler.handle('coach-1', 'data_exchange', id, payload, 'coach-1', { id: 'coach-1' });
+      const params = res.data.extension_message_response.params;
+      expect(params.observe_visit_action).toBeTruthy();
+      expect(Object.values(params)).toContain('done');
     }
   });
 

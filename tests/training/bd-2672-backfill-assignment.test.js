@@ -50,14 +50,22 @@ describe('deriveBands — grade ids to PRIMARY/MIDDLE/HIGH', () => {
   });
 });
 
-describe('deriveBands — users.levels wins over grades_taught', () => {
-  test('levels is trusted verbatim when present', () => {
-    const u = { levels: ['MIDDLE', 'HIGH'], grades_taught: '["grade_1"]' };
+describe('deriveBands — teacher_level wins over grades_taught', () => {
+  // bd-60095: users.levels is dropped. It had no reader in bot/, dashboard/ or
+  // portal/, and it disagreed with the live band column for 233 teachers. These
+  // cases used to pin the levels rung of a three-way fallback; there are now two.
+  test('teacher_level is trusted verbatim when present', () => {
+    const u = { teacher_level: ['MIDDLE', 'HIGH'], grades_taught: '["grade_1"]' };
     expect(deriveBands(u)).toEqual(['HIGH', 'MIDDLE']);
   });
 
-  test('empty levels array falls through to grades_taught', () => {
-    const u = { levels: [], grades_taught: '["grade_2"]' };
+  test('an empty teacher_level falls through to grades_taught', () => {
+    const u = { teacher_level: [], grades_taught: '["grade_2"]' };
+    expect(deriveBands(u)).toEqual(['PRIMARY']);
+  });
+
+  test('a stray users.levels is never consulted', () => {
+    const u = { teacher_level: [], levels: ['HIGH'], grades_taught: '["grade_2"]' };
     expect(deriveBands(u)).toEqual(['PRIMARY']);
   });
 });

@@ -343,12 +343,31 @@ describe('the "what next?" tap after a teacher change', () => {
   });
 
   it('every option the screen offers has a target', () => {
+    // bd-60117: the result screen is two one-tap buttons now (Main menu /
+    // Close), not a radio plus Continue. The invariant is unchanged and still
+    // worth pinning: every `next` the screen can emit must map to a target, or
+    // the coach's tap does nothing.
     const screen = flow.screens.find((s) => s.id === 'TEACHER_DONE');
-    const radio = screen.layout.children
-      .find((c) => c.type === 'Form').children
-      .find((c) => c.type === 'RadioButtonsGroup');
-    for (const opt of radio['data-source']) {
-      expect(rosterTeacherNextTarget(opt.id)).toBeTruthy();
+    const offered = screen.layout.children
+      .filter((c) => c['on-click-action'])
+      .map((c) => c['on-click-action'].payload.next);
+    expect(offered.sort()).toEqual(['done', 'menu']);
+    for (const next of offered) {
+      expect(rosterTeacherNextTarget(next)).toBeTruthy();
+    }
+  });
+
+  it('the result screen is two taps wide — no radio, no Continue', () => {
+    // Applies to every result screen in /observe, not just this one.
+    for (const id of ['TEACHER_DONE', 'ACTION_DONE', 'SUCCESS']) {
+      const scr = flow.screens.find((s) => s.id === id);
+      const flat = JSON.stringify(scr.layout);
+      expect(flat).not.toMatch(/RadioButtonsGroup/);
+      expect(flat).not.toMatch(/"label":"Continue"/);
+      const labels = scr.layout.children
+        .filter((c) => c['on-click-action'])
+        .map((c) => c.text || c.label);
+      expect(labels).toEqual(['Main menu', 'Close']);
     }
   });
 
@@ -413,10 +432,7 @@ describe('Waheed 1 — the picker names the whole teacher', () => {
     expect(res.data.options[0].id).toBe('u3');
   });
 
-  // SANDBOX-ONLY SKIP: this branch has no TEACHER_EDIT_PICK screen — the Edit
-  // action landed on staging after sandbox diverged. Left as a skip rather than
-  // deleted so it comes back the moment Edit does; it passes on the staging PR.
-  it.skip('RED: a nameless person is a readable row on the EDIT picker too', async () => {
+  it('RED: a nameless person is a readable row on the EDIT picker too', async () => {
     const P = require('../../shared/services/observe/patch-resolver.service');
     P.listPatchViaSupabase.mockResolvedValueOnce([
       { userId: 'u4', name: '', displayName: 'Principal \u00b7 IMCG, G-10/2', phone: null,
@@ -485,22 +501,37 @@ describe('Waheed 3 — picking a school does not commit the coach to adding', ()
 });
 
 describe('the new TEACHER_ACTION screen', () => {
-  it('exists, and offers exactly the two actions', () => {
+  it('exists, and offers exactly the three actions', async () => {
+    // bd-60117: a NavigationList (one tap), so the rows are built by the
+    // handler rather than listed in the Flow JSON. The intent is unchanged:
+    // exactly three actions, in the order a coach reads them.
     const scr = flowScreen('TEACHER_ACTION');
     expect(scr).toBeTruthy();
-    const radio = scr.layout.children
-      .find((c) => c.type === 'Form').children
-      .find((c) => c.type === 'RadioButtonsGroup');
-    expect(radio['data-source'].map((o) => o.id)).toEqual(['add', 'remove']);
-    expect(radio.required).toBe(true);
+    expect(scr.layout.children.find((c) => c.type === 'NavigationList')).toBeTruthy();
+    const res = await step('teacher_action_open', { school_ext_id: 'niete:916' });
+    expect(res.data.items.map((i) => i.id)).toEqual(['add', 'edit', 'remove']);
+  });
+
+  it('every action navigates on tap — no radio, no Continue footer', () => {
+    const flat = JSON.stringify(flowScreen('TEACHER_ACTION').layout);
+    expect(flat).not.toMatch(/RadioButtonsGroup/);
+    expect(flat).not.toMatch(/"type":"Footer"/);
   });
 
   it('carries the school through so the next screen knows where we are', async () => {
     const res = await step('teacher_action_open', { school_ext_id: 'niete:916' });
     expect(res.screen).toBe('TEACHER_ACTION');
     expect(res.data.school_ext_id).toBe('niete:916');
-    expect(res.data.intro).toContain('IMCG, G-10/2');
-    expect(res.data.intro).not.toContain('${');
+    // Meta refuses a sibling component on a NavigationList screen, so there is
+    // no body sentence. The title is static ("Manage teachers": the school name
+    // would not fit beside it in 30 code points), so the school rides on the
+    // rows that act on it: Add says where to, Remove says where from.
+    const meta = (id) => res.data.items.find((i) => i.id === id)['main-content'].metadata;
+    for (const id of ['add', 'remove']) {
+      expect(meta(id)).toContain('IMCG, G-10/2');
+      expect(meta(id)).not.toContain('${');
+    }
+    expect(Object.keys(flowScreen('TEACHER_ACTION').data)).not.toContain('heading');
   });
 
   it('choosing Add lands on the phone screen — the SAME add flow as before', async () => {
@@ -624,20 +655,15 @@ describe('routing_model — Meta rejects the publish without it', () => {
 // in production. These tests pin the KEY, not just the behaviour.
 
 describe('bd-59811 — the choice must not ride on a reserved key', () => {
-  it('the screen sends `choice`, never `action`', () => {
-    const scr = flowScreen('TEACHER_ACTION');
-    const payload = JSON.parse(JSON.stringify(scr)).layout.children
-      .find((c) => c.type === 'Form').children
-      .find((c) => c.type === 'Footer')['on-click-action'].payload;
-    expect(payload.choice).toBe('${form.choice}');
-    expect(payload).not.toHaveProperty('action');
-  });
-
-  it('the radio is named `choice` so ${form.choice} resolves', () => {
-    const radio = flowScreen('TEACHER_ACTION').layout.children
-      .find((c) => c.type === 'Form').children
-      .find((c) => c.type === 'RadioButtonsGroup');
-    expect(radio.name).toBe('choice');
+  it('the screen sends `choice`, never `action`', async () => {
+    // Each NavigationList row carries its own payload now; the reserved-key
+    // rule is unchanged and still the thing worth pinning.
+    const res = await step('teacher_action_open', { school_ext_id: 'niete:916' });
+    for (const row of res.data.items) {
+      const payload = row['on-click-action'].payload;
+      expect(payload.choice).toBe(row.id);
+      expect(payload).not.toHaveProperty('action');
+    }
   });
 
   it('NO screen in this flow sends a payload key called `action`', () => {
@@ -700,5 +726,82 @@ describe('bd-59811 — Back out of TEACHER_ACTION', () => {
   it('the BACK branch still answers with the menu, server-side', async () => {
     const res = await handler.handle(UID, 'BACK', 'TEACHER_ACTION', {}, UID, { id: UID });
     expect(res.screen).toBe('MENU');
+  });
+});
+
+// ── PR #800 — a coach's OWN lists were cut at 20 ────────────────────────
+//
+// RESULT_CAP (20) was sized when these screens were RadioButtonsGroups, where
+// 20 is Meta's real ceiling. They are Dropdowns now (ceiling 200) and the
+// constant never followed: a coach at a school with 55 teachers saw 20 on
+// "Remove a teacher" and could not reach the other 35. The fix split the
+// constant by job — RESULT_CAP for SEARCH over a universe of thousands,
+// LIST_CAP for a COMPLETE "mine" list already bounded by her own assignment.
+//
+// These are the assertions the fix shipped without. Each one fails on the
+// pre-fix tree (20 !== 55, 20 !== 25).
+
+describe("PR #800 — a coach's own lists are complete, not the first 20", () => {
+  const Admin = require('../../shared/services/observe/observe-school-admin.service');
+  const Patch = require('../../shared/services/observe/patch-resolver.service');
+
+  const teachers = (n) => Array.from({ length: n }, (_, i) => ({
+    userId: `u${i + 1}`,
+    name: `Teacher ${i + 1}`,
+    phone: `92300${String(1000000 + i).slice(-7)}`,
+    isPrincipal: false,
+    roleLabel: '',
+    band: 'primary',
+    schoolName: 'IMCG, G-10/2',
+    emis: '916',
+  }));
+
+  const schools = (n) => Array.from({ length: n }, (_, i) => ({
+    school_ext_id: `niete:${900 + i}`,
+    school_name: `IMCG No.${i + 1}, G-10/2`,
+    emis: String(900 + i),
+  }));
+
+  it('the two caps are different jobs — search stays 20, a whole list gets 200', () => {
+    expect(Admin.RESULT_CAP).toBe(20);
+    expect(Admin.LIST_CAP).toBe(200);
+    // 200 is Meta's Dropdown ceiling; the 100 variant is for options carrying
+    // images, and _opt emits none. Pinning it stops a "round it down" edit.
+    expect(Admin.LIST_CAP).toBeLessThanOrEqual(200);
+  });
+
+  it('the remove picker offers all 55 teachers at her school — the reported bug', async () => {
+    Patch.listPatchViaSupabase.mockResolvedValueOnce(teachers(55));
+    const res = await step('teacher_remove_open', { school_ext_id: 'niete:916' });
+    expect(res.screen).toBe('TEACHER_PICK');
+    expect(res.data.options).toHaveLength(55);
+    // The 35 she could not reach: the tail must be there, not just the count.
+    expect(res.data.options[54].id).toBe('u55');
+  });
+
+  it('the teacher-admin school picker offers all 25 of her schools', async () => {
+    Admin.listMySchools.mockResolvedValueOnce(schools(25));
+    const res = await step('teacher_school_open');
+    expect(res.screen).toBe('TEACHER_SCHOOL');
+    expect(res.data.options).toHaveLength(25);
+    expect(res.data.options.map((o) => o.id)).toContain('niete:924');
+  });
+
+  it('searching the universe is still deliberately capped at 20', () => {
+    // The other half of the split: add_search reaches searchUniverse, whose
+    // default cap must NOT have moved with the list screens.
+    const src = require('fs').readFileSync(
+      require('path').join(__dirname, '../../shared/services/observe/observe-school-admin.service.js'),
+      'utf8');
+    expect(src).toMatch(/async function searchUniverse\([^)]*cap = RESULT_CAP/);
+  });
+
+  it('the navigate-mode reopen of MANAGE_SCHOOLS uses the list cap too', () => {
+    // That screen is rebuilt in flow-response.handler (no endpoint round trip),
+    // so it is a second, easily-missed copy of the same slice.
+    const src = require('fs').readFileSync(
+      require('path').join(__dirname, '../../shared/handlers/flow-response.handler.js'), 'utf8');
+    expect(src).toMatch(/mine\.slice\(0, admin\.LIST_CAP\)/);
+    expect(src).not.toMatch(/mine\.slice\(0, admin\.RESULT_CAP\)/);
   });
 });

@@ -186,8 +186,8 @@ ANTI-FALSE-PROMISE RULE (CRITICAL - applies to ALL languages):
    * @param {string} format - Output format ('text' or 'voice')
    * @param {string} language - Output language ('en' or 'ur')
    * @param {string|null} firstName - User's first name (optional)
-   * @param {object} [opts] - bd-mg9c7.64: WHO is speaking. Backwards compatible —
-   *   every existing caller omits this and gets the teacher prompt unchanged.
+   * @param {object} [opts] - WHO is speaking. Backwards compatible — every
+   *   existing caller omits this and gets the teacher prompt unchanged.
    * @param {'student'|null} [opts.persona] - 'student' swaps the teacher base
    *   for the student tutor prompt. The reverence wrapper below still rides
    *   either way — it is not a per-persona concern.
@@ -465,7 +465,7 @@ ${WHATSAPP_TEXT_SHAPE}`;
    * @param {string} language - Output language ('en' or 'ur')
    * @param {string|null} firstName - User's first name (optional)
    * @param {string|null} featureContext - Phase 2: Conditional feature context (optional)
-   * @param {object} [opts] - bd-mg9c7.64: passed straight through to
+   * @param {object} [opts] - passed straight through to
    *   _getFormatAwareSystemPrompt; { persona: 'student', studentClass } swaps
    *   in the student tutor prompt and the child-shaped error fallback.
    * @returns {Promise<string>} AI response
@@ -630,8 +630,8 @@ ${WHATSAPP_TEXT_SHAPE}`;
     } catch (error) {
       logToFile('Error getting format-aware AI response', { error: error.message });
 
-      // bd-mg9c7.64: a child gets a child-shaped apology, not the teacher
-      // wording below — that wording is unchanged, this is additive.
+      // A child gets a child-shaped apology, not the teacher wording below —
+      // that wording is unchanged, this is additive.
       if (opts && opts.persona === 'student') {
         const { resolveUx } = require('../config/ux-strings');
         return resolveUx('studentChatError', { language });

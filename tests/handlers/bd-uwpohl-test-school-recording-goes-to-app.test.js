@@ -1,8 +1,8 @@
 /**
- * v10 coaching test (bd-v0toag.56): a classroom recording sent on WhatsApp by a teacher whose school is in
- * the test is always analysed. Recordings decide the test, so app_redirect_ai_coaching (which sends a
- * coaching request to the app instead) must not swallow one. Outside the test (switch off, school not
- * drawn, a lookup error) nothing changes: a flagged teacher is still sent to the app.
+ * v10 coaching test (bd-v0toag.56, reversed by bd-uwpohl on 19 Oct 2026): a classroom recording sent on WhatsApp
+ * by a teacher in the test now goes through the same app redirect as everyone else's. Teachers record in the app,
+ * where the test's recordings are made, so app_redirect_ai_coaching sends her there; WhatsApp coaching runs only
+ * for a teacher the redirect does not cover.
  *
  * Drives the REAL handleVoiceMessage with the network boundary mocked (the same harness as
  * short-recording-guidance.test.js); the redirect switch and the group lookup are the two dials.
@@ -122,12 +122,11 @@ beforeEach(() => {
 });
 
 describe('a teacher in the test', () => {
-  test.each(['A', 'B', 'C', 'D'])('group %s: her 30-minute recording is analysed, never sent to the app', async (g) => {
+  test.each(['A', 'B', 'C', 'D'])('group %s: her 30-minute recording sends her to the app, nothing analysed on WhatsApp', async (g) => {
     mockGroupFor.mockImplementation(() => Promise.resolve({ group: g, plan: 'v9', report: 'today' }));
     await handleVoiceMessage(lesson(), FROM, TEACHER);
-    expect(CoachingService.initiateCoachingSession).toHaveBeenCalledWith('u1', 'sess-1', 'media-1', FROM, 1800);
-    expect(mockRedirect).not.toHaveBeenCalledWith('ai_coaching', expect.anything());
-    expect(logToFile).toHaveBeenCalledWith(expect.stringMatching(/v10 test/), expect.objectContaining({ userId: 'u1', group: g }));
+    expect(mockRedirect).toHaveBeenCalledWith('ai_coaching', expect.objectContaining({ userId: 'u1', reason: 'classroom_audio' }));
+    expect(CoachingService.initiateCoachingSession).not.toHaveBeenCalled();
   });
 });
 

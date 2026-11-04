@@ -33,7 +33,8 @@ const { isAllowedSlot, LEGACY_SLOTS: SLOTS, visitMoved, karachiToday } = require
 // stops a blank string from beating that fallback. Mirrors
 // patch-resolver.fullNameOf on the bot side; keep the two in step.
 const PATCH_SQL = `
-  SELECT u.phone_number       AS teacher_ext_id,
+  SELECT u.id                 AS teacher_user_id,
+         u.phone_number       AS teacher_ext_id,
          COALESCE(
            NULLIF(btrim(u.name), ''),
            NULLIF(btrim(concat_ws(' ',
@@ -67,9 +68,9 @@ const UPDATE_SQL = `
 
 const INSERT_SQL = `
   INSERT INTO observation_schedules
-    (leader_user_id, school_ext_id, teacher_ext_id, teacher_name, school_name,
-     scheduled_for, scheduled_slot, status)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, 'upcoming')
+    (leader_user_id, school_ext_id, teacher_ext_id, teacher_user_id, teacher_name,
+     school_name, scheduled_for, scheduled_slot, status)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'upcoming')
   RETURNING id
 `;
 
@@ -129,6 +130,10 @@ async function createSchedule(query, leaderUserId, input = {}, opts = {}) {
   }
   const { rows } = await query(INSERT_SQL, [
     leaderUserId, schoolExtId, teacherExtId,
+    // The FK comes from PATCH_SQL, which already joined users to authorise this
+    // booking — so it is the SAME row that proved the teacher is in her patch,
+    // not a second lookup that could disagree (bd-60097).
+    teacher.teacher_user_id || null,
     teacher.teacher_name || null, teacher.school_name || null, date, slot || null,
   ]);
   return { id: rows && rows[0] && rows[0].id, updated: false, changed: true, past };

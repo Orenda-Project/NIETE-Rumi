@@ -111,7 +111,7 @@ describe('portal band routes — wiring', () => {
       path.join(__dirname, '../../bot/shared/routes/internal-api.routes.js'), 'utf8');
     const block = INTERNAL.slice(INTERNAL.indexOf("'/training/bands/state'"),
                                  INTERNAL.indexOf("'/training/bands/apply'"));
-    expect(block).toMatch(/training_bands, training_bands_updated_at/);
+    expect(block).toMatch(/teacher_level, teacher_level_updated_at/);
     expect(block).not.toMatch(/select\('[^']*\blevels\b/);
   });
 });

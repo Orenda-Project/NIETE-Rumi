@@ -27,18 +27,20 @@
 'use strict';
 
 /** Only these two roles are ever in a patch. Not coaches, not unregistered. */
+const { teacherLevelOf, primaryBandOf } = require('../../utils/teacher-level');
+
 const PATCH_ROLES = new Set(['teacher', 'principal']);
 
 // ── band ───────────────────────────────────────────────────────────────
 
 /**
- * The teaching band, from `users` rather than the old `leader_teachers.level`.
+ * The teaching band, from `users.teacher_level` and nowhere else.
  *
- * `training_bands` covers 2,492 of the 2,540 people whose only band used to be
- * the roster column, so it is the primary source and `grades_taught` the
- * fallback. The 48 with neither return null: the old column held 33 spellings
- * including 'PRIMAYR' and 'Parimary', and guessing a band is how a lesson plan
- * gets built for the wrong grade.
+ * This used to read `training_bands` and FALL BACK to `grades_taught`, and it
+ * returned only the FIRST band — so a teacher teaching MIDDLE and HIGH was
+ * silently handled as MIDDLE. Both are fixed: one column, and the caller can
+ * see every band. Returning null when unknown is deliberate and unchanged —
+ * guessing a band is how a lesson plan gets built for the wrong grade.
  */
 const BAND_TOKENS = new Map([
   ['early_years', 'early_years'], ['earlyyears', 'early_years'], ['early', 'early_years'],
@@ -54,12 +56,16 @@ function _band(token) {
 }
 
 function bandOf(user = {}) {
-  const bands = Array.isArray(user.training_bands) ? user.training_bands : [];
-  for (const b of bands) {
-    const hit = _band(b);
-    if (hit) return hit;
-  }
-  return _band(user.grades_taught);
+  // Lowercased for the coach-facing picker, which has always rendered it that
+  // way; primaryBandOf() decides WHICH band by canonical order rather than by
+  // however the array happened to be stored.
+  const band = primaryBandOf(user);
+  return band ? band.toLowerCase() : null;
+}
+
+/** Every band this person teaches — prefer this where a list is acceptable. */
+function bandsOf(user = {}) {
+  return teacherLevelOf(user);
 }
 
 // ── shaping ────────────────────────────────────────────────────────────
@@ -201,8 +207,7 @@ const PATCH_SQL = `
          u.name,
          u.name,
          u.role,
-         u.training_bands,
-         u.grades_taught,
+         u.teacher_level,
          s.id            AS school_id,
          s.name          AS school_name,
          s.emis
@@ -231,6 +236,30 @@ async function listPatch(query, leaderUserId) {
  * a text key. Each hop is a primary-key or indexed lookup and the widest coach
  * on production resolves 388 people, so this is small.
  */
+/**
+ * The school ids a coach holds, from `leader_schools` rows.
+ *
+ * One rule for "which schools are hers", used by every read path: the
+ * `school_id` foreign key. `school_ext_id` stays what it is — a human-readable
+ * label and the value the Flow round-trips — and is never parsed to find a
+ * school.
+ *
+ * @param {Array<{school_id?: string}>} holdings
+ * @returns {string[]} unique school ids, in the order first seen
+ */
+function schoolIdsForHoldings(holdings) {
+  if (!Array.isArray(holdings)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const h of holdings) {
+    const id = h && h.school_id;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
 async function listPatchViaSupabase(supabase, leaderUserId, schoolExtId = null) {
   const { data: mine } = await supabase
     .from('leader_schools').select('school_ext_id, school_id').eq('leader_user_id', leaderUserId);
@@ -242,14 +271,25 @@ async function listPatchViaSupabase(supabase, leaderUserId, schoolExtId = null) 
     : (mine || []).filter((r) => r.school_ext_id === schoolExtId);
   if (!wanted.length) return [];
 
-  const emis = [...new Set(wanted.map((r) => String(r.school_ext_id || '').split(':').pop()).filter(Boolean))];
-  const { data: schools } = await supabase.from('schools').select('id, name, emis').in('emis', emis);
+  // The FK, not a string parse. This used to split school_ext_id on
+  // ':' and match the tail against schools.emis, which disagreed with PATCH_SQL
+  // in this same file (that one joins on school_id). A holding could satisfy
+  // one and fail the other, and the picker then returned "no matches" with no
+  // error anywhere — a silent empty roster.
+  //
+  // Measured on production: 482 of 487 holdings already carry school_id and
+  // none of them dangles, so keying on the FK strictly improves on the parse.
+  // The 5 without one are test:* fixtures; they drop out, which is correct — a
+  // holding that cannot name its school is not a holding.
+  const schoolIds = schoolIdsForHoldings(wanted);
+  if (!schoolIds.length) return [];
+  const { data: schools } = await supabase.from('schools').select('id, name, emis').in('id', schoolIds);
   const byId = new Map((schools || []).map((s) => [s.id, s]));
   if (!byId.size) return [];
 
   const { data: people } = await supabase
     .from('users')
-    .select('id, phone_number, name, role, school_id, training_bands, grades_taught')
+    .select('id, phone_number, name, role, school_id, teacher_level')
     .in('school_id', [...byId.keys()])
     .in('role', [...PATCH_ROLES]);
 
@@ -289,6 +329,8 @@ module.exports = {
   toLeaderSourceRow,
   PATCH_SQL,
   bandOf,
+  schoolIdsForHoldings,
+  bandsOf,
   shapePatchRow,
   fullNameOf,
   displayNameOf,

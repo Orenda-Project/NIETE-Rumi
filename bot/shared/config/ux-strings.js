@@ -1448,26 +1448,12 @@ const UX_STRINGS = {
     ur: 'یہ سہولت یہاں ابھی چالو نہیں ہے۔ جو ابھی دستیاب ہے دیکھنے کے لیے \u2066/menu\u2069 ٹائپ کریں۔',
   },
 
-  /** The class-roster door, moved out of the handler with its command. */
-  rosterFlowHeader: {
-    en: 'Class roster',
-    ur: 'کلاس رجسٹر',
-  },
-
-  rosterFlowBody: {
-    en: 'Photograph a class register and I will turn it into a student list. You get to check every name before anything is saved.',
-    ur: 'کلاس رجسٹر کی تصویر بھیجیں اور میں اسے طلبہ کی فہرست بنا دوں گی۔ محفوظ کرنے سے پہلے ہر نام آپ کو دکھایا جائے گا۔',
-  },
-
-  rosterFlowFooter: {
-    en: 'About 2 minutes per class',
-    ur: 'ہر کلاس کے لیے تقریباً ۲ منٹ',
-  },
-
-  rosterFlowButton: {
-    en: 'Start',
-    ur: 'شروع کریں',
-  },
+  // The class-roster door's copy is defined ONCE, further up this file
+  // (rosterRoleRefusal + rosterFlowHeader/Body/Footer/Button + rosterFlowFailed).
+  // Two PRs extracted /roster in parallel and each brought its own catalogue
+  // block; a second definition here would be a duplicate object key, where the
+  // later one silently wins and the earlier one is dead. Merge resolution
+  // 2026-09-15: one definition.
 
   rosterLeadersOnly: {
     en: 'Building a class roster is for coaches and school leaders.',
@@ -4797,7 +4783,7 @@ Object.assign(UX_STRINGS, CLASS_FLOW_STRINGS);
  * sentence (or the reverse) cannot drag the punctuation around it.
  */
 const TRANSCRIPT_QUIZ_R2_STRINGS = {
-  // The quiz language is hers to choose. The two button titles come from the
+  // The quiz language is the teacher's to choose. The two button titles come from the
   // language registry (اردو / English), not from here — a language names itself
   // the same way in both catalogs, and the registry is what the /language and
   // /settings pickers already render.
@@ -4824,7 +4810,7 @@ const TRANSCRIPT_QUIZ_R2_STRINGS = {
 Object.assign(UX_STRINGS, TRANSCRIPT_QUIZ_R2_STRINGS);
 
 /**
- * bd-mg9c7.64 — the student tutor persona (a child who reaches the bot outside
+ * the student tutor persona (a child who reaches the bot outside
  * a quiz session, e.g. via a forwarded share link). Two strings, both with a
  * real call site in `_getStudentTutorPrompt` (openai.service.js): the redirect
  * line is copy the child can actually read, so it lives in the catalog like

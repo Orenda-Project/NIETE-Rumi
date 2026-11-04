@@ -8,7 +8,6 @@
  */
 
 const supabase = require('../../../config/supabase');
-const WhatsAppService = require('../../whatsapp.service');
 const { resolveUx } = require('../../../config/ux-strings');
 const { logToFile } = require('../../../utils/logger');
 const { reactInstead } = require('../ack-reaction');
@@ -89,7 +88,12 @@ async function handleCardButton(buttonId, phone, language, inboundMessageId = nu
   // this handler reaches production) — each answer its own (ACK_REACTION). No wamid,
   // or a reaction that did not go → that answer's text, exactly as before.
   const reacted = await reactInstead({ to: phone, messageId: inboundMessageId, emoji: ACK_REACTION[response] });
-  if (!reacted) await WhatsAppService.sendMessage(phone, resolveUx(ACK_KEY[response], { language }));
+  if (!reacted) {
+    // Required here, not at load: whatsapp.service pulls in storage, and the card's
+    // store-only callers (and their tests) should not need it.
+    const WhatsAppService = require('../../whatsapp.service');
+    await WhatsAppService.sendMessage(phone, resolveUx(ACK_KEY[response], { language }));
+  }
   return true;
 }
 

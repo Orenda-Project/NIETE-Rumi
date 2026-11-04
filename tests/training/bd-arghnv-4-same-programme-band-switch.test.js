@@ -14,8 +14,8 @@
  * WHAT THIS SUITE PINS
  *   - "unchanged" is decided on the BANDS (order- and case-insensitive), not
  *     the programmes: the same bands again is still a no-op with no stamp.
- *   - different bands, same programmes: training_bands is written WITHOUT
- *     touching training_bands_updated_at. The 48-hour lock protects access
+ *   - different bands, same programmes: teacher_level is written WITHOUT
+ *     touching teacher_level_updated_at. The 48-hour lock protects access
  *     changes; her training does not change, so no new lock starts.
  *   - the cooldown gate still applies first: a same-programme switch while an
  *     earlier real change's lock is running is refused and writes nothing.
@@ -82,10 +82,10 @@ const THREE_DAYS_AGO = () => new Date(Date.now() - 72 * 3_600_000).toISOString()
 beforeEach(() => jest.clearAllMocks());
 
 describe('applyBandSelection — same programme, different bands (bd-arghnv.4)', () => {
-  test('Middle -> High stores HIGH and does not stamp training_bands_updated_at', async () => {
+  test('Middle -> High stores HIGH and does not stamp teacher_level_updated_at', async () => {
     const stamp = THREE_DAYS_AGO();
     const calls = mockDb({
-      user: { id: UID, training_bands: ['MIDDLE'], training_bands_updated_at: stamp },
+      user: { id: UID, teacher_level: ['MIDDLE'], teacher_level_updated_at: stamp },
       existing: [{ program_id: MH_ID }],
     });
 
@@ -94,9 +94,9 @@ describe('applyBandSelection — same programme, different bands (bd-arghnv.4)',
     expect(res.ok).toBe(true);
     expect(res.unchanged).toBeFalsy();
     expect(calls.userUpdates).toHaveLength(1);
-    expect(calls.userUpdates[0].training_bands).toEqual(['HIGH']);
+    expect(calls.userUpdates[0].teacher_level).toEqual(['HIGH']);
     // No new 48-hour lock: her access did not change.
-    expect(calls.userUpdates[0]).not.toHaveProperty('training_bands_updated_at');
+    expect(calls.userUpdates[0]).not.toHaveProperty('teacher_level_updated_at');
     // Her programme is the same, so no assignment row moves.
     expect(calls.inserts).toEqual([]);
     expect(calls.deactivated).toEqual([]);
@@ -104,7 +104,7 @@ describe('applyBandSelection — same programme, different bands (bd-arghnv.4)',
 
   test('ticking High beside Middle stores both, without a stamp', async () => {
     const calls = mockDb({
-      user: { id: UID, training_bands: ['MIDDLE'], training_bands_updated_at: null },
+      user: { id: UID, teacher_level: ['MIDDLE'], teacher_level_updated_at: null },
       existing: [{ program_id: MH_ID }],
     });
 
@@ -113,17 +113,17 @@ describe('applyBandSelection — same programme, different bands (bd-arghnv.4)',
     expect(res.ok).toBe(true);
     expect(res.unchanged).toBeFalsy();
     expect(calls.userUpdates).toHaveLength(1);
-    expect(calls.userUpdates[0].training_bands).toEqual(['MIDDLE', 'HIGH']);
-    expect(calls.userUpdates[0]).not.toHaveProperty('training_bands_updated_at');
+    expect(calls.userUpdates[0].teacher_level).toEqual(['MIDDLE', 'HIGH']);
+    expect(calls.userUpdates[0]).not.toHaveProperty('teacher_level_updated_at');
     expect(calls.inserts).toEqual([]);
     expect(calls.deactivated).toEqual([]);
   });
 
   test('a teacher with no stored bands whose programme already matches gets her bands stored', async () => {
-    // Assigned niete_middle_high by the backfill, training_bands never written.
+    // Assigned niete_middle_high by the backfill, teacher_level never written.
     // Saving MIDDLE used to be a silent no-op; it must now record her answer.
     const calls = mockDb({
-      user: { id: UID, training_bands: null, training_bands_updated_at: null },
+      user: { id: UID, teacher_level: null, teacher_level_updated_at: null },
       existing: [{ program_id: MH_ID }],
     });
 
@@ -131,15 +131,15 @@ describe('applyBandSelection — same programme, different bands (bd-arghnv.4)',
 
     expect(res.ok).toBe(true);
     expect(calls.userUpdates).toHaveLength(1);
-    expect(calls.userUpdates[0].training_bands).toEqual(['MIDDLE']);
-    expect(calls.userUpdates[0]).not.toHaveProperty('training_bands_updated_at');
+    expect(calls.userUpdates[0].teacher_level).toEqual(['MIDDLE']);
+    expect(calls.userUpdates[0]).not.toHaveProperty('teacher_level_updated_at');
   });
 
   test('if that users write fails, the save is reported as failed, never "Saved"', async () => {
     // The users row is the ONLY write on this path, so a failure means nothing
     // was stored — exactly the "Saved, then Middle again" the teacher saw.
     mockDb({
-      user: { id: UID, training_bands: ['MIDDLE'], training_bands_updated_at: null },
+      user: { id: UID, teacher_level: ['MIDDLE'], teacher_level_updated_at: null },
       existing: [{ program_id: MH_ID }],
       userUpdateError: { message: 'boom' },
     });
@@ -154,7 +154,7 @@ describe('applyBandSelection — same programme, different bands (bd-arghnv.4)',
 describe('applyBandSelection — the same bands again stays a no-op', () => {
   test('identical bands in another order and case: unchanged, nothing written, no stamp', async () => {
     const calls = mockDb({
-      user: { id: UID, training_bands: ['high', 'MIDDLE'], training_bands_updated_at: null },
+      user: { id: UID, teacher_level: ['high', 'MIDDLE'], teacher_level_updated_at: null },
       existing: [{ program_id: MH_ID }],
     });
 
@@ -174,7 +174,7 @@ describe('applyBandSelection — the 48-hour lock around a same-programme switch
     // only stops a same-programme switch from STARTING a lock.
     const twoHoursAgo = new Date(Date.now() - 2 * 3_600_000).toISOString();
     const calls = mockDb({
-      user: { id: UID, training_bands: ['MIDDLE'], training_bands_updated_at: twoHoursAgo },
+      user: { id: UID, teacher_level: ['MIDDLE'], teacher_level_updated_at: twoHoursAgo },
       existing: [{ program_id: MH_ID }],
     });
 
@@ -188,7 +188,7 @@ describe('applyBandSelection — the 48-hour lock around a same-programme switch
   test('a programme change still stamps and reconciles, as before', async () => {
     const now = Date.now();
     const calls = mockDb({
-      user: { id: UID, training_bands: ['MIDDLE'], training_bands_updated_at: null },
+      user: { id: UID, teacher_level: ['MIDDLE'], teacher_level_updated_at: null },
       existing: [{ program_id: MH_ID }],
     });
 
@@ -199,8 +199,8 @@ describe('applyBandSelection — the 48-hour lock around a same-programme switch
     expect(calls.deactivated[0].ids).toEqual([MH_ID]);
     expect(calls.userUpdates).toHaveLength(1);
     expect(calls.userUpdates[0]).toEqual({
-      training_bands: ['PRIMARY'],
-      training_bands_updated_at: new Date(now).toISOString(),
+      teacher_level: ['PRIMARY'],
+      teacher_level_updated_at: new Date(now).toISOString(),
     });
   });
 });

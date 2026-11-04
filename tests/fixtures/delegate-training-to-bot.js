@@ -107,6 +107,18 @@ function installTrainingDelegation(getSupabaseFrom) {
       // the real functions for the same reason as the rest of this fixture:
       // stubbing them would throw away the msq set-equality and vendor-pass-bar
       // assertions the portal suites exist to make.
+      // bd-60145 — certification moved to the bot as well. Wired to the real
+      // guard for the same reason as everything else here: stubbing it would
+      // discard the completeness checks (all units done, every per-module exam
+      // passed) that decide whether a certificate may be issued at all.
+      certifyLevel: async ({ userId, levelId, attemptId = null, programId = null, moduleId = null }) => {
+        const supabase = require('../../bot/shared/config/supabase');
+        const { maybeIssueQuizScoreCertificate } =
+          require('../../bot/shared/services/training/certificate.service');
+        return maybeIssueQuizScoreCertificate(supabase, {
+          userId, levelId, attemptId, programId, moduleId,
+        });
+      },
       getExamVerdict: (levelId, score, total) =>
         require('../../bot/shared/services/training/quiz-delivery.service')
           .decideExamPass(levelId, score, total),

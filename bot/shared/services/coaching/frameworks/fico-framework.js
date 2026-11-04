@@ -453,7 +453,8 @@ ${sectionBlocks}
 F4/F5 = MATHEMATICS. F6/F7 = SCIENCE. F8/F9/F10 = LITERACY/LANGUAGE. B, C, D and F1-F3 apply to
 every lesson. For a subject-tagged indicator whose subject does not match this lesson, emit
 "applicable": false with "score": null and evidence "Not applicable — lesson subject is <subject>".
-DO NOT score it 0: a non-applicable indicator LEAVES THE TOTAL ENTIRELY, it is not a low mark.
+DO NOT score it 0: a non-applicable indicator LEAVES THE TOTAL ENTIRELY, it is not a low mark, and
+it must never be described to the teacher as something her lesson was missing.
 Every other indicator carries "applicable": true. If you cannot tell the subject, mark ALL SEVEN
 subject-tagged indicators non-applicable rather than guessing.
 

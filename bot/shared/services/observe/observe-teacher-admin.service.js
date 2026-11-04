@@ -384,6 +384,7 @@ const REFUSALS = {
     is_coach: 'That number belongs to a coach, so it cannot be added as a teacher.',
     name_required: 'We do not know this number yet, so we need a name to add them.',
     not_found: 'They are not at that school, so there is nothing to remove.',
+    invalid_role: 'Pick either Teacher or Principal. Nothing was changed.',
     cancelled: 'Nothing was changed.',
     failed: 'That did not go through. Nothing was changed — please try again.',
   },
@@ -393,6 +394,7 @@ const REFUSALS = {
     is_coach: 'یہ نمبر ایک کوچ کا ہے، اسے ٹیچر کے طور پر شامل نہیں کیا جا سکتا۔',
     name_required: 'یہ نمبر ہمارے ریکارڈ میں نہیں، انہیں شامل کرنے کے لیے نام درکار ہے۔',
     not_found: 'وہ اس اسکول میں نہیں ہیں، اس لیے ہٹانے کو کچھ نہیں۔',
+    invalid_role: 'ٹیچر یا پرنسپل میں سے ایک چنیں۔ کچھ تبدیل نہیں ہوا۔',
     cancelled: 'کچھ تبدیل نہیں کیا گیا۔',
     failed: 'یہ مکمل نہیں ہو سکا۔ کچھ تبدیل نہیں ہوا — دوبارہ کوشش کریں۔',
   },
@@ -566,6 +568,14 @@ async function commitRemovals({ actorLeaderUserId, schoolExtId, userIds, reason 
  */
 function rosterTeacherNextTarget(next) {
   switch (next) {
+    // bd-60117: the result screen offers Main menu or Close, so 'menu' is the
+    // only live reopen. The rest are kept because a Flow client can still be
+    // holding a previously published version of the screen — an old tap must
+    // not dead-end. `teacher_again` reopens ON the action picker (the caller
+    // supplies its declared keys; see _continueObserveLoop), the older two at
+    // the menu.
+    case 'teacher_again':
+      return { reopen: true, screen: 'TEACHER_ACTION' };
     case 'teacher_add':
     case 'teacher_remove':
     case 'menu':

@@ -487,12 +487,12 @@ app.get('/webhook', (req, res) => {
  */
 app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', rejectStatus: 401 }), async (req, res) => {
   // ACK. Measured on staging 2026-09-06: a child's join-Flow reply got no HTTP
-  // response at all — still open after 180 s — while her session had been
-  // created one second in and three messages had already gone to her phone.
+  // response at all — still open after 180 s — while the session had been
+  // created one second in and three messages had already gone to that phone.
   // The cause was structural, not local: roughly twenty branches of this
   // handler end in a bare `return`, and a `return` here leaves the route
   // without answering Meta. Meta re-delivers what it was not acked for; the
-  // message-id dedupe above stops that becoming duplicate work, but a webhook
+  // message-id dedupe below stops that becoming duplicate work, but a webhook
   // endpoint that habitually fails to answer is one Meta will stop trusting.
   //
   // So the ack is sent ONCE, as soon as the message is accepted, and every
@@ -1679,10 +1679,10 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
         }
       }
 
-      // PLAN_R5 D4 — a "select all that apply" answer comes back from its own
-      // Flow with the token `vqm:<sessionId>:<questionId>`. Routed FIRST and
-      // unconditionally: handleFlowReply() claims every `vqm:` reply, readable
-      // or not, because detectFlowType()'s attendance_marking rule matches ANY
+      // A "select all that apply" answer comes back from its own Flow with the
+      // token `vqm:<sessionId>:<questionId>`. Routed FIRST and unconditionally:
+      // handleMultiFlowReply() claims every `vqm:` reply, readable or not,
+      // because detectFlowType()'s attendance_marking rule matches ANY
       // flow_token containing a colon — the misroute that has already eaten the
       // exam-generator, observe and training-msq flows.
       if (typeof vqToken === 'string' && vqToken.startsWith('vqm:')) {

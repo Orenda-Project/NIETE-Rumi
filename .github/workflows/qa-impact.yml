@@ -43,7 +43,10 @@ name: qa-impact
 
 on:
   pull_request:
-    branches: [sandbox, staging, main]
+    # Sandbox ONLY (operator, 2026-09-16): the mock E2E / qa-impact gate runs only on the sandbox
+    # lane. The harness CODE lives on staging/main too (so the tree is consistent), but it does not
+    # gate promotion PRs into staging or main — those were [sandbox, staging, main] before.
+    branches: [sandbox]
   workflow_dispatch:
 
 permissions:
