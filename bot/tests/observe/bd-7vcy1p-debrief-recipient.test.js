@@ -288,6 +288,18 @@ describe('R4 · the live paths keep working', () => {
     expect(new Set(recipients())).toEqual(new Set([COACH.phone_number]));
   });
 
+  test('a row with no observer at all is not bound: its owner (user_id) is told', async () => {
+    mockDb.row = boundRow({}, {
+      user_id: COACH.id,
+      observer_user_id: null,
+      users: { name: COACH.name, phone_number: COACH.phone_number, preferred_language: 'en' },
+    });
+    await processDebriefRecording(SID, SWEEP);
+
+    expect(sendCount()).toBeGreaterThan(0);
+    expect(new Set(recipients())).toEqual(new Set([COACH.phone_number]));
+  });
+
   test('coach lookup fails but the intake passed her `from`: her `from`, never the teacher', async () => {
     delete mockUsers.rows[COACH.id];
     await processDebriefRecording(SID, { from: COACH.phone_number, audioId: 'wamid.AUDIO-1' });
