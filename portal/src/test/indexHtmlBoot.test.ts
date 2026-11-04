@@ -96,3 +96,40 @@ describe("index.html — the teacher Home asks for her language too (bd-43f1sk)"
     expect(runAt("/portal/coach/insights").fetch.mock.calls.some((c) => String(c[0]).includes("/me/language"))).toBe(false);
   });
 });
+
+describe("index.html — an Urdu teacher's font starts downloading with her language (bd-43f1sk)", () => {
+  const css = fs.readFileSync(path.resolve(__dirname, "../index.css"), "utf8");
+  const nastaliq = (css.match(/font-family:\s*"NIETE Nastaliq";[\s\S]*?url\(([^)]+)\)/) || [])[1]?.replace(/["']/g, "");
+
+  function runWithLanguage(language: string) {
+    const fetch = vi.fn((url: string) => Promise.resolve({ ok: true, json: () => Promise.resolve(url.endsWith("/me/language") ? { success: true, language } : { url }) }));
+    const win: { __nieteBoot?: Boot } = {};
+    new Function("window", "location", "fetch", code)(win, { pathname: "/portal/teacher", protocol: "https:" }, fetch);
+    return win.__nieteBoot!;
+  }
+  const preloads = () => [...document.head.querySelectorAll('link[rel="preload"][as="font"]')] as HTMLLinkElement[];
+  afterEach(() => preloads().forEach((l) => l.remove()));
+
+  it("index.css's Urdu face is the file index.html preloads (one URL, kept in step)", () => {
+    expect(nastaliq).toMatch(/^https:\/\/fonts\.gstatic\.com\/.+\.woff2$/);
+    expect(code).toContain(nastaliq);
+  });
+
+  it("Urdu: a font preload for that file, cross-origin, as soon as /me/language answers", async () => {
+    const boot = runWithLanguage("ur");
+    await boot.language;
+    await new Promise((r) => setTimeout(r, 0));
+    const l = preloads();
+    expect(l).toHaveLength(1);
+    expect(l[0].href).toBe(nastaliq);
+    expect(l[0].crossOrigin).toBe("anonymous");
+    expect(l[0].type).toBe("font/woff2");
+  });
+
+  it("English: no font preload", async () => {
+    const boot = runWithLanguage("en");
+    await boot.language;
+    await new Promise((r) => setTimeout(r, 0));
+    expect(preloads()).toHaveLength(0);
+  });
+});
