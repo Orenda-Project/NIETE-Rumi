@@ -85,9 +85,10 @@ describe("the landing is the teacher Home pattern", () => {
 
   it("every provider is a hub provider tile: its mark, its name, its course count", async () => {
     app("/portal/coach/training");
-    const grid = await screen.findByTestId("library-providers");
+    // the grid is drawn (empty) while the library loads: wait for a tile, not the grid (bd-1q4z4o: this raced its mock)
+    const tile = await screen.findByTestId("provider-TALEEMABAD");
+    const grid = screen.getByTestId("library-providers");
     expect(grid.className).toContain("grid-cols-2");
-    const tile = screen.getByTestId("provider-TALEEMABAD");
     expect(tile.className).toContain("min-h-[150px]");
     expect(tile.className).toContain("rounded-[18px]");
     expect(tile.textContent).toContain("NIETE");

@@ -2,6 +2,36 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- bd-sex15q.34 — a coach's or an RM's first open: the session and the flags are asked for now, not after the
+         app's first chunk has arrived (seconds on a slow line). The app takes each answer once (src/lib/bootReads.ts);
+         an answer that is not OK is handed over as null and the app reads as before. Never a /coachip/ request here:
+         the app reads the switch first. Not in the Android app (its API is on another origin). First in <head>: an inline script after a stylesheet
+         waits for that stylesheet, which on a slow line is seconds. -->
+    <!-- bd-1q4z4o — and the teacher Home (/portal/teacher, where WhatsApp's "open the app" link lands): /me/home too
+         (the card, the Coach strip, the Quizzes tile), so the Home can draw its final layout at once instead of
+         moving when they arrive. Each OK answer is also kept in `done` as it lands (src/lib/bootReads.ts peekBoot). -->
+    <script id="coachip-boot">
+      (function () {
+        try {
+          var p = location.pathname;
+          var home = /^\/portal\/teacher\/?$/.test(p);
+          if (!home && !/^\/portal\/(coach\/insights|rm)(\/|$)/.test(p)) return;
+          var cap = window.Capacitor;
+          if (cap && cap.isNativePlatform && cap.isNativePlatform()) return;
+          var done = {};
+          var read = function (k, u) {
+            var r = fetch(u, { credentials: "include", headers: { Accept: "application/json" } })
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .catch(function () { return null; });
+            r.then(function (v) { if (v) done[k] = v; });
+            return r;
+          };
+          var boot = { config: read("config", "/api/portal/config"), me: read("me", "/api/portal/me"), done: done };
+          if (home) boot.home = read("home", "/api/portal/me/home");
+          window.__nieteBoot = boot;
+        } catch (e) { /* the app reads as before */ }
+      })();
+    </script>
     <link rel="icon" href="/favicon.png" type="image/png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#333748" />
@@ -47,6 +77,10 @@
               p.indexOf('/portal/reset-password') === 0 || p.indexOf('/portal/delete-account') === 0 ||
               p.indexOf('/portal/privacy') === 0 || (p === '/' && !known)) {
             d.setAttribute('data-shell', 'login');
+          } else if (/^\/portal\/teacher\/?$/.test(p) && k !== 'classic') {
+            // bd-1q4z4o — the teacher Home (WhatsApp's link lands here, often with no memory at all): the Home look's
+            // own outline. Kept in step with frameFor() in src/portal/lib/shellHint.ts.
+            d.setAttribute('data-shell', 'teacher-look');
           } else if (known) {
             d.setAttribute('data-shell', k);
           }
@@ -84,6 +118,26 @@
       /* a sign-in page: no menu; the auth frame's outline (bd-fmf24g.64): an indigo band, one card climbing into it */
       [data-shell="login"] .as-top, [data-shell="login"] .as-tab, [data-shell="login"] .as-main { display: none; }
       [data-shell="login"] .as-login { display: block; min-height: 100vh; background: #f4f5f8; }
+      /* bd-1q4z4o — the teacher Home look's outline (src/portal/components/Skeleton.tsx LookFrame draws the same): the navy
+         band (HomeGreeting), nine tiles three per row climbing 28px into it (FeatureTiles, 114px), the look's 71px tab bar */
+      .as-look { display: none; }
+      [data-shell="teacher-look"] .as-main { display: none; }
+      [data-shell="teacher-look"] .as-look { display: block; }
+      [data-shell="teacher-look"] .as-top { background: #fff; border-bottom: 1px solid #e5e7eb; }
+      [data-shell="teacher-look"] .as-top .as-sk { background: #e5e7eb; }
+      [data-shell="teacher-look"] .as-tab { height: 71px; }
+      .as-lkband { height: 231px; background: #333748; padding: 18px 20px 0; box-sizing: border-box; }
+      .as-lkband .as-sk { background: rgba(255, 255, 255, .18); }
+      .as-lkmark { width: 44px; height: 44px; border-radius: 12px; }
+      .as-lkt { width: 62%; height: 30px; margin-top: 18px; }
+      .as-lkl { width: 44%; height: 14px; margin-top: 14px; }
+      .as-lkgrid { position: relative; max-width: 576px; margin: -28px auto 0; padding: 0 16px; box-sizing: border-box; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+      .as-lktile { height: 114px; background: #fff; border: 1px solid #e5e7eb; border-radius: 20px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+      .as-lkdot { width: 44px; height: 44px; border-radius: 12px; }
+      .as-lkcl { width: 60%; height: 10px; }
+      @media (min-width: 576px) {
+        .as-lkband { max-width: 576px; margin: 16px auto 0; border-radius: 28px; }
+      }
       .as-lband { background: #333748; height: 204px; padding: 24px 20px 0; box-sizing: border-box; }
       .as-lband-in { max-width: 460px; margin: 0 auto; }
       .as-lband .as-sk { background: rgba(255, 255, 255, .18); }
@@ -119,6 +173,24 @@
           <div class="as-card"><div class="as-sk as-dot" data-skeleton></div><div class="as-sk as-cl" data-skeleton></div></div>
           <div class="as-card"><div class="as-sk as-dot" data-skeleton></div><div class="as-sk as-cl" data-skeleton></div></div>
           <div class="as-card"><div class="as-sk as-dot" data-skeleton></div><div class="as-sk as-cl" data-skeleton></div></div>
+        </div>
+      </div>
+      <div class="as-look">
+        <div class="as-lkband">
+          <div class="as-sk as-lkmark" data-skeleton></div>
+          <div class="as-sk as-lkt" data-skeleton></div>
+          <div class="as-sk as-lkl" data-skeleton></div>
+        </div>
+        <div class="as-lkgrid">
+          <div class="as-lktile"><div class="as-sk as-lkdot" data-skeleton></div><div class="as-sk as-lkcl" data-skeleton></div></div>
+          <div class="as-lktile"><div class="as-sk as-lkdot" data-skeleton></div><div class="as-sk as-lkcl" data-skeleton></div></div>
+          <div class="as-lktile"><div class="as-sk as-lkdot" data-skeleton></div><div class="as-sk as-lkcl" data-skeleton></div></div>
+          <div class="as-lktile"><div class="as-sk as-lkdot" data-skeleton></div><div class="as-sk as-lkcl" data-skeleton></div></div>
+          <div class="as-lktile"><div class="as-sk as-lkdot" data-skeleton></div><div class="as-sk as-lkcl" data-skeleton></div></div>
+          <div class="as-lktile"><div class="as-sk as-lkdot" data-skeleton></div><div class="as-sk as-lkcl" data-skeleton></div></div>
+          <div class="as-lktile"><div class="as-sk as-lkdot" data-skeleton></div><div class="as-sk as-lkcl" data-skeleton></div></div>
+          <div class="as-lktile"><div class="as-sk as-lkdot" data-skeleton></div><div class="as-sk as-lkcl" data-skeleton></div></div>
+          <div class="as-lktile"><div class="as-sk as-lkdot" data-skeleton></div><div class="as-sk as-lkcl" data-skeleton></div></div>
         </div>
       </div>
       <div class="as-tab">
