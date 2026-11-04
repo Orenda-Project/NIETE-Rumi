@@ -88,6 +88,15 @@ describe('getPatchTeachers', () => {
     expect(out).toHaveLength(2);
   });
 
+  // bd-ewbzns.1 — her teaching levels ride on her row, for the coach app's Primary / Middle / High filter.
+  it('carries her teaching levels from users.teacher_level, in canonical order; none recorded is []', async () => {
+    const q = fakeQuery([{ ...ROWS[0], teacher_level: ['high', 'PRIMARY', 'early_years'] }, ROWS[1]]);
+    const out = await getPatchTeachers(q, 'leader-1');
+    expect(q.calls[0].sql).toMatch(/u\.teacher_level/);
+    expect(out.find((t) => t.name === 'Ayesha Bibi').levels).toEqual(['PRIMARY', 'HIGH']);
+    expect(out.find((t) => t.name === 'Zainab Khan').levels).toEqual([]);
+  });
+
   it('returns an empty array for a leader with no patch', async () => {
     const out = await getPatchTeachers(fakeQuery([]), 'leader-empty');
     expect(out).toEqual([]);

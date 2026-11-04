@@ -24,6 +24,9 @@
  *               happened, else "Long-press to copy"), then "Send to my class" — a plain https://wa.me/?text= link the
  *               server built (no fetch between the tap and the navigation), the two honest lines, and "After sending,
  *               come back from the button in your chat" (there is no screen to come back to)
+ *   one lesson  (quiz_teacher_home_one_lesson, ?session=<coaching session id>: a Digital Coach report's "Create Quick
+ *               Quiz") the top card alone, "Quiz from this lesson", that lesson's "Quiz this" started right after paint;
+ *               no list, no library, "See all my lessons" to the plain home (ONE_SWAPS)
  *
  * The script never builds HTML (createElement + textContent only); the inline CSS and the script are allowed by their
  * sha256 in the Content-Security-Policy (header + <meta>). Audit hooks: data-screen per screen, ONE data-primary per
@@ -334,6 +337,28 @@ const COUNTS_SWAPS = Object.freeze([
 const PORTAL_SWAPS = Object.freeze([
   ['function foot(){', "function foot(){var po=q('#th-portal');if(po){po.hidden=!d.portalHref;if(d.portalHref){po.setAttribute('href',d.portalHref);po.onclick=function(){step('portal')}}}"],
 ]);
+/**
+ * one (quiz_teacher_home_one_lesson, with ?session=<coaching session id>): the page opened for ONE recorded lesson, from
+ * a Digital Coach report's "Create Quick Quiz". Right after paint the page starts that lesson's "Quiz this" — the very
+ * make() a row's tap runs (POST /api/th/quiz/make {kind:'coaching'}; the server checks the lesson is this teacher's) —
+ * and its card shows that one quiz being made, then ready with "Send to my class" (the poll's own card). The home's
+ * answer is never asked for (no list, no library: the shell hides it), and a quiet "See all my lessons" link opens the
+ * plain home. The poll's first ask goes at once (a quiz already made for this lesson shows without the 5 s wait).
+ * ONE script, built from today's: none of the other switched parts ever runs on this page (they live in the home's
+ * answer, its list, its library and its foot), so the other page switches do not change it.
+ */
+const ONE_SWAPS = Object.freeze([
+  ['setTimeout(tick,5000)}', 'setTimeout(tick,0)}'],
+  ["var g0=store('th.grade');", `function one(){d={primary:{kind:'one'},timeline:[]};var c=q('#th-top'),r={kind:'coach',make:'coaching',id:b.one,title:''};clear(c);c.setAttribute('data-kind','one');
+c.appendChild(el('p','th-say',S['th.one.say']));var v=btn('th-go',S['th.quiz.this'],'quiz_this',function(){make(r,c,v)},true);c.appendChild(v);
+q('#th-main').setAttribute('data-ready','1');step('one_lesson');make(r,c,v)}
+if(b.one){one();return}
+var g0=store('th.grade');`],
+]);
+const ONE_SCRIPT = swapped(SCRIPT, ONE_SWAPS, 'the one-lesson part');
+const ONE_SCRIPT_HASH = sha(ONE_SCRIPT);
+const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Every page the switches can ask for: paged × named × early × counts × grade-fast × portal, each under its own hash.
 // The fast grade chips are swapped first (their parts are today's pickGrade and render tail), so with the fast switch
 // on the counts carry and the early pick's guard land in the fast chips' one library ask (libGet), guard still first.
@@ -385,17 +410,20 @@ function pageLang(tokenLang, asked) {
 // The strings the script fills with (textContent only), by id. The page's own static words are not repeated.
 const NAMED_IDS = Object.freeze(['th.kind.story', 'th.kind.quiz', 'th.again.story', 'th.again.quiz']);
 const COUNTS_IDS = Object.freeze(['th.stories.counts', 'th.stories.counts.one']);
-const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa', 'th.retry', 'th.portal', ...NAMED_IDS, ...COUNTS_IDS].includes(id)));
+const ONE_IDS = Object.freeze(['th.one.say']);
+const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa', 'th.retry', 'th.portal', 'th.one.all', ...NAMED_IDS, ...COUNTS_IDS, ...ONE_IDS].includes(id)));
 
 /**
  * The shell. Nothing in it depends on the teacher and nothing is read to build it: the token (already verified by the
  * caller) rides only in the boot block; every teacher-specific word arrives from /api/th/home after paint. `asked` is
  * the ?lang the page was opened with (bi tokens only); `gradeFast` (only a real true) swaps in the fast grade chips'
- * script and its own hash; `portal` (only a real true) adds "Open my portal" to the foot and its script part.
+ * script and its own hash; `portal` (only a real true) adds "Open my portal" to the foot and its script part; `one`
+ * (a coaching session id, a UUID; anything else is ignored) builds the one-lesson page (ONE_SWAPS) for that lesson.
  * → { html, csp } (the header value for the response).
  */
-function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false, wait = false, portal = false }) {
-  const { text: script, hash: scriptHash } = SCRIPTS.get(`${Boolean(paged)}|${wait === true}|${named === true}|${early === true}|${counts === true}|${gradeFast === true}|${portal === true}`);
+function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false, wait = false, portal = false, one = null }) {
+  const oneId = typeof one === 'string' && UUID_RX.test(one) ? one : null;
+  const { text: script, hash: scriptHash } = oneId ? { text: ONE_SCRIPT, hash: ONE_SCRIPT_HASH } : SCRIPTS.get(`${Boolean(paged)}|${wait === true}|${named === true}|${early === true}|${counts === true}|${gradeFast === true}|${portal === true}`);
   const l = clampLanguage(lang);
   const style = `${fontFace(l)}${CSS}`;
   const styleHash = sha(style);
@@ -405,14 +433,17 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
   SCRIPT_IDS.forEach((id) => { s[id] = str(id, l); });
   if (named === true) NAMED_IDS.forEach((id) => { s[id] = str(id, l); });
   if (counts === true) COUNTS_IDS.forEach((id) => { s[id] = str(id, l); });
+  if (oneId) ONE_IDS.forEach((id) => { s[id] = str(id, l); });
   const sw = switchTo
-    ? `<a class="th-sw" lang="${switchTo}" href="/quiz/teacher/${enc}?lang=${switchTo}" data-tap="lang">${esc(str('th.lang.switch', l))}</a>`
+    ? `<a class="th-sw" lang="${switchTo}" href="/quiz/teacher/${enc}?lang=${switchTo}${oneId ? `&amp;session=${oneId}` : ''}" data-tap="lang">${esc(str('th.lang.switch', l))}</a>`
     : '';
   const chips = [1, 2, 3, 4, 5].map((g) => `<button type="button" class="th-chip" data-grade="${g}" data-tap="grade" aria-pressed="false" aria-label="${esc(str('th.grade.n', l).replace('{n}', digits(g, l)))}">${esc(digits(g, l))}</button>`).join('');
-  const boot = { t: token, lang: l, ask: switchTo && asked === 'en' ? 'en' : null, dg: l === 'ur' ? UR_DIGITS : null, s };
+  const boot = { t: token, lang: l, ask: switchTo && asked === 'en' ? 'en' : null, dg: l === 'ur' ? UR_DIGITS : null, s, ...(oneId ? { one: oneId } : {}) };
+  // the one-lesson page's way to the whole home: the plain page, in the language this one was opened in
+  const allLink = oneId ? `\n<a class="th-link" id="th-one-all" data-tap="one_all" href="/quiz/teacher/${enc}${boot.ask ? '?lang=en' : ''}">${esc(str('th.one.all', l))}</a>` : '';
   const html = `${head(l, str('th.title', l), style, styleHash, scriptHash)}
 <body>
-<main class="th" id="th-main" data-screen="teacher_home" data-home>
+<main class="th" id="th-main" data-screen="${oneId ? 'teacher_home_one' : 'teacher_home'}" data-home>
 <header class="th-top"><h1 id="th-h">${esc(str('th.hello.noname', l))}</h1>${sw}</header>
 <p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>${paged || wait === true ? `\n<button class="th-go2" id="th-retry" type="button" hidden>${esc(str('th.retry', l))}</button>` : ''}${chat ? `\n<a class="th-go2" id="th-err-go" href="${esc(chat)}" hidden>${esc(str('th.open.wa', l))}</a>` : ''}
 <section class="th-card th-main" id="th-top" aria-live="polite"><div class="th-sk"></div><div class="th-sk"></div><div class="th-sk th-sk-b"></div></section>
@@ -423,7 +454,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 <ul class="th-rows" id="th-rows"></ul>
 <button type="button" class="th-link" id="th-more" data-tap="more" hidden>${esc(str('th.more', l))}</button>
 </section>
-<section class="th-card" id="th-lib">
+<section class="th-card" id="th-lib"${oneId ? ' hidden' : ''}>
 <h2>${esc(str('th.sec.library', l))}</h2>
 <p class="th-note" id="th-chosen"></p>${counts === true ? '\n<p class="th-note" id="th-counts" hidden></p>' : ''}
 <div class="th-chips" id="th-grades">${chips}</div>
@@ -431,7 +462,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 <a class="th-link" id="th-all" data-tap="all_stories" hidden>${esc(str('th.all.stories', l))}</a>
 <a class="th-go2" id="th-videos" data-tap="videos" hidden>${esc(str('th.videos.card', l))}</a>
 </section>
-<nav class="th-foot">
+<nav class="th-foot">${allLink}
 <a class="th-link" id="th-make" data-tap="make" hidden>${esc(str('th.make', l))}</a>
 <div class="th-cards" id="th-cards" hidden></div>
 <a class="th-link" id="th-try" data-tap="try_student" hidden>${esc(str('th.try.student', l))}</a>
@@ -463,4 +494,5 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 module.exports = {
   buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, SCRIPT_PAGED, SCRIPT_PAGED_HASH,
   FAST_SCRIPT, FAST_SCRIPT_HASH, SCRIPT_PAGED_FAST, SCRIPT_PAGED_FAST_HASH, SCRIPT_WAIT, SCRIPT_WAIT_HASH, HOME_P99_MS, WAIT_MS, swapped, digits, csp, sha,
+  ONE_SCRIPT, ONE_SCRIPT_HASH,
 };

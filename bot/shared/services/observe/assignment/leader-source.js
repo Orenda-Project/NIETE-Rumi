@@ -464,6 +464,8 @@ module.exports = {
   buildBrief,
   leaderLang,
   resolveTeacher,
+  // her leader_schools rows ([] on a failed read); the School card door (schools/school-card-door.js) reads it.
+  _schools,
   // exported for tests:
   weakestAreaFromAnalysis,
   strongestAreaFromAnalysis,

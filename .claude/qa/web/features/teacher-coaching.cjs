@@ -6,7 +6,7 @@
 const { pagesScenario } = require('../lib.cjs');
 
 const scenarios = [
-  pagesScenario("TC01", "Teacher app v2: Digital Coaching lists her recent observations", "teacher", "teacherV2", [{ path: "/portal/teacher/coaching", heading: /^Recent DC Observations\s+[1-9]/ }]),
+  pagesScenario("TC01", "Teacher app v2: Digital Coaching lists her recent observations", "teacher", "teacherV2", [{ path: "/portal/teacher/coaching", heading: /^Digital Coaching$/ }, { path: "/portal/teacher/coaching/all", heading: /^Recent DC Observations/ }]),
   pagesScenario("TC02", "Teacher app v2: coach visits (Observations) open", "teacher", "teacherV2", [{ path: "/portal/teacher/observations", heading: /^Observations$/ }]),
   pagesScenario("TC03", "Classic portal: Coaching opens", "teacher", "classic", [{ path: "/portal/coaching", heading: /^Coaching$/ }]),
   pagesScenario("TC04", "Teacher app v2: Start DC observation opens its one screen", "teacher", "teacherV2", [{ path: "/portal/teacher/coaching/new", heading: /^Start DC observation$/ }]),

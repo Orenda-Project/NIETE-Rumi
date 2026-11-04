@@ -12,5 +12,6 @@ const scenarios = [
   pagesScenario("CP04", "Coach app v2: Observe sends her to the Training Library; More and My profile open", "coach", "coachV2", [{ path: "/portal/coach/observe", heading: /^Training Library/, settle: "/portal/coach/training" }, { path: "/portal/coach/more", heading: /^More$/ }, { path: "/portal/coach/profile", heading: /^My profile$/ }]),
 ];
 scenarios.push(...require("../flows/coach-disagreement.cjs"));
+scenarios.push(...require("../flows/coach-school-card.cjs"));
 
 module.exports = { feature: "coach-portal", spec: 'tests/features/web/coach-portal.feature', scenarios };

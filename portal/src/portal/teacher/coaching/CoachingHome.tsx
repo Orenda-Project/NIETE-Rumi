@@ -6,7 +6,7 @@ import { dataOf, useLoad } from '../../newui/lessons/shared';
 import { FEATURE_HUE } from '../icons';
 import TeacherPage from '../TeacherPage';
 import { teacherPath } from '../routes';
-import { HistoryList, HistoryRow } from '../ui';
+import { HistoryRow } from '../ui';
 import { CARD, FOCUS, LIST_CARD } from '../ui/styles';
 import { useCopy } from '../i18n';
 import { LESSONS } from '../lessons/copy';
@@ -26,12 +26,13 @@ import { WaitingRecording } from './parts';
  *                          screen with it attached (or, sent before, its report).
  *   Analysing              only while a lesson is being analysed (GET /teacher/coaching/history: no report yet, no
  *                          band); each opens its lesson, where she answers the reflection question.
- *   Recent DC Observations the newest four with a report or band, open, no See all.
+ *
+ * bd-bmc9a0.4 — ICT feedback (IAB Experience View, row 30): three sections made the page heavy for teachers. Two options
+ * now — start a new one, or open Summary for the ones before; Recent DC Observations lives inside Summary (CoachingAll).
+ * (This departs from the hub template's "Recent, newest four" for Digital Coaching only; the operator's go, 28 Oct.)
  *
  * Opened from a lesson plan (Start DC observation, ?grade&subject&plan) she goes straight to the one screen with it.
  */
-
-const RECENT_COUNT = 4;
 
 export function CoachingHomePage() {
   const C = useCopy(COACHING);
@@ -44,11 +45,9 @@ export function CoachingHomePage() {
   const waiting = dataOf(pending) ?? [];
 
   const items = useMemo(() => dataOf(history)?.items ?? [], [history]);
-  // bd-aqotzx — a lesson closed because it did not sound like a class sits with the finished ones (marked Stopped).
+  // bd-aqotzx — a lesson closed because it did not sound like a class is a finished one (in Summary, marked Stopped).
   const analysing = useMemo(() => items.filter((it) => !it.reportReady && it.percentage == null && it.state !== 'stopped'), [items]);
-  const done = useMemo(() => items.filter((it) => it.reportReady || it.percentage != null || it.state === 'stopped').slice(0, RECENT_COUNT), [items]);
   const making = useMemo(() => lessonGroups(analysing, undefined, C, days).flatMap((g) => g.items), [analysing, C, days]);
-  const groups = useMemo(() => lessonGroups(done, undefined, C, days), [done, C, days]);
   const total = dataOf(history)?.total;
 
   if (prefill.pick || prefill.grade != null) return <Navigate to={`${COACHING_NEW}${location.search}`} replace />;
@@ -95,10 +94,6 @@ export function CoachingHomePage() {
           </section>
         </>
       ) : null}
-
-      <div className="mt-3">
-        <HistoryList heading={C.recent} groups={groups} showMore={false} emptyLabel={C.noneYet} />
-      </div>
     </TeacherPage>
   );
 }

@@ -182,16 +182,17 @@ describe("Digital Coaching in Urdu — the hub", () => {
     expect(screen.queryByText("بورڈ، چارٹ، کلاس روم")).toBeNull();
   });
 
-  it("Recent: her lessons with Urdu chips (Analysing, the band) and Urdu day names; data as it is", async () => {
+  // bd-bmc9a0.4 — ICT IAB row 30: the main page is Start and Summary (and what is being analysed); the finished ones,
+  // with their Urdu bands and day names, are in Summary (below).
+  it("the hub: Start, Summary and what is being analysed, in Urdu; data as it is", async () => {
     at(COACHING_HOME, <CoachingHomePage />);
     expect(await screen.findByText(/Parts of a plant/, {}, { timeout: 5000 })).toBeTruthy();
     expect(screen.getAllByText(U.analysing).length).toBeGreaterThan(0); // the list's heading and the row's chip
-    expect(screen.getByText(U.bands.good)).toBeTruthy();
-    expect(englishLeft(["Good", "Analysing", " min"])).toEqual([]);
-    const body = plain(document.body.textContent);
-    expect(body).toContain(dayName("2026-10-02", pkToday(), DAYS));
-    expect(body).not.toMatch(ENGLISH_DAY);
-    expect(body).toContain(UR.minutes(31));
+    expect(screen.getByText(U.startObservation)).toBeTruthy();
+    expect(screen.getByText(U.summary)).toBeTruthy();
+    expect(screen.queryByText(U.recent)).toBeNull();
+    expect(englishLeft(["Analysing", " min"])).toEqual([]);
+    expect(plain(document.body.textContent)).toContain(UR.minutes(34));
   });
 
   it("Photos: each photo's remove and the at-most-10 refusal in Urdu", async () => {
@@ -306,8 +307,10 @@ describe("Digital Coaching in Urdu — All DC observations", () => {
     for (const w of [U.kpiSessions, U.kpiLatestBand, U.kpiMinutes, U.kpiReports]) expect(screen.getByText(w)).toBeTruthy();
     expect(screen.getAllByText(U.bands.good).length).toBeGreaterThan(0);
     expect(screen.getByText(U.analysing)).toBeTruthy();
+    expect(screen.getByText(U.recent)).toBeTruthy(); // bd-bmc9a0.4 — moved here from the main page (ICT IAB row 30)
     expect(englishLeft(["DC observations", "Latest band", "Minutes recorded", "Reports received", "Good", "Analysing", " min"])).toEqual([]);
     const body = plain(document.body.textContent);
+    expect(body).toContain(dayName("2026-10-02", pkToday(), DAYS));
     expect(body).not.toMatch(ENGLISH_DAY);
     expect(body).not.toMatch(/\bvs\b/);
   });

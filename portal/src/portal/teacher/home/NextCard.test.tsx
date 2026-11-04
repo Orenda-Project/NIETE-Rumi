@@ -96,7 +96,7 @@ describe("NextCard (Urdu)", () => {
     const sub = screen.getByTestId("home-next-sub").textContent || "";
     expect(sub).toBe("⁨Fractions: halves and quarters⁩، ⁨18 اکتوبر⁩");
     expect(sub).not.toMatch(/·/);
-    expect(buttons(card).map((b) => b.textContent)).toEqual(["رپورٹ دیکھیں", "فوری جانچ بنائیں"]);
+    expect(buttons(card).map((b) => b.textContent)).toEqual(["رپورٹ دیکھیں", "کوئز بنائیں"]);
     for (const el of [screen.getByTestId("home-next-title"), screen.getByTestId("home-next-sub"), ...buttons(card)]) {
       expect(el.getAttribute("dir")).toBe("rtl");
     }

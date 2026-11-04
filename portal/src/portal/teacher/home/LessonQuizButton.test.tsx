@@ -47,6 +47,25 @@ describe("LessonQuizButton", () => {
     await waitFor(() => expect(assign).toHaveBeenCalledWith("/quiz/teacher/tok"));
   });
 
+  it("on a Digital Coach report with its session: the quiz home opens for THAT lesson (?session=<id>), still logged as coach_quiz", async () => {
+    const id = "0b4e8f9a-1c2d-4e5f-8a9b-0c1d2e3f4a5b";
+    render(<MemoryRouter><LessonQuizButton from="coach" sessionId={id} /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: HOME_CARD_COPY.lp.quizThis }));
+    expect(tapHome).toHaveBeenCalledWith("coach_quiz");
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(`/quiz/teacher/tok?session=${id}`));
+  });
+
+  it("a session id that is not a UUID, or one on a lesson plan: the quiz home as today", async () => {
+    const { unmount } = render(<MemoryRouter><LessonQuizButton from="coach" sessionId="../x?y" /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: HOME_CARD_COPY.lp.quizThis }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/quiz/teacher/tok"));
+    unmount();
+    assign.mockClear();
+    render(<MemoryRouter><LessonQuizButton sessionId="0b4e8f9a-1c2d-4e5f-8a9b-0c1d2e3f4a5b" /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: HOME_CARD_COPY.lp.quizThis }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/quiz/teacher/tok"));
+  });
+
   it("switch on but no quiz home (the bot off, a coach): nothing drawn", async () => {
     h.quizHome = null;
     draw();

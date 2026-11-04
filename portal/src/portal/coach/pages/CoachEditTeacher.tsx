@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Check, School, Trash2, TriangleAlert } from "lucide-react";
 import { coach } from "../../services/api";
 import { StatusChip } from "../../teacher/ui";
@@ -45,6 +45,8 @@ const CoachEditTeacher = () => {
   const C = useCopy(PEOPLE);
   const { ext = "" } = useParams();
   const navigate = useNavigate();
+  // bd-ewbzns.2 — opened from the school's Edit teacher list: Save goes back to that list, which shows the change.
+  const from = (useLocation().state || {}) as { back?: string };
   const { data, failed, reload } = useLoad(() => coach.getTeacher(ext), [ext]);
   const { data: people } = useLoad(() => coach.getPeople(), []);
   const t = data?.teacher;
@@ -95,7 +97,8 @@ const CoachEditTeacher = () => {
       if (changes.role) await coach.editTeacher(ext, "role", role);
       if (changes.level) await coach.editTeacher(ext, "level", LEVELS.filter((b) => levels.includes(b)));
       if (changes.school) await coach.moveTeacher(ext, school);
-      navigate(`/portal/coach/teacher/${ext}`, { replace: true });
+      if (from.back) navigate(-1);
+      else navigate(`/portal/coach/teacher/${ext}`, { replace: true });
     } catch (e: any) {
       setError(reasonText(C, e?.response?.data));
       reload();

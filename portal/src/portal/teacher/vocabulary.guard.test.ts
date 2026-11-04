@@ -81,7 +81,9 @@ const BANNED: Ban[] = [
   { lang: "ur", re: /استاد/, use: "ٹیچر" },
   { lang: "ur", re: /بن رہا|تیار ہو رہے ہیں/, use: "تیار ہو رہا ہے" },
   { lang: "ur", re: /^لوڈ نہیں ہوا$/, use: "لوڈ نہیں ہو سکا" },
-  { lang: "ur", re: /کوئز/, use: "فوری جانچ (a Quick check) or امتحان (an exam)" },
+  // bd-bmc9a0.6 (the operator, 29 Oct): the classroom quiz is «کوئز», as the bot says it; «فوری جانچ» is Training's Quick
+  // check only. So کوئز is no longer banned, and a quiz line never says فوری جانچ (the Home card's own test holds that).
+  { lang: "ur", re: /سبق کی فوری جانچ|^فوری جانچ:/, use: "کوئز for the classroom quiz (آپ کے پچھلے سبق کا کوئز, کوئز: …); فوری جانچ is Training's Quick check" },
   { lang: "ur", re: /سبق کا منصوبہ/, use: "لیسن پلان" },
   { lang: "ur", re: /اسباق/, use: "لیسن پلان for plans; a count of taught lessons is only the report's journey" },
   { lang: "ur", re: /واٹس ایپ پر بھیجا$/, use: "واٹس ایپ پر بھیجا گیا" },
