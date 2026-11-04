@@ -358,7 +358,8 @@ async function tryHandleText({ user, from, messageBody, messageId }, deps) {
   if (isRetry) {
     return file(d, { user, from, state, message: state.pending.message, waMessageId: state.pending.wa_message_id || messageId });
   }
-  return file(d, { user, from, state, message: text, waMessageId: messageId });
+  // Her words as she typed them (an Urdu ZWNJ is part of the text); `text` above is only for deciding.
+  return file(d, { user, from, state, message: String(messageBody).trim() || text, waMessageId: messageId });
 }
 
 /** Speech to text for a WhatsApp voice note: the same converter and engine routing the voice handler uses. */
