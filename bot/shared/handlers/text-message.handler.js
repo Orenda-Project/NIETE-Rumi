@@ -561,6 +561,24 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
     return;
   }
 
+  // /feedback and /bug (feedback/whatsapp-feedback-intake.service.js): the command, then her next message is the
+  // report. Before the 👎-reason windows below: a report she just asked to send is never taken as a survey reason,
+  // and "/feedback" typed inside an open window still opens it. Any slash command while waiting ends the wait and
+  // goes on to its own door. Switch WHATSAPP_FEEDBACK; off, both calls return false and nothing changes.
+  if (messageBody) {
+    try {
+      const WaFeedback = require('../services/feedback/whatsapp-feedback-intake.service');
+      const feedbackArgs = { user, from, messageBody, messageId: message && message.id, lookupFailed: userLookupFailed };
+      if (await WaFeedback.tryHandleTrigger(feedbackArgs) || await WaFeedback.tryHandleText(feedbackArgs)) {
+        releaseReasonHold(false);
+        typingController.stop();
+        return;
+      }
+    } catch (feedbackErr) {
+      logToFile('⚠️ WhatsApp feedback intake failed — routing on', { error: feedbackErr.message }, 'error');
+    }
+  }
+
   // NOTE: Funnel tracking (chat start) is handled centrally in whatsapp-bot.js
   // before routing to this handler
 
