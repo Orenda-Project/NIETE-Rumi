@@ -106,8 +106,12 @@ THE HARD RULES (breaking any of these harms a real teacher):
 
 9. "focus": the rubric key (from the list above) that "try" targets: one you judged FALSE. null when every key is TRUE.
 
+10. "missed": for EVERY rubric key you judged FALSE (never "disparaged_teacher"), one short sentence (at most 25 words) on what happened in THIS debrief instead, quoting the officer's own words or naming the moment (e.g. "you asked 'how did it go?' and answered it yourself before the teacher spoke"). It is what happened, not a definition and not general advice. Leave out every key you judged TRUE.
+
+11. "focus_why": one short sentence (at most 25 words) on why "focus" is the one to work on first, from THIS debrief (e.g. the other steps build on it, or it is the quickest to add). null when "focus" is null.
+
 Return JSON with EXACTLY this structure:
-{ "praise_line": "..." (or null if harmful), "wins": [ { "behaviour": "...", "evidence": "..." } ] (or [] if harmful), "concern": { "what_happened": "...", "why_it_matters": "...", "instead": "..." } (or null if not harmful), "try": { "move": "...", "evidence": "...", "instead": "..." }, "reflection_question": "...", "value": "imani"|"heshima"|"usikivu"|"ukuaji"|"ushirikiano"|null, "focus": "<a rubric key judged false>"|null, "rubric": { ${RUBRIC_KEYS_I18N.map((k) => `"${k}": true/false`).join(', ')} } }
+{ "praise_line": "..." (or null if harmful), "wins": [ { "behaviour": "...", "evidence": "..." } ] (or [] if harmful), "concern": { "what_happened": "...", "why_it_matters": "...", "instead": "..." } (or null if not harmful), "try": { "move": "...", "evidence": "...", "instead": "..." }, "reflection_question": "...", "value": "imani"|"heshima"|"usikivu"|"ukuaji"|"ushirikiano"|null, "focus": "<a rubric key judged false>"|null, "focus_why": "..."|null, "missed": { "<each rubric key judged false>": "<what happened in this debrief>" }, "rubric": { ${RUBRIC_KEYS_I18N.map((k) => `"${k}": true/false`).join(', ')} } }
 
 TRANSCRIPT OF THE OFFICER'S DEBRIEF:
 ${transcript}`;
@@ -199,7 +203,30 @@ function _allFeedbackText(fb) {
     parts.push(fb.concern.what_happened || '', fb.concern.why_it_matters || '', fb.concern.instead || '');
   }
   if (fb.try) parts.push(fb.try.move || '', fb.try.evidence || '', fb.try.instead || '');
+  if (fb.missed && typeof fb.missed === 'object') parts.push(...Object.values(fb.missed).map((v) => String(v || '')));
+  if (typeof fb.focus_why === 'string') parts.push(fb.focus_why);
   return parts.join('\n');
+}
+
+// The judge's per-miss lines and its reason for the focus (ur/en): plain, short, and only for behaviours judged false.
+// A line that is too long is dropped, never shown cut off (a clipped line was one of the sandbox complaints).
+const JUDGE_LINE_MAX = 300;
+function _judgeLine(v) {
+  if (typeof v !== 'string') return null;
+  const line = v.trim();
+  return line && [...line].length <= JUDGE_LINE_MAX ? line : null;
+}
+function _normaliseJudgeLines(fb) {
+  if ('missed' in fb) {
+    const out = {};
+    const src = fb.missed && typeof fb.missed === 'object' ? fb.missed : {};
+    for (const k of require('./observe-coach-rubric').missedBehaviours(fb.rubric)) {
+      const line = _judgeLine(src[k]);
+      if (line) out[k] = line;
+    }
+    fb.missed = out;
+  }
+  if ('focus_why' in fb) fb.focus_why = _judgeLine(fb.focus_why);
 }
 
 /**
@@ -229,6 +256,7 @@ function validateCoachFeedback(fb, opts = {}) {
   if (REHEARSAL_KEY in fb.rubric && typeof fb.rubric[REHEARSAL_KEY] !== 'boolean') delete fb.rubric[REHEARSAL_KEY];
   // The focus links the card to a Coach Training module: kept only if it names a behaviour the judge scored false.
   if ('focus' in fb) fb.focus = require('./observe-coach-rubric').validFocus(fb);
+  _normaliseJudgeLines(fb);
 
   const harmful = isHarmfulDebrief(fb.rubric);
 
@@ -284,11 +312,23 @@ function _marksBlock(fb, S) {
   return lines;
 }
 
-// Each miss with its fixed "why it matters" line (catalog strings, never model text). Nothing missed, no section.
+// Each miss: what happened in THIS debrief (the judge's own line), then its fixed "why it matters" line. A card judged
+// before the judge wrote those lines shows the coach's own words, labelled, under the focus miss. Nothing missed, no
+// section.
 function _missedBlock(fb, S) {
-  const missed = require('./observe-coach-rubric').missedBehaviours(fb.rubric);
+  const R = require('./observe-coach-rubric');
+  const missed = R.missedBehaviours(fb.rubric);
   if (!missed.length) return [];
-  return ['', `⚠️ *${S.coach_card_missed_label}*`, ...missed.map((k) => `○ *${S.coach_rubric_names[k]}*: ${S.coach_rubric_why[k]}`)];
+  const focusKey = R.nextFocusKey(fb);
+  const lines = ['', `⚠️ *${S.coach_card_missed_label}*`];
+  for (const k of missed) {
+    lines.push(`○ *${S.coach_rubric_names[k]}*`);
+    const said = fb.missed && fb.missed[k];
+    if (said) lines.push(`${S.coach_card_what_happened_label} ${said}`);
+    else if (k === focusKey && fb.try && fb.try.evidence) lines.push(`${S.coach_card_you_said_label} _"${fb.try.evidence}"_`);
+    lines.push(`${S.coach_card_why_label} ${S.coach_rubric_why[k]}`);
+  }
+  return lines;
 }
 
 // The next focus's Coach Training module, with its link: the card's one link.
@@ -358,8 +398,8 @@ function renderCoachFeedbackMessages(fb, S) {
     ..._missedBlock(fb, S),
     '',
     `🌱 *${S.coach_card_try_label}: ${fb.try.move}*`,
-    fb.try.evidence,
-    ...actionBlock,
+    // One focus and why it was chosen; no Action plan (it added a second behaviour), no unlabelled quote.
+    ...(fb.focus_why ? [`${S.coach_card_focus_why_label} ${fb.focus_why}`] : []),
     ..._moduleBlock(fb, S),
     ...reflectBlock,
     '',

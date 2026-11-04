@@ -393,7 +393,7 @@ const STRINGS = {
     guide_went_well_label: 'اچھی بات سے شروع کریں',
     guide_work_on_label: 'پہلا کام',
     guide_seen_label: 'آپ نے دیکھا:',
-    guide_next_label: 'اگلا قدم:',
+    guide_next_label: 'اگلا قدم (آپ کے جاننے کے لیے، کہنے کے لیے نہیں):',
     guide_moment_label: 'ڈسکس کرنے والا لمحہ',
     guide_conversation_label: 'اپنی گفتگو کے لیے',
     guide_cue_wait: '(خاموشی سے انتظار کریں)',
@@ -405,6 +405,11 @@ const STRINGS = {
     coach_card_marks_label: 'اس ڈی بریف میں آپ کے رویے',
     coach_card_respect_line: '✓ احترام برقرار رہا — ہمیشہ کی طرح',
     coach_card_missed_label: 'اس بار کیا رہ گیا',
+    // Each miss: what happened in this debrief, then why it matters; the focus says why it was chosen.
+    coach_card_what_happened_label: 'کیا ہوا:',
+    coach_card_why_label: 'کیوں اہم ہے:',
+    coach_card_focus_why_label: 'یہی کیوں:',
+    coach_card_you_said_label: 'آپ نے کہا:',
     coach_card_module_line: '📘 کوچ ٹریننگ، ماڈیول {n}: {title}',
     coach_card_module_lang: 'ur',
     coach_rubric_names: {
@@ -665,7 +670,7 @@ const STRINGS = {
     guide_went_well_label: 'Start with what went well',
     guide_work_on_label: 'Work on first',
     guide_seen_label: 'What you saw:',
-    guide_next_label: 'The next step:',
+    guide_next_label: 'The next step (for you to know, not to say):',
     guide_moment_label: 'A moment to bring up',
     guide_conversation_label: 'For your own conversation',
     guide_cue_wait: '(wait in silence)',
@@ -696,6 +701,11 @@ const STRINGS = {
     coach_card_marks_label: 'Your behaviours in this debrief',
     coach_card_respect_line: '✓ Respect held — as always',
     coach_card_missed_label: 'What was missed this time',
+    // Each miss: what happened in this debrief, then why it matters; the focus says why it was chosen.
+    coach_card_what_happened_label: 'What happened:',
+    coach_card_why_label: 'Why it matters:',
+    coach_card_focus_why_label: 'Why this one:',
+    coach_card_you_said_label: 'You said:',
     coach_card_module_line: '📘 Coach Training, Module {n}: {title}',
     coach_card_module_lang: 'en',
     coach_rubric_names: {
