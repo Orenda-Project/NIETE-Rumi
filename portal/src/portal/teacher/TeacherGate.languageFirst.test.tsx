@@ -144,4 +144,26 @@ describe("the teacher app is drawn once, in her language (bd-43f1sk)", () => {
     latinLanded();
     expect(await screen.findByText("v2 page")).toBeTruthy();
   });
+
+  it("index.html's Google Fonts link not applied yet: the Latin face is asked for only once it is (else the ask finds no face and returns at once)", async () => {
+    get.mockResolvedValue({ language: "ur", locked: false });
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.setAttribute("as", "style");
+    link.href = "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap";
+    document.head.appendChild(link);
+    try {
+      visit();
+      await flush();
+      expect(fontLoad.mock.calls.some(([f]) => f.includes("Plus Jakarta Sans"))).toBe(false);
+      expect(screen.queryByText("v2 page")).toBeNull();
+      link.rel = "stylesheet";
+      Object.defineProperty(link, "sheet", { configurable: true, value: {} });
+      link.dispatchEvent(new Event("load"));
+      expect(await screen.findByText("v2 page")).toBeTruthy();
+      expect(fontLoad).toHaveBeenCalledWith(expect.stringContaining("Plus Jakarta Sans"), expect.any(String));
+    } finally {
+      link.remove();
+    }
+  });
 });
