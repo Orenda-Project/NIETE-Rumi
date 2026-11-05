@@ -7,20 +7,21 @@
  * BEHAVIOUR_MODULE maps the judge's rubric keys (bot observe-coach-feedback RUBRIC_KEYS + rehearsed_the_step) to their
  * module: the coach's Feedback Report links a missed behaviour to it.
  */
-export type CoachModule = { n: number; key: string; artifact: string; title: { en: string; ur: string } };
+/** `artifact` is the module's page; `video` its video lesson (the owner's DM, 5 Nov 2026: every module has both). */
+export type CoachModule = { n: number; key: string; artifact: string; video: string; title: { en: string; ur: string } };
 
 export const COACH_TRAINING_PATH = "/portal/coach/coach-training";
 
 export const COACH_MODULES: readonly CoachModule[] = [
-  { n: 1, key: "praise", artifact: "Kfy7kDWtaZ4gQ2wX5BHceu", title: { en: "Open with specific praise", ur: "مخصوص تعریف سے آغاز" } },
-  { n: 2, key: "moment", artifact: "NdMiwNiFxU5vcxfj8nFGmV", title: { en: "Anchor it in a real moment", ur: "سبق کے اصل لمحے سے جوڑیں" } },
-  { n: 3, key: "asked", artifact: "DSJ3usPDiwBEnTNc8jU4qz", title: { en: "Ask, then wait", ur: "سوال پوچھیں، پھر انتظار کریں" } },
-  { n: 4, key: "one", artifact: "V7XLdPCcyUZu1v1PGrZF9H", title: { en: "One improvement, not a list", ur: "ایک بہتری، فہرست نہیں" } },
-  { n: 5, key: "moves", artifact: "1wkxNT3zTTKSrEAwMV5VPN", title: { en: "The moves, not the person", ur: "طریقہ، ذات نہیں" } },
-  { n: 6, key: "own", artifact: "CaqizBAbzEiAwMdKK2mNfx", title: { en: "The teacher’s own next step", ur: "استاد کا اپنا اگلا قدم" } },
-  { n: 7, key: "less", artifact: "SBrvLUoSySSXCKVyshX72q", title: { en: "Talk less", ur: "کم بولیں، استاد کو بولنے دیں" } },
-  { n: 8, key: "rehearse", artifact: "MGVm5YMAdQhRCrWRWWg65C", title: { en: "Rehearse it aloud", ur: "جانے سے پہلے زبانی پریکٹس" } },
-  { n: 9, key: "full", artifact: "SZyvWZYrmMFn1XrhtnFGL8", title: { en: "The full debrief", ur: "مکمل ڈی بریف" } },
+  { n: 1, key: "praise", artifact: "Kfy7kDWtaZ4gQ2wX5BHceu", video: "TZdNqRi29i4mw3meZqDLFj", title: { en: "Open with specific praise", ur: "مخصوص تعریف سے آغاز" } },
+  { n: 2, key: "moment", artifact: "NdMiwNiFxU5vcxfj8nFGmV", video: "BcHByTAsY9Ze1g146gaerz", title: { en: "Anchor it in a real moment", ur: "سبق کے اصل لمحے سے جوڑیں" } },
+  { n: 3, key: "asked", artifact: "DSJ3usPDiwBEnTNc8jU4qz", video: "Jckd2SBKn38TwCRpwVXFeb", title: { en: "Ask, then wait", ur: "سوال پوچھیں، پھر انتظار کریں" } },
+  { n: 4, key: "one", artifact: "V7XLdPCcyUZu1v1PGrZF9H", video: "WFug7nbTqtZDHc4pyDvTWL", title: { en: "One improvement, not a list", ur: "ایک بہتری، فہرست نہیں" } },
+  { n: 5, key: "moves", artifact: "1wkxNT3zTTKSrEAwMV5VPN", video: "V8Z8G4UTREoXrzvdMRHPwG", title: { en: "The moves, not the person", ur: "طریقہ، ذات نہیں" } },
+  { n: 6, key: "own", artifact: "CaqizBAbzEiAwMdKK2mNfx", video: "8PfwS2qKp3rtuwCJ1GiwAZ", title: { en: "The teacher’s own next step", ur: "استاد کا اپنا اگلا قدم" } },
+  { n: 7, key: "less", artifact: "SBrvLUoSySSXCKVyshX72q", video: "GgzCzuPjSBYNFH7qspadNy", title: { en: "Talk less", ur: "کم بولیں، استاد کو بولنے دیں" } },
+  { n: 8, key: "rehearse", artifact: "MGVm5YMAdQhRCrWRWWg65C", video: "FnhqM4ae3uV1XwwwgSYfYs", title: { en: "Rehearse it aloud", ur: "جانے سے پہلے زبانی پریکٹس" } },
+  { n: 9, key: "full", artifact: "SZyvWZYrmMFn1XrhtnFGL8", video: "MUxJFCkertstuJXnNNF9LC", title: { en: "The full debrief", ur: "مکمل ڈی بریف" } },
 ];
 
 /** The judge's rubric key → its module number. */
@@ -36,6 +37,7 @@ export const BEHAVIOUR_MODULE: Readonly<Record<string, number>> = {
 };
 
 export const moduleUrl = (m: CoachModule): string => `https://claude.ai/artifact/${m.artifact}`;
+export const videoUrl = (m: CoachModule): string => `https://claude.ai/artifact/${m.video}`;
 
 export function moduleFor(behaviour: string): CoachModule | null {
   const n = BEHAVIOUR_MODULE[behaviour];
