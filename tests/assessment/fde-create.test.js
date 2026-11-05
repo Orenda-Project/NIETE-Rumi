@@ -304,10 +304,11 @@ describe('POST /assessment/create — a board-pattern paper', () => {
       questionTypes: [{ id: 'MCQs', count: 6, category: 'objective' }, { id: 'Short Questions', count: 4, category: 'subjective' }],
       includeAnswerKey: true, answerLines: true, outputFormat: 'pdf',
     });
-    // Without a pattern the flag is not read and the guard does not run.
-    expect(reads).toEqual([]);
+    // Without a pattern the flag is not read and the guard does not run. The one read left is the region book
+    // lists (bd-97daxo.4: G1-5 assessments are keyed by the teacher's books), cached for a minute per process.
+    expect(reads.filter((r) => r.table !== 'region_features')).toEqual([]);
     const supabase = require('../../bot/shared/config/supabase');
-    expect(supabase.from.mock.calls.map((c) => c[0])).toEqual(['assessment_requests']);
+    expect(supabase.from.mock.calls.map((c) => c[0]).filter((t) => t !== 'region_features')).toEqual(['assessment_requests']);
   });
 
   test('job payload carries pattern and scope; a non-pattern payload has neither key', async () => {
