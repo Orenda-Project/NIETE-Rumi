@@ -1,0 +1,2 @@
+{"ts":"2026-11-05T07:10:33Z","hook":"post-commit","event":"armed","switch":"","detail":"features=menu spec_sync=true","sha":"7653f23638dc","branch":"bd-5jmnfj.38.7-60799","user":""}
+{"ts":"2026-11-05T07:10:36Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-5jmnfj.38.7-60799: menu spec: NOT UPDATED e2e: missing","sha":"7653f23638dc","branch":"bd-5jmnfj.38.7-60799","user":""}
