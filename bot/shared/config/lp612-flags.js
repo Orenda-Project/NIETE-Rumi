@@ -483,8 +483,8 @@ function isLp612RouteK5() {
 
 /**
  * LP_GB_K5_ENABLED — Gilgit-Baltistan K-5 books in the LP menu (bd-rj6w0n.14.4). Ships OFF, and off is
- * today exactly: no region lookup, no curriculum filter. On: a GB teacher's menu reads only gb_k5 books
- * and an ICT teacher's reads only fbise. Independent of LP_612_ROUTE_K5, which this never turns on.
+ * today exactly: no region lookup, no curriculum filter. On: a GB teacher's menu reads her nbf_snc books (ICT's where GB has none)
+ * and an ICT teacher's reads only ict. Independent of LP_612_ROUTE_K5, which this never turns on.
  */
 function isGbK5Enabled() {
   return isTrue(process.env.LP_GB_K5_ENABLED);
