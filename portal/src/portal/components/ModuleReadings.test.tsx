@@ -70,6 +70,30 @@ describe("ModuleReadings", () => {
     expect(screen.getByText(/No online resources yet/)).toBeInTheDocument();
   });
 
+  it("a reading with no outcome (I-SAPS Level 3) shows why to read it, under what to read (bd-9svkbb)", () => {
+    const l3 = {
+      available: [{
+        title: "Learning versus performance: An integrative review (2015)", author: "Soderstrom, N. C., & Bjork, R. A.", type: "Article",
+        section: "The introduction, selected examples and educational implications",
+        rationale: "Examines why successful performance during instruction does not necessarily demonstrate durable learning.",
+        outcome: "", description: "Examines why successful performance during instruction does not necessarily demonstrate durable learning.",
+        url: "https://example.org/sb.pdf",
+      }],
+      unavailable: [],
+    };
+    render(<ModuleReadings readings={l3} />);
+    const link = screen.getByRole("link", { name: /Learning versus performance/ });
+    expect(link).toHaveTextContent("Read: The introduction, selected examples and educational implications");
+    expect(link).toHaveTextContent("Examines why successful performance during instruction does not necessarily demonstrate durable learning.");
+    expect(link).not.toHaveTextContent("You will be able to");
+  });
+
+  it("a reading with an outcome still shows the outcome, not the rationale", () => {
+    render(<ModuleReadings readings={READINGS} />);
+    const fullan = screen.getByRole("link", { name: /The New Meaning of Educational Change/ });
+    expect(fullan).not.toHaveTextContent("Capacity building.");
+  });
+
   it("renders nothing when the course has no reading list", () => {
     const { container } = render(<ModuleReadings readings={null} />);
     expect(container).toBeEmptyDOMElement();
