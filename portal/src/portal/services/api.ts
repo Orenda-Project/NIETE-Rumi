@@ -677,6 +677,8 @@ export type PortalConfig = {
     childTestSa?: boolean;
     /** bd-5rz1v.6 — a coach can run an /observe observation from the portal (fail-closed). */
     coachObservation?: boolean;
+    /** Coach reports in the app — her debrief report as a page and its Home card (coach_reports_app; fail-closed). */
+    coachReportsApp?: boolean;
     /** bd-5rz1v.12 — the new UI (Direction B) is on for THIS user (fail-closed). */
     newUi?: boolean;
     /** bd-hb8qs — she can edit a finished paper into a new version (fail-closed). */
