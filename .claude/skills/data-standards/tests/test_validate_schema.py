@@ -96,6 +96,25 @@ def test_d8_duplicate_numbered_version_warns_but_dates_do_not():
     assert "D8-duplicate-version" not in checks(out["findings"] + out["warnings"])
 
 
+def test_d8_dotted_flyway_versions_are_read_in_full():
+    # NIETE-Rumi's real names: V1.8.10 is not "version 1".
+    names = ["V1.8.10__g612_subjects.sql", "V1.0.0__baseline.sql", "V1.0.10__observation_schedules.sql",
+             "V1.0.1__users_teacher_uuid_idx.sql", "V1.8.1__x.sql"]
+    out = judge(GOOD_TABLE, path=f"infrastructure/supabase/migrations/{names[0]}", siblings=names)
+    assert "D8-duplicate-version" not in checks(out["warnings"])
+    assert vs._migration_version("V1.8.10__a.sql") == vs._migration_version("V1_8_10__b.sql") == "1.8.10"
+    clash = ["V1.8.10__a.sql", "V1.8.10__b.sql"]
+    out = judge(GOOD_TABLE, path=f"migrations/{clash[0]}", siblings=clash)
+    assert "D8-duplicate-version" in checks(out["warnings"])
+
+
+def test_d8_duplicate_list_is_capped():
+    names = ["0042_a.sql"] + [f"0042_{c}.sql" for c in "bcdefg"]
+    out = judge(GOOD_TABLE, path="db/migrations/0042_a.sql", siblings=names)
+    [w] = [w for w in out["warnings"] if w["check"] == "D8-duplicate-version"]
+    assert "and 3 more" in w["finding"] and "0042_g.sql" not in w["finding"]
+
+
 def test_warn_checks_never_block():
     sql = """-- migration
 CREATE TABLE Teacher (

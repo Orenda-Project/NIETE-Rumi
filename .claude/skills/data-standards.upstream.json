@@ -1,11 +1,11 @@
 {
-  "_comment": "Receipt for the vendored copy of the data-standards skill. Owned by the Data Team in Orenda-Project/agent-skills-taleemabad \u2014 NEVER edit files under this directory. Regenerate with scripts/data-standards-verify.sh --update after refreshing from upstream.",
+  "_comment": "Receipt for the vendored copy of the data-standards skill. Owned by the Data Team in Orenda-Project/agent-skills-taleemabad — NEVER edit files under this directory. Regenerate with scripts/data-standards-verify.sh --update after refreshing from upstream.",
   "source_repo": "Orenda-Project/agent-skills-taleemabad",
   "source_path": "skills/data-standards",
-  "source_commit": "d3cd4027123736cbbb99149308a9a1dd6c37f1ad",
+  "source_commit": "cea0005f21194b63cd8dad81991689528dc3b883",
   "vendored_at_utc": "2026-11-05T08:15:03Z",
   "file_count": 31,
-  "rollup_sha256": "875682f685da17ed81c95a5e2abca85ea86ba4522d26d5194fd404eebe67adea",
+  "rollup_sha256": "c586ae87fdfc3685aead7107a08165e693e41f2beecf3cdc5703efddfceaece5",
   "files": {
     "SKILL.md": "f1ea3b1355f41b9e49e2e131cb64ac5c6b426161e1f3492dfa8fda0e3ed9d9d8",
     "evals/evals.json": "a11a96ed03a29b7d6d4a5961cc5c73318ac58b2d30ec65db29307cb7eabde385",
@@ -34,9 +34,9 @@
     "scripts/install_repo_hooks.py": "288fd6a0a146bef4f052fdd4cbde0494dae19bc12dc9e5dce8d1fb4de96bcb6b",
     "scripts/notify.py": "cb7ace95f1d0937259158e480738e6d69fd9c583de57dd5b204ed27b5f148712",
     "scripts/scorecard.py": "2a6e68875708841fc97d0e7dd0f62b046f522c83cf2e01df0f666dd30bca1f1f",
-    "scripts/validate_schema.py": "3b48af91025ab0ff8412c25b354e73516ec1e2653e6d3ee171d09cdde5e43e69",
+    "scripts/validate_schema.py": "8a982904b9056c4c32ed9785fde568eab92e3dd32198b21fef098d8a44b0ac24",
     "tests/test_git_gate.py": "182085ede18ffafb73251fae6a0592acd425c387c9a338f4f8af2e9c2fbe093c",
     "tests/test_live_edit_gate.py": "0871d4c2e782bdeecf42d984470dc82fe861e624ef6edc5b89a86f1ee4ce47e6",
-    "tests/test_validate_schema.py": "e424339aee61f3c8c3ef05d4b08e58dc0c53e32b645a421f71b038d583fad76b"
+    "tests/test_validate_schema.py": "2d5b6a932a9c05aa1e4b3b347dfbf4791a48fb478278f843d68d4644a47e9af0"
   }
 }

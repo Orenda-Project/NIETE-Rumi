@@ -482,13 +482,20 @@ def check_d16_test_data(text: str) -> list[dict]:
 
 
 def _migration_version(name: str) -> str | None:
-    """The leading version number, or None for a name that starts with a
-    plain date (YYYYMMDD or YYYY-MM-DD): several migrations on one day
-    legitimately share it."""
+    """The leading version, or None for a name that starts with a plain date
+    (YYYYMMDD or YYYY-MM-DD): several migrations on one day legitimately
+    share it. Dotted Flyway versions count in full: `V1.8.10__x.sql` is
+    1.8.10, not 1 (`V1_8_10__x` is the same version, as in Flyway). Each part
+    is compared as a number, so 0042 and 42 clash."""
     if re.match(r"^\d{4}-\d{2}-\d{2}", name):
         return None
-    m = re.match(r"^[Vv]?(\d+)(?=[_\-.])", name)
-    return m.group(1) if m and len(m.group(1)) != 8 else None
+    m = re.match(r"^[Vv]?(\d+(?:[._]\d+)*)(?=[_\-.])", name)
+    if not m:
+        return None
+    parts = re.split(r"[._]", m.group(1))
+    if len(parts) == 1 and len(parts[0]) == 8:
+        return None
+    return ".".join(str(int(p)) for p in parts)
 
 
 def _is_forward_migration(path: str) -> bool:
@@ -507,8 +514,9 @@ def check_d8_duplicate_version(path: str, siblings: list[str]) -> list[dict]:
                      and not ROLLBACK_NAME.search(Path(s).stem) and s.lower().endswith(".sql"))
     if not clashes:
         return []
+    named = ", ".join(clashes[:3]) + (f" and {len(clashes) - 3} more" if len(clashes) > 3 else "")
     return [{"standard": "D8", "check": "D8-duplicate-version", "confirmed": True, "confidence": "HIGH",
-             "finding": f"migration version `{version}` is also used by {', '.join(clashes)} — the runner "
+             "finding": f"migration version `{version}` is also used by {named} — the runner "
                         "can apply them in the wrong order or skip one",
              "evidence": name}]
 
