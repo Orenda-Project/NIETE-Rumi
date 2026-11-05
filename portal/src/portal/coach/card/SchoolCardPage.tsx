@@ -18,6 +18,9 @@ import { usePeriod, withPeriod } from "./period";
 import { PeriodChips } from "./parts";
 import { CoachObsTable, OverviewCard, TeacherTable } from "./schoolView";
 import type { PeriodKey, SchoolCardData, SchoolPrincipal } from "./types";
+import { WhereDoor } from "./whereDoor";
+import { WHERE } from "./whereCopy";
+import { firstTo } from "./where";
 
 /**
  * A school's School card (the switch on), as Rifat's School view (bd-17v39c.4.13, mockups v3 approved 5 Nov): the school,
@@ -67,6 +70,7 @@ export default function SchoolCardPage() {
   const C = useCopy(SCHOOL_CARD);
   const F = useCopy(TEACHER_FRAME);
   const P = useCopy(PEOPLE);
+  const W = useCopy(WHERE);
   const { emis = "" } = useParams();
   const [period] = usePeriod();
   // bd-ewbzns.1 — Primary / Middle / High: the server's card for that level's teachers (every tile and the list).
@@ -131,6 +135,9 @@ export default function SchoolCardPage() {
           {coachObs.length > 0
             ? <CoachObsTable rows={coachObs} linkOf={observationsLink} state={{ ...linkState, back: schoolPage(base) }} />
             : <EmptyRow icon={<span>·</span>} testId="no-coach-obs">{C.noKind.coach[period]}</EmptyRow>}
+
+          {/* bd-17v39c.4.14 — coach only (Rifat's pick 2A: its own page, so this view stays as a head would see it). */}
+          <WhereDoor testId="first-door" to={withLevel(firstTo(emis), level)} label={W.openFirst} state={{ back: schoolPage(base) }} />
 
           {/* Manage is the whole school's, whatever level is picked. */}
           {/* bd-17v39c.4.16 — Remove teachers lists teachers only: the whole roster less its principals. */}
