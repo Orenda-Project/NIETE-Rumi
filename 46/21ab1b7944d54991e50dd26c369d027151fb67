@@ -1,1 +1,2 @@
 {"ts":"2026-11-05T14:01:15Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"4621ab1b7944","branch":"bd-5jmnfj.38.18-ss","user":""}
+{"ts":"2026-11-05T14:17:59Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-5jmnfj.38.18-ss: training spec: NOT UPDATED e2e: missing","sha":"4621ab1b7944","branch":"bd-5jmnfj.38.18-ss","user":""}
