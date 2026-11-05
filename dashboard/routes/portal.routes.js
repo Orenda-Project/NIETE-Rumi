@@ -2381,6 +2381,7 @@ router.get('/coach/home', ...coachV2, async (req, res) => {
  * IDENTITY: the coach is ALWAYS req.session.portalUserId; another coach's report is 403 (its words never leave).
  * ------------------------------------------------------------------------- */
 const CoachReport = require('../services/coach-report.service');
+const CoachWeek = require('../services/coach-week.service');
 
 async function requireCoachReports(req, res, next) {
   const on = await isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, req.session && req.session.portalUserId);
@@ -2393,9 +2394,13 @@ const COACH_REPORT_STATUS = { forbidden: 403, not_found: 404, not_ready: 409 };
 /** GET /api/portal/coach/reports/ready — what her Home card shows: her coached debriefs she has not opened or closed. */
 router.get('/coach/reports/ready', ...coachReports, async (req, res) => {
   try {
-    const reports = await CoachReport.readyCoachReports(pgQuery, req.session.portalUserId);
+    const [week, debriefs] = await Promise.all([
+      CoachWeek.readyCoachWeek(pgQuery, req.session.portalUserId),
+      CoachReport.readyCoachReports(pgQuery, req.session.portalUserId),
+    ]);
     res.set('Cache-Control', 'no-store');
-    return res.json({ success: true, reports });
+    // Phase 3: her week (from Friday 16:00) is the first row of the same card, then her debrief reports.
+    return res.json({ success: true, reports: [...(week ? [week] : []), ...debriefs] });
   } catch (error) { return coachFail(res, 'reports-ready', error); }
 });
 
@@ -2408,6 +2413,26 @@ router.get('/coach/report/:id', ...coachReports, async (req, res) => {
     return res.json({ success: true, report: out.report });
   } catch (error) { return coachFail(res, 'report', error); }
 });
+
+/** GET /api/portal/coach/week/:monday — her week (Monday to Friday 16:00 PKT), once ready; not yet 409, not a Monday 404. */
+router.get('/coach/week/:monday', ...coachReports, async (req, res) => {
+  try {
+    const out = await CoachWeek.getCoachWeek(pgQuery, req.session.portalUserId, req.params.monday);
+    if (out.status !== 'ok') return res.status(COACH_REPORT_STATUS[out.status] || 404).json({ success: false, error: out.status });
+    res.set('Cache-Control', 'no-store');
+    return res.json({ success: true, week: out.week });
+  } catch (error) { return coachFail(res, 'week', error); }
+});
+
+/** POST /api/portal/coach/week/:monday/opened | /seen — she opened her week / closed its card: the week's one row. */
+for (const what of ['opened', 'seen']) {
+  router.post(`/coach/week/:monday/${what}`, ...coachReports, async (req, res) => {
+    try {
+      const stamped = await CoachWeek.markCoachWeek(pgQuery, req.session.portalUserId, req.params.monday, what);
+      return res.json({ success: true, stamped });
+    } catch (error) { return coachFail(res, `week-${what}`, error); }
+  });
+}
 
 /** POST /api/portal/coach/report/:id/opened | /seen — she opened it (any door) / closed the Home card with ✕. Once, hers only. */
 for (const what of ['opened', 'seen']) {
