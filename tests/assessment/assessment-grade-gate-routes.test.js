@@ -55,15 +55,15 @@ const flowGrades = async (user) => (await Flow.handleAssessmentGenInit(user, `in
 const flowSubjects = async (user, grade) => (await Flow.handleAssessmentGenDataExchange(
   user, 'CLASS', { grade: String(grade), trigger: 'grade_selected' }, `cls-${user}`)).data.subjects.map((s) => s.id);
 const CREATE = { userId: U, grade: 9, subject: 'physics', chapterNumbers: [1], questionCount: 4,
-  questionTypes: [{ id: 'MCQs', count: 2 }, { id: 'Fill in the Blanks', count: 2 }] };
+  questionTypes: [{ id: 'mcq', count: 2 }, { id: 'srq', count: 2 }] };
 const requests = () => (state.rows.assessment_requests || []).length;
 
 /** A Flow session already at CONFIRM for grade 9 physics: what a stale or forged client holds. */
 function forgeSession(token, user, grade = 9, subject = 'physics') {
   state.redis.set(`assessment_gen:${token}`, JSON.stringify({
     userId: user, grade, subject, chapterNumbers: [1], chapterTitles: ['Motion'], pageRanges: '1-12',
-    contentSource: 'unseen', questionCount: 4, pickedTypes: ['MCQs', 'Fill in the Blanks'],
-    questionTypes: [{ id: 'MCQs', count: 2, category: 'objective' }, { id: 'Fill in the Blanks', count: 2, category: 'objective' }],
+    contentSource: 'unseen', questionCount: 4, pickedTypes: ['mcq', 'srq'],
+    questionTypes: [{ id: 'mcq', count: 2, category: 'objective' }, { id: 'srq', count: 2, category: 'subjective' }],
   }));
 }
 const confirm = (token, user) => Flow.handleAssessmentGenDataExchange(user, 'CONFIRM', { output_format: 'pdf', answer_lines: true }, token);
@@ -114,7 +114,8 @@ describe('flag absent, G6-12 rows present: nothing is offered and every door ref
     expect(requests()).toBe(0);
   });
   test('grade 4 still creates (G1-5 untouched)', async () => {
-    const out = await post('/assessment/create', { ...CREATE, grade: 4, subject: 'science' });
+    const out = await post('/assessment/create', { ...CREATE, grade: 4, subject: 'science',
+      questionTypes: [{ id: 'MCQs', count: 2 }, { id: 'Fill in the Blanks', count: 2 }] });
     expect(out.payload).toMatchObject({ success: true });
     expect(state.queued).toHaveLength(1);
   });
