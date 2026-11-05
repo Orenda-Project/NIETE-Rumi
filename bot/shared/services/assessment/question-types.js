@@ -96,6 +96,7 @@ const NEEDS_PRINTED_PICTURE = new Set(['Label the Diagram', 'Picture Description
 
 /** Everything this subject and grade offers, each tagged with its category. */
 function forSubject(subject, grade) {
+  if (Number(grade) >= 6) return require('./question-types-6-12').forSubject(subject, grade);
   const { objective, subjective } = _sets(subject, grade);
   const offered = (id) => !NEEDS_PRINTED_PICTURE.has(id);
   return [
@@ -105,6 +106,7 @@ function forSubject(subject, grade) {
 }
 
 function categoryOf(typeId, subject, grade) {
+  if (Number(grade) >= 6) return require('./question-types-6-12').categoryOf(typeId, subject, grade);
   const { objective } = _sets(subject, grade);
   return objective.includes(typeId) ? 'objective' : 'subjective';
 }
@@ -131,6 +133,7 @@ function withCounts(pickedIds, total, subject, grade) {
 
 /** The mix she gets when she did not want to choose types. */
 function defaultMix(subject, grade, total) {
+  if (Number(grade) >= 6) return require('./question-types-6-12').defaultMix(subject, grade, total);
   const { objective, subjective } = _sets(subject, grade);
   const pick = [
     ...DEFAULT_MIX.objective.filter((t) => objective.includes(t)),
