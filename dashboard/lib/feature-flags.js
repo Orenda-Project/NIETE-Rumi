@@ -254,6 +254,15 @@ const PORTAL_TEACHER_HOME_LOOK_KEY = 'portal_teacher_home_look';
 const PORTAL_COACH_SCHOOL_CARD_KEY = 'portal_coach_school_card';
 
 /**
+ * bd-jjcofw — the FULL coach app, per user: app_settings key that opens the coach app v2's Schedule and Observe
+ * (scheduling and new visits, a visit, recording it, the observation pages) for the users it lists, on top of what
+ * every v2 coach gets (coach/training/appReady.ts COACH_APP_READY). Same shape and rule as the keys above: a list of
+ * users.id = those users, true = everyone, absent = off. /config sends it as features.coachFullApp, only with
+ * portal_coach_v2 on for her (the pages live inside v2). A tester switch: everyone else's app is unchanged.
+ */
+const PORTAL_COACH_FULL_APP_KEY = 'portal_coach_full_app';
+
+/**
  * bd-sex15q.13 — COACHIP, the coach and RM insight portal (SPEC v2 §2, API.md §5). Three switches, every one off with
  * no row; turning one on is one app_settings upsert, and it takes effect within the flag cache's TTL (readFlagRow, 30 s).
  *
@@ -560,6 +569,7 @@ module.exports = {
   PORTAL_NEW_UI_KEY,
   PORTAL_COACH_V2_KEY,
   PORTAL_COACH_SCHOOL_CARD_KEY,
+  PORTAL_COACH_FULL_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,

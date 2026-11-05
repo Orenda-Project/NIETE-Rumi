@@ -10,7 +10,8 @@ import { useLogoutGuard } from '../lib/recordingSession';
 import { useNewUi } from '../lib/useNewUi';
 import NewUiNavigation from '../newui/NewUiNavigation';
 import { useCoachV2, isCoachV2For } from '../coach/useCoachV2';
-import { COACH_APP_READY } from '../coach/training/appReady';
+import { COACH_APP_READY, coachReadyFor } from '../coach/training/appReady';
+import { useCoachFullApp } from '../coach/training/useCoachFullApp';
 import InsightsNav from '../coach/insights/InsightsNav';
 import { useCoachip } from '../coach/insights/useCoachip';
 import { useSchoolCard } from '../coach/card/useSchoolCard';
@@ -49,6 +50,9 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   // The School card (portal_coach_school_card, features.schoolCard, fail-closed): a v2 coach with it on gets
   // Home · Lesson Plans · More, over COACHIP's bar. Off, loading or unreadable: the bars below, unchanged.
   const schoolCard = useSchoolCard(user?.phoneNumber || null, coachV2) === true;
+  // bd-jjcofw — the full coach app (portal_coach_full_app, features.coachFullApp, fail-closed): a listed tester's bar
+  // also has Schedule and Observe. Off, loading or unreadable: the bars below, unchanged.
+  const fullApp = useCoachFullApp(user?.phoneNumber || null, coachV2) === true;
   // bd-fmf24g.1 — the teacher app v2, for a teacher with portal_teacher_v2 only (never the
   // leader family). It wins over the new UI. Off, loading, unreadable, or not a teacher:
   // the markup below, unchanged.
@@ -144,9 +148,9 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   const isActive = (path: string) => currentPath === path;
 
   // bd-4404s7.2 — a coach on v2 gets the kit's role-aware bar (Home · Schedule · Observe · Schools · More).
-  if (coachV2 && schoolCard) return <TeacherNavigation role="coach" schoolCard />;
+  if (coachV2 && schoolCard) return <TeacherNavigation role="coach" schoolCard fullApp={fullApp} />;
   if (coachV2 && coachip) return <InsightsNav />;
-  if (coachV2) return <TeacherNavigation role="coach" ready={COACH_APP_READY} />;
+  if (coachV2) return <TeacherNavigation role="coach" ready={fullApp ? coachReadyFor(false, false, true) : COACH_APP_READY} />;
   if (teacherV2) return <TeacherNavigation />;
 
   if (newUiOn && !coachV2) {

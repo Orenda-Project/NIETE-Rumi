@@ -7,7 +7,7 @@ import { coach } from "../../services/api";
 import { Card, BottomLink, Loading, useLoad } from "../ui";
 import { PEOPLE } from "../people/copy";
 import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
-import { coachFeatureReady } from "../training/appReady";
+import { useCoachFeatureReady } from "../training/useCoachFullApp";
 import { useCardSwitch } from "../card/frame";
 import TeacherCardPage from "../card/TeacherCardPage";
 
@@ -68,6 +68,8 @@ function CoachTeacherToday() {
     .map((h) => ({ kind: h.kind, score: h.score as number, label: h.date ? dayMonth(h.date) : "" }));
   const nextDay = next?.scheduledFor ? new Date(`${next.scheduledFor}T00:00:00Z`) : null;
 
+  const scheduleReady = useCoachFeatureReady("schedule");
+  const observeReady = useCoachFeatureReady("observe");
   return (
     <PeopleFrame title={t?.name || C.dash} crumb={C.title} feature="schools"
       backTo={t?.emis ? `/portal/coach/school/${t.emis}` : "/portal/coach/people"}
@@ -89,7 +91,7 @@ function CoachTeacherToday() {
         </>
       ) : undefined}
       // Schedule a visit opens Schedule, a HITL row opens its observation (Observe): each only once that feature is in the coach app.
-      dock={t?.teacherExtId && coachFeatureReady("schedule") ? <BottomLink to={`/portal/coach/new-visit?${new URLSearchParams({ school: t.schoolExtId || "", teacher: t.teacherExtId }).toString()}`}><Plus className="h-5 w-5" aria-hidden="true" />{C.scheduleVisit}</BottomLink> : undefined}>
+      dock={t?.teacherExtId && scheduleReady ? <BottomLink to={`/portal/coach/new-visit?${new URLSearchParams({ school: t.schoolExtId || "", teacher: t.teacherExtId }).toString()}`}><Plus className="h-5 w-5" aria-hidden="true" />{C.scheduleVisit}</BottomLink> : undefined}>
       {failed && <LoadFailed onRetry={reload} />}
       {!data && !failed && <Loading />}
       {t && data && (
@@ -125,7 +127,7 @@ function CoachTeacherToday() {
                 items: rows.map((h) => {
                   // bd-o15qnr.19 — every HITL row opens the one v2 observation page (its steps, and its reports once
                   // done); a DC session is the teacher's own, information only.
-                  const to = h.kind === "HITL" && coachFeatureReady("observe") ? `/portal/coach/observation/${h.id}` : undefined;
+                  const to = h.kind === "HITL" && observeReady ? `/portal/coach/observation/${h.id}` : undefined;
                   const step = h.kind === "HITL" && (h.step === "draft" || h.step === "talk") ? C.stepLabel[h.step] : undefined;
                   return {
                     id: h.id, lead: "person" as const, leadText: h.kind, leadLabel: h.kind, title: dayMonth(h.date), extra: step,
