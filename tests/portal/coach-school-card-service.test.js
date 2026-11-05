@@ -301,6 +301,10 @@ function fakeDb(t) {
         const first = new Map();
         for (const r of t.training) {
           if (!ids.includes(r.user_id) || !inWin(r.completed_at, lo, hi)) continue;
+          // bd-17v39c.4.13 — modules completed: an active module of an active course only (the SQL joins both).
+          const m = t.modules.find((x) => x.id === r.module_id && x.is_active);
+          const c = m && t.courses.find((x) => x.id === m.course_id && x.is_active !== false);
+          if (!c) continue;
           const k = `${r.user_id}|${r.module_id}`;
           if (!first.has(k) || ms(r.completed_at) < ms(first.get(k).at)) first.set(k, { user_id: r.user_id, module_id: r.module_id, at: r.completed_at });
         }
@@ -587,13 +591,12 @@ describe('the feature grid', () => {
   // each teacher's trainings as her own Training page counts them, not parts per day.
   test('training: a row per teacher with each of her trainings, its parts done of its parts; teachers with none last', async () => {
     const out = await Card.getSchoolFeature(db, 'coach-1', '901', 'training', opts());
-    expect(out).toEqual({
-      feature: 'training',
-      rows: [
-        { teacherExtId: PHONE.t1, name: 'Teacher One', vendors: U1_TRAININGS },
-        { teacherExtId: PHONE.t2, name: 'Teacher Two', vendors: [] },
-      ],
-    });
+    // bd-17v39c.4.13 adds the period's modules completed (asserted in its own block below).
+    expect(out.feature).toBe('training');
+    expect(out.rows.map((r) => ({ teacherExtId: r.teacherExtId, name: r.name, vendors: r.vendors }))).toEqual([
+      { teacherExtId: PHONE.t1, name: 'Teacher One', vendors: U1_TRAININGS },
+      { teacherExtId: PHONE.t2, name: 'Teacher Two', vendors: [] },
+    ]);
   });
 
   test('an unknown feature or another coach\'s school is null', async () => {
@@ -1037,7 +1040,7 @@ describe('the school card\'s Digital Coaching and Coach observations scores', ()
   test('by teacher: count, average and her points; the school\'s count and average; teachers with none last', async () => {
     const out = await Card.getSchoolScores(db, 'coach-1', '901', 'dc', opts());
     expect(out).toMatchObject({ kind: 'dc', period: { key: 'week' } });
-    expect(out.school).toEqual({ emis: '901', name: 'School One', teachers: 2, count: 2, avg: 65, makers: 1 });
+    expect(out.school).toEqual({ emis: '901', name: 'School One', teachers: 2, count: 2, avg: 65, prevAvg: 50, makers: 1 });
     expect(out.rows).toEqual([
       { teacherExtId: PHONE.t1, name: 'Teacher One', count: 2, avg: 65, points: [{ id: 'd1', date: '2026-10-26', score: 60 }, { id: 'd5', date: '2026-10-28', score: 70 }] },
       { teacherExtId: PHONE.t2, name: 'Teacher Two', count: 0, avg: null, points: [] },
@@ -1151,6 +1154,107 @@ describe('her role and teaching levels on her page (bd-ewbzns.2): what Edit teac
   });
 });
 
+// ── bd-17v39c.4.13 (queue #19): Rifat's School view ──────────────────────────
+// The card's overview (who used NIETE this week and last; lesson plans per teacher per school day, last week the same
+// days; modules completed; assessments), training counted as modules completed everywhere, and the numbers each
+// details page puts on top. TODAY is Wednesday 28 Oct: this week is Mon 26 - Wed 28, last week's same days Mon 19 -
+// Wed 21 (3 school days each). The teachers are Teacher One and Teacher Two (2); Principal One is not counted (bd-17v39c.4.15).
+describe('the School view overview (bd-17v39c.4.13)', () => {
+  test('active now and last week, LP per teacher per school day (one decimal), modules completed, assessments', async () => {
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    expect(out.overview).toEqual({
+      teachers: 2,
+      // now: Teacher One (everything) and Teacher Two (a typed plan); last week's same days: Teacher One's DC report d0 (Tue 20)
+      active: { now: 2, prev: 1 },
+      // 6 plans / 2 teachers / 3 school days = 1.0; last week's same days had none
+      lp: { total: 6, makers: 2, perTeacherDay: 1, prev: { total: 0, perTeacherDay: 0 } },
+      training: { modules: 2, makers: 1, prev: { modules: 0 } },
+      papers: { total: 2, makers: 1, prev: { total: 0 } },
+    });
+  });
+
+  test('last week is the same days: a plan on last Thursday is not in it, one on last Tuesday is', async () => {
+    tables.lessonPlans.push(
+      { id: 'lw1', user_id: 'u2', created_at: pk('2026-10-20 09:00'), grade: '3', subject: 'math', topic: 'A', surface: null, lesson_id: 'grade_3_math_ch3_seg1' },
+      { id: 'lw2', user_id: 'u2', created_at: pk('2026-10-22 09:00'), grade: '3', subject: 'math', topic: 'B', surface: null, lesson_id: 'grade_3_math_ch3_seg2' },
+    );
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    // 1 / 2 / 3 = 0.17 → 0.2
+    expect(out.overview.lp.prev).toEqual({ total: 1, perTeacherDay: 0.2 });
+    expect(out.overview.active.prev).toBe(2);
+    // the week's own numbers do not move
+    expect(out.overview.lp).toMatchObject({ total: 6, makers: 2 });
+    expect(out.teachers.find((t) => t.name === 'Teacher Two').counts.lp).toBe(1);
+  });
+
+  test('this month against last month\'s 1st to the 28th', async () => {
+    tables.lessonPlans.push({ id: 'lm1', user_id: 'u2', created_at: pk('2026-09-28 09:00'), grade: '3', subject: 'math', topic: 'A', surface: null, lesson_id: 'grade_3_math_ch3_seg1' });
+    tables.lessonPlans.push({ id: 'lm2', user_id: 'u2', created_at: pk('2026-09-29 09:00'), grade: '3', subject: 'math', topic: 'B', surface: null, lesson_id: 'grade_3_math_ch3_seg2' });
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', opts('month'));
+    // Oct 1-28: 20 school days; 7 plans (l6 on Sun 25 Oct is in the month) / 2 / 20 = 0.175 → 0.2
+    expect(out.overview.lp).toMatchObject({ total: 7, perTeacherDay: 0.2 });
+    // Sep 1-28 (20 school days): lm1 only, 1 / 2 / 20 = 0.025 → 0
+    expect(out.overview.lp.prev).toEqual({ total: 1, perTeacherDay: 0 });
+  });
+
+  test('today: per teacher today, against yesterday', async () => {
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', opts('today'));
+    // Wed: l5 (Teacher One), 1 / 2 = 0.5; Tue: 3 / 2 = 1.5
+    expect(out.overview.lp).toEqual({ total: 1, makers: 1, perTeacherDay: 0.5, prev: { total: 3, perTeacherDay: 1.5 } });
+  });
+
+  test('no school day in the period (a Saturday\'s Today): no rate', async () => {
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', { ...opts('today'), today: '2026-10-31' });
+    expect(out.overview.lp).toMatchObject({ total: 0, perTeacherDay: null });
+  });
+
+  test('a level\'s card counts its own teachers', async () => {
+    tables.users.find((u) => u.id === 'u2').teacher_level = ['MIDDLE'];
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', { ...opts(), level: 'MIDDLE' });
+    expect(out.overview).toMatchObject({ teachers: 1, active: { now: 1, prev: 0 }, lp: { total: 1, makers: 1, perTeacherDay: 0.3 } });
+  });
+});
+
+describe('training is modules completed (bd-17v39c.4.13)', () => {
+  test('an inactive module never counts: not in the overview, not on her row, not in her Contribution', async () => {
+    tables.modules.find((m) => m.id === 12).is_active = false;
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    expect(out.overview.training).toEqual({ modules: 1, makers: 1, prev: { modules: 0 } });
+    const t1 = out.teachers.find((t) => t.teacherExtId === PHONE.t1);
+    expect(t1.counts.training).toBe(1);
+    expect(t1.total).toBe(10);
+  });
+
+  test('Training by teacher: the period\'s modules completed on top; each teacher\'s N of M and how many this period', async () => {
+    const out = await Card.getSchoolFeature(db, 'coach-1', '901', 'training', opts());
+    expect(out).toMatchObject({ feature: 'training', period: { key: 'week' }, total: 2, makers: 1, teachers: 2, prev: { total: 0 } });
+    expect(out.rows).toEqual([
+      // U1: Empty 0 of 0, NIETE 2 of 4, Smart Schools 1 of 2 → 3 of 6; modules 11 and 12 this week
+      { teacherExtId: PHONE.t1, name: 'Teacher One', vendors: U1_TRAININGS, modules: { done: 3, of: 6 }, inPeriod: 2 },
+      { teacherExtId: PHONE.t2, name: 'Teacher Two', vendors: [], modules: { done: 0, of: 0 }, inPeriod: 0 },
+    ]);
+  });
+});
+
+describe('the details pages\' tops (bd-17v39c.4.13)', () => {
+  test('lesson plans by teacher: by how many, per teacher per school day, last week the same days', async () => {
+    const out = await Card.getSchoolFeature(db, 'coach-1', '901', 'lp', opts());
+    expect(out).toMatchObject({ total: 6, makers: 2, teachers: 2, perTeacherDay: 1, prev: { total: 0, perTeacherDay: 0 } });
+    expect(out.school).toEqual([2, 3, 1, 0, 0]);
+  });
+
+  test('assessments by teacher: the same top', async () => {
+    const out = await Card.getSchoolFeature(db, 'coach-1', '901', 'papers', opts());
+    expect(out).toMatchObject({ total: 2, makers: 1, teachers: 2, prev: { total: 0 } });
+  });
+
+  test('Digital Coaching by teacher: the school\'s average against last week\'s same days, and its line', async () => {
+    const out = await Card.getSchoolScores(db, 'coach-1', '901', 'dc', opts());
+    expect(out.school).toMatchObject({ count: 2, avg: 65, prevAvg: 50, makers: 1 });
+    expect(out.series).toEqual([60, null, 70, null, null]);
+  });
+});
+
 // ── bd-17v39c.4.15 (queue #44): the principal apart from the teachers ────────
 // Coach report, 6 Nov: the principal sat in the school's "our teachers" list and asked to come off it. Operator's pick
 // (option A): the principal leaves the teacher list and every teacher count, and the card names them apart
@@ -1172,6 +1276,7 @@ describe('the principal apart from the teachers (bd-17v39c.4.15)', () => {
     expect(out.teachers.map((t) => [t.total, t.contributionPct, t.star])).toEqual([[11, 92, true], [1, 8, true]]);
     expect(out.tiles.find((t) => t.feature === 'lp')).toMatchObject({ total: 6, makers: 2 });
     expect(out.tiles.find((t) => t.feature === 'dc')).toMatchObject({ total: 2, makers: 1 });
+    expect(out.overview).toMatchObject({ teachers: 2, active: { now: 2 }, lp: { total: 6, makers: 2, perTeacherDay: 1 } });
     expect(out.scores.dc).toMatchObject({ count: 2, avg: 65, makers: 1 });
     expect(out.scores.coach).toMatchObject({ count: 3, avg: 50, makers: 1 });
     expect(out.coachObservations.teachers.map((t) => t.name)).toEqual(['Teacher One']);
@@ -1182,7 +1287,7 @@ describe('the principal apart from the teachers (bd-17v39c.4.15)', () => {
     busyPrincipal();
     const lp = await Card.getSchoolFeature(db, 'coach-1', '901', 'lp', opts());
     expect(lp.rows.map((r) => r.name)).toEqual(['Teacher One', 'Teacher Two']);
-    expect(lp.total).toBe(6);
+    expect(lp).toMatchObject({ total: 6, makers: 2, teachers: 2, perTeacherDay: 1 });
     expect(lp.school).toEqual([2, 3, 1, 0, 0]);
     const trn = await Card.getSchoolFeature(db, 'coach-1', '901', 'training', opts());
     expect(trn.rows.map((r) => r.name)).toEqual(['Teacher One', 'Teacher Two']);

@@ -91,17 +91,25 @@ function periodOf(key, today) {
   return { key: 'week', from, to: today, today, schoolDaysSoFar: schoolDaysIn(from, today), buckets: weekBuckets(today) };
 }
 
-/** The calendar period before this one, for "previous" averages: yesterday, last Mon-Sun, last month. */
+/**
+ * The same days of the period before this one, for "last week" numbers and averages (bd-17v39c.4.13: a part week
+ * against a whole week read low every Monday to Thursday): yesterday; last week Monday to the same weekday; last month
+ * the 1st to the same date (cut to that month's last day). `schoolDaysSoFar` is its Mon-Fri days.
+ */
 function previousOf(period) {
+  let from;
+  let to;
   if (period.key === 'today') {
-    const d = addDays(period.today, -1);
-    return { from: d, to: d };
+    from = to = addDays(period.today, -1);
+  } else if (period.key === 'month') {
+    const lastOfPrev = addDays(period.from, -1);
+    from = `${lastOfPrev.slice(0, 8)}01`;
+    to = minDay(`${lastOfPrev.slice(0, 8)}${period.to.slice(8, 10)}`, lastOfPrev);
+  } else {
+    from = addDays(period.from, -7);
+    to = addDays(period.to, -7);
   }
-  if (period.key === 'month') {
-    const to = addDays(period.from, -1);
-    return { from: `${to.slice(0, 8)}01`, to };
-  }
-  return { from: addDays(period.from, -7), to: addDays(period.from, -1) };
+  return { from, to, schoolDaysSoFar: schoolDaysIn(from, to) };
 }
 
 /** [from 00:00 PKT, to+1 00:00 PKT) as UTC ISO instants. */
