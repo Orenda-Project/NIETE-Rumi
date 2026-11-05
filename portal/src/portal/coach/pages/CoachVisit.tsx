@@ -37,11 +37,13 @@ function LastVisitRow({ last }: { last: LastVisit }) {
   const date = dayMonth(last.date, C) || C.dash;
   const who = last.byMe ? C.you : (last.observerName || C.dash);
   const step = last.step ? C.lastStep[last.step] : null;
+  // bd-jjcofw.10 — "Last observation · 14 Sep" was cut before the date at 390 px: the title is the words; the date and
+  // who did it go on the line under it.
   // bd-o15qnr.19 — the one v2 observation page, portal or WhatsApp.
   const to = last.id ? `/portal/coach/observation/${last.id}` : undefined;
   return (
     <div data-testid="last-visit-row" className="border-t border-[#e5e7eb]">
-      <HistoryRow lead="person" leadText={pct(last.score)} leadLabel={pct(last.score)} title={C.lastVisitOn(date)} extra={C.hitlBy(who)}
+      <HistoryRow lead="person" leadText={pct(last.score)} leadLabel={pct(last.score)} title={C.lastObservation} extra={`${date} · ${who}`}
         to={to} action={to ? "chevron" : "none"}
         chip={step ? { text: step, tone: last.step === "sent" ? "done" : last.step === "analysing" ? "info" : "waiting" } : null} />
     </div>
