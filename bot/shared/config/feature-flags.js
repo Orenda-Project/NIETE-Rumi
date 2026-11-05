@@ -211,7 +211,7 @@ async function isQuizAuthorGatesV2() {
  */
 const ASSESSMENT_GRADES_6_12_KEY = 'assessment_grades_6_12';
 const ASSESSMENT_GRADES_6_12_KILL_KEY = 'assessment_grades_6_12_kill'; // gitleaks:allow — an app_settings key name, not a secret
-const ASSESSMENT_GRADES_6_12_KILL_CELLS_KEY = 'assessment_grades_6_12_kill_cells';
+const ASSESSMENT_GRADES_6_12_KILL_CELLS_KEY = 'assessment_grades_6_12_kill_cells'; // gitleaks:allow — a key name
 
 /** One app_settings value: undefined when the row is absent; a failed read throws. */
 async function readSetting(key) {
