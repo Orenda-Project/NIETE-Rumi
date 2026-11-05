@@ -9,7 +9,7 @@ import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
 import ManageSchool from "../people/ManageSchool";
 import { TeacherCard, Notice, useNotice } from "../people/rows";
 import { bySince } from "./CoachPeople";
-import { coachFeatureReady } from "../training/appReady";
+import { useCoachFeatureReady } from "../training/useCoachFullApp";
 import { useCardSwitch } from "../card/frame";
 import SchoolCardPage from "../card/SchoolCardPage";
 import { LevelChips, atLevel, levelCounts, useLevel, withLevel } from "../people/level";
@@ -31,11 +31,12 @@ function CoachSchoolToday() {
   const { data, failed, reload } = useLoad(() => coach.getSchool(emis), [emis]);
   const s = data?.school;
   const [level] = useLevel();
+  const scheduleReady = useCoachFeatureReady("schedule");
 
   return (
     <PeopleFrame title={s?.name || C.dash} crumb={C.title} backTo={withLevel("/portal/coach/people", level)} feature="schools"
       // Schedule a visit here opens Schedule: only once Schedule is in the coach app.
-      dock={s && coachFeatureReady("schedule") ? <BottomLink to={`/portal/coach/new-visit?${new URLSearchParams({ school: s.schoolExtId }).toString()}`}><Plus className="h-5 w-5" aria-hidden="true" />{C.scheduleVisitHere}</BottomLink> : undefined}>
+      dock={s && scheduleReady ? <BottomLink to={`/portal/coach/new-visit?${new URLSearchParams({ school: s.schoolExtId }).toString()}`}><Plus className="h-5 w-5" aria-hidden="true" />{C.scheduleVisitHere}</BottomLink> : undefined}>
       <Notice text={notice} />
       {failed && <LoadFailed onRetry={reload} />}
       {!data && !failed && <Loading />}

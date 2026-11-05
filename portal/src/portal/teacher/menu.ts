@@ -83,5 +83,8 @@ export function currentCoachCardItem(pathname: string): CoachNavKey | null {
   return key === "schools" || key === "training" ? "home" : key;
 }
 
-// RED STUB (bd-jjcofw): replaced in the green commit.
-export const COACH_CARD_FULL_NAV_KEYS: readonly CoachNavKey[] = COACH_CARD_NAV_KEYS;
+/**
+ * bd-jjcofw — the School card menu for a tester with the full coach app on (features.coachFullApp): Schedule and Observe
+ * sit between Home and Lesson Plans, as in the coach's full menu. Everyone else keeps COACH_CARD_NAV_KEYS.
+ */
+export const COACH_CARD_FULL_NAV_KEYS: readonly CoachNavKey[] = ["home", "schedule", "observe", "lessons", "more"];

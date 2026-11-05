@@ -33,7 +33,7 @@ describe("the switch on (Rifat)", () => {
     expect(screen.getByTestId("where")).toHaveTextContent(entry);
   });
 
-  it("the menu is Home · Schedule · Observe · Lesson Plans · More, and a school offers Schedule a visit", async () => {
+  it("the menu is Home · Schedule · Observe · Lesson Plans · More", async () => {
     config(true);
     await renderApp(`/portal/coach/school/${EMIS}`);
     await screen.findByTestId("activity");
@@ -42,7 +42,6 @@ describe("the switch on (Rifat)", () => {
     const links = Array.from(nav.querySelectorAll("a"));
     expect(links.map((a) => a.getAttribute("href"))).toEqual(["/portal/coach", "/portal/coach/scheduling", "/portal/coach/observe", "/portal/teacher/lessons", "/portal/coach/more"]);
     expect(links[0]).toHaveAttribute("aria-current", "page");
-    expect(linkPaths(document.body)).toContain("/portal/coach/new-visit");
   });
 
   it("the School card Home is still where a shut page sends her", async () => {
@@ -64,12 +63,12 @@ describe("the switch off, absent or not a literal true (every other coach)", () 
     }
   });
 
-  it("the menu stays Home · Lesson Plans · More, and a school offers no Schedule a visit", async () => {
+  it("the menu stays Home · Lesson Plans · More, and nothing links into Schedule or Observe", async () => {
     config(false);
     await renderApp(`/portal/coach/school/${EMIS}`);
     await screen.findByTestId("activity");
     const nav = screen.getByTestId("teacher-nav");
     expect(Array.from(nav.querySelectorAll("a")).map((a) => a.textContent)).toEqual(["Home", "Lesson Plans", "More"]);
-    expect(linkPaths(document.body)).not.toContain("/portal/coach/new-visit");
+    expect(linkPaths(document.body).filter((p) => /^\/portal\/coach\/(scheduling|schedule|new-visit|observe|visit|observation)(\/|$)/.test(p))).toEqual([]);
   });
 });
