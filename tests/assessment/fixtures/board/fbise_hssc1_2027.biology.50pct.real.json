@@ -1,0 +1,78 @@
+{
+ "pattern": "fbise_hssc1_2027",
+ "subject": "biology",
+ "variant": "50pct",
+ "source": "fbise-hssc1-biology-50pct-2026",
+ "source_status": "verified",
+ "total_marks_x4": 320,
+ "total_time_min": 180,
+ "time_a_min": 100,
+ "shared_time_min": 80,
+ "mcq_share_pct": 50.0,
+ "sections": [
+  {
+   "id": "A",
+   "marks_x4": 160,
+   "answer_on": "omr",
+   "slots": [
+    {
+     "label": "Q1 (1-56)",
+     "kind": "mcq",
+     "printed": 56,
+     "attempt": 56,
+     "marks_each_x4": 2,
+     "or": false,
+     "stimulus": null
+    },
+    {
+     "label": "Q1 (57-80)",
+     "kind": "scenario",
+     "printed": 24,
+     "attempt": 24,
+     "marks_each_x4": 2,
+     "or": false,
+     "stimulus": {
+      "count": 6,
+      "mcqs_per_stimulus": 4
+     }
+    }
+   ],
+   "time_min": 100
+  },
+  {
+   "id": "B",
+   "marks_x4": 112,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q1-Q7",
+     "kind": "srq",
+     "printed": 7,
+     "attempt": 7,
+     "marks_each_x4": 16,
+     "or": true,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  },
+  {
+   "id": "C",
+   "marks_x4": 48,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q8-Q9",
+     "kind": "erq",
+     "printed": 2,
+     "attempt": 2,
+     "marks_each_x4": 24,
+     "or": true,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  }
+ ],
+ "derivation": []
+}
