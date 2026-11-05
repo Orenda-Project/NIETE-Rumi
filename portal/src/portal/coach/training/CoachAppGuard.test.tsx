@@ -14,6 +14,8 @@ vi.mock("../insights/useCoachip", () => ({ useCoachip: vi.fn(() => false), useCo
 // The guard also reads the School card switch (useSchoolCard). These goldens are the switch OFF, answered false at once;
 // no assertion below changed. The ON cases live in coach/card/switchOn.test.tsx and appReady.schoolCard.test.ts.
 vi.mock("../card/useSchoolCard", () => ({ useSchoolCard: vi.fn(() => false) }));
+// bd-jjcofw — and the full coach app switch, OFF, answered at once; the ON cases live in coach/card/fullApp.test.tsx.
+vi.mock("./useCoachFullApp", async (orig) => ({ ...(await orig<any>()), useCoachFullApp: vi.fn(() => false) }));
 import CoachAppGuard from "./CoachAppGuard";
 
 /**

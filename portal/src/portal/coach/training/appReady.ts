@@ -24,9 +24,16 @@ export const COACH_APP_READY: readonly CoachFeature[] = ["training", "lessons", 
  * Is this feature showing in the coach app for every v2 coach? A page in a ready feature uses it to leave out a link
  * into one that is not (the guard would send that tap to the Training Library instead).
  */
-export function coachFeatureReady(feature: CoachFeature): boolean {
-  return COACH_APP_READY.includes(feature);
+export function coachFeatureReady(feature: CoachFeature, fullApp?: boolean | null): boolean {
+  return COACH_APP_READY.includes(feature) || (fullApp === true && COACH_FULL_APP_EXTRA.includes(feature));
 }
+
+/**
+ * bd-jjcofw — what the full coach app switch (`fullApp`, /config features.coachFullApp, a literal true only, per user:
+ * app_settings portal_coach_full_app) adds for a tester: Schedule (scheduling, new visits) and Observe (a visit,
+ * recording it, the observation pages). Off, absent or unread: nothing is added and her app is exactly what it was.
+ */
+export const COACH_FULL_APP_EXTRA: readonly CoachFeature[] = ["schedule", "observe"];
 
 export const COACH_TRAINING_BASE = "/portal/coach/training";
 
@@ -44,10 +51,20 @@ export const COACH_INSIGHTS_BASE = "/portal/coach/insights";
  * is her landing page, with the School card pages (My schools, and the DC report under "home"), Training and Lesson
  * Plans. It wins over COACHIP: Schedule, Observe, Reports, Analytics and Insights all stay shut. Off, absent or unread:
  * exactly what it was.
+ *
+ * `fullApp` (bd-jjcofw, a literal true only): Schedule and Observe join the list above, last, for a listed tester.
  */
-export function coachReadyFor(coachip: boolean | null | undefined, schoolCard?: boolean | null): readonly CoachFeature[] {
-  if (schoolCard === true) return ["home", ...COACH_APP_READY, ...(COACH_APP_READY.includes("schools") ? [] : ["schools" as const])];
-  return coachip === true ? ["insights", ...COACH_APP_READY] : COACH_APP_READY;
+export function coachReadyFor(
+  coachip: boolean | null | undefined,
+  schoolCard?: boolean | null,
+  fullApp?: boolean | null,
+): readonly CoachFeature[] {
+  const base: readonly CoachFeature[] = schoolCard === true
+    ? ["home", ...COACH_APP_READY, ...(COACH_APP_READY.includes("schools") ? [] : ["schools" as const])]
+    : coachip === true ? ["insights", ...COACH_APP_READY] : COACH_APP_READY;
+  // bd-jjcofw — the full coach app adds Schedule and Observe after her list (so her landing page is unchanged).
+  if (fullApp !== true) return base;
+  return [...base, ...COACH_FULL_APP_EXTRA.filter((f) => !base.includes(f))];
 }
 
 export const coachTrainingPaths = {

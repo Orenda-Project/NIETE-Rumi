@@ -93,6 +93,7 @@ const {
   isPortalAssessmentEditingEnabled,
   PORTAL_COACH_V2_KEY,
   PORTAL_COACH_SCHOOL_CARD_KEY,
+  PORTAL_COACH_FULL_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,
@@ -9014,6 +9015,7 @@ router.get('/config', async (req, res) => {
       coachipDecodeRaw,
       schoolCardRaw,
       roleSwitch,
+      coachFullAppRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9049,6 +9051,8 @@ router.get('/config', async (req, res) => {
       // bd-tacnwy — the internal tester's "Switch profile" (POST /me/role). List-only and per user: everyone else,
       // and a signed-out read, is false, and the app draws nothing.
       isRoleSwitchUser(supabase, userId),
+      // bd-jjcofw — the full coach app (Schedule + Observe) for a listed tester; rides with the coach app v2 on.
+      isFlagEnabledForUser(supabase, PORTAL_COACH_FULL_APP_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -9073,6 +9077,7 @@ router.get('/config', async (req, res) => {
         coachipRm: coachipRmSector !== null,
         coachipDecode: coachip && coachipDecodeRaw,
         schoolCard: coachV2 && schoolCardRaw,
+        coachFullApp: coachV2 && coachFullAppRaw,
         roleSwitch,
       },
     });
@@ -9100,6 +9105,7 @@ router.get('/config', async (req, res) => {
         coachipRm: false,
         coachipDecode: false,
         schoolCard: false,
+        coachFullApp: false,
         roleSwitch: false,
       },
       roleSwitchRoles: [],
