@@ -74,8 +74,8 @@ describe('GET /config — the flag reads run together', () => {
 
     // Every read in /config's Promise.all: the eight first-paint flags, coach_disagreement_card, and the switches
     // added since (Learning assessment, the three teacher-Home keys, intl sign-in numbers, COACHIP x3, School card,
-    // role switch).
-    expect(started).toBe(19);
+    // role switch, full coach app (bd-jjcofw)).
+    expect(started).toBe(20);
     expect(payload.features).toMatchObject({
       assessmentGenerator: true,
       assessmentEditing: true,
