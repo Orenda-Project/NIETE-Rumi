@@ -41,3 +41,22 @@ The `bot` service reads `WHATSAPP_SHARE_TEMPLATE_{PAPER,LESSON,DC,OBSERVATION}`.
 (`GET /api/portal/share/availability`, which the dashboard proxies to the bot) read it there, so set the vars on the `bot`
 service only. A kind with no var stays grey ("Not available yet"). Set a var only once its template is APPROVED on
 that environment's WABA in both `en` and `ur`.
+
+## The coaching report with the clip button (`share_dc_report_clip_v1`, bd-22gf7p)
+
+Not one of the app's Share templates. Its JSON lives in `clip/`, out of `submit.js`'s reach (it sends only this folder's
+top-level files), because the URL button carries one environment's `PORTAL_URL`: the committed pair is **prod**
+(`https://portal.niete.edu.pk/v/{{1}}`); sandbox and staging submit the same files with their own `PORTAL_URL` in the
+button `url` and its example, nothing else changed. When a coaching report's WhatsApp window is closed and
+the session's clip row is `shown`, `report-window-send.js` sends it instead of `share_dc_report_v1`
+(`video-reco/clip-button.js`), with exactly these parameters:
+
+| Component | en | ur |
+|---|---|---|
+| HEADER IMAGE | the stored report (1 param, as `share_dc_report_v1`) | same |
+| BODY | `Your Digital Coach report: *{{1}}*` / `{{2}} class` / blank / `A short training clip was picked for this lesson. Tap Watch the clip below.` | `آپ کی ڈیجیٹل کوچ رپورٹ: *{{1}}*` / `{{2}} کی کلاس` / blank / `اس سبق کے لیے ایک مختصر تربیتی کلپ چنا گیا ہے۔ نیچے کلپ دیکھیں دبائیں۔` |
+| BUTTONS | one `URL`, index 0, `Watch the clip` (14 code points), `<PORTAL_URL>/v/{{1}}` | `کلپ دیکھیں` (10 code points), same URL |
+
+The body has the same two variables; the clip line is static. The button's `{{1}}` is the `/v` token (`link-token.js`,
+surface `wa`). Switch it on with `VIDEO_RECO_CLIP_TEMPLATE=share_dc_report_clip_v1` on every service that sends coaching
+reports, once it is APPROVED as UTILITY in both languages on that WABA. Unset = `share_dc_report_v1`, as before.

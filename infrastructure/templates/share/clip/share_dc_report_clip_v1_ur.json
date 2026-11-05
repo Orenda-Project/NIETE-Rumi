@@ -1,0 +1,41 @@
+{
+  "name": "share_dc_report_clip_v1",
+  "category": "UTILITY",
+  "language": "ur",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "IMAGE",
+      "example": {
+        "header_handle": [
+          "<SAMPLE PNG HANDLE: submit.js uploads one and fills this in>"
+        ]
+      }
+    },
+    {
+      "type": "BODY",
+      "text": "آپ کی ڈیجیٹل کوچ رپورٹ: *{{1}}*\n{{2}} کی کلاس\n\nاس سبق کے لیے ایک مختصر تربیتی کلپ چنا گیا ہے۔ نیچے کلپ دیکھیں دبائیں۔",
+      "example": {
+        "body_text": [
+          [
+            "Parts of a plant",
+            "جماعت 4 · Science"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "URL",
+          "text": "کلپ دیکھیں",
+          "url": "https://portal.niete.edu.pk/v/{{1}}",
+          "example": [
+            "https://portal.niete.edu.pk/v/eyJrIjoidnIiLCJyIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwidSI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMiIsInMiOiJ3YSIsImV4cCI6MTc5MjAwMDAwMH0.3TxIajJUt4sBl7xeLmR2FI"
+          ]
+        }
+      ]
+    }
+  ]
+}
