@@ -52,6 +52,32 @@ describe("the switch on (Rifat)", () => {
   });
 });
 
+describe("the Home with the switch on (Rifat): Schedule and Observe tiles beside My schools", () => {
+  it("tiles: Schedule, Observe, Training Library, My schools, then Coach Training wide — each opening its page", async () => {
+    config(true);
+    net.answers.set("/coach/home", { success: true, home: { today: [], next: null, counts: { week: 1, overdue: 3, waiting: 2, inProgress: 0, teachers: 24, schools: 7 } } });
+    await renderApp("/portal/coach");
+    const tiles = await screen.findByTestId("feature-tiles");
+    await waitFor(() => expect(Array.from(tiles.querySelectorAll("a")).map((a) => a.getAttribute("href"))).toEqual([
+      "/portal/coach/scheduling", "/portal/coach/observe", "/portal/coach/training", "/portal/coach/people", "/portal/coach/coach-training",
+    ]));
+    const text = tiles.textContent || "";
+    expect(text).toContain("Schedule");
+    expect(text).toContain("Observe");
+    // their numbers, the same chips as the full coach Home, once /coach/home has answered
+    await waitFor(() => expect(tiles.textContent).toContain("1 this week"));
+    expect(tiles.textContent).toContain("2 waiting");
+  });
+
+  it("no number yet (or /coach/home failed): the tiles still show, with no chip and never a 0", async () => {
+    config(true);
+    await renderApp("/portal/coach");
+    const tiles = await screen.findByTestId("feature-tiles");
+    await waitFor(() => expect(Array.from(tiles.querySelectorAll("a")).map((a) => a.getAttribute("href"))).toContain("/portal/coach/scheduling"));
+    expect(tiles.textContent).not.toMatch(/\b0 (this week|waiting)\b/);
+  });
+});
+
 describe("the switch off, absent or not a literal true (every other coach)", () => {
   it.each([false, undefined, "true"])("%s: scheduling, a visit and recording go to the School card Home", async (v) => {
     for (const entry of ["/portal/coach/scheduling", "/portal/coach/visit/7/record"]) {
@@ -61,6 +87,17 @@ describe("the switch off, absent or not a literal true (every other coach)", () 
       await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/portal\/coach$/));
       unmount();
     }
+  });
+
+  it.each([false, undefined, "true"])("%s: the Home is exactly today's three tiles, and /coach/home is never asked", async (v) => {
+    config(v);
+    await renderApp("/portal/coach");
+    const tiles = await screen.findByTestId("feature-tiles");
+    await new Promise((r) => setTimeout(r, 50));
+    expect(Array.from(tiles.querySelectorAll("a")).map((a) => a.getAttribute("href"))).toEqual([
+      "/portal/coach/training", "/portal/coach/people", "/portal/coach/coach-training",
+    ]);
+    expect(net.calls.some((c) => c.startsWith("/coach/home"))).toBe(false);
   });
 
   it("the menu stays Home · Lesson Plans · More, and nothing links into Schedule or Observe", async () => {
