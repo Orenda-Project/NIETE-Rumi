@@ -1,0 +1,386 @@
+{
+  "grade": 11,
+  "code": "maths",
+  "source": {
+    "file": "outputs/lanes/r0-boards/sources/hssc/pdf/ModelPaper__2024New__maths__Final_Assessment_Framework_Model_Question_Paper_Mathematics_HSSC-I_.txt",
+    "kind": "fbise_af"
+  },
+  "policy": "stamp",
+  "slos": [
+    {
+      "official_slo": "M-11-A-01",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-02",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-03",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-04",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-05",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-06",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-07",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-08",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-09",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-10",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-11",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-12",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-13",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-14",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-15",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-16",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-17",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-18",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-19",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-20",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-21",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-22",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-23",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-24",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-25",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-26",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-27",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-28",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-29",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-30",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-31",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-32",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-33",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-34",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-35",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-36",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-37",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-38",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-39",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-40",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-41",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-42",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-43",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-44",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-A-45",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-01",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-02",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-03",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-04",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-05",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-06",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-07",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-08",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-09",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-10",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-11",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-12",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-13",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-14",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-15",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-16",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-17",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-18",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-19",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-20",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-21",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-22",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-23",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-24",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-25",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-26",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-27",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-28",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-29",
+      "gist": "Geometry",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-11-B-30",
+      "gist": "Geometry",
+      "chapter": null
+    }
+  ]
+}
