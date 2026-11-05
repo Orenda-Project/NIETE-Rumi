@@ -199,6 +199,7 @@ async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
   if (step === 'chapter')     return selectChapter(flowToken, d);
   if (step === 'lesson')      return selectLesson(flowToken, d);
   if (step === 'lesson_page') return selectLessonPage(flowToken, d);
+  if (step === 'chapter_page') return selectChapterPage(flowToken, d);
 
   // The 6-12 runtime lane. Its own step names rather than a shared
   // one, for the reason the file header already gives about id prefixes: two
@@ -531,6 +532,30 @@ async function v8LessonScreen(flowToken, grade, subject, chapter, page, screenId
       chapter_value: String(chapter),
       header_text: `${gradeTitle(grade)} ${V8Catalog.subjectTitle(grade, subject, bookKeys)} · ${chapterPart}`.trim(),
       lesson_total: String(total),
+    },
+  };
+}
+
+/**
+ * "More chapters →" (bd-97daxo.5): a K-5 book with more than 20 chapters (GB's Urdu books) pages onto
+ * SELECT_CHAPTER_MORE, the second chapter screen the published Flow already holds for Grades 6-12.
+ */
+async function selectChapterPage(flowToken, d) {
+  const grade = parseInt(d.grade, 10);
+  if (!isV8Grade(grade) || !d.subject) return { data: { error: { message: 'Please pick a subject again.' } } };
+  const [available, bookKeys] = await Promise.all([
+    V8Delivery.availableLessonIds(),
+    TeacherBooks.bookKeysForUser(userIdFrom(flowToken)),
+  ]);
+  const items = V8Catalog.buildChapterItems(grade, d.subject, available, bookKeys, parseInt(d.page, 10) || 2);
+  if (!items.length) return { data: { error: { message: 'Please pick a subject again.' } } };
+  return {
+    screen: 'SELECT_CHAPTER_MORE',
+    data: {
+      items,
+      grade_value: String(grade),
+      subject_value: d.subject,
+      header_text: `${gradeTitle(grade)} — ${V8Catalog.subjectTitle(grade, d.subject, bookKeys)}`,
     },
   };
 }
