@@ -809,20 +809,15 @@ async function deliverRender({
   // scheduled, and the worker's per-waiter loop counted her as `delivered`. A teacher who got
   // nothing was told, on every surface, that she had been served.
   const filename = buildFilename(segment, lang);
+  // bd-rj6w0n.14.8: an Urdu GB book's message is Urdu, with an Urdu title or none.
+  const cardLang = hosted ? GbDelivery.cardLanguage(segment, lang) : lang;
   const caption = hosted
-    ? resolveUx('lp612GbCaption', {
-      language: lang,
-      params: {
-        topic: segment.subtopic_title || segment.menu_title || '',
-        grade: segment.grade,
-        subject: subjectNameFor(segment.subject, lang),
-      },
-    })
+    ? GbDelivery.cardCaption({ segment, lang: cardLang, subject: subjectNameFor(segment.subject, cardLang) })
     : buildCaption(segment, lang, {
       overlayDropped: overlayDropped === true,
       renderDegraded: renderDegraded === true,
     });
-  const sent = hosted ? await GbDelivery.sendCardLink({ phone, url, caption, lang }) : await sendDocumentWithRetry({
+  const sent = hosted ? await GbDelivery.sendCardLink({ phone, url, caption, lang: cardLang }) : await sendDocumentWithRetry({
     phone,
     url,
     filename,
@@ -1209,7 +1204,7 @@ async function requestLessonImpl(
   const gb = GbDelivery.isGbSegment(segment);
 
   const { render: existing, readFailed } = gb
-    ? await GbDelivery.findGbRender(segmentId, language)
+    ? await GbDelivery.findGbRender(segmentId, language, segment)
     : await findRender(segmentId, language, tv);
 
   // A read that FAILED is not an absent row. Falling through to the claim below would try to
