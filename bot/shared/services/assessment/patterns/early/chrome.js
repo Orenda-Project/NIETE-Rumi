@@ -108,6 +108,7 @@ function makeSlot(o) {
     picture: o.picture || null,
     answer_box: true,
     picture_only: Boolean(o.picture_only),
+    picture_optional: Boolean(o.picture_optional), // a miss after the re-ask prints the plain item (fde-picture-optional)
     sentence_box: Boolean(o.sentence_box),
     print_words: Boolean(o.print_words),
     bubble: Boolean(o.bubble),
