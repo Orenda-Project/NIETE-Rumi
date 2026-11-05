@@ -72,7 +72,16 @@ beforeEach(() => {
 
 // ───────────────────────────── Social Studies ─────────────────────────────
 
-const SST_REAL = () => fixture('r6-sst-held');
+// Two Q1 items are held for a stem that names their key: «عبدالستار ایدھی نے کس تنظیم کی بنیاد رکھی؟ → ایدھی
+// فاؤنڈیشن» (its own stem, and a C/D stem) and «ابلاغ کی جدید ترین شکل کون سی ہے؟ → سوشل میڈیا» (two other Q1 stems).
+// Items no stem names stand in, so these tests read the held terms alone.
+const SST_REAL = () => {
+  const src = fixture('r6-sst-held');
+  const swap = (stem, question, options, answer) => Object.assign(src.unseen.objective.MCQs.find((x) => x.question === stem), { question, options, answer });
+  swap('عبدالستار ایدھی نے کس تنظیم کی بنیاد رکھی؟', 'پاکستان کا قومی پھول کون سا ہے؟', ['الف) گلاب', 'ب) چنبیلی', 'ج) سورج مکھی', 'د) کنول'], 'ب) چنبیلی');
+  swap('ابلاغ کی جدید ترین شکل کون سی ہے؟', 'پاکستان کا قومی جانور کون سا ہے؟', ['الف) شیر', 'ب) ہاتھی', 'ج) مارخور', 'د) ہرن'], 'ج) مارخور');
+  return src;
+};
 // Where the three Sermon items sit in the recorded reply.
 const SERMON = [
   ['objective', 'MCQs', 4],
