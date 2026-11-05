@@ -440,6 +440,9 @@ const STRINGS = {
     coach_report_try_lines: {
       elicited_if_then: '"اگلی بار آپ کیا مختلف کریں گی؟ اپنے الفاظ میں بتائیں۔"',
     },
+    // Phase 3: the ONE WhatsApp message on Friday with the link to her week (button <= 20).
+    coach_week_link_body: 'آپ کی ہفتہ وار کوچنگ رپورٹ تیار ہے: آپ کا ہفتہ، اور اگلے ہفتے کا فوکس۔ یہ صرف آپ کے لیے ہے۔',
+    coach_week_link_button: 'میرا ہفتہ کھولیں',
     coach_concern_opener: 'آپ کی ڈی بریف سن لی۔ ایک بات کھل کر کہنی ہے — کیونکہ آپ کا بڑھنا اسی میں ہے۔',
     coach_concern_title: 'کھل کر کہنے کی بات',
     coach_concern_closing: 'یہ صرف میرے اور آپ کے درمیان ہے۔ اگلی ملاقات میں آزمائیں — میں ساتھ ہوں۔',
@@ -744,6 +747,9 @@ const STRINGS = {
     coach_report_try_lines: {
       elicited_if_then: '“Next time, what will you do differently? Tell me in your own words.”',
     },
+    // Phase 3: the ONE WhatsApp message on Friday with the link to her week (button <= 20).
+    coach_week_link_body: 'Your weekly coaching report is ready: your week, and your focus for next week. It is just for you.',
+    coach_week_link_button: 'Open my week',
     // bd-30 — the harm gate: the officer disparaged the teacher. Honest, not congratulatory.
     coach_concern_opener:
       "I listened to your conversation. There's one thing I have to be honest with you about — because I'm on your side, and because this teacher depends on you. 💛",
