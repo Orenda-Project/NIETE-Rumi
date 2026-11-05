@@ -20,7 +20,8 @@
  *
  * Level 3 is the one that matters for the conformance guards in tests/setup/, because
  * those assert `expect(offenders).toEqual([])` — the whole finding lives in the diff,
- * not in the pass/fail.
+ * not in the pass/fail. An offender that names `path:line` is compared by what that line
+ * SAYS, not by where it sits (keyOffenders), so an edit that only moves lines is clean.
  *
  * Improvements are never regressions: fewer offenders, fewer failing tests, or a suite
  * going green are all reported and all clean. A gate that fires on progress gets muted.
@@ -30,6 +31,7 @@
  *   node tests/baseline-gate.js --update     # re-record the snapshot (review the diff!)
  */
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
@@ -74,8 +76,12 @@ function relSuite(name) {
  * Collapse a `jest --json` report into { suite: { failing, offenders } }.
  * Passing suites are omitted — the snapshot records what is broken, so a suite going
  * green shrinks the file rather than leaving a stale "expected to fail" entry behind.
+ *
+ * With `opts.lineAt` (see repoLineReader), `path:line` offenders are keyed by their line's
+ * text (keyOffenders), and `at` maps each such key to where its line is now, for the report.
+ * `at` is never written to the snapshot (canonicalise drops it).
  */
-function summariseRun(report) {
+function summariseRun(report, opts = {}) {
   const out = {};
   for (const suite of report.testResults || []) {
     const failing = [];
@@ -91,10 +97,12 @@ function summariseRun(report) {
     // the suite still counts as broken.
     const crashed = failing.length === 0 && suite.status === 'failed';
     if (failing.length || crashed) {
-      out[relSuite(suite.name)] = {
-        failing: failing.sort(),
-        offenders: [...offenders].sort(),
-      };
+      const keyed = keyOffenders([...offenders], opts.lineAt);
+      const entry = { failing: failing.sort(), offenders: keyed.map((k) => k.key).sort() };
+      const at = {};
+      for (const k of keyed) if (k.line) at[k.key] = `${k.file}:${k.line}`;
+      if (Object.keys(at).length) entry.at = at;
+      out[relSuite(suite.name)] = entry;
     }
   }
   return out;
@@ -125,10 +133,17 @@ function pruneFlaky(snapshot, flaky = []) {
  * sounds: "review the diff before committing" is the ONLY safeguard against --update
  * quietly swallowing a regression, and a diff that rewrites all 24 entries every time
  * is a diff nobody reads. Values are already sorted by summariseRun.
+ *
+ * Where a line sits NOW (`at`) is dropped: the snapshot records what an offender says,
+ * and a line number in it would churn on every edit above it.
  */
 function canonicalise(snapshot) {
   const out = {};
-  for (const suite of Object.keys(snapshot).sort()) out[suite] = snapshot[suite];
+  for (const suite of Object.keys(snapshot).sort()) {
+    const recorded = { ...snapshot[suite] };
+    delete recorded.at;
+    out[suite] = recorded;
+  }
   return out;
 }
 
@@ -312,33 +327,148 @@ function parseCliArgs(argv) {
   };
 }
 
+// ── Offender keys ────────────────────────────────────────────────────────────
 /**
- * Compare two snapshots and report whether the baseline GREW.
+ * The tests/setup/ guards name most offenders as `path:line`, sometimes with detail after
+ * it. A line number is WHERE a violation sits, and it moves whenever anything above it is
+ * edited. The snapshot has to record WHAT the violation is.
  *
- * "The snapshot may only ever shrink" was written into BASELINE.md and CLAUDE.md and
- * enforced by nothing, which is precisely the shape of the bug this gate exists to
- * fix: a rule in prose that nothing computes. Without this, a PR can add its own
- * failures to the snapshot and the gate passes, cleanly, saying CLEAN.
- *
- * Shrinking is the goal, so a removal is never flagged. Growth is flagged at all
- * three levels the gate itself compares, for the same reason: a new offender inside
- * an already-accepted suite is the level the real incident lived at.
+ * History, so nobody walks back into it:
+ *   - 2026-09-04: raw strings. 70 additions reported on the staging sync, 2 real; the other
+ *     68 had moved (`no-hardcoded-bot-name`: three identical strings, lines 198/365/572 ->
+ *     202/372/575).
+ *   - 2026-09-23: count per file. A shift alone went quiet, but once a file's count grew for
+ *     any reason, every line of it not present verbatim in the snapshot was named, and a
+ *     line that moved is never verbatim. PR #4208: `teacher-training-endpoint.js` had the
+ *     same 98 ticket-ref lines before and after the change, the snapshot held 97, and the
+ *     gate named 88 of them as NEW. `test (22)` was red on every PR, so nobody read it.
+ *   - now: by content. `path :: <the line's text>`, and `path #N :: <text>` for the Nth line
+ *     in a file with the same text.
  */
+const POSITION_RE = /^([^\s:]+):(\d+)/;
+const CONTENT_KEY_RE = /^([^\s:]+)(?: #(\d+))? :: ([\s\S]*)$/;
+
+/** Whitespace is not content: re-indenting a line or retabbing it must not make it new. */
+const squash = (s) => String(s).replace(/\s+/g, ' ').trim();
+
 /**
- * Collapse an offender to the violation, dropping WHERE it currently sits.
+ * A line that looks like it holds a credential or a phone number. source-hygiene names such a
+ * markdown line by `path:line` ALONE, on purpose; a content key must not undo that, because the
+ * key is committed in the snapshot and printed in CI logs, and this repo is public.
+ */
+const SENSITIVE_RE = new RegExp([
+  // a credential assigned a real-looking value (the shape source-hygiene's SECRET_ASSIGN_RE flags)
+  /(?:token|secret|password|api[_-]?key|access[_-]?token|account[_-]?token|service[_-]?role[_-]?key)["']?\s*[:=]\s*["']?(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[A-Za-z0-9]{32,})/,
+  // a long token on its own: 32+ letters and digits, with at least one of each
+  /\b(?=[A-Za-z0-9]*\d)(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{32,}\b/,
+  // a JWT, or a provider-prefixed key
+  /\beyJ[\w-]{8,}\.[\w-]{8,}\./,
+  /\b(?:sk|rk)[-_][\w-]{16,}|\bgh[pousr]_\w{20,}|\bxox[abprs]-[\w-]{10,}|\bAKIA[0-9A-Z]{16}\b/,
+  // a phone number: international, or a Pakistani or Tanzanian mobile written locally or bare
+  /\+\d{1,3}[\s-]?\d{2,4}[\s-]?\d{3,4}[\s-]?\d{3,7}/,
+  /\b0?3\d{2}[\s-]?\d{7}\b|\b92\d{10}\b|\b255\d{9}\b/,
+].map((r) => r.source).join('|'), 'i');
+
+/**
+ * The text a line is keyed by: the line itself, whitespace collapsed; or, for a line that looks
+ * sensitive, `[withheld <hash>]` — as stable as the text when the line moves, and it never puts
+ * the value in the snapshot or the log.
+ */
+function keyText(line) {
+  const text = squash(line);
+  if (!SENSITIVE_RE.test(text)) return text;
+  return `[withheld ${crypto.createHash('sha256').update(text).digest('hex').slice(0, 12)}]`;
+}
+
+function contentKey(file, text, n = 1) {
+  return `${file}${n > 1 ? ` #${n}` : ''} :: ${text}`;
+}
+
+function parseContentKey(s) {
+  const m = CONTENT_KEY_RE.exec(String(s));
+  return m ? { file: m[1], n: m[2] ? Number(m[2]) : 1, text: m[3] } : null;
+}
+
+/**
+ * Key each offender by what it says rather than where it sits.
  *
- * The tests/setup/ guards report `path:line`, sometimes with the offending source
- * appended. Line numbers move whenever anything above them is edited, so comparing raw
- * strings reports the same violation at a new line as a brand-new offender.
+ * A `path:line` offender whose line can be read becomes `path :: <that line, whitespace
+ * collapsed>` (or `[withheld <hash>]` for a line that looks like it holds a secret or a phone
+ * number, see keyText). Lines in one file with the same text are numbered in line order, and the
+ * second becomes `path #2 :: <text>`, so a copy of an existing violation is still a new
+ * key: a bare `path:line` guard (source-hygiene) cannot hide a duplicate. Detail a guard
+ * appends after `path:line` is not part of the key; the line is.
  *
- * Measured on the staging sync, 2026-09-04: 70 additions reported, 2 real. The other 68
- * had simply moved — `no-hardcoded-bot-name` reported +3 for three byte-identical
- * strings that shifted from lines 198/365/572 to 202/372/575. A gate that cries wolf
- * 70-for-2 gets switched off, which is the failure this whole system exists to avoid.
+ * Everything else is kept as it is. An offender with no line (`video_requests.observer_debrief`)
+ * already says what it is. A `path:line` whose line cannot be read stays positional, and
+ * offenderDelta compares it by count per file, as the gate did before.
  *
- * Only the FIRST `:<digits>` is dropped, and only where it follows a path. Everything
- * after it is kept, so two different violations in the same file stay distinct and a
- * non-positional offender (`video_requests.observer_debrief`) is untouched.
+ * `lineAt(file, n)` returns line n (1-based) of a repo file, or null; without it nothing is
+ * keyed. Returns [{ key, file?, line? }], where `file:line` is where a keyed line is NOW.
+ */
+function keyOffenders(raws, lineAt) {
+  const out = [];
+  const located = [];
+  for (const raw of raws) {
+    const m = POSITION_RE.exec(raw);
+    const text = m && lineAt ? lineAt(m[1], Number(m[2])) : null;
+    if (typeof text === 'string') located.push({ raw, file: m[1], line: Number(m[2]), text: keyText(text) });
+    else out.push({ key: raw });
+  }
+  const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+  located.sort((a, b) => cmp(a.file, b.file) || a.line - b.line || cmp(a.raw, b.raw));
+  const seen = new Map();
+  for (const o of located) {
+    const id = `${o.file}\u0000${o.text}`;
+    const n = (seen.get(id) || 0) + 1;
+    seen.set(id, n);
+    out.push({ key: contentKey(o.file, o.text, n), file: o.file, line: o.line });
+  }
+  return out;
+}
+
+/**
+ * Read lines of the tree the guards just scanned: the gate runs in the same checkout.
+ * Cached per file. Null for a path outside `root`, anything that is not a readable file,
+ * or a line out of range.
+ */
+function repoLineReader(root = REPO) {
+  const top = path.resolve(root);
+  const cache = new Map();
+  const load = (file) => {
+    const abs = path.resolve(top, file);
+    if (!abs.startsWith(top + path.sep)) return null;
+    try {
+      return fs.readFileSync(abs, 'utf8').split('\n');
+    } catch {
+      return null;
+    }
+  };
+  return (file, n) => {
+    if (!cache.has(file)) cache.set(file, load(file));
+    const lines = cache.get(file);
+    return lines && Number.isInteger(n) && n >= 1 && n <= lines.length ? lines[n - 1] : null;
+  };
+}
+
+/**
+ * How the report prints an offender: where its line is NOW, then what it says. A human
+ * chasing it needs the line number, even though the snapshot never records one. `at` maps
+ * a key to its current `path:line` (summariseRun keeps it for the run it read).
+ */
+function describeOffender(key, at) {
+  const c = parseContentKey(key);
+  if (!c) return key;
+  if (at && at[key]) return `${at[key]}  ${c.text}`;
+  return `${c.file}${c.n > 1 ? ` (#${c.n})` : ''}  ${c.text}`;
+}
+
+/**
+ * The `path:line` comparison, kept for entries that are still positional: a line the gate
+ * could not read, or a snapshot recorded before content keys (staging and main keep their
+ * own until they are re-recorded). Drops only the FIRST `:<digits>` after a path, so
+ * detail after it still tells two violations in one file apart, and an offender with no
+ * line (`video_requests.observer_debrief`) is untouched.
  */
 function normaliseOffender(s) {
   return String(s).replace(/^([^\s:]+):\d+/, '$1:L');
@@ -347,26 +477,37 @@ function normaliseOffender(s) {
 /**
  * Which offenders are genuinely NEW in `now`, and which are genuinely GONE from `base`.
  *
- * Judged by COUNT per normalised violation, not by raw string and not by set:
+ * Content keys compare as a set: a key on one side and not the other is the finding.
  *
- *   - raw strings cry wolf: an untouched violation that moved from line 198 to 202 is
- *     "new". On 2026-09-23 the gate reported 432 new source-hygiene offenders on sandbox
- *     itself, 129 of them real, so every PR that edited a file carrying an old ref went
- *     red for everyone and the gate stopped carrying information.
- *   - a set of normalised strings goes blind: `source-hygiene` reports a bare
- *     `path:line`, so a SECOND violation in a file that already had one normalises to
- *     the same string and disappears. That is exactly the incident this gate exists for.
- *
- * Counting keeps both properties: a file (a normalised violation) is flagged only when
- * it carries MORE entries than the other side, and then every raw entry that does not
- * appear verbatim on the other side is named — one of them is the new one, and a human
- * chasing it needs a line number. Returns sorted arrays; inputs are not mutated.
+ * A `path:line` entry cannot be translated into a content key without the tree it was
+ * recorded on, so a FILE that has entries in both forms (a positional snapshot entry
+ * against a content-keyed run, or the reverse) is judged by how many violations it carries,
+ * and so is a positional entry against another positional one (per normaliseOffender). In
+ * both, when a count grows, every entry not present verbatim on the other side is named:
+ * one of them is the new one. Returns sorted arrays; inputs are not mutated.
  */
 function offenderDelta(now = [], base = []) {
+  const fileOf = (x) => {
+    const c = parseContentKey(x);
+    if (c) return { file: c.file, form: 'text' };
+    const p = POSITION_RE.exec(x);
+    return p ? { file: p[1], form: 'line' } : null;
+  };
+  const forms = new Map();
+  for (const x of [...now, ...base]) {
+    const f = fileOf(x);
+    if (!f) continue;
+    if (!forms.has(f.file)) forms.set(f.file, new Set());
+    forms.get(f.file).add(f.form);
+  }
+  const groupOf = (x) => {
+    const f = fileOf(x);
+    return f && forms.get(f.file).size > 1 ? `\u0000${f.file}` : normaliseOffender(x);
+  };
   const group = (list) => {
     const m = new Map();
     for (const raw of list) {
-      const k = normaliseOffender(raw);
+      const k = groupOf(raw);
       if (!m.has(k)) m.set(k, []);
       m.get(k).push(raw);
     }
@@ -386,6 +527,18 @@ function offenderDelta(now = [], base = []) {
   return { added: beyond(now, base), removed: beyond(base, now) };
 }
 
+/**
+ * Compare two snapshots and report whether the baseline GREW.
+ *
+ * "The snapshot may only ever shrink" was written into BASELINE.md and CLAUDE.md and
+ * enforced by nothing, which is precisely the shape of the bug this gate exists to
+ * fix: a rule in prose that nothing computes. Without this, a PR can add its own
+ * failures to the snapshot and the gate passes, cleanly, saying CLEAN.
+ *
+ * Shrinking is the goal, so a removal is never flagged. Growth is flagged at all
+ * three levels the gate itself compares, for the same reason: a new offender inside
+ * an already-accepted suite is the level the real incident lived at.
+ */
 function snapshotGrowth(before, after) {
   const list = (o, k, f) => (o[k] ? o[k][f] || [] : []);
   const addedSuites = Object.keys(after).filter((s) => !(s in before)).sort();
@@ -407,10 +560,9 @@ function snapshotGrowth(before, after) {
 
   const addedTests = grown('failing', 'tests');
 
-  // Offenders are compared per normalised violation, by count (offenderDelta), so a
-  // violation that merely moved line is not reported as new while a second one in the
-  // same file still is. The RAW string is what gets reported, because a human chasing
-  // the finding needs the real line number.
+  // Offenders are compared the way the gate compares them (offenderDelta): by content key,
+  // so a violation that merely moved line is not growth while a second copy of one is; and
+  // by count per file wherever one side still holds `path:line` entries.
   const addedOffenders = [];
   for (const suite of Object.keys(after)) {
     if (!(suite in before)) continue;
@@ -469,7 +621,8 @@ function main() {
     process.exit(2);
   }
   const flaky = flakyFromBaselineDoc();
-  const now = summariseRun(runJest());
+  // The guards scanned this checkout, so its lines are the ones their `path:line` names.
+  const now = summariseRun(runJest(), { lineAt: repoLineReader(REPO) });
 
   if (update) {
     const dropped = Object.keys(now).filter((s) => flaky.includes(s));
@@ -505,7 +658,8 @@ function main() {
     console.log(first.clean
       ? '\nbaseline-gate: a flaky-listed suite failed — a second full run tells a flake from a real failure.'
       : '\nbaseline-gate: possible regression — confirming with a second full run.');
-    r = confirmRegressions(first, compareSnapshots(summariseRun(runJest()), base, { flaky }),
+    const again = summariseRun(runJest(), { lineAt: repoLineReader(REPO) });
+    r = confirmRegressions(first, compareSnapshots(again, base, { flaky }),
       { strictFlaky: flakyTwiceGates() });
     didConfirm = true;
   }
@@ -513,8 +667,9 @@ function main() {
   list('NEW failing suites (were green):', r.newSuites);
   list('NEW failing tests in already-red suites:', r.newTests,
     (x) => `${x.suite}\n      ${x.tests.join('\n      ')}`);
+  // Each one where it is now, then what it says.
   list('NEW offenders in already-red suites:', r.newOffenders,
-    (x) => `${x.suite}\n      ${x.offenders.join('\n      ')}`);
+    (x) => `${x.suite}\n      ${x.offenders.map((k) => describeOffender(k, (now[x.suite] || {}).at)).join('\n      ')}`);
   list('Fixed suites (now green):', r.fixedSuites);
   list('Fixed offenders:', r.fixedOffenders,
     (x) => `${x.suite} (-${x.offenders.length})`);
@@ -565,4 +720,8 @@ module.exports = {
   needsConfirmation,
   flakyTwiceGates,
   relSuite,
+  keyOffenders,
+  repoLineReader,
+  describeOffender,
+  offenderDelta,
 };
