@@ -23,7 +23,7 @@ async function languageForUserId(userId) {
     if (error) throw new Error(error.message);
     return (data && data.preferred_language) || null;
   } catch (err) {
-    logToFile('LP GB: language lookup failed', { userId, error: err.message });
+    logToFile('LP GB: language lookup failed', { error: err.message });
     return null;
   }
 }
