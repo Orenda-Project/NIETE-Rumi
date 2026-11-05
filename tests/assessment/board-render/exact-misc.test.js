@@ -90,9 +90,10 @@ describe('layout exact', () => {
 
 describe('renderer shells', () => {
   const base = (extra) => ({ _layout: { sections: [{ id: 'A', marks: 1, answer_on: 'omr' }], slots: [], ...extra } });
-  test('paper footer and html root', () => {
-    expect(renderBoardPaper(base({}))).toContain('<div class="footer">Page {n} of {N}</div></body></html>');
-    expect(renderBoardPaper(base({ rtl: true }))).toContain('<div class="footer">صفحہ {n} از {N}</div>');
+  test('paper ends with the body (the page footer is the PDF\'s, board-render/print.js) and html root', () => {
+    expect(renderBoardPaper(base({}))).toMatch(/<\/body><\/html>$/);
+    expect(renderBoardPaper(base({}))).not.toContain('{n}');
+    expect(renderBoardPaper(base({ rtl: true }))).not.toContain('class="footer"');
     expect(renderBoardPaper(base({}))).toMatch(/^<!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="utf-8"><style>/);
   });
   test('scheme title and legend, exact', () => {
