@@ -1085,6 +1085,51 @@ async function removeStudent({
   return { removed: true };
 }
 
+/** The longest name a child may be given by hand (bd-mx822w); a register line, not a paragraph. */
+const MAX_NAME_LENGTH = 100;
+
+/**
+ * Fix a child's name from the class page (bd-mx822w). Only `students.student_name` changes: the
+ * child, the enrolment and its roll number stay as they are, so attendance history still points at her.
+ *
+ * Any teacher on the class may do it (the roster is the class's, as removeStudent), and only for a
+ * child ACTIVELY enrolled in this class: a student id from another class, or one already taken off,
+ * is refused rather than renamed.
+ *
+ * @returns {Promise<{renamed?: true, studentName?: string, error?: string}>}
+ *   error: missing_class | missing_teacher | missing_student | missing_name | name_too_long |
+ *          not_assigned | not_enrolled | lookup_failed | update_failed
+ */
+async function renameStudent({ classId, teacherUserId, studentId, name } = {}) {
+  if (!classId) return { error: 'missing_class' };
+  if (!teacherUserId) return { error: 'missing_teacher' };
+  if (!studentId) return { error: 'missing_student' };
+  const studentName = typeof name === 'string' ? name.trim() : '';
+  if (!studentName) return { error: 'missing_name' };
+  if (studentName.length > MAX_NAME_LENGTH) return { error: 'name_too_long' };
+
+  if (!(await findAssignment(classId, teacherUserId))) return { error: 'not_assigned' };
+
+  const { data: rows, error: readErr } = await supabase
+    .from('class_enrollments')
+    .select('id')
+    .eq('class_id', classId)
+    .eq('student_id', studentId)
+    .eq('is_active', true);
+  if (readErr) return { error: 'lookup_failed' };
+  if (!rows || !rows.length) return { error: 'not_enrolled' };
+
+  const { error: updErr } = await supabase
+    .from('students')
+    .update({ student_name: studentName })
+    .eq('id', studentId);
+  if (updErr) {
+    logToFile('⚠️ ClassService.renameStudent: write failed', { classId, studentId, error: updErr.message }, 'error');
+    return { error: 'update_failed' };
+  }
+  return { renamed: true, studentName };
+}
+
 /**
  * The most a single paste may add. Carried over from the attendance flow, where a
  * mis-paste — a whole school, a copied spreadsheet column — could otherwise write
@@ -1639,7 +1684,9 @@ module.exports = {
   addStudent,
   addStudents,
   removeStudent,
+  renameStudent,
   MAX_PASTE,
+  MAX_NAME_LENGTH,
   // Exported for tests and for the cutover PR that removes the mirror.
   normalizeSection,
   mirrorLabel,
