@@ -23,7 +23,7 @@
  * anyone else is `forbidden` (403). The id is checked before any query.
  *
  * READS. analysis_data is never pulled whole (Class R): only ->observer_debrief->feedback and the few header keys.
- * The coach_report_* columns (V1.8.12) are read and written only here, only for a coach with the switch on.
+ * The coach_report_* columns (bot/database/migrations/coach_report_notice.sql) are read and written only here, only for a coach with the switch on.
  *
  * `query` is injected ((sql, params) => Promise<{rows, rowCount}>), like every coach service.
  */
@@ -64,7 +64,7 @@ const SQL = {
   `,
 
   // Her coached debriefs she has neither opened nor closed, newest first: what the Home card shows. Served by the
-  // V1.8.12 partial index (rows still waiting on the coach, by created_at).
+  // coach_report_notice.sql partial index (rows still waiting on the coach, by created_at).
   READY: `
     SELECT c.id, c.created_at,
            c.analysis_data->'observer_debrief'->>'completed_at' AS feedback_at,
