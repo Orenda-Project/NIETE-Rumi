@@ -1728,6 +1728,13 @@ const UX_STRINGS = {
     ur: 'آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — تیار ہوتے ہی اسی چیٹ میں بھیج دیا جائے گا۔',
   },
 
+  // bd-rj6w0n.14.4 — a Gilgit-Baltistan teacher's lesson-plan menu covers Grades 1-5 only; a stale or
+  // tampered grade outside that range is refused with this Flow error line.
+  lp612GbGradeOnly: {
+    en: 'Lesson plans here are for Grades 1-5. Please pick one of those classes.',
+    ur: 'یہاں سبق کے منصوبے جماعت ⁦1-5⁩ کے لیے ہیں۔ براہِ کرم انہی میں سے کوئی جماعت چنیں۔',
+  },
+
   // Sent with the PDF. {topic} is the book's own subtopic wording.
   //
   // The Urdu line wraps {subject} and {pages} in LRI…PDI (U+2066/U+2069)

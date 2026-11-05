@@ -482,6 +482,15 @@ function isLp612RouteK5() {
 }
 
 /**
+ * LP_GB_K5_ENABLED — Gilgit-Baltistan K-5 books in the LP menu (bd-rj6w0n.14.4). Ships OFF, and off is
+ * today exactly: no region lookup, no curriculum filter. On: a GB teacher's menu reads only gb_k5 books
+ * and an ICT teacher's reads only fbise. Independent of LP_612_ROUTE_K5, which this never turns on.
+ */
+function isGbK5Enabled() {
+  return isTrue(process.env.LP_GB_K5_ENABLED);
+}
+
+/**
  * Which grades the 6-12 menu claims under the current flag set — the ONE definition, so the router
  * and the Flow endpoint cannot drift apart (the bd-w36m5 lesson: two places describing the same
  * envelope from opposite ends disagreed by a factor of four).
@@ -512,6 +521,7 @@ module.exports = {
   isLp612Enabled,
   isLp612RouteAll,
   isLp612RouteK5,
+  isGbK5Enabled,
   lp612ServesGrade,
   isLp612EditEnabled,
   isLp612LangMenuEnabled,
