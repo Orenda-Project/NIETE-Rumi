@@ -16,6 +16,7 @@ const REQ = { id: 'r1', user_id: U, grade_code: 'grade_4', subject_code: 'scienc
 const TREE = {
   seen: {
     objective: {
+      'Fill in the blanks': [{ question: 'Fill in', words: ['one', 'two'], marks: 2 }],
       MCQs: [
         { question: 'Which part takes in water?', options: ['A) Roots', 'B) Stem'], answer: 'A) Roots', marks: 1 },
         { question: 'Gone', options: ['A) x'], marks: 5, removed: true },
@@ -23,7 +24,6 @@ const TREE = {
       ],
       'True/False': [{ main_question: 'Write True or False', question: 'Seeds need light.', answer: 'False', marks: 1 }],
       'Match the Column': [{ question: 'Match.', column_a: ['Sun', 'Moon'], column_b: ['Day', 'Night', 'Extra'], marks: 2 }],
-      'Fill in the blanks': [{ question: 'Fill in', words: ['one', 'two'], marks: 2 }],
     },
     subjective: {
       Comprehension: [{
@@ -50,31 +50,31 @@ describe('buildPaperView', () => {
 
   test('sections follow the paper, one per question type, numbered straight through, removed questions skipped', () => {
     const s = sections();
-    expect(s.map((x) => x.heading)).toEqual(['MCQs', 'True/False', 'Match the Column', 'Fill in the blanks', 'Comprehension', null]);
-    expect(s[0].questions.map((q) => q.number)).toEqual([1, 2]);
-    expect(s[1].questions[0].number).toBe(3);
+    expect(s.map((x) => x.heading)).toEqual(['Fill in the blanks', 'MCQs', 'True/False', 'Match the Column', 'Comprehension', null]);
+    expect(s[1].questions.map((q) => q.number)).toEqual([2, 3]);
+    expect(s[2].questions[0].number).toBe(4);
     expect(s.flatMap((x) => x.questions).length).toBe(7);
   });
 
   test('a shared instruction is the section lead', () => {
-    expect(sections()[1].lead).toBe('Write True or False');
-    expect(sections()[0].lead).toBeNull();
+    expect(sections()[2].lead).toBe('Write True or False');
+    expect(sections()[1].lead).toBeNull();
   });
 
   test('MCQ options and marks', () => {
-    const q = sections()[0].questions[0];
+    const q = sections()[1].questions[0];
     expect(q).toMatchObject({ shape: 'options', text: 'Which part takes in water?', marks: 1, options: ['A) Roots', 'B) Stem'] });
   });
 
   test('match columns pad to the longer side', () => {
-    const q = sections()[2].questions[0];
+    const q = sections()[3].questions[0];
     expect(q.shape).toBe('columns');
     expect(q.pairs).toEqual([{ left: 'Sun', right: 'Day' }, { left: 'Moon', right: 'Night' }, { left: '', right: 'Extra' }]);
   });
 
   test('words, passage with sub-questions (lettered, own marks, own options); marks of a passage question = its parts', () => {
     const s = sections();
-    expect(s[3].questions[0]).toMatchObject({ shape: 'words', words: ['one', 'two'] });
+    expect(s[0].questions[0]).toMatchObject({ shape: 'words', words: ['one', 'two'] });
     const c = s[4].questions[0];
     expect(c).toMatchObject({ shape: 'comprehension', passage: 'A crow was thirsty.\nIt found a jug.', marks: 3 });
     expect(c.subs).toEqual([

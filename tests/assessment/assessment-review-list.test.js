@@ -33,7 +33,7 @@ const U = 'user-1';
 const TOKEN = `${U}:assessment-review:v1`;
 const cp = (s) => [...String(s)].length;
 
-// 50 questions: 20 MCQs, 20 short, 10 fill — the prod p90 / max.
+// 50 questions: 20 MCQs, 10 true/false, 20 short — the prod p90 / max. (MCQs print first, so they head the list.)
 function bigTree() {
   return {
     seen: {
@@ -42,7 +42,7 @@ function bigTree() {
           question: `Which planet is number ${i + 1} in this long list of questions?`,
           options: ['A) Mars', 'B) Venus', 'C) Earth', 'D) Jupiter'], answer: 'C) Earth', marks: 1, lines: 0,
         })),
-        'Fill in the Blanks': Array.from({ length: 10 }, (_, i) => ({ question: `Blank ${i + 1} ____.`, answer: 'x', marks: 1 })),
+        'True/False': Array.from({ length: 10 }, (_, i) => ({ question: `Statement ${i + 1} is true.`, answer: 'True', marks: 1 })),
       },
       subjective: {
         'Short Questions': Array.from({ length: 20 }, (_, i) => ({ question: `Why does rain ${i + 1} fall?`, answer: 'Gravity.', marks: 2, lines: 4 })),
