@@ -1,0 +1,66 @@
+{
+ "pattern": "fbise_ssc2_2027",
+ "subject": "pakistan_studies_ur",
+ "variant": "single",
+ "source": "fbise-ssc2-pakistanstudies-inclusive2024",
+ "source_status": "verified",
+ "total_marks_x4": 400,
+ "total_time_min": 180,
+ "time_a_min": 25,
+ "shared_time_min": 155,
+ "mcq_share_pct": 20.0,
+ "sections": [
+  {
+   "id": "A",
+   "marks_x4": 80,
+   "answer_on": "question_paper",
+   "slots": [
+    {
+     "label": "Q1",
+     "kind": "mcq",
+     "printed": 20,
+     "attempt": 20,
+     "marks_each_x4": 4,
+     "or": false,
+     "stimulus": null
+    }
+   ],
+   "time_min": 25
+  },
+  {
+   "id": "B",
+   "marks_x4": 200,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q2 i-x",
+     "kind": "srq",
+     "printed": 10,
+     "attempt": 10,
+     "marks_each_x4": 20,
+     "or": true,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  },
+  {
+   "id": "C",
+   "marks_x4": 120,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q3-5",
+     "kind": "erq",
+     "printed": 3,
+     "attempt": 3,
+     "marks_each_x4": 40,
+     "or": true,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  }
+ ],
+ "derivation": []
+}
