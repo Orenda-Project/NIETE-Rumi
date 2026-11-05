@@ -74,10 +74,16 @@ const SUBJECT_NAMES = {
   science: 'Science', gensci: 'Science',
   genk: 'General Knowledge', general_knowledge: 'General Knowledge',
   sst: 'Social Studies', social_studies: 'Social Studies',
+  // G6-12 registry codes (subject-config.js).
+  general_science: 'General Science', computer_science: 'Computer Science', history: 'History',
+  geography: 'Geography', zarai_taleem: 'Zarai Taleem', physics: 'Physics', chemistry: 'Chemistry',
+  biology: 'Biology', pakistan_studies: 'Pakistan Studies', pakistan_studies_ur: 'Pakistan Studies',
 };
 
 // Taught in Urdu, so the paper is set right to left.
 const RTL_SUBJECTS = new Set(['urdu', 'islamiat', 'genk', 'general_knowledge', 'sst', 'social_studies']);
+// G6-12 Urdu-medium registry codes (subject-config.js rows with medium 'ur'); urdu/islamiat are above.
+['pakistan_studies_ur', 'zarai_taleem'].forEach((c) => RTL_SUBJECTS.add(c));
 
 const INSTRUCTIONS = [
   'Read all questions carefully before answering.',
@@ -568,7 +574,7 @@ ${Oral.oralSheet(oral, { medium: rtl ? 'ur' : 'en', text: esc })}` : ''}
 module.exports = {
   renderPaper, renderAnswerKey, collectQuestions, totalMarks, renderQuestion,
   answerLinesFor, storedLines, MAX_STORED_LINES,
-  NO_LINES, isRtl, GENERIC_TYPES, questionMarks,
+  NO_LINES, isRtl, subjectName, GENERIC_TYPES, questionMarks,
   // For a second renderer that prints the same fonts and escapes the same way.
   fontFaces, esc,
 };
