@@ -1754,6 +1754,20 @@ const UX_STRINGS = {
   // EUROPEAN numbers across a hyphen, and N1 then orders the two halves RTL.
   // The placeholder is isolated rather than the value because the value's bidi
   // class is unknowable at authoring time (language-protocol §9 rule 8).
+  // bd-rj6w0n.14.7: a GB card. No pages line: imported GB segments may carry page 0.
+  lp612GbCaption: {
+    en: '{topic}\nGrade {grade} · {subject}',
+    ur: '{topic}\nجماعت {grade} · ⁦{subject}⁩',
+  },
+  lp612GbCardLink: {
+    en: 'Open your lesson plan:\n{url}',
+    ur: 'اپنا سبق کا منصوبہ کھولیں:\n{url}',
+  },
+  lp612WrongCurriculum: {
+    en: "This lesson plan is not part of your school's books. Please pick a lesson from the menu again.",
+    ur: 'یہ سبق کا منصوبہ آپ کے اسکول کی کتابوں میں شامل نہیں۔ براہِ کرم مینو سے دوبارہ سبق چنیں۔',
+  },
+
   lp612Caption: {
     en: '{topic}\nGrade {grade} · {subject} · pages {pages}',
     ur: '{topic}\nجماعت {grade} · ⁦{subject}⁩ · صفحات ⁦{pages}⁩',

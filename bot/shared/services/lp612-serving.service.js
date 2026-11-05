@@ -45,6 +45,7 @@ const Lp612Lifecycle = require('./lp612-lifecycle.service');
 // wrapper, which the root suites already stub, and a lazy require here would hide a missing
 // dependency until the first real delivery.
 const LPShelfService = require('./lp-shelf.service');
+const GbDelivery = require('./lp612-gb-delivery.service');
 const {
   isReligiousEnabled, templateVersion, authorTimeoutMs,
   heartbeatCeilingMs, queueAbandonMs, SQS_VISIBILITY_WINDOW_MS,
@@ -760,9 +761,11 @@ async function deliverRender({
   // reads them.
   askedAt, generatedAt, correlationId,
 }) {
+  // bd-rj6w0n.14.7: a GB plan is a hosted card (.html) on a public host. Nothing to sign; she gets the link.
+  const hosted = GbDelivery.isHostedCard(r2Key);
   let url;
   try {
-    url = await getPresignedUrl(buildR2PublicUrl(r2Key));
+    url = hosted ? GbDelivery.cardUrl(r2Key) : await getPresignedUrl(buildR2PublicUrl(r2Key));
   } catch (err) {
     // The document exists but its link could not be signed: her ask ends here, so it is recorded
     // before the throw both callers already handle (switch on only; never throws).
@@ -806,11 +809,20 @@ async function deliverRender({
   // scheduled, and the worker's per-waiter loop counted her as `delivered`. A teacher who got
   // nothing was told, on every surface, that she had been served.
   const filename = buildFilename(segment, lang);
-  const caption = buildCaption(segment, lang, {
-    overlayDropped: overlayDropped === true,
-    renderDegraded: renderDegraded === true,
-  });
-  const sent = await sendDocumentWithRetry({
+  const caption = hosted
+    ? resolveUx('lp612GbCaption', {
+      language: lang,
+      params: {
+        topic: segment.subtopic_title || segment.menu_title || '',
+        grade: segment.grade,
+        subject: subjectNameFor(segment.subject, lang),
+      },
+    })
+    : buildCaption(segment, lang, {
+      overlayDropped: overlayDropped === true,
+      renderDegraded: renderDegraded === true,
+    });
+  const sent = hosted ? await GbDelivery.sendCardLink({ phone, url, caption, lang }) : await sendDocumentWithRetry({
     phone,
     url,
     filename,
@@ -848,8 +860,8 @@ async function deliverRender({
 
   // bd-oak77.20: the caption she received with the PDF (it carries the overlay/degraded notices).
   logEvent('lp612.send.sent', {
-    kind: 'document', segmentId: segment && segment.segment_id, lang, renderId, userId: userId || null,
-    filename, copy: caption, attempts: sent.attempts,
+    kind: hosted ? 'link' : 'document', segmentId: segment && segment.segment_id, lang, renderId, userId: userId || null,
+    filename, copy: hosted ? sent.text : caption, attempts: sent.attempts,
   });
 
   // AFTER the document, never before, and ONLY on a send that actually succeeded: recording is
@@ -1187,7 +1199,18 @@ async function requestLessonImpl(
     { segmentId, userId, phone, lang, uiLang, correlationId, surface, askedAt, reader }, depth + 1,
   );
 
-  const { render: existing, readFailed } = await findRender(segmentId, language, tv);
+  // bd-rj6w0n.14.7: never a GB plan to an ICT teacher, nor an ICT plan to a GB teacher. Before any
+  // render row is read, claimed or authored.
+  if (await GbDelivery.refusesCurriculum({ segment, userId })) {
+    logToFile('LP GB: segment outside the teacher\'s curriculum, refused', { segmentId, correlationId });
+    await tell(phone, 'lp612WrongCurriculum', voice);
+    return { outcome: 'wrong_curriculum' };
+  }
+  const gb = GbDelivery.isGbSegment(segment);
+
+  const { render: existing, readFailed } = gb
+    ? await GbDelivery.findGbRender(segmentId, language)
+    : await findRender(segmentId, language, tv);
 
   // A read that FAILED is not an absent row. Falling through to the claim below would try to
   // insert a row that may already exist, and the honest thing to tell her is that this attempt
@@ -1282,6 +1305,12 @@ async function requestLessonImpl(
       await tell(phone, 'lp612Failed', voice);
       return { outcome: 'deliver_failed', error: err.message };
     }
+  }
+
+  // GB plans are imported, never authored here: no ready card means not yet.
+  if (gb) {
+    await tell(phone, 'lp612GbComingSoonTap', voice);
+    return { outcome: 'gb_not_ready' };
   }
 
   // ── already running ──────────────────────────────────────────────────────

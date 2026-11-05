@@ -673,6 +673,7 @@ module.exports = {
   buildSubjectItems,
   buildChapterItems,
   buildSegmentItems,
+  curriculumOf, // bd-rj6w0n.14.13: the GB serving guard asks the same per grade+subject question
   segmentById,
   TABLE,
 };
