@@ -33,7 +33,7 @@ beforeAll(async () => { await loadApp(); }, 120_000);
 beforeEach(async () => { await resetAll(); });
 
 describe("the principal in the school's header (option A)", () => {
-  it("one principal: a chip with their name beside the EMIS and last visit, never a row of the teacher list", async () => {
+  it("one principal: a chip with their name beside the EMIS and last visit, never a row of the teacher table", async () => {
     on(withPrincipals([HEAD]));
     await renderApp(CARD);
     const chip = await screen.findByTestId("card-principal");
@@ -41,7 +41,7 @@ describe("the principal in the school's header (option A)", () => {
     expect(chip).toHaveAccessibleName("Principal, Tariq Sample. Open their page");
     // it sits with the school's other header chips
     expect(chip.parentElement).toContainElement(screen.getByTestId("card-emis"));
-    const table = await screen.findByTestId("card-teachers");
+    const table = await screen.findByTestId("teacher-table");
     expect(table).not.toHaveTextContent("Tariq Sample");
     expect(screen.queryByTestId("card-principal-none")).toBeNull();
   });
@@ -69,7 +69,7 @@ describe("the principal in the school's header (option A)", () => {
   it("two principals: two chips, each opening their own page", async () => {
     on(withPrincipals([SECOND, HEAD]));
     await renderApp(CARD);
-    await screen.findByTestId("card-teachers");
+    await screen.findByTestId("teacher-table");
     const chips = screen.getAllByTestId("card-principal");
     expect(chips.map((c) => c.textContent)).toEqual(["Principal: Amna Sample", "Principal: Tariq Sample"]);
     expect(chips.map((c) => c.getAttribute("href"))).toEqual([
@@ -80,7 +80,7 @@ describe("the principal in the school's header (option A)", () => {
   it("an older server that does not say: no chip at all (never 'not recorded' on a guess)", async () => {
     on(schoolCard());
     await renderApp(CARD);
-    await screen.findByTestId("card-teachers");
+    await screen.findByTestId("teacher-table");
     expect(screen.queryByTestId("card-principal")).toBeNull();
     expect(screen.queryByTestId("card-principal-none")).toBeNull();
   });
