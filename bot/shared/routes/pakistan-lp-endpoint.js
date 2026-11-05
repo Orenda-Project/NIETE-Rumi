@@ -58,7 +58,9 @@ const BookCurriculum = require('../services/book-curriculum.service');
 const {
   isLp612Enabled, isLp612Grade, isLp612LangMenuEnabled,
   isLp612RouteAll, lp612ServesGrade, // bd-oak77.4
+  isGbK5Enabled, // bd-rj6w0n.14.4
 } = require('../config/lp612-flags');
+const Lp612Curriculum = require('../services/lp612-curriculum.service');
 const { LANGUAGE_OFFER, offerDefaultLanguage } = require('../config/languages');
 const FlowTelemetry = require('./pakistan-lp-telemetry');
 
@@ -143,7 +145,7 @@ async function getPhoneForUser(userId) {
 
 async function handlePakistanLpInit(flowToken) {
   logToFile('Pakistan LP Flow INIT', { flowToken });
-  return observed('INIT', flowToken, null, {}, async () => openGradePicker(await teacherCurriculum(flowToken)));
+  return observed('INIT', flowToken, null, {}, () => openGradePickerFor(flowToken));
 }
 
 /**
@@ -154,6 +156,21 @@ async function handlePakistanLpInit(flowToken) {
  */
 async function teacherCurriculum(flowToken) {
   return BookCurriculum.curriculumForUser(userIdFrom(flowToken) || null);
+}
+
+/**
+ * bd-rj6w0n.14.4 — the GB K-5 lane: a teacher whose curriculum (above) is GB's 'nbf_snc', while
+ * LP_GB_K5_ENABLED is on, gets {curriculum, language}; everyone else, and everyone with the flag off,
+ * gets null and the path above runs unchanged. Her language is read only inside the lane.
+ */
+async function gbLane(flowToken, curriculum) {
+  if (!isGbK5Enabled() || curriculum !== Lp612Curriculum.NBF_SNC) return null;
+  return { curriculum, language: await Lp612Curriculum.languageForUserId(userIdFrom(flowToken)) };
+}
+
+async function openGradePickerFor(flowToken) {
+  const curriculum = await teacherCurriculum(flowToken);
+  return openGradePicker(curriculum, await gbLane(flowToken, curriculum));
 }
 const notIct = (curriculum) => Boolean(curriculum) && curriculum !== BookCurriculum.ICT;
 /** Trailing positional args for a K-5 catalogue call: none for ICT. */
@@ -212,7 +229,8 @@ async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
 
   // v3 Flow: every NavigationList row carries its own step, so routing never
   // depends on which screen Meta says we are on.
-  if (step === 'grade')       return selectGrade(d, await books(), flowToken);
+  const gradeStep = async () => { const c = await books(); return selectGrade(d, c, await gbLane(flowToken, c), flowToken); };
+  if (step === 'grade')       return gradeStep();
   if (step === 'subject')     return selectSubject(d, flowToken);
   if (step === 'chapter')     return selectChapter(flowToken, d);
   if (step === 'lesson')      return selectLesson(flowToken, d);
@@ -236,7 +254,7 @@ async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
 
   // v2 Flow fallback — payloads carry a screen but no step. Live during the
   // endpoint-deployed-but-Flow-not-yet-republished window.
-  if (screen === 'SELECT_GRADE')    return selectGrade(d, await books(), flowToken);
+  if (screen === 'SELECT_GRADE')    return gradeStep();
   if (screen === 'SELECT_SUBJECT')  return selectSubject(d, flowToken);
   if (screen === 'SELECT_CHAPTER')  return selectChapter(flowToken, d);
   if (screen === 'SELECT_TOPIC')    return selectTopic(flowToken, d);
@@ -247,13 +265,15 @@ async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
 
 // Static 1..10 grade dropdown — surface all grades even where the DB is
 // still empty; the subject screen shows a friendly message if no LPs exist.
-async function openGradePicker(curriculum) {
+async function openGradePicker(curriculum, gb = null) {
   // Grades 11 and 12 do not exist on this picker today. They appear
   // only when the flag is on AND the 6-12 corpus actually holds segments for
   // them, because unlike 1-10 there is no fallback corpus behind them: an empty
   // grade 12 row would be a dead end, not a "check back soon".
   let grades = STATIC_GRADES;
-  if (isLp612Enabled()) {
+  if (gb) {
+    grades = Lp612Curriculum.GB_K5_GRADES; // a GB teacher's books are Grades 1-5, nothing else
+  } else if (isLp612Enabled()) {
     try {
       const extra = (await Lp612Catalog.buildGradeItems(...lp612Args(curriculum)))
         .map((i) => parseInt(i.id, 10))
@@ -283,7 +303,7 @@ async function openGradePicker(curriculum) {
 // SELECT_GRADE → SELECT_SUBJECT
 // Grade 1–5: subjects from pre_generated_lps.
 // Grade 6–10: subjects from lesson_plan_catalog (Oxbridge).
-async function selectGrade(screenData, curriculum, flowToken) {
+async function selectGrade(screenData, curriculum, gb = null, flowToken = null) {
   const gradeStr = screenData && screenData.grade;
   if (!gradeStr) return { data: { error: { message: 'Please select a class.' } } };
   const grade = parseInt(gradeStr, 10);
@@ -296,6 +316,19 @@ async function selectGrade(screenData, curriculum, flowToken) {
   if (!TeacherBooks.gradeCovered(grade, bookKeys)) {
     const language = await TeacherBooks.languageForUser(userId);
     return { data: { error: { message: TeacherBooks.gradeNotCoveredMessage('lp', grade, language) } } };
+  }
+
+  // bd-rj6w0n.14.4 — a GB teacher reads only the nbf_snc books, through the 6-12 catalogue, and never
+  // the ICT K-5 v8 corpus or Oxbridge below. Needs LP_612_ENABLED too: the lp612 steps are guarded on it.
+  if (gb) {
+    if (!isLp612Enabled() || !Lp612Curriculum.GB_K5_GRADES.includes(grade)) {
+      return { data: { error: { message: resolveUx('lp612GbGradeOnly', { language: gb.language }) } } };
+    }
+    const items = await Lp612Catalog.buildSubjectItems(grade, { curriculum: gb.curriculum });
+    return {
+      screen: 'SELECT_SUBJECT',
+      data: { items, grade_value: String(grade), grade_display: gradeTitle(grade) },
+    };
   }
 
   // ── v8 corpus (grades 1-5), with the LEGACY corpus as the fallback ────
@@ -1096,7 +1129,7 @@ function serveLp612(segmentId, userId, who, lang) {
 }
 
 async function handlePakistanLpBack(flowToken, screen) {
-  return observed('BACK', flowToken, screen, {}, async () => openGradePicker(await teacherCurriculum(flowToken)));
+  return observed('BACK', flowToken, screen, {}, () => openGradePickerFor(flowToken));
 }
 
 module.exports = {
