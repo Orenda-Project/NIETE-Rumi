@@ -1,0 +1,89 @@
+{
+  "create": {
+    "statusCode": 202,
+    "payload": {
+      "success": true,
+      "requestId": "assessment_requests-1"
+    }
+  },
+  "outcome": {
+    "jobType": "assessment_generate",
+    "job": {
+      "userId": "u-golden-1",
+      "requestId": "assessment_requests-1",
+      "grade": 3,
+      "subject": "english",
+      "chapterNumber": null,
+      "chapterNumbers": null,
+      "pageRanges": "30-34",
+      "contentSource": "unseen",
+      "questionCount": 34,
+      "totalMarks": null,
+      "seenCount": null,
+      "questionTypes": [
+        {
+          "id": "MCQs",
+          "count": 10,
+          "category": "objective",
+          "slot": "g3.english.A.mcq"
+        },
+        {
+          "id": "Grammar Do As Directed",
+          "count": 5,
+          "category": "subjective",
+          "slot": "g3.english.A.grammar"
+        },
+        {
+          "id": "Short Answers",
+          "count": 5,
+          "category": "subjective",
+          "slot": "g3.english.B.short"
+        },
+        {
+          "id": "Use Words in Sentences",
+          "count": 5,
+          "category": "subjective",
+          "slot": "g3.english.B.sentences"
+        },
+        {
+          "id": "Paragraph from Clues",
+          "count": 2,
+          "category": "subjective",
+          "slot": "g3.english.C.paragraph"
+        },
+        {
+          "id": "Invitation Card or Note",
+          "count": 2,
+          "category": "subjective",
+          "slot": "g3.english.C.invitation"
+        },
+        {
+          "id": "Present Continuous",
+          "count": 5,
+          "category": "subjective",
+          "slot": "g3.english.C.present_continuous"
+        }
+      ],
+      "includeAnswerKey": true,
+      "answerLines": true,
+      "outputFormat": "pdf",
+      "deliver": "none",
+      "pattern": "fde_g3_2026",
+      "scope": {
+        "kind": "pages",
+        "chapters": null,
+        "pages": "30-34"
+      }
+    },
+    "returned": {
+      "status": "failed",
+      "code": "PATTERN_SHORT_SLOT",
+      "paperId": "assessment_papers-2"
+    }
+  },
+  "uploads": [],
+  "row": {
+    "status": "failed",
+    "error": null
+  }
+}

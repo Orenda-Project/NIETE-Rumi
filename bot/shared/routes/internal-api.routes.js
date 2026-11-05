@@ -1486,20 +1486,47 @@ router.post('/lp/open-survey', requireInternalKey, async (req, res) => {
 // by a test, the same way the LP catalogue is.
 
 /**
+* G6-12 grade gate (contract 1 §3). The settings are read only when a grade >= 6 is in play, so a
+ * G1-5 request reads nothing more than it did before (A/grade-gate.js never looks at G1-5).
+ */
+const GradeGate = require('../services/assessment/grade-gate');
+const GRADE_NOT_OFFERED = { success: false, error: 'That class is not available yet.', errorCode: 'NOT_ELIGIBLE' };
+async function gradeGateFor(grades) {
+  if (grades.every((g) => Number(g) < 6)) return { flag: false };
+  return require('../config/feature-flags').GradeGateSettings.load();
+}
+async function cellOffered(grade, subject, userId) {
+  const g = await gradeGateFor([grade]);
+  if (!GradeGate.cellAllowed(grade, subject, g.flag, g.kill, g.killCells, userId)) return false;
+  return TeacherBooks.assessmentOffered(grade, subject, await assessmentShelf(userId));
+}
+/**
  * Assessments are keyed by book (bd-97daxo.4): a G1-5 subject is offered only where the ICT book the generator
  * reads is on her region's list, and a grade her list does not cover (GB: 6+) offers nothing. The teacher is the
  * portal SESSION's (body.userId); no userId, or a region with no list, offers everything exactly as before.
  */
 const TeacherBooks = require('../services/teacher-books.service');
-const GRADE_NOT_OFFERED = { success: false, error: 'That class is not available yet.', errorCode: 'NOT_ELIGIBLE' };
-const bodyUserId = (body) => (typeof body.userId === 'string' && body.userId.trim()) || null;
-async function bookShelfFor(body) {
-  const userId = bodyUserId(body || {});
+async function assessmentShelf(userId) {
   return userId ? TeacherBooks.bookKeysForUser(userId) : null;
 }
-async function cellOnShelf(grade, subject, body) {
-  return TeacherBooks.assessmentOffered(grade, subject, await bookShelfFor(body));
+/** Browse's grade list as this user is offered it (the gate lives here, not in the browse service). */
+async function offeredGrades(grades, userId) {
+  const n = (x) => Number(x && typeof x === 'object' ? x.grade : x);
+  const shelf = await assessmentShelf(userId);
+  const covered = grades.filter((x) => TeacherBooks.gradeCovered(n(x), shelf));
+  if (!covered.some((x) => n(x) >= 6)) return covered; // G1-5 only: untouched, byte for byte
+  const g = await gradeGateFor(covered.map(n));
+  return GradeGate.offeredGrades(covered, g.flag, g.kill, g.killCells, userId);
 }
+/** Browse's subject rows for one grade, minus the cells this user is not offered. */
+async function offeredSubjects(grade, subjects, userId) {
+  const g = await gradeGateFor([grade]);
+  const shelf = await assessmentShelf(userId);
+  return subjects.filter((s) => GradeGate.cellAllowed(grade, s.subject_key, g.flag, g.kill, g.killCells, userId)
+    && TeacherBooks.assessmentOffered(grade, s.subject_key, shelf));
+}
+/** The session user the portal forwards (server-to-server field); absent = G6-12 hidden. */
+const bodyUserId = (body) => (typeof body.userId === 'string' && body.userId.trim()) || null;
 
 /** Shared wrapper: one require, one catch, one shape. Mirrors lpBrowseRoute. */
 function assessmentRoute(name, handler) {
@@ -1529,13 +1556,11 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
   const grade = num(body.grade);
   const subject = String(body.subject || '').trim();
 
-  const shelf = await bookShelfFor(body);
-  const grades = (await Browse.listGrades()).filter((g) => TeacherBooks.gradeCovered(g, shelf));
+  const userId = bodyUserId(body);
+  const grades = await offeredGrades(await Browse.listGrades(), userId);
   const out = { success: true, grades };
 
-  if (grade !== null) {
-    out.subjects = (await Browse.listSubjects(grade)).filter((s) => TeacherBooks.assessmentOffered(grade, s.subject_key, shelf));
-  }
+  if (grade !== null) out.subjects = await offeredSubjects(grade, await Browse.listSubjects(grade), userId);
   if (grade !== null && subject) {
     Object.assign(out, Browse.questionOptions(subject, grade));
     // bd-6clakk.12 — the stems a teacher may tick on a topic paper, ADDED only while topic papers
@@ -1565,14 +1590,17 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
     const allowed = await Flags.fdePatternSubjects();
     const listed = (s) => allowed === null || allowed.includes(Patterns.normalise(s));
     if (grade !== null && subject && listed(subject)) {
-      const ids = Patterns.list().filter((id) => Patterns.isOffered(id) && Patterns.isEligible(id, grade, subject));
+      const offered = await cellOffered(grade, subject, userId);
+      const ids = Patterns.list().filter((id) => offered && Patterns.isOffered(id) && Patterns.isEligible(id, grade, subject));
       if (ids.length) out.patterns = ids.map((id) => ({ id, ...Patterns.summaryFor(id, subject) }));
     }
     // The grades any pattern exists for, from the registry rather than typed
     // here, on EVERY call — the hub shows the door before a grade is picked.
     // An empty subject list offers no pattern anywhere, so no door either.
     if (allowed === null || allowed.length) {
-      out.patternGrades = Patterns.offeredGrades();
+      const pg = Patterns.offeredGrades();
+      const g = await gradeGateFor(pg);
+      out.patternGrades = pg.filter((x) => GradeGate.gradeAllowed(x, g.flag, g.kill, userId));
     }
   }
 
@@ -1589,7 +1617,7 @@ router.post('/assessment/chapters', requireInternalKey, assessmentRoute('chapter
   const subject = String(body.subject || '').trim();
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
-  if (!(await cellOnShelf(grade, subject, body))) return res.status(400).json(GRADE_NOT_OFFERED);
+  if (!(await cellOffered(grade, subject, bodyUserId(body)))) return res.status(400).json(GRADE_NOT_OFFERED);
 
   const chapters = await Browse.listChapters(grade, subject);
   return res.json({ success: true, chapters });
@@ -1610,7 +1638,7 @@ router.post('/assessment/topics', requireInternalKey, assessmentRoute('topics', 
   if (!Number.isInteger(grade)) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
   if (!Number.isInteger(chapterNumber)) return res.status(400).json({ success: false, error: 'chapterNumber is required' });
-  if (!(await cellOnShelf(grade, subject, body))) return res.status(400).json(GRADE_NOT_OFFERED);
+  if (!(await cellOffered(grade, subject, bodyUserId(body)))) return res.status(400).json(GRADE_NOT_OFFERED);
 
   // bd-6clakk.9 — off (or unreadable) → no topics, so the portal's Topics step steps aside until the A/B test.
   const { isAssessmentTopicCtaEnabled } = require('../config/feature-flags');
@@ -1837,7 +1865,9 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
-  if (!(await cellOnShelf(grade, subject, body))) return res.status(400).json(GRADE_NOT_OFFERED);
+  // The grade gate runs before the pattern branch and before bookFor: a hidden grade is refused
+  // whatever else the request asks for (contract 1 §3 E3a, E4c).
+  if (!(await cellOffered(grade, subject, userId))) return res.status(400).json(GRADE_NOT_OFFERED);
   // Which door the paper came through (bd-pw1ccr.1): 'report' from the Class Quiz Traffic Light report's button.
   const origin = body.origin == null || body.origin === '' ? null : String(body.origin);
   if (origin !== null && !ORIGINS.includes(origin)) {

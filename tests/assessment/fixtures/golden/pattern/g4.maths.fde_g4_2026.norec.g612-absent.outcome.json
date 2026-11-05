@@ -1,0 +1,77 @@
+{
+  "create": {
+    "statusCode": 202,
+    "payload": {
+      "success": true,
+      "requestId": "assessment_requests-1"
+    }
+  },
+  "outcome": {
+    "jobType": "assessment_generate",
+    "job": {
+      "userId": "u-golden-1",
+      "requestId": "assessment_requests-1",
+      "grade": 4,
+      "subject": "maths",
+      "chapterNumber": null,
+      "chapterNumbers": null,
+      "pageRanges": "30-34",
+      "contentSource": "unseen",
+      "questionCount": 24,
+      "totalMarks": null,
+      "seenCount": null,
+      "questionTypes": [
+        {
+          "id": "MCQs",
+          "count": 10,
+          "category": "objective",
+          "slot": "g4.maths.A.mcq"
+        },
+        {
+          "id": "Do as Directed",
+          "count": 5,
+          "category": "subjective",
+          "slot": "g4.maths.A.directed"
+        },
+        {
+          "id": "Short Response",
+          "count": 4,
+          "category": "subjective",
+          "slot": "g4.maths.B.short"
+        },
+        {
+          "id": "Word Problem",
+          "count": 2,
+          "category": "subjective",
+          "slot": "g4.maths.B.word_problem"
+        },
+        {
+          "id": "Extended Response",
+          "count": 3,
+          "category": "subjective",
+          "slot": "g4.maths.C.extended"
+        }
+      ],
+      "includeAnswerKey": true,
+      "answerLines": true,
+      "outputFormat": "pdf",
+      "deliver": "none",
+      "pattern": "fde_g4_2026",
+      "scope": {
+        "kind": "pages",
+        "chapters": null,
+        "pages": "30-34"
+      }
+    },
+    "returned": {
+      "status": "failed",
+      "code": "PATTERN_SHORT_SLOT",
+      "paperId": "assessment_papers-2"
+    }
+  },
+  "uploads": [],
+  "row": {
+    "status": "failed",
+    "error": null
+  }
+}

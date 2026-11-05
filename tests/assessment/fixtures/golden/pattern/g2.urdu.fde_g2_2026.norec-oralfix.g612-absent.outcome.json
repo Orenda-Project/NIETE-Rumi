@@ -1,0 +1,101 @@
+{
+  "create": {
+    "statusCode": 202,
+    "payload": {
+      "success": true,
+      "requestId": "assessment_requests-1"
+    }
+  },
+  "outcome": {
+    "jobType": "assessment_generate",
+    "job": {
+      "userId": "u-golden-1",
+      "requestId": "assessment_requests-1",
+      "grade": 2,
+      "subject": "urdu",
+      "chapterNumber": null,
+      "chapterNumbers": null,
+      "pageRanges": "1-134",
+      "contentSource": "unseen",
+      "questionCount": 33,
+      "totalMarks": null,
+      "seenCount": null,
+      "questionTypes": [
+        {
+          "id": "MCQs",
+          "count": 10,
+          "category": "objective",
+          "slot": "g2.urdu.A.Q1"
+        },
+        {
+          "id": "Alphabetical Order",
+          "count": 4,
+          "category": "subjective",
+          "slot": "g2.urdu.A.Q2"
+        },
+        {
+          "id": "Complete the Sentences",
+          "count": 4,
+          "category": "subjective",
+          "slot": "g2.urdu.A.Q3"
+        },
+        {
+          "id": "Verbs",
+          "count": 4,
+          "category": "subjective",
+          "slot": "g2.urdu.A.Q4"
+        },
+        {
+          "id": "Singular Plural",
+          "count": 4,
+          "category": "subjective",
+          "slot": "g2.urdu.A.Q5"
+        },
+        {
+          "id": "Opposites",
+          "count": 4,
+          "category": "subjective",
+          "slot": "g2.urdu.A.Q6"
+        },
+        {
+          "id": "Picture Sentences",
+          "count": 1,
+          "category": "subjective",
+          "slot": "g2.urdu.B.Q7"
+        },
+        {
+          "id": "Topic Sentences",
+          "count": 1,
+          "category": "subjective",
+          "slot": "g2.urdu.B.Q8"
+        },
+        {
+          "id": "Dialogue",
+          "count": 1,
+          "category": "subjective",
+          "slot": "g2.urdu.B.Q9"
+        }
+      ],
+      "includeAnswerKey": true,
+      "answerLines": true,
+      "outputFormat": "pdf",
+      "deliver": "none",
+      "pattern": "fde_g2_2026",
+      "scope": {
+        "kind": "fde",
+        "chapters": null,
+        "pages": "1-134"
+      }
+    },
+    "returned": {
+      "status": "failed",
+      "code": "PATTERN_SHORT_SLOT",
+      "paperId": "assessment_papers-2"
+    }
+  },
+  "uploads": [],
+  "row": {
+    "status": "failed",
+    "error": null
+  }
+}

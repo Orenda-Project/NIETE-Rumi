@@ -1,0 +1,81 @@
+{
+  "out": {
+    "statusCode": 202,
+    "payload": {
+      "success": true,
+      "requestId": "assessment_requests-1"
+    }
+  },
+  "writes": {
+    "assessment_requests": [
+      {
+        "id": "assessment_requests-1",
+        "attempt": 1,
+        "edited_from": null,
+        "created_at": "T",
+        "user_id": "u-golden-1",
+        "surface": "portal",
+        "grade_code": "grade_4",
+        "subject_code": "maths",
+        "textbook_id": "book-4-maths",
+        "chapter_number": 2,
+        "page_ranges": "20-40",
+        "content_source": "unseen",
+        "question_count": 6,
+        "question_types": [
+          {
+            "id": "MCQs",
+            "count": 3,
+            "category": "objective"
+          },
+          {
+            "id": "Fill in the Blanks",
+            "count": 3,
+            "category": "objective"
+          }
+        ],
+        "has_answer_key": true,
+        "has_answer_lines": true,
+        "output_format": "pdf",
+        "origin": "report"
+      }
+    ]
+  },
+  "queued": [
+    [
+      "u-golden-1",
+      "assessment_generate",
+      {
+        "userId": "u-golden-1",
+        "requestId": "assessment_requests-1",
+        "grade": 4,
+        "subject": "maths",
+        "chapterNumber": 2,
+        "chapterNumbers": [
+          2
+        ],
+        "pageRanges": "20-40",
+        "contentSource": "unseen",
+        "questionCount": 6,
+        "totalMarks": null,
+        "seenCount": null,
+        "questionTypes": [
+          {
+            "id": "MCQs",
+            "count": 3,
+            "category": "objective"
+          },
+          {
+            "id": "Fill in the Blanks",
+            "count": 3,
+            "category": "objective"
+          }
+        ],
+        "includeAnswerKey": true,
+        "answerLines": true,
+        "outputFormat": "pdf",
+        "deliver": "none"
+      }
+    ]
+  ]
+}

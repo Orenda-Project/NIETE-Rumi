@@ -1,0 +1,137 @@
+{
+  "create": {
+    "statusCode": 202,
+    "payload": {
+      "success": true,
+      "requestId": "assessment_requests-1"
+    }
+  },
+  "outcome": {
+    "jobType": "assessment_generate",
+    "job": {
+      "userId": "u-golden-1",
+      "requestId": "assessment_requests-1",
+      "grade": 1,
+      "subject": "english",
+      "chapterNumber": null,
+      "chapterNumbers": null,
+      "pageRanges": "1-166",
+      "contentSource": "unseen",
+      "questionCount": 73,
+      "totalMarks": null,
+      "seenCount": null,
+      "questionTypes": [
+        {
+          "id": "Match Word to Picture",
+          "count": 6,
+          "category": "subjective",
+          "slot": "g1.english.A.Q1"
+        },
+        {
+          "id": "Alphabetical Order",
+          "count": 5,
+          "category": "subjective",
+          "slot": "g1.english.A.Q2"
+        },
+        {
+          "id": "Word Families",
+          "count": 4,
+          "category": "subjective",
+          "slot": "g1.english.A.Q3"
+        },
+        {
+          "id": "Unscramble Words",
+          "count": 5,
+          "category": "subjective",
+          "slot": "g1.english.A.Q4"
+        },
+        {
+          "id": "Missing Letters",
+          "count": 4,
+          "category": "subjective",
+          "slot": "g1.english.A.Q5"
+        },
+        {
+          "id": "Rhyming Pairs",
+          "count": 4,
+          "category": "subjective",
+          "slot": "g1.english.B.Q6"
+        },
+        {
+          "id": "Name the Picture",
+          "count": 9,
+          "category": "subjective",
+          "slot": "g1.english.B.Q7"
+        },
+        {
+          "id": "Action Words",
+          "count": 5,
+          "category": "subjective",
+          "slot": "g1.english.B.Q8"
+        },
+        {
+          "id": "Complete the Sentences",
+          "count": 5,
+          "category": "subjective",
+          "slot": "g1.english.B.Q9"
+        },
+        {
+          "id": "Match Capital and Small Letters",
+          "count": 5,
+          "category": "objective",
+          "slot": "g1.english.B.Q10"
+        },
+        {
+          "id": "Complete the Words",
+          "count": 5,
+          "category": "subjective",
+          "slot": "g1.english.C.Q11"
+        },
+        {
+          "id": "This Is A",
+          "count": 5,
+          "category": "subjective",
+          "slot": "g1.english.C.Q12"
+        },
+        {
+          "id": "Speech Bubbles",
+          "count": 2,
+          "category": "subjective",
+          "slot": "g1.english.C.Q13"
+        },
+        {
+          "id": "Capital Letters",
+          "count": 4,
+          "category": "subjective",
+          "slot": "g1.english.C.Q14"
+        },
+        {
+          "id": "Is Am Are",
+          "count": 5,
+          "category": "objective",
+          "slot": "g1.english.C.Q15"
+        }
+      ],
+      "includeAnswerKey": true,
+      "answerLines": true,
+      "outputFormat": "pdf",
+      "deliver": "none",
+      "pattern": "fde_g1_2026",
+      "scope": {
+        "kind": "fde",
+        "chapters": null,
+        "pages": "1-166"
+      }
+    },
+    "returned": {
+      "status": "failed",
+      "code": "PATTERN_SHORT_SLOT",
+      "paperId": "assessment_papers-2"
+    }
+  },
+  "uploads": [],
+  "row": {
+    "status": "failed",
+    "error": null
+  }
+}
