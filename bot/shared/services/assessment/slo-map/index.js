@@ -40,9 +40,16 @@ function officialSloFor(grade, code, tag) {
   return stamp(mapFor(grade, code), tag);
 }
 
+/** The official SLOs of a stamp cell as the board prompt's {slo_list}: "<code> (<level>) <gist>" per line; '' when none. */
+function listFor(grade, code) {
+  const map = mapFor(grade, code);
+  if (!map || map.policy !== 'stamp' || !Array.isArray(map.slos)) return '';
+  return map.slos.map((s) => `${s.official_slo} (${s.level}) ${s.gist}`).join('\n');
+}
+
 /** The `<grade>_<code>` keys loaded so far (files that exist). */
 function cells() {
   return [...cache.entries()].filter(([, m]) => m).map(([k]) => k);
 }
 
-module.exports = { officialSloFor, stamp, cells };
+module.exports = { officialSloFor, listFor, stamp, cells };
