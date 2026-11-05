@@ -436,6 +436,11 @@ const STRINGS = {
     // Coach reports in the app: the ONE WhatsApp message with the link to her debrief report page (button <= 20).
     coach_report_link_body: 'آپ کی ڈی بریف رپورٹ تیار ہے۔ یہ ایپ میں کھلتی ہے، انگریزی یا اردو میں۔',
     coach_report_link_button: 'میری رپورٹ کھولیں',
+    // The ready "Try:" line that ends the next-focus box, per behaviour (the ICT HITL owner's words, verbatim). A behaviour
+    // with no line here has none yet: the page shows a marked placeholder, never a line we wrote.
+    coach_report_try_lines: {
+      elicited_if_then: '"اگلی بار آپ کیا مختلف کریں گی؟ اپنے الفاظ میں بتائیں۔"',
+    },
     coach_concern_opener: 'آپ کی ڈی بریف سن لی۔ ایک بات کھل کر کہنی ہے — کیونکہ آپ کا بڑھنا اسی میں ہے۔',
     coach_concern_title: 'کھل کر کہنے کی بات',
     coach_concern_closing: 'یہ صرف میرے اور آپ کے درمیان ہے۔ اگلی ملاقات میں آزمائیں — میں ساتھ ہوں۔',
@@ -735,6 +740,11 @@ const STRINGS = {
     // Coach reports in the app: the ONE WhatsApp message with the link to her debrief report page (button <= 20).
     coach_report_link_body: 'Your debrief report is ready. It opens in the app, in English or Urdu.',
     coach_report_link_button: 'Open my report',
+    // The ready "Try:" line that ends the next-focus box, per behaviour (the ICT HITL owner's words, verbatim, 5 Nov). A
+    // behaviour with no line here has none yet: the page shows a marked placeholder, never a line we wrote.
+    coach_report_try_lines: {
+      elicited_if_then: '“Next time, what will you do differently? Tell me in your own words.”',
+    },
     // bd-30 — the harm gate: the officer disparaged the teacher. Honest, not congratulatory.
     coach_concern_opener:
       "I listened to your conversation. There's one thing I have to be honest with you about — because I'm on your side, and because this teacher depends on you. 💛",
