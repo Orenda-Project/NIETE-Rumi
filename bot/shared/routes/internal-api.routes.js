@@ -1467,7 +1467,7 @@ router.post('/lp/open-survey', requireInternalKey, async (req, res) => {
  * G1-5 request reads nothing more than it did before (A/grade-gate.js never looks at G1-5).
  */
 const GradeGate = require('../services/assessment/grade-gate');
-const GRADE_NOT_OFFERED = { success: false, error: 'That class is not available yet.', errorCode: 'GRADE_NOT_OFFERED' };
+const GRADE_NOT_OFFERED = { success: false, error: 'That class is not available yet.', errorCode: 'NOT_ELIGIBLE' };
 async function gradeGateFor(grades) {
   if (grades.every((g) => Number(g) < 6)) return { flag: false };
   return require('../config/feature-flags').GradeGateSettings.load();
