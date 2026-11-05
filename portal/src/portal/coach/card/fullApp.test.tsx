@@ -36,7 +36,7 @@ describe("the switch on (Rifat)", () => {
   it("the menu is Home · Schedule · Observe · Lesson Plans · More", async () => {
     config(true);
     await renderApp(`/portal/coach/school/${EMIS}`);
-    await screen.findByTestId("activity");
+    await screen.findByTestId("overview");
     const nav = screen.getByTestId("teacher-nav");
     await waitFor(() => expect(Array.from(nav.querySelectorAll("a")).map((a) => a.textContent)).toEqual(["Home", "Schedule", "Observe", "Lesson Plans", "More"]));
     const links = Array.from(nav.querySelectorAll("a"));
@@ -103,7 +103,7 @@ describe("the switch off, absent or not a literal true (every other coach)", () 
   it("the menu stays Home · Lesson Plans · More, and nothing links into Schedule or Observe", async () => {
     config(false);
     await renderApp(`/portal/coach/school/${EMIS}`);
-    await screen.findByTestId("activity");
+    await screen.findByTestId("overview");
     const nav = screen.getByTestId("teacher-nav");
     expect(Array.from(nav.querySelectorAll("a")).map((a) => a.textContent)).toEqual(["Home", "Lesson Plans", "More"]);
     expect(linkPaths(document.body).filter((p) => /^\/portal\/coach\/(scheduling|schedule|new-visit|observe|visit|observation)(\/|$)/.test(p))).toEqual([]);

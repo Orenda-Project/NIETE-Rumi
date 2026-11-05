@@ -757,6 +757,9 @@ const { checkBlueprint, missesSplit, levelDistance, levelNote } = require('./blu
 const Reader = require('./fde-reader');
 const StemCheck = require('./fde-stem-check');
 const { writeEarlyPaper } = require('./fde-early-writer');
+// Grades 9-12 board papers (bd-5jmnfj.38.24): their own writer, lookup and helpers; reachable by id only.
+const { writeBoardPaper } = require('./board-writer');
+const BoardPatterns = require('./patterns/board');
 const { noArrows } = require('./fde-no-arrows');
 const { steerNote } = require('./fde-mid-steer'); // bd-5jmnfj.33.2: Grade 3–4 Sections B/C are told Section A's facts
 const { mcqArithmetic, mcqNote } = require('./fde-mcq-arithmetic'); // bd-5jmnfj.33.2: a Maths MCQ key is its stem's arithmetic
@@ -2650,8 +2653,35 @@ function _earlyDeps(subject) {
   };
 }
 
+/** The helpers a Grade 9-12 board paper is written with (board-writer): the early set plus the G6-12 modules. */
+function _boardDeps(subject) {
+  const SubjectConfig = require('./subject-config');
+  const VariantResolver = require('./patterns/board/variant-resolver');
+  const Slo = require('./slo-map');
+  return {
+    ..._earlyDeps(subject),
+    resolveSubject: SubjectConfig.resolve,
+    variantFor: (P, { grade }) => VariantResolver.resolve(P, { grade }),
+    assemble: require('./prompts-6-12').assemble,
+    checks: require('./board-checks'),
+    sloList: Slo.listFor,
+    // Code, never the model, writes the official SLO (slo-map README §4).
+    stampSlo: (grade, code, item) => {
+      if (item && item.tag && typeof item.tag === 'object') item.tag.official_slo = Slo.officialSloFor(grade, code, item.tag);
+      return item;
+    },
+  };
+}
+
 async function _writePatternPaper({ grade, subject, pattern, scope = null, pageRanges = null, chapterNumber = null, onSection = null, requestId = null, readerPass = false, stemCheck = false, levelNote: splitNote = null }) {
   const startedAt = Date.now();
+  if (BoardPatterns.isBoard(pattern)) {
+    if (!BoardPatterns.isEligible(pattern, grade, subject)) {
+      throw fail('PATTERN_INELIGIBLE', 'That board pattern is not available for this grade and subject.', { pattern, grade, subject });
+    }
+    const P = BoardPatterns.subjectOf(pattern, subject);
+    return writeBoardPaper({ grade, subject, pattern, P, scope, pageRanges, chapterNumber, onSection, requestId }, _boardDeps(subject));
+  }
   const def = Patterns.get(pattern);
   const key = Patterns.normalise(subject);
   const P = def && def.subjects[key];
