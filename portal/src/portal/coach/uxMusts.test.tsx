@@ -161,8 +161,11 @@ describe("the visit page (M1, M5)", () => {
     expect(body).toContain("My schedule · ");
     expect(body).not.toContain("Take observation");
     expect(body).not.toMatch(/HITL/);
-    expect(body).toContain("Last observation · ");
     expect(screen.getByText("Coach score (avg.)")).toBeInTheDocument();
+    // At 390 px "Last observation · 14 Sep" is cut before the date: the title is the words, the date and who go under it.
+    const row = screen.getByTestId("last-visit-row");
+    expect(within(row).getByText("Last observation")).toBeInTheDocument();
+    expect(row).toHaveTextContent("14 Sep · You");
   });
 
   it("opened from Observe's list (?from=observe): crumb Take observation", async () => {
