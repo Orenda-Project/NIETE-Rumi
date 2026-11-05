@@ -18,6 +18,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { orderedEntries } = require('./assessment-order');
 
 /**
  * Fonts are base64-embedded into the HTML, not named and hoped for.
@@ -127,6 +128,16 @@ function isRtl(subject) {
   return RTL_SUBJECTS.has(String(subject || '').trim().toLowerCase());
 }
 
+/**
+ * MCQ options sit side by side (bd-cj8ggk.3): four to a row when every option is short, two when any is
+ * medium, one a line only when one is long. Same thresholds as the board-pattern paper's `.opts`.
+ */
+function optionsClass(options) {
+  const longest = Math.max(0, ...options.map((o) => [...String(o == null ? '' : o)].length));
+  if (longest > 40) return 'options';
+  return longest > 14 ? 'options two' : 'options four';
+}
+
 function marksLabel(marks) {
   const n = Number(marks);
   if (!Number.isFinite(n) || n <= 0) return '';
@@ -219,7 +230,7 @@ function renderQuestion(question, number, questionType, opts) {
 
   if (Array.isArray(question.options) && question.options.length) {
     out.push(`<p><b>${number}.</b> ${esc(question.question)} ${marks}</p>`);
-    out.push('<div class="options">');
+    out.push(`<div class="${optionsClass(question.options)}">`);
     question.options.forEach((o) => out.push(`<div class="opt">${esc(o)}</div>`));
     out.push('</div>');
   } else if (question.column_a || question.column_b) {
@@ -248,7 +259,7 @@ function renderQuestion(question, number, questionType, opts) {
       const subMarks = typeof sub === 'string' ? '' : marksLabel(sub.marks);
       out.push(`<p class="sub"><b>${letter})</b> ${esc(subText)} ${subMarks}</p>`);
       if (typeof sub === 'object' && Array.isArray(sub.options) && sub.options.length) {
-        out.push('<div class="options">');
+        out.push(`<div class="${optionsClass(sub.options)}">`);
         sub.options.forEach((o) => out.push(`<div class="opt">${esc(o)}</div>`));
         out.push('</div>');
       } else if (answerLines) {
@@ -291,13 +302,13 @@ function collectQuestions(examJson) {
   for (const section of ['seen', 'unseen']) {
     const branch = examJson?.[section];
     if (!branch || typeof branch !== 'object') continue;
-    for (const [category, types] of Object.entries(branch)) {
+    for (const [category, types] of orderedEntries(branch, 'category')) {
       if (!types || typeof types !== 'object') continue;
-      for (const [type, entry] of Object.entries(types)) {
+      for (const [type, entry] of orderedEntries(types, 'type')) {
         if (Array.isArray(entry)) {
           entry.forEach((q) => q && push({ section, category, type, question: q }));
         } else if (entry && typeof entry === 'object') {
-          for (const [subType, list] of Object.entries(entry)) {
+          for (const [subType, list] of orderedEntries(entry, 'type')) {
             if (Array.isArray(list)) {
               list.forEach((q) => q && push({ section, category, type: subType, question: q }));
             }
@@ -406,6 +417,8 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
   .marks { font-size: 10pt; color: #444; float: ${rtl ? 'left' : 'right'}; }
   .options { margin-${rtl ? 'right' : 'left'}: 18px; }
   .opt { margin: 2px 0; }
+  .options.four { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px 10px; }
+  .options.two { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px 10px; }
   .words { margin-${rtl ? 'right' : 'left'}: 18px; }
   .word { margin: 5px 0; }
   .word .rule { display: inline-block; border-bottom: 1px solid #999; width: 190px; margin-${rtl ? 'right' : 'left'}: 10px; }
