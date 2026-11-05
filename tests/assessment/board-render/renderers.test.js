@@ -9,11 +9,11 @@ const total = (L) => L.sections.reduce((s, x) => s + x.marks, 0);
 const CASES =[['fbise50'], ['fbiseNon'], ['urdu']];
 
 describe('board paper (child html)', () => {
-  test.each(CASES)('%s: chrome lines, page placeholder, no tag/key leak', (name) => {
+  test.each(CASES)('%s: chrome lines, no page placeholder, no tag/key leak', (name) => {
     const exam = fx[name]();
     const html = renderBoardPaper(exam);
     expect(html).toMatch(/^<!DOCTYPE html>/);
-    expect(html).toContain(name === 'urdu' ? 'صفحہ {n} از {N}' : 'Page {n} of {N}');
+    expect(html).not.toMatch(/\{n\}|\{N\}/); // the PDF footer numbers the pages (board-render/print.js)
     expect(html).not.toMatch(/SECRET|official_slo|S-09-|LO-\d|"tag"|difficulty/);
     expect(html).not.toContain('{t:');
   });
