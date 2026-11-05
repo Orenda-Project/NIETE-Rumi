@@ -2,7 +2,7 @@
  * Coach reports in the app — the words of the coach's debrief report page and of its card on her Home, in English and
  * Urdu. The section headings are the ICT HITL owner's own (her prototype and the 4 Nov gap doc), so a few are longer than
  * the 4-word label rule (longOk below). Behaviour names, why-it-matters lines and the ready "Try:" lines are DATA: they
- * come in both languages from the server (bot observe-strings, bot config/coach-report-try-lines), one source with the
+ * come in both languages from the server (bot observe-strings: names, why-it-matters, the ready Try lines), one source with the
  * WhatsApp card. The judge's own lines are in the language they were written in.
  * Urdu MACHINE-DRAFTED where it is not already the WhatsApp report's wording; waits for a native check.
  */

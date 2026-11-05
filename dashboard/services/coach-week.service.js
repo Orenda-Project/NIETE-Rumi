@@ -8,7 +8,7 @@
  * the bot's Friday 16:30 sweep inserts it ('sending' → 'sent'); the first writer wins (UNIQUE user_id, nudge_date, kind).
  *
  * Fixed words come in English and Urdu (behaviour names and why-it-matters from the bot's observe-strings, the four
- * steps from bot config/coach-week-steps.js), so the language pill switches the page without a second read.
+ * steps from observe-strings coach_week_steps, drafts until reviewed), so the language pill switches the page without a second read.
  *
  * WHO. Only the session's coach, by her own observer_user_id; there is no id of anyone else to ask for.
  * READS. One bounded read of her latest coached debriefs (narrow JSON slices: the feedback's rubric and its time).
@@ -17,7 +17,6 @@
 
 const { observeStrings } = require('../../bot/shared/services/observe/observe-strings');
 const Week = require('../../bot/shared/services/observe/coach-week');
-const { stepsFor } = require('../../bot/shared/config/coach-week-steps');
 const { BEHAVIOUR_MODULE } = require('../../bot/shared/config/coach-training-modules');
 
 /** The card shows the week from Friday 16:00 for this long, if she neither opens nor closes it. */
@@ -56,6 +55,9 @@ const SQL = {
   `,
 };
 
+/** The weekly steps (observe-strings coach_week_steps) are drafts until the ICT HITL owner has reviewed them. */
+const STEPS_REVIEWED = false;
+
 const EN = observeStrings('en');
 const UR = observeStrings('ur');
 const both = (field, key) => ({ en: (EN[field] || {})[key] || null, ur: (UR[field] || {})[key] || null });
@@ -88,7 +90,11 @@ function shapeWeek(summary) {
       ...f,
       name: both('coach_rubric_names', f.key),
       why: both('coach_rubric_why', f.key),
-      steps: (() => { const s = stepsFor(f.key); return s ? { en: s.en, ur: s.ur, reviewed: !!s.reviewed } : null; })(),
+      steps: (() => {
+        const en = (EN.coach_week_steps || {})[f.key];
+        const ur = (UR.coach_week_steps || {})[f.key];
+        return Array.isArray(en) && Array.isArray(ur) ? { en, ur, reviewed: STEPS_REVIEWED } : null;
+      })(),
       nextName: f.next ? both('coach_rubric_names', f.next) : null,
       nextModule: f.next ? BEHAVIOUR_MODULE[f.next] || null : null,
     } : null,

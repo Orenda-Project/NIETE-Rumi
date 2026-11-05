@@ -32,7 +32,6 @@ const { observeStrings } = require('../../bot/shared/services/observe/observe-st
 const Rubric = require('../../bot/shared/services/observe/observe-coach-rubric');
 const { isHarmfulDebrief } = require('../../bot/shared/services/observe/observe-coach-feedback');
 const { BEHAVIOUR_MODULE } = require('../../bot/shared/config/coach-training-modules');
-const { tryLineFor } = require('../../bot/shared/config/coach-report-try-lines');
 
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -99,6 +98,12 @@ const EN = observeStrings('en');
 const UR = observeStrings('ur');
 const both = (field, key) => ({ en: (EN[field] || {})[key] || null, ur: (UR[field] || {})[key] || null });
 const text = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+
+/** The ready "Try:" line for a behaviour in both languages (observe-strings coach_report_try_lines), or null until BOTH exist. */
+function tryLineFor(key) {
+  const t = both('coach_report_try_lines', key);
+  return t.en && t.ur ? t : null;
+}
 
 function teacherOf(row) {
   return text(row.teacher_name) || text(row.delivery_teacher_name) || text(row.sched_teacher_name);
@@ -198,5 +203,5 @@ async function readyCoachReports(query, coachId) {
 }
 
 module.exports = {
-  SQL, UUID_RX, READY_WINDOW_DAYS, shapeCoachReport, getCoachReport, markCoachReport, readyCoachReports,
+  SQL, UUID_RX, READY_WINDOW_DAYS, tryLineFor, shapeCoachReport, getCoachReport, markCoachReport, readyCoachReports,
 };
