@@ -18,9 +18,14 @@ function face(family, weight, file) {
     : '';
 }
 
+/** The @font-face rules a page in this medium needs (also embedded in the PDF footer, which loads none). */
+function facesCss(rtl) {
+  return FONTS.filter((f) => rtl || !f[3]).map((f) => face(f[0], f[1], f[2])).filter(Boolean).join('\n');
+}
+
 function css(rtl) {
   const start = rtl ? 'right' : 'left';
-  const faces = FONTS.filter((f) => rtl || !f[3]).map((f) => face(f[0], f[1], f[2])).filter(Boolean).join('\n');
+  const faces = facesCss(rtl);
   return `
 @page { size: A4; margin: 14mm; }
 ${faces}
@@ -43,7 +48,6 @@ body { font-family: ${rtl ? "'PaperUrdu','PaperLatin',serif" : "'PaperLatin',Ari
 .teacher-slot { border: 1px dashed #000; padding: 4px 8px; margin: 6px 0; }
 .part-head { font-weight: 700; margin: 8px 0 2px; }
 .handover { font-weight: 700; border-top: 1px dashed #000; margin: 8px 0; padding-top: 3px; }
-.footer { text-align: center; font-size: 9pt; margin-top: 14px; }
 table { border-collapse: collapse; width: 100%; margin: 3px 0; }
 td, th { border: 1px solid #000; padding: 2px 6px; font-size: 9.5pt; }
 .legend { border: 1px solid #000; padding: 4px 10px; margin: 6px 0 10px; font-size: 9.5pt; }
@@ -52,4 +56,4 @@ td, th { border: 1px solid #000; padding: 2px 6px; font-size: 9.5pt; }
 `;
 }
 
-module.exports = { css };
+module.exports = { css, facesCss };
