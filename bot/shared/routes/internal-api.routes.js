@@ -1210,6 +1210,42 @@ router.post('/classes/students/remove', requireInternalKey, async (req, res) => 
 });
 
 /**
+ * POST /api/internal/classes/students/rename   (bd-mx822w)
+ *
+ * Fix a child's name from the portal's class page. Only the name changes; the child, her enrolment
+ * and roll number stay. Any teacher on the class may do it, for a child actively on it.
+ *
+ * Body   { userId, classId, studentId, name }
+ * Errors 400 (missing input, missing_name, name_too_long), 401, 403 (not_assigned),
+ *        404 (not_enrolled), 502 (write failed)
+ * Ok     200 { success: true, studentName }
+ */
+router.post('/classes/students/rename', requireInternalKey, async (req, res) => {
+  const { userId, classId, studentId, name } = req.body || {};
+  if (!userId || !classId || !studentId) {
+    return res.status(400).json({ success: false, error: 'userId, classId and studentId are required' });
+  }
+  try {
+    const ClassService = require('../services/classes/class.service');
+    const result = await ClassService.renameStudent({ classId, teacherUserId: userId, studentId, name });
+
+    if (result.error === 'not_assigned') return res.status(403).json({ success: false, error: 'not_assigned' });
+    if (result.error === 'not_enrolled') return res.status(404).json({ success: false, error: 'not_enrolled' });
+    if (result.error === 'missing_name' || result.error === 'name_too_long') {
+      return res.status(400).json({ success: false, error: result.error });
+    }
+    if (result.error) {
+      logToFile('❌ Internal classes/students/rename failed', { classId, studentId, error: result.error }, 'error');
+      return res.status(502).json({ success: false, error: result.error });
+    }
+    return res.json({ success: true, studentName: result.studentName });
+  } catch (error) {
+    logToFile('❌ Internal classes/students/rename failed', { classId, studentId, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Failed to rename the student' });
+  }
+});
+
+/**
  * POST /api/internal/classes/remove
  *
  * Take a class off the teacher's list. The service decides what that means — retire a
