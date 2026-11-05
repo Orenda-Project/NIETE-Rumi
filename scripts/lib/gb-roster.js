@@ -3,12 +3,11 @@
  * bd-rj6w0n.14.2 — pure decisions for seeding GB teachers' region (and school) from the GB roster.
  *
  * The roster is gitignored personal data; scripts/seed-gb-roster.js reads it at run time and hands the
- * rows here. A roster phone that is a user gets users.region 'Gilgit-Baltistan' only while users.region is
- * empty, and the roster school only when users.school_id is empty and the EMIS names exactly one
+ * rows here, with the GB region as the region registry spells it (region_features.display_name, read by the
+ * script: no region name lives here). A roster phone that is a user gets that region only while users.region
+ * is empty, and the roster school only when users.school_id is empty and the EMIS names exactly one
  * school. Nothing is ever overwritten. Counts name no one.
  */
-
-const { regionOfValue, STORED_VALUE } = require('../../bot/shared/services/region.service');
 
 const PHONE_KEY = 'Teacher WhatsApp*';
 const EMIS_KEY = 'School ID/EMIS*';
@@ -30,11 +29,15 @@ function normaliseEmis(raw) {
   return /^\d+$/.test(s) ? s : null;
 }
 
+const keyOf = (v) => (typeof v === 'string' ? v.trim().toLowerCase() : '');
+
 /**
  * roster: rows with PHONE_KEY / EMIS_KEY; users: { id, phone_number, region, school_id }; schools: the GB
- * schools { id, emis }. -> { writes: [{ userId, patch }], counts }.
+ * schools { id, emis }; gbRegions: the registry's GB regions (exactly one). -> { writes: [{ userId, patch }], counts }.
  */
-function planRosterWrites({ roster, users, schools }) {
+function planRosterWrites({ roster, users, schools, gbRegions }) {
+  if (!Array.isArray(gbRegions) || gbRegions.length !== 1) throw new Error('the registry must hold exactly one GB region');
+  const [gbRegion] = gbRegions;
   const counts = {
     rosterRows: roster.length, rosterNumbers: 0, unparseable: 0, matchedUsers: 0, notYetUsers: 0,
     regionSet: 0, schoolSet: 0, alreadyKnown: 0, schoolUnresolved: 0,
@@ -61,10 +64,9 @@ function planRosterWrites({ roster, users, schools }) {
     seen.add(phone);
     counts.matchedUsers += 1;
     // Any value already in users.region is hers: a GB one still gets a missing school, anything else is left alone.
-    const region = u.region == null ? 'unknown' : regionOfValue(u.region);
-    if (u.region != null) { counts.alreadyKnown += 1; if (region !== 'gb') continue; }
+    if (u.region != null) { counts.alreadyKnown += 1; if (keyOf(u.region) !== keyOf(gbRegion)) continue; }
     const patch = {};
-    if (u.region == null) patch.region = STORED_VALUE.gb;
+    if (u.region == null) patch.region = gbRegion;
     if (!u.school_id) {
       const ids = schoolsByEmis.get(emisOfPhone.get(phone)) || [];
       if (ids.length === 1) patch.school_id = ids[0];

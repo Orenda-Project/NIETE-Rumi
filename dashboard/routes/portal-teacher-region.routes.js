@@ -3,8 +3,8 @@
  * bd-rj6w0n.14.2 — the one-time ICT-or-GB choice on the teacher app's Lesson Plans page. Mounted at
  * /api/portal by dashboard/index.js (one line), on the portal's CORS / rate-limit / session stack.
  *
- *   GET  /api/portal/teacher/region   -> { success, region, ask, schools }
- *   POST /api/portal/teacher/region   { region: 'ict' | 'gb', schoolId? } -> { success, region, saved }
+ *   GET  /api/portal/teacher/region   -> { success, region, ask, sectors, schools }
+ *   POST /api/portal/teacher/region   { region: 'ict', sector } | { region: 'gb', schoolId? } -> { success, region, saved }
  *
  * Asked here, never on WhatsApp (every WhatsApp message costs money). Rules in services/teacher-region.service.js.
  * The teacher is ALWAYS the session's user. Dark (404, nothing read) unless LP_GB_K5_ENABLED is 'true'.
