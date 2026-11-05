@@ -207,7 +207,13 @@ function chapterLabel(chapter, rtl) {
   return rtl ? `باب ${urD(chapter.number)}` : `Ch ${chapter.number}`;
 }
 
-function buildChapterItems(grade, subjectKey, available, bookKeys) {
+/**
+ * Chapters with servable lessons, one Flow screen at a time (bd-97daxo.5). A book of PAGE_SIZE chapters or fewer —
+ * every ICT book — is one screen, exactly as before. GB's Urdu books carry 27-28 (Amena's جائزہ review units sit
+ * between the lessons), so page 1 is PAGE_SIZE-1 chapters and a "More chapters" row whose `chapter_page` step opens
+ * SELECT_CHAPTER_MORE, the screen the published Flow already has for Grades 6-12. Meta rejects a self-route.
+ */
+function buildChapterItems(grade, subjectKey, available, bookKeys, page = 1) {
   const book = bookFor(grade, subjectKey, bookKeys);
   if (!book) return [];
   const rtl = !!book.rtl;
@@ -245,7 +251,24 @@ function buildChapterItems(grade, subjectKey, available, bookKeys) {
       },
     });
   }
-  return items.slice(0, PAGE_SIZE);
+  if (items.length <= PAGE_SIZE) return Number(page) > 1 ? [] : items;
+
+  const per = PAGE_SIZE - 1;
+  const p = Math.max(1, Number(page) || 1);
+  const slice = items.slice((p - 1) * per, p * per);
+  if (p * per < items.length) {
+    slice.push({
+      id: MORE_ROW_ID,
+      'main-content': rtl
+        ? { title: '\u200Fمزید ابواب ←', description: clip(`\u200Fصفحہ ${urD(p + 1)}`, DESC_CAP) }
+        : { title: 'More chapters →', description: clip(`Page ${p + 1}`, DESC_CAP) },
+      'on-click-action': {
+        name: 'data_exchange',
+        payload: { step: 'chapter_page', grade: String(grade), subject: String(subjectKey), page: String(p + 1) },
+      },
+    });
+  }
+  return slice;
 }
 
 /**

@@ -81,6 +81,7 @@ const LP612_STEPS = Object.freeze([
 ]);
 const K5_SHARED_STEPS = Object.freeze([
   'grade', 'subject', 'chapter', 'lesson', 'lesson_page',
+  'chapter_page', // bd-97daxo.5: a K-5 book with more than 20 chapters (GB's Urdu books)
 ]);
 
 /** Code points, not UTF-16 units. */
