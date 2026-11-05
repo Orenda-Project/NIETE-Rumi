@@ -219,4 +219,4 @@ async function getCoachFirst(query, coachId, emis, opts = {}) {
   };
 }
 
-module.exports = { getWhereToCoach, getCoachFirst, SQL: SQL_WTC };
+module.exports = { getWhereToCoach, getCoachFirst };

@@ -288,4 +288,4 @@ function coachFirstOrder(a, b) {
     || String(a.name || '').localeCompare(String(b.name || ''));
 }
 
-module.exports = { whereToCoach, coachFirstGroupOf, coachFirstOrder, COACH_FIRST_GROUPS, verdictOf, readReport, DEFAULT_SETTINGS };
+module.exports = { whereToCoach, coachFirstGroupOf, coachFirstOrder, COACH_FIRST_GROUPS, readReport };
