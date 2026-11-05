@@ -39,6 +39,7 @@ Slack client in this pack, not two that could drift apart.
 Slack events sent on:
   - schema-changing PR update       (--event pr_update)
   - validation failure               (--event validation_failure)
+  - pass with warnings               (--event warn)
   - pass after failure               (--event pass_after_failure)
   - bypass use                       (--event bypass)
   - schema-changing merge            (--event merge)
@@ -86,8 +87,49 @@ import urllib.request
 from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
-PACK_ROOT = SKILL_DIR.parent.parent  # skills/data-standards -> skills -> repo root
-STORYTIME_SCRIPTS = PACK_ROOT / "skills" / "storytime" / "scripts"
+# SKILL_DIR.parent is the "skills" directory itself — storytime is always a
+# SIBLING skill folder there, regardless of how deep that skills/ directory
+# sits in a given repo (agent-skills-taleemabad: skills/ at the repo root;
+# a different pack: skills/ nested deeper). Layout-agnostic on purpose;
+# if storytime genuinely isn't installed alongside this skill (e.g. this
+# skill was copied into a product repo on its own), send_slack()'s own
+# try/except ImportError already degrades to "not sent" rather than
+# crashing — see that function below.
+STORYTIME_SCRIPTS = SKILL_DIR.parent / "storytime" / "scripts"
+
+
+def _load_nearest_env() -> None:
+    """Walking up from this skill's directory, find the first directory with
+    a .env or a tracked telemetry.defaults, and load .env then
+    telemetry.defaults from it — filling only variables not already set, so
+    the environment wins over .env, and .env over the tracked defaults.
+
+    Not a replacement for slack_send._load_env() — a fallback for when
+    storytime isn't installed alongside this skill (e.g. vendored into a
+    product repo's .claude/skills/ on its own). Claude Code hooks inherit the
+    shell's environment, not .env, so without this a gate never finds the
+    governance endpoint/key. telemetry.defaults is what makes a plain
+    `git pull` enough to start reporting — same file, same reasoning as the
+    skill-usage hook's: nobody has to edit their own .env."""
+    for directory in SKILL_DIR.parents:
+        sources = [directory / ".env", directory / "telemetry.defaults"]
+        if not any(source.is_file() for source in sources):
+            continue
+        for source in sources:
+            try:
+                lines = source.read_text(encoding="utf-8").splitlines()
+            except OSError:
+                continue
+            for line in lines:
+                line = line.strip()
+                if line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = re.split(r"\s+#", value.strip(), maxsplit=1)[0].strip().strip('"').strip("'")
+                if key and value and not os.environ.get(key):
+                    os.environ[key] = value
+        return
 
 # --------------------------------------------------------------- sanitization
 
@@ -133,6 +175,11 @@ def sanitize_deep(obj):
 SLACK_EVENT_TEMPLATES = {
     "pr_update": ("📋", "Data Standards — schema-changing PR updated"),
     "validation_failure": ("❌", "Data Standards — validation FAILED"),
+    # Every clean check, not just failures: a channel that only ever shows
+    # failures can't tell "the gate passed" from "the gate never ran".
+    "pass": ("✅", "Data Standards — PASSED"),
+    # A pass that still has warnings: nothing blocked, but someone should look.
+    "warn": ("⚠️", "Data Standards — PASSED WITH WARNINGS"),
     "pass_after_failure": ("✅", "Data Standards — now passing (previously failed)"),
     "bypass": ("⚠️", "Data Standards — gate BYPASSED"),
     "merge": ("🔀", "Data Standards — schema-changing merge"),
@@ -148,12 +195,12 @@ def build_slack_message(event: str, fields: dict) -> str:
 
     lines = [f"{emoji} *{title}*"]
     order = ["repo", "branch", "commit", "pr", "actor", "standards_version", "result",
-             "changed_objects", "severity_counts", "issue_ids", "bypass_reason", "report_url"]
+             "changed_objects", "severity_counts", "issue_ids", "summary", "bypass_reason", "report_url"]
     labels = {
         "repo": "Repo", "branch": "Branch", "commit": "Commit", "pr": "PR", "actor": "Actor",
         "standards_version": "Standards version", "result": "Result",
         "changed_objects": "Changed objects", "severity_counts": "Severity counts",
-        "issue_ids": "Issue IDs", "bypass_reason": "Bypass reason", "report_url": "Report",
+        "issue_ids": "Issue IDs", "summary": "Details", "bypass_reason": "Bypass reason", "report_url": "Report",
     }
     for key in order:
         if key in fields and fields[key] not in (None, "", []):
@@ -162,6 +209,20 @@ def build_slack_message(event: str, fields: dict) -> str:
                 val = json.dumps(val)
             lines.append(f"• *{labels[key]}:* {val}")
     return "\n".join(lines)
+
+
+def slack_via_board() -> bool:
+    """True when the data-gate board posts this run to Slack instead.
+
+    Set by TALEEMABAD_GATE_SLACK_VIA_BOARD=1 in the tracked telemetry.defaults:
+    the board service holds the one Slack token and channel, so nobody needs
+    either on their own machine. CI keeps posting directly (NIETE-Rumi's
+    workflow has its own Slack secrets) unless the workflow opts in with
+    TALEEMABAD_GATE_SLACK_VIA_BOARD_IN_CI=1, for repos with no secrets."""
+    in_ci = os.environ.get("GITHUB_ACTIONS") == "true"
+    return (os.environ.get("TALEEMABAD_GATE_SLACK_VIA_BOARD") == "1"
+            and bool(os.environ.get("TALEEMABAD_GOVERNANCE_ENDPOINT"))
+            and (not in_ci or os.environ.get("TALEEMABAD_GATE_SLACK_VIA_BOARD_IN_CI") == "1"))
 
 
 def send_slack(event: str, channel: str | None, fields: dict) -> dict:
@@ -210,11 +271,20 @@ GOVERNANCE_EVENT_SCHEMA_VERSION = "1"
 
 def build_governance_event(args: argparse.Namespace) -> dict:
     """A versioned, idempotent event. Idempotency key is a hash of the
-    fields that make an event unique (repo + head_sha + result) — a retried
-    delivery of the SAME event produces the SAME key, so the receiving side
-    can de-duplicate rather than double-counting a retried POST."""
+    fields that make an event unique (repo + head_sha + result + report_ref
+    + timestamp) — a retried delivery of the SAME event produces the SAME
+    key, so the receiving side can de-duplicate rather than double-counting
+    a retried POST.
+
+    The timestamp and report_ref are part of the key so that every gate RUN
+    is its own row: live-edit checks all share the repo's current HEAD, and
+    without them every PASS on one commit collapsed into a single row. The
+    key is computed once per event and send_governance_event() retries that
+    same dict, so retries still de-duplicate."""
     changed_files = sanitize_deep(args.changed_files or [])
-    idempotency_source = f"{args.repo}|{args.head_sha}|{args.result}"
+    timestamp_utc = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    idempotency_source = (f"{args.repo}|{args.head_sha}|{args.result}|"
+                          f"{args.report_ref or ''}|{timestamp_utc}|{os.getpid()}")
     idempotency_key = hashlib.sha256(idempotency_source.encode()).hexdigest()
 
     return {
@@ -226,7 +296,7 @@ def build_governance_event(args: argparse.Namespace) -> dict:
         "head_sha": args.head_sha,
         "pr": args.pr,
         "actor": sanitize(args.actor) if args.actor else None,
-        "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "timestamp_utc": timestamp_utc,
         "standards_version": args.standards_version,
         "validator_version": args.validator_version,
         "before_fingerprint": args.before_fingerprint,
@@ -239,15 +309,28 @@ def build_governance_event(args: argparse.Namespace) -> dict:
         "severity_counts": args.severity_counts or {},
         "issue_ids": args.issue_ids or [],
         "report_ref": sanitize(args.report_ref) if args.report_ref else None,
+        "summary": sanitize(args.summary)[:2000] if args.summary else None,
+        "slack_via_board": slack_via_board(),
     }
 
 
-def send_governance_event(event: dict, endpoint: str | None, retries: int = 3) -> dict:
+def send_governance_event(event: dict, endpoint: str | None, retries: int = 3,
+                           telemetry_key: str | None = None) -> dict:
     """POSTs the event with bounded retries + exponential backoff. If no
     endpoint is configured, writes the event to a local fallback file
     instead of silently discarding it — 'full context, no secrets' per the
     brief, and a locally-preserved event is recoverable later; a discarded
-    one is not."""
+    one is not.
+
+    telemetry_key: the same shared, write-only TELEMETRY_KEY the
+    skill-usage hook already sends to this pack's telemetry service
+    (see hooks/skill-telemetry.py's post_detached — identical convention,
+    same key). The receiving /gate-events endpoint requires this via
+    Authorization: Bearer / apikey (see agent-skills-telemetry's
+    check_token()) — omitting it here was a real bug caught while wiring
+    this up: every event would have been silently rejected with 401
+    despite TALEEMABAD_GOVERNANCE_ENDPOINT being set correctly, since a
+    previous version of this function never sent any auth header at all."""
     if not endpoint:
         fallback = Path(".data-standards-governance-events.jsonl")
         try:
@@ -260,12 +343,15 @@ def send_governance_event(event: dict, endpoint: str | None, retries: int = 3) -
                     f"failed: {e} — event was NOT preserved anywhere"}
 
     payload = json.dumps(event).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if telemetry_key:
+        headers["Authorization"] = f"Bearer {telemetry_key}"
+        headers["apikey"] = telemetry_key
     last_error = None
     for attempt in range(1, retries + 1):
         try:
             req = urllib.request.Request(
-                endpoint, data=payload, method="POST",
-                headers={"Content-Type": "application/json"},
+                endpoint, data=payload, method="POST", headers=headers,
             )
             with urllib.request.urlopen(req, timeout=30) as resp:
                 return {"sent": True, "status": resp.status, "attempt": attempt}
@@ -279,6 +365,11 @@ def send_governance_event(event: dict, endpoint: str | None, retries: int = 3) -
 # --------------------------------------------------------------- CLI
 
 def main() -> int:
+    # Tests and dry runs: no Slack post, no gate-board row — the tracked
+    # defaults would otherwise send every test run to the real channel/board.
+    if os.environ.get("TALEEMABAD_GATE_REPORTING_OFF") == "1":
+        print(json.dumps({"sent": False, "reason": "TALEEMABAD_GATE_REPORTING_OFF=1"}))
+        return 0
     # Load the pack's own .env BEFORE any argparse default reads os.environ —
     # otherwise --channel/--endpoint's default=os.environ.get(...) resolves
     # at parse time, before slack_send's _load_env() would otherwise populate
@@ -293,6 +384,7 @@ def main() -> int:
         slack_send._load_env()
     except ImportError:
         pass
+    _load_nearest_env()
 
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="command", required=True)
@@ -312,9 +404,18 @@ def main() -> int:
     slack.add_argument("--issue-ids", help="comma-separated")
     slack.add_argument("--bypass-reason")
     slack.add_argument("--report-url")
+    slack.add_argument("--summary", help="what blocked or warned, and why a warning did not block")
 
     gov = sub.add_parser("governance", help="send/queue a data-governance ingestion event")
     gov.add_argument("--endpoint", default=os.environ.get("TALEEMABAD_GOVERNANCE_ENDPOINT"))
+    # TALEEMABAD_GOVERNANCE_KEY first: data-gate-telemetry and the skill-usage
+    # service have DIFFERENT tokens, so one shared TELEMETRY_KEY could only
+    # ever be right for one of them. TELEMETRY_KEY stays as the fallback for
+    # setups that already put the gate token there.
+    gov.add_argument("--telemetry-key",
+                      default=os.environ.get("TALEEMABAD_GOVERNANCE_KEY") or os.environ.get("TELEMETRY_KEY"),
+                      help="write-only key for data-gate-telemetry's /gate-events — "
+                           "TALEEMABAD_GOVERNANCE_KEY, else TELEMETRY_KEY")
     gov.add_argument("--repo", required=True)
     gov.add_argument("--branch", required=True)
     gov.add_argument("--base-sha")
@@ -332,10 +433,14 @@ def main() -> int:
     gov.add_argument("--severity-counts", help="JSON object string")
     gov.add_argument("--issue-ids", help="comma-separated")
     gov.add_argument("--report-ref")
+    gov.add_argument("--summary", help="one line on what was found, for the Slack message the board posts")
 
     args = ap.parse_args()
 
     if args.command == "slack":
+        if slack_via_board():
+            print(json.dumps({"sent": False, "reason": "the data-gate board posts this run to Slack"}))
+            return 0
         fields = {
             "repo": args.repo, "branch": args.branch, "commit": args.commit, "pr": args.pr,
             "actor": args.actor, "standards_version": args.standards_version, "result": args.result,
@@ -343,6 +448,7 @@ def main() -> int:
             "severity_counts": json.loads(args.severity_counts) if args.severity_counts else None,
             "issue_ids": args.issue_ids.split(",") if args.issue_ids else None,
             "bypass_reason": args.bypass_reason, "report_url": args.report_url,
+            "summary": args.summary,
         }
         result = send_slack(args.event, args.channel, fields)
         print(json.dumps(result, indent=2))
@@ -354,7 +460,7 @@ def main() -> int:
         args.severity_counts = json.loads(args.severity_counts) if args.severity_counts else {}
         args.issue_ids = args.issue_ids.split(",") if args.issue_ids else []
         event = build_governance_event(args)
-        result = send_governance_event(event, args.endpoint)
+        result = send_governance_event(event, args.endpoint, telemetry_key=args.telemetry_key)
         print(json.dumps({"event": event, "delivery": result}, indent=2))
         return 0
 
