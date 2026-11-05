@@ -10,7 +10,7 @@ const Patterns = require('../../../bot/shared/services/assessment/patterns');
 const { writeEarlyPaper } = require('../../../bot/shared/services/assessment/fde-early-writer');
 const { NO_PICTURES } = require('../../../bot/shared/services/assessment/fde-early-prompt');
 
-const SAMPLE = { count: { kind: 'count', name: 'apple', n: 3 }, dots: { kind: 'dots', n: 4 }, shapes: { kind: 'shapes', shapes: [{ shape: 'circle' }] },
+const SAMPLE = { count: { kind: 'count', name: 'apple', n: 3 }, dots: { kind: 'dots', n: 4 }, groups: { kind: 'groups', groups: 3, each: 4 }, shapes: { kind: 'shapes', shapes: [{ shape: 'circle' }] },
   object: { kind: 'object', name: 'cat' }, scene: { kind: 'scene', describe: 'children in a park; the girl on the right waves' }, clock: { kind: 'clock', hour: 3, minute: 0 }, plant: { kind: 'plant' } };
 
 // A slot with an answer rule gets keys that fit it unless a reply gives its own (`keys`: slot -> {question, answer} by item).
