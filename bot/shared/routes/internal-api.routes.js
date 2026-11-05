@@ -1567,6 +1567,23 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
     }
   }
 
+  // The G9-12 board patterns, behind their own flag (bd-5jmnfj.38.25.1); off adds nothing. The
+  // 6-12 grade gate decides who sees them, so with it shut no key appears for a board grade.
+  let boardOn = false;
+  try { boardOn = await Flags.isAssessmentBoardPatternEnabled(); } catch (_) { /* a failed read is off */ }
+  if (boardOn) {
+    const Board = require('../services/assessment/patterns/board');
+    // isEligible holds the grade and subject checks: a pattern sets one grade and only its subjects.
+    const ids = Board.list().filter((id) => Board.isEligible(id, grade, subject));
+    if (ids.length && await cellOffered(grade, subject, userId)) {
+      out.patterns = (out.patterns || []).concat(ids.map((id) => ({ id, ...Board.summaryFor(id, subject) })));
+    }
+    // Board grades (9-12) sit after any FDE grades (1-5), so the joined list stays ascending.
+    const g = await gradeGateFor(Board.grades());
+    const bg = Board.grades().filter((x) => GradeGate.gradeAllowed(x, g.flag, g.kill, userId));
+    if (bg.length) out.patternGrades = (out.patternGrades || []).concat(bg);
+  }
+
   return res.json(out);
 }));
 
