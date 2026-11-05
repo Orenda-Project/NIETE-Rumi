@@ -151,6 +151,7 @@ const CoachProfile = page(() => import("./portal/coach/profile/CoachProfile"));
 // bd-x1tl95 — Send feedback, from the coach's More (voice note, words, screenshots).
 const CoachFeedback = page(() => import("./portal/coach/feedback/FeedbackPage"));
 const CoachTrainingPage = page(() => import("./portal/coach/coachTraining/CoachTrainingPage"));
+const CoachTrainingModulePage = page(() => import("./portal/coach/coachTraining/CoachTrainingModulePage"));
 // bd-s42dye.2 — the coach's Training Library (every provider, level, course and part; questions are a read-only preview).
 const CoachLibraryHome = page(() => import("./portal/coach/training/LibraryPages").then((m) => ({ default: m.LibraryHome })));
 const CoachLibraryProvider = page(() => import("./portal/coach/training/LibraryPages").then((m) => ({ default: m.LibraryProvider })));
@@ -379,6 +380,7 @@ const App = () => {
             <Route path="/portal/coach/profile" element={<CoachProfile />} />
             <Route path="/portal/coach/feedback" element={<CoachFeedback />} />
             <Route path="/portal/coach/coach-training" element={<CoachTrainingPage />} />
+            <Route path="/portal/coach/coach-training/:n" element={<CoachTrainingModulePage />} />
             {/* bd-s42dye.2 — the Training Library, behind the same CoachGate (each page gates itself). */}
             <Route path="/portal/coach/training" element={<CoachLibraryHome />} />
             <Route path="/portal/coach/training/module/:id" element={<CoachLibraryModule />} />
