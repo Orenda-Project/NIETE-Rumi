@@ -6285,7 +6285,8 @@ CREATE TABLE IF NOT EXISTS teacher_nudges (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   nudge_date    date NOT NULL,                       -- PKT calendar date
-  kind          text NOT NULL CHECK (kind IN ('coaching_after_lp','lp_quiz_offer')),
+  -- weekly_usage_report: V1.6.12; topic_end_nudge: V1.8.4; coach_weekly_report: V1.8.12. A new kind is a migration on purpose.
+  kind          text NOT NULL CHECK (kind IN ('coaching_after_lp','lp_quiz_offer','weekly_usage_report','topic_end_nudge','coach_weekly_report')),
   status        text NOT NULL DEFAULT 'pending'
                 CHECK (status IN ('pending','sending','sent','failed','skipped','expired')),
   scheduled_at  timestamptz NOT NULL,
