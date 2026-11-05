@@ -31,6 +31,7 @@
  *   node tests/baseline-gate.js --update     # re-record the snapshot (review the diff!)
  */
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
@@ -350,6 +351,35 @@ const CONTENT_KEY_RE = /^([^\s:]+)(?: #(\d+))? :: ([\s\S]*)$/;
 /** Whitespace is not content: re-indenting a line or retabbing it must not make it new. */
 const squash = (s) => String(s).replace(/\s+/g, ' ').trim();
 
+/**
+ * A line that looks like it holds a credential or a phone number. source-hygiene names such a
+ * markdown line by `path:line` ALONE, on purpose; a content key must not undo that, because the
+ * key is committed in the snapshot and printed in CI logs, and this repo is public.
+ */
+const SENSITIVE_RE = new RegExp([
+  // a credential assigned a real-looking value (the shape source-hygiene's SECRET_ASSIGN_RE flags)
+  /(?:token|secret|password|api[_-]?key|access[_-]?token|account[_-]?token|service[_-]?role[_-]?key)["']?\s*[:=]\s*["']?(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[A-Za-z0-9]{32,})/,
+  // a long token on its own: 32+ letters and digits, with at least one of each
+  /\b(?=[A-Za-z0-9]*\d)(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{32,}\b/,
+  // a JWT, or a provider-prefixed key
+  /\beyJ[\w-]{8,}\.[\w-]{8,}\./,
+  /\b(?:sk|rk)[-_][\w-]{16,}|\bgh[pousr]_\w{20,}|\bxox[abprs]-[\w-]{10,}|\bAKIA[0-9A-Z]{16}\b/,
+  // a phone number: international, or a Pakistani or Tanzanian mobile written locally or bare
+  /\+\d{1,3}[\s-]?\d{2,4}[\s-]?\d{3,4}[\s-]?\d{3,7}/,
+  /\b0?3\d{2}[\s-]?\d{7}\b|\b92\d{10}\b|\b255\d{9}\b/,
+].map((r) => r.source).join('|'), 'i');
+
+/**
+ * The text a line is keyed by: the line itself, whitespace collapsed; or, for a line that looks
+ * sensitive, `[withheld <hash>]` — as stable as the text when the line moves, and it never puts
+ * the value in the snapshot or the log.
+ */
+function keyText(line) {
+  const text = squash(line);
+  if (!SENSITIVE_RE.test(text)) return text;
+  return `[withheld ${crypto.createHash('sha256').update(text).digest('hex').slice(0, 12)}]`;
+}
+
 function contentKey(file, text, n = 1) {
   return `${file}${n > 1 ? ` #${n}` : ''} :: ${text}`;
 }
@@ -363,7 +393,8 @@ function parseContentKey(s) {
  * Key each offender by what it says rather than where it sits.
  *
  * A `path:line` offender whose line can be read becomes `path :: <that line, whitespace
- * collapsed>`. Lines in one file with the same text are numbered in line order, and the
+ * collapsed>` (or `[withheld <hash>]` for a line that looks like it holds a secret or a phone
+ * number, see keyText). Lines in one file with the same text are numbered in line order, and the
  * second becomes `path #2 :: <text>`, so a copy of an existing violation is still a new
  * key: a bare `path:line` guard (source-hygiene) cannot hide a duplicate. Detail a guard
  * appends after `path:line` is not part of the key; the line is.
@@ -381,7 +412,7 @@ function keyOffenders(raws, lineAt) {
   for (const raw of raws) {
     const m = POSITION_RE.exec(raw);
     const text = m && lineAt ? lineAt(m[1], Number(m[2])) : null;
-    if (typeof text === 'string') located.push({ raw, file: m[1], line: Number(m[2]), text: squash(text) });
+    if (typeof text === 'string') located.push({ raw, file: m[1], line: Number(m[2]), text: keyText(text) });
     else out.push({ key: raw });
   }
   const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);

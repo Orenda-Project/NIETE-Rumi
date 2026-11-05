@@ -769,6 +769,54 @@ describe('keyOffenders — what a path:line offender is keyed by', () => {
   });
 });
 
+/**
+ * source-hygiene names a markdown line that holds a credential or a deployment number by
+ * `path:line` ALONE, on purpose. A content key must not undo that: the key is committed in the
+ * snapshot and printed in CI logs, and this repo is public. Such a line is keyed by a hash of
+ * its text, which is just as stable when the line moves. (The values below are assembled from
+ * parts so this file holds no secret- or phone-shaped literal of its own.)
+ */
+describe('content keys never copy a secret or a phone number', () => {
+  const D = (...parts) => parts.join('');
+  const TOKEN = D('Zq7', 'Lw2', 'Xr9', 'Kp4').repeat(3);            // 36 letters and digits
+  const PHONE = D('+', '92', ' 300', ' 12', '34567');
+  const lineAt = treeOf({
+    'docs/setup.md': ['# Setup', `api_key: ${TOKEN}`, '', `call ${PHONE} (bd-7)`].join('\n'),
+    'docs/moved.md': ['', '', '', '', `api_key: ${TOKEN}`, '', '', `call ${PHONE} (bd-7)`].join('\n'),
+  });
+
+  it('keys a line carrying a credential by a hash of it, never by its text', () => {
+    const [k] = keyOffenders(['docs/setup.md:2'], lineAt);
+    expect(k.key).toMatch(/^docs\/setup\.md :: \[withheld [0-9a-f]{12}\]$/);
+    expect(k.key).not.toContain(TOKEN.slice(0, 8));
+  });
+
+  it('withholds a phone number the same way', () => {
+    const [k] = keyOffenders(['docs/setup.md:4'], lineAt);
+    expect(k.key).toMatch(/^docs\/setup\.md :: \[withheld [0-9a-f]{12}\]$/);
+    expect(k.key).not.toMatch(/300|34567/);
+  });
+
+  it('a withheld line that only moved keeps its key', () => {
+    const at = (file, n) => keyOffenders([`${file}:${n}`], lineAt)[0].key.split(' :: ')[1];
+    expect(at('docs/moved.md', 5)).toBe(at('docs/setup.md', 2));
+    expect(at('docs/moved.md', 8)).toBe(at('docs/setup.md', 4));
+    expect(at('docs/setup.md', 2)).not.toBe(at('docs/setup.md', 4));
+  });
+
+  it('the report prints where it is and the marker, never the text', () => {
+    const now = summariseRun(offenderReport(['docs/setup.md:2']), { lineAt });
+    const [key] = now[SHIFT_SUITE].offenders;
+    const line = describeOffender(key, now[SHIFT_SUITE].at);
+    expect(line).toMatch(/^docs\/setup\.md:2 {2}\[withheld [0-9a-f]{12}\]$/);
+  });
+
+  it('an ordinary offending line is not withheld', () => {
+    expect(keyOffenders(['bot/x.js:1'], treeOf({ 'bot/x.js': '// fix (bd-11) at 2026-11-05' }))[0].key)
+      .toBe('bot/x.js :: // fix (bd-11) at 2026-11-05');
+  });
+});
+
 describe('content keys — the gate stays strict', () => {
   const SNAP = (files, offs) =>
     canonicalise(summariseRun(offenderReport(offs), { lineAt: treeOf(files) }));

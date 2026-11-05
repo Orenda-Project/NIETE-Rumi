@@ -382,7 +382,11 @@ the same text is `path #2 :: <text>`. The snapshot stores those keys, so:
   touching the line is the moment to fix it.
 
 The report still prints each NEW offender at its current `path:line`, followed by its
-text. An offender with no line (`users.ok`, `CLASS_CARD_ENABLED`) is its own key.
+text. An offender with no line (`users.ok`, `CLASS_CARD_ENABLED`) is its own key. A line
+that looks like it holds a credential or a phone number is keyed and printed as
+`[withheld <hash>]`, never as its text: source-hygiene names such lines by `path:line`
+alone on purpose, and this repo's snapshot and CI logs are public. The hash moves with
+the line like any other key.
 
 Why: until 2026-09-23 the gate compared raw strings, and `sandbox` itself reported 432
 new source-hygiene offenders, 129 of them real. Counting per file came next and stopped a

@@ -233,8 +233,8 @@
       "Source Hygiene no internal ticket references in shipped source docs/flows/*.json carry no internal ticket refs or authoring metadata (_bead/_changelog)"
     ],
     "offenders": [
-      "CLAUDE.md :: > - `02_Main Rumi Bot/` — production Rumi PK (+92 329 5012345), different codebase",
       "CLAUDE.md :: > - `taleemabad-core/` — Django source app (read-only migration source)",
+      "CLAUDE.md :: [withheld 8bb81688bfe6]",
       "CLAUDE.md :: | **Active work: regional fork migration** (Taleemabad → new region) | [docs/migration/README.md](docs/migration/README.md) |",
       "bot/database/migrations/create_video_quiz_tables.sql :: -- (PK 046 §5 + 049; also folds in the bd-2305 'in_progress' status fix,",
       "bot/database/migrations/create_video_quiz_tables.sql :: -- Port of PK's video-quiz feature (bd-2482, sister to PK bd-2303/2305/2313/",
@@ -652,7 +652,6 @@
       "bot/shared/services/observe/observe-send.service.js :: // (bd-2673). It was a human patch over a resolution bug, and it cost a full",
       "bot/shared/services/observe/observe-send.service.js :: // bd-2453: this path calls generateHeroReport DIRECTLY (not via the",
       "bot/shared/services/observe/observe-send.service.js :: // bd-2670: raised from 2000 → 6000. NIETE-Rumi Urdu debrief output for",
-      "bot/shared/services/observe/observe-send.service.js :: // bd-2675: a bare mobile with no leading zero (\"3001234567\") is a common way",
       "bot/shared/services/observe/observe-send.service.js :: // bd-2675: scan for any span that CONTAINS enough digits, then normalise —",
       "bot/shared/services/observe/observe-send.service.js :: // bd-2675: stamp WHEN — the untapped planner refuses to act without it,",
       "bot/shared/services/observe/observe-send.service.js :: // bd-2675: the tap is the event that closes the loop — it stops every",
@@ -661,6 +660,7 @@
       "bot/shared/services/observe/observe-send.service.js :: // bd-43: offer the officer their known teachers first (name+phone learned",
       "bot/shared/services/observe/observe-send.service.js :: // bd-45: 🛠 manage — full roster (not just the shown slice), remove/rename",
       "bot/shared/services/observe/observe-send.service.js :: // untapped-nudge planner owns reminders, bd-2675).",
+      "bot/shared/services/observe/observe-send.service.js :: [withheld 2cd11bdadc05]",
       "bot/shared/services/observe/observe-send.service.js :: `[REVIEW — FEAT-053] Kwa: ${delivery.teacher_name} (+${delivery.teacher_phone}) · Kutoka: ${foName}\\n${delivery.caption || ''}`,",
       "bot/shared/services/observe/observe-send.service.js :: await upsertTeacher(user, parsed); // bd-45: every send teaches the roster",
       "bot/shared/services/observe/observe-send.service.js :: const tpl = reportTemplateConfig(); // FEAT-093 bd-54 — per-market template",
