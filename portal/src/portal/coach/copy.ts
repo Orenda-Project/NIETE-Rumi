@@ -46,15 +46,16 @@ export const COACH_COPY = {
   reschedule: "Reschedule",
 
   // Observe
-  reports: "Reports",
+  reports: "My observations",
   pickTheTeacher: "Pick the teacher",
   scheduleFirst: "Schedule a visit first",
   observation: "Observation",
   // bd-o15qnr.18 — operator: "Where it says AVG score, it should instead say Avg. HITL Score."
-  avgScore: "Avg. HITL Score",
+  // bd-jjcofw.10 (M1): "HITL" never on screen; the coach's score says whose it is.
+  avgScore: "Coach score (avg.)",
   teacher: "Teacher",
-  lastVisitOn: (date: string) => `Last visit · ${date}`,
-  hitlBy: (who: string) => `HITL · ${who}`,
+  lastVisitOn: (date: string) => `Last observation · ${date}`,
+  hitlBy: (who: string) => `Observation · ${who}`,
   // bd-o15qnr.19 — operator: "Draft should be Feedback Form, Talk should be Debrief."
   reportStep: { sent: "Report sent", report: "Report not sent yet", draft: "Feedback Form", talk: "Debrief", analysing: "Analysing" } as Record<string, string>,
 
@@ -68,7 +69,7 @@ export const COACH_COPY = {
   resume: "Resume",
   stop: "Stop",
   stopAsk: "Stop recording?",
-  recordedFor: (minutes: string) => `You recorded ${minutes}.`,
+  recordedFor: (minutes: string) => { const s = String(minutes); return `You recorded ${s.charAt(0).toLowerCase()}${s.slice(1)}.`; },
   yesStop: "Yes, stop",
   keepRecording: "Keep recording",
   shortNote: "That is short. The report works best on a whole lesson.",
@@ -111,7 +112,7 @@ export const COACH_COPY = {
   cancel: "Cancel",
   cancelVisit: "Cancel visit",
   keepVisit: "Keep visit",
-  hitlYou: "HITL",
+  hitlYou: "Observation",
 
   // Reports
   waitingForYou: "Waiting for you",
@@ -123,14 +124,14 @@ export const COACH_COPY = {
   // The observation page (v24 ObsTrack, bd-o15qnr.19)
   trackSteps: (first: string) => ["Lesson analysed", "Feedback Form", "Debrief", "Your feedback", `Send ${first} the report`],
   yourTurn: "Your turn",
-  reportsWaiting: (n: number) => (n === 1 ? "1 report waiting" : `${n} reports waiting`),
-  allReports: "All reports",
+  reportsWaiting: (n: number) => (n === 1 ? "1 observation needs you" : `${n} observations need you`),
+  allReports: "All observations",
   onWhatsApp: "On WhatsApp",
   working: "Working",
-  dcScore: "Digital Coach score",
-  dcScoreOf: (n: string) => `Digital Coach score ${n}`,
-  draftBeforeCheck: "Draft · before your check",
-  finalScore: "Final score",
+  dcScore: "AI score",
+  dcScoreOf: (n: string) => `AI score ${n}`,
+  draftBeforeCheck: "Before your check",
+  finalScore: "Coach score",
   playLesson: "Play lesson",
   pauseLesson: "Pause lesson",
   steps5: "Steps",
@@ -140,13 +141,13 @@ export const COACH_COPY = {
   showMore: "Show more",
 
   // Schools & teachers: the list, a school, a teacher and Edit teacher moved to people/copy.ts (bd-4404s7.6, English + Urdu).
-  sortAvg: "Avg. HITL Score",
+  sortAvg: "Coach score (avg.)",
   allSchools: "All schools",
   school: "School",
-  hitl: "HITL",
-  dc: "DC",
-  avg: "Avg. HITL Score",
-  avgHitl: "Avg. HITL Score",
+  hitl: "Observations",
+  dc: "Digital Coaching",
+  avg: "Coach score (avg.)",
+  avgHitl: "Coach score (avg.)",
   trainingCol: "Training",
   examsGenerated: "Exams generated",
   lpOpened: "Lesson plans opened",

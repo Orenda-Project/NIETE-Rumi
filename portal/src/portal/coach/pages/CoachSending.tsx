@@ -54,7 +54,8 @@ const CoachSending = () => {
             <i className="flex h-11 w-11 items-center justify-center rounded-full not-italic" style={{ background: failed ? "#fee4e2" : "#eaf6ef", color: hue }}>
               {failed ? <AlertTriangle className="h-6 w-6" aria-hidden="true" /> : sent ? <Check className="h-6 w-6" strokeWidth={3} aria-hidden="true" /> : <Upload className="h-6 w-6" aria-hidden="true" />}
             </i>
-            {!failed && <b data-testid="send-pct" className="text-[48px] font-light leading-none tracking-[-0.02em] tabular-nums">{job.pct}%</b>}
+            {/* bd-jjcofw.10 (M6): no percentage once sent; a % reads as a score */}
+            {!failed && !sent && <b data-testid="send-pct" className="text-[48px] font-light leading-none tracking-[-0.02em] tabular-nums">{job.pct}%</b>}
           </span>
         </div>
         <p className="text-2xl font-semibold" data-testid="send-state">{caption}</p>
