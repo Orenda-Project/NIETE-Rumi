@@ -4,7 +4,7 @@ import { PendingBanner } from "../ui";
 import TeacherPage from "../../teacher/TeacherPage";
 import { useCopy } from "../../teacher/i18n";
 import { PEOPLE } from "./copy";
-import { coachFeatureReady } from "../training/appReady";
+import { useCoachFeatureReady } from "../training/useCoachFullApp";
 
 /**
  * bd-4404s7.6 — the Schools and Teachers pages' frame: the coach gate, the kit's page frame (`TeacherPage`: back
@@ -15,10 +15,12 @@ import { coachFeatureReady } from "../training/appReady";
  * land on the Training Library.
  */
 export default function PeopleFrame({ children, ...page }: Omit<ComponentProps<typeof TeacherPage>, "children"> & { children: React.ReactNode }) {
+  // bd-jjcofw — Observe is in HER coach app: for every coach, or for a tester with the full coach app on.
+  const observeReady = useCoachFeatureReady("observe");
   return (
     <CoachGate>
       <TeacherPage {...page}>
-        {coachFeatureReady("observe") && <PendingBanner />}
+        {observeReady && <PendingBanner />}
         {children}
       </TeacherPage>
     </CoachGate>
