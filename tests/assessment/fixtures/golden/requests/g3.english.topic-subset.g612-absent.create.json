@@ -1,0 +1,112 @@
+{
+  "out": {
+    "statusCode": 202,
+    "payload": {
+      "success": true,
+      "requestId": "assessment_requests-1"
+    }
+  },
+  "writes": {
+    "assessment_requests": [
+      {
+        "id": "assessment_requests-1",
+        "attempt": 1,
+        "edited_from": null,
+        "created_at": "T",
+        "user_id": "u-golden-1",
+        "surface": "portal",
+        "grade_code": "grade_3",
+        "subject_code": "english",
+        "textbook_id": "book-3-english",
+        "chapter_number": null,
+        "page_ranges": "58-59, 90-91",
+        "content_source": "unseen",
+        "question_count": 6,
+        "question_types": [
+          {
+            "id": "MCQs",
+            "count": 3,
+            "category": "objective"
+          },
+          {
+            "id": "Fill in the Blanks",
+            "count": 3,
+            "category": "objective"
+          }
+        ],
+        "has_answer_key": true,
+        "has_answer_lines": true,
+        "output_format": "pdf",
+        "paper_kind": "topic"
+      }
+    ]
+  },
+  "queued": [
+    [
+      "u-golden-1",
+      "assessment_generate",
+      {
+        "userId": "u-golden-1",
+        "requestId": "assessment_requests-1",
+        "grade": 3,
+        "subject": "english",
+        "chapterNumber": null,
+        "chapterNumbers": [
+          4
+        ],
+        "pageRanges": "58-59, 90-91",
+        "contentSource": "unseen",
+        "questionCount": 6,
+        "totalMarks": null,
+        "seenCount": null,
+        "questionTypes": [
+          {
+            "id": "MCQs",
+            "count": 3,
+            "category": "objective"
+          },
+          {
+            "id": "Fill in the Blanks",
+            "count": 3,
+            "category": "objective"
+          }
+        ],
+        "includeAnswerKey": true,
+        "answerLines": true,
+        "outputFormat": "pdf",
+        "deliver": "none",
+        "scope": {
+          "kind": "topics",
+          "topicIds": [
+            "3-english-4-t1",
+            "3-english-4-t3"
+          ],
+          "topics": [
+            {
+              "topicId": "3-english-4-t1",
+              "name": "Topic 1"
+            },
+            {
+              "topicId": "3-english-4-t3",
+              "name": "Topic 3"
+            }
+          ],
+          "slos": [
+            {
+              "code": "E-1",
+              "description": "Skill 1",
+              "topicId": "3-english-4-t1",
+              "topicName": "Topic 1"
+            },
+            {
+              "code": "E-3",
+              "description": "Skill 3",
+              "topicId": "3-english-4-t3",
+              "topicName": "Topic 3"
+            }
+          ]
+        }
+      }
+    ]
+  ]
+}

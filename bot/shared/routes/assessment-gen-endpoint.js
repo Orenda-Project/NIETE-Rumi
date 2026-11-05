@@ -37,6 +37,7 @@ const { SUBJECT_LABEL: SUBJECT_TITLE } = require('../services/assessment/assessm
 // Which subjects a grade is actually taught. Shared, so the Flow and the
 // portal cannot answer this differently. See assessment-vocabulary.
 const { GRADE_BANDS } = require('../services/assessment/assessment-vocabulary');
+const GradeGate = require('../services/assessment/grade-gate');
 
 const COUNT_CHOICES = [10, 15, 20, 25, 30];
 
@@ -72,16 +73,28 @@ const screen = (id, data) => ({
   data: ('error' in (data || {})) ? { ...data, has_error: Boolean(data.error) } : data,
 });
 
-/** Which grades we hold any book for. */
-async function gradesOnOffer() {
+/**
+ * G6-12 grade gate (contract 1 §3). The settings are read only when a grade >= 6 is in play, so a
+ * G1-5 teacher's Flow reads nothing more than it did before (A/grade-gate.js never looks at G1-5).
+ */
+async function gradeGateFor(grades) {
+  if (grades.every((g) => Number(g) < 6)) return { flag: false };
+  return require('../config/feature-flags').GradeGateSettings.load();
+}
+
+/** Which grades we hold any book for, that this user is offered. Numeric order: a bare sort() puts 10 before 2. */
+async function gradesOnOffer(userId) {
   const { data } = await supabase
     .from('textbooks').select('grade').eq('curriculum', 'ict');
-  const grades = [...new Set((data || []).map((r) => r.grade))].filter(Boolean).sort();
+  const all = [...new Set((data || []).map((r) => r.grade))].filter(Boolean).sort((a, b) => a - b);
+  const gate = await gradeGateFor(all);
+  const grades = GradeGate.offeredGrades(all, gate.flag, gate.kill, gate.killCells, userId);
   return grades.map((g) => ({ id: String(g), title: `Grade ${g}` }));
 }
 
-/** Which subjects we hold a book for, in this grade. */
-async function subjectsOnOffer(grade) {
+/** Which subjects we hold a book for, in this grade, that this user is offered. */
+async function subjectsOnOffer(grade, userId) {
+  const g = await gradeGateFor([grade]);
   const { data } = await supabase
     .from('textbooks').select('subject').eq('curriculum', 'ict').eq('grade', Number(grade));
   return (data || [])
@@ -90,6 +103,7 @@ async function subjectsOnOffer(grade) {
       const band = GRADE_BANDS[s];
       return !band || band.includes(Number(grade));
     })
+    .filter((s) => GradeGate.cellAllowed(grade, s, g.flag, g.kill, g.killCells, userId))
     .map((s) => ({ id: s, title: SUBJECT_TITLE[s] || s }));
 }
 
@@ -1280,7 +1294,7 @@ async function handleInit(userId, flowToken) {
   }
 
   await writeSession(flowToken, { userId });
-  const grades = await gradesOnOffer();
+  const grades = await gradesOnOffer(userId);
   if (grades.length === 0) {
     // Nothing imported yet. Say so rather than showing an empty dropdown.
     return screen('CLASS', {
@@ -1290,7 +1304,7 @@ async function handleInit(userId, flowToken) {
   }
   // Subjects are filled in properly once she picks a grade; the first render
   // needs a non-empty list because the component requires one.
-  const subjects = await subjectsOnOffer(grades[0].id);
+  const subjects = await subjectsOnOffer(grades[0].id, userId);
   return screen('CLASS', { grades, subjects, error: '' });
 }
 
@@ -1338,21 +1352,21 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   if (screenId === 'CLASS') {
     const grade = Number(data.grade);
     const subject = String(data.subject || '');
-    const subjects = await subjectsOnOffer(grade);
+    const subjects = await subjectsOnOffer(grade, state.userId);
 
     // She picked a grade — the Grade Dropdown's on-select-action, not Continue.
     // Answer with THAT grade's subjects. Without this the list stays the one
     // INIT rendered for grades[0] (Grade 1), which has no Science or Social
     // Studies, so no G4/G5 teacher could ever see them (bd-g4jkt).
     if (data.trigger === 'grade_selected') {
-      return screen('CLASS', { grades: await gradesOnOffer(), subjects, error: '' });
+      return screen('CLASS', { grades: await gradesOnOffer(state.userId), subjects, error: '' });
     }
 
     // A stale client can submit a pair that is not on offer. Re-render rather
     // than accept it — the next screen would only fail on a missing book.
     if (!subjects.some((s) => s.id === subject)) {
       return screen('CLASS', {
-        grades: await gradesOnOffer(), subjects,
+        grades: await gradesOnOffer(state.userId), subjects,
         error: `We don't have that subject for Grade ${grade}. Please pick another.`,
       });
     }
@@ -1634,7 +1648,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   }
 
   logToFile('[assessment-flow] unknown screen', { screenId });
-  return screen('CLASS', { grades: await gradesOnOffer(), subjects: [], error: '' });
+  return screen('CLASS', { grades: await gradesOnOffer(state.userId), subjects: [], error: '' });
 }
 
 /**
@@ -1733,7 +1747,7 @@ async function submitFromCompletion({ flowToken, userId, outputFormat, answerLin
     await submit(state);
   } catch (err) {
     logToFile('[assessment-flow] submit failed', { error: err.message, userId: state.userId });
-    return { status: 'failed', code: 'SUBMIT_FAILED' };
+    return { status: 'failed', code: err.code === GRADE_NOT_OFFERED ? GRADE_NOT_OFFERED : 'SUBMIT_FAILED' };
   }
 
   // Cleared so a replayed or duplicated completion cannot queue a second job
@@ -1935,7 +1949,17 @@ async function chapterPageRange(state) {
   }
 }
 
+const GRADE_NOT_OFFERED = 'GRADE_NOT_OFFERED';
+
 async function submit(state) {
+  // The grade gate, in the ONE place both CONFIRM and submitFromCompletion pass through: a stale or
+  // forged session for a hidden grade queues nothing (contract 1 §3 E3b, E3c). Thrown, so each
+  // caller's existing failure path answers (CONFIRM: queue_failed screen; completion: failed).
+  const g = await gradeGateFor([state.grade]);
+  if (!GradeGate.cellAllowed(state.grade, state.subject, g.flag, g.kill, g.killCells, state.userId)) {
+    logToFile('[assessment-flow] grade gate refused', { userId: state.userId, grade: state.grade, subject: state.subject });
+    throw Object.assign(new Error('grade not offered'), { code: GRADE_NOT_OFFERED });
+  }
   const book = await bookFacts(state);
   const chapters = chaptersOf(state);
 

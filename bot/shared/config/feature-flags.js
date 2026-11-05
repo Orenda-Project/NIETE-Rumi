@@ -11,6 +11,7 @@
  */
 const supabase = require('./supabase');
 const { logToFile } = require('../utils/logger');
+const GradeGate = require('../services/assessment/grade-gate');
 
 const ASSESSMENT_GENERATOR_KEY = 'assessment_generator_enabled';
 
@@ -204,6 +205,59 @@ async function isQuizAuthorGatesV2() {
   }
 }
 
+/**
+ * G6-12 (contract 1 §4-§5). The three keys of the grade gate. The rules that judge them live in
+ * services/assessment/grade-gate.js, so this loader stays dumb: per call, no cache, raw decoded values.
+ */
+const ASSESSMENT_GRADES_6_12_KEY = 'assessment_grades_6_12';
+const ASSESSMENT_GRADES_6_12_KILL_KEY = 'assessment_grades_6_12_kill';
+const ASSESSMENT_GRADES_6_12_KILL_CELLS_KEY = 'assessment_grades_6_12_kill_cells';
+
+/** One app_settings value: undefined when the row is absent; a failed read throws. */
+async function readSetting(key) {
+  const { data, error } = await supabase.from('app_settings').select('value').eq('key', key).maybeSingle();
+  if (error) throw new Error(error.message || 'app_settings read failed');
+  return data ? data.value : undefined;
+}
+
+/** { flag, kill, killCells } for GradeGate; { flag: false } when the flag is off, absent or anything failed. */
+async function loadGradeGateSettings() {
+  try {
+    const flag = await readSetting(ASSESSMENT_GRADES_6_12_KEY);
+    // Off (absent, false, junk, an empty list) answers after this ONE read; prod has no row.
+    const value = decodeOnce(flag);
+    const mayAdmit = (Array.isArray(value) && value.length > 0) || GradeGate.isSixTwelveAdmitted(value, 'probe');
+    if (!mayAdmit) return { flag: false };
+    const [kill, killCells] = await Promise.all([
+      readSetting(ASSESSMENT_GRADES_6_12_KILL_KEY), readSetting(ASSESSMENT_GRADES_6_12_KILL_CELLS_KEY)]);
+    return { flag, kill, killCells };
+  } catch (err) {
+    logToFile('Grade-gate settings lookup failed — treating as off', { error: err?.message });
+    return { flag: false };
+  }
+}
+const GradeGateSettings = { load: loadGradeGateSettings };
+
+function decodeOnce(value) {
+  if (typeof value !== 'string') return value;
+  try { return JSON.parse(value); } catch (_) { return value; }
+}
+
+/**
+ * Bot port of dashboard/lib/feature-flags.js isFlagEnabledForUser: no `strict`, no cache, and no
+ * "teachers" (it needs a users read; here it answers false). One rule, GradeGate.isSixTwelveAdmitted;
+ * tests/portal/feature-flags-user-parity.test.js pins the two readers to the same answers.
+ */
+async function isFlagEnabledForUser(key, userId) {
+  if (typeof userId !== 'string' || userId === '') return false;
+  try {
+    return GradeGate.isSixTwelveAdmitted(await readSetting(key), userId);
+  } catch (err) {
+    logToFile('⚠️ Feature-flag lookup failed — treating as off', { key, error: err?.message });
+    return false;
+  }
+}
+
 module.exports = {
   ASSESSMENT_GENERATOR_KEY, ASSESSMENT_EDITING_KEY, ASSESSMENT_DOCX_KEY, ASSESSMENT_VERSIONS_KEY,
   isFlagEnabled, isAssessmentGeneratorEnabled, isAssessmentEditingEnabled,
@@ -214,4 +268,6 @@ module.exports = {
   ASSESSMENT_FDE_READER_PASS_SUBJECTS_KEY, fdeReaderPassSubjects,
   ASSESSMENT_FDE_STEM_CHECK_SUBJECTS_KEY, fdeStemCheckSubjects,
   ASSESSMENT_TOPIC_CTA_KEY, isAssessmentTopicCtaEnabled,
+  ASSESSMENT_GRADES_6_12_KEY, ASSESSMENT_GRADES_6_12_KILL_KEY, ASSESSMENT_GRADES_6_12_KILL_CELLS_KEY,
+  GradeGateSettings, isFlagEnabledForUser,
 };

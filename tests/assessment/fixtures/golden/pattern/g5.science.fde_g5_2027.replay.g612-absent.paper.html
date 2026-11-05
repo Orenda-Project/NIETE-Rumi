@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Grade 5 · Science · FDE pattern practice paper</title>
+<style>
+  @page { size: A4; }
+  @font-face{font-family:'PaperLatin';font-weight:400;font-style:normal;src:url(data:font/ttf;base64,<sha256:827bb7ceb0d744d56b4e62febbb36768d8d21be63a879054814d294afa3584ac>) format('truetype');}
+@font-face{font-family:'PaperLatin';font-weight:700;font-style:normal;src:url(data:font/ttf;base64,<sha256:4076c0ea1c671e17cb1f25f52c0cbb81c164b42d3259cad798d44fdbc4826efc>) format('truetype');}
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'PaperLatin',Arial,sans-serif;
+    font-size: 10.5pt; line-height: 1.45; color: #000; }
+  .num, .ascii, .ltr { direction: ltr; unicode-bidi: isolate; }
+  .ascii, .ltr { font-family: 'PaperLatin', Arial, sans-serif; }
+  .school { text-align: center; font-weight: 700; }
+  .title { text-align: center; font-weight: 700; font-size: 12.5pt; margin-top: 2px; }
+  .atoms { display: flex; justify-content: space-between; font-weight: 700; margin: 4px 0; }
+  .note { border: 1px solid #000; padding: 4px 8px; font-size: 9.5pt; margin: 4px 0 8px; break-inside: avoid; }
+  table.student { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 9.5pt; }
+  table.student td { border: 1px solid #000; padding: 3px 6px; height: 7mm; }
+  table.student td.k { background: #f0f0f0; font-weight: 700; white-space: nowrap; width: 22%; }
+  section.sec { break-inside: auto; }
+  .sec-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; border-top: 1.5px solid #000;
+    border-bottom: 1.5px solid #000; padding: 2px 0; margin: 10px 0 4px; break-after: avoid; font-weight: 700; }
+  .sec-head .t { text-align: left; font-weight: 400; }
+  .sec-head .l { text-align: center; padding: 0 8px; }
+  .sec-head .m { text-align: right; font-weight: 400; }
+  .sec-note { font-weight: 700; margin: 2px 0 6px; break-after: avoid; break-inside: avoid; }
+  .slot { margin: 6px 0 4px; }
+  .slot-head { display: flex; gap: 6px; align-items: baseline; font-weight: 700; margin: 6px 0 3px; break-after: avoid; break-inside: avoid; }
+  .slot-head .ml { margin-left: auto; white-space: nowrap; font-weight: 700; }
+  .slot-head .ins { font-weight: 700; }
+  .slot-head .lab { white-space: nowrap; flex: none; }
+  .q { margin: 3px 0 5px; padding-left: 6mm; break-inside: avoid; }
+  /* A slot's last item never sits alone at the top of a page. */
+  .slot > .q:last-child { break-before: avoid; }
+  .q .n { display: inline-block; min-width: 6mm; margin-left: -6mm; }
+  .q.qcont { padding-left: 0; }
+  .q.qcont .n { margin-left: 0; font-weight: 700; min-width: 0; margin-right: 4px; }
+  .opts { display: grid; gap: 1px 10px; margin: 2px 0 0; }
+  .opts.four { grid-template-columns: repeat(4, 1fr); }
+  .opts.two { grid-template-columns: repeat(2, 1fr); }
+  .opt .ol { margin-right: 3px; }
+  .work-box { border: 1px solid #555; margin: 3px 0 2px;
+    background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 7.5mm, #bbb 7.5mm, #bbb 7.8mm); }
+  .work-square { border: 1px solid #555; margin: 3px 0 2px; }
+  /* Inset from the end: a border on the content edge is clipped from the PDF (bd-5jmnfj.4.20). */
+  .write-box { border: 1.2px solid #000; margin: 2mm 0 1mm; margin-right: 0.5mm; }
+  .sq { display: inline-block; width: 9mm; height: 7mm; border: 1.2px solid #000; vertical-align: middle; margin: 0 2mm; }
+  .word-box.bank { display: flex; flex-wrap: wrap; justify-content: center; gap: 2mm 8mm; padding: 2mm 4mm; font-size: 13pt; break-after: avoid; break-inside: avoid; }
+  /* Picture cells sit in lines, not a flex grid (bd-5jmnfj.4.50.6): Chromium starts a flex grid on
+     its heading's page and pushes only the cells, so v22 left headings alone at a page foot. As
+     lines, the first row moves with its heading; one row is enough on either side of a break. */
+  .pic-grid { orphans: 1; widows: 1; }
+  .q.pic-cell { display: inline-block; vertical-align: top; width: 30%; margin: 0 0 4mm; margin-inline-end: 4mm; break-inside: avoid; }
+  /* border-box: the .q start padding is inside the 100%, so the box closes at the margin (bd-5jmnfj.4.58.2). */
+  .q.pic-cell.wide { display: block; width: 100%; box-sizing: border-box; margin-inline-end: 0; }
+  .q.pic-cell.wide .pic img { height: 44mm; }
+  table.data { border-collapse: collapse; margin: 4px 0; }
+  table.data th, table.data td { border: 1px solid #000; padding: 2px 10px; text-align: center; }
+  table.data th { background: #f0f0f0; }
+  svg.sym { width: .95em; height: .95em; vertical-align: -0.12em; margin: 0 .05em; }
+  .frac { display: inline-flex; flex-direction: column; vertical-align: middle; font-size: 0.8em; line-height: 1; text-align: center; margin: 0 1px; }
+  .frac sup, .frac sub { font-size: 1em; vertical-align: baseline; line-height: 1; }
+  .frac sup { border-bottom: 1px solid #000; }
+  .frame { position: relative; border: 1.2px solid #000; margin: 4px 0; break-inside: avoid; }
+  .frame-anchor { position: absolute; inset: 0; }
+  .frame-title { position: absolute; top: 2mm; left: 3mm; font-size: 8.5pt; color: #555; }
+  .frame-duty { position: absolute; top: 7mm; left: 3mm; font-size: 8pt; color: #555; }
+  .label-lines { position: absolute; right: 3mm; top: 8mm; bottom: 3mm; display: flex; flex-direction: column; justify-content: space-around; width: 45mm; }
+  .label-line { border-bottom: 1px solid #000; height: 6mm; }
+  .label-line .num-l { font-size: 8pt; color: #555; }
+  .word-box { border: 1px solid #000; padding: 2px 8px; margin: 3px 0; text-align: center; break-inside: avoid; }
+  .word-line { margin: 3px 0; }
+  
+  .alpha-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 10px; border: 1px solid #888; padding: 3px 8px; margin: 3px 0 5px; font-size: 1.15em; break-inside: avoid; }
+  .rl { height: 9.5mm; border-bottom: 1px solid #000; margin: 0; break-inside: avoid; display: flex; align-items: flex-end; }
+  .rl .rn { font-size: .85em; min-width: 6mm; }
+  .passage.reprint { break-before: page; }
+  .rp-head { font-weight: 700; font-size: .85em; }
+  .passage { border: 1px solid #888; padding: 4px 8px; margin: 3px 0 5px; text-align: justify; break-inside: avoid; }
+  /* A passage and its parts are too tall to move as one block: the page may break between parts. */
+  .q.comp { break-inside: auto; }
+  .verse { text-align: center; margin: 3px 0 5px; }
+  .part { margin: 4px 0; break-inside: avoid; }
+  .part-head { display: flex; gap: 6px; align-items: baseline; font-weight: 700; }
+  .part-head .ml { margin-left: auto; }
+  .sub { margin: 2px 0 2px 0; padding-left: 6mm; }
+  .sub .n { display: inline-block; min-width: 6mm; margin-left: -6mm; }
+  .pick-row { display: flex; gap: 8px; align-items: baseline; margin: 2px 0; }
+  .pick-k { min-width: 22mm; font-weight: 700; }
+  .blank { display: inline-block; min-width: 28mm; border-bottom: 1px dashed #000; margin: 0 4px; font-size: 7pt; color: #777; }
+  .ant-row { display: flex; gap: 14mm; margin: 2px 0; }
+  .or { text-align: center; font-weight: 700; margin: 2px 0; break-before: avoid; break-after: avoid; }
+  .slot.either { break-inside: avoid; }
+  .slot.short { break-inside: avoid; }
+  .or-lead, .alt { font-weight: 700; }
+  .sit { margin-top: 3px; }
+  
+  .topics { display: flex; gap: 10mm; flex-wrap: wrap; }
+  
+  .pic { margin: 4px 0; break-inside: avoid; }
+  .pic img { height: 28mm; width: auto; }
+  .pic-count { display: flex; flex-wrap: wrap; gap: 3mm; }
+  .pic-count img { height: 14mm; }
+  .pic-dots img, .pic-clock img { height: 24mm; }
+  .pic-shapes img { height: 22mm; }
+  .pic-scene img { height: 45mm; }
+  .pic-plant img { height: 60mm; }
+  .pic-circuit img { height: 62mm; }
+  .frame .pic-circuit { margin: 3mm; }
+  /* A G5 picture frame (Urdu Q7, English Q10): the scene fills the 70mm frame, centred, inside its border.
+     v29 printed it at the Grade 1-2 45mm height, a quarter of the frame, at the frame's start. */
+  .frame > .pic-scene { position: absolute; inset: 3mm; margin: 0; display: flex; align-items: center; justify-content: center; }
+  .frame > .pic-scene img { width: 100%; height: 100%; object-fit: contain; }
+  .bubble-row { display: flex; align-items: flex-start; gap: 6mm; break-inside: avoid; }
+  .bubble { position: relative; width: 62mm; height: 26mm; margin-top: 4mm; border: 0.5mm solid #000; border-radius: 50%; }
+  /* The tail is an outline, a white triangle over a black one: a solid one read as an arrowhead (bd-5jmnfj.4.40).
+     It sits at the middle of the side, where the ellipse's edge is; the white one covers the border so the
+     tail opens into the bubble. Placed low, it stood apart and read as "<". */
+  .bubble::before { content: ''; position: absolute; left: -6mm; top: 50%; margin-top: -3mm; border-style: solid;
+    border-width: 3mm 6.5mm 3mm 0; border-color: transparent #000 transparent transparent; }
+  .bubble::after { content: ''; position: absolute; left: -4.4mm; top: 50%; margin-top: -2.3mm; border-style: solid;
+    border-width: 2.3mm 5mm 2.3mm 0; border-color: transparent #fff transparent transparent; }
+
+  
+  .pic img { max-height: var(--pic-fit, none); }
+  .pic-row, .pic-tail { break-inside: avoid; }
+  /* Three cells to a line: border-box keeps the start padding inside the width (content-box fitted two). */
+  .q.pic-cell { box-sizing: border-box; width: calc(33.333% - 4.2mm); }
+  .q.pic-cell.pair { width: calc(50% - 4.2mm); }
+  .q.pic-cell.pair .pic-scene img { height: 50mm; }
+  .q.pic-cell.wide { display: grid; grid-template-columns: 56mm 1fr; column-gap: 4mm; align-items: center; width: 100%; }
+  .q.pic-cell.wide > .n { grid-column: 1 / -1; }
+  .q.pic-cell.wide > .pic { grid-column: 1; margin: 0; }
+  .q.pic-cell.wide > .write-box { grid-column: 2; margin: 0; }
+  .subq { break-inside: avoid; }
+  .work-square { width: 100%; box-sizing: border-box; }
+  .q.solo-scene .pic-scene { text-align: center; }
+  .q.solo-scene .pic-scene img { height: auto; width: 130mm; max-width: 100%; max-height: none; }
+  
+  table.match-table { border-collapse: collapse; margin: 3px 0; break-inside: avoid; }
+  table.match-table td { padding: 2mm 0; vertical-align: middle; }
+  table.match-table td.m-gap { width: 40mm; }
+
+  </style></head>
+<body data-grade="5">
+<div class="school">School: ____________</div>
+<div class="title">Grade 5 · Science · FDE pattern practice paper</div>
+<div class="atoms"><span>Time Allowed: 3 Hours</span><span>Total Marks: 100</span></div>
+<div class="note">Note: This paper consists of THREE Sections. Section – A needs to be solved on the Question Paper. Section B&amp;C to be solved on the Answer Sheet. Cutting, erasing and overwriting is not allowed.</div>
+<table class="student">
+  <tr><td class="k">Student Name</td><td colspan="3"></td></tr>
+  <tr><td class="k">Roll No</td><td></td><td class="k">Date</td><td></td></tr>
+  <tr><td class="k">Total Marks</td><td>100</td><td class="k">Obtained Marks</td><td></td></tr>
+</table>
+<section class="sec" data-section="A"><div class="sec-head"><span class="t">Time Allowed: 30 minutes</span><span class="l">Section A</span><span class="m">Total Marks: 25</span></div><div class="slot"><div class="slot-head"><span class="lab">Q1 (a):</span> <span class="ins">Encircle the correct answer.</span><span class="ml">(1×20=20)</span></div><div class="q" data-slot="science.A.Q1a"><span class="n">i)</span> Which system carries oxygen and food to every part of the body?<div class="opts two"><span class="opt"><span class="ol">(a)</span> digestive system</span><span class="opt"><span class="ol">(b)</span> nervous system</span><span class="opt"><span class="ol">(c)</span> circulatory system</span><span class="opt"><span class="ol">(d)</span> skeletal system</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">ii)</span> The brain sends messages to the rest of the body through the<div class="opts four"><span class="opt"><span class="ol">(a)</span> lungs</span><span class="opt"><span class="ol">(b)</span> bones</span><span class="opt"><span class="ol">(c)</span> nerves</span><span class="opt"><span class="ol">(d)</span> muscles</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">iii)</span> Which body system breaks food down into simple substances?<div class="opts two"><span class="opt"><span class="ol">(a)</span> nervous system</span><span class="opt"><span class="ol">(b)</span> skeletal system</span><span class="opt"><span class="ol">(c)</span> digestive system</span><span class="opt"><span class="ol">(d)</span> respiratory system</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">iv)</span> Which of these diseases is spread by mosquitoes?<div class="opts four"><span class="opt"><span class="ol">(a)</span> diabetes</span><span class="opt"><span class="ol">(b)</span> dengue</span><span class="opt"><span class="ol">(c)</span> scurvy</span><span class="opt"><span class="ol">(d)</span> tooth decay</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">v)</span> Which habit best stops germs passing from our hands to our food?<div class="opts two"><span class="opt"><span class="ol">(a)</span> eating quickly</span><span class="opt"><span class="ol">(b)</span> drinking cold water</span><span class="opt"><span class="ol">(c)</span> sleeping early</span><span class="opt"><span class="ol">(d)</span> washing hands with soap</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">vi)</span> In the food chain grass <svg class="sym" viewBox="0 0 16 16" role="img" aria-label="→"><path d="M1 8h12M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> goat <svg class="sym" viewBox="0 0 16 16" role="img" aria-label="→"><path d="M1 8h12M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> lion, the goat is a<div class="opts two"><span class="opt"><span class="ol">(a)</span> primary consumer</span><span class="opt"><span class="ol">(b)</span> producer</span><span class="opt"><span class="ol">(c)</span> decomposer</span><span class="opt"><span class="ol">(d)</span> secondary consumer</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">vii)</span> Bacteria and fungi that break down dead plants and animals are called<div class="opts four"><span class="opt"><span class="ol">(a)</span> producers</span><span class="opt"><span class="ol">(b)</span> decomposers</span><span class="opt"><span class="ol">(c)</span> herbivores</span><span class="opt"><span class="ol">(d)</span> carnivores</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">viii)</span> Green plants are called producers because they<div class="opts two"><span class="opt"><span class="ol">(a)</span> eat insects</span><span class="opt"><span class="ol">(b)</span> live in soil</span><span class="opt"><span class="ol">(c)</span> break down waste</span><span class="opt"><span class="ol">(d)</span> make their own food</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">ix)</span> Smoke from factories and vehicles mainly causes<div class="opts two"><span class="opt"><span class="ol">(a)</span> soil pollution</span><span class="opt"><span class="ol">(b)</span> water pollution</span><span class="opt"><span class="ol">(c)</span> noise pollution</span><span class="opt"><span class="ol">(d)</span> air pollution</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">x)</span> Which of these is biodegradable?<div class="opts four"><span class="opt"><span class="ol">(a)</span> a tin can</span><span class="opt"><span class="ol">(b)</span> a banana peel</span><span class="opt"><span class="ol">(c)</span> a plastic bag</span><span class="opt"><span class="ol">(d)</span> a glass bottle</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">xi)</span> Which of these is a chemical change?<div class="opts two"><span class="opt"><span class="ol">(a)</span> melting ice</span><span class="opt"><span class="ol">(b)</span> tearing paper</span><span class="opt"><span class="ol">(c)</span> dissolving salt</span><span class="opt"><span class="ol">(d)</span> cooking an egg</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">xii)</span> Which change can be reversed easily?<div class="opts two"><span class="opt"><span class="ol">(a)</span> melting of wax</span><span class="opt"><span class="ol">(b)</span> cooking rice</span><span class="opt"><span class="ol">(c)</span> burning wood</span><span class="opt"><span class="ol">(d)</span> rusting of iron</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">xiii)</span> An object that does not let any light pass through it is<div class="opts four"><span class="opt"><span class="ol">(a)</span> opaque</span><span class="opt"><span class="ol">(b)</span> transparent</span><span class="opt"><span class="ol">(c)</span> translucent</span><span class="opt"><span class="ol">(d)</span> luminous</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">xiv)</span> Which of these is translucent?<div class="opts four"><span class="opt"><span class="ol">(a)</span> a brick wall</span><span class="opt"><span class="ol">(b)</span> clear glass</span><span class="opt"><span class="ol">(c)</span> frosted glass</span><span class="opt"><span class="ol">(d)</span> a wooden door</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">xv)</span> Which of these is a natural source of light?<div class="opts four"><span class="opt"><span class="ol">(a)</span> the Sun</span><span class="opt"><span class="ol">(b)</span> the Moon</span><span class="opt"><span class="ol">(c)</span> a mirror</span><span class="opt"><span class="ol">(d)</span> a torch</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">xvi)</span> Sound is produced when an object<div class="opts four"><span class="opt"><span class="ol">(a)</span> shines</span><span class="opt"><span class="ol">(b)</span> cools down</span><span class="opt"><span class="ol">(c)</span> vibrates</span><span class="opt"><span class="ol">(d)</span> stops moving</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">xvii)</span> Sound travels fastest through<div class="opts four"><span class="opt"><span class="ol">(a)</span> steel</span><span class="opt"><span class="ol">(b)</span> air</span><span class="opt"><span class="ol">(c)</span> water</span><span class="opt"><span class="ol">(d)</span> empty space</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">xviii)</span> Which of these is attracted to a magnet?<div class="opts four"><span class="opt"><span class="ol">(a)</span> a cotton cloth</span><span class="opt"><span class="ol">(b)</span> an iron nail</span><span class="opt"><span class="ol">(c)</span> a wooden spoon</span><span class="opt"><span class="ol">(d)</span> a glass marble</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">xix)</span> Which of these is a good conductor of electricity?<div class="opts two"><span class="opt"><span class="ol">(a)</span> a wooden stick</span><span class="opt"><span class="ol">(b)</span> copper wire</span><span class="opt"><span class="ol">(c)</span> a rubber band</span><span class="opt"><span class="ol">(d)</span> a plastic ruler</span></div></div><div class="q" data-slot="science.A.Q1a"><span class="n">xx)</span> An echo is<div class="opts two"><span class="opt"><span class="ol">(a)</span> a soft sound</span><span class="opt"><span class="ol">(b)</span> a musical sound</span><span class="opt"><span class="ol">(c)</span> a loud sound</span><span class="opt"><span class="ol">(d)</span> a reflected sound</span></div></div></div><div class="slot short"><div class="slot-head"><span class="lab">Q1 (b):</span> <span class="ins">Label the given Diagram</span><span class="ml">(5 Marks)</span></div><div class="q" data-slot="science.A.Q1b"><div class="frame" id="fde-frame-science.A.Q1b" style="height:70mm"><a class="frame-anchor" href="#fde-frame-science.A.Q1b"></a><div class="frame-title">Diagram: Layers of the Earth</div><div class="frame-duty">Teacher: draw or paste the diagram to label here (book p. 168) before photocopying.</div><div class="label-lines"><div class="label-line"><span class="num-l">1.</span></div><div class="label-line"><span class="num-l">2.</span></div><div class="label-line"><span class="num-l">3.</span></div><div class="label-line"><span class="num-l">4.</span></div><div class="label-line"><span class="num-l">5.</span></div></div></div></div></div></section>
+<section class="sec" data-section="B"><div class="sec-head"><span class="t">Time Allowed: 2 hrs. 30 min</span><span class="l">Section B</span><span class="m">Total Marks: 17</span></div><div class="sec-note">NOTE: Section B consists of 2 parts (a) and (b)</div><div class="slot either short"><div class="slot-head"><span class="lab">Q2 (a)</span> <span class="ins">Draw and label any one of the following:</span><span class="ml">(7 Marks)</span></div><div class="q" data-slot="science.B.Q2a"><span class="n">(i)</span> Respiratory System</div><div class="or">OR</div><div class="q" data-slot="science.B.Q2a"><span class="n">(ii)</span> Food Chain</div></div><div class="slot short"><div class="slot-head"><span class="lab">Q2 (b)</span> <span class="ins">Read and attempt any TWO of the following given situations carefully.</span><span class="ml">(2 × 5 = 10)</span></div><div class="q" data-slot="science.B.Q2b"><div class="sit"><span class="n">(i)</span> <b>Situation:</b> You put three iron nails in three places: one in a cup of tap water, one in a cup of cooking oil, and one in a dry, closed jar. After one week you look at all three nails.</div><div class="part-head"><span class="ins">Answer any two of the given questions.</span><span class="ml">(2 × 2.5 = 5)</span></div><div class="sub"><span class="n">a)</span> Which nail has rusted, and what does rust look like?</div><div class="sub"><span class="n">b)</span> Why did the nail in oil not rust?</div><div class="sub"><span class="n">c)</span> Is rusting a physical or a chemical change? Give one reason.</div></div><div class="q" data-slot="science.B.Q2b"><div class="sit"><span class="n">(ii)</span> <b>Situation:</b> You stir a spoonful of sugar into a glass of warm water. Then, with your teacher watching, you burn a small piece of paper on a steel plate.</div><div class="part-head"><span class="ins">Answer any two of the given questions.</span><span class="ml">(2 × 2.5 = 5)</span></div><div class="sub"><span class="n">a)</span> What happens to the sugar? Can you get it back, and how?</div><div class="sub"><span class="n">b)</span> What is left after the paper burns? Can it be made into paper again?</div><div class="sub"><span class="n">c)</span> Which activity shows a chemical change? Give one reason.</div></div></div></section>
+<section class="sec" data-section="C"><div class="sec-head"><span class="t"></span><span class="l">Section C</span><span class="m">Total Marks: 58</span></div><div class="sec-note">Note: Section C consists of two parts: Q3 (a) and Q3 (b)</div><div class="slot"><div class="slot-head"><span class="lab">Q3 (a).</span> <span class="ins">Answer any eight of the following nine questions briefly.</span><span class="ml">(8×5=40)</span></div><div class="q" data-slot="science.C.Q3a"><span class="n">1.</span> Name the three main jobs of the skeletal system.</div><div class="q" data-slot="science.C.Q3a"><span class="n">2.</span> Why do we breathe faster after running?</div><div class="q" data-slot="science.C.Q3a"><span class="n">3.</span> Write two differences between contagious and non-contagious diseases. Give one example of each.</div><div class="q" data-slot="science.C.Q3a"><span class="n">4.</span> What are microorganisms? Write two ways in which they are useful to us.</div><div class="q" data-slot="science.C.Q3a"><span class="n">5.</span> How is a food web different from a food chain?</div><div class="q" data-slot="science.C.Q3a"><span class="n">6.</span> Sort these into physical and chemical changes: melting butter, burning wood, freezing water, baking a cake, cutting paper.</div><div class="q" data-slot="science.C.Q3a"><span class="n">7.</span> Why can we see our face in a mirror but not in a wooden board?</div><div class="q" data-slot="science.C.Q3a"><span class="n">8.</span> How does the sound of the school bell reach our ears?</div><div class="q" data-slot="science.C.Q3a"><span class="n">9.</span> Why is it dangerous to touch an electric switch with wet hands?</div></div><div class="slot short"><div class="slot-head"><span class="lab">Q3 (b).</span> <span class="ins">Answer any two of the following questions comprehensively.</span><span class="ml">(2 × 9 = 18)</span></div><div class="q" data-slot="science.C.Q3b"><span class="n">1.</span> Describe the journey of food through the digestive system, from the mouth to the large intestine. Say what happens in each part.</div><div class="q" data-slot="science.C.Q3b"><span class="n">2.</span> What causes air pollution? Explain how it affects our health and our surroundings, and suggest three ways to reduce it.</div><div class="q" data-slot="science.C.Q3b"><span class="n">3.</span> Explain how a shadow is formed. How does the shadow of a flagpole change from morning to noon to evening?</div><div class="q" data-slot="science.C.Q3b"><span class="n">4.</span> What is a magnet? Explain how you can turn an iron nail into a magnet, and write three uses of magnets in daily life.</div><div class="q" data-slot="science.C.Q3b"><span class="n">5.</span> Explain how electricity flows in a simple circuit made of a cell, a switch, wires and a bulb. What happens when the switch is opened? Why are electric wires covered with plastic?</div></div></section>
+</body></html>

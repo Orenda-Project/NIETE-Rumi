@@ -1,0 +1,143 @@
+{
+  "create": {
+    "statusCode": 202,
+    "payload": {
+      "success": true,
+      "requestId": "assessment_requests-1"
+    }
+  },
+  "outcome": {
+    "jobType": "assessment_generate",
+    "job": {
+      "userId": "u-golden-1",
+      "requestId": "assessment_requests-1",
+      "grade": 2,
+      "subject": "english",
+      "chapterNumber": null,
+      "chapterNumbers": null,
+      "pageRanges": "1-159",
+      "contentSource": "unseen",
+      "questionCount": 42,
+      "totalMarks": null,
+      "seenCount": null,
+      "questionTypes": [
+        {
+          "id": "Read and Answer",
+          "count": 1,
+          "category": "subjective",
+          "slot": "g2.english.A.Q1"
+        },
+        {
+          "id": "Sentences from Words",
+          "count": 3,
+          "category": "subjective",
+          "slot": "g2.english.B.Q2"
+        },
+        {
+          "id": "Rhyming Pairs",
+          "count": 3,
+          "category": "subjective",
+          "slot": "g2.english.B.Q3"
+        },
+        {
+          "id": "Spelling",
+          "count": 2,
+          "category": "subjective",
+          "slot": "g2.english.B.Q4"
+        },
+        {
+          "id": "Is Am Are",
+          "count": 3,
+          "category": "objective",
+          "slot": "g2.english.B.Q5"
+        },
+        {
+          "id": "Missing Letters",
+          "count": 3,
+          "category": "subjective",
+          "slot": "g2.english.B.Q6"
+        },
+        {
+          "id": "Opposites",
+          "count": 3,
+          "category": "subjective",
+          "slot": "g2.english.B.Q7"
+        },
+        {
+          "id": "Singular Plural",
+          "count": 3,
+          "category": "subjective",
+          "slot": "g2.english.B.Q8"
+        },
+        {
+          "id": "Has Have",
+          "count": 3,
+          "category": "objective",
+          "slot": "g2.english.B.Q9"
+        },
+        {
+          "id": "Prepositions",
+          "count": 5,
+          "category": "subjective",
+          "slot": "g2.english.B.Q10"
+        },
+        {
+          "id": "Pronouns",
+          "count": 4,
+          "category": "subjective",
+          "slot": "g2.english.C.Q11"
+        },
+        {
+          "id": "Paragraph",
+          "count": 1,
+          "category": "subjective",
+          "slot": "g2.english.C.Q12"
+        },
+        {
+          "id": "Articles",
+          "count": 3,
+          "category": "objective",
+          "slot": "g2.english.C.Q13"
+        },
+        {
+          "id": "Punctuation",
+          "count": 3,
+          "category": "subjective",
+          "slot": "g2.english.C.Q14"
+        },
+        {
+          "id": "Picture Description",
+          "count": 1,
+          "category": "subjective",
+          "slot": "g2.english.C.Q15"
+        },
+        {
+          "id": "Story Order",
+          "count": 1,
+          "category": "subjective",
+          "slot": "g2.english.C.Q16"
+        }
+      ],
+      "includeAnswerKey": true,
+      "answerLines": true,
+      "outputFormat": "pdf",
+      "deliver": "none",
+      "pattern": "fde_g2_2026",
+      "scope": {
+        "kind": "fde",
+        "chapters": null,
+        "pages": "1-159"
+      }
+    },
+    "returned": {
+      "status": "failed",
+      "code": "ORAL_SHORT",
+      "paperId": "assessment_papers-2"
+    }
+  },
+  "uploads": [],
+  "row": {
+    "status": "failed",
+    "error": null
+  }
+}
