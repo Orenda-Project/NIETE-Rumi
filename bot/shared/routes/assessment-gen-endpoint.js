@@ -1949,7 +1949,7 @@ async function chapterPageRange(state) {
   }
 }
 
-const GRADE_NOT_OFFERED = 'GRADE_NOT_OFFERED';
+const GRADE_NOT_OFFERED = 'NOT_ELIGIBLE'; // lifecycle vocabulary: a deliberate policy
 
 async function submit(state) {
   // The grade gate, in the ONE place both CONFIRM and submitFromCompletion pass through: a stale or
