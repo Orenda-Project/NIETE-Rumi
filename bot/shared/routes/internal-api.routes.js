@@ -33,6 +33,9 @@ const express = require('express');
 const { logToFile, logError } = require('../utils/logger');
 const { clampLanguage } = require('../config/ux-strings');
 const { requireInternalKey } = require('../middleware/require-internal-key');
+// Out of the doc comment above, where #913 first put it: inside /* */ this line never ran and
+// POST /training/bands/state threw "teacherLevelOf is not defined" for every teacher (15 Sep 2026).
+const { teacherLevelOf } = require('../utils/teacher-level');
 
 const router = express.Router();
 
@@ -2200,7 +2203,7 @@ router.post('/lp612/lessons', requireInternalKey, lp612Route('lessons', async (B
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
   if (!chapterKey) return res.status(400).json({ success: false, error: 'chapterKey is required' });
 
-  const lang = body.lang === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(body.lang);
   // bd-5rz1v.14 — the teacher whose ✓✓ Sent marks the list (the portal passes its session's).
   const userId = String(body.userId || '').trim() || null;
   const lessons = await Browse.listLessons(grade, subject, chapterKey, lang, userId);
@@ -2233,7 +2236,7 @@ router.post('/lp612/request', requireInternalKey, async (req, res) => {
     const out = await Serving.requestLesson({
       segmentId,
       userId,
-      lang: body.lang === 'ur' ? 'ur' : 'en',
+      lang: clampLanguage(body.lang),
       surface: 'portal',
       correlationId: body.correlationId || null,
       // bd-4joiqz — a leader READING the plan (the portal decided it from users): their claim on the render is kept
@@ -2411,7 +2414,7 @@ router.post('/training/bands/state', requireInternalKey, bandsRoute('state', asy
   const supabase = require('../config/supabase');
   const { data: user, error } = await supabase
     .from('users')
-    .select('training_bands, training_bands_updated_at')
+    .select('teacher_level, teacher_level_updated_at')
     .eq('id', userId)
     .single();
   if (error) throw error;
@@ -2420,7 +2423,7 @@ router.post('/training/bands/state', requireInternalKey, bandsRoute('state', asy
   return res.json({
     success: true,
     options: Bands.BANDS.map((b) => ({ id: b.key, title: b.label })),
-    selected: Array.isArray(user && user.training_bands) ? user.training_bands : [],
+    selected: teacherLevelOf(user),
     can_change: gate.allowed,
     is_first_selection: gate.isFirstSelection,
     hours_remaining: gate.hoursRemaining,

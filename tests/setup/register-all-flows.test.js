@@ -109,9 +109,17 @@ describe('register-all-flows', () => {
     // Re-armed at 22 on 2026-09-30: /observe2 — the live field form and the evidence check.
     // Re-armed at 23 on 2026-10-02: the child test's check Flow (the coach confirms the marks).
     // Re-armed at 24 on 2026-10-04: the child test's end-of-visit review Flow (bd-s1oo0.46, L28).
-    it('exports an array of all 24 registerable flow configurations (24th: Child Test Review, bd-s1oo0.46)', () => {
+    // Re-armed at 25 on 2026-11-04, when staging was merged back: Student Join, the legacy
+    // join Flow STUDENT_JOIN_FLOW_ID still serves, had only ever been published by hand;
+    // staging registered it on 2026-09-06 and this tree now does too.
+    //
+    // THE NUMBER DIFFERS BY BRANCH, deliberately. The branches do not carry the
+    // same set of Flows (staging still has Pic-to-LP Confirm, which this tree
+    // removed with the pic-to-LP feature). Read the count off the tree you are on
+    // rather than copying it across a cherry-pick.
+    it('exports an array of all 25 registerable flow configurations (25th: Student Join)', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
-      expect(FLOW_CONFIGS).toHaveLength(24);
+      expect(FLOW_CONFIGS).toHaveLength(25);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {

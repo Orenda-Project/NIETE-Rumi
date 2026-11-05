@@ -407,13 +407,14 @@ describe('All 4 dispatch touchpoints wire fico (bd-2039 audit)', () => {
     expect(groups[0].max).toBe(28);
   });
 
-  test('renderer-registry: fico → hero renderer (not the pdfkit fallback)', () => {
+  // bd-2453 (2026-08-01) gave fico the NIETE-branded hero renderer, key 'hero-niete'.
+  test('renderer-registry: fico → NIETE hero renderer (not the pdfkit fallback)', () => {
     jest.resetModules();
     const { getReportRenderer } = require(
       '../../bot/shared/services/coaching/report-renderers/renderer-registry'
     );
     const r = getReportRenderer('fico');
     expect(r).toBeDefined();
-    expect(r.key).toBe('hero');
+    expect(r.key).toBe('hero-niete');
   });
 });

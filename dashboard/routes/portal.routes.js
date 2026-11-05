@@ -6787,7 +6787,8 @@ router.post('/training/level/:id/grand-quiz/attempts', requirePortalAuth, async 
         .eq('status', 'in_progress');
       if (wanted) q = q.eq('id', wanted);
       const { data: openRows } = await q.order('started_at', { ascending: false }).limit(1);
-      openAttempt = (openRows || [])[0] || null;
+      // Re-checked here as well as filtered above: only HER attempt that is still OPEN is closed.
+      openAttempt = (openRows || []).find((r) => r.status === 'in_progress' && r.user_id === userId) || null;
     }
     // No open attempt (a page that posts without opening the exam first): the
     // paper is drawn for a new attempt id here, and the attempt is written in

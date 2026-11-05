@@ -106,9 +106,7 @@ async function _writeMetrics(coachingSessionId, patch) {
     if (error) throw new Error(error.message);
     return true;
   } catch (err) {
-    logToFile('Coaching Feedback: metrics write failed', {
-      coachingSessionId, patch, error: err.message,
-    });
+    logToFile('Coaching Feedback: metrics write failed', { coachingSessionId, error: err.message });
     return false;
   }
 }
@@ -234,12 +232,17 @@ async function handleFeedbackButton(buttonId, phone, opts = {}) {
 
   // 👎 — open a short window so her next plain text is read as the answer to
   // "what could we do better?" rather than routed to the bot's normal intent handling.
+  // A window that cannot be opened is logged, and the question still goes.
   if (userId) {
-    await redisService.set(
-      REDIS_REASON_KEY(userId),
-      { coachingSessionId, promptedAt: Date.now() },
-      REASON_WINDOW_SECS,
-    );
+    try {
+      await redisService.set(
+        REDIS_REASON_KEY(userId),
+        { coachingSessionId, promptedAt: Date.now() },
+        REASON_WINDOW_SECS,
+      );
+    } catch (err) {
+      logToFile('Coaching Feedback: reason window not opened', { coachingSessionId, error: err.message });
+    }
   }
   await WhatsAppService.sendMessage(phone, ux('coachingSurveyAskReason', language));
   return true;

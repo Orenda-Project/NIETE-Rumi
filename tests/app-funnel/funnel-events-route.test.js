@@ -232,7 +232,10 @@ describe('abuse limits', () => {
   });
 });
 
-describe('a link session (a template button\'s area) is part of the journey too', () => {
+// The template-button link area (dashboard/routes/portal-link.routes.js) is not on every branch yet (sandbox has it,
+// staging/main do not as of 13 Oct 2026); the interaction is tested wherever the module exists.
+const HAS_LINK_SCOPE = require('fs').existsSync(require('path').join(__dirname, '..', '..', 'dashboard', 'routes', 'portal-link.routes.js'));
+(HAS_LINK_SCOPE ? describe : describe.skip)('a link session (a template button\'s area) is part of the journey too', () => {
   test('the link-area scope lets POST /funnel/events through and still refuses everything else outside its area', async () => {
     const { portalLinkScope } = require('../../dashboard/routes/portal-link.routes');
     const a = express();

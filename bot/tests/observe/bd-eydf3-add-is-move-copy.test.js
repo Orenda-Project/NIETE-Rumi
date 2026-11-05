@@ -52,24 +52,35 @@ const UID = 'coach-a';
 const step = (s, data = {}) =>
   handler.handle(UID, 'data_exchange', '', { step: s, ...data }, UID, { id: UID, preferred_language: 'en' });
 
-describe('the TEACHER_ACTION intro names every action it offers', () => {
-  it('RED: it names add, remove AND edit', async () => {
+// TEACHER_ACTION is a NavigationList now (staging's one-tap design, on main): Meta refuses any
+// text beside a list, so the intro sentence is gone and each row carries its own words. The
+// same promises are pinned on the rows: every action is offered, Add says it also MOVES a
+// teacher, and the school is named in full with no Flow reference leaking through.
+const rowsOf = (res) => (res.data.items || []).map((r) => ({
+  id: r.id,
+  text: `${r['main-content'].title} ${r['main-content'].metadata || ''}`,
+}));
+
+describe('the TEACHER_ACTION rows name every action they offer', () => {
+  it('RED: it offers add, remove AND edit', async () => {
     const res = await step('teacher_action_open', { school_ext_id: 'niete:916' });
     expect(res.screen).toBe('TEACHER_ACTION');
-    const intro = String(res.data.intro).toLowerCase();
-    for (const word of ['add', 'remove', 'edit']) expect(intro).toContain(word);
+    const text = rowsOf(res).map((r) => r.text).join(' | ').toLowerCase();
+    for (const word of ['add', 'remove', 'edit']) expect(text).toContain(word);
   });
 
-  it('RED: it says that adding a teacher who is elsewhere moves them here', async () => {
+  it('RED: the Add row says that adding a teacher who is elsewhere moves them here', async () => {
     const res = await step('teacher_action_open', { school_ext_id: 'niete:916' });
+    const add = rowsOf(res).find((r) => r.id === 'add');
     // \b-anchored: "remove" contains "move", and that is the whole confusion.
-    expect(String(res.data.intro).toLowerCase()).toMatch(/\bmove[sd]?\b/);
+    expect(String(add && add.text).toLowerCase()).toMatch(/\bmove[sd]?\b/);
   });
 
   it('still names the school in full, and never leaks a Flow reference', async () => {
     const res = await step('teacher_action_open', { school_ext_id: 'niete:916' });
-    expect(res.data.intro).toContain('IMCG, G-10/2');
-    expect(res.data.intro).not.toContain('${');
+    const add = rowsOf(res).find((r) => r.id === 'add');
+    expect(add.text).toContain('IMCG, G-10/2');
+    for (const r of rowsOf(res)) expect(r.text).not.toContain('${');
   });
 
   it('RED: the sentence is catalogue copy, present in both languages, gender-neutral', () => {

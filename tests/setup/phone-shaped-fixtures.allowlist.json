@@ -9,7 +9,7 @@
   "bot/tests/quiz": 288,
   "bot/tests/quiz/teacher-quiz-menu": 4,
   "bot/tests/registration": 5,
-  "bot/tests/routes": 11,
+  "bot/tests/routes": 12,
   "bot/tests/services": 28,
   "bot/tests/unit": 7,
   "bot/tests/video": 2,

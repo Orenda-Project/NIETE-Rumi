@@ -72,7 +72,10 @@ describe('GET /config — the flag reads run together', () => {
     }
     await done;
 
-    expect(started).toBe(9); // sandbox's eight flags, and coach_disagreement_card (bd-tbprit.1)
+    // Every read in /config's Promise.all: the eight first-paint flags, coach_disagreement_card, and the switches
+    // added since (Learning assessment, the three teacher-Home keys, intl sign-in numbers, COACHIP x3, School card,
+    // role switch).
+    expect(started).toBe(19);
     expect(payload.features).toMatchObject({
       assessmentGenerator: true,
       assessmentEditing: true,

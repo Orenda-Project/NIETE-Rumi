@@ -1,7 +1,7 @@
 'use strict';
 /**
  * How we address a teacher or coach in Urdu when we do not know their gender —
- * which is always (bd-2453, bd-1hae7.19).
+ * which is always.
  *
  * NIETE's teachers, coaches and AEOs are mixed-gender and nothing in our data
  * tells us which is on the other end. Guessing wrong is not a grammar slip: a

@@ -1467,7 +1467,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
 
   # ── Edit a teacher from the PORTAL (coach v2, bd-o15qnr.13) ─────────────────
   # Dark behind app_settings.portal_coach_v2. Name, teaching level, role and
-  # phone save through main's /observe "Edit a teacher" path, ported to sandbox
+  # phone save through main's /observe "Edit a teacher" path, ported to sandbox and staging
   # (teacher-edit.service.js planners + teacher-edit-commit.service.js writes),
   # reached by the portal through POST /api/internal/observe/teacher-edit, run
   # as the coach. School and Remove stay on commitAdd / commitRemovals.

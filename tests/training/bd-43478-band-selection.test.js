@@ -101,108 +101,115 @@ describe('canChangeBands — the 48h cooldown', () => {
   });
 
   test('a teacher who never selected can always choose', () => {
-    const r = canChangeBands({ training_bands_updated_at: null }, NOW);
+    const r = canChangeBands({ teacher_level_updated_at: null }, NOW);
     expect(r.allowed).toBe(true);
     expect(r.isFirstSelection).toBe(true);
   });
 
   test('an imported band with no self-edit is still a first selection', () => {
-    // The migration seeds training_bands from levels but deliberately leaves
-    // training_bands_updated_at NULL, so an imported teacher is not born into
+    // The migration seeds teacher_level from levels but deliberately leaves
+    // teacher_level_updated_at NULL, so an imported teacher is not born into
     // a cooldown.
-    const user = { training_bands: ['PRIMARY'], training_bands_updated_at: null };
+    const user = { teacher_level: ['PRIMARY'], teacher_level_updated_at: null };
     const r = canChangeBands(user, NOW);
     expect(r.allowed).toBe(true);
     expect(r.isFirstSelection).toBe(true);
   });
 
   test('a change 1 hour ago is blocked', () => {
-    const user = { training_bands_updated_at: new Date(NOW - 1 * HOUR).toISOString() };
+    const user = { teacher_level_updated_at: new Date(NOW - 1 * HOUR).toISOString() };
     const r = canChangeBands(user, NOW);
     expect(r.allowed).toBe(false);
     expect(r.isFirstSelection).toBe(false);
   });
 
   test('a change 47.9 hours ago is still blocked', () => {
-    const user = { training_bands_updated_at: new Date(NOW - 47.9 * HOUR).toISOString() };
+    const user = { teacher_level_updated_at: new Date(NOW - 47.9 * HOUR).toISOString() };
     expect(canChangeBands(user, NOW).allowed).toBe(false);
   });
 
   test('a change exactly 48 hours ago is allowed — the boundary opens', () => {
-    const user = { training_bands_updated_at: new Date(NOW - 48 * HOUR).toISOString() };
+    const user = { teacher_level_updated_at: new Date(NOW - 48 * HOUR).toISOString() };
     expect(canChangeBands(user, NOW).allowed).toBe(true);
   });
 
   test('a change 49 hours ago is allowed', () => {
-    const user = { training_bands_updated_at: new Date(NOW - 49 * HOUR).toISOString() };
+    const user = { teacher_level_updated_at: new Date(NOW - 49 * HOUR).toISOString() };
     expect(canChangeBands(user, NOW).allowed).toBe(true);
   });
 
   test('a blocked result reports hours remaining, rounded up, never zero', () => {
-    const user = { training_bands_updated_at: new Date(NOW - 47.2 * HOUR).toISOString() };
+    const user = { teacher_level_updated_at: new Date(NOW - 47.2 * HOUR).toISOString() };
     const r = canChangeBands(user, NOW);
     expect(r.allowed).toBe(false);
     expect(r.hoursRemaining).toBe(1);
   });
 
   test('hours remaining is 48 immediately after a change', () => {
-    const user = { training_bands_updated_at: new Date(NOW).toISOString() };
+    const user = { teacher_level_updated_at: new Date(NOW).toISOString() };
     expect(canChangeBands(user, NOW).hoursRemaining).toBe(48);
   });
 
   test('a future timestamp (clock skew) is treated as just-changed, not as allowed', () => {
-    const user = { training_bands_updated_at: new Date(NOW.getTime() + 5 * HOUR).toISOString() };
+    const user = { teacher_level_updated_at: new Date(NOW.getTime() + 5 * HOUR).toISOString() };
     const r = canChangeBands(user, NOW);
     expect(r.allowed).toBe(false);
   });
 
   test('a malformed timestamp fails OPEN — a bad value must not lock a teacher out', () => {
-    const r = canChangeBands({ training_bands_updated_at: 'not-a-date' }, NOW);
+    const r = canChangeBands({ teacher_level_updated_at: 'not-a-date' }, NOW);
     expect(r.allowed).toBe(true);
   });
 
   test('the blocked message names the 48h rule and points at NIETE Support', () => {
-    const user = { training_bands_updated_at: new Date(NOW - 2 * HOUR).toISOString() };
+    const user = { teacher_level_updated_at: new Date(NOW - 2 * HOUR).toISOString() };
     const { message } = canChangeBands(user, NOW);
     expect(message).toMatch(/48/);
     expect(message).toMatch(/NIETE Support/i);
   });
 
   test('the first-selection result carries no blocked message', () => {
-    expect(canChangeBands({ training_bands_updated_at: null }, NOW).message).toBeNull();
+    expect(canChangeBands({ teacher_level_updated_at: null }, NOW).message).toBeNull();
   });
 });
 
-describe('bd-43478 — training_bands outranks every other signal', () => {
+describe('bd-43478 — teacher_level outranks every other signal', () => {
   const { deriveBands, programsForUser } =
     require('../../scripts/lib/training-band-derivation');
 
-  test('training_bands wins over users.levels', () => {
-    const u = { training_bands: ['MIDDLE'], levels: ['PRIMARY'], grades_taught: '["grade_1"]' };
+  test('teacher_level wins over users.levels', () => {
+    const u = { teacher_level: ['MIDDLE'], levels: ['PRIMARY'], grades_taught: '["grade_1"]' };
     expect(deriveBands(u)).toEqual(['MIDDLE']);
   });
 
-  test('training_bands wins over grades_taught — the Row 6 correction', () => {
+  test('teacher_level wins over grades_taught — the Row 6 correction', () => {
     // Her registration says grade_4 (PRIMARY). Her own choice says both.
-    const u = { training_bands: ['PRIMARY', 'MIDDLE'], levels: null, grades_taught: '["grade_4"]' };
+    const u = { teacher_level: ['PRIMARY', 'MIDDLE'], levels: null, grades_taught: '["grade_4"]' };
     expect(deriveBands(u)).toEqual(['MIDDLE', 'PRIMARY']);
     expect(programsForUser(u).sort()).toEqual(['niete_middle_high', 'niete_primary']);
   });
 
-  test('an empty training_bands falls through to the older signals', () => {
-    const u = { training_bands: [], levels: ['HIGH'], grades_taught: null };
+  test('an empty teacher_level falls through to grades_taught, not to users.levels', () => {
+    // bd-60095: users.levels is DROPPED. It had no reader, and it disagreed with
+    // the live column for 233 teachers. grades_taught remains the only seed, and
+    // only for someone who has never stated a level.
+    const u = { teacher_level: [], grades_taught: '["grade_9"]' };
     expect(deriveBands(u)).toEqual(['HIGH']);
   });
 
-  test('levels still works untouched when training_bands is absent', () => {
-    // The no-downtime guarantee: nothing that read levels before behaves
-    // differently now.
-    expect(deriveBands({ levels: ['PRIMARY'] })).toEqual(['PRIMARY']);
+  test('a dropped users.levels is ignored even if a caller still passes one', () => {
+    // Defends the consolidation: no code path may quietly resurrect the old
+    // column as a fallback.
+    const u = { teacher_level: [], levels: ['PRIMARY'], grades_taught: null };
+    expect(deriveBands(u)).toBeNull();
   });
 
-  test('invalid tokens in training_bands fall through rather than yielding nothing', () => {
-    const u = { training_bands: ['BANANA'], levels: ['MIDDLE'] };
-    expect(deriveBands(u)).toEqual(['MIDDLE']);
+  test('invalid tokens in teacher_level yield nothing rather than a guess', () => {
+    // Previously these fell through to users.levels. With one column there is
+    // nowhere to fall to, and inventing a band is how a teacher lands in the
+    // wrong training programme.
+    const u = { teacher_level: ['BANANA'], grades_taught: null };
+    expect(deriveBands(u)).toBeNull();
   });
 });
 
@@ -218,8 +225,8 @@ describe('bd-43478 — the backfill must never overwrite a teacher choice', () =
     expect(src).toMatch(/orphans\s*=\s*users\.filter\(\(u\)\s*=>\s*!activeUsers\.has\(u\.id\)\)/);
   });
 
-  test('the backfill does not write users.levels or training_bands', () => {
+  test('the backfill does not write users.levels or teacher_level', () => {
     expect(src).not.toMatch(/update\(\{[^}]*\blevels\b/);
-    expect(src).not.toMatch(/update\(\{[^}]*training_bands/);
+    expect(src).not.toMatch(/update\(\{[^}]*teacher_level/);
   });
 });

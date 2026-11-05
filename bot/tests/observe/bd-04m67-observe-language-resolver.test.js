@@ -19,7 +19,7 @@
 
 process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://localhost';
 process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'test-key';
-process.env.OBSERVE_FRAMEWORK = 'fico';   // NIETE market: ur/en, default en
+process.env.OBSERVE_FRAMEWORK = 'fico';   // NIETE market: ur/en, default = the registry's first offer
 
 jest.mock('../../shared/config/supabase', () => ({ from: jest.fn() }));
 
@@ -27,6 +27,7 @@ const supabase = require('../../shared/config/supabase');
 const {
   languageFor, clampToMarket, marketDefault,
 } = require('../../shared/services/observe/observe-language');
+const { offerDefaultLanguage } = require('../../shared/config/languages');
 
 /**
  * A users table that answers exactly one `.eq()` — by id or by phone_number —
@@ -115,14 +116,17 @@ describe('bd-04m67 — the audience decides, not the nearest user object', () =>
   });
 
   it('never returns the coach\'s language for a teacher who has no account', async () => {
-    // The coach is Urdu. A teacher with no row must fall to the MARKET default
-    // (en on fico), not inherit the person standing next to her.
-    mockUsers({ byId: { [COACH]: 'ur' } });
+    // A teacher with no row must fall to the MARKET default, not inherit the
+    // person standing next to her. The coach is given a language that is NOT
+    // the market default on purpose: the market floor moved to the registry's
+    // first offer (Urdu on fico), and a coach who also read Urdu would make
+    // this assertion pass for the wrong reason.
+    mockUsers({ byId: { [COACH]: 'en' } });
     const session = boundSession({
       analysis_data: { teacher_delivery: { teacher_phone: '923009998888' } },
     });
     await expect(languageFor('teacher', session)).resolves.toBe(marketDefault());
-    await expect(languageFor('teacher', session)).resolves.not.toBe('ur');
+    await expect(languageFor('teacher', session)).resolves.not.toBe('en');
   });
 
   it('never returns the teacher\'s language for a coach with no row', async () => {
@@ -140,8 +144,13 @@ describe('bd-04m67 — the audience decides, not the nearest user object', () =>
     // A Tanzania-era row that survived the fork must never render Kiswahili to
     // an ICT teacher.
     mockUsers({ byId: { [TEACHER]: 'sw', [COACH]: 'sw' } });
-    await expect(languageFor('teacher', boundSession())).resolves.toBe('en');
-    await expect(languageFor('coach', boundSession())).resolves.toBe('en');
+    // The assertion is "not Kiswahili, and the market's own default instead" —
+    // read from the contract, not from whatever that default happens to be
+    // today, so moving the floor cannot silently invert what this test proves.
+    await expect(languageFor('teacher', boundSession())).resolves.toBe(marketDefault());
+    await expect(languageFor('teacher', boundSession())).resolves.not.toBe('sw');
+    await expect(languageFor('coach', boundSession())).resolves.toBe(marketDefault());
+    await expect(languageFor('coach', boundSession())).resolves.not.toBe('sw');
   });
 
   it('survives a database failure with the market default, never a throw', async () => {
@@ -183,6 +192,8 @@ describe('bd-04m67 — the market clamp is applied exactly once, here', () => {
       process.env.OBSERVE_FRAMEWORK = prev;
     }
     expect(clampToMarket('sw')).toBe(null);
-    expect(marketDefault()).toBe('en');
+    // Back on fico the floor is this deployment's own default again — read from
+    // the registry rather than re-typed, so the two cannot drift apart.
+    expect(marketDefault()).toBe(offerDefaultLanguage());
   });
 });

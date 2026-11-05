@@ -41,12 +41,12 @@ const TAIL = '4567';
 const NAMELESS = {
   id: 'u-nameless', phone_number: PHONE,
   name: null,
-  role: 'teacher', school_id: 's-1', training_bands: null, grades_taught: null,
+  role: 'teacher', school_id: 's-1', teacher_level: null, grades_taught: null,
 };
 const NAMED = {
   id: 'u-named', phone_number: '923009999999',
   name: 'Irene Khan',
-  role: 'teacher', school_id: 's-1', training_bands: null, grades_taught: null,
+  role: 'teacher', school_id: 's-1', teacher_level: null, grades_taught: null,
 };
 
 /** A PostgREST-shaped fake: `.select().eq()/.in()` then await. */
@@ -61,7 +61,7 @@ function fakeSupabase(people) {
   return {
     from: (name) => {
       if (name === 'leader_schools') {
-        return table({ data: [{ school_ext_id: 'niete:909', school_id: null }], error: null });
+        return table({ data: [{ school_ext_id: 'niete:909', school_id: 's-1' }], error: null });
       }
       if (name === 'schools') {
         return table({ data: [{ id: 's-1', name: 'Islamabad Model School', emis: '909' }], error: null });

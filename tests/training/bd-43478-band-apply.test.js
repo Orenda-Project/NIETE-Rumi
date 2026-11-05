@@ -6,7 +6,8 @@
  * both surfaces. This suite pins what that write does.
  *
  * Invariants under test:
- *   - writes users.training_bands, NEVER users.levels (isolation, V1.1.8)
+ *   - writes users.teacher_level, the one level column (bd-60095 renamed it from
+ *     training_bands and dropped users.levels/users.grade)
  *   - never touches grades_taught (operator: leave it alone)
  *   - stamps assigned_by='teacher_self_select' so the backfill can tell a
  *     teacher's own statement from a script's inference and skip it
@@ -88,7 +89,7 @@ describe('applyBandSelection — the Row 6 fix, end to end', () => {
     // Exactly the row 6 teacher: holds niete_primary, needs middle_high so
     // Oxbridge and Beacon House become visible.
     const calls = mockDb({
-      user: { id: UID, training_bands: ['PRIMARY'], training_bands_updated_at: null },
+      user: { id: UID, teacher_level: ['PRIMARY'], teacher_level_updated_at: null },
       programs: PROGRAMS,
       existing: [{ program_id: PRIM_ID }],
     });
@@ -104,9 +105,9 @@ describe('applyBandSelection — the Row 6 fix, end to end', () => {
     expect(calls.inserts.map(r => r.program_id)).not.toContain(PRIM_ID);
   });
 
-  test('training_bands is written and users.levels is NOT touched', async () => {
+  test('teacher_level is written and users.levels is NOT touched', async () => {
     const calls = mockDb({
-      user: { id: UID, training_bands: null, training_bands_updated_at: null },
+      user: { id: UID, teacher_level: null, teacher_level_updated_at: null },
       programs: PROGRAMS,
       existing: [],
     });
@@ -115,8 +116,8 @@ describe('applyBandSelection — the Row 6 fix, end to end', () => {
 
     expect(calls.userUpdates).toHaveLength(1);
     const patch = calls.userUpdates[0];
-    expect(patch.training_bands).toEqual(['MIDDLE']);
-    expect(patch).toHaveProperty('training_bands_updated_at');
+    expect(patch.teacher_level).toEqual(['MIDDLE']);
+    expect(patch).toHaveProperty('teacher_level_updated_at');
     // The isolation guarantee — if this ever fails, band choice has started
     // leaking into the role-backfill heuristics and any other levels reader.
     expect(patch).not.toHaveProperty('levels');
@@ -125,7 +126,7 @@ describe('applyBandSelection — the Row 6 fix, end to end', () => {
 
   test('dropping a band deactivates that program', async () => {
     const calls = mockDb({
-      user: { id: UID, training_bands: ['PRIMARY', 'MIDDLE'], training_bands_updated_at: null },
+      user: { id: UID, teacher_level: ['PRIMARY', 'MIDDLE'], teacher_level_updated_at: null },
       programs: PROGRAMS,
       existing: [{ program_id: PRIM_ID }, { program_id: MH_ID }],
     });
@@ -139,7 +140,7 @@ describe('applyBandSelection — the Row 6 fix, end to end', () => {
 
   test('saving the identical selection inserts and deactivates nothing', async () => {
     const calls = mockDb({
-      user: { id: UID, training_bands: ['PRIMARY'], training_bands_updated_at: null },
+      user: { id: UID, teacher_level: ['PRIMARY'], teacher_level_updated_at: null },
       programs: PROGRAMS,
       existing: [{ program_id: PRIM_ID }],
     });
@@ -157,7 +158,7 @@ describe('applyBandSelection — the 48h cooldown gates the write', () => {
   test('a change inside the window writes NOTHING and explains why', async () => {
     const twoHoursAgo = new Date(Date.now() - 2 * 3_600_000).toISOString();
     const calls = mockDb({
-      user: { id: UID, training_bands: ['PRIMARY'], training_bands_updated_at: twoHoursAgo },
+      user: { id: UID, teacher_level: ['PRIMARY'], teacher_level_updated_at: twoHoursAgo },
       programs: PROGRAMS,
       existing: [{ program_id: PRIM_ID }],
     });
@@ -174,7 +175,7 @@ describe('applyBandSelection — the 48h cooldown gates the write', () => {
 
   test('a first-ever selection is never blocked', async () => {
     const calls = mockDb({
-      user: { id: UID, training_bands: null, training_bands_updated_at: null },
+      user: { id: UID, teacher_level: null, teacher_level_updated_at: null },
       programs: PROGRAMS,
       existing: [],
     });
@@ -188,7 +189,7 @@ describe('applyBandSelection — the 48h cooldown gates the write', () => {
   test('a change after the window is allowed', async () => {
     const threeDaysAgo = new Date(Date.now() - 72 * 3_600_000).toISOString();
     const calls = mockDb({
-      user: { id: UID, training_bands: ['PRIMARY'], training_bands_updated_at: threeDaysAgo },
+      user: { id: UID, teacher_level: ['PRIMARY'], teacher_level_updated_at: threeDaysAgo },
       programs: PROGRAMS,
       existing: [{ program_id: PRIM_ID }],
     });
@@ -203,7 +204,7 @@ describe('applyBandSelection — the 48h cooldown gates the write', () => {
 describe('applyBandSelection — refuses to strand a teacher', () => {
   test('an empty selection is rejected, not written as "no access"', async () => {
     const calls = mockDb({
-      user: { id: UID, training_bands: ['PRIMARY'], training_bands_updated_at: null },
+      user: { id: UID, teacher_level: ['PRIMARY'], teacher_level_updated_at: null },
       programs: PROGRAMS,
       existing: [{ program_id: PRIM_ID }],
     });

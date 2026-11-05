@@ -88,7 +88,8 @@ function session(extra = {}) {
 }
 const metaHandedToModel = () => mockAnalyze.mock.calls[0][1];
 const lastAnalysisData = () => [...persisted].reverse().find((p) => p && p.analysis_data)?.analysis_data;
-const warns = () => mockLog.mock.calls.filter((c) => c[2] === 'warn');
+// On staging the analyser path reaches the Redis cache, which warns once when REDIS_URL is unset (tests never set it).
+const warns = () => mockLog.mock.calls.filter((c) => c[2] === 'warn' && !/REDIS_URL not configured/.test(String(c[0])));
 
 beforeEach(() => {
   jest.clearAllMocks();

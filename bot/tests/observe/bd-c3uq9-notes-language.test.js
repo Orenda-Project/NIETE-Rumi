@@ -79,6 +79,10 @@ jest.mock('../../shared/config/supabase', () => ({
 
 const GPT5MiniService = require('../../shared/services/gpt5-mini.service');
 const ObserveSend = require('../../shared/services/observe/observe-send.service');
+const { marketDefault } = require('../../shared/services/observe/observe-language');
+
+/** How the notes prompt names a language, so the assertion tracks the contract. */
+const languageNameOf = (code) => (code === 'ur' ? 'Urdu' : 'English');
 
 const SID = 'sess-c3uq9';
 const DEBRIEF = 'The officer and the teacher talked about questioning. '.repeat(20);
@@ -139,12 +143,16 @@ describe('bd-c3uq9 — the note follows the TEACHER', () => {
     expect(notesPrompt()).not.toContain('Urdu (اردو)');
   });
 
-  it('falls to the market default for a teacher with no account — never the coach\'s Urdu', async () => {
+  it('falls to the market default for a teacher with no account — never the coach\'s own', async () => {
     db.session = session();
-    db.usersById = { [COACH_ID]: 'ur' };   // teacher has no row at all
+    db.usersById = { [COACH_ID]: 'en' };   // teacher has no row at all
 
     await ObserveSend.processTeacherReport(SID, { phase: 'preview', from: COACH_PHONE });
-    expect(notesPrompt()).toContain('English');
+    // The market default on fico is the registry's first offer, Urdu. The coach
+    // is English here so the assertion still discriminates: a note in Urdu can
+    // only have come from the market floor, never from the person next to her.
+    expect(notesPrompt()).toContain(languageNameOf(marketDefault()));
+    expect(notesPrompt()).not.toContain('in English');
   });
 
   it('derives nothing from session.users — the join is not read for language', () => {

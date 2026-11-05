@@ -127,6 +127,17 @@ describe('flag on (wiring)', () => {
     expect('loop' in a).toBe(true);
   });
 
+  test('v10 on, group C/D (report "new"): the engine gets the selected next step', async () => {
+    process.env.VIDEO_RECO_ENABLED = 'true';
+    const recommendForReport = jest.fn(() => Promise.resolve(null));
+    load({ recommendForReport });
+    require('../../../bot/shared/services/coaching/ab-v10-switch').v10Enabled.mockResolvedValue(true);
+    require('../../../bot/shared/services/coaching/ab-v10-arms').groupFor.mockResolvedValue({ report: 'new' });
+    await RG.generateReport('sess-1', { from: '10000000000', attempt: 2 });
+    expect(recommendForReport).toHaveBeenCalledTimes(1);
+    expect(recommendForReport.mock.calls[0][0].nextStep.target.indicator).toBe('B2');
+  });
+
   test('R7v: the reads are prefetched once, with the session, before the reflections and before the engine starts', async () => {
     process.env.VIDEO_RECO_ENABLED = 'true';
     const order = [];

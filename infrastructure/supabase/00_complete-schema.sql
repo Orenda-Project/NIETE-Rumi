@@ -152,6 +152,9 @@ CREATE TABLE IF NOT EXISTS user_feature_first_use (
     video_shown_at TIMESTAMPTZ DEFAULT now(),
     feature_used_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now(),
+    -- How many times this feature's intro was shown to this user: the transcript-quiz film rides
+    -- the first TRANSCRIPT_QUIZ_INTRO_VIDEO_SHOWS offers, not just the first one. Mirrors
+    -- bot/database/migrations/user_feature_intro_shown_count.sql.
     intro_shown_count INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (id)
 );
@@ -3640,6 +3643,10 @@ CREATE TABLE IF NOT EXISTS training_vendors (
     has_diagnostic       BOOLEAN NOT NULL DEFAULT FALSE,
     cert_code_prefix     VARCHAR(8) NOT NULL,
     unlock_logic         VARCHAR(16) NOT NULL DEFAULT 'chain',
+    -- Marks a single written (CRQ/capstone) answer is worth for this vendor.
+    -- NULL for vendors whose written work is not separately weighted; I-SAPS
+    -- marks each CRQ out of 10 (their process document, §5.1).
+    capstone_points_per_question INTEGER,
     -- I-SAPS formative quizzes carry no minimum score: the unit check is a
     -- learning tool, and the certificate composite is the only bar that
     -- gates anything (V1.5.0).
@@ -3706,6 +3713,10 @@ CREATE TABLE IF NOT EXISTS training_questions (
     options              JSONB NOT NULL,                       -- [{key: '1', text: 'A', urdu: '...'}, ...]
     correct_option       VARCHAR(16) NOT NULL,
     bloom_level          VARCHAR(32),
+    -- One image URL per option, positionally aligned with `options`, for
+    -- questions whose answers ARE pictures rather than text. NULL for the
+    -- ordinary text-option case.
+    option_images        TEXT[],
     order_index          INTEGER NOT NULL,
     is_active            BOOLEAN NOT NULL DEFAULT TRUE,
     CHECK ((grand_quiz_id IS NOT NULL) OR (training_module_id IS NOT NULL))
@@ -4058,27 +4069,28 @@ $function$;
 
 -- users: teacher-training identity columns imported from Taleemabad (2026-07-12).
 -- users.teacher_uuid is the durable identity ported from users_teacherprofile.uuid.
--- users.levels is the array ['PRIMARY','MIDDLE','HIGH'] used by future access rules.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS teacher_uuid UUID;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS levels VARCHAR(16)[];
--- users.teacher_level: the live name of the band array (PRIMARY / MIDDLE / HIGH) since the 2026-09-15
--- reload dropped `levels` on NIETE (supabase/baseline/schema.sql: character varying(16)[]). The schools
--- analytics lists resolve the RDF's Primary and 6-12 teachers against it. Recorded here so a clone has it.
-ALTER TABLE users ADD COLUMN IF NOT EXISTS teacher_level VARCHAR(16)[];
 
--- users.training_bands: the teacher's OWN statement of which grade
--- bands they teach, chosen on the bot or portal. TRAINING SCOPING ONLY: it maps
--- to training_programs and must NEVER gate lesson plans or any other feature (a
--- teacher picking "Middle" to reach the Beacon House training must not thereby
--- change their lesson-plan content). Deliberately NOT a rename of users.levels,
--- which is still read by the role-backfill heuristics as evidence of
--- teacherhood — a self-declared training band is not that. See migration
--- V1.1.8__users_training_bands.sql for the full rationale.
-ALTER TABLE users ADD COLUMN IF NOT EXISTS training_bands VARCHAR(16)[];
--- When the teacher last CHANGED training_bands themselves. NULL = never
--- self-selected, so a first choice is always allowed and an imported band does
--- not start a teacher inside the 48h change cooldown.
-ALTER TABLE users ADD COLUMN IF NOT EXISTS training_bands_updated_at TIMESTAMPTZ;
+-- users.teacher_level: the ONE place a teacher's band (PRIMARY / MIDDLE / HIGH) lives, and the
+-- teacher's OWN statement of it, chosen on the bot or portal. TRAINING SCOPING ONLY: it maps to
+-- training_programs and must NEVER gate lesson plans or any other feature (a teacher picking
+-- "Middle" to reach the Beacon House training must not thereby change their lesson-plan content).
+-- The schools analytics lists resolve the RDF's Primary and 6-12 teachers against it.
+--
+-- V1.4.5 renamed this from training_bands (V1.1.8) and DROPPED users.levels and users.grade.
+-- `levels` had 8,708 rows and not one reader or writer, and it disagreed with the live column for
+-- 233 teachers — the role-backfill heuristic that once justified keeping it now reads teacher_level
+-- instead. Read this column only through teacherLevelOf() (bot/shared/utils/teacher-level.js):
+-- one column, no fallback, every band rather than the first.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS teacher_level VARCHAR(16)[];
+-- When the teacher last CHANGED teacher_level themselves (V1.4.5 renamed it from
+-- training_bands_updated_at, values kept). NULL = never self-selected, so a first choice is always
+-- allowed and an imported band does not start a teacher inside the 48h change cooldown.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS teacher_level_updated_at TIMESTAMPTZ;
+-- The old names are deliberately not declared: nothing reads or writes them, and V1.4.5's closing
+-- check refuses a database that still has them. Only the NIETE sandbox database does: its dump
+-- (supabase/baseline/schema.sql, 2026-10-14) has training_bands and training_bands_updated_at
+-- again, added back after the rename, beside these two.
 CREATE UNIQUE INDEX IF NOT EXISTS ux_users_teacher_uuid ON users(teacher_uuid) WHERE teacher_uuid IS NOT NULL;
 
 -- V1.1.1 — the ONE home for active conversational state, keyed on the teacher.
@@ -4627,7 +4639,6 @@ CREATE INDEX IF NOT EXISTS idx_student_lists_class
 -- Kept here so the canonical schema stays complete; both are idempotent.
 -- ============================================================
 
- ──────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS niete_lp_assets (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -6035,7 +6046,8 @@ CREATE TABLE IF NOT EXISTS teacher_nudges (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   nudge_date    date NOT NULL,                       -- PKT calendar date
-  kind          text NOT NULL CHECK (kind IN ('coaching_after_lp','lp_quiz_offer')),
+  -- weekly_usage_report: V1.6.12; topic_end_nudge: V1.8.4. A new kind is a migration on purpose.
+  kind          text NOT NULL CHECK (kind IN ('coaching_after_lp','lp_quiz_offer','weekly_usage_report','topic_end_nudge')),
   status        text NOT NULL DEFAULT 'pending'
                 CHECK (status IN ('pending','sending','sent','failed','skipped','expired')),
   scheduled_at  timestamptz NOT NULL,
@@ -6463,13 +6475,15 @@ CREATE TABLE IF NOT EXISTS niete_lp_ab_assignment (
 -- test (EGRA/EGMA, Grades 3 and 5). draws = the seeded per-class-per-cycle frame and every listing
 -- and outcome; sessions = one per child tested; blocks = recording keys, the AI's marks (written
 -- once, trigger) and the coach's marks next to them (submitted once). RLS on, service role only.
+-- Folded in below: V1.6.20 (a self-administered battery, the child alone with the phone), V1.6.21
+-- (how each subtask was answered) and V1.7.3 (every grade 1-5).
 CREATE TABLE IF NOT EXISTS child_test_draws (
   id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   cycle_id              text NOT NULL CHECK (cycle_id ~ '^[A-Z]+-[0-9]{4}-Q[1-4]$'),
   region                text NOT NULL,
   school_id             uuid NOT NULL REFERENCES schools(id),
   class_id              uuid NOT NULL REFERENCES classes(id),
-  grade                 smallint NOT NULL CHECK (grade IN (3, 5)),
+  grade                 smallint NOT NULL CHECK (grade BETWEEN 1 AND 5),  -- V1.7.3 (was 3 and 5)
   student_id            uuid NOT NULL REFERENCES students(id),
   roll_number           integer,
   frame_size            integer NOT NULL CHECK (frame_size > 0),
@@ -6520,17 +6534,25 @@ CREATE TABLE IF NOT EXISTS child_test_sessions (
   visit_key          text,                            -- V1.6.0: the visit when it has no field form
   school_id          uuid NOT NULL REFERENCES schools(id),
   class_id           uuid NOT NULL REFERENCES classes(id),
-  grade              smallint NOT NULL CHECK (grade IN (3, 5)),
+  grade              smallint NOT NULL CHECK (grade BETWEEN 1 AND 5),  -- V1.7.3 (was 3 and 5)
   student_id         uuid NOT NULL REFERENCES students(id),
   form               text NOT NULL CHECK (form IN ('A', 'B')),
-  channel            text NOT NULL DEFAULT 'whatsapp' CHECK (channel IN ('whatsapp', 'app')),
-  selection_method   text NOT NULL DEFAULT 'random_draw' CHECK (selection_method IN ('random_draw', 'manual')),
+  -- V1.6.20: 'web' is the in-app browser; 'self' is a game-run draw.
+  channel            text NOT NULL DEFAULT 'whatsapp' CHECK (channel IN ('whatsapp', 'app', 'web')),
+  selection_method   text NOT NULL DEFAULT 'random_draw' CHECK (selection_method IN ('random_draw', 'manual', 'self')),
   frame_size         integer NOT NULL CHECK (frame_size > 0),
   item_bank_version  text,
   status             text NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'completed', 'abandoned')),
   started_at         timestamptz NOT NULL DEFAULT now(),
   finished_at        timestamptz,
   timings            jsonb NOT NULL DEFAULT '{}'::jsonb,
+  -- V1.6.20: how the battery was administered, and the device's own clock and sync state.
+  admin_mode         text CHECK (admin_mode IS NULL OR admin_mode IN ('self_run', 'teacher_present', 'coach_present')),
+  client_session_id  uuid,
+  client_started_at  timestamptz,
+  client_finished_at timestamptz,
+  synced_at          timestamptz,
+  device             jsonb,
   created_at         timestamptz NOT NULL DEFAULT now(),
   updated_at         timestamptz NOT NULL DEFAULT now()
 );
@@ -6540,11 +6562,14 @@ CREATE INDEX IF NOT EXISTS idx_child_test_sessions_visit
   ON child_test_sessions (visit_id) WHERE visit_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_child_test_sessions_coach_recent
   ON child_test_sessions (coach_user_id, started_at DESC);
+-- The device's idempotency key for offline sync is unique (V1.6.20).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_child_test_sessions_client
+  ON child_test_sessions (client_session_id) WHERE client_session_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS child_test_blocks (
   id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id         uuid NOT NULL REFERENCES child_test_sessions(id) ON DELETE CASCADE,
-  -- v1/v2 blocks and the v3 task ids (V1.6.1; tasks.BLOCK_NAMES)
+  -- v1/v2 blocks and the v3 task ids (V1.6.1; tasks.BLOCK_NAMES); V1.6.20 widens it below the table
   block              text NOT NULL
                      CONSTRAINT child_test_blocks_block_check CHECK (block IN ('urdu', 'english', 'maths', 'ur.listening', 'ur.letters', 'ur.nonwords', 'ur.words', 'ur.story', 'en.listening', 'en.letters', 'en.nonwords', 'en.words', 'en.story', 'ma.number_id', 'ma.discrimination', 'ma.missing', 'ma.add1', 'ma.sub1', 'ma.add2', 'ma.sub2', 'ma.word_problems')),
   audio_r2_key       text,
@@ -6559,6 +6584,14 @@ CREATE TABLE IF NOT EXISTS child_test_blocks (
   coach_marks        jsonb,
   coach_edits        jsonb,
   checked_at         timestamptz,
+  -- V1.6.20: the device's raw per-item evidence, one clip per item and the prompts' language;
+  -- V1.6.21: how the child answered (NULL = the coach-recorded test).
+  responses          jsonb CONSTRAINT child_test_blocks_responses_shape
+                     CHECK (responses IS NULL OR jsonb_typeof(responses) = 'array'),
+  audio_r2_keys      jsonb CONSTRAINT child_test_blocks_audio_keys_shape
+                     CHECK (audio_r2_keys IS NULL OR jsonb_typeof(audio_r2_keys) = 'array'),
+  lang               text CHECK (lang IS NULL OR lang IN ('ur', 'en')),
+  response_mode      text CHECK (response_mode IS NULL OR response_mode IN ('tap', 'keypad', 'keyboard', 'record', 'oral')),
   created_at         timestamptz NOT NULL DEFAULT now(),
   updated_at         timestamptz NOT NULL DEFAULT now(),
   CHECK (ai_marks IS NULL OR ai_status IN ('scored', 'partial'))
@@ -6566,6 +6599,13 @@ CREATE TABLE IF NOT EXISTS child_test_blocks (
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_child_test_blocks_session_block
   ON child_test_blocks (session_id, block);
+
+-- V1.6.20 widens the block name from the v3 ids above to any '<subject>.<task>' id, so every battery
+-- subtask has its own row. The inline list stays as V1.6.1 wrote it (tests/child-test/L39/
+-- migration-v1.6.1.test.js pins it); this replaces that CHECK by name, as the migration does.
+ALTER TABLE child_test_blocks DROP CONSTRAINT IF EXISTS child_test_blocks_block_check;
+ALTER TABLE child_test_blocks ADD CONSTRAINT child_test_blocks_block_check
+  CHECK (block IN ('urdu', 'english', 'maths') OR block ~ '^[a-z]{2}\.[a-z0-9_]{1,40}$');
 
 DROP TRIGGER IF EXISTS update_child_test_draws_updated_at ON child_test_draws;
 CREATE TRIGGER update_child_test_draws_updated_at
@@ -6600,7 +6640,8 @@ DROP TRIGGER IF EXISTS child_test_draws_keep_rank ON child_test_draws;
 CREATE TRIGGER child_test_draws_keep_rank
   BEFORE UPDATE ON child_test_draws FOR EACH ROW EXECUTE FUNCTION child_test_draws_keep_rank();
 
--- The AI's first mark is the constant ruler; the coach's check is submitted once.
+-- The AI's first mark is the constant ruler; the coach's check is submitted once. Since V1.6.20 the
+-- device's evidence (responses, audio_r2_keys) is frozen with the marks.
 CREATE OR REPLACE FUNCTION child_test_blocks_keep_marks() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -6612,6 +6653,8 @@ BEGIN
     OR NEW.transcript IS DISTINCT FROM OLD.transcript
     OR NEW.audio_r2_key IS DISTINCT FROM OLD.audio_r2_key
     OR NEW.photo_r2_key IS DISTINCT FROM OLD.photo_r2_key
+    OR NEW.responses IS DISTINCT FROM OLD.responses
+    OR NEW.audio_r2_keys IS DISTINCT FROM OLD.audio_r2_keys
   ) THEN
     RAISE EXCEPTION 'child_test_blocks %: the AI marks are written once', OLD.id
       USING ERRCODE = 'check_violation';
@@ -6653,25 +6696,39 @@ COMMENT ON TABLE child_test_sessions IS
   'Internal. Child test: one row per child tested (one per draw), with the visit, the coach, the form and the timings. Owner: Digital Coach team.';
 COMMENT ON COLUMN child_test_sessions.frame_size IS 'Internal. Copied from the draw: class size at the draw, for weighting.';
 COMMENT ON COLUMN child_test_sessions.timings IS 'Internal. {"<block>.<event>": iso time}; first write of a key wins.';
+COMMENT ON COLUMN child_test_sessions.admin_mode IS
+  'Internal. self_run (child alone, game) | teacher_present | coach_present (proctored). NULL = the coach-recorded test.';
+COMMENT ON COLUMN child_test_sessions.client_session_id IS 'Internal. Device-generated idempotency key for offline sync.';
+COMMENT ON COLUMN child_test_sessions.client_started_at IS 'Internal. Device clock; compare with started_at for skew.';
+COMMENT ON COLUMN child_test_sessions.synced_at IS 'Internal. When the server last received a batch from the device.';
+COMMENT ON COLUMN child_test_sessions.device IS 'Internal. {ua, bundle_v, offline, skew_ms, last_seq}; no phone numbers, no names.';
 COMMENT ON TABLE child_test_blocks IS
   'PII. Child test: one row per block (urdu/english/maths) of a session: storage keys of the recording and the maths photo, the transcript, the AI''s marks (written once, trigger) and the coach''s marks and edits (submitted once). Owner: Digital Coach team.';
 COMMENT ON COLUMN child_test_blocks.transcript IS 'PII. What the child said (speech-to-text with timestamps).';
 COMMENT ON COLUMN child_test_blocks.ai_marks IS 'Internal. ai-marks-v1; written once and never changed — the constant ruler.';
 COMMENT ON COLUMN child_test_blocks.coach_marks IS 'Internal. The coach''s confirmed marks, same shape as ai_marks.';
 COMMENT ON COLUMN child_test_blocks.coach_edits IS 'Internal. [{path, ai, coach}] for every field the coach changed.';
+COMMENT ON COLUMN child_test_blocks.responses IS
+  'PII-adjacent. Device capture: [{kind:result,...}, {kind:answer, ...per item}]. Frozen with ai_marks.';
+COMMENT ON COLUMN child_test_blocks.audio_r2_keys IS 'Internal. Per-item clips [{i, key}] under child-test/{env}/...; frozen with ai_marks.';
+COMMENT ON COLUMN child_test_blocks.lang IS 'Internal. Language of the prompts and audio for this subtask.';
+COMMENT ON COLUMN child_test_blocks.response_mode IS
+  'Internal. How the child answered: tap | keypad | keyboard | record | oral. NULL = the coach-recorded test. A tap/keypad score is the SA scale.';
 
 -- ─── child_test visit_key (migration V1.6.0) ──
 -- Mirrors infrastructure/supabase/migrations/V1.6.0__child_test_visit_key.sql: a child-test list
 -- with no observe2 field form names its visit by key — cs:<coaching_session_id> (classic /observe)
 -- or day:<coach>:<school>:<YYYY-MM-DD PKT> (/egra with no visit). The columns are declared in the
 -- CREATE TABLEs above; the ADD COLUMNs keep this file re-runnable on a database made before V1.6.0.
+-- The two format CHECKs are the widened ones: V1.6.20 adds sa:<draw>:<YYYY-MM-DD> (a game run, no
+-- adult visit) and V1.7.3 an optional :g<N> on a day: key (one list per grade per day).
 
 ALTER TABLE child_test_draws ADD COLUMN IF NOT EXISTS visit_key text;
 ALTER TABLE child_test_sessions ADD COLUMN IF NOT EXISTS visit_key text;
 
 ALTER TABLE child_test_draws DROP CONSTRAINT IF EXISTS child_test_draws_visit_key_format;
 ALTER TABLE child_test_draws ADD CONSTRAINT child_test_draws_visit_key_format CHECK (
-  visit_key IS NULL OR visit_key ~ '^(cs:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|day:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9]{4}-[0-9]{2}-[0-9]{2})$'
+  visit_key IS NULL OR visit_key ~ '^(cs:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|day:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9]{4}-[0-9]{2}-[0-9]{2}(:g[1-5])?|sa:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9]{4}-[0-9]{2}-[0-9]{2})$'
 );
 ALTER TABLE child_test_draws DROP CONSTRAINT IF EXISTS child_test_draws_one_visit;
 ALTER TABLE child_test_draws ADD CONSTRAINT child_test_draws_one_visit
@@ -6679,7 +6736,7 @@ ALTER TABLE child_test_draws ADD CONSTRAINT child_test_draws_one_visit
 
 ALTER TABLE child_test_sessions DROP CONSTRAINT IF EXISTS child_test_sessions_visit_key_format;
 ALTER TABLE child_test_sessions ADD CONSTRAINT child_test_sessions_visit_key_format CHECK (
-  visit_key IS NULL OR visit_key ~ '^(cs:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|day:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9]{4}-[0-9]{2}-[0-9]{2})$'
+  visit_key IS NULL OR visit_key ~ '^(cs:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|day:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9]{4}-[0-9]{2}-[0-9]{2}(:g[1-5])?|sa:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9]{4}-[0-9]{2}-[0-9]{2})$'
 );
 ALTER TABLE child_test_sessions DROP CONSTRAINT IF EXISTS child_test_sessions_one_visit;
 ALTER TABLE child_test_sessions ADD CONSTRAINT child_test_sessions_one_visit
@@ -6729,6 +6786,54 @@ COMMENT ON COLUMN child_test_draws.visit_key IS
 COMMENT ON COLUMN child_test_sessions.visit_key IS
   'Internal. The visit key (see child_test_draws.visit_key) when the visit has no observe2 field form. Never set together with visit_id.';
 
+-- ─── child_test_sa_item_reviews (migration V1.7.4) — a reviewer's mark per item of a self-run session ──
+-- Mirrors infrastructure/supabase/migrations/V1.7.4__child_test_sa_item_reviews.sql: one row per
+-- (session, task, item) — the scoring agents' marks for the item (marks and numbers only, never what the
+-- child said) and the reviewer's own ear. The app's marks stay on child_test_blocks.ai_marks. RLS on, no
+-- policies: the service role only, like every child_test table.
+CREATE TABLE IF NOT EXISTS child_test_sa_item_reviews (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id uuid NOT NULL REFERENCES child_test_sessions (id) ON DELETE CASCADE,
+  task_id text NOT NULL,
+  item_key text NOT NULL,
+  agents jsonb,
+  agents_run_at timestamptz,
+  mark text,
+  note text,
+  reviewed_by uuid REFERENCES users (id) ON DELETE SET NULL,
+  reviewed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE child_test_sa_item_reviews DROP CONSTRAINT IF EXISTS child_test_sa_item_reviews_task_check;
+ALTER TABLE child_test_sa_item_reviews ADD CONSTRAINT child_test_sa_item_reviews_task_check
+  CHECK (task_id ~ '^[a-z]{2}\.[a-z0-9_]{1,40}$');
+ALTER TABLE child_test_sa_item_reviews DROP CONSTRAINT IF EXISTS child_test_sa_item_reviews_item_check;
+ALTER TABLE child_test_sa_item_reviews ADD CONSTRAINT child_test_sa_item_reviews_item_check
+  CHECK (item_key ~ '^[0-9]{1,3}$');
+ALTER TABLE child_test_sa_item_reviews DROP CONSTRAINT IF EXISTS child_test_sa_item_reviews_mark_check;
+ALTER TABLE child_test_sa_item_reviews ADD CONSTRAINT child_test_sa_item_reviews_mark_check
+  CHECK (mark IS NULL OR mark IN ('correct', 'wrong', 'unclear'));
+ALTER TABLE child_test_sa_item_reviews DROP CONSTRAINT IF EXISTS child_test_sa_item_reviews_note_check;
+ALTER TABLE child_test_sa_item_reviews ADD CONSTRAINT child_test_sa_item_reviews_note_check
+  CHECK (note IS NULL OR char_length(note) <= 500);
+ALTER TABLE child_test_sa_item_reviews DROP CONSTRAINT IF EXISTS child_test_sa_item_reviews_reviewed_check;
+ALTER TABLE child_test_sa_item_reviews ADD CONSTRAINT child_test_sa_item_reviews_reviewed_check
+  CHECK ((mark IS NULL AND note IS NULL) OR (reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL));
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_child_test_sa_item_reviews_item
+  ON child_test_sa_item_reviews (session_id, task_id, item_key);
+
+ALTER TABLE child_test_sa_item_reviews ENABLE ROW LEVEL SECURITY;
+
+COMMENT ON TABLE child_test_sa_item_reviews IS
+  'Child data (linked to a child''s session). Owner: child-test service. One row per item of a self-administered session: the scoring agents'' marks and a reviewer''s own mark. Never a name or a transcript.';
+COMMENT ON COLUMN child_test_sa_item_reviews.agents IS
+  'The scoring agents'' marks for the item: consensus, flash, pro, stt (c|w|n|s), confidence, no_speech, disputed, low_trust. No transcript.';
+COMMENT ON COLUMN child_test_sa_item_reviews.mark IS 'The reviewer''s ear: correct | wrong | unclear.';
+COMMENT ON COLUMN child_test_sa_item_reviews.note IS 'Free text, at most 500 characters; the page asks never to type a child''s name.';
+
 
 -- ─── niete_coaching_ab_assignment (migration V1.6.5) — v10 coaching test group per school ──
 -- Mirrors infrastructure/supabase/migrations/V1.6.5__niete_coaching_ab_assignment.sql: written once at
@@ -6741,9 +6846,26 @@ CREATE TABLE IF NOT EXISTS niete_coaching_ab_assignment (
   drawn_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ─── niete_topic_nudge_ab_assignment (migration V1.8.4) — topic paper A/B group per school ──
+-- Mirrors infrastructure/supabase/migrations/V1.8.4__topic_end_nudge.sql: written once at the draw;
+-- B = the topic-end "Make my paper" nudge (teacher_nudges kind topic_end_nudge), A = no nudge.
+-- Transitional: dropped when the test ends. Its switch, topic_end_nudge_enabled, is an app_settings row.
+CREATE TABLE IF NOT EXISTS niete_topic_nudge_ab_assignment (
+  school_id  UUID PRIMARY KEY REFERENCES schools (id),
+  ab_group   TEXT NOT NULL CHECK (ab_group IN ('A', 'B')),
+  block      TEXT,
+  seed       TEXT,
+  drawn_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE niete_topic_nudge_ab_assignment IS
+  'Topic paper A/B: school -> group. B = the topic-end Make my paper nudge, A = no nudge. '
+  'Written once at the draw; never updated during the test.';
+
 -- ─── coach_visit_requests (migration V1.6.7) — a C/D teacher asked her coach to observe ──
 -- Mirrors infrastructure/supabase/migrations/V1.6.7__coach_visit_requests.sql: one row per report;
 -- status pending -> sent | failed, or no_coach; visited once the coach marks it (V1.6.9). Transitional.
+-- Read by the 30-day voice-note sweep (coach-voice-note-retention.service.js).
 CREATE TABLE IF NOT EXISTS coach_visit_requests (
   id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   coaching_session_id  UUID NOT NULL UNIQUE REFERENCES coaching_sessions (id),
@@ -7951,27 +8073,6 @@ END $$;
 -- ─────────────────────────────────────────────────────────────────────────────
 ALTER TABLE student_videos ADD COLUMN IF NOT EXISTS title_ur text;
 ALTER TABLE student_videos ADD COLUMN IF NOT EXISTS chapter_ur text;
-
--- ─────────────────────────────────────────────────────────────────────────────
--- coach_visit_requests (mirror of main's infrastructure/supabase/migrations/V1.6.7__coach_visit_requests.sql
--- + V1.6.9): a C/D teacher asked their coach to observe; one row per report. Read here by the 30-day
--- voice-note sweep (coach-voice-note-retention.service.js).
--- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS coach_visit_requests (
-  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  coaching_session_id  UUID NOT NULL UNIQUE REFERENCES coaching_sessions (id),
-  teacher_user_id      UUID NOT NULL REFERENCES users (id),
-  coach_user_id        UUID REFERENCES users (id),
-  school_id            UUID REFERENCES schools (id),
-  ab_group             TEXT NOT NULL CHECK (ab_group IN ('C', 'D')),
-  status               TEXT NOT NULL CHECK (status IN ('pending', 'sent', 'failed', 'no_coach', 'visited')),
-  wa_message_id        TEXT,
-  reasons              TEXT[],
-  voice_note_key       TEXT,
-  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-ALTER TABLE coach_visit_requests ENABLE ROW LEVEL SECURITY;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- web_quiz_merge_student (mirror of bot/database/migrations/web_quiz_handset_link.sql): merge a page-made

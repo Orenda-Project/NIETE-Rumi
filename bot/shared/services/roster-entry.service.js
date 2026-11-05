@@ -50,7 +50,7 @@ async function openRosterFlow({ from, user, language, reason = 'unspecified' }) 
 
   if (!isSchoolLeader(user)) {
     logToFile('🚫 Roster refused — not a school leader', { userId: user?.id, role: user?.role, reason }, 'warn');
-    await WhatsAppService.sendMessage(from, resolveUx('rosterLeadersOnly', { language }));
+    await WhatsAppService.sendMessage(from, resolveUx('rosterRoleRefusal', { language }));
     return 'denied_role';
   }
 

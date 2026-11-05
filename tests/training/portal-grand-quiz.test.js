@@ -247,6 +247,19 @@ beforeEach(() => {
   });
   jest.doMock('../../bot/shared/services/training/certificate.service', () => ({
     issueCertificate: issueCertificateMock,
+    // bd-60145 — the portal now certifies through the bot's GUARD rather than
+    // calling the raw issuer, so the double must expose it or the route 500s
+    // with "maybeIssueQuizScoreCertificate is not a function".
+    //
+    // These suites are about the SUBMIT path (marking, the pass bar, cooldown,
+    // the quiz_kind filter), not about the completeness rules that decide
+    // whether a level may be certified — those are asserted directly in
+    // bd-60139 / bd-60142 / bd-60144. So the guard is stubbed to mint, which
+    // keeps each file testing the one thing it was written for.
+    maybeIssueQuizScoreCertificate: async (...args) => {
+      const cert = await issueCertificateMock(...args);
+      return { issued: true, ...cert };
+    },
   }), { virtual: true });
   jest.doMock('../../bot/shared/utils/structured-logger', () => ({
     logEvent: jest.fn(),
@@ -409,14 +422,18 @@ describe('POST /api/portal/training/level/:id/grand-quiz/attempts', () => {
     }));
 
     // One answer row per question, canonical 0-based question_index
-    const answerInserts = inserts.filter(i => i.table === 'training_assessment_answers');
+    // bd-klecr.7 — answer rows are UPSERTED (an attempt started on WhatsApp may already hold some).
+    const answerInserts = [...inserts, ...upserts]
+      .filter(i => i.table === 'training_assessment_answers')
+      .flatMap(i => (Array.isArray(i.row) ? i.row : [i.row]).map(row => ({ ...i, row })));
     expect(answerInserts).toHaveLength(3);
     expect(answerInserts.map(a => a.row.question_index).sort()).toEqual([0, 1, 2]);
 
     // Certificate service called with the attempt context (injected client first)
     expect(issueCertificateMock).toHaveBeenCalledTimes(1);
     expect(issueCertificateMock.mock.calls[0][1]).toEqual(expect.objectContaining({
-      userId: 'user-1', programId: 'prog-1', levelId: 1, attemptId: 'grand-attempt-uuid-1',
+      // bd-klecr.7 — the id is minted before the paper is drawn (it seeds the draw), as on WhatsApp.
+      userId: 'user-1', programId: 'prog-1', levelId: 1, attemptId: attemptInsert.row.id,
     }));
   });
 

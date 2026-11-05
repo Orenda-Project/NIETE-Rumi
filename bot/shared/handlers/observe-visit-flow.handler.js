@@ -1,4 +1,70 @@
 'use strict';
+
+/**
+ * The audit row for a coach edit.
+ *
+ * Defined at module scope, deliberately: column-completeness.test.js binds an
+ * object literal to the NEAREST PRECEDING `.from('…')`, so writing this inline
+ * next to the insert made the guard read action/person/to/user_id as columns of
+ * `users` — whichever table the surrounding code had queried last.
+ */
+/**
+ * The audit actions the Manage-teachers flow writes.
+ *
+ * `leader_roster_audit.action` carries a CHECK constraint. These four were
+ * added to the code and NOT to the constraint, so every edit raised 23514 and
+ * wrote nothing for a day — silently, because the writer below used to swallow
+ * its errors whole. V1.4.7 widened the constraint; a test pins this list
+ * against that migration so the two can never drift apart again.
+ */
+const ROSTER_AUDIT_ACTIONS = Object.freeze([
+  'edit_name', 'edit_level', 'edit_phone', 'edit_phone_escalated',
+]);
+
+/**
+ * Write one audit row. Never throws; returns whether the row landed.
+ *
+ * The rule an audit writer has to satisfy is narrow: a failed audit must not
+ * fail the edit the coach just made — she did the work, the work succeeded, and
+ * losing our record of it is our problem, not hers. The original honoured that
+ * with `catch (_) {}`, which also made a table rejecting every row look exactly
+ * like a table accepting them.
+ *
+ * So: still no throw, but a refusal is LOUD in the logs and visible in the
+ * return value. Note the supabase client RESOLVES with `{ error }` rather than
+ * rejecting — the old try/catch could not have caught a constraint violation
+ * even in principle.
+ */
+async function writeRosterAudit(supabase, row, log) {
+  const report = (why, extra) => {
+    try {
+      (log || logToFile)('roster audit row REJECTED - the edit stands, the record does not', {
+        why, action: row && row.action, actor_user_id: row && row.actor_user_id, ...extra,
+      }, 'error');
+    } catch (_) { /* a broken logger must not break the edit either */ }
+    return false;
+  };
+
+  try {
+    const { error } = await supabase.from('leader_roster_audit').insert([row]) || {};
+    if (error) return report('insert_rejected', { code: error.code, message: error.message });
+    return true;
+  } catch (e) {
+    return report('insert_threw', { message: e && e.message });
+  }
+}
+
+function buildEditAuditRow(actorId, person, action, detail) {
+  return {
+    action,
+    actor_user_id: actorId,
+    affected_leader_user_id: actorId,
+    teacher_ext_id: person && person.userId,
+    teacher_phone_e164: (person && person.phone) || null,
+    teacher_name: (person && person.name) || null,
+    detail: { via: 'observe_flow', ...(detail || {}) },
+  };
+}
 /**
  * bd-2430/bd-2431 (visit picker) + bd-2443 (scheduling UI) — the observe-visit
  * Flow endpoint handler.
@@ -265,6 +331,11 @@ const _done = (heading, body, action = 'roster', schoolName = '') => ({
  * default, so no call site can omit one — a declared-but-missing key fails the
  * entire screen with payload-schema-error, which is exactly how "Schedule an
  * observation" broke live on 17 Aug.
+ *
+ * `opts.params` replaces the close params wholesale. The result screens' one-tap
+ * exits (Main menu / Close) close the Flow from the endpoint with their own
+ * *_next params, and they still build the screen data here, so no call site
+ * hand-rolls a SUCCESS payload.
  */
 const _success = (heading, body, opts = {}) => ({
   heading: heading || '',
@@ -274,7 +345,7 @@ const _success = (heading, body, opts = {}) => ({
   sched_date: opts.date || '',
   sched_slot: opts.slot || '',
   extension_message_response: {
-    params: {
+    params: opts.params || {
       observe_visit_action: opts.action || 'done',
       // flow_token rides along on the schedule close — dropping it broke
       // visit-flow-scheduling when the payload moved into this helper.
@@ -370,12 +441,12 @@ async function menuScreen(userId, opts = {}) {
       // would hide it behind a label that promises something else.
       id: 'manage_teachers',
       'main-content': {
-        // "Add" is also how a teacher is MOVED between schools, and a row
-        // that does not say so hides the action the coach came for. Flow
-        // NavigationList metadata caps at 80. This branch has no Edit screen,
-        // so the row names only what it can actually do here.
-        title: 'Add or remove a teacher',
-        metadata: 'Add, move or remove - by WhatsApp number',
+        // Names all four things the coach can do here, now that Edit exists:
+        // "Add" is also how a teacher is MOVED between schools, and a row that
+        // does not say so hides the action the coach came for. Flow
+        // NavigationList metadata caps at 80; this is 25.
+        title: 'Manage teachers',
+        metadata: 'Add, move, remove or edit',
       },
       'on-click-action': { name: 'data_exchange', payload: { step: 'teacher_school_open' } },
     },
@@ -1010,7 +1081,84 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
 
     const _T = () => require('../services/observe/observe-teacher-admin.service');
     const _P = () => require('../services/observe/patch-resolver.service');
-    const _tdone = (heading, body) => ({ screen: 'TEACHER_DONE', data: { heading, body } });
+    const _E = () => require('../services/observe/teacher-edit.service');
+
+    /**
+     * Every coach edit leaves a row in leader_roster_audit — the same table
+     * add/remove/move already write to, so the queue of "what did coaches do"
+     * stays one query. A Case-3 phone attempt is recorded here too: that IS the
+     * escalation queue, rather than a new table for a handful of rows.
+     */
+    /**
+     * The account on the destination number, WITH the counts the classifier
+     * needs. Returns null when the number is free.
+     *
+     * If any count query fails we return the row with NO counts block, which
+     * classifyTarget reads as TAKEN — "we could not read the history" is not
+     * "there is none", and an unnecessary escalation is far cheaper than a
+     * wrong merge.
+     */
+    const _loadTargetWithHistory = async (phone) => {
+      const supabase = require('../config/supabase');
+      const { data: row } = await supabase.from('users')
+        .select('id, name, phone_number').eq('phone_number', phone).maybeSingle();
+      if (!row) return null;
+      try {
+        const tables = [
+          ['certificates', 'training_certificates'],
+          ['attempts', 'training_assessment_attempts'],
+          ['progress', 'teacher_training_progress'],
+          ['coaching', 'coaching_sessions'],
+        ];
+        const counts = {};
+        for (const [key, table] of tables) {
+          const { count, error } = await supabase.from(table)
+            .select('id', { count: 'exact', head: true }).eq('user_id', row.id);
+          if (error) return row;            // no counts -> classified TAKEN
+          counts[key] = count || 0;
+        }
+        return { ...row, counts };
+      } catch (_) {
+        return row;                          // same: fail closed
+      }
+    };
+
+    const _editAudit = async (actorId, person, action, detail) => {
+      const supabase = require('../config/supabase');
+      return writeRosterAudit(
+        supabase, buildEditAuditRow(actorId, person, action, detail));
+    };
+
+
+    /**
+     * The person the coach picked, resolved through HER OWN derived roster.
+     *
+     * Authorisation is the list itself: if she does not hold them, they are not
+     * in it and every edit step refuses. That is the same rule add/remove use,
+     * and it means no edit step needs its own permission check.
+     */
+    const _editPerson = async (leaderUserId, schoolExtId, pickedUserId) => {
+      if (!pickedUserId || pickedUserId === 'none') return null;
+      const supabase = require('../config/supabase');
+      const people = await _P().listPatchViaSupabase(supabase, leaderUserId, schoolExtId).catch(() => []);
+      const p = people.find((x) => x.userId === pickedUserId);
+      if (!p) return null;
+      // The picker carries display fields only; the edit rules need the row.
+      const { data: row } = await supabase.from('users')
+        .select('id, name, phone_number, role, teacher_level, teacher_level_updated_at')
+        .eq('id', pickedUserId).maybeSingle();
+      return { ...p, row: row || null };
+    };
+
+    // TEACHER_DONE carries the school it just acted on. The reopen
+    // needs it to land the coach back on THIS school's action picker instead of
+    // the top menu, and every finish path goes through this one helper, so the
+    // school is threaded here rather than at 16 call sites.
+    const _doneSchool = String((screenData && screenData.school_ext_id) || '');
+    const _tdone = (heading, body) => ({
+      screen: 'TEACHER_DONE',
+      data: { heading, body, school_ext_id: _doneSchool },
+    });
     const _refuse = (key) => _tdone(S_(_flowLang).flow_action_failed_heading, _T().refusalBody(_flowLang, key));
 
     /**
@@ -1055,6 +1203,68 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
     //
     // Both destinations are the SAME screens and steps as before, so the add
     // and remove paths past this point are untouched.
+    // The finish screen's links close the Flow through HERE.
+    //
+    // They cannot use `complete` directly — an EmbeddedLink only accepts
+    // data_exchange / navigate / open_url (Meta rejects `complete` on one) —
+    // and they cannot navigate back to TEACHER_ACTION either, because a
+    // TEACHER_DONE -> TEACHER_ACTION route makes the existing
+    // TEACHER_ACTION -> TEACHER_DONE route a backward pair, which the routing
+    // model refuses. Verified both against the Graph API.
+    //
+    // So the link does a round trip and we close from the endpoint, carrying
+    // the same roster_next the Footer used to carry. The chat-side loop
+    // (rosterTeacherNextTarget) is unchanged and reopens on the action picker.
+    if (step === 'teacher_done_next') {
+      const next = String((screenData && screenData.next) || 'done');
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      return {
+        screen: 'SUCCESS',
+        data: _success('', '', {
+          action: 'roster_teacher',
+          params: {
+            observe_visit_action: 'roster_teacher',
+            roster_next: next,
+            school_ext_id: schoolExtId,
+          },
+        }),
+      };
+    }
+
+    // Every result screen ends the same way — Main menu, or Close.
+    //
+    // Both are ONE tap. They are not a `complete` action, because an
+    // EmbeddedLink only accepts data_exchange / navigate / open_url (Meta
+    // rejects `complete` on one), so the link round-trips here and we close
+    // from the endpoint carrying the same *_next value the old Footer carried.
+    // The chat-side targets (rosterTeacherNextTarget / rosterNextTarget /
+    // _visitNextTarget) already understand 'menu' and 'done', so the loop
+    // behaviour is unchanged — only the number of taps is.
+    if (step === 'teacher_done_next' || step === 'action_done_next' || step === 'visit_done_next') {
+      const next = String((screenData && screenData.next) || 'done');
+      const params = { roster_next: next, visit_next: next };
+      if (step === 'teacher_done_next') {
+        params.observe_visit_action = 'roster_teacher';
+        params.school_ext_id = String((screenData && screenData.school_ext_id) || '');
+      } else if (step === 'action_done_next') {
+        params.observe_visit_action = 'roster';
+        params.school_name = String((screenData && screenData.school_name) || '');
+      } else {
+        // SUCCESS is shared by cancel/reschedule/done, and the chat-side arm is
+        // chosen by THIS value — passing our own would misroute the ack.
+        // `done_action`, never `action`: that key is reserved — it collides
+        // with the decrypt destructure and arrives as 'data_exchange'.
+        params.observe_visit_action = String((screenData && screenData.done_action) || 'done');
+        params.teacher_name = String((screenData && screenData.teacher_name) || '');
+      }
+      return {
+        screen: 'SUCCESS',
+        data: _success('', '', {
+          action: params.observe_visit_action, teacherName: params.teacher_name, params,
+        }),
+      };
+    }
+
     if (step === 'teacher_action_open') {
       const schoolExtId = String((screenData && screenData.school_ext_id) || '');
       if (!schoolExtId || schoolExtId === 'none') return _refuse('not_my_school');
@@ -1062,19 +1272,33 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const mine = await A.listMySchools(userId).catch(() => []);
       const school = mine.find((x) => x.school_ext_id === schoolExtId);
       if (!school) return _refuse('not_my_school');
-      // Composed server-side: Flow prints a ${data.x} reference inside a
-      // sentence verbatim, so the school name has to arrive already in it.
-      //
-      // The sentence used to name two actions while the screen offered three,
-      // and it never said that adding a teacher who already belongs to another
-      // school MOVES them. A coach reported the move as impossible while the
-      // roster audit shows it working; the gap was the words, not the feature.
-      // Catalogue copy, so it follows the coach's language.
+      // A NavigationList, so each action is one tap instead of a
+      // radio plus Continue — the same shape MENU and the field picker use.
+      // The school name is the screen TITLE: Meta refuses any sibling component
+      // on a NavigationList screen, so there is nowhere to put a sentence.
+      const _act = (id, title, metadata) => ({
+        id,
+        'main-content': { title, metadata },
+        'on-click-action': {
+          name: 'data_exchange',
+          payload: { step: 'teacher_action_pick', choice: id, school_ext_id: schoolExtId },
+        },
+      });
       return {
         screen: 'TEACHER_ACTION',
         data: {
           school_ext_id: schoolExtId,
-          intro: S_(_flowLang).teacher_action_intro.replace('{school}', school.school_name),
+          // The screen TITLE is static ("Manage teachers") — it has to say what
+          // the screen is, and the school name would not fit beside it inside
+          // the 30-code-point cap. The school rides on each row instead, which
+          // has its own metadata line.
+          items: [
+            // "Add" is also how a teacher is MOVED between schools; saying so
+            // is what a coach reported as missing (bd-eydf3, ported from sandbox).
+            _act('add', 'Add a teacher', `To ${school.school_name} - moves them if they are elsewhere`),
+            _act('edit', 'Edit a teacher', 'Name, level, role or number'),
+            _act('remove', 'Remove a teacher', `Takes them off ${school.school_name}`),
+          ],
         },
       };
     }
@@ -1098,7 +1322,8 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       // second copy that can drift.
       const next = picked === 'remove' ? 'teacher_remove_open'
         : picked === 'add' ? 'teacher_add_open'
-          : null;
+          : picked === 'edit' ? 'teacher_edit_open'
+            : null;
       if (!next) return _refuse('not_found');
       return handle(userId, 'data_exchange', screen,
         { ...screenData, step: next, school_ext_id: schoolExtId }, flowToken, user, opts);
@@ -1192,8 +1417,9 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const options = people.length
         // displayName, not name. `name` is null for the 83 people on prod who
         // carry none, and _opt turns null into the EMPTY STRING — a blank,
-        // unidentifiable row, on the only screen that built the title this way.
-        // The scheduling list has always rendered the label; this did not.
+        // unidentifiable row, on the only two screens that built the title this
+        // way. The scheduling list has always rendered the label; these did
+        // not, which also blocked the rename that would have fixed it.
         ? people.slice(0, A.LIST_CAP).map((p) => _opt(
           p.userId, p.displayName || p.name, p.roleLabel || (p.band || ''), p.phone || ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
@@ -1205,6 +1431,350 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
           intro: `Tick everyone to take off ${school.school_name}.`,
         },
       };
+    }
+
+    // ── EDIT ─────────────────────────────────────────────────────────────
+    // Same shape as remove: pick the person from the coach's OWN derived list,
+    // so she can only ever edit someone she actually holds. Authorisation is
+    // the list, not a later check.
+    if (step === 'teacher_edit_open') {
+      const A = _admin();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const mine = await A.listMySchools(userId).catch(() => []);
+      const school = mine.find((x) => x.school_ext_id === schoolExtId);
+      if (!school) return _refuse('not_my_school');
+      const supabase = require('../config/supabase');
+      const people = await _P().listPatchViaSupabase(supabase, userId, schoolExtId).catch(() => []);
+      const options = people.length
+        // displayName, not name. `name` is null for the 83 people on prod who
+        // carry none, and _opt turns null into the EMPTY STRING — a blank,
+        // unidentifiable row, on the only two screens that built the title this
+        // way. The scheduling list has always rendered the label; these did
+        // not, which also blocked the rename that would have fixed it.
+        ? people.slice(0, A.LIST_CAP).map((p) => _opt(
+          p.userId, p.displayName || p.name, p.roleLabel || (p.band || ''), p.phone || ''))
+        : [_opt('none', S_(_flowLang).search_no_match, '', '')];
+      return {
+        screen: 'TEACHER_EDIT_PICK',
+        data: {
+          options,
+          school_ext_id: schoolExtId,
+          intro: `Pick the person to edit at ${school.school_name}.`,
+        },
+      };
+    }
+
+    // Which field. Named here rather than on the screen so the copy can carry
+    // what we already know about the person.
+    if (step === 'teacher_edit_field') {
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      if (!pickedUserId || pickedUserId === 'none') return _refuse('not_found');
+      const person = await _editPerson(userId, schoolExtId, pickedUserId);
+      if (!person) return _refuse('not_found');
+
+      // A NavigationList, not a radio + Continue: picking the field IS the
+      // navigation, so one tap goes where two used to. Same component MENU and
+      // OBS_ACTION already use, so the screen reads like the rest of the flow.
+      //
+      // The subtitle carries the CURRENT value rather than a description of the
+      // field. "Level / Primary + Middle" answers "what is it now?" — which is
+      // what a coach opened this screen to find out — where "the grades they
+      // teach" only restates the title.
+      const row = (person.row || {});
+      const curLevel = require('../utils/teacher-level').teacherLevelOf(row);
+      const curRole = String(row.role || 'teacher').trim().toLowerCase() === 'principal'
+        ? 'Principal' : 'Teacher';
+      const _row = (id, title, metadata) => ({
+        id,
+        'main-content': { title, metadata: metadata || '' },
+        'on-click-action': {
+          name: 'data_exchange',
+          payload: {
+            step: 'teacher_edit_route',
+            field: id,
+            school_ext_id: schoolExtId,
+            teacher_ext_id: pickedUserId,
+          },
+        },
+      });
+      return {
+        screen: 'TEACHER_EDIT_FIELD',
+        data: {
+          school_ext_id: schoolExtId,
+          teacher_ext_id: pickedUserId,
+          // Meta refuses any sibling component on a NavigationList screen, so
+          // the person's name rides in the screen TITLE rather than a TextBody.
+          // Every row already shows its current value, so the body text it
+          // replaced was only naming who we are editing.
+          heading: person.name || 'This teacher',
+          items: [
+            _row('name', 'Name', person.name || 'Not on record'),
+            _row('level', 'Level', curLevel.length ? curLevel.join(' + ') : 'Not on record'),
+            _row('role', 'Role', curRole),
+            _row('phone', 'Phone number', person.phone || 'Not on record'),
+          ],
+        },
+      };
+    }
+
+    // The chosen field opens its own screen. `field` (not `data`) is the payload
+    // key on purpose: a key literally named `data` collides with the decrypt
+    // destructure and arrives as 'data_exchange', which is what silently broke
+    // the remove path once.
+    if (step === 'teacher_edit_route') {
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      const field = String((screenData && screenData.field) || '').trim();
+      const person = await _editPerson(userId, schoolExtId, pickedUserId);
+      if (!person) return _refuse('not_found');
+
+      if (field === 'name') {
+        return {
+          screen: 'TEACHER_EDIT_NAME',
+          data: {
+            school_ext_id: schoolExtId,
+            teacher_ext_id: pickedUserId,
+            intro: `Currently: ${person.name || '(no name on record)'}.\n\nType the full name.`,
+          },
+        };
+      }
+      if (field === 'level') {
+        const E = _E();
+        const cur = (person.row && require('../utils/teacher-level').teacherLevelOf(person.row)) || [];
+        return {
+          screen: 'TEACHER_EDIT_LEVEL',
+          data: {
+            school_ext_id: schoolExtId,
+            teacher_ext_id: pickedUserId,
+            intro: `${person.name || 'This teacher'} currently teaches ${cur.length ? cur.join(' + ') : 'no level on record'}.\n\nPick every level they teach.`,
+            options: [
+              _opt('PRIMARY', 'Primary (Grades 1-5)', '', ''),
+              _opt('MIDDLE', 'Middle (Grades 6-8)', '', ''),
+              _opt('HIGH', 'High (Grades 9-10)', '', ''),
+            ],
+          },
+        };
+      }
+      if (field === 'role') {
+        // Reads as Teacher when the column is NULL, matching role-features.js —
+        // a bulk-seeded row must not present as "no role on record" and then
+        // report "no change" when the coach picks Teacher.
+        const cur = String((person.row && person.row.role) || 'teacher').trim().toLowerCase();
+        const isPrincipal = cur === 'principal';
+        return {
+          screen: 'TEACHER_EDIT_ROLE',
+          data: {
+            school_ext_id: schoolExtId,
+            teacher_ext_id: pickedUserId,
+            intro: `${person.name || 'This teacher'} is recorded as a *${isPrincipal ? 'Principal' : 'Teacher'}*.\n\nA Principal can also observe other teachers, and their voice notes are treated as observations rather than their own lesson.`,
+            options: [
+              _opt('teacher', 'Teacher', 'Teaches their own class', ''),
+              _opt('principal', 'Principal', 'Teaches and observes others', ''),
+            ],
+          },
+        };
+      }
+      if (field === 'phone') {
+        return {
+          screen: 'TEACHER_EDIT_PHONE',
+          data: {
+            school_ext_id: schoolExtId,
+            teacher_ext_id: pickedUserId,
+            intro: `${person.name || 'This teacher'} is on ${person.phone || '(no number)'}.\n\nType their NEW WhatsApp number. We check it before anything moves.`,
+          },
+        };
+      }
+      return _refuse('not_found');
+    }
+
+    // ── the writes ───────────────────────────────────────────────────────
+    // Each one RE-RESOLVES the person rather than trusting the payload: the
+    // confirm is a separate round trip and the roster can move between taps.
+
+    if (step === 'teacher_edit_name_commit') {
+      const E = _E();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      const person = await _editPerson(userId, schoolExtId, pickedUserId);
+      if (!person) return _refuse('not_found');
+
+      const plan = E.planNameEdit(person.row || {}, screenData && screenData.name);
+      if (!plan.ok) return _refuse('name_required');
+      if (plan.unchanged) return _tdone('No change', `${plan.name} already has that name.`);
+
+      const supabase = require('../config/supabase');
+      const { error } = await supabase.from('users').update(plan.patch).eq('id', pickedUserId);
+      if (error) return _refuse('failed');
+      await _editAudit(userId, person, 'edit_name', { to: plan.name });
+      return _tdone('Saved', `Their name is now *${plan.name}*.`);
+    }
+
+    if (step === 'teacher_edit_level_commit') {
+      const E = _E();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      const person = await _editPerson(userId, schoolExtId, pickedUserId);
+      if (!person) return _refuse('not_found');
+
+      const raw = screenData && screenData.bands;
+      const bands = Array.isArray(raw) ? raw : String(raw || '').split(',').filter(Boolean);
+      const plan = E.planLevelEdit(person.row || {}, bands);
+      if (!plan.ok) {
+        // The cooldown is the teacher's protection; say why rather than failing
+        // blankly, or the coach retries and thinks the feature is broken.
+        if (plan.reason === 'cooldown') {
+          return _tdone('Not yet',
+            `${person.name || 'This teacher'}'s level was changed recently. It can be changed again in about ${plan.hoursRemaining} hour(s).`);
+        }
+        return _refuse(plan.reason === 'empty_selection' ? 'name_required' : 'failed');
+      }
+      if (plan.unchanged) return _tdone('No change', `${person.name || 'They'} already teach ${plan.bands.join(' + ')}.`);
+
+      // applyBandSelection is the ONE writer: it also reconciles
+      // teacher_training_assignments, so the programmes follow the bands.
+      const { applyBandSelection } = require('../services/training/band-selection.service');
+      const res = await applyBandSelection(pickedUserId, plan.bands).catch(() => ({ ok: false }));
+      if (!res || !res.ok) {
+        if (res && res.reason === 'cooldown') {
+          return _tdone('Not yet', res.message || 'That level was changed too recently.');
+        }
+        return _refuse('failed');
+      }
+      await _editAudit(userId, person, 'edit_level', { to: plan.bands });
+      return _tdone('Saved', `${person.name || 'They'} now teach *${plan.bands.join(' + ')}*.`);
+    }
+
+    if (step === 'teacher_edit_role_commit') {
+      const E = _E();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      const person = await _editPerson(userId, schoolExtId, pickedUserId);
+      if (!person) return _refuse('not_found');
+
+      const plan = E.planRoleEdit(person.row || {}, screenData && screenData.role);
+      if (!plan.ok) return _refuse(plan.reason === 'invalid_role' ? 'invalid_role' : 'failed');
+      if (plan.unchanged) {
+        return _tdone('No change',
+          `${person.name || 'They'} ${plan.role === 'principal' ? 'is already recorded as a Principal' : 'is already recorded as a Teacher'}.`);
+      }
+
+      const supabase = require('../config/supabase');
+      const { error } = await supabase.from('users').update(plan.patch).eq('id', pickedUserId);
+      if (error) return _refuse('failed');
+      // from/to both recorded: this write changes what the person MAY DO, so
+      // "it used to say teacher" is the fact an unpick would need.
+      await _editAudit(userId, person, 'edit_role', {
+        from: (person.row && person.row.role) || null, to: plan.role,
+      });
+      return _tdone('Saved', plan.role === 'principal'
+        ? `${person.name || 'They'} are now recorded as a *Principal*, and can observe other teachers.`
+        : `${person.name || 'They'} are now recorded as a *Teacher*.`);
+    }
+
+    // READS ONLY. Classifies the destination number and tells the coach exactly
+    // what will happen before anything moves.
+    if (step === 'teacher_edit_phone_check') {
+      const E = _E();
+      const T = _T();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      const person = await _editPerson(userId, schoolExtId, pickedUserId);
+      if (!person) return _refuse('not_found');
+
+      const phone = T.normaliseTeacherPhone(screenData && screenData.phone);
+      if (!phone) return _refuse('invalid_phone');
+      if (person.row && phone === person.row.phone_number) {
+        return _tdone('No change', 'That is already their number.');
+      }
+
+      const target = await _loadTargetWithHistory(phone);
+      const verdict = E.classifyTarget(target);
+
+      if (verdict === E.CASE_TAKEN) {
+        // Refuse and record. 36.8% of accounts carry irreplaceable history, so
+        // this is a real teacher's record, not an empty slot.
+        await _editAudit(userId, person, 'edit_phone_escalated', {
+          to_phone: phone, reason: 'destination_has_history',
+        });
+        // Says nothing about WHY, deliberately. Earlier copy told the coach the
+        // number "belongs to someone with their own training records", which
+        // leaks another teacher's existence to anyone who types a number. The
+        // audit row above carries the real reason for us.
+        return _tdone('Please wait while we fix your data',
+          'This change will take some time, please check back later.');
+      }
+
+      const carried = verdict === E.CASE_SHELL ? (target && target.counts) || {} : {};
+      const note = verdict === E.CASE_SHELL
+        ? '\n\nThe new number has some recent activity; it will be kept.'
+        : '';
+      return {
+        screen: 'TEACHER_EDIT_PHONE_CONFIRM',
+        data: {
+          school_ext_id: schoolExtId,
+          teacher_ext_id: pickedUserId,
+          phone,
+          plan: `Moving *${person.name || 'this teacher'}* from ${person.phone || '(no number)'} to ${phone}.`
+            + `\n\nTheir training, certificates and visits move with them.${note}`,
+        },
+      };
+    }
+
+    if (step === 'teacher_edit_phone_commit') {
+      const E = _E();
+      const T = _T();
+      const schoolExtId = String((screenData && screenData.school_ext_id) || '');
+      const pickedUserId = String((screenData && screenData.teacher_ext_id) || '');
+      const person = await _editPerson(userId, schoolExtId, pickedUserId);
+      if (!person) return _refuse('not_found');
+
+      const phone = T.normaliseTeacherPhone(screenData && screenData.phone);
+      if (!phone) return _refuse('invalid_phone');
+
+      // RE-CLASSIFY. The confirm was a separate round trip; the destination can
+      // have acquired history since, and a stale verdict is how two teachers
+      // get fused.
+      const target = await _loadTargetWithHistory(phone);
+      const verdict = E.classifyTarget(target);
+      if (verdict === E.CASE_TAKEN) {
+        await _editAudit(userId, person, 'edit_phone_escalated', {
+          to_phone: phone, reason: 'destination_has_history_at_commit',
+        });
+        // Same copy as the check path — one consistent message, and neither
+        // version hints at who else that number reaches.
+        return _tdone('Please wait while we fix your data',
+          'This change will take some time, please check back later.');
+      }
+
+      const supabase = require('../config/supabase');
+      const oldPhone = person.row && person.row.phone_number;
+
+      // Retire the shell FIRST. Its phone must be free before the survivor can
+      // take it — phone_number is UNIQUE — and a soft delete keeps it
+      // recoverable if the classifier was ever wrong.
+      if (verdict === E.CASE_SHELL && target && target.id) {
+        const { error: rErr } = await supabase.from('users')
+          .update({ ...E.retireMergedPatch(userId), phone_number: `merged:${target.id}` })
+          .eq('id', target.id);
+        if (rErr) return _refuse('failed');
+      }
+
+      const { error } = await supabase.from('users')
+        .update({ phone_number: phone }).eq('id', pickedUserId);
+      if (error) return _refuse('failed');
+
+      // The roster and any booked visit key on the phone STRING, so they have
+      // to follow or she drops out of her coach's picker with no error.
+      await supabase.from('observation_schedules')
+        .update({ teacher_ext_id: phone }).eq('teacher_ext_id', oldPhone);
+
+      await _editAudit(userId, person, 'edit_phone', {
+        from_phone: oldPhone, to_phone: phone, case: verdict,
+        retired_user_id: verdict === E.CASE_SHELL && target ? target.id : null,
+      });
+      return _tdone('Moved',
+        `*${person.name || 'They'}* are now on ${phone}. Their history moved with them.`);
     }
 
     // READS ONLY — and where the coach learns a booked visit will go.
@@ -1320,6 +1890,8 @@ module.exports = {
   visitActionTarget,
   visitSummary,
   TEACHER_MATCH_CAP,
+  writeRosterAudit,
+  ROSTER_AUDIT_ACTIONS,
   // exported for tests / reuse:
   schoolItem,
   teacherItem,

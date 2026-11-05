@@ -95,26 +95,56 @@ describe('bd-ve7kd · the Flow honours the limits Meta enforces', () => {
     expect(() => Object.keys(flow.routing_model).forEach((n) => walk(n, []))).not.toThrow();
   });
 
-  it('the after-add screen offers the loop, and completes with the choice', () => {
-    const radio = comps('ACTION_DONE').find((c) => c.type === 'RadioButtonsGroup');
-    expect(radio).toBeTruthy();
-    expect(radio['data-source'].map((o) => o.id)).toEqual(ROSTER_NEXT);
-    const f = comps('ACTION_DONE').find((c) => c.type === 'Footer');
-    expect(f['on-click-action'].name).toBe('complete');
-    // The Footer payload IS the response — the pattern BRIEF already uses to
-    // start observations in production. Do not rely on extension_message_response.
-    expect(f['on-click-action'].payload.roster_next).toBe('${form.next}');
-    expect(f['on-click-action'].payload.observe_visit_action).toBe('roster');
+  // The result screens changed shape on main: at the operator's request ("Main
+  // Menu vs Close ... single button taps ... the same for all the flows inside
+  // /observe"), the radio plus "Continue" became two one-tap exits, an
+  // EmbeddedLink "Main menu" and a Footer "Close". Neither is a `complete`. The
+  // link cannot be one, so both round-trip through the endpoint, which closes
+  // the Flow with extension_message_response carrying the same *_next value the
+  // old Footer payload carried. "Add another" and "Schedule another" went with
+  // the radio; the next job is picked from the menu, one tap away.
+  // What these tests pin is unchanged: the step-end screen ends with a choice
+  // the chat side can route, and the schedule acks still reach the chat.
+  const exitsOf = (sid) => comps(sid).filter((c) => ['EmbeddedLink', 'Footer'].includes(c.type));
+  const close = async (sid, payload) => {
+    const handler = require('../../shared/handlers/observe-visit-flow.handler');
+    const res = await handler.handle('coach-1', 'data_exchange', sid, payload, 'coach-1', { id: 'coach-1' });
+    return res.data.extension_message_response.params;
+  };
+
+  it('the after-add screen ends with a choice, and closes carrying it', async () => {
+    expect(comps('ACTION_DONE').find((c) => c.type === 'RadioButtonsGroup')).toBeUndefined();
+    const exits = exitsOf('ACTION_DONE');
+    expect(exits.map((c) => c.type).sort()).toEqual(['EmbeddedLink', 'Footer']);
+    for (const e of exits) {
+      const { name, payload } = e['on-click-action'];
+      expect(name).toBe('data_exchange');
+      expect(payload.step).toBe('action_done_next');
+      // Every choice the screen offers is one the chat side knows how to route.
+      expect(ROSTER_NEXT).toContain(payload.next);
+      const params = await close('ACTION_DONE', { ...payload, school_name: 'IMCB, I-8/3' });
+      expect(params).toMatchObject({
+        observe_visit_action: 'roster', roster_next: payload.next, school_name: 'IMCB, I-8/3',
+      });
+    }
   });
 
-  it('the after-schedule screen loops too, and still carries its ack fields', () => {
-    const f = comps('SUCCESS').find((c) => c.type === 'Footer');
-    const p = f['on-click-action'].payload;
-    expect(f['on-click-action'].name).toBe('complete');
-    expect(p.visit_next).toBe('${form.next}');
-    // Cancel/reschedule acks must survive the change to a payload-driven exit.
-    expect(p.observe_visit_action).toBe('${data.action}');
-    expect(p.teacher_name).toBe('${data.teacher_name}');
+  it('the after-schedule screen closes the same way, and still carries its ack fields', async () => {
+    const exits = exitsOf('SUCCESS');
+    expect(exits.map((c) => c.type).sort()).toEqual(['EmbeddedLink', 'Footer']);
+    for (const e of exits) {
+      const { name, payload } = e['on-click-action'];
+      expect(name).toBe('data_exchange');
+      expect(payload.step).toBe('visit_done_next');
+      // Cancel/reschedule acks must survive the change to a payload-driven exit.
+      // `done_action`, never `action`: that payload key is reserved.
+      expect(payload.done_action).toBe('${data.action}');
+      expect(payload.teacher_name).toBe('${data.teacher_name}');
+      const params = await close('SUCCESS', { ...payload, done_action: 'cancelled', teacher_name: 'Tahira Manzoor' });
+      expect(params).toMatchObject({
+        observe_visit_action: 'cancelled', visit_next: payload.next, teacher_name: 'Tahira Manzoor',
+      });
+    }
   });
 
   it('every key a screen declares can be filled by the endpoint or the client', () => {

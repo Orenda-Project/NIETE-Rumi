@@ -67,21 +67,24 @@ const FICO_ANALYSIS = {
 };
 
 beforeEach(() => {
+  // A holding names its school by the school_id foreign key: the resolver no
+  // longer parses school_ext_id, and a holding with no school_id is not a holding.
   mockRows.leader_schools = [
-    { leader_user_id: LEADER, school_ext_id: 'niete:401', school_name: 'IMCB Bhara Kau', emis: '401' },
+    { leader_user_id: LEADER, school_ext_id: 'niete:401', school_id: 's401', school_name: 'IMCB Bhara Kau', emis: '401' },
   ];
   // The patch is DERIVED now: leader_schools x schools x users.school_id.
-  // leader_teachers is no longer read, so the people live on `users`.
+  // leader_teachers is no longer read, so the people live on `users`. Their
+  // level is users.teacher_level (renamed from training_bands).
   mockRows.schools = [{ id: 's401', name: 'IMCB Bhara Kau', emis: '401' }];
   mockRows.users = [
     { id: 'teacher-1', phone_number: '923331234567', first_name: 'Abid Ullah',
-      role: 'teacher', school_id: 's401', training_bands: ['HIGH'],
+      role: 'teacher', school_id: 's401', teacher_level: ['HIGH'],
       preferred_language: 'ur', grades_taught: null },
     // Registered but never coached — the "no activity yet" case. Under the old
     // model this row did not exist at all and the teacher carried user_id null;
     // a derived patch cannot produce someone who is not a user.
     { id: 'teacher-2', phone_number: '923337654321', first_name: 'Not Yet Coached',
-      role: 'teacher', school_id: 's401', training_bands: ['PRIMARY'],
+      role: 'teacher', school_id: 's401', teacher_level: ['PRIMARY'],
       preferred_language: 'ur', grades_taught: null },
     { id: LEADER, phone_number: '923268124132', role: 'coach', preferred_language: 'ur' },
   ];
