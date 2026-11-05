@@ -67,6 +67,19 @@ describe("LeaderObserveTalk", () => {
     expect(screen.getByRole("button", { name: /Record your talk/ })).toBeInTheDocument();
   });
 
+  it("the rubric-shaped guide (current) shows its six conversation lines", async () => {
+    L.getTalkGuide.mockResolvedValue({ guide: {
+      intro: "Notes for your talk.",
+      went_well: ["Pair work: every child answered."],
+      work_on_first: { title: "Asking why", next_step: "add a why." },
+      moment: null,
+      conversation: ["l1", "l2", "l3", "l4", "l5", "l6"],
+    } });
+    renderPage();
+    expect(await screen.findAllByTestId("guide-line")).toHaveLength(6);
+    expect(screen.getByText("Pair work: every child answered.")).toBeInTheDocument();
+  });
+
   it("an uploaded talk goes to R2 and is attached to this observation", async () => {
     renderPage();
     await screen.findByText("💪 What went well");
