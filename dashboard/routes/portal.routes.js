@@ -97,6 +97,7 @@ const {
   PORTAL_COACH_V2_KEY,
   PORTAL_COACH_SCHOOL_CARD_KEY,
   PORTAL_COACH_FULL_APP_KEY,
+  COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,
@@ -2412,6 +2413,51 @@ router.get('/coach/home', ...coachV2, async (req, res) => {
     return res.json({ success: true, home });
   } catch (error) { return coachFail(res, 'home', error); }
 });
+
+/* ---------------------------------------------------------------------------
+ * Coach reports in the app — her debrief report as a page (services/coach-report.service.js).
+ *
+ * The coach app v2 chain, then app_settings.coach_reports_app for the session user: off → 404, nothing is read.
+ * IDENTITY: the coach is ALWAYS req.session.portalUserId; another coach's report is 403 (its words never leave).
+ * ------------------------------------------------------------------------- */
+const CoachReport = require('../services/coach-report.service');
+
+async function requireCoachReports(req, res, next) {
+  const on = await isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, req.session && req.session.portalUserId);
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  return next();
+}
+const coachReports = [...coachV2, requireCoachReports];
+const COACH_REPORT_STATUS = { forbidden: 403, not_found: 404, not_ready: 409 };
+
+/** GET /api/portal/coach/reports/ready — what her Home card shows: her coached debriefs she has not opened or closed. */
+router.get('/coach/reports/ready', ...coachReports, async (req, res) => {
+  try {
+    const reports = await CoachReport.readyCoachReports(pgQuery, req.session.portalUserId);
+    res.set('Cache-Control', 'no-store');
+    return res.json({ success: true, reports });
+  } catch (error) { return coachFail(res, 'reports-ready', error); }
+});
+
+/** GET /api/portal/coach/report/:id — her debrief report; another coach's is 403, a missing one 404, uncoached 409. */
+router.get('/coach/report/:id', ...coachReports, async (req, res) => {
+  try {
+    const out = await CoachReport.getCoachReport(pgQuery, req.session.portalUserId, req.params.id);
+    if (out.status !== 'ok') return res.status(COACH_REPORT_STATUS[out.status] || 404).json({ success: false, error: out.status });
+    res.set('Cache-Control', 'no-store');
+    return res.json({ success: true, report: out.report });
+  } catch (error) { return coachFail(res, 'report', error); }
+});
+
+/** POST /api/portal/coach/report/:id/opened | /seen — she opened it (any door) / closed the Home card with ✕. Once, hers only. */
+for (const what of ['opened', 'seen']) {
+  router.post(`/coach/report/:id/${what}`, ...coachReports, async (req, res) => {
+    try {
+      const stamped = await CoachReport.markCoachReport(pgQuery, req.session.portalUserId, req.params.id, what);
+      return res.json({ success: true, stamped });
+    } catch (error) { return coachFail(res, `report-${what}`, error); }
+  });
+}
 
 /** GET /api/portal/coach/pending — bd-o15qnr.21: { waiting, ids } — what waits on her (Feedback Form, Debrief), for the banner. */
 router.get('/coach/pending', ...coachV2, async (req, res) => {
@@ -9052,6 +9098,7 @@ router.get('/config', async (req, res) => {
       schoolCardRaw,
       roleSwitch,
       coachFullAppRaw,
+      coachReportsAppRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9084,6 +9131,8 @@ router.get('/config', async (req, res) => {
       isRoleSwitchUser(supabase, userId),
       // bd-jjcofw — the full coach app (Schedule + Observe) for a listed tester; rides with the coach app v2 on.
       isFlagEnabledForUser(supabase, PORTAL_COACH_FULL_APP_KEY, userId),
+      // Coach reports in the app: her debrief report as a page and its Home card; rides with the coach app v2 on.
+      isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -9106,6 +9155,7 @@ router.get('/config', async (req, res) => {
         teacherHomeLook: teacherHomeCard && teacherHomeLookRaw,
         schoolCard: coachV2 && schoolCardRaw,
         coachFullApp: coachV2 && coachFullAppRaw,
+        coachReportsApp: coachV2 && coachReportsAppRaw,
         roleSwitch,
       },
     });
