@@ -1,0 +1,171 @@
+{
+  "grade": 9,
+  "code": "islamiat",
+  "source": {
+    "file": "outputs/lanes/r0-boards/sources/ssc/txt/2024New_islamiyat_Final_Assessemnt_Framework_+_Model_Question_Paper_SSC-I.txt",
+    "kind": "fbise_af"
+  },
+  "policy": "stamp",
+  "slos": [
+    {
+      "official_slo": "I-09-G-04",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-B-01",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-C-03",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-C-21",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-D-09",
+      "gist": "design_pending: domain label not machine-parsed (domain D)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-D-18",
+      "gist": "design_pending: domain label not machine-parsed (domain D)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-D-25",
+      "gist": "design_pending: domain label not machine-parsed (domain D)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-F-10",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-D-11",
+      "gist": "design_pending: domain label not machine-parsed (domain D)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-B-25",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-A-08",
+      "gist": "design_pending: domain label not machine-parsed (domain A)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-C-01",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-F-24",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-E-04",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-E-13",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-E-19",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-F-03",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-F-18",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-G-11",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-G-03",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-B-12",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-C-17",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-B-30",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-C-35",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-F-35",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-B-05",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-G-08",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-G-12",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-C-33",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-F-08",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-A-14",
+      "gist": "design_pending: domain label not machine-parsed (domain A)",
+      "chapter": null
+    },
+    {
+      "official_slo": "I-09-A-15",
+      "gist": "design_pending: domain label not machine-parsed (domain A)",
+      "chapter": null
+    }
+  ]
+}

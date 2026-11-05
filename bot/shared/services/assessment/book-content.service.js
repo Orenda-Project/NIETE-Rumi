@@ -42,8 +42,13 @@ function fail(code, message, extra = {}) {
   return err;
 }
 
-function normaliseSubject(subject) {
-  return SUBJECT_CODES[String(subject || '').trim().toLowerCase()] || null;
+// G6-12: the registry's codes are already canonical (subject-config.js). Consulted only for a grade
+// >= 6, so a G1-5 request for a code it does not carry still refuses without a query.
+const SECONDARY_CODES = require('./subject-config').codes();
+
+function normaliseSubject(subject, grade) {
+  const k = String(subject || '').trim().toLowerCase();
+  return SUBJECT_CODES[k] || (Number(grade) >= 6 && SECONDARY_CODES.has(k) ? k : null);
 }
 
 /**
@@ -79,7 +84,7 @@ function parsePageRanges(input) {
 
 /** The book row, or a typed refusal naming what we could not find. */
 async function _book(grade, subject) {
-  const code = normaliseSubject(subject);
+  const code = normaliseSubject(subject, grade);
   if (!code) {
     throw fail('BOOK_NOT_FOUND', `We do not have a ${subject} book.`, { grade, subject });
   }

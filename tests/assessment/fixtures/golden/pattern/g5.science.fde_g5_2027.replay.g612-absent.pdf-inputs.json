@@ -1,0 +1,34 @@
+[
+  {
+    "timeout": 60000,
+    "pdfOptions": {
+      "format": "A4",
+      "printBackground": true,
+      "displayHeaderFooter": true,
+      "headerTemplate": "<span></span>",
+      "footerTemplate": "<style>@font-face{font-family:'PaperLatin';font-weight:400;font-style:normal;src:url(data:font/ttf;base64,<sha256:827bb7ceb0d744d56b4e62febbb36768d8d21be63a879054814d294afa3584ac>) format('truetype');}@font-face{font-family:'PaperLatin';font-weight:700;font-style:normal;src:url(data:font/ttf;base64,<sha256:4076c0ea1c671e17cb1f25f52c0cbb81c164b42d3259cad798d44fdbc4826efc>) format('truetype');}</style><div style=\"width:100%;font-family:'PaperLatin';font-size:7.5pt;text-align:center;color:#333;padding:0 12mm\">Page <span class=\"pageNumber\"></span> of <span class=\"totalPages\"></span></div>",
+      "margin": {
+        "top": "12mm",
+        "right": "12mm",
+        "bottom": "18mm",
+        "left": "12mm"
+      }
+    }
+  },
+  {
+    "timeout": 60000,
+    "pdfOptions": {
+      "format": "A4",
+      "printBackground": true,
+      "displayHeaderFooter": true,
+      "headerTemplate": "<span></span>",
+      "footerTemplate": "<style>@font-face{font-family:'PaperLatin';font-weight:400;font-style:normal;src:url(data:font/ttf;base64,<sha256:827bb7ceb0d744d56b4e62febbb36768d8d21be63a879054814d294afa3584ac>) format('truetype');}@font-face{font-family:'PaperLatin';font-weight:700;font-style:normal;src:url(data:font/ttf;base64,<sha256:4076c0ea1c671e17cb1f25f52c0cbb81c164b42d3259cad798d44fdbc4826efc>) format('truetype');}</style><div style=\"width:100%;font-family:'PaperLatin';font-size:7.5pt;text-align:center;color:#333;padding:0 12mm\">MARKING SCHEME · Page <span class=\"pageNumber\"></span> of <span class=\"totalPages\"></span></div>",
+      "margin": {
+        "top": "12mm",
+        "right": "12mm",
+        "bottom": "18mm",
+        "left": "12mm"
+      }
+    }
+  }
+]

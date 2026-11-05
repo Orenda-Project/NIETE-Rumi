@@ -1,0 +1,18 @@
+{
+  "note": "sha256 of each base line of ict-prompts.json at origin/sandbox 5ace97f39, trailing comma stripped (prompts contract \u00a77)",
+  "hashes": {
+    "eg.ict.eng.system": "76e68b0652c054b6b8f1e386077e76bacc93875558aeb3a1aa8ff25dc8327bff",
+    "eg.ict.urdu.system": "b76ba3e470d8055789fe605f27fa2b967230bedb64ceb852cbd84ddb9d98285d",
+    "eg.ict.math.system": "306839a069c30a9b50ca7257516bae2ca275e8e0d3bb154f424bc4e9db55460a",
+    "eg.ict.science.system": "3e1329849f16c94a0ecea4c1179784d506ac0a33541a48f27001c9a809dfbb56",
+    "eg.ict.sst.system": "54c6683d2edb1330c3af6fda63e5ddd6298cc9eb49f5b8d0b0b9b7947cb5cc83",
+    "eg.ict.islamiat.system": "c099d156dbfc3d60c0144850a618dbb9f75165dcd2a5694216fe7918cd975af4",
+    "eg.ict.genk.system": "b5e77e16672f912e6d3018d07b88a6e866f3b5f240e7cc3c271deaac0e9fc2f1",
+    "eg.format.exam": "152ab46346649b73e57e256726e11e1bf233e2cfd1d72364e6dc11d53df2b3ae",
+    "eg.format.maths": "93058d1973f5351b30f363ad312cb9d5d5834cc60e04a5dec46c353a26fa927b",
+    "eg.format.urdu_exam": "2da8680c8b935c1d485cf075517b2b4cc606c4a63708dcb5df63bcba7d468e24",
+    "eg.format.restricted": "023c67b6671a5c49b30e93edec31ed3cc3f510e4e93c53ddfed1d6276f343372",
+    "eg.task.ict_final": "e4cffc79d0465f6384fda7cfd0db0e7372a17682b22c4a190ce41ebab0496420",
+    "eg.safety.policies": "50ea5d27e529bde605917dbc31f9b77db96c0c6ca0a34f07fed36f39292cdd36"
+  }
+}
