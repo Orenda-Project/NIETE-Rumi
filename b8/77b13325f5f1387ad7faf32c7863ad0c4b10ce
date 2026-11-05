@@ -1,0 +1,2 @@
+{"ts":"2026-11-05T06:51:33Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,child-test spec_sync=true","sha":"b877b13325f5","branch":"bd-rj6w0n.14-gb-sandbox","user":""}
+{"ts":"2026-11-05T06:51:57Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-rj6w0n.14-gb-sandbox: lesson-plan spec: NOT UPDATED e2e: HEALTHY;language spec: NOT UPDATED e2e: CRITICAL (1 of 4 blocked (not drivable on this lane))","sha":"b877b13325f5","branch":"bd-rj6w0n.14-gb-sandbox","user":""}
