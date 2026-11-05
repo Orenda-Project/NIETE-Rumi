@@ -1,0 +1,114 @@
+{
+ "pattern": "fbise_hssc1_2027",
+ "subject": "english",
+ "variant": "single",
+ "source": "fbise-hssc1-english-inclusive-2025",
+ "source_status": "verified",
+ "total_marks_x4": 400,
+ "total_time_min": 180,
+ "time_a_min": 25,
+ "shared_time_min": 155,
+ "mcq_share_pct": 20.0,
+ "sections": [
+  {
+   "id": "A",
+   "marks_x4": 80,
+   "answer_on": "question_paper",
+   "slots": [
+    {
+     "label": "Q1",
+     "kind": "mcq",
+     "printed": 20,
+     "attempt": 20,
+     "marks_each_x4": 4,
+     "or": false,
+     "stimulus": null
+    }
+   ],
+   "time_min": 25
+  },
+  {
+   "id": "B",
+   "marks_x4": 160,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q2",
+     "kind": "comprehension",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 112,
+     "or": false,
+     "stimulus": null
+    },
+    {
+     "label": "Q3a",
+     "kind": "comprehension",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 24,
+     "or": false,
+     "stimulus": null
+    },
+    {
+     "label": "Q3b",
+     "kind": "essay",
+     "printed": 2,
+     "attempt": 1,
+     "marks_each_x4": 24,
+     "or": false,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  },
+  {
+   "id": "C",
+   "marks_x4": 160,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q4",
+     "kind": "letter",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 32,
+     "or": true,
+     "stimulus": null
+    },
+    {
+     "label": "Q5",
+     "kind": "grammar",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 64,
+     "or": false,
+     "stimulus": null
+    },
+    {
+     "label": "Q6",
+     "kind": "other",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 32,
+     "or": false,
+     "stimulus": null
+    },
+    {
+     "label": "Q7",
+     "kind": "essay",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 32,
+     "or": false,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  }
+ ],
+ "derivation": [
+  "Q2: summary 8 + 5 parts x 4 = 28 = section 40 - Q3a 6 - Q3b 6",
+  "Q5: (a) idioms 6 + (b) narration 6 + (c) punctuation 4 = 16"
+ ]
+}

@@ -10,7 +10,7 @@
  */
 
 const { GRADE_WORD, timeEn, timeUr } = require('./words');
-const BOARDS = { FDE: require('./fde-chrome') };
+const BOARDS = { FDE: require('./fde-chrome'), FBISE: require('./fbise-chrome') };
 
 // The closed slot-type enum (contracts/types/question-types-6-12.json, minus the pseudo-type board_paper).
 const OBJECTIVE = ['mcq', 'scenario', 'fill_blank', 'true_false_correct', 'match', 'sequence'];
