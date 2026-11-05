@@ -1639,14 +1639,19 @@ record_history.op:text
 record_history.row_id:text
 record_history.table_name:text
 record_history.txid:bigint
+region_features.book_keys:ARRAY
 region_features.created_at:timestamp with time zone
 region_features.curriculum_key:text
 region_features.curriculum_lp_enabled:boolean
 region_features.default_framework:text
+region_features.display_name:text
 region_features.gamma_lp_enabled:boolean
 region_features.has_textbooks:boolean
+region_features.is_active:boolean
+region_features.organization:text
 region_features.pic_lp_enabled:boolean
 region_features.region:text
+region_features.sort_order:integer
 region_features.supported_languages:jsonb
 region_features.supported_subjects:ARRAY
 region_features.updated_at:timestamp with time zone

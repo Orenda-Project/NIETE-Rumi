@@ -1,5 +1,6 @@
 -- NIETE sandbox schema baseline (project olvritwoqujtjvwfulbh), schema only — no rows.
 -- Regenerate: bash bot/scripts/e2e/local-db.sh baseline · dumped 2026-10-14T07:32Z
+-- region_features alone re-dumped from the live sandbox 2026-11-05 (bd-qg6j5s): V1.8.8 registry columns + book_keys.
 --
 -- PostgreSQL database dump
 --
@@ -5623,8 +5624,34 @@ CREATE TABLE public.region_features (
     default_framework text DEFAULT 'oecd'::text,
     supported_languages jsonb DEFAULT '["en"]'::jsonb,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    organization text,
+    display_name text,
+    sort_order integer,
+    is_active boolean DEFAULT true NOT NULL,
+    book_keys text[]
 );
+
+
+--
+-- Name: COLUMN region_features.organization; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.region_features.organization IS 'Owner of the region = users.organization of its teachers (niete = FDE''s ICT sectors, moawin = Gilgit-Baltistan). NULL = not a region (deployment-wide row). Dashboards show an account only its organization''s regions.';
+
+
+--
+-- Name: COLUMN region_features.display_name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.region_features.display_name IS 'The region as schools.region and users.region spell it (e.g. Sihala, Gilgit-Baltistan). region (the key) is its lower case.';
+
+
+--
+-- Name: COLUMN region_features.book_keys; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.region_features.book_keys IS 'The Grade 1-5 books this region''s teachers use, as lp_catalog.json book keys (e.g. gb_g1_english, grade_1_islamiat). NULL = the default ICT list (every book not marked opt_in). Written by bot/scripts/sync-sheet-lps.js --books.';
 
 
 --
