@@ -1,0 +1,102 @@
+{
+ "pattern": "fbise_ssc1_2027",
+ "subject": "english",
+ "variant": "single",
+ "source": "fbise-ssc1-english-inclusive2024",
+ "source_status": "verified",
+ "total_marks_x4": 300,
+ "total_time_min": 180,
+ "time_a_min": 20,
+ "shared_time_min": 160,
+ "mcq_share_pct": 20.0,
+ "sections": [
+  {
+   "id": "A",
+   "marks_x4": 60,
+   "answer_on": "question_paper",
+   "slots": [
+    {
+     "label": "Q1",
+     "kind": "mcq",
+     "printed": 15,
+     "attempt": 15,
+     "marks_each_x4": 4,
+     "or": false,
+     "stimulus": null
+    }
+   ],
+   "time_min": 20
+  },
+  {
+   "id": "B",
+   "marks_x4": 160,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q2",
+     "kind": "comprehension",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 72,
+     "or": false,
+     "stimulus": null
+    },
+    {
+     "label": "Q3",
+     "kind": "other",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 36,
+     "or": false,
+     "stimulus": null
+    },
+    {
+     "label": "Q4",
+     "kind": "grammar",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 52,
+     "or": false,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  },
+  {
+   "id": "C",
+   "marks_x4": 80,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q5",
+     "kind": "letter",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 32,
+     "or": true,
+     "stimulus": null
+    },
+    {
+     "label": "Q6",
+     "kind": "essay",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 24,
+     "or": true,
+     "stimulus": null
+    },
+    {
+     "label": "Q7",
+     "kind": "other",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 24,
+     "or": true,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  }
+ ],
+ "derivation": []
+}

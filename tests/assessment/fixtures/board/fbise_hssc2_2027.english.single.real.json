@@ -1,0 +1,113 @@
+{
+ "pattern": "fbise_hssc2_2027",
+ "subject": "english",
+ "variant": "single",
+ "source": "fbise-hssc2-english-2006",
+ "source_status": "verified",
+ "total_marks_x4": 400,
+ "total_time_min": 180,
+ "time_a_min": 25,
+ "shared_time_min": 155,
+ "mcq_share_pct": 20.0,
+ "sections": [
+  {
+   "id": "A",
+   "marks_x4": 80,
+   "answer_on": "question_paper",
+   "slots": [
+    {
+     "label": "Q1",
+     "kind": "mcq",
+     "printed": 20,
+     "attempt": 20,
+     "marks_each_x4": 4,
+     "or": false,
+     "stimulus": null
+    }
+   ],
+   "time_min": 25
+  },
+  {
+   "id": "B",
+   "marks_x4": 160,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q2",
+     "kind": "comprehension",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 112,
+     "or": false,
+     "stimulus": null
+    },
+    {
+     "label": "Q3A",
+     "kind": "comprehension",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 24,
+     "or": false,
+     "stimulus": null
+    },
+    {
+     "label": "Q3B",
+     "kind": "essay",
+     "printed": 2,
+     "attempt": 1,
+     "marks_each_x4": 24,
+     "or": false,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  },
+  {
+   "id": "C",
+   "marks_x4": 160,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q4",
+     "kind": "essay",
+     "printed": 2,
+     "attempt": 1,
+     "marks_each_x4": 48,
+     "or": false,
+     "stimulus": null
+    },
+    {
+     "label": "Q5",
+     "kind": "grammar",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 72,
+     "or": false,
+     "stimulus": null
+    },
+    {
+     "label": "Q6",
+     "kind": "grammar",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 20,
+     "or": false,
+     "stimulus": null
+    },
+    {
+     "label": "Q7",
+     "kind": "grammar",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 20,
+     "or": false,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  }
+ ],
+ "derivation": [
+  "Q5: A 6 + B 6 + C 6 = 18"
+ ]
+}
