@@ -432,6 +432,9 @@ const STRINGS = {
       rehearsed_the_step: 'ایک بار زبانی کہہ لینے سے کلاس میں اسے کرنا کہیں آسان ہو جاتا ہے۔',
     },
     coach_card_closing: 'فیصلہ آپ کا ہے — کوچ آپ ہیں۔ 🌱',
+    // Coach reports in the app: the ONE WhatsApp message with the link to her debrief report page (button <= 20).
+    coach_report_link_body: 'آپ کی ڈی بریف رپورٹ تیار ہے۔ یہ ایپ میں کھلتی ہے، انگریزی یا اردو میں۔',
+    coach_report_link_button: 'میری رپورٹ کھولیں',
     coach_concern_opener: 'آپ کی ڈی بریف سن لی۔ ایک بات کھل کر کہنی ہے — کیونکہ آپ کا بڑھنا اسی میں ہے۔',
     coach_concern_title: 'کھل کر کہنے کی بات',
     coach_concern_closing: 'یہ صرف میرے اور آپ کے درمیان ہے۔ اگلی ملاقات میں آزمائیں — میں ساتھ ہوں۔',
@@ -728,6 +731,9 @@ const STRINGS = {
       rehearsed_the_step: 'Saying it once out loud makes it far easier to do in class.',
     },
     coach_card_closing: 'The choice is yours — you are the coach. 🌱',
+    // Coach reports in the app: the ONE WhatsApp message with the link to her debrief report page (button <= 20).
+    coach_report_link_body: 'Your debrief report is ready. It opens in the app, in English or Urdu.',
+    coach_report_link_button: 'Open my report',
     // bd-30 — the harm gate: the officer disparaged the teacher. Honest, not congratulatory.
     coach_concern_opener:
       "I listened to your conversation. There's one thing I have to be honest with you about — because I'm on your side, and because this teacher depends on you. 💛",

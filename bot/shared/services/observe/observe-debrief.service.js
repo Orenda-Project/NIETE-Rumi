@@ -736,6 +736,22 @@ async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, la
   const [praiseMsg, cardMsg] = renderCoachFeedbackMessages(feedback, S);
   const sentPraise = await WhatsAppService.sendMessage(from, praiseMsg);
 
+  // Coach reports in the app: for a coach with app_settings.coach_reports_app on, the report is a page in her app, so
+  // ONE link to it goes in place of the picture and its caption ('sent'; 'not_claimed' = already opened, closed or
+  // messaged). If Meta refuses the link, today's text card goes, so she is never left without her feedback. Off for
+  // her (or no link here): exactly today's picture below. The "Send the report?" buttons follow either way.
+  const { sendReportLinkNow } = require('./coach-report-whatsapp.service');
+  const link = await sendReportLinkNow({ sessionId, coachId: opts.coachUserId || null, phone: from, lang });
+  if (link === 'sent' || link === 'not_claimed' || link === 'failed') {
+    if (link === 'failed') {
+      const sentText = await WhatsAppService.sendMessage(from, cardMsg);
+      if (sentText === false) throw new Error('observe debrief: feedback send failed — retrying via SQS');
+    }
+    await _markDebriefDone(sessionId, feedback);
+    await _offerSendReport(sessionId, from, S);
+    return;
+  }
+
   // bd-44: the celebration card ships as a rendered image (hero design,
   // value-anchored). renderCoachCard returns null for harmful debriefs and on
   // any render failure — both fall back to the text card, so an officer can
@@ -760,10 +776,13 @@ async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, la
     throw new Error('observe debrief: feedback send failed — retrying via SQS');
   }
   await _markDebriefDone(sessionId, feedback);
+  await _offerSendReport(sessionId, from, S);
+}
 
-  // FEAT-053 bd-24: the natural next step — offer to send the teacher her
-  // combined report. Non-fatal: the /observe list carries an unsent-report
-  // row as the durable re-entry point.
+// FEAT-053 bd-24: the natural next step — offer to send the teacher her
+// combined report. Non-fatal: the /observe list carries an unsent-report
+// row as the durable re-entry point.
+async function _offerSendReport(sessionId, from, S) {
   try {
     const { buildSendChoiceButtons } = require('./observe-send.service');
     await WhatsAppService.sendInteractiveButtons(from, buildSendChoiceButtons(sessionId, S));
@@ -1063,7 +1082,7 @@ async function processDebriefRecording(sessionId, payload = {}) {
   if (observerDebrief.feedback) {
     logToFile('🔭 observe debrief: feedback stored — deliver-only redelivery', { sessionId });
     await _deliverCoachFeedback(sessionId, from, observerDebrief.feedback, S,
-      session.analysis_data && session.analysis_data.framework, lang, { portal });
+      session.analysis_data && session.analysis_data.framework, lang, { portal, coachUserId: session.observer_user_id });
     return;
   }
 
@@ -1183,7 +1202,7 @@ async function processDebriefRecording(sessionId, payload = {}) {
       feedback, completed_at: new Date().toISOString(),
     });
     await _deliverCoachFeedback(sessionId, from, feedback, S,
-      session.analysis_data && session.analysis_data.framework, _fbLang, { portal });
+      session.analysis_data && session.analysis_data.framework, _fbLang, { portal, coachUserId: session.observer_user_id });
   } finally {
     try { if (fs.existsSync(tempAudioPath)) fs.unlinkSync(tempAudioPath); } catch (_) { /* temp cleanup */ }
   }
