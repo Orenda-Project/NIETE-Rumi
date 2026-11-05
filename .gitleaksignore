@@ -1,0 +1,37 @@
+# gitleaks ignore list: one fingerprint per VERIFIED false positive.
+#
+# secret-scan.yml runs `gitleaks detect --no-git`, which reads this file from the
+# scan root. In that mode a fingerprint is `<file>:<rule-id>:<line>` and silences
+# exactly one finding: the same rule on any other line, any other rule on the same
+# line, and every other file are still scanned. Nothing here is a path or a rule.
+#
+# The line number is part of the fingerprint, so an edit that moves a listed line
+# brings its finding back at the new line and the scan goes red again. When that
+# happens, check the value is still the same non-secret, then update the line
+# number here. Never swap an entry for a path or rule-wide exemption. The exact
+# fingerprint is printed in the CI log, or locally by:
+#   gitleaks detect --no-git --source . --config .gitleaks.toml --redact --verbose
+#
+# A real credential never goes in this file: take it out of the code and rotate it.
+
+# bot/shared/services/child-test/sa/build.js:428 (generic-api-key)
+# `scriptKey: 'ma.f...'` is a task id, the same string as the `task:` id three lines
+# up, used to look up that task's lines in the script table. The rule fires on the
+# word "Key" followed by a quoted value.
+bot/shared/services/child-test/sa/build.js:generic-api-key:428
+
+# portal/src/portal/teacher/notices/RemindCard.test.tsx:58 (generic-api-key)
+# Test fixture: the mocked response of GET /api/wqpush/key in a unit test. The
+# value is base64url for a short ASCII string that begins "fake", and what it
+# stands in for is the VAPID public key, which every browser is sent anyway.
+# (The paths allowlist in .gitleaks.toml covers *.test.js only, not *.test.tsx.
+# It is not widened here: one fingerprint is narrower than every TypeScript test.)
+portal/src/portal/teacher/notices/RemindCard.test.tsx:generic-api-key:58
+
+# scripts/qa/look-gate/build_pages.js:27 (generic-api-key, credential-assignment-longtoken)
+# `const TOKEN` is an invented child-page token for the offline look-gate pages,
+# which "need no network, no database". Its payload is {k, ids, exp} with
+# one-character ids and an expiry in the year 2286, and its signature is the
+# alternating-case alphabet "AbCd...", not an HMAC. It cannot open anything.
+scripts/qa/look-gate/build_pages.js:generic-api-key:27
+scripts/qa/look-gate/build_pages.js:credential-assignment-longtoken:27
