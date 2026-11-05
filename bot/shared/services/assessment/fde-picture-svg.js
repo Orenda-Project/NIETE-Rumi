@@ -10,7 +10,7 @@
  * empty box. Pure: no I/O.
  */
 
-const SVG_KINDS = ['dots', 'shapes', 'clock', 'plant'];
+const SVG_KINDS = ['dots', 'groups', 'shapes', 'clock', 'plant'];
 const INK = '#000';
 const SHADE = '#999';
 const CELL = 100; // one shape's box
@@ -30,6 +30,31 @@ function dots({ n }) {
     return `<circle cx="${cx}" cy="${cy}" r="8" fill="${INK}"/>`;
   }).join('');
   return svg(perRow * step + 4, rows * step + 4, body);
+}
+
+/**
+ * Equal groups for a multiplication or division item (bd-cj8ggk.5): `groups` rings side by side,
+ * each holding `each` dots. Sized to the tables Grade 2 learns (2, 3, 4, 5 and 10).
+ */
+function groups({ groups: g, each }) {
+  if (!Number.isInteger(g) || g < 2 || g > 5) throw new Error(`groups: groups must be 2-5, got ${g}`);
+  if (!Number.isInteger(each) || each < 1 || each > 10) throw new Error(`groups: each must be 1-10, got ${each}`);
+  const perRow = each > 2 ? 2 : 1;
+  const rows = Math.ceil(each / perRow);
+  const step = 20;
+  const w = perRow * step + 24;
+  const h = rows * step + 24;
+  const body = Array.from({ length: g }, (_, k) => {
+    const x0 = k * (w + 12);
+    const ring = `<rect data-group="${k + 1}" x="${x0 + 2}" y="2" width="${w - 4}" height="${h - 4}" rx="${Math.min(w, h) / 2 - 2}" fill="none" stroke="${INK}" stroke-width="2"/>`;
+    const dotsIn = Array.from({ length: each }, (_, i) => {
+      const cx = x0 + 12 + step / 2 + (i % perRow) * step;
+      const cy = 12 + step / 2 + Math.floor(i / perRow) * step;
+      return `<circle cx="${cx}" cy="${cy}" r="7" fill="${INK}"/>`;
+    }).join('');
+    return ring + dotsIn;
+  }).join('');
+  return svg(g * (w + 12) - 12, h, body);
 }
 
 // Whole outlines, each drawn in a CELL x CELL box at (x, 0).
@@ -131,7 +156,7 @@ function plant() {
   return svg(320, 230, body.join(''));
 }
 
-const DRAW = { dots, shapes, clock, plant };
+const DRAW = { dots, groups, shapes, clock, plant };
 
 /** The SVG for a picture this module draws; null for a kind drawn elsewhere. Throws on a picture it cannot draw. */
 function svgFor(picture) {
