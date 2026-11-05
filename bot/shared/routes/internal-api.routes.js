@@ -114,6 +114,29 @@ function num(value) {
 }
 
 /**
+ * A K-5 chapter key: a number, or a GB English review chapter 'R1'..'R999' (bd-97daxo.5). Anything else is null,
+ * so the route answers 400 exactly as it did for a non-number.
+ */
+function chapterKey(value) {
+  const n = num(value);
+  if (n !== null) return n;
+  const s = String(value == null ? '' : value).trim();
+  return /^R\d{1,3}$/i.test(s) ? s.toUpperCase() : null;
+}
+
+/**
+ * The books the portal SESSION's teacher (body.userId) has — her region's list (bd-97daxo.4) — as trailing
+ * arguments for a K-5 browse call. None for an ICT teacher or a call with no userId, so that call is the one
+ * it always was.
+ */
+async function shelfArgs(body) {
+  const userId = typeof (body && body.userId) === 'string' ? body.userId.trim() : '';
+  if (!userId) return [];
+  const keys = await require('../services/teacher-books.service').bookKeysForUser(userId);
+  return Array.isArray(keys) ? [keys] : [];
+}
+
+/**
  * Wrap a training handler with the two things every one of them needs:
  * lazy module resolution, and fail-CLOSED error handling.
  *
@@ -1275,7 +1298,7 @@ function lpBrowseRoute(name, handler) {
  * Body {} → { success, grades: [{ grade, subject_count }] }
  */
 router.post('/lp/v8/grades', requireInternalKey, lpBrowseRoute('grades', async (Browse, req, res) => {
-  const grades = await Browse.listGrades();
+  const grades = await Browse.listGrades(...(await shelfArgs(req.body)));
   return res.json({ success: true, grades });
 }));
 
@@ -1287,7 +1310,7 @@ router.post('/lp/v8/subjects', requireInternalKey, lpBrowseRoute('subjects', asy
   const grade = num((req.body || {}).grade);
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
 
-  const subjects = await Browse.listSubjects(grade);
+  const subjects = await Browse.listSubjects(grade, ...(await shelfArgs(req.body)));
   return res.json({ success: true, subjects });
 }));
 
@@ -1301,7 +1324,7 @@ router.post('/lp/v8/chapters', requireInternalKey, lpBrowseRoute('chapters', asy
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subjectKey) return res.status(400).json({ success: false, error: 'subjectKey is required' });
 
-  const chapters = await Browse.listChapters(grade, subjectKey);
+  const chapters = await Browse.listChapters(grade, subjectKey, ...(await shelfArgs(req.body)));
   return res.json({ success: true, chapters });
 }));
 
@@ -1317,12 +1340,12 @@ router.post('/lp/v8/lessons', requireInternalKey, lpBrowseRoute('lessons', async
   const body = req.body || {};
   const grade = num(body.grade);
   const subjectKey = String(body.subjectKey || '').trim();
-  const chapterNumber = num(body.chapterNumber);
+  const chapterNumber = chapterKey(body.chapterNumber);
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subjectKey) return res.status(400).json({ success: false, error: 'subjectKey is required' });
   if (chapterNumber === null) return res.status(400).json({ success: false, error: 'chapterNumber is required' });
 
-  const lessons = await Browse.listLessons(grade, subjectKey, chapterNumber, body.userId || null);
+  const lessons = await Browse.listLessons(grade, subjectKey, chapterNumber, body.userId || null, ...(await shelfArgs(body)));
   return res.json({ success: true, lessons });
 }));
 
@@ -1462,6 +1485,22 @@ router.post('/lp/open-survey', requireInternalKey, async (req, res) => {
 // The portal holds no assessment logic and reads no assessment table — asserted
 // by a test, the same way the LP catalogue is.
 
+/**
+ * Assessments are keyed by book (bd-97daxo.4): a G1-5 subject is offered only where the ICT book the generator
+ * reads is on her region's list, and a grade her list does not cover (GB: 6+) offers nothing. The teacher is the
+ * portal SESSION's (body.userId); no userId, or a region with no list, offers everything exactly as before.
+ */
+const TeacherBooks = require('../services/teacher-books.service');
+const GRADE_NOT_OFFERED = { success: false, error: 'That class is not available yet.', errorCode: 'NOT_ELIGIBLE' };
+const bodyUserId = (body) => (typeof body.userId === 'string' && body.userId.trim()) || null;
+async function bookShelfFor(body) {
+  const userId = bodyUserId(body || {});
+  return userId ? TeacherBooks.bookKeysForUser(userId) : null;
+}
+async function cellOnShelf(grade, subject, body) {
+  return TeacherBooks.assessmentOffered(grade, subject, await bookShelfFor(body));
+}
+
 /** Shared wrapper: one require, one catch, one shape. Mirrors lpBrowseRoute. */
 function assessmentRoute(name, handler) {
   return async (req, res) => {
@@ -1490,10 +1529,13 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
   const grade = num(body.grade);
   const subject = String(body.subject || '').trim();
 
-  const grades = await Browse.listGrades();
+  const shelf = await bookShelfFor(body);
+  const grades = (await Browse.listGrades()).filter((g) => TeacherBooks.gradeCovered(g, shelf));
   const out = { success: true, grades };
 
-  if (grade !== null) out.subjects = await Browse.listSubjects(grade);
+  if (grade !== null) {
+    out.subjects = (await Browse.listSubjects(grade)).filter((s) => TeacherBooks.assessmentOffered(grade, s.subject_key, shelf));
+  }
   if (grade !== null && subject) {
     Object.assign(out, Browse.questionOptions(subject, grade));
     // bd-6clakk.12 — the stems a teacher may tick on a topic paper, ADDED only while topic papers
@@ -1547,6 +1589,7 @@ router.post('/assessment/chapters', requireInternalKey, assessmentRoute('chapter
   const subject = String(body.subject || '').trim();
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+  if (!(await cellOnShelf(grade, subject, body))) return res.status(400).json(GRADE_NOT_OFFERED);
 
   const chapters = await Browse.listChapters(grade, subject);
   return res.json({ success: true, chapters });
@@ -1567,6 +1610,7 @@ router.post('/assessment/topics', requireInternalKey, assessmentRoute('topics', 
   if (!Number.isInteger(grade)) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
   if (!Number.isInteger(chapterNumber)) return res.status(400).json({ success: false, error: 'chapterNumber is required' });
+  if (!(await cellOnShelf(grade, subject, body))) return res.status(400).json(GRADE_NOT_OFFERED);
 
   // bd-6clakk.9 — off (or unreadable) → no topics, so the portal's Topics step steps aside until the A/B test.
   const { isAssessmentTopicCtaEnabled } = require('../config/feature-flags');
@@ -1793,6 +1837,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+  if (!(await cellOnShelf(grade, subject, body))) return res.status(400).json(GRADE_NOT_OFFERED);
   // Which door the paper came through (bd-pw1ccr.1): 'report' from the Class Quiz Traffic Light report's button.
   const origin = body.origin == null || body.origin === '' ? null : String(body.origin);
   if (origin !== null && !ORIGINS.includes(origin)) {

@@ -51,20 +51,48 @@ function catalog() {
 /** Test seam — pass null to restore the real catalog. */
 function __setCatalogForTests(c) { _catalog = c; }
 
-function bookFor(grade, subjectKey) {
-  return catalog().books.find((b) => b.grade === Number(grade) && b.subject_key === subjectKey) || null;
+// ── the teacher's books (bd-97daxo.4, book-first) ───────────────────────────
+//
+// Every read below that answers "which book" takes an optional trailing `bookKeys`: the list of book keys her
+// region names (teacher-books.service, region_features.book_keys). Absent or null is TODAY'S ICT LIST: every book
+// that is not `opt_in`. GB's NBF books are opt_in, so they reach only a region that lists them, and a subject
+// whose book is not on a teacher's list is simply not on her menu — never ICT's book in its place.
+// lessonById stays global: delivery is by lesson id, and an id is only ever on the menu of a teacher it is for.
+
+const bookKeyOf = (b) => b.book_key || b.stem;
+
+/** The books a teacher with this list may see, in catalog order. */
+function shelf(bookKeys) {
+  const books = catalog().books;
+  if (!Array.isArray(bookKeys)) return books.filter((b) => !b.opt_in);
+  const want = new Set(bookKeys);
+  return books.filter((b) => want.has(bookKeyOf(b)));
+}
+
+function bookFor(grade, subjectKey, bookKeys) {
+  return shelf(bookKeys).find((b) => b.grade === Number(grade) && b.subject_key === subjectKey) || null;
 }
 
 /** The book's menu name ("Social Studies (Urdu)"); the key itself when no book matches. */
-function subjectTitle(grade, subjectKey) {
-  const book = bookFor(grade, subjectKey);
+function subjectTitle(grade, subjectKey, bookKeys) {
+  const book = bookFor(grade, subjectKey, bookKeys);
   return book ? book.subject : subjectKey;
 }
 
-function chapterFor(grade, subjectKey, chapterNumber) {
-  const book = bookFor(grade, subjectKey);
+/**
+ * A chapter's number is an integer for every ICT chapter and most GB ones (GB Urdu's review units are 101-105),
+ * and 'R1'..'R4' for GB English's review chapters. A Flow payload carries String(number), so a chapter answers
+ * to its own string; an integer chapter still answers to anything Number() reads as it, as before.
+ */
+function sameChapter(number, wanted) {
+  if (String(number) === String(wanted).trim()) return true;
+  return typeof number === 'number' && number === Number(wanted);
+}
+
+function chapterFor(grade, subjectKey, chapterNumber, bookKeys) {
+  const book = bookFor(grade, subjectKey, bookKeys);
   if (!book) return null;
-  return book.chapters.find((c) => c.number === Number(chapterNumber)) || null;
+  return book.chapters.find((c) => sameChapter(c.number, chapterNumber)) || null;
 }
 
 /** Locate a lesson and the chapter/book it belongs to. Null when unknown. */
@@ -80,9 +108,9 @@ function lessonById(lessonId) {
 }
 
 /** Grades that have at least one AVAILABLE lesson. */
-function gradesWithContent(available) {
+function gradesWithContent(available, bookKeys) {
   const grades = new Set();
-  for (const book of catalog().books) {
+  for (const book of shelf(bookKeys)) {
     for (const chapter of book.chapters) {
       if (chapter.lessons.some((l) => available.has(l.lesson_id))) { grades.add(book.grade); break; }
     }
@@ -136,9 +164,9 @@ const bySubjectOrder = (a, b) => subjectRank(a.subject_key) - subjectRank(b.subj
   || String(a.subject_key).localeCompare(String(b.subject_key));
 
 /** Subjects for a grade that have at least one available chapter, in SUBJECT_ORDER. */
-function buildSubjectItems(grade, available) {
+function buildSubjectItems(grade, available, bookKeys) {
   const items = [];
-  for (const book of catalog().books.filter((b) => b.grade === Number(grade)).sort(bySubjectOrder)) {
+  for (const book of shelf(bookKeys).filter((b) => b.grade === Number(grade)).sort(bySubjectOrder)) {
     let chapters = 0;
     let lessons = 0;
     for (const chapter of book.chapters) {
@@ -170,8 +198,17 @@ function buildSubjectItems(grade, available) {
 /** Urdu (Extended Arabic-Indic) digits for RTL row furniture — mirrors the builder. */
 const urD = (s) => String(s).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
 
-function buildChapterItems(grade, subjectKey, available) {
-  const book = bookFor(grade, subjectKey);
+/**
+ * How a chapter is named on a row or a header: "Ch 3" / "باب ۳", or — for a review chapter (GB's 'R1' "Review 1",
+ * GB Urdu's 101 "جائزہ-۱") — its own title, because "Ch R1" or "باب ۱۰۱" names nothing a teacher has in her book.
+ */
+function chapterLabel(chapter, rtl) {
+  if (chapter && chapter.review) return chapter.title;
+  return rtl ? `باب ${urD(chapter.number)}` : `Ch ${chapter.number}`;
+}
+
+function buildChapterItems(grade, subjectKey, available, bookKeys) {
+  const book = bookFor(grade, subjectKey, bookKeys);
   if (!book) return [];
   const rtl = !!book.rtl;
   const items = [];
@@ -185,10 +222,10 @@ function buildChapterItems(grade, subjectKey, available) {
     // the description. Urdu rows get Urdu furniture (باب/ص/اسباق + Urdu digits)
     // so the first strong character is Arabic and the row renders RTL —
     // right-aligned, ellipsis on the correct side (operator, 2026-08-17).
-    const numTitle = rtl ? `باب ${urD(chapter.number)}` : `Ch ${chapter.number}`;
-    const merged = rtl ? `${numTitle}: ${chapter.title}` : `${numTitle} — ${chapter.title}`;
+    const numTitle = chapterLabel(chapter, rtl);
+    const merged = chapter.review ? numTitle : (rtl ? `${numTitle}: ${chapter.title}` : `${numTitle} — ${chapter.title}`);
     const fits = cps(merged) <= TITLE_CAP;
-    const title = fits ? merged : numTitle;
+    const title = fits ? merged : (chapter.review ? clip(numTitle, TITLE_CAP) : numTitle);
     const metadata = fits ? '' : clip(chapter.title, META_CAP);
 
     const range = chapter.pages_label ? (rtl ? `ص ${urD(chapter.pages_label.slice(2))}` : chapter.pages_label) : '';
@@ -225,8 +262,8 @@ function buildChapterItems(grade, subjectKey, available) {
  *
  * @returns {{items: Array, hasMore: boolean, total: number}}
  */
-function buildLessonItems(grade, subjectKey, chapterNumber, available, downloaded, page = 1) {
-  const chapter = chapterFor(grade, subjectKey, chapterNumber);
+function buildLessonItems(grade, subjectKey, chapterNumber, available, downloaded, page = 1, bookKeys = undefined) {
+  const chapter = chapterFor(grade, subjectKey, chapterNumber, bookKeys);
   if (!chapter) return { items: [], hasMore: false, total: 0 };
 
   const lessons = availableIn(chapter, available);
@@ -259,7 +296,7 @@ function buildLessonItems(grade, subjectKey, chapterNumber, available, downloade
   if (hasMore) {
     // Urdu books get Urdu furniture so the row renders RTL (§12.4); the arrow
     // points the direction of reading flow.
-    const rtl = !!(bookFor(grade, subjectKey) || {}).rtl;
+    const rtl = !!(bookFor(grade, subjectKey, bookKeys) || {}).rtl;
     items.push({
       id: MORE_ROW_ID,
       'main-content': rtl ? {
@@ -299,9 +336,11 @@ module.exports = {
   parseLessonId,
   lessonById,
   gradesWithContent,
+  shelf,
   bookFor,
   subjectTitle,
   chapterFor,
+  chapterLabel,
   catalog,
   clip,
   cps,
