@@ -30,7 +30,7 @@ def test_exact_rest_calls_first_import(mini_books, monkeypatch, capsys):
     assert run(["--all", "--corpus-local", str(MINI)], db, monkeypatch) == 0
     m = built()["meta"]
     assert db.full == [
-        ("GET", "/rest/v1/app_settings?select=key&key=eq.assessment_grades_6_12", None, "staging", None),
+        ("GET", "/rest/v1/app_settings?select=key&key=eq.assessment_grades_6_12", None, "staging", None),  # gitleaks:allow (settings key name, not a secret)
         ("GET", "/rest/v1/subjects?select=code&code=eq.english", None, "staging", None),
         ("GET", "/rest/v1/textbooks?select=id,meta&province=eq.federal&grade=eq.7&subject=eq.english",
          None, "staging", None),
