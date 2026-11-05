@@ -96,3 +96,17 @@ describe('patterns/board summaryFor + grades (bd-5jmnfj.38.25.1)', () => {
 test('list is every board id', () => {
   expect(Board.list().sort()).toEqual(Object.keys(IDS).sort());
 });
+
+describe('expandTypes (bd-5jmnfj.38.25.2)', () => {
+  test('one entry per slot, in the request row shape; the counts sum to generateTotal', () => {
+    const types = Board.expandTypes('fbise_ssc1_2027', 'physics');
+    expect(types[0]).toEqual({ id: 'mcq', count: 40, category: 'objective', slot: 'A.Q1-40' });
+    expect(types.every((t) => t.count > 0 && typeof t.slot === 'string')).toBe(true);
+    expect(types.reduce((s, t) => s + t.count, 0)).toBe(Board.summaryFor('fbise_ssc1_2027', 'physics').generateTotal);
+  });
+
+  test('unknown id or subject → []', () => {
+    expect(Board.expandTypes('nope', 'physics')).toEqual([]);
+    expect(Board.expandTypes('fbise_ssc1_2027', 'nope')).toEqual([]);
+  });
+});

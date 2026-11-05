@@ -94,4 +94,17 @@ function summaryFor(id, subject) {
   };
 }
 
-module.exports = { get, isBoard, subjectOf, isEligible, list, grades, summaryFor };
+/**
+ * The request row's question_types for a board paper (bd-5jmnfj.38.25.2): one slot-tagged entry per slot, in the
+ * FDE expandTypes shape. Read from the subject's top-level sections (its first variant); the writer resolves the
+ * variant again at write time, so this is the record of what was asked for.
+ */
+function expandTypes(id, subject) {
+  const S = subjectOf(id, subject);
+  if (!S) return [];
+  return S.sections.flatMap((sec) => sec.slots).map((slot) => ({
+    id: slot.type, count: slot.generate, category: slot.category, slot: slot.slot,
+  }));
+}
+
+module.exports = { get, isBoard, subjectOf, isEligible, list, grades, summaryFor, expandTypes };
