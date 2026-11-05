@@ -1,0 +1,2 @@
+{"ts":"2026-11-05T14:29:35Z","hook":"post-commit","event":"armed","switch":"","detail":"features=menu spec_sync=true","sha":"e990bd4a288e","branch":"HEAD","user":""}
+{"ts":"2026-11-05T14:34:24Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-5jmnfj.38.16-72383: menu spec: NOT UPDATED e2e: missing","sha":"e990bd4a288e","branch":"bd-5jmnfj.38.16-72383","user":""}
