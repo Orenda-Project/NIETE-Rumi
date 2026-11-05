@@ -132,8 +132,8 @@ describe("10 + 12 — the Visit page, in the canvas order", () => {
     expect(c.getByText(/· Today/)).toBeInTheDocument();
     expect(c.getByText("In 2 h")).toBeInTheDocument();
     expect(c.getByText("Coach score (avg.)")).toBeInTheDocument(); // bd-jjcofw.10 M1 (was bd-o15qnr.18)
-    const last = c.getByRole("link", { name: /Last observation · 14 Sep/ });
-    expect(last).toHaveTextContent("Observation · You");
+    const last = c.getByRole("link", { name: /Last observation/ });
+    expect(last).toHaveTextContent("14 Sep · You");
     expect(last).toHaveTextContent("Sent");
     expect(last).toHaveAttribute("href", "/portal/coach/observation/s-sent"); // bd-o15qnr.19: the one observation page
     expect(c.getByRole("link", { name: /Teacher profile/ })).toHaveAttribute("href", "/portal/coach/teacher/923001110001");
@@ -154,7 +154,7 @@ describe("10 + 12 — the Visit page, in the canvas order", () => {
     renderAt(`/portal/coach/visit/${VISIT_ID}`);
     const row = await screen.findByRole("link", { name: /Last observation/ });
     expect(row).toHaveAttribute("href", "/portal/coach/observation/s-wa");
-    expect(row).toHaveTextContent("Observation · Imran S");
+    expect(row).toHaveTextContent("· Imran S");
     expect(row).toHaveTextContent("Feedback Form");
   });
 
