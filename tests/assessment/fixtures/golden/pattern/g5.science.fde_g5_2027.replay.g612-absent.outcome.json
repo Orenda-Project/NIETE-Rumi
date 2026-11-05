@@ -1,0 +1,1715 @@
+{
+  "create": {
+    "statusCode": 202,
+    "payload": {
+      "success": true,
+      "requestId": "assessment_requests-1"
+    }
+  },
+  "outcome": {
+    "jobType": "assessment_generate",
+    "job": {
+      "userId": "u-golden-1",
+      "requestId": "assessment_requests-1",
+      "grade": 5,
+      "subject": "science",
+      "chapterNumber": null,
+      "chapterNumbers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "pageRanges": "1-26, 28-136, 138-161, 168-169, 179-180",
+      "contentSource": "unseen",
+      "questionCount": 41,
+      "totalMarks": null,
+      "seenCount": null,
+      "questionTypes": [
+        {
+          "id": "MCQs",
+          "count": 20,
+          "category": "objective",
+          "slot": "science.A.Q1a"
+        },
+        {
+          "id": "Label the Diagram",
+          "count": 1,
+          "category": "subjective",
+          "slot": "science.A.Q1b"
+        },
+        {
+          "id": "Draw and Label",
+          "count": 2,
+          "category": "subjective",
+          "slot": "science.B.Q2a"
+        },
+        {
+          "id": "Logical Reasoning",
+          "count": 3,
+          "category": "subjective",
+          "slot": "science.B.Q2b"
+        },
+        {
+          "id": "Brief Answers",
+          "count": 10,
+          "category": "subjective",
+          "slot": "science.C.Q3a"
+        },
+        {
+          "id": "Long Question",
+          "count": 5,
+          "category": "subjective",
+          "slot": "science.C.Q3b"
+        }
+      ],
+      "includeAnswerKey": true,
+      "answerLines": true,
+      "outputFormat": "pdf",
+      "deliver": "none",
+      "pattern": "fde_g5_2027",
+      "scope": {
+        "kind": "fde",
+        "chapters": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "pages": "1-26, 28-136, 138-161, 168-169, 179-180"
+      }
+    },
+    "returned": {
+      "status": "ready",
+      "paperId": "assessment_papers-2",
+      "key": "exams/u1/Grade5_Science_FDE.pdf",
+      "examJson": {
+        "unseen": {
+          "objective": {
+            "MCQs": [
+              {
+                "slot": "science.A.Q1a",
+                "question": "Which system carries oxygen and food to every part of the body?",
+                "options": [
+                  "digestive system",
+                  "nervous system",
+                  "circulatory system",
+                  "skeletal system"
+                ],
+                "answer": "c",
+                "blooms": "Understand",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "The brain sends messages to the rest of the body through the",
+                "options": [
+                  "lungs",
+                  "bones",
+                  "nerves",
+                  "muscles"
+                ],
+                "answer": "c",
+                "blooms": "Remember",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "Which body system breaks food down into simple substances?",
+                "options": [
+                  "nervous system",
+                  "skeletal system",
+                  "digestive system",
+                  "respiratory system"
+                ],
+                "answer": "c",
+                "blooms": "Remember",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "Which of these diseases is spread by mosquitoes?",
+                "options": [
+                  "diabetes",
+                  "dengue",
+                  "scurvy",
+                  "tooth decay"
+                ],
+                "answer": "b",
+                "blooms": "Understand",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "Which habit best stops germs passing from our hands to our food?",
+                "options": [
+                  "eating quickly",
+                  "drinking cold water",
+                  "sleeping early",
+                  "washing hands with soap"
+                ],
+                "answer": "d",
+                "blooms": "Apply",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "In the food chain grass → goat → lion, the goat is a",
+                "options": [
+                  "primary consumer",
+                  "producer",
+                  "decomposer",
+                  "secondary consumer"
+                ],
+                "answer": "a",
+                "blooms": "Understand",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "Bacteria and fungi that break down dead plants and animals are called",
+                "options": [
+                  "producers",
+                  "decomposers",
+                  "herbivores",
+                  "carnivores"
+                ],
+                "answer": "b",
+                "blooms": "Remember",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "Green plants are called producers because they",
+                "options": [
+                  "eat insects",
+                  "live in soil",
+                  "break down waste",
+                  "make their own food"
+                ],
+                "answer": "d",
+                "blooms": "Understand",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "Smoke from factories and vehicles mainly causes",
+                "options": [
+                  "soil pollution",
+                  "water pollution",
+                  "noise pollution",
+                  "air pollution"
+                ],
+                "answer": "d",
+                "blooms": "Understand",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "Which of these is biodegradable?",
+                "options": [
+                  "a tin can",
+                  "a banana peel",
+                  "a plastic bag",
+                  "a glass bottle"
+                ],
+                "answer": "b",
+                "blooms": "Understand",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "Which of these is a chemical change?",
+                "options": [
+                  "melting ice",
+                  "tearing paper",
+                  "dissolving salt",
+                  "cooking an egg"
+                ],
+                "answer": "d",
+                "blooms": "Understand",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "Which change can be reversed easily?",
+                "options": [
+                  "melting of wax",
+                  "cooking rice",
+                  "burning wood",
+                  "rusting of iron"
+                ],
+                "answer": "a",
+                "blooms": "Understand",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "An object that does not let any light pass through it is",
+                "options": [
+                  "opaque",
+                  "transparent",
+                  "translucent",
+                  "luminous"
+                ],
+                "answer": "a",
+                "blooms": "Remember",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "Which of these is translucent?",
+                "options": [
+                  "a brick wall",
+                  "clear glass",
+                  "frosted glass",
+                  "a wooden door"
+                ],
+                "answer": "c",
+                "blooms": "Understand",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "Which of these is a natural source of light?",
+                "options": [
+                  "the Sun",
+                  "the Moon",
+                  "a mirror",
+                  "a torch"
+                ],
+                "answer": "a",
+                "blooms": "Understand",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "Sound is produced when an object",
+                "options": [
+                  "shines",
+                  "cools down",
+                  "vibrates",
+                  "stops moving"
+                ],
+                "answer": "c",
+                "blooms": "Remember",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "Sound travels fastest through",
+                "options": [
+                  "steel",
+                  "air",
+                  "water",
+                  "empty space"
+                ],
+                "answer": "a",
+                "blooms": "Understand",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "Which of these is attracted to a magnet?",
+                "options": [
+                  "a cotton cloth",
+                  "an iron nail",
+                  "a wooden spoon",
+                  "a glass marble"
+                ],
+                "answer": "b",
+                "blooms": "Understand",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "Which of these is a good conductor of electricity?",
+                "options": [
+                  "a wooden stick",
+                  "copper wire",
+                  "a rubber band",
+                  "a plastic ruler"
+                ],
+                "answer": "b",
+                "blooms": "Understand",
+                "marks": 1,
+                "lines": 0
+              },
+              {
+                "slot": "science.A.Q1a",
+                "question": "An echo is",
+                "options": [
+                  "a soft sound",
+                  "a musical sound",
+                  "a loud sound",
+                  "a reflected sound"
+                ],
+                "answer": "d",
+                "blooms": "Understand",
+                "marks": 1,
+                "lines": 0
+              }
+            ]
+          },
+          "subjective": {
+            "Label the Diagram": [
+              {
+                "slot": "science.A.Q1b",
+                "question": "Layers of the Earth",
+                "answer": "Crust, upper mantle, lower mantle, outer core, inner core",
+                "book_page": 168,
+                "blooms": "Remember",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "crust",
+                      "marks": 1,
+                      "kind": "L"
+                    },
+                    {
+                      "text": "upper mantle",
+                      "marks": 1,
+                      "kind": "L"
+                    },
+                    {
+                      "text": "lower mantle",
+                      "marks": 1,
+                      "kind": "L"
+                    },
+                    {
+                      "text": "outer core",
+                      "marks": 1,
+                      "kind": "L"
+                    },
+                    {
+                      "text": "inner core",
+                      "marks": 1,
+                      "kind": "L"
+                    }
+                  ],
+                  "accept": [
+                    "\"mantle\" on either mantle line"
+                  ],
+                  "common_error": "Outer and inner core swapped: both core marks are lost, the other three stand.",
+                  "checked": null
+                },
+                "marks": 5,
+                "lines": 0
+              }
+            ],
+            "Draw and Label": [
+              {
+                "slot": "science.B.Q2a",
+                "question": "Respiratory System",
+                "answer": "A drawing of the nose, the windpipe dividing into two bronchi, one to each lung, and the diaphragm below the lungs, all labelled.",
+                "blooms": "Remember",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "nose or nostrils",
+                      "marks": 1,
+                      "kind": "L"
+                    },
+                    {
+                      "text": "mouth",
+                      "marks": 1,
+                      "kind": "L"
+                    },
+                    {
+                      "text": "windpipe (trachea)",
+                      "marks": 1,
+                      "kind": "L"
+                    },
+                    {
+                      "text": "bronchi: two tubes, one to each lung",
+                      "marks": 1,
+                      "kind": "L"
+                    },
+                    {
+                      "text": "two lungs, drawn and labelled",
+                      "marks": 2,
+                      "kind": "L"
+                    },
+                    {
+                      "text": "diaphragm below the lungs",
+                      "marks": 1,
+                      "kind": "L"
+                    }
+                  ],
+                  "accept": [
+                    "nasal passage for nose",
+                    "air tubes for bronchi"
+                  ],
+                  "common_error": "The food pipe labelled as the windpipe.",
+                  "checked": null
+                },
+                "marks": 7,
+                "lines": 0
+              },
+              {
+                "slot": "science.B.Q2a",
+                "question": "Food Chain",
+                "answer": "Grass → grasshopper → frog → snake, each labelled producer, primary consumer, secondary consumer and top consumer.",
+                "blooms": "Understand",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "a producer (a green plant) at the start",
+                      "marks": 3,
+                      "kind": "L"
+                    },
+                    {
+                      "text": "a primary consumer (a plant-eater)",
+                      "marks": 1,
+                      "kind": "L"
+                    },
+                    {
+                      "text": "a secondary consumer",
+                      "marks": 1,
+                      "kind": "L"
+                    },
+                    {
+                      "text": "a top consumer",
+                      "marks": 1,
+                      "kind": "L"
+                    },
+                    {
+                      "text": "each living thing named",
+                      "marks": 1,
+                      "kind": "L"
+                    }
+                  ],
+                  "accept": [
+                    "any correct chain of four, e.g. plants → caterpillar → sparrow → hawk",
+                    "the Sun drawn at the start (not needed)"
+                  ],
+                  "common_error": "Arrows drawn from the eater to its food: the arrow marks only are lost.",
+                  "checked": null
+                },
+                "marks": 7,
+                "lines": 0
+              }
+            ],
+            "Logical Reasoning": [
+              {
+                "slot": "science.B.Q2b",
+                "question": "You put three iron nails in three places: one in a cup of tap water, one in a cup of cooking oil, and one in a dry, closed jar. After one week you look at all three nails.",
+                "questions": [
+                  {
+                    "question": "Which nail has rusted, and what does rust look like?",
+                    "answer": "The nail in tap water. Rust is a reddish-brown, flaky layer on the iron.",
+                    "scheme": {
+                      "checked": null,
+                      "points": [
+                        {
+                          "kind": "A",
+                          "marks": 1.5,
+                          "text": "The nail in tap water."
+                        },
+                        {
+                          "kind": "A",
+                          "marks": 1,
+                          "text": "Rust is a reddish-brown, flaky layer on the iron."
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "question": "Why did the nail in oil not rust?",
+                    "answer": "The oil kept air and water away from the iron, and iron needs both to rust.",
+                    "scheme": {
+                      "checked": null,
+                      "points": [
+                        {
+                          "kind": "A",
+                          "marks": 1.5,
+                          "text": "The oil kept air and water away from the iron"
+                        },
+                        {
+                          "kind": "A",
+                          "marks": 1,
+                          "text": "and iron needs both to rust."
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "question": "Is rusting a physical or a chemical change? Give one reason.",
+                    "answer": "A chemical change: a new substance, rust, forms and cannot easily be turned back into iron.",
+                    "scheme": {
+                      "checked": null,
+                      "points": [
+                        {
+                          "kind": "A",
+                          "marks": 2.5,
+                          "text": "A chemical change: a new substance, rust, forms and cannot easily be turned back into iron."
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "blooms": "Apply",
+                "marks": 5,
+                "lines": 0
+              },
+              {
+                "slot": "science.B.Q2b",
+                "question": "You stir a spoonful of sugar into a glass of warm water. Then, with your teacher watching, you burn a small piece of paper on a steel plate.",
+                "questions": [
+                  {
+                    "question": "What happens to the sugar? Can you get it back, and how?",
+                    "answer": "It dissolves and can no longer be seen. Yes: let the water evaporate and the sugar is left behind.",
+                    "scheme": {
+                      "checked": null,
+                      "points": [
+                        {
+                          "kind": "A",
+                          "marks": 1.5,
+                          "text": "It dissolves and can no longer be seen."
+                        },
+                        {
+                          "kind": "A",
+                          "marks": 1,
+                          "text": "Yes: let the water evaporate and the sugar is left behind."
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "question": "What is left after the paper burns? Can it be made into paper again?",
+                    "answer": "Black ash is left and smoke is given off. It cannot be made into paper again.",
+                    "scheme": {
+                      "checked": null,
+                      "points": [
+                        {
+                          "kind": "A",
+                          "marks": 1.5,
+                          "text": "Black ash is left and smoke is given off."
+                        },
+                        {
+                          "kind": "A",
+                          "marks": 1,
+                          "text": "It cannot be made into paper again."
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "question": "Which activity shows a chemical change? Give one reason.",
+                    "answer": "Burning the paper: new substances (ash and smoke) form and the change cannot be reversed.",
+                    "scheme": {
+                      "checked": null,
+                      "points": [
+                        {
+                          "kind": "A",
+                          "marks": 2.5,
+                          "text": "Burning the paper: new substances (ash and smoke) form and the change cannot be reversed."
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "blooms": "Apply",
+                "marks": 5,
+                "lines": 0
+              }
+            ],
+            "Brief Answers": [
+              {
+                "slot": "science.C.Q3a",
+                "question": "Name the three main jobs of the skeletal system.",
+                "answer": "It gives the body its shape and holds it up, it protects soft organs such as the heart and lungs (inside the ribs), and it helps us move together with the muscles.",
+                "blooms": "Remember",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "gives the body shape and support",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "protects soft organs, with one example (ribs: heart and lungs; skull: brain)",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "helps the body move, working with the muscles",
+                      "marks": 1,
+                      "kind": "K"
+                    }
+                  ],
+                  "checked": null
+                },
+                "marks": 5,
+                "lines": 0
+              },
+              {
+                "slot": "science.C.Q3a",
+                "question": "Why do we breathe faster after running?",
+                "answer": "Running makes our muscles work harder, so they need more oxygen. We breathe faster to take in more oxygen and to get rid of the extra carbon dioxide.",
+                "blooms": "Understand",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "the muscles work harder",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "they need more oxygen",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "faster breathing takes in more oxygen",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "and removes more carbon dioxide",
+                      "marks": 1,
+                      "kind": "K"
+                    }
+                  ],
+                  "checked": null
+                },
+                "marks": 5,
+                "lines": 0
+              },
+              {
+                "slot": "science.C.Q3a",
+                "question": "Write two differences between contagious and non-contagious diseases. Give one example of each.",
+                "answer": "A contagious disease is caused by germs and spreads from one person to another, e.g. flu or measles. A non-contagious disease does not spread from person to person, e.g. diabetes.",
+                "blooms": "Understand",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "contagious: spreads from person to person",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "non-contagious: does not spread",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "contagious diseases are caused by germs",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "a correct contagious example (flu, measles, chickenpox, TB)",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "a correct non-contagious example (diabetes, heart disease)",
+                      "marks": 1,
+                      "kind": "K"
+                    }
+                  ],
+                  "checked": null
+                },
+                "marks": 5,
+                "lines": 0
+              },
+              {
+                "slot": "science.C.Q3a",
+                "question": "What are microorganisms? Write two ways in which they are useful to us.",
+                "answer": "Microorganisms are tiny living things that can be seen only with a microscope. Yeast makes bread dough rise, and bacteria turn milk into yoghurt.",
+                "blooms": "Remember",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "tiny living things seen only with a microscope",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "one useful job: yeast makes dough rise, bacteria make yoghurt, decomposers, medicines",
+                      "marks": 1.5,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "a second, different useful job",
+                      "marks": 1.5,
+                      "kind": "K"
+                    }
+                  ],
+                  "checked": null
+                },
+                "marks": 5,
+                "lines": 0
+              },
+              {
+                "slot": "science.C.Q3a",
+                "question": "How is a food web different from a food chain?",
+                "answer": "A food chain shows one path of who eats whom, e.g. grass → rabbit → fox. A food web is many food chains joined together, so one animal can eat, or be eaten by, more than one living thing.",
+                "blooms": "Understand",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "food chain: one path of feeding",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "food web: many food chains joined together",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "in a web an animal has more than one food or more than one enemy",
+                      "marks": 1,
+                      "kind": "K"
+                    }
+                  ],
+                  "checked": null
+                },
+                "marks": 5,
+                "lines": 0
+              },
+              {
+                "slot": "science.C.Q3a",
+                "question": "Sort these into physical and chemical changes: melting butter, burning wood, freezing water, baking a cake, cutting paper.",
+                "answer": "Physical: melting butter, freezing water, cutting paper. Chemical: burning wood, baking a cake.",
+                "blooms": "Apply",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "melting butter: physical",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "burning wood: chemical",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "freezing water: physical",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "baking a cake: chemical",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "cutting paper: physical",
+                      "marks": 1,
+                      "kind": "K"
+                    }
+                  ],
+                  "checked": null
+                },
+                "marks": 5,
+                "lines": 0
+              },
+              {
+                "slot": "science.C.Q3a",
+                "question": "Why can we see our face in a mirror but not in a wooden board?",
+                "answer": "A mirror has a very smooth, shiny surface that sends light back evenly, so it forms an image of our face. Wood is rough and dull; it scatters and absorbs light, so no image forms.",
+                "blooms": "Understand",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "a mirror is smooth and shiny",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "it reflects light back evenly and forms an image",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "wood is rough and dull",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "it scatters or absorbs light, so there is no image",
+                      "marks": 1,
+                      "kind": "K"
+                    }
+                  ],
+                  "checked": null
+                },
+                "marks": 5,
+                "lines": 0
+              },
+              {
+                "slot": "science.C.Q3a",
+                "question": "How does the sound of the school bell reach our ears?",
+                "answer": "When the bell is struck it vibrates. The vibrations pass to the air around it and travel through the air as sound waves until they reach our ears, where the eardrum vibrates and we hear the sound.",
+                "blooms": "Understand",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "the bell vibrates",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "the vibrations travel through the air (sound waves)",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "they reach the ear",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "the eardrum vibrates and we hear",
+                      "marks": 1,
+                      "kind": "K"
+                    }
+                  ],
+                  "checked": null
+                },
+                "marks": 5,
+                "lines": 0
+              },
+              {
+                "slot": "science.C.Q3a",
+                "question": "Why is it dangerous to touch an electric switch with wet hands?",
+                "answer": "Water with dirt and salts in it conducts electricity. With wet hands, current can pass through the water into our body and give us an electric shock.",
+                "blooms": "Apply",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "water (tap water, sweat) conducts electricity",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "current can pass into the body",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "an electric shock or serious injury",
+                      "marks": 1,
+                      "kind": "K"
+                    }
+                  ],
+                  "checked": null
+                },
+                "marks": 5,
+                "lines": 0
+              }
+            ],
+            "Long Question": [
+              {
+                "slot": "science.C.Q3b",
+                "question": "Describe the journey of food through the digestive system, from the mouth to the large intestine. Say what happens in each part.",
+                "answer": "In the mouth the teeth chew the food and saliva softens it. The food pipe carries it to the stomach, which churns it and mixes it with digestive juices. In the small intestine digestion is finished and the useful food passes into the blood. The large intestine takes water from what is left, and the waste leaves the body.",
+                "blooms": "Understand",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "mouth: teeth chew, saliva softens the food",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "food pipe carries food to the stomach",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "stomach churns the food and mixes it with digestive juices",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "small intestine: digestion finished, food absorbed into the blood",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "large intestine: water taken back, waste leaves the body",
+                      "marks": 2,
+                      "kind": "K"
+                    }
+                  ],
+                  "checked": null
+                },
+                "marks": 9,
+                "lines": 0
+              },
+              {
+                "slot": "science.C.Q3b",
+                "question": "What causes air pollution? Explain how it affects our health and our surroundings, and suggest three ways to reduce it.",
+                "answer": "Smoke from vehicles, factories and burning rubbish pollutes the air. It causes coughing, asthma and other breathing problems, and smog that harms plants and animals. We can plant trees, walk or use buses instead of cars, and stop burning rubbish.",
+                "blooms": "Apply",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "two causes: smoke from vehicles, factories, burning rubbish or crops",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "health: coughing, asthma, breathing problems, sore eyes",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "surroundings: smog, harm to plants and animals, dirty buildings",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "three ways to reduce it, 1 each (plant trees, walk or share transport, do not burn rubbish)",
+                      "marks": 3,
+                      "kind": "K"
+                    }
+                  ],
+                  "checked": null
+                },
+                "marks": 9,
+                "lines": 0
+              },
+              {
+                "slot": "science.C.Q3b",
+                "question": "Explain how a shadow is formed. How does the shadow of a flagpole change from morning to noon to evening?",
+                "answer": "Light travels in straight lines. When an opaque object blocks it, a dark area forms behind the object: its shadow. In the morning the Sun is low in the east, so the flagpole's shadow is long and points west. At noon the Sun is high and the shadow is shortest. In the evening the Sun is low in the west and the shadow is long again, pointing east.",
+                "blooms": "Understand",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "light travels in straight lines",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "an opaque object blocks the light, leaving a dark area behind it",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "morning: Sun low in the east, shadow long and pointing west",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "noon: Sun high, shadow shortest",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "evening: Sun low in the west, shadow long and pointing east",
+                      "marks": 2,
+                      "kind": "K"
+                    }
+                  ],
+                  "checked": null
+                },
+                "marks": 9,
+                "lines": 0
+              },
+              {
+                "slot": "science.C.Q3b",
+                "question": "What is a magnet? Explain how you can turn an iron nail into a magnet, and write three uses of magnets in daily life.",
+                "answer": "A magnet attracts things made of iron, steel or nickel and has a north and a south pole. Stroke the nail many times with one pole of a magnet, always in the same direction, lifting the magnet away at the end of each stroke; the nail then picks up pins. Magnets are used in compasses, in fridge doors and in cranes that lift scrap iron.",
+                "blooms": "Apply",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "a magnet attracts iron, steel or nickel",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "it has a north and a south pole",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "stroke the nail with one pole of a magnet",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "many times, in the same direction only",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "lift the magnet away at the end of each stroke",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "test: the nail now picks up pins or clips",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "three uses, 1 each (compass, fridge door, cranes, toys, speakers)",
+                      "marks": 3,
+                      "kind": "K"
+                    }
+                  ],
+                  "checked": null
+                },
+                "marks": 9,
+                "lines": 0
+              },
+              {
+                "slot": "science.C.Q3b",
+                "question": "Explain how electricity flows in a simple circuit made of a cell, a switch, wires and a bulb. What happens when the switch is opened? Why are electric wires covered with plastic?",
+                "answer": "Current flows from the cell, through the wires and the bulb, and back to the cell; the path must be complete, and the bulb lights. Opening the switch makes a gap, so the circuit is broken, the current stops and the bulb goes off. Plastic is an insulator: it does not let current pass, so it protects us from electric shocks.",
+                "blooms": "Understand",
+                "scheme": {
+                  "points": [
+                    {
+                      "text": "current flows from the cell through the wires and bulb and back to the cell",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "the path must be complete (closed)",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "the bulb lights when current flows through it",
+                      "marks": 1,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "switch opened: a gap breaks the circuit, current stops, the bulb goes off",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "plastic is an insulator; it does not let current pass",
+                      "marks": 2,
+                      "kind": "K"
+                    },
+                    {
+                      "text": "it protects us from electric shocks",
+                      "marks": 1,
+                      "kind": "K"
+                    }
+                  ],
+                  "checked": null
+                },
+                "marks": 9,
+                "lines": 0
+              }
+            ]
+          }
+        },
+        "_layout": {
+          "v": 2,
+          "preset_id": "fde_g5_2027",
+          "subject": "science",
+          "medium": "en",
+          "scope": {
+            "kind": "fde",
+            "chapters": null,
+            "pages": null,
+            "label_en": "FDE syllabus 2026–27",
+            "label_ur": "FDE نصاب 2026–27",
+            "line_en": "Chapters 1–6 · Ch 7 diagrams",
+            "line_ur": "ابواب 1–6 · باب 7 کے خاکے",
+            "covers_en": null,
+            "covers_ur": null
+          },
+          "header": {
+            "school_line_en": "School: ____________",
+            "student_box_en": [
+              "Student Name",
+              "Roll No",
+              "Date",
+              "Total Marks",
+              "Obtained Marks"
+            ],
+            "footer_page_en": "Page {n} of {N}",
+            "scheme_title_en": "MARKING SCHEME",
+            "band_en": "TEACHER'S COPY · Do not give to children",
+            "covers_en": "Covers: {scope}.",
+            "covers_partial_en": "Covers {units}; every section set from these chapters.",
+            "record_title_en": "Class record",
+            "record_cols_en": [
+              "Roll",
+              "Name"
+            ],
+            "record_total_en": "Total",
+            "record_grade_en": "Grade",
+            "checked_en": "✓ checked",
+            "notes_title_en": "Notes",
+            "note_replaced_en": "{n}: key corrected by code; the model wrote {value}.",
+            "accept_en": "accept:",
+            "common_error_en": "common error:",
+            "answer_sheet_en": "answer sheet",
+            "or_en": "OR",
+            "school_line_ur": "اسکول: ____________",
+            "student_box_ur": [
+              "نام طالب علم",
+              "رول نمبر",
+              "تاریخ",
+              "کل نمبر",
+              "حاصل کردہ نمبر"
+            ],
+            "footer_page_ur": "صفحہ {n} از {N}",
+            "scheme_title_ur": "مارکنگ اسکیم",
+            "band_ur": "استاد کی کاپی · بچوں کو نہ دیں",
+            "covers_ur": "احاطہ: {scope}۔",
+            "covers_partial_ur": "احاطہ: {units}؛ ہر حصہ انہی ابواب سے۔",
+            "record_title_ur": "کلاس ریکارڈ",
+            "record_cols_ur": [
+              "رول نمبر",
+              "نام"
+            ],
+            "record_total_ur": "کل",
+            "record_grade_ur": "گریڈ",
+            "checked_ur": "✓ جانچا گیا",
+            "notes_title_ur": "نوٹ",
+            "note_replaced_ur": "{n}: کلید کوڈ نے درست کی؛ ماڈل نے {value} لکھا۔",
+            "accept_ur": "یہ بھی درست:",
+            "common_error_ur": "عام غلطی:",
+            "answer_sheet_ur": "جوابی کاپی",
+            "or_ur": "یا",
+            "title_en": "Grade 5 · Science · FDE pattern practice paper",
+            "title_ur": "جماعت پنجم · سائنس · FDE pattern کا مشقی پرچہ",
+            "time_line_en": "Time Allowed: 3 Hours",
+            "total_line_en": "Total Marks: {t:100}",
+            "note_en": "Note: This paper consists of THREE Sections. Section – A needs to be solved on the Question Paper. Section B&C to be solved on the Answer Sheet. Cutting, erasing and overwriting is not allowed."
+          },
+          "sections": [
+            {
+              "id": "A",
+              "time_en": "Time Allowed: 30 minutes",
+              "label_en": "Section A",
+              "marks_en": "Total Marks: {t:25}",
+              "marks": 25,
+              "answer_on": "question_paper",
+              "note_en": null,
+              "slots": [
+                {
+                  "slot": "science.A.Q1a",
+                  "label_en": "Q1 (a):",
+                  "label_ur": "سوال 1 (الف)",
+                  "instruction_en": "Encircle the correct answer.",
+                  "marks_line_en": "(1×{n:20}={t:20})",
+                  "type": "MCQs",
+                  "category": "objective",
+                  "shape": "mcq",
+                  "generate": 20,
+                  "attempt": 20,
+                  "marks_each": 1,
+                  "parts": null,
+                  "numbering": "roman",
+                  "option_labels": "a",
+                  "compulsory": true,
+                  "lines": 0,
+                  "work_mm": null,
+                  "section_pages": "scope",
+                  "grain": {
+                    "kind": "one concept per item across chapters 1–6: body systems, diseases, food chains, pollution, physical and chemical change, light, sound, magnets, circuits",
+                    "number_size": "none",
+                    "steps": 1,
+                    "unit_choice": false
+                  },
+                  "families": null,
+                  "kinds": null,
+                  "prompt_rule": "Twenty four-option MCQs from chapters 1–6 only (Skill Sharpener and Mastery Challenge included); 3 to 5 of them pure recall. Never set an item on chapter 7 here. Detailed respiratory (alveoli) or circulatory (chambers, valves) knowledge is not required. An item never states a marking point of a Section C answer, nor a key of a Section B answer: no stem or option prints a word, a number or a name that another item's key asks for (the fuels a child names, the feeding order or a label of a food chain, the group a microorganism belongs to, the parts of a body system, a conductor or the gap in a circuit). Physical or chemical change is tested in at most 2 items of the whole paper, transparent, translucent and opaque in at most 2, the respiratory system is labelled once, and the Sun's heat trapped by greenhouse gases is a key point of one item only. A disease item never asks which disease is contagious or non-contagious with malaria (carried by a mosquito) or cholera (carried by water) among the options: set diabetes against measles, influenza, chickenpox or mumps. No MCQ tests a concept that a Section B or Section C question of this paper asks, and no stem or option states a fact that a later question asks the child to explain. Each concept (physical or chemical change, vaccines, light and materials) is asked at most twice in the whole paper, never by two items of one section; a stem never states another item's answer. Round 6 (v37): Section A uses its own objects and settings, never an object or example named in Section B or C (a ceramic mug in an MCQ is not also the written example). Biodegradable and non-biodegradable is asked in at most two items of the whole paper. Round 7 (v37): an item never prints the word a Section B or C key asks for, in the stem or in any option: a window that is frosted with blurry shapes (the key is translucent), a vaccine that teaches the body to recognise and fight a germ, tiny organisms that turn leaves into soil, banana peel that rots, waves with the lowest crests (the key is a low amplitude) are all another item's answer, so Section A asks those concepts through a different object, a different setting and different words, or leaves them to Sections B and C. Round 8 (v38): no stem or option names a word that is the answer to a Section B or Section C item; check every stem and option against the keys of Q2 (b) and Q3 before writing it, and set the item on another word.",
+                  "frame": null,
+                  "teacher_note_en": null,
+                  "teacher_note_ur": null,
+                  "alternatives": null,
+                  "or": false
+                },
+                {
+                  "slot": "science.A.Q1b",
+                  "label_en": "Q1 (b):",
+                  "label_ur": "سوال 1 (ب)",
+                  "instruction_en": "Label the given Diagram",
+                  "marks_line_en": "({t:5} Marks)",
+                  "type": "Label the Diagram",
+                  "category": "subjective",
+                  "shape": "frame",
+                  "generate": 1,
+                  "attempt": 1,
+                  "marks_each": 5,
+                  "parts": null,
+                  "numbering": "none",
+                  "compulsory": true,
+                  "lines": 0,
+                  "work_mm": null,
+                  "section_pages": "scope",
+                  "grain": {
+                    "kind": "label an unlabelled book diagram with 5 parts (chapters 1–7)",
+                    "number_size": "none",
+                    "steps": 1,
+                    "unit_choice": false
+                  },
+                  "families": null,
+                  "kinds": null,
+                  "prompt_rule": "One item, and always the symbols of a circuit diagram, because the paper draws that picture itself: `question` is \"Symbols used in a circuit diagram\", `book_page` the book page it is on, `answer` exactly the five labels in this order: \"1. Wire, 2. Cell, 3. Closed switch, 4. Open switch, 5. Lamp\" (wire, cell, closed switch, open switch and lamp). The paper draws the five numbered symbols in the frame, so no item depends on a picture a teacher must draw or paste: never another diagram here (never the layers of the Earth, a food chain or a body part). Never describe the picture and never send the child to a picture.",
+                  "frame": {
+                    "kind": "diagram",
+                    "height_mm": 70,
+                    "lines": 5,
+                    "word_bank": false,
+                    "title_en": "Diagram: {q}",
+                    "title_ur": "خاکہ: {q}",
+                    "supply_en": "Diagram: {q}",
+                    "supply_ur": "خاکہ: {q}",
+                    "duty_en": "the diagram to label",
+                    "duty_ur": "نشان دہی والا خاکہ",
+                    "book_page": 168
+                  },
+                  "teacher_note_en": "Draw this diagram on the board or paste the book's figure into the frame before photocopying.",
+                  "teacher_note_ur": "فوٹو کاپی سے پہلے یہ خاکہ بورڈ پر بنائیں یا کتاب سے چسپاں کریں۔",
+                  "alternatives": null,
+                  "or": false
+                }
+              ]
+            },
+            {
+              "id": "B",
+              "time_en": "Time Allowed: 2 hrs. 30 min",
+              "label_en": "Section B",
+              "marks_en": "Total Marks: {t:17}",
+              "marks": 17,
+              "answer_on": "answer_sheet",
+              "note_en": "NOTE: Section B consists of 2 parts (a) and (b)",
+              "slots": [
+                {
+                  "slot": "science.B.Q2a",
+                  "label_en": "Q2 (a)",
+                  "label_ur": "سوال 2 (الف)",
+                  "instruction_en": "Draw and label any {w:one} of the following:",
+                  "marks_line_en": "({t:7} Marks)",
+                  "type": "Draw and Label",
+                  "category": "subjective",
+                  "shape": "draw",
+                  "generate": 2,
+                  "attempt": 1,
+                  "marks_each": 7,
+                  "parts": null,
+                  "numbering": "paren_roman",
+                  "compulsory": false,
+                  "lines": 0,
+                  "work_mm": null,
+                  "section_pages": "scope",
+                  "grain": {
+                    "kind": "name a body or ecology diagram the child can draw and label from the book",
+                    "number_size": "none",
+                    "steps": 1,
+                    "unit_choice": false
+                  },
+                  "families": null,
+                  "kinds": null,
+                  "prompt_rule": "Two items, each just the name of a diagram the child draws and labels from chapters 1–7 (e.g. \"Respiratory System\", \"Food Chain\"). The scheme lists the labels expected (L points). Not the detailed alveoli or heart chambers. A food chain names exactly four living things, starting with a plant; the scheme lists exactly the asked count of labels and never the word \"arrows\". The two alternatives are equal: the labels a stem asks are exactly the label marks its scheme pays (for a 7-mark item with a 2-mark drawing, 5 labels), and both alternatives carry the same drawing marks and label marks. The respiratory system is drawn and labelled here only, so Q1 (b) is never the respiratory system. Round 7 (v37): labels are the Grade 5 book's own terms: the layers of the Earth are keyed crust, mantle, outer core and inner core, never continental or oceanic plate, and crust is never listed as a common error; the stem asks only as many labels as the scheme pays.",
+                  "frame": null,
+                  "teacher_note_en": null,
+                  "teacher_note_ur": null,
+                  "alternatives": null,
+                  "or": true
+                },
+                {
+                  "slot": "science.B.Q2b",
+                  "label_en": "Q2 (b)",
+                  "label_ur": "سوال 2 (ب)",
+                  "instruction_en": "Read and attempt any {w:TWO} of the following given situations carefully.",
+                  "marks_line_en": "({n:2} × 5 = {t:10})",
+                  "type": "Logical Reasoning",
+                  "category": "subjective",
+                  "shape": "situation",
+                  "generate": 3,
+                  "attempt": 2,
+                  "marks_each": 5,
+                  "parts": null,
+                  "item_parts": {
+                    "per_item": 3,
+                    "attempt": 2,
+                    "marks_each": 2.5,
+                    "line_en": "Answer any two of the given questions.",
+                    "marks_line_en": "(2 × 2.5 = 5)"
+                  },
+                  "numbering": "paren_roman",
+                  "compulsory": false,
+                  "lines": 0,
+                  "work_mm": null,
+                  "section_pages": "scope",
+                  "grain": {
+                    "kind": "an activity situation in words, then three sub-questions (a, b, c), answer any two",
+                    "number_size": "none",
+                    "steps": 1,
+                    "unit_choice": false
+                  },
+                  "families": null,
+                  "kinds": null,
+                  "prompt_rule": "Three situations, each from a different one of these book activities only: textures and sounds; spreading diseases; microorganisms at work; how pollution affects our world; solubility and state changes; rusting; physical vs chemical change; shadow and transparency; magnets. Each item: `question` = the situation in words (what the child does and sees), `questions` = three sub-questions, each an object {question, answer, scheme: {points, accept, common_error}} whose points add up to 2.5; a sub-question's `question` carries no letter or number in front (the paper letters them a, b, c). Never refer to a picture. Each concept (physical or chemical change, vaccines, light and materials) is asked at most twice in the whole paper, never by two items of one section; a stem never states another item's answer. Round 6 (v37): biodegradable and non-biodegradable is asked in at most two items of the whole paper. Round 7 (v37): a stem states only true science (warm milk left two days does not stay as milk: it sours or spoils, so a control jar is a jar with no yoghurt that stays unchanged for the hour of the activity, never \"two days as milk\"). Every sub-question writes its `scheme.points`, one point per idea the answer needs (two or three), adding to 2.5; never leave `points` empty and never one point that copies the model answer. A \"how do you know\" or \"why\" key accepts each reasonable idea the question allows (a child who says the bird sound differs from the car horn in pitch or loudness is right as well as the child who says the ears send signals to the brain), each idea its own point or accept line. Two items of the paper never pay the same key fact: bacteria turning milk into yoghurt, or fungi breaking down dead matter, is the key of one item only (Q3 (a) 4 asks microorganisms, so no situation here repeats it). Round 8 (v38): Q2 (b) offers one level of choice: the child answers any two of the three sub-questions, and no sub-question offers a choice inside it. Every item in an \"any N of M\" set asks for the same kind and amount of work at the same marks. The marks are given in whole marks per part where the key allows (a part of 2.5 is two points, 1.5 and 1), never one all-or-nothing half-mark row. An accept line belongs to the part it names, and a common_error fits its own part (a wrong idea a child could hold about that part). A key pays only what the stem asks and pays one fact once.",
+                  "frame": null,
+                  "teacher_note_en": null,
+                  "teacher_note_ur": null,
+                  "alternatives": null,
+                  "or": false
+                }
+              ]
+            },
+            {
+              "id": "C",
+              "time_en": null,
+              "label_en": "Section C",
+              "marks_en": "Total Marks: {t:58}",
+              "marks": 58,
+              "answer_on": "answer_sheet",
+              "note_en": "Note: Section C consists of two parts: Q3 (a) and Q3 (b)",
+              "slots": [
+                {
+                  "slot": "science.C.Q3a",
+                  "label_en": "Q3 (a).",
+                  "label_ur": "سوال 3 (الف)",
+                  "instruction_en": "Answer any {w:eight} of the following questions briefly.",
+                  "marks_line_en": "({n:8}×5={t:40})",
+                  "type": "Brief Answers",
+                  "category": "subjective",
+                  "shape": "short",
+                  "generate": 10,
+                  "attempt": 8,
+                  "marks_each": 5,
+                  "parts": null,
+                  "numbering": "arabic",
+                  "compulsory": false,
+                  "lines": 0,
+                  "work_mm": null,
+                  "section_pages": "scope",
+                  "grain": {
+                    "kind": "short constructed response, 1 to 3 sentences, recall or explain",
+                    "number_size": "none",
+                    "steps": 1,
+                    "unit_choice": false
+                  },
+                  "families": null,
+                  "kinds": null,
+                  "prompt_rule": "Ten short-answer questions from chapters 1–6, one or two per chapter. Key points (K) that add to 5 marks each. A point pays only what the stem asks: never the form a thing comes in (an injection, a pill), never a restatement of the stem. Accept lines name what a child in Islamabad meets (petrol, diesel and LPG as fossil fuels; the polio vaccine drops). A feeding order in a key is true (a hawk never eats a fox). A question asks for one thing of a topic another item pays for: the Sun's heat trapped by greenhouse gases is paid in one item only. Each concept (physical or chemical change, vaccines, light and materials) is asked at most twice in the whole paper, never by two items of one section; a stem never states another item's answer. Round 6 (v37): a compare item has exactly one difference point and one likeness point, so the marks match the demand. Contagious means passing from person to person: malaria is carried by a mosquito and cholera by contaminated water, so neither is keyed as contagious. For protection against polio, polio is prevented by the vaccine (polio drops); clean water is the second way. Round 7 (v37): a question never fixes a count for a classification the paper extends elsewhere: pollution is air, water and soil, and noise is also pollution, so ask for \"any three\" kinds, never \"the three main forms\". Two items never pay the same key fact: what a microorganism does (bacteria turn milk to yoghurt, fungi break down dead matter) is the key of one item only, so a Section B situation that already asks it means Q3 (a) asks another topic. Round 8 (v38): each mark is one distinct point the question asks for: a key never splits one idea into several marks, pays one fact once, and pays only what the stem asks (never a point the stem does not ask for). Every item in an \"any N of M\" set asks for the same kind and amount of work at the same marks. A stem never prints the keyed answer of another Section B or Section C item. Section C never re-asks a topic task already in Section B: if a Section B item asks for the respiratory parts, what a magnet picks up or what fossil fuels do to the Earth's temperature, no Section C item asks the same task in other words.",
+                  "frame": null,
+                  "teacher_note_en": null,
+                  "teacher_note_ur": null,
+                  "alternatives": null,
+                  "or": false
+                },
+                {
+                  "slot": "science.C.Q3b",
+                  "label_en": "Q3 (b).",
+                  "label_ur": "سوال 3 (ب)",
+                  "instruction_en": "Answer any {w:two} of the following questions comprehensively.",
+                  "marks_line_en": "({n:2} × 9 = {t:18})",
+                  "type": "Long Question",
+                  "category": "subjective",
+                  "shape": "short",
+                  "generate": 5,
+                  "attempt": 2,
+                  "marks_each": 9,
+                  "parts": null,
+                  "numbering": "arabic",
+                  "compulsory": false,
+                  "lines": 0,
+                  "work_mm": null,
+                  "section_pages": "scope",
+                  "grain": {
+                    "kind": "extended response: explain a process or relationship in a paragraph",
+                    "number_size": "none",
+                    "steps": 3,
+                    "unit_choice": false
+                  },
+                  "families": null,
+                  "kinds": null,
+                  "prompt_rule": "Five explain/discuss questions from chapters 1–6 needing a 6–10 sentence answer; the scheme lists the key points (K) a full answer contains, adding to 9. A key pays only for points the stem asks: never a point that repeats the stem (stroking in one direction, a cork) and never an unasked point (the magnetism fading; reuse or plastic substitutes when the stem asks about sorting, recycling and biodegradable items). A model answer never says that animals hear louder noises than humans; it says loud noise harms animals. Never pay for battery direction (positive and negative terminals) in a one-battery, one-bulb circuit; there only a closed loop, a working battery and a conductor matter. Each concept (physical or chemical change, vaccines, light and materials) is asked at most twice in the whole paper, never by two items of one section; a stem never states another item's answer. Round 6 (v37): compass answers keep the poles straight: the needle has a north-seeking end that is pulled towards Earth's magnetic pole in the north, never that Earth's magnetic north attracts the needle's north end. A bulb that does not glow has a fused or loose bulb as one cause, never wires made of plastic or wood. Note that cholera spreads by contaminated water, not from person to person. Marks follow demand: a point that asks more earns more. Round 8 (v38): each mark is one distinct point the question asks for: a key never splits one idea into several marks, pays one fact once, and pays only what the stem asks (never a point the stem does not ask for). Every item in an \"any N of M\" set asks for the same kind and amount of work at the same marks. A stem never prints the keyed answer of another Section B or Section C item. Section C never re-asks a topic task already in Section B: if a Section B item asks for the respiratory parts, what a magnet picks up or what fossil fuels do to the Earth's temperature, no Section C item asks the same task in other words. Physical or chemical change: the test the key pays is whether a new substance forms (chemical) or no new substance forms (physical); reversibility is only a supporting sign, never the test.",
+                  "frame": null,
+                  "teacher_note_en": null,
+                  "teacher_note_ur": null,
+                  "alternatives": null,
+                  "or": false
+                }
+              ]
+            }
+          ],
+          "legend": {
+            "title_en": "How to mark",
+            "title_ur": "جانچنے کا طریقہ",
+            "lines_en": [
+              "MCQs: 1 mark for the letter. Two circles or an overwritten answer = 0.",
+              "M = method · A = answer · U = unit · K = key point · L = label.",
+              "\"Attempt any N\": tell children to answer exactly N. If more are answered, mark all and keep the best N.",
+              "Grades (FDE p.113): A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F below 40. Pass = 40%."
+            ],
+            "lines_ur": [
+              "معروضی: درست حرف پر 1 نمبر۔ دو دائرے یا اوور رائٹنگ = 0۔",
+              "M = طریقہ، A = جواب، U = اکائی، K = اہم نکتہ، L = نام",
+              "«کوئی سے N»: بچوں کو بالکل N سوال حل کرنے کو کہیں۔ زیادہ حل ہوں تو سب جانچ کر بہترین N رکھیں۔",
+              "A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F <40"
+            ],
+            "bands_line": 3,
+            "bands_lead_ur": "گریڈ (FDE ص 113)؛ پاس = 40٪",
+            "key_line": 1,
+            "maths_lines": [],
+            "key_names_en": {
+              "M": "method",
+              "A": "answer",
+              "U": "unit",
+              "K": "key point",
+              "L": "label"
+            },
+            "key_names_ur": {
+              "M": "طریقہ",
+              "A": "جواب",
+              "U": "اکائی",
+              "K": "اہم نکتہ",
+              "L": "نام"
+            },
+            "subject": "science",
+            "key_from_chips": true
+          },
+          "before_exam": {
+            "title_en": "Teacher: before the exam",
+            "title_ur": "استاد کے لیے: امتحان سے پہلے",
+            "lines_en": [
+              "This is the marking scheme for {file} ({n} pages). Do not give it to children.",
+              "Photocopy the question paper, all {n} pages, one per child.",
+              "You add: {duty} on the question paper, page {p} (book p. {b}).",
+              "Tell the class: {sections}; {attempts}.",
+              "Time: {t}.",
+              "Mark question by question across all copies, not copy by copy."
+            ],
+            "lines_ur": [
+              "یہ {file} ({n} صفحات) کی مارکنگ اسکیم ہے۔ بچوں کو نہ دیں۔",
+              "سوالیہ پرچے کے تمام {n} صفحات کی فوٹو کاپی کریں، ہر بچے کے لیے ایک۔",
+              "شامل کریں: {duty}، سوالیہ پرچہ صفحہ {p} (کتاب ص {b})۔",
+              "کلاس کو بتائیں: {sections}؛ {attempts}۔",
+              "وقت: {t}۔",
+              "ہر سوال کو تمام کاپیوں میں ایک ساتھ جانچیں، ایک کاپی مکمل کر کے دوسری نہیں۔"
+            ],
+            "nothing_en": "You add: nothing.",
+            "nothing_ur": "شامل کرنے کو کچھ نہیں۔",
+            "unknown_pages_en": "see the question paper",
+            "unknown_pages_ur": "سوالیہ پرچہ دیکھیں",
+            "on_paper_en": "{sections} on the question paper",
+            "on_paper_ur": "{sections} سوالیہ پرچے پر",
+            "on_sheet_en": "{sections} on the answer sheet",
+            "on_sheet_ur": "{sections} جوابی کاپی پر",
+            "attempt_en": "{label}: attempt any {n} of {g}",
+            "attempt_ur": "{label}: {g} میں سے کوئی سے {n}",
+            "either_en": "{label}: answer one of the two",
+            "either_ur": "{label}: دو میں سے ایک"
+          },
+          "supplies": [
+            {
+              "slot": "science.A.Q1b",
+              "kind": "diagram",
+              "book_page": 168,
+              "scene": "Layers of the Earth",
+              "words": [],
+              "line_en": "Q1 (b): Diagram: Layers of the Earth (book p. 168)",
+              "line_ur": "سوال 1 (ب): خاکہ: Layers of the Earth (کتاب ص 168)"
+            }
+          ],
+          "total_marks": 100,
+          "total_time_en": "3 hrs",
+          "total_time_ur": "3 گھنٹے",
+          "unplaced": 0,
+          "generated_at": "2026-11-01T05:00:00.000Z",
+          "pages": {
+            "paper": 4,
+            "scheme": 5
+          },
+          "frame_pages": null,
+          "notes": [],
+          "scheme_shortfall": [
+            {
+              "slot": "science.B.Q2b",
+              "item": 0,
+              "part": "a",
+              "filled_by": "code"
+            },
+            {
+              "slot": "science.B.Q2b",
+              "item": 0,
+              "part": "b",
+              "filled_by": "code"
+            },
+            {
+              "slot": "science.B.Q2b",
+              "item": 0,
+              "part": "c",
+              "filled_by": "code"
+            },
+            {
+              "slot": "science.B.Q2b",
+              "item": 1,
+              "part": "a",
+              "filled_by": "code"
+            },
+            {
+              "slot": "science.B.Q2b",
+              "item": 1,
+              "part": "b",
+              "filled_by": "code"
+            },
+            {
+              "slot": "science.B.Q2b",
+              "item": 1,
+              "part": "c",
+              "filled_by": "code"
+            }
+          ],
+          "blueprint": {
+            "ok": false,
+            "total": 100,
+            "expected": 100,
+            "sections": [
+              {
+                "id": "A",
+                "marks": 25,
+                "expected": 25,
+                "levels": {
+                  "Remember": {
+                    "marks": 10
+                  },
+                  "Understand": {
+                    "marks": 14
+                  },
+                  "Apply": {
+                    "marks": 1
+                  }
+                }
+              },
+              {
+                "id": "B",
+                "marks": 17,
+                "expected": 17,
+                "levels": {
+                  "Remember": {
+                    "marks": 3.5
+                  },
+                  "Understand": {
+                    "marks": 3.5
+                  },
+                  "Apply": {
+                    "marks": 10
+                  }
+                }
+              },
+              {
+                "id": "C",
+                "marks": 58,
+                "expected": 58,
+                "levels": {
+                  "Remember": {
+                    "marks": 8.88888888888889
+                  },
+                  "Understand": {
+                    "marks": 33.022222222222226
+                  },
+                  "Apply": {
+                    "marks": 16.08888888888889
+                  }
+                }
+              }
+            ],
+            "levels": {
+              "Remember": {
+                "marks": 22.388888888888886,
+                "pct": 22.388888888888886,
+                "target": 30
+              },
+              "Understand": {
+                "marks": 50.52222222222222,
+                "pct": 50.522222222222226,
+                "target": 30
+              },
+              "Apply": {
+                "marks": 27.088888888888892,
+                "pct": 27.08888888888889,
+                "target": 40
+              }
+            },
+            "problems": [
+              {
+                "code": "LEVEL",
+                "level": "Remember",
+                "pct": 22.388888888888886,
+                "target": 30,
+                "off": -7.611111111111114
+              },
+              {
+                "code": "LEVEL",
+                "level": "Understand",
+                "pct": 50.522222222222226,
+                "target": 30,
+                "off": 20.522222222222226
+              },
+              {
+                "code": "LEVEL",
+                "level": "Apply",
+                "pct": 27.08888888888889,
+                "target": 40,
+                "off": -12.911111111111111
+              }
+            ]
+          }
+        }
+      },
+      "questionCount": 39,
+      "marks": 100,
+      "filename": "Grade5_Science_FDE.pdf",
+      "renderer": {
+        "ext": "pdf",
+        "contentTypeExt": ".pdf",
+        "label": "PDF"
+      },
+      "chapterTitle": null,
+      "pageReference": "1-26, 28-136, 138-161, 168-169, 179-180",
+      "versioned": false,
+      "answerKey": {
+        "keyKey": "exams/u1/Grade5_Science_FDE_MarkingScheme.pdf",
+        "keyName": "Grade5_Science_FDE_MarkingScheme.pdf"
+      }
+    }
+  },
+  "uploads": [
+    "Grade5_Science_FDE.pdf",
+    "Grade5_Science_FDE_MarkingScheme.pdf"
+  ],
+  "row": {
+    "status": "ready",
+    "total_marks": 100,
+    "error": null
+  }
+}

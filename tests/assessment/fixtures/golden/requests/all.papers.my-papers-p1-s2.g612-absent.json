@@ -1,0 +1,41 @@
+{
+  "statusCode": 200,
+  "payload": {
+    "success": true,
+    "page": 1,
+    "pageSize": 2,
+    "total": 5,
+    "papers": [
+      {
+        "paper_id": "paper-5",
+        "grade": 5,
+        "subject_key": "maths",
+        "subject": "Maths",
+        "chapter_number": 5,
+        "question_count": 15,
+        "total_marks": 25,
+        "ready_at": "2026-10-05T08:05:00.000Z",
+        "has_answer_key": true,
+        "version": 1,
+        "version_count": 1,
+        "pattern": "fde_g5_2027",
+        "pages": null
+      },
+      {
+        "paper_id": "paper-4",
+        "grade": 4,
+        "subject_key": "urdu",
+        "subject": "Urdu",
+        "chapter_number": 4,
+        "question_count": 14,
+        "total_marks": 24,
+        "ready_at": "2026-10-04T08:05:00.000Z",
+        "has_answer_key": true,
+        "version": 1,
+        "version_count": 1,
+        "pattern": null,
+        "pages": null
+      }
+    ]
+  }
+}

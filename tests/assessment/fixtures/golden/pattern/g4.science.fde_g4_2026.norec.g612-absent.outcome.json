@@ -1,0 +1,77 @@
+{
+  "create": {
+    "statusCode": 202,
+    "payload": {
+      "success": true,
+      "requestId": "assessment_requests-1"
+    }
+  },
+  "outcome": {
+    "jobType": "assessment_generate",
+    "job": {
+      "userId": "u-golden-1",
+      "requestId": "assessment_requests-1",
+      "grade": 4,
+      "subject": "science",
+      "chapterNumber": null,
+      "chapterNumbers": null,
+      "pageRanges": "30-34",
+      "contentSource": "unseen",
+      "questionCount": 29,
+      "totalMarks": null,
+      "seenCount": null,
+      "questionTypes": [
+        {
+          "id": "MCQs",
+          "count": 10,
+          "category": "objective",
+          "slot": "g4.science.A.mcq"
+        },
+        {
+          "id": "Fill in the Blanks",
+          "count": 5,
+          "category": "objective",
+          "slot": "g4.science.A.fill"
+        },
+        {
+          "id": "Short Answers",
+          "count": 7,
+          "category": "subjective",
+          "slot": "g4.science.B.short"
+        },
+        {
+          "id": "Give a Reason",
+          "count": 3,
+          "category": "subjective",
+          "slot": "g4.science.B.reasons"
+        },
+        {
+          "id": "Extended Response",
+          "count": 4,
+          "category": "subjective",
+          "slot": "g4.science.C.extended"
+        }
+      ],
+      "includeAnswerKey": true,
+      "answerLines": true,
+      "outputFormat": "pdf",
+      "deliver": "none",
+      "pattern": "fde_g4_2026",
+      "scope": {
+        "kind": "pages",
+        "chapters": null,
+        "pages": "30-34"
+      }
+    },
+    "returned": {
+      "status": "failed",
+      "code": "PATTERN_SHORT_SLOT",
+      "paperId": "assessment_papers-2"
+    }
+  },
+  "uploads": [],
+  "row": {
+    "status": "failed",
+    "error": null
+  }
+}

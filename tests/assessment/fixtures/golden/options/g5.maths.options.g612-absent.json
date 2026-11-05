@@ -1,0 +1,83 @@
+{
+  "statusCode": 200,
+  "payload": {
+    "success": true,
+    "grades": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "subjects": [
+      {
+        "subject_key": "english",
+        "subject": "English"
+      },
+      {
+        "subject_key": "urdu",
+        "subject": "Urdu"
+      },
+      {
+        "subject_key": "maths",
+        "subject": "Maths"
+      },
+      {
+        "subject_key": "science",
+        "subject": "Science"
+      },
+      {
+        "subject_key": "social_studies",
+        "subject": "Social Studies"
+      },
+      {
+        "subject_key": "islamiat",
+        "subject": "Islamiat"
+      }
+    ],
+    "types": [
+      {
+        "id": "MCQs",
+        "category": "objective"
+      },
+      {
+        "id": "Fill in the Blanks",
+        "category": "objective"
+      },
+      {
+        "id": "True/False",
+        "category": "objective"
+      },
+      {
+        "id": "Match the Column",
+        "category": "objective"
+      },
+      {
+        "id": "Mental Math (Viva)",
+        "category": "objective"
+      },
+      {
+        "id": "Sequences",
+        "category": "objective"
+      },
+      {
+        "id": "Short Questions",
+        "category": "subjective"
+      },
+      {
+        "id": "Restricted Response Question",
+        "category": "subjective"
+      },
+      {
+        "id": "Word Problems",
+        "category": "subjective"
+      },
+      {
+        "id": "Graphs & Geometric Problems",
+        "category": "subjective"
+      }
+    ],
+    "maxQuestions": 50,
+    "defaultQuestions": 15
+  }
+}
