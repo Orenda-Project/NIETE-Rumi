@@ -71,6 +71,15 @@ export const LESSONS_V2_COPY = {
   openOutside: 'Open in another app',
   /** v10 coaching test (bd-v0toag.8): the strip above a grade 1–5 plan; the thing itself is DATA. */
   thingToTry: 'Thing to try today',
+  /** bd-rj6w0n.14.2: the one-time region choice on this page (never a WhatsApp question); school names are DATA. */
+  region: {
+    title: 'Your region',
+    ict: 'Islamabad',
+    gb: 'Gilgit-Baltistan',
+    school: 'Your school',
+    notListed: 'Not listed',
+    save: 'Save',
+  },
   all: {
     title: 'All Lesson Plans',
     filterLabel: 'Filter by class',
@@ -138,6 +147,14 @@ export const LESSONS_V2_COPY_UR: Words<typeof LESSONS_V2_COPY> = {
   answerKey: 'جوابی کلید',
   openOutside: 'دوسری ایپ میں کھولیں',
   thingToTry: 'آج آزمانے کی بات',
+  region: {
+    title: 'آپ کا علاقہ',
+    ict: 'اسلام آباد',
+    gb: 'گلگت بلتستان',
+    school: 'آپ کا اسکول',
+    notListed: 'فہرست میں نہیں',
+    save: 'محفوظ کریں',
+  },
   all: {
     title: 'تمام لیسن پلان',
     filterLabel: 'کلاس سے چھانٹیں',
