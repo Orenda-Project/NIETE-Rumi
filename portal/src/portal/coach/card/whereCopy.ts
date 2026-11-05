@@ -87,6 +87,7 @@ export const WHERE_EN = {
   // The two doors (Teacher page, School card)
   openWhere: "Where to coach",
   openFirst: "Who to coach first",
+  onlyYou: "Only you see this",
 
   // Who to coach first (ours)
   firstTitle: "Who to coach first",
@@ -185,6 +186,7 @@ export const WHERE_UR: WhereCopy = {
 
   openWhere: "کہاں کوچنگ کریں",
   openFirst: "پہلے کس کی کوچنگ کریں",
+  onlyYou: "صرف آپ کے لیے",
 
   firstTitle: "پہلے کس کی کوچنگ کریں",
   teachersN: (n) => `${n} ٹیچرز`,

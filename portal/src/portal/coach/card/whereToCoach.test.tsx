@@ -309,3 +309,18 @@ describe("the words", () => {
     expect(WHERE.en.whyLow(3, 4)).toBe("Low in 3 of 4 DC observations.");
   });
 });
+
+describe("the doors (coach only)", () => {
+  it("her Teacher page has Where to coach →, Only you see this, opening This month", async () => {
+    const { renderApp, loadApp } = await import("./harness.testdata");
+    const fx = await import("./fixtures.testdata");
+    await loadApp();
+    net.answers.set("/config", { success: true, features: { coachV2: true, schoolCard: true } });
+    net.answers.set(`/coach/teacher/${fx.EXT}/card`, fx.teacherCard());
+    await renderApp(`/portal/coach/teacher/${fx.EXT}`);
+    const door = await screen.findByTestId("where-door");
+    expect(door).toHaveTextContent("Where to coach");
+    expect(door).toHaveTextContent("Only you see this");
+    expect(door.getAttribute("href")).toBe(`/portal/coach/teacher/${fx.EXT}/where?period=month`);
+  }, 120_000);
+});
