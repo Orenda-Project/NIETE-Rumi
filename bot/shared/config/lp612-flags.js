@@ -543,3 +543,4 @@ module.exports = {
   DEFAULT_TEMPLATE_VERSION,
   DEFAULT_AUTHOR_MODEL,
 };
+module.exports.isLpGbK5Enabled = () => String(process.env.LP_GB_K5_ENABLED).trim() === 'true'; // bd-rj6w0n.14 GB region path; off = today
