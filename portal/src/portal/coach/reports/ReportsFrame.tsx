@@ -34,7 +34,7 @@ export function PendingReportsBanner() {
 }
 
 export default function ReportsFrame({
-  title, crumb, backTo, onBack, feature = "reports", chips, dock, bare, banner = true, testId, children,
+  title, crumb, backTo, onBack, feature = "observations", chips, dock, bare, banner = true, testId, children,
 }: {
   title: ReactNode;
   crumb?: ReactNode;

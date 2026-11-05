@@ -62,8 +62,8 @@ describe("Feedback Form", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Feedback Form");
     await waitFor(() => expect(screen.getByTestId("page-crumb")).toHaveTextContent("Ayesha Bibi · Step 2 of 5"));
     expect(screen.getByRole("img", { name: "Part 1 of 3" })).toBeInTheDocument();
-    expect(screen.getByText("Your rating")).toBeInTheDocument();
-    expect(screen.getByText("Digital Coach")).toBeInTheDocument();
+    expect(screen.getByText("Coach score")).toBeInTheDocument();
+    expect(screen.getByText("AI score")).toBeInTheDocument();
   });
 
   it("part 1 is the lesson plan: each move with its verdict and what was seen", async () => {

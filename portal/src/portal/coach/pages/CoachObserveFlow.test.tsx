@@ -131,13 +131,13 @@ describe("10 + 12 — the Visit page, in the canvas order", () => {
     expect(c.getByRole("img", { name: "11:30 AM" })).toBeInTheDocument();
     expect(c.getByText(/· Today/)).toBeInTheDocument();
     expect(c.getByText("In 2 h")).toBeInTheDocument();
-    expect(c.getByText("Avg. HITL Score")).toBeInTheDocument(); // bd-o15qnr.18
-    const last = c.getByRole("link", { name: /Last visit · 14 Sep/ });
-    expect(last).toHaveTextContent("HITL · You");
+    expect(c.getByText("Coach score (avg.)")).toBeInTheDocument(); // bd-jjcofw.10 M1 (was bd-o15qnr.18)
+    const last = c.getByRole("link", { name: /Last observation · 14 Sep/ });
+    expect(last).toHaveTextContent("Observation · You");
     expect(last).toHaveTextContent("Sent");
     expect(last).toHaveAttribute("href", "/portal/coach/observation/s-sent"); // bd-o15qnr.19: the one observation page
     expect(c.getByRole("link", { name: /Teacher profile/ })).toHaveAttribute("href", "/portal/coach/teacher/923001110001");
-    expect(screen.queryByText("Last visit", { selector: "h2" })).toBeNull();
+    expect(screen.queryByText("Last observation", { selector: "h2" })).toBeNull();
   });
 
   it("no phone, no phone line (and no dash)", async () => {
@@ -152,9 +152,9 @@ describe("10 + 12 — the Visit page, in the canvas order", () => {
   it("someone else's WhatsApp observation: their name, its step, and it opens the observation page", async () => {
     C.getVisit.mockResolvedValue({ ...VISIT, lastVisit: { id: "s-wa", date: "2026-09-30T09:00:00Z", score: null, step: "draft", byMe: false, observerName: "Imran S", portal: false } });
     renderAt(`/portal/coach/visit/${VISIT_ID}`);
-    const row = await screen.findByRole("link", { name: /Last visit/ });
+    const row = await screen.findByRole("link", { name: /Last observation/ });
     expect(row).toHaveAttribute("href", "/portal/coach/observation/s-wa");
-    expect(row).toHaveTextContent("HITL · Imran S");
+    expect(row).toHaveTextContent("Observation · Imran S");
     expect(row).toHaveTextContent("Feedback Form");
   });
 
@@ -376,7 +376,7 @@ describe("Sending, in the background (Blueprint: Coach_Sending)", () => {
     return screen.findByTestId("send-state");
   }
 
-  it("the ring fills with the real progress; 'You can leave. We'll tell you here.' and the way out, Go to Reports", async () => {
+  it("the ring fills with the real progress; 'You can leave. We'll tell you here.' and the way out, Go to My observations", async () => {
     let progress!: (n: number) => void;
     send.mockImplementation((_a: unknown, _b: unknown, _c: unknown, p: (n: number) => void) => { progress = p; return new Promise(() => {}); });
     await startSending();
@@ -387,14 +387,14 @@ describe("Sending, in the background (Blueprint: Coach_Sending)", () => {
     expect(screen.getByText("38 min")).toBeInTheDocument();
     expect(screen.getByRole("note")).toHaveTextContent("You can leave. We'll tell you here.");
     expect(screen.getByRole("note")).toHaveTextContent("The observation keeps sending in the background.");
-    expect(screen.getByRole("link", { name: "Go to Reports" })).toHaveAttribute("href", "/portal/coach/reports");
+    expect(screen.getByRole("link", { name: "Go to My observations" })).toHaveAttribute("href", "/portal/coach/reports");
   });
 
   it("leaving the page does not stop it: the upload carries on and the notices follow it", async () => {
     let finish!: (v: { coachingSessionId: string }) => void;
     send.mockImplementation(() => new Promise((res) => { finish = res; }));
     await startSending();
-    fireEvent.click(screen.getByRole("link", { name: "Go to Reports" }));
+    fireEvent.click(screen.getByRole("link", { name: "Go to My observations" }));
     expect(await screen.findByText("reports page")).toBeInTheDocument();
     expect(getJob(VISIT_ID)?.state).toBe("sending");
     await act(async () => { finish({ coachingSessionId: "cs-1" }); });
