@@ -2,8 +2,9 @@
 #
 # secret-scan.yml runs `gitleaks detect --no-git`, which reads this file from the
 # scan root. In that mode a fingerprint is `<file>:<rule-id>:<line>` and silences
-# exactly one finding: the same rule on any other line, any other rule on the same
-# line, and every other file are still scanned. Nothing here is a path or a rule.
+# only that rule on that line of that file: the same rule on any other line, any
+# other rule on the same line, and every other file are still scanned. Nothing here
+# is a path or a rule.
 #
 # The line number is part of the fingerprint, so an edit that moves a listed line
 # brings its finding back at the new line and the scan goes red again. When that
