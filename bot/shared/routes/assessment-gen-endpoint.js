@@ -92,9 +92,15 @@ async function gradesOnOffer(userId) {
   return grades.map((g) => ({ id: String(g), title: `Grade ${g}` }));
 }
 
-/** Which subjects we hold a book for, in this grade, that this user is offered. */
+/**
+ * Which subjects we hold a book for, in this grade, that this user is offered.
+ * Keyed by book (bd-97daxo.4): a G1-5 subject is offered only where the ICT book the generator reads is on her
+ * region's list (teacher-books). Her list is read only for a G1-5 grade; no list offers everything, as before.
+ */
 async function subjectsOnOffer(grade, userId) {
   const g = await gradeGateFor([grade]);
+  const TeacherBooks = require('../services/teacher-books.service');
+  const shelf = userId && Number(grade) >= 1 && Number(grade) <= 5 ? await TeacherBooks.bookKeysForUser(userId) : null;
   const { data } = await supabase
     .from('textbooks').select('subject').eq('curriculum', 'ict').eq('grade', Number(grade));
   return (data || [])
@@ -104,6 +110,7 @@ async function subjectsOnOffer(grade, userId) {
       return !band || band.includes(Number(grade));
     })
     .filter((s) => GradeGate.cellAllowed(grade, s, g.flag, g.kill, g.killCells, userId))
+    .filter((s) => TeacherBooks.assessmentOffered(grade, s, shelf))
     .map((s) => ({ id: s, title: SUBJECT_TITLE[s] || s }));
 }
 

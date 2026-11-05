@@ -48,20 +48,26 @@
 const V8Catalog = require('./lp-v8-catalog.service');
 const V8Delivery = require('./lp-v8-delivery.service');
 
+/*
+ * `bookKeys` (bd-97daxo.4): the books her region names, from teacher-books.service via the internal API. Absent
+ * or null is today's ICT list — the catalog's own rule (lp-v8-catalog `shelf`), so this surface and the Flow
+ * cannot disagree about which books a teacher has.
+ */
+
 /** Grades that have at least one servable lesson. */
-async function listGrades() {
+async function listGrades(bookKeys) {
   const available = await V8Delivery.availableLessonIds();
-  const grades = V8Catalog.gradesWithContent(available);
+  const grades = V8Catalog.gradesWithContent(available, bookKeys);
   return grades.map((grade) => ({
     grade,
-    subject_count: subjectsFor(grade, available).length,
+    subject_count: subjectsFor(grade, available, bookKeys).length,
   }));
 }
 
 /** Books for one grade that have at least one servable lesson. */
-function subjectsFor(grade, available) {
+function subjectsFor(grade, available, bookKeys) {
   const out = [];
-  for (const book of V8Catalog.catalog().books) {
+  for (const book of V8Catalog.shelf(bookKeys)) {
     if (Number(book.grade) !== Number(grade)) continue;
     const lessons = countAvailable(book, available);
     if (!lessons) continue;
@@ -75,9 +81,9 @@ function subjectsFor(grade, available) {
   return out.sort(V8Catalog.bySubjectOrder); // same order as the WhatsApp menu (bd-6640j.1.8.8)
 }
 
-async function listSubjects(grade) {
+async function listSubjects(grade, bookKeys) {
   const available = await V8Delivery.availableLessonIds();
-  return subjectsFor(grade, available);
+  return subjectsFor(grade, available, bookKeys);
 }
 
 /**
@@ -87,9 +93,9 @@ async function listSubjects(grade) {
  * same rule buildChapterItems applies, so the two surfaces list the same
  * chapters. Titles are FULL here; the Flow clips its own.
  */
-async function listChapters(grade, subjectKey) {
+async function listChapters(grade, subjectKey, bookKeys) {
   const available = await V8Delivery.availableLessonIds();
-  const book = V8Catalog.bookFor(grade, subjectKey);
+  const book = V8Catalog.bookFor(grade, subjectKey, bookKeys);
   if (!book) return [];
 
   const chapters = [];
@@ -101,8 +107,13 @@ async function listChapters(grade, subjectKey) {
       chapter_title: chapter.title,
       pages_label: chapter.pages_label || null,
       lesson_count: lessons.length,
+      // A review chapter (GB 'R1', GB Urdu 101) names itself; the portal shows its title alone.
+      ...(chapter.review ? { review: true } : {}),
     });
   }
+  // A book with review chapters is listed in its own order: they sit after the unit they review, and 'R1'
+  // (or GB Urdu's 101, which comes after chapter 5) would sort to the wrong place or not at all.
+  if (book.chapters.some((c) => c.review)) return chapters;
   return chapters.sort((a, b) => a.chapter_number - b.chapter_number);
 }
 
@@ -116,13 +127,13 @@ async function listChapters(grade, subjectKey) {
  * No pagination: the Flow pages at 20 because Meta caps a NavigationList
  * there. A browser has no such limit and a chapter is a handful of lessons.
  */
-async function listLessons(grade, subjectKey, chapterNumber, userId = null) {
+async function listLessons(grade, subjectKey, chapterNumber, userId = null, bookKeys = undefined) {
   const [available, downloaded] = await Promise.all([
     V8Delivery.availableLessonIds(),
     userId ? V8Delivery.downloadedLessonIds(userId) : Promise.resolve(new Set()),
   ]);
 
-  const chapter = V8Catalog.chapterFor(grade, subjectKey, chapterNumber);
+  const chapter = V8Catalog.chapterFor(grade, subjectKey, chapterNumber, bookKeys);
   if (!chapter) return [];
 
   // ch3-10 A/B (bd-5o0ay.10.16): group A never sees a lesson it has no August plan for.

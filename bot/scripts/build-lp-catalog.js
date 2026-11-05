@@ -78,6 +78,48 @@ function rtlFirst(s) {
 
 const CATALOG_VERSION = 'v8';
 
+/**
+ * Book-first fields (bd-97daxo.4/.5). Every book carries its key (the stem: what a region's
+ * region_features.book_keys lists), its publisher and its language. A region with no list gets every book that
+ * is not opt_in — the ICT books this builder makes. GB's NBF books come from Amena's sheet
+ * (scripts/sync-sheet-lps.js --catalog), are opt_in, and are kept across a rebuild of the ICT books.
+ *
+ * Publisher, from Amena's GB Curriculum Matrix (Books tab, 2 Nov): ICT's English, Urdu, Maths and Science are
+ * Taleemabad's own editions; ICT's English GK and Social Studies are byte-identical to the NBF 2024 files and its
+ * Islamiat is the NBF book. The Urdu-medium GK and Social Studies are not on that tab: unknown, null.
+ */
+const PUBLISHER_BY_SUBJECT_KEY = {
+  english: 'Taleemabad',
+  urdu: 'Taleemabad',
+  math: 'Taleemabad',
+  general_science: 'Taleemabad',
+  general_knowledge: 'NBF',
+  social_studies_en: 'NBF',
+  islamiat: 'NBF',
+};
+
+/** book_key, publisher and language for an ICT book. */
+function bookFields({ stem, subject_key: subjectKey, rtl }) {
+  return {
+    book_key: stem,
+    publisher: PUBLISHER_BY_SUBJECT_KEY[subjectKey] || null,
+    language: rtl ? 'ur' : 'en',
+  };
+}
+
+/** A rebuild keeps the opt_in books (GB's) of the catalog it replaces, after the ICT books of their grade. */
+function keepOptIn(catalog, previous) {
+  const kept = ((previous && previous.books) || []).filter((b) => b.opt_in);
+  if (!kept.length) return catalog;
+  const own = new Set(catalog.books.map((b) => b.stem));
+  const books = [...catalog.books, ...kept.filter((b) => !own.has(b.stem))]
+    .sort((a, b) => (a.grade - b.grade) || a.subject_key.localeCompare(b.subject_key)
+      || (Number(Boolean(a.opt_in)) - Number(Boolean(b.opt_in))) || a.stem.localeCompare(b.stem));
+  const chapters = books.reduce((n, b) => n + b.chapters.length, 0);
+  const lessons = books.reduce((n, b) => n + b.chapters.reduce((m, c) => m + c.lessons.length, 0), 0);
+  return { ...catalog, counts: { books: books.length, chapters, lessons }, books };
+}
+
 // Multi-clause topic separators. These join what are really two lessons' worth
 // of prose in one field; the row shows the first clause only.
 const CLAUSE_SEPARATORS = ['⟢', '→', ' / '];
@@ -474,6 +516,7 @@ function buildCatalog({ segmentationDir, tocDir, builtAt, splits }) {
       subject: menu.subject,
       subject_key: menu.subject_key,
       rtl,
+      ...bookFields({ stem, subject_key: menu.subject_key, rtl }),
       chapters,
     });
   }
@@ -518,11 +561,10 @@ if (require.main === module) {
     process.exit(2);
   }
 
-  const existingBuiltAt = (args.check && fs.existsSync(outPath))
-    ? JSON.parse(fs.readFileSync(outPath, 'utf8')).built_at
-    : undefined;
+  const previous = fs.existsSync(outPath) ? JSON.parse(fs.readFileSync(outPath, 'utf8')) : null;
+  const existingBuiltAt = (args.check && previous) ? previous.built_at : undefined;
 
-  const catalog = buildCatalog({ segmentationDir, tocDir, builtAt: existingBuiltAt });
+  const catalog = keepOptIn(buildCatalog({ segmentationDir, tocDir, builtAt: existingBuiltAt }), previous);
   const text = serialise(catalog);
 
   if (args.check) {
@@ -543,6 +585,9 @@ if (require.main === module) {
 
 module.exports = {
   buildCatalog,
+  bookFields,
+  keepOptIn,
+  PUBLISHER_BY_SUBJECT_KEY,
   serialise,
   buildRow,
   dedupeTopic,

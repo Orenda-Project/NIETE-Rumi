@@ -19,7 +19,9 @@ const byGradeKey = (a, b) => (a.grade - b.grade) || a.subject_key.localeCompare(
 function mergeBooks(base, extra, { builtAt } = {}) {
   const incoming = new Set(extra.books.map((b) => b.stem));
   const kept = base.books.filter((b) => !incoming.has(b.stem));
-  const taken = new Map(kept.map((b) => [`${b.grade} ${b.subject_key}`, b.stem]));
+  // An opt_in book (GB's, bd-97daxo.5) shares its grade+subject with an ICT book on purpose: a region's own list
+  // reaches it, never bookFor's default. Only the default list must keep one book per grade+subject.
+  const taken = new Map(kept.filter((b) => !b.opt_in).map((b) => [`${b.grade} ${b.subject_key}`, b.stem]));
   for (const b of extra.books) {
     const k = `${b.grade} ${b.subject_key}`;
     if (taken.has(k)) throw new Error(`grade ${k} is already ${taken.get(k)}; ${b.stem} would be unreachable`);

@@ -80,6 +80,8 @@ type Subject = { key: string; label: string; lesson_count: number };
 type Chapter = {
   key: string;
   chapter_number: number;
+  /** A review chapter (GB English 'R1', GB Urdu 101) is named by its title alone (bd-97daxo.5). */
+  review?: boolean;
   chapter_title: string;
   pages_label: string | null;
   lesson_count: number;
@@ -214,6 +216,7 @@ const ClassicCurriculum = () => {
           // can span two books and both can hold a chapter 1.
           key: String(c.chapter_key ?? c.chapter_number),
           chapter_number: Number(c.chapter_number ?? 0),
+          review: c.review === true,
           chapter_title: String(c.chapter_title ?? ''),
           pages_label: (c.pages_label as string) ?? null,
           lesson_count: Number(c.lesson_count ?? 0),
@@ -461,7 +464,7 @@ const ClassicCurriculum = () => {
               <SelectContent>
                 {chapters.map(c => (
                   <SelectItem key={c.key} value={c.key}>
-                    <span className="font-medium">Ch {c.chapter_number}: {c.chapter_title}</span>
+                    <span className="font-medium">{c.review ? c.chapter_title : `Ch ${c.chapter_number}: ${c.chapter_title}`}</span>
                     <span className="text-muted-foreground text-xs ml-2">
                       {c.pages_label ? `· ${c.pages_label} ` : ''}· {c.lesson_count} lessons
                     </span>

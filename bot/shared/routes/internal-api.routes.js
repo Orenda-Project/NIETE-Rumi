@@ -114,6 +114,29 @@ function num(value) {
 }
 
 /**
+ * A K-5 chapter key: a number, or a GB English review chapter 'R1'..'R999' (bd-97daxo.5). Anything else is null,
+ * so the route answers 400 exactly as it did for a non-number.
+ */
+function chapterKey(value) {
+  const n = num(value);
+  if (n !== null) return n;
+  const s = String(value == null ? '' : value).trim();
+  return /^R\d{1,3}$/i.test(s) ? s.toUpperCase() : null;
+}
+
+/**
+ * The books the portal SESSION's teacher (body.userId) has — her region's list (bd-97daxo.4) — as trailing
+ * arguments for a K-5 browse call. None for an ICT teacher or a call with no userId, so that call is the one
+ * it always was.
+ */
+async function shelfArgs(body) {
+  const userId = typeof (body && body.userId) === 'string' ? body.userId.trim() : '';
+  if (!userId) return [];
+  const keys = await require('../services/teacher-books.service').bookKeysForUser(userId);
+  return Array.isArray(keys) ? [keys] : [];
+}
+
+/**
  * Wrap a training handler with the two things every one of them needs:
  * lazy module resolution, and fail-CLOSED error handling.
  *
@@ -1312,7 +1335,7 @@ function lpBrowseRoute(name, handler) {
  * Body {} → { success, grades: [{ grade, subject_count }] }
  */
 router.post('/lp/v8/grades', requireInternalKey, lpBrowseRoute('grades', async (Browse, req, res) => {
-  const grades = await Browse.listGrades();
+  const grades = await Browse.listGrades(...(await shelfArgs(req.body)));
   return res.json({ success: true, grades });
 }));
 
@@ -1324,7 +1347,7 @@ router.post('/lp/v8/subjects', requireInternalKey, lpBrowseRoute('subjects', asy
   const grade = num((req.body || {}).grade);
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
 
-  const subjects = await Browse.listSubjects(grade);
+  const subjects = await Browse.listSubjects(grade, ...(await shelfArgs(req.body)));
   return res.json({ success: true, subjects });
 }));
 
@@ -1338,7 +1361,7 @@ router.post('/lp/v8/chapters', requireInternalKey, lpBrowseRoute('chapters', asy
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subjectKey) return res.status(400).json({ success: false, error: 'subjectKey is required' });
 
-  const chapters = await Browse.listChapters(grade, subjectKey);
+  const chapters = await Browse.listChapters(grade, subjectKey, ...(await shelfArgs(req.body)));
   return res.json({ success: true, chapters });
 }));
 
@@ -1354,12 +1377,12 @@ router.post('/lp/v8/lessons', requireInternalKey, lpBrowseRoute('lessons', async
   const body = req.body || {};
   const grade = num(body.grade);
   const subjectKey = String(body.subjectKey || '').trim();
-  const chapterNumber = num(body.chapterNumber);
+  const chapterNumber = chapterKey(body.chapterNumber);
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subjectKey) return res.status(400).json({ success: false, error: 'subjectKey is required' });
   if (chapterNumber === null) return res.status(400).json({ success: false, error: 'chapterNumber is required' });
 
-  const lessons = await Browse.listLessons(grade, subjectKey, chapterNumber, body.userId || null);
+  const lessons = await Browse.listLessons(grade, subjectKey, chapterNumber, body.userId || null, ...(await shelfArgs(body)));
   return res.json({ success: true, lessons });
 }));
 
@@ -1511,7 +1534,18 @@ async function gradeGateFor(grades) {
 }
 async function cellOffered(grade, subject, userId) {
   const g = await gradeGateFor([grade]);
-  return GradeGate.cellAllowed(grade, subject, g.flag, g.kill, g.killCells, userId);
+  if (!GradeGate.cellAllowed(grade, subject, g.flag, g.kill, g.killCells, userId)) return false;
+  return TeacherBooks.assessmentOffered(grade, subject, await assessmentShelf(grade, userId));
+}
+/**
+ * Assessments are keyed by book (bd-97daxo.4): a G1-5 subject is offered only where the ICT book the generator
+ * reads is on her region's list. Her list is read only for a G1-5 request by a known teacher; anyone else gets
+ * null, which offers everything exactly as before.
+ */
+const TeacherBooks = require('../services/teacher-books.service');
+async function assessmentShelf(grade, userId) {
+  if (!userId || !(Number(grade) >= 1 && Number(grade) <= 5)) return null;
+  return TeacherBooks.bookKeysForUser(userId);
 }
 /** Browse's grade list as this user is offered it (the gate lives here, not in the browse service). */
 async function offeredGrades(grades, userId) {
@@ -1523,7 +1557,9 @@ async function offeredGrades(grades, userId) {
 /** Browse's subject rows for one grade, minus the cells this user is not offered. */
 async function offeredSubjects(grade, subjects, userId) {
   const g = await gradeGateFor([grade]);
-  return subjects.filter((s) => GradeGate.cellAllowed(grade, s.subject_key, g.flag, g.kill, g.killCells, userId));
+  const shelf = await assessmentShelf(grade, userId);
+  return subjects.filter((s) => GradeGate.cellAllowed(grade, s.subject_key, g.flag, g.kill, g.killCells, userId)
+    && TeacherBooks.assessmentOffered(grade, s.subject_key, shelf));
 }
 /** The session user the portal forwards (server-to-server field); absent = G6-12 hidden. */
 const bodyUserId = (body) => (typeof body.userId === 'string' && body.userId.trim()) || null;
