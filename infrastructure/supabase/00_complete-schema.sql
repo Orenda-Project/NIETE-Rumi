@@ -3364,6 +3364,7 @@ CREATE TABLE IF NOT EXISTS textbooks (
     ocr_completed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now(),
+    meta JSONB NOT NULL DEFAULT '{}'::jsonb,  -- V1.8.11: G6-12 corpus import provenance
     UNIQUE (province, grade, subject)
 );
 
