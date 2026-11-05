@@ -45,8 +45,9 @@ async function refusesCurriculum({ segment, userId }) {
   return (await Lp612Catalog.curriculumOf(segment.grade, segment.subject, hers)) !== BookCurriculum.ICT;
 }
 
-/** The segment's ready card, her language first. Shaped like findRender's answer. */
-async function findGbRender(segmentId, lang) {
+/** The segment's ready card, her language first. An Urdu book (bd-rj6w0n.14.8) is served only its Urdu
+ *  (RTL) card, never an English one. Shaped like findRender's answer. */
+async function findGbRender(segmentId, lang, segment) {
   const { data, error } = await supabase.from('niete_lp612_renders')
     .select('id, status, r2_key, lang, one_screen')
     .eq('segment_id', segmentId)
@@ -57,7 +58,30 @@ async function findGbRender(segmentId, lang) {
     return { render: null, readFailed: true };
   }
   const rows = (data || []).filter((r) => r && r.r2_key);
+  if (isUrduBook(segment)) return { render: rows.find((r) => r.lang === 'ur') || null, readFailed: false };
   return { render: rows.find((r) => r.lang === lang) || rows[0] || null, readFailed: false };
+}
+
+// bd-rj6w0n.14.8 / bd-rj6w0n.5.8.9: an Urdu book speaks Urdu, and never shows a Latin title.
+const isUrduBook = (segment) => !!segment && segment.language === 'ur';
+const isUrduTitle = (t) => /[\u0600-\u06FF]/.test(t) && !/[A-Za-z]/.test(t);
+
+/** The title on her message: an Urdu book's first Urdu title (topic, menu, then chapter), else none. */
+function cardTitle(segment) {
+  const s = segment || {};
+  const titles = [s.subtopic_title, s.menu_title, s.chapter_title].map((t) => String(t || '').trim());
+  if (!isUrduBook(s)) return titles[0] || titles[1] || '';
+  return titles.find(isUrduTitle) || '';
+}
+
+/** The language her message goes in: an Urdu book's is Urdu (RTL) whatever the tap carried. */
+const cardLanguage = (segment, lang) => (isUrduBook(segment) ? 'ur' : lang);
+
+/** The caption for a hosted card; `subject` is already in the caption's language. No title, no title line. */
+function cardCaption({ segment, lang, subject }) {
+  return resolveUx('lp612GbCaption', {
+    language: lang, params: { topic: cardTitle(segment), grade: segment.grade, subject },
+  }).replace(/^\s+/, '');
 }
 
 /** Caption + link as one text message. Same answer shape as sendDocumentWithRetry; never throws. */
@@ -74,4 +98,5 @@ async function sendCardLink({ phone, url, caption, lang }) {
 
 module.exports = {
   CARD_TEMPLATE, isHostedCard, cardUrl, isGbSegment, refusesCurriculum, findGbRender, sendCardLink,
+  cardTitle, cardLanguage, cardCaption,
 };
