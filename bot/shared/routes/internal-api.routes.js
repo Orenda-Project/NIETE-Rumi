@@ -1722,7 +1722,7 @@ const PATTERN_CODE = Object.freeze({
  * the count is the slots' sum, the marks are fixed (no budget), every question
  * is new, and the marking scheme always comes with it.
  */
-async function createPatternRequest({ Browse, res, userId, grade, subject, pattern, scope, picked, pageRanges, answerLines, origin = null, onQueued = null }) {
+async function createPatternRequest({ Browse, res, userId, grade, subject, pattern, scope, picked, pageRanges, answerLines, origin = null, onQueued = null, types = null }) {
   const Patterns = require('../services/assessment/patterns');
   const chapterNumber = picked.length === 1 ? picked[0] : null;
 
@@ -1758,7 +1758,8 @@ async function createPatternRequest({ Browse, res, userId, grade, subject, patte
     }
   }
 
-  const questionTypes = Patterns.expandTypes(pattern, subject);
+  // A G9-12 board pattern brings its own slot list (bd-5jmnfj.38.25.2); FDE ones come from the registry.
+  const questionTypes = types || Patterns.expandTypes(pattern, subject);
   const questionCount = questionTypes.reduce((sum, t) => sum + t.count, 0);
 
   const AssessmentRequest = require('../services/assessment/assessment-request.service');
@@ -1787,6 +1788,13 @@ async function createPatternRequest({ Browse, res, userId, grade, subject, patte
 
   if (onQueued) onQueued(requestId);
   return res.status(202).json({ success: true, requestId });
+}
+
+/** An FDE pattern: on the FDE subject list (none set = every subject) and eligible for this class. */
+async function fdeEligible(Flags, Patterns, pattern, grade, subject) {
+  const allowed = await Flags.fdePatternSubjects();
+  const listed = allowed === null || allowed.includes(Patterns.normalise(subject));
+  return listed && Patterns.isEligible(pattern, grade, subject);
 }
 
 /**
@@ -1898,8 +1906,11 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   const pattern = body.pattern ? String(body.pattern).trim() : null;
   if (pattern) {
     const Flags = require('../config/feature-flags');
+    // A G9-12 board pattern (bd-5jmnfj.38.25.2) has its own flag and its own eligibility; the FDE subject list is not its.
+    const Board = require('../services/assessment/patterns/board');
+    const board = Board.isBoard(pattern);
     let on = false;
-    try { on = await Flags.isAssessmentFdePatternEnabled(); } catch (_) { on = false; }
+    try { on = await (board ? Flags.isAssessmentBoardPatternEnabled() : Flags.isAssessmentFdePatternEnabled()); } catch (_) { on = false; }
     if (!on) {
       return res.status(400).json({
         success: false,
@@ -1908,9 +1919,10 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
       });
     }
     const Patterns = require('../services/assessment/patterns');
-    const allowed = await Flags.fdePatternSubjects();
-    const listed = allowed === null || allowed.includes(Patterns.normalise(subject));
-    if (!listed || !Patterns.isEligible(pattern, grade, subject)) {
+    const eligible = board
+      ? Board.isEligible(pattern, grade, subject)
+      : await fdeEligible(Flags, Patterns, pattern, grade, subject);
+    if (!eligible) {
       return res.status(400).json({
         success: false,
         error: 'That board pattern is not available for this grade and subject.',
@@ -1918,6 +1930,11 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
       });
     }
     const fdeScope = body.scope === 'fde';
+    if (fdeScope && board) {
+      return res.status(400).json({
+        success: false, error: 'A board paper takes chapters or pages.', errorCode: PATTERN_CODE.SCOPE_CONFLICT,
+      });
+    }
     if (fdeScope && (picked.length || pageRanges)) {
       return res.status(400).json({
         success: false, error: 'Send either the FDE syllabus or chapters, not both.', errorCode: PATTERN_CODE.SCOPE_CONFLICT,
@@ -1951,6 +1968,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
         Browse, res, userId, grade, subject, pattern, scope: fdeScope ? 'fde' : null,
         picked, pageRanges, answerLines: body.answerLines, origin,
         onQueued: (id) => rememberQueued(classKey, id),
+        types: board ? Board.expandTypes(pattern, subject) : null,
       });
     });
   }
