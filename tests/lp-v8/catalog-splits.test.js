@@ -79,9 +79,13 @@ describe('the committed catalog', () => {
   test('carries both parts of every split, within the row caps', () => {
     // 2049 core lessons; the G1-5 elective books (bd-6640j.1.8) carry no split and are counted separately.
     const ELECTIVE = ['general_knowledge', 'general_knowledge_ur', 'social_studies_en', 'social_studies_ur', 'islamiat'];
-    const core = catalog.books.filter((b) => !ELECTIVE.includes(b.subject_key));
-    expect(core.reduce((n, b) => n + b.chapters.reduce((m, ch) => m + ch.lessons.length, 0), 0)).toBe(2049);
-    expect(catalog.counts.lessons).toBe(3290);
+    // The ICT list: GB's NBF books are opt_in (bd-97daxo.5) and are counted by tests/books, not here.
+    const ict = catalog.books.filter((b) => !b.opt_in);
+    const lessonsIn = (books) => books.reduce((n, b) => n + b.chapters.reduce((m, ch) => m + ch.lessons.length, 0), 0);
+    const core = ict.filter((b) => !ELECTIVE.includes(b.subject_key));
+    expect(lessonsIn(core)).toBe(2049);
+    expect(lessonsIn(ict)).toBe(3290);
+    expect(catalog.counts.lessons).toBe(lessonsIn(catalog.books));
     for (const id of SPLITS) {
       const [p1, p2] = [find(catalog, id), find(catalog, `${id}b`)];
       expect([p1 && p1.part, p2 && p2.part]).toEqual([1, 2]);
