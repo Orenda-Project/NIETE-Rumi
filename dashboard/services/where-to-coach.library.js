@@ -10,7 +10,6 @@ const LIBRARY = require('../data/where-to-coach/library.json');
 
 /** The report card's five plan steps, in order (bot report-card.js STEPS). */
 const STEPS = Object.freeze(['Opening', 'Explanation', 'We Do', 'You Do', 'Check']);
-const CHECKIN_FEATURES = Object.freeze(['dc', 'lp', 'training', 'papers']);
 
 const own = (o, k) => (o && typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : null);
 
@@ -32,4 +31,4 @@ function checkinFor(feature) {
   return c ? JSON.parse(JSON.stringify(c)) : null;
 }
 
-module.exports = { STEPS, CHECKIN_FEATURES, suggestionsFor, stepTipFor, checkinFor };
+module.exports = { STEPS, suggestionsFor, stepTipFor, checkinFor };
