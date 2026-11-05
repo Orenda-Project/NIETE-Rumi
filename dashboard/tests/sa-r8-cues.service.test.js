@@ -348,6 +348,47 @@ maybe('round 8 item 32: the instruction lit word by word (r8_highlight)', () => 
     expect(lit(el)).toEqual(['Tap']);
   });
 
+  /** Layout for jsdom: the instruction's scroll box shows y 100..400; word k sits at y 100 + 80k, less what is scrolled. */
+  function layout(el) {
+    const box = el.querySelector('.sae-r8-text').closest('.sae-body');
+    box.style.overflowY = 'auto';
+    Object.defineProperty(box, 'scrollHeight', { configurable: true, get: () => 600 });
+    Object.defineProperty(box, 'clientHeight', { configurable: true, get: () => 300 });
+    let top = 0; // jsdom keeps no scroll position
+    Object.defineProperty(box, 'scrollTop', { configurable: true, get: () => top, set: (v) => { top = v; } });
+    box.getBoundingClientRect = () => ({ top: 100, bottom: 400, height: 300 });
+    [...el.querySelectorAll('.sae-r8-w')].forEach((w, k) => {
+      w.getBoundingClientRect = () => { const top = 100 + 80 * k - box.scrollTop; return { top, bottom: top + 30, height: 30 }; };
+    });
+    return box;
+  }
+
+  test('a lit word below the scroll box is brought into view (phone: the instruction runs under the button)', async () => {
+    fetcher({ 'https://cdn.test/sa/v4/en/r8demo02.json': FIX.en });
+    const { el, vo } = mount();
+    await frames();
+    const box = layout(el);
+    vo.cur.currentTime = 0.95; // 'Jugnu' (y 340..370): in view, nothing moves
+    await frames();
+    expect(lit(el)).toEqual(['Jugnu']);
+    expect(box.scrollTop).toBe(0);
+    vo.cur.currentTime = 1.5; // 'says.' (y 420..450): out of view, scrolled to a third of the box
+    await frames();
+    expect(lit(el)).toEqual(['says.']);
+    expect(box.scrollTop).toBe(220);
+    const r = el.querySelectorAll('.sae-r8-w')[4].getBoundingClientRect();
+    expect(r.top >= 100 && r.bottom <= 400).toBe(true);
+  });
+
+  test('OFF: the scroll box is never moved', async () => {
+    fetcher({ 'https://cdn.test/sa/v4/en/r8demo02.json': FIX.en });
+    const { el } = mount({ on: false });
+    await frames();
+    const box = el.querySelector('.sae-say').closest('.sae-body');
+    expect(box).not.toBeNull();
+    expect(box.scrollTop).toBe(0);
+  });
+
   test('the timing is fetched once and kept (a replay reuses it)', async () => {
     const f = fetcher({ 'https://cdn.test/sa/v4/en/r8demo02.json': FIX.en });
     const { el, vo } = mount();
