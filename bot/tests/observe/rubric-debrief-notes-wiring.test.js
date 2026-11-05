@@ -122,3 +122,13 @@ test('the notes are asked for with room enough for Urdu (6,000 output tokens, as
     maxTokens: 6000, label: 'observeDebriefGuide', job: 'coaching.observeDebrief',
   }));
 });
+
+// bd-rlxkkt.8: the model judges the student's answer at the moment; a wrong one is labelled for the coach.
+test('a moment the model judges wrong reaches the coach labelled, the judgement kept as one of three words', async () => {
+  const n = modelNotes('12:40');
+  n.moment.answer = 'Wrong';
+  GPT5MiniService.completeJson.mockResolvedValue({ result: n });
+  await startDebrief(SID, FROM, FO);
+  expect(sent()).toMatch(/A moment to bring up \(12:40\): a wrong answer/);
+  expect(armedGuide().moment.answer).toBe('wrong');
+});
