@@ -274,8 +274,18 @@ CREATE TABLE IF NOT EXISTS coaching_sessions (
     -- bot/database/migrations/coaching_audio_hash.sql
     audio_hash CHAR(64),
     duplicate_of_session_id UUID REFERENCES coaching_sessions(id),
+    -- Coach reports in the app (bot migration coach_report_notice.sql): the coach opened her debrief report / closed its Home card / the WhatsApp
+    -- fallback claimed it. NULL = not yet. Served by idx_coaching_sessions_coach_report_waiting (below the table).
+    coach_report_opened_at TIMESTAMPTZ,
+    coach_report_seen_at TIMESTAMPTZ,
+    coach_report_whatsapp_at TIMESTAMPTZ,
     PRIMARY KEY (id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_coaching_sessions_coach_report_waiting
+  ON coaching_sessions (created_at)
+  WHERE observation_type = 'leader_observation' AND debrief_status = 'done'
+    AND coach_report_opened_at IS NULL AND coach_report_seen_at IS NULL AND coach_report_whatsapp_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS coaching_jobs (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
