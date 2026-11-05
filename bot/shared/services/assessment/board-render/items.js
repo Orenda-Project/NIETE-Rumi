@@ -98,4 +98,4 @@ function sectionBlock(layout, sec, by, ctx) {
   return out.join('');
 }
 
-module.exports = { sectionBlock, orWord, marksLine };
+module.exports = { sectionBlock, orWord, marksLine, WORDS };
