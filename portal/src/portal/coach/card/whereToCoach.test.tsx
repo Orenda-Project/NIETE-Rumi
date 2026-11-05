@@ -339,3 +339,20 @@ describe("the School card door (coach only)", () => {
     expect(door.getAttribute("href")).toBe(`/portal/coach/school/${fx.EMIS}/first?period=month`);
   }, 120_000);
 });
+
+describe("Urdu lines that carry English (language-protocol §9: isolate the placeholder)", () => {
+  const LRI = "⁦";
+  const PDI = "⁩";
+  it("the strength line isolates the code and practice name, and the score", () => {
+    const line = WHERE.ur.c1("C2", "Responsive Re-explanation & Adaptive Teaching", "2/2");
+    expect(line).toContain(`${LRI}C2 Responsive Re-explanation & Adaptive Teaching${PDI}`);
+    expect(line).toContain(`${LRI}2/2${PDI}`);
+  });
+  it("the next step and the weakest tag isolate the code", () => {
+    expect(WHERE.ur.c4("D2")).toContain(`${LRI}D2${PDI}`);
+    expect(WHERE.ur.weakestTag("D")).toContain(`${LRI}D${PDI}`);
+  });
+  it("English stays as it was (no isolates needed)", () => {
+    expect(WHERE.en.c1("C2", "Name", "2/2")).toBe("C2 Name went well in her sessions (2/2).");
+  });
+});
