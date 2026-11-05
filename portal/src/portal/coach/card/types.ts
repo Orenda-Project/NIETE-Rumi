@@ -77,10 +77,25 @@ export type SchoolScores = {
   series: (number | null)[];
 };
 
+/**
+ * bd-17v39c.4.13 — the School view's overview: who used NIETE in the period and the same days before (a teacher with any
+ * lesson plan, DC observation, module completed or assessment), lesson plans with their rate per teacher per school day
+ * (one decimal; null with no school day), modules completed, assessments. DC and the Coach average are `scores`.
+ */
+export type Overview = {
+  teachers: number;
+  active: { now: number; prev: number };
+  lp: { total: number; makers: number; perTeacherDay: number | null; prev: { total: number; perTeacherDay: number | null } };
+  training: { modules: number; makers: number; prev: { modules: number } };
+  papers: { total: number; makers: number; prev: { total: number } };
+};
+
 export type SchoolCardData = {
   /** `teachers` is the level's when a level is asked for; `roster` (bd-ewbzns.1) is always the whole school's. */
   school: { emis: string; name: string; teachers: number; roster?: number; lastVisitDaysAgo: number | null };
   period: Period;
+  /** bd-17v39c.4.13 — absent from an older server: every number then reads "—". */
+  overview?: Overview;
   tiles: ActivityTile[];
   teachers: CardTeacher[];
   coachObservations: { count: number; teachers: CoachObsTeacher[] };
@@ -95,7 +110,9 @@ export type SchoolScoresData = {
   kind: ScoreKind;
   period: Period;
   rows: { teacherExtId: string; name: string; count: number; avg: number | null; points: { id: string; date: string; score: number }[] }[];
-  school: { emis: string; name: string; teachers: number; count: number; avg: number | null; makers: number };
+  school: { emis: string; name: string; teachers: number; count: number; avg: number | null; prevAvg?: number | null; makers: number };
+  /** bd-17v39c.4.13 — the school's average per bucket (the box's line on the page's top). */
+  series?: (number | null)[];
 };
 
 /** One practice averaged across her scored reports: on the framework's scale (`scaleMax`) and as a %; `n` reports. */
@@ -131,6 +148,12 @@ export type FeatureGridData = {
   rows: GridRow[];
   school: (number | null)[];
   total: number;
+  /** bd-17v39c.4.13 — the box's numbers on top of its page: by how many of how many, per teacher per school day, and
+   *  the same days before. */
+  makers?: number;
+  teachers?: number;
+  perTeacherDay?: number | null;
+  prev?: { total: number; perTeacherDay: number | null };
 };
 
 export type ScoreAvg = { avg: number | null; prevAvg: number | null };
@@ -182,7 +205,14 @@ export type ItemsData = {
 /** bd-hl4a4y — Training by teacher: each teacher's trainings (none: an empty list). */
 export type TrainingByTeacherData = {
   feature: "training";
-  rows: { teacherExtId: string | null; name: string; vendors: TrainingProgress[] }[];
+  /** bd-17v39c.4.13 — modules completed in the period (the box's number), by how many of how many, the same days before. */
+  period?: Period;
+  total?: number;
+  makers?: number;
+  teachers?: number;
+  prev?: { total: number };
+  /** `modules`: her modules completed over the modules of her trainings; `inPeriod`: completed in the period. */
+  rows: { teacherExtId: string | null; name: string; vendors: TrainingProgress[]; modules?: { done: number; of: number }; inPeriod?: number }[];
 };
 
 export type SectionScores = { B: number | null; C: number | null; D: number | null; F: number | null };

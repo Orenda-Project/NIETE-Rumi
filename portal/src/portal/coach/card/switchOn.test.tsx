@@ -76,7 +76,7 @@ describe("the gate and the menu", () => {
   it("the menu is Home · Lesson Plans · More, with Home current on the School card pages", async () => {
     on();
     await renderApp(`/portal/coach/school/${EMIS}`);
-    await screen.findByTestId("activity");
+    await screen.findByTestId("overview");
     const nav = screen.getByTestId("teacher-nav");
     const links = Array.from(nav.querySelectorAll("a"));
     expect(links.map((a) => a.textContent)).toEqual(["Home", "Lesson Plans", "More"]);
@@ -106,130 +106,40 @@ describe("the gate and the menu", () => {
   });
 });
 
+// bd-17v39c.4.13 — the card's overview, tables and the boxes' details pages are pinned in schoolView.test.tsx; what
+// stays here is the frame around them: the header chips, the period chips, the links, Manage, loading.
 describe("the School card", () => {
-  it("Digital Coaching and Coach observations come first: the average, a line of daily averages with the period's average dashed, N observations by N of M teachers", async () => {
+  it("the header chips, the overview and both tables; every link is one the coach app opens; no Activity tiles", async () => {
     on();
     const { container } = await renderApp(`/portal/coach/school/${EMIS}`);
-    const dc = await screen.findByTestId("score-tile-dc");
-    expect(Array.from(screen.getByTestId("activity").children).map((c) => c.getAttribute("data-testid")))
-      .toEqual(["score-tile-dc", "score-tile-coach", "tile-lp", "tile-papers", "tile-training"]);
-    expect(dc).toHaveTextContent("Digital Coaching");
-    expect(dc).toHaveTextContent("66%");
-    expect(dc).toHaveTextContent("average AI score");
-    expect(dc).toHaveTextContent("4 observations · by 3 of 12 teachers");
-    expect(dc).toHaveAttribute("href", `/portal/coach/school/${EMIS}/feature/dc`);
-    const line = within(dc).getByTestId("score-line");
-    expect(line).toHaveAttribute("dir", "ltr");
-    expect(line.querySelectorAll('[data-point="dot"]')).toHaveLength(3);
-    expect(line.querySelector("[data-avg]")).toHaveAttribute("data-avg", "66");
-    expect(line).toHaveTextContent(/Mon.*26.*Tue.*27.*Wed.*28.*Thu.*29.*Fri.*30/);
-    const coach = screen.getByTestId("score-tile-coach");
-    expect(coach).toHaveTextContent("Coach observations");
-    expect(coach).toHaveTextContent("68%");
-    expect(coach).toHaveTextContent("average Coach score");
-    expect(coach).toHaveTextContent("2 observations · by 2 of 12 teachers");
-    expect(coach).toHaveAttribute("href", `/portal/coach/school/${EMIS}/feature/coach`);
-    // the two series differ by shape too: coach points are squares
-    expect(within(coach).getByTestId("score-line").querySelectorAll('[data-point="square"]')).toHaveLength(2);
-    // "Papers" reads "Assessments"; the old coach observations list is gone (the tile replaces it)
-    expect(screen.getByTestId("tile-papers")).toHaveTextContent("assessments");
-    expect(container.textContent).not.toMatch(/\bpapers?\b/i);
-    expect(screen.queryByTestId("coach-obs")).toBeNull();
-    expectOnlyOpenLinks(container);
-  });
-
-  it("This week: the count tiles keep the total, by N of M, about N a day, bars per school day with the days ahead dashed", async () => {
-    on();
-    const { container } = await renderApp(`/portal/coach/school/${EMIS}`);
-    const lp = await screen.findByTestId("tile-lp");
-    expect(lp).toHaveTextContent("27");
-    expect(lp).toHaveTextContent("lesson plans");
-    expect(lp).toHaveTextContent("by 8 of 12 teachers");
-    expect(lp).toHaveTextContent("about 9 a day");
-    expect(lp).toHaveAttribute("href", `/portal/coach/school/${EMIS}/feature/lp`);
-    const bars = within(lp).getByTestId("bars-lp");
-    expect(bars).toHaveAttribute("dir", "ltr");
-    expect(Array.from(bars.querySelectorAll("[data-bar]")).map((b) => b.getAttribute("data-bar"))).toEqual(["count", "count", "count", "future", "future"]);
-    expect(bars).toHaveTextContent(/Mon.*26.*Tue.*27.*Wed.*28.*Thu.*29.*Fri.*30/);
-    // "less than 1 a day": 1 training part over 3 days
-    expect(screen.getByTestId("tile-training")).toHaveTextContent("less than 1 a day");
-    expect(screen.getByTestId("tile-training")).toHaveTextContent(/^1\s*training part(?!s)/);
-    // a number that did not load is a dash, never 0, and has no rate
-    const papers = screen.getByTestId("tile-papers");
-    expect(within(papers).getByTestId("tile-total")).toHaveTextContent("—");
-    expect(papers).not.toHaveTextContent("a day");
-    // header chips
+    await screen.findByTestId("overview");
     expect(screen.getByTestId("card-emis")).toHaveTextContent(`EMIS ${EMIS}`);
     expect(screen.getByTestId("card-last-visit")).toHaveTextContent("Last visit · 1 day ago");
+    expect(screen.getByTestId("teacher-table")).toBeInTheDocument();
+    expect(screen.getByTestId("coach-obs-table")).toBeInTheDocument();
+    expect(screen.queryByTestId("activity")).toBeNull();
+    expect(screen.queryByTestId("coach-obs")).toBeNull();
+    expect(container.textContent).not.toMatch(/\bpapers?\b/i);
     expectOnlyOpenLinks(container);
-  });
-
-  it("Today: the total and by N of M only (no rate, no bars)", async () => {
-    on();
-    await renderApp(`/portal/coach/school/${EMIS}?period=today`);
-    const lp = await screen.findByTestId("tile-lp");
-    expect(lp).toHaveTextContent("8");
-    expect(lp).toHaveTextContent("by 5 of 12 teachers");
-    expect(lp).not.toHaveTextContent("a day");
-    expect(within(lp).queryByTestId("bars-lp")).toBeNull();
-    expect(lp).toHaveAttribute("href", `/portal/coach/school/${EMIS}/feature/lp?period=today`);
-    expect(screen.getByRole("radio", { name: "Today" })).toHaveAttribute("aria-checked", "true");
-    // nothing yet today: a dash, never 0%, and no line
-    const dc = screen.getByTestId("score-tile-dc");
-    expect(dc).toHaveTextContent("—");
-    expect(dc).toHaveTextContent("0 observations");
-    expect(within(dc).queryByTestId("score-line")).toBeNull();
   });
 
   it("the chips switch the period in place and the card asks for that period", async () => {
     on();
     await renderApp(`/portal/coach/school/${EMIS}`);
-    await screen.findByTestId("tile-lp");
+    await screen.findByTestId("overview");
     await act(async () => { fireEvent.click(screen.getByRole("radio", { name: "This month" })); });
-    await waitFor(() => expect(screen.getByTestId("bars-lp")).toHaveTextContent(/Wk 1.*28 Sep.*Wk 5.*26 Oct/));
+    await waitFor(() => expect(screen.getByTestId("overview")).toHaveTextContent("teachers used NIETE this month"));
     expect(net.calls).toContain(`/coach/school/${EMIS}/card?period=month`);
     expect(moves[moves.length - 1]).toBe(`/portal/coach/school/${EMIS}?period=month`);
+    expect(screen.getByTestId("box-lp")).toHaveAttribute("href", `/portal/coach/school/${EMIS}/feature/lp?period=month`);
   });
 
-  it("teachers: four counts, last visit, Contribution %, ★ on the top two, no rank numbers", async () => {
+  it("a teacher's row opens her page", async () => {
     on();
     await renderApp(`/portal/coach/school/${EMIS}`);
-    const list = await screen.findByTestId("card-teachers");
-    const rows = within(list).getAllByTestId("card-teacher");
-    expect(rows).toHaveLength(7);
-    expect(within(list).getAllByTestId("top-contributor")).toHaveLength(2);
+    const rows = within(await screen.findByTestId("teacher-table")).getAllByTestId("table-row");
     expect(rows[0]).toHaveTextContent("Teacher Alpha");
-    expect(rows[0]).toHaveTextContent("Top contributor");
     expect(rows[0]).toHaveAttribute("href", `/portal/coach/teacher/${EXT}`);
-    expect(within(rows[0]).getByTestId("contribution").textContent).toMatch(/^\d+%$/);
-    expect(rows[0].querySelectorAll("[data-count]")).toHaveLength(4);
-    expect(rows[0]).toHaveTextContent("Last visit · 1 day ago");
-  });
-
-  it("the ones with nothing this week sit in a neutral fold, closed, with no % and no red", async () => {
-    on();
-    await renderApp(`/portal/coach/school/${EMIS}`);
-    const fold = await screen.findByTestId("nothing-fold");
-    expect(fold).toHaveTextContent("Nothing this week");
-    expect(within(fold).getByTestId("nothing-count")).toHaveTextContent("5");
-    expect(within(fold).queryAllByTestId("card-teacher-none")).toHaveLength(0);
-    await act(async () => { fireEvent.click(within(fold).getByRole("button")); });
-    const rows = within(fold).getAllByTestId("card-teacher-none");
-    expect(rows).toHaveLength(5);
-    expect(fold.textContent).not.toMatch(/%/);
-    expect(fold.innerHTML).not.toMatch(/#c8331f|#b42318|red/i);
-    expect(rows[0].getAttribute("href")).toMatch(/^\/portal\/coach\/teacher\//);
-  });
-
-  it("search shows when there are more than 10 teachers and narrows both lists", async () => {
-    on();
-    await renderApp(`/portal/coach/school/${EMIS}`);
-    const box = await screen.findByPlaceholderText("Teacher name");
-    await act(async () => { fireEvent.change(box, { target: { value: "bravo" } }); });
-    expect(within(screen.getByTestId("card-teachers")).getAllByTestId("card-teacher")).toHaveLength(1);
-    expect(screen.queryByTestId("nothing-fold")).toBeNull();
-    await act(async () => { fireEvent.change(box, { target: { value: "nobody" } }); });
-    expect(screen.getByTestId("no-match")).toBeInTheDocument();
   });
 
   it("no search for 10 teachers or fewer", async () => {
@@ -237,7 +147,7 @@ describe("the School card", () => {
     const small = schoolCard();
     net.answers.set(`/coach/school/${EMIS}/card`, { ...small, teachers: small.teachers.slice(0, 10) });
     await renderApp(`/portal/coach/school/${EMIS}`);
-    await screen.findByTestId("card-teachers");
+    await screen.findByTestId("teacher-table");
     expect(screen.queryByPlaceholderText("Teacher name")).toBeNull();
   });
 
@@ -274,9 +184,9 @@ describe("a feature by teacher", () => {
     expect(rows[0].querySelectorAll('[data-cell="future"]')).toHaveLength(2);
     expect(rows[0]).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/items/lp`);
     expect(within(g).getByTestId("grid-school")).toHaveTextContent(/School\s*9\s*7\s*8\s*24/);
-    expect(screen.getByTestId("grid-summary")).toHaveTextContent("24 lesson plans");
-    expect(screen.getByTestId("grid-summary")).toHaveTextContent("by 7 of 12 teachers");
-    expect(screen.getByTestId("grid-summary")).toHaveTextContent("about 8 a day");
+    // bd-17v39c.4.13 — the box's numbers on top (detail in schoolView.test.tsx)
+    expect(screen.getByTestId("details-top")).toHaveTextContent("24lesson plans");
+    expect(screen.getByTestId("details-top")).toHaveTextContent("by 7 of 12 teachers");
     expect(screen.getByTestId("grid-ahead")).toHaveTextContent("Thu and Fri are still ahead");
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Lesson plans by teacher");
     expectOnlyOpenLinks(container);
@@ -309,7 +219,9 @@ describe("Training by teacher", () => {
   const PAGE = `/portal/coach/school/${EMIS}/feature/training?period=month`;
   const answer = () => net.answers.set(`/coach/school/${EMIS}/feature/training?period=month`, TRAINING_BY_TEACHER);
 
-  it("a row per teacher with each of her trainings and its %; one with none says so, last; no parts, no period", async () => {
+  // bd-17v39c.4.13: counted in modules (N of M, Done only when all are done) with the period's on top; the period chips
+  // are back (detail in schoolView.test.tsx).
+  it("a row per teacher with each of her trainings; one with none says so, last; no parts", async () => {
     on();
     answer();
     const { container } = await renderApp(PAGE);
@@ -317,13 +229,10 @@ describe("Training by teacher", () => {
     const rows = await screen.findAllByTestId("training-row");
     expect(rows).toHaveLength(3);
     expect(rows[0]).toHaveTextContent("Teacher Alpha");
-    expect(within(rows[0]).getAllByTestId("teacher-training").map((c) => c.textContent)).toEqual(["NIETE76%", "GBTLADone"]);
-    expect(within(rows[1]).getAllByTestId("teacher-training").map((c) => c.textContent)).toEqual(["NIETE0%"]);
+    expect(within(rows[0]).getAllByTestId("teacher-training").map((c) => c.textContent)).toEqual(["NIETE130/171", "GBTLADone"]);
     expect(rows[2]).toHaveAttribute("data-none", "1");
     expect(rows[2]).toHaveTextContent("No training yet");
     expect(container.textContent).not.toMatch(/\bparts?\b/i);
-    expect(screen.queryByRole("radio", { name: "This week" })).toBeNull();
-    expect(screen.queryByText("This week")).toBeNull();
     expectOnlyOpenLinks(container);
   });
 
@@ -702,17 +611,22 @@ describe("the coach's view of a DC report", () => {
 });
 
 describe("Urdu", () => {
-  it("the School card reads right to left, its bars and grid stay left to right", async () => {
+  it("the School card reads right to left; the boxes and the table in Urdu", async () => {
     on();
     await renderApp(`/portal/coach/school/${EMIS}`, "ur");
-    const lp = await screen.findByTestId("tile-lp");
+    const lp = await screen.findByTestId("box-lp");
     expect(lp).toHaveTextContent("لیسن پلان");
-    expect(lp).toHaveTextContent("12 میں سے 8 ٹیچرز نے");
-    expect(lp).toHaveTextContent("روزانہ تقریباً 9");
-    expect(within(lp).getByTestId("bars-lp")).toHaveAttribute("dir", "ltr");
-    expect(within(lp).getByTestId("bars-lp")).toHaveTextContent("پیر");
+    expect(screen.getByTestId("box-papers")).toHaveTextContent("12 میں سے 4 ٹیچرز نے");
     expect(screen.getByRole("radio", { name: "یہ ہفتہ" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByTestId("nothing-fold")).toHaveTextContent("اس ہفتے کچھ نہیں");
+    expect(screen.getByTestId("quiet-head")).toHaveTextContent("اس ہفتے کچھ نہیں");
+  });
+
+  it("a details page keeps its day bars left to right with Urdu labels", async () => {
+    on();
+    await renderApp(`/portal/coach/school/${EMIS}/feature/lp`, "ur");
+    const bars = await screen.findByTestId("bars-lp");
+    expect(bars).toHaveAttribute("dir", "ltr");
+    expect(bars).toHaveTextContent("پیر");
   });
 
   it("her Digital Coaching page in Urdu: the average, the graph left to right, the subject's lesson as a title", async () => {
@@ -726,14 +640,13 @@ describe("Urdu", () => {
     expect(screen.getByTestId("practices-head")).toHaveTextContent("ہر طریقے کا اوسط");
   });
 
-  it("the School card's score tiles in Urdu", async () => {
+  it("the School card's score boxes in Urdu", async () => {
     on();
     await renderApp(`/portal/coach/school/${EMIS}`, "ur");
-    const dc = await screen.findByTestId("score-tile-dc");
+    const dc = await screen.findByTestId("box-dc");
     expect(dc).toHaveTextContent("ڈیجیٹل کوچنگ");
-    expect(dc).toHaveTextContent("اوسط اے آئی اسکور");
-    expect(screen.getByTestId("score-tile-coach")).toHaveTextContent("کوچ کے مشاہدات");
-    expect(within(dc).getByTestId("score-line")).toHaveAttribute("dir", "ltr");
+    expect(dc).toHaveTextContent("اوسط");
+    expect(screen.getByTestId("box-coach")).toHaveTextContent("کوچ کے مشاہدات");
   });
 
   it("the grid keeps its columns left to right with Urdu labels", async () => {
