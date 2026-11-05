@@ -100,8 +100,8 @@ describe('renderPaper for a topic paper', () => {
 });
 
 describe('chapter papers are unchanged', () => {
-  test('student copy', () => {
-    expect(sha(Renderer.renderPaper(BASE))).toBe('62055bb8278ca98ab6bd4d7ce7ea9121c59b95e7b5c094a32731fcdcd8e5b07c');
+  test('student copy (re-pinned for bd-cj8ggk.3: MCQ options grid, nothing else)', () => {
+    expect(sha(Renderer.renderPaper(BASE))).toBe('5e32d7de9338dc037e2256df4f0022fc269a0176edda1cf9c01b3546601e974c');
   });
   test('answer key', () => {
     expect(sha(Renderer.renderAnswerKey(BASE))).toBe('c7ba66a3ac67be032134ade7525ea4d237d031809f27920ab413a8847e5f588d');
