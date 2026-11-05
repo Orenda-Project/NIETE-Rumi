@@ -1,0 +1,55 @@
+{
+  "note": "G6-12 prompt keys whose text carries Urdu script: drafts until a fluent-Urdu reviewer clears each (set reviewed_by). The go package lists the keys still pending. Never write this marker into the prompt text.",
+  "keys": [
+    {
+      "key": "eg.ict.islamiat.6_8.system",
+      "reason": "needs fluent-Urdu review",
+      "reviewed_by": null
+    },
+    {
+      "key": "eg.ict.urdu.6_8.system",
+      "reason": "needs fluent-Urdu review",
+      "reviewed_by": null
+    },
+    {
+      "key": "eg.ict.zarai_taleem.6_8.system",
+      "reason": "needs fluent-Urdu review",
+      "reviewed_by": null
+    },
+    {
+      "key": "eg.ict.islamiat.9_10.system",
+      "reason": "needs fluent-Urdu review",
+      "reviewed_by": null
+    },
+    {
+      "key": "eg.ict.pakistan_studies_ur.9_10.system",
+      "reason": "needs fluent-Urdu review",
+      "reviewed_by": null
+    },
+    {
+      "key": "eg.ict.urdu.9_10.system",
+      "reason": "needs fluent-Urdu review",
+      "reviewed_by": null
+    },
+    {
+      "key": "eg.ict.islamiat.11_12.system",
+      "reason": "needs fluent-Urdu review",
+      "reviewed_by": null
+    },
+    {
+      "key": "eg.ict.urdu.11_12.system",
+      "reason": "needs fluent-Urdu review",
+      "reviewed_by": null
+    },
+    {
+      "key": "eg.ict.pakistan_studies_ur.11_12.system",
+      "reason": "needs fluent-Urdu review",
+      "reviewed_by": null
+    },
+    {
+      "key": "eg.format.secondary_urdu",
+      "reason": "needs fluent-Urdu review",
+      "reviewed_by": null
+    }
+  ]
+}

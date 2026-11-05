@@ -30,6 +30,12 @@ const { resolveUx } = require('../../config/ux-strings');
 // One definition, shared with the Flow endpoint and the portal's browse
 // service. Was copied verbatim into three files.
 const { SUBJECT_LABEL } = require('./assessment-vocabulary');
+const SubjectConfig = require('./subject-config');
+
+/** The printable subject: the G6-12 registry label first (null for G1-5), then the G1-5 vocabulary. */
+function subjectTitle(grade, subject) {
+  return SubjectConfig.label(grade, subject, 'en') || SUBJECT_LABEL[subject] || subject;
+}
 
 const TEACHER_MESSAGE = {
   EMPTY_SELECTION: 'Keep at least one question and I will make the paper again.',
@@ -78,7 +84,7 @@ function coverageOf(req) {
 }
 
 function fileName({ grade, subject, chapterTitle, format = 'pdf', suffix = '' }) {
-  const label = (SUBJECT_LABEL[subject] || subject || 'Subject').replace(/[^A-Za-z0-9]/g, '');
+  const label = (subjectTitle(grade, subject) || 'Subject').replace(/[^A-Za-z0-9]/g, '');
   const chapter = chapterTitle
     ? `_${String(chapterTitle).replace(/[^A-Za-z0-9]+/g, '').slice(0, 24)}` : '';
   return `Grade${grade}_${label}${chapter}${suffix}.${format}`;
@@ -308,7 +314,7 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budge
 
     const url = await r2.getPresignedUrl(r2.buildR2PublicUrl(key), 3600);
     const caption = [
-      `Grade ${grade} ${SUBJECT_LABEL[subject] || subject}`,
+      `Grade ${grade} ${subjectTitle(grade, subject)}`,
       `${questions.length} questions`,
       Number.isFinite(marks) && marks > 0 ? `${marks} marks` : null,
     ].filter(Boolean).join(' · ');
@@ -562,7 +568,7 @@ function _say(phone, budget) {
 
 /** "Grade 3 Maths · The Thirsty Crow" — what the document is. */
 function _title({ grade, subject, chapterTitle }) {
-  return [`Grade ${grade} ${SUBJECT_LABEL[subject] || subject}`, chapterTitle].filter(Boolean).join(' · ');
+  return [`Grade ${grade} ${subjectTitle(grade, subject)}`, chapterTitle].filter(Boolean).join(' · ');
 }
 
 /**
