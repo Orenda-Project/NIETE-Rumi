@@ -140,4 +140,58 @@ module.exports = [
       await api(page, ctx, 'DELETE', '/classes/' + encodeURIComponent(classId));
     }
   } },
+
+  // bd-mx822w — Edit a name: tap the child, the tray opens focused on the name, Save fixes it and the roll no and
+  // child stay the same. Same throwaway-class pattern and clean-up.
+  { id: 'TK05', title: 'Teacher app v2: tapping a child opens Edit student; Save fixes the name and keeps the roll no', run: async (page, ctx) => {
+    await asRole(page, ctx, 'teacher', 'teacherV2');
+    const before = await mine(page, ctx);
+    expect(before.canAdd, 'the demo teacher cannot add a class (no school or no academic session on this run)');
+    const combo = freshCombo(before);
+    expect(combo, 'no grade·section·shift left that the demo teacher is not already on');
+    const added = await api(page, ctx, 'POST', '/classes', { ...combo, subjectCodes: [], isClassTeacher: false });
+    expect(added.status === 201 && added.json.success, 'adding the throwaway class failed: ' + added.status);
+    const classId = added.json.class.classId;
+    const tag = String(Date.now()).slice(-6);
+    const wrong = 'Fatma ' + tag;
+    const right = 'Fatima ' + tag;
+    try {
+      const seeded = await api(page, ctx, 'POST', '/classes/' + encodeURIComponent(classId) + '/students', { names: [wrong] });
+      expect(seeded.status === 200 && seeded.json && seeded.json.success, 'seeding the child failed: ' + seeded.status);
+      const kids = (await api(page, ctx, 'GET', '/classes/' + encodeURIComponent(classId) + '/students')).json.students;
+      expect(kids.length === 1 && kids[0].rollNumber === 1, 'seeded roster is not one child as roll 1: ' + JSON.stringify(kids));
+      const childId = kids[0].studentId;
+
+      await visit(page, ctx, classPath(classId), {});
+      const w = watch(page);
+      expect(!(await page.getByRole('button', { name: new RegExp('^(Remove ' + wrong + '|' + wrong + ' کو ہٹائیں)$') }).count()),
+        'the row still has a bin');
+      await page.getByRole('button', { name: new RegExp('^(Edit ' + wrong + '|' + wrong + ' میں تبدیلی)$') }).click();
+      const tray = page.getByRole('dialog', { name: /^(Edit student|طالب علم میں تبدیلی)$/ });
+      await tray.waitFor({ state: 'visible', timeout: 15000 });
+      const box = tray.getByLabel(/^(Name, roll no|نام، رول نمبر) 1$/);
+      expect((await box.inputValue()) === wrong, 'the name box does not hold the name');
+      expect(await box.evaluate((el) => el === document.activeElement), 'the name box is not focused');
+      expect(await tray.getByRole('button', { name: /^(Remove student|طالب علم ہٹائیں)$/ }).isVisible(), 'Remove student is not in the tray');
+      const save = tray.getByRole('button', { name: /^(Save|محفوظ کریں)$/ });
+      expect(await save.isDisabled(), 'Save is on before the name changes');
+      await box.fill(right);
+      await save.click();
+      await page.getByRole('status').filter({ hasText: /^(Name saved|نام محفوظ ہو گیا)$/ }).waitFor({ state: 'visible', timeout: 15000 });
+      expect(!(await page.getByRole('dialog').count()), 'the tray did not close');
+
+      const after = (await api(page, ctx, 'GET', '/classes/' + encodeURIComponent(classId) + '/students')).json.students;
+      expect(after.length === 1 && after[0].studentId === childId && after[0].rollNumber === 1 && after[0].studentName === right,
+        'saved roster is not the same child, roll 1, renamed: ' + JSON.stringify(after));
+      expect(!w.errors.length, 'uncaught page error — ' + w.errors[0]);
+      expect(!w.fivexx.length, 'API returned ' + [...new Set(w.fivexx)].join(', '));
+      return { classId, renamed: after[0].studentName };
+    } finally {
+      const r = await api(page, ctx, 'GET', '/classes/' + encodeURIComponent(classId) + '/students');
+      for (const s of (r.json && r.json.students) || []) {
+        await api(page, ctx, 'DELETE', '/classes/' + encodeURIComponent(classId) + '/students/' + encodeURIComponent(s.studentId));
+      }
+      await api(page, ctx, 'DELETE', '/classes/' + encodeURIComponent(classId));
+    }
+  } },
 ];

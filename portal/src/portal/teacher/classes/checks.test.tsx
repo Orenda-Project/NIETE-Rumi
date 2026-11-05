@@ -26,7 +26,7 @@ vi.mock("../../services/api", () => ({
     })),
     students: vi.fn(async () => ({ success: true, students: Array.from({ length: 9 }, (_, i) => ({
       studentId: `s${i}`, studentName: `Child ${i}`, fatherName: null, rollNumber: i + 1, enrolledOn: null })) })),
-    create: vi.fn(), addStudents: vi.fn(), removeStudent: vi.fn(),
+    create: vi.fn(), addStudents: vi.fn(), removeStudent: vi.fn(), renameStudent: vi.fn(),
   },
 }));
 vi.mock("../../lib/gradeSubjects", () => ({ loadGradeSubjects: vi.fn(async () => []) }));
@@ -84,6 +84,14 @@ describe("classes: every target is 56px or more", () => {
     await screen.findByText("Child 0");
     expect(tapProblems(container)).toEqual([]);
     fireEvent.click(screen.getByRole("button", { name: CLASSES_V2_COPY.removeClass }));
+    expect(tapProblems(document.body)).toEqual([]);
+  });
+
+  it("Class detail, the Edit student tray (bd-mx822w)", async () => {
+    at(classPath("c1"));
+    await screen.findByText("Child 0");
+    fireEvent.click(screen.getByRole("button", { name: CLASSES_V2_COPY.editNamed("Child 0") }));
+    await screen.findByRole("dialog", { name: CLASSES_V2_COPY.editStudent });
     expect(tapProblems(document.body)).toEqual([]);
   });
 

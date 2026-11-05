@@ -1318,6 +1318,12 @@ export const classes = {
     return response.data;
   },
 
+  // bd-mx822w — fix a child's name; the roll no and enrolment stay. POST (CORS allows GET/POST only).
+  renameStudent: async (classId: string, studentId: string, name: string): Promise<{ success: boolean; studentName: string }> => {
+    const response = await api.post(`/classes/${classId}/students/${studentId}/name`, { name });
+    return response.data;
+  },
+
   removeStudent: async (classId: string, studentId: string): Promise<{ success: boolean }> => {
     const response = await api.delete(`/classes/${classId}/students/${studentId}`);
     return response.data;
