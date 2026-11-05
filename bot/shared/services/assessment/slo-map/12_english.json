@@ -1,0 +1,236 @@
+{
+  "grade": 12,
+  "code": "english",
+  "source": {
+    "file": "outputs/lanes/r0-boards/sources/hssc/pdf/ModelPaper__2025__Assessment Frameworks__HSSC-II__Final Assessment Framework + Model Question Paper English HSSC-II.txt",
+    "kind": "fbise_af"
+  },
+  "policy": "stamp",
+  "slos": [
+    {
+      "official_slo": "E-12-A1-01",
+      "gist": "design_pending: domain label not machine-parsed (domain A1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-A1-02",
+      "gist": "design_pending: domain label not machine-parsed (domain A1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-A2-01",
+      "gist": "design_pending: domain label not machine-parsed (domain A2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-A2-02",
+      "gist": "design_pending: domain label not machine-parsed (domain A2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-A2-04",
+      "gist": "design_pending: domain label not machine-parsed (domain A2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-A3-02",
+      "gist": "design_pending: domain label not machine-parsed (domain A3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-A4-01",
+      "gist": "design_pending: domain label not machine-parsed (domain A4)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-B2-02",
+      "gist": "design_pending: domain label not machine-parsed (domain B2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-B2-03",
+      "gist": "design_pending: domain label not machine-parsed (domain B2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-B2-04",
+      "gist": "design_pending: domain label not machine-parsed (domain B2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-B3-01",
+      "gist": "design_pending: domain label not machine-parsed (domain B3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-B3-02",
+      "gist": "design_pending: domain label not machine-parsed (domain B3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-B3-04",
+      "gist": "design_pending: domain label not machine-parsed (domain B3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-B3-06",
+      "gist": "design_pending: domain label not machine-parsed (domain B3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-B3-07",
+      "gist": "design_pending: domain label not machine-parsed (domain B3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-B3-08",
+      "gist": "design_pending: domain label not machine-parsed (domain B3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-B3-11",
+      "gist": "design_pending: domain label not machine-parsed (domain B3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-B3-12",
+      "gist": "design_pending: domain label not machine-parsed (domain B3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-B3-13",
+      "gist": "design_pending: domain label not machine-parsed (domain B3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-B3-14",
+      "gist": "design_pending: domain label not machine-parsed (domain B3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-B3-15",
+      "gist": "design_pending: domain label not machine-parsed (domain B3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-B3-16",
+      "gist": "design_pending: domain label not machine-parsed (domain B3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-C1-01",
+      "gist": "design_pending: domain label not machine-parsed (domain C1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-C1-02",
+      "gist": "design_pending: domain label not machine-parsed (domain C1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-C2-01",
+      "gist": "design_pending: domain label not machine-parsed (domain C2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-C2-02",
+      "gist": "design_pending: domain label not machine-parsed (domain C2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-C2-03",
+      "gist": "design_pending: domain label not machine-parsed (domain C2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-C2-04",
+      "gist": "design_pending: domain label not machine-parsed (domain C2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-C4-01",
+      "gist": "design_pending: domain label not machine-parsed (domain C4)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-D1-01",
+      "gist": "design_pending: domain label not machine-parsed (domain D1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-D2-03",
+      "gist": "design_pending: domain label not machine-parsed (domain D2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-D2-04",
+      "gist": "design_pending: domain label not machine-parsed (domain D2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-D3-01",
+      "gist": "design_pending: domain label not machine-parsed (domain D3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-D3-02",
+      "gist": "design_pending: domain label not machine-parsed (domain D3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-D3-03",
+      "gist": "design_pending: domain label not machine-parsed (domain D3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-D3-04",
+      "gist": "design_pending: domain label not machine-parsed (domain D3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-D3-05",
+      "gist": "design_pending: domain label not machine-parsed (domain D3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-D3-06",
+      "gist": "design_pending: domain label not machine-parsed (domain D3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-D3-07",
+      "gist": "design_pending: domain label not machine-parsed (domain D3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-D3-08",
+      "gist": "design_pending: domain label not machine-parsed (domain D3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-D3-10",
+      "gist": "design_pending: domain label not machine-parsed (domain D3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-D3-11",
+      "gist": "design_pending: domain label not machine-parsed (domain D3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-D3-12",
+      "gist": "design_pending: domain label not machine-parsed (domain D3)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-C1-03",
+      "gist": "design_pending: domain label not machine-parsed (domain C1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "E-12-C1-04",
+      "gist": "design_pending: domain label not machine-parsed (domain C1)",
+      "chapter": null
+    }
+  ]
+}

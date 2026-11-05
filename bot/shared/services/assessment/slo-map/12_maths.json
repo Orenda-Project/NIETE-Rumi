@@ -1,0 +1,782 @@
+{
+  "grade": 12,
+  "code": "maths",
+  "source": {
+    "file": "outputs/lanes/r0-boards/sources/hssc/pdf/ModelPaper__2025__Assessment Frameworks__HSSC-II__Final Assessment Framework + Model Question Paper Mathematics HSSC-II.txt",
+    "kind": "fbise_af"
+  },
+  "policy": "stamp",
+  "slos": [
+    {
+      "official_slo": "M-12-A-01",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-03",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-04",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-05",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-06",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-07",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-08",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-09",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-10",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-11",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-12",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-13",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-14",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-15",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-16",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-17",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-18",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-19",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-20",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-21",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-22",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-23",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-24",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-25",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-26",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-27",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-28",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-29",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-30",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-31",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-32",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-33",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-34",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-35",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-36",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-37",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-38",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-39",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-40",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-41",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-42",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-43",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-44",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-45",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-46",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-47",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-48",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-49",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-50",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-51",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-52",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-53",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-54",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-55",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-56",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-57",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-58",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-59",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-60",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-61",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-62",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-63",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-64",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-65",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-66",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-67",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-68",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-69",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-70",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-71",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-72",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-73",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-74",
+      "level": "A",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-75",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-76",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-77",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-78",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-79",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-80",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-81",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-82",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-83",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-84",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-85",
+      "level": "K",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-86",
+      "level": "U",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-A-87",
+      "level": "A",
+      "gist": "Numbers and Algebra",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-01",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-02",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-03",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-04",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-05",
+      "level": "K",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-06",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-07",
+      "level": "A",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-08",
+      "level": "K",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-09",
+      "level": "K",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-10",
+      "level": "K",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-11",
+      "level": "K",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-12",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-13",
+      "level": "A",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-14",
+      "level": "A",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-15",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-16",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-17",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-18",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-19",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-20",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-21",
+      "level": "A",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-22",
+      "level": "K",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-23",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-24",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-25",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-26",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-27",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-28",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-29",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-30",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-31",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-32",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-33",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-34",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-35",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-36",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-37",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-38",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-39",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-40",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-41",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-42",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-12-B-43",
+      "level": "A",
+      "gist": "Percentage of",
+      "chapter": null
+    }
+  ]
+}
