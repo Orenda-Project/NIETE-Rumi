@@ -42,6 +42,7 @@ REFS = {
     "staging": "rpqkekcfvumypldbejhp",
     "production": "ihzciabopbttygxxgrkm",
 }
+LEVEL_NO = 2                           # the first digit of every unit code at this level (2101 …)
 LEVEL_NAME = "Level 2: Intermediate"   # the partner's own header on every Level 2 CRQ document
 LEVEL_ORDER = 1                        # Level 1 is 0
 CPD_LEVEL = 2
@@ -157,6 +158,8 @@ def header_map(rows):
 # "At…" read as option A and lost its "A"; the real "A. …" line was then folded into it, and 43
 # items were seeded with question_text ''.
 OPT_LINE = re.compile(r"^\s*([A-D])(?:\s*[\.\)]\s*|\s+(?=[A-Z0-9]))(\S.*)$")
+PUNCTUATED_A = re.compile(r"^\s*A\s*[\.\)]\s*\S")
+DOUBLED_MARKER = re.compile(r"^[A-D]\)\s+")
 
 
 def split_options(text):
@@ -166,11 +169,18 @@ def split_options(text):
     'A. ' pattern ('D They feared…' with no full stop, 'B.To achieve…' with no space)
     and the inline split silently returned three options for each.
     """
+    lines = (text or "").replace("\r", "").split("\n")
+    # bd-9svkbb: "A Year 10 teacher, …" also fits the bare-letter rule. When the item has an explicit "A." /
+    # "A)" line, that line is option A and a bare "A <Capital>" line is still the stem.
+    explicit_a = any(PUNCTUATED_A.match(l) for l in lines)
     stem, opts = [], []
-    for line in (text or "").replace("\r", "").split("\n"):
+    for line in lines:
         m = OPT_LINE.match(line)
+        if m and not opts and explicit_a and not PUNCTUATED_A.match(line):
+            m = None
         if m and (len(opts) == 0 and m.group(1) == "A" or opts and ord(m.group(1)) == ord(opts[-1][0]) + 1):
-            opts.append((m.group(1), m.group(2).strip()))
+            # bd-9svkbb: "B) A) He demonstrates…" (Level 3 M6) — a second ")" marker is the partner's typo.
+            opts.append((m.group(1), DOUBLED_MARKER.sub("", m.group(2).strip(), count=1)))
         elif opts:
             opts[-1] = (opts[-1][0], (opts[-1][1] + " " + line.strip()).strip())
         else:
@@ -194,6 +204,24 @@ def item_problem(stem, opts, key, typ, key_cell=""):
 def key_index(cell):
     m = re.fullmatch(r"\s*([A-D])\s*", cell or "")
     return str(ord(m.group(1)) - 64) if m else None
+
+
+def unit_code_problem(code, level_no, module_no):
+    """Why a unit code does not belong to this level/module, or None. 3101 = level 3, module 1, unit 01.
+    bd-9svkbb: the level is a parameter, so the same check serves the Level 3 seed."""
+    if code // 1000 != level_no:
+        return f"Unit {code} does not encode level {level_no}"
+    if (code // 100) % 10 != module_no:
+        return f"Unit {code} does not encode module {module_no}"
+    return None
+
+
+SUMMATIVE_MCQ = re.compile(r"Summative Assessments? Questions|Summative MCQ", re.I)
+
+
+def pick_summative(files):
+    """The summative MCQ workbook. bd-9svkbb: Level 3 Module 2 spells it 'Summative Assessments Questions'."""
+    return [f for f in files if f.endswith(".xlsx") and SUMMATIVE_MCQ.search(f)]
 
 
 def unit_code(cell):
@@ -258,8 +286,9 @@ def collect(content):
                     vids.append(int(m.group(1)))
         vids.sort()
         for c in vids:
-            if c // 1000 != 2 or (c // 100) % 10 != n:
-                warn(f"M{n}: Unit {c} does not encode level 2 / module {n}")
+            problem = unit_code_problem(c, LEVEL_NO, n)
+            if problem:
+                warn(f"M{n}: {problem}")
         units = [{"code": c, "title": f"Unit {c}", "video_url": f"{R2_BASE}/module-{n}/unit-{c}.mp4"} for c in vids]
 
         files = os.listdir(d)
@@ -287,7 +316,7 @@ def collect(content):
             return out
 
         fm = pick("Formative", ".xlsx")
-        sm = pick("Summative Assessment Questions", ".xlsx") or pick("Summative MCQ", ".xlsx")
+        sm = pick_summative(files)
         cr = pick("CRQ", ".docx")
         if len(fm) != 1 or len(sm) != 1 or len(cr) != 1:
             sys.exit(f"M{n}: expected one formative/summative/CRQ file, got {fm} {sm} {cr}")
@@ -365,13 +394,13 @@ def isaps(db):
     return v[0]["id"]
 
 
-def level2(db, vid):
+def level_row(db, vid):
     return db.get("training_levels", f"select=id,name,is_active&vendor_id=eq.{vid}&order_index=eq.{LEVEL_ORDER}")
 
 
 def write(db, plan, active):
     vid = isaps(db)
-    if level2(db, vid):
+    if level_row(db, vid):
         sys.exit(f"REFUSING: ISAPS already has a level at order_index {LEVEL_ORDER} — use --rollback first")
     lid = db.insert("training_levels", [{"vendor_id": vid, "name": LEVEL_NAME, "order_index": LEVEL_ORDER,
                                          "cpd_level": CPD_LEVEL, "is_active": active}])[0]["id"]
@@ -425,7 +454,7 @@ def tree(db, lid):
 
 def rollback(db):
     vid = isaps(db)
-    lv = level2(db, vid)
+    lv = level_row(db, vid)
     if not lv:
         sys.exit("nothing to roll back")
     lid = lv[0]["id"]
@@ -463,9 +492,9 @@ def main():
     if a.rollback:
         return rollback(db) if a.yes_write else print("DRY RUN — --rollback needs --yes-write")
     if a.activate:
-        lv = level2(db, isaps(db))
+        lv = level_row(db, isaps(db))
         if not lv:
-            sys.exit("no Level 2 to activate")
+            sys.exit(f"no {LEVEL_NAME} to activate")
         if not a.yes_write:
             return print(f"DRY RUN — would set level {lv[0]['id']} is_active=true")
         db.req("PATCH", f"training_levels?id=eq.{lv[0]['id']}", {"is_active": True}, prefer="return=minimal")
