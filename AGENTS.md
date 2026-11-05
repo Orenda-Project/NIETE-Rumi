@@ -59,10 +59,14 @@ npm run simulate          # CLI simulator (test without WhatsApp)
 5. **Feature gating is presence-based** — a feature is on iff its env keys are present
    (`bot/shared/config/feature-availability.js`); there is no `RUMI_TIER`
 6. **Branches: `sandbox` → cherry-pick → `staging` → `main`** — work lands on `sandbox` first,
-   is cherry-picked to `staging` (the promotion gate, cut from `main`), and reaches `main` either
-   as a PR from `staging` itself or as a `git cherry-pick -x` of one feature's staging merge onto
-   a branch off `main`. A PR into `main` may only carry commits `staging` already has; CI checks
-   it (`main needs staging`). Never back-merge `main` into `staging` to clear divergence.
+   is cherry-picked with `-x` to `staging` (the promotion gate, cut from `main`), and reaches `main`
+   either as a PR from `staging` itself or as a `git cherry-pick -x` of one feature's staging merge
+   onto a branch off `main`. Both rungs are required checks: a PR into `staging` may only carry
+   commits `sandbox` already has (`staging needs sandbox`), and a PR into `main` only commits
+   `staging` already has (`main needs staging`). A bypass list of four release owners, set in the
+   repository rulesets, can merge past them, and each bypass is logged. Never back-merge `main` into
+   `staging` to clear divergence, except the weekly content-neutral sync: `main` merged into a
+   branch off `staging`, keeping `staging`'s content, so no file on `staging` changes.
    `develop` is frozen since 2026-09-08 and deploys nowhere.
 
 ## Key Configuration Files
