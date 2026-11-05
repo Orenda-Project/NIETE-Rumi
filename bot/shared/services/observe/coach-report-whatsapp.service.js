@@ -88,19 +88,26 @@ async function coachReportsOn(coachId) {
 /* ── the link and the words ─────────────────────────────────────────────────────────────────────────────────── */
 
 const itemOf = (sessionId) => `debrief:${sessionId}`;
+const weekItemOf = (monday) => `week:${monday}`;
 
-/** The signed link to this one report, or null (no PORTAL_URL or no signing secret here). */
-function reportLinkUrl(coachId, sessionId) {
+/** The signed link to one report item (`debrief:<id>` | `week:<Monday>`), or null (no PORTAL_URL or no signing secret). */
+function linkUrl(coachId, item) {
   const base = String(process.env.PORTAL_URL || '').trim().replace(/\/+$/, '');
-  const token = signPortalLink(coachId, 'coachreport', { i: itemOf(sessionId) });
+  const token = signPortalLink(coachId, 'coachreport', { i: item });
   if (!base || !token) return null;
   return `${base}/t/${token}`;
 }
 
+/** The signed link to this one debrief report. */
+function reportLinkUrl(coachId, sessionId) {
+  return linkUrl(coachId, itemOf(sessionId));
+}
+
 const langOf = (code) => (TEMPLATE_LANGUAGES.includes(code) ? code : TEMPLATE_LANGUAGES[0]);
 
-function words(lang) {
+function words(lang, kind = 'debrief') {
   const S = observeStrings(lang);
+  if (kind === 'week') return { body: S.coach_week_link_body, button: S.coach_week_link_button };
   return { body: S.coach_report_link_body, button: S.coach_report_link_button };
 }
 
@@ -119,8 +126,8 @@ async function claim(sessionId) {
   return Array.isArray(data) && data.length >= 1;
 }
 
-async function sendButton(phone, lang, url) {
-  const w = words(lang);
+async function sendButton(phone, lang, url, kind = 'debrief') {
+  const w = words(lang, kind);
   try {
     return (await WhatsAppService.sendCtaUrl(phone, { body: w.body, buttonText: w.button, url })) === true;
   } catch (err) {
@@ -129,8 +136,8 @@ async function sendButton(phone, lang, url) {
   }
 }
 
-async function sendTemplate(phone, lang, coachId, sessionId) {
-  const token = signPortalLink(coachId, 'coachreport', { i: itemOf(sessionId) });
+async function sendTemplate(phone, lang, coachId, sessionId, item = itemOf(sessionId)) {
+  const token = signPortalLink(coachId, 'coachreport', { i: item });
   if (!token) return false;
   const name = (process.env[TEMPLATE_ENV] || '').trim() || TEMPLATE_DEFAULT;
   const components = [{ type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: token }] }];
@@ -257,12 +264,111 @@ async function runSweep({ now = Date.now(), limit = PER_TICK, windowOpen = defau
   return counts;
 }
 
+/* ── the weekly report (phase 3): Friday 16:30, one link to her week ────────────────────────────────────────── */
+
+const DAY = 24 * 60 * 60 * 1000;
+const WEEKLY_FROM_MIN = 16 * 60 + 30;
+const WEEKLY_UNTIL_MIN = 21 * 60; // quiet hours start at 21:00 PKT (nudges/pkt-time)
+
+/** Friday 16:30 up to 21:00 PKT. */
+function inWeeklyWindow(nowMs) {
+  const { pktDate, pktHour, pktMinute } = require('../nudges/pkt-time');
+  const d = new Date(nowMs);
+  const [y, mo, day] = pktDate(d).split('-').map(Number);
+  if (new Date(Date.UTC(y, mo - 1, day)).getUTCDay() !== 5) return false;
+  const m = pktHour(d) * 60 + pktMinute(d);
+  return m >= WEEKLY_FROM_MIN && m < WEEKLY_UNTIL_MIN;
+}
+
+/**
+ * One weekly tick: for each coach with the switch on and at least one debrief this week, whose week has no
+ * coach_weekly_report row yet (opened / closed in the app writes one), ONE link to her week. The INSERT of that row is
+ * the claim (UNIQUE user_id, nudge_date, kind): only the sweep whose insert lands sends. Never throws.
+ */
+async function runWeeklySweep({ now = Date.now(), windowOpen = defaultWindowOpen } = {}) {
+  const counts = { enabled: false, coaches: 0, claimed: 0, sent: 0, failed: 0, skipped: 0 };
+  try {
+    if (!inWeeklyWindow(now)) return counts;
+    const sw = await readSwitch();
+    if (!sw.coaches) return counts;
+    counts.enabled = true;
+    const Week = require('./coach-week');
+    const monday = Week.mondayOf(now);
+    const b = Week.weekBounds(monday);
+
+    const { data: rows, error } = await supabase.from('coaching_sessions')
+      .select('id, observer_user_id, created_at, done_at:analysis_data->observer_debrief->>completed_at')
+      .eq('observation_type', 'leader_observation')
+      .eq('debrief_status', 'done')
+      .gte('created_at', iso(Date.parse(b.fromIso) - 7 * DAY))
+      .lt('created_at', b.toIso)
+      .limit(2000);
+    if (error) throw new Error(error.message || 'coaching_sessions read failed');
+    const perCoach = new Map();
+    for (const r of rows || []) {
+      if (!onFor(sw.coaches, r.observer_user_id)) continue;
+      if (Week.weekOfDebrief(r.done_at || r.created_at) !== monday) continue;
+      perCoach.set(r.observer_user_id, (perCoach.get(r.observer_user_id) || 0) + 1);
+    }
+    counts.coaches = perCoach.size;
+    if (!perCoach.size) return counts;
+
+    const ids = [...perCoach.keys()];
+    const { data: users, error: uErr } = await supabase.from('users').select('id, phone_number, preferred_language').in('id', ids);
+    if (uErr) throw new Error(uErr.message || 'users read failed');
+    const byId = new Map((users || []).map((u) => [u.id, u]));
+
+    for (const coachId of ids) {
+      try {
+        const { data: had } = await supabase.from('teacher_nudges').select('id')
+          .eq('user_id', coachId).eq('kind', 'coach_weekly_report').eq('nudge_date', monday);
+        if (Array.isArray(had) && had.length) continue; // opened / closed in the app, or already messaged
+        const u = byId.get(coachId);
+        if (!u || !u.phone_number) { counts.skipped += 1; continue; }
+        const lang = langOf(u.preferred_language);
+        const open = await windowOpen(u.phone_number);
+        if (!open && !sw.template) { counts.skipped += 1; continue; } // the template is not approved/on: leave it unclaimed
+        const url = open ? linkUrl(coachId, weekItemOf(monday)) : 'template';
+        if (!url) { errorLog('no link to send (PORTAL_URL or signing secret missing)', { coachId }); counts.failed += 1; continue; }
+        const { data: claimed, error: cErr } = await supabase.from('teacher_nudges').insert({
+          user_id: coachId, nudge_date: monday, kind: 'coach_weekly_report', status: 'sending',
+          scheduled_at: iso(now), context: { via: open ? 'button' : 'template', debriefs: perCoach.get(coachId) },
+        }).select('id');
+        if (cErr || !Array.isArray(claimed) || !claimed.length) continue; // a unique conflict: another writer was first
+        counts.claimed += 1;
+        const sent = open
+          ? await sendButton(u.phone_number, lang, url, 'week')
+          : await sendTemplate(u.phone_number, lang, coachId, null, weekItemOf(monday));
+        await supabase.from('teacher_nudges').update({ status: sent ? 'sent' : 'failed', sent_at: sent ? new Date().toISOString() : null })
+          .eq('id', claimed[0].id);
+        if (!sent) {
+          errorLog('Meta refused the weekly report link — not retried', { coachId, how: open ? 'button' : 'template' });
+          counts.failed += 1;
+          continue;
+        }
+        counts.sent += 1;
+        logSent(open ? 'week_button' : 'week_template', monday, coachId, lang);
+      } catch (err) {
+        errorLog('a weekly report failed', { coachId, error: err.message });
+        counts.failed += 1;
+      }
+    }
+  } catch (err) {
+    errorLog('weekly sweep failed', { error: err.message });
+  }
+  if (counts.coaches) {
+    try { logEvent('coach_report_whatsapp.weekly_sweep', { ...counts }); } catch (_) { /* logging never decides */ }
+  }
+  return counts;
+}
+
 /** Register the sweep on the worker that owns `main` (one owner, so no tick runs twice). First run 90 s after boot. */
-function scheduleSweep({ worker, queues, runSweep: run = runSweep } = {}) {
+function scheduleSweep({ worker, queues, runSweep: run = runSweep, runWeeklySweep: runWeekly = runWeeklySweep } = {}) {
   if (!queues || typeof queues.has !== 'function' || !queues.has('main')) return { enabled: false, reason: 'main queue not owned' };
   const tick = async () => {
     if (worker && worker.isShuttingDown) return;
     try { await run({}); } catch (err) { errorLog('tick failed', { error: err.message }); }
+    try { await runWeekly({}); } catch (err) { errorLog('weekly tick failed', { error: err.message }); }
   };
   let every = null;
   const first = setTimeout(() => {
@@ -276,6 +382,6 @@ function scheduleSweep({ worker, queues, runSweep: run = runSweep } = {}) {
 }
 
 module.exports = {
-  coachReportsOn, reportLinkUrl, sendReportLinkNow, runSweep, scheduleSweep,
+  coachReportsOn, reportLinkUrl, linkUrl, sendReportLinkNow, runSweep, runWeeklySweep, inWeeklyWindow, scheduleSweep,
   SETTING_SWITCH, SETTING_TEMPLATE, TEMPLATE_DEFAULT, WAIT_MS, LOOKBACK_MS,
 };

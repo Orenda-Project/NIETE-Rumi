@@ -7,7 +7,7 @@ import { FOCUS } from "../../teacher/ui/styles";
 import { useCopy, useLang, type Lang } from "../../teacher/i18n";
 import { portal } from "../../services/api";
 import { COACH_REPORT, type CoachReportCopy } from "./copy";
-import { coachReportPath, getReadyReports, markSeen, type ReadyReport } from "./api";
+import { coachReportPath, coachWeekPath, getReadyReports, markSeen, markWeek, type ReadyDebrief, type ReadyReport } from "./api";
 
 /**
  * Coach reports in the app — the card above the tiles on her Home when a report is ready. The teacher Home's "Next for
@@ -34,7 +34,7 @@ export function useCoachReportsApp(): boolean | null {
   return on;
 }
 
-export function useReadyReports(on: boolean | null): { reports: ReadyReport[]; dismiss: (ids: string[]) => void } {
+export function useReadyReports(on: boolean | null): { reports: ReadyReport[]; dismiss: (shown: ReadyReport[]) => void } {
   const [reports, setReports] = useState<ReadyReport[]>([]);
   useEffect(() => {
     if (on !== true) return undefined;
@@ -49,9 +49,10 @@ export function useReadyReports(on: boolean | null): { reports: ReadyReport[]; d
     document.addEventListener("visibilitychange", onVisible);
     return () => { live = false; clearInterval(every); document.removeEventListener("visibilitychange", onVisible); };
   }, [on]);
-  const dismiss = useCallback((ids: string[]) => {
+  const dismiss = useCallback((shown: ReadyReport[]) => {
+    const ids = shown.map((r) => r.id);
     setReports((now) => now.filter((r) => !ids.includes(r.id)));
-    ids.forEach((id) => { void markSeen(id); });
+    shown.forEach((r) => { if (r.kind === "week") void markWeek(r.monday, "seen"); else void markSeen(r.id); });
   }, []);
   return { reports, dismiss };
 }
@@ -63,10 +64,15 @@ const timeOf = (iso: string | null, lang: Lang) => {
   return new Intl.DateTimeFormat(lang === "ur" ? "ur-PK" : "en-GB", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Karachi" }).format(d);
 };
 
-function subOf(r: ReadyReport, lang: Lang): string {
+function subOf(r: ReadyDebrief, lang: Lang): string {
   const cls = [r.grade ? (lang === "ur" ? `جماعت ${r.grade}` : `Grade ${r.grade}`) : null, r.subject].filter(Boolean).join(" ");
   return [r.teacher, cls || null, timeOf(r.at, lang)].filter(Boolean).join(" · ");
 }
+
+const weekSpan = (monday: string, friday: string, lang: Lang) => {
+  const f = (d: string, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(lang === "ur" ? "ur-PK" : "en-GB", { ...o, timeZone: "UTC" }).format(new Date(`${d}T00:00:00Z`));
+  return `${f(monday, { day: "numeric" })}–${f(friday, { day: "numeric", month: "short" })}`;
+};
 
 /** The card itself, or nothing (switch off, nothing ready). Placed first under the band on both coach Homes. */
 export function ReadyReportCard({ className }: { className?: string }) {
@@ -86,18 +92,20 @@ export function ReadyReportCard({ className }: { className?: string }) {
           <FeatureArt feature="reports" size={26} />
         </span>
         <p dir={dir} className="flex-1 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#6b7280] rtl:normal-case rtl:tracking-normal rtl:text-[13px]">{C.readyEyebrow}</p>
-        <button type="button" data-testid="coach-report-card-close" aria-label={C.close} onClick={() => dismiss(shown.map((r) => r.id))}
+        <button type="button" data-testid="coach-report-card-close" aria-label={C.close} onClick={() => dismiss(shown)}
           className={cn("-me-2 flex h-11 w-11 items-center justify-center rounded-full text-[#6b7280]", FOCUS)}>
           <X className="h-5 w-5" aria-hidden="true" />
         </button>
       </div>
       {shown.map((r, i) => (
         <div key={r.id} data-testid="coach-report-card-row" className={cn("flex flex-col gap-1", i > 0 ? "mt-3 border-t border-[#f0f1f3] pt-3" : "mt-2")}>
-          <h2 dir={dir} className="line-clamp-2 text-[18px] font-semibold leading-snug text-[#111827] rtl:text-[17px]">{C.readyDebrief}</h2>
-          <p dir="auto" className="truncate text-[13px] text-[#4b5563]">{subOf(r, lang)}</p>
-          <button type="button" data-primary="" onClick={() => navigate(coachReportPath(r.id))}
+          <h2 dir={dir} className="line-clamp-2 text-[18px] font-semibold leading-snug text-[#111827] rtl:text-[17px]">
+            {r.kind === "week" ? C.readyWeek(weekSpan(r.monday, r.friday, lang)) : C.readyDebrief}
+          </h2>
+          <p dir="auto" className="truncate text-[13px] text-[#4b5563]">{r.kind === "week" ? C.weekDebriefs(r.debriefs) : subOf(r, lang)}</p>
+          <button type="button" data-primary="" onClick={() => navigate(r.kind === "week" ? coachWeekPath(r.monday) : coachReportPath(r.id))}
             className={cn("mt-2 flex min-h-[48px] items-center justify-center rounded-2xl bg-[#333748] px-3 text-center text-[16px] font-semibold leading-tight text-white", FOCUS)}>
-            {C.open}
+            {r.kind === "week" ? C.openWeek : C.open}
           </button>
         </div>
       ))}

@@ -78,7 +78,7 @@ export default function CoachReportPage() {
 }
 
 /** The app's language switch, on a white header: the pill names the language she is NOT on, saved through the one writer. */
-function LanguagePill() {
+export function LanguagePill() {
   const F = useCopy(TEACHER_FRAME);
   const sw = useLanguageSwitch();
   const word = F.more.switchTo[sw.target];
@@ -96,10 +96,10 @@ function LanguagePill() {
 
 /* ── the parts ─────────────────────────────────────────────────────────────────────────────────────────────────── */
 
-const SECTION = "rounded-[18px] border border-[#e5e7eb] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)]";
-const LABEL = "m-0 mb-2.5 flex flex-wrap items-center gap-2 text-[12px] font-bold uppercase tracking-[.08em] text-[#6b7280] rtl:normal-case rtl:tracking-normal rtl:text-[13px]";
-const PILL = "inline-flex h-6 items-center whitespace-nowrap rounded-full px-[9px] text-[12px] font-bold normal-case tracking-normal";
-const pick = (b: Both | null | undefined, lang: Lang) => (b ? (lang === "ur" ? b.ur || b.en : b.en || b.ur) : null) || "";
+export const SECTION = "rounded-[18px] border border-[#e5e7eb] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)]";
+export const LABEL = "m-0 mb-2.5 flex flex-wrap items-center gap-2 text-[12px] font-bold uppercase tracking-[.08em] text-[#6b7280] rtl:normal-case rtl:tracking-normal rtl:text-[13px]";
+export const PILL = "inline-flex h-6 items-center whitespace-nowrap rounded-full px-[9px] text-[12px] font-bold normal-case tracking-normal";
+export const pick = (b: Both | null | undefined, lang: Lang) => (b ? (lang === "ur" ? b.ur || b.en : b.en || b.ur) : null) || "";
 
 function Star({ on }: { on: boolean }) {
   return (
@@ -108,14 +108,14 @@ function Star({ on }: { on: boolean }) {
     </svg>
   );
 }
-function Tick({ size = 14 }: { size?: number }) {
+export function Tick({ size = 14 }: { size?: number }) {
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
       <path d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
-function Spark() {
+export function Spark() {
   return (
     <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
       <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" fill="currentColor" />
@@ -142,7 +142,7 @@ function Entry({ id, tone, name, marked, children }: { id: string; tone: "good" 
 }
 
 /** Its Coach Training module, as the Coach Training page lists it (the same row, the same words). */
-function ModuleRow({ n, lang }: { n: number | null; lang: Lang }) {
+export function ModuleRow({ n, lang }: { n: number | null; lang: Lang }) {
   const T = useCopy(COACH_TRAINING);
   const m = n ? COACH_MODULES.find((x) => x.n === n) : null;
   if (!m) return null;
