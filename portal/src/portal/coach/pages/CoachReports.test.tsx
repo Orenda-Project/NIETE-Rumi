@@ -58,7 +58,7 @@ describe("CoachReports", () => {
   it("the header carries the reports art and the shared attention banner for what waits", async () => {
     renderAt();
     expect(await screen.findByTestId("page-feature-tile")).toBeInTheDocument();
-    expect(await screen.findByTestId("pending-banner")).toHaveTextContent("2 reports waiting");
+    expect(await screen.findByTestId("pending-banner")).toHaveTextContent("2 observations need you");
     expect(screen.getByTestId("pending-banner")).toHaveAttribute("href", "/portal/coach/reports?show=waiting");
   });
 
@@ -108,7 +108,7 @@ describe("CoachReports", () => {
     await screen.findByText("Bushra Ali");
     expect(screen.queryByTestId("reports-in-progress")).toBeNull();
     expect(screen.queryByTestId("reports-recent")).toBeNull();
-    expect(screen.getByRole("link", { name: "All reports" })).toHaveAttribute("href", "/portal/coach/reports");
+    expect(screen.getByRole("link", { name: "All observations" })).toHaveAttribute("href", "/portal/coach/reports");
   });
 
   it("search is not on this page (it lives on All, under the date range)", async () => {

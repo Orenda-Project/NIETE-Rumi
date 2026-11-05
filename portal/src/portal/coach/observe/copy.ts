@@ -28,12 +28,12 @@ export const OBSERVE_COPY = {
   /** The visit's Observation box (a region name for a screen reader; it shows no heading). */
   observation: 'Observation',
   takeObservation: 'Take observation',
-  reports: 'Reports',
+  reports: 'My observations',
   waitingN: (n = 0) => `${n} waiting`,
   inProgressN: (n = 0) => `${n} in progress`,
   leftToday: (n = 0) => `${n} left today`,
   nextVisit: 'Next visit',
-  reportsWaiting: (n = 0) => (n === 1 ? '1 report waiting' : `${n} reports waiting`),
+  reportsWaiting: (n = 0) => (n === 1 ? '1 observation needs you' : `${n} observations need you`),
   inHours: (h = 0) => (h <= 0 ? 'Now' : `In ${h} h`),
 
   /* pick the teacher */
@@ -58,14 +58,14 @@ export const OBSERVE_COPY = {
   keepVisit: 'Keep visit',
   teacher: 'Teacher',
   teacherProfile: 'Teacher profile',
-  hitl: 'HITL',
-  dc: 'DC',
-  avgHitl: 'Avg. HITL Score',
+  hitl: 'Observations',
+  dc: 'Digital Coaching',
+  avgHitl: 'Coach score (avg.)',
   training: 'Training',
   papersMade: 'Papers made',
   lpOpened: 'Lesson Plans opened',
-  lastVisitOn: (date = '') => `Last visit · ${date}`.trim(),
-  hitlBy: (who = '') => `HITL · ${who}`.trim(),
+  lastVisitOn: (date = '') => `Last observation · ${date}`.trim(),
+  hitlBy: (who = '') => `Observation · ${who}`.trim(),
   you: 'You',
   lastStep: { sent: 'Sent', report: 'Send report', draft: 'Feedback Form', talk: 'Debrief', analysing: 'Analysing' } as Record<string, string>,
   sendingNow: 'Sending',
@@ -81,7 +81,8 @@ export const OBSERVE_COPY = {
   resume: 'Resume',
   stop: 'Stop',
   stopAsk: 'Stop recording',
-  recordedFor: (length = '') => `You recorded ${length}.`,
+  // bd-jjcofw.10 (M7): a length inside the sentence starts lower-case ("under 1 min", not "Under 1 min").
+  recordedFor: (length: string | number = '') => { const s = String(length); return `You recorded ${s.charAt(0).toLowerCase()}${s.slice(1)}.`; },
   yesStop: 'Yes, stop',
   keepRecording: 'Keep recording',
   shortNote: 'That is short. The report works best on a whole lesson.',
@@ -141,7 +142,7 @@ export const OBSERVE_COPY = {
   /* sending, in the background */
   sending: 'Sending',
   leaveSub: 'The observation keeps sending in the background.',
-  goToReports: 'Go to Reports',
+  goToReports: 'Go to My observations',
   sent: 'Observation sent',
   openObservation: 'Open observation',
   couldntSend: "Couldn't send",
@@ -169,12 +170,12 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   observe: 'مشاہدہ',
   observation: 'مشاہدہ',
   takeObservation: 'مشاہدہ لیں',
-  reports: 'رپورٹس',
+  reports: 'میرے مشاہدات',
   waitingN: (n = 0) => `${n} منتظر`,
   inProgressN: (n = 0) => `${n} جاری`,
   leftToday: (n = 0) => `آج ${n} باقی`,
   nextVisit: 'اگلا دورہ',
-  reportsWaiting: (n = 0) => (n === 1 ? '1 رپورٹ منتظر' : `${n} رپورٹیں منتظر`),
+  reportsWaiting: (n = 0) => (n === 1 ? '1 مشاہدہ منتظر' : `${n} مشاہدات منتظر`),
   inHours: (h = 0) => (h <= 0 ? 'ابھی' : `${h} گھنٹے میں`),
 
   pickTheTeacher: 'ٹیچر چنیں',
@@ -197,14 +198,14 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   keepVisit: 'دورہ رہنے دیں',
   teacher: 'ٹیچر',
   teacherProfile: 'ٹیچر پروفائل',
-  hitl: 'HITL',
-  dc: 'DC',
-  avgHitl: 'اوسط HITL اسکور',
+  hitl: 'مشاہدات',
+  dc: 'ڈیجیٹل کوچنگ',
+  avgHitl: 'کوچ اسکور (اوسط)',
   training: 'ٹریننگ',
   papersMade: 'بنائے گئے پرچے',
   lpOpened: 'کھولے گئے لیسن پلان',
-  lastVisitOn: (date = '') => `آخری دورہ · ${date}`.trim(),
-  hitlBy: (who = '') => `HITL · ${who}`.trim(),
+  lastVisitOn: (date = '') => `آخری مشاہدہ · ${date}`.trim(),
+  hitlBy: (who = '') => `مشاہدہ · ${who}`.trim(),
   you: 'آپ',
   lastStep: { sent: 'بھیجا گیا', report: 'رپورٹ بھیجیں', draft: 'فیڈبیک فارم', talk: 'ڈی بریف', analysing: 'تجزیہ جاری' },
   sendingNow: 'بھیجا جا رہا ہے',
@@ -275,7 +276,7 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
 
   sending: 'بھیجا جا رہا ہے',
   leaveSub: 'مشاہدہ پس منظر میں بھیجا جاتا رہے گا۔',
-  goToReports: 'رپورٹس پر جائیں',
+  goToReports: 'میرے مشاہدات پر جائیں',
   sent: 'مشاہدہ بھیجا گیا',
   openObservation: 'مشاہدہ کھولیں',
   couldntSend: 'نہیں بھیجا جا سکا',
@@ -297,4 +298,4 @@ export type ObserveCopy = Words<typeof OBSERVE_COPY>;
 /** Paths that are rightly a sentence (more than 4 words) — the real reasons and the notes the design names. */
 export const SENTENCES = ['recordedFor', 'shortNote', 'screenOff', 'micAllow', 'shortWarning', 'leaveSub', 'failure'] as const;
 /** Paths that are rightly the same in both languages. */
-export const SAME = ['dash', 'hitl', 'dc', 'hitlBy', 'kindPdf'] as const;
+export const SAME = ['dash', 'kindPdf'] as const;

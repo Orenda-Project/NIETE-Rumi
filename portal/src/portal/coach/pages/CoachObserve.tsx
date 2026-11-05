@@ -40,7 +40,7 @@ const CoachObserve = () => {
       <FeatureMotionProvider>
         <nav aria-label={C.observe} className="[display:grid] grid-cols-2 gap-3">
           <FeatureTile feature="observations" label={C.takeObservation} to="/portal/coach/observe/pick" chip={left > 0 ? { text: C.leftToday(left), tone: "info" } : null} />
-          <FeatureTile feature="reports" label={C.reports} to="/portal/coach/reports" chip={reportsChip} />
+          <FeatureTile feature="observations" label={C.reports} to="/portal/coach/reports" chip={reportsChip} />
         </nav>
       </FeatureMotionProvider>
       {next && (
@@ -48,7 +48,7 @@ const CoachObserve = () => {
           <SectionLabel>{C.nextVisit}</SectionLabel>
           <section className={LIST_CARD} data-testid="next-visit-card">
             <HistoryRow lead="person" state="next" title={next.teacherName || C.dash} extra={next.schoolName || undefined}
-              time={next.scheduledSlot} to={`/portal/coach/visit/${next.id}`}
+              time={next.scheduledSlot} to={`/portal/coach/visit/${next.id}?from=observe`} /* bd-jjcofw.10 (M5) */
               chip={hours != null && hours >= 0 ? { text: C.inHours(hours), tone: "info" } : when ? { text: when, tone: "info" } : null} />
           </section>
         </>

@@ -90,9 +90,9 @@ describe("3 — Teacher History: a count, then months, newest first", () => {
   });
 });
 
-describe("5 — 'Avg. HITL Score' everywhere", () => {
+describe("5 — one average-score label everywhere (bd-jjcofw.10 M1: 'Coach score (avg.)', no HITL on screen)", () => {
   it("every average-score word in the copy is the same label", () => {
-    for (const k of ["avg", "avgHitl", "avgScore", "sortAvg"] as const) expect(COACH_COPY[k]).toBe("Avg. HITL Score");
+    for (const k of ["avg", "avgHitl", "avgScore", "sortAvg"] as const) expect(COACH_COPY[k]).toBe("Coach score (avg.)");
   });
 
   it("Schools tab: the strip shows it, and lets it wrap rather than cut it", async () => {
@@ -101,7 +101,7 @@ describe("5 — 'Avg. HITL Score' everywhere", () => {
     ] });
     at("/portal/coach/people", "/portal/coach/people", <CoachPeople />);
     const card = await screen.findByTestId("school-card");
-    const label = within(card).getByText("Avg. HITL Score");
+    const label = within(card).getByText("Coach score (avg.)");
     expect(label.className).not.toMatch(/whitespace-nowrap/);
     expect(screen.queryByText(/^Avg score$|^Avg HITL$|^Avg$/)).toBeNull();
   });

@@ -51,10 +51,10 @@ describe("Send {name} the report", () => {
     expect(screen.getByText("Your report, Ayesha")).toBeInTheDocument();
   });
 
-  it("the preview's header: the Digital Coach score ring, the teacher, the day, the percentage", async () => {
+  it("the preview's header: the AI score ring, the teacher, the day, the percentage", async () => {
     renderPage();
     const head = await screen.findByTestId("send-score");
-    expect(within(head).getByRole("img", { name: "Digital Coach score 72%" })).toBeInTheDocument();
+    expect(within(head).getByRole("img", { name: "AI score 72%" })).toBeInTheDocument();
     expect(head).toHaveTextContent("Ayesha Bibi");
     expect(head).toHaveTextContent("Observation ·");
   });

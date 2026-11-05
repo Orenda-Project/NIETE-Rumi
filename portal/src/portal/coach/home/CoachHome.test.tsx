@@ -57,7 +57,7 @@ describe("CoachHome (kit)", () => {
   it("reports waiting: one amber banner that opens Reports; none when nothing waits", async () => {
     const first = renderHome();
     const banner = await screen.findByTestId("reports-waiting");
-    expect(banner).toHaveTextContent("2 reports waiting");
+    expect(banner).toHaveTextContent("2 observations need you");
     expect(banner).toHaveAttribute("href", "/portal/coach/reports?show=waiting");
     first.unmount();
     (coach as any).getHome.mockResolvedValue({ success: true, home: { ...HOME, counts: { ...HOME.counts, waiting: 0 } } });
@@ -134,7 +134,7 @@ describe("CoachHome (kit)", () => {
     await lang("ur");
     renderHome();
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("السلام علیکم، Hataf Atif!");
-    expect(await screen.findByTestId("reports-waiting")).toHaveTextContent("2 رپورٹیں منتظر");
+    expect(await screen.findByTestId("reports-waiting")).toHaveTextContent("2 مشاہدات منتظر");
     expect(screen.getByText("آج کے دورے")).toBeInTheDocument();
     expect(screen.getByText("مشاہدہ لیں")).toBeInTheDocument();
     const tiles = within(screen.getByTestId("feature-tiles"));
