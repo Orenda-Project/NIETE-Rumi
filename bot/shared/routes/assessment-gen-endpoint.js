@@ -80,8 +80,14 @@ async function gradesOnOffer() {
   return grades.map((g) => ({ id: String(g), title: `Grade ${g}` }));
 }
 
-/** Which subjects we hold a book for, in this grade. */
-async function subjectsOnOffer(grade) {
+/**
+ * Which subjects we hold a book for, in this grade, that this teacher is offered.
+ * Keyed by book (bd-97daxo.4): a G1-5 subject is offered only where the ICT book the generator reads is on her
+ * region's list (teacher-books); a grade her list does not cover offers none. No list offers everything, as before.
+ */
+async function subjectsOnOffer(grade, userId = null) {
+  const TeacherBooks = require('../services/teacher-books.service');
+  const shelf = userId ? await TeacherBooks.bookKeysForUser(userId) : null;
   const { data } = await supabase
     .from('textbooks').select('subject').eq('curriculum', 'ict').eq('grade', Number(grade));
   return (data || [])
@@ -90,6 +96,7 @@ async function subjectsOnOffer(grade) {
       const band = GRADE_BANDS[s];
       return !band || band.includes(Number(grade));
     })
+    .filter((s) => TeacherBooks.assessmentOffered(grade, s, shelf))
     .map((s) => ({ id: s, title: SUBJECT_TITLE[s] || s }));
 }
 
@@ -1290,7 +1297,7 @@ async function handleInit(userId, flowToken) {
   }
   // Subjects are filled in properly once she picks a grade; the first render
   // needs a non-empty list because the component requires one.
-  const subjects = await subjectsOnOffer(grades[0].id);
+  const subjects = await subjectsOnOffer(grades[0].id, userId);
   return screen('CLASS', { grades, subjects, error: '' });
 }
 
@@ -1338,7 +1345,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   if (screenId === 'CLASS') {
     const grade = Number(data.grade);
     const subject = String(data.subject || '');
-    const subjects = await subjectsOnOffer(grade);
+    const subjects = await subjectsOnOffer(grade, state.userId);
 
     // She picked a grade — the Grade Dropdown's on-select-action, not Continue.
     // Answer with THAT grade's subjects. Without this the list stays the one
