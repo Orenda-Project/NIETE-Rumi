@@ -210,7 +210,7 @@ async function isQuizAuthorGatesV2() {
  * services/assessment/grade-gate.js, so this loader stays dumb: per call, no cache, raw decoded values.
  */
 const ASSESSMENT_GRADES_6_12_KEY = 'assessment_grades_6_12';
-const ASSESSMENT_GRADES_6_12_KILL_KEY = 'assessment_grades_6_12_kill';
+const ASSESSMENT_GRADES_6_12_KILL_KEY = 'assessment_grades_6_12_kill'; // gitleaks:allow — an app_settings key name, not a secret
 const ASSESSMENT_GRADES_6_12_KILL_CELLS_KEY = 'assessment_grades_6_12_kill_cells';
 
 /** One app_settings value: undefined when the row is absent; a failed read throws. */
