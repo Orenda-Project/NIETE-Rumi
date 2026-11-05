@@ -31,6 +31,7 @@ const PICTURE_RULE = 'Pictures: a slot whose rule names a picture gives EVERY it
 const PICTURE_FIELDS = {
   count: (p) => Boolean(p.name) && Number.isInteger(p.n) && p.n >= 1,
   dots: (p) => Number.isInteger(p.n) && p.n >= 1,
+  groups: (p) => Number.isInteger(p.groups) && p.groups >= 2 && p.groups <= 5 && Number.isInteger(p.each) && p.each >= 1 && p.each <= 10,
   shapes: (p) => Array.isArray(p.shapes) && p.shapes.length > 0 && p.shapes.every((s) => s && s.shape),
   object: (p) => Boolean(p.name),
   scene: (p) => Boolean(p.describe),
