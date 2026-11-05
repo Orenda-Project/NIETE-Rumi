@@ -1,5 +1,5 @@
 {
- "_source": "Level 0 (Level 1: Novice): I-SAPS 'Level 1 Reading Material (Mandatory) new.docx' (partner-supplied, 2026-10-08, after FDE feedback). Level 1 (Level 2: Intermediate): I-SAPS 'Level 2 Reading List Final.docx' (partner-supplied, 2026-10-26), 13 mandatory readings; the one edit is the first Module 2 author, which the document split into two ('Helen, M., Immordino-Yang, M. H.'). Both are the MANDATORY lists, with the section to read, rationale and outcome. Supplementary readings are shared by I-SAPS as a separate Word document, not listed here. Level 0 replaced the Sept 2026 'Reading Resources Level 1' recommended list (95 items).",
+ "_source": "Level 0 (Level 1: Novice): I-SAPS 'Level 1 Reading Material (Mandatory) new.docx' (partner-supplied, 2026-10-08, after FDE feedback). Level 1 (Level 2: Intermediate): I-SAPS 'Level 2 Reading List Final.docx' (partner-supplied, 2026-10-26), 13 mandatory readings; the one edit is the first Module 2 author, which the document split into two ('Helen, M., Immordino-Yang, M. H.'). Both are the MANDATORY lists, with the section to read, rationale and outcome. Supplementary readings are shared by I-SAPS as a separate Word document, not listed here. Level 0 replaced the Sept 2026 'Reading Resources Level 1' recommended list (95 items). Level 2 (Level 3: Advanced): I-SAPS 'Advance Level reading list final.docx' (partner-supplied, 2026-11-05, bd-9svkbb), 18 mandatory readings, two per module, each with a link and a rationale; the document has no outcome line at this level (outcome ''), and where its rationale says what to read that sentence is the section. Edits: the tracking parameter utm_source=chatgpt.com dropped from every link, a stray quote removed from the Rosenshine title, Kasneci et al. uses its first (open repository) link.",
  "vendor": "I-SAPS",
  "vendor_key": "ISAPS",
  "levels": {
@@ -274,6 +274,188 @@
      "url": "https://drive.google.com/file/d/1Jdl2K5JJse9e2wtt8xsN0gv3SBHYdV29/view?usp=sharing",
      "rationale": "Köhler’s Gestalt psychology offers a lens for understanding how parts acquire meaning through their relationships within a whole. Applied to leadership, it encourages participants to examine how individual actions, relationships and institutional conditions interact to shape school life.",
      "outcome": "Explain how the human mind naturally organizes complex information into unified, meaningful structures rather than a collection of isolated parts."
+    }
+   ]
+  },
+  "2": {
+   "1": [
+    {
+     "title": "Good education in an age of measurement: On the need to reconnect with the question of purpose in education (2009)",
+     "author": "Biesta, G.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://singteach.nie.edu.sg/wp-content/uploads/2021/12/Biesta-2009_Good-Education-In-An-Age-Of-Measurement.pdf",
+     "rationale": "Provides the distinction between qualification, socialisation and subjectification that can help participants examine the competing purposes within the canteen dilemma.",
+     "outcome": ""
+    },
+    {
+     "title": "What is education for? On good education, teacher judgement, and educational professionalism (2015)",
+     "author": "Biesta, G.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://www2.uwe.ac.uk/services/Marketing/students/NewStudents%202017%20onwards/PGCE%20Secondary%20Reading%20-%20what%20is%20education%20for.pdf",
+     "rationale": "Extends the first reading into professional judgement: teachers must justify educational choices rather than assume that effectiveness or measurable achievement settles questions of purpose.",
+     "outcome": ""
+    }
+   ],
+   "2": [
+    {
+     "title": "Self-determination theory and the facilitation of intrinsic motivation, social development, and well-being (2000)",
+     "author": "Ryan, R. M., & Deci, E. L.",
+     "type": "Article",
+     "section": "The discussion of extrinsic motivation and internalisation",
+     "url": "https://selfdeterminationtheory.org/SDT/documents/2000_RyanDeci_SDT.pdf",
+     "rationale": "Particularly useful for distinguishing externally controlled behaviour from increasingly internalised motivation. Prioritise the discussion of extrinsic motivation and internalisation.",
+     "outcome": ""
+    },
+    {
+     "title": "Development and evaluation of affective domain using student’s feedback in entrepreneurial massive open online courses (2019)",
+     "author": "Wu, W.-H., Kao, H.-Y., Wu, S.-H., & Wei, C.-W.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2019.01109/full",
+     "rationale": "Offers an empirical example of interpreting reflective evidence through Krathwohl’s categories. Its higher-education context and reliance on written feedback make it especially useful for critical appraisal of what evidence can establish.",
+     "outcome": ""
+    }
+   ],
+   "3": [
+    {
+     "title": "How K–12 teachers can put self-determination theory principles into practice (2009)",
+     "author": "Reeve, J., & Halusic, M.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://www.selfdeterminationtheory.org/SDT/documents/2009_ReeveHalusic_TRE.pdf",
+     "rationale": "A particularly readable paper organised around teachers’ questions. It explicitly addresses whether autonomy support means permissiveness and suggests practical approaches to language, guidance and motivational difficulties.",
+     "outcome": ""
+    },
+    {
+     "title": "A review of self-regulated learning: Six models and four directions for research (2017)",
+     "author": "Panadero, E.",
+     "type": "Article",
+     "section": "Selected sections, especially Zimmerman’s model and the discussion of shared regulation",
+     "url": "https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2017.00422/full",
+     "rationale": "Supports the distinction between self-regulation, co-regulation and socially shared regulation. Selected sections may be used, especially Zimmerman’s model and the discussion of shared regulation, rather than assigning the entire review.",
+     "outcome": ""
+    }
+   ],
+   "4": [
+    {
+     "title": "Conceptualizing AI literacy: An exploratory review (2021)",
+     "author": "Ng, D. T. K., Leung, J. K. L., Chu, S. K. W., & Qiao, M. S.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://doi.org/10.1016/j.caeai.2021.100041",
+     "rationale": "Provides a framework covering understanding, using, evaluating and ethically engaging with AI. Useful for moving assessment beyond familiarity with digital tools.",
+     "outcome": ""
+    },
+    {
+     "title": "ChatGPT for good? On opportunities and challenges of large language models for education (2023)",
+     "author": "Kasneci, E., et al.",
+     "type": "Article",
+     "section": "The sections on educational applications, challenges and mitigation",
+     "url": "https://opus.bibliothek.uni-augsburg.de/opus4/frontdoor/index/index/docId/109030",
+     "rationale": "Supports evaluation of educational uses alongside limitations and risks. Assign the sections on educational applications, challenges and mitigation.",
+     "outcome": ""
+    }
+   ],
+   "5": [
+    {
+     "title": "Formative assessment and the design of instructional systems (1989)",
+     "author": "Sadler, D. R.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://pdfweb.truni.sk/e-ucebnice/iktv/data/media/iktvv/Symposium_LTML_Royce%20Sadler_BFormative_Assessment_and_the_design_of_instructional_systems.pdf",
+     "rationale": "Useful for examining how learners understand quality, compare their work with a standard and act to improve it.",
+     "outcome": ""
+    },
+    {
+     "title": "A century of grading research: Meaning and value in the most common educational measure (2016)",
+     "author": "Brookhart, S. M., et al.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://uknowledge.uky.edu/edp_facpub/2/",
+     "rationale": "Closely aligned with the module’s questions about combining achievement, effort and behaviour into a consequential grade.",
+     "outcome": ""
+    }
+   ],
+   "6": [
+    {
+     "title": "A motivational perspective on engagement and disaffection: Conceptualization and assessment of children’s behavioral and emotional participation in academic activities in the classroom (2009)",
+     "author": "Skinner, E. A., Kindermann, T. A., & Furrer, C. J.",
+     "type": "Article",
+     "section": "The conceptual distinctions and sample measures (the statistical sections are not required)",
+     "url": "https://www.researchgate.net/publication/258136012_A_Motivational_Perspective_on_Engagement_and_Disaffection_Conceptualization_and_Assessment_of_Children%27s_Behavioral_and_Emotional_Participation_in_Academic_Activities_in_the_Classroom",
+     "rationale": "Particularly relevant to ‘Her Work Was Always Complete’: visible task completion may conceal a different emotional relationship with learning. Prioritise the conceptual distinctions and sample measures; the statistical sections need not be required.",
+     "outcome": ""
+    },
+    {
+     "title": "Mindsets that promote resilience: When students believe that personal characteristics can be developed (2012)",
+     "author": "Yeager, D. S., & Dweck, C. S.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://blogsomemoore.com/wp-content/uploads/2019/07/yeager-dweck-2012.pdf",
+     "rationale": "Supports discussion of how learners interpret academic and social difficulty, and how teachers’ responses may influence those interpretations.",
+     "outcome": ""
+    }
+   ],
+   "7": [
+    {
+     "title": "Critical thinking: Why is it so hard to teach? (2007)",
+     "author": "Willingham, D. T.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://www.aft.org/ae/summer2007/willingham",
+     "rationale": "An accessible research-informed practitioner article explaining the importance of subject knowledge and the difficulty of transferring thinking across contexts. Useful for the module’s flood and water-inquiry scenarios.",
+     "outcome": ""
+    },
+    {
+     "title": "Seven essentials for project-based learning (2010)",
+     "author": "Larmer, J., & Mergendoller, J. R.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://conference.ascd.org/el/articles/seven-essentials-for-project-based-learning",
+     "rationale": "A short practitioner article offering criteria for purposeful projects, including inquiry, voice, feedback, revision and public presentation.",
+     "outcome": ""
+    }
+   ],
+   "8": [
+    {
+     "title": "Principles of instruction: Research-based strategies that all teachers should know (2012)",
+     "author": "Rosenshine, B.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://www.aft.org/sites/default/files/Rosenshine.pdf",
+     "rationale": "A readable research synthesis supporting planning for modelling, guided practice, checks for understanding, scaffolding and review.",
+     "outcome": ""
+    },
+    {
+     "title": "Learning versus performance: An integrative review (2015)",
+     "author": "Soderstrom, N. C., & Bjork, R. A.",
+     "type": "Article",
+     "section": "The introduction, selected examples and educational implications",
+     "url": "https://bjorklab.psych.ucla.edu/wp-content/uploads/sites/13/2016/11/soderstorm_ra_learningvsperformance.pdf",
+     "rationale": "An especially strong match for ‘It Was Clear on Friday.’ It examines why successful performance during instruction does not necessarily demonstrate durable learning. Assign the introduction, selected examples and educational implications.",
+     "outcome": ""
+    }
+   ],
+   "9": [
+    {
+     "title": "Psychological safety and learning behavior in work teams (1999)",
+     "author": "Edmondson, A.",
+     "type": "Article",
+     "section": "The conceptual framework, findings and discussion",
+     "url": "https://web.mit.edu/curhan/www/docs/Articles/15341_Readings/Organizational_Learning_and_Change/Edmondson_1999_Psychological_safety.pdf",
+     "rationale": "Relevant to teachers’ willingness to ask for help, discuss mistakes and experiment. The study concerns workplace teams, so participants should examine its applicability to schools. Assign the conceptual framework, findings and discussion.",
+     "outcome": ""
+    },
+    {
+     "title": "Investigating school leadership practice: A distributed perspective (2001)",
+     "author": "Spillane, J. P., Halverson, R., & Diamond, J. B.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://www.mspnet.org/projects/milwaukee/10025.html",
+     "rationale": "A short paper that shifts attention from individual leaders to leadership tasks, interactions and organisational conditions. Useful for evaluating whether responsibility is genuinely distributed.",
+     "outcome": ""
     }
    ]
   }
