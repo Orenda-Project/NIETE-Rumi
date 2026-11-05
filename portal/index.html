@@ -15,7 +15,9 @@
         try {
           var p = location.pathname;
           var home = /^\/portal\/teacher\/?$/.test(p);
-          if (!home && !/^\/portal\/(coach\/insights|rm)(\/|$)/.test(p)) return;
+          // Coach reports in the app: her debrief report page (the WhatsApp link and the Home card land here).
+          var report = /^\/portal\/coach\/report\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i.exec(p);
+          if (!home && !report && !/^\/portal\/(coach\/insights|rm)(\/|$)/.test(p)) return;
           var cap = window.Capacitor;
           if (cap && cap.isNativePlatform && cap.isNativePlatform()) return;
           var done = {};
@@ -27,8 +29,9 @@
             return r;
           };
           var boot = { config: read("config", "/api/portal/config"), me: read("me", "/api/portal/me"), done: done };
-          if (home) {
-            boot.home = read("home", "/api/portal/me/home");
+          if (report) boot.coachReport = read("coachReport", "/api/portal/coach/report/" + report[1]);
+          if (home || report) {
+            if (home) boot.home = read("home", "/api/portal/me/home");
             // bd-43f1sk — her stored language too, so the app draws the Home once, in her language; and for Urdu its
             // face (src/index.css "NIETE Nastaliq", the same file; a test keeps the two URLs in step) starts downloading
             // now, not after the app has loaded, so the page does not re-wrap when it lands.

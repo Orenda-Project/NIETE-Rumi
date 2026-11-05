@@ -4,7 +4,7 @@
  * app's own reader, then gone. Null when there is none (any other page, the Android app, or it
  * was taken already); an answer that was not OK arrives as null too, and the reader then asks as before.
  */
-type BootKey = "config" | "me" | "home" | "language";
+type BootKey = "config" | "me" | "home" | "language" | "coachReport";
 /** `done`: each OK answer, kept by index.html as it arrives (bd-1q4z4o), so a reader can draw with it at once. */
 type BootWindow = Window & { __nieteBoot?: Partial<Record<BootKey, Promise<unknown>>> & { done?: Partial<Record<BootKey, unknown>> } };
 

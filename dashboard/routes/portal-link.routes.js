@@ -72,6 +72,23 @@ const AREAS = {
       { method: 'POST', test: (p) => /^\/me\/notices\/[^/]+\/(seen|opened)$/.test(p) },
     ],
   },
+  // Coach reports in the app — the "Open my report" button on the ONE WhatsApp message about a coach's report she did
+  // not open. The token names the report and the link lands on it: a debrief report by its session id, the weekly report
+  // by its Monday. The session reads her reports and says she opened them, and nothing else: not her observations,
+  // schedule, teachers or schools. (Each route still checks the report is hers.)
+  coachreport: {
+    landing: (payload) => {
+      const [kind, ...rest] = String(payload.i || '').split(':');
+      const ref = encodeURIComponent(rest.join(':'));
+      if (kind === 'debrief') return `/portal/coach/report/${ref}`;
+      if (kind === 'week') return `/portal/coach/week/${ref}`;
+      return '/portal/coach';
+    },
+    api: [
+      { method: 'GET', test: prefix('/coach/report', '/coach/week', '/coach/reports') },
+      { method: 'POST', test: (p) => /^\/coach\/(report|week)\/[^/]+\/(opened|seen)$/.test(p) },
+    ],
+  },
 };
 
 /** What every link session needs for the portal's frame (who she is, flags, language, log out). */

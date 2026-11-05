@@ -263,6 +263,15 @@ const PORTAL_COACH_SCHOOL_CARD_KEY = 'portal_coach_school_card';
 const PORTAL_COACH_FULL_APP_KEY = 'portal_coach_full_app';
 
 /**
+ * Coach reports in the app — the coach's debrief report as a page in the coach app (dashboard/services/coach-report.service.js),
+ * the card on her Home that announces it, and, in the bot, the link that replaces today's WhatsApp report picture. Same
+ * shape and rule as the keys above: a list of users.id = those coaches, true = every coach, absent = off. Its routes also
+ * need portal_coach_v2; off for her, every one is a 404 and /config says coachReportsApp: false. The bot reads the same key
+ * (one row, one answer for both services).
+ */
+const COACH_REPORTS_APP_KEY = 'coach_reports_app';
+
+/**
  * bd-sex15q.13 — COACHIP, the coach and RM insight portal (SPEC v2 §2, API.md §5). Three switches, every one off with
  * no row; turning one on is one app_settings upsert, and it takes effect within the flag cache's TTL (readFlagRow, 30 s).
  *
@@ -570,6 +579,7 @@ module.exports = {
   PORTAL_COACH_V2_KEY,
   PORTAL_COACH_SCHOOL_CARD_KEY,
   PORTAL_COACH_FULL_APP_KEY,
+  COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,

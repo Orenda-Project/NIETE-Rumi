@@ -133,3 +133,22 @@ describe("index.html — an Urdu teacher's font starts downloading with her lang
     expect(preloads()).toHaveLength(0);
   });
 });
+
+describe("index.html — the coach's report page boot reads (coach reports in the app)", () => {
+  const ID = "11111111-1111-4111-8111-111111111111";
+  it("/portal/coach/report/<id> (where the WhatsApp link and the Home card land): the report, /config, /me and her language at once", async () => {
+    const { fetch, boot } = runAt(`/portal/coach/report/${ID}`);
+    expect(fetch.mock.calls.map((c) => c[0]).sort()).toEqual([
+      "/api/portal/coach/report/" + ID, "/api/portal/config", "/api/portal/me", "/api/portal/me/language",
+    ]);
+    for (const c of fetch.mock.calls) expect((c as unknown[])[1]).toMatchObject({ credentials: "include" });
+    expect(await (boot as Record<string, Promise<unknown>>).coachReport).toEqual({ url: "/api/portal/coach/report/" + ID });
+  });
+
+  it("only a well-formed id is read; a deeper path or the Android app asks for nothing", () => {
+    for (const p of ["/portal/coach/report/nope", `/portal/coach/report/${ID}/x`, "/portal/coach/reports"]) {
+      expect(runAt(p).fetch).not.toHaveBeenCalled();
+    }
+    expect(runAt(`/portal/coach/report/${ID}`, { native: true }).fetch).not.toHaveBeenCalled();
+  });
+});
