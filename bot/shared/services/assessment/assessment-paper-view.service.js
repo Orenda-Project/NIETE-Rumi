@@ -101,6 +101,7 @@ function youAddOf(L, subject) {
 
 /** Sections, one per run of one question type (as the PDF groups them), numbered straight through. */
 function buildPaperView(examJson) {
+  if (examJson?._layout?.profile === 'board') return require('./board-render/view').sections(examJson);
   if (examJson && examJson._layout && Array.isArray(examJson._layout.sections)) return buildPatternView(examJson);
   const sections = [];
   let number = 1;
@@ -145,7 +146,8 @@ async function view({ userId, paperId }) {
     questionCount: active.length, marks: Renderer.totalMarks(active),
   };
   const L = p.exam_json && p.exam_json._layout;
-  if (L && Array.isArray(L.sections)) {
+  if (L && L.profile === 'board') Object.assign(paper, require('./board-render/view').paperFields(p.exam_json));
+  else if (L && Array.isArray(L.sections)) {
     // The pattern's total, never the sum of every generated item (a choice slot prints 12 and counts 8).
     const total = require('./assessment-paper-fde.renderer').totalMarks(p.exam_json);
     Object.assign(paper, {
