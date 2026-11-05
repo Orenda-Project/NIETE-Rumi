@@ -82,3 +82,6 @@ export function currentCoachCardItem(pathname: string): CoachNavKey | null {
   const key = currentCoachMenuItem(pathname);
   return key === "schools" || key === "training" ? "home" : key;
 }
+
+// RED STUB (bd-jjcofw): replaced in the green commit.
+export const COACH_CARD_FULL_NAV_KEYS: readonly CoachNavKey[] = COACH_CARD_NAV_KEYS;

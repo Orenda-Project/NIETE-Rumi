@@ -97,9 +97,9 @@ export const linkPaths = (root: HTMLElement) =>
   Array.from(root.querySelectorAll("a[href]")).map((a) => (a.getAttribute("href") || "").split("?")[0]).filter((h) => h.startsWith("/"));
 
 export async function resetAll() {
-  const [{ resetCoachV2Memory }, { resetSchoolCardMemory }] = await Promise.all([
-    import("../useCoachV2"), import("./useSchoolCard"),
+  const [{ resetCoachV2Memory }, { resetSchoolCardMemory }, { resetCoachFullAppMemory }] = await Promise.all([
+    import("../useCoachV2"), import("./useSchoolCard"), import("../training/useCoachFullApp"),
   ]);
-  resetCoachV2Memory(); resetSchoolCardMemory();
+  resetCoachV2Memory(); resetSchoolCardMemory(); resetCoachFullAppMemory();
   net.answers.clear(); net.calls.length = 0; moves.length = 0;
 }
