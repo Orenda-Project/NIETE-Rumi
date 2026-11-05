@@ -54,6 +54,9 @@ describe("coach v2 routes", () => {
     ["/portal/coach/teacher/:ext/items/dc", "CoachCoachingRedirect", "CoachingRedirect"],
     ["/portal/coach/teacher/:ext/items/coach", "CoachCoachingRedirect", "CoachingRedirect"],
     ["/portal/coach/session/:id", "CoachSessionReport", "SessionReportPage"],
+    // bd-17v39c.4.14 — Where to coach and Who to coach first
+    ["/portal/coach/teacher/:ext/where", "CoachWhereToCoach", "WhereToCoachPage"],
+    ["/portal/coach/school/:emis/first", "CoachFirst", "CoachFirstPage"],
   ])("the School card's %s → %s, its own chunk", (path, component, file) => {
     expect(app).not.toContain("HerReportsPage");
     expect(app).not.toContain("CoachingPage\"");

@@ -16,6 +16,9 @@ import { bucketLabels, usePeriod, withPeriod } from "./period";
 import { Bars, FEATURE_OF, NumTile, PeriodChips } from "./parts";
 import { DaysUsed, ScoreLine } from "./scores";
 import type { ItemsFeature, ScoreKind, TeacherCardData } from "./types";
+import { WhereDoor } from "./whereDoor";
+import { WHERE } from "./whereCopy";
+import { whereTo } from "./where";
 
 /**
  * A teacher (the switch on; design v9): the period chips, then her tiles. Digital Coaching and Coach observations first,
@@ -26,6 +29,7 @@ import type { ItemsFeature, ScoreKind, TeacherCardData } from "./types";
 export default function TeacherCardPage() {
   const C = useCopy(SCHOOL_CARD);
   const P = useCopy(PEOPLE);
+  const W = useCopy(WHERE);
   const { ext = "" } = useParams();
   const [period] = usePeriod();
   const { data, failed, reload } = useCardLoad<TeacherCardData>(() => card.teacher(ext, period), [ext, period]);
@@ -108,6 +112,8 @@ export default function TeacherCardPage() {
         </div>
       )}
       {data && !tiles && <EmptyRow icon={<span>·</span>}>{C.dash}</EmptyRow>}
+      {/* bd-17v39c.4.14 — coach only: Rifat's Where to coach for this teacher, opening on This month (her pick 1B). */}
+      {data && <WhereDoor testId="where-door" to={whereTo(ext)} label={W.openWhere} state={{ back: withPeriod(me, period) }} />}
     </PeopleFrame>
   );
 }
