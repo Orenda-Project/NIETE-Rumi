@@ -127,12 +127,13 @@ export const WHERE_UR: WhereCopy = {
 
   convoH: "بات چیت کی ترتیب",
   c1h: "کسی خوبی سے آغاز کریں",
-  c1: (code, name, avg) => `ان کے سیشنز میں ${code} ${name} اچھا رہا (${avg})۔`,
+  // English inside an Urdu line is isolated (U+2066 … U+2069), or right to left scrambles it (language-protocol §9).
+  c1: (code, name, avg) => `ان کے سیشنز میں \u2066${code} ${name}\u2069 اچھا رہا (\u2066${avg}\u2069)۔`,
   c1None: "ان سے پوچھیں کہ پچھلے سبق میں کیا اچھا رہا۔",
   c2h: "ایک فوکس چنیں",
   c3h: "کر کے دکھائیں، پھر ان سے کروائیں",
   c4h: "اگلا قدم طے کریں",
-  c4: (code) => `اس ہفتے یہ طریقہ آزماتے ہوئے ایک DC ریکارڈ کریں۔ اگلی وزٹ پر ${code} مل کر دیکھیں۔`,
+  c4: (code) => `اس ہفتے یہ طریقہ آزماتے ہوئے ایک DC ریکارڈ کریں۔ اگلی وزٹ پر \u2066${code}\u2069 مل کر دیکھیں۔`,
   convoNote: "ایک وقت میں ایک ہی فوکس پر بات کریں۔ وقت ہو تو ہی دوسرا لیں۔",
   whyLabel: "یہ کیوں:",
   whyBoth: "AI کوچ اور انسانی کوچ دونوں نے اسے کم اسکور دیا۔",
@@ -181,7 +182,7 @@ export const WHERE_UR: WhereCopy = {
 
   sessionsH: "ان کے ڈیجیٹل کوچنگ مشاہدات",
   sessionsSub: "پوری رپورٹ کھولنے کے لیے کسی ایک پر ٹیپ کریں",
-  weakestTag: (code) => `سب سے کمزور: ${code}`,
+  weakestTag: (code) => `سب سے کمزور: \u2066${code}\u2069`,
   more: (n, u) => `${u} ${n} مزید`,
 
   openWhere: "کہاں کوچنگ کریں",
