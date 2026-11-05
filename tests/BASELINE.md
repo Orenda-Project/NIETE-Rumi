@@ -370,14 +370,33 @@ The offender level is the one that matters for the `tests/setup/` guards, becaus
 those assert `expect(offenders).toEqual([])` — the entire finding lives in the array
 diff, not in the pass/fail.
 
-Offenders are compared **by count per file**, not by raw string. Most guards report
-`path:line`, and a line number moves whenever anything above it is edited: until
-2026-09-23 the gate compared raw strings, so every PR that touched a file carrying an
-old ticket ref "added" offenders, and `sandbox` itself reported 432 new source-hygiene
-offenders of which 129 were real. Counting keeps the real case: a second violation in
-a file that already had one still raises that file's count, so it is still caught. When
-a count grows, every line of that file not present verbatim in the snapshot is named —
-one of them is the new one. `npm run test:baseline:growth` counts the same way.
+Offenders are compared **by what the line says**, not by where it sits. Most guards
+report `path:line`, and a line number moves whenever anything above it is edited. The
+gate reads each such line from the checkout the guards just scanned and keys the
+offender as `path :: <line text, whitespace collapsed>`; the second line in one file with
+the same text is `path #2 :: <text>`. The snapshot stores those keys, so:
+
+- a line that only moved (or was re-indented) is clean;
+- a new offending line, or a second copy of an old one, is NEW;
+- an offending line whose text you edit is NEW, and its old key is reported fixed —
+  touching the line is the moment to fix it.
+
+The report still prints each NEW offender at its current `path:line`, followed by its
+text. An offender with no line (`users.ok`, `CLASS_CARD_ENABLED`) is its own key.
+
+Why: until 2026-09-23 the gate compared raw strings, and `sandbox` itself reported 432
+new source-hygiene offenders, 129 of them real. Counting per file came next and stopped a
+shift going red on its own, but once a file's count grew for any reason it named every
+line of that file not in the snapshot verbatim — and a moved line never is. On PR #4208,
+`teacher-training-endpoint.js` had the same 98 ticket-ref lines before and after, and 88
+of them were reported as NEW. Content keys were introduced on 2026-11-05 (bd-mft11s.5.4).
+
+Two cases still fall back to a count per file: a `path:line` the gate cannot read, and a
+snapshot that still holds `path:line` entries (`staging` and `main` keep their own until
+they are re-recorded with `--update`). `npm run test:baseline:growth` compares the same
+way as the gate. **A guard that reports `path:line` must name the line of the file
+itself** — `language-single-source` numbered lines of its comment-stripped text until
+2026-11-05, so its `file:31` named a line with no clamp on it.
 
 Improvements are reported and never gate: fewer offenders, fewer failing tests, or a
 suite going green are all clean.

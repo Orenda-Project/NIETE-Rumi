@@ -32,6 +32,9 @@ const {
   normaliseOffender,
   needsConfirmation,
   flakyTwiceGates,
+  keyOffenders,
+  describeOffender,
+  repoLineReader,
 } = require('../baseline-gate');
 
 const ESC = String.fromCharCode(27);
@@ -656,5 +659,233 @@ describe('flaky-listed suites that fail in BOTH runs', () => {
     expect(flakyTwiceGates({ BASELINE_FLAKY_TWICE: 'gate' })).toBe(true);
     expect(flakyTwiceGates({})).toBe(false);
     expect(flakyTwiceGates({ BASELINE_FLAKY_TWICE: 'yes' })).toBe(false);
+  });
+});
+
+/**
+ * A line that only MOVED is not a new offender, even in a file whose count grew.
+ *
+ * Counting per file (2026-09-23) stopped a shift from going red on its own, but not once the
+ * file's count had grown for any other reason: then every line of that file not present
+ * verbatim in the snapshot was named, and a line that moved is never verbatim. On PR #4208,
+ * `bot/shared/routes/teacher-training-endpoint.js` carried the same 98 ticket-ref lines before
+ * and after the change. The snapshot held 97 of them, so the gate named 88, every one that had
+ * moved, as NEW, and `test (22)` went red on every PR that touched the file.
+ *
+ * So a `path:line` offender is keyed by what its line SAYS: the file, the line's text with
+ * whitespace collapsed, and which occurrence of that text in the file it is. A line that only
+ * moved keeps its key; a new line gets a new one; a second copy of an existing line gets `#2`,
+ * so a bare `path:line` guard still cannot hide a duplicate.
+ */
+const SHIFT_SUITE = 'tests/setup/source-hygiene.test.js';
+const SHIFT_TEST = 'Source Hygiene no internal ticket references in shipped source';
+/** A jest report whose one failing test printed `offs` as the added side of an array diff. */
+const offenderReport = (offs, suite = SHIFT_SUITE) => jestJson({
+  [suite]: [{
+    name: SHIFT_TEST,
+    status: 'failed',
+    message: ['- Array []', '+ Array [', ...offs.map((o) => `+   "${o}",`), '+ ]'].join('\n'),
+  }],
+});
+/** A fake working tree, { file: text }. `lineAt(file, n)` is all the gate reads from it. */
+const treeOf = (files) => (file, n) => {
+  if (!Object.prototype.hasOwnProperty.call(files, file)) return null;
+  const lines = files[file].split('\n');
+  return n >= 1 && n <= lines.length ? lines[n - 1] : null;
+};
+
+describe('content keys — a line that only moved is not a new offender', () => {
+  // The tree the snapshot was recorded on: two old ticket refs, at lines 3 and 6.
+  const RECORDED = treeOf({
+    'bot/x.js': ['a', 'b', '// fix (bd-11)', 'c', 'd', 'retry(); // bd-22', 'e'].join('\n'),
+  });
+  // Later, four lines arrive at the top, and ONE of them is a genuinely new ref. The two old
+  // refs are unchanged, four lines further down (the second one re-indented as well).
+  const NOW = treeOf({
+    'bot/x.js': ['// new (bd-33)', 'w', 'x', 'y', 'a', 'b', '// fix (bd-11)', 'c', 'd',
+      '    retry();   // bd-22', 'e'].join('\n'),
+  });
+  const recorded = () =>
+    canonicalise(summariseRun(offenderReport(['bot/x.js:3', 'bot/x.js:6']), { lineAt: RECORDED }));
+
+  it('names only the genuinely new line, not the two that moved down', () => {
+    const now = summariseRun(offenderReport(['bot/x.js:1', 'bot/x.js:7', 'bot/x.js:10']), { lineAt: NOW });
+    const r = compareSnapshots(now, recorded());
+    expect(r.newOffenders).toEqual([{ suite: SHIFT_SUITE, offenders: ['bot/x.js :: // new (bd-33)'] }]);
+    expect(r.fixedOffenders).toEqual([]);
+    expect(r.clean).toBe(false);
+  });
+
+  it('a shift with nothing new is clean', () => {
+    const now = summariseRun(offenderReport(['bot/x.js:7', 'bot/x.js:10']), { lineAt: NOW });
+    const r = compareSnapshots(now, recorded());
+    expect(r.newOffenders).toEqual([]);
+    expect(r.fixedOffenders).toEqual([]);
+    expect(r.clean).toBe(true);
+  });
+});
+
+describe('keyOffenders — what a path:line offender is keyed by', () => {
+  const lineAt = treeOf({
+    'bot/a.js': ['x', '  // see  bd-1\t for why', 'y', '// see bd-1 for why', 'z', '//  see bd-1 for why'].join('\n'),
+    'bot/b.js': ["const s = 'Rumi says hi';"].join('\n'),
+  });
+  const keys = (raws) => keyOffenders(raws, lineAt).map((k) => k.key);
+
+  it('keys a bare path:line by its file and its line text, whitespace collapsed', () => {
+    expect(keys(['bot/a.js:2'])).toEqual(['bot/a.js :: // see bd-1 for why']);
+  });
+
+  it('numbers repeats of one text in line order, so a duplicate stays visible', () => {
+    expect(keys(['bot/a.js:6', 'bot/a.js:2', 'bot/a.js:4'])).toEqual([
+      'bot/a.js :: // see bd-1 for why',
+      'bot/a.js #2 :: // see bd-1 for why',
+      'bot/a.js #3 :: // see bd-1 for why',
+    ]);
+  });
+
+  it('remembers where each keyed line is now', () => {
+    expect(keyOffenders(['bot/a.js:4'], lineAt)).toEqual([
+      { key: 'bot/a.js :: // see bd-1 for why', file: 'bot/a.js', line: 4 },
+    ]);
+  });
+
+  it('keys an offender that carries its own detail by its line, like any other', () => {
+    expect(keys(["bot/b.js:1 — hardcoded self-name — const s = 'Rumi says hi';"]))
+      .toEqual(["bot/b.js :: const s = 'Rumi says hi';"]);
+  });
+
+  it('leaves an offender with no line as it is', () => {
+    expect(keys(['video_requests.observer_debrief', 'flow.json: ticket ref', 'bot/x.js → ../gone']))
+      .toEqual(['video_requests.observer_debrief', 'flow.json: ticket ref', 'bot/x.js → ../gone']);
+  });
+
+  it('leaves a path:line it cannot read as it is, to be compared by count per file as before', () => {
+    expect(keys(['bot/missing.js:3', 'bot/a.js:99'])).toEqual(['bot/missing.js:3', 'bot/a.js:99']);
+  });
+
+  it('without a reader, keys nothing (summariseRun stays a pure function of the report)', () => {
+    expect(keyOffenders(['bot/a.js:2'])).toEqual([{ key: 'bot/a.js:2' }]);
+  });
+});
+
+describe('content keys — the gate stays strict', () => {
+  const SNAP = (files, offs) =>
+    canonicalise(summariseRun(offenderReport(offs), { lineAt: treeOf(files) }));
+  const RUN = (files, offs) => summariseRun(offenderReport(offs), { lineAt: treeOf(files) });
+  const BASE_FILES = { 'bot/x.js': ['a', '// fix (bd-11)', 'b'].join('\n') };
+  const base = () => SNAP(BASE_FILES, ['bot/x.js:2']);
+
+  it('a second copy of an existing offending line is NEW, as #2', () => {
+    const files = { 'bot/x.js': ['a', '// fix (bd-11)', 'b', '// fix (bd-11)'].join('\n') };
+    const r = compareSnapshots(RUN(files, ['bot/x.js:2', 'bot/x.js:4']), base());
+    expect(r.newOffenders).toEqual([{ suite: SHIFT_SUITE, offenders: ['bot/x.js #2 :: // fix (bd-11)'] }]);
+  });
+
+  it('an offending line whose text changed is NEW: touching the line is the moment to fix it', () => {
+    const files = { 'bot/x.js': ['a', '// fixed (bd-11) for good', 'b'].join('\n') };
+    const r = compareSnapshots(RUN(files, ['bot/x.js:2']), base());
+    expect(r.newOffenders).toEqual([{ suite: SHIFT_SUITE, offenders: ['bot/x.js :: // fixed (bd-11) for good'] }]);
+    expect(r.fixedOffenders).toEqual([{ suite: SHIFT_SUITE, offenders: ['bot/x.js :: // fix (bd-11)'] }]);
+  });
+
+  it('a removed offender is reported as fixed, and is clean', () => {
+    const before = SNAP({ ...BASE_FILES, 'bot/y.js': '// bd-2' }, ['bot/x.js:2', 'bot/y.js:1']);
+    const r = compareSnapshots(RUN({ 'bot/x.js': 'a\nb', 'bot/y.js': '// bd-2' }, ['bot/y.js:1']), before);
+    expect(r.clean).toBe(true);
+    expect(r.fixedOffenders).toEqual([{ suite: SHIFT_SUITE, offenders: ['bot/x.js :: // fix (bd-11)'] }]);
+  });
+
+  it('the same text in a different file is a different offender', () => {
+    const files = { ...BASE_FILES, 'bot/z.js': '// fix (bd-11)' };
+    const r = compareSnapshots(RUN(files, ['bot/x.js:2', 'bot/z.js:1']), base());
+    expect(r.newOffenders).toEqual([{ suite: SHIFT_SUITE, offenders: ['bot/z.js :: // fix (bd-11)'] }]);
+  });
+});
+
+describe('describeOffender — the report still says where the line is now', () => {
+  it('prints the current path:line, then what the line says', () => {
+    const now = summariseRun(offenderReport(['bot/x.js:7']), {
+      lineAt: treeOf({ 'bot/x.js': ['', '', '', '', '', '', '  // fix (bd-11)'].join('\n') }),
+    });
+    const key = now[SHIFT_SUITE].offenders[0];
+    expect(describeOffender(key, now[SHIFT_SUITE].at)).toBe('bot/x.js:7  // fix (bd-11)');
+  });
+
+  it('prints a content key it has no position for as its file and text', () => {
+    expect(describeOffender('bot/x.js #2 :: // fix (bd-11)')).toBe('bot/x.js (#2)  // fix (bd-11)');
+  });
+
+  it('prints anything else as it is', () => {
+    expect(describeOffender('bot/x.js:7')).toBe('bot/x.js:7');
+    expect(describeOffender('coaching_sessions.error', {})).toBe('coaching_sessions.error');
+  });
+});
+
+describe('canonicalise — the snapshot records what a line says, never where it is', () => {
+  it('drops the current-position map summariseRun keeps for the report', () => {
+    const now = summariseRun(offenderReport(['bot/x.js:1']), { lineAt: treeOf({ 'bot/x.js': '// bd-1' }) });
+    expect(now[SHIFT_SUITE].at).toEqual({ 'bot/x.js :: // bd-1': 'bot/x.js:1' });
+    expect(canonicalise(now)).toEqual({
+      [SHIFT_SUITE]: { failing: [SHIFT_TEST], offenders: ['bot/x.js :: // bd-1'] },
+    });
+  });
+});
+
+/**
+ * Snapshots on other branches (staging, main) still hold `file:line` entries until they are
+ * re-recorded or migrated, and the growth check reads the BASE branch's snapshot. Neither form
+ * can be translated into the other without the tree it was recorded on, so a file that has
+ * entries in both forms is compared the old way: by how many violations it carries.
+ */
+describe('mixed forms — a file:line snapshot against content keys', () => {
+  const suite = (offs) => ({ [SHIFT_SUITE]: { failing: [SHIFT_TEST], offenders: offs } });
+  const LEGACY = suite(['bot/x.js:10', 'bot/x.js:20', 'bot/y.js:5', 'coaching_sessions.error']);
+  const MIGRATED = suite([
+    'bot/x.js :: // fix (bd-11)', 'bot/x.js :: retry(); // bd-22', 'bot/y.js :: // bd-5', 'coaching_sessions.error',
+  ]);
+
+  it('a migration that keeps every file\'s count is not growth', () => {
+    const g = snapshotGrowth(LEGACY, MIGRATED);
+    expect(g.grew).toBe(false);
+    expect(g.addedOffenders).toEqual([]);
+  });
+
+  it('a file whose count grew is still growth, and every entry for that file is named', () => {
+    const grown = suite([...MIGRATED[SHIFT_SUITE].offenders, 'bot/y.js :: // bd-6']);
+    const g = snapshotGrowth(LEGACY, grown);
+    expect(g.grew).toBe(true);
+    expect(g.addedOffenders).toEqual([
+      { suite: SHIFT_SUITE, offenders: ['bot/y.js :: // bd-5', 'bot/y.js :: // bd-6'] },
+    ]);
+  });
+
+  it('the gate judges content keys against a file:line base by count per file', () => {
+    expect(compareSnapshots(MIGRATED, LEGACY).clean).toBe(true);
+    const r = compareSnapshots(suite([...MIGRATED[SHIFT_SUITE].offenders, 'bot/z.js :: // bd-9']), LEGACY);
+    expect(r.newOffenders).toEqual([{ suite: SHIFT_SUITE, offenders: ['bot/z.js :: // bd-9'] }]);
+  });
+
+  it('two file:line snapshots are still compared exactly as before', () => {
+    const g = snapshotGrowth(LEGACY, suite(['bot/x.js:12', 'bot/x.js:22', 'bot/y.js:5', 'coaching_sessions.error']));
+    expect(g.grew).toBe(false);
+  });
+});
+
+describe('repoLineReader — reads the tree the guards just scanned', () => {
+  const path = require('path');
+  const ROOT = path.resolve(__dirname, '../..');
+
+  it('returns line n of a repo file, 1-based', () => {
+    expect(repoLineReader(ROOT)('tests/setup/baseline-gate.test.js', 1)).toBe('/**');
+  });
+
+  it('returns null for a missing file, a line out of range, or a path outside the repo', () => {
+    const read = repoLineReader(ROOT);
+    expect(read('tests/setup/no-such-file.js', 1)).toBeNull();
+    expect(read('tests/setup/baseline-gate.test.js', 0)).toBeNull();
+    expect(read('tests/setup/baseline-gate.test.js', 10 ** 6)).toBeNull();
+    expect(read('../outside.js', 1)).toBeNull();
+    expect(read('tests/setup', 1)).toBeNull();
   });
 });
