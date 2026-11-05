@@ -1,0 +1,2 @@
+{"ts":"2026-11-05T07:09:35Z","hook":"post-commit","event":"armed","switch":"","detail":"features=menu,training,lesson-plan,coaching,status,observe,child-test,portal-login,teacher-lessons,portal-smoke spec_sync=true","sha":"31e862b5dd5b","branch":"bd-rj6w0n.14.2-59642","user":""}
+{"ts":"2026-11-05T07:09:45Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-rj6w0n.14.2-59642: portal-login web lane spec: NOT UPDATED e2e: missing;teacher-lessons web lane spec: NOT UPDATED e2e: missing","sha":"31e862b5dd5b","branch":"bd-rj6w0n.14.2-59642","user":""}
