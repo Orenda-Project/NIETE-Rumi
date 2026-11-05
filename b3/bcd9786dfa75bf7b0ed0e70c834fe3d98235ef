@@ -1,1 +1,2 @@
 {"ts":"2026-11-05T11:01:42Z","hook":"post-commit","event":"armed","switch":"","detail":"features=menu,training,lesson-plan,language spec_sync=true","sha":"b3bcd9786dfa","branch":"HEAD","user":""}
+{"ts":"2026-11-05T11:07:21Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-5jmnfj.38.16-72383: menu spec: NOT UPDATED e2e: missing;training spec: NOT UPDATED e2e: missing","sha":"b3bcd9786dfa","branch":"bd-5jmnfj.38.16-72383","user":""}
