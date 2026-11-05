@@ -170,9 +170,12 @@ const SQL = Object.freeze({
      WHERE c.user_id = ANY($1::uuid[]) AND ${VISIT_HAPPENED}
      ORDER BY c.user_id, c.created_at DESC`,
 
+  // bd-17v39c.4.13 — MODULES COMPLETED: an active module of an active course (an inactive one never counts).
   training: `/* sc:training */
     SELECT tp.user_id, tp.module_id, min(tp.completed_at) AS at
       FROM teacher_training_progress tp
+      JOIN training_modules m ON m.id = tp.module_id AND m.is_active
+      JOIN training_courses c ON c.id = m.course_id AND c.is_active
      WHERE tp.user_id = ANY($1::uuid[])
        AND tp.completed_at >= $2::timestamptz AND tp.completed_at < $3::timestamptz
      GROUP BY tp.user_id, tp.module_id`,
@@ -347,8 +350,10 @@ const isFieldForm = (info) => !!info && info.rubric === FIELD_FORM_RUBRIC;
 const visitScore = (row, scored) => (row && REVIEWED.includes(row.status) && scored ? round(scored.pct) : null);
 
 /**
- * TRAINING PARTS. Distinct modules she finished in the period (teacher_training_progress holds completions only;
- * governed training §2 and schools-analytics both count DISTINCT (user, module)), each on its first day.
+ * MODULES COMPLETED (bd-17v39c.4.13; operator 5 Nov: one training metric everywhere). Distinct modules she finished in
+ * the period (teacher_training_progress holds completions only, one row per teacher and module; governed training §2
+ * and schools-analytics both count DISTINCT (user, module)), each on its first day. The read (SQL.training) keeps
+ * active modules of active courses only. The teacher app calls the same row a "part"; the card says "module".
  */
 function trainingPartsOf(rows = []) {
   const first = new Map();
@@ -826,15 +831,71 @@ function schoolScoresOf(kind, act, period, teachers) {
   };
 }
 
+/**
+ * LESSON PLANS PER TEACHER PER SCHOOL DAY (bd-17v39c.4.13; operator 5 Nov, option A: "1.1 a school day per teacher, last
+ * week 0.9"). The period's plans over every teacher of the roster (or the level) and over its Mon-Fri days so far, one
+ * decimal. It means the same on a Monday and a Friday and needs no target. Null with no school day or no teacher. No
+ * holiday calendar exists, so a holiday lowers it.
+ */
+function perTeacherDayOf(total, teachers, schoolDays) {
+  if (!(teachers > 0) || !(schoolDays > 0)) return null;
+  return Math.round((total / teachers / schoolDays) * 10) / 10;
+}
+
+const inRange = (range) => (e) => !!e.day && e.day >= range.from && e.day <= range.to;
+
+/** One feature's events of these teachers in a range: how many, and by how many teachers. */
+function countIn(events, ids, range) {
+  const mine = events.filter((e) => ids.has(e.userId) && inRange(range)(e));
+  return { total: mine.length, makers: new Set(mine.map((e) => e.userId)).size };
+}
+
+/**
+ * THE OVERVIEW (bd-17v39c.4.13, Rifat's School view): who used NIETE in the period and the same days before it (a teacher
+ * with any lesson plan, DC observation, module completed or assessment: the table's "Not active" rows are the others),
+ * then the lesson plans with their rate per teacher per school day, the modules completed, the assessments, each with
+ * the same days before. Digital Coaching and the Coach average are `scores` (with their own period-before averages).
+ */
+function overviewOf(period, prev, events, teachers) {
+  const ids = new Set(teachers.map((t) => t.id));
+  const n = teachers.length;
+  const now = { from: period.from, to: period.to };
+  const usersIn = (range) => {
+    const users = new Set();
+    for (const f of FEATURES) for (const e of events[f]) if (ids.has(e.userId) && inRange(range)(e)) users.add(e.userId);
+    return users.size;
+  };
+  const lp = countIn(events.lp, ids, now);
+  const lpPrev = countIn(events.lp, ids, prev);
+  const trn = countIn(events.training, ids, now);
+  const papers = countIn(events.papers, ids, now);
+  return {
+    teachers: n,
+    active: { now: usersIn(now), prev: usersIn(prev) },
+    lp: {
+      ...lp,
+      perTeacherDay: perTeacherDayOf(lp.total, n, period.schoolDaysSoFar),
+      prev: { total: lpPrev.total, perTeacherDay: perTeacherDayOf(lpPrev.total, n, prev.schoolDaysSoFar) },
+    },
+    training: { modules: trn.total, makers: trn.makers, prev: { modules: countIn(events.training, ids, prev).total } },
+    papers: { ...papers, prev: { total: countIn(events.papers, ids, prev).total } },
+  };
+}
+
+/** The period and the same days before it as one read window (every count then keeps its own days). */
+const withPrevious = (period, prev) => ({ from: prev.from, to: period.to });
+
 /** GET /school/:emis/card */
 async function getSchoolCard(query, coachId, emis, opts = {}) {
   const ctx = await schoolContext(query, coachId, emis, opts.level);
   if (!ctx) return null;
   const period = resolvePeriod(opts);
   const ids = ctx.teachers.map((t) => t.id);
-  // Sessions from the period before too: the score tiles compare against it (the counts take only the period).
+  // The same days of the period before too: the overview and the score tiles compare against them; every count of the
+  // period keeps only its own days (tally, coachVisitsOf, schoolScoresOf).
   const prev = P.previousOf(period);
-  const act = await loadActivity(query, ids, period, { ...opts, sessionsRange: { from: prev.from, to: period.to } });
+  const both = withPrevious(period, prev);
+  const act = await loadActivity(query, ids, both, { ...opts, sessionsRange: both });
   // The school's last visit is any visit to it, the principal's class too (bd-17v39c.4.15); a teacher row reads her own.
   const last = await lastVisits(query, [...ids, ...ctx.principals.map((p) => p.id)]);
   const events = featureEvents(act);
@@ -872,6 +933,7 @@ async function getSchoolCard(query, coachId, emis, opts = {}) {
     period: P.publicPeriod(period),
     level: ctx.level,
     levels: ctx.levels,
+    overview: overviewOf(period, prev, events, ctx.teachers),
     tiles,
     teachers: rows.map((r, i) => ({
       teacherExtId: r.t.teacherExtId,
@@ -901,8 +963,11 @@ async function getSchoolScores(query, coachId, emis, kind, opts = {}) {
   const ctx = await schoolContext(query, coachId, emis, opts.level);
   if (!ctx) return null;
   const period = resolvePeriod(opts);
-  const act = await loadActivity(query, ctx.teachers.map((t) => t.id), period, opts);
+  // bd-17v39c.4.13 — the page's top is the box it was opened from: the average against the same days before, its line.
+  const prev = P.previousOf(period);
+  const act = await loadActivity(query, ctx.teachers.map((t) => t.id), period, { ...opts, sessionsRange: withPrevious(period, prev) });
   const { list, scoreOf, inP } = scoredKind(kind, act, period);
+  const top = schoolScoresOf(kind, act, period, ctx.teachers);
   const now = list.filter(inP);
   const rows = ctx.teachers.map((t) => {
     const hers = now.filter((s) => s.user_id === t.id);
@@ -920,8 +985,9 @@ async function getSchoolScores(query, coachId, emis, kind, opts = {}) {
     rows,
     school: {
       emis: ctx.school.emis, name: ctx.school.name, teachers: ctx.teachers.length,
-      count: now.length, avg: mean(now.map(scoreOf)), makers: new Set(now.map((s) => s.user_id)).size,
+      count: now.length, avg: mean(now.map(scoreOf)), prevAvg: top.prevAvg, makers: new Set(now.map((s) => s.user_id)).size,
     },
+    series: top.series,
   };
 }
 
@@ -931,24 +997,60 @@ async function getSchoolFeature(query, coachId, emis, feature, opts = {}) {
   const ctx = await schoolContext(query, coachId, emis, opts.level);
   if (!ctx) return null;
   const ids = ctx.teachers.map((t) => t.id);
-  if (feature === 'training') {
-    // bd-hl4a4y — Training by teacher: her trainings' progress, not parts per day; teachers with none last.
-    const trainings = await trainingsOf(query, ids);
-    const rows = ctx.teachers.map((t) => ({ teacherExtId: t.teacherExtId, name: t.name, vendors: trainings.get(t.id).vendors }))
-      .sort((a, b) => (Number(!a.vendors.length) - Number(!b.vendors.length)) || byName(a, b));
-    return { feature, rows };
-  }
+  const idSet = new Set(ids);
   const period = resolvePeriod(opts);
-  const act = await loadActivity(query, ids, period, opts);
-  const per = tally(period, featureEvents(act)[feature], ids);
+  // bd-17v39c.4.13 — each details page opens with its box's numbers: the period's, and the same days before.
+  const prev = P.previousOf(period);
+  const both = withPrevious(period, prev);
+  if (feature === 'training') {
+    // bd-hl4a4y — Training by teacher: her trainings' progress, not parts per day. bd-17v39c.4.13 — counted in modules:
+    // "N of M modules completed" over her trainings, and the modules she completed in the period (the box's number).
+    const b = P.boundsOf(both);
+    const [trainings, done] = await Promise.all([trainingsOf(query, ids), query(SQL.training, [ids, b.fromTs, b.toTs])]);
+    const parts = trainingPartsOf(rowsOf(done));
+    const nowOf = new Map(ids.map((id) => [id, 0]));
+    for (const e of parts) if (P.inPeriod(period, e.day)) nowOf.set(e.userId, (nowOf.get(e.userId) || 0) + 1);
+    const rows = ctx.teachers.map((t) => {
+      const vendors = trainings.get(t.id).vendors;
+      return {
+        teacherExtId: t.teacherExtId,
+        name: t.name,
+        vendors,
+        modules: {
+          done: vendors.reduce((n, v) => n + v.completed_module_count, 0),
+          of: vendors.reduce((n, v) => n + v.module_count, 0),
+        },
+        inPeriod: nowOf.get(t.id) || 0,
+      };
+    }).sort((a, b) => (b.inPeriod - a.inPeriod) || (Number(!a.vendors.length) - Number(!b.vendors.length)) || byName(a, b));
+    const now = countIn(parts, idSet, period);
+    return {
+      feature,
+      period: P.publicPeriod(period),
+      total: now.total,
+      makers: now.makers,
+      teachers: ids.length,
+      prev: { total: countIn(parts, idSet, prev).total },
+      rows,
+    };
+  }
+  const act = await loadActivity(query, ids, both, opts);
+  const events = featureEvents(act)[feature];
+  const per = tally(period, events, ids);
   const rows = ctx.teachers.map((t) => ({ teacherExtId: t.teacherExtId, name: t.name, cells: per.get(t.id).cells, total: per.get(t.id).total }))
     .sort((a, b) => (b.total - a.total) || byName(a, b));
+  const total = rows.reduce((s, r) => s + r.total, 0);
+  const before = countIn(events, idSet, prev).total;
   return {
     feature,
     period: P.publicPeriod(period),
     rows,
     school: period.buckets.map((_, i) => rows.reduce((s, r) => s + r.cells[i], 0)),
-    total: rows.reduce((s, r) => s + r.total, 0),
+    total,
+    makers: rows.filter((r) => r.total > 0).length,
+    teachers: ids.length,
+    perTeacherDay: perTeacherDayOf(total, ids.length, period.schoolDaysSoFar),
+    prev: { total: before, perTeacherDay: perTeacherDayOf(before, ids.length, prev.schoolDaysSoFar) },
   };
 }
 
