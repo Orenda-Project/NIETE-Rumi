@@ -62,8 +62,8 @@ describe('readingsForCourse', () => {
 
   test('another vendor, another level, or a title with no module number → null', () => {
     expect(readingsForCourse({ vendorKey: 'BEACONHOUSE', levelOrderIndex: 0, courseTitle: 'Module 1 - X' })).toBeNull();
-    // Level 2 (order 1) has its own list since bd-yef5iq.6; Level 3 (order 2) has none.
-    expect(readingsForCourse({ ...L1, levelOrderIndex: 2, courseTitle: 'Module 1 - X' })).toBeNull();
+    // Level 2 (order 1) has its own list since bd-yef5iq.6, Level 3 (order 2) since bd-9svkbb; order 3 has none.
+    expect(readingsForCourse({ ...L1, levelOrderIndex: 3, courseTitle: 'Module 1 - X' })).toBeNull();
     expect(readingsForCourse({ ...L1, courseTitle: 'Introduction' })).toBeNull();
     expect(readingsForCourse({ ...L1, courseTitle: 'Module 12 - X' })).toBeNull();
     expect(readingsForCourse({})).toBeNull();
