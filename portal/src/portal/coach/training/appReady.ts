@@ -79,7 +79,7 @@ const FEATURE_PATHS: Record<CoachFeature, { prefixes: readonly string[]; exact?:
 const ALWAYS_OPEN: readonly RegExp[] = [
   /^\/portal\/coach\/more$/,
   /^\/portal\/coach\/more\/report$/, // bd-whlsm0: More → Report an issue, for every coach
-  /^\/portal\/coach\/coach-training$/, // Coach Training: the coaching modules, for every coach, from Home's tile
+  /^\/portal\/coach\/coach-training(\/[1-9])?$/, // Coach Training: the modules and each module's PDF / Video choice, for every coach
   /^\/portal\/coach\/profile$/,
   /^\/portal\/account$/,
   /^\/portal\/login$/,

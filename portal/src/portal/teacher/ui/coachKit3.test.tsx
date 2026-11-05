@@ -3,7 +3,7 @@ import { act, render, screen, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import i18n from "i18next";
 import { tapProblems } from "../../newui/checks/rules";
-import { SelectField, Tabs, ChoiceChips, StatStrip, ScoreRing, TrendChart, AudioCard, RecordUploadPair } from "./index";
+import { SelectField, Tabs, ChoiceChips, StatStrip, ScoreRing, TrendChart, AudioCard, RecordUploadPair, ChoicePair } from "./index";
 
 /** bd-4404s7.1 (PR 2c) — SelectField, Tabs, ChoiceChips, StatStrip, ScoreRing, TrendChart, AudioCard, RecordUploadPair. */
 beforeEach(async () => {
@@ -172,6 +172,27 @@ describe("AudioCard", () => {
     fireEvent.click(p2);
     expect(pause).toHaveBeenCalled(); // the first was paused by the second starting
     play.mockRestore(); pause.mockRestore();
+  });
+});
+
+describe("ChoicePair (bd-rlxkkt.6: the two-square box RecordUploadPair is built on)", () => {
+  it("two plain white squares in one box, no heading: art on a grey disc over the word, 176px; a tap calls its own", () => {
+    const a = vi.fn(); const b = vi.fn();
+    const { container } = inRouter(
+      <ChoicePair items={[
+        { key: "a", label: "PDF", art: <svg data-a="1" />, onPress: a, testId: "pick-a" },
+        { key: "b", label: "Video", art: <svg data-b="1" />, onPress: b, testId: "pick-b" },
+      ]} />,
+    );
+    const pa = screen.getByRole("button", { name: "PDF" });
+    const pb = screen.getByRole("button", { name: "Video" });
+    expect(pa).toHaveAttribute("data-testid", "pick-a");
+    for (const x of [pa, pb]) { expect(x.className).toMatch(/min-h-\[176px\]/); expect(x.className).toMatch(/bg-white/); }
+    expect(container.querySelector("[data-a] ")).not.toBeNull();
+    expect(tapProblems(container)).toEqual([]);
+    fireEvent.click(pa); fireEvent.click(pb);
+    expect(a).toHaveBeenCalledTimes(1); expect(b).toHaveBeenCalledTimes(1);
+    expect(container.querySelector("h1,h2,h3")).toBeNull();
   });
 });
 
