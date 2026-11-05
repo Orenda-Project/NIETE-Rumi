@@ -42,6 +42,9 @@ function indexFromRow(step: string | undefined): number {
   return { analysing: 0, draft: 1, talk: 2, report: 4, sent: 5 }[step || "analysing"] ?? 0;
 }
 
+/** bd-jjcofw.9 — how often the page asks again while the Digital Coach works (analysis takes 1-4 minutes). */
+const REFRESH_MS = 10_000;
+
 /** The steps that wait on the coach who made the observation. */
 const HER_STEPS = ["draft", "talk", "feedback", "report"];
 
@@ -49,7 +52,9 @@ const CoachObservation = () => {
   const C = useCopy(REPORTS);
   const { days } = useCopy(LESSONS);
   const { id = "" } = useParams();
-  const { data, failed, reload } = useLoad(() => coach.getObservation(id), [id]);
+  // bd-jjcofw.9 — a fresh read of both answers on every tick: while the Digital Coach works, and when she comes back.
+  const [tick, setTick] = useState(0);
+  const { data, failed, reload } = useLoad(() => coach.getObservation(id), [id, tick]);
   const [view, setView] = useState<CoachObservationView | null>(null);
   const mine = !!data?.mine;
 
@@ -60,7 +65,16 @@ const CoachObservation = () => {
     let live = true;
     leader.getObservation(id).then((v) => { if (live) setView(v); }).catch(() => { /* the row's step is enough */ });
     return () => { live = false; };
-  }, [mine, id]);
+  }, [mine, id, tick]);
+
+  // bd-jjcofw.9 — Rifat, 5 Nov: the page opened on "Working" after her upload and never asked again; the draft was
+  // ready 20 minutes later and the same tab still said Working an hour after that. Coming back to the tab (the phone
+  // woke up, she switched back from WhatsApp) always asks again.
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") setTick((n) => n + 1); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
 
   const back = useBack("/portal/coach/reports");
   const name = data?.teacher?.name || view?.teacher?.name || C.dash;
@@ -73,6 +87,12 @@ const CoachObservation = () => {
   const herTurn = mine && !!view && HER_STEPS.includes(view.step) && !(view.step === "report" && view.preparing);
   const onWhatsApp = !mine && HER_STEPS.includes((view ? view.step : data?.step) || "");
   const working = (viewStep && WORKER_STEPS.has(viewStep)) || (viewStep === "report" && view?.preparing) || (!view && data?.step === "analysing");
+  // bd-jjcofw.9 — while the Digital Coach works, ask again every REFRESH_MS; once it is her turn (or done) it stops.
+  useEffect(() => {
+    if (!working) return undefined;
+    const timer = setInterval(() => setTick((n) => n + 1), REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [working]);
   const dockStep = herTurn ? (["", "form", "debrief", "feedback", "send"][at] as "" | "form" | "debrief" | "feedback" | "send") : "";
   const score = data ? (data.score ?? data.dcScore ?? null) : null;
   const reportImage = data?.imageUrl || view?.report.imageUrl || null;
