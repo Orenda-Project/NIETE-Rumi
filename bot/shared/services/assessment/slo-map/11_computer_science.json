@@ -1,0 +1,120 @@
+{
+  "grade": 11,
+  "code": "computer_science",
+  "source": {
+    "file": "outputs/lanes/r0-boards/sources/hssc/pdf/ModelPaper__2025__Assessment Frameworks____HSSC-I__Final Assessment Framework Model Question Paper Computer Science HSSC-I.txt",
+    "kind": "fbise_af"
+  },
+  "policy": "stamp",
+  "slos": [
+    {
+      "official_slo": "CS-11-A-01",
+      "gist": "design_pending: domain label not machine-parsed (domain A)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-A-02",
+      "gist": "design_pending: domain label not machine-parsed (domain A)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-A-03",
+      "gist": "design_pending: domain label not machine-parsed (domain A)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-A-04",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain A)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-B-01",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-B-02",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-C-01",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-C-02",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-C-03",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-C-04",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-C-05",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-C-06",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-C-07",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-D-01",
+      "gist": "design_pending: domain label not machine-parsed (domain D)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-D-02",
+      "level": "K+U",
+      "gist": "design_pending: domain label not machine-parsed (domain D)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-D-03",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain D)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-E-01",
+      "gist": "Domain",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-E-02",
+      "gist": "Domain",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-F-01",
+      "level": "K",
+      "gist": "Domain / Area",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-F-02",
+      "gist": "Domain / Area",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-11-G-01",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    }
+  ]
+}

@@ -1,0 +1,189 @@
+{
+ "_note": "each element validates against ../item-tag.schema.json; text is chrome/arithmetic only; Urdu strings need fluent-Urdu review",
+ "items": [
+  {
+   "id": "1.1",
+   "type": "mcq",
+   "kind": null,
+   "tag": {
+    "chapter": 2,
+    "section": "2.1",
+    "code": "g9.physics.ch2.lo3",
+    "page": 39,
+    "official_slo": "P-09-B-02",
+    "blooms": "K",
+    "difficulty": "easy"
+   },
+   "stem": "[chrome] stem with four options A-D"
+  },
+  {
+   "id": "2.1",
+   "type": "srq",
+   "kind": "differentiate",
+   "tag": {
+    "chapter": 2,
+    "section": null,
+    "code": "g9.physics.ch2.lo5",
+    "page": 41,
+    "official_slo": "P-09-B-04",
+    "blooms": "U",
+    "difficulty": "medium"
+   },
+   "stem": "[chrome] Differentiate X and Y (any three points)"
+  },
+  {
+   "id": "3",
+   "type": "erq",
+   "parts": [
+    {
+     "id": "3.a",
+     "type": "erq",
+     "kind": "define",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "g9.physics.ch2.lo6",
+      "page": 43,
+      "official_slo": "P-09-B-05",
+      "blooms": "U",
+      "difficulty": "medium"
+     },
+     "marks": 2
+    },
+    {
+     "id": "3.c",
+     "type": "erq",
+     "kind": "numerical",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "g9.physics.ch2.lo8",
+      "page": 44,
+      "official_slo": "P-09-B-07",
+      "blooms": "A",
+      "difficulty": "hard"
+     },
+     "stem": "[arithmetic] 24 m in 6 s at constant speed: find the speed (4 m/s)",
+     "marks": 2
+    }
+   ]
+  },
+  {
+   "id": "4",
+   "type": "srq",
+   "or": [
+    {
+     "id": "4.A",
+     "type": "srq",
+     "kind": "reason",
+     "tag": {
+      "chapter": 3,
+      "section": null,
+      "code": "g11.chemistry.ch3.lo2",
+      "page": 60,
+      "official_slo": "C-11-B-20",
+      "blooms": "K",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "id": "4.B",
+     "type": "srq",
+     "kind": "reason",
+     "tag": {
+      "chapter": 3,
+      "section": null,
+      "code": "g11.chemistry.ch3.lo4",
+      "page": 62,
+      "official_slo": "C-11-B-22",
+      "blooms": "K",
+      "difficulty": "easy"
+     }
+    }
+   ]
+  },
+  {
+   "id": "5",
+   "type": "scenario",
+   "stimulus": "[chrome] Rani heated 24.5 g of a sample (arithmetic only)",
+   "parts": [
+    {
+     "id": "5.1",
+     "type": "mcq",
+     "kind": null,
+     "tag": {
+      "chapter": 4,
+      "section": null,
+      "code": "g11.chemistry.ch4.lo9",
+      "page": 81,
+      "official_slo": "C-11-B-58",
+      "blooms": "A",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "id": "5.2",
+     "type": "mcq",
+     "kind": null,
+     "tag": {
+      "chapter": 4,
+      "section": null,
+      "code": "g11.chemistry.ch4.lo9",
+      "page": 81,
+      "official_slo": "C-11-B-58",
+      "blooms": "A",
+      "difficulty": "medium"
+     }
+    }
+   ]
+  },
+  {
+   "id": "6.1",
+   "type": "letter",
+   "kind": null,
+   "tag": {
+    "chapter": 1,
+    "section": null,
+    "code": "urdu.skill.letter",
+    "page": null,
+    "official_slo": null,
+    "blooms": "A",
+    "difficulty": "medium"
+   },
+   "stem": "[chrome] letter task, draft Urdu needs fluent-Urdu review"
+  },
+  {
+   "id": "7.1",
+   "type": "sequence",
+   "kind": null,
+   "tag": {
+    "chapter": 3,
+    "section": "3.2",
+    "code": "g6.history.ch3.lo1",
+    "page": 47,
+    "official_slo": null,
+    "blooms": "R",
+    "difficulty": "medium",
+    "codes_extra": [
+     "g6.history.ch3.lo3",
+     "g6.history.ch3.lo5"
+    ]
+   },
+   "stem": "[chrome] order five events"
+  },
+  {
+   "id": "8.1",
+   "type": "translation",
+   "kind": null,
+   "tag": {
+    "chapter": 1,
+    "section": null,
+    "code": "g8.islamiat.ch1.lo2",
+    "page": 16,
+    "official_slo": null,
+    "blooms": "R",
+    "difficulty": "easy"
+   }
+  }
+ ]
+}
