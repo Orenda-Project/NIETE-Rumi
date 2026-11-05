@@ -15,7 +15,7 @@
  * until that behaviour's line is supplied (never an invented one).
  */
 const SVC = require('../../dashboard/services/coach-report.service');
-const { TRY_LINES } = require('../../bot/shared/config/coach-report-try-lines');
+const TRY_LINES = { elicited_if_then: SVC.tryLineFor('elicited_if_then') };
 
 const ME = '11111111-1111-4111-8111-111111111111';
 const OTHER = '22222222-2222-4222-8222-222222222222';
