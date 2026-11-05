@@ -324,3 +324,18 @@ describe("the doors (coach only)", () => {
     expect(door.getAttribute("href")).toBe(`/portal/coach/teacher/${fx.EXT}/where?period=month`);
   }, 120_000);
 });
+
+describe("the School card door (coach only)", () => {
+  it("the School card has Who to coach first, Only you see this, opening This month", async () => {
+    const { renderApp, loadApp } = await import("./harness.testdata");
+    const fx = await import("./fixtures.testdata");
+    await loadApp();
+    net.answers.set("/config", { success: true, features: { coachV2: true, schoolCard: true } });
+    net.answers.set(`/coach/school/${fx.EMIS}/card`, fx.schoolCard());
+    await renderApp(`/portal/coach/school/${fx.EMIS}`);
+    const door = await screen.findByTestId("first-door");
+    expect(door).toHaveTextContent("Who to coach first");
+    expect(door).toHaveTextContent("Only you see this");
+    expect(door.getAttribute("href")).toBe(`/portal/coach/school/${fx.EMIS}/first?period=month`);
+  }, 120_000);
+});
