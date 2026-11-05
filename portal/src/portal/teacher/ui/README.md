@@ -464,6 +464,12 @@ button (a green ring; green filled with pause while it plays). With `src` it pla
 `recordTo` / `onRecord`, `uploadTo` / `onUpload` (a link or a button each), `actions?: [{ key, label, icon?, to?, onPress?, danger? }]` (small 56px buttons under
 the squares: Reschedule; Cancel visit in red), `copy?` (`startRecording`, `uploadRecording`). Two 176px squares in one box with no heading: Start recording
 (indigo, a beating red mark with two rings, only when the phone allows motion) and Upload recording (white). Teacher and coach use the same one.
+Its squares and box are `ChoicePair`'s.
+
+### `ChoicePair`
+`items: [{ key, label, art, to?, onPress?, testId? }, …]` (exactly two), `compact?`. The same box and 176px squares as `RecordUploadPair`, both plain:
+white, the `art` (an icon) on the grey disc over the word. For a choice between two ways of doing one thing, with no heading. Coach Training's module
+screen: PDF and Video (bd-rlxkkt.6).
 
 ## Coach build, Observe (bd-4404s7.4) — the coach's observation is sent in the background
 
