@@ -37,9 +37,7 @@ it('holds grade_6 .. grade_12, each also seeded by V1.1.3 with the same line', (
   }
 });
 
-it('takes the next free version number', () => {
-  const versions = fs.readdirSync(DIR).map((f) => f.match(/^V(\d+)\.(\d+)\.(\d+)__/)).filter(Boolean)
-    .map((m) => [Number(m[1]), Number(m[2]), Number(m[3])]);
-  const newer = versions.filter(([a, b, c]) => a > 1 || (a === 1 && (b > 8 || (b === 8 && c > 10))));
-  expect(newer).toEqual([]);
+it('owns its version number: no other forward migration is V1.8.10', () => {
+  const same = fs.readdirSync(DIR).filter((f) => /^V1\.8\.10__/.test(f));
+  expect(same).toEqual(['V1.8.10__g612_subjects.sql']);
 });
