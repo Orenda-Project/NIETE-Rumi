@@ -347,3 +347,38 @@ describe("Urdu", () => {
     expect(screen.getByTestId("coach-obs-table")).toHaveTextContent("پہلا");
   });
 });
+
+// bd-17v39c.4.13.7 — found on the deployed sandbox at 390 and 360 px (5 Nov): in Urdu "+10%" read "10%+", the overview's
+// "14 میں سے 12" was forced left to right, the trend marks were squashed, and short names were cut.
+describe("the live check's fixes", () => {
+  it("the Change is an isolated left-to-right run, so Urdu shows +7%, never 7%+", async () => {
+    on();
+    await renderApp(CARD, "ur");
+    const change = (await screen.findAllByTestId("obs-change"))[0];
+    expect(change.textContent).toBe("⁦+7%⁩");
+    expect(change.style.unicodeBidi).toBe("isolate");
+  });
+
+  it("the overview's N of M follows the page's direction (Urdu reads 12 میں سے 7 right to left)", async () => {
+    on();
+    await renderApp(CARD, "ur");
+    const used = within(await screen.findByTestId("overview")).getByTestId("used-count");
+    expect(used).not.toHaveAttribute("dir", "ltr");
+  });
+
+  it("the trend draws its own marks: one score is one mark and no line; two are a line through two marks", async () => {
+    on();
+    await renderApp(CARD);
+    const rows = await screen.findAllByTestId("obs-row");
+    const two = within(rows[0]).getByTestId("obs-trend");
+    expect(two.querySelectorAll('[data-point="square"]')).toHaveLength(2);
+    expect(two.querySelector("polyline")).not.toBeNull();
+    // drawn at its own aspect: a mark stays a mark at any column width (the tiny ScoreLine stretched it flat)
+    const svg = two.tagName.toLowerCase() === "svg" ? two : two.querySelector("svg");
+    expect(svg?.getAttribute("preserveAspectRatio")).not.toBe("none");
+    expect(svg?.getAttribute("width")).not.toBe("100%");
+    const one = within(rows[1]).getByTestId("obs-trend");
+    expect(one.querySelectorAll('[data-point="square"]')).toHaveLength(1);
+    expect(one.querySelector("polyline")).toBeNull();
+  });
+});

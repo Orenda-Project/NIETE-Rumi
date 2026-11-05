@@ -7,7 +7,6 @@ import { SCHOOL_CARD } from "./copy";
 import { PEOPLE } from "../people/copy";
 import { useLevelNames } from "../people/level";
 import { CARD_FEATURES, FEATURE_OF, GLYPH } from "./parts";
-import { ScoreLine } from "./scores";
 import type { CardFeature, CardTeacher, CoachObsTeacher, Overview, PeriodKey, SchoolScores } from "./types";
 
 /**
@@ -89,7 +88,8 @@ export function OverviewCard({ ov, scores, period, link }: {
   };
   return (
     <section data-testid="overview" className={`${CARD} flex flex-col gap-1 p-4`}>
-      <b dir="ltr" data-testid="used-count" className="self-start text-[34px] font-bold leading-[1.1] tabular-nums text-[#1d2025]">
+      {/* bd-17v39c.4.13.7 — not forced left to right: Urdu "14 میں سے 12" reads right to left like the rest */}
+      <b data-testid="used-count" className="self-start text-[34px] font-bold leading-[1.1] tabular-nums text-[#1d2025]">
         {ov && n != null ? C.nOfM(ov.active.now, n) : C.dash}
       </b>
       <span className="text-[17px] font-semibold leading-[1.3] text-[#1d2025] rtl:leading-[1.8]">{C.usedNiete[period]}</span>
@@ -113,7 +113,9 @@ export function OverviewCard({ ov, scores, period, link }: {
 // ── the teacher table ────────────────────────────────────────────────────────
 
 /** Teacher · four counts · Contribution. At 360 px the Contribution head breaks in two (a soft hyphen) and names cut. */
-const TABLE_COLS = "grid grid-cols-[minmax(0,1fr)_repeat(4,26px)_76px] max-[374px]:grid-cols-[minmax(0,1fr)_repeat(4,24px)_54px] items-center gap-x-1.5";
+// bd-17v39c.4.13.7 (live check at 390/360): counts are at most two digits, so 22px columns and 4px gaps leave the names
+// about 120px at 390 ("Mehwish Demo" whole) and about 105px at 360, where Contribution breaks in two.
+const TABLE_COLS = "grid grid-cols-[minmax(0,1fr)_repeat(4,22px)_68px] max-[374px]:grid-cols-[minmax(0,1fr)_repeat(4,22px)_50px] items-center gap-x-1";
 const SHOWN = 8;
 
 function TableRow({ t, to, state, none }: { t: CardTeacher; to: string; state: unknown; none: boolean }) {
@@ -128,9 +130,9 @@ function TableRow({ t, to, state, none }: { t: CardTeacher; to: string; state: u
       aria-label={`${t.name}${who ? `, ${who}` : ""}, ${C.countsSpoken(t.counts.lp ?? 0, t.counts.dc ?? 0, t.counts.training ?? 0, t.counts.papers ?? 0)}, ${C.contribution} ${none ? "0%" : C.pct(t.contributionPct)}`}
       className={`${TABLE_COLS} min-h-[56px] border-t border-[#f0f1f3] ${ROW_TAP}`}>
       <span className="flex min-w-0 items-center gap-1">
-        {!none && t.star ? <Star data-star="1" className="h-[13px] w-[13px] shrink-0 fill-[#33374a] text-[#33374a]" aria-hidden="true" /> : null}
-        <span dir="auto" className={`truncate text-[15.5px] leading-[1.3] ${none ? "font-medium text-[#9ca3af]" : "font-semibold text-[#1d2025]"}`}>{t.name}</span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-[#c4c8cf] rtl:rotate-180" aria-hidden="true" />
+        {!none && t.star ? <Star data-star="1" className="h-3 w-3 shrink-0 fill-[#33374a] text-[#33374a]" aria-hidden="true" /> : null}
+        <span dir="auto" className={`truncate text-[15px] leading-[1.3] ${none ? "font-medium text-[#9ca3af]" : "font-semibold text-[#1d2025]"}`}>{t.name}</span>
+        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[#c4c8cf] rtl:rotate-180" aria-hidden="true" />
       </span>
       {CARD_FEATURES.map((f) => {
         const v = t.counts[f] ?? 0;
@@ -157,7 +159,7 @@ export function TeacherTable({ active, quiet, period, linkOf, state }: {
   const shown = all ? active : active.slice(0, SHOWN);
   return (
     <section data-testid="teacher-table" className={`${CARD} px-3.5 pb-1`}>
-      <div data-testid="table-heads" className={`${TABLE_COLS} min-h-[44px] text-[12.5px] font-semibold text-[#6b7280]`}>
+      <div data-testid="table-heads" className={`${TABLE_COLS} min-h-[44px] text-[12px] font-semibold text-[#6b7280]`}>
         <span>{C.teacherCol}</span>
         {CARD_FEATURES.map((f) => {
           const Glyph = GLYPH[f];
@@ -196,7 +198,7 @@ export function TeacherTable({ active, quiet, period, linkOf, state }: {
 
 // ── the coach observations table ─────────────────────────────────────────────
 
-const OBS_COLS = "grid grid-cols-[minmax(0,1fr)_34px_60px_54px_48px] max-[374px]:grid-cols-[minmax(0,1fr)_30px_48px_50px_44px] items-center gap-x-1.5";
+const OBS_COLS = "grid grid-cols-[minmax(0,1fr)_28px_52px_50px_42px] max-[374px]:grid-cols-[minmax(0,1fr)_26px_44px_46px_40px] items-center gap-x-1";
 const TONE = { up: "#2f7a52", down: "#c8331f", same: GREY, first: "#c2410c", none: "#9ca3af" } as const;
 
 /** The change over the period: green up, red down (operator's pick, 5 Nov), "first" when she has one score so far. */
@@ -207,6 +209,25 @@ function changeOf(r: CoachObsTeacher, first: string): { text: string; tone: keyo
   if (d > 0) return { text: `+${d}%`, tone: "up" };
   if (d < 0) return { text: `−${Math.abs(d)}%`, tone: "down" };
   return { text: "0%", tone: "same" };
+}
+
+/**
+ * A teacher's Coach scores in the period, oldest first, as a tiny line at its own size (44x20): the coach's square marks
+ * (Coach observations are squares everywhere), a line only when there are two or more. Left to right in Urdu too.
+ */
+function Trend({ values }: { values: readonly (number | null)[] }) {
+  const pts = values.filter((v): v is number => typeof v === "number");
+  const W = 44, H = 20, PAD = 4;
+  const lo = Math.min(...pts) - 4, hi = Math.max(...pts) + 4;
+  const X = (i: number) => (pts.length === 1 ? W / 2 : PAD + ((W - 2 * PAD) * i) / (pts.length - 1));
+  const Y = (v: number) => H - PAD - ((v - lo) / Math.max(1, hi - lo)) * (H - 2 * PAD);
+  const colour = FEATURE_HUE[FEATURE_OF.coach].fg;
+  return (
+    <svg data-testid="obs-trend" viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden="true" style={{ direction: "ltr" }} className="block overflow-visible">
+      {pts.length > 1 && <polyline fill="none" stroke={colour} strokeWidth={1.8} strokeLinejoin="round" points={pts.map((v, i) => `${X(i)},${Y(v)}`).join(" ")} />}
+      {pts.map((v, i) => <rect key={i} data-point="square" x={X(i) - 2.5} y={Y(v) - 2.5} width={5} height={5} rx={1} fill={colour} />)}
+    </svg>
+  );
 }
 
 export function CoachObsTable({ rows, linkOf, state }: { rows: CoachObsTeacher[]; linkOf: (ext: string) => string; state?: unknown }) {
@@ -226,14 +247,16 @@ export function CoachObsTable({ rows, linkOf, state }: { rows: CoachObsTeacher[]
           <Link key={r.teacherExtId} to={linkOf(r.teacherExtId)} state={state} data-testid="obs-row"
             className={`${OBS_COLS} min-h-[56px] border-t border-[#f0f1f3] ${ROW_TAP}`}>
             <span className="flex min-w-0 items-center gap-1">
-              <span dir="auto" className="truncate text-[15.5px] font-semibold leading-[1.3] text-[#1d2025]">{r.name}</span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-[#c4c8cf] rtl:rotate-180" aria-hidden="true" />
+              <span dir="auto" className="truncate text-[15px] font-semibold leading-[1.3] text-[#1d2025]">{r.name}</span>
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[#c4c8cf] rtl:rotate-180" aria-hidden="true" />
             </span>
             <span data-testid="obs-count" className="text-center text-[15px] font-bold tabular-nums">{r.count}</span>
-            <span className="min-w-0 px-1">
-              {r.points.length ? <ScoreLine tiny kind="coach" values={r.points.map((p) => p.score)} avg={null} testId="obs-trend" /> : <span className="block text-center text-[#9ca3af]">—</span>}
+            <span className="flex min-w-0 justify-center">
+              {r.points.length ? <Trend values={r.points.map((p) => p.score)} /> : <span className="text-[#9ca3af]">—</span>}
             </span>
-            <span data-testid="obs-change" data-tone={ch.tone} dir="ltr" className="text-center text-[14px] font-bold tabular-nums rtl:leading-[1.8]" style={{ color: TONE[ch.tone] }}>{ch.text}</span>
+            {/* bd-17v39c.4.13.7 — a signed number is an isolated left-to-right run (LRI … PDI): in Urdu "+10%" read "10%+" */}
+            <span data-testid="obs-change" data-tone={ch.tone} className="text-center text-[14px] font-bold tabular-nums rtl:leading-[1.8]"
+              style={{ color: TONE[ch.tone], unicodeBidi: "isolate" }}>{ch.tone === "first" ? ch.text : `\u2066${ch.text}\u2069`}</span>
             <span data-testid="obs-latest" dir="ltr" className="text-end text-[15px] font-bold tabular-nums" style={{ color: r.latest == null ? "#9ca3af" : "#1d2025" }}>{C.pct(r.latest)}</span>
           </Link>
         );
