@@ -9,6 +9,9 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
  *
  * bd-ql2j3p — Remove class: DELETE /classes/:id (the bot decides whether that retires the class or
  * takes her off it).
+ *
+ * bd-mx822w — Edit a name: tap a child, the tray opens with the name box focused; Save sends
+ * POST /classes/:id/students/:sid/name { name }. Remove student lives in that tray, after asking.
  */
 
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
@@ -16,7 +19,7 @@ vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { chil
 vi.mock("../../lib/recordingSession", () => ({ useRecordingSession: () => null }));
 vi.mock("../../services/api", () => ({
   default: { get: vi.fn(() => new Promise(() => {})), post: vi.fn() },
-  classes: { list: vi.fn(), create: vi.fn(), students: vi.fn(), addStudents: vi.fn(), removeStudent: vi.fn(), removeClass: vi.fn() },
+  classes: { list: vi.fn(), create: vi.fn(), students: vi.fn(), addStudents: vi.fn(), removeStudent: vi.fn(), renameStudent: vi.fn(), removeClass: vi.fn() },
 }));
 vi.mock("../../lib/gradeSubjects", () => ({ loadGradeSubjects: vi.fn() }));
 
@@ -37,7 +40,7 @@ import { preloadAll } from "@/lib/lazyPage";
 // bd-sex15q.34 — these pages are their own chunks (lib/lazyPage); load them before stepping through them synchronously.
 preloadFirst(() => preloadAll({ pages: true }), 120_000);
 
-const api = classesApi as unknown as Record<"list" | "create" | "students" | "addStudents" | "removeStudent" | "removeClass", ReturnType<typeof vi.fn>>;
+const api = classesApi as unknown as Record<"list" | "create" | "students" | "addStudents" | "removeStudent" | "renameStudent" | "removeClass", ReturnType<typeof vi.fn>>;
 const combos = loadGradeSubjects as unknown as ReturnType<typeof vi.fn>;
 
 const LIST = {
@@ -189,19 +192,70 @@ describe("Class detail", () => {
     expect((screen.getByLabelText(C.nameOfRoll(4)) as HTMLTextAreaElement).value).toBe("Sara");
   });
 
-  it("Remove asks first; Keep leaves the child, Remove deletes through the existing route", async () => {
+  it("each child is one tap target with no bin on the row; tapping opens Edit student with the name box focused, caret at the end", async () => {
+    at(classPath("c1"));
+    await screen.findByRole("list", { name: C.students });
+    expect(screen.queryByRole("button", { name: /^Remove Child/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: C.editNamed("Child 2") }));
+    const dialog = await screen.findByRole("dialog", { name: C.editStudent });
+    const box = within(dialog).getByRole("textbox", { name: C.nameOfRoll(2) }) as HTMLTextAreaElement;
+    expect(box.value).toBe("Child 2");
+    await waitFor(() => expect(document.activeElement).toBe(box));
+    expect(box.selectionStart).toBe("Child 2".length);
+  });
+
+  it("Save stays off until the name changes; Save renames through the route, the list shows the new name and Name saved", async () => {
+    api.renameStudent.mockResolvedValue({ success: true, studentName: "Child Two" });
+    at(classPath("c1"));
+    await screen.findByRole("list", { name: C.students });
+    fireEvent.click(screen.getByRole("button", { name: C.editNamed("Child 2") }));
+    const dialog = await screen.findByRole("dialog", { name: C.editStudent });
+    const box = within(dialog).getByRole("textbox", { name: C.nameOfRoll(2) });
+    const save = within(dialog).getByRole("button", { name: C.save }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.change(box, { target: { value: "  Child 2 " } });
+    expect(save.disabled).toBe(true);
+    fireEvent.change(box, { target: { value: "  " } });
+    expect(save.disabled).toBe(true);
+    fireEvent.change(box, { target: { value: " Child Two " } });
+    expect(save.disabled).toBe(false);
+    fireEvent.click(save);
+    await waitFor(() => expect(api.renameStudent).toHaveBeenCalledWith("c1", "s2", "Child Two"));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect((await screen.findByRole("status")).textContent).toContain(C.nameSaved);
+    const list = screen.getByRole("list", { name: C.students });
+    expect(within(list).getByText("Child Two")).toBeTruthy();
+    expect(within(list).queryByText("Child 2")).toBeNull();
+  });
+
+  it("a failed rename says so and keeps what she typed", async () => {
+    api.renameStudent.mockRejectedValue(new Error("502"));
+    at(classPath("c1"));
+    await screen.findByRole("list", { name: C.students });
+    fireEvent.click(screen.getByRole("button", { name: C.editNamed("Child 2") }));
+    const dialog = await screen.findByRole("dialog", { name: C.editStudent });
+    fireEvent.change(within(dialog).getByRole("textbox"), { target: { value: "Child Two" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: C.save }));
+    expect((await within(dialog).findByRole("alert")).textContent).toBe(C.saveFailed);
+    expect((within(dialog).getByRole("textbox") as HTMLTextAreaElement).value).toBe("Child Two");
+  });
+
+  it("Remove student is inside the edit tray and asks first; Keep goes back, Remove deletes through the existing route", async () => {
     api.removeStudent.mockResolvedValue({ success: true });
     at(classPath("c1"));
     await screen.findByRole("list", { name: C.students });
-    fireEvent.click(screen.getByRole("button", { name: C.removeNamed("Child 2") }));
-    let dialog = await screen.findByRole("dialog");
+    fireEvent.click(screen.getByRole("button", { name: C.editNamed("Child 2") }));
+    let dialog = await screen.findByRole("dialog", { name: C.editStudent });
+    fireEvent.click(within(dialog).getByRole("button", { name: C.removeStudent }));
+    dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: C.keep }));
     expect(api.removeStudent).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: C.removeNamed("Child 2") }));
-    dialog = await screen.findByRole("dialog");
-    fireEvent.click(within(dialog).getByRole("button", { name: C.remove }));
+    expect(within(screen.getByRole("dialog")).getByRole("textbox")).toBeTruthy();
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: C.removeStudent }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: C.remove }));
     await waitFor(() => expect(api.removeStudent).toHaveBeenCalledWith("c1", "s2"));
     await waitFor(() => expect(api.students).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("Remove class asks first; Keep leaves it, Remove deletes through the route and returns to My Classes", async () => {
