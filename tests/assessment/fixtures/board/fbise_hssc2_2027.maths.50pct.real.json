@@ -1,0 +1,78 @@
+{
+ "pattern": "fbise_hssc2_2027",
+ "subject": "maths",
+ "variant": "50pct",
+ "source": "fbise-hssc2-mathematics-50pct-pending",
+ "source_status": "partial",
+ "total_marks_x4": 400,
+ "total_time_min": 180,
+ "time_a_min": 100,
+ "shared_time_min": 80,
+ "mcq_share_pct": 48.0,
+ "sections": [
+  {
+   "id": "A",
+   "marks_x4": 192,
+   "answer_on": "question_paper",
+   "slots": [
+    {
+     "label": "Q1",
+     "kind": "mcq",
+     "printed": 40,
+     "attempt": 40,
+     "marks_each_x4": 3,
+     "or": false,
+     "stimulus": null
+    },
+    {
+     "label": "Q1 stimulus",
+     "kind": "scenario",
+     "printed": 24,
+     "attempt": 24,
+     "marks_each_x4": 3,
+     "or": false,
+     "stimulus": {
+      "count": 6,
+      "mcqs_per_stimulus": 4
+     }
+    }
+   ],
+   "time_min": 100
+  },
+  {
+   "id": "B",
+   "marks_x4": 112,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q",
+     "kind": "srq",
+     "printed": 7,
+     "attempt": 7,
+     "marks_each_x4": 16,
+     "or": true,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  },
+  {
+   "id": "C",
+   "marks_x4": 96,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q",
+     "kind": "erq",
+     "printed": 3,
+     "attempt": 3,
+     "marks_each_x4": 32,
+     "or": true,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  }
+ ],
+ "derivation": []
+}

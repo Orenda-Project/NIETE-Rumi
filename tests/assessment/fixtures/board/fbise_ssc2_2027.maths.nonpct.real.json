@@ -1,0 +1,66 @@
+{
+ "pattern": "fbise_ssc2_2027",
+ "subject": "maths",
+ "variant": "nonpct",
+ "source": "fbise-ssc2-mathematics-nonpct",
+ "source_status": "verified",
+ "total_marks_x4": 300,
+ "total_time_min": 180,
+ "time_a_min": 20,
+ "shared_time_min": 160,
+ "mcq_share_pct": 20.0,
+ "sections": [
+  {
+   "id": "A",
+   "marks_x4": 60,
+   "answer_on": "question_paper",
+   "slots": [
+    {
+     "label": "Q1",
+     "kind": "mcq",
+     "printed": 15,
+     "attempt": 15,
+     "marks_each_x4": 4,
+     "or": false,
+     "stimulus": null
+    }
+   ],
+   "time_min": 20
+  },
+  {
+   "id": "B",
+   "marks_x4": 144,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q2",
+     "kind": "srq",
+     "printed": 9,
+     "attempt": 9,
+     "marks_each_x4": 16,
+     "or": true,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  },
+  {
+   "id": "C",
+   "marks_x4": 96,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q3-5",
+     "kind": "erq",
+     "printed": 3,
+     "attempt": 3,
+     "marks_each_x4": 32,
+     "or": true,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  }
+ ],
+ "derivation": []
+}
