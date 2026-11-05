@@ -13,7 +13,7 @@ const KEY = 'grade-gate-routes-key';
 const U = 'u-qa-1';
 const SHELF = { 1: ['english', 'maths', 'urdu'], 4: ['science', 'maths'], 5: ['english'],
   6: ['english'], 9: ['physics', 'chemistry'], 10: ['english'], 11: ['physics', 'chemistry'], 12: ['maths'] };
-const NOT_OFFERED = 'GRADE_NOT_OFFERED';
+const NOT_OFFERED = 'NOT_ELIGIBLE'; // the lifecycle vocabulary's "deliberate policy" code
 
 let state;
 let router;
@@ -84,7 +84,7 @@ describe('flag absent, G6-12 rows present: nothing is offered and every door ref
     expect(out.screen).toBe('CLASS');
     expect(out.data.error).toMatch(/Grade 9/);
   });
-  test('create grade 9 -> 400 GRADE_NOT_OFFERED, no request, no job', async () => {
+  test('create grade 9 -> 400 NOT_ELIGIBLE, no request, no job', async () => {
     const out = await post('/assessment/create', CREATE);
     expect(out.statusCode).toBe(400);
     expect(out.payload.errorCode).toBe(NOT_OFFERED);
@@ -95,7 +95,7 @@ describe('flag absent, G6-12 rows present: nothing is offered and every door ref
     const out = await post('/assessment/create', { ...CREATE, pattern: 'fde_g5_2027' });
     expect(out.payload.errorCode).toBe(NOT_OFFERED);
   });
-  test.each([['/assessment/chapters', {}], ['/assessment/topics', { chapterNumber: 1 }]])('%s grade 9 -> 400 GRADE_NOT_OFFERED', async (p, extra) => {
+  test.each([['/assessment/chapters', {}], ['/assessment/topics', { chapterNumber: 1 }]])('%s grade 9 -> 400 NOT_ELIGIBLE', async (p, extra) => {
     const out = await post(p, { userId: U, grade: 9, subject: 'physics', ...extra });
     expect(out.statusCode).toBe(400);
     expect(out.payload.errorCode).toBe(NOT_OFFERED);
@@ -107,7 +107,7 @@ describe('flag absent, G6-12 rows present: nothing is offered and every door ref
     expect(state.queued).toHaveLength(0);
     expect(requests()).toBe(0);
   });
-  test('submitFromCompletion grade 9 -> failed GRADE_NOT_OFFERED, no insert', async () => {
+  test('submitFromCompletion grade 9 -> failed NOT_ELIGIBLE, no insert', async () => {
     forgeSession('tok-complete', U);
     expect(await Flow.submitFromCompletion({ flowToken: 'tok-complete', userId: U, outputFormat: 'pdf', answerLines: true }))
       .toEqual({ status: 'failed', code: NOT_OFFERED });
