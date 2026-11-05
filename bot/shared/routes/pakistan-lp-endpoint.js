@@ -59,6 +59,7 @@ const {
   isGbK5Enabled, // bd-rj6w0n.14.4
 } = require('../config/lp612-flags');
 const Lp612Curriculum = require('../services/lp612-curriculum.service');
+const Lp612GbShelf = require('../services/lp612-gb-shelf.service');
 const { LANGUAGE_OFFER, offerDefaultLanguage } = require('../config/languages');
 const FlowTelemetry = require('./pakistan-lp-telemetry');
 
@@ -248,6 +249,11 @@ async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
   if (step === 'lp612_segment')      return lp612Guard(() => selectLp612Segment(flowToken, d));
   if (step === 'lp612_segment_page') return lp612Guard(async () => selectLp612SegmentPage(d, await books()));
   if (step === 'lp612_serve')        return lp612Guard(() => serveLp612Segment(flowToken, d));
+  // bd-rj6w0n.14.5 — a Coming Soon GB book can be seen but never opened.
+  if (step === Lp612GbShelf.SOON_STEP) {
+    const gb = await gbLane(flowToken, await books());
+    return Lp612GbShelf.refuseComingSoon(gb && gb.language);
+  }
 
   // v2 Flow fallback — payloads carry a screen but no step. Live during the
   // endpoint-deployed-but-Flow-not-yet-republished window.
@@ -311,7 +317,8 @@ async function selectGrade(screenData, curriculum, gb = null) {
     if (!isLp612Enabled() || !Lp612Curriculum.GB_K5_GRADES.includes(grade)) {
       return { data: { error: { message: resolveUx('lp612GbGradeOnly', { language: gb.language }) } } };
     }
-    const items = await Lp612Catalog.buildSubjectItems(grade, { curriculum: gb.curriculum });
+    // bd-rj6w0n.14.5 — every GB book for the grade; one without ready plans is listed as Coming Soon.
+    const items = await Lp612GbShelf.gbShelfItems(grade, gb);
     return {
       screen: 'SELECT_SUBJECT',
       data: { items, grade_value: String(grade), grade_display: gradeTitle(grade) },

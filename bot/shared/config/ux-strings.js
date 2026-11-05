@@ -1734,6 +1734,16 @@ const UX_STRINGS = {
     en: 'Lesson plans here are for Grades 1-5. Please pick one of those classes.',
     ur: 'یہاں سبق کے منصوبے جماعت ⁦1-5⁩ کے لیے ہیں۔ براہِ کرم انہی میں سے کوئی جماعت چنیں۔',
   },
+  // bd-rj6w0n.14.5 — a GB book whose plans are not ready yet: the row label (Flow description, cap 20)
+  // and the refusal when it is tapped.
+  lp612GbComingSoon: {
+    en: 'Coming Soon',
+    ur: 'جلد آ رہا ہے',
+  },
+  lp612GbComingSoonTap: {
+    en: 'Lesson plans for this book are coming soon. Please pick another book for now.',
+    ur: 'اس کتاب کے سبق کے منصوبے جلد آ رہے ہیں۔ فی الحال براہِ کرم کوئی اور کتاب چنیں۔',
+  },
 
   // Sent with the PDF. {topic} is the book's own subtopic wording.
   //

@@ -22,6 +22,11 @@ jest.mock('../../bot/shared/services/lp612-curriculum.service', () => ({
   ...jest.requireActual('../../bot/shared/services/lp612-curriculum.service'),
   languageForUserId: (...a) => mockLanguage(...a),
 }));
+const mockShelf = jest.fn();
+jest.mock('../../bot/shared/services/lp612-gb-shelf.service', () => ({
+  ...jest.requireActual('../../bot/shared/services/lp612-gb-shelf.service'),
+  gbShelfItems: (...a) => mockShelf(...a),
+}));
 jest.mock('../../bot/shared/services/lp612-serving.service', () => ({ requestLesson: jest.fn() }));
 jest.mock('../../bot/shared/services/oxbridge-lp.service', () => ({ gradeWord: (g) => `Grade ${g}`, deliverOxbridgeLp: jest.fn() }));
 const mockV8Available = jest.fn();
@@ -54,6 +59,7 @@ beforeEach(() => {
   mockCat.buildSegmentItems.mockResolvedValue({ items: [SUBJECT_ROW], hasMore: false, total: 1 });
   mockV8Available.mockResolvedValue(new Set());
   mockLanguage.mockResolvedValue('en');
+  mockShelf.mockResolvedValue([SUBJECT_ROW]);
 });
 afterAll(() => { process.env = saved; });
 
@@ -87,7 +93,8 @@ describe('LP_GB_K5_ENABLED on', () => {
 
     const res = await step({ step: 'grade', grade: '2' });
     expect(res.screen).toBe('SELECT_SUBJECT');
-    expect(mockCat.buildSubjectItems).toHaveBeenCalledWith(2, GB);
+    expect(mockShelf).toHaveBeenCalledWith(2, { curriculum: 'nbf_snc', language: 'en' });
+    expect(res.data.items).toEqual([SUBJECT_ROW]);
     expect(mockV8Available).not.toHaveBeenCalled();
 
     await step({ step: 'lp612_subject', grade: '2', subject: 'English' });
@@ -103,6 +110,17 @@ describe('LP_GB_K5_ENABLED on', () => {
     const res = await step({ step: 'grade', grade: '9' });
     expect(res.data.error).toBeTruthy();
     expect(mockCat.buildSubjectItems).not.toHaveBeenCalled();
+    expect(mockShelf).not.toHaveBeenCalled();
+  });
+
+  test('bd-rj6w0n.14.5: a tap on a Coming Soon book is refused and opens nothing', async () => {
+    mockCurriculum.mockResolvedValue('nbf_snc');
+    mockLanguage.mockResolvedValue('ur');
+    const res = await step({ step: 'lp612_gb_soon', grade: '4', subject: 'science' });
+    expect(res.data.error.message).toMatch(/[\u0600-\u06FF]/);
+    expect(res.screen).toBeUndefined();
+    expect(mockCat.buildChapterItems).not.toHaveBeenCalled();
+    expect(mockCat.buildSegmentItems).not.toHaveBeenCalled();
   });
 
   test('an ICT teacher keeps her picker and K-5 corpus; her 6-12 calls are #4091\'s ICT calls', async () => {
