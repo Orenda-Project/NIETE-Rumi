@@ -1,3 +1,4 @@
 {"ts":"2026-11-05T16:38:09Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan,language spec_sync=true","sha":"545e2093d684","branch":"bd-5jmnfj.38.25.2-create","user":""}
 {"ts":"2026-11-05T16:38:12Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-5jmnfj.38.25.2-create: menu spec: NOT UPDATED e2e: missing","sha":"545e2093d684","branch":"bd-5jmnfj.38.25.2-create","user":""}
 {"ts":"2026-11-05T16:38:25Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-5jmnfj.38.25.2-create: menu spec: NOT UPDATED e2e: missing","sha":"545e2093d684","branch":"bd-5jmnfj.38.25.2-create","user":""}
+{"ts":"2026-11-05T16:38:41Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-5jmnfj.38.25.2-create: menu spec: NOT UPDATED e2e: missing","sha":"545e2093d684","branch":"bd-5jmnfj.38.25.2-create","user":""}
