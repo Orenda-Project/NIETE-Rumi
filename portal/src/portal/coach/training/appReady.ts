@@ -93,6 +93,9 @@ const ALWAYS_OPEN: readonly RegExp[] = [
   /^\/portal\/fln(\/|$)/,
   // bd-tbprit.6 — the disagreement card and its list; the page turns away anyone without coach_disagreement_card.
   /^\/portal\/coach\/disagreements(\/[^/]+)?$/,
+  // Coach reports in the app — her debrief report and her week; the page turns away anyone without coach_reports_app.
+  /^\/portal\/coach\/report\/[^/]+$/,
+  /^\/portal\/coach\/week(\/[^/]+)?$/,
 ];
 
 const trimmed = (p: string) => p.replace(/\/+$/, "") || "/";
