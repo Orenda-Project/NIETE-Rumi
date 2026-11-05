@@ -1,0 +1,134 @@
+/**
+ * The portal's lesson menu and assessment form follow the teacher's books (bd-97daxo.4).
+ *
+ * The portal forwards its SESSION's teacher as body.userId. The bot turns her into her region's book
+ * list and hands it to the browse service; no userId (an older portal build) is today's call exactly.
+ *
+ * Assessments are keyed by book: the generator reads ICT's books (English, Urdu, Maths, Science and the
+ * Urdu-medium GK and Social Studies), so a GB teacher is offered a G1-5 subject only where that ICT
+ * book is on her list — Islamiat. Her NBF books have no assessment content yet (separate bead).
+ */
+const KEY = 'book-shelf-key';
+const GB_KEYS = ['gb_g1_english', 'gb_g1_urdu', 'gb_g1_maths', 'grade_1_general_knowledge_en', 'grade_1_islamiat'];
+let router;
+let Browse;
+let AssessmentBrowse;
+
+function findRoute(r, method, p) {
+  for (const layer of r.stack) {
+    if (layer.route && (layer.route.methods || {})[method] && layer.route.path === p) {
+      return layer.route.stack.map((s) => s.handle);
+    }
+  }
+  return null;
+}
+
+async function invoke(p, body) {
+  const stack = findRoute(router, 'post', p);
+  const req = { headers: { 'x-api-key': KEY }, body, ip: '127.0.0.1', method: 'POST', path: p };
+  let statusCode = 200;
+  let payload = null;
+  const res = { status(c) { statusCode = c; return this; }, json(b) { payload = b; return this; } };
+  let advanced = true;
+  for (const handler of stack) {
+    if (!advanced) break;
+    advanced = false;
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((resolve) => {
+      const maybe = handler(req, res, () => { advanced = true; resolve(); });
+      if (maybe && typeof maybe.then === 'function') maybe.then(() => resolve(), () => resolve());
+      else if (!advanced) resolve();
+    });
+  }
+  return { statusCode, payload };
+}
+
+beforeEach(() => {
+  jest.resetModules();
+  process.env.INTERNAL_API_KEY = KEY;
+  jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
+  jest.doMock('../../bot/shared/config/supabase', () => ({ from: jest.fn() }));
+  jest.doMock('../../bot/shared/config/feature-flags', () => ({
+    ...jest.requireActual('../../bot/shared/config/feature-flags'),
+    isAssessmentTopicCtaEnabled: jest.fn(async () => false),
+    isAssessmentFdePatternEnabled: jest.fn(async () => false),
+  }));
+  jest.doMock('../../bot/shared/services/teacher-books.service', () => ({
+    ...jest.requireActual('../../bot/shared/services/teacher-books.service'),
+    bookKeysForUser: jest.fn(async (id) => (id === 'gb-teacher' ? GB_KEYS : null)),
+  }));
+  jest.doMock('../../bot/shared/services/lp-v8-browse.service', () => ({
+    listGrades: jest.fn(async () => [{ grade: 1, subject_count: 2 }]),
+    listSubjects: jest.fn(async () => []),
+    listChapters: jest.fn(async () => []),
+    listLessons: jest.fn(async () => []),
+  }));
+  jest.doMock('../../bot/shared/services/assessment/assessment-browse.service', () => ({
+    listGrades: jest.fn(async () => [1, 2, 3, 4, 5]),
+    listSubjects: jest.fn(async () => ['english', 'urdu', 'maths', 'general_knowledge', 'islamiat']
+      .map((s) => ({ subject_key: s, subject: s }))),
+    questionOptions: () => ({ types: [], maxQuestions: 50, defaultQuestions: 15 }),
+    bookFor: jest.fn(async () => ({ id: 'book-1', total_pages: 100 })),
+    listChapters: jest.fn(async () => [{ chapter_number: 1, chapter_title: 'One', page_start: 1, page_end: 9 }]),
+  }));
+  router = require('../../bot/shared/routes/internal-api.routes');
+  Browse = require('../../bot/shared/services/lp-v8-browse.service');
+  AssessmentBrowse = require('../../bot/shared/services/assessment/assessment-browse.service');
+});
+
+afterEach(() => {
+  delete process.env.INTERNAL_API_KEY;
+  jest.resetModules();
+});
+
+describe('lesson menu', () => {
+  test("a GB teacher's portal call carries her book list to every browse step", async () => {
+    await invoke('/lp/v8/grades', { userId: 'gb-teacher' });
+    await invoke('/lp/v8/subjects', { userId: 'gb-teacher', grade: 1 });
+    await invoke('/lp/v8/chapters', { userId: 'gb-teacher', grade: 1, subjectKey: 'english' });
+    await invoke('/lp/v8/lessons', { userId: 'gb-teacher', grade: 1, subjectKey: 'english', chapterNumber: 1 });
+    expect(Browse.listGrades).toHaveBeenLastCalledWith(GB_KEYS);
+    expect(Browse.listSubjects).toHaveBeenLastCalledWith(1, GB_KEYS);
+    expect(Browse.listChapters).toHaveBeenLastCalledWith(1, 'english', GB_KEYS);
+    expect(Browse.listLessons).toHaveBeenLastCalledWith(1, 'english', 1, 'gb-teacher', GB_KEYS);
+  });
+
+  test('an ICT teacher, or no userId, is the call it always was', async () => {
+    for (const body of [{ userId: 'sector-teacher' }, {}]) {
+      await invoke('/lp/v8/subjects', { ...body, grade: 1 });
+      expect(Browse.listSubjects).toHaveBeenLastCalledWith(1);
+      await invoke('/lp/v8/chapters', { ...body, grade: 1, subjectKey: 'english' });
+      expect(Browse.listChapters).toHaveBeenLastCalledWith(1, 'english');
+    }
+    await invoke('/lp/v8/grades', {});
+    expect(Browse.listGrades).toHaveBeenLastCalledWith();
+  });
+
+  test('a review chapter (R1) is a chapter the lessons route accepts', async () => {
+    const { statusCode } = await invoke('/lp/v8/lessons', { userId: 'gb-teacher', grade: 1, subjectKey: 'english', chapterNumber: 'R1' });
+    expect(statusCode).toBe(200);
+    expect(Browse.listLessons).toHaveBeenLastCalledWith(1, 'english', 'R1', 'gb-teacher', GB_KEYS);
+    const bad = await invoke('/lp/v8/lessons', { grade: 1, subjectKey: 'english', chapterNumber: 'x; drop' });
+    expect(bad.statusCode).toBe(400);
+  });
+});
+
+describe('assessments', () => {
+  test('G1-5: a GB teacher is offered only the subjects whose ICT book is on her list', async () => {
+    const { payload } = await invoke('/assessment/options', { userId: 'gb-teacher', grade: 1 });
+    expect(payload.subjects.map((s) => s.subject_key)).toEqual(['islamiat']);
+  });
+
+  test('an ICT teacher keeps every subject', async () => {
+    const { payload } = await invoke('/assessment/options', { userId: 'sector-teacher', grade: 1 });
+    expect(payload.subjects.map((s) => s.subject_key)).toEqual(['english', 'urdu', 'maths', 'general_knowledge', 'islamiat']);
+  });
+
+  test("a GB teacher's English (an NBF book, no assessment content) is refused, Islamiat is not", async () => {
+    const eng = await invoke('/assessment/chapters', { userId: 'gb-teacher', grade: 1, subject: 'english' });
+    expect(eng.statusCode).toBe(400);
+    const isl = await invoke('/assessment/chapters', { userId: 'gb-teacher', grade: 1, subject: 'islamiat' });
+    expect(isl.statusCode).toBe(200);
+    expect(AssessmentBrowse.listChapters).toHaveBeenCalledWith(1, 'islamiat');
+  });
+});
