@@ -15,6 +15,7 @@ import { LESSONS_ALL, LESSONS_NEW } from './paths';
 import { recentGroups } from './recent';
 import { useLessonsLeader } from './audience';
 import { FlnBand } from '../../fln/FlnBand';
+import { RegionCard } from './RegionCard';
 
 /**
  * bd-fmf24g.3 — the teacher v2 Lesson Plans main page. bd-fgj73x — in the Assessment flow (AssessmentHub), the
@@ -62,6 +63,9 @@ export function LessonsHomePage() {
       </Link>
 
       {leader ? <FlnBand /> : null}
+
+      {/* bd-rj6w0n.14.2: asks once, only when nothing names her region (dark unless LP_GB_K5_ENABLED). */}
+      {leader ? null : <RegionCard />}
 
       {!leader && making.length > 0 && (
         <>
