@@ -3,12 +3,13 @@
  * bd-rj6w0n.14.2 — the ICT-or-GB choice on the teacher app's Lesson Plans page (the in-app browser page
  * she already opens), never a WhatsApp question: every WhatsApp message costs money.
  *
- *   GET  /api/portal/teacher/region   -> { success, region, ask, schools }
+ *   GET  /api/portal/teacher/region   -> { success, region, ask, sectors, schools }
  *        ask is true only when no signal names her region (users.source, users.region, her school);
- *        schools = the active GB schools for the picker, only when ask.
- *   POST /api/portal/teacher/region   { region: 'ict' | 'gb', schoolId? } -> { success, region, saved }
- *        stores users.region ('ICT' | 'Gilgit-Baltistan') only while it is unknown, and a GB school
- *        only when users.school_id is empty. Asked once: a known region is never overwritten.
+ *        sectors = the registry's ICT regions, schools = the active GB schools, both only when ask.
+ *   POST /api/portal/teacher/region   { region: 'ict', sector } | { region: 'gb', schoolId? } -> { success, region, saved }
+ *        stores users.region spelt as the region registry (region_features.display_name, bd-97daxo.2) does:
+ *        her ICT sector, or the GB region. Only while it is unknown, and a GB school only when
+ *        users.school_id is empty. Asked once: a known region is never overwritten.
  *
  * Dark (404, nothing read) unless LP_GB_K5_ENABLED is 'true'. The teacher is always the session's user.
  */
@@ -17,15 +18,24 @@ const { installLivePortalAccounts } = require('../fixtures/portal-auth-live');
 
 const TEACHER = 'user-teacher-1';
 
-/** A tiny in-memory Supabase: users and schools, select/eq/maybeSingle/order/update. */
+const REGISTRY = [
+  { region: 'b.k', organization: 'niete', display_name: 'B.K', sort_order: 1, is_active: true },
+  { region: 'sihala', organization: 'niete', display_name: 'Sihala', sort_order: 2, is_active: true },
+  { region: 'tarnol', organization: 'niete', display_name: 'Tarnol', sort_order: 6, is_active: true },
+  { region: 'gilgit-baltistan', organization: 'moawin', display_name: 'Gilgit-Baltistan', sort_order: 1, is_active: true },
+  { region: 'niete', organization: null, display_name: null, sort_order: null, is_active: true },
+];
+
+/** A tiny in-memory Supabase: region_features, users and schools; select/eq/in/maybeSingle/order/update. */
 function fakeSupabase(world) {
   const writes = [];
   const reads = [];
   const from = (table) => {
     reads.push(table);
     const q = { filters: [], patch: null };
-    const rows = () => (world[table] || []).filter((r) => q.filters.every(([c, v]) => r[c] === v));
-    q.select = () => q;
+    const rows = () => (world[table] || []).filter((r) => q.filters.every(([c, v]) => (typeof v === 'function' ? v(r[c]) : r[c] === v)));
+    q.select = () => (table === 'region_features' ? Promise.resolve({ data: REGISTRY, error: null }) : q);
+    q.in = (c, vs) => { q.filters.push([c, (v) => vs.includes(v)]); return q; };
     q.order = () => Promise.resolve({ data: rows().slice().sort((a, b) => a.name.localeCompare(b.name)), error: null });
     q.update = (patch) => { q.patch = patch; return q; };
     q.eq = (c, v) => {
@@ -48,20 +58,31 @@ const GB_SCHOOLS = [
   { id: 's-gb-1', name: 'GBPS Alpha', region: 'Gilgit-Baltistan', is_active: true, is_probable_test: false },
   { id: 's-gb-old', name: 'GBPS Closed', region: 'Gilgit-Baltistan', is_active: false, is_probable_test: false },
   { id: 's-gb-test', name: 'GBPS Test', region: 'Gilgit-Baltistan', is_active: true, is_probable_test: true },
-  { id: 's-ict', name: 'IMS Sihala', region: 'ICT', is_active: true, is_probable_test: false },
+  { id: 's-ict', name: 'IMS Sihala', region: 'Sihala', is_active: true, is_probable_test: false },
+  { id: 's-odd', name: 'School Elsewhere', region: 'GB', is_active: true, is_probable_test: false },
 ];
 
 const world = (user) => ({ users: [{ id: TEACHER, region: null, source: 'direct', school_id: null, ...user }], schools: GB_SCHOOLS.map((s) => ({ ...s })) });
 const S = () => require('../../dashboard/services/teacher-region.service');
+
+const SECTORS = ['B.K', 'Sihala', 'Tarnol'];
 
 beforeEach(() => { jest.resetModules(); delete process.env.LP_GB_K5_ENABLED; });
 
 /* ── the service ───────────────────────────────────────────────────────── */
 
 describe('regionState', () => {
-  test('unknown: ask, with the active non-test GB schools by name', async () => {
+  test('unknown: ask, with the registry ICT sectors and the active non-test GB schools by name', async () => {
     const st = await S().regionState(fakeSupabase(world({})), TEACHER);
-    expect(st).toEqual({ region: 'unknown', ask: true, schools: [{ id: 's-gb-1', name: 'GBPS Alpha' }, { id: 's-gb-2', name: 'GBPS Zeta' }] });
+    expect(st).toEqual({
+      region: 'unknown', ask: true, sectors: SECTORS,
+      schools: [{ id: 's-gb-1', name: 'GBPS Alpha' }, { id: 's-gb-2', name: 'GBPS Zeta' }],
+    });
+  });
+
+  test("a value the registry does not hold ('GB', 'ICT') is not a region: she is asked", async () => {
+    expect((await S().regionState(fakeSupabase(world({ region: 'GB' })), TEACHER)).ask).toBe(true);
+    expect((await S().regionState(fakeSupabase(world({ region: 'ICT' })), TEACHER)).ask).toBe(true);
   });
 
   test.each([
@@ -73,7 +94,7 @@ describe('regionState', () => {
   ])('%s: known, never asked, no school list read', async (_n, user, region) => {
     const sb = fakeSupabase(world(user));
     const st = await S().regionState(sb, TEACHER);
-    expect(st).toEqual({ region, ask: false, schools: [] });
+    expect(st).toEqual({ region, ask: false, sectors: [], schools: [] });
   });
 
   test('no user row: unknown is not asked (nothing to save it on)', async () => {
@@ -83,11 +104,18 @@ describe('regionState', () => {
 });
 
 describe('saveChoice', () => {
-  test('ict: users.region ICT, nothing else', async () => {
+  test('ict: users.region = her sector as the registry spells it, nothing else', async () => {
     const sb = fakeSupabase(world({}));
-    expect(await S().saveChoice(sb, TEACHER, { region: 'ict' })).toEqual({ status: 200, body: { success: true, region: 'ict', saved: true } });
-    expect(sb.writes).toEqual([{ table: 'users', id: TEACHER, patch: { region: 'ICT' } }]);
+    expect(await S().saveChoice(sb, TEACHER, { region: 'ict', sector: 'Sihala' })).toEqual({ status: 200, body: { success: true, region: 'ict', saved: true } });
+    expect(sb.writes).toEqual([{ table: 'users', id: TEACHER, patch: { region: 'Sihala' } }]);
   });
+
+  test.each([[{ region: 'ict' }], [{ region: 'ict', sector: 'ICT' }], [{ region: 'ict', sector: 'Gilgit-Baltistan' }], [{ region: 'ict', sector: 'sihala ' }]])(
+    'ict without a registry sector %j: 400, nothing written', async (body) => {
+      const sb = fakeSupabase(world({}));
+      expect((await S().saveChoice(sb, TEACHER, body)).status).toBe(400);
+      expect(sb.writes).toEqual([]);
+    });
 
   test('gb with a GB school: region and school in one write', async () => {
     const sb = fakeSupabase(world({}));
@@ -102,14 +130,14 @@ describe('saveChoice', () => {
   });
 
   test.each([
-    ['an ICT school', 's-ict'], ['an inactive school', 's-gb-old'], ['a test school', 's-gb-test'], ['no such school', 's-none'],
+    ['an ICT school', 's-ict'], ['a school outside the registry', 's-odd'], ['an inactive school', 's-gb-old'], ['a test school', 's-gb-test'], ['no such school', 's-none'],
   ])('gb with %s: 400, nothing written', async (_n, schoolId) => {
     const sb = fakeSupabase(world({}));
     expect((await S().saveChoice(sb, TEACHER, { region: 'gb', schoolId })).status).toBe(400);
     expect(sb.writes).toEqual([]);
   });
 
-  test.each([[{}], [{ region: 'punjab' }], [{ region: 'ict', schoolId: 's-gb-1' }], [null]])('bad body %j: 400, nothing written', async (body) => {
+  test.each([[{}], [{ region: 'punjab' }], [{ region: 'ict', sector: 'Sihala', schoolId: 's-gb-1' }], [{ region: 'gb', sector: 'Sihala' }], [null]])('bad body %j: 400, nothing written', async (body) => {
     const sb = fakeSupabase(world({}));
     expect((await S().saveChoice(sb, TEACHER, body)).status).toBe(400);
     expect(sb.writes).toEqual([]);
@@ -197,7 +225,7 @@ describe('routes', () => {
     process.env.LP_GB_K5_ENABLED = 'true';
     const { statusCode, payload } = await invoke('get');
     expect(statusCode).toBe(200);
-    expect(payload).toMatchObject({ success: true, region: 'unknown', ask: true });
+    expect(payload).toMatchObject({ success: true, region: 'unknown', ask: true, sectors: SECTORS });
     expect(payload.schools).toHaveLength(2);
   });
 
@@ -205,7 +233,7 @@ describe('routes', () => {
     process.env.LP_GB_K5_ENABLED = 'true';
     const post = await invoke('post', { body: { region: 'gb', schoolId: 's-gb-2' } });
     expect(post).toEqual({ statusCode: 200, payload: { success: true, region: 'gb', saved: true } });
-    expect((await invoke('get')).payload).toEqual({ success: true, region: 'gb', ask: false, schools: [] });
+    expect((await invoke('get')).payload).toEqual({ success: true, region: 'gb', ask: false, sectors: [], schools: [] });
   });
 
   test('POST bad body: 400', async () => {
@@ -217,7 +245,7 @@ describe('routes', () => {
     process.env.LP_GB_K5_ENABLED = 'true';
     sb.from = () => { throw new Error('db down'); };
     expect((await invoke('get')).statusCode).toBe(502);
-    expect((await invoke('post', { body: { region: 'ict' } })).statusCode).toBe(502);
+    expect((await invoke('post', { body: { region: 'ict', sector: 'Sihala' } })).statusCode).toBe(502);
   });
 
   test('mounted at /api/portal by dashboard/index.js', () => {

@@ -5,8 +5,10 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
  * bd-rj6w0n.14.2 — the one-time ICT-or-GB choice, on the Lesson Plans page she already opens (no WhatsApp
  * question: every message costs money).
  *
- *   GET  /teacher/region  → { region, ask, schools: [{ id, name }] }   ask only when nothing names her region
- *   POST /teacher/region  { region: 'ict' | 'gb', schoolId? }          saved once, never asked again
+ *   GET  /teacher/region  → { region, ask, sectors: string[], schools: [{ id, name }] }   ask only when nothing names her region
+ *   POST /teacher/region  { region: 'ict', sector } | { region: 'gb', schoolId? }          saved once, never asked again
+ *
+ * ICT asks her sector (the region registry's ICT names, so users.region is spelt as the registry spells it).
  *
  * Nothing shows unless ask is true (flag off is a 404, a known region is ask false, a failed read is nothing).
  * GB opens the school picker; Save posts once and the card goes away.
@@ -19,11 +21,12 @@ import { RegionCard } from "./RegionCard";
 import { LESSONS_V2_COPY as C } from "./copy";
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
+const SECTORS = ["B.K", "Sihala", "Tarnol"];
 const SCHOOLS = [{ id: "s-1", name: "GBPS Alpha" }, { id: "s-2", name: "GBPS Zeta" }];
 
 beforeEach(() => {
   vi.clearAllMocks();
-  http.get.mockResolvedValue({ data: { success: true, region: "unknown", ask: true, schools: SCHOOLS } });
+  http.get.mockResolvedValue({ data: { success: true, region: "unknown", ask: true, sectors: SECTORS, schools: SCHOOLS } });
   http.post.mockResolvedValue({ data: { success: true, region: "gb", saved: true } });
 });
 
@@ -56,13 +59,17 @@ describe("RegionCard", () => {
     await empty(container);
   });
 
-  it("ICT: Save posts ict once and the card goes", async () => {
+  it("ICT: the sector picker; no Save until a sector; Save posts it once and the card goes", async () => {
     const { container } = render(<RegionCard />);
     fireEvent.click(await screen.findByRole("button", { name: C.region.ict }));
+    const picker = screen.getByRole("combobox", { name: C.region.sector });
+    expect(Array.from((picker as HTMLSelectElement).options).map((o) => o.textContent)).toEqual([C.region.pick, ...SECTORS]);
+    expect((screen.getByRole("button", { name: C.region.save }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(picker, { target: { value: "Sihala" } });
     fireEvent.click(screen.getByRole("button", { name: C.region.save }));
     await waitFor(() => expect(container.innerHTML).toBe(""));
     expect(http.post).toHaveBeenCalledTimes(1);
-    expect(http.post).toHaveBeenCalledWith("/teacher/region", { region: "ict" });
+    expect(http.post).toHaveBeenCalledWith("/teacher/region", { region: "ict", sector: "Sihala" });
   });
 
   it("GB: the school picker; Save posts the school", async () => {
@@ -92,7 +99,7 @@ describe("RegionCard", () => {
   it("a failed save: the card goes anyway, never an error", async () => {
     http.post.mockRejectedValue(new Error("502"));
     const { container } = render(<RegionCard />);
-    fireEvent.click(await screen.findByRole("button", { name: C.region.ict }));
+    fireEvent.click(await screen.findByRole("button", { name: C.region.gb }));
     fireEvent.click(screen.getByRole("button", { name: C.region.save }));
     await waitFor(() => expect(container.innerHTML).toBe(""));
   });
