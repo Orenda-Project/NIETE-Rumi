@@ -19,6 +19,7 @@
 const fs = require('fs');
 const path = require('path');
 const { normalisePkPhone, planRosterWrites, PHONE_KEY } = require('./lib/gb-roster');
+const { regionsFor } = require('../bot/shared/services/region.service');
 
 function dep(name) {
   for (const r of ['bot', 'dashboard', '.']) {
@@ -52,10 +53,11 @@ async function main() {
     if (error) throw new Error(`users read failed: ${error.message}`);
     users.push(...(data || []));
   }
-  const { data: schools, error: sErr } = await sb.from('schools').select('id, emis').eq('region', 'Gilgit-Baltistan');
+  const gbRegions = await regionsFor(sb, 'gb'); // the registry's spelling (bd-97daxo.2); throws if unreadable
+  const { data: schools, error: sErr } = await sb.from('schools').select('id, emis').in('region', gbRegions);
   if (sErr) throw new Error(`schools read failed: ${sErr.message}`);
 
-  const { writes, counts } = planRosterWrites({ roster, users, schools: schools || [] });
+  const { writes, counts } = planRosterWrites({ roster, users, schools: schools || [], gbRegions });
   console.log(JSON.stringify({ project: ref, gbSchools: (schools || []).length, ...counts }, null, 2));
   if (!APPLY) { console.log(`DRY RUN — nothing written. ${writes.length} users would change. Pass --apply to write.`); return; }
 
