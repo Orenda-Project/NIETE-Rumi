@@ -75,9 +75,9 @@ export const SCHEDULE_COPY = {
   change: 'Change',
   profile: 'Profile',
   searchPlaceholder: 'Name or phone',
-  hitl: 'HITL',
-  dc: 'DC',
-  avgHitl: 'Avg. HITL Score',
+  hitl: 'Observations',
+  dc: 'Digital Coaching',
+  avgHitl: 'Coach score (avg.)',
   training: 'Training',
 
   /* day and time */
@@ -154,9 +154,9 @@ export const SCHEDULE_COPY_UR: ScheduleCopy = {
   change: 'تبدیل کریں',
   profile: 'پروفائل',
   searchPlaceholder: 'نام یا فون',
-  hitl: 'HITL',
-  dc: 'ڈیجیٹل کوچ',
-  avgHitl: 'اوسط HITL اسکور',
+  hitl: 'مشاہدات',
+  dc: 'ڈیجیٹل کوچنگ',
+  avgHitl: 'کوچ اسکور (اوسط)',
   training: 'ٹریننگ',
 
   day: 'دن',
@@ -175,6 +175,6 @@ export const SCHEDULE_COPY_UR: ScheduleCopy = {
 export const SCHEDULE = bilingual(SCHEDULE_COPY, SCHEDULE_COPY_UR);
 
 /** Paths rightly the same in both languages. */
-export const SAME: readonly string[] = ['dash', 'hitl', 'dayShort'];
+export const SAME: readonly string[] = ['dash', 'dayShort'];
 
 export const COPY_ENTRY = { screen: 'Coach · Schedule', module: SCHEDULE as Bilingual<unknown>, same: SAME } as const;

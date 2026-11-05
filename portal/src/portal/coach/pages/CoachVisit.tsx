@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { CalendarDays, MapPin, User, X } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
 import { HistoryRow, RecordUploadPair, StatStrip } from "../../teacher/ui";
@@ -10,6 +10,8 @@ import { coach, leader } from "../../services/api";
 import { Card, SectionLabel, Loading, Failed, useLoad, Chevron, formatPhone } from "../ui";
 import { hoursUntil, karachiDay } from "../time";
 import { OBSERVE } from "../observe/copy";
+import { SCHEDULE } from "../schedule/copy";
+import { FROM_OBSERVE } from "../../teacher/menu";
 import { dayMonth, dayShort, daysShort, pct } from "../observe/format";
 import ObservePage from "../observe/ObservePage";
 import { sendingPath, useSendJob } from "../observe/sender";
@@ -77,6 +79,11 @@ const CoachVisit = () => {
 
   const isToday = visit?.scheduledFor === today;
   const h = isToday ? hoursUntil(visit?.scheduledSlot) : null;
+  // bd-jjcofw.10 (M5) — a visit is her schedule's (crumb My schedule, menu Schedule); opened from Observe's list
+  // (?from=observe) it stays Observe's.
+  const [params] = useSearchParams();
+  const fromObserve = params.get("from") === FROM_OBSERVE;
+  const S = useCopy(SCHEDULE);
   const upcoming = visit?.status === "upcoming";
   const name = visit?.teacherName || teacher?.name || C.dash;
   const phone = formatPhone(teacher?.phone || visit?.teacherExtId);
@@ -84,8 +91,8 @@ const CoachVisit = () => {
 
   return (
     <ObservePage title={name} feature="observations"
-      crumb={`${C.takeObservation} · ${visit?.scheduledFor ? dayShort(visit.scheduledFor, C) : ""}`}
-      backTo="/portal/coach/observe/pick">
+      crumb={`${fromObserve ? C.takeObservation : S.mySchedule} · ${visit?.scheduledFor ? dayShort(visit.scheduledFor, C) : ""}`}
+      backTo={fromObserve ? "/portal/coach/observe/pick" : "/portal/coach/schedule"}>
       {failed && <Failed onRetry={reload} />}
       {!data && !failed && <Loading />}
       {visit && (

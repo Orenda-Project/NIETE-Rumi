@@ -59,11 +59,11 @@ const LOOK_ITEM =
  */
 const TeacherNavigation = ({ role = "teacher", ready, schoolCard = false, fullApp = false }: { role?: MenuRole; ready?: readonly string[]; schoolCard?: boolean; fullApp?: boolean } = {}) => {
   const C = useCopy(TEACHER_FRAME);
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const items: { feature: string; label: string; to: string; glyph: GlyphName }[] = role === "coach"
     ? (schoolCard ? (fullApp ? COACH_CARD_FULL_NAV_KEYS : COACH_CARD_NAV_KEYS) : ready ? coachNavKeysFor(ready) : COACH_NAV_KEYS).map((k) => ({ feature: k, label: C.coachNav[k], to: COACH_MENU_PATHS[k], glyph: COACH_ICONS[k] }))
     : ITEMS.map((f) => ({ feature: f, label: C.nav[f], to: teacherPath(f), glyph: NAV_ICONS[f] }));
-  const current: string | null = role === "coach" ? (schoolCard ? currentCoachCardItem(pathname) : currentCoachMenuItem(pathname)) : currentMenuItem(pathname);
+  const current: string | null = role === "coach" ? (schoolCard ? currentCoachCardItem(pathname, search) : currentCoachMenuItem(pathname, search)) : currentMenuItem(pathname);
   // The Home look reaches the teacher's phone bar only; a coach's menu never reads it (nothing is asked, always off).
   const userKey = useContext(AuthContext)?.user?.phoneNumber;
   const look = useHomeLook(role === "teacher" ? userKey : null, role === "teacher");

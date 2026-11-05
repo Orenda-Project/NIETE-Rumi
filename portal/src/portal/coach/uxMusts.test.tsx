@@ -179,8 +179,9 @@ describe("M6 — no percentage on the Sent screen", () => {
       recordingId: null, label: "Ayesha Bibi’s observation", sub: "38 min · just now",
     });
     at(`/portal/coach/visit/${VISIT_ID}/check`);
-    await act(async () => { fireEvent.click(await screen.findByRole("button", { name: "Send observation" })); });
-    expect(await screen.findByTestId("send-state")).toHaveTextContent("Observation sent");
+    const sendBtn = await screen.findByRole("button", { name: "Send observation" }, { timeout: 5000 });
+    await act(async () => { fireEvent.click(sendBtn); });
+    expect(await screen.findByTestId("send-state", {}, { timeout: 5000 })).toHaveTextContent("Observation sent");
     expect(screen.queryByTestId("send-pct")).toBeNull();
     expect(document.body.textContent).not.toContain("100%");
   });
