@@ -1,0 +1,2 @@
+{"ts":"2026-11-05T15:22:31Z","hook":"post-commit","event":"armed","switch":"","detail":"features=menu,training,lesson-plan,coaching,status,observe,child-test spec_sync=true","sha":"5ffdcb83ea9f","branch":"bd-rj6w0n.14-gb-sandbox","user":""}
+{"ts":"2026-11-05T15:22:41Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-rj6w0n.14-gb-sandbox: lesson-plan spec: NOT UPDATED e2e: missing","sha":"5ffdcb83ea9f","branch":"bd-rj6w0n.14-gb-sandbox","user":""}
