@@ -28,39 +28,55 @@ export function classTitle(c: TeacherClass, words: Pick<Words, 'grade'>): string
 
 export type ClassRow = {
   key: string;
-  /** A number for GradeSubjectButton's "Grade 4-A"; '' when the title is carried by `subject`. */
-  grade: number | '';
-  section: string;
-  subject: string;
+  /** The grade number on the row's tile; null for early years (the tile shows an icon). */
+  tile: number | null;
+  /** "Grade 4-A · Morning": the class, never a subject (bd-pqx8h9). */
+  title: string;
+  /** Line 2: Class teacher, or ''. */
   sub: string;
   to: string;
   first: boolean;
 };
 
-/**
- * One row per class: "Grade 4-A · <first subject>"; line 2 = her other subjects in that class, then
- * Class teacher. A class with no subject, or an early-years class, shows its title as the name.
- */
-export function classRows(classes: TeacherClass[], words: Words): ClassRow[] {
-  return classes.map((c, i) => {
-    const n = gradeNumber(c.gradeCode);
-    const labels = (c.subjects ?? []).map((s) => s.label).filter(Boolean);
-    const sub = [labels.slice(1).join(', '), c.isClassTeacher ? words.classTeacher : '']
-      .filter(Boolean).join(' · ');
-    const titled = n === null || labels.length === 0;
-    return {
-      key: c.classId,
-      grade: titled ? '' : n,
-      section: titled ? '' : (c.section ?? ''),
-      subject: titled ? [classTitle(c, words), labels[0]].filter(Boolean).join(' · ') : labels[0],
-      sub,
-      to: classPath(c.classId),
-      first: i === 0,
-    };
-  });
+type ShiftList = Pick<ClassesResponse, 'shifts'> | null | undefined;
+
+/** "Grade 4-A · Morning" — the class and its shift (the shift's label from GET /classes); no subject. */
+export function classLabel(c: TeacherClass, data: ShiftList, words: Pick<Words, 'grade'>): string {
+  const shift = (data?.shifts ?? []).find((s) => s.code === c.shiftCode)?.label;
+  return [classTitle(c, words), shift].filter(Boolean).join(' · ');
 }
 
-/** Class detail's chips: the shift (by its label), the session and Class teacher — only what it has. */
+/**
+ * bd-pqx8h9 — one row per class, titled by the class ("Grade 4-A · Morning"); Class teacher on line 2. Subjects a
+ * class may still carry from before are not shown: a class is grade, section and shift.
+ */
+export function classRows(classes: TeacherClass[], data: ShiftList, words: Words): ClassRow[] {
+  return classes.map((c, i) => ({
+    key: c.classId,
+    tile: gradeNumber(c.gradeCode),
+    title: classLabel(c, data, words),
+    sub: c.isClassTeacher ? words.classTeacher : '',
+    to: classPath(c.classId),
+    first: i === 0,
+  }));
+}
+
+/**
+ * bd-pqx8h9 — her class with this grade, section and shift in the current session, or null. Adding it again is
+ * not a new class (the server would quietly merge it), so Add a class says so instead of saving.
+ */
+export function mineAlready(
+  classes: TeacherClass[],
+  f: { gradeCode: string; section: string; shiftCode: string },
+  session: string | null | undefined,
+): TeacherClass | null {
+  const section = f.section.trim().toUpperCase();
+  return classes.find((c) => c.gradeCode === f.gradeCode
+    && (c.section ?? '').toUpperCase() === section
+    && c.shiftCode === f.shiftCode
+    && (!session || !c.sessionCode || c.sessionCode === session)) ?? null;
+}
+
 export function classChips(c: TeacherClass, data: Pick<ClassesResponse, 'shifts'> | null | undefined, words: Words): string[] {
   const shift = (data?.shifts ?? []).find((s) => s.code === c.shiftCode)?.label;
   return [shift, c.sessionCode || null, c.isClassTeacher ? words.classTeacher : null]
@@ -104,19 +120,20 @@ export type ClassForm = {
   gradeCode: string;
   section: string | null;
   shiftCode: string | null;
-  subjectCodes: string[];
   isClassTeacher: boolean;
 };
 
-/** POST /classes's body, or null until a class (grade) is chosen. No shift chosen → the server's default. */
+/**
+ * POST /classes's body, or null until a class, a section and a shift are all chosen (bd-pqx8h9: all three
+ * required; a class with no sections is section A). No subjects: the portal no longer asks for them.
+ */
 export function toCreatePayload(f: ClassForm): CreateClassPayload | null {
-  if (!f.gradeCode) return null;
-  const out: CreateClassPayload = {
+  if (!f.gradeCode || !f.section || !f.shiftCode) return null;
+  return {
     gradeCode: f.gradeCode,
-    section: f.section ?? null,
-    subjectCodes: [...f.subjectCodes],
+    section: f.section,
+    shiftCode: f.shiftCode,
+    subjectCodes: [],
     isClassTeacher: f.isClassTeacher,
   };
-  if (f.shiftCode) out.shiftCode = f.shiftCode;
-  return out;
 }

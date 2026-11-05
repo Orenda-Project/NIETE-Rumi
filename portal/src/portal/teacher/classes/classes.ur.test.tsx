@@ -97,10 +97,15 @@ describe("My Classes in Urdu", () => {
     expect(screen.queryByText("Save")).toBeNull();
   });
 
-  it("Add a class: the fields and Save class in Urdu", async () => {
+  it("Add a class: the fields, the year, the no-section note and Save class in Urdu; no subjects", async () => {
     at(CLASSES_ADD);
     expect(await screen.findByRole("button", { name: U.saveClass })).toBeTruthy();
-    expect(plain(document.body.textContent)).toContain(U.section);
+    const text = plain(document.body.textContent);
+    expect(text).toContain(U.section);
+    expect(text).toContain(U.year("2026-27"));
+    expect(text).toContain(U.noSectionNote);
+    expect(text).toContain(U.choose([U.classField, U.section, U.shift].join(U.listSep)));
+    expect(text).not.toContain("مضامین");
     expect(screen.queryByText("Save class")).toBeNull();
   });
 });

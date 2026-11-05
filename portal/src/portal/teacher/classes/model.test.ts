@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { ClassesResponse, RosterStudent, TeacherClass } from '../../types/portal';
 import type { GradeSubject } from '../../lib/gradeSubjects';
 import {
-  classChips, classRows, classTitle, gradeNumber, lessonPlansLink, rosterRows, toCreatePayload,
+  classChips, classLabel, classRows, classTitle, gradeNumber, lessonPlansLink, mineAlready, rosterRows, toCreatePayload,
 } from './model';
 import { classPath } from './paths';
 import { LESSONS_HOME } from '../lessons/paths';
@@ -38,23 +38,35 @@ describe('gradeNumber', () => {
   });
 });
 
-describe('classRows', () => {
-  it('one row per class: grade + section + first subject, other subjects and Class teacher on line 2, linking to the class', () => {
+const SHIFTS = { shifts: [{ code: 'morning', label: 'Morning' }, { code: 'evening', label: 'Evening' }] };
+
+describe('classRows (bd-pqx8h9: titled by the class, never a subject)', () => {
+  it('one row per class: "Grade 4-A · Morning", the grade number on the tile, Class teacher on line 2, linking to the class', () => {
     const rows = classRows([
       cls({ isClassTeacher: true }),
-      cls({ classId: 'c2', gradeCode: 'grade_5', section: 'B', subjects: [{ code: 'maths', label: 'Math' }, { code: 'english', label: 'English' }] }),
-    ], words);
+      cls({ classId: 'c2', gradeCode: 'grade_5', section: 'B', shiftCode: 'evening', subjects: [{ code: 'maths', label: 'Math' }, { code: 'english', label: 'English' }] }),
+    ], SHIFTS, words);
     expect(rows).toEqual([
-      { key: 'c1', grade: 4, section: 'A', subject: 'General Science', sub: 'Class teacher', to: classPath('c1'), first: true },
-      { key: 'c2', grade: 5, section: 'B', subject: 'Math', sub: 'English', to: classPath('c2'), first: false },
+      { key: 'c1', tile: 4, title: 'Grade 4-A · Morning', sub: 'Class teacher', to: classPath('c1'), first: true },
+      { key: 'c2', tile: 5, title: 'Grade 5-B · Evening', sub: '', to: classPath('c2'), first: false },
     ]);
   });
 
-  it('early years keeps its own label in place of a grade; a class with no subject still shows', () => {
-    const [row] = classRows([cls({ gradeCode: 'early_years', gradeLabel: 'Early Years', section: null, subjects: [] })], words);
-    expect(row.grade).toBe('');
-    expect(row.subject).toBe('Early Years');
-    expect(row.sub).toBe('');
+  it('early years keeps its own label and no number; no section, no shift label → just what there is', () => {
+    const [row] = classRows([cls({ gradeCode: 'early_years', gradeLabel: 'Early Years', section: null, shiftCode: 'night' })], SHIFTS, words);
+    expect(row.tile).toBeNull();
+    expect(row.title).toBe('Early Years');
+    expect(classLabel(cls({ section: null }), SHIFTS, words)).toBe('Grade 4 · Morning');
+  });
+});
+
+describe('mineAlready', () => {
+  it('finds her class with the same grade, section and shift in this session; anything else is new', () => {
+    const mine = [cls(), cls({ classId: 'c2', sessionCode: '2025-26', gradeCode: 'grade_5' })];
+    expect(mineAlready(mine, { gradeCode: 'grade_4', section: 'a', shiftCode: 'morning' }, '2026-27')?.classId).toBe('c1');
+    expect(mineAlready(mine, { gradeCode: 'grade_4', section: 'A', shiftCode: 'evening' }, '2026-27')).toBeNull();
+    expect(mineAlready(mine, { gradeCode: 'grade_4', section: 'B', shiftCode: 'morning' }, '2026-27')).toBeNull();
+    expect(mineAlready(mine, { gradeCode: 'grade_5', section: 'A', shiftCode: 'morning' }, '2026-27')).toBeNull();
   });
 });
 
@@ -105,12 +117,12 @@ describe('rosterRows', () => {
   });
 });
 
-describe('toCreatePayload', () => {
-  it('needs a grade; sends section, shift, subjects and class teacher as chosen', () => {
-    expect(toCreatePayload({ gradeCode: '', section: null, shiftCode: null, subjectCodes: [], isClassTeacher: false })).toBeNull();
-    expect(toCreatePayload({ gradeCode: 'grade_4', section: 'A', shiftCode: 'morning', subjectCodes: ['science'], isClassTeacher: true }))
-      .toEqual({ gradeCode: 'grade_4', section: 'A', shiftCode: 'morning', subjectCodes: ['science'], isClassTeacher: true });
-    expect(toCreatePayload({ gradeCode: 'grade_4', section: null, shiftCode: null, subjectCodes: [], isClassTeacher: false }))
-      .toEqual({ gradeCode: 'grade_4', section: null, subjectCodes: [], isClassTeacher: false });
+describe('toCreatePayload (bd-pqx8h9)', () => {
+  it('needs a class, a section and a shift; sends no subjects', () => {
+    expect(toCreatePayload({ gradeCode: '', section: 'A', shiftCode: 'morning', isClassTeacher: false })).toBeNull();
+    expect(toCreatePayload({ gradeCode: 'grade_4', section: null, shiftCode: 'morning', isClassTeacher: false })).toBeNull();
+    expect(toCreatePayload({ gradeCode: 'grade_4', section: 'A', shiftCode: null, isClassTeacher: false })).toBeNull();
+    expect(toCreatePayload({ gradeCode: 'grade_4', section: 'A', shiftCode: 'morning', isClassTeacher: true }))
+      .toEqual({ gradeCode: 'grade_4', section: 'A', shiftCode: 'morning', subjectCodes: [], isClassTeacher: true });
   });
 });

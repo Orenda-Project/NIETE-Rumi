@@ -10,6 +10,10 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
  * bd-ql2j3p — Remove class: DELETE /classes/:id (the bot decides whether that retires the class or
  * takes her off it).
  *
+ * bd-pqx8h9 — Add a class without subjects: class, section and shift all required ("No sections: choose A"),
+ * the year shown on top; a class she is already on answers "Already on your list" instead of a silent merge;
+ * My Classes rows and the class card are titled by the class ("Grade 4-A · Morning"), never a subject.
+ *
  * bd-mx822w — Edit a name: tap a child, the tray opens with the name box focused; Save sends
  * POST /classes/:id/students/:sid/name { name }. Remove student lives in that tray, after asking.
  */
@@ -87,11 +91,12 @@ describe("routes", () => {
 });
 
 describe("My Classes", () => {
-  it("her classes as Grade·Subject rows linking to each class, with the count, and Add a class", async () => {
+  it("her classes as class rows (Grade 4-A · Morning, no subject) linking to each class, with the count, and Add a class", async () => {
     render(<MemoryRouter><MyClassesPage /></MemoryRouter>);
-    const row = await screen.findByText("Grade 4-A · General Science");
+    const row = await screen.findByText("Grade 4-A · Morning");
     expect(row.closest("a")?.getAttribute("href")).toBe(classPath("c1"));
-    expect(screen.getByText("Grade 5-B · Math")).toBeTruthy();
+    expect(screen.getByText("Grade 5-B · Morning")).toBeTruthy();
+    expect(screen.queryByText(/General Science|Math/)).toBeNull();
     expect(screen.getByText(C.classTeacher)).toBeTruthy();
     expect(screen.getByTestId("classes-count").textContent).toBe("2");
     expect(screen.getByRole("link", { name: C.addClass }).getAttribute("href")).toBe(CLASSES_ADD);
@@ -110,7 +115,7 @@ describe("My Classes", () => {
     api.list.mockRejectedValueOnce(new Error("502"));
     render(<MemoryRouter><MyClassesPage /></MemoryRouter>);
     fireEvent.click(await screen.findByRole("button", { name: C.tryAgain }));
-    expect(await screen.findByText("Grade 4-A · General Science")).toBeTruthy();
+    expect(await screen.findByText("Grade 4-A · Morning")).toBeTruthy();
   });
 });
 
@@ -128,6 +133,7 @@ describe("Class detail", () => {
       expect.stringContaining("Child 1"), expect.stringContaining("Child 2"), expect.stringContaining("Child 3"),
     ]);
     expect(screen.getByText("Raza Ahmed")).toBeTruthy();
+    expect(screen.queryByText(/General Science/)).toBeNull();
     expect(screen.getByTestId("students-count").textContent).toBe("3");
     expect(api.students).toHaveBeenCalledWith("c1");
   });
@@ -274,7 +280,7 @@ describe("Class detail", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: C.remove }));
     await waitFor(() => expect(api.removeClass).toHaveBeenCalledWith("c1"));
     await waitFor(() => expect(screen.getByTestId("classes-count").textContent).toBe("1"));
-    expect(screen.queryByText("Grade 4-A · General Science")).toBeNull();
+    expect(screen.queryByText("Grade 4-A · Morning")).toBeNull();
   });
 
   it("a refused Remove class says so and stays on the class", async () => {
@@ -296,29 +302,56 @@ describe("Class detail", () => {
 });
 
 describe("Add a class", () => {
-  it("class, section, shift, subjects and class teacher from GET /classes; Save posts them and returns to My Classes", async () => {
+  it("no subjects; the year on top; class, section and shift all required; Save posts them with no subjects and returns to My Classes", async () => {
     api.create.mockResolvedValue({ success: true, class: { classId: "c9", gradeCode: "grade_4", section: "B", sessionCode: "2026-27" } });
     at(CLASSES_ADD);
     const save = await screen.findByRole("button", { name: C.saveClass });
+    expect(screen.getByText(C.year("2026-27"))).toBeTruthy();
+    expect(screen.getByText(C.noSectionNote)).toBeTruthy();
+    expect(screen.queryByRole("group", { name: /Subjects/ })).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: "Math" })).toBeNull();
     expect((save as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(C.choose([C.classField, C.section, C.shift].join(C.listSep)))).toBeTruthy();
     fireEvent.click(screen.getByRole("radio", { name: "Grade 4" }));
     fireEvent.click(screen.getByRole("radio", { name: "B" }));
+    expect((save as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(C.choose(C.shift))).toBeTruthy();
+    // A section stays chosen: tapping it again does not clear it (a section is required).
+    fireEvent.click(screen.getByRole("radio", { name: "B" }));
+    expect(screen.getByRole("radio", { name: "B" }).getAttribute("aria-checked")).toBe("true");
     fireEvent.click(screen.getByRole("radio", { name: "Evening" }));
-    fireEvent.click(screen.getByRole("checkbox", { name: "Math" }));
     fireEvent.click(screen.getByRole("checkbox", { name: C.iAmClassTeacher }));
     expect((save as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByText(/^Select/)).toBeNull();
     fireEvent.click(save);
     await waitFor(() => expect(api.create).toHaveBeenCalledWith({
-      gradeCode: "grade_4", section: "B", shiftCode: "evening", subjectCodes: ["maths"], isClassTeacher: true,
+      gradeCode: "grade_4", section: "B", shiftCode: "evening", subjectCodes: [], isClassTeacher: true,
     }));
     expect(await screen.findByRole("heading", { name: C.title })).toBeTruthy();
     await waitFor(() => expect(api.list).toHaveBeenCalledTimes(2));
+  });
+
+  it("a class she is already on: no save, Already on your list with the class, Open class and Back", async () => {
+    at(CLASSES_ADD);
+    fireEvent.click(await screen.findByRole("radio", { name: "Grade 4" }));
+    fireEvent.click(screen.getByRole("radio", { name: "A" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Morning" }));
+    fireEvent.click(screen.getByRole("button", { name: C.saveClass }));
+    expect(await screen.findByText(C.alreadyOn)).toBeTruthy();
+    expect(screen.getByText("Grade 4-A · Morning")).toBeTruthy();
+    expect(api.create).not.toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: C.openClass }).getAttribute("href")).toBe(classPath("c1"));
+    fireEvent.click(screen.getByRole("button", { name: C.back }));
+    expect(screen.getByRole("button", { name: C.saveClass })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Grade 4" }).getAttribute("aria-checked")).toBe("true");
   });
 
   it("a refused save says so and stays", async () => {
     api.create.mockRejectedValue(new Error("400"));
     at(CLASSES_ADD);
     fireEvent.click(await screen.findByRole("radio", { name: "Grade 3" }));
+    fireEvent.click(screen.getByRole("radio", { name: "A" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Morning" }));
     fireEvent.click(screen.getByRole("button", { name: C.saveClass }));
     expect(await screen.findByText(C.saveFailed)).toBeTruthy();
   });

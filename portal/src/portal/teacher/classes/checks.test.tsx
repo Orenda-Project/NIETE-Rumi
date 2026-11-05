@@ -75,7 +75,7 @@ describe("classes: copy", () => {
 describe("classes: every target is 56px or more", () => {
   it("My Classes", async () => {
     const { container } = at(CLASSES_HOME);
-    await screen.findByText("Grade 4-A · General Science");
+    await screen.findByText("Grade 4-A · Morning");
     expect(tapProblems(container)).toEqual([]);
   });
 
@@ -102,9 +102,15 @@ describe("classes: every target is 56px or more", () => {
     expect(tapProblems(container)).toEqual([]);
   });
 
-  it("Add a class", async () => {
+  it("Add a class, and its Already on your list answer (bd-pqx8h9)", async () => {
     const { container } = at(CLASSES_ADD);
     await screen.findByRole("button", { name: CLASSES_V2_COPY.saveClass });
+    expect(tapProblems(container)).toEqual([]);
+    fireEvent.click(screen.getByRole("radio", { name: "Grade 4" }));
+    fireEvent.click(screen.getByRole("radio", { name: "A" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Morning" }));
+    fireEvent.click(screen.getByRole("button", { name: CLASSES_V2_COPY.saveClass }));
+    await screen.findByText(CLASSES_V2_COPY.alreadyOn);
     expect(tapProblems(container)).toEqual([]);
   });
 });
