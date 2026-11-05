@@ -4958,7 +4958,7 @@ COMMENT ON COLUMN schools.is_active IS
 CREATE TABLE IF NOT EXISTS niete_lp612_segments (
   segment_id            TEXT PRIMARY KEY,
   book_stem             TEXT    NOT NULL,
-  grade                 INTEGER NOT NULL CHECK (grade BETWEEN 6 AND 12),
+  grade                 INTEGER NOT NULL CHECK (grade BETWEEN 1 AND 12),  -- 1-5: GB NBF books (V1.9.0)
   subject               TEXT    NOT NULL,
   medium                TEXT,
   language              TEXT    NOT NULL DEFAULT 'en' CHECK (language IN ('en', 'ur')),
