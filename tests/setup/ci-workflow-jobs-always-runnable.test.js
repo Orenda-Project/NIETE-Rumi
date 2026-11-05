@@ -12,7 +12,7 @@
  * a header step emits a friendly `::notice::` annotation explaining what to
  * configure to enable the gated behaviour.
  *
- * (See `.github/workflows/deploy.yml` for the canonical step-level-gating shape.)
+ * (The shape: no job-level `if:`; the first step sets an output from the secret check, later steps read it.)
  *
  * This is a deterministic regex-based parser — does NOT require js-yaml. The
  * shape we forbid is narrow enough that regex is robust:
@@ -107,7 +107,7 @@ describe('CI workflows — jobs-always-runnable conformance', () => {
           `${file}: single job "${onlyJob.name}" has job-level \`if: ${onlyJob.ifClause}\` — ` +
           'move the gate to STEP level so the job always succeeds even when the secret is unset. ' +
           'Otherwise GitHub Actions reports "all-jobs-skipped" workflow runs as failed and sends ' +
-          '"No jobs were run" notification emails on every push. See `.github/workflows/deploy.yml` for the step-level-gating fix.'
+          '"No jobs were run" notification emails on every push. Gate at step level instead: let the job run and skip its steps.'
         );
       }
     }
