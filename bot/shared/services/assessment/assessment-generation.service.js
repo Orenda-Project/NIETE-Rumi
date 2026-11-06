@@ -612,7 +612,7 @@ function answerCoverage(examJson) {
 async function generateExam(args) {
   const { grade, subject, pageContent, pageReference,
           contentSource = 'unseen', questionCount, questionTypes = [], includeAnswerKey = false,
-          totalMarks = null, seenCount = null, slos = null } = args;
+          totalMarks = null, seenCount = null, slos = null, avoidQuestions = [] } = args;
 
   const key = canonical(subject) || 'eng';
   const family = URDU_MEDIUM.has(key) ? 'urdu' : 'eng';
@@ -629,7 +629,7 @@ async function generateExam(args) {
 
   const messages = [
     { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) + (honestBlooms ? APPLY_NOTE : '') },
-    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, slos }) },
+    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, slos }) + avoidNote(avoidQuestions) },
   ];
 
   logToFile('[assessment] generating', {
@@ -791,6 +791,7 @@ const { mendG5Urdu, g5UrduShortfall, g5UrduNote } = require('./fde-g5-urdu-mends
 const { mendUrduQ10 } = require('./fde-urdu-g5-checks'); const { mendPictureNames } = require('./fde-urdu-r3-checks'); const { mendUrduOpposites } = require('./fde-urdu-r4'); const { wholeMarks } = require('./fde-whole-marks'); // round 6 Urdu
 const { mendPlaceDigits } = require('./fde-place-digit'); // a key naming the wrong place digit (v37 G5 Maths Q2 i)
 const { urduPunctFixes } = require('./fde-urdu-punct'); // bd-5jmnfj.4.58.3
+const { avoidNote } = require('./repeat-guard');
 
 // Required on first use: the loader opens a database client, and the prompt
 // helpers above are loaded by tests and tools that have no database.
