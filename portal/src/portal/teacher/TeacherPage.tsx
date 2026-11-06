@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import PortalLayout from "../components/PortalLayout";
 import { TEACHER_FRAME } from "./copy";
 import { useCopy } from "./i18n";
@@ -7,6 +8,7 @@ import { FeatureArt, type AnyFeature } from "./icons";
 import { useLatinAttrs } from "@/lib/textDir";
 import { BackLink } from "../lib/useBack";
 import { cn } from "@/lib/utils";
+import { FOCUS } from "./ui/styles";
 
 /**
  * bd-fmf24g.1 — the teacher v2 page frame (canvas v28), for every teacher v2 page.
@@ -108,5 +110,30 @@ export function PageChip({ children, testId }: { children: ReactNode; testId?: s
     <span data-testid={testId} className="inline-flex h-[30px] items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3 text-[13px] font-semibold text-[#4b5563]">
       {children}
     </span>
+  );
+}
+
+/**
+ * bd-17v39c.4.15 — the TAPPABLE chip under a page title, beside the flat PageChips: it opens a page, and its chevron says
+ * so (the School card's "Principal: name ›"). 40px tall with an invisible 8px above and below, so the tap target is 56px.
+ * `hue` is a feature's colours from the kit (FEATURE_HUE), never one picked here. `dashed`: a gap to fill ("Principal:
+ * not recorded ›"), grey on no fill, still a link. `label` is what a screen reader hears.
+ */
+export function PageLinkChip({ to, state, label, hue, dashed = false, testId, children }: {
+  to: string; state?: unknown; label?: string; hue?: { fg: string; bg: string }; dashed?: boolean; testId?: string; children: ReactNode;
+}) {
+  const coloured = !dashed && hue;
+  return (
+    <Link to={to} state={state} data-testid={testId} aria-label={label}
+      style={coloured ? { color: hue.fg, background: hue.bg, borderColor: hue.bg } : undefined}
+      className={cn(
+        "relative inline-flex h-10 min-w-0 max-w-full items-center gap-1.5 rounded-full border ps-3 pe-2 text-[14px] font-semibold",
+        "after:absolute after:inset-x-0 after:-inset-y-2 after:content-['']",
+        dashed ? "border-dashed border-[#c4c8cf] bg-transparent text-[#6b7280]" : coloured ? "" : "border-[#e5e7eb] bg-white text-[#4b5563]",
+        FOCUS,
+      )}>
+      {children}
+      <ChevronRight className="h-4 w-4 shrink-0 rtl:rotate-180" aria-hidden="true" />
+    </Link>
   );
 }
