@@ -111,27 +111,8 @@ export function HeroCard({
 
 /* ── the bottom buttons ───────────────────────────────────────────────────── */
 
-export function DockButton({
-  children, icon: I, to, onClick, disabled, outline, testId, iconFlips,
-}: {
-  children: ReactNode;
-  icon?: Icon;
-  to?: string;
-  onClick?: () => void;
-  disabled?: boolean;
-  outline?: boolean;
-  testId?: string;
-  iconFlips?: boolean;
-}) {
-  const cls = cn(
-    'flex min-h-[56px] flex-1 items-center justify-center gap-2 rounded-2xl px-4 text-[16px] font-semibold',
-    disabled ? 'bg-[#e5e7eb] text-[#9ca3af]' : outline ? 'border border-[#e5e7eb] bg-white text-[#1d2025]' : 'bg-[#33374a] text-white',
-    FOCUS,
-  );
-  const icon = I ? <I className={cn('h-5 w-5', iconFlips && 'rtl:rotate-180')} strokeWidth={2.4} aria-hidden="true" /> : null;
-  if (to && !disabled) return <Link to={to} data-testid={testId} className={cls}>{icon}{children}</Link>;
-  return <button type="button" onClick={onClick} disabled={disabled} data-testid={testId} className={cls}>{icon}{children}</button>;
-}
+// bd-rlxkkt.9: DockButton lives in the kit now (../ui/DockButton), unchanged; re-exported so these imports stay.
+export { DockButton } from '../ui/DockButton';
 
 export function DockRow({ children }: { children: ReactNode }) {
   return <div className="flex w-full flex-col gap-2.5">{children}</div>;

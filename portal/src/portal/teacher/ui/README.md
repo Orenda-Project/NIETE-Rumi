@@ -466,6 +466,11 @@ the squares: Reschedule; Cancel visit in red), `copy?` (`startRecording`, `uploa
 (indigo, a beating red mark with two rings, only when the phone allows motion) and Upload recording (white). Teacher and coach use the same one.
 Its squares and box are `ChoicePair`'s.
 
+### `DockButton`
+`children`, `icon?` (a lucide icon), `to?` / `onClick?`, `disabled?`, `outline?`, `testId?`, `iconFlips?`. The 56px button in a page's dock (`TeacherPage`
+`dock`): indigo, `outline` for the second choice, grey while disabled. The Training pages' Mark done / Start quick check / Continue, and Coach
+Training's Mark done / Mark not done (bd-rlxkkt.9). Moved here unchanged from `training/parts.tsx`, which re-exports it.
+
 ### `ChoicePair`
 `items: [{ key, label, art, to?, onPress?, testId? }, …]` (exactly two), `compact?`. The same box and 176px squares as `RecordUploadPair`, both plain:
 white, the `art` (an icon) on the grey disc over the word. For a choice between two ways of doing one thing, with no heading. Coach Training's module
