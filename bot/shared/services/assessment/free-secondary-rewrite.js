@@ -12,8 +12,8 @@ const { items, answerText } = require('./free-secondary-checks');
 const { MEANING_RULE, SCHEME_RULE } = require('./free-secondary-rules');
 
 const CHECKS = new Set(['cross-leak', 'longest-key', 'absolute-option', 'scheme', 'weak-distractor',
-  'two-correct', 'odd-key', 'stem-grammar', 'long-sentence', 'long-stem']);
-const FIELDS = ['question', 'options', 'answer', 'marking_points', 'mark_bands', 'accept', 'reject'];
+  'two-correct', 'odd-key', 'stem-grammar', 'long-sentence', 'long-stem', 'part-levels']);
+const FIELDS = ['question', 'options', 'answer', 'marking_points', 'mark_bands', 'accept', 'reject', 'blooms', 'part_levels'];
 
 /** The issues a targeted rewrite fixes; the rest belong to the whole-paper revision. */
 function targets(issues) {
@@ -50,11 +50,13 @@ function prompt(examJson, list) {
   lines.push('Keep each item\'s kind, marks and lesson topic; you may test a different point of the lesson.',
     'An MCQ keeps four options of about the same length, the key no longer than the others; no always, never, only, or all/none of the above; every distractor is one a student who half-knows the lesson could pick.',
     'In an MCQ exactly one option is right and the other three are clearly wrong; every option completes the stem as one correct sentence; the key is never the odd one out of the four (three near-synonyms or three negatives against it).',
+    'An MCQ that gives away another item\'s answer (its key, or its options listing that answer) asks about a different fact of the lesson, so its key and options are no longer that answer.',
+    'A written item in labelled parts carries "part_levels": one thinking level per part, in order.',
     'Keep every sentence within the word limit the problem states; split a long sentence in two rather than drop what it asks.',
     MEANING_RULE,
     'A written item keeps marking points that add up to its marks.',
     SCHEME_RULE,
-    'Return JSON only: {"items":[{"n":<question number>,"question":"...","options":["a) ...","b) ...","c) ...","d) ..."],"answer":"...","marking_points":[{"point":"...","marks":1}],"mark_bands":[{"marks":"...","descriptor":"..."}],"accept":"...","reject":"..."}]} — options for MCQs only; marking points, mark bands, accept and reject for written items only.');
+    'Return JSON only: {"items":[{"n":<question number>,"question":"...","options":["a) ...","b) ...","c) ...","d) ..."],"answer":"...","marking_points":[{"point":"...","marks":1}],"mark_bands":[{"marks":"...","descriptor":"..."}],"accept":"...","reject":"...","blooms":"...","part_levels":["..."]}]} — options for MCQs only; marking points, mark bands, accept, reject and part_levels (items in parts) for written items only.');
   return lines.join('\n');
 }
 

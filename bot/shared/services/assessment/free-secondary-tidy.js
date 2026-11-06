@@ -5,7 +5,7 @@
  * these as leaked prompt text. A bracket that reads as an instruction is removed from the marking
  * points, band descriptors and accept note; a bracketed answer ("(پشاوری)", "(CO2, water)", "(a)")
  * and a marking note ("(do not accept O2)") stay. scenarioParts makes a nested scenario item print its
- * parts. Pure: mutates the paper it is given, no I/O.
+ * parts; oneDigitSystem prints an Urdu paper in one digit system. Pure: mutates the paper it is given, no I/O.
  */
 
 const BRACKET = /\s*\(([^()]*)\)/g;
@@ -67,4 +67,28 @@ function scenarioParts(examJson) {
   return changed;
 }
 
-module.exports = { stripInstructions, scenarioParts };
+const EASTERN = /[۰-۹٠-٩]/g;
+const western = (d) => String((d.charCodeAt(0) - (d >= '۰' ? 0x06f0 : 0x0660)));
+
+/**
+ * An Urdu paper in one digit system (a7 ruling): the chrome prints question numbers, marks and minutes
+ * in Western digits, so every Urdu or Arabic-Indic digit in the paper's text becomes Western (G8 a6
+ * printed "40 منٹ" above "۱۹۲۶ء"). Returns how many strings changed.
+ */
+function oneDigitSystem(examJson) {
+  let changed = 0;
+  const visit = (node) => {
+    if (!node || typeof node !== 'object') return;
+    Object.keys(node).forEach((k) => {
+      const v = node[k];
+      if (typeof v === 'string') {
+        const next = v.replace(EASTERN, western);
+        if (next !== v) { node[k] = next; changed += 1; }
+      } else visit(v);
+    });
+  };
+  visit(examJson);
+  return changed;
+}
+
+module.exports = { stripInstructions, scenarioParts, oneDigitSystem };

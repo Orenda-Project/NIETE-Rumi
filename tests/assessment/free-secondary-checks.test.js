@@ -216,3 +216,33 @@ describe('a one-word key that is the chapter vocabulary (G7 Q1 "Stem")', () => {
   });
 });
 
+
+describe('an MCQ whose options list a written answer (G8 a6 Q3 against Q6)', () => {
+  const q3 = mcq('عبدالستار ایدھی کی ایمبولینس سروس کو کس عالمی اعزاز میں شامل کیا گیا؟',
+    ['الف) لینن انعام', 'ب) رامون ماگسیسے ایوارڈ', 'ج) گنیز بک آف ورلڈ ریکارڈز', 'د) نشانِ امتیاز اعزاز'], 'ج) گنیز بک آف ورلڈ ریکارڈز');
+  const q6 = srq('عبدالستار ایدھی کو کون سے اعزازات ملے؟', 'رامون ماگسیسے ایوارڈ، لینن انعام، نشانِ امتیاز', { marking_points: points(1, 1, 1) });
+
+  it('flags the MCQ, avoiding the written item', () => {
+    const issues = C.paperIssues(paper([q3], [q6]), { grade: 8 });
+    expect(issues).toEqual([expect.objectContaining({ n: 1, check: 'cross-leak', avoid: [2] })]);
+    expect(issues[0].text).toMatch(/options/);
+  });
+  it('does not flag one shared option', () => {
+    const one = srq('ایدھی صاحب کو کون سا اعزاز ملا؟', 'لینن انعام ملا', { marking_points: points(1, 2) });
+    expect(checks(paper([q3], [one]), 8)).toEqual([]);
+  });
+});
+
+describe('levels per part (a7 ruling: tag every sub-part)', () => {
+  const parted = (extra) => srq('Xylem cells are dead.\na) Explain how xylem helps. (2 marks)\nb) Explain why phloem lives. (2 marks)\nc) Suggest a reason. (2 marks)',
+    '(a) x (b) y (c) z', { marks: 6, marking_points: points(2, 2, 2), ...extra });
+
+  it('flags an item in parts without a level for each part (G7 a6 Q7)', () => {
+    expect(checks(paper([], [parted({ blooms: 'Analyze' })]))).toEqual(['1:part-levels']);
+  });
+  it('passes it with one level per part, and leaves an item without marked parts alone', () => {
+    expect(checks(paper([], [parted({ part_levels: ['Understand', 'Understand', 'Apply'] })]))).toEqual([]);
+    const listed = srq('درج ذیل جملے پڑھیں۔\n(الف) یہ تمھارا بستہ ہے۔\n(ب) وہ ایک ایماندار افسر ہے۔', 'x', { marking_points: points(1, 2) });
+    expect(checks(paper([], [listed]), 8)).toEqual([]);
+  });
+});
