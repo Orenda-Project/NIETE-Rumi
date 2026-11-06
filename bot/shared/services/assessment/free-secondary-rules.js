@@ -50,30 +50,34 @@ function plannedMinutes(types) {
   return types.reduce((s, t) => s + minutesOf(t) * (Number(t.count) || 0), REVIEW_MINUTES);
 }
 
+// At least this many written (not objective) items survive the sizing: an all-MCQ paper tests recall only (A6b).
+const MIN_WRITTEN = 2;
+
 /**
- * Moves items one at a time from the slowest constructed type that has more than one, onto the
- * first objective type, until the plan fits LOAD_SHARE of the band's minutes, so the time the paper
- * prints (printedMinutes) is within the band. The total count is kept, and no
- * type the teacher picked drops below one. A paper that fits, or has no objective type to move
- * items onto, comes back as it was.
+ * Shrinks the plan, every type in proportion, until it fits LOAD_SHARE of the band's minutes, so the
+ * time the paper prints (printedMinutes) is within the band. One item at a time comes off the type
+ * that still keeps the largest share of what was asked (on a tie, the slower type), so the teacher's
+ * mix is kept: the a5 G7 request 7/7/6 had become 16/3/1 by moving written items onto the MCQs, and
+ * the panel scored its thinking levels 1 (A6b). No picked type drops below one, and at least
+ * MIN_WRITTEN written items stay. A paper that fits comes back as it was.
  */
 function sizeTypes(types, grade) {
   const budget = Math.floor(bandOf(grade).minutes * LOAD_SHARE);
-  const target = types.findIndex(isObjective);
-  if (target < 0 || plannedMinutes(types) <= budget) return { types, moved: 0 };
-  const out = types.map((t) => ({ ...t, count: Number(t.count) || 0 }));
-  let moved = 0;
+  if (plannedMinutes(types) <= budget) return { types, dropped: 0 };
+  const asked = types.map((t) => Number(t.count) || 0);
+  const out = types.map((t, i) => ({ ...t, count: asked[i] }));
+  const written = () => out.filter((t) => !isObjective(t)).reduce((s, t) => s + t.count, 0);
+  let dropped = 0;
   while (plannedMinutes(out) > budget) {
     const from = out
-      .map((t, i) => ({ t, i }))
-      .filter(({ t }) => !isObjective(t) && t.count > 1)
-      .sort((a, b) => minutesOf(b.t) - minutesOf(a.t))[0];
+      .map((t, i) => ({ t, share: asked[i] ? t.count / asked[i] : 0 }))
+      .filter(({ t }) => t.count > 1 && (isObjective(t) || written() > MIN_WRITTEN))
+      .sort((a, b) => b.share - a.share || minutesOf(b.t) - minutesOf(a.t))[0];
     if (!from) break;
     from.t.count -= 1;
-    out[target].count += 1;
-    moved += 1;
+    dropped += 1;
   }
-  return { types: out, moved };
+  return { types: out, dropped };
 }
 
 function rulesBlock(grade, lessonTitle) {
@@ -97,6 +101,9 @@ MCQ OPTIONS
 ONE FACT, ONE ITEM
 - Test each fact once. No item may state, print or hint at the answer to another item, and no MCQ may give away the answer to a short answer. Check the whole paper for this before you return it.
 - At least one item asks about the main subject of the lesson: its main idea, event, process or person by name.${lesson}
+THINKING LEVELS
+- Every item and every part carries "blooms": Remember, Understand, Apply, Analyze, Evaluate or Create: the level it really demands, on every item, not the level you were asked for.
+- Of the paper's marks, aim for about 30% Remember, 30% Understand, 20% Apply and 20% Analyze, Evaluate or Create. Apply means using the lesson in a new situation the book does not describe; at least one written item does that.
 MARKING (every item that is not an MCQ)
 - Add "marking_points": [{"point": "<what earns the mark>", "marks": <number>}], one entry per mark or part, summing exactly to the item's marks.
 - ${SCHEME_RULE}
@@ -132,7 +139,11 @@ function reviewPrompt(mcqs, grade) {
     `For each MCQ, rate every wrong option (distractor) from 1 to 3 for how likely a Grade ${grade} student who holds a common misconception about the topic is to choose it:`,
     '3 = such a student would likely choose it; 2 = some students might; 1 = no student who studied the lesson would choose it (plainly wrong, off the topic, silly, or a giveaway).',
     'Also say whether the key is the longest option or stands out from the others by its length or detail.',
-    'Return JSON only: {"items":[{"n":<question number>,"distractors":[{"option":"a","rating":1,"why":"..."}],"longest_key":false}]}',
+    'Then answer three yes/no questions for each MCQ:',
+    '- two_correct: is more than one option defensibly correct, from the lesson or from the common meaning of the words? (Exactly one option may be right.)',
+    '- odd_key: is the key the odd one out of the four, for example the one positive option against three near-synonyms or three negatives?',
+    '- stem_grammar: does any option fail to complete the stem grammatically, so that stem and option do not read as one sentence?',
+    'Return JSON only: {"items":[{"n":<question number>,"distractors":[{"option":"a","rating":1,"why":"..."}],"longest_key":false,"two_correct":false,"odd_key":false,"stem_grammar":false,"why":"<one line on any yes>"}]}',
     '',
     ...mcqs.map((m) => `Q${m.n}: ${m.question}\n${m.options.join('\n')}\nKey: ${m.key}`),
   ].join('\n');

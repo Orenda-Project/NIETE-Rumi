@@ -10,11 +10,13 @@
  *      asked for about 30% more MCQs than that; the subset with the fewest leaks is kept (free-secondary-pool.js);
  *   3. the draft is checked (free-secondary-checks.js); one that breaks a rule is sent back once
  *      with the list, and the paper with fewer problems is kept;
- *   4. one small call rates each MCQ distractor for a student with a common misconception and flags a
- *      key that is the longest option (free-secondary-review.js);
+ *   4. one small call, on a job of another model family than the writer, rates each MCQ distractor and flags
+ *      a longest-option key, two defensible options, an odd-one-out key or an option that does not complete
+ *      the stem (free-secondary-review.js);
  *   5. items still leaking, or with a longest-option key, an absolute distractor or one rated 1, are rewritten on
  *      their own (free-secondary-rewrite.js), up to two rounds, each kept only if it leaves fewer problems.
- * Then writer instructions are stripped from the marking points (free-secondary-tidy.js), the MCQ keys
+ * Then writer instructions are stripped from the marking points (free-secondary-tidy.js), number options
+ * are put in ascending order, the MCQ keys
  * are spread from the paper's seed (free-secondary-keys.js), the time is stamped as `_timeMinutes`, and
  * an Urdu-medium paper is marked `_paperLang: 'ur'` so its chrome prints in Urdu.
  *
@@ -33,7 +35,7 @@ const SubjectConfig = require('./subject-config');
 const PROMPTS = require('./ict-prompts.json');
 const Rules = require('./free-secondary-rules');
 const { paperIssues, estimateMinutes, printedMinutes } = require('./free-secondary-checks');
-const { balanceKeys } = require('./free-secondary-keys');
+const { balanceKeys, sortNumeric } = require('./free-secondary-keys');
 const Rewrite = require('./free-secondary-rewrite');
 const Pool = require('./free-secondary-pool');
 const Review = require('./free-secondary-review');
@@ -43,6 +45,8 @@ const { isRtl } = require('./assessment-paper.renderer');
 const JOB = 'assessment.generate';
 const MAX_OUTPUT_TOKENS = 32000;
 const REVIEW_TOKENS = 6000;
+// Existing registered jobs whose model may be of another family than the writer's (the review reuses one).
+const REVIEWER_JOBS = ['quiz.keyVerify', 'lp.fidelity'];
 // The G1-5 free prompt each G6-12 subject code borrows. A code not listed keeps today's choice.
 const BASE_SUBJECT = { general_science: 'science', english: 'eng', maths: 'maths', urdu: 'urdu', islamiat: 'islamiat' };
 const URDU_BASE = new Set(['urdu', 'islamiat', 'genk', 'sst']);
@@ -90,7 +94,9 @@ async function generateExam(args) {
   const ownModel = resolveModelForJob(JOB, { family }).model;
 
   const sized = Rules.sizeTypes(questionTypes, grade);
-  const plan = Gen.planCounts({ contentSource, questionCount, questionTypes: sized.types, seenCount });
+  // Sizing shrinks every type in proportion, so the paper asks for the sized total, not the requested one.
+  const sizedCount = questionCount > 0 ? Math.max(1, questionCount - sized.dropped) : questionCount;
+  const plan = Gen.planCounts({ contentSource, questionCount: sizedCount, questionTypes: sized.types, seenCount });
   const pool = Pool.poolTypes(sized.types);
   const keepMcqs = (sized.types.find((t) => t.id === 'mcq') || {}).count || 0;
   let pooled = 0;
@@ -105,11 +111,11 @@ async function generateExam(args) {
   const messages = [
     { role: 'system', content: system },
     { role: 'user', content: Gen.buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource,
-      questionCount: questionCount + pool.extra, questionTypes: pool.types,
+      questionCount: sizedCount + pool.extra, questionTypes: pool.types,
       totalMarks: totalMarks == null ? totalMarks : totalMarks + pool.extra, seenCount, slos }) },
   ];
   logToFile('[assessment] generating (grades 6-12 free)', {
-    grade, subject, base, model, moved: sized.moved, types: plan.questionTypes.map((q) => `${q.count} ${q.id}`),
+    grade, subject, base, model, dropped: sized.dropped, types: plan.questionTypes.map((q) => `${q.count} ${q.id}`),
   });
 
   const ask = (msgs) => getClient().chat.completions.create({
@@ -157,12 +163,18 @@ async function generateExam(args) {
     }
   }
 
-  // The review runs on the paper's own job and model (no other job in the registry fits), MCQs only.
+  // The review runs on a registered job of another model family than the writer, so it does not share the
+  // writer's blind spots (quiz.keyVerify for a Gemini writer, lp.fidelity for a Claude one), with the
+  // writer's model as the fallback; on the writer's own job and model when no such job resolves. MCQs only.
+  const reviewer = Review.pickReviewer(model, REVIEWER_JOBS.map((job) => ({ job, model: resolveModelForJob(job).model })));
+  const reviewCall = reviewer ? { model: reviewer.model, job: reviewer.job, fallbackModel: model }
+    : { model, job: JOB, ...(model !== ownModel ? { fallbackModel: ownModel } : {}) };
+  logToFile('[assessment] distractor review model', { job: reviewCall.job, model: reviewCall.model });
   const reviewed = await Review.review({
     examJson, grade, existing: issues,
     ask: async (text) => {
       const out = await getClient().chat.completions.create({
-        model, job: JOB, ...(model !== ownModel ? { fallbackModel: ownModel } : {}),
+        ...reviewCall,
         messages: [{ role: 'user', content: text }], temperature: 0,
         response_format: { type: 'json_object' }, max_tokens: REVIEW_TOKENS,
       });
@@ -189,9 +201,12 @@ async function generateExam(args) {
   if (produced === 0) throw fail('NO_QUESTIONS', 'The question writer returned no questions.');
   const stripped = stripInstructions(examJson);
   scenarioParts(examJson);
+  const numbersSorted = sortNumeric(examJson);
   const keysMoved = balanceKeys(examJson, keySeed ?? startedAt);
   const load = estimateMinutes(examJson);
   examJson._timeMinutes = printedMinutes(load);
+  // The answer key prints each item's thinking level (panel A6b), on a G6-12 free paper only.
+  examJson._levels = true;
   // A paper set right to left prints its headings and instructions in Urdu (free-secondary-chrome.js).
   if (isRtl(subject)) examJson._paperLang = 'ur';
 
@@ -199,7 +214,7 @@ async function generateExam(args) {
     totalTokens: usage.total_tokens ?? null, model };
   const coverage = Gen.answerCoverage(examJson);
   logToFile('[assessment] generated (grades 6-12 free)', {
-    grade, subject, questionCount: produced, revised, pooled, reviewed: reviewed.length, rewritten, stripped, issuesLeft: issues.length, keysMoved,
+    grade, subject, questionCount: produced, revised, pooled, reviewed: reviewed.length, rewritten, stripped, issuesLeft: issues.length, numbersSorted, keysMoved,
     loadMinutes: Math.round(load), timeMinutes: examJson._timeMinutes, elapsedMs: Date.now() - startedAt,
   });
   return {

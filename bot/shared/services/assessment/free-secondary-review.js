@@ -4,7 +4,8 @@
  * One small model call rates each distractor 1-3 for a student who holds a common misconception and
  * flags a key that is the longest option (the prompt is reviewPrompt in free-secondary-rules.js). A
  * distractor rated 1 becomes a 'weak-distractor' issue and a flagged key a 'longest-key' one, both of
- * which the targeted rewrite takes. No I/O: the service passes the call in as `ask`.
+ * which the targeted rewrite takes, as do two defensible options, a key that is the odd one out and an
+ * option that does not complete the stem. pickReviewer chooses a reviewer of another model family. No I/O: the service passes the call in as `ask`.
  */
 
 const { items } = require('./free-secondary-checks');
@@ -13,6 +14,13 @@ const { reviewPrompt } = require('./free-secondary-rules');
 
 const LETTERS = ['a', 'b', 'c', 'd'];
 const sig = (item) => JSON.stringify([item.question, item.options]);
+// The a5 panel's item faults (G8 Q2 and G7 Q14 two defensible options, G8 Q11 odd key, G8 Q3 stem grammar):
+// a yes from the reviewer sends the item to the targeted rewrite.
+const FAULTS = [
+  ['two_correct', 'two-correct', 'more than one option is defensibly correct; change the distractors so that exactly one option is right'],
+  ['odd_key', 'odd-key', 'the key is the odd one out of the four options (three near-synonyms or three negatives against it); make the distractors as varied as the key'],
+  ['stem_grammar', 'stem-grammar', 'an option does not complete the stem grammatically; make every option finish the stem as one correct sentence'],
+];
 
 /** The paper's MCQs, by their paper number, with the key letter. */
 function mcqsOf(examJson) {
@@ -41,8 +49,30 @@ function issuesFrom(reply, examJson, existing = []) {
       out.push({ n: m.n, check: 'longest-key', sig: sig(m.item),
         text: 'the key stands out as the longest or most detailed option; make the four options about the same length and detail' });
     }
+    const why = r.why ? ` (${r.why})` : '';
+    FAULTS.forEach(([field, check, text]) => {
+      if (r[field] === true) out.push({ n: m.n, check, sig: sig(m.item), text: `${text}${why}` });
+    });
   });
   return out;
+}
+
+/** A model's family: the supplier before the slash, a bare gpt/o-series id being OpenAI's. */
+function familyOf(model) {
+  const m = String(model || '').trim().toLowerCase();
+  if (!m) return null;
+  if (m.includes('/')) return m.split('/')[0];
+  return /^(gpt|o\d|chatgpt)/.test(m) ? 'openai' : m;
+}
+
+/**
+ * The reviewer: the first candidate ({job, model}, registered jobs resolved by the caller) whose model is
+ * of another family than the writer's, so the review does not share the writer's blind spots; null when
+ * none is, and the review then runs on the writer's own job and model.
+ */
+function pickReviewer(writerModel, candidates) {
+  const own = familyOf(writerModel);
+  return (candidates || []).find((c) => c && familyOf(c.model) && familyOf(c.model) !== own) || null;
 }
 
 /** The review issues whose item is still as it was reviewed. */
@@ -63,4 +93,4 @@ async function review({ examJson, grade, ask, existing = [], onError = () => {} 
   }
 }
 
-module.exports = { mcqsOf, issuesFrom, stillOpen, review };
+module.exports = { mcqsOf, issuesFrom, stillOpen, review, pickReviewer };

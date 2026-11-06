@@ -19,36 +19,41 @@ describe('bandOf', () => {
 });
 
 describe('sizeTypes', () => {
-  it('moves G7 essays then short answers onto the MCQs until the plan fits the band time', () => {
-    const { types: out, moved } = R.sizeTypes(types([['mcq', 7, 'objective'], ['srq', 7, 'subjective'], ['erq', 6, 'subjective']]), 7);
-    expect(out.map((t) => [t.id, t.count])).toEqual([['mcq', 16], ['srq', 3], ['erq', 1]]);
-    expect(moved).toBe(9);
-    expect(R.plannedMinutes(out)).toBeLessThanOrEqual(R.bandOf(7).minutes);
+  const counts = (out) => out.map((t) => [t.id, t.count]);
+  const budget = Math.floor(60 * R.LOAD_SHARE);
+
+  it('keeps the G7 a5 request 7/7/6 in proportion: it must not become 16/3/1', () => {
+    const asked = types([['mcq', 7, 'objective'], ['srq', 7, 'subjective'], ['erq', 6, 'subjective']]);
+    const { types: out, dropped } = R.sizeTypes(asked, 7);
+    expect(counts(out)).not.toEqual([['mcq', 16], ['srq', 3], ['erq', 1]]);
+    expect(R.plannedMinutes(out)).toBeLessThanOrEqual(budget);
+    expect(printedMinutes(R.plannedMinutes(out))).toBeLessThanOrEqual(60);
+    out.forEach((t, i) => expect(t.count).toBeLessThanOrEqual(asked[i].count));
+    const shares = out.map((t, i) => t.count / asked[i].count);
+    expect(Math.max(...shares) - Math.min(...shares)).toBeLessThanOrEqual(0.2);
+    expect(out[2].count).toBeGreaterThanOrEqual(1);
+    expect(dropped).toBe(20 - out.reduce((s, t) => s + t.count, 0));
   });
 
-  it('sizes to the load whose printed time fits the band: the a4 G7 plan 14/5/1 printed 70 against 60', () => {
-    const { types: out, moved } = R.sizeTypes(types([['mcq', 14, 'objective'], ['srq', 5, 'subjective'], ['erq', 1, 'subjective']]), 7);
-    expect(moved).toBe(2);
-    expect(R.plannedMinutes(out)).toBeLessThanOrEqual(Math.floor(60 * R.LOAD_SHARE));
-    expect(printedMinutes(R.plannedMinutes(out))).toBeLessThanOrEqual(R.bandOf(7).minutes);
+  it('shrinks the G8 Urdu mix (mcq, srq, grammar) in proportion too', () => {
+    const asked = types([['mcq', 7, 'objective'], ['srq', 7, 'subjective'], ['grammar', 6, 'subjective']]);
+    const { types: out } = R.sizeTypes(asked, 8);
+    expect(R.plannedMinutes(out)).toBeLessThanOrEqual(budget);
+    const shares = out.map((t, i) => t.count / asked[i].count);
+    expect(Math.max(...shares) - Math.min(...shares)).toBeLessThanOrEqual(0.2);
   });
 
-  it('keeps the total and never takes a picked type below one', () => {
-    const { types: out } = R.sizeTypes(types([['mcq', 2, 'objective'], ['srq', 9, 'subjective'], ['erq', 9, 'subjective']]), 6);
-    expect(out.reduce((s, t) => s + t.count, 0)).toBe(20);
-    expect(out.every((t) => t.count >= 1)).toBe(true);
+  it('keeps at least two written items, and every picked type at one or more', () => {
+    const { types: out } = R.sizeTypes(types([['mcq', 40, 'objective'], ['srq', 2, 'subjective']]), 7);
+    expect(counts(out)).toEqual([['mcq', 36], ['srq', 2]]);
+    const { types: one } = R.sizeTypes(types([['mcq', 3, 'objective'], ['srq', 1, 'subjective'], ['erq', 9, 'subjective']]), 7);
+    expect(one.every((t) => t.count >= 1)).toBe(true);
+    expect(one[2].count).toBeGreaterThanOrEqual(1);
   });
 
-  it('sizes the G8 Urdu mix (mcq, srq, grammar) by moving short answers first', () => {
-    const { types: out } = R.sizeTypes(types([['mcq', 7, 'objective'], ['srq', 7, 'subjective'], ['grammar', 6, 'subjective']]), 8);
-    expect(out.map((t) => [t.id, t.count])).toEqual([['mcq', 12], ['srq', 2], ['grammar', 6]]);
-  });
-
-  it('leaves a paper that already fits, or one with no objective type, as it was', () => {
+  it('leaves a paper that already fits as it was', () => {
     const fits = types([['mcq', 10, 'objective'], ['srq', 2, 'subjective']]);
-    expect(R.sizeTypes(fits, 7)).toEqual({ types: fits, moved: 0 });
-    const noObjective = types([['srq', 10, 'subjective'], ['erq', 10, 'subjective']]);
-    expect(R.sizeTypes(noObjective, 7).moved).toBe(0);
+    expect(R.sizeTypes(fits, 7)).toEqual({ types: fits, dropped: 0 });
   });
 
   it('does not mutate its input', () => {
@@ -89,6 +94,8 @@ describe('rulesBlock', () => {
     ['no item answers another', /answer to another item/],
     ['the lesson subject is asked about', /main subject of the lesson/],
     ['a meaning or quality MCQ has no opposite of the key among its distractors', /meaning or a quality[^\n]*opposite/],
+    ['a level tag on every item and part', /"blooms"[^\n]*every item/],
+    ['a thinking-level target with some Application', /Apply[^\n]*20%/],
   ])('states %s', (_name, re) => {
     expect(text).toMatch(re);
   });

@@ -107,3 +107,46 @@ describe('balanceKeys with a seed (no fixed letter cycle)', () => {
   });
 });
 
+
+describe('sortNumeric (G8 Q9: number options printed in a jumbled order)', () => {
+  const Q9 = () => ({
+    question: 'عبدالستار ایدھی کس عمر میں انتقال کر گئے؟', marks: 1,
+    options: ['الف) ۷۸ سال کی عمر', 'ب) ۸۸ سال کی عمر', 'ج) ۶۸ سال کی عمر', 'د) ۹۸ سال کی عمر'],
+    answer: 'ب) ۸۸ سال کی عمر',
+  });
+
+  it('puts the numbers in ascending order and re-letters the key', () => {
+    const exam = paper([Q9()]);
+    expect(K.sortNumeric(exam)).toBe(1);
+    const q = exam.unseen.objective['Multiple Choice Questions'][0];
+    expect(q.options).toEqual(['الف) ۶۸ سال کی عمر', 'ب) ۷۸ سال کی عمر', 'ج) ۸۸ سال کی عمر', 'د) ۹۸ سال کی عمر']);
+    expect(q.answer).toBe('ج) ۸۸ سال کی عمر');
+  });
+
+  it('sorts Western digits and decimals, and leaves an ordered set alone', () => {
+    const q = mcq('a) 2.5 kg', ['a) 2.5 kg', 'b) 0.5 kg', 'c) 10 kg', 'd) 1 kg']);
+    const done = mcq('b', ['a) 1', 'b) 2', 'c) 3', 'd) 4']);
+    const exam = paper([q, done]);
+    expect(K.sortNumeric(exam)).toBe(1);
+    expect(q.options).toEqual(['a) 0.5 kg', 'b) 1 kg', 'c) 2.5 kg', 'd) 10 kg']);
+    expect(K.keyIndex(q)).toBe(2);
+    expect(done.answer).toBe('b');
+  });
+
+  it('leaves word options, mixed wording and dates with two numbers alone', () => {
+    const words = mcq('b');
+    const mixed = mcq('a', ['a) 7 days', 'b) 3 weeks', 'c) 1 day', 'd) 9 days']);
+    const date = mcq('a', ['a) 8 July 1928', 'b) 1 January 1988', 'c) 8 July 1988', 'd) 1 January 1928']);
+    expect(K.sortNumeric(paper([words, mixed, date]))).toBe(0);
+    expect(mixed.options[0]).toBe('a) 7 days');
+  });
+
+  it('keeps a sorted item where balanceKeys found it', () => {
+    const exam = paper([Q9(), ...Array.from({ length: 7 }, () => mcq('c) Earth'))]);
+    K.sortNumeric(exam);
+    K.balanceKeys(exam, 7);
+    const q = exam.unseen.objective['Multiple Choice Questions'][0];
+    expect(q.options[0]).toBe('الف) ۶۸ سال کی عمر');
+    expect(q.answer).toBe('ج) ۸۸ سال کی عمر');
+  });
+});
