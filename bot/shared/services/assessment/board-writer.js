@@ -3,8 +3,9 @@
  * Writes a G6-12 board paper (SPEC §7, deps contract §5-§6). One call per section (per timed part), each told
  * what the earlier ones asked; teacher-marked slots generate nothing; a short slot is asked once more (a second
  * shortfall fails the paper: PATTERN_SHORT_SLOT; the top-up is T.topUp, never d.topUp, which is blind to OR and
- * stimulus nodes). Then board-layout, board-checks in board mode, one repair
- * round for hard issues (drop the item, ask once for that slot), then the scheme normaliser.
+ * stimulus nodes). Then board-checks in board mode BEFORE the trim: hard items are dropped and the top-up's extras
+ * fill the gap; a slot still short gets one targeted rewrite of the dropped items (round 5), and of the rewrite and
+ * the originals the version with fewer hard issues is kept (a failure reports it). Then the scheme normaliser.
  *
  * The service's helpers arrive as `d` (_boardDeps); this module never requires the service, and never uses the
  * G5 layout engine (the layout is board-layout.js). Returns the board wrapper shape of _writePatternPaper.
@@ -69,7 +70,7 @@ async function writeBoardPaper(args, d) {
   // 1. Section by section, in turn; each short slot gets one more ask.
   const trees = [];
   const sections = [];
-  const toppedUp = new Set();
+  const toppedUp = new Set(); // for the log line only (round 5: a topped-up slot may still be rewritten)
   for (const unit of unitsOf(V)) {
     if (!unit.generates) continue;
     // A slot of more than 20 items is asked in chunks; a later chunk sees the earlier stems and the keys so far.
@@ -107,31 +108,38 @@ async function writeBoardPaper(args, d) {
     }
   }
 
-  // 2. Layout, then the checks in board mode.
+  // 2. Checks before the trim (round 5): hard items are dropped, the +25% extras fill the gap, then the trim.
   const ids = (ex) => T.leavesOf(ex).map((l) => l.id);
   const stampAll = (ex) => T.stamp(ex, allSlots, (item) => d.stampSlo(grade, subject, item));
-  // Penalty per top-level node from a probe run of the checks on a copy: 2 for a hard item, 1 for a soft note.
-  const rankOf = (ex) => {
-    const tops = (tree) => { const out = []; T.eachList(tree, (list) => list.forEach((q) => { if (q && typeof q === 'object') out.push(q); })); return out; };
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  const probeRun = (ex) => {
     try {
-      const probe = JSON.parse(JSON.stringify(ex));
+      const probe = clone(ex);
       probe._layout = nested(buildLayout(P, V, probe, { presetId: pattern }), V.total_marks);
       settleKeys(probe);
-      const run = d.checks.run(probe, { P, variant: V, mode: 'board', subjectConfig: row, probe: true });
-      const top = new Map();
-      tops(probe).forEach((q, i) => T.leavesOfNode(q).forEach((l) => top.set(l, i)));
-      const byRef = new Map(leaves(probe).map((l) => [l.ref, l.item]));
-      const pen = new Map();
-      const add = (leaf, n) => { const i = top.get(leaf); if (i != null) pen.set(i, Math.max(pen.get(i) || 0, n)); };
-      const hard = new Set(run.shortfall.flatMap((r) => r.items || []));
-      T.leavesOf(probe).forEach((l) => { if (hard.has(l.id)) add(l, 2); });
-      (run.notes || []).forEach((x) => add(byRef.get(x.item_ref), 1));
-      const index = new Map(tops(ex).map((q, i) => [q, i]));
-      return (q) => pen.get(index.get(q)) || 0;
+      return { probe, run: d.checks.run(probe, { P, variant: V, mode: 'board', subjectConfig: row, probe: true }) };
     } catch (err) {
-      d.logToFile('[assessment] trim ranking fell back to order', { error: err.message });
-      return undefined;
+      d.logToFile('[assessment] pre-trim check fell back to order', { error: err.message });
+      return null;
     }
+  };
+  const hardIds = (run) => new Set(run.shortfall.flatMap((r) => r.items || []));
+  // Penalty per top-level node from a probe run of the checks on a copy: 2 for a hard item, 1 for a soft note.
+  const rankOf = (ex) => {
+    const got = probeRun(ex);
+    if (!got) return undefined;
+    const { probe, run } = got;
+    const tops = (tree) => { const out = []; T.eachList(tree, (list) => list.forEach((q) => { if (q && typeof q === 'object') out.push(q); })); return out; };
+    const top = new Map();
+    tops(probe).forEach((q, i) => T.leavesOfNode(q).forEach((l) => top.set(l, i)));
+    const byRef = new Map(leaves(probe).map((l) => [l.ref, l.item]));
+    const pen = new Map();
+    const add = (leaf, n) => { const i = top.get(leaf); if (i != null) pen.set(i, Math.max(pen.get(i) || 0, n)); };
+    const hard = hardIds(run);
+    T.leavesOf(probe).forEach((l) => { if (hard.has(l.id)) add(l, 2); });
+    (run.notes || []).forEach((x) => add(byRef.get(x.item_ref), 1));
+    const index = new Map(tops(ex).map((q, i) => [q, i]));
+    return (q) => pen.get(index.get(q)) || 0;
   };
   const finish = (ex, before) => {
     T.dropEmptyOptions(ex);
@@ -140,32 +148,50 @@ async function writeBoardPaper(args, d) {
       T.trimExcess(ex, allSlots, rankOf(ex));
       stampAll(ex);
     }
-    const fresh = before ? new Set(ids(ex).filter((id) => !before.has(id))) : undefined; // the repair's replacements
+    const fresh = before ? new Set(ids(ex).filter((id) => !before.has(id))) : undefined; // the rewrites
     ex._layout = nested(buildLayout(P, V, ex, { presetId: pattern }), V.total_marks);
     settleKeys(ex); // D13 key letters and numeric order are settled by code, not left to the model
     const checks = d.checks.run(ex, { P, variant: V, mode: 'board', subjectConfig: row, fresh });
     ex._layout.checks = checks.record;
     return checks;
   };
+  const dropped = []; // {slot, question} of every item the checks removed
+  const drop = (ex, bad) => {
+    T.leavesOf(ex).forEach((l) => { if (bad.has(l.id)) dropped.push({ slot: String(l.id).split(/[#@/]/)[0], question: l.question }); });
+    T.dropIds(ex, bad);
+  };
   let ex = mergedOf(trees);
+  T.dropEmptyOptions(ex);
+  stampAll(ex);
+  const whole = clone(ex); // every item written, for the keep-the-fewer comparison
+  const pre = probeRun(ex);
+  if (pre) drop(ex, hardIds(pre.run));
   let checks = finish(ex);
 
-  // 3. One repair round: a hard item is dropped and its slot asked for once more; a slot already asked fails.
-  // The ask is told the keys already in the paper; the re-check blames a replacement, not the old item it collides with.
-  if (checks.shortfall.length) {
-    T.dropIds(ex, new Set(checks.shortfall.flatMap((r) => r.items)));
-    const short = T.shortfallOf(ex, allSlots);
-    if (short.some((r) => toppedUp.has(r.slot))) throw shortError(short, ex);
+  // 3. One targeted rewrite of the dropped items (same slot, told the used keys and the stems to avoid). Nothing new
+  // is asked for the slot, so a topped-up slot may be rewritten. Of the rewrite and the originals, fewer hard wins.
+  let short = T.shortfallOf(ex, allSlots);
+  if (checks.shortfall.length || short.length) {
+    drop(ex, hardIds(checks));
+    short = T.shortfallOf(ex, allSlots);
     const before = new Set(ids(ex));
     const used = usedKeys(ex);
     for (const unit of unitsOf(V)) {
-      const mine = short.filter((r) => unit.slots.some((s) => s.slot === r.slot));
+      const mine = short.filter((r) => unit.slots.some((s) => s.slot === r.slot)).map((r) => ({ ...r, write: r.need - r.have }));
       if (!mine.length) continue;
-      const second = await ask(unit, trees, SP.topUpNote(mine, used));
-      ex = T.topUp(ex, second.tree, new Set(mine.map((r) => r.slot)));
+      const slots = unit.slots.filter((s) => mine.some((r) => r.slot === s.slot)).map((s) => sized(s, mine.find((r) => r.slot === s.slot).write));
+      const stems = dropped.filter((x) => mine.some((r) => r.slot === x.slot)).map((x) => x.question);
+      const second = await ask({ ...unit, slots }, trees, SP.rewriteNote(mine, stems, used));
+      ex = T.topUp(ex, second.tree, slotSet(slots));
     }
     checks = finish(ex, before);
-    if (checks.shortfall.length) throw shortError(checks.shortfall, ex);
+    short = T.shortfallOf(ex, allSlots);
+    if (checks.shortfall.length || short.length) {
+      const orig = clone(whole);
+      const origChecks = finish(orig);
+      if (origChecks.record.hard < checks.record.hard) throw shortError(origChecks.shortfall.length ? origChecks.shortfall : T.shortfallOf(orig, allSlots), orig);
+      throw shortError(checks.shortfall.length ? checks.shortfall : short, ex);
+    }
   }
 
   // 4. The scheme, per the variant's style; then the record.

@@ -17,9 +17,10 @@
  * OWN STEM (round 4): a key of numbers and units only, in its own stem that asks for a calculation, is the given
  * data ("Calculate ... in kJ/mol", key "-1312 kJ/mol"), so it is soft; a unit asked for by name stays hard. A signed
  * number must match with its sign in every view ("-1/2" is not in "+1/2").
- * REPAIR: ctx.fresh (a Set of item ids, the repair round's replacements) moves the blame for a fresh key found in
- * an old stem onto the fresh item, so the old item is not the one dropped. usedKeys() gives the repair ask the
- * numeric and multi-word keys already in the paper.
+ * CROSS-ITEM (round 5, board only): a key that is a unit alone ("m/s^2") is never a leak in another item; a number
+ * or quantity key ("20 m/s", "9.8 m/s^2") in another item's stem is soft (board papers give g as data); a concept
+ * phrase stays hard. The blame is always on the item whose stem carries the text, never the keyed item, fresh or
+ * not. usedKeys() gives the repair ask the numeric and multi-word keys already in the paper.
  */
 const { leaves } = require('./_walk-local');
 const { childFields } = require('./_child-view');
@@ -67,13 +68,18 @@ const signsIn = (key, raw) => { const t = fold(raw).replace(/\u2212/g, '-').repl
 /** Only numbers and units: in its own calculation stem it is the given data, not a leak. */
 const givenData = (key) => tokens(key).every((x) => /\p{N}/u.test(x) || UNITS.has(x));
 
+/** Only units once exponents are set aside ("m/s^2", "m s^-1", "kJ/mol"). */
+const unitOnly = (key) => { const t = tokens(str(key).replace(/\^\s*[-\u2212]?\d+/g, ' ').replace(/[\u00b2\u00b3\u00b9\u2070-\u209f]/g, ' ')); return t.length > 0 && t.every((x) => UNITS.has(x)); };
+/** A number with or without units: data a board paper may give in any stem. */
+const quantity = (key) => givenData(key) && tokens(key).some((x) => /\p{N}/u.test(x));
+
 /** One word once articles and bare units are set aside, and no digit: chapter vocabulary in a board paper. */
 function vocabulary(key) {
   const t = tokens(key);
   return !t.some((x) => /\p{N}/u.test(x)) && t.filter((x) => !ARTICLES.has(x) && !UNITS.has(x)).length <= 1;
 }
 
-function n18(ls, board, fresh) {
+function n18(ls, board) {
   const views = ls.map((n) => {
     const fields = childFields(n);
     const raw = (keep) => fields.filter(keep).map((f) => f.text).join(' . ');
@@ -95,9 +101,8 @@ function n18(ls, board, fresh) {
     if (v.own.includes(needle) && signsIn(key, v.ownRaw)) { out.push(leak(v.n, key, 'its own stem', !(givenData(key) && CALC.test(v.ownRaw)))); return; }
     const reuseOk = board && Array.isArray(v.n.item.options) && v.n.item.options.length > 1; // an MCQ key
     const other = views.find((w, j) => j !== i && (reuseOk ? w.noOptions : w.all).includes(needle) && signsIn(key, reuseOk ? w.noOptionsRaw : w.allRaw));
-    if (!other) return;
-    const blame = fresh && fresh.has(v.n.item.id) && !fresh.has(other.n.item.id) ? v.n : other.n;
-    out.push(leak(blame, key, blame === other.n ? `the key of ${v.n.ref}` : `its key, already in ${other.n.ref}`, !(reuseOk && vocabulary(key))));
+    if (!other || (board && unitOnly(key))) return;
+    out.push(leak(other.n, key, `the key of ${v.n.ref}`, !((reuseOk && vocabulary(key)) || (board && quantity(key)))));
   });
   return out;
 }
@@ -158,7 +163,7 @@ function n19(it, ref) {
 
 function run(examJson, ctx) {
   const ls = leaves(examJson);
-  const issues = n18(ls, !!ctx && ctx.mode === 'board', ctx && ctx.fresh);
+  const issues = n18(ls, !!ctx && ctx.mode === 'board');
   ls.forEach((n) => { if (n.item.type === 'match') issues.push(...n19(n.item, n.ref)); });
   return { ok: !issues.some((i) => i.hard), issues };
 }

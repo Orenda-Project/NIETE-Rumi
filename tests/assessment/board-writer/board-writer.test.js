@@ -221,7 +221,7 @@ describe('hard checks after layout', () => {
         return tree;
       },
     });
-    expect(calls.filter((c) => c.section === 'A').map((c) => c.topUp)).toEqual([false, true]);
+    expect(calls.filter((c) => c.section === 'A').map((c) => c.topUp || /REWRITE/.test(c.user))).toEqual([false, true]); // round 5: a rewrite
     expect(res.examJson._layout.checks.hard).toBe(0);
     expect(JSON.stringify(res.examJson)).not.toContain('the answer is');
   });
