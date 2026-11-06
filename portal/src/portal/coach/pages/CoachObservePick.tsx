@@ -96,7 +96,7 @@ const CoachObservePick = () => {
     }
     const late = !!v.scheduledFor && v.scheduledFor < today;
     return {
-      id: v.id, lead: "person", title: v.teacherName || C.dash, extra: sub(v), time: v.scheduledSlot, to: `/portal/coach/visit/${v.id}`,
+      id: v.id, lead: "person", title: v.teacherName || C.dash, extra: sub(v), time: v.scheduledSlot, to: `/portal/coach/visit/${v.id}?from=observe`, // bd-jjcofw.10 (M5): stays Observe's
       state: v.id === nextId ? "next" : "default", timeTone: late ? "overdue" : undefined,
       chip: late ? { text: C.daysLate(daysBetween(v.scheduledFor!, today)), tone: "waiting" } : v.id === nextId ? { text: C.next, tone: "info" } : null,
     };

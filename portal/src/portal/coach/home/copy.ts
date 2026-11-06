@@ -16,7 +16,7 @@ export const COACH_HOME_EN = {
   done: "Done",
   now: "Now",
   inHours: (h: number) => `In ${h} h`,
-  reportsWaiting: (n: number) => (n === 1 ? "1 report waiting" : `${n} reports waiting`),
+  reportsWaiting: (n: number) => (n === 1 ? "1 observation needs you" : `${n} observations need you`),
   tiles: {
     schedule: "Schedule",
     observe: "Observe",
@@ -38,7 +38,7 @@ export const COACH_HOME_UR: Words<typeof COACH_HOME_EN> = {
   done: "مکمل",
   now: "ابھی",
   inHours: (h: number) => `${h} گھنٹے میں`,
-  reportsWaiting: (n: number) => (n === 1 ? "1 رپورٹ منتظر" : `${n} رپورٹیں منتظر`),
+  reportsWaiting: (n: number) => (n === 1 ? "1 مشاہدہ منتظر" : `${n} مشاہدات منتظر`),
   tiles: {
     schedule: "شیڈول",
     observe: "مشاہدہ",

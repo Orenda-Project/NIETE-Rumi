@@ -53,9 +53,9 @@ describe("All Observations", () => {
     const kpi = await screen.findByRole("group", { name: /Observations/ });
     expect(kpi).toBeInTheDocument();
     const text = document.body.textContent || "";
-    expect(text).toContain("Avg. HITL Score");
+    expect(text).toContain("Coach score (avg.)");
     expect(screen.getByRole("group", { name: /^3 Observations/ })).toBeInTheDocument(); // 3 in October, up 2 on September's 1
-    expect(screen.getByRole("group", { name: /70% Avg\. HITL Score/ })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /70% Coach score \(avg\.\)/ })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: /^2 Waiting for you/ })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: /^2 Sent/ })).toBeInTheDocument();
   });
