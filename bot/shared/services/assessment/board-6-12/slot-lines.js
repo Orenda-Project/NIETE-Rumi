@@ -1,7 +1,8 @@
 'use strict';
 /** One pre-rendered prompt line per slot for eg.task.board_section's {slot_lines} (prompts contract §4). Pure. */
 
-function slotLine(s) {
+/** quota (optional, rubric A6b): {level: count} for this slot's items; zero levels are left out. */
+function slotLine(s, quota) {
   const head = `- ${s.label_en} [slot ${s.slot}]:`;
   if (s.teacher_marked || s.project) {
     const p = s.project || {};
@@ -17,6 +18,8 @@ function slotLine(s) {
   if (s.stimulus) {
     line += `; stimulus: ${s.stimulus.count} texts (${(s.stimulus.kinds || []).join(' / ')}), ${s.stimulus.mcqs_per_stimulus} items each, text only`;
   }
+  const lv = quota && typeof quota === 'object' ? Object.keys(quota).filter((k) => quota[k] > 0) : [];
+  if (lv.length) line += `; levels: ${lv.map((k) => `${k} ${quota[k]}`).join(', ')}`;
   return line;
 }
 

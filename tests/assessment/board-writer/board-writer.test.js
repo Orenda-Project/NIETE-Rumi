@@ -76,7 +76,7 @@ function commonAssertions(cell, res) {
   leaves.filter((l) => l.type === 'srq' || l.type === 'erq').forEach((l) => {
     if (style === 'analytic_points') expect(l.scheme.points.reduce((n, p) => n + x4(p.marks), 0)).toBe(x4(l.marks));
     else expect(l.scheme.bands[0].hi).toBe(l.marks);
-    expect(style === 'analytic_points' ? 'bands' in l.scheme : 'points' in l.scheme).toBe(false);
+    expect(style === 'analytic_points' ? 'bands' in l.scheme : 'points' in l.scheme).toBe(style === 'analytic_points' && l.type === 'erq'); // r9: an analytic ERQ keeps its bands
   });
   leaves.filter((l) => l.type === 'mcq' || l.type === 'scenario').forEach((l) => expect('scheme' in l).toBe(false));
   // no key in child-facing fields

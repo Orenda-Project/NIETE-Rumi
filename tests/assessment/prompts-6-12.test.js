@@ -186,3 +186,14 @@ describe('prompts-6-12.js', () => {
       .toBe('K Knowledge, U Understand, A Apply');
   });
 });
+
+describe('r9 board section rules (bd-5jmnfj.38.30): demand fits the marks; ERQ carries bands too', () => {
+  const t = PROMPTS['eg.task.board_section'];
+  it('ties item demand to marks: a 2-mark item asks for at most 2 steps or points', () => {
+    expect(t).toMatch(/a 2-mark item asks for at most 2 steps or 2 points/);
+  });
+  it('every ERQ carries holistic "bands" beside its analytic "points"', () => {
+    expect(t).toMatch(/ERQ[^\n]*"points"[^\n]*"bands"/);
+    expect(t).toMatch(/"descriptor"/);
+  });
+});

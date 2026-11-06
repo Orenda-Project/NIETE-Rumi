@@ -8,6 +8,7 @@ const { levelValues } = require('../prompts-6-12');
 const { slotLine } = require('./slot-lines');
 const { unitMarks } = require('./units');
 const { leavesOf } = require('./tree');
+const { quotaFor } = require('../board-checks/_level-quota');
 
 const NOT_SET = 'not set';
 const STEM_CUT = 60;
@@ -66,7 +67,7 @@ function promptValues({ grade, row, P, variant, unit, done, slotsAll, sloList })
     section_title: unit.title,
     section_marks: unitMarks(unit.slots),
     time_line: unit.time_min ? `, ${unit.time_min} minutes` : '',
-    slot_lines: unit.slots.map(slotLine).join('\n'),
+    slot_lines: unit.slots.map((s) => slotLine(s, s.quota || (split ? quotaFor(Number(s.generate) || 0, split.levels) : null))).join('\n'),
     earlier_stems_short: earlierStems(done),
     level_tally: Object.keys(tally).length ? render(tally, ', ') : 'none yet',
     split_remaining: remaining,
@@ -109,4 +110,4 @@ function rewriteNote(rows, stems = [], used = [], phrases = [], figure = false) 
   return lines.join('\n');
 }
 
-module.exports = { earlierStems, levelTally, promptValues, userPrompt, topUpNote, chunkNote, rewriteNote };
+module.exports = { levelPart, earlierStems, levelTally, promptValues, userPrompt, topUpNote, chunkNote, rewriteNote };
