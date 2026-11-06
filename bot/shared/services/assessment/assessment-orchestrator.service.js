@@ -57,6 +57,7 @@ const { isAssessmentVersionsEnabled, fdeReaderPassSubjects, fdeStemCheckSubjects
 const { STEM_CHECK_SUBJECTS } = require('./fde-stem-check');
 const { READER_SUBJECTS } = require('./fde-reader');
 const Patterns = require('./patterns');
+const RepeatGuard = require('./repeat-guard');
 
 /**
  * What she is told, per failure. Each one names the thing she can change; a
@@ -609,6 +610,8 @@ async function buildPaper(job, user = {}) {
     const isTopic = Boolean(topics && topics.length);
     // bd-6clakk.11: an English or Urdu topic paper also gets FDE's oral part, written
     // alongside from the same pages; null when the subject has none or it came back short.
+    // Her earlier questions on these pages, so asking again gives a new paper.
+    const avoid = await RepeatGuard.previousQuestions({ db: supabase, requestId, grade });
     const [generated, oral] = await Promise.all([Generation.generateExam({
       grade, subject,
       pageContent: source.content,
@@ -618,6 +621,7 @@ async function buildPaper(job, user = {}) {
       contentSource, questionCount, totalMarks, questionTypes, includeAnswerKey: true, seenCount,
       // A topic paper tests the ticked topics' skills; any other job passes no key at all.
       ...(scope && scope.kind === 'topics' ? { slos: scope.slos } : {}),
+      ...(avoid.length ? { avoidQuestions: avoid } : {}),
     }), isTopic ? Generation.generateTopicOral({ grade, subject, pageContent: source.content, requestId }) : null]);
 
     // With versioned editing the generated row IS version 1 and is never
