@@ -1,6 +1,6 @@
 'use strict';
 /**
- * V1.9.2 — GB's own lesson-plan cache (bd-rj6w0n.14.16). SQL-text contract test (no database).
+ * V1.9.3 — GB's own lesson-plan cache (bd-rj6w0n.14.16). SQL-text contract test (no database).
  * GB never shares niete_lp612_renders or the lp612/ prefix: its own table, its own key prefix, its own RPCs.
  */
 const fs = require('fs');
@@ -8,8 +8,8 @@ const path = require('path');
 
 const DIR = path.join(__dirname, '../../infrastructure/supabase/migrations');
 const read = (f) => fs.readFileSync(path.join(DIR, f), 'utf8').replace(/--[^\n]*/g, '').replace(/\s+/g, ' ').toLowerCase();
-const UP = read('V1.9.2__gb_lp_renders.sql');
-const DOWN = read('ROLLBACK_V1.9.2__gb_lp_renders.sql');
+const UP = read('V1.9.3__gb_lp_renders.sql');
+const DOWN = read('ROLLBACK_V1.9.3__gb_lp_renders.sql');
 
 test('creates GB its own render table, keyed like 6-12 but never pointing at lp612/', () => {
   expect(UP).toContain('create table if not exists niete_gb_lp_renders');
