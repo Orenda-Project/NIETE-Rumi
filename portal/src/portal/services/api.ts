@@ -302,7 +302,8 @@ export const portal = {
       return {
         // K-5 addresses a chapter by number; 6-12 by chapter_key.
         key: String(c.chapter_key ?? c.chapter_number),
-        label: c.chapter_title ? `${n}: ${c.chapter_title}` : n,
+        // A review chapter (GB 'R1' "Review 1") is named by its title alone (bd-97daxo.5).
+        label: c.review === true && c.chapter_title ? String(c.chapter_title) : (c.chapter_title ? `${n}: ${c.chapter_title}` : n),
       };
     });
   },

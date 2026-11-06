@@ -50,6 +50,9 @@ const OxbridgeLpService = require('../services/oxbridge-lp.service');
 const { clampLanguage, resolveUx } = require('../config/ux-strings');
 const V8Catalog = require('../services/lp-v8-catalog.service');
 const V8Delivery = require('../services/lp-v8-delivery.service');
+// bd-97daxo.4 — the books her region names (null = today's ICT list). Book-first: a region with a list gets its
+// books in the K-5 lane and is told a grade it has no books for is not available yet (GB: 6+, operator 6 Nov).
+const TeacherBooks = require('../services/teacher-books.service');
 const Lp612Catalog = require('../services/lp612-catalog.service');
 const Lp612Serving = require('../services/lp612-serving.service');
 const BookCurriculum = require('../services/book-curriculum.service');
@@ -172,8 +175,8 @@ async function openGradePickerFor(flowToken) {
   return openGradePicker(curriculum, await gbLane(flowToken, curriculum));
 }
 const notIct = (curriculum) => Boolean(curriculum) && curriculum !== BookCurriculum.ICT;
-/** Trailing positional args for a K-5 catalogue call: none for ICT. */
-const v8Args = (curriculum, ...rest) => (notIct(curriculum) ? [curriculum, ...rest] : []);
+/** Trailing positional args for a K-5 catalogue call: her region's book list, none when it names no books. */
+const v8Shelf = (bookKeys) => (Array.isArray(bookKeys) ? [bookKeys] : []);
 /** Trailing options for a 6-12 catalogue call: none for ICT. */
 const lp612Args = (curriculum) => (notIct(curriculum) ? [{ curriculum }] : []);
 
@@ -225,15 +228,24 @@ async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
   const step = d.step;
   // Her books — asked only by the steps that pick one (a lesson or segment tap names its own id).
   const books = () => teacherCurriculum(flowToken);
+  // bd-97daxo.4 — the K-5 lane reads her region's BOOK LIST, not a curriculum (operator, 6 Nov: "tie the lesson
+  // plans to books, books to regions"). A region with a list is book-first and never enters the curriculum lane.
+  const shelf = () => TeacherBooks.bookKeysForUser(userIdFrom(flowToken) || null);
 
   // v3 Flow: every NavigationList row carries its own step, so routing never
   // depends on which screen Meta says we are on.
-  const gradeStep = async () => { const c = await books(); return selectGrade(d, c, await gbLane(flowToken, c)); };
-  if (step === 'grade')       return gradeStep();
-  if (step === 'subject')     return selectSubject(d, await books());
-  if (step === 'chapter')     return selectChapter(flowToken, d, await books());
-  if (step === 'lesson')      return selectLesson(flowToken, d);
-  if (step === 'lesson_page') return selectLessonPage(flowToken, d, await books());
+  const gradeStep = async () => {
+    const keys = await shelf();
+    if (Array.isArray(keys)) return selectGrade(d, BookCurriculum.ICT, null, keys, flowToken);
+    const c = await books();
+    return selectGrade(d, c, await gbLane(flowToken, c), null, flowToken);
+  };
+  if (step === 'grade')        return gradeStep();
+  if (step === 'subject')      return selectSubject(d, await shelf());
+  if (step === 'chapter')      return selectChapter(flowToken, d, await shelf());
+  if (step === 'lesson')       return selectLesson(flowToken, d);
+  if (step === 'lesson_page')  return selectLessonPage(flowToken, d, await shelf());
+  if (step === 'chapter_page') return selectChapterPage(flowToken, d, await shelf());
 
   // The 6-12 runtime lane. Its own step names rather than a shared
   // one, for the reason the file header already gives about id prefixes: two
@@ -258,8 +270,8 @@ async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
   // v2 Flow fallback — payloads carry a screen but no step. Live during the
   // endpoint-deployed-but-Flow-not-yet-republished window.
   if (screen === 'SELECT_GRADE')    return gradeStep();
-  if (screen === 'SELECT_SUBJECT')  return selectSubject(d, await books());
-  if (screen === 'SELECT_CHAPTER')  return selectChapter(flowToken, d, await books());
+  if (screen === 'SELECT_SUBJECT')  return selectSubject(d, await shelf());
+  if (screen === 'SELECT_CHAPTER')  return selectChapter(flowToken, d, await shelf());
   if (screen === 'SELECT_TOPIC')    return selectTopic(flowToken, d);
 
   logToFile('Pakistan LP: unroutable data_exchange', { screen, step });
@@ -306,10 +318,18 @@ async function openGradePicker(curriculum, gb = null) {
 // SELECT_GRADE → SELECT_SUBJECT
 // Grade 1–5: subjects from pre_generated_lps.
 // Grade 6–10: subjects from lesson_plan_catalog (Oxbridge).
-async function selectGrade(screenData, curriculum, gb = null) {
+async function selectGrade(screenData, curriculum, gb = null, bookKeys = null, flowToken = null) {
   const gradeStr = screenData && screenData.grade;
   if (!gradeStr) return { data: { error: { message: 'Please select a class.' } } };
   const grade = parseInt(gradeStr, 10);
+
+  // bd-97daxo.4 (operator, 6 Nov) — her region's book list also says which grades she has books for. A grade
+  // it does not cover (GB: 6+, and any Grade 1-5 with no GB book yet) is told so, politely and in her language,
+  // rather than handed ICT's books or the Oxbridge picker. No list (every ICT teacher): nothing changes.
+  if (!TeacherBooks.gradeCovered(grade, bookKeys)) {
+    const language = await TeacherBooks.languageForUser(userIdFrom(flowToken) || null);
+    return { data: { error: { message: TeacherBooks.gradeNotCoveredMessage('lp', grade, language) } } };
+  }
 
   // bd-rj6w0n.14.4 — a GB teacher reads only the nbf_snc books, through the 6-12 catalogue, and never
   // the ICT K-5 v8 corpus or Oxbridge below. Needs LP_612_ENABLED too: the lp612 steps are guarded on it.
@@ -336,7 +356,7 @@ async function selectGrade(screenData, curriculum, gb = null) {
   // switch, not a recommendation, and the default keeps her on the K-5 v8 corpus.
   if (isV8Grade(grade) && !lp612ServesGrade(grade)) {
     const available = await V8Delivery.availableLessonIds();
-    const items = V8Catalog.buildSubjectItems(grade, available, ...v8Args(curriculum));
+    const items = V8Catalog.buildSubjectItems(grade, available, ...v8Shelf(bookKeys));
     if (items.length) {
       return {
         screen: 'SELECT_SUBJECT',
@@ -401,7 +421,7 @@ async function selectGrade(screenData, curriculum, gb = null) {
 }
 
 // SELECT_SUBJECT → SELECT_CHAPTER
-async function selectSubject(screenData, curriculum) {
+async function selectSubject(screenData, bookKeys) {
   const gradeStr = screenData && screenData.grade;
   const subject = screenData && screenData.subject;
   if (!gradeStr || !subject) return { data: { error: { message: 'Please select a subject.' } } };
@@ -410,7 +430,7 @@ async function selectSubject(screenData, curriculum) {
   // ── v8 corpus (grades 1-5), legacy fallback — see selectGrade ─────────
   if (isV8Grade(grade)) {
     const available = await V8Delivery.availableLessonIds();
-    const items = V8Catalog.buildChapterItems(grade, subject, available, ...v8Args(curriculum));
+    const items = V8Catalog.buildChapterItems(grade, subject, available, ...v8Shelf(bookKeys));
     if (items.length) {
       return {
         screen: 'SELECT_CHAPTER',
@@ -418,7 +438,7 @@ async function selectSubject(screenData, curriculum) {
           items,
           grade_value: String(grade),
           subject_value: subject,
-          header_text: `${gradeTitle(grade)} — ${V8Catalog.subjectTitle(grade, subject, ...v8Args(curriculum, available))}`,
+          header_text: `${gradeTitle(grade)} — ${V8Catalog.subjectTitle(grade, subject, ...v8Shelf(bookKeys))}`,
         },
       };
     }
@@ -465,7 +485,7 @@ async function selectSubject(screenData, curriculum) {
 // SELECT_CHAPTER → SELECT_TOPIC
 // Topic IDs are prefixed: "PK-<uuid>" or "OX-<bigint>" so SELECT_TOPIC
 // knows which delivery path to call.
-async function selectChapter(flowToken, screenData, curriculum) {
+async function selectChapter(flowToken, screenData, bookKeys) {
   const gradeStr = screenData && screenData.grade;
   const subject = screenData && screenData.subject;
   const chapter = screenData && screenData.chapter;
@@ -476,7 +496,7 @@ async function selectChapter(flowToken, screenData, curriculum) {
 
   // ── v8 corpus (grades 1-5), legacy fallback — see selectGrade ─────────
   if (isV8Grade(grade)) {
-    const v8 = await v8LessonScreen(flowToken, grade, subject, chapter, 1, 'SELECT_LESSON', curriculum);
+    const v8 = await v8LessonScreen(flowToken, grade, subject, chapter, 1, 'SELECT_LESSON', bookKeys);
     if (v8 && v8.screen) return v8;
     logToFile('Pakistan LP: no v8 lessons — falling back to pre_generated_lps', { grade, subject, chapter });
   }
@@ -558,17 +578,19 @@ const userIdFrom = (flowToken) => String(flowToken || '').split(':')[0];
  * Build a SELECT_LESSON (or SELECT_LESSON_MORE) screen for one chapter.
  * The ✓/○ tick is per-teacher, so this needs the flow token.
  */
-async function v8LessonScreen(flowToken, grade, subject, chapter, page, screenId, curriculum) {
+async function v8LessonScreen(flowToken, grade, subject, chapter, page, screenId, bookKeys) {
   const userId = userIdFrom(flowToken);
   const [available, downloaded] = await Promise.all([
     V8Delivery.availableLessonIds(),
     V8Delivery.downloadedLessonIds(userId),
   ]);
-  const { items, total } = V8Catalog.buildLessonItems(grade, subject, chapter, available, downloaded, page, ...v8Args(curriculum));
+  const { items, total } = V8Catalog.buildLessonItems(grade, subject, chapter, available, downloaded, page, ...v8Shelf(bookKeys));
   if (!items.length) {
     return { data: { error: { message: 'Those lesson plans are being prepared — check back soon.' } } };
   }
-  const ch = V8Catalog.chapterFor(grade, subject, chapter, ...v8Args(curriculum, available));
+  const ch = V8Catalog.chapterFor(grade, subject, chapter, ...v8Shelf(bookKeys));
+  // A review chapter (GB's 'R1' "Review 1") is named by its title; every other header reads as it always has.
+  const chapterPart = ch && ch.review ? ch.title : `Ch ${chapter}: ${ch ? ch.title : ''}`;
   return {
     screen: screenId,
     data: {
@@ -576,19 +598,41 @@ async function v8LessonScreen(flowToken, grade, subject, chapter, page, screenId
       grade_value: String(grade),
       subject_value: subject,
       chapter_value: String(chapter),
-      header_text: `${gradeTitle(grade)} ${V8Catalog.subjectTitle(grade, subject, ...v8Args(curriculum, available))} · Ch ${chapter}: ${ch ? ch.title : ''}`.trim(),
+      header_text: `${gradeTitle(grade)} ${V8Catalog.subjectTitle(grade, subject, ...v8Shelf(bookKeys))} · ${chapterPart}`.trim(),
       lesson_total: String(total),
     },
   };
 }
 
 /** "More lessons →" — a second screen, because Meta rejects a self-route. */
-async function selectLessonPage(flowToken, d, curriculum) {
+async function selectLessonPage(flowToken, d, bookKeys) {
   const grade = parseInt(d.grade, 10);
   if (!isV8Grade(grade) || !d.subject || d.chapter === undefined) {
     return { data: { error: { message: 'Please pick a chapter again.' } } };
   }
-  return v8LessonScreen(flowToken, grade, d.subject, d.chapter, parseInt(d.page, 10) || 2, 'SELECT_LESSON_MORE', curriculum);
+  return v8LessonScreen(flowToken, grade, d.subject, d.chapter, parseInt(d.page, 10) || 2, 'SELECT_LESSON_MORE', bookKeys);
+}
+
+/**
+ * "More chapters →" (bd-97daxo.5): a K-5 book with more than 20 chapters (GB's Urdu books) pages onto
+ * SELECT_CHAPTER_MORE, the second chapter screen the published Flow already holds for Grades 6-12.
+ */
+async function selectChapterPage(flowToken, d, bookKeys) {
+  const grade = parseInt(d.grade, 10);
+  if (!isV8Grade(grade) || !d.subject) return { data: { error: { message: 'Please pick a subject again.' } } };
+  const available = await V8Delivery.availableLessonIds();
+  const items = V8Catalog.buildChapterItems(grade, d.subject, available, Array.isArray(bookKeys) ? bookKeys : undefined,
+    parseInt(d.page, 10) || 2);
+  if (!items.length) return { data: { error: { message: 'Please pick a subject again.' } } };
+  return {
+    screen: 'SELECT_CHAPTER_MORE',
+    data: {
+      items,
+      grade_value: String(grade),
+      subject_value: d.subject,
+      header_text: `${gradeTitle(grade)} — ${V8Catalog.subjectTitle(grade, d.subject, ...v8Shelf(bookKeys))}`,
+    },
+  };
 }
 
 // ── One bundle per double tap (Meta bill cut NL2, bd-w2daa.9) ──────────────

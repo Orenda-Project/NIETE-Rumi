@@ -2812,8 +2812,11 @@ router.get('/curriculum/lps', requirePortalAuth, async (req, res) => {
   try {
     const grade = parseInt(req.query.grade, 10);
     const subjectKey = String(req.query.subject || '').trim();
-    const chapterNumber = parseInt(req.query.chapter_number, 10);
-    if (!Number.isFinite(grade) || !subjectKey || !Number.isFinite(chapterNumber)) {
+    // A K-5 chapter is a number, or a GB English review chapter 'R1' (bd-97daxo.5).
+    const chapterRaw = String(req.query.chapter_number || '').trim();
+    let chapterNumber = parseInt(chapterRaw, 10);
+    if (!Number.isFinite(chapterNumber) && /^R\d{1,3}$/i.test(chapterRaw)) chapterNumber = chapterRaw.toUpperCase();
+    if (!Number.isFinite(grade) || !subjectKey || !(Number.isFinite(chapterNumber) || typeof chapterNumber === 'string')) {
       return res.status(400).json({ success: false, error: 'grade + subject + chapter_number required' });
     }
     const lessons = await LpCatalogue.listLessons(

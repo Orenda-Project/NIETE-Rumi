@@ -104,9 +104,16 @@ async function gradesOnOffer(userId, curriculum) {
   return grades.map((g) => ({ id: String(g), title: `Grade ${g}` }));
 }
 
-/** Which subjects we hold a book for, in this grade, that this user is offered. */
+/**
+ * Which subjects we hold a book for, in this grade, that this user is offered.
+ * Keyed by book (bd-97daxo.4): a G1-5 subject is offered only where the ICT book the generator reads is on her
+ * region's list (teacher-books); a grade her list does not cover (GB: 6+, operator 6 Nov) offers none. No list
+ * offers everything, as before.
+ */
 async function subjectsOnOffer(grade, userId, curriculum) {
   const g = await gradeGateFor([grade]);
+  const TeacherBooks = require('../services/teacher-books.service');
+  const shelf = userId ? await TeacherBooks.bookKeysForUser(userId) : null;
   const { data } = await offeredBooks('subject', curriculum).eq('grade', Number(grade));
   // Two curricula can both hold a subject; she is offered it once. One curriculum: no change.
   const both = BookCurriculum.curriculaFor(curriculum).length > 1;
@@ -119,7 +126,19 @@ async function subjectsOnOffer(grade, userId, curriculum) {
       return !band || band.includes(Number(grade));
     })
     .filter((s) => GradeGate.cellAllowed(grade, s, g.flag, g.kill, g.killCells, userId))
+    .filter((s) => TeacherBooks.assessmentOffered(grade, s, shelf))
     .map((s) => ({ id: s, title: SUBJECT_TITLE[s] || s }));
+}
+
+/**
+ * bd-97daxo.4 (operator, 6 Nov) — a grade her region has no books for (GB: 6+) offers no subjects; say so in her
+ * language rather than showing an empty list. '' (no message) for everyone else, exactly as before.
+ */
+async function notCoveredError(grade, userId, subjects) {
+  if (subjects.length || !userId) return '';
+  const TeacherBooks = require('../services/teacher-books.service');
+  if (TeacherBooks.gradeCovered(grade, await TeacherBooks.bookKeysForUser(userId))) return '';
+  return TeacherBooks.gradeNotCoveredMessage('exam', grade, await TeacherBooks.languageForUser(userId));
 }
 
 /**
@@ -1378,7 +1397,10 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     // INIT rendered for grades[0] (Grade 1), which has no Science or Social
     // Studies, so no G4/G5 teacher could ever see them (bd-g4jkt).
     if (data.trigger === 'grade_selected') {
-      return screen('CLASS', { grades: await gradesOnOffer(state.userId, state.curriculum), subjects, error: '' });
+      return screen('CLASS', {
+        grades: await gradesOnOffer(state.userId, state.curriculum), subjects,
+        error: await notCoveredError(grade, state.userId, subjects),
+      });
     }
 
     // A stale client can submit a pair that is not on offer. Re-render rather
