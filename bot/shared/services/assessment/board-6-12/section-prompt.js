@@ -79,11 +79,20 @@ function userPrompt({ content, pageReference, note }) {
 }
 
 /** `used` (the repair round): keys already in the paper, which a new stem or stimulus must not state. */
+const usedLine = (used) => `Do not state any of these answers in a new stem or stimulus; they are already keys in this paper: ${used.map((k) => `"${k}"`).join('; ')}`;
+
+/** `r.write` (round 4): the top-up asks for the shortfall plus about a quarter; code trims back to the slot. */
 function topUpNote(short, used = []) {
-  const rows = short.map((r) => `${r.slot} (have ${r.have}, need ${r.need})`).join('; ');
+  const rows = short.map((r) => `${r.slot} (have ${r.have}, need ${r.need}${r.write != null ? `; write ${r.write}` : ''})`).join('; ');
   const head = `TOP-UP: the first reply was short. Write only the missing items for these slots, same rules: ${rows}.`;
   if (!used.length) return head;
-  return `${head}\nDo not state any of these answers in a new stem or stimulus; they are already keys in this paper: ${used.map((k) => `"${k}"`).join('; ')}`;
+  return `${head}\n${usedLine(used)}`;
 }
 
-module.exports = { earlierStems, levelTally, promptValues, userPrompt, topUpNote };
+/** A later chunk of a long slot: which items it writes; the earlier stems are in the task, the keys are listed here. */
+function chunkNote(chunk, used = []) {
+  const head = `CHUNK: items ${chunk.from}-${chunk.to} of slot ${chunk.slot} (${chunk.total} in all). Items 1-${chunk.from - 1} are written; do not repeat their stems.`;
+  return used.length ? `${head}\n${usedLine(used)}` : head;
+}
+
+module.exports = { earlierStems, levelTally, promptValues, userPrompt, topUpNote, chunkNote };

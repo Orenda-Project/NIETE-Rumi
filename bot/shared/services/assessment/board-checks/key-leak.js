@@ -14,6 +14,9 @@
  * BOARD RULING part 2: a single-word MCQ key (articles and bare units aside, no digit) in ANOTHER item's stem or
  * stimulus is chapter vocabulary ("distance", "the same", "m/s"), so that issue is soft. Numbers with or without
  * units, multi-word keys, every non-MCQ key, and an MCQ key in its own stem or stimulus stay hard.
+ * OWN STEM (round 4): a key of numbers and units only, in its own stem that asks for a calculation, is the given
+ * data ("Calculate ... in kJ/mol", key "-1312 kJ/mol"), so it is soft; a unit asked for by name stays hard. A signed
+ * number must match with its sign in every view ("-1/2" is not in "+1/2").
  * REPAIR: ctx.fresh (a Set of item ids, the repair round's replacements) moves the blame for a fresh key found in
  * an old stem onto the fresh item, so the old item is not the one dropped. usedKeys() gives the repair ask the
  * numeric and multi-word keys already in the paper.
@@ -27,7 +30,10 @@ const SKIP_KEYS = new Set(['true', 'false', 'correct', 'incorrect', 'yes', 'no',
 const UR_LETTERS = ['الف', 'ب', 'ج', 'د'];
 const padded = (s) => ` ${tokens(s).join(' ')} `;
 const ARTICLES = new Set(['a', 'an', 'the']);
-const UNITS = new Set(['m', 's', 'kg', 'g', 'n', 'j', 'w', 'v', 'k', 'pa', 'hz', 'mol', 'cm', 'mm', 'km', 'ms', 'h', 'min']); // design_pending
+const UNITS = new Set(['m', 's', 'kg', 'g', 'n', 'j', 'w', 'v', 'k', 'pa', 'hz', 'mol', 'cm', 'mm', 'km', 'ms', 'h', 'min', 'kj', 'kpa', 'ev', 'nm', 'ml', 'mg']); // design_pending
+const CALC = /\b(?:calculate|compute|find|work out|determine|evaluate|how (?:much|many|long|far))\b/i; // design_pending
+const SIGNED = /[+\-\u2212]\s*\d[\d./]*/g;
+const signedOf = (s) => (fold(s).replace(/\u2212/g, '-').match(SIGNED) || []).map((x) => x.replace(/\s+/g, ''));
 const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
 
 function mcqKey(it) {
@@ -56,6 +62,11 @@ function searchable(key) {
   return /^\p{N}+$/u.test(one) ? one.length >= LIMITS.minDigits : one.length >= LIMITS.minLetters;
 }
 
+/** Every signed number of the key is in the text with its sign ("-1/2" is not in "+1/2"). */
+const signsIn = (key, raw) => { const t = fold(raw).replace(/\u2212/g, '-').replace(/\s+/g, ''); return signedOf(key).every((x) => t.includes(x)); };
+/** Only numbers and units: in its own calculation stem it is the given data, not a leak. */
+const givenData = (key) => tokens(key).every((x) => /\p{N}/u.test(x) || UNITS.has(x));
+
 /** One word once articles and bare units are set aside, and no digit: chapter vocabulary in a board paper. */
 function vocabulary(key) {
   const t = tokens(key);
@@ -65,8 +76,12 @@ function vocabulary(key) {
 function n18(ls, board, fresh) {
   const views = ls.map((n) => {
     const fields = childFields(n);
+    const raw = (keep) => fields.filter(keep).map((f) => f.text).join(' . ');
     return {
       n,
+      ownRaw: raw((f) => f.field !== 'options' && f.field !== 'words'),
+      allRaw: raw(() => true),
+      noOptionsRaw: raw((f) => f.field !== 'options'),
       own: padded(fields.filter((f) => f.field !== 'options' && f.field !== 'words').map((f) => f.text).join(' . ')),
       all: padded(fields.map((f) => f.text).join(' . ')),
       noOptions: padded(fields.filter((f) => f.field !== 'options').map((f) => f.text).join(' . ')),
@@ -77,9 +92,9 @@ function n18(ls, board, fresh) {
     const key = keyOf(v.n.item);
     if (!key || !searchable(key)) return;
     const needle = padded(key);
-    if (v.own.includes(needle)) { out.push(leak(v.n, key, 'its own stem')); return; }
+    if (v.own.includes(needle) && signsIn(key, v.ownRaw)) { out.push(leak(v.n, key, 'its own stem', !(givenData(key) && CALC.test(v.ownRaw)))); return; }
     const reuseOk = board && Array.isArray(v.n.item.options) && v.n.item.options.length > 1; // an MCQ key
-    const other = views.find((w, j) => j !== i && (reuseOk ? w.noOptions : w.all).includes(needle));
+    const other = views.find((w, j) => j !== i && (reuseOk ? w.noOptions : w.all).includes(needle) && signsIn(key, reuseOk ? w.noOptionsRaw : w.allRaw));
     if (!other) return;
     const blame = fresh && fresh.has(v.n.item.id) && !fresh.has(other.n.item.id) ? v.n : other.n;
     out.push(leak(blame, key, blame === other.n ? `the key of ${v.n.ref}` : `its key, already in ${other.n.ref}`, !(reuseOk && vocabulary(key))));

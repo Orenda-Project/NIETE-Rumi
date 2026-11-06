@@ -209,3 +209,34 @@ describe('N18 and the repair round', () => {
     expect(hard(r).map((i) => i.item_ref)).toEqual(['mcq#1']);
   });
 });
+
+// bd-5jmnfj.38.30 round 4 (p4 a5, G11 Chemistry ch2): a key that is only a number and a unit, already in its own
+// calculation stem, is the given data, not a leak (soft). A unit asked for by name stays hard. A sign is part of a
+// number: "-1/2" is not in a stem that prints only "+1/2".
+describe('N18 own stem: units, numbers and signs', () => {
+  const BOARD = { mode: 'board' };
+  const mc = (question, key, options, extra = {}) => ({ type: 'mcq', question, options, answer: key, ...extra });
+  const n18 = (r) => r.issues.filter((i) => i.code === 'KEY_IN_STEM');
+  test('"Calculate ... in kJ/mol" with key "-1312 kJ/mol" is soft', () => {
+    const r = m.run(paper(
+      mc('Calculate the energy of the electron in the first orbit of hydrogen (E = -1312 kJ/mol x Z^2/n^2, Z = 1, n = 1), in kJ/mol.', 'B',
+        ['A) -328 kJ/mol', 'B) -1312 kJ/mol', 'C) -146 kJ/mol', 'D) -82 kJ/mol']),
+    ), BOARD);
+    expect(hard(r)).toEqual([]);
+    expect(n18(r)).toHaveLength(1);
+  });
+  test('a unit key in its own stimulus, asked for by name, stays hard', () => {
+    const r = m.run(paper(
+      mc('Ionization energies are measured in which unit?', 'A', ['A) kJ/mol', 'B) g/mol', 'C) mol/L', 'D) kg/m3'],
+        { stimulus: 'Sara records successive ionization energies (kJ/mol) of an element: 900, 1750, 14800.' }),
+    ), BOARD);
+    expect(hard(r)).toHaveLength(1);
+  });
+  test('key "-1/2" is not found in a stem that prints "+1/2"', () => {
+    const r = m.run(paper(
+      mc('If a second electron were added to a 2px orbital whose first electron has s = +1/2, its spin must be:', 'D',
+        ['A) +1', 'B) +1/2', 'C) 0', 'D) -1/2']),
+    ), BOARD);
+    expect(n18(r)).toEqual([]);
+  });
+});
