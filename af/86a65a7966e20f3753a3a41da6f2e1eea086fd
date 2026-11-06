@@ -1,0 +1,2 @@
+{"ts":"2026-11-06T14:13:04Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,observe,teacher-assessment,portal-smoke spec_sync=true","sha":"af86a65a7966","branch":"bd-5jmnfj.38.40-71092","user":""}
+{"ts":"2026-11-06T14:13:07Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-5jmnfj.38.40-71092: teacher-assessment web lane spec: NOT UPDATED e2e: missing","sha":"af86a65a7966","branch":"bd-5jmnfj.38.40-71092","user":""}
