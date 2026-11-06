@@ -12,7 +12,8 @@ const { items, answerText } = require('./free-secondary-checks');
 const { MEANING_RULE, SCHEME_RULE } = require('./free-secondary-rules');
 
 const CHECKS = new Set(['cross-leak', 'longest-key', 'absolute-option', 'scheme', 'weak-distractor',
-  'two-correct', 'odd-key', 'stem-grammar', 'long-sentence', 'long-stem', 'part-levels']);
+  'two-correct', 'odd-key', 'stem-grammar', 'long-sentence', 'long-stem', 'part-levels',
+  'level-split', 'level-off', 'self-answer', 'scheme-conflict', 'stated-type']);
 const FIELDS = ['question', 'options', 'answer', 'marking_points', 'mark_bands', 'accept', 'reject', 'blooms', 'part_levels'];
 
 /** The issues a targeted rewrite fixes; the rest belong to the whole-paper revision. */
@@ -52,6 +53,8 @@ function prompt(examJson, list) {
     'In an MCQ exactly one option is right and the other three are clearly wrong; every option completes the stem as one correct sentence; the key is never the odd one out of the four (three near-synonyms or three negatives against it).',
     'An MCQ that gives away another item\'s answer (its key, or its options listing that answer) asks about a different fact of the lesson, so its key and options are no longer that answer.',
     'A written item in labelled parts carries "part_levels": one thinking level per part, in order.',
+    'When a problem names a thinking level, rewrite the item (or the part) so it really demands the level the problem names, and tag it so; changing the tag alone does not fix it. A book activity or worked example reproduced counts as Remember.',
+    'No stem contains part of its own answer, and a marking point never awards marks for something the stem already prints.',
     'Keep every sentence within the word limit the problem states; split a long sentence in two rather than drop what it asks.',
     MEANING_RULE,
     'A written item keeps marking points that add up to its marks.',
