@@ -8,6 +8,9 @@
  * Starting values in LIMITS are design_pending: no source, calibrate on the 24 fixtures.
  * RULINGS: true/false style keys and `true_false_correct` items are never searched (a one-word key that every
  * statement repeats); one issue per key, on the first view that holds it (own view first). Pure.
+ * BOARD RULING (bd-5jmnfj.38.30): in a board paper (40-80 MCQs) an MCQ key found only among ANOTHER item's
+ * options is ordinary distractor reuse, not a leak. Its stem/passage/stimulus (and a printed word box) still count,
+ * and every other key (srq, fill-blank) is still searched in other items' options.
  */
 const { leaves } = require('./_walk-local');
 const { childFields } = require('./_child-view');
@@ -45,13 +48,14 @@ function searchable(key) {
   return /^\p{N}+$/u.test(one) ? one.length >= LIMITS.minDigits : one.length >= LIMITS.minLetters;
 }
 
-function n18(ls) {
+function n18(ls, board) {
   const views = ls.map((n) => {
     const fields = childFields(n);
     return {
       n,
       own: padded(fields.filter((f) => f.field !== 'options' && f.field !== 'words').map((f) => f.text).join(' . ')),
       all: padded(fields.map((f) => f.text).join(' . ')),
+      noOptions: padded(fields.filter((f) => f.field !== 'options').map((f) => f.text).join(' . ')),
     };
   });
   const out = [];
@@ -60,7 +64,8 @@ function n18(ls) {
     if (!key || !searchable(key)) return;
     const needle = padded(key);
     if (v.own.includes(needle)) { out.push(leak(v.n, key, 'its own stem')); return; }
-    const other = views.find((w, j) => j !== i && w.all.includes(needle));
+    const reuseOk = board && Array.isArray(v.n.item.options) && v.n.item.options.length > 1; // an MCQ key
+    const other = views.find((w, j) => j !== i && (reuseOk ? w.noOptions : w.all).includes(needle));
     if (other) out.push(leak(other.n, key, `the key of ${v.n.ref}`));
   });
   return out;
@@ -111,9 +116,9 @@ function n19(it, ref) {
   return out;
 }
 
-function run(examJson) {
+function run(examJson, ctx) {
   const ls = leaves(examJson);
-  const issues = n18(ls);
+  const issues = n18(ls, !!ctx && ctx.mode === 'board');
   ls.forEach((n) => { if (n.item.type === 'match') issues.push(...n19(n.item, n.ref)); });
   return { ok: !issues.some((i) => i.hard), issues };
 }

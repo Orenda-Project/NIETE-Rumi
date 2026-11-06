@@ -16,6 +16,7 @@ const { unitsOf } = require('./board-6-12/units');
 const SP = require('./board-6-12/section-prompt');
 const T = require('./board-6-12/tree');
 const { normaliseBoardScheme } = require('./board-6-12/scheme');
+const { settleKeys } = require('./board-6-12/mcq-keys');
 
 const SHORT_MESSAGE = 'A section is still short of questions after one more try.';
 
@@ -91,6 +92,7 @@ async function writeBoardPaper(args, d) {
     T.trimExcess(ex, allSlots);
     T.stamp(ex, allSlots, (item) => d.stampSlo(grade, subject, item));
     ex._layout = nested(buildLayout(P, V, ex, { presetId: pattern }), V.total_marks);
+    settleKeys(ex); // D13 key letters and numeric order are settled by code, not left to the model
     const checks = d.checks.run(ex, { P, variant: V, mode: 'board', subjectConfig: row });
     ex._layout.checks = checks.record;
     return checks;
