@@ -29,10 +29,10 @@ test("adds curriculum TEXT NOT NULL DEFAULT 'ict' to both tables, IF NOT EXISTS"
   expect(UP).toContain("alter table niete_lp612_segments add column if not exists curriculum text not null default 'ict'");
 });
 
-test("renames Gilgit-Baltistan's curriculum key gb -> nbf_snc (V1.8.5 is not edited), and the rollback reverses it", () => {
+test("renames Gilgit-Baltistan's curriculum key gb -> nbf_snc (the registry, V1.8.8, is not edited), and the rollback reverses it", () => {
   expect(UP).toContain("update region_features set curriculum_key = 'nbf_snc', updated_at = now() where region = 'gilgit-baltistan' and curriculum_key = 'gb'");
   expect(DOWN).toContain("update region_features set curriculum_key = 'gb', updated_at = now() where region = 'gilgit-baltistan' and curriculum_key = 'nbf_snc'");
-  expect(read('migrations/V1.8.5__region_registry.sql')).toContain("'gb', false");
+  expect(read('migrations/V1.8.8__region_registry.sql')).toContain("'gb', false");
 });
 
 test('has no transaction control and reloads PostgREST last, up and down', () => {

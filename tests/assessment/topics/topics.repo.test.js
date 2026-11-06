@@ -30,6 +30,7 @@ test('reads the current topics of one grade + subject + chapter, in sort_order',
   expect(mockCalls).toEqual([
     ['from', 'assessment_topics'],
     ['select', '*'],
+    ['eq', 'curriculum', 'ict'], // bd-97daxo.4: a call with no curriculum reads ICT's
     ['eq', 'grade', 1],
     ['eq', 'subject', 'maths'],
     ['eq', 'chapter_number', 3],
