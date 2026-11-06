@@ -101,6 +101,17 @@ async function subjectsOnOffer(grade, userId = null) {
 }
 
 /**
+ * bd-97daxo.4 (operator, 6 Nov) — a grade her region has no books for (GB: 6+) offers no subjects; say so in her
+ * language rather than showing an empty list. '' (no message) for everyone else, exactly as before.
+ */
+async function notCoveredError(grade, userId, subjects) {
+  if (subjects.length || !userId) return '';
+  const TeacherBooks = require('../services/teacher-books.service');
+  if (TeacherBooks.gradeCovered(grade, await TeacherBooks.bookKeysForUser(userId))) return '';
+  return TeacherBooks.gradeNotCoveredMessage('exam', grade, await TeacherBooks.languageForUser(userId));
+}
+
+/**
  * The chapters she picked, as an array, whatever shape the session is in.
  *
  * She used to be able to pick exactly one, so a session written before the
@@ -1352,7 +1363,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     // INIT rendered for grades[0] (Grade 1), which has no Science or Social
     // Studies, so no G4/G5 teacher could ever see them (bd-g4jkt).
     if (data.trigger === 'grade_selected') {
-      return screen('CLASS', { grades: await gradesOnOffer(), subjects, error: '' });
+      return screen('CLASS', { grades: await gradesOnOffer(), subjects, error: await notCoveredError(grade, state.userId, subjects) });
     }
 
     // A stale client can submit a pair that is not on offer. Re-render rather

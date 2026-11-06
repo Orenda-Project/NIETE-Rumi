@@ -104,6 +104,18 @@ const UX_STRINGS = {
     en: 'Subject not confirmed — the language/subject-specific row was not scored.',
     ur: 'مضمون کی تصدیق نہیں ہو سکی — زبان یا مضمون سے متعلق مخصوص شعبے کو نمبر نہیں دیے گئے۔',
   },
+  // ─── a grade her region has no books for (bd-97daxo.4, operator 6 Nov 2026) ───────────────────────
+  // Gilgit-Baltistan names Grade 1-5 books only (its Afaq books for Grades 6+ are not ready), so a GB
+  // teacher who picks Grade 6+ (or a Grade 1-5 with no GB book yet) is told so, instead of being handed ICT's
+  // books or an error. {grade} arrives in the reader's digits (Urdu digits for ur). Flow error text.
+  lpGradeNotForRegionBooks: {
+    en: "Lesson plans for Grade {grade} aren't available for your school yet. We'll add them as soon as they're ready.",
+    ur: 'آپ کے اسکول کے لیے جماعت {grade} کے سبق کے منصوبے ابھی دستیاب نہیں ہیں۔ تیار ہوتے ہی ہم انہیں شامل کر دیں گے۔',
+  },
+  examGradeNotForRegionBooks: {
+    en: "Question papers for Grade {grade} aren't available for your school yet. We'll add them as soon as they're ready.",
+    ur: 'آپ کے اسکول کے لیے جماعت {grade} کے سوالیہ پرچے ابھی دستیاب نہیں ہیں۔ تیار ہوتے ہی ہم انہیں شامل کر دیں گے۔',
+  },
 
   // ─── observation score bands ──────────────────────────────────────────────
   // An observation score is never shown as a number or a percentage — only as
