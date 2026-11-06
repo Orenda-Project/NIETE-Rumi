@@ -149,6 +149,13 @@ export function QuestionForm({
               </div>
             </div>
           ))}
+          {values.pairs.length < slotCap && (
+            <button type="button" onClick={() => set({ pairs: [...values.pairs, { left: '', right: '' }] })}
+              className={cn('flex min-h-[56px] items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-[#c7cad6] bg-white text-[16px] font-semibold text-[#33374a]', FOCUS)}>
+              <Plus className="h-5 w-5" aria-hidden="true" />
+              {C.addPair}
+            </button>
+          )}
         </fieldset>
       )}
 

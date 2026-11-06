@@ -10,17 +10,19 @@ import CoachGate from "../CoachGate";
 import { useLoad } from "../ui";
 import { useLibrary, type Library } from "../training/libraryApi";
 import { SCHOOL_CARD } from "./copy";
+import { COACH_TRAINING } from "../coachTraining/copy";
+import { COACH_TRAINING_PATH } from "../coachTraining/modules";
 import { COACH_HOME } from "../home/copy";
 import { useCoachFeatureReady } from "../training/useCoachFullApp";
 
 /**
  * The slim Coach Home (the School card switch on): the NIETE band (the kit's HomeGreeting, as on the full coach Home) and
- * two tiles, the Training Library and My schools (the kit's FeatureTile). Nothing else: the rest of the coach app stays
+ * three tiles, the Training Library, My schools and, wide below them, Coach Training (the kit's FeatureTile). Nothing else: the rest of the coach app stays
  * hidden. A tile's chip shows only once its number has loaded (never a 0 for a number that did not).
  *
  * bd-jjcofw — a tester with the full coach app on (portal_coach_full_app) also gets Schedule and Observe, first, as the full
  * coach Home draws them (same tiles, words and chips: this week / waiting, from GET /coach/home). Everyone else's Home is
- * exactly the two tiles above, and /coach/home is never asked for them.
+ * exactly the three tiles above, and /coach/home is never asked for them.
  */
 
 export const courseCount = (lib: Library | null): number | null =>
@@ -29,6 +31,7 @@ export const courseCount = (lib: Library | null): number | null =>
 export default function SlimHome() {
   const F = useCopy(TEACHER_FRAME);
   const C = useCopy(SCHOOL_CARD);
+  const T = useCopy(COACH_TRAINING);
   const lang = useLang();
   const { user } = useAuth();
   const library = useLibrary();
@@ -72,6 +75,7 @@ export default function SlimHome() {
               chip={courses != null ? { text: C.coursesN(courses), tone: "info" } : null} />
             <FeatureTile feature="schools" label={F.coachNav.schools} to="/portal/coach/people"
               chip={p ? { text: C.schoolsTeachers(p.schools.length, p.teachers.length), tone: "info" } : null} />
+            <FeatureTile feature="coachTraining" label={T.title} to={COACH_TRAINING_PATH} wide />
           </nav>
         </FeatureMotionProvider>
       </TeacherPage>

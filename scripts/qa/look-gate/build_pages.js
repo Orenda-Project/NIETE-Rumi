@@ -24,7 +24,7 @@ process.env.LOG_LEVEL = process.env.LOG_LEVEL || 'silent';
 const { renderHubPage } = require(path.join(ROOT, 'dashboard/routes/web-quiz.routes'));
 const Matrix = require(path.join(ROOT, 'scripts/qa/render-matrix/build_matrix'));
 
-const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlMnOpQrStUv';
+const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlMnOpQrStUv'; // gitleaks:allow (invented look-gate token, opens nothing)
 const KID = '0123456789abcdef';
 const ORIGIN = 'http://127.0.0.1';
 

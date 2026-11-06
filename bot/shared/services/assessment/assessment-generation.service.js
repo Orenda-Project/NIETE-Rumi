@@ -23,6 +23,7 @@ const { configForRequest, ensureCurrent } = require('../../config/model-settings
 const { logToFile } = require('../../utils/logger');
 const { extractJsonFromResponse } = require('./assessment-json.util');
 const { stemsBlock, applyStems } = require('./topics/stem-prompt');
+const { capBlooms, appliesToGrade, APPLY_NOTE } = require('./bloom-ceiling');
 
 const PROMPTS = require('./ict-prompts.json');
 
@@ -611,7 +612,7 @@ function answerCoverage(examJson) {
 async function generateExam(args) {
   const { grade, subject, pageContent, pageReference,
           contentSource = 'unseen', questionCount, questionTypes = [], includeAnswerKey = false,
-          totalMarks = null, seenCount = null, slos = null } = args;
+          totalMarks = null, seenCount = null, slos = null, avoidQuestions = [] } = args;
 
   const key = canonical(subject) || 'eng';
   const family = URDU_MEDIUM.has(key) ? 'urdu' : 'eng';
@@ -624,10 +625,11 @@ async function generateExam(args) {
   // one: Urdu and English papers run different models, and only this call site knows which.
   const ownModel = resolveModelForJob('assessment.generate', { family }).model;
   const plan = planCounts({ contentSource, questionCount, questionTypes, seenCount });
+  const honestBlooms = appliesToGrade(grade);
 
   const messages = [
-    { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) },
-    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, slos }) },
+    { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) + (honestBlooms ? APPLY_NOTE : '') },
+    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, slos }) + avoidNote(avoidQuestions) },
   ];
 
   logToFile('[assessment] generating', {
@@ -696,6 +698,10 @@ async function generateExam(args) {
 
   stripImageKeys(examJson);
   normaliseAnswers(examJson);
+  // The writer tags its own questions; a bare drill tagged Apply or a one-mark opinion tagged
+  // Evaluate is lowered to the level its shape supports (bloom-ceiling.js). Only ever lowers.
+  const bloomsMoved = honestBlooms ? capBlooms(examJson) : [];
+  if (bloomsMoved.length) logToFile('[assessment] bloom tags lowered to fit the question', { moved: bloomsMoved });
   // bd-6clakk.12 — her ticked stems: a near miss is set to the stem; a question using none is logged.
   const { misses: stemMisses } = applyStems(examJson, plan.questionTypes);
   if (stemMisses.length) logToFile('[assessment] questions without a ticked stem', { misses: stemMisses });
@@ -782,6 +788,7 @@ const { wordBoxShortfall, wordBoxNote } = require('./fde-word-box'); // bd-5jmnf
 const { addSpareWord } = require('./fde-word-box-spare'); // bd-5jmnfj.33.7.1: a box still without a spare after the re-ask gets one book word
 const { matchRowsShortfall, matchRowsNote } = require('./fde-match-rows'); // bd-5jmnfj.33.5.3: a match item repeats no Column A or Column B entry
 const { midKeyFixes } = require('./fde-mid-key-fixes'); // bd-5jmnfj.33.3: match split, own labels, compare sign, unasked checks, division digits
+const { avoidNote } = require('./repeat-guard');
 
 // Required on first use: the loader opens a database client, and the prompt
 // helpers above are loaded by tests and tools that have no database.

@@ -42,10 +42,11 @@ export function stepsFor(p: Pick<Picks, 'style'>, eligible: boolean): readonly S
 }
 
 /**
- * Edit on a board-pattern paper (the paper page and Versions). Off until the server's editor for those papers is live:
- * the server refuses to edit one until then (PATTERN_NO_EDIT), and the editor reached by a link says so in the deck's words.
+ * Edit on a board-pattern paper (the paper page and Versions). On since the server's editor for those papers went live
+ * (#2336): remove / put back / edit makes a v2 with both files; adding (PATTERN_NO_ADD) and changed marks
+ * (PATTERN_FIXED_MARKS) are still refused, and the editor says so in the deck's words.
  */
-export const FDE_EDITING = false;
+export const FDE_EDITING = true;
 
 /** The bot's MAX_TOTAL_MARKS (question-types.js). The server refuses past it either way. */
 export const MAX_TOTAL_MARKS = 1000;

@@ -14,6 +14,7 @@ import { deleteRecording } from '../lib/recordingStore';
 import { SendError } from '../lib/coachingSend';
 import type { FinishedRecording } from '../lib/lessonRecorder';
 import { V2_STEP, firstName, observationHome, openedFromCoach, sendTalk } from '../lib/coachObserve';
+import { RubricGuide } from '../coach/reports/RubricGuide';
 
 /**
  * bd-5rz1v.6 — "Talk with the teacher": the debrief, in the portal.
@@ -80,7 +81,8 @@ const GuideBlock = ({ icon, sec }: { icon: string; sec: TalkGuideSection }) => (
 export const Guide = ({ guide }: { guide: TalkGuide }) => (
   <div className="flex flex-col gap-2.5" data-testid="talk-guide">
     {guide.intro && <p className="text-[15px] leading-relaxed" dir="auto">{guide.intro}</p>}
-    {guide.sections
+    {Array.isArray(guide.conversation) ? <RubricGuide guide={guide} />
+      : guide.sections
       ? (['strengths', 'growth', 'action'] as const).map((k) => (guide.sections && guide.sections[k]
         ? <GuideBlock key={k} icon={COPY.sections[k]} sec={guide.sections[k] as TalkGuideSection} /> : null))
       : (guide.steps || []).map((st, i) => <GuideBlock key={`${i}-${st.title}`} icon={`${i + 1}.`} sec={st} />)}

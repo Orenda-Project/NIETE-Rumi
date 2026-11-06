@@ -13,6 +13,13 @@ export type GlyphName = AnyFeature | 'home' | 'more';
 const CUT: CSSProperties = { stroke: 'var(--cut, #fff)' };
 
 const GLYPH: Record<GlyphName, ReactElement> = {
+  // Coach Training: the coach's bubble over the teacher's answer.
+  coachTraining: (
+    <g fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 3h10a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H8l-3 3v-3H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" fill="currentColor" />
+      <path d="M12 15h8a2 2 0 0 1 2 2v2.5a2 2 0 0 1-2 2v2l-2.5-2H12a2 2 0 0 1-2-2V17a2 2 0 0 1 2-2z" />
+    </g>
+  ),
   home: (
     <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
   ),

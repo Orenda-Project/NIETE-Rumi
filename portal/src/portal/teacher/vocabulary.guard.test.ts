@@ -112,6 +112,7 @@ const BANNED: Ban[] = [
 /** A leaf exempt from the bans, with the ontology's reason. */
 const EXEMPT: Array<{ path: RegExp; why: string }> = [
   { path: /^report\.(lessons|journeyAria)\(\)$/, why: "scores over N taught lessons: the class she taught, not a plan (ontology: Lesson)" },
+  { path: /^coach(Module|Intro)$/, why: "Coach Training: the coaching programme's own word for its parts (its pages say MODULE 8 OF 9), not the teacher's Training (Course, Part)" },
 ];
 
 describe("the vocabulary guard sees the copy", () => {

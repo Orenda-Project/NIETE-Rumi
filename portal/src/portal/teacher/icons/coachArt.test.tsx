@@ -14,7 +14,12 @@ describe("coach feature colours and art", () => {
   it("the coach's four, in Home's order", () => {
     expect(COACH_FEATURES).toEqual(["schedule", "observations", "schools", "training"]);
   });
-  it.each(["schedule", "schools", "reports"] as const)("%s: a 48-unit ink-outlined drawing", (f) => {
+  it("Coach Training: Training's purple, but its own drawing (a conversation), never the Training Library's cap", () => {
+    expect(FEATURE_HUE.coachTraining).toEqual(FEATURE_HUE.training);
+    const art = (f: "coachTraining" | "training") => render(<FeatureArt feature={f} />).container.querySelector("svg")!.innerHTML;
+    expect(art("coachTraining")).not.toEqual(art("training"));
+  });
+  it.each(["schedule", "schools", "reports", "coachTraining"] as const)("%s: a 48-unit ink-outlined drawing", (f) => {
     const { container } = render(<FeatureArt feature={f} />);
     const svg = container.querySelector("svg")!;
     expect(svg).toHaveAttribute("viewBox", "0 0 48 48");
@@ -22,7 +27,7 @@ describe("coach feature colours and art", () => {
     expect(svg.querySelector("g")).toHaveAttribute("stroke", "#33374a");
     expect(svg.innerHTML).toContain(FEATURE_HUE[f].fg);
   });
-  it.each(["schedule", "schools", "reports"] as const)("%s: a still menu glyph in currentColor", (f) => {
+  it.each(["schedule", "schools", "reports", "coachTraining"] as const)("%s: a still menu glyph in currentColor", (f) => {
     const { container } = render(<FeatureGlyph name={f} />);
     const svg = container.querySelector("svg")!;
     expect(svg).toHaveAttribute("data-glyph", f);

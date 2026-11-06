@@ -377,7 +377,7 @@ describe('request page', () => {
 });
 
 describe('paper page', () => {
-  it('paper page says Marking scheme and carries the FDE chip; no Edit on a board-pattern paper', async () => {
+  it('paper page says Marking scheme and carries the FDE chip; Edit is offered on a board-pattern paper (#2336 editor live)', async () => {
     portal.getAssessmentPapers.mockResolvedValue({ success: true, total: 1, page: 1, pageSize: 20, papers: [{
       paper_id: 'p-f', grade: 5, subject_key: 'maths', subject: 'Maths', chapter_number: null, question_count: 48, total_marks: 100,
       ready_at: new Date().toISOString(), has_answer_key: true, version: 1, pattern: 'fde_g5_2027', pages: { paper: 4, scheme: 3 },
@@ -386,6 +386,6 @@ describe('paper page', () => {
     expect(await screen.findByRole('button', { name: new RegExp(C.markingScheme) })).toBeTruthy();
     expect(screen.queryByRole('button', { name: new RegExp(C.answerKey) })).toBeNull();
     expect(screen.getByText(C.fdeChip)).toBeTruthy();
-    expect(screen.queryByRole('link', { name: new RegExp(`^${C.edit}`) })).toBeNull();
+    expect(screen.getByRole('link', { name: new RegExp(`^${C.edit}`) })).toBeTruthy();
   });
 });
