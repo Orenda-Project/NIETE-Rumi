@@ -50,6 +50,8 @@ const OxbridgeLpService = require('../services/oxbridge-lp.service');
 const { clampLanguage, resolveUx } = require('../config/ux-strings');
 const V8Catalog = require('../services/lp-v8-catalog.service');
 const V8Delivery = require('../services/lp-v8-delivery.service');
+// bd-97daxo.4 — the books her region names (null = today's ICT list). Read per step: the Flow token names her.
+const TeacherBooks = require('../services/teacher-books.service');
 const Lp612Catalog = require('../services/lp612-catalog.service');
 const Lp612Serving = require('../services/lp612-serving.service');
 const {
@@ -192,11 +194,12 @@ async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
 
   // v3 Flow: every NavigationList row carries its own step, so routing never
   // depends on which screen Meta says we are on.
-  if (step === 'grade')       return selectGrade(d);
-  if (step === 'subject')     return selectSubject(d);
+  if (step === 'grade')       return selectGrade(d, flowToken);
+  if (step === 'subject')     return selectSubject(d, flowToken);
   if (step === 'chapter')     return selectChapter(flowToken, d);
   if (step === 'lesson')      return selectLesson(flowToken, d);
   if (step === 'lesson_page') return selectLessonPage(flowToken, d);
+  if (step === 'chapter_page') return selectChapterPage(flowToken, d);
 
   // The 6-12 runtime lane. Its own step names rather than a shared
   // one, for the reason the file header already gives about id prefixes: two
@@ -215,8 +218,8 @@ async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
 
   // v2 Flow fallback — payloads carry a screen but no step. Live during the
   // endpoint-deployed-but-Flow-not-yet-republished window.
-  if (screen === 'SELECT_GRADE')    return selectGrade(d);
-  if (screen === 'SELECT_SUBJECT')  return selectSubject(d);
+  if (screen === 'SELECT_GRADE')    return selectGrade(d, flowToken);
+  if (screen === 'SELECT_SUBJECT')  return selectSubject(d, flowToken);
   if (screen === 'SELECT_CHAPTER')  return selectChapter(flowToken, d);
   if (screen === 'SELECT_TOPIC')    return selectTopic(flowToken, d);
 
@@ -262,10 +265,20 @@ async function openGradePicker() {
 // SELECT_GRADE → SELECT_SUBJECT
 // Grade 1–5: subjects from pre_generated_lps.
 // Grade 6–10: subjects from lesson_plan_catalog (Oxbridge).
-async function selectGrade(screenData) {
+async function selectGrade(screenData, flowToken) {
   const gradeStr = screenData && screenData.grade;
   if (!gradeStr) return { data: { error: { message: 'Please select a class.' } } };
   const grade = parseInt(gradeStr, 10);
+
+  // bd-97daxo.4 (operator, 6 Nov) — her region's book list also says which grades she has books for. A grade
+  // it does not cover (GB: 6+, and any Grade 1-5 with no GB book yet) is told so, politely and in her language,
+  // rather than handed ICT's books or the Oxbridge picker. No list (every ICT teacher): nothing changes.
+  const userId = userIdFrom(flowToken);
+  const bookKeys = await TeacherBooks.bookKeysForUser(userId);
+  if (!TeacherBooks.gradeCovered(grade, bookKeys)) {
+    const language = await TeacherBooks.languageForUser(userId);
+    return { data: { error: { message: TeacherBooks.gradeNotCoveredMessage('lp', grade, language) } } };
+  }
 
   // ── v8 corpus (grades 1-5), with the LEGACY corpus as the fallback ────
   // Grades 1-5 are served by pre_generated_lps TODAY. Until the v8 uploader has
@@ -278,7 +291,7 @@ async function selectGrade(screenData) {
   // switch, not a recommendation, and the default keeps her on the K-5 v8 corpus.
   if (isV8Grade(grade) && !lp612ServesGrade(grade)) {
     const available = await V8Delivery.availableLessonIds();
-    const items = V8Catalog.buildSubjectItems(grade, available);
+    const items = V8Catalog.buildSubjectItems(grade, available, bookKeys);
     if (items.length) {
       return {
         screen: 'SELECT_SUBJECT',
@@ -343,7 +356,7 @@ async function selectGrade(screenData) {
 }
 
 // SELECT_SUBJECT → SELECT_CHAPTER
-async function selectSubject(screenData) {
+async function selectSubject(screenData, flowToken) {
   const gradeStr = screenData && screenData.grade;
   const subject = screenData && screenData.subject;
   if (!gradeStr || !subject) return { data: { error: { message: 'Please select a subject.' } } };
@@ -351,8 +364,11 @@ async function selectSubject(screenData) {
 
   // ── v8 corpus (grades 1-5), legacy fallback — see selectGrade ─────────
   if (isV8Grade(grade)) {
-    const available = await V8Delivery.availableLessonIds();
-    const items = V8Catalog.buildChapterItems(grade, subject, available);
+    const [available, bookKeys] = await Promise.all([
+      V8Delivery.availableLessonIds(),
+      TeacherBooks.bookKeysForUser(userIdFrom(flowToken)),
+    ]);
+    const items = V8Catalog.buildChapterItems(grade, subject, available, bookKeys);
     if (items.length) {
       return {
         screen: 'SELECT_CHAPTER',
@@ -360,7 +376,7 @@ async function selectSubject(screenData) {
           items,
           grade_value: String(grade),
           subject_value: subject,
-          header_text: `${gradeTitle(grade)} — ${V8Catalog.subjectTitle(grade, subject)}`,
+          header_text: `${gradeTitle(grade)} — ${V8Catalog.subjectTitle(grade, subject, bookKeys)}`,
         },
       };
     }
@@ -502,15 +518,18 @@ const userIdFrom = (flowToken) => String(flowToken || '').split(':')[0];
  */
 async function v8LessonScreen(flowToken, grade, subject, chapter, page, screenId) {
   const userId = userIdFrom(flowToken);
-  const [available, downloaded] = await Promise.all([
+  const [available, downloaded, bookKeys] = await Promise.all([
     V8Delivery.availableLessonIds(),
     V8Delivery.downloadedLessonIds(userId),
+    TeacherBooks.bookKeysForUser(userId),
   ]);
-  const { items, total } = V8Catalog.buildLessonItems(grade, subject, chapter, available, downloaded, page);
+  const { items, total } = V8Catalog.buildLessonItems(grade, subject, chapter, available, downloaded, page, bookKeys);
   if (!items.length) {
     return { data: { error: { message: 'Those lesson plans are being prepared — check back soon.' } } };
   }
-  const ch = V8Catalog.chapterFor(grade, subject, chapter);
+  const ch = V8Catalog.chapterFor(grade, subject, chapter, bookKeys);
+  // A review chapter (GB's 'R1' "Review 1") is named by its title; every other header reads as it always has.
+  const chapterPart = ch && ch.review ? ch.title : `Ch ${chapter}: ${ch ? ch.title : ''}`;
   return {
     screen: screenId,
     data: {
@@ -518,8 +537,32 @@ async function v8LessonScreen(flowToken, grade, subject, chapter, page, screenId
       grade_value: String(grade),
       subject_value: subject,
       chapter_value: String(chapter),
-      header_text: `${gradeTitle(grade)} ${V8Catalog.subjectTitle(grade, subject)} · Ch ${chapter}: ${ch ? ch.title : ''}`.trim(),
+      header_text: `${gradeTitle(grade)} ${V8Catalog.subjectTitle(grade, subject, bookKeys)} · ${chapterPart}`.trim(),
       lesson_total: String(total),
+    },
+  };
+}
+
+/**
+ * "More chapters →" (bd-97daxo.5): a K-5 book with more than 20 chapters (GB's Urdu books) pages onto
+ * SELECT_CHAPTER_MORE, the second chapter screen the published Flow already holds for Grades 6-12.
+ */
+async function selectChapterPage(flowToken, d) {
+  const grade = parseInt(d.grade, 10);
+  if (!isV8Grade(grade) || !d.subject) return { data: { error: { message: 'Please pick a subject again.' } } };
+  const [available, bookKeys] = await Promise.all([
+    V8Delivery.availableLessonIds(),
+    TeacherBooks.bookKeysForUser(userIdFrom(flowToken)),
+  ]);
+  const items = V8Catalog.buildChapterItems(grade, d.subject, available, bookKeys, parseInt(d.page, 10) || 2);
+  if (!items.length) return { data: { error: { message: 'Please pick a subject again.' } } };
+  return {
+    screen: 'SELECT_CHAPTER_MORE',
+    data: {
+      items,
+      grade_value: String(grade),
+      subject_value: d.subject,
+      header_text: `${gradeTitle(grade)} — ${V8Catalog.subjectTitle(grade, d.subject, bookKeys)}`,
     },
   };
 }
