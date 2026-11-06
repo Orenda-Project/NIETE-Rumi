@@ -71,7 +71,8 @@ const roundSig = (x, sig) => (x === 0 ? 0 : Number(x.toPrecision(Math.max(1, Mat
 
 /** Last number in a key text (a/b read as a fraction); null when none or when a decimal comma makes it ambiguous. */
 function lastNumber(text) {
-  const s = String(text == null ? '' : text);
+  // A unit power (m/s^2, m s^-2) is never the answer number.
+  const s = String(text == null ? '' : text).replace(/\^\s*[-+]?\d+(?:\.\d+)?/g, '');
   if (/\d,\d{1,2}(?!\d)/.test(s)) return null;
   const all = s.match(/-?\d+(?:,\d{3})*(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?/g);
   if (!all) return null;
