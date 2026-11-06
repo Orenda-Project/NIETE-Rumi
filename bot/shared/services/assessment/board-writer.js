@@ -166,6 +166,8 @@ async function writeBoardPaper(args, d) {
   // Round 9: one review call per section, MCQs only (d.reviewMcqs); a yes on any of its five questions makes the
   // item hard. Flags are kept by item text, so an item flagged once stays hard in every later try that holds it.
   const flags = [];
+  let passes = 0;
+  const seenSigs = new Set(); // round 9b: each MCQ text is reviewed once
   const reviewCall = async ({ id, n, system, user }) => {
     const messages = d.sectionMessages({ system, user, pageContent: loaded.content, model });
     const got = await d.writeSection({ messages, model, ownModel, job, pattern, section: { id, slots: [{ slot: id, type: 'mcq', shape: 'mcq', generate: n, marks_each: 1 }] } });
@@ -174,7 +176,10 @@ async function writeBoardPaper(args, d) {
   };
   const reviewed = async (ex, checks, only) => {
     if (!d.reviewMcqs) return checks;
-    flags.push(...await MR.reviewPaper({ examJson: ex, grade, call: reviewCall, only, onError: (err) => d.logToFile('[assessment] board MCQ review failed', { error: err.message }) }));
+    const before = seenSigs.size;
+    const got = await MR.reviewPaper({ examJson: ex, grade, call: reviewCall, only, seen: seenSigs, onError: (err) => d.logToFile('[assessment] board MCQ review failed', { error: err.message }) });
+    flags.push(...got);
+    d.logToFile('[assessment] board MCQ review', { pass: ++passes, reviewed: seenSigs.size - before, ...MR.tally(got) });
     return MR.applyFlags(checks, flags, ex);
   };
   const dropped = []; // {slot, question, check} of every item the checks removed
@@ -203,7 +208,8 @@ async function writeBoardPaper(args, d) {
       const slots = unit.slots.filter((s) => mine.some((r) => r.slot === s.slot)).map((s) => quotaed(s, out, mine.find((r) => r.slot === s.slot).write));
       const gone = dropped.slice(from).filter((x) => mine.some((r) => r.slot === x.slot));
       const figure = gone.some((x) => x.check === 'N20');
-      const second = await ask({ ...unit, slots }, trees, SP.rewriteNote(mine, gone.map((x) => x.question), used, phrases, figure));
+      const stems = gone.map((x) => x.question);
+      const second = await ask({ ...unit, slots }, trees, SP.rewriteNote(mine, stems, used, phrases, figure, MR.faultLines(flags, stems)));
       out = T.topUp(out, second.tree, slotSet(slots));
     }
     return out;
@@ -216,6 +222,10 @@ async function writeBoardPaper(args, d) {
     tries: tries.map((t) => ({ name: t.name, hard: t.checks.record.hard, by_check: byCheck(t.checks.record) })),
   });
   if (failing(ex, checks)) {
+    // round 9b: the items dropped for the review alone, kept to put back where their replacement fails a hard check
+    const reviewOnly = new Set(checks.shortfall.flatMap((r) => Object.keys(r.why || {}).filter((id) => r.why[id] === 'review')));
+    const spare = clone(ex);
+    T.dropIds(spare, new Set(ids(spare).filter((id) => !reviewOnly.has(id))));
     drop(ex, hardIds(checks), checks);
     let before = new Set(ids(ex));
     ex = await rewrite(ex, 0);
@@ -239,9 +249,21 @@ async function writeBoardPaper(args, d) {
       ex = ex2;
       checks = checks2;
     }
+    MR.soften(checks); // round 9b: the review drove the rewrites; what it still flags is a note, not a failure
+    if (failing(ex, checks) && reviewOnly.size) {
+      const back = clone(ex);
+      T.dropIds(back, hardIds(checks));
+      const want = new Map(T.shortfallOf(back, allSlots).map((r) => [r.slot, r.need - r.have]));
+      const owes = new Map([...want].map(([slot, n]) => [slot, split ? owed(allSlots.find((x) => x.slot === slot), back, split.levels, n) : null]));
+      const lvl = (q) => { const it = Array.isArray(q.or) ? q.or[0] : q; return it && it.tag && it.tag.blooms; };
+      const ex3 = T.fill(back, spare, want, (q) => { const o = owes.get(q.slot); return o && o[lvl(q)] > 0 ? 0 : 1; }); // owed levels first (A6b)
+      const checks3 = MR.soften(MR.applyFlags(finish(ex3), flags, ex3));
+      tries.unshift({ name: 'restore', ex: ex3, checks: checks3 });
+      if (checks3.record.hard <= checks.record.hard) { ex = ex3; checks = checks3; }
+    }
     if (failing(ex, checks)) {
       const orig = clone(whole);
-      tries.push({ name: 'originals', ex: orig, checks: MR.applyFlags(finish(orig), flags, orig) });
+      tries.push({ name: 'originals', ex: orig, checks: MR.soften(MR.applyFlags(finish(orig), flags, orig)) });
       const best = tries.reduce((a, b) => (b.checks.record.hard < a.checks.record.hard ? b : a));
       outcome(tries, best);
       throw shortError(best.checks.shortfall.length ? best.checks.shortfall : T.shortfallOf(best.ex, allSlots), best.ex);

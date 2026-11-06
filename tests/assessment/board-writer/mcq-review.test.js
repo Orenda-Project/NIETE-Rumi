@@ -96,3 +96,52 @@ describe('reviewPaper', () => {
     expect(errs).toEqual(['down']);
   });
 });
+
+describe('tally and faultLines (round 9b: the review is logged and its reasons reach the rewrite)', () => {
+  const flags = [
+    { id: 'A.Q1#1', sig: 's1', faults: ['key_stands_out', 'implausible_distractor'], why: 'key is longest' },
+    { id: 'A.Q1#2', sig: 's2', faults: ['key_stands_out'], why: '' },
+  ];
+  test('tally counts flagged items and each fault', () => {
+    expect(MR.tally(flags)).toEqual({ flagged: 2, by_fault: { key_stands_out: 2, implausible_distractor: 1 } });
+    expect(MR.tally([])).toEqual({ flagged: 0, by_fault: {} });
+  });
+  test('faultLines names the stem, the faults and the reason, for the stems asked only', () => {
+    const f = [{ ...flags[0], question: 'Which shell is innermost?' }, { ...flags[1], question: 'Other made-up stem?' }];
+    expect(MR.faultLines(f, ['Which shell is innermost?'])).toEqual(['"Which shell is innermost?": key stands out, implausible distractor (key is longest)']);
+    expect(MR.faultLines(f, [])).toEqual([]);
+  });
+});
+
+describe('round 9b: review by text once, and leftovers are soft after the last rewrite', () => {
+  test('reviewPaper skips an item whose text was already reviewed, and remembers what it reviewed', async () => {
+    const seen = new Set();
+    const asked = [];
+    const call = async ({ n }) => { asked.push(n); return { items: [] }; };
+    await MR.reviewPaper({ examJson: two(), grade: 9, call, seen });
+    expect(seen.size).toBe(3);
+    const ex = two();
+    ex.unseen.objective.mcq[0].question = 'A fresh made-up stem?';
+    await MR.reviewPaper({ examJson: ex, grade: 9, call, seen });
+    expect(asked).toEqual([3, 1]);
+    await MR.reviewPaper({ examJson: ex, grade: 9, call, seen });
+    expect(asked).toEqual([3, 1]);
+  });
+  test('soften moves review-only items to notes, keeps other reasons hard, and fixes the counts', () => {
+    const ex = two();
+    const f = MR.flagsFrom({ items: [{ n: 1, implausible_distractor: true, why: 'silly option' }, { n: 3, level_wrong: true }] }, MR.sectionsOf(ex)[0]);
+    const checks = { shortfall: [{ slot: 'A.Q1', reason: 'D17', items: ['A.Q1#3'], item_refs: ['A.Q1#3'], hard: true, why: { 'A.Q1#3': 'D17' } }], notes: [], record: { hard: 1, per_check: {} } };
+    MR.applyFlags(checks, f, ex);
+    expect(checks.record.hard).toBe(3);
+    MR.soften(checks, f);
+    expect(checks.shortfall).toEqual([{ slot: 'A.Q1', reason: 'D17', items: ['A.Q1#3'], item_refs: ['A.Q1#3'], hard: true, why: { 'A.Q1#3': 'D17' } }]);
+    expect(checks.record.hard).toBe(1);
+    expect(checks.record.per_check.review).toEqual({ issues: 2, hard: 0 });
+    expect(checks.notes).toContainEqual(expect.objectContaining({ check: 'review', id: 'A.Q1#1', faults: ['implausible_distractor'], why: 'silly option' }));
+    const solo = { shortfall: [], notes: [], record: { hard: 0, per_check: {} } };
+    MR.applyFlags(solo, f.slice(0, 1), two());
+    MR.soften(solo, f);
+    expect(solo.shortfall).toEqual([]);
+    expect(solo.record.hard).toBe(0);
+  });
+});

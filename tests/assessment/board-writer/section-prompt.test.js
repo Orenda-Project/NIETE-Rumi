@@ -132,3 +132,12 @@ describe('topUpNote', () => {
       .toBe('TOP-UP: the first reply was short. Write only the missing items for these slots, same rules: S (have 1, need 3); T (have 0, need 1).');
   });
 });
+
+describe('rewriteNote review faults (round 9b)', () => {
+  test('the reviewer faults of removed items are listed to avoid; none, no line', () => {
+    const rows = [{ slot: 'A.Q1', write: 1 }];
+    const note = SP.rewriteNote(rows, ['Old stem?'], [], [], false, ['"Old stem?": key given away (paraphrase)']);
+    expect(note).toContain('A reviewer removed these items for these faults; do not repeat them: "Old stem?": key given away (paraphrase)');
+    expect(SP.rewriteNote(rows, ['Old stem?'])).not.toContain('reviewer');
+  });
+});
