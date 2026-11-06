@@ -49,7 +49,7 @@ const { isRtl } = require('./assessment-paper.renderer');
 
 const JOB = 'assessment.generate';
 const MAX_OUTPUT_TOKENS = 32000;
-const REVIEW_TOKENS = 10000;
+const REVIEW_TOKENS = 16000;
 // The review's own registry job (approved 2026-11-06): its model, else its registered alternative.
 const REVIEW_JOB = 'assessment.review';
 // A load over the band's time by more than this share is logged: its larger time prints, no item is cut.
@@ -176,7 +176,7 @@ async function generateExam(args) {
   // The review runs on assessment.review with a model of another family than the writer, so it does not
   // share the writer's blind spots: the job's model in force, else its registered alternative (a Sonnet
   // writer gets a Gemini review), with the writer's model as the fallback; on the writer's own job and
-  // model when neither differs. MCQs only. Families are compared on the models in force: a per-job
+  // model when neither differs. Every item, MCQ and written (a8). Families are compared on the models in force: a per-job
   // settings row moves a job in the client.
   const inForce = (job, site) => {
     const row = !cfg.killSwitch && cfg.perJob && cfg.perJob[job];

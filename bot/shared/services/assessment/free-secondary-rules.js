@@ -174,6 +174,7 @@ function reviewPrompt(entries, grade) {
     '- scheme_conflict: do the accept line, the do-not-accept line and the bands contradict each other (one awards what another refuses), or does the accept line or a band accept a wrong answer?',
     'Return JSON only: {"items":[{"n":<question number>,"distractors":[{"option":"a","rating":1,"why":"..."}],"longest_key":false,"two_correct":false,"odd_key":false,"stem_grammar":false,"level_off":[{"part":"b","tagged":"Apply","really":"Remember"}],"self_answer":false,"scheme_conflict":false,"why":"<one line on any yes>"}]}',
     'For a written item leave out distractors, longest_key, two_correct, odd_key and stem_grammar. For an item not in parts, "part" is null.',
+    'List only the items with at least one problem (a distractor rated 1, a yes, or a level that is off); leave out every item with nothing to report. Keep it short: give "why" only for a distractor you rate 1, and one line for the item.',
     '',
     ...entries.map(reviewItem),
   ].join('\n');
