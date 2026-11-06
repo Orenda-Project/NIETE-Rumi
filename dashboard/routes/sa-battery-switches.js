@@ -76,6 +76,13 @@
  *   sa_r9_skip_instructions item 3: coach-led (RDF manual), the coach can skip a part's instructions (never the part);
  *                           one skip_instructions event on the session.
  *
+ *   Round 10 (the reviewers' 6 Nov list), the test screens, one per item, each ON adds battery.ui.r10_<flag> = true:
+ *   sa_r10_hint_once        audio 1: "say each one out loud, then press Next" is heard once per task, in the instruction;
+ *                           the hint line stays on the screen but is not said again after it.
+ *   sa_r10_practice_next    timing 1: when a practice section ends, Next works at once (a double tap still moves one screen).
+ *   sa_r10_urdu_fit         layout 1: an Urdu word sits centred in its button or bubble, the whole Nastaliq glyph inside.
+ *   sa_r10_number_fit       layout 2: maths numbers are sized to the space they have (a 3-digit number as large as it fits).
+ *
  * Pure: applySwitches(battery, on) never changes its input.
  */
 const SWITCHES = {
@@ -102,6 +109,9 @@ const SWITCHES = {
   r9Audio: 'sa_r9_audio',
   r9QuestionTime: 'sa_r9_question_time', r9CompText: 'sa_r9_comp_text', r9ScrollCue: 'sa_r9_scroll_cue',
   r9SkipInstructions: 'sa_r9_skip_instructions',
+  // round 10
+  r10HintOnce: 'sa_r10_hint_once', r10PracticeNext: 'sa_r10_practice_next', r10UrduFit: 'sa_r10_urdu_fit',
+  r10NumberFit: 'sa_r10_number_fit',
 };
 const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual', voiceGateV2: 'voice_gate_v2',
   compAllQuestions: 'comp_all_questions', cellPace: 'cell_pace',
@@ -116,7 +126,8 @@ const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManu
   r8ReadingPosition: 'r8_reading_position', r8TimeupContinue: 'r8_timeup_continue', r8Counts: 'r8_counts',
   r8IosMic: 'r8_ios_mic', r9Audio: 'r9_audio',
   r9QuestionTime: 'r9_question_time', r9CompText: 'r9_comp_text', r9ScrollCue: 'r9_scroll_cue',
-  r9SkipInstructions: 'r9_skip_instructions' };
+  r9SkipInstructions: 'r9_skip_instructions',
+  r10HintOnce: 'r10_hint_once', r10PracticeNext: 'r10_practice_next', r10UrduFit: 'r10_urdu_fit', r10NumberFit: 'r10_number_fit' };
 const { applyR7a } = require('./sa-r7a-content');
 const { withCounts } = require('../../bot/shared/services/child-test/sa/counts');
 
