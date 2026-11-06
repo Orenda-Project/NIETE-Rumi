@@ -79,3 +79,26 @@ describe('the free renderer', () => {
     expect(html).toContain('Accept equivalent explanations.');
   });
 });
+
+describe('levelHtml (panel A6b: the key declares each item\'s thinking level)', () => {
+  const item = { question: 'Why does ice float?', answer: 'It is less dense.', marks: 3, blooms: 'Apply' };
+  it('prints the level when the paper asks for levels', () => {
+    expect(P.levelHtml({ _levels: true }, item, esc)).toContain('Level: Apply');
+  });
+  it('prints nothing for a paper without levels or an item without one', () => {
+    expect(P.levelHtml({}, item, esc)).toBe('');
+    expect(P.levelHtml(null, item, esc)).toBe('');
+    expect(P.levelHtml({ _levels: true }, { question: 'Q' }, esc)).toBe('');
+  });
+  it('prints in the key of a G6-12 free paper, a scenario part included, and not in a G1-5 key', () => {
+    const exam = { _levels: true, unseen: { subjective: { 'Short Answers': [item], Other: [{
+      main_question: 'Read the scenario.', passage: 'A fictional pond.', marks: 2,
+      questions: [{ question: 'What lives there?', answer: 'Fish.', marks: 2, blooms: 'Remember' }] }] } } };
+    const meta = { grade: 7, subject: 'general_science', pageReference: '2-4' };
+    const html = R.renderAnswerKey({ examJson: exam, ...meta });
+    expect(html).toContain('Level: Apply');
+    expect(html).toContain('Level: Remember');
+    const plain = R.renderAnswerKey({ examJson: { ...exam, _levels: undefined }, ...meta });
+    expect(plain).not.toContain('Level:');
+  });
+});

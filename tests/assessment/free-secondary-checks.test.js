@@ -40,7 +40,26 @@ describe('paperIssues', () => {
     const longSentence = `${Array.from({ length: 16 }, (_, i) => `w${i}`).join(' ')}.`;
     const exam = paper([mcq(longStem, OPTS, 'a')], [srq(longSentence, 'x', { marking_points: points(3) })]);
     expect(checks(exam)).toEqual(['1:long-stem', '2:long-sentence']);
-    expect(checks(exam, 11)).toEqual([]);
+    // At G11 the 26-word stem is inside the stem limit, but as one sentence it is over the sentence limit.
+    expect(checks(exam, 11)).toEqual(['1:long-sentence']);
+  });
+
+  it('flags an MCQ whose one sentence runs over the band (G7 Q5), stating the cap, and not one at the cap (G7 Q1)', () => {
+    const q5 = mcq('Roots that grow on plant parts above the ground, such as in the Banyan tree, are called',
+      ['a) Taproots', 'b) Aerial roots', 'c) Fibrous roots', 'd) Root hairs'], 'b) Aerial roots');
+    const q1 = mcq('Which part of the shoot system carries substances between the roots and the leaves?',
+      ['a) Leaf', 'b) Flower', 'c) Stem', 'd) Fruit'], 'c) Stem');
+    const issues = C.paperIssues(paper([q5, q1]), { grade: 7 });
+    expect(issues.map((i) => `${i.n}:${i.check}`)).toEqual(['1:long-sentence']);
+    expect(issues[0].text).toMatch(/17 words[^\n]*14 words or fewer/);
+  });
+
+  it('judges a written item by its longest sentence, not the average', () => {
+    const long = `${Array.from({ length: 20 }, (_, i) => `w${i}`).join(' ')}.`;
+    const exam = paper([], [srq(`Read this. Then think. ${long}`, 'x', { marking_points: points(3) })]);
+    const [issue] = C.paperIssues(exam, { grade: 7 });
+    expect(issue.check).toBe('long-sentence');
+    expect(issue.text).toMatch(/longest sentence is 20 words[^\n]*14 words or fewer/);
   });
 
   it('flags a key that is clearly the longest option', () => {
@@ -176,3 +195,24 @@ describe('word lists and option lists that print another item\'s key (A5b, a3 G8
     expect(leak(exam(q))).toEqual([[2, [1]]]);
   });
 });
+
+describe('a one-word key that is the chapter vocabulary (G7 Q1 "Stem")', () => {
+  const Q1 = mcq('Which part of the shoot system carries substances between the roots and the leaves?',
+    ['a) Leaf', 'b) Flower', 'c) Stem', 'd) Fruit'], 'c) Stem');
+  const Q4 = mcq('Wheat and grass have many thin roots spreading from the base of the stem, with no single main root. This root type is called',
+    ['a) Tertiary root', 'b) Primary root', 'c) Aerial root', 'd) Fibrous root'], 'd) Fibrous root');
+  const Q8 = mcq('Which part found in the centre of a stem is mainly used for storage?',
+    ['a) Vascular bundle', 'b) Cortex', 'c) Pith', 'd) Phloem'], 'c) Pith');
+  const leaksOf = (exam) => C.paperIssues(exam, { grade: 7 }).filter((i) => i.check === 'cross-leak').map((i) => i.n);
+
+  it('is soft when other stems print it, as the board rule treats it: no cross-leak', () => {
+    expect(leaksOf(paper([Q1, Q4, Q8]))).toEqual([]);
+  });
+
+  it('still leaks when only one other stem prints it on the same idea', () => {
+    const only = mcq('Which part of the shoot system carries water up from the roots in the stem?',
+      ['a) Leaf', 'b) Bud', 'c) Root', 'd) Flower'], 'a) Leaf');
+    expect(leaksOf(paper([Q1, only]))).toEqual([2]);
+  });
+});
+

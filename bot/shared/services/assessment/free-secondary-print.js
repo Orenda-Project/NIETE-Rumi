@@ -5,6 +5,7 @@
  *   instructionsFor  A5g  the paper prints the minutes it was sized to, not "as specified by your teacher"
  *   markingHtml      A7c  the key prints each item's marking points, mark bands, what else to accept
  *                        and what not to accept
+ *   levelHtml        A6b  the key prints each item's thinking level when the paper is marked `_levels`
  *
  * A paper without `_timeMinutes`, or an item without those fields, prints exactly as before.
  */
@@ -39,4 +40,10 @@ function markingHtml(item, esc) {
   return out.join('');
 }
 
-module.exports = { instructionsFor, markingHtml };
+/** The item's thinking level (A6b), on a paper marked `_levels` only (a G6-12 free paper). */
+function levelHtml(examJson, item, esc) {
+  if (!examJson || examJson._levels !== true || !item || typeof item !== 'object' || !item.blooms) return '';
+  return `<div class="level">Level: ${esc(item.blooms)}</div>`;
+}
+
+module.exports = { instructionsFor, markingHtml, levelHtml };

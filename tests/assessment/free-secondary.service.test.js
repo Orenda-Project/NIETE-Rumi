@@ -63,11 +63,32 @@ describe('free-secondary generateExam', () => {
     expect(science.examJson._paperLang).toBeUndefined();
   });
 
-  it('asks for the paper sized to its time: essays and short answers move onto MCQs', async () => {
+  it('sizes 7/7/6 to its time keeping the asked mix (G7 a5: not 16/3/1), and asks for the sized count', async () => {
     mockCreate.mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS }))));
     const out = await Svc.generateExam(ARGS);
-    expect(out.plan.questionTypes.map((t) => [t.id, t.count])).toEqual([['mcq', 16], ['srq', 3], ['erq', 1]]);
-    expect(mockCreate.mock.calls[0][0].messages[1].content).toContain('21');
+    const counts = out.plan.questionTypes.map((t) => [t.id, t.count]);
+    expect(counts).not.toEqual([['mcq', 16], ['srq', 3], ['erq', 1]]);
+    expect(counts).toEqual([['mcq', 3], ['srq', 3], ['erq', 2]]);
+    const user = mockCreate.mock.calls[0][0].messages[1].content;
+    expect(user).not.toMatch(/\b2[01]\b/);
+    expect(user).toMatch(/\b9\b/);
+  });
+
+  it('marks the paper so its answer key prints each item\'s thinking level', async () => {
+    mockCreate.mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS }))));
+    const out = await Svc.generateExam(ARGS);
+    expect(out.examJson._levels).toBe(true);
+  });
+
+  it('puts number options in ascending order before the keys are spread (G8 Q9)', async () => {
+    const d = draft(short({ marking_points: POINTS }));
+    d.unseen.objective['Multiple Choice Questions'][0] = { question: 'How old was he?', marks: 1, lines: 0,
+      options: ['a) 78 years', 'b) 88 years', 'c) 68 years', 'd) 98 years'], answer: 'b) 88 years' };
+    mockCreate.mockResolvedValueOnce(reply(d));
+    const out = await Svc.generateExam(ARGS);
+    const q = out.examJson.unseen.objective['Multiple Choice Questions'][0];
+    expect(q.options).toEqual(['a) 68 years', 'b) 78 years', 'c) 88 years', 'd) 98 years']);
+    expect(q.answer).toBe('c) 88 years');
   });
 
   it('asks for 30% more MCQs and keeps the plan count, dropping the one that gives a short answer away', async () => {
@@ -203,7 +224,11 @@ describe('free-secondary generateExam', () => {
     const out = await Svc.generateExam({ ...ARGS, keySeed: 's' });
     expect(mockCreate).toHaveBeenCalledTimes(3);
     const review = mockCreate.mock.calls[1][0];
-    expect(review.job).toBe('assessment.generate');
+    // A registered job of another model family than the writer reviews it; the writer's model is the fallback.
+    const paper = mockCreate.mock.calls[0][0];
+    expect(review.job).not.toBe('assessment.generate');
+    expect(review.model.split('/')[0]).not.toBe(paper.model.split('/')[0]);
+    expect(review.fallbackModel).toBe(paper.model);
     expect(review.temperature).toBe(0);
     expect(review.max_tokens).toBeLessThanOrEqual(8000);
     expect(review.messages[review.messages.length - 1].content).toContain('c) A banana');

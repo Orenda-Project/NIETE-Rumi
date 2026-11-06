@@ -27,6 +27,48 @@ describe('reviewPrompt (rules)', () => {
     expect(text).toContain('d) Chocolate');
     expect(text).not.toContain('Why do leaves look green?');
   });
+
+  it('also asks whether more than one option is defensible, whether the key is the odd one out, and whether every option fits the stem', () => {
+    const text = reviewPrompt(Review.mcqsOf(paper()), 8);
+    expect(text).toMatch(/more than one option[^\n]*defensibly correct/);
+    expect(text).toMatch(/odd one out[^\n]*near-synonyms/);
+    expect(text).toMatch(/complete the stem[^\n]*grammatically/);
+    ['two_correct', 'odd_key', 'stem_grammar'].forEach((f) => expect(text).toContain(f));
+  });
+});
+
+describe('issuesFrom: the item faults the a5 panel found', () => {
+  // G8 a5: Q2 فلاح و بہبود had two defensible options (and G7 Q14 magnesium); Q11 keyed the odd one out of three
+  // near-synonyms; Q3's stem ending "جو:" did not fit options ending in لوگ.
+  const reply = { items: [
+    { n: 1, distractors: [], two_correct: true, why: 'd) is also a meaning' },
+    { n: 2, distractors: [], odd_key: true, stem_grammar: true },
+  ] };
+  it('sends each yes to the targeted rewrite with its own check', () => {
+    const out = Review.issuesFrom(reply, paper(), []);
+    expect(out.map((i) => `${i.n}:${i.check}`)).toEqual(['1:two-correct', '2:odd-key', '2:stem-grammar']);
+    expect(out[0].text).toContain('d) is also a meaning');
+    out.forEach((i) => expect(i.sig).toBeTruthy());
+  });
+  it('raises nothing for a no', () => {
+    const no = { items: [{ n: 1, distractors: [], two_correct: false, odd_key: false, stem_grammar: false }] };
+    expect(Review.issuesFrom(no, paper(), [])).toEqual([]);
+  });
+});
+
+describe('pickReviewer', () => {
+  const candidates = [
+    { job: 'quiz.keyVerify', model: 'anthropic/claude-sonnet-5' },
+    { job: 'lp.fidelity', model: 'openai/gpt-5.6-luna' },
+  ];
+  it('takes the first registered job on a different model family from the writer', () => {
+    expect(Review.pickReviewer('google/gemini-3.1-pro-preview', candidates)).toEqual(candidates[0]);
+    expect(Review.pickReviewer('anthropic/claude-sonnet-5', candidates)).toEqual(candidates[1]);
+  });
+  it('reads a bare OpenAI id as the openai family, and gives null when every candidate shares the family', () => {
+    expect(Review.pickReviewer('gpt-4o', [{ job: 'x', model: 'openai/gpt-5' }])).toBeNull();
+    expect(Review.pickReviewer('anthropic/claude-sonnet-5', [candidates[0], { job: 'y', model: null }])).toBeNull();
+  });
 });
 
 describe('mcqsOf', () => {

@@ -6,7 +6,7 @@
  *   marking-points   A7c  a constructed item has no marking points, or they do not sum to its marks
  *   scheme           A7c  a written item lacks its 2-3 level band, accept line or do-not-accept line
  *   long-stem        A2d  an MCQ stem over the band's word limit
- *   long-sentence    A2d  an item whose sentences average over the band's word limit
+ *   long-sentence    A2d  an item (an MCQ too) whose longest sentence is over the band's word limit
  *   longest-key      A7a  the key is clearly the longest option
  *   absolute-option  A7a  always / never / only / all or none of the above in an option
  *   cross-leak       A5b  one item gives away another's answer, or a key term of it, in its stem or its
@@ -86,11 +86,11 @@ function markingIssue(e) {
 function lengthIssue(e, band) {
   if (e.isMcq) {
     const n = words(e.item.question).length;
-    return n > band.mcqStem ? ['long-stem', `the stem is ${n} words; keep it to ${band.mcqStem}`] : null;
+    if (n > band.mcqStem) return ['long-stem', `the stem is ${n} words; keep it to ${band.mcqStem} words or fewer`];
   }
-  const s = sentences(e.item.question);
-  const avg = s.length ? s.reduce((a, b) => a + b, 0) / s.length : 0;
-  return avg > band.sentence ? ['long-sentence', `sentences average ${Math.round(avg)} words; keep them to ${band.sentence}`] : null;
+  const top = Math.max(0, ...sentences(e.item.question));
+  if (top <= band.sentence) return null;
+  return ['long-sentence', `its longest sentence is ${top} words; keep every sentence to ${band.sentence} words or fewer`];
 }
 
 function optionIssues(e) {
@@ -139,6 +139,15 @@ function printed(e) {
 }
 
 /**
+ * A one-word key that two or more other stems print (G7 Q1 "Stem") is the chapter's own vocabulary, not
+ * a give-away: soft, as the board leak rule treats a short one-token key. Only its stem leaks are waived.
+ */
+function chapterWord(all, a, ans) {
+  if (!a.isMcq || ans.includes(' ')) return false;
+  return all.filter((b) => b !== a && hasWord(norm(printed(b)), ans)).length >= 2;
+}
+
+/**
  * Items that give another item's answer away, keyed by the item to rewrite: the later of the two when
  * a stem prints an answer (whole, or a key term on the same idea), the MCQ when its key is a written
  * item's expected answer. Each carries the items it must not overlap (`avoid`).
@@ -154,7 +163,8 @@ function leaks(all) {
     const raw = answerText(a);
     const ans = norm(raw);
     if (ans.length < 4) return;
-    const terms = keyTerms(a);
+    const vocab = chapterWord(all, a, ans);
+    const terms = vocab ? [] : keyTerms(a);
     all.forEach((b) => {
       if (a === b) return;
       if (a.isMcq && !b.isMcq) {
@@ -167,7 +177,7 @@ function leaks(all) {
       const stem = norm(printed(b));
       const whole = URDU_SCRIPT.test(ans) && ans.length >= URDU_LEAK_MIN_CHARS && hasWord(stem, ans);
       const termInStem = terms.some((t) => hasWord(stem, t)) && sharedIdeas(a, b) >= 2;
-      if ((ans.length >= LEAK_MIN_CHARS && stem.includes(ans)) || whole || termInStem) {
+      if (!vocab && ((ans.length >= LEAK_MIN_CHARS && stem.includes(ans)) || whole || termInStem)) {
         const later = Math.max(a.n, b.n);
         add(later, Math.min(a.n, b.n), later === b.n
           ? `its stem gives away the answer to Q${a.n} ("${raw}")`

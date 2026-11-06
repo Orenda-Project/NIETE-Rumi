@@ -515,13 +515,14 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
         const a = typeof sub === 'object' && sub.answer ? esc(sub.answer) : dash;
         const part = typeof sub === 'object' ? marksLabel(sub && sub.marks) : '';
         // The letter is a Latin run: isolated, or "c) —" reads "—(c" on an Urdu key.
-        return `<div><b class="num">${letter})</b> ${a}${part ? ` ${part}` : ''}${FreePrint.markingHtml(sub, esc)}</div>`;
+        return `<div><b class="num">${letter})</b> ${a}${part ? ` ${part}` : ''}${FreePrint.markingHtml(sub, esc)}${FreePrint.levelHtml(examJson, sub, esc)}</div>`;
       }).join('');
     } else if (question && Array.isArray(question.words) && question.words.length && !question.answer) {
       answer = dash;
     } else {
       answer = question && question.answer ? escMultiline(question.answer) : dash;
       answer += FreePrint.markingHtml(question, esc);
+      answer += FreePrint.levelHtml(examJson, question, esc);
     }
     rows.push(`<tr><td class="num">${number}.</td><td class="qt">${esc(questionLabel(question))}</td>`
       + `<td class="ans">${answer}${byTopic && question && question.slo ? `<div class="slo">SLO ${esc(question.slo)}</div>` : ''}</td><td class="mk">${marksLabel(questionMarks(question))}</td></tr>`);
