@@ -5,7 +5,7 @@
  * COS places it at A/item-tag.schema.json), never coerced: a wrong value is reported, not repaired.
  *   TAG_MISSING  leaf with no tag; container (or/parts node) with one
  *   TAG_SHAPE    key missing/extra, chapter, difficulty, page, section, codes_extra, or/parts shape
- *   CODE_FORM    code matches none of book / skill / official forms; book code grade, subject or ch<n> off the cell
+ *   CODE_FORM    code matches none of book (g<n>..., 'book p<N> outcome <K>' or G<n>-U<u>-LO<k>) / skill / official forms; book code grade, subject or ch<n> off the cell
  *   SLO_FORM     official_slo not null or an AF code ("null" string and "U-12-E-[17]" fail)
  *   BLOOMS_SCALE blooms outside the cell's scale (variant split, else registry tos_default)
  *   TYPE_OFF_CATALOGUE type not in the cell's catalogue (ctx.typesFor, else the schema's closed enum)
@@ -30,6 +30,8 @@ const ENUM = {
 };
 const RE = {
   book: new RegExp(D.book_code.pattern),
+  bookPage: new RegExp(D.book_page_code.pattern),
+  lo: new RegExp(D.lo_code.pattern),
   official: new RegExp(D.official_code.pattern),
   slo: new RegExp(P.official_slo.pattern),
 };
@@ -40,7 +42,7 @@ const KIND_TYPES = ['srq', 'erq'];
 
 const isInt = (v) => Number.isInteger(v);
 const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
-const codeForm = (c) => typeof c === 'string' && (RE.book.test(c) || SKILLS.has(c) || RE.official.test(c));
+const codeForm = (c) => typeof c === 'string' && (RE.book.test(c) || RE.bookPage.test(c) || RE.lo.test(c) || SKILLS.has(c) || RE.official.test(c));
 
 const scaleOf = (ctx) => {
   const lv = (ctx.variant && ctx.variant.cognitive_split && ctx.variant.cognitive_split.levels)
@@ -67,6 +69,7 @@ function checkCode(code, tagChapter, sc, withChapter) {
     if (Number(m[1]) !== Number(sc.grade) || m[2] !== sc.code) return `code ${code} is not this cell (g${sc.grade}.${sc.code})`;
     if (withChapter && Number(m[3]) !== tagChapter) return `code ${code} has ch${m[3]} but tag.chapter is ${tagChapter}`;
   }
+  if (RE.lo.test(code) && sc && sc.grade != null && Number(/^G(\d+)/.exec(code)[1]) !== Number(sc.grade)) return `code ${code} is not grade ${sc.grade}`;
   return null;
 }
 

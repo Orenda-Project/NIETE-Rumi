@@ -1,0 +1,818 @@
+{
+ "grade": 9,
+ "code": "physics",
+ "source": {
+  "file": "stem/physics_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "1": [
+   {
+    "code": "P-09-A-02",
+    "kind": "official",
+    "desc": "Explain with examples that physics is based on"
+   },
+   {
+    "code": "P-09-A-04",
+    "kind": "official",
+    "desc": "Apply the seven units of System International (SI)"
+   },
+   {
+    "code": "P-11-A-06",
+    "kind": "official",
+    "desc": "Analyse and express numerical data using prefixes"
+   },
+   {
+    "code": "P-09-A-01",
+    "kind": "official",
+    "desc": "Differentiate between physical and non-physical quantities"
+   },
+   {
+    "code": "P-09-A-19",
+    "kind": "official",
+    "desc": "Determine the least count of a data collection"
+   },
+   {
+    "code": "P-09-A-05",
+    "kind": "official",
+    "desc": "Analyse and express numerical data using scientific notation"
+   },
+   {
+    "code": "G9-U1-LO1",
+    "kind": "lo",
+    "desc": "Differentiate between physical and non-physical quantities · Explain"
+   },
+   {
+    "code": "G9-U1-LO2",
+    "kind": "lo",
+    "desc": "Differentiate between physical and non-physical quantities · Explain"
+   },
+   {
+    "code": "G9-U1-LO3",
+    "kind": "lo",
+    "desc": "Differentiate between physical and non-physical quantities · Explain"
+   },
+   {
+    "code": "G9-U1-LO4",
+    "kind": "lo",
+    "desc": "Differentiate between physical and non-physical quantities · Explain"
+   },
+   {
+    "code": "G9-U1-LO5",
+    "kind": "lo",
+    "desc": "Differentiate between physical and non-physical quantities · Explain"
+   },
+   {
+    "code": "G9-U1-LO6",
+    "kind": "lo",
+    "desc": "Differentiate between physical and non-physical quantities · Explain"
+   },
+   {
+    "code": "G9-U1-LO7",
+    "kind": "lo",
+    "desc": "Differentiate between physical and non-physical quantities · Explain"
+   },
+   {
+    "code": "G9-U1-LO8",
+    "kind": "lo",
+    "desc": "Differentiate between physical and non-physical quantities · Explain"
+   },
+   {
+    "code": "G9-U1-LO9",
+    "kind": "lo",
+    "desc": "Differentiate between physical and non-physical quantities · Explain"
+   },
+   {
+    "code": "G9-U1-LO10",
+    "kind": "lo",
+    "desc": "Differentiate between physical and non-physical quantities · Explain"
+   },
+   {
+    "code": "G9-U1-LO11",
+    "kind": "lo",
+    "desc": "Differentiate between physical and non-physical quantities · Explain"
+   },
+   {
+    "code": "G9-U1-LO12",
+    "kind": "lo",
+    "desc": "Differentiate between physical and non-physical quantities · Explain"
+   },
+   {
+    "code": "G9-U1-LO13",
+    "kind": "lo",
+    "desc": "Differentiate between physical and non-physical quantities · Explain"
+   },
+   {
+    "code": "G9-U1-LO14",
+    "kind": "lo",
+    "desc": "Differentiate between physical and non-physical quantities · Explain"
+   },
+   {
+    "code": "G9-U1-LO15",
+    "kind": "lo",
+    "desc": "Differentiate between physical and non-physical quantities · Explain"
+   },
+   {
+    "code": "G9-U1-LO16",
+    "kind": "lo",
+    "desc": "Differentiate between physical and non-physical quantities · Explain"
+   }
+  ],
+  "2": [
+   {
+    "code": "P-09-B-01",
+    "kind": "official",
+    "desc": "Differentiate between different types of motion"
+   },
+   {
+    "code": "P-09-B-02",
+    "kind": "official",
+    "desc": "Differentiate between distance and displacement, speed and velocity"
+   },
+   {
+    "code": "P-09-B-05",
+    "kind": "official",
+    "desc": "Differentiate between average and instantaneous speed"
+   },
+   {
+    "code": "P-09-B-06",
+    "kind": "official",
+    "desc": "Differentiate between uniform velocity and non-uniform velocity"
+   },
+   {
+    "code": "P-09-B-14",
+    "kind": "official",
+    "desc": "Calculate acceleration from the gradient of a speed-time"
+   },
+   {
+    "code": "P-09-B-11",
+    "kind": "official",
+    "desc": "Justify how the gradient of a distance vs"
+   },
+   {
+    "code": "P-09-B-12",
+    "kind": "official",
+    "desc": "Analyse the distance traveled in speed vs time"
+   },
+   {
+    "code": "G9-U2-LO1",
+    "kind": "lo",
+    "desc": "Differentiate between different types of motion"
+   },
+   {
+    "code": "G9-U2-LO2",
+    "kind": "lo",
+    "desc": "Differentiate between distance and displacement, speed and velocity"
+   },
+   {
+    "code": "G9-U2-LO3",
+    "kind": "lo",
+    "desc": "Define and calculate speed"
+   },
+   {
+    "code": "G9-U2-LO4",
+    "kind": "lo",
+    "desc": "Define and calculate average speed"
+   },
+   {
+    "code": "G9-U2-LO5",
+    "kind": "lo",
+    "desc": "Differentiate between average and instantaneous speed"
+   },
+   {
+    "code": "G9-U2-LO6",
+    "kind": "lo",
+    "desc": "Differentiate between uniform velocity and non-uniform velocity"
+   },
+   {
+    "code": "G9-U2-LO7",
+    "kind": "lo",
+    "desc": "Define and calculate acceleration"
+   },
+   {
+    "code": "G9-U2-LO8",
+    "kind": "lo",
+    "desc": "Differentiate between uniform acceleration and non-uniform acceleration"
+   },
+   {
+    "code": "G9-U2-LO9",
+    "kind": "lo",
+    "desc": "Use the approximate value 9.8m/s2 for free fall"
+   },
+   {
+    "code": "G9-U2-LO10",
+    "kind": "lo",
+    "desc": "Justify how the gradient of a distance vs"
+   },
+   {
+    "code": "G9-U2-LO11",
+    "kind": "lo",
+    "desc": "Analyse the distance traveled in speed vs time"
+   },
+   {
+    "code": "G9-U2-LO12",
+    "kind": "lo",
+    "desc": "Derive how the area beneath a speed vs"
+   },
+   {
+    "code": "G9-U2-LO13",
+    "kind": "lo",
+    "desc": "Calculate acceleration from the gradient of a speed-time"
+   },
+   {
+    "code": "G9-U2-LO14",
+    "kind": "lo",
+    "desc": "Justify how the gradient of the speed vs"
+   },
+   {
+    "code": "G9-U2-LO15",
+    "kind": "lo",
+    "desc": "State that there is a universal speed lim"
+   }
+  ],
+  "3": [
+   {
+    "code": "P-09-B-18",
+    "kind": "official",
+    "desc": "Explain that the mass of an object resists"
+   },
+   {
+    "code": "P-09-B-25",
+    "kind": "official",
+    "desc": "State that there are three fundamental forces and"
+   },
+   {
+    "code": "P-09-B-26",
+    "kind": "official",
+    "desc": "Represent the forces acting on a body using"
+   },
+   {
+    "code": "P-09-B-27",
+    "kind": "official",
+    "desc": "State and apply Newton's first law"
+   },
+   {
+    "code": "P-09-B-30",
+    "kind": "official",
+    "desc": "State and apply Newton's second law in terms"
+   },
+   {
+    "code": "P-09-B-19",
+    "kind": "official",
+    "desc": "Define and calculate weight"
+   },
+   {
+    "code": "P-09-B-42",
+    "kind": "official",
+    "desc": "Define resultant force in terms of momentum"
+   },
+   {
+    "code": "P-09-B-33",
+    "kind": "official",
+    "desc": "State the limitations of Newton's laws of motion"
+   },
+   {
+    "code": "G9-U3-LO1",
+    "kind": "lo",
+    "desc": "Illustrate that mass is a measure of the"
+   },
+   {
+    "code": "G9-U3-LO2",
+    "kind": "lo",
+    "desc": "Illustrate that mass is a measure of the"
+   },
+   {
+    "code": "G9-U3-LO3",
+    "kind": "lo",
+    "desc": "Illustrate that mass is a measure of the"
+   },
+   {
+    "code": "G9-U3-LO4",
+    "kind": "lo",
+    "desc": "Illustrate that mass is a measure of the"
+   },
+   {
+    "code": "G9-U3-LO5",
+    "kind": "lo",
+    "desc": "Illustrate that mass is a measure of the"
+   },
+   {
+    "code": "G9-U3-LO6",
+    "kind": "lo",
+    "desc": "Illustrate that mass is a measure of the"
+   },
+   {
+    "code": "G9-U3-LO7",
+    "kind": "lo",
+    "desc": "Illustrate that mass is a measure of the"
+   },
+   {
+    "code": "G9-U3-LO8",
+    "kind": "lo",
+    "desc": "Illustrate that mass is a measure of the"
+   },
+   {
+    "code": "G9-U3-LO9",
+    "kind": "lo",
+    "desc": "Illustrate that mass is a measure of the"
+   },
+   {
+    "code": "G9-U3-LO10",
+    "kind": "lo",
+    "desc": "Illustrate that mass is a measure of the"
+   },
+   {
+    "code": "G9-U3-LO11",
+    "kind": "lo",
+    "desc": "Illustrate that mass is a measure of the"
+   },
+   {
+    "code": "G9-U3-LO12",
+    "kind": "lo",
+    "desc": "Illustrate that mass is a measure of the"
+   },
+   {
+    "code": "G9-U3-LO13",
+    "kind": "lo",
+    "desc": "Illustrate that mass is a measure of the"
+   },
+   {
+    "code": "G9-U3-LO14",
+    "kind": "lo",
+    "desc": "Illustrate that mass is a measure of the"
+   },
+   {
+    "code": "G9-U3-LO15",
+    "kind": "lo",
+    "desc": "Illustrate that mass is a measure of the"
+   },
+   {
+    "code": "G9-U3-LO16",
+    "kind": "lo",
+    "desc": "Illustrate that mass is a measure of the"
+   }
+  ],
+  "4": [
+   {
+    "code": "P-09-B-43",
+    "kind": "official",
+    "desc": "Differentiate between like and unlike parallel forces"
+   },
+   {
+    "code": "P-09-B-36",
+    "kind": "official",
+    "desc": "Analyse the dynamics of an object reaching terminal"
+   },
+   {
+    "code": "P-09-B-47",
+    "kind": "official",
+    "desc": "State what is meant by center of mass"
+   },
+   {
+    "code": "P-09-B-45",
+    "kind": "official",
+    "desc": "Analyse objects in equilibrium using the principle of"
+   },
+   {
+    "code": "P-09-B-34",
+    "kind": "official",
+    "desc": "Describe and identify states of equilibrium"
+   },
+   {
+    "code": "P-09-B-38",
+    "kind": "official",
+    "desc": "Justify methods to reduce friction"
+   },
+   {
+    "code": "P-09-B-53",
+    "kind": "official",
+    "desc": "Describe qualitatively motion in a circular path due"
+   },
+   {
+    "code": "P-09-F-01",
+    "kind": "official",
+    "desc": "Define and calculate average orbital speed"
+   },
+   {
+    "code": "G9-U4-LO1",
+    "kind": "lo",
+    "desc": "Describe and identify states of equilibrium · Analyse"
+   },
+   {
+    "code": "G9-U4-LO2",
+    "kind": "lo",
+    "desc": "Describe and identify states of equilibrium · Analyse"
+   },
+   {
+    "code": "G9-U4-LO3",
+    "kind": "lo",
+    "desc": "Describe and identify states of equilibrium · Analyse"
+   },
+   {
+    "code": "G9-U4-LO4",
+    "kind": "lo",
+    "desc": "Describe and identify states of equilibrium · Analyse"
+   },
+   {
+    "code": "G9-U4-LO5",
+    "kind": "lo",
+    "desc": "Describe and identify states of equilibrium · Analyse"
+   },
+   {
+    "code": "G9-U4-LO6",
+    "kind": "lo",
+    "desc": "Describe and identify states of equilibrium · Analyse"
+   },
+   {
+    "code": "G9-U4-LO7",
+    "kind": "lo",
+    "desc": "Describe and identify states of equilibrium · Analyse"
+   },
+   {
+    "code": "G9-U4-LO8",
+    "kind": "lo",
+    "desc": "Describe and identify states of equilibrium · Analyse"
+   },
+   {
+    "code": "G9-U4-LO9",
+    "kind": "lo",
+    "desc": "Describe and identify states of equilibrium · Analyse"
+   },
+   {
+    "code": "G9-U4-LO10",
+    "kind": "lo",
+    "desc": "Describe and identify states of equilibrium · Analyse"
+   },
+   {
+    "code": "G9-U4-LO11",
+    "kind": "lo",
+    "desc": "Describe and identify states of equilibrium · Analyse"
+   },
+   {
+    "code": "G9-U4-LO12",
+    "kind": "lo",
+    "desc": "Describe and identify states of equilibrium · Analyse"
+   },
+   {
+    "code": "G9-U4-LO13",
+    "kind": "lo",
+    "desc": "Describe and identify states of equilibrium · Analyse"
+   },
+   {
+    "code": "G9-U4-LO14",
+    "kind": "lo",
+    "desc": "Describe and identify states of equilibrium · Analyse"
+   },
+   {
+    "code": "G9-U4-LO15",
+    "kind": "lo",
+    "desc": "Describe and identify states of equilibrium · Analyse"
+   },
+   {
+    "code": "G9-U4-LO16",
+    "kind": "lo",
+    "desc": "Describe and identify states of equilibrium · Analyse"
+   }
+  ],
+  "5": [
+   {
+    "code": "P-09-B-55",
+    "kind": "official",
+    "desc": "Illustrate that forces may produce a change in"
+   },
+   {
+    "code": "P-09-B-77",
+    "kind": "official",
+    "desc": "Define and calculate pressure"
+   },
+   {
+    "code": "P-09-B-81",
+    "kind": "official",
+    "desc": "Describe that atmospheric pressure decreases with the increase"
+   },
+   {
+    "code": "P-09-B-84",
+    "kind": "official",
+    "desc": "Just why and analyse quantitatively how pressure varies"
+   },
+   {
+    "code": "P-09-B-86",
+    "kind": "official",
+    "desc": "Define and apply Pascal's law"
+   },
+   {
+    "code": "G9-U5-LO1",
+    "kind": "lo",
+    "desc": "Illustrate that forces may produce a change in"
+   },
+   {
+    "code": "G9-U5-LO2",
+    "kind": "lo",
+    "desc": "Illustrate that forces may produce a change in"
+   },
+   {
+    "code": "G9-U5-LO3",
+    "kind": "lo",
+    "desc": "Illustrate that forces may produce a change in"
+   },
+   {
+    "code": "G9-U5-LO4",
+    "kind": "lo",
+    "desc": "Illustrate that forces may produce a change in"
+   },
+   {
+    "code": "G9-U5-LO5",
+    "kind": "lo",
+    "desc": "Illustrate that forces may produce a change in"
+   },
+   {
+    "code": "G9-U5-LO6",
+    "kind": "lo",
+    "desc": "Illustrate that forces may produce a change in"
+   },
+   {
+    "code": "G9-U5-LO7",
+    "kind": "lo",
+    "desc": "Illustrate that forces may produce a change in"
+   },
+   {
+    "code": "G9-U5-LO8",
+    "kind": "lo",
+    "desc": "Illustrate that forces may produce a change in"
+   },
+   {
+    "code": "G9-U5-LO9",
+    "kind": "lo",
+    "desc": "Illustrate that forces may produce a change in"
+   },
+   {
+    "code": "G9-U5-LO10",
+    "kind": "lo",
+    "desc": "Illustrate that forces may produce a change in"
+   },
+   {
+    "code": "G9-U5-LO11",
+    "kind": "lo",
+    "desc": "Illustrate that forces may produce a change in"
+   },
+   {
+    "code": "G9-U5-LO12",
+    "kind": "lo",
+    "desc": "Illustrate that forces may produce a change in"
+   },
+   {
+    "code": "G9-U5-LO13",
+    "kind": "lo",
+    "desc": "Illustrate that forces may produce a change in"
+   },
+   {
+    "code": "G9-U5-LO14",
+    "kind": "lo",
+    "desc": "Illustrate that forces may produce a change in"
+   },
+   {
+    "code": "G9-U5-LO15",
+    "kind": "lo",
+    "desc": "Illustrate that forces may produce a change in"
+   }
+  ],
+  "6": [
+   {
+    "code": "P-09-B-61",
+    "kind": "official",
+    "desc": "Use the equation work done = force ×"
+   },
+   {
+    "code": "P-09-B-64",
+    "kind": "official",
+    "desc": "Prove that Kinetic Energy E_k = ½ mv²"
+   },
+   {
+    "code": "P-09-B-65",
+    "kind": "official",
+    "desc": "Prove and use the formula for gravitational potential"
+   },
+   {
+    "code": "P-09-B-68",
+    "kind": "official",
+    "desc": "State and apply the principle of the conservation"
+   },
+   {
+    "code": "P-09-B-71",
+    "kind": "official",
+    "desc": "Describe how useful energy may be obtained from"
+   },
+   {
+    "code": "P-09-B-66",
+    "kind": "official",
+    "desc": "Use the formulas for kinetic and gravitational potential"
+   },
+   {
+    "code": "P-09-B-75",
+    "kind": "official",
+    "desc": "Apply the concept of efficiency to simple problems"
+   },
+   {
+    "code": "P-09-B-74",
+    "kind": "official",
+    "desc": "Define and calculate efficiency"
+   },
+   {
+    "code": "G9-U6-LO1",
+    "kind": "lo",
+    "desc": "Define work done"
+   },
+   {
+    "code": "G9-U6-LO2",
+    "kind": "lo",
+    "desc": "Use the equation work done = force ×"
+   },
+   {
+    "code": "G9-U6-LO3",
+    "kind": "lo",
+    "desc": "Define energy as the ability to do work"
+   },
+   {
+    "code": "G9-U6-LO4",
+    "kind": "lo",
+    "desc": "Explain that energy may be stored"
+   },
+   {
+    "code": "G9-U6-LO5",
+    "kind": "lo",
+    "desc": "Prove that Kinetic Energy E_k = ½ mv²"
+   },
+   {
+    "code": "G9-U6-LO6",
+    "kind": "lo",
+    "desc": "Prove and use the formula for gravitational potential"
+   },
+   {
+    "code": "G9-U6-LO7",
+    "kind": "lo",
+    "desc": "Use the formulas for kinetic and gravitational potential"
+   },
+   {
+    "code": "G9-U6-LO8",
+    "kind": "lo",
+    "desc": "Describe how energy is transferred and stored during"
+   },
+   {
+    "code": "G9-U6-LO9",
+    "kind": "lo",
+    "desc": "State and apply the principle of the conservation"
+   },
+   {
+    "code": "G9-U6-LO10",
+    "kind": "lo",
+    "desc": "Justify why perpetual energy machines do not work"
+   },
+   {
+    "code": "G9-U6-LO11",
+    "kind": "lo",
+    "desc": "Differentiate between and list renewable and non-renewable energy"
+   },
+   {
+    "code": "G9-U6-LO12",
+    "kind": "lo",
+    "desc": "Describe how useful energy may be obtained from"
+   },
+   {
+    "code": "G9-U6-LO13",
+    "kind": "lo",
+    "desc": "Describe advantages and disadvantages of methods of energy"
+   },
+   {
+    "code": "G9-U6-LO14",
+    "kind": "lo",
+    "desc": "Define and calculate power"
+   },
+   {
+    "code": "G9-U6-LO15",
+    "kind": "lo",
+    "desc": "Define and calculate efficiency"
+   },
+   {
+    "code": "G9-U6-LO16",
+    "kind": "lo",
+    "desc": "A"
+   }
+  ],
+  "7": [
+   {
+    "code": "P-09-C-01",
+    "kind": "official",
+    "desc": "Define and calculate density"
+   },
+   {
+    "code": "P-09-C-04",
+    "kind": "official",
+    "desc": "Describe plasma as a fourth state of matter"
+   },
+   {
+    "code": "P-09-C-07",
+    "kind": "official",
+    "desc": "Explain, with examples, how a physical property which"
+   },
+   {
+    "code": "P-09-C-10",
+    "kind": "official",
+    "desc": "Differentiate between the structures and function of liquid-in-glass"
+   },
+   {
+    "code": "G9-U7-LO1",
+    "kind": "lo",
+    "desc": "Define and calculate density"
+   },
+   {
+    "code": "G9-U7-LO2",
+    "kind": "lo",
+    "desc": "Justify and illustrate how to determine the density"
+   },
+   {
+    "code": "G9-U7-LO3",
+    "kind": "lo",
+    "desc": "Describe, qualitatively, the particle structure of solids, liquids"
+   },
+   {
+    "code": "G9-U7-LO4",
+    "kind": "lo",
+    "desc": "Describe plasma as a fourth state of matter"
+   },
+   {
+    "code": "G9-U7-LO5",
+    "kind": "lo",
+    "desc": "Describe the relationship between the motion of particles"
+   },
+   {
+    "code": "G9-U7-LO6",
+    "kind": "lo",
+    "desc": "Explain, with examples, how a physical property which"
+   },
+   {
+    "code": "G9-U7-LO7",
+    "kind": "lo",
+    "desc": "Justify the need for fixed points in the"
+   },
+   {
+    "code": "G9-U7-LO8",
+    "kind": "lo",
+    "desc": "Illustrate what is meant by the sensitivity, range"
+   },
+   {
+    "code": "G9-U7-LO9",
+    "kind": "lo",
+    "desc": "Differentiate between the structures and function of liquid-in-glass"
+   },
+   {
+    "code": "G9-U7-LO10",
+    "kind": "lo",
+    "desc": "Analyze how the structure of a liquid-in-glass thermometer"
+   }
+  ],
+  "8": [
+   {
+    "code": "P-09-E-11",
+    "kind": "official",
+    "desc": "Explain qualitatively in terms of the domain theory"
+   },
+   {
+    "code": "P-09-E-09",
+    "kind": "official",
+    "desc": "state that the relative strength of a magnetic"
+   },
+   {
+    "code": "P-09-E-07",
+    "kind": "official",
+    "desc": "Draw the pattern and direction of the magnetic"
+   },
+   {
+    "code": "P-09-E-01",
+    "kind": "official",
+    "desc": "Describe the forces between magnetic poles and between"
+   },
+   {
+    "code": "P-09-E-03",
+    "kind": "official",
+    "desc": "State the difference between magnetic and non-magnetic materials"
+   }
+  ],
+  "9": [
+   {
+    "code": "P-09-G-03",
+    "kind": "official",
+    "desc": "Explain with examples how Physics is a subset"
+   },
+   {
+    "code": "P-09-G-02",
+    "kind": "official",
+    "desc": "Explain with examples that physics has many sub-fields,"
+   },
+   {
+    "code": "P-09-G-06",
+    "kind": "official",
+    "desc": "Understand the terms 'hypothesis', 'theory' and 'law' in"
+   }
+  ]
+ }
+}

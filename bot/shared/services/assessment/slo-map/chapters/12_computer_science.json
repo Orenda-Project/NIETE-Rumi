@@ -1,0 +1,46 @@
+{
+ "grade": 12,
+ "code": "computer_science",
+ "source": {
+  "file": "stem/computer_science_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "1": [
+   {
+    "code": "G12-U1-LO1",
+    "kind": "lo",
+    "desc": "explain the usability, security and accessibility of devices,"
+   },
+   {
+    "code": "G12-U1-LO2",
+    "kind": "lo",
+    "desc": "explain human interaction with computer systems in terms"
+   }
+  ],
+  "3": [
+   {
+    "code": "G12-U3-LO1",
+    "kind": "lo",
+    "desc": "understand and evaluate applications of various programming paradigms"
+   },
+   {
+    "code": "G12-U3-LO2",
+    "kind": "lo",
+    "desc": "use more advanced programming constructs such as data"
+   }
+  ],
+  "5": [
+   {
+    "code": "G12-U5-LO1",
+    "kind": "lo",
+    "desc": "describe deep learning and its applications. assess policies"
+   },
+   {
+    "code": "G12-U5-LO2",
+    "kind": "lo",
+    "desc": "evaluate scenarios with data sharing and privacy conflicts"
+   }
+  ]
+ }
+}

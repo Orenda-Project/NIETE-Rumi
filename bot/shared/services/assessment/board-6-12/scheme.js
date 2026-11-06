@@ -5,7 +5,8 @@
  * and a missing scheme is the D14 checker's call, never invented here).
  *
  * Objective types (mcq, scenario) carry no scheme. A constructed item keeps only the scheme field its
- * variant's scheme_style names: analytic_points -> points, holistic_bands -> bands. Mutates, returns {examJson, log}.
+ * variant's scheme_style names: analytic_points -> points, holistic_bands -> bands. An ERQ under analytic_points
+ * keeps its holistic bands as well (bd-5jmnfj.38.30 r9: level descriptors beside the points). Mutates, returns {examJson, log}.
  */
 const { eachList, isGroup } = require('./tree');
 
@@ -20,8 +21,9 @@ function leaf(q, style, log) {
   }
   const keep = FIELD[style];
   if (!keep || !q.scheme || typeof q.scheme !== 'object') return;
+  const kept = keep === 'points' && q.type === 'erq' ? ['points', 'bands'] : [keep];
   Object.keys(q.scheme).forEach((k) => {
-    if (k === keep) return;
+    if (kept.includes(k)) return;
     delete q.scheme[k];
     log.push(`${q.id}: ${k} removed (style ${style})`);
   });

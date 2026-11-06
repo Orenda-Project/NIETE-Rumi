@@ -19,6 +19,9 @@ const MEMBERS = [
   ...PART2_HEAD,
   require('./blueprint-qa'),
   require('./mcq-shape'),
+  require('./near-dup'), // bd-5jmnfj.38.30 round 8: D17, same question twice in a section
+  require('./key-cue'), // round 10: D18, the key stands out (longest / always-never)
+  require('./item-fit'), // round 10: D19/D20 soft, stimulus not used / graph SLO with no graph
   require('./scheme-sum'),
   require('./numeric-resolve'),
   require('./maths-check-secondary'),
@@ -42,6 +45,15 @@ function buildShortfall(hardIssues, mode, refToId) {
     if (!row.item_refs.includes(i.item_ref)) row.item_refs.push(i.item_ref);
     const id = refToId.get(i.item_ref);
     if (id != null && !row.items.includes(id)) row.items.push(id);
+    // round 7: why each item failed (the first check wins), so a rewrite can be told what to avoid
+    if (id != null) { row.why = row.why || {}; if (!row.why[id]) row.why[id] = i.check; }
+    // round 6: a same-section key leak also names the keyed item and phrase (the writer's second rewrite);
+    // round 7: and the item whose stem quotes it (`holder`), for when the keyed item is a stimulus child
+    const keyed = i.keyed_ref != null ? refToId.get(i.keyed_ref) : null;
+    if (keyed != null) {
+      row.keyed = row.keyed || [];
+      if (!row.keyed.some((k) => k.id === keyed)) row.keyed.push({ id: keyed, phrase: i.phrase, holder: id });
+    }
   });
   return [...rows.values()];
 }

@@ -1,0 +1,152 @@
+{
+ "grade": 10,
+ "code": "pakistan_studies",
+ "source": {
+  "file": "humanities/pak_studies_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "1": [
+   {
+    "code": "book p6 outcome 4",
+    "kind": "book",
+    "desc": "Examine the concept of unity with reference to"
+   },
+   {
+    "code": "book p6 outcome 2",
+    "kind": "book",
+    "desc": "Examine the influence of various languages and dialects"
+   },
+   {
+    "code": "book p6 outcome 5",
+    "kind": "book",
+    "desc": "Analyze the development of Pakistani society in relation"
+   },
+   {
+    "code": "book p6 outcome 6",
+    "kind": "book",
+    "desc": "Analyze the influence of noteworthy mystical orders in"
+   }
+  ],
+  "2": [
+   {
+    "code": "book p22 outcome 1",
+    "kind": "book",
+    "desc": "Recognize the significance of leisure activities within a"
+   },
+   {
+    "code": "book p22 outcome 2",
+    "kind": "book",
+    "desc": "Recognize the significance of sports as a vital"
+   }
+  ],
+  "3": [
+   {
+    "code": "book p37 outcome 1",
+    "kind": "book",
+    "desc": "Examine the historical context of the constitution to"
+   },
+   {
+    "code": "book p37 outcome 2",
+    "kind": "book",
+    "desc": "Identify salient features of Objectives Resolution in order"
+   },
+   {
+    "code": "book p37 outcome 4",
+    "kind": "book",
+    "desc": "Compare and contrast the constitutions of 1956 and"
+   },
+   {
+    "code": "book p6 outcome 2",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p6 outcome 4",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p6 outcome 5",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p6 outcome 6",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p22 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p22 outcome 2",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ],
+  "4": [
+   {
+    "code": "book p58 outcome 3",
+    "kind": "book",
+    "desc": "Highlight the importance of being a knowledgeable digital"
+   },
+   {
+    "code": "book p58 outcome 2",
+    "kind": "book",
+    "desc": "Explore the concepts and importance of participation of"
+   },
+   {
+    "code": "book p58 outcome 1",
+    "kind": "book",
+    "desc": "Discuss the significance of the rule of law"
+   }
+  ],
+  "5": [
+   {
+    "code": "book p82 outcome 1",
+    "kind": "book",
+    "desc": "Appreciate the importance of foreign policy for any"
+   },
+   {
+    "code": "book p82 outcome 3",
+    "kind": "book",
+    "desc": "assess the diplomatic ties of Pakistan with neighboring"
+   },
+   {
+    "code": "book p58 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p58 outcome 2",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p58 outcome 3",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ],
+  "6": [
+   {
+    "code": "book p105 outcome 1",
+    "kind": "book",
+    "desc": "Examine the significance of the United Nations, its"
+   },
+   {
+    "code": "book p105 outcome 2",
+    "kind": "book",
+    "desc": "Evaluate Pakistan's foreign relations with other countries focusing"
+   },
+   {
+    "code": "book p105 outcome 3",
+    "kind": "book",
+    "desc": "Analyze the difficulties faced by UNO in resolving"
+   }
+  ]
+ }
+}

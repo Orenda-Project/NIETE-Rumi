@@ -54,3 +54,13 @@ describe('normaliseBoardScheme', () => {
     expect(r.log).toEqual(['1: scheme dropped on an objective item', '2: bands removed (style analytic_points)']);
   });
 });
+
+describe('ERQ keeps holistic bands beside its analytic points (bd-5jmnfj.38.30 r9 step 3)', () => {
+  test('analytic_points ERQ keeps points and bands; an SRQ still keeps points only', () => {
+    const b = [{ hi: 4, lo: 3, descriptor: 'full' }, { hi: 2, lo: 0, descriptor: 'partial' }];
+    const ex = mk([{ id: '1', type: 'erq', scheme: { points: [{ marks: 4 }], bands: b } }, { id: '2', type: 'srq', scheme: { points: [{ marks: 2 }], bands: b } }]);
+    normaliseBoardScheme(ex, 'analytic_points');
+    expect(ex.unseen.subjective.Short[0].scheme).toEqual({ points: [{ marks: 4 }], bands: b });
+    expect(ex.unseen.subjective.Short[1].scheme).toEqual({ points: [{ marks: 2 }] });
+  });
+});

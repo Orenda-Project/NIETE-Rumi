@@ -71,3 +71,25 @@ test('legend: MCQ rule, scheme style line and one FBISE pass line (40%, BLUEPRIN
   expect(build(12, 'hssc2').subjects.maths.legend.lines_en.join(' ')).toMatch(/Pass = 40%/);
   expect(ssc.lines_ur.length).toBe(ssc.lines_en.length);
 });
+
+describe('legend MCQ mark comes from the preset (bd-5jmnfj.38.30 r9: p3 prints Q1-40 at ½, the key said 1)', () => {
+  const P = require('../../../bot/shared/services/assessment/patterns/board/index');
+  const { buildLayout } = require('../../../bot/shared/services/assessment/board-layout');
+  const first = (o) => o.lines_en[0];
+
+  test('fbise_ssc1_2027 physics 50pct: each variant legend says the MCQ mark it prints', () => {
+    const S = P.get('fbise_ssc1_2027').subjects.physics;
+    const v50 = S.variants.find((v) => v.variant_id === '50pct');
+    const non = S.variants.find((v) => v.variant_id === 'nonpct');
+    expect(first(v50.legend)).toBe('MCQs: ½ mark for the filled bubble. Two bubbles or an overwritten answer = 0.');
+    expect(v50.legend.lines_ur[0]).toMatch(/½ نمبر/);
+    expect(first(non.legend)).toBe('MCQs: 1 mark for the filled bubble. Two bubbles or an overwritten answer = 0.');
+    expect(first(buildLayout({ subjects: { physics: S } }, v50, { subject: 'physics' }).legend)).toMatch(/^MCQs: ½ mark/);
+  });
+
+  test('legendFor without a mark keeps the 1-mark line; ¾ prints as ¾', () => {
+    expect(first(F.legendFor('maths', 'analytic_points'))).toMatch(/^MCQs: 1 mark /);
+    expect(first(F.legendFor('maths', 'analytic_points', 0.75))).toMatch(/^MCQs: ¾ mark /);
+    expect(first(F.legendFor('maths', 'analytic_points', 2))).toMatch(/^MCQs: 2 marks /);
+  });
+});

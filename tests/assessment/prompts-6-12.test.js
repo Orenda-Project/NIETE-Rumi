@@ -186,3 +186,32 @@ describe('prompts-6-12.js', () => {
       .toBe('K Knowledge, U Understand, A Apply');
   });
 });
+
+describe('r9 board section rules (bd-5jmnfj.38.30): demand fits the marks; ERQ carries bands too', () => {
+  const t = PROMPTS['eg.task.board_section'];
+  it('ties item demand to marks: a 2-mark item asks for at most 2 steps or points', () => {
+    expect(t).toMatch(/a 2-mark item asks for at most 2 steps or 2 points/);
+  });
+  it('every ERQ carries holistic "bands" beside its analytic "points"', () => {
+    expect(t).toMatch(/ERQ[^\n]*"points"[^\n]*"bands"/);
+    expect(t).toMatch(/"descriptor"/);
+  });
+});
+
+describe('r10 board section rules (bd-5jmnfj.38.30): blind-panel 2s', () => {
+  const t = PROMPTS['eg.task.board_section'];
+  it('the MCQ key does not stand out: not the longest option, no always/never', () => {
+    expect(t).toMatch(/key is never the longest option[^\n]*always[^\n]*never/i);
+  });
+  it('every item of a stimulus group needs the stimulus', () => {
+    expect(t).toMatch(/every item in a stimulus group needs the stimulus/i);
+  });
+  it('graph SLOs only on items with a graph; a book worked example or statement is K', () => {
+    expect(t).toMatch(/graph[^\n]*SLO[^\n]*only[^\n]*graph/i);
+    expect(t).toMatch(/worked example[^\n]*statement[^\n]*\bK\b/);
+  });
+  it('numerical schemes split method and answer marks; 2-mark lines split 1+1', () => {
+    expect(t).toMatch(/method mark[^\n]*answer mark/i);
+    expect(t).toMatch(/1 \+ 1/);
+  });
+});

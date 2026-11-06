@@ -6,6 +6,7 @@
  */
 const { topNodes, isGroup } = require('./walk');
 const { q, issue } = require('./common');
+const { overQuota } = require('./_level-quota');
 
 const LIMITS = {
   // design_pending: SPEC §8 says "±0 for notified subjects" and names no tolerance for the others; 0 everywhere.
@@ -105,6 +106,8 @@ function run(examJson, ctx) {
       });
     }
   }));
+  const split = variant && variant.cognitive_split && variant.cognitive_split.levels ? variant.cognitive_split : null;
+  out.push(...overQuota(examJson, split));
   return { ok: !out.some((i) => i.hard), issues: out };
 }
 

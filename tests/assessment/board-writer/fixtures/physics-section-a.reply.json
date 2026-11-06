@@ -1,0 +1,1419 @@
+{
+ "_source": "bd-5jmnfj.38.30: the model reply to SSC-I Physics Section A (G9 ch2), captured on sandbox 2026-11-06, verbatim shape; people and place names replaced with generic ones.",
+ "reply": {
+  "objective": {
+   "MCQ": [
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Kinematics is the study of motion",
+     "options": [
+      "A) without considering its causes",
+      "B) together with the forces that cause it",
+      "C) of the Earth only",
+      "D) of vibrating atoms only"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "A) without considering its causes",
+     "kind": "recall",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-01",
+      "page": 36,
+      "blooms": "K",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "An object is at rest with respect to an observer if, with the passage of time, it",
+     "options": [
+      "A) moves quickly",
+      "B) does not change its position",
+      "C) vibrates",
+      "D) is heavy"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "B) does not change its position",
+     "kind": "recall",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-01",
+      "page": 36,
+      "blooms": "K",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "The motion of a train on a straight track is an example of",
+     "options": [
+      "A) rotatory motion",
+      "B) vibratory motion",
+      "C) rectilinear motion",
+      "D) random motion"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "C) rectilinear motion",
+     "kind": "recall",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-01",
+      "page": 37,
+      "blooms": "K",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Motion forward and backward repeatedly about a mean position is called",
+     "options": [
+      "A) rotatory motion",
+      "B) random motion",
+      "C) translatory motion",
+      "D) vibratory motion"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "D) vibratory motion",
+     "kind": "recall",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-01",
+      "page": 37,
+      "blooms": "K",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "The SI unit of displacement is",
+     "options": [
+      "A) metre per second",
+      "B) metre",
+      "C) metre per second squared",
+      "D) second"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "B) metre",
+     "kind": "recall",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-02",
+      "page": 39,
+      "blooms": "K",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "The length of the path travelled between two positions is called",
+     "options": [
+      "A) displacement",
+      "B) velocity",
+      "C) distance",
+      "D) acceleration"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "C) distance",
+     "kind": "recall",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-02",
+      "page": 39,
+      "blooms": "K",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Which of these is a vector quantity?",
+     "options": [
+      "A) distance",
+      "B) speed",
+      "C) time",
+      "D) velocity"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "D) velocity",
+     "kind": "recall",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-02",
+      "page": 44,
+      "blooms": "K",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "The SI unit of acceleration is",
+     "options": [
+      "A) m/s^2",
+      "B) m/s",
+      "C) m",
+      "D) s^2/m"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "A) m/s^2",
+     "kind": "recall",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-07",
+      "page": 46,
+      "blooms": "K",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "The universal speed limit in the universe is approximately",
+     "options": [
+      "A) 3 × 10^3 m/s",
+      "B) 3 × 10^6 m/s",
+      "C) 3 × 10^8 m/s",
+      "D) 3 × 10^10 m/s"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "C) 3 × 10^8 m/s",
+     "kind": "recall",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-16",
+      "page": 43,
+      "blooms": "K",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "The approximate value of acceleration due to gravity near Earth's surface is",
+     "options": [
+      "A) 4.9 m/s^2",
+      "B) 9.8 m/s^2",
+      "C) 19.6 m/s^2",
+      "D) 98 m/s^2"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "B) 9.8 m/s^2",
+     "kind": "recall",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-10",
+      "page": 48,
+      "blooms": "K",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "The gradient of a distance-time graph gives",
+     "options": [
+      "A) speed",
+      "B) acceleration",
+      "C) displacement",
+      "D) time"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "A) speed",
+     "kind": "recall",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-11",
+      "page": 50,
+      "blooms": "K",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "The area under a speed-time graph gives",
+     "options": [
+      "A) acceleration",
+      "B) speed",
+      "C) time",
+      "D) distance travelled"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "D) distance travelled",
+     "kind": "recall",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-12",
+      "page": 53,
+      "blooms": "K",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "The speed at any specific instant of time is called",
+     "options": [
+      "A) average speed",
+      "B) uniform speed",
+      "C) instantaneous speed",
+      "D) variable speed"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "C) instantaneous speed",
+     "kind": "recall",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-05",
+      "page": 42,
+      "blooms": "K",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A negative acceleration, which means a decrease in velocity with time, is also called",
+     "options": [
+      "A) velocity",
+      "B) deceleration",
+      "C) displacement",
+      "D) speed"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "B) deceleration",
+     "kind": "recall",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-07",
+      "page": 46,
+      "blooms": "K",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Why is displacement a vector while distance is a scalar?",
+     "options": [
+      "A) Displacement has direction; distance has none.",
+      "B) Displacement is always larger.",
+      "C) Distance is measured in kilometres.",
+      "D) Distance has no unit."
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "A) Displacement has direction; distance has none.",
+     "kind": "reason",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-02",
+      "page": 39,
+      "blooms": "U",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "For motion along a straight line in one direction, the magnitudes of speed and velocity are",
+     "options": [
+      "A) speed is greater",
+      "B) velocity is greater",
+      "C) one of them is zero",
+      "D) the same"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "D) the same",
+     "kind": "reason",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-02",
+      "page": 44,
+      "blooms": "U",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A satellite moves at constant speed in a circular orbit. Its velocity is not constant because",
+     "options": [
+      "A) its speed keeps changing",
+      "B) its direction keeps changing",
+      "C) its mass is large",
+      "D) its velocity is zero"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "B) its direction keeps changing",
+     "kind": "reason",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-06",
+      "page": 45,
+      "blooms": "U",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "In air a coin falls faster than a sheet of paper because of",
+     "options": [
+      "A) zero gravity on paper",
+      "B) gravity acting only on the coin",
+      "C) air resistance",
+      "D) the coin's colour"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "C) air resistance",
+     "kind": "reason",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-10",
+      "page": 48,
+      "blooms": "U",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A horizontal line on a distance-time graph shows that the body is",
+     "options": [
+      "A) at rest",
+      "B) moving at constant speed",
+      "C) speeding up",
+      "D) slowing down"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "A) at rest",
+     "kind": "interpret",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-09",
+      "page": 51,
+      "blooms": "U",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A distance-time graph that curves upward (increasing slope) shows a body that is",
+     "options": [
+      "A) at rest",
+      "B) moving with uniform speed",
+      "C) decreasing its speed",
+      "D) increasing its speed"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "D) increasing its speed",
+     "kind": "interpret",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-11",
+      "page": 51,
+      "blooms": "U",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "An object moves with uniform speed when it covers",
+     "options": [
+      "A) different distances in equal times",
+      "B) equal distances in equal intervals of time",
+      "C) zero distance",
+      "D) a curved path only"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "B) equal distances in equal intervals of time",
+     "kind": "explain",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-05",
+      "page": 42,
+      "blooms": "U",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "An object can accelerate without speeding up or slowing down when its",
+     "options": [
+      "A) mass is large",
+      "B) speed is zero",
+      "C) direction of motion changes",
+      "D) path is straight"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "C) direction of motion changes",
+     "kind": "reason",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-07",
+      "page": 46,
+      "blooms": "U",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A distance-time graph always lies in the positive XY plane because",
+     "options": [
+      "A) time is negative",
+      "B) speed is negative",
+      "C) the axes are fixed",
+      "D) distance never becomes negative, whatever the direction of motion"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "D) distance never becomes negative, whatever the direction of motion",
+     "kind": "reason",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-09",
+      "page": 50,
+      "blooms": "U",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A straight line sloping upward on a speed-time graph shows",
+     "options": [
+      "A) uniform acceleration",
+      "B) rest",
+      "C) uniform speed",
+      "D) deceleration"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "A) uniform acceleration",
+     "kind": "interpret",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-15",
+      "page": 53,
+      "blooms": "U",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A coin and a paper fall in a space with no air. They",
+     "options": [
+      "A) both fall at the same rate",
+      "B) the coin falls faster",
+      "C) the paper falls faster",
+      "D) do not fall"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "A) both fall at the same rate",
+     "kind": "explain",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-10",
+      "page": 48,
+      "blooms": "U",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A spinning basketball turning about a line through its centre shows",
+     "options": [
+      "A) vibratory motion",
+      "B) random motion",
+      "C) rotatory motion",
+      "D) rectilinear motion"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "C) rotatory motion",
+     "kind": "classify",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-01",
+      "page": 37,
+      "blooms": "U",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "For an object thrown upward, acceleration due to gravity is taken as",
+     "options": [
+      "A) zero",
+      "B) +g",
+      "C) double of g",
+      "D) -g"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "D) -g",
+     "kind": "explain",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-10",
+      "page": 49,
+      "blooms": "U",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "The reading on a car's speedometer tells us the car's",
+     "options": [
+      "A) instantaneous speed",
+      "B) average speed for the trip",
+      "C) displacement",
+      "D) acceleration"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "A) instantaneous speed",
+     "kind": "explain",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-05",
+      "page": 42,
+      "blooms": "U",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A kite flying through the sky shows",
+     "options": [
+      "A) rotatory motion",
+      "B) random motion",
+      "C) vibratory motion",
+      "D) rectilinear motion"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "B) random motion",
+     "kind": "classify",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-01",
+      "page": 38,
+      "blooms": "U",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A car moving towards the right slows down. The direction of its acceleration is",
+     "options": [
+      "A) upward",
+      "B) towards the right",
+      "C) towards the left",
+      "D) downward"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "C) towards the left",
+     "kind": "reason",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-07",
+      "page": 46,
+      "blooms": "U",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A car and its road are moving with the spinning Earth. This shows that rest and motion",
+     "options": [
+      "A) are the same thing",
+      "B) cannot be told apart",
+      "C) depend on the weather",
+      "D) depend on the observer chosen as reference"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "D) depend on the observer chosen as reference",
+     "kind": "explain",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-01",
+      "page": 36,
+      "blooms": "U",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A horizontal line on a speed-time graph shows",
+     "options": [
+      "A) zero acceleration",
+      "B) uniform acceleration",
+      "C) deceleration",
+      "D) a body at rest at zero speed"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "A) zero acceleration",
+     "kind": "interpret",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-15",
+      "page": 53,
+      "blooms": "U",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "When a speed-time graph is a triangle, the distance travelled is found from",
+     "options": [
+      "A) its slope",
+      "B) the area of the triangle, 1/2 x base x height",
+      "C) its highest point only",
+      "D) the base only"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "B) the area of the triangle, 1/2 x base x height",
+     "kind": "explain",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-13",
+      "page": 54,
+      "blooms": "U",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "Velocity differs from speed because velocity also needs",
+     "options": [
+      "A) a unit",
+      "B) a stopwatch",
+      "C) a direction",
+      "D) a path length"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "C) a direction",
+     "kind": "differentiate",
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-02",
+      "page": 44,
+      "blooms": "U",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A tractor covers 150 m in 10 s at uniform speed. Its speed is",
+     "options": [
+      "A) 1.5 m/s",
+      "B) 15 m/s",
+      "C) 150 m/s",
+      "D) 1500 m/s"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "B) 15 m/s (v = 150 m / 10 s)",
+     "kind": "numerical",
+     "calc": {
+      "expr": "150/10",
+      "unit": "m/s",
+      "sig": 2
+     },
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-03",
+      "page": 40,
+      "blooms": "A",
+      "difficulty": "easy"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A bike's velocity changes from 4 m/s to 16 m/s in 3 s. Its acceleration is",
+     "options": [
+      "A) 0.75 m/s^2",
+      "B) 1.33 m/s^2",
+      "C) 2 m/s^2",
+      "D) 4 m/s^2"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "D) 4 m/s^2 (a = (16 - 4) m/s / 3 s)",
+     "kind": "numerical",
+     "calc": {
+      "expr": "(16-4)/3",
+      "unit": "m/s^2",
+      "sig": 1
+     },
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-07",
+      "page": 46,
+      "blooms": "A",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A cart starts at 5 m/s and accelerates at 2 m/s^2 for 4 s. Its final velocity is",
+     "options": [
+      "A) 13 m/s",
+      "B) 14 m/s",
+      "C) 18 m/s",
+      "D) 20 m/s"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "A) 13 m/s (v = 5 + 2 x 4)",
+     "kind": "numerical",
+     "calc": {
+      "expr": "5+2*4",
+      "unit": "m/s",
+      "sig": 2
+     },
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-07",
+      "page": 46,
+      "blooms": "A",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A stone is dropped from rest and falls freely for 3 s. Take g = 9.8 m/s^2 and ignore air resistance. Its speed is",
+     "options": [
+      "A) 9.8 m/s",
+      "B) 19.6 m/s",
+      "C) 29.4 m/s",
+      "D) 39.2 m/s"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "C) 29.4 m/s (v = 9.8 x 3)",
+     "kind": "numerical",
+     "calc": {
+      "expr": "9.8*3",
+      "unit": "m/s",
+      "sig": 3
+     },
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-10",
+      "page": 49,
+      "blooms": "A",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A speed-time graph is a rectangle with speed 12 m/s lasting 8 s. The distance travelled is",
+     "options": [
+      "A) 20 m",
+      "B) 48 m",
+      "C) 60 m",
+      "D) 96 m"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "D) 96 m (area = 12 x 8)",
+     "kind": "numerical",
+     "calc": {
+      "expr": "12*8",
+      "unit": "m",
+      "sig": 2
+     },
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-13",
+      "page": 54,
+      "blooms": "A",
+      "difficulty": "medium"
+     }
+    },
+    {
+     "main_question": "Choose the correct option.",
+     "question": "A van covers 120 m in 20 s, then 180 m in the next 40 s. Its average speed over the whole trip is",
+     "options": [
+      "A) 2.5 m/s",
+      "B) 5 m/s",
+      "C) 7.5 m/s",
+      "D) 10 m/s"
+     ],
+     "marks": 0.5,
+     "lines": 0,
+     "answer": "B) 5 m/s (300 m / 60 s)",
+     "kind": "numerical",
+     "calc": {
+      "expr": "(120+180)/(20+40)",
+      "unit": "m/s",
+      "sig": 1
+     },
+     "tag": {
+      "chapter": 2,
+      "section": null,
+      "code": "P-09-B-04",
+      "page": 42,
+      "blooms": "A",
+      "difficulty": "medium"
+     }
+    }
+   ],
+   "Scenario MCQ": [
+    {
+     "stimulus": "A family travels by motorway. They leave the city and drive the first 70 km in 1 hour. After a rest stop they drive another 140 km in 1.5 hours. A sign on the road reads 'speed limit 120 km/h'.",
+     "items": [
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "Speed is calculated as",
+       "options": [
+        "A) displacement x time",
+        "B) distance x time",
+        "C) distance / elapsed time",
+        "D) time / distance"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "C) distance / elapsed time",
+       "kind": "recall",
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-03",
+        "page": 40,
+        "blooms": "K",
+        "difficulty": "easy"
+       }
+      },
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "The speed limit sign refers to the car's",
+       "options": [
+        "A) instantaneous speed",
+        "B) average speed",
+        "C) displacement",
+        "D) acceleration"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "A) instantaneous speed",
+       "kind": "explain",
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-05",
+        "page": 42,
+        "blooms": "U",
+        "difficulty": "medium"
+       }
+      },
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "If the car covered equal distances in equal intervals of time, it would be moving with",
+       "options": [
+        "A) variable speed",
+        "B) zero speed",
+        "C) increasing velocity only",
+        "D) uniform speed"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "D) uniform speed",
+       "kind": "explain",
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-05",
+        "page": 42,
+        "blooms": "U",
+        "difficulty": "easy"
+       }
+      },
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "The average speed over the driving time of the two stretches (excluding the rest) is",
+       "options": [
+        "A) 70 km/h",
+        "B) 84 km/h",
+        "C) 105 km/h",
+        "D) 140 km/h"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "B) 84 km/h (210 km / 2.5 h)",
+       "kind": "numerical",
+       "calc": {
+        "expr": "(70+140)/(1+1.5)",
+        "unit": "km/h",
+        "sig": 2
+       },
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-04",
+        "page": 42,
+        "blooms": "A",
+        "difficulty": "medium"
+       }
+      }
+     ]
+    },
+    {
+     "stimulus": "On sports day, A runner runs one full lap of a 400 m track and finishes exactly at his starting point. The lap takes 80 s.",
+     "items": [
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "Displacement is defined as",
+       "options": [
+        "A) the length of the path travelled",
+        "B) the shortest straight directed distance from initial to final position",
+        "C) distance divided by time",
+        "D) change in speed"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "B) the shortest straight directed distance from initial to final position",
+       "kind": "recall",
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-02",
+        "page": 39,
+        "blooms": "K",
+        "difficulty": "easy"
+       }
+      },
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "the runner's distance and displacement for the lap differ because",
+       "options": [
+        "A) distance is smaller than displacement",
+        "B) both are always equal",
+        "C) displacement is measured in seconds",
+        "D) distance is the path length, while displacement is the straight directed change from start to end, which is zero here"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "D) distance is the path length, while displacement is the straight directed change from start to end, which is zero here",
+       "kind": "reason",
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-02",
+        "page": 39,
+        "blooms": "U",
+        "difficulty": "medium"
+       }
+      },
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "the runner's average velocity for the lap is",
+       "options": [
+        "A) zero, because his displacement is zero",
+        "B) 5 m/s, because distance is 400 m",
+        "C) 400 m/s",
+        "D) 80 m/s"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "A) zero, because his displacement is zero",
+       "kind": "reason",
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-02",
+        "page": 44,
+        "blooms": "U",
+        "difficulty": "medium"
+       }
+      },
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "the runner's average speed for the lap is",
+       "options": [
+        "A) 0 m/s",
+        "B) 2.5 m/s",
+        "C) 5 m/s",
+        "D) 80 m/s"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "C) 5 m/s (400 m / 80 s)",
+       "kind": "numerical",
+       "calc": {
+        "expr": "400/80",
+        "unit": "m/s",
+        "sig": 1
+       },
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-04",
+        "page": 42,
+        "blooms": "A",
+        "difficulty": "easy"
+       }
+      }
+     ]
+    },
+    {
+     "stimulus": "A student studies the speed-time graph of a motorcycle given in words. It starts from rest and speeds up uniformly to 20 m/s in 10 s. It then moves at 20 m/s for 20 s. Then the brakes are applied and it slows uniformly to rest in the last 10 s.",
+     "items": [
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "The slope of a speed-time graph gives",
+       "options": [
+        "A) distance",
+        "B) time",
+        "C) displacement",
+        "D) the magnitude of acceleration"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "D) the magnitude of acceleration",
+       "kind": "recall",
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-15",
+        "page": 53,
+        "blooms": "K",
+        "difficulty": "easy"
+       }
+      },
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "During the first 10 s the motorcycle has",
+       "options": [
+        "A) zero acceleration",
+        "B) uniform deceleration",
+        "C) uniform acceleration",
+        "D) no motion"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "C) uniform acceleration",
+       "kind": "interpret",
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-08",
+        "page": 47,
+        "blooms": "U",
+        "difficulty": "medium"
+       }
+      },
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "From 10 s to 30 s the graph is a horizontal line, which shows",
+       "options": [
+        "A) increasing speed",
+        "B) uniform speed with zero acceleration",
+        "C) uniform deceleration",
+        "D) rest"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "B) uniform speed with zero acceleration",
+       "kind": "interpret",
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-15",
+        "page": 53,
+        "blooms": "U",
+        "difficulty": "medium"
+       }
+      },
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "The total distance travelled in the 40 s (two triangles plus one rectangle) is",
+       "options": [
+        "A) 600 m",
+        "B) 800 m",
+        "C) 1000 m",
+        "D) 1200 m"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "A) 600 m (100 + 400 + 100)",
+       "kind": "numerical",
+       "calc": {
+        "expr": "0.5*10*20+20*20+0.5*10*20",
+        "unit": "m",
+        "sig": 3
+       },
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-12",
+        "page": 55,
+        "blooms": "A",
+        "difficulty": "hard"
+       }
+      }
+     ]
+    },
+    {
+     "stimulus": "A boy drops a stone from a bridge into a river and watches it fall. Ignore air resistance and take g = 9.8 m/s^2. He then drops a second stone of twice the mass from the same height.",
+     "items": [
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "The acceleration due to gravity is directed",
+       "options": [
+        "A) downward, towards the centre of the Earth",
+        "B) upward",
+        "C) sideways",
+        "D) it has no direction"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "A) downward, towards the centre of the Earth",
+       "kind": "recall",
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-10",
+        "page": 48,
+        "blooms": "K",
+        "difficulty": "easy"
+       }
+      },
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "Compared with the first stone, the heavier stone",
+       "options": [
+        "A) reaches the water first",
+        "B) reaches the water at the same time",
+        "C) reaches the water later",
+        "D) does not fall"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "B) reaches the water at the same time",
+       "kind": "reason",
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-10",
+        "page": 48,
+        "blooms": "U",
+        "difficulty": "medium"
+       }
+      },
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "If the boy had thrown a stone straight upward, the acceleration due to gravity would be taken as",
+       "options": [
+        "A) +g",
+        "B) zero",
+        "C) -g",
+        "D) 2g"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "C) -g",
+       "kind": "explain",
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-10",
+        "page": 49,
+        "blooms": "U",
+        "difficulty": "medium"
+       }
+      },
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "The first stone falls from rest for 3 s. Its speed on reaching the water is",
+       "options": [
+        "A) 3.27 m/s",
+        "B) 9.8 m/s",
+        "C) 19.6 m/s",
+        "D) 29.4 m/s"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "D) 29.4 m/s (v = 9.8 x 3)",
+       "kind": "numerical",
+       "calc": {
+        "expr": "9.8*3",
+        "unit": "m/s",
+        "sig": 3
+       },
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-10",
+        "page": 49,
+        "blooms": "A",
+        "difficulty": "medium"
+       }
+      }
+     ]
+    },
+    {
+     "stimulus": "A school bus starts from rest and its speed rises uniformly to 12 m/s in 6 s. Later the bus takes a corner at a constant speed of 10 m/s. Finally the driver applies brakes and the bus slows down.",
+     "items": [
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "While taking the corner at constant speed, the bus's velocity changes because",
+       "options": [
+        "A) its speed changes",
+        "B) its mass changes",
+        "C) its direction changes",
+        "D) its time changes"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "C) its direction changes",
+       "kind": "reason",
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-06",
+        "page": 45,
+        "blooms": "U",
+        "difficulty": "medium"
+       }
+      },
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "When the driver brakes, the acceleration of the bus is",
+       "options": [
+        "A) zero",
+        "B) in the direction of motion",
+        "C) upward",
+        "D) opposite to the direction of motion"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "D) opposite to the direction of motion",
+       "kind": "explain",
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-07",
+        "page": 46,
+        "blooms": "U",
+        "difficulty": "medium"
+       }
+      },
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "The acceleration of the bus in the first 6 s is",
+       "options": [
+        "A) 0.5 m/s^2",
+        "B) 2 m/s^2",
+        "C) 6 m/s^2",
+        "D) 72 m/s^2"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "B) 2 m/s^2 (12 m/s / 6 s)",
+       "kind": "numerical",
+       "calc": {
+        "expr": "12/6",
+        "unit": "m/s^2",
+        "sig": 1
+       },
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-07",
+        "page": 46,
+        "blooms": "A",
+        "difficulty": "easy"
+       }
+      },
+      {
+       "main_question": "Read the passage and choose the correct option.",
+       "question": "If the bus, moving at 12 m/s, kept accelerating at 2 m/s^2 for 4 more seconds, its final velocity would be",
+       "options": [
+        "A) 20 m/s",
+        "B) 24 m/s",
+        "C) 48 m/s",
+        "D) 80 m/s"
+       ],
+       "marks": 0.5,
+       "lines": 0,
+       "answer": "A) 20 m/s (12 + 2 x 4)",
+       "kind": "numerical",
+       "calc": {
+        "expr": "12+2*4",
+        "unit": "m/s",
+        "sig": 2
+       },
+       "tag": {
+        "chapter": 2,
+        "section": null,
+        "code": "P-09-B-07",
+        "page": 46,
+        "blooms": "A",
+        "difficulty": "medium"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "notes": [
+   "Section A: 40 MCQs plus 5 passage groups of 4 items; levels K 18 / U 30 / A 12 items; correct letters spread across A to D."
+  ]
+ }
+}

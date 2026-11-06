@@ -75,4 +75,10 @@ describe('D16 numeric-resolve', () => {
     const free = { unseen: { subjective: { S: [{ id: 'a', type: 'srq', kind: 'numerical', answer: '0.333', calc: { expr: '1/3' } }] } } };
     expect(M.run(free, { mode: 'free' }).issues).toEqual([]);
   });
+
+  test('a unit power (m/s^2) is not read as the answer number', () => {
+    expect(run(num('(16-4)/3', '4 m/s^2', 1, 'm/s^2')).issues).toEqual([]);
+    expect(run(num('(16-4)/3', 'a = 12/3 = 4 m s^-2', 1, 'm s^-2')).issues).toEqual([]);
+    expect(rules(run(num('(16-4)/3', '2 m/s^2', 1, 'm/s^2')))).toEqual(['NUMERIC_MISMATCH']);
+  });
 });

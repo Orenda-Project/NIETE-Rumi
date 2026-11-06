@@ -1,0 +1,207 @@
+{
+ "grade": 12,
+ "code": "chemistry",
+ "source": {
+  "file": "stem/chemistry_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "1": [
+   {
+    "code": "G12-U1-LO1",
+    "kind": "lo",
+    "desc": "Identify common cognitive biases/fallacies that can hinder sound"
+   }
+  ],
+  "2": [
+   {
+    "code": "G12-U2-LO1",
+    "kind": "lo",
+    "desc": "Apply the concept of oxidation numbers in identifying"
+   },
+   {
+    "code": "G12-U2-LO4",
+    "kind": "lo",
+    "desc": "Describe the role of oxidizing and reducing agents"
+   },
+   {
+    "code": "G12-U2-LO6",
+    "kind": "lo",
+    "desc": "Deduce the feasibility of redox reactions from activity"
+   },
+   {
+    "code": "G12-U2-LO5",
+    "kind": "lo",
+    "desc": "Explain the concept of the activity series of"
+   },
+   {
+    "code": "G12-U2-LO7",
+    "kind": "lo",
+    "desc": "Explain the use of the Winkler Method to"
+   },
+   {
+    "code": "G12-U2-LO2",
+    "kind": "lo",
+    "desc": "Apply the concept of changes in oxidation numbers"
+   },
+   {
+    "code": "G12-U2-LO3",
+    "kind": "lo",
+    "desc": "Define the terms redox, oxidation, reduction, and disproportionation"
+   },
+   {
+    "code": "G12-U2-LO8",
+    "kind": "lo",
+    "desc": "Explain how electrolytic cells convert electrical energy to"
+   }
+  ],
+  "4": [
+   {
+    "code": "G12-U4-LO4",
+    "kind": "lo",
+    "desc": "Sketch the pH titration curves of titrations using"
+   }
+  ],
+  "7": [
+   {
+    "code": "G12-U7-LO1",
+    "kind": "lo",
+    "desc": "Explain stereoisomerism and its division into geometric (cis/trans)"
+   }
+  ],
+  "8": [
+   {
+    "code": "G12-U8-LO4",
+    "kind": "lo",
+    "desc": "Describe the mechanism of substitution reactions with chlorine"
+   },
+   {
+    "code": "G12-U8-LO9",
+    "kind": "lo",
+    "desc": "Describe the mechanism of electrophilic aromatic substitution, including"
+   },
+   {
+    "code": "G12-U8-LO6",
+    "kind": "lo",
+    "desc": "Explain the mechanism of Friedel-Craft alkylation and acylation"
+   }
+  ],
+  "9": [
+   {
+    "code": "G12-U9-LO4",
+    "kind": "lo",
+    "desc": "Analyze the mechanism and products of a reaction"
+   }
+  ],
+  "11": [
+   {
+    "code": "G12-U11-LO6",
+    "kind": "lo",
+    "desc": "Describe the following reactions of acyl chlorides: (check"
+   },
+   {
+    "code": "G12-U11-LO8",
+    "kind": "lo",
+    "desc": "Explain the relative ease of hydrolysis of acyl"
+   }
+  ],
+  "12": [
+   {
+    "code": "G12-U12-LO5",
+    "kind": "lo",
+    "desc": "Describe the reaction of phenylamine with HNO2 and"
+   },
+   {
+    "code": "G12-U12-LO3",
+    "kind": "lo",
+    "desc": "Describe the basicity of aqueous solutions of amides"
+   }
+  ],
+  "13": [
+   {
+    "code": "G12-U13-LO1",
+    "kind": "lo",
+    "desc": "Explain the chemical processes and properties of PVC"
+   },
+   {
+    "code": "G12-U13-LO7",
+    "kind": "lo",
+    "desc": "Predict the type of polymerization reaction for a"
+   }
+  ],
+  "14": [
+   {
+    "code": "G12-U14-LO1",
+    "kind": "lo",
+    "desc": "Describe the use of Artificial Intelligence tools in"
+   }
+  ],
+  "17": [
+   {
+    "code": "G12-U17-LO1",
+    "kind": "lo",
+    "desc": "Analyse mass spectra in terms of m/e values"
+   }
+  ],
+  "18": [
+   {
+    "code": "G12-U18-LO2",
+    "kind": "lo",
+    "desc": "Interpret an infrared spectrum of a simple molecule"
+   },
+   {
+    "code": "G12-U18-LO4",
+    "kind": "lo",
+    "desc": "Predict weather a given molecule will absorb in"
+   },
+   {
+    "code": "G12-U18-LO7",
+    "kind": "lo",
+    "desc": "Analyse different environments of carbon atoms present in"
+   }
+  ],
+  "20": [
+   {
+    "code": "G12-U20-LO2",
+    "kind": "lo",
+    "desc": "Explain the process of extracting material from ores"
+   },
+   {
+    "code": "G12-U20-LO3",
+    "kind": "lo",
+    "desc": "Explain the mechanism of catalysts and how they"
+   }
+  ],
+  "21": [
+   {
+    "code": "G12-U21-LO1",
+    "kind": "lo",
+    "desc": "Recognise the concept of therapeutic index and therapeutic"
+   }
+  ],
+  "22": [
+   {
+    "code": "G12-U22-LO1",
+    "kind": "lo",
+    "desc": "Explain the chemical composition and function of different"
+   },
+   {
+    "code": "G12-U22-LO3",
+    "kind": "lo",
+    "desc": "Explain the basics of genetic engineering and how"
+   }
+  ],
+  "23": [
+   {
+    "code": "G12-U23-LO2",
+    "kind": "lo",
+    "desc": "Describe the chemical processes involved in industrial production,"
+   },
+   {
+    "code": "G12-U23-LO4",
+    "kind": "lo",
+    "desc": "Explain the applications of industrial chemistry in industries"
+   }
+  ]
+ }
+}

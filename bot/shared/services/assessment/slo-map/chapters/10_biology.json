@@ -1,0 +1,297 @@
+{
+ "grade": 10,
+ "code": "biology",
+ "source": {
+  "file": "stem/biology_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "1": [
+   {
+    "code": "B-10-R-01",
+    "kind": "official",
+    "desc": "Describe the needs of ingestion, digestion, absorption, assimilation"
+   },
+   {
+    "code": "B-10-R-03",
+    "kind": "official",
+    "desc": "Describe swallowing and peristalsis"
+   },
+   {
+    "code": "B-10-R-07",
+    "kind": "official",
+    "desc": "State sign and symptoms, causes, treatments and prevention"
+   },
+   {
+    "code": "G10-U1-LO1",
+    "kind": "lo",
+    "desc": "Describe the needs of ingestion, digestion, absorption, assimilation"
+   },
+   {
+    "code": "G10-U1-LO2",
+    "kind": "lo",
+    "desc": "Identify and describe the structures of the main"
+   },
+   {
+    "code": "G10-U1-LO3",
+    "kind": "lo",
+    "desc": "Describe swallowing and peristalsis"
+   },
+   {
+    "code": "G10-U1-LO4",
+    "kind": "lo",
+    "desc": "Sort out the actions of enzymes in specific"
+   },
+   {
+    "code": "G10-U1-LO5",
+    "kind": "lo",
+    "desc": "State the role of liver"
+   },
+   {
+    "code": "G10-U1-LO6",
+    "kind": "lo",
+    "desc": "Describe the structure of villus, including the role"
+   },
+   {
+    "code": "G10-U1-LO7",
+    "kind": "lo",
+    "desc": "State sign and symptoms, causes, treatments and prevention"
+   }
+  ],
+  "2": [
+   {
+    "code": "B-10-R-10",
+    "kind": "official",
+    "desc": "Identify different types of organs connected to the"
+   },
+   {
+    "code": "B-10-R-08",
+    "kind": "official",
+    "desc": "Describe how the blood is circulated inside the"
+   },
+   {
+    "code": "B-10-R-15",
+    "kind": "official",
+    "desc": "Explain the harmful effects of smoking related to"
+   }
+  ],
+  "3": [
+   {
+    "code": "B-10-R-25",
+    "kind": "official",
+    "desc": "Describe the mechanism of breathing in terms of"
+   },
+   {
+    "code": "B-10-R-26",
+    "kind": "official",
+    "desc": "Differentiate between composition of inspired and expired air"
+   },
+   {
+    "code": "B-10-R-27",
+    "kind": "official",
+    "desc": "Discuss briefly diseases related to respiratory system like"
+   }
+  ],
+  "4": [
+   {
+    "code": "B-10-R-16",
+    "kind": "official",
+    "desc": "Identify the different organs of urinary system"
+   },
+   {
+    "code": "B-10-R-17",
+    "kind": "official",
+    "desc": "Related the structure of the kidney with its"
+   }
+  ],
+  "5": [
+   {
+    "code": "B-10-G-01",
+    "kind": "official",
+    "desc": "Describe the nervous system and its role"
+   },
+   {
+    "code": "B-10-G-05",
+    "kind": "official",
+    "desc": "State the nerve impulses are electrical signals that"
+   },
+   {
+    "code": "B-10-G-06",
+    "kind": "official",
+    "desc": "Define and sketch synapse"
+   },
+   {
+    "code": "B-10-G-10",
+    "kind": "official",
+    "desc": "Identify major endocrine glands and hormones with their"
+   },
+   {
+    "code": "G10-U5-LO1",
+    "kind": "lo",
+    "desc": "Describe the nervous system and its role"
+   },
+   {
+    "code": "G10-U5-LO2",
+    "kind": "lo",
+    "desc": "Describe central nervous system and peripheral nervous system"
+   },
+   {
+    "code": "G10-U5-LO3",
+    "kind": "lo",
+    "desc": "Outline the types of neuron with diagrams"
+   },
+   {
+    "code": "G10-U5-LO4",
+    "kind": "lo",
+    "desc": "Define stimulus with example"
+   },
+   {
+    "code": "G10-U5-LO5",
+    "kind": "lo",
+    "desc": "State the nerve impulses are electrical signals that"
+   },
+   {
+    "code": "G10-U5-LO6",
+    "kind": "lo",
+    "desc": "Define and sketch synapse"
+   },
+   {
+    "code": "G10-U5-LO7",
+    "kind": "lo",
+    "desc": "Introduce neurotransmitters"
+   },
+   {
+    "code": "G10-U5-LO8",
+    "kind": "lo",
+    "desc": "Explain through sketching a diagram the involvement of"
+   },
+   {
+    "code": "G10-U5-LO9",
+    "kind": "lo",
+    "desc": "Explain the endocrine system"
+   },
+   {
+    "code": "G10-U5-LO10",
+    "kind": "lo",
+    "desc": "Identify major endocrine glands and hormones with their"
+   }
+  ],
+  "6": [
+   {
+    "code": "B-10-H-01",
+    "kind": "official",
+    "desc": "Describe the role of hormones in both male"
+   }
+  ],
+  "7": [
+   {
+    "code": "B-10-H-05",
+    "kind": "official",
+    "desc": "Sketch the structure of chromosomes"
+   },
+   {
+    "code": "B-10-H-06",
+    "kind": "official",
+    "desc": "Define genotype and phenotype, allele homozygous, heterozygous, dominant,"
+   },
+   {
+    "code": "B-10-H-07",
+    "kind": "official",
+    "desc": "Illustrate Mendelian inheritance laws through monohybrid and dihybrid"
+   }
+  ],
+  "8": [
+   {
+    "code": "B-10-R-28",
+    "kind": "official",
+    "desc": "Describe infectious and non-infectious diseases and their types"
+   },
+   {
+    "code": "B-10-I-11",
+    "kind": "official",
+    "desc": "Define Diabetes and its subtypes explain the effects"
+   }
+  ],
+  "9": [
+   {
+    "code": "B-10-R-31",
+    "kind": "official",
+    "desc": "Enlist allergies with some common types"
+   }
+  ],
+  "10": [
+   {
+    "code": "B-10-J-01",
+    "kind": "official",
+    "desc": "Introduce biotechnology"
+   },
+   {
+    "code": "B-10-J-03",
+    "kind": "official",
+    "desc": "Explain with examples that medical biotechnology has advanced"
+   },
+   {
+    "code": "B-10-J-04",
+    "kind": "official",
+    "desc": "State the potential advantages that genetic editing provides"
+   },
+   {
+    "code": "B-10-J-02",
+    "kind": "official",
+    "desc": "Explain with examples that food biotechnology has advanced"
+   },
+   {
+    "code": "B-10-J-07",
+    "kind": "official",
+    "desc": "Explain the concept and applications of industrial biotechnology"
+   },
+   {
+    "code": "G10-U10-LO1",
+    "kind": "lo",
+    "desc": "Introduce biotechnology"
+   },
+   {
+    "code": "G10-U10-LO2",
+    "kind": "lo",
+    "desc": "Explain with examples that food biotechnology has advanced"
+   },
+   {
+    "code": "G10-U10-LO3",
+    "kind": "lo",
+    "desc": "Explain with examples that medical biotechnology has advanced"
+   },
+   {
+    "code": "G10-U10-LO4",
+    "kind": "lo",
+    "desc": "State the potential advantages that genetic editing provides"
+   },
+   {
+    "code": "G10-U10-LO5",
+    "kind": "lo",
+    "desc": "Describe with examples the benefits of marine biotechnology"
+   },
+   {
+    "code": "G10-U10-LO6",
+    "kind": "lo",
+    "desc": "Describe that bioremediation can help us in taking"
+   },
+   {
+    "code": "G10-U10-LO7",
+    "kind": "lo",
+    "desc": "Explain the concept and applications of industrial biotechnology"
+   }
+  ],
+  "11": [
+   {
+    "code": "B-10-K-01",
+    "kind": "official",
+    "desc": "Define biostatistics and its uses"
+   },
+   {
+    "code": "B-10-K-02",
+    "kind": "official",
+    "desc": "Define and calculate mean, median and mode, 3"
+   }
+  ]
+ }
+}

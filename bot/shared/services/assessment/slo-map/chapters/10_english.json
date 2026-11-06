@@ -1,0 +1,531 @@
+{
+ "grade": 10,
+ "code": "english",
+ "source": {
+  "file": "languages/work/english_6_12_resegmented.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "1": [
+   {
+    "code": "E-10-RD-04",
+    "kind": "official",
+    "desc": "explore different layers of meaning within texts including"
+   },
+   {
+    "code": "E-10-RD-01",
+    "kind": "official",
+    "desc": "explore different layers of meaning within texts including"
+   },
+   {
+    "code": "E-10-GR-01",
+    "kind": "official",
+    "desc": "identify the writer's purpose, and intended audience. Infer"
+   },
+   {
+    "code": "E-10-GR-02",
+    "kind": "official",
+    "desc": "identify the writer's purpose, and intended audience. Infer"
+   },
+   {
+    "code": "E-10-WR-01",
+    "kind": "official",
+    "desc": "Read, view and analyse a variety of reading"
+   },
+   {
+    "code": "E-10-RD-02",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 1 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-03",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 1 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-05",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 1 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-06",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 1 SLOs across the skills"
+   }
+  ],
+  "2": [
+   {
+    "code": "E-10-RD-04",
+    "kind": "official",
+    "desc": "explore different layers of meaning within texts including"
+   },
+   {
+    "code": "E-10-RD-07",
+    "kind": "official",
+    "desc": "explore different layers of meaning within texts including"
+   },
+   {
+    "code": "E-10-GR-03",
+    "kind": "official",
+    "desc": "recognise implicit meaning (e.g. look for supporting details"
+   },
+   {
+    "code": "E-10-OC-02",
+    "kind": "official",
+    "desc": "Read, view and analyse a variety of reading"
+   },
+   {
+    "code": "E-10-WR-06",
+    "kind": "official",
+    "desc": "recognise implicit meaning (e.g. look for supporting details"
+   },
+   {
+    "code": "E-10-RD-08",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 2 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-09",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 2 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-05",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 2 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-10",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 2 SLOs across the skills"
+   }
+  ],
+  "3": [
+   {
+    "code": "E-10-RD-04",
+    "kind": "official",
+    "desc": "explore different layers of meaning within texts including"
+   },
+   {
+    "code": "E-10-RD-11",
+    "kind": "official",
+    "desc": "explore different layers of meaning within texts including"
+   },
+   {
+    "code": "E-10-GR-04",
+    "kind": "official",
+    "desc": "Text type: News Article/blog / identify the writer's"
+   },
+   {
+    "code": "E-10-GR-05",
+    "kind": "official",
+    "desc": "Text type: News Article/blog / identify the writer's"
+   },
+   {
+    "code": "E-10-OC-03",
+    "kind": "official",
+    "desc": "Read, view and analyse a variety of reading"
+   },
+   {
+    "code": "E-10-WR-08",
+    "kind": "official",
+    "desc": "Read, view and analyse a variety of reading"
+   },
+   {
+    "code": "E-10-RD-12",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 3 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-13",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 3 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-05",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 3 SLOs across the skills"
+   }
+  ],
+  "4": [
+   {
+    "code": "E-10-RD-04",
+    "kind": "official",
+    "desc": "explore different layers of meaning within texts including"
+   },
+   {
+    "code": "E-10-RD-16",
+    "kind": "official",
+    "desc": "explore different layers of meaning within texts including"
+   },
+   {
+    "code": "E-10-GR-06",
+    "kind": "official",
+    "desc": "use in a variety of writing and texts."
+   },
+   {
+    "code": "E-10-OC-04",
+    "kind": "official",
+    "desc": "Read, view and analyse a variety of reading"
+   },
+   {
+    "code": "E-10-WR-02",
+    "kind": "official",
+    "desc": "recognise implicit meaning (e.g. look for supporting details"
+   },
+   {
+    "code": "E-10-RD-17",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 4 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-18",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 4 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-05",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 4 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-06",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 4 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-19",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 4 SLOs across the skills"
+   }
+  ],
+  "5": [
+   {
+    "code": "E-10-RD-16",
+    "kind": "official",
+    "desc": "Theme: Literature and Poetry / use of prepositions"
+   },
+   {
+    "code": "E-10-RD-21",
+    "kind": "official",
+    "desc": "Theme: Literature and Poetry / use of prepositions"
+   },
+   {
+    "code": "E-10-RD-22",
+    "kind": "official",
+    "desc": "Theme: Literature and Poetry / use of prepositions"
+   },
+   {
+    "code": "E-10-VO-01",
+    "kind": "official",
+    "desc": "Theme: Literature and Poetry / use of prepositions"
+   },
+   {
+    "code": "E-10-VO-02",
+    "kind": "official",
+    "desc": "Theme: Literature and Poetry / use of prepositions"
+   },
+   {
+    "code": "E-10-WR-18",
+    "kind": "official",
+    "desc": "Theme: Literature and Poetry / use of prepositions"
+   }
+  ],
+  "6": [
+   {
+    "code": "E-10-RD-23",
+    "kind": "official",
+    "desc": "Theme: Soft Skills/Innovation"
+   },
+   {
+    "code": "E-10-WR-20",
+    "kind": "official",
+    "desc": "use and all functions of modal verbs. Use"
+   },
+   {
+    "code": "E-10-RD-24",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 6 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-25",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 6 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-26",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 6 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-27",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 6 SLOs across the skills"
+   }
+  ],
+  "7": [
+   {
+    "code": "E-10-RD-28",
+    "kind": "official",
+    "desc": "Text type: Excerpt from a novel. Theme: Tourism/Travelling."
+   },
+   {
+    "code": "E-10-WR-22",
+    "kind": "official",
+    "desc": "write summary/ précis of simple passages / poems."
+   },
+   {
+    "code": "E-10-VO-03",
+    "kind": "official",
+    "desc": "write summary/ précis of simple passages / poems."
+   },
+   {
+    "code": "E-10-RD-29",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 7 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-30",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 7 SLOs across the skills"
+   }
+  ],
+  "8": [
+   {
+    "code": "E-10-RD-31",
+    "kind": "official",
+    "desc": "Theme: Literature & Poetry / Subthemes: Human Relationships"
+   },
+   {
+    "code": "E-10-RD-17",
+    "kind": "official",
+    "desc": "Theme: Literature & Poetry / Subthemes: Human Relationships"
+   },
+   {
+    "code": "E-10-GR-07",
+    "kind": "official",
+    "desc": "use of pronoun-antecedent agreement. Illustrate / locate appropriate"
+   },
+   {
+    "code": "E-10-VO-04",
+    "kind": "official",
+    "desc": "use of pronoun-antecedent agreement. Illustrate / locate appropriate"
+   },
+   {
+    "code": "E-10-WR-23",
+    "kind": "official",
+    "desc": "use varying intonation patterns as aids in spoken"
+   },
+   {
+    "code": "E-10-VO-05",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 8 SLOs across the skills"
+   },
+   {
+    "code": "E-10-GR-08",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 8 SLOs across the skills"
+   }
+  ],
+  "9": [
+   {
+    "code": "E-10-RD-33",
+    "kind": "official",
+    "desc": "Subthemes: Drug education in schools/refusal skills/prevention of drugs"
+   },
+   {
+    "code": "E-10-RD-32",
+    "kind": "official",
+    "desc": "Subthemes: Drug education in schools/refusal skills/prevention of drugs"
+   },
+   {
+    "code": "E-10-GR-10",
+    "kind": "official",
+    "desc": "use of nouns, noun phrases and clauses Identify,"
+   },
+   {
+    "code": "E-10-VO-06",
+    "kind": "official",
+    "desc": "use of nouns, noun phrases and clauses Identify,"
+   },
+   {
+    "code": "E-10-WR-24",
+    "kind": "official",
+    "desc": "use compound prepositions and prepositional phrases in writing"
+   },
+   {
+    "code": "E-10-RD-35",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 9 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-34",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 9 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-36",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 9 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-37",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 9 SLOs across the skills"
+   }
+  ],
+  "10": [
+   {
+    "code": "E-10-RD-35",
+    "kind": "official",
+    "desc": "use intensive reading strategies (while-reading) to / Text"
+   },
+   {
+    "code": "E-10-RD-38",
+    "kind": "official",
+    "desc": "use intensive reading strategies (while-reading) to / Text"
+   },
+   {
+    "code": "E-10-GR-14",
+    "kind": "official",
+    "desc": "Text type: Article. Theme: Nature and natural resources."
+   },
+   {
+    "code": "E-10-VO-07",
+    "kind": "official",
+    "desc": "Text type: Article. Theme: Nature and natural resources."
+   },
+   {
+    "code": "E-10-WR-25",
+    "kind": "official",
+    "desc": "summarize a text. Write a persuasive/ argumentative essay."
+   },
+   {
+    "code": "E-10-GR-15",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 10 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-39",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 10 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-36",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 10 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-40",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 10 SLOs across the skills"
+   }
+  ],
+  "11": [
+   {
+    "code": "E-10-RD-44",
+    "kind": "official",
+    "desc": "Apply skimming and scanning strategies for relevant information"
+   },
+   {
+    "code": "E-10-RD-42",
+    "kind": "official",
+    "desc": "Apply skimming and scanning strategies for relevant information"
+   },
+   {
+    "code": "E-10-GR-16",
+    "kind": "official",
+    "desc": "infer the theme/main idea of the text, distinguishing"
+   },
+   {
+    "code": "E-10-VO-08",
+    "kind": "official",
+    "desc": "infer the theme/main idea of the text, distinguishing"
+   },
+   {
+    "code": "E-10-WR-26",
+    "kind": "official",
+    "desc": "identify the writer's purpose, and intended audience and"
+   },
+   {
+    "code": "E-10-RD-43",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 11 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-05",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 11 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-45",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 11 SLOs across the skills"
+   }
+  ],
+  "12": [
+   {
+    "code": "E-10-RD-44",
+    "kind": "official",
+    "desc": "Apply skimming and scanning strategies for relevant information"
+   },
+   {
+    "code": "E-10-RD-46",
+    "kind": "official",
+    "desc": "Apply skimming and scanning strategies for relevant information"
+   },
+   {
+    "code": "E-10-GR-17",
+    "kind": "official",
+    "desc": "use subordinating conjunctions to connect independent clause/s to"
+   },
+   {
+    "code": "E-10-VO-09",
+    "kind": "official",
+    "desc": "use subordinating conjunctions to connect independent clause/s to"
+   },
+   {
+    "code": "E-10-WR-26",
+    "kind": "official",
+    "desc": "identify the writer's purpose, and intended audience and"
+   },
+   {
+    "code": "E-10-WR-29",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 12 SLOs across the skills"
+   }
+  ],
+  "13": [
+   {
+    "code": "E-10-RD-48",
+    "kind": "official",
+    "desc": "develop over the course of a text, interact"
+   },
+   {
+    "code": "E-10-VO-10",
+    "kind": "official",
+    "desc": "use of rhetorical questions for a range of"
+   },
+   {
+    "code": "E-10-WR-30",
+    "kind": "official",
+    "desc": "use of rhetorical questions for a range of"
+   },
+   {
+    "code": "E-10-RD-47",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 13 SLOs across the skills"
+   },
+   {
+    "code": "E-10-RD-49",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 13 SLOs across the skills"
+   },
+   {
+    "code": "E-10-WR-31",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 13 SLOs across the skills"
+   }
+  ]
+ }
+}

@@ -8,6 +8,23 @@
  * Starting values in LIMITS are design_pending: no source, calibrate on the 24 fixtures.
  * RULINGS: true/false style keys and `true_false_correct` items are never searched (a one-word key that every
  * statement repeats); one issue per key, on the first view that holds it (own view first). Pure.
+ * BOARD RULING (bd-5jmnfj.38.30): in a board paper (40-80 MCQs) an MCQ key found only among ANOTHER item's
+ * options is ordinary distractor reuse, not a leak. Its stem/passage/stimulus (and a printed word box) still count,
+ * and every other key (srq, fill-blank) is still searched in other items' options.
+ * BOARD RULING part 2: a single-word MCQ key (articles and bare units aside, no digit) in ANOTHER item's stem or
+ * stimulus is chapter vocabulary ("distance", "the same", "m/s"), so that issue is soft. Numbers with or without
+ * units, multi-word keys, every non-MCQ key, and an MCQ key in its own stem or stimulus stay hard.
+ * OWN STEM (round 4): a key of numbers and units only, in its own stem that asks for a calculation, is the given
+ * data ("Calculate ... in kJ/mol", key "-1312 kJ/mol"), so it is soft; a unit asked for by name stays hard. A signed
+ * number must match with its sign in every view ("-1/2" is not in "+1/2").
+ * CROSS-ITEM (round 5, board only): a key that is a unit alone ("m/s^2") is never a leak in another item; a number
+ * or quantity key ("20 m/s", "9.8 m/s^2") in another item's stem is soft (board papers give g as data); a concept
+ * phrase stays hard. The blame is always on the item whose stem carries the text, never the keyed item, fresh or
+ * not. usedKeys() gives the repair ask the numeric and multi-word keys already in the paper.
+ * ROUND 6 (board only): refs are the shared walk's (walk.js), the form the registry maps to ids, so a stimulus child's (_walk-local now stamps them for every check),
+ * issue can be dropped. Leading determiners and pronouns are set aside from a key before comparing ("Its
+ * acceleration" -> "acceleration"). A concept key in another SECTION's stem is soft; in the same section it stays hard
+ * and the issue names the keyed item (`keyed_ref`) and the `phrase`, for the writer's second rewrite.
  */
 const { leaves } = require('./_walk-local');
 const { childFields } = require('./_child-view');
@@ -17,7 +34,17 @@ const LIMITS = { minTokens: 2, minLetters: 5, minDigits: 3 }; // design_pending:
 const SKIP_KEYS = new Set(['true', 'false', 'correct', 'incorrect', 'yes', 'no', 'صحیح', 'غلط']);
 const UR_LETTERS = ['الف', 'ب', 'ج', 'د'];
 const padded = (s) => ` ${tokens(s).join(' ')} `;
+const ARTICLES = new Set(['a', 'an', 'the']);
+const UNITS = new Set(['m', 's', 'kg', 'g', 'n', 'j', 'w', 'v', 'k', 'pa', 'hz', 'mol', 'cm', 'mm', 'km', 'ms', 'h', 'min', 'kj', 'kpa', 'ev', 'nm', 'ml', 'mg']); // design_pending
+const CALC = /\b(?:calculate|compute|find|work out|determine|evaluate|how (?:much|many|long|far))\b/i; // design_pending
+const SIGNED = /[+\-\u2212]\s*\d[\d./]*/g;
+const signedOf = (s) => (fold(s).replace(/\u2212/g, '-').match(SIGNED) || []).map((x) => x.replace(/\s+/g, ''));
 const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
+const LEAD = /^\s*(?:its|the|a|an|his|her|their)\s+/i; // design_pending: the coordinator's list (round 6)
+const bareKey = (key) => (key ? key.replace(LEAD, '') : key);
+// design_pending (board seat to confirm): FBISE collects the Section A objective sheet before Sections B and C are
+// written, so a key quoted in another section's stem cannot help the student; such a leak is soft.
+const crossSection = (a, b) => !!(a.sectionId && b.sectionId && a.sectionId !== b.sectionId);
 
 function mcqKey(it) {
   const ans = str(it.answer).trim();
@@ -45,27 +72,60 @@ function searchable(key) {
   return /^\p{N}+$/u.test(one) ? one.length >= LIMITS.minDigits : one.length >= LIMITS.minLetters;
 }
 
-function n18(ls) {
+/** Every signed number of the key is in the text with its sign ("-1/2" is not in "+1/2"). */
+const signsIn = (key, raw) => { const t = fold(raw).replace(/\u2212/g, '-').replace(/\s+/g, ''); return signedOf(key).every((x) => t.includes(x)); };
+/** Only numbers and units: in its own calculation stem it is the given data, not a leak. */
+const givenData = (key) => tokens(key).every((x) => /\p{N}/u.test(x) || UNITS.has(x));
+
+/** Only units once exponents are set aside ("m/s^2", "m s^-1", "kJ/mol"). */
+const unitOnly = (key) => { const t = tokens(str(key).replace(/\^\s*[-\u2212]?\d+/g, ' ').replace(/[\u00b2\u00b3\u00b9\u2070-\u209f]/g, ' ')); return t.length > 0 && t.every((x) => UNITS.has(x)); };
+/** A number with or without units: data a board paper may give in any stem. */
+const quantity = (key) => givenData(key) && tokens(key).some((x) => /\p{N}/u.test(x));
+
+/** One word once articles and bare units are set aside, and no digit: chapter vocabulary in a board paper. */
+function vocabulary(key) {
+  const t = tokens(key);
+  return !t.some((x) => /\p{N}/u.test(x)) && t.filter((x) => !ARTICLES.has(x) && !UNITS.has(x)).length <= 1;
+}
+
+function n18(ls, board) {
   const views = ls.map((n) => {
     const fields = childFields(n);
+    const raw = (keep) => fields.filter(keep).map((f) => f.text).join(' . ');
     return {
       n,
+      ownRaw: raw((f) => f.field !== 'options' && f.field !== 'words'),
+      allRaw: raw(() => true),
+      noOptionsRaw: raw((f) => f.field !== 'options'),
       own: padded(fields.filter((f) => f.field !== 'options' && f.field !== 'words').map((f) => f.text).join(' . ')),
       all: padded(fields.map((f) => f.text).join(' . ')),
+      noOptions: padded(fields.filter((f) => f.field !== 'options').map((f) => f.text).join(' . ')),
     };
   });
   const out = [];
   views.forEach((v, i) => {
-    const key = keyOf(v.n.item);
+    const key = board ? bareKey(keyOf(v.n.item)) : keyOf(v.n.item);
     if (!key || !searchable(key)) return;
     const needle = padded(key);
-    if (v.own.includes(needle)) { out.push(leak(v.n, key, 'its own stem')); return; }
-    const other = views.find((w, j) => j !== i && w.all.includes(needle));
-    if (other) out.push(leak(other.n, key, `the key of ${v.n.ref}`));
+    if (v.own.includes(needle) && signsIn(key, v.ownRaw)) { out.push(leak(v.n, key, 'its own stem', !(givenData(key) && CALC.test(v.ownRaw)))); return; }
+    const reuseOk = board && Array.isArray(v.n.item.options) && v.n.item.options.length > 1; // an MCQ key
+    const other = views.find((w, j) => j !== i && (reuseOk ? w.noOptions : w.all).includes(needle) && signsIn(key, reuseOk ? w.noOptionsRaw : w.allRaw));
+    if (!other || (board && unitOnly(key))) return;
+    const soft = (reuseOk && vocabulary(key)) || (board && (quantity(key) || crossSection(v.n, other.n)));
+    out.push({ ...leak(other.n, key, `the key of ${v.n.ref}`, !soft), ...(board ? { keyed_ref: v.n.ref, phrase: key.trim() } : {}) });
   });
   return out;
 }
-const leak = (n, key, where) => issue('N18', 'KEY_IN_STEM', n.ref, `child view repeats ${where} "${excerpt(key)}"`, true);
+/** The numeric and multi-word keys of a paper, in walk order, once each (the repair ask is told not to state them). */
+function usedKeys(examJson) {
+  const out = [];
+  leaves(examJson).forEach((n) => {
+    const key = keyOf(n.item);
+    if (key && searchable(key) && !vocabulary(key) && !out.includes(key.trim())) out.push(key.trim());
+  });
+  return out;
+}
+const leak = (n, key, where, hard = true) => issue('N18', 'KEY_IN_STEM', n.ref, `child view repeats ${where} "${excerpt(key)}"`, hard);
 
 // ---- N19
 const SEP = /\s*(?:→|->|=>|[-–—:])\s*/;
@@ -111,11 +171,11 @@ function n19(it, ref) {
   return out;
 }
 
-function run(examJson) {
+function run(examJson, ctx) {
   const ls = leaves(examJson);
-  const issues = n18(ls);
+  const issues = n18(ls, !!ctx && ctx.mode === 'board');
   ls.forEach((n) => { if (n.item.type === 'match') issues.push(...n19(n.item, n.ref)); });
   return { ok: !issues.some((i) => i.hard), issues };
 }
 
-module.exports = { id: 'N18/N19', name: 'key-leak', hard: true, modes: ['free', 'board'], LIMITS, run };
+module.exports = { id: 'N18/N19', name: 'key-leak', hard: true, modes: ['free', 'board'], LIMITS, run, usedKeys };
