@@ -38,8 +38,11 @@ jest.mock('../../bot/shared/config/supabase', () => ({
   },
 }));
 
+// The teacher's keyed reference (tk) needs the HMAC key; a fixed test key makes it deterministic here.
+process.env.WEB_QUIZ_KID_KEY = 'identity-events-test-key-0123456789abcdef';
 const StructuredLogger = require('../../bot/shared/utils/structured-logger');
 const IdentityEvents = require('../../bot/shared/services/identity/identity-events');
+const { tk } = require('../../bot/shared/services/quiz/web-quiz-kid');
 
 // A synthetic number, built from parts so the repo holds no phone-shaped literal (920000… is never a real mobile).
 const fx = (n) => '92' + '000' + String(n).padStart(7, '0');
@@ -71,7 +74,7 @@ describe('identity.number_changed', () => {
   test('the new number has no account: verdict free', async () => {
     await IdentityEvents.recordSystem({ message: changedNumber(), user: TEACHER });
     expect(numberChanged()).toEqual([
-      { userId: TEACHER.id, type: 'user_changed_number', verdict: 'free', targetUserId: null },
+      { tk: tk(TEACHER.id), type: 'user_changed_number', verdict: 'free', targetTk: null },
     ]);
   });
 
@@ -79,7 +82,7 @@ describe('identity.number_changed', () => {
     mockTables.users.push(OTHER);
     await IdentityEvents.recordSystem({ message: changedNumber(), user: TEACHER });
     expect(numberChanged()).toEqual([
-      { userId: TEACHER.id, type: 'user_changed_number', verdict: 'shell', targetUserId: OTHER.id },
+      { tk: tk(TEACHER.id), type: 'user_changed_number', verdict: 'shell', targetTk: tk(OTHER.id) },
     ]);
   });
 
@@ -88,7 +91,7 @@ describe('identity.number_changed', () => {
     mockTables.training_certificates.push({ id: 'cert-1', user_id: OTHER.id });
     await IdentityEvents.recordSystem({ message: changedNumber(), user: TEACHER });
     expect(numberChanged()).toEqual([
-      { userId: TEACHER.id, type: 'user_changed_number', verdict: 'taken', targetUserId: OTHER.id },
+      { tk: tk(TEACHER.id), type: 'user_changed_number', verdict: 'taken', targetTk: tk(OTHER.id) },
     ]);
   });
 
@@ -97,14 +100,14 @@ describe('identity.number_changed', () => {
       message: systemMessage({ body: 'User A changed their user id', type: 'user_changed_user_id' }), user: TEACHER,
     });
     expect(numberChanged()).toEqual([
-      { userId: TEACHER.id, type: 'user_changed_user_id', verdict: 'user_id_only', targetUserId: null },
+      { tk: tk(TEACHER.id), type: 'user_changed_user_id', verdict: 'user_id_only', targetTk: null },
     ]);
   });
 
   test('a number change whose new number Meta could not share: recorded as no_new_number', async () => {
     await IdentityEvents.recordSystem({ message: changedNumber({ wa_id: undefined }), user: TEACHER });
     expect(numberChanged()).toEqual([
-      { userId: TEACHER.id, type: 'user_changed_number', verdict: 'no_new_number', targetUserId: null },
+      { tk: tk(TEACHER.id), type: 'user_changed_number', verdict: 'no_new_number', targetTk: null },
     ]);
   });
 
@@ -113,7 +116,7 @@ describe('identity.number_changed', () => {
       message: systemMessage({ body: 'x', new_wa_id: NEW, type: 'customer_changed_number' }), user: TEACHER,
     });
     expect(numberChanged()).toEqual([
-      { userId: TEACHER.id, type: 'customer_changed_number', verdict: 'free', targetUserId: null },
+      { tk: tk(TEACHER.id), type: 'customer_changed_number', verdict: 'free', targetTk: null },
     ]);
   });
 
@@ -121,7 +124,7 @@ describe('identity.number_changed', () => {
     mockThrow = true;
     await expect(IdentityEvents.recordSystem({ message: changedNumber(), user: TEACHER })).resolves.toBeUndefined();
     expect(numberChanged()).toEqual([
-      { userId: TEACHER.id, type: 'user_changed_number', verdict: 'unknown', targetUserId: null },
+      { tk: tk(TEACHER.id), type: 'user_changed_number', verdict: 'unknown', targetTk: null },
     ]);
   });
 
@@ -138,6 +141,17 @@ describe('identity.number_changed', () => {
     await expect(IdentityEvents.recordSystem({ message: changedNumber(), user: TEACHER })).resolves.toBeUndefined();
   });
 
+  test('no key on the service: still recorded, the reference is null (the count survives)', async () => {
+    const saved = process.env.WEB_QUIZ_KID_KEY;
+    delete process.env.WEB_QUIZ_KID_KEY;
+    try {
+      await IdentityEvents.recordSystem({ message: changedNumber(), user: TEACHER });
+    } finally { process.env.WEB_QUIZ_KID_KEY = saved; }
+    expect(numberChanged()).toEqual([
+      { tk: null, type: 'user_changed_number', verdict: 'free', targetTk: null },
+    ]);
+  });
+
   test('log only: nothing is written', async () => {
     mockTables.users.push(OTHER);
     await IdentityEvents.recordSystem({ message: changedNumber(), user: TEACHER });
@@ -149,6 +163,6 @@ describe('identity.number_changed', () => {
     await IdentityEvents.recordSystem({ message: changedNumber(), user: TEACHER });
     expect(numberChanged()).toHaveLength(1);
     const text = JSON.stringify(numberChanged());
-    for (const secret of [OLD, NEW, TEACHER.name, OTHER.name]) expect(text).not.toContain(secret);
+    for (const secret of [OLD, NEW, TEACHER.name, OTHER.name, TEACHER.id, OTHER.id]) expect(text).not.toContain(secret);
   });
 });

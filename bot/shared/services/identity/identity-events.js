@@ -12,8 +12,9 @@
  *                                 same name. Once per account per process: a sign-up can finish in more than one place.
  *
  * Log only: no reply, no write. Every function swallows its own failure, so a hook can never change what the teacher
- * sees, and the callers fire it without waiting. Events carry account ids, counts and verdicts, never a phone number
- * or a name.
+ * sees, and the callers fire it without waiting. Events carry a teacher's keyed reference (`tk`, the HMAC of users.id
+ * that every NIETE log line uses instead of the raw id), counts and verdicts: never a raw id, a phone number or a name.
+ * Without the key on the service a reference is null and the event is still counted.
  */
 const StructuredLogger = require('../../utils/structured-logger');
 const { logToFile } = require('../../utils/logger');
@@ -23,6 +24,15 @@ const USER_ID_CHANGE_TYPES = new Set(['user_changed_user_id']);
 const SEEN_CAP = 10000;
 const resumedSeen = new Set();
 const matchSeen = new Set();
+
+/** A teacher's keyed reference for a log line; null without the key. Never throws. */
+function ref(userId) {
+  try {
+    return userId ? require('../quiz/web-quiz-kid').tk(userId) : null;
+  } catch (_) {
+    return null;
+  }
+}
 
 function swallow(where, err) {
   try {
@@ -60,7 +70,7 @@ async function wouldMoveTo(phone) {
   const { loadTargetWithHistory } = require('../observe/teacher-edit-commit.service');
   const { classifyTarget } = require('../observe/teacher-edit.service');
   const target = await loadTargetWithHistory(phone);
-  return { verdict: classifyTarget(target), targetUserId: (target && target.id) || null };
+  return { verdict: classifyTarget(target), targetId: (target && target.id) || null };
 }
 
 /** A `system` message from the webhook. Never throws. */
@@ -71,18 +81,18 @@ async function recordSystem({ message, user } = {}) {
     if (!isNumber && !USER_ID_CHANGE_TYPES.has(s.type)) return;
 
     let verdict = isNumber ? 'no_new_number' : 'user_id_only';
-    let targetUserId = null;
+    let targetId = null;
     const newPhone = isNumber ? digits(s.wa_id || s.new_wa_id) : '';
     if (newPhone) {
       try {
-        ({ verdict, targetUserId } = await wouldMoveTo(newPhone));
+        ({ verdict, targetId } = await wouldMoveTo(newPhone));
       } catch (err) {
         verdict = 'unknown';
         swallow('identity.number_changed: lookup', err);
       }
     }
     StructuredLogger.logEvent('identity.number_changed', {
-      userId: (user && user.id) || null, type: s.type, verdict, targetUserId,
+      tk: ref(user && user.id), type: s.type, verdict, targetTk: ref(targetId),
     });
   } catch (err) {
     swallow('identity.number_changed', err);
@@ -93,7 +103,7 @@ async function recordSystem({ message, user } = {}) {
 function deletedRowResumed(userId) {
   try {
     if (!userId || !firstTime(resumedSeen, userId)) return;
-    StructuredLogger.logEvent('identity.deleted_row_resumed', { userId });
+    StructuredLogger.logEvent('identity.deleted_row_resumed', { tk: ref(userId) });
   } catch (err) {
     swallow('identity.deleted_row_resumed', err);
   }
@@ -121,10 +131,10 @@ async function checkWouldMatch(userId, source) {
       && isLiveNumber(p.phone_number) && normaliseName(p.name) === name);
     if (!matches.length) return;
     StructuredLogger.logEvent('registration.would_match', {
-      userId,
+      tk: ref(userId),
       source: source || null,
       matchCount: matches.length,
-      matchUserIds: matches.slice(0, 5).map((p) => p.id),
+      matchTks: matches.slice(0, 5).map((p) => ref(p.id)),
       matchesRegistered: matches.filter((p) => p.registration_completed === true).length,
       matchesEverMessaged: matches.filter((p) => Boolean(p.last_message_at)).length,
     });
