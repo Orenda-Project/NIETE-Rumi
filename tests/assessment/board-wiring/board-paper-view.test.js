@@ -120,7 +120,7 @@ describe('view() on a board paper', () => {
     exam._layout.pages = { paper: 6, scheme: 3 };
     seed(exam);
     const out = await View.view({ userId: 'u1', paperId: 'p1' });
-    expect(out.paper).toMatchObject({ totalMarks: 60, marks: 60, pages: { paper: 6, scheme: 3 }, pattern: null, youAdd: null });
+    expect(out.paper).toMatchObject({ totalMarks: 60, marks: 60, pages: { paper: 6, scheme: 3 }, pattern: 'fbise_ssc1_2027', youAdd: null });
     expect(out.sections[0].slot).toBe('A.Q1-40');
   });
 

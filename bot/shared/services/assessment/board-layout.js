@@ -4,8 +4,8 @@
  * says the paper looks like, taken at generation time so a stored paper never changes when a pattern is
  * edited (same stored-paper rule as fde-layout.js, which this module never calls).
  *
- *   buildLayout(pattern, variant, examJson) ->
- *     { profile:'board', variant, medium, rtl, header, sections[{id, marks, time_min, answer_on, parts}],
+ *   buildLayout(pattern, variant, examJson, opts = {}) ->
+ *     { profile:'board', preset_id, variant, medium, rtl, header, sections[{id, marks, time_min, answer_on, parts}],
  *       slots[{section, slot, label, type, printed, attempt, generate, marks_each, marks, or, stimulus,
  *              teacher_marked, project}], legend, scheme_style }
  *
@@ -17,6 +17,7 @@
  * design_pending (SPEC §7 gives no field list for these, smallest reading taken):
  *   - `medium` / `rtl` are added so the renderer need not re-read the subject (rtl = medium 'ur').
  *   - `parts` is copied as the entry gives it (null when absent); the layout does not interpret handover.
+ *   - `preset_id` is the pattern id (as G1-5 FDE layouts carry it): opts.presetId, else a whole pattern's own id, else null.
  *   - `section` and `type` / `generate` / `project` are carried on each slot so one flat list is enough.
  */
 
@@ -81,7 +82,7 @@ function layoutSection(sec) {
   };
 }
 
-function buildLayout(pattern, variant, examJson) {
+function buildLayout(pattern, variant, examJson, opts = {}) {
   const subject = subjectOf(pattern, examJson);
   if (!variant || !Array.isArray(variant.sections)) throw new Error('board-layout: variant with sections is required');
   const built = variant.sections.map(layoutSection);
@@ -92,6 +93,7 @@ function buildLayout(pattern, variant, examJson) {
   }
   return {
     profile: 'board',
+    preset_id: opts.presetId || (pattern.subjects ? pattern.id : null) || null,
     variant: variant.variant_id,
     medium: subject.medium || null,
     rtl: subject.medium === 'ur',
