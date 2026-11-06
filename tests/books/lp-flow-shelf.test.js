@@ -100,8 +100,6 @@ it('the Urdu-medium GK is not on GB\'s menu, even when asked for by key', async 
   const res = await step('gb-teacher', { step: 'subject', grade: '3', subject: 'general_knowledge_ur' });
   expect(res.screen).not.toBe('SELECT_CHAPTER');
 });
-<<<<<<< HEAD
-=======
 
 describe("Amena's GB lane is on (LP_GB_K5_ENABLED) and GB's curriculum is nbf_snc", () => {
   const saved = { ...process.env };
@@ -125,4 +123,3 @@ describe("Amena's GB lane is on (LP_GB_K5_ENABLED) and GB's curriculum is nbf_sn
     expect(res.data.items.map((r) => r.id)).toEqual(['gb_soon_english', 'general_knowledge']);
   });
 });
->>>>>>> f92e97a64 (fix(lp): GB menu merges the region book list with the GB K-5 lane (bd-rj6w0n.14.17))
