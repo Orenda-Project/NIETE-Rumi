@@ -100,7 +100,12 @@ describe('(c) a keyed stimulus child: the second rewrite takes the plain MCQ tha
     expect(r[1].user).toMatch(/Do not use these phrases: "uniform acceleration"/);
     const out = logs.find((l) => /board rewrite outcome/.test(l.msg));
     expect(out.extra.kept).toBe('rewrite 2');
-    expect(out.extra.tries).toEqual([{ name: 'rewrite 2', hard: 0 }, { name: 'rewrite 1', hard: 1 }]);
+    expect(out.extra.tries.map((t) => [t.name, t.hard])).toEqual([['rewrite 2', 0], ['rewrite 1', 1]]);
+    // round 8: each try names the checks its hard issues came from (check name -> hard count; clean checks left out)
+    expect(out.extra.tries[0].by_check).toEqual({});
+    const by1 = out.extra.tries[1].by_check;
+    expect(Object.values(by1)).toEqual([1]);
+    expect(Object.keys(by1)[0]).toMatch(/^[a-z-]+$/);
   });
 });
 

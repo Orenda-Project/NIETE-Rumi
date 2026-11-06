@@ -190,8 +190,11 @@ async function writeBoardPaper(args, d) {
     return out;
   };
   const failing = (tree, run) => run.shortfall.length > 0 || T.shortfallOf(tree, allSlots).length > 0;
+  // round 8: which checks each try's hard issues came from, so a rewrite that got worse can be read
+  const byCheck = (rec) => Object.fromEntries(Object.entries(rec.per_check || {}).filter(([, v]) => v.hard > 0).map(([k, v]) => [k, v.hard]));
   const outcome = (tries, kept) => d.logToFile('[assessment] board rewrite outcome', {
-    kept: kept.name, tries: tries.map((t) => ({ name: t.name, hard: t.checks.record.hard })),
+    kept: kept.name,
+    tries: tries.map((t) => ({ name: t.name, hard: t.checks.record.hard, by_check: byCheck(t.checks.record) })),
   });
   if (failing(ex, checks)) {
     drop(ex, hardIds(checks), checks);
