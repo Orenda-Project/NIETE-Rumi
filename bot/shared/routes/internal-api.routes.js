@@ -1523,14 +1523,14 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
     const allowed = await Flags.fdePatternSubjects();
     const listed = (s) => allowed === null || allowed.includes(Patterns.normalise(s));
     if (grade !== null && subject && listed(subject)) {
-      const ids = Patterns.list().filter((id) => Patterns.isEligible(id, grade, subject));
+      const ids = Patterns.list().filter((id) => Patterns.isOffered(id) && Patterns.isEligible(id, grade, subject));
       if (ids.length) out.patterns = ids.map((id) => ({ id, ...Patterns.summaryFor(id, subject) }));
     }
     // The grades any pattern exists for, from the registry rather than typed
     // here, on EVERY call — the hub shows the door before a grade is picked.
     // An empty subject list offers no pattern anywhere, so no door either.
     if (allowed === null || allowed.length) {
-      out.patternGrades = [...new Set(Patterns.list().map((id) => Patterns.get(id).grade))].sort((a, b) => a - b);
+      out.patternGrades = Patterns.offeredGrades();
     }
   }
 
@@ -1818,7 +1818,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     const Patterns = require('../services/assessment/patterns');
     const allowed = await Flags.fdePatternSubjects();
     const listed = allowed === null || allowed.includes(Patterns.normalise(subject));
-    if (!listed || !Patterns.isEligible(pattern, grade, subject)) {
+    if (!listed || !Patterns.isOffered(pattern) || !Patterns.isEligible(pattern, grade, subject)) {
       return res.status(400).json({
         success: false,
         error: 'That board pattern is not available for this grade and subject.',
