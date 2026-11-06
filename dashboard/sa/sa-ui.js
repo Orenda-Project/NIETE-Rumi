@@ -503,6 +503,8 @@
     var scrollCue = null; // { s, el, ro, type, phase, task, asked }: the cue of the screen on show
     // Round 10 layout 2 (r10_number_fit): a maths number as large as its box allows, whatever its digits (numFit)
     var r10Num = r7.r10_number_fit === true;
+    // Round 10 layout 1 (r10_urdu_fit): every Urdu label centred on its ink, the whole Nastaliq word inside its box
+    var r10Fit = r7.r10_urdu_fit === true;
     var scrollSaid = {};  // screen types (phase, or running:<mode>) the cue line was said on
     var talk = null, talkN = 0; // r9Scroll: Jugnu's latest line, and how many are still playing
     // Round 10 audio 1 (r10_hint_once): the say-then-press hint is heard once per task, in the instruction; it stays on the
@@ -612,6 +614,18 @@
         clearTimeout(numRefit);
         numRefit = later(function () { var s = el.querySelector('.sae-screen'); numFitOn(s); if (r8Mn) mnFit(s); }, 120);
       });
+    }
+    // Round 10 layout 1 (r10_urdu_fit): a resize, or a label shown or changed after the draw (the scroll cue, the coach's
+    // menu, a gated Next), is fitted again
+    if (r10Fit && typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('resize', function () { if (alive) urFitSoon(); });
+      if (typeof window.MutationObserver === 'function') {
+        // only a change that shows Urdu words counts (the clock's digits change every frame)
+        var urShown = function (n) { return !!n && UR_LETTER.test(n.textContent || ''); };
+        new window.MutationObserver(function (recs) {
+          if (alive && recs.some(function (r) { return r.type === 'attributes' ? urShown(r.target) : Array.prototype.some.call(r.addedNodes, urShown); })) urFitSoon();
+        }).observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+      }
     }
     // Round 8 item 30: a resize fits the missing number above the foot again
     if (r8Mn && typeof window !== 'undefined' && window.addEventListener) {
@@ -874,6 +888,8 @@
     if (r7.r8_highlight === true) el.classList.add('is-r8-hl');
     // round 9 item 6 (r9_comp_text): the story question's styles (sa.css "Round 9 item 6")
     if (r9Comp) el.classList.add('is-r9-comp');
+    // round 10 layout 1 (r10_urdu_fit): urFitAll pads each Urdu label to its ink (sa.css "Round 10 layout 1")
+    if (r10Fit) el.classList.add('is-r10-urfit');
     el.setAttribute('lang', lang);
     el.setAttribute('dir', lang === 'ur' ? 'rtl' : 'ltr');
     el.setAttribute('data-mode', mode);
@@ -1760,6 +1776,112 @@
       var dx = (c.left + c.right) / 2 - (r.left + (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2);
       var dy = (c.top + c.bottom) / 2 - (base + (m.actualBoundingBoxDescent - m.actualBoundingBoxAscent) / 2);
       ink.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px)';
+    }
+    /**
+     * Round 10 layout 1 (r10_urdu_fit). An Urdu label's line box is set by the font's ascent and descent, but Nastaliq's
+     * ink runs well past both (a «ک» or «ھ» far above, the tail of «م» or «ے» below) and differs word to word, so a box
+     * padded for the tallest word holds a short one low (the round 6 pill: 1.3em above, .4em below). Here each label is
+     * measured by its own ink: a canvas gives the drawn word's height above and below its baseline, the letters' boxes
+     * give where each line's baseline is, and the label's top and bottom padding are moved so the ink is in the middle
+     * with at least UR_FIT_ROOM px (or .15em) on each side. The label keeps its size unless the ink needs more room. A
+     * one-line pill is centred side to side the same way. Labels with no Urdu letter (numbers) are left alone, and so
+     * are the letter cards, tiles and passage words (fitCells places those).
+     */
+    var UR_FIT_SEL = '.sae-btn, .sae-chip, .sae-choice, .sae-star-word, .sae-pic-w, .sae-more-w, .sae-r9-scroll-w, .sae-r8-lang-o, .sae-task-tag, ' +
+      '.sae-fb, .sae-cap, .sae-coach-says > summary, .sae-r9-q, .sae-handback, .sae-r8-stuck, .sae-h1, .sae-sub, .sae-say, .sae-p, .sae-coach-line, ' +
+      '.sae-coach-items > li';
+    // a pill (a box drawn round one line) is centred side to side too; running text keeps its own alignment
+    var UR_FIT_PILL = /(^|\s)sae-(btn|chip|choice|star-word|pic-w|more-w|r9-scroll-w|r8-lang-o|fb|cap|r9-q)(\s|$)/;
+    var UR_LETTER = /[\u0621-\u063A\u0641-\u064A\u0671-\u06D3\u06D5]/; // an Arabic-script letter (not a digit)
+    var UR_FIT_ROOM = 4;
+    var urFitT = null;
+    function urFitAll() {
+      if (!r10Fit || !alive || typeof document === 'undefined' || !el.querySelectorAll) return;
+      var g = document.createElement('canvas').getContext('2d');
+      if (!g) return;
+      var list = Array.prototype.filter.call(el.querySelectorAll(UR_FIT_SEL), function (n) {
+        var l = n.closest('[lang]');
+        return l && l.getAttribute('lang') === 'ur' && UR_LETTER.test(n.textContent || '') && !n.querySelector('.sae-ink, ' + UR_FIT_SEL);
+      });
+      list.forEach(function (n) { urFitOne(n, g, 0); });
+      // the face may still be on its way: once it is, the ink is measured again
+      if (list.length && document.fonts && document.fonts.load) {
+        document.fonts.load(getComputedStyle(list[0]).font || '16px serif', '\u0627\u0628\u067E').then(function () {
+          list.forEach(function (n) { if (alive && n.isConnected) urFitOne(n, g, 0); });
+        }, function () {});
+      }
+    }
+    function urFitSoon() {
+      if (!r10Fit) return;
+      clearTimeout(urFitT);
+      urFitT = later(urFitAll, 30);
+    }
+    function urFitOne(n, g, tries) {
+      var b = n.getBoundingClientRect();
+      if (!b || !b.height || !b.width) return;
+      var cs = getComputedStyle(n);
+      g.font = cs.font; g.direction = 'rtl'; g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+      // the page's word spacing (.12em on Urdu) widens the line: the canvas spaces the words the same way
+      if ('wordSpacing' in g) g.wordSpacing = cs.wordSpacing && cs.wordSpacing !== 'normal' ? cs.wordSpacing : '0px';
+      var asc = g.measureText('\u0627').fontBoundingBoxAscent;
+      if (asc == null) return;
+      var lines = urLines(n, asc);
+      var ink = null;
+      lines.forEach(function (ln) {
+        if (ln.base == null) return;
+        var m = g.measureText(ln.text);
+        if (m.actualBoundingBoxAscent == null) return;
+        var t = ln.base - m.actualBoundingBoxAscent, bt = ln.base + m.actualBoundingBoxDescent;
+        var l = ln.left - (m.actualBoundingBoxLeft || 0), r = ln.left + (m.actualBoundingBoxRight || 0);
+        ink = ink ? { t: Math.min(ink.t, t), b: Math.max(ink.b, bt), l: Math.min(ink.l, l), r: Math.max(ink.r, r) } : { t: t, b: bt, l: l, r: r };
+      });
+      if (!ink) return;
+      var px = function (x) { var f = parseFloat(x); return isFinite(f) ? f : 0; };
+      var room = Math.max(UR_FIT_ROOM, Math.round(px(cs.fontSize) * 0.15));
+      var v = urSplit(ink.t - b.top - px(cs.borderTopWidth), b.bottom - px(cs.borderBottomWidth) - ink.b, px(cs.paddingTop), px(cs.paddingBottom), room);
+      var gl = ink.l - b.left - px(cs.borderLeftWidth), gr = b.right - px(cs.borderRightWidth) - ink.r;
+      var pl = px(cs.paddingLeft), pr = px(cs.paddingRight);
+      // side to side: a one-line pill is centred; one line of running text only gets room where its swash runs out
+      var hz = lines.length !== 1 ? null : UR_FIT_PILL.test(n.className || '') ? urSplit(gl, gr, pl, pr, room)
+        : gl < room - 0.75 || gr < room - 0.75 ? { a: pl + Math.max(0, room - gl), b: pr + Math.max(0, room - gr), change: true } : null;
+      if (!v.change && !(hz && hz.change)) return;
+      if (v.change) { n.style.paddingTop = v.a + 'px'; n.style.paddingBottom = v.b + 'px'; }
+      if (hz && hz.change) { n.style.paddingLeft = hz.a + 'px'; n.style.paddingRight = hz.b + 'px'; }
+      // a box held at its min-height moves its ink half as far as an auto-height one: measure again until it is even
+      if (tries < 3) urFitOne(n, g, tries + 1);
+    }
+    /** gaps a, b between the ink and the box's two sides, paddings pa, pb: the paddings that make the gaps even and >= room
+     *  (an auto-sized box moves the ink by the whole padding change, a centred fixed one by half: both end even). */
+    function urSplit(a, b, pa, pb, room) {
+      var grow = Math.max(0, room - (a + b) / 2);
+      var x = (b - a) / 2 + grow, y = (a - b) / 2 + grow;
+      var lift = Math.max(0, -(pa + x), -(pb + y));
+      x += lift; y += lift;
+      return { a: Math.round((pa + x) * 10) / 10, b: Math.round((pb + y) * 10) / 10, change: Math.abs(x) > 0.75 || Math.abs(y) > 0.75 };
+    }
+    /** The label's lines (letters grouped by the line they are on): each line's text, left edge and baseline (an Urdu
+     *  letter's box top + the face's ascent). */
+    function urLines(n, asc) {
+      var lines = [], rg = document.createRange(), last = null;
+      var w = document.createTreeWalker(n, 4 /* text */, null, false), t;
+      while ((t = w.nextNode())) {
+        for (var i = 0; i < t.data.length; i++) {
+          var ch = t.data.charAt(i);
+          if (/\s/.test(ch)) { if (last) last.text += ' '; continue; }
+          rg.setStart(t, i); rg.setEnd(t, i + 1);
+          var r = rg.getBoundingClientRect();
+          if (!r || (!r.width && !r.height)) continue;
+          var cy = (r.top + r.bottom) / 2, ln = null;
+          for (var k = 0; k < lines.length; k++) if (cy >= lines[k].top && cy <= lines[k].bottom) { ln = lines[k]; break; }
+          if (!ln) { ln = { top: r.top, bottom: r.bottom, left: r.left, text: '', base: null }; lines.push(ln); }
+          ln.left = Math.min(ln.left, r.left);
+          ln.text += ch;
+          if (ln.base == null && UR_LETTER.test(ch)) ln.base = r.top + asc;
+          last = ln;
+        }
+      }
+      lines.forEach(function (ln) { ln.text = ln.text.replace(/\s+$/, ''); });
+      return lines;
     }
     function sRunCell(v) {
       var t = v.task, it = v.cell_item;
@@ -2738,6 +2860,7 @@
         coachLayer(v).forEach(function (n) { el.appendChild(n); });
         if (coachMenu) el.appendChild(sCoachMenu(v));
       }
+      if (r10Fit) urFitAll();
       if (r8Digits) latinScreen(el, v.task);
       if (r10Num) numFitOn(s);
       if (r8Mn) mnFit(s);
