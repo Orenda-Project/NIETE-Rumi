@@ -51,4 +51,18 @@ describe('board-render/items', () => {
   test('rtl section converts digits to Urdu digits', () => {
     expect(block(fx.urdu(), 0, true)).toContain('<span class="num">۱</span>');
   });
+  test('a label the model wrote on an option is not printed twice (bd-5jmnfj.38.30)', () => {
+    const exam = fx.fbise50();
+    const first = exam._layout.slots[0].slot;
+    const by = itemsBySlot(exam);
+    const item = by.get(first)[0];
+    item.options = ['A) J.J. Thomson', 'B. Rutherford', '(c) Bohr', 'C. elegans'];
+    const html = I.sectionBlock(exam._layout, exam._layout.sections[0], by, ctx(false));
+    expect(html).toContain('A. J.J. Thomson');
+    expect(html).toContain('B. Rutherford');
+    expect(html).toContain('C. Bohr');
+    expect(html).not.toMatch(/A\. A\)|B\. B\.|C\. \(c\)/);
+    expect(html).toContain('D. C. elegans'); // a letter that is not its own label is text, kept
+  });
 });
+

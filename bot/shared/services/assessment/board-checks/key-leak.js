@@ -11,6 +11,12 @@
  * BOARD RULING (bd-5jmnfj.38.30): in a board paper (40-80 MCQs) an MCQ key found only among ANOTHER item's
  * options is ordinary distractor reuse, not a leak. Its stem/passage/stimulus (and a printed word box) still count,
  * and every other key (srq, fill-blank) is still searched in other items' options.
+ * BOARD RULING part 2: a single-word MCQ key (articles and bare units aside, no digit) in ANOTHER item's stem or
+ * stimulus is chapter vocabulary ("distance", "the same", "m/s"), so that issue is soft. Numbers with or without
+ * units, multi-word keys, every non-MCQ key, and an MCQ key in its own stem or stimulus stay hard.
+ * REPAIR: ctx.fresh (a Set of item ids, the repair round's replacements) moves the blame for a fresh key found in
+ * an old stem onto the fresh item, so the old item is not the one dropped. usedKeys() gives the repair ask the
+ * numeric and multi-word keys already in the paper.
  */
 const { leaves } = require('./_walk-local');
 const { childFields } = require('./_child-view');
@@ -20,6 +26,8 @@ const LIMITS = { minTokens: 2, minLetters: 5, minDigits: 3 }; // design_pending:
 const SKIP_KEYS = new Set(['true', 'false', 'correct', 'incorrect', 'yes', 'no', 'صحیح', 'غلط']);
 const UR_LETTERS = ['الف', 'ب', 'ج', 'د'];
 const padded = (s) => ` ${tokens(s).join(' ')} `;
+const ARTICLES = new Set(['a', 'an', 'the']);
+const UNITS = new Set(['m', 's', 'kg', 'g', 'n', 'j', 'w', 'v', 'k', 'pa', 'hz', 'mol', 'cm', 'mm', 'km', 'ms', 'h', 'min']); // design_pending
 const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
 
 function mcqKey(it) {
@@ -48,7 +56,13 @@ function searchable(key) {
   return /^\p{N}+$/u.test(one) ? one.length >= LIMITS.minDigits : one.length >= LIMITS.minLetters;
 }
 
-function n18(ls, board) {
+/** One word once articles and bare units are set aside, and no digit: chapter vocabulary in a board paper. */
+function vocabulary(key) {
+  const t = tokens(key);
+  return !t.some((x) => /\p{N}/u.test(x)) && t.filter((x) => !ARTICLES.has(x) && !UNITS.has(x)).length <= 1;
+}
+
+function n18(ls, board, fresh) {
   const views = ls.map((n) => {
     const fields = childFields(n);
     return {
@@ -66,11 +80,22 @@ function n18(ls, board) {
     if (v.own.includes(needle)) { out.push(leak(v.n, key, 'its own stem')); return; }
     const reuseOk = board && Array.isArray(v.n.item.options) && v.n.item.options.length > 1; // an MCQ key
     const other = views.find((w, j) => j !== i && (reuseOk ? w.noOptions : w.all).includes(needle));
-    if (other) out.push(leak(other.n, key, `the key of ${v.n.ref}`));
+    if (!other) return;
+    const blame = fresh && fresh.has(v.n.item.id) && !fresh.has(other.n.item.id) ? v.n : other.n;
+    out.push(leak(blame, key, blame === other.n ? `the key of ${v.n.ref}` : `its key, already in ${other.n.ref}`, !(reuseOk && vocabulary(key))));
   });
   return out;
 }
-const leak = (n, key, where) => issue('N18', 'KEY_IN_STEM', n.ref, `child view repeats ${where} "${excerpt(key)}"`, true);
+/** The numeric and multi-word keys of a paper, in walk order, once each (the repair ask is told not to state them). */
+function usedKeys(examJson) {
+  const out = [];
+  leaves(examJson).forEach((n) => {
+    const key = keyOf(n.item);
+    if (key && searchable(key) && !vocabulary(key) && !out.includes(key.trim())) out.push(key.trim());
+  });
+  return out;
+}
+const leak = (n, key, where, hard = true) => issue('N18', 'KEY_IN_STEM', n.ref, `child view repeats ${where} "${excerpt(key)}"`, hard);
 
 // ---- N19
 const SEP = /\s*(?:→|->|=>|[-–—:])\s*/;
@@ -118,9 +143,9 @@ function n19(it, ref) {
 
 function run(examJson, ctx) {
   const ls = leaves(examJson);
-  const issues = n18(ls, !!ctx && ctx.mode === 'board');
+  const issues = n18(ls, !!ctx && ctx.mode === 'board', ctx && ctx.fresh);
   ls.forEach((n) => { if (n.item.type === 'match') issues.push(...n19(n.item, n.ref)); });
   return { ok: !issues.some((i) => i.hard), issues };
 }
 
-module.exports = { id: 'N18/N19', name: 'key-leak', hard: true, modes: ['free', 'board'], LIMITS, run };
+module.exports = { id: 'N18/N19', name: 'key-leak', hard: true, modes: ['free', 'board'], LIMITS, run, usedKeys };

@@ -127,3 +127,85 @@ describe('N18 in a board paper', () => {
     expect(hard(r).length).toBeGreaterThan(0);
   });
 });
+
+// Board ruling part 2 (bd-5jmnfj.38.30): a single-word MCQ key (articles and bare units aside) in ANOTHER item's
+// stem or stimulus is chapter vocabulary, so it is soft. Numbers, multi-word keys, non-MCQ keys and an MCQ key in
+// its own stem or stimulus stay hard.
+describe('N18 in a board paper: chapter vocabulary', () => {
+  const BOARD = { mode: 'board' };
+  const mc = (question, key, options, extra = {}) => ({ type: 'mcq', question, options, answer: key, ...extra });
+  const soft = (r) => r.issues.filter((i) => !i.hard && i.code === 'KEY_IN_STEM');
+  test('a one-word MCQ key in another MCQ stem is soft, not hard', () => {
+    const r = m.run(paper(
+      mc('Which quantity is measured by an odometer?', 'B', ['A) speed', 'B) distance', 'C) mass', 'D) time']),
+      mc('A runner covers a distance of a lap. Which unit is used?', 'A', ['A) metre', 'B) kelvin', 'C) ampere', 'D) mole']),
+    ), BOARD);
+    expect(hard(r)).toEqual([]);
+    expect(soft(r)).toHaveLength(1);
+  });
+  test('an article and a bare unit do not make a key multi-word', () => {
+    const r = m.run(paper(
+      mc('How does the mass of a body change on the Moon?', 'C', ['A) it doubles', 'B) it halves', 'C) the same', 'D) zero']),
+      mc('Two trolleys have the same speed. Which has more momentum?', 'A', ['A) heavier', 'B) lighter', 'C) neither', 'D) both']),
+      mc('Which is the SI unit of speed?', 'B', ['A) km', 'B) m/s', 'C) kg', 'D) hour']),
+      srq('A bus moves at 12 m/s for one minute. Find the distance travelled.', 'seven hundred and twenty metres'),
+    ), BOARD);
+    expect(hard(r)).toEqual([]);
+    expect(soft(r)).toHaveLength(2);
+  });
+  test('a numeric MCQ key with units in another item stimulus stays hard', () => {
+    const r = m.run(paper(
+      mc('What is the value of g near the Earth?', 'D', ['A) 1.6 m/s^2', 'B) 3.7 m/s^2', 'C) 8.9 m/s^2', 'D) 9.8 m/s^2']),
+      srq('Explain why the ball speeds up.', 'gravity pulls it', { stimulus: 'A ball falls with g = 9.8 m/s^2 from a roof.' }),
+    ), BOARD);
+    expect(hard(r)).toHaveLength(1);
+  });
+  test('a multi-word MCQ key in another MCQ stem stays hard', () => {
+    const r = m.run(paper(
+      mc('Which quantity has direction?', 'B', ['A) speed', 'B) displacement vector', 'C) mass', 'D) time']),
+      mc('A displacement vector points east. Which is its unit?', 'A', ['A) metre', 'B) kelvin', 'C) ampere', 'D) mole']),
+    ), BOARD);
+    expect(hard(r)).toHaveLength(1);
+  });
+  test('a one-word short-question key in another stem stays hard', () => {
+    const r = m.run(paper(
+      srq('Name the quantity an odometer measures.', 'distance'),
+      mc('A runner covers a distance of a lap. Which unit is used?', 'A', ['A) metre', 'B) kelvin', 'C) ampere', 'D) mole']),
+    ), BOARD);
+    expect(hard(r)).toHaveLength(1);
+  });
+  test('a one-word MCQ key in its own stem or own stimulus stays hard', () => {
+    const own = m.run(paper(
+      mc('The distance a car moves is shown. Which quantity is shown?', 'B', ['A) speed', 'B) distance', 'C) mass', 'D) time']),
+    ), BOARD);
+    expect(hard(own)).toHaveLength(1);
+    const stim = m.run(paper(
+      mc('Which quantity is shown on the dial?', 'B', ['A) speed', 'B) distance', 'C) mass', 'D) time'], { stimulus: 'The dial shows the distance in km.' }),
+    ), BOARD);
+    expect(hard(stim)).toHaveLength(1);
+  });
+});
+
+// The repair round (bd-5jmnfj.38.30): the keys already in the paper go to the repair ask, and a replacement whose key
+// lands in an old item's stem is the one blamed, so the old item is not thrown away.
+describe('N18 and the repair round', () => {
+  const BOARD = { mode: 'board' };
+  const mc = (id, question, key, options) => ({ id, type: 'mcq', question, options, answer: key });
+  const OLD = { id: 'old', type: 'srq', question: 'A displacement vector of 5 m points east. State its size.', answer: 'five metres' };
+  const NEW = mc('new', 'Which quantity has direction?', 'B', ['A) speed', 'B) displacement vector', 'C) mass', 'D) time']);
+  test('usedKeys lists numeric and multi-word keys, not one-word vocabulary', () => {
+    const used = m.usedKeys(paper(
+      mc('a', 'What is g near the Earth?', 'D', ['A) 1.6 m/s^2', 'B) 3.7 m/s^2', 'C) 8.9 m/s^2', 'D) 9.8 m/s^2']),
+      mc('b', 'Which does an odometer measure?', 'B', ['A) speed', 'B) distance', 'C) mass', 'D) time']),
+      srq('Name the quantity with size and direction.', 'displacement vector'),
+    ));
+    expect(used).toEqual(['9.8 m/s^2', 'displacement vector']);
+  });
+  test('without fresh ids the stem holder is blamed', () => {
+    expect(hard(m.run(paper(OLD, NEW), BOARD)).map((i) => i.item_ref)).toEqual(['srq#1']);
+  });
+  test('a fresh replacement whose key sits in an old stem is the one blamed', () => {
+    const r = m.run(paper(OLD, NEW), { ...BOARD, fresh: new Set(['new']) });
+    expect(hard(r).map((i) => i.item_ref)).toEqual(['mcq#1']);
+  });
+});

@@ -50,4 +50,17 @@ describe('board-render/scheme-items', () => {
     expect(html).toContain('Section A');
     expect(html).toContain('60');
   });
+  test('an MCQ keyed by its labelled answer shows one letter and the bare option (bd-5jmnfj.38.30)', () => {
+    const exam = fx.fbise50();
+    const by = itemsBySlot(exam);
+    const item = by.get(exam._layout.slots[0].slot)[0];
+    delete item.key;
+    item.options = ['A) J.J. Thomson', 'B) Rutherford', 'C) Bohr', 'D) Chadwick'];
+    item.answer = 'B) Rutherford';
+    const html = sec(exam, 0, by);
+    expect(html).toContain('Key: B — Rutherford');
+    expect(html).not.toContain('undefined');
+    expect(html).not.toContain('B) Rutherford');
+  });
 });
+
