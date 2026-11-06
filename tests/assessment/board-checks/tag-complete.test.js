@@ -80,6 +80,12 @@ describe('tag-complete: rules', () => {
     expect(m.run(wrap(mcq({}, { code: 'P-09-B-02' })), cell()).ok).toBe(true);
     expect(m.run(wrap(mcq({ type: 'letter' }, { code: 'english.skill.letter', page: null })), cell()).ok).toBe(true);
   });
+  test('the book page-outcome form from the LP matrix is a book code', () => {
+    expect(m.run(wrap(mcq({}, { code: 'book p103 outcome 1' })), cell()).ok).toBe(true);
+    expect(m.run(wrap(mcq({}, { codes_extra: ['book p49 outcome 2'] })), cell()).ok).toBe(true);
+    expect(hardCodes(m.run(wrap(mcq({}, { code: 'book p0 outcome 1' })), cell()))).toEqual(['CODE_FORM']);
+    expect(hardCodes(m.run(wrap(mcq({}, { code: 'book p49 outcome 1 · book p49 outcome 2' })), cell()))).toEqual(['CODE_FORM']);
+  });
   test('codes_extra: more than 4 or a bad form fails', () => {
     const x = (list) => m.run(wrap(mcq({}, { codes_extra: list })), cell());
     expect(x(['g9.physics.ch2.lo4']).ok).toBe(true);
