@@ -23,6 +23,14 @@
  *   again. A clip still paused stall_ms after it was paused on a visible page (or after resume()) is tried once more,
  *   then the words are shown (onSilent) and the line ends: Next never waits on a clip that is not playing.
  *   onHeld({ kind: 'parked'|'paused'|'resumed'|'gave_up' }) reports each, for the session's record.
+ * Round 10, audio 3 and 4 (o.unlock: battery.ui.r10_bigger_audio; o.warm: battery.ui.r10_practice_gap): an Android
+ * WebView (the in-app browser) plays a NEW <audio> only inside a tap, so a clip that starts with no tap in the last few
+ * seconds (a screen that moves on by itself, the answer after "The answer is:") was refused, tried again and dropped.
+ *   o.unlock: Jugnu speaks through POOL_N elements of his own, each unlocked by the child's taps (a muted, silent play,
+ *     paused at once); a line takes a free unlocked one (until one is unlocked, a new element, as without it). A refused
+ *     clip is reported (onHeld 'refused'; 'lost' when the line is dropped).
+ *   o.warm (with unlock): warm([audioObj…]) loads clips into free elements before they are needed (a practice task's
+ *     answers); the line that wants one starts on it at once.
  *
  * UMD: window.SAE.voice in the browser, module.exports under Node (the test stubs Audio and speechSynthesis).
  */
@@ -35,6 +43,9 @@
   var BCP47 = { ur: 'ur-PK', en: 'en-US' };
   // The phone voices Jugnu may use when a line has no clip, in order of preference ('ur' = any ur-*).
   var VOICES = { en: ['en-in', 'en-pk', 'en-gb', 'en-us'], ur: ['ur-pk', 'ur'] };
+  // Round 10 (o.unlock): Jugnu's own elements, and the 10 ms of silence that unlocks one inside a tap.
+  var POOL_N = 3;
+  var SILENT = 'data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
 
   /** voiceFor(speechSynthesis, 'en'|'ur') → { ok, voice }: the first allowed voice; an unloaded list is tried as is. */
   function voiceFor(s, tl) {
@@ -94,6 +105,82 @@
     function synth() { return o.speechSynthesis || g('speechSynthesis'); }
     function Utter() { return o.SpeechSynthesisUtterance || g('SpeechSynthesisUtterance'); }
 
+    // Round 10 (o.unlock / o.warm): Jugnu's own elements, unlocked by a tap. { a, ok, trying, busy, warm, url, used }
+    var warmOn = !!o.warm;
+    var unlockOn = !!o.unlock || warmOn;
+    var pool = [], useN = 0, wanted = [];
+    var gestureDoc = unlockOn ? (o.document || g('document')) : null;
+    var GESTURES = ['pointerup', 'touchend', 'click', 'keydown'];
+    function unlockAll() {
+      var A = AudioCtor();
+      if (!A) return;
+      while (pool.length < POOL_N) {
+        var na = new A();
+        try { na.preload = 'auto'; } catch (e) { /* old browser */ }
+        pool.push({ a: na, ok: false, trying: false, busy: false, warm: false, url: null, used: 0 });
+      }
+      pool.forEach(function (p) {
+        if (p.ok || p.trying || p.busy) return;
+        var a = p.a;
+        p.trying = true;
+        var fin = function (ok) {
+          p.trying = false;
+          if (ok) p.ok = true;
+          try { if (!p.busy) { a.pause(); if (p.url) a.currentTime = 0; } a.muted = false; } catch (e) { /* ignore */ }
+          if (ok) applyWarm();
+        };
+        try {
+          a.muted = true;
+          if (!p.url) a.src = SILENT;
+          var q = a.play();
+          // refused (no tap behind it): stays locked for the next tap; any other end (an aborted load) has unlocked it
+          if (q && typeof q.then === 'function') q.then(function () { fin(true); }, function (e) { fin(!(e && e.name === 'NotAllowedError')); });
+          else fin(true);
+        } catch (e) { fin(false); }
+      });
+      if (pool.every(function (p) { return p.ok; })) gestureOff();
+    }
+    function onGesture() { try { unlockAll(); } catch (e) { /* the page's tap goes on */ } }
+    function gestureOff() {
+      if (!gestureDoc || !gestureDoc.removeEventListener) return;
+      GESTURES.forEach(function (t) { try { gestureDoc.removeEventListener(t, onGesture, true); } catch (e) { /* ignore */ } });
+    }
+    if (gestureDoc && gestureDoc.addEventListener) {
+      GESTURES.forEach(function (t) { try { gestureDoc.addEventListener(t, onGesture, true); } catch (e) { /* ignore */ } });
+    }
+    /** A free unlocked element for url (one already holding it first, else the longest unused), or null. */
+    function take(url) {
+      var p = null, i, q;
+      for (i = 0; i < pool.length; i++) { q = pool[i]; if (q.ok && !q.busy && q.url === url) { p = q; break; } }
+      if (!p) for (i = 0; i < pool.length; i++) { q = pool[i]; if (q.ok && !q.busy && !q.warm && (!p || q.used < p.used)) p = q; }
+      if (!p) for (i = 0; i < pool.length; i++) { q = pool[i]; if (q.ok && !q.busy && (!p || q.used < p.used)) p = q; }
+      if (!p) return null;
+      p.busy = true; p.warm = false; p.used = ++useN;
+      try {
+        if (p.url !== url) { p.a.src = url; p.url = url; } else p.a.currentTime = 0;
+      } catch (e) { /* the play below decides */ }
+      return p;
+    }
+    function free(p) { if (p) p.busy = false; }
+    function applyWarm() {
+      wanted.forEach(function (url) {
+        if (pool.some(function (q) { return q.url === url; })) return;
+        var p = null;
+        pool.forEach(function (q) { if (q.ok && !q.busy && !q.warm && (!p || q.used < p.used)) p = q; });
+        if (!p) return;
+        p.url = url; p.warm = true;
+        try { p.a.src = url; if (p.a.load) p.a.load(); } catch (e) { /* loaded when it plays */ }
+      });
+    }
+    /** o.warm: these clips are wanted soon (at most POOL_N - 1, one element stays free for the line on now). */
+    function warm(list) {
+      if (!warmOn || !Array.isArray(list)) return;
+      var urls = [];
+      list.forEach(function (x) { var c = pick(x, lang); if (c && urls.indexOf(base + c) < 0) urls.push(base + c); });
+      wanted = urls.slice(0, POOL_N - 1);
+      try { applyWarm(); } catch (e) { /* loaded when it plays */ }
+    }
+
     function stopCur() {
       var c = cur;
       cur = null;
@@ -119,6 +206,7 @@
           done: function () {
             if (finished) return;
             finished = true;
+            free(me.slot); me.slot = null;
             if (said) notify(false, text);
             timers.forEach(function (t) { clearTimeout(t); });
             if (cur === me) cur = null;
@@ -156,6 +244,7 @@
         // The clip failed twice: the phone's own voice when it has an allowed one for the language, else the words.
         function lost() {
           if (finished || cur !== me) return;
+          if (unlockOn) held('lost');
           var s = null;
           try { s = synth(); } catch (e) { s = null; }
           var has = false;
@@ -178,14 +267,19 @@
           var tries = 0;
           var play = function () {
             tries += 1;
-            var a = new A(base + clip), playing = false, fell = false, t0 = null;
+            // o.unlock: one of Jugnu's own unlocked elements when one is free, else a new one (as without it)
+            var slot = unlockOn ? take(base + clip) : null;
+            var a = slot ? slot.a : new A(base + clip), playing = false, fell = false, t0 = null;
             me.audio = a;
-            var fallback = function () {
+            me.slot = slot;
+            var fallback = function (err) {
               if (fell || finished || cur !== me) return;
               fell = true;
               if (t0) clearTimeout(t0);
+              if (unlockOn && err && err.name === 'NotAllowedError') held('refused');
               try { a.onended = a.onerror = a.onplaying = a.onpause = null; a.pause(); } catch (e) { /* ignore */ }
               me.audio = null;
+              free(me.slot); me.slot = null;
               // The page is hidden: the line waits for it, in Jugnu's own clip (resume()), never the phone's voice.
               if (hidden()) { tries -= 1; me.park = play; held('parked'); return; }
               if (tries < 2) later(function () { if (finished || cur !== me) return; try { play(); } catch (e) { lost(); } }, retryMs);
@@ -225,7 +319,7 @@
             };
             a.onplaying = function () { playing = true; start(); };
             a.onended = function () { me.done(); };
-            a.onerror = fallback;
+            a.onerror = function () { fallback(); };
             t0 = setTimeout(function () { if (!playing) fallback(); }, loadMs); // never loaded
             timers.push(t0);
             var p = a.play();
@@ -252,6 +346,7 @@
     return {
       speak: speak,
       resume: resume,
+      warm: warm,
       stop: function () { try { stopCur(); } catch (e) { cur = null; } },
       setMuted: function (b) { muted = !!b; if (muted) { try { stopCur(); } catch (e) { cur = null; } } },
       get muted() { return muted; },
