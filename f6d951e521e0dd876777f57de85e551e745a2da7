@@ -1,0 +1,3 @@
+{"ts":"2026-11-06T10:27:31Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"f6d951e521e0","branch":"bd-apnnh2.4-51876","user":"tariqtaleemabad"}
+{"ts":"2026-11-06T10:27:32Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"f6d951e521e0","branch":"bd-apnnh2.4-51876","user":"tariqtaleemabad"}
+{"ts":"2026-11-06T10:27:54Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"*=none-needed (N1 follow-up: identity events log a keyed teacher reference instead of a raw id; still log only, no reply, no write, nothing a teacher sees changes)","sha":"f6d951e521e0","branch":"bd-apnnh2.4-51876","user":"tariqtaleemabad"}
