@@ -35,7 +35,7 @@ function bands(m) {
   return [{ hi: m, lo: t, descriptor: 'full' }, { hi: t - 1, lo: l, descriptor: 'partial' }, { hi: l - 1, lo: 0, descriptor: 'little' }];
 }
 
-/** The reply for the given slots: one list per slot, items with tags, answers and schemes. `ctx` = {grade, row, levels, style, ur}. */
+/** The reply for the given slots in the board format: one list per slot id, items with tags, answers and schemes. `ctx` = {grade, row, levels, style, ur}. */
 function buildReply(slots, ctx, state) {
   const cycle = levelCycle(ctx.levels);
   const items = [];
@@ -77,9 +77,13 @@ function buildReply(slots, ctx, state) {
       } else items.push(slot.type === 'mcq' || slot.type === 'scenario' ? mcq(slot, state.n) : written(slot, state.n));
     }
   });
-  const obj = items.filter((q) => q.options || (q.stimulus && q.stimulus.items) || false);
-  const sub = items.filter((q) => !obj.includes(q));
-  return { unseen: { objective: { MCQs: obj }, subjective: { 'Short and Extended': sub } } };
+  // The board format (eg.format.secondary): one list per slot id, no `slot` on an item, a group as {stimulus: text, items}.
+  const out = {};
+  items.forEach(({ slot, ...q }) => {
+    const node = q.stimulus ? { ...q, stimulus: q.stimulus.text, items: q.stimulus.items.map(({ slot: s, ...m }) => m) } : q;
+    (out[slot] = out[slot] || []).push(node);
+  });
+  return out;
 }
 
 const sumUsage = (u) => ({ prompt_tokens: u.length, completion_tokens: u.length, total_tokens: 2 * u.length, cost: 0, cached_tokens: 0 });
