@@ -71,3 +71,39 @@ describe('balanceKeys', () => {
     expect(srq).toEqual({ question: 'Name a planet.', marks: 3, answer: 'Mars' });
   });
 });
+
+describe('balanceKeys with a seed (no fixed letter cycle)', () => {
+  const lettersFor = (seed, n = 12) => {
+    const items = Array.from({ length: n }, () => mcq('a) Mercury'));
+    K.balanceKeys(paper(items), seed);
+    return items.map((q) => q.answer[0]).join('');
+  };
+  it('gives the same letters for the same seed', () => {
+    expect(lettersFor('paper-1')).toBe(lettersFor('paper-1'));
+  });
+  it('gives different spreads for different papers, not one fixed c-a-d-b cycle', () => {
+    const spreads = new Set(['p1', 'p2', 'p3', 'p4', 'p5', 'p6'].map((s) => lettersFor(s)));
+    expect(spreads.size).toBeGreaterThan(3);
+    expect(spreads.has('cadbcadbcadb')).toBe(false);
+  });
+  it('keeps letters balanced and never three in a row, for any seed', () => {
+    for (let s = 0; s < 50; s += 1) {
+      const l = lettersFor(s, 12);
+      ['a', 'b', 'c', 'd'].forEach((x) => expect(l.split(x).length - 1).toBe(3));
+      expect(/(.)\1\1/.test(l)).toBe(false);
+    }
+  });
+  it('counts a key it cannot move when it keeps runs to two', () => {
+    const both = () => mcq('d) Both a and b', ['a) Venus', 'b) Mars', 'c) Earth', 'd) Both a and b']);
+    for (let s = 0; s < 60; s += 1) {
+      const items = [
+        ...Array.from({ length: 7 }, () => mcq('a) Mercury')), both(), both(),
+        ...Array.from({ length: 5 }, () => mcq('a) Mercury')),
+      ];
+      K.balanceKeys(paper(items), s);
+      const l = items.map((q) => q.answer[0]).join('');
+      expect(/(.)\1\1/.test(l)).toBe(false);
+    }
+  });
+});
+

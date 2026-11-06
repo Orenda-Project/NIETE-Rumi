@@ -8,8 +8,11 @@
  *   1. the grades 6-12 rules (free-secondary-rules.js) sit before the safety policies;
  *   2. the type counts are sized to the band's time before the paper is asked for;
  *   3. the draft is checked (free-secondary-checks.js); one that breaks a rule is sent back once
- *      with the list, and the paper with fewer problems is kept. Then its MCQ keys are spread
- *      (free-secondary-keys.js) and the time it needs is stamped on it as `_timeMinutes`.
+ *      with the list, and the paper with fewer problems is kept;
+ *   4. items still leaking, or with a longest-option key or an absolute distractor, are rewritten on
+ *      their own (free-secondary-rewrite.js), kept only if the paper then has fewer problems.
+ * Then writer instructions are stripped from the marking points (free-secondary-tidy.js), the MCQ keys
+ * are spread from the paper's seed (free-secondary-keys.js) and the time is stamped as `_timeMinutes`.
  *
  * The orchestrator calls this only for grade >= 6, so no G1-5 paper reaches it.
  */
@@ -27,6 +30,8 @@ const PROMPTS = require('./ict-prompts.json');
 const Rules = require('./free-secondary-rules');
 const { paperIssues, estimateMinutes, printedMinutes } = require('./free-secondary-checks');
 const { balanceKeys } = require('./free-secondary-keys');
+const Rewrite = require('./free-secondary-rewrite');
+const { stripInstructions, scenarioParts } = require('./free-secondary-tidy');
 
 const JOB = 'assessment.generate';
 const MAX_OUTPUT_TOKENS = 32000;
@@ -67,7 +72,7 @@ function postProcess(examJson, { grade, plan, totalMarks }) {
 async function generateExam(args) {
   const { grade, subject, pageContent, pageReference, contentSource = 'unseen', questionCount,
     questionTypes = [], includeAnswerKey = false, totalMarks = null, seenCount = null, slos = null,
-    chapterTitle = null } = args;
+    chapterTitle = null, keySeed = null } = args;
   const checkOpts = { grade, lessonTitle: chapterTitle };
 
   const base = BASE_SUBJECT[String(subject || '').trim().toLowerCase()] || subject;
@@ -133,9 +138,30 @@ async function generateExam(args) {
     }
   }
 
+  let rewritten = [];
+  const targeted = Rewrite.targets(issues);
+  if (targeted.length) {
+    try {
+      const third = await ask([messages[0], { role: 'user',
+        content: `${messages[1].content}\n\n${Rewrite.prompt(examJson, targeted)}` }]);
+      const merged = Rewrite.merge(examJson, extractJsonFromResponse(third?.choices?.[0]?.message?.content || ''),
+        targeted.map((i) => i.n));
+      if (merged.replaced.length) {
+        Gen.stripImageKeys(merged.exam);
+        Gen.normaliseAnswers(merged.exam);
+        const nextIssues = paperIssues(merged.exam, checkOpts);
+        if (nextIssues.length < issues.length) { examJson = merged.exam; issues = nextIssues; rewritten = merged.replaced; }
+      }
+    } catch (err) {
+      logToFile('[assessment] targeted rewrite skipped', { error: err.message });
+    }
+  }
+
   const produced = Gen.countQuestions(examJson);
   if (produced === 0) throw fail('NO_QUESTIONS', 'The question writer returned no questions.');
-  const keysMoved = balanceKeys(examJson);
+  const stripped = stripInstructions(examJson);
+  scenarioParts(examJson);
+  const keysMoved = balanceKeys(examJson, keySeed ?? startedAt);
   const load = estimateMinutes(examJson);
   examJson._timeMinutes = printedMinutes(load);
 
@@ -143,11 +169,11 @@ async function generateExam(args) {
     totalTokens: usage.total_tokens ?? null, model };
   const coverage = Gen.answerCoverage(examJson);
   logToFile('[assessment] generated (grades 6-12 free)', {
-    grade, subject, questionCount: produced, revised, issuesLeft: issues.length, keysMoved,
+    grade, subject, questionCount: produced, revised, rewritten, stripped, issuesLeft: issues.length, keysMoved,
     loadMinutes: Math.round(load), timeMinutes: examJson._timeMinutes, elapsedMs: Date.now() - startedAt,
   });
   return {
-    examJson, questionCount: produced, tokenData, plan, issues, revised,
+    examJson, questionCount: produced, tokenData, plan, issues, revised, rewritten,
     trimmed: cleaned.removedSeen > 0 ? { seen: cleaned.removedSeen } : {},
     marksRemoved: cleaned.marksRemoved, answerCoverage: coverage, elapsedMs: Date.now() - startedAt,
   };

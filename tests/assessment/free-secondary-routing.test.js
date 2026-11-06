@@ -61,7 +61,7 @@ describe('free paper routing by grade', () => {
     const out = await Orchestrator.buildPaper(job(grade));
     expect(out.status).toBe('ready');
     expect(mockSecondaryExam).toHaveBeenCalledTimes(1);
-    expect(mockSecondaryExam.mock.calls[0][0]).toMatchObject({ grade, subject: 'general_science', includeAnswerKey: true, chapterTitle: 'Matter' });
+    expect(mockSecondaryExam.mock.calls[0][0]).toMatchObject({ grade, subject: 'general_science', includeAnswerKey: true, chapterTitle: 'Matter', keySeed: 'paper-1' });
     expect(mockGenerateExam).not.toHaveBeenCalled();
   });
 
@@ -70,6 +70,7 @@ describe('free paper routing by grade', () => {
     expect(out.status).toBe('ready');
     expect(mockGenerateExam).toHaveBeenCalledTimes(1);
     expect(mockGenerateExam.mock.calls[0][0]).not.toHaveProperty('chapterTitle');
+    expect(mockGenerateExam.mock.calls[0][0]).not.toHaveProperty('keySeed');
     expect(mockSecondaryExam).not.toHaveBeenCalled();
   });
 });
