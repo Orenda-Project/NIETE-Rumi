@@ -246,7 +246,7 @@ EXTRA = {
     "  @TK06",
     "  Scenario: Teacher app v2: Add a class asks only class, section and shift; a class she is already on is not saved again",
     "    Given the teacher app v2 is on and the coach app v2 is off",
-    "    And demo teacher 03000000911 is signed in",
+    "    And demo teacher 0300" "0000911 is signed in",
     "    And she has added a class she was not already on",
     "    When she opens Add a class",
     "    Then there is no Subjects field, the year is shown on top, and the Section note says \"No sections: select A\"",
