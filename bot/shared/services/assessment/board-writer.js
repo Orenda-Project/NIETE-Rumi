@@ -18,6 +18,7 @@
 const { buildLayout } = require('./board-layout');
 const { unitsOf, chunksOf, sized } = require('./board-6-12/units');
 const SP = require('./board-6-12/section-prompt');
+const BL = require('./board-6-12/book-level');
 const T = require('./board-6-12/tree');
 const { normaliseBoardScheme } = require('./board-6-12/scheme');
 const { settleKeys } = require('./board-6-12/mcq-keys');
@@ -118,7 +119,7 @@ async function writeBoardPaper(args, d) {
 
   // 2. Checks before the trim (round 5): hard items are dropped, the +25% extras fill the gap, then the trim.
   const ids = (ex) => T.leavesOf(ex).map((l) => l.id);
-  const stampAll = (ex) => T.stamp(ex, allSlots, (item) => d.stampSlo(grade, subject, item));
+  const stampAll = (ex) => { T.stamp(ex, allSlots, (item) => d.stampSlo(grade, subject, item)); BL.relevel(ex, loaded.content); }; // r10: book repeats are K
   const clone = (x) => JSON.parse(JSON.stringify(x));
   const probeRun = (ex) => {
     try {
@@ -209,7 +210,7 @@ async function writeBoardPaper(args, d) {
       const gone = dropped.slice(from).filter((x) => mine.some((r) => r.slot === x.slot));
       const figure = gone.some((x) => x.check === 'N20');
       const stems = gone.map((x) => x.question);
-      const second = await ask({ ...unit, slots }, trees, SP.rewriteNote(mine, stems, used, phrases, figure, MR.faultLines(flags, stems)));
+      const second = await ask({ ...unit, slots }, trees, SP.rewriteNote(mine, stems, used, phrases, figure, [...MR.faultLines(flags, stems), ...SP.checkFaults(gone)]));
       out = T.topUp(out, second.tree, slotSet(slots));
     }
     return out;
@@ -252,7 +253,7 @@ async function writeBoardPaper(args, d) {
     MR.soften(checks); // round 9b: the review drove the rewrites; what it still flags is a note, not a failure
     if (failing(ex, checks) && reviewOnly.size) {
       const back = clone(ex);
-      T.dropIds(back, hardIds(checks));
+      T.dropIds(back, T.droppable(back, hardIds(checks), spare)); // round 10: never leaves a slot fill cannot refill
       const want = new Map(T.shortfallOf(back, allSlots).map((r) => [r.slot, r.need - r.have]));
       const owes = new Map([...want].map(([slot, n]) => [slot, split ? owed(allSlots.find((x) => x.slot === slot), back, split.levels, n) : null]));
       const lvl = (q) => { const it = Array.isArray(q.or) ? q.or[0] : q; return it && it.tag && it.tag.blooms; };

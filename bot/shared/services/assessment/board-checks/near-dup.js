@@ -21,7 +21,7 @@ const ID = 'D17';
 // function words plus the book-reference / question-frame words writers add without changing the question
 const STOP = new Set(('a an the of in on at to for from by with and or is are was were be been it its this that these '
   + 'those which what how many much does do did make makes made up called known following given according book '
-  + 'value values number numbers total').split(' '));
+  + 'value values number numbers total one').split(' '));
 // "number" is a stop word for the stem only: "the number of orbitals" and "how many orbitals" ask the same
 
 const stem = (w) => {
@@ -43,7 +43,9 @@ function shape(l) {
 }
 
 const subset = (a, b) => a.size > 0 && [...a].every((w) => b.has(w));
+const sameSet = (a, b) => a.size >= LIMITS.minWords && a.size === b.size && [...a].every((w) => b.has(w));
 function sameQuestion(x, y) {
+  if (sameSet(x.stem, y.stem)) return true; // round 10: the same stem twice tests the same fact, whatever the key
   return overlap(x.stem, y.stem, LIMITS.minWords) && (subset(x.key, y.key) || subset(y.key, x.key));
 }
 
@@ -77,7 +79,7 @@ function run(examJson) {
     if (!s) return;
     const prior = seen.get(l.sectionId) || [];
     const twin = prior.find((p) => sameQuestion(p, s));
-    if (twin) out.push(issue(ID, 'NEAR_DUP', l.ref, `asks the same as ${twin.leaf.ref} with the same key`, true, l.slot == null ? undefined : l.slot));
+    if (twin) out.push(issue(ID, 'NEAR_DUP', l.ref, `asks the same as ${twin.leaf.ref}`, true, l.slot == null ? undefined : l.slot));
     else prior.push(s);
     seen.set(l.sectionId, prior);
   });

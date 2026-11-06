@@ -20,6 +20,8 @@ const MEMBERS = [
   require('./blueprint-qa'),
   require('./mcq-shape'),
   require('./near-dup'), // bd-5jmnfj.38.30 round 8: D17, same question twice in a section
+  require('./key-cue'), // round 10: D18, the key stands out (longest / always-never)
+  require('./item-fit'), // round 10: D19/D20 soft, stimulus not used / graph SLO with no graph
   require('./scheme-sum'),
   require('./numeric-resolve'),
   require('./maths-check-secondary'),

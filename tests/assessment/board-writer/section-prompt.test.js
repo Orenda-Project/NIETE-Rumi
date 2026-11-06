@@ -141,3 +141,10 @@ describe('rewriteNote review faults (round 9b)', () => {
     expect(SP.rewriteNote(rows, ['Old stem?'])).not.toContain('reviewer');
   });
 });
+
+describe('checkFaults (round 10)', () => {
+  test('a D18 drop tells the rewrite the key stood out; other checks add nothing', () => {
+    expect(SP.checkFaults([{ question: 'Old?', check: 'D18' }, { question: 'Other?', check: 'D17' }]))
+      .toEqual(['"Old?": the key stood out (longest option, or always/never)']);
+  });
+});
