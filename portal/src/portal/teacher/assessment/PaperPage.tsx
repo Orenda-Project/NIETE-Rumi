@@ -13,7 +13,7 @@ import { shareToWhatsApp, useShareAvailable } from '../share/api';
 import { ASSESSMENT } from './copy';
 import { useCopy } from '../i18n';
 import { useAssessmentSwitches } from './api';
-import { FDE_EDITING, dayLabel, pkDay, pkToday } from './model';
+import { FDE_EDITING, dayLabel, isBoardId, pkDay, pkToday } from './model';
 import { findPaper } from './paperCache';
 import { openArtifact } from './openArtifact';
 import { ASSESSMENT_V2_BASE, editPath, paperPath, versionsPath } from './paths';
@@ -85,7 +85,7 @@ export function PaperPage() {
   const fde = !!p.pattern;
   const chips = (
     <>
-      {fde && <Chip tone="indigo">{C.fdeChip}</Chip>}
+      {fde && <Chip tone="indigo">{isBoardId(p.pattern) ? C.fbiseChip : C.fdeChip}</Chip>}
       {p.chapter_number != null && <Chip>{C.chapterShort(p.chapter_number)}</Chip>}
       {p.question_count != null && <Chip>{C.questionsCount(p.question_count)}</Chip>}
       {p.total_marks != null && <Chip>{C.marksCount(p.total_marks)}</Chip>}
