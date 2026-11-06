@@ -54,17 +54,18 @@ beforeEach(() => {
   mockDeliverRender.mockResolvedValue(undefined);
   process.env = { ...saved };
   delete process.env.LP_GB_TEMPLATE_VERSION;
+  process.env.LP_GB_AUTHOR_ENABLED = 'true';
 });
 afterAll(() => { process.env = saved; });
 
 describe('GB keys live under gb-lp/, never lp612/', () => {
   test('key shape is gb-lp/{tv}/{lang}/{segment}.{ext}', () => {
-    expect(GbLane.keyFor(SEG.segment_id, 'ur', 'gb_k5_v10.1')).toBe('gb-lp/gb_k5_v10.1/ur/nbf_snc_grade_2_urdu.c07.s005.pdf');
+    expect(GbLane.keyFor(SEG.segment_id, 'ur', 'gb_k5_v9')).toBe('gb-lp/gb_k5_v9/ur/nbf_snc_grade_2_urdu.c07.s005.pdf');
     expect(GbLane.keyFor(SEG.segment_id, 'ur', 'gb_k5_v10.1', 'lp.json')).toMatch(/\.lp\.json$/);
     expect(() => GbLane.keyFor('../x', 'ur', 'tv')).toThrow();
   });
-  test('the template version defaults to gb_k5_v10.1 and follows LP_GB_TEMPLATE_VERSION', () => {
-    expect(GbLane.templateVersion()).toBe('gb_k5_v10.1');
+  test('the template version defaults to gb_k5_v9 (the built v9 plans) and follows LP_GB_TEMPLATE_VERSION', () => {
+    expect(GbLane.templateVersion()).toBe('gb_k5_v9');
     process.env.LP_GB_TEMPLATE_VERSION = 'gb_k5_v10.2';
     expect(GbLane.templateVersion()).toBe('gb_k5_v10.2');
   });
@@ -86,7 +87,7 @@ describe('a cache hit is sent from GB rows only', () => {
       r2Key: 'gb-lp/gb_k5_v10.1/ur/x.pdf', renderId: null, lang: 'ur', segment: SEG,
     }));
     expect(tables()).toEqual(['niete_gb_lp_renders']);
-    expect(mockDbCalls[0].filters).toEqual([['segment_id', SEG.segment_id], ['lang', 'ur'], ['template_version', 'gb_k5_v10.1']]);
+    expect(mockDbCalls[0].filters).toEqual([['segment_id', SEG.segment_id], ['lang', 'ur'], ['template_version', 'gb_k5_v9']]);
   });
   test('a failed send tells her it failed', async () => {
     mockDbResults.push({ data: { id: 'g1', status: 'ready', r2_key: 'gb-lp/t/ur/x.pdf' }, error: null });
@@ -103,10 +104,10 @@ describe('a miss is authored at runtime on GB\'s own job', () => {
     expect(out).toEqual({ outcome: 'queued', renderId: 'new-1' });
     const ins = mockDbCalls.find((c) => c.op === 'insert');
     expect(ins.table).toBe('niete_gb_lp_renders');
-    expect(ins.payload).toMatchObject({ segment_id: ENG.segment_id, lang: 'en', template_version: 'gb_k5_v10.1', status: 'authoring' });
+    expect(ins.payload).toMatchObject({ segment_id: ENG.segment_id, lang: 'en', template_version: 'gb_k5_v9', status: 'authoring' });
     expect(ins.payload.waiters[0]).toMatchObject({ user_id: 'user-1', phone: REQ.phone });
     expect(mockQueueJob).toHaveBeenCalledWith(ENG.segment_id, 'gb_lp_author', expect.objectContaining({
-      renderId: 'new-1', lang: 'en', templateVersion: 'gb_k5_v10.1',
+      renderId: 'new-1', lang: 'en', templateVersion: 'gb_k5_v9',
     }), expect.any(Object));
     expect(tables()).toEqual(['niete_gb_lp_renders']);
   });
@@ -160,6 +161,28 @@ describe('bd-rj6w0n.14.16: only English, Urdu, Maths and Science are written on 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
     },
   );
+});
+
+describe('bd-rj6w0n.14.16.11: with runtime authoring off, an unbuilt lesson is coming soon, never queued', () => {
+  beforeEach(() => { delete process.env.LP_GB_AUTHOR_ENABLED; });
+  test('a built (ready) lesson is still sent', async () => {
+    mockDbResults.push({ data: { id: 'g1', status: 'ready', r2_key: 'gb-lp/gb_k5_v9/en/x.pdf' }, error: null });
+    expect((await GbLane.requestLesson({ ...REQ, segment: ENG })).outcome).toBe('cache_hit');
+  });
+  test.each([[null], [{ id: 'f', status: 'failed' }]])('row %j: told coming soon, nothing written or queued', async (row) => {
+    mockDbResults.push({ data: row, error: null });
+    const out = await GbLane.requestLesson({ ...REQ, segment: ENG });
+    expect(out.outcome).toBe('gb_not_built');
+    expect(mockDbCalls.filter((c) => c.op !== 'select')).toHaveLength(0);
+    expect(mockQueueJob).not.toHaveBeenCalled();
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+  });
+  test('only the exact string "true" turns authoring on', () => {
+    process.env.LP_GB_AUTHOR_ENABLED = '1';
+    expect(GbLane.isAuthorEnabled()).toBe(false);
+    process.env.LP_GB_AUTHOR_ENABLED = 'true';
+    expect(GbLane.isAuthorEnabled()).toBe(true);
+  });
 });
 
 describe('dark stages stay dark', () => {

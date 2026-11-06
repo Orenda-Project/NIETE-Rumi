@@ -11,6 +11,9 @@
  * Reached only from lp612-serving's one hook, after the curriculum guard, for an nbf_snc segment with
  * LP_GB_K5_ENABLED on. Flag off, nothing here runs and ICT is byte-identical.
  *
+ * Until LP_GB_AUTHOR_ENABLED=true (the gb_lp_author worker), only built plans are served: a miss is told
+ * "coming soon" and nothing is written or queued. Built plans are seeded by bot/scripts/gb-seed-renders.js.
+ *
  * GB grades 1-5: the v10 coach card with the v9 plan embedded, one plan per lesson in its BOOK's language,
  * for English, Urdu, Maths and Science only (isGbOnRequestSubject); any other subject is told "coming soon".
  * GB grades 6-12: design pending (no nbf_snc 6-12 book is in the store; GB teachers get ICT's 6-12 books on
@@ -28,11 +31,14 @@ const RENDERS = 'niete_gb_lp_renders';
 const JOB_TYPE = 'gb_lp_author';
 const R2_PREFIX = 'gb-lp/';
 const UNIQUE_VIOLATION = '23505';
-const DEFAULT_TV = 'gb_k5_v10.1';
+// The built v9 plans (seeded by bot/scripts/gb-seed-renders.js). The v10 card PDF moves this to gb_k5_v10.x.
+const DEFAULT_TV = 'gb_k5_v9';
 const DEFAULT_STRANDED_MS = 20 * 60 * 1000;
 const FIND_COLUMNS = 'id, status, r2_key, waiters, started_at, picked_up_at';
 
 const templateVersion = () => String(process.env.LP_GB_TEMPLATE_VERSION || DEFAULT_TV).trim() || DEFAULT_TV;
+/** Runtime authoring of a GB miss. Off until the gb_lp_author worker exists: a miss is then "coming soon". */
+const isAuthorEnabled = () => process.env.LP_GB_AUTHOR_ENABLED === 'true';
 const strandedMs = () => Number(process.env.LP_GB_STRANDED_MS) || DEFAULT_STRANDED_MS;
 
 /** gb-lp/{tv}/{lang}/{segment_id}.{ext} — never under lp612/. */
@@ -165,6 +171,13 @@ async function requestLesson(req, depth = 0) {
     }
   }
 
+  if (!isAuthorEnabled()) {
+    // Only the built plans are served; nothing is written, so no job is left waiting on a worker.
+    logEvent('gb_lp.serve.not_built', { segmentId, lang, tv, status: row ? row.status : null, correlationId });
+    await tell(phone, 'lp612GbComingSoonTap', voice);
+    return { outcome: 'gb_not_built' };
+  }
+
   const entry = waiterEntry({ userId, phone, voice, correlationId, askedAt });
 
   // in flight — join it.
@@ -211,6 +224,6 @@ async function requestLesson(req, depth = 0) {
 }
 
 module.exports = {
-  requestLesson, deliver, keyFor, isGbKey, assertGbKey, isStranded, templateVersion, waiterEntry,
+  requestLesson, deliver, keyFor, isGbKey, assertGbKey, isStranded, templateVersion, waiterEntry, isAuthorEnabled,
   RENDERS, JOB_TYPE, R2_PREFIX,
 };
