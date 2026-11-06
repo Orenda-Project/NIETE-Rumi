@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import i18n from "i18next";
 
@@ -7,6 +7,11 @@ vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { chil
 vi.mock("../CoachGate", () => ({ default: ({ children }: { children: unknown }) => <>{children as never}</> }));
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Test", role: "coach", phoneNumber: "920000000000" }, loading: false }) }));
 vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false } }));
+const progress = vi.hoisted(() => ({ get: vi.fn(), set: vi.fn() }));
+vi.mock("../../services/api", async (orig) => ({
+  ...(await orig<typeof import("../../services/api")>()),
+  coach: { getCoachTrainingProgress: progress.get, setCoachModuleDone: progress.set },
+}));
 import CoachTrainingPage from "./CoachTrainingPage";
 import { BEHAVIOUR_MODULE, COACH_MODULES, COACH_TRAINING_PATH, moduleFor, modulePath, moduleUrl, videoUrl } from "./modules";
 import { COACH_TRAINING, COPY_ENTRY } from "./copy";
@@ -68,7 +73,10 @@ describe("the nine modules", () => {
 describe("the page", () => {
   beforeAll(async () => { if (!i18n.isInitialized) await i18n.init({ lng: "en", resources: {} }); });
   let open: ReturnType<typeof vi.fn>;
-  beforeEach(() => { open = vi.fn(); vi.stubGlobal("open", open); });
+  beforeEach(() => {
+    open = vi.fn(); vi.stubGlobal("open", open);
+    progress.get.mockReset().mockResolvedValue({ success: true, done: {} });
+  });
   afterEach(() => { vi.unstubAllGlobals(); });
 
   const renderPage = () => render(
@@ -97,6 +105,49 @@ describe("the page", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("کوچ ٹریننگ");
     const rows = within(screen.getByTestId("coach-modules")).getAllByTestId("coach-module");
     expect(rows[7]).toHaveTextContent("جانے سے پہلے زبانی پریکٹس");
+    await act(async () => { await i18n.changeLanguage("en"); });
+  });
+});
+
+describe("which modules she has done (bd-rlxkkt.9)", () => {
+  beforeAll(async () => { if (!i18n.isInitialized) await i18n.init({ lng: "en", resources: {} }); });
+  const renderPage = () => render(
+    <MemoryRouter initialEntries={[COACH_TRAINING_PATH]}>
+      <Routes><Route path={COACH_TRAINING_PATH} element={<CoachTrainingPage />} /></Routes>
+    </MemoryRouter>,
+  );
+
+  it("a Done tick on each module she marked, and the count: 3 of 9 done", async () => {
+    await act(async () => { await i18n.changeLanguage("en"); });
+    progress.get.mockReset().mockResolvedValue({ success: true, done: { praise: "a", moment: "b", rehearse: "c" } });
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("coach-training-count")).toHaveTextContent("3 of 9 done"));
+    const rows = within(screen.getByTestId("coach-modules")).getAllByTestId("coach-module");
+    const doneRows = rows.map((r, i) => (/Done/.test(r.textContent ?? "") ? i + 1 : 0)).filter(Boolean);
+    expect(doneRows).toEqual([1, 2, 8]);
+  });
+
+  it("nothing done: 0 of 9 done and no ticks; a count that did not load shows —, never a 0", async () => {
+    await act(async () => { await i18n.changeLanguage("en"); });
+    progress.get.mockReset().mockResolvedValue({ success: true, done: {} });
+    const first = renderPage();
+    await waitFor(() => expect(screen.getByTestId("coach-training-count")).toHaveTextContent("0 of 9 done"));
+    expect(screen.queryAllByText("Done")).toHaveLength(0);
+    first.unmount();
+    progress.get.mockReset().mockRejectedValue(new Error("down"));
+    renderPage();
+    await waitFor(() => expect(progress.get).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByTestId("coach-training-count")).toHaveTextContent("—"));
+  });
+
+  it("Urdu: 3/9 مکمل and the مکمل tick", async () => {
+    await act(async () => { await i18n.changeLanguage("ur"); });
+    progress.get.mockReset().mockResolvedValue({ success: true, done: { praise: "a", moment: "b", rehearse: "c" } });
+    renderPage();
+    // the chip isolates "3/9" (LRI … PDI) so it reads in order on an Urdu line
+    await waitFor(() => expect(screen.getByTestId("coach-training-count").textContent?.replace(/[\u2066-\u2069]/g, "")).toBe("3/9 مکمل"));
+    const rows = within(screen.getByTestId("coach-modules")).getAllByTestId("coach-module");
+    expect(rows[0]).toHaveTextContent("مکمل");
     await act(async () => { await i18n.changeLanguage("en"); });
   });
 });

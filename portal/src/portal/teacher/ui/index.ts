@@ -57,6 +57,7 @@ export { TrendChart, type TrendChartProps, type TrendPoint } from './TrendChart'
 export { AudioCard, type AudioCardProps } from './AudioCard';
 export { RecordUploadPair, type PairAction, type RecordUploadPairProps } from './RecordUploadPair';
 export { ChoicePair, type ChoiceItem, type ChoicePairProps } from './ChoicePair';
+export { DockButton } from './DockButton';
 export { NumberField, type NumberFieldProps } from './NumberField';
 export { ButtonWithReason, type ButtonWithReasonProps } from './ButtonWithReason';
 export { digitsOnly } from './digits';
