@@ -612,7 +612,7 @@ function answerCoverage(examJson) {
 async function generateExam(args) {
   const { grade, subject, pageContent, pageReference,
           contentSource = 'unseen', questionCount, questionTypes = [], includeAnswerKey = false,
-          totalMarks = null, seenCount = null, slos = null } = args;
+          totalMarks = null, seenCount = null, slos = null, avoidQuestions = [] } = args;
 
   const key = canonical(subject) || 'eng';
   const family = URDU_MEDIUM.has(key) ? 'urdu' : 'eng';
@@ -629,7 +629,7 @@ async function generateExam(args) {
 
   const messages = [
     { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) + (honestBlooms ? APPLY_NOTE : '') },
-    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, slos }) },
+    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, slos }) + avoidNote(avoidQuestions) },
   ];
 
   logToFile('[assessment] generating', {
@@ -791,6 +791,7 @@ const { wordBoxShortfall, wordBoxNote } = require('./fde-word-box'); // bd-5jmnf
 const { addSpareWord } = require('./fde-word-box-spare'); // bd-5jmnfj.33.7.1: a box still without a spare after the re-ask gets one book word
 const { matchRowsShortfall, matchRowsNote } = require('./fde-match-rows'); // bd-5jmnfj.33.5.3: a match item repeats no Column A or Column B entry
 const { midKeyFixes } = require('./fde-mid-key-fixes'); // bd-5jmnfj.33.3: match split, own labels, compare sign, unasked checks, division digits
+const { avoidNote } = require('./repeat-guard');
 
 // Required on first use: the loader opens a database client, and the prompt
 // helpers above are loaded by tests and tools that have no database.
