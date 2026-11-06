@@ -103,6 +103,8 @@ export function newPicks(defaultCount: number): Picks {
 
 /** The board pattern is picked: the request carries it. */
 export const isFde = (p: Pick<Picks, 'style' | 'pattern'>): boolean => p.style === 'fde' && !!p.pattern;
+/** A G9-12 FBISE board pattern id (board/index.js): the teacher picks its chapters; its words say FBISE. */
+export const isBoardId = (id: string | null | undefined): boolean => /^fbise_/.test(id ?? '');
 
 /** "1-12" / "218-226, 239-244" per unit → page ranges for the units kept (Maths customises by pages). */
 export function fdeUnitRanges(unitRanges: Array<{ chapter: number; ranges: string }>, units: number[]): Array<[number, number]> {

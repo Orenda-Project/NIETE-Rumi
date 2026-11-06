@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { ChevronRight, FilePen, Info, LayoutList } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -11,7 +11,7 @@ import { useCopy, useLang } from '../i18n';
 import { ASSESSMENT, type AssessmentV2Copy } from './copy';
 import { loadChapters, patternOffer } from './api';
 import { makeErrorText } from './failure';
-import { FDE_STEPS, fdeUnitRanges, toSpec, type Picks } from './model';
+import { FDE_STEPS, fdeUnitRanges, isBoardId, toSpec, type Picks } from './model';
 import { newPaperPath, requestPath } from './paths';
 import { stepReason } from './reasons';
 import { usePicks } from './store';
@@ -86,6 +86,12 @@ export function FdeCheck() {
   const [making, setMaking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState<string | null>(null);
+  // A G9-12 FBISE pattern has no fixed syllabus: the teacher picks chapters from the book, and the request goes as
+  // chapters (the server refuses scope 'fde' for a board id).
+  const board = isBoardId(p.pattern);
+  useEffect(() => {
+    if (board && p.coverBy === 'fde') set({ coverBy: 'chapters', chapters: [], ranges: [] });
+  }, [board, p.coverBy, set]);
   if (needsClass) return <Navigate to={newPaperPath('class')} replace />;
 
   const pattern = dataOf(pat);
@@ -98,12 +104,13 @@ export function FdeCheck() {
   const why = stepReason('check', p, 50, C, { busy });
   const subject = p.subjectName ?? p.subject ?? '';
   const titles = new Map((dataOf(chapters) ?? []).map((c) => [c.chapter_number, c.chapter_title]));
+  const bookChapters = [...titles.keys()];
 
   const make = async () => {
     setMaking(true);
     setError(null);
     setRunning(null);
-    const res = await start(toSpec(p), C.join(subject, C.fdeChip), subject);
+    const res = await start(toSpec(p), C.join(subject, board ? C.fbiseChip : C.fdeChip), subject);
     setMaking(false);
     if ('job' in res) { navigate(requestPath(res.job.requestId), { replace: true }); return; }
     const f = portal.takeGenerateFailure?.() ?? null;
@@ -155,7 +162,7 @@ export function FdeCheck() {
           <Row testId="fde-row-class" label={C.steps.class} to={newPaperPath('class')}
             value={C.gradeSubject(p.grade as number, subject)} action={<EditWord C={C} />} />
           <Row testId="fde-row-syllabus" label={C.syllabus} onPress={() => setTray('syllabus')}
-            value={custom ? C.join(C.unitsRange(p.chapters) || C.picked(0), C.customised) : pick(pattern.scope.label, lang)}
+            value={board ? C.picked(p.chapters.length) : custom ? C.join(C.unitsRange(p.chapters) || C.picked(0), C.customised) : pick(pattern.scope.label, lang)}
             sub={custom ? undefined : pick(pattern.scope, lang)} action={<EditWord C={C} />} />
           <Row testId="fde-row-inside" label={C.inside} onPress={() => setTray('inside')} value={pick(pattern.holds, lang)}
             action={<ChevronRight className="me-3 h-6 w-6 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />} />
@@ -170,7 +177,7 @@ export function FdeCheck() {
         <Tray open={tray === 'style'} title={C.paperStyle} onClose={() => setTray(null)} closeLabel={C.close} testId="fde-style-tray">
           <div role="radiogroup" aria-label={C.paperStyle} className="flex flex-col gap-2.5">
             <Choice picked={styleChoice === 'fde'} onPick={() => { setStyleChoice('fde'); setTray(null); }}
-              icon={<LayoutList className="h-6 w-6" aria-hidden="true" />} name={C.styleFde} sub={C.styleFdeSub} />
+              icon={<LayoutList className="h-6 w-6" aria-hidden="true" />} name={board ? C.styleFbise : C.styleFde} sub={C.styleFdeSub} />
             <Choice picked={styleChoice === 'own'} onPick={() => setStyleChoice('own')}
               icon={<FilePen className="h-6 w-6" aria-hidden="true" />} name={C.styleOwn} sub={C.styleOwnSub} />
           </div>
@@ -186,13 +193,15 @@ export function FdeCheck() {
         </Tray>
 
         <Tray open={tray === 'syllabus'} title={C.syllabus} onClose={() => setTray(null)} closeLabel={C.close} testId="fde-syllabus-tray">
-          <div role="radiogroup" aria-label={C.syllabus} className="flex flex-col gap-2.5">
-            <Choice picked={!custom} onPick={useFdeSyllabus} icon={<LayoutList className="h-6 w-6" aria-hidden="true" />}
-              name={pick(pattern.scope.label, lang)} sub={pick(pattern.scope, lang)} />
-          </div>
+          {!board && (
+            <div role="radiogroup" aria-label={C.syllabus} className="flex flex-col gap-2.5">
+              <Choice picked={!custom} onPick={useFdeSyllabus} icon={<LayoutList className="h-6 w-6" aria-hidden="true" />}
+                name={pick(pattern.scope.label, lang)} sub={pick(pattern.scope, lang)} />
+            </div>
+          )}
           <ListCard label={C.chapters}>
-            {(pattern.scope.displayChapters ?? pattern.scope.chapters).map((n, i) => {
-              const inFde = pattern.scope.chapters.includes(n);
+            {(board ? bookChapters : pattern.scope.displayChapters ?? pattern.scope.chapters).map((n, i) => {
+              const inFde = board || pattern.scope.chapters.includes(n);
               const held = pattern.scope.held.includes(n);
               const chip = held ? C.practiseFromBook : !inFde ? C.notInFde : pattern.scope.topicsOnly.includes(n) ? C.fdeTopicsOnly : null;
               const checked = inFde && (custom ? p.chapters.includes(n) : true);
@@ -212,10 +221,12 @@ export function FdeCheck() {
                 );
             })}
           </ListCard>
-          <div role="radiogroup" aria-label={C.steps.cover}>
-            <Choice picked={custom} onPick={() => pattern && set(customised(pattern, custom ? p.chapters : pattern.scope.chapters))}
-              icon={<FilePen className="h-6 w-6" aria-hidden="true" />} name={C.steps.cover} sub={C.ownScopeSub} />
-          </div>
+          {!board && (
+            <div role="radiogroup" aria-label={C.steps.cover}>
+              <Choice picked={custom} onPick={() => pattern && set(customised(pattern, custom ? p.chapters : pattern.scope.chapters))}
+                icon={<FilePen className="h-6 w-6" aria-hidden="true" />} name={C.steps.cover} sub={C.ownScopeSub} />
+            </div>
+          )}
           <button type="button" onClick={() => setTray(null)} className={cn(PRIMARY, FOCUS)}>{C.done}</button>
         </Tray>
 
@@ -234,7 +245,7 @@ export function FdeCheck() {
               </div>
             )}
           </ListCard>
-          {custom && (
+          {custom && !board && (
             <div className="flex flex-col gap-2 rounded-2xl border border-[#fde68a] bg-[#fffbeb] p-3.5">
               <p className="text-[15px] font-semibold">{C.insideCustom(C.unitsRange(p.chapters))}</p>
               <p className="text-[14px] text-[#4b5563]">{C.fullRehearsal}</p>
@@ -243,7 +254,7 @@ export function FdeCheck() {
           )}
           <p className="flex items-center gap-2 px-1 text-[14px] text-[#4b5563]">
             <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {C.notOfficial}
+            {board ? C.fbiseNotOfficial : C.notOfficial}
           </p>
         </Tray>
       </>
@@ -253,7 +264,7 @@ export function FdeCheck() {
     <StepFrame
       step="check"
       steps={FDE_STEPS}
-      crumb={C.fdeDoor}
+      crumb={board ? C.boardDoor : C.fdeDoor}
       backTo={newPaperPath(p.patternIntent ? 'class' : 'cover')}
       hint={pattern ? C.readyHint : undefined}
       next={{ label: making ? C.making : C.makePaper, why: pattern ? why : pat.status === 'error' ? C.loadFailed : C.why.wait, onPress: make, busy: making }}
