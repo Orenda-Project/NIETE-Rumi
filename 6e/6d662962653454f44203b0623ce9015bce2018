@@ -1,2 +1,3 @@
 {"ts":"2026-11-06T13:33:03Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"6e6d66296265","branch":"bd-rj6w0n.14.17-71814","user":""}
 {"ts":"2026-11-06T13:33:06Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-rj6w0n.14.17-71814: lesson-plan spec: NOT UPDATED e2e: missing","sha":"6e6d66296265","branch":"bd-rj6w0n.14.17-71814","user":""}
+{"ts":"2026-11-06T13:33:22Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-rj6w0n.14.17-71814: lesson-plan spec: NOT UPDATED e2e: missing","sha":"6e6d66296265","branch":"bd-rj6w0n.14.17-71814","user":""}
