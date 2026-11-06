@@ -69,6 +69,12 @@ describe('reviewPrompt: written items and the three new questions', () => {
     expect(text).toMatch(/wrong answer/);
   });
 
+  // a8 live: the G7 reply listed every item with a reason per distractor, ran past 10,000 tokens and was cut off.
+  it('asks for only the items with a problem, and a distractor reason only for a 1', () => {
+    expect(text).toMatch(/List only the items with at least one problem/);
+    expect(text).toMatch(/give "why" only for a distractor you rate 1/);
+  });
+
   it('still asks the MCQ questions', () => {
     expect(text).toMatch(/two_correct/);
     expect(text).toMatch(/Q1: Which tissue[\s\S]*Key: a\) xylem/);

@@ -39,6 +39,18 @@ describe('the writer gets the level plan', () => {
   });
 });
 
+describe('the review has room to answer a whole paper', () => {
+  // a8 live: the G7 review used all 10,000 output tokens and its JSON was cut off, so no review issue reached the rewrite.
+  it('gives the review call 16,000 output tokens', async () => {
+    const first = { unseen: { objective: { 'Multiple Choice Questions': [mcq('Which one dissolves?', 'Salt', 'Apply')] } } };
+    mockCreate.mockResolvedValue(reply({ items: [] }));
+    mockCreate.mockResolvedValueOnce(reply(first));
+    await Svc.generateExam(ARGS).catch(() => {});
+    const review = mockCreate.mock.calls.map((c) => c[0]).find((c) => c.job === 'assessment.review');
+    expect(review.max_tokens).toBe(16000);
+  });
+});
+
 describe('the a8 checks go to the targeted rewrite', () => {
   it('takes level-split, level-off, self-answer, scheme-conflict and stated-type', () => {
     const checks = ['level-split', 'level-off', 'self-answer', 'scheme-conflict', 'stated-type'];
