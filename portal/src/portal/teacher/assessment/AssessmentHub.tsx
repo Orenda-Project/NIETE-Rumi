@@ -101,7 +101,7 @@ export function AssessmentHub() {
           <LayoutList className="h-[30px] w-[30px]" aria-hidden="true" />
         </span>
         <span className="flex min-w-0 flex-1 flex-col items-start gap-2">
-          <b className="text-[20px] font-semibold leading-tight">{C.fdeDoor}</b>
+          <b className="text-[20px] font-semibold leading-tight">{fdeGrades.some((g) => g >= 6) ? C.boardDoor : C.fdeDoor}</b>
           <span className="flex flex-wrap gap-1.5">{C.fdeDoorChips(fdeGrades).split(' · ').map((c) => <Chip key={c}>{c}</Chip>)}</span>
           {lastFde && lastDays !== null && <span className="text-[14px] text-[#4b5563]">{C.lastMade(lastFde.subject, lastDays)}</span>}
         </span>

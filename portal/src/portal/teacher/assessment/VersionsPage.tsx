@@ -10,7 +10,7 @@ import TeacherPage from '../TeacherPage';
 import { FOCUS } from '../ui/styles';
 import { ASSESSMENT } from './copy';
 import { useCopy } from '../i18n';
-import { FDE_EDITING, dayLabel, pkDay, pkToday } from './model';
+import { FDE_EDITING, dayLabel, isBoardId, pkDay, pkToday } from './model';
 import { editPath, paperPath } from './paths';
 import { findPaper } from './paperCache';
 import { Chip, ListCard, LoadState } from './ui';
@@ -37,7 +37,8 @@ export function VersionsPage() {
   const told = !!read && 'pattern' in read;
   const [row, retryRow] = useLoad(versions.status === 'ok' && !told ? () => findPaper(paperId) : null, `versions-paper:${paperId}:${versions.status === 'ok' && !told ? 'scan' : ''}`);
   const found = dataOf(row) as { pattern?: string | null } | null | undefined;
-  const fde = told ? !!read?.pattern : !!found?.pattern;
+  const patternId = told ? read?.pattern : found?.pattern;
+  const fde = !!patternId;
   // Edit waits until the page KNOWS whether this is a board-pattern paper: a failed My papers read, or a paper past the
   // pages it reads, could be one, and Edit would open an editor the server refuses (FDE_EDITING). A failed read says so,
   // with Try again.
@@ -47,7 +48,7 @@ export function VersionsPage() {
   const wrapFde = (list: JSX.Element) => (fde ? <div data-testid="versions-list" className="contents">{list}</div> : list);
 
   return (
-    <TeacherPage crumb={C.title} title={C.versions} backTo={paperPath(paperId)} chips={fde ? <Chip tone="indigo">{C.fdeChip}</Chip> : undefined} testId="assessment-versions">
+    <TeacherPage crumb={C.title} title={C.versions} backTo={paperPath(paperId)} chips={fde ? <Chip tone="indigo">{isBoardId(patternId) ? C.fbiseChip : C.fdeChip}</Chip> : undefined} testId="assessment-versions">
       {!told && versions.status === 'ok' && row.status === 'error' && <LoadState status="error" onRetry={retryRow} />}
       {versions.status !== 'ok'
         ? <LoadState status={versions.status} onRetry={retry} />
