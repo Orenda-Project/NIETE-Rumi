@@ -3208,6 +3208,8 @@ router.get('/assessment/options', requirePortalAuth, async (req, res) => {
     const data = await Assessment.options({
       grade: Number.isFinite(grade) ? grade : null,
       subject,
+      // The session user, so the bot's 6-12 grade gate can admit her (as create does).
+      userId: req.session.portalUserId,
     });
     res.json({ success: true, ...data });
   } catch (error) {
@@ -3226,7 +3228,7 @@ router.get('/assessment/chapters', requirePortalAuth, async (req, res) => {
     if (!Number.isFinite(grade) || !subject) {
       return res.status(400).json({ success: false, error: 'grade + subject required' });
     }
-    const chapters = await Assessment.listChapters(grade, subject);
+    const chapters = await Assessment.listChapters(grade, subject, req.session.portalUserId);
     res.json({ success: true, chapters });
   } catch (error) {
     assessmentFailure(res, error, 'Could not load chapters');
@@ -3246,7 +3248,7 @@ router.get('/assessment/topics', requirePortalAuth, async (req, res) => {
     if (!Number.isFinite(grade) || !subject || !Number.isFinite(chapterNumber)) {
       return res.status(400).json({ success: false, error: 'grade + subject + chapter required' });
     }
-    const topics = await Assessment.listTopics(grade, subject, chapterNumber);
+    const topics = await Assessment.listTopics(grade, subject, chapterNumber, req.session.portalUserId);
     res.json({ success: true, topics });
   } catch (error) {
     assessmentFailure(res, error, 'Could not load topics');
