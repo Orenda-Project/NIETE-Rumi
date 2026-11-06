@@ -805,6 +805,8 @@ export type AssessmentQuestionType = {
   category: 'objective' | 'subjective';
   /** bd-5jmnfj.38.40 — the readable name the server sends for a grade 6+ type; absent for G1-5. */
   label?: string;
+  /** bd-5jmnfj.38.41 — one plain line on what the type asks for, so "Short Response" is not a guess; absent for G1-5. */
+  hint?: string;
   /** bd-6clakk.12 — the wording she may tick for this type on a topic paper; absent = none offered. */
   stems?: Array<{ id: string; text: string }>;
 };

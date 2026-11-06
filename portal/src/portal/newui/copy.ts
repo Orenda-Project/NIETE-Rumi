@@ -239,6 +239,7 @@ export const ASSESSMENT_COPY = {
   make: 'Make assessment',
   /** The More sheet. */
   types: 'Question types',
+  typeMeanings: 'What each type means',
   mixed: 'Mixed',
   source: 'Questions come from',
   sources: {
