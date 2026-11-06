@@ -1,2 +1,3 @@
 {"ts":"2026-11-06T14:42:44Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,observe,teacher-assessment,portal-smoke spec_sync=true","sha":"22783f2efc2d","branch":"bd-5jmnfj.38.39-76075","user":""}
 {"ts":"2026-11-06T16:02:24Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=session-hooks engine=2.0.0","sha":"22783f2efc2d","branch":"bd-5jmnfj.38.39-76075","user":""}
+{"ts":"2026-11-06T16:02:24Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=session-hooks engine=2.0.0","sha":"22783f2efc2d","branch":"bd-5jmnfj.38.39-76075","user":""}
