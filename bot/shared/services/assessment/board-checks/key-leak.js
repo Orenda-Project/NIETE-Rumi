@@ -21,13 +21,12 @@
  * or quantity key ("20 m/s", "9.8 m/s^2") in another item's stem is soft (board papers give g as data); a concept
  * phrase stays hard. The blame is always on the item whose stem carries the text, never the keyed item, fresh or
  * not. usedKeys() gives the repair ask the numeric and multi-word keys already in the paper.
- * ROUND 6 (board only): refs are the shared walk's (walk.js), the form the registry maps to ids, so a stimulus child's
+ * ROUND 6 (board only): refs are the shared walk's (walk.js), the form the registry maps to ids, so a stimulus child's (_walk-local now stamps them for every check),
  * issue can be dropped. Leading determiners and pronouns are set aside from a key before comparing ("Its
  * acceleration" -> "acceleration"). A concept key in another SECTION's stem is soft; in the same section it stays hard
  * and the issue names the keyed item (`keyed_ref`) and the `phrase`, for the writer's second rewrite.
  */
-const { leaves: localLeaves } = require('./_walk-local');
-const W = require('./walk');
+const { leaves } = require('./_walk-local');
 const { childFields } = require('./_child-view');
 const { fold, stripLabel, tokens, str, issue, excerpt } = require('./_text-norm');
 
@@ -46,12 +45,6 @@ const bareKey = (key) => (key ? key.replace(LEAD, '') : key);
 // design_pending (board seat to confirm): FBISE collects the Section A objective sheet before Sections B and C are
 // written, so a key quoted in another section's stem cannot help the student; such a leak is soft.
 const crossSection = (a, b) => !!(a.sectionId && b.sectionId && a.sectionId !== b.sectionId);
-
-/** The local walker's leaves (stimulus text, slot row) under the shared walk's refs (one ref form for the registry). */
-function leaves(examJson) {
-  const refs = new Map(W.leaves(examJson).map((l) => [l.item, l.ref]));
-  return localLeaves(examJson).map((n) => (refs.has(n.item) ? { ...n, ref: refs.get(n.item) } : n));
-}
 
 function mcqKey(it) {
   const ans = str(it.answer).trim();
