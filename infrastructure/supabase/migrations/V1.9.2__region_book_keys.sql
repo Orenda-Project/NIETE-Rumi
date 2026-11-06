@@ -1,7 +1,7 @@
--- V1.8.12 — a region names its books: region_features.book_keys (bd-97daxo.4, GB book-first).
+-- V1.9.2 — a region names its books (first written as V1.8.12 on 5 Nov; renumbered 6 Nov: V1.8.12 is coach_weekly_report on sandbox): region_features.book_keys (bd-97daxo.4, GB book-first).
 -- Flyway-style versioned migration (D8). Applied to sandbox (olvritwoqujtjvwfulbh), then staging (rpqkekcfvumypldbejhp),
 -- through MigrationRunner.applyMigration ALONE; to prod (ihzciabopbttygxxgrkm) only with the operator's go.
--- Rollback: ROLLBACK_V1.8.12__region_book_keys.sql.
+-- Rollback: ROLLBACK_V1.9.2__region_book_keys.sql.
 --
 -- WHY. The operator, 2 Nov: "map the lesson plans not to GB region but to books". Gilgit-Baltistan teaches Grades 1-5
 -- from NBF books for English, Urdu, Maths and Science and from ICT's English-medium GK and Social Studies and ICT's

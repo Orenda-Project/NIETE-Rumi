@@ -1,4 +1,4 @@
--- ROLLBACK_V1.8.12 — reverse of V1.8.12 region book lists (bd-97daxo.4), Flyway-style rollback applied by migrate.js.
+-- ROLLBACK_V1.9.2 — reverse of V1.9.2 region book lists (bd-97daxo.4), Flyway-style rollback applied by migrate.js.
 -- destructive: reviewed — drops region_features.book_keys. Its only content is the region book lists that
 -- sync-sheet-lps.js --books writes (recreatable from Amena's Books tab with one command). The code reads the column
 -- fail-open, so a teacher whose region loses its list gets the ICT menu; roll the code back first all the same.

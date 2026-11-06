@@ -2,7 +2,7 @@
 /**
  * teacher-books — which BOOKS a teacher's Grade 1-5 lesson menu holds (bd-97daxo.4, book-first).
  *
- * THE RULE. A region may name its books: region_features.book_keys (V1.8.12), a list of lp_catalog.json book
+ * THE RULE. A region may name its books: region_features.book_keys (V1.9.2), a list of lp_catalog.json book
  * keys. A teacher whose region names books sees exactly those books. Everyone else gets null, and every catalog
  * read takes null as "today's ICT list" (every book that is not opt_in). So a sector teacher, a teacher with no
  * region, and the deployment-wide 'niete' row all get the menu they had before this file existed.
