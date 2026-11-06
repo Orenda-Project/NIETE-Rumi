@@ -1,14 +1,14 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { CalendarDays, ChevronDown, ChevronRight, MapPin } from "lucide-react";
-import { PageChip } from "../../teacher/TeacherPage";
+import { CalendarDays, ChevronDown, ChevronRight, MapPin, UserRound } from "lucide-react";
+import { PageChip, PageLinkChip } from "../../teacher/TeacherPage";
 import { TEACHER_FRAME } from "../../teacher/copy";
 import { useCopy } from "../../teacher/i18n";
 import { Loading, SearchBox, SectionLabel } from "../ui";
 import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
 import ManageSchool from "../people/ManageSchool";
 import { EmptyRow, Notice, useNotice } from "../people/rows";
-import { LevelChips, useLevel, useLevelNames, withLevel } from "../people/level";
+import { LevelChips, useLevel, useLevelNames, withLevel, type TeachingLevel } from "../people/level";
 import { PEOPLE } from "../people/copy";
 import { SCHOOL_CARD } from "./copy";
 import { card } from "./api";
@@ -17,7 +17,7 @@ import { bucketLabels, perDayLine, usePeriod, withPeriod } from "./period";
 import { ActivityTile, Bars, COUNT_FEATURES, CountsRow, FEATURE_OF, PeriodChips, StarChip } from "./parts";
 import { ScoreLine, ScoreTile } from "./scores";
 import { FEATURE_HUE } from "../../teacher/icons/features";
-import type { CardTeacher, SchoolCardData } from "./types";
+import type { CardTeacher, PeriodKey, SchoolCardData, SchoolPrincipal } from "./types";
 
 /**
  * A school's School card (the switch on): the school, the period (Today · This week · This month), then Digital Coaching
@@ -26,6 +26,9 @@ import type { CardTeacher, SchoolCardData } from "./types";
  * assessments, training parts (the total, "by N of M teachers", "about N a day", a bar per school day or per week). Then
  * its teachers (her four counts, last visit, Contribution %, ★ on the top two) with the ones who did nothing in the
  * period in a neutral fold, and the school's Manage group.
+ * THE PRINCIPAL (bd-17v39c.4.15, option A): never in the list, the fold or a count (the server leaves them out); the
+ * header names them in a chip, "Principal: name ›", that opens their page, one chip each. None recorded: a dashed
+ * "Principal: not recorded ›" chip that opens the school's Edit teacher, where a coach can set who is the principal.
  * No Share, no Schedule dock. Every number is the server's; one that did not load is "—", never 0.
  */
 
@@ -65,6 +68,36 @@ function TeacherRow({ t, to, state, first }: { t: CardTeacher; to: string; state
         <ChevronRight className="h-[22px] w-[22px] text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
       </span>
     </Link>
+  );
+}
+
+/**
+ * bd-17v39c.4.15 — the school's principal(s) in its header, in the Schools feature's colour (the kit's FEATURE_HUE): one
+ * chip each opening their page; none recorded, the dashed chip to Edit teacher. An older server that sends no list: none.
+ */
+export function PrincipalChips({ principals, emis, period, level }: {
+  principals: SchoolPrincipal[] | undefined; emis: string; period: PeriodKey; level: TeachingLevel | null;
+}) {
+  const C = useCopy(SCHOOL_CARD);
+  if (!principals) return null;
+  const icon = <UserRound className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />;
+  if (!principals.length) {
+    return (
+      <PageLinkChip testId="card-principal-none" dashed to={withLevel(`/portal/coach/school/${encodeURIComponent(emis)}/edit-teacher`, level)}
+        label={C.principalNoneSpoken}>
+        {icon}<span>{C.principalKey} {C.principalNone}</span>
+      </PageLinkChip>
+    );
+  }
+  return (
+    <>
+      {principals.map((p) => (
+        <PageLinkChip key={p.teacherExtId} testId="card-principal" hue={FEATURE_HUE.schools} label={C.principalSpoken(p.name)}
+          to={withPeriod(`/portal/coach/teacher/${encodeURIComponent(p.teacherExtId)}`, period)}>
+          {icon}<span className="shrink-0">{C.principalKey}</span>{" "}<span dir="auto" className="min-w-0 truncate font-bold text-[#1d2025]">{p.name}</span>
+        </PageLinkChip>
+      ))}
+    </>
   );
 }
 
@@ -121,6 +154,7 @@ export default function SchoolCardPage() {
         <>
           <PageChip testId="card-emis"><MapPin className="h-3.5 w-3.5" aria-hidden="true" />{C.emis(school.emis || emis)}</PageChip>
           <PageChip testId="card-last-visit"><CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />{C.lastVisit(school.lastVisitDaysAgo)}</PageChip>
+          <PrincipalChips principals={school.principals} emis={school.emis || emis} period={period} level={level} />
         </>
       ) : undefined}>
       <Notice text={notice} />

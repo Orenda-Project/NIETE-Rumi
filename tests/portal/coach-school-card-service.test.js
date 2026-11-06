@@ -525,12 +525,12 @@ describe('contribution % and the star', () => {
     expect(Card.starsOf([t(0), t(0)])).toEqual([false, false]);
   });
 
-  test('on the card: sorted by total, the principal with nothing last, no percentage for her', async () => {
+  // bd-17v39c.4.15 — the principal is not a teacher row (option A: the header chip instead).
+  test('on the card: sorted by total, teachers only', async () => {
     const out = await Card.getSchoolCard(db, 'coach-1', '901', opts());
     expect(out.teachers.map((t) => [t.name, t.total, t.contributionPct, t.star])).toEqual([
       ['Teacher One', 11, 92, true],
       ['Teacher Two', 1, 8, true],
-      ['Principal One', 0, null, false],
     ]);
     expect(out.teachers[0]).toMatchObject({ counts: { lp: 5, dc: 2, training: 2, papers: 2 }, lastVisitDaysAgo: 0 });
     expect(out.teachers[1].lastVisitDaysAgo).toBeNull();
@@ -538,18 +538,24 @@ describe('contribution % and the star', () => {
 });
 
 describe('the school card', () => {
-  test('one school, its roster (test accounts out), last visit and the period', async () => {
+  test('one school, its roster (test accounts out), its principal apart, last visit and the period', async () => {
     const out = await Card.getSchoolCard(db, 'coach-1', '901', opts());
-    expect(out.school).toEqual({ emis: '901', name: 'School One', teachers: 3, roster: 3, lastVisitDaysAgo: 0 });
+    // bd-17v39c.4.15 — two teachers; the principal is named apart; Manage's roster is everyone it acts on (3).
+    expect(out.school).toEqual({
+      emis: '901', name: 'School One', teachers: 2, roster: 3,
+      principals: [{ teacherExtId: PHONE.p1, name: 'Principal One' }], lastVisitDaysAgo: 0,
+    });
     expect(out.period).toMatchObject({ key: 'week', from: '2026-10-26', to: '2026-10-28', schoolDaysSoFar: 3 });
     expect(out.tiles.map((t) => t.feature)).toEqual(['lp', 'dc', 'training', 'papers']);
   });
 
-  test('ONE school is read: every per-teacher read names only that school\'s roster', async () => {
+  test('ONE school is read: every per-teacher read names only that school\'s teachers', async () => {
     await Card.getSchoolCard(db, 'coach-1', '901', opts());
-    for (const c of db.calls.filter((x) => ['lp', 'opens', 'sessions', 'training', 'papers', 'last-visit'].includes(x.tag))) {
-      expect([...c.params[0]].sort()).toEqual(['u1', 'u2', 'up']);
+    for (const c of db.calls.filter((x) => ['lp', 'opens', 'sessions', 'training', 'papers'].includes(x.tag))) {
+      expect([...c.params[0]].sort()).toEqual(['u1', 'u2']);
     }
+    // the school's last visit is any visit to it, the principal's class too
+    for (const c of db.calls.filter((x) => x.tag === 'last-visit')) expect([...c.params[0]].sort()).toEqual(['u1', 'u2', 'up']);
   });
 
   test('today: totals and makers only, no rate', async () => {
@@ -572,7 +578,6 @@ describe('the feature grid', () => {
     expect(out.rows).toEqual([
       { teacherExtId: PHONE.t1, name: 'Teacher One', cells: [2, 2, 1, 0, 0], total: 5 },
       { teacherExtId: PHONE.t2, name: 'Teacher Two', cells: [0, 1, 0, 0, 0], total: 1 },
-      { teacherExtId: PHONE.p1, name: 'Principal One', cells: [0, 0, 0, 0, 0], total: 0 },
     ]);
     expect(out.school).toEqual([2, 3, 1, 0, 0]);
     expect(out.total).toBe(6);
@@ -586,7 +591,6 @@ describe('the feature grid', () => {
       feature: 'training',
       rows: [
         { teacherExtId: PHONE.t1, name: 'Teacher One', vendors: U1_TRAININGS },
-        { teacherExtId: PHONE.p1, name: 'Principal One', vendors: [] },
         { teacherExtId: PHONE.t2, name: 'Teacher Two', vendors: [] },
       ],
     });
@@ -1033,10 +1037,9 @@ describe('the school card\'s Digital Coaching and Coach observations scores', ()
   test('by teacher: count, average and her points; the school\'s count and average; teachers with none last', async () => {
     const out = await Card.getSchoolScores(db, 'coach-1', '901', 'dc', opts());
     expect(out).toMatchObject({ kind: 'dc', period: { key: 'week' } });
-    expect(out.school).toEqual({ emis: '901', name: 'School One', teachers: 3, count: 2, avg: 65, makers: 1 });
+    expect(out.school).toEqual({ emis: '901', name: 'School One', teachers: 2, count: 2, avg: 65, makers: 1 });
     expect(out.rows).toEqual([
       { teacherExtId: PHONE.t1, name: 'Teacher One', count: 2, avg: 65, points: [{ id: 'd1', date: '2026-10-26', score: 60 }, { id: 'd5', date: '2026-10-28', score: 70 }] },
-      { teacherExtId: PHONE.p1, name: 'Principal One', count: 0, avg: null, points: [] },
       { teacherExtId: PHONE.t2, name: 'Teacher Two', count: 0, avg: null, points: [] },
     ]);
     const coach = await Card.getSchoolScores(db, 'coach-1', '901', 'coach', opts());
@@ -1048,7 +1051,7 @@ describe('the school card\'s Digital Coaching and Coach observations scores', ()
     tables.sessions.push({ id: 'd7', user_id: 'u2', created_at: pk('2026-10-27 10:00'), status: 'completed', observation_type: null, analysis_data: analysis(90) });
     tables.sessions.push({ id: 'd8', user_id: 'u2', created_at: pk('2026-10-28 11:00'), status: 'completed', observation_type: null, analysis_data: analysis(80) });
     const out = await Card.getSchoolScores(db, 'coach-1', '901', 'dc', opts());
-    expect(out.rows.map((r) => [r.name, r.count, r.avg])).toEqual([['Teacher Two', 2, 85], ['Teacher One', 2, 65], ['Principal One', 0, null]]);
+    expect(out.rows.map((r) => [r.name, r.count, r.avg])).toEqual([['Teacher Two', 2, 85], ['Teacher One', 2, 65]]);
   });
 
   test('an unknown kind or another coach\'s school is null', async () => {
@@ -1082,9 +1085,9 @@ describe('teaching level (bd-ewbzns.1): the school card for her Primary, Middle 
     const out = await Card.getSchoolCard(db, 'coach-1', '901', opts());
     expect(out.level).toBeNull();
     expect(out.levels).toEqual({ PRIMARY: 1, MIDDLE: 1, HIGH: 1 });
-    expect(out.school.teachers).toBe(3);
+    expect(out.school.teachers).toBe(2);
     const by = Object.fromEntries(out.teachers.map((t) => [t.name, t.levels]));
-    expect(by).toEqual({ 'Teacher One': ['PRIMARY'], 'Teacher Two': ['MIDDLE', 'HIGH'], 'Principal One': [] });
+    expect(by).toEqual({ 'Teacher One': ['PRIMARY'], 'Teacher Two': ['MIDDLE', 'HIGH'] });
   });
 
   test('Primary: only her Primary teachers, and every number on the card is theirs', async () => {
@@ -1093,7 +1096,7 @@ describe('teaching level (bd-ewbzns.1): the school card for her Primary, Middle 
     expect(out.level).toBe('PRIMARY');
     expect(out.teachers.map((t) => t.name)).toEqual(['Teacher One']);
     expect(out.school.teachers).toBe(1);
-    // Manage is the whole school's: three on the roster.
+    // Manage is the whole school's: three on the roster (two teachers and the principal, whom Edit teacher also edits).
     expect(out.school.roster).toBe(3);
     // Teacher Two's typed plan is no longer counted: five, all Teacher One's.
     expect(out.tiles.find((t) => t.feature === 'lp')).toMatchObject({ total: 5, makers: 1 });
@@ -1114,7 +1117,7 @@ describe('teaching level (bd-ewbzns.1): the school card for her Primary, Middle 
     levelled();
     const out = await Card.getSchoolCard(db, 'coach-1', '901', { ...opts(), level: 'EARLY_YEARS' });
     expect(out.level).toBeNull();
-    expect(out.teachers).toHaveLength(3);
+    expect(out.teachers).toHaveLength(2);
   });
 
   test('a feature page and a scores page follow the level too', async () => {
@@ -1140,8 +1143,114 @@ describe('her role and teaching levels on her page (bd-ewbzns.2): what Edit teac
     expect(out.teacher).toMatchObject({ isPrincipal: true, levels: [] });
   });
 
-  test('the school card row says principal', async () => {
+  // bd-17v39c.4.15 — the principal is no longer a row: the card names them apart (school.principals).
+  test('the school card names the principal apart, never as a teacher row', async () => {
     const out = await Card.getSchoolCard(db, 'coach-1', '901', opts());
-    expect(out.teachers.find((t) => t.name === 'Principal One').isPrincipal).toBe(true);
+    expect(out.teachers.find((t) => t.name === 'Principal One')).toBeUndefined();
+    expect(out.school.principals).toEqual([{ teacherExtId: PHONE.p1, name: 'Principal One' }]);
+  });
+});
+
+// ── bd-17v39c.4.15 (queue #44): the principal apart from the teachers ────────
+// Coach report, 6 Nov: the principal sat in the school's "our teachers" list and asked to come off it. Operator's pick
+// (option A): the principal leaves the teacher list and every teacher count, and the card names them apart
+// (school.principals, shown as a "Principal: name ›" chip in the header). Their own page still opens.
+describe('the principal apart from the teachers (bd-17v39c.4.15)', () => {
+  /** The principal is busy this week: a lesson plan Mon, a DC report Tue, a reviewed coach visit to their class Tue. */
+  const busyPrincipal = () => {
+    tables.lessonPlans.push({ id: 'pl1', user_id: 'up', created_at: pk('2026-10-26 08:00'), grade: '5', subject: 'math', topic: 'Head LP', surface: null, lesson_id: 'grade_5_math_ch1_seg1' });
+    tables.sessions.push(
+      { id: 'pd1', user_id: 'up', created_at: pk('2026-10-27 09:00'), status: 'completed', observation_type: null, analysis_data: analysis(95) },
+      { id: 'ph1', user_id: 'up', created_at: pk('2026-10-27 12:30'), status: 'observer_review_complete', observation_type: 'leader_observation', observer_user_id: 'coach-1', analysis_data: analysis(90) },
+    );
+  };
+
+  test('their plans, DC and coach visit leave every teacher number: totals, Contribution %, ★, overview, scores, coach observations', async () => {
+    busyPrincipal();
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    expect(out.teachers.map((t) => t.name)).toEqual(['Teacher One', 'Teacher Two']);
+    expect(out.teachers.map((t) => [t.total, t.contributionPct, t.star])).toEqual([[11, 92, true], [1, 8, true]]);
+    expect(out.tiles.find((t) => t.feature === 'lp')).toMatchObject({ total: 6, makers: 2 });
+    expect(out.tiles.find((t) => t.feature === 'dc')).toMatchObject({ total: 2, makers: 1 });
+    expect(out.scores.dc).toMatchObject({ count: 2, avg: 65, makers: 1 });
+    expect(out.scores.coach).toMatchObject({ count: 3, avg: 50, makers: 1 });
+    expect(out.coachObservations.teachers.map((t) => t.name)).toEqual(['Teacher One']);
+    expect(out.school).toMatchObject({ teachers: 2, principals: [{ teacherExtId: PHONE.p1, name: 'Principal One' }] });
+  });
+
+  test('the details pages list teachers only, and their tops count teachers only', async () => {
+    busyPrincipal();
+    const lp = await Card.getSchoolFeature(db, 'coach-1', '901', 'lp', opts());
+    expect(lp.rows.map((r) => r.name)).toEqual(['Teacher One', 'Teacher Two']);
+    expect(lp.total).toBe(6);
+    expect(lp.school).toEqual([2, 3, 1, 0, 0]);
+    const trn = await Card.getSchoolFeature(db, 'coach-1', '901', 'training', opts());
+    expect(trn.rows.map((r) => r.name)).toEqual(['Teacher One', 'Teacher Two']);
+    const dc = await Card.getSchoolScores(db, 'coach-1', '901', 'dc', opts());
+    expect(dc.rows.map((r) => r.name)).toEqual(['Teacher One', 'Teacher Two']);
+    expect(dc.school).toMatchObject({ teachers: 2, count: 2, avg: 65, makers: 1 });
+    const coach = await Card.getSchoolScores(db, 'coach-1', '901', 'coach', opts());
+    expect(coach.rows.map((r) => r.name)).toEqual(['Teacher One', 'Teacher Two']);
+    expect(coach.school).toMatchObject({ count: 3, makers: 1 });
+  });
+
+  test('no principal recorded: an empty list (the page shows "not recorded")', async () => {
+    const out = await Card.getSchoolCard(db, 'coach-2', '902', opts());
+    expect(out.school.principals).toEqual([]);
+    expect(out.teachers.map((t) => t.name)).toEqual(['Teacher Three']);
+  });
+
+  test('two principals: both named, A to Z, neither a teacher', async () => {
+    tables.users.push({ id: 'up2', phone_number: ph(6), name: 'Another Head', role: 'principal', school_id: 's1', is_test_user: false, deleted_at: null });
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    expect(out.school.principals).toEqual([
+      { teacherExtId: ph(6), name: 'Another Head' },
+      { teacherExtId: PHONE.p1, name: 'Principal One' },
+    ]);
+    expect(out.school.teachers).toBe(2);
+    expect(out.school.roster).toBe(4);
+  });
+
+  test('a test-account or deleted principal is not named', async () => {
+    tables.users.push(
+      { id: 'upt', phone_number: ph(7), name: 'Test Head', role: 'principal', school_id: 's1', is_test_user: true, deleted_at: null },
+      { id: 'upd', phone_number: ph(8), name: 'Gone Head', role: 'principal', school_id: 's1', is_test_user: false, deleted_at: '2026-10-01T00:00:00Z' },
+    );
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    expect(out.school.principals.map((p) => p.name)).toEqual(['Principal One']);
+  });
+
+  test('at every level: the principal is named whatever level is picked, and the level chips count teachers only', async () => {
+    tables.users.find((u) => u.id === 'u1').teacher_level = ['PRIMARY'];
+    tables.users.find((u) => u.id === 'up').teacher_level = ['PRIMARY', 'MIDDLE'];
+    const all = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    expect(all.levels).toEqual({ PRIMARY: 1, MIDDLE: 0, HIGH: 0 });
+    for (const level of ['PRIMARY', 'MIDDLE', 'HIGH']) {
+      const out = await Card.getSchoolCard(db, 'coach-1', '901', { ...opts(), level });
+      expect(out.school.principals).toEqual([{ teacherExtId: PHONE.p1, name: 'Principal One' }]);
+      expect(out.teachers.find((t) => t.name === 'Principal One')).toBeUndefined();
+    }
+  });
+
+  test('the school\'s last visit is any visit to it: a visit to the principal\'s class counts', async () => {
+    tables.sessions = tables.sessions.filter((c) => !(c.user_id === 'u1' && c.observation_type === 'leader_observation'));
+    tables.sessions.push({ id: 'ph2', user_id: 'up', created_at: pk('2026-10-27 12:30'), status: 'observer_review_complete', observation_type: 'leader_observation', observer_user_id: 'coach-1', analysis_data: analysis(90) });
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    expect(out.school.lastVisitDaysAgo).toBe(1);
+    expect(out.coachObservations.count).toBe(0);
+  });
+
+  test('their own page still opens from the chip: the card, the lists, the scores and a report', async () => {
+    busyPrincipal();
+    const card = await Card.getTeacherCard(db, 'coach-1', PHONE.p1, opts());
+    expect(card.teacher).toMatchObject({ teacherExtId: PHONE.p1, name: 'Principal One', isPrincipal: true });
+    expect(card.tiles.lp.count).toBe(1);
+    expect(card.summary.dc).toMatchObject({ count: 1, avg: 95 });
+    const lps = await Card.getTeacherItems(db, 'coach-1', PHONE.p1, 'lp', opts());
+    expect(lps.items.map((i) => i.id)).toEqual(['pl1']);
+    const dc = await Card.getTeacherScores(db, 'coach-1', PHONE.p1, 'dc', opts());
+    expect(dc.count).toBe(1);
+    const report = await Card.getSession(db, 'coach-1', 'pd1', opts());
+    expect(report).toMatchObject({ sessionId: 'pd1', kind: 'dc', teacher: { teacherExtId: PHONE.p1 } });
   });
 });
