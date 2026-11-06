@@ -10,7 +10,8 @@
  *   longest-key      A7a  the key is clearly the longest option
  *   absolute-option  A7a  always / never / only / all or none of the above in an option
  *   cross-leak       A5b  one item gives away another's answer, or a key term of it, in its stem or its
- *                        word/option lists (`avoid` lists the other)
+ *                        word/option lists, or an MCQ's options list a written answer (`avoid` lists the other)
+ *   part-levels      A6b  a written item in marked parts without one thinking level per part
  *   lesson-subject        no item names the lesson (n is 0: it is about the whole paper)
  *
  * estimateMinutes is the panel's load model (A5g); printedMinutes is the time a paper prints so that
@@ -147,6 +148,24 @@ function chapterWord(all, a, ans) {
   return all.filter((b) => b !== a && hasWord(norm(printed(b)), ans)).length >= 2;
 }
 
+/** How many of an MCQ's options (four letters or more) a written answer prints: two or more list it (G8 a6 Q3/Q6). */
+function optionsListed(a, given) {
+  return a.item.options.map((o) => norm(textOf(o))).filter((t) => t.length >= 4 && given.includes(t)).length;
+}
+
+// A part line of a written item: a label such as a), (b) or (الف), and a marks bracket at its end.
+const PART_LINE = /^\s*(\(?[a-f]\)|\((الف|ب|ج|د|ہ)\)|(الف|ب|ج|د|ہ)\))[\s\S]*\(\s*[0-9۰-۹]+\s*(marks?|نمبر)\s*\)\s*$/i;
+
+/** A written item in marked parts needs one level per part (a7 ruling on A4b/A6b: tag every sub-part). */
+function partLevelsIssue(e) {
+  if (e.isMcq) return null;
+  const parts = String(e.item.question || '').split('\n').filter((l) => PART_LINE.test(l)).length;
+  if (parts < 2) return null;
+  const lv = e.item.part_levels;
+  if (Array.isArray(lv) && lv.length === parts) return null;
+  return `it has ${parts} marked parts; add "part_levels" with one thinking level per part, in order`;
+}
+
 /**
  * Items that give another item's answer away, keyed by the item to rewrite: the later of the two when
  * a stem prints an answer (whole, or a key term on the same idea), the MCQ when its key is a written
@@ -171,6 +190,10 @@ function leaks(all) {
         const given = norm(b.item.answer);
         if ((given.includes(ans) || terms.some((t) => hasWord(given, t))) && sharedIdeas(a, b) >= 2) {
           add(a.n, b.n, `its key ("${raw}") gives away the answer to Q${b.n}`);
+          return;
+        }
+        if (optionsListed(a, given) >= 2) {
+          add(a.n, b.n, `its options list the answer to Q${b.n}`);
           return;
         }
       }
@@ -210,6 +233,8 @@ function paperIssues(examJson, { grade, lessonTitle } = {}) {
     const len = lengthIssue(e, band);
     if (len) add(...len);
     optionIssues(e).forEach((o) => add(...o));
+    const parts = partLevelsIssue(e);
+    if (parts) add('part-levels', parts);
     if (leaked.has(e.n)) {
       const { text, avoid } = leaked.get(e.n);
       out.push({ n: e.n, check: 'cross-leak', text, avoid: [...avoid].sort((x, y) => x - y) });

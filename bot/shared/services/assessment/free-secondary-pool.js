@@ -5,7 +5,7 @@
  * the subset with the fewest flagged items: greedily, the MCQ with the most problems (its own, plus
  * the times another item is flagged for overlapping it) is dropped, a tie going to the one whose key
  * letter is most common (the latest such), until the plan count is left. The targeted rewrite then
- * works on what remains. Pure: `issuesOf` is the paper check, passed in.
+ * works on what remains, and swapLeaks puts a dropped MCQ (a spare) in place of one still leaking. Pure: `issuesOf` is the paper check, passed in.
  */
 
 const { items } = require('./free-secondary-checks');
@@ -52,6 +52,7 @@ function scores(examJson, issuesOf) {
 /** Drops section MCQs until `keep` are left, the most-flagged first. Mutates the paper. */
 function select(examJson, keep, issuesOf) {
   let dropped = 0;
+  const spares = [];
   for (let mcqs = sectionMcqs(examJson); mcqs.length > keep; mcqs = sectionMcqs(examJson)) {
     const score = scores(examJson, issuesOf);
     const letters = new Map();
@@ -62,9 +63,34 @@ function select(examJson, keep, issuesOf) {
       if (!worst || rank[0] > worst.rank[0] || (rank[0] === worst.rank[0] && rank[1] >= worst.rank[1])) worst = { ...m, rank };
     });
     worst.list.splice(worst.list.indexOf(worst.item), 1);
+    spares.push(worst.item);
     dropped += 1;
   }
-  return { dropped };
+  return { dropped, spares };
 }
 
-module.exports = { POOL_SHARE, poolTypes, select };
+/**
+ * An MCQ still flagged cross-leak after the rewrites (G7 a6 Q2 "Carbon dioxide" against Q5) is replaced
+ * by a spare from the pool, in its place, when that lowers the paper's problem count. A spare used is
+ * taken out of `spares`. Mutates the paper; returns how many MCQs were swapped.
+ */
+function swapLeaks(examJson, spares, issuesOf) {
+  let swapped = 0;
+  sectionMcqs(examJson).forEach(({ list, item }) => {
+    const n = (items(examJson).find((e) => e.item === item) || {}).n;
+    const issues = issuesOf(examJson);
+    if (!issues.some((i) => i.n === n && i.check === 'cross-leak')) return;
+    const at = list.indexOf(item);
+    const best = { count: issues.length, spare: null };
+    spares.forEach((spare) => {
+      list[at] = spare;
+      const count = issuesOf(examJson).length;
+      if (count < best.count) Object.assign(best, { count, spare });
+    });
+    list[at] = best.spare || item;
+    if (best.spare) { spares.splice(spares.indexOf(best.spare), 1); swapped += 1; }
+  });
+  return swapped;
+}
+
+module.exports = { POOL_SHARE, poolTypes, select, swapLeaks };

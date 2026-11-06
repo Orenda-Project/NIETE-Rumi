@@ -56,3 +56,17 @@ describe('scenarioParts', () => {
   });
 });
 
+
+describe('oneDigitSystem (G8 a6 Q1-2: Urdu digits in the options, Western in the chrome)', () => {
+  it('prints every digit of an Urdu paper in the Western digits its chrome uses', () => {
+    const q1 = { question: 'عبدالستار ایدھی کس سن میں پیدا ہوئے؟', options: ['الف) ۱۹۲۶ء', 'ب) ۱۹۲۷ء', 'ج) ۱۹۲۸ء', 'د) ۱۹۲۹ء'], answer: 'ج) ۱۹۲۸ء', marks: 1 };
+    const q6 = { question: 'سوال', answer: 'سن ٢٠١٦ میں', marks: 3, marking_points: [{ point: '۲ اعزازات', marks: 3 }] };
+    const exam = { unseen: { objective: { MCQs: [q1] }, subjective: { 'Short Answers': [q6] } } };
+    expect(T.oneDigitSystem(exam)).toBe(7);
+    expect(q1.options).toEqual(['الف) 1926ء', 'ب) 1927ء', 'ج) 1928ء', 'د) 1929ء']);
+    expect(q1.answer).toBe('ج) 1928ء');
+    expect(q6.answer).toBe('سن 2016 میں');
+    expect(q6.marking_points[0].point).toBe('2 اعزازات');
+    expect(T.oneDigitSystem(exam)).toBe(0);
+  });
+});

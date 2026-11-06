@@ -63,15 +63,35 @@ describe('free-secondary generateExam', () => {
     expect(science.examJson._paperLang).toBeUndefined();
   });
 
-  it('sizes 7/7/6 to its time keeping the asked mix (G7 a5: not 16/3/1), and asks for the sized count', async () => {
+  it('keeps the requested 20 items for 7/7/6 (a7 ruling on A5e): MCQs as asked, extended answers become short, lighter marks', async () => {
     mockCreate.mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS }))));
     const out = await Svc.generateExam(ARGS);
     const counts = out.plan.questionTypes.map((t) => [t.id, t.count]);
-    expect(counts).not.toEqual([['mcq', 16], ['srq', 3], ['erq', 1]]);
-    expect(counts).toEqual([['mcq', 3], ['srq', 3], ['erq', 2]]);
-    const user = mockCreate.mock.calls[0][0].messages[1].content;
-    expect(user).not.toMatch(/\b2[01]\b/);
-    expect(user).toMatch(/\b9\b/);
+    expect(counts).toEqual([['mcq', 7], ['srq', 12], ['erq', 1]]);
+    const [system, user] = mockCreate.mock.calls[0][0].messages.map((m) => m.content);
+    expect(user).toMatch(/\b23\b/);
+    expect(system).toMatch(/Short answer 2 marks/);
+  });
+
+  it('logs a paper whose load runs over the band by more than 20%, and prints its real time', async () => {
+    const { logToFile } = require('../../bot/shared/utils/logger');
+    const long = short({ marking_points: POINTS, answer: Array(700).fill('word').join(' ') });
+    mockCreate.mockResolvedValueOnce(reply(draft(long)));
+    const out = await Svc.generateExam(ARGS);
+    expect(out.examJson._timeMinutes).toBeGreaterThan(72);
+    const done = logToFile.mock.calls.filter(([m]) => m === '[assessment] generated (grades 6-12 free)').pop()[1];
+    expect(done).toMatchObject({ overBand: true });
+  });
+
+  it('prints an Urdu paper in one digit system, the Western digits of its chrome (G8 a6 Q1-2)', async () => {
+    const d = draft(short({ marking_points: POINTS }));
+    d.unseen.objective['Multiple Choice Questions'][0] = { question: 'وہ کس سن میں پیدا ہوئے؟', marks: 1, lines: 0,
+      options: ['الف) ۱۹۲۶ء', 'ب) ۱۹۲۷ء', 'ج) ۱۹۲۸ء', 'د) ۱۹۲۹ء'], answer: 'ج) ۱۹۲۸ء' };
+    mockCreate.mockResolvedValueOnce(reply(d));
+    const out = await Svc.generateExam({ ...ARGS, grade: 8, subject: 'urdu' });
+    const text = JSON.stringify(out.examJson);
+    expect(text).not.toMatch(/[۰-۹٠-٩]/);
+    expect(text).toContain('1928ء');
   });
 
   it('marks the paper so its answer key prints each item\'s thinking level', async () => {
