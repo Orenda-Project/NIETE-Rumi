@@ -204,7 +204,6 @@
           "families": null,
           "kinds": null,
           "prompt_rule": "One item: `question` = a topic from chapter 8 or 9 in quotes (e.g. «پاکستان کے طبعی خدوخال»); the child draws the chart; `answer` = the boxes in order with an example under each.",
-          "topic_line_ur": "«{q}»: چارٹ میں عنوان، چار خانے، ہر خانے کے نیچے ایک مثال اور خانوں کو جوڑنے والے تیر بنائیں۔",
           "frame": null,
           "teacher_note_en": null,
           "teacher_note_ur": null,

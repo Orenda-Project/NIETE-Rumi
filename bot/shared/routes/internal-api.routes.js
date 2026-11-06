@@ -1486,7 +1486,7 @@ router.post('/lp/open-survey', requireInternalKey, async (req, res) => {
 // by a test, the same way the LP catalogue is.
 
 /**
-* G6-12 grade gate (contract 1 §3). The settings are read only when a grade >= 6 is in play, so a
+ * G6-12 grade gate (contract 1 §3). The settings are read only when a grade >= 6 is in play, so a
  * G1-5 request reads nothing more than it did before (A/grade-gate.js never looks at G1-5).
  */
 const GradeGate = require('../services/assessment/grade-gate');
