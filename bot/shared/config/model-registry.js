@@ -400,6 +400,8 @@ const JSON_REPAIRED_BY_CALLER = Object.freeze({
   'vision.analyse': 'whole',             // classroom-photo/photo-analysis.service.js parseJsonObject: JSON.parse, then jsonrepair (bd-gr4fy.5.7)
   'coaching.fidelityFallback': 'span',   // gpt5-mini.service.js: /\{[\s\S]*\}/, then _safeJsonParse
   'lp.extractText': 'span',              // workers/lesson-plan-extraction.worker.js: same span, then repair
+  'assessment.generate.fde': 'span',     // assessment-generation.service.js _writeSection: extractJsonFromResponse (Amena 2026-11-06)
+  'assessment.generate': 'span',         // same writer, same extractJsonFromResponse
 });
 
 /**
