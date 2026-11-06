@@ -128,7 +128,7 @@ describe('an internal-OR section topped up', () => {
       if (section.id !== 'B') return undefined;
       const full = buildReply(section.slots, ctx, state);
       const list = full['B.Q1-6'].map(orOf);
-      return { ...full, 'B.Q1-6': topUp ? list.slice(5) : list.slice(0, 5) };
+      return { ...full, 'B.Q1-6': topUp ? list.slice(0, 1) : list.slice(0, 5) }; // round 4: the top-up is asked for 2, writes 1
     };
     const { d, calls } = makeDeps({ ...ctx, reply });
     d.topUp = () => { throw new Error('the board writer must not use the G1-2 top-up'); };

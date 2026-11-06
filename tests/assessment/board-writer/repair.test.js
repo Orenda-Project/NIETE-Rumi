@@ -42,7 +42,7 @@ describe('board writer repair round', () => {
   test('the re-check is told which items are the replacements', async () => {
     const seen = [];
     const { d } = makeDeps({ ...cell, levels: TOS.levels, reply: leakOnce() });
-    d.checks = { run: (ex, ctx) => { seen.push(ctx.fresh); return Checks.run(ex, ctx); } };
+    d.checks = { run: (ex, ctx) => { if (!ctx.probe) seen.push(ctx.fresh); return Checks.run(ex, ctx); } }; // a trim probe is not a check of the paper
     await writeBoardPaper({ grade: 9, subject: 'physics', pattern: 'p', P: cell.P, variant: cell.variant }, d);
     expect(seen).toHaveLength(2);
     expect(seen[0]).toBeUndefined();
