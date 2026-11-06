@@ -21,8 +21,13 @@
  * or quantity key ("20 m/s", "9.8 m/s^2") in another item's stem is soft (board papers give g as data); a concept
  * phrase stays hard. The blame is always on the item whose stem carries the text, never the keyed item, fresh or
  * not. usedKeys() gives the repair ask the numeric and multi-word keys already in the paper.
+ * ROUND 6 (board only): refs are the shared walk's (walk.js), the form the registry maps to ids, so a stimulus child's
+ * issue can be dropped. Leading determiners and pronouns are set aside from a key before comparing ("Its
+ * acceleration" -> "acceleration"). A concept key in another SECTION's stem is soft; in the same section it stays hard
+ * and the issue names the keyed item (`keyed_ref`) and the `phrase`, for the writer's second rewrite.
  */
-const { leaves } = require('./_walk-local');
+const { leaves: localLeaves } = require('./_walk-local');
+const W = require('./walk');
 const { childFields } = require('./_child-view');
 const { fold, stripLabel, tokens, str, issue, excerpt } = require('./_text-norm');
 
@@ -36,6 +41,17 @@ const CALC = /\b(?:calculate|compute|find|work out|determine|evaluate|how (?:muc
 const SIGNED = /[+\-\u2212]\s*\d[\d./]*/g;
 const signedOf = (s) => (fold(s).replace(/\u2212/g, '-').match(SIGNED) || []).map((x) => x.replace(/\s+/g, ''));
 const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
+const LEAD = /^\s*(?:its|the|a|an|his|her|their)\s+/i; // design_pending: the coordinator's list (round 6)
+const bareKey = (key) => (key ? key.replace(LEAD, '') : key);
+// design_pending (board seat to confirm): FBISE collects the Section A objective sheet before Sections B and C are
+// written, so a key quoted in another section's stem cannot help the student; such a leak is soft.
+const crossSection = (a, b) => !!(a.sectionId && b.sectionId && a.sectionId !== b.sectionId);
+
+/** The local walker's leaves (stimulus text, slot row) under the shared walk's refs (one ref form for the registry). */
+function leaves(examJson) {
+  const refs = new Map(W.leaves(examJson).map((l) => [l.item, l.ref]));
+  return localLeaves(examJson).map((n) => (refs.has(n.item) ? { ...n, ref: refs.get(n.item) } : n));
+}
 
 function mcqKey(it) {
   const ans = str(it.answer).trim();
@@ -95,14 +111,15 @@ function n18(ls, board) {
   });
   const out = [];
   views.forEach((v, i) => {
-    const key = keyOf(v.n.item);
+    const key = board ? bareKey(keyOf(v.n.item)) : keyOf(v.n.item);
     if (!key || !searchable(key)) return;
     const needle = padded(key);
     if (v.own.includes(needle) && signsIn(key, v.ownRaw)) { out.push(leak(v.n, key, 'its own stem', !(givenData(key) && CALC.test(v.ownRaw)))); return; }
     const reuseOk = board && Array.isArray(v.n.item.options) && v.n.item.options.length > 1; // an MCQ key
     const other = views.find((w, j) => j !== i && (reuseOk ? w.noOptions : w.all).includes(needle) && signsIn(key, reuseOk ? w.noOptionsRaw : w.allRaw));
     if (!other || (board && unitOnly(key))) return;
-    out.push(leak(other.n, key, `the key of ${v.n.ref}`, !((reuseOk && vocabulary(key)) || (board && quantity(key)))));
+    const soft = (reuseOk && vocabulary(key)) || (board && (quantity(key) || crossSection(v.n, other.n)));
+    out.push({ ...leak(other.n, key, `the key of ${v.n.ref}`, !soft), ...(board ? { keyed_ref: v.n.ref, phrase: key.trim() } : {}) });
   });
   return out;
 }

@@ -96,10 +96,12 @@ function chunkNote(chunk, used = []) {
 }
 
 /** Round 5: one targeted rewrite of items the checks removed; nothing new is asked for the slot. */
-function rewriteNote(rows, stems = [], used = []) {
+function rewriteNote(rows, stems = [], used = [], phrases = []) {
   const list = rows.map((r) => `${r.slot} (rewrite ${r.write})`).join('; ');
   const lines = [`REWRITE: some items failed the checks and were removed. Write replacements only, same rules: ${list}.`];
   if (stems.length) lines.push(`Do not reuse these stems: ${stems.map((x) => `"${x}"`).join('; ')}`);
+  // round 6: the keyed item's second rewrite; these phrases already sit in other stems of the section
+  if (phrases.length) lines.push(`Do not use these phrases: ${phrases.map((x) => `"${x}"`).join('; ')} (not as a key, an option or in a stem).`);
   if (used.length) lines.push(usedLine(used));
   return lines.join('\n');
 }
