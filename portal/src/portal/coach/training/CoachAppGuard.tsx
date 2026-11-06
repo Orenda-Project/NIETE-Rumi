@@ -8,6 +8,7 @@ import { useChildTestSa } from "../../lib/useChildTestSa";
 import { isCoachV2For, useCoachV2 } from "../useCoachV2";
 import { coachPathReady, coachReadyFor, coachReadyHome } from "./appReady";
 import { useSchoolCard } from "../card/useSchoolCard";
+import { useCoachFullApp } from "./useCoachFullApp";
 
 /**
  * bd-s42dye.2 — the ONE guard around the route table for a coach on the coach app v2: any page that is not one of the
@@ -16,6 +17,9 @@ import { useSchoolCard } from "../card/useSchoolCard";
  * page that is not ready sees the frame's outline, not the old page.
  *
  * The Learning assessment (/portal/leader/assess) also opens for a v2 coach while portal_child_test_sa is on.
+ *
+ * bd-jjcofw — with portal_coach_full_app on for her (features.coachFullApp), Schedule and Observe are ready too
+ * (coachReadyFor). Off or unreadable: nothing here changes.
  *
  * Like AnalyticsOnlyGuard it reads the user the app already holds and never asks for it.
  */
@@ -31,11 +35,13 @@ const CoachAppGuard = ({ children }: { children: ReactNode }) => {
   const assess = useChildTestSa(isCoach && onAssess);
   // The School card switch (fail-closed): on, the slim Home is her landing page and the School card pages open.
   const schoolCard = useSchoolCard(user?.phoneNumber || null, isCoach);
+  // bd-jjcofw — the full coach app switch (fail-closed): on for a listed tester, Schedule and Observe open too.
+  const fullApp = useCoachFullApp(user?.phoneNumber || null, isCoach);
   if (!isCoach || coachPathReady(pathname)) return <>{children}</>;
   if (flag === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
   if (!isCoachV2For(user, flag)) return <>{children}</>;
-  if (schoolCard === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
-  const ready = coachReadyFor(schoolCard);
+  if (schoolCard === null || fullApp === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
+  const ready = coachReadyFor(schoolCard, fullApp);
   if (coachPathReady(pathname, ready)) return <>{children}</>;
   if (onAssess && assess === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
   if (onAssess && assess) return <>{children}</>;

@@ -30,11 +30,11 @@ beforeEach(() => {
 });
 
 describe("the pending banner", () => {
-  it("two waiting: amber, 56px+, '2 reports waiting', above the header, opens Reports filtered to waiting", async () => {
+  it("two waiting: amber, 56px+, '2 observations need you', above the header, opens Reports filtered to waiting", async () => {
     C.getPending.mockResolvedValue({ success: true, waiting: 2, ids: ["a", "b"] });
     at("/portal/coach/x", <CoachPage title="Schedule" backTo="/portal/coach"><p>body</p></CoachPage>);
     const banner = await screen.findByTestId("pending-banner");
-    expect(banner).toHaveTextContent("2 reports waiting");
+    expect(banner).toHaveTextContent("2 observations need you");
     expect(banner).toHaveAttribute("href", "/portal/coach/reports?show=waiting");
     expect(banner.className).toMatch(/bg-\[#fef3c7\]/);
     expect(banner.className).toMatch(/text-\[#b45309\]/);
@@ -47,7 +47,7 @@ describe("the pending banner", () => {
     C.getPending.mockResolvedValue({ success: true, waiting: 1, ids: ["a"] });
     at("/portal/coach/x", <CoachPage title="Home"><p>body</p></CoachPage>);
     const banner = await screen.findByTestId("pending-banner");
-    expect(banner).toHaveTextContent("1 report waiting");
+    expect(banner).toHaveTextContent("1 observation needs you");
     expect(banner).toHaveAttribute("href", "/portal/coach/observation/a");
   });
 
@@ -97,6 +97,6 @@ describe("Reports filtered to waiting", () => {
     expect(screen.getByText("T w2")).toBeInTheDocument();
     expect(screen.queryByText("T p1")).toBeNull();
     expect(screen.queryByText("T s1")).toBeNull();
-    expect(screen.getByRole("link", { name: "All reports" })).toHaveAttribute("href", "/portal/coach/reports");
+    expect(screen.getByRole("link", { name: "All observations" })).toHaveAttribute("href", "/portal/coach/reports");
   });
 });
