@@ -78,9 +78,12 @@ function userPrompt({ content, pageReference, note }) {
   return note ? `${head}\n\n${note}` : head;
 }
 
-function topUpNote(short) {
+/** `used` (the repair round): keys already in the paper, which a new stem or stimulus must not state. */
+function topUpNote(short, used = []) {
   const rows = short.map((r) => `${r.slot} (have ${r.have}, need ${r.need})`).join('; ');
-  return `TOP-UP: the first reply was short. Write only the missing items for these slots, same rules: ${rows}.`;
+  const head = `TOP-UP: the first reply was short. Write only the missing items for these slots, same rules: ${rows}.`;
+  if (!used.length) return head;
+  return `${head}\nDo not state any of these answers in a new stem or stimulus; they are already keys in this paper: ${used.map((k) => `"${k}"`).join('; ')}`;
 }
 
 module.exports = { earlierStems, levelTally, promptValues, userPrompt, topUpNote };

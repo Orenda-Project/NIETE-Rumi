@@ -17,6 +17,7 @@ const SP = require('./board-6-12/section-prompt');
 const T = require('./board-6-12/tree');
 const { normaliseBoardScheme } = require('./board-6-12/scheme');
 const { settleKeys } = require('./board-6-12/mcq-keys');
+const { usedKeys } = require('./board-checks/key-leak');
 
 const SHORT_MESSAGE = 'A section is still short of questions after one more try.';
 
@@ -88,12 +89,14 @@ async function writeBoardPaper(args, d) {
   }
 
   // 2. Layout, then the checks in board mode.
-  const finish = (ex) => {
+  const ids = (ex) => T.leavesOf(ex).map((l) => l.id);
+  const finish = (ex, before) => {
     T.trimExcess(ex, allSlots);
     T.stamp(ex, allSlots, (item) => d.stampSlo(grade, subject, item));
+    const fresh = before ? new Set(ids(ex).filter((id) => !before.has(id))) : undefined; // the repair's replacements
     ex._layout = nested(buildLayout(P, V, ex, { presetId: pattern }), V.total_marks);
     settleKeys(ex); // D13 key letters and numeric order are settled by code, not left to the model
-    const checks = d.checks.run(ex, { P, variant: V, mode: 'board', subjectConfig: row });
+    const checks = d.checks.run(ex, { P, variant: V, mode: 'board', subjectConfig: row, fresh });
     ex._layout.checks = checks.record;
     return checks;
   };
@@ -101,17 +104,20 @@ async function writeBoardPaper(args, d) {
   let checks = finish(ex);
 
   // 3. One repair round: a hard item is dropped and its slot asked for once more; a slot already asked fails.
+  // The ask is told the keys already in the paper; the re-check blames a replacement, not the old item it collides with.
   if (checks.shortfall.length) {
     T.dropIds(ex, new Set(checks.shortfall.flatMap((r) => r.items)));
     const short = T.shortfallOf(ex, allSlots);
     if (short.some((r) => toppedUp.has(r.slot))) throw shortError(short, ex);
+    const before = new Set(ids(ex));
+    const used = usedKeys(ex);
     for (const unit of unitsOf(V)) {
       const mine = short.filter((r) => unit.slots.some((s) => s.slot === r.slot));
       if (!mine.length) continue;
-      const second = await ask(unit, trees, SP.topUpNote(mine));
+      const second = await ask(unit, trees, SP.topUpNote(mine, used));
       ex = T.topUp(ex, second.tree, new Set(mine.map((r) => r.slot)));
     }
-    checks = finish(ex);
+    checks = finish(ex, before);
     if (checks.shortfall.length) throw shortError(checks.shortfall, ex);
   }
 
