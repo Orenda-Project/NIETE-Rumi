@@ -1,0 +1,2 @@
+{"ts":"2026-11-06T06:31:15Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,child-test spec_sync=true","sha":"a3de49e3fecc","branch":"bd-rj6w0n.14.16-43335","user":""}
+{"ts":"2026-11-06T06:31:20Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-rj6w0n.14.16-43335: lesson-plan spec: NOT UPDATED e2e: missing;language spec: NOT UPDATED e2e: missing","sha":"a3de49e3fecc","branch":"bd-rj6w0n.14.16-43335","user":""}
