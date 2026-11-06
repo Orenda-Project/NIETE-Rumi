@@ -110,12 +110,58 @@ const ASSESSMENT_BOOK_SUBJECT = {
  */
 function assessmentOffered(grade, subject, bookKeys) {
   if (!Array.isArray(bookKeys)) return true;
+  if (!gradeCovered(grade, bookKeys)) return false;
   if (!(Number(grade) >= 1 && Number(grade) <= 5)) return true;
   const subjectKey = ASSESSMENT_BOOK_SUBJECT[String(subject || '').trim().toLowerCase()];
   if (!subjectKey) return false;
   const Catalog = require('./lp-v8-catalog.service');
   const book = Catalog.bookFor(Number(grade), subjectKey, null);
   return Boolean(book && bookKeys.includes(book.book_key || book.stem));
+}
+
+/** The grade a book key is for: the catalog's own grade, else the key's `grade_7_` / `gb_g7_` prefix. */
+function gradeOfKey(key) {
+  const Catalog = require('./lp-v8-catalog.service');
+  const book = Catalog.catalog().books.find((b) => (b.book_key || b.stem) === key);
+  if (book) return Number(book.grade);
+  const m = /^(?:grade_(\d{1,2})_|[a-z]+_g(\d{1,2})_)/.exec(String(key || ''));
+  return m ? Number(m[1] || m[2]) : null;
+}
+
+/**
+ * Does her book list cover this grade (operator, 6 Nov)? No list covers every grade, as today. A list covers
+ * exactly the grades of its books: GB names Grades 1-5 books only (its Afaq books for 6+ are not ready), so a GB
+ * teacher of Grade 6+ gets no lesson plans, no question papers and no book features — and is told so
+ * (gradeNotCoveredMessage), never handed ICT's books instead.
+ */
+function gradeCovered(grade, bookKeys) {
+  if (!Array.isArray(bookKeys)) return true;
+  const g = Number(grade);
+  return bookKeys.some((k) => gradeOfKey(k) === g);
+}
+
+const UR_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
+const urDigits = (s) => String(s).replace(/[0-9]/g, (d) => UR_DIGITS[Number(d)]);
+
+/** The polite refusal, in her language: kind 'lp' (lesson plans) or 'exam' (question papers). Urdu digits in Urdu. */
+function gradeNotCoveredMessage(kind, grade, language) {
+  const { resolveUx, clampLanguage } = require('../config/ux-strings');
+  const lang = clampLanguage(language);
+  const key = kind === 'exam' ? 'examGradeNotForRegionBooks' : 'lpGradeNotForRegionBooks';
+  return resolveUx(key, { language: lang, params: { grade: lang === 'ur' ? urDigits(grade) : String(grade) } });
+}
+
+/** Her stored language (users.preferred_language), or null. Never throws. Teacher-addressed text reads it now. */
+async function languageForUser(userId, { client } = {}) {
+  if (!userId) return null;
+  try {
+    const { data, error } = await (client || defaultClient()).from('users').select('preferred_language').eq('id', userId).maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data && data.preferred_language) || null;
+  } catch (err) {
+    logToFile('[teacher-books] users.preferred_language unreadable', { userId, error: err && err.message });
+    return null;
+  }
 }
 
 function _clearCache() {
@@ -126,6 +172,9 @@ module.exports = {
   bookKeysForRegion,
   bookKeysForUser,
   assessmentOffered,
+  gradeCovered,
+  gradeNotCoveredMessage,
+  languageForUser,
   ASSESSMENT_BOOK_SUBJECT,
   _clearCache,
 };

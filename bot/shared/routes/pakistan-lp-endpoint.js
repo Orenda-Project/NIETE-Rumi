@@ -270,6 +270,16 @@ async function selectGrade(screenData, flowToken) {
   if (!gradeStr) return { data: { error: { message: 'Please select a class.' } } };
   const grade = parseInt(gradeStr, 10);
 
+  // bd-97daxo.4 (operator, 6 Nov) — her region's book list also says which grades she has books for. A grade
+  // it does not cover (GB: 6+, and any Grade 1-5 with no GB book yet) is told so, politely and in her language,
+  // rather than handed ICT's books or the Oxbridge picker. No list (every ICT teacher): nothing changes.
+  const userId = userIdFrom(flowToken);
+  const bookKeys = await TeacherBooks.bookKeysForUser(userId);
+  if (!TeacherBooks.gradeCovered(grade, bookKeys)) {
+    const language = await TeacherBooks.languageForUser(userId);
+    return { data: { error: { message: TeacherBooks.gradeNotCoveredMessage('lp', grade, language) } } };
+  }
+
   // ── v8 corpus (grades 1-5), with the LEGACY corpus as the fallback ────
   // Grades 1-5 are served by pre_generated_lps TODAY. Until the v8 uploader has
   // run there are zero niete_lp_assets rows, so replacing this path outright
@@ -280,10 +290,7 @@ async function selectGrade(screenData, flowToken) {
   // will be told there are no lessons for her class: this is the operator's
   // switch, not a recommendation, and the default keeps her on the K-5 v8 corpus.
   if (isV8Grade(grade) && !lp612ServesGrade(grade)) {
-    const [available, bookKeys] = await Promise.all([
-      V8Delivery.availableLessonIds(),
-      TeacherBooks.bookKeysForUser(userIdFrom(flowToken)),
-    ]);
+    const available = await V8Delivery.availableLessonIds();
     const items = V8Catalog.buildSubjectItems(grade, available, bookKeys);
     if (items.length) {
       return {
