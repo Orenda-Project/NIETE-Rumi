@@ -58,7 +58,8 @@ function chaptersFor(grade, code) {
 
 /**
  * The official SLOs of a stamp cell as the board prompt's {slo_list}: "<code> (<level>) <gist>" per line; '' when none.
- * With a chapter that the matrix lists, that chapter's own codes follow: "This chapter (ch N):" then "<code> — <desc>".
+ * With a chapter that the matrix lists, that chapter's official codes follow ("This chapter (ch N):" then "<code> — <desc>"),
+ * then its matrix LO / book entries as "- <desc>" lines, never as codes.
  */
 function listFor(grade, code, chapter = null) {
   const map = mapFor(grade, code);
@@ -66,7 +67,15 @@ function listFor(grade, code, chapter = null) {
   const ch = chapter == null ? null : chaptersFor(grade, code);
   const own = ch && ch.chapters && ch.chapters[String(Number(chapter))];
   if (!Array.isArray(own) || !own.length) return base;
-  const lines = [`This chapter (ch ${Number(chapter)}):`, ...own.map((x) => `${x.code} — ${x.desc}`)].join('\n');
+  const n = Number(chapter);
+  const codes = own.filter((x) => x.kind === 'official');
+  // matrix LO / book codes are not board codes: the stamp cannot map them, so a model that copies one leaves the
+  // item untagged (a live G11 chemistry paper lost 29 tags this way). They go in as descriptions only.
+  const descs = [...new Set(own.filter((x) => x.kind !== 'official').map((x) => x.desc).filter(Boolean))];
+  const out = [];
+  if (codes.length) out.push(`This chapter (ch ${n}):`, ...codes.map((x) => `${x.code} — ${x.desc}`));
+  if (descs.length) out.push(`This chapter (ch ${n}) teaches (descriptions, not codes):`, ...descs.map((d) => `- ${d}`));
+  const lines = out.join('\n');
   return base ? `${base}\n${lines}` : lines;
 }
 

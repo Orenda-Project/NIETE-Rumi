@@ -73,4 +73,13 @@ describe('board renderers read the writer tree', () => {
     const view = View.sections(writerShape()).flatMap((e) => e.questions);
     expect(view.find((q) => /Passage 1 item 1:/.test(q.text)).number).toBe(41);
   });
+  test('passage labels the model wrote ("Passage 1, 2, 4, 1, 2" after drops) print as 1..5 in slot order', () => {
+    const exam = writerShape();
+    const groups = exam.unseen.objective.scenario;
+    [1, 2, 4, 1, 2].forEach((n, g) => { groups[g].stimulus.text = `Passage ${n}. Made-up track story ${g + 1}.`; });
+    const html = renderBoardPaper(exam);
+    const labels = (html.match(/Passage \d+\. Made-up track story \d/g) || []);
+    expect(labels).toEqual([1, 2, 3, 4, 5].map((k) => `Passage ${k}. Made-up track story ${k}`));
+    expect(renderBoardScheme(exam)).not.toMatch(/Passage 4\. Made-up track story 3/);
+  });
 });
