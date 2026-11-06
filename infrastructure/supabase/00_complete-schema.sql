@@ -3445,7 +3445,7 @@ CREATE TABLE IF NOT EXISTS region_features (
     display_name TEXT,
     sort_order INTEGER,
     is_active BOOLEAN NOT NULL DEFAULT true,
-    -- V1.8.12 (bd-97daxo.4): the Grade 1-5 books this region's teachers use, as lp_catalog.json book keys.
+    -- V1.9.2 (bd-97daxo.4): the Grade 1-5 books this region's teachers use, as lp_catalog.json book keys.
     -- NULL = the default ICT list (every catalog book not marked opt_in).
     book_keys TEXT[]
 );
