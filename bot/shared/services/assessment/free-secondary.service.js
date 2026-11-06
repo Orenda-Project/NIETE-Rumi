@@ -90,7 +90,8 @@ async function generateExam(args) {
   const base = BASE_SUBJECT[String(subject || '').trim().toLowerCase()] || subject;
   const family = familyOf(grade, subject, base);
   if (typeof ensureCurrent === 'function') await ensureCurrent();
-  const model = resolveModelForJob(JOB, { cfg: configForRequest(), family }).model;
+  const cfg = configForRequest() || {};
+  const model = resolveModelForJob(JOB, { cfg, family }).model;
   const ownModel = resolveModelForJob(JOB, { family }).model;
 
   const sized = Rules.sizeTypes(questionTypes, grade);
@@ -166,7 +167,13 @@ async function generateExam(args) {
   // The review runs on a registered job of another model family than the writer, so it does not share the
   // writer's blind spots (quiz.keyVerify for a Gemini writer, lp.fidelity for a Claude one), with the
   // writer's model as the fallback; on the writer's own job and model when no such job resolves. MCQs only.
-  const reviewer = Review.pickReviewer(model, REVIEWER_JOBS.map((job) => ({ job, model: resolveModelForJob(job).model })));
+  // Families are compared on the models in force: a per-job settings row moves a job in the client.
+  const inForce = (job, site) => {
+    const row = !cfg.killSwitch && cfg.perJob && cfg.perJob[job];
+    return typeof row === 'string' && row.includes('/') ? row : site;
+  };
+  const reviewer = Review.pickReviewer(inForce(JOB, model),
+    REVIEWER_JOBS.map((job) => ({ job, model: inForce(job, resolveModelForJob(job).model) })));
   const reviewCall = reviewer ? { model: reviewer.model, job: reviewer.job, fallbackModel: model }
     : { model, job: JOB, ...(model !== ownModel ? { fallbackModel: ownModel } : {}) };
   logToFile('[assessment] distractor review model', { job: reviewCall.job, model: reviewCall.model });

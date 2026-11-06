@@ -216,6 +216,22 @@ describe('free-secondary generateExam', () => {
     expect(out.rewritten).toEqual([]);
   });
 
+  it('compares families on the models the settings put in force: with writer and reviewers all moved to one family it reviews on its own job', async () => {
+    const SONNET = 'anthropic/claude-sonnet-5';
+    let Moved;
+    jest.isolateModules(() => {
+      jest.doMock('../../bot/shared/config/model-settings', () => ({
+        ensureCurrent: async () => {},
+        configForRequest: () => ({ perJob: { 'assessment.generate': SONNET, 'quiz.keyVerify': SONNET, 'lp.fidelity': SONNET } }),
+      }));
+      Moved = require('../../bot/shared/services/assessment/free-secondary.service');
+    });
+    mockCreate.mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS })))).mockResolvedValueOnce(NO_REVIEW);
+    await Moved.generateExam(ARGS);
+    expect(mockCreate.mock.calls[1][0].job).toBe('assessment.generate');
+    jest.dontMock('../../bot/shared/config/model-settings');
+  });
+
   it('reviews the distractors in one small call and rewrites an MCQ with a distractor rated 1', async () => {
     const silly = () => { const d = draft(short({ marking_points: POINTS })); d.unseen.objective['Multiple Choice Questions'][0].options[2] = 'c) A banana'; return d; };
     mockCreate.mockResolvedValueOnce(reply(silly()))
