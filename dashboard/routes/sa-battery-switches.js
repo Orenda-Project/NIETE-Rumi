@@ -83,6 +83,13 @@
  *   sa_r10_urdu_fit         layout 1: an Urdu word sits centred in its button or bubble, the whole Nastaliq glyph inside.
  *   sa_r10_number_fit       layout 2: maths numbers are sized to the space they have (a 3-digit number as large as it fits).
  *
+ *   Round 10 (the reviewers' 6 Nov list), Jugnu's voice (dashboard/sa/sa-voice.js), each ON adds battery.ui.r10_<flag> = true:
+ *   sa_r10_bigger_audio     audio 3 ("Which is bigger" silent): Jugnu speaks through his own elements, unlocked by the
+ *                           child's taps, so a line that starts with no tap behind it (a screen that moves on by itself) is
+ *                           no longer refused by an Android in-app browser; a refused clip is kept as voice_held.
+ *   sa_r10_practice_gap     audio 4 (a break before the right answer): a practice task's answers are loaded before they are
+ *                           said, so the answer starts as "The answer is:" ends (brings sa_r10_bigger_audio's elements with it).
+ *
  * Pure: applySwitches(battery, on) never changes its input.
  */
 const SWITCHES = {
@@ -112,6 +119,8 @@ const SWITCHES = {
   // round 10
   r10HintOnce: 'sa_r10_hint_once', r10PracticeNext: 'sa_r10_practice_next', r10UrduFit: 'sa_r10_urdu_fit',
   r10NumberFit: 'sa_r10_number_fit',
+  // round 10 (Jugnu's voice)
+  r10BiggerAudio: 'sa_r10_bigger_audio', r10PracticeGap: 'sa_r10_practice_gap',
 };
 const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual', voiceGateV2: 'voice_gate_v2',
   compAllQuestions: 'comp_all_questions', cellPace: 'cell_pace',
@@ -127,7 +136,8 @@ const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManu
   r8IosMic: 'r8_ios_mic', r9Audio: 'r9_audio',
   r9QuestionTime: 'r9_question_time', r9CompText: 'r9_comp_text', r9ScrollCue: 'r9_scroll_cue',
   r9SkipInstructions: 'r9_skip_instructions',
-  r10HintOnce: 'r10_hint_once', r10PracticeNext: 'r10_practice_next', r10UrduFit: 'r10_urdu_fit', r10NumberFit: 'r10_number_fit' };
+  r10HintOnce: 'r10_hint_once', r10PracticeNext: 'r10_practice_next', r10UrduFit: 'r10_urdu_fit', r10NumberFit: 'r10_number_fit',
+  r10BiggerAudio: 'r10_bigger_audio', r10PracticeGap: 'r10_practice_gap' };
 const { applyR7a } = require('./sa-r7a-content');
 const { withCounts } = require('../../bot/shared/services/child-test/sa/counts');
 
