@@ -501,6 +501,8 @@
     // Round 9 item 7 (r9_scroll_cue): a scroll cue on any screen whose content runs past the bottom
     var r9Scroll = r7.r9_scroll_cue === true;
     var scrollCue = null; // { s, el, ro, type, phase, task, asked }: the cue of the screen on show
+    // Round 10 layout 2 (r10_number_fit): a maths number as large as its box allows, whatever its digits (numFit)
+    var r10Num = r7.r10_number_fit === true;
     var scrollSaid = {};  // screen types (phase, or running:<mode>) the cue line was said on
     var talk = null, talkN = 0; // r9Scroll: Jugnu's latest line, and how many are still playing
     // Round 10 audio 1 (r10_hint_once): the say-then-press hint is heard once per task, in the instruction; it stays on the
@@ -601,6 +603,15 @@
       window.addEventListener('scroll', function () { if (alive) scrollCheck(); }, true);
       window.addEventListener('resize', function () { if (alive) scrollCheck(); });
       el.addEventListener('load', function () { if (alive) scrollCheck(); }, true);
+    }
+    // Round 10 layout 2: a resize sizes the numbers again (before mnFit's own pass, which then fits them above the foot)
+    var numRefit = null;
+    if (r10Num && typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('resize', function () {
+        if (!alive) return;
+        clearTimeout(numRefit);
+        numRefit = later(function () { var s = el.querySelector('.sae-screen'); numFitOn(s); if (r8Mn) mnFit(s); }, 120);
+      });
     }
     // Round 8 item 30: a resize fits the missing number above the foot again
     if (r8Mn && typeof window !== 'undefined' && window.addEventListener) {
@@ -854,6 +865,7 @@
     if (r9Skip) el.classList.add('is-r9-skip'); // round 9 item 3 (sa.css "Round 9 item 3")
     // Round 9 item 7 (sa.css "Round 9 item 7": every rule under this class)
     if (r9Scroll) el.classList.add('is-r9-scroll');
+    if (r10Num) el.classList.add('is-r10-numfit'); // round 10 layout 2 (sa.css "Round 10 layout 2")
     // in the coach page's frame, under its corner hold (sa.css keeps the scrolling body below it)
     if (opts.ur_fit && opts.embed) el.classList.add('is-embed');
     // round 8 (items 25/26, r8_nudges): the speak / tap cue's styles (sa.css "Round 8")
@@ -942,7 +954,7 @@
     /** glyphs: the item's picture per option (a picture pattern): drawn large, the option's word as its caption. */
     function tiles(options, onPick, decorate, tl, t, glyphs) {
       var n = options.length;
-      var g = h('div', { class: 'sae-opts sa-tiles' + (n > 4 ? ' is-five' : ''), lang: tl, dir: tl === 'ur' ? 'rtl' : 'ltr' });
+      var g = h('div', { class: 'sae-opts sa-tiles' + (n > 4 ? ' is-five' : '') + (numTiles(options, t) ? ' is-r10-num' : ''), lang: tl, dir: tl === 'ur' ? 'rtl' : 'ltr' });
       options.forEach(function (o, i) {
         var pic = picOf(t, o);
         var gl = !pic && Array.isArray(glyphs) && typeof glyphs[i] === 'string' && glyphs[i] ? glyphs[i] : null;
@@ -1036,6 +1048,104 @@
         if (fs > MN_FS_MIN) { fs = Math.max(MN_FS_MIN, fs * 0.88); row.style.setProperty('--mn-fs', fs.toFixed(1) + 'px'); continue; }
         break;
       }
+    }
+    /**
+     * Round 10 layout 2 (r10_number_fit): a number on a maths screen is as large as its box allows. Today a card with
+     * one or two characters is drawn large (.is-short) and a longer one, a 3-digit number too, at about half that, room
+     * or not. ON, after drawing (and on a resize, and once the font has loaded), every number is set to the largest size
+     * that fits its box, measured:
+     *   - a card (a number or a sum): at most the size a 2-digit number has today, so a 3-digit number is as large as a
+     *     2-digit one unless the card is too narrow, and a 1-digit one is no larger than today;
+     *   - the choices (which is bigger, the missing number's): ONE size for the group, the largest that fits every tile,
+     *     so the bigger number never looks smaller;
+     *   - the missing number's row: one size for the row, the largest at which the whole row (its blank holding the
+     *     longest number it can be given) fits its width, at most the row's size today (mnFit still shrinks it when a
+     *     choice would sit under the foot).
+     * Text grows in proportion to its size, so one measurement at a known size gives the size that fits.
+     */
+    var NUM_FILL_W = 0.92, NUM_FILL_H_CARD = 0.9, NUM_FILL_H_TILE = 0.8, NUM_CAP_TILE = 160, NUM_CAP_ROW = 96, NUM_MIN = 20;
+    function isMaths(t) { return /^ma\./.test(String((t && t.id) || '')); }
+    function numTiles(options, t) {
+      return r10Num && isMaths(t) && Array.isArray(options) && options.length > 0 &&
+        options.every(function (o) { return /^[\d\u06F0-\u06F9\u0660-\u0669.,\s-]+$/.test(String(o)); });
+    }
+    /** The 2-digit card's size today (sa.css .sae-onecell.is-short: clamp(72px, 30vw, 160px)). */
+    function numCardCap() { return Math.min(160, Math.max(72, 0.3 * (window.innerWidth || 360))); }
+    function contentBox(n) {
+      var cs = getComputedStyle(n);
+      var pad = function (k) { var v = parseFloat(cs[k]); return v > 0 ? v : 0; };
+      return [n.clientWidth - pad('paddingLeft') - pad('paddingRight'), n.clientHeight - pad('paddingTop') - pad('paddingBottom')];
+    }
+    /**
+     * One size for every ink of the group: the largest (to `cap`) at which each fits its own box. The boxes are
+     * measured first, at the size the page gives the number, because a tile grows with what is in it; and a number
+     * that fits at that size is never drawn smaller than it (a long sum keeps today's size on a phone).
+     */
+    function numGroup(inks, cap, fillH) {
+      var k = Infinity;
+      inks.forEach(function (ink) { ink.style.removeProperty('font-size'); });
+      var boxes = inks.map(function (ink) { return contentBox(ink.parentNode); });
+      var today = Infinity;
+      inks.forEach(function (ink, i) {
+        var r0 = ink.getBoundingClientRect(), f0 = parseFloat(getComputedStyle(ink).fontSize);
+        today = f0 > 0 && r0.width <= boxes[i][0] && r0.height <= boxes[i][1] ? Math.min(today, f0) : 0;
+      });
+      inks.forEach(function (ink) { ink.style.fontSize = cap + 'px'; });
+      inks.forEach(function (ink, i) {
+        var b = boxes[i], r = ink.getBoundingClientRect();
+        if (!(b[0] > 0 && b[1] > 0 && r.width > 0 && r.height > 0)) return;
+        k = Math.min(k, (b[0] * NUM_FILL_W) / r.width, (b[1] * fillH) / r.height);
+      });
+      if (k === Infinity) { inks.forEach(function (ink) { ink.style.removeProperty('font-size'); }); return; }
+      var fs = Math.max(NUM_MIN, Math.floor(cap * Math.min(1, k)), today === Infinity ? 0 : Math.floor(today));
+      inks.forEach(function (ink) {
+        ink.style.fontSize = fs + 'px';
+        if (r8Layout) fitInk(ink, 0); // centred on its ink again at its new size
+      });
+    }
+    function numRow(s) {
+      var row = s.querySelector('.sae-seq.is-r8-mn');
+      if (!row || !row.parentNode) return;
+      var avail = row.clientWidth;
+      if (!(avail > 0)) return;
+      var longest = 2;
+      Array.prototype.forEach.call(s.querySelectorAll('.sae-seq.is-r8-mn .sae-seq-tile:not(.sae-gap), .sae-opts .sae-opt'), function (n) {
+        longest = Math.max(longest, String(n.textContent || '').trim().length);
+      });
+      // measured on a hidden copy at its natural width, the blank holding the longest number
+      var F0 = 40;
+      var probe = row.cloneNode(true);
+      probe.removeAttribute('id');
+      probe.setAttribute('aria-hidden', 'true');
+      probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;left:0;top:0;width:max-content;max-width:none;font-size:' + F0 + 'px';
+      Array.prototype.forEach.call(probe.querySelectorAll('.sae-seq-tile'), function (n) { n.style.flex = 'none'; });
+      Array.prototype.forEach.call(probe.querySelectorAll('.sae-gap .sae-mn-ink'), function (n) { n.textContent = new Array(longest + 1).join('0'); });
+      row.parentNode.appendChild(probe);
+      var w = probe.getBoundingClientRect().width;
+      probe.parentNode.removeChild(probe);
+      if (!(w > 0)) return;
+      // never smaller than the row's size today when the row (its blank holding the longest number) fits at that size
+      var f0 = parseFloat(getComputedStyle(row).fontSize);
+      var keep = f0 > 0 && (w * f0) / F0 <= avail ? Math.floor(f0) : 0;
+      var fs = Math.max(NUM_MIN, keep, Math.min(NUM_CAP_ROW, Math.floor((avail * 0.96 * F0) / w)));
+      row.style.setProperty('font-size', 'var(--mn-fs, ' + fs + 'px)');
+    }
+    function numFit(s) {
+      if (!r10Num || !s || !s.querySelectorAll || typeof window === 'undefined') return;
+      Array.prototype.forEach.call(s.querySelectorAll('.sae-onecell.is-r10-num > .sae-ink'), function (ink) {
+        numGroup([ink], numCardCap(), NUM_FILL_H_CARD);
+      });
+      Array.prototype.forEach.call(s.querySelectorAll('.sae-opts.is-r10-num'), function (g) {
+        var inks = Array.prototype.filter.call(g.querySelectorAll('.sae-opt > .sae-ink'), Boolean);
+        if (inks.length) numGroup(inks, NUM_CAP_TILE, NUM_FILL_H_TILE);
+      });
+      if (r8Mn) numRow(s);
+    }
+    /** numFit now, and again once the page's fonts have loaded (measured in a stand-in font, a number is the wrong size). */
+    function numFitOn(s) {
+      numFit(s);
+      if (!s || typeof document === 'undefined' || !document.fonts || !document.fonts.ready) return;
+      document.fonts.ready.then(function () { if (alive && s.isConnected) { numFit(s); if (r8Mn) mnFit(s); } }, function () {});
     }
     function reducedMotion() {
       try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
@@ -1594,7 +1704,7 @@
     function oneCell(text, t, i) {
       var s = String(text);
       var numeric = NUMERIC_RX.test(s);
-      return h('div', { class: 'sae-onecell sa-onecell' + (Array.from(s).length <= 2 ? ' is-short' : ''), dir: numeric ? 'ltr' : dirOf(t), lang: numeric ? 'en' : taskLang(t), 'data-i': i == null ? null : String(i) }, [
+      return h('div', { class: 'sae-onecell sa-onecell' + (Array.from(s).length <= 2 ? ' is-short' : '') + (r10Num && numeric && isMaths(t) ? ' is-r10-num' : ''), dir: numeric ? 'ltr' : dirOf(t), lang: numeric ? 'en' : taskLang(t), 'data-i': i == null ? null : String(i) }, [
         isSum(s) ? h('span', { class: 'sae-ink' }, sumKids(s)) : h('span', { class: 'sae-ink' }, [s]),
       ]);
     }
@@ -2629,6 +2739,7 @@
         if (coachMenu) el.appendChild(sCoachMenu(v));
       }
       if (r8Digits) latinScreen(el, v.task);
+      if (r10Num) numFitOn(s);
       if (r8Mn) mnFit(s);
       el.setAttribute('data-phase', showPhase);
       el.setAttribute('data-task-mode', v.task ? v.task.mode : '');
