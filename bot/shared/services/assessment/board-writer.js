@@ -23,6 +23,8 @@ const { normaliseBoardScheme } = require('./board-6-12/scheme');
 const { settleKeys } = require('./board-6-12/mcq-keys');
 const { usedKeys } = require('./board-checks/key-leak');
 const { leaves } = require('./board-checks/walk');
+const { owed } = require('./board-6-12/slot-quota');
+const MR = require('./board-6-12/mcq-review');
 
 const EXTRA = 1.25; // design_pending: the top-up asks for the shortfall plus about a quarter (round 4)
 
@@ -49,6 +51,9 @@ async function writeBoardPaper(args, d) {
   const sloList = typeof d.sloList === 'function' ? d.sloList(grade, subject, chapterNumber) : undefined; // item 4: the chapter's matrix codes follow
   const usages = [];
 
+  // A6b (round 9): a top-up or rewrite slot carries the levels it still owes against its full quota
+  const split = SP.levelPart(V, row);
+  const quotaed = (s, tree, n) => { const one = sized(s, n); const quota = split ? owed(s, tree, split.levels, one.generate) : null; return quota ? { ...one, quota } : one; };
   const ask = async (unit, done, note) => {
     const values = SP.promptValues({ grade, row, P, variant: V, unit, done, slotsAll: allSlots, sloList });
     const system = d.assemble({ row, kind: 'board', values });
@@ -93,7 +98,7 @@ async function writeBoardPaper(args, d) {
       // One top-up for the shortfall plus about a quarter; the extras stay until finish() trims the weakest.
       const rows = short.map((r) => ({ ...r, write: Math.ceil((r.need - r.have) * EXTRA) }));
       const slots = unit.slots.filter((s) => rows.some((r) => r.slot === s.slot))
-        .map((s) => sized(s, rows.find((r) => r.slot === s.slot).write));
+        .map((s) => quotaed(s, tree, rows.find((r) => r.slot === s.slot).write));
       rows.forEach((r) => { r.write = slots.find((s) => s.slot === r.slot).generate; });
       const second = await ask({ ...unit, slots }, trees, SP.topUpNote(rows));
       used = used.concat(second.usages);
@@ -158,6 +163,20 @@ async function writeBoardPaper(args, d) {
     ex._layout.checks = checks.record;
     return checks;
   };
+  // Round 9: one review call per section, MCQs only (d.reviewMcqs); a yes on any of its five questions makes the
+  // item hard. Flags are kept by item text, so an item flagged once stays hard in every later try that holds it.
+  const flags = [];
+  const reviewCall = async ({ id, n, system, user }) => {
+    const messages = d.sectionMessages({ system, user, pageContent: loaded.content, model });
+    const got = await d.writeSection({ messages, model, ownModel, job, pattern, section: { id, slots: [{ slot: id, type: 'mcq', shape: 'mcq', generate: n, marks_each: 1 }] } });
+    usages.push(...got.usages);
+    return got.tree;
+  };
+  const reviewed = async (ex, checks, only) => {
+    if (!d.reviewMcqs) return checks;
+    flags.push(...await MR.reviewPaper({ examJson: ex, grade, call: reviewCall, only, onError: (err) => d.logToFile('[assessment] board MCQ review failed', { error: err.message }) }));
+    return MR.applyFlags(checks, flags, ex);
+  };
   const dropped = []; // {slot, question, check} of every item the checks removed
   const drop = (ex, bad, run) => {
     const why = Object.assign({}, ...((run && run.shortfall) || []).map((r) => r.why || {}));
@@ -170,7 +189,7 @@ async function writeBoardPaper(args, d) {
   const whole = clone(ex); // every item written, for the keep-the-fewer comparison
   const pre = probeRun(ex);
   if (pre) drop(ex, hardIds(pre.run), pre.run);
-  let checks = finish(ex);
+  let checks = await reviewed(ex, finish(ex));
 
   // 3. One targeted rewrite of the dropped items (same slot, told the used keys and the stems to avoid). Nothing new
   // is asked for the slot, so a topped-up slot may be rewritten. Of the rewrite and the originals, fewer hard wins.
@@ -181,7 +200,7 @@ async function writeBoardPaper(args, d) {
     for (const unit of unitsOf(V)) {
       const mine = short.filter((r) => unit.slots.some((s) => s.slot === r.slot)).map((r) => ({ ...r, write: r.need - r.have }));
       if (!mine.length) continue;
-      const slots = unit.slots.filter((s) => mine.some((r) => r.slot === s.slot)).map((s) => sized(s, mine.find((r) => r.slot === s.slot).write));
+      const slots = unit.slots.filter((s) => mine.some((r) => r.slot === s.slot)).map((s) => quotaed(s, out, mine.find((r) => r.slot === s.slot).write));
       const gone = dropped.slice(from).filter((x) => mine.some((r) => r.slot === x.slot));
       const figure = gone.some((x) => x.check === 'N20');
       const second = await ask({ ...unit, slots }, trees, SP.rewriteNote(mine, gone.map((x) => x.question), used, phrases, figure));
@@ -200,7 +219,7 @@ async function writeBoardPaper(args, d) {
     drop(ex, hardIds(checks), checks);
     let before = new Set(ids(ex));
     ex = await rewrite(ex, 0);
-    checks = finish(ex, before);
+    checks = await reviewed(ex, finish(ex, before), new Set(ids(ex).filter((id) => !before.has(id))));
     const tries = [{ name: 'rewrite 1', ex, checks }];
     // 3b (round 6). A same-section concept leak left after that: one rewrite of the KEYED items, told the phrases.
     // Round 7: a keyed stimulus child quoted by a plain item -> rewrite the plain item (a whole group is harder to swap).
@@ -215,14 +234,14 @@ async function writeBoardPaper(args, d) {
       before = new Set(ids(next));
       const phrases = [...new Set(keyed.map((k) => k.phrase))];
       const ex2 = await rewrite(next, from, phrases);
-      const checks2 = finish(ex2, before);
+      const checks2 = await reviewed(ex2, finish(ex2, before), new Set(ids(ex2).filter((id) => !before.has(id))));
       tries.unshift({ name: 'rewrite 2', ex: ex2, checks: checks2 });
       ex = ex2;
       checks = checks2;
     }
     if (failing(ex, checks)) {
       const orig = clone(whole);
-      tries.push({ name: 'originals', ex: orig, checks: finish(orig) });
+      tries.push({ name: 'originals', ex: orig, checks: MR.applyFlags(finish(orig), flags, orig) });
       const best = tries.reduce((a, b) => (b.checks.record.hard < a.checks.record.hard ? b : a));
       outcome(tries, best);
       throw shortError(best.checks.shortfall.length ? best.checks.shortfall : T.shortfallOf(best.ex, allSlots), best.ex);

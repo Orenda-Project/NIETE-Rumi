@@ -62,3 +62,25 @@ describe('D17 near-dup: same question twice in a section', () => {
     expect(r.shortfall.find((s) => s.reason === 'D17')).toMatchObject({ slot: 's', items: ['d2'] });
   });
 });
+
+describe('D17 r9: written (SRQ) stems that share >= 80% of their content words (bd-5jmnfj.38.30)', () => {
+  const { srq } = require('./paper-builder');
+  const w = (id, question) => srq(id, 's', 2, { question });
+  const written = (items) => M.run(paper({ sections: [{ id: 'B', marks: 2 * items.length, slots: [row('s', { type: 'srq', attempt: items.length, printed: items.length })] }], items }), ctxBoard());
+  const hA = w('h1', 'Define the half-life of a made-up isotope and state its unit.');
+  const hB = w('h2', 'State the unit of half-life and define half-life for the made-up isotope.');
+
+  test('a paraphrased SRQ pair -> NEAR_DUP on the later one, no key needed', () => {
+    const r = written([hA, w('x', 'Explain why a made-up spring stretches more under a larger load.'), hB]);
+    expect(r.issues).toEqual([expect.objectContaining({ rule: 'NEAR_DUP', item_ref: 's#3', hard: true })]);
+  });
+
+  test('SRQs on different outcomes of one topic are kept', () => {
+    expect(written([hA, w('h3', 'Calculate the mass left after two half-lives from a made-up 80 g sample.')]).issues).toEqual([]);
+  });
+
+  test('the two alternatives of one OR question never pair with each other', () => {
+    const o = { id: 'o', slot: 's', or: [w('a', hA.question), w('b', hB.question)] };
+    expect(written([o]).issues).toEqual([]);
+  });
+});

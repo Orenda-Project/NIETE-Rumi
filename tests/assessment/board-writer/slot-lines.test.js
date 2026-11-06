@@ -7,6 +7,11 @@ describe('slotLine', () => {
   test('a plain slot names its id, count, type and marks', () => {
     expect(slotLine(base)).toBe('- Q1 [slot A.Q1]: 20 x mcq at 1 marks');
   });
+  test('r9 A6b: a quota appends the per-level counts, zeros left out; teacher-marked slots never carry one', () => {
+    expect(slotLine(base, { K: 6, U: 10, A: 4 })).toBe('- Q1 [slot A.Q1]: 20 x mcq at 1 marks; levels: K 6, U 10, A 4');
+    expect(slotLine(base, { K: 0, U: 0 })).toBe('- Q1 [slot A.Q1]: 20 x mcq at 1 marks');
+    expect(slotLine({ ...base, teacher_marked: true, marks_each: 5 }, { K: 1 })).not.toMatch(/levels/);
+  });
   test('attempt N of M says to write all M', () => {
     expect(slotLine({ ...base, slot: 'B.Q3', label_en: 'Q3', type: 'srq', printed: 14, attempt: 10, generate: 14, marks_each: 5 }))
       .toBe('- Q3 [slot B.Q3]: 14 x srq at 5 marks; attempt any 10 of 14, write all 14');

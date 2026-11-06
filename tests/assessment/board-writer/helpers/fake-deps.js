@@ -8,6 +8,7 @@ const A = '../../../../bot/shared/services/assessment/';
 const Checks = require(`${A}board-checks`);
 const { assemble } = require(`${A}prompts-6-12`);
 const { leavesOf, eachList } = require(`${A}board-6-12/tree`);
+const { quotaFor } = require(`${A}board-checks/_level-quota`);
 
 const NOUNS = ['lamp', 'bridge', 'garden', 'kettle', 'ladder', 'market', 'river', 'compass', 'tower', 'basket', 'engine', 'window'];
 const EN_LABELS = ['A', 'B', 'C', 'D'];
@@ -43,25 +44,28 @@ function buildReply(slots, ctx, state) {
     const chapter = 1 + (n % 5);
     return { chapter, section: null, code: `g${ctx.grade}.${ctx.row.code}.ch${chapter}.lo${1 + (n % 3)}`, page: 10 + n, official_slo: null, blooms: blooms || cycle[n % cycle.length], difficulty: DIFF[n % 3] };
   };
-  const mcq = (slot, n) => {
+  // r9 A6b: the fake follows each slot's level quota (the rewrite's own quota when it carries one), in order
+  const seqOf = (slot) => { const q = slot.quota || quotaFor(slot.generate, ctx.levels); return Object.keys(q).flatMap((k) => Array(q[k]).fill(k)); };
+  const mcq = (slot, n, blooms) => {
     const key = n % 4;
     const opts = [0, 1, 2, 3].map((i) => `${NOUNS[(n + i * 3) % NOUNS.length]} number ${n * 4 + i}`);
     const labels = ctx.ur ? UR_LABELS : EN_LABELS;
     const stem = ctx.ur ? `سوال ${n}: درست جواب منتخب کریں` : `Item ${n}: choose the statement that fits the ${NOUNS[n % NOUNS.length]} case ${n}`;
     return {
       slot: slot.slot, main_question: ctx.ur ? 'درست جواب منتخب کریں' : 'Choose the correct option', question: stem,
-      options: opts.map((o, i) => `${labels[i]}) ${o}`), marks: slot.marks_each, lines: 0, answer: `${labels[key]}) ${opts[key]}`, tag: tagFor(n),
+      options: opts.map((o, i) => `${labels[i]}) ${o}`), marks: slot.marks_each, lines: 0, answer: `${labels[key]}) ${opts[key]}`, tag: tagFor(n, blooms),
     };
   };
   const written = (slot, n, blooms) => ({
-    slot: slot.slot, main_question: 'Answer the following', question: `Explain case ${n} of the ${NOUNS[n % NOUNS.length]} study and give your reasons`, marks: slot.marks_each, lines: 6,
+    slot: slot.slot, main_question: 'Answer the following', question: `Explain case ${n}, step ${n * 3 + 1}, part ${n * 7 + 2} of the ${NOUNS[n % NOUNS.length]} study and give your reasons` /* r9: numbered so D17's written near-dup never pairs two fakes */, marks: slot.marks_each, lines: 6,
     answer: `Case ${n}: the ${NOUNS[(n + 5) % NOUNS.length]} result follows from the stated rule.`,
-    scheme: ctx.style === 'holistic_bands' ? { bands: bands(slot.marks_each) } : { points: points(slot.marks_each) }, kind: null,
+    scheme: ctx.style === 'holistic_bands' ? { bands: bands(slot.marks_each) } : { points: points(slot.marks_each), ...(slot.type === 'erq' ? { bands: bands(slot.marks_each) } : {}) }, kind: null,
     tag: tagFor(n, blooms),
   });
   slots.forEach((slot) => {
     if (slot.teacher_marked || slot.project || !(slot.generate > 0)) return;
     const take = Math.max(0, slot.generate - (state.skip[slot.slot] || 0));
+    const seq = seqOf(slot);
     if (slot.stimulus) {
       for (let g = 0; g < slot.stimulus.count; g += 1) {
         const inner = Array.from({ length: slot.stimulus.mcqs_per_stimulus }, () => { state.n += 1; return mcq(slot, state.n); });
@@ -74,7 +78,7 @@ function buildReply(slots, ctx, state) {
       if (slot.or) {
         const b = slot.or.branches.map((br, k) => ({ ...written({ ...slot, marks_each: br.marks_each }, state.n * 10 + k, 'U') }));
         items.push({ slot: slot.slot, or: b });
-      } else items.push(slot.type === 'mcq' || slot.type === 'scenario' ? mcq(slot, state.n) : written(slot, state.n));
+      } else items.push(slot.type === 'mcq' || slot.type === 'scenario' ? mcq(slot, state.n, seq[i]) : written(slot, state.n, seq[i]));
     }
   });
   // The board format (eg.format.secondary): one list per slot id, no `slot` on an item, a group as {stimulus: text, items}.

@@ -53,6 +53,16 @@ describe('promptValues', () => {
     expect(v.section_title).toBe('Section B');
     expect(v.section_marks).toBe(6);
     expect(v.time_line).toBe(', 20 minutes');
+    expect(v.slot_lines).toBe('- Q1 [slot S]: 2 x srq at 3 marks; levels: K 1, U 1');
+  });
+  test('r9 A6b: each slot line carries its level quota from the split; a rewrite slot carries its own quota', () => {
+    const six = { ...unit, slots: [{ ...unit.slots[0], printed: 6, attempt: 6, generate: 6 }] };
+    expect(SP.promptValues({ ...base, unit: six }).slot_lines).toBe('- Q1 [slot S]: 6 x srq at 3 marks; levels: K 2, U 3, A 1');
+    const re = { ...unit, slots: [{ ...unit.slots[0], generate: 2, quota: { K: 0, U: 1, A: 1 } }] };
+    expect(SP.promptValues({ ...base, unit: re }).slot_lines).toBe('- Q1 [slot S]: 2 x srq at 3 marks; levels: U 1, A 1');
+  });
+  test('no split -> no levels on the slot line', () => {
+    const v = SP.promptValues({ ...base, row: { code: 'physics' }, variant: { ...variant, cognitive_split: null } });
     expect(v.slot_lines).toBe('- Q1 [slot S]: 2 x srq at 3 marks');
   });
   test('an untimed unit has an empty time_line', () => {

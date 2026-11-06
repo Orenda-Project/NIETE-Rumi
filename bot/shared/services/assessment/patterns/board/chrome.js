@@ -184,14 +184,19 @@ function summaryLines(V) {
 }
 
 /** Board chrome on a built subject: header, exam header, legend, summary and the G5-compatible mirrors. */
+const mcqMarkOf = (v) => ((v.sections.flatMap((s) => s.slots).find((s) => s.type === 'mcq') || {}).marks_each);
+
 function dress(chrome, grade, examKind, S) {
-  const variants = S.variants.map((v) => ({ ...v, exam_header: v.exam_header || chrome.examHeader(grade, examKind, S, v) }));
+  const variants = S.variants.map((v) => ({
+    ...v, exam_header: v.exam_header || chrome.examHeader(grade, examKind, S, v),
+    legend: v.legend || chrome.legendFor(S.key, v.scheme_style, mcqMarkOf(v)),
+  }));
   const V = variants[0];
   return {
     ...S, grade, variants, g5_rules: false, oral: null, oral_marks: 0,
     total_marks: V.total_marks, sections: V.sections,
     total_time_en: timeEn(V.total_time_min) || 'as the school sets', total_time_ur: timeUr(V.total_time_min) || 'اسکول کے مطابق',
-    header: chrome.header(grade, examKind, S, V), scope: SCOPE, legend: chrome.legendFor(S.key, V.scheme_style),
+    header: chrome.header(grade, examKind, S, V), scope: SCOPE, legend: V.legend,
     summary_lines: summaryLines(V),
   };
 }

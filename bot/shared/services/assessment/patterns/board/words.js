@@ -27,4 +27,12 @@ function timeUr(min) { // needs fluent-Urdu review
   return [h ? `${h} ${h > 1 ? 'گھنٹے' : 'گھنٹہ'}` : '', m ? `${m} منٹ` : ''].filter(Boolean).join(' ');
 }
 
-module.exports = { GRADE_WORD, timeEn, timeUr };
+const FRACTION = { 0.25: '¼', 0.5: '½', 0.75: '¾' };
+/** "½ mark" / "1 mark" / "2 marks" for a legend's MCQ line; undefined or a non-number reads as 1. */
+function markEn(m) {
+  const n = typeof m === 'number' && m > 0 ? m : 1;
+  return `${FRACTION[n] || n} ${n > 1 ? 'marks' : 'mark'}`;
+}
+const markNum = (m) => (typeof m === 'number' && m > 0 ? FRACTION[m] || String(m) : '1');
+
+module.exports = { GRADE_WORD, timeEn, timeUr, markEn, markNum };
