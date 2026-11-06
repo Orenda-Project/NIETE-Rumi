@@ -1759,10 +1759,6 @@ const UX_STRINGS = {
     en: '{topic}\nGrade {grade} · {subject}',
     ur: '{topic}\nجماعت {grade} · ⁦{subject}⁩',
   },
-  lp612GbCardLink: {
-    en: 'Open your lesson plan:\n{url}',
-    ur: 'اپنا سبق کا منصوبہ کھولیں:\n{url}',
-  },
   lp612WrongCurriculum: {
     en: "This lesson plan is not part of your school's books. Please pick a lesson from the menu again.",
     ur: 'یہ سبق کا منصوبہ آپ کے اسکول کی کتابوں میں شامل نہیں۔ براہِ کرم مینو سے دوبارہ سبق چنیں۔',

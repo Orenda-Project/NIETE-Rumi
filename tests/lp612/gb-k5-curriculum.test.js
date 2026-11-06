@@ -65,3 +65,22 @@ describe('LP_GB_K5_ENABLED', () => {
     expect(isGbK5Enabled()).toBe(true);
   });
 });
+
+describe('bd-rj6w0n.14.16: GB plans are written on request for English, Urdu, Maths and Science only', () => {
+  test.each([
+    [1, 'English'], [2, 'Urdu'], [3, 'Mathematics'], [3, 'Maths'], [4, 'Math'], [5, 'MATHS'],
+    [5, 'Science'], [4, 'General Science'], [5, 'general_science'],
+  ])('grade %s %s is written on request', (g, s) => {
+    expect(C.isGbOnRequestSubject(g, s)).toBe(true);
+  });
+  test.each([
+    [1, 'GK'], [2, 'General Knowledge'], [4, 'Social Studies'], [5, 'SST'], [3, 'Islamiat'], [4, 'Islamiyat'],
+    [5, 'Computer'], [5, 'Art'], [1, 'Science'], [5, ''], [5, null],
+  ])('grade %s %s is not', (g, s) => {
+    expect(C.isGbOnRequestSubject(g, s)).toBe(false);
+  });
+  test('the on-request books, in menu order', () => {
+    expect(C.gbOnRequestSubjects(1).map((b) => b.key)).toEqual(['english', 'urdu', 'maths']);
+    expect(C.gbOnRequestSubjects(5).map((b) => b.key)).toEqual(['english', 'urdu', 'maths', 'science']);
+  });
+});

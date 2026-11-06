@@ -26,15 +26,15 @@ const SOURCE = SOURCES.NIETE_LP612;
 /** The portal and the teacher app park a waiter / an ask with surface 'portal' and no phone. */
 const isPortal = (surface) => surface === 'portal';
 
-/** grade_8_mathematics.c05.p071-073 → 8; anything else → null. */
+/** grade_8_mathematics.c05.p071-073 → 8, GB nbf_snc_grade_2_urdu.c07.s05 → 2; anything else → null. */
 function gradeOfSegmentId(segmentId) {
-  const m = /^grade_(\d{1,2})_/.exec(String(segmentId || ''));
+  const m = /^(?:nbf_snc_)?grade_(\d{1,2})_/.exec(String(segmentId || ''));
   return m ? Number(m[1]) : null;
 }
 
 /** grade_8_social_studies.c03.p010-012 → 'social_studies'; anything else → null. */
 function subjectOfSegmentId(segmentId) {
-  const m = /^grade_\d{1,2}_([a-z0-9_]+?)\.c\d/i.exec(String(segmentId || ''));
+  const m = /^(?:nbf_snc_)?grade_\d{1,2}_([a-z0-9_]+?)\.c\d/i.exec(String(segmentId || ''));
   return m ? m[1] : null;
 }
 
