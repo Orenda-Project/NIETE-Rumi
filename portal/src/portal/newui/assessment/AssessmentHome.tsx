@@ -361,6 +361,13 @@ function Form({ made }: { made: Made | null }) {
               value={pickedTypes}
               onChange={(next) => setPicks((p) => ({ ...p, types: next }))}
             />
+            {types.some((t) => t.hint) ? (
+              <ul aria-label={ASSESSMENT_COPY.typeMeanings} className="flex flex-col gap-1 text-[13px] leading-snug opacity-80">
+                {types.filter((t) => t.hint).map((t) => (
+                  <li key={t.id}><strong>{typeLabel(t.id, types)}</strong>: {t.hint}</li>
+                ))}
+              </ul>
+            ) : null}
           </>
         ) : null}
         <SectionLabel>{ASSESSMENT_COPY.source}</SectionLabel>

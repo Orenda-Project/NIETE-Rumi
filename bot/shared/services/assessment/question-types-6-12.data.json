@@ -31,6 +31,7 @@
     "hands off to the pattern entry (SPEC s4); no per-type counts screen"
    ],
    "title_en": "Board-style paper",
+   "hint_en": "A full paper in the board's own pattern and sections.",
    "title_ur": "بورڈ طرز کا پرچہ",
    "flow_selectable": true,
    "source": "design/SPEC.md:138-139",
@@ -57,6 +58,7 @@
     "FBISE: OMR bubbles, continuous Q-numbers"
    ],
    "title_en": "MCQs",
+   "hint_en": "Choose the right answer from four options (A–D).",
    "title_ur": "کثیرالانتخابی سوالات",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -82,6 +84,7 @@
     "all 4 MCQs must need the stimulus"
    ],
    "title_en": "Scenario MCQs",
+   "hint_en": "A short passage or table, then four MCQs that need it.",
    "title_ur": "منظرنامے پر مبنی سوالات",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -108,6 +111,7 @@
     "OR alternatives: same marks and level, different content"
    ],
    "title_en": "Short Response",
+   "hint_en": "A short written answer in 4–8 lines; may have parts (a), (b).",
    "title_ur": "مختصر جواب",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -143,6 +147,7 @@
     "part marks in [ ] at the right margin"
    ],
    "title_en": "Extended Response",
+   "hint_en": "A long written answer in 10–20 lines, in 2–3 parts (a), (b), (c).",
    "title_ur": "تفصیلی جواب",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -176,6 +181,7 @@
     "one blank per item, blank >= 8 underscores"
    ],
    "title_en": "Fill in the Blanks",
+   "hint_en": "Complete a sentence with the one missing word.",
    "title_ur": "خالی جگہ پُر کریں",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -197,6 +203,7 @@
     "statement must be unambiguously false per the page"
    ],
    "title_en": "True/False with correction",
+   "hint_en": "Say if a statement is true; if false, rewrite it correctly.",
    "title_ur": "درست/غلط (اصلاح کے ساتھ)",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -218,6 +225,7 @@
     "right column has one extra distractor"
    ],
    "title_en": "Match the columns",
+   "hint_en": "Join each item in one column to its match in the other.",
    "title_ur": "جوڑے ملائیں",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -241,6 +249,7 @@
     "events from >= 2 pages"
    ],
    "title_en": "Sequence the events",
+   "hint_en": "Put five events in the right order.",
    "title_ur": "واقعات کو ترتیب دیں",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -263,6 +272,7 @@
     "source text copied exactly, never authored"
    ],
    "title_en": "Translation",
+   "hint_en": "Translate a text from the book into Urdu.",
    "title_ur": "ترجمہ",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -285,6 +295,7 @@
     "stimulus.parts counted, not the sub-parts (TC S3)"
    ],
    "title_en": "Quran study",
+   "hint_en": "Verses from the book, with 2–3 short questions on them.",
    "title_ur": "قرآنی عبارت کا مطالعہ",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -309,6 +320,7 @@
     "stimulus.parts counted, not the sub-parts (TC S3)"
    ],
    "title_en": "Comprehension",
+   "hint_en": "A passage or poem from the lesson, then short questions.",
    "title_ur": "فہمِ عبارت",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -336,6 +348,7 @@
     "one grammar point per item"
    ],
    "title_en": "Grammar",
+   "hint_en": "2–4 short grammar tasks (do as directed).",
    "title_ur": "قواعد",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -354,6 +367,7 @@
     "compulsory in SSC English B"
    ],
    "title_en": "Summary",
+   "hint_en": "Summarise a passage in your own words.",
    "title_ur": "خلاصہ",
    "flow_selectable": true,
    "source": "design/BLUEPRINTS.md:109",
@@ -376,6 +390,7 @@
     "scheme: context 1 / meaning 3 / language 2"
    ],
    "title_en": "Explain prose passage",
+   "hint_en": "Explain a prose passage: its context and meaning.",
    "title_ur": "نثر کی تشریح",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -397,6 +412,7 @@
     "couplet copied exactly as the book prints it"
    ],
    "title_en": "Explain poetry stanza",
+   "hint_en": "Explain a two-line stanza of a poem.",
    "title_ur": "نظم کی تشریح",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -418,6 +434,7 @@
     "couplet copied exactly as printed"
    ],
    "title_en": "Explain ghazal couplet",
+   "hint_en": "Explain a couplet (sher) from a ghazal.",
    "title_ur": "غزل کی تشریح",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -442,6 +459,7 @@
     "analytic scheme: format/content/language"
    ],
    "title_en": "Letter / Application",
+   "hint_en": "Write a letter or application for a given situation.",
    "title_ur": "خط / درخواست",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -465,6 +483,7 @@
     "offer N topics as printed 3 / attempt 1, never one item with i/ii/iii (TC S4)"
    ],
    "title_en": "Essay / Paragraph",
+   "hint_en": "Write an essay or paragraph on one of the given topics.",
    "title_ur": "مضمون / پیراگراف",
    "flow_selectable": true,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -491,6 +510,7 @@
     "generated, not teacher-marked (lead 084426 B6); analytic points plan 3 / steps 4 / reflection 3"
    ],
    "title_en": "Written activity",
+   "hint_en": "A written task: plan, steps and what was learned.",
    "title_ur": "تحریری سرگرمی",
    "flow_selectable": true,
    "source": "design/BLUEPRINTS.md:41",
@@ -510,6 +530,7 @@
     "marks counted in the total, excluded from the split"
    ],
    "title_en": "Teacher-assessed task",
+   "hint_en": "A task the teacher watches and marks in class.",
    "title_ur": "استاد کی جانچ کا کام",
    "flow_selectable": false,
    "source": "outputs/lanes/r2-studio/types_catalogue.md",
@@ -529,6 +550,7 @@
    "bands": [],
    "print_rules": [],
    "title_en": "Dialogue",
+   "hint_en": "Write a conversation between two people on a given topic.",
    "title_ur": "مکالمہ",
    "flow_selectable": false,
    "source": "design/SPEC.md:136",
@@ -543,6 +565,7 @@
    "bands": [],
    "print_rules": [],
    "title_en": "Programme / Pseudocode",
+   "hint_en": "Write a short programme or pseudocode for a task.",
    "title_ur": "پروگرام / سیوڈوکوڈ",
    "flow_selectable": false,
    "source": "design/SPEC.md:138",
@@ -557,6 +580,7 @@
    "bands": [],
    "print_rules": [],
    "title_en": "Geography (no map)",
+   "hint_en": "Geography questions answered without drawing a map.",
    "title_ur": "جغرافیہ (بغیر نقشہ)",
    "flow_selectable": false,
    "source": "design/SPEC.md:137-138",
