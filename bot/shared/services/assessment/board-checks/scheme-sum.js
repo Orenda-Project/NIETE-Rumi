@@ -1,8 +1,10 @@
 'use strict';
 /**
  * D14 scheme-sum (contract 8 §6): a constructed item's marking scheme adds up to its marks.
- * Style = ctx.variant.scheme_style. analytic_points: POINTS_SUM, NO_POINTS. holistic_bands: BAND_TOP, BAND_GAP.
- * OR branches and parts are checked separately; part marks must add up to the parent. All hard.
+ * Style = ctx.variant.scheme_style. analytic_points: POINTS_SUM, NO_POINTS, and an ERQ also needs its holistic
+ * bands (NO_BANDS, BAND_TOP, BAND_GAP; bd-5jmnfj.38.30 r9). holistic_bands: BAND_TOP, BAND_GAP. OR branches and
+ * parts are checked separately; part marks must add up to the parent. All hard except POINTS_OVER (soft): more
+ * scheme points than marks means the item asks for more than its marks pay for.
  */
 const { topNodes, isGroup } = require('./walk');
 const { q, issue } = require('./common');
@@ -19,24 +21,29 @@ const bandsOf = (item) => (item.scheme && Array.isArray(item.scheme.bands) ? ite
 const pointsOf = (item) => (item.scheme && Array.isArray(item.scheme.points) ? item.scheme.points : []);
 const isConstructed = (item) => !Array.isArray(item.options) && (CONSTRUCTED.has(item.type) || (item.scheme != null && item.type == null));
 
-function checkLeaf(item, ref, slot, style, out) {
-  const push = (rule, msg) => out.push(issue(ID, rule, ref, msg, true, slot));
-  const marks = q(item.marks);
-  if (style === 'analytic_points') {
-    const pts = pointsOf(item);
-    if (!pts.length) { push('NO_POINTS', 'constructed item has no scheme points'); return; }
-    const sum = pts.reduce((a, p) => a + q(p && p.marks), 0);
-    if (sum !== marks) push('POINTS_SUM', `scheme points add up to ${sum / 4}, item carries ${item.marks}`);
-    return;
-  }
+function checkBands(item, marks, push, noneRule) {
   const bands = bandsOf(item);
-  if (!bands.length) { push('BAND_TOP', 'constructed item has no bands'); return; }
+  if (!bands.length) { push(noneRule, 'constructed item has no bands'); return; }
   if (q(bands[0].hi) !== marks) push('BAND_TOP', `top band reaches ${bands[0].hi}, item carries ${item.marks}`);
   const step = q(LIMITS.bandStep);
   for (let i = 1; i < bands.length; i += 1) {
     if (q(bands[i].hi) !== q(bands[i - 1].lo) - step) { push('BAND_GAP', `band ${i} tops at ${bands[i].hi} after a band ending at ${bands[i - 1].lo}`); return; }
   }
   if (q(bands[bands.length - 1].lo) !== 0) push('BAND_GAP', `lowest band stops at ${bands[bands.length - 1].lo}, not 0`);
+}
+
+function checkLeaf(item, ref, slot, style, out) {
+  const push = (rule, msg, hard = true) => out.push(issue(ID, rule, ref, msg, hard, slot));
+  const marks = q(item.marks);
+  if (style !== 'analytic_points') { checkBands(item, marks, push, 'BAND_TOP'); return; }
+  const pts = pointsOf(item);
+  if (!pts.length) push('NO_POINTS', 'constructed item has no scheme points');
+  else {
+    const sum = pts.reduce((a, p) => a + q(p && p.marks), 0);
+    if (sum !== marks) push('POINTS_SUM', `scheme points add up to ${sum / 4}, item carries ${item.marks}`);
+    if (pts.length * 4 > marks) push('POINTS_OVER', `${pts.length} scheme points for ${item.marks} marks: the item asks for more than its marks`, false);
+  }
+  if (item.type === 'erq') checkBands(item, marks, push, 'NO_BANDS');
 }
 
 function walk(item, ref, slot, style, out) {

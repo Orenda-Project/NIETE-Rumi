@@ -64,3 +64,16 @@ describe('board-render/scheme-items', () => {
   });
 });
 
+
+describe('r9: an ERQ prints its analytic points and its bands (bd-5jmnfj.38.30)', () => {
+  test('schemeTable prints both tables; a {hi, lo} band prints its range', () => {
+    const { schemeSection } = require('../../../bot/shared/services/assessment/board-render/scheme-items');
+    expect(typeof schemeSection).toBe('function');
+    const { _schemeTable } = require('../../../bot/shared/services/assessment/board-render/scheme-items');
+    const html = _schemeTable({ points: [{ text: 'states law', marks: 2 }], bands: [{ hi: 4, lo: 3, descriptor: 'full: explains with example' }, { hi: 2, lo: 0, descriptor: 'partial' }] }, { rtl: false, lang: 'en' });
+    expect(html).toMatch(/class="points"/);
+    expect(html).toMatch(/class="bands"/);
+    expect(html).toMatch(/3[–-]4/);
+    expect(html).toMatch(/full: explains with example/);
+  });
+});

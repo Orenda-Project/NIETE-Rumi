@@ -33,3 +33,9 @@ test('loads without the board chrome (no cycle)', () => {
     expect(() => require('../../../bot/shared/services/assessment/patterns/board/words')).not.toThrow();
   });
 });
+
+test('markEn/markNum: fractions print as ¼ ½ ¾, plural above 1, absent reads as 1', () => {
+  const W = require('../../../bot/shared/services/assessment/patterns/board/words');
+  expect([0.5, 0.75, 1, 2, undefined].map(W.markEn)).toEqual(['½ mark', '¾ mark', '1 mark', '2 marks', '1 mark']);
+  expect([0.25, 1, undefined].map(W.markNum)).toEqual(['¼', '1', '1']);
+});

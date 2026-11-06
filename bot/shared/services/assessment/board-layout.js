@@ -100,7 +100,7 @@ function buildLayout(pattern, variant, examJson, opts = {}) {
     header: copy(variant.exam_header) || null,
     sections,
     slots: built.flatMap((b) => b.slots),
-    legend: copy(subject.legend) || null,
+    legend: copy(variant.legend || subject.legend) || null,
     scheme_style: variant.scheme_style,
   };
 }

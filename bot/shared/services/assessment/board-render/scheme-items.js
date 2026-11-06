@@ -27,15 +27,16 @@ function tagLine(q, ctx) {
   return `<div class="meta">${textOf(bits.join(' · '), ctx.rtl)}</div>`;
 }
 
+// A band's marks: its own `marks` text, else lo-hi from the prompt contract's {hi, lo} (one number when equal).
+const bandMarks = (b) => (b.marks != null ? b.marks : b.lo === b.hi || b.lo == null ? `{t:${b.hi}}` : `{t:${b.lo}}–{t:${b.hi}}`);
+
+/** Points then bands: an ERQ under analytic_points carries both (bd-5jmnfj.38.30 r9). */
 function schemeTable(scheme, ctx) {
   const rtl = ctx.rtl;
-  if (scheme && Array.isArray(scheme.bands)) {
-    return `<table class="bands">${scheme.bands.map((b) => `<tr><td>${marksText(b.marks, rtl)}</td><td>${textOf(b.descriptor, rtl)}</td></tr>`).join('')}</table>`;
-  }
-  if (scheme && Array.isArray(scheme.points)) {
-    return `<table class="points">${scheme.points.map((p) => `<tr><td>${textOf(p.text, rtl)}</td><td>${marksText(`{t:${p.marks}}`, rtl)}</td></tr>`).join('')}</table>`;
-  }
-  return '';
+  const s = scheme || {};
+  const points = Array.isArray(s.points) ? `<table class="points">${s.points.map((p) => `<tr><td>${textOf(p.text, rtl)}</td><td>${marksText(`{t:${p.marks}}`, rtl)}</td></tr>`).join('')}</table>` : '';
+  const bands = Array.isArray(s.bands) ? `<table class="bands">${s.bands.map((b) => `<tr><td>${marksText(bandMarks(b), rtl)}</td><td>${textOf(b.descriptor, rtl)}</td></tr>`).join('')}</table>` : '';
+  return points + bands;
 }
 
 function itemRow(slot, q, i, ctx) {
@@ -98,4 +99,4 @@ function classRecord(layout, ctx, rows = 10) {
   return `<section class="record"><h3>${w.record}</h3><table><tr><th>${w.name}</th>${cols}<th>${w.total}<br>${textOf(fmtMarks(total), rtl)}</th></tr>${blank.repeat(rows)}</table></section>`;
 }
 
-module.exports = { schemeSection, classRecord };
+module.exports = { schemeSection, classRecord, _schemeTable: schemeTable };

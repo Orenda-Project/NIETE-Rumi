@@ -2569,6 +2569,7 @@ function _boardDeps(subject) {
     variantFor: (P, { grade }) => VariantResolver.resolve(P, { grade }),
     assemble: require('./prompts-6-12').assemble,
     checks: require('./board-checks'),
+    reviewMcqs: true, // round 9: one review call per section, MCQs only (board-6-12/mcq-review)
     sloList: Slo.listFor,
     // Code, never the model, writes the official SLO (slo-map README §4).
     stampSlo: (grade, code, item) => {

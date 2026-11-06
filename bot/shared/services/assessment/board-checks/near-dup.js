@@ -7,14 +7,16 @@
  *
  * Same question = the content words of the two stems overlap by >= stemOverlap of the shorter stem (each stem
  * with >= minWords content words), AND the key bodies match (equal, or one's content words contain the other's).
- * Passage MCQs compare on their own stems, never the shared passage. Pure.
+ * Passage MCQs compare on their own stems, never the shared passage.
+ * Round 9: written items (SRQ/ERQ, no options) in one section pair on stem overlap alone (>= stemOverlap of the
+ * shorter stem, each with >= minWrittenWords content words); the branches and parts of one question never pair. Pure.
  */
 const { leaves } = require('./walk');
 const { issue } = require('./common');
 const T = require('./option-text');
 const { tokens } = require('./_text-norm');
 
-const LIMITS = { stemOverlap: 0.8, minWords: 2 };
+const LIMITS = { stemOverlap: 0.8, minWords: 2, minWrittenWords: 4 };
 const ID = 'D17';
 // function words plus the book-reference / question-frame words writers add without changing the question
 const STOP = new Set(('a an the of in on at to for from by with and or is are was were be been it its this that these '
@@ -42,15 +44,33 @@ function shape(l) {
 
 const subset = (a, b) => a.size > 0 && [...a].every((w) => b.has(w));
 function sameQuestion(x, y) {
-  const n = Math.min(x.stem.size, y.stem.size);
-  if (n < LIMITS.minWords) return false;
-  const shared = [...x.stem].filter((w) => y.stem.has(w)).length;
-  return shared / n >= LIMITS.stemOverlap && (subset(x.key, y.key) || subset(y.key, x.key));
+  return overlap(x.stem, y.stem, LIMITS.minWords) && (subset(x.key, y.key) || subset(y.key, x.key));
+}
+
+const overlap = (a, b, min) => {
+  const n = Math.min(a.size, b.size);
+  return n >= min && [...a].filter((w) => b.has(w)).length / n >= LIMITS.stemOverlap;
+};
+const topOf = (ref) => (String(ref).match(/^[^#]*#\d+/) || [ref])[0];
+
+function writtenDups(examJson, out) {
+  const seen = new Map(); // sectionId -> written shapes so far
+  leaves(examJson).forEach((l) => {
+    const q = l.item;
+    if (Array.isArray(q.options) || typeof q.question !== 'string' || l.sectionId == null) return;
+    const s = { leaf: l, top: topOf(l.ref), stem: words(q.question, STOP) };
+    const prior = seen.get(l.sectionId) || [];
+    const twin = prior.find((p) => p.top !== s.top && overlap(p.stem, s.stem, LIMITS.minWrittenWords));
+    if (twin) out.push(issue(ID, 'NEAR_DUP', l.ref, `asks the same as ${twin.leaf.ref}`, true, l.slot == null ? undefined : l.slot));
+    else prior.push(s);
+    seen.set(l.sectionId, prior);
+  });
 }
 
 function run(examJson) {
   const out = [];
   const seen = new Map(); // sectionId -> shapes so far
+  writtenDups(examJson, out);
   leaves(examJson).forEach((l) => {
     if (!Array.isArray(l.item.options) || l.sectionId == null) return;
     const s = shape(l);
