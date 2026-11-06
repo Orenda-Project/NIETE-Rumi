@@ -811,11 +811,8 @@ async function deliverRender({
   const sent = await sendDocumentWithRetry({
     phone,
     url,
-    filename: buildFilename(segment, lang),
-    caption: buildCaption(segment, lang, {
-      overlayDropped: overlayDropped === true,
-      renderDegraded: renderDegraded === true,
-    }),
+    filename,
+    caption,
     maxAttempts: sendMaxAttempts,
     retryDelaysMs: sendRetryDelaysMs,
     deadlineAt: sendDeadlineAt,
