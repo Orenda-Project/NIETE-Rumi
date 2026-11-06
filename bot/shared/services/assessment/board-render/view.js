@@ -1,12 +1,12 @@
 'use strict';
 /**
  * A G9-12 board paper for the portal's paper page (bd-5jmnfj.38.25.5): the same entries shape the FDE view
- * returns ({slot, heading, lead, questions}), read from the board layout's flat slots[]. Numbers restart per slot,
- * as the printed paper numbers them; a new stimulus starts its own entry led by its passage. Never reads an
+ * returns ({slot, heading, lead, questions}), read from the board layout's flat slots[]. Numbers start at the slot
+ * label's range (Q41-60 -> 41), as the printed paper numbers them; a new stimulus starts its own entry led by its passage. Never reads an
  * item's key, answer, scheme or tag. Pure, no I/O.
  */
-const { layoutOf, itemsBySlot, slotsOf, langOf } = require('./layout');
-const { WORDS } = require('./items');
+const { layoutOf, itemsBySlot, slotsOf, langOf, firstNo } = require('./layout');
+const { WORDS, PART } = require('./items');
 const { fmtMarks } = require('./text');
 const Print = require('./print');
 
@@ -28,9 +28,17 @@ function heading(sec, lang) {
   return join([`${w.section} ${sec.id}`, time, `${fmtMarks(sec.marks)} ${MARKS[lang]}`], ' · ');
 }
 
-function question(q, number, slot) {
+/** Plain text of an item: its stem, an OR pair's two choices, or a lead with its (a)/(b) parts (round 8). */
+function textOfItem(q, lang) {
+  if (Array.isArray(q.or)) return q.or.map((b) => textOfItem(b, lang)).join(`\n${WORDS[lang].or}\n`);
+  const lead = String(q.question ?? '').trim();
+  if (!Array.isArray(q.parts)) return lead;
+  return join([lead, ...q.parts.map((p, k) => `(${PART[k]}) ${textOfItem(p, lang)}`)], '\n');
+}
+
+function question(q, number, slot, lang) {
   const marks = Number(q.marks) || slot.marks_each || null;
-  const base = { number, shape: 'standard', text: String(q.question ?? '').trim(), marks };
+  const base = { number, shape: 'standard', text: textOfItem(q, lang) || '', marks };
   const options = Array.isArray(q.options) ? q.options.map((o) => String(o ?? '').trim()).filter(Boolean) : [];
   return options.length ? { ...base, shape: 'options', options } : base;
 }
@@ -63,7 +71,7 @@ function slotEntries(slot, items, lang, head) {
         current.lead = join([current.lead, text], '\n');
       }
     }
-    current.questions.push(question(q, i + 1, slot));
+    current.questions.push(question(q, firstNo(slot) + i, slot, lang));
   });
   return out;
 }

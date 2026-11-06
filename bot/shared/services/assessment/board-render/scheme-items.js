@@ -9,8 +9,8 @@
  */
 const { textOf, marksText, fmtMarks, bareOption } = require('./text');
 const OT = require('../board-checks/option-text');
-const { slotsOf } = require('./layout');
-const { marksLine } = require('./items');
+const { slotsOf, firstNo } = require('./layout');
+const { marksLine, orWord, PART } = require('./items');
 
 const WORDS = {
   en: { section: 'Section', total: 'Total', record: 'Class record', name: 'Name / Roll No', key: 'Key', answer: 'Model answer', bloom: "Bloom's level", slo: 'Official SLO', criteria: 'Criteria', marks: 'Marks' },
@@ -49,9 +49,22 @@ function itemRow(slot, q, i, ctx) {
     const letter = q.key != null ? q.key : (idx >= 0 ? LETTERS[idx] : '');
     body = `<div class="key">${w.key}: ${textOf(letter, rtl)}${opt}</div>`;
   } else {
-    body = `${q.answer ? `<div><b>${w.answer}:</b> ${textOf(q.answer, rtl)}</div>` : ''}${schemeTable(q.scheme, ctx)}`;
+    return `<div class="q"><span class="qn">${textOf(`${i + 1}.`, rtl)}</span> ${answerHtml(q, ctx)}</div>`;
   }
   return `<div class="q"><span class="qn">${textOf(`${i + 1}.`, rtl)}</span> ${textOf(q.question, rtl)}${body}${tagLine(q, ctx)}</div>`;
+}
+
+/** A constructed item in the scheme: stem, model answer, points/bands, tag; an OR pair's choices and a parts
+ * item's (a)/(b) each get their own (the writer's tree, bd-5jmnfj.38.30 round 8). */
+function answerHtml(q, ctx) {
+  const { rtl, lang } = ctx;
+  if (Array.isArray(q.or)) return q.or.map((b) => `<div class="branch">${answerHtml(b, ctx)}</div>`).join(`<div class="or">${orWord(rtl)}</div>`);
+  const lead = q.question ? textOf(q.question, rtl) : '';
+  if (Array.isArray(q.parts)) {
+    return lead + q.parts.map((p, k) => `<div class="sub"><span class="pl">(${PART[k]})</span> ${answerHtml(p, ctx)}</div>`).join('') + tagLine(q, ctx);
+  }
+  const ans = q.answer ? `<div><b>${WORDS[lang].answer}:</b> ${textOf(q.answer, rtl)}</div>` : '';
+  return `${lead}${ans}${schemeTable(q.scheme, ctx)}${tagLine(q, ctx)}`;
 }
 
 function slotScheme(slot, by, ctx) {
@@ -65,7 +78,7 @@ function slotScheme(slot, by, ctx) {
     body = `<div>${textOf(p[`instruction_${lang}`] || p.instruction_en || '', rtl)}</div>`
       + (crit.length ? `<div><b>${WORDS[lang].criteria}:</b><ul>${crit.map((c) => `<li>${textOf(c, rtl)}</li>`).join('')}</ul></div>` : '');
   } else {
-    body = (by.get(slot.slot) || []).map((q, i) => itemRow(slot, q, i, ctx)).join('');
+    body = (by.get(slot.slot) || []).map((q, i) => itemRow(slot, q, firstNo(slot) - 1 + i, ctx)).join('');
   }
   return `<div class="scheme-slot" data-slot-total="${slot.marks}">${head}${body}</div>`;
 }
