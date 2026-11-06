@@ -5,7 +5,9 @@
  * shortfall fails the paper: PATTERN_SHORT_SLOT; the top-up is T.topUp, never d.topUp, which is blind to OR and
  * stimulus nodes). Then board-checks in board mode BEFORE the trim: hard items are dropped and the top-up's extras
  * fill the gap; a slot still short gets one targeted rewrite of the dropped items (round 5), and of the rewrite and
- * the originals the version with fewer hard issues is kept (a failure reports it). Then the scheme normaliser.
+ * the originals the version with fewer hard issues is kept (a failure reports it). A same-section key leak that
+ * survives that rewrite gets a second rewrite of the KEYED item, told the phrases not to use (round 6). Then the
+ * scheme normaliser.
  *
  * The service's helpers arrive as `d` (_boardDeps); this module never requires the service, and never uses the
  * G5 layout engine (the layout is board-layout.js). Returns the board wrapper shape of _writePatternPaper.
@@ -170,27 +172,46 @@ async function writeBoardPaper(args, d) {
 
   // 3. One targeted rewrite of the dropped items (same slot, told the used keys and the stems to avoid). Nothing new
   // is asked for the slot, so a topped-up slot may be rewritten. Of the rewrite and the originals, fewer hard wins.
-  let short = T.shortfallOf(ex, allSlots);
-  if (checks.shortfall.length || short.length) {
-    drop(ex, hardIds(checks));
-    short = T.shortfallOf(ex, allSlots);
-    const before = new Set(ids(ex));
-    const used = usedKeys(ex);
+  const rewrite = async (tree, from, phrases = []) => {
+    let out = tree;
+    const short = T.shortfallOf(out, allSlots);
+    const used = usedKeys(out);
     for (const unit of unitsOf(V)) {
       const mine = short.filter((r) => unit.slots.some((s) => s.slot === r.slot)).map((r) => ({ ...r, write: r.need - r.have }));
       if (!mine.length) continue;
       const slots = unit.slots.filter((s) => mine.some((r) => r.slot === s.slot)).map((s) => sized(s, mine.find((r) => r.slot === s.slot).write));
-      const stems = dropped.filter((x) => mine.some((r) => r.slot === x.slot)).map((x) => x.question);
-      const second = await ask({ ...unit, slots }, trees, SP.rewriteNote(mine, stems, used));
-      ex = T.topUp(ex, second.tree, slotSet(slots));
+      const stems = dropped.slice(from).filter((x) => mine.some((r) => r.slot === x.slot)).map((x) => x.question);
+      const second = await ask({ ...unit, slots }, trees, SP.rewriteNote(mine, stems, used, phrases));
+      out = T.topUp(out, second.tree, slotSet(slots));
     }
+    return out;
+  };
+  const failing = (tree, run) => run.shortfall.length > 0 || T.shortfallOf(tree, allSlots).length > 0;
+  if (failing(ex, checks)) {
+    drop(ex, hardIds(checks));
+    let before = new Set(ids(ex));
+    ex = await rewrite(ex, 0);
     checks = finish(ex, before);
-    short = T.shortfallOf(ex, allSlots);
-    if (checks.shortfall.length || short.length) {
+    const tries = [{ ex, checks }];
+    // 3b (round 6). A same-section concept leak left after that: one rewrite of the KEYED items, told the phrases.
+    const keyed = checks.shortfall.flatMap((r) => r.keyed || []);
+    if (failing(ex, checks) && keyed.length) {
+      const next = clone(ex);
+      const from = dropped.length;
+      drop(next, new Set(keyed.map((k) => k.id)));
+      before = new Set(ids(next));
+      const phrases = [...new Set(keyed.map((k) => k.phrase))];
+      const ex2 = await rewrite(next, from, phrases);
+      const checks2 = finish(ex2, before);
+      tries.unshift({ ex: ex2, checks: checks2 });
+      ex = ex2;
+      checks = checks2;
+    }
+    if (failing(ex, checks)) {
       const orig = clone(whole);
-      const origChecks = finish(orig);
-      if (origChecks.record.hard < checks.record.hard) throw shortError(origChecks.shortfall.length ? origChecks.shortfall : T.shortfallOf(orig, allSlots), orig);
-      throw shortError(checks.shortfall.length ? checks.shortfall : short, ex);
+      tries.push({ ex: orig, checks: finish(orig) });
+      const best = tries.reduce((a, b) => (b.checks.record.hard < a.checks.record.hard ? b : a));
+      throw shortError(best.checks.shortfall.length ? best.checks.shortfall : T.shortfallOf(best.ex, allSlots), best.ex);
     }
   }
 

@@ -42,6 +42,12 @@ function buildShortfall(hardIssues, mode, refToId) {
     if (!row.item_refs.includes(i.item_ref)) row.item_refs.push(i.item_ref);
     const id = refToId.get(i.item_ref);
     if (id != null && !row.items.includes(id)) row.items.push(id);
+    // round 6: a same-section key leak also names the keyed item and phrase (the writer's second rewrite)
+    const keyed = i.keyed_ref != null ? refToId.get(i.keyed_ref) : null;
+    if (keyed != null) {
+      row.keyed = row.keyed || [];
+      if (!row.keyed.some((k) => k.id === keyed)) row.keyed.push({ id: keyed, phrase: i.phrase });
+    }
   });
   return [...rows.values()];
 }

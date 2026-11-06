@@ -151,7 +151,7 @@ describe('N18 in a board paper: chapter vocabulary', () => {
       srq('A bus moves at 12 m/s for one minute. Find the distance travelled.', 'seven hundred and twenty metres'),
     ), BOARD);
     expect(hard(r)).toEqual([]);
-    expect(soft(r)).toHaveLength(1); // round 5: the bare unit "m/s" in another stem is no issue at all
+    expect(soft(r)).toEqual([]); // round 5: a bare unit ("m/s") is no issue; round 6: "the same" -> "same", under the 5-letter search floor
   });
   test('a numeric MCQ key with units in another item stimulus is soft (round 5: given data)', () => {
     const r = m.run(paper(
