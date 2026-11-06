@@ -1539,20 +1539,23 @@ async function cellOffered(grade, subject, userId) {
 }
 /**
  * Assessments are keyed by book (bd-97daxo.4): a G1-5 subject is offered only where the ICT book the generator
- * reads is on her region's list. Her list is read only for a G1-5 request by a known teacher; anyone else gets
+ * reads is on her region's list. Her list is read for any grade by a known teacher (a list that stops at Grade 5 offers nothing at 6+); anyone else gets
  * null, which offers everything exactly as before.
  */
 const TeacherBooks = require('../services/teacher-books.service');
 async function assessmentShelf(grade, userId) {
-  if (!userId || !(Number(grade) >= 1 && Number(grade) <= 5)) return null;
-  return TeacherBooks.bookKeysForUser(userId);
+  if (!userId) return null;
+  return TeacherBooks.bookKeysForUser(userId); // every grade: a list that stops at 5 offers nothing at 6+ (6 Nov)
 }
 /** Browse's grade list as this user is offered it (the gate lives here, not in the browse service). */
 async function offeredGrades(grades, userId) {
   const n = (x) => Number(x && typeof x === 'object' ? x.grade : x);
-  if (!grades.some((x) => n(x) >= 6)) return grades; // G1-5 only: untouched, byte for byte
-  const g = await gradeGateFor(grades.map(n));
-  return GradeGate.offeredGrades(grades, g.flag, g.kill, g.killCells, userId);
+  // bd-97daxo.4 — only the grades her region's books cover (GB: 1-5). No list: every grade, as before.
+  const shelf = userId ? await TeacherBooks.bookKeysForUser(userId) : null;
+  const covered = Array.isArray(shelf) ? grades.filter((x) => TeacherBooks.gradeCovered(n(x), shelf)) : grades;
+  if (!covered.some((x) => n(x) >= 6)) return covered; // G1-5 only: untouched, byte for byte
+  const g = await gradeGateFor(covered.map(n));
+  return GradeGate.offeredGrades(covered, g.flag, g.kill, g.killCells, userId);
 }
 /** Browse's subject rows for one grade, minus the cells this user is not offered. */
 async function offeredSubjects(grade, subjects, userId) {
@@ -2264,9 +2267,22 @@ function lp612Route(name, handler) {
  * Body {} → { success, grades: [{ grade }] }
  */
 router.post('/lp612/grades', requireInternalKey, lp612Route('grades', async (Browse, req, res) => {
-  const grades = await Browse.listGrades();
+  const shelf = await lp612Shelf(req.body);
+  if (shelf.none) return res.json({ success: true, grades: [] });
+  const grades = (await Browse.listGrades()).filter((g) => shelf.covers(g && g.grade));
   return res.json({ success: true, grades });
 }));
+
+/**
+ * bd-97daxo.4 (operator, 6 Nov) — the Grades 6-12 lists for the portal SESSION's teacher: a region whose books
+ * stop at Grade 5 (GB) gets none, so she is never handed ICT's 6-12 books. No list: every grade, as before.
+ */
+async function lp612Shelf(body) {
+  const keys = (await shelfArgs(body))[0];
+  if (!Array.isArray(keys)) return { none: false, covers: () => true };
+  const covers = (g) => TeacherBooks.gradeCovered(g, keys);
+  return { none: ![6, 7, 8, 9, 10, 11, 12].some(covers), covers };
+}
 
 /**
  * POST /api/internal/lp612/subjects
@@ -2276,6 +2292,7 @@ router.post('/lp612/subjects', requireInternalKey, lp612Route('subjects', async 
   const grade = num((req.body || {}).grade);
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
 
+  if (!(await lp612Shelf(req.body)).covers(grade)) return res.json({ success: true, subjects: [] });
   const subjects = await Browse.listSubjects(grade);
   return res.json({ success: true, subjects });
 }));
@@ -2291,6 +2308,7 @@ router.post('/lp612/chapters', requireInternalKey, lp612Route('chapters', async 
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
 
+  if (!(await lp612Shelf(body)).covers(grade)) return res.json({ success: true, chapters: [] });
   const chapters = await Browse.listChapters(grade, subject);
   return res.json({ success: true, chapters });
 }));
@@ -2313,6 +2331,7 @@ router.post('/lp612/lessons', requireInternalKey, lp612Route('lessons', async (B
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
   if (!chapterKey) return res.status(400).json({ success: false, error: 'chapterKey is required' });
 
+  if (!(await lp612Shelf(body)).covers(grade)) return res.json({ success: true, lessons: [] });
   const lang = clampLanguage(body.lang);
   // bd-5rz1v.14 — the teacher whose ✓✓ Sent marks the list (the portal passes its session's).
   const userId = String(body.userId || '').trim() || null;
