@@ -105,3 +105,13 @@ describe('the repair round replaces only the leaking item', () => {
     expect(kept.filter((l) => firstStems.includes(l.question)).map((l) => l.id)).toEqual(['A.Q1#1', 'A.Q1#3', 'A.Q1#4']);
   });
 });
+
+describe('the chapter reaches the CURRICULUM CODES list (item 4)', () => {
+  test('sloList is asked with the chapter number', async () => {
+    const { d } = makeDeps({ grade: 9, row, levels: TOS.levels, style: fictional.style });
+    const asked = [];
+    d.sloList = (...a) => { asked.push(a); return 'G9-U2-LO1 — made-up outcome'; };
+    await writeBoardPaper({ grade: 9, subject: 'physics', pattern: 'p', P: fictional.P, variant: fictional.variant, chapterNumber: 2 }, d);
+    expect(asked).toEqual([[9, 'physics', 2]]);
+  });
+});

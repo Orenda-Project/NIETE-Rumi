@@ -1,0 +1,94 @@
+{
+ "grade": 9,
+ "code": "maths",
+ "source": {
+  "file": "stem/mathematics_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "2": [
+   {
+    "code": "G9-U2-LO1",
+    "kind": "lo",
+    "desc": "Express a number in standard form of scientific"
+   },
+   {
+    "code": "G9-U2-LO3",
+    "kind": "lo",
+    "desc": "Define a common logarithm, characteristic and mantissa of"
+   },
+   {
+    "code": "G9-U2-LO6",
+    "kind": "lo",
+    "desc": "Differentiate between common and natural logarithm"
+   },
+   {
+    "code": "G9-U2-LO2",
+    "kind": "lo",
+    "desc": "Define logarithm of a number to the base"
+   },
+   {
+    "code": "G9-U2-LO4",
+    "kind": "lo",
+    "desc": "Use tables to find the log of a"
+   },
+   {
+    "code": "G9-U2-LO5",
+    "kind": "lo",
+    "desc": "Give concept of antilog and use tables to"
+   },
+   {
+    "code": "G9-U2-LO7",
+    "kind": "lo",
+    "desc": "Prove the four basic laws of logarithm"
+   },
+   {
+    "code": "G9-U2-LO8",
+    "kind": "lo",
+    "desc": "Apply laws of logarithm to convert lengthy processes"
+   }
+  ],
+  "4": [
+   {
+    "code": "G9-U2-LO1",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "G9-U2-LO2",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "G9-U2-LO3",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "G9-U2-LO4",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "G9-U2-LO5",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "G9-U2-LO6",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "G9-U2-LO7",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "G9-U2-LO8",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ]
+ }
+}

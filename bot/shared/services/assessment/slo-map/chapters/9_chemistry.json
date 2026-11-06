@@ -1,0 +1,259 @@
+{
+ "grade": 9,
+ "code": "chemistry",
+ "source": {
+  "file": "stem/chemistry_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "1": [
+   {
+    "code": "G9-U1-LO1",
+    "kind": "lo",
+    "desc": "Define chemistry as the study of matter, its"
+   },
+   {
+    "code": "G9-U1-LO3",
+    "kind": "lo",
+    "desc": "Differentiate between 'science' 'technology' and 'engineering' by referring"
+   }
+  ],
+  "3": [
+   {
+    "code": "G9-U3-LO3",
+    "kind": "lo",
+    "desc": "State the electrons are quantum particles with probabilistic"
+   },
+   {
+    "code": "G9-U3-LO5",
+    "kind": "lo",
+    "desc": "State the relative charge and relative masses of"
+   },
+   {
+    "code": "G9-U3-LO1",
+    "kind": "lo",
+    "desc": "Explain the structure of the atom as the"
+   },
+   {
+    "code": "G9-U3-LO4",
+    "kind": "lo",
+    "desc": "Explain that an atomic model is an aid"
+   },
+   {
+    "code": "G9-U3-LO2",
+    "kind": "lo",
+    "desc": "State that, orbits(shells) are energy levels of electrons"
+   },
+   {
+    "code": "G9-U3-LO6",
+    "kind": "lo",
+    "desc": "Interpret the relationship between a subatomic particle, their"
+   }
+  ],
+  "4": [
+   {
+    "code": "G9-U4-LO1",
+    "kind": "lo",
+    "desc": "Define the periodic table as an arrangement element"
+   },
+   {
+    "code": "G9-U4-LO2",
+    "kind": "lo",
+    "desc": "Identify the group or period or block of"
+   },
+   {
+    "code": "G9-U4-LO3",
+    "kind": "lo",
+    "desc": "Explain the relationship between group number and the"
+   },
+   {
+    "code": "G9-U4-LO5",
+    "kind": "lo",
+    "desc": "Identify trends in groups and periods, given information"
+   },
+   {
+    "code": "G9-U4-LO4",
+    "kind": "lo",
+    "desc": "Explain similarities in the chemical properties of elements"
+   },
+   {
+    "code": "G9-U4-LO6",
+    "kind": "lo",
+    "desc": "Use terms like alkali metals, alkaline earth metals,"
+   }
+  ],
+  "5": [
+   {
+    "code": "G9-U5-LO1",
+    "kind": "lo",
+    "desc": "Describe noble gas electronic configuration, octet and duplit"
+   },
+   {
+    "code": "G9-U5-LO3",
+    "kind": "lo",
+    "desc": "Define ionic, covalent, coordinate covalent and metallic bonds"
+   },
+   {
+    "code": "G9-U5-LO4",
+    "kind": "lo",
+    "desc": "Differentiate between ionic compounds and covalent compounds. (the"
+   },
+   {
+    "code": "G9-U5-LO2",
+    "kind": "lo",
+    "desc": "Compare between the formation of cations and anions"
+   }
+  ],
+  "6": [
+   {
+    "code": "G9-U6-LO3",
+    "kind": "lo",
+    "desc": "Define empirical formula of a compound as the"
+   },
+   {
+    "code": "G9-U6-LO7",
+    "kind": "lo",
+    "desc": "Define mole as amount of substance containing Avogadro`s"
+   },
+   {
+    "code": "G9-U6-LO10",
+    "kind": "lo",
+    "desc": "Deduce the symbol equation with state symbols for"
+   }
+  ],
+  "7": [
+   {
+    "code": "G9-U7-LO1",
+    "kind": "lo",
+    "desc": "Define redox reactions as simultaneous oxidation and reduction"
+   },
+   {
+    "code": "G9-U7-LO2",
+    "kind": "lo",
+    "desc": "Use roman numerals to indicate oxidation number of"
+   },
+   {
+    "code": "G9-U7-LO3",
+    "kind": "lo",
+    "desc": "Identify oxidizing and reducing agents in redox reactions"
+   }
+  ],
+  "8": [
+   {
+    "code": "G9-U8-LO3",
+    "kind": "lo",
+    "desc": "State that thermal energy is called enthalpy change"
+   },
+   {
+    "code": "G9-U8-LO5",
+    "kind": "lo",
+    "desc": "Explain that activation energy depends on reaction pathway"
+   }
+  ],
+  "9": [
+   {
+    "code": "G9-U9-LO2",
+    "kind": "lo",
+    "desc": "Describe how changing the physical conditions of a"
+   }
+  ],
+  "11": [
+   {
+    "code": "G9-U11-LO2",
+    "kind": "lo",
+    "desc": "State the major sources of air pollutants: Some"
+   },
+   {
+    "code": "G9-U11-LO3",
+    "kind": "lo",
+    "desc": "State the adverse effects of air pollutants: Some"
+   }
+  ],
+  "12": [
+   {
+    "code": "G9-U12-LO4",
+    "kind": "lo",
+    "desc": "State that water from natural sources may contain"
+   },
+   {
+    "code": "G9-U12-LO2",
+    "kind": "lo",
+    "desc": "Explain how to test the purity of water"
+   }
+  ],
+  "13": [
+   {
+    "code": "G9-U13-LO5",
+    "kind": "lo",
+    "desc": "Define structural isomers as formula, but different structural"
+   },
+   {
+    "code": "G9-U13-LO1",
+    "kind": "lo",
+    "desc": "Describe organic molecules as either straight-chained, branched chained"
+   },
+   {
+    "code": "G9-U13-LO2",
+    "kind": "lo",
+    "desc": "State that structural formula is an unambiguous description"
+   }
+  ],
+  "14": [
+   {
+    "code": "G9-U14-LO5",
+    "kind": "lo",
+    "desc": "Describe, using symbol equations, preparation of alkanes from"
+   }
+  ],
+  "15": [
+   {
+    "code": "G9-U15-LO2",
+    "kind": "lo",
+    "desc": "Recognize the main biomolecules, carbohydrates, proteins, lipids, and"
+   }
+  ],
+  "16": [
+   {
+    "code": "G9-U16-LO4",
+    "kind": "lo",
+    "desc": "Justify why chemists use cm³, g, and s"
+   },
+   {
+    "code": "G9-U16-LO5",
+    "kind": "lo",
+    "desc": "Explain with examples how different tools and techniques"
+   }
+  ],
+  "17": [
+   {
+    "code": "G9-U17-LO1",
+    "kind": "lo",
+    "desc": "Define important terms associated with creating chemical solutions."
+   },
+   {
+    "code": "G9-U17-LO2",
+    "kind": "lo",
+    "desc": "Explain methods of separation and purification (some examples"
+   }
+  ],
+  "18": [
+   {
+    "code": "G9-U18-LO1",
+    "kind": "lo",
+    "desc": "Describe tests to identify important gases ( Some"
+   }
+  ],
+  "19": [
+   {
+    "code": "G9-U19-LO1",
+    "kind": "lo",
+    "desc": "Describe how paper chromatography is used to separate"
+   },
+   {
+    "code": "G9-U19-LO2",
+    "kind": "lo",
+    "desc": "Describe the use of locating agents when separating"
+   }
+  ]
+ }
+}

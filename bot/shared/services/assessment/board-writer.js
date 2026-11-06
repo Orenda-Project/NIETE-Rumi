@@ -42,7 +42,7 @@ async function writeBoardPaper(args, d) {
   const { model, job } = d.patternModel(d.family);
   const ownModel = d.resolveModelForJob('assessment.generate', { family: d.family }).model;
   const allSlots = V.sections.flatMap((s) => s.slots);
-  const sloList = typeof d.sloList === 'function' ? d.sloList(grade, subject) : undefined;
+  const sloList = typeof d.sloList === 'function' ? d.sloList(grade, subject, chapterNumber) : undefined; // item 4: the chapter's matrix codes follow
   const usages = [];
 
   const ask = async (unit, done, note) => {
