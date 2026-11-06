@@ -1,0 +1,2 @@
+{"ts":"2026-11-06T09:30:34Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test,fde-board-pattern spec_sync=true","sha":"25774b222324","branch":"bd-apnnh2.4-51876","user":"tariqtaleemabad"}
+{"ts":"2026-11-06T09:31:18Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-apnnh2.4-51876: registration spec: NOT UPDATED e2e: missing","sha":"25774b222324","branch":"bd-apnnh2.4-51876","user":"tariqtaleemabad"}
