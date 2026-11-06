@@ -1,7 +1,7 @@
 import type { AssessmentPaper } from '../../services/api';
 import type { HistoryGroup } from '../ui';
 import type { AssessmentV2Copy } from './copy';
-import { groupPapersByDay, pkToday } from './model';
+import { groupPapersByDay, isBoardId, pkToday } from './model';
 import { paperPath } from './paths';
 
 /**
@@ -24,7 +24,7 @@ export function paperGroups(papers: AssessmentPaper[], C: AssessmentV2Copy, newI
       ),
       isNew: newIds.includes(p.paper_id),
       // A board-pattern paper says so on its row (absent on every other paper, so those rows are today's).
-      ...(p.pattern ? { chip: { text: C.fdeListChip, tone: 'score' as const } } : {}),
+      ...(p.pattern ? { chip: { text: isBoardId(p.pattern) ? C.fbiseListChip : C.fdeListChip, tone: 'score' as const } } : {}),
       to: paperPath(p.paper_id),
     })),
   }));
