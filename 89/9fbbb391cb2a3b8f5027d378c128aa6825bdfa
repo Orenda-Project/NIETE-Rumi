@@ -1,3 +1,4 @@
 {"ts":"2026-11-06T14:37:21Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-assessment,portal-smoke spec_sync=true","sha":"899fbbb391cb","branch":"bd-5jmnfj.38.41-75651","user":""}
 {"ts":"2026-11-06T14:37:24Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-5jmnfj.38.41-75651: teacher-assessment web lane spec: NOT UPDATED e2e: missing","sha":"899fbbb391cb","branch":"bd-5jmnfj.38.41-75651","user":""}
 {"ts":"2026-11-06T14:37:39Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-5jmnfj.38.41-75651: teacher-assessment web lane spec: NOT UPDATED e2e: missing","sha":"899fbbb391cb","branch":"bd-5jmnfj.38.41-75651","user":""}
+{"ts":"2026-11-06T16:02:25Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=- engine=2.0.0","sha":"899fbbb391cb","branch":"bd-5jmnfj.38.41-75651","user":""}
