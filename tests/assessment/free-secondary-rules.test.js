@@ -75,6 +75,7 @@ describe('rulesBlock', () => {
     ['distractors are misconceptions', /misconception/],
     ['no item answers another', /answer to another item/],
     ['the lesson subject is asked about', /main subject of the lesson/],
+    ['a meaning or quality MCQ has no opposite of the key among its distractors', /meaning or a quality[^\n]*opposite/],
   ])('states %s', (_name, re) => {
     expect(text).toMatch(re);
   });

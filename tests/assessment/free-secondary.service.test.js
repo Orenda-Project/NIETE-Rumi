@@ -143,6 +143,19 @@ describe('free-secondary generateExam', () => {
     expect(out.rewritten).toEqual([1]);
   });
 
+  it('runs a second targeted round when the first clears one item and flags remain', async () => {
+    const LONG = ['a) Sand', 'b) Water', 'c) Wood', 'd) Salt that is stirred into warm water'];
+    const twoLong = () => { const d = draft(short({ marking_points: POINTS })); const m = d.unseen.objective['Multiple Choice Questions'];
+      [0, 1].forEach((i) => { m[i].options = LONG.slice(); m[i].answer = 'd'; }); return d; };
+    const fixed = (n) => reply({ items: [{ n, question: 'Which one dissolves in water?', options: OPTS, answer: 'd) Salt' }] });
+    mockCreate.mockResolvedValueOnce(reply(twoLong())).mockResolvedValueOnce(reply(twoLong()))
+      .mockResolvedValueOnce(fixed(1)).mockResolvedValueOnce(fixed(2));
+    const out = await Svc.generateExam({ ...ARGS, keySeed: 's' });
+    expect(mockCreate).toHaveBeenCalledTimes(4);
+    expect(out.rewritten).toEqual([1, 2]);
+    expect(out.issues).toEqual([]);
+  });
+
   it('keeps the paper when the targeted rewrite does not leave fewer problems', async () => {
     const withLong = () => { const d = draft(short({ marking_points: POINTS })); d.unseen.objective['Multiple Choice Questions'][0].options[3] = 'd) Salt that is stirred into warm water'; d.unseen.objective['Multiple Choice Questions'][0].answer = 'd'; return d; };
     mockCreate
