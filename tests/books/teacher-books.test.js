@@ -1,7 +1,7 @@
 /**
  * Which books a teacher's Grade 1-5 menu holds (bd-97daxo.4, book-first).
  *
- * A region may name its books in region_features.book_keys (V1.8.12). A teacher whose region names
+ * A region may name its books in region_features.book_keys (V1.9.2). A teacher whose region names
  * none — every sector teacher, a teacher with no region, the deployment-wide 'niete' row — gets
  * null, which every catalog read takes as "today's ICT list". Any read error is null too: a
  * teacher must always get a menu, and the ICT one is the one everybody had before.
