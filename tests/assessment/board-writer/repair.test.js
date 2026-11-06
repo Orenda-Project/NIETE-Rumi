@@ -31,7 +31,7 @@ describe('board writer repair round', () => {
   test('the repair ask lists the keys already in the paper and says not to state them', async () => {
     const { d, calls } = makeDeps({ ...cell, levels: TOS.levels, reply: leakOnce() });
     const res = await writeBoardPaper({ grade: 9, subject: 'physics', pattern: 'p', P: cell.P, variant: cell.variant }, d);
-    const repair = calls.filter((c) => c.section === 'A' && c.topUp).pop();
+    const repair = calls.filter((c) => c.section === 'A' && /REWRITE/.test(c.user)).pop(); // round 5: the repair is a rewrite
     const kept = res.examJson.unseen ? JSON.stringify(res.examJson) : '';
     expect(repair.user).toMatch(/already keys in this paper/);
     const m = /already keys in this paper[^:]*: (.*)$/m.exec(repair.user);

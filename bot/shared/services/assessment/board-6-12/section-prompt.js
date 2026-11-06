@@ -95,4 +95,13 @@ function chunkNote(chunk, used = []) {
   return used.length ? `${head}\n${usedLine(used)}` : head;
 }
 
-module.exports = { earlierStems, levelTally, promptValues, userPrompt, topUpNote, chunkNote };
+/** Round 5: one targeted rewrite of items the checks removed; nothing new is asked for the slot. */
+function rewriteNote(rows, stems = [], used = []) {
+  const list = rows.map((r) => `${r.slot} (rewrite ${r.write})`).join('; ');
+  const lines = [`REWRITE: some items failed the checks and were removed. Write replacements only, same rules: ${list}.`];
+  if (stems.length) lines.push(`Do not reuse these stems: ${stems.map((x) => `"${x}"`).join('; ')}`);
+  if (used.length) lines.push(usedLine(used));
+  return lines.join('\n');
+}
+
+module.exports = { earlierStems, levelTally, promptValues, userPrompt, topUpNote, chunkNote, rewriteNote };

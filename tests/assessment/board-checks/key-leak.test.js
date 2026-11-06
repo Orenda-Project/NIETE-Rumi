@@ -151,14 +151,15 @@ describe('N18 in a board paper: chapter vocabulary', () => {
       srq('A bus moves at 12 m/s for one minute. Find the distance travelled.', 'seven hundred and twenty metres'),
     ), BOARD);
     expect(hard(r)).toEqual([]);
-    expect(soft(r)).toHaveLength(2);
+    expect(soft(r)).toHaveLength(1); // round 5: the bare unit "m/s" in another stem is no issue at all
   });
-  test('a numeric MCQ key with units in another item stimulus stays hard', () => {
+  test('a numeric MCQ key with units in another item stimulus is soft (round 5: given data)', () => {
     const r = m.run(paper(
       mc('What is the value of g near the Earth?', 'D', ['A) 1.6 m/s^2', 'B) 3.7 m/s^2', 'C) 8.9 m/s^2', 'D) 9.8 m/s^2']),
       srq('Explain why the ball speeds up.', 'gravity pulls it', { stimulus: 'A ball falls with g = 9.8 m/s^2 from a roof.' }),
     ), BOARD);
-    expect(hard(r)).toHaveLength(1);
+    expect(hard(r)).toEqual([]);
+    expect(soft(r)).toHaveLength(1);
   });
   test('a multi-word MCQ key in another MCQ stem stays hard', () => {
     const r = m.run(paper(
@@ -204,9 +205,9 @@ describe('N18 and the repair round', () => {
   test('without fresh ids the stem holder is blamed', () => {
     expect(hard(m.run(paper(OLD, NEW), BOARD)).map((i) => i.item_ref)).toEqual(['srq#1']);
   });
-  test('a fresh replacement whose key sits in an old stem is the one blamed', () => {
+  test('round 5: a fresh replacement whose key sits in an old stem still blames the stem holder', () => {
     const r = m.run(paper(OLD, NEW), { ...BOARD, fresh: new Set(['new']) });
-    expect(hard(r).map((i) => i.item_ref)).toEqual(['mcq#1']);
+    expect(hard(r).map((i) => i.item_ref)).toEqual(['srq#1']);
   });
 });
 
@@ -238,5 +239,46 @@ describe('N18 own stem: units, numbers and signs', () => {
         ['A) +1', 'B) +1/2', 'C) 0', 'D) -1/2']),
     ), BOARD);
     expect(n18(r)).toEqual([]);
+  });
+});
+
+// bd-5jmnfj.38.30 round 5 (a7 p3 G9 Physics ch2, p4 G11 Chemistry ch2): cross-item rulings. A unit alone is never a
+// leak; a number or quantity key in another item's stem is soft (board papers give g as data); a concept phrase in
+// another stem stays hard and is blamed on the item whose stem carries it; an own-stem multi-word key stays hard.
+describe('N18 cross-item in a board paper (round 5)', () => {
+  const BOARD = { mode: 'board' };
+  const mc = (question, key, options) => ({ type: 'mcq', question, options, answer: key });
+  const n18 = (r) => r.issues.filter((i) => i.code === 'KEY_IN_STEM');
+  test('a unit key ("m/s^2") in another stem is no issue at all', () => {
+    const r = m.run(paper(
+      mc('Which is the SI unit of acceleration?', 'B', ['A) m/s', 'B) m/s^2', 'C) kg m/s', 'D) N/kg']),
+      mc('A made-up cart speeds up at 3 m/s^2 for 4 s from rest. Find its final speed.', 'A', ['A) 12 m/s', 'B) 7 m/s', 'C) 1 m/s', 'D) 0.75 m/s']),
+    ), BOARD);
+    expect(n18(r)).toEqual([]);
+  });
+  test('quantity keys ("20 m/s", "9.8 m/s^2") in another stem are soft', () => {
+    const r = m.run(paper(
+      mc('A made-up scooter covers 100 m in 5 s. What is its speed?', 'C', ['A) 5 m/s', 'B) 500 m/s', 'C) 20 m/s', 'D) 0.05 m/s']),
+      mc('What is g near the Earth?', 'D', ['A) 1.6 m/s^2', 'B) 3.7 m/s^2', 'C) 8.9 m/s^2', 'D) 9.8 m/s^2']),
+      srq('A made-up stone falls with g = 9.8 m/s^2. A kite moves at 20 m/s. Find the stone speed after 2 s.', 'nineteen point six metres per second'),
+    ), BOARD);
+    expect(hard(r)).toEqual([]);
+    expect(n18(r)).toHaveLength(2);
+    n18(r).forEach((i) => expect(i.item_ref).toBe('srq#1'));
+  });
+  test('concept-phrase keys in another stem stay hard, blamed on the stem holder', () => {
+    const r = m.run(paper(
+      mc('A made-up train keeps the same speed every second. Its motion is at:', 'A', ['A) constant speed', 'B) rest', 'C) variable speed', 'D) zero speed']),
+      mc('A nucleus holds:', 'B', ['A) electrons only', 'B) protons and neutrons', 'C) photons', 'D) ions']),
+      mc('A made-up bus moves at constant speed on a road. What is its acceleration?', 'C', ['A) 1', 'B) 2', 'C) zero', 'D) 9']),
+      srq('The protons and neutrons of a made-up atom number 12. What is its mass number?', 'twelve'),
+    ), BOARD);
+    expect(hard(r).map((i) => i.item_ref).sort()).toEqual(['mcq#3', 'srq#1']);
+  });
+  test('an own-stem multi-word key ("Negative plate") stays hard', () => {
+    const r = m.run(paper(
+      mc('In a made-up cathode-ray tube the rays leave the negative plate. Which plate do they leave?', 'A', ['A) Negative plate', 'B) Positive plate', 'C) Screen', 'D) Grid']),
+    ), BOARD);
+    expect(hard(r)).toHaveLength(1);
   });
 });
