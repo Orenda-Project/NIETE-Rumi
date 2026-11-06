@@ -104,6 +104,12 @@ describe("question types and subjects", () => {
     expect(typeLabel("Picture Description")).toBe("Picture Description");
   });
 
+  it("prints the label the server sends for a grade 6+ type, not its code (bd-5jmnfj.38.40)", () => {
+    const types = [{ id: "srq", category: "subjective" as const, label: "Short Response" }];
+    expect(typeLabel("srq", types)).toBe("Short Response");
+    expect(typeLabel("MCQs", types)).toBe("MCQ");
+  });
+
   it("every subject has an icon (a book when it is not one we know)", () => {
     for (const key of ["science", "maths", "english", "urdu", "islamiat", "general_knowledge", "social_studies", "art", null]) {
       expect(subjectIcon(key)).toBeTruthy();

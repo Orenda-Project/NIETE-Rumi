@@ -796,6 +796,15 @@ async function settingsCurrentEnough() {
  * with `maxRetries: 0` and the caller's own time budget. With the SDK's retry, a timed-out attempt
  * waited twice the 180 s budget before the fallback even started.
  */
+/**
+ * The model a job's call goes to first: the override in force, else the call site's own. Sends
+ * nothing. For a caller that sets per-model request fields, such as thinking (bd-5jmnfj.38.40).
+ */
+function modelInForce(job, siteModel) {
+  const plan = planForJob(job, siteModel, null);
+  return plan.first ? plan.first.model : siteModel;
+}
+
 async function runWithJobOverride(job, params, options, callSite, declared = null) {
   await settingsCurrentEnough();
   const plan = planForJob(job, params.model, declared);
@@ -1189,5 +1198,6 @@ module.exports = {
   getDefaultModel,
   getProviderInfo,
   appliedOutputLimit,
+  modelInForce,
   ANTHROPIC_DIRECT_PREFIX,
 };
