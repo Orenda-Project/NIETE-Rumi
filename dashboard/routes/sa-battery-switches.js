@@ -82,6 +82,11 @@
  *   sa_r10_practice_next    timing 1: when a practice section ends, Next works at once (a double tap still moves one screen).
  *   sa_r10_urdu_fit         layout 1: an Urdu word sits centred in its button or bubble, the whole Nastaliq glyph inside.
  *   sa_r10_number_fit       layout 2: maths numbers are sized to the space they have (a 3-digit number as large as it fits).
+ *   Round 10, content only (no ui flag):
+ *   sa_r10_fluency_no_practice  task design 1: the timed one-minute mental maths has no practice section (its practice
+ *                           items did not look like the real ones). ON: that part's practice and practice line are dropped,
+ *                           so the engine goes from the instruction to Ready (sa-core instructionDone); the other parts keep
+ *                           theirs. OFF: the battery as before.
  *
  *   Round 10 (the reviewers' 6 Nov list), Jugnu's voice (dashboard/sa/sa-voice.js), each ON adds battery.ui.r10_<flag> = true:
  *   sa_r10_bigger_audio     audio 3 ("Which is bigger" silent): Jugnu speaks through his own elements, unlocked by the
@@ -121,6 +126,7 @@ const SWITCHES = {
   r10NumberFit: 'sa_r10_number_fit',
   // round 10 (Jugnu's voice)
   r10BiggerAudio: 'sa_r10_bigger_audio', r10PracticeGap: 'sa_r10_practice_gap',
+  r10FluencyNoPractice: 'sa_r10_fluency_no_practice',
 };
 const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual', voiceGateV2: 'voice_gate_v2',
   compAllQuestions: 'comp_all_questions', cellPace: 'cell_pace',
@@ -146,9 +152,16 @@ const W3_KEYS = ['rdf_auto', 'rdf_manual', 'rdf_variants', 'rdf_w3_absent'];
 // builder keys a line: sha1(lang|text)[:12]); added to the battery's lines while the switch is ON.
 const SILENCE_LINE = {
   en: { text: 'Jugnu could not hear you. Say each answer out loud. Let us do this part again.', audio: 'sa/v1/en/90d23fdca65f.mp3' },
-  ur: { text: 'جگنو آپ کی آواز نہیں سن سکا۔ جواب کو دوبار اونچی آواز میں بولیں۔ آئیے یہ حصہ دوبارہ کرتے ہیں۔', audio: 'sa/v1/ur/34123776cd8c.mp3' },
+  ur: { text: 'جگنو آپ کی آواز نہیں سن سکا۔ ہر جواب اونچی آواز میں بولیں۔ آئیے یہ حصہ دوبارہ کرتے ہیں۔', audio: 'sa/v1/ur/dc59290fb3f6.mp3' },
 };
 const W3_LINES = ['coach_will_instruct', 'please_go_on'];
+
+/** Round 10, sa_r10_fluency_no_practice: the one-minute mental maths without its practice (and its practice line). */
+function withoutFluencyPractice(task) {
+  if (!task || task.subtask !== 'mental_math_fluency' || !Array.isArray(task.practice) || !task.practice.length) return task;
+  const { practice_intro: _p, ...script } = task.script || {};
+  return { ...task, practice: [], ...(task.script ? { script } : {}) };
+}
 
 /** OFF: the battery less everything the W3 forms added. */
 function withoutW3(battery) {
@@ -164,6 +177,7 @@ function applySwitches(input, on = {}) {
   const w3 = on.rdfW3Forms ? input : withoutW3(input);
   // round 8, sa_r8_counts: the RDF forms' counts (only W3 tasks carry them, so nothing changes without sa_rdf_w3_forms)
   const battery = on.r8Counts === true ? withCounts(w3) : w3;
+  const fluencyOff = (t) => (on.r10FluencyNoPractice === true ? withoutFluencyPractice(t) : t);
   const tasks = battery.tasks.map((t) => {
     const demo = !!(t.script && t.script.demo_item);
     if (!t.practice_v2 && !demo && !t.variants) return t;
@@ -177,7 +191,7 @@ function applySwitches(input, on = {}) {
     }
     delete o.practice_v2;
     return o;
-  });
+  }).map(fluencyOff);
   const ui = Object.keys(UI).filter((k) => on[k] === true);
   // round 7b, the child's screens: the lines and the T clip their switches add (sa-r7a-content.js); none when OFF
   if (!ui.length) return applyR7a({ ...battery, tasks }, on);
