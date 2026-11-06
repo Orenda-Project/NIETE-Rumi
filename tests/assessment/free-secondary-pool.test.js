@@ -57,3 +57,37 @@ describe('select', () => {
     expect(exam.unseen.subjective['Short Answers'][1].questions).toHaveLength(2);
   });
 });
+
+describe('spares and swapLeaks (G7 a6: Q2 "Carbon dioxide" still gave Q5 away after the rewrites)', () => {
+  const { paperIssues } = require('../../bot/shared/services/assessment/free-secondary-checks');
+  const real = (exam) => paperIssues(exam, { grade: 7 });
+  const opt = (k, ...o) => ({ options: o.map((t, i) => `${'abcd'[i]}) ${t}`), answer: `${'abcd'[k]}) ${o[k]}`, marks: 1 });
+  const q2 = { question: 'A sealed jar holds a healthy green plant. It sits under bright light for some hours. Which gas amount decreases inside the jar?',
+    ...opt(0, 'Carbon dioxide', 'Oxygen', 'Water vapour', 'Nitrogen') };
+  const spare = { question: 'Which tissue carries water up the stem?', ...opt(1, 'Phloem', 'Xylem', 'Cortex', 'Epidermis') };
+  const q5 = { question: 'Explain why a leaf\'s structure suits it for photosynthesis.', marks: 3,
+    answer: 'Leaves are broad, thin and have many stomata, air spaces and chloroplasts, all of which help them absorb light, carbon dioxide and water efficiently for photosynthesis.',
+    marking_points: [{ point: 'broad', marks: 1 }, { point: 'stomata', marks: 1 }, { point: 'chloroplasts', marks: 1 }],
+    mark_bands: [{ marks: '3', descriptor: 'full' }, { marks: '0', descriptor: 'none' }], accept: 'x', reject: 'y' };
+  const g7 = () => paper([{ question: 'Which mineral is needed to make chlorophyll?', ...opt(2, 'Potassium', 'Nitrogen', 'Magnesium', 'Iron') }, q2], [q5]);
+
+  it('select hands back the MCQs it dropped as spares', () => {
+    const exam = paper([mcq('Q1'), mcq('Q2 LEAK', 'b'), mcq('Q3', 'c')]);
+    const out = P.select(exam, 2, issuesOf);
+    expect(out.spares.map((q) => q.question)).toEqual(['Q2 LEAK']);
+  });
+  it('puts a clean spare in place of an MCQ still leaking, keeping the MCQ count', () => {
+    const exam = g7();
+    expect(real(exam).map((i) => `${i.n}:${i.check}`)).toEqual(['2:cross-leak']);
+    const spares = [spare];
+    expect(P.swapLeaks(exam, spares, real)).toBe(1);
+    expect(real(exam)).toEqual([]);
+    expect(stems(exam)[1]).toBe('Which tissue carries water up the stem?');
+    expect(spares).toHaveLength(0);
+  });
+  it('keeps the paper as it was when no spare lowers the problems', () => {
+    const exam = g7();
+    expect(P.swapLeaks(exam, [{ ...q2 }], real)).toBe(0);
+    expect(stems(exam)[1]).toBe(q2.question);
+  });
+});

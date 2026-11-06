@@ -18,48 +18,68 @@ describe('bandOf', () => {
   });
 });
 
-describe('sizeTypes', () => {
+describe('sizeTypes (the requested count is kept: a7 ruling on A5e)', () => {
   const counts = (out) => out.map((t) => [t.id, t.count]);
+  const total = (out) => out.reduce((s, t) => s + t.count, 0);
   const budget = Math.floor(60 * R.LOAD_SHARE);
 
-  it('keeps the G7 a5 request 7/7/6 in proportion: it must not become 16/3/1', () => {
+  it('keeps the G7 request 7/7/6 at 20 items: MCQs as asked, extended answers become short ones, at least one stays', () => {
     const asked = types([['mcq', 7, 'objective'], ['srq', 7, 'subjective'], ['erq', 6, 'subjective']]);
-    const { types: out, dropped } = R.sizeTypes(asked, 7);
-    expect(counts(out)).not.toEqual([['mcq', 16], ['srq', 3], ['erq', 1]]);
-    expect(R.plannedMinutes(out)).toBeLessThanOrEqual(budget);
-    expect(printedMinutes(R.plannedMinutes(out))).toBeLessThanOrEqual(60);
-    out.forEach((t, i) => expect(t.count).toBeLessThanOrEqual(asked[i].count));
-    const shares = out.map((t, i) => t.count / asked[i].count);
-    expect(Math.max(...shares) - Math.min(...shares)).toBeLessThanOrEqual(0.2);
-    expect(out[2].count).toBeGreaterThanOrEqual(1);
-    expect(dropped).toBe(20 - out.reduce((s, t) => s + t.count, 0));
+    const out = R.sizeTypes(asked, 7);
+    expect(total(out.types)).toBe(20);
+    expect(out.types[0].count).toBe(7);
+    expect(out.types[2].count).toBeGreaterThanOrEqual(1);
+    expect(out.types[2].count).toBeLessThan(6);
+    expect(out.types[1].count).toBe(7 + out.converted);
+    expect(out.light).toBe(true);
   });
 
-  it('shrinks the G8 Urdu mix (mcq, srq, grammar) in proportion too', () => {
+  it('converts only as many extended answers as the time needs, with full marks when that fits', () => {
+    const out = R.sizeTypes(types([['mcq', 10, 'objective'], ['srq', 2, 'subjective'], ['erq', 3, 'subjective']]), 7);
+    expect(counts(out.types)).toEqual([['mcq', 10], ['srq', 4], ['erq', 1]]);
+    expect(out).toMatchObject({ converted: 2, light: false });
+    expect(R.plannedMinutes(out.types)).toBeLessThanOrEqual(budget);
+  });
+
+  it('adds a short-answer type when the request had none to convert into', () => {
+    const out = R.sizeTypes(types([['mcq', 10, 'objective'], ['erq', 3, 'subjective']]), 7);
+    expect(counts(out.types)).toEqual([['mcq', 10], ['srq', 1], ['erq', 2]]);
+    expect(out.types[1].category).toBe('subjective');
+  });
+
+  it('keeps the G8 Urdu mix (mcq, srq, grammar) as asked and lowers the marks per written item to fit', () => {
     const asked = types([['mcq', 7, 'objective'], ['srq', 7, 'subjective'], ['grammar', 6, 'subjective']]);
-    const { types: out } = R.sizeTypes(asked, 8);
-    expect(R.plannedMinutes(out)).toBeLessThanOrEqual(budget);
-    const shares = out.map((t, i) => t.count / asked[i].count);
-    expect(Math.max(...shares) - Math.min(...shares)).toBeLessThanOrEqual(0.2);
+    const out = R.sizeTypes(asked, 8);
+    expect(counts(out.types)).toEqual([['mcq', 7], ['srq', 7], ['grammar', 6]]);
+    expect(out).toMatchObject({ converted: 0, light: true });
+    expect(R.plannedMinutes(out.types, true)).toBeLessThanOrEqual(budget);
   });
 
-  it('keeps at least two written items, and every picked type at one or more', () => {
-    const { types: out } = R.sizeTypes(types([['mcq', 40, 'objective'], ['srq', 2, 'subjective']]), 7);
-    expect(counts(out)).toEqual([['mcq', 36], ['srq', 2]]);
-    const { types: one } = R.sizeTypes(types([['mcq', 3, 'objective'], ['srq', 1, 'subjective'], ['erq', 9, 'subjective']]), 7);
-    expect(one.every((t) => t.count >= 1)).toBe(true);
-    expect(one[2].count).toBeGreaterThanOrEqual(1);
+  it('never goes below the requested total, even when nothing makes it fit', () => {
+    const out = R.sizeTypes(types([['mcq', 30, 'objective'], ['srq', 20, 'subjective']]), 7);
+    expect(counts(out.types)).toEqual([['mcq', 30], ['srq', 20]]);
+    expect(out.light).toBe(true);
   });
 
   it('leaves a paper that already fits as it was', () => {
     const fits = types([['mcq', 10, 'objective'], ['srq', 2, 'subjective']]);
-    expect(R.sizeTypes(fits, 7)).toEqual({ types: fits, dropped: 0 });
+    expect(R.sizeTypes(fits, 7)).toEqual({ types: fits, converted: 0, light: false });
   });
 
   it('does not mutate its input', () => {
-    const input = types([['mcq', 7, 'objective'], ['erq', 6, 'subjective']]);
+    const input = types([['mcq', 7, 'objective'], ['srq', 7, 'subjective'], ['erq', 6, 'subjective']]);
     R.sizeTypes(input, 7);
-    expect(input[1].count).toBe(6);
+    expect(input.map((t) => t.count)).toEqual([7, 7, 6]);
+  });
+});
+
+describe('rulesBlock with lighter written items', () => {
+  it('asks for 2-mark short answers and 3-mark extended answers when the paper is light', () => {
+    const text = R.rulesBlock(7, null, { light: true });
+    expect(text).toMatch(/Short answer 2 marks/);
+    expect(text).toMatch(/Extended answer 3 marks/);
+    expect(R.rulesBlock(7)).toMatch(/Short answer 3 marks/);
+    expect(R.withRules('BASE', '', 7, null, { light: true })).toMatch(/Short answer 2 marks/);
   });
 });
 
@@ -95,7 +115,8 @@ describe('rulesBlock', () => {
     ['the lesson subject is asked about', /main subject of the lesson/],
     ['a meaning or quality MCQ has no opposite of the key among its distractors', /meaning or a quality[^\n]*opposite/],
     ['a level tag on every item and part', /"blooms"[^\n]*every item/],
-    ['a thinking-level target with some Application', /Apply[^\n]*20%/],
+    ['the panel split 30/30/20/10/10 with Create', /30% Remember, 30% Understand, 20% Apply, 10% Analyze or Evaluate and 10% Create/],
+    ['a level per part of an item in parts', /"part_levels"/],
   ])('states %s', (_name, re) => {
     expect(text).toMatch(re);
   });

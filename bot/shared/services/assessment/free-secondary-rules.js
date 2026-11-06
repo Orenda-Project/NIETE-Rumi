@@ -19,6 +19,10 @@ const BANDS = [
 // Planning minutes per item by type: read, think and write at G6-8 speed. Anything not listed is
 // a constructed item of about one short answer.
 const MINUTES = { srq: 5, erq: 13, grammar: 4, comprehension: 6, essay: 15 };
+// The same items at the lighter marks a paper takes when converting is not enough (a7 ruling, step c):
+// a 2-mark short answer, a 3-mark extended answer, a 2-mark grammar item.
+const LIGHT_MINUTES = { srq: 3, erq: 7, grammar: 3, comprehension: 4, essay: 10 };
+const LIGHT_OTHER_MINUTES = 3;
 const OBJECTIVE_MINUTES = 1;
 const OTHER_MINUTES = 5;
 const REVIEW_MINUTES = 5;
@@ -41,47 +45,50 @@ function isObjective(t) {
   return t.category === 'objective' || t.id === 'mcq';
 }
 
-function minutesOf(t) {
+function minutesOf(t, light) {
   if (isObjective(t)) return OBJECTIVE_MINUTES;
+  if (light) return LIGHT_MINUTES[t.id] || LIGHT_OTHER_MINUTES;
   return MINUTES[t.id] || OTHER_MINUTES;
 }
 
-function plannedMinutes(types) {
-  return types.reduce((s, t) => s + minutesOf(t) * (Number(t.count) || 0), REVIEW_MINUTES);
+function plannedMinutes(types, light) {
+  return types.reduce((s, t) => s + minutesOf(t, light) * (Number(t.count) || 0), REVIEW_MINUTES);
 }
 
-// At least this many written (not objective) items survive the sizing: an all-MCQ paper tests recall only (A6b).
-const MIN_WRITTEN = 2;
-
 /**
- * Shrinks the plan, every type in proportion, until it fits LOAD_SHARE of the band's minutes, so the
- * time the paper prints (printedMinutes) is within the band. One item at a time comes off the type
- * that still keeps the largest share of what was asked (on a tie, the slower type), so the teacher's
- * mix is kept: the a5 G7 request 7/7/6 had become 16/3/1 by moving written items onto the MCQs, and
- * the panel scored its thinking levels 1 (A6b). No picked type drops below one, and at least
- * MIN_WRITTEN written items stay. A paper that fits comes back as it was.
+ * Fits the plan to LOAD_SHARE of the band's minutes without cutting a single item (the a7 ruling on
+ * A5e: the a6 G7 request of 20 had been shrunk to 8). The MCQ count stays as asked; extended answers
+ * become short answers one at a time while the paper is over, keeping at least one; if it is still
+ * over, the paper is "light": lower marks and demand per written item (rulesBlock). The total never
+ * drops; a paper still over after that prints its real, larger time (printedMinutes). A paper that
+ * fits comes back as it was.
  */
 function sizeTypes(types, grade) {
   const budget = Math.floor(bandOf(grade).minutes * LOAD_SHARE);
-  if (plannedMinutes(types) <= budget) return { types, dropped: 0 };
-  const asked = types.map((t) => Number(t.count) || 0);
-  const out = types.map((t, i) => ({ ...t, count: asked[i] }));
-  const written = () => out.filter((t) => !isObjective(t)).reduce((s, t) => s + t.count, 0);
-  let dropped = 0;
-  while (plannedMinutes(out) > budget) {
-    const from = out
-      .map((t, i) => ({ t, share: asked[i] ? t.count / asked[i] : 0 }))
-      .filter(({ t }) => t.count > 1 && (isObjective(t) || written() > MIN_WRITTEN))
-      .sort((a, b) => b.share - a.share || minutesOf(b.t) - minutesOf(a.t))[0];
-    if (!from) break;
-    from.t.count -= 1;
-    dropped += 1;
+  if (plannedMinutes(types) <= budget) return { types, converted: 0, light: false };
+  const out = types.map((t) => ({ ...t, count: Number(t.count) || 0 }));
+  const erq = out.find((t) => t.id === 'erq');
+  let converted = 0;
+  if (erq && erq.count > 1) {
+    let srq = out.find((t) => t.id === 'srq');
+    if (!srq) {
+      srq = { id: 'srq', count: 0, category: 'subjective' };
+      out.splice(out.indexOf(erq), 0, srq);
+    }
+    while (plannedMinutes(out) > budget && erq.count > 1) {
+      erq.count -= 1;
+      srq.count += 1;
+      converted += 1;
+    }
   }
-  return { types: out, dropped };
+  return { types: out, converted, light: plannedMinutes(out) > budget };
 }
 
-function rulesBlock(grade, lessonTitle) {
+function rulesBlock(grade, lessonTitle, opts = {}) {
   const b = bandOf(grade);
+  const marks = opts.light
+    ? 'MCQ 1 mark. Short answer 2 marks, answered in 1 or 2 short sentences, one point each. Extended answer 3 marks in labelled parts (a), (b), (c) of 1 mark each: never one open essay. Grammar 2 marks.'
+    : 'MCQ 1 mark. Short answer 3 marks, answered in 2 to 4 short sentences. Extended answer 6 marks in labelled parts (a), (b), (c) of 2 marks each: never one open essay. Grammar 3 marks.';
   const lesson = lessonTitle
     ? `\n- The lesson is "${lessonTitle}". At least two items ask about it by name: its main idea, event, process or person, not only its vocabulary or grammar.`
     : '';
@@ -91,7 +98,7 @@ function rulesBlock(grade, lessonTitle) {
 LENGTH
 - Every sentence a student reads is at most ${b.sentence} words. An MCQ stem is at most ${b.mcqStem} words. Split a long stem into two short sentences, or cut the scene-setting.
 MARKS AND SIZE
-- MCQ 1 mark. Short answer 3 marks, answered in 2 to 4 short sentences. Extended answer 6 marks in labelled parts (a), (b), (c) of 2 marks each: never one open essay. Grammar 3 marks.
+- ${marks}
 - The paper is sat in ${b.minutes} minutes. Keep it small enough to finish, check and review in that time.
 MCQ OPTIONS
 - Four options of about the same length and the same grammatical form. The correct answer is NOT the longest option: if it is, shorten it or lengthen a distractor.
@@ -102,8 +109,9 @@ ONE FACT, ONE ITEM
 - Test each fact once. No item may state, print or hint at the answer to another item, and no MCQ may give away the answer to a short answer. Check the whole paper for this before you return it.
 - At least one item asks about the main subject of the lesson: its main idea, event, process or person by name.${lesson}
 THINKING LEVELS
-- Every item and every part carries "blooms": Remember, Understand, Apply, Analyze, Evaluate or Create: the level it really demands, on every item, not the level you were asked for.
-- Of the paper's marks, aim for about 30% Remember, 30% Understand, 20% Apply and 20% Analyze, Evaluate or Create. Apply means using the lesson in a new situation the book does not describe; at least one written item does that.
+- Every item carries "blooms": Remember, Understand, Apply, Analyze, Evaluate or Create: the level it really demands, on every item, not the level you were asked for.
+- An item in labelled parts also carries "part_levels": one level per part, in order (for parts (a), (b), (c): "part_levels": ["Understand", "Apply", "Create"]). Tag each part by what that part demands.
+- Of the paper's marks, aim for about 30% Remember, 30% Understand, 20% Apply, 10% Analyze or Evaluate and 10% Create. Create can be one small item or one part: design, propose or write something new from the lesson. Apply means using the lesson in a new situation the book does not describe; at least one written item does that.
 MARKING (every item that is not an MCQ)
 - Add "marking_points": [{"point": "<what earns the mark>", "marks": <number>}], one entry per mark or part, summing exactly to the item's marks.
 - ${SCHEME_RULE}
@@ -111,8 +119,8 @@ MARKING (every item that is not an MCQ)
 }
 
 /** The base system prompt with the rules block placed before the safety policies, which stay last. */
-function withRules(baseSystem, safety, grade, lessonTitle) {
-  const block = rulesBlock(grade, lessonTitle);
+function withRules(baseSystem, safety, grade, lessonTitle, opts) {
+  const block = rulesBlock(grade, lessonTitle, opts);
   if (safety && baseSystem.endsWith(safety)) {
     return baseSystem.slice(0, baseSystem.length - safety.length) + block + safety;
   }

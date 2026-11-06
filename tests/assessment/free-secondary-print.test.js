@@ -102,3 +102,12 @@ describe('levelHtml (panel A6b: the key declares each item\'s thinking level)', 
     expect(plain).not.toContain('Level:');
   });
 });
+
+describe('levelHtml per part (a7 ruling)', () => {
+  it('prints one level per part of an item in parts', () => {
+    const item = { question: 'Q', answer: 'A', marks: 6, blooms: 'Analyze', part_levels: ['Understand', 'Apply', 'Create'] };
+    const html = P.levelHtml({ _levels: true }, item, esc);
+    expect(html).toContain('Levels: (a) Understand · (b) Apply · (c) Create');
+    expect(html).not.toContain('Analyze');
+  });
+});

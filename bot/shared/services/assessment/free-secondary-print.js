@@ -5,7 +5,7 @@
  *   instructionsFor  A5g  the paper prints the minutes it was sized to, not "as specified by your teacher"
  *   markingHtml      A7c  the key prints each item's marking points, mark bands, what else to accept
  *                        and what not to accept
- *   levelHtml        A6b  the key prints each item's thinking level when the paper is marked `_levels`
+ *   levelHtml        A6b  the key prints each item's thinking level, or one per part, when the paper is marked `_levels`
  *
  * A paper without `_timeMinutes`, or an item without those fields, prints exactly as before.
  */
@@ -41,8 +41,18 @@ function markingHtml(item, esc) {
 }
 
 /** The item's thinking level (A6b), on a paper marked `_levels` only (a G6-12 free paper). */
+const LATIN_PARTS = ['a', 'b', 'c', 'd', 'e', 'f'];
+const URDU_PARTS = ['الف', 'ب', 'ج', 'د', 'ہ', 'و'];
+
 function levelHtml(examJson, item, esc) {
-  if (!examJson || examJson._levels !== true || !item || typeof item !== 'object' || !item.blooms) return '';
+  if (!examJson || examJson._levels !== true || !item || typeof item !== 'object') return '';
+  const parts = Array.isArray(item.part_levels) ? item.part_levels.filter(Boolean) : [];
+  if (parts.length) {
+    const labels = /[؀-ۿ]/.test(String(item.question || '')) ? URDU_PARTS : LATIN_PARTS;
+    const text = parts.map((lv, i) => `(${labels[i] || i + 1}) ${esc(lv)}`).join(' · ');
+    return `<div class="level">Levels: ${text}</div>`;
+  }
+  if (!item.blooms) return '';
   return `<div class="level">Level: ${esc(item.blooms)}</div>`;
 }
 

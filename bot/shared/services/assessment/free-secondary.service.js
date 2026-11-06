@@ -6,8 +6,10 @@
  * blocked two of them. This runs the same call (same model, job, temperature and post-processing,
  * from the generation service's own exports) with three changes:
  *   1. the grades 6-12 rules (free-secondary-rules.js) sit before the safety policies;
- *   2. the type counts are sized to the band's time before the paper is asked for, and the writer is
- *      asked for about 30% more MCQs than that; the subset with the fewest leaks is kept (free-secondary-pool.js);
+ *   2. the requested count is kept and fitted to the band's time by turning extended answers into short
+ *      ones, then by lighter marks per written item (Rules.sizeTypes); the writer is asked for about 30%
+ *      more MCQs, the subset with the fewest leaks is kept, and the dropped ones stand by as spares
+ *      for an MCQ still leaking after the rewrites (free-secondary-pool.js);
  *   3. the draft is checked (free-secondary-checks.js); one that breaks a rule is sent back once
  *      with the list, and the paper with fewer problems is kept;
  *   4. one small call, on a job of another model family than the writer, rates each MCQ distractor and flags
@@ -15,7 +17,8 @@
  *      the stem (free-secondary-review.js);
  *   5. items still leaking, or with a longest-option key, an absolute distractor or one rated 1, are rewritten on
  *      their own (free-secondary-rewrite.js), up to two rounds, each kept only if it leaves fewer problems.
- * Then writer instructions are stripped from the marking points (free-secondary-tidy.js), number options
+ * Then writer instructions are stripped from the marking points and an Urdu paper is put in one digit
+ * system (free-secondary-tidy.js), number options
  * are put in ascending order, the MCQ keys
  * are spread from the paper's seed (free-secondary-keys.js), the time is stamped as `_timeMinutes`, and
  * an Urdu-medium paper is marked `_paperLang: 'ur'` so its chrome prints in Urdu.
@@ -39,7 +42,7 @@ const { balanceKeys, sortNumeric } = require('./free-secondary-keys');
 const Rewrite = require('./free-secondary-rewrite');
 const Pool = require('./free-secondary-pool');
 const Review = require('./free-secondary-review');
-const { stripInstructions, scenarioParts } = require('./free-secondary-tidy');
+const { stripInstructions, scenarioParts, oneDigitSystem } = require('./free-secondary-tidy');
 const { isRtl } = require('./assessment-paper.renderer');
 
 const JOB = 'assessment.generate';
@@ -47,6 +50,8 @@ const MAX_OUTPUT_TOKENS = 32000;
 const REVIEW_TOKENS = 6000;
 // Existing registered jobs whose model may be of another family than the writer's (the review reuses one).
 const REVIEWER_JOBS = ['quiz.keyVerify', 'lp.fidelity'];
+// A load over the band's time by more than this share is logged: its larger time prints, no item is cut.
+const OVER_BAND = 1.2;
 // The G1-5 free prompt each G6-12 subject code borrows. A code not listed keeps today's choice.
 const BASE_SUBJECT = { general_science: 'science', english: 'eng', maths: 'maths', urdu: 'urdu', islamiat: 'islamiat' };
 const URDU_BASE = new Set(['urdu', 'islamiat', 'genk', 'sst']);
@@ -94,21 +99,22 @@ async function generateExam(args) {
   const model = resolveModelForJob(JOB, { cfg, family }).model;
   const ownModel = resolveModelForJob(JOB, { family }).model;
 
+  // The teacher's count is kept (a7 ruling on A5e): sizing only converts and lightens items.
   const sized = Rules.sizeTypes(questionTypes, grade);
-  // Sizing shrinks every type in proportion, so the paper asks for the sized total, not the requested one.
-  const sizedCount = questionCount > 0 ? Math.max(1, questionCount - sized.dropped) : questionCount;
+  const sizedCount = questionCount;
   const plan = Gen.planCounts({ contentSource, questionCount: sizedCount, questionTypes: sized.types, seenCount });
   const pool = Pool.poolTypes(sized.types);
   const keepMcqs = (sized.types.find((t) => t.id === 'mcq') || {}).count || 0;
   let pooled = 0;
+  let spares = [];
   // Normalised first so the leak check reads the keys, then cut back to the plan's MCQ count.
   const pick = (exam) => {
     Gen.normaliseAnswers(exam);
-    pooled = Pool.select(exam, keepMcqs, (e) => paperIssues(e, checkOpts)).dropped;
+    ({ dropped: pooled, spares } = Pool.select(exam, keepMcqs, (e) => paperIssues(e, checkOpts)));
     return exam;
   };
   const system = Rules.withRules(Gen.buildSystemPrompt({ subject: base, includeAnswerKey }),
-    PROMPTS['eg.safety.policies'], grade, chapterTitle) + (appliesToGrade(grade) ? APPLY_NOTE : '');
+    PROMPTS['eg.safety.policies'], grade, chapterTitle, { light: sized.light }) + (appliesToGrade(grade) ? APPLY_NOTE : '');
   const messages = [
     { role: 'system', content: system },
     { role: 'user', content: Gen.buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource,
@@ -116,7 +122,7 @@ async function generateExam(args) {
       totalMarks: totalMarks == null ? totalMarks : totalMarks + pool.extra, seenCount, slos }) },
   ];
   logToFile('[assessment] generating (grades 6-12 free)', {
-    grade, subject, base, model, dropped: sized.dropped, types: plan.questionTypes.map((q) => `${q.count} ${q.id}`),
+    grade, subject, base, model, converted: sized.converted, light: sized.light, types: plan.questionTypes.map((q) => `${q.count} ${q.id}`),
   });
 
   const ask = (msgs) => getClient().chat.completions.create({
@@ -150,7 +156,7 @@ async function generateExam(args) {
 
   if (issues.length) {
     try {
-      const firstPooled = pooled;
+      const [firstPooled, firstSpares] = [pooled, spares];
       const second = await ask([...messages, { role: 'assistant', content: JSON.stringify(examJson) },
         { role: 'user', content: Rules.fixNote(issues) }]);
       const next = pick(extractJsonFromResponse(second?.choices?.[0]?.message?.content || ''));
@@ -158,7 +164,7 @@ async function generateExam(args) {
       const nextIssues = paperIssues(next, checkOpts);
       if (Gen.countQuestions(next) > 0 && nextIssues.length < issues.length) {
         examJson = next; cleaned = nextCleaned; issues = nextIssues; usage = second.usage || usage; revised = true;
-      } else pooled = firstPooled;
+      } else [pooled, spares] = [firstPooled, firstSpares];
     } catch (err) {
       logToFile('[assessment] revision skipped', { error: err.message });
     }
@@ -191,9 +197,9 @@ async function generateExam(args) {
   });
   issues = [...issues, ...reviewed];
 
+  const check = (exam) => [...paperIssues(exam, checkOpts), ...Review.stillOpen(exam, reviewed)];
   const targeted = await Rewrite.rounds({
-    examJson, issues,
-    check: (exam) => [...paperIssues(exam, checkOpts), ...Review.stillOpen(exam, reviewed)],
+    examJson, issues, check,
     ask: async (text) => {
       const out = await ask([messages[0], { role: 'user', content: `${messages[1].content}\n\n${text}` }]);
       return extractJsonFromResponse(out?.choices?.[0]?.message?.content || '');
@@ -203,15 +209,22 @@ async function generateExam(args) {
   });
   examJson = targeted.exam; issues = targeted.issues;
   const { rewritten } = targeted;
+  // An MCQ still giving another item away is replaced by a spare from the pool (G7 a6 Q2 against Q5).
+  const swapped = Pool.swapLeaks(examJson, spares, check);
+  if (swapped) issues = check(examJson);
 
   const produced = Gen.countQuestions(examJson);
   if (produced === 0) throw fail('NO_QUESTIONS', 'The question writer returned no questions.');
   const stripped = stripInstructions(examJson);
   scenarioParts(examJson);
+  // The chrome prints Western digits, so an Urdu paper's body does too (a7 ruling: one digit system).
+  const digitsFixed = isRtl(subject) ? oneDigitSystem(examJson) : 0;
   const numbersSorted = sortNumeric(examJson);
   const keysMoved = balanceKeys(examJson, keySeed ?? startedAt);
   const load = estimateMinutes(examJson);
   examJson._timeMinutes = printedMinutes(load);
+  const overBand = load > Rules.bandOf(grade).minutes * OVER_BAND;
+  if (overBand) logToFile('[assessment] load over the band (grades 6-12 free)', { grade, subject, loadMinutes: Math.round(load), bandMinutes: Rules.bandOf(grade).minutes, timeMinutes: examJson._timeMinutes });
   // The answer key prints each item's thinking level (panel A6b), on a G6-12 free paper only.
   examJson._levels = true;
   // A paper set right to left prints its headings and instructions in Urdu (free-secondary-chrome.js).
@@ -221,8 +234,8 @@ async function generateExam(args) {
     totalTokens: usage.total_tokens ?? null, model };
   const coverage = Gen.answerCoverage(examJson);
   logToFile('[assessment] generated (grades 6-12 free)', {
-    grade, subject, questionCount: produced, revised, pooled, reviewed: reviewed.length, rewritten, stripped, issuesLeft: issues.length, numbersSorted, keysMoved,
-    loadMinutes: Math.round(load), timeMinutes: examJson._timeMinutes, elapsedMs: Date.now() - startedAt,
+    grade, subject, questionCount: produced, revised, pooled, reviewed: reviewed.length, rewritten, swapped, stripped, digitsFixed, issuesLeft: issues.length, numbersSorted, keysMoved,
+    loadMinutes: Math.round(load), timeMinutes: examJson._timeMinutes, overBand, elapsedMs: Date.now() - startedAt,
   });
   return {
     examJson, questionCount: produced, tokenData, plan, issues, revised, rewritten, pooled,
