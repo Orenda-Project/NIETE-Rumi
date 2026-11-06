@@ -113,9 +113,9 @@ maybe('r10_number_fit on a DOM (sa-ui.js)', () => {
     next(x);
     const three = px(card(x.el));
     expect(three).toBeLessThan(two);
-    // fits: 3 characters at 0.55 em within 90% of the card's width, and within one px of the largest that does
-    expect(3 * 0.55 * three).toBeLessThanOrEqual(200 * 0.9 + 0.01);
-    expect(3 * 0.55 * (three + 1)).toBeGreaterThan(200 * 0.9);
+    // fits: 3 characters at 0.55 em within 92% of the card's width, and within one px of the largest that does
+    expect(3 * 0.55 * three).toBeLessThanOrEqual(200 * 0.92 + 0.01);
+    expect(3 * 0.55 * (three + 1)).toBeGreaterThan(200 * 0.92);
     // bigger than today's size for a longer card (54 px on a 360 px phone)
     expect(three).toBeGreaterThan(54);
   });
@@ -123,7 +123,7 @@ maybe('r10_number_fit on a DOM (sa-ui.js)', () => {
   test('ON: a sum on a card is fitted to the card the same way', () => {
     const x = mount(CARDS({ r10_number_fit: true }, ['38 + 26']));
     const s = px(card(x.el));
-    expect(Array.from(card(x.el).textContent).length * 0.55 * s).toBeLessThanOrEqual(300 * 0.9 + 0.01);
+    expect(Array.from(card(x.el).textContent).length * 0.55 * s).toBeLessThanOrEqual(300 * 0.92 + 0.01);
     expect(s).toBeGreaterThan(54);
   });
 
@@ -135,9 +135,9 @@ maybe('r10_number_fit on a DOM (sa-ui.js)', () => {
     expect(inks).toHaveLength(2);
     const [a, b] = inks.map(px);
     expect(a).toBe(b);
-    // the long one decides: 4 characters within 90% of a 100 px tile
-    expect(4 * 0.55 * a).toBeLessThanOrEqual(100 * 0.9 + 0.01);
-    expect(4 * 0.55 * (a + 1)).toBeGreaterThan(100 * 0.9);
+    // the long one decides: 4 characters within 92% of a 100 px tile
+    expect(4 * 0.55 * a).toBeLessThanOrEqual(100 * 0.92 + 0.01);
+    expect(4 * 0.55 * (a + 1)).toBeGreaterThan(100 * 0.92);
   });
 
   test('ON: a pair with room grows to the tile height, both numbers at one size', () => {
@@ -175,7 +175,7 @@ maybe('r10_number_fit on a DOM (sa-ui.js)', () => {
     await new Promise((r) => setTimeout(r, 250));
     const narrow = px(card(x.el));
     expect(narrow).toBeLessThan(wide);
-    expect(3 * 0.55 * narrow).toBeLessThanOrEqual(150 * 0.9 + 0.01);
+    expect(3 * 0.55 * narrow).toBeLessThanOrEqual(150 * 0.92 + 0.01);
   });
 
   test('OFF: no round 10 class, no size set on any number; the 3-digit card keeps today\'s classes', () => {

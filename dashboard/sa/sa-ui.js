@@ -1051,7 +1051,7 @@
      *     choice would sit under the foot).
      * Text grows in proportion to its size, so one measurement at a known size gives the size that fits.
      */
-    var NUM_FILL_W = 0.9, NUM_FILL_H_CARD = 0.9, NUM_FILL_H_TILE = 0.8, NUM_CAP_TILE = 160, NUM_CAP_ROW = 96, NUM_MIN = 20;
+    var NUM_FILL_W = 0.92, NUM_FILL_H_CARD = 0.9, NUM_FILL_H_TILE = 0.8, NUM_CAP_TILE = 160, NUM_CAP_ROW = 96, NUM_MIN = 20;
     function isMaths(t) { return /^ma\./.test(String((t && t.id) || '')); }
     function numTiles(options, t) {
       return r10Num && isMaths(t) && Array.isArray(options) && options.length > 0 &&
@@ -1066,12 +1066,18 @@
     }
     /**
      * One size for every ink of the group: the largest (to `cap`) at which each fits its own box. The boxes are
-     * measured first, at the size the page gives the number, because a tile grows with what is in it.
+     * measured first, at the size the page gives the number, because a tile grows with what is in it; and a number
+     * that fits at that size is never drawn smaller than it (a long sum keeps today's size on a phone).
      */
     function numGroup(inks, cap, fillH) {
       var k = Infinity;
       inks.forEach(function (ink) { ink.style.removeProperty('font-size'); });
       var boxes = inks.map(function (ink) { return contentBox(ink.parentNode); });
+      var today = Infinity;
+      inks.forEach(function (ink, i) {
+        var r0 = ink.getBoundingClientRect(), f0 = parseFloat(getComputedStyle(ink).fontSize);
+        today = f0 > 0 && r0.width <= boxes[i][0] && r0.height <= boxes[i][1] ? Math.min(today, f0) : 0;
+      });
       inks.forEach(function (ink) { ink.style.fontSize = cap + 'px'; });
       inks.forEach(function (ink, i) {
         var b = boxes[i], r = ink.getBoundingClientRect();
@@ -1079,7 +1085,7 @@
         k = Math.min(k, (b[0] * NUM_FILL_W) / r.width, (b[1] * fillH) / r.height);
       });
       if (k === Infinity) { inks.forEach(function (ink) { ink.style.removeProperty('font-size'); }); return; }
-      var fs = Math.max(NUM_MIN, Math.floor(cap * Math.min(1, k)));
+      var fs = Math.max(NUM_MIN, Math.floor(cap * Math.min(1, k)), today === Infinity ? 0 : Math.floor(today));
       inks.forEach(function (ink) {
         ink.style.fontSize = fs + 'px';
         if (r8Layout) fitInk(ink, 0); // centred on its ink again at its new size
@@ -1106,7 +1112,10 @@
       var w = probe.getBoundingClientRect().width;
       probe.parentNode.removeChild(probe);
       if (!(w > 0)) return;
-      var fs = Math.max(NUM_MIN, Math.min(NUM_CAP_ROW, Math.floor((avail * 0.96 * F0) / w)));
+      // never smaller than the row's size today when the row (its blank holding the longest number) fits at that size
+      var f0 = parseFloat(getComputedStyle(row).fontSize);
+      var keep = f0 > 0 && (w * f0) / F0 <= avail ? Math.floor(f0) : 0;
+      var fs = Math.max(NUM_MIN, keep, Math.min(NUM_CAP_ROW, Math.floor((avail * 0.96 * F0) / w)));
       row.style.setProperty('font-size', 'var(--mn-fs, ' + fs + 'px)');
     }
     function numFit(s) {
