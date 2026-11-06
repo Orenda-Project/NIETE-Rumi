@@ -320,6 +320,35 @@ describe("Assessment — More", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(moreRow()).toHaveTextContent("Short Response");
   });
+
+  it("a grade 6+ subject says in one line what each type asks for (bd-5jmnfj.38.41)", async () => {
+    const G6 = [
+      { id: "mcq", category: "objective", label: "MCQs", hint: "Choose the right answer from four options." },
+      { id: "srq", category: "subjective", label: "Short Response", hint: "A short written answer of 4-8 lines." },
+    ];
+    vi.mocked(portal.getAssessmentOptions).mockImplementation(async (grade?: number, subject?: string) => {
+      if (grade == null) return GRADES as never;
+      const subjects = SUBJECTS[grade] || [];
+      return (subject ? { ...GRADES, subjects, types: G6 } : { ...GRADES, subjects }) as never;
+    });
+    renderHome();
+    await pickAll();
+    fireEvent.click(moreRow());
+    const sheet = await screen.findByRole("dialog", { name: "More" });
+    const meanings = within(sheet).getByRole("list", { name: "What each type means" });
+    expect(within(meanings).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+      "MCQs: Choose the right answer from four options.",
+      "Short Response: A short written answer of 4-8 lines.",
+    ]);
+  });
+
+  it("shows no meanings list when the types carry none (grades 1-5)", async () => {
+    renderHome();
+    await pickAll();
+    fireEvent.click(moreRow());
+    const sheet = await screen.findByRole("dialog", { name: "More" });
+    expect(within(sheet).queryByRole("list", { name: "What each type means" })).toBeNull();
+  });
 });
 
 describe("Assessment — Make assessment", () => {
