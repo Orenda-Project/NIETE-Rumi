@@ -51,18 +51,57 @@ function catalog() {
 /** Test seam — pass null to restore the real catalog. */
 function __setCatalogForTests(c) { _catalog = c; }
 
-function bookFor(grade, subjectKey) {
-  return catalog().books.find((b) => b.grade === Number(grade) && b.subject_key === subjectKey) || null;
+// ── whose book (bd-97daxo.5) ────────────────────────────────────────────────
+//
+// A book entry may carry `curriculum` (absent = 'ict'). Every lookup below takes the TEACHER's
+// curriculum (book-curriculum.service: her registry region's key, else 'ict') and gives her that
+// curriculum's book for a grade+subject where one exists with at least one lesson uploaded, ICT's
+// otherwise. An NBF book for Gilgit-Baltistan is therefore data — an entry tagged 'nbf_snc' whose stem
+// starts `nbf_snc_`, so its lesson ids (`<stem>_ch<n>_seg<k>`) never meet an ICT asset key — and an
+// ICT teacher never sees it.
+// The default 'ict' looks only at untagged/ICT books: with today's all-ICT catalog every answer is
+// the one it always was.
+
+const ICT = 'ict';
+const curriculumOf = (book) => (book && book.curriculum) || ICT;
+
+function hasAvailable(book, available) {
+  return book.chapters.some((c) => c.lessons.some((l) => available.has(l.lesson_id)));
+}
+
+/**
+ * The book she gets for a grade+subject. `available` (when the caller has it) means "a book with
+ * nothing uploaded is not hers yet": until NBF's has a lesson up she keeps ICT's.
+ */
+function bookFor(grade, subjectKey, curriculum = ICT, available = null) {
+  const find = (c) => catalog().books.find((b) => b.grade === Number(grade)
+    && b.subject_key === subjectKey && curriculumOf(b) === c) || null;
+  if (curriculum && curriculum !== ICT) {
+    const own = find(curriculum);
+    if (own && (!available || hasAvailable(own, available))) return own;
+  }
+  return find(ICT);
+}
+
+/** One book per subject in a grade — hers where she has one, else ICT's — in catalog order. */
+function booksFor(grade, curriculum = ICT, available = null) {
+  const keys = [];
+  for (const b of catalog().books) {
+    if (b.grade !== Number(grade)) continue;
+    const c = curriculumOf(b);
+    if ((c === ICT || c === curriculum) && !keys.includes(b.subject_key)) keys.push(b.subject_key);
+  }
+  return keys.map((k) => bookFor(grade, k, curriculum, available)).filter(Boolean);
 }
 
 /** The book's menu name ("Social Studies (Urdu)"); the key itself when no book matches. */
-function subjectTitle(grade, subjectKey) {
-  const book = bookFor(grade, subjectKey);
+function subjectTitle(grade, subjectKey, curriculum = ICT, available = null) {
+  const book = bookFor(grade, subjectKey, curriculum, available);
   return book ? book.subject : subjectKey;
 }
 
-function chapterFor(grade, subjectKey, chapterNumber) {
-  const book = bookFor(grade, subjectKey);
+function chapterFor(grade, subjectKey, chapterNumber, curriculum = ICT, available = null) {
+  const book = bookFor(grade, subjectKey, curriculum, available);
   if (!book) return null;
   return book.chapters.find((c) => c.number === Number(chapterNumber)) || null;
 }
@@ -79,10 +118,12 @@ function lessonById(lessonId) {
   return null;
 }
 
-/** Grades that have at least one AVAILABLE lesson. */
-function gradesWithContent(available) {
+/** Grades that have at least one AVAILABLE lesson — in a book she gets. */
+function gradesWithContent(available, curriculum = ICT) {
   const grades = new Set();
   for (const book of catalog().books) {
+    const c = curriculumOf(book);
+    if (c !== ICT && c !== curriculum) continue;
     for (const chapter of book.chapters) {
       if (chapter.lessons.some((l) => available.has(l.lesson_id))) { grades.add(book.grade); break; }
     }
@@ -136,9 +177,9 @@ const bySubjectOrder = (a, b) => subjectRank(a.subject_key) - subjectRank(b.subj
   || String(a.subject_key).localeCompare(String(b.subject_key));
 
 /** Subjects for a grade that have at least one available chapter, in SUBJECT_ORDER. */
-function buildSubjectItems(grade, available) {
+function buildSubjectItems(grade, available, curriculum = ICT) {
   const items = [];
-  for (const book of catalog().books.filter((b) => b.grade === Number(grade)).sort(bySubjectOrder)) {
+  for (const book of booksFor(grade, curriculum, available).sort(bySubjectOrder)) {
     let chapters = 0;
     let lessons = 0;
     for (const chapter of book.chapters) {
@@ -170,8 +211,8 @@ function buildSubjectItems(grade, available) {
 /** Urdu (Extended Arabic-Indic) digits for RTL row furniture — mirrors the builder. */
 const urD = (s) => String(s).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
 
-function buildChapterItems(grade, subjectKey, available) {
-  const book = bookFor(grade, subjectKey);
+function buildChapterItems(grade, subjectKey, available, curriculum = ICT) {
+  const book = bookFor(grade, subjectKey, curriculum, available);
   if (!book) return [];
   const rtl = !!book.rtl;
   const items = [];
@@ -225,8 +266,8 @@ function buildChapterItems(grade, subjectKey, available) {
  *
  * @returns {{items: Array, hasMore: boolean, total: number}}
  */
-function buildLessonItems(grade, subjectKey, chapterNumber, available, downloaded, page = 1) {
-  const chapter = chapterFor(grade, subjectKey, chapterNumber);
+function buildLessonItems(grade, subjectKey, chapterNumber, available, downloaded, page = 1, curriculum = ICT) {
+  const chapter = chapterFor(grade, subjectKey, chapterNumber, curriculum, available);
   if (!chapter) return { items: [], hasMore: false, total: 0 };
 
   const lessons = availableIn(chapter, available);
@@ -259,7 +300,7 @@ function buildLessonItems(grade, subjectKey, chapterNumber, available, downloade
   if (hasMore) {
     // Urdu books get Urdu furniture so the row renders RTL (§12.4); the arrow
     // points the direction of reading flow.
-    const rtl = !!(bookFor(grade, subjectKey) || {}).rtl;
+    const rtl = !!(bookFor(grade, subjectKey, curriculum, available) || {}).rtl;
     items.push({
       id: MORE_ROW_ID,
       'main-content': rtl ? {
@@ -300,6 +341,8 @@ module.exports = {
   lessonById,
   gradesWithContent,
   bookFor,
+  booksFor,
+  curriculumOf,
   subjectTitle,
   chapterFor,
   catalog,

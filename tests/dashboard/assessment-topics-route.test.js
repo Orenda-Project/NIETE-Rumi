@@ -35,7 +35,7 @@ describe('GET /assessment/topics', () => {
     edges.axios.post.mockResolvedValueOnce({ status: 200, data: { success: true, topics: TOPICS } });
     const { statusCode, payload } = await invoke('get', '/assessment/topics', { query: Q });
     expect(edges.axios.post.mock.calls[0][0]).toBe(`${BOT}/api/internal/assessment/topics`);
-    expect(edges.axios.post.mock.calls[0][1]).toEqual({ grade: 1, subject: 'maths', chapterNumber: 3, userId: 'teacher-1' });
+    expect(edges.axios.post.mock.calls[0][1]).toEqual({ grade: 1, subject: 'maths', chapterNumber: 3, userId: 'teacher-1' }); // her region's book (bd-97daxo.4)
     expect(statusCode).toBe(200);
     expect(payload).toEqual({ success: true, topics: TOPICS });
   });

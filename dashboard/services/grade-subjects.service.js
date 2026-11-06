@@ -167,12 +167,16 @@ function defaultDeps(query) {
   };
 }
 
-/** A feature's catalogue as grade → [{ key, name }]. */
-function catalogueFor(feature) {
+/**
+ * A feature's catalogue as grade → [{ key, name }]. `userId` (the session's teacher) is passed on so
+ * the bot answers from her region's books (bd-97daxo.4/.5); without it the catalogue is ICT's, as before.
+ */
+function catalogueFor(feature, userId = null) {
+  const who = userId ? [userId] : [];
   if (feature === 'assessment') {
     const Assessment = require('./assessment.service');
     return async (grade) => {
-      const data = await Assessment.options({ grade });
+      const data = await Assessment.options({ grade, ...(userId ? { userId } : {}) });
       return (data.subjects || []).map((s) => ({ key: s.subject_key, name: s.subject }));
     };
   }
@@ -182,7 +186,7 @@ function catalogueFor(feature) {
   const Lp612 = require('./lp612.service');
   let lanes = null;
   const laneMap = () => {
-    lanes = lanes || Promise.allSettled([LpCatalogue.listGrades(), Lp612.listGrades()]).then(([k5, g612]) => {
+    lanes = lanes || Promise.allSettled([LpCatalogue.listGrades(...who), Lp612.listGrades(...who)]).then(([k5, g612]) => {
       if (k5.status === 'rejected' && g612.status === 'rejected') throw k5.reason;
       const map = new Map();
       const add = (r, lane) => {
@@ -201,11 +205,11 @@ function catalogueFor(feature) {
   return async (grade) => {
     const lane = (await laneMap()).get(grade);
     if (lane === 'k5') {
-      return (await LpCatalogue.listSubjects(grade)).map((s) => ({ key: String(s.subject_key), name: s.subject }));
+      return (await LpCatalogue.listSubjects(grade, ...who)).map((s) => ({ key: String(s.subject_key), name: s.subject }));
     }
     if (lane === 'g612') {
       // 6-12 has no subject_key: its display name IS the key it wants back.
-      return (await Lp612.listSubjects(grade)).map((s) => ({ key: String(s.subject), name: s.subject }));
+      return (await Lp612.listSubjects(grade, ...who)).map((s) => ({ key: String(s.subject), name: s.subject }));
     }
     return [];
   };

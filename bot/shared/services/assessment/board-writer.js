@@ -88,7 +88,7 @@ async function writeBoardPaper(args, d) {
   const finish = (ex) => {
     T.trimExcess(ex, allSlots);
     T.stamp(ex, allSlots, (item) => d.stampSlo(grade, subject, item));
-    ex._layout = nested(buildLayout(P, V, ex), V.total_marks);
+    ex._layout = nested(buildLayout(P, V, ex, { presetId: pattern }), V.total_marks);
     const checks = d.checks.run(ex, { P, variant: V, mode: 'board', subjectConfig: row });
     ex._layout.checks = checks.record;
     return checks;
