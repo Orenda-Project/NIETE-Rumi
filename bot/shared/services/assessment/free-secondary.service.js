@@ -42,12 +42,14 @@ const { balanceKeys, sortNumeric } = require('./free-secondary-keys');
 const Rewrite = require('./free-secondary-rewrite');
 const Pool = require('./free-secondary-pool');
 const Review = require('./free-secondary-review');
+const Levels = require('./free-secondary-levels');
+const { statedType } = require('./free-secondary-grammar');
 const { stripInstructions, scenarioParts, oneDigitSystem } = require('./free-secondary-tidy');
 const { isRtl } = require('./assessment-paper.renderer');
 
 const JOB = 'assessment.generate';
 const MAX_OUTPUT_TOKENS = 32000;
-const REVIEW_TOKENS = 6000;
+const REVIEW_TOKENS = 10000;
 // The review's own registry job (approved 2026-11-06): its model, else its registered alternative.
 const REVIEW_JOB = 'assessment.review';
 // A load over the band's time by more than this share is logged: its larger time prints, no item is cut.
@@ -114,7 +116,8 @@ async function generateExam(args) {
     return exam;
   };
   const system = Rules.withRules(Gen.buildSystemPrompt({ subject: base, includeAnswerKey }),
-    PROMPTS['eg.safety.policies'], grade, chapterTitle, { light: sized.light }) + (appliesToGrade(grade) ? APPLY_NOTE : '');
+    PROMPTS['eg.safety.policies'], grade, chapterTitle,
+    { light: sized.light, levels: Levels.planText(Levels.plan(sized.types, sized.light), { extraMcqs: pool.extra }) }) + (appliesToGrade(grade) ? APPLY_NOTE : '');
   const messages = [
     { role: 'system', content: system },
     { role: 'user', content: Gen.buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource,
@@ -197,9 +200,11 @@ async function generateExam(args) {
     },
     onError: (err) => logToFile('[assessment] distractor review skipped', { error: err.message }),
   });
-  issues = [...issues, ...reviewed];
+  // a8: the level split from the tags and a stem naming what its scheme marks go to the targeted rewrite.
+  const a8 = (exam) => [...Levels.levelIssues(exam), ...statedType(exam)];
+  issues = [...issues, ...reviewed, ...a8(examJson)];
 
-  const check = (exam) => [...paperIssues(exam, checkOpts), ...Review.stillOpen(exam, reviewed)];
+  const check = (exam) => [...paperIssues(exam, checkOpts), ...Review.stillOpen(exam, reviewed), ...a8(exam)];
   const targeted = await Rewrite.rounds({
     examJson, issues, check,
     ask: async (text) => {

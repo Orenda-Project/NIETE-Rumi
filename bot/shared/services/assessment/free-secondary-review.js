@@ -13,7 +13,10 @@ const { keyIndex } = require('./free-secondary-keys');
 const { reviewPrompt } = require('./free-secondary-rules');
 
 const LETTERS = ['a', 'b', 'c', 'd'];
-const sig = (item) => JSON.stringify([item.question, item.options]);
+// What an issue was raised against: an MCQ's stem and options; a written item's stem, answer and scheme.
+// Tags are left out, so that retagging an item whose level is off does not close its issue.
+const sig = (item) => JSON.stringify(Array.isArray(item.options) ? [item.question, item.options]
+  : [item.question, item.answer, item.marking_points, item.mark_bands, item.accept, item.reject]);
 // The a5 panel's item faults (G8 Q2 and G7 Q14 two defensible options, G8 Q11 odd key, G8 Q3 stem grammar):
 // a yes from the reviewer sends the item to the targeted rewrite.
 const FAULTS = [
@@ -21,6 +24,21 @@ const FAULTS = [
   ['odd_key', 'odd-key', 'the key is the odd one out of the four options (three near-synonyms or three negatives against it); make the distractors as varied as the key'],
   ['stem_grammar', 'stem-grammar', 'an option does not complete the stem grammatically; make every option finish the stem as one correct sentence'],
 ];
+
+// a8 rulings: for every item (A4b, A5b) and for written items (A7c).
+const ANY_FAULTS = [['self_answer', 'self-answer', 'the stem contains part of its own answer; rewrite the stem so it gives none of the answer away']];
+const WRITTEN_FAULTS = [['scheme_conflict', 'scheme-conflict', 'the accept line, the do-not-accept line and the bands contradict each other or accept a wrong answer; make them agree and accept only correct answers']];
+
+/** Every item the review reads, by paper number: MCQs with their key letter, written items with their scheme. */
+function entriesOf(examJson) {
+  return items(examJson).map((e) => ({ ...e.item, n: e.n, item: e.item, isMcq: e.isMcq,
+    key: e.isMcq ? (LETTERS[keyIndex(e.item)] || '?') : undefined }));
+}
+
+function levelText(offs) {
+  return offs.map((o) => `${o.part ? `part (${o.part})` : 'it'} is tagged ${o.tagged} but really demands ${o.really}; rewrite it so it really demands ${o.tagged}`)
+    .join('; ') + ' (do not change the tag; a book activity or worked example reproduced counts as Remember)';
+}
 
 /** The paper's MCQs, by their paper number, with the key letter. */
 function mcqsOf(examJson) {
@@ -31,12 +49,20 @@ function mcqsOf(examJson) {
 
 /** The issues a review reply raises; a longest key the length check already flagged is not repeated. */
 function issuesFrom(reply, examJson, existing = []) {
-  const byN = new Map(mcqsOf(examJson).map((m) => [m.n, m]));
+  const byN = new Map(entriesOf(examJson).map((m) => [m.n, m]));
   const flagged = new Set((existing || []).filter((i) => i.check === 'longest-key').map((i) => i.n));
   const out = [];
   (Array.isArray(reply && reply.items) ? reply.items : []).forEach((r) => {
     const m = byN.get(Number(r && r.n));
     if (!m) return;
+    const why = r.why ? ` (${r.why})` : '';
+    const offs = (Array.isArray(r.level_off) ? r.level_off : [])
+      .filter((o) => o && o.tagged && o.really && String(o.tagged).toLowerCase() !== String(o.really).toLowerCase());
+    if (offs.length) out.push({ n: m.n, check: 'level-off', sig: sig(m.item), text: levelText(offs) });
+    [...ANY_FAULTS, ...(m.isMcq ? [] : WRITTEN_FAULTS)].forEach(([field, check, text]) => {
+      if (r[field] === true) out.push({ n: m.n, check, sig: sig(m.item), text: `${text}${why}` });
+    });
+    if (!m.isMcq) return;
     const weak = (Array.isArray(r.distractors) ? r.distractors : [])
       .filter((d) => d && Number(d.rating) === 1)
       .filter((d) => { const l = String(d.option || '').trim().toLowerCase().charAt(0); return LETTERS.includes(l) && l !== m.key; });
@@ -49,7 +75,6 @@ function issuesFrom(reply, examJson, existing = []) {
       out.push({ n: m.n, check: 'longest-key', sig: sig(m.item),
         text: 'the key stands out as the longest or most detailed option; make the four options about the same length and detail' });
     }
-    const why = r.why ? ` (${r.why})` : '';
     FAULTS.forEach(([field, check, text]) => {
       if (r[field] === true) out.push({ n: m.n, check, sig: sig(m.item), text: `${text}${why}` });
     });
@@ -83,10 +108,10 @@ function stillOpen(examJson, issues) {
 
 /** One review call; `ask` takes the prompt text and resolves to the parsed reply. Never throws. */
 async function review({ examJson, grade, ask, existing = [], onError = () => {} }) {
-  const mcqs = mcqsOf(examJson);
-  if (!mcqs.length) return [];
+  const entries = entriesOf(examJson);
+  if (!entries.length) return [];
   try {
-    return issuesFrom(await ask(reviewPrompt(mcqs, grade)), examJson, existing);
+    return issuesFrom(await ask(reviewPrompt(entries, grade)), examJson, existing);
   } catch (err) {
     onError(err);
     return [];
