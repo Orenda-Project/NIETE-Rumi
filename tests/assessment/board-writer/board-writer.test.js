@@ -40,6 +40,7 @@ function commonAssertions(cell, res) {
   const V = cell.variant;
   // layout totals
   expect(L.profile).toBe('board');
+  expect(L.preset_id).toBe('fbise_ssc1_2027');
   expect(L.total_marks).toBe(V.total_marks);
   expect(L.sections.map((s) => s.id)).toEqual(V.sections.map((s) => s.id));
   expect(L.sections.reduce((n, s) => n + x4(s.marks), 0)).toBe(x4(V.total_marks));
