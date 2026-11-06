@@ -95,7 +95,8 @@ describe("coach Back", () => {
   it("opened with nothing behind it (a link from WhatsApp), the arrow goes to the fixed parent", async () => {
     renderAt([VISIT_PATH]);
     fireEvent.click(await screen.findByRole("link", { name: "Back" }));
-    expect(where()).toBe("/portal/coach/observe/pick");
+    // bd-jjcofw.10 (M5): a visit opened cold is her schedule's, so its arrow goes to My schedule.
+    expect(where()).toBe("/portal/coach/schedule");
   });
 
   it("Visit → Record → Stop → Check and send → Send → Sending: Back from Sending is the Visit; no finished recording, no bounce", async () => {

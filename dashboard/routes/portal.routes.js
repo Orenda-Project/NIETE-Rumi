@@ -92,6 +92,7 @@ const {
   PORTAL_COACH_V2_KEY,
   PORTAL_COACH_SCHOOL_CARD_KEY,
   PORTAL_COACH_FULL_APP_KEY,
+  COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,
@@ -2373,6 +2374,76 @@ router.get('/coach/home', ...coachV2, async (req, res) => {
   } catch (error) { return coachFail(res, 'home', error); }
 });
 
+/* ---------------------------------------------------------------------------
+ * Coach reports in the app — her debrief report as a page (services/coach-report.service.js).
+ *
+ * The coach app v2 chain, then app_settings.coach_reports_app for the session user: off → 404, nothing is read.
+ * IDENTITY: the coach is ALWAYS req.session.portalUserId; another coach's report is 403 (its words never leave).
+ * ------------------------------------------------------------------------- */
+const CoachReport = require('../services/coach-report.service');
+const CoachWeek = require('../services/coach-week.service');
+
+async function requireCoachReports(req, res, next) {
+  const on = await isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, req.session && req.session.portalUserId);
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  return next();
+}
+const coachReports = [...coachV2, requireCoachReports];
+const COACH_REPORT_STATUS = { forbidden: 403, not_found: 404, not_ready: 409 };
+
+/** GET /api/portal/coach/reports/ready — what her Home card shows: her coached debriefs she has not opened or closed. */
+router.get('/coach/reports/ready', ...coachReports, async (req, res) => {
+  try {
+    const [week, debriefs] = await Promise.all([
+      CoachWeek.readyCoachWeek(pgQuery, req.session.portalUserId),
+      CoachReport.readyCoachReports(pgQuery, req.session.portalUserId),
+    ]);
+    res.set('Cache-Control', 'no-store');
+    // Phase 3: her week (from Friday 16:00) is the first row of the same card, then her debrief reports.
+    return res.json({ success: true, reports: [...(week ? [week] : []), ...debriefs] });
+  } catch (error) { return coachFail(res, 'reports-ready', error); }
+});
+
+/** GET /api/portal/coach/report/:id — her debrief report; another coach's is 403, a missing one 404, uncoached 409. */
+router.get('/coach/report/:id', ...coachReports, async (req, res) => {
+  try {
+    const out = await CoachReport.getCoachReport(pgQuery, req.session.portalUserId, req.params.id);
+    if (out.status !== 'ok') return res.status(COACH_REPORT_STATUS[out.status] || 404).json({ success: false, error: out.status });
+    res.set('Cache-Control', 'no-store');
+    return res.json({ success: true, report: out.report });
+  } catch (error) { return coachFail(res, 'report', error); }
+});
+
+/** GET /api/portal/coach/week/:monday — her week (Monday to Friday 16:00 PKT), once ready; not yet 409, not a Monday 404. */
+router.get('/coach/week/:monday', ...coachReports, async (req, res) => {
+  try {
+    const out = await CoachWeek.getCoachWeek(pgQuery, req.session.portalUserId, req.params.monday);
+    if (out.status !== 'ok') return res.status(COACH_REPORT_STATUS[out.status] || 404).json({ success: false, error: out.status });
+    res.set('Cache-Control', 'no-store');
+    return res.json({ success: true, week: out.week });
+  } catch (error) { return coachFail(res, 'week', error); }
+});
+
+/** POST /api/portal/coach/week/:monday/opened | /seen — she opened her week / closed its card: the week's one row. */
+for (const what of ['opened', 'seen']) {
+  router.post(`/coach/week/:monday/${what}`, ...coachReports, async (req, res) => {
+    try {
+      const stamped = await CoachWeek.markCoachWeek(pgQuery, req.session.portalUserId, req.params.monday, what);
+      return res.json({ success: true, stamped });
+    } catch (error) { return coachFail(res, `week-${what}`, error); }
+  });
+}
+
+/** POST /api/portal/coach/report/:id/opened | /seen — she opened it (any door) / closed the Home card with ✕. Once, hers only. */
+for (const what of ['opened', 'seen']) {
+  router.post(`/coach/report/:id/${what}`, ...coachReports, async (req, res) => {
+    try {
+      const stamped = await CoachReport.markCoachReport(pgQuery, req.session.portalUserId, req.params.id, what);
+      return res.json({ success: true, stamped });
+    } catch (error) { return coachFail(res, `report-${what}`, error); }
+  });
+}
+
 /** GET /api/portal/coach/pending — bd-o15qnr.21: { waiting, ids } — what waits on her (Feedback Form, Debrief), for the banner. */
 router.get('/coach/pending', ...coachV2, async (req, res) => {
   try {
@@ -2869,7 +2940,7 @@ const isOpenHint = (v) => v === '1' || v === 'true';
 /** GET /api/portal/lp612/grades → { success, grades: [{ grade }] } */
 router.get('/lp612/grades', requirePortalAuth, async (req, res) => {
   try {
-    res.json({ success: true, grades: await Lp612.listGrades() });
+    res.json({ success: true, grades: await Lp612.listGrades(req.session.portalUserId) });
   } catch (error) {
     console.error('❌ Portal lp612/grades failed', { error: error?.message });
     res.status(502).json({ success: false, error: 'Could not load grades' });
@@ -2883,7 +2954,7 @@ router.get('/lp612/subjects', requirePortalAuth, async (req, res) => {
     if (!Number.isFinite(grade)) {
       return res.status(400).json({ success: false, error: 'grade required' });
     }
-    res.json({ success: true, subjects: await Lp612.listSubjects(grade) });
+    res.json({ success: true, subjects: await Lp612.listSubjects(grade, req.session.portalUserId) });
   } catch (error) {
     console.error('❌ Portal lp612/subjects failed', { error: error?.message });
     res.status(502).json({ success: false, error: 'Could not load subjects' });
@@ -2898,7 +2969,7 @@ router.get('/lp612/chapters', requirePortalAuth, async (req, res) => {
     if (!Number.isFinite(grade) || !subject) {
       return res.status(400).json({ success: false, error: 'grade + subject required' });
     }
-    res.json({ success: true, chapters: await Lp612.listChapters(grade, subject) });
+    res.json({ success: true, chapters: await Lp612.listChapters(grade, subject, req.session.portalUserId) });
   } catch (error) {
     console.error('❌ Portal lp612/chapters failed', { error: error?.message });
     res.status(502).json({ success: false, error: 'Could not load chapters' });
@@ -3140,6 +3211,8 @@ router.get('/assessment/options', requirePortalAuth, async (req, res) => {
     const data = await Assessment.options({
       grade: Number.isFinite(grade) ? grade : null,
       subject,
+      // Her region's books (bd-97daxo.4): the session's teacher, never a request's.
+      userId: req.session.portalUserId,
     });
     res.json({ success: true, ...data });
   } catch (error) {
@@ -3158,7 +3231,7 @@ router.get('/assessment/chapters', requirePortalAuth, async (req, res) => {
     if (!Number.isFinite(grade) || !subject) {
       return res.status(400).json({ success: false, error: 'grade + subject required' });
     }
-    const chapters = await Assessment.listChapters(grade, subject);
+    const chapters = await Assessment.listChapters(grade, subject, req.session.portalUserId);
     res.json({ success: true, chapters });
   } catch (error) {
     assessmentFailure(res, error, 'Could not load chapters');
@@ -3178,7 +3251,7 @@ router.get('/assessment/topics', requirePortalAuth, async (req, res) => {
     if (!Number.isFinite(grade) || !subject || !Number.isFinite(chapterNumber)) {
       return res.status(400).json({ success: false, error: 'grade + subject + chapter required' });
     }
-    const topics = await Assessment.listTopics(grade, subject, chapterNumber);
+    const topics = await Assessment.listTopics(grade, subject, chapterNumber, req.session.portalUserId);
     res.json({ success: true, topics });
   } catch (error) {
     assessmentFailure(res, error, 'Could not load topics');
@@ -9022,6 +9095,7 @@ router.get('/config', async (req, res) => {
       schoolCardRaw,
       roleSwitch,
       coachFullAppRaw,
+      coachReportsAppRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9061,6 +9135,8 @@ router.get('/config', async (req, res) => {
       isRoleSwitchUser(supabase, userId),
       // bd-jjcofw — the full coach app (Schedule + Observe) for a listed tester; rides with the coach app v2 on.
       isFlagEnabledForUser(supabase, PORTAL_COACH_FULL_APP_KEY, userId),
+      // Coach reports in the app: her debrief report as a page and its Home card; rides with the coach app v2 on.
+      isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -9090,6 +9166,7 @@ router.get('/config', async (req, res) => {
         coachipDecode: coachip && coachipDecodeRaw,
         schoolCard: coachV2 && schoolCardRaw,
         coachFullApp: coachV2 && coachFullAppRaw,
+        coachReportsApp: coachV2 && coachReportsAppRaw,
         roleSwitch,
       },
     });

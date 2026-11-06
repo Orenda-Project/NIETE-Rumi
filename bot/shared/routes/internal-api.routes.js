@@ -137,6 +137,20 @@ async function shelfArgs(body) {
 }
 
 /**
+ * The curriculum of the teacher a portal call is for (bd-97daxo.4/.5): her registry region's
+ * books, else ICT's. `body.userId` is the portal SESSION's teacher, as on every route here. No
+ * userId (an older portal build) or any failure is ICT — exactly the book the route served before.
+ */
+async function teacherCurriculum(body) {
+  const userId = String((body && body.userId) || '').trim();
+  if (!userId) return 'ict';
+  return require('../services/book-curriculum.service').curriculumForUser(userId);
+}
+
+/** A browse service's trailing options for that curriculum: none for ICT, so its call is unchanged. */
+const curriculumArgs = (curriculum) => (curriculum && curriculum !== 'ict' ? [{ curriculum }] : []);
+
+/**
  * Wrap a training handler with the two things every one of them needs:
  * lazy module resolution, and fail-CLOSED error handling.
  *
@@ -1596,10 +1610,11 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
   const subject = String(body.subject || '').trim();
 
   const userId = bodyUserId(body);
-  const grades = await offeredGrades(await Browse.listGrades(), userId);
+  const own = curriculumArgs(await teacherCurriculum(body));
+  const grades = await offeredGrades(await Browse.listGrades(...own), userId);
   const out = { success: true, grades };
 
-  if (grade !== null) out.subjects = await offeredSubjects(grade, await Browse.listSubjects(grade), userId);
+  if (grade !== null) out.subjects = await offeredSubjects(grade, await Browse.listSubjects(grade, ...own), userId);
   if (grade !== null && subject) {
     Object.assign(out, Browse.questionOptions(subject, grade));
     // bd-6clakk.12 — the stems a teacher may tick on a topic paper, ADDED only while topic papers
@@ -1630,17 +1645,34 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
     const listed = (s) => allowed === null || allowed.includes(Patterns.normalise(s));
     if (grade !== null && subject && listed(subject)) {
       const offered = await cellOffered(grade, subject, userId);
-      const ids = Patterns.list().filter((id) => offered && Patterns.isEligible(id, grade, subject));
+      const ids = Patterns.list().filter((id) => offered && Patterns.isOffered(id) && Patterns.isEligible(id, grade, subject));
       if (ids.length) out.patterns = ids.map((id) => ({ id, ...Patterns.summaryFor(id, subject) }));
     }
     // The grades any pattern exists for, from the registry rather than typed
     // here, on EVERY call — the hub shows the door before a grade is picked.
     // An empty subject list offers no pattern anywhere, so no door either.
     if (allowed === null || allowed.length) {
-      const pg = [...new Set(Patterns.list().map((id) => Patterns.get(id).grade))].sort((a, b) => a - b);
+      const pg = Patterns.offeredGrades();
       const g = await gradeGateFor(pg);
       out.patternGrades = pg.filter((x) => GradeGate.gradeAllowed(x, g.flag, g.kill, userId));
     }
+  }
+
+  // The G9-12 board patterns, behind their own flag (bd-5jmnfj.38.25.1); off adds nothing. The
+  // 6-12 grade gate decides who sees them, so with it shut no key appears for a board grade.
+  let boardOn = false;
+  try { boardOn = await Flags.isAssessmentBoardPatternEnabled(); } catch (_) { /* a failed read is off */ }
+  if (boardOn) {
+    const Board = require('../services/assessment/patterns/board');
+    // isEligible holds the grade and subject checks: a pattern sets one grade and only its subjects.
+    const ids = Board.list().filter((id) => Board.isEligible(id, grade, subject));
+    if (ids.length && await cellOffered(grade, subject, userId)) {
+      out.patterns = (out.patterns || []).concat(ids.map((id) => ({ id, ...Board.summaryFor(id, subject) })));
+    }
+    // Board grades (9-12) sit after any FDE grades (1-5), so the joined list stays ascending.
+    const g = await gradeGateFor(Board.grades());
+    const bg = Board.grades().filter((x) => GradeGate.gradeAllowed(x, g.flag, g.kill, userId));
+    if (bg.length) out.patternGrades = (out.patternGrades || []).concat(bg);
   }
 
   return res.json(out);
@@ -1658,7 +1690,7 @@ router.post('/assessment/chapters', requireInternalKey, assessmentRoute('chapter
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
   if (!(await cellOffered(grade, subject, bodyUserId(body)))) return res.status(400).json(GRADE_NOT_OFFERED);
 
-  const chapters = await Browse.listChapters(grade, subject);
+  const chapters = await Browse.listChapters(grade, subject, ...curriculumArgs(await teacherCurriculum(body)));
   return res.json({ success: true, chapters });
 }));
 
@@ -1683,12 +1715,24 @@ router.post('/assessment/topics', requireInternalKey, assessmentRoute('topics', 
   const { isAssessmentTopicCtaEnabled } = require('../config/feature-flags');
   if (!(await isAssessmentTopicCtaEnabled().catch(() => false))) return res.json({ success: true, topics: [] });
 
-  const { listChapterTopics } = require('../services/assessment/topics/topics.repo');
-  const topics = (await listChapterTopics(grade, subject, chapterNumber)).map((t) => ({
+  const topics = (await chapterTopics(grade, subject, chapterNumber, await teacherCurriculum(body))).map((t) => ({
     topicId: t.topicId, name: t.name, heading: t.heading, headingOrder: t.headingOrder, sortOrder: t.sortOrder,
   }));
   return res.json({ success: true, topics });
 }));
+
+/**
+ * One chapter's topics, from the book she gets (bd-97daxo.4): topics are keyed by the BOOK's
+ * curriculum, which is hers where she has that book and ICT's otherwise. ICT asks nothing extra.
+ */
+async function chapterTopics(grade, subject, chapterNumber, curriculum) {
+  const { listChapterTopics } = require('../services/assessment/topics/topics.repo');
+  if (!curriculum || curriculum === 'ict') return listChapterTopics(grade, subject, chapterNumber);
+  const book = await require('../services/book-curriculum.service').textbookCurriculum(curriculum, grade, subject);
+  return book === 'ict'
+    ? listChapterTopics(grade, subject, chapterNumber)
+    : listChapterTopics(grade, subject, chapterNumber, { curriculum: book });
+}
 
 /**
  * Her chapters as one tidy list: numbers only, each once, in book order.
@@ -1744,7 +1788,7 @@ const PATTERN_CODE = Object.freeze({
  * the count is the slots' sum, the marks are fixed (no budget), every question
  * is new, and the marking scheme always comes with it.
  */
-async function createPatternRequest({ Browse, res, userId, grade, subject, pattern, scope, picked, pageRanges, answerLines, origin = null, onQueued = null }) {
+async function createPatternRequest({ Browse, res, userId, grade, subject, pattern, scope, picked, pageRanges, answerLines, origin = null, onQueued = null, types = null }) {
   const Patterns = require('../services/assessment/patterns');
   const chapterNumber = picked.length === 1 ? picked[0] : null;
 
@@ -1780,7 +1824,8 @@ async function createPatternRequest({ Browse, res, userId, grade, subject, patte
     }
   }
 
-  const questionTypes = Patterns.expandTypes(pattern, subject);
+  // A G9-12 board pattern brings its own slot list (bd-5jmnfj.38.25.2); FDE ones come from the registry.
+  const questionTypes = types || Patterns.expandTypes(pattern, subject);
   const questionCount = questionTypes.reduce((sum, t) => sum + t.count, 0);
 
   const AssessmentRequest = require('../services/assessment/assessment-request.service');
@@ -1809,6 +1854,13 @@ async function createPatternRequest({ Browse, res, userId, grade, subject, patte
 
   if (onQueued) onQueued(requestId);
   return res.status(202).json({ success: true, requestId });
+}
+
+/** An FDE pattern: on the FDE subject list (none set = every subject) and eligible for this class. */
+async function fdeEligible(Flags, Patterns, pattern, grade, subject) {
+  const allowed = await Flags.fdePatternSubjects();
+  const listed = allowed === null || allowed.includes(Patterns.normalise(subject));
+  return listed && Patterns.isOffered(pattern) && Patterns.isEligible(pattern, grade, subject);
 }
 
 /**
@@ -1848,13 +1900,12 @@ function rememberQueued(key, id) {
  * { partial: true, pageRanges, scope: {kind:'topics', topicIds, slos} }. Exactly one chapter is needed,
  * and an id that is not that chapter's (unknown, or another chapter's) is refused.
  */
-async function resolveTopicScope(body, { grade, subject, picked }) {
+async function resolveTopicScope(body, { grade, subject, picked, curriculum = 'ict' }) {
   const ids = Array.isArray(body.topicIds) ? body.topicIds.map((t) => String(t)).filter(Boolean) : [];
   if (!ids.length) return { partial: false };
   if (picked.length !== 1) return { error: 'Topics belong to one chapter. Pick one chapter.' };
-  const { listChapterTopics } = require('../services/assessment/topics/topics.repo');
   const { resolveTopics, TopicNotFound } = require('../services/assessment/topics/resolve');
-  const all = await listChapterTopics(grade, subject, picked[0]);
+  const all = await chapterTopics(grade, subject, picked[0], curriculum);
   let resolved;
   try { resolved = resolveTopics(all, ids); } catch (err) {
     if (err instanceof TopicNotFound) return { error: 'One of those topics is not in this chapter.' };
@@ -1920,8 +1971,11 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   const pattern = body.pattern ? String(body.pattern).trim() : null;
   if (pattern) {
     const Flags = require('../config/feature-flags');
+    // A G9-12 board pattern (bd-5jmnfj.38.25.2) has its own flag and its own eligibility; the FDE subject list is not its.
+    const Board = require('../services/assessment/patterns/board');
+    const board = Board.isBoard(pattern);
     let on = false;
-    try { on = await Flags.isAssessmentFdePatternEnabled(); } catch (_) { on = false; }
+    try { on = await (board ? Flags.isAssessmentBoardPatternEnabled() : Flags.isAssessmentFdePatternEnabled()); } catch (_) { on = false; }
     if (!on) {
       return res.status(400).json({
         success: false,
@@ -1930,9 +1984,10 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
       });
     }
     const Patterns = require('../services/assessment/patterns');
-    const allowed = await Flags.fdePatternSubjects();
-    const listed = allowed === null || allowed.includes(Patterns.normalise(subject));
-    if (!listed || !Patterns.isEligible(pattern, grade, subject)) {
+    const eligible = board
+      ? Board.isEligible(pattern, grade, subject)
+      : await fdeEligible(Flags, Patterns, pattern, grade, subject);
+    if (!eligible) {
       return res.status(400).json({
         success: false,
         error: 'That board pattern is not available for this grade and subject.',
@@ -1940,6 +1995,11 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
       });
     }
     const fdeScope = body.scope === 'fde';
+    if (fdeScope && board) {
+      return res.status(400).json({
+        success: false, error: 'A board paper takes chapters or pages.', errorCode: PATTERN_CODE.SCOPE_CONFLICT,
+      });
+    }
     if (fdeScope && (picked.length || pageRanges)) {
       return res.status(400).json({
         success: false, error: 'Send either the FDE syllabus or chapters, not both.', errorCode: PATTERN_CODE.SCOPE_CONFLICT,
@@ -1973,6 +2033,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
         Browse, res, userId, grade, subject, pattern, scope: fdeScope ? 'fde' : null,
         picked, pageRanges, answerLines: body.answerLines, origin,
         onQueued: (id) => rememberQueued(classKey, id),
+        types: board ? Board.expandTypes(pattern, subject) : null,
       });
     });
   }
@@ -1983,7 +2044,12 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
 
   // A paper on some of one chapter's topics. None, or every one ticked, is the whole chapter: that
   // request goes on below exactly as it always has.
-  const topicScope = await resolveTopicScope(body, { grade, subject, picked });
+  // Her curriculum (bd-97daxo.4) — a plain paper only: a board pattern is written against ICT's
+  // books (its own page ranges), so createPatternRequest above never asks.
+  const curriculum = await teacherCurriculum(body);
+  const own = curriculumArgs(curriculum);
+
+  const topicScope = await resolveTopicScope(body, { grade, subject, picked, curriculum });
   if (topicScope.error) return res.status(400).json({ success: false, error: topicScope.error });
   const byTopics = topicScope.partial;
   // She came by the topics door (some or every topic ticked): her stems ride along either way.
@@ -1997,7 +2063,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     questionCount === null ? QuestionTypes.DEFAULT_QUESTIONS : questionCount);
   if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.message });
 
-  const book = await Browse.bookFor(grade, subject);
+  const book = await Browse.bookFor(grade, subject, ...own);
   if (!book) {
     return res.status(400).json({ success: false, error: 'We do not have that book yet.' });
   }
@@ -2067,7 +2133,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   // page that a re-import can change underneath it.
   let pages = byTopics ? topicScope.pageRanges : pageRanges;
   if (!pages && picked.length) {
-    const chapters = await Browse.listChapters(grade, subject);
+    const chapters = await Browse.listChapters(grade, subject, ...own);
     if (picked.some((n) => !chapters.some((c) => c.chapter_number === n))) {
       return res.status(400).json({ success: false, error: 'That chapter is not in this book.' });
     }
@@ -2100,6 +2166,8 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     outputFormat: body.outputFormat || 'pdf',
     ...(byTopics ? { paperKind: 'topic', scope: topicScope.scope } : {}),
     ...(origin ? { origin } : {}),
+    // The worker reads her book's pages (bd-97daxo.4); absent for ICT, so the call is unchanged.
+    ...(own.length ? { curriculum } : {}),
   });
 
   return res.status(202).json({ success: true, requestId });
@@ -2269,7 +2337,8 @@ function lp612Route(name, handler) {
 router.post('/lp612/grades', requireInternalKey, lp612Route('grades', async (Browse, req, res) => {
   const shelf = await lp612Shelf(req.body);
   if (shelf.none) return res.json({ success: true, grades: [] });
-  const grades = (await Browse.listGrades()).filter((g) => shelf.covers(g && g.grade));
+  const grades = (await Browse.listGrades(...curriculumArgs(await teacherCurriculum(req.body))))
+    .filter((g) => shelf.covers(g && g.grade));
   return res.json({ success: true, grades });
 }));
 
@@ -2293,7 +2362,7 @@ router.post('/lp612/subjects', requireInternalKey, lp612Route('subjects', async 
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
 
   if (!(await lp612Shelf(req.body)).covers(grade)) return res.json({ success: true, subjects: [] });
-  const subjects = await Browse.listSubjects(grade);
+  const subjects = await Browse.listSubjects(grade, ...curriculumArgs(await teacherCurriculum(req.body)));
   return res.json({ success: true, subjects });
 }));
 
@@ -2309,7 +2378,7 @@ router.post('/lp612/chapters', requireInternalKey, lp612Route('chapters', async 
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
 
   if (!(await lp612Shelf(body)).covers(grade)) return res.json({ success: true, chapters: [] });
-  const chapters = await Browse.listChapters(grade, subject);
+  const chapters = await Browse.listChapters(grade, subject, ...curriculumArgs(await teacherCurriculum(body)));
   return res.json({ success: true, chapters });
 }));
 
@@ -2335,7 +2404,8 @@ router.post('/lp612/lessons', requireInternalKey, lp612Route('lessons', async (B
   const lang = clampLanguage(body.lang);
   // bd-5rz1v.14 — the teacher whose ✓✓ Sent marks the list (the portal passes its session's).
   const userId = String(body.userId || '').trim() || null;
-  const lessons = await Browse.listLessons(grade, subject, chapterKey, lang, userId);
+  const lessons = await Browse.listLessons(grade, subject, chapterKey, lang, userId,
+    ...curriculumArgs(await teacherCurriculum(body)));
   return res.json({ success: true, lessons });
 }));
 

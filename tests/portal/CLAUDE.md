@@ -1,7 +1,7 @@
 # portal — Root jest tests pinning the portal's dashboard routes, services and Android shell
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/portal kg=c0742e081829 gen=87017d206ecb overflow=132 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/portal kg=2ba906a1a3df gen=1ea3bc166a90 overflow=137 rendered=2026-11-05 kg.py=1.1.0 -->
 
 ## Entry points
 - `portal-teacher-home.routes.test.js` — typical route suite: real Express over dashboard/routes, injected boundaries
@@ -14,12 +14,14 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `fixtures/` | → (no door; 4 files: 0 test + 4 support) |
 | `helpers/` | Shared fake of the supabase query builder for portal route and service tests → `helpers/CLAUDE.md` |
+| `analytics*` | 11 files; most used `analytics-organization-scope.test.js`: (unmapped) |
 | `fln*` | 13 files; most used `fln-routes.test.js`: Pins portal-fln.routes over real Express: access gating, /me, plan, events, funnel logging with real fln-access |
-| `analytics*` | 9 files; most used `analytics-schools-route.test.js`: Pins the portal_analytics_only access gate, GET /analytics/schools and the analyticsOnly flag on the user payload |
 | `bd-o15qnr.8-coach-feedback.test.js` | Pins bd-o15qnr.8 coach v2 round-1 server rules: past-dated visits allowed with no teacher notice, edit and reschedule |
-| `coaching*` | 4 files; most used `coaching-report-page.video.test.js`: Pins bd-gzfdu9: /cr report page adds Watch this next card only with a recommendation, else byte-identical to golden |
+| `bd-tacnwy-role-switch.test.js` | (unmapped) |
 | `bd-z3cadk-report-extras.test.js` | Pins bd-z3cadk report-extras: portal report shows Last time we asked, journey note, repeat-recording date |
-| … | 185 more → `CLAUDE.index.md` |
+| `coaching*` | 4 files; most used `coaching-report-page.video.test.js`: Pins bd-gzfdu9: /cr report page adds Watch this next card only with a recommendation, else byte-identical to golden |
+| `portal-command-go-link.test.js` | Pins bd-x7aprz.3: bot /portal replies with one button holding the signed /go login link, English and Urdu within caps |
+| … | 192 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

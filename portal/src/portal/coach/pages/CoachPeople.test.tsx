@@ -94,10 +94,10 @@ describe("Teachers tab: grouped by school", () => {
     expect(within(imsg).queryByRole("button", { name: /Show all/ })).toBeNull();
   });
 
-  it("Avg. HITL Score sorts the teachers inside a school and the schools by their first teacher", async () => {
+  it("Coach score (avg.) sorts the teachers inside a school and the schools by their first teacher", async () => {
     renderAt("/portal/coach/people?tab=teachers");
     await screen.findAllByTestId("school-group");
-    fireEvent.click(screen.getByRole("radio", { name: "Avg. HITL Score" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Coach score (avg.)" }));
     const groups = screen.getAllByTestId("school-group");
     expect(groups.map((g) => titleOf(g))).toEqual(["IMCB G-9/4", "IMSG I-10/1", "IMSG G-6/2"]);
   });
@@ -175,7 +175,7 @@ describe("School and Teacher", () => {
     expect(screen.getByText("Ayesha Bibi").closest("a")).toHaveAttribute("href", "/portal/coach/teacher/923001110001");
     expect(screen.getByRole("link", { name: /Schedule visit here/ })).toHaveAttribute("href", "/portal/coach/new-visit?school=niete%3A110");
     // the kit's KpiTiles: visits, since visit, average, teachers
-    for (const g of ["9 Visits · last 3 months", "0d Since visit", "66% Avg. HITL Score", "6 Teachers"]) expect(screen.getByRole("group", { name: g })).toBeInTheDocument();
+    for (const g of ["9 Visits · last 3 months", "0d Since visit", "66% Coach score (avg.)", "6 Teachers"]) expect(screen.getByRole("group", { name: g })).toBeInTheDocument();
   });
 
   it("a teacher: average, counts, history with HITL and DC; Schedule visit goes to step 3", async () => {
@@ -199,7 +199,7 @@ describe("School and Teacher", () => {
     expect(screen.getByTestId("next-visit")).toHaveTextContent("Next visit");
     expect(within(screen.getByTestId("next-visit")).getByLabelText("11:30 AM")).toBeInTheDocument();
     // the counts: Courses done (never Modules), DC observations, Papers made, Lesson Plans opened
-    for (const t of ["HITL visits", "DC observations", "Papers made", "Lesson Plans opened", "Courses done", "Last training"]) expect(screen.getByText(t)).toBeInTheDocument();
+    for (const t of ["Coach observations", "Digital Coaching observations", "Papers made", "Lesson Plans opened", "Courses done", "Last training"]) expect(screen.getByText(t)).toBeInTheDocument();
     expect(screen.queryByText(/Modules done/)).toBeNull();
   });
 });

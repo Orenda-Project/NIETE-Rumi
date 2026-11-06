@@ -78,7 +78,7 @@ describe("Teacher History opens reports", () => {
     expect(await screen.findByTestId("observation-report")).toBeInTheDocument();
     expect(C.getObservation).toHaveBeenCalledWith("h-wa-sent");
     expect(screen.getByRole("img", { name: /Ayesha/ })).toHaveAttribute("src", "https://signed.example/report.png");
-    expect(screen.getByLabelText(/Digital Coach score 61%/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/AI score 61%/)).toBeInTheDocument();
   });
 
   it("her own portal observation and a HITL still on WhatsApp open the same page", async () => {

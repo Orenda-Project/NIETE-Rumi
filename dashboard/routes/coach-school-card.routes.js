@@ -11,6 +11,10 @@
  *   GET /coach/teacher/:ext/items/:feature?period=          lp | papers | training
  *   GET /coach/teacher/:ext/scores/:kind?period=            dc | coach: her scores, every practice averaged, her reports
  *   GET /coach/session/:id                                  one DC report or coach observation of a teacher in her patch
+ *   GET /coach/teacher/:ext/where?period=                   Where to coach (coach only): Rifat's engine for one teacher
+ *   GET /coach/school/:emis/first?period=                   Who to coach first (coach only): her school by group
+ *                                                           (both bd-17v39c.4.14, where-to-coach.service.js; no period =
+ *                                                           This month, Rifat's review pick 1B)
  *
  * level = primary | middle | high on the three school routes: that level's teachers only (bd-ewbzns.1).
  * period = today | week | month (default week), Pakistan days; anything else is 400. ?today=YYYY-MM-DD is taken
@@ -18,6 +22,7 @@
  */
 const express = require('express');
 const Card = require('../services/coach-school-card.service');
+const Where = require('../services/where-to-coach.service');
 const { parsePeriodKey, addDays } = require('../lib/school-card-period');
 const { karachiToday } = require('../lib/visit-time');
 
@@ -122,6 +127,26 @@ function createCoachSchoolCardRouter(deps) {
     const opts = optsOf(req, res);
     if (!opts) return undefined;
     return answer(res, 'items', () => Card.getTeacherItems(query, coach(req), ext, feature, { ...opts, ...(levelStates ? { levelStates } : {}) }));
+  });
+
+  // bd-17v39c.4.14 — Where to coach and Who to coach first open on This month unless a period is asked (Rifat, 5 Nov:
+  // her rules need 2+ sessions, which most teachers have in a month and a third do not have in a week).
+  const monthFirst = (req) => (req.query && req.query.period != null && req.query.period !== '' ? req : { ...req, query: { ...req.query, period: 'month' } });
+
+  router.get('/coach/teacher/:ext/where', ...guards, async (req, res) => {
+    const ext = String(req.params.ext || '');
+    if (!EXT_RX.test(ext)) return notFound(res);
+    const opts = optsOf(monthFirst(req), res);
+    if (!opts) return undefined;
+    return answer(res, 'where', () => Where.getWhereToCoach(query, coach(req), ext, opts));
+  });
+
+  router.get('/coach/school/:emis/first', ...guards, async (req, res) => {
+    const emis = String(req.params.emis || '');
+    if (!EMIS_RX.test(emis)) return notFound(res);
+    const opts = optsOf(monthFirst(req), res);
+    if (!opts) return undefined;
+    return answer(res, 'first', () => Where.getCoachFirst(query, coach(req), emis, opts));
   });
 
   router.get('/coach/session/:id', ...guards, async (req, res) => {

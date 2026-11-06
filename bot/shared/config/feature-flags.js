@@ -73,6 +73,13 @@ const ASSESSMENT_FDE_PATTERN_KEY = 'assessment_fde_pattern_enabled';
 const ASSESSMENT_FDE_PATTERN_SUBJECTS_KEY = 'assessment_fde_pattern_subjects';
 
 /**
+ * The G9-12 FBISE board patterns (bd-5jmnfj.38.25). Their OWN switch, off by default, apart from the
+ * FDE flag above: turning G1-5 patterns on or off never offers or hides a G9-12 board paper. The
+ * 6-12 grade gate still decides which teachers and cells see one.
+ */
+const ASSESSMENT_BOARD_PATTERN_KEY = 'assessment_board_pattern_enabled';
+
+/**
  * Which subjects' board-pattern papers get the reader pass (one more model call after the layout
  * that names the Section A items another part of the paper gives away), as a JSON array of
  * subject keys (e.g. ["urdu"]). FAIL CLOSED, the other direction from the subjects list above:
@@ -113,6 +120,7 @@ const isAssessmentEditingEnabled = () => isFlagEnabled(ASSESSMENT_EDITING_KEY);
 const isAssessmentDocxEnabled = () => isFlagEnabled(ASSESSMENT_DOCX_KEY);
 const isAssessmentVersionsEnabled = () => isFlagEnabled(ASSESSMENT_VERSIONS_KEY);
 const isAssessmentFdePatternEnabled = () => isFlagEnabled(ASSESSMENT_FDE_PATTERN_KEY);
+const isAssessmentBoardPatternEnabled = () => isFlagEnabled(ASSESSMENT_BOARD_PATTERN_KEY);
 const isAssessmentTopicCtaEnabled = () => isFlagEnabled(ASSESSMENT_TOPIC_CTA_KEY);
 
 /**
@@ -265,6 +273,7 @@ module.exports = {
   QUIZ_AUTHOR_GATES_V2_KEY, isQuizAuthorGatesV2,
   ASSESSMENT_FDE_PATTERN_KEY, isAssessmentFdePatternEnabled,
   ASSESSMENT_FDE_PATTERN_SUBJECTS_KEY, fdePatternSubjects,
+  ASSESSMENT_BOARD_PATTERN_KEY, isAssessmentBoardPatternEnabled,
   ASSESSMENT_FDE_READER_PASS_SUBJECTS_KEY, fdeReaderPassSubjects,
   ASSESSMENT_FDE_STEM_CHECK_SUBJECTS_KEY, fdeStemCheckSubjects,
   ASSESSMENT_TOPIC_CTA_KEY, isAssessmentTopicCtaEnabled,

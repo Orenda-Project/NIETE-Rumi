@@ -14,9 +14,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `analytics-account-not-in-broadcast.test.js` | Pins that the analytics-only account made by create-analytics-user is never swept into an all-users broadcast |
 | `analytics-coaching-route.test.js` | Pins GET /analytics/coaching (bd-97x22y.1): analytics-viewer gate, date window, six ICT regions, in portal.routes |
 | `analytics-date-filter.test.js` | Pins the Analytics page ?from=&to= window reaching every dated query in Pakistan time; blank means all time |
+| `analytics-framework-scores.test.js` | (unmapped) |
 | `analytics-lists-v8.test.js` | Pins schools-analytics v8 lists (FDE schools, RDF teacher and coach rosters) in lib/analytics-lists, fail-closed |
 | `analytics-lp-engagement-route.test.js` | Pins GET /analytics/lp-engagement: Active/Non-Active teacher split, viewer gate, window and region rules |
 | `analytics-observations-route.test.js` | Pins GET /analytics/observations (bd-97x22y.5): Human/Digital Coach FICO section breakdown behind the analytics gate |
+| `analytics-organization-scope.test.js` | (unmapped) |
 | `analytics-schools-route.test.js` | Pins the portal_analytics_only access gate, GET /analytics/schools and the analyticsOnly flag on the user payload |
 | `analytics-training-levels-route.test.js` | Pins GET /analytics/training-levels (bd-97x22y.4): Trainings tab by band, region validation, gate checked every request |
 | `analytics-v8-services.test.js` | Pins what the v8 teacher/school lists change in the schools, coaching and observations analytics services |
@@ -74,6 +76,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-fmf24g.7-teacher-attendance.test.js` | Pins bd-fmf24g.7 teacher attendance routes: classes, roster, mark (bot-relayed), day/month and .xlsx register |
 | `bd-fxk3t8-first-paint.test.js` | Pins bd-fxk3t8 server-side first paint: parallel /config flag reads and portal static cache headers |
 | `bd-fxk3t8-me.test.js` | Pins bd-fxk3t8 GET /me: same user as /dashboard without the count queries, 401 signed out, 500 on bad read |
+| `bd-hl4a4y-card-training-route.test.js` | (unmapped) |
+| `bd-jjcofw-coach-full-app-flag.test.js` | (unmapped) |
 | `bd-o15qnr-coach-v2-flag.test.js` | Pins bd-o15qnr.1 portal_coach_v2 flag shape and fail-closed rule, and the /leader/observe gate |
 | `bd-o15qnr-coach-v2-routes.test.js` | Pins bd-o15qnr.3 /api/portal/coach/* read routes: 404 when portal_coach_v2 is off, session coach only, input validation |
 | `bd-o15qnr-coach-v2-service.test.js` | Pins bd-o15qnr.3 coach-v2.service read side: people, schedule, team numbers computed from existing tables |
@@ -89,9 +93,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-o15qnr.23-today-in-karachi.test.js` | Pins bd-o15qnr.23: today for visit booking is the Asia/Karachi day, so past-date checks and notices are right 00-05 PKT |
 | `bd-o15qnr.8-coach-feedback.test.js` | Pins bd-o15qnr.8 coach v2 round-1 server rules: past-dated visits allowed with no teacher notice, edit and reschedule |
 | `bd-o15qnr.9-visit-last.test.js` | Pins bd-o15qnr.9: coach-v2 Visit page Last visit row (id, observer, step, link) via TEACHER_FACTS |
+| `bd-pw1ccr.26-held-topic-nudge.test.js` | (unmapped) |
+| `bd-pw1ccr.26-topic-paper-routes.test.js` | (unmapped) |
 | `bd-q4g7s-android-mic-camera.test.js` | Pins bd-q4g7s: Android manifest declares only mic and network, optional mic, and the KeepScreen plugin keeps screen on |
 | `bd-s42dye-1-training-library.test.js` | Pins bd-s42dye.1 coach-only read-only Training Library API: role re-read each request, catalogue, module, readings |
 | `bd-sex15q.49-assets-no-db.test.js` | (unmapped) |
+| `bd-tacnwy-role-switch.test.js` | (unmapped) |
 | `bd-tbprit.1-coach-disagreements-routes.test.js` | Pins bd-tbprit.1 coach-disagreements API: list and card for the logged-in coach, 404 when the flag is off |
 | `bd-tbprit.1-coach-disagreements-wiring.test.js` | Pins bd-tbprit.1: coach_disagreement_card flag surfaces as features.coachDisagreements; router mounts the API |
 | `bd-tbprit.11-coach-plan-routes.test.js` | Pins bd-tbprit.11 POST /coach/disagreements/:id/plan and /suggestion: coach-only, 500 on failed save, null on AI failure |
@@ -127,6 +134,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `dashboard-stats.test.js` | Pins bd-60079: portal dashboard drops the frozen lesson_plans count and returns what the teacher actually does |
 | `exam-pass-mark-and-cooldown.test.js` | Pins bd-2489/bd-2475: exam gate reports the vendor pass mark and real cooldown_hours per exam kind |
 | `feature-flags-cache.test.js` | Pins lib/feature-flags cache: 100 concurrent /config requests read each of 13 app_settings keys once per TTL |
+| `feature-flags-user-parity.test.js` | (unmapped) |
 | `fln-ab-isolation.test.js` | Pins FLN isolation from the ch3-10 A/B: no lp-ab-ch310 load, niete_lp_opens readers filter plan_kind k5 |
 | `fln-access.test.js` | Pins lib/fln-access: lessons/share access rule from role and portal_fln_* flags, requireFln no-store 401/404 |
 | `fln-corpus.test.js` | Pins fln-corpus.service: loads the FLN bundle from the mirror by app_settings version, gunzip, version check, in memory |
@@ -161,6 +169,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `open-file-page.test.js` | Pins bd-fmf24g.61 portal/public/open-file.html: forwards to allowed hosts, delayed fallback link, NIETE branding |
 | `portal-assessment-editing-flag.test.js` | Pins bd-6faz8m: portal_assessment_editing_enabled truth table falls back to the old key; failed read is off |
 | `portal-auth-log-quiet.test.js` | Pins requirePortalAuth logging: silent when signed in, one single-line entry on a refusal (log-rate cap) |
+| `portal-auth-retired-user.test.js` | (unmapped) |
 | `portal-build-pipeline.test.js` | Pins bd-2555: build:portal script builds and emits into the committed served dist and installs dashboard deps |
 | `portal-coaching-live.test.js` | Pins bd-v0toag.31: coaching-upload/start forwards the live-moves record; session user only, behind portal auth |
 | `portal-coaching-upload.test.js` | Pins bd-lfzoz self-observation routes: upload presign, start, session progress; session user only, bot relayed |

@@ -278,8 +278,18 @@ CREATE TABLE IF NOT EXISTS coaching_sessions (
     -- bot/database/migrations/coaching_audio_hash.sql
     audio_hash CHAR(64),
     duplicate_of_session_id UUID REFERENCES coaching_sessions(id),
+    -- Coach reports in the app (bot migration coach_report_notice.sql): the coach opened her debrief report / closed its Home card / the WhatsApp
+    -- fallback claimed it. NULL = not yet. Served by idx_coaching_sessions_coach_report_waiting (below the table).
+    coach_report_opened_at TIMESTAMPTZ,
+    coach_report_seen_at TIMESTAMPTZ,
+    coach_report_whatsapp_at TIMESTAMPTZ,
     PRIMARY KEY (id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_coaching_sessions_coach_report_waiting
+  ON coaching_sessions (created_at)
+  WHERE observation_type = 'leader_observation' AND debrief_status = 'done'
+    AND coach_report_opened_at IS NULL AND coach_report_seen_at IS NULL AND coach_report_whatsapp_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS coaching_jobs (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
@@ -4951,7 +4961,7 @@ COMMENT ON COLUMN schools.is_active IS
 CREATE TABLE IF NOT EXISTS niete_lp612_segments (
   segment_id            TEXT PRIMARY KEY,
   book_stem             TEXT    NOT NULL,
-  grade                 INTEGER NOT NULL CHECK (grade BETWEEN 6 AND 12),
+  grade                 INTEGER NOT NULL CHECK (grade BETWEEN 1 AND 12),  -- 1-5: GB NBF books (V1.9.0)
   subject               TEXT    NOT NULL,
   medium                TEXT,
   language              TEXT    NOT NULL DEFAULT 'en' CHECK (language IN ('en', 'ur')),
@@ -4998,7 +5008,10 @@ CREATE TABLE IF NOT EXISTS niete_lp612_segments (
   corpus_version        TEXT    NOT NULL DEFAULT 'v1',
   is_current            BOOLEAN NOT NULL DEFAULT TRUE,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- Whose book (V1.8.6, bd-97daxo.5): a teacher gets her region's curriculum segments for a grade+subject
+  -- where any exist, ICT's otherwise. A non-ICT book_stem starts with its curriculum (nbf_snc_...).
+  curriculum            TEXT    NOT NULL DEFAULT 'ict'
 );
 
 CREATE INDEX IF NOT EXISTS idx_lp612_segments_menu
@@ -5341,7 +5354,9 @@ CREATE TABLE IF NOT EXISTS assessment_topics (
   days              INTEGER[],
   is_current        BOOLEAN NOT NULL DEFAULT true,
   matrix_version    TEXT,
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Whose book these topics belong to (V1.8.6, bd-97daxo.4). A non-ICT topic_id starts with its curriculum (nbf_snc_...).
+  curriculum        TEXT NOT NULL DEFAULT 'ict'
 );
 
 CREATE INDEX IF NOT EXISTS idx_assessment_topics_current
@@ -6050,8 +6065,8 @@ CREATE TABLE IF NOT EXISTS teacher_nudges (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   nudge_date    date NOT NULL,                       -- PKT calendar date
-  -- weekly_usage_report: V1.6.12; topic_end_nudge: V1.8.4. A new kind is a migration on purpose.
-  kind          text NOT NULL CHECK (kind IN ('coaching_after_lp','lp_quiz_offer','weekly_usage_report','topic_end_nudge')),
+  -- weekly_usage_report: V1.6.12; topic_end_nudge: V1.8.4; coach_weekly_report: V1.8.12. A new kind is a migration on purpose.
+  kind          text NOT NULL CHECK (kind IN ('coaching_after_lp','lp_quiz_offer','weekly_usage_report','topic_end_nudge','coach_weekly_report')),
   status        text NOT NULL DEFAULT 'pending'
                 CHECK (status IN ('pending','sending','sent','failed','skipped','expired')),
   scheduled_at  timestamptz NOT NULL,

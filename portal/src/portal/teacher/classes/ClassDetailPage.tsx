@@ -8,12 +8,12 @@ import { dataOf, useLoad } from '../../newui/lessons/shared';
 import TeacherPage from '../TeacherPage';
 import { teacherPath } from '../routes';
 import { FeatureArt } from '../icons';
-import { StatusChip, SubjectTile, Tray, gradeSubjectLabel } from '../ui';
+import { StatusChip, Tray } from '../ui';
 import { CARD, FOCUS, LIST_CARD, OUTLINE_WIDE, PRIMARY_WIDE, ROW_DIVIDER } from '../ui/styles';
 import { CLASSES } from './copy';
 import { useCopy } from '../i18n';
-import { classChips, classRows, classTitle, lessonPlansLink, rosterRows, type RosterRow } from './model';
-import { EmptyCard, LoadFailed, LoadState, SectionHeading } from './parts';
+import { classChips, classTitle, gradeNumber, lessonPlansLink, rosterRows, type RosterRow } from './model';
+import { ClassTile, EmptyCard, LoadFailed, LoadState, SectionHeading } from './parts';
 import { CLASSES_HOME, addStudentsPath } from './paths';
 
 /** How many children show before Show all. */
@@ -142,16 +142,14 @@ export function ClassDetailPage() {
   }
 
   const roster = read.map((s) => (renamed[s.id] ? { ...s, name: renamed[s.id] } : s));
-  const [row] = classRows([cls], C);
   const shown = showAll ? roster : roster.slice(0, FIRST_STUDENTS);
 
   return (
     <TeacherPage feature="classes" crumb={C.title} title={classTitle(cls, C)} backTo={CLASSES_HOME}>
       <section aria-label={classTitle(cls, C)} className={cn(CARD, 'flex items-center gap-3 px-3 py-3.5')}>
-        <SubjectTile subject={cls.subjects?.[0]?.label ?? ''} />
+        <ClassTile grade={gradeNumber(cls.gradeCode)} />
         <span className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="text-[16px] font-semibold leading-[1.3]">{gradeSubjectLabel(row.grade, row.subject, row.section, C.grade)}</span>
-          {row.sub && cls.subjects.length > 1 ? <span className="text-[13px] text-[#6b7280]">{cls.subjects.slice(1).map((s) => s.label).join(', ')}</span> : null}
+          <span className="text-[16px] font-semibold leading-[1.3]">{classTitle(cls, C)}</span>
           <span className="flex flex-wrap gap-1.5">
             {classChips(cls, list, C).map((chip) => <StatusChip key={chip} text={chip} />)}
           </span>

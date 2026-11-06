@@ -39,7 +39,7 @@ const KIND = 't';
 const DEFAULT_AREA = 'training';
 // 'probe' is not a portal area: it opens only the phone test page (/iab/<token>,
 // dashboard/routes/iab-probe.routes.js), and /t refuses it.
-const AREAS = Object.freeze(['training', 'lessons', 'probe', 'ready']);
+const AREAS = Object.freeze(['training', 'lessons', 'probe', 'ready', 'coachreport']);
 
 /**
  * The 'ready' area (bd-fmf24g.15): the "Open in app" button on the WhatsApp message that follows a finished
@@ -50,7 +50,15 @@ const AREAS = Object.freeze(['training', 'lessons', 'probe', 'ready']);
  */
 const ITEM_AREA = 'ready';
 const ITEM_RE = /^(?:paper:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|lesson:[A-Za-z0-9._-]{1,120}:(?:en|ur))$/;
-const validItem = (i) => typeof i === 'string' && ITEM_RE.test(i);
+/**
+ * The 'coachreport' area (coach reports in the app): the link on the ONE WhatsApp message that follows a coach's report
+ * she did not open. Like 'ready' it names one thing: `debrief:<coaching session uuid>` or `week:<YYYY-MM-DD>` (the
+ * Monday of her weekly report). Same rule: checked when signed and when read; without a well-formed item, no token.
+ */
+const COACH_ITEM_RE = /^(?:debrief:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|week:\d{4}-\d{2}-\d{2})$/;
+const ITEM_RULES = Object.freeze({ [ITEM_AREA]: ITEM_RE, coachreport: COACH_ITEM_RE });
+const hasItem = (area) => Object.prototype.hasOwnProperty.call(ITEM_RULES, area);
+const validItem = (i, area = ITEM_AREA) => typeof i === 'string' && hasItem(area) && ITEM_RULES[area].test(i);
 
 function secret() {
   const own = process.env.WEB_TRAINING_TOKEN_SECRET;
@@ -74,8 +82,8 @@ const nowS = () => Math.floor(Date.now() / 1000);
 function signPortalLink(userId, area = DEFAULT_AREA, extra = undefined) {
   const key = secret();
   if (!key || !userId || !AREAS.includes(area)) return null;
-  const item = area === ITEM_AREA ? (extra && extra.i) : undefined;
-  if (area === ITEM_AREA && !validItem(item)) return null;
+  const item = hasItem(area) ? (extra && extra.i) : undefined;
+  if (hasItem(area) && !validItem(item, area)) return null;
   const payload = {
     k: KIND, u: String(userId), ...(area === DEFAULT_AREA ? {} : { a: area }), ...(item ? { i: item } : {}), exp: nowS() + LINK_TTL_S,
   };
@@ -100,9 +108,9 @@ function verifyPortalLink(token) {
     if (!payload.exp || payload.exp < nowS()) return null;
     const area = payload.a === undefined ? DEFAULT_AREA : payload.a;
     if (!AREAS.includes(area)) return null;
-    if (area === ITEM_AREA && !validItem(payload.i)) return null;
-    // Only the 'ready' area carries an item; anything a token of another area says about one is dropped.
-    if (area !== ITEM_AREA && 'i' in payload) {
+    if (hasItem(area) && !validItem(payload.i, area)) return null;
+    // Only an item area ('ready', 'coachreport') carries an item; anything a token of another area says about one is dropped.
+    if (!hasItem(area) && 'i' in payload) {
       const { i: _ignored, ...rest } = payload;
       return { ...rest, area };
     }

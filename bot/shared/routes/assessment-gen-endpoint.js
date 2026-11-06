@@ -23,6 +23,7 @@ const redis = require('../services/cache/railway-redis.service');
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const BookContent = require('../services/assessment/book-content.service');
+const BookCurriculum = require('../services/book-curriculum.service');
 const QuestionTypes = require('../services/assessment/question-types');
 // The queue is no longer reached from here: enqueueing moved to
 // assessment-request.service, which is required at its call site rather than
@@ -82,10 +83,21 @@ async function gradeGateFor(grades) {
   return require('../config/feature-flags').GradeGateSettings.load();
 }
 
+/**
+ * The textbooks a list for her may draw from (bd-97daxo.4). `curriculum` is the TEACHER's — the
+ * session carries it only when it is not ICT — so an ICT session reads `curriculum = 'ict'` exactly
+ * as before, and a GB one (nbf_snc) reads NBF's books and ICT's together, each grade+subject
+ * resolving to NBF's book where one is loaded (book-curriculum.service).
+ */
+function offeredBooks(columns, curriculum) {
+  const list = BookCurriculum.curriculaFor(curriculum);
+  const q = supabase.from('textbooks').select(columns);
+  return list.length === 1 ? q.eq('curriculum', list[0]) : q.in('curriculum', list);
+}
+
 /** Which grades we hold any book for, that this user is offered. Numeric order: a bare sort() puts 10 before 2. */
-async function gradesOnOffer(userId) {
-  const { data } = await supabase
-    .from('textbooks').select('grade').eq('curriculum', 'ict');
+async function gradesOnOffer(userId, curriculum) {
+  const { data } = await offeredBooks('grade', curriculum);
   const all = [...new Set((data || []).map((r) => r.grade))].filter(Boolean).sort((a, b) => a - b);
   const gate = await gradeGateFor(all);
   const grades = GradeGate.offeredGrades(all, gate.flag, gate.kill, gate.killCells, userId);
@@ -95,16 +107,20 @@ async function gradesOnOffer(userId) {
 /**
  * Which subjects we hold a book for, in this grade, that this user is offered.
  * Keyed by book (bd-97daxo.4): a G1-5 subject is offered only where the ICT book the generator reads is on her
- * region's list (teacher-books). Her list is read only for a G1-5 grade; no list offers everything, as before.
+ * region's list (teacher-books); a grade her list does not cover (GB: 6+, operator 6 Nov) offers none. No list
+ * offers everything, as before.
  */
-async function subjectsOnOffer(grade, userId) {
+async function subjectsOnOffer(grade, userId, curriculum) {
   const g = await gradeGateFor([grade]);
   const TeacherBooks = require('../services/teacher-books.service');
-  const shelf = userId ? await TeacherBooks.bookKeysForUser(userId) : null; // GB 6+: no subjects (operator, 6 Nov)
-  const { data } = await supabase
-    .from('textbooks').select('subject').eq('curriculum', 'ict').eq('grade', Number(grade));
+  const shelf = userId ? await TeacherBooks.bookKeysForUser(userId) : null;
+  const { data } = await offeredBooks('subject', curriculum).eq('grade', Number(grade));
+  // Two curricula can both hold a subject; she is offered it once. One curriculum: no change.
+  const both = BookCurriculum.curriculaFor(curriculum).length > 1;
+  const seen = new Set();
   return (data || [])
     .map((r) => r.subject)
+    .filter((s) => !both || (seen.has(s) ? false : seen.add(s)))
     .filter((s) => {
       const band = GRADE_BANDS[s];
       return !band || band.includes(Number(grade));
@@ -1311,8 +1327,12 @@ async function handleInit(userId, flowToken) {
     return openReview(userId, reviewPaperId, flowToken, prior.totalMarks ?? null);
   }
 
-  await writeSession(flowToken, { userId });
-  const grades = await gradesOnOffer(userId);
+  // Her curriculum, once per Flow: written into the session only when it is not ICT, so an ICT
+  // session is the object it always was (bd-97daxo.4).
+  const curriculum = await BookCurriculum.curriculumForUser(userId);
+  const own = curriculum !== BookCurriculum.ICT ? { curriculum } : {};
+  await writeSession(flowToken, { userId, ...own });
+  const grades = await gradesOnOffer(userId, curriculum);
   if (grades.length === 0) {
     // Nothing imported yet. Say so rather than showing an empty dropdown.
     return screen('CLASS', {
@@ -1322,7 +1342,7 @@ async function handleInit(userId, flowToken) {
   }
   // Subjects are filled in properly once she picks a grade; the first render
   // needs a non-empty list because the component requires one.
-  const subjects = await subjectsOnOffer(grades[0].id, userId);
+  const subjects = await subjectsOnOffer(grades[0].id, userId, curriculum);
   return screen('CLASS', { grades, subjects, error: '' });
 }
 
@@ -1370,21 +1390,24 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   if (screenId === 'CLASS') {
     const grade = Number(data.grade);
     const subject = String(data.subject || '');
-    const subjects = await subjectsOnOffer(grade, state.userId);
+    const subjects = await subjectsOnOffer(grade, state.userId, state.curriculum);
 
     // She picked a grade — the Grade Dropdown's on-select-action, not Continue.
     // Answer with THAT grade's subjects. Without this the list stays the one
     // INIT rendered for grades[0] (Grade 1), which has no Science or Social
     // Studies, so no G4/G5 teacher could ever see them (bd-g4jkt).
     if (data.trigger === 'grade_selected') {
-      return screen('CLASS', { grades: await gradesOnOffer(state.userId), subjects, error: await notCoveredError(grade, state.userId, subjects) });
+      return screen('CLASS', {
+        grades: await gradesOnOffer(state.userId, state.curriculum), subjects,
+        error: await notCoveredError(grade, state.userId, subjects),
+      });
     }
 
     // A stale client can submit a pair that is not on offer. Re-render rather
     // than accept it — the next screen would only fail on a missing book.
     if (!subjects.some((s) => s.id === subject)) {
       return screen('CLASS', {
-        grades: await gradesOnOffer(state.userId), subjects,
+        grades: await gradesOnOffer(state.userId, state.curriculum), subjects,
         error: `We don't have that subject for Grade ${grade}. Please pick another.`,
       });
     }
@@ -1398,7 +1421,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
 
     let chapters = [];
     try {
-      chapters = await BookContent.listChapters({ grade, subject });
+      chapters = await BookContent.listChapters({ grade, subject, curriculum: state.curriculum });
     } catch (err) {
       logToFile('[assessment-flow] chapter list failed', { grade, subject, error: err.message });
     }
@@ -1448,7 +1471,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
       });
     }
 
-    const chapters = await BookContent.listChapters({ grade: state.grade, subject: state.subject });
+    const chapters = await BookContent.listChapters({ grade: state.grade, subject: state.subject, curriculum: state.curriculum });
     const chapterTitles = chapterNumbers.map((n) => {
       const chosen = chapters.find((c) => c.chapterNumber === n);
       return chosen ? chosen.title : null;
@@ -1666,7 +1689,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   }
 
   logToFile('[assessment-flow] unknown screen', { screenId });
-  return screen('CLASS', { grades: await gradesOnOffer(state.userId), subjects: [], error: '' });
+  return screen('CLASS', { grades: await gradesOnOffer(state.userId, state.curriculum), subjects: [], error: '' });
 }
 
 /**
@@ -1776,15 +1799,16 @@ async function submitFromCompletion({ flowToken, userId, outputFormat, answerLin
 
 async function chapterOptions(state) {
   try {
-    const chapters = await BookContent.listChapters({ grade: state.grade, subject: state.subject });
+    const chapters = await BookContent.listChapters({ grade: state.grade, subject: state.subject, curriculum: state.curriculum });
     return coverageLists(chapters);
   } catch { return coverageLists([]); }
 }
 
 async function bookFacts(state) {
+  const curriculum = await BookCurriculum.textbookCurriculum(state.curriculum, state.grade, state.subject);
   const { data } = await supabase
     .from('textbooks').select('id, total_pages')
-    .eq('curriculum', 'ict').eq('grade', Number(state.grade)).eq('subject', state.subject)
+    .eq('curriculum', curriculum).eq('grade', Number(state.grade)).eq('subject', state.subject)
     .maybeSingle();
   return { id: data?.id || null, totalPages: data?.total_pages || null };
 }
@@ -1936,7 +1960,7 @@ async function chapterPageRange(state) {
   if (picked.length === 0) return null;
   try {
     const chapters = await BookContent.listChapters({
-      grade: state.grade, subject: state.subject,
+      grade: state.grade, subject: state.subject, curriculum: state.curriculum,
     });
     // One range per chapter, in page order, joined the way parsePageRanges
     // already reads: "15-27, 40-52". A chapter the contents
@@ -2027,6 +2051,8 @@ async function submit(state) {
     grade: state.grade,
     subject: state.subject,
     textbookId: book.id,
+    // Her curriculum, so the worker reads the same book's pages (absent on an ICT session).
+    curriculum: state.curriculum,
     chapterNumber: single,
     // Carried so the worker and the logs can say what she actually picked,
     // even though the content is loaded from the unioned page ranges.

@@ -2085,6 +2085,17 @@ function startWorker() {
       logToFile('Portal ready WhatsApp fallback sweep NOT registered', { error: error.message }, 'error');
     }
 
+    // Coach reports in the app — the ONE WhatsApp link to a coach's debrief report she has not opened (recorded in the
+    // portal, 10 minutes after it is ready). OFF unless app_settings.coach_reports_app lists her; outside her 24-hour
+    // window it waits for the approved template (app_settings.coach_report_template_enabled). Same owner, first run and
+    // interval rules as the sweep above, and its own try so it can never stop another sweep starting.
+    try {
+      const coachReportWhatsapp = require('../shared/services/observe/coach-report-whatsapp.service');
+      coachReportWhatsapp.scheduleSweep({ worker, queues: SQSCoachingWorker._enabledQueues() });
+    } catch (error) {
+      logToFile('Coach report WhatsApp fallback sweep NOT registered', { error: error.message }, 'error');
+    }
+
     // Offer interrupted tasks back. Rides the same always-on worker as the sweeps
     // above (this deployment has no cron), on a deliberately slower interval: the
     // window we are detecting is measured in hours, and a teacher whose step timed

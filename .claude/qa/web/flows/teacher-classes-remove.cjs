@@ -194,4 +194,47 @@ module.exports = [
       await api(page, ctx, 'DELETE', '/classes/' + encodeURIComponent(classId));
     }
   } },
+
+  // bd-pqx8h9 — Add a class: no subjects, class + section + shift required, the year on top; a class she is
+  // already on answers "Already on your list" and posts nothing. The class she is "already on" is a throwaway one
+  // added first through the API, and removed again at the end.
+  { id: 'TK06', title: 'Teacher app v2: Add a class asks only class, section and shift; a class she is already on is not saved again', run: async (page, ctx) => {
+    await asRole(page, ctx, 'teacher', 'teacherV2');
+    const before = await mine(page, ctx);
+    expect(before.canAdd, 'the demo teacher cannot add a class (no school or no academic session on this run)');
+    const combo = freshCombo(before);
+    expect(combo, 'no grade·section·shift left that the demo teacher is not already on');
+    const added = await api(page, ctx, 'POST', '/classes', { ...combo, subjectCodes: [], isClassTeacher: false });
+    expect(added.status === 201 && added.json.success, 'adding the throwaway class failed: ' + added.status);
+    const classId = added.json.class.classId;
+    const label = (list, code) => (list.find((o) => o.code === code) || {}).label;
+    const exact = (t) => new RegExp('^' + String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$');
+    try {
+      await visit(page, ctx, HOME + '/add', {});
+      const w = watch(page);
+      const posts = [];
+      page.on('request', (r) => { if (r.method() === 'POST' && /\/api\/portal\/classes$/.test(new URL(r.url()).pathname)) posts.push(r.url()); });
+      const save = page.getByRole('button', { name: /^(Save class|کلاس محفوظ کریں)$/ });
+      await save.waitFor({ state: 'visible', timeout: 15000 });
+      expect(!(await page.getByText(/^(Subjects|مضامین)$/).count()), 'the Subjects field is still there');
+      expect(await page.getByText(/^(No sections: select A|بغیر سیکشن: A چنیں)$/).isVisible(), 'the no-section note is missing');
+      if (before.currentSession) expect(await page.getByText(new RegExp('^(Year|سال) ' + before.currentSession + '$')).isVisible(), 'the year is not shown on top');
+      expect(await save.isDisabled(), 'Save class is on before anything is chosen');
+      await page.getByRole('radio', { name: exact(label(before.grades, combo.gradeCode)) }).click();
+      await page.getByRole('radio', { name: exact(label(before.sections, combo.section)) }).click();
+      expect(await save.isDisabled(), 'Save class is on without a shift');
+      await page.getByRole('radio', { name: exact(label(before.shifts, combo.shiftCode)) }).click();
+      expect(!(await save.isDisabled()), 'Save class stays off with class, section and shift chosen');
+      await save.click();
+      await page.getByText(/^(Already on your list|پہلے سے فہرست میں)$/).waitFor({ state: 'visible', timeout: 15000 });
+      expect(!posts.length, 'a class was posted for a class she is already on');
+      await page.getByRole('link', { name: /^(Open class|کلاس کھولیں)$/ }).click();
+      await page.waitForURL((u) => new URL(u).pathname === classPath(classId), { timeout: 15000 });
+      expect(!w.errors.length, 'uncaught page error — ' + w.errors[0]);
+      expect(!w.fivexx.length, 'API returned ' + [...new Set(w.fivexx)].join(', '));
+      return { classId, alreadyOn: true };
+    } finally {
+      await api(page, ctx, 'DELETE', '/classes/' + encodeURIComponent(classId));
+    }
+  } },
 ];

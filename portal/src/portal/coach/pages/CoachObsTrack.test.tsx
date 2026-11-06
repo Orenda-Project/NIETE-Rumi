@@ -106,8 +106,8 @@ describe("2 — the observation page (v24 ObsTrack, on the kit)", () => {
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Ayesha Bibi");
     expect(screen.getByText("IMSG I-10/1")).toBeInTheDocument();
     expect(screen.getByLabelText("11:30 AM")).toBeInTheDocument(); // 06:30Z on Pakistan's clock
-    expect(screen.getByLabelText(/Digital Coach score 64%/)).toBeInTheDocument();
-    expect(screen.getByText("Draft before your check")).toBeInTheDocument();
+    expect(screen.getByLabelText(/AI score 64%/)).toBeInTheDocument();
+    expect(screen.getByText("Before your check")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
     await waitFor(() => expect(stepLabels()).toEqual(
       ["Observation analysed", "Feedback Form", "Debrief", "Your feedback", "Send Ayesha the report"]));
@@ -151,7 +151,7 @@ describe("2 — the observation page (v24 ObsTrack, on the kit)", () => {
     renderAt("/portal/coach/observation/cs-1");
     expect(await screen.findByRole("button", { name: /Done/ })).toHaveTextContent("Report sent");
     expect(screen.queryByTestId("obs-dock")).toBeNull();
-    expect(screen.getByText("Final score 66%")).toBeInTheDocument();
+    expect(screen.getByText("Coach score 66%")).toBeInTheDocument();
 
     const made = within(await screen.findByTestId("what-you-made"));
     await waitFor(() => expect(made.getAllByRole("link")).toHaveLength(3));
@@ -188,11 +188,11 @@ describe("7 — Feedback Form and Debrief in the v2 screens", () => {
     expect(screen.queryByText(/Check draft|^Talk$|^Draft$/)).toBeNull();
   });
 
-  it("Visit: the Last visit chip", async () => {
+  it("Visit: the Last observation chip", async () => {
     C.getVisit.mockResolvedValue({ success: true, teacher: null,
       visit: { id: "v1", teacherName: "Ayesha Bibi", teacherExtId: "923001110001", schoolName: "IMSG I-10/1", schoolExtId: "niete:110", scheduledFor: "2026-10-07", scheduledSlot: "11:30", status: "upcoming" },
       lastVisit: { id: "s-wa", date: "2026-09-30T09:00:00Z", score: null, step: "talk", byMe: false, observerName: "Imran S", portal: false } });
     renderAt("/portal/coach/visit/v1");
-    expect(await screen.findByRole("link", { name: /Last visit/ })).toHaveTextContent("Debrief");
+    expect(await screen.findByRole("link", { name: /Last observation/ })).toHaveTextContent("Debrief");
   });
 });

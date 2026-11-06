@@ -73,7 +73,7 @@ describe("Observe hub", () => {
   it("two tiles: Take observation and Reports", async () => {
     renderAt("/portal/coach/observe");
     expect(await screen.findByRole("link", { name: /Take observation/ })).toHaveAttribute("href", "/portal/coach/observe/pick");
-    expect(screen.getByRole("link", { name: /Reports/ })).toHaveAttribute("href", "/portal/coach/reports");
+    expect(screen.getByRole("link", { name: /My observations/ })).toHaveAttribute("href", "/portal/coach/reports");
     expect(await screen.findByText("1 waiting")).toBeInTheDocument();
     expect(screen.queryByText("Record live")).toBeNull();
   });
@@ -99,7 +99,7 @@ describe("Observe hub", () => {
     });
     renderAt("/portal/coach/observe");
     const row = await screen.findByTestId("next-visit-card");
-    expect(within(row).getByRole("link")).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}`);
+    expect(within(row).getByRole("link")).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}?from=observe`);
     expect(row).toHaveTextContent("Ayesha Bibi");
     expect(row).toHaveTextContent("IMSG I-10/1");
     expect(within(row).getByRole("img", { name: "11:30 AM" })).toBeInTheDocument();
@@ -110,16 +110,16 @@ describe("Observe hub", () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     renderAt("/portal/coach/observe");
     expect(await screen.findByRole("link", { name: /مشاہدہ لیں/ })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /رپورٹس/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /میرے مشاہدات/ })).toBeInTheDocument();
   });
 });
 
 describe("Pick the teacher", () => {
   it("today's visits and, under Earlier, the overdue ones; a done one cannot be picked", async () => {
     renderAt("/portal/coach/observe/pick");
-    expect((await screen.findByText("Ayesha Bibi")).closest("a")).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}`);
+    expect((await screen.findByText("Ayesha Bibi")).closest("a")).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}?from=observe`);
     fireEvent.click(screen.getByRole("button", { name: /Earlier/ }));
-    expect(screen.getByText("Sadia Noor").closest("a")).toHaveAttribute("href", "/portal/coach/visit/o1");
+    expect(screen.getByText("Sadia Noor").closest("a")).toHaveAttribute("href", "/portal/coach/visit/o1?from=observe");
     expect(screen.getByText("Mehwish Khan").closest("a")).toBeNull();
   });
 

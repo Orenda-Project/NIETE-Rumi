@@ -110,8 +110,10 @@ THE HARD RULES (breaking any of these harms a real teacher):
 
 11. "focus_why": one short sentence (at most 25 words) on why "focus" is the one to work on first, from THIS debrief (e.g. the other steps build on it, or it is the quickest to add). null when "focus" is null.
 
+12. "did": for EVERY rubric key you judged TRUE (never "disparaged_teacher"), one short sentence (at most 25 words) on what the officer did in THIS debrief that shows it, quoting the officer's own words or naming the moment (e.g. "you said 'the story about Taif was told very well'"). It is what they did, not a definition and not praise in general. Leave out every key you judged FALSE.
+
 Return JSON with EXACTLY this structure:
-{ "praise_line": "..." (or null if harmful), "wins": [ { "behaviour": "...", "evidence": "..." } ] (or [] if harmful), "concern": { "what_happened": "...", "why_it_matters": "...", "instead": "..." } (or null if not harmful), "try": { "move": "...", "evidence": "...", "instead": "..." }, "reflection_question": "...", "value": "imani"|"heshima"|"usikivu"|"ukuaji"|"ushirikiano"|null, "focus": "<a rubric key judged false>"|null, "focus_why": "..."|null, "missed": { "<each rubric key judged false>": "<what happened in this debrief>" }, "rubric": { ${RUBRIC_KEYS_I18N.map((k) => `"${k}": true/false`).join(', ')} } }
+{ "praise_line": "..." (or null if harmful), "wins": [ { "behaviour": "...", "evidence": "..." } ] (or [] if harmful), "concern": { "what_happened": "...", "why_it_matters": "...", "instead": "..." } (or null if not harmful), "try": { "move": "...", "evidence": "...", "instead": "..." }, "reflection_question": "...", "value": "imani"|"heshima"|"usikivu"|"ukuaji"|"ushirikiano"|null, "focus": "<a rubric key judged false>"|null, "focus_why": "..."|null, "missed": { "<each rubric key judged false>": "<what happened in this debrief>" }, "did": { "<each rubric key judged true>": "<what the officer did in this debrief>" }, "rubric": { ${RUBRIC_KEYS_I18N.map((k) => `"${k}": true/false`).join(', ')} } }
 
 TRANSCRIPT OF THE OFFICER'S DEBRIEF:
 ${transcript}`;
@@ -205,6 +207,7 @@ function _allFeedbackText(fb) {
   if (fb.try) parts.push(fb.try.move || '', fb.try.evidence || '', fb.try.instead || '');
   if (fb.missed && typeof fb.missed === 'object') parts.push(...Object.values(fb.missed).map((v) => String(v || '')));
   if (typeof fb.focus_why === 'string') parts.push(fb.focus_why);
+  if (fb.did && typeof fb.did === 'object') parts.push(...Object.values(fb.did).map((v) => String(v || '')));
   return parts.join('\n');
 }
 
@@ -227,6 +230,19 @@ function _normaliseJudgeLines(fb) {
     fb.missed = out;
   }
   if ('focus_why' in fb) fb.focus_why = _judgeLine(fb.focus_why);
+  // Coach reports in the app: "What you did well" lists every done behaviour, each with the judge's own line. Kept only
+  // for behaviours the booleans say were done; a card judged before this field existed gains nothing.
+  if ('did' in fb) {
+    const out = {};
+    const src = fb.did && typeof fb.did === 'object' ? fb.did : {};
+    const R = require('./observe-coach-rubric');
+    for (const m of R.rubricMarks(fb.rubric).marks) {
+      if (!m.done) continue;
+      const line = _judgeLine(src[m.key]);
+      if (line) out[m.key] = line;
+    }
+    fb.did = out;
+  }
 }
 
 /**

@@ -145,12 +145,20 @@ describe('Pakistan days', () => {
   });
 });
 
-describe('the previous period, for the score averages', () => {
-  test('today -> yesterday; week -> the whole week before; month -> the whole month before', () => {
-    expect(P.previousOf(P.periodOf('today', '2026-10-28'))).toEqual({ from: '2026-10-27', to: '2026-10-27' });
-    expect(P.previousOf(P.periodOf('week', '2026-10-28'))).toEqual({ from: '2026-10-19', to: '2026-10-25' });
-    expect(P.previousOf(P.periodOf('month', '2026-10-28'))).toEqual({ from: '2026-09-01', to: '2026-09-30' });
-    expect(P.previousOf(P.periodOf('month', '2026-01-15'))).toEqual({ from: '2025-12-01', to: '2025-12-31' });
+describe('the previous period, the same days of it (bd-17v39c.4.13: "last week 0.9, same days")', () => {
+  // A part week against a whole week read low every Monday to Thursday: the period before is cut to the same days.
+  test('today -> yesterday; week -> last week Monday to the same weekday; month -> last month 1st to the same date', () => {
+    expect(P.previousOf(P.periodOf('today', '2026-10-28'))).toEqual({ from: '2026-10-27', to: '2026-10-27', schoolDaysSoFar: 1 });
+    expect(P.previousOf(P.periodOf('week', '2026-10-28'))).toEqual({ from: '2026-10-19', to: '2026-10-21', schoolDaysSoFar: 3 });
+    expect(P.previousOf(P.periodOf('month', '2026-10-28'))).toEqual({ from: '2026-09-01', to: '2026-09-28', schoolDaysSoFar: 20 });
+    expect(P.previousOf(P.periodOf('month', '2026-01-15'))).toEqual({ from: '2025-12-01', to: '2025-12-15', schoolDaysSoFar: 11 });
+  });
+
+  test('a date the month before does not have is cut to its last day; a Monday\'s yesterday has no school day', () => {
+    expect(P.previousOf(P.periodOf('month', '2026-03-31'))).toEqual({ from: '2026-02-01', to: '2026-02-28', schoolDaysSoFar: 20 });
+    expect(P.previousOf(P.periodOf('today', '2026-10-26'))).toEqual({ from: '2026-10-25', to: '2026-10-25', schoolDaysSoFar: 0 });
+    // A Sunday's week is all of last week.
+    expect(P.previousOf(P.periodOf('week', '2026-11-01'))).toEqual({ from: '2026-10-19', to: '2026-10-25', schoolDaysSoFar: 5 });
   });
 });
 

@@ -39,7 +39,9 @@ function mockChain() {
   let lim = null;
 
   const rows = () => {
-    let out = ROWS.filter((r) => eqs.every(([c, v]) => r[c] === v));
+    // V1.8.6 (bd-97daxo.5): the fixture predates `curriculum`; the column's default makes every such row ICT's.
+    const col = (r, c) => (c === 'curriculum' && r[c] === undefined ? 'ict' : r[c]);
+    let out = ROWS.filter((r) => eqs.every(([c, v]) => col(r, c) === v));
     if (ors) {
       // only the shape this module emits: `grade.eq.N,also_grades.cs.{N}`
       const m = /^grade\.eq\.(\d+),also_grades\.cs\.\{(\d+)\}$/.exec(ors);

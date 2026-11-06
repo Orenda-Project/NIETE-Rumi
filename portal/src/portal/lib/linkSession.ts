@@ -24,6 +24,9 @@ const AREAS: Record<string, { home: string }> = {
   // bd-fmf24g.15 — the "Open in app" button on the ready WhatsApp message: the teacher app's pages (the server
   // scopes what they may call to the one item and what is needed to open it).
   ready: { home: '/portal/teacher' },
+  // Coach reports in the app — the "Open my report" button on the ONE WhatsApp message about a coach's report she did
+  // not open: the coach app's pages (the server scopes what they may call to her reports).
+  coachreport: { home: '/portal/coach' },
 };
 
 export const LINK_EXPIRED_PAGE = '/t';
