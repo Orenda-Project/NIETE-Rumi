@@ -73,6 +73,13 @@ async function post(base, path, body, ip) {
   return res.status;
 }
 
+async function postWith(base, path, body, headers) {
+  const res = await fetch(`${base}/api/portal${path}`, {
+    method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body),
+  });
+  return res.status;
+}
+
 async function times(n, fn) {
   const out = [];
   for (let i = 0; i < n; i += 1) out.push(await fn(i)); // eslint-disable-line no-await-in-loop
@@ -156,6 +163,44 @@ describe('POST /api/portal/login', () => {
     expect(statuses.every((s) => s === 200)).toBe(true);
     await new Promise((r) => setImmediate(r));
     expect([...redis.counts.values()].every((c) => c.n === 0)).toBe(true);
+  });
+});
+
+/**
+ * On Railway req.ip is not the client. Under trust proxy 1 it is the Railway proxy hop in front of the portal: the
+ * sandbox live check of 2026-11-05 saw 31 failures from one machine alternate between two keys, so the 31st was never
+ * refused, and in production every teacher would share those few keys. Railway's HTTP edge sets X-Real-IP to the
+ * connecting IP and replaces any value the caller sends, so on Railway that header is the client.
+ */
+describe('on Railway, the client is X-Real-IP', () => {
+  const hop = (i) => `100.64.0.${(i % 2) + 1}`; // two proxy hops, taking turns, as the live check saw
+  const wrong = (i, prefix = '0304') => ({ phoneNumber: `${prefix}${String(1000000 + i)}`, password: 'wrong1234' });
+
+  beforeEach(() => { process.env.RAILWAY_ENVIRONMENT_ID = 'test-env'; });
+  afterEach(() => { delete process.env.RAILWAY_ENVIRONMENT_ID; });
+
+  it('counts one client as one, whichever proxy hop carries the request, and only that client', async () => {
+    const base = await listen(portalApp());
+    const statuses = await times(31, (i) => postWith(base, '/login', wrong(i), { 'x-real-ip': '203.0.113.60', 'x-forwarded-for': hop(i) }));
+    expect(statuses.slice(0, 30).every((s) => s === 401)).toBe(true);
+    expect(statuses[30]).toBe(429);
+    expect(await postWith(base, '/login', wrong(99, '0305'), { 'x-real-ip': '203.0.113.61', 'x-forwarded-for': hop(0) })).toBe(401);
+  });
+
+  it('counts one IPv6 /64 as one client, so rotating addresses inside it buys nothing', async () => {
+    const base = await listen(portalApp());
+    const statuses = await times(31, (i) => postWith(base, '/reset-password', { password: 'newpass123' }, { 'x-real-ip': `2001:db8:1:2::${(i + 1).toString(16)}`, 'x-forwarded-for': hop(i) }));
+    expect(statuses.slice(0, 30).every((s) => s === 401)).toBe(true);
+    expect(statuses[30]).toBe(429);
+    expect(await postWith(base, '/reset-password', { password: 'newpass123' }, { 'x-real-ip': '2001:db8:1:3::1', 'x-forwarded-for': hop(0) })).toBe(401);
+  });
+
+  it('off Railway a caller\'s own X-Real-IP is ignored, so it cannot buy a fresh count', async () => {
+    delete process.env.RAILWAY_ENVIRONMENT_ID;
+    const base = await listen(portalApp());
+    const statuses = await times(31, (i) => postWith(base, '/login', wrong(i, '0306'), { 'x-real-ip': `198.51.100.${i + 1}`, 'x-forwarded-for': '203.0.113.62' }));
+    expect(statuses.slice(0, 30).every((s) => s === 401)).toBe(true);
+    expect(statuses[30]).toBe(429);
   });
 });
 

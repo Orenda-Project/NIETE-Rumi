@@ -14,9 +14,15 @@
  *
  * The counts live in the portal's Redis (lib/edge-redis), so the four cluster workers and a redeploy share them.
  * While Redis is away each process counts in its own memory: it neither lets everything through nor refuses everyone.
- * The client is req.ip, through `trust proxy` 1 in index.js (Railway's edge is the one hop in front of the portal).
+ * The client is clientKey(req): on Railway the X-Real-IP header, elsewhere req.ip. On Railway req.ip is NOT the client.
+ * Under `trust proxy` 1 it is the Railway proxy hop in front of the portal. The sandbox live check of 2026-11-05 saw
+ * 31 failures from one machine alternate between two keys, so the 31st was never refused, and in production every
+ * teacher would share those few keys. Railway's HTTP edge sets X-Real-IP to the connecting IP and replaces any value
+ * the caller sends (Railway staff, station.railway.com, Oct 2026). Off Railway nothing sets it, so a caller's own
+ * X-Real-IP is ignored there. An IPv6 client counts as its /64, which one household or phone usually holds whole.
  * The portal shows its own "Too many tries" for any 429 (portal/src/portal/auth/errors.ts); the body is not shown.
  */
+const net = require('net');
 const rateLimit = require('express-rate-limit');
 const edgeRedis = require('./edge-redis');
 const telemetry = require('../services/telemetry.service');
@@ -61,6 +67,25 @@ class SharedStore {
   }
 }
 
+/** An IPv6 address as its /64 ('2001:db8:1:2::/64'); an IPv4 address (or an IPv4-mapped one) as itself. */
+function subnetOf(ip) {
+  if (!net.isIPv6(ip)) return ip;
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(ip);
+  if (mapped) return mapped[1];
+  const [head, tail] = ip.split('::');
+  const left = head ? head.split(':') : [];
+  const right = tail ? tail.split(':') : [];
+  const groups = tail === undefined ? left : [...left, ...Array(Math.max(0, 8 - left.length - right.length)).fill('0'), ...right];
+  return `${groups.slice(0, 4).map((g) => parseInt(g, 16).toString(16)).join(':')}::/64`;
+}
+
+/** The client a per-IP limit counts: X-Real-IP on Railway (set by its edge), req.ip anywhere else. */
+function clientKey(req) {
+  const onRailway = Boolean(process.env.RAILWAY_ENVIRONMENT_ID || process.env.RAILWAY_ENVIRONMENT);
+  const real = onRailway ? String(req.get('x-real-ip') || '').trim() : '';
+  return subnetOf(net.isIP(real) ? real : req.ip);
+}
+
 /** The account a sign-in names, one key however it is typed ('0300…', '+92 300…', ' Admin'); null when none. */
 function accountKey(raw) {
   if (typeof raw !== 'string') return null;
@@ -91,7 +116,7 @@ function limiter(name, { windowMs, max, failuresOnly }, keyGenerator, extra = {}
 
 /** One set per router: express-rate-limit refuses a store shared between two limiters. */
 function createAuthLimiters() {
-  const perIpAndRoute = (req) => `${req.ip}-${req.path}`;
+  const perIpAndRoute = (req) => `${clientKey(req)}-${req.path}`;
   const loginAccount = (req) => accountKey(req.body && req.body.phoneNumber);
   return {
     publicAuthLimiter: limiter('sign-in', LIMITS.signIn, perIpAndRoute),
@@ -101,4 +126,4 @@ function createAuthLimiters() {
   };
 }
 
-module.exports = { LIMITS, SharedStore, accountKey, createAuthLimiters };
+module.exports = { LIMITS, SharedStore, accountKey, clientKey, subnetOf, createAuthLimiters };
