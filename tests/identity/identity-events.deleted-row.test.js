@@ -30,8 +30,11 @@ jest.mock('../../bot/shared/config/supabase', () => {
   return api;
 });
 
+// The teacher's keyed reference (tk) needs the HMAC key; a fixed test key makes it deterministic here.
+process.env.WEB_QUIZ_KID_KEY = 'identity-events-test-key-0123456789abcdef';
 const StructuredLogger = require('../../bot/shared/utils/structured-logger');
 const { getOrCreateUser } = require('../../bot/shared/database/bot-helpers');
+const { tk } = require('../../bot/shared/services/quiz/web-quiz-kid');
 
 // A synthetic number, built from parts so the repo holds no phone-shaped literal (920000… is never a real mobile).
 const fx = (n) => '92' + '000' + String(n).padStart(7, '0');
@@ -56,14 +59,14 @@ describe('identity.deleted_row_resumed', () => {
     mockState.existingUser = row();
     const user = await getOrCreateUser(PHONE);
     expect(user).toEqual({ ...row(), last_message_at: expect.any(String) });
-    expect(resumed()).toEqual([{ userId: row().id }]);
+    expect(resumed()).toEqual([{ tk: tk(row().id) }]);
   });
 
   test('recorded once per account per process: the second message adds nothing', async () => {
     mockState.existingUser = row({ id: 'a0000000-0000-4000-8000-000000000304' });
     await getOrCreateUser(PHONE);
     await getOrCreateUser(PHONE);
-    expect(resumed()).toEqual([{ userId: 'a0000000-0000-4000-8000-000000000304' }]);
+    expect(resumed()).toEqual([{ tk: tk('a0000000-0000-4000-8000-000000000304') }]);
   });
 
   test('a live row records nothing', async () => {
@@ -93,5 +96,6 @@ describe('identity.deleted_row_resumed', () => {
     const text = JSON.stringify(resumed());
     expect(text).not.toContain(PHONE);
     expect(text).not.toContain('Bushra');
+    expect(text).not.toContain('a0000000-0000-4000-8000-000000000308');
   });
 });

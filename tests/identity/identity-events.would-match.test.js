@@ -68,10 +68,13 @@ jest.mock('../../bot/shared/config/supabase', () => ({
   },
 }));
 
+// The teacher's keyed reference (tk) needs the HMAC key; a fixed test key makes it deterministic here.
+process.env.WEB_QUIZ_KID_KEY = 'identity-events-test-key-0123456789abcdef';
 const StructuredLogger = require('../../bot/shared/utils/structured-logger');
 const { handleRegistrationDataExchange } = require('../../bot/shared/routes/registration-endpoint');
 const { handleRegistrationFlow } = require('../../bot/shared/handlers/flow-response.handler');
 const FeatureRegistrationService = require('../../bot/shared/services/feature-registration.service');
+const { tk } = require('../../bot/shared/services/quiz/web-quiz-kid');
 
 // A synthetic number, built from parts so the repo holds no phone-shaped literal (920000… is never a real mobile).
 const fx = (n) => '92' + '000' + String(n).padStart(7, '0');
@@ -108,7 +111,7 @@ afterEach(() => { events.mockRestore(); });
 const settle = async () => { for (let i = 0; i < 30; i += 1) await new Promise((r) => setImmediate(r)); };
 const wouldMatch = () => events.mock.calls.filter(([name]) => name === 'registration.would_match').map(([, data]) => data);
 const expectedEvent = (userId, source) => ({
-  userId, source, matchCount: 1, matchUserIds: [PEER.id], matchesRegistered: 0, matchesEverMessaged: 0,
+  tk: tk(userId), source, matchCount: 1, matchTks: [tk(PEER.id)], matchesRegistered: 0, matchesEverMessaged: 0,
 });
 
 // The three places a sign-up finishes, each driven through its own real entry point.
@@ -142,7 +145,7 @@ describe.each(Object.keys(SITES))('registration.would_match from %s', (source) =
     await settle();
     expect(wouldMatch()).toEqual([expectedEvent(id, source)]);
     const text = JSON.stringify(wouldMatch());
-    for (const secret of [PHONE, PEER.phone_number, 'Ayesha', 'ayesha']) expect(text).not.toContain(secret);
+    for (const secret of [PHONE, PEER.phone_number, 'Ayesha', 'ayesha', id, PEER.id]) expect(text).not.toContain(secret);
   });
 
   test('nobody else at her school with her name: nothing recorded', async () => {
