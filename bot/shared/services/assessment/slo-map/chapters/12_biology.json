@@ -1,0 +1,728 @@
+{
+ "grade": 12,
+ "code": "biology",
+ "source": {
+  "file": "stem/biology_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "1": [
+   {
+    "code": "B-12-R-24",
+    "kind": "official",
+    "desc": "Describe the mechanical and chemical digestion in the"
+   },
+   {
+    "code": "B-12-R-27",
+    "kind": "official",
+    "desc": "Identify the role of the nervous system and"
+   },
+   {
+    "code": "B-12-R-29",
+    "kind": "official",
+    "desc": "Trace the absorption of digested products from the"
+   },
+   {
+    "code": "B-12-R-34",
+    "kind": "official",
+    "desc": "Outline the structure of pancreas and explain its"
+   },
+   {
+    "code": "B-12-R-28",
+    "kind": "official",
+    "desc": "Describe major actions carried out on food in"
+   },
+   {
+    "code": "B-12-R-35",
+    "kind": "official",
+    "desc": "Relate secretion of bile and pancreatic juice with"
+   },
+   {
+    "code": "G12-U1-LO1",
+    "kind": "lo",
+    "desc": "Describe the mechanical and chemical digestion in the"
+   },
+   {
+    "code": "G12-U1-LO2",
+    "kind": "lo",
+    "desc": "Describe the mechanical and chemical digestion in the"
+   },
+   {
+    "code": "G12-U1-LO3",
+    "kind": "lo",
+    "desc": "Describe the mechanical and chemical digestion in the"
+   },
+   {
+    "code": "G12-U1-LO4",
+    "kind": "lo",
+    "desc": "Describe the mechanical and chemical digestion in the"
+   },
+   {
+    "code": "G12-U1-LO5",
+    "kind": "lo",
+    "desc": "Describe the mechanical and chemical digestion in the"
+   },
+   {
+    "code": "G12-U1-LO6",
+    "kind": "lo",
+    "desc": "Describe the mechanical and chemical digestion in the"
+   },
+   {
+    "code": "G12-U1-LO7",
+    "kind": "lo",
+    "desc": "Describe the mechanical and chemical digestion in the"
+   },
+   {
+    "code": "G12-U1-LO8",
+    "kind": "lo",
+    "desc": "Describe the mechanical and chemical digestion in the"
+   },
+   {
+    "code": "G12-U1-LO9",
+    "kind": "lo",
+    "desc": "Describe the mechanical and chemical digestion in the"
+   },
+   {
+    "code": "G12-U1-LO10",
+    "kind": "lo",
+    "desc": "Describe the mechanical and chemical digestion in the"
+   },
+   {
+    "code": "G12-U1-LO11",
+    "kind": "lo",
+    "desc": "Describe the mechanical and chemical digestion in the"
+   },
+   {
+    "code": "G12-U1-LO12",
+    "kind": "lo",
+    "desc": "Describe the mechanical and chemical digestion in the"
+   }
+  ],
+  "2": [
+   {
+    "code": "B-12-R-37",
+    "kind": "official",
+    "desc": "Describe the structure of the walls of heart"
+   },
+   {
+    "code": "B-12-R-46",
+    "kind": "official",
+    "desc": "Compare the rate of blood flow through arteries,"
+   },
+   {
+    "code": "B-12-R-43",
+    "kind": "official",
+    "desc": "Describe the role of arterioles in vasoconstriction and"
+   },
+   {
+    "code": "B-12-R-48",
+    "kind": "official",
+    "desc": "State the role of baroreceptors and volume receptor"
+   },
+   {
+    "code": "B-12-R-55",
+    "kind": "official",
+    "desc": "Define hypertension and describe the factor that regulate"
+   },
+   {
+    "code": "B-12-R-60",
+    "kind": "official",
+    "desc": "Describe the functions of lymph nodes and state"
+   },
+   {
+    "code": "G12-U2-LO1",
+    "kind": "lo",
+    "desc": "State the location of heart in the body"
+   },
+   {
+    "code": "G12-U2-LO2",
+    "kind": "lo",
+    "desc": "State the location of heart in the body"
+   },
+   {
+    "code": "G12-U2-LO3",
+    "kind": "lo",
+    "desc": "State the location of heart in the body"
+   },
+   {
+    "code": "G12-U2-LO4",
+    "kind": "lo",
+    "desc": "State the location of heart in the body"
+   },
+   {
+    "code": "G12-U2-LO5",
+    "kind": "lo",
+    "desc": "State the location of heart in the body"
+   },
+   {
+    "code": "G12-U2-LO6",
+    "kind": "lo",
+    "desc": "State the location of heart in the body"
+   },
+   {
+    "code": "G12-U2-LO7",
+    "kind": "lo",
+    "desc": "State the location of heart in the body"
+   },
+   {
+    "code": "G12-U2-LO8",
+    "kind": "lo",
+    "desc": "State the location of heart in the body"
+   },
+   {
+    "code": "G12-U2-LO9",
+    "kind": "lo",
+    "desc": "State the location of heart in the body"
+   },
+   {
+    "code": "G12-U2-LO10",
+    "kind": "lo",
+    "desc": "State the location of heart in the body"
+   },
+   {
+    "code": "G12-U2-LO11",
+    "kind": "lo",
+    "desc": "State the location of heart in the body"
+   },
+   {
+    "code": "G12-U2-LO12",
+    "kind": "lo",
+    "desc": "State the location of heart in the body"
+   },
+   {
+    "code": "G12-U2-LO13",
+    "kind": "lo",
+    "desc": "State the location of heart in the body"
+   },
+   {
+    "code": "G12-U2-LO14",
+    "kind": "lo",
+    "desc": "State the location of heart in the body"
+   },
+   {
+    "code": "G12-U2-LO15",
+    "kind": "lo",
+    "desc": "State the location of heart in the body"
+   },
+   {
+    "code": "G12-U2-LO16",
+    "kind": "lo",
+    "desc": "State the location of heart in the body"
+   }
+  ],
+  "3": [
+   {
+    "code": "B-12-R-01",
+    "kind": "official",
+    "desc": "Define the respiratory surface and list its properties"
+   },
+   {
+    "code": "B-12-R-04",
+    "kind": "official",
+    "desc": "Discuss the transport of oxygen and carbon dioxide"
+   },
+   {
+    "code": "B-12-R-06",
+    "kind": "official",
+    "desc": "State the causes, symptoms and treatment of upper"
+   }
+  ],
+  "4": [
+   {
+    "code": "B-12-R-09",
+    "kind": "official",
+    "desc": "List various nitrogenous compounds excreted during the process"
+   },
+   {
+    "code": "B-12-R-15",
+    "kind": "official",
+    "desc": "Explain the process of glomerular filtration, selective re-absorption"
+   },
+   {
+    "code": "B-12-R-21",
+    "kind": "official",
+    "desc": "Outline the causes of kidney failure"
+   },
+   {
+    "code": "B-12-R-23",
+    "kind": "official",
+    "desc": "Describe the principles and the problems associated with"
+   }
+  ],
+  "5": [
+   {
+    "code": "B-12-G-14",
+    "kind": "official",
+    "desc": "Describe the role of local circuits in saltatory"
+   },
+   {
+    "code": "B-12-G-15",
+    "kind": "official",
+    "desc": "Describe the role of local circuits in saltatory"
+   },
+   {
+    "code": "B-12-G-16",
+    "kind": "official",
+    "desc": "Describe the role of local circuits in saltatory"
+   },
+   {
+    "code": "B-12-G-17",
+    "kind": "official",
+    "desc": "Describe the role of local circuits in saltatory"
+   },
+   {
+    "code": "B-12-G-03",
+    "kind": "official",
+    "desc": "Identify the three neurons (sensory, intermediate, motor) involved"
+   },
+   {
+    "code": "B-12-G-11",
+    "kind": "official",
+    "desc": "Name the factors responsible for the resting membrane"
+   },
+   {
+    "code": "B-12-G-18",
+    "kind": "official",
+    "desc": "Identify the main components of the nervous system"
+   },
+   {
+    "code": "B-12-G-22",
+    "kind": "official",
+    "desc": "Explain the structure types and functions of the"
+   },
+   {
+    "code": "B-12-G-33",
+    "kind": "official",
+    "desc": "Associate the effects of drug addiction and tolerance"
+   },
+   {
+    "code": "B-12-G-30",
+    "kind": "official",
+    "desc": "Define narcotic drugs as agents that interact with"
+   },
+   {
+    "code": "G12-U5-LO1",
+    "kind": "lo",
+    "desc": "Recognize receptors as transducers sensitive to various stimuli"
+   },
+   {
+    "code": "G12-U5-LO2",
+    "kind": "lo",
+    "desc": "Recognize receptors as transducers sensitive to various stimuli"
+   },
+   {
+    "code": "G12-U5-LO3",
+    "kind": "lo",
+    "desc": "Recognize receptors as transducers sensitive to various stimuli"
+   },
+   {
+    "code": "G12-U5-LO4",
+    "kind": "lo",
+    "desc": "Recognize receptors as transducers sensitive to various stimuli"
+   },
+   {
+    "code": "G12-U5-LO5",
+    "kind": "lo",
+    "desc": "Recognize receptors as transducers sensitive to various stimuli"
+   },
+   {
+    "code": "G12-U5-LO6",
+    "kind": "lo",
+    "desc": "Recognize receptors as transducers sensitive to various stimuli"
+   },
+   {
+    "code": "G12-U5-LO7",
+    "kind": "lo",
+    "desc": "Recognize receptors as transducers sensitive to various stimuli"
+   },
+   {
+    "code": "G12-U5-LO8",
+    "kind": "lo",
+    "desc": "Recognize receptors as transducers sensitive to various stimuli"
+   },
+   {
+    "code": "G12-U5-LO9",
+    "kind": "lo",
+    "desc": "Recognize receptors as transducers sensitive to various stimuli"
+   },
+   {
+    "code": "G12-U5-LO10",
+    "kind": "lo",
+    "desc": "Recognize receptors as transducers sensitive to various stimuli"
+   },
+   {
+    "code": "G12-U5-LO11",
+    "kind": "lo",
+    "desc": "Recognize receptors as transducers sensitive to various stimuli"
+   },
+   {
+    "code": "G12-U5-LO12",
+    "kind": "lo",
+    "desc": "Recognize receptors as transducers sensitive to various stimuli"
+   },
+   {
+    "code": "G12-U5-LO13",
+    "kind": "lo",
+    "desc": "Recognize receptors as transducers sensitive to various stimuli"
+   },
+   {
+    "code": "G12-U5-LO14",
+    "kind": "lo",
+    "desc": "Recognize receptors as transducers sensitive to various stimuli"
+   },
+   {
+    "code": "G12-U5-LO15",
+    "kind": "lo",
+    "desc": "Recognize receptors as transducers sensitive to various stimuli"
+   },
+   {
+    "code": "G12-U5-LO16",
+    "kind": "lo",
+    "desc": "Recognize receptors as transducers sensitive to various stimuli"
+   }
+  ],
+  "6": [
+   {
+    "code": "B-12-G-23",
+    "kind": "official",
+    "desc": "State the role of hormones as chemical messengers"
+   },
+   {
+    "code": "B-12-G-25",
+    "kind": "official",
+    "desc": "Locate the endocrine glands in human body name"
+   },
+   {
+    "code": "B-12-G-28",
+    "kind": "official",
+    "desc": "Outline the concept of Feedback mechanism of hormones."
+   },
+   {
+    "code": "G12-U6-LO1",
+    "kind": "lo",
+    "desc": "State the role of hormones as chemical messengers"
+   },
+   {
+    "code": "G12-U6-LO2",
+    "kind": "lo",
+    "desc": "Describe the chemical nature of hormones and correlate"
+   },
+   {
+    "code": "G12-U6-LO3",
+    "kind": "lo",
+    "desc": "Locate the endocrine glands in human body name"
+   },
+   {
+    "code": "G12-U6-LO4",
+    "kind": "lo",
+    "desc": "Relate problems associated with the imbalance of these"
+   },
+   {
+    "code": "G12-U6-LO5",
+    "kind": "lo",
+    "desc": "Explain the neurosecretory role of hypothalamus"
+   },
+   {
+    "code": "G12-U6-LO6",
+    "kind": "lo",
+    "desc": "Outline the concept of Feedback mechanism of hormones."
+   }
+  ],
+  "7": [
+   {
+    "code": "B-12-R-63",
+    "kind": "official",
+    "desc": "Identify the main divisions of the human skeleton"
+   },
+   {
+    "code": "B-12-R-64",
+    "kind": "official",
+    "desc": "Describe three types of joints i.e, fibrous joints,"
+   },
+   {
+    "code": "B-12-R-65",
+    "kind": "official",
+    "desc": "Describe the disorders of human skeleton (disc-slip, spondylosis,"
+   },
+   {
+    "code": "B-12-R-68",
+    "kind": "official",
+    "desc": "Compare smooth muscles, cardiac muscles and skeletal muscles"
+   },
+   {
+    "code": "B-12-R-71",
+    "kind": "official",
+    "desc": "Describe the action of antagonistic muscles in the"
+   },
+   {
+    "code": "B-12-R-72",
+    "kind": "official",
+    "desc": "Explain muscle fatigue, cramps and tetany"
+   },
+   {
+    "code": "G12-U7-LO1",
+    "kind": "lo",
+    "desc": "Describe the structure of bone and compare it"
+   },
+   {
+    "code": "G12-U7-LO2",
+    "kind": "lo",
+    "desc": "Describe the structure of bone and compare it"
+   },
+   {
+    "code": "G12-U7-LO3",
+    "kind": "lo",
+    "desc": "Describe the structure of bone and compare it"
+   },
+   {
+    "code": "G12-U7-LO4",
+    "kind": "lo",
+    "desc": "Describe the structure of bone and compare it"
+   },
+   {
+    "code": "G12-U7-LO5",
+    "kind": "lo",
+    "desc": "Describe the structure of bone and compare it"
+   },
+   {
+    "code": "G12-U7-LO6",
+    "kind": "lo",
+    "desc": "Describe the structure of bone and compare it"
+   },
+   {
+    "code": "G12-U7-LO7",
+    "kind": "lo",
+    "desc": "Describe the structure of bone and compare it"
+   },
+   {
+    "code": "G12-U7-LO8",
+    "kind": "lo",
+    "desc": "Describe the structure of bone and compare it"
+   },
+   {
+    "code": "G12-U7-LO9",
+    "kind": "lo",
+    "desc": "Describe the structure of bone and compare it"
+   },
+   {
+    "code": "G12-U7-LO10",
+    "kind": "lo",
+    "desc": "Describe the structure of bone and compare it"
+   },
+   {
+    "code": "G12-U7-LO11",
+    "kind": "lo",
+    "desc": "Describe the structure of bone and compare it"
+   },
+   {
+    "code": "G12-U7-LO12",
+    "kind": "lo",
+    "desc": "Describe the structure of bone and compare it"
+   },
+   {
+    "code": "G12-U7-LO13",
+    "kind": "lo",
+    "desc": "Describe the structure of bone and compare it"
+   }
+  ],
+  "8": [
+   {
+    "code": "B-12-R-74",
+    "kind": "official",
+    "desc": "Define thermoregulation and explain its needs"
+   },
+   {
+    "code": "B-12-R-79",
+    "kind": "official",
+    "desc": "Relate the homeostatic mechanisms with the negative and"
+   },
+   {
+    "code": "B-12-R-75",
+    "kind": "official",
+    "desc": "Classify animals on the basis of the source"
+   }
+  ],
+  "10": [
+   {
+    "code": "B-12-J-01",
+    "kind": "official",
+    "desc": "Introduce genetic engineering"
+   },
+   {
+    "code": "B-12-J-06",
+    "kind": "official",
+    "desc": "Explain the formation of human insulin protein in"
+   },
+   {
+    "code": "B-12-J-07",
+    "kind": "official",
+    "desc": "Describe how vertical food farms (soil free) work"
+   },
+   {
+    "code": "B-12-J-08",
+    "kind": "official",
+    "desc": "Compare and contrast the advantages of vertical food"
+   },
+   {
+    "code": "G12-U10-LO1",
+    "kind": "lo",
+    "desc": "Introduce genetic engineering"
+   },
+   {
+    "code": "G12-U10-LO2",
+    "kind": "lo",
+    "desc": "Explain polymerase chain reaction (PCR)"
+   },
+   {
+    "code": "G12-U10-LO3",
+    "kind": "lo",
+    "desc": "Outline the Function of Restriction Enzymes"
+   },
+   {
+    "code": "G12-U10-LO4",
+    "kind": "lo",
+    "desc": "Describe plasmid as vector prokaryotes and Explain how"
+   },
+   {
+    "code": "G12-U10-LO5",
+    "kind": "lo",
+    "desc": "Define Genetically modified organism"
+   },
+   {
+    "code": "G12-U10-LO6",
+    "kind": "lo",
+    "desc": "Explain the formation of human insulin protein in"
+   },
+   {
+    "code": "G12-U10-LO7",
+    "kind": "lo",
+    "desc": "Describe how vertical food farms (soil free) work"
+   },
+   {
+    "code": "G12-U10-LO8",
+    "kind": "lo",
+    "desc": "Compare and contrast the advantages of vertical food"
+   }
+  ],
+  "11": [
+   {
+    "code": "B-12-K-01",
+    "kind": "official",
+    "desc": "Define biostatistics and its use"
+   },
+   {
+    "code": "B-12-K-03",
+    "kind": "official",
+    "desc": "Calculate mean, median, mode, standard deviation, range, percentile"
+   },
+   {
+    "code": "B-12-K-02",
+    "kind": "official",
+    "desc": "Define mean, median, mode, standard deviation, range, percentile"
+   },
+   {
+    "code": "B-12-K-05",
+    "kind": "official",
+    "desc": "Sketch error bars based off of range or"
+   },
+   {
+    "code": "B-12-K-08",
+    "kind": "official",
+    "desc": "Design an appropriate experiment with control group and"
+   },
+   {
+    "code": "G12-U11-LO1",
+    "kind": "lo",
+    "desc": "Define biostatistics and its use"
+   },
+   {
+    "code": "G12-U11-LO2",
+    "kind": "lo",
+    "desc": "Define mean, median, mode, standard deviation, range, percentile"
+   },
+   {
+    "code": "G12-U11-LO3",
+    "kind": "lo",
+    "desc": "Calculate mean, median, mode, standard deviation, range, percentile"
+   },
+   {
+    "code": "G12-U11-LO4",
+    "kind": "lo",
+    "desc": "Sketch a bar chart for a given set"
+   },
+   {
+    "code": "G12-U11-LO5",
+    "kind": "lo",
+    "desc": "Sketch error bars based off of range or"
+   },
+   {
+    "code": "G12-U11-LO6",
+    "kind": "lo",
+    "desc": "Evaluate the appropriate type of figure or chart"
+   },
+   {
+    "code": "G12-U11-LO7",
+    "kind": "lo",
+    "desc": "Make the appropriate chart with proper title, labeled"
+   },
+   {
+    "code": "G12-U11-LO8",
+    "kind": "lo",
+    "desc": "Design an appropriate experiment with control group and"
+   }
+  ],
+  "12": [
+   {
+    "code": "B-12-L-01",
+    "kind": "official",
+    "desc": "Define structural biology"
+   }
+  ],
+  "13": [
+   {
+    "code": "B-12-U-01",
+    "kind": "official",
+    "desc": "Describe how climate change impacts flora and fauna"
+   },
+   {
+    "code": "B-12-U-02",
+    "kind": "official",
+    "desc": "Describe how climate change can impact ocean biology"
+   },
+   {
+    "code": "B-12-U-03",
+    "kind": "official",
+    "desc": "Name species that have gone extinct due to"
+   }
+  ],
+  "14": [
+   {
+    "code": "B-12-V-01",
+    "kind": "official",
+    "desc": "Explain the role of biological warfare with examples"
+   },
+   {
+    "code": "B-12-V-02",
+    "kind": "official",
+    "desc": "Describe how biodefense could work to protect from"
+   },
+   {
+    "code": "B-12-V-04",
+    "kind": "official",
+    "desc": "Explain synthetic biology with examples"
+   }
+  ],
+  "15": [
+   {
+    "code": "B-12-T-01",
+    "kind": "official",
+    "desc": "Explain the drug discovery and development process"
+   },
+   {
+    "code": "B-12-T-05",
+    "kind": "official",
+    "desc": "Describe advantages of monoclonal antibodies enjoy compared to"
+   }
+  ]
+ }
+}

@@ -53,6 +53,16 @@ describe('promptValues', () => {
     expect(v.section_title).toBe('Section B');
     expect(v.section_marks).toBe(6);
     expect(v.time_line).toBe(', 20 minutes');
+    expect(v.slot_lines).toBe('- Q1 [slot S]: 2 x srq at 3 marks; levels: K 1, U 1');
+  });
+  test('r9 A6b: each slot line carries its level quota from the split; a rewrite slot carries its own quota', () => {
+    const six = { ...unit, slots: [{ ...unit.slots[0], printed: 6, attempt: 6, generate: 6 }] };
+    expect(SP.promptValues({ ...base, unit: six }).slot_lines).toBe('- Q1 [slot S]: 6 x srq at 3 marks; levels: K 2, U 3, A 1');
+    const re = { ...unit, slots: [{ ...unit.slots[0], generate: 2, quota: { K: 0, U: 1, A: 1 } }] };
+    expect(SP.promptValues({ ...base, unit: re }).slot_lines).toBe('- Q1 [slot S]: 2 x srq at 3 marks; levels: U 1, A 1');
+  });
+  test('no split -> no levels on the slot line', () => {
+    const v = SP.promptValues({ ...base, row: { code: 'physics' }, variant: { ...variant, cognitive_split: null } });
     expect(v.slot_lines).toBe('- Q1 [slot S]: 2 x srq at 3 marks');
   });
   test('an untimed unit has an empty time_line', () => {
@@ -120,5 +130,21 @@ describe('topUpNote', () => {
   test('names every short slot with what it has and needs', () => {
     expect(SP.topUpNote([{ slot: 'S', have: 1, need: 3 }, { slot: 'T', have: 0, need: 1 }]))
       .toBe('TOP-UP: the first reply was short. Write only the missing items for these slots, same rules: S (have 1, need 3); T (have 0, need 1).');
+  });
+});
+
+describe('rewriteNote review faults (round 9b)', () => {
+  test('the reviewer faults of removed items are listed to avoid; none, no line', () => {
+    const rows = [{ slot: 'A.Q1', write: 1 }];
+    const note = SP.rewriteNote(rows, ['Old stem?'], [], [], false, ['"Old stem?": key given away (paraphrase)']);
+    expect(note).toContain('A reviewer removed these items for these faults; do not repeat them: "Old stem?": key given away (paraphrase)');
+    expect(SP.rewriteNote(rows, ['Old stem?'])).not.toContain('reviewer');
+  });
+});
+
+describe('checkFaults (round 10)', () => {
+  test('a D18 drop tells the rewrite the key stood out; other checks add nothing', () => {
+    expect(SP.checkFaults([{ question: 'Old?', check: 'D18' }, { question: 'Other?', check: 'D17' }]))
+      .toEqual(['"Old?": the key stood out (longest option, or always/never)']);
   });
 });

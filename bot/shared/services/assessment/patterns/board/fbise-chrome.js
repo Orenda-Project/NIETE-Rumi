@@ -6,7 +6,7 @@
  * TERM variant prints "Term Examination (FBISE <part> pattern)" and never the board's examination header.
  * Pure data and pure functions. Reads words.js only (chrome.js requires this file, so no cycle back).
  */
-const { GRADE_WORD, timeEn, timeUr } = require('./words');
+const { GRADE_WORD, timeEn, timeUr, markEn, markNum } = require('./words');
 
 const EXAM_KINDS = ['ssc1', 'ssc2', 'hssc1', 'hssc2'];
 const GRADE_OF = { ssc1: 9, ssc2: 10, hssc1: 11, hssc2: 12 };
@@ -67,12 +67,10 @@ function examHeader(grade, kind, S, V) {
 // BLUEPRINTS §4: "pass 40%" (SSC). HSSC states none in the source notes; legendFor() is not told the exam kind.
 const PASS_EN = 'Pass = 40%.';
 const COMMON_EN = [
-  'MCQs: 1 mark for the filled bubble. Two bubbles or an overwritten answer = 0.',
   '"Attempt any N": tell children to answer exactly N. If more are answered, mark all and keep the best N.',
   'Where a question shows OR, the child answers one of the two.',
 ];
 const COMMON_UR = [
-  'معروضی: درست بھرے دائرے پر نمبر۔ دو دائرے یا اوور رائٹنگ = 0۔',
   '«کوئی سے N»: بچوں کو بالکل N سوال حل کرنے کو کہیں۔ زیادہ حل ہوں تو سب جانچ کر بہترین N رکھیں۔',
   'جہاں «یا» لکھا ہو، بچہ دونوں میں سے ایک حل کرے۔',
 ]; // ur: needs fluent-Urdu review
@@ -85,13 +83,16 @@ const STYLE_UR = {
   holistic_bands: 'ہر جواب کو اس کے بینڈ کے بیان سے جانچیں؛ پورے جواب پر سب سے موزوں بینڈ دیں۔',
 }; // ur: needs fluent-Urdu review
 
-function legendFor(subject, style) {
+/** `mcqMark` is the preset's MCQ marks_each (½ on the 50% science papers); absent reads as 1. */
+function legendFor(subject, style, mcqMark) {
+  const mcqEn = `MCQs: ${markEn(mcqMark)} for the filled bubble. Two bubbles or an overwritten answer = 0.`;
+  const mcqUr = `معروضی: درست بھرے دائرے پر ${markNum(mcqMark)} نمبر۔ دو دائرے یا اوور رائٹنگ = 0۔`; // ur: needs fluent-Urdu review
   return {
     subject,
     title_en: 'How to mark',
     title_ur: 'جانچنے کا طریقہ', // ur: needs fluent-Urdu review
-    lines_en: [...COMMON_EN, STYLE_EN[style], PASS_EN],
-    lines_ur: [...COMMON_UR, STYLE_UR[style], 'پاس = 40٪'], // ur: needs fluent-Urdu review
+    lines_en: [mcqEn, ...COMMON_EN, STYLE_EN[style], PASS_EN],
+    lines_ur: [mcqUr, ...COMMON_UR, STYLE_UR[style], 'پاس = 40٪'], // ur: needs fluent-Urdu review
   };
 }
 

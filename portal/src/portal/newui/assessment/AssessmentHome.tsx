@@ -291,7 +291,7 @@ function Form({ made }: { made: Made | null }) {
             onClick={() => setSheet('more')}
             testId="assessment-more"
             chips={pickedTypes.length
-              ? pickedTypes.map((t) => <Chip key={t}>{typeLabel(t)}</Chip>)
+              ? pickedTypes.map((t) => <Chip key={t}>{typeLabel(t, types)}</Chip>)
               : <Chip>{ASSESSMENT_COPY.mixed}</Chip>}
           />
         </List>
@@ -357,7 +357,7 @@ function Form({ made }: { made: Made | null }) {
             <SectionLabel>{ASSESSMENT_COPY.types}</SectionLabel>
             <ToggleChips
               label={ASSESSMENT_COPY.types}
-              options={types.map((t) => ({ key: t.id, label: typeLabel(t.id) }))}
+              options={types.map((t) => ({ key: t.id, label: typeLabel(t.id, types) }))}
               value={pickedTypes}
               onChange={(next) => setPicks((p) => ({ ...p, types: next }))}
             />

@@ -61,6 +61,11 @@ describe('board deps', () => {
     expect(V && Array.isArray(V.sections)).toBe(true);
   });
 
+  test('r9 step 4: the board writer runs the per-section MCQ review', async () => {
+    const d = await deps();
+    expect(d.reviewMcqs).toBe(true);
+  });
+
   test('resolveSubject returns the registry row', async () => {
     const d = await deps();
     expect(d.resolveSubject(9, 'physics')).toMatchObject({ code: 'physics' });

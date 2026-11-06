@@ -1,0 +1,109 @@
+{
+ "grade": 11,
+ "code": "computer_science",
+ "source": {
+  "file": "stem/computer_science_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "1": [
+   {
+    "code": "G11-U1-LO1",
+    "kind": "lo",
+    "desc": "understand and apply logic gates in digital systems,"
+   },
+   {
+    "code": "G11-U1-LO2",
+    "kind": "lo",
+    "desc": "understand and evaluate stages of the systems design,"
+   },
+   {
+    "code": "G11-U1-LO4",
+    "kind": "lo",
+    "desc": "understand and explain the need for cybersecurity and"
+   },
+   {
+    "code": "G11-U1-LO3",
+    "kind": "lo",
+    "desc": "understand and explain the scalability and reliability of"
+   }
+  ],
+  "2": [
+   {
+    "code": "G11-U1-LO1",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "G11-U1-LO2",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "G11-U1-LO3",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "G11-U1-LO4",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ],
+  "3": [
+   {
+    "code": "G11-U3-LO1",
+    "kind": "lo",
+    "desc": "understand the importance of computer programming and applications"
+   },
+   {
+    "code": "G11-U3-LO2",
+    "kind": "lo",
+    "desc": "draw shapes using Turtle Graphics functions in Python"
+   }
+  ],
+  "4": [
+   {
+    "code": "G11-U4-LO1",
+    "kind": "lo",
+    "desc": "relate the role and importance of model building"
+   },
+   {
+    "code": "G11-U4-LO3",
+    "kind": "lo",
+    "desc": "analyze pre-existing datasets to create summary statistics and"
+   },
+   {
+    "code": "G11-U4-LO2",
+    "kind": "lo",
+    "desc": "understand and explain experimental design in data science"
+   }
+  ],
+  "5": [
+   {
+    "code": "G11-U5-LO2",
+    "kind": "lo",
+    "desc": "evaluate how different stakeholders' culture, values, and (sometimes"
+   },
+   {
+    "code": "G11-U5-LO1",
+    "kind": "lo",
+    "desc": "describe technologies that are the foundation of IoT"
+   }
+  ],
+  "6": [
+   {
+    "code": "G11-U6-LO1",
+    "kind": "lo",
+    "desc": "understand and apply safe and responsible use of"
+   }
+  ],
+  "7": [
+   {
+    "code": "G11-U7-LO1",
+    "kind": "lo",
+    "desc": "Perform advanced searches to locate information and/or design"
+   }
+  ]
+ }
+}

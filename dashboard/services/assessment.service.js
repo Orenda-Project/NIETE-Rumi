@@ -108,19 +108,20 @@ async function ask(path, body, { coded = false } = {}) {
  * `maxQuestions` comes from here rather than being known locally. That is the
  * whole point: the form cannot offer a number the validator will refuse.
  */
-async function options({ grade = null, subject = null } = {}) {
-  return ask('options', { grade, subject });
+async function options({ grade = null, subject = null, userId } = {}) {
+  // userId lets the bot's 6-12 grade gate admit her; undefined drops out of the JSON.
+  return ask('options', { grade, subject, userId });
 }
 
 /** The chapters of one book — full titles and the pages each covers. */
-async function listChapters(grade, subject) {
-  const data = await ask('chapters', { grade, subject });
+async function listChapters(grade, subject, userId) {
+  const data = await ask('chapters', { grade, subject, userId });
   return data.chapters || [];
 }
 
 /** One chapter's topics for the picker: [{ topicId, name, heading, headingOrder, sortOrder }]; [] when none loaded. */
-async function listTopics(grade, subject, chapterNumber) {
-  const data = await ask('topics', { grade, subject, chapterNumber });
+async function listTopics(grade, subject, chapterNumber, userId) {
+  const data = await ask('topics', { grade, subject, chapterNumber, userId });
   return data.topics || [];
 }
 

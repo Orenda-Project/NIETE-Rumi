@@ -9,8 +9,8 @@
  * order and a part closes when its marks are reached; the "Attempt any N questions." and marks lines are computed
  * from slot.attempt / printed / marks_each (the layout carries no instruction text).
  */
-const { textOf, marksText } = require('./text');
-const { slotsOf } = require('./layout');
+const { textOf, marksText, bareOption } = require('./text');
+const { slotsOf, firstNo } = require('./layout');
 const { noteFor } = require('./header');
 
 const WORDS = {
@@ -29,12 +29,22 @@ function marksLine(slot) {
 }
 
 function mcqRow(q, n, onPaper, rtl) {
-  const opts = (q.options || []).map((o, i) => `<span>${LETTERS[i]}. ${textOf(o, rtl)}${onPaper ? ' <span class="bub"></span>' : ''}</span>`).join('');
+  const opts = (q.options || []).map((o, i) => `<span>${LETTERS[i]}. ${textOf(bareOption(o, i), rtl)}${onPaper ? ' <span class="bub"></span>' : ''}</span>`).join('');
   return `<div class="q"><span class="qn">${textOf(`${n}.`, rtl)}</span> ${textOf(q.question, rtl)}<div class="opts">${opts}</div></div>`;
 }
 
+const PART = 'abcdefgh';
+/** A constructed item's printed text: its stem, an OR pair's two choices, or a lead with its (a)/(b) parts. */
+function stemHtml(q, rtl) {
+  if (Array.isArray(q.or)) return q.or.map((b) => stemHtml(b, rtl)).join(`<div class="or">${orWord(rtl)}</div>`);
+  const lead = q.question ? textOf(q.question, rtl) : '';
+  if (!Array.isArray(q.parts)) return lead;
+  const parts = q.parts.map((p, k) => `<div class="sub"><span class="pl">(${PART[k]})</span> ${stemHtml(p, rtl)}</div>`).join('');
+  return lead + parts;
+}
+
 function plainRow(q, n, rtl) {
-  return `<div class="q"><span class="qn">${textOf(`${n}.`, rtl)}</span> ${textOf(q.question, rtl)}</div>`;
+  return `<div class="q"><span class="qn">${textOf(`${n}.`, rtl)}</span> ${stemHtml(q, rtl)}</div>`;
 }
 
 function itemsHtml(slot, items, onPaper, rtl) {
@@ -46,7 +56,8 @@ function itemsHtml(slot, items, onPaper, rtl) {
       lastStim = q.stimulus.id;
       out.push(`<div class="stim">${textOf(q.stimulus.text, rtl)}</div>`);
     }
-    out.push(isMcq(slot) ? mcqRow(q, i + 1, onPaper, rtl) : plainRow(q, i + 1, rtl));
+    const n = firstNo(slot) + i;
+    out.push(isMcq(slot) ? mcqRow(q, n, onPaper, rtl) : plainRow(q, n, rtl));
   });
   return out.join('');
 }
@@ -98,4 +109,4 @@ function sectionBlock(layout, sec, by, ctx) {
   return out.join('');
 }
 
-module.exports = { sectionBlock, orWord, marksLine, WORDS };
+module.exports = { sectionBlock, orWord, marksLine, WORDS, PART };

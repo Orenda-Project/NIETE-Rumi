@@ -616,7 +616,9 @@ async function buildPaper(job, user = {}) {
     // alongside from the same pages; null when the subject has none or it came back short.
     // Her earlier questions on these pages, so asking again gives a new paper.
     const avoid = await RepeatGuard.previousQuestions({ db: supabase, requestId, grade });
-    const [generated, oral] = await Promise.all([Generation.generateExam({
+    // bd-5jmnfj.38.31: grade 6 and up gets its own free paper (time-sized, marking points, checked).
+    const writeExam = Number(grade) >= 6 ? require('./free-secondary.service').generateExam : Generation.generateExam;
+    const [generated, oral] = await Promise.all([writeExam({
       grade, subject,
       pageContent: source.content,
       pageReference: source.pageReference,
@@ -626,6 +628,8 @@ async function buildPaper(job, user = {}) {
       // A topic paper tests the ticked topics' skills; any other job passes no key at all.
       ...(scope && scope.kind === 'topics' ? { slos: scope.slos } : {}),
       ...(avoid.length ? { avoidQuestions: avoid } : {}),
+      // Grade 6 and up asks about the lesson by name; G1-5 gets exactly the arguments it always did.
+      ...(writeExam !== Generation.generateExam ? { chapterTitle: source.chapterTitle || null, keySeed: paperId || requestId } : {}),
     }), isTopic ? Generation.generateTopicOral({ grade, subject, pageContent: source.content, requestId }) : null]);
 
     // With versioned editing the generated row IS version 1 and is never

@@ -1,0 +1,169 @@
+{
+ "grade": 10,
+ "code": "maths",
+ "source": {
+  "file": "stem/mathematics_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "4": [
+   {
+    "code": "G10-U4-LO1",
+    "kind": "lo",
+    "desc": "Solve linear inequalities in one variable"
+   },
+   {
+    "code": "G10-U4-LO2",
+    "kind": "lo",
+    "desc": "Solve quadratic inequalities in one variable"
+   },
+   {
+    "code": "G10-U4-LO3",
+    "kind": "lo",
+    "desc": "Solve two linear inequalities with two unknowns simultaneously"
+   },
+   {
+    "code": "G10-U4-LO4",
+    "kind": "lo",
+    "desc": "Interpret and identify the region in plane bounded"
+   }
+  ],
+  "5": [
+   {
+    "code": "G10-U4-LO1",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "G10-U4-LO2",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "G10-U4-LO3",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "G10-U4-LO4",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ],
+  "6": [
+   {
+    "code": "G10-U6-LO1",
+    "kind": "lo",
+    "desc": "Recognize function as a rule of correspondence and"
+   },
+   {
+    "code": "G10-U6-LO3",
+    "kind": "lo",
+    "desc": "Determine value of a function and perform operations"
+   },
+   {
+    "code": "G10-U6-LO2",
+    "kind": "lo",
+    "desc": "Identify types of functions (into, onto, one-to-one, injective,"
+   },
+   {
+    "code": "G10-U6-LO5",
+    "kind": "lo",
+    "desc": "Identify, sketch and interpret graphs of constant function,"
+   },
+   {
+    "code": "G10-U6-LO4",
+    "kind": "lo",
+    "desc": "Find inverse of a function"
+   },
+   {
+    "code": "G10-U6-LO6",
+    "kind": "lo",
+    "desc": "Solve a system of one linear and one"
+   },
+   {
+    "code": "G10-U6-LO7",
+    "kind": "lo",
+    "desc": "Solve real life problems related to functions"
+   }
+  ],
+  "7": [
+   {
+    "code": "G10-U7-LO6",
+    "kind": "lo",
+    "desc": "Add and subtract vectors"
+   },
+   {
+    "code": "G10-U7-LO8",
+    "kind": "lo",
+    "desc": "Solve geometrical problems involving the use of a"
+   },
+   {
+    "code": "G10-U7-LO9",
+    "kind": "lo",
+    "desc": "Apply concepts of vectors in geometrical problems such"
+   },
+   {
+    "code": "G10-U7-LO1",
+    "kind": "lo",
+    "desc": "Represent vector as a directed line segment"
+   },
+   {
+    "code": "G10-U7-LO3",
+    "kind": "lo",
+    "desc": "Express a vector in terms of position vector"
+   },
+   {
+    "code": "G10-U7-LO2",
+    "kind": "lo",
+    "desc": "Express a vector in terms of two non-zero"
+   },
+   {
+    "code": "G10-U7-LO4",
+    "kind": "lo",
+    "desc": "Express translation by a vector"
+   },
+   {
+    "code": "G10-U7-LO5",
+    "kind": "lo",
+    "desc": "Find the magnitude of a vector"
+   },
+   {
+    "code": "G10-U7-LO7",
+    "kind": "lo",
+    "desc": "Multiply a vector by a scalar"
+   }
+  ],
+  "8": [
+   {
+    "code": "G10-U8-LO2",
+    "kind": "lo",
+    "desc": "Solve simple trigonometric problems in three dimensions"
+   },
+   {
+    "code": "G10-U8-LO1",
+    "kind": "lo",
+    "desc": "Solve problems using laws of sines, cosines and"
+   },
+   {
+    "code": "G10-U8-LO3",
+    "kind": "lo",
+    "desc": "Apply concepts of trigonometry to real life world"
+   }
+  ],
+  "10": [
+   {
+    "code": "G10-U10-LO1",
+    "kind": "lo",
+    "desc": "Apply concepts of tangents and angles to real"
+   }
+  ],
+  "12": [
+   {
+    "code": "G10-U10-LO1",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ]
+ }
+}

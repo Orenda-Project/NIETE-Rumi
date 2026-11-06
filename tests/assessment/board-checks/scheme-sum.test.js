@@ -73,3 +73,22 @@ describe('D14 scheme-sum', () => {
     expect(M.run(P([srq('a', 's', 6)]), ctxBoard({ variant: {} })).issues).toEqual([]);
   });
 });
+
+describe('D14 r9: ERQ bands in analytic style; points beyond the marks (bd-5jmnfj.38.30)', () => {
+  const erq = (scheme) => srq('e', 's', 6, { type: 'erq', scheme });
+  test('an analytic ERQ without bands -> hard NO_BANDS; with whole bands 6-4, 3-0 -> clean', () => {
+    const r = M.run(P([erq(pts(2, 2, 2))]), ctx('analytic_points'));
+    expect(r.issues).toEqual([expect.objectContaining({ rule: 'NO_BANDS', hard: true })]);
+    expect(M.run(P([erq({ ...pts(2, 2, 2), ...bands([6, 4], [3, 0]) })]), ctx('analytic_points')).issues).toEqual([]);
+  });
+  test('an analytic ERQ whose bands do not reach its marks -> BAND_TOP; an SRQ needs no bands', () => {
+    expect(rules(M.run(P([erq({ ...pts(2, 2, 2), ...bands([5, 3], [2, 0]) })]), ctx('analytic_points')))).toEqual(['BAND_TOP']);
+    expect(M.run(P([srq('a', 's', 6, { scheme: pts(2, 2, 2) })]), ctx('analytic_points')).issues).toEqual([]);
+  });
+  test('a 2-mark item with 4 half-mark points asks for more points than marks -> soft POINTS_OVER, ok stays true', () => {
+    const P2 = paper({ sections: [{ id: 'B', marks: 2, slots: [row('s', { type: 'srq' })] }], items: [{ slot: 's', ...srq('a', 's', 2, { scheme: pts(0.5, 0.5, 0.5, 0.5) }) }] });
+    const r = M.run(P2, ctx('analytic_points'));
+    expect(r.issues).toEqual([expect.objectContaining({ rule: 'POINTS_OVER', hard: false })]);
+    expect(r.ok).toBe(true);
+  });
+});

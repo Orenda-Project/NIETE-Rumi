@@ -1,0 +1,243 @@
+{
+ "grade": 9,
+ "code": "islamiat",
+ "source": {
+  "file": "humanities/islamiat_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "1": [
+   {
+    "code": "book p16 outcome 1",
+    "kind": "book",
+    "desc": "وہ: حدیث کی تعریف، اہمیت اور فضیلت سمجھ"
+   }
+  ],
+  "2": [
+   {
+    "code": "book p49 outcome 1",
+    "kind": "book",
+    "desc": "قرآن و سنت کی روشنی میں روزے کے"
+   },
+   {
+    "code": "book p37 outcome 1",
+    "kind": "book",
+    "desc": "قرآن و سنت کی روشنی میں عقیدۂ رسالت"
+   },
+   {
+    "code": "book p43 outcome 1",
+    "kind": "book",
+    "desc": "نماز کے بارے میں جان کر اس کی"
+   },
+   {
+    "code": "book p16 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ],
+  "3": [
+   {
+    "code": "book p54 outcome 1",
+    "kind": "book",
+    "desc": "وہ: جزیرۃ العرب میں اسلام کے فروغ کے"
+   },
+   {
+    "code": "book p59 outcome 1",
+    "kind": "book",
+    "desc": "وہ: غزوۂ حنین کے واقعات کو جان کر"
+   }
+  ],
+  "7": [
+   {
+    "code": "book p145 outcome 1",
+    "kind": "book",
+    "desc": "وہ: اسلامی تعلیمات اور عصرِ حاضر کے تقاضوں"
+   }
+  ],
+  "16": [
+   {
+    "code": "book p66 outcome 1",
+    "kind": "book",
+    "desc": "وہ: حضرت محمد رسول اللہ خاتم النبیین ﷺ"
+   }
+  ],
+  "17": [
+   {
+    "code": "book p71 outcome 1",
+    "kind": "book",
+    "desc": "وہ: حضرت محمد رسول اللہ خاتم النبیین ﷺ"
+   }
+  ],
+  "18": [
+   {
+    "code": "book p75 outcome 1",
+    "kind": "book",
+    "desc": "وہ: حضرت محمد رسول اللہ خاتم النبیین ﷺ"
+   }
+  ],
+  "19": [
+   {
+    "code": "book p80 outcome 1",
+    "kind": "book",
+    "desc": "وہ: قرآن و سنت کی روشنی میں اخلاق"
+   }
+  ],
+  "20": [
+   {
+    "code": "book p85 outcome 1",
+    "kind": "book",
+    "desc": "وہ: قرآن و سنت کی روشنی میں اخلاقِ"
+   }
+  ],
+  "21": [
+   {
+    "code": "book p90 outcome 6",
+    "kind": "book",
+    "desc": "تکبر کی وجہ سے ابلیس کے مردود ہو"
+   }
+  ],
+  "22": [
+   {
+    "code": "book p94 outcome 3",
+    "kind": "book",
+    "desc": "رشک اور حسد میں فرق کر سکیں"
+   },
+   {
+    "code": "book p94 outcome 1",
+    "kind": "book",
+    "desc": "وہ: طلبہ بری عادت (حسد) سے آگاہ ہو"
+   },
+   {
+    "code": "book p54 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p59 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p145 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p66 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p71 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p75 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p80 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p85 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ],
+  "23": [
+   {
+    "code": "book p100 outcome 1",
+    "kind": "book",
+    "desc": "وہ: قرآن وسنت کی روشنی میں قسم کے"
+   }
+  ],
+  "24": [
+   {
+    "code": "book p106 outcome 1",
+    "kind": "book",
+    "desc": "وہ: قرآن و سنت کی روشنی میں گواہی"
+   }
+  ],
+  "25": [
+   {
+    "code": "book p111 outcome 1",
+    "kind": "book",
+    "desc": "وہ: قرآن وسنت کی روشنی میں ہمسایوں کے"
+   }
+  ],
+  "27": [
+   {
+    "code": "book p122 outcome 1",
+    "kind": "book",
+    "desc": "وہ: حضرت ابو موسیٰ اشعریؓ، حضرت عبد اللہ"
+   }
+  ],
+  "28": [
+   {
+    "code": "book p126 outcome 1",
+    "kind": "book",
+    "desc": "وہ: حضرت شفاءبنت عبداللہؓ، حضرت اُمِ سلیمؓ، حضرت"
+   }
+  ],
+  "29": [
+   {
+    "code": "book p130 outcome 1",
+    "kind": "book",
+    "desc": "وہ: مذکورہ صوفیائے کرام رحمہم اللہ علیہم کے"
+   }
+  ],
+  "30": [
+   {
+    "code": "book p134 outcome 1",
+    "kind": "book",
+    "desc": "وہ: مذکورہ علماء و مفکرین کرام رحمہم اللہ"
+   }
+  ],
+  "31": [
+   {
+    "code": "book p139 outcome 1",
+    "kind": "book",
+    "desc": "وہ: اسلامی تعلیمات اور عصرِ حاضر کے تقاضوں"
+   },
+   {
+    "code": "book p100 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p106 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p111 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p122 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p126 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p130 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p134 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ]
+ }
+}

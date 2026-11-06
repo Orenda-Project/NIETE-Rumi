@@ -5,7 +5,7 @@
  * Pure data and pure functions. Never requires the G5 pattern or the mid chrome.
  */
 // chrome.js requires this file at load, so its words and time helpers are read lazily (circular require).
-const { GRADE_WORD, timeEn, timeUr } = require('./words');
+const { GRADE_WORD, timeEn, timeUr, markEn, markNum } = require('./words');
 
 const EXAM_KINDS = ['term', 'annual'];
 const SESSION = '2026-27';
@@ -64,11 +64,9 @@ function examHeader(grade, kind, S, V) {
 
 const PASS_EN = 'Pass = 40%.';
 const COMMON_EN = [
-  'MCQs: 1 mark for the letter. Two circles or an overwritten answer = 0.',
   '"Attempt any N": tell children to answer exactly N. If more are answered, mark all and keep the best N.',
 ];
 const COMMON_UR = [
-  'معروضی: درست حرف پر 1 نمبر۔ دو دائرے یا اوور رائٹنگ = 0۔',
   '«کوئی سے N»: بچوں کو بالکل N سوال حل کرنے کو کہیں۔ زیادہ حل ہوں تو سب جانچ کر بہترین N رکھیں۔',
 ]; // ur: needs fluent-Urdu review
 const STYLE_EN = {
@@ -80,13 +78,16 @@ const STYLE_UR = {
   analytic_points: 'ہر جواب نکتہ بہ نکتہ جانچیں؛ ہر درست نکتے پر ایک نمبر، دکھائے گئے نمبروں تک۔',
 }; // ur: needs fluent-Urdu review
 
-function legendFor(subject, style) {
+/** `mcqMark` is the preset's MCQ marks_each; absent reads as 1. */
+function legendFor(subject, style, mcqMark) {
+  const mcqEn = `MCQs: ${markEn(mcqMark)} for the letter. Two circles or an overwritten answer = 0.`;
+  const mcqUr = `معروضی: درست حرف پر ${markNum(mcqMark)} نمبر۔ دو دائرے یا اوور رائٹنگ = 0۔`; // ur: needs fluent-Urdu review
   return {
     subject,
     title_en: 'How to mark',
     title_ur: 'جانچنے کا طریقہ', // ur: needs fluent-Urdu review
-    lines_en: [...COMMON_EN, STYLE_EN[style], PASS_EN],
-    lines_ur: [...COMMON_UR, STYLE_UR[style], 'پاس = 40٪'], // ur: needs fluent-Urdu review
+    lines_en: [mcqEn, ...COMMON_EN, STYLE_EN[style], PASS_EN],
+    lines_ur: [mcqUr, ...COMMON_UR, STYLE_UR[style], 'پاس = 40٪'], // ur: needs fluent-Urdu review
   };
 }
 

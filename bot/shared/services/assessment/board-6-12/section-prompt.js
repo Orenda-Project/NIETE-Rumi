@@ -8,6 +8,7 @@ const { levelValues } = require('../prompts-6-12');
 const { slotLine } = require('./slot-lines');
 const { unitMarks } = require('./units');
 const { leavesOf } = require('./tree');
+const { quotaFor } = require('../board-checks/_level-quota');
 
 const NOT_SET = 'not set';
 const STEM_CUT = 60;
@@ -66,7 +67,7 @@ function promptValues({ grade, row, P, variant, unit, done, slotsAll, sloList })
     section_title: unit.title,
     section_marks: unitMarks(unit.slots),
     time_line: unit.time_min ? `, ${unit.time_min} minutes` : '',
-    slot_lines: unit.slots.map(slotLine).join('\n'),
+    slot_lines: unit.slots.map((s) => slotLine(s, s.quota || (split ? quotaFor(Number(s.generate) || 0, split.levels) : null))).join('\n'),
     earlier_stems_short: earlierStems(done),
     level_tally: Object.keys(tally).length ? render(tally, ', ') : 'none yet',
     split_remaining: remaining,
@@ -78,9 +79,41 @@ function userPrompt({ content, pageReference, note }) {
   return note ? `${head}\n\n${note}` : head;
 }
 
-function topUpNote(short) {
-  const rows = short.map((r) => `${r.slot} (have ${r.have}, need ${r.need})`).join('; ');
-  return `TOP-UP: the first reply was short. Write only the missing items for these slots, same rules: ${rows}.`;
+/** `used` (the repair round): keys already in the paper, which a new stem or stimulus must not state. */
+const usedLine = (used) => `Do not state any of these answers in a new stem or stimulus; they are already keys in this paper: ${used.map((k) => `"${k}"`).join('; ')}`;
+
+/** `r.write` (round 4): the top-up asks for the shortfall plus about a quarter; code trims back to the slot. */
+function topUpNote(short, used = []) {
+  const rows = short.map((r) => `${r.slot} (have ${r.have}, need ${r.need}${r.write != null ? `; write ${r.write}` : ''})`).join('; ');
+  const head = `TOP-UP: the first reply was short. Write only the missing items for these slots, same rules: ${rows}.`;
+  if (!used.length) return head;
+  return `${head}\n${usedLine(used)}`;
 }
 
-module.exports = { earlierStems, levelTally, promptValues, userPrompt, topUpNote };
+/** A later chunk of a long slot: which items it writes; the earlier stems are in the task, the keys are listed here. */
+function chunkNote(chunk, used = []) {
+  const head = `CHUNK: items ${chunk.from}-${chunk.to} of slot ${chunk.slot} (${chunk.total} in all). Items 1-${chunk.from - 1} are written; do not repeat their stems.`;
+  return used.length ? `${head}\n${usedLine(used)}` : head;
+}
+
+/** Round 5: one targeted rewrite of items the checks removed; nothing new is asked for the slot. */
+const FIGURE_LINE = 'Some removed items referred to a graph or figure the paper does not print: print the data the student needs (a table or the values) in the stem or passage, or ask the idea without referring to a graph or figure.';
+
+function rewriteNote(rows, stems = [], used = [], phrases = [], figure = false, faults = []) {
+  const list = rows.map((r) => `${r.slot} (rewrite ${r.write})`).join('; ');
+  const lines = [`REWRITE: some items failed the checks and were removed. Write replacements only, same rules: ${list}.`];
+  if (stems.length) lines.push(`Do not reuse these stems: ${stems.map((x) => `"${x}"`).join('; ')}`);
+  // round 6: the keyed item's second rewrite; these phrases already sit in other stems of the section
+  if (phrases.length) lines.push(`Do not use these phrases: ${phrases.map((x) => `"${x}"`).join('; ')} (not as a key, an option or in a stem).`);
+  // round 9b: what the MCQ reviewer found wrong with the removed items
+  if (faults.length) lines.push(`A reviewer removed these items for these faults; do not repeat them: ${faults.join('; ')}`);
+  if (figure) lines.push(FIGURE_LINE); // round 7: an N20 drop (no figure ever prints, DESIGN R9)
+  if (used.length) lines.push(usedLine(used));
+  return lines.join('\n');
+}
+
+// round 10: deterministic checks whose drop the rewrite should be told about, as a reviewer fault would be
+const CHECK_FAULTS = { D18: 'the key stood out (longest option, or always/never)' };
+const checkFaults = (gone) => gone.filter((x) => CHECK_FAULTS[x.check]).map((x) => `"${x.question}": ${CHECK_FAULTS[x.check]}`);
+
+module.exports = { levelPart, earlierStems, levelTally, promptValues, userPrompt, topUpNote, chunkNote, rewriteNote, checkFaults };
