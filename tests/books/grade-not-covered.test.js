@@ -85,13 +85,15 @@ describe('the WhatsApp question-paper Flow', () => {
   let Flow;
   beforeEach(() => {
     jest.resetModules();
-    const H = require('../assessment/helpers/golden-g1-5');
     const state = { rows: {}, seq: 0, updates: [], settings: {}, tables: { textbooks: [] }, queued: [], redis: new Map() };
     for (const g of [1, 7]) state.tables.textbooks.push({ id: `b-${g}`, curriculum: 'ict', grade: g, subject: 'english', total_pages: 9 });
     state.tables.textbooks.push({ id: 'b-1i', curriculum: 'ict', grade: 1, subject: 'islamiat', total_pages: 9 });
     state.tables.users = [{ id: 'gb-ur', region: 'Gilgit-Baltistan', preferred_language: 'ur' }];
     jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
-    jest.doMock('../../bot/shared/config/supabase', () => H.fakeDb(state));
+    jest.doMock('../../bot/shared/config/supabase', () => {
+      const { createMemorySupabase } = require('../fixtures/memory-supabase');
+      return createMemorySupabase(state.tables);
+    });
     jest.doMock('../../bot/shared/services/cache/railway-redis.service', () => ({
       get: async (k) => (state.redis.has(k) ? JSON.parse(state.redis.get(k)) : null),
       set: async (k, v) => { state.redis.set(k, JSON.stringify(v)); return true; },

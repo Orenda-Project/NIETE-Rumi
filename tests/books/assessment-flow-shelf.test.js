@@ -3,7 +3,6 @@
  * Assessments are keyed by book: the generator reads ICT's books, so GB (NBF English/Urdu/Maths/Science, ICT's
  * English-medium GK) is offered Islamiat in G1 until NBF topics exist. Everyone else: today's list.
  */
-const H = require('../assessment/helpers/golden-g1-5');
 
 const GB_KEYS = ['gb_g1_english', 'gb_g1_urdu', 'gb_g1_maths', 'grade_1_general_knowledge_en', 'grade_1_islamiat'];
 let state;
@@ -15,7 +14,10 @@ beforeEach(() => {
   ['english', 'general_knowledge', 'islamiat', 'maths', 'urdu'].forEach((s) => state.tables.textbooks.push(
     { id: `book-1-${s}`, curriculum: 'ict', grade: 1, subject: s, total_pages: 100 }));
   jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
-  jest.doMock('../../bot/shared/config/supabase', () => H.fakeDb(state));
+  jest.doMock('../../bot/shared/config/supabase', () => {
+    const { createMemorySupabase } = require('../fixtures/memory-supabase');
+    return createMemorySupabase(state.tables);
+  });
   jest.doMock('../../bot/shared/services/cache/railway-redis.service', () => ({
     get: async (k) => (state.redis.has(k) ? JSON.parse(state.redis.get(k)) : null),
     set: async (k, v) => { state.redis.set(k, JSON.stringify(v)); return true; },
