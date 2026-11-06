@@ -1,0 +1,89 @@
+{
+  "create": {
+    "statusCode": 202,
+    "payload": {
+      "success": true,
+      "requestId": "assessment_requests-1"
+    }
+  },
+  "outcome": {
+    "jobType": "assessment_generate",
+    "job": {
+      "userId": "u-golden-1",
+      "requestId": "assessment_requests-1",
+      "grade": 4,
+      "subject": "urdu",
+      "chapterNumber": null,
+      "chapterNumbers": null,
+      "pageRanges": "30-34",
+      "contentSource": "unseen",
+      "questionCount": 36,
+      "totalMarks": null,
+      "seenCount": null,
+      "questionTypes": [
+        {
+          "id": "MCQs",
+          "count": 10,
+          "category": "objective",
+          "slot": "g4.urdu.A.mcq"
+        },
+        {
+          "id": "Short Answers",
+          "count": 7,
+          "category": "subjective",
+          "slot": "g4.urdu.B.short"
+        },
+        {
+          "id": "Word Meanings",
+          "count": 5,
+          "category": "subjective",
+          "slot": "g4.urdu.B.meanings"
+        },
+        {
+          "id": "Grammar",
+          "count": 5,
+          "category": "subjective",
+          "slot": "g4.urdu.B.grammar"
+        },
+        {
+          "id": "Make Sentences",
+          "count": 5,
+          "category": "subjective",
+          "slot": "g4.urdu.C.sentences"
+        },
+        {
+          "id": "Letter",
+          "count": 2,
+          "category": "subjective",
+          "slot": "g4.urdu.C.letter"
+        },
+        {
+          "id": "Essay",
+          "count": 2,
+          "category": "subjective",
+          "slot": "g4.urdu.C.essay"
+        }
+      ],
+      "includeAnswerKey": true,
+      "answerLines": true,
+      "outputFormat": "pdf",
+      "deliver": "none",
+      "pattern": "fde_g4_2026",
+      "scope": {
+        "kind": "pages",
+        "chapters": null,
+        "pages": "30-34"
+      }
+    },
+    "returned": {
+      "status": "failed",
+      "code": "PATTERN_SHORT_SLOT",
+      "paperId": "assessment_papers-2"
+    }
+  },
+  "uploads": [],
+  "row": {
+    "status": "failed",
+    "error": null
+  }
+}

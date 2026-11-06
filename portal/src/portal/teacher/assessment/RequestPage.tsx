@@ -21,7 +21,7 @@ import { useCopy, useLang } from '../i18n';
 import { isolateRuns } from '../ui/bidi';
 import { catalogueOnce, patternFor, subjectName, useAssessmentSwitches } from './api';
 import { failureLabel } from './failure';
-import { fromSpec, questionsOf, type AnySpec } from './model';
+import { fromSpec, isBoardId, questionsOf, type AnySpec } from './model';
 import { openArtifact } from './openArtifact';
 import { ASSESSMENT_V2_BASE, editPath, newPaperPath, paperPath, requestPath } from './paths';
 import { resetPicks, setPicks } from './store';
@@ -106,7 +106,9 @@ export function RequestPage() {
   const askRow = !!readyId && (!spec || !!spec.pattern);
   const [paperRow] = useLoad(askRow ? () => findPaper(readyId as string) : null, `paper:${askRow ? readyId : ''}`);
   const row = dataOf(paperRow) ?? null;
-  const fde = !!(spec?.pattern || row?.pattern || direct?.pattern);
+  const patternId = spec?.pattern || row?.pattern || direct?.pattern;
+  const fde = !!patternId;
+  const patternChip = isBoardId(patternId) ? C.fbiseChip : C.fdeChip;
   // DESIGN §2.8: a board-pattern paper's Ready also names what the teacher adds by hand and the paper page it goes on
   // (the paper view carries it; a plain paper's Ready reads nothing new).
   const lang = useLang();
@@ -171,7 +173,7 @@ export function RequestPage() {
           {fde
             ? (job?.slow
               ? <><Chip tone="warn">{C.slow}</Chip><Chip tone="warn">{C.elapsed(minutes)}</Chip></>
-              : <><Chip tone="warn">{C.aboutThreeMin}</Chip><Chip>{C.fdeChip}</Chip></>)
+              : <><Chip tone="warn">{C.aboutThreeMin}</Chip><Chip>{patternChip}</Chip></>)
             : <Chip tone="warn">{job?.slow ? C.slow : C.aboutAMinute}</Chip>}
         </div>
         {/* bd-fmf24g.15 — replaces the "Safe to leave" chip: the app tells her here when it is ready. */}
@@ -206,7 +208,7 @@ export function RequestPage() {
             <AlertCircle className="h-5 w-5" aria-hidden="true" />
           </span>
           <span className="flex-1 text-[17px] font-semibold">{failureLabel(seen.errorCode, C)}</span>
-          {fde && <Chip>{C.fdeChip}</Chip>}
+          {fde && <Chip>{patternChip}</Chip>}
         </div>
         <div className="w-full">{card}</div>
       </div>
@@ -263,7 +265,7 @@ export function RequestPage() {
         <div className="flex flex-wrap justify-center gap-2">
           <Chip tone="done">{C.ready}</Chip>
           {row?.question_count != null && <Chip>{C.questionsCount(row.question_count)}</Chip>}
-          <Chip>{C.fdeChip}</Chip>
+          <Chip>{patternChip}</Chip>
         </div>
         <ListCard label={C.readyTitle}>
           {fileRow('fde-ready-paper', 'paper', <FileText className="h-5 w-5" aria-hidden="true" />, C.questionPaper, pages?.paper, C.forClass, true)}

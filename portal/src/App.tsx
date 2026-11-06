@@ -110,6 +110,9 @@ const CoachHerDays = page(() => import("./portal/coach/card/DaysUsedPage"));
 const CoachTeacherScores = page(() => import("./portal/coach/card/TeacherScoresPage"));
 const CoachCoachingRedirect = page(() => import("./portal/coach/card/CoachingRedirect"));
 const CoachSessionReport = page(() => import("./portal/coach/card/SessionReportPage"));
+// bd-17v39c.4.14 — Where to coach (a teacher) and Who to coach first (a school): coach only.
+const CoachWhereToCoach = page(() => import("./portal/coach/card/WhereToCoachPage"));
+const CoachFirst = page(() => import("./portal/coach/card/CoachFirstPage"));
 const CoachScheduling = page(() => import("./portal/coach/pages/CoachScheduling"));
 const CoachSchedule = page(() => import("./portal/coach/pages/CoachSchedule"));
 const CoachTeam = page(() => import("./portal/coach/pages/CoachTeam"));
@@ -140,6 +143,9 @@ const CoachFeedbackForm = page(() => import("./portal/coach/reports/FeedbackForm
 const CoachDebrief = page(() => import("./portal/coach/reports/Debrief"));
 const CoachYourFeedback = page(() => import("./portal/coach/reports/YourFeedback"));
 const CoachSendReport = page(() => import("./portal/coach/reports/SendReport"));
+// Coach reports in the app: her debrief report as a page (behind coach_reports_app; the route answers 404 when off).
+const CoachReportPage = page(() => import("./portal/coach/report/CoachReportPage"));
+const CoachWeekPage = page(() => import("./portal/coach/report/CoachWeekPage"));
 const CoachEditTeacher = page(() => import("./portal/coach/pages/CoachEditTeacher"));
 // bd-4404s7.2 — the coach's More and her own profile.
 const CoachMore = page(() => import("./portal/coach/profile/CoachMore"));
@@ -151,6 +157,7 @@ const CoachProfile = page(() => import("./portal/coach/profile/CoachProfile"));
 // bd-x1tl95 — Send feedback, from the coach's More (voice note, words, screenshots).
 const CoachFeedback = page(() => import("./portal/coach/feedback/FeedbackPage"));
 const CoachTrainingPage = page(() => import("./portal/coach/coachTraining/CoachTrainingPage"));
+const CoachTrainingModulePage = page(() => import("./portal/coach/coachTraining/CoachTrainingModulePage"));
 // bd-s42dye.2 — the coach's Training Library (every provider, level, course and part; questions are a read-only preview).
 const CoachLibraryHome = page(() => import("./portal/coach/training/LibraryPages").then((m) => ({ default: m.LibraryHome })));
 const CoachLibraryProvider = page(() => import("./portal/coach/training/LibraryPages").then((m) => ({ default: m.LibraryProvider })));
@@ -364,12 +371,16 @@ const App = () => {
             <Route path="/portal/coach/teacher/:ext/items/dc" element={<CoachCoachingRedirect />} />
             <Route path="/portal/coach/teacher/:ext/items/coach" element={<CoachCoachingRedirect />} />
             <Route path="/portal/coach/session/:id" element={<CoachSessionReport />} />
+            <Route path="/portal/coach/teacher/:ext/where" element={<CoachWhereToCoach />} />
+            <Route path="/portal/coach/school/:emis/first" element={<CoachFirst />} />
             {/* bd-o15qnr.10 — one HITL report, from a teacher's History */}
             <Route path="/portal/coach/observation/:id" element={<CoachObservation />} />
             <Route path="/portal/coach/observation/:id/form" element={<CoachFeedbackForm />} />
             <Route path="/portal/coach/observation/:id/debrief" element={<CoachDebrief />} />
             <Route path="/portal/coach/observation/:id/feedback" element={<CoachYourFeedback />} />
             <Route path="/portal/coach/observation/:id/send" element={<CoachSendReport />} />
+            <Route path="/portal/coach/report/:id" element={<CoachReportPage />} />
+            <Route path="/portal/coach/week/:monday" element={<CoachWeekPage />} />
             {/* bd-o15qnr.11 — Edit teacher (saved by the /observe teacher admin) */}
             <Route path="/portal/coach/teacher/:ext/edit" element={<CoachEditTeacher />} />
             {/* bd-4404s7.2 — the coach menu and her own profile. */}
@@ -379,6 +390,7 @@ const App = () => {
             <Route path="/portal/coach/profile" element={<CoachProfile />} />
             <Route path="/portal/coach/feedback" element={<CoachFeedback />} />
             <Route path="/portal/coach/coach-training" element={<CoachTrainingPage />} />
+            <Route path="/portal/coach/coach-training/:n" element={<CoachTrainingModulePage />} />
             {/* bd-s42dye.2 — the Training Library, behind the same CoachGate (each page gates itself). */}
             <Route path="/portal/coach/training" element={<CoachLibraryHome />} />
             <Route path="/portal/coach/training/module/:id" element={<CoachLibraryModule />} />

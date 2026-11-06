@@ -58,8 +58,8 @@ describe('readingsForCourse — Level 2 (bd-yef5iq.6)', () => {
     expect(l1(1).available[0].author).toBe('Sir Ken Robinson');
   });
 
-  test('a level with no list (Level 3) is still null', () => {
-    expect(readingsForCourse({ vendorKey: 'ISAPS', levelOrderIndex: 2, courseTitle: 'Module 1 - X' })).toBeNull();
+  test('a level with no list is still null (Level 3, order 2, has one since bd-9svkbb)', () => {
+    expect(readingsForCourse({ vendorKey: 'ISAPS', levelOrderIndex: 3, courseTitle: 'Module 1 - X' })).toBeNull();
   });
 });
 

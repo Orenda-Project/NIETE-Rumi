@@ -13,13 +13,13 @@
 const express = require('express');
 const supabase = require('../config/supabase');
 const { requirePortalAuth } = require('../lib/portal-auth');
-const { isLpGbK5Enabled } = require('../../bot/shared/config/lp612-flags');
+const { isGbK5Enabled } = require('../../bot/shared/config/lp612-flags');
 const TeacherRegion = require('../services/teacher-region.service');
 
 const router = express.Router();
 
 function requireGbFlag(req, res, next) {
-  if (!isLpGbK5Enabled()) return res.status(404).json({ success: false, error: 'Not found' });
+  if (!isGbK5Enabled()) return res.status(404).json({ success: false, error: 'Not found' });
   return next();
 }
 

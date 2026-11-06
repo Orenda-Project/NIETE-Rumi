@@ -42,10 +42,11 @@ export function stepsFor(p: Pick<Picks, 'style'>, eligible: boolean): readonly S
 }
 
 /**
- * Edit on a board-pattern paper (the paper page and Versions). Off until the server's editor for those papers is live:
- * the server refuses to edit one until then (PATTERN_NO_EDIT), and the editor reached by a link says so in the deck's words.
+ * Edit on a board-pattern paper (the paper page and Versions). On since the server's editor for those papers went live
+ * (#2336): remove / put back / edit makes a v2 with both files; adding (PATTERN_NO_ADD) and changed marks
+ * (PATTERN_FIXED_MARKS) are still refused, and the editor says so in the deck's words.
  */
-export const FDE_EDITING = false;
+export const FDE_EDITING = true;
 
 /** The bot's MAX_TOTAL_MARKS (question-types.js). The server refuses past it either way. */
 export const MAX_TOTAL_MARKS = 1000;
@@ -102,6 +103,8 @@ export function newPicks(defaultCount: number): Picks {
 
 /** The board pattern is picked: the request carries it. */
 export const isFde = (p: Pick<Picks, 'style' | 'pattern'>): boolean => p.style === 'fde' && !!p.pattern;
+/** A G9-12 FBISE board pattern id (board/index.js): the teacher picks its chapters; its words say FBISE. */
+export const isBoardId = (id: string | null | undefined): boolean => /^fbise_/.test(id ?? '');
 
 /** "1-12" / "218-226, 239-244" per unit → page ranges for the units kept (Maths customises by pages). */
 export function fdeUnitRanges(unitRanges: Array<{ chapter: number; ranges: string }>, units: number[]): Array<[number, number]> {

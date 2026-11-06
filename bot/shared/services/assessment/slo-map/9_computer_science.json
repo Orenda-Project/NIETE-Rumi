@@ -1,0 +1,110 @@
+{
+  "grade": 9,
+  "code": "computer_science",
+  "source": {
+    "file": "outputs/lanes/r0-boards/sources/ssc/txt/2025_Assessment_Frameworks_SSC-I_Final_Assessment_Framework_Model_Question_Paper_Computer_Science_SSC-I.txt",
+    "kind": "fbise_af"
+  },
+  "policy": "stamp",
+  "slos": [
+    {
+      "official_slo": "CS-09-A-01",
+      "gist": "design_pending: domain label not machine-parsed (domain A)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-A-02",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain A)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-A-03",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain A)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-B-01",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-B-02",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-C-01",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-C-02",
+      "level": "K+U+A",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-C-03",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-C-04",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-C-05",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-D-01",
+      "level": "K+U+An",
+      "gist": "design_pending: domain label not machine-parsed (domain D)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-D-02",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain D)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-D-03",
+      "gist": "design_pending: domain label not machine-parsed (domain D)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-E-01",
+      "level": "K",
+      "gist": "Domain",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-E-02",
+      "level": "K+U",
+      "gist": "Domain",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-F-01",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-F-02",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "CS-09-F-03",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    }
+  ]
+}

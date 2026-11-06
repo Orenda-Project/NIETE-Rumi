@@ -188,8 +188,8 @@ describe("4 — Pick the teacher lists every visit, by day, in order", () => {
     const labels = screen.getAllByTestId("day-group").map((g) => g.getAttribute("data-day"));
     expect(labels).toEqual(["earlier", "2026-10-06", "2026-10-08"]);
     expect(screen.queryByText("Sadia Noor")).toBeNull();
-    expect(screen.getByText("Hina Tariq").closest("a")).toHaveAttribute("href", "/portal/coach/visit/thu");
-    expect(screen.getByText("Ayesha Bibi").closest("a")).toHaveAttribute("href", "/portal/coach/visit/t1");
+    expect(screen.getByText("Hina Tariq").closest("a")).toHaveAttribute("href", "/portal/coach/visit/thu?from=observe");
+    expect(screen.getByText("Ayesha Bibi").closest("a")).toHaveAttribute("href", "/portal/coach/visit/t1?from=observe");
   });
 
   it("opening Earlier shows the past days in order; the overdue one can be picked, a done one cannot", async () => {
@@ -200,7 +200,7 @@ describe("4 — Pick the teacher lists every visit, by day, in order", () => {
     const earlier = within(screen.getAllByTestId("day-group")[0]);
     const names = earlier.getAllByText(/Sadia Noor|Rabia Saleem/).map((n) => n.textContent);
     expect(names).toEqual(["Sadia Noor", "Rabia Saleem"]);
-    expect(earlier.getByText("Sadia Noor").closest("a")).toHaveAttribute("href", "/portal/coach/visit/late");
+    expect(earlier.getByText("Sadia Noor").closest("a")).toHaveAttribute("href", "/portal/coach/visit/late?from=observe");
     expect(earlier.getByText("Rabia Saleem").closest("a")).toBeNull();
     expect(screen.getByText("Mehwish Khan").closest("a")).toBeNull();
     expect(within(screen.getByText("Mehwish Khan").closest("[data-history-row]") as HTMLElement).getByText("Done")).toBeInTheDocument();

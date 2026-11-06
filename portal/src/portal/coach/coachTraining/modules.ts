@@ -14,6 +14,8 @@
 export type CoachModule = { n: number; key: string; artifact: string; video: string; title: { en: string; ur: string } };
 
 export const COACH_TRAINING_PATH = "/portal/coach/coach-training";
+/** bd-rlxkkt.6 — a module's own screen: the choice between its PDF (the module page) and its Video. */
+export const COACH_MODULE_PATH = `${COACH_TRAINING_PATH}/:n`;
 
 export const COACH_MODULES: readonly CoachModule[] = [
   { n: 1, key: "praise", artifact: "Kfy7kDWtaZ4gQ2wX5BHceu", video: "TZdNqRi29i4mw3meZqDLFj", title: { en: "Open with specific praise", ur: "مخصوص تعریف سے آغاز" } },
@@ -41,6 +43,8 @@ export const BEHAVIOUR_MODULE: Readonly<Record<string, number>> = {
 
 export const moduleUrl = (m: CoachModule): string => `https://claude.ai/artifact/${m.artifact}`;
 export const videoUrl = (m: CoachModule): string => `https://claude.ai/artifact/${m.video}`;
+export const modulePath = (m: CoachModule): string => `${COACH_TRAINING_PATH}/${m.n}`;
+export const moduleByNumber = (n: number): CoachModule | null => COACH_MODULES.find((m) => m.n === n) ?? null;
 
 export function moduleFor(behaviour: string): CoachModule | null {
   const n = BEHAVIOUR_MODULE[behaviour];

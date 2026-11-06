@@ -1,0 +1,22 @@
+{
+  "_about": "Rifat's DC pattern engine settings (School Card Spec, 28 Oct 2026, rev 18, 'Settings the programme team can change': https://claude.ai/artifact/EdtxjjD313c3XVKWDAuvmr). Read by dashboard/services/where-to-coach.engine.js. Each score cut is a share of the report's own scale, so her 1-4 numbers hold on FICO v3 (prod) and FICO v4 (0-2, sandbox) alike. bd-17v39c.4.14.",
+  "lowShareOfScale": 0.5,
+  "_lowShareOfScale": "Hers: 'low' = 2 or less out of 4. On v4: 1 or less out of 2.",
+  "strengthShareOfScale": 0.75,
+  "_strengthShareOfScale": "Hers: the strength has an average of 3 or more out of 4. On v4: 1.5 or more out of 2.",
+  "agreeLowBelowPct": 60,
+  "_agreeLowBelowPct": "Hers: a section is 'agree low' when both DC and HITL are under 60%.",
+  "differPoints": 18,
+  "_differPoints": "Hers: 'AI and coach differ' when DC and HITL are 18 points or more apart.",
+  "minSessions": 2,
+  "_minSessions": "Hers: a practice needs at least 2 scored sessions to rank above test 4.",
+  "tieOrder": ["D", "C", "B", "F"],
+  "_tieOrder": "Hers: tie -> D, then C, then B, then F; then the lower code number.",
+  "frameworkByScale": { "4": "fico_v3", "2": "fico_v4" },
+  "_frameworkByScale": "Ours: a report's scale (domain_max / indicators_applicable) says which FICO it was scored on; practice ids mean different things on each.",
+  "stepLinks": {
+    "fico_v3": { "Explanation": ["F4", "F1"], "We Do": ["C8"], "You Do": ["C9", "D3"], "Check": ["C1", "C11"] },
+    "fico_v4": { "Explanation": ["F1", "F3"], "We Do": ["C2"], "You Do": ["C4", "D2"], "Check": ["C1", "D5"] }
+  },
+  "_stepLinks": "Hers (prototype codes): Warm-up -> B1; Explanation -> B3, F1; Guided practice -> C2; Pair practice -> D2; Exit ticket -> B4, C4. Ours: re-keyed to the live plan steps (report-card STEPS) and live practice ids; B practices are gone (B is the plan steps since 30 Oct), so Opening links to none. v3: F4 Depth of Explanation, F1 Content Accuracy; C8 Modeling, Scaffolding & Problem-Solving; C9 Collaborative Learning, D3 Student-to-Student Interaction; C1 Quality Questioning, C11 Self & Peer Assessment. v4: F1 Content Accuracy, F3 Anticipation of Misconceptions; C2 Responsive Re-explanation; C4 Student Agency & Voice, D2 Student Reasoning; C1 Quality Questioning, D5 Visible Learning Progression."
+}

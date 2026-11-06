@@ -32,6 +32,14 @@ export function schoolCard(period: Period = WEEK): SchoolCardData {
   return {
     school: { emis: EMIS, name: "Model School Nine", teachers: NAMES.length, lastVisitDaysAgo: 1 },
     period,
+    // bd-17v39c.4.13 — the overview: 7 of 12 used NIETE (6 the same days before); 27 plans, 0.8 a school day per teacher.
+    overview: {
+      teachers: NAMES.length,
+      active: { now: 7, prev: 6 },
+      lp: { total: 27, makers: 8, perTeacherDay: 0.8, prev: { total: 20, perTeacherDay: 0.6 } },
+      training: { modules: 1, makers: 1, prev: { modules: 3 } },
+      papers: { total: 5, makers: 4, prev: { total: 2 } },
+    },
     tiles: period.key === "today"
       ? [
         { feature: "lp", total: 8, makers: 5, perDay: null, series: [] },
@@ -80,7 +88,11 @@ export function grid(period: Period = WEEK): FeatureGridData {
   });
   // Server order on purpose NOT sorted: the page sorts.
   const shuffled = [rows[8], rows[2], rows[0], rows[11], rows[1], rows[6], rows[3], rows[9], rows[4], rows[5], rows[10], rows[7]];
-  return { feature: "lp", period, rows: shuffled, school: [9, 7, 8, null, null], total: 24 };
+  return {
+    feature: "lp", period, rows: shuffled, school: [9, 7, 8, null, null], total: 24,
+    // bd-17v39c.4.13 — the box's numbers on top of its page
+    makers: 7, teachers: 12, perTeacherDay: 0.7, prev: { total: 18, perTeacherDay: 0.5 },
+  };
 }
 
 /** Her DC reports and coach visits this week: two of each; one visit on the field form (counted, never scored). */
@@ -162,7 +174,8 @@ export function schoolScores(kind: ScoreKind, period: Period = WEEK): SchoolScor
       { teacherExtId: ext(1), name: NAMES[1], count: 1, avg: 70, points: [{ id: "s-3", date: "2026-10-27", score: 70 }] },
       { teacherExtId: ext(2), name: NAMES[2], count: 0, avg: null, points: [] },
     ],
-    school: { emis: EMIS, name: "Model School Nine", teachers: 3, count: 3, avg: 69, makers: 2 },
+    school: { emis: EMIS, name: "Model School Nine", teachers: 3, count: 3, avg: 69, prevAvg: 64, makers: 2 },
+    series: period.key === "month" ? [null, null, 66, null, 72] : [61, 70, 74, null, null],
   };
 }
 
@@ -203,10 +216,13 @@ export const TRAINING_ITEMS: ItemsData = {
 /** bd-hl4a4y — Training by teacher: each teacher's trainings, as the server sends them (by name); one with none. */
 export const TRAINING_BY_TEACHER: TrainingByTeacherData = {
   feature: "training",
+  // bd-17v39c.4.13 — counted in modules: the period's modules completed on top; each teacher's N of M and this period's.
+  period: MONTH, total: 9, makers: 2, teachers: 3, prev: { total: 4 },
   rows: [
-    { teacherExtId: ext(0), name: NAMES[0], vendors: [NIETE, GBTLA] },
-    { teacherExtId: ext(1), name: NAMES[1], vendors: [{ ...NIETE, completed_module_count: 0 }] },
-    { teacherExtId: ext(2), name: NAMES[2], vendors: [] },
+    { teacherExtId: ext(0), name: NAMES[0], vendors: [NIETE, GBTLA], modules: { done: 137, of: 178 }, inPeriod: 6 },
+    // 199 of 200 rounds to 100%: never "Done" until every module has a row
+    { teacherExtId: ext(1), name: NAMES[1], vendors: [{ ...NIETE, module_count: 200, completed_module_count: 199 }], modules: { done: 199, of: 200 }, inPeriod: 3 },
+    { teacherExtId: ext(2), name: NAMES[2], vendors: [], modules: { done: 0, of: 0 }, inPeriod: 0 },
   ],
 };
 

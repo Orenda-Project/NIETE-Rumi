@@ -61,9 +61,18 @@ const COACH_SECTIONS: Record<Exclude<CoachNavKey, "home">, readonly string[]> = 
   more: ["/portal/coach/more", "/portal/coach/profile", "/portal/coach/feedback", "/portal/account"],
 };
 
-export function currentCoachMenuItem(pathname: string): CoachNavKey | null {
+/**
+ * bd-jjcofw.10 (M5) — a visit's own page (/portal/coach/visit/<id>, not its steps) belongs to Schedule: she opened it from
+ * her schedule. Opened from Observe's list it carries ?from=observe and stays Observe's. Its steps (record, attach,
+ * check, sending) are Observe's.
+ */
+const VISIT_PAGE_RX = /^\/portal\/coach\/visit\/[^/]+$/;
+export const FROM_OBSERVE = "observe";
+
+export function currentCoachMenuItem(pathname: string, search = ""): CoachNavKey | null {
   const path = pathname.replace(/\/+$/, "") || "/";
   if (path === COACH_MENU_PATHS.home) return "home";
+  if (VISIT_PAGE_RX.test(path)) return new URLSearchParams(search).get("from") === FROM_OBSERVE ? "observe" : "schedule";
   for (const key of Object.keys(COACH_SECTIONS) as (keyof typeof COACH_SECTIONS)[]) {
     if (COACH_SECTIONS[key].some((p) => path === p || path.startsWith(`${p}/`))) return key;
   }
@@ -76,10 +85,10 @@ export function currentCoachMenuItem(pathname: string): CoachNavKey | null {
  */
 export const COACH_CARD_NAV_KEYS: readonly CoachNavKey[] = ["home", "lessons", "more"];
 
-export function currentCoachCardItem(pathname: string): CoachNavKey | null {
+export function currentCoachCardItem(pathname: string, search = ""): CoachNavKey | null {
   const path = pathname.replace(/\/+$/, "") || "/";
   if (path === "/portal/coach/session" || path.startsWith("/portal/coach/session/")) return "home";
-  const key = currentCoachMenuItem(pathname);
+  const key = currentCoachMenuItem(pathname, search);
   return key === "schools" || key === "training" ? "home" : key;
 }
 

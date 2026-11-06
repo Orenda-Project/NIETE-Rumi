@@ -1,0 +1,442 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "eg.item.tag.6_12",
+ "title": "G6-12 generated item: tag + type + kind",
+ "description": "Builder b-checkers (copy to A/item-tag.schema.json); Test tests/assessment/item-tag.test.js; Source SPEC s5, DESIGN R7-R9, r2-studio tag_schema.md. Validates an item AFTER the code stamps official_slo. Blooms scale is narrowed per cell by code (x-blooms-by-scale).",
+ "x-blooms-by-scale": {
+  "KUA": [
+   "K",
+   "U",
+   "A"
+  ],
+  "RUA": [
+   "R",
+   "U",
+   "A"
+  ],
+  "RUAAE": [
+   "R",
+   "U",
+   "A",
+   "AE"
+  ],
+  "RUAAEC": [
+   "R",
+   "U",
+   "A",
+   "AE",
+   "C"
+  ]
+ },
+ "x-skill-lists": {
+  "english": [
+   "letter",
+   "application",
+   "essay",
+   "paragraph",
+   "comprehension",
+   "grammar",
+   "vocabulary",
+   "precis",
+   "dialogue",
+   "translation"
+  ],
+  "urdu": [
+   "letter",
+   "application",
+   "essay",
+   "comprehension",
+   "grammar",
+   "explanation_prose",
+   "explanation_poem",
+   "explanation_ghazal",
+   "dialogue",
+   "precis",
+   "translation"
+  ],
+  "islamiat": [
+   "translation",
+   "quran_passage",
+   "fill_correct",
+   "activity_written"
+  ]
+ },
+ "$ref": "#/$defs/item",
+ "$defs": {
+  "book_code": {
+   "type": "string",
+   "pattern": "^g(?:[6-9]|1[0-2])\\.[a-z][a-z_]*\\.ch[1-9][0-9]*\\.lo[1-9][0-9]*$",
+   "description": "g<grade>.<subject code>.ch<n>.lo<k>; code checks grade/subject/ch match the cell and tag.chapter"
+  },
+  "skill_code": {
+   "type": "string",
+   "pattern": "^(?:english|urdu|islamiat)\\.skill\\.[a-z_]+$",
+   "enum": [
+    "english.skill.letter",
+    "english.skill.application",
+    "english.skill.essay",
+    "english.skill.paragraph",
+    "english.skill.comprehension",
+    "english.skill.grammar",
+    "english.skill.vocabulary",
+    "english.skill.precis",
+    "english.skill.dialogue",
+    "english.skill.translation",
+    "urdu.skill.letter",
+    "urdu.skill.application",
+    "urdu.skill.essay",
+    "urdu.skill.comprehension",
+    "urdu.skill.grammar",
+    "urdu.skill.explanation_prose",
+    "urdu.skill.explanation_poem",
+    "urdu.skill.explanation_ghazal",
+    "urdu.skill.dialogue",
+    "urdu.skill.precis",
+    "urdu.skill.translation",
+    "islamiat.skill.translation",
+    "islamiat.skill.quran_passage",
+    "islamiat.skill.fill_correct",
+    "islamiat.skill.activity_written"
+   ],
+   "description": "<subject>.skill.<name>, closed list in x-skill-lists"
+  },
+  "code": {
+   "oneOf": [
+    {
+     "$ref": "#/$defs/book_code"
+    },
+    {
+     "$ref": "#/$defs/skill_code"
+    },
+    {
+     "$ref": "#/$defs/official_code"
+    }
+   ]
+  },
+  "tag": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "chapter",
+    "section",
+    "code",
+    "page",
+    "official_slo",
+    "blooms",
+    "difficulty"
+   ],
+   "properties": {
+    "chapter": {
+     "type": "integer",
+     "minimum": 1,
+     "description": "textbook_toc.chapter_number as the importer wrote it (source number in 45 books, 1-based ordinal in 16; corpus-import.md §4)"
+    },
+    "section": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "maxLength": 60,
+     "description": "the importer's run section_key (e.g. prose / poetry / ghazal part label; contracts/import/corpus-import.md §4) or null; informative only, since chapter = textbook_toc.chapter_number is unique per book"
+    },
+    "code": {
+     "$ref": "#/$defs/code"
+    },
+    "codes_extra": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/code"
+     },
+     "uniqueItems": true,
+     "maxItems": 4,
+     "description": "further outcomes for multi-page items; primary stays in code (the one coverage counts)"
+    },
+    "page": {
+     "type": [
+      "integer",
+      "null"
+     ],
+     "minimum": 1,
+     "description": "printed page where the answer is found; null only for skill codes"
+    },
+    "official_slo": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "pattern": "^(?:P|C|B|M|PS|U|E|CS|I)-(?:08|09|10|11|12)-[A-Z]{1,2}[0-9]?-[0-9]{2,3}$",
+     "description": "stamped by code from A/slo-map crosswalk; the model never writes it; the string 'null' fails the pattern"
+    },
+    "blooms": {
+     "enum": [
+      "K",
+      "U",
+      "A",
+      "R",
+      "AE",
+      "C"
+     ]
+    },
+    "difficulty": {
+     "enum": [
+      "easy",
+      "medium",
+      "hard"
+     ]
+    }
+   },
+   "if": {
+    "properties": {
+     "code": {
+      "pattern": "^(?:english|urdu|islamiat)\\.skill\\.[a-z_]+$"
+     }
+    },
+    "required": [
+     "code"
+    ]
+   },
+   "then": {},
+   "else": {
+    "properties": {
+     "page": {
+      "type": "integer"
+     }
+    }
+   }
+  },
+  "leaf": {
+   "type": "object",
+   "required": [
+    "id",
+    "type",
+    "kind",
+    "tag"
+   ],
+   "properties": {
+    "id": {
+     "type": "string",
+     "minLength": 1
+    },
+    "type": {
+     "enum": [
+      "mcq",
+      "scenario",
+      "srq",
+      "erq",
+      "fill_blank",
+      "true_false_correct",
+      "match",
+      "sequence",
+      "translation",
+      "quran_passage",
+      "comprehension",
+      "grammar",
+      "precis",
+      "explanation_prose",
+      "explanation_poem",
+      "explanation_ghazal",
+      "letter",
+      "essay",
+      "activity_written",
+      "practical",
+      "dialogue",
+      "programme",
+      "map_free_geo"
+     ]
+    },
+    "kind": {
+     "enum": [
+      "open",
+      "numerical",
+      "define",
+      "differentiate",
+      "reason",
+      "derivation",
+      null
+     ],
+     "description": "item kind inside srq/erq; null elsewhere"
+    },
+    "tag": {
+     "$ref": "#/$defs/tag"
+    }
+   },
+   "not": {
+    "anyOf": [
+     {
+      "required": [
+       "or"
+      ]
+     },
+     {
+      "required": [
+       "parts"
+      ]
+     }
+    ]
+   },
+   "if": {
+    "properties": {
+     "kind": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind"
+    ]
+   },
+   "then": {
+    "properties": {
+     "type": {
+      "enum": [
+       "srq",
+       "erq"
+      ]
+     }
+    }
+   }
+  },
+  "or_node": {
+   "type": "object",
+   "required": [
+    "id",
+    "type",
+    "or"
+   ],
+   "properties": {
+    "id": {
+     "type": "string",
+     "minLength": 1
+    },
+    "type": {
+     "enum": [
+      "mcq",
+      "scenario",
+      "srq",
+      "erq",
+      "fill_blank",
+      "true_false_correct",
+      "match",
+      "sequence",
+      "translation",
+      "quran_passage",
+      "comprehension",
+      "grammar",
+      "precis",
+      "explanation_prose",
+      "explanation_poem",
+      "explanation_ghazal",
+      "letter",
+      "essay",
+      "activity_written",
+      "practical",
+      "dialogue",
+      "programme",
+      "map_free_geo"
+     ]
+    },
+    "or": {
+     "type": "array",
+     "minItems": 2,
+     "maxItems": 2,
+     "items": {
+      "$ref": "#/$defs/item"
+     }
+    }
+   },
+   "not": {
+    "anyOf": [
+     {
+      "required": [
+       "tag"
+      ]
+     },
+     {
+      "required": [
+       "parts"
+      ]
+     }
+    ]
+   }
+  },
+  "parts_node": {
+   "type": "object",
+   "required": [
+    "id",
+    "type",
+    "parts"
+   ],
+   "properties": {
+    "id": {
+     "type": "string",
+     "minLength": 1
+    },
+    "type": {
+     "enum": [
+      "mcq",
+      "scenario",
+      "srq",
+      "erq",
+      "fill_blank",
+      "true_false_correct",
+      "match",
+      "sequence",
+      "translation",
+      "quran_passage",
+      "comprehension",
+      "grammar",
+      "precis",
+      "explanation_prose",
+      "explanation_poem",
+      "explanation_ghazal",
+      "letter",
+      "essay",
+      "activity_written",
+      "practical",
+      "dialogue",
+      "programme",
+      "map_free_geo"
+     ]
+    },
+    "parts": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "$ref": "#/$defs/item"
+     }
+    }
+   },
+   "not": {
+    "anyOf": [
+     {
+      "required": [
+       "tag"
+      ]
+     },
+     {
+      "required": [
+       "or"
+      ]
+     }
+    ]
+   }
+  },
+  "item": {
+   "oneOf": [
+    {
+     "$ref": "#/$defs/leaf"
+    },
+    {
+     "$ref": "#/$defs/or_node"
+    },
+    {
+     "$ref": "#/$defs/parts_node"
+    }
+   ]
+  },
+  "official_code": {
+   "type": "string",
+   "pattern": "^(?:P|C|B|M|PS|U|E|CS|I)-(?:08|09|10|11|12)-[A-Z]{1,2}[0-9]?-[0-9]{2,3}$",
+   "description": "in FBISE cells the model copies an official SLO code from the prompt's {slo_list} into tag.code; the stamper validates it against A/slo-map and copies it to official_slo"
+  }
+ }
+}

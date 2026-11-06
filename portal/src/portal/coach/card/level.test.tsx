@@ -10,7 +10,7 @@ vi.setConfig({ testTimeout: 20_000 });
  * bd-ewbzns.1 — a school's School card for one teaching level. The chips (All · Primary · Middle · High, only the levels
  * its teachers teach) sit under the period chips; picking one asks the server for that level's card, so the tiles and
  * the teacher list are both that level's. The level rides in the address and on every link to the school's own pages
- * and back to My schools. Her levels are on her row.
+ * and back to My schools. Her levels are said with her name on her row (bd-17v39c.4.13: the table has no room for them).
  */
 const all = () => {
   const c = schoolCard();
@@ -24,7 +24,8 @@ const all = () => {
 const primaryOnly = () => {
   const c = all();
   return { ...c, level: "PRIMARY", school: { ...c.school, teachers: 9 }, teachers: c.teachers.filter((t) => t.levels.includes("PRIMARY")),
-    tiles: c.tiles.map((t) => (t.feature === "lp" ? { ...t, total: 19, makers: 6 } : t)) };
+    tiles: c.tiles.map((t) => (t.feature === "lp" ? { ...t, total: 19, makers: 6 } : t)),
+    overview: { ...c.overview!, teachers: 9, lp: { ...c.overview!.lp, total: 19, makers: 6 } } };
 };
 
 function on() {
@@ -56,22 +57,25 @@ describe("the School card by teaching level", () => {
     await act(async () => { fireEvent.click(screen.getByRole("radio", { name: "Primary" })); });
     await waitFor(() => expect(net.calls).toContain(`/coach/school/${EMIS}/card?period=week&level=primary`));
     expect(moves[moves.length - 1]).toBe(`/portal/coach/school/${EMIS}?level=primary`);
-    await waitFor(() => expect(screen.getByTestId("tile-lp")).toHaveTextContent("19"));
-    const shown = [...within(screen.getByTestId("card-teachers")).getAllByTestId("card-teacher")];
-    expect(shown.every((r) => /Primary/.test(r.textContent || ""))).toBe(true);
+    await waitFor(() => expect(within(screen.getByTestId("box-lp")).getByTestId("box-number")).toHaveTextContent("19"));
+    // bd-17v39c.4.13 — the teacher table: her levels are said with her name (no room on the row)
+    const table = screen.getByTestId("teacher-table");
+    const shown = [...within(table).queryAllByTestId("table-row"), ...within(table).queryAllByTestId("table-row-none")];
+    expect(shown).toHaveLength(9);
+    expect(shown.every((r) => /Primary/.test(r.getAttribute("aria-label") || ""))).toBe(true);
   });
 
-  it("her levels are on her row", async () => {
+  it("her levels are said with her name on her row", async () => {
     on();
     await renderApp(`/portal/coach/school/${EMIS}`);
-    const rows = within(await screen.findByTestId("card-teachers")).getAllByTestId("card-teacher");
-    expect(rows[0]).toHaveTextContent("Primary");
+    const rows = within(await screen.findByTestId("teacher-table")).getAllByTestId("table-row");
+    expect(rows[0].getAttribute("aria-label")).toMatch(/^Teacher Alpha, Primary, /);
   });
 
   it("opened with ?level=primary: the tiles open their pages for Primary, and Back goes to My schools for Primary", async () => {
     on();
     const { container } = await renderApp(`/portal/coach/school/${EMIS}?level=primary`);
-    await screen.findByTestId("card-teachers");
+    await screen.findByTestId("teacher-table");
     expect(within(screen.getByTestId("level-chips")).getByRole("radio", { name: "Primary" })).toHaveAttribute("aria-checked", "true");
     const tile = container.querySelector(`a[href^="/portal/coach/school/${EMIS}/feature/lp"]`);
     expect(tile?.getAttribute("href")).toBe(`/portal/coach/school/${EMIS}/feature/lp?level=primary`);
@@ -89,7 +93,7 @@ describe("the School card by teaching level", () => {
     on();
     net.answers.set(`/coach/school/${EMIS}/card`, { ...all(), levels: { PRIMARY: 12, MIDDLE: 0, HIGH: 0 } });
     await renderApp(`/portal/coach/school/${EMIS}`);
-    await screen.findByTestId("card-teachers");
+    await screen.findByTestId("teacher-table");
     expect(screen.queryByTestId("level-chips")).toBeNull();
   });
 });
@@ -118,7 +122,7 @@ describe("her role and teaching levels where the coach sees her (bd-ewbzns.2)", 
     const c = all();
     net.answers.set(`/coach/school/${EMIS}/card`, { ...c, teachers: c.teachers.map((t, i) => (i === 0 ? { ...t, isPrincipal: true } : t)) });
     await renderApp(`/portal/coach/school/${EMIS}`);
-    const rows = within(await screen.findByTestId("card-teachers")).getAllByTestId("card-teacher");
-    expect(rows[0]).toHaveTextContent("Principal · Primary · Last visit");
+    const rows = within(await screen.findByTestId("teacher-table")).getAllByTestId("table-row");
+    expect(rows[0].getAttribute("aria-label")).toMatch(/^Teacher Alpha, Principal · Primary, /);
   });
 });

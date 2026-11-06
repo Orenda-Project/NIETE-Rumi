@@ -23,6 +23,7 @@ const { configForRequest, ensureCurrent } = require('../../config/model-settings
 const { logToFile } = require('../../utils/logger');
 const { extractJsonFromResponse } = require('./assessment-json.util');
 const { stemsBlock, applyStems } = require('./topics/stem-prompt');
+const { capBlooms, appliesToGrade, APPLY_NOTE } = require('./bloom-ceiling');
 
 const PROMPTS = require('./ict-prompts.json');
 
@@ -611,7 +612,7 @@ function answerCoverage(examJson) {
 async function generateExam(args) {
   const { grade, subject, pageContent, pageReference,
           contentSource = 'unseen', questionCount, questionTypes = [], includeAnswerKey = false,
-          totalMarks = null, seenCount = null, slos = null } = args;
+          totalMarks = null, seenCount = null, slos = null, avoidQuestions = [] } = args;
 
   const key = canonical(subject) || 'eng';
   const family = URDU_MEDIUM.has(key) ? 'urdu' : 'eng';
@@ -624,10 +625,11 @@ async function generateExam(args) {
   // one: Urdu and English papers run different models, and only this call site knows which.
   const ownModel = resolveModelForJob('assessment.generate', { family }).model;
   const plan = planCounts({ contentSource, questionCount, questionTypes, seenCount });
+  const honestBlooms = appliesToGrade(grade);
 
   const messages = [
-    { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) },
-    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, slos }) },
+    { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) + (honestBlooms ? APPLY_NOTE : '') },
+    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, slos }) + avoidNote(avoidQuestions) },
   ];
 
   logToFile('[assessment] generating', {
@@ -696,6 +698,10 @@ async function generateExam(args) {
 
   stripImageKeys(examJson);
   normaliseAnswers(examJson);
+  // The writer tags its own questions; a bare drill tagged Apply or a one-mark opinion tagged
+  // Evaluate is lowered to the level its shape supports (bloom-ceiling.js). Only ever lowers.
+  const bloomsMoved = honestBlooms ? capBlooms(examJson) : [];
+  if (bloomsMoved.length) logToFile('[assessment] bloom tags lowered to fit the question', { moved: bloomsMoved });
   // bd-6clakk.12 — her ticked stems: a near miss is set to the stem; a question using none is logged.
   const { misses: stemMisses } = applyStems(examJson, plan.questionTypes);
   if (stemMisses.length) logToFile('[assessment] questions without a ticked stem', { misses: stemMisses });
@@ -757,6 +763,9 @@ const { checkBlueprint, missesSplit, levelDistance, levelNote } = require('./blu
 const Reader = require('./fde-reader');
 const StemCheck = require('./fde-stem-check');
 const { writeEarlyPaper } = require('./fde-early-writer');
+// Grades 9-12 board papers (bd-5jmnfj.38.24): their own writer, lookup and helpers; reachable by id only.
+const { writeBoardPaper } = require('./board-writer');
+const BoardPatterns = require('./patterns/board');
 const { noArrows } = require('./fde-no-arrows');
 const { steerNote } = require('./fde-mid-steer'); // bd-5jmnfj.33.2: Grade 3–4 Sections B/C are told Section A's facts
 const { mcqArithmetic, mcqNote } = require('./fde-mcq-arithmetic'); // bd-5jmnfj.33.2: a Maths MCQ key is its stem's arithmetic
@@ -782,6 +791,7 @@ const { mendG5Urdu, g5UrduShortfall, g5UrduNote } = require('./fde-g5-urdu-mends
 const { mendUrduQ10 } = require('./fde-urdu-g5-checks'); const { mendPictureNames } = require('./fde-urdu-r3-checks'); const { mendUrduOpposites } = require('./fde-urdu-r4'); const { wholeMarks } = require('./fde-whole-marks'); // round 6 Urdu
 const { mendPlaceDigits } = require('./fde-place-digit'); // a key naming the wrong place digit (v37 G5 Maths Q2 i)
 const { urduPunctFixes } = require('./fde-urdu-punct'); // bd-5jmnfj.4.58.3
+const { avoidNote } = require('./repeat-guard');
 
 // Required on first use: the loader opens a database client, and the prompt
 // helpers above are loaded by tests and tools that have no database.
@@ -2650,8 +2660,35 @@ function _earlyDeps(subject) {
   };
 }
 
+/** The helpers a Grade 9-12 board paper is written with (board-writer): the early set plus the G6-12 modules. */
+function _boardDeps(subject) {
+  const SubjectConfig = require('./subject-config');
+  const VariantResolver = require('./patterns/board/variant-resolver');
+  const Slo = require('./slo-map');
+  return {
+    ..._earlyDeps(subject),
+    resolveSubject: SubjectConfig.resolve,
+    variantFor: (P, { grade }) => VariantResolver.resolve(P, { grade }),
+    assemble: require('./prompts-6-12').assemble,
+    checks: require('./board-checks'),
+    sloList: Slo.listFor,
+    // Code, never the model, writes the official SLO (slo-map README §4).
+    stampSlo: (grade, code, item) => {
+      if (item && item.tag && typeof item.tag === 'object') item.tag.official_slo = Slo.officialSloFor(grade, code, item.tag);
+      return item;
+    },
+  };
+}
+
 async function _writePatternPaper({ grade, subject, pattern, scope = null, pageRanges = null, chapterNumber = null, onSection = null, requestId = null, readerPass = false, stemCheck = false, levelNote: splitNote = null }) {
   const startedAt = Date.now();
+  if (BoardPatterns.isBoard(pattern)) {
+    if (!BoardPatterns.isEligible(pattern, grade, subject)) {
+      throw fail('PATTERN_INELIGIBLE', 'That board pattern is not available for this grade and subject.', { pattern, grade, subject });
+    }
+    const P = BoardPatterns.subjectOf(pattern, subject);
+    return writeBoardPaper({ grade, subject, pattern, P, scope, pageRanges, chapterNumber, onSection, requestId }, _boardDeps(subject));
+  }
   const def = Patterns.get(pattern);
   const key = Patterns.normalise(subject);
   const P = def && def.subjects[key];

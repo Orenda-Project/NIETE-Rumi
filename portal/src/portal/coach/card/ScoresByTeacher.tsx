@@ -6,7 +6,7 @@ import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
 import { SCHOOL_CARD } from "./copy";
 import { card } from "./api";
 import { useCardLoad } from "./frame";
-import { usePeriod, withPeriod } from "./period";
+import { bucketLabels, usePeriod, withPeriod } from "./period";
 import { useLevel, withLevel } from "../people/level";
 import { FEATURE_OF, PeriodChips } from "./parts";
 import { ScoreLine, ScoreSummary, kindColour } from "./scores";
@@ -40,8 +40,13 @@ export default function ScoresByTeacher({ emis, kind }: { emis: string; kind: Sc
       {!data && !failed && <Loading />}
       {data && (
         <>
-          <ScoreSummary kind={kind} avg={data.school.avg}
-            sub={`${C.obsN(data.school.count)} · ${C.byN(data.school.makers, data.school.teachers)}`} />
+          {/* bd-17v39c.4.13 — the box it was opened from: the average against the same days before, and its line */}
+          <ScoreSummary kind={kind} avg={data.school.avg} prevAvg={data.school.prevAvg ?? null}
+            sub={`${C.obsN(data.school.count)} · ${C.byN(data.school.makers, data.school.teachers)}`}>
+            {period !== "today" && data.series && data.series.some((v) => v != null) && data.period.buckets.length
+              ? <ScoreLine kind={kind} values={data.series} avg={data.school.avg} labels={bucketLabels(period, data.period.buckets, C)} future={data.period.buckets.map((b) => b.future)} />
+              : null}
+          </ScoreSummary>
           <div data-testid="scores-heads" aria-hidden="true" className="grid items-end gap-2 px-4 text-[13px] font-semibold text-[#6b7280]" style={{ gridTemplateColumns: COLS }}>
             <span>{C.teacherCol}</span><span className="text-center">{C.scoresCol}</span><span className="text-end">{C.averageCol}</span><span />
           </div>

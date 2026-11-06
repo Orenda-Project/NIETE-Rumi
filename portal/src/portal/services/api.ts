@@ -686,6 +686,8 @@ export type PortalConfig = {
     childTestSa?: boolean;
     /** bd-5rz1v.6 — a coach can run an /observe observation from the portal (fail-closed). */
     coachObservation?: boolean;
+    /** Coach reports in the app — her debrief report as a page and its Home card (coach_reports_app; fail-closed). */
+    coachReportsApp?: boolean;
     /** bd-5rz1v.12 — the new UI (Direction B) is on for THIS user (fail-closed). */
     newUi?: boolean;
     /** bd-hb8qs — she can edit a finished paper into a new version (fail-closed). */
@@ -744,7 +746,7 @@ export type TalkGuide = {
   /** The rubric-shaped notes (ur/en, current): went well, work on first, a moment, six lines in rubric order. */
   went_well?: string[];
   work_on_first?: { title: string; seen?: string; next_step?: string; recall?: string };
-  moment?: { time?: string | null; text: string } | null;
+  moment?: { time?: string | null; text: string; answer?: "right" | "partly right" | "wrong" | null } | null;
   conversation?: string[];
 };
 

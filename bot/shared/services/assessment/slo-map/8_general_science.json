@@ -1,0 +1,12 @@
+{
+  "grade": 8,
+  "code": "general_science",
+  "source": {
+    "file": null,
+    "kind": "none",
+    "note": "FDE G6-8 prints no official SLO codes; book unit LOs (e.g. G7-U2-LO1) are not official SLOs (board 20261103T081550_r2-studio_finding.md)"
+  },
+  "policy": "null",
+  "slos": [],
+  "unmapped_reason": "no official SLO list exists for grade 8 (no FBISE AF; NCP benchmark codes not printed in the book pages sampled); RUBRIC A4a notAssessable"
+}

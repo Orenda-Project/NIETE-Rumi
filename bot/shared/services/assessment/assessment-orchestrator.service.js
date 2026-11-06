@@ -57,6 +57,7 @@ const { isAssessmentVersionsEnabled, fdeReaderPassSubjects, fdeStemCheckSubjects
 const { STEM_CHECK_SUBJECTS } = require('./fde-stem-check');
 const { READER_SUBJECTS } = require('./fde-reader');
 const Patterns = require('./patterns');
+const RepeatGuard = require('./repeat-guard');
 
 /**
  * What she is told, per failure. Each one names the thing she can change; a
@@ -297,6 +298,10 @@ async function _buildPatternPaper({ job, user, paperId }) {
 
   const renderer = rendererFor('pdf');
   let examJson = generated.examJson;
+  // A G9-12 board paper (bd-5jmnfj.38.25.3) prints with its own footer and total, frames nothing, and is filed as FBISE.
+  const board = examJson._layout?.profile === 'board';
+  const Print = board ? require('./board-render/print') : FdeRenderer;
+  const tag = board ? '_FBISE' : '_FDE';
   const html = Renderer.renderPaper({
     examJson, grade, subject,
     schoolName: user.school_name || null,
@@ -306,14 +311,14 @@ async function _buildPatternPaper({ job, user, paperId }) {
   });
   let buffer;
   try {
-    buffer = await renderer.render(html, { pdfOptions: FdeRenderer.pdfOptions(examJson, 'paper') });
+    buffer = await renderer.render(html, { pdfOptions: Print.pdfOptions(examJson, 'paper') });
   } catch (err) {
     throw Object.assign(err, { code: 'RENDER_FAILED' });
   }
 
   const paperPages = pdfPageCount(buffer);
   let framePages = null;
-  try {
+  if (!board) try {
     const found = await FdeRenderer.framePages(buffer);
     if (found && Object.keys(found).length) framePages = found;
   } catch (err) {
@@ -329,7 +334,7 @@ async function _buildPatternPaper({ job, user, paperId }) {
     },
   };
 
-  const name = fileName({ grade, subject, chapterTitle: null, format: renderer.ext, suffix: '_FDE' });
+  const name = fileName({ grade, subject, chapterTitle: null, format: renderer.ext, suffix: tag });
   let key;
   try {
     key = await r2.uploadExamBuffer({
@@ -347,8 +352,8 @@ async function _buildPatternPaper({ job, user, paperId }) {
   const answerKey = await _storeAnswerKey({
     paperId, requestId, userId, examJson, grade, subject,
     schoolName: user.school_name, pageReference: generated.pageReference, chapterTitle: null, renderer,
-    suffix: '_FDE_MarkingScheme',
-    renderOpts: { pdfOptions: FdeRenderer.pdfOptions(examJson, 'scheme') },
+    suffix: `${tag}_MarkingScheme`,
+    renderOpts: { pdfOptions: Print.pdfOptions(examJson, 'scheme') },
     paperFileName: name,
     onBuffer: (b) => { schemePages = pdfPageCount(b); },
   });
@@ -358,7 +363,7 @@ async function _buildPatternPaper({ job, user, paperId }) {
 
   const pages = paperPages == null && schemePages == null ? null : { paper: paperPages, scheme: schemePages };
   examJson = { ...examJson, _layout: { ...examJson._layout, pages } };
-  const marks = FdeRenderer.totalMarks(examJson);
+  const marks = Print.totalMarks(examJson);
 
   logToFile('[assessment] pattern paper rendered', {
     requestId, paperId, pattern, pages, framePages,
@@ -565,6 +570,9 @@ async function buildPaper(job, user = {}) {
     userId, requestId, grade, subject, chapterNumber, pageRanges,
     questionTypes = [], contentSource = 'unseen', questionCount, totalMarks = null, seenCount = null,
     outputFormat = 'pdf', answerLines = true, pattern = null, scope = null,
+    // The teacher's curriculum (bd-97daxo.4): set by the request only when it is not ICT, so an ICT
+    // job reads its ICT book exactly as before.
+    curriculum = undefined,
   } = job;
 
   // Open the record before doing any work, so a job that dies mid-flight leaves
@@ -599,9 +607,10 @@ async function buildPaper(job, user = {}) {
     // and the same duplicate guard. Without `pattern` nothing below changes.
     if (pattern) return await _buildPatternPaper({ job, user, paperId });
 
+    const own = curriculum ? { curriculum } : {};
     const source = chapterNumber != null
-      ? await BookContent.loadChapterContent({ grade, subject, chapterNumber })
-      : await BookContent.loadPageRangeContent({ grade, subject, pageRanges });
+      ? await BookContent.loadChapterContent({ grade, subject, chapterNumber, ...own })
+      : await BookContent.loadPageRangeContent({ grade, subject, pageRanges, ...own });
 
     // A topic paper carries its ticked topics in its own tree, so an edit can
     // rebuild the key's summary (scope is not stored on the request).
@@ -609,6 +618,8 @@ async function buildPaper(job, user = {}) {
     const isTopic = Boolean(topics && topics.length);
     // bd-6clakk.11: an English or Urdu topic paper also gets FDE's oral part, written
     // alongside from the same pages; null when the subject has none or it came back short.
+    // Her earlier questions on these pages, so asking again gives a new paper.
+    const avoid = await RepeatGuard.previousQuestions({ db: supabase, requestId, grade });
     const [generated, oral] = await Promise.all([Generation.generateExam({
       grade, subject,
       pageContent: source.content,
@@ -618,6 +629,7 @@ async function buildPaper(job, user = {}) {
       contentSource, questionCount, totalMarks, questionTypes, includeAnswerKey: true, seenCount,
       // A topic paper tests the ticked topics' skills; any other job passes no key at all.
       ...(scope && scope.kind === 'topics' ? { slos: scope.slos } : {}),
+      ...(avoid.length ? { avoidQuestions: avoid } : {}),
     }), isTopic ? Generation.generateTopicOral({ grade, subject, pageContent: source.content, requestId }) : null]);
 
     // With versioned editing the generated row IS version 1 and is never

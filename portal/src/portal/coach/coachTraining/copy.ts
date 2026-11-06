@@ -12,8 +12,8 @@ export const COACH_TRAINING_EN = {
   crumb: "Home",
   coachIntro: "Nine debrief modules",
   coachModule: "Module",
+  pdf: "PDF",
   video: "Video",
-  coachModulePage: "Module page",
   opensInBrowser: "Opens in your browser",
 };
 
@@ -22,8 +22,8 @@ const COACH_TRAINING_UR: typeof COACH_TRAINING_EN = {
   crumb: "ہوم",
   coachIntro: "ڈی بریف کے نو ماڈیول",
   coachModule: "ماڈیول",
+  pdf: "پی ڈی ایف",
   video: "ویڈیو",
-  coachModulePage: "ماڈیول کا صفحہ",
   opensInBrowser: "براؤزر میں کھلے گا",
 };
 

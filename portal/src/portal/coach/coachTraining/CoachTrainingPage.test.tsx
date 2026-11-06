@@ -8,7 +8,7 @@ vi.mock("../CoachGate", () => ({ default: ({ children }: { children: unknown }) 
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Test", role: "coach", phoneNumber: "920000000000" }, loading: false }) }));
 vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false } }));
 import CoachTrainingPage from "./CoachTrainingPage";
-import { BEHAVIOUR_MODULE, COACH_MODULES, COACH_TRAINING_PATH, moduleFor, moduleUrl, videoUrl } from "./modules";
+import { BEHAVIOUR_MODULE, COACH_MODULES, COACH_TRAINING_PATH, moduleFor, modulePath, moduleUrl, videoUrl } from "./modules";
 import { COACH_TRAINING, COPY_ENTRY } from "./copy";
 import { coachPathReady, coachReadyFor } from "../training/appReady";
 import { COPY_MODULES } from "../../teacher/copyRegistry";
@@ -77,37 +77,26 @@ describe("the page", () => {
     </MemoryRouter>,
   );
 
-  it("English: Coach Training, nine modules, each with its Video first and its Module page", async () => {
+  it("English: Coach Training, nine module rows; a tap opens that module's own screen (no Video/PDF on the list)", async () => {
     await act(async () => { await i18n.changeLanguage("en"); });
     renderPage();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Coach Training");
-    const cards = within(screen.getByTestId("coach-modules")).getAllByTestId("coach-module");
-    expect(cards).toHaveLength(9);
-    expect(cards[0]).toHaveTextContent("Open with specific praise");
-    expect(cards[0]).toHaveTextContent("Module 1");
-    cards.forEach((card) => {
-      const [first, second] = within(card).getAllByRole("button");
-      expect(first).toHaveAttribute("data-testid", "coach-module-video");
-      expect(first).toHaveTextContent("Video");
-      expect(second).toHaveAttribute("data-testid", "coach-module-page");
-      expect(second).toHaveTextContent("Module page");
-    });
-    fireEvent.click(within(cards[7]).getByTestId("coach-module-video"));
-    expect(open).toHaveBeenLastCalledWith("https://claude.ai/artifact/FnhqM4ae3uV1XwwwgSYfYs", "_blank", "noopener,noreferrer");
-    fireEvent.click(within(cards[7]).getByTestId("coach-module-page"));
-    expect(open).toHaveBeenLastCalledWith("https://claude.ai/artifact/MGVm5YMAdQhRCrWRWWg65C", "_blank", "noopener,noreferrer");
-    fireEvent.click(within(cards[0]).getByTestId("coach-module-video"));
-    expect(open).toHaveBeenLastCalledWith("https://claude.ai/artifact/TZdNqRi29i4mw3meZqDLFj", "_blank", "noopener,noreferrer");
+    const rows = within(screen.getByTestId("coach-modules")).getAllByTestId("coach-module");
+    expect(rows).toHaveLength(9);
+    expect(rows[0]).toHaveTextContent("Open with specific praise");
+    expect(rows[0]).toHaveTextContent("Module");
+    rows.forEach((row, i) => expect(row).toHaveAttribute("href", `/portal/coach/coach-training/${i + 1}`));
+    expect(screen.queryByTestId("coach-module-video")).toBeNull();
+    expect(screen.queryByTestId("coach-format-pdf")).toBeNull();
+    expect(COACH_MODULES.map(modulePath)).toEqual(COACH_MODULES.map((m) => `/portal/coach/coach-training/${m.n}`));
   });
 
   it("Urdu: the same nine, in Urdu", async () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     renderPage();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("کوچ ٹریننگ");
-    const cards = within(screen.getByTestId("coach-modules")).getAllByTestId("coach-module");
-    expect(cards[7]).toHaveTextContent("جانے سے پہلے زبانی پریکٹس");
-    expect(within(cards[7]).getByTestId("coach-module-video")).toHaveTextContent("ویڈیو");
-    expect(within(cards[7]).getByTestId("coach-module-page")).toHaveTextContent("ماڈیول کا صفحہ");
+    const rows = within(screen.getByTestId("coach-modules")).getAllByTestId("coach-module");
+    expect(rows[7]).toHaveTextContent("جانے سے پہلے زبانی پریکٹس");
     await act(async () => { await i18n.changeLanguage("en"); });
   });
 });
@@ -123,9 +112,11 @@ describe("its words and its door", () => {
     expect(COPY_MODULES).toContain(COPY_ENTRY);
   });
 
-  it("every coach can open it, whichever coach app she has", () => {
+  it("every coach can open it and each module's screen, whichever coach app she has", () => {
     for (const ready of [coachReadyFor(false, true), coachReadyFor(true, false), coachReadyFor(false, false)]) {
       expect(coachPathReady(COACH_TRAINING_PATH, ready)).toBe(true);
+      for (const m of COACH_MODULES) expect(coachPathReady(modulePath(m), ready)).toBe(true);
+      expect(coachPathReady("/portal/coach/coach-training/10", ready)).toBe(false);
     }
     expect(COACH_TRAINING_PATH).toBe("/portal/coach/coach-training");
   });

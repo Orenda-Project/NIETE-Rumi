@@ -8,14 +8,13 @@
  * Maths Section C's syllabus) reach a Grade 1 paper. Its "no pictures" rule is
  * swapped for the picture rule: a picture slot asks for one picture per item.
  *
- * The oral prompt asks for each oral task's script and questions, which the
- * marking scheme prints on the teacher sheet (fde-oral-sheet).
+ * The oral prompt asks for each oral task's script and questions, which the marking scheme prints on the teacher sheet (fde-oral-sheet).
  *
  * Pure: the builder is passed in, so this never requires the service.
  */
-
 const { bannedShortfall } = require('./fde-banned-words');
 const { unsaidWords } = require('./fde-listening-check');
+const { clampLanguage } = require('../../config/ux-strings');
 
 const NO_PICTURES = 'The paper carries no pictures. A slot marked frame prints an empty frame: write the instruction and the labels/word bank only; never \'look at the picture\'.';
 
@@ -31,6 +30,7 @@ const PICTURE_RULE = 'Pictures: a slot whose rule names a picture gives EVERY it
 const PICTURE_FIELDS = {
   count: (p) => Boolean(p.name) && Number.isInteger(p.n) && p.n >= 1,
   dots: (p) => Number.isInteger(p.n) && p.n >= 1,
+  groups: (p) => Number.isInteger(p.groups) && p.groups >= 2 && p.groups <= 5 && Number.isInteger(p.each) && p.each >= 1 && p.each <= 10,
   shapes: (p) => Array.isArray(p.shapes) && p.shapes.length > 0 && p.shapes.every((s) => s && s.shape),
   object: (p) => Boolean(p.name),
   scene: (p) => Boolean(p.describe),
@@ -64,7 +64,7 @@ function taskLine(task, lang) {
 
 /** The oral part's prompt: one entry per task, in the paper's medium. `saidCheck: false` (a topic paper) leaves out the listening rule. */
 function oralPrompt({ oral, grade, P, pageContent, saidCheck = true }) {
-  const lang = P.medium === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(P.medium);
   const language = lang === 'ur' ? 'Urdu' : 'English';
   return [
     `Write the oral part of a Grade ${grade} ${P.name_en} practice paper, taken by the teacher one child at a time.`,

@@ -1,0 +1,524 @@
+{
+"eg.ict.computer_science.6_8.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "6_8"
+},
+"eg.ict.english.6_8.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "6_8"
+},
+"eg.ict.general_science.6_8.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "6_8"
+},
+"eg.ict.geography.6_8.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "6_8"
+},
+"eg.ict.history.6_8.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "6_8"
+},
+"eg.ict.islamiat.6_8.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp"
+],
+"urdu_review": true,
+"kind": "system",
+"medium": "ur",
+"band": "6_8"
+},
+"eg.ict.maths.6_8.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "6_8"
+},
+"eg.ict.urdu.6_8.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp"
+],
+"urdu_review": true,
+"kind": "system",
+"medium": "ur",
+"band": "6_8"
+},
+"eg.ict.zarai_taleem.6_8.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp"
+],
+"urdu_review": true,
+"kind": "system",
+"medium": "ur",
+"band": "6_8"
+},
+"eg.ict.biology.9_10.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "9_10"
+},
+"eg.ict.chemistry.9_10.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "9_10"
+},
+"eg.ict.computer_science.9_10.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "9_10"
+},
+"eg.ict.english.9_10.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "9_10"
+},
+"eg.ict.islamiat.9_10.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": true,
+"kind": "system",
+"medium": "ur",
+"band": "9_10"
+},
+"eg.ict.maths.9_10.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "9_10"
+},
+"eg.ict.pakistan_studies_ur.9_10.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": true,
+"kind": "system",
+"medium": "ur",
+"band": "9_10"
+},
+"eg.ict.physics.9_10.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "9_10"
+},
+"eg.ict.urdu.9_10.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": true,
+"kind": "system",
+"medium": "ur",
+"band": "9_10"
+},
+"eg.ict.pakistan_studies.9_10.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "9_10"
+},
+"eg.ict.biology.11_12.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "11_12"
+},
+"eg.ict.chemistry.11_12.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "11_12"
+},
+"eg.ict.computer_science.11_12.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "11_12"
+},
+"eg.ict.english.11_12.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "11_12"
+},
+"eg.ict.islamiat.11_12.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": true,
+"kind": "system",
+"medium": "ur",
+"band": "11_12"
+},
+"eg.ict.maths.11_12.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "11_12"
+},
+"eg.ict.physics.11_12.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "11_12"
+},
+"eg.ict.urdu.11_12.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": true,
+"kind": "system",
+"medium": "ur",
+"band": "11_12"
+},
+"eg.ict.pakistan_studies.11_12.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": false,
+"kind": "system",
+"medium": "en",
+"band": "11_12"
+},
+"eg.ict.pakistan_studies_ur.11_12.system": {
+"placeholders": [
+"grade",
+"age",
+"exam_name",
+"variant_label",
+"level_scale",
+"level_legend",
+"level_split",
+"tolerance_pp",
+"slo_list"
+],
+"urdu_review": true,
+"kind": "system",
+"medium": "ur",
+"band": "11_12"
+},
+"eg.format.secondary": {
+"placeholders": [],
+"urdu_review": false,
+"kind": "format",
+"medium": "en",
+"band": "6_12"
+},
+"eg.format.secondary_urdu": {
+"placeholders": [],
+"urdu_review": true,
+"kind": "format",
+"medium": "ur",
+"band": "6_12"
+},
+"eg.safety.policies.6_12": {
+"placeholders": [],
+"urdu_review": false,
+"kind": "safety",
+"medium": "en",
+"band": "6_12"
+},
+"eg.task.board_section": {
+"placeholders": [
+"section_key",
+"section_title",
+"section_marks",
+"time_line",
+"slot_lines",
+"earlier_stems_short",
+"level_tally",
+"level_scale",
+"split_remaining"
+],
+"urdu_review": false,
+"kind": "task",
+"medium": "en",
+"band": "6_12"
+}
+}

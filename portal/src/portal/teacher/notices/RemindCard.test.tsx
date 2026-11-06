@@ -55,7 +55,7 @@ function browser(permission: NotificationPermission = "granted", existing = fals
   Object.defineProperty(navigator, "serviceWorker", { value: sw, configurable: true });
   const requestPermission = vi.fn(async () => permission);
   (window as unknown as Record<string, unknown>).Notification = { requestPermission, permission: "default" };
-  const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ key: "ZmFrZS12YXBpZC1rZXk" }), { status: 200, headers: { "content-type": "application/json" } }));
+  const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ key: "ZmFrZS12YXBpZC1rZXk" }), { status: 200, headers: { "content-type": "application/json" } })); // gitleaks:allow (fake VAPID public key in a test)
   return { sub, pushManager, sw, requestPermission, fetchMock };
 }
 

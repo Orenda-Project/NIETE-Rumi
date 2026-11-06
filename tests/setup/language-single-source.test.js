@@ -52,9 +52,14 @@ function walk(dir, out = []) {
   return out;
 }
 
-/** Strip comments so a doc comment describing the old pattern is not an offender. */
+/**
+ * Strip comments so a doc comment describing the old pattern is not an offender.
+ * A block comment keeps its newlines, so the line numbers reported are the file's own.
+ */
 function stripComments(src) {
-  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ''))
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
 }
 
 const BOT_FILES = walk(path.join(ROOT, 'bot'));
@@ -90,6 +95,17 @@ describe('language conformance — one clamp', () => {
   it('would still catch a newly written clamp', () => {
     expect(CLAMP_RE.test("const l = lang === 'ur' ? 'ur' : 'en';")).toBe(true);
     expect(CLAMP_RE.test("return x.preferred_language === 'ur' ? 'ur' : 'en'")).toBe(true);
+  });
+
+  // The baseline gate keys an offender by the text of the line it names
+  // (tests/baseline-gate.js, keyOffenders). Stripping a block comment together with its
+  // newlines moved every later line number, so `file:31` named a line with no clamp on it.
+  it('names the line of the FILE, not of the comment-stripped text', () => {
+    const src = ['/**', ' * a doc comment', ' */', "const l = lang === 'ur' ? 'ur' : 'en'; /* x", 'y */ go();'].join('\n');
+    const lines = stripComments(src).split('\n');
+    expect(lines).toHaveLength(5);
+    expect(CLAMP_RE.test(lines[3])).toBe(true);
+    expect(lines[4]).toBe(' go();');
   });
 });
 

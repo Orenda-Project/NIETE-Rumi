@@ -135,7 +135,7 @@ describe('req.portalUser is not available on requirePortalAuth routes', () => {
       .filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*'))
       .join('\n');
     const reads = codeOnly.match(/req\.session\.portalUserId/g) || [];
-    expect(reads.length).toBe(11); // 4 generator routes + 5 edit routes (bd-hb8qs) + the paper view (bd-fmf24g.31) + the paper file (bd-7tgiyc)
+    expect(reads.length).toBe(14); // 4 generator routes + 5 edit routes (bd-hb8qs) + the paper view (bd-fmf24g.31) + the paper file (bd-7tgiyc) + generate's, chapters' and topics' region book (bd-97daxo.4)
     // Against CODE, not the banner: the comment above these routes names
     // req.portalUser on purpose, to warn the next person off it.
     expect(codeOnly).not.toMatch(/req\.portalUser/);
