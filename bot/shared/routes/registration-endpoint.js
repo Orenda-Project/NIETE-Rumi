@@ -137,6 +137,8 @@ async function markRegistrationComplete(userId) {
     registration_completed: true,
     registration_completed_at: new Date().toISOString(),
   });
+  // Not awaited: another live account with her school and name is recorded, never acted on (identity-events).
+  require('../services/identity/identity-events').checkWouldMatch(userId, 'flow_endpoint').catch(() => {});
 }
 
 /**
