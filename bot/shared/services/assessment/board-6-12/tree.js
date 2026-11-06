@@ -55,16 +55,37 @@ function shortfallOf(tree, slots) {
     .filter((r) => r.have < r.need);
 }
 
-/** Remove top-level nodes beyond what a slot generates (by group count for a stimulus slot). */
-function trimExcess(tree, slots) {
-  const want = new Map(slots.filter(generating).map((s) => [s.slot, s.stimulus ? s.stimulus.count : s.generate]));
-  const seen = new Map();
-  eachList(tree, (list, set) => set(list.filter((q) => {
-    if (!isObj(q) || !want.has(q.slot)) return true;
-    const n = (seen.get(q.slot) || 0) + 1;
-    seen.set(q.slot, n);
-    return n <= want.get(q.slot);
-  })));
+const wantOf = (slots) => new Map(slots.filter(generating).map((s) => [s.slot, s.stimulus ? s.stimulus.count : s.generate]));
+
+/**
+ * Remove top-level nodes beyond what a slot generates (by group count for a stimulus slot). `rank(node)` (optional,
+ * lower is better) picks which to keep; ties keep the earlier node; the kept nodes stay in their order.
+ */
+function trimExcess(tree, slots, rank) {
+  const want = wantOf(slots);
+  const nodes = [];
+  eachList(tree, (list) => list.forEach((q) => { if (isObj(q) && want.has(q.slot)) nodes.push(q); }));
+  const keep = new Set();
+  want.forEach((n, slot) => nodes.filter((q) => q.slot === slot)
+    .map((q, i) => ({ q, i, r: rank ? rank(q) : 0 }))
+    .sort((a, b) => a.r - b.r || a.i - b.i).slice(0, n).forEach((x) => keep.add(x.q)));
+  eachList(tree, (list, set) => set(list.filter((q) => !isObj(q) || !want.has(q.slot) || keep.has(q))));
+  return tree;
+}
+
+/** True when some slot holds more top-level nodes than it generates. */
+function overfull(tree, slots) {
+  const want = wantOf(slots);
+  const have = new Map();
+  eachList(tree, (list) => list.forEach((q) => { if (isObj(q) && want.has(q.slot)) have.set(q.slot, (have.get(q.slot) || 0) + 1); }));
+  return [...have].some(([slot, n]) => n > want.get(slot));
+}
+
+/** An `options: []` on a leaf that is not an mcq or scenario is the model's empty field, not a question shape: removed. */
+function dropEmptyOptions(tree) {
+  leavesOf(tree).forEach((l) => {
+    if (Array.isArray(l.options) && !l.options.length && l.type !== 'mcq' && l.type !== 'scenario') delete l.options;
+  });
   return tree;
 }
 
@@ -185,4 +206,4 @@ function topUp(first, second, slots) {
   return out;
 }
 
-module.exports = { eachList, leavesOf, liveCounts, shortfallOf, trimExcess, dropIds, stamp, isGroup, fromReply, topUp };
+module.exports = { eachList, leavesOf, leavesOfNode, overfull, dropEmptyOptions, liveCounts, shortfallOf, trimExcess, dropIds, stamp, isGroup, fromReply, topUp };

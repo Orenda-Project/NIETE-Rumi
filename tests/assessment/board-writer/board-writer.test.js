@@ -103,7 +103,7 @@ describe('writeBoardPaper, four cells', () => {
     expect(groups).toHaveLength(5);
     groups.forEach((g) => { expect(g.stimulus.text.length).toBeGreaterThan(10); expect(g.stimulus.items).toHaveLength(4); });
     expect(sections).toEqual(['A', 'B', 'C']);
-    expect(calls.map((c) => c.section)).toEqual(['A', 'B', 'C']);
+    expect(calls.map((c) => c.section)).toEqual(['A', 'A', 'A', 'B', 'C']); // round 4: A.Q1-40 in two chunks of 20, then the stimulus slot
     expect(res.sections.map((s) => s.id)).toEqual(['A', 'B', 'C']);
   });
 
@@ -179,7 +179,7 @@ describe('top-up', () => {
       },
     });
     expect(calls.map((c) => [c.section, c.topUp])).toEqual([['A', false], ['A', true], ['B', false]]);
-    expect(calls[1].user).toMatch(/TOP-UP.*A\.Q1 \(have 3, need 4\)/);
+    expect(calls[1].user).toMatch(/TOP-UP.*A\.Q1 \(have 3, need 4; write 2\)/); // round 4: the shortfall plus about a quarter
     expect(calls[1].user).not.toContain('B.Q2');
     commonAssertions(cell, res);
   });
