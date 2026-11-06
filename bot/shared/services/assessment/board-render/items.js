@@ -9,7 +9,7 @@
  * order and a part closes when its marks are reached; the "Attempt any N questions." and marks lines are computed
  * from slot.attempt / printed / marks_each (the layout carries no instruction text).
  */
-const { textOf, marksText } = require('./text');
+const { textOf, marksText, bareOption } = require('./text');
 const { slotsOf } = require('./layout');
 const { noteFor } = require('./header');
 
@@ -29,7 +29,7 @@ function marksLine(slot) {
 }
 
 function mcqRow(q, n, onPaper, rtl) {
-  const opts = (q.options || []).map((o, i) => `<span>${LETTERS[i]}. ${textOf(o, rtl)}${onPaper ? ' <span class="bub"></span>' : ''}</span>`).join('');
+  const opts = (q.options || []).map((o, i) => `<span>${LETTERS[i]}. ${textOf(bareOption(o, i), rtl)}${onPaper ? ' <span class="bub"></span>' : ''}</span>`).join('');
   return `<div class="q"><span class="qn">${textOf(`${n}.`, rtl)}</span> ${textOf(q.question, rtl)}<div class="opts">${opts}</div></div>`;
 }
 

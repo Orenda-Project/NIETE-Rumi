@@ -7,7 +7,8 @@
  * design_pending: item.scheme = {points:[{text,marks}]} | {bands:[{marks,descriptor}]}; the project slot's
  * rubric is project.criteria_en / criteria_ur (a list of strings); the class record has a blank row per learner.
  */
-const { textOf, marksText, fmtMarks } = require('./text');
+const { textOf, marksText, fmtMarks, bareOption } = require('./text');
+const OT = require('../board-checks/option-text');
 const { slotsOf } = require('./layout');
 const { marksLine } = require('./items');
 
@@ -42,9 +43,11 @@ function itemRow(slot, q, i, ctx) {
   const w = WORDS[lang];
   let body;
   if (slot.type === 'mcq' || slot.type === 'scenario') {
-    const idx = LETTERS.indexOf(String(q.key).toUpperCase());
-    const opt = idx >= 0 && q.options ? ` — ${textOf(q.options[idx], rtl)}` : '';
-    body = `<div class="key">${w.key}: ${textOf(q.key, rtl)}${opt}</div>`;
+    // The writer keys an MCQ by its labelled answer ("B) x") and sets no `key`; the letter then comes from that.
+    const idx = q.key != null ? LETTERS.indexOf(String(q.key).toUpperCase()) : OT.keyIndex(q);
+    const opt = idx >= 0 && q.options ? ` — ${textOf(bareOption(q.options[idx], idx), rtl)}` : '';
+    const letter = q.key != null ? q.key : (idx >= 0 ? LETTERS[idx] : '');
+    body = `<div class="key">${w.key}: ${textOf(letter, rtl)}${opt}</div>`;
   } else {
     body = `${q.answer ? `<div><b>${w.answer}:</b> ${textOf(q.answer, rtl)}</div>` : ''}${schemeTable(q.scheme, ctx)}`;
   }

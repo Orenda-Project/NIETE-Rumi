@@ -4,6 +4,7 @@
  * and FBISE fractional marks. Pure, no I/O. (The FDE renderer's Latin-token isolation is design_pending here.)
  */
 
+const OT = require('../board-checks/option-text');
 const URDU_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
 const FRACTION = { 0.25: '¼', 0.5: '½', 0.75: '¾' };
 
@@ -37,4 +38,13 @@ function marksText(line, rtl) {
   return textOf(filled, rtl);
 }
 
-module.exports = { esc, textOf, fmtMarks, marksText };
+/**
+ * The option body without the label the model wrote ("A) x", "B. x", "(c) x"): the renderer prints its own letter,
+ * so "A. A) x" never reaches the paper (bd-5jmnfj.38.30). Only a label that matches the option's own place is taken
+ * off; "C. elegans" in place A is text and stays.
+ */
+function bareOption(opt, i) {
+  return OT.labelOf(opt) === i ? OT.stripLabel(opt) : String(opt == null ? '' : opt);
+}
+
+module.exports = { esc, textOf, fmtMarks, marksText, bareOption };
