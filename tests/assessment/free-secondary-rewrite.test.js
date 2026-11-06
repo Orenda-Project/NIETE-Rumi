@@ -28,6 +28,19 @@ describe('targets', () => {
     expect(R.targets([{ n: 3, check: 'scheme', text: 'lacks a band' }]).map((i) => i.check)).toEqual(['scheme']);
   });
 
+  it('sends the review\'s item faults and long sentences or stems to the rewrite (a5 panel)', () => {
+    const issues = ['two-correct', 'odd-key', 'stem-grammar', 'long-sentence', 'long-stem'].map((check) => ({ n: 1, check, text: check }));
+    expect(R.targets(issues).map((i) => i.check)).toEqual(['two-correct', 'odd-key', 'stem-grammar', 'long-sentence', 'long-stem']);
+  });
+
+  it('tells the writer an MCQ has exactly one right option, completing the stem, and no odd-one-out key', () => {
+    const exam = { unseen: { objective: { 'Multiple Choice Questions': [{ question: 'Q?', options: ['a) w', 'b) x', 'c) y', 'd) z'], answer: 'a', marks: 1 }] } } };
+    const text = R.prompt(exam, [{ n: 1, check: 'two-correct', text: 'two right' }]);
+    expect(text).toMatch(/exactly one option is right/);
+    expect(text).toMatch(/odd one out/);
+    expect(text).toMatch(/complete[s]? the stem/);
+  });
+
   it('sends an item with a distractor the review rated 1 (weak-distractor) to the rewrite', () => {
     expect(R.targets([{ n: 1, check: 'weak-distractor', text: 'd) would draw no one' }]).map((i) => i.check)).toEqual(['weak-distractor']);
   });

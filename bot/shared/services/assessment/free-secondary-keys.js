@@ -4,7 +4,7 @@
  * over 40% of the keys, or four in a row). The key option is swapped into a planned position and the
  * options relabelled; no option's words change. Pure: mutates the paper it is given, no I/O.
  *
- * Left alone: numeric options (their order means something), options that name another option
+ * Left alone: numeric options (their order means something; sortNumeric puts them in ascending order), options that name another option
  * ("both a and b"), and an item whose key cannot be read.
  */
 
@@ -51,7 +51,46 @@ function movable(item) {
   if (!isMcq(item) || keyIndex(item) < 0) return false;
   const texts = item.options.map(textOf);
   if (texts.every((t) => /^[-+]?[\d.,/ ]+\s*\S{0,6}$/.test(t))) return false;
+  if (numbersOf(item)) return false;
   return !texts.some((t) => NAMES_OTHERS.test(t));
+}
+
+const NUMBER = /[\d۰-۹٠-٩]+(?:[.,][\d۰-۹٠-٩]+)?/g;
+const toWestern = (t) => t.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+  .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+
+/** The options' numbers when each holds exactly one, distinct, with the rest of the wording the same; else null. */
+function numbersOf(item) {
+  if (!isMcq(item)) return null;
+  const texts = item.options.map(textOf);
+  const found = texts.map((t) => t.match(NUMBER) || []);
+  if (found.some((f) => f.length !== 1)) return null;
+  const rest = texts.map((t) => t.replace(NUMBER, '#'));
+  if (rest.some((r) => r !== rest[0])) return null;
+  const nums = found.map(([f]) => Number(toWestern(f).replace(',', '.')));
+  return nums.some(Number.isNaN) || new Set(nums).size !== nums.length ? null : nums;
+}
+
+/**
+ * Puts number options in ascending order and re-letters the key (G8 Q9: ages printed 78, 88, 68, 98).
+ * Deterministic, no model. Returns how many items it reordered.
+ */
+function sortNumeric(examJson) {
+  let sorted = 0;
+  mcqs(examJson).forEach((item) => {
+    const nums = numbersOf(item);
+    const key = keyIndex(item);
+    if (!nums || key < 0) return;
+    const order = nums.map((v, i) => [v, i]).sort((x, y) => x[0] - y[0]).map(([, i]) => i);
+    if (order.every((from, i) => from === i)) return;
+    const labels = labelsFor(item);
+    const texts = item.options.map(textOf);
+    item.options = order.map((from, i) => `${labels[i]}) ${texts[from]}`);
+    const at = order.indexOf(key);
+    item.answer = `${labels[at]}) ${texts[key]}`;
+    sorted += 1;
+  });
+  return sorted;
 }
 
 /** Every MCQ in paper order (a stimulus group's items included). */
@@ -149,4 +188,4 @@ function balanceKeys(examJson, seed) {
   return moved;
 }
 
-module.exports = { balanceKeys, keyIndex, textOf, isMcq };
+module.exports = { balanceKeys, sortNumeric, keyIndex, textOf, isMcq };
