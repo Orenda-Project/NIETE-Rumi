@@ -1,0 +1,505 @@
+{
+ "grade": 12,
+ "code": "english",
+ "source": {
+  "file": "languages/work/english_6_12_resegmented.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "1": [
+   {
+    "code": "E-12-RD-02",
+    "kind": "official",
+    "desc": "explore different layers of meaning within texts including"
+   },
+   {
+    "code": "E-12-RD-01",
+    "kind": "official",
+    "desc": "explore different layers of meaning within texts including"
+   },
+   {
+    "code": "E-12-VO-01",
+    "kind": "official",
+    "desc": "recognise implicit meaning (e.g. look for supporting details"
+   },
+   {
+    "code": "E-12-GR-01",
+    "kind": "official",
+    "desc": "recognise implicit meaning (e.g. look for supporting details"
+   },
+   {
+    "code": "E-12-WR-01",
+    "kind": "official",
+    "desc": "find the pronunciation of a word or determine"
+   },
+   {
+    "code": "E-12-RD-03",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 1 SLOs across the skills"
+   },
+   {
+    "code": "E-12-VO-02",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 1 SLOs across the skills"
+   },
+   {
+    "code": "E-12-VO-03",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 1 SLOs across the skills"
+   }
+  ],
+  "2": [
+   {
+    "code": "E-12-RD-04",
+    "kind": "official",
+    "desc": "ask and answer higher-order questions to guide/assess reading(e.g.,"
+   },
+   {
+    "code": "E-12-WR-04",
+    "kind": "official",
+    "desc": "demonstrate knowledge and application of parts of speech"
+   },
+   {
+    "code": "E-12-GR-03",
+    "kind": "official",
+    "desc": "demonstrate knowledge and application of parts of speech"
+   },
+   {
+    "code": "E-12-WR-05",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 2 SLOs across the skills"
+   }
+  ],
+  "3": [
+   {
+    "code": "E-12-RD-05",
+    "kind": "official",
+    "desc": "engage in extended discussions and critique taking into"
+   },
+   {
+    "code": "E-12-RD-06",
+    "kind": "official",
+    "desc": "engage in extended discussions and critique taking into"
+   },
+   {
+    "code": "E-12-GR-04",
+    "kind": "official",
+    "desc": "explore different layers of meaning with in texts"
+   },
+   {
+    "code": "E-12-OC-01",
+    "kind": "official",
+    "desc": "engage in extended discussions and critique taking into"
+   },
+   {
+    "code": "E-12-WR-06",
+    "kind": "official",
+    "desc": "explore different layers of meaning with in texts"
+   },
+   {
+    "code": "E-12-RD-07",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 3 SLOs across the skills"
+   }
+  ],
+  "4": [
+   {
+    "code": "E-12-RD-08",
+    "kind": "official",
+    "desc": "use pre-reading and while-reading strategies to analyse and"
+   },
+   {
+    "code": "E-12-RD-11",
+    "kind": "official",
+    "desc": "use pre-reading and while-reading strategies to analyse and"
+   },
+   {
+    "code": "E-12-GR-05",
+    "kind": "official",
+    "desc": "demonstrate understanding of figurative language, word relationships, and"
+   },
+   {
+    "code": "E-12-WR-09",
+    "kind": "official",
+    "desc": "demonstrate understanding of figurative language, word relationships, and"
+   },
+   {
+    "code": "E-12-RD-09",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 4 SLOs across the skills"
+   },
+   {
+    "code": "E-12-RD-10",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 4 SLOs across the skills"
+   },
+   {
+    "code": "E-12-OC-02",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 4 SLOs across the skills"
+   },
+   {
+    "code": "E-12-OC-03",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 4 SLOs across the skills"
+   }
+  ],
+  "5": [
+   {
+    "code": "E-12-RD-14",
+    "kind": "official",
+    "desc": "use contemporary idioms and proverbs in the different"
+   },
+   {
+    "code": "E-12-RD-12",
+    "kind": "official",
+    "desc": "use contemporary idioms and proverbs in the different"
+   },
+   {
+    "code": "E-12-GR-06",
+    "kind": "official",
+    "desc": "demonstrate knowledge and application of parts of speech"
+   },
+   {
+    "code": "E-12-WR-10",
+    "kind": "official",
+    "desc": "use in a variety of writing and texts"
+   },
+   {
+    "code": "E-12-RD-13",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 5 SLOs across the skills"
+   },
+   {
+    "code": "E-12-WR-11",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 5 SLOs across the skills"
+   },
+   {
+    "code": "E-12-WR-02",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 5 SLOs across the skills"
+   }
+  ],
+  "6": [
+   {
+    "code": "E-12-WR-12",
+    "kind": "official",
+    "desc": "demonstrate knowledge and application of parts of speech"
+   },
+   {
+    "code": "E-12-RD-15",
+    "kind": "official",
+    "desc": "engage effectively in a range of collaborative discussions"
+   },
+   {
+    "code": "E-12-RD-08",
+    "kind": "official",
+    "desc": "engage effectively in a range of collaborative discussions"
+   },
+   {
+    "code": "E-12-GR-07",
+    "kind": "official",
+    "desc": "demonstrate knowledge and application of parts of speech"
+   },
+   {
+    "code": "E-12-RD-16",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 6 SLOs across the skills"
+   },
+   {
+    "code": "E-12-WR-13",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 6 SLOs across the skills"
+   }
+  ],
+  "7": [
+   {
+    "code": "E-12-GR-08",
+    "kind": "official",
+    "desc": "speak confidently and fluently in a wide range"
+   },
+   {
+    "code": "E-12-WR-15",
+    "kind": "official",
+    "desc": "speak confidently and fluently in a wide range"
+   }
+  ],
+  "8": [
+   {
+    "code": "E-12-RD-17",
+    "kind": "official",
+    "desc": "use complex questions for a range of audiences."
+   },
+   {
+    "code": "E-12-RD-18",
+    "kind": "official",
+    "desc": "use complex questions for a range of audiences."
+   },
+   {
+    "code": "E-12-OC-04",
+    "kind": "official",
+    "desc": "use complex questions for a range of audiences."
+   },
+   {
+    "code": "E-12-GR-09",
+    "kind": "official",
+    "desc": "demonstrate understanding of figurative language, word relationships, and"
+   },
+   {
+    "code": "E-12-WR-16",
+    "kind": "official",
+    "desc": "demonstrate understanding of figurative language, word relationships, and"
+   },
+   {
+    "code": "E-12-RD-07",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 8 SLOs across the skills"
+   }
+  ],
+  "9": [
+   {
+    "code": "E-12-RD-19",
+    "kind": "official",
+    "desc": "listen to texts and critically analyse the situations/events."
+   },
+   {
+    "code": "E-12-RD-20",
+    "kind": "official",
+    "desc": "listen to texts and critically analyse the situations/events."
+   },
+   {
+    "code": "E-12-OC-05",
+    "kind": "official",
+    "desc": "listen to texts and critically analyse the situations/events."
+   },
+   {
+    "code": "E-12-GR-10",
+    "kind": "official",
+    "desc": "examine an author's point of view or purpose"
+   },
+   {
+    "code": "E-12-WR-18",
+    "kind": "official",
+    "desc": "examine an author's point of view or purpose"
+   }
+  ],
+  "10": [
+   {
+    "code": "E-12-RD-02",
+    "kind": "official",
+    "desc": "explore different layers of meaning within texts including"
+   },
+   {
+    "code": "E-12-RD-21",
+    "kind": "official",
+    "desc": "speak with standard pronunciation. respond to questions on"
+   },
+   {
+    "code": "E-12-WR-19",
+    "kind": "official",
+    "desc": "recognise implicit meaning (e.g. look for supporting details"
+   },
+   {
+    "code": "E-12-OC-06",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 10 SLOs across the skills"
+   },
+   {
+    "code": "E-12-RD-08",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 10 SLOs across the skills"
+   },
+   {
+    "code": "E-12-RD-03",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 10 SLOs across the skills"
+   },
+   {
+    "code": "E-12-RD-22",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 10 SLOs across the skills"
+   }
+  ],
+  "11": [
+   {
+    "code": "E-12-RD-23",
+    "kind": "official",
+    "desc": "use paraphrasing skills to paraphrase a poem. use"
+   },
+   {
+    "code": "E-12-RD-07",
+    "kind": "official",
+    "desc": "use paraphrasing skills to paraphrase a poem. use"
+   },
+   {
+    "code": "E-12-OC-07",
+    "kind": "official",
+    "desc": "speak with standard pronunciation. read with accurate pronunciation,"
+   },
+   {
+    "code": "E-12-VO-04",
+    "kind": "official",
+    "desc": "speak with standard pronunciation. read with accurate pronunciation,"
+   },
+   {
+    "code": "E-12-WR-07",
+    "kind": "official",
+    "desc": "use compound prepositions and prepositional phrases in writing"
+   },
+   {
+    "code": "E-12-WR-08",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 11 SLOs across the skills"
+   }
+  ],
+  "12": [
+   {
+    "code": "E-12-RD-25",
+    "kind": "official",
+    "desc": "develop an interest in a variety of texts."
+   },
+   {
+    "code": "E-12-RD-24",
+    "kind": "official",
+    "desc": "develop an interest in a variety of texts."
+   },
+   {
+    "code": "E-12-OC-08",
+    "kind": "official",
+    "desc": "speak with standard pronunciation. evaluate how authors"
+   },
+   {
+    "code": "E-12-GR-11",
+    "kind": "official",
+    "desc": "use appropriate words and phrases for reading, writing,"
+   },
+   {
+    "code": "E-12-VO-05",
+    "kind": "official",
+    "desc": "use appropriate words and phrases for reading, writing,"
+   },
+   {
+    "code": "E-12-WR-20",
+    "kind": "official",
+    "desc": "identify the writer's purpose, and intended audience. Infer"
+   },
+   {
+    "code": "E-12-OC-09",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 12 SLOs across the skills"
+   },
+   {
+    "code": "E-12-RD-26",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 12 SLOs across the skills"
+   }
+  ],
+  "13": [
+   {
+    "code": "E-12-RD-28",
+    "kind": "official",
+    "desc": "develop over the course of a text, interact"
+   },
+   {
+    "code": "E-12-RD-27",
+    "kind": "official",
+    "desc": "develop over the course of a text, interact"
+   },
+   {
+    "code": "E-12-OC-10",
+    "kind": "official",
+    "desc": "speak confidently and fluently in a wide range"
+   },
+   {
+    "code": "E-12-GR-12",
+    "kind": "official",
+    "desc": "use subordinating conjunctions to connect independent clause/s to"
+   },
+   {
+    "code": "E-12-VO-06",
+    "kind": "official",
+    "desc": "use subordinating conjunctions to connect independent clause/s to"
+   },
+   {
+    "code": "E-12-WR-21",
+    "kind": "official",
+    "desc": "use of conjunctions and transitional devices in speech"
+   },
+   {
+    "code": "E-12-RD-29",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 13 SLOs across the skills"
+   }
+  ],
+  "14": [
+   {
+    "code": "E-12-RD-06",
+    "kind": "official",
+    "desc": "use pre-reading and while-reading strategies to analyze and"
+   },
+   {
+    "code": "E-12-RD-30",
+    "kind": "official",
+    "desc": "use pre-reading and while-reading strategies to analyze and"
+   },
+   {
+    "code": "E-12-OC-03",
+    "kind": "official",
+    "desc": "speak with standard pronunciation"
+   },
+   {
+    "code": "E-12-WR-22",
+    "kind": "official",
+    "desc": "summarize a variety of informational texts. 2. transfer"
+   },
+   {
+    "code": "E-12-RD-31",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 14 SLOs across the skills"
+   },
+   {
+    "code": "E-12-RD-32",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 14 SLOs across the skills"
+   },
+   {
+    "code": "E-12-RD-33",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 14 SLOs across the skills"
+   },
+   {
+    "code": "E-12-RD-34",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 14 SLOs across the skills"
+   }
+  ],
+  "15": [
+   {
+    "code": "E-12-RD-28",
+    "kind": "official",
+    "desc": "develop over the course of a text, interact"
+   },
+   {
+    "code": "E-12-WR-24",
+    "kind": "official",
+    "desc": "write formal letters and emails to people in"
+   },
+   {
+    "code": "E-12-OC-09",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 15 SLOs across the skills"
+   },
+   {
+    "code": "E-12-RD-36",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 15 SLOs across the skills"
+   },
+   {
+    "code": "E-12-RD-37",
+    "kind": "official",
+    "desc": "Assesses ALL Chapter 15 SLOs across the skills"
+   }
+  ]
+ }
+}

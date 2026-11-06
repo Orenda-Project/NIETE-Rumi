@@ -61,7 +61,8 @@ function forSubject(subject, grade) {
   const row = rowFor(subject, grade);
   if (!row) return [];
   const ids = [...(BOARD_MODES.has(row.board_mode) ? [DATA.first_entry] : []), ...setIds(row)];
-  return ids.map((id) => ({ id, category: categoryOf(id) }));
+  // `label` is what the app's chips print (bd-5jmnfj.38.40): the ids are codes such as `srq`.
+  return ids.map((id) => ({ id, category: categoryOf(id), label: titleOf(id) }));
 }
 
 /** The flow-selectable kinds the cell's type set may use (each maps to srq/erq). */

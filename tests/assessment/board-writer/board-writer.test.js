@@ -40,6 +40,7 @@ function commonAssertions(cell, res) {
   const V = cell.variant;
   // layout totals
   expect(L.profile).toBe('board');
+  expect(L.preset_id).toBe('fbise_ssc1_2027');
   expect(L.total_marks).toBe(V.total_marks);
   expect(L.sections.map((s) => s.id)).toEqual(V.sections.map((s) => s.id));
   expect(L.sections.reduce((n, s) => n + x4(s.marks), 0)).toBe(x4(V.total_marks));
@@ -75,7 +76,7 @@ function commonAssertions(cell, res) {
   leaves.filter((l) => l.type === 'srq' || l.type === 'erq').forEach((l) => {
     if (style === 'analytic_points') expect(l.scheme.points.reduce((n, p) => n + x4(p.marks), 0)).toBe(x4(l.marks));
     else expect(l.scheme.bands[0].hi).toBe(l.marks);
-    expect(style === 'analytic_points' ? 'bands' in l.scheme : 'points' in l.scheme).toBe(false);
+    expect(style === 'analytic_points' ? 'bands' in l.scheme : 'points' in l.scheme).toBe(style === 'analytic_points' && l.type === 'erq'); // r9: an analytic ERQ keeps its bands
   });
   leaves.filter((l) => l.type === 'mcq' || l.type === 'scenario').forEach((l) => expect('scheme' in l).toBe(false));
   // no key in child-facing fields
@@ -98,11 +99,11 @@ describe('writeBoardPaper, four cells', () => {
     commonAssertions(cell, res);
     const stimSlot = res.examJson._layout.sections[0].slots.find((s) => s.slot === 'A.Q41-60');
     expect(stimSlot.stimulus).toEqual({ count: 5, mcqs_per_stimulus: 4, kinds: ['passage'] });
-    const groups = res.examJson.unseen.objective.MCQs.filter((q) => q.stimulus);
+    const groups = res.examJson.unseen.objective.scenario.filter((q) => q.stimulus);
     expect(groups).toHaveLength(5);
     groups.forEach((g) => { expect(g.stimulus.text.length).toBeGreaterThan(10); expect(g.stimulus.items).toHaveLength(4); });
     expect(sections).toEqual(['A', 'B', 'C']);
-    expect(calls.map((c) => c.section)).toEqual(['A', 'B', 'C']);
+    expect(calls.map((c) => c.section)).toEqual(['A', 'A', 'A', 'B', 'C']); // round 4: A.Q1-40 in two chunks of 20, then the stimulus slot
     expect(res.sections.map((s) => s.id)).toEqual(['A', 'B', 'C']);
   });
 
@@ -129,7 +130,7 @@ describe('writeBoardPaper, four cells', () => {
     const cell = CELLS.fictional;
     const { res, calls, sections } = await run(cell);
     commonAssertions(cell, res);
-    const or = res.examJson.unseen.subjective['Short and Extended'].find((q) => q.or);
+    const or = res.examJson.unseen.subjective.srq.find((q) => q.or);
     expect(or.or).toHaveLength(2);
     expect(or.or[0].marks).toBe(or.or[1].marks);
     or.or.forEach((b) => { expect(b.answer).toBeTruthy(); expect(b.scheme.bands).toBeTruthy(); expect(b.type).toBe('srq'); });
@@ -178,7 +179,7 @@ describe('top-up', () => {
       },
     });
     expect(calls.map((c) => [c.section, c.topUp])).toEqual([['A', false], ['A', true], ['B', false]]);
-    expect(calls[1].user).toMatch(/TOP-UP.*A\.Q1 \(have 3, need 4\)/);
+    expect(calls[1].user).toMatch(/TOP-UP.*A\.Q1 \(have 3, need 4; write 2\)/); // round 4: the shortfall plus about a quarter
     expect(calls[1].user).not.toContain('B.Q2');
     commonAssertions(cell, res);
   });
@@ -214,13 +215,13 @@ describe('hard checks after layout', () => {
         const tree = buildReply(section.slots, { grade: 9, row: cell.row, levels: TOS.levels, style: cell.style, ur: false }, state);
         if (!leaked) {
           leaked = true;
-          const q = tree.unseen.objective.MCQs[0];
+          const q = tree['A.Q1'][0];
           q.question = `${q.question} (the answer is ${q.answer.slice(3)})`;
         }
         return tree;
       },
     });
-    expect(calls.filter((c) => c.section === 'A').map((c) => c.topUp)).toEqual([false, true]);
+    expect(calls.filter((c) => c.section === 'A').map((c) => c.topUp || /REWRITE/.test(c.user))).toEqual([false, true]); // round 5: a rewrite
     expect(res.examJson._layout.checks.hard).toBe(0);
     expect(JSON.stringify(res.examJson)).not.toContain('the answer is');
   });
@@ -233,7 +234,7 @@ describe('hard checks after layout', () => {
         if (section.id !== 'A') return undefined;
         const { buildReply } = require('./helpers/fake-deps');
         const tree = buildReply(section.slots, { grade: 9, row: cell.row, levels: TOS.levels, style: cell.style, ur: false }, state);
-        tree.unseen.objective.MCQs.forEach((q) => { q.question = `${q.question} (the answer is ${q.answer.slice(3)})`; });
+        tree['A.Q1'].forEach((q) => { q.question = `${q.question} (the answer is ${q.answer.slice(3)})`; });
         return tree;
       },
     });

@@ -6,6 +6,9 @@
  *   Tier A  soft FIGURE_TASK  the same, or a bare figure noun, after a task verb in its sentence
  *   Tier B  soft FIGURE_WORD  a bare figure noun
  *   hard FIGURE_KEY           a leftover image/diagram key on an item
+ *   soft GRAPH_FROM_DATA      a Tier A graph reference where the student is told to draw/plot that graph and its data
+ *                             (a table or 3+ values) is printed in the item or its passage (round 7 ruling); a graph
+ *                             someone in the passage draws, or one with no printed data, stays hard FIGURE_REF
  * Urdu tokens are draft: needs fluent-Urdu review. Pure.
  */
 const { walk } = require('./_walk-local');
@@ -39,6 +42,12 @@ const CURVE = /\b(?:use|from|study|read|on|in) the (?:curve|graph|table|chart|pl
 const INLINE_DATA = /\||\d[\d.]*\s*[,;]\s*\d[\d.]*\s*[,;]\s*\d/;
 const TIER_B = [/\b(?:figure|diagram|picture|graph|map|circuit|image|chart|sketch|flowchart)s?\b/i, ub(NOUN)];
 const TASK = /\b(?:draw|sketch|construct|plot|make|describe|explain|define|state|write|name)\b/i;
+const GRAPHY = /\b(?:graph|curve|chart|plot)\b/i;
+const DRAW = /\b(?:draw|plot|sketch|construct)\b[^.?!\n]*\b(?:graph|curve|chart)\b/i;
+const drawnFromData = (node, own) => {
+  const all = `${own}\n${str(node.stimulusText)}`;
+  return DRAW.test(all) && INLINE_DATA.test(all);
+};
 const KEYS = ['image', 'image_description', 'picture', 'diagram', 'figure'];
 
 function firstHit(text) {
@@ -63,11 +72,14 @@ function checkNode(node) {
     seen.add(code);
     out.push(issue(ID, code, node.ref, `${field} "${excerpt(text.slice(Math.max(0, at - 10)))}"`, hard));
   };
-  childFields(node, { inherit: false }).forEach(({ field, text }) => {
+  const fields = childFields(node, { inherit: false });
+  const own = fields.map((f) => f.text).join('\n');
+  fields.forEach(({ field, text }) => {
     const a = firstHit(text);
     if (a) {
       const task = taskBefore(text, a.index);
-      add(task ? 'FIGURE_TASK' : 'FIGURE_REF', !task, field, text, a.index);
+      if (!task && GRAPHY.test(a[0]) && drawnFromData(node, own)) add('GRAPH_FROM_DATA', false, field, text, a.index);
+      else add(task ? 'FIGURE_TASK' : 'FIGURE_REF', !task, field, text, a.index);
       return;
     }
     for (const re of TIER_B) {

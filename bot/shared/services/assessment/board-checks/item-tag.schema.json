@@ -68,6 +68,12 @@
    "pattern": "^g(?:[6-9]|1[0-2])\\.[a-z][a-z_]*\\.ch[1-9][0-9]*\\.lo[1-9][0-9]*$",
    "description": "g<grade>.<subject code>.ch<n>.lo<k>; code checks grade/subject/ch match the cell and tag.chapter"
   },
+  "lo_code": {"type": "string", "pattern": "^G(?:[6-9]|1[0-2])-U[1-9][0-9]*-LO[1-9][0-9]*$", "description": "G<grade>-U<unit>-LO<k>; the learning-outcome form the G6-12 LP matrix prints (bd-5jmnfj.38.30); tag-complete checks the grade against the cell"},
+  "book_page_code": {
+   "type": "string",
+   "pattern": "^book p[1-9][0-9]* outcome [1-9][0-9]*$",
+   "description": "book p<page> outcome <n>; the book kind as the G6-12 LP matrix prints it (Islamiat, Pakistan Studies); no grade/subject/chapter to check"
+  },
   "skill_code": {
    "type": "string",
    "pattern": "^(?:english|urdu|islamiat)\\.skill\\.[a-z_]+$",
@@ -104,6 +110,9 @@
    "oneOf": [
     {
      "$ref": "#/$defs/book_code"
+    },
+    {
+     "$ref": "#/$defs/book_page_code"
     },
     {
      "$ref": "#/$defs/skill_code"

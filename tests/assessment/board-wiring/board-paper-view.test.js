@@ -58,7 +58,8 @@ describe('buildPaperView on an English board paper', () => {
     expect(s[0].lead).toBe('Q41-60\nFictional passage 0.');
     expect(s[1].lead).toBe('Fictional passage 1.');
     expect(s[1].heading).toBeNull();
-    expect(s.flatMap((e) => e.questions).map((q) => q.number)).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
+    // round 8 (bd-5jmnfj.38.30): numbers start at the slot label's range, as the board prints Q41-60
+    expect(s.flatMap((e) => e.questions).map((q) => q.number)).toEqual(Array.from({ length: 20 }, (_, i) => i + 41));
   });
 
   test('"Attempt any N" when fewer are attempted than printed; a removed item leaves its slot', () => {
@@ -120,7 +121,7 @@ describe('view() on a board paper', () => {
     exam._layout.pages = { paper: 6, scheme: 3 };
     seed(exam);
     const out = await View.view({ userId: 'u1', paperId: 'p1' });
-    expect(out.paper).toMatchObject({ totalMarks: 60, marks: 60, pages: { paper: 6, scheme: 3 }, pattern: null, youAdd: null });
+    expect(out.paper).toMatchObject({ totalMarks: 60, marks: 60, pages: { paper: 6, scheme: 3 }, pattern: 'fbise_ssc1_2027', youAdd: null });
     expect(out.sections[0].slot).toBe('A.Q1-40');
   });
 

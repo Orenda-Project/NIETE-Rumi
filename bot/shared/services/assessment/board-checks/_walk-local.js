@@ -10,7 +10,12 @@
  * item_ref: `<slot|type>#<n>` (n = 1-based position among that key's top-level items), `/a` `/b` for
  * OR branches, `.p<k>` for a part, `@s<j>` for the j-th stimulus group (RULING: each leaf takes its own n,
  * a group's MCQs carry @s<j>, an OR node counts once, so refs stay unique per leaf).
+ * bd-5jmnfj.38.30 round 6: one walker for refs. Every node walk.js also reaches takes walk.js's ref (`<top>@s<k>`
+ * for a stimulus child), so index.js maps every check's issue to an id; the local form stays only for nodes
+ * walk.js skips (teacher_marked slots).
  */
+
+const W = require('./walk');
 
 const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
 
@@ -80,7 +85,8 @@ function walk(examJson) {
     // a stimulus group's MCQs take the n; the group node itself does not
     visit(it, { key, ref: stim ? null : `${key}#${next(key)}`, slot: it.slot || null, sectionId: hit ? hit.sectionId : null, slotRow: hit ? hit.row : null, stimulusText: null });
   });
-  return out;
+  const shared = new Map([...W.topNodes(examJson), ...W.leaves(examJson)].map((n) => [n.item, n.ref]));
+  return out.map((n) => (shared.has(n.item) ? { ...n, ref: shared.get(n.item) } : n));
 }
 
 const leaves = (examJson) => walk(examJson).filter((n) => !n.container);

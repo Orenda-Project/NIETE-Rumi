@@ -61,9 +61,17 @@ describe('catalogue data', () => {
 });
 
 describe('forSubject(subject, grade) for grade >= 6', () => {
+  it('gives each type its readable label for the app chips (bd-5jmnfj.38.40)', () => {
+    const list = Q6.forSubject('islamiat', 10);
+    expect(list.length).toBeGreaterThan(1);
+    list.forEach((t) => expect(t.label).toBe(Q6.titleOf(t.id)));
+    expect(list.find((t) => t.id === 'board_paper').label).toBe('Board-style paper');
+    expect(list.every((t) => t.label !== t.id)).toBe(true);
+  });
+
   it('puts board_paper first for a board cell', () => {
     const list = Q6.forSubject('physics', 10);
-    expect(list[0]).toEqual({ id: 'board_paper', category: 'board' });
+    expect(list[0]).toEqual({ id: 'board_paper', category: 'board', label: 'Board-style paper' });
     expect(ids(list).slice(1)).toEqual(CONTRACT.type_sets.science['9_10']);
   });
 

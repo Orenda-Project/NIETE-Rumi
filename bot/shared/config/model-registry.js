@@ -112,6 +112,15 @@ const JOBS = {
     site: 'shared/services/assessment/assessment-generation.service.js',
     settingsAtSite: true,
   },
+  'assessment.review': {
+    // bd-5jmnfj.38.31, approved by Amena 2026-11-06. The check of a generated paper's MCQs (its
+    // distractors, two defensible options, an odd-one-out key) by a model that did NOT write it, so it
+    // does not share the writer's blind spots. Its default is of another family than
+    // assessment.generate's; the call site still compares families on the models in force and takes
+    // FALLBACK['assessment.review'] when this one is the writer's family. Board papers reuse it.
+    env: 'ASSESSMENT_REVIEW_MODEL', default: 'anthropic/claude-sonnet-5',
+    site: 'shared/services/assessment/free-secondary.service.js',
+  },
   'hcp.feedback': {
     // falls through to the platform default today, which is why it has no literal of its own
     env: 'HCP_FEEDBACK_MODEL', default: null,
@@ -280,6 +289,8 @@ const FALLBACK = {
   'assessment.generate': 'google/gemini-3.1-pro-preview',  // what it already runs
   // The call site names the paper's own model (per language) as its fallback; this is the floor.
   'assessment.generate.fde': 'google/gemini-3.1-pro-preview',
+  // The alternative the call site takes when the writer is on assessment.review's own family.
+  'assessment.review': 'google/gemini-3.1-pro-preview',
   'hcp.feedback':     null,  // falls through to the platform default, which is the floor
   // bd-s1oo0.5: no validated alternative for any child-test job. A supplier outage leaves that
   // section's marks empty with confidence 0 (ai_status 'partial') and the coach marks it.
@@ -400,6 +411,8 @@ const JSON_REPAIRED_BY_CALLER = Object.freeze({
   'vision.analyse': 'whole',             // classroom-photo/photo-analysis.service.js parseJsonObject: JSON.parse, then jsonrepair (bd-gr4fy.5.7)
   'coaching.fidelityFallback': 'span',   // gpt5-mini.service.js: /\{[\s\S]*\}/, then _safeJsonParse
   'lp.extractText': 'span',              // workers/lesson-plan-extraction.worker.js: same span, then repair
+  'assessment.generate.fde': 'span',     // assessment-generation.service.js _writeSection: extractJsonFromResponse (Amena 2026-11-06)
+  'assessment.generate': 'span',         // same writer, same extractJsonFromResponse
 });
 
 /**
