@@ -69,9 +69,22 @@ describe('forSubject(subject, grade) for grade >= 6', () => {
     expect(list.every((t) => t.label !== t.id)).toBe(true);
   });
 
+  // Amena, 6 Nov: a teacher may not know what "Short Response" or "Extended Response" asks for.
+  it('gives every type a teacher can pick a one-line meaning for the app (bd-5jmnfj.38.41)', () => {
+    const offered = new Set([CONTRACT.first_entry]);
+    Object.values(CONTRACT.type_sets).forEach((bands) => Object.values(bands).forEach((list) => list.forEach((id) => offered.add(id))));
+    offered.forEach((id) => {
+      const t = CONTRACT.types.find((x) => x.id === id);
+      expect([id, typeof t.hint_en === 'string' && t.hint_en.trim().length > 0]).toEqual([id, true]);
+    });
+    const list = Q6.forSubject('islamiat', 6);
+    list.forEach((t) => expect(t.hint).toBe(CONTRACT.types.find((x) => x.id === t.id).hint_en));
+    expect(list.find((t) => t.id === 'srq').hint).toMatch(/4.8 lines/);
+  });
+
   it('puts board_paper first for a board cell', () => {
     const list = Q6.forSubject('physics', 10);
-    expect(list[0]).toEqual({ id: 'board_paper', category: 'board', label: 'Board-style paper' });
+    expect(list[0]).toEqual({ id: 'board_paper', category: 'board', label: 'Board-style paper', hint: expect.any(String) });
     expect(ids(list).slice(1)).toEqual(CONTRACT.type_sets.science['9_10']);
   });
 
