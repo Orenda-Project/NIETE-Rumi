@@ -1331,11 +1331,24 @@ router.post('/classes/remove', requireInternalKey, async (req, res) => {
 // rows from the same catalogue; the portal renders these. One source for what
 // exists, each surface responsible for how it looks.
 
+/**
+ * Which catalogue a portal browse reads (bd-rj6w0n.14): a GB teacher's, with LP_GB_K5_ENABLED on, is the GB K-5
+ * lane (gb-k5-browse — the v10 plans WhatsApp serves); everyone else's is lp-v8-browse, unchanged. A pdf call goes
+ * by its lesson id, so an old v8 id still opens. Flag off: no lookup at all.
+ */
+async function lpBrowseFor(body) {
+  const V8 = require('../services/lp-v8-browse.service');
+  if (!require('../config/lp612-flags').isGbK5Enabled()) return V8;
+  const Gb = require('../services/gb-k5-browse.service');
+  if (body.lessonId !== undefined) return Gb.isGbLessonId(String(body.lessonId).trim()) ? Gb : V8;
+  return (await teacherCurriculum(body)) === 'nbf_snc' ? Gb : V8;
+}
+
 /** Shared wrapper: one require, one catch, one shape. Mirrors trainingRoute. */
 function lpBrowseRoute(name, handler) {
   return async (req, res) => {
     try {
-      const Browse = require('../services/lp-v8-browse.service');
+      const Browse = await lpBrowseFor(req.body || {});
       return await handler(Browse, req, res);
     } catch (error) {
       logToFile('❌ Internal LP catalogue API failed', { route: name, error: error?.message }, 'error');
