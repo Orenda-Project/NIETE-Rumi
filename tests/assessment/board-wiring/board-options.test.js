@@ -104,7 +104,7 @@ describe('POST /assessment/options — the G9-12 board patterns', () => {
     settings[GATE] = true;
     const { payload } = await invoke('/assessment/options', { grade: 9, subject: 'physics', userId: USER });
     expect(payload).not.toHaveProperty('patterns');
-    expect(payload.patternGrades).toEqual([1, 2, 3, 4, 5]);
+    expect(payload.patternGrades).toEqual([5]);
   });
 
   test('a board flag read that throws is off', async () => {
@@ -141,7 +141,7 @@ describe('POST /assessment/options — the G9-12 board patterns', () => {
     settings[GATE] = true;
     const g5 = await invoke('/assessment/options', { grade: 5, subject: 'maths', userId: USER });
     expect(g5.payload.patterns.map((p) => p.id)).toEqual(['fde_g5_2027']);
-    expect(g5.payload.patternGrades).toEqual([1, 2, 3, 4, 5, 9, 10, 11, 12]);
+    expect(g5.payload.patternGrades).toEqual([5, 9, 10, 11, 12]);
     const g9 = await invoke('/assessment/options', { grade: 9, subject: 'physics', userId: USER });
     expect(g9.payload.patterns.map((p) => p.id)).toEqual(['fbise_ssc1_2027']);
   });
