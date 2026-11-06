@@ -235,10 +235,13 @@ async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
   // v3 Flow: every NavigationList row carries its own step, so routing never
   // depends on which screen Meta says we are on.
   const gradeStep = async () => {
-    const keys = await shelf();
-    if (Array.isArray(keys)) return selectGrade(d, BookCurriculum.ICT, null, keys, flowToken);
+    // bd-rj6w0n.14.17 — a GB teacher with LP_GB_K5_ENABLED on gets ONE menu: her book list says which books,
+    // the GB lane serves English/Urdu/Maths/Science, and ICT's corpus serves the rest of the list (GK, SST, Islamiat).
     const c = await books();
-    return selectGrade(d, c, await gbLane(flowToken, c), null, flowToken);
+    const gb = await gbLane(flowToken, c);
+    const keys = await shelf();
+    if (Array.isArray(keys)) return selectGrade(d, gb ? c : BookCurriculum.ICT, gb, keys, flowToken);
+    return selectGrade(d, c, gb, null, flowToken);
   };
   if (step === 'grade')        return gradeStep();
   if (step === 'subject')      return selectSubject(d, await shelf());
@@ -338,7 +341,12 @@ async function selectGrade(screenData, curriculum, gb = null, bookKeys = null, f
       return { data: { error: { message: resolveUx('lp612GbGradeOnly', { language: gb.language }) } } };
     }
     // bd-rj6w0n.14.5 — every GB book for the grade; one without ready plans is listed as Coming Soon.
-    const items = await Lp612GbShelf.gbShelfItems(grade, gb);
+    const items = await Lp612GbShelf.gbShelfItems(grade, Array.isArray(bookKeys) ? { ...gb, bookKeys } : gb);
+    // bd-rj6w0n.14.17 — the rest of her book list (GK, SST, Islamiat: ICT's books, taken as is) keeps its K-5 row.
+    if (Array.isArray(bookKeys)) {
+      const v8 = V8Catalog.buildSubjectItems(grade, await V8Delivery.availableLessonIds(), bookKeys);
+      items.push(...v8.filter((i) => !Lp612Curriculum.isGbOnRequestSubject(grade, i.id)));
+    }
     return {
       screen: 'SELECT_SUBJECT',
       data: { items, grade_value: String(grade), grade_display: gradeTitle(grade) },

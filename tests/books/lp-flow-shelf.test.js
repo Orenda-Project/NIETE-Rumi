@@ -119,7 +119,7 @@ describe("Amena's GB lane is on (LP_GB_K5_ENABLED) and GB's curriculum is nbf_sn
   it('a region with a book list is book-first: her Grade 3 menu is her books, not the curriculum lane', async () => {
     const res = await step('gb-teacher', { step: 'grade', grade: '3' });
     expect(res.screen).toBe('SELECT_SUBJECT');
-    expect(res.data.items.map((r) => r.id)).toEqual(['english', 'general_knowledge']);
-    expect(JSON.stringify(res)).not.toMatch(/lp612_gb_soon|lp612_subject/);
+    // bd-rj6w0n.14.17 — her English is served by the GB lane (Coming Soon until its GB lessons land); GK stays ICT's.
+    expect(res.data.items.map((r) => r.id)).toEqual(['gb_soon_english', 'general_knowledge']);
   });
 });
