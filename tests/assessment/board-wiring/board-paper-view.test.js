@@ -58,7 +58,8 @@ describe('buildPaperView on an English board paper', () => {
     expect(s[0].lead).toBe('Q41-60\nFictional passage 0.');
     expect(s[1].lead).toBe('Fictional passage 1.');
     expect(s[1].heading).toBeNull();
-    expect(s.flatMap((e) => e.questions).map((q) => q.number)).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
+    // round 8 (bd-5jmnfj.38.30): numbers start at the slot label's range, as the board prints Q41-60
+    expect(s.flatMap((e) => e.questions).map((q) => q.number)).toEqual(Array.from({ length: 20 }, (_, i) => i + 41));
   });
 
   test('"Attempt any N" when fewer are attempted than printed; a removed item leaves its slot', () => {
