@@ -206,4 +206,22 @@ function topUp(first, second, slots) {
   return out;
 }
 
-module.exports = { eachList, leavesOf, leavesOfNode, overfull, dropEmptyOptions, liveCounts, shortfallOf, trimExcess, dropIds, stamp, isGroup, fromReply, topUp };
+/**
+ * Round 9b: like topUp, but at most want.get(slot) plain (non-group) nodes per slot, lowest rank(node) first (ties
+ * in order). Inputs are left as they were.
+ */
+function fill(first, second, want, rank = () => 0) {
+  const left = new Map(want);
+  const have = new Set();
+  eachList(first || {}, (list) => list.forEach((q) => { if (isObj(q)) have.add(nodeKey(q)); }));
+  const pick = JSON.parse(JSON.stringify(second || {}));
+  eachList(pick, (list, set) => {
+    const ok = list.filter((q) => isObj(q) && !isGroup(q) && !have.has(nodeKey(q)));
+    const chosen = new Set(ok.map((q, i) => [q, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([q]) => q)
+      .filter((q) => { if (!(left.get(q.slot) > 0)) return false; left.set(q.slot, left.get(q.slot) - 1); return true; }));
+    set(list.filter((q) => chosen.has(q)));
+  });
+  return topUp(first, pick, new Set(want.keys()));
+}
+
+module.exports = { eachList, leavesOf, leavesOfNode, overfull, dropEmptyOptions, liveCounts, shortfallOf, trimExcess, dropIds, stamp, isGroup, fromReply, topUp, fill };

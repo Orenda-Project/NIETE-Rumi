@@ -203,3 +203,22 @@ describe('topUp (board trees: OR nodes and stimulus groups)', () => {
     expect(JSON.stringify([first, second])).toBe(before);
   });
 });
+
+// round 9b: a review-only drop whose replacement fails a hard check gets its original back
+describe('fill (up to a count per slot, plain nodes only)', () => {
+  const grp = (n, slot) => ({ slot, stimulus: { text: `passage ${n}`, items: [mcq(`${n}1`, slot), mcq(`${n}2`, slot)] } });
+  test('adds at most the wanted number per slot, skips groups, nodes already there and slots not wanted', () => {
+    const first = tree(mcq('a', 'M'));
+    const second = tree(mcq('a', 'M'), mcq('b', 'M'), mcq('c', 'M'), mcq('d', 'N'), grp(1, 'M'));
+    const before = JSON.stringify([first, second]);
+    const out = T.fill(first, second, new Map([['M', 1]]));
+    expect(out.unseen.objective.MCQs.map((q) => q.id)).toEqual(['a', 'b']);
+    expect(T.fill(first, second, new Map()).unseen.objective.MCQs.map((q) => q.id)).toEqual(['a']);
+    expect(JSON.stringify([first, second])).toBe(before);
+  });
+  test('rank (lower first) picks which spare nodes fill a slot; ties keep their order', () => {
+    const second = tree(mcq('b', 'M'), mcq('c', 'M'), mcq('d', 'M'));
+    const out = T.fill(tree(), second, new Map([['M', 2]]), (q) => (q.id === 'b' ? 1 : 0));
+    expect(out.unseen.objective.MCQs.map((q) => q.id)).toEqual(['c', 'd']);
+  });
+});
