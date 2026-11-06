@@ -54,8 +54,21 @@ const gbK5Subjects = (grade) => GB_K5_BOOKS.filter((b) => b.grades.includes(Numb
 
 const GB_K5_GRADES = [1, 2, 3, 4, 5];
 
+// bd-rj6w0n.14.16: GB plans are written on request for these books only (Amena, 2026-11-06). GK, SST,
+// Islamiat and anything off the allow-list are never written on request and never offered.
+const GB_ON_REQUEST = ['english', 'urdu', 'maths', 'science'];
+
+/** True when a GB (grade, subject) is one of the on-request books. `subject` is segments.subject, as stored. */
+function isGbOnRequestSubject(grade, subject) {
+  const book = gbK5BookFor(grade, subject);
+  return !!book && GB_ON_REQUEST.includes(book.key);
+}
+
+/** The grade's on-request books, in menu order. */
+const gbOnRequestSubjects = (grade) => gbK5Subjects(grade).filter((b) => GB_ON_REQUEST.includes(b.key));
+
 module.exports = {
-  ICT, NBF_SNC, GB_K5_GRADES,
+  ICT, NBF_SNC, GB_K5_GRADES, GB_ON_REQUEST,
   languageForUserId,
-  isGbK5Book, gbK5BookFor, gbK5Subjects,
+  isGbK5Book, gbK5BookFor, gbK5Subjects, isGbOnRequestSubject, gbOnRequestSubjects,
 };
