@@ -96,12 +96,15 @@ function chunkNote(chunk, used = []) {
 }
 
 /** Round 5: one targeted rewrite of items the checks removed; nothing new is asked for the slot. */
-function rewriteNote(rows, stems = [], used = [], phrases = []) {
+const FIGURE_LINE = 'Some removed items referred to a graph or figure the paper does not print: print the data the student needs (a table or the values) in the stem or passage, or ask the idea without referring to a graph or figure.';
+
+function rewriteNote(rows, stems = [], used = [], phrases = [], figure = false) {
   const list = rows.map((r) => `${r.slot} (rewrite ${r.write})`).join('; ');
   const lines = [`REWRITE: some items failed the checks and were removed. Write replacements only, same rules: ${list}.`];
   if (stems.length) lines.push(`Do not reuse these stems: ${stems.map((x) => `"${x}"`).join('; ')}`);
   // round 6: the keyed item's second rewrite; these phrases already sit in other stems of the section
   if (phrases.length) lines.push(`Do not use these phrases: ${phrases.map((x) => `"${x}"`).join('; ')} (not as a key, an option or in a stem).`);
+  if (figure) lines.push(FIGURE_LINE); // round 7: an N20 drop (no figure ever prints, DESIGN R9)
   if (used.length) lines.push(usedLine(used));
   return lines.join('\n');
 }
