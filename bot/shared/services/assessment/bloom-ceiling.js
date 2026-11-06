@@ -101,6 +101,15 @@ function capBlooms(examJson) {
   return moved;
 }
 
+// Grades 1-2 papers follow FDE's own model assessments, so their tags and prompt stay as written.
+const UNTOUCHED_GRADES = new Set([1, 2]);
+
+/** Whether the cap and the prompt note apply to a paper of this grade (number or numeric string). */
+function appliesToGrade(grade) {
+  const n = typeof grade === 'number' ? grade : Number(String(grade ?? '').trim());
+  return !UNTOUCHED_GRADES.has(n);
+}
+
 /** Appended to the non-board writer's system prompt; the format examples still tag drill Apply. */
 const APPLY_NOTE = [
   '',
@@ -113,4 +122,4 @@ const APPLY_NOTE = [
   '- This overrides any example above.',
 ].join('\n');
 
-module.exports = { ceilingFor, capBlooms, LEVELS, APPLY_NOTE };
+module.exports = { ceilingFor, capBlooms, appliesToGrade, LEVELS, APPLY_NOTE };

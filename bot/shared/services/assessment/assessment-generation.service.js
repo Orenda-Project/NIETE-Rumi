@@ -23,7 +23,7 @@ const { configForRequest, ensureCurrent } = require('../../config/model-settings
 const { logToFile } = require('../../utils/logger');
 const { extractJsonFromResponse } = require('./assessment-json.util');
 const { stemsBlock, applyStems } = require('./topics/stem-prompt');
-const { capBlooms, APPLY_NOTE } = require('./bloom-ceiling');
+const { capBlooms, appliesToGrade, APPLY_NOTE } = require('./bloom-ceiling');
 
 const PROMPTS = require('./ict-prompts.json');
 
@@ -625,9 +625,10 @@ async function generateExam(args) {
   // one: Urdu and English papers run different models, and only this call site knows which.
   const ownModel = resolveModelForJob('assessment.generate', { family }).model;
   const plan = planCounts({ contentSource, questionCount, questionTypes, seenCount });
+  const honestBlooms = appliesToGrade(grade);
 
   const messages = [
-    { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) + APPLY_NOTE },
+    { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) + (honestBlooms ? APPLY_NOTE : '') },
     { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, slos }) },
   ];
 
@@ -699,7 +700,7 @@ async function generateExam(args) {
   normaliseAnswers(examJson);
   // The writer tags its own questions; a bare drill tagged Apply or a one-mark opinion tagged
   // Evaluate is lowered to the level its shape supports (bloom-ceiling.js). Only ever lowers.
-  const bloomsMoved = capBlooms(examJson);
+  const bloomsMoved = honestBlooms ? capBlooms(examJson) : [];
   if (bloomsMoved.length) logToFile('[assessment] bloom tags lowered to fit the question', { moved: bloomsMoved });
   // bd-6clakk.12 — her ticked stems: a near miss is set to the stem; a question using none is logged.
   const { misses: stemMisses } = applyStems(examJson, plan.questionTypes);

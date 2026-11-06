@@ -7,7 +7,7 @@
  * just-taught procedure on a bare item is Understand; Apply needs a new situation.
  * A ceiling only ever lowers a tag; it never raises one. Every case below is a real prod item.
  */
-const { ceilingFor, capBlooms } = require('../../bot/shared/services/assessment/bloom-ceiling');
+const { ceilingFor, capBlooms, appliesToGrade } = require('../../bot/shared/services/assessment/bloom-ceiling');
 
 const q = (question, blooms, extra = {}) => ({ question, blooms, marks: 1, ...extra });
 
@@ -117,4 +117,9 @@ describe('capBlooms — walks a paper, only lowers, reports what moved', () => {
     expect(capBlooms(null)).toEqual([]);
     expect(capBlooms({ seen: 'x', unseen: { a: null } })).toEqual([]);
   });
+});
+
+describe('appliesToGrade — grades 1-2 (FDE model assessments) are left as written', () => {
+  test.each([1, 2, '1', ' 2 '])('grade %p: no', (g) => expect(appliesToGrade(g)).toBe(false));
+  test.each([3, 4, 5, '3', '5', 6])('grade %p: yes', (g) => expect(appliesToGrade(g)).toBe(true));
 });
