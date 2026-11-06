@@ -266,9 +266,9 @@ describe('free-secondary generateExam', () => {
     expect(review.model.split('/')[0]).not.toBe(paper.model.split('/')[0]);
     expect(review.fallbackModel).toBe(paper.model);
     expect(review.temperature).toBe(0);
-    expect(review.max_tokens).toBeLessThanOrEqual(8000);
+    expect(review.max_tokens).toBeLessThanOrEqual(10000);
     expect(review.messages[review.messages.length - 1].content).toContain('c) A banana');
-    expect(review.messages[review.messages.length - 1].content).not.toContain('Why does ice float?');
+    expect(review.messages[review.messages.length - 1].content).toContain('Why does ice float?'); // a8: written items are reviewed too
     const rewrite = mockCreate.mock.calls[2][0].messages;
     expect(rewrite[rewrite.length - 1].content).toContain('a fruit');
     expect(out.rewritten).toEqual([1]);

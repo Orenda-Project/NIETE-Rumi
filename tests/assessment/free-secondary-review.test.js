@@ -126,9 +126,9 @@ describe('review (fake model)', () => {
     expect(out.map((i) => `${i.n}:${i.check}`)).toEqual(['1:weak-distractor']);
   });
 
-  it('makes no call for a paper with no MCQs, and returns nothing when the call fails', async () => {
+  it('makes no call for a paper with no items, and returns nothing when the call fails', async () => {
     const ask = jest.fn().mockRejectedValue(new Error('down'));
-    const none = { unseen: { subjective: { S: [{ question: 'q', answer: 'a' }] } } };
+    const none = { unseen: { subjective: { S: [] } } };
     expect(await Review.review({ examJson: none, grade: 7, ask })).toEqual([]);
     expect(ask).not.toHaveBeenCalled();
     const onError = jest.fn();

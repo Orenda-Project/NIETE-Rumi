@@ -92,6 +92,9 @@ function rulesBlock(grade, lessonTitle, opts = {}) {
   const lesson = lessonTitle
     ? `\n- The lesson is "${lessonTitle}". At least two items ask about it by name: its main idea, event, process or person, not only its vocabulary or grammar.`
     : '';
+  const levels = opts.levels
+    ? `\n- The level plan for this paper, by section and item number:\n${opts.levels}\n- Write each item, and each part, at the level this plan gives it, and tag it so. If what you wrote demands another level, rewrite it until it demands the planned one. A book activity or worked example reproduced counts as Remember.`
+    : '';
   return `
 
 ### GRADES 6-12 RULES (Grade ${Number(grade)}; these override anything above that disagrees)
@@ -111,10 +114,11 @@ ONE FACT, ONE ITEM
 THINKING LEVELS
 - Every item carries "blooms": Remember, Understand, Apply, Analyze, Evaluate or Create: the level it really demands, on every item, not the level you were asked for.
 - An item in labelled parts also carries "part_levels": one level per part, in order (for parts (a), (b), (c): "part_levels": ["Understand", "Apply", "Create"]). Tag each part by what that part demands.
-- Of the paper's marks, aim for about 30% Remember, 30% Understand, 20% Apply, 10% Analyze or Evaluate and 10% Create. Create can be one small item or one part: design, propose or write something new from the lesson. Apply means using the lesson in a new situation the book does not describe; at least one written item does that.
+- Of the paper's marks, aim for about 30% Remember, 30% Understand, 20% Apply, 10% Analyze or Evaluate and 10% Create. Create can be one small item or one part: design, propose or write something new from the lesson. Apply means using the lesson in a new situation the book does not describe; at least one written item does that.${levels}
 MARKING (every item that is not an MCQ)
 - Add "marking_points": [{"point": "<what earns the mark>", "marks": <number>}], one entry per mark or part, summing exactly to the item's marks.
 - ${SCHEME_RULE}
+- A marking point never awards marks for something the stem already prints: if the stem names the word class, tense or form, do not award a mark for identifying it.
 - In a subject other than a language, the accept line also accepts a correct answer written in Urdu or English.`;
 }
 
@@ -137,13 +141,25 @@ function fixNote(issues) {
   ].join('\n');
 }
 
+const fieldText = (v) => (Array.isArray(v) ? v.map((x) => (x && typeof x === 'object'
+  ? `${x.point || x.descriptor || ''} (${x.marks})` : String(x))).join('; ') : String(v || ''));
+
+/** One item as the reviewer reads it: an MCQ with its options and key, a written item with its scheme. */
+function reviewItem(m) {
+  const head = `Q${m.n}: ${m.question}`;
+  const level = `Tagged level: ${m.blooms || 'none'}${Array.isArray(m.part_levels) && m.part_levels.length ? `; parts: ${m.part_levels.join(', ')}` : ''}`;
+  if (Array.isArray(m.options)) return `${head}\n${m.options.join('\n')}\nKey: ${m.key}\n${level}`;
+  return [head, `Answer: ${m.answer || ''}`, `Marking points: ${fieldText(m.marking_points)}`,
+    `Bands: ${fieldText(m.mark_bands)}`, `Accept: ${fieldText(m.accept)}`, `Do not accept: ${fieldText(m.reject)}`, level].join('\n');
+}
+
 /**
- * The distractor review (free-secondary-review.js): each MCQ with its options and key, and the reply
- * wanted. A distractor rated 1 sends its item to the targeted rewrite.
+ * The item review (free-secondary-review.js): every item with its key or scheme, and the reply wanted.
+ * A distractor rated 1, and every yes, sends its item to the targeted rewrite.
  */
-function reviewPrompt(mcqs, grade) {
+function reviewPrompt(entries, grade) {
   return [
-    `You are checking the multiple-choice questions of a Grade ${grade} paper in Pakistan before it is printed.`,
+    `You are checking the items of a Grade ${grade} paper in Pakistan before it is printed.`,
     `For each MCQ, rate every wrong option (distractor) from 1 to 3 for how likely a Grade ${grade} student who holds a common misconception about the topic is to choose it:`,
     '3 = such a student would likely choose it; 2 = some students might; 1 = no student who studied the lesson would choose it (plainly wrong, off the topic, silly, or a giveaway).',
     'Also say whether the key is the longest option or stands out from the others by its length or detail.',
@@ -151,9 +167,15 @@ function reviewPrompt(mcqs, grade) {
     '- two_correct: is more than one option defensibly correct, from the lesson or from the common meaning of the words? (Exactly one option may be right.)',
     '- odd_key: is the key the odd one out of the four, for example the one positive option against three near-synonyms or three negatives?',
     '- stem_grammar: does any option fail to complete the stem grammatically, so that stem and option do not read as one sentence?',
-    'Return JSON only: {"items":[{"n":<question number>,"distractors":[{"option":"a","rating":1,"why":"..."}],"longest_key":false,"two_correct":false,"odd_key":false,"stem_grammar":false,"why":"<one line on any yes>"}]}',
+    'For EVERY item, MCQ or written:',
+    '- level_off: is the item, or each part, really at its tagged level? A book activity or worked example reproduced counts as Remember; recalling a definition is Remember however it is worded. List each item or part that is not, with the level it really demands ([] when all are right).',
+    '- self_answer: does the stem contain part of its own answer (a term, a name or a phrase the answer or the key needs)?',
+    'For every written item (not an MCQ):',
+    '- scheme_conflict: do the accept line, the do-not-accept line and the bands contradict each other (one awards what another refuses), or does the accept line or a band accept a wrong answer?',
+    'Return JSON only: {"items":[{"n":<question number>,"distractors":[{"option":"a","rating":1,"why":"..."}],"longest_key":false,"two_correct":false,"odd_key":false,"stem_grammar":false,"level_off":[{"part":"b","tagged":"Apply","really":"Remember"}],"self_answer":false,"scheme_conflict":false,"why":"<one line on any yes>"}]}',
+    'For a written item leave out distractors, longest_key, two_correct, odd_key and stem_grammar. For an item not in parts, "part" is null.',
     '',
-    ...mcqs.map((m) => `Q${m.n}: ${m.question}\n${m.options.join('\n')}\nKey: ${m.key}`),
+    ...entries.map(reviewItem),
   ].join('\n');
 }
 
