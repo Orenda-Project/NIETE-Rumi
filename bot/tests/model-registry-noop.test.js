@@ -31,6 +31,7 @@ const TODAY = {
   'assessment.generate': () => process.env.ASSESSMENT_GEN_MODEL || 'google/gemini-3.1-pro-preview',
   // Board-pattern papers: their own variable, else exactly what assessment.generate resolves to.
   'assessment.generate.fde': () => process.env.ASSESSMENT_GEN_MODEL_FDE || process.env.ASSESSMENT_GEN_MODEL || 'google/gemini-3.1-pro-preview',
+  'assessment.review': () => process.env.ASSESSMENT_REVIEW_MODEL || 'anthropic/claude-sonnet-5',
   'hcp.feedback':     () => process.env.HCP_FEEDBACK_MODEL || (process.env.LLM_MODEL || 'openai/gpt-4o'),
   'platform.default': () => process.env.LLM_MODEL || 'openai/gpt-4o',
 };
@@ -39,7 +40,7 @@ const VARS = ['LP_AUTHOR_MODEL', 'LP_AUTHOR_MODEL_MATHS_PHYSICS', 'LP_FIDELITY_M
               'LP_EXTRACTION_VISION_MODEL', 'VISION_MODEL', 'ROSTER_VISION_MODEL',
               'TRANSCRIPT_QUIZ_MODEL', 'TRANSCRIPT_QUIZ_VERIFY_MODEL', 'HCP_FEEDBACK_MODEL', 'LLM_MODEL',
               'ASSESSMENT_GEN_MODEL', 'ASSESSMENT_GEN_MODEL_ENG', 'ASSESSMENT_GEN_MODEL_URDU',
-              'ASSESSMENT_GEN_MODEL_FDE'];
+              'ASSESSMENT_GEN_MODEL_FDE', 'ASSESSMENT_REVIEW_MODEL'];
 let saved;
 beforeEach(() => { saved = {}; VARS.forEach((v) => { saved[v] = process.env[v]; delete process.env[v]; }); });
 afterEach(() => VARS.forEach((v) => { if (saved[v] === undefined) delete process.env[v]; else process.env[v] = saved[v]; }));
