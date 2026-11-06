@@ -1,0 +1,162 @@
+{
+ "grade": 12,
+ "code": "pakistan_studies",
+ "source": {
+  "file": "humanities/pak_studies_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "7": [
+   {
+    "code": "book p128 outcome 1",
+    "kind": "book",
+    "desc": "Explain the significance of individuals in shaping a"
+   },
+   {
+    "code": "book p128 outcome 4",
+    "kind": "book",
+    "desc": "Compare and distinguish the role of the state,"
+   },
+   {
+    "code": "book p128 outcome 2",
+    "kind": "book",
+    "desc": "Enumerate the constraints of an individual's contribution in"
+   },
+   {
+    "code": "book p128 outcome 3",
+    "kind": "book",
+    "desc": "Evaluate Quaid's vision for religious freedom and the"
+   }
+  ],
+  "8": [
+   {
+    "code": "book p147 outcome 1",
+    "kind": "book",
+    "desc": "Analyze the importance of Tourism as an industry"
+   },
+   {
+    "code": "book p147 outcome 2",
+    "kind": "book",
+    "desc": "Assess the challenges encountered by the tourism industry"
+   }
+  ],
+  "9": [
+   {
+    "code": "book p162 outcome 1",
+    "kind": "book",
+    "desc": "Discuss the salient features of 1973 Constitution particularly"
+   },
+   {
+    "code": "book p162 outcome 2",
+    "kind": "book",
+    "desc": "Infer the responsibilities of good citizen, women rights,"
+   },
+   {
+    "code": "book p162 outcome 3",
+    "kind": "book",
+    "desc": "Explain the federal structure of the government of"
+   },
+   {
+    "code": "book p128 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p128 outcome 2",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p128 outcome 3",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p128 outcome 4",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p147 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p147 outcome 2",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ],
+  "10": [
+   {
+    "code": "book p178 outcome 1",
+    "kind": "book",
+    "desc": "Analyze the UN Declaration of Human Rights of"
+   },
+   {
+    "code": "book p178 outcome 2",
+    "kind": "book",
+    "desc": "examine the clauses related to child rights, gender"
+   },
+   {
+    "code": "book p178 outcome 3",
+    "kind": "book",
+    "desc": "Recognize the significance of self-sufficiency in food both"
+   },
+   {
+    "code": "book p178 outcome 4",
+    "kind": "book",
+    "desc": "Evaluate the prevalent conditions of women, child labour"
+   },
+   {
+    "code": "book p178 outcome 5",
+    "kind": "book",
+    "desc": "Evaluate the extent to which the SDGs (Sustainable"
+   }
+  ],
+  "11": [
+   {
+    "code": "book p198 outcome 1",
+    "kind": "book",
+    "desc": "Examine the current status of Pakistan's relationships with"
+   },
+   {
+    "code": "book p198 outcome 2",
+    "kind": "book",
+    "desc": "Analyze the Kashmir conflict and expected outcomes of"
+   },
+   {
+    "code": "book p198 outcome 3",
+    "kind": "book",
+    "desc": "Criticize Pak-US relations before and after the 9/11"
+   }
+  ],
+  "12": [
+   {
+    "code": "book p217 outcome 1",
+    "kind": "book",
+    "desc": "Elaborate the significance of the UN's role in"
+   },
+   {
+    "code": "book p217 outcome 2",
+    "kind": "book",
+    "desc": "Discuss the impact of global monetary institutions on"
+   },
+   {
+    "code": "book p198 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p198 outcome 2",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p198 outcome 3",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ]
+ }
+}

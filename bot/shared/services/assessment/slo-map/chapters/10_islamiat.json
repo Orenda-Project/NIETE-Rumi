@@ -1,0 +1,96 @@
+{
+ "grade": 10,
+ "code": "islamiat",
+ "source": {
+  "file": "humanities/islamiat_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "9": [
+   {
+    "code": "book p56 outcome 1",
+    "kind": "book",
+    "desc": "وہ: غزوہ تبوک میں نبی کریم ﷺ اور"
+   }
+  ],
+  "14": [
+   {
+    "code": "book p78 outcome 1",
+    "kind": "book",
+    "desc": "وہ: نبی کریم ﷺ کے اندازِ تربیت سے"
+   }
+  ],
+  "21": [
+   {
+    "code": "book p112 outcome 1",
+    "kind": "book",
+    "desc": "وہ: قرآن وسنّت کی روشنی میں اسلامی ریاست"
+   },
+   {
+    "code": "book p56 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p78 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ],
+  "22": [
+   {
+    "code": "book p118 outcome 1",
+    "kind": "book",
+    "desc": "وہ: قرآن و سنت کی روشنی میں جہاد"
+   }
+  ],
+  "23": [
+   {
+    "code": "book p124 outcome 1",
+    "kind": "book",
+    "desc": "وہ: حضرت زید بن علی رحمۃ اللہ علیہ"
+   }
+  ],
+  "24": [
+   {
+    "code": "book p127 outcome 1",
+    "kind": "book",
+    "desc": "وہ: حضرت عمرو بن العاص رضی اللہ عنہ،"
+   }
+  ],
+  "25": [
+   {
+    "code": "book p134 outcome 1",
+    "kind": "book",
+    "desc": "وہ: حضرت اُم ایمن ؓ، حضرت اُم عمارہ"
+   }
+  ],
+  "29": [
+   {
+    "code": "book p156 outcome 1",
+    "kind": "book",
+    "desc": "وہ: اسلامی تعلیمات اور عصر حاضر کے تقاضوں"
+   },
+   {
+    "code": "book p118 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p124 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p127 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p134 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ]
+ }
+}

@@ -1,0 +1,1059 @@
+{
+ "grade": 10,
+ "code": "physics",
+ "source": {
+  "file": "stem/physics_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "10": [
+   {
+    "code": "P-10-C-41",
+    "kind": "official",
+    "desc": "Analyze everyday applications of conduction, convection and radiation"
+   },
+   {
+    "code": "P-10-F-23",
+    "kind": "official",
+    "desc": "Analyze everyday applications of conduction, convection and radiation"
+   },
+   {
+    "code": "P-10-F-24",
+    "kind": "official",
+    "desc": "Analyze everyday applications of conduction, convection and radiation"
+   },
+   {
+    "code": "P-10-F-25",
+    "kind": "official",
+    "desc": "Analyze everyday applications of conduction, convection and radiation"
+   },
+   {
+    "code": "P-10-C-02",
+    "kind": "official",
+    "desc": "Suggest experiments to measure the specific heat capacity"
+   },
+   {
+    "code": "P-10-C-36",
+    "kind": "official",
+    "desc": "Describe the process of thermal energy transfer by"
+   },
+   {
+    "code": "P-10-C-33",
+    "kind": "official",
+    "desc": "Explain convection in seawater to support marine life"
+   },
+   {
+    "code": "P-10-C-38",
+    "kind": "official",
+    "desc": "Justify qualitatively how the rate of emission of"
+   },
+   {
+    "code": "P-10-C-40",
+    "kind": "official",
+    "desc": "Analyze the consequence of heat radiation in the"
+   },
+   {
+    "code": "P-10-C-34",
+    "kind": "official",
+    "desc": "Describe the role of land breezes and sea"
+   },
+   {
+    "code": "G10-U10-LO1",
+    "kind": "lo",
+    "desc": "Define and calculate specific heat · Suggest experiments"
+   },
+   {
+    "code": "G10-U10-LO2",
+    "kind": "lo",
+    "desc": "Define and calculate specific heat · Suggest experiments"
+   },
+   {
+    "code": "G10-U10-LO3",
+    "kind": "lo",
+    "desc": "Define and calculate specific heat · Suggest experiments"
+   },
+   {
+    "code": "G10-U10-LO4",
+    "kind": "lo",
+    "desc": "Define and calculate specific heat · Suggest experiments"
+   },
+   {
+    "code": "G10-U10-LO5",
+    "kind": "lo",
+    "desc": "Define and calculate specific heat · Suggest experiments"
+   },
+   {
+    "code": "G10-U10-LO6",
+    "kind": "lo",
+    "desc": "Define and calculate specific heat · Suggest experiments"
+   },
+   {
+    "code": "G10-U10-LO7",
+    "kind": "lo",
+    "desc": "Define and calculate specific heat · Suggest experiments"
+   },
+   {
+    "code": "G10-U10-LO8",
+    "kind": "lo",
+    "desc": "Define and calculate specific heat · Suggest experiments"
+   },
+   {
+    "code": "G10-U10-LO9",
+    "kind": "lo",
+    "desc": "Define and calculate specific heat · Suggest experiments"
+   },
+   {
+    "code": "G10-U10-LO10",
+    "kind": "lo",
+    "desc": "Define and calculate specific heat · Suggest experiments"
+   },
+   {
+    "code": "G10-U10-LO11",
+    "kind": "lo",
+    "desc": "Define and calculate specific heat · Suggest experiments"
+   },
+   {
+    "code": "G10-U10-LO12",
+    "kind": "lo",
+    "desc": "Define and calculate specific heat · Suggest experiments"
+   },
+   {
+    "code": "G10-U10-LO13",
+    "kind": "lo",
+    "desc": "Define and calculate specific heat · Suggest experiments"
+   },
+   {
+    "code": "G10-U10-LO14",
+    "kind": "lo",
+    "desc": "Define and calculate specific heat · Suggest experiments"
+   },
+   {
+    "code": "G10-U10-LO15",
+    "kind": "lo",
+    "desc": "Define and calculate specific heat · Suggest experiments"
+   },
+   {
+    "code": "G10-U10-LO16",
+    "kind": "lo",
+    "desc": "Define and calculate specific heat · Suggest experiments"
+   }
+  ],
+  "11": [
+   {
+    "code": "P-10-C-05",
+    "kind": "official",
+    "desc": "Explain thermal expansion in terms of kinetic theory"
+   },
+   {
+    "code": "P-10-C-09",
+    "kind": "official",
+    "desc": "Describe qualitatively the thermal expansion of solids"
+   },
+   {
+    "code": "P-10-C-04",
+    "kind": "official",
+    "desc": "Use the terms for the changes in state"
+   },
+   {
+    "code": "P-10-C-25",
+    "kind": "official",
+    "desc": "Describe the use of cooling caused by evaporation"
+   },
+   {
+    "code": "P-10-C-26",
+    "kind": "official",
+    "desc": "Explain latent heat"
+   },
+   {
+    "code": "P-10-C-27",
+    "kind": "official",
+    "desc": "Justify experiments to determine latent heat of fusion"
+   },
+   {
+    "code": "P-10-C-11",
+    "kind": "official",
+    "desc": "Analyse the pressure and the changes in pressure"
+   },
+   {
+    "code": "P-10-C-28",
+    "kind": "official",
+    "desc": "State that certain materials, when cooled to near"
+   },
+   {
+    "code": "G10-U11-LO1",
+    "kind": "lo",
+    "desc": "Use the terms for the changes in state"
+   },
+   {
+    "code": "G10-U11-LO2",
+    "kind": "lo",
+    "desc": "Use the terms for the changes in state"
+   },
+   {
+    "code": "G10-U11-LO3",
+    "kind": "lo",
+    "desc": "Use the terms for the changes in state"
+   },
+   {
+    "code": "G10-U11-LO4",
+    "kind": "lo",
+    "desc": "Use the terms for the changes in state"
+   },
+   {
+    "code": "G10-U11-LO5",
+    "kind": "lo",
+    "desc": "Use the terms for the changes in state"
+   },
+   {
+    "code": "G10-U11-LO6",
+    "kind": "lo",
+    "desc": "Use the terms for the changes in state"
+   },
+   {
+    "code": "G10-U11-LO7",
+    "kind": "lo",
+    "desc": "Use the terms for the changes in state"
+   },
+   {
+    "code": "G10-U11-LO8",
+    "kind": "lo",
+    "desc": "Use the terms for the changes in state"
+   },
+   {
+    "code": "G10-U11-LO9",
+    "kind": "lo",
+    "desc": "Use the terms for the changes in state"
+   },
+   {
+    "code": "G10-U11-LO10",
+    "kind": "lo",
+    "desc": "Use the terms for the changes in state"
+   },
+   {
+    "code": "G10-U11-LO11",
+    "kind": "lo",
+    "desc": "Use the terms for the changes in state"
+   },
+   {
+    "code": "G10-U11-LO12",
+    "kind": "lo",
+    "desc": "Use the terms for the changes in state"
+   },
+   {
+    "code": "G10-U11-LO13",
+    "kind": "lo",
+    "desc": "Use the terms for the changes in state"
+   },
+   {
+    "code": "G10-U11-LO14",
+    "kind": "lo",
+    "desc": "Use the terms for the changes in state"
+   },
+   {
+    "code": "G10-U11-LO15",
+    "kind": "lo",
+    "desc": "Use the terms for the changes in state"
+   },
+   {
+    "code": "G10-U11-LO16",
+    "kind": "lo",
+    "desc": "Use the terms for the changes in state"
+   }
+  ],
+  "12": [
+   {
+    "code": "P-10-D-02",
+    "kind": "official",
+    "desc": "Describe what is meant by wave motion"
+   },
+   {
+    "code": "P-10-D-06",
+    "kind": "official",
+    "desc": "Illustrate that for a transverse wave, the direction"
+   },
+   {
+    "code": "P-10-D-08",
+    "kind": "official",
+    "desc": "Describe how waves can undergo reflection, refraction and"
+   }
+  ],
+  "13": [
+   {
+    "code": "P-10-D-27",
+    "kind": "official",
+    "desc": "Justify the importance of acoustic protection"
+   },
+   {
+    "code": "P-10-D-28",
+    "kind": "official",
+    "desc": "Justify the importance of acoustic protection"
+   },
+   {
+    "code": "P-10-D-29",
+    "kind": "official",
+    "desc": "Justify the importance of acoustic protection"
+   },
+   {
+    "code": "P-10-D-30",
+    "kind": "official",
+    "desc": "Justify the importance of acoustic protection"
+   },
+   {
+    "code": "P-10-D-31",
+    "kind": "official",
+    "desc": "Explain how sound is converted by the eardrum"
+   },
+   {
+    "code": "P-10-D-13",
+    "kind": "official",
+    "desc": "Describe the longitudinal nature of sound waves"
+   },
+   {
+    "code": "P-10-D-16",
+    "kind": "official",
+    "desc": "Describe how changes in amplitude and frequency affect"
+   },
+   {
+    "code": "P-10-D-18",
+    "kind": "official",
+    "desc": "Describe an echo as the reflection of sound"
+   },
+   {
+    "code": "G10-U13-LO1",
+    "kind": "lo",
+    "desc": "Describe the production of sound · Describe the"
+   },
+   {
+    "code": "G10-U13-LO2",
+    "kind": "lo",
+    "desc": "Describe the production of sound · Describe the"
+   },
+   {
+    "code": "G10-U13-LO3",
+    "kind": "lo",
+    "desc": "Describe the production of sound · Describe the"
+   },
+   {
+    "code": "G10-U13-LO4",
+    "kind": "lo",
+    "desc": "Describe the production of sound · Describe the"
+   },
+   {
+    "code": "G10-U13-LO5",
+    "kind": "lo",
+    "desc": "Describe the production of sound · Describe the"
+   },
+   {
+    "code": "G10-U13-LO6",
+    "kind": "lo",
+    "desc": "Describe the production of sound · Describe the"
+   },
+   {
+    "code": "G10-U13-LO7",
+    "kind": "lo",
+    "desc": "Describe the production of sound · Describe the"
+   },
+   {
+    "code": "G10-U13-LO8",
+    "kind": "lo",
+    "desc": "Describe the production of sound · Describe the"
+   },
+   {
+    "code": "G10-U13-LO9",
+    "kind": "lo",
+    "desc": "Describe the production of sound · Describe the"
+   },
+   {
+    "code": "G10-U13-LO10",
+    "kind": "lo",
+    "desc": "Describe the production of sound · Describe the"
+   },
+   {
+    "code": "G10-U13-LO11",
+    "kind": "lo",
+    "desc": "Describe the production of sound · Describe the"
+   },
+   {
+    "code": "G10-U13-LO12",
+    "kind": "lo",
+    "desc": "Describe the production of sound · Describe the"
+   },
+   {
+    "code": "G10-U13-LO13",
+    "kind": "lo",
+    "desc": "Describe the production of sound · Describe the"
+   },
+   {
+    "code": "G10-U13-LO14",
+    "kind": "lo",
+    "desc": "Describe the production of sound · Describe the"
+   },
+   {
+    "code": "G10-U13-LO15",
+    "kind": "lo",
+    "desc": "Describe the production of sound · Describe the"
+   },
+   {
+    "code": "G10-U13-LO16",
+    "kind": "lo",
+    "desc": "Describe the production of sound · Describe the"
+   }
+  ],
+  "14": [
+   {
+    "code": "P-10-D-48",
+    "kind": "official",
+    "desc": "Differentiate between real and virtual images"
+   },
+   {
+    "code": "P-10-D-49",
+    "kind": "official",
+    "desc": "Differentiate between real and virtual images"
+   },
+   {
+    "code": "P-10-D-50",
+    "kind": "official",
+    "desc": "Differentiate between real and virtual images"
+   },
+   {
+    "code": "P-10-D-51",
+    "kind": "official",
+    "desc": "Differentiate between real and virtual images"
+   },
+   {
+    "code": "P-10-D-37",
+    "kind": "official",
+    "desc": "Define and use the refractive index from a"
+   },
+   {
+    "code": "P-10-D-58",
+    "kind": "official",
+    "desc": "State that 'acoustic lenses' are made of materials"
+   },
+   {
+    "code": "P-10-D-40",
+    "kind": "official",
+    "desc": "Define the terms critical angle and total internal"
+   },
+   {
+    "code": "P-10-D-44",
+    "kind": "official",
+    "desc": "Evaluate and illustrate the use of optical fibers"
+   },
+   {
+    "code": "P-10-D-45",
+    "kind": "official",
+    "desc": "Analyze the action of thin converging and thin"
+   },
+   {
+    "code": "P-10-D-53",
+    "kind": "official",
+    "desc": "Describe the use of a single lens as"
+   },
+   {
+    "code": "P-10-D-55",
+    "kind": "official",
+    "desc": "Describe the use of converging and diverging lenses"
+   },
+   {
+    "code": "G10-U14-LO1",
+    "kind": "lo",
+    "desc": "Define and use the terms normal, angle of"
+   },
+   {
+    "code": "G10-U14-LO2",
+    "kind": "lo",
+    "desc": "Define and use the terms normal, angle of"
+   },
+   {
+    "code": "G10-U14-LO3",
+    "kind": "lo",
+    "desc": "Define and use the terms normal, angle of"
+   },
+   {
+    "code": "G10-U14-LO4",
+    "kind": "lo",
+    "desc": "Define and use the terms normal, angle of"
+   },
+   {
+    "code": "G10-U14-LO5",
+    "kind": "lo",
+    "desc": "Define and use the terms normal, angle of"
+   },
+   {
+    "code": "G10-U14-LO6",
+    "kind": "lo",
+    "desc": "Define and use the terms normal, angle of"
+   },
+   {
+    "code": "G10-U14-LO7",
+    "kind": "lo",
+    "desc": "Define and use the terms normal, angle of"
+   },
+   {
+    "code": "G10-U14-LO8",
+    "kind": "lo",
+    "desc": "Define and use the terms normal, angle of"
+   },
+   {
+    "code": "G10-U14-LO9",
+    "kind": "lo",
+    "desc": "Define and use the terms normal, angle of"
+   },
+   {
+    "code": "G10-U14-LO10",
+    "kind": "lo",
+    "desc": "Define and use the terms normal, angle of"
+   },
+   {
+    "code": "G10-U14-LO11",
+    "kind": "lo",
+    "desc": "Define and use the terms normal, angle of"
+   },
+   {
+    "code": "G10-U14-LO12",
+    "kind": "lo",
+    "desc": "Define and use the terms normal, angle of"
+   },
+   {
+    "code": "G10-U14-LO13",
+    "kind": "lo",
+    "desc": "Define and use the terms normal, angle of"
+   },
+   {
+    "code": "G10-U14-LO14",
+    "kind": "lo",
+    "desc": "Define and use the terms normal, angle of"
+   },
+   {
+    "code": "G10-U14-LO15",
+    "kind": "lo",
+    "desc": "Define and use the terms normal, angle of"
+   },
+   {
+    "code": "G10-U14-LO16",
+    "kind": "lo",
+    "desc": "Define and use the terms normal, angle of"
+   }
+  ],
+  "15": [
+   {
+    "code": "P-10-E-15",
+    "kind": "official",
+    "desc": "Explain how a lightning rod can protect humans"
+   },
+   {
+    "code": "P-10-E-16",
+    "kind": "official",
+    "desc": "Explain how a lightning rod can protect humans"
+   },
+   {
+    "code": "P-10-E-17",
+    "kind": "official",
+    "desc": "Explain how a lightning rod can protect humans"
+   },
+   {
+    "code": "P-09-E-18",
+    "kind": "official",
+    "desc": "Explain how a lightning rod can protect humans"
+   },
+   {
+    "code": "P-10-E-03",
+    "kind": "official",
+    "desc": "Describe experiments to show electrostatic charging by friction"
+   },
+   {
+    "code": "P-10-E-10",
+    "kind": "official",
+    "desc": "State that the direction of an electric field"
+   }
+  ],
+  "16": [
+   {
+    "code": "P-10-E-20",
+    "kind": "official",
+    "desc": "Define and calculate electric current. ✓"
+   },
+   {
+    "code": "P-10-E-22",
+    "kind": "official",
+    "desc": "state that current is measured in amps (amperes)"
+   },
+   {
+    "code": "P-10-E-33",
+    "kind": "official",
+    "desc": "Define and calculate resistivity. ✓"
+   },
+   {
+    "code": "P-10-E-32",
+    "kind": "official",
+    "desc": "Describe an experiment to determine resistance. ✓"
+   }
+  ],
+  "17": [
+   {
+    "code": "P-10-E-52",
+    "kind": "official",
+    "desc": "Define the kilowatt-hour (kWh)"
+   },
+   {
+    "code": "P-10-E-53",
+    "kind": "official",
+    "desc": "Define the kilowatt-hour (kWh)"
+   },
+   {
+    "code": "P-10-E-54",
+    "kind": "official",
+    "desc": "Define the kilowatt-hour (kWh)"
+   },
+   {
+    "code": "P-10-E-55",
+    "kind": "official",
+    "desc": "Define the kilowatt-hour (kWh)"
+   },
+   {
+    "code": "P-10-E-39",
+    "kind": "official",
+    "desc": "Calculate the combined resistance of two or more"
+   },
+   {
+    "code": "P-10-E-40",
+    "kind": "official",
+    "desc": "Calculate the combined resistance of two resistors in"
+   },
+   {
+    "code": "P-10-E-31",
+    "kind": "official",
+    "desc": "State that the e.m.f of identical sources connected"
+   },
+   {
+    "code": "P-10-E-48",
+    "kind": "official",
+    "desc": "State common uses of electricity"
+   },
+   {
+    "code": "P-10-E-59",
+    "kind": "official",
+    "desc": "state that a mains circuit consists of a"
+   },
+   {
+    "code": "G10-U17-LO1",
+    "kind": "lo",
+    "desc": "Calculate the total e.m.f. where several sources are"
+   },
+   {
+    "code": "G10-U17-LO2",
+    "kind": "lo",
+    "desc": "Calculate the total e.m.f. where several sources are"
+   },
+   {
+    "code": "G10-U17-LO3",
+    "kind": "lo",
+    "desc": "Calculate the total e.m.f. where several sources are"
+   },
+   {
+    "code": "G10-U17-LO4",
+    "kind": "lo",
+    "desc": "Calculate the total e.m.f. where several sources are"
+   },
+   {
+    "code": "G10-U17-LO5",
+    "kind": "lo",
+    "desc": "Calculate the total e.m.f. where several sources are"
+   },
+   {
+    "code": "G10-U17-LO6",
+    "kind": "lo",
+    "desc": "Calculate the total e.m.f. where several sources are"
+   },
+   {
+    "code": "G10-U17-LO7",
+    "kind": "lo",
+    "desc": "Calculate the total e.m.f. where several sources are"
+   },
+   {
+    "code": "G10-U17-LO8",
+    "kind": "lo",
+    "desc": "Calculate the total e.m.f. where several sources are"
+   },
+   {
+    "code": "G10-U17-LO9",
+    "kind": "lo",
+    "desc": "Calculate the total e.m.f. where several sources are"
+   },
+   {
+    "code": "G10-U17-LO10",
+    "kind": "lo",
+    "desc": "Calculate the total e.m.f. where several sources are"
+   },
+   {
+    "code": "G10-U17-LO11",
+    "kind": "lo",
+    "desc": "Calculate the total e.m.f. where several sources are"
+   },
+   {
+    "code": "G10-U17-LO12",
+    "kind": "lo",
+    "desc": "Calculate the total e.m.f. where several sources are"
+   },
+   {
+    "code": "G10-U17-LO13",
+    "kind": "lo",
+    "desc": "Calculate the total e.m.f. where several sources are"
+   },
+   {
+    "code": "G10-U17-LO14",
+    "kind": "lo",
+    "desc": "Calculate the total e.m.f. where several sources are"
+   },
+   {
+    "code": "G10-U17-LO15",
+    "kind": "lo",
+    "desc": "Calculate the total e.m.f. where several sources are"
+   },
+   {
+    "code": "G10-U17-LO16",
+    "kind": "lo",
+    "desc": "Calculate the total e.m.f. where several sources are"
+   }
+  ],
+  "18": [
+   {
+    "code": "P-10-E-73",
+    "kind": "official",
+    "desc": "Compare analogue and digital electronics"
+   },
+   {
+    "code": "P-10-E-69",
+    "kind": "official",
+    "desc": "Describe the action of a bipolar npn transistor"
+   },
+   {
+    "code": "P-10-E-72",
+    "kind": "official",
+    "desc": "State that quantum computers are still in early"
+   }
+  ],
+  "19": [
+   {
+    "code": "P-10-E-89",
+    "kind": "official",
+    "desc": "Use the terms primary, secondary coils and step-up"
+   },
+   {
+    "code": "P-10-E-90",
+    "kind": "official",
+    "desc": "Use the terms primary, secondary coils and step-up"
+   },
+   {
+    "code": "P-10-E-91",
+    "kind": "official",
+    "desc": "Use the terms primary, secondary coils and step-up"
+   },
+   {
+    "code": "P-10-E-92",
+    "kind": "official",
+    "desc": "Use the terms primary, secondary coils and step-up"
+   },
+   {
+    "code": "P-10-E-80",
+    "kind": "official",
+    "desc": "State the effect on the magnetic field of"
+   },
+   {
+    "code": "P-10-E-81",
+    "kind": "official",
+    "desc": "Describe how the magnetic effect of a current"
+   },
+   {
+    "code": "P-10-E-82",
+    "kind": "official",
+    "desc": "Describe an experiment to show that a force"
+   },
+   {
+    "code": "P-10-E-85",
+    "kind": "official",
+    "desc": "state that a current-carrying coil in a magnetic"
+   },
+   {
+    "code": "P-10-E-74",
+    "kind": "official",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction"
+   },
+   {
+    "code": "P-10-E-93",
+    "kind": "official",
+    "desc": "Interpret waveforms on oscilloscopes. Electromagnetism is a part"
+   },
+   {
+    "code": "P-10-E-88",
+    "kind": "official",
+    "desc": "Explain the principle of operation of a simple"
+   },
+   {
+    "code": "G10-U19-LO1",
+    "kind": "lo",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction ·"
+   },
+   {
+    "code": "G10-U19-LO2",
+    "kind": "lo",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction ·"
+   },
+   {
+    "code": "G10-U19-LO3",
+    "kind": "lo",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction ·"
+   },
+   {
+    "code": "G10-U19-LO4",
+    "kind": "lo",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction ·"
+   },
+   {
+    "code": "G10-U19-LO5",
+    "kind": "lo",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction ·"
+   },
+   {
+    "code": "G10-U19-LO6",
+    "kind": "lo",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction ·"
+   },
+   {
+    "code": "G10-U19-LO7",
+    "kind": "lo",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction ·"
+   },
+   {
+    "code": "G10-U19-LO8",
+    "kind": "lo",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction ·"
+   },
+   {
+    "code": "G10-U19-LO9",
+    "kind": "lo",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction ·"
+   },
+   {
+    "code": "G10-U19-LO10",
+    "kind": "lo",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction ·"
+   },
+   {
+    "code": "G10-U19-LO11",
+    "kind": "lo",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction ·"
+   },
+   {
+    "code": "G10-U19-LO12",
+    "kind": "lo",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction ·"
+   },
+   {
+    "code": "G10-U19-LO13",
+    "kind": "lo",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction ·"
+   },
+   {
+    "code": "G10-U19-LO14",
+    "kind": "lo",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction ·"
+   },
+   {
+    "code": "G10-U19-LO15",
+    "kind": "lo",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction ·"
+   },
+   {
+    "code": "G10-U19-LO16",
+    "kind": "lo",
+    "desc": "Describe an experiment to demonstrate electromagnetic induction ·"
+   }
+  ],
+  "20": [
+   {
+    "code": "P-10-E-94",
+    "kind": "official",
+    "desc": "state the main regions of the electromagnetic spectrum"
+   },
+   {
+    "code": "P-10-E-95",
+    "kind": "official",
+    "desc": "state that the speed of all electromagnetic waves"
+   },
+   {
+    "code": "P-10-E-96",
+    "kind": "official",
+    "desc": "Describe the applications of electromagnetic waves in society"
+   },
+   {
+    "code": "P-10-E-99",
+    "kind": "official",
+    "desc": "State that theoretically light can also considered to"
+   },
+   {
+    "code": "G10-U20-LO1",
+    "kind": "lo",
+    "desc": "state the main regions of the electromagnetic spectrum"
+   },
+   {
+    "code": "G10-U20-LO2",
+    "kind": "lo",
+    "desc": "state that the speed of all electromagnetic waves"
+   },
+   {
+    "code": "G10-U20-LO3",
+    "kind": "lo",
+    "desc": "Describe the applications of electromagnetic waves in society"
+   },
+   {
+    "code": "G10-U20-LO4",
+    "kind": "lo",
+    "desc": "Describe the damage caused by electromagnetic radiation"
+   },
+   {
+    "code": "G10-U20-LO5",
+    "kind": "lo",
+    "desc": "Explain qualitatively, how scattering of light by molecules"
+   },
+   {
+    "code": "G10-U20-LO6",
+    "kind": "lo",
+    "desc": "State that theoretically light can also considered to"
+   }
+  ],
+  "21": [
+   {
+    "code": "P-10-F-14",
+    "kind": "official",
+    "desc": "Recognise that matter can be converted to energy"
+   },
+   {
+    "code": "P-10-F-15",
+    "kind": "official",
+    "desc": "Recognise that matter can be converted to energy"
+   },
+   {
+    "code": "P-10-F-16",
+    "kind": "official",
+    "desc": "Recognise that matter can be converted to energy"
+   },
+   {
+    "code": "P-10-F-17",
+    "kind": "official",
+    "desc": "Recognise that matter can be converted to energy"
+   },
+   {
+    "code": "P-10-F-10",
+    "kind": "official",
+    "desc": "Justify qualitatively the order of strength for α-particles,"
+   },
+   {
+    "code": "P-10-F-12",
+    "kind": "official",
+    "desc": "Explain that radioactive decay is a change in"
+   },
+   {
+    "code": "P-10-G-01",
+    "kind": "official",
+    "desc": "Explain, with examples in Physics, falsifiability as the"
+   },
+   {
+    "code": "P-10-F-20",
+    "kind": "official",
+    "desc": "State the effects of ionizing nuclear radiations on"
+   },
+   {
+    "code": "P-10-F-19",
+    "kind": "official",
+    "desc": "Explain how the type of radiation emitted and"
+   },
+   {
+    "code": "P-10-F-06",
+    "kind": "official",
+    "desc": "Explain what is meant by background radiation"
+   },
+   {
+    "code": "G10-U21-LO1",
+    "kind": "lo",
+    "desc": "Describe the structure of the atom · Justify"
+   },
+   {
+    "code": "G10-U21-LO2",
+    "kind": "lo",
+    "desc": "Describe the structure of the atom · Justify"
+   },
+   {
+    "code": "G10-U21-LO3",
+    "kind": "lo",
+    "desc": "Describe the structure of the atom · Justify"
+   },
+   {
+    "code": "G10-U21-LO4",
+    "kind": "lo",
+    "desc": "Describe the structure of the atom · Justify"
+   },
+   {
+    "code": "G10-U21-LO5",
+    "kind": "lo",
+    "desc": "Describe the structure of the atom · Justify"
+   },
+   {
+    "code": "G10-U21-LO6",
+    "kind": "lo",
+    "desc": "Describe the structure of the atom · Justify"
+   },
+   {
+    "code": "G10-U21-LO7",
+    "kind": "lo",
+    "desc": "Describe the structure of the atom · Justify"
+   },
+   {
+    "code": "G10-U21-LO8",
+    "kind": "lo",
+    "desc": "Describe the structure of the atom · Justify"
+   },
+   {
+    "code": "G10-U21-LO9",
+    "kind": "lo",
+    "desc": "Describe the structure of the atom · Justify"
+   },
+   {
+    "code": "G10-U21-LO10",
+    "kind": "lo",
+    "desc": "Describe the structure of the atom · Justify"
+   },
+   {
+    "code": "G10-U21-LO11",
+    "kind": "lo",
+    "desc": "Describe the structure of the atom · Justify"
+   },
+   {
+    "code": "G10-U21-LO12",
+    "kind": "lo",
+    "desc": "Describe the structure of the atom · Justify"
+   },
+   {
+    "code": "G10-U21-LO13",
+    "kind": "lo",
+    "desc": "Describe the structure of the atom · Justify"
+   },
+   {
+    "code": "G10-U21-LO14",
+    "kind": "lo",
+    "desc": "Describe the structure of the atom · Justify"
+   },
+   {
+    "code": "G10-U21-LO15",
+    "kind": "lo",
+    "desc": "Describe the structure of the atom · Justify"
+   },
+   {
+    "code": "G10-U21-LO16",
+    "kind": "lo",
+    "desc": "Describe the structure of the atom · Justify"
+   }
+  ]
+ }
+}

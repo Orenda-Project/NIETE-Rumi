@@ -1,0 +1,239 @@
+{
+ "grade": 9,
+ "code": "biology",
+ "source": {
+  "file": "stem/biology_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "2": [
+   {
+    "code": "G9-U2-LO1",
+    "kind": "lo",
+    "desc": "Define Biochemistry/molecular biology 2"
+   },
+   {
+    "code": "G9-U2-LO2",
+    "kind": "lo",
+    "desc": "Outline the various types of common biomolecules (DNA,"
+   },
+   {
+    "code": "G9-U2-LO6",
+    "kind": "lo",
+    "desc": "Identify carbohydrates as monosaccharides, disaccharides and polysaccharides"
+   },
+   {
+    "code": "G9-U2-LO8",
+    "kind": "lo",
+    "desc": "Outline function of DNA as carrier of hereditary"
+   },
+   {
+    "code": "G9-U2-LO3",
+    "kind": "lo",
+    "desc": "Define Biochemistry/molecular biology 2 · Outline the various"
+   },
+   {
+    "code": "G9-U2-LO4",
+    "kind": "lo",
+    "desc": "Define Biochemistry/molecular biology 2 · Outline the various"
+   },
+   {
+    "code": "G9-U2-LO5",
+    "kind": "lo",
+    "desc": "Define Biochemistry/molecular biology 2 · Outline the various"
+   },
+   {
+    "code": "G9-U2-LO7",
+    "kind": "lo",
+    "desc": "Define Biochemistry/molecular biology 2 · Outline the various"
+   },
+   {
+    "code": "G9-U2-LO9",
+    "kind": "lo",
+    "desc": "Define Biochemistry/molecular biology 2 · Outline the various"
+   },
+   {
+    "code": "G9-U2-LO10",
+    "kind": "lo",
+    "desc": "Define Biochemistry/molecular biology 2 · Outline the various"
+   },
+   {
+    "code": "G9-U2-LO11",
+    "kind": "lo",
+    "desc": "Define Biochemistry/molecular biology 2 · Outline the various"
+   }
+  ],
+  "3": [
+   {
+    "code": "G9-U3-LO1",
+    "kind": "lo",
+    "desc": "Describe cell as the basic unit of life"
+   },
+   {
+    "code": "G9-U3-LO2",
+    "kind": "lo",
+    "desc": "Compare with diagram the structure of animal and"
+   },
+   {
+    "code": "G9-U3-LO3",
+    "kind": "lo",
+    "desc": "Sketch different subcellular organelles nucleus, mitochondria, cell membrane"
+   },
+   {
+    "code": "G9-U3-LO6",
+    "kind": "lo",
+    "desc": "Describe the concept of division of labour and"
+   }
+  ],
+  "4": [
+   {
+    "code": "G9-U4-LO5",
+    "kind": "lo",
+    "desc": "Discuss the various organs and systems of the"
+   },
+   {
+    "code": "G9-U4-LO4",
+    "kind": "lo",
+    "desc": "Describe the advantages of homeostasis"
+   },
+   {
+    "code": "G9-U4-LO1",
+    "kind": "lo",
+    "desc": "Describe the concept of emergent properties as gain"
+   }
+  ],
+  "7": [
+   {
+    "code": "G9-U7-LO1",
+    "kind": "lo",
+    "desc": "Define metabolism, catabolism and anabolism with examples"
+   },
+   {
+    "code": "G9-U7-LO4",
+    "kind": "lo",
+    "desc": "Discuss the role of ATP as energy currency"
+   },
+   {
+    "code": "G9-U7-LO5",
+    "kind": "lo",
+    "desc": "Describe photosynthesis in Plants"
+   },
+   {
+    "code": "G9-U7-LO2",
+    "kind": "lo",
+    "desc": "Define enzymes and describe their characteristics"
+   },
+   {
+    "code": "G9-U7-LO3",
+    "kind": "lo",
+    "desc": "Describe competetitive and non competetive inhibition"
+   },
+   {
+    "code": "G9-U7-LO6",
+    "kind": "lo",
+    "desc": "Explain aerobic respiration and anaerobic respiration"
+   }
+  ],
+  "8": [
+   {
+    "code": "G9-U8-LO1",
+    "kind": "lo",
+    "desc": "Define mineral nutrition in plants"
+   },
+   {
+    "code": "G9-U8-LO5",
+    "kind": "lo",
+    "desc": "Describe how roots take up water and mineral"
+   },
+   {
+    "code": "G9-U8-LO7",
+    "kind": "lo",
+    "desc": "Describe temperature, wind and humidity as factors affecting"
+   },
+   {
+    "code": "G9-U8-LO8",
+    "kind": "lo",
+    "desc": "Explain the mechanism of food translocation by the"
+   },
+   {
+    "code": "G9-U8-LO12",
+    "kind": "lo",
+    "desc": "Explain osmotic adjustment in plants"
+   },
+   {
+    "code": "G9-U8-LO2",
+    "kind": "lo",
+    "desc": "State that nitrogen is important in protein synthesis"
+   },
+   {
+    "code": "G9-U8-LO3",
+    "kind": "lo",
+    "desc": "Explain the internal structure of root and root"
+   },
+   {
+    "code": "G9-U8-LO4",
+    "kind": "lo",
+    "desc": "Describe how roots take up water and minerals"
+   },
+   {
+    "code": "G9-U8-LO6",
+    "kind": "lo",
+    "desc": "Describe transpiration and relate this process with the"
+   },
+   {
+    "code": "G9-U8-LO9",
+    "kind": "lo",
+    "desc": "Describe the process of gaseous exchange in plants"
+   },
+   {
+    "code": "G9-U8-LO10",
+    "kind": "lo",
+    "desc": "Define homeostasis and describe its importance"
+   },
+   {
+    "code": "G9-U8-LO11",
+    "kind": "lo",
+    "desc": "Describe the mechanism of adaptations of plants for"
+   }
+  ],
+  "9": [
+   {
+    "code": "G9-U9-LO1",
+    "kind": "lo",
+    "desc": "Describe different types of asexual production i.e., Binary"
+   },
+   {
+    "code": "G9-U9-LO2",
+    "kind": "lo",
+    "desc": "Explain vegetative propagation in plants through stem suckers"
+   },
+   {
+    "code": "G9-U9-LO5",
+    "kind": "lo",
+    "desc": "Explain sexual reproduction in plants"
+   },
+   {
+    "code": "G9-U9-LO3",
+    "kind": "lo",
+    "desc": "Describe the two methods of artificial vegetative propagation"
+   },
+   {
+    "code": "G9-U9-LO4",
+    "kind": "lo",
+    "desc": "Distinguish between vegetative propagation and artificial propagation"
+   }
+  ],
+  "10": [
+   {
+    "code": "B-09-B-01",
+    "kind": "official",
+    "desc": "Explain the theory of evolution by natural selection"
+   },
+   {
+    "code": "B-09-B-05",
+    "kind": "official",
+    "desc": "Describe sources of variations which can lead to"
+   }
+  ]
+ }
+}

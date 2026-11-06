@@ -1,0 +1,633 @@
+{
+ "grade": 11,
+ "code": "physics",
+ "source": {
+  "file": "stem/physics_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "1": [
+   {
+    "code": "G11-U1-LO1",
+    "kind": "lo",
+    "desc": "Make reasonable estimates of physical quantities"
+   },
+   {
+    "code": "G11-U1-LO4",
+    "kind": "lo",
+    "desc": "Derive formulae in simple cases"
+   }
+  ],
+  "2": [
+   {
+    "code": "G11-U2-LO2",
+    "kind": "lo",
+    "desc": "Describe the product of two vectors (dot and"
+   }
+  ],
+  "3": [
+   {
+    "code": "G11-U3-LO3",
+    "kind": "lo",
+    "desc": "Solve problems using the equations of motion [For"
+   },
+   {
+    "code": "G11-U3-LO4",
+    "kind": "lo",
+    "desc": "Evaluate and analyse projectile motion in the absence"
+   },
+   {
+    "code": "G11-U3-LO1",
+    "kind": "lo",
+    "desc": "Derive the equations of motion [For uniform acceleration"
+   }
+  ],
+  "4": [
+   {
+    "code": "G11-U4-LO3",
+    "kind": "lo",
+    "desc": "Use equations of angular motion to solve problems"
+   },
+   {
+    "code": "G11-U4-LO10",
+    "kind": "lo",
+    "desc": "Derive and apply the relation between torque, moment"
+   },
+   {
+    "code": "G11-U4-LO5",
+    "kind": "lo",
+    "desc": "Define and calculate centripetal force"
+   },
+   {
+    "code": "G11-U4-LO7",
+    "kind": "lo",
+    "desc": "Define and calculate moment of inertia of a"
+   },
+   {
+    "code": "G11-U4-LO8",
+    "kind": "lo",
+    "desc": "State and apply the law of conservation of"
+   },
+   {
+    "code": "G11-U4-LO9",
+    "kind": "lo",
+    "desc": "Justify how a centrifuge is used to separate"
+   },
+   {
+    "code": "G11-U4-LO1",
+    "kind": "lo",
+    "desc": "Express angles in radians · Define and calculate"
+   },
+   {
+    "code": "G11-U4-LO2",
+    "kind": "lo",
+    "desc": "Express angles in radians · Define and calculate"
+   },
+   {
+    "code": "G11-U4-LO4",
+    "kind": "lo",
+    "desc": "Express angles in radians · Define and calculate"
+   },
+   {
+    "code": "G11-U4-LO6",
+    "kind": "lo",
+    "desc": "Express angles in radians · Define and calculate"
+   },
+   {
+    "code": "G11-U4-LO11",
+    "kind": "lo",
+    "desc": "Express angles in radians · Define and calculate"
+   },
+   {
+    "code": "G11-U4-LO12",
+    "kind": "lo",
+    "desc": "Express angles in radians · Define and calculate"
+   }
+  ],
+  "5": [
+   {
+    "code": "G11-U5-LO2",
+    "kind": "lo",
+    "desc": "Deduce the work done from force-displacement graph"
+   },
+   {
+    "code": "G11-U5-LO1",
+    "kind": "lo",
+    "desc": "Derive the formula for kinetic energy"
+   }
+  ],
+  "6": [
+   {
+    "code": "G11-U6-LO1",
+    "kind": "lo",
+    "desc": "Justify and use Archimedes's principle of flotation"
+   },
+   {
+    "code": "G11-U6-LO3",
+    "kind": "lo",
+    "desc": "Define and apply the terms: steady (streamline or"
+   },
+   {
+    "code": "G11-U6-LO8",
+    "kind": "lo",
+    "desc": "Explain and apply Bernoulli's equation for horizontal and"
+   },
+   {
+    "code": "G11-U6-LO11",
+    "kind": "lo",
+    "desc": "Describe super fluidity [As the state in which"
+   },
+   {
+    "code": "G11-U6-LO10",
+    "kind": "lo",
+    "desc": "Describe how viscous forces in a fluid cause"
+   },
+   {
+    "code": "G11-U6-LO2",
+    "kind": "lo",
+    "desc": "Justify how ships are engineered to float in"
+   },
+   {
+    "code": "G11-U6-LO4",
+    "kind": "lo",
+    "desc": "Use equation of continuity to solve problems"
+   },
+   {
+    "code": "G11-U6-LO5",
+    "kind": "lo",
+    "desc": "Explain that squeezing the end of a rubber"
+   },
+   {
+    "code": "G11-U6-LO6",
+    "kind": "lo",
+    "desc": "Justify that the continuity is a form of"
+   },
+   {
+    "code": "G11-U6-LO7",
+    "kind": "lo",
+    "desc": "Justify that the pressure difference can arise from"
+   },
+   {
+    "code": "G11-U6-LO9",
+    "kind": "lo",
+    "desc": "Explain why real fluids are viscous fluids"
+   }
+  ],
+  "7": [
+   {
+    "code": "G11-U7-LO1",
+    "kind": "lo",
+    "desc": "Distinguish between the structures of crystalline, glassy, amorphous"
+   },
+   {
+    "code": "G11-U7-LO3",
+    "kind": "lo",
+    "desc": "Define and use the terms stress, strain and"
+   },
+   {
+    "code": "G11-U7-LO7",
+    "kind": "lo",
+    "desc": "Determine the elastic potential energy of a material"
+   }
+  ],
+  "8": [
+   {
+    "code": "G11-U8-LO1",
+    "kind": "lo",
+    "desc": "State that regions of equal temperatures are in"
+   },
+   {
+    "code": "G11-U8-LO4",
+    "kind": "lo",
+    "desc": "State that the Boltzmann constant is given by:"
+   },
+   {
+    "code": "G11-U8-LO7",
+    "kind": "lo",
+    "desc": "Define and use first law of thermodynamics"
+   },
+   {
+    "code": "G11-U8-LO5",
+    "kind": "lo",
+    "desc": "Use W = pΔV for the work done"
+   },
+   {
+    "code": "G11-U8-LO16",
+    "kind": "lo",
+    "desc": "Describe that refrigerator is a heat engine operating"
+   },
+   {
+    "code": "G11-U8-LO2",
+    "kind": "lo",
+    "desc": "State that regions of equal temperatures are in"
+   },
+   {
+    "code": "G11-U8-LO3",
+    "kind": "lo",
+    "desc": "State that regions of equal temperatures are in"
+   },
+   {
+    "code": "G11-U8-LO6",
+    "kind": "lo",
+    "desc": "State that regions of equal temperatures are in"
+   },
+   {
+    "code": "G11-U8-LO8",
+    "kind": "lo",
+    "desc": "State that regions of equal temperatures are in"
+   },
+   {
+    "code": "G11-U8-LO9",
+    "kind": "lo",
+    "desc": "State that regions of equal temperatures are in"
+   },
+   {
+    "code": "G11-U8-LO10",
+    "kind": "lo",
+    "desc": "State that regions of equal temperatures are in"
+   },
+   {
+    "code": "G11-U8-LO11",
+    "kind": "lo",
+    "desc": "State that regions of equal temperatures are in"
+   },
+   {
+    "code": "G11-U8-LO12",
+    "kind": "lo",
+    "desc": "State that regions of equal temperatures are in"
+   },
+   {
+    "code": "G11-U8-LO13",
+    "kind": "lo",
+    "desc": "State that regions of equal temperatures are in"
+   },
+   {
+    "code": "G11-U8-LO14",
+    "kind": "lo",
+    "desc": "State that regions of equal temperatures are in"
+   },
+   {
+    "code": "G11-U8-LO15",
+    "kind": "lo",
+    "desc": "State that regions of equal temperatures are in"
+   }
+  ],
+  "9": [
+   {
+    "code": "G11-U9-LO16",
+    "kind": "lo",
+    "desc": "Describe qualitatively gravitational waves"
+   },
+   {
+    "code": "G11-U9-LO3",
+    "kind": "lo",
+    "desc": "Explain that when a source of sound waves"
+   },
+   {
+    "code": "G11-U9-LO7",
+    "kind": "lo",
+    "desc": "Use the principle of superposition of waves to"
+   },
+   {
+    "code": "G11-U9-LO5",
+    "kind": "lo",
+    "desc": "Explain that polarization is a phenomenon associated with"
+   },
+   {
+    "code": "G11-U9-LO1",
+    "kind": "lo",
+    "desc": "Use intensity = power/area to solve problems ·"
+   },
+   {
+    "code": "G11-U9-LO2",
+    "kind": "lo",
+    "desc": "Use intensity = power/area to solve problems ·"
+   },
+   {
+    "code": "G11-U9-LO4",
+    "kind": "lo",
+    "desc": "Use intensity = power/area to solve problems ·"
+   },
+   {
+    "code": "G11-U9-LO6",
+    "kind": "lo",
+    "desc": "Use intensity = power/area to solve problems ·"
+   },
+   {
+    "code": "G11-U9-LO8",
+    "kind": "lo",
+    "desc": "Use intensity = power/area to solve problems ·"
+   },
+   {
+    "code": "G11-U9-LO9",
+    "kind": "lo",
+    "desc": "Use intensity = power/area to solve problems ·"
+   },
+   {
+    "code": "G11-U9-LO10",
+    "kind": "lo",
+    "desc": "Use intensity = power/area to solve problems ·"
+   },
+   {
+    "code": "G11-U9-LO11",
+    "kind": "lo",
+    "desc": "Use intensity = power/area to solve problems ·"
+   },
+   {
+    "code": "G11-U9-LO12",
+    "kind": "lo",
+    "desc": "Use intensity = power/area to solve problems ·"
+   },
+   {
+    "code": "G11-U9-LO13",
+    "kind": "lo",
+    "desc": "Use intensity = power/area to solve problems ·"
+   },
+   {
+    "code": "G11-U9-LO14",
+    "kind": "lo",
+    "desc": "Use intensity = power/area to solve problems ·"
+   },
+   {
+    "code": "G11-U9-LO15",
+    "kind": "lo",
+    "desc": "Use intensity = power/area to solve problems ·"
+   }
+  ],
+  "10": [
+   {
+    "code": "G11-U10-LO8",
+    "kind": "lo",
+    "desc": "State and apply Coulomb's law Use E ="
+   },
+   {
+    "code": "G11-U10-LO1",
+    "kind": "lo",
+    "desc": "state that an electric field is an example"
+   },
+   {
+    "code": "G11-U10-LO5",
+    "kind": "lo",
+    "desc": "Describe the effect of a uniform electric field"
+   }
+  ],
+  "11": [
+   {
+    "code": "G11-U11-LO1",
+    "kind": "lo",
+    "desc": "Use, for a current-carrying conductor, the expression I"
+   },
+   {
+    "code": "G11-U11-LO6",
+    "kind": "lo",
+    "desc": "Distinguish between e.m.f. and potential difference (p.d.) in"
+   },
+   {
+    "code": "G11-U11-LO4",
+    "kind": "lo",
+    "desc": "State that the resistance of a light-dependent resistor"
+   },
+   {
+    "code": "G11-U11-LO15",
+    "kind": "lo",
+    "desc": "Explain the use of thermistors and light-dependent resistors"
+   },
+   {
+    "code": "G11-U11-LO10",
+    "kind": "lo",
+    "desc": "Derive, using Kirchhoff's laws, a formula for the"
+   },
+   {
+    "code": "G11-U11-LO2",
+    "kind": "lo",
+    "desc": "Use, for a current-carrying conductor, the expression I"
+   },
+   {
+    "code": "G11-U11-LO3",
+    "kind": "lo",
+    "desc": "Use, for a current-carrying conductor, the expression I"
+   },
+   {
+    "code": "G11-U11-LO5",
+    "kind": "lo",
+    "desc": "Use, for a current-carrying conductor, the expression I"
+   },
+   {
+    "code": "G11-U11-LO7",
+    "kind": "lo",
+    "desc": "Use, for a current-carrying conductor, the expression I"
+   },
+   {
+    "code": "G11-U11-LO8",
+    "kind": "lo",
+    "desc": "Use, for a current-carrying conductor, the expression I"
+   },
+   {
+    "code": "G11-U11-LO9",
+    "kind": "lo",
+    "desc": "Use, for a current-carrying conductor, the expression I"
+   },
+   {
+    "code": "G11-U11-LO11",
+    "kind": "lo",
+    "desc": "Use, for a current-carrying conductor, the expression I"
+   },
+   {
+    "code": "G11-U11-LO12",
+    "kind": "lo",
+    "desc": "Use, for a current-carrying conductor, the expression I"
+   },
+   {
+    "code": "G11-U11-LO13",
+    "kind": "lo",
+    "desc": "Use, for a current-carrying conductor, the expression I"
+   },
+   {
+    "code": "G11-U11-LO14",
+    "kind": "lo",
+    "desc": "Use, for a current-carrying conductor, the expression I"
+   },
+   {
+    "code": "G11-U11-LO16",
+    "kind": "lo",
+    "desc": "Use, for a current-carrying conductor, the expression I"
+   }
+  ],
+  "12": [
+   {
+    "code": "G11-U12-LO1",
+    "kind": "lo",
+    "desc": "Define and explain magnetic fields"
+   },
+   {
+    "code": "G11-U12-LO4",
+    "kind": "lo",
+    "desc": "Define magnetic flux density use F = BQV"
+   },
+   {
+    "code": "G11-U12-LO5",
+    "kind": "lo",
+    "desc": "describe the motion of a charged particle moving"
+   },
+   {
+    "code": "G11-U12-LO9",
+    "kind": "lo",
+    "desc": "explain the origin of the forces between current-carrying"
+   },
+   {
+    "code": "G11-U12-LO14",
+    "kind": "lo",
+    "desc": "Use Faraday's and Lenz's laws of electromagnetic induction"
+   },
+   {
+    "code": "G11-U12-LO13",
+    "kind": "lo",
+    "desc": "explain experiments that demonstrate Faraday's and Lenz's laws."
+   },
+   {
+    "code": "G11-U12-LO2",
+    "kind": "lo",
+    "desc": "Define and explain magnetic fields · state that"
+   },
+   {
+    "code": "G11-U12-LO3",
+    "kind": "lo",
+    "desc": "Define and explain magnetic fields · state that"
+   },
+   {
+    "code": "G11-U12-LO6",
+    "kind": "lo",
+    "desc": "Define and explain magnetic fields · state that"
+   },
+   {
+    "code": "G11-U12-LO7",
+    "kind": "lo",
+    "desc": "Define and explain magnetic fields · state that"
+   },
+   {
+    "code": "G11-U12-LO8",
+    "kind": "lo",
+    "desc": "Define and explain magnetic fields · state that"
+   },
+   {
+    "code": "G11-U12-LO10",
+    "kind": "lo",
+    "desc": "Define and explain magnetic fields · state that"
+   },
+   {
+    "code": "G11-U12-LO11",
+    "kind": "lo",
+    "desc": "Define and explain magnetic fields · state that"
+   },
+   {
+    "code": "G11-U12-LO12",
+    "kind": "lo",
+    "desc": "Define and explain magnetic fields · state that"
+   },
+   {
+    "code": "G11-U12-LO15",
+    "kind": "lo",
+    "desc": "Define and explain magnetic fields · state that"
+   }
+  ],
+  "13": [
+   {
+    "code": "G11-U13-LO1",
+    "kind": "lo",
+    "desc": "distinguish between inertial and non-inertial frames of reference"
+   },
+   {
+    "code": "G11-U13-LO2",
+    "kind": "lo",
+    "desc": "describe the significance of Einstein's assumption of the"
+   },
+   {
+    "code": "G11-U13-LO5",
+    "kind": "lo",
+    "desc": "Explain qualitatively and quantitatively the consequences of special"
+   }
+  ],
+  "14": [
+   {
+    "code": "G11-U14-LO1",
+    "kind": "lo",
+    "desc": "State that nucleon number and charge are conserved"
+   },
+   {
+    "code": "G11-U14-LO5",
+    "kind": "lo",
+    "desc": "Explain that α-particles have discrete energies but that"
+   },
+   {
+    "code": "G11-U14-LO3",
+    "kind": "lo",
+    "desc": "Explain that an antiparticle has the same mass"
+   },
+   {
+    "code": "G11-U14-LO6",
+    "kind": "lo",
+    "desc": "Describe quarks and anti-quarks are fundamental particles"
+   },
+   {
+    "code": "G11-U14-LO4",
+    "kind": "lo",
+    "desc": "State that electron-antineutrinos are produced during β- decay"
+   },
+   {
+    "code": "G11-U14-LO12",
+    "kind": "lo",
+    "desc": "State that Higgs Boson as a fundamental particle"
+   },
+   {
+    "code": "G11-U14-LO16",
+    "kind": "lo",
+    "desc": "Explain the working principle of particle accelerators and"
+   },
+   {
+    "code": "G11-U14-LO2",
+    "kind": "lo",
+    "desc": "State that nucleon number and charge are conserved"
+   },
+   {
+    "code": "G11-U14-LO7",
+    "kind": "lo",
+    "desc": "State that nucleon number and charge are conserved"
+   },
+   {
+    "code": "G11-U14-LO8",
+    "kind": "lo",
+    "desc": "State that nucleon number and charge are conserved"
+   },
+   {
+    "code": "G11-U14-LO9",
+    "kind": "lo",
+    "desc": "State that nucleon number and charge are conserved"
+   },
+   {
+    "code": "G11-U14-LO10",
+    "kind": "lo",
+    "desc": "State that nucleon number and charge are conserved"
+   },
+   {
+    "code": "G11-U14-LO11",
+    "kind": "lo",
+    "desc": "State that nucleon number and charge are conserved"
+   },
+   {
+    "code": "G11-U14-LO13",
+    "kind": "lo",
+    "desc": "State that nucleon number and charge are conserved"
+   },
+   {
+    "code": "G11-U14-LO14",
+    "kind": "lo",
+    "desc": "State that nucleon number and charge are conserved"
+   },
+   {
+    "code": "G11-U14-LO15",
+    "kind": "lo",
+    "desc": "State that nucleon number and charge are conserved"
+   }
+  ]
+ }
+}

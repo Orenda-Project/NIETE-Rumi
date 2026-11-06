@@ -1,0 +1,29 @@
+{
+ "grade": 11,
+ "code": "biology",
+ "source": {
+  "file": "stem/biology_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "2": [
+   {
+    "code": "B-11-D-15",
+    "kind": "official",
+    "desc": "21. Evaluate steroids and prostaglandins as important groups"
+   },
+   {
+    "code": "G11-U2-LO1",
+    "kind": "lo",
+    "desc": "21. Evaluate steroids and prostaglandins as important groups"
+   }
+  ],
+  "5": [
+   {
+    "code": "G11-U2-LO1",
+    "kind": "lo",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ]
+ }
+}
