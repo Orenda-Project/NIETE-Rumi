@@ -25,7 +25,7 @@ const BY_SLOT = { 'A.Q1-40': CAPTURED.objective.MCQ, 'A.Q41-60': CAPTURED.object
 
 // firstOnly: the captured reply answers the first Section A ask; a later ask (the repair round) gets the fake builder.
 // skipN18: the real board checks, minus N18 key-leak (the one content check this real text trips at scale).
-async function write(sectionA, { firstOnly = false, skipN18 = false } = {}) {
+async function write(sectionA, { firstOnly = false, skipN18 = false, spy = null } = {}) {
   let served = false;
   const reply = (section) => {
     if (section.id !== 'A' || (firstOnly && served)) return undefined;
@@ -35,6 +35,7 @@ async function write(sectionA, { firstOnly = false, skipN18 = false } = {}) {
   const { d, calls } = makeDeps({ grade: 9, row, levels: variant.cognitive_split.levels, style: variant.scheme_style, reply });
   // As the service does: code writes the official SLO onto the tag.
   d.stampSlo = (g, s, item) => { if (item && item.tag) item.tag.official_slo = null; return item; };
+  if (spy) { const real = d.checks; d.checks = { ...real, run: (ex, ctx) => { const r = real.run(ex, ctx); spy(r); return r; } }; }
   if (skipN18) {
     const real = d.checks;
     d.checks = { ...real, run: (ex, ctx) => {
@@ -73,14 +74,17 @@ describe('board writer on the real Section A reply', () => {
     expect(out.examJson._layout.preset_id).toBe('fbise_ssc1_2027');
   });
 
-  test('with every check on, what still stops this real reply is N18 key-leak content only, never a missing slot', async () => {
-    // Model distractors repeat other MCQs' keys ("distance", "velocity"); N18 counts another item's options as a
-    // leak. That is a content/check ruling outside this fix; pinned so the next blocker stays named.
-    const { out, calls } = await write(BY_SLOT, { firstOnly: true });
-    expect(calls.filter((c) => c.section === 'A')[0].topUp).toBe(false);
-    expect(out.code).toBe('PATTERN_SHORT_SLOT');
-    expect(out.shortfall.length).toBeGreaterThan(0);
-    out.shortfall.forEach((r) => expect(r.reason).toBe('N18'));
+  test('with every check on, the first pass of this real reply trips only N18 stem overlap: no D13, D16 or options-only N18', async () => {
+    // Before bd-5jmnfj.38.30 part 2 the first pass also failed D13 (a run of 4 B keys, unsorted numeric options),
+    // D16 (the ^2 in "4 m/s^2" read as the key number) and N18 on keys that sat only in another MCQ's options.
+    // What is left is a key repeated in another item's stem, which the board ruling still counts as a leak.
+    const runs = [];
+    const { out } = await write(BY_SLOT, { firstOnly: true, spy: (r) => runs.push(r) });
+    const first = runs[0].record.per_check;
+    expect(first['mcq-shape'] || first.D13).toMatchObject({ hard: 0 });
+    expect(first['numeric-resolve'] || first.D16).toMatchObject({ hard: 0 });
+    expect((first['key-leak'] || first['N18/N19']).hard).toBeLessThanOrEqual(15);
+    if (out.shortfall) out.shortfall.forEach((r) => expect(r.reason).toBe('N18'));
   });
 
   test('the old category/type shape is never guessed into slots: it is short and fails by name', async () => {
@@ -99,6 +103,18 @@ describe('the board format and the parser agree', () => {
   test('the format names the stimulus and OR shapes the parser reads', () => {
     expect(format).toContain('{"stimulus": "<text or plain-text table printed once>", "items": [');
     expect(format).toContain('{"or": [<item>, <item>]}');
+  });
+  test('the scheme is the shape D14 reads: points with marks, or contiguous bands', () => {
+    expect(format).toContain('"scheme": {"points": [{"text": "<marking point>", "marks": <number>}');
+    expect(format).toContain('{"bands": [{"hi": <number>, "lo": <number>, "descriptor": "<text>"}');
+    expect(format).not.toContain('a list of marking points');
+  });
+  test('the tag code is copied from CURRICULUM CODES; no G9-12 prompt sends the model to an undefined book form', () => {
+    expect(format).toContain('"code": "<the CODE copied exactly from CURRICULUM CODES>"');
+    const all = require('../../../bot/shared/services/assessment/ict-prompts.json');
+    const g912 = Object.keys(all).filter((k) => /^eg\.ict\..+\.(9_10|11_12)\.system$/.test(k));
+    expect(g912).toHaveLength(20);
+    g912.forEach((k) => expect([k, /book outcome/.test(all[k])]).toEqual([k, false]));
   });
 });
 

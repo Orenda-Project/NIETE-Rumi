@@ -92,3 +92,38 @@ describe('N18/N19 key-leak', () => {
     expect(r.issues).toEqual([]);
   });
 });
+
+// Board ruling (bd-5jmnfj.38.30): in a 40-80 MCQ board paper an MCQ key that shows up only among ANOTHER MCQ's
+// options is ordinary distractor reuse. A leak is a stem, passage or stimulus that gives another item's answer away.
+describe('N18 in a board paper', () => {
+  const BOARD = { mode: 'board' };
+  const mc = (question, key, options) => ({ type: 'mcq', question, options, answer: key });
+  test('an MCQ key that appears only among another MCQ options is not a leak', () => {
+    const r = m.run(paper(
+      mc('Which quantity has direction?', 'B', ['A) speed', 'B) displacement vector', 'C) mass', 'D) time']),
+      mc('Which is a scalar?', 'A', ['A) speed', 'B) displacement vector', 'C) force', 'D) momentum']),
+    ), BOARD);
+    expect(hard(r)).toEqual([]);
+  });
+  test('an MCQ key written into a short-question stem is still a hard leak', () => {
+    const r = m.run(paper(
+      mc('Which quantity has direction?', 'B', ['A) speed', 'B) displacement vector', 'C) mass', 'D) time']),
+      srq('The displacement vector of a car is 5 m east. State its magnitude.', 'five metres'),
+    ), BOARD);
+    expect(hard(r)).toHaveLength(1);
+  });
+  test('a short-question key offered as an MCQ option is still a hard leak', () => {
+    const r = m.run(paper(
+      srq('Name the quantity that has both size and direction.', 'displacement vector'),
+      mc('Which is a scalar?', 'A', ['A) speed', 'B) displacement vector', 'C) force', 'D) momentum']),
+    ), BOARD);
+    expect(hard(r)).toHaveLength(1);
+  });
+  test('free mode still counts another item options as a leak', () => {
+    const r = m.run(paper(
+      mc('Which quantity has direction?', 'B', ['A) speed', 'B) displacement vector', 'C) mass', 'D) time']),
+      mc('Which is a scalar?', 'A', ['A) speed', 'B) displacement vector', 'C) force', 'D) momentum']),
+    ), FREE);
+    expect(hard(r).length).toBeGreaterThan(0);
+  });
+});
