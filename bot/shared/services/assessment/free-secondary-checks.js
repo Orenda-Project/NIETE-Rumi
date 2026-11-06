@@ -4,6 +4,7 @@
  * 2026-11-06 measures them. Pure: reads the paper, never changes it, no I/O.
  *
  *   marking-points   A7c  a constructed item has no marking points, or they do not sum to its marks
+ *   scheme           A7c  a written item lacks its 2-3 level band, accept line or do-not-accept line
  *   long-stem        A2d  an MCQ stem over the band's word limit
  *   long-sentence    A2d  an item whose sentences average over the band's word limit
  *   longest-key      A7a  the key is clearly the longest option
@@ -16,8 +17,9 @@
  * load fills at most 85% of it.
  */
 
-const { bandOf } = require('./free-secondary-rules');
+const { bandOf, LOAD_SHARE } = require('./free-secondary-rules');
 const { keyIndex, textOf, isMcq } = require('./free-secondary-keys');
+const { schemeIssue } = require('./free-secondary-scheme');
 
 const ABSOLUTE = /\b(always|never|only)\b|all of the above|none of the above|ہمیشہ|کبھی نہیں|صرف|مندرجہ بالا تمام|ان میں سے کوئی نہیں/i;
 const STOP = new Set(['which', 'what', 'when', 'where', 'name', 'does', 'that', 'this', 'from', 'with',
@@ -193,6 +195,8 @@ function paperIssues(examJson, { grade, lessonTitle } = {}) {
     const add = (check, text) => out.push({ n: e.n, check, text });
     const mark = markingIssue(e);
     if (mark) add('marking-points', mark);
+    const scheme = schemeIssue(e);
+    if (scheme) add('scheme', scheme);
     const len = lengthIssue(e, band);
     if (len) add(...len);
     optionIssues(e).forEach((o) => add(...o));
@@ -223,9 +227,9 @@ function estimateMinutes(examJson) {
   }, REVIEW_MINUTES);
 }
 
-/** The time to print: the load fills at most 85% of it, rounded up to 5 minutes. */
+/** The time to print: the load fills at most LOAD_SHARE of it, rounded up to 5 minutes. */
 function printedMinutes(loadMinutes) {
-  return Math.ceil(loadMinutes / 0.85 / 5) * 5;
+  return Math.ceil(loadMinutes / LOAD_SHARE / 5) * 5;
 }
 
 module.exports = { items, answerText, paperIssues, estimateMinutes, printedMinutes };

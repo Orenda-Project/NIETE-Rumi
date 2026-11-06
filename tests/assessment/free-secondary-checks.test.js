@@ -6,7 +6,8 @@
 const C = require('../../bot/shared/services/assessment/free-secondary-checks');
 
 const mcq = (question, options, answer) => ({ question, options, answer, marks: 1, lines: 0 });
-const srq = (question, answer, extra = {}) => ({ question, answer, marks: 3, lines: 4, ...extra });
+const SCHEME = { mark_bands: [{ marks: '3', descriptor: 'full' }, { marks: '1-2', descriptor: 'partial' }, { marks: '0', descriptor: 'none' }], accept: 'equal wording', reject: 'a bare yes' };
+const srq = (question, answer, extra = {}) => ({ question, answer, marks: 3, lines: 4, ...SCHEME, ...extra });
 const points = (...m) => m.map((marks, i) => ({ point: `point ${i + 1}`, marks }));
 const paper = (objective, subjective = []) => ({
   unseen: { objective: { 'Multiple Choice Questions': objective }, subjective: { 'Short Answers': subjective } },
@@ -157,7 +158,7 @@ describe('word lists and option lists that print another item\'s key (A5b, a3 G8
   const Q7 = { main_question: 'صحیح جواب کا انتخاب کریں', question: 'درج ذیل الفاظ میں سے صفتِ ضمیری کون سی ہے؟',
     options: ['الف) کنجوس', 'ب) تمھارا', 'ج) ملتانی', 'د) بدنما'], marks: 1, lines: 0, answer: 'ب) تمھارا' };
   const Q16 = { main_question: 'درج ذیل الفاظ میں سے صفتِ ضمیری کے الفاظ چن کر لکھیں', question: 'تمھارا، سخی، اپنا، میرا، بدنما، چینی',
-    marks: 3, lines: 2, answer: 'تمھارا، اپنا، میرا', marking_points: points(1, 1, 1) };
+    marks: 3, lines: 2, answer: 'تمھارا، اپنا، میرا', marking_points: points(1, 1, 1), ...SCHEME };
   const exam = (q16) => ({ unseen: { objective: { MCQs: [Q7] }, subjective: { Grammar: [q16] } } });
   const leak = (e) => C.paperIssues(e, { grade: 8 }).filter((i) => i.check === 'cross-leak').map((i) => [i.n, i.avoid]);
 

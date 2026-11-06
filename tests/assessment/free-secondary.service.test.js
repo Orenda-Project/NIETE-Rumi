@@ -17,8 +17,10 @@ const reply = (obj) => ({ choices: [{ message: { content: JSON.stringify(obj) } 
 
 const OPTS = ['a) Sand', 'b) Water', 'c) Wood', 'd) Salt'];
 const mcq = () => ({ question: 'Which one dissolves in water?', options: OPTS.slice(), answer: 'd) Salt', marks: 1, lines: 0 });
-const short = (extra = {}) => ({ question: 'Why does ice float?', answer: 'Ice is less dense than water.', marks: 3, lines: 4, ...extra });
+const SCHEME = { mark_bands: [{ marks: '3', descriptor: 'full' }, { marks: '1-2', descriptor: 'partial' }, { marks: '0', descriptor: 'none' }], accept: 'equal wording', reject: 'a bare yes' };
+const short = (extra = {}) => ({ question: 'Why does ice float?', answer: 'Ice is less dense than water.', marks: 3, lines: 4, ...SCHEME, ...extra });
 const POINTS = [{ point: 'less dense', marks: 2 }, { point: 'than water', marks: 1 }];
+const NO_REVIEW = reply({ items: [] });
 const draft = (s) => ({ unseen: { objective: { 'Multiple Choice Questions': [mcq(), mcq(), mcq()] },
   subjective: { 'Short Answers': [s] } } });
 
@@ -52,17 +54,43 @@ describe('free-secondary generateExam', () => {
     expect(system.startsWith(PROMPTS['eg.ict.urdu.system'])).toBe(true);
   });
 
+  it('marks an Urdu paper so its headings and instructions print in Urdu, and leaves a science paper alone', async () => {
+    mockCreate.mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS }))));
+    const urdu = await Svc.generateExam({ ...ARGS, grade: 8, subject: 'urdu' });
+    expect(urdu.examJson._paperLang).toBe('ur');
+    mockCreate.mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS }))));
+    const science = await Svc.generateExam(ARGS);
+    expect(science.examJson._paperLang).toBeUndefined();
+  });
+
   it('asks for the paper sized to its time: essays and short answers move onto MCQs', async () => {
     mockCreate.mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS }))));
     const out = await Svc.generateExam(ARGS);
-    expect(out.plan.questionTypes.map((t) => [t.id, t.count])).toEqual([['mcq', 14], ['srq', 5], ['erq', 1]]);
-    expect(mockCreate.mock.calls[0][0].messages[1].content).toContain('14');
+    expect(out.plan.questionTypes.map((t) => [t.id, t.count])).toEqual([['mcq', 16], ['srq', 3], ['erq', 1]]);
+    expect(mockCreate.mock.calls[0][0].messages[1].content).toContain('21');
   });
 
-  it('makes one call for a clean draft, spreads its keys and prints its time', async () => {
-    mockCreate.mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS }))));
+  it('asks for 30% more MCQs and keeps the plan count, dropping the one that gives a short answer away', async () => {
+    const gas = { question: 'Which gas do plants take in for photosynthesis?', marks: 1, lines: 0, answer: 'b',
+      options: ['a) Oxygen gas', 'b) Carbon dioxide', 'c) Nitrogen gas', 'd) Water vapour'] };
+    const d = { unseen: { objective: { 'Multiple Choice Questions': [mcq(), gas, mcq()] }, subjective: { 'Short Answers': [
+      short({ question: 'Name the gas plants take in during photosynthesis.', answer: 'Carbon dioxide.', marking_points: POINTS })] } } };
+    mockCreate.mockResolvedValueOnce(reply(d));
+    const out = await Svc.generateExam({ ...ARGS, questionCount: 3, questionTypes: [
+      { id: 'mcq', count: 2, category: 'objective', name: 'Multiple Choice Questions' },
+      { id: 'srq', count: 1, category: 'subjective', name: 'Short Answers' }] });
+    expect(mockCreate.mock.calls[0][0].messages[1].content).toMatch(/\b3\b/);
+    const kept = out.examJson.unseen.objective['Multiple Choice Questions'];
+    expect(kept).toHaveLength(2);
+    expect(kept.some((q) => /photosynthesis/.test(q.question))).toBe(false);
+    expect(out.issues).toEqual([]);
+    expect(out.pooled).toBe(1);
+  });
+
+  it('makes the paper call and the distractor review for a clean draft, spreads its keys and prints its time', async () => {
+    mockCreate.mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS })))).mockResolvedValueOnce(NO_REVIEW);
     const out = await Svc.generateExam(ARGS);
-    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(mockCreate).toHaveBeenCalledTimes(2);
     const keys = out.examJson.unseen.objective['Multiple Choice Questions'].map((q) => q.answer.slice(0, 1));
     expect(new Set(keys).size).toBe(3);
     expect(out.examJson._timeMinutes).toBeGreaterThanOrEqual(10);
@@ -76,7 +104,7 @@ describe('free-secondary generateExam', () => {
       .mockResolvedValueOnce(reply(draft(short())))
       .mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS }))));
     const out = await Svc.generateExam(ARGS);
-    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(mockCreate).toHaveBeenCalledTimes(3);
     const msgs = mockCreate.mock.calls[1][0].messages;
     expect(msgs[2].role).toBe('assistant');
     expect(msgs[3].content).toContain('Q4');
@@ -132,11 +160,11 @@ describe('free-secondary generateExam', () => {
     const withLong = () => { const d = longKey(); d.unseen.objective['Multiple Choice Questions'][0].options[3] = 'd) Salt that is stirred into warm water'; d.unseen.objective['Multiple Choice Questions'][0].answer = 'd'; return d; };
     mockCreate
       .mockResolvedValueOnce(reply(withLong()))
-      .mockResolvedValueOnce(reply(withLong()))
+      .mockResolvedValueOnce(reply(withLong())).mockResolvedValueOnce(NO_REVIEW)
       .mockResolvedValueOnce(reply({ items: [{ n: 1, question: 'Which one dissolves in water?', options: OPTS, answer: 'd) Salt' }] }));
     const out = await Svc.generateExam({ ...ARGS, keySeed: 's' });
-    expect(mockCreate).toHaveBeenCalledTimes(3);
-    const ask = mockCreate.mock.calls[2][0].messages;
+    expect(mockCreate).toHaveBeenCalledTimes(4);
+    const ask = mockCreate.mock.calls[3][0].messages;
     expect(ask[ask.length - 1].content).toContain('Q1');
     expect(ask[ask.length - 1].content).not.toContain('Why does ice float?');
     expect(out.issues).toEqual([]);
@@ -148,10 +176,10 @@ describe('free-secondary generateExam', () => {
     const twoLong = () => { const d = draft(short({ marking_points: POINTS })); const m = d.unseen.objective['Multiple Choice Questions'];
       [0, 1].forEach((i) => { m[i].options = LONG.slice(); m[i].answer = 'd'; }); return d; };
     const fixed = (n) => reply({ items: [{ n, question: 'Which one dissolves in water?', options: OPTS, answer: 'd) Salt' }] });
-    mockCreate.mockResolvedValueOnce(reply(twoLong())).mockResolvedValueOnce(reply(twoLong()))
+    mockCreate.mockResolvedValueOnce(reply(twoLong())).mockResolvedValueOnce(reply(twoLong())).mockResolvedValueOnce(NO_REVIEW)
       .mockResolvedValueOnce(fixed(1)).mockResolvedValueOnce(fixed(2));
     const out = await Svc.generateExam({ ...ARGS, keySeed: 's' });
-    expect(mockCreate).toHaveBeenCalledTimes(4);
+    expect(mockCreate).toHaveBeenCalledTimes(5);
     expect(out.rewritten).toEqual([1, 2]);
     expect(out.issues).toEqual([]);
   });
@@ -160,18 +188,38 @@ describe('free-secondary generateExam', () => {
     const withLong = () => { const d = draft(short({ marking_points: POINTS })); d.unseen.objective['Multiple Choice Questions'][0].options[3] = 'd) Salt that is stirred into warm water'; d.unseen.objective['Multiple Choice Questions'][0].answer = 'd'; return d; };
     mockCreate
       .mockResolvedValueOnce(reply(withLong()))
-      .mockResolvedValueOnce(reply(withLong()))
+      .mockResolvedValueOnce(reply(withLong())).mockResolvedValueOnce(NO_REVIEW)
       .mockResolvedValueOnce(reply({ items: [{ n: 1, question: 'Which?', options: ['a) Sand', 'b) Water', 'c) Wood', 'd) Salt that is stirred into warm water'], answer: 'd' }] }));
     const out = await Svc.generateExam({ ...ARGS, keySeed: 's' });
     expect(out.issues.map((i) => i.check)).toEqual(['longest-key']);
     expect(out.rewritten).toEqual([]);
   });
 
+  it('reviews the distractors in one small call and rewrites an MCQ with a distractor rated 1', async () => {
+    const silly = () => { const d = draft(short({ marking_points: POINTS })); d.unseen.objective['Multiple Choice Questions'][0].options[2] = 'c) A banana'; return d; };
+    mockCreate.mockResolvedValueOnce(reply(silly()))
+      .mockResolvedValueOnce(reply({ items: [{ n: 1, distractors: [{ option: 'a', rating: 3 }, { option: 'b', rating: 2 }, { option: 'c', rating: 1, why: 'a fruit' }], longest_key: false }] }))
+      .mockResolvedValueOnce(reply({ items: [{ n: 1, question: 'Which one dissolves in water?', options: OPTS, answer: 'd) Salt' }] }));
+    const out = await Svc.generateExam({ ...ARGS, keySeed: 's' });
+    expect(mockCreate).toHaveBeenCalledTimes(3);
+    const review = mockCreate.mock.calls[1][0];
+    expect(review.job).toBe('assessment.generate');
+    expect(review.temperature).toBe(0);
+    expect(review.max_tokens).toBeLessThanOrEqual(8000);
+    expect(review.messages[review.messages.length - 1].content).toContain('c) A banana');
+    expect(review.messages[review.messages.length - 1].content).not.toContain('Why does ice float?');
+    const rewrite = mockCreate.mock.calls[2][0].messages;
+    expect(rewrite[rewrite.length - 1].content).toContain('a fruit');
+    expect(out.rewritten).toEqual([1]);
+    expect(out.issues).toEqual([]);
+    expect(out.examJson.unseen.objective['Multiple Choice Questions'][0].options).not.toContain('c) A banana');
+  });
+
   it('makes no targeted call when only other problems remain, and strips instruction text from marking points', async () => {
     const pts = [{ point: 'less dense (do not repeat the question)', marks: 2 }, { point: 'than water', marks: 1 }];
-    mockCreate.mockResolvedValueOnce(reply(draft(short({ marking_points: pts }))));
+    mockCreate.mockResolvedValueOnce(reply(draft(short({ marking_points: pts })))).mockResolvedValueOnce(NO_REVIEW);
     const out = await Svc.generateExam({ ...ARGS, keySeed: 's' });
-    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(mockCreate).toHaveBeenCalledTimes(2);
     expect(out.examJson.unseen.subjective['Short Answers'][0].marking_points[0].point).toBe('less dense');
   });
 

@@ -1,0 +1,31 @@
+{
+  "$id": "eg.free_secondary.chrome",
+  "written": "2026-11-06",
+  "builder": "free-secondary-chrome.js (bd-5jmnfj.38.31)",
+  "test": "tests/assessment/free-secondary-chrome.test.js",
+  "rule": "Language is data (rumi Rule 20). Every Urdu string is copied from an existing repo string, named in `from` (relative to this folder); a string with no existing Urdu wording is design_pending (ur null) and is left off the Urdu paper, never printed in English and never translated here.",
+  "urdu_review": "every ur string is a draft: needs fluent-Urdu review",
+  "labels": {
+    "studentName": { "en": "Student Name", "ur": "نام طالب علم", "from": "patterns/fde-g5-2027.js" },
+    "rollNo": { "en": "Roll No", "ur": "رول نمبر", "from": "patterns/fde-g5-2027.js" },
+    "date": { "en": "Date", "ur": "تاریخ", "from": "patterns/fde-g5-2027.js" },
+    "totalMarks": { "en": "Total Marks", "ur": "کل نمبر", "from": "patterns/fde-g5-2027.js" },
+    "obtainedMarks": { "en": "Obtained Marks", "ur": "حاصل کردہ نمبر", "from": "patterns/fde-g5-2027.js" },
+    "instructions": { "en": "Instructions", "ur": "ہدایات", "from": "patterns/fde-g5-2027.js" },
+    "marks": { "en": "marks", "ur": "نمبر", "from": "board-render/view.js" }
+  },
+  "instructions": [
+    { "en": "Read all questions carefully before answering.", "ur": null, "status": "design_pending" },
+    { "en": "Answer all questions in the space provided.", "ur": null, "status": "design_pending" },
+    { "en": "Write clearly and legibly.", "ur": null, "status": "design_pending" },
+    { "en": "Time allowed: {t} minutes.", "ur": "وقت: {t} منٹ", "from": "patterns/fde-g5-2027.js", "time": true }
+  ],
+  "headings_note": "A section heading is the title_ur of its question type in question-types-6-12.data.json; `bucket_types` maps the bucket names the writer uses that are not a type's title_en. A bucket that maps to nothing keeps its own name.",
+  "bucket_types": {
+    "mcqs": "mcq", "multiple choice questions": "mcq",
+    "short answer questions": "srq", "short answers": "srq", "short answer": "srq", "brief answers": "srq", "short response": "srq",
+    "extended response": "erq", "long answer questions": "erq", "long answers": "erq",
+    "grammar": "grammar", "comprehension": "comprehension", "fill in the blanks": "fill_blank",
+    "match the columns": "match", "essay": "essay"
+  }
+}
