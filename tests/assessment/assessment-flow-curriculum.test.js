@@ -24,6 +24,8 @@ jest.mock('../../bot/shared/config/feature-flags', () => ({
   isAssessmentEditingEnabled: jest.fn().mockResolvedValue(false),
   isAssessmentVersionsEnabled: jest.fn().mockResolvedValue(false),
   isFlagEnabled: jest.fn().mockResolvedValue(false),
+  // Sandbox's G6-12 grade gate, open: this suite is about whose book, not which grades are switched on.
+  GradeGateSettings: { load: jest.fn().mockResolvedValue({ flag: true, kill: [], killCells: [] }) },
 }));
 
 const db = require('../../bot/shared/config/supabase');
