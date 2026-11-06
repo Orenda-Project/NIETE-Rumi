@@ -32,8 +32,22 @@ const REGISTRY = Object.freeze({
   [FDE_G4_2026.id]: FDE_G4_2026,
 });
 
+// Offered to teachers: only Grade 5 sits a board paper (Amena, 6 Nov 2026). The Grade 1-4
+// patterns stay registered so a paper already made on one still prints and edits.
+const OFFERED = Object.freeze([FDE_G5_2027.id]);
+
 function list() {
   return Object.keys(REGISTRY);
+}
+
+/** Whether teachers are offered this pattern at all (the app's door and its create). */
+function isOffered(id) {
+  return OFFERED.includes(String(id || ''));
+}
+
+/** The grades a teacher is offered the board-pattern door for. */
+function offeredGrades() {
+  return [...new Set(OFFERED.map((id) => REGISTRY[id].grade))].sort((a, b) => a - b);
 }
 
 function get(id) {
@@ -177,7 +191,7 @@ function summaryFor(id, subject) {
 }
 
 module.exports = {
-  list, get, isEligible, summaryFor, scopeFor, expandTypes,
+  list, offeredGrades, isOffered, get, isEligible, summaryFor, scopeFor, expandTypes,
   // for the layout pass and the renderer
   subjectOf, shortLabel, parseRanges, normalise,
 };
