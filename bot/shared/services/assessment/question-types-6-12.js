@@ -62,7 +62,7 @@ function forSubject(subject, grade) {
   if (!row) return [];
   const ids = [...(BOARD_MODES.has(row.board_mode) ? [DATA.first_entry] : []), ...setIds(row)];
   // `label` is what the app's chips print (bd-5jmnfj.38.40): the ids are codes such as `srq`.
-  return ids.map((id) => ({ id, category: categoryOf(id), label: titleOf(id) }));
+  return ids.map((id) => ({ id, category: categoryOf(id), label: titleOf(id), hint: hintOf(id) }));
 }
 
 /** The flow-selectable kinds the cell's type set may use (each maps to srq/erq). */
@@ -108,6 +108,12 @@ function titleOf(id, lang = 'en') {
   return lang === 'ur' ? t.title_ur : t.title_en;
 }
 
+/** One plain line telling a teacher what the type asks for (bd-5jmnfj.38.41). */
+function hintOf(id) {
+  const t = TYPES.get(id) || KINDS.get(id);
+  return (t && t.hint_en) || '';
+}
+
 /** A type string from generated output -> {ok, id} or {ok:false, reason}. Never coerces `other`. */
 function normaliseType(seen, typeSet) {
   const s = String(seen ?? '').trim().toLowerCase();
@@ -124,5 +130,5 @@ function kindAllowed(kind, typeId) {
 }
 
 module.exports = {
-  DATA, isSecondary, forSubject, kindsFor, categoryOf, withCounts, defaultMix, titleOf, normaliseType, kindAllowed,
+  DATA, isSecondary, forSubject, kindsFor, categoryOf, withCounts, defaultMix, titleOf, hintOf, normaliseType, kindAllowed,
 };
