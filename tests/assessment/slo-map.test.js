@@ -134,3 +134,20 @@ describe('stamp(map, tag) — the chapter step', () => {
     expect(SLO.stamp({ policy: 'stamp' }, { chapter: 4 })).toBeNull();
   });
 });
+
+describe('listFor(grade, code) — the {slo_list} a board prompt carries (bd-5jmnfj.38.24)', () => {
+  test('one line per official SLO: code, level, gist', () => {
+    const lines = SLO.listFor(9, 'physics').split('\n');
+    const map = load('9_physics.json');
+    expect(lines).toHaveLength(map.slos.length);
+    expect(lines[0]).toBe(`${map.slos[0].official_slo} (${map.slos[0].level}) ${map.slos[0].gist}`);
+  });
+  test('case and spaces in the code do not matter', () => {
+    expect(SLO.listFor('9', ' Physics ')).toBe(SLO.listFor(9, 'physics'));
+  });
+  test('a null-policy cell, an unknown cell or a bad grade gives the empty string', () => {
+    expect(SLO.listFor(6, 'english')).toBe('');
+    expect(SLO.listFor(9, 'nosuch')).toBe('');
+    expect(SLO.listFor(5, 'english')).toBe('');
+  });
+});

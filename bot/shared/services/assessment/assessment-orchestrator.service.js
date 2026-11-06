@@ -297,6 +297,10 @@ async function _buildPatternPaper({ job, user, paperId }) {
 
   const renderer = rendererFor('pdf');
   let examJson = generated.examJson;
+  // A G9-12 board paper (bd-5jmnfj.38.25.3) prints with its own footer and total, frames nothing, and is filed as FBISE.
+  const board = examJson._layout?.profile === 'board';
+  const Print = board ? require('./board-render/print') : FdeRenderer;
+  const tag = board ? '_FBISE' : '_FDE';
   const html = Renderer.renderPaper({
     examJson, grade, subject,
     schoolName: user.school_name || null,
@@ -306,14 +310,14 @@ async function _buildPatternPaper({ job, user, paperId }) {
   });
   let buffer;
   try {
-    buffer = await renderer.render(html, { pdfOptions: FdeRenderer.pdfOptions(examJson, 'paper') });
+    buffer = await renderer.render(html, { pdfOptions: Print.pdfOptions(examJson, 'paper') });
   } catch (err) {
     throw Object.assign(err, { code: 'RENDER_FAILED' });
   }
 
   const paperPages = pdfPageCount(buffer);
   let framePages = null;
-  try {
+  if (!board) try {
     const found = await FdeRenderer.framePages(buffer);
     if (found && Object.keys(found).length) framePages = found;
   } catch (err) {
@@ -329,7 +333,7 @@ async function _buildPatternPaper({ job, user, paperId }) {
     },
   };
 
-  const name = fileName({ grade, subject, chapterTitle: null, format: renderer.ext, suffix: '_FDE' });
+  const name = fileName({ grade, subject, chapterTitle: null, format: renderer.ext, suffix: tag });
   let key;
   try {
     key = await r2.uploadExamBuffer({
@@ -347,8 +351,8 @@ async function _buildPatternPaper({ job, user, paperId }) {
   const answerKey = await _storeAnswerKey({
     paperId, requestId, userId, examJson, grade, subject,
     schoolName: user.school_name, pageReference: generated.pageReference, chapterTitle: null, renderer,
-    suffix: '_FDE_MarkingScheme',
-    renderOpts: { pdfOptions: FdeRenderer.pdfOptions(examJson, 'scheme') },
+    suffix: `${tag}_MarkingScheme`,
+    renderOpts: { pdfOptions: Print.pdfOptions(examJson, 'scheme') },
     paperFileName: name,
     onBuffer: (b) => { schemePages = pdfPageCount(b); },
   });
@@ -358,7 +362,7 @@ async function _buildPatternPaper({ job, user, paperId }) {
 
   const pages = paperPages == null && schemePages == null ? null : { paper: paperPages, scheme: schemePages };
   examJson = { ...examJson, _layout: { ...examJson._layout, pages } };
-  const marks = FdeRenderer.totalMarks(examJson);
+  const marks = Print.totalMarks(examJson);
 
   logToFile('[assessment] pattern paper rendered', {
     requestId, paperId, pattern, pages, framePages,
