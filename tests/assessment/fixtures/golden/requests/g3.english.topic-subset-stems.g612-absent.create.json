@@ -6,6 +6,8 @@
       "error": "unknown stem \"has-have\" for Fill in the Blanks"
     }
   },
-  "writes": {},
+  "writes": {
+    "region_features": []
+  },
   "queued": []
 }
