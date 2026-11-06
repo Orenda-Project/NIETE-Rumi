@@ -2,7 +2,8 @@
 /**
  * Writes a G6-12 board paper (SPEC §7, deps contract §5-§6). One call per section (per timed part), each told
  * what the earlier ones asked; teacher-marked slots generate nothing; a short slot is asked once more (a second
- * shortfall fails the paper: PATTERN_SHORT_SLOT). Then board-layout, board-checks in board mode, one repair
+ * shortfall fails the paper: PATTERN_SHORT_SLOT; the top-up is T.topUp, never d.topUp, which is blind to OR and
+ * stimulus nodes). Then board-layout, board-checks in board mode, one repair
  * round for hard issues (drop the item, ask once for that slot), then the scheme normaliser.
  *
  * The service's helpers arrive as `d` (_boardDeps); this module never requires the service, and never uses the
@@ -47,7 +48,8 @@ async function writeBoardPaper(args, d) {
     const began = Date.now();
     const got = await d.writeSection({ messages, model, ownModel, job, pattern, section: { id: unit.key, slots: unit.slots } });
     usages.push(...got.usages);
-    return { tree: got.tree, usages: got.usages, elapsedMs: Date.now() - began };
+    // The reply is keyed by slot id (eg.format.secondary); code places it in the tree and stamps each node's slot.
+    return { tree: T.fromReply(got.tree, unit.slots), usages: got.usages, elapsedMs: Date.now() - began };
   };
   const shortError = (shortfall, examJson) => d.fail('PATTERN_SHORT_SLOT', SHORT_MESSAGE, { shortfall, examJson, model });
   const mergedOf = (trees) => {
@@ -70,7 +72,7 @@ async function writeBoardPaper(args, d) {
     if (short.length) {
       const second = await ask(unit, trees, SP.topUpNote(short));
       used = used.concat(second.usages);
-      tree = T.trimExcess(d.topUp(tree, second.tree, new Set(short.map((r) => r.slot))), unit.slots);
+      tree = T.trimExcess(T.topUp(tree, second.tree, new Set(short.map((r) => r.slot))), unit.slots);
       short.forEach((r) => toppedUp.add(r.slot));
       short = T.shortfallOf(tree, unit.slots);
       if (short.length) throw shortError(short, mergedOf(trees.concat([tree])));
@@ -105,7 +107,7 @@ async function writeBoardPaper(args, d) {
       const mine = short.filter((r) => unit.slots.some((s) => s.slot === r.slot));
       if (!mine.length) continue;
       const second = await ask(unit, trees, SP.topUpNote(mine));
-      ex = d.topUp(ex, second.tree, new Set(mine.map((r) => r.slot)));
+      ex = T.topUp(ex, second.tree, new Set(mine.map((r) => r.slot)));
     }
     checks = finish(ex);
     if (checks.shortfall.length) throw shortError(checks.shortfall, ex);

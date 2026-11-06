@@ -5,6 +5,9 @@
  */
 
 const isObj = (x) => x && typeof x === 'object';
+// item-tag.schema.json: `kind` is an srq/erq item kind from this list, null elsewhere (board-checks tag-complete KIND_RULE).
+const KINDS = require('../board-checks/item-tag.schema.json').$defs.leaf.properties.kind.enum.filter((k) => k !== null);
+const KIND_TYPES = ['srq', 'erq'];
 const isGroup = (q) => isObj(q) && isObj(q.stimulus) && Array.isArray(q.stimulus.items);
 
 /** fn(list, setList) for every question list in the tree. */
@@ -79,7 +82,8 @@ function dropIds(tree, ids) {
 /**
  * Code-owned fields: `type` from the slot (an OR branch from its own branch type), an id where the model wrote
  * none (`<slot>#<n>`, `/a` `/b`, `.p<k>`, `@s<k>`: the board-checks item_ref base), no top-level `blooms`
- * (the level lives in tag.blooms), then `stampSlo` per top node; its return value replaces the node.
+ * (the level lives in tag.blooms), `kind` null unless a listed srq/erq kind, then `stampSlo` on every leaf
+ * (stimulus members, OR branches and parts included); its return value replaces the leaf.
  */
 function stamp(tree, slots, stampSlo) {
   const bySlot = new Map(slots.map((s) => [s.slot, s]));
@@ -114,9 +118,71 @@ function stamp(tree, slots, stampSlo) {
         if (b.marks == null) b.marks = br.marks_each;
       });
     }
-    return stampSlo(q) || q;
+    const kindOf = (l) => { if (!(KIND_TYPES.includes(l.type) && KINDS.includes(l.kind))) l.kind = null; };
+    const leafSlo = (n) => {
+      const kids = children(n);
+      if (!kids) { kindOf(n); return stampSlo(n) || n; }
+      kids.forEach((k, i) => { kids[i] = leafSlo(k); });
+      return n;
+    };
+    return leafSlo(q);
   })));
   return tree;
 }
 
-module.exports = { eachList, leavesOf, liveCounts, shortfallOf, trimExcess, dropIds, stamp, isGroup };
+/** A stimulus node as eg.format.secondary writes it ({stimulus: "<text>", items|parts}) in the tree's shape. */
+function groupOf(q) {
+  if (typeof q.stimulus !== 'string') return q;
+  const { stimulus, items, ...rest } = q;
+  return { ...rest, stimulus: Array.isArray(items) ? { text: stimulus, items } : { text: stimulus } };
+}
+
+/**
+ * One section reply in the board format (eg.format.secondary: {"<slot id>": [items], "notes": [...]}) as a tree:
+ * `unseen.<slot.category>.<slot.type>[]`, every top node stamped with the slot it was written under (code-owned).
+ * Only the given generating slots' ids are read; any other key (notes, a category name) is not a slot and is
+ * dropped, so a reply in another shape comes back short rather than guessed. Pure: the reply is copied.
+ */
+function fromReply(reply, slots) {
+  const unseen = {};
+  if (!isObj(reply)) return { unseen };
+  slots.filter(generating).forEach((s) => {
+    const list = reply[s.slot];
+    if (!Array.isArray(list)) return;
+    const cat = (unseen[s.category] = unseen[s.category] || {});
+    cat[s.type] = (cat[s.type] || []).concat(JSON.parse(JSON.stringify(list)).filter(isObj).map((q) => ({ ...groupOf(q), slot: s.slot })));
+  });
+  return { unseen };
+}
+
+/** A node's text identity: every leaf's question/answer/options, plus a group's stimulus text (OR branches included). */
+function nodeKey(q) {
+  const flat = (v) => String(v == null ? '' : typeof v === 'string' ? v : JSON.stringify(v)).toLowerCase().replace(/\s+/g, ' ').trim();
+  const leaves = leavesOfNode(q).map((l) => [l.question, l.answer, l.options].map(flat).join('\u0001')).join('\u0002');
+  return isGroup(q) ? `${flat(q.stimulus.text)}\u0003${leaves}` : leaves;
+}
+
+/**
+ * The board top-up: `first` plus each top node of `second` written for a slot in `slots` that `first` does not
+ * already hold (by nodeKey), under its own category and type. Unlike the G1-2 top-up (keyed on question/answer
+ * text, blind to `or` and `stimulus`), an OR question or a stimulus group is a real new node. Pure: returns a copy.
+ */
+function topUp(first, second, slots) {
+  const out = JSON.parse(JSON.stringify(first || {}));
+  const seen = new Set();
+  eachList(out, (list) => list.forEach((q) => { if (isObj(q)) seen.add(nodeKey(q)); }));
+  ['seen', 'unseen'].forEach((b) => Object.entries((second && second[b]) || {}).forEach(([cat, types]) => {
+    if (!isObj(types)) return;
+    Object.entries(types).forEach(([type, list]) => {
+      if (!Array.isArray(list)) return;
+      const add = list.filter((q) => isObj(q) && slots.has(q.slot) && !seen.has(nodeKey(q)));
+      if (!add.length) return;
+      add.forEach((q) => seen.add(nodeKey(q)));
+      const c = ((out[b] = out[b] || {})[cat] = out[b][cat] || {});
+      c[type] = (c[type] || []).concat(JSON.parse(JSON.stringify(add)));
+    });
+  }));
+  return out;
+}
+
+module.exports = { eachList, leavesOf, liveCounts, shortfallOf, trimExcess, dropIds, stamp, isGroup, fromReply, topUp };

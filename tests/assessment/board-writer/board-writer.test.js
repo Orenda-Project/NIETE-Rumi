@@ -99,7 +99,7 @@ describe('writeBoardPaper, four cells', () => {
     commonAssertions(cell, res);
     const stimSlot = res.examJson._layout.sections[0].slots.find((s) => s.slot === 'A.Q41-60');
     expect(stimSlot.stimulus).toEqual({ count: 5, mcqs_per_stimulus: 4, kinds: ['passage'] });
-    const groups = res.examJson.unseen.objective.MCQs.filter((q) => q.stimulus);
+    const groups = res.examJson.unseen.objective.scenario.filter((q) => q.stimulus);
     expect(groups).toHaveLength(5);
     groups.forEach((g) => { expect(g.stimulus.text.length).toBeGreaterThan(10); expect(g.stimulus.items).toHaveLength(4); });
     expect(sections).toEqual(['A', 'B', 'C']);
@@ -130,7 +130,7 @@ describe('writeBoardPaper, four cells', () => {
     const cell = CELLS.fictional;
     const { res, calls, sections } = await run(cell);
     commonAssertions(cell, res);
-    const or = res.examJson.unseen.subjective['Short and Extended'].find((q) => q.or);
+    const or = res.examJson.unseen.subjective.srq.find((q) => q.or);
     expect(or.or).toHaveLength(2);
     expect(or.or[0].marks).toBe(or.or[1].marks);
     or.or.forEach((b) => { expect(b.answer).toBeTruthy(); expect(b.scheme.bands).toBeTruthy(); expect(b.type).toBe('srq'); });
@@ -215,7 +215,7 @@ describe('hard checks after layout', () => {
         const tree = buildReply(section.slots, { grade: 9, row: cell.row, levels: TOS.levels, style: cell.style, ur: false }, state);
         if (!leaked) {
           leaked = true;
-          const q = tree.unseen.objective.MCQs[0];
+          const q = tree['A.Q1'][0];
           q.question = `${q.question} (the answer is ${q.answer.slice(3)})`;
         }
         return tree;
@@ -234,7 +234,7 @@ describe('hard checks after layout', () => {
         if (section.id !== 'A') return undefined;
         const { buildReply } = require('./helpers/fake-deps');
         const tree = buildReply(section.slots, { grade: 9, row: cell.row, levels: TOS.levels, style: cell.style, ur: false }, state);
-        tree.unseen.objective.MCQs.forEach((q) => { q.question = `${q.question} (the answer is ${q.answer.slice(3)})`; });
+        tree['A.Q1'].forEach((q) => { q.question = `${q.question} (the answer is ${q.answer.slice(3)})`; });
         return tree;
       },
     });
