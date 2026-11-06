@@ -1,74 +1,53 @@
-# Data Standards CI gate — copy this into your repo as
-# .github/workflows/data-standards.yml, then configure it as a REQUIRED
-# branch-protection status check (Settings → Branches → your protected
-# branch → Require status checks → select this workflow's job name).
+# Data Standards gate (D1-D27) on every pull request and every push to the
+# deploy branches. Same validator as the Claude hooks and the git hooks, from
+# the vendored copy in .claude/skills/data-standards (owned by the Data Team in
+# Orenda-Project/agent-skills-taleemabad; never edit it here).
 #
-# THIS FILE ONLY BECOMES AN ENFORCEMENT GATE ONCE THAT BRANCH-PROTECTION
-# STEP IS DONE BY A REPO ADMIN. Copying this file in, by itself, only means
-# the check RUNS and reports its result — it does not yet BLOCK a merge
-# until an admin marks it required. Do not tell anyone "the gate is live"
-# until that configuration step is confirmed done.
+# Runs on EVERY pull request, with no `paths:` filter: a required check with a
+# paths filter never reports on a PR outside it, and GitHub then waits on it
+# forever. The validator's own detector (.data-standards.json) decides what is
+# a schema file; nothing relevant -> the job passes quietly.
 #
-# What this workflow does (mirrors reference/enforcement-policy.md exactly —
-# same shared validator as the Claude PreToolUse gate and the local Git
-# hooks, so all three layers can never disagree about what's a violation):
-#   - Runs on: pull_request (schema-related PRs), push to protected branches,
-#     and workflow_dispatch (manual re-audit).
-#   - Fetches enough Git history to diff base..head properly (a shallow
-#     clone can't compute a real merge-base diff).
-#   - Runs scripts/validate_schema.py --mode diff --base <merge-base> --head
-#     <head-sha>.
-#   - Uploads the JSON/Markdown report as a build artifact (kept even on
-#     failure, so a reviewer can see exactly what was checked).
-#   - Posts (or updates, never duplicates) ONE PR comment with the result.
-#   - Fails the job on exit code 1 (confirmed violation) OR exit code 2
-#     (validator error) — a validator that couldn't run must never be
-#     silently treated as "passed." Exit code 3 (no schema-relevant change)
-#     and exit code 0 (pass) both succeed the job.
+# Fails the job on a confirmed violation (exit 1) or when the validator could
+# not run (exit 2). It blocks a merge only once the check is marked required
+# in branch protection. Checks set to `warn` in the skill's standards.yaml
+# never fail the job: they are listed in the PR comment, as annotations and
+# on the board as WARN, each with the reason it only warns. Problems already
+# in a changed file before this PR are listed but never fail it.
 #
-# Adjust `PACK_PATH` below to wherever this skills pack is available in your
-# CI environment (a submodule, a separate checkout step, or vendored copy) —
-# this template does not assume any particular way of getting
-# scripts/validate_schema.py onto the runner, since that depends on how your
-# organization distributes this pack internally.
+# Reporting needs no secrets: every run goes to the data-gate board (endpoint
+# and write-only key from telemetry.defaults), and the board posts it to the
+# data team's Slack channel — every PR run with a schema change, and a push
+# only when it fails or warns. No-schema runs are board-only.
 
-name: Data Standards Gate
+name: data-standards
 
 on:
   pull_request:
-    branches: [main]
   push:
-    branches: [main]
+    branches: [main, staging]
   workflow_dispatch: {}
+
+concurrency:
+  group: data-standards-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write   # the one PR comment
+
+env:
+  SKILL: .claude/skills/data-standards
 
 jobs:
   data-standards:
-    name: data-standards / validate-schema
+    name: data-standards
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write   # needed only for the PR-comment step below
-
     steps:
       - name: Checkout (full history for a real base..head diff)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      # --- Adjust this step to however your org makes the skills pack
-      # --- available in CI. Options: a git submodule already in this repo,
-      # --- a separate `actions/checkout` of the pack repo, or a vendored
-      # --- copy checked into this repo. PACK_PATH must point at the
-      # --- directory containing skills/data-standards/scripts/.
-      - name: Locate the data-standards validator
-        id: pack
-        run: |
-          PACK_PATH="${PACK_PATH:-./agent-skills-taleemabad}"
-          if [ ! -f "$PACK_PATH/skills/data-standards/scripts/validate_schema.py" ]; then
-            echo "::error::Can't find validate_schema.py under $PACK_PATH — adjust PACK_PATH in this workflow to wherever agent-skills-taleemabad is checked out in this repo's CI."
-            exit 2
-          fi
-          echo "path=$PACK_PATH/skills/data-standards" >> "$GITHUB_OUTPUT"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -78,47 +57,36 @@ jobs:
       - name: Install validator dependencies
         run: pip install pyyaml
 
-      - name: Determine base/head SHAs
+      - name: Determine base/head
         id: refs
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
-            echo "head=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+            base="${{ github.event.pull_request.base.sha }}"; head="${{ github.event.pull_request.head.sha }}"
+            # Diff from where the branch left its base, so other people's merges
+            # to the base since then are not checked as this PR's changes.
+            base=$(git merge-base "$base" "$head")
           else
-            echo "base=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
-            echo "head=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            base="${{ github.event.before }}"; head="${{ github.sha }}"
+            # A new branch or a force push has no usable "before".
+            if ! git cat-file -e "$base^{commit}" 2>/dev/null; then base=$(git rev-parse "$head^" 2>/dev/null || echo "$head"); fi
           fi
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
 
-      - name: Run the shared validator (diff mode)
+      - name: Run the validator (diff mode)
         id: validate
         run: |
           set +e
-          python3 "${{ steps.pack.outputs.path }}/scripts/validate_schema.py" \
-            --mode diff --base "${{ steps.refs.outputs.base }}" --head "${{ steps.refs.outputs.head }}" \
-            > report.json 2> report.err
+          python3 "$SKILL/scripts/validate_schema.py" --mode diff \
+            --base "${{ steps.refs.outputs.base }}" --head "${{ steps.refs.outputs.head }}" > report.json 2> report.err
           code=$?
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
-          cat report.json
-          cat report.err >&2 || true
-          # Also render the Markdown form for the PR comment / artifact.
-          python3 "${{ steps.pack.outputs.path }}/scripts/validate_schema.py" \
-            --mode diff --base "${{ steps.refs.outputs.base }}" --head "${{ steps.refs.outputs.head }}" \
-            --markdown > report.md 2>> report.err || true
-          exit 0   # this step always "succeeds" — the real pass/fail gate is the next step,
-                   # so the artifact-upload step below still runs even on a validator failure
+          cat report.json; cat report.err >&2
+          python3 "$SKILL/scripts/validate_schema.py" --mode diff \
+            --base "${{ steps.refs.outputs.base }}" --head "${{ steps.refs.outputs.head }}" --markdown > report.md 2>/dev/null || true
+          exit 0   # the last step decides pass/fail, so the steps in between always run
 
-      - name: Validate the report itself is well-formed
-        if: steps.validate.outputs.exit_code == '0' || steps.validate.outputs.exit_code == '1'
-        run: |
-          python3 "${{ steps.pack.outputs.path }}/scripts/validate_schema.py" \
-            --mode validate-report report.json || true
-          # Non-fatal here by design: report.json from --mode diff/staged/full is the
-          # findings list shape validate_schema.py itself emits, not the fuller
-          # audit-report-format.md issue shape validate-report expects — this step is a
-          # structural sanity spot-check, not a blocking requirement, until this
-          # template is adapted to emit the full issue-record shape end to end.
-
-      - name: Upload report artifact (kept even on failure)
+      - name: Upload report artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -129,67 +97,96 @@ jobs:
           retention-days: 30
 
       - name: Post or update the PR comment
-        if: github.event_name == 'pull_request' && always()
+        if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            const exitCode = '${{ steps.validate.outputs.exit_code }}';
-            let body;
-            try {
-              const md = fs.readFileSync('report.md', 'utf8');
-              const header = exitCode === '3'
-                ? '✅ **Data Standards** — no schema-relevant changes detected.'
-                : exitCode === '0'
-                ? '✅ **Data Standards** — no blocking violations.'
-                : exitCode === '1'
-                ? '❌ **Data Standards** — confirmed blocking violation(s). See below.'
-                : '⚠️ **Data Standards** — the validator itself could not run. Treating as blocking rather than silently passing.';
-              body = `${header}\n\n<details><summary>Full report</summary>\n\n${md}\n\n</details>\n\n_Full artifact: see the "data-standards-report" build artifact on this run._`;
-            } catch (e) {
-              body = '⚠️ **Data Standards** — could not read the report file. Treat as blocking.';
-            }
+            const code = '${{ steps.validate.outputs.exit_code }}';
             const marker = '<!-- data-standards-gate-comment -->';
-            body = marker + '\n' + body;
             const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number,
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, per_page: 100,
             });
             const existing = comments.find(c => c.body && c.body.includes(marker));
+            // No schema change and nothing said before: stay quiet.
+            if (code === '3' && !existing) return;
+            let md = '';
+            try { md = fs.readFileSync('report.md', 'utf8'); } catch (e) {}
+            let report = {};
+            try { report = JSON.parse(fs.readFileSync('report.json', 'utf8')); } catch (e) {}
+            const warned = code === '0' && (report.warnings || []).length > 0;
+            const header = warned
+              ? '⚠️ **Data Standards** — passed with warnings. They do not block; each one says why.'
+              : {
+              '0': '✅ **Data Standards** — no blocking violations.',
+              '1': '❌ **Data Standards** — confirmed violation(s). Fix them and push again.',
+              '3': '✅ **Data Standards** — no schema changes left in this PR.',
+            }[code] || '⚠️ **Data Standards** — the validator could not run. Treated as blocking.';
+            const body = `${marker}\n${header}` + (md && code !== '3' ? `\n\n${md}` : '') +
+              `\n\n_Commit \`${'${{ steps.refs.outputs.head }}'.slice(0, 7)}\`. Full report: the "data-standards-report" artifact on this run._`;
             if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body,
-              });
+              await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body });
             } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body,
-              });
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body });
             }
 
-      - name: Gate on the validator's result
+      - name: Report to the data-gate board (and through it, Slack)
+        if: always()
+        continue-on-error: true
+        env:
+          # Optional: telemetry.defaults normally carries the write-only key.
+          TALEEMABAD_GOVERNANCE_KEY: ${{ secrets.TALEEMABAD_GOVERNANCE_KEY }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, subprocess, sys
+          code = "${{ steps.validate.outputs.exit_code }}"
+          try:
+              report = json.load(open("report.json"))
+          except Exception:
+              report = {}
+          result = {"0": "PASS", "1": "FAIL", "3": "NOT APPLICABLE"}.get(code, "ERROR: validator could not run")
+          findings, warnings = report.get("findings", []), report.get("warnings", [])
+          if result == "PASS" and warnings:
+              result = "PASS WITH WARNINGS"  # the board counts PASS* as a pass
+          files = report.get("files_checked") or sorted({f.get("path", "") for f in findings} - {""})
+          pr_number = "${{ github.event.pull_request.number }}"
+          cmd = [sys.executable, os.path.join(os.environ["SKILL"], "scripts", "notify.py"), "governance",
+                 "--repo", "${{ github.event.repository.name }}",
+                 "--branch", "${{ github.head_ref || github.ref_name }}",
+                 "--base-sha", "${{ steps.refs.outputs.base }}", "--head-sha", "${{ steps.refs.outputs.head }}",
+                 "--actor", "${{ github.actor }}", "--result", result,
+                 "--report-ref", f"pr:#{pr_number}" if pr_number else "${{ github.event_name }}"]
+          if pr_number:
+              cmd += ["--pr", "${{ github.event.pull_request.html_url }}"]
+          if files:
+              cmd += ["--changed-files", ",".join(files)]
+          if findings or warnings:
+              cmd += ["--issue-ids", ",".join(sorted({f.get("standard", "") for f in findings + warnings} - {""})),
+                      "--summary", report.get("summary") or "; ".join(
+                          f"{f.get('standard')} {f.get('path')}" + (f" table {f['table']}" if f.get("table") else "")
+                          + f": {f.get('finding')}" for f in findings)]
+          slack = bool(pr_number) or not result.startswith(("PASS", "NOT APPLICABLE"))
+          env = {**os.environ, "TALEEMABAD_GATE_SLACK_VIA_BOARD_IN_CI": "1" if slack else "0"}
+          out = subprocess.run(cmd, capture_output=True, text=True, env=env)
+          print(out.stdout[-2000:]); print(out.stderr[-2000:], file=sys.stderr)
+          PYEOF
+
+      - name: Gate on the result
         run: |
           code="${{ steps.validate.outputs.exit_code }}"
-          if [ "$code" = "1" ]; then
-            echo "::error::Confirmed blocking violation(s) — see the report artifact and PR comment."
-            exit 1
-          fi
-          if [ "$code" = "2" ]; then
-            echo "::error::The validator itself could not run — failing closed rather than merging unverified."
-            exit 1
-          fi
-          echo "Data standards check passed (exit $code: 0=pass, 3=no schema-relevant change)."
-          exit 0
-
-# --- Manual setup this workflow does NOT do for you ---
-#
-# 1. Copy this file to .github/workflows/data-standards.yml in the target repo.
-# 2. Set PACK_PATH (see the "Locate the data-standards validator" step) to
-#    wherever your org makes agent-skills-taleemabad available in CI.
-# 3. Go to Settings → Branches → (your protected branch) → Require status
-#    checks to pass before merging → select "data-standards / validate-schema".
-#    This step is what actually makes the check a merge gate — everything
-#    above this line only makes it RUN and REPORT.
-# 4. If your repo uses a bypass/override process for genuine incident work,
-#    wire it as a protected label or a required-reviewer override at the
-#    branch-protection level — NOT as an environment variable any
-#    contributor could set (that's fine for local/Claude-session use, per
-#    reference/enforcement-policy.md, but not for CI).
+          python3 - <<'PYEOF'
+          import json
+          try:
+              report = json.load(open("report.json"))
+          except Exception:
+              report = {}
+          for f in report.get("warnings", []):
+              print(f"::warning file={f.get('path')}::{f.get('standard')} (does not block): {f.get('finding')} "
+                    f"Why only a warning: {f.get('why')}")
+          PYEOF
+          case "$code" in
+            0) echo "Data Standards: PASS." ;;
+            3) echo "Data Standards: no schema-relevant change — nothing to check." ;;
+            1) echo "::error::Confirmed Data Standards violation(s) — see the PR comment and report artifact."; exit 1 ;;
+            *) echo "::error::The validator could not run (exit $code) — failing closed."; exit 1 ;;
+          esac
