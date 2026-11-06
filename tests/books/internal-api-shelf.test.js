@@ -71,6 +71,12 @@ beforeEach(() => {
     bookFor: jest.fn(async () => ({ id: 'book-1', total_pages: 100 })),
     listChapters: jest.fn(async () => [{ chapter_number: 1, chapter_title: 'One', page_start: 1, page_end: 9 }]),
   }));
+  jest.doMock('../../bot/shared/services/lp612-browse.service', () => ({
+    listGrades: jest.fn(async () => [{ grade: 6 }, { grade: 7 }]),
+    listSubjects: jest.fn(async () => [{ subject: 'English' }]),
+    listChapters: jest.fn(async () => []),
+    listLessons: jest.fn(async () => []),
+  }));
   router = require('../../bot/shared/routes/internal-api.routes');
   Browse = require('../../bot/shared/services/lp-v8-browse.service');
   AssessmentBrowse = require('../../bot/shared/services/assessment/assessment-browse.service');
@@ -130,5 +136,28 @@ describe('assessments', () => {
     const isl = await invoke('/assessment/chapters', { userId: 'gb-teacher', grade: 1, subject: 'islamiat' });
     expect(isl.statusCode).toBe(200);
     expect(AssessmentBrowse.listChapters).toHaveBeenCalledWith(1, 'islamiat');
+  });
+});
+
+describe('Grade 6+ for a region whose books stop at Grade 5 (operator, 6 Nov)', () => {
+  test('the portal offers a GB teacher only the grades her books cover; an ICT teacher keeps them all', async () => {
+    AssessmentBrowse.listGrades.mockResolvedValue([1, 2, 5, 6, 7]);
+    const gb = await invoke('/assessment/options', { userId: 'gb-teacher' });
+    expect(gb.payload.grades).toEqual([1]);
+    const ict = await invoke('/assessment/options', { userId: 'sector-teacher' });
+    expect(ict.payload.grades).toEqual([1, 2, 5]); // the G6-12 grade gate is off in this file, as before
+  });
+
+  test('a GB Grade 7 paper is refused at the door; the portal 6-12 lesson lists are empty for her', async () => {
+    const chapters = await invoke('/assessment/chapters', { userId: 'gb-teacher', grade: 7, subject: 'english' });
+    expect(chapters.statusCode).toBe(400);
+    const Lp612 = require('../../bot/shared/services/lp612-browse.service');
+    const grades = await invoke('/lp612/grades', { userId: 'gb-teacher' });
+    expect(grades.payload.grades).toEqual([]);
+    const subjects = await invoke('/lp612/subjects', { userId: 'gb-teacher', grade: 7 });
+    expect(subjects.payload.subjects).toEqual([]);
+    expect(Lp612.listSubjects).not.toHaveBeenCalled();
+    await invoke('/lp612/grades', { userId: 'sector-teacher' });
+    expect(Lp612.listGrades).toHaveBeenCalled();
   });
 });
