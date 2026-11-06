@@ -629,7 +629,7 @@ async function buildPaper(job, user = {}) {
       ...(scope && scope.kind === 'topics' ? { slos: scope.slos } : {}),
       ...(avoid.length ? { avoidQuestions: avoid } : {}),
       // Grade 6 and up asks about the lesson by name; G1-5 gets exactly the arguments it always did.
-      ...(writeExam !== Generation.generateExam ? { chapterTitle: source.chapterTitle || null } : {}),
+      ...(writeExam !== Generation.generateExam ? { chapterTitle: source.chapterTitle || null, keySeed: paperId || requestId } : {}),
     }), isTopic ? Generation.generateTopicOral({ grade, subject, pageContent: source.content, requestId }) : null]);
 
     // With versioned editing the generated row IS version 1 and is never

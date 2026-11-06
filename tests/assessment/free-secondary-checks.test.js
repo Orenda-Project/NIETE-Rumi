@@ -61,7 +61,9 @@ describe('paperIssues', () => {
       [mcq('Which gas do plants take in for photosynthesis?', ['a) Oxygen gas', 'b) Carbon dioxide', 'c) Nitrogen gas', 'd) Water vapour'], 'b')],
       [srq('Name the gas plants take in during photosynthesis.', 'Carbon dioxide.', { marking_points: points(3) })],
     );
-    expect(checks(exam)).toEqual(['2:cross-leak']);
+    // The MCQ is the item to rewrite: it gives the written answer away.
+    expect(checks(exam)).toEqual(['1:cross-leak']);
+    expect(C.paperIssues(exam, { grade: 7 })[0].avoid).toEqual([2]);
   });
 
   it('flags a stem that prints the answer to another item', () => {
@@ -123,3 +125,29 @@ describe('the lesson subject and short Urdu answers', () => {
     expect(checks(exam, 8)).toEqual([]);
   });
 });
+
+describe('key terms that cue another item (A5b, widened)', () => {
+  const mcqs = [
+    mcq('The loss of water vapour from a leaf is called:', ['a) Photosynthesis', 'b) Respiration', 'c) Transpiration', 'd) Germination'], 'c'),
+    mcq('Which weather condition increases the transpiration rate the most?', ['a) Hot windy weather', 'b) Cold moist weather', 'c) Dark damp weather', 'd) Cool calm weather'], 'a'),
+  ];
+  const wilting = srq('A farmer sees his crop wilting on a hot, windy day. Explain why the leaves wilt.',
+    'Hot, windy weather increases the rate of transpiration. The leaves lose water faster than roots replace it.',
+    { marking_points: points(3) });
+
+  it('flags MCQ keys whose terms are the expected answer of a later item, and a stem printing a key', () => {
+    const issues = C.paperIssues(paper(mcqs.map((q) => ({ ...q })), [{ ...wilting }]), { grade: 7 });
+    expect(issues.map((i) => `${i.n}:${i.check}`)).toEqual(['1:cross-leak', '2:cross-leak']);
+    expect(issues[0].avoid).toEqual([3]);
+    expect(issues[1].avoid).toEqual([1, 3]);
+  });
+
+  it('does not flag one shared word with nothing else in common', () => {
+    const exam = paper(
+      [mcq('Many chloroplasts in leaf cells mainly help the leaf to:', ['a) Store water', 'b) Absorb sunlight', 'c) Reduce water loss', 'd) Grow roots'], 'b')],
+      [srq('A green plant sits in a sealed jar with sunlight by day. Name the gas it releases.', 'Oxygen.', { marking_points: points(3) })],
+    );
+    expect(checks(exam)).toEqual([]);
+  });
+});
+

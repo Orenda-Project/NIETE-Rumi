@@ -64,7 +64,7 @@ describe('free-secondary generateExam', () => {
     const out = await Svc.generateExam(ARGS);
     expect(mockCreate).toHaveBeenCalledTimes(1);
     const keys = out.examJson.unseen.objective['Multiple Choice Questions'].map((q) => q.answer.slice(0, 1));
-    expect(keys).toEqual(['c', 'a', 'd']);
+    expect(new Set(keys).size).toBe(3);
     expect(out.examJson._timeMinutes).toBeGreaterThanOrEqual(10);
     expect(out.examJson._timeMinutes % 5).toBe(0);
     expect(out.issues).toEqual([]);
@@ -113,4 +113,63 @@ describe('free-secondary generateExam', () => {
     mockCreate.mockResolvedValueOnce(reply({ unseen: {} }));
     await expect(Svc.generateExam(ARGS)).rejects.toMatchObject({ code: 'NO_QUESTIONS' });
   });
+
+  const keysOf = (out) => out.examJson.unseen.objective['Multiple Choice Questions'].map((q) => q.answer.slice(0, 1)).join('');
+
+  it('spreads the keys from the paper\'s seed: the same seed gives the same letters', async () => {
+    const seeds = ['paper-1', 'paper-1', 'paper-2', 'paper-3', 'paper-4', 'paper-5'];
+    const runs = [];
+    for (const keySeed of seeds) {
+      mockCreate.mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS }))));
+      runs.push(keysOf(await Svc.generateExam({ ...ARGS, keySeed })));
+    }
+    expect(runs[0]).toBe(runs[1]);
+    expect(new Set(runs).size).toBeGreaterThan(1);
+  });
+
+  it('rewrites only the items a revision left with a leak, a long key or an absolute option', async () => {
+    const longKey = () => draft(short({ marking_points: POINTS }));
+    const withLong = () => { const d = longKey(); d.unseen.objective['Multiple Choice Questions'][0].options[3] = 'd) Salt that is stirred into warm water'; d.unseen.objective['Multiple Choice Questions'][0].answer = 'd'; return d; };
+    mockCreate
+      .mockResolvedValueOnce(reply(withLong()))
+      .mockResolvedValueOnce(reply(withLong()))
+      .mockResolvedValueOnce(reply({ items: [{ n: 1, question: 'Which one dissolves in water?', options: OPTS, answer: 'd) Salt' }] }));
+    const out = await Svc.generateExam({ ...ARGS, keySeed: 's' });
+    expect(mockCreate).toHaveBeenCalledTimes(3);
+    const ask = mockCreate.mock.calls[2][0].messages;
+    expect(ask[ask.length - 1].content).toContain('Q1');
+    expect(ask[ask.length - 1].content).not.toContain('Why does ice float?');
+    expect(out.issues).toEqual([]);
+    expect(out.rewritten).toEqual([1]);
+  });
+
+  it('keeps the paper when the targeted rewrite does not leave fewer problems', async () => {
+    const withLong = () => { const d = draft(short({ marking_points: POINTS })); d.unseen.objective['Multiple Choice Questions'][0].options[3] = 'd) Salt that is stirred into warm water'; d.unseen.objective['Multiple Choice Questions'][0].answer = 'd'; return d; };
+    mockCreate
+      .mockResolvedValueOnce(reply(withLong()))
+      .mockResolvedValueOnce(reply(withLong()))
+      .mockResolvedValueOnce(reply({ items: [{ n: 1, question: 'Which?', options: ['a) Sand', 'b) Water', 'c) Wood', 'd) Salt that is stirred into warm water'], answer: 'd' }] }));
+    const out = await Svc.generateExam({ ...ARGS, keySeed: 's' });
+    expect(out.issues.map((i) => i.check)).toEqual(['longest-key']);
+    expect(out.rewritten).toEqual([]);
+  });
+
+  it('makes no targeted call when only other problems remain, and strips instruction text from marking points', async () => {
+    const pts = [{ point: 'less dense (do not repeat the question)', marks: 2 }, { point: 'than water', marks: 1 }];
+    mockCreate.mockResolvedValueOnce(reply(draft(short({ marking_points: pts }))));
+    const out = await Svc.generateExam({ ...ARGS, keySeed: 's' });
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(out.examJson.unseen.subjective['Short Answers'][0].marking_points[0].point).toBe('less dense');
+  });
+
+  it('prints the parts of a scenario item the writer nested under it', async () => {
+    const d = draft(short({ marking_points: POINTS }));
+    d.unseen.subjective.Other = [{ question: 'A fictional plant wilts.', marks: 2, lines: 4,
+      marking_points: [{ point: 'p', marks: 2 }], answer: 'It loses water.',
+      questions: [{ question: 'a. Why does it wilt?', marks: 2, answer: 'It loses water.' }] }];
+    mockCreate.mockResolvedValueOnce(reply(d));
+    const out = await Svc.generateExam({ ...ARGS, keySeed: 's' });
+    expect(out.examJson.unseen.subjective.Other[0].passage).toBe('A fictional plant wilts.');
+  });
 });
+
