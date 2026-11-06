@@ -112,4 +112,8 @@ function rewriteNote(rows, stems = [], used = [], phrases = [], figure = false, 
   return lines.join('\n');
 }
 
-module.exports = { levelPart, earlierStems, levelTally, promptValues, userPrompt, topUpNote, chunkNote, rewriteNote };
+// round 10: deterministic checks whose drop the rewrite should be told about, as a reviewer fault would be
+const CHECK_FAULTS = { D18: 'the key stood out (longest option, or always/never)' };
+const checkFaults = (gone) => gone.filter((x) => CHECK_FAULTS[x.check]).map((x) => `"${x.question}": ${CHECK_FAULTS[x.check]}`);
+
+module.exports = { levelPart, earlierStems, levelTally, promptValues, userPrompt, topUpNote, chunkNote, rewriteNote, checkFaults };

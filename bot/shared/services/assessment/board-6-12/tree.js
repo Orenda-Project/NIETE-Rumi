@@ -224,4 +224,22 @@ function fill(first, second, want, rank = () => 0) {
   return topUp(first, pick, new Set(want.keys()));
 }
 
-module.exports = { eachList, leavesOf, leavesOfNode, overfull, dropEmptyOptions, liveCounts, shortfallOf, trimExcess, dropIds, stamp, isGroup, fromReply, topUp, fill };
+/** Round 10: the hard ids `fill` can make good. A group's ids stay (fill never adds a group); a plain node's ids go
+ * only while `spare` holds a new plain node of its slot, one per dropped node. Pure. */
+function droppable(tree, ids, spare) {
+  const have = new Set();
+  eachList(tree, (list) => list.forEach((q) => { if (isObj(q)) have.add(nodeKey(q)); }));
+  const room = new Map();
+  eachList(spare || {}, (list) => list.forEach((q) => { if (isObj(q) && !isGroup(q) && !have.has(nodeKey(q))) room.set(q.slot, (room.get(q.slot) || 0) + 1); }));
+  const out = new Set();
+  eachList(tree, (list) => list.forEach((q) => {
+    if (!isObj(q) || isGroup(q)) return;
+    const hit = [q.id, ...leavesOfNode(q).map((l) => l.id)].filter((id) => ids.has(id));
+    if (!hit.length || !(room.get(q.slot) > 0)) return;
+    room.set(q.slot, room.get(q.slot) - 1);
+    hit.forEach((id) => out.add(id));
+  }));
+  return out;
+}
+
+module.exports = { eachList, leavesOf, leavesOfNode, overfull, dropEmptyOptions, liveCounts, shortfallOf, trimExcess, dropIds, stamp, isGroup, fromReply, topUp, fill, droppable };

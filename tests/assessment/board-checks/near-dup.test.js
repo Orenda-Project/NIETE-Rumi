@@ -84,3 +84,11 @@ describe('D17 r9: written (SRQ) stems that share >= 80% of their content words (
     expect(written([o]).issues).toEqual([]);
   });
 });
+
+describe('D17 round 10: same tested fact, different key', () => {
+  test('the same stem asked twice is a duplicate even with another key', () => {
+    const a = m('v1', 'Which of the following is a scalar quantity?', ['A) speed', 'B) velocity', 'C) force', 'D) displacement'], 'A) speed');
+    const b = m('v2', 'Which one of these is a scalar quantity?', ['A) weight', 'B) mass', 'C) momentum', 'D) acceleration'], 'B) mass');
+    expect(one([a, b]).issues.map((i) => [i.rule, i.item_ref])).toEqual([['NEAR_DUP', 's#2']]);
+  });
+});
