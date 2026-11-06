@@ -100,3 +100,26 @@ it('the Urdu-medium GK is not on GB\'s menu, even when asked for by key', async 
   const res = await step('gb-teacher', { step: 'subject', grade: '3', subject: 'general_knowledge_ur' });
   expect(res.screen).not.toBe('SELECT_CHAPTER');
 });
+
+describe("Amena's GB lane is on (LP_GB_K5_ENABLED) and GB's curriculum is nbf_snc", () => {
+  const saved = { ...process.env };
+  beforeEach(() => {
+    process.env.LP_GB_K5_ENABLED = 'true';
+    process.env.LP_612_ENABLED = 'true';
+    db.reset({
+      users: [{ id: 'gb-teacher', region: 'Gilgit-Baltistan' }],
+      region_features: [{ region: 'gilgit-baltistan', organization: 'moawin', display_name: 'Gilgit-Baltistan',
+        curriculum_key: 'nbf_snc', book_keys: ['gb_g3_english', 'grade_3_general_knowledge_en'] }],
+    });
+    TeacherBooks._clearCache();
+    require('../../bot/shared/services/region-registry')._clearCache();
+  });
+  afterEach(() => { process.env = { ...saved }; });
+
+  it('a region with a book list is book-first: her Grade 3 menu is her books, not the curriculum lane', async () => {
+    const res = await step('gb-teacher', { step: 'grade', grade: '3' });
+    expect(res.screen).toBe('SELECT_SUBJECT');
+    // bd-rj6w0n.14.17 — her English is served by the GB lane (Coming Soon until its GB lessons land); GK stays ICT's.
+    expect(res.data.items.map((r) => r.id)).toEqual(['gb_soon_english', 'general_knowledge']);
+  });
+});

@@ -7,6 +7,10 @@
  * normal row (step lp612_subject); no ready render is needed and no render table is read. An on-request
  * book with no lessons yet is listed as "Coming Soon" with step lp612_gb_soon, which the endpoint refuses.
  * Only reached for a GB teacher while LP_GB_K5_ENABLED is on.
+ *
+ * bd-rj6w0n.14.17 — her region's book list (bd-97daxo.4), when it has one, says which on-request books she has:
+ * one it does not name is left off. Any book the list names comes back as Coming Soon until its lessons land,
+ * then as its catalogue row, so a newly segmented book needs no code change here.
  */
 const { resolveUx } = require('../config/ux-strings');
 const Lp612Catalog = require('./lp612-catalog.service');
@@ -38,16 +42,21 @@ function comingSoonRow(book, grade, language) {
   };
 }
 
+/** GB's key for an on-request book of a grade, as the region book list and the sheet name it (gb_g3_english). */
+const gbBookKey = (grade, book) => `gb_g${grade}_${book.key}`;
+
 /**
  * @param {number} grade  1-5
- * @param {{curriculum:'nbf_snc', language?:string}} opts
+ * @param {{curriculum:'nbf_snc', language?:string, bookKeys?:string[]|null}} opts
  * @param {{buildSubjectItems?:Function}} [deps]
  */
 async function gbShelfItems(grade, opts, deps = {}) {
   const build = deps.buildSubjectItems || Lp612Catalog.buildSubjectItems;
   const items = await build(grade, opts);
   const language = opts && opts.language;
-  return gbOnRequestSubjects(grade).map((book) => {
+  const listed = opts && Array.isArray(opts.bookKeys) ? new Set(opts.bookKeys) : null;
+  const books = gbOnRequestSubjects(grade).filter((book) => !listed || listed.has(gbBookKey(grade, book)));
+  return books.map((book) => {
     const row = items.find((i) => { const b = gbK5BookFor(grade, i.id); return b && b.key === book.key; });
     return row || comingSoonRow(book, grade, language);
   });
@@ -56,4 +65,4 @@ async function gbShelfItems(grade, opts, deps = {}) {
 /** The answer to a tap on a Coming Soon row: refused, nothing opens. */
 const refuseComingSoon = (language) => ({ data: { error: { message: resolveUx('lp612GbComingSoonTap', { language }) } } });
 
-module.exports = { SOON_STEP, gbShelfItems, refuseComingSoon, spellings };
+module.exports = { SOON_STEP, gbBookKey, gbShelfItems, refuseComingSoon, spellings };
