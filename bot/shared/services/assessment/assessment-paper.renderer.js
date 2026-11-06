@@ -18,6 +18,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const FreePrint = require('./free-secondary-print');
 const { orderedEntries } = require('./assessment-order');
 
 /**
@@ -450,7 +451,7 @@ ${sub ? `<div class="chapter">${sub}</div>` : ''}
 ${paperKind === 'topic' ? '' : `  <tr><td class="k">Total Marks</td><td>${totalMarks(questions)}</td><td class="k">Obtained Marks</td><td></td></tr>
 `}</table>
 <div class="instructions"><b>Instructions</b>
-  <ol>${INSTRUCTIONS.map((i) => `<li>${esc(i)}</li>`).join('')}</ol>
+  <ol>${FreePrint.instructionsFor(examJson, INSTRUCTIONS).map((i) => `<li>${esc(i)}</li>`).join('')}</ol>
 </div>
 ${body.join('\n')}
 </body></html>`;
@@ -518,6 +519,7 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
       answer = dash;
     } else {
       answer = question && question.answer ? escMultiline(question.answer) : dash;
+      answer += FreePrint.markingHtml(question, esc);
     }
     rows.push(`<tr><td class="num">${number}.</td><td class="qt">${esc(questionLabel(question))}</td>`
       + `<td class="ans">${answer}${byTopic && question && question.slo ? `<div class="slo">SLO ${esc(question.slo)}</div>` : ''}</td><td class="mk">${marksLabel(questionMarks(question))}</td></tr>`);
