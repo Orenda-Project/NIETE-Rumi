@@ -1,0 +1,209 @@
+{
+ "grade": 11,
+ "code": "islamiat",
+ "source": {
+  "file": "humanities/islamiat_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "3": [
+   {
+    "code": "book p14 outcome 1",
+    "kind": "book",
+    "desc": "حفاظتِ حدیث (تدوینِ حدیث کے ادوار، صحاح ستہ"
+   }
+  ],
+  "4": [
+   {
+    "code": "book p24 outcome 1",
+    "kind": "book",
+    "desc": "طلبہ توحید کے دلائل اور تقاضوں کو جان"
+   }
+  ],
+  "5": [
+   {
+    "code": "book p28 outcome 1",
+    "kind": "book",
+    "desc": "طلبہ قرآن و سنت کی روشنی میں رسالتِ"
+   },
+   {
+    "code": "book p28 outcome 2",
+    "kind": "book",
+    "desc": "خصوصاً ختمِ نبوت کی اہمیت سمجھتے ہوئے اس"
+   }
+  ],
+  "6": [
+   {
+    "code": "book p32 outcome 1",
+    "kind": "book",
+    "desc": "فرشتوں کے تصور، تخلیق کا مقصد اور ذمہ"
+   }
+  ],
+  "7": [
+   {
+    "code": "book p36 outcome 1",
+    "kind": "book",
+    "desc": "آسمانی کتب اور صحائف پر ایمان پختہ کرتے"
+   },
+   {
+    "code": "book p40 outcome 1",
+    "kind": "book",
+    "desc": "آخرت، برزخ، حشر نشر، میزان، جنت، حوض کوثر،"
+   }
+  ],
+  "9": [
+   {
+    "code": "book p14 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p24 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p28 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p28 outcome 2",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p32 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p36 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p40 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ],
+  "10": [
+   {
+    "code": "book p49 outcome 1",
+    "kind": "book",
+    "desc": "زکوۃ و صدقات کی حکمتوں اور فلسفے کے"
+   }
+  ],
+  "11": [
+   {
+    "code": "book p53 outcome 1",
+    "kind": "book",
+    "desc": "روزے کا مقصد، اہمیت وفضیلت اور ماہِ رمضان"
+   }
+  ],
+  "12": [
+   {
+    "code": "book p57 outcome 1",
+    "kind": "book",
+    "desc": "مناسکِ حج، آداب اور حکمتوں کے بارے میں"
+   }
+  ],
+  "13": [
+   {
+    "code": "book p64 outcome 1",
+    "kind": "book",
+    "desc": "وہ: نبی کریم ﷺ کی بطور سربراہ خاندان"
+   }
+  ],
+  "14": [
+   {
+    "code": "book p68 outcome 1",
+    "kind": "book",
+    "desc": "وہ: نبی کریم ﷺ کے بطور سربراہِ ریاست"
+   }
+  ],
+  "15": [
+   {
+    "code": "book p73 outcome 1",
+    "kind": "book",
+    "desc": "وہ: نبی کریم ﷺ کی بطور سپہ سالار"
+   }
+  ],
+  "16": [
+   {
+    "code": "book p77 outcome 1",
+    "kind": "book",
+    "desc": "وہ: نبی کریم ﷺ کی معاشی تعلیمات اور"
+   }
+  ],
+  "17": [
+   {
+    "code": "book p82 outcome 1",
+    "kind": "book",
+    "desc": "قرآن وسنت کی روشنی میں اجتماعی خیر خواہی"
+   }
+  ],
+  "18": [
+   {
+    "code": "book p87 outcome 1",
+    "kind": "book",
+    "desc": "قرآن و سنّت کی روشنی میں اخلاقی رذائل"
+   },
+   {
+    "code": "book p49 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p53 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p57 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p64 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p68 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p73 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p77 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p82 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ],
+  "19": [
+   {
+    "code": "book p92 outcome 1",
+    "kind": "book",
+    "desc": "قرآن وسنّت کی روشنی میں معاشرتی تعلق کے"
+   }
+  ],
+  "28": [
+   {
+    "code": "book p92 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ]
+ }
+}

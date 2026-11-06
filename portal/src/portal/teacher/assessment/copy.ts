@@ -334,6 +334,12 @@ export const ASSESSMENT_V2_COPY = {
   longerBody: 'Still being made. It stays in Recent papers and opens there when ready.',
   fdeChip: 'FDE pattern',
   fdeListChip: 'FDE',
+  // G9-12 FBISE board patterns (bd-5jmnfj.38.25.4): the door's name once a G6-12 grade is offered, and the FBISE words.
+  boardDoor: 'Board pattern papers',
+  styleFbise: 'FBISE board pattern',
+  fbiseNotOfficial: 'Practice paper · not an official FBISE paper',
+  fbiseChip: 'FBISE pattern',
+  fbiseListChip: 'FBISE',
   questionPaper: 'Question paper',
   markingScheme: 'Marking scheme',
   pagesCount: (n: number) => (n === 1 ? '1 page' : `${n} pages`),
@@ -645,6 +651,12 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   longerBody: 'پرچہ ابھی تیار ہو رہا ہے۔ یہ «حالیہ پرچے» میں رہے گا اور تیار ہونے پر وہیں کھلے گا۔',
   fdeChip: 'FDE pattern',
   fdeListChip: 'FDE',
+  // G9-12 FBISE: MACHINE-DRAFTED, needs fluent-Urdu review. "FBISE" stays Latin (the kit isolates it).
+  boardDoor: 'بورڈ pattern کے پرچے',
+  styleFbise: 'FBISE بورڈ pattern',
+  fbiseNotOfficial: 'مشقی پرچہ · سرکاری FBISE پرچہ نہیں',
+  fbiseChip: 'FBISE pattern',
+  fbiseListChip: 'FBISE',
   questionPaper: 'سوالیہ پرچہ',
   markingScheme: 'مارکنگ اسکیم',
   pagesCount: (n: number) => (n === 1 ? '1 صفحہ' : `${n} صفحات`), // singular: needs fluent-Urdu review
@@ -680,11 +692,11 @@ export const COPY_ENTRY: CopyEntry = {
   module: ASSESSMENT as Bilingual<unknown>,
   // join only joins its parts ("Grade 4 · Science · 15 questions"): the same in both languages.
   // fdeChip: the operator's review (15 Oct) writes "pattern" in Latin in Urdu too, so "FDE pattern" is the same in both.
-  same: ['join', 'fdeListChip', 'fdeChip'],
+  same: ['join', 'fdeListChip', 'fdeChip', 'fbiseListChip', 'fbiseChip'],
   // The reasons beside a disabled button are a short line each, not a label (bd-fmf24g.34).
   // FDE: the hint and note lines beside a button or under a row are one short line each (copy deck §A `longOk`).
   longOk: ['why', 'fdeDoorChips', 'islamiatHeld', 'ownNext', 'fullRehearsal', 'insideCustom', 'notOfficial', 'readyHint', 'skips4',
-    'chaptersOff', 'waitHub', 'waitPoll', 'longerBody', 'ifNoDownload', 'fdeFailures', 'lastMade', 'notInFde', 'practiseFromBook',
+    'chaptersOff', 'fbiseNotOfficial', 'waitHub', 'waitPoll', 'longerBody', 'ifNoDownload', 'fdeFailures', 'lastMade', 'notInFde', 'practiseFromBook',
     'styleFdeSub', 'styleOwnSub', 'editBoth', 'willSay', 'willSayAll', 'noAddOnPattern', 'patternFixedMarks', 'seePaperBeingMade',
     // Questions: the one line that says what is asked, in the operator's own words (20 Oct), not a label.
     'askCount',

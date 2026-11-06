@@ -1,0 +1,34 @@
+[
+  {
+    "timeout": 60000,
+    "pdfOptions": {
+      "format": "A4",
+      "printBackground": true,
+      "displayHeaderFooter": true,
+      "headerTemplate": "<span></span>",
+      "footerTemplate": "<style>@font-face{font-family:'PaperLatin';font-weight:400;font-style:normal;src:url(data:font/ttf;base64,<sha256:827bb7ceb0d744d56b4e62febbb36768d8d21be63a879054814d294afa3584ac>) format('truetype');}@font-face{font-family:'PaperLatin';font-weight:700;font-style:normal;src:url(data:font/ttf;base64,<sha256:4076c0ea1c671e17cb1f25f52c0cbb81c164b42d3259cad798d44fdbc4826efc>) format('truetype');}@font-face{font-family:'PaperUrdu';font-weight:400;font-style:normal;src:url(data:font/ttf;base64,<sha256:7ab6206e85b6a8cee58d79a5051e2fa55beb476d46943398d58ac05838eec03a>) format('truetype');}@font-face{font-family:'PaperUrdu';font-weight:700;font-style:normal;src:url(data:font/ttf;base64,<sha256:ff9136eea187a90c1a08c4d108e9725e16f713552f63166dce3ba9d8b180cdfe>) format('truetype');}@font-face{font-family:'FdeUrduDigits';font-weight:400;font-style:normal;src:url(data:font/ttf;base64,<sha256:333c344209fc55a574c3dffb0ae9eae2da080692f257868a4e49e507d7e36249>) format('truetype');}</style><div dir=\"rtl\" style=\"width:100%;font-family:'PaperUrdu';font-size:8.5pt;line-height:1.7;text-align:center;color:#333;padding:0 12mm\"><div>صفحہ <span class=\"pageNumber\" style=\"font-family:'FdeUrduDigits'\"></span> از <span class=\"totalPages\" style=\"font-family:'FdeUrduDigits'\"></span></div></div>",
+      "margin": {
+        "top": "12mm",
+        "right": "12mm",
+        "bottom": "22mm",
+        "left": "12mm"
+      }
+    }
+  },
+  {
+    "timeout": 60000,
+    "pdfOptions": {
+      "format": "A4",
+      "printBackground": true,
+      "displayHeaderFooter": true,
+      "headerTemplate": "<span></span>",
+      "footerTemplate": "<style>@font-face{font-family:'PaperLatin';font-weight:400;font-style:normal;src:url(data:font/ttf;base64,<sha256:827bb7ceb0d744d56b4e62febbb36768d8d21be63a879054814d294afa3584ac>) format('truetype');}@font-face{font-family:'PaperLatin';font-weight:700;font-style:normal;src:url(data:font/ttf;base64,<sha256:4076c0ea1c671e17cb1f25f52c0cbb81c164b42d3259cad798d44fdbc4826efc>) format('truetype');}@font-face{font-family:'PaperUrdu';font-weight:400;font-style:normal;src:url(data:font/ttf;base64,<sha256:7ab6206e85b6a8cee58d79a5051e2fa55beb476d46943398d58ac05838eec03a>) format('truetype');}@font-face{font-family:'PaperUrdu';font-weight:700;font-style:normal;src:url(data:font/ttf;base64,<sha256:ff9136eea187a90c1a08c4d108e9725e16f713552f63166dce3ba9d8b180cdfe>) format('truetype');}@font-face{font-family:'FdeUrduDigits';font-weight:400;font-style:normal;src:url(data:font/ttf;base64,<sha256:333c344209fc55a574c3dffb0ae9eae2da080692f257868a4e49e507d7e36249>) format('truetype');}</style><div dir=\"rtl\" style=\"width:100%;font-family:'PaperUrdu';font-size:8.5pt;line-height:1.7;text-align:center;color:#333;padding:0 12mm\"><div>مارکنگ اسکیم · صفحہ <span class=\"pageNumber\" style=\"font-family:'FdeUrduDigits'\"></span> از <span class=\"totalPages\" style=\"font-family:'FdeUrduDigits'\"></span></div></div>",
+      "margin": {
+        "top": "12mm",
+        "right": "12mm",
+        "bottom": "22mm",
+        "left": "12mm"
+      }
+    }
+  }
+]

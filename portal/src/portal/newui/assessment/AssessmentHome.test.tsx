@@ -301,6 +301,25 @@ describe("Assessment — More", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(moreRow()).toHaveTextContent("MCQFill in");
   });
+
+  it("a grade 6+ subject shows each type by the name the server sends, never its code (bd-5jmnfj.38.40)", async () => {
+    const G6 = [{ id: "mcq", category: "objective", label: "MCQs" }, { id: "srq", category: "subjective", label: "Short Response" }];
+    vi.mocked(portal.getAssessmentOptions).mockImplementation(async (grade?: number, subject?: string) => {
+      if (grade == null) return GRADES as never;
+      const subjects = SUBJECTS[grade] || [];
+      return (subject ? { ...GRADES, subjects, types: G6 } : { ...GRADES, subjects }) as never;
+    });
+    renderHome();
+    await pickAll();
+    fireEvent.click(moreRow());
+    const sheet = await screen.findByRole("dialog", { name: "More" });
+    const types = within(sheet).getByRole("group", { name: "Question types" });
+    expect(within(types).getAllByRole("checkbox").map((c) => c.textContent)).toEqual(["MCQs", "Short Response"]);
+    fireEvent.click(within(types).getByRole("checkbox", { name: /Short Response/ }));
+    fireEvent.click(within(sheet).getByRole("button", { name: "Done" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(moreRow()).toHaveTextContent("Short Response");
+  });
 });
 
 describe("Assessment — Make assessment", () => {

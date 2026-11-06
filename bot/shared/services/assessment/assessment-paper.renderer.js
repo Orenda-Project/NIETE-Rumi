@@ -18,6 +18,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const FreePrint = require('./free-secondary-print');
+const Chrome = require('./free-secondary-chrome');
 const { orderedEntries } = require('./assessment-order');
 
 /**
@@ -74,10 +76,16 @@ const SUBJECT_NAMES = {
   science: 'Science', gensci: 'Science',
   genk: 'General Knowledge', general_knowledge: 'General Knowledge',
   sst: 'Social Studies', social_studies: 'Social Studies',
+  // G6-12 registry codes (subject-config.js).
+  general_science: 'General Science', computer_science: 'Computer Science', history: 'History',
+  geography: 'Geography', zarai_taleem: 'Zarai Taleem', physics: 'Physics', chemistry: 'Chemistry',
+  biology: 'Biology', pakistan_studies: 'Pakistan Studies', pakistan_studies_ur: 'Pakistan Studies',
 };
 
 // Taught in Urdu, so the paper is set right to left.
 const RTL_SUBJECTS = new Set(['urdu', 'islamiat', 'genk', 'general_knowledge', 'sst', 'social_studies']);
+// G6-12 Urdu-medium registry codes (subject-config.js rows with medium 'ur'); urdu/islamiat are above.
+['pakistan_studies_ur', 'zarai_taleem'].forEach((c) => RTL_SUBJECTS.add(c));
 
 const INSTRUCTIONS = [
   'Read all questions carefully before answering.',
@@ -138,10 +146,10 @@ function optionsClass(options) {
   return longest > 14 ? 'options two' : 'options four';
 }
 
-function marksLabel(marks) {
+function marksLabel(marks, word) {
   const n = Number(marks);
   if (!Number.isFinite(n) || n <= 0) return '';
-  return `<span class="marks">[${n} ${n === 1 ? 'mark' : 'marks'}]</span>`;
+  return `<span class="marks">[${n} ${word || (n === 1 ? 'mark' : 'marks')}]</span>`;
 }
 
 /**
@@ -222,7 +230,7 @@ function renderQuestion(question, number, questionType, opts) {
     return `<div class="q"><p><b>${number}.</b> ${esc(question)}</p></div>`;
   }
 
-  const marks = marksLabel(question.marks);
+  const marks = marksLabel(question.marks, opts.marksWord);
   const answer = includeAnswerKey && question.answer
     ? `<div class="answer"><b>Answer:</b> ${esc(question.answer)}</div>` : '';
 
@@ -256,7 +264,7 @@ function renderQuestion(question, number, questionType, opts) {
     question.questions.forEach((sub, i) => {
       const letter = String.fromCharCode(97 + i);
       const subText = typeof sub === 'string' ? sub : sub.question;
-      const subMarks = typeof sub === 'string' ? '' : marksLabel(sub.marks);
+      const subMarks = typeof sub === 'string' ? '' : marksLabel(sub.marks, opts.marksWord);
       out.push(`<p class="sub"><b>${letter})</b> ${esc(subText)} ${subMarks}</p>`);
       if (typeof sub === 'object' && Array.isArray(sub.options) && sub.options.length) {
         out.push(`<div class="${optionsClass(sub.options)}">`);
@@ -344,11 +352,14 @@ function totalMarks(questions) {
 function renderPaper({ examJson, grade, subject, schoolName, pageReference,
                        chapterTitle, includeAnswerKey = false, answerLines = true, paperKind = null }) {
   // A board-pattern paper carries its layout and prints by it; read off the paper, never a flag.
+  // A G9-12 board paper (bd-5jmnfj.38.24) prints by its own renderer.
+  if (examJson && examJson._layout && examJson._layout.profile === 'board') return require('./assessment-paper-board.renderer').renderBoardPaper(examJson);
   if (examJson && examJson._layout) return require('./assessment-paper-fde.renderer').renderPaper(arguments[0]);
   const lineMm = lineHeightMm(grade);
   const questions = collectQuestions(examJson);
   const rtl = isRtl(subject);
-  const opts = { includeAnswerKey: false, answerLines };
+  const opts = { includeAnswerKey: false, answerLines, marksWord: Chrome.marksWord(examJson) };
+  const L = Chrome.labelsFor(examJson);
 
   const body = [];
   let number = 1;
@@ -361,7 +372,7 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
       // legitimately. "OTHER" printed as a section heading on a child's paper
       // says nothing — the shared instruction under it already does the work.
       if (type && !GENERIC_TYPES.has(String(type).trim().toLowerCase())) {
-        body.push(`<h3 class="type">${esc(type)}</h3>`);
+        body.push(`<h3 class="type">${esc(Chrome.headingFor(examJson, type))}</h3>`);
       }
       lastType = type;
       lastMain = null;
@@ -430,19 +441,19 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
   table.match th { background: #f2f2f2; }
   .answer-space { margin: 5px 0 0 ${rtl ? '0' : '18px'}; }
   .answer-line { border-bottom: 1px solid #aaa; height: ${lineMm}mm; }
-  .answer { background: #eef7ee; border-${rtl ? 'right' : 'left'}: 3px solid #4a4; padding: 3px 7px; margin-top: 4px; font-size: 10.5pt; }
+  .answer { background: #eef7ee; border-${rtl ? 'right' : 'left'}: 3px solid #4a4; padding: 3px 7px; margin-top: 4px; font-size: 10.5pt; }${Chrome.css(examJson)}
 </style></head>
 <body>
 ${schoolName ? `<div class="school">${esc(schoolName)}</div>` : ''}
 <div class="class-line">${heading}</div>
 ${sub ? `<div class="chapter">${sub}</div>` : ''}
 <table class="marks-header">
-  <tr><td class="k">Student Name</td><td colspan="3"></td></tr>
-  <tr><td class="k">Roll No</td><td></td><td class="k">Date</td><td></td></tr>
-${paperKind === 'topic' ? '' : `  <tr><td class="k">Total Marks</td><td>${totalMarks(questions)}</td><td class="k">Obtained Marks</td><td></td></tr>
+  <tr><td class="k">${L.studentName}</td><td colspan="3"></td></tr>
+  <tr><td class="k">${L.rollNo}</td><td></td><td class="k">${L.date}</td><td></td></tr>
+${paperKind === 'topic' ? '' : `  <tr><td class="k">${L.totalMarks}</td><td>${totalMarks(questions)}</td><td class="k">${L.obtainedMarks}</td><td></td></tr>
 `}</table>
-<div class="instructions"><b>Instructions</b>
-  <ol>${INSTRUCTIONS.map((i) => `<li>${esc(i)}</li>`).join('')}</ol>
+<div class="instructions"><b>${L.instructions}</b>
+  <ol>${Chrome.instructionsFor(examJson, INSTRUCTIONS).map((i) => `<li>${esc(i)}</li>`).join('')}</ol>
 </div>
 ${body.join('\n')}
 </body></html>`;
@@ -468,6 +479,7 @@ function questionLabel(question) {
  */
 function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, chapterTitle, topics }) {
   // A board-pattern paper's key is its marking scheme.
+  if (examJson && examJson._layout && examJson._layout.profile === 'board') return require('./assessment-scheme-board.renderer').renderBoardScheme(examJson);
   if (examJson && examJson._layout) return require('./assessment-paper-fde.renderer').renderMarkingScheme(arguments[0]);
   const questions = collectQuestions(examJson);
   const rtl = isRtl(subject);
@@ -503,12 +515,14 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
         const a = typeof sub === 'object' && sub.answer ? esc(sub.answer) : dash;
         const part = typeof sub === 'object' ? marksLabel(sub && sub.marks) : '';
         // The letter is a Latin run: isolated, or "c) —" reads "—(c" on an Urdu key.
-        return `<div><b class="num">${letter})</b> ${a}${part ? ` ${part}` : ''}</div>`;
+        return `<div><b class="num">${letter})</b> ${a}${part ? ` ${part}` : ''}${FreePrint.markingHtml(sub, esc)}${FreePrint.levelHtml(examJson, sub, esc)}</div>`;
       }).join('');
     } else if (question && Array.isArray(question.words) && question.words.length && !question.answer) {
       answer = dash;
     } else {
       answer = question && question.answer ? escMultiline(question.answer) : dash;
+      answer += FreePrint.markingHtml(question, esc);
+      answer += FreePrint.levelHtml(examJson, question, esc);
     }
     rows.push(`<tr><td class="num">${number}.</td><td class="qt">${esc(questionLabel(question))}</td>`
       + `<td class="ans">${answer}${byTopic && question && question.slo ? `<div class="slo">SLO ${esc(question.slo)}</div>` : ''}</td><td class="mk">${marksLabel(questionMarks(question))}</td></tr>`);
@@ -568,7 +582,7 @@ ${Oral.oralSheet(oral, { medium: rtl ? 'ur' : 'en', text: esc })}` : ''}
 module.exports = {
   renderPaper, renderAnswerKey, collectQuestions, totalMarks, renderQuestion,
   answerLinesFor, storedLines, MAX_STORED_LINES,
-  NO_LINES, isRtl, GENERIC_TYPES, questionMarks,
+  NO_LINES, isRtl, subjectName, GENERIC_TYPES, questionMarks,
   // For a second renderer that prints the same fonts and escapes the same way.
   fontFaces, esc,
 };

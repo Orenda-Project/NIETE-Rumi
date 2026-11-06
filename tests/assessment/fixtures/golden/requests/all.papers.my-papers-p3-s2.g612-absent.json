@@ -1,0 +1,26 @@
+{
+  "statusCode": 200,
+  "payload": {
+    "success": true,
+    "page": 3,
+    "pageSize": 2,
+    "total": 5,
+    "papers": [
+      {
+        "paper_id": "paper-1",
+        "grade": 1,
+        "subject_key": "maths",
+        "subject": "Maths",
+        "chapter_number": 1,
+        "question_count": 11,
+        "total_marks": 21,
+        "ready_at": "2026-10-01T08:05:00.000Z",
+        "has_answer_key": true,
+        "version": 1,
+        "version_count": 1,
+        "pattern": null,
+        "pages": null
+      }
+    ]
+  }
+}

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>MARKING SCHEME</title>
+<style>
+  @page { size: A4; }
+  @font-face{font-family:'PaperLatin';font-weight:400;font-style:normal;src:url(data:font/ttf;base64,<sha256:827bb7ceb0d744d56b4e62febbb36768d8d21be63a879054814d294afa3584ac>) format('truetype');}
+@font-face{font-family:'PaperLatin';font-weight:700;font-style:normal;src:url(data:font/ttf;base64,<sha256:4076c0ea1c671e17cb1f25f52c0cbb81c164b42d3259cad798d44fdbc4826efc>) format('truetype');}
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'PaperLatin',Arial,sans-serif;
+    font-size: 10.5pt; line-height: 1.45; color: #000; }
+  .num, .ascii, .ltr { direction: ltr; unicode-bidi: isolate; }
+  .ascii, .ltr { font-family: 'PaperLatin', Arial, sans-serif; }
+  .school { text-align: center; font-weight: 700; }
+  .title { text-align: center; font-weight: 700; font-size: 12.5pt; margin-top: 2px; }
+  .atoms { display: flex; justify-content: space-between; font-weight: 700; margin: 4px 0; }
+  .note { border: 1px solid #000; padding: 4px 8px; font-size: 9.5pt; margin: 4px 0 8px; break-inside: avoid; }
+  table.student { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 9.5pt; }
+  table.student td { border: 1px solid #000; padding: 3px 6px; height: 7mm; }
+  table.student td.k { background: #f0f0f0; font-weight: 700; white-space: nowrap; width: 22%; }
+  section.sec { break-inside: auto; }
+  .sec-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; border-top: 1.5px solid #000;
+    border-bottom: 1.5px solid #000; padding: 2px 0; margin: 10px 0 4px; break-after: avoid; font-weight: 700; }
+  .sec-head .t { text-align: left; font-weight: 400; }
+  .sec-head .l { text-align: center; padding: 0 8px; }
+  .sec-head .m { text-align: right; font-weight: 400; }
+  .sec-note { font-weight: 700; margin: 2px 0 6px; break-after: avoid; break-inside: avoid; }
+  .slot { margin: 6px 0 4px; }
+  .slot-head { display: flex; gap: 6px; align-items: baseline; font-weight: 700; margin: 6px 0 3px; break-after: avoid; break-inside: avoid; }
+  .slot-head .ml { margin-left: auto; white-space: nowrap; font-weight: 700; }
+  .slot-head .ins { font-weight: 700; }
+  .slot-head .lab { white-space: nowrap; flex: none; }
+  .q { margin: 3px 0 5px; padding-left: 6mm; break-inside: avoid; }
+  /* A slot's last item never sits alone at the top of a page. */
+  .slot > .q:last-child { break-before: avoid; }
+  .q .n { display: inline-block; min-width: 6mm; margin-left: -6mm; }
+  .q.qcont { padding-left: 0; }
+  .q.qcont .n { margin-left: 0; font-weight: 700; min-width: 0; margin-right: 4px; }
+  .opts { display: grid; gap: 1px 10px; margin: 2px 0 0; }
+  .opts.four { grid-template-columns: repeat(4, 1fr); }
+  .opts.two { grid-template-columns: repeat(2, 1fr); }
+  .opt .ol { margin-right: 3px; }
+  .work-box { border: 1px solid #555; margin: 3px 0 2px;
+    background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 7.5mm, #bbb 7.5mm, #bbb 7.8mm); }
+  .work-square { border: 1px solid #555; margin: 3px 0 2px; }
+  /* Inset from the end: a border on the content edge is clipped from the PDF (bd-5jmnfj.4.20). */
+  .write-box { border: 1.2px solid #000; margin: 2mm 0 1mm; margin-right: 0.5mm; }
+  .sq { display: inline-block; width: 9mm; height: 7mm; border: 1.2px solid #000; vertical-align: middle; margin: 0 2mm; }
+  .word-box.bank { display: flex; flex-wrap: wrap; justify-content: center; gap: 2mm 8mm; padding: 2mm 4mm; font-size: 13pt; break-after: avoid; break-inside: avoid; }
+  /* Picture cells sit in lines, not a flex grid (bd-5jmnfj.4.50.6): Chromium starts a flex grid on
+     its heading's page and pushes only the cells, so v22 left headings alone at a page foot. As
+     lines, the first row moves with its heading; one row is enough on either side of a break. */
+  .pic-grid { orphans: 1; widows: 1; }
+  .q.pic-cell { display: inline-block; vertical-align: top; width: 30%; margin: 0 0 4mm; margin-inline-end: 4mm; break-inside: avoid; }
+  /* border-box: the .q start padding is inside the 100%, so the box closes at the margin (bd-5jmnfj.4.58.2). */
+  .q.pic-cell.wide { display: block; width: 100%; box-sizing: border-box; margin-inline-end: 0; }
+  .q.pic-cell.wide .pic img { height: 44mm; }
+  table.data { border-collapse: collapse; margin: 4px 0; }
+  table.data th, table.data td { border: 1px solid #000; padding: 2px 10px; text-align: center; }
+  table.data th { background: #f0f0f0; }
+  svg.sym { width: .95em; height: .95em; vertical-align: -0.12em; margin: 0 .05em; }
+  .frac { display: inline-flex; flex-direction: column; vertical-align: middle; font-size: 0.8em; line-height: 1; text-align: center; margin: 0 1px; }
+  .frac sup, .frac sub { font-size: 1em; vertical-align: baseline; line-height: 1; }
+  .frac sup { border-bottom: 1px solid #000; }
+  .frame { position: relative; border: 1.2px solid #000; margin: 4px 0; break-inside: avoid; }
+  .frame-anchor { position: absolute; inset: 0; }
+  .frame-title { position: absolute; top: 2mm; left: 3mm; font-size: 8.5pt; color: #555; }
+  .frame-duty { position: absolute; top: 7mm; left: 3mm; font-size: 8pt; color: #555; }
+  .label-lines { position: absolute; right: 3mm; top: 8mm; bottom: 3mm; display: flex; flex-direction: column; justify-content: space-around; width: 45mm; }
+  .label-line { border-bottom: 1px solid #000; height: 6mm; }
+  .label-line .num-l { font-size: 8pt; color: #555; }
+  .word-box { border: 1px solid #000; padding: 2px 8px; margin: 3px 0; text-align: center; break-inside: avoid; }
+  .word-line { margin: 3px 0; }
+  
+  .alpha-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 10px; border: 1px solid #888; padding: 3px 8px; margin: 3px 0 5px; font-size: 1.15em; break-inside: avoid; }
+  .rl { height: 9.5mm; border-bottom: 1px solid #000; margin: 0; break-inside: avoid; display: flex; align-items: flex-end; }
+  .rl .rn { font-size: .85em; min-width: 6mm; }
+  .passage.reprint { break-before: page; }
+  .rp-head { font-weight: 700; font-size: .85em; }
+  .passage { border: 1px solid #888; padding: 4px 8px; margin: 3px 0 5px; text-align: justify; break-inside: avoid; }
+  /* A passage and its parts are too tall to move as one block: the page may break between parts. */
+  .q.comp { break-inside: auto; }
+  .verse { text-align: center; margin: 3px 0 5px; }
+  .part { margin: 4px 0; break-inside: avoid; }
+  .part-head { display: flex; gap: 6px; align-items: baseline; font-weight: 700; }
+  .part-head .ml { margin-left: auto; }
+  .sub { margin: 2px 0 2px 0; padding-left: 6mm; }
+  .sub .n { display: inline-block; min-width: 6mm; margin-left: -6mm; }
+  .pick-row { display: flex; gap: 8px; align-items: baseline; margin: 2px 0; }
+  .pick-k { min-width: 22mm; font-weight: 700; }
+  .blank { display: inline-block; min-width: 28mm; border-bottom: 1px dashed #000; margin: 0 4px; font-size: 7pt; color: #777; }
+  .ant-row { display: flex; gap: 14mm; margin: 2px 0; }
+  .or { text-align: center; font-weight: 700; margin: 2px 0; break-before: avoid; break-after: avoid; }
+  .slot.either { break-inside: avoid; }
+  .slot.short { break-inside: avoid; }
+  .or-lead, .alt { font-weight: 700; }
+  .sit { margin-top: 3px; }
+  
+  .topics { display: flex; gap: 10mm; flex-wrap: wrap; }
+  
+  .pic { margin: 4px 0; break-inside: avoid; }
+  .pic img { height: 28mm; width: auto; }
+  .pic-count { display: flex; flex-wrap: wrap; gap: 3mm; }
+  .pic-count img { height: 14mm; }
+  .pic-dots img, .pic-clock img { height: 24mm; }
+  .pic-shapes img { height: 22mm; }
+  .pic-scene img { height: 45mm; }
+  .pic-plant img { height: 60mm; }
+  .pic-circuit img { height: 62mm; }
+  .frame .pic-circuit { margin: 3mm; }
+  /* A G5 picture frame (Urdu Q7, English Q10): the scene fills the 70mm frame, centred, inside its border.
+     v29 printed it at the Grade 1-2 45mm height, a quarter of the frame, at the frame's start. */
+  .frame > .pic-scene { position: absolute; inset: 3mm; margin: 0; display: flex; align-items: center; justify-content: center; }
+  .frame > .pic-scene img { width: 100%; height: 100%; object-fit: contain; }
+  .bubble-row { display: flex; align-items: flex-start; gap: 6mm; break-inside: avoid; }
+  .bubble { position: relative; width: 62mm; height: 26mm; margin-top: 4mm; border: 0.5mm solid #000; border-radius: 50%; }
+  /* The tail is an outline, a white triangle over a black one: a solid one read as an arrowhead (bd-5jmnfj.4.40).
+     It sits at the middle of the side, where the ellipse's edge is; the white one covers the border so the
+     tail opens into the bubble. Placed low, it stood apart and read as "<". */
+  .bubble::before { content: ''; position: absolute; left: -6mm; top: 50%; margin-top: -3mm; border-style: solid;
+    border-width: 3mm 6.5mm 3mm 0; border-color: transparent #000 transparent transparent; }
+  .bubble::after { content: ''; position: absolute; left: -4.4mm; top: 50%; margin-top: -2.3mm; border-style: solid;
+    border-width: 2.3mm 5mm 2.3mm 0; border-color: transparent #fff transparent transparent; }
+
+  
+  .pic img { max-height: var(--pic-fit, none); }
+  .pic-row, .pic-tail { break-inside: avoid; }
+  /* Three cells to a line: border-box keeps the start padding inside the width (content-box fitted two). */
+  .q.pic-cell { box-sizing: border-box; width: calc(33.333% - 4.2mm); }
+  .q.pic-cell.pair { width: calc(50% - 4.2mm); }
+  .q.pic-cell.pair .pic-scene img { height: 50mm; }
+  .q.pic-cell.wide { display: grid; grid-template-columns: 56mm 1fr; column-gap: 4mm; align-items: center; width: 100%; }
+  .q.pic-cell.wide > .n { grid-column: 1 / -1; }
+  .q.pic-cell.wide > .pic { grid-column: 1; margin: 0; }
+  .q.pic-cell.wide > .write-box { grid-column: 2; margin: 0; }
+  .subq { break-inside: avoid; }
+  .work-square { width: 100%; box-sizing: border-box; }
+  .q.solo-scene .pic-scene { text-align: center; }
+  .q.solo-scene .pic-scene img { height: auto; width: 130mm; max-width: 100%; max-height: none; }
+  
+  table.match-table { border-collapse: collapse; margin: 3px 0; break-inside: avoid; }
+  table.match-table td { padding: 2mm 0; vertical-align: middle; }
+  table.match-table td.m-gap { width: 40mm; }
+
+  
+  .band { background: #000; color: #fff; text-align: center; font-weight: 700; padding: 3px 0; letter-spacing: .06em; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .scheme-title { text-align: center; font-weight: 700; font-size: 12pt; letter-spacing: .04em; }
+  .covers { text-align: center; font-size: 9pt; margin-bottom: 6px; }
+  .box { border: 1.5px solid #000; padding: 4px 8px; margin: 6px 0; break-inside: avoid; font-size: 9.5pt; }
+  .box .bt { font-weight: 700; margin-bottom: 2px; }
+  .box ol { margin: 0; padding-left: 16px; }
+  .box ul { margin: 0; padding-left: 14px; }
+  .s-head { font-weight: 700; border-bottom: 1.5px solid #000; margin: 8px 0 3px; break-after: avoid; }
+  .strip { font-size: 9.5pt; margin: 2px 0 6px; break-inside: avoid; }
+  .strip .sl { font-weight: 700; }
+  .strip .sc { white-space: nowrap; }
+  table.rows { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  table.rows td { border-bottom: 1px solid #ccc; padding: 3px 4px; vertical-align: top; }
+  table.rows tr { break-inside: avoid; }
+  table.rows tr.slot-row { break-after: avoid; }
+  table.rows tr.slot-row td { border-bottom: 1px solid #000; padding-top: 6px; }
+  td.n { width: 8%; font-weight: 700; white-space: nowrap; }
+  td.ans { width: 42%; }
+  td.pts { width: 50%; }
+  .q-line { color: #444; font-size: .92em; }
+  .pt { display: block; }
+  .chip { display: inline-block; border: 1px solid #000; border-radius: 3px; padding: 0 3px; font-weight: 700; margin-right: 3px; font-family: 'PaperLatin', Arial, sans-serif; direction: ltr; unicode-bidi: isolate; }
+  .acc, .err { display: block; color: #333; }
+  .err { unicode-bidi: isolate; }
+  .q-line .sq { width: 5mm; height: 4mm; margin: 0 1mm; }
+  .crit { display: block; }
+  .crit-m { font-weight: 700; }
+  section.record { break-before: page; }
+  .rec-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+  table.rec { width: 100%; border-collapse: collapse; font-size: 8pt; line-height: 1.1; }
+  table.rec th, table.rec td { border: 1px solid #000; height: 9mm; padding: 0 2px; text-align: center; }
+  table.rec td.name { width: 32%; }
+  .notes { margin-top: 8px; break-inside: avoid; }
+  section.oral { break-before: page; }
+  section.oral-card { break-before: page; font-size: 22pt; line-height: 1.9; text-align: center; }
+  .card-task { margin-bottom: 10mm; }
+  .card-head { font-weight: 700; font-size: 0.75em; margin: 6px 0 10px; }
+  .card-words span { display: inline-block; margin: 4px 14px; }
+  .card-script { white-space: pre-line; text-align: start; }
+  .oral-title { text-align: center; font-weight: 700; font-size: 1.15em; margin-bottom: 4px; }
+  .oral-note { border: 1px solid #000; padding: 4px 8px; margin-bottom: 8px; }
+  .oral-task { border-top: 1px solid #000; padding: 4px 0 6px; break-inside: avoid; }
+  .oral-head { font-weight: 700; }
+  .oral-script { border: 1px dashed #000; padding: 4px 8px; margin: 4px 0; font-size: 1.1em; }
+  .oral .k { font-weight: 700; font-size: 0.9em; }
+  .oral-items ol { margin: 2px 0; }
+  .oral .ans { font-style: italic; }
+  .oral-rubric table, .oral-grid table { border-collapse: collapse; width: 100%; margin-top: 3px; }
+  .oral-rubric td, .oral-grid td, .oral-grid th { border: 1px solid #000; padding: 2px 6px; }
+  .oral-rubric td.m { width: 12mm; text-align: center; }
+  .oral-rubric td.box { width: 18mm; }
+  .oral-rubric th { border: 0; }
+  .oral-grid { margin-top: 8px; break-inside: avoid; }
+  .oral-grid tr.child td { height: 7mm; }
+</style></head>
+<body data-grade="5">
+<div class="band">TEACHER'S COPY · Do not give to children</div>
+<div class="school">School: ____________</div>
+<div class="title">Grade 5 · Science · FDE pattern practice paper</div>
+<div class="scheme-title">MARKING SCHEME</div>
+<div class="covers">Covers: FDE syllabus 2026–27 (Chapters 1–6 · Ch 7 diagrams).</div>
+<div class="box before"><div class="bt">Teacher: before the exam</div><ol><li>This is the marking scheme for the question paper (4 pages). Do not give it to children.</li><li>You add: the diagram to label on the question paper, see the question paper (book p. 168).</li><li>Photocopy the question paper, all 4 pages, one per child.</li><li>Tell the class: Section A on the question paper; Sections B and C on the answer sheet; Q2 (a): attempt any 1 of 2; Q3 (a): attempt any 8 of 9; Q3 (b): attempt any 2 of 5.</li><li>Time: 3 hrs.</li><li>Mark question by question across all copies, not copy by copy.</li></ol></div>
+<div class="box legend"><div class="bt">How to mark</div><ul><li>MCQs: 1 mark for the letter. Two circles or an overwritten answer = 0.</li><li>A = answer · K = key point · L = label.</li><li>&quot;Attempt any N&quot;: tell children to answer exactly N. If more are answered, mark all and keep the best N.</li><li>Grades (FDE p.113): A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F below 40. Pass = 40%.</li></ul></div>
+<div class="box supplies"><div class="bt">Teacher supplies</div><ul><li>Q1 (b): Diagram: Layers of the Earth (book p. 168)</li></ul></div>
+<section class="s-sec" data-section="A"><div class="s-head">Section A (25)</div><div class="strip" data-row="science.A.Q1a"><span class="sl">Q1 (a)</span> <span class="sc">i c ·</span> <span class="sc">ii c ·</span> <span class="sc">iii c ·</span> <span class="sc">iv b ·</span> <span class="sc">v d ·</span> <span class="sc">vi a ·</span> <span class="sc">vii b ·</span> <span class="sc">viii d ·</span> <span class="sc">ix d ·</span> <span class="sc">x b ·</span> <span class="sc">xi d ·</span> <span class="sc">xii a ·</span> <span class="sc">xiii a ·</span> <span class="sc">xiv c ·</span> <span class="sc">xv a ·</span> <span class="sc">xvi c ·</span> <span class="sc">xvii a ·</span> <span class="sc">xviii b ·</span> <span class="sc">xix b ·</span> <span class="sc">xx d</span></div><table class="rows"><tr class="slot-row" data-slot-head="science.A.Q1b"><td colspan="3"><b>Q1 (b)</b> Label the given Diagram</td></tr><tr data-row="science.A.Q1b"><td class="n">Q1 (b)</td><td class="ans"><b>Crust, upper mantle, lower mantle, outer core, inner core</b><div class="q-line">Layers of the Earth</div></td><td class="pts"><span class="pt"><span class="chip">L1</span> crust</span><span class="pt"><span class="chip">L1</span> upper mantle</span><span class="pt"><span class="chip">L1</span> lower mantle</span><span class="pt"><span class="chip">L1</span> outer core</span><span class="pt"><span class="chip">L1</span> inner core</span><span class="acc">accept: &quot;mantle&quot; on either mantle line</span><span class="err">common error: Outer and inner core swapped: both core marks are lost, the other three stand.</span></td></tr></table></section>
+<section class="s-sec" data-section="B"><div class="s-head">Section B (17)</div><table class="rows"><tr class="slot-row" data-slot-head="science.B.Q2a"><td colspan="3"><b>Q2 (a)</b> Draw and label any one of the following:</td></tr><tr data-row="science.B.Q2a"><td class="n">(i)</td><td class="ans"><b>A drawing of the nose, the windpipe dividing into two bronchi, one to each lung, and the diaphragm below the lungs, all labelled.</b><div class="q-line">Respiratory System</div></td><td class="pts"><span class="pt"><span class="chip">L1</span> nose or nostrils</span><span class="pt"><span class="chip">L1</span> mouth</span><span class="pt"><span class="chip">L1</span> windpipe (trachea)</span><span class="pt"><span class="chip">L1</span> bronchi: two tubes, one to each lung</span><span class="pt"><span class="chip">L2</span> two lungs, drawn and labelled</span><span class="pt"><span class="chip">L1</span> diaphragm below the lungs</span><span class="acc">accept: nasal passage for nose; air tubes for bronchi</span><span class="err">common error: The food pipe labelled as the windpipe.</span></td></tr><tr data-row="science.B.Q2a"><td class="n">(ii)</td><td class="ans"><b>Grass <svg class="sym" viewBox="0 0 16 16" role="img" aria-label="→"><path d="M1 8h12M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> grasshopper <svg class="sym" viewBox="0 0 16 16" role="img" aria-label="→"><path d="M1 8h12M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> frog <svg class="sym" viewBox="0 0 16 16" role="img" aria-label="→"><path d="M1 8h12M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> snake, each labelled producer, primary consumer, secondary consumer and top consumer.</b><div class="q-line">Food Chain</div></td><td class="pts"><span class="pt"><span class="chip">L3</span> a producer (a green plant) at the start</span><span class="pt"><span class="chip">L1</span> a primary consumer (a plant-eater)</span><span class="pt"><span class="chip">L1</span> a secondary consumer</span><span class="pt"><span class="chip">L1</span> a top consumer</span><span class="pt"><span class="chip">L1</span> each living thing named</span><span class="acc">accept: any correct chain of four, e.g. plants <svg class="sym" viewBox="0 0 16 16" role="img" aria-label="→"><path d="M1 8h12M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> caterpillar <svg class="sym" viewBox="0 0 16 16" role="img" aria-label="→"><path d="M1 8h12M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> sparrow <svg class="sym" viewBox="0 0 16 16" role="img" aria-label="→"><path d="M1 8h12M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> hawk; the Sun drawn at the start (not needed)</span><span class="err">common error: Arrows drawn from the eater to its food: the arrow marks only are lost.</span></td></tr><tr class="slot-row" data-slot-head="science.B.Q2b"><td colspan="3"><b>Q2 (b)</b> Read and attempt any TWO of the following given situations carefully.</td></tr><tr data-row="science.B.Q2b"><td class="n">(i) a)</td><td class="ans"><b>The nail in tap water. Rust is a reddish-brown, flaky layer on the iron.</b></td><td class="pts"><span class="pt"><span class="chip">A1.5</span> The nail in tap water.</span><span class="pt"><span class="chip">A1</span> Rust is a reddish-brown, flaky layer on the iron.</span></td></tr><tr data-row="science.B.Q2b"><td class="n">(i) b)</td><td class="ans"><b>The oil kept air and water away from the iron, and iron needs both to rust.</b></td><td class="pts"><span class="pt"><span class="chip">A1.5</span> The oil kept air and water away from the iron</span><span class="pt"><span class="chip">A1</span> and iron needs both to rust.</span></td></tr><tr data-row="science.B.Q2b"><td class="n">(i) c)</td><td class="ans"><b>A chemical change: a new substance, rust, forms and cannot easily be turned back into iron.</b></td><td class="pts"><span class="pt"><span class="chip">A2.5</span> A chemical change: a new substance, rust, forms and cannot easily be turned back into iron.</span></td></tr><tr data-row="science.B.Q2b"><td class="n">(ii) a)</td><td class="ans"><b>It dissolves and can no longer be seen. Yes: let the water evaporate and the sugar is left behind.</b></td><td class="pts"><span class="pt"><span class="chip">A1.5</span> It dissolves and can no longer be seen.</span><span class="pt"><span class="chip">A1</span> Yes: let the water evaporate and the sugar is left behind.</span></td></tr><tr data-row="science.B.Q2b"><td class="n">(ii) b)</td><td class="ans"><b>Black ash is left and smoke is given off. It cannot be made into paper again.</b></td><td class="pts"><span class="pt"><span class="chip">A1.5</span> Black ash is left and smoke is given off.</span><span class="pt"><span class="chip">A1</span> It cannot be made into paper again.</span></td></tr><tr data-row="science.B.Q2b"><td class="n">(ii) c)</td><td class="ans"><b>Burning the paper: new substances (ash and smoke) form and the change cannot be reversed.</b></td><td class="pts"><span class="pt"><span class="chip">A2.5</span> Burning the paper: new substances (ash and smoke) form and the change cannot be reversed.</span></td></tr></table></section>
+<section class="s-sec" data-section="C"><div class="s-head">Section C (58)</div><table class="rows"><tr class="slot-row" data-slot-head="science.C.Q3a"><td colspan="3"><b>Q3 (a)</b> Answer any eight of the following nine questions briefly.</td></tr><tr data-row="science.C.Q3a"><td class="n">1.</td><td class="ans"><b>It gives the body its shape and holds it up, it protects soft organs such as the heart and lungs (inside the ribs), and it helps us move together with the muscles.</b><div class="q-line">Name the three main jobs of the skeletal system.</div></td><td class="pts"><span class="pt"><span class="chip">K2</span> gives the body shape and support</span><span class="pt"><span class="chip">K2</span> protects soft organs, with one example (ribs: heart and lungs; skull: brain)</span><span class="pt"><span class="chip">K1</span> helps the body move, working with the muscles</span></td></tr><tr data-row="science.C.Q3a"><td class="n">2.</td><td class="ans"><b>Running makes our muscles work harder, so they need more oxygen. We breathe faster to take in more oxygen and to get rid of the extra carbon dioxide.</b><div class="q-line">Why do we breathe faster after running?</div></td><td class="pts"><span class="pt"><span class="chip">K1</span> the muscles work harder</span><span class="pt"><span class="chip">K2</span> they need more oxygen</span><span class="pt"><span class="chip">K1</span> faster breathing takes in more oxygen</span><span class="pt"><span class="chip">K1</span> and removes more carbon dioxide</span></td></tr><tr data-row="science.C.Q3a"><td class="n">3.</td><td class="ans"><b>A contagious disease is caused by germs and spreads from one person to another, e.g. flu or measles. A non-contagious disease does not spread from person to person, e.g. diabetes.</b><div class="q-line">Write two differences between contagious and non-contagious diseases. Give one example of each.</div></td><td class="pts"><span class="pt"><span class="chip">K1</span> contagious: spreads from person to person</span><span class="pt"><span class="chip">K1</span> non-contagious: does not spread</span><span class="pt"><span class="chip">K1</span> contagious diseases are caused by germs</span><span class="pt"><span class="chip">K1</span> a correct contagious example (flu, measles, chickenpox, TB)</span><span class="pt"><span class="chip">K1</span> a correct non-contagious example (diabetes, heart disease)</span></td></tr><tr data-row="science.C.Q3a"><td class="n">4.</td><td class="ans"><b>Microorganisms are tiny living things that can be seen only with a microscope. Yeast makes bread dough rise, and bacteria turn milk into yoghurt.</b><div class="q-line">What are microorganisms? Write two ways in which they are useful to us.</div></td><td class="pts"><span class="pt"><span class="chip">K2</span> tiny living things seen only with a microscope</span><span class="pt"><span class="chip">K1.5</span> one useful job: yeast makes dough rise, bacteria make yoghurt, decomposers, medicines</span><span class="pt"><span class="chip">K1.5</span> a second, different useful job</span></td></tr><tr data-row="science.C.Q3a"><td class="n">5.</td><td class="ans"><b>A food chain shows one path of who eats whom, e.g. grass <svg class="sym" viewBox="0 0 16 16" role="img" aria-label="→"><path d="M1 8h12M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> rabbit <svg class="sym" viewBox="0 0 16 16" role="img" aria-label="→"><path d="M1 8h12M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> fox. A food web is many food chains joined together, so one animal can eat, or be eaten by, more than one living thing.</b><div class="q-line">How is a food web different from a food chain?</div></td><td class="pts"><span class="pt"><span class="chip">K2</span> food chain: one path of feeding</span><span class="pt"><span class="chip">K2</span> food web: many food chains joined together</span><span class="pt"><span class="chip">K1</span> in a web an animal has more than one food or more than one enemy</span></td></tr><tr data-row="science.C.Q3a"><td class="n">6.</td><td class="ans"><b>Physical: melting butter, freezing water, cutting paper. Chemical: burning wood, baking a cake.</b><div class="q-line">Sort these into physical and chemical changes: melting butter, burning wood, freezing water, baking a cake, cutting paper.</div></td><td class="pts"><span class="pt"><span class="chip">K1</span> melting butter: physical</span><span class="pt"><span class="chip">K1</span> burning wood: chemical</span><span class="pt"><span class="chip">K1</span> freezing water: physical</span><span class="pt"><span class="chip">K1</span> baking a cake: chemical</span><span class="pt"><span class="chip">K1</span> cutting paper: physical</span></td></tr><tr data-row="science.C.Q3a"><td class="n">7.</td><td class="ans"><b>A mirror has a very smooth, shiny surface that sends light back evenly, so it forms an image of our face. Wood is rough and dull; it scatters and absorbs light, so no image forms.</b><div class="q-line">Why can we see our face in a mirror but not in a wooden board?</div></td><td class="pts"><span class="pt"><span class="chip">K1</span> a mirror is smooth and shiny</span><span class="pt"><span class="chip">K2</span> it reflects light back evenly and forms an image</span><span class="pt"><span class="chip">K1</span> wood is rough and dull</span><span class="pt"><span class="chip">K1</span> it scatters or absorbs light, so there is no image</span></td></tr><tr data-row="science.C.Q3a"><td class="n">8.</td><td class="ans"><b>When the bell is struck it vibrates. The vibrations pass to the air around it and travel through the air as sound waves until they reach our ears, where the eardrum vibrates and we hear the sound.</b><div class="q-line">How does the sound of the school bell reach our ears?</div></td><td class="pts"><span class="pt"><span class="chip">K1</span> the bell vibrates</span><span class="pt"><span class="chip">K2</span> the vibrations travel through the air (sound waves)</span><span class="pt"><span class="chip">K1</span> they reach the ear</span><span class="pt"><span class="chip">K1</span> the eardrum vibrates and we hear</span></td></tr><tr data-row="science.C.Q3a"><td class="n">9.</td><td class="ans"><b>Water with dirt and salts in it conducts electricity. With wet hands, current can pass through the water into our body and give us an electric shock.</b><div class="q-line">Why is it dangerous to touch an electric switch with wet hands?</div></td><td class="pts"><span class="pt"><span class="chip">K2</span> water (tap water, sweat) conducts electricity</span><span class="pt"><span class="chip">K2</span> current can pass into the body</span><span class="pt"><span class="chip">K1</span> an electric shock or serious injury</span></td></tr><tr class="slot-row" data-slot-head="science.C.Q3b"><td colspan="3"><b>Q3 (b)</b> Answer any two of the following questions comprehensively.</td></tr><tr data-row="science.C.Q3b"><td class="n">1.</td><td class="ans"><b>In the mouth the teeth chew the food and saliva softens it. The food pipe carries it to the stomach, which churns it and mixes it with digestive juices. In the small intestine digestion is finished and the useful food passes into the blood. The large intestine takes water from what is left, and the waste leaves the body.</b><div class="q-line">Describe the journey of food through the digestive system, from the mouth to the large intestine. Say what happens in each part.</div></td><td class="pts"><span class="pt"><span class="chip">K2</span> mouth: teeth chew, saliva softens the food</span><span class="pt"><span class="chip">K1</span> food pipe carries food to the stomach</span><span class="pt"><span class="chip">K2</span> stomach churns the food and mixes it with digestive juices</span><span class="pt"><span class="chip">K2</span> small intestine: digestion finished, food absorbed into the blood</span><span class="pt"><span class="chip">K2</span> large intestine: water taken back, waste leaves the body</span></td></tr><tr data-row="science.C.Q3b"><td class="n">2.</td><td class="ans"><b>Smoke from vehicles, factories and burning rubbish pollutes the air. It causes coughing, asthma and other breathing problems, and smog that harms plants and animals. We can plant trees, walk or use buses instead of cars, and stop burning rubbish.</b><div class="q-line">What causes air pollution? Explain how it affects our health and our surroundings, and suggest three ways to reduce it.</div></td><td class="pts"><span class="pt"><span class="chip">K2</span> two causes: smoke from vehicles, factories, burning rubbish or crops</span><span class="pt"><span class="chip">K2</span> health: coughing, asthma, breathing problems, sore eyes</span><span class="pt"><span class="chip">K2</span> surroundings: smog, harm to plants and animals, dirty buildings</span><span class="pt"><span class="chip">K3</span> three ways to reduce it, 1 each (plant trees, walk or share transport, do not burn rubbish)</span></td></tr><tr data-row="science.C.Q3b"><td class="n">3.</td><td class="ans"><b>Light travels in straight lines. When an opaque object blocks it, a dark area forms behind the object: its shadow. In the morning the Sun is low in the east, so the flagpole's shadow is long and points west. At noon the Sun is high and the shadow is shortest. In the evening the Sun is low in the west and the shadow is long again, pointing east.</b><div class="q-line">Explain how a shadow is formed. How does the shadow of a flagpole change from morning to noon to evening?</div></td><td class="pts"><span class="pt"><span class="chip">K2</span> light travels in straight lines</span><span class="pt"><span class="chip">K2</span> an opaque object blocks the light, leaving a dark area behind it</span><span class="pt"><span class="chip">K2</span> morning: Sun low in the east, shadow long and pointing west</span><span class="pt"><span class="chip">K1</span> noon: Sun high, shadow shortest</span><span class="pt"><span class="chip">K2</span> evening: Sun low in the west, shadow long and pointing east</span></td></tr><tr data-row="science.C.Q3b"><td class="n">4.</td><td class="ans"><b>A magnet attracts things made of iron, steel or nickel and has a north and a south pole. Stroke the nail many times with one pole of a magnet, always in the same direction, lifting the magnet away at the end of each stroke; the nail then picks up pins. Magnets are used in compasses, in fridge doors and in cranes that lift scrap iron.</b><div class="q-line">What is a magnet? Explain how you can turn an iron nail into a magnet, and write three uses of magnets in daily life.</div></td><td class="pts"><span class="pt"><span class="chip">K1</span> a magnet attracts iron, steel or nickel</span><span class="pt"><span class="chip">K1</span> it has a north and a south pole</span><span class="pt"><span class="chip">K1</span> stroke the nail with one pole of a magnet</span><span class="pt"><span class="chip">K1</span> many times, in the same direction only</span><span class="pt"><span class="chip">K1</span> lift the magnet away at the end of each stroke</span><span class="pt"><span class="chip">K1</span> test: the nail now picks up pins or clips</span><span class="pt"><span class="chip">K3</span> three uses, 1 each (compass, fridge door, cranes, toys, speakers)</span></td></tr><tr data-row="science.C.Q3b"><td class="n">5.</td><td class="ans"><b>Current flows from the cell, through the wires and the bulb, and back to the cell; the path must be complete, and the bulb lights. Opening the switch makes a gap, so the circuit is broken, the current stops and the bulb goes off. Plastic is an insulator: it does not let current pass, so it protects us from electric shocks.</b><div class="q-line">Explain how electricity flows in a simple circuit made of a cell, a switch, wires and a bulb. What happens when the switch is opened? Why are electric wires covered with plastic?</div></td><td class="pts"><span class="pt"><span class="chip">K2</span> current flows from the cell through the wires and bulb and back to the cell</span><span class="pt"><span class="chip">K1</span> the path must be complete (closed)</span><span class="pt"><span class="chip">K1</span> the bulb lights when current flows through it</span><span class="pt"><span class="chip">K2</span> switch opened: a gap breaks the circuit, current stops, the bulb goes off</span><span class="pt"><span class="chip">K2</span> plastic is an insulator; it does not let current pass</span><span class="pt"><span class="chip">K1</span> it protects us from electric shocks</span></td></tr></table></section>
+
+
+
+<section class="record" style="break-before:page"><div class="s-head">Class record</div><div class="rec-pair"><table class="rec"><tr><th>Roll</th><th>Name</th><th>A /25</th><th>B /17</th><th>C /58</th><th>Total /100</th><th>Grade</th></tr><tr class="rec-row"><td>1</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>2</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>3</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>4</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>5</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>6</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>7</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>8</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>9</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>10</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>11</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>12</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>13</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>14</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>15</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>16</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>17</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>18</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>19</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>20</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr></table><table class="rec"><tr><th>Roll</th><th>Name</th><th>A /25</th><th>B /17</th><th>C /58</th><th>Total /100</th><th>Grade</th></tr><tr class="rec-row"><td>21</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>22</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>23</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>24</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>25</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>26</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>27</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>28</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>29</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>30</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>31</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>32</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>33</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>34</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>35</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>36</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>37</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>38</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>39</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr><tr class="rec-row"><td>40</td><td class="name"></td><td></td><td></td><td></td><td></td><td></td></tr></table></div></section>
+</body></html>

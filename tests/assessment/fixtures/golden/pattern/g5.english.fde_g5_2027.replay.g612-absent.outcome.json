@@ -1,0 +1,135 @@
+{
+  "create": {
+    "statusCode": 202,
+    "payload": {
+      "success": true,
+      "requestId": "assessment_requests-1"
+    }
+  },
+  "outcome": {
+    "jobType": "assessment_generate",
+    "job": {
+      "userId": "u-golden-1",
+      "requestId": "assessment_requests-1",
+      "grade": 5,
+      "subject": "english",
+      "chapterNumber": null,
+      "chapterNumbers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "pageRanges": "1-138",
+      "contentSource": "unseen",
+      "questionCount": 35,
+      "totalMarks": null,
+      "seenCount": null,
+      "questionTypes": [
+        {
+          "id": "MCQs",
+          "count": 20,
+          "category": "objective",
+          "slot": "english.A.Q1a"
+        },
+        {
+          "id": "Rewrite Sentences",
+          "count": 5,
+          "category": "objective",
+          "slot": "english.A.Q1b"
+        },
+        {
+          "id": "Comprehension Passage",
+          "count": 1,
+          "category": "subjective",
+          "slot": "english.B.Q2"
+        },
+        {
+          "id": "Punctuation",
+          "count": 1,
+          "category": "subjective",
+          "slot": "english.C.Q3"
+        },
+        {
+          "id": "Word Sentences",
+          "count": 1,
+          "category": "subjective",
+          "slot": "english.C.Q4"
+        },
+        {
+          "id": "Rhyming Words",
+          "count": 1,
+          "category": "subjective",
+          "slot": "english.C.Q5"
+        },
+        {
+          "id": "Mind Map",
+          "count": 1,
+          "category": "subjective",
+          "slot": "english.C.Q6"
+        },
+        {
+          "id": "Application Writing",
+          "count": 2,
+          "category": "subjective",
+          "slot": "english.C.Q7"
+        },
+        {
+          "id": "Paragraph Writing",
+          "count": 1,
+          "category": "subjective",
+          "slot": "english.C.Q8"
+        },
+        {
+          "id": "Story Writing",
+          "count": 1,
+          "category": "subjective",
+          "slot": "english.C.Q9"
+        },
+        {
+          "id": "Picture Description",
+          "count": 1,
+          "category": "subjective",
+          "slot": "english.C.Q10"
+        }
+      ],
+      "includeAnswerKey": true,
+      "answerLines": true,
+      "outputFormat": "pdf",
+      "deliver": "none",
+      "pattern": "fde_g5_2027",
+      "scope": {
+        "kind": "fde",
+        "chapters": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "pages": "1-138"
+      }
+    },
+    "returned": {
+      "status": "failed",
+      "code": "PATTERN_SHORT_SLOT",
+      "paperId": "assessment_papers-2"
+    }
+  },
+  "uploads": [],
+  "row": {
+    "status": "failed",
+    "error": null
+  }
+}

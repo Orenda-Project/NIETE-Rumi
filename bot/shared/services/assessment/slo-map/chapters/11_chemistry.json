@@ -1,0 +1,116 @@
+{
+ "grade": 11,
+ "code": "chemistry",
+ "source": {
+  "file": "stem/chemistry_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "2": [
+   {
+    "code": "G11-U2-LO1",
+    "kind": "lo",
+    "desc": "Describe that, each atomic shell and sub-shell are"
+   },
+   {
+    "code": "G11-U2-LO8",
+    "kind": "lo",
+    "desc": "Define terms related to electronic configuration (some examples"
+   },
+   {
+    "code": "G11-U2-LO2",
+    "kind": "lo",
+    "desc": "Describe protons, neutrons, and electrons in terms of"
+   },
+   {
+    "code": "G11-U2-LO7",
+    "kind": "lo",
+    "desc": "Determine the electronic configuration of elements and their"
+   }
+  ],
+  "3": [
+   {
+    "code": "G11-U3-LO1",
+    "kind": "lo",
+    "desc": "DEFINE ELECTRONEGATIVITY as the power of an atom"
+   },
+   {
+    "code": "G11-U3-LO11",
+    "kind": "lo",
+    "desc": "Explain the importance of VSEPR theory in the"
+   },
+   {
+    "code": "G11-U3-LO10",
+    "kind": "lo",
+    "desc": "Explain valence bond theory"
+   },
+   {
+    "code": "G11-U3-LO5",
+    "kind": "lo",
+    "desc": "Describe covalent bonding in molecules using the concept"
+   },
+   {
+    "code": "G11-U3-LO4",
+    "kind": "lo",
+    "desc": "Use the differences in Pauling electronegativity values to"
+   }
+  ],
+  "9": [
+   {
+    "code": "G11-U9-LO1",
+    "kind": "lo",
+    "desc": "Define conjugate acid-base pairs"
+   },
+   {
+    "code": "G11-U9-LO5",
+    "kind": "lo",
+    "desc": "Calculate and pH values for: (a) strong acid"
+   },
+   {
+    "code": "G11-U9-LO3",
+    "kind": "lo",
+    "desc": "Apply the concept of conjugate acid and conjugate"
+   }
+  ],
+  "13": [
+   {
+    "code": "G11-U13-LO3",
+    "kind": "lo",
+    "desc": "Describe the sources and understand the effect of"
+   }
+  ],
+  "17": [
+   {
+    "code": "G11-U17-LO1",
+    "kind": "lo",
+    "desc": "Classify halogenoalkanes based on the type of halogen"
+   }
+  ],
+  "19": [
+   {
+    "code": "G11-U19-LO1",
+    "kind": "lo",
+    "desc": "State the reactions (reagents and conditions) by which"
+   }
+  ],
+  "20": [
+   {
+    "code": "G11-U20-LO1",
+    "kind": "lo",
+    "desc": "Define primary and secondary amines and explain their"
+   }
+  ],
+  "21": [
+   {
+    "code": "G11-U21-LO2",
+    "kind": "lo",
+    "desc": "Identify organic functional groups using the reactions in"
+   },
+   {
+    "code": "G11-U21-LO3",
+    "kind": "lo",
+    "desc": "Predict the properties and the reactions of organic"
+   }
+  ]
+ }
+}

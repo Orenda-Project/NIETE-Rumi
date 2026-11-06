@@ -1,0 +1,242 @@
+{
+ "grade": 10,
+ "code": "chemistry",
+ "source": {
+  "file": "stem/chemistry_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "1": [
+   {
+    "code": "G10-U1-LO1",
+    "kind": "lo",
+    "desc": "Justify, with examples, to do science is to"
+   }
+  ],
+  "3": [
+   {
+    "code": "G10-U3-LO1",
+    "kind": "lo",
+    "desc": "Use the molar gas volume, 24 dm³ at"
+   },
+   {
+    "code": "G10-U3-LO6",
+    "kind": "lo",
+    "desc": "Calculate percentage yield, Percentage composition by mass and"
+   },
+   {
+    "code": "G10-U3-LO2",
+    "kind": "lo",
+    "desc": "Define concentration, use both g/dm³ mol/dm³, and convert"
+   },
+   {
+    "code": "G10-U3-LO4",
+    "kind": "lo",
+    "desc": "Calculate concentration of a solution in titration using"
+   },
+   {
+    "code": "G10-U3-LO3",
+    "kind": "lo",
+    "desc": "Calculate stoichiometric relationships between substances( specially: reacting masses,"
+   },
+   {
+    "code": "G10-U3-LO5",
+    "kind": "lo",
+    "desc": "Calculate empirical formula and molecular formula from appropriate"
+   }
+  ],
+  "4": [
+   {
+    "code": "G10-U4-LO4",
+    "kind": "lo",
+    "desc": "Identify the products formed at electrodes and describe"
+   },
+   {
+    "code": "G10-U4-LO1",
+    "kind": "lo",
+    "desc": "Define electrolysis as decomposition of ionic compounds, in"
+   },
+   {
+    "code": "G10-U4-LO5",
+    "kind": "lo",
+    "desc": "State that hydrogen-oxygen fuel cell uses hydrogen and"
+   },
+   {
+    "code": "G10-U4-LO2",
+    "kind": "lo",
+    "desc": "Identify and label in simple electrolytic cells, the"
+   },
+   {
+    "code": "G10-U4-LO3",
+    "kind": "lo",
+    "desc": "Describe the transfer of charge in external circuit,"
+   }
+  ],
+  "5": [
+   {
+    "code": "G10-U5-LO1",
+    "kind": "lo",
+    "desc": "Describe collision theory in terms of number of"
+   },
+   {
+    "code": "G10-U5-LO2",
+    "kind": "lo",
+    "desc": "State that catalyst increases the rate of reaction,"
+   },
+   {
+    "code": "G10-U5-LO6",
+    "kind": "lo",
+    "desc": "Justify the importance of chemical kinetics in food"
+   }
+  ],
+  "6": [
+   {
+    "code": "G10-U6-LO1",
+    "kind": "lo",
+    "desc": "Explain that salts are ionic compounds formed due"
+   },
+   {
+    "code": "G10-U6-LO6",
+    "kind": "lo",
+    "desc": "Describe the preparation , separation and purification of"
+   }
+  ],
+  "7": [
+   {
+    "code": "G10-U7-LO1",
+    "kind": "lo",
+    "desc": "Recognize that atmospheric oxides of nitrogen (NO and"
+   },
+   {
+    "code": "G10-U7-LO5",
+    "kind": "lo",
+    "desc": "State the symbol equation for the conversion of"
+   },
+   {
+    "code": "G10-U7-LO10",
+    "kind": "lo",
+    "desc": "Arrange metals in order of reactivity given relevant"
+   }
+  ],
+  "8": [
+   {
+    "code": "G10-U8-LO2",
+    "kind": "lo",
+    "desc": "State the type of compound present given the"
+   },
+   {
+    "code": "G10-U8-LO1",
+    "kind": "lo",
+    "desc": "Name and draw the structural and displayed formulae"
+   }
+  ],
+  "9": [
+   {
+    "code": "G10-U9-LO1",
+    "kind": "lo",
+    "desc": "State that the bonding in alkene includes a"
+   },
+   {
+    "code": "G10-U9-LO4",
+    "kind": "lo",
+    "desc": "Describe the test to distinguish between saturated and"
+   },
+   {
+    "code": "G10-U9-LO6",
+    "kind": "lo",
+    "desc": "Describe, using symbol equations, preparation of alkenes by"
+   },
+   {
+    "code": "G10-U9-LO11",
+    "kind": "lo",
+    "desc": "Name the uses of the fractions as: a."
+   },
+   {
+    "code": "G10-U9-LO10",
+    "kind": "lo",
+    "desc": "Describe how the properties of fractions obtained from"
+   },
+   {
+    "code": "G10-U9-LO2",
+    "kind": "lo",
+    "desc": "State that the bonding in alkene includes a"
+   },
+   {
+    "code": "G10-U9-LO3",
+    "kind": "lo",
+    "desc": "State that the bonding in alkene includes a"
+   },
+   {
+    "code": "G10-U9-LO5",
+    "kind": "lo",
+    "desc": "State that the bonding in alkene includes a"
+   },
+   {
+    "code": "G10-U9-LO7",
+    "kind": "lo",
+    "desc": "State that the bonding in alkene includes a"
+   },
+   {
+    "code": "G10-U9-LO8",
+    "kind": "lo",
+    "desc": "State that the bonding in alkene includes a"
+   },
+   {
+    "code": "G10-U9-LO9",
+    "kind": "lo",
+    "desc": "State that the bonding in alkene includes a"
+   },
+   {
+    "code": "G10-U9-LO12",
+    "kind": "lo",
+    "desc": "State that the bonding in alkene includes a"
+   },
+   {
+    "code": "G10-U9-LO13",
+    "kind": "lo",
+    "desc": "State that the bonding in alkene includes a"
+   },
+   {
+    "code": "G10-U9-LO14",
+    "kind": "lo",
+    "desc": "State that the bonding in alkene includes a"
+   }
+  ],
+  "11": [
+   {
+    "code": "G10-U11-LO2",
+    "kind": "lo",
+    "desc": "Describe the formation of ethanoic acid by the"
+   },
+   {
+    "code": "G10-U11-LO1",
+    "kind": "lo",
+    "desc": "Describe the reactions of carboxylic acids with metals,"
+   }
+  ],
+  "12": [
+   {
+    "code": "G10-U12-LO1",
+    "kind": "lo",
+    "desc": "Define polymers as large molecules built up from"
+   },
+   {
+    "code": "G10-U12-LO11",
+    "kind": "lo",
+    "desc": "Outline the importance of polymers in the textile"
+   }
+  ],
+  "13": [
+   {
+    "code": "G10-U13-LO1",
+    "kind": "lo",
+    "desc": "Describe the proteins as natural polyamides and that"
+   },
+   {
+    "code": "G10-U13-LO2",
+    "kind": "lo",
+    "desc": "Draw the general structures of proteins Explain the"
+   }
+  ]
+ }
+}

@@ -1,0 +1,272 @@
+{
+ "_note": "each case.item must FAIL validation against ../item-tag.schema.json; reason says which rule",
+ "cases": [
+  {
+   "reason": "official_slo is the string \"null\" (R2 g12_urdu/A defect)",
+   "item": {
+    "id": "1.1",
+    "type": "mcq",
+    "kind": null,
+    "tag": {
+     "chapter": 2,
+     "section": "2.1",
+     "code": "g9.physics.ch2.lo3",
+     "page": 39,
+     "official_slo": "null",
+     "blooms": "K",
+     "difficulty": "easy"
+    },
+    "stem": "[chrome] stem with four options A-D"
+   }
+  },
+  {
+   "reason": "official_slo malformed, bracketed (R2 'U-12-E-[17]')",
+   "item": {
+    "id": "1.1",
+    "type": "mcq",
+    "kind": null,
+    "tag": {
+     "chapter": 2,
+     "section": "2.1",
+     "code": "g9.physics.ch2.lo3",
+     "page": 39,
+     "official_slo": "U-12-E-[17]",
+     "blooms": "K",
+     "difficulty": "easy"
+    },
+    "stem": "[chrome] stem with four options A-D"
+   }
+  },
+  {
+   "reason": "code is free text, not g<grade>.<code>.ch<n>.lo<k>",
+   "item": {
+    "id": "1.1",
+    "type": "mcq",
+    "kind": null,
+    "tag": {
+     "chapter": 2,
+     "section": "2.1",
+     "code": "book ch3 outcome 1 (p41)",
+     "page": 39,
+     "official_slo": "P-09-B-02",
+     "blooms": "K",
+     "difficulty": "easy"
+    },
+    "stem": "[chrome] stem with four options A-D"
+   }
+  },
+  {
+   "reason": "page null on a book code (only skill codes may be null)",
+   "item": {
+    "id": "1.1",
+    "type": "mcq",
+    "kind": null,
+    "tag": {
+     "chapter": 2,
+     "section": "2.1",
+     "code": "g9.physics.ch2.lo3",
+     "page": null,
+     "official_slo": "P-09-B-02",
+     "blooms": "K",
+     "difficulty": "easy"
+    },
+    "stem": "[chrome] stem with four options A-D"
+   }
+  },
+  {
+   "reason": "unknown skill name (closed list)",
+   "item": {
+    "id": "1.1",
+    "type": "mcq",
+    "kind": null,
+    "tag": {
+     "chapter": 2,
+     "section": "2.1",
+     "code": "urdu.skill.haiku",
+     "page": null,
+     "official_slo": "P-09-B-02",
+     "blooms": "K",
+     "difficulty": "easy"
+    },
+    "stem": "[chrome] stem with four options A-D"
+   }
+  },
+  {
+   "reason": "blooms outside the enum (word, not letter)",
+   "item": {
+    "id": "1.1",
+    "type": "mcq",
+    "kind": null,
+    "tag": {
+     "chapter": 2,
+     "section": "2.1",
+     "code": "g9.physics.ch2.lo3",
+     "page": 39,
+     "official_slo": "P-09-B-02",
+     "blooms": "Remember",
+     "difficulty": "easy"
+    },
+    "stem": "[chrome] stem with four options A-D"
+   }
+  },
+  {
+   "reason": "difficulty outside the enum",
+   "item": {
+    "id": "1.1",
+    "type": "mcq",
+    "kind": null,
+    "tag": {
+     "chapter": 2,
+     "section": "2.1",
+     "code": "g9.physics.ch2.lo3",
+     "page": 39,
+     "official_slo": "P-09-B-02",
+     "blooms": "K",
+     "difficulty": "very hard"
+    },
+    "stem": "[chrome] stem with four options A-D"
+   }
+  },
+  {
+   "reason": "chapter 0 (must be >= 1)",
+   "item": {
+    "id": "1.1",
+    "type": "mcq",
+    "kind": null,
+    "tag": {
+     "chapter": 0,
+     "section": "2.1",
+     "code": "g9.physics.ch2.lo3",
+     "page": 39,
+     "official_slo": "P-09-B-02",
+     "blooms": "K",
+     "difficulty": "easy"
+    },
+    "stem": "[chrome] stem with four options A-D"
+   }
+  },
+  {
+   "reason": "type outside the closed enum (R2 drift string)",
+   "item": {
+    "id": "1.1",
+    "type": "timeline_text",
+    "kind": null,
+    "tag": {
+     "chapter": 2,
+     "section": "2.1",
+     "code": "g9.physics.ch2.lo3",
+     "page": 39,
+     "official_slo": "P-09-B-02",
+     "blooms": "K",
+     "difficulty": "easy"
+    },
+    "stem": "[chrome] stem with four options A-D"
+   }
+  },
+  {
+   "reason": "kind on a type that is not srq/erq",
+   "item": {
+    "id": "1.1",
+    "type": "mcq",
+    "kind": "define",
+    "tag": {
+     "chapter": 2,
+     "section": "2.1",
+     "code": "g9.physics.ch2.lo3",
+     "page": 39,
+     "official_slo": "P-09-B-02",
+     "blooms": "K",
+     "difficulty": "easy"
+    },
+    "stem": "[chrome] stem with four options A-D"
+   }
+  },
+  {
+   "reason": "tag missing page (required key)",
+   "item": {
+    "id": "1.1",
+    "type": "mcq",
+    "kind": null,
+    "tag": {
+     "chapter": 2,
+     "section": "2.1",
+     "code": "g9.physics.ch2.lo3",
+     "official_slo": "P-09-B-02",
+     "blooms": "K",
+     "difficulty": "easy"
+    },
+    "stem": "[chrome] stem with four options A-D"
+   }
+  },
+  {
+   "reason": "extra tag key (additionalProperties false)",
+   "item": {
+    "id": "1.1",
+    "type": "mcq",
+    "kind": null,
+    "tag": {
+     "chapter": 2,
+     "section": "2.1",
+     "code": "g9.physics.ch2.lo3",
+     "page": 39,
+     "official_slo": "P-09-B-02",
+     "blooms": "K",
+     "difficulty": "easy",
+     "page_outcome": "p39"
+    },
+    "stem": "[chrome] stem with four options A-D"
+   }
+  },
+  {
+   "reason": "section longer than 60 characters (c-registry ruling: section = importer run label, ≤ 60)",
+   "item": {
+    "id": "1.1",
+    "type": "mcq",
+    "kind": null,
+    "tag": {
+     "chapter": 2,
+     "section": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "code": "g9.physics.ch2.lo3",
+     "page": 39,
+     "official_slo": "P-09-B-02",
+     "blooms": "K",
+     "difficulty": "easy"
+    },
+    "stem": "[chrome] stem with four options A-D"
+   }
+  },
+  {
+   "reason": "leaf without a tag",
+   "item": {
+    "id": "1.1",
+    "type": "mcq",
+    "kind": null,
+    "stem": "[chrome] stem with four options A-D"
+   }
+  },
+  {
+   "reason": "OR node with one branch only",
+   "item": {
+    "id": "x",
+    "type": "srq",
+    "or": [
+     {
+      "id": "2.1",
+      "type": "srq",
+      "kind": "differentiate",
+      "tag": {
+       "chapter": 2,
+       "section": null,
+       "code": "g9.physics.ch2.lo5",
+       "page": 41,
+       "official_slo": "P-09-B-04",
+       "blooms": "U",
+       "difficulty": "medium"
+      },
+      "stem": "[chrome] Differentiate X and Y (any three points)"
+     }
+    ]
+   }
+  }
+ ]
+}

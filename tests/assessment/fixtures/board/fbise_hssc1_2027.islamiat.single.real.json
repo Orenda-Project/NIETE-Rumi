@@ -1,0 +1,83 @@
+{
+ "pattern": "fbise_hssc1_2027",
+ "subject": "islamiat",
+ "variant": "single",
+ "source": "fbise-hssc1-islamiat-compulsory-inclusive-2025",
+ "source_status": "verified",
+ "total_marks_x4": 200,
+ "total_time_min": 150,
+ "time_a_min": 15,
+ "shared_time_min": 135,
+ "mcq_share_pct": 20.0,
+ "sections": [
+  {
+   "id": "1",
+   "marks_x4": 40,
+   "answer_on": "question_paper",
+   "slots": [
+    {
+     "label": "Q1",
+     "kind": "mcq",
+     "printed": 10,
+     "attempt": 10,
+     "marks_each_x4": 4,
+     "or": false,
+     "stimulus": null
+    }
+   ],
+   "time_min": 15
+  },
+  {
+   "id": "2",
+   "marks_x4": 72,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q2 (i-vi)",
+     "kind": "srq",
+     "printed": 6,
+     "attempt": 6,
+     "marks_each_x4": 12,
+     "or": true,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  },
+  {
+   "id": "3",
+   "marks_x4": 64,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q3-Q4",
+     "kind": "erq",
+     "printed": 2,
+     "attempt": 2,
+     "marks_each_x4": 32,
+     "or": true,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  },
+  {
+   "id": "4",
+   "marks_x4": 24,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q5",
+     "kind": "srq",
+     "printed": 1,
+     "attempt": 1,
+     "marks_each_x4": 24,
+     "or": true,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  }
+ ],
+ "derivation": []
+}

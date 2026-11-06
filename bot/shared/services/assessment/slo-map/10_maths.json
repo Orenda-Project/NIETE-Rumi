@@ -1,0 +1,650 @@
+{
+  "grade": 10,
+  "code": "maths",
+  "source": {
+    "file": "outputs/lanes/r0-boards/sources/ssc/txt/2025_Assessment_Frameworks_SSC-II_Final_Assessment_Framework_+_Model_Question_Paper_Mathematics_SSC-II.txt",
+    "kind": "fbise_af"
+  },
+  "policy": "stamp",
+  "slos": [
+    {
+      "official_slo": "M-10-A-01",
+      "level": "K",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-03",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-04",
+      "level": "K",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-05",
+      "level": "K",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-06",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-07",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-08",
+      "level": "K",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-09",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-10",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-11",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-12",
+      "level": "K",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-13",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-14",
+      "level": "K",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-15",
+      "level": "K",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-16",
+      "level": "K",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-17",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-18",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-19",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-20",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-21",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-22",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-23",
+      "level": "K",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-24",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-25",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-26",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-27",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-28",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-29",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-30",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-31",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-32",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-33",
+      "level": "K",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-34",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-35",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-36",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-37",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-38",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-39",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-40",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-41",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-42",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-43",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-44",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-45",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-46",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-47",
+      "level": "K",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-48",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-49",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-50",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-51",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-52",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-53",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-54",
+      "level": "K",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-55",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-56",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-57",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-01",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-02",
+      "level": "K",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-03",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-04",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-05",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-06",
+      "level": "K",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-07",
+      "level": "K",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-08",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-09",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-10",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-11",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-12",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-13",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-14",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-15",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-16",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-17",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-18",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-19",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-20",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-21",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-22",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-23",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-24",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-25",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-26",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-27",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-28",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-29",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-30",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-31",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-32",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-33",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-34",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-35",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-36",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-37",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-38",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-39",
+      "level": "U",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-B-40",
+      "level": "A",
+      "gist": "Numbers",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-C-01",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-C-02",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-C-03",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-C-04",
+      "level": "K",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-C-05",
+      "level": "K",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-C-06",
+      "level": "K",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-C-07",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-C-08",
+      "level": "A",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-C-09",
+      "level": "A",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-C-10",
+      "level": "U",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-C-11",
+      "level": "A",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-C-12",
+      "level": "A",
+      "gist": "Percentage of",
+      "chapter": null
+    },
+    {
+      "official_slo": "M-10-A-02",
+      "gist": "Numbers",
+      "chapter": null
+    }
+  ]
+}

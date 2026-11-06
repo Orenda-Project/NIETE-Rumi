@@ -1,0 +1,949 @@
+{
+  "grade": 11,
+  "code": "physics",
+  "source": {
+    "file": "outputs/lanes/r0-boards/sources/hssc/pdf/ModelPaper__2025__Assessment Frameworks__HSSC-I__Final Assessment Framework Model Question Paper Physics HSSC-I.txt",
+    "kind": "fbise_af"
+  },
+  "policy": "stamp",
+  "slos": [
+    {
+      "official_slo": "P-11-A-01",
+      "level": "U",
+      "gist": "Measurements",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-A-02",
+      "level": "U",
+      "gist": "Measurements",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-A-03",
+      "level": "A",
+      "gist": "Measurements",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-A-04",
+      "level": "A",
+      "gist": "Measurements",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-A-05",
+      "level": "A",
+      "gist": "Measurements",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-A-06",
+      "level": "A",
+      "gist": "Measurements",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-A-07",
+      "level": "U+A",
+      "gist": "Measurements",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-01",
+      "level": "U+A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-02",
+      "level": "U+A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-03",
+      "level": "U",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-04",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-05",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-06",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-07",
+      "level": "K+U",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-08",
+      "level": "K+U+A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-09",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-10",
+      "level": "U+A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-11",
+      "level": "K+A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-12",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-13",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-14",
+      "level": "K+A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-15",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-16",
+      "level": "U",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-17",
+      "level": "U",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-18",
+      "level": "K+A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-19",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-20",
+      "level": "K+U",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-21",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-22",
+      "level": "U",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-23",
+      "level": "U",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-24",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-25",
+      "level": "U",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-26",
+      "level": "U",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-27",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-28",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-29",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-30",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-31",
+      "level": "U",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-32",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-33",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-34",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-35",
+      "level": "K+U",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-36",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-37",
+      "level": "U",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-38",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-39",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-40",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-41",
+      "level": "U",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-42",
+      "level": "U",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-43",
+      "level": "U",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-B-44",
+      "level": "A",
+      "gist": "Mechanics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-02",
+      "level": "U",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-03",
+      "level": "A",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-04",
+      "level": "K",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-05",
+      "level": "U",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-06",
+      "level": "A",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-07",
+      "level": "U",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-08",
+      "level": "K+U+A",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-09",
+      "level": "U",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-10",
+      "level": "A",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-11",
+      "level": "A",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-12",
+      "level": "U",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-13",
+      "level": "K",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-14",
+      "level": "U",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-15",
+      "level": "U",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-16",
+      "level": "K+U",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-17",
+      "level": "U",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-18",
+      "level": "U",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-19",
+      "level": "U",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-20",
+      "level": "U",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-21",
+      "level": "U",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-22",
+      "level": "U",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-C-23",
+      "level": "K",
+      "gist": "Heat and Thermodynamics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-01",
+      "level": "A",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-02",
+      "level": "U",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-03",
+      "level": "A",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-04",
+      "level": "U",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-05",
+      "level": "U",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-06",
+      "level": "U",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-07",
+      "level": "A",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-08",
+      "level": "U",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-09",
+      "level": "U",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-10",
+      "level": "A",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-11",
+      "level": "U",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-12",
+      "level": "U",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-13",
+      "level": "U",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-14",
+      "level": "U",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-15",
+      "level": "K+U",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-16",
+      "level": "U",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-17",
+      "level": "U",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-18",
+      "level": "U",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-19",
+      "level": "K",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-20",
+      "level": "K",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-D-21",
+      "level": "U",
+      "gist": "Waves",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-E-01",
+      "level": "K",
+      "gist": "Electricity and Magnetism",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-E-02",
+      "level": "K+U+A",
+      "gist": "Electricity and Magnetism",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-E-03",
+      "level": "U",
+      "gist": "Electricity and Magnetism",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-E-04",
+      "level": "U",
+      "gist": "Electricity and Magnetism",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-E-05",
+      "level": "K",
+      "gist": "Electricity and Magnetism",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-E-06",
+      "level": "U",
+      "gist": "Electricity and Magnetism",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-E-07",
+      "level": "A",
+      "gist": "Electricity and Magnetism",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-E-08",
+      "level": "U+A",
+      "gist": "Electricity and Magnetism",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-01",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-02",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-03",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-04",
+      "level": "K",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-05",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-06",
+      "level": "K",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-07",
+      "level": "K",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-08",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-09",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-10",
+      "level": "K",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-11",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-12",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-13",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-14",
+      "level": "K",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-15",
+      "level": "K",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-16",
+      "level": "K+U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-17",
+      "level": "K+U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-18",
+      "level": "K+U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-19",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-20",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-21",
+      "level": "K+U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-22",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-23",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-24",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-25",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-26",
+      "level": "K",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-27",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-F-28",
+      "level": "U",
+      "gist": "Modern Physics",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-01",
+      "level": "A",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-02",
+      "level": "A",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-03",
+      "level": "A",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-04",
+      "level": "A",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-05",
+      "level": "A",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-06",
+      "level": "A",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-07",
+      "level": "A",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-08",
+      "level": "A",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-09",
+      "level": "A",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-10",
+      "level": "A",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-11",
+      "level": "A",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-12",
+      "level": "A",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-13",
+      "level": "U",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-14",
+      "level": "U",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-15",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-16",
+      "level": "A",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-17",
+      "level": "U",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-19",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-20",
+      "level": "U",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-21",
+      "level": "A",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-22",
+      "level": "U",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-23",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-24",
+      "level": "U",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-25",
+      "level": "U",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-26",
+      "level": "U",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-27",
+      "level": "U",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    },
+    {
+      "official_slo": "P-11-N-28",
+      "level": "U",
+      "gist": "Experimentation Skills",
+      "chapter": null
+    }
+  ]
+}

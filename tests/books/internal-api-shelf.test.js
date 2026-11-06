@@ -145,7 +145,7 @@ describe('Grade 6+ for a region whose books stop at Grade 5 (operator, 6 Nov)', 
     const gb = await invoke('/assessment/options', { userId: 'gb-teacher' });
     expect(gb.payload.grades).toEqual([1]);
     const ict = await invoke('/assessment/options', { userId: 'sector-teacher' });
-    expect(ict.payload.grades).toEqual([1, 2, 5, 6, 7]); // main has no G6-12 grade gate: every grade, as before
+    expect(ict.payload.grades).toEqual([1, 2, 5]); // the G6-12 grade gate is off in this file, as before
   });
 
   test('a GB Grade 7 paper is refused at the door; the portal 6-12 lesson lists are empty for her', async () => {

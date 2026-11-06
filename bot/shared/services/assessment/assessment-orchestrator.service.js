@@ -298,6 +298,10 @@ async function _buildPatternPaper({ job, user, paperId }) {
 
   const renderer = rendererFor('pdf');
   let examJson = generated.examJson;
+  // A G9-12 board paper (bd-5jmnfj.38.25.3) prints with its own footer and total, frames nothing, and is filed as FBISE.
+  const board = examJson._layout?.profile === 'board';
+  const Print = board ? require('./board-render/print') : FdeRenderer;
+  const tag = board ? '_FBISE' : '_FDE';
   const html = Renderer.renderPaper({
     examJson, grade, subject,
     schoolName: user.school_name || null,
@@ -307,14 +311,14 @@ async function _buildPatternPaper({ job, user, paperId }) {
   });
   let buffer;
   try {
-    buffer = await renderer.render(html, { pdfOptions: FdeRenderer.pdfOptions(examJson, 'paper') });
+    buffer = await renderer.render(html, { pdfOptions: Print.pdfOptions(examJson, 'paper') });
   } catch (err) {
     throw Object.assign(err, { code: 'RENDER_FAILED' });
   }
 
   const paperPages = pdfPageCount(buffer);
   let framePages = null;
-  try {
+  if (!board) try {
     const found = await FdeRenderer.framePages(buffer);
     if (found && Object.keys(found).length) framePages = found;
   } catch (err) {
@@ -330,7 +334,7 @@ async function _buildPatternPaper({ job, user, paperId }) {
     },
   };
 
-  const name = fileName({ grade, subject, chapterTitle: null, format: renderer.ext, suffix: '_FDE' });
+  const name = fileName({ grade, subject, chapterTitle: null, format: renderer.ext, suffix: tag });
   let key;
   try {
     key = await r2.uploadExamBuffer({
@@ -348,8 +352,8 @@ async function _buildPatternPaper({ job, user, paperId }) {
   const answerKey = await _storeAnswerKey({
     paperId, requestId, userId, examJson, grade, subject,
     schoolName: user.school_name, pageReference: generated.pageReference, chapterTitle: null, renderer,
-    suffix: '_FDE_MarkingScheme',
-    renderOpts: { pdfOptions: FdeRenderer.pdfOptions(examJson, 'scheme') },
+    suffix: `${tag}_MarkingScheme`,
+    renderOpts: { pdfOptions: Print.pdfOptions(examJson, 'scheme') },
     paperFileName: name,
     onBuffer: (b) => { schemePages = pdfPageCount(b); },
   });
@@ -359,7 +363,7 @@ async function _buildPatternPaper({ job, user, paperId }) {
 
   const pages = paperPages == null && schemePages == null ? null : { paper: paperPages, scheme: schemePages };
   examJson = { ...examJson, _layout: { ...examJson._layout, pages } };
-  const marks = FdeRenderer.totalMarks(examJson);
+  const marks = Print.totalMarks(examJson);
 
   logToFile('[assessment] pattern paper rendered', {
     requestId, paperId, pattern, pages, framePages,
@@ -612,7 +616,9 @@ async function buildPaper(job, user = {}) {
     // alongside from the same pages; null when the subject has none or it came back short.
     // Her earlier questions on these pages, so asking again gives a new paper.
     const avoid = await RepeatGuard.previousQuestions({ db: supabase, requestId, grade });
-    const [generated, oral] = await Promise.all([Generation.generateExam({
+    // bd-5jmnfj.38.31: grade 6 and up gets its own free paper (time-sized, marking points, checked).
+    const writeExam = Number(grade) >= 6 ? require('./free-secondary.service').generateExam : Generation.generateExam;
+    const [generated, oral] = await Promise.all([writeExam({
       grade, subject,
       pageContent: source.content,
       pageReference: source.pageReference,
@@ -622,6 +628,8 @@ async function buildPaper(job, user = {}) {
       // A topic paper tests the ticked topics' skills; any other job passes no key at all.
       ...(scope && scope.kind === 'topics' ? { slos: scope.slos } : {}),
       ...(avoid.length ? { avoidQuestions: avoid } : {}),
+      // Grade 6 and up asks about the lesson by name; G1-5 gets exactly the arguments it always did.
+      ...(writeExam !== Generation.generateExam ? { chapterTitle: source.chapterTitle || null, keySeed: paperId || requestId } : {}),
     }), isTopic ? Generation.generateTopicOral({ grade, subject, pageContent: source.content, requestId }) : null]);
 
     // With versioned editing the generated row IS version 1 and is never

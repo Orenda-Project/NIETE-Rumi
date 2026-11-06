@@ -1,0 +1,78 @@
+{
+ "pattern": "fbise_ssc1_2027",
+ "subject": "physics",
+ "variant": "50pct",
+ "source": "fbise-ssc1-physics-50pct-2026",
+ "source_status": "verified",
+ "total_marks_x4": 240,
+ "total_time_min": 180,
+ "time_a_min": 80,
+ "shared_time_min": 100,
+ "mcq_share_pct": 50.0,
+ "sections": [
+  {
+   "id": "A",
+   "marks_x4": 120,
+   "answer_on": "question_paper",
+   "slots": [
+    {
+     "label": "Q1-40",
+     "kind": "mcq",
+     "printed": 40,
+     "attempt": 40,
+     "marks_each_x4": 2,
+     "or": false,
+     "stimulus": null
+    },
+    {
+     "label": "Q41-60",
+     "kind": "scenario",
+     "printed": 20,
+     "attempt": 20,
+     "marks_each_x4": 2,
+     "or": false,
+     "stimulus": {
+      "count": 5,
+      "mcqs_per_stimulus": 4
+     }
+    }
+   ],
+   "time_min": 80
+  },
+  {
+   "id": "B",
+   "marks_x4": 72,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q1-6",
+     "kind": "srq",
+     "printed": 6,
+     "attempt": 6,
+     "marks_each_x4": 12,
+     "or": true,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  },
+  {
+   "id": "C",
+   "marks_x4": 48,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q7-8",
+     "kind": "erq",
+     "printed": 2,
+     "attempt": 2,
+     "marks_each_x4": 24,
+     "or": true,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  }
+ ],
+ "derivation": []
+}

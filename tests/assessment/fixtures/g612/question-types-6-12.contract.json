@@ -1,0 +1,838 @@
+{
+ "$id": "eg.question_types.6_12",
+ "written": "2026-11-04",
+ "builder": "b-config (A/question-types-6-12.js)",
+ "test": "tests/assessment/question-types-6-12.test.js",
+ "source": [
+  "design/SPEC.md:131-139",
+  "design/DESIGN.md:69-71",
+  "outputs/lanes/r2-studio/types_catalogue.md",
+  "contracts/registry/subject-config.json"
+ ],
+ "urdu_review": "every title_ur is a draft: needs fluent-Urdu review",
+ "category_note": "category is objective|subjective so QuestionTypes.categoryOf/withCounts stay valid; board_paper is 'board', practical 'out_of_exam' (never in type_sets)",
+ "marks_note": "marks_default/lines/marks_range are free-mode fallbacks; in board mode the pattern slot's marks_each/lines win. lines = [min,max] ruled answer lines. null = design_pending or no single default (see design_pending).",
+ "type_sets_note": "type_sets lists what the Flow may OFFER (flow_selectable=true); each id is allowed in that band by 'bands'. board_paper is prepended by code, not listed. Slot types in a pattern may use any non-pseudo id.",
+ "first_entry": "board_paper",
+ "types": [
+  {
+   "id": "board_paper",
+   "category": "board",
+   "shape": "pseudo-type: selecting it routes to the pattern entry; no marks, no items of its own",
+   "marks_default": null,
+   "lines": null,
+   "bands": [
+    "6_8",
+    "9_10",
+    "11_12"
+   ],
+   "print_rules": [
+    "first entry of the TYPES list for grade >= 6; only when the registry cell has board_mode board or term",
+    "hands off to the pattern entry (SPEC s4); no per-type counts screen"
+   ],
+   "title_en": "Board-style paper",
+   "title_ur": "بورڈ طرز کا پرچہ",
+   "flow_selectable": true,
+   "source": "design/SPEC.md:138-139",
+   "design_pending": null
+  },
+  {
+   "id": "mcq",
+   "category": "objective",
+   "shape": "stem + 4 options (A)-(D), one key",
+   "marks_default": 1,
+   "lines": [
+    0,
+    0
+   ],
+   "bands": [
+    "6_8",
+    "9_10",
+    "11_12"
+   ],
+   "print_rules": [
+    "numeric options ascending",
+    "no 'all/none of the above'",
+    "key letters <= 35% per section, no run of 4",
+    "FBISE: OMR bubbles, continuous Q-numbers"
+   ],
+   "title_en": "MCQs",
+   "title_ur": "کثیرالانتخابی سوالات",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": null,
+   "marks_alt": 0.5,
+   "marks_alt_note": "FBISE Section A at 50% policy (TC mcq row; BLUEPRINTS.md:187 P2 allows 0.5 or 0.75)"
+  },
+  {
+   "id": "scenario",
+   "category": "objective",
+   "shape": "stimulus text/data printed once + 4 MCQs (alias mcq_stimulus)",
+   "marks_default": 0.5,
+   "lines": [
+    0,
+    0
+   ],
+   "bands": [
+    "9_10",
+    "11_12"
+   ],
+   "print_rules": [
+    "stimulus <= 120 words, data as inline table",
+    "all 4 MCQs must need the stimulus"
+   ],
+   "title_en": "Scenario MCQs",
+   "title_ur": "منظرنامے پر مبنی سوالات",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": null,
+   "items_per_stimulus": 4,
+   "marks_note": "per-MCQ marks come from the pattern slot marks_each; 0.5 is the TC fallback"
+  },
+  {
+   "id": "srq",
+   "category": "subjective",
+   "shape": "single prompt or (a)(b) parts; internal OR on FBISE",
+   "marks_default": 3,
+   "lines": [
+    4,
+    8
+   ],
+   "bands": [
+    "6_8",
+    "9_10",
+    "11_12"
+   ],
+   "print_rules": [
+    "FBISE wording 'Attempt all ... each has an internal choice'",
+    "OR alternatives: same marks and level, different content"
+   ],
+   "title_en": "Short Response",
+   "title_ur": "مختصر جواب",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": null,
+   "kinds_allowed": [
+    "open",
+    "numerical",
+    "define",
+    "differentiate",
+    "reason",
+    "derivation"
+   ],
+   "marks_range": [
+    3,
+    5
+   ]
+  },
+  {
+   "id": "erq",
+   "category": "subjective",
+   "shape": "2-3 parts (a)(b)(c), part marks shown; internal OR on FBISE",
+   "marks_default": null,
+   "lines": [
+    10,
+    20
+   ],
+   "bands": [
+    "6_8",
+    "9_10",
+    "11_12"
+   ],
+   "print_rules": [
+    "part marks in [ ] at the right margin"
+   ],
+   "title_en": "Extended Response",
+   "title_ur": "تفصیلی جواب",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": "single default not stated in TC (FDE 7-10, FBISE 6-10); slot marks come from the pattern entry",
+   "kinds_allowed": [
+    "open",
+    "numerical",
+    "define",
+    "differentiate",
+    "reason",
+    "derivation"
+   ],
+   "marks_range": [
+    6,
+    10
+   ]
+  },
+  {
+   "id": "fill_blank",
+   "category": "objective",
+   "shape": "sentence with one blank",
+   "marks_default": 1,
+   "lines": [
+    0,
+    0
+   ],
+   "bands": [
+    "6_8"
+   ],
+   "print_rules": [
+    "one blank per item, blank >= 8 underscores"
+   ],
+   "title_en": "Fill in the Blanks",
+   "title_ur": "خالی جگہ پُر کریں",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": null
+  },
+  {
+   "id": "true_false_correct",
+   "category": "objective",
+   "shape": "false statement -> rewrite correctly (alias correct_sentence)",
+   "marks_default": 1,
+   "lines": [
+    2,
+    2
+   ],
+   "bands": [
+    "6_8"
+   ],
+   "print_rules": [
+    "statement must be unambiguously false per the page"
+   ],
+   "title_en": "True/False with correction",
+   "title_ur": "درست/غلط (اصلاح کے ساتھ)",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": null
+  },
+  {
+   "id": "match",
+   "category": "objective",
+   "shape": "two columns, <= 6 rows",
+   "marks_default": 1,
+   "lines": [
+    0,
+    0
+   ],
+   "bands": [
+    "6_8"
+   ],
+   "print_rules": [
+    "right column has one extra distractor"
+   ],
+   "title_en": "Match the columns",
+   "title_ur": "جوڑے ملائیں",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": null,
+   "marks_note": "1 mark per row (TC); no R2 slot asked for it; G6 Islamiat B has 5 MCQ + 5 match (BLUEPRINTS.md:58)"
+  },
+  {
+   "id": "sequence",
+   "category": "objective",
+   "shape": "5 dated/undated events in mixed order -> order them (aliases timeline_text, sequence_text)",
+   "marks_default": 5,
+   "lines": [
+    0,
+    2
+   ],
+   "bands": [
+    "6_8"
+   ],
+   "print_rules": [
+    "text only, no drawn timeline",
+    "events from >= 2 pages"
+   ],
+   "title_en": "Sequence the events",
+   "title_ur": "واقعات کو ترتیب دیں",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": "G8 History 'timeline 6' (BLUEPRINTS.md:93) not confirmed to be this shape",
+   "marks_note": "1 per position (TC)"
+  },
+  {
+   "id": "translation",
+   "category": "subjective",
+   "shape": "Arabic/Urdu text verbatim from the book -> Urdu meaning",
+   "marks_default": 2,
+   "lines": [
+    2,
+    2
+   ],
+   "bands": [
+    "6_8"
+   ],
+   "print_rules": [
+    "source text copied exactly, never authored"
+   ],
+   "title_en": "Translation",
+   "title_ur": "ترجمہ",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": "Urdu<->English translation 'where the book teaches it' (SPEC s6) has no sample; offered only in islamiat 6_8"
+  },
+  {
+   "id": "quran_passage",
+   "category": "subjective",
+   "shape": "printed verses + 2-3 sub-parts; 'attempt any 3 of 4'",
+   "marks_default": 4,
+   "lines": [
+    0,
+    3
+   ],
+   "bands": [
+    "6_8"
+   ],
+   "print_rules": [
+    "verses verbatim from the book, <= 2 lines in outputs",
+    "stimulus.parts counted, not the sub-parts (TC S3)"
+   ],
+   "title_en": "Quran study",
+   "title_ur": "قرآنی عبارت کا مطالعہ",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": null
+  },
+  {
+   "id": "comprehension",
+   "category": "subjective",
+   "shape": "printed passage/stanza + short questions",
+   "marks_default": 3,
+   "lines": [
+    3,
+    6
+   ],
+   "bands": [
+    "6_8",
+    "9_10",
+    "11_12"
+   ],
+   "print_rules": [
+    "passage from the book's own lesson",
+    "stimulus.parts counted, not the sub-parts (TC S3)"
+   ],
+   "title_en": "Comprehension",
+   "title_ur": "فہمِ عبارت",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": null,
+   "marks_range": [
+    3,
+    4
+   ]
+  },
+  {
+   "id": "grammar",
+   "category": "subjective",
+   "shape": "instruction + 2-4 short tasks (do as directed)",
+   "marks_default": 3,
+   "lines": [
+    3,
+    6
+   ],
+   "bands": [
+    "6_8",
+    "9_10",
+    "11_12"
+   ],
+   "print_rules": [
+    "one grammar point per item"
+   ],
+   "title_en": "Grammar",
+   "title_ur": "قواعد",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": null
+  },
+  {
+   "id": "precis",
+   "category": "subjective",
+   "shape": "passage -> summary/precis",
+   "marks_default": 9,
+   "lines": null,
+   "bands": [
+    "9_10"
+   ],
+   "print_rules": [
+    "compulsory in SSC English B"
+   ],
+   "title_en": "Summary",
+   "title_ur": "خلاصہ",
+   "flow_selectable": true,
+   "source": "design/BLUEPRINTS.md:109",
+   "design_pending": "lines not in any source; HSSC English summary marks unconfirmed (BLUEPRINTS.md:151 'inner B marks to confirm')"
+  },
+  {
+   "id": "explanation_prose",
+   "category": "subjective",
+   "shape": "quoted passage -> context + explanation",
+   "marks_default": 6,
+   "lines": [
+    10,
+    10
+   ],
+   "bands": [
+    "11_12"
+   ],
+   "print_rules": [
+    "passage <= 2 lines from the lesson",
+    "scheme: context 1 / meaning 3 / language 2"
+   ],
+   "title_en": "Explain prose passage",
+   "title_ur": "نثر کی تشریح",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": null
+  },
+  {
+   "id": "explanation_poem",
+   "category": "subjective",
+   "shape": "2-line stanza -> explanation",
+   "marks_default": 6,
+   "lines": [
+    10,
+    10
+   ],
+   "bands": [
+    "11_12"
+   ],
+   "print_rules": [
+    "couplet copied exactly as the book prints it"
+   ],
+   "title_en": "Explain poetry stanza",
+   "title_ur": "نظم کی تشریح",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": null
+  },
+  {
+   "id": "explanation_ghazal",
+   "category": "subjective",
+   "shape": "couplet; 'any N of M'",
+   "marks_default": 3,
+   "lines": [
+    4,
+    5
+   ],
+   "bands": [
+    "11_12"
+   ],
+   "print_rules": [
+    "couplet copied exactly as printed"
+   ],
+   "title_en": "Explain ghazal couplet",
+   "title_ur": "غزل کی تشریح",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": null
+  },
+  {
+   "id": "letter",
+   "category": "subjective",
+   "shape": "situation -> letter or application",
+   "marks_default": 8,
+   "lines": [
+    15,
+    15
+   ],
+   "bands": [
+    "6_8",
+    "9_10",
+    "11_12"
+   ],
+   "print_rules": [
+    "situation from Pakistani school/daily life",
+    "analytic scheme: format/content/language"
+   ],
+   "title_en": "Letter / Application",
+   "title_ur": "خط / درخواست",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": "Urdu 9_10 letter not labelled in BLUEPRINTS (SSC Urdu C unlabelled); not in the urdu 9_10 set"
+  },
+  {
+   "id": "essay",
+   "category": "subjective",
+   "shape": "topic choice: write on one, word range",
+   "marks_default": 12,
+   "lines": [
+    30,
+    40
+   ],
+   "bands": [
+    "6_8",
+    "9_10",
+    "11_12"
+   ],
+   "print_rules": [
+    "offer N topics as printed 3 / attempt 1, never one item with i/ii/iii (TC S4)"
+   ],
+   "title_en": "Essay / Paragraph",
+   "title_ur": "مضمون / پیراگراف",
+   "flow_selectable": true,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": null,
+   "marks_range": [
+    6,
+    12
+   ],
+   "marks_note": "12 = g12_urdu/A sample; 6 = SSC English essay (BLUEPRINTS.md:109); 12 = HSSC-II English (BLUEPRINTS.md:170)"
+  },
+  {
+   "id": "activity_written",
+   "category": "subjective",
+   "shape": "in-exam written task: plan / steps / reflection",
+   "marks_default": 10,
+   "lines": [
+    12,
+    12
+   ],
+   "bands": [
+    "6_8"
+   ],
+   "print_rules": [
+    "generated, not teacher-marked (lead 084426 B6); analytic points plan 3 / steps 4 / reflection 3"
+   ],
+   "title_en": "Written activity",
+   "title_ur": "تحریری سرگرمی",
+   "flow_selectable": true,
+   "source": "design/BLUEPRINTS.md:41",
+   "design_pending": null
+  },
+  {
+   "id": "practical",
+   "category": "out_of_exam",
+   "shape": "instruction + criteria, no items; teacher-marked",
+   "marks_default": null,
+   "lines": null,
+   "bands": [
+    "6_8"
+   ],
+   "print_rules": [
+    "prints as a box 'To be assessed by the teacher'",
+    "marks counted in the total, excluded from the split"
+   ],
+   "title_en": "Teacher-assessed task",
+   "title_ur": "استاد کی جانچ کا کام",
+   "flow_selectable": false,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md",
+   "design_pending": "no single default: 6 for G6-7, 20 for G8 Science per TC",
+   "marks_range": [
+    6,
+    20
+   ],
+   "teacher_marked": true
+  },
+  {
+   "id": "dialogue",
+   "category": "subjective",
+   "shape": null,
+   "marks_default": null,
+   "lines": null,
+   "bands": [],
+   "print_rules": [],
+   "title_en": "Dialogue",
+   "title_ur": "مکالمہ",
+   "flow_selectable": false,
+   "source": "design/SPEC.md:136",
+   "design_pending": "listed in SPEC s6; no R2 sample and no blueprint slot uses it; marks/lines/shape unknown"
+  },
+  {
+   "id": "programme",
+   "category": "subjective",
+   "shape": null,
+   "marks_default": null,
+   "lines": null,
+   "bands": [],
+   "print_rules": [],
+   "title_en": "Programme / Pseudocode",
+   "title_ur": "پروگرام / سیوڈوکوڈ",
+   "flow_selectable": false,
+   "source": "design/SPEC.md:138",
+   "design_pending": "listed in SPEC s6 (CS); no R2 sample; marks/lines/shape unknown"
+  },
+  {
+   "id": "map_free_geo",
+   "category": "subjective",
+   "shape": null,
+   "marks_default": null,
+   "lines": null,
+   "bands": [],
+   "print_rules": [],
+   "title_en": "Geography (no map)",
+   "title_ur": "جغرافیہ (بغیر نقشہ)",
+   "flow_selectable": false,
+   "source": "design/SPEC.md:137-138",
+   "design_pending": "SPEC s6: no map items until figures render (DESIGN R9); no sample"
+  }
+ ],
+ "kinds": [
+  {
+   "id": "open",
+   "title_en": "Open response",
+   "title_ur": "کھلا جواب",
+   "maps_to": null,
+   "flow_selectable": false,
+   "type_sets": "all",
+   "source": "default when no kind applies"
+  },
+  {
+   "id": "numerical",
+   "title_en": "Numericals",
+   "title_ur": "عددی سوالات",
+   "maps_to": "srq",
+   "flow_selectable": true,
+   "type_sets": [
+    "maths",
+    "science"
+   ],
+   "lines": [
+    4,
+    6
+   ],
+   "marks_default": null,
+   "print_rules": [
+    "units on every given and answer",
+    "key shows working",
+    "constants as the book prints them"
+   ],
+   "source": "outputs/lanes/r2-studio/types_catalogue.md numerical row (G7-12 Maths/Science; part marks 2-3)"
+  },
+  {
+   "id": "define",
+   "title_en": "Define",
+   "title_ur": "تعریف کریں",
+   "maps_to": "srq",
+   "flow_selectable": true,
+   "type_sets": "all",
+   "lines": [
+    3,
+    5
+   ],
+   "marks_default": 2,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md define/differentiate/reason row (marks 2-3)"
+  },
+  {
+   "id": "differentiate",
+   "title_en": "Differentiate",
+   "title_ur": "فرق بیان کریں",
+   "maps_to": "srq",
+   "flow_selectable": true,
+   "type_sets": "all",
+   "lines": [
+    3,
+    5
+   ],
+   "marks_default": 3,
+   "print_rules": [
+    "'any N points' wording; table allowed in key"
+   ],
+   "source": "outputs/lanes/r2-studio/types_catalogue.md (g9_physics/A: 3 x 1)"
+  },
+  {
+   "id": "reason",
+   "title_en": "Give reasons (Why)",
+   "title_ur": "وجہ بتائیں",
+   "maps_to": "srq",
+   "flow_selectable": true,
+   "type_sets": "all",
+   "lines": [
+    3,
+    5
+   ],
+   "marks_default": 2,
+   "source": "outputs/lanes/r2-studio/types_catalogue.md define/differentiate/reason row"
+  },
+  {
+   "id": "derivation",
+   "title_en": "Derivation / Proof",
+   "title_ur": "اخذ / ثبوت",
+   "maps_to": "erq",
+   "flow_selectable": true,
+   "type_sets": [
+    "maths",
+    "science"
+   ],
+   "lines": null,
+   "marks_default": null,
+   "source": "design/SPEC.md:133-134",
+   "design_pending": "no sample; marks/lines unknown"
+  }
+ ],
+ "type_sets": {
+  "english": {
+   "6_8": [
+    "mcq",
+    "comprehension",
+    "grammar",
+    "letter",
+    "essay"
+   ],
+   "9_10": [
+    "mcq",
+    "comprehension",
+    "precis",
+    "grammar",
+    "letter",
+    "essay"
+   ],
+   "11_12": [
+    "mcq",
+    "comprehension",
+    "grammar",
+    "letter",
+    "essay"
+   ]
+  },
+  "urdu": {
+   "6_8": [
+    "mcq",
+    "comprehension",
+    "srq",
+    "grammar",
+    "letter",
+    "essay"
+   ],
+   "9_10": [
+    "mcq",
+    "comprehension",
+    "srq",
+    "grammar",
+    "letter",
+    "essay"
+   ],
+   "11_12": [
+    "mcq",
+    "comprehension",
+    "srq",
+    "grammar",
+    "explanation_prose",
+    "explanation_poem",
+    "explanation_ghazal",
+    "letter",
+    "essay"
+   ]
+  },
+  "maths": {
+   "6_8": [
+    "mcq",
+    "srq",
+    "erq"
+   ],
+   "9_10": [
+    "mcq",
+    "scenario",
+    "srq",
+    "erq"
+   ],
+   "11_12": [
+    "mcq",
+    "scenario",
+    "srq",
+    "erq"
+   ]
+  },
+  "science": {
+   "6_8": [
+    "mcq",
+    "srq",
+    "erq"
+   ],
+   "9_10": [
+    "mcq",
+    "scenario",
+    "srq",
+    "erq"
+   ],
+   "11_12": [
+    "mcq",
+    "scenario",
+    "srq",
+    "erq"
+   ]
+  },
+  "computer_science": {
+   "6_8": [
+    "mcq",
+    "srq",
+    "erq"
+   ],
+   "9_10": [
+    "mcq",
+    "scenario",
+    "srq",
+    "erq"
+   ],
+   "11_12": [
+    "mcq",
+    "scenario",
+    "srq",
+    "erq"
+   ]
+  },
+  "social": {
+   "6_8": [
+    "mcq",
+    "srq",
+    "erq",
+    "sequence"
+   ],
+   "9_10": [
+    "mcq",
+    "srq",
+    "erq"
+   ],
+   "11_12": [
+    "mcq",
+    "srq",
+    "erq"
+   ]
+  },
+  "social_ur": {
+   "9_10": [
+    "mcq",
+    "srq",
+    "erq"
+   ],
+   "11_12": [
+    "mcq",
+    "srq",
+    "erq"
+   ]
+  },
+  "islamiat": {
+   "6_8": [
+    "mcq",
+    "fill_blank",
+    "true_false_correct",
+    "match",
+    "translation",
+    "srq",
+    "erq",
+    "quran_passage",
+    "comprehension",
+    "activity_written"
+   ],
+   "9_10": [
+    "mcq",
+    "srq",
+    "erq"
+   ],
+   "11_12": [
+    "mcq",
+    "srq",
+    "erq"
+   ]
+  },
+  "zarai_taleem": {
+   "6_8": [
+    "mcq",
+    "srq",
+    "erq"
+   ]
+  }
+ },
+ "type_sets_pending": {
+  "urdu.9_10": "c-registry ruling 2026-11-04: free mode offers srq/letter/essay (taught in G9-10 Urdu; types_catalogue.md letter/essay rows, bands 'Urdu, English'; same set as urdu.6_8). explanation_* stay HSSC-only until c-patterns labels SSC Urdu section C (BLUEPRINTS.md:110). Board mode takes slot types from the pattern entry, not from this list.",
+  "english.srq": "no board uses srq/erq for English in BLUEPRINTS; comprehension covers short questions",
+  "zarai_taleem.6_8": "design_pending: no FDE paper or ToS (BLUEPRINTS.md:59,76); mcq/srq/erq are the generic objective + constructed pair, not board-derived",
+  "islamiat.9_10,11_12": "SSC Islamiat D 14 (2x7) and HSSC Islamiat parts not labelled; translation not offered"
+ }
+}

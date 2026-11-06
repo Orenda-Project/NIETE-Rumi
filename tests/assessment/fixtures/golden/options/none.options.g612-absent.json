@@ -1,0 +1,15 @@
+{
+  "statusCode": 200,
+  "payload": {
+    "success": true,
+    "grades": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "maxQuestions": 50,
+    "defaultQuestions": 15
+  }
+}
