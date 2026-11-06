@@ -33,6 +33,11 @@ describe('markingHtml', () => {
   it('does not print "Accept:" twice when the note already starts with it', () => {
     expect(P.markingHtml({ accept: 'Accept equal wording.' }, esc)).toBe('<div class="accept">Accept equal wording.</div>');
   });
+  it('prints the do-not-accept line after the accept line', () => {
+    const html = P.markingHtml({ accept: 'mixes in', reject: 'it <melts>' }, esc);
+    expect(html).toBe('<div class="accept">Accept: mixes in</div><div class="reject">Do not accept: it &lt;melts></div>');
+    expect(P.markingHtml({ reject: 'Do not accept melting.' }, esc)).toBe('<div class="reject">Do not accept melting.</div>');
+  });
   it('prints nothing for an item without them', () => {
     expect(P.markingHtml({ answer: 'x' }, esc)).toBe('');
     expect(P.markingHtml(null, esc)).toBe('');
@@ -55,5 +60,22 @@ describe('the free renderer', () => {
     const html = R.renderAnswerKey({ examJson: exam, ...meta });
     expect(html).toContain('less dense than water (3)');
     expect(html).toContain('Accept: lighter than water');
+  });
+  it('prints each scenario part\'s marking points under its answer (the G7 Q20 shape)', () => {
+    const scenario = { unseen: { subjective: { Other: [{
+      main_question: 'Read the scenario and answer the structured question.',
+      passage: 'A green plant is placed inside a sealed glass jar.',
+      questions: [
+        { question: 'a. Explain the gas exchange during the day.', marks: 2, lines: 3, answer: 'Net oxygen out.',
+          marking_points: [{ point: 'States net oxygen is released by day', marks: 1 }, { point: 'Links it to light', marks: 1 }],
+          accept: 'Accept equivalent explanations.' },
+        { question: 'b. Explain the gas exchange at night.', marks: 2, lines: 3, answer: 'Only respiration.',
+          marking_points: [{ point: 'States that photosynthesis stops at night, so only respiration occurs', marks: 1 }] },
+      ],
+    }] } } };
+    const html = R.renderAnswerKey({ examJson: scenario, ...meta });
+    expect(html).toContain('States net oxygen is released by day (1)');
+    expect(html).toContain('States that photosynthesis stops at night, so only respiration occurs (1)');
+    expect(html).toContain('Accept equivalent explanations.');
   });
 });

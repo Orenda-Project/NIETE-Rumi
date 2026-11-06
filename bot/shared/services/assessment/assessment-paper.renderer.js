@@ -19,6 +19,7 @@
 const fs = require('fs');
 const path = require('path');
 const FreePrint = require('./free-secondary-print');
+const Chrome = require('./free-secondary-chrome');
 const { orderedEntries } = require('./assessment-order');
 
 /**
@@ -145,10 +146,10 @@ function optionsClass(options) {
   return longest > 14 ? 'options two' : 'options four';
 }
 
-function marksLabel(marks) {
+function marksLabel(marks, word) {
   const n = Number(marks);
   if (!Number.isFinite(n) || n <= 0) return '';
-  return `<span class="marks">[${n} ${n === 1 ? 'mark' : 'marks'}]</span>`;
+  return `<span class="marks">[${n} ${word || (n === 1 ? 'mark' : 'marks')}]</span>`;
 }
 
 /**
@@ -229,7 +230,7 @@ function renderQuestion(question, number, questionType, opts) {
     return `<div class="q"><p><b>${number}.</b> ${esc(question)}</p></div>`;
   }
 
-  const marks = marksLabel(question.marks);
+  const marks = marksLabel(question.marks, opts.marksWord);
   const answer = includeAnswerKey && question.answer
     ? `<div class="answer"><b>Answer:</b> ${esc(question.answer)}</div>` : '';
 
@@ -263,7 +264,7 @@ function renderQuestion(question, number, questionType, opts) {
     question.questions.forEach((sub, i) => {
       const letter = String.fromCharCode(97 + i);
       const subText = typeof sub === 'string' ? sub : sub.question;
-      const subMarks = typeof sub === 'string' ? '' : marksLabel(sub.marks);
+      const subMarks = typeof sub === 'string' ? '' : marksLabel(sub.marks, opts.marksWord);
       out.push(`<p class="sub"><b>${letter})</b> ${esc(subText)} ${subMarks}</p>`);
       if (typeof sub === 'object' && Array.isArray(sub.options) && sub.options.length) {
         out.push(`<div class="${optionsClass(sub.options)}">`);
@@ -357,7 +358,8 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
   const lineMm = lineHeightMm(grade);
   const questions = collectQuestions(examJson);
   const rtl = isRtl(subject);
-  const opts = { includeAnswerKey: false, answerLines };
+  const opts = { includeAnswerKey: false, answerLines, marksWord: Chrome.marksWord(examJson) };
+  const L = Chrome.labelsFor(examJson);
 
   const body = [];
   let number = 1;
@@ -370,7 +372,7 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
       // legitimately. "OTHER" printed as a section heading on a child's paper
       // says nothing — the shared instruction under it already does the work.
       if (type && !GENERIC_TYPES.has(String(type).trim().toLowerCase())) {
-        body.push(`<h3 class="type">${esc(type)}</h3>`);
+        body.push(`<h3 class="type">${esc(Chrome.headingFor(examJson, type))}</h3>`);
       }
       lastType = type;
       lastMain = null;
@@ -439,19 +441,19 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
   table.match th { background: #f2f2f2; }
   .answer-space { margin: 5px 0 0 ${rtl ? '0' : '18px'}; }
   .answer-line { border-bottom: 1px solid #aaa; height: ${lineMm}mm; }
-  .answer { background: #eef7ee; border-${rtl ? 'right' : 'left'}: 3px solid #4a4; padding: 3px 7px; margin-top: 4px; font-size: 10.5pt; }
+  .answer { background: #eef7ee; border-${rtl ? 'right' : 'left'}: 3px solid #4a4; padding: 3px 7px; margin-top: 4px; font-size: 10.5pt; }${Chrome.css(examJson)}
 </style></head>
 <body>
 ${schoolName ? `<div class="school">${esc(schoolName)}</div>` : ''}
 <div class="class-line">${heading}</div>
 ${sub ? `<div class="chapter">${sub}</div>` : ''}
 <table class="marks-header">
-  <tr><td class="k">Student Name</td><td colspan="3"></td></tr>
-  <tr><td class="k">Roll No</td><td></td><td class="k">Date</td><td></td></tr>
-${paperKind === 'topic' ? '' : `  <tr><td class="k">Total Marks</td><td>${totalMarks(questions)}</td><td class="k">Obtained Marks</td><td></td></tr>
+  <tr><td class="k">${L.studentName}</td><td colspan="3"></td></tr>
+  <tr><td class="k">${L.rollNo}</td><td></td><td class="k">${L.date}</td><td></td></tr>
+${paperKind === 'topic' ? '' : `  <tr><td class="k">${L.totalMarks}</td><td>${totalMarks(questions)}</td><td class="k">${L.obtainedMarks}</td><td></td></tr>
 `}</table>
-<div class="instructions"><b>Instructions</b>
-  <ol>${FreePrint.instructionsFor(examJson, INSTRUCTIONS).map((i) => `<li>${esc(i)}</li>`).join('')}</ol>
+<div class="instructions"><b>${L.instructions}</b>
+  <ol>${Chrome.instructionsFor(examJson, INSTRUCTIONS).map((i) => `<li>${esc(i)}</li>`).join('')}</ol>
 </div>
 ${body.join('\n')}
 </body></html>`;
@@ -513,7 +515,7 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
         const a = typeof sub === 'object' && sub.answer ? esc(sub.answer) : dash;
         const part = typeof sub === 'object' ? marksLabel(sub && sub.marks) : '';
         // The letter is a Latin run: isolated, or "c) —" reads "—(c" on an Urdu key.
-        return `<div><b class="num">${letter})</b> ${a}${part ? ` ${part}` : ''}</div>`;
+        return `<div><b class="num">${letter})</b> ${a}${part ? ` ${part}` : ''}${FreePrint.markingHtml(sub, esc)}</div>`;
       }).join('');
     } else if (question && Array.isArray(question.words) && question.words.length && !question.answer) {
       answer = dash;

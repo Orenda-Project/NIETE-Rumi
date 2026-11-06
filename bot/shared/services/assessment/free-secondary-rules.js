@@ -22,9 +22,15 @@ const MINUTES = { srq: 5, erq: 13, grammar: 4, comprehension: 6, essay: 15 };
 const OBJECTIVE_MINUTES = 1;
 const OTHER_MINUTES = 5;
 const REVIEW_MINUTES = 5;
+// The share of the printed time the load may fill (A5g): a 60-minute paper is planned to 51 minutes.
+const LOAD_SHARE = 0.85;
 
 // A7b on the a3 G8 Urdu paper: "meaning of X" items whose three distractors were all the key's opposite.
 const MEANING_RULE = 'When an MCQ asks for the meaning or a quality of a word, no distractor is the opposite of the key (for "plenty", never "little" or "scarce"): use meanings a student could really confuse with it, such as a related word with a different sense, a word that looks or sounds alike, or the meaning the word has in another context.';
+
+// A7c on the a4 G8 Urdu key: written items carried points only. Every written item also gets a
+// holistic band, an accept line and a do-not-accept line; free-secondary-scheme checks them.
+const SCHEME_RULE = 'Every item that is not an MCQ also carries "mark_bands": 2 or 3 levels, full / partial / none, each with its marks and what an answer at that level does (for 3 marks: [{"marks": "3", "descriptor": "full: ..."}, {"marks": "1-2", "descriptor": "partial: ..."}, {"marks": "0", "descriptor": "none: ..."}]); "accept": one line of other correct answers to accept; and "reject": one line of a likely wrong or incomplete answer that earns no mark.';
 
 function bandOf(grade) {
   const n = Number(grade);
@@ -46,12 +52,13 @@ function plannedMinutes(types) {
 
 /**
  * Moves items one at a time from the slowest constructed type that has more than one, onto the
- * first objective type, until the plan fits the band's minutes. The total count is kept, and no
+ * first objective type, until the plan fits LOAD_SHARE of the band's minutes, so the time the paper
+ * prints (printedMinutes) is within the band. The total count is kept, and no
  * type the teacher picked drops below one. A paper that fits, or has no objective type to move
  * items onto, comes back as it was.
  */
 function sizeTypes(types, grade) {
-  const budget = bandOf(grade).minutes;
+  const budget = Math.floor(bandOf(grade).minutes * LOAD_SHARE);
   const target = types.findIndex(isObjective);
   if (target < 0 || plannedMinutes(types) <= budget) return { types, moved: 0 };
   const out = types.map((t) => ({ ...t, count: Number(t.count) || 0 }));
@@ -92,8 +99,8 @@ ONE FACT, ONE ITEM
 - At least one item asks about the main subject of the lesson: its main idea, event, process or person by name.${lesson}
 MARKING (every item that is not an MCQ)
 - Add "marking_points": [{"point": "<what earns the mark>", "marks": <number>}], one entry per mark or part, summing exactly to the item's marks.
-- An extended answer also carries "mark_bands": [{"marks": "<e.g. 5-6>", "descriptor": "<what an answer at this level does>"}], from full marks down to 1.
-- Add "accept": "<other correct wordings to accept, and what not to accept>". In a subject other than a language, accept a correct answer written in Urdu or English.`;
+- ${SCHEME_RULE}
+- In a subject other than a language, the accept line also accepts a correct answer written in Urdu or English.`;
 }
 
 /** The base system prompt with the rules block placed before the safety policies, which stay last. */
@@ -115,4 +122,20 @@ function fixNote(issues) {
   ].join('\n');
 }
 
-module.exports = { MEANING_RULE, bandOf, sizeTypes, plannedMinutes, rulesBlock, withRules, fixNote };
+/**
+ * The distractor review (free-secondary-review.js): each MCQ with its options and key, and the reply
+ * wanted. A distractor rated 1 sends its item to the targeted rewrite.
+ */
+function reviewPrompt(mcqs, grade) {
+  return [
+    `You are checking the multiple-choice questions of a Grade ${grade} paper in Pakistan before it is printed.`,
+    `For each MCQ, rate every wrong option (distractor) from 1 to 3 for how likely a Grade ${grade} student who holds a common misconception about the topic is to choose it:`,
+    '3 = such a student would likely choose it; 2 = some students might; 1 = no student who studied the lesson would choose it (plainly wrong, off the topic, silly, or a giveaway).',
+    'Also say whether the key is the longest option or stands out from the others by its length or detail.',
+    'Return JSON only: {"items":[{"n":<question number>,"distractors":[{"option":"a","rating":1,"why":"..."}],"longest_key":false}]}',
+    '',
+    ...mcqs.map((m) => `Q${m.n}: ${m.question}\n${m.options.join('\n')}\nKey: ${m.key}`),
+  ].join('\n');
+}
+
+module.exports = { MEANING_RULE, SCHEME_RULE, LOAD_SHARE, bandOf, sizeTypes, plannedMinutes, rulesBlock, withRules, fixNote, reviewPrompt };

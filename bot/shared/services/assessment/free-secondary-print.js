@@ -3,7 +3,8 @@
  * bd-5jmnfj.38.31 — what a G6-12 free paper adds when it is printed. Pure, no I/O.
  *
  *   instructionsFor  A5g  the paper prints the minutes it was sized to, not "as specified by your teacher"
- *   markingHtml      A7c  the key prints each item's marking points, mark bands and what else to accept
+ *   markingHtml      A7c  the key prints each item's marking points, mark bands, what else to accept
+ *                        and what not to accept
  *
  * A paper without `_timeMinutes`, or an item without those fields, prints exactly as before.
  */
@@ -30,6 +31,10 @@ function markingHtml(item, esc) {
   if (item.accept) {
     const note = String(item.accept);
     out.push(`<div class="accept">${/^accept\b/i.test(note) ? '' : 'Accept: '}${esc(note)}</div>`);
+  }
+  if (item.reject) {
+    const note = String(item.reject);
+    out.push(`<div class="reject">${/^do not accept\b/i.test(note) ? '' : 'Do not accept: '}${esc(note)}</div>`);
   }
   return out.join('');
 }

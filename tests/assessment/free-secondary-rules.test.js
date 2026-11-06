@@ -3,6 +3,7 @@
  * rules block placed before the safety policies (safety stays last).
  */
 const R = require('../../bot/shared/services/assessment/free-secondary-rules');
+const { printedMinutes } = require('../../bot/shared/services/assessment/free-secondary-checks');
 
 const types = (spec) => spec.map(([id, count, category]) => ({ id, count, category }));
 
@@ -20,9 +21,16 @@ describe('bandOf', () => {
 describe('sizeTypes', () => {
   it('moves G7 essays then short answers onto the MCQs until the plan fits the band time', () => {
     const { types: out, moved } = R.sizeTypes(types([['mcq', 7, 'objective'], ['srq', 7, 'subjective'], ['erq', 6, 'subjective']]), 7);
-    expect(out.map((t) => [t.id, t.count])).toEqual([['mcq', 14], ['srq', 5], ['erq', 1]]);
-    expect(moved).toBe(7);
+    expect(out.map((t) => [t.id, t.count])).toEqual([['mcq', 16], ['srq', 3], ['erq', 1]]);
+    expect(moved).toBe(9);
     expect(R.plannedMinutes(out)).toBeLessThanOrEqual(R.bandOf(7).minutes);
+  });
+
+  it('sizes to the load whose printed time fits the band: the a4 G7 plan 14/5/1 printed 70 against 60', () => {
+    const { types: out, moved } = R.sizeTypes(types([['mcq', 14, 'objective'], ['srq', 5, 'subjective'], ['erq', 1, 'subjective']]), 7);
+    expect(moved).toBe(2);
+    expect(R.plannedMinutes(out)).toBeLessThanOrEqual(Math.floor(60 * R.LOAD_SHARE));
+    expect(printedMinutes(R.plannedMinutes(out))).toBeLessThanOrEqual(R.bandOf(7).minutes);
   });
 
   it('keeps the total and never takes a picked type below one', () => {
@@ -33,7 +41,7 @@ describe('sizeTypes', () => {
 
   it('sizes the G8 Urdu mix (mcq, srq, grammar) by moving short answers first', () => {
     const { types: out } = R.sizeTypes(types([['mcq', 7, 'objective'], ['srq', 7, 'subjective'], ['grammar', 6, 'subjective']]), 8);
-    expect(out.map((t) => [t.id, t.count])).toEqual([['mcq', 10], ['srq', 4], ['grammar', 6]]);
+    expect(out.map((t) => [t.id, t.count])).toEqual([['mcq', 12], ['srq', 2], ['grammar', 6]]);
   });
 
   it('leaves a paper that already fits, or one with no objective type, as it was', () => {
@@ -68,6 +76,11 @@ describe('withRules', () => {
 
 describe('rulesBlock', () => {
   const text = R.rulesBlock(7);
+  it('asks every written item for a 2-3 level band, an accept line and a do-not-accept line', () => {
+    expect(text).toContain('"mark_bands"');
+    expect(text).toMatch(/full \/ partial \/ none/);
+    expect(text).toContain('"reject"');
+  });
   it.each([
     ['marking points per item', /"marking_points"/],
     ['mark bands for extended answers', /"mark_bands"/],
