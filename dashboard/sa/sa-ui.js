@@ -56,6 +56,7 @@
  *   say_then_next     lines.r7_say_next / r7_say_done after the task's instruction (said and shown) and shown under the
  *                     item while the child answers; tick_prompt: lines.r7_type_tick for a typed number; story_scroll:
  *                     lines.r7_scroll after the story's instruction, and a down arrow under the story while more is below.
+ *   r10_hint_once     round 10 audio 1: the say-then-press hint is not said after the instruction (which says it), only shown.
  *
  * Round 8, the child's flow (each OFF unless battery.ui.<flag>):
  *   r8_reading_no_done   a reading (passage) screen says nothing about "done" on the way in; the recorder opens after a
@@ -500,6 +501,9 @@
     var scrollCue = null; // { s, el, ro, type, phase, task, asked }: the cue of the screen on show
     var scrollSaid = {};  // screen types (phase, or running:<mode>) the cue line was said on
     var talk = null, talkN = 0; // r9Scroll: Jugnu's latest line, and how many are still playing
+    // Round 10 audio 1 (r10_hint_once): the say-then-press hint is heard once per task, in the instruction; it stays on the
+    // screen but is not said again after the instruction (nor on its replay)
+    var r10HintOnce = r7.r10_hint_once === true;
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
@@ -541,6 +545,8 @@
     /** r8_comp_wait_next: a story or listening question, which waits for Next (sa-core drops its timeout). */
     function compWait(t) { return r7.r8_comp_wait_next === true && !!t && t.mode === 'oral' && /comprehension$/.test(t.subtask || '') && (!manual || appAsks); }
     function sayNext(t) { return r7.say_then_next === true && cellish(t) && !!line('r7_say_next'); }
+    /** r10_hint_once: whether hint line hl is one of the say-then-press lines (the instruction already says it). */
+    function sayHint(hl) { return !!hl && (hl === line('r7_say_next') || hl === line('r7_say_done') || hl === line('r7_say_next_q')); }
     function hintEl(t, cls) {
       var hl = hintOf(t);
       if (!hl) return null;
@@ -1173,6 +1179,7 @@
     function playIntroAll(t) {
       var g = gen;
       var hl = hintOf(t);
+      if (r10HintOnce && sayHint(hl)) hl = null;
       return playIntro(t).then(function () { if (hl && alive && g === gen) return say(hl); });
     }
     /** RDF manual: the coach's screen in front of each task (the words to read out), then the phone goes to the child. */
