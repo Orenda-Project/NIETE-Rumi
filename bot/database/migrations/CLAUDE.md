@@ -1,7 +1,7 @@
 # migrations — Hand-applied SQL migrations (no runner); newer ones carry a *_rollback.sql file
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/database/migrations kg=2db7fc3209c0 gen=91e10d1daea6 overflow=455 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/database/migrations kg=4212d3eae19e gen=017679e37fef overflow=461 rendered=2026-11-06 kg.py=1.1.0 -->
 
 ## Entry points
 - `web_quiz_challenge_registry.sql` — shows the requires/NON-DESTRUCTIVE/rollback convention
@@ -15,13 +15,13 @@ Full index: `CLAUDE.index.md`
 | `create*` | 4 files; most used `create_video_quiz_tables.sql`: Ports the main bot's video-quiz schema to NIETE: quiz_questions changes, share codes, invites, identity (bd-2482) |
 | `web_quiz_challenge_registry.sql` | Creates the five Challenge registry tables: passages, items, periods, equating links and draws |
 | `002_add_registration_fields.sql` | Adds teacher-onboarding columns to users (registration fields, v3.2.0) |
-| … | 132 more → `CLAUDE.index.md` |
+| … | 140 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `002_add_registration_fields.sql` (+4)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+175)
-- column `users.preferred_language` (written by `add_preferred_language_to_users.sql`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:761:6d7fc8d6` (+74)
-- column `coaching_sessions.id` (written by `003_classroom_coaching.sql`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/handlers/text-message.handler.js:1981:21597576` (+73)
-- … 365 more → `CLAUDE.index.md`
+- table `users` (written by `002_add_registration_fields.sql` (+4)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+188)
+- column `users.preferred_language` (written by `add_preferred_language_to_users.sql`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:763:6d7fc8d6` (+77)
+- column `coaching_sessions.id` (written by `003_classroom_coaching.sql`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/handlers/text-message.handler.js:1999:21597576` (+74)
+- … 368 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Seed files are generated; edit the script, not the SQL (web_quiz_challenge_registry_seed.sql:2-3 'do not edit by hand')
