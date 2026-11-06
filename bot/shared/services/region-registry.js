@@ -30,7 +30,7 @@ async function listRegions(client) {
   try {
     result = await client
       .from('region_features')
-      .select('region, organization, display_name, sort_order, is_active');
+      .select('region, organization, display_name, sort_order, is_active, curriculum_key');
   } catch (e) {
     throw new Error(`region registry unreadable: ${e.message}`);
   }
@@ -60,6 +60,20 @@ async function organizationForRegion(client, region) {
   return row ? row.organization : null;
 }
 
+/**
+ * The curriculum key of a REGISTRY region (its books — 'nbf_snc' for Gilgit-Baltistan, V1.8.6), or null for a
+ * region with none, an unknown or retired region, or the deployment-wide row (no organization: its
+ * punjab_snc_2020 is not any teacher's region). Throws like every read here; book-curriculum.service
+ * is the caller that turns a throw into ICT (bd-97daxo.4).
+ */
+async function curriculumKeyForRegion(client, region) {
+  const key = regionKey(region);
+  if (!key) return null;
+  const row = (await listRegions(client))
+    .find((r) => regionKey(r.region) === key || regionKey(r.display_name) === key);
+  return (row && row.curriculum_key) || null;
+}
+
 function _clearCache() {
   _cache = null;
 }
@@ -68,6 +82,7 @@ module.exports = {
   listRegions,
   regionsForOrganization,
   organizationForRegion,
+  curriculumKeyForRegion,
   regionKey,
   _clearCache,
 };

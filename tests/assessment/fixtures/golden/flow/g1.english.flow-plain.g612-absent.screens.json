@@ -369,6 +369,7 @@
     }
   ],
   "writes": {
+    "users": [],
     "textbooks": [],
     "assessment_requests": [
       {
