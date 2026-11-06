@@ -118,6 +118,12 @@ describe('booking (onLessonDelivered)', () => {
     expect(await take()).toEqual({ scheduled: false, reason: 'no_topics' });
   });
 
+  test("bd-97daxo.5: a region's own (opt_in) book, e.g. GB's NBF English, books nothing and never reads ICT's topics", async () => {
+    lessonById.mockReturnValue({ lesson: seg(5), chapter: CHAPTER, book: { ...BOOK, stem: 'gb_g1_english', opt_in: true } });
+    expect(await take()).toEqual({ scheduled: false, reason: 'no_topics' });
+    expect(listChapterTopics).not.toHaveBeenCalled();
+  });
+
   test('a topics read that fails books nothing and does not throw', async () => {
     listChapterTopics.mockRejectedValue(new Error('db down'));
     expect(await take()).toEqual({ scheduled: false, reason: 'guard_unavailable' });
