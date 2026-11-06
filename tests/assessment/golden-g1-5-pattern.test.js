@@ -30,6 +30,11 @@ function load() {
   process.env.INTERNAL_API_KEY = KEY;
   jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
   jest.doMock('../../bot/shared/config/supabase', () => H.fakeDb(state));
+  // Teachers are offered only the Grade 5 pattern now (board-pattern-g5-only.test.js pins the
+  // refusal). The Grade 1-4 papers still build for a request queued before that, and these goldens
+  // keep pinning them, so here every registered pattern counts as offered.
+  const RealPatterns = jest.requireActual('../../bot/shared/services/assessment/patterns');
+  jest.doMock('../../bot/shared/services/assessment/patterns', () => ({ ...RealPatterns, isOffered: () => true }));
   jest.doMock('../../bot/shared/services/queue', () => ({ queueJob: async (...a) => { state.queued.push(a); return { messageId: 'm' }; } }));
   jest.doMock('../../bot/shared/services/assessment/assessment-browse.service', () => ({
     bookFor: async () => ({ id: 'book-golden' }), listChapters: async () => [],
