@@ -50,7 +50,7 @@ function flagsFrom(reply, section) {
     const it = r && byN.get(Number(r.n));
     if (!it) return;
     const faults = FAULTS.filter((f) => r[f] === true);
-    if (faults.length && !out.some((x) => x.id === it.id)) out.push({ id: it.id, slot: it.slot, sig: it.sig, faults, why: r.why ? String(r.why) : '' });
+    if (faults.length && !out.some((x) => x.id === it.id)) out.push({ id: it.id, slot: it.slot, sig: it.sig, question: it.question, faults, why: r.why ? String(r.why) : '' });
   });
   return out;
 }
@@ -62,7 +62,7 @@ function flagsFrom(reply, section) {
 function applyFlags(checks, flags, examJson) {
   const now = new Map(sectionsOf(examJson).flatMap((s) => s.items).map((i) => [i.sig, i]));
   const live = [];
-  (flags || []).forEach((x) => { const i = now.get(x.sig); if (i && !live.some((y) => y.id === i.id)) live.push({ id: i.id, slot: i.slot }); });
+  (flags || []).forEach((x) => { const i = now.get(x.sig); if (i && !live.some((y) => y.id === i.id)) live.push({ id: i.id, slot: i.slot, faults: x.faults, why: x.why }); });
   if (!live.length) return checks;
   live.forEach((f) => {
     let row = checks.shortfall.find((r) => r.slot === f.slot);
@@ -70,6 +70,8 @@ function applyFlags(checks, flags, examJson) {
     if (!row.items.includes(f.id)) row.items.push(f.id);
     row.why = row.why || {};
     if (!row.why[f.id]) row.why[f.id] = 'review';
+    row.review = row.review || {};
+    row.review[f.id] = { faults: f.faults, why: f.why };
   });
   checks.record.per_check = checks.record.per_check || {};
   checks.record.per_check.review = { issues: live.length, hard: live.length };
@@ -77,10 +79,52 @@ function applyFlags(checks, flags, examJson) {
   return checks;
 }
 
+/**
+ * Round 9b: after the last rewrite the review stops being hard. A live reviewer says yes on ~45% of items, rewrites
+ * included, so a hard review fails every paper; its leftovers become notes (mutates checks). Other reasons stay hard.
+ */
+function soften(checks) {
+  let moved = 0;
+  checks.shortfall = checks.shortfall.filter((row) => {
+    const mine = Object.keys(row.review || {}).filter((id) => row.why && row.why[id] === 'review');
+    mine.forEach((id) => {
+      checks.notes.push({ check: 'review', id, slot: row.slot, faults: row.review[id].faults, why: row.review[id].why || '' });
+      row.items = row.items.filter((x) => x !== id);
+      if (row.item_refs) row.item_refs = row.item_refs.filter((x) => x !== id);
+      delete row.why[id];
+      moved += 1;
+    });
+    delete row.review;
+    return !(row.reason === 'review' && !row.items.length);
+  });
+  const counted = checks.record.per_check && checks.record.per_check.review;
+  checks.record.hard = Math.max(0, (checks.record.hard || 0) - (counted ? counted.hard : moved));
+  if (counted) counted.hard = 0;
+  return checks;
+}
+
+/** Round 9b: {flagged, by_fault} of a set of flags, for the review log line. */
+function tally(flags) {
+  const by = {};
+  flags.forEach((f) => f.faults.forEach((k) => { by[k] = (by[k] || 0) + 1; }));
+  return { flagged: flags.length, by_fault: by };
+}
+
+/** Round 9b: '"stem": fault, fault (why)' for each flag whose stem was removed, so the rewrite is told what to avoid. */
+function faultLines(flags, stems) {
+  const want = new Set(stems);
+  return flags.filter((f) => want.has(f.question)).map((f) => `"${f.question}": ${f.faults.map((k) => k.replace(/_/g, ' ')).join(', ')}${f.why ? ` (${f.why})` : ''}`);
+}
+
 /** One call per section; call({id, n, system, user}) resolves to the parsed reply. */
-async function reviewPaper({ examJson, grade, call, only, onError = () => {} }) {
+async function reviewPaper({ examJson, grade, call, only, seen, onError = () => {} }) {
   const out = [];
-  for (const sec of sectionsOf(examJson, only)) {
+  for (const whole of sectionsOf(examJson, only)) {
+    // round 9b: an item is reviewed once by its text (ids are positional, so an unchanged item can change id)
+    const items = whole.items.filter((i) => !seen || !seen.has(i.sig)).map((i, k) => ({ ...i, n: k + 1 }));
+    if (!items.length) continue;
+    if (seen) items.forEach((i) => seen.add(i.sig));
+    const sec = { id: whole.id, items };
     try {
       const p = reviewPrompt(sec, grade);
       out.push(...flagsFrom(await call({ id: `review-${sec.id}`, n: sec.items.length, ...p }), sec));
@@ -91,4 +135,4 @@ async function reviewPaper({ examJson, grade, call, only, onError = () => {} }) 
   return out;
 }
 
-module.exports = { FAULTS, sectionsOf, reviewPrompt, flagsFrom, applyFlags, reviewPaper };
+module.exports = { FAULTS, sectionsOf, reviewPrompt, flagsFrom, applyFlags, reviewPaper, tally, faultLines, soften };
