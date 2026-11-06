@@ -222,3 +222,16 @@ describe('fill (up to a count per slot, plain nodes only)', () => {
     expect(out.unseen.objective.MCQs.map((q) => q.id)).toEqual(['c', 'd']);
   });
 });
+
+describe('droppable (round 10: restore never leaves a slot short)', () => {
+  const grp = (n, slot) => ({ slot, stimulus: { text: `passage ${n}`, items: [mcq(`${n}1`, slot), mcq(`${n}2`, slot)] } });
+  test('keeps a hard id inside a stimulus group (fill never refills a group)', () => {
+    const t = tree(grp(1, 'G'), mcq('a', 'M'));
+    expect([...T.droppable(t, new Set(['11']), tree())]).toEqual([]);
+  });
+  test('drops a plain hard node only while the spare holds a new node for its slot', () => {
+    const t = tree(mcq('a', 'M'), mcq('b', 'M'), mcq('c', 'N'));
+    const spare = tree(mcq('x', 'M'), mcq('a', 'M'));
+    expect([...T.droppable(t, new Set(['a', 'b', 'c']), spare)]).toEqual(['a']);
+  });
+});
