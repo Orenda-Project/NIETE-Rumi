@@ -10,13 +10,15 @@
  *      ones, then by lighter marks per written item (Rules.sizeTypes); the writer is asked for about 30%
  *      more MCQs, the subset with the fewest leaks is kept, and the dropped ones stand by as spares
  *      for an MCQ still leaking after the rewrites (free-secondary-pool.js);
- *   3. the draft is checked (free-secondary-checks.js); one that breaks a rule is sent back once
- *      with the list, and the paper with fewer problems is kept;
+ *   3. the draft is checked (free-secondary-checks.js); its problems go on to the review and the targeted
+ *      rewrite. There is no second whole-paper draft (bd-5jmnfj.38.40: it cost about two minutes);
  *   4. one small call, on assessment.review with a model of another family than the writer, rates each MCQ distractor and flags
  *      a longest-option key, two defensible options, an odd-one-out key or an option that does not complete
  *      the stem (free-secondary-review.js);
  *   5. items still leaking, or with a longest-option key, an absolute distractor or one rated 1, are rewritten on
- *      their own (free-secondary-rewrite.js), up to two rounds, each kept only if it leaves fewer problems.
+ *      their own (free-secondary-rewrite.js), in one round, kept only if it leaves fewer problems.
+ * The writer, the review and the rewrite ask the model in force for little thinking (`quick`): with full
+ * thinking a G6+ paper took 6-9 minutes against about 1 for a G1-5 paper (bd-5jmnfj.38.40).
  * Then writer instructions are stripped from the marking points and an Urdu paper is put in one digit
  * system (free-secondary-tidy.js), number options
  * are put in ascending order, the MCQ keys
@@ -26,7 +28,10 @@
  * The orchestrator calls this only for grade >= 6, so no G1-5 paper reaches it.
  */
 
-const { getClient } = require('../llm-client');
+const LLM = require('../llm-client');
+
+const { getClient } = LLM;
+const { thinksByDefault, alwaysThinks } = require('../anthropic-native-facade');
 const { resolveModelForJob, fallbackForJob } = require('../../config/model-registry');
 const { configForRequest, ensureCurrent } = require('../../config/model-settings');
 const { logToFile } = require('../../utils/logger');
@@ -68,6 +73,22 @@ function familyOf(grade, subject, base) {
     if (row && row.model_family) return row.model_family;
   } catch (_) { /* not a registry cell: fall back to the base prompt's medium */ }
   return URDU_BASE.has(String(base).toLowerCase()) ? 'urdu' : 'eng';
+}
+
+/** The model a job's call reaches first: a settings row or the `LLM_JOB_MODELS` map can move it in the client. */
+function firstModel(job, site) {
+  return typeof LLM.modelInForce === 'function' ? LLM.modelInForce(job, site) : site;
+}
+
+/** The thinking setting for a fast call on `model`: off where it can be, low where it cannot; none off Claude. */
+function quick(model) {
+  if (!thinksByDefault(model)) return undefined;
+  return alwaysThinks(model) ? { effort: 'low' } : { enabled: false };
+}
+
+/** The writer's setting: low thinking on a Claude that thinks (off left 6 of 7 schemes without a do-not-accept line). */
+function brief(model) {
+  return thinksByDefault(model) ? { effort: 'low' } : undefined;
 }
 
 function emptyReply(response) {
@@ -128,15 +149,32 @@ async function generateExam(args) {
     grade, subject, base, model, converted: sized.converted, light: sized.light, types: plan.questionTypes.map((q) => `${q.count} ${q.id}`),
   });
 
-  const ask = (msgs) => getClient().chat.completions.create({
+  // Families and thinking are decided on the models in force: a per-job settings row moves a job in the client.
+  const inForce = (job, site) => {
+    const row = !cfg.killSwitch && cfg.perJob && cfg.perJob[job];
+    return typeof row === 'string' && row.includes('/') ? row : site;
+  };
+  const writerThinking = brief(firstModel(JOB, model));
+  const ask = (msgs, thinking = writerThinking) => getClient().chat.completions.create({
     model, job: JOB, ...(model !== ownModel ? { fallbackModel: ownModel } : {}),
     messages: msgs, temperature: 0.7, response_format: { type: 'json_object' }, max_tokens: MAX_OUTPUT_TOKENS,
+    ...(thinking ? { reasoning: thinking } : {}),
   });
+  // A model that refuses the quick setting is asked once more with its own default.
+  const askFirst = async () => {
+    try {
+      return await ask(messages);
+    } catch (err) {
+      if (!writerThinking) throw err;
+      logToFile('[assessment] quick writer call failed, asking with default thinking', { model, error: err.message });
+      return ask(messages, null);
+    }
+  };
   const startedAt = Date.now();
 
   let response;
   try {
-    response = await ask(messages);
+    response = await askFirst();
     if (emptyReply(response)) response = await ask(messages);
   } catch (err) {
     logToFile('[assessment] model call failed', { model, error: err.message });
@@ -154,40 +192,21 @@ async function generateExam(args) {
   }
   let cleaned = postProcess(examJson, { grade, plan, totalMarks });
   let issues = paperIssues(examJson, checkOpts);
-  let usage = response.usage || {};
-  let revised = false;
-
-  if (issues.length) {
-    try {
-      const [firstPooled, firstSpares] = [pooled, spares];
-      const second = await ask([...messages, { role: 'assistant', content: JSON.stringify(examJson) },
-        { role: 'user', content: Rules.fixNote(issues) }]);
-      const next = pick(extractJsonFromResponse(second?.choices?.[0]?.message?.content || ''));
-      const nextCleaned = postProcess(next, { grade, plan, totalMarks });
-      const nextIssues = paperIssues(next, checkOpts);
-      if (Gen.countQuestions(next) > 0 && nextIssues.length < issues.length) {
-        examJson = next; cleaned = nextCleaned; issues = nextIssues; usage = second.usage || usage; revised = true;
-      } else [pooled, spares] = [firstPooled, firstSpares];
-    } catch (err) {
-      logToFile('[assessment] revision skipped', { error: err.message });
-    }
-  }
+  const usage = response.usage || {};
+  // Kept in the result for its readers; the whole-paper revision is gone (bd-5jmnfj.38.40).
+  const revised = false;
 
   // The review runs on assessment.review with a model of another family than the writer, so it does not
   // share the writer's blind spots: the job's model in force, else its registered alternative (a Sonnet
   // writer gets a Gemini review), with the writer's model as the fallback; on the writer's own job and
-  // model when neither differs. Every item, MCQ and written (a8). Families are compared on the models in force: a per-job
-  // settings row moves a job in the client.
-  const inForce = (job, site) => {
-    const row = !cfg.killSwitch && cfg.perJob && cfg.perJob[job];
-    return typeof row === 'string' && row.includes('/') ? row : site;
-  };
+  // model when neither differs. Every item, MCQ and written (a8). Families are compared on the models in force.
   const reviewer = Review.pickReviewer(inForce(JOB, model),
     [inForce(REVIEW_JOB, resolveModelForJob(REVIEW_JOB).model), fallbackForJob(REVIEW_JOB)]
       .map((m) => ({ job: REVIEW_JOB, model: m })));
   const reviewCall = reviewer ? { model: reviewer.model, job: reviewer.job, fallbackModel: model }
     : { model, job: JOB, ...(model !== ownModel ? { fallbackModel: ownModel } : {}) };
-  logToFile('[assessment] distractor review model', { job: reviewCall.job, model: reviewCall.model });
+  const reviewThinking = quick(firstModel(reviewCall.job, reviewCall.model));
+  logToFile('[assessment] distractor review model', { job: reviewCall.job, model: reviewCall.model, thinking: reviewThinking || 'default' });
   const reviewed = await Review.review({
     examJson, grade, existing: issues,
     ask: async (text) => {
@@ -195,6 +214,7 @@ async function generateExam(args) {
         ...reviewCall,
         messages: [{ role: 'user', content: text }], temperature: 0,
         response_format: { type: 'json_object' }, max_tokens: REVIEW_TOKENS,
+        ...(reviewThinking ? { reasoning: reviewThinking } : {}),
       });
       return extractJsonFromResponse(out?.choices?.[0]?.message?.content || '');
     },
@@ -206,7 +226,7 @@ async function generateExam(args) {
 
   const check = (exam) => [...paperIssues(exam, checkOpts), ...Review.stillOpen(exam, reviewed), ...a8(exam)];
   const targeted = await Rewrite.rounds({
-    examJson, issues, check,
+    examJson, issues, check, max: 1,
     ask: async (text) => {
       const out = await ask([messages[0], { role: 'user', content: `${messages[1].content}\n\n${text}` }]);
       return extractJsonFromResponse(out?.choices?.[0]?.message?.content || '');

@@ -45,7 +45,9 @@ export function failureLabel(code?: string | null): string {
 /* ── words for the server's data ──────────────────────────────────────────── */
 
 /** A question type as a chip: the server's id, shortened when it is long. */
-export const typeLabel = (id: string): string => ASSESSMENT_COPY.typeShort[id] ?? id;
+// A grade 6+ type's id is a code (`srq`); the server sends its label with it (bd-5jmnfj.38.40).
+export const typeLabel = (id: string, types: ReadonlyArray<{ id: string; label?: string }> = []): string =>
+  types.find((t) => t.id === id)?.label ?? ASSESSMENT_COPY.typeShort[id] ?? id;
 
 const SUBJECT_ICON: Record<string, LucideIcon> = {
   science: FlaskConical,
