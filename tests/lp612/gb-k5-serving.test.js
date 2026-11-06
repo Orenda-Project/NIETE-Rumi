@@ -69,7 +69,7 @@ const GB_SEG = {
   is_religious: false, curriculum: 'nbf_snc',
 };
 const ICT_SEG = { ...GB_SEG, segment_id: 'grade_9_chemistry.c01.p007-008', book_stem: 'grade_9_chemistry', grade: 9, subject: 'Chemistry', curriculum: 'ict' };
-const CARD = { id: 'gr1', status: 'ready', lang: 'ur', r2_key: 'gb-lp/gb_k5_v10.1/ur/nbf_snc_grade_2_urdu.c07.s05.pdf', one_screen: null };
+const CARD = { id: 'gr1', status: 'ready', lang: 'ur', r2_key: 'gb-lp/gb_k5_v9/ur/nbf_snc_grade_2_urdu.c07.s05.pdf', one_screen: null };
 const REQ = { userId: 'user-1', phone: '923001234567', lang: 'ur', correlationId: 'corr-1' };
 const renderReads = () => mockDbCalls.filter((c) => c.table === 'niete_lp612_renders');
 const gbReads = () => mockDbCalls.filter((c) => c.table === 'niete_gb_lp_renders');
@@ -79,7 +79,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockDbCalls.length = 0;
   mockDbResults.length = 0;
-  process.env = { ...saved, LP_612_TEMPLATE_VERSION: 'v9.1', LP_GB_CARD_BASE_URL: 'https://cards.example/' };
+  process.env = { ...saved, LP_612_TEMPLATE_VERSION: 'v9.1', LP_GB_CARD_BASE_URL: 'https://cards.example/', LP_GB_AUTHOR_ENABLED: 'true' };
   delete process.env.LP_GB_K5_ENABLED;
 });
 afterAll(() => { process.env = saved; });
@@ -130,7 +130,7 @@ describe('a GB K-5 plan is sent as a PDF document, like ICT', () => {
     expect(mockGetPresignedUrl).toHaveBeenCalledWith(`https://r2.example/${CARD.r2_key}`);
     expect(renderReads()).toHaveLength(0);
     expect(gbReads()[0].filters).toEqual(expect.arrayContaining([
-      ['segment_id', GB_SEG.segment_id], ['lang', 'ur'], ['template_version', 'gb_k5_v10.1'],
+      ['segment_id', GB_SEG.segment_id], ['lang', 'ur'], ['template_version', 'gb_k5_v9'],
     ]));
   });
 });
@@ -155,11 +155,11 @@ describe('a GB K-5 miss is authored at runtime on GB\'s own lane', () => {
     expect(renderReads()).toHaveLength(0);
     const insert = gbReads().find((c) => c.op === 'insert');
     expect(insert.payload).toEqual(expect.objectContaining({
-      segment_id: seg.segment_id, lang: bookLang, template_version: 'gb_k5_v10.1', status: 'authoring',
+      segment_id: seg.segment_id, lang: bookLang, template_version: 'gb_k5_v9', status: 'authoring',
     }));
     expect(mockQueueJob.mock.calls[0][1]).toBe('gb_lp_author');
     expect(mockQueueJob.mock.calls[0][2]).toEqual(expect.objectContaining({
-      renderId: 'new-1', segmentId: seg.segment_id, lang: bookLang, templateVersion: 'gb_k5_v10.1',
+      renderId: 'new-1', segmentId: seg.segment_id, lang: bookLang, templateVersion: 'gb_k5_v9',
     }));
   });
 
