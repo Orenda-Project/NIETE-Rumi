@@ -235,6 +235,9 @@ async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
   // v3 Flow: every NavigationList row carries its own step, so routing never
   // depends on which screen Meta says we are on.
   const gradeStep = async () => {
+    // bd-rj6w0n.14.17 — while LP_GB_K5_ENABLED is on, the GB K-5 lane wins over GB's region book list.
+    const gb = await gbLane(flowToken, await books());
+    if (gb) return selectGrade(d, gb.curriculum, gb, null, flowToken);
     const keys = await shelf();
     if (Array.isArray(keys)) return selectGrade(d, BookCurriculum.ICT, null, keys, flowToken);
     const c = await books();
