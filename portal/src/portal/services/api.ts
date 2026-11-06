@@ -1188,6 +1188,16 @@ export const coach = {
     const response = await api.get('/coach/team', { params });
     return response.data;
   },
+  /** bd-rlxkkt.9 — Coach Training: the modules she marked done ({ module key: ISO time }). */
+  getCoachTrainingProgress: async (): Promise<{ success: boolean; done: Record<string, string> }> => {
+    const response = await api.get('/coach/coach-training/progress');
+    return response.data;
+  },
+  /** bd-rlxkkt.9 — mark one Coach Training module done (true) or take it back (false); answers with the new map. */
+  setCoachModuleDone: async (key: string, done: boolean): Promise<{ success: boolean; done: Record<string, string> }> => {
+    const response = await api.put(`/coach/coach-training/progress/${encodeURIComponent(key)}`, { done });
+    return response.data;
+  },
   getPeople: async (): Promise<{ success: boolean } & PeopleData> => {
     const response = await api.get('/coach/people', { params: { today: coachDay() } });
     return response.data;
