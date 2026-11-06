@@ -12,7 +12,7 @@
  *      for an MCQ still leaking after the rewrites (free-secondary-pool.js);
  *   3. the draft is checked (free-secondary-checks.js); one that breaks a rule is sent back once
  *      with the list, and the paper with fewer problems is kept;
- *   4. one small call, on a job of another model family than the writer, rates each MCQ distractor and flags
+ *   4. one small call, on assessment.review with a model of another family than the writer, rates each MCQ distractor and flags
  *      a longest-option key, two defensible options, an odd-one-out key or an option that does not complete
  *      the stem (free-secondary-review.js);
  *   5. items still leaking, or with a longest-option key, an absolute distractor or one rated 1, are rewritten on
@@ -27,7 +27,7 @@
  */
 
 const { getClient } = require('../llm-client');
-const { resolveModelForJob } = require('../../config/model-registry');
+const { resolveModelForJob, fallbackForJob } = require('../../config/model-registry');
 const { configForRequest, ensureCurrent } = require('../../config/model-settings');
 const { logToFile } = require('../../utils/logger');
 const { extractJsonFromResponse } = require('./assessment-json.util');
@@ -48,8 +48,8 @@ const { isRtl } = require('./assessment-paper.renderer');
 const JOB = 'assessment.generate';
 const MAX_OUTPUT_TOKENS = 32000;
 const REVIEW_TOKENS = 6000;
-// Existing registered jobs whose model may be of another family than the writer's (the review reuses one).
-const REVIEWER_JOBS = ['quiz.keyVerify', 'lp.fidelity'];
+// The review's own registry job (approved 2026-11-06): its model, else its registered alternative.
+const REVIEW_JOB = 'assessment.review';
 // A load over the band's time by more than this share is logged: its larger time prints, no item is cut.
 const OVER_BAND = 1.2;
 // The G1-5 free prompt each G6-12 subject code borrows. A code not listed keeps today's choice.
@@ -170,16 +170,18 @@ async function generateExam(args) {
     }
   }
 
-  // The review runs on a registered job of another model family than the writer, so it does not share the
-  // writer's blind spots (quiz.keyVerify for a Gemini writer, lp.fidelity for a Claude one), with the
-  // writer's model as the fallback; on the writer's own job and model when no such job resolves. MCQs only.
-  // Families are compared on the models in force: a per-job settings row moves a job in the client.
+  // The review runs on assessment.review with a model of another family than the writer, so it does not
+  // share the writer's blind spots: the job's model in force, else its registered alternative (a Sonnet
+  // writer gets a Gemini review), with the writer's model as the fallback; on the writer's own job and
+  // model when neither differs. MCQs only. Families are compared on the models in force: a per-job
+  // settings row moves a job in the client.
   const inForce = (job, site) => {
     const row = !cfg.killSwitch && cfg.perJob && cfg.perJob[job];
     return typeof row === 'string' && row.includes('/') ? row : site;
   };
   const reviewer = Review.pickReviewer(inForce(JOB, model),
-    REVIEWER_JOBS.map((job) => ({ job, model: inForce(job, resolveModelForJob(job).model) })));
+    [inForce(REVIEW_JOB, resolveModelForJob(REVIEW_JOB).model), fallbackForJob(REVIEW_JOB)]
+      .map((m) => ({ job: REVIEW_JOB, model: m })));
   const reviewCall = reviewer ? { model: reviewer.model, job: reviewer.job, fallbackModel: model }
     : { model, job: JOB, ...(model !== ownModel ? { fallbackModel: ownModel } : {}) };
   logToFile('[assessment] distractor review model', { job: reviewCall.job, model: reviewCall.model });

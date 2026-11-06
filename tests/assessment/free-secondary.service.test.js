@@ -236,13 +236,13 @@ describe('free-secondary generateExam', () => {
     expect(out.rewritten).toEqual([]);
   });
 
-  it('compares families on the models the settings put in force: with writer and reviewers all moved to one family it reviews on its own job', async () => {
-    const SONNET = 'anthropic/claude-sonnet-5';
+  it('compares families on the models the settings put in force: with writer and reviewers all on one family it reviews on its own job', async () => {
+    const GEMINI = 'google/gemini-3.1-pro-preview';
     let Moved;
     jest.isolateModules(() => {
       jest.doMock('../../bot/shared/config/model-settings', () => ({
         ensureCurrent: async () => {},
-        configForRequest: () => ({ perJob: { 'assessment.generate': SONNET, 'quiz.keyVerify': SONNET, 'lp.fidelity': SONNET } }),
+        configForRequest: () => ({ perJob: { 'assessment.generate': GEMINI, 'assessment.review': GEMINI } }),
       }));
       Moved = require('../../bot/shared/services/assessment/free-secondary.service');
     });
