@@ -45,6 +45,12 @@ export const SCHOOL_CARD_EN = {
   // A school's card
   emis: (code: string) => `EMIS ${code}`,
   lastVisit: (d: number | null) => (d == null ? "No visits yet" : d === 0 ? "Last visit · today" : d === 1 ? "Last visit · 1 day ago" : `Last visit · ${d} days ago`),
+  /** bd-17v39c.4.15 — the school's principal, apart from its teachers: the header chip "Principal: name ›", the chip when
+   *  none is recorded ("Principal: not recorded ›", opens Edit teacher), and what a screen reader hears for each. */
+  principalKey: "Principal:",
+  principalNone: "not recorded",
+  principalSpoken: (name: string) => `Principal, ${name}. Open their page`,
+  principalNoneSpoken: "Principal not recorded. Open Edit teacher",
   activity: "Activity",
   /** The tile's word after its big number: "27 lesson plans". */
   tileLabel: {
@@ -248,6 +254,11 @@ export const SCHOOL_CARD_UR: SchoolCardCopy = {
 
   emis: (code) => `EMIS ${code}`,
   lastVisit: (d) => (d == null ? "ابھی کوئی دورہ نہیں" : d === 0 ? "آخری دورہ · آج" : `آخری دورہ · ${d} دن پہلے`),
+  // bd-17v39c.4.15 — machine-drafted, NATIVE-CHECK (Principal ہیڈ ٹیچر per the ontology; Edit teacher as people/copy.ts).
+  principalKey: "ہیڈ ٹیچر:",
+  principalNone: "درج نہیں",
+  principalSpoken: (name) => `ہیڈ ٹیچر، ${name}۔ ان کا صفحہ کھولیں`,
+  principalNoneSpoken: "ہیڈ ٹیچر درج نہیں۔ ٹیچر میں ترمیم کھولیں",
   activity: "سرگرمی",
   tileLabel: {
     lp: () => "لیسن پلان",
@@ -411,5 +422,7 @@ export const COPY_ENTRY: CopyEntry = {
   longOk: ["noKind", "across", "scoredIn", "noLpLinked", "tapDot", "sectionNames", "reflection", "byN", "oneAhead", "manyAhead", "countsSpoken", "noMatch", "byTeacher", "allOf", "schoolsTeachers", "questionsMarks", "lastVisit", "noPlan", "lessThanOneDay", "notScoredList", "stepsDone", "weekdayDayMonth",
     // bd-17v39c.4.13 — the School view's lines, each a whole phrase as drawn in mockups v3
     "usedNiete", "usedBefore", "acrossTap", "noUseYet", "perTeacherDay", "rateBefore", "rateBeforeLine", "pctBefore", "tapTeacher",
-    "showAll", "obsSub", "lastWeekPct", "mostFirst", "noneYet", "modulesOf", "inPeriodN", "featureName"],
+    "showAll", "obsSub", "lastWeekPct", "mostFirst", "noneYet", "modulesOf", "inPeriodN", "featureName",
+    // bd-17v39c.4.15 — what a screen reader hears for the principal chip: a whole phrase by design
+    "principalSpoken", "principalNoneSpoken"],
 };

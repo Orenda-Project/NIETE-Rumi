@@ -117,12 +117,20 @@ describe("her role and teaching levels where the coach sees her (bd-ewbzns.2)", 
     expect(screen.queryByTestId("card-levels")).toBeNull();
   });
 
-  it("a principal's row on the school's card says so", async () => {
+  // bd-17v39c.4.15 (queue #44, option A) — the principal is not a row of the school's teacher table: the header names them.
+  it("the school's principal is in its header, not in its teacher table, at any level", async () => {
     on();
     const c = all();
-    net.answers.set(`/coach/school/${EMIS}/card`, { ...c, teachers: c.teachers.map((t, i) => (i === 0 ? { ...t, isPrincipal: true } : t)) });
+    const principals = [{ teacherExtId: "900000000777", name: "Head Sample" }];
+    net.answers.set(`/coach/school/${EMIS}/card`, { ...c, school: { ...c.school, principals } });
+    const p = primaryOnly();
+    net.answers.set(`/coach/school/${EMIS}/card?period=week&level=primary`, { ...p, school: { ...p.school, principals } });
     await renderApp(`/portal/coach/school/${EMIS}`);
+    expect(await screen.findByTestId("card-principal")).toHaveTextContent("Principal: Head Sample");
     const rows = within(await screen.findByTestId("teacher-table")).getAllByTestId("table-row");
-    expect(rows[0].getAttribute("aria-label")).toMatch(/^Teacher Alpha, Principal · Primary, /);
+    expect(rows.map((r) => r.getAttribute("aria-label")).join(" | ")).not.toMatch(/Principal|Head Sample/);
+    await act(async () => { fireEvent.click(screen.getByRole("radio", { name: "Primary" })); });
+    await waitFor(() => expect(net.calls).toContain(`/coach/school/${EMIS}/card?period=week&level=primary`));
+    expect(await screen.findByTestId("card-principal")).toHaveTextContent("Principal: Head Sample");
   });
 });
