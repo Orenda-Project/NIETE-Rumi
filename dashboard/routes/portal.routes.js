@@ -2290,6 +2290,11 @@ async function requireSchoolCard(req, res, next) {
   if (!on) return res.status(404).json({ success: false, error: 'Not found' });
   return next();
 }
+// bd-rlxkkt.9: Coach Training, which modules she marked done (users.preferences.coach_training_done).
+router.use(require('./coach-training-progress.routes').createCoachTrainingProgressRouter({
+  guards: coachV2,
+  supabase,
+}));
 router.use(require('./coach-school-card.routes').createCoachSchoolCardRouter({
   guards: [...coachV2, requireSchoolCard],
   query: (sql, params) => pool.query(sql, params),
