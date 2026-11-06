@@ -91,8 +91,21 @@ describe('listFor with a chapter', () => {
     const ch2 = SLO.listFor(9, 'physics', 2);
     expect(ch2.startsWith(base)).toBe(true);
     expect(ch2).toMatch(/\nThis chapter \(ch 2\):\n/);
-    expect(ch2).toMatch(/\nG9-U2-LO1 — /);
+    expect(ch2).toMatch(/\nP-09-B-01 — /);
     expect(SLO.listFor(9, 'physics', 999)).toBe(base);
     expect(SLO.listFor(9, 'physics', null)).toBe(base);
+  });
+});
+
+// round 8: a live G11 chemistry paper tagged 29 items with the chapter's matrix codes (G11-U2-LO2); the stamp maps only
+// official codes, so they printed with no SLO. Matrix / book codes are context, never a code the model can copy.
+describe('listFor never offers a non-official code to copy', () => {
+  test('chapter lines keep official codes and drop matrix LO codes to their description', () => {
+    const ch2 = SLO.listFor(9, 'physics', 2);
+    expect(ch2).not.toMatch(/G9-U2-LO\d/);
+    expect(ch2).toMatch(/\n- Define and calculate speed\n/);
+    const chem = SLO.listFor(11, 'chemistry', 2);
+    expect(chem).not.toMatch(/G11-U2-LO\d/);
+    expect(chem).toMatch(/not codes/);
   });
 });

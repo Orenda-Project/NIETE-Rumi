@@ -17,11 +17,16 @@ function layoutOf(examJson) {
  * print them as the flat items this module has always returned, each carrying {id, kind, text} of its passage.
  * OR pairs (`q.or`) and parts (`q.parts`) stay one item; items.js / scheme-items.js print their branches.
  */
-function unitsOf(q, gi) {
+// A passage label the model wrote ("Passage 4.") is renumbered in print order: drops and rewrites leave gaps and repeats.
+const LABEL = /^(\s*)(Passage|Scenario|Case|Stimulus)\s+\d+\s*([.:)])\s*/i;
+function unitsOf(q, gi, k) {
   const st = q.stimulus;
   if (!st || typeof st !== 'object' || !Array.isArray(st.items)) return [q];
-  const stim = { id: st.id || q.id || `${q.slot}~${gi}`, kind: st.kind || 'passage', text: st.text };
-  return st.items.filter((m) => m && typeof m === 'object' && m.removed !== true).map((m) => ({ ...m, slot: q.slot, stimulus: stim }));
+  const kids = st.items.filter((m) => m && typeof m === 'object' && m.removed !== true);
+  if (!kids.length) return [];
+  const text = typeof st.text === 'string' ? st.text.replace(LABEL, (_, sp, w, p) => `${sp}${w} ${k}${p} `) : st.text;
+  const stim = { id: st.id || q.id || `${q.slot}~${gi}`, kind: st.kind || 'passage', text };
+  return kids.map((m) => ({ ...m, slot: q.slot, stimulus: stim }));
 }
 
 function itemsBySlot(examJson) {
@@ -36,7 +41,9 @@ function itemsBySlot(examJson) {
         list.forEach((q, gi) => {
           if (!q || typeof q !== 'object' || q.removed === true || !q.slot) return;
           if (!by.has(q.slot)) by.set(q.slot, []);
-          by.get(q.slot).push(...unitsOf(q, gi));
+          const list = by.get(q.slot);
+          const k = new Set(list.filter((u) => u.stimulus).map((u) => u.stimulus.id)).size + 1;
+          list.push(...unitsOf(q, gi, k));
         });
       }
     }

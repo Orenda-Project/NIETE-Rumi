@@ -19,6 +19,7 @@ const MEMBERS = [
   ...PART2_HEAD,
   require('./blueprint-qa'),
   require('./mcq-shape'),
+  require('./near-dup'), // bd-5jmnfj.38.30 round 8: D17, same question twice in a section
   require('./scheme-sum'),
   require('./numeric-resolve'),
   require('./maths-check-secondary'),
