@@ -14,6 +14,12 @@ export const COACH_TRAINING_EN = {
   coachModule: "Module",
   pdf: "PDF",
   video: "Video",
+  /* bd-rlxkkt.9 — marking a module done: the Training Library's own words (Mark done, Done, Not saved) */
+  markDone: "Mark done",
+  markNotDone: "Mark not done",
+  done: "Done",
+  doneOf: (n: number, total: number) => `${n} of ${total} done`,
+  notSaved: "Not saved",
   opensInBrowser: "Opens in your browser",
 };
 
@@ -24,6 +30,11 @@ const COACH_TRAINING_UR: typeof COACH_TRAINING_EN = {
   coachModule: "ماڈیول",
   pdf: "پی ڈی ایف",
   video: "ویڈیو",
+  markDone: "مکمل کریں",
+  markNotDone: "نامکمل کریں",
+  done: "مکمل",
+  doneOf: (n: number, total: number) => `${n}/${total} مکمل`,
+  notSaved: "محفوظ نہیں ہوا",
   opensInBrowser: "براؤزر میں کھلے گا",
 };
 
