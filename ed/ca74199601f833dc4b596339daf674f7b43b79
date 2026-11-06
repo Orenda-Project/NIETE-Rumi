@@ -1,0 +1,2 @@
+{"ts":"2026-11-06T04:52:32Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-login,fde-board-pattern,portal-smoke spec_sync=true","sha":"edca74199601","branch":"bd-5jmnfj.38.29-37584","user":""}
+{"ts":"2026-11-06T04:53:07Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-5jmnfj.38.29-37584: portal-login web lane spec: NOT UPDATED e2e: missing;fde-board-pattern web lane spec: NOT UPDATED e2e: missing","sha":"edca74199601","branch":"bd-5jmnfj.38.29-37584","user":""}
