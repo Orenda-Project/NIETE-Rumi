@@ -40,16 +40,39 @@ function officialSloFor(grade, code, tag) {
   return stamp(mapFor(grade, code), tag);
 }
 
-/** The official SLOs of a stamp cell as the board prompt's {slo_list}: "<code> (<level>) <gist>" per line; '' when none. */
-function listFor(grade, code) {
+/** chapters/<grade>_<code>.json (build-chapters.js, from the LP matrix): the codes each chapter teaches; null when none. */
+function chaptersFor(grade, code) {
+  const key = `ch:${Number(grade)}_${String(code || '').trim().toLowerCase()}`;
+  if (!CELL.test(key.slice(3))) return null;
+  if (!cache.has(key)) {
+    let map = null;
+    try {
+      map = require(`./chapters/${key.slice(3)}.json`); // eslint-disable-line global-require, import/no-dynamic-require
+    } catch (err) {
+      map = null;
+    }
+    cache.set(key, map);
+  }
+  return cache.get(key);
+}
+
+/**
+ * The official SLOs of a stamp cell as the board prompt's {slo_list}: "<code> (<level>) <gist>" per line; '' when none.
+ * With a chapter that the matrix lists, that chapter's own codes follow: "This chapter (ch N):" then "<code> — <desc>".
+ */
+function listFor(grade, code, chapter = null) {
   const map = mapFor(grade, code);
-  if (!map || map.policy !== 'stamp' || !Array.isArray(map.slos)) return '';
-  return map.slos.map((s) => `${s.official_slo} (${s.level}) ${s.gist}`).join('\n');
+  const base = !map || map.policy !== 'stamp' || !Array.isArray(map.slos) ? '' : map.slos.map((s) => `${s.official_slo} (${s.level}) ${s.gist}`).join('\n');
+  const ch = chapter == null ? null : chaptersFor(grade, code);
+  const own = ch && ch.chapters && ch.chapters[String(Number(chapter))];
+  if (!Array.isArray(own) || !own.length) return base;
+  const lines = [`This chapter (ch ${Number(chapter)}):`, ...own.map((x) => `${x.code} — ${x.desc}`)].join('\n');
+  return base ? `${base}\n${lines}` : lines;
 }
 
 /** The `<grade>_<code>` keys loaded so far (files that exist). */
 function cells() {
-  return [...cache.entries()].filter(([, m]) => m).map(([k]) => k);
+  return [...cache.entries()].filter(([k, m]) => m && !k.startsWith('ch:')).map(([k]) => k);
 }
 
-module.exports = { officialSloFor, listFor, stamp, cells };
+module.exports = { officialSloFor, listFor, chaptersFor, stamp, cells };

@@ -1,0 +1,80 @@
+{
+ "grade": 10,
+ "code": "computer_science",
+ "source": {
+  "file": "stem/computer_science_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "1": [
+   {
+    "code": "G10-U1-LO1",
+    "kind": "lo",
+    "desc": "understand and describe number systems and encoding schemes"
+   },
+   {
+    "code": "G10-U1-LO2",
+    "kind": "lo",
+    "desc": "explain how system software controls the flow of"
+   },
+   {
+    "code": "G10-U1-LO3",
+    "kind": "lo",
+    "desc": "identify and learn common software tools such as"
+   }
+  ],
+  "3": [
+   {
+    "code": "G10-U3-LO1",
+    "kind": "lo",
+    "desc": "differentiate between front-end development, and backend development of"
+   },
+   {
+    "code": "G10-U3-LO3",
+    "kind": "lo",
+    "desc": "use more advanced programming constructs (lists, etc.) to"
+   },
+   {
+    "code": "G10-U3-LO2",
+    "kind": "lo",
+    "desc": "use more advanced HTML/CSS features in an appropriate"
+   }
+  ],
+  "4": [
+   {
+    "code": "G10-U4-LO1",
+    "kind": "lo",
+    "desc": "understand and explain the scope of data science,"
+   },
+   {
+    "code": "G10-U4-LO2",
+    "kind": "lo",
+    "desc": "understand and explain the types, uses, and methods"
+   }
+  ],
+  "5": [
+   {
+    "code": "G10-U5-LO1",
+    "kind": "lo",
+    "desc": "describe uses and applications that are enabled by"
+   },
+   {
+    "code": "G10-U5-LO2",
+    "kind": "lo",
+    "desc": "explain that AI can be applied to specific"
+   },
+   {
+    "code": "G10-U5-LO3",
+    "kind": "lo",
+    "desc": "demonstrate the social implications of AI"
+   }
+  ],
+  "6": [
+   {
+    "code": "G10-U6-LO1",
+    "kind": "lo",
+    "desc": "understand and apply safe & responsible use of"
+   }
+  ]
+ }
+}

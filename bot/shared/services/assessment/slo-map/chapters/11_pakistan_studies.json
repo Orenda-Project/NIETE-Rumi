@@ -1,0 +1,140 @@
+{
+ "grade": 11,
+ "code": "pakistan_studies",
+ "source": {
+  "file": "humanities/pak_studies_6_12.csv",
+  "kind": "lp_matrix"
+ },
+ "chapters": {
+  "2": [
+   {
+    "code": "book p26 outcome 2",
+    "kind": "book",
+    "desc": "analyse the ruling periods of different governments, evaluating"
+   },
+   {
+    "code": "book p26 outcome 1",
+    "kind": "book",
+    "desc": "Evaluate the contribution and leadership of Quaid-e-Azam as"
+   }
+  ],
+  "3": [
+   {
+    "code": "book p44 outcome 2",
+    "kind": "book",
+    "desc": "Analyse the strategic significance of Pakistan's location in"
+   },
+   {
+    "code": "book p44 outcome 1",
+    "kind": "book",
+    "desc": "Locate Pakistan on the world map and access"
+   },
+   {
+    "code": "book p44 outcome 4",
+    "kind": "book",
+    "desc": "Analyse the factors that contribute to global warming,"
+   },
+   {
+    "code": "book p44 outcome 3",
+    "kind": "book",
+    "desc": "Examine the impacts of climate change on South"
+   },
+   {
+    "code": "book p44 outcome 5",
+    "kind": "book",
+    "desc": "Recognise the potential advantages and disadvantages of floods"
+   },
+   {
+    "code": "book p26 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p26 outcome 2",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ],
+  "4": [
+   {
+    "code": "book p66 outcome 1",
+    "kind": "book",
+    "desc": "Investigate geographical, climatic, political, cultural, economic, and industrial"
+   },
+   {
+    "code": "book p66 outcome 3",
+    "kind": "book",
+    "desc": "Differentiate between deforestation and afforestation while critically analysing"
+   },
+   {
+    "code": "book p66 outcome 2",
+    "kind": "book",
+    "desc": "Investigate different factors affecting the different types of"
+   }
+  ],
+  "5": [
+   {
+    "code": "book p80 outcome 1",
+    "kind": "book",
+    "desc": "Describe the types and locations of mineral resources"
+   },
+   {
+    "code": "book p80 outcome 2",
+    "kind": "book",
+    "desc": "Investigate Pakistan's mining industry's potential for economic growth"
+   },
+   {
+    "code": "book p80 outcome 3",
+    "kind": "book",
+    "desc": "Assess the various energy resources available in Pakistan,"
+   },
+   {
+    "code": "book p80 outcome 4",
+    "kind": "book",
+    "desc": "Evaluate the importance and role of telecommunications, including"
+   },
+   {
+    "code": "book p66 outcome 1",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p66 outcome 2",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   },
+   {
+    "code": "book p66 outcome 3",
+    "kind": "book",
+    "desc": "rolls up the printed outcome lists of the"
+   }
+  ],
+  "6": [
+   {
+    "code": "book p103 outcome 1",
+    "kind": "book",
+    "desc": "Recognize Pakistan's principal industries such as sugar, cement,"
+   },
+   {
+    "code": "book p103 outcome 5",
+    "kind": "book",
+    "desc": "Investigate the major obstacles in the livestock industry"
+   },
+   {
+    "code": "book p103 outcome 2",
+    "kind": "book",
+    "desc": "Analyze the advantages and disadvantages of cottage, small,"
+   },
+   {
+    "code": "book p103 outcome 3",
+    "kind": "book",
+    "desc": "Analyze the impact of underemployment and unemployment on"
+   },
+   {
+    "code": "book p103 outcome 4",
+    "kind": "book",
+    "desc": "Develop a comprehensive understanding of the distinct classifications"
+   }
+  ]
+ }
+}
