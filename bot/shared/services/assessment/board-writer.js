@@ -6,8 +6,9 @@
  * stimulus nodes). Then board-checks in board mode BEFORE the trim: hard items are dropped and the top-up's extras
  * fill the gap; a slot still short gets one targeted rewrite of the dropped items (round 5), and of the rewrite and
  * the originals the version with fewer hard issues is kept (a failure reports it). A same-section key leak that
- * survives that rewrite gets a second rewrite of the KEYED item, told the phrases not to use (round 6). Then the
- * scheme normaliser.
+ * survives that rewrite gets a second rewrite of the KEYED item, told the phrases not to use (round 6); when the keyed
+ * item is a stimulus-group child and the stem holder a plain item, the holder is rewritten instead (round 7). An N20
+ * drop's rewrite is told to print the data or drop the graph; the winning version is logged. Then the scheme normaliser.
  *
  * The service's helpers arrive as `d` (_boardDeps); this module never requires the service, and never uses the
  * G5 layout engine (the layout is board-layout.js). Returns the board wrapper shape of _writePatternPaper.
@@ -157,9 +158,10 @@ async function writeBoardPaper(args, d) {
     ex._layout.checks = checks.record;
     return checks;
   };
-  const dropped = []; // {slot, question} of every item the checks removed
-  const drop = (ex, bad) => {
-    T.leavesOf(ex).forEach((l) => { if (bad.has(l.id)) dropped.push({ slot: String(l.id).split(/[#@/]/)[0], question: l.question }); });
+  const dropped = []; // {slot, question, check} of every item the checks removed
+  const drop = (ex, bad, run) => {
+    const why = Object.assign({}, ...((run && run.shortfall) || []).map((r) => r.why || {}));
+    T.leavesOf(ex).forEach((l) => { if (bad.has(l.id)) dropped.push({ slot: String(l.id).split(/[#@/]/)[0], question: l.question, check: why[l.id] }); });
     T.dropIds(ex, bad);
   };
   let ex = mergedOf(trees);
@@ -167,7 +169,7 @@ async function writeBoardPaper(args, d) {
   stampAll(ex);
   const whole = clone(ex); // every item written, for the keep-the-fewer comparison
   const pre = probeRun(ex);
-  if (pre) drop(ex, hardIds(pre.run));
+  if (pre) drop(ex, hardIds(pre.run), pre.run);
   let checks = finish(ex);
 
   // 3. One targeted rewrite of the dropped items (same slot, told the used keys and the stems to avoid). Nothing new
@@ -180,39 +182,49 @@ async function writeBoardPaper(args, d) {
       const mine = short.filter((r) => unit.slots.some((s) => s.slot === r.slot)).map((r) => ({ ...r, write: r.need - r.have }));
       if (!mine.length) continue;
       const slots = unit.slots.filter((s) => mine.some((r) => r.slot === s.slot)).map((s) => sized(s, mine.find((r) => r.slot === s.slot).write));
-      const stems = dropped.slice(from).filter((x) => mine.some((r) => r.slot === x.slot)).map((x) => x.question);
-      const second = await ask({ ...unit, slots }, trees, SP.rewriteNote(mine, stems, used, phrases));
+      const gone = dropped.slice(from).filter((x) => mine.some((r) => r.slot === x.slot));
+      const figure = gone.some((x) => x.check === 'N20');
+      const second = await ask({ ...unit, slots }, trees, SP.rewriteNote(mine, gone.map((x) => x.question), used, phrases, figure));
       out = T.topUp(out, second.tree, slotSet(slots));
     }
     return out;
   };
   const failing = (tree, run) => run.shortfall.length > 0 || T.shortfallOf(tree, allSlots).length > 0;
+  const outcome = (tries, kept) => d.logToFile('[assessment] board rewrite outcome', {
+    kept: kept.name, tries: tries.map((t) => ({ name: t.name, hard: t.checks.record.hard })),
+  });
   if (failing(ex, checks)) {
-    drop(ex, hardIds(checks));
+    drop(ex, hardIds(checks), checks);
     let before = new Set(ids(ex));
     ex = await rewrite(ex, 0);
     checks = finish(ex, before);
-    const tries = [{ ex, checks }];
+    const tries = [{ name: 'rewrite 1', ex, checks }];
     // 3b (round 6). A same-section concept leak left after that: one rewrite of the KEYED items, told the phrases.
+    // Round 7: a keyed stimulus child quoted by a plain item -> rewrite the plain item (a whole group is harder to swap).
     const keyed = checks.shortfall.flatMap((r) => r.keyed || []);
     if (failing(ex, checks) && keyed.length) {
+      const inGroup = new Set();
+      T.eachList(ex, (list) => list.forEach((q) => { if (T.isGroup(q)) T.leavesOfNode(q).forEach((l) => inGroup.add(l.id)); }));
+      const target = (k) => (inGroup.has(k.id) && k.holder != null && !inGroup.has(k.holder) ? k.holder : k.id);
       const next = clone(ex);
       const from = dropped.length;
-      drop(next, new Set(keyed.map((k) => k.id)));
+      drop(next, new Set(keyed.map(target)), checks);
       before = new Set(ids(next));
       const phrases = [...new Set(keyed.map((k) => k.phrase))];
       const ex2 = await rewrite(next, from, phrases);
       const checks2 = finish(ex2, before);
-      tries.unshift({ ex: ex2, checks: checks2 });
+      tries.unshift({ name: 'rewrite 2', ex: ex2, checks: checks2 });
       ex = ex2;
       checks = checks2;
     }
     if (failing(ex, checks)) {
       const orig = clone(whole);
-      tries.push({ ex: orig, checks: finish(orig) });
+      tries.push({ name: 'originals', ex: orig, checks: finish(orig) });
       const best = tries.reduce((a, b) => (b.checks.record.hard < a.checks.record.hard ? b : a));
+      outcome(tries, best);
       throw shortError(best.checks.shortfall.length ? best.checks.shortfall : T.shortfallOf(best.ex, allSlots), best.ex);
     }
+    outcome(tries, tries[0]);
   }
 
   // 4. The scheme, per the variant's style; then the record.
