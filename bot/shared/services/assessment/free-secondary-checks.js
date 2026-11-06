@@ -8,7 +8,7 @@
  *   long-sentence    A2d  an item whose sentences average over the band's word limit
  *   longest-key      A7a  the key is clearly the longest option
  *   absolute-option  A7a  always / never / only / all or none of the above in an option
- *   cross-leak       A5b  one item gives away another's answer
+ *   cross-leak       A5b  one item gives away another's answer, or a key term of it (`avoid` lists the other)
  *   lesson-subject        no item names the lesson (n is 0: it is about the whole paper)
  *
  * estimateMinutes is the panel's load model (A5g); printedMinutes is the time a paper prints so that
@@ -108,27 +108,58 @@ function optionIssues(e) {
   return out;
 }
 
-function shareIdea(a, b) {
-  const wa = contentWords(a.item.question);
+/** The words an item is about: its stem and its answer (the key, for an MCQ). */
+function sharedIdeas(a, b) {
+  const wa = contentWords(`${a.item.question} ${answerText(a)}`);
   let shared = 0;
-  contentWords(b.item.question).forEach((w) => { if (wa.has(w)) shared += 1; });
-  return shared >= 2;
+  contentWords(`${b.item.question} ${answerText(b)}`).forEach((w) => { if (wa.has(w)) shared += 1; });
+  return shared;
 }
 
-/** Items whose answer is given away by another item: printed in its stem, or asked again as an MCQ. */
+/** The terms of a short answer (an MCQ key, or a written answer of four words or fewer) not already in its stem. */
+function keyTerms(e) {
+  const ans = answerText(e);
+  if (!e.isMcq && words(ans).length > 4) return [];
+  const own = contentWords(e.item.question);
+  return [...contentWords(ans)].filter((w) => !own.has(w));
+}
+
+const hasWord = (text, w) => ` ${text} `.includes(` ${w} `);
+
+/**
+ * Items that give another item's answer away, keyed by the item to rewrite: the later of the two when
+ * a stem prints an answer (whole, or a key term on the same idea), the MCQ when its key is a written
+ * item's expected answer. Each carries the items it must not overlap (`avoid`).
+ */
 function leaks(all) {
   const out = new Map();
+  const add = (n, other, text) => {
+    const cur = out.get(n) || { text, avoid: new Set() };
+    cur.avoid.add(other);
+    out.set(n, cur);
+  };
   all.forEach((a) => {
-    const ans = norm(answerText(a));
+    const raw = answerText(a);
+    const ans = norm(raw);
     if (ans.length < 4) return;
+    const terms = keyTerms(a);
     all.forEach((b) => {
       if (a === b) return;
+      if (a.isMcq && !b.isMcq) {
+        const given = norm(b.item.answer);
+        if ((given.includes(ans) || terms.some((t) => hasWord(given, t))) && sharedIdeas(a, b) >= 2) {
+          add(a.n, b.n, `its key ("${raw}") gives away the answer to Q${b.n}`);
+          return;
+        }
+      }
       const stem = norm(b.item.question);
-      const whole = URDU_SCRIPT.test(ans) && ans.length >= URDU_LEAK_MIN_CHARS && ` ${stem} `.includes(` ${ans} `);
-      if ((ans.length >= LEAK_MIN_CHARS && stem.includes(ans)) || whole) {
-        out.set(b.n, `its stem prints the answer to Q${a.n} ("${answerText(a)}")`);
-      } else if (a.isMcq && !b.isMcq && norm(b.item.answer).includes(ans) && shareIdea(a, b)) {
-        out.set(b.n, `Q${a.n} (an MCQ) already gives its answer ("${answerText(a)}")`);
+      const whole = URDU_SCRIPT.test(ans) && ans.length >= URDU_LEAK_MIN_CHARS && hasWord(stem, ans);
+      const termInStem = terms.some((t) => hasWord(stem, t)) && sharedIdeas(a, b) >= 2;
+      if ((ans.length >= LEAK_MIN_CHARS && stem.includes(ans)) || whole || termInStem) {
+        const later = Math.max(a.n, b.n);
+        add(later, Math.min(a.n, b.n), later === b.n
+          ? `its stem gives away the answer to Q${a.n} ("${raw}")`
+          : `Q${b.n}'s stem already gives away this answer ("${raw}")`);
       }
     });
   });
@@ -155,7 +186,10 @@ function paperIssues(examJson, { grade, lessonTitle } = {}) {
     const len = lengthIssue(e, band);
     if (len) add(...len);
     optionIssues(e).forEach((o) => add(...o));
-    if (leaked.has(e.n)) add('cross-leak', leaked.get(e.n));
+    if (leaked.has(e.n)) {
+      const { text, avoid } = leaked.get(e.n);
+      out.push({ n: e.n, check: 'cross-leak', text, avoid: [...avoid].sort((x, y) => x - y) });
+    }
   });
   if (lessonTitle && !namesLesson(all, lessonTitle)) {
     out.push({ n: 0, check: 'lesson-subject', text: `no item asks about the lesson itself ("${lessonTitle}") by name; add two that do` });
@@ -184,4 +218,4 @@ function printedMinutes(loadMinutes) {
   return Math.ceil(loadMinutes / 0.85 / 5) * 5;
 }
 
-module.exports = { items, paperIssues, estimateMinutes, printedMinutes };
+module.exports = { items, answerText, paperIssues, estimateMinutes, printedMinutes };
