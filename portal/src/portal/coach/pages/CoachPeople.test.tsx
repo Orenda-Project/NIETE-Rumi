@@ -101,6 +101,21 @@ describe("Teachers tab: grouped by school", () => {
     const groups = screen.getAllByTestId("school-group");
     expect(groups.map((g) => titleOf(g))).toEqual(["IMCB G-9/4", "IMSG I-10/1", "IMSG G-6/2"]);
   });
+
+  // bd-17v39c.4.15 (queue #44) — the Teachers tab stays the directory a coach searches, so the principal stays in it, with
+  // a small "Principal" tag; a teacher's row carries none.
+  it("a principal stays in the directory with a small Principal tag; a teacher's row has none", async () => {
+    C.getPeople.mockResolvedValue({ ...PEOPLE, teachers: PEOPLE.teachers.map((t) => (t.name === "Ayesha Bibi" ? { ...t, isPrincipal: true } : t)) });
+    renderAt("/portal/coach/people?tab=teachers");
+    const groups = await screen.findAllByTestId("school-group");
+    const imsg = groups[2];
+    fireEvent.click(within(imsg).getByTestId("school-toggle"));
+    const rows = within(imsg).getAllByTestId("teacher-row");
+    const ayesha = rows.find((r) => titleOf(r) === "Ayesha Bibi")!;
+    const sana = rows.find((r) => titleOf(r) === "Sana Gul")!;
+    expect(within(ayesha).getByText("Principal")).toBeInTheDocument();
+    expect(within(sana).queryByText("Principal")).toBeNull();
+  });
 });
 
 describe("Schools tab", () => {
@@ -176,6 +191,18 @@ describe("School and Teacher", () => {
     expect(screen.getByRole("link", { name: /Schedule visit here/ })).toHaveAttribute("href", "/portal/coach/new-visit?school=niete%3A110");
     // the kit's KpiTiles: visits, since visit, average, teachers
     for (const g of ["9 Visits · last 3 months", "0d Since visit", "66% Coach score (avg.)", "6 Teachers"]) expect(screen.getByRole("group", { name: g })).toBeInTheDocument();
+  });
+
+  // bd-17v39c.4.15 — the school's page (the School card switched off) tags its principal the same way.
+  it("a school's page tags its principal", async () => {
+    C.getSchool.mockResolvedValue({ success: true, school: PEOPLE.schools[0], teachers: [{ ...PEOPLE.teachers[0], isPrincipal: true }, PEOPLE.teachers[3]] });
+    renderAt("/portal/coach/school/110");
+    await screen.findByRole("heading", { level: 1 });
+    const cards = screen.getAllByTestId("teacher-card");
+    const ayesha = cards.find((c) => c.textContent?.includes("Ayesha Bibi"))!;
+    const sana = cards.find((c) => c.textContent?.includes("Sana Gul"))!;
+    expect(within(ayesha).getByText("Principal")).toBeInTheDocument();
+    expect(within(sana).queryByText("Principal")).toBeNull();
   });
 
   it("a teacher: average, counts, history with HITL and DC; Schedule visit goes to step 3", async () => {

@@ -34,12 +34,19 @@ export function SchoolCard({ s, level = null }: { s: CoachSchool; level?: Teachi
   );
 }
 
+/**
+ * bd-17v39c.4.15 — a principal's row in the directory carries a small "Principal" tag (the kit's info chip); a teacher's
+ * none. The School card leaves the principal out of its teachers; these lists stay the directory a coach searches.
+ */
+const principalChip = (t: CoachTeacher, word: string) => (t.isPrincipal ? { text: word, tone: "info" as const } : undefined);
+
 /** A teacher on a school's page: avatar, name, then five flat numbers. */
 export function TeacherCard({ t }: { t: CoachTeacher }) {
   const C = useCopy(PEOPLE);
   return (
     <section data-testid="teacher-card" className={CARD}>
-      <HistoryRow lead="person" wrapTitle title={t.name} action={t.teacherExtId ? "chevron" : "none"} to={t.teacherExtId ? `/portal/coach/teacher/${t.teacherExtId}` : undefined} />
+      <HistoryRow lead="person" wrapTitle title={t.name} chip={principalChip(t, C.rolePrincipal)}
+        action={t.teacherExtId ? "chevron" : "none"} to={t.teacherExtId ? `/portal/coach/teacher/${t.teacherExtId}` : undefined} />
       <Stats items={[
         { value: C.daysShort(t.daysSinceVisit), label: C.sinceVisit }, { value: t.hitl, label: C.hitl },
         { value: t.dc, label: C.dc }, { value: C.pct(t.avgHitl), label: C.avgHitl }, { value: C.daysShort(t.daysSinceTraining), label: C.trainingCol },
@@ -72,7 +79,7 @@ export function SchoolGroup({ id, name, teachers, defaultOpen }: { id: string; n
         <div className="border-t border-[#e5e7eb]">
           {shown.map((t, i) => (
             <div key={t.teacherExtId || t.name} data-testid="teacher-row">
-              <HistoryRow lead="person" wrapTitle title={t.name} extra={C.lastVisitDays(t.daysSinceVisit)} first={i === 0}
+              <HistoryRow lead="person" wrapTitle title={t.name} extra={C.lastVisitDays(t.daysSinceVisit)} first={i === 0} chip={principalChip(t, C.rolePrincipal)}
                 action={t.teacherExtId ? "chevron" : "none"} to={t.teacherExtId ? `/portal/coach/teacher/${t.teacherExtId}` : undefined} />
             </div>
           ))}
