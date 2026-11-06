@@ -559,3 +559,8 @@ button{font:inherit;color:inherit}
 @media (prefers-reduced-motion:reduce){.sae.is-r9-scroll .sae-r9-scroll-ico{animation:none}}
 @media (min-width:700px){.sae.is-r9-scroll .sae-r9-scroll{max-width:480px;min-height:48px;font-size:21px}.sae.is-r9-scroll[lang=ur] .sae-r9-scroll{font-size:23px;min-height:52px}.sae.is-r9-scroll .sae-r9-scroll-ico{font-size:28px}}
 /* end round 9 item 7 */
+/* Round 10 layout 1 (r10_urdu_fit, the mount's .is-r10-urfit; OFF = none of this): sa-ui urFitAll pads every Urdu label
+   to its own ink, so the scroll cue's pill grows to hold «نیچے کی طرف سرکائیں» whole; on a phone its words go one size
+   down so the taller pill covers no more of the screen than it must. */
+@media (max-width:699px){.sae.is-r10-urfit.is-r9-scroll[lang=ur] .sae-r9-scroll{font-size:16px}}
+/* end round 10 layout 1 */
