@@ -1,0 +1,119 @@
+{
+  "statusCode": 200,
+  "payload": {
+    "success": true,
+    "grades": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "subjects": [
+      {
+        "subject_key": "english",
+        "subject": "English"
+      },
+      {
+        "subject_key": "urdu",
+        "subject": "Urdu"
+      },
+      {
+        "subject_key": "maths",
+        "subject": "Maths"
+      },
+      {
+        "subject_key": "islamiat",
+        "subject": "Islamiat"
+      },
+      {
+        "subject_key": "general_knowledge",
+        "subject": "General Knowledge"
+      }
+    ],
+    "types": [
+      {
+        "id": "MCQs",
+        "category": "objective"
+      },
+      {
+        "id": "MSQs",
+        "category": "objective"
+      },
+      {
+        "id": "Fill in the Blanks",
+        "category": "objective"
+      },
+      {
+        "id": "Missing Letters",
+        "category": "objective"
+      },
+      {
+        "id": "True/False",
+        "category": "objective"
+      },
+      {
+        "id": "Match the Column",
+        "category": "objective"
+      },
+      {
+        "id": "Circle the Correct Answer",
+        "category": "objective"
+      },
+      {
+        "id": "Rewrite Sentences",
+        "category": "objective"
+      },
+      {
+        "id": "Brief Answers",
+        "category": "objective"
+      },
+      {
+        "id": "Listening",
+        "category": "objective"
+      },
+      {
+        "id": "Speaking",
+        "category": "objective"
+      },
+      {
+        "id": "Reading",
+        "category": "objective"
+      },
+      {
+        "id": "Word Meanings",
+        "category": "subjective"
+      },
+      {
+        "id": "Word Sentences",
+        "category": "subjective"
+      },
+      {
+        "id": "Comprehension Passage",
+        "category": "subjective"
+      },
+      {
+        "id": "Letter Writing",
+        "category": "subjective"
+      },
+      {
+        "id": "Application Writing",
+        "category": "subjective"
+      },
+      {
+        "id": "Story Writing",
+        "category": "subjective"
+      },
+      {
+        "id": "Essay Writing",
+        "category": "subjective"
+      },
+      {
+        "id": "Paragraph Writing",
+        "category": "subjective"
+      }
+    ],
+    "maxQuestions": 50,
+    "defaultQuestions": 15
+  }
+}

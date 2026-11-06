@@ -425,7 +425,7 @@ function extraTasks(f, extra) {
   out.push(extraMathsTask({ task: 'ma.fluency_l34', spec: m.fluency_l34, input: 'keypad', options_n: null, distractor_rule: null,
     items: m.fluency_l34.items.map((it, i) => factItem(it, `ma.fluency_l34.${pad(i + 1, 2)}`, src('fluency_l34', i))),
     practiceV2: borrowed('ma.fluency_l34').map((b, i) => ({ ...factItem(b, `ma.fluency_l34.p${i + 1}`, psrc('ma.fluency_l34', i, b)), feedback: mathsFeedback({}, b.answer) })),
-    scriptKey: 'ma.fluency_l34', extraBase: base('fluency_l34'), adaptation: 'Tangerine SA keypad; RWP fact grid levels 3-4 (60 s)', sayOnReplay: true,
+    scriptKey: 'ma.fluency_l34', extraBase: base('fluency_l34'), adaptation: 'Tangerine SA keypad; RWP fact grid levels 3-4 (60 s)', sayOnReplay: true, // gitleaks:allow (task id, not a key)
     deviation: 'typed on a keypad; RWP gave this grid only after 5+ correct on its level 1-2 grid, here after any correct addition level 1 item',
     depends_on: { task: 'ma.add1', skip_if_zero: true } }));
 

@@ -28,10 +28,16 @@ const { addressForms } = require('../quiz/transcript-quiz-address');
 const SAID = 'stem';
 const WRITTEN = 'feedback';
 
-/** The debrief guide, both shapes: the ur/en 3+1 sections and the six steps. */
+/** The debrief guide, every shape: the ur/en rubric-shaped notes, the older 3+1 sections and the six steps. */
 function guideFields(guide) {
   const g = guide || {};
   const out = [['intro', WRITTEN, g.intro], ['outro', WRITTEN, g.outro], ['reflection_question', SAID, g.reflection_question]];
+  (Array.isArray(g.went_well) ? g.went_well : []).forEach((v, i) => out.push([`went_well.${i}`, WRITTEN, v]));
+  const w = g.work_on_first || {};
+  ['title', 'seen', 'next_step'].forEach((k) => out.push([`work_on_first.${k}`, WRITTEN, w[k]]));
+  out.push(['moment.text', WRITTEN, (g.moment || {}).text]);
+  // The conversation lines are said to the teacher, like the older say_this lines.
+  (Array.isArray(g.conversation) ? g.conversation : []).forEach((v, i) => out.push([`conversation.${i}`, SAID, v]));
   Object.entries(g.sections || {}).forEach(([key, v]) => {
     const s = v || {};
     out.push([`sections.${key}.title`, WRITTEN, s.title], [`sections.${key}.body`, WRITTEN, s.body], [`sections.${key}.say_this`, SAID, s.say_this]);

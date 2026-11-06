@@ -12,6 +12,10 @@ books ICT means, and is the record of how this feature got its data.
     python3 scripts/assessment/import-ict-textbooks.py --all --dry-run
     python3 scripts/assessment/import-ict-textbooks.py --all
 
+    Grades 6-12 come from the held page-truth corpus, not from fde_staging:
+    `--source corpus` hands every other flag to `corpus_import.py` (its own
+    docstring has the commands). Without `--source` this file is unchanged.
+
 HISTORY
     2026-09-01  English Grade 1 imported alone (bd-59814). Its chapter ranges
                 were stored raw and were three pages late — see the importer's
@@ -74,7 +78,15 @@ SUBJECT_CODE = {
 }
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--source", choices=("fde", "corpus"), default="fde")
+    known, rest = pre.parse_known_args(argv)
+    if known.source == "corpus":
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import corpus_import  # noqa: E402  grades 6-12 only; never reads BOOKS
+        return corpus_import.main(rest)
+
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--grade", type=int)
     ap.add_argument("--subject", choices=sorted(SUBJECT_CODE))
@@ -85,7 +97,7 @@ def main() -> int:
                          "reaching production is a deliberate act.")
     ap.add_argument("--list", action="store_true", help="show the book map and exit")
     ap.add_argument("--all", action="store_true", help="import every book in the map, in one run")
-    args = ap.parse_args()
+    args = ap.parse_args(rest)
 
     if args.list:
         for (g, s), bid in sorted(BOOKS.items(), key=lambda kv: (kv[0][1], kv[0][0])):

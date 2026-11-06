@@ -1,0 +1,984 @@
+{
+  "grade": 12,
+  "code": "biology",
+  "source": {
+    "file": "outputs/lanes/r0-boards/sources/hssc/pdf/ModelPaper__2025__Assessment Frameworks__HSSC-II__Final Assessment Framework + Model Question Paper Biology HSSC-II.txt",
+    "kind": "fbise_af"
+  },
+  "policy": "stamp",
+  "slos": [
+    {
+      "official_slo": "B-12-G-01",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-02",
+      "level": "A",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-03",
+      "level": "K",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-04",
+      "level": "K",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-05",
+      "level": "A",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-06",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-07",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-08",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-09",
+      "level": "K",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-10",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-11",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-12",
+      "level": "A",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-13",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-14",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-15",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-16",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-17",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-18",
+      "level": "K",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-19",
+      "level": "A",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-20",
+      "level": "A",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-21",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-22",
+      "level": "A",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-23",
+      "level": "K",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-24",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-25",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-26",
+      "level": "A",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-27",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-28",
+      "level": "A",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-29",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-30",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-31",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-32",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-33",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-34",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-35",
+      "level": "U",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-36",
+      "level": "A",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-37",
+      "level": "A",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-G-38",
+      "level": "U+A",
+      "gist": "Nervous system",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-I-16",
+      "level": "U",
+      "gist": "Immunity",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-I-19",
+      "level": "A",
+      "gist": "Immunity",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-I-21",
+      "level": "U+A",
+      "gist": "Immunity",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-J-02",
+      "level": "A",
+      "gist": "Biotechnology",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-J-03",
+      "level": "A",
+      "gist": "Biotechnology",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-J-04",
+      "level": "A",
+      "gist": "Biotechnology",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-J-05",
+      "level": "K",
+      "gist": "Biotechnology",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-J-06",
+      "level": "A",
+      "gist": "Biotechnology",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-J-07",
+      "level": "A",
+      "gist": "Biotechnology",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-J-08",
+      "level": "U",
+      "gist": "Biotechnology",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-K-01",
+      "level": "K",
+      "gist": "Biostatistics and",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-K-02",
+      "level": "K",
+      "gist": "Biostatistics and",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-K-03",
+      "level": "A",
+      "gist": "Biostatistics and",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-K-04",
+      "level": "A",
+      "gist": "Biostatistics and",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-K-05",
+      "level": "A",
+      "gist": "Biostatistics and",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-K-06",
+      "level": "A",
+      "gist": "Biostatistics and",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-K-07",
+      "level": "A",
+      "gist": "Biostatistics and",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-K-08",
+      "level": "A",
+      "gist": "Biostatistics and",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-L-01",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain L)",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-L-02",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain L)",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-L-03",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain L)",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-L-04",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain L)",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-L-05",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain L)",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-L-06",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain L)",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-L-07",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain L)",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-01",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-02",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-03",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-04",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-05",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-06",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-07",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-08",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-09",
+      "level": "K",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-10",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-11",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-12",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-13",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-14",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-15",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-16",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-17",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-18",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-19",
+      "level": "K",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-20",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-21",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-22",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-23",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-24",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-25",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-26",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-27",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-28",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-29",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-30",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-31",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-32",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-33",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-34",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-35",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-36",
+      "level": "K",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-37",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-38",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-39",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-40",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-41",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-42",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-43",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-44",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-45",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-46",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-47",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-48",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-49",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-50",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-51",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-52",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-53",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-54",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-55",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-56",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-57",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-58",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-59",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-60",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-61",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-62",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-63",
+      "level": "K",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-64",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-65",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-66",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-67",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-68",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-69",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-70",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-71",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-72",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-73",
+      "level": "A",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-74",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-75",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-76",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-77",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-78",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-79",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-80",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-81",
+      "level": "K",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-82",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-R-83",
+      "level": "U",
+      "gist": "Respiratory",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-T-01",
+      "level": "U",
+      "gist": "pharmacological",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-T-02",
+      "level": "U",
+      "gist": "pharmacological",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-T-04",
+      "level": "K",
+      "gist": "pharmacological",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-T-05",
+      "level": "A",
+      "gist": "pharmacological",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-U-01",
+      "level": "A",
+      "gist": "Climate change",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-U-02",
+      "level": "A",
+      "gist": "Climate change",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-U-03",
+      "level": "K",
+      "gist": "Climate change",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-V-01",
+      "level": "A",
+      "gist": "Selected topics",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-V-02",
+      "level": "A",
+      "gist": "Selected topics",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-V-03",
+      "level": "A",
+      "gist": "Selected topics",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-V-04",
+      "level": "A",
+      "gist": "Selected topics",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-X-01",
+      "gist": "Defining the problem",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-X-02",
+      "gist": "Defining the problem",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-X-03",
+      "gist": "Defining the problem",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-X-04",
+      "level": "A",
+      "gist": "Defining the problem",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-X-05",
+      "gist": "Defining the problem",
+      "chapter": null
+    },
+    {
+      "official_slo": "B-12-X-06",
+      "gist": "Defining the problem",
+      "chapter": null
+    }
+  ]
+}

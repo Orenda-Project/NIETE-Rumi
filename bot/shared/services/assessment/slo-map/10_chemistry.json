@@ -1,0 +1,593 @@
+{
+  "grade": 10,
+  "code": "chemistry",
+  "source": {
+    "file": "outputs/lanes/r0-boards/sources/ssc/txt/2025_Assessment_Frameworks_SSC-II_Final_Assessment_Framework_+_Model_Question_Paper_Chemistry_SSC-II.txt",
+    "kind": "fbise_af"
+  },
+  "policy": "stamp",
+  "slos": [
+    {
+      "official_slo": "C-10-A-01",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain A)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-A-02",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain A)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-A-03",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain A)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-A-04",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain A)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-01",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-02",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-03",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-04",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-05",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-06",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-07",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-08",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-09",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-10",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-11",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-12",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-13",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-14",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-15",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-16",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-17",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-18",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-20",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-21",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-22",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-23",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-24",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-25",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-26",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-27",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-28",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-29",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-30",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-31",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-32",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-33",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-34",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-35",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-36",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-37",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-38",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-B-39",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-C-01",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-C-02",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-C-03",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-C-04",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-C-05",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-C-06",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-C-07",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-C-08",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-C-09",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-C-10",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-C-11",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-C-12",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-01",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-02",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-03",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-04",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-05",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-06",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-07",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-08",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-09",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-10",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-11",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-12",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-14",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-15",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-16",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-17",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-18",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-19",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-20",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-21",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-22",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-23",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-24",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-25",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-26",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-27",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-28",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-29",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-30",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-31",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-32",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-33",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-34",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-35",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-36",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-37",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-38",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-39",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-40",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-E-41",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain E)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-F-01",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-F-02",
+      "level": "U+An",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-10-F-03",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    }
+  ]
+}

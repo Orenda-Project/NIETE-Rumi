@@ -19,6 +19,7 @@ import { RecordUploadPair } from "../../teacher/ui";
 import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
 import ReportsFrame from "./ReportsFrame";
 import { InsightRow } from "./InsightRow";
+import { RubricGuide } from "./RubricGuide";
 import { REPORTS } from "./copy";
 import { observationPath } from "./paths";
 import { firstNameOf, teacherNameOf, useObservationView } from "./useObservationView";
@@ -51,7 +52,8 @@ function GuideBlock({ guide }: { guide: TalkGuide }) {
   return (
     <section data-testid="talk-guide" aria-label={C.debriefTitle} className={cn(LIST_CARD, "flex flex-col gap-3.5 p-3.5")}>
       {guide.intro && <p className="text-[15px] leading-relaxed" dir="auto">{guide.intro}</p>}
-      {guide.sections
+      {Array.isArray(guide.conversation) ? <RubricGuide guide={guide} />
+        : guide.sections
         ? (["strengths", "growth", "action"] as const).map((k) => {
           const sec = guide.sections?.[k];
           if (!sec) return null;

@@ -82,6 +82,7 @@ export async function renderApp(entry: string, lang: "en" | "ur" = "en") {
             <Route path="/portal/coach/teacher/:ext/reports" element={<CoachingRedirect />} />
             <Route path="/portal/coach/session/:id" element={<SessionReportPage />} />
             <Route path="/portal/coach/training" element={<p data-testid="training">Training Library page</p>} />
+            <Route path="/portal/coach/coach-training" element={<p data-testid="coach-training-page">Coach Training page</p>} />
             <Route path="*" element={<p data-testid="other">other page</p>} />
           </Routes>
         </CoachAppGuard>

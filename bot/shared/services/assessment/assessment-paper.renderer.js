@@ -18,6 +18,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { orderedEntries } = require('./assessment-order');
 
 /**
  * Fonts are base64-embedded into the HTML, not named and hoped for.
@@ -73,10 +74,16 @@ const SUBJECT_NAMES = {
   science: 'Science', gensci: 'Science',
   genk: 'General Knowledge', general_knowledge: 'General Knowledge',
   sst: 'Social Studies', social_studies: 'Social Studies',
+  // G6-12 registry codes (subject-config.js).
+  general_science: 'General Science', computer_science: 'Computer Science', history: 'History',
+  geography: 'Geography', zarai_taleem: 'Zarai Taleem', physics: 'Physics', chemistry: 'Chemistry',
+  biology: 'Biology', pakistan_studies: 'Pakistan Studies', pakistan_studies_ur: 'Pakistan Studies',
 };
 
 // Taught in Urdu, so the paper is set right to left.
 const RTL_SUBJECTS = new Set(['urdu', 'islamiat', 'genk', 'general_knowledge', 'sst', 'social_studies']);
+// G6-12 Urdu-medium registry codes (subject-config.js rows with medium 'ur'); urdu/islamiat are above.
+['pakistan_studies_ur', 'zarai_taleem'].forEach((c) => RTL_SUBJECTS.add(c));
 
 const INSTRUCTIONS = [
   'Read all questions carefully before answering.',
@@ -125,6 +132,16 @@ function subjectName(subject) {
 
 function isRtl(subject) {
   return RTL_SUBJECTS.has(String(subject || '').trim().toLowerCase());
+}
+
+/**
+ * MCQ options sit side by side (bd-cj8ggk.3): four to a row when every option is short, two when any is
+ * medium, one a line only when one is long. Same thresholds as the board-pattern paper's `.opts`.
+ */
+function optionsClass(options) {
+  const longest = Math.max(0, ...options.map((o) => [...String(o == null ? '' : o)].length));
+  if (longest > 40) return 'options';
+  return longest > 14 ? 'options two' : 'options four';
 }
 
 function marksLabel(marks) {
@@ -219,7 +236,7 @@ function renderQuestion(question, number, questionType, opts) {
 
   if (Array.isArray(question.options) && question.options.length) {
     out.push(`<p><b>${number}.</b> ${esc(question.question)} ${marks}</p>`);
-    out.push('<div class="options">');
+    out.push(`<div class="${optionsClass(question.options)}">`);
     question.options.forEach((o) => out.push(`<div class="opt">${esc(o)}</div>`));
     out.push('</div>');
   } else if (question.column_a || question.column_b) {
@@ -248,7 +265,7 @@ function renderQuestion(question, number, questionType, opts) {
       const subMarks = typeof sub === 'string' ? '' : marksLabel(sub.marks);
       out.push(`<p class="sub"><b>${letter})</b> ${esc(subText)} ${subMarks}</p>`);
       if (typeof sub === 'object' && Array.isArray(sub.options) && sub.options.length) {
-        out.push('<div class="options">');
+        out.push(`<div class="${optionsClass(sub.options)}">`);
         sub.options.forEach((o) => out.push(`<div class="opt">${esc(o)}</div>`));
         out.push('</div>');
       } else if (answerLines) {
@@ -291,13 +308,13 @@ function collectQuestions(examJson) {
   for (const section of ['seen', 'unseen']) {
     const branch = examJson?.[section];
     if (!branch || typeof branch !== 'object') continue;
-    for (const [category, types] of Object.entries(branch)) {
+    for (const [category, types] of orderedEntries(branch, 'category')) {
       if (!types || typeof types !== 'object') continue;
-      for (const [type, entry] of Object.entries(types)) {
+      for (const [type, entry] of orderedEntries(types, 'type')) {
         if (Array.isArray(entry)) {
           entry.forEach((q) => q && push({ section, category, type, question: q }));
         } else if (entry && typeof entry === 'object') {
-          for (const [subType, list] of Object.entries(entry)) {
+          for (const [subType, list] of orderedEntries(entry, 'type')) {
             if (Array.isArray(list)) {
               list.forEach((q) => q && push({ section, category, type: subType, question: q }));
             }
@@ -333,6 +350,8 @@ function totalMarks(questions) {
 function renderPaper({ examJson, grade, subject, schoolName, pageReference,
                        chapterTitle, includeAnswerKey = false, answerLines = true, paperKind = null }) {
   // A board-pattern paper carries its layout and prints by it; read off the paper, never a flag.
+  // A G9-12 board paper (bd-5jmnfj.38.24) prints by its own renderer.
+  if (examJson && examJson._layout && examJson._layout.profile === 'board') return require('./assessment-paper-board.renderer').renderBoardPaper(examJson);
   if (examJson && examJson._layout) return require('./assessment-paper-fde.renderer').renderPaper(arguments[0]);
   const lineMm = lineHeightMm(grade);
   const questions = collectQuestions(examJson);
@@ -406,6 +425,8 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
   .marks { font-size: 10pt; color: #444; float: ${rtl ? 'left' : 'right'}; }
   .options { margin-${rtl ? 'right' : 'left'}: 18px; }
   .opt { margin: 2px 0; }
+  .options.four { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px 10px; }
+  .options.two { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px 10px; }
   .words { margin-${rtl ? 'right' : 'left'}: 18px; }
   .word { margin: 5px 0; }
   .word .rule { display: inline-block; border-bottom: 1px solid #999; width: 190px; margin-${rtl ? 'right' : 'left'}: 10px; }
@@ -455,6 +476,7 @@ function questionLabel(question) {
  */
 function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, chapterTitle, topics }) {
   // A board-pattern paper's key is its marking scheme.
+  if (examJson && examJson._layout && examJson._layout.profile === 'board') return require('./assessment-scheme-board.renderer').renderBoardScheme(examJson);
   if (examJson && examJson._layout) return require('./assessment-paper-fde.renderer').renderMarkingScheme(arguments[0]);
   const questions = collectQuestions(examJson);
   const rtl = isRtl(subject);
@@ -555,7 +577,7 @@ ${Oral.oralSheet(oral, { medium: rtl ? 'ur' : 'en', text: esc })}` : ''}
 module.exports = {
   renderPaper, renderAnswerKey, collectQuestions, totalMarks, renderQuestion,
   answerLinesFor, storedLines, MAX_STORED_LINES,
-  NO_LINES, isRtl, GENERIC_TYPES, questionMarks,
+  NO_LINES, isRtl, subjectName, GENERIC_TYPES, questionMarks,
   // For a second renderer that prints the same fonts and escapes the same way.
   fontFaces, esc,
 };

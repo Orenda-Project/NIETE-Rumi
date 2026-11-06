@@ -66,8 +66,9 @@ function Item({ r }: { r: ReadingItem }) {
             <span className="font-medium">You will be able to:</span> {r.outcome}
           </span>
         )}
-        {!targeted && r.description && (
-          <span className="block text-sm text-muted-foreground mt-0.5">{r.description}</span>
+        {/* bd-9svkbb: I-SAPS Level 3 readings have no outcome line, so the partner's rationale says why to read it. */}
+        {!r.outcome && (r.rationale || (!targeted && r.description)) && (
+          <span className="block text-sm text-muted-foreground mt-0.5">{r.rationale || r.description}</span>
         )}
       </span>
     </>

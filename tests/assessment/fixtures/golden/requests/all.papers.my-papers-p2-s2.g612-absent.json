@@ -1,0 +1,41 @@
+{
+  "statusCode": 200,
+  "payload": {
+    "success": true,
+    "page": 2,
+    "pageSize": 2,
+    "total": 5,
+    "papers": [
+      {
+        "paper_id": "paper-3",
+        "grade": 3,
+        "subject_key": "maths",
+        "subject": "Maths",
+        "chapter_number": 3,
+        "question_count": 13,
+        "total_marks": 23,
+        "ready_at": "2026-10-03T08:05:00.000Z",
+        "has_answer_key": false,
+        "version": 1,
+        "version_count": 1,
+        "pattern": null,
+        "pages": null
+      },
+      {
+        "paper_id": "paper-2",
+        "grade": 2,
+        "subject_key": "urdu",
+        "subject": "Urdu",
+        "chapter_number": 2,
+        "question_count": 12,
+        "total_marks": 22,
+        "ready_at": "2026-10-02T08:05:00.000Z",
+        "has_answer_key": true,
+        "version": 1,
+        "version_count": 1,
+        "pattern": null,
+        "pages": null
+      }
+    ]
+  }
+}

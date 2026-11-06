@@ -1,0 +1,1487 @@
+{
+  "grade": 12,
+  "code": "chemistry",
+  "source": {
+    "file": "outputs/lanes/r0-boards/sources/hssc/pdf/ModelPaper__2025__Assessment Frameworks__HSSC-II__Final Assessment Framework + Model Question Paper Chemistry HSSC-II.txt",
+    "kind": "fbise_af"
+  },
+  "policy": "stamp",
+  "slos": [
+    {
+      "official_slo": "C-12-A-01",
+      "level": "U",
+      "gist": "B",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-A-02",
+      "level": "U",
+      "gist": "B",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-A-03",
+      "level": "A",
+      "gist": "B",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-01",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-02",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-03",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-04",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-05",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-06",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-08",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-09",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-10",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-12",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-13",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-14",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-15",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-16",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-18",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-19",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-20",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-21",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-22",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-23",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-24",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-25",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-26",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-27",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-28",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-29",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-30",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-31",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-32",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-B-33",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain B)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-01",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-02",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-03",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-04",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-05",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-06",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-07",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-08",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-09",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-10",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-11",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-12",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-13",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-14",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-15",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-16",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-17",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-18",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-19",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-20",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-21",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-22",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-23",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-24",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-25",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-26",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-27",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-28",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-29",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-30",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-31",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-32",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-33",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-34",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-35",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-36",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-37",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-38",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-39",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-40",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-41",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-42",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-43",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-44",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-45",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-46",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-C-47",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain C)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-01",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-02",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-04",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-05",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-06",
+      "level": "A",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-07",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-08",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-09",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-10",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-11",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-12",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-13",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-14",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-15",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-16",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-17",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-18",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-19",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-20",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-21",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-22",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-23",
+      "level": "K",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-24",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-25",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-26",
+      "level": "K",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-27",
+      "level": "K",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-28",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-29",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-30",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-31",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-32",
+      "level": "A",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-33",
+      "level": "K",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-34",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-35",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-36",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-37",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-38",
+      "level": "K",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-39",
+      "level": "K",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-40",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-41",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-42",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-43",
+      "level": "K",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-44",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-45",
+      "level": "K",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-46",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-47",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-48",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-49",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-50",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-51",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-52",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-53",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-54",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-55",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-56",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-57",
+      "level": "A",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-58",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-59",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-60",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-61",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-62",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-63",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-64",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-65",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-66",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-67",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-68",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-69",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-70",
+      "level": "U+S",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-71",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-72",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-73",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-74",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-75",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-76",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-77",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-78",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-79",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-80",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-81",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-82",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-83",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-84",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-85",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-86",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-87",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-88",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-89",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-90",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-91",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-92",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-93",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-E-94",
+      "level": "U",
+      "gist": "F",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-01",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-02",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-03",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-04",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-05",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-06",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-07",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-08",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-09",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-10",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-11",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-12",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-16",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-17",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-18",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-19",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-20",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-21",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-22",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-23",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-24",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-25",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-26",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-27",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-28",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-29",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-30",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-31",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-32",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-33",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-34",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-35",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-36",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-37",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-38",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-39",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-40",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-41",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-42",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-43",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-44",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-45",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-46",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-47",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-48",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-49",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-50",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-51",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-52",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-53",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-54",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-01",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-02",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-03",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-04",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-05",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-06",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-07",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-08",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-09",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-10",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-11",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-12",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-13",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-14",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-15",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-16",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-17",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-18",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-19",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-20",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-21",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-G-22",
+      "level": "U",
+      "gist": "design_pending: domain label not machine-parsed (domain G)",
+      "chapter": null
+    },
+    {
+      "official_slo": "C-12-F-13",
+      "gist": "design_pending: domain label not machine-parsed (domain F)",
+      "chapter": null
+    }
+  ]
+}

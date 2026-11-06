@@ -1,0 +1,411 @@
+{
+  "steps": [
+    {
+      "step": "INIT",
+      "screen": {
+        "screen": "CLASS",
+        "data": {
+          "grades": [
+            {
+              "id": "1",
+              "title": "Grade 1"
+            },
+            {
+              "id": "2",
+              "title": "Grade 2"
+            },
+            {
+              "id": "3",
+              "title": "Grade 3"
+            },
+            {
+              "id": "4",
+              "title": "Grade 4"
+            },
+            {
+              "id": "5",
+              "title": "Grade 5"
+            }
+          ],
+          "subjects": [
+            {
+              "id": "english",
+              "title": "English"
+            },
+            {
+              "id": "general_knowledge",
+              "title": "General Knowledge"
+            },
+            {
+              "id": "islamiat",
+              "title": "Islamiat"
+            },
+            {
+              "id": "maths",
+              "title": "Maths"
+            },
+            {
+              "id": "urdu",
+              "title": "Urdu"
+            }
+          ],
+          "error": "",
+          "has_error": false
+        }
+      }
+    },
+    {
+      "step": "CLASS grade_selected",
+      "screen": {
+        "screen": "CLASS",
+        "data": {
+          "grades": [
+            {
+              "id": "1",
+              "title": "Grade 1"
+            },
+            {
+              "id": "2",
+              "title": "Grade 2"
+            },
+            {
+              "id": "3",
+              "title": "Grade 3"
+            },
+            {
+              "id": "4",
+              "title": "Grade 4"
+            },
+            {
+              "id": "5",
+              "title": "Grade 5"
+            }
+          ],
+          "subjects": [
+            {
+              "id": "english",
+              "title": "English"
+            },
+            {
+              "id": "islamiat",
+              "title": "Islamiat"
+            },
+            {
+              "id": "maths",
+              "title": "Maths"
+            },
+            {
+              "id": "science",
+              "title": "Science"
+            },
+            {
+              "id": "social_studies",
+              "title": "Social Studies"
+            },
+            {
+              "id": "urdu",
+              "title": "Urdu"
+            }
+          ],
+          "error": "",
+          "has_error": false
+        }
+      }
+    },
+    {
+      "step": "CLASS stale pair",
+      "screen": {
+        "screen": "CLASS",
+        "data": {
+          "grades": [
+            {
+              "id": "1",
+              "title": "Grade 1"
+            },
+            {
+              "id": "2",
+              "title": "Grade 2"
+            },
+            {
+              "id": "3",
+              "title": "Grade 3"
+            },
+            {
+              "id": "4",
+              "title": "Grade 4"
+            },
+            {
+              "id": "5",
+              "title": "Grade 5"
+            }
+          ],
+          "subjects": [
+            {
+              "id": "english",
+              "title": "English"
+            },
+            {
+              "id": "islamiat",
+              "title": "Islamiat"
+            },
+            {
+              "id": "maths",
+              "title": "Maths"
+            },
+            {
+              "id": "science",
+              "title": "Science"
+            },
+            {
+              "id": "social_studies",
+              "title": "Social Studies"
+            },
+            {
+              "id": "urdu",
+              "title": "Urdu"
+            }
+          ],
+          "error": "We don't have that subject for Grade 4. Please pick another.",
+          "has_error": true
+        }
+      }
+    },
+    {
+      "step": "CLASS",
+      "screen": {
+        "screen": "COVERAGE",
+        "data": {
+          "summary": "Grade 4 · Science",
+          "has_chapters": true,
+          "chapters": [
+            {
+              "id": "1",
+              "title": "1 · Our School (pages 1-12)"
+            },
+            {
+              "id": "2",
+              "title": "2 · ہمارا گھر (pages 13-30)"
+            }
+          ],
+          "chapters_more": [
+            {
+              "id": "__none__",
+              "title": "-"
+            }
+          ],
+          "has_more_chapters": false,
+          "error": "",
+          "has_error": false
+        }
+      }
+    },
+    {
+      "step": "COVERAGE",
+      "screen": {
+        "screen": "QUESTIONS",
+        "data": {
+          "summary": "Grade 4 · Science · Chapter 1 · Our School",
+          "count_hint": "Between 1 and 50.",
+          "marks_hint": "Optional — up to 1000. Leave blank for no limit.",
+          "error": "",
+          "has_error": false
+        }
+      }
+    },
+    {
+      "step": "QUESTIONS",
+      "screen": {
+        "screen": "TYPES",
+        "data": {
+          "summary": "Grade 4 · Science · Chapter 1 · Our School · Pick up to 8",
+          "types": [
+            {
+              "id": "MCQs",
+              "title": "MCQs"
+            },
+            {
+              "id": "MSQs",
+              "title": "MSQs"
+            },
+            {
+              "id": "True/False",
+              "title": "True/False"
+            },
+            {
+              "id": "Fill in the Blanks",
+              "title": "Fill in the Blanks"
+            },
+            {
+              "id": "Brief Answers",
+              "title": "Brief Answers"
+            },
+            {
+              "id": "Mind Map",
+              "title": "Mind Map"
+            },
+            {
+              "id": "Flow Chart",
+              "title": "Flow Chart"
+            },
+            {
+              "id": "Logical Reasoning",
+              "title": "Logical Reasoning"
+            }
+          ],
+          "error": "",
+          "has_error": false
+        }
+      }
+    },
+    {
+      "step": "TYPES",
+      "screen": {
+        "screen": "COUNTS",
+        "data": {
+          "summary": "Grade 4 · Science · Chapter 1 · Our School",
+          "hint": "Up to 50 questions in total.",
+          "error": "",
+          "show_1": true,
+          "label_1": "MCQs",
+          "help_1": "How many MCQs?",
+          "show_2": true,
+          "label_2": "MSQs",
+          "help_2": "How many MSQs?",
+          "show_3": false,
+          "label_3": "",
+          "help_3": "",
+          "show_4": false,
+          "label_4": "",
+          "help_4": "",
+          "show_5": false,
+          "label_5": "",
+          "help_5": "",
+          "show_6": false,
+          "label_6": "",
+          "help_6": "",
+          "show_7": false,
+          "label_7": "",
+          "help_7": "",
+          "show_8": false,
+          "label_8": "",
+          "help_8": "",
+          "error_messages": {},
+          "has_error": false
+        }
+      }
+    },
+    {
+      "step": "COUNTS",
+      "screen": {
+        "screen": "CONFIRM",
+        "data": {
+          "recap": "Grade 4 · Science · Chapter 1 · Our School\nUnseen (outside the book) · 3 MCQs, 2 MSQs · 5 in total",
+          "formats": [
+            {
+              "id": "pdf",
+              "title": "PDF — ready to print"
+            }
+          ],
+          "extension_message_response": {
+            "params": {
+              "assessment_action": "queued",
+              "summary": "Grade 4 · Science · Chapter 1 · Our School"
+            }
+          },
+          "error": "",
+          "has_error": false
+        }
+      }
+    },
+    {
+      "step": "CONFIRM",
+      "screen": {
+        "screen": "PICK_DONE",
+        "data": {
+          "summary": "Grade 4 · Science · Chapter 1 · Our School",
+          "note": "",
+          "extension_message_response": {
+            "params": {
+              "assessment_action": "queued",
+              "summary": "Grade 4 · Science · Chapter 1 · Our School"
+            }
+          },
+          "error": "",
+          "has_error": false
+        }
+      }
+    }
+  ],
+  "writes": {
+    "textbooks": [],
+    "assessment_requests": [
+      {
+        "id": "assessment_requests-1",
+        "attempt": 1,
+        "edited_from": null,
+        "created_at": "T",
+        "user_id": "u-golden-1",
+        "surface": "whatsapp",
+        "grade_code": "grade_4",
+        "subject_code": "science",
+        "textbook_id": "book-4-science",
+        "chapter_number": 1,
+        "page_ranges": "1-12",
+        "content_source": "unseen",
+        "question_count": 5,
+        "question_types": [
+          {
+            "id": "MCQs",
+            "count": 3,
+            "category": "objective"
+          },
+          {
+            "id": "MSQs",
+            "count": 2,
+            "category": "objective"
+          }
+        ],
+        "has_answer_key": true,
+        "has_answer_lines": true,
+        "output_format": "pdf"
+      }
+    ]
+  },
+  "queued": [
+    [
+      "u-golden-1",
+      "assessment_generate",
+      {
+        "userId": "u-golden-1",
+        "requestId": "assessment_requests-1",
+        "grade": 4,
+        "subject": "science",
+        "chapterNumber": 1,
+        "chapterNumbers": [
+          1
+        ],
+        "pageRanges": "1-12",
+        "contentSource": "unseen",
+        "questionCount": 5,
+        "totalMarks": null,
+        "seenCount": null,
+        "questionTypes": [
+          {
+            "id": "MCQs",
+            "count": 3,
+            "category": "objective"
+          },
+          {
+            "id": "MSQs",
+            "count": 2,
+            "category": "objective"
+          }
+        ],
+        "includeAnswerKey": true,
+        "answerLines": true,
+        "outputFormat": "pdf",
+        "deliver": "whatsapp"
+      }
+    ]
+  ]
+}

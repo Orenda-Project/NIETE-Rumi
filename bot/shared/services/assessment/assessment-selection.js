@@ -1,4 +1,5 @@
 'use strict';
+const { orderedEntries } = require('./assessment-order');
 /**
  * Which questions stay on the paper.
  *
@@ -23,15 +24,15 @@ function _walk(examJson, visit) {
   for (const section of ['seen', 'unseen']) {
     const branch = examJson?.[section];
     if (!branch || typeof branch !== 'object') continue;
-    for (const [category, types] of Object.entries(branch)) {
+    for (const [category, types] of orderedEntries(branch, 'category')) {
       if (!types || typeof types !== 'object') continue;
-      for (const [type, entry] of Object.entries(types)) {
+      for (const [type, entry] of orderedEntries(types, 'type')) {
         if (Array.isArray(entry)) {
           entry.forEach((q, i) => q && visit({
             path: [section, category, type], index: i, question: q, type,
           }));
         } else if (entry && typeof entry === 'object') {
-          for (const [subType, list] of Object.entries(entry)) {
+          for (const [subType, list] of orderedEntries(entry, 'type')) {
             if (!Array.isArray(list)) continue;
             list.forEach((q, i) => q && visit({
               path: [section, category, type, subType], index: i, question: q, type: subType,
@@ -187,9 +188,9 @@ function _typeSlots(tree) {
   for (const section of ['seen', 'unseen']) {
     const branch = tree?.[section];
     if (!branch || typeof branch !== 'object') continue;
-    for (const [category, types] of Object.entries(branch)) {
+    for (const [category, types] of orderedEntries(branch, 'category')) {
       if (!types || typeof types !== 'object') continue;
-      for (const key of Object.keys(types)) out.push({ section, category, key });
+      for (const [key] of orderedEntries(types, 'type')) out.push({ section, category, key });
     }
   }
   return out;

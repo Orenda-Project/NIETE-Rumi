@@ -22,6 +22,7 @@ const { normaliseScheme } = require('./marking-scheme');
 const { mathsCheck } = require('./maths-check');
 const { checkBlueprint } = require('./blueprint-check');
 const Prompt = require('./fde-early-prompt');
+const { settleOptionalPictures } = require('./fde-picture-optional'); // G2 x and ÷ print plain facts on a miss (bd-cj8ggk.5)
 const { dealOrders } = require('./fde-order-block');
 const { noArrows } = require('./fde-no-arrows');
 const { answerRepeats, giveawayNote, stillGivenAway, writtenGiveaways } = require('./fde-answer-repeats');
@@ -246,7 +247,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   // So is a key still off its slot's rule: one wrong item is better than no paper for the teacher.
   const answers = keysOff(examJson);
   if (answers.length) d.logToFile('[assessment] answers off the rule', { requestId, pattern, answers });
-  const finalShort = laid.shortfall.concat(d.emptyQuestionParts(examJson), Prompt.pictureShortfall(examJson, P));
+  const finalShort = laid.shortfall.concat(d.emptyQuestionParts(examJson), settleOptionalPictures(examJson, P, Prompt.pictureShortfall(examJson, P), (m, x) => d.logToFile(m, { requestId, pattern, ...x })));
   if (finalShort.length) {
     throw d.fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: finalShort, examJson, model });
   }

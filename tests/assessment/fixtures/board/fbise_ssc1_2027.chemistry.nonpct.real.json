@@ -1,0 +1,66 @@
+{
+ "pattern": "fbise_ssc1_2027",
+ "subject": "chemistry",
+ "variant": "nonpct",
+ "source": "fbise-ssc1-chemistry-inclusive2024-nonpct",
+ "source_status": "verified",
+ "total_marks_x4": 240,
+ "total_time_min": 180,
+ "time_a_min": 20,
+ "shared_time_min": 160,
+ "mcq_share_pct": 20.0,
+ "sections": [
+  {
+   "id": "A",
+   "marks_x4": 48,
+   "answer_on": "question_paper",
+   "slots": [
+    {
+     "label": "Q1",
+     "kind": "mcq",
+     "printed": 12,
+     "attempt": 12,
+     "marks_each_x4": 4,
+     "or": false,
+     "stimulus": null
+    }
+   ],
+   "time_min": 20
+  },
+  {
+   "id": "B",
+   "marks_x4": 120,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q2 (i)-(x)",
+     "kind": "srq",
+     "printed": 10,
+     "attempt": 10,
+     "marks_each_x4": 12,
+     "or": true,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  },
+  {
+   "id": "C",
+   "marks_x4": 72,
+   "answer_on": "e_sheet",
+   "slots": [
+    {
+     "label": "Q3-5",
+     "kind": "erq",
+     "printed": 3,
+     "attempt": 3,
+     "marks_each_x4": 24,
+     "or": true,
+     "stimulus": null
+    }
+   ],
+   "time_min": null
+  }
+ ],
+ "derivation": []
+}

@@ -1,0 +1,133 @@
+{
+  "grade": 12,
+  "code": "pakistan_studies_ur",
+  "source": {
+    "file": "outputs/lanes/r0-boards/sources/hssc/pdf/ModelPaper__2025__Assessment Frameworks__HSSC-II__Final Assessment Framework + Model Question Paper Pakistan Studies HSSC-II.txt",
+    "kind": "fbise_af",
+    "note": "twin editions share one AF list (pakistan_studies / pakistan_studies_ur)"
+  },
+  "policy": "stamp",
+  "slos": [
+    {
+      "official_slo": "PS-12-D1-01",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain D1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-D1-02",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain D1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-D1-03",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain D1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-D1-04",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain D1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-D1-05",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain D1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-D1-06",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain D1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-D2-01",
+      "gist": "design_pending: domain label not machine-parsed (domain D2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-D2-02",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain D2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-D2-03",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain D2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-E1-01",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain E1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-E1-02",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain E1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-E1-03",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain E1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-E2-03",
+      "gist": "design_pending: domain label not machine-parsed (domain E2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-E2-04",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain E2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-F1-01",
+      "gist": "design_pending: domain label not machine-parsed (domain F1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-F1-02",
+      "gist": "design_pending: domain label not machine-parsed (domain F1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-F1-03",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain F1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-F1-04",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain F1)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-F2-01",
+      "gist": "design_pending: domain label not machine-parsed (domain F2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-F2-02",
+      "level": "A",
+      "gist": "design_pending: domain label not machine-parsed (domain F2)",
+      "chapter": null
+    },
+    {
+      "official_slo": "PS-12-F2-03",
+      "level": "K",
+      "gist": "design_pending: domain label not machine-parsed (domain F2)",
+      "chapter": null
+    }
+  ]
+}
