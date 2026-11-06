@@ -82,14 +82,21 @@ async function gradeGateFor(grades) {
   return require('../config/feature-flags').GradeGateSettings.load();
 }
 
-/** Which grades we hold any book for, that this user is offered. Numeric order: a bare sort() puts 10 before 2. */
+/**
+ * Which grades we hold any book for, that this user is offered. Numeric order: a bare sort() puts 10 before 2.
+ * A grade her region's book list does not cover (GB stops at 5) is not offered (bd-5jmnfj.38.42); no list
+ * (ICT) keeps every grade — the portal filters the same way.
+ */
 async function gradesOnOffer(userId) {
   const { data } = await supabase
     .from('textbooks').select('grade').eq('curriculum', 'ict');
   const all = [...new Set((data || []).map((r) => r.grade))].filter(Boolean).sort((a, b) => a - b);
   const gate = await gradeGateFor(all);
   const grades = GradeGate.offeredGrades(all, gate.flag, gate.kill, gate.killCells, userId);
-  return grades.map((g) => ({ id: String(g), title: `Grade ${g}` }));
+  const TeacherBooks = require('../services/teacher-books.service');
+  const shelf = userId ? await TeacherBooks.bookKeysForUser(userId) : null;
+  const covered = Array.isArray(shelf) ? grades.filter((g) => TeacherBooks.gradeCovered(Number(g), shelf)) : grades;
+  return covered.map((g) => ({ id: String(g), title: `Grade ${g}` }));
 }
 
 /**

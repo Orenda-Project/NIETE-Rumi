@@ -3,6 +3,7 @@
  * Assessments are keyed by book: the generator reads ICT's books, so GB (NBF English/Urdu/Maths/Science, ICT's
  * English-medium GK) is offered Islamiat in G1 until NBF topics exist. Everyone else: today's list.
  */
+const H = require('../assessment/helpers/golden-g1-5');
 
 const GB_KEYS = ['gb_g1_english', 'gb_g1_urdu', 'gb_g1_maths', 'grade_1_general_knowledge_en', 'grade_1_islamiat'];
 let state;
@@ -14,10 +15,7 @@ beforeEach(() => {
   ['english', 'general_knowledge', 'islamiat', 'maths', 'urdu'].forEach((s) => state.tables.textbooks.push(
     { id: `book-1-${s}`, curriculum: 'ict', grade: 1, subject: s, total_pages: 100 }));
   jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
-  jest.doMock('../../bot/shared/config/supabase', () => {
-    const { createMemorySupabase } = require('../fixtures/memory-supabase');
-    return createMemorySupabase(state.tables);
-  });
+  jest.doMock('../../bot/shared/config/supabase', () => H.fakeDb(state)); // reads state.settings (the G6-12 flag)
   jest.doMock('../../bot/shared/services/cache/railway-redis.service', () => ({
     get: async (k) => (state.redis.has(k) ? JSON.parse(state.redis.get(k)) : null),
     set: async (k, v) => { state.redis.set(k, JSON.stringify(v)); return true; },
@@ -42,4 +40,22 @@ test('a GB teacher is offered Islamiat in Grade 1, and nothing from a book she d
 
 test('an ICT teacher keeps every Grade 1 subject', async () => {
   expect((await subjects('sector-teacher')).sort()).toEqual(['english', 'general_knowledge', 'islamiat', 'maths', 'urdu']);
+});
+
+// bd-5jmnfj.38.42: grades 6-12 are open to everyone, but a region whose book list stops at Grade 5 (GB) must not
+// be offered a grade it cannot use — picking it only led to "not covered". No list (ICT) keeps every grade.
+describe('the grade list follows the region book list', () => {
+  beforeEach(() => {
+    state.settings.assessment_grades_6_12 = true;
+    state.tables.textbooks.push({ id: 'book-7-maths', curriculum: 'ict', grade: 7, subject: 'maths', total_pages: 100 });
+  });
+  const grades = async (user) => (await Flow.handleAssessmentGenInit(user, `init-${user}`)).data.grades.map((g) => g.id);
+
+  test('a GB teacher is not offered Grade 7', async () => {
+    expect(await grades('gb-teacher')).toEqual(['1']);
+  });
+
+  test('an ICT teacher is offered Grade 7', async () => {
+    expect(await grades('sector-teacher')).toEqual(['1', '7']);
+  });
 });
