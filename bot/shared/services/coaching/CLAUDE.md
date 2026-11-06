@@ -1,7 +1,7 @@
 # coaching — Coaching pipeline: recording to analysis, reflection, report, video clips, weekly report
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching kg=fc99add4c0c4 gen=02fdfbcf1a13 overflow=299 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching kg=bd96b2395562 gen=3671a01b5f7d overflow=302 rendered=2026-11-06 kg.py=1.1.0 -->
 
 ## Entry points
 - `coaching-session.service.js` — session lifecycle and status writes; the funnel every job uses
@@ -17,7 +17,7 @@ Full index: `CLAUDE.index.md`
 | … | 75 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `coaching_sessions` (written by `analysis-processor.service.js` (+9)) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+88)
+- table `coaching_sessions` (written by `analysis-processor.service.js` (+9)) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+89)
 - column `coaching_sessions.user_id` (written by `coaching-session.service.js` (+1)) ← read by `bot/shared/calls/call-context.repo.js:65:219f5683` · `bot/shared/calls/call-tools.repo.js:52:23fca46d` (+53)
 - … 91 more → `CLAUDE.index.md`
 
@@ -29,7 +29,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/observe/observe-pipeline-fork.test.js` (analysis-processor.service.js, coaching-session.service.js, reflective-conversation.service.js, report-generator.service.js)
 - `tests/coaching/bd-v0toag.57-slim-report.test.js` (ab-v10-arms.js, report-link-token.js, slim-report.js, thing-to-try-pick.js)
-- … 178 more → `CLAUDE.index.md`
+- … 181 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`?

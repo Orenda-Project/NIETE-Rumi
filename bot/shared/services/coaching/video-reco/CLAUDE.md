@@ -1,7 +1,7 @@
 # video-reco — Training-video recommendation engine for coaching reports (VIDREC)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/video-reco kg=38959e58fe3f gen=cfdab229f04d overflow=121 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/video-reco kg=fb11bebd2c60 gen=b0a6032ddf82 overflow=125 rendered=2026-11-06 kg.py=1.1.0 -->
 
 ## Entry points
 - `engine.js` — recommendForReport pipeline
@@ -16,14 +16,14 @@ Full index: `CLAUDE.index.md`
 | `engine.js` | recommendForReport: never-throwing pipeline from flag and target to shortlist, one LLM pick, redaction, stored row |
 | `select.js` | The single completeJson pick (coaching.videoReco job) and the validation every answer passes before storage |
 | `copy.js` | Fills clip message strings: minutes, Urdu digits, language name, and LTR isolates for English runs in Urdu |
-| … | 20 more → `CLAUDE.index.md` |
+| … | 21 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `clip-pref.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+174)
+- table `users` (written by `clip-pref.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+187)
 - `copy.js` ← imported by `dashboard/routes/video-reco.routes.js:23:acc21039` · `dashboard/services/coaching-report-page.js:17:07c6eb0f` (+8)
-- `flags.js` ← imported by `dashboard/services/video-reco-events.js:75:f1208529` · `bot/shared/services/coaching/video-reco/arm.js:12:0666eb1f` (+5)
-- `store.js` ← imported by `bot/shared/services/coaching/report-generator.service.js:522:dfac1b4e` · `bot/shared/services/observe/observe-send.service.js:1354:4cc1fcfa` (+4)
-- … 27 more → `CLAUDE.index.md`
+- `flags.js` ← imported by `dashboard/services/video-reco-events.js:75:f1208529` · `bot/shared/services/coaching/video-reco/arm.js:12:0666eb1f` (+6)
+- `store.js` ← imported by `bot/shared/services/coaching/report-generator.service.js:526:dfac1b4e` · `bot/shared/services/coaching/report-window-send.js:34:51417dab` (+5)
+- … 28 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Engine and sender never throw; a failed clip must not touch the report (send.js:12, engine.js:173)
@@ -33,7 +33,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/coaching/video-reco/skip-iab.test.js` (arm.js, caption-link.js, catalog.js, clip-pref.js, engine.js, flags.js, link-token.js, send.js, strip.js)
 - `tests/coaching/video-reco/r7c.test.js` (catalog.js, copy.js, engine.js, prompt.js, select.js, shortlist.js, silence.js)
-- … 77 more → `CLAUDE.index.md`
+- … 79 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/coaching/CLAUDE.md`?

@@ -1,7 +1,7 @@
 # database — Supabase helpers for users and sessions, dashboard queries, original schema
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/database kg=733df80e7d38 gen=ed96163f7734 overflow=44 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/database kg=1c9f6c5a5290 gen=fd6f1e2051ff overflow=45 rendered=2026-11-06 kg.py=1.1.0 -->
 
 ## Entry points
 - `bot-helpers.js` — getOrCreateUser, sessions, conversations
@@ -17,10 +17,10 @@ Full index: `CLAUDE.index.md`
 | `schema.sql` | Original v3.0 Rumi bot Postgres schema (Nov 2025: users, conversations, sessions); historical baseline only |
 
 ## Who reads this (generated)
-- table `users` (written by `bot-helpers.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+174)
-- column `users.id` (written by `schema.sql`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632` · `bot/shared/calls/call-context.repo.js:36:6776a642` (+160)
-- column `users.phone_number` (written by `bot-helpers.js` (+1)) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/routes/homework-request-endpoint.js:51:0b64c13f` (+91)
-- column `users.name` (written by `schema.sql`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/calls/call-tools.repo.js:242:774e00e5` (+62)
+- table `users` (written by `bot-helpers.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+187)
+- column `users.id` (written by `schema.sql`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632` · `bot/shared/calls/call-context.repo.js:36:6776a642` (+173)
+- column `users.phone_number` (written by `bot-helpers.js` (+1)) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/handlers/observe-visit-flow.handler.js:1104:9e1a4c71` (+95)
+- column `users.name` (written by `schema.sql`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/calls/call-tools.repo.js:242:774e00e5` (+65)
 - table `lesson_plans` (written by `bot-helpers.js`) ← read by `bot/shared/routes/quiz-flow-endpoint.js:158:611f2601`? · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:158:611f2601`? (+14)
 - … 36 more → `CLAUDE.index.md`
 
@@ -31,7 +31,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/first-touch/first-reply-english.text-turn.test.js` (bot-helpers.js)
 - `bot/tests/first-touch/one-door-share-ref.test.js` (bot-helpers.js)
-- … 8 more → `CLAUDE.index.md`
+- … 9 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/CLAUDE.md`? · `docs/data-standards.md`?

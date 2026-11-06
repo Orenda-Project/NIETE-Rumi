@@ -1,7 +1,7 @@
 # routes — HTTP endpoints: encrypted WhatsApp Flow data exchange and /api/internal routes
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/routes kg=c587d7a302e0 gen=b690816aa19d overflow=376 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/routes kg=a66c0d80f988 gen=ccdce47e31f1 overflow=396 rendered=2026-11-06 kg.py=1.1.0 -->
 
 ## Entry points
 - `flow-endpoint.routes.js` — Flow dispatcher
@@ -14,12 +14,12 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `web-quiz-internal.routes.js` | /api/internal/wq/* routes for the web child quiz, forwarded by the portal; logic lives in web-quiz.service |
 | `internal*` | 6 files; most used `internal-api.routes.js`: Internal service-to-service API (/api/internal, x-api-key) used by the portal: LP enqueue, training, classes etc. |
-| `teacher*` | 4 files; most used `teacher-training-endpoint.js`: Teacher Training Flow endpoint: vendor picker, training home level cards, level detail with modules and grand quiz |
+| `assessment-gen-endpoint.js` | Server-driven Assessment Generator Flow: CLASS, COVERAGE, QUESTIONS/PAGES, CONFIRM with Redis session state |
 | … | 36 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `registration-endpoint.js` (+1)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+175)
-- table `coaching_sessions` (written by `observe2-check-endpoint.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+87)
+- table `users` (written by `registration-endpoint.js` (+1)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+188)
+- table `coaching_sessions` (written by `observe2-check-endpoint.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+88)
 - … 60 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -30,7 +30,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/whatsapp/send-sync-budget.test.js` (observe-mewaka-endpoint.js, pakistan-lp-endpoint.js, student-videos-endpoint.js)
 - `bot/tests/lp-v8/flow-response-telemetry.test.js` (pakistan-lp-endpoint.js, pakistan-lp-telemetry.js)
-- … 290 more → `CLAUDE.index.md`
+- … 310 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `registration`?
