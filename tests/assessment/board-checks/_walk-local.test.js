@@ -22,15 +22,16 @@ describe('_walk-local', () => {
   test('skips removed items and containers', () => {
     expect(ls.map((l) => l.item.id)).toEqual(['a', 'c', 'o1', 'o2', 'p1', 'p2', 'g1', 'g2', 'h1']);
   });
-  test('refs are slot#n with branch, part and stimulus suffixes', () => {
+  // bd-5jmnfj.38.30 round 6 (a9): one walker for refs. Leaf refs are walk.js's, so every check's issue maps to an id.
+  test('refs are the shared walk form: slot#n with branch, part and stimulus suffixes', () => {
     expect(byId.a.ref).toBe('s.A.Q1#1');
     expect(byId.c.ref).toBe('s.A.Q1#2');
     expect(byId.o1.ref).toBe('s.B.Q2#1/a');
     expect(byId.o2.ref).toBe('s.B.Q2#1/b');
     expect(byId.p2.ref).toBe('s.B.Q2#2.p2');
     expect(byId.g1.ref).toBe('s.B.Q2#3@s1');
-    expect(byId.g2.ref).toBe('s.B.Q2#4@s1');
-    expect(byId.h1.ref).toBe('s.B.Q2#5.p1@s2');
+    expect(byId.g2.ref).toBe('s.B.Q2#3@s2');
+    expect(byId.h1.ref).toBe('s.B.Q2#4.p1');
   });
   test('refs are unique per leaf', () => {
     const refs = ls.map((l) => l.ref);
