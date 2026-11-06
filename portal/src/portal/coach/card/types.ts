@@ -77,9 +77,14 @@ export type SchoolScores = {
   series: (number | null)[];
 };
 
+/** bd-17v39c.4.15 — a school's principal as the card names them: their page opens by teacherExtId. */
+export type SchoolPrincipal = { teacherExtId: string; name: string };
+
 export type SchoolCardData = {
   /** `teachers` is the level's when a level is asked for; `roster` (bd-ewbzns.1) is always the whole school's. */
-  school: { emis: string; name: string; teachers: number; roster?: number; lastVisitDaysAgo: number | null };
+  /** bd-17v39c.4.15 — `roster` is everyone Manage acts on (principals too); `principals`: the school's principals, A to Z,
+   *  never counted as teachers; [] when none is recorded; absent from an older server (then the card names none). */
+  school: { emis: string; name: string; teachers: number; roster?: number; lastVisitDaysAgo: number | null; principals?: SchoolPrincipal[] };
   period: Period;
   tiles: ActivityTile[];
   teachers: CardTeacher[];
