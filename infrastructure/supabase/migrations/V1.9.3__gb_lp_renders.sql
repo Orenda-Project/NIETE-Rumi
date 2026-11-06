@@ -1,4 +1,4 @@
--- V1.9.2 — GB's own lesson-plan cache: niete_gb_lp_renders + its two waiter RPCs (bd-rj6w0n.14.16).
+-- V1.9.3 — GB's own lesson-plan cache: niete_gb_lp_renders + its two waiter RPCs (bd-rj6w0n.14.16).
 -- Versioned migration. Applied per environment, in order, from infrastructure/supabase/migrations.
 --
 -- WHY. GB (nbf_snc) lesson plans are authored at runtime like 6-12's, but in their OWN lane: their own
@@ -12,7 +12,7 @@
 -- DATA. New empty table. LOAD. One row per (GB lesson, language, template). SECURITY. Service role only (RLS on,
 -- no policies), like the 6-12 render table's server-only use.
 -- IDEMPOTENT. IF NOT EXISTS / CREATE OR REPLACE throughout.
--- Rollback: ROLLBACK_V1.9.2__gb_lp_renders.sql
+-- Rollback: ROLLBACK_V1.9.3__gb_lp_renders.sql
 -- One RPC call from the migration runner = one transaction; no BEGIN/COMMIT.
 
 CREATE TABLE IF NOT EXISTS niete_gb_lp_renders (
