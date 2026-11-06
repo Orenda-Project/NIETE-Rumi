@@ -5,18 +5,19 @@
  *  1. An Urdu book's plan goes out with an Urdu title. A Latin title on an Urdu segment (the
  *     bd-rj6w0n.5.8.9 rows) is never shown: the chapter's Urdu title stands in, else no title line.
  *  2. RTL card check: an Urdu book's message is Urdu whatever language the tap carried (its first
- *     strong character is right-to-left), and an Urdu book is only ever served its Urdu (RTL) card,
- *     never an English one; no Urdu card is Coming Soon.
+ *     strong character is right-to-left), and an Urdu book's plan is authored and cached in Urdu only
+ *     (GB's lane keys it on the book's language, bd-rj6w0n.14.16), never an English one.
  */
 const mockSendMessage = jest.fn().mockResolvedValue(true);
+const mockSendDocumentByLink = jest.fn().mockResolvedValue(true);
 const mockDbResults = [];
 
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({
-  sendMessage: (...a) => mockSendMessage(...a), sendDocumentByLink: jest.fn().mockResolvedValue(true),
+  sendMessage: (...a) => mockSendMessage(...a), sendDocumentByLink: (...a) => mockSendDocumentByLink(...a),
 }));
 jest.mock('../../bot/shared/services/queue', () => ({ queueJob: jest.fn() }));
 jest.mock('../../bot/shared/storage/r2', () => ({
-  getPresignedUrl: jest.fn(), buildR2PublicUrl: (k) => `https://r2.example/${k}`,
+  getPresignedUrl: jest.fn().mockResolvedValue('https://signed.example/lp.pdf'), buildR2PublicUrl: (k) => `https://r2.example/${k}`,
 }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../bot/shared/config/supabase', () => {
@@ -35,10 +36,11 @@ const URDU_SEG = {
   language: 'ur', curriculum: 'nbf_snc', chapter_title: 'ہمارا گھر',
   subtopic_title: 'Our home: reading', menu_title: 'Our home: reading',
 };
-const KEY = 'gb-k5/g2_ch2/Urdu_seg3.card.html';
+const KEY = 'gb-lp/gb_k5_v10.1/ur/nbf_snc_grade_2_urdu.c02.s03.pdf';
 const STRONG = /[A-Za-z֐-ࣿיִ-﷿ﹰ-﻿]/;
 const firstStrongIsRtl = (text) => { const m = String(text).match(STRONG); return !!m && !/[A-Za-z]/.test(m[0]); };
-const sentText = () => mockSendMessage.mock.calls.map((c) => c[1]).join('\n');
+// What she reads: any text line plus the PDF's caption.
+const sentText = () => [...mockSendMessage.mock.calls.map((c) => c[1]), ...mockSendDocumentByLink.mock.calls.map((c) => c[3])].join('\n');
 const deliver = (segment, lang) => Serving.deliverRender({ phone: '923001234567', r2Key: KEY, segment, lang });
 
 beforeEach(() => { jest.clearAllMocks(); mockDbResults.length = 0; });
@@ -74,18 +76,12 @@ describe('RTL card check', () => {
     expect(sentText()).not.toMatch(/Grade|Open your lesson plan/);
   });
 
-  test('an Urdu book is served only its Urdu card, never an English one', async () => {
-    mockDbResults.push({ data: [{ id: 'en', status: 'ready', lang: 'en', r2_key: 'gb-k5/x.card.html' }], error: null });
-    const { render } = await GbDelivery.findGbRender(URDU_SEG.segment_id, 'en', URDU_SEG);
-    expect(render).toBeNull();
+  test.each(['en', 'ur'])('an Urdu book is authored and cached in Urdu only, whatever was asked (%s)', (asked) => {
+    expect(GbDelivery.authorLanguage(URDU_SEG)).toBe('ur');
+    expect(GbDelivery.cardLanguage(URDU_SEG, asked)).toBe('ur');
   });
 
-  test('an Urdu book with an Urdu card gets it whatever language was asked', async () => {
-    mockDbResults.push({ data: [
-      { id: 'en', status: 'ready', lang: 'en', r2_key: 'gb-k5/x.card.html' },
-      { id: 'ur', status: 'ready', lang: 'ur', r2_key: KEY },
-    ], error: null });
-    const { render } = await GbDelivery.findGbRender(URDU_SEG.segment_id, 'en', URDU_SEG);
-    expect(render.id).toBe('ur');
+  test('an English GB book is authored in English', () => {
+    expect(GbDelivery.authorLanguage({ ...URDU_SEG, subject: 'English', language: 'en' })).toBe('en');
   });
 });

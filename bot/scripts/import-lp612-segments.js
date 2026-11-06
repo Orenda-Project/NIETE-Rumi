@@ -94,14 +94,16 @@ function isReligiousSegment(segment) {
  * row would mean a second cache entry and the same lesson authored twice at ~$0.60 a go. One row
  * listed under two grades costs nothing and dedupes by construction.
  *
- * Returns null for anything outside 6-12, so the range guard is narrowed by this, never widened.
+ * Returns null for anything outside 6-12 (1-12 for nbf_snc), so the range guard is narrowed by this, never widened.
  */
-function parseGradeSpan(spec) {
+function parseGradeSpan(spec, { curriculum = null } = {}) {
+  // bd-rj6w0n.14.16: GB's nbf_snc books also run Grades 1-5; every other curriculum stays 6-12.
+  const low = String(curriculum || '').toLowerCase() === 'nbf_snc' ? 1 : 6;
   const raw = String(spec == null ? '' : spec).trim();
   // en-dash as well as hyphen: parts of this corpus are written by hand.
   const parts = raw.split(/[-–]/).map((x) => parseInt(x, 10));
   if (!parts.length || parts.some((n) => !Number.isFinite(n))) return null;
-  if (parts.some((n) => n < 6 || n > 12)) return null;
+  if (parts.some((n) => n < low || n > 12)) return null;
   const [grade, ...alsoGrades] = parts;
   return { grade, alsoGrades };
 }
@@ -223,17 +225,18 @@ const REQUIRED = [
  * anyway — so it is reported and imported, because dropping the lesson would be
  * the larger harm.
  */
-function validateSegment(segment) {
+function validateSegment(segment, { curriculum = null } = {}) {
   const errors = [];
   const warnings = [];
   const s = segment || {};
+  const span = { curriculum: s.curriculum || curriculum };
 
   for (const f of REQUIRED) {
     if (s[f] === undefined || s[f] === null || s[f] === '') errors.push(`missing ${f}`);
   }
 
   // A span ("9-10") is valid; anything that does not resolve to grades inside 6-12 is not.
-  if (s.grade !== undefined && !parseGradeSpan(s.grade)) {
+  if (s.grade !== undefined && !parseGradeSpan(s.grade, span)) {
     errors.push(`grade ${s.grade} is outside 6-12`);
   }
 
@@ -302,10 +305,10 @@ function toRow(segment, { corpusVersion = 'v1', curriculum = null } = {}) {
     ...(tag !== 'ict' ? { curriculum: tag } : {}),
     segment_id: s.segment_id,
     book_stem: s.book_stem,
-    grade: (parseGradeSpan(s.grade) || {}).grade ?? null,
+    grade: (parseGradeSpan(s.grade, { curriculum: tag }) || {}).grade ?? null,
     // The OTHER years this same row is taught in. One row, one segment_id, one render —
     // listed under two menus rather than authored twice.
-    also_grades: (parseGradeSpan(s.grade) || {}).alsoGrades || [],
+    also_grades: (parseGradeSpan(s.grade, { curriculum: tag }) || {}).alsoGrades || [],
     subject: s.subject,
     medium: s.medium ?? null,
     // clampLanguage, not `|| 'en'`. An independent English floor is a language
@@ -491,7 +494,7 @@ function parseFile(file) {
 async function importFile({ supabase, file, segments, corpusVersion, dryRun, report, ytCovered, curriculum = null }) {
   const rows = [];
   for (const s of segments) {
-    const { errors, warnings } = validateSegment(s);
+    const { errors, warnings } = validateSegment(s, { curriculum });
     if (errors.length) {
       report.errors.push({ file, segment_id: s && s.segment_id, errors });
       continue;
