@@ -2841,6 +2841,7 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-attendance.routes'));
 // bd-v0toag.8 — v10 coaching test: the thing to try on the lesson plan (C and D only, behind ab_v10_enabled).
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-thing-to-try.routes'));
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-region.routes'));
 // bd-fmf24g.15 — teacher app v2: what she asked for that takes a while (strip, ready banner, Home's "Ready for you").
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-notices.routes'));
 // bd-tacnwy — internal testers switch their OWN profile type (POST /me/role); 404 unless on portal_role_switch.
