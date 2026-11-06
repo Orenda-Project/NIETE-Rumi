@@ -151,3 +151,27 @@ describe('key terms that cue another item (A5b, widened)', () => {
   });
 });
 
+
+describe('word lists and option lists that print another item\'s key (A5b, a3 G8 Urdu Q7/Q16)', () => {
+  // Q7 and Q16 exactly as the a3 G8 Urdu paper printed them; the items between are left out.
+  const Q7 = { main_question: 'صحیح جواب کا انتخاب کریں', question: 'درج ذیل الفاظ میں سے صفتِ ضمیری کون سی ہے؟',
+    options: ['الف) کنجوس', 'ب) تمھارا', 'ج) ملتانی', 'د) بدنما'], marks: 1, lines: 0, answer: 'ب) تمھارا' };
+  const Q16 = { main_question: 'درج ذیل الفاظ میں سے صفتِ ضمیری کے الفاظ چن کر لکھیں', question: 'تمھارا، سخی، اپنا، میرا، بدنما، چینی',
+    marks: 3, lines: 2, answer: 'تمھارا، اپنا، میرا', marking_points: points(1, 1, 1) };
+  const exam = (q16) => ({ unseen: { objective: { MCQs: [Q7] }, subjective: { Grammar: [q16] } } });
+  const leak = (e) => C.paperIssues(e, { grade: 8 }).filter((i) => i.check === 'cross-leak').map((i) => [i.n, i.avoid]);
+
+  it('flags the grammar item whose word list prints the MCQ key', () => {
+    expect(leak(exam(Q16))).toEqual([[2, [1]]]);
+  });
+
+  it('sees the list when it is printed as words, not in the stem', () => {
+    const q = { ...Q16, question: 'ان الفاظ میں سے اسم چن کر لکھیں', words: ['تمھارا', 'سخی', 'اپنا', 'میرا', 'بدنما', 'چینی'], answer: 'سخی، چینی' };
+    expect(leak(exam(q))).toEqual([[2, [1]]]);
+  });
+
+  it('sees the list when it is printed as a list of options', () => {
+    const q = { ...Q16, question: 'ان الفاظ میں سے اسم چن کر لکھیں', options: ['تمھارا', 'سخی', 'اپنا', 'میرا', 'بدنما', 'چینی'], answer: 'سخی، چینی' };
+    expect(leak(exam(q))).toEqual([[2, [1]]]);
+  });
+});

@@ -3,11 +3,12 @@
  * bd-5jmnfj.38.31 — the targeted rewrite of a G6-12 free paper. When the whole-paper revision still
  * leaves an item that gives another away (A5b), a key that is the longest option, or an absolute or
  * obviously wrong distractor (A7a/A7b), only those items are sent back, each with its problem and the
- * items it must not overlap, and the replies are merged in by question number. Pure: builds text and
- * returns a new paper, no I/O. The service makes the call and keeps the result only if it is better.
+ * items it must not overlap, and the replies are merged in by question number, for up to two rounds
+ * while each round leaves fewer problems. No I/O: the service passes the call in as `ask`.
  */
 
 const { items, answerText } = require('./free-secondary-checks');
+const { MEANING_RULE } = require('./free-secondary-rules');
 
 const CHECKS = new Set(['cross-leak', 'longest-key', 'absolute-option']);
 const FIELDS = ['question', 'options', 'answer', 'marking_points', 'mark_bands', 'accept'];
@@ -46,6 +47,7 @@ function prompt(examJson, list) {
   });
   lines.push('Keep each item\'s kind, marks and lesson topic; you may test a different point of the lesson.',
     'An MCQ keeps four options of about the same length, the key no longer than the others; no always, never, only, or all/none of the above; every distractor is one a student who half-knows the lesson could pick.',
+    MEANING_RULE,
     'A written item keeps marking points that add up to its marks.',
     'Return JSON only: {"items":[{"n":<question number>,"question":"...","options":["a) ...","b) ...","c) ...","d) ..."],"answer":"...","marking_points":[{"point":"...","marks":1}]}]} — options for MCQs only, marking points for written items only.');
   return lines.join('\n');
@@ -70,4 +72,34 @@ function merge(examJson, reply, ns) {
   return { exam, replaced };
 }
 
-module.exports = { targets, prompt, merge };
+/**
+ * Up to `max` targeted rounds. A round runs only while targets remain and is kept only when its paper
+ * has fewer issues than the one before; the first round that does not improve ends the loop. `ask`
+ * takes the request text and resolves to the parsed reply; `tidy` cleans a merged paper in place.
+ */
+async function rounds({ examJson, issues, ask, check, tidy = () => {}, max = 2, onError = () => {} }) {
+  let exam = examJson;
+  let left = issues;
+  const rewritten = new Set();
+  for (let round = 0; round < max; round += 1) {
+    const list = targets(left);
+    if (!list.length) break;
+    let merged;
+    try {
+      merged = merge(exam, await ask(prompt(exam, list)), list.map((i) => i.n));
+    } catch (err) {
+      onError(err);
+      break;
+    }
+    if (!merged.replaced.length) break;
+    tidy(merged.exam);
+    const next = check(merged.exam);
+    if (next.length >= left.length) break;
+    exam = merged.exam;
+    left = next;
+    merged.replaced.forEach((n) => rewritten.add(n));
+  }
+  return { exam, issues: left, rewritten: [...rewritten].sort((a, b) => a - b) };
+}
+
+module.exports = { targets, prompt, merge, rounds };

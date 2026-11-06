@@ -8,7 +8,8 @@
  *   long-sentence    A2d  an item whose sentences average over the band's word limit
  *   longest-key      A7a  the key is clearly the longest option
  *   absolute-option  A7a  always / never / only / all or none of the above in an option
- *   cross-leak       A5b  one item gives away another's answer, or a key term of it (`avoid` lists the other)
+ *   cross-leak       A5b  one item gives away another's answer, or a key term of it, in its stem or its
+ *                        word/option lists (`avoid` lists the other)
  *   lesson-subject        no item names the lesson (n is 0: it is about the whole paper)
  *
  * estimateMinutes is the panel's load model (A5g); printedMinutes is the time a paper prints so that
@@ -126,6 +127,15 @@ function keyTerms(e) {
 
 const hasWord = (text, w) => ` ${text} `.includes(` ${w} `);
 
+const LIST_FIELDS = ['options', 'words', 'column_a', 'column_b'];
+
+/** What an item prints besides its answer: the stem, and for a written item its word or option lists. */
+function printed(e) {
+  if (e.isMcq) return String(e.item.question || '');
+  const lists = LIST_FIELDS.flatMap((f) => (Array.isArray(e.item[f]) ? e.item[f].map(textOf) : []));
+  return [e.item.question || '', ...lists].join(' ');
+}
+
 /**
  * Items that give another item's answer away, keyed by the item to rewrite: the later of the two when
  * a stem prints an answer (whole, or a key term on the same idea), the MCQ when its key is a written
@@ -152,7 +162,7 @@ function leaks(all) {
           return;
         }
       }
-      const stem = norm(b.item.question);
+      const stem = norm(printed(b));
       const whole = URDU_SCRIPT.test(ans) && ans.length >= URDU_LEAK_MIN_CHARS && hasWord(stem, ans);
       const termInStem = terms.some((t) => hasWord(stem, t)) && sharedIdeas(a, b) >= 2;
       if ((ans.length >= LEAK_MIN_CHARS && stem.includes(ans)) || whole || termInStem) {
