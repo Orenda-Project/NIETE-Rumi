@@ -8,6 +8,7 @@
   },
   "writes": {
     "region_features": [],
+    "users": [],
     "assessment_requests": [
       {
         "id": "assessment_requests-1",

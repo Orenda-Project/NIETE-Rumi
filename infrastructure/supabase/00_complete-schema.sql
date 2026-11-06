@@ -5055,7 +5055,9 @@ CREATE TABLE IF NOT EXISTS assessment_topics (
   days              INTEGER[],
   is_current        BOOLEAN NOT NULL DEFAULT true,
   matrix_version    TEXT,
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Whose book these topics belong to (V1.8.6, bd-97daxo.4). A non-ICT topic_id starts with its curriculum (nbf_snc_...).
+  curriculum        TEXT NOT NULL DEFAULT 'ict'
 );
 
 CREATE INDEX IF NOT EXISTS idx_assessment_topics_current
@@ -5276,7 +5278,7 @@ COMMENT ON COLUMN schools.is_active IS
 CREATE TABLE IF NOT EXISTS niete_lp612_segments (
   segment_id            TEXT PRIMARY KEY,
   book_stem             TEXT    NOT NULL,
-  grade                 INTEGER NOT NULL CHECK (grade BETWEEN 6 AND 12),
+  grade                 INTEGER NOT NULL CHECK (grade BETWEEN 1 AND 12),  -- 1-5: GB NBF books (V1.9.0)
   subject               TEXT    NOT NULL,
   medium                TEXT,
   language              TEXT    NOT NULL DEFAULT 'en' CHECK (language IN ('en', 'ur')),
@@ -5323,7 +5325,10 @@ CREATE TABLE IF NOT EXISTS niete_lp612_segments (
   corpus_version        TEXT    NOT NULL DEFAULT 'v1',
   is_current            BOOLEAN NOT NULL DEFAULT TRUE,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- Whose book (V1.8.6, bd-97daxo.5): a teacher gets her region's curriculum segments for a grade+subject
+  -- where any exist, ICT's otherwise. A non-ICT book_stem starts with its curriculum (nbf_snc_...).
+  curriculum            TEXT    NOT NULL DEFAULT 'ict'
 );
 
 CREATE INDEX IF NOT EXISTS idx_lp612_segments_menu
@@ -5484,6 +5489,83 @@ $$;
 
 COMMENT ON FUNCTION lp612_claim_waiters(UUID) IS
   'Atomically return niete_lp612_renders.waiters and empty it, under one row lock. The delivery audience for a finished (or failed) authoring run. Call it AFTER writing the terminal status, so a concurrent lp612_join_waiters is either included here or refused with not_authoring.';
+
+-- GB (nbf_snc) lesson-plan cache: GB's own lane beside niete_lp612_renders, never mixed with it.
+-- Mirrors migrations/V1.9.3 (bd-rj6w0n.14.16).
+CREATE TABLE IF NOT EXISTS niete_gb_lp_renders (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  segment_id        TEXT NOT NULL REFERENCES niete_lp612_segments(segment_id),
+  lang              TEXT NOT NULL CHECK (lang IN ('en', 'ur')),
+  template_version  TEXT NOT NULL,
+  status            TEXT NOT NULL DEFAULT 'authoring' CHECK (status IN ('authoring', 'ready', 'failed')),
+  r2_key            TEXT CHECK (r2_key IS NULL OR r2_key LIKE 'gb-lp/%'),
+  page_count        INTEGER,
+  model_used        TEXT,
+  lint_clean        BOOLEAN,
+  lint_fails        JSONB,
+  timings           JSONB,
+  error_code        TEXT,
+  error_detail      TEXT,
+  waiters           JSONB NOT NULL DEFAULT '[]'::jsonb,
+  requested_by      UUID REFERENCES users(id),
+  correlation_id    TEXT,
+  started_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  picked_up_at      TIMESTAMPTZ,
+  completed_at      TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT niete_gb_lp_renders_key UNIQUE (segment_id, lang, template_version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_gb_lp_renders_inflight
+  ON niete_gb_lp_renders (status, started_at) WHERE status = 'authoring';
+
+ALTER TABLE niete_gb_lp_renders ENABLE ROW LEVEL SECURITY;
+
+COMMENT ON TABLE niete_gb_lp_renders IS
+  'GB (nbf_snc) runtime lesson plans: one row per (segment, lang, template_version). r2_key is always under gb-lp/. Never mixed with niete_lp612_renders.';
+
+-- Same contract as lp612_join_waiters (V1.3.2): joined | duplicate | not_authoring | missing.
+CREATE OR REPLACE FUNCTION gb_lp_join_waiters(p_render_id UUID, p_entry JSONB)
+RETURNS TEXT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_updated INTEGER;
+  v_status  TEXT;
+BEGIN
+  UPDATE niete_gb_lp_renders
+     SET waiters    = waiters || jsonb_build_array(p_entry),
+         updated_at = NOW()
+   WHERE id = p_render_id
+     AND status = 'authoring'
+     AND NOT EXISTS (
+       SELECT 1 FROM jsonb_array_elements(waiters) AS w
+        WHERE w->>'phone' IS NOT DISTINCT FROM p_entry->>'phone'
+     );
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  IF v_updated = 1 THEN RETURN 'joined'; END IF;
+  SELECT status INTO v_status FROM niete_gb_lp_renders WHERE id = p_render_id;
+  IF v_status IS NULL        THEN RETURN 'missing';       END IF;
+  IF v_status <> 'authoring' THEN RETURN 'not_authoring'; END IF;
+  RETURN 'duplicate';
+END;
+$$;
+
+-- Same contract as lp612_claim_waiters (V1.3.4): call AFTER the terminal status is written.
+CREATE OR REPLACE FUNCTION gb_lp_claim_waiters(p_render_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_waiters JSONB;
+BEGIN
+  SELECT waiters INTO v_waiters FROM niete_gb_lp_renders WHERE id = p_render_id FOR UPDATE;
+  IF NOT FOUND THEN RETURN '[]'::jsonb; END IF;
+  UPDATE niete_gb_lp_renders SET waiters = '[]'::jsonb, updated_at = NOW() WHERE id = p_render_id;
+  RETURN COALESCE(v_waiters, '[]'::jsonb);
+END;
+$$;
 
 -- Reload PostgREST's schema cache last, so the reconciled columns + functions
 -- above are immediately visible to the REST API (the earlier NOTIFY predates these DDLs).

@@ -113,13 +113,9 @@ describe('req.portalUser is not available on requirePortalAuth routes', () => {
       src.indexOf('ASSESSMENT GENERATOR'),
       src.indexOf('TEACHER TRAINING BROWSER'));
 
-    // The routes that need to know who she is, by their real paths. The catalogue reads
-    // (/options, /chapters, /topics) pass it too since bd-5jmnfj.38.29: the bot's 6-12 grade
-    // gate admits by users.id, and without it G6-12 is hidden from every teacher on the portal.
+    // The four routes that need to know who she is, by their real paths.
+    // /options and /chapters are catalogue reads and deliberately do not.
     [
-      "'/assessment/options'",
-      "'/assessment/chapters'",
-      "'/assessment/topics'",
       "'/assessment/generate'",
       "'/assessment/status/:request_id'",
       "'/assessment/paper/:paper_id/download'",
@@ -139,7 +135,7 @@ describe('req.portalUser is not available on requirePortalAuth routes', () => {
       .filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*'))
       .join('\n');
     const reads = codeOnly.match(/req\.session\.portalUserId/g) || [];
-    expect(reads.length).toBe(14); // 3 catalogue reads (bd-5jmnfj.38.29) + 4 generator routes + 5 edit routes (bd-hb8qs) + the paper view (bd-fmf24g.31) + the paper file (bd-7tgiyc)
+    expect(reads.length).toBe(14); // 4 generator routes + 5 edit routes (bd-hb8qs) + the paper view (bd-fmf24g.31) + the paper file (bd-7tgiyc) + generate's, chapters' and topics' region book (bd-97daxo.4)
     // Against CODE, not the banner: the comment above these routes names
     // req.portalUser on purpose, to warn the next person off it.
     expect(codeOnly).not.toMatch(/req\.portalUser/);
