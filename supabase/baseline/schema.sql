@@ -4872,7 +4872,8 @@ CREATE TABLE public.niete_lp612_segments (
     slo_source text,
     section text,
     also_grades integer[] DEFAULT '{}'::integer[] NOT NULL,
-    CONSTRAINT niete_lp612_segments_grade_check CHECK (((grade >= 6) AND (grade <= 12))),
+    curriculum text DEFAULT 'ict'::text NOT NULL,
+    CONSTRAINT niete_lp612_segments_grade_check CHECK (((grade >= 1) AND (grade <= 12))),
     CONSTRAINT niete_lp612_segments_language_check CHECK ((language = ANY (ARRAY['en'::text, 'ur'::text]))),
     CONSTRAINT niete_lp612_segments_lp_type_check CHECK ((lp_type = ANY (ARRAY['content'::text, 'exercise_review'::text, 'assessment'::text, 'practical'::text, 'revision'::text])))
 );

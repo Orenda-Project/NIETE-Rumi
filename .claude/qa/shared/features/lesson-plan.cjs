@@ -286,4 +286,11 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   });
   if (r12.ran) rec('L12', L12, r12.value.shelfSeeded && r12.value.storeLink && !r12.value.editSentence ? 'PASS' : 'FAIL', r12.value, r12.value.ms);
   else rec('L12', L12, 'BLOCKED', { reason: REDIRECT_BLOCKED, setAppSetting: r12.reason }, 0);
+
+  // bd-rj6w0n.14.9 — L13/L14/L15, the Gilgit-Baltistan lane: flips LP_GB_K5_ENABLED with the restart lever and
+  // sets the driver's region in the run's own database, then puts both back. Local lane only (lesson-plan-gb.cjs).
+  // The ids are spelled out here so check-scenario-coverage sees this driver record them.
+  const gbRec = { L13: (...a) => rec('L13', ...a), L14: (...a) => rec('L14', ...a), L15: (...a) => rec('L15', ...a) };
+  await require('../lesson-plan-gb.cjs').runGb({ api, rec: (id, ...a) => gbRec[id](...a), want, waitFresh, openLP });
+
 };

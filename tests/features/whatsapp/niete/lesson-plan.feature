@@ -961,6 +961,48 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then I get the "use the NIETE app" message, exactly as I would without the 6-12 lesson
     And I am not told that what I asked for is a different thing from editing my lesson
 
+  # ─────────── Gilgit-Baltistan grades 1-5 (bd-rj6w0n.14, PR #4232) — switch LP_GB_K5_ENABLED ───────────
+  # A teacher whose users.region is Gilgit-Baltistan reads the region registry's curriculum, nbf_snc
+  # (book-curriculum.service). With the switch on she gets Grades 1-5 only and the GB shelf
+  # (lp612-gb-shelf.service): every allow-listed book of the grade, a book with a ready nbf_snc plan
+  # opens, any other book is listed "Coming Soon" and cannot be opened. A GB plan is a hosted card:
+  # she gets its LINK as a text message, not a PDF (lp612-gb-delivery.service). The lane gives the
+  # driver the GB region and one ready nbf_snc plan in its own run database only, and flips the
+  # switch with a bot/worker restart. Unit: tests/lp612/*gb*.test.js.
+  # ADDED 2026-11-06 (bd-rj6w0n.14.9).
+  @e2e @flow @config-gated @P1 @L13
+  Scenario: A Gilgit-Baltistan teacher gets her own grades 1-5 books, and a ready one delivers her plan's link
+    Given LP_GB_K5_ENABLED is on
+    And my region is Gilgit-Baltistan
+    And Grade 3 English has a ready Gilgit-Baltistan lesson plan
+    When I open Lesson Plans
+    Then the classes offered are Grades 1 to 5 and nothing else
+    When I pick Grade 3
+    Then every Grade 3 Gilgit-Baltistan book is listed: English opens, the others say "Coming Soon"
+    And tapping a "Coming Soon" book tells me its plans are coming soon and opens nothing
+    When I pick English, then the chapter and the lesson
+    Then I get one message with the lesson's title, "Grade 3 · English" and a link to my lesson plan
+    And no PDF arrives
+
+  @e2e @flow @config-gated @P1 @L14
+  Scenario: With the Gilgit-Baltistan switch on, an ICT teacher's lesson plans are exactly as before
+    Given LP_GB_K5_ENABLED is on
+    And I am an ICT teacher
+    When I open Lesson Plans
+    Then the classes offered are the same as with the switch off
+    When I pick Grade 6, Computer Science and the first chapter and lesson
+    Then the Pakistan Grade 6 lesson plan PDF arrives, as before
+
+  @e2e @flow @config-gated @P1 @L15
+  Scenario: With the Gilgit-Baltistan switch off, a Gilgit-Baltistan teacher gets today's lesson plans
+    Given LP_GB_K5_ENABLED is off
+    And my region is Gilgit-Baltistan
+    When I open Lesson Plans
+    Then the classes offered are the same as an ICT teacher's
+    And no book says "Coming Soon"
+    When I pick Grade 6, Computer Science and the first chapter and lesson
+    Then the Pakistan Grade 6 lesson plan PDF arrives, as for an ICT teacher
+
   # ADDED 2026-10-01 (FX3, bd-w2daa.24): inside the quiet hour the bot answers nothing — and must not
   # look as if it is about to (it used to show "typing…" for ~25 s over silence).
   @e2e @config-gated @P2

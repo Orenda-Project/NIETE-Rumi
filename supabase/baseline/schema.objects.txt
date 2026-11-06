@@ -1086,6 +1086,7 @@ niete_lp612_segments.chapter_number:integer
 niete_lp612_segments.chapter_title:text
 niete_lp612_segments.corpus_version:text
 niete_lp612_segments.created_at:timestamp with time zone
+niete_lp612_segments.curriculum:text
 niete_lp612_segments.day_number:integer
 niete_lp612_segments.grade:integer
 niete_lp612_segments.is_current:boolean
