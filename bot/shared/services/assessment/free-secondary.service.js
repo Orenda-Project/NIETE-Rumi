@@ -10,7 +10,7 @@
  *   3. the draft is checked (free-secondary-checks.js); one that breaks a rule is sent back once
  *      with the list, and the paper with fewer problems is kept;
  *   4. items still leaking, or with a longest-option key or an absolute distractor, are rewritten on
- *      their own (free-secondary-rewrite.js), kept only if the paper then has fewer problems.
+ *      their own (free-secondary-rewrite.js), up to two rounds, each kept only if it leaves fewer problems.
  * Then writer instructions are stripped from the marking points (free-secondary-tidy.js), the MCQ keys
  * are spread from the paper's seed (free-secondary-keys.js) and the time is stamped as `_timeMinutes`.
  *
@@ -138,24 +138,17 @@ async function generateExam(args) {
     }
   }
 
-  let rewritten = [];
-  const targeted = Rewrite.targets(issues);
-  if (targeted.length) {
-    try {
-      const third = await ask([messages[0], { role: 'user',
-        content: `${messages[1].content}\n\n${Rewrite.prompt(examJson, targeted)}` }]);
-      const merged = Rewrite.merge(examJson, extractJsonFromResponse(third?.choices?.[0]?.message?.content || ''),
-        targeted.map((i) => i.n));
-      if (merged.replaced.length) {
-        Gen.stripImageKeys(merged.exam);
-        Gen.normaliseAnswers(merged.exam);
-        const nextIssues = paperIssues(merged.exam, checkOpts);
-        if (nextIssues.length < issues.length) { examJson = merged.exam; issues = nextIssues; rewritten = merged.replaced; }
-      }
-    } catch (err) {
-      logToFile('[assessment] targeted rewrite skipped', { error: err.message });
-    }
-  }
+  const targeted = await Rewrite.rounds({
+    examJson, issues, check: (exam) => paperIssues(exam, checkOpts),
+    ask: async (text) => {
+      const out = await ask([messages[0], { role: 'user', content: `${messages[1].content}\n\n${text}` }]);
+      return extractJsonFromResponse(out?.choices?.[0]?.message?.content || '');
+    },
+    tidy: (exam) => { Gen.stripImageKeys(exam); Gen.normaliseAnswers(exam); },
+    onError: (err) => logToFile('[assessment] targeted rewrite skipped', { error: err.message }),
+  });
+  examJson = targeted.exam; issues = targeted.issues;
+  const { rewritten } = targeted;
 
   const produced = Gen.countQuestions(examJson);
   if (produced === 0) throw fail('NO_QUESTIONS', 'The question writer returned no questions.');

@@ -23,6 +23,9 @@ const OBJECTIVE_MINUTES = 1;
 const OTHER_MINUTES = 5;
 const REVIEW_MINUTES = 5;
 
+// A7b on the a3 G8 Urdu paper: "meaning of X" items whose three distractors were all the key's opposite.
+const MEANING_RULE = 'When an MCQ asks for the meaning or a quality of a word, no distractor is the opposite of the key (for "plenty", never "little" or "scarce"): use meanings a student could really confuse with it, such as a related word with a different sense, a word that looks or sounds alike, or the meaning the word has in another context.';
+
 function bandOf(grade) {
   const n = Number(grade);
   return BANDS.find((b) => n <= b.upTo) || BANDS[BANDS.length - 1];
@@ -83,6 +86,7 @@ MCQ OPTIONS
 - Four options of about the same length and the same grammatical form. The correct answer is NOT the longest option: if it is, shorten it or lengthen a distractor.
 - Spread the correct letter across the paper: no letter for more than a third of the MCQs, never the same letter three times in a row.
 - Every distractor is a misconception a Grade ${Number(grade)} student really holds, or a real mix-up of two terms from the lesson. No opposites of the key written to be obviously wrong, no jokes, no "all of the above", "none of the above", "always", "never" or "only".
+- ${MEANING_RULE}
 ONE FACT, ONE ITEM
 - Test each fact once. No item may state, print or hint at the answer to another item, and no MCQ may give away the answer to a short answer. Check the whole paper for this before you return it.
 - At least one item asks about the main subject of the lesson: its main idea, event, process or person by name.${lesson}
@@ -111,4 +115,4 @@ function fixNote(issues) {
   ].join('\n');
 }
 
-module.exports = { bandOf, sizeTypes, plannedMinutes, rulesBlock, withRules, fixNote };
+module.exports = { MEANING_RULE, bandOf, sizeTypes, plannedMinutes, rulesBlock, withRules, fixNote };

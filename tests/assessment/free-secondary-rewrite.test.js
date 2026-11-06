@@ -35,6 +35,11 @@ describe('prompt', () => {
     expect(text).toContain('"items"');
     expect(text).not.toContain('Which one floats?');
   });
+
+  it('tells the writer a meaning or quality MCQ takes no opposite of its key as a distractor', () => {
+    const text = R.prompt(paper(), [{ n: 1, check: 'longest-key', text: 'long key' }]);
+    expect(text).toMatch(/meaning or a quality[^\n]*opposite/);
+  });
 });
 
 describe('merge', () => {
@@ -58,5 +63,63 @@ describe('merge', () => {
       { n: 3, question: 'No answer' },
     ] }, [1, 3]);
     expect(out.replaced).toEqual([]);
+  });
+});
+
+describe('rounds', () => {
+  const { paperIssues } = require('../../bot/shared/services/assessment/free-secondary-checks');
+  const pts = [{ point: 'p', marks: 3 }];
+  const w = (question, answer) => ({ question, answer, marks: 3, lines: 4, marking_points: pts });
+  // Each pair is a leak: the second stem prints the first item's answer.
+  const leaky = (pairs) => ({ unseen: { subjective: { 'Short Answers': pairs.flatMap(([ans, stem]) => [
+    w(`What is the ${ans} test item?`, ans), w(stem, 'It happens in a fictional place.'),
+  ]) } } });
+  const PAIRS = [['photosynthesis', 'Where does photosynthesis happen?'], ['chlorophyll', 'What colour is chlorophyll?'],
+    ['respiration', 'When does respiration happen?']];
+  // A fake writer that fixes only the first item it is asked about in each round.
+  const oneAtATime = () => jest.fn(async (text) => {
+    const n = Number(/Q(\d+) \(/.exec(text)[1]);
+    return { items: [{ n, question: `A fresh fictional question number ${n}?`, answer: 'It happens in a fictional place.' }] };
+  });
+
+  it('runs a second round while flags remain and the count keeps dropping', async () => {
+    const exam = leaky(PAIRS.slice(0, 2));
+    const issues = paperIssues(exam);
+    expect(issues.map((i) => `${i.n}:${i.check}`)).toEqual(['2:cross-leak', '4:cross-leak']);
+    const ask = oneAtATime();
+    const out = await R.rounds({ examJson: exam, issues, ask, check: paperIssues });
+    expect(ask).toHaveBeenCalledTimes(2);
+    expect(out.rewritten).toEqual([2, 4]);
+    expect(out.issues).toEqual([]);
+  });
+
+  it('stops after two rounds', async () => {
+    const exam = leaky(PAIRS);
+    const ask = oneAtATime();
+    const out = await R.rounds({ examJson: exam, issues: paperIssues(exam), ask, check: paperIssues });
+    expect(ask).toHaveBeenCalledTimes(2);
+    expect(out.issues.map((i) => i.n)).toEqual([6]);
+  });
+
+  it('stops, keeping the last better paper, when a round does not lower the count', async () => {
+    const exam = leaky(PAIRS.slice(0, 1));
+    const ask = jest.fn(async () => ({ items: [{ n: 2, question: 'Why is photosynthesis slow here?', answer: 'x y' }] }));
+    const out = await R.rounds({ examJson: exam, issues: paperIssues(exam), ask, check: paperIssues });
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(out.rewritten).toEqual([]);
+    expect(out.exam).toBe(exam);
+  });
+
+  it('makes no call when nothing is left to target, and stops on a failed call', async () => {
+    const ask = jest.fn();
+    const clean = await R.rounds({ examJson: paper(), issues: [{ n: 3, check: 'marking-points', text: 'x' }], ask, check: paperIssues });
+    expect(ask).not.toHaveBeenCalled();
+    expect(clean.issues).toHaveLength(1);
+    const exam = leaky(PAIRS.slice(0, 1));
+    const errors = [];
+    const out = await R.rounds({ examJson: exam, issues: paperIssues(exam), ask: async () => { throw new Error('down'); },
+      check: paperIssues, onError: (e) => errors.push(e.message) });
+    expect(errors).toEqual(['down']);
+    expect(out.rewritten).toEqual([]);
   });
 });
