@@ -218,6 +218,17 @@ describe('POST /assessment/create — a board-pattern paper', () => {
       .toBe('PATTERN_INELIGIBLE');
   });
 
+  // The board paper is Grade 5 only (6 Nov 2026): a Grade 1-4 pattern is no longer created.
+  test.each([[1, 'fde_g1_2026'], [2, 'fde_g2_2026'], [3, 'fde_g3_2026'], [4, 'fde_g4_2026']])(
+    'grade %i asking for its own pattern → 400 PATTERN_INELIGIBLE, nothing queued',
+    async (grade, pattern) => {
+      const { statusCode, payload } = await invoke('/assessment/create', { ...PATTERN, grade, pattern, chapters: [1] });
+      expect(statusCode).toBe(400);
+      expect(payload.errorCode).toBe('PATTERN_INELIGIBLE');
+      expect(queued).toEqual([]);
+    },
+  );
+
   test('islamiat + pattern → 400 PATTERN_INELIGIBLE', async () => {
     const { statusCode, payload } = await invoke('/assessment/create', { ...PATTERN, subject: 'islamiat', scope: 'fde' });
     expect(statusCode).toBe(400);
