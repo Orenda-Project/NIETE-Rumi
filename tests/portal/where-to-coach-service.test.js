@@ -293,6 +293,20 @@ describe('GET /coach/school/:emis/first — who to coach first (ours)', () => {
   test('another coach\'s school is null', async () => {
     expect(await Where.getCoachFirst(fakeDb(tables()).query, 'coach-1', '902', month)).toBeNull();
   });
+  // bd-17v39c.4.15 (queue #44) — the principal is not a teacher to coach first; their own Where to coach still opens.
+  test('a principal is never ranked as a teacher to coach, and their own Where to coach still opens', async () => {
+    const t = tables();
+    t.users.push({ id: 'up', phone_number: ph(8), name: 'Head Demo', role: 'principal', school_id: 's1' });
+    t.sessions.push(
+      { id: 'p1', user_id: 'up', created_at: pk('2026-10-09 10:00'), status: 'completed', analysis_data: sana(1, 2, 4) },
+      { id: 'p2', user_id: 'up', created_at: pk('2026-10-16 10:00'), status: 'completed', analysis_data: sana(1, 2, 4) },
+    );
+    const first = await Where.getCoachFirst(fakeDb(t).query, 'coach-1', '901', month);
+    expect(first.groups.flatMap((g) => g.rows.map((row) => row.name))).not.toContain('Head Demo');
+    expect(first.teachers).toBe(5);
+    const own = await Where.getWhereToCoach(fakeDb(t).query, 'coach-1', ph(8), month);
+    expect(own).not.toBeNull();
+  });
 });
 
 describe('the routes (inside the School card router, so behind its switch)', () => {

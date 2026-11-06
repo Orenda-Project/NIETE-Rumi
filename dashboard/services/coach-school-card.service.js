@@ -662,7 +662,13 @@ function levelOf(raw) {
 
 /**
  * Her school(s) for this EMIS and their roster, or null when the EMIS is not one of hers. With a level, `teachers` is
- * the ones who teach at it; `levels` counts the whole roster at each level either way.
+ * the ones who teach at it; `levels` counts the school's teachers at each level either way.
+ *
+ * THE PRINCIPAL (bd-17v39c.4.15; coach report 6 Nov, operator's option A). A principal (users.role 'principal') is not
+ * one of the school's teachers: never in `teachers`, so never in a count, tile, overview, table, details page, coach-
+ * observations table or Who to coach first, and never in the level chips. They are `principals` instead, A to Z, at
+ * every level (the card names them in its header). `roster` is everyone Manage acts on (Edit teacher and Remove
+ * teachers reach a principal too). Access is unchanged: SQL.teacher still takes a principal, so their own page opens.
  */
 async function schoolContext(query, coachId, emis, rawLevel) {
   if (!coachId || !emis) return null;
@@ -675,16 +681,22 @@ async function schoolContext(query, coachId, emis, rawLevel) {
     id: u.id, teacherExtId: u.phone_number, name: displayNameOf(u), isPrincipal: u.role === 'principal',
     levels: teacherLevelOf(u),
   }));
+  const staff = everyone.filter((t) => !t.isPrincipal);
+  const principals = everyone.filter((t) => t.isPrincipal).sort(byName);
   const level = levelOf(rawLevel);
-  const levels = Object.fromEntries(VALID_LEVELS.map((l) => [l, everyone.filter((t) => t.levels.includes(l)).length]));
+  const levels = Object.fromEntries(VALID_LEVELS.map((l) => [l, staff.filter((t) => t.levels.includes(l)).length]));
   return {
     school: { emis: String(emis), name: text(schools[0].school_name) || text(schools[0].name), ids },
-    teachers: level ? everyone.filter((t) => t.levels.includes(level)) : everyone,
+    teachers: level ? staff.filter((t) => t.levels.includes(level)) : staff,
+    principals,
     roster: everyone.length,
     level,
     levels,
   };
 }
+
+/** The principals as the card names them: { teacherExtId, name } (their page opens by teacherExtId). */
+const principalsOut = (ctx) => ctx.principals.map((p) => ({ teacherExtId: p.teacherExtId, name: p.name }));
 
 async function teacherOf(query, coachId, ext) {
   if (!coachId || !ext) return null;
@@ -884,7 +896,8 @@ async function getSchoolCard(query, coachId, emis, opts = {}) {
   const prev = P.previousOf(period);
   const both = withPrevious(period, prev);
   const act = await loadActivity(query, ids, both, { ...opts, sessionsRange: both });
-  const last = await lastVisits(query, ids);
+  // The school's last visit is any visit to it, the principal's class too (bd-17v39c.4.15); a teacher row reads her own.
+  const last = await lastVisits(query, [...ids, ...ctx.principals.map((p) => p.id)]);
   const events = featureEvents(act);
   const tallies = Object.fromEntries(FEATURES.map((f) => [f, tally(period, events[f], ids)]));
 
@@ -908,12 +921,13 @@ async function getSchoolCard(query, coachId, emis, opts = {}) {
   }).sort((a, b) => (b.total - a.total) || byName(a.t, b.t));
   const schoolTotal = rows.reduce((s, r) => s + r.total, 0);
   const stars = starsOf(rows);
-  const teacherDays = ctx.teachers.map((t) => last.get(t.id)).filter(Boolean).sort();
+  const teacherDays = [...ctx.teachers, ...ctx.principals].map((t) => last.get(t.id)).filter(Boolean).sort();
   const schoolLast = teacherDays.length ? teacherDays[teacherDays.length - 1] : null;
 
   return {
     school: {
       emis: ctx.school.emis, name: ctx.school.name, teachers: ctx.teachers.length, roster: ctx.roster,
+      principals: principalsOut(ctx),
       lastVisitDaysAgo: daysAgo(schoolLast, period.today),
     },
     period: P.publicPeriod(period),
