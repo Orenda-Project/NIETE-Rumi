@@ -7,7 +7,8 @@ const R = require('../../bot/shared/services/assessment/free-secondary-rewrite')
 
 const OPTS = ['a) Sand', 'b) Water', 'c) Wood', 'd) Salt'];
 const mcq = (question, answer = 'd) Salt', options = OPTS) => ({ question, options: options.slice(), answer, marks: 1, lines: 0 });
-const srq = (question, answer) => ({ question, answer, marks: 3, lines: 4, marking_points: [{ point: 'p', marks: 3 }] });
+const SCHEME = { mark_bands: [{ marks: '3', descriptor: 'full' }, { marks: '1-2', descriptor: 'partial' }, { marks: '0', descriptor: 'none' }], accept: 'equal wording', reject: 'a bare yes' };
+const srq = (question, answer) => ({ question, answer, marks: 3, lines: 4, marking_points: [{ point: 'p', marks: 3 }], ...SCHEME });
 const paper = () => ({ unseen: {
   objective: { 'Multiple Choice Questions': [mcq('Which one dissolves?'), mcq('Which one floats?', 'c) Wood')] },
   subjective: { 'Short Answers': [srq('Why does salt vanish in water?', 'Salt dissolves in water.')] },
@@ -21,6 +22,14 @@ describe('targets', () => {
       { n: 0, check: 'lesson-subject', text: 'v' },
     ];
     expect(R.targets(issues).map((i) => `${i.n}:${i.check}`)).toEqual(['1:cross-leak', '2:longest-key', '2:absolute-option']);
+  });
+
+  it('sends a written item with a missing band, accept or do-not-accept line (scheme) to the rewrite', () => {
+    expect(R.targets([{ n: 3, check: 'scheme', text: 'lacks a band' }]).map((i) => i.check)).toEqual(['scheme']);
+  });
+
+  it('sends an item with a distractor the review rated 1 (weak-distractor) to the rewrite', () => {
+    expect(R.targets([{ n: 1, check: 'weak-distractor', text: 'd) would draw no one' }]).map((i) => i.check)).toEqual(['weak-distractor']);
   });
 });
 
@@ -40,6 +49,17 @@ describe('prompt', () => {
     const text = R.prompt(paper(), [{ n: 1, check: 'longest-key', text: 'long key' }]);
     expect(text).toMatch(/meaning or a quality[^\n]*opposite/);
   });
+
+  it('asks a written item back with its 2-3 level band, accept line and do-not-accept line', () => {
+    const bare = paper();
+    const item = bare.unseen.subjective['Short Answers'][0];
+    ['mark_bands', 'accept', 'reject'].forEach((f) => delete item[f]);
+    const text = R.prompt(bare, [{ n: 3, check: 'scheme', text: 'lacks a band' }]);
+    expect(text).toContain('"mark_bands"');
+    expect(text).toContain('"accept"');
+    expect(text).toContain('"reject"');
+    expect(text).toMatch(/full[^\n]*partial[^\n]*none/);
+  });
 });
 
 describe('merge', () => {
@@ -57,6 +77,14 @@ describe('merge', () => {
     expect(out.exam.unseen.objective['Multiple Choice Questions'][1].question).toBe('Which one floats?');
   });
 
+  it('takes a written item\'s new band, accept and do-not-accept lines', () => {
+    const bands = [{ marks: '3', descriptor: 'all' }, { marks: '0', descriptor: 'nothing' }];
+    const out = R.merge(paper(), { items: [{ n: 3, question: 'Why does salt vanish?', answer: 'It dissolves.',
+      marking_points: [{ point: 'dissolves', marks: 3 }], mark_bands: bands, accept: 'mixes in', reject: 'it melts' }] }, [3]);
+    const item = out.exam.unseen.subjective['Short Answers'][0];
+    expect(item).toMatchObject({ mark_bands: bands, accept: 'mixes in', reject: 'it melts', marks: 3 });
+  });
+
   it('refuses a reply that changes an item\'s kind or drops its answer', () => {
     const out = R.merge(paper(), { items: [
       { n: 1, question: 'Now a short answer', answer: 'x' },
@@ -69,7 +97,7 @@ describe('merge', () => {
 describe('rounds', () => {
   const { paperIssues } = require('../../bot/shared/services/assessment/free-secondary-checks');
   const pts = [{ point: 'p', marks: 3 }];
-  const w = (question, answer) => ({ question, answer, marks: 3, lines: 4, marking_points: pts });
+  const w = (question, answer) => ({ question, answer, marks: 3, lines: 4, marking_points: pts, ...SCHEME });
   // Each pair is a leak: the second stem prints the first item's answer.
   const leaky = (pairs) => ({ unseen: { subjective: { 'Short Answers': pairs.flatMap(([ans, stem]) => [
     w(`What is the ${ans} test item?`, ans), w(stem, 'It happens in a fictional place.'),

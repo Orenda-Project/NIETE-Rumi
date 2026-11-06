@@ -2,16 +2,17 @@
 /**
  * bd-5jmnfj.38.31 — the targeted rewrite of a G6-12 free paper. When the whole-paper revision still
  * leaves an item that gives another away (A5b), a key that is the longest option, or an absolute or
- * obviously wrong distractor (A7a/A7b), only those items are sent back, each with its problem and the
+ * obviously wrong distractor (A7a/A7b, including one the distractor review rated 1), or a written item lacks its band, accept or do-not-accept
+ * line (A7c), only those items are sent back, each with its problem and the
  * items it must not overlap, and the replies are merged in by question number, for up to two rounds
  * while each round leaves fewer problems. No I/O: the service passes the call in as `ask`.
  */
 
 const { items, answerText } = require('./free-secondary-checks');
-const { MEANING_RULE } = require('./free-secondary-rules');
+const { MEANING_RULE, SCHEME_RULE } = require('./free-secondary-rules');
 
-const CHECKS = new Set(['cross-leak', 'longest-key', 'absolute-option']);
-const FIELDS = ['question', 'options', 'answer', 'marking_points', 'mark_bands', 'accept'];
+const CHECKS = new Set(['cross-leak', 'longest-key', 'absolute-option', 'scheme', 'weak-distractor']);
+const FIELDS = ['question', 'options', 'answer', 'marking_points', 'mark_bands', 'accept', 'reject'];
 
 /** The issues a targeted rewrite fixes; the rest belong to the whole-paper revision. */
 function targets(issues) {
@@ -49,7 +50,8 @@ function prompt(examJson, list) {
     'An MCQ keeps four options of about the same length, the key no longer than the others; no always, never, only, or all/none of the above; every distractor is one a student who half-knows the lesson could pick.',
     MEANING_RULE,
     'A written item keeps marking points that add up to its marks.',
-    'Return JSON only: {"items":[{"n":<question number>,"question":"...","options":["a) ...","b) ...","c) ...","d) ..."],"answer":"...","marking_points":[{"point":"...","marks":1}]}]} — options for MCQs only, marking points for written items only.');
+    SCHEME_RULE,
+    'Return JSON only: {"items":[{"n":<question number>,"question":"...","options":["a) ...","b) ...","c) ...","d) ..."],"answer":"...","marking_points":[{"point":"...","marks":1}],"mark_bands":[{"marks":"...","descriptor":"..."}],"accept":"...","reject":"..."}]} — options for MCQs only; marking points, mark bands, accept and reject for written items only.');
   return lines.join('\n');
 }
 
