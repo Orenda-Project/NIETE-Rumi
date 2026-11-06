@@ -307,6 +307,8 @@
   ];
 
   var FEEDBACK_MS = 1200;
+  // Round 10 timing 1 (r10_practice_next): a tap this soon after the tap that ended a practice is the same double tap
+  var DOUBLE_TAP_MS = 300;
   var TASK_END_MS = 1500;
   var TASK_END_CAP_MS = 8000; // the part's closing line is awaited to its end, never longer than this
   var MIC_SKIP_MS = 3000;   // a record task skipped for no microphone: its line stays this long (RULING #38b)
@@ -504,6 +506,10 @@
     // Round 10 audio 1 (r10_hint_once): the say-then-press hint is heard once per task, in the instruction; it stays on the
     // screen but is not said again after the instruction (nor on its replay)
     var r10HintOnce = r7.r10_hint_once === true;
+    // Round 10 timing 1 (r10_practice_next): the screen after a practice takes Next at once, no fixed wait on top of
+    // Jugnu's words; a double tap still moves one screen (the Go tap inside DOUBLE_TAP_MS of the ending tap is ignored)
+    var r10Next = r7.r10_practice_next === true;
+    var practiceEndAt = null; // when the tap that ended the practice came (Date.now())
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
@@ -1331,6 +1337,9 @@
       var res = runner.practiceAnswer(value);
       if (!res) return;
       busy = true;
+      // r10_practice_next: the last answer waits for Jugnu's feedback only, not the FEEDBACK_MS floor
+      var ended = r10Next && runner.view().phase === 'ready';
+      if (ended) practiceEndAt = Date.now();
       var f = (r8Lang && p && p.feedback) || res.feedback || {};
       var said = res.ok ? (f.correct || f.right || copyLine('right'))
         : res.retry ? copyLine('try_again')
@@ -1340,7 +1349,7 @@
       hold = { item: p, value: value, res: res, text: shownNums(p && p.id, chain.map(tx).join(' ')) };
       try { if (opts.onFeedback) opts.onFeedback({ kind: 'practice', ok: !!res.ok }); } catch (e) { /* skin */ }
       draw();
-      Promise.all([delay(FEEDBACK_MS), capped(sayChain(chain.map(function (x) { return [x, undefined, appAsks]; })), 7000)]).then(function () {
+      Promise.all([ended ? null : delay(FEEDBACK_MS), capped(sayChain(chain.map(function (x) { return [x, undefined, appAsks]; })), 7000)]).then(function () {
         if (!alive) return;
         hold = null;
         busy = false;
@@ -1355,6 +1364,7 @@
         jugnu('hello'),
         h('h1', { class: 'sae-h1 sae-xl' }, [].concat(named(C.ready))),
       ], [gatedBtn(v, C.go, function () {
+        if (r10Next && practiceEndAt != null && Date.now() - practiceEndAt < DOUBLE_TAP_MS) return; // the same double tap
         var t = v.task;
         if (t.mode === 'oral' && t.passage && t.passage.shown === false && !heard[t.id]) { listenThenBegin(t); return; }
         runner.begin();
@@ -1680,11 +1690,13 @@
       ], [gatedBtn(v, C.next, function () {
         busy = true;
         var k = keyOf(runner.view());
+        var tapAt = Date.now();
         // r8_practice_autoplay: the answer was said on arrival (the chip says it again), so Next just goes on
         (p.role === 'example' || autoAnswer(t, p) ? Promise.resolve() : capped(sayChain(modelOf(p)), 7000)).then(function () {
           busy = false;
           if (!alive || keyOf(runner.view()) !== k) return;
           runner.practiceAnswer(p.target);
+          if (r10Next && runner.view().phase === 'ready') practiceEndAt = tapAt;
           draw();
         });
       }, 'sae-primary sa-next')]);
