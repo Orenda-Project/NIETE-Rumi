@@ -4,8 +4,10 @@
  * time printed. Fictional fixture data only.
  */
 const mockCreate = jest.fn();
+const mockInForce = {};
 jest.mock('../../bot/shared/services/llm-client', () => ({
   getClient: () => ({ chat: { completions: { create: mockCreate } } }),
+  modelInForce: (job, site) => mockInForce[job] || site,
 }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
@@ -34,7 +36,7 @@ const ARGS = {
   ],
 };
 
-beforeEach(() => mockCreate.mockReset());
+beforeEach(() => { mockCreate.mockReset(); Object.keys(mockInForce).forEach((k) => delete mockInForce[k]); });
 
 describe('free-secondary generateExam', () => {
   it('sends the science free prompt with the grade rules before the safety policies', async () => {
@@ -140,37 +142,20 @@ describe('free-secondary generateExam', () => {
     expect(out.questionCount).toBe(4);
   });
 
-  it('sends a draft that breaks a rule back once with the fix list, and keeps the better paper', async () => {
-    mockCreate
-      .mockResolvedValueOnce(reply(draft(short())))
-      .mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS }))));
+  it('writes no second whole paper (bd-5jmnfj.38.40, speed): a draft breaking a rule goes on to the review', async () => {
+    mockCreate.mockResolvedValueOnce(reply(draft(short()))).mockResolvedValueOnce(NO_REVIEW);
     const out = await Svc.generateExam(ARGS);
-    expect(mockCreate).toHaveBeenCalledTimes(3);
-    const msgs = mockCreate.mock.calls[1][0].messages;
-    expect(msgs[2].role).toBe('assistant');
-    expect(msgs[3].content).toContain('Q4');
-    expect(out.issues).toEqual([]);
-    expect(out.revised).toBe(true);
-  });
-
-  it('keeps the first draft when the revision is worse or unreadable', async () => {
-    mockCreate
-      .mockResolvedValueOnce(reply(draft(short())))
-      .mockResolvedValueOnce({ choices: [{ message: { content: 'not json' } }], usage: {} });
-    const out = await Svc.generateExam(ARGS);
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(mockCreate.mock.calls[1][0].messages[0].content).toContain('Why does ice float?');
     expect(out.issues.map((i) => i.check)).toEqual(['marking-points']);
     expect(out.revised).toBe(false);
     expect(out.questionCount).toBe(4);
   });
 
-  it('names the lesson in the rules and checks the paper asks about it', async () => {
-    mockCreate
-      .mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS }))))
-      .mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS, question: 'Why does Edhi ice float?' }))));
-    const out = await Svc.generateExam({ ...ARGS, chapterTitle: 'Edhi Foundation' });
+  it('names the lesson in the rules', async () => {
+    mockCreate.mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS })))).mockResolvedValueOnce(NO_REVIEW);
+    await Svc.generateExam({ ...ARGS, chapterTitle: 'Edhi Foundation' });
     expect(mockCreate.mock.calls[0][0].messages[0].content).toContain('"Edhi Foundation"');
-    expect(mockCreate.mock.calls[1][0].messages[3].content).toContain('Whole paper');
-    expect(out.issues).toEqual([]);
   });
 
   it('fails with MODEL_UNAVAILABLE when the model call throws', async () => {
@@ -200,35 +185,33 @@ describe('free-secondary generateExam', () => {
     const longKey = () => draft(short({ marking_points: POINTS }));
     const withLong = () => { const d = longKey(); d.unseen.objective['Multiple Choice Questions'][0].options[3] = 'd) Salt that is stirred into warm water'; d.unseen.objective['Multiple Choice Questions'][0].answer = 'd'; return d; };
     mockCreate
-      .mockResolvedValueOnce(reply(withLong()))
       .mockResolvedValueOnce(reply(withLong())).mockResolvedValueOnce(NO_REVIEW)
       .mockResolvedValueOnce(reply({ items: [{ n: 1, question: 'Which one dissolves in water?', options: OPTS, answer: 'd) Salt' }] }));
     const out = await Svc.generateExam({ ...ARGS, keySeed: 's' });
-    expect(mockCreate).toHaveBeenCalledTimes(4);
-    const ask = mockCreate.mock.calls[3][0].messages;
+    expect(mockCreate).toHaveBeenCalledTimes(3);
+    const ask = mockCreate.mock.calls[2][0].messages;
     expect(ask[ask.length - 1].content).toContain('Q1');
     expect(ask[ask.length - 1].content).not.toContain('Why does ice float?');
     expect(out.issues).toEqual([]);
     expect(out.rewritten).toEqual([1]);
   });
 
-  it('runs a second targeted round when the first clears one item and flags remain', async () => {
+  it('stops after one targeted round (bd-5jmnfj.38.40, speed) even when flags remain', async () => {
     const LONG = ['a) Sand', 'b) Water', 'c) Wood', 'd) Salt that is stirred into warm water'];
     const twoLong = () => { const d = draft(short({ marking_points: POINTS })); const m = d.unseen.objective['Multiple Choice Questions'];
       [0, 1].forEach((i) => { m[i].options = LONG.slice(); m[i].answer = 'd'; }); return d; };
     const fixed = (n) => reply({ items: [{ n, question: 'Which one dissolves in water?', options: OPTS, answer: 'd) Salt' }] });
-    mockCreate.mockResolvedValueOnce(reply(twoLong())).mockResolvedValueOnce(reply(twoLong())).mockResolvedValueOnce(NO_REVIEW)
+    mockCreate.mockResolvedValueOnce(reply(twoLong())).mockResolvedValueOnce(NO_REVIEW)
       .mockResolvedValueOnce(fixed(1)).mockResolvedValueOnce(fixed(2));
     const out = await Svc.generateExam({ ...ARGS, keySeed: 's' });
-    expect(mockCreate).toHaveBeenCalledTimes(5);
-    expect(out.rewritten).toEqual([1, 2]);
-    expect(out.issues).toEqual([]);
+    expect(mockCreate).toHaveBeenCalledTimes(3);
+    expect(out.rewritten).toEqual([1]);
+    expect(out.issues.map((i) => i.check)).toEqual(['longest-key']);
   });
 
   it('keeps the paper when the targeted rewrite does not leave fewer problems', async () => {
     const withLong = () => { const d = draft(short({ marking_points: POINTS })); d.unseen.objective['Multiple Choice Questions'][0].options[3] = 'd) Salt that is stirred into warm water'; d.unseen.objective['Multiple Choice Questions'][0].answer = 'd'; return d; };
     mockCreate
-      .mockResolvedValueOnce(reply(withLong()))
       .mockResolvedValueOnce(reply(withLong())).mockResolvedValueOnce(NO_REVIEW)
       .mockResolvedValueOnce(reply({ items: [{ n: 1, question: 'Which?', options: ['a) Sand', 'b) Water', 'c) Wood', 'd) Salt that is stirred into warm water'], answer: 'd' }] }));
     const out = await Svc.generateExam({ ...ARGS, keySeed: 's' });
@@ -293,5 +276,34 @@ describe('free-secondary generateExam', () => {
     const out = await Svc.generateExam({ ...ARGS, keySeed: 's' });
     expect(out.examJson.unseen.subjective.Other[0].passage).toBe('A fictional plant wilts.');
   });
-});
 
+  // bd-5jmnfj.38.40: a G6+ paper took 6-9 minutes against about 1 for G1-5, most of it model thinking.
+  // The client says which model a job reaches first (the sandbox moves the writer with LLM_JOB_MODELS).
+  // Live G6 Islamiat (6 Nov): thinking off 112s but 16 faults left (6 schemes lost their do-not-accept line);
+  // low effort 182s and 6. So the writer thinks a little; the review, a short check, does not think.
+  it('gives the writer low thinking and turns it off for the review when the model in force is a Claude that allows it', async () => {
+    Object.assign(mockInForce, { 'assessment.generate': 'anthropic/claude-sonnet-5', 'assessment.review': 'anthropic/claude-sonnet-5' });
+    mockCreate.mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS })))).mockResolvedValueOnce(NO_REVIEW);
+    await Svc.generateExam(ARGS);
+    expect(mockCreate.mock.calls[0][0].reasoning).toEqual({ effort: 'low' });
+    expect(mockCreate.mock.calls[1][0].reasoning).toEqual({ enabled: false });
+  });
+
+  it('asks a Claude that always thinks for low effort, and leaves another family as it is', async () => {
+    Object.assign(mockInForce, { 'assessment.generate': 'anthropic/claude-opus-5-5', 'assessment.review': 'google/gemini-3.1-pro-preview' });
+    mockCreate.mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS })))).mockResolvedValueOnce(NO_REVIEW);
+    await Svc.generateExam(ARGS);
+    expect(mockCreate.mock.calls[0][0].reasoning).toEqual({ effort: 'low' });
+    expect(mockCreate.mock.calls[1][0].job).toBe('assessment.review');
+    expect(mockCreate.mock.calls[1][0].reasoning).toBeUndefined();
+  });
+
+  it('asks the writer once more with no thinking setting when the quick call fails', async () => {
+    mockInForce['assessment.generate'] = 'anthropic/claude-sonnet-5';
+    mockCreate.mockRejectedValueOnce(new Error('reasoning cannot be disabled'))
+      .mockResolvedValueOnce(reply(draft(short({ marking_points: POINTS })))).mockResolvedValueOnce(NO_REVIEW);
+    const out = await Svc.generateExam(ARGS);
+    expect(mockCreate.mock.calls[1][0].reasoning).toBeUndefined();
+    expect(out.questionCount).toBe(4);
+  });
+});
