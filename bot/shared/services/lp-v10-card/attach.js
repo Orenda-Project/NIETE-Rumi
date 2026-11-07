@@ -6,7 +6,6 @@
  */
 const fs = require('fs');
 const path = require('path');
-const { PDFDocument } = require('pdf-lib');
 const { addIds } = require('./anchor');
 const { render } = require('./render');
 const { gates, withVideo } = require('./gates');
@@ -25,7 +24,9 @@ const asEnglish = (card) => (card.header && card.header.subject === 'Science'
 
 const fail = (code, message, extra) => Object.assign(new Error(message), { code }, extra);
 
+// pdf-lib is bot-only; loaded here so a flag-off worker (and the root suite, run before bot deps install) never needs it.
 async function join(cardPdf, v9Pdf, dest) {
+  const { PDFDocument } = require('pdf-lib');
   const out = await PDFDocument.create();
   for (const f of [cardPdf, v9Pdf]) {
     const src = await PDFDocument.load(await fs.promises.readFile(f));
