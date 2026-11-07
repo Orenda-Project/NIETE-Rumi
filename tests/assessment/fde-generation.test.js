@@ -221,7 +221,7 @@ describe('generatePatternExam: one call per section', () => {
   test('an unknown pattern or an ineligible subject is PATTERN_INELIGIBLE, before any call', async () => {
     bookFor('maths');
     await expect(Gen.generatePatternExam(ARGS('maths', { pattern: 'nope' }))).rejects.toMatchObject({ code: 'PATTERN_INELIGIBLE' });
-    await expect(Gen.generatePatternExam(ARGS('islamiat'))).rejects.toMatchObject({ code: 'PATTERN_INELIGIBLE' });
+    await expect(Gen.generatePatternExam(ARGS('general_knowledge'))).rejects.toMatchObject({ code: 'PATTERN_INELIGIBLE' });
     await expect(Gen.generatePatternExam(ARGS('maths', { grade: 4 }))).rejects.toMatchObject({ code: 'PATTERN_INELIGIBLE' });
     expect(mockCreate).not.toHaveBeenCalled();
   });

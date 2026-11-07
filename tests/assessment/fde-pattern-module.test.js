@@ -12,7 +12,9 @@
 const Patterns = require('../../bot/shared/services/assessment/patterns');
 
 const ID = 'fde_g5_2027';
-const SUBJECTS = ['maths', 'science', 'english', 'urdu', 'social_studies'];
+const SUBJECTS = ['maths', 'science', 'english', 'urdu', 'social_studies', 'islamiat'];
+// Islamiat's written paper is 60; its other 40 are the oral sheet (bd-5jmnfj.39).
+const WRITTEN = (key) => (key === 'islamiat' ? 60 : 100);
 
 function slotsOf(subject) {
   return subject.sections.flatMap((s) => s.slots);
@@ -53,10 +55,10 @@ describe('the registry', () => {
     expect(() => { 'use strict'; P.subjects.maths.total_marks = 5; }).toThrow();
   });
 
-  // bd-5jmnfj.39: Islamiat is built but held (held_subjects) until the engine prints teacher-filled slots.
-  it('carries exactly the five eligible subjects and never Islamiat', () => {
+  // bd-5jmnfj.39.1: Islamiat is offered now the engine prints teacher-filled slots; nothing is held.
+  it('carries exactly the six eligible subjects, Islamiat included, and holds none', () => {
     expect(Object.keys(Patterns.get(ID).subjects).sort()).toEqual([...SUBJECTS].sort());
-    expect(Object.keys(Patterns.get(ID).held_subjects)).toEqual(['islamiat']);
+    expect(Object.keys(Patterns.get(ID).held_subjects)).toEqual([]);
   });
 });
 
@@ -70,12 +72,14 @@ describe('every subject adds up', () => {
       sum += secSum;
     }
     expect(sum).toBe(S.total_marks);
-    expect(S.total_marks).toBe(100);
+    expect(S.total_marks).toBe(WRITTEN(key));
   });
 
   it.each(SUBJECTS)('attempt ≤ generate on every slot: %s', (key) => {
     for (const slot of slotsOf(Patterns.get(ID).subjects[key])) {
-      expect({ slot: slot.slot, ok: slot.attempt <= slot.generate && slot.attempt >= 1 })
+      // A teacher-filled slot (Islamiat Q3) is never generated: the teacher writes it.
+      const generate = slot.teacher_fills ? slot.attempt : slot.generate;
+      expect({ slot: slot.slot, ok: slot.attempt <= generate && slot.attempt >= 1 })
         .toEqual({ slot: slot.slot, ok: true });
     }
   });
@@ -158,7 +162,7 @@ describe('scope', () => {
   });
 
   it('scopeFor of an ineligible subject is null', () => {
-    expect(Patterns.scopeFor(ID, 'islamiat')).toBeNull();
+    expect(Patterns.scopeFor(ID, 'general_knowledge')).toBeNull();
   });
 });
 
@@ -173,8 +177,8 @@ describe('eligibility', () => {
     expect(Patterns.isEligible(ID, 5, 'sst')).toBe(true);
   });
 
-  it('islamiat not eligible', () => {
-    expect(Patterns.isEligible(ID, 5, 'islamiat')).toBe(false);
+  it('general knowledge not eligible', () => {
+    expect(Patterns.isEligible(ID, 5, 'general_knowledge')).toBe(false);
   });
 
   it('grade 4 not eligible', () => {
@@ -200,7 +204,7 @@ describe('summaryFor', () => {
       s.sections.forEach((sec) => expect(typeof sec[lang]).toBe('string'));
     }
     expect(s.id).toBe(ID);
-    expect(s.totalMarks).toBe(100);
+    expect(s.totalMarks).toBe(WRITTEN(key));
     expect(s.generateTotal).toBe(Patterns.expandTypes(ID, key).reduce((a, t) => a + t.count, 0));
     expect(s.holds.en).toContain(`${s.generateTotal} questions`);
   });
@@ -238,7 +242,7 @@ describe('summaryFor', () => {
   });
 
   it('summaryFor of an ineligible subject is null', () => {
-    expect(Patterns.summaryFor(ID, 'islamiat')).toBeNull();
+    expect(Patterns.summaryFor(ID, 'general_knowledge')).toBeNull();
   });
 });
 
@@ -268,7 +272,7 @@ describe('expandTypes', () => {
   });
 
   it('is empty for an ineligible subject', () => {
-    expect(Patterns.expandTypes(ID, 'islamiat')).toEqual([]);
+    expect(Patterns.expandTypes(ID, 'general_knowledge')).toEqual([]);
   });
 });
 
@@ -287,7 +291,8 @@ describe('slot details the engine and renderer read', () => {
       for (const slot of slotsOf(Patterns.get(ID).subjects[key])) {
         expect({ slot: slot.slot, shape: typeof slot.shape, numbering: typeof slot.numbering,
           grain: typeof slot.grain, rule: typeof slot.prompt_rule })
-          .toEqual({ slot: slot.slot, shape: 'string', numbering: 'string', grain: 'object', rule: 'string' });
+          // A teacher-filled slot is never prompted, so it carries no prompt rule.
+          .toEqual({ slot: slot.slot, shape: 'string', numbering: 'string', grain: 'object', rule: slot.teacher_fills ? 'object' : 'string' });
       }
     }
   });

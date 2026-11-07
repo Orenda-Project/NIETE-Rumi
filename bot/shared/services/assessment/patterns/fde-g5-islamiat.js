@@ -151,6 +151,8 @@ const ISLAMIAT = {
           grain: null, prompt_rule: null, teacher_fills: true,
           teacher_note_en: 'Write the dua of Ibrahim (AS) or the durood from the book in this space before photocopying. The child translates it.',
           teacher_note_ur: 'فوٹو کاپی سے پہلے کتاب سے حضرت ابراہیمؑ کی دعا یا درود شریف اس جگہ استاد خود لکھیں۔ بچہ اس کا ترجمہ کرے۔', // needs fluent-Urdu review
+          key_note_en: 'The teacher marks the translation against the book’s translation of the text she wrote.',
+          key_note_ur: 'استاد اپنی لکھی ہوئی عبارت کا ترجمہ کتاب کے ترجمے کے مطابق جانچیں۔', // needs fluent-Urdu review
         },
         { ...SLOT,
           slot: 'islamiat.B.Q4', label_en: 'Q4', label_ur: 'سوال نمبر 4',

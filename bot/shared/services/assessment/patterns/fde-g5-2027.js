@@ -1220,10 +1220,10 @@ const SUMMARY = {
   },
 };
 
-const SUBJECTS = { maths: MATHS, science: SCIENCE, english: ENGLISH, urdu: URDU, social_studies: SST };
-// Built and checked, never offered: Islamiat needs the engine to print teacher-filled slots and a G5
-// oral sheet first (bd-5jmnfj.39). Moving it into SUBJECTS is what makes it eligible.
-const HELD_SUBJECTS = { islamiat: ISLAMIAT };
+// Islamiat is offered since the engine prints its teacher-filled Q3 and Nazra sheet (bd-5jmnfj.39.1).
+const SUBJECTS = { maths: MATHS, science: SCIENCE, english: ENGLISH, urdu: URDU, social_studies: SST, islamiat: ISLAMIAT };
+// A subject built and checked but not yet offered goes here; moving it into SUBJECTS makes it eligible.
+const HELD_SUBJECTS = {};
 for (const [key, subject] of Object.entries({ ...SUBJECTS, ...HELD_SUBJECTS })) {
   const header = {};
   for (const [k, v] of Object.entries(COMMON_EN)) header[`${k}_en`] = v;

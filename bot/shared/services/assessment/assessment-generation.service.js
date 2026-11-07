@@ -1266,7 +1266,8 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   const urduWidth = (ur) => Math.max(1, ...urduLessons.flatMap((l) => l.grammar).filter((g) => g.ur === ur).map((g) => (g.tags || []).length));
   const urduPairs = urduTerms && urduTerms.filter((ur) => urduWidth(ur) > 1);
   const urduConcepts = urduTerms && urduTerms.reduce((n, ur) => n + urduWidth(ur), 0);
-  const given = Array.isArray(slots) && slots.length ? slots : section.slots;
+  // A slot the teacher writes (Islamiat Q3, bd-5jmnfj.39.1) is never asked of the model.
+  const given = (Array.isArray(slots) && slots.length ? slots : section.slots).filter((s) => !s.teacher_fills);
   const shaped = given.map((s) => {
     if (mathsC && Array.isArray(s.kinds) && s.kinds.length) {
       return { ...s, kinds: null, prompt_rule: null, grain: s.grain && { ...s.grain, kind: 'a word problem or a calculation' } };
@@ -2994,6 +2995,8 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   const sectionLevels = P.sections.every((s) => s.levels) ? Object.fromEntries(P.sections.map((s) => [s.id, s.levels])) : null;
   const blueprint = checkBlueprint(examJson, { tos: P.tos || TOS[key] || null, sectionLevels });
   examJson._layout.blueprint = blueprint;
+  // Islamiat's Nazra sheet (bd-5jmnfj.39.1): every task is the teacher's to fill, so no content is written.
+  if (P.oral) examJson._layout.oral = { ...P.oral, content: [] };
   logToFile('[assessment] blueprint checked', { pattern, subject: key, ok: blueprint.ok, total: blueprint.total, levels: blueprint.levels, problems: blueprint.problems });
 
   // G5 Urdu Q7 / English Q10: a drawn scene in the frame from the item's `describe_en` (v24 review).
