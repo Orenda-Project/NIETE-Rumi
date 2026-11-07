@@ -49,7 +49,7 @@ const PREMISE_RULE = 'Never set an item whose answer rests on a religious premis
 const Q6_ASKS = 'A Q6 poses a decision or advice in a situation; never "X asks what Y is" or "X wants to know why": an answer that is the book\'s text in order is a Q5.';
 // Both lines were widened in round 9 (fde-r17i-sst): Q1's counts to 16 Remember / 2 Understand, Q7's examples.
 const Q7_COMMON = 'A Q7 item is never a fact every Grade 5 child knows without the book (the year Pakistan was made, its capital, its national language, washing hands before eating, that television shows pictures («… ٹی وی پر اور کیا دکھایا جاتا ہے؟ → تصویر»), the name of a social media app); it asks a fact these pages teach.';
-const Q1_BANDS = 'Q1: at least 16 Remember items and at most 2 Understand; any other Q1 item is Apply (a situation the child decides).';
+const Q1_BANDS = 'Q1: exactly 8 Remember items, 6 Understand and 6 Apply (an Apply item is a situation the child decides).';
 
 const textOf = (req) => req.messages.map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n');
 const isReader = (text) => text.includes(Reader.READER_MARK);
@@ -376,7 +376,7 @@ describe('5. Section A is told its thinking-level counts, and the engine logs ho
     const n = (b) => q1.filter((q) => q.blooms === b).length;
     expect(lines[0]).toEqual(expect.objectContaining({
       requestId: 'req-r17h', remember: n('Remember'), understand: n('Understand'), apply: n('Apply'),
-      meets: n('Remember') >= 16 && n('Understand') <= 2,
+      meets: n('Remember') === 8 && n('Understand') === 6 && n('Apply') === 6,
     }));
   });
 });
