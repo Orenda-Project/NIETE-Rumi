@@ -99,6 +99,9 @@ const CoachObservation = () => {
   const stopped = view?.step === "stopped";
   const at = view ? stepAt(view.step) : indexFromRow(data?.step);
   const allDone = at >= OBSERVATION_STEPS;
+  // bd-ewbzns.4.4 — Send was pressed with WhatsApp's window closed: she has the invite, not yet the report (bd-2675: the
+  // coach is told it landed only when it did). Her part is done; the words say what the teacher has so far.
+  const waitingTap = view?.step === "waiting_teacher";
   const viewStep = view?.step;
   // bd-gie5ep — hers from either side: the step waiting on her opens here.
   const herTurn = mine && !!view && HER_STEPS.includes(view.step) && !(view.step === "report" && view.preparing);
@@ -172,7 +175,7 @@ const CoachObservation = () => {
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" /><span>{C.stopped}</span>
             </Card>
           ) : (
-            <ProgressSteps heading={C.steps} steps={steps} done={allDone} doneLabel={C.reportSentOn(sentOn)}
+            <ProgressSteps heading={C.steps} steps={steps} done={allDone} doneLabel={waitingTap ? C.waitingTeacher(first) : C.reportSentOn(sentOn)}
               copy={{ stepsCount: () => bidi(kit.stepOf(Math.min(at + 1, labels.length), labels.length)) }} />
           )}
           {onWhatsApp && <p className="px-1 text-[13px] text-[#6b7280]">{C.continueOnWhatsApp}</p>}
@@ -191,7 +194,7 @@ const CoachObservation = () => {
 
           {allDone && reportImage && (
             <>
-              <h2 className="mx-1 mt-2 text-[22px] font-semibold leading-[1.2]">{C.reportReceived(first)}</h2>
+              <h2 className="mx-1 mt-2 text-[22px] font-semibold leading-[1.2]">{waitingTap ? C.sentTitle(first) : C.reportReceived(first)}</h2>
               <section data-testid="observation-report" className={cn(LIST_CARD, "flex flex-col gap-2 p-2.5")}>
                 <img src={reportImage} alt={C.reportImage(name)} className="w-full rounded-xl border border-[#e5e7eb] bg-[#f9fafb]" loading="lazy" />
                 {reportCaption && <p className="whitespace-pre-line px-1 pb-1 text-[14px] leading-relaxed" dir="auto">{reportCaption}</p>}
