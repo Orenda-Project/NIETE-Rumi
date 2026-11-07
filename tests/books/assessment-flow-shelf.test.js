@@ -41,3 +41,21 @@ test('a GB teacher is offered Islamiat in Grade 1, and nothing from a book she d
 test('an ICT teacher keeps every Grade 1 subject', async () => {
   expect((await subjects('sector-teacher')).sort()).toEqual(['english', 'general_knowledge', 'islamiat', 'maths', 'urdu']);
 });
+
+// bd-5jmnfj.38.42: grades 6-12 are open to everyone, but a region whose book list stops at Grade 5 (GB) must not
+// be offered a grade it cannot use — picking it only led to "not covered". No list (ICT) keeps every grade.
+describe('the grade list follows the region book list', () => {
+  beforeEach(() => {
+    state.settings.assessment_grades_6_12 = true;
+    state.tables.textbooks.push({ id: 'book-7-maths', curriculum: 'ict', grade: 7, subject: 'maths', total_pages: 100 });
+  });
+  const grades = async (user) => (await Flow.handleAssessmentGenInit(user, `init-${user}`)).data.grades.map((g) => g.id);
+
+  test('a GB teacher is not offered Grade 7', async () => {
+    expect(await grades('gb-teacher')).toEqual(['1']);
+  });
+
+  test('an ICT teacher is offered Grade 7', async () => {
+    expect(await grades('sector-teacher')).toEqual(['1', '7']);
+  });
+});
