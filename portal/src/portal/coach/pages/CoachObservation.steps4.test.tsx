@@ -117,3 +117,30 @@ describe("four steps, one count, on the page and the list", () => {
     expect(listCount("draft")).toContain(page);
   });
 });
+
+/**
+ * bd-ewbzns.4.4 (queue #54, sandbox 7 Nov) — after Send with WhatsApp's window closed the teacher gets an invite first;
+ * the report reaches her only when she taps it. Until then the page must not say "Report sent" or "received" (bd-2675:
+ * the coach is told the report landed only when it did).
+ */
+describe("waiting for the teacher's tap", () => {
+  const SENT_VIEW = (step: string) => VIEW(step, { report: { status: step === "waiting_teacher" ? "awaiting_teacher_tap" : "sent", teacherName: "Ayesha Bibi", teacherPhone: "923001110001", caption: "Your lesson report", companionText: null, imageUrl: "https://signed.example/report.png", sentAt: null, templateSentAt: "2026-10-06T12:00:00Z" } });
+
+  it("the done line says it waits for her, and the report is 'Sent to', not 'received'", async () => {
+    C.getObservation.mockResolvedValue(OBS({ step: "sent", imageUrl: "https://signed.example/report.png", caption: "Your lesson report" }));
+    L.getObservation.mockResolvedValue(SENT_VIEW("waiting_teacher"));
+    renderPage();
+    await waitFor(() => expect(screen.getByRole("button", { name: /Done/ })).toHaveTextContent("Waiting for Ayesha"));
+    expect(screen.queryByText(/Report sent/)).toBeNull();
+    expect(screen.getByText("Sent to Ayesha")).toBeInTheDocument();
+    expect(screen.queryByText(/received/)).toBeNull();
+  });
+
+  it("once she has it: Report sent, and the report she received", async () => {
+    C.getObservation.mockResolvedValue(OBS({ step: "sent", sentAt: "2026-10-06T12:30:00Z", imageUrl: "https://signed.example/report.png", caption: "Your lesson report" }));
+    L.getObservation.mockResolvedValue(SENT_VIEW("done"));
+    renderPage();
+    await waitFor(() => expect(screen.getByRole("button", { name: /Done/ })).toHaveTextContent("Report sent"));
+    expect(screen.getByText("The report Ayesha received")).toBeInTheDocument();
+  });
+});
