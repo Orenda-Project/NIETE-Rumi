@@ -14,7 +14,7 @@ import { ShareActions } from "../../teacher/ui/ShareActions";
 import { Initials, useLoad } from "../ui";
 import ReportsFrame from "./ReportsFrame";
 import { REPORTS } from "./copy";
-import { observationPath } from "./paths";
+import { OBSERVATION_STEPS, SCREEN_STEP, observationPath } from "./paths";
 import { firstNameOf, teacherNameOf, useObservationView } from "./useObservationView";
 import { useBack } from "../../lib/useBack";
 
@@ -85,7 +85,7 @@ export default function SendReport() {
   ) : undefined;
 
   return (
-    <ReportsFrame title={name ? C.sendTitle(first) : C.observation} crumb={name ? C.stepCrumb(name, 5, 5) : undefined} onBack={back} dock={dock} testId="coach-send-report">
+    <ReportsFrame title={name ? C.sendTitle(first) : C.observation} crumb={name ? C.stepCrumb(name, SCREEN_STEP.send, OBSERVATION_STEPS) : undefined} onBack={back} dock={dock} testId="coach-send-report">
       <LoadState status={status === "ok" ? "ok" : status} empty={false} onRetry={reload} />
 
       {notSent && (
