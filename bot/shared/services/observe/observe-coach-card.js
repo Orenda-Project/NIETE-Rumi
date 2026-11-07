@@ -161,7 +161,7 @@ function buildCoachCardHtml(fb, { lang = 'sw', brand } = {}) {
       <div class="win">
         <div class="tick">${rubricOn ? ICON.tick('#1d7a46', 15) : '✓'}</div>
         <div>
-          <div class="wt">${E(w.behaviour)}</div>
+          <div class="wt">${E(R.winName(w.behaviour, S))}</div>
           <div class="wq">“${E(w.evidence)}”</div>
         </div>
       </div>`).join('');
