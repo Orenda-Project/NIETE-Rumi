@@ -16,7 +16,9 @@
  *   - range filters (`lt`/`lte`/`gt`/`gte`) compare instants when both sides
  *     read as dates, so `…+00:00` and `…Z` spellings of one instant agree.
  *   - an optional UNIQUE per table answers a duplicate insert with 23505, the
- *     way `teacher_nudges_one_per_day` does.
+ *     way `teacher_nudges_one_per_day` does. `{ keys, where }` in place of the
+ *     key list is a PARTIAL unique index: only rows `where(row)` holds for
+ *     collide, the way `ux_taa_one_active_per_module` counts open attempts only.
  *   - `.single()` on no rows is PostgREST's PGRST116 error, not a quiet null.
  *
  * NOT modelled: `.or()` is recorded and ignored (every row passes). A test whose
@@ -91,8 +93,10 @@ function createMemorySupabase(seed = {}, { unique = {}, projectSelect = false } 
         for (const p of list) {
           seq += 1;
           const row = { id: `${table}-${seq}`, ...p };
-          const keys = unique[table];
-          if (keys && rows.some((r) => keys.every((k) => r[k] === row[k]))) {
+          const spec = unique[table];
+          const keys = Array.isArray(spec) ? spec : (spec && spec.keys);
+          const where = (spec && !Array.isArray(spec) && spec.where) || (() => true);
+          if (keys && where(row) && rows.some((r) => where(r) && keys.every((k) => r[k] === row[k]))) {
             return { data: null, error: { code: '23505', message: `duplicate key value violates unique constraint on ${table}` } };
           }
           rows.push(row);
