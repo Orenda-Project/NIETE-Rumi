@@ -229,8 +229,8 @@ describe('POST /assessment/create — a board-pattern paper', () => {
     },
   );
 
-  test('islamiat + pattern → 400 PATTERN_INELIGIBLE', async () => {
-    const { statusCode, payload } = await invoke('/assessment/create', { ...PATTERN, subject: 'islamiat', scope: 'fde' });
+  test('general knowledge + pattern → 400 PATTERN_INELIGIBLE', async () => {
+    const { statusCode, payload } = await invoke('/assessment/create', { ...PATTERN, subject: 'general_knowledge', scope: 'fde' });
     expect(statusCode).toBe(400);
     expect(payload).toEqual({
       success: false, error: 'That board pattern is not available for this grade and subject.', errorCode: 'PATTERN_INELIGIBLE',

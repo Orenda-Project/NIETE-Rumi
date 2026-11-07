@@ -146,10 +146,16 @@ describe('POST /assessment/options — the board pattern', () => {
     expect(payload.patternGrades).toEqual([5]);
   });
 
-  test('islamiat → absent', async () => {
+  test('general knowledge → absent', async () => {
+    settings[FLAG] = true;
+    const { payload } = await invoke('/assessment/options', { grade: 5, subject: 'general_knowledge' });
+    expect(payload).not.toHaveProperty('patterns');
+  });
+
+  test('islamiat → offered (bd-5jmnfj.39.1)', async () => {
     settings[FLAG] = true;
     const { payload } = await invoke('/assessment/options', { grade: 5, subject: 'islamiat' });
-    expect(payload).not.toHaveProperty('patterns');
+    expect(payload).toHaveProperty('patterns');
   });
 
   test('grade-level → patternGrades [5]', async () => {
