@@ -94,11 +94,23 @@ function _sets(subject, grade) {
  */
 const NEEDS_PRINTED_PICTURE = new Set(['Label the Diagram', 'Picture Description']);
 
+/**
+ * Types a subject keeps in its CATALOGUE (so older papers keep their category) but no longer
+ * offers or picks by default. Islamiat has no true/false (Amena, 7 Nov 2026; bd-qcrlya).
+ */
+const NOT_OFFERED = { islamiat: new Set(['True/False']) };
+
+/** Whether this subject still offers the type today. */
+function isOffered(id, subject) {
+  const dropped = NOT_OFFERED[normalise(subject)];
+  return !NEEDS_PRINTED_PICTURE.has(id) && !(dropped && dropped.has(id));
+}
+
 /** Everything this subject and grade offers, each tagged with its category. */
 function forSubject(subject, grade) {
   if (Number(grade) >= 6) return require('./question-types-6-12').forSubject(subject, grade);
   const { objective, subjective } = _sets(subject, grade);
-  const offered = (id) => !NEEDS_PRINTED_PICTURE.has(id);
+  const offered = (id) => isOffered(id, subject);
   return [
     ...objective.filter(offered).map((id) => ({ id, category: 'objective' })),
     ...subjective.filter(offered).map((id) => ({ id, category: 'subjective' })),
@@ -136,8 +148,8 @@ function defaultMix(subject, grade, total) {
   if (Number(grade) >= 6) return require('./question-types-6-12').defaultMix(subject, grade, total);
   const { objective, subjective } = _sets(subject, grade);
   const pick = [
-    ...DEFAULT_MIX.objective.filter((t) => objective.includes(t)),
-    ...DEFAULT_MIX.subjective.filter((t) => subjective.includes(t)),
+    ...DEFAULT_MIX.objective.filter((t) => objective.includes(t) && isOffered(t, subject)),
+    ...DEFAULT_MIX.subjective.filter((t) => subjective.includes(t) && isOffered(t, subject)),
   ];
   // A subject whose catalogue shares none of the defaults still needs a paper.
   const ids = pick.length ? pick : [objective[0], subjective[0]].filter(Boolean);

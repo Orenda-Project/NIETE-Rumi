@@ -1,0 +1,91 @@
+{
+  "create": {
+    "statusCode": 202,
+    "payload": {
+      "success": true,
+      "requestId": "assessment_requests-1"
+    }
+  },
+  "outcome": {
+    "jobType": "assessment_generate",
+    "job": {
+      "userId": "u-golden-1",
+      "requestId": "assessment_requests-1",
+      "grade": 5,
+      "subject": "islamiat",
+      "chapterNumber": null,
+      "chapterNumbers": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "pageRanges": "15-77, 83-86, 91-110",
+      "contentSource": "unseen",
+      "questionCount": 33,
+      "totalMarks": null,
+      "seenCount": null,
+      "questionTypes": [
+        {
+          "id": "Fill in the Blanks",
+          "count": 5,
+          "category": "objective",
+          "slot": "islamiat.A.Q1"
+        },
+        {
+          "id": "MCQs",
+          "count": 15,
+          "category": "objective",
+          "slot": "islamiat.A.Q2"
+        },
+        {
+          "id": "Translation",
+          "count": 0,
+          "category": "subjective",
+          "slot": "islamiat.B.Q3"
+        },
+        {
+          "id": "Short Questions",
+          "count": 8,
+          "category": "subjective",
+          "slot": "islamiat.B.Q4"
+        },
+        {
+          "id": "Long Question",
+          "count": 5,
+          "category": "subjective",
+          "slot": "islamiat.B.Q5"
+        }
+      ],
+      "includeAnswerKey": true,
+      "answerLines": true,
+      "outputFormat": "pdf",
+      "deliver": "none",
+      "pattern": "fde_g5_2027",
+      "scope": {
+        "kind": "fde",
+        "chapters": [
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "pages": "15-77, 83-86, 91-110"
+      }
+    },
+    "returned": {
+      "status": "failed",
+      "code": "PATTERN_SHORT_SLOT",
+      "paperId": "assessment_papers-2"
+    }
+  },
+  "uploads": [],
+  "row": {
+    "status": "failed",
+    "error": null
+  }
+}

@@ -134,3 +134,19 @@ describe('what the check catches', () => {
     expect(() => checkBlueprint({ unseen: {} }, {})).toThrow(/NO_LAYOUT/);
   });
 });
+
+describe('Islamiat: Q3 is written by the teacher (bd-5jmnfj.39.1)', () => {
+  const r = checkBlueprint(laid('islamiat'), { tos: P.subjects.islamiat.tos });
+
+  it('counts Q3 in its section and the total, with no item from the model', () => {
+    expect(codes(r)).not.toContain('SLOT_SHORT');
+    expect(r.sections.map((s) => [s.id, s.marks, s.expected])).toEqual([['A', 20, 20], ['B', 40, 40]]);
+    expect(r.total).toBe(60);
+  });
+
+  it('reads the thinking-level split over the model-written marks only', () => {
+    const levelled = ['Remember', 'Understand', 'Apply'].reduce((sum, b) => sum + r.levels[b].marks, 0);
+    expect(levelled).toBe(50);
+    expect(r.levels.Remember.pct).toBeCloseTo(40);
+  });
+});
