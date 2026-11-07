@@ -31,7 +31,12 @@ describe('pick key prints the item common error', () => {
 
 describe('renderer wires the pick key to the scheme', () => {
   test('comprehensionRows uses pickKeyText and pickKeyError', () => {
-    const src = require('fs').readFileSync(require.resolve('../../bot/shared/services/assessment/assessment-paper-fde.renderer.js'), 'utf8');
+    // The renderer is an index over fde-renderer/*.js (bd-5jmnfj.37): read it and its parts.
+    const fs = require('fs');
+    const path = require('path');
+    const dir = path.join(__dirname, '../../bot/shared/services/assessment');
+    const parts = fs.readdirSync(path.join(dir, 'fde-renderer')).map((f) => path.join(dir, 'fde-renderer', f));
+    const src = [path.join(dir, 'assessment-paper-fde.renderer.js'), ...parts].map((f) => fs.readFileSync(f, 'utf8')).join('\n');
     expect(src).toMatch(/pickKeyText\(/);
     expect(src).toMatch(/pickKeyError\(/);
   });
