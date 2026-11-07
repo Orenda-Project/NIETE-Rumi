@@ -2524,7 +2524,7 @@ const UX_STRINGS = {
     ur: 'وہ quiz ابھی تیار ہو رہا ہے — تھوڑی دیر میں یہیں آئے گا۔',
   },
   // A recording whose quiz is held for its subject (Islamiat, until the religious review
-  // clears it) tapped in /quiz. "Not yet", as lp612Held says it (bd-37q6ye).
+  // clears it) tapped in /quiz. "Not yet", as lp612Held says it.
   tqRecordingHeld: {
     en: 'Quizzes for this subject are still being reviewed, so I can’t make one from this recording yet. Send /quiz to see your other lessons.',
     ur: 'اس مضمون کے quiz ابھی نظرثانی کے مرحلے میں ہیں، اس لیے اس ریکارڈنگ سے فی الحال quiz نہیں بن سکتا۔ اپنے باقی اسباق دیکھنے کے لیے ⁦/quiz⁩ بھیجیں۔',
@@ -2719,7 +2719,7 @@ const UX_STRINGS = {
   // offered (not answered, or waiting for its language): tqRowNoQuiz here,
   // tqFlowStatusNone in the Flow, the same words.
   tqRowNoQuiz: { en: 'No quiz yet', ur: 'ابھی quiz نہیں' },
-  // A recording held for its subject (bd-37q6ye); tqFlowStatusHeld in the Flow, the same words.
+  // A recording held for its subject; tqFlowStatusHeld in the Flow, the same words.
   tqRowHeld: { en: 'Under review', ur: 'زیرِ نظرثانی' },
   // WHERE a row in /quiz came from — first in the list row's description and in
   // the Flow item's metadata line, on every row. Noun phrases, so no verb can

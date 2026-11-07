@@ -195,7 +195,7 @@ async function startTranscriptLesson(user, sessionId, { phone, quizLanguage = nu
     .eq('coaching_session_id', sessionId).eq('quiz_source', TRANSCRIPT).maybeSingle();
   if (subjectHeld(quiz)) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqRecordingHeld', { language: lang }));
-    logEvent('transcript_quiz.held', { userId: user.id, quizId: quiz.id, from: 'list' });
+    logEvent('transcript_quiz.held', { quizId: quiz.id, from: 'list' });
     return true;
   }
 
