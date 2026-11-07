@@ -10,6 +10,8 @@ import { dayName, pkDayOf, pkToday } from "../../teacher/lessons/days";
 import { LoadState } from "../../teacher/lessons/LoadState";
 import { PageChip } from "../../teacher/TeacherPage";
 import { AudioCard, ListRow, ProgressSteps, ScoreRing, TimeStamp, type ProgressStep } from "../../teacher/ui";
+import { useKitCopy } from "../../teacher/ui/useKitCopy";
+import { useBidi } from "../../teacher/ui/bidi";
 import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
 import { cn } from "@/lib/utils";
 import { trackerIndex } from "../../lib/coachObserve";
@@ -17,7 +19,7 @@ import { Card, useLoad } from "../ui";
 import ReportsFrame from "../reports/ReportsFrame";
 import { REPORTS } from "../reports/copy";
 import { pkTime } from "../reports/data";
-import { observationPath } from "../reports/paths";
+import { OBSERVATION_STEPS, observationPath } from "../reports/paths";
 import { LessonPlanRow } from "../observe/PlanState";
 
 /**
@@ -25,11 +27,12 @@ import { LessonPlanRow } from "../observe/PlanState";
  * every Reports row and every HITL row of a teacher's History.
  *
  * Header: the teacher, her school, the day and its TimeStamp. The Digital Coach score and the lesson to play. The
- * kit's ProgressSteps — Observation analysed, Feedback Form, Debrief, Your feedback, Send {name} the report — done
- * green, current with "Your turn", later grey. The dock opens where she does the current step: the four v2 screens
- * of coach/reports (Feedback Form, Debrief, Your feedback, Send the report), never the old /leader/observe pages.
+ * kit's ProgressSteps — Observation analysed, Feedback Form, Debrief, Send {name} the report — done green, current with
+ * "Your turn", later grey, and "Step n of 4" in the same words as the Reports list card (bd-ewbzns.4.1). The dock opens
+ * where she does the current step: the v2 screens of coach/reports (Feedback Form, Debrief, Send the report), never
+ * the old /leader/observe pages. Her own feedback sits inside Debrief: once it is ready, Send is the current step.
  *
- * Sent: the steps fold into one "Done" line; "What you made" opens her Feedback Form, Debrief and feedback to read;
+ * Once the debrief is coached, and when sent: "What you made" opens her Feedback Form, Debrief and feedback to read;
  * and the report the teacher received is shown as she got it (the image and its caption).
  * An observation captured on WhatsApp is shown here too, but its steps happen there; someone else's is only read.
  *
@@ -37,9 +40,21 @@ import { LessonPlanRow } from "../observe/PlanState";
 
 const WORKER_STEPS = new Set(["analysing", "listening", "sending"]);
 
-/** The step index from the session row alone (no portal view): draft 1, debrief 2, report 4, sent → all done. */
+/**
+ * bd-ewbzns.4.1 — where she is on the FOUR steps (Observation analysed 0, Feedback Form 1, Debrief 2, Send 3; 4 = all
+ * done), the same four as the Reports list card. The portal view knows the finer steps: listening is still Debrief, and
+ * once her feedback is ready (`feedback`) the Debrief is done and Send is hers. Waiting for the teacher's tap, sent and
+ * done are all done for her.
+ */
+function stepAt(step: string | undefined): number {
+  const t = trackerIndex(step as Parameters<typeof trackerIndex>[0]);
+  if (t < 0) return t;
+  return t <= 2 ? t : t <= 4 ? 3 : OBSERVATION_STEPS;
+}
+
+/** The same, from the session row alone (no portal view): the list's own steps — draft 1, talk 2, report 3, sent all done. */
 function indexFromRow(step: string | undefined): number {
-  return { analysing: 0, draft: 1, talk: 2, report: 4, sent: 5 }[step || "analysing"] ?? 0;
+  return { analysing: 0, draft: 1, talk: 2, report: 3, sent: OBSERVATION_STEPS }[step || "analysing"] ?? 0;
 }
 
 /** bd-jjcofw.9 — how often the page asks again while the Digital Coach works (analysis takes 1-4 minutes). */
@@ -50,6 +65,8 @@ const HER_STEPS = ["draft", "talk", "feedback", "report"];
 
 const CoachObservation = () => {
   const C = useCopy(REPORTS);
+  const kit = useKitCopy();
+  const bidi = useBidi();
   const { days } = useCopy(LESSONS);
   const { id = "" } = useParams();
   // bd-jjcofw.9 — a fresh read of both answers on every tick: while the Digital Coach works, and when she comes back.
@@ -80,8 +97,8 @@ const CoachObservation = () => {
   const name = data?.teacher?.name || view?.teacher?.name || C.dash;
   const first = name.split(/\s+/)[0] || name;
   const stopped = view?.step === "stopped";
-  const at = view ? trackerIndex(view.step) : indexFromRow(data?.step);
-  const allDone = at >= 5;
+  const at = view ? stepAt(view.step) : indexFromRow(data?.step);
+  const allDone = at >= OBSERVATION_STEPS;
   const viewStep = view?.step;
   // bd-gie5ep — hers from either side: the step waiting on her opens here.
   const herTurn = mine && !!view && HER_STEPS.includes(view.step) && !(view.step === "report" && view.preparing);
@@ -93,7 +110,7 @@ const CoachObservation = () => {
     const timer = setInterval(() => setTick((n) => n + 1), REFRESH_MS);
     return () => clearInterval(timer);
   }, [working]);
-  const dockStep = herTurn ? (["", "form", "debrief", "feedback", "send"][at] as "" | "form" | "debrief" | "feedback" | "send") : "";
+  const dockStep = herTurn ? (["", "form", "debrief", "send"][at] as "" | "form" | "debrief" | "send") : "";
   const score = data ? (data.score ?? data.dcScore ?? null) : null;
   const reportImage = data?.imageUrl || view?.report.imageUrl || null;
   const reportCaption = data?.caption || view?.report.caption || null;
@@ -103,7 +120,7 @@ const CoachObservation = () => {
   const shownDate = data ? dayOf(data.date) : "";
   const sentOn = dayOf(data?.sentAt || data?.date);
 
-  const labels = [C.stepAnalysed, C.stepForm, C.stepDebrief, C.stepFeedback, C.stepSend(first)];
+  const labels = [C.stepAnalysed, C.stepForm, C.stepDebrief, C.stepSend(first)];
   const nowText = onWhatsApp ? C.onWhatsApp : herTurn ? C.yourTurn : working ? C.working : undefined;
   const steps: ProgressStep[] = labels.map((label, i) => ({
     label,
@@ -155,11 +172,13 @@ const CoachObservation = () => {
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" /><span>{C.stopped}</span>
             </Card>
           ) : (
-            <ProgressSteps heading={C.steps} steps={steps} done={allDone} doneLabel={C.reportSentOn(sentOn)} />
+            <ProgressSteps heading={C.steps} steps={steps} done={allDone} doneLabel={C.reportSentOn(sentOn)}
+              copy={{ stepsCount: () => bidi(kit.stepOf(Math.min(at + 1, labels.length), labels.length)) }} />
           )}
           {onWhatsApp && <p className="px-1 text-[13px] text-[#6b7280]">{C.continueOnWhatsApp}</p>}
 
-          {allDone && mine && (
+          {/* Once the debrief is coached, what she made opens here — her feedback included (it sits inside Debrief). */}
+          {(allDone || at >= 3) && mine && (
             <>
               <h2 className="mx-1 mt-2 text-[22px] font-semibold leading-[1.2]">{C.whatYouMade}</h2>
               <div className={LIST_CARD} data-testid="what-you-made">

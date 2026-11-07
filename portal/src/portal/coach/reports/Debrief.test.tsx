@@ -23,7 +23,7 @@ import { leader, portal } from "../../services/api";
 import Debrief from "./Debrief";
 
 /**
- * bd-4404s7.5 — Debrief (Blueprint Coach_Debrief), step 3 of 5: the guide for her talk with the teacher (what went well,
+ * bd-4404s7.5 — Debrief (Blueprint Coach_Debrief), step 3 of 4: the guide for her talk with the teacher (what went well,
  * one thing to grow, one action, the question to end on), then Start recording or Upload recording on the kit's
  * RecordUploadPair. The talk goes to R2 and is attached to the observation (presign → upload → talk), then she is back on
  * the observation page, where her Digital Coach listens and writes her feedback.
@@ -69,10 +69,10 @@ beforeEach(() => {
 });
 
 describe("Debrief", () => {
-  it("titled Debrief with Step 3 of 5, ~10 min and After class", async () => {
+  it("titled Debrief with Step 3 of 4, ~10 min and After class", async () => {
     renderPage();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Debrief");
-    await waitFor(() => expect(screen.getByTestId("page-crumb")).toHaveTextContent("Ayesha Bibi · Step 3 of 5"));
+    await waitFor(() => expect(screen.getByTestId("page-crumb")).toHaveTextContent("Ayesha Bibi · Step 3 of 4"));
     expect(screen.getByText("~10 min")).toBeInTheDocument();
     expect(screen.getByText("After class")).toBeInTheDocument();
   });
