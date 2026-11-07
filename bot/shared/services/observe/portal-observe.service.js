@@ -363,6 +363,18 @@ async function listPortalObservations({ userId }, deps) {
   return { status: 'ok', observations };
 }
 
+/**
+ * bd-ewbzns.4.3 — a rubric-key win named in BOTH languages (observe-strings coach_rubric_names), so the page shows it in
+ * its own language; null for a free-text behaviour (the older judge), which the page shows as written.
+ */
+function winNames(behaviour) {
+  const { observeStrings } = require('./observe-strings');
+  const { winName } = require('./observe-coach-rubric');
+  const en = winName(behaviour, observeStrings('en'));
+  if (en === behaviour) return null;
+  return { en, ur: winName(behaviour, observeStrings('ur')) };
+}
+
 function shapeFeedback(fb) {
   if (!fb) return null;
   const { isHarmfulDebrief } = require('./observe-coach-feedback');
@@ -370,7 +382,7 @@ function shapeFeedback(fb) {
   return {
     harmful,
     praise_line: fb.praise_line || null,
-    wins: Array.isArray(fb.wins) ? fb.wins.map((w) => ({ behaviour: w.behaviour, evidence: w.evidence })) : [],
+    wins: Array.isArray(fb.wins) ? fb.wins.map((w) => ({ behaviour: w.behaviour, evidence: w.evidence, name: winNames(w.behaviour) })) : [],
     try: fb.try ? { move: fb.try.move, evidence: fb.try.evidence, instead: fb.try.instead || null } : null,
     reflection_question: fb.reflection_question || null,
     concern: fb.concern

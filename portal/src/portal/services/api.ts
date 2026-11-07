@@ -731,7 +731,8 @@ export type TalkGuide = {
 export type CoachFeedback = {
   harmful: boolean;
   praise_line: string | null;
-  wins: { behaviour: string; evidence: string }[];
+  /** bd-ewbzns.4.3 — `name`: a rubric key named in both languages (bot observe-strings); null for free text. */
+  wins: { behaviour: string; evidence: string; name?: { en: string; ur: string } | null }[];
   try: { move: string; evidence: string; instead: string | null } | null;
   reflection_question: string | null;
   concern: { what_happened: string; why_it_matters: string; instead: string } | null;

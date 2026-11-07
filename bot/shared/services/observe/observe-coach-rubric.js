@@ -76,6 +76,19 @@ function moduleLine(mod, S, lang) {
   return S.coach_card_module_line.replace('{n}', String(mod.n)).replace('{title}', title);
 }
 
+/**
+ * bd-ewbzns.4.3 — a win's name. Since the 3 Nov rubric the judge writes `behaviour` as the rubric KEY; shown as written
+ * the coach read "opened_with_specific_praise". A key is named from observe-strings coach_rubric_names (in S's language);
+ * a free-text behaviour (the older judge) is shown as written.
+ * @param {string} behaviour
+ * @param {object} S  observeStrings(lang)
+ */
+function winName(behaviour, S) {
+  const names = (S && S.coach_rubric_names) || {};
+  return Object.prototype.hasOwnProperty.call(names, behaviour) ? names[behaviour] : behaviour;
+}
+
 module.exports = {
+  winName,
   BEHAVIOUR_KEYS, rubricMarks, missedBehaviours, validFocus, nextFocusKey, focusModule, stars, moduleLine, moduleUrl,
 };
