@@ -1,0 +1,380 @@
+{
+ "name": "ict_g1_ch8_Maths_seg13",
+ "card": {
+  "card_version": "v10.1",
+  "lesson_key": "g1·Maths·ch8·seg13",
+  "v9_html": "g1_ch8_Maths_seg13.v9.html",
+  "lang": "en",
+  "header": {
+   "grade": 1,
+   "subject": "Maths",
+   "chapter": "Ch.8 Measure Treasure",
+   "day": 13,
+   "minutes": 40,
+   "title": "Connect and Create: Measurement Art",
+   "goal": "Children <b>compare</b> and order things by length, lined up at one end."
+  },
+  "bring": "textbook p.218 · leaves, twigs, paper, glue",
+  "words": [
+   "length",
+   "non-standard unit",
+   "longer",
+   "shorter"
+  ],
+  "sections": [
+   {
+    "sec": "open",
+    "minutes": 4,
+    "moves": [
+     {
+      "covers": [
+       "m1",
+       "m2",
+       "m3"
+      ],
+      "do": "Open p.218: car or bicycle, which is LONGER? Dots 4, 7.",
+      "how": "Flash: “7 is 4 and ___?” Post: length, unit.",
+      "say": "“7 is 4 and … 3!” What at home could you measure with fingers?",
+      "sense": true,
+      "yesterday": "Yesterday: temperature by ticks. What do we read on a thermometer? (a number)"
+     }
+    ]
+   },
+   {
+    "sec": "explain",
+    "minutes": 7,
+    "moves": [
+     {
+      "covers": [
+       "m4",
+       "m5"
+      ],
+      "do": "Draw car, bicycle level at one end; chalk, duster.",
+      "how": "Chalk is 3 finger-widths. Why is duster longer?",
+      "say": "“Line up at ONE end first.”",
+      "think": "I line both at one end. The duster reaches further, so it is longer. I check: same start, then compare."
+     }
+    ]
+   },
+   {
+    "sec": "we",
+    "minutes": 12,
+    "moves": [
+     {
+      "covers": [
+       "m6"
+      ],
+      "chip": "I START, YOU FINISH",
+      "do": "Lay finger-widths along a twig; class counts 1 to 5.",
+      "how": "Class finishes: “Five finger-widths!” Show three strips.",
+      "say": "“One, two, three, four …” → class: “five!”"
+     },
+     {
+      "covers": [
+       "m7",
+       "m8"
+      ],
+      "chip": "ONE NEIGHBOUR TURN",
+      "do": "One minute: order 3 strips; neighbour counts the longest.",
+      "how": "Fatima and Ahmed show it first. Check 5 desks.",
+      "say": "“Do you agree? Line them up.”",
+      "turn": {
+       "first": "Taller child",
+       "a": "My shortest is ___, my longest is ___.",
+       "b": "Lined up, yes. The longest is ___ finger-widths.",
+       "stop": "one clap, eyes on me"
+      }
+     }
+    ]
+   },
+   {
+    "sec": "you",
+    "minutes": 13,
+    "moves": [
+     {
+      "covers": [
+       "m9"
+      ],
+      "clock": "⏱ 23′ stop explaining",
+      "do": "Alone, p.218: 1. Car vs bicycle 2. Order, glue 3. Count a twig",
+      "how": "Done? Longest minus shortest twig: how many more?",
+      "say": "“Order first, then measure, then glue.”"
+     }
+    ],
+    "answers": [
+     [
+      "1.",
+      "longer"
+     ],
+     [
+      "2.",
+      "Own items, true shortest to longest"
+     ],
+     [
+      "3.",
+      "Own honest count, e.g. 6"
+     ],
+     [
+      "Harder",
+      "Longest minus shortest"
+     ]
+    ],
+    "mistake": "Not lined up. <b>Ask:</b> “Where do both start?”",
+    "stuck": "Two things at a time, lined up."
+   },
+   {
+    "sec": "check",
+    "minutes": 4,
+    "moves": [
+     {
+      "covers": [
+       "m10"
+      ],
+      "do": "Bottle or lunch box: which is longer? What is the same?",
+      "say": "“Which is longer? Tell me how you compared.”"
+     }
+    ],
+    "correct": "Longer or shorter correct; same = lined up at one end.",
+    "success": "I can compare two things and say how I compared them.",
+    "ask": "What do you do first when you compare two things?",
+    "listen": "Line both at one end; which reaches further."
+   },
+   {
+    "sec": "hw",
+    "minutes": 0,
+    "moves": [
+     {
+      "covers": [
+       "m11"
+      ],
+      "do": "Find two things; say which is longer; ask family.",
+      "say": "“Line them up first.”"
+     }
+    ]
+   }
+  ],
+  "pictures": [
+   {
+    "id": "dg1",
+    "after": "we",
+    "kind": "svg",
+    "title": "THE BOARD BY THE END · THREE TWIGS, ONE END",
+    "svg": "<svg viewBox=\"0 0 280 60\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><rect x=\"20\" y=\"4\" width=\"60\" height=\"12\" fill=\"#7cb342\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><rect x=\"20\" y=\"22\" width=\"120\" height=\"12\" fill=\"#8d6e63\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><rect x=\"20\" y=\"40\" width=\"200\" height=\"12\" fill=\"#6d4c41\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><line x1=\"20\" y1=\"0\" x2=\"20\" y2=\"56\" stroke=\"#333\" stroke-width=\"2\"/></svg>"
+   },
+   {
+    "id": "dg2",
+    "after": "you",
+    "kind": "svg",
+    "title": "THE BOARD BY THE END · FINGER-WIDTHS ON A TWIG",
+    "svg": "<svg viewBox=\"0 0 240 40\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><rect x=\"20\" y=\"14\" width=\"40\" height=\"22\" fill=\"#ffe082\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><text x=\"40\" y=\"30\" font-size=\"13\" font-weight=\"bold\">1</text><rect x=\"60\" y=\"14\" width=\"40\" height=\"22\" fill=\"#ffe082\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><text x=\"80\" y=\"30\" font-size=\"13\" font-weight=\"bold\">2</text><rect x=\"100\" y=\"14\" width=\"40\" height=\"22\" fill=\"#ffe082\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><text x=\"120\" y=\"30\" font-size=\"13\" font-weight=\"bold\">3</text><rect x=\"140\" y=\"14\" width=\"40\" height=\"22\" fill=\"#ffe082\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><text x=\"160\" y=\"30\" font-size=\"13\" font-weight=\"bold\">4</text><rect x=\"180\" y=\"14\" width=\"40\" height=\"22\" fill=\"#ffe082\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><text x=\"200\" y=\"30\" font-size=\"13\" font-weight=\"bold\">5</text><text x=\"120\" y=\"10\" font-size=\"12\" font-weight=\"bold\">5 finger-widths</text></svg>"
+   }
+  ],
+  "names": {
+   "girl": "Fatima",
+   "boy": "Ahmed"
+  }
+ },
+ "v9Skeleton": "<div data-atom class=\"hero sp-0\">\n<div data-atom class=\"band sp-2\">\n<div data-atom class=\"slo sp-2\">\n<div data-atom class=\"rescard sp-2\">\n<div data-atom class=\"rescard sp-1\">\n<div class=\"vres\"><span class=\"ico\">&#128250;</span><span class=\"lbl\">Video resource</span><a href=\"https://www.youtube.com/watch?v=eOykuZ3kEd0\">Length</a>\n<div data-atom class=\"rescard pc pc-a sp-1\">\n<div data-atom class=\"rescard pc pc-z sp-0\">\n<div data-atom class=\"blk board pc pc-a sp-2\">\n<div data-atom class=\"blk board pc pc-z sp-0\">\n<div data-atom class=\"blk sp-2\">\n<figure class=\"dg\" style=\"--fig-h:182px\">\n<div data-atom id=\"v9-open\" class=\"bar s-i sp-4\" data-sec=\"introduction\">\n<div data-atom class=\"opn ofirst blk wu sp-2\">\n<div data-atom class=\"opn olast blk hook sp-0\">\n<div data-atom id=\"v9-explain\" class=\"bar s-d sp-4\" data-sec=\"development\">\n<div data-atom class=\"blk exq pc pc-a sp-2\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-z sp-0\">\n<div data-atom class=\"blk exq sp-2\">\n<div data-atom class=\"blk sp-3\">\n<div data-atom id=\"v9-we\" class=\"bar s-we sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk exq we pc pc-a sp-2\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-z sp-0\">\n<div data-atom id=\"v9-you\" class=\"bar s-a sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk pr pc pc-a sp-2\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-z sp-0\">\n<div data-atom class=\"blk sp-3\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom id=\"v9-check\" class=\"bar s-c sp-4\" data-sec=\"conclusion\">\n<div data-atom class=\"blk exit sp-2\">\n<div data-atom id=\"v9-hw\" class=\"bar s-h sp-4\" data-sec=\"homework\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"coach sp-4\">\n",
+ "must": [
+  "m1",
+  "m2",
+  "m3",
+  "m4",
+  "m5",
+  "m6",
+  "m7",
+  "m8",
+  "m9",
+  "m10"
+ ],
+ "expect": {
+  "addIds": "<div data-atom class=\"hero sp-0\">\n<div data-atom class=\"band sp-2\">\n<div data-atom class=\"slo sp-2\">\n<div data-atom class=\"rescard sp-2\">\n<div data-atom class=\"rescard sp-1\">\n<div class=\"vres\"><span class=\"ico\">&#128250;</span><span class=\"lbl\">Video resource</span><a href=\"https://www.youtube.com/watch?v=eOykuZ3kEd0\">Length</a>\n<div data-atom class=\"rescard pc pc-a sp-1\">\n<div data-atom class=\"rescard pc pc-z sp-0\">\n<div data-atom class=\"blk board pc pc-a sp-2\">\n<div data-atom class=\"blk board pc pc-z sp-0\">\n<div data-atom class=\"blk sp-2\">\n<figure class=\"dg\" style=\"--fig-h:182px\">\n<div data-atom id=\"v9-open\" class=\"bar s-i sp-4\" data-sec=\"introduction\">\n<div data-atom class=\"opn ofirst blk wu sp-2\">\n<div data-atom class=\"opn olast blk hook sp-0\">\n<div data-atom id=\"v9-explain\" class=\"bar s-d sp-4\" data-sec=\"development\">\n<div data-atom class=\"blk exq pc pc-a sp-2\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-z sp-0\">\n<div data-atom class=\"blk exq sp-2\">\n<div data-atom class=\"blk sp-3\">\n<div data-atom id=\"v9-we\" class=\"bar s-we sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk exq we pc pc-a sp-2\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-z sp-0\">\n<div data-atom id=\"v9-you\" class=\"bar s-a sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk pr pc pc-a sp-2\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-z sp-0\">\n<div data-atom class=\"blk sp-3\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom id=\"v9-check\" class=\"bar s-c sp-4\" data-sec=\"conclusion\">\n<div data-atom class=\"blk exit sp-2\">\n<div data-atom id=\"v9-hw\" class=\"bar s-h sp-4\" data-sec=\"homework\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"coach sp-4\">\n",
+  "missing": [],
+  "video": [
+   "https://www.youtube.com/watch?v=eOykuZ3kEd0",
+   "Length"
+  ],
+  "validate": [],
+  "html": "<!doctype html>\n<html lang=\"en\" dir=\"ltr\"><head><meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\">\n<meta name=\"color-scheme\" content=\"light\">\n<title>G1 Maths Ch.8 Day 13 Card</title>\n<style>\n/* Phone-first teacher card: one column, sized for a 360-390 px screen; prints on one 520 x 2000 page.\n   Single light look on purpose (the v17 section colours Amena approved, 9 Oct). */\n:root{--navy:#26324A;--ink:#1F2430;--mut:#55606F;--line:#DDE1E8;--paper:#FFFFFF;--ground:#EEF0F3;\n--open:#E07B00;--explain:#8A45F0;--we:#3B5BDB;--you:#2B8A3E;--check:#C2255C;--hw:#0B7285;--star:#F2B705;\n--body:system-ui,-apple-system,\"Segoe UI\",Roboto,\"Noto Sans\",sans-serif;color-scheme:light}\n*{box-sizing:border-box}\nhtml,body{margin:0;background:var(--ground);color:var(--ink)}\nbody{font:17px/1.45 var(--body);-webkit-text-size-adjust:100%}\n.page{max-width:480px;margin:0 auto;background:var(--paper);padding:12px 14px 16px;display:flex;flex-direction:column;gap:12px}\na{color:inherit}\n.hd{background:var(--navy);color:#fff;border-radius:14px;padding:12px 14px 14px}\n.hd .k{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;font-weight:700;font-size:13.5px;letter-spacing:.03em}\n.hd .k b{color:#FFC34D}\n.hd h1{font-size:22px;line-height:1.25;margin:6px 0 6px;text-wrap:balance}\n.hd .goal{font-size:15.5px;opacity:.95}\n.info{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:15.5px}\n.info b{color:var(--mut);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;padding-top:3px}\n.time .pr{display:flex;font:700 12.5px/1 var(--body);color:var(--ink);margin-bottom:4px}\n.time .pr span{min-width:44px;text-align:center;border-bottom:2.5px solid var(--ink);padding-bottom:3px}\n.bar{display:flex;height:30px;border-radius:8px;overflow:hidden;font:800 14px/1 var(--body);color:#fff}\n.bar span{display:flex;align-items:center;justify-content:center;border-right:2px solid #fff;min-width:44px}\n.bar span:last-child{border:0}\n.lab{display:flex;font-size:12px;color:var(--mut);margin-top:3px}.lab span{text-align:center;min-width:44px;white-space:nowrap}\n.star{border:2.5px solid var(--star);background:#FFF6D6;border-radius:12px;padding:10px 12px;font-size:16px}\n.star .l{font-weight:800;color:#7A4F00}\n.sec{border:1px solid color-mix(in srgb,var(--c) 28%,#fff);border-inline-start:7px solid var(--c);border-radius:12px;\n background:color-mix(in srgb,var(--c) 6%,#fff);padding:10px 12px 12px}\n.sec.mark{box-shadow:0 0 0 3px var(--star)}\n/* one row: a long title wraps inside itself, so Full details never drops under the heading (judge 10F) */\n.sh{display:flex;gap:2px 8px}\n.sh h2{margin:0;font-size:19px;color:var(--c);flex:0 1 auto;min-width:0}\n.sh .t{flex:none;white-space:nowrap}.sh .fd{flex:none;margin-left:auto}\n/* phone: the time drops under the title so the title keeps one line beside Full details (judge pilot4 10D) */\n@media screen and (max-width:420px){.sh{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}.sh h2{white-space:nowrap;font-size:17.5px}.sh .t{grid-row:2;grid-column:1}.sh .fd{grid-row:1/span 2;grid-column:2}}\n.sh .t{font-weight:700;font-size:14px;color:var(--mut);font-variant-numeric:tabular-nums}\n.mv{display:grid;grid-template-columns:30px 1fr;gap:10px;margin-top:10px}\n.mv p{margin:0;min-width:0}.mv .do{font-weight:700}\n.n{width:28px;height:28px;border-radius:999px;background:var(--c);color:#fff;font:800 15px/28px var(--body);text-align:center}\n.say{display:block;margin-top:3px;font-style:italic}\n.ex{display:block;margin-top:3px}\n.say::before{content:\"Say: \";font-style:normal;font-weight:800;color:var(--c)}\n.chip{display:inline-block;font:800 12px/1 var(--body);letter-spacing:.03em;color:#fff;background:var(--c);border-radius:6px;padding:5px 7px;margin:0 0 4px}\n.clock{display:inline-block;font-weight:800;color:#fff;background:var(--ink);border-radius:6px;padding:3px 8px;font-size:14.5px;margin-bottom:4px}\n.box{margin-top:10px;border-radius:10px;background:#fff;border:1px solid var(--line);padding:8px 10px;font-size:15.5px}\n.box h3{margin:0 0 4px;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--c)}\n.ans{display:grid;gap:5px}.ans div{display:flex;flex-wrap:wrap;gap:0 8px}.ans .e{font-weight:700}\n.mis{border-color:#F1B0B0;background:#FFF1F1}.mis h3{color:#B02525}\n.fd{display:inline-flex;align-items:center;min-height:40px;padding:0 12px;font:700 14.5px/1 var(--body);color:var(--c);\n border:1.5px solid var(--c);border-radius:999px;text-decoration:none;background:#fff;white-space:nowrap}\n.sh{align-items:center}\n.fd:focus-visible{outline:3px solid var(--navy);outline-offset:2px}\n.board{border:2px solid var(--navy);border-radius:12px;padding:8px 10px 10px}\n.board h3{margin:0 0 6px;font-size:12.5px;letter-spacing:.06em;color:var(--navy)}\n.faces{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center;font-size:13.5px}\n.faces div{border:1.5px solid var(--line);border-radius:9px;padding:4px 2px}.faces .e{display:block;font-size:26px}\n.foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;border-top:1px solid var(--line);padding-top:10px;font-size:14px;color:var(--mut)}\n.foot a{font-weight:800;color:var(--navy);min-height:44px;display:inline-flex;align-items:center}\n@page{size:520px 2000px;margin:0}\n@media print{html,body{background:#fff}body{font-size:14.5px;line-height:1.35}.page{max-width:none;width:520px;gap:7px;padding:10px 14px}.fd{min-height:28px;font-size:12.5px}.mv{margin-top:5px}.sec{padding:7px 11px 9px}.box{margin-top:6px;padding:5px 9px;font-size:14px}.hd h1{font-size:20px}}\n.steps{margin:0;padding-inline-start:22px;font-weight:700;display:grid;gap:4px}\n.svg svg{display:block;max-width:100%;height:auto;margin:0 auto}\n.pl{font-size:15px;margin-top:6px;text-align:center}\n\n</style></head>\n<body><div class=\"page\">\n\n<div class=\"hd\">\n <div class=\"k\"><span><b>GRADE 1 · MATHS</b> · Ch.8 Measure Treasure</span><span>Day 13 · 40 min</span></div>\n <h1>Connect and Create: Measurement Art</h1>\n <div class=\"goal\">Children <b>compare</b> and order things by length, lined up at one end.</div>\n</div>\n\n<div class=\"info\">\n <b>Bring</b><span>textbook p.218 · leaves, twigs, paper, glue</span>\n <b>Words</b><span>length · non-standard unit · longer · shorter</span>\n <b>Video</b><span>📺 <a href=\"https://www.youtube.com/watch?v=eOykuZ3kEd0\">Length</a></span>\n</div>\n\n<div class=\"time\" aria-label=\"Time: 4 open, 7 explain, 12 we do, 13 you do, 4 check\">\n <div class=\"pr\"><span style=\"flex:11\"></span><span style=\"flex:25\">PRACTICE · 25 of 40 min</span><span style=\"flex:4\"></span></div>\n <div class=\"bar\">\n  <span data-sec=\"open\" style=\"flex:4;background:var(--open)\">4′</span>\n  <span data-sec=\"explain\" style=\"flex:7;background:var(--explain)\">7′</span>\n  <span data-sec=\"we\" style=\"flex:12;background:var(--we)\">12′</span>\n  <span data-sec=\"you\" style=\"flex:13;background:var(--you)\">13′</span>\n  <span data-sec=\"check\" style=\"flex:4;background:var(--check)\">4′</span>\n </div>\n <div class=\"lab\"><span style=\"flex:4\">Open</span><span style=\"flex:7\">Explain</span><span style=\"flex:12\">We Do</span><span style=\"flex:13\">You Do</span><span style=\"flex:4\">✓</span></div>\n</div>\n\n<!-- Coaching slot: filled per teacher from their last report once recordings start. Hidden in the base corpus. -->\n<div class=\"star\" hidden data-slot=\"star\"><span class=\"l\">★ Your one thing today</span> · in move <b data-slot=\"star-move\"></b><br><span data-slot=\"star-text\"></span></div>\n\n<section class=\"sec\" style=\"--c:var(--open)\" data-sec=\"open\">\n <div class=\"sh\"><h2>Opening</h2><span class=\"t\">0–4′</span><a class=\"fd\" href=\"g1_ch8_Maths_seg13.v9.html#v9-open\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m1 m2 m3\"><span class=\"n\">1</span><p><span class=\"chip\">NUMBER SENSE</span><br><span class=\"ex\"><b>Yesterday</b>: temperature by ticks. What do we read on a thermometer? (a number)</span><span class=\"do\">Open p.218: car or bicycle, which is LONGER? Dots 4, 7.</span> Flash: “7 is 4 and ___?” Post: length, unit.\n  <span class=\"say\">“7 is 4 and … 3!” What at home could you measure with fingers?</span></p></div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--explain)\" data-sec=\"explain\">\n <div class=\"sh\"><h2>Explanation · I Do</h2><span class=\"t\">4–11′</span><a class=\"fd\" href=\"g1_ch8_Maths_seg13.v9.html#v9-explain\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m4 m5\"><span class=\"n\">2</span><p><span class=\"do\">Draw car, bicycle level at one end; chalk, duster.</span> Chalk is 3 finger-widths. Why is duster longer?\n  <span class=\"say\">“Line up at ONE end first.”</span><span class=\"ex\"><b>Think aloud:</b> “I line both at one end. The duster reaches further, so it is longer. I check: same start, then compare.”</span></p></div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--we)\" data-sec=\"we\">\n <div class=\"sh\"><h2>We Do</h2><span class=\"t\">11–23′</span><a class=\"fd\" href=\"g1_ch8_Maths_seg13.v9.html#v9-we\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m6\"><span class=\"n\">3</span><p><span class=\"chip\">I START, YOU FINISH</span><br><span class=\"do\">Lay finger-widths along a twig; class counts 1 to 5.</span> Class finishes: “Five finger-widths!” Show three strips.\n  <span class=\"say\">“One, two, three, four …” → class: “five!”</span></p></div>\n <div class=\"mv\" data-covers=\"m7 m8\"><span class=\"n\">4</span><p><span class=\"chip\">ONE NEIGHBOUR TURN</span><br><span class=\"do\">One minute: order 3 strips; neighbour counts the longest.</span> Fatima and Ahmed show it first. Check 5 desks.\n  <span class=\"say\">“Do you agree? Line them up.”</span><span class=\"ex\"><b>Taller child first:</b> “My shortest is ___, my longest is ___.” → <b>Reply:</b> “Lined up, yes. The longest is ___ finger-widths.” · <b>Stop:</b> one clap, eyes on me</span></p></div>\n</section>\n\n<div class=\"board\" data-pic=\"dg1\"><h3>THE BOARD BY THE END · THREE TWIGS, ONE END</h3><div class=\"svg\"><svg viewBox=\"0 0 280 60\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><rect x=\"20\" y=\"4\" width=\"60\" height=\"12\" fill=\"#7cb342\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><rect x=\"20\" y=\"22\" width=\"120\" height=\"12\" fill=\"#8d6e63\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><rect x=\"20\" y=\"40\" width=\"200\" height=\"12\" fill=\"#6d4c41\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><line x1=\"20\" y1=\"0\" x2=\"20\" y2=\"56\" stroke=\"#333\" stroke-width=\"2\"/></svg></div></div>\n\n<section class=\"sec\" style=\"--c:var(--you)\" data-sec=\"you\">\n <div class=\"sh\"><h2>You Do · in the book</h2><span class=\"t\">23–36′</span><a class=\"fd\" href=\"g1_ch8_Maths_seg13.v9.html#v9-you\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m9\"><span class=\"n\">5</span><p><span class=\"clock\">⏱ 23′ stop explaining</span><br><span class=\"do\">Alone, p.218: 1. Car vs bicycle 2. Order, glue 3. Count a twig</span> Done? Longest minus shortest twig: how many more?\n  <span class=\"say\">“Order first, then measure, then glue.”</span><span class=\"ex\"><b>If stuck:</b> Two things at a time, lined up.</span></p></div>\n <div class=\"box\"><h3>Check 5 books · answers</h3>\n  <div class=\"ans\">\n   <div><span>1.</span><span class=\"e\">longer</span></div>\n   <div><span>2.</span><span class=\"e\">Own items, true shortest to longest</span></div>\n   <div><span>3.</span><span class=\"e\">Own honest count, e.g. 6</span></div>\n   <div><span>Harder</span><span class=\"e\">Longest minus shortest</span></div>\n  </div></div>\n <div class=\"box mis\"><h3>Likely mistake</h3>Not lined up. <b>Ask:</b> “Where do both start?”</div>\n</section>\n\n<div class=\"board\" data-pic=\"dg2\"><h3>THE BOARD BY THE END · FINGER-WIDTHS ON A TWIG</h3><div class=\"svg\"><svg viewBox=\"0 0 240 40\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><rect x=\"20\" y=\"14\" width=\"40\" height=\"22\" fill=\"#ffe082\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><text x=\"40\" y=\"30\" font-size=\"13\" font-weight=\"bold\">1</text><rect x=\"60\" y=\"14\" width=\"40\" height=\"22\" fill=\"#ffe082\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><text x=\"80\" y=\"30\" font-size=\"13\" font-weight=\"bold\">2</text><rect x=\"100\" y=\"14\" width=\"40\" height=\"22\" fill=\"#ffe082\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><text x=\"120\" y=\"30\" font-size=\"13\" font-weight=\"bold\">3</text><rect x=\"140\" y=\"14\" width=\"40\" height=\"22\" fill=\"#ffe082\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><text x=\"160\" y=\"30\" font-size=\"13\" font-weight=\"bold\">4</text><rect x=\"180\" y=\"14\" width=\"40\" height=\"22\" fill=\"#ffe082\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><text x=\"200\" y=\"30\" font-size=\"13\" font-weight=\"bold\">5</text><text x=\"120\" y=\"10\" font-size=\"12\" font-weight=\"bold\">5 finger-widths</text></svg></div></div>\n\n<section class=\"sec\" style=\"--c:var(--check)\" data-sec=\"check\">\n <div class=\"sh\"><h2>Check · exit ticket</h2><span class=\"t\">36–40′</span><a class=\"fd\" href=\"g1_ch8_Maths_seg13.v9.html#v9-check\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m10\"><span class=\"n\">6</span><p><span class=\"do\">Bottle or lunch box: which is longer? What is the same?</span>\n  <span class=\"say\">“Which is longer? Tell me how you compared.”</span><span class=\"ex\"><b>Ask:</b> “What do you do first when you compare two things?” → <b>Listen for:</b> Line both at one end; which reaches further.</span><span class=\"ex\"><b>Success:</b> “I can compare two things and say how I compared them.” 👍 or ✊ first</span><span class=\"ex\"><b>Correct:</b> Longer or shorter correct; same = lined up at one end.</span></p></div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--hw)\" data-sec=\"hw\">\n <div class=\"sh\"><h2>Homework</h2><span class=\"t\">at home</span><a class=\"fd\" href=\"g1_ch8_Maths_seg13.v9.html#v9-hw\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m11\"><span class=\"n\">7</span><p><span class=\"do\">Find two things; say which is longer; ask family.</span>\n  <span class=\"say\">“Line them up first.”</span></p></div>\n</section>\n\n<div class=\"foot\"><a href=\"g1_ch8_Maths_seg13.v9.html\">Full lesson plan ›</a></div>\n</div></body></html>\n",
+  "gates": [],
+  "cardWithVideo": {
+   "card_version": "v10.1",
+   "lesson_key": "g1·Maths·ch8·seg13",
+   "v9_html": "g1_ch8_Maths_seg13.v9.html",
+   "lang": "en",
+   "header": {
+    "grade": 1,
+    "subject": "Maths",
+    "chapter": "Ch.8 Measure Treasure",
+    "day": 13,
+    "minutes": 40,
+    "title": "Connect and Create: Measurement Art",
+    "goal": "Children <b>compare</b> and order things by length, lined up at one end."
+   },
+   "bring": "textbook p.218 · leaves, twigs, paper, glue",
+   "words": [
+    "length",
+    "non-standard unit",
+    "longer",
+    "shorter"
+   ],
+   "sections": [
+    {
+     "sec": "open",
+     "minutes": 4,
+     "moves": [
+      {
+       "covers": [
+        "m1",
+        "m2",
+        "m3"
+       ],
+       "do": "Open p.218: car or bicycle, which is LONGER? Dots 4, 7.",
+       "how": "Flash: “7 is 4 and ___?” Post: length, unit.",
+       "say": "“7 is 4 and … 3!” What at home could you measure with fingers?",
+       "sense": true,
+       "yesterday": "Yesterday: temperature by ticks. What do we read on a thermometer? (a number)"
+      }
+     ]
+    },
+    {
+     "sec": "explain",
+     "minutes": 7,
+     "moves": [
+      {
+       "covers": [
+        "m4",
+        "m5"
+       ],
+       "do": "Draw car, bicycle level at one end; chalk, duster.",
+       "how": "Chalk is 3 finger-widths. Why is duster longer?",
+       "say": "“Line up at ONE end first.”",
+       "think": "I line both at one end. The duster reaches further, so it is longer. I check: same start, then compare."
+      }
+     ]
+    },
+    {
+     "sec": "we",
+     "minutes": 12,
+     "moves": [
+      {
+       "covers": [
+        "m6"
+       ],
+       "chip": "I START, YOU FINISH",
+       "do": "Lay finger-widths along a twig; class counts 1 to 5.",
+       "how": "Class finishes: “Five finger-widths!” Show three strips.",
+       "say": "“One, two, three, four …” → class: “five!”"
+      },
+      {
+       "covers": [
+        "m7",
+        "m8"
+       ],
+       "chip": "ONE NEIGHBOUR TURN",
+       "do": "One minute: order 3 strips; neighbour counts the longest.",
+       "how": "Fatima and Ahmed show it first. Check 5 desks.",
+       "say": "“Do you agree? Line them up.”",
+       "turn": {
+        "first": "Taller child",
+        "a": "My shortest is ___, my longest is ___.",
+        "b": "Lined up, yes. The longest is ___ finger-widths.",
+        "stop": "one clap, eyes on me"
+       }
+      }
+     ]
+    },
+    {
+     "sec": "you",
+     "minutes": 13,
+     "moves": [
+      {
+       "covers": [
+        "m9"
+       ],
+       "clock": "⏱ 23′ stop explaining",
+       "do": "Alone, p.218: 1. Car vs bicycle 2. Order, glue 3. Count a twig",
+       "how": "Done? Longest minus shortest twig: how many more?",
+       "say": "“Order first, then measure, then glue.”"
+      }
+     ],
+     "answers": [
+      [
+       "1.",
+       "longer"
+      ],
+      [
+       "2.",
+       "Own items, true shortest to longest"
+      ],
+      [
+       "3.",
+       "Own honest count, e.g. 6"
+      ],
+      [
+       "Harder",
+       "Longest minus shortest"
+      ]
+     ],
+     "mistake": "Not lined up. <b>Ask:</b> “Where do both start?”",
+     "stuck": "Two things at a time, lined up."
+    },
+    {
+     "sec": "check",
+     "minutes": 4,
+     "moves": [
+      {
+       "covers": [
+        "m10"
+       ],
+       "do": "Bottle or lunch box: which is longer? What is the same?",
+       "say": "“Which is longer? Tell me how you compared.”"
+      }
+     ],
+     "correct": "Longer or shorter correct; same = lined up at one end.",
+     "success": "I can compare two things and say how I compared them.",
+     "ask": "What do you do first when you compare two things?",
+     "listen": "Line both at one end; which reaches further."
+    },
+    {
+     "sec": "hw",
+     "minutes": 0,
+     "moves": [
+      {
+       "covers": [
+        "m11"
+       ],
+       "do": "Find two things; say which is longer; ask family.",
+       "say": "“Line them up first.”"
+      }
+     ]
+    }
+   ],
+   "pictures": [
+    {
+     "id": "dg1",
+     "after": "we",
+     "kind": "svg",
+     "title": "THE BOARD BY THE END · THREE TWIGS, ONE END",
+     "svg": "<svg viewBox=\"0 0 280 60\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><rect x=\"20\" y=\"4\" width=\"60\" height=\"12\" fill=\"#7cb342\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><rect x=\"20\" y=\"22\" width=\"120\" height=\"12\" fill=\"#8d6e63\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><rect x=\"20\" y=\"40\" width=\"200\" height=\"12\" fill=\"#6d4c41\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><line x1=\"20\" y1=\"0\" x2=\"20\" y2=\"56\" stroke=\"#333\" stroke-width=\"2\"/></svg>"
+    },
+    {
+     "id": "dg2",
+     "after": "you",
+     "kind": "svg",
+     "title": "THE BOARD BY THE END · FINGER-WIDTHS ON A TWIG",
+     "svg": "<svg viewBox=\"0 0 240 40\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><rect x=\"20\" y=\"14\" width=\"40\" height=\"22\" fill=\"#ffe082\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><text x=\"40\" y=\"30\" font-size=\"13\" font-weight=\"bold\">1</text><rect x=\"60\" y=\"14\" width=\"40\" height=\"22\" fill=\"#ffe082\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><text x=\"80\" y=\"30\" font-size=\"13\" font-weight=\"bold\">2</text><rect x=\"100\" y=\"14\" width=\"40\" height=\"22\" fill=\"#ffe082\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><text x=\"120\" y=\"30\" font-size=\"13\" font-weight=\"bold\">3</text><rect x=\"140\" y=\"14\" width=\"40\" height=\"22\" fill=\"#ffe082\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><text x=\"160\" y=\"30\" font-size=\"13\" font-weight=\"bold\">4</text><rect x=\"180\" y=\"14\" width=\"40\" height=\"22\" fill=\"#ffe082\" stroke=\"#333\" stroke-width=\"1.5\" rx=\"3\"/><text x=\"200\" y=\"30\" font-size=\"13\" font-weight=\"bold\">5</text><text x=\"120\" y=\"10\" font-size=\"12\" font-weight=\"bold\">5 finger-widths</text></svg>"
+    }
+   ],
+   "names": {
+    "girl": "Fatima",
+    "boy": "Ahmed"
+   },
+   "video": {
+    "href": "https://www.youtube.com/watch?v=eOykuZ3kEd0",
+    "title": "Length"
+   }
+  },
+  "fullV9Sha": "5d88cae353e20f6ea3419d7635beeec5ab64b337eb66ad8c753328d7b501cc4d"
+ }
+}

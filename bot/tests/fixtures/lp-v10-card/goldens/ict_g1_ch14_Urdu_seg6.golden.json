@@ -1,0 +1,404 @@
+{
+ "name": "ict_g1_ch14_Urdu_seg6",
+ "card": {
+  "card_version": "v10.1",
+  "lesson_key": "g1·Urdu·ch14·seg6",
+  "v9_html": "g1_ch14_Urdu_seg6.v9.html",
+  "lang": "ur",
+  "header": {
+   "chapter": "Ch.14 چلیں گپ شپ کریں",
+   "title": "تخیل کی تختی — تصویر دیکھ کر تین سوالوں سے جملہ",
+   "goal": "بچے تصویر دیکھ کر <b>کون، کہاں، کیا کر رہا ہے</b> کے جواب سے پورا جملہ بولتے ہیں۔",
+   "grade": 1,
+   "subject": "Urdu",
+   "day": 6,
+   "minutes": 40
+  },
+  "bring": "چاک · بلیک بورڈ · کتاب صفحہ ۱۲۳، ۱۲۴ · کاپیاں، پنسلیں",
+  "words": [
+   "تخیل",
+   "تخلیقی",
+   "خاکہ"
+  ],
+  "sections": [
+   {
+    "sec": "open",
+    "minutes": 4,
+    "moves": [
+     {
+      "covers": [
+       "m1",
+       "m2",
+       "m3"
+      ],
+      "do": "چار جوڑے پوچھیں؛ صفحہ ۱۲۳ کی دو تصویریں دکھائیں؛ کتاب کا نمونہ پڑھیں۔",
+      "how": "کل کے مذکر مؤنث دہرائیں۔ پوچھیں: صرف نام لکھنے سے جملہ کیوں نہیں بنتا؟",
+      "say": "“ابو کا مؤنث؟” → “امی!” “مرغا کا مؤنث؟” → “مرغی!”"
+     }
+    ]
+   },
+   {
+    "sec": "explain",
+    "minutes": 8,
+    "moves": [
+     {
+      "covers": [
+       "m4",
+       "m5",
+       "m6"
+      ],
+      "do": "بورڈ پر تین خانے بنائیں: کون؟ کہاں؟ کیا کر رہا ہے؟ ہاتھی کا جملہ۔",
+      "how": "تینوں جواب جوڑیں، آخر میں ختمہ۔ صرف ہاتھی لکھنا جملہ نہیں۔ تین لفظ بتائیں۔",
+      "say": "“چھوٹا ہاتھی جنگل میں خوشی سے اُچھل رہا ہے۔”",
+      "think": "تصویر دیکھتی/دیکھتا ہوں: کون؟ چھوٹا ہاتھی۔ کہاں؟ جنگل میں۔ کیا کر رہا ہے؟ اُچھل رہا ہے۔ تینوں جوڑ کر ختمہ لگاتی/لگاتا ہوں۔"
+     }
+    ]
+   },
+   {
+    "sec": "we",
+    "minutes": 12,
+    "moves": [
+     {
+      "covers": [
+       "m7"
+      ],
+      "chip": "I START, YOU FINISH",
+      "do": "تصویر ۱ (شکاری اور ہرن): تین سوال پوچھیں؛ نام لے کر جواب لیں۔",
+      "how": "ہر جواب خانے میں لکھیں؛ جماعت پورا جملہ پڑھے اور کاپی میں لکھے۔ ہرن پر بھی پوچھیں۔",
+      "say": "“شکاری جنگل میں ___ رہا ہے۔” → “… نشانہ لے رہا ہے!”"
+     },
+     {
+      "covers": [
+       "m7"
+      ],
+      "chip": "ONE NEIGHBOUR TURN",
+      "do": "ایک منٹ، اپنی جگہ پر: ایک بچہ کون بتائے، دوسرا پورا جملہ بولے۔",
+      "how": "ماریہ اور عثمان پہلے کر کے دکھائیں۔ پہلا بچہ کون بتائے، دوسرا کہاں اور کیا۔ پانچ جوڑے سنیں۔",
+      "say": "“کون سنیں، پورا جملہ بنائیں۔”",
+      "turn": {
+       "first": "کھڑکی والا",
+       "a": "میرا کون: بلی۔ آگے کیا؟",
+       "b": "بلی چھت پر سو رہی ہے۔",
+       "stop": "رک جائیں، میری طرف دیکھیں",
+       "help": "پوچھیں: کہاں؟ پھر: کیا کر رہی ہے؟"
+      }
+     }
+    ]
+   },
+   {
+    "sec": "you",
+    "minutes": 12,
+    "moves": [
+     {
+      "covers": [
+       "m8"
+      ],
+      "do": "اکیلے تصویر ۲ دیکھ کر کاپی میں تین جملے لکھیں؛ میں گھوموں گی۔",
+      "how": "۱. شیر پر جملہ ۲. خرگوش پر جملہ ۳. اپنی طرف سے: آگے کیا ہوا؟",
+      "say": "“کون، کہاں، کیا کر رہا ہے؛ آخر میں ختمہ۔”",
+      "clock": "⏱ 24′ stop explaining"
+     }
+    ],
+    "answers": [
+     [
+      "۱. شیر",
+      "شیر کنویں کے پاس بیٹھا ہے۔"
+     ],
+     [
+      "۲. خرگوش",
+      "سفید خرگوش کنویں کے پاس کھڑا شیر کو دیکھ رہا ہے۔"
+     ],
+     [
+      "۳. آگے کیا ہوا",
+      "کوئی بھی درست جملہ، جیسے خرگوش نے شیر کو کنویں میں جھانکنے کو کہا۔"
+     ]
+    ],
+    "mistake": "صرف “شیر خرگوش کنواں” لکھا۔ <b>Ask:</b> “یہ نام ہیں؛ شیر کہاں ہے اور کیا کر رہا ہے؟”",
+    "stuck": "رکیں، میرے ساتھ کہیں: شیر … میں … رہا ہے۔ اب آپ اکیلے۔"
+   },
+   {
+    "sec": "check",
+    "minutes": 4,
+    "moves": [
+     {
+      "covers": [
+       "m9"
+      ],
+      "do": "تین جملے پڑھیں؛ ہر ایک پر انگوٹھا اوپر یا نیچے۔",
+      "how": "پہلے کامیابی کی لائن پڑھیں؛ انگوٹھے سے اندازہ دکھائیں؛ پھر ایک ایک جملہ پڑھیں۔",
+      "say": "“۱. گائے کھیت میں چر رہی ہے، جملہ ہے۔ ۲. گائے گھاس، جملہ ہے۔ ۳. جملے کے آخر میں ختمہ ہے۔”"
+     }
+    ],
+    "correct": "۱ صحیح (کون، کہاں، کیا؛ تینوں ہیں)، ۲ غلط (صرف نام ہیں)، ۳ صحیح (ختمہ لگتا ہے)۔",
+    "success": "میں تصویر دیکھ کر کون، کہاں اور کیا کر رہا ہے کے جواب سے جملہ بول سکتا/سکتی ہوں۔",
+    "ask": "گھر کے باہر کچھ دیکھ کر کون، کہاں، کیا کر رہا ہے بتائیں۔",
+    "listen": "تینوں جواب، جیسے بچہ گلی میں کھیل رہا ہے۔"
+   },
+   {
+    "sec": "hw",
+    "minutes": 0,
+    "moves": [
+     {
+      "covers": [
+       "m10"
+      ],
+      "do": "صفحہ ۱۲۴: کاغذ پر زمین، آسمان بنائیں، رنگ بھریں؛ چاند، تارے چپکائیں۔",
+      "how": "اپنی خیالی دنیا کے بارے میں دو جملے لکھیں۔"
+     }
+    ]
+   }
+  ],
+  "pictures": [
+   {
+    "id": "dg1",
+    "after": "you",
+    "kind": "steps",
+    "title": "THE BOARD BY THE END · کون؟ کہاں؟ کیا کر رہا ہے؟",
+    "items": [
+     [
+      "کون؟",
+      "چھوٹا ہاتھی"
+     ],
+     [
+      "کہاں؟",
+      "جنگل میں"
+     ],
+     [
+      "کیا کر رہا ہے؟",
+      "خوشی سے اُچھل رہا ہے"
+     ],
+     [
+      "پورا جملہ",
+      "تینوں جوڑیں، آخر میں ختمہ"
+     ],
+     [
+      "صرف نام",
+      "جملہ نہیں"
+     ]
+    ]
+   },
+   {
+    "id": "dg2",
+    "after": "we",
+    "kind": "svg",
+    "title": "THE BOARD BY THE END · تصویر ۱ اور ۲، نمونہ",
+    "svg": "<svg viewBox=\"0 0 320 116\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><g transform=\"translate(216,0)\"><ellipse cx=\"46\" cy=\"54\" rx=\"24\" ry=\"16\" fill=\"#b8bcc2\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"74\" cy=\"44\" r=\"10\" fill=\"#b8bcc2\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"68\" cy=\"46\" r=\"6\" fill=\"#98a0a8\"/><path d=\"M82 48 q10 8 4 22\" fill=\"none\" stroke=\"#0B2545\" stroke-width=\"3\"/><path d=\"M28 68v14M40 70v12M54 70v12M64 68v14\" stroke=\"#0B2545\" stroke-width=\"5\"/><rect x=\"4\" y=\"52\" width=\"5\" height=\"30\" fill=\"#8b5a2b\"/><circle cx=\"7\" cy=\"44\" r=\"13\" fill=\"#4caf50\"/><line x1=\"0\" y1=\"84\" x2=\"100\" y2=\"84\" stroke=\"#0B2545\" stroke-width=\"2\"/></g><g transform=\"translate(108,0)\"><circle cx=\"18\" cy=\"26\" r=\"7\" fill=\"#fff\" stroke=\"#0B2545\" stroke-width=\"2\"/><path d=\"M18 33v24M18 57l-8 24M18 57l8 24M18 40l20 -6\" fill=\"none\" stroke=\"#0B2545\" stroke-width=\"3\"/><path d=\"M38 22q8 12 0 24\" fill=\"none\" stroke=\"#0B2545\" stroke-width=\"2\"/><ellipse cx=\"72\" cy=\"62\" rx=\"15\" ry=\"9\" fill=\"#c68642\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"90\" cy=\"46\" r=\"6\" fill=\"#c68642\" stroke=\"#0B2545\" stroke-width=\"2\"/><path d=\"M80 56l8-8M88 40l-2-8M92 40l4-8\" fill=\"none\" stroke=\"#0B2545\" stroke-width=\"2\"/><path d=\"M62 68v14M80 68v14\" stroke=\"#0B2545\" stroke-width=\"3\"/><rect x=\"52\" y=\"30\" width=\"5\" height=\"22\" fill=\"#8b5a2b\"/><circle cx=\"54\" cy=\"24\" r=\"11\" fill=\"#4caf50\"/><line x1=\"0\" y1=\"84\" x2=\"100\" y2=\"84\" stroke=\"#0B2545\" stroke-width=\"2\"/></g><g transform=\"translate(2,0)\"><rect x=\"62\" y=\"52\" width=\"30\" height=\"30\" fill=\"#ddd\" stroke=\"#0B2545\" stroke-width=\"2\"/><ellipse cx=\"77\" cy=\"52\" rx=\"15\" ry=\"5\" fill=\"#555\" stroke=\"#0B2545\" stroke-width=\"2\"/><ellipse cx=\"26\" cy=\"62\" rx=\"20\" ry=\"11\" fill=\"#e8a33d\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"46\" cy=\"52\" r=\"14\" fill=\"#b8741a\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"48\" cy=\"54\" r=\"8\" fill=\"#e8a33d\"/><path d=\"M6 60q-8 -4 -4 -16M14 70v12M36 70v12\" fill=\"none\" stroke=\"#0B2545\" stroke-width=\"4\"/><line x1=\"0\" y1=\"84\" x2=\"100\" y2=\"84\" stroke=\"#0B2545\" stroke-width=\"2\"/></g><text x=\"266\" y=\"106\" font-size=\"14\" fill=\"#1A1A1A\">نمونہ: ہاتھی</text><text x=\"158\" y=\"106\" font-size=\"14\" fill=\"#1A1A1A\">تصویر ۱</text><text x=\"52\" y=\"106\" font-size=\"14\" fill=\"#1A1A1A\">تصویر ۲</text></svg>"
+   }
+  ],
+  "names": {
+   "girl": "ماریہ",
+   "boy": "عثمان"
+  }
+ },
+ "v9Skeleton": "<div data-atom class=\"hero sp-0\">\n<div data-atom class=\"drail sp-2\">\n<div data-atom class=\"band two sp-2\">\n<div data-atom class=\"slo sp-2\">\n<div data-atom class=\"rescard sp-2\">\n<div data-atom class=\"rescard pc pc-a sp-1\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-z sp-0\">\n<div data-atom class=\"blk board pc pc-a sp-2\">\n<div data-atom class=\"blk board pc pc-z sp-0\">\n<div data-atom class=\"blk sp-2\">\n<figure class=\"dg\" style=\"--fig-h:187px\">\n<div data-atom id=\"v9-open\" class=\"bar s-i sp-4\" data-sec=\"introduction\">\n<div data-atom class=\"opn ofirst blk wu sp-2\">\n<div data-atom class=\"opn olast blk hook sp-0\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom id=\"v9-explain\" class=\"bar s-d sp-4\" data-sec=\"development\">\n<div data-atom class=\"blk bigidea sp-2\">\n<div data-atom class=\"blk exq pc pc-a sp-2\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-z sp-0\">\n<div data-atom class=\"blk sp-3\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom id=\"v9-we\" class=\"bar s-we sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk exq we pc pc-a sp-2\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-z sp-0\">\n<div data-atom id=\"v9-you\" class=\"bar s-a sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk pr pc pc-a sp-2\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-z sp-0\">\n<div data-atom class=\"blk sp-3\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom id=\"v9-check\" class=\"bar s-c sp-4\" data-sec=\"conclusion\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk exit sp-2\">\n<div data-atom id=\"v9-hw\" class=\"bar s-h sp-4\" data-sec=\"homework\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"coach sp-4\">\n<div data-atom class=\"mats sp-4\">\n<div data-atom class=\"p2head sp-0\">\n<div data-atom class=\"p2bar sp-2\" data-sec=\"p2-A\">\n<div data-atom class=\"grid2 sp-1\">\n<div data-atom class=\"grid2 sp-2\">\n",
+ "must": [
+  "m1",
+  "m2",
+  "m3",
+  "m4",
+  "m5",
+  "m6",
+  "m7",
+  "m8",
+  "m9"
+ ],
+ "expect": {
+  "addIds": "<div data-atom class=\"hero sp-0\">\n<div data-atom class=\"drail sp-2\">\n<div data-atom class=\"band two sp-2\">\n<div data-atom class=\"slo sp-2\">\n<div data-atom class=\"rescard sp-2\">\n<div data-atom class=\"rescard pc pc-a sp-1\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-z sp-0\">\n<div data-atom class=\"blk board pc pc-a sp-2\">\n<div data-atom class=\"blk board pc pc-z sp-0\">\n<div data-atom class=\"blk sp-2\">\n<figure class=\"dg\" style=\"--fig-h:187px\">\n<div data-atom id=\"v9-open\" class=\"bar s-i sp-4\" data-sec=\"introduction\">\n<div data-atom class=\"opn ofirst blk wu sp-2\">\n<div data-atom class=\"opn olast blk hook sp-0\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom id=\"v9-explain\" class=\"bar s-d sp-4\" data-sec=\"development\">\n<div data-atom class=\"blk bigidea sp-2\">\n<div data-atom class=\"blk exq pc pc-a sp-2\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-z sp-0\">\n<div data-atom class=\"blk sp-3\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom id=\"v9-we\" class=\"bar s-we sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk exq we pc pc-a sp-2\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-z sp-0\">\n<div data-atom id=\"v9-you\" class=\"bar s-a sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk pr pc pc-a sp-2\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-z sp-0\">\n<div data-atom class=\"blk sp-3\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom id=\"v9-check\" class=\"bar s-c sp-4\" data-sec=\"conclusion\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk exit sp-2\">\n<div data-atom id=\"v9-hw\" class=\"bar s-h sp-4\" data-sec=\"homework\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"coach sp-4\">\n<div data-atom class=\"mats sp-4\">\n<div data-atom class=\"p2head sp-0\">\n<div data-atom class=\"p2bar sp-2\" data-sec=\"p2-A\">\n<div data-atom class=\"grid2 sp-1\">\n<div data-atom class=\"grid2 sp-2\">\n",
+  "missing": [],
+  "video": null,
+  "validate": [],
+  "html": "<!doctype html>\n<html lang=\"ur\" dir=\"rtl\"><head><meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\">\n<meta name=\"color-scheme\" content=\"light\">\n<title>G1 Urdu Ch.14 Day 6 Card</title>\n<style>\n/* Phone-first teacher card: one column, sized for a 360-390 px screen; prints on one 520 x 2000 page.\n   Single light look on purpose (the v17 section colours Amena approved, 9 Oct). */\n:root{--navy:#26324A;--ink:#1F2430;--mut:#55606F;--line:#DDE1E8;--paper:#FFFFFF;--ground:#EEF0F3;\n--open:#E07B00;--explain:#8A45F0;--we:#3B5BDB;--you:#2B8A3E;--check:#C2255C;--hw:#0B7285;--star:#F2B705;\n--body:system-ui,-apple-system,\"Segoe UI\",Roboto,\"Noto Sans\",sans-serif;color-scheme:light}\n*{box-sizing:border-box}\nhtml,body{margin:0;background:var(--ground);color:var(--ink)}\nbody{font:17px/1.45 var(--body);-webkit-text-size-adjust:100%}\n.page{max-width:480px;margin:0 auto;background:var(--paper);padding:12px 14px 16px;display:flex;flex-direction:column;gap:12px}\na{color:inherit}\n.hd{background:var(--navy);color:#fff;border-radius:14px;padding:12px 14px 14px}\n.hd .k{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;font-weight:700;font-size:13.5px;letter-spacing:.03em}\n.hd .k b{color:#FFC34D}\n.hd h1{font-size:22px;line-height:1.25;margin:6px 0 6px;text-wrap:balance}\n.hd .goal{font-size:15.5px;opacity:.95}\n.info{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:15.5px}\n.info b{color:var(--mut);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;padding-top:3px}\n.time .pr{display:flex;font:700 12.5px/1 var(--body);color:var(--ink);margin-bottom:4px}\n.time .pr span{min-width:44px;text-align:center;border-bottom:2.5px solid var(--ink);padding-bottom:3px}\n.bar{display:flex;height:30px;border-radius:8px;overflow:hidden;font:800 14px/1 var(--body);color:#fff}\n.bar span{display:flex;align-items:center;justify-content:center;border-right:2px solid #fff;min-width:44px}\n.bar span:last-child{border:0}\n.lab{display:flex;font-size:12px;color:var(--mut);margin-top:3px}.lab span{text-align:center;min-width:44px;white-space:nowrap}\n.star{border:2.5px solid var(--star);background:#FFF6D6;border-radius:12px;padding:10px 12px;font-size:16px}\n.star .l{font-weight:800;color:#7A4F00}\n.sec{border:1px solid color-mix(in srgb,var(--c) 28%,#fff);border-inline-start:7px solid var(--c);border-radius:12px;\n background:color-mix(in srgb,var(--c) 6%,#fff);padding:10px 12px 12px}\n.sec.mark{box-shadow:0 0 0 3px var(--star)}\n/* one row: a long title wraps inside itself, so Full details never drops under the heading (judge 10F) */\n.sh{display:flex;gap:2px 8px}\n.sh h2{margin:0;font-size:19px;color:var(--c);flex:0 1 auto;min-width:0}\n.sh .t{flex:none;white-space:nowrap}.sh .fd{flex:none;margin-left:auto}\n/* phone: the time drops under the title so the title keeps one line beside Full details (judge pilot4 10D) */\n@media screen and (max-width:420px){.sh{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}.sh h2{white-space:nowrap;font-size:17.5px}.sh .t{grid-row:2;grid-column:1}.sh .fd{grid-row:1/span 2;grid-column:2}}\n.sh .t{font-weight:700;font-size:14px;color:var(--mut);font-variant-numeric:tabular-nums}\n.mv{display:grid;grid-template-columns:30px 1fr;gap:10px;margin-top:10px}\n.mv p{margin:0;min-width:0}.mv .do{font-weight:700}\n.n{width:28px;height:28px;border-radius:999px;background:var(--c);color:#fff;font:800 15px/28px var(--body);text-align:center}\n.say{display:block;margin-top:3px;font-style:italic}\n.ex{display:block;margin-top:3px}\n.say::before{content:\"Say: \";font-style:normal;font-weight:800;color:var(--c)}\n.chip{display:inline-block;font:800 12px/1 var(--body);letter-spacing:.03em;color:#fff;background:var(--c);border-radius:6px;padding:5px 7px;margin:0 0 4px}\n.clock{display:inline-block;font-weight:800;color:#fff;background:var(--ink);border-radius:6px;padding:3px 8px;font-size:14.5px;margin-bottom:4px}\n.box{margin-top:10px;border-radius:10px;background:#fff;border:1px solid var(--line);padding:8px 10px;font-size:15.5px}\n.box h3{margin:0 0 4px;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--c)}\n.ans{display:grid;gap:5px}.ans div{display:flex;flex-wrap:wrap;gap:0 8px}.ans .e{font-weight:700}\n.mis{border-color:#F1B0B0;background:#FFF1F1}.mis h3{color:#B02525}\n.fd{display:inline-flex;align-items:center;min-height:40px;padding:0 12px;font:700 14.5px/1 var(--body);color:var(--c);\n border:1.5px solid var(--c);border-radius:999px;text-decoration:none;background:#fff;white-space:nowrap}\n.sh{align-items:center}\n.fd:focus-visible{outline:3px solid var(--navy);outline-offset:2px}\n.board{border:2px solid var(--navy);border-radius:12px;padding:8px 10px 10px}\n.board h3{margin:0 0 6px;font-size:12.5px;letter-spacing:.06em;color:var(--navy)}\n.faces{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center;font-size:13.5px}\n.faces div{border:1.5px solid var(--line);border-radius:9px;padding:4px 2px}.faces .e{display:block;font-size:26px}\n.foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;border-top:1px solid var(--line);padding-top:10px;font-size:14px;color:var(--mut)}\n.foot a{font-weight:800;color:var(--navy);min-height:44px;display:inline-flex;align-items:center}\n@page{size:520px 2000px;margin:0}\n@media print{html,body{background:#fff}body{font-size:14.5px;line-height:1.35}.page{max-width:none;width:520px;gap:7px;padding:10px 14px}.fd{min-height:28px;font-size:12.5px}.mv{margin-top:5px}.sec{padding:7px 11px 9px}.box{margin-top:6px;padding:5px 9px;font-size:14px}.hd h1{font-size:20px}}\n.steps{margin:0;padding-inline-start:22px;font-weight:700;display:grid;gap:4px}\n.svg svg{display:block;max-width:100%;height:auto;margin:0 auto}\n.pl{font-size:15px;margin-top:6px;text-align:center}\n\n</style></head>\n<body><div class=\"page\">\n\n<div class=\"hd\">\n <div class=\"k\"><span><b>GRADE 1 · URDU</b> · Ch.14 چلیں گپ شپ کریں</span><span>Day 6 · 40 min</span></div>\n <h1>تخیل کی تختی — تصویر دیکھ کر تین سوالوں سے جملہ</h1>\n <div class=\"goal\">بچے تصویر دیکھ کر <b>کون، کہاں، کیا کر رہا ہے</b> کے جواب سے پورا جملہ بولتے ہیں۔</div>\n</div>\n\n<div class=\"info\">\n <b>Bring</b><span>چاک · بلیک بورڈ · کتاب صفحہ ۱۲۳، ۱۲۴ · کاپیاں، پنسلیں</span>\n <b>Words</b><span>تخیل · تخلیقی · خاکہ</span>\n</div>\n\n<div class=\"time\" aria-label=\"Time: 4 open, 8 explain, 12 we do, 12 you do, 4 check\">\n <div class=\"pr\"><span style=\"flex:12\"></span><span style=\"flex:24\">PRACTICE · 24 of 40 min</span><span style=\"flex:4\"></span></div>\n <div class=\"bar\">\n  <span data-sec=\"open\" style=\"flex:4;background:var(--open)\">4′</span>\n  <span data-sec=\"explain\" style=\"flex:8;background:var(--explain)\">8′</span>\n  <span data-sec=\"we\" style=\"flex:12;background:var(--we)\">12′</span>\n  <span data-sec=\"you\" style=\"flex:12;background:var(--you)\">12′</span>\n  <span data-sec=\"check\" style=\"flex:4;background:var(--check)\">4′</span>\n </div>\n <div class=\"lab\"><span style=\"flex:4\">Open</span><span style=\"flex:8\">Explain</span><span style=\"flex:12\">We Do</span><span style=\"flex:12\">You Do</span><span style=\"flex:4\">✓</span></div>\n</div>\n\n<!-- Coaching slot: filled per teacher from their last report once recordings start. Hidden in the base corpus. -->\n<div class=\"star\" hidden data-slot=\"star\"><span class=\"l\">★ Your one thing today</span> · in move <b data-slot=\"star-move\"></b><br><span data-slot=\"star-text\"></span></div>\n\n<section class=\"sec\" style=\"--c:var(--open)\" data-sec=\"open\">\n <div class=\"sh\"><h2>Opening</h2><span class=\"t\">0–4′</span><a class=\"fd\" href=\"g1_ch14_Urdu_seg6.v9.html#v9-open\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m1 m2 m3\"><span class=\"n\">1</span><p><span class=\"do\">چار جوڑے پوچھیں؛ صفحہ ۱۲۳ کی دو تصویریں دکھائیں؛ کتاب کا نمونہ پڑھیں۔</span> کل کے مذکر مؤنث دہرائیں۔ پوچھیں: صرف نام لکھنے سے جملہ کیوں نہیں بنتا؟\n  <span class=\"say\">“ابو کا مؤنث؟” → “امی!” “مرغا کا مؤنث؟” → “مرغی!”</span></p></div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--explain)\" data-sec=\"explain\">\n <div class=\"sh\"><h2>Explanation · I Do</h2><span class=\"t\">4–12′</span><a class=\"fd\" href=\"g1_ch14_Urdu_seg6.v9.html#v9-explain\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m4 m5 m6\"><span class=\"n\">2</span><p><span class=\"do\">بورڈ پر تین خانے بنائیں: کون؟ کہاں؟ کیا کر رہا ہے؟ ہاتھی کا جملہ۔</span> تینوں جواب جوڑیں، آخر میں ختمہ۔ صرف ہاتھی لکھنا جملہ نہیں۔ تین لفظ بتائیں۔\n  <span class=\"say\">“چھوٹا ہاتھی جنگل میں خوشی سے اُچھل رہا ہے۔”</span><span class=\"ex\"><b>Think aloud:</b> “تصویر دیکھتی/دیکھتا ہوں: کون؟ چھوٹا ہاتھی۔ کہاں؟ جنگل میں۔ کیا کر رہا ہے؟ اُچھل رہا ہے۔ تینوں جوڑ کر ختمہ لگاتی/لگاتا ہوں۔”</span></p></div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--we)\" data-sec=\"we\">\n <div class=\"sh\"><h2>We Do</h2><span class=\"t\">12–24′</span><a class=\"fd\" href=\"g1_ch14_Urdu_seg6.v9.html#v9-we\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m7\"><span class=\"n\">3</span><p><span class=\"chip\">I START, YOU FINISH</span><br><span class=\"do\">تصویر ۱ (شکاری اور ہرن): تین سوال پوچھیں؛ نام لے کر جواب لیں۔</span> ہر جواب خانے میں لکھیں؛ جماعت پورا جملہ پڑھے اور کاپی میں لکھے۔ ہرن پر بھی پوچھیں۔\n  <span class=\"say\">“شکاری جنگل میں ___ رہا ہے۔” → “… نشانہ لے رہا ہے!”</span></p></div>\n <div class=\"mv\" data-covers=\"m7\"><span class=\"n\">4</span><p><span class=\"chip\">ONE NEIGHBOUR TURN</span><br><span class=\"do\">ایک منٹ، اپنی جگہ پر: ایک بچہ کون بتائے، دوسرا پورا جملہ بولے۔</span> ماریہ اور عثمان پہلے کر کے دکھائیں۔ پہلا بچہ کون بتائے، دوسرا کہاں اور کیا۔ پانچ جوڑے سنیں۔\n  <span class=\"say\">“کون سنیں، پورا جملہ بنائیں۔”</span><span class=\"ex\"><b>کھڑکی والا first:</b> “میرا کون: بلی۔ آگے کیا؟” → <b>Reply:</b> “بلی چھت پر سو رہی ہے۔” · <b>Stop:</b> رک جائیں، میری طرف دیکھیں · <b>Stuck?</b> پوچھیں: کہاں؟ پھر: کیا کر رہی ہے؟</span></p></div>\n</section>\n\n<div class=\"board\" data-pic=\"dg2\"><h3>THE BOARD BY THE END · تصویر ۱ اور ۲، نمونہ</h3><div class=\"svg\"><svg viewBox=\"0 0 320 116\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><g transform=\"translate(216,0)\"><ellipse cx=\"46\" cy=\"54\" rx=\"24\" ry=\"16\" fill=\"#b8bcc2\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"74\" cy=\"44\" r=\"10\" fill=\"#b8bcc2\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"68\" cy=\"46\" r=\"6\" fill=\"#98a0a8\"/><path d=\"M82 48 q10 8 4 22\" fill=\"none\" stroke=\"#0B2545\" stroke-width=\"3\"/><path d=\"M28 68v14M40 70v12M54 70v12M64 68v14\" stroke=\"#0B2545\" stroke-width=\"5\"/><rect x=\"4\" y=\"52\" width=\"5\" height=\"30\" fill=\"#8b5a2b\"/><circle cx=\"7\" cy=\"44\" r=\"13\" fill=\"#4caf50\"/><line x1=\"0\" y1=\"84\" x2=\"100\" y2=\"84\" stroke=\"#0B2545\" stroke-width=\"2\"/></g><g transform=\"translate(108,0)\"><circle cx=\"18\" cy=\"26\" r=\"7\" fill=\"#fff\" stroke=\"#0B2545\" stroke-width=\"2\"/><path d=\"M18 33v24M18 57l-8 24M18 57l8 24M18 40l20 -6\" fill=\"none\" stroke=\"#0B2545\" stroke-width=\"3\"/><path d=\"M38 22q8 12 0 24\" fill=\"none\" stroke=\"#0B2545\" stroke-width=\"2\"/><ellipse cx=\"72\" cy=\"62\" rx=\"15\" ry=\"9\" fill=\"#c68642\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"90\" cy=\"46\" r=\"6\" fill=\"#c68642\" stroke=\"#0B2545\" stroke-width=\"2\"/><path d=\"M80 56l8-8M88 40l-2-8M92 40l4-8\" fill=\"none\" stroke=\"#0B2545\" stroke-width=\"2\"/><path d=\"M62 68v14M80 68v14\" stroke=\"#0B2545\" stroke-width=\"3\"/><rect x=\"52\" y=\"30\" width=\"5\" height=\"22\" fill=\"#8b5a2b\"/><circle cx=\"54\" cy=\"24\" r=\"11\" fill=\"#4caf50\"/><line x1=\"0\" y1=\"84\" x2=\"100\" y2=\"84\" stroke=\"#0B2545\" stroke-width=\"2\"/></g><g transform=\"translate(2,0)\"><rect x=\"62\" y=\"52\" width=\"30\" height=\"30\" fill=\"#ddd\" stroke=\"#0B2545\" stroke-width=\"2\"/><ellipse cx=\"77\" cy=\"52\" rx=\"15\" ry=\"5\" fill=\"#555\" stroke=\"#0B2545\" stroke-width=\"2\"/><ellipse cx=\"26\" cy=\"62\" rx=\"20\" ry=\"11\" fill=\"#e8a33d\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"46\" cy=\"52\" r=\"14\" fill=\"#b8741a\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"48\" cy=\"54\" r=\"8\" fill=\"#e8a33d\"/><path d=\"M6 60q-8 -4 -4 -16M14 70v12M36 70v12\" fill=\"none\" stroke=\"#0B2545\" stroke-width=\"4\"/><line x1=\"0\" y1=\"84\" x2=\"100\" y2=\"84\" stroke=\"#0B2545\" stroke-width=\"2\"/></g><text x=\"266\" y=\"106\" font-size=\"14\" fill=\"#1A1A1A\">نمونہ: ہاتھی</text><text x=\"158\" y=\"106\" font-size=\"14\" fill=\"#1A1A1A\">تصویر ۱</text><text x=\"52\" y=\"106\" font-size=\"14\" fill=\"#1A1A1A\">تصویر ۲</text></svg></div></div>\n\n<section class=\"sec\" style=\"--c:var(--you)\" data-sec=\"you\">\n <div class=\"sh\"><h2>You Do · in the book</h2><span class=\"t\">24–36′</span><a class=\"fd\" href=\"g1_ch14_Urdu_seg6.v9.html#v9-you\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m8\"><span class=\"n\">5</span><p><span class=\"clock\">⏱ 24′ stop explaining</span><br><span class=\"do\">اکیلے تصویر ۲ دیکھ کر کاپی میں تین جملے لکھیں؛ میں گھوموں گی۔</span> ۱. شیر پر جملہ ۲. خرگوش پر جملہ ۳. اپنی طرف سے: آگے کیا ہوا؟\n  <span class=\"say\">“کون، کہاں، کیا کر رہا ہے؛ آخر میں ختمہ۔”</span><span class=\"ex\"><b>If stuck:</b> رکیں، میرے ساتھ کہیں: شیر … میں … رہا ہے۔ اب آپ اکیلے۔</span></p></div>\n <div class=\"box\"><h3>Check 5 books · answers</h3>\n  <div class=\"ans\">\n   <div><span>۱. شیر</span><span class=\"e\">شیر کنویں کے پاس بیٹھا ہے۔</span></div>\n   <div><span>۲. خرگوش</span><span class=\"e\">سفید خرگوش کنویں کے پاس کھڑا شیر کو دیکھ رہا ہے۔</span></div>\n   <div><span>۳. آگے کیا ہوا</span><span class=\"e\">کوئی بھی درست جملہ، جیسے خرگوش نے شیر کو کنویں میں جھانکنے کو کہا۔</span></div>\n  </div></div>\n <div class=\"box mis\"><h3>Likely mistake</h3>صرف “شیر خرگوش کنواں” لکھا۔ <b>Ask:</b> “یہ نام ہیں؛ شیر کہاں ہے اور کیا کر رہا ہے؟”</div>\n</section>\n\n<div class=\"board\" data-pic=\"dg1\"><h3>THE BOARD BY THE END · کون؟ کہاں؟ کیا کر رہا ہے؟</h3><ol class=\"steps\"><li><b>کون؟</b> <small>چھوٹا ہاتھی</small></li><li><b>کہاں؟</b> <small>جنگل میں</small></li><li><b>کیا کر رہا ہے؟</b> <small>خوشی سے اُچھل رہا ہے</small></li><li><b>پورا جملہ</b> <small>تینوں جوڑیں، آخر میں ختمہ</small></li><li><b>صرف نام</b> <small>جملہ نہیں</small></li></ol></div>\n\n<section class=\"sec\" style=\"--c:var(--check)\" data-sec=\"check\">\n <div class=\"sh\"><h2>Check · exit ticket</h2><span class=\"t\">36–40′</span><a class=\"fd\" href=\"g1_ch14_Urdu_seg6.v9.html#v9-check\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m9\"><span class=\"n\">6</span><p><span class=\"do\">تین جملے پڑھیں؛ ہر ایک پر انگوٹھا اوپر یا نیچے۔</span> پہلے کامیابی کی لائن پڑھیں؛ انگوٹھے سے اندازہ دکھائیں؛ پھر ایک ایک جملہ پڑھیں۔\n  <span class=\"say\">“۱. گائے کھیت میں چر رہی ہے، جملہ ہے۔ ۲. گائے گھاس، جملہ ہے۔ ۳. جملے کے آخر میں ختمہ ہے۔”</span><span class=\"ex\"><b>Ask:</b> “گھر کے باہر کچھ دیکھ کر کون، کہاں، کیا کر رہا ہے بتائیں۔” → <b>Listen for:</b> تینوں جواب، جیسے بچہ گلی میں کھیل رہا ہے۔</span><span class=\"ex\"><b>Success:</b> “میں تصویر دیکھ کر کون، کہاں اور کیا کر رہا ہے کے جواب سے جملہ بول سکتا/سکتی ہوں۔” 👍 or ✊ first</span><span class=\"ex\"><b>Correct:</b> ۱ صحیح (کون، کہاں، کیا؛ تینوں ہیں)، ۲ غلط (صرف نام ہیں)، ۳ صحیح (ختمہ لگتا ہے)۔</span></p></div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--hw)\" data-sec=\"hw\">\n <div class=\"sh\"><h2>Homework</h2><span class=\"t\">at home</span><a class=\"fd\" href=\"g1_ch14_Urdu_seg6.v9.html#v9-hw\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m10\"><span class=\"n\">7</span><p><span class=\"do\">صفحہ ۱۲۴: کاغذ پر زمین، آسمان بنائیں، رنگ بھریں؛ چاند، تارے چپکائیں۔</span> اپنی خیالی دنیا کے بارے میں دو جملے لکھیں۔</p></div>\n</section>\n\n<div class=\"foot\"><a href=\"g1_ch14_Urdu_seg6.v9.html\">Full lesson plan ›</a></div>\n</div></body></html>\n",
+  "gates": [],
+  "cardWithVideo": {
+   "card_version": "v10.1",
+   "lesson_key": "g1·Urdu·ch14·seg6",
+   "v9_html": "g1_ch14_Urdu_seg6.v9.html",
+   "lang": "ur",
+   "header": {
+    "chapter": "Ch.14 چلیں گپ شپ کریں",
+    "title": "تخیل کی تختی — تصویر دیکھ کر تین سوالوں سے جملہ",
+    "goal": "بچے تصویر دیکھ کر <b>کون، کہاں، کیا کر رہا ہے</b> کے جواب سے پورا جملہ بولتے ہیں۔",
+    "grade": 1,
+    "subject": "Urdu",
+    "day": 6,
+    "minutes": 40
+   },
+   "bring": "چاک · بلیک بورڈ · کتاب صفحہ ۱۲۳، ۱۲۴ · کاپیاں، پنسلیں",
+   "words": [
+    "تخیل",
+    "تخلیقی",
+    "خاکہ"
+   ],
+   "sections": [
+    {
+     "sec": "open",
+     "minutes": 4,
+     "moves": [
+      {
+       "covers": [
+        "m1",
+        "m2",
+        "m3"
+       ],
+       "do": "چار جوڑے پوچھیں؛ صفحہ ۱۲۳ کی دو تصویریں دکھائیں؛ کتاب کا نمونہ پڑھیں۔",
+       "how": "کل کے مذکر مؤنث دہرائیں۔ پوچھیں: صرف نام لکھنے سے جملہ کیوں نہیں بنتا؟",
+       "say": "“ابو کا مؤنث؟” → “امی!” “مرغا کا مؤنث؟” → “مرغی!”"
+      }
+     ]
+    },
+    {
+     "sec": "explain",
+     "minutes": 8,
+     "moves": [
+      {
+       "covers": [
+        "m4",
+        "m5",
+        "m6"
+       ],
+       "do": "بورڈ پر تین خانے بنائیں: کون؟ کہاں؟ کیا کر رہا ہے؟ ہاتھی کا جملہ۔",
+       "how": "تینوں جواب جوڑیں، آخر میں ختمہ۔ صرف ہاتھی لکھنا جملہ نہیں۔ تین لفظ بتائیں۔",
+       "say": "“چھوٹا ہاتھی جنگل میں خوشی سے اُچھل رہا ہے۔”",
+       "think": "تصویر دیکھتی/دیکھتا ہوں: کون؟ چھوٹا ہاتھی۔ کہاں؟ جنگل میں۔ کیا کر رہا ہے؟ اُچھل رہا ہے۔ تینوں جوڑ کر ختمہ لگاتی/لگاتا ہوں۔"
+      }
+     ]
+    },
+    {
+     "sec": "we",
+     "minutes": 12,
+     "moves": [
+      {
+       "covers": [
+        "m7"
+       ],
+       "chip": "I START, YOU FINISH",
+       "do": "تصویر ۱ (شکاری اور ہرن): تین سوال پوچھیں؛ نام لے کر جواب لیں۔",
+       "how": "ہر جواب خانے میں لکھیں؛ جماعت پورا جملہ پڑھے اور کاپی میں لکھے۔ ہرن پر بھی پوچھیں۔",
+       "say": "“شکاری جنگل میں ___ رہا ہے۔” → “… نشانہ لے رہا ہے!”"
+      },
+      {
+       "covers": [
+        "m7"
+       ],
+       "chip": "ONE NEIGHBOUR TURN",
+       "do": "ایک منٹ، اپنی جگہ پر: ایک بچہ کون بتائے، دوسرا پورا جملہ بولے۔",
+       "how": "ماریہ اور عثمان پہلے کر کے دکھائیں۔ پہلا بچہ کون بتائے، دوسرا کہاں اور کیا۔ پانچ جوڑے سنیں۔",
+       "say": "“کون سنیں، پورا جملہ بنائیں۔”",
+       "turn": {
+        "first": "کھڑکی والا",
+        "a": "میرا کون: بلی۔ آگے کیا؟",
+        "b": "بلی چھت پر سو رہی ہے۔",
+        "stop": "رک جائیں، میری طرف دیکھیں",
+        "help": "پوچھیں: کہاں؟ پھر: کیا کر رہی ہے؟"
+       }
+      }
+     ]
+    },
+    {
+     "sec": "you",
+     "minutes": 12,
+     "moves": [
+      {
+       "covers": [
+        "m8"
+       ],
+       "do": "اکیلے تصویر ۲ دیکھ کر کاپی میں تین جملے لکھیں؛ میں گھوموں گی۔",
+       "how": "۱. شیر پر جملہ ۲. خرگوش پر جملہ ۳. اپنی طرف سے: آگے کیا ہوا؟",
+       "say": "“کون، کہاں، کیا کر رہا ہے؛ آخر میں ختمہ۔”",
+       "clock": "⏱ 24′ stop explaining"
+      }
+     ],
+     "answers": [
+      [
+       "۱. شیر",
+       "شیر کنویں کے پاس بیٹھا ہے۔"
+      ],
+      [
+       "۲. خرگوش",
+       "سفید خرگوش کنویں کے پاس کھڑا شیر کو دیکھ رہا ہے۔"
+      ],
+      [
+       "۳. آگے کیا ہوا",
+       "کوئی بھی درست جملہ، جیسے خرگوش نے شیر کو کنویں میں جھانکنے کو کہا۔"
+      ]
+     ],
+     "mistake": "صرف “شیر خرگوش کنواں” لکھا۔ <b>Ask:</b> “یہ نام ہیں؛ شیر کہاں ہے اور کیا کر رہا ہے؟”",
+     "stuck": "رکیں، میرے ساتھ کہیں: شیر … میں … رہا ہے۔ اب آپ اکیلے۔"
+    },
+    {
+     "sec": "check",
+     "minutes": 4,
+     "moves": [
+      {
+       "covers": [
+        "m9"
+       ],
+       "do": "تین جملے پڑھیں؛ ہر ایک پر انگوٹھا اوپر یا نیچے۔",
+       "how": "پہلے کامیابی کی لائن پڑھیں؛ انگوٹھے سے اندازہ دکھائیں؛ پھر ایک ایک جملہ پڑھیں۔",
+       "say": "“۱. گائے کھیت میں چر رہی ہے، جملہ ہے۔ ۲. گائے گھاس، جملہ ہے۔ ۳. جملے کے آخر میں ختمہ ہے۔”"
+      }
+     ],
+     "correct": "۱ صحیح (کون، کہاں، کیا؛ تینوں ہیں)، ۲ غلط (صرف نام ہیں)، ۳ صحیح (ختمہ لگتا ہے)۔",
+     "success": "میں تصویر دیکھ کر کون، کہاں اور کیا کر رہا ہے کے جواب سے جملہ بول سکتا/سکتی ہوں۔",
+     "ask": "گھر کے باہر کچھ دیکھ کر کون، کہاں، کیا کر رہا ہے بتائیں۔",
+     "listen": "تینوں جواب، جیسے بچہ گلی میں کھیل رہا ہے۔"
+    },
+    {
+     "sec": "hw",
+     "minutes": 0,
+     "moves": [
+      {
+       "covers": [
+        "m10"
+       ],
+       "do": "صفحہ ۱۲۴: کاغذ پر زمین، آسمان بنائیں، رنگ بھریں؛ چاند، تارے چپکائیں۔",
+       "how": "اپنی خیالی دنیا کے بارے میں دو جملے لکھیں۔"
+      }
+     ]
+    }
+   ],
+   "pictures": [
+    {
+     "id": "dg1",
+     "after": "you",
+     "kind": "steps",
+     "title": "THE BOARD BY THE END · کون؟ کہاں؟ کیا کر رہا ہے؟",
+     "items": [
+      [
+       "کون؟",
+       "چھوٹا ہاتھی"
+      ],
+      [
+       "کہاں؟",
+       "جنگل میں"
+      ],
+      [
+       "کیا کر رہا ہے؟",
+       "خوشی سے اُچھل رہا ہے"
+      ],
+      [
+       "پورا جملہ",
+       "تینوں جوڑیں، آخر میں ختمہ"
+      ],
+      [
+       "صرف نام",
+       "جملہ نہیں"
+      ]
+     ]
+    },
+    {
+     "id": "dg2",
+     "after": "we",
+     "kind": "svg",
+     "title": "THE BOARD BY THE END · تصویر ۱ اور ۲، نمونہ",
+     "svg": "<svg viewBox=\"0 0 320 116\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><g transform=\"translate(216,0)\"><ellipse cx=\"46\" cy=\"54\" rx=\"24\" ry=\"16\" fill=\"#b8bcc2\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"74\" cy=\"44\" r=\"10\" fill=\"#b8bcc2\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"68\" cy=\"46\" r=\"6\" fill=\"#98a0a8\"/><path d=\"M82 48 q10 8 4 22\" fill=\"none\" stroke=\"#0B2545\" stroke-width=\"3\"/><path d=\"M28 68v14M40 70v12M54 70v12M64 68v14\" stroke=\"#0B2545\" stroke-width=\"5\"/><rect x=\"4\" y=\"52\" width=\"5\" height=\"30\" fill=\"#8b5a2b\"/><circle cx=\"7\" cy=\"44\" r=\"13\" fill=\"#4caf50\"/><line x1=\"0\" y1=\"84\" x2=\"100\" y2=\"84\" stroke=\"#0B2545\" stroke-width=\"2\"/></g><g transform=\"translate(108,0)\"><circle cx=\"18\" cy=\"26\" r=\"7\" fill=\"#fff\" stroke=\"#0B2545\" stroke-width=\"2\"/><path d=\"M18 33v24M18 57l-8 24M18 57l8 24M18 40l20 -6\" fill=\"none\" stroke=\"#0B2545\" stroke-width=\"3\"/><path d=\"M38 22q8 12 0 24\" fill=\"none\" stroke=\"#0B2545\" stroke-width=\"2\"/><ellipse cx=\"72\" cy=\"62\" rx=\"15\" ry=\"9\" fill=\"#c68642\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"90\" cy=\"46\" r=\"6\" fill=\"#c68642\" stroke=\"#0B2545\" stroke-width=\"2\"/><path d=\"M80 56l8-8M88 40l-2-8M92 40l4-8\" fill=\"none\" stroke=\"#0B2545\" stroke-width=\"2\"/><path d=\"M62 68v14M80 68v14\" stroke=\"#0B2545\" stroke-width=\"3\"/><rect x=\"52\" y=\"30\" width=\"5\" height=\"22\" fill=\"#8b5a2b\"/><circle cx=\"54\" cy=\"24\" r=\"11\" fill=\"#4caf50\"/><line x1=\"0\" y1=\"84\" x2=\"100\" y2=\"84\" stroke=\"#0B2545\" stroke-width=\"2\"/></g><g transform=\"translate(2,0)\"><rect x=\"62\" y=\"52\" width=\"30\" height=\"30\" fill=\"#ddd\" stroke=\"#0B2545\" stroke-width=\"2\"/><ellipse cx=\"77\" cy=\"52\" rx=\"15\" ry=\"5\" fill=\"#555\" stroke=\"#0B2545\" stroke-width=\"2\"/><ellipse cx=\"26\" cy=\"62\" rx=\"20\" ry=\"11\" fill=\"#e8a33d\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"46\" cy=\"52\" r=\"14\" fill=\"#b8741a\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"48\" cy=\"54\" r=\"8\" fill=\"#e8a33d\"/><path d=\"M6 60q-8 -4 -4 -16M14 70v12M36 70v12\" fill=\"none\" stroke=\"#0B2545\" stroke-width=\"4\"/><line x1=\"0\" y1=\"84\" x2=\"100\" y2=\"84\" stroke=\"#0B2545\" stroke-width=\"2\"/></g><text x=\"266\" y=\"106\" font-size=\"14\" fill=\"#1A1A1A\">نمونہ: ہاتھی</text><text x=\"158\" y=\"106\" font-size=\"14\" fill=\"#1A1A1A\">تصویر ۱</text><text x=\"52\" y=\"106\" font-size=\"14\" fill=\"#1A1A1A\">تصویر ۲</text></svg>"
+    }
+   ],
+   "names": {
+    "girl": "ماریہ",
+    "boy": "عثمان"
+   }
+  },
+  "fullV9Sha": "924b82b9b83b5822585990ecacb3e068c98b9fefb3247acceee209cc97c0d693"
+ }
+}

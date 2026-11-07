@@ -235,6 +235,9 @@ const JOBS = {
   'lp.extractUpload': {
     env: 'LP_FIDELITY_MODEL', default: 'openai/gpt-5.6-luna', site: 'shared/services/coaching/fidelity/lp-upload-extractor.js',
   },
+  // GB K-5 v10 card written on request (bd-rj6w0n.14.16.6): the moves read, then the card itself.
+  'lp.v10moves': { env: 'LP_V10_MOVES_MODEL', default: 'anthropic/claude-sonnet-5', site: 'shared/services/lp-v10-card/moves.js' },
+  'lp.v10card': { env: 'LP_V10_CARD_MODEL', default: 'anthropic/claude-sonnet-5', site: 'shared/services/lp-v10-card/author.js' },
   // These four call api.openai.com directly on their own client, so their model must be one it serves:
   // a bare OpenAI id and no env var. Only the per-job override (which routes it) moves them elsewhere.
   'quiz.generate': { env: null, default: 'gpt-4o', lane: 'openai-direct', site: 'shared/services/quiz/quiz-generation.service.js' },
@@ -407,6 +410,8 @@ const JSON_REPAIRED_BY_CALLER = Object.freeze({
   'coaching.questionRouter': 'whole',    // gpt5-mini.service.js _generateReflectiveQuestionV12: _safeJsonParse(content)
   'coaching.reflectiveCorpus': 'whole',  // gpt5-mini.service.js extractReflectiveCorpus: _safeJsonParse(content)
   'lp.extractUpload': 'whole',           // coaching/fidelity/lp-upload-extractor.js safeJsonParse
+  'lp.v10moves': 'whole',                // lp-v10-card/moves.js safeJsonParse
+  'lp.v10card': 'whole',                 // lp-v10-card/author.js safeJsonParse
   'lp.fidelity': 'whole',                // coaching/fidelity/fidelity-analyzer.js safeJsonParse
   'vision.analyse': 'whole',             // classroom-photo/photo-analysis.service.js parseJsonObject: JSON.parse, then jsonrepair (bd-gr4fy.5.7)
   'coaching.fidelityFallback': 'span',   // gpt5-mini.service.js: /\{[\s\S]*\}/, then _safeJsonParse

@@ -1,0 +1,168 @@
+{
+ "card_version": "v10.1",
+ "lesson_key": "g3·Maths·ch4·seg1",
+ "v9_html": "g3_ch4_Maths_seg1.v9.html",
+ "lang": "en",
+ "header": {
+  "grade": 3,
+  "subject": "Maths",
+  "chapter": "Ch.4 Division Dives: Splitting Numbers",
+  "day": 1,
+  "minutes": 40,
+  "title": "Division concept + dividing mentally",
+  "goal": "Children <b>share</b> a total into equal rings and say 24 ÷ 6 = 4."
+ },
+ "bring": "textbook pp.66-67 · chalk · books, pencils",
+ "words": [
+  "divide",
+  "total (dividend)",
+  "groups (divisor)",
+  "quotient"
+ ],
+ "sections": [
+  {
+   "sec": "open",
+   "minutes": 5,
+   "moves": [
+    {
+     "covers": [
+      "m4",
+      "m1"
+     ],
+     "do": "Say “24 is 20 and ___; 24 is 6 × ___”; class answers together.",
+     "how": "Then 6 × 3, 7 × 4; p.66: 20 slices, 10 guests: equal?",
+     "say": "“Twenty and … four! Six fours … twenty-four!”",
+     "sense": true,
+     "yesterday": "Last chapter we wrote 6 groups of 4 = 24. What is 4 × 6? (24)"
+    },
+    {
+     "covers": [
+      "m2",
+      "m3"
+     ],
+     "do": "Write 24 COOKIES ÷ 6 FRIENDS and 6, 12, 18, 24.",
+     "how": "Post: divide, total, groups, quotient. Who shares rotis?",
+     "say": "“Today we share a total into equal groups.”"
+    }
+   ]
+  },
+  {
+   "sec": "explain",
+   "minutes": 8,
+   "moves": [
+    {
+     "covers": [
+      "m5",
+      "m6"
+     ],
+     "do": "Draw 24 dots, ring them into 6 equal rings, count one ring: 4.",
+     "how": "Count up 6, 12, 18, 24: same. Then 20 ÷ 10 = 2.",
+     "say": "“Sharing equally and counting in 6s agree: 24 ÷ 6 = 4.”",
+     "think": "I ring one at a time and count the ring: 4. Then I check the 6s: 6, 12, 18, 24, the fourth line. Same answer."
+    }
+   ]
+  },
+  {
+   "sec": "we",
+   "minutes": 12,
+   "moves": [
+    {
+     "covers": [
+      "m7"
+     ],
+     "chip": "I START, YOU FINISH",
+     "do": "Draw 18 gift boxes (p.66 Q2); class helps ring 9 equal rings.",
+     "how": "Count one ring. Volunteer writes 18 ÷ 9 = 2; check 9 × 2.",
+     "say": "“Eighteen boxes, nine guests: each gets …” → “2!”"
+    },
+    {
+     "covers": [
+      "m7"
+     ],
+     "chip": "ONE NEIGHBOUR TURN",
+     "do": "One minute: show your rings; your neighbour checks the table.",
+     "how": "A: 32 stickers, 8 rings; B: 30 stars, 6. Sana and Ali show it first.",
+     "say": "“Show me the rings before you tell me the number.”",
+     "turn": {
+      "first": "Front row",
+      "a": "I ringed 32 stickers into 8 rings. Check my 8s: one ring?",
+      "b": "Mine: 30 stars, 6 rings. Yours: 8 × 4 = 32. Check my 6s.",
+      "stop": "one clap, eyes on me"
+     }
+    }
+   ]
+  },
+  {
+   "sec": "you",
+   "minutes": 12,
+   "moves": [
+    {
+     "covers": [
+      "m8"
+     ],
+     "clock": "⏱ 25′ stop explaining",
+     "do": "Alone: 1. 35 prizes among 7 games, how many each? Draw, ring, write.",
+     "how": "Done? 2. 42 marbles, 6 friends; other shares, none left.",
+     "say": "“Each game gets ___ because 7 × ___ = 35.”"
+    }
+   ],
+   "answers": [
+    [
+     "1.",
+     "35 ÷ 7 = 5"
+    ],
+    [
+     "2.",
+     "42 ÷ 6 = 7; also 42 ÷ 7 = 6"
+    ]
+   ],
+   "mistake": "Skips drawing or writes 7 ÷ 35. <b>Ask:</b> “Which number is the whole pile?”",
+   "stuck": "Give 12 bottle caps; child deals one per ring first."
+  },
+  {
+   "sec": "check",
+   "minutes": 3,
+   "moves": [
+    {
+     "covers": [
+      "m9"
+     ],
+     "do": "Say 40 pencils shared among 5 children; five say the sentence.",
+     "how": "Think alone, picture 5 rings; five say how many each and the ÷ sentence.",
+     "say": "“Picture your rings, then say the sentence.”"
+    }
+   ],
+   "correct": "Says 5 rings of 8; 40 ÷ 5 = 8, total first.",
+   "success": "I can share a total into equal rings and say ÷.",
+   "ask": "How can you check your answer by multiplying?",
+   "listen": "5 rings of 8 dots: 5 × 8 gives the total, 40."
+  },
+  {
+   "sec": "hw",
+   "minutes": 0,
+   "moves": [
+    {
+     "covers": [
+      "m10"
+     ],
+     "do": "Find one thing shared equally at home (rotis, eggs, sweets).",
+     "how": "Draw, ring equal groups, write: 12 ÷ 4 = 3.",
+     "say": "“Draw it, ring it, write it.”"
+    }
+   ]
+  }
+ ],
+ "pictures": [
+  {
+   "id": "dg1",
+   "after": "you",
+   "kind": "svg",
+   "title": "THE BOARD BY THE END · 24 dots, 6 rings, 24 ÷ 6 = 4",
+   "svg": "<svg viewBox=\"0 0 320 92\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><circle cx=\"10\" cy=\"12\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"21\" cy=\"12\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"32\" cy=\"12\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"43\" cy=\"12\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"54\" cy=\"12\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"65\" cy=\"12\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"10\" cy=\"24\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"21\" cy=\"24\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"32\" cy=\"24\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"43\" cy=\"24\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"54\" cy=\"24\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"65\" cy=\"24\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"10\" cy=\"36\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"21\" cy=\"36\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"32\" cy=\"36\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"43\" cy=\"36\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"54\" cy=\"36\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"65\" cy=\"36\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"10\" cy=\"48\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"21\" cy=\"48\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"32\" cy=\"48\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"43\" cy=\"48\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"54\" cy=\"48\" r=\"4\" fill=\"#b5651d\"/><circle cx=\"65\" cy=\"48\" r=\"4\" fill=\"#b5651d\"/><text x=\"38\" y=\"84\" font-size=\"14\">24 cookies</text><line x1=\"78\" y1=\"34\" x2=\"94\" y2=\"34\" stroke=\"#0B2545\" stroke-width=\"2\"/><polygon points=\"100,34 92,30 92,38\" fill=\"#0B2545\"/><circle cx=\"116\" cy=\"20\" r=\"14\" fill=\"#fff7e0\" stroke=\"#d98200\" stroke-width=\"2\"/><circle cx=\"111\" cy=\"15\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"121\" cy=\"15\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"111\" cy=\"25\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"121\" cy=\"25\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"150\" cy=\"20\" r=\"14\" fill=\"#fff7e0\" stroke=\"#d98200\" stroke-width=\"2\"/><circle cx=\"145\" cy=\"15\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"155\" cy=\"15\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"145\" cy=\"25\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"155\" cy=\"25\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"184\" cy=\"20\" r=\"14\" fill=\"#fff7e0\" stroke=\"#d98200\" stroke-width=\"2\"/><circle cx=\"179\" cy=\"15\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"189\" cy=\"15\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"179\" cy=\"25\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"189\" cy=\"25\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"116\" cy=\"54\" r=\"14\" fill=\"#fff7e0\" stroke=\"#d98200\" stroke-width=\"2\"/><circle cx=\"111\" cy=\"49\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"121\" cy=\"49\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"111\" cy=\"59\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"121\" cy=\"59\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"150\" cy=\"54\" r=\"14\" fill=\"#fff7e0\" stroke=\"#d98200\" stroke-width=\"2\"/><circle cx=\"145\" cy=\"49\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"155\" cy=\"49\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"145\" cy=\"59\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"155\" cy=\"59\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"184\" cy=\"54\" r=\"14\" fill=\"#fff7e0\" stroke=\"#d98200\" stroke-width=\"2\"/><circle cx=\"179\" cy=\"49\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"189\" cy=\"49\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"179\" cy=\"59\" r=\"3.5\" fill=\"#b5651d\"/><circle cx=\"189\" cy=\"59\" r=\"3.5\" fill=\"#b5651d\"/><text x=\"150\" y=\"84\" font-size=\"14\">6 rings of 4</text><line x1=\"196\" y1=\"34\" x2=\"212\" y2=\"34\" stroke=\"#0B2545\" stroke-width=\"2\"/><polygon points=\"218,34 210,30 210,38\" fill=\"#0B2545\"/><text x=\"270\" y=\"30\" font-size=\"20\" font-weight=\"bold\">24 ÷ 6</text><text x=\"270\" y=\"56\" font-size=\"20\" font-weight=\"bold\">= 4</text><text x=\"270\" y=\"84\" font-size=\"14\">sentence</text></svg>"
+  }
+ ],
+ "names": {
+  "girl": "Sana",
+  "boy": "Ali"
+ }
+}

@@ -1,0 +1,378 @@
+{
+ "name": "gb_g5_ch1_Science_seg1",
+ "card": {
+  "lesson_key": "g5·Science·ch1·seg1",
+  "header": {
+   "grade": 5,
+   "subject": "Science",
+   "chapter": "Ch.1 Structure and Function - Human Body Systems",
+   "day": 1,
+   "title": "What keeps us alive: chapter opener",
+   "goal": "Children <b>name</b> a body system from its parts.",
+   "minutes": 40
+  },
+  "bring": "textbook p.1 · chalk",
+  "words": [
+   "system",
+   "function",
+   "circulatory system",
+   "nervous system",
+   "skeleton"
+  ],
+  "sections": [
+   {
+    "sec": "open",
+    "minutes": 4,
+    "moves": [
+     {
+      "covers": [
+       "m1"
+      ],
+      "do": "Fire four quick questions; all answer together.",
+      "how": "End: “The body has systems.”",
+      "say": "“Which part do we think with?” → “Brain.” “Beats in the chest?” → “Heart.”"
+     },
+     {
+      "covers": [
+       "m2",
+       "m3"
+      ],
+      "do": "Open p.1: finger under the four figures.",
+      "how": "Glosses: system نظام, function کام, skeleton ڈھانچہ.",
+      "say": "“Same body four times. At home, what keeps you alive?”"
+     }
+    ]
+   },
+   {
+    "sec": "explain",
+    "minutes": 6,
+    "moves": [
+     {
+      "covers": [
+       "m4",
+       "m5"
+      ],
+      "do": "Model figure 1: parts first, then the system.",
+      "how": "Glosses: circulatory نظامِ دورانِ خون, nervous اعصابی نظام.",
+      "say": "“A heart with tubes joined to it is the circulatory system.”",
+      "think": "I look at the parts, not the colour: a heart and tubes. So this is one system with its own job."
+     }
+    ]
+   },
+   {
+    "sec": "we",
+    "minutes": 14,
+    "moves": [
+     {
+      "covers": [
+       "m6"
+      ],
+      "do": "Point to figures 2, 3, 4; name parts, then system.",
+      "how": "Class writes each system.",
+      "say": "“Dark-red muscles, so it is the …” → “… muscular system.”",
+      "chip": "I START, YOU FINISH"
+     },
+     {
+      "covers": [
+       "m7"
+      ],
+      "do": "Read the p.1 questions aloud; one neighbour minute.",
+      "how": "Fatima, Ali first.",
+      "say": "“Say the parts; your friend names the system.”",
+      "chip": "ONE NEIGHBOUR TURN",
+      "turn": {
+       "first": "Window side",
+       "a": "“Skull, ribs, spine, pelvis. Which system?”",
+       "b": "“The skeleton, because they are bones.”",
+       "stop": "two claps, eyes on me",
+       "help": "“Show me where.”"
+      }
+     }
+    ]
+   },
+   {
+    "sec": "you",
+    "minutes": 14,
+    "moves": [
+     {
+      "covers": [
+       "m8",
+       "m9"
+      ],
+      "do": "Write 'Four figures'; do items 1 to 5 alone.",
+      "how": "Fig 3 system; parts of fig 4; fix circle 2; count; why four?",
+      "say": "“Use the parts as your proof.”",
+      "clock": "⏱ 24′ stop explaining"
+     }
+    ],
+    "answers": [
+     [
+      "1.",
+      "muscular system"
+     ],
+     [
+      "2.",
+      "brain, spinal cord"
+     ],
+     [
+      "3.",
+      "How do all your body cells get oxygen?"
+     ],
+     [
+      "4.",
+      "four"
+     ],
+     [
+      "5.",
+      "each has its own parts and job"
+     ]
+    ],
+    "mistake": "Names it by colour. <b>Ask:</b> “Which parts?”",
+    "stuck": "Give figures 1 and 3 only; add 2, 4 when right."
+   },
+   {
+    "sec": "check",
+    "minutes": 2,
+    "moves": [
+     {
+      "covers": [
+       "m10"
+      ],
+      "do": "Say Ali's claim; five children answer alone, aloud.",
+      "how": "Is he right? Which figure holds each part?",
+      "say": "“Ali says the heart and the brain are in the same system.”"
+     }
+    ],
+    "correct": "Not right: heart circulatory, brain nervous.",
+    "success": "I can name a body system by its parts.",
+    "ask": "Why not name a figure by colour?",
+    "listen": "Both red; the parts tell the system."
+   },
+   {
+    "sec": "hw",
+    "minutes": 0,
+    "moves": [
+     {
+      "covers": [
+       "m13"
+      ],
+      "do": "Find the systems in questions 1 and 3.",
+      "how": "Draw one figure.",
+      "say": "“Parts first, then the system.”"
+     }
+    ]
+   }
+  ],
+  "pictures": [
+   {
+    "id": "dg1",
+    "after": "we",
+    "kind": "svg",
+    "title": "THE BOARD BY THE END · Four figures on page 1: parts, then system",
+    "svg": "<svg viewBox=\"0 0 330 120\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><rect x=\"4\" y=\"6\" width=\"74\" height=\"84\" rx=\"4\" fill=\"#fffdf5\" stroke=\"#999\" stroke-width=\"2\"/><rect x=\"86\" y=\"6\" width=\"74\" height=\"84\" rx=\"4\" fill=\"#fffdf5\" stroke=\"#999\" stroke-width=\"2\"/><rect x=\"168\" y=\"6\" width=\"74\" height=\"84\" rx=\"4\" fill=\"#fffdf5\" stroke=\"#999\" stroke-width=\"2\"/><rect x=\"250\" y=\"6\" width=\"74\" height=\"84\" rx=\"4\" fill=\"#fffdf5\" stroke=\"#999\" stroke-width=\"2\"/><circle cx=\"41\" cy=\"40\" r=\"11\" fill=\"#e74c3c\" stroke=\"#c0392b\" stroke-width=\"2\"/><line x1=\"41\" y1=\"51\" x2=\"41\" y2=\"80\" stroke=\"#2a6fb0\" stroke-width=\"2\"/><line x1=\"30\" y1=\"36\" x2=\"14\" y2=\"22\" stroke=\"#c0392b\" stroke-width=\"2\"/><line x1=\"52\" y1=\"36\" x2=\"68\" y2=\"22\" stroke=\"#2a6fb0\" stroke-width=\"2\"/><line x1=\"32\" y1=\"46\" x2=\"16\" y2=\"70\" stroke=\"#c0392b\" stroke-width=\"2\"/><line x1=\"50\" y1=\"46\" x2=\"66\" y2=\"70\" stroke=\"#2a6fb0\" stroke-width=\"2\"/><circle cx=\"123\" cy=\"20\" r=\"8\" fill=\"#fff\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"123\" y1=\"28\" x2=\"123\" y2=\"80\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"111\" y1=\"40\" x2=\"135\" y2=\"40\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"109\" y1=\"50\" x2=\"137\" y2=\"50\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"111\" y1=\"60\" x2=\"135\" y2=\"60\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"111\" y1=\"76\" x2=\"135\" y2=\"76\" stroke=\"#0B2545\" stroke-width=\"2\"/><rect x=\"193\" y=\"18\" width=\"24\" height=\"62\" rx=\"10\" fill=\"#9b2d20\" stroke=\"#c0392b\" stroke-width=\"2\"/><line x1=\"205\" y1=\"24\" x2=\"205\" y2=\"74\" stroke=\"#fff\" stroke-width=\"2\"/><ellipse cx=\"287\" cy=\"24\" rx=\"16\" ry=\"12\" fill=\"#f4d6e0\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"287\" y1=\"36\" x2=\"287\" y2=\"80\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"287\" y1=\"50\" x2=\"270\" y2=\"62\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"287\" y1=\"50\" x2=\"304\" y2=\"62\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"287\" y1=\"66\" x2=\"272\" y2=\"80\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"287\" y1=\"66\" x2=\"302\" y2=\"80\" stroke=\"#0B2545\" stroke-width=\"2\"/><text x=\"41\" y=\"110\" font-size=\"14\" font-weight=\"bold\" fill=\"#0B2545\">circulatory</text><text x=\"123\" y=\"110\" font-size=\"14\" font-weight=\"bold\" fill=\"#0B2545\">skeleton</text><text x=\"205\" y=\"110\" font-size=\"14\" font-weight=\"bold\" fill=\"#0B2545\">muscular</text><text x=\"287\" y=\"110\" font-size=\"14\" font-weight=\"bold\" fill=\"#0B2545\">nervous</text></svg>"
+   }
+  ],
+  "names": {
+   "girl": "Fatima",
+   "boy": "Ali"
+  },
+  "v9_html": "g5_ch1_Science_seg1.v9.html",
+  "card_version": "v10.1",
+  "lang": "en"
+ },
+ "v9Skeleton": "<div data-atom class=\"hero sp-0\">\n<div data-atom class=\"slo sp-2\">\n<div data-atom class=\"rescard sp-2\">\n<div data-atom class=\"rescard pc pc-a sp-1\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-z sp-0\">\n<div data-atom class=\"blk sp-2\">\n<figure class=\"dg\" style=\"--fig-h:238px\">\n<div data-atom class=\"card sp-1\">\n<div data-atom id=\"v9-open\" class=\"bar s-i sp-4\" data-sec=\"introduction\">\n<div data-atom class=\"opn ofirst blk wu sp-2\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"opn olast blk hook sp-0\">\n<div data-atom id=\"v9-explain\" class=\"bar s-d sp-4\" data-sec=\"development\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk bigidea sp-2\">\n<div data-atom class=\"blk exq pc pc-a sp-2\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-z sp-0\">\n<div data-atom class=\"blk exq sp-2\">\n<div data-atom id=\"v9-we\" class=\"bar s-we sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk exq we pc pc-a sp-2\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-z sp-0\">\n<div data-atom id=\"v9-you\" class=\"bar s-a sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk pr pc pc-a sp-2\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-z sp-0\">\n<div data-atom class=\"blk sp-3\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom id=\"v9-check\" class=\"bar s-c sp-4\" data-sec=\"conclusion\">\n<div data-atom class=\"blk exit sp-2\">\n<div data-atom id=\"v9-hw\" class=\"bar s-h sp-4\" data-sec=\"homework\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"coach sp-4\">\n",
+ "must": [],
+ "expect": {
+  "addIds": "<div data-atom class=\"hero sp-0\">\n<div data-atom class=\"slo sp-2\">\n<div data-atom class=\"rescard sp-2\">\n<div data-atom class=\"rescard pc pc-a sp-1\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-z sp-0\">\n<div data-atom class=\"blk sp-2\">\n<figure class=\"dg\" style=\"--fig-h:238px\">\n<div data-atom class=\"card sp-1\">\n<div data-atom id=\"v9-open\" class=\"bar s-i sp-4\" data-sec=\"introduction\">\n<div data-atom class=\"opn ofirst blk wu sp-2\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"opn olast blk hook sp-0\">\n<div data-atom id=\"v9-explain\" class=\"bar s-d sp-4\" data-sec=\"development\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk bigidea sp-2\">\n<div data-atom class=\"blk exq pc pc-a sp-2\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-z sp-0\">\n<div data-atom class=\"blk exq sp-2\">\n<div data-atom id=\"v9-we\" class=\"bar s-we sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk exq we pc pc-a sp-2\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-z sp-0\">\n<div data-atom id=\"v9-you\" class=\"bar s-a sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk pr pc pc-a sp-2\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-z sp-0\">\n<div data-atom class=\"blk sp-3\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom id=\"v9-check\" class=\"bar s-c sp-4\" data-sec=\"conclusion\">\n<div data-atom class=\"blk exit sp-2\">\n<div data-atom id=\"v9-hw\" class=\"bar s-h sp-4\" data-sec=\"homework\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"coach sp-4\">\n",
+  "missing": [],
+  "video": null,
+  "validate": [
+   "header subject must be English, Urdu or Maths"
+  ],
+  "html": "<!doctype html>\n<html lang=\"en\" dir=\"ltr\"><head><meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\">\n<meta name=\"color-scheme\" content=\"light\">\n<title>G5 Science Ch.1 Day 1 Card</title>\n<style>\n/* Phone-first teacher card: one column, sized for a 360-390 px screen; prints on one 520 x 2000 page.\n   Single light look on purpose (the v17 section colours Amena approved, 9 Oct). */\n:root{--navy:#26324A;--ink:#1F2430;--mut:#55606F;--line:#DDE1E8;--paper:#FFFFFF;--ground:#EEF0F3;\n--open:#E07B00;--explain:#8A45F0;--we:#3B5BDB;--you:#2B8A3E;--check:#C2255C;--hw:#0B7285;--star:#F2B705;\n--body:system-ui,-apple-system,\"Segoe UI\",Roboto,\"Noto Sans\",sans-serif;color-scheme:light}\n*{box-sizing:border-box}\nhtml,body{margin:0;background:var(--ground);color:var(--ink)}\nbody{font:17px/1.45 var(--body);-webkit-text-size-adjust:100%}\n.page{max-width:480px;margin:0 auto;background:var(--paper);padding:12px 14px 16px;display:flex;flex-direction:column;gap:12px}\na{color:inherit}\n.hd{background:var(--navy);color:#fff;border-radius:14px;padding:12px 14px 14px}\n.hd .k{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;font-weight:700;font-size:13.5px;letter-spacing:.03em}\n.hd .k b{color:#FFC34D}\n.hd h1{font-size:22px;line-height:1.25;margin:6px 0 6px;text-wrap:balance}\n.hd .goal{font-size:15.5px;opacity:.95}\n.info{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:15.5px}\n.info b{color:var(--mut);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;padding-top:3px}\n.time .pr{display:flex;font:700 12.5px/1 var(--body);color:var(--ink);margin-bottom:4px}\n.time .pr span{min-width:44px;text-align:center;border-bottom:2.5px solid var(--ink);padding-bottom:3px}\n.bar{display:flex;height:30px;border-radius:8px;overflow:hidden;font:800 14px/1 var(--body);color:#fff}\n.bar span{display:flex;align-items:center;justify-content:center;border-right:2px solid #fff;min-width:44px}\n.bar span:last-child{border:0}\n.lab{display:flex;font-size:12px;color:var(--mut);margin-top:3px}.lab span{text-align:center;min-width:44px;white-space:nowrap}\n.star{border:2.5px solid var(--star);background:#FFF6D6;border-radius:12px;padding:10px 12px;font-size:16px}\n.star .l{font-weight:800;color:#7A4F00}\n.sec{border:1px solid color-mix(in srgb,var(--c) 28%,#fff);border-inline-start:7px solid var(--c);border-radius:12px;\n background:color-mix(in srgb,var(--c) 6%,#fff);padding:10px 12px 12px}\n.sec.mark{box-shadow:0 0 0 3px var(--star)}\n/* one row: a long title wraps inside itself, so Full details never drops under the heading (judge 10F) */\n.sh{display:flex;gap:2px 8px}\n.sh h2{margin:0;font-size:19px;color:var(--c);flex:0 1 auto;min-width:0}\n.sh .t{flex:none;white-space:nowrap}.sh .fd{flex:none;margin-left:auto}\n/* phone: the time drops under the title so the title keeps one line beside Full details (judge pilot4 10D) */\n@media screen and (max-width:420px){.sh{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}.sh h2{white-space:nowrap;font-size:17.5px}.sh .t{grid-row:2;grid-column:1}.sh .fd{grid-row:1/span 2;grid-column:2}}\n.sh .t{font-weight:700;font-size:14px;color:var(--mut);font-variant-numeric:tabular-nums}\n.mv{display:grid;grid-template-columns:30px 1fr;gap:10px;margin-top:10px}\n.mv p{margin:0;min-width:0}.mv .do{font-weight:700}\n.n{width:28px;height:28px;border-radius:999px;background:var(--c);color:#fff;font:800 15px/28px var(--body);text-align:center}\n.say{display:block;margin-top:3px;font-style:italic}\n.ex{display:block;margin-top:3px}\n.say::before{content:\"Say: \";font-style:normal;font-weight:800;color:var(--c)}\n.chip{display:inline-block;font:800 12px/1 var(--body);letter-spacing:.03em;color:#fff;background:var(--c);border-radius:6px;padding:5px 7px;margin:0 0 4px}\n.clock{display:inline-block;font-weight:800;color:#fff;background:var(--ink);border-radius:6px;padding:3px 8px;font-size:14.5px;margin-bottom:4px}\n.box{margin-top:10px;border-radius:10px;background:#fff;border:1px solid var(--line);padding:8px 10px;font-size:15.5px}\n.box h3{margin:0 0 4px;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--c)}\n.ans{display:grid;gap:5px}.ans div{display:flex;flex-wrap:wrap;gap:0 8px}.ans .e{font-weight:700}\n.mis{border-color:#F1B0B0;background:#FFF1F1}.mis h3{color:#B02525}\n.fd{display:inline-flex;align-items:center;min-height:40px;padding:0 12px;font:700 14.5px/1 var(--body);color:var(--c);\n border:1.5px solid var(--c);border-radius:999px;text-decoration:none;background:#fff;white-space:nowrap}\n.sh{align-items:center}\n.fd:focus-visible{outline:3px solid var(--navy);outline-offset:2px}\n.board{border:2px solid var(--navy);border-radius:12px;padding:8px 10px 10px}\n.board h3{margin:0 0 6px;font-size:12.5px;letter-spacing:.06em;color:var(--navy)}\n.faces{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center;font-size:13.5px}\n.faces div{border:1.5px solid var(--line);border-radius:9px;padding:4px 2px}.faces .e{display:block;font-size:26px}\n.foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;border-top:1px solid var(--line);padding-top:10px;font-size:14px;color:var(--mut)}\n.foot a{font-weight:800;color:var(--navy);min-height:44px;display:inline-flex;align-items:center}\n@page{size:520px 2000px;margin:0}\n@media print{html,body{background:#fff}body{font-size:14.5px;line-height:1.35}.page{max-width:none;width:520px;gap:7px;padding:10px 14px}.fd{min-height:28px;font-size:12.5px}.mv{margin-top:5px}.sec{padding:7px 11px 9px}.box{margin-top:6px;padding:5px 9px;font-size:14px}.hd h1{font-size:20px}}\n.steps{margin:0;padding-inline-start:22px;font-weight:700;display:grid;gap:4px}\n.svg svg{display:block;max-width:100%;height:auto;margin:0 auto}\n.pl{font-size:15px;margin-top:6px;text-align:center}\n\n</style></head>\n<body><div class=\"page\">\n\n<div class=\"hd\">\n <div class=\"k\"><span><b>GRADE 5 · SCIENCE</b> · Ch.1 Structure and Function - Human Body Systems</span><span>Day 1 · 40 min</span></div>\n <h1>What keeps us alive: chapter opener</h1>\n <div class=\"goal\">Children <b>name</b> a body system from its parts.</div>\n</div>\n\n<div class=\"info\">\n <b>Bring</b><span>textbook p.1 · chalk</span>\n <b>Words</b><span>system · function · circulatory system · nervous system · skeleton</span>\n</div>\n\n<div class=\"time\" aria-label=\"Time: 4 open, 6 explain, 14 we do, 14 you do, 2 check\">\n <div class=\"pr\"><span style=\"flex:10\"></span><span style=\"flex:28\">PRACTICE · 28 of 40 min</span><span style=\"flex:2\"></span></div>\n <div class=\"bar\">\n  <span data-sec=\"open\" style=\"flex:4;background:var(--open)\">4′</span>\n  <span data-sec=\"explain\" style=\"flex:6;background:var(--explain)\">6′</span>\n  <span data-sec=\"we\" style=\"flex:14;background:var(--we)\">14′</span>\n  <span data-sec=\"you\" style=\"flex:14;background:var(--you)\">14′</span>\n  <span data-sec=\"check\" style=\"flex:2;background:var(--check)\">2′</span>\n </div>\n <div class=\"lab\"><span style=\"flex:4\">Open</span><span style=\"flex:6\">Explain</span><span style=\"flex:14\">We Do</span><span style=\"flex:14\">You Do</span><span style=\"flex:2\">✓</span></div>\n</div>\n\n<!-- Coaching slot: filled per teacher from their last report once recordings start. Hidden in the base corpus. -->\n<div class=\"star\" hidden data-slot=\"star\"><span class=\"l\">★ Your one thing today</span> · in move <b data-slot=\"star-move\"></b><br><span data-slot=\"star-text\"></span></div>\n\n<section class=\"sec\" style=\"--c:var(--open)\" data-sec=\"open\">\n <div class=\"sh\"><h2>Opening</h2><span class=\"t\">0–4′</span><a class=\"fd\" href=\"g5_ch1_Science_seg1.v9.html#v9-open\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m1\"><span class=\"n\">1</span><p><span class=\"do\">Fire four quick questions; all answer together.</span> End: “The body has systems.”\n  <span class=\"say\">“Which part do we think with?” → “Brain.” “Beats in the chest?” → “Heart.”</span></p></div>\n <div class=\"mv\" data-covers=\"m2 m3\"><span class=\"n\">2</span><p><span class=\"do\">Open p.1: finger under the four figures.</span> Glosses: system نظام, function کام, skeleton ڈھانچہ.\n  <span class=\"say\">“Same body four times. At home, what keeps you alive?”</span></p></div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--explain)\" data-sec=\"explain\">\n <div class=\"sh\"><h2>Explanation · I Do</h2><span class=\"t\">4–10′</span><a class=\"fd\" href=\"g5_ch1_Science_seg1.v9.html#v9-explain\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m4 m5\"><span class=\"n\">3</span><p><span class=\"do\">Model figure 1: parts first, then the system.</span> Glosses: circulatory نظامِ دورانِ خون, nervous اعصابی نظام.\n  <span class=\"say\">“A heart with tubes joined to it is the circulatory system.”</span><span class=\"ex\"><b>Think aloud:</b> “I look at the parts, not the colour: a heart and tubes. So this is one system with its own job.”</span></p></div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--we)\" data-sec=\"we\">\n <div class=\"sh\"><h2>We Do</h2><span class=\"t\">10–24′</span><a class=\"fd\" href=\"g5_ch1_Science_seg1.v9.html#v9-we\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m6\"><span class=\"n\">4</span><p><span class=\"chip\">I START, YOU FINISH</span><br><span class=\"do\">Point to figures 2, 3, 4; name parts, then system.</span> Class writes each system.\n  <span class=\"say\">“Dark-red muscles, so it is the …” → “… muscular system.”</span></p></div>\n <div class=\"mv\" data-covers=\"m7\"><span class=\"n\">5</span><p><span class=\"chip\">ONE NEIGHBOUR TURN</span><br><span class=\"do\">Read the p.1 questions aloud; one neighbour minute.</span> Fatima, Ali first.\n  <span class=\"say\">“Say the parts; your friend names the system.”</span><span class=\"ex\"><b>Window side first:</b> ““Skull, ribs, spine, pelvis. Which system?”” → <b>Reply:</b> ““The skeleton, because they are bones.”” · <b>Stop:</b> two claps, eyes on me · <b>Stuck?</b> “Show me where.”</span></p></div>\n</section>\n\n<div class=\"board\" data-pic=\"dg1\"><h3>THE BOARD BY THE END · Four figures on page 1: parts, then system</h3><div class=\"svg\"><svg viewBox=\"0 0 330 120\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><rect x=\"4\" y=\"6\" width=\"74\" height=\"84\" rx=\"4\" fill=\"#fffdf5\" stroke=\"#999\" stroke-width=\"2\"/><rect x=\"86\" y=\"6\" width=\"74\" height=\"84\" rx=\"4\" fill=\"#fffdf5\" stroke=\"#999\" stroke-width=\"2\"/><rect x=\"168\" y=\"6\" width=\"74\" height=\"84\" rx=\"4\" fill=\"#fffdf5\" stroke=\"#999\" stroke-width=\"2\"/><rect x=\"250\" y=\"6\" width=\"74\" height=\"84\" rx=\"4\" fill=\"#fffdf5\" stroke=\"#999\" stroke-width=\"2\"/><circle cx=\"41\" cy=\"40\" r=\"11\" fill=\"#e74c3c\" stroke=\"#c0392b\" stroke-width=\"2\"/><line x1=\"41\" y1=\"51\" x2=\"41\" y2=\"80\" stroke=\"#2a6fb0\" stroke-width=\"2\"/><line x1=\"30\" y1=\"36\" x2=\"14\" y2=\"22\" stroke=\"#c0392b\" stroke-width=\"2\"/><line x1=\"52\" y1=\"36\" x2=\"68\" y2=\"22\" stroke=\"#2a6fb0\" stroke-width=\"2\"/><line x1=\"32\" y1=\"46\" x2=\"16\" y2=\"70\" stroke=\"#c0392b\" stroke-width=\"2\"/><line x1=\"50\" y1=\"46\" x2=\"66\" y2=\"70\" stroke=\"#2a6fb0\" stroke-width=\"2\"/><circle cx=\"123\" cy=\"20\" r=\"8\" fill=\"#fff\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"123\" y1=\"28\" x2=\"123\" y2=\"80\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"111\" y1=\"40\" x2=\"135\" y2=\"40\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"109\" y1=\"50\" x2=\"137\" y2=\"50\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"111\" y1=\"60\" x2=\"135\" y2=\"60\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"111\" y1=\"76\" x2=\"135\" y2=\"76\" stroke=\"#0B2545\" stroke-width=\"2\"/><rect x=\"193\" y=\"18\" width=\"24\" height=\"62\" rx=\"10\" fill=\"#9b2d20\" stroke=\"#c0392b\" stroke-width=\"2\"/><line x1=\"205\" y1=\"24\" x2=\"205\" y2=\"74\" stroke=\"#fff\" stroke-width=\"2\"/><ellipse cx=\"287\" cy=\"24\" rx=\"16\" ry=\"12\" fill=\"#f4d6e0\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"287\" y1=\"36\" x2=\"287\" y2=\"80\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"287\" y1=\"50\" x2=\"270\" y2=\"62\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"287\" y1=\"50\" x2=\"304\" y2=\"62\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"287\" y1=\"66\" x2=\"272\" y2=\"80\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"287\" y1=\"66\" x2=\"302\" y2=\"80\" stroke=\"#0B2545\" stroke-width=\"2\"/><text x=\"41\" y=\"110\" font-size=\"14\" font-weight=\"bold\" fill=\"#0B2545\">circulatory</text><text x=\"123\" y=\"110\" font-size=\"14\" font-weight=\"bold\" fill=\"#0B2545\">skeleton</text><text x=\"205\" y=\"110\" font-size=\"14\" font-weight=\"bold\" fill=\"#0B2545\">muscular</text><text x=\"287\" y=\"110\" font-size=\"14\" font-weight=\"bold\" fill=\"#0B2545\">nervous</text></svg></div></div>\n\n<section class=\"sec\" style=\"--c:var(--you)\" data-sec=\"you\">\n <div class=\"sh\"><h2>You Do · in the book</h2><span class=\"t\">24–38′</span><a class=\"fd\" href=\"g5_ch1_Science_seg1.v9.html#v9-you\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m8 m9\"><span class=\"n\">6</span><p><span class=\"clock\">⏱ 24′ stop explaining</span><br><span class=\"do\">Write 'Four figures'; do items 1 to 5 alone.</span> Fig 3 system; parts of fig 4; fix circle 2; count; why four?\n  <span class=\"say\">“Use the parts as your proof.”</span><span class=\"ex\"><b>If stuck:</b> Give figures 1 and 3 only; add 2, 4 when right.</span></p></div>\n <div class=\"box\"><h3>Check 5 books · answers</h3>\n  <div class=\"ans\">\n   <div><span>1.</span><span class=\"e\">muscular system</span></div>\n   <div><span>2.</span><span class=\"e\">brain, spinal cord</span></div>\n   <div><span>3.</span><span class=\"e\">How do all your body cells get oxygen?</span></div>\n   <div><span>4.</span><span class=\"e\">four</span></div>\n   <div><span>5.</span><span class=\"e\">each has its own parts and job</span></div>\n  </div></div>\n <div class=\"box mis\"><h3>Likely mistake</h3>Names it by colour. <b>Ask:</b> “Which parts?”</div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--check)\" data-sec=\"check\">\n <div class=\"sh\"><h2>Check · exit ticket</h2><span class=\"t\">38–40′</span><a class=\"fd\" href=\"g5_ch1_Science_seg1.v9.html#v9-check\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m10\"><span class=\"n\">7</span><p><span class=\"do\">Say Ali's claim; five children answer alone, aloud.</span> Is he right? Which figure holds each part?\n  <span class=\"say\">“Ali says the heart and the brain are in the same system.”</span><span class=\"ex\"><b>Ask:</b> “Why not name a figure by colour?” → <b>Listen for:</b> Both red; the parts tell the system.</span><span class=\"ex\"><b>Success:</b> “I can name a body system by its parts.” 👍 or ✊ first</span><span class=\"ex\"><b>Correct:</b> Not right: heart circulatory, brain nervous.</span></p></div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--hw)\" data-sec=\"hw\">\n <div class=\"sh\"><h2>Homework</h2><span class=\"t\">at home</span><a class=\"fd\" href=\"g5_ch1_Science_seg1.v9.html#v9-hw\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m13\"><span class=\"n\">8</span><p><span class=\"do\">Find the systems in questions 1 and 3.</span> Draw one figure.\n  <span class=\"say\">“Parts first, then the system.”</span></p></div>\n</section>\n\n<div class=\"foot\"><a href=\"g5_ch1_Science_seg1.v9.html\">Full lesson plan ›</a></div>\n</div></body></html>\n",
+  "gates": [
+   "header subject must be English, Urdu or Maths"
+  ],
+  "cardWithVideo": {
+   "lesson_key": "g5·Science·ch1·seg1",
+   "header": {
+    "grade": 5,
+    "subject": "Science",
+    "chapter": "Ch.1 Structure and Function - Human Body Systems",
+    "day": 1,
+    "title": "What keeps us alive: chapter opener",
+    "goal": "Children <b>name</b> a body system from its parts.",
+    "minutes": 40
+   },
+   "bring": "textbook p.1 · chalk",
+   "words": [
+    "system",
+    "function",
+    "circulatory system",
+    "nervous system",
+    "skeleton"
+   ],
+   "sections": [
+    {
+     "sec": "open",
+     "minutes": 4,
+     "moves": [
+      {
+       "covers": [
+        "m1"
+       ],
+       "do": "Fire four quick questions; all answer together.",
+       "how": "End: “The body has systems.”",
+       "say": "“Which part do we think with?” → “Brain.” “Beats in the chest?” → “Heart.”"
+      },
+      {
+       "covers": [
+        "m2",
+        "m3"
+       ],
+       "do": "Open p.1: finger under the four figures.",
+       "how": "Glosses: system نظام, function کام, skeleton ڈھانچہ.",
+       "say": "“Same body four times. At home, what keeps you alive?”"
+      }
+     ]
+    },
+    {
+     "sec": "explain",
+     "minutes": 6,
+     "moves": [
+      {
+       "covers": [
+        "m4",
+        "m5"
+       ],
+       "do": "Model figure 1: parts first, then the system.",
+       "how": "Glosses: circulatory نظامِ دورانِ خون, nervous اعصابی نظام.",
+       "say": "“A heart with tubes joined to it is the circulatory system.”",
+       "think": "I look at the parts, not the colour: a heart and tubes. So this is one system with its own job."
+      }
+     ]
+    },
+    {
+     "sec": "we",
+     "minutes": 14,
+     "moves": [
+      {
+       "covers": [
+        "m6"
+       ],
+       "do": "Point to figures 2, 3, 4; name parts, then system.",
+       "how": "Class writes each system.",
+       "say": "“Dark-red muscles, so it is the …” → “… muscular system.”",
+       "chip": "I START, YOU FINISH"
+      },
+      {
+       "covers": [
+        "m7"
+       ],
+       "do": "Read the p.1 questions aloud; one neighbour minute.",
+       "how": "Fatima, Ali first.",
+       "say": "“Say the parts; your friend names the system.”",
+       "chip": "ONE NEIGHBOUR TURN",
+       "turn": {
+        "first": "Window side",
+        "a": "“Skull, ribs, spine, pelvis. Which system?”",
+        "b": "“The skeleton, because they are bones.”",
+        "stop": "two claps, eyes on me",
+        "help": "“Show me where.”"
+       }
+      }
+     ]
+    },
+    {
+     "sec": "you",
+     "minutes": 14,
+     "moves": [
+      {
+       "covers": [
+        "m8",
+        "m9"
+       ],
+       "do": "Write 'Four figures'; do items 1 to 5 alone.",
+       "how": "Fig 3 system; parts of fig 4; fix circle 2; count; why four?",
+       "say": "“Use the parts as your proof.”",
+       "clock": "⏱ 24′ stop explaining"
+      }
+     ],
+     "answers": [
+      [
+       "1.",
+       "muscular system"
+      ],
+      [
+       "2.",
+       "brain, spinal cord"
+      ],
+      [
+       "3.",
+       "How do all your body cells get oxygen?"
+      ],
+      [
+       "4.",
+       "four"
+      ],
+      [
+       "5.",
+       "each has its own parts and job"
+      ]
+     ],
+     "mistake": "Names it by colour. <b>Ask:</b> “Which parts?”",
+     "stuck": "Give figures 1 and 3 only; add 2, 4 when right."
+    },
+    {
+     "sec": "check",
+     "minutes": 2,
+     "moves": [
+      {
+       "covers": [
+        "m10"
+       ],
+       "do": "Say Ali's claim; five children answer alone, aloud.",
+       "how": "Is he right? Which figure holds each part?",
+       "say": "“Ali says the heart and the brain are in the same system.”"
+      }
+     ],
+     "correct": "Not right: heart circulatory, brain nervous.",
+     "success": "I can name a body system by its parts.",
+     "ask": "Why not name a figure by colour?",
+     "listen": "Both red; the parts tell the system."
+    },
+    {
+     "sec": "hw",
+     "minutes": 0,
+     "moves": [
+      {
+       "covers": [
+        "m13"
+       ],
+       "do": "Find the systems in questions 1 and 3.",
+       "how": "Draw one figure.",
+       "say": "“Parts first, then the system.”"
+      }
+     ]
+    }
+   ],
+   "pictures": [
+    {
+     "id": "dg1",
+     "after": "we",
+     "kind": "svg",
+     "title": "THE BOARD BY THE END · Four figures on page 1: parts, then system",
+     "svg": "<svg viewBox=\"0 0 330 120\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><rect x=\"4\" y=\"6\" width=\"74\" height=\"84\" rx=\"4\" fill=\"#fffdf5\" stroke=\"#999\" stroke-width=\"2\"/><rect x=\"86\" y=\"6\" width=\"74\" height=\"84\" rx=\"4\" fill=\"#fffdf5\" stroke=\"#999\" stroke-width=\"2\"/><rect x=\"168\" y=\"6\" width=\"74\" height=\"84\" rx=\"4\" fill=\"#fffdf5\" stroke=\"#999\" stroke-width=\"2\"/><rect x=\"250\" y=\"6\" width=\"74\" height=\"84\" rx=\"4\" fill=\"#fffdf5\" stroke=\"#999\" stroke-width=\"2\"/><circle cx=\"41\" cy=\"40\" r=\"11\" fill=\"#e74c3c\" stroke=\"#c0392b\" stroke-width=\"2\"/><line x1=\"41\" y1=\"51\" x2=\"41\" y2=\"80\" stroke=\"#2a6fb0\" stroke-width=\"2\"/><line x1=\"30\" y1=\"36\" x2=\"14\" y2=\"22\" stroke=\"#c0392b\" stroke-width=\"2\"/><line x1=\"52\" y1=\"36\" x2=\"68\" y2=\"22\" stroke=\"#2a6fb0\" stroke-width=\"2\"/><line x1=\"32\" y1=\"46\" x2=\"16\" y2=\"70\" stroke=\"#c0392b\" stroke-width=\"2\"/><line x1=\"50\" y1=\"46\" x2=\"66\" y2=\"70\" stroke=\"#2a6fb0\" stroke-width=\"2\"/><circle cx=\"123\" cy=\"20\" r=\"8\" fill=\"#fff\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"123\" y1=\"28\" x2=\"123\" y2=\"80\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"111\" y1=\"40\" x2=\"135\" y2=\"40\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"109\" y1=\"50\" x2=\"137\" y2=\"50\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"111\" y1=\"60\" x2=\"135\" y2=\"60\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"111\" y1=\"76\" x2=\"135\" y2=\"76\" stroke=\"#0B2545\" stroke-width=\"2\"/><rect x=\"193\" y=\"18\" width=\"24\" height=\"62\" rx=\"10\" fill=\"#9b2d20\" stroke=\"#c0392b\" stroke-width=\"2\"/><line x1=\"205\" y1=\"24\" x2=\"205\" y2=\"74\" stroke=\"#fff\" stroke-width=\"2\"/><ellipse cx=\"287\" cy=\"24\" rx=\"16\" ry=\"12\" fill=\"#f4d6e0\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"287\" y1=\"36\" x2=\"287\" y2=\"80\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"287\" y1=\"50\" x2=\"270\" y2=\"62\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"287\" y1=\"50\" x2=\"304\" y2=\"62\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"287\" y1=\"66\" x2=\"272\" y2=\"80\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"287\" y1=\"66\" x2=\"302\" y2=\"80\" stroke=\"#0B2545\" stroke-width=\"2\"/><text x=\"41\" y=\"110\" font-size=\"14\" font-weight=\"bold\" fill=\"#0B2545\">circulatory</text><text x=\"123\" y=\"110\" font-size=\"14\" font-weight=\"bold\" fill=\"#0B2545\">skeleton</text><text x=\"205\" y=\"110\" font-size=\"14\" font-weight=\"bold\" fill=\"#0B2545\">muscular</text><text x=\"287\" y=\"110\" font-size=\"14\" font-weight=\"bold\" fill=\"#0B2545\">nervous</text></svg>"
+    }
+   ],
+   "names": {
+    "girl": "Fatima",
+    "boy": "Ali"
+   },
+   "v9_html": "g5_ch1_Science_seg1.v9.html",
+   "card_version": "v10.1",
+   "lang": "en"
+  },
+  "fullV9Sha": "6b946a69222d6010f3313ef69730ac24a931ffe7e2d4cb118f4f36dedf6a7c5a"
+ }
+}

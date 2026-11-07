@@ -1,0 +1,330 @@
+{
+ "name": "gb_g2_ch1_Urdu_seg2",
+ "card": {
+  "card_version": "v10.1",
+  "lesson_key": "g2·Urdu·ch1·seg2",
+  "v9_html": "g2_ch1_Urdu_seg2.v9.html",
+  "lang": "ur",
+  "header": {
+   "grade": 2,
+   "subject": "Urdu",
+   "chapter": "Ch.1 حمد (نظم)",
+   "day": 2,
+   "minutes": 40,
+   "title": "تلفظ: حمد کو صاف تلفظ اور لے سے پڑھنا",
+   "goal": "بچے حمد کے مشکل لفظ ٹکڑوں میں توڑ کر <b>صاف تلفظ</b> سے پڑھتے ہیں۔"
+  },
+  "bring": "چاک · بلیک بورڈ · درسی کتاب صفحہ ۲ · کاپیاں",
+  "words": [
+   "رحمت",
+   "عزّت",
+   "علم",
+   "دولت"
+  ],
+  "sections": [
+   {
+    "sec": "open",
+    "minutes": 4,
+    "moves": [
+     {
+      "covers": [
+       "m1"
+      ],
+      "do": "کل کے لفظوں کے مطلب یاد کروائیں؛ جماعت مل کر جواب دے۔",
+      "how": "ہر لفظ پر رکیں؛ جواب سب مل کر بولیں۔",
+      "say": "“مولا یعنی؟” → “مالک۔” “گواہی یعنی؟” → “ثبوت۔”"
+     },
+     {
+      "covers": [
+       "m2"
+      ],
+      "do": "صفحہ ۲ کھلوائیں، عنوان ‘حمد’ پر انگلی رکھوائیں؛ پہلا شعر آہستہ سنائیں۔",
+      "how": "بچے صرف سنیں۔ بتائیں: یہ نظم اللہ تعالیٰ کی تعریف میں ہے۔ آج کا ہنر: صاف تلفظ سے پڑھنا۔",
+      "say": "“اللہ تو ہے رحمت والا، نام ہے تیرا برکت والا۔”"
+     }
+    ]
+   },
+   {
+    "sec": "explain",
+    "minutes": 8,
+    "moves": [
+     {
+      "covers": [
+       "m3",
+       "m4",
+       "m5",
+       "m6"
+      ],
+      "do": "چھ لفظ بورڈ پر لکھیں؛ ایک لفظ ٹکڑوں میں پڑھ کر دکھائیں۔",
+      "how": "بورڈ: رَحْمَت · عَجَب · ہِمَّت · عِزَّت · عِلْم · دَوْلَت۔ غلطی: ع الف جیسا؛ ز ایک بار۔ جلدی اور ٹکڑوں میں پڑھیں۔",
+      "say": "“رَح-مَت، بَر-کَت؛ ہر ٹکڑا صاف، پھر جوڑ کر۔”",
+      "think": "میں لفظ جلدی نہیں پڑھتا؛ پہلے ٹکڑے بناتا ہوں، ہر ٹکڑا آخر تک بولتا ہوں، پھر جوڑتا ہوں۔"
+     }
+    ]
+   },
+   {
+    "sec": "we",
+    "minutes": 12,
+    "moves": [
+     {
+      "covers": [
+       "m7"
+      ],
+      "chip": "I START, YOU FINISH",
+      "do": "شعر ۱ سے ۵ مصرع بہ مصرع پڑھیں؛ جماعت دہرائے۔",
+      "how": "مشکل لفظ ٹکڑوں میں دہرائیں۔ پوچھیں: گھر میں اور گاؤں میں ہم اللہ کی کون سی نعمت دیکھتے ہیں؟",
+      "say": "“میں پڑھوں: ‘چاند اور سورج، پھول اور تارے’؛ اگلا مصرع؟” → “تو نے بنائے کتنے پیارے۔”"
+     },
+     {
+      "covers": [
+       "m8"
+      ],
+      "chip": "ONE NEIGHBOUR TURN",
+      "do": "ایک منٹ، اپنی جگہ: ایک لفظ ٹکڑوں میں بولے، دوسرا ٹکڑے گنے۔",
+      "how": "فاطمہ اور بلال پہلے کر کے دکھائیں۔ پھر پانچ کاپیاں دیکھیں۔",
+      "say": "“ایک لفظ ٹکڑوں میں بولیں؛ دوسرا ٹکڑے گنے۔”",
+      "turn": {
+       "first": "کھڑکی والا",
+       "a": "‘ہِمَّت’ ٹکڑوں میں بولیں؛ کتنے ٹکڑے؟",
+       "b": "دو ٹکڑے: ہِم-مَت۔",
+       "stop": "ایک تالی، نظریں مجھ پر",
+       "help": "پہلا ٹکڑا آپ بولیں؛ بچہ دوسرا بولے۔"
+      }
+     }
+    ]
+   },
+   {
+    "sec": "you",
+    "minutes": 12,
+    "moves": [
+     {
+      "covers": [
+       "m9"
+      ],
+      "clock": "⏱ 24′ stop explaining",
+      "do": "بولیں، لکھنا نہیں؛ چار کام باری باری کریں۔",
+      "how": "۱. شعر ۱، ۲ پڑھیں۔ ۲. بلال نے ‘عَجَب’ کو ‘اَجب’ کہا؛ صحیح بولیں۔ ۳. ‘عِزَّت’ ٹکڑوں میں۔ ۴. علم و دولت والا شعر لے سے۔",
+      "say": "“اب اپنی باری پر کام کریں۔” فاطمہ، پہلا آپ سنائیں۔"
+     }
+    ],
+    "answers": [
+     [
+      "۲",
+      "عَ-جَب؛ ع گلے کے بیچ سے۔"
+     ],
+     [
+      "۳",
+      "عِز-زَت؛ ز دو بار (شد کی وجہ سے)۔"
+     ]
+    ],
+    "mistake": "ع کو الف کی طرح بولا۔ <b>Ask:</b> “آواز کہاں سے نکلی؟” ز ایک بار بولا تو: “عِز پر رکیں، پھر زَت۔”",
+    "stuck": "آدھا مصرع آپ پڑھیں، بچہ دہرائے؛ مشکل لفظ کے نیچے انگلی رکھ کر ٹکڑوں میں بلوائیں۔"
+   },
+   {
+    "sec": "check",
+    "minutes": 4,
+    "moves": [
+     {
+      "covers": [
+       "m10"
+      ],
+      "do": "دو بیان سنائیں؛ ٹھیک ہو تو انگوٹھا اوپر، غلط تو نیچے۔",
+      "how": "کامیابی کی لائن پڑھوائیں، پھر ہر بیان پر انگوٹھے سے جواب لیں۔",
+      "say": "“۱. گواہی میں تین ٹکڑے ہیں: گَ-وا-ہی۔ ۲. گواہی کا گَ ہلکا بولتے ہیں۔”"
+     }
+    ],
+    "correct": "۱ اوپر (گَ-وا-ہی؛ تین ٹکڑے)، ۲ نیچے (گَ پوری آواز سے بولتے ہیں)۔",
+    "success": "میں حمد کے لفظ ٹکڑوں میں توڑ کر صاف تلفظ سے پڑھ سکتا/سکتی ہوں۔",
+    "ask": "آپ نے لفظ کو کیسے توڑا؟",
+    "listen": "ٹکڑوں کی گنتی بتائیں، مثلاً ‘گَ، وا، ہی؛ تین’۔"
+   },
+   {
+    "sec": "hw",
+    "minutes": 0,
+    "moves": [
+     {
+      "covers": [
+       "m11"
+      ],
+      "do": "گھر میں کسی بڑے کو حمد کے پہلے تین شعر آہستہ سنائیں۔",
+      "how": "آخر میں کہیں: میں نے رحمت اور برکت صاف پڑھے۔"
+     }
+    ]
+   }
+  ],
+  "pictures": [],
+  "names": {
+   "girl": "فاطمہ",
+   "boy": "بلال"
+  }
+ },
+ "v9Skeleton": "<div data-atom class=\"hero sp-0\">\n<div data-atom class=\"slo sp-2\">\n<div data-atom class=\"rescard sp-2\">\n<div data-atom class=\"rescard pc pc-a sp-1\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-z sp-0\">\n<div data-atom class=\"blk board sp-2\">\n<div data-atom id=\"v9-open\" class=\"bar s-i sp-4\" data-sec=\"introduction\">\n<div data-atom class=\"opn ofirst blk wu sp-2\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"opn olast blk hook sp-0\">\n<div data-atom id=\"v9-explain\" class=\"bar s-d sp-4\" data-sec=\"development\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk bigidea sp-2\">\n<div data-atom class=\"blk exq pc pc-a sp-2\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-z sp-0\">\n<div data-atom class=\"blk sp-3\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom id=\"v9-we\" class=\"bar s-we sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk exq we pc pc-a sp-2\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-z sp-0\">\n<div data-atom id=\"v9-you\" class=\"bar s-a sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk pr pc pc-a sp-2\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-z sp-0\">\n<div data-atom class=\"blk sp-3\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom id=\"v9-check\" class=\"bar s-c sp-4\" data-sec=\"conclusion\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk exit sp-2\">\n<div data-atom id=\"v9-hw\" class=\"bar s-h sp-4\" data-sec=\"homework\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"coach sp-4\">\n",
+ "must": [],
+ "expect": {
+  "addIds": "<div data-atom class=\"hero sp-0\">\n<div data-atom class=\"slo sp-2\">\n<div data-atom class=\"rescard sp-2\">\n<div data-atom class=\"rescard pc pc-a sp-1\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-z sp-0\">\n<div data-atom class=\"blk board sp-2\">\n<div data-atom id=\"v9-open\" class=\"bar s-i sp-4\" data-sec=\"introduction\">\n<div data-atom class=\"opn ofirst blk wu sp-2\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"opn olast blk hook sp-0\">\n<div data-atom id=\"v9-explain\" class=\"bar s-d sp-4\" data-sec=\"development\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk bigidea sp-2\">\n<div data-atom class=\"blk exq pc pc-a sp-2\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-z sp-0\">\n<div data-atom class=\"blk sp-3\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom id=\"v9-we\" class=\"bar s-we sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk exq we pc pc-a sp-2\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-z sp-0\">\n<div data-atom id=\"v9-you\" class=\"bar s-a sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk pr pc pc-a sp-2\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-z sp-0\">\n<div data-atom class=\"blk sp-3\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom id=\"v9-check\" class=\"bar s-c sp-4\" data-sec=\"conclusion\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk exit sp-2\">\n<div data-atom id=\"v9-hw\" class=\"bar s-h sp-4\" data-sec=\"homework\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"coach sp-4\">\n",
+  "missing": [],
+  "video": null,
+  "validate": [],
+  "html": "<!doctype html>\n<html lang=\"ur\" dir=\"rtl\"><head><meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\">\n<meta name=\"color-scheme\" content=\"light\">\n<title>G2 Urdu Ch.1 Day 2 Card</title>\n<style>\n/* Phone-first teacher card: one column, sized for a 360-390 px screen; prints on one 520 x 2000 page.\n   Single light look on purpose (the v17 section colours Amena approved, 9 Oct). */\n:root{--navy:#26324A;--ink:#1F2430;--mut:#55606F;--line:#DDE1E8;--paper:#FFFFFF;--ground:#EEF0F3;\n--open:#E07B00;--explain:#8A45F0;--we:#3B5BDB;--you:#2B8A3E;--check:#C2255C;--hw:#0B7285;--star:#F2B705;\n--body:system-ui,-apple-system,\"Segoe UI\",Roboto,\"Noto Sans\",sans-serif;color-scheme:light}\n*{box-sizing:border-box}\nhtml,body{margin:0;background:var(--ground);color:var(--ink)}\nbody{font:17px/1.45 var(--body);-webkit-text-size-adjust:100%}\n.page{max-width:480px;margin:0 auto;background:var(--paper);padding:12px 14px 16px;display:flex;flex-direction:column;gap:12px}\na{color:inherit}\n.hd{background:var(--navy);color:#fff;border-radius:14px;padding:12px 14px 14px}\n.hd .k{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;font-weight:700;font-size:13.5px;letter-spacing:.03em}\n.hd .k b{color:#FFC34D}\n.hd h1{font-size:22px;line-height:1.25;margin:6px 0 6px;text-wrap:balance}\n.hd .goal{font-size:15.5px;opacity:.95}\n.info{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:15.5px}\n.info b{color:var(--mut);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;padding-top:3px}\n.time .pr{display:flex;font:700 12.5px/1 var(--body);color:var(--ink);margin-bottom:4px}\n.time .pr span{min-width:44px;text-align:center;border-bottom:2.5px solid var(--ink);padding-bottom:3px}\n.bar{display:flex;height:30px;border-radius:8px;overflow:hidden;font:800 14px/1 var(--body);color:#fff}\n.bar span{display:flex;align-items:center;justify-content:center;border-right:2px solid #fff;min-width:44px}\n.bar span:last-child{border:0}\n.lab{display:flex;font-size:12px;color:var(--mut);margin-top:3px}.lab span{text-align:center;min-width:44px;white-space:nowrap}\n.star{border:2.5px solid var(--star);background:#FFF6D6;border-radius:12px;padding:10px 12px;font-size:16px}\n.star .l{font-weight:800;color:#7A4F00}\n.sec{border:1px solid color-mix(in srgb,var(--c) 28%,#fff);border-inline-start:7px solid var(--c);border-radius:12px;\n background:color-mix(in srgb,var(--c) 6%,#fff);padding:10px 12px 12px}\n.sec.mark{box-shadow:0 0 0 3px var(--star)}\n/* one row: a long title wraps inside itself, so Full details never drops under the heading (judge 10F) */\n.sh{display:flex;gap:2px 8px}\n.sh h2{margin:0;font-size:19px;color:var(--c);flex:0 1 auto;min-width:0}\n.sh .t{flex:none;white-space:nowrap}.sh .fd{flex:none;margin-left:auto}\n/* phone: the time drops under the title so the title keeps one line beside Full details (judge pilot4 10D) */\n@media screen and (max-width:420px){.sh{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}.sh h2{white-space:nowrap;font-size:17.5px}.sh .t{grid-row:2;grid-column:1}.sh .fd{grid-row:1/span 2;grid-column:2}}\n.sh .t{font-weight:700;font-size:14px;color:var(--mut);font-variant-numeric:tabular-nums}\n.mv{display:grid;grid-template-columns:30px 1fr;gap:10px;margin-top:10px}\n.mv p{margin:0;min-width:0}.mv .do{font-weight:700}\n.n{width:28px;height:28px;border-radius:999px;background:var(--c);color:#fff;font:800 15px/28px var(--body);text-align:center}\n.say{display:block;margin-top:3px;font-style:italic}\n.ex{display:block;margin-top:3px}\n.say::before{content:\"Say: \";font-style:normal;font-weight:800;color:var(--c)}\n.chip{display:inline-block;font:800 12px/1 var(--body);letter-spacing:.03em;color:#fff;background:var(--c);border-radius:6px;padding:5px 7px;margin:0 0 4px}\n.clock{display:inline-block;font-weight:800;color:#fff;background:var(--ink);border-radius:6px;padding:3px 8px;font-size:14.5px;margin-bottom:4px}\n.box{margin-top:10px;border-radius:10px;background:#fff;border:1px solid var(--line);padding:8px 10px;font-size:15.5px}\n.box h3{margin:0 0 4px;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--c)}\n.ans{display:grid;gap:5px}.ans div{display:flex;flex-wrap:wrap;gap:0 8px}.ans .e{font-weight:700}\n.mis{border-color:#F1B0B0;background:#FFF1F1}.mis h3{color:#B02525}\n.fd{display:inline-flex;align-items:center;min-height:40px;padding:0 12px;font:700 14.5px/1 var(--body);color:var(--c);\n border:1.5px solid var(--c);border-radius:999px;text-decoration:none;background:#fff;white-space:nowrap}\n.sh{align-items:center}\n.fd:focus-visible{outline:3px solid var(--navy);outline-offset:2px}\n.board{border:2px solid var(--navy);border-radius:12px;padding:8px 10px 10px}\n.board h3{margin:0 0 6px;font-size:12.5px;letter-spacing:.06em;color:var(--navy)}\n.faces{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center;font-size:13.5px}\n.faces div{border:1.5px solid var(--line);border-radius:9px;padding:4px 2px}.faces .e{display:block;font-size:26px}\n.foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;border-top:1px solid var(--line);padding-top:10px;font-size:14px;color:var(--mut)}\n.foot a{font-weight:800;color:var(--navy);min-height:44px;display:inline-flex;align-items:center}\n@page{size:520px 2000px;margin:0}\n@media print{html,body{background:#fff}body{font-size:14.5px;line-height:1.35}.page{max-width:none;width:520px;gap:7px;padding:10px 14px}.fd{min-height:28px;font-size:12.5px}.mv{margin-top:5px}.sec{padding:7px 11px 9px}.box{margin-top:6px;padding:5px 9px;font-size:14px}.hd h1{font-size:20px}}\n.steps{margin:0;padding-inline-start:22px;font-weight:700;display:grid;gap:4px}\n.svg svg{display:block;max-width:100%;height:auto;margin:0 auto}\n.pl{font-size:15px;margin-top:6px;text-align:center}\n\n</style></head>\n<body><div class=\"page\">\n\n<div class=\"hd\">\n <div class=\"k\"><span><b>GRADE 2 · URDU</b> · Ch.1 حمد (نظم)</span><span>Day 2 · 40 min</span></div>\n <h1>تلفظ: حمد کو صاف تلفظ اور لے سے پڑھنا</h1>\n <div class=\"goal\">بچے حمد کے مشکل لفظ ٹکڑوں میں توڑ کر <b>صاف تلفظ</b> سے پڑھتے ہیں۔</div>\n</div>\n\n<div class=\"info\">\n <b>Bring</b><span>چاک · بلیک بورڈ · درسی کتاب صفحہ ۲ · کاپیاں</span>\n <b>Words</b><span>رحمت · عزّت · علم · دولت</span>\n</div>\n\n<div class=\"time\" aria-label=\"Time: 4 open, 8 explain, 12 we do, 12 you do, 4 check\">\n <div class=\"pr\"><span style=\"flex:12\"></span><span style=\"flex:24\">PRACTICE · 24 of 40 min</span><span style=\"flex:4\"></span></div>\n <div class=\"bar\">\n  <span data-sec=\"open\" style=\"flex:4;background:var(--open)\">4′</span>\n  <span data-sec=\"explain\" style=\"flex:8;background:var(--explain)\">8′</span>\n  <span data-sec=\"we\" style=\"flex:12;background:var(--we)\">12′</span>\n  <span data-sec=\"you\" style=\"flex:12;background:var(--you)\">12′</span>\n  <span data-sec=\"check\" style=\"flex:4;background:var(--check)\">4′</span>\n </div>\n <div class=\"lab\"><span style=\"flex:4\">Open</span><span style=\"flex:8\">Explain</span><span style=\"flex:12\">We Do</span><span style=\"flex:12\">You Do</span><span style=\"flex:4\">✓</span></div>\n</div>\n\n<!-- Coaching slot: filled per teacher from their last report once recordings start. Hidden in the base corpus. -->\n<div class=\"star\" hidden data-slot=\"star\"><span class=\"l\">★ Your one thing today</span> · in move <b data-slot=\"star-move\"></b><br><span data-slot=\"star-text\"></span></div>\n\n<section class=\"sec\" style=\"--c:var(--open)\" data-sec=\"open\">\n <div class=\"sh\"><h2>Opening</h2><span class=\"t\">0–4′</span><a class=\"fd\" href=\"g2_ch1_Urdu_seg2.v9.html#v9-open\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m1\"><span class=\"n\">1</span><p><span class=\"do\">کل کے لفظوں کے مطلب یاد کروائیں؛ جماعت مل کر جواب دے۔</span> ہر لفظ پر رکیں؛ جواب سب مل کر بولیں۔\n  <span class=\"say\">“مولا یعنی؟” → “مالک۔” “گواہی یعنی؟” → “ثبوت۔”</span></p></div>\n <div class=\"mv\" data-covers=\"m2\"><span class=\"n\">2</span><p><span class=\"do\">صفحہ ۲ کھلوائیں، عنوان ‘حمد’ پر انگلی رکھوائیں؛ پہلا شعر آہستہ سنائیں۔</span> بچے صرف سنیں۔ بتائیں: یہ نظم اللہ تعالیٰ کی تعریف میں ہے۔ آج کا ہنر: صاف تلفظ سے پڑھنا۔\n  <span class=\"say\">“اللہ تو ہے رحمت والا، نام ہے تیرا برکت والا۔”</span></p></div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--explain)\" data-sec=\"explain\">\n <div class=\"sh\"><h2>Explanation · I Do</h2><span class=\"t\">4–12′</span><a class=\"fd\" href=\"g2_ch1_Urdu_seg2.v9.html#v9-explain\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m3 m4 m5 m6\"><span class=\"n\">3</span><p><span class=\"do\">چھ لفظ بورڈ پر لکھیں؛ ایک لفظ ٹکڑوں میں پڑھ کر دکھائیں۔</span> بورڈ: رَحْمَت · عَجَب · ہِمَّت · عِزَّت · عِلْم · دَوْلَت۔ غلطی: ع الف جیسا؛ ز ایک بار۔ جلدی اور ٹکڑوں میں پڑھیں۔\n  <span class=\"say\">“رَح-مَت، بَر-کَت؛ ہر ٹکڑا صاف، پھر جوڑ کر۔”</span><span class=\"ex\"><b>Think aloud:</b> “میں لفظ جلدی نہیں پڑھتا؛ پہلے ٹکڑے بناتا ہوں، ہر ٹکڑا آخر تک بولتا ہوں، پھر جوڑتا ہوں۔”</span></p></div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--we)\" data-sec=\"we\">\n <div class=\"sh\"><h2>We Do</h2><span class=\"t\">12–24′</span><a class=\"fd\" href=\"g2_ch1_Urdu_seg2.v9.html#v9-we\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m7\"><span class=\"n\">4</span><p><span class=\"chip\">I START, YOU FINISH</span><br><span class=\"do\">شعر ۱ سے ۵ مصرع بہ مصرع پڑھیں؛ جماعت دہرائے۔</span> مشکل لفظ ٹکڑوں میں دہرائیں۔ پوچھیں: گھر میں اور گاؤں میں ہم اللہ کی کون سی نعمت دیکھتے ہیں؟\n  <span class=\"say\">“میں پڑھوں: ‘چاند اور سورج، پھول اور تارے’؛ اگلا مصرع؟” → “تو نے بنائے کتنے پیارے۔”</span></p></div>\n <div class=\"mv\" data-covers=\"m8\"><span class=\"n\">5</span><p><span class=\"chip\">ONE NEIGHBOUR TURN</span><br><span class=\"do\">ایک منٹ، اپنی جگہ: ایک لفظ ٹکڑوں میں بولے، دوسرا ٹکڑے گنے۔</span> فاطمہ اور بلال پہلے کر کے دکھائیں۔ پھر پانچ کاپیاں دیکھیں۔\n  <span class=\"say\">“ایک لفظ ٹکڑوں میں بولیں؛ دوسرا ٹکڑے گنے۔”</span><span class=\"ex\"><b>کھڑکی والا first:</b> “‘ہِمَّت’ ٹکڑوں میں بولیں؛ کتنے ٹکڑے؟” → <b>Reply:</b> “دو ٹکڑے: ہِم-مَت۔” · <b>Stop:</b> ایک تالی، نظریں مجھ پر · <b>Stuck?</b> پہلا ٹکڑا آپ بولیں؛ بچہ دوسرا بولے۔</span></p></div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--you)\" data-sec=\"you\">\n <div class=\"sh\"><h2>You Do · in the book</h2><span class=\"t\">24–36′</span><a class=\"fd\" href=\"g2_ch1_Urdu_seg2.v9.html#v9-you\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m9\"><span class=\"n\">6</span><p><span class=\"clock\">⏱ 24′ stop explaining</span><br><span class=\"do\">بولیں، لکھنا نہیں؛ چار کام باری باری کریں۔</span> ۱. شعر ۱، ۲ پڑھیں۔ ۲. بلال نے ‘عَجَب’ کو ‘اَجب’ کہا؛ صحیح بولیں۔ ۳. ‘عِزَّت’ ٹکڑوں میں۔ ۴. علم و دولت والا شعر لے سے۔\n  <span class=\"say\">“اب اپنی باری پر کام کریں۔” فاطمہ، پہلا آپ سنائیں۔</span><span class=\"ex\"><b>If stuck:</b> آدھا مصرع آپ پڑھیں، بچہ دہرائے؛ مشکل لفظ کے نیچے انگلی رکھ کر ٹکڑوں میں بلوائیں۔</span></p></div>\n <div class=\"box\"><h3>Check 5 books · answers</h3>\n  <div class=\"ans\">\n   <div><span>۲</span><span class=\"e\">عَ-جَب؛ ع گلے کے بیچ سے۔</span></div>\n   <div><span>۳</span><span class=\"e\">عِز-زَت؛ ز دو بار (شد کی وجہ سے)۔</span></div>\n  </div></div>\n <div class=\"box mis\"><h3>Likely mistake</h3>ع کو الف کی طرح بولا۔ <b>Ask:</b> “آواز کہاں سے نکلی؟” ز ایک بار بولا تو: “عِز پر رکیں، پھر زَت۔”</div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--check)\" data-sec=\"check\">\n <div class=\"sh\"><h2>Check · exit ticket</h2><span class=\"t\">36–40′</span><a class=\"fd\" href=\"g2_ch1_Urdu_seg2.v9.html#v9-check\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m10\"><span class=\"n\">7</span><p><span class=\"do\">دو بیان سنائیں؛ ٹھیک ہو تو انگوٹھا اوپر، غلط تو نیچے۔</span> کامیابی کی لائن پڑھوائیں، پھر ہر بیان پر انگوٹھے سے جواب لیں۔\n  <span class=\"say\">“۱. گواہی میں تین ٹکڑے ہیں: گَ-وا-ہی۔ ۲. گواہی کا گَ ہلکا بولتے ہیں۔”</span><span class=\"ex\"><b>Ask:</b> “آپ نے لفظ کو کیسے توڑا؟” → <b>Listen for:</b> ٹکڑوں کی گنتی بتائیں، مثلاً ‘گَ، وا، ہی؛ تین’۔</span><span class=\"ex\"><b>Success:</b> “میں حمد کے لفظ ٹکڑوں میں توڑ کر صاف تلفظ سے پڑھ سکتا/سکتی ہوں۔” 👍 or ✊ first</span><span class=\"ex\"><b>Correct:</b> ۱ اوپر (گَ-وا-ہی؛ تین ٹکڑے)، ۲ نیچے (گَ پوری آواز سے بولتے ہیں)۔</span></p></div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--hw)\" data-sec=\"hw\">\n <div class=\"sh\"><h2>Homework</h2><span class=\"t\">at home</span><a class=\"fd\" href=\"g2_ch1_Urdu_seg2.v9.html#v9-hw\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m11\"><span class=\"n\">8</span><p><span class=\"do\">گھر میں کسی بڑے کو حمد کے پہلے تین شعر آہستہ سنائیں۔</span> آخر میں کہیں: میں نے رحمت اور برکت صاف پڑھے۔</p></div>\n</section>\n\n<div class=\"foot\"><a href=\"g2_ch1_Urdu_seg2.v9.html\">Full lesson plan ›</a></div>\n</div></body></html>\n",
+  "gates": [],
+  "cardWithVideo": {
+   "card_version": "v10.1",
+   "lesson_key": "g2·Urdu·ch1·seg2",
+   "v9_html": "g2_ch1_Urdu_seg2.v9.html",
+   "lang": "ur",
+   "header": {
+    "grade": 2,
+    "subject": "Urdu",
+    "chapter": "Ch.1 حمد (نظم)",
+    "day": 2,
+    "minutes": 40,
+    "title": "تلفظ: حمد کو صاف تلفظ اور لے سے پڑھنا",
+    "goal": "بچے حمد کے مشکل لفظ ٹکڑوں میں توڑ کر <b>صاف تلفظ</b> سے پڑھتے ہیں۔"
+   },
+   "bring": "چاک · بلیک بورڈ · درسی کتاب صفحہ ۲ · کاپیاں",
+   "words": [
+    "رحمت",
+    "عزّت",
+    "علم",
+    "دولت"
+   ],
+   "sections": [
+    {
+     "sec": "open",
+     "minutes": 4,
+     "moves": [
+      {
+       "covers": [
+        "m1"
+       ],
+       "do": "کل کے لفظوں کے مطلب یاد کروائیں؛ جماعت مل کر جواب دے۔",
+       "how": "ہر لفظ پر رکیں؛ جواب سب مل کر بولیں۔",
+       "say": "“مولا یعنی؟” → “مالک۔” “گواہی یعنی؟” → “ثبوت۔”"
+      },
+      {
+       "covers": [
+        "m2"
+       ],
+       "do": "صفحہ ۲ کھلوائیں، عنوان ‘حمد’ پر انگلی رکھوائیں؛ پہلا شعر آہستہ سنائیں۔",
+       "how": "بچے صرف سنیں۔ بتائیں: یہ نظم اللہ تعالیٰ کی تعریف میں ہے۔ آج کا ہنر: صاف تلفظ سے پڑھنا۔",
+       "say": "“اللہ تو ہے رحمت والا، نام ہے تیرا برکت والا۔”"
+      }
+     ]
+    },
+    {
+     "sec": "explain",
+     "minutes": 8,
+     "moves": [
+      {
+       "covers": [
+        "m3",
+        "m4",
+        "m5",
+        "m6"
+       ],
+       "do": "چھ لفظ بورڈ پر لکھیں؛ ایک لفظ ٹکڑوں میں پڑھ کر دکھائیں۔",
+       "how": "بورڈ: رَحْمَت · عَجَب · ہِمَّت · عِزَّت · عِلْم · دَوْلَت۔ غلطی: ع الف جیسا؛ ز ایک بار۔ جلدی اور ٹکڑوں میں پڑھیں۔",
+       "say": "“رَح-مَت، بَر-کَت؛ ہر ٹکڑا صاف، پھر جوڑ کر۔”",
+       "think": "میں لفظ جلدی نہیں پڑھتا؛ پہلے ٹکڑے بناتا ہوں، ہر ٹکڑا آخر تک بولتا ہوں، پھر جوڑتا ہوں۔"
+      }
+     ]
+    },
+    {
+     "sec": "we",
+     "minutes": 12,
+     "moves": [
+      {
+       "covers": [
+        "m7"
+       ],
+       "chip": "I START, YOU FINISH",
+       "do": "شعر ۱ سے ۵ مصرع بہ مصرع پڑھیں؛ جماعت دہرائے۔",
+       "how": "مشکل لفظ ٹکڑوں میں دہرائیں۔ پوچھیں: گھر میں اور گاؤں میں ہم اللہ کی کون سی نعمت دیکھتے ہیں؟",
+       "say": "“میں پڑھوں: ‘چاند اور سورج، پھول اور تارے’؛ اگلا مصرع؟” → “تو نے بنائے کتنے پیارے۔”"
+      },
+      {
+       "covers": [
+        "m8"
+       ],
+       "chip": "ONE NEIGHBOUR TURN",
+       "do": "ایک منٹ، اپنی جگہ: ایک لفظ ٹکڑوں میں بولے، دوسرا ٹکڑے گنے۔",
+       "how": "فاطمہ اور بلال پہلے کر کے دکھائیں۔ پھر پانچ کاپیاں دیکھیں۔",
+       "say": "“ایک لفظ ٹکڑوں میں بولیں؛ دوسرا ٹکڑے گنے۔”",
+       "turn": {
+        "first": "کھڑکی والا",
+        "a": "‘ہِمَّت’ ٹکڑوں میں بولیں؛ کتنے ٹکڑے؟",
+        "b": "دو ٹکڑے: ہِم-مَت۔",
+        "stop": "ایک تالی، نظریں مجھ پر",
+        "help": "پہلا ٹکڑا آپ بولیں؛ بچہ دوسرا بولے۔"
+       }
+      }
+     ]
+    },
+    {
+     "sec": "you",
+     "minutes": 12,
+     "moves": [
+      {
+       "covers": [
+        "m9"
+       ],
+       "clock": "⏱ 24′ stop explaining",
+       "do": "بولیں، لکھنا نہیں؛ چار کام باری باری کریں۔",
+       "how": "۱. شعر ۱، ۲ پڑھیں۔ ۲. بلال نے ‘عَجَب’ کو ‘اَجب’ کہا؛ صحیح بولیں۔ ۳. ‘عِزَّت’ ٹکڑوں میں۔ ۴. علم و دولت والا شعر لے سے۔",
+       "say": "“اب اپنی باری پر کام کریں۔” فاطمہ، پہلا آپ سنائیں۔"
+      }
+     ],
+     "answers": [
+      [
+       "۲",
+       "عَ-جَب؛ ع گلے کے بیچ سے۔"
+      ],
+      [
+       "۳",
+       "عِز-زَت؛ ز دو بار (شد کی وجہ سے)۔"
+      ]
+     ],
+     "mistake": "ع کو الف کی طرح بولا۔ <b>Ask:</b> “آواز کہاں سے نکلی؟” ز ایک بار بولا تو: “عِز پر رکیں، پھر زَت۔”",
+     "stuck": "آدھا مصرع آپ پڑھیں، بچہ دہرائے؛ مشکل لفظ کے نیچے انگلی رکھ کر ٹکڑوں میں بلوائیں۔"
+    },
+    {
+     "sec": "check",
+     "minutes": 4,
+     "moves": [
+      {
+       "covers": [
+        "m10"
+       ],
+       "do": "دو بیان سنائیں؛ ٹھیک ہو تو انگوٹھا اوپر، غلط تو نیچے۔",
+       "how": "کامیابی کی لائن پڑھوائیں، پھر ہر بیان پر انگوٹھے سے جواب لیں۔",
+       "say": "“۱. گواہی میں تین ٹکڑے ہیں: گَ-وا-ہی۔ ۲. گواہی کا گَ ہلکا بولتے ہیں۔”"
+      }
+     ],
+     "correct": "۱ اوپر (گَ-وا-ہی؛ تین ٹکڑے)، ۲ نیچے (گَ پوری آواز سے بولتے ہیں)۔",
+     "success": "میں حمد کے لفظ ٹکڑوں میں توڑ کر صاف تلفظ سے پڑھ سکتا/سکتی ہوں۔",
+     "ask": "آپ نے لفظ کو کیسے توڑا؟",
+     "listen": "ٹکڑوں کی گنتی بتائیں، مثلاً ‘گَ، وا، ہی؛ تین’۔"
+    },
+    {
+     "sec": "hw",
+     "minutes": 0,
+     "moves": [
+      {
+       "covers": [
+        "m11"
+       ],
+       "do": "گھر میں کسی بڑے کو حمد کے پہلے تین شعر آہستہ سنائیں۔",
+       "how": "آخر میں کہیں: میں نے رحمت اور برکت صاف پڑھے۔"
+      }
+     ]
+    }
+   ],
+   "pictures": [],
+   "names": {
+    "girl": "فاطمہ",
+    "boy": "بلال"
+   }
+  },
+  "fullV9Sha": "0c6eea89ede8e8309f979dd1ee9ffc5cf6ad465568bc96217c043231e520567f"
+ }
+}

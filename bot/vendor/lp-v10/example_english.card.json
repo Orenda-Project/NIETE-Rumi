@@ -1,0 +1,170 @@
+{
+ "card_version": "v10.1",
+ "lesson_key": "g1·English·ch4·seg1",
+ "v9_html": "g1_ch4_English_seg1.v9.html",
+ "lang": "en",
+ "header": {
+  "grade": 1,
+  "subject": "English",
+  "chapter": "Ch.4 Pinky and Jojo's TV Troubles!",
+  "day": 1,
+  "minutes": 40,
+  "title": "Siblings & Sharing: key words + picture match",
+  "goal": "Children <b>say and use</b> share, pull and tug-of-war."
+ },
+ "bring": "textbook p.39 · chalk · dupatta (the rope) · books, pencils",
+ "words": [
+  "share",
+  "pull",
+  "tug-of-war",
+  "dictionary"
+ ],
+ "sections": [
+  {
+   "sec": "open",
+   "minutes": 5,
+   "moves": [
+    {
+     "covers": [
+      "m1"
+     ],
+     "do": "Ask three quick recall questions; the class answers together.",
+     "how": "Names start with a …? What helps us see?",
+     "say": "“What do we wash before we eat?” → “Hands.”"
+    },
+    {
+     "covers": [
+      "m2",
+      "m3"
+     ],
+     "do": "Open p.39: point to title, Pinky's face, word box.",
+     "how": "Class: “I see …”. Ask: “Who do you share with at home?”",
+     "say": "“Today: share, pull, tug-of-war. The word box is our dictionary.”"
+    }
+   ]
+  },
+  {
+   "sec": "explain",
+   "minutes": 8,
+   "moves": [
+    {
+     "covers": [
+      "m4",
+      "m5"
+     ],
+     "do": "Model SAY, FIND, ACT, USE on “share”, then “pull”.",
+     "how": "Box meaning. Share: a pencil. Pull: a door.",
+     "say": "“Zainab shared her pencil. Pull brings it to me.”",
+     "think": "I need the meaning, so I look in the word box, I do not guess. It says letting others use what I have. So Zainab shared."
+    }
+   ]
+  },
+  {
+   "sec": "we",
+   "minutes": 12,
+   "moves": [
+    {
+     "covers": [
+      "m6"
+     ],
+     "chip": "I START, YOU FINISH",
+     "do": "Run a gentle dupatta pull; class says tug – of – war in three parts.",
+     "how": "Read the box meaning; class finishes it.",
+     "say": "“Each team pulls. Sports day: we play …” → “… tug-of-war!”"
+    },
+    {
+     "covers": [
+      "m7"
+     ],
+     "chip": "ONE NEIGHBOUR TURN",
+     "do": "Tell a home scene; neighbour shows 1, 2 or 3 fingers. One minute.",
+     "how": "Zainab and Bilal show it first. One tells a home scene; other shows 1 finger share, 2 pull, 3 tug-of-war; check the box.",
+     "say": "“Tell a home scene. Show 1, 2 or 3 fingers.”",
+     "turn": {
+      "first": "Window side",
+      "a": "I give my sister half my roti.",
+      "b": "One finger: share. Box agrees.",
+      "stop": "one clap, eyes on me",
+      "help": "Act the word: pass an eraser; say “share”."
+     }
+    }
+   ]
+  },
+  {
+   "sec": "you",
+   "minutes": 12,
+   "moves": [
+    {
+     "covers": [
+      "m8"
+     ],
+     "clock": "⏱ 24′ stop explaining",
+     "do": "Match the three words to pictures alone, p.39 Exercise 1.",
+     "how": "1. share · 2. pull · 3. tug-of-war. Done? Write one sentence.",
+     "say": "“Who shares one thing? What moves towards someone?”"
+    }
+   ],
+   "answers": [
+    [
+     "1. share →",
+     "middle: a ball offered to a child"
+    ],
+    [
+     "2. pull →",
+     "bottom: boy pulls a wagon"
+    ],
+    [
+     "3. tug-of-war →",
+     "top: long rope, red ribbon"
+    ]
+   ],
+   "mistake": "Matches by first letter. <b>Ask:</b> “Who uses one thing together?”",
+   "stuck": "Act the word: you say “share”, they pass an eraser."
+  },
+  {
+   "sec": "check",
+   "minutes": 3,
+   "moves": [
+    {
+     "covers": [
+      "m9"
+     ],
+     "do": "Say a scene: “Ayesha lets her cousin ride her new bicycle.”",
+     "how": "Five say the word, then a sentence with pull or tug-of-war.",
+     "say": "“Which word? Now your own sentence.”"
+    }
+   ],
+   "correct": "“share”, and an own sentence with “pull” or “tug-of-war” used correctly.",
+   "success": "I can say and use share, pull and tug-of-war.",
+   "ask": "How do you know Ayesha's bicycle is share?",
+   "listen": "She lets her cousin use it: share means letting others use what you have."
+  },
+  {
+   "sec": "hw",
+   "minutes": 0,
+   "moves": [
+    {
+     "covers": [
+      "m10"
+     ],
+     "do": "Ask your family Pinky's questions about brothers and sisters.",
+     "how": "Draw one thing you shared; write “share” under it.",
+     "say": "“What did you share today?”"
+    }
+   ]
+  }
+ ],
+ "pictures": [
+  {
+   "id": "dg1",
+   "after": "you",
+   "kind": "svg",
+   "title": "THE BOARD BY THE END · The word box: three words, three sketches",
+   "svg": "<svg viewBox=\"0 0 340 108\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><text x=\"52\" y=\"20\" font-size=\"15\" font-weight=\"bold\">share</text><circle cx=\"18\" cy=\"44\" r=\"6\" fill=\"#fff\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"18\" y1=\"50\" x2=\"18\" y2=\"74\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"18\" y1=\"74\" x2=\"12\" y2=\"88\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"18\" y1=\"74\" x2=\"24\" y2=\"88\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"86\" cy=\"44\" r=\"6\" fill=\"#fff\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"86\" y1=\"50\" x2=\"86\" y2=\"74\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"86\" y1=\"74\" x2=\"80\" y2=\"88\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"86\" y1=\"74\" x2=\"92\" y2=\"88\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"18\" y1=\"60\" x2=\"44\" y2=\"64\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"86\" y1=\"60\" x2=\"60\" y2=\"64\" stroke=\"#0B2545\" stroke-width=\"2\"/><rect x=\"40\" y=\"62\" width=\"24\" height=\"5\" fill=\"#d98200\"/><text x=\"166\" y=\"20\" font-size=\"15\" font-weight=\"bold\">pull</text><rect x=\"112\" y=\"76\" width=\"28\" height=\"18\" fill=\"#fff7e0\" stroke=\"#d98200\" stroke-width=\"2\"/><circle cx=\"118\" cy=\"98\" r=\"4\" fill=\"#0B2545\"/><circle cx=\"134\" cy=\"98\" r=\"4\" fill=\"#0B2545\"/><circle cx=\"196\" cy=\"44\" r=\"6\" fill=\"#fff\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"196\" y1=\"50\" x2=\"196\" y2=\"74\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"196\" y1=\"74\" x2=\"190\" y2=\"88\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"196\" y1=\"74\" x2=\"202\" y2=\"88\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"196\" y1=\"60\" x2=\"142\" y2=\"84\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"170\" y1=\"40\" x2=\"150\" y2=\"40\" stroke=\"#c0392b\" stroke-width=\"2.5\"/><polygon points=\"146,40 154,36 154,44\" fill=\"#c0392b\"/><text x=\"280\" y=\"20\" font-size=\"15\" font-weight=\"bold\">tug-of-war</text><circle cx=\"236\" cy=\"44\" r=\"6\" fill=\"#fff\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"236\" y1=\"50\" x2=\"236\" y2=\"74\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"236\" y1=\"74\" x2=\"230\" y2=\"88\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"236\" y1=\"74\" x2=\"242\" y2=\"88\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"324\" cy=\"44\" r=\"6\" fill=\"#fff\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"324\" y1=\"50\" x2=\"324\" y2=\"74\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"324\" y1=\"74\" x2=\"318\" y2=\"88\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"324\" y1=\"74\" x2=\"330\" y2=\"88\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"236\" y1=\"60\" x2=\"320\" y2=\"60\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"324\" y1=\"60\" x2=\"236\" y2=\"60\" stroke=\"#0B2545\" stroke-width=\"2\"/><line x1=\"242\" y1=\"62\" x2=\"318\" y2=\"62\" stroke=\"#d98200\" stroke-width=\"3\"/><rect x=\"274\" y=\"56\" width=\"10\" height=\"12\" fill=\"#c0392b\"/><line x1=\"106\" y1=\"28\" x2=\"106\" y2=\"100\" stroke=\"#ccc\"/><line x1=\"214\" y1=\"28\" x2=\"214\" y2=\"100\" stroke=\"#ccc\"/></svg>"
+  }
+ ],
+ "names": {
+  "girl": "Zainab",
+  "boy": "Bilal"
+ }
+}

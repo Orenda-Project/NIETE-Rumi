@@ -1,0 +1,188 @@
+{
+ "card_version": "v10.1",
+ "lesson_key": "g2·English·ch10·seg1",
+ "v9_html": "g2_ch10_English_seg1.v9.html",
+ "lang": "en",
+ "header": {
+  "grade": 2,
+  "subject": "English",
+  "chapter": "Ch.10 Wonders of the Wild",
+  "day": 1,
+  "minutes": 40,
+  "title": "Memory Lane & Chat Time with Sir Riaz",
+  "goal": "Children listen to a joke or fact, choose how they feel, and say <b>why</b>: “I feel ___ because ___.”"
+ },
+ "bring": "textbook p.123 · chalk · children's books and pencils",
+ "words": [
+  "wind",
+  "breathe",
+  "waves",
+  "snow leopards"
+ ],
+ "sections": [
+  {
+   "sec": "open",
+   "minutes": 5,
+   "moves": [
+    {
+     "covers": [
+      "m1"
+     ],
+     "do": "Ask: what do you remember about wild animals? Take three answers.",
+     "how": "Expect: “Wonders of the Wild.” Class echoes it.",
+     "say": "“I remember …” → class repeats it."
+    },
+    {
+     "covers": [
+      "m2",
+      "m3"
+     ],
+     "do": "Open p.123. Point to Sir Riaz and his four speech bubbles.",
+     "how": "Say each key word with an action; children copy.",
+     "say": "“Today we listen to Sir Riaz's jokes and facts and say how we feel.”"
+    }
+   ]
+  },
+  {
+   "sec": "explain",
+   "minutes": 7,
+   "moves": [
+    {
+     "covers": [
+      "m4",
+      "m6"
+     ],
+     "do": "Model it once: read the tree joke, point to 😄, say why.",
+     "how": "Show good listening: face the speaker, repeat the reason.",
+     "say": "“I feel happy because the tree says ‘Leaf me alone!’”",
+     "think": "A tree talking is funny. It makes me smile, so my face is 😄. My reason is the joke: ‘Leaf me alone!’"
+    }
+   ]
+  },
+  {
+   "sec": "we",
+   "minutes": 12,
+   "moves": [
+    {
+     "covers": [
+      "m5",
+      "m7"
+     ],
+     "chip": "I START, YOU FINISH",
+     "do": "Read the plants fact. The whole class finishes your sentence.",
+     "how": "Then ask: where do you see plants at home? Take three answers in full sentences.",
+     "say": "“I feel surprised because …” → class: “… plants give us air!”"
+    },
+    {
+     "covers": [
+      "m5"
+     ],
+     "chip": "ONE NEIGHBOUR TURN",
+     "do": "Window side says a reason; other points to its bubble and feeling.",
+     "how": "Ayesha and Bilal show it first. A checks p.123. Two pairs share aloud.",
+     "say": "“You feel ___ because ___.”",
+     "turn": {
+      "first": "Window side",
+      "a": "Because snow leopards can jump really far.",
+      "b": "This bubble. (points) You feel surprised because they jump far.",
+      "stop": "one clap, eyes on me",
+      "help": "Point to the bubble; say “You feel …”."
+     }
+    }
+   ]
+  },
+  {
+   "sec": "you",
+   "minutes": 12,
+   "moves": [
+    {
+     "covers": [
+      "m8"
+     ],
+     "clock": "⏱ 24′ stop explaining",
+     "do": "Everyone writes alone: draw each face, write one <i>because</i> word.",
+     "how": "1. snow leopards · 2. tree joke. Done? 3. Write the whole sentence for the waves joke.",
+     "say": "“Draw how you feel. Write one word: why?”"
+    }
+   ],
+   "answers": [
+    [
+     "1. Snow leopards jump far →",
+     "😮 jump / far"
+    ],
+    [
+     "2. Tree joke →",
+     "😄 leaf"
+    ],
+    [
+     "3. Waves joke →",
+     "“I feel ___ because the waves …”"
+    ]
+   ],
+   "mistake": "Draws a face, no reason. <b>Ask:</b> “What did Sir Riaz say?” The child points to the word in the bubble and copies it.",
+   "stuck": "Point to one face on the board; the child names it, then copies <i>because</i> + one word."
+  },
+  {
+   "sec": "check",
+   "minutes": 4,
+   "moves": [
+    {
+     "covers": [
+      "m9"
+     ],
+     "do": "Say a new fact: “Bees visit flowers to make honey.”",
+     "how": "Each child shows the face alone; five children each say why aloud: “I feel ___ because ___.”",
+     "say": "“How do you feel? Why?”"
+    }
+   ],
+   "correct": "a face + a reason from the fact (“… because bees make honey”).",
+   "success": "I can say how I feel and give one reason.",
+   "ask": "Which part of the fact made you feel that way?",
+   "listen": "The detail: bees visit flowers and make honey. Any reason from the fact."
+  },
+  {
+   "sec": "hw",
+   "minutes": 0,
+   "moves": [
+    {
+     "covers": [
+      "m10"
+     ],
+     "do": "Tell a family member one joke or fact from p.123",
+     "how": "and say “I feel ___ because ___.”"
+    }
+   ]
+  }
+ ],
+ "pictures": [
+  {
+   "id": "dg1",
+   "after": "you",
+   "kind": "faces",
+   "title": "THE BOARD BY THE END · How do you feel?",
+   "items": [
+    [
+     "😄",
+     "happy"
+    ],
+    [
+     "🙁",
+     "sad"
+    ],
+    [
+     "😴",
+     "sleepy"
+    ],
+    [
+     "😮",
+     "surprised"
+    ]
+   ],
+   "line": "I feel ___ because ___."
+  }
+ ],
+ "names": {
+  "girl": "Ayesha",
+  "boy": "Bilal"
+ }
+}
