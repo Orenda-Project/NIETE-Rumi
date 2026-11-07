@@ -1,0 +1,2 @@
+{"ts":"2026-11-07T17:11:00Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"5f27cdcdc56c","branch":"bd-rj6w0n.14.16.19-gb-feedback","user":""}
+{"ts":"2026-11-07T17:11:05Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-rj6w0n.14.16.19-gb-feedback: lesson-plan spec: NOT UPDATED e2e: missing","sha":"5f27cdcdc56c","branch":"bd-rj6w0n.14.16.19-gb-feedback","user":""}
