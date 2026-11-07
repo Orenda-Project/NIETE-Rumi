@@ -12,10 +12,24 @@ const WhatsAppService = require('./whatsapp.service');
 const { logToFile } = require('../utils/logger');
 const { logEvent } = require('../utils/structured-logger');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
+const GbDelivery = require('./lp612-gb-delivery.service');
 const {
   TABLE, SEGMENTS, REASON_WINDOW_SECS, REDIS_REASON_KEY, BUTTON_RX, USAGE_RX,
   variantFor, _voiceOf, _userByPhone, _thank,
 } = require('./lp612-feedback.shared');
+
+// The two GB grade 1-5 formats on this lane, told apart by the cached plan she was sent: the seeded
+// ready-made plan (v10 card + v9, model_used 'offline_gb_v9_gate') or one written on request. Both keep
+// the `lp612` prefix, so `lp_variant LIKE 'lp612%'` still selects the lane. ICT is `lp612_<lang>`.
+const GB_SEEDED_MODEL = 'offline_gb_v9_gate';
+async function variantOf(segment, docLang) {
+  if (!segment || !GbDelivery.isGbK5Segment(segment)) return variantFor(docLang);
+  const GbLane = require('./gb-lp-serving.service'); // lazily, like every other GB caller.
+  const { data } = await supabase.from(GbLane.RENDERS).select('model_used')
+    .eq('segment_id', segment.segment_id).eq('lang', docLang)
+    .eq('template_version', GbLane.templateVersion()).maybeSingle();
+  return `lp612_gb_${data && data.model_used === GB_SEEDED_MODEL ? 'card_' : ''}${docLang}`;
+}
 
 // ─── 3. the tap ─────────────────────────────────────────────────────────────
 
@@ -47,9 +61,10 @@ async function handleFeedbackButton(buttonId, phone) {
   // does not have to join a corpus that may since have been re-segmented.
   const { data: segment } = await supabase
     .from(SEGMENTS)
-    .select('segment_id, grade, subject, chapter_number, subtopic_title, menu_title')
+    .select('segment_id, grade, subject, curriculum, chapter_number, subtopic_title, menu_title')
     .eq('segment_id', segmentId)
     .maybeSingle();
+  const variant = await variantOf(segment, docLang);
 
   // Idempotent: one row per (teacher, segment). A teacher who changes her mind updates it.
   const { data: existing } = await supabase
@@ -72,7 +87,7 @@ async function handleFeedbackButton(buttonId, phone) {
         // Deliberately absent: `lesson_plan_id`. A 6-12 lesson is not a lesson_plans row, and the
         // column is nullable precisely so a lane like this one can leave it alone.
         lp612_segment_id: segmentId,
-        lp_variant: variantFor(docLang),
+        lp_variant: variant,
         useful,
         grade: segment ? segment.grade : null,
         subject: segment ? segment.subject : null,
@@ -101,7 +116,7 @@ async function handleFeedbackButton(buttonId, phone) {
       feedbackId = inserted.id;
       logEvent('lp612.feedback.recorded', {
         segmentId, userId: user.id, useful, lang: docLang, feedbackId,
-        variant: variantFor(docLang),
+        variant,
       });
     }
   }
