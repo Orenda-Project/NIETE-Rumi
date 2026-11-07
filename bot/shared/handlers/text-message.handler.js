@@ -598,6 +598,17 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
         error: lp612FbErr.message, userId: user.id,
       });
     }
+    // The assessment survey's "how can we make it better?" — same reason: her own tap opened it.
+    try {
+      const AssessmentFeedbackService = require('../services/assessment/assessment-feedback.service');
+      const consumed = await AssessmentFeedbackService.consumeReasonIfPending(user.id, from, messageBody, { messageId: message && message.id });
+      if (consumed) {
+        logToFile('Assessment feedback: idea captured, short-circuiting text handler');
+        return;
+      }
+    } catch (asmtFbErr) {
+      logToFile('Assessment feedback: consumeReasonIfPending error (non-fatal)', { error: asmtFbErr.message });
+    }
   }
 
   // ============================================================

@@ -831,6 +831,13 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
         if (await Lp612FeedbackService.handleFeedbackButton(buttonId, from)) return;
       }
 
+      // Assessment survey — `asmt_fb_(yes|no)_<paper uuid>`, sent 30s after a paper and its key
+      // land. Its own prefix: no sibling regex accepts it, and an undispatched tap is lost silently.
+      if (buttonId.startsWith('asmt_fb_')) {
+        const AssessmentFeedbackService = require('./shared/services/assessment/assessment-feedback.service');
+        if (await AssessmentFeedbackService.handleAssessmentFeedbackButton(buttonId, from)) return;
+      }
+
       // 6-12 usage follow-up (bd-b708h) — `lp612_used_(taught|planned|not_yet)_<segment_id>`,
       // the second question on the 👍 path. It answers "was a lesson TAUGHT", which is the one
       // thing this lane cannot infer: a render row is a cache miss, not a delivery.

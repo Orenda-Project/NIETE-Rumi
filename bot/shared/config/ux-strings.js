@@ -1609,6 +1609,30 @@ const UX_STRINGS = {
     ur: 'سمجھ گئی، شکریہ — اس سے اگلا سبق بہتر ہوگا۔',
   },
 
+  // ── assessment paper survey (assessment-feedback.service.js) ─────────────
+  // Same caps and Urdu voice as the LP survey above. The improve ask goes after EITHER tap: a
+  // teacher who liked the paper still knows what would make it better.
+  assessmentFeedbackAsk: {
+    en: 'Was this paper useful for your class?',
+    ur: 'کیا یہ پرچہ آپ کی کلاس کے لیے مفید رہا؟',
+  },
+  assessmentFeedbackYes: {
+    en: '👍 Yes',
+    ur: '👍 ہاں',
+  },
+  assessmentFeedbackNo: {
+    en: '👎 No',
+    ur: '👎 نہیں',
+  },
+  assessmentFeedbackAskImprove: {
+    en: 'Thank you! How can we make the paper or the experience better? (one line is enough)',
+    ur: 'شکریہ! ہم پرچے یا اسے بنانے کے تجربے کو کیسے بہتر بنا سکتے ہیں؟ (ایک سطر کافی ہے)',
+  },
+  assessmentFeedbackReasonThanks: {
+    en: 'Got it, thank you — this makes the next paper better.',
+    ur: 'سمجھ گئی، شکریہ — اس سے اگلا پرچہ بہتر ہوگا۔',
+  },
+
   // ── did she actually teach it? (bd-b708h) ────────────────────────────────
   //
   // Sent only on a 👍, in place of the bare thank-you. `lp_feedback.used_in_class` was set on
