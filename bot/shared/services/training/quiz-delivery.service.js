@@ -823,13 +823,16 @@ async function startTrainingQuiz(userId, moduleId, phoneNumber) {
   }
 
   // 5. If there's already an in-progress training-module attempt for this
-  // module, resume it rather than starting a new one.
+  // module, resume it rather than starting a new one. Ask for the in_progress
+  // row itself: a newer failed/passed attempt must not hide an older open one,
+  // or the insert below hits ux_taa_one_active_per_module (bd-hz6ez.8).
   const { data: existing } = await supabase
     .from('training_assessment_attempts')
     .select('id, status')
     .eq('user_id', userId)
     .eq('training_module_id', moduleIdNum)
     .eq('quiz_kind', KIND_TRAINING_MODULE)
+    .eq('status', 'in_progress')
     .order('started_at', { ascending: false })
     .limit(1)
     .maybeSingle();
