@@ -156,4 +156,4 @@ async function insertModuleAttempt(db, row, { surface, log } = {}) {
   return { id: null, error: error || new Error('attempt insert returned nothing') };
 }
 
-module.exports = { resumableModuleAttempt, insertModuleAttempt, UNIQUE_VIOLATION };
+module.exports = { resumableModuleAttempt, insertModuleAttempt };
