@@ -23,6 +23,7 @@ const MEMBERS = [
   require('./key-cue'), // round 10: D18, the key stands out (longest / always-never)
   require('./item-fit'), // round 10: D19/D20 soft, stimulus not used / graph SLO with no graph
   require('./scheme-sum'),
+  require('./mark-consistency'), // bd-5jmnfj.38.33: D21, legend mark == slot marks_each == printed MCQ marks
   require('./numeric-resolve'),
   require('./maths-check-secondary'),
   ...PART2_TAIL,
