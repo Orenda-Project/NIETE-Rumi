@@ -105,29 +105,30 @@ function summariseWeek({ monday, thisWeek = [], lastWeek = [], before = [] }) {
   const prior10 = [...before].sort(byTimeDesc).slice(0, FOCUS_WINDOW);
   const upToFriday10 = [...thisWeek, ...before].sort(byTimeDesc).slice(0, FOCUS_WINDOW);
 
-  const focusKey = prior10.length ? firstNotSteady(prior10) : (n ? firstNotSteady(week) : null);
+  // (named focusBehaviour, not focusKey: gitleaks generic-api-key read "focusKey = …" as a secret and failed every sandbox PR; bd-enec2e.5)
+  const focusBehaviour = prior10.length ? firstNotSteady(prior10) : (n ? firstNotSteady(week) : null);
   let focus = null;
-  if (focusKey) {
-    const last10 = count(upToFriday10, focusKey);
+  if (focusBehaviour) {
+    const last10 = count(upToFriday10, focusBehaviour);
     const reached = last10.done >= FOCUS_DONE_AT;
     const days = [0, 1, 2, 3, 4].map((i) => {
       const date = addDays(monday, i);
-      return { date, items: week.filter((d) => pktDate(new Date(d.at)) === date).map((d) => done(d, focusKey)) };
+      return { date, items: week.filter((d) => pktDate(new Date(d.at)) === date).map((d) => done(d, focusBehaviour)) };
     });
     focus = {
-      key: focusKey,
-      module: BEHAVIOUR_MODULE[focusKey] || null,
-      week: count(week, focusKey),
-      last: lastWeek.length ? count(lastWeek, focusKey) : null,
+      key: focusBehaviour,
+      module: BEHAVIOUR_MODULE[focusBehaviour] || null,
+      week: count(week, focusBehaviour),
+      last: lastWeek.length ? count(lastWeek, focusBehaviour) : null,
       days,
       last10,
       doneAt: FOCUS_DONE_AT,
       reached,
-      next: firstNotSteady(upToFriday10, focusKey),
+      next: firstNotSteady(upToFriday10, focusBehaviour),
     };
   }
 
-  const others = BEHAVIOUR_KEYS.filter((k) => k !== focusKey).map((k) => ({ key: k, ...count(week, k) })).filter((c) => c.of > 0);
+  const others = BEHAVIOUR_KEYS.filter((k) => k !== focusBehaviour).map((k) => ({ key: k, ...count(week, k) })).filter((c) => c.of > 0);
   const strengths = small ? [] : others.filter((c) => c.done * 3 > c.of * 2);
   const keepInMind = small ? [] : others
     .filter((c) => c.done * 2 < c.of)
