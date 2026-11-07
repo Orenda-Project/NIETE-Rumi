@@ -23,10 +23,13 @@
  * Urdu: lines copied from FDE's pages are marked "transcribed"; every other
  * Urdu line here is a draft and needs fluent-Urdu review before teachers see it.
  * Religious text is never authored: the Naat alternative prints FDE's
- * instruction only and has no key.
+ * instruction only and has no key. Islamiat (fde-g5-islamiat.js) leaves every
+ * ayat, hadith, dua and durood for the teacher to write, and has no true/false.
  *
- * Data only. No requires.
+ * Data only. Its one require is the Islamiat subject, also data.
  */
+
+const ISLAMIAT = require('./fde-g5-islamiat');
 
 const COMMON_EN = {
   school_line: 'School: ____________',
@@ -1185,6 +1188,11 @@ const SST = {
 
 // Summary lines the app shows (Check row and Inside tray). App language, Western digits.
 const SUMMARY = {
+  islamiat: {
+    en: { sections: ['Nazra (oral) · 40 · the teacher writes the ayat, words, surahs, hadith and dua', '20 min · 20 · 5 fill in the blanks · 15 MCQs', '1 hr 40 min · 40 · Q3 translation (teacher writes it) · any 5 of 8 short · any 2 of 5 detailed'], choice: 'Q4: any 5 of 8 · 4 each' },
+    // needs fluent-Urdu review
+    ur: { sections: ['ناظرہ (زبانی) · 40 · آیات، الفاظ، سورتیں، حدیث اور دعا استاد لکھیں', '20 منٹ · 20 · 5 خالی جگہیں · 15 معروضی', '1 گھنٹہ 40 منٹ · 40 · سوال 3 ترجمہ (استاد لکھیں) · 8 میں سے کوئی سے 5 مختصر · 5 میں سے کوئی سے 2 تفصیلی'], choice: 'سوال 4: 8 میں سے کوئی سے 5 · ہر ایک 4' },
+  },
   maths: {
     en: { sections: ['1 hr · 40 · 20 MCQs · 10 short "Solve"', '2 hrs · 40 · Q2: attempt any 8 of 12 · 5 each', '(B + C) · 20 · Q3 bar graph · any 3 of Q4–Q8'], choice: 'Q2: attempt any 8 of 12 · 5 each' },
     // needs fluent-Urdu review
@@ -1213,7 +1221,10 @@ const SUMMARY = {
 };
 
 const SUBJECTS = { maths: MATHS, science: SCIENCE, english: ENGLISH, urdu: URDU, social_studies: SST };
-for (const [key, subject] of Object.entries(SUBJECTS)) {
+// Built and checked, never offered: Islamiat needs the engine to print teacher-filled slots and a G5
+// oral sheet first (bd-5jmnfj.39). Moving it into SUBJECTS is what makes it eligible.
+const HELD_SUBJECTS = { islamiat: ISLAMIAT };
+for (const [key, subject] of Object.entries({ ...SUBJECTS, ...HELD_SUBJECTS })) {
   const header = {};
   for (const [k, v] of Object.entries(COMMON_EN)) header[`${k}_en`] = v;
   for (const [k, v] of Object.entries(COMMON_UR)) header[`${k}_ur`] = v;
@@ -1242,4 +1253,5 @@ module.exports = deepFreeze({
   wait_hint: WAIT,
   total_time: TIME3,
   subjects: SUBJECTS,
+  held_subjects: HELD_SUBJECTS,
 });
