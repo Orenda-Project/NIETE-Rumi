@@ -467,8 +467,10 @@ const STRINGS = {
     // Requirement wording, verbatim. No prior report is resent (unlike DC's
     // duplicateRecording): the coach is asked for a new recording instead.
     capture_duplicate_recording: 'This classroom recording has already been analyzed. Please submit a new recording.',
+    // Was "school leaders (field officers) for now" — "field officer"
+    // is the Tanzania role title. Same roles, same order, as the Urdu.
     role_denied:
-      '/observe is for school leaders (field officers) for now. 💛\n\n' +
+      '/observe is for school leaders, supervisors, coaches and principals. 💛 If you should have this role, contact your team.\n\n' +
       "If you're a teacher, I'm here for you — type \"menu\" to see what I can do.",
     onboard_why:
       'Welcome to coaching, my friend. 🌱\n\n' +
@@ -676,9 +678,11 @@ const STRINGS = {
     send_later_ack:
       "No problem. 💛 When you're ready, type /observe and pick that observation — you'll see the send-report option (📨).",
     send_ask_details:
-      'Tell me the teacher\'s name and phone number — one message.\n\nExample: *Ms. Zainabu, 0712 345 678*',
+      'Tell me the teacher\'s name and phone number — one message.\n\nExample: *Ms. Sania, 0301 2345678*',
+    // Was "a Tanzanian phone number" with a Tanzanian example — ported
+    // from the TZ bot. "Mobile", no country, as the Urdu re-ask (a landline fails).
     send_details_reask:
-      "Sorry, I didn't catch that. Please send the name AND a Tanzanian phone number together.\n\nExample: *Ms. Zainabu, 0712 345 678*",
+      "Sorry, I didn't catch that. Please send the name AND a mobile number together.\n\nExample: *Ms. Sania, 0301 2345678*",
     send_preview_coming:
       "Got it — {name} ({phone}). I'm preparing the report now; you'll see it FIRST before anything is sent. 1–2 minutes. ⏳",
     send_confirm_body:
