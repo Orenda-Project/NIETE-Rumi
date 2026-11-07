@@ -99,6 +99,17 @@ describe('a paper off its split is written once more', () => {
     expect(tokenData.cost).toBeCloseTo(mockCreate.mock.calls.length * 0.01, 5);
   });
 
+  it('the paper records both misses and what the kept one still misses by (bd-5jmnfj.27)', async () => {
+    mockCreate.mockImplementation(async (params) => reply(JSON.stringify(
+      mathsSection(asked(params), asked(params).includes(NOTE) ? allUnderstand : undefined),
+    )));
+    const { examJson } = await Gen.generatePatternExam(ARGS);
+    const kept = logged('[assessment] level split re-ask kept')[0];
+    expect(kept.residual).toBe(kept.first);
+    expect(examJson._layout.split_retry).toEqual({ first: kept.first, second: kept.second, kept: 'first', residual: kept.first });
+    expect(examJson._layout.split_retry.second).toBeGreaterThan(examJson._layout.split_retry.first);
+  });
+
   it('a second run that fails leaves the first paper standing', async () => {
     mockCreate.mockImplementation(async (params) => {
       if (asked(params).includes(NOTE)) throw new Error('model down');
