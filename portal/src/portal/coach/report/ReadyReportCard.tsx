@@ -8,6 +8,7 @@ import { useCopy, useLang, type Lang } from "../../teacher/i18n";
 import { portal } from "../../services/api";
 import { COACH_REPORT, type CoachReportCopy } from "./copy";
 import { coachReportPath, coachWeekPath, getReadyReports, markSeen, markWeek, type ReadyDebrief, type ReadyReport } from "./api";
+import { weekSpan } from "./weekSpan";
 
 /**
  * Coach reports in the app — the card above the tiles on her Home when a report is ready. The teacher Home's "Next for
@@ -68,11 +69,6 @@ function subOf(r: ReadyDebrief, lang: Lang): string {
   const cls = [r.grade ? (lang === "ur" ? `جماعت ${r.grade}` : `Grade ${r.grade}`) : null, r.subject].filter(Boolean).join(" ");
   return [r.teacher, cls || null, timeOf(r.at, lang)].filter(Boolean).join(" · ");
 }
-
-const weekSpan = (monday: string, friday: string, lang: Lang) => {
-  const f = (d: string, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(lang === "ur" ? "ur-PK" : "en-GB", { ...o, timeZone: "UTC" }).format(new Date(`${d}T00:00:00Z`));
-  return `${f(monday, { day: "numeric" })}–${f(friday, { day: "numeric", month: "short" })}`;
-};
 
 /** The card itself, or nothing (switch off, nothing ready). Placed first under the band on both coach Homes. */
 export function ReadyReportCard({ className }: { className?: string }) {

@@ -10,6 +10,7 @@ import { useBack } from "../../lib/useBack";
 import { COACH_MODULES, COACH_TRAINING_PATH, modulePath } from "../coachTraining/modules";
 import { COACH_REPORT, type CoachReportCopy } from "./copy";
 import { getCoachWeek, markWeek, problemOf, type CoachWeek, type ReportProblem } from "./api";
+import { weekSpan } from "./weekSpan";
 import { LABEL, LanguagePill, ModuleRow, PILL, ReportOutline, SECTION, Spark, Tick, pick } from "./CoachReportPage";
 
 /**
@@ -20,10 +21,6 @@ import { LABEL, LanguagePill, ModuleRow, PILL, ReportOutline, SECTION, Spark, Ti
  * Counts only, never a percentage, never a quote. Fewer than 4 debriefs: the counts only. Every number comes from the
  * server (computed from the judge's booleans). Opening it stamps "opened" once (no WhatsApp link follows).
  */
-const span = (monday: string, friday: string, lang: Lang) => {
-  const f = (d: string, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(lang === "ur" ? "ur-PK" : "en-GB", { ...o, timeZone: "UTC" }).format(new Date(`${d}T00:00:00Z`));
-  return `${f(monday, { day: "numeric" })}–${f(friday, { day: "numeric", month: "short" })}`;
-};
 const dayWord = (date: string, lang: Lang) => new Intl.DateTimeFormat(lang === "ur" ? "ur-PK" : "en-GB", { weekday: "short", timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`));
 
 export default function CoachWeekPage() {
@@ -46,7 +43,7 @@ export default function CoachWeekPage() {
 
   return (
     <CoachGate>
-      <TeacherPage feature="reports" title={C.weekTitle} crumb={week ? `${C.crumb} · ${span(week.monday, week.friday, lang)}` : C.crumb}
+      <TeacherPage feature="reports" title={C.weekTitle} crumb={week ? `${C.crumb} · ${weekSpan(week.monday, week.friday, lang)}` : C.crumb}
         onBack={back} action={<LanguagePill />} testId="coach-week">
         {week ? <WeekBody w={week} C={C} lang={lang} />
           : problem ? <p data-testid={`week-problem-${problem}`} className={cn(SECTION, "m-0 py-8 text-center text-[16px] font-semibold text-[#4b5563]")}>{problem === "not_ready" ? C.notReady : problem === "not_yours" ? C.notYours : C.loadFailed}</p>
@@ -80,7 +77,7 @@ export function WeekBody({ w, C, lang }: { w: CoachWeek; C: CoachReportCopy; lan
           {Array.from({ length: w.target }, (_, i) => <i key={i} className={cn("h-2 flex-1 rounded-full", i < w.complete ? "bg-[#47ba7d]" : "bg-white/20")} />)}
         </div>
         <p className="m-0 -mt-1 text-[13px] leading-[1.45] text-[#c6e9d5]">{C.completeNote}</p>
-        <div className="border-t border-white/15 pt-2.5 text-[14px] text-[#e2e5ea]">{span(w.monday, w.friday, lang)} · {C.weekSpan}</div>
+        <div className="border-t border-white/15 pt-2.5 text-[14px] text-[#e2e5ea]">{weekSpan(w.monday, w.friday, lang)} · {C.weekSpan}</div>
       </section>
 
       {!f ? <p className={cn(SECTION, "m-0 text-center text-[16px] font-semibold text-[#4b5563]")} data-testid="week-empty">{C.noDebriefs}</p> : (
@@ -116,7 +113,7 @@ export function WeekBody({ w, C, lang }: { w: CoachWeek; C: CoachReportCopy; lan
                 </span>
                 {C.lastWeek(f.last.done, f.last.of)}
               </>
-            ) : C.firstWeek}
+            ) : w.firstWeek ? C.firstWeek : C.noneLastWeek}
           </div>
           <p className="m-0 mt-2 text-[13px] text-[#6b7280]">{C.dayHint}</p>
         </section>

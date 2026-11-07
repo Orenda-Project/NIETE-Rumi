@@ -124,6 +124,16 @@ describe('the summary', () => {
     expect(r.focus.next).toBe('one_improvement_only');
   });
 
+  // bd-enec2e.5 (7 Nov sandbox e2e): a coach with months of debriefs and none last week was told "Your first week".
+  test('firstWeek: only when no debrief came before this week, not merely none last week', () => {
+    expect(W.summariseWeek({ monday: '2026-11-02', thisWeek: thisWeek.slice(0, 3), lastWeek: [], before: [] }).firstWeek).toBe(true);
+    const older = history.slice(0, 2).map((d) => ({ ...d, at: at('2026-10-01', 10) }));
+    const r = W.summariseWeek({ monday: '2026-11-02', thisWeek: thisWeek.slice(0, 3), lastWeek: [], before: older });
+    expect(r.focus.last).toBeNull();
+    expect(r.firstWeek).toBe(false);
+    expect(s.firstWeek).toBe(false);
+  });
+
   test('no debriefs: an empty week, never an invented one', () => {
     const e = W.summariseWeek({ monday: '2026-11-02', thisWeek: [], lastWeek: [], before: [] });
     expect(e).toMatchObject({ debriefs: 0, complete: 0, small: true });

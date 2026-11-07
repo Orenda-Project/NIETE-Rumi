@@ -170,6 +170,13 @@ describe('only the report\'s own coach reads it', () => {
     expect(query.mock.calls[1][0]).toMatch(/SET coach_report_seen_at = now\(\)/);
     await expect(SVC.markCoachReport(query, ME, ID, 'deleted')).rejects.toThrow();
   });
+
+  // bd-enec2e.5 (7 Nov sandbox e2e): the card showed "12:00" above "12:02" — it listed by when the observation was
+  // started but shows when the report was ready. Newest first means by the time it shows.
+  test('the Home card lists her ready reports by the time each was ready, newest first', () => {
+    const order = SVC.SQL.READY.split(/ORDER BY/i).pop();
+    expect(order).toMatch(/COALESCE\(\s*\(c\.analysis_data->'observer_debrief'->>'completed_at'\)::timestamptz,\s*c\.created_at\s*\)\s+DESC/i);
+  });
 });
 
 // ── the routes ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -266,6 +273,9 @@ describe('the routes', () => {
     const { statusCode, payload } = await call('get', '/coach/reports/ready');
     expect(statusCode).toBe(200);
     expect(payload.reports).toEqual([{ kind: 'debrief', id: ID, at: '2026-11-04T06:42:00Z', teacher: 'Ms. Sadia', subject: 'Islamiyat', grade: '5' }]);
-    expect(poolQuery.mock.calls[0][1]).toEqual([ME]);
+    // The ready-debriefs read, wherever it falls: from Friday 16:00 to Monday 16:00 the week row is read first
+    // (bd-enec2e.5 — this asserted calls[0] and so failed every weekend).
+    const ready = poolQuery.mock.calls.find(([sql]) => /coach_report_seen_at IS NULL/.test(sql) && /LIMIT/.test(sql));
+    expect(ready[1]).toEqual([ME]);
   });
 });
