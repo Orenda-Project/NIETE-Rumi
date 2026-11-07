@@ -351,9 +351,10 @@ function holdTypingWhileReasonPending(user) {
       const Lp612FeedbackService = require('../services/lp612-feedback.service');
       // FX6 (bd-w2daa.28): the coaching-report survey's window too — its reason is answered by 🙏 alone.
       const CoachingFeedbackService = require('../services/coaching/coaching-feedback.service');
+      const AssessmentFeedbackService = require('../services/assessment/assessment-feedback.service');
       const keys = [
         LpFeedbackService.REDIS_REASON_KEY(user.id), Lp612FeedbackService.REDIS_REASON_KEY(user.id),
-        CoachingFeedbackService.REDIS_REASON_KEY(user.id),
+        CoachingFeedbackService.REDIS_REASON_KEY(user.id), AssessmentFeedbackService.REDIS_REASON_KEY(user.id),
       ];
       const open = await Promise.all(keys.map((k) => Promise.resolve(redisService.get(k)).catch(() => null)));
       if (!done && open.some(Boolean)) release = InboundTyping.hold();
@@ -701,6 +702,17 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
       logToFile('LP 6-12 feedback: consumeReasonIfPending error (non-fatal)', {
         error: lp612FbErr.message, userId: user.id,
       });
+    }
+    // The assessment survey's "how can we make it better?" — same reason: her own tap opened it.
+    try {
+      const AssessmentFeedbackService = require('../services/assessment/assessment-feedback.service');
+      const consumed = await AssessmentFeedbackService.consumeReasonIfPending(user.id, from, messageBody, { messageId: message && message.id });
+      if (consumed) {
+        logToFile('Assessment feedback: idea captured, short-circuiting text handler');
+        return;
+      }
+    } catch (asmtFbErr) {
+      logToFile('Assessment feedback: consumeReasonIfPending error (non-fatal)', { error: asmtFbErr.message });
     }
   }
   // Not a 👎 reason: a reply is coming — let "typing…" go up (at once if its deadline passed).

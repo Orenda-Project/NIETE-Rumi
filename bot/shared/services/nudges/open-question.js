@@ -32,6 +32,7 @@ const WINDOWS = Object.freeze([
   Object.freeze({ kind: 'lp612_survey', key: (userId) => `lp612_feedback_pending:${userId}`, seconds: 600 }),
   Object.freeze({ kind: 'coaching_survey', key: (userId) => `coaching_feedback_pending:${userId}`, seconds: 600 }),
   Object.freeze({ kind: 'video_survey', key: (userId) => `student_video_feedback_pending:${userId}`, seconds: 600 }),
+  Object.freeze({ kind: 'assessment_survey', key: (userId) => `assessment_feedback_pending:${userId}`, seconds: 600 }),
 ]);
 
 /** A key whose window has (by its own clock) passed is still there: wait a minute, not zero. */
