@@ -11,7 +11,7 @@
 
 const Patterns = require('../../bot/shared/services/assessment/patterns');
 
-const S = () => Patterns.get('fde_g5_2027').held_subjects.islamiat;
+const S = () => Patterns.get('fde_g5_2027').subjects.islamiat;
 const slots = () => S().sections.flatMap((s) => s.slots);
 const total = (sl) => sl.attempt * sl.marks_each;
 
@@ -43,8 +43,8 @@ describe('G5 Islamiat pattern', () => {
     expect(S().scope.page_ranges).toBe('15-77, 83-86, 91-110');
   });
 
-  it('is held: built and checked, but no teacher is offered it until the engine prints teacher-filled slots', () => {
-    expect(Patterns.isEligible('fde_g5_2027', 5, 'islamiat')).toBe(false);
+  it('is offered: the engine prints the teacher-filled slots (bd-5jmnfj.39.1)', () => {
+    expect(Patterns.isEligible('fde_g5_2027', 5, 'islamiat')).toBe(true);
     expect(S().summary_lines.en.sections).toHaveLength(3);
   });
 

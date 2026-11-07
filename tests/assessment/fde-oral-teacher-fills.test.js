@@ -7,7 +7,7 @@ const { oralSheet } = require('../../bot/shared/services/assessment/fde-oral-she
 const Patterns = require('../../bot/shared/services/assessment/patterns');
 
 const text = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-const nazra = () => Patterns.get('fde_g5_2027').held_subjects.islamiat.oral;
+const nazra = () => Patterns.get('fde_g5_2027').subjects.islamiat.oral;
 
 test('every Nazra task prints with no content: label, instruction, blank write-in lines, rubric', () => {
   const html = oralSheet({ ...nazra(), content: [] }, { medium: 'ur', text });

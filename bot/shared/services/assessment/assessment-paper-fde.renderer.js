@@ -47,6 +47,7 @@ const { equalPartsLine } = require('./fde-marks-line');
 const { frameBank } = require('./fde-frame-bank');
 const { acceptText } = require('./fde-accept-line');
 const Cover = require('./fde-scheme-cover');
+const TeacherSlot = require('./fde-teacher-slot'); // bd-5jmnfj.39.1: Islamiat Q3, written by the teacher
 const V37 = require('./fde-render-v37'); // round 6 layout: marks, alphabet strip, ruled lines, passage reprint
 
 // ── fonts ──────────────────────────────────────────────────────────────────
@@ -290,6 +291,7 @@ const slotTotal = (slot, present) => Math.min(slot.attempt, present) * slot.mark
  * change, and a choice that still exists says how many it is now out of.
  */
 function choiceLine(slot, present, lang, items) {
+  present = TeacherSlot.counted(slot, present); // a teacher-filled slot (Islamiat Q3) holds what it must answer
   const live = Math.min(slot.attempt, present);
   const ctx = { w: live, n: live, t: live * slot.marks_each, g: present };
   const raw = slot[`instruction_${lang}`];
@@ -354,7 +356,7 @@ function assertCounts(L, all, opts) {
   if (opts && opts.allowShort) return;
   for (const sec of L.sections) {
     for (const slot of sec.slots) {
-      if (all.get(slot.slot).length < slot.attempt) {
+      if (TeacherSlot.counted(slot, all.get(slot.slot).length) < slot.attempt) {
         const err = new Error(`PATTERN_SHORT_SLOT: ${slot.slot} holds ${all.get(slot.slot).length} of the ${slot.attempt} it must answer`);
         err.code = 'PATTERN_SHORT_SLOT';
         throw err;
@@ -364,20 +366,20 @@ function assertCounts(L, all, opts) {
 }
 
 function sectionTotal(sec, live) {
-  return sec.slots.reduce((sum, slot) => sum + slotTotal(slot, live.get(slot.slot).length), 0);
+  return sec.slots.reduce((sum, slot) => sum + slotTotal(slot, TeacherSlot.counted(slot, live.get(slot.slot).length)), 0);
 }
 
 /** The paper's total: the pattern's, recomputed only when a removal took a slot below its count. */
 function totalMarks(examJson) {
   const L = layoutOf(examJson);
   const { live } = itemsBySlot(examJson, L);
-  const short = L.sections.some((sec) => sec.slots.some((slot) => live.get(slot.slot).length < slot.attempt));
+  const short = L.sections.some((sec) => sec.slots.some((slot) => TeacherSlot.counted(slot, live.get(slot.slot).length) < slot.attempt));
   if (!short) return L.total_marks;
   return L.sections.reduce((sum, sec) => sum + sectionTotal(sec, live), 0);
 }
 
 function sectionCtx(sec, live) {
-  const n = sec.slots.reduce((s, slot) => s + Math.min(slot.attempt, live.get(slot.slot).length), 0);
+  const n = sec.slots.reduce((s, slot) => s + Math.min(slot.attempt, TeacherSlot.counted(slot, live.get(slot.slot).length)), 0);
   const noteSlot = sec.note_slot ? sec.slots.find((s) => s.slot === sec.note_slot) : null;
   const w = noteSlot ? Math.min(noteSlot.attempt, live.get(noteSlot.slot).length) : n;
   return { w, n, t: sectionTotal(sec, live), g: n };
@@ -677,6 +679,7 @@ function slotBlock(slot, sec, list, ctx) {
   const head = (label || instruction || line.marksLine)
     ? `<div class="slot-head">${label ? `<span class="lab">${textOf(label, ctx)}</span> ` : ''}${instruction ? `<span class="ins">${textOf(instruction, ctx)}</span>` : ''}${line.marksLine ? `<span class="ml">${textOf(line.marksLine, ctx)}</span>` : ''}</div>`
     : '';
+  if (slot.teacher_fills) return TeacherSlot.paperBlock(slot, head, ctx, textOf); // bd-5jmnfj.39.1
   if (slot.shape === 'match') {
     // Two columns for the child to join with a line; Column B never follows the stems (bd-5jmnfj.4.23).
     // Column A is the item's own column_a when it has one (bd-5jmnfj.33.2), else its stem as before.
@@ -1311,6 +1314,7 @@ function renderMarkingScheme({ examJson, grade, subject, allowShort = false }) {
     const rows = [];
     for (const slot of sec.slots) {
       const list = all.get(slot.slot);
+      if (slot.teacher_fills) { rows.push(TeacherSlot.keyRow(slot, lang === 'ur' ? slot.label_ur : shortLabel(slot.label_en), ctx, textOf)); continue; }
       // A strip prints in its question's place: the rows above it close first (bd-5jmnfj.4.49).
       if (slot.shape === 'mcq' || slot.shape === 'match') {
         if (rows.length) parts.push(`<table class="rows">${rows.splice(0).join('')}</table>`);
