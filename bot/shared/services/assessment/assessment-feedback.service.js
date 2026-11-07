@@ -27,6 +27,7 @@ const redisService = require('../cache/railway-redis.service');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+const { tk: tkOf } = require('../quiz/web-quiz-kid');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 
 const FEEDBACK_DELAY_MS = 30 * 1000;
@@ -92,13 +93,13 @@ async function _thank(phone, messageId, userId) {
 function scheduleAssessmentFeedback(opts) {
   const { paperId, userId, phone, delayMs = FEEDBACK_DELAY_MS } = opts || {};
   if (!paperId || !userId || !phone) {
-    logToFile('[assessment] feedback not scheduled, missing field', { paperId, userId, hasPhone: !!phone });
+    logToFile('[assessment] feedback not scheduled, missing field', { paperId, tk: tkOf(userId), hasPhone: !!phone });
     return;
   }
-  logEvent('assessment.feedback.scheduled', { paperId, userId, delayMs });
+  logEvent('assessment.feedback.scheduled', { paperId, tk: tkOf(userId), delayMs });
   const timer = setTimeout(() => {
     module.exports.sendAssessmentFeedbackPrompt({ paperId, userId, phone }).catch((err) => {
-      logToFile('[assessment] feedback prompt threw', { paperId, userId, error: err.message });
+      logToFile('[assessment] feedback prompt threw', { paperId, tk: tkOf(userId), error: err.message });
     });
   }, delayMs);
   if (timer.unref) timer.unref();
@@ -115,7 +116,7 @@ async function sendAssessmentFeedbackPrompt({ paperId, userId, phone }) {
       .eq('user_id', userId).eq('assessment_paper_id', paperId)
       .limit(1).maybeSingle();
     if (already) {
-      logEvent('assessment.feedback.prompt_skipped', { paperId, userId, reason: 'already_answered' });
+      logEvent('assessment.feedback.prompt_skipped', { paperId, tk: tkOf(userId), reason: 'already_answered' });
       return;
     }
   } catch (err) {
@@ -129,7 +130,7 @@ async function sendAssessmentFeedbackPrompt({ paperId, userId, phone }) {
       { id: `asmt_fb_no_${paperId}`, title: resolveUx('assessmentFeedbackNo', { language: voice }) },
     ],
   });
-  logEvent('assessment.feedback.prompt_sent', { paperId, userId, voice, ok: ok !== false });
+  logEvent('assessment.feedback.prompt_sent', { paperId, tk: tkOf(userId), voice, ok: ok !== false });
 }
 
 // ─── 3. the tap ─────────────────────────────────────────────────────────────
@@ -160,7 +161,7 @@ async function handleAssessmentFeedbackButton(buttonId, phone) {
       await supabase.from('lp_feedback').update({ useful }).eq('id', existing.id);
     }
     feedbackId = existing.id;
-    logEvent('assessment.feedback.retapped', { paperId, userId: user.id, useful, feedbackId });
+    logEvent('assessment.feedback.retapped', { paperId, tk: tkOf(user.id), useful, feedbackId });
   } else {
     const { data: inserted, error: insertError } = await supabase
       .from('lp_feedback')
@@ -179,12 +180,12 @@ async function handleAssessmentFeedbackButton(buttonId, phone) {
       .single();
     if (insertError || !inserted) {
       const error = (insertError && insertError.message) || 'insert returned no row';
-      logToFile('[assessment] feedback insert failed', { paperId, userId: user.id, error });
-      logEvent('assessment.feedback.insert_failed', { paperId, userId: user.id, useful, error });
+      logToFile('[assessment] feedback insert failed', { paperId, tk: tkOf(user.id), error });
+      logEvent('assessment.feedback.insert_failed', { paperId, tk: tkOf(user.id), useful, error });
       feedbackId = ORPHAN; // she is still asked; her answer is kept as an event
     } else {
       feedbackId = inserted.id;
-      logEvent('assessment.feedback.recorded', { paperId, userId: user.id, useful, feedbackId });
+      logEvent('assessment.feedback.recorded', { paperId, tk: tkOf(user.id), useful, feedbackId });
     }
   }
 
@@ -231,7 +232,7 @@ async function consumeReasonIfPending(userId, phone, text, opts = {}) {
 
   if (pending.feedbackId === ORPHAN) {
     logEvent('assessment.feedback.reason_orphaned', {
-      userId, paperId: pending.paperId || null, reasonLanguage, reasonText, polarity,
+      tk: tkOf(userId), paperId: pending.paperId || null, reasonLanguage, reasonText, polarity,
     });
     await _thank(phone, messageId, userId);
     return true;
@@ -251,7 +252,7 @@ async function consumeReasonIfPending(userId, phone, text, opts = {}) {
     return false;
   }
   logEvent('assessment.feedback.reason_received', {
-    userId, paperId: pending.paperId || null, feedbackId: pending.feedbackId,
+    tk: tkOf(userId), paperId: pending.paperId || null, feedbackId: pending.feedbackId,
     reasonLanguage, reasonLength: reasonText.length, polarity,
   });
   await _thank(phone, messageId, userId);
