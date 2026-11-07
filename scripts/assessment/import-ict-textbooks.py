@@ -80,12 +80,16 @@ SUBJECT_CODE = {
 
 def main(argv=None) -> int:
     pre = argparse.ArgumentParser(add_help=False)
-    pre.add_argument("--source", choices=("fde", "corpus"), default="fde")
+    pre.add_argument("--source", choices=("fde", "corpus", "gb"), default="fde")
     known, rest = pre.parse_known_args(argv)
     if known.source == "corpus":
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import corpus_import  # noqa: E402  grades 6-12 only; never reads BOOKS
         return corpus_import.main(rest)
+    if known.source == "gb":
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import gb_import  # noqa: E402  Gilgit-Baltistan G1-5 page truth, bd-6nskfq
+        return gb_import.main(rest)
 
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--grade", type=int)
