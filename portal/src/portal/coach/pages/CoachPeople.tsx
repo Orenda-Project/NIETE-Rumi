@@ -99,7 +99,8 @@ const CoachPeople = () => {
       <Notice text={notice} />
       <Tabs label={C.title} items={[
         { to: withLevel("/portal/coach/people", level), label: C.schoolsTab, count: data ? schools.length : undefined, active: tab === "schools" },
-        { to: withLevel("/portal/coach/people?tab=teachers", level), label: C.teachersTab, count: data ? teachers.length : undefined, active: tab === "teachers" },
+        // bd-17v39c.4.16 — teachers only, as each school's "N teachers"; the principal's row is still listed.
+        { to: withLevel("/portal/coach/people?tab=teachers", level), label: C.teachersTab, count: data ? teachers.filter((t) => !t.isPrincipal).length : undefined, active: tab === "teachers" },
       ]} />
       {data && <LevelChips counts={counts} />}
       {failed && <LoadFailed onRetry={reload} />}

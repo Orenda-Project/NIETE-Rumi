@@ -103,7 +103,8 @@ async function removeTeachers(query, client, leaderUserId, emis, teacherExtIds, 
   if (!asked.length || asked.length > REMOVE_MAX) return refuse(400, 'missing_field');
   const mine = await mySchool(query, leaderUserId, emis);
   if (!mine) return notFound();
-  const byExt = new Map((mine.teachers || []).map((t) => [t.teacherExtId, t]));
+  // bd-17v39c.4.16 — teachers only: a principal leaves a school from their own Edit teacher page.
+  const byExt = new Map((mine.teachers || []).filter((t) => !t.isPrincipal).map((t) => [t.teacherExtId, t]));
   const userIds = asked.map((ext) => byExt.get(ext)).filter((t) => t && t.rumiUserId).map((t) => t.rumiUserId);
   if (!userIds.length) return notFound();
   const why = String(reason || '').trim().slice(0, REASON_MAX) || null;
