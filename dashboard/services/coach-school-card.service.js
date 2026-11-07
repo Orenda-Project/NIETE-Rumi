@@ -936,7 +936,14 @@ async function getPrincipalSchoolCard(query, principalId, opts = {}) {
   if (!ctx) return null;
   const { coachObservations, scores, ...card } = await cardOf(query, ctx, opts);
   const countsOf = (s) => ({ count: s ? s.count : 0, makers: s ? s.makers : 0 });
-  return { ...card, scores: Object.fromEntries(SCORE_KINDS.map((k) => [k, countsOf(scores[k])])) };
+  // bd-33wxxi.3 — a row opens that teacher's Analytics page, which is addressed by her users.id (her own school's
+  // teachers only: the page's server checks the same school).
+  const idOf = new Map(ctx.teachers.map((t) => [t.teacherExtId, t.id]));
+  return {
+    ...card,
+    teachers: card.teachers.map((t) => ({ ...t, id: idOf.get(t.teacherExtId) || null })),
+    scores: Object.fromEntries(SCORE_KINDS.map((k) => [k, countsOf(scores[k])])),
+  };
 }
 
 /** The card of a school context (getSchoolCard's and getPrincipalSchoolCard's shared body). */
