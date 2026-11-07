@@ -36,3 +36,12 @@ export function isLeader(user?: RoleUserLike | null): boolean {
   const role = resolveRole(user);
   return role != null && LEADER_ROLES.has(role);
 }
+
+/**
+ * bd-33wxxi.1 — is this user a principal? The ONE place the portal asks (mirrors dashboard/lib/leader-role.js
+ * isPrincipalRole). "Principal" is something a person is at a school: when roles move to their own table, only this
+ * changes. Whether a principal is on the principal app is the server's (/config features.principalApp), never this.
+ */
+export function principalOf(user?: RoleUserLike | null): boolean {
+  return resolveRole(user) === "principal";
+}

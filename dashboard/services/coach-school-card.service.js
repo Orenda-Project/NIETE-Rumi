@@ -34,6 +34,8 @@
  * injected ((sql, params) => Promise<{rows}>), as in every leader-* and coach-* service.
  */
 
+// bd-33wxxi.1 — every principal check reads the role through one helper.
+const { isPrincipalRole } = require('../lib/leader-role');
 const { getOverall } = require('./coaching-frameworks.service');
 const { createScoreMemo } = require('./schools-analytics.service');
 const { indicatorsOf, movesOf } = require('./coach-disagreement-evidence');
@@ -673,7 +675,7 @@ async function schoolContext(query, coachId, emis, rawLevel) {
   const roster = rowsOf(await query(SQL.roster, [ids]));
   const seen = new Set();
   const everyone = roster.filter((u) => !seen.has(u.id) && seen.add(u.id)).map((u) => ({
-    id: u.id, teacherExtId: u.phone_number, name: displayNameOf(u), isPrincipal: u.role === 'principal',
+    id: u.id, teacherExtId: u.phone_number, name: displayNameOf(u), isPrincipal: isPrincipalRole(u.role),
     levels: teacherLevelOf(u),
   }));
   const staff = everyone.filter((t) => !t.isPrincipal);
@@ -1093,7 +1095,7 @@ function coachingChartOf(act, dc, visits, inP) {
 const teacherOut = (teacher) => ({
   teacherExtId: teacher.phone_number, name: teacher.displayName, school: text(teacher.school_name), emis: teacher.emis == null ? null : String(teacher.emis),
   // bd-ewbzns.2 — her role and teaching levels, so what Edit teacher changed shows on her page.
-  isPrincipal: teacher.role === 'principal', levels: teacherLevelOf(teacher),
+  isPrincipal: isPrincipalRole(teacher.role), levels: teacherLevelOf(teacher),
 });
 
 /** GET /teacher/:ext/card */

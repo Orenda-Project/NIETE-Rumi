@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { LEADER_ROLES, resolveRole, isLeader } from "./leaderRole";
+import { LEADER_ROLES, resolveRole, isLeader, principalOf } from "./leaderRole";
 
 // bd-2434 (NIETE port of bd-2389): the leader dashboard shows ONLY to the
 // school-leader role family (mirrors the bot's LEADER_ROLES in
@@ -38,5 +38,17 @@ describe("leaderRole", () => {
     expect(resolveRole({ role: "teacher" })).toBe("teacher");
     expect(resolveRole({ role: null })).toBe(null);
     expect(resolveRole(null)).toBe(null);
+  });
+
+  // bd-33wxxi.1 — "is this user a principal?" asked in ONE place (the principal app's checks go through it).
+  it("principalOf is TRUE only for a principal (case/space-insensitive)", () => {
+    expect(principalOf({ role: "principal" })).toBe(true);
+    expect(principalOf({ role: " Principal " })).toBe(true);
+    for (const role of ["teacher", "coach", "aeo", "supervisor", "school_leader", "", null]) {
+      expect(principalOf({ role })).toBe(false);
+    }
+    expect(principalOf({})).toBe(false);
+    expect(principalOf(null)).toBe(false);
+    expect(principalOf(undefined)).toBe(false);
   });
 });
