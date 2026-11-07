@@ -50,7 +50,8 @@ function userPrompt({ v9Html, moves, stem }) {
 
 function fail(code, message, extra) { return Object.assign(new Error(message), { code }, extra); }
 
-async function authorCard({ v9Html, moves, stem, subject, lang, validate, client, model, deadlineMs = 8 * 60 * 1000, maxTokens = 12000 }) {
+// onRefused({ round, reasons }) is called as each refusal happens, so the reasons survive a deadline that fires later.
+async function authorCard({ v9Html, moves, stem, subject, lang, validate, client, model, deadlineMs = 8 * 60 * 1000, maxTokens = 12000, onRefused = () => {} }) {
   const llm = client || require('../llm-client').getClient();
   const useModel = model || require('../../config/model-registry').modelFor(JOB);
   const messages = [
@@ -73,6 +74,7 @@ async function authorCard({ v9Html, moves, stem, subject, lang, validate, client
       try { card = { ...safeJsonParse(content), v9_html: `${stem}.v9.html` }; } catch (e) { card = null; reasons = [`not JSON: ${e.message}`]; }
       if (card) reasons = validate(card);
       if (card && reasons.length === 0) return { card, rounds: round, model: useModel };
+      onRefused({ round, reasons });
       messages.push({ role: 'assistant', content },
         { role: 'user', content: `The gate REFUSED this card. Fix each reason and reply with the whole card.json:\n- ${reasons.join('\n- ')}` });
     }

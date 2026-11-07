@@ -64,6 +64,16 @@ describe('lp-v10-card author', () => {
     expect(out.rounds).toBe(2);
   });
 
+  // Sandbox 2026-11-07: every on-request card was refused in round 1 and timed out in round 2, and the reasons
+  // were lost with the timeout. Each refusal is reported as it happens.
+  test('each refused round is reported with its reasons, even when the deadline fires after it', async () => {
+    const refused = [];
+    const client = clientOf(() => reply({ v: 1 }), () => new Promise(() => {}));
+    await expect(authorCard({ ...base, client, model: 'm', validate: () => ['we: needs ONE NEIGHBOUR TURN'],
+      deadlineMs: 50, onRefused: (r) => refused.push(r) })).rejects.toMatchObject({ code: 'card_timeout' });
+    expect(refused).toEqual([{ round: 1, reasons: ['we: needs ONE NEIGHBOUR TURN'] }]);
+  });
+
   test('still refused after the repair round is an error with the reasons', async () => {
     const client = clientOf(() => reply({}), () => reply({}));
     await expect(authorCard({ ...base, client, model: 'm', validate: () => ['too long'] }))
