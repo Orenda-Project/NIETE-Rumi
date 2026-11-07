@@ -23,13 +23,10 @@ const fs = require('fs');
 const path = require('path');
 const { createMemorySupabase } = require('../fixtures/memory-supabase');
 
-jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
+// The two loggers are mocked per load (doMock, after resetModules), like supabase and WhatsApp
+// below. A hoisted jest.mock of structured-logger reached quiz-delivery on sandbox CI but not on
+// staging CI (0 calls), while the doMocks in load() behaved the same on both.
 const mockLogEvent = jest.fn();
-jest.mock('../../bot/shared/utils/structured-logger', () => ({
-  logEvent: (...a) => mockLogEvent(...a),
-  getCurrentCorrelationId: () => null,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
-}));
 jest.mock('dotenv', () => ({ config: () => ({ parsed: {} }) }), { virtual: true });
 jest.mock('pdfkit', () => jest.fn(), { virtual: true });
 
@@ -61,6 +58,12 @@ function load(attemptRows = []) {
     training_assessment_answers: [],
   }, { unique: { training_assessment_attempts: ONE_OPEN_PER_MODULE } });
   const sent = [];
+  jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
+  jest.doMock('../../bot/shared/utils/structured-logger', () => ({
+    logEvent: (...a) => mockLogEvent(...a),
+    getCurrentCorrelationId: () => null,
+    logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  }));
   jest.doMock('../../bot/shared/config/supabase', () => ({ from: (...a) => db.from(...a), rpc: jest.fn(async () => ({ data: null, error: null })) }));
   jest.doMock('../../bot/shared/services/whatsapp.service', () => ({
     sendMessage: jest.fn(async (_to, body) => { sent.push(String(body)); return true; }),
