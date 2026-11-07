@@ -12,7 +12,9 @@
  */
 const express = require('express');
 const supabase = require('../config/supabase');
-const { isFlagEnabledForUser, PORTAL_TEACHER_V2_KEY } = require('../lib/feature-flags');
+const { PORTAL_TEACHER_V2_KEY } = require('../lib/feature-flags');
+// bd-33wxxi.1 — the teacher-app switches go through one gate: a principal on the principal app is on too.
+const { teacherAppOnFor } = require('../lib/teacher-app');
 
 const router = express.Router();
 const KINDS = ['lesson', 'paper', 'dc', 'observation'];
@@ -22,7 +24,7 @@ const { requirePortalAuth } = require('../lib/portal-auth');
 
 async function requireTeacherV2(req, res, next) {
   let on = false;
-  try { on = await isFlagEnabledForUser(supabase, PORTAL_TEACHER_V2_KEY, req.session.portalUserId); } catch (_) { on = false; }
+  try { on = await teacherAppOnFor(supabase, PORTAL_TEACHER_V2_KEY, req.session.portalUserId); } catch (_) { on = false; }
   if (!on) return res.status(404).json({ success: false, error: 'Not found' });
   return next();
 }

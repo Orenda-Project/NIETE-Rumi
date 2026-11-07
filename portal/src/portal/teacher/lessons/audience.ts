@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { AuthContext } from '../../hooks/authContext';
-import { isLeader, resolveRole } from '../../lib/leaderRole';
+import { isLeader, principalOf } from '../../lib/leaderRole';
 import { isTeacherV2For, useTeacherV2 } from '../useTeacherV2';
 
 /**
@@ -27,6 +27,6 @@ export function useLessonsLeader(): boolean {
   const shared = useContext(AuthContext);
   const user = shared && !shared.loading ? shared.user : null;
   // Only a principal's answer depends on the flag; TeacherGate has read it already (remembered for her phone).
-  const flag = useTeacherV2(user?.phoneNumber || null, resolveRole(user) === 'principal');
+  const flag = useTeacherV2(user?.phoneNumber || null, principalOf(user));
   return isLessonsLeader(user, flag);
 }

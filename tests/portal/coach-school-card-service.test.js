@@ -234,6 +234,14 @@ function fakeDb(t) {
       }
       case 'roster':
         return { rows: t.users.filter((u) => params[0].includes(u.school_id) && rostered(u)) };
+      // bd-33wxxi.2 — a principal's own school (users.school_id), and the roster a TEST principal reads (test accounts in).
+      case 'principal-school': {
+        const me = t.users.find((u) => u.id === params[0] && u.role === 'principal' && !u.deleted_at);
+        const sch = me && t.schools.find((x) => x.id === me.school_id);
+        return { rows: sch ? [{ id: sch.id, name: sch.name, emis: sch.emis, school_name: null, viewer_test: me.is_test_user === true }] : [] };
+      }
+      case 'roster-with-test':
+        return { rows: t.users.filter((u) => params[0].includes(u.school_id) && ['teacher', 'principal'].includes(u.role) && !u.deleted_at) };
       case 'teacher': {
         const [coach, ext] = params;
         const ids = coachSchoolIds(coach);
@@ -1359,3 +1367,63 @@ describe('the principal apart from the teachers (bd-17v39c.4.15)', () => {
     expect(report).toMatchObject({ sessionId: 'pd1', kind: 'dc', teacher: { teacherExtId: PHONE.p1 } });
   });
 });
+
+// ── bd-33wxxi.2 — the PRINCIPAL's own school: the same card, read through her users.school_id ──────────────────────
+
+describe('getPrincipalSchoolCard — a principal on the principal app sees her own school (counts only)', () => {
+  test('her school is her users.school_id: the same school, teachers and counts the coach card gives', async () => {
+    const coach = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    const mine = await Card.getPrincipalSchoolCard(db, 'up', opts());
+    // the school register's name: a coach's card shows her own leader_schools label, and a principal has none
+    expect(mine.school).toMatchObject({ emis: '901', name: 'School One (register)', teachers: coach.school.teachers });
+    expect(mine.overview).toEqual(coach.overview);
+    expect(mine.tiles).toEqual(coach.tiles);
+    expect(mine.levels).toEqual(coach.levels);
+    // the principal herself is never one of the teachers (bd-17v39c.4.15), and the test account is out
+    expect(mine.teachers.map((t) => t.teacherExtId).sort()).toEqual([PHONE.t1, PHONE.t2].sort());
+    expect(mine.teachers).toEqual(coach.teachers);
+  });
+
+  test('Q1: the DC and coach boxes carry counts and makers only — no average, no score, no series', async () => {
+    const coach = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    const mine = await Card.getPrincipalSchoolCard(db, 'up', opts());
+    expect(mine.scores).toEqual({
+      dc: { count: coach.scores.dc.count, makers: coach.scores.dc.makers },
+      coach: { count: coach.scores.coach.count, makers: coach.scores.coach.makers },
+    });
+    expect(JSON.stringify(mine)).not.toMatch(/"avg"|"prevAvg"|"points"|"score"/);
+  });
+
+  test('no coach-observations table on a principal\'s card', async () => {
+    const mine = await Card.getPrincipalSchoolCard(db, 'up', opts());
+    expect(mine).not.toHaveProperty('coachObservations');
+  });
+
+  test('anyone who is not a principal, or a principal with no school, reads nothing: null', async () => {
+    expect(await Card.getPrincipalSchoolCard(db, 'u1', opts())).toBeNull();
+    expect(await Card.getPrincipalSchoolCard(db, 'coach-1', opts())).toBeNull();
+    expect(await Card.getPrincipalSchoolCard(db, null, opts())).toBeNull();
+    tables.users.find((u) => u.id === 'up').school_id = null;
+    expect(await Card.getPrincipalSchoolCard(db, 'up', opts())).toBeNull();
+  });
+
+  test('a level reads that level\'s teachers, as on the coach card', async () => {
+    const coach = await Card.getSchoolCard(db, 'coach-1', '901', { ...opts(), level: 'primary' });
+    const mine = await Card.getPrincipalSchoolCard(db, 'up', { ...opts(), level: 'primary' });
+    expect(mine.level).toBe(coach.level);
+    expect(mine.teachers).toEqual(coach.teachers);
+  });
+
+  test('a TEST principal (the operator\'s own test school) also sees the test accounts at her school; a real one never', async () => {
+    const real = await Card.getPrincipalSchoolCard(db, 'up', opts());
+    expect(real.teachers.map((t) => t.teacherExtId)).not.toContain(PHONE.tt);
+    tables.users.find((u) => u.id === 'up').is_test_user = true;
+    const test = await Card.getPrincipalSchoolCard(fakeDb(tables), 'up', opts());
+    expect(test.teachers.map((t) => t.teacherExtId)).toContain(PHONE.tt);
+    expect(test.school.teachers).toBe(real.school.teachers + 1);
+    // the coach card is unchanged by it
+    const coach = await Card.getSchoolCard(fakeDb(tables), 'coach-1', '901', opts());
+    expect(coach.teachers.map((t) => t.teacherExtId)).not.toContain(PHONE.tt);
+  });
+});
+
