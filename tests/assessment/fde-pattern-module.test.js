@@ -53,8 +53,10 @@ describe('the registry', () => {
     expect(() => { 'use strict'; P.subjects.maths.total_marks = 5; }).toThrow();
   });
 
+  // bd-5jmnfj.39: Islamiat is built but held (held_subjects) until the engine prints teacher-filled slots.
   it('carries exactly the five eligible subjects and never Islamiat', () => {
     expect(Object.keys(Patterns.get(ID).subjects).sort()).toEqual([...SUBJECTS].sort());
+    expect(Object.keys(Patterns.get(ID).held_subjects)).toEqual(['islamiat']);
   });
 });
 
