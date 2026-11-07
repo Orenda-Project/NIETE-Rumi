@@ -98,9 +98,46 @@ function makeRequireLeaderRole({ getUser }) {
   };
 }
 
+/**
+ * bd-33wxxi.1 — is this role a PRINCIPAL? The one place a "principal" decision reads the role (trim + lowercase, as
+ * isLeaderRole). "Principal" is something a person is at a school, so every principal check goes through here (and
+ * the portal's principalOf, lib/leaderRole.ts): when roles move to their own table, only these change.
+ * @param {string|null|undefined} role
+ * @returns {boolean}
+ */
+function isPrincipalRole(role) {
+  return typeof role === 'string' && role.trim().toLowerCase() === 'principal';
+}
+
+/**
+ * bd-33wxxi.1 — the principal's school: `{ schoolId }` for a users.role principal (schoolId null when her row names no
+ * school: 192 principals on prod), or null for anyone else, no row, or no user. The school is ALWAYS read from her
+ * own users row (the dashboard's rule for a principal, services/leader-patch.service.js entry point 2), never taken
+ * from a request. A failed read is null (not a principal); with `strict` it throws.
+ *
+ * @param {object} supabase
+ * @param {string|null} userId the SESSION user
+ * @param {{ strict?: boolean }} [opts]
+ * @returns {Promise<{ schoolId: string|null }|null>}
+ */
+async function principalSchoolOf(supabase, userId, { strict = false } = {}) {
+  if (!userId) return null;
+  try {
+    const { data, error } = await supabase.from('users').select('role, school_id').eq('id', userId).maybeSingle();
+    if (error) throw new Error(error.message || 'users read failed');
+    if (!data || !isPrincipalRole(data.role)) return null;
+    return { schoolId: data.school_id || null };
+  } catch (err) {
+    if (strict) throw err;
+    return null;
+  }
+}
+
 module.exports = {
   LEADER_ROLES,
   isLeaderRole,
+  isPrincipalRole,
+  principalSchoolOf,
   publicUserPayload,
   makeRequireLeaderRole,
 };

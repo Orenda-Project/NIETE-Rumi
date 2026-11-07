@@ -11,7 +11,7 @@ import { teacherPath } from '../routes';
 import { FeatureGlyph, type TeacherFeature } from '../icons';
 import { DateRangeBar, Tabs } from '../ui';
 import { useAuth } from '../../hooks/useAuth';
-import { resolveRole } from '../../lib/leaderRole';
+import { principalOf } from '../../lib/leaderRole';
 import { SchoolView } from './SchoolView';
 import { useKitCopy } from '../ui/useKitCopy';
 import { useCopy } from '../i18n';
@@ -127,7 +127,7 @@ export function MeAnalytics() {
 export function AnalyticsPage() {
   const C = useCopy(ANALYTICS);
   const { user } = useAuth();
-  const principal = resolveRole(user) === 'principal';
+  const principal = principalOf(user);
   const [tab, setTab] = useState<'school' | 'me'>('school');
   return (
     <TeacherPage crumb={C.more} title={C.title} backTo={teacherPath('more')} feature="reports">

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ChevronRight, Users } from "lucide-react";
 import { leader } from "../services/api";
 import { useAuth } from "../hooks/useAuth";
-import { resolveRole } from "../lib/leaderRole";
+import { principalOf } from "../lib/leaderRole";
 import PortalLayout from "../components/PortalLayout";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
@@ -58,7 +58,7 @@ const LeaderTeachers = () => {
    * redirecting her there would take away the only view she has.
    */
   const teacherHref = (id: string) =>
-    resolveRole(user) === 'principal'
+    principalOf(user)
       ? `/portal/leader/school-analytics?teacherId=${id}`
       : `/portal/leader/teacher/${id}`;
 
