@@ -164,6 +164,21 @@ describe("the debrief report page", () => {
     expect(screen.getByTestId("report-try").textContent).toContain("اپنے الفاظ میں بتائیں");
   });
 
+  // bd-enec2e.5 (7 Nov sandbox film): in Urdu, "کیا ہوا: you said '…'." put the English line's full stop at its start
+  // ("'.things I want to talk about"). The judge's own words are isolated, so they keep their own direction.
+  it("Urdu: the judge's English lines after an Urdu label are isolated (<bdi>), so their punctuation stays put", async () => {
+    getCoachReport.mockResolvedValue({ ...REPORT, concern: null });
+    renderPage();
+    await screen.findByTestId("report-body");
+    await act(async () => { await i18n.changeLanguage("ur"); });
+    const isolated = (text: string) => {
+      const el = screen.getByText(text, { exact: false, selector: "bdi" });
+      return el.tagName;
+    };
+    expect(isolated("You answered it yourself.")).toBe("BDI");
+    expect(isolated(REPORT.focus!.why!)).toBe("BDI");
+  });
+
   it("another coach's report (403/404) says not available; a report not coached yet says not ready", async () => {
     getCoachReport.mockRejectedValue({ response: { status: 403 } });
     const { unmount } = renderPage();
