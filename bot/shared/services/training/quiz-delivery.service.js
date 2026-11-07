@@ -848,8 +848,9 @@ async function startTrainingQuiz(userId, moduleId, phoneNumber) {
       userId, moduleId: moduleIdNum, surface: 'whatsapp', log: logEvent,
     });
   } catch (readErr) {
+    // No raw person id on a log line; the correlation id logToFile stamps finds the teacher.
     logToFile('❌ Training-quiz open attempt lookup failed', {
-      userId, moduleId: moduleIdNum, code: readErr?.code || null, error: readErr?.message,
+      moduleId: moduleIdNum, code: readErr?.code || null, error: readErr?.message,
     }, 'error');
     await WhatsAppService.sendMessage(phoneNumber,
       'Could not start the module check — please try again in a moment.');
