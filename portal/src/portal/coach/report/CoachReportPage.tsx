@@ -188,7 +188,7 @@ export function ReportBodyView({ report: r, C, lang }: { report: CoachReport; C:
           <div className="flex flex-col gap-1.5 text-[15px] leading-[1.45] text-[#374151]">
             {r.concern?.what_happened ? <p dir="auto" className="m-0">{r.concern.what_happened}</p> : null}
             {r.concern?.why_it_matters ? <p dir="auto" className="m-0">{r.concern.why_it_matters}</p> : null}
-            {r.concern?.instead ? <p dir="auto" className="m-0"><b className="font-semibold text-[#1d2025]">{C.instead}</b> {r.concern.instead}</p> : null}
+            {r.concern?.instead ? <p dir="auto" className="m-0"><b className="font-semibold text-[#1d2025]">{C.instead}</b> <bdi>{r.concern.instead}</bdi></p> : null}
           </div>
         </section>
         <Foot C={C} />
@@ -243,7 +243,8 @@ export function ReportBodyView({ report: r, C, lang }: { report: CoachReport; C:
           <div className="flex flex-col gap-1">
             {r.missed.map((m) => (
               <Entry key={m.key} id={m.key} tone="grow" name={pick(m.name, lang)} marked={marked === m.key}>
-                {m.line ? <p dir="auto" className="m-0 text-[15px] leading-[1.45] text-[#374151]"><b className="font-semibold text-[#1d2025]">{C.what}</b> {m.line}</p> : null}
+                {/* <bdi>: the judge's words keep their own direction after an Urdu label (bd-enec2e.5: "'.things I want…") */}
+                {m.line ? <p dir="auto" className="m-0 text-[15px] leading-[1.45] text-[#374151]"><b className="font-semibold text-[#1d2025]">{C.what}</b> <bdi>{m.line}</bdi></p> : null}
                 {pick(m.why, lang) ? <p className="m-0 text-[15px] leading-[1.45] text-[#374151]"><b className="font-semibold text-[#1d2025]">{C.why}</b> {pick(m.why, lang)}</p> : null}
                 <ModuleRow n={m.module} lang={lang} />
               </Entry>
@@ -261,7 +262,7 @@ export function ReportBodyView({ report: r, C, lang }: { report: CoachReport; C:
           {r.focus.move ? <p dir="auto" className="m-0 text-[18px] font-semibold leading-[1.35]">{r.focus.move}</p> : null}
           {r.focus.why ? (
             <p dir="auto" className="m-0 mt-2.5 border-t border-[#f0f1f3] pt-2.5 text-[15px] leading-[1.45] text-[#374151]">
-              <b className="font-semibold text-[#1d2025]">{C.whyThis}</b> {r.focus.why}
+              <b className="font-semibold text-[#1d2025]">{C.whyThis}</b> <bdi>{r.focus.why}</bdi>
             </p>
           ) : null}
           {r.focus.tryLine ? (
