@@ -448,16 +448,19 @@ async function getCoachPeople(query, leaderUserId, opts = {}) {
     const key = s.school_ext_id;
     const emis = s.emis || emisOf(key);
     const own = teachers.filter((t) => t.schoolExtId === key || (emis && t.emis === emis));
+    // bd-17v39c.4.16 — "N teachers", the Teachers number and the avg are role teacher only, as on
+    // the School card since #44; principals stay in the people list (Edit teacher needs them).
+    const taught = own.filter((t) => !t.isPrincipal);
     const visits = visitsBySchool.get(key) || [];
     const latest = visits.reduce((acc, r) => (!acc || isoStamp(r.created_at) > isoStamp(acc.created_at) ? r : acc), null);
     return {
       schoolExtId: key,
       emis,
       name: s.school_name || null,
-      teachers: own.length,
+      teachers: taught.length,
       visits: visits.filter((r) => isoDay(r.created_at) >= since).length,
       daysSinceVisit: latest ? daysSince(latest.created_at, today) : null,
-      avgHitl: mean(own.flatMap((t) => t.scores)),
+      avgHitl: mean(taught.flatMap((t) => t.scores)),
     };
   });
 
@@ -643,7 +646,8 @@ async function getCoachHome(query, leaderUserId, opts = {}) {
       overdue: schedule.overdue.length,
       waiting: steps.filter((s) => s === 'draft' || s === 'talk').length,
       inProgress: steps.filter((s) => s === 'analysing').length,
-      teachers: patch.length,
+      // bd-17v39c.4.16 — the same total as the Teachers tab's number: teachers only, never a principal.
+      teachers: patch.filter((t) => !t.isPrincipal).length,
       schools: (schoolsRes.rows || []).length,
     },
   };

@@ -14,8 +14,13 @@ import { useLevel, withLevel } from "./level";
  * opens keeps the page's teaching level), Remove teachers, and Remove school. Removing the school asks first (the kit's ConfirmTray)
  * and takes only HER link: the teachers stay at the school, for every other coach who holds it. One component, on the
  * school's page and on its School card.
+ *
+ * bd-17v39c.4.16 — `teacherCount` is everyone Edit teacher lists (the principal too); `removeCount` is the school's
+ * teachers, principals not counted, since Remove teachers lists only them (absent: `teacherCount`).
  */
-export default function ManageSchool({ emis, name, teacherCount }: { emis: string; name: string | null | undefined; teacherCount: number }) {
+export default function ManageSchool({ emis, name, teacherCount, removeCount }: {
+  emis: string; name: string | null | undefined; teacherCount: number; removeCount?: number;
+}) {
   const C = useCopy(PEOPLE);
   const navigate = useNavigate();
   const [level] = useLevel();
@@ -49,7 +54,7 @@ export default function ManageSchool({ emis, name, teacherCount }: { emis: strin
             <RowText name={C.editTeacher} />
           </TapRow>
         )}
-        {teacherCount > 0 && (
+        {(removeCount ?? teacherCount) > 0 && (
           <TapRow to={`${base}/remove-teachers`}>
             <IconTile hue="neutral"><UserMinus className="h-6 w-6" /></IconTile>
             <RowText name={C.removeTeachers} />

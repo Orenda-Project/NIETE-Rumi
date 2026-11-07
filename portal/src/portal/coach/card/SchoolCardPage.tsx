@@ -140,7 +140,9 @@ export default function SchoolCardPage() {
           <WhereDoor testId="first-door" to={withLevel(firstTo(emis), level)} label={W.openFirst} state={{ back: schoolPage(base) }} />
 
           {/* Manage is the whole school's, whatever level is picked. */}
-          <ManageSchool emis={emis} name={data.school.name} teacherCount={data.school.roster ?? data.school.teachers ?? teachers.length} />
+          {/* bd-17v39c.4.16 — Remove teachers lists teachers only: the whole roster less its principals. */}
+          <ManageSchool emis={emis} name={data.school.name} teacherCount={data.school.roster ?? data.school.teachers ?? teachers.length}
+            removeCount={data.school.roster != null && data.school.principals ? data.school.roster - data.school.principals.length : undefined} />
         </>
       )}
     </PeopleFrame>

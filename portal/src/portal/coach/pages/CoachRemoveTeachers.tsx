@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Check, TriangleAlert, Trash2 } from "lucide-react";
+import { Check, TriangleAlert, Trash2, UserRound, Users } from "lucide-react";
 import { HistoryRow, StatusChip } from "../../teacher/ui";
+import { PageLinkChip } from "../../teacher/TeacherPage";
+import { FEATURE_HUE } from "../../teacher/icons/features";
 import { useCopy } from "../../teacher/i18n";
 import { coach } from "../../services/api";
 import type { CoachTeacher } from "../types";
 import { BottomButton, Loading, useLoad, Initials } from "../ui";
 import { PEOPLE } from "../people/copy";
 import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
+import { EmptyRow } from "../people/rows";
+import { SCHOOL_CARD } from "../card/copy";
 
 /**
  * Remove teachers from one of her schools (Blueprint: Coach · Manage schools and teachers, boards
@@ -18,11 +22,16 @@ import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
  * it is not what a coach expects: the teacher leaves the SCHOOL, so she comes off every coach's list who holds it;
  * her account and history are kept; her booked visits at that school are cancelled. An optional reason is saved with
  * each removal. Only people with an account can be removed (a roster name with no account has nothing to take off).
+ *
+ * bd-17v39c.4.16 (queue #47, option A) — teachers only. A principal is never a box to tick here: they are named apart,
+ * above the list, in the School card's "Principal: name ›" chip (#44), which opens their Edit teacher page, whose
+ * "Remove from school" is how a principal leaves a school. The server refuses a principal's number as well.
  */
 const MAX = 30;
 
 const CoachRemoveTeachers = () => {
   const C = useCopy(PEOPLE);
+  const K = useCopy(SCHOOL_CARD);
   const { emis = "" } = useParams();
   const navigate = useNavigate();
   const { data, failed, reload } = useLoad(() => coach.getSchool(emis), [emis]);
@@ -34,7 +43,10 @@ const CoachRemoveTeachers = () => {
   const back = `/portal/coach/school/${encodeURIComponent(emis)}`;
 
   const people: CoachTeacher[] = (data?.teachers || [])
-    .filter((t) => t.teacherExtId && t.onRumi !== false)
+    .filter((t) => t.teacherExtId && t.onRumi !== false && !t.isPrincipal)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const principals: CoachTeacher[] = (data?.teachers || [])
+    .filter((t) => t.teacherExtId && t.isPrincipal)
     .sort((a, b) => a.name.localeCompare(b.name));
   const chosen = people.filter((t) => ticked.includes(t.teacherExtId as string));
   const toggle = (ext: string) => setTicked((cur) => (cur.includes(ext) ? cur.filter((x) => x !== ext) : cur.length >= MAX ? cur : [...cur, ext]));
@@ -62,8 +74,20 @@ const CoachRemoveTeachers = () => {
       {!data && !failed && <Loading />}
       {data && step === "pick" && (
         <>
+          {principals.length > 0 && (
+            <div className="flex min-w-0 flex-wrap gap-2">
+              {principals.map((p) => (
+                <PageLinkChip key={p.teacherExtId} testId="remove-principal" hue={FEATURE_HUE.schools} label={K.principalSpoken(p.name)}
+                  to={`/portal/coach/teacher/${encodeURIComponent(p.teacherExtId as string)}/edit`}>
+                  <UserRound className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span className="shrink-0">{K.principalKey}</span>{" "}<span dir="auto" className="min-w-0 truncate font-bold text-[#1d2025]">{p.name}</span>
+                </PageLinkChip>
+              ))}
+            </div>
+          )}
           <p className="m-0 px-1 text-[13px] font-semibold text-[#6b7280]">{C.upTo30}</p>
-          <section className={card} role="group" aria-label={C.removeTeachers}>
+          {people.length === 0 && <EmptyRow icon={<Users className="h-5 w-5" />} testId="no-teachers">{C.noTeachers}</EmptyRow>}
+          {people.length > 0 && <section className={card} role="group" aria-label={C.removeTeachers}>
             {people.map((t, i) => {
               const on = ticked.includes(t.teacherExtId as string);
               const full = !on && ticked.length >= MAX;
@@ -79,7 +103,7 @@ const CoachRemoveTeachers = () => {
                 </button>
               );
             })}
-          </section>
+          </section>}
         </>
       )}
       {data && step === "confirm" && (
