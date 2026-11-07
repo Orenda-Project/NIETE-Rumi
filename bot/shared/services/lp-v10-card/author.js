@@ -39,8 +39,13 @@ function systemPrompt({ subject, lang }) {
   ].filter(Boolean).join('\n\n');
 }
 
+// A v9 page embeds its fonts and pictures as base64 (~1.8 MB, ~600k tokens), which the provider refuses with a 400.
+// The model reads the lesson without those bytes; the gates and the print still get the full page (attach.js).
+const EMBEDDED = /data:[^,)"'\s]+;base64,[A-Za-z0-9+/=]+/g;
+
 function userPrompt({ v9Html, moves, stem }) {
-  return `Day: ${stem}. Set "v9_html": "${stem}.v9.html" and header.minutes 40.\n\nmoves:\n${JSON.stringify(moves)}\n\nv9_html:\n${v9Html}`;
+  const lesson = v9Html.replace(EMBEDDED, '');
+  return `Day: ${stem}. Set "v9_html": "${stem}.v9.html" and header.minutes 40.\n\nmoves:\n${JSON.stringify(moves)}\n\nv9_html:\n${lesson}`;
 }
 
 function fail(code, message, extra) { return Object.assign(new Error(message), { code }, extra); }

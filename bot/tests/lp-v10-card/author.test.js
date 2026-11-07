@@ -33,6 +33,17 @@ describe('lp-v10-card author', () => {
     expect(u).toMatch(/"move_id":"m1"/);
   });
 
+  // Sandbox 2026-11-07: a real v9 page is ~1.8 MB, nearly all base64 fonts (~600k tokens), and the provider
+  // refused every card with a 400. The model gets the lesson without the embedded bytes.
+  test('user prompt leaves out the fonts and images embedded in v9', () => {
+    const font = `@font-face{src:url(data:font/woff2;base64,${'A'.repeat(5000)}) format('woff2');}`;
+    const img = `<img src="data:image/png;base64,${'B'.repeat(5000)}=">`;
+    const u = userPrompt({ ...base, v9Html: `<style>${font}</style><p>Count to ten</p>${img}` });
+    expect(u).toMatch(/Count to ten/);
+    expect(u).not.toMatch(/base64/);
+    expect(u.length).toBeLessThan(1000);
+  });
+
   test('a card that passes the gate on the first try is returned after one call', async () => {
     const client = clientOf(() => reply({ header: { title: 'T' } }));
     const out = await authorCard({ ...base, client, model: 'm', validate: () => [] });
