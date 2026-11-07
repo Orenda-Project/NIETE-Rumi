@@ -1,0 +1,387 @@
+{
+ "name": "ict_g1_ch10_Urdu_seg1",
+ "card": {
+  "card_version": "v10.1",
+  "lesson_key": "g1·Urdu·ch10·seg1",
+  "v9_html": "g1_ch10_Urdu_seg1.v9.html",
+  "lang": "ur",
+  "header": {
+   "grade": 1,
+   "subject": "Urdu",
+   "chapter": "Ch.10 چاند پارٹی",
+   "day": 1,
+   "minutes": 40,
+   "title": "نئے الفاظ — چاندنی، نکھر، روشنی کے ہار، دمکے",
+   "goal": "بچے چار نئے الفاظ کا <b>معنی</b> اپنے الفاظ میں بتاتے ہیں اور جملے میں استعمال کرتے ہیں۔"
+  },
+  "bring": "کتاب صفحہ ۸۵ · چاک · بورڈ پر چار الفاظ اور تصویریں · کاپیاں، پنسلیں",
+  "words": [
+   "چاندنی",
+   "نکھر",
+   "روشنی کے ہار",
+   "دمکے"
+  ],
+  "sections": [
+   {
+    "sec": "open",
+    "minutes": 5,
+    "moves": [
+     {
+      "covers": [
+       "m1"
+      ],
+      "do": "سبق ۹ کی کہانی یاد کریں؛ جماعت مل کر جواب دے۔",
+      "how": "ایک ایک سوال پوچھیں؛ جماعت ایک آواز میں بولے۔",
+      "say": "“کہانی میں کون تھا؟” → “جوجو”"
+     },
+     {
+      "covers": [
+       "m2"
+      ],
+      "do": "صفحہ ۸۵ کھولیں؛ نیلا بورڈ اور چاند پارٹی دکھائیں۔",
+      "how": "پوچھیں: آپ کے محلے میں عید پر روشنیاں کہاں لگتی ہیں؟ ایک بچہ بتائے۔",
+      "say": "“آج چار نئے الفاظ: چاندنی، نکھر، روشنی کے ہار، دمکے۔”"
+     }
+    ]
+   },
+   {
+    "sec": "explain",
+    "minutes": 8,
+    "moves": [
+     {
+      "covers": [
+       "m3"
+      ],
+      "do": "چاروں الفاظ پڑھیں؛ ہر لفظ کا معنی تصویر سے جوڑیں۔",
+      "how": "ہجے کریں، بورڈ پر لکھیں، تصویر بنائیں؛ پھر جملہ دہرائیں۔",
+      "say": "“چاند رات کو باہر روشنی کے ہار لگے۔”",
+      "think": "لفظ میں چاند چھپا ہے، تو چاندنی چاند کی روشنی ہو گی۔ کتاب کے سبز ڈبے میں دیکھ کر جانچتا/جانچتی ہوں: ہاں۔"
+     }
+    ]
+   },
+   {
+    "sec": "we",
+    "minutes": 12,
+    "moves": [
+     {
+      "covers": [
+       "m4",
+       "m5",
+       "m7"
+      ],
+      "chip": "I START, YOU FINISH",
+      "do": "ادھورا جملہ بولیں؛ جماعت صحیح لفظ چنے؛ نکھر اور دمکے کا فرق پوچھیں۔",
+      "how": "میں شروع کروں، جماعت لفظ دے؛ پھر بازار، شادی، عید کے منظر جوڑیں۔",
+      "say": "“بارش کے بعد آسمان ___ گیا۔” → “نکھر”"
+     },
+     {
+      "covers": [
+       "m6"
+      ],
+      "chip": "ONE NEIGHBOUR TURN",
+      "do": "ایک منٹ اپنی جگہ: ایک لفظ بولے، دوسرا معنی اور جملہ بتائے۔",
+      "how": "فاطمہ اور احمد پہلے کر کے دکھائیں؛ چاروں الفاظ پر باری آئے۔",
+      "say": "“میرا لفظ دمکے ہے۔” → “دمکے کا معنی چمکے؛ ستارے دمکے۔”",
+      "turn": {
+       "first": "کھڑکی کی طرف والا",
+       "a": "میرا لفظ دمکے ہے۔ معنی بتائیں۔",
+       "b": "دمکے کا معنی چمکے۔ جملہ: ستارے دمکے۔",
+       "stop": "ہاتھ سر پر رکھیں",
+       "help": "سبز ڈبہ دکھائیں؛ جملے کا پہلا لفظ آپ بولیں۔"
+      }
+     }
+    ]
+   },
+   {
+    "sec": "you",
+    "minutes": 12,
+    "moves": [
+     {
+      "covers": [
+       "m8",
+       "m9"
+      ],
+      "clock": "⏱ 25′ stop explaining",
+      "do": "اکیلے کاپی میں کریں: چاندنی کی تصویر، پھر ۲ سے ۵۔",
+      "how": "۱ چاند، تین لکیریں، چاندنی ۲ چھت پر ___ ۳ کمرہ ___ گیا ۴ ستارے ___ ۵ ملائیں۔ فارغ ۶: دو لفظ ایک جملے میں۔"
+     }
+    ],
+    "answers": [
+     [
+      "۱. →",
+      "چاند، تین لکیریں، چاندنی"
+     ],
+     [
+      "۲. →",
+      "روشنی کے ہار"
+     ],
+     [
+      "۳. →",
+      "نکھر"
+     ],
+     [
+      "۴. →",
+      "دمکے"
+     ],
+     [
+      "۵. →",
+      "چاندنی-سفید روشنی؛ نکھر-زیادہ روشن؛ ہار-روشنیوں کی لڑی؛ دمکے-چمکے"
+     ],
+     [
+      "۶. →",
+      "چاندنی میں روشنی کے ہار دمکے"
+     ]
+    ],
+    "mistake": "نکھر اور دمکے ملا دیے۔ <b>Ask:</b> “کون سا صاف اور روشن ہونا ہے، کون سا چمکنا؟” پھر تصویر دیکھیں۔",
+    "stuck": "دو انتخاب دیں: چاندنی یا روٹی؟ تصویر پر اشارہ کریں؛ تین بار دہرائیں۔"
+   },
+   {
+    "sec": "check",
+    "minutes": 3,
+    "moves": [
+     {
+      "covers": [
+       "m10"
+      ],
+      "do": "تین جملے ایک ایک کر کے بولیں؛ ہر ایک پر انگوٹھا اوپر یا نیچے۔",
+      "how": "جماعت ہر جملہ پرکھے۔ پہلے کچھ نہ بتائیں؛ سب بول کر انگوٹھا دکھائیں۔",
+      "say": "“۱ بارش میں پتے نکھر گئے۔ ۲ چاندنی سورج کی روشنی ہے۔ ۳ بلبوں کی لڑی روشنی کے ہار ہے۔”"
+     }
+    ],
+    "correct": "۱ درست (صاف، روشن)؛ ۲ غلط (چاندنی چاند کی سفید روشنی ہے)؛ ۳ درست (بلبوں کی لڑی)۔",
+    "success": "میں نئے لفظ کا معنی بتا اور منظر کے لیے صحیح لفظ چن سکتا/سکتی ہوں۔",
+    "ask": "چاندنی کا معنی اپنے الفاظ میں بتائیں۔",
+    "listen": "چاند کی سفید روشنی جو رات کو آتی ہے؛ بچہ کسی بھی الفاظ میں بتائے۔"
+   },
+   {
+    "sec": "hw",
+    "minutes": 0,
+    "moves": [
+     {
+      "covers": [
+       "m11"
+      ],
+      "do": "گھر میں چاروں الفاظ ایک ایک بار کاپی میں لکھیں۔",
+      "how": "بڑے سے پوچھیں چاندنی کب نظر آتی ہے؛ تصویر بنائیں۔"
+     }
+    ]
+   }
+  ],
+  "pictures": [
+   {
+    "id": "dg1",
+    "after": "explain",
+    "kind": "svg",
+    "title": "THE BOARD BY THE END · چاروں الفاظ کی تصویریں",
+    "svg": "<svg viewBox=\"0 0 340 100\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><circle cx=\"40\" cy=\"26\" r=\"16\" fill=\"#fff7e0\" stroke=\"#d98200\" stroke-width=\"2\"/><path d=\"M26 48 L22 66 M40 48 L40 68 M54 48 L58 66\" stroke=\"#d98200\" stroke-width=\"2\"/><circle cx=\"122\" cy=\"30\" r=\"9\" fill=\"#e8eefc\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"144\" cy=\"30\" r=\"12\" fill=\"#fff7e0\" stroke=\"#d98200\" stroke-width=\"2\"/><path d=\"M130 30 L134 30\" stroke=\"#0B2545\" stroke-width=\"2\"/><path d=\"M180 22 Q212 48 244 22\" stroke=\"#0B2545\" stroke-width=\"2\" fill=\"none\"/><circle cx=\"190\" cy=\"31\" r=\"5\" fill=\"#ffd54f\" stroke=\"#d98200\"/><circle cx=\"212\" cy=\"39\" r=\"5\" fill=\"#ffd54f\" stroke=\"#d98200\"/><circle cx=\"234\" cy=\"31\" r=\"5\" fill=\"#ffd54f\" stroke=\"#d98200\"/><polygon points=\"296,12 302,26 318,26 305,35 310,50 296,41 282,50 287,35 274,26 290,26\" fill=\"#fff7e0\" stroke=\"#d98200\" stroke-width=\"2\"/><text x=\"40\" y=\"92\" font-size=\"14\">چاندنی</text><text x=\"133\" y=\"92\" font-size=\"14\">نکھر</text><text x=\"212\" y=\"92\" font-size=\"14\">روشنی کے ہار</text><text x=\"296\" y=\"92\" font-size=\"14\">دمکے</text></svg>"
+   }
+  ],
+  "names": {
+   "girl": "فاطمہ",
+   "boy": "احمد"
+  }
+ },
+ "v9Skeleton": "<div data-atom class=\"hero sp-0\">\n<div data-atom class=\"drail sp-2\">\n<div data-atom class=\"band two sp-2\">\n<div data-atom class=\"slo sp-2\">\n<div data-atom class=\"rescard sp-2\">\n<div data-atom class=\"rescard pc pc-a sp-1\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-z sp-0\">\n<div data-atom class=\"blk board sp-2\">\n<div data-atom id=\"v9-open\" class=\"bar s-i sp-4\" data-sec=\"introduction\">\n<div data-atom class=\"opn ofirst blk wu sp-2\">\n<div data-atom class=\"opn olast blk hook sp-0\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom id=\"v9-explain\" class=\"bar s-d sp-4\" data-sec=\"development\">\n<div data-atom class=\"blk exq pc pc-a sp-2\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-z sp-0\">\n<div data-atom id=\"v9-we\" class=\"bar s-we sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk exq we pc pc-a sp-2\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-z sp-0\">\n<div data-atom id=\"v9-you\" class=\"bar s-a sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk pr pc pc-a sp-2\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-z sp-0\">\n<div data-atom class=\"blk sp-3\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom id=\"v9-check\" class=\"bar s-c sp-4\" data-sec=\"conclusion\">\n<div data-atom class=\"blk exit sp-2\">\n<div data-atom id=\"v9-hw\" class=\"bar s-h sp-4\" data-sec=\"homework\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"coach sp-4\">\n",
+ "must": [
+  "m1",
+  "m2",
+  "m3",
+  "m4",
+  "m5",
+  "m6",
+  "m7",
+  "m8",
+  "m9",
+  "m10"
+ ],
+ "expect": {
+  "addIds": "<div data-atom class=\"hero sp-0\">\n<div data-atom class=\"drail sp-2\">\n<div data-atom class=\"band two sp-2\">\n<div data-atom class=\"slo sp-2\">\n<div data-atom class=\"rescard sp-2\">\n<div data-atom class=\"rescard pc pc-a sp-1\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-m sp-0\">\n<div data-atom class=\"rescard pc pc-z sp-0\">\n<div data-atom class=\"blk board sp-2\">\n<div data-atom id=\"v9-open\" class=\"bar s-i sp-4\" data-sec=\"introduction\">\n<div data-atom class=\"opn ofirst blk wu sp-2\">\n<div data-atom class=\"opn olast blk hook sp-0\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom id=\"v9-explain\" class=\"bar s-d sp-4\" data-sec=\"development\">\n<div data-atom class=\"blk exq pc pc-a sp-2\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-m sp-0\">\n<div data-atom class=\"blk exq pc pc-z sp-0\">\n<div data-atom id=\"v9-we\" class=\"bar s-we sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk exq we pc pc-a sp-2\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-m sp-0\">\n<div data-atom class=\"blk exq we pc pc-z sp-0\">\n<div data-atom id=\"v9-you\" class=\"bar s-a sp-4\" data-sec=\"activity\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk pr pc pc-a sp-2\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-m sp-0\">\n<div data-atom class=\"blk pr pc pc-z sp-0\">\n<div data-atom class=\"blk sp-3\">\n<div data-atom class=\"grid3 sp-2\">\n<div data-atom id=\"v9-check\" class=\"bar s-c sp-4\" data-sec=\"conclusion\">\n<div data-atom class=\"blk exit sp-2\">\n<div data-atom id=\"v9-hw\" class=\"bar s-h sp-4\" data-sec=\"homework\">\n<div data-atom class=\"blk sp-2\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"blk sp-0\">\n<div data-atom class=\"coach sp-4\">\n",
+  "missing": [],
+  "video": null,
+  "validate": [],
+  "html": "<!doctype html>\n<html lang=\"ur\" dir=\"rtl\"><head><meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\">\n<meta name=\"color-scheme\" content=\"light\">\n<title>G1 Urdu Ch.10 Day 1 Card</title>\n<style>\n/* Phone-first teacher card: one column, sized for a 360-390 px screen; prints on one 520 x 2000 page.\n   Single light look on purpose (the v17 section colours Amena approved, 9 Oct). */\n:root{--navy:#26324A;--ink:#1F2430;--mut:#55606F;--line:#DDE1E8;--paper:#FFFFFF;--ground:#EEF0F3;\n--open:#E07B00;--explain:#8A45F0;--we:#3B5BDB;--you:#2B8A3E;--check:#C2255C;--hw:#0B7285;--star:#F2B705;\n--body:system-ui,-apple-system,\"Segoe UI\",Roboto,\"Noto Sans\",sans-serif;color-scheme:light}\n*{box-sizing:border-box}\nhtml,body{margin:0;background:var(--ground);color:var(--ink)}\nbody{font:17px/1.45 var(--body);-webkit-text-size-adjust:100%}\n.page{max-width:480px;margin:0 auto;background:var(--paper);padding:12px 14px 16px;display:flex;flex-direction:column;gap:12px}\na{color:inherit}\n.hd{background:var(--navy);color:#fff;border-radius:14px;padding:12px 14px 14px}\n.hd .k{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;font-weight:700;font-size:13.5px;letter-spacing:.03em}\n.hd .k b{color:#FFC34D}\n.hd h1{font-size:22px;line-height:1.25;margin:6px 0 6px;text-wrap:balance}\n.hd .goal{font-size:15.5px;opacity:.95}\n.info{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:15.5px}\n.info b{color:var(--mut);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;padding-top:3px}\n.time .pr{display:flex;font:700 12.5px/1 var(--body);color:var(--ink);margin-bottom:4px}\n.time .pr span{min-width:44px;text-align:center;border-bottom:2.5px solid var(--ink);padding-bottom:3px}\n.bar{display:flex;height:30px;border-radius:8px;overflow:hidden;font:800 14px/1 var(--body);color:#fff}\n.bar span{display:flex;align-items:center;justify-content:center;border-right:2px solid #fff;min-width:44px}\n.bar span:last-child{border:0}\n.lab{display:flex;font-size:12px;color:var(--mut);margin-top:3px}.lab span{text-align:center;min-width:44px;white-space:nowrap}\n.star{border:2.5px solid var(--star);background:#FFF6D6;border-radius:12px;padding:10px 12px;font-size:16px}\n.star .l{font-weight:800;color:#7A4F00}\n.sec{border:1px solid color-mix(in srgb,var(--c) 28%,#fff);border-inline-start:7px solid var(--c);border-radius:12px;\n background:color-mix(in srgb,var(--c) 6%,#fff);padding:10px 12px 12px}\n.sec.mark{box-shadow:0 0 0 3px var(--star)}\n/* one row: a long title wraps inside itself, so Full details never drops under the heading (judge 10F) */\n.sh{display:flex;gap:2px 8px}\n.sh h2{margin:0;font-size:19px;color:var(--c);flex:0 1 auto;min-width:0}\n.sh .t{flex:none;white-space:nowrap}.sh .fd{flex:none;margin-left:auto}\n/* phone: the time drops under the title so the title keeps one line beside Full details (judge pilot4 10D) */\n@media screen and (max-width:420px){.sh{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}.sh h2{white-space:nowrap;font-size:17.5px}.sh .t{grid-row:2;grid-column:1}.sh .fd{grid-row:1/span 2;grid-column:2}}\n.sh .t{font-weight:700;font-size:14px;color:var(--mut);font-variant-numeric:tabular-nums}\n.mv{display:grid;grid-template-columns:30px 1fr;gap:10px;margin-top:10px}\n.mv p{margin:0;min-width:0}.mv .do{font-weight:700}\n.n{width:28px;height:28px;border-radius:999px;background:var(--c);color:#fff;font:800 15px/28px var(--body);text-align:center}\n.say{display:block;margin-top:3px;font-style:italic}\n.ex{display:block;margin-top:3px}\n.say::before{content:\"Say: \";font-style:normal;font-weight:800;color:var(--c)}\n.chip{display:inline-block;font:800 12px/1 var(--body);letter-spacing:.03em;color:#fff;background:var(--c);border-radius:6px;padding:5px 7px;margin:0 0 4px}\n.clock{display:inline-block;font-weight:800;color:#fff;background:var(--ink);border-radius:6px;padding:3px 8px;font-size:14.5px;margin-bottom:4px}\n.box{margin-top:10px;border-radius:10px;background:#fff;border:1px solid var(--line);padding:8px 10px;font-size:15.5px}\n.box h3{margin:0 0 4px;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--c)}\n.ans{display:grid;gap:5px}.ans div{display:flex;flex-wrap:wrap;gap:0 8px}.ans .e{font-weight:700}\n.mis{border-color:#F1B0B0;background:#FFF1F1}.mis h3{color:#B02525}\n.fd{display:inline-flex;align-items:center;min-height:40px;padding:0 12px;font:700 14.5px/1 var(--body);color:var(--c);\n border:1.5px solid var(--c);border-radius:999px;text-decoration:none;background:#fff;white-space:nowrap}\n.sh{align-items:center}\n.fd:focus-visible{outline:3px solid var(--navy);outline-offset:2px}\n.board{border:2px solid var(--navy);border-radius:12px;padding:8px 10px 10px}\n.board h3{margin:0 0 6px;font-size:12.5px;letter-spacing:.06em;color:var(--navy)}\n.faces{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center;font-size:13.5px}\n.faces div{border:1.5px solid var(--line);border-radius:9px;padding:4px 2px}.faces .e{display:block;font-size:26px}\n.foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;border-top:1px solid var(--line);padding-top:10px;font-size:14px;color:var(--mut)}\n.foot a{font-weight:800;color:var(--navy);min-height:44px;display:inline-flex;align-items:center}\n@page{size:520px 2000px;margin:0}\n@media print{html,body{background:#fff}body{font-size:14.5px;line-height:1.35}.page{max-width:none;width:520px;gap:7px;padding:10px 14px}.fd{min-height:28px;font-size:12.5px}.mv{margin-top:5px}.sec{padding:7px 11px 9px}.box{margin-top:6px;padding:5px 9px;font-size:14px}.hd h1{font-size:20px}}\n.steps{margin:0;padding-inline-start:22px;font-weight:700;display:grid;gap:4px}\n.svg svg{display:block;max-width:100%;height:auto;margin:0 auto}\n.pl{font-size:15px;margin-top:6px;text-align:center}\n\n</style></head>\n<body><div class=\"page\">\n\n<div class=\"hd\">\n <div class=\"k\"><span><b>GRADE 1 · URDU</b> · Ch.10 چاند پارٹی</span><span>Day 1 · 40 min</span></div>\n <h1>نئے الفاظ — چاندنی، نکھر، روشنی کے ہار، دمکے</h1>\n <div class=\"goal\">بچے چار نئے الفاظ کا <b>معنی</b> اپنے الفاظ میں بتاتے ہیں اور جملے میں استعمال کرتے ہیں۔</div>\n</div>\n\n<div class=\"info\">\n <b>Bring</b><span>کتاب صفحہ ۸۵ · چاک · بورڈ پر چار الفاظ اور تصویریں · کاپیاں، پنسلیں</span>\n <b>Words</b><span>چاندنی · نکھر · روشنی کے ہار · دمکے</span>\n</div>\n\n<div class=\"time\" aria-label=\"Time: 5 open, 8 explain, 12 we do, 12 you do, 3 check\">\n <div class=\"pr\"><span style=\"flex:13\"></span><span style=\"flex:24\">PRACTICE · 24 of 40 min</span><span style=\"flex:3\"></span></div>\n <div class=\"bar\">\n  <span data-sec=\"open\" style=\"flex:5;background:var(--open)\">5′</span>\n  <span data-sec=\"explain\" style=\"flex:8;background:var(--explain)\">8′</span>\n  <span data-sec=\"we\" style=\"flex:12;background:var(--we)\">12′</span>\n  <span data-sec=\"you\" style=\"flex:12;background:var(--you)\">12′</span>\n  <span data-sec=\"check\" style=\"flex:3;background:var(--check)\">3′</span>\n </div>\n <div class=\"lab\"><span style=\"flex:5\">Open</span><span style=\"flex:8\">Explain</span><span style=\"flex:12\">We Do</span><span style=\"flex:12\">You Do</span><span style=\"flex:3\">✓</span></div>\n</div>\n\n<!-- Coaching slot: filled per teacher from their last report once recordings start. Hidden in the base corpus. -->\n<div class=\"star\" hidden data-slot=\"star\"><span class=\"l\">★ Your one thing today</span> · in move <b data-slot=\"star-move\"></b><br><span data-slot=\"star-text\"></span></div>\n\n<section class=\"sec\" style=\"--c:var(--open)\" data-sec=\"open\">\n <div class=\"sh\"><h2>Opening</h2><span class=\"t\">0–5′</span><a class=\"fd\" href=\"g1_ch10_Urdu_seg1.v9.html#v9-open\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m1\"><span class=\"n\">1</span><p><span class=\"do\">سبق ۹ کی کہانی یاد کریں؛ جماعت مل کر جواب دے۔</span> ایک ایک سوال پوچھیں؛ جماعت ایک آواز میں بولے۔\n  <span class=\"say\">“کہانی میں کون تھا؟” → “جوجو”</span></p></div>\n <div class=\"mv\" data-covers=\"m2\"><span class=\"n\">2</span><p><span class=\"do\">صفحہ ۸۵ کھولیں؛ نیلا بورڈ اور چاند پارٹی دکھائیں۔</span> پوچھیں: آپ کے محلے میں عید پر روشنیاں کہاں لگتی ہیں؟ ایک بچہ بتائے۔\n  <span class=\"say\">“آج چار نئے الفاظ: چاندنی، نکھر، روشنی کے ہار، دمکے۔”</span></p></div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--explain)\" data-sec=\"explain\">\n <div class=\"sh\"><h2>Explanation · I Do</h2><span class=\"t\">5–13′</span><a class=\"fd\" href=\"g1_ch10_Urdu_seg1.v9.html#v9-explain\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m3\"><span class=\"n\">3</span><p><span class=\"do\">چاروں الفاظ پڑھیں؛ ہر لفظ کا معنی تصویر سے جوڑیں۔</span> ہجے کریں، بورڈ پر لکھیں، تصویر بنائیں؛ پھر جملہ دہرائیں۔\n  <span class=\"say\">“چاند رات کو باہر روشنی کے ہار لگے۔”</span><span class=\"ex\"><b>Think aloud:</b> “لفظ میں چاند چھپا ہے، تو چاندنی چاند کی روشنی ہو گی۔ کتاب کے سبز ڈبے میں دیکھ کر جانچتا/جانچتی ہوں: ہاں۔”</span></p></div>\n</section>\n\n<div class=\"board\" data-pic=\"dg1\"><h3>THE BOARD BY THE END · چاروں الفاظ کی تصویریں</h3><div class=\"svg\"><svg viewBox=\"0 0 340 100\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><circle cx=\"40\" cy=\"26\" r=\"16\" fill=\"#fff7e0\" stroke=\"#d98200\" stroke-width=\"2\"/><path d=\"M26 48 L22 66 M40 48 L40 68 M54 48 L58 66\" stroke=\"#d98200\" stroke-width=\"2\"/><circle cx=\"122\" cy=\"30\" r=\"9\" fill=\"#e8eefc\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"144\" cy=\"30\" r=\"12\" fill=\"#fff7e0\" stroke=\"#d98200\" stroke-width=\"2\"/><path d=\"M130 30 L134 30\" stroke=\"#0B2545\" stroke-width=\"2\"/><path d=\"M180 22 Q212 48 244 22\" stroke=\"#0B2545\" stroke-width=\"2\" fill=\"none\"/><circle cx=\"190\" cy=\"31\" r=\"5\" fill=\"#ffd54f\" stroke=\"#d98200\"/><circle cx=\"212\" cy=\"39\" r=\"5\" fill=\"#ffd54f\" stroke=\"#d98200\"/><circle cx=\"234\" cy=\"31\" r=\"5\" fill=\"#ffd54f\" stroke=\"#d98200\"/><polygon points=\"296,12 302,26 318,26 305,35 310,50 296,41 282,50 287,35 274,26 290,26\" fill=\"#fff7e0\" stroke=\"#d98200\" stroke-width=\"2\"/><text x=\"40\" y=\"92\" font-size=\"14\">چاندنی</text><text x=\"133\" y=\"92\" font-size=\"14\">نکھر</text><text x=\"212\" y=\"92\" font-size=\"14\">روشنی کے ہار</text><text x=\"296\" y=\"92\" font-size=\"14\">دمکے</text></svg></div></div>\n\n<section class=\"sec\" style=\"--c:var(--we)\" data-sec=\"we\">\n <div class=\"sh\"><h2>We Do</h2><span class=\"t\">13–25′</span><a class=\"fd\" href=\"g1_ch10_Urdu_seg1.v9.html#v9-we\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m4 m5 m7\"><span class=\"n\">4</span><p><span class=\"chip\">I START, YOU FINISH</span><br><span class=\"do\">ادھورا جملہ بولیں؛ جماعت صحیح لفظ چنے؛ نکھر اور دمکے کا فرق پوچھیں۔</span> میں شروع کروں، جماعت لفظ دے؛ پھر بازار، شادی، عید کے منظر جوڑیں۔\n  <span class=\"say\">“بارش کے بعد آسمان ___ گیا۔” → “نکھر”</span></p></div>\n <div class=\"mv\" data-covers=\"m6\"><span class=\"n\">5</span><p><span class=\"chip\">ONE NEIGHBOUR TURN</span><br><span class=\"do\">ایک منٹ اپنی جگہ: ایک لفظ بولے، دوسرا معنی اور جملہ بتائے۔</span> فاطمہ اور احمد پہلے کر کے دکھائیں؛ چاروں الفاظ پر باری آئے۔\n  <span class=\"say\">“میرا لفظ دمکے ہے۔” → “دمکے کا معنی چمکے؛ ستارے دمکے۔”</span><span class=\"ex\"><b>کھڑکی کی طرف والا first:</b> “میرا لفظ دمکے ہے۔ معنی بتائیں۔” → <b>Reply:</b> “دمکے کا معنی چمکے۔ جملہ: ستارے دمکے۔” · <b>Stop:</b> ہاتھ سر پر رکھیں · <b>Stuck?</b> سبز ڈبہ دکھائیں؛ جملے کا پہلا لفظ آپ بولیں۔</span></p></div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--you)\" data-sec=\"you\">\n <div class=\"sh\"><h2>You Do · in the book</h2><span class=\"t\">25–37′</span><a class=\"fd\" href=\"g1_ch10_Urdu_seg1.v9.html#v9-you\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m8 m9\"><span class=\"n\">6</span><p><span class=\"clock\">⏱ 25′ stop explaining</span><br><span class=\"do\">اکیلے کاپی میں کریں: چاندنی کی تصویر، پھر ۲ سے ۵۔</span> ۱ چاند، تین لکیریں، چاندنی ۲ چھت پر ___ ۳ کمرہ ___ گیا ۴ ستارے ___ ۵ ملائیں۔ فارغ ۶: دو لفظ ایک جملے میں۔<span class=\"ex\"><b>If stuck:</b> دو انتخاب دیں: چاندنی یا روٹی؟ تصویر پر اشارہ کریں؛ تین بار دہرائیں۔</span></p></div>\n <div class=\"box\"><h3>Check 5 books · answers</h3>\n  <div class=\"ans\">\n   <div><span>۱. →</span><span class=\"e\">چاند، تین لکیریں، چاندنی</span></div>\n   <div><span>۲. →</span><span class=\"e\">روشنی کے ہار</span></div>\n   <div><span>۳. →</span><span class=\"e\">نکھر</span></div>\n   <div><span>۴. →</span><span class=\"e\">دمکے</span></div>\n   <div><span>۵. →</span><span class=\"e\">چاندنی-سفید روشنی؛ نکھر-زیادہ روشن؛ ہار-روشنیوں کی لڑی؛ دمکے-چمکے</span></div>\n   <div><span>۶. →</span><span class=\"e\">چاندنی میں روشنی کے ہار دمکے</span></div>\n  </div></div>\n <div class=\"box mis\"><h3>Likely mistake</h3>نکھر اور دمکے ملا دیے۔ <b>Ask:</b> “کون سا صاف اور روشن ہونا ہے، کون سا چمکنا؟” پھر تصویر دیکھیں۔</div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--check)\" data-sec=\"check\">\n <div class=\"sh\"><h2>Check · exit ticket</h2><span class=\"t\">37–40′</span><a class=\"fd\" href=\"g1_ch10_Urdu_seg1.v9.html#v9-check\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m10\"><span class=\"n\">7</span><p><span class=\"do\">تین جملے ایک ایک کر کے بولیں؛ ہر ایک پر انگوٹھا اوپر یا نیچے۔</span> جماعت ہر جملہ پرکھے۔ پہلے کچھ نہ بتائیں؛ سب بول کر انگوٹھا دکھائیں۔\n  <span class=\"say\">“۱ بارش میں پتے نکھر گئے۔ ۲ چاندنی سورج کی روشنی ہے۔ ۳ بلبوں کی لڑی روشنی کے ہار ہے۔”</span><span class=\"ex\"><b>Ask:</b> “چاندنی کا معنی اپنے الفاظ میں بتائیں۔” → <b>Listen for:</b> چاند کی سفید روشنی جو رات کو آتی ہے؛ بچہ کسی بھی الفاظ میں بتائے۔</span><span class=\"ex\"><b>Success:</b> “میں نئے لفظ کا معنی بتا اور منظر کے لیے صحیح لفظ چن سکتا/سکتی ہوں۔” 👍 or ✊ first</span><span class=\"ex\"><b>Correct:</b> ۱ درست (صاف، روشن)؛ ۲ غلط (چاندنی چاند کی سفید روشنی ہے)؛ ۳ درست (بلبوں کی لڑی)۔</span></p></div>\n</section>\n\n<section class=\"sec\" style=\"--c:var(--hw)\" data-sec=\"hw\">\n <div class=\"sh\"><h2>Homework</h2><span class=\"t\">at home</span><a class=\"fd\" href=\"g1_ch10_Urdu_seg1.v9.html#v9-hw\">Full details ›</a></div>\n <div class=\"mv\" data-covers=\"m11\"><span class=\"n\">8</span><p><span class=\"do\">گھر میں چاروں الفاظ ایک ایک بار کاپی میں لکھیں۔</span> بڑے سے پوچھیں چاندنی کب نظر آتی ہے؛ تصویر بنائیں۔</p></div>\n</section>\n\n<div class=\"foot\"><a href=\"g1_ch10_Urdu_seg1.v9.html\">Full lesson plan ›</a></div>\n</div></body></html>\n",
+  "gates": [],
+  "cardWithVideo": {
+   "card_version": "v10.1",
+   "lesson_key": "g1·Urdu·ch10·seg1",
+   "v9_html": "g1_ch10_Urdu_seg1.v9.html",
+   "lang": "ur",
+   "header": {
+    "grade": 1,
+    "subject": "Urdu",
+    "chapter": "Ch.10 چاند پارٹی",
+    "day": 1,
+    "minutes": 40,
+    "title": "نئے الفاظ — چاندنی، نکھر، روشنی کے ہار، دمکے",
+    "goal": "بچے چار نئے الفاظ کا <b>معنی</b> اپنے الفاظ میں بتاتے ہیں اور جملے میں استعمال کرتے ہیں۔"
+   },
+   "bring": "کتاب صفحہ ۸۵ · چاک · بورڈ پر چار الفاظ اور تصویریں · کاپیاں، پنسلیں",
+   "words": [
+    "چاندنی",
+    "نکھر",
+    "روشنی کے ہار",
+    "دمکے"
+   ],
+   "sections": [
+    {
+     "sec": "open",
+     "minutes": 5,
+     "moves": [
+      {
+       "covers": [
+        "m1"
+       ],
+       "do": "سبق ۹ کی کہانی یاد کریں؛ جماعت مل کر جواب دے۔",
+       "how": "ایک ایک سوال پوچھیں؛ جماعت ایک آواز میں بولے۔",
+       "say": "“کہانی میں کون تھا؟” → “جوجو”"
+      },
+      {
+       "covers": [
+        "m2"
+       ],
+       "do": "صفحہ ۸۵ کھولیں؛ نیلا بورڈ اور چاند پارٹی دکھائیں۔",
+       "how": "پوچھیں: آپ کے محلے میں عید پر روشنیاں کہاں لگتی ہیں؟ ایک بچہ بتائے۔",
+       "say": "“آج چار نئے الفاظ: چاندنی، نکھر، روشنی کے ہار، دمکے۔”"
+      }
+     ]
+    },
+    {
+     "sec": "explain",
+     "minutes": 8,
+     "moves": [
+      {
+       "covers": [
+        "m3"
+       ],
+       "do": "چاروں الفاظ پڑھیں؛ ہر لفظ کا معنی تصویر سے جوڑیں۔",
+       "how": "ہجے کریں، بورڈ پر لکھیں، تصویر بنائیں؛ پھر جملہ دہرائیں۔",
+       "say": "“چاند رات کو باہر روشنی کے ہار لگے۔”",
+       "think": "لفظ میں چاند چھپا ہے، تو چاندنی چاند کی روشنی ہو گی۔ کتاب کے سبز ڈبے میں دیکھ کر جانچتا/جانچتی ہوں: ہاں۔"
+      }
+     ]
+    },
+    {
+     "sec": "we",
+     "minutes": 12,
+     "moves": [
+      {
+       "covers": [
+        "m4",
+        "m5",
+        "m7"
+       ],
+       "chip": "I START, YOU FINISH",
+       "do": "ادھورا جملہ بولیں؛ جماعت صحیح لفظ چنے؛ نکھر اور دمکے کا فرق پوچھیں۔",
+       "how": "میں شروع کروں، جماعت لفظ دے؛ پھر بازار، شادی، عید کے منظر جوڑیں۔",
+       "say": "“بارش کے بعد آسمان ___ گیا۔” → “نکھر”"
+      },
+      {
+       "covers": [
+        "m6"
+       ],
+       "chip": "ONE NEIGHBOUR TURN",
+       "do": "ایک منٹ اپنی جگہ: ایک لفظ بولے، دوسرا معنی اور جملہ بتائے۔",
+       "how": "فاطمہ اور احمد پہلے کر کے دکھائیں؛ چاروں الفاظ پر باری آئے۔",
+       "say": "“میرا لفظ دمکے ہے۔” → “دمکے کا معنی چمکے؛ ستارے دمکے۔”",
+       "turn": {
+        "first": "کھڑکی کی طرف والا",
+        "a": "میرا لفظ دمکے ہے۔ معنی بتائیں۔",
+        "b": "دمکے کا معنی چمکے۔ جملہ: ستارے دمکے۔",
+        "stop": "ہاتھ سر پر رکھیں",
+        "help": "سبز ڈبہ دکھائیں؛ جملے کا پہلا لفظ آپ بولیں۔"
+       }
+      }
+     ]
+    },
+    {
+     "sec": "you",
+     "minutes": 12,
+     "moves": [
+      {
+       "covers": [
+        "m8",
+        "m9"
+       ],
+       "clock": "⏱ 25′ stop explaining",
+       "do": "اکیلے کاپی میں کریں: چاندنی کی تصویر، پھر ۲ سے ۵۔",
+       "how": "۱ چاند، تین لکیریں، چاندنی ۲ چھت پر ___ ۳ کمرہ ___ گیا ۴ ستارے ___ ۵ ملائیں۔ فارغ ۶: دو لفظ ایک جملے میں۔"
+      }
+     ],
+     "answers": [
+      [
+       "۱. →",
+       "چاند، تین لکیریں، چاندنی"
+      ],
+      [
+       "۲. →",
+       "روشنی کے ہار"
+      ],
+      [
+       "۳. →",
+       "نکھر"
+      ],
+      [
+       "۴. →",
+       "دمکے"
+      ],
+      [
+       "۵. →",
+       "چاندنی-سفید روشنی؛ نکھر-زیادہ روشن؛ ہار-روشنیوں کی لڑی؛ دمکے-چمکے"
+      ],
+      [
+       "۶. →",
+       "چاندنی میں روشنی کے ہار دمکے"
+      ]
+     ],
+     "mistake": "نکھر اور دمکے ملا دیے۔ <b>Ask:</b> “کون سا صاف اور روشن ہونا ہے، کون سا چمکنا؟” پھر تصویر دیکھیں۔",
+     "stuck": "دو انتخاب دیں: چاندنی یا روٹی؟ تصویر پر اشارہ کریں؛ تین بار دہرائیں۔"
+    },
+    {
+     "sec": "check",
+     "minutes": 3,
+     "moves": [
+      {
+       "covers": [
+        "m10"
+       ],
+       "do": "تین جملے ایک ایک کر کے بولیں؛ ہر ایک پر انگوٹھا اوپر یا نیچے۔",
+       "how": "جماعت ہر جملہ پرکھے۔ پہلے کچھ نہ بتائیں؛ سب بول کر انگوٹھا دکھائیں۔",
+       "say": "“۱ بارش میں پتے نکھر گئے۔ ۲ چاندنی سورج کی روشنی ہے۔ ۳ بلبوں کی لڑی روشنی کے ہار ہے۔”"
+      }
+     ],
+     "correct": "۱ درست (صاف، روشن)؛ ۲ غلط (چاندنی چاند کی سفید روشنی ہے)؛ ۳ درست (بلبوں کی لڑی)۔",
+     "success": "میں نئے لفظ کا معنی بتا اور منظر کے لیے صحیح لفظ چن سکتا/سکتی ہوں۔",
+     "ask": "چاندنی کا معنی اپنے الفاظ میں بتائیں۔",
+     "listen": "چاند کی سفید روشنی جو رات کو آتی ہے؛ بچہ کسی بھی الفاظ میں بتائے۔"
+    },
+    {
+     "sec": "hw",
+     "minutes": 0,
+     "moves": [
+      {
+       "covers": [
+        "m11"
+       ],
+       "do": "گھر میں چاروں الفاظ ایک ایک بار کاپی میں لکھیں۔",
+       "how": "بڑے سے پوچھیں چاندنی کب نظر آتی ہے؛ تصویر بنائیں۔"
+      }
+     ]
+    }
+   ],
+   "pictures": [
+    {
+     "id": "dg1",
+     "after": "explain",
+     "kind": "svg",
+     "title": "THE BOARD BY THE END · چاروں الفاظ کی تصویریں",
+     "svg": "<svg viewBox=\"0 0 340 100\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"sans-serif\" text-anchor=\"middle\"><circle cx=\"40\" cy=\"26\" r=\"16\" fill=\"#fff7e0\" stroke=\"#d98200\" stroke-width=\"2\"/><path d=\"M26 48 L22 66 M40 48 L40 68 M54 48 L58 66\" stroke=\"#d98200\" stroke-width=\"2\"/><circle cx=\"122\" cy=\"30\" r=\"9\" fill=\"#e8eefc\" stroke=\"#0B2545\" stroke-width=\"2\"/><circle cx=\"144\" cy=\"30\" r=\"12\" fill=\"#fff7e0\" stroke=\"#d98200\" stroke-width=\"2\"/><path d=\"M130 30 L134 30\" stroke=\"#0B2545\" stroke-width=\"2\"/><path d=\"M180 22 Q212 48 244 22\" stroke=\"#0B2545\" stroke-width=\"2\" fill=\"none\"/><circle cx=\"190\" cy=\"31\" r=\"5\" fill=\"#ffd54f\" stroke=\"#d98200\"/><circle cx=\"212\" cy=\"39\" r=\"5\" fill=\"#ffd54f\" stroke=\"#d98200\"/><circle cx=\"234\" cy=\"31\" r=\"5\" fill=\"#ffd54f\" stroke=\"#d98200\"/><polygon points=\"296,12 302,26 318,26 305,35 310,50 296,41 282,50 287,35 274,26 290,26\" fill=\"#fff7e0\" stroke=\"#d98200\" stroke-width=\"2\"/><text x=\"40\" y=\"92\" font-size=\"14\">چاندنی</text><text x=\"133\" y=\"92\" font-size=\"14\">نکھر</text><text x=\"212\" y=\"92\" font-size=\"14\">روشنی کے ہار</text><text x=\"296\" y=\"92\" font-size=\"14\">دمکے</text></svg>"
+    }
+   ],
+   "names": {
+    "girl": "فاطمہ",
+    "boy": "احمد"
+   }
+  },
+  "fullV9Sha": "50d60f663ca235175985e61a8f00e0d6030a48b9533a08266ecd2adc8dec053c"
+ }
+}

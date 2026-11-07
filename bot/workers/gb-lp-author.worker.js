@@ -31,6 +31,7 @@ const { refsFromDoc, stageFigures } = require('../shared/services/lp612-pagetrut
 const { resolveAuthorModel, authorRounds, authorTimeoutMs } = require('../shared/config/lp612-flags');
 const { familyForBook } = require('../shared/config/lp612-families');
 const GbLane = require('../shared/services/gb-lp-serving.service');
+const { attachCard, cardDay } = require('../shared/services/lp-v10-card/attach');
 
 const RENDERS = GbLane.RENDERS;
 const SEGMENTS = 'niete_lp612_segments';
@@ -116,7 +117,51 @@ async function renderForDelivery(args) {
     const hasPdf = typeof e.pdfPath === 'string' && e.pdfPath.length > 0;
     const verdict = deliveryVerdict(e && e.problems, { hasPdf, infra: e && e.infra });
     if (!verdict.deliverable || !Array.isArray(e.problems) || e.problems.length === 0) throw e;
-    return { rendered: { pdfPath: e.pdfPath, pageCount: e.pageCount ?? null }, degraded: true, problems: e.problems };
+    return { rendered: { pdfPath: e.pdfPath, htmlPath: e.htmlPath, pageCount: e.pageCount ?? null }, degraded: true, problems: e.problems };
+  }
+}
+
+// The v10 card (bd-rj6w0n.14.16.6) runs on what is left of ICT's clock, so a GB lesson never takes longer
+// than an ICT one; its own setting can only shorten that. Under a minimum it is not attempted.
+const CARD_DEADLINE_MS = 4 * 60 * 1000;
+const CARD_MIN_MS = 30 * 1000;
+// `process` below is this module's job handler, so the environment is read off globalThis.
+const v10Enabled = () => globalThis.process.env.LP_GB_V10_CARD_ENABLED === 'true';
+function cardDeadlineMs(startedAt) {
+  const own = Number(globalThis.process.env.LP_GB_V10_CARD_DEADLINE_MS) || CARD_DEADLINE_MS;
+  return Math.min(own, authorTimeoutMs() - (Date.now() - startedAt));
+}
+
+/** v10 card ahead of v9. A card that is late or refused never holds the lesson back: v9 goes alone. */
+async function withV10Card({ authored, rendered, segment, lang, stem, outDir, startedAt, renderId, correlationId }) {
+  if (!v10Enabled()) return { rendered, v10: null };
+  if (!cardDay(segment)) return { rendered, v10: { status: 'no_card_day' } };
+  const deadlineMs = cardDeadlineMs(startedAt);
+  if (deadlineMs < CARD_MIN_MS) return { rendered, v10: { status: 'no_time' } };
+  const t0 = Date.now();
+  try {
+    const out = await withTimeout(attachCard({
+      lpDoc: authored.lpDoc, v9HtmlPath: rendered.htmlPath, v9PdfPath: rendered.pdfPath,
+      segment, lang, stem, outDir, deadlineMs, correlationId,
+    }), deadlineMs).catch((e) => { throw e.code === 'AUTHOR_TIMEOUT' ? Object.assign(e, { code: 'card_timeout' }) : e; });
+    return {
+      rendered: { pdfPath: out.pdfPath, pageCount: out.pageCount ?? rendered.pageCount },
+      v10: { status: 'ok', timings: out.timings || {}, card: out.card, moves: out.moves },
+    };
+  } catch (err) {
+    const code = err.code || 'CARD_FAILED';
+    logToFile('LP GB worker: v10 card failed, sending v9 alone', { renderId, code, error: err.message }, 'warn');
+    logEvent('gb_lp.v10card.failed', { renderId, segmentId: segment.segment_id, code, ms: Date.now() - t0, correlationId });
+    return { rendered, v10: { status: code } };
+  }
+}
+
+async function storeJson(obj, segmentId, lang, templateVersion, ext, renderId) {
+  try {
+    const key = GbLane.assertGbKey(GbLane.keyFor(segmentId, lang, templateVersion, ext));
+    await uploadBuffer(Buffer.from(JSON.stringify(obj, null, 1), 'utf8'), key, 'application/json');
+  } catch (err) {
+    logToFile(`LP GB worker: could not store ${ext}`, { renderId, error: err.message });
   }
 }
 
@@ -137,7 +182,8 @@ async function process(payload) {
   let tmpDir;
   try {
     tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'gb-lp-'));
-    const { authored, rendered, degraded, problems } = await withTimeout((async () => {
+    const stem = segmentId.replace(/[^A-Za-z0-9._-]/g, '_');
+    const { authored, rendered: v9, degraded, problems } = await withTimeout((async () => {
       const authored = await authorLessonPlan({ segment, lang, model, rounds: authorRounds(), correlationId });
       const refs = refsFromDoc(authored.lpDoc);
       if (refs.length) {
@@ -149,25 +195,29 @@ async function process(payload) {
         }
       }
       const out = await renderForDelivery({
-        lpDoc: authored.lpDoc, lang, stem: segmentId.replace(/[^A-Za-z0-9._-]/g, '_'),
+        lpDoc: authored.lpDoc, lang, stem,
         outDir: tmpDir, correlationId, segmentId, renderId, phase: 'final',
       });
       return { authored, ...out };
     })(), authorTimeoutMs());
 
+    const { rendered, v10 } = await withV10Card({
+      authored, rendered: v9, segment, lang, stem, outDir: tmpDir, startedAt, renderId, correlationId,
+    });
+
     const r2Key = GbLane.assertGbKey(GbLane.keyFor(segmentId, lang, templateVersion));
     await uploadBuffer(await fs.promises.readFile(rendered.pdfPath), r2Key, 'application/pdf');
-    try {
-      const docKey = GbLane.assertGbKey(GbLane.keyFor(segmentId, lang, templateVersion, 'lp.json'));
-      await uploadBuffer(Buffer.from(JSON.stringify(authored.lpDoc, null, 1), 'utf8'), docKey, 'application/json');
-    } catch (err) {
-      logToFile('LP GB worker: could not store the authored document', { renderId, error: err.message });
+    await storeJson(authored.lpDoc, segmentId, lang, templateVersion, 'lp.json', renderId);
+    if (v10 && v10.status === 'ok') {
+      await storeJson(v10.card, segmentId, lang, templateVersion, 'card.json', renderId);
+      await storeJson(v10.moves, segmentId, lang, templateVersion, 'moves.json', renderId);
     }
+    const v10Timings = v10 ? { ...(v10.timings || {}), v10: v10.status } : {};
 
     const readyAt = nowIso();
     await patch(renderId, {
       status: 'ready', r2_key: r2Key, page_count: rendered.pageCount ?? null, model_used: authored.model || model,
-      lint_fails: degraded ? problems : null, timings: { total_ms: Date.now() - startedAt }, completed_at: readyAt,
+      lint_fails: degraded ? problems : null, timings: { ...v10Timings, total_ms: Date.now() - startedAt }, completed_at: readyAt,
     });
 
     const waiters = await claimWaiters(renderId, snapshot);
@@ -187,6 +237,7 @@ async function process(payload) {
     }
     logEvent('gb_lp.author.ready', {
       renderId, segmentId, lang, templateVersion, degraded, delivered, ms: Date.now() - startedAt, correlationId,
+      ...v10Timings,
     });
     return { status: 'ready', r2Key, delivered };
   } catch (err) {
