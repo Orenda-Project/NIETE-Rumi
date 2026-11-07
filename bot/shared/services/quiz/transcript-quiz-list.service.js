@@ -28,7 +28,7 @@ const Providers = require('./quiz-lesson-providers');
 // The recorded lessons' own reads and tap (the transcript lesson provider),
 // re-exported below under the names every caller already uses.
 const {
-  countsFor, loadEligibleSessions, enqueueGenerate, claimForGeneration, startTranscriptLesson,
+  countsFor, loadEligibleSessions, enqueueGenerate, claimForGeneration, startTranscriptLesson, subjectHeld,
   LINK_PREFIX, REPORT_PREFIX, BACK_PREFIX,
 } = require('./transcript-lesson-provider');
 const {
@@ -69,10 +69,13 @@ function isQuizCommand(text) {
  * `declined` or `ready` means — they render different fields with different
  * caps, but they read the same taxonomy.
  *
- * @returns {'none'|'offered'|'making'|'sent'|'report_sent'|'failed'}
+ * Plus 'held': a recording skipped for its subject — nothing to make (bd-37q6ye).
+ *
+ * @returns {'none'|'offered'|'making'|'sent'|'report_sent'|'failed'|'held'}
  */
 function quizState(quiz) {
   if (!quiz) return 'none';
+  if (subjectHeld(quiz)) return 'held';
   switch (quiz.status) {
     case 'offered': return 'offered';
     case 'generating':
@@ -105,6 +108,7 @@ function statusLine(quiz, language) {
     // words as a lesson with no quiz row at all, on this list and in the Flow.
     case 'offered': return resolveUx('tqRowNoQuiz', { language });
     case 'making': return resolveUx('tqRowMaking', { language });
+    case 'held': return resolveUx('tqRowHeld', { language });
     case 'sent': return resolveUx('tqRowSent', { language, params: { started, finished } });
     case 'report_sent': return resolveUx('tqRowReportSent', { language, params: { finished } });
     // "tap to retry" only where the tap DOES retry: every failed transcript row
