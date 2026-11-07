@@ -570,6 +570,8 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
       logToFile('❌ Error updating user with registration data', { userId, error: updateError.message }, 'error');
       throw updateError;
     }
+    // Not awaited: another live account with her school and name is recorded, never acted on (identity-events).
+    require('../services/identity/identity-events').checkWouldMatch(userId, 'flow_reply').catch(() => {});
 
     // Registered now: the handset's cached child verdict (student-ingress, up to 10 min) is stale — drop it,
     // so this adult's next message is never answered as a child's.

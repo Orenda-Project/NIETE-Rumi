@@ -20,6 +20,8 @@ async function getOrCreateUser(phoneNumber) {
       .single();
 
     if (existingUser) {
+      // A soft-deleted account is still served as live, as before; it is now recorded (identity-events, never throws).
+      if (existingUser.deleted_at) require('../services/identity/identity-events').deletedRowResumed(existingUser.id);
       // Stamp the user's most-recent INBOUND message time on every message.
       // This feeds the WhatsApp 24-hour customer-service-window check used by
       // dashboard broadcasts (isWithinServiceWindow). Best-effort + isolated in

@@ -2429,6 +2429,8 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
         logToFile('⚠️ Unknown list item ID', { listId });
       }
     } else {
+      // A WhatsApp number change arrives as a `system` message: recorded, never answered (identity-events).
+      if (messageType === 'system') require('./shared/services/identity/identity-events').recordSystem({ message, user }).catch(() => {});
       // bd-fbih0: reactions/stickers get NO reply (reacting 👍 used to trigger
       // the error text); video gets an explanatory line naming the supported
       // inputs (a coach mid-photo-capture read the old generic reply as the
