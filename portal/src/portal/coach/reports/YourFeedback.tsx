@@ -7,7 +7,7 @@ import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
 import ReportsFrame from "./ReportsFrame";
 import { InsightRow } from "./InsightRow";
 import { REPORTS } from "./copy";
-import { observationPath } from "./paths";
+import { OBSERVATION_STEPS, SCREEN_STEP, observationPath } from "./paths";
 import { teacherNameOf, useObservationView } from "./useObservationView";
 import { useBack } from "../../lib/useBack";
 
@@ -37,7 +37,7 @@ export default function YourFeedback() {
   ) : undefined;
 
   return (
-    <ReportsFrame title={C.feedbackTitle} crumb={name ? C.stepCrumb(name, 4, 5) : C.observation} onBack={back} dock={dock} testId="coach-feedback">
+    <ReportsFrame title={C.feedbackTitle} crumb={name ? C.stepCrumb(name, SCREEN_STEP.feedback, OBSERVATION_STEPS) : C.observation} onBack={back} dock={dock} testId="coach-feedback">
       <LoadState status={status === "ok" ? "ok" : status} empty={false} onRetry={reload} />
       {view && !fb && (
         <p data-testid="feedback-waiting" className={cn(LIST_CARD, "px-4 py-5 text-center text-[16px] font-semibold text-[#6b7280]")}>{C.feedbackWaiting}</p>

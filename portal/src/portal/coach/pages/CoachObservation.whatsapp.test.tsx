@@ -95,6 +95,7 @@ describe("bd-15y1pc — her own WhatsApp observation, in full", () => {
     renderPage();
     await screen.findByText("On WhatsApp");
     expect(current()).toHaveTextContent("Send Ayesha the report");
-    expect(stepsRegion().getAllByRole("listitem").filter((li) => li.querySelector("[data-testid=step-dot] svg"))).toHaveLength(4);
+    // bd-ewbzns.4.1: four steps — Analysed, Feedback Form and Debrief done; Send is the one left.
+    expect(stepsRegion().getAllByRole("listitem").filter((li) => li.querySelector("[data-testid=step-dot] svg"))).toHaveLength(3);
   });
 });
