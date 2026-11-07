@@ -2306,6 +2306,12 @@ router.use(require('./coach-school-card.routes').createCoachSchoolCardRouter({
   // bd-hl4a4y: her Training page's "Level N of M", from the bot as her own Training page reads it.
   levelStates: (userId) => TrainingRules.getLevelStates(userId),
 }));
+// bd-33wxxi.2: the principal app's school API — her OWN school's card, counts only (portal_principal_app; off → 404).
+router.use(require('./portal-principal.routes').createPrincipalRouter({
+  guards: [requirePortalAuth],
+  supabase,
+  query: (sql, params) => pool.query(sql, params),
+}));
 
 // bd-tbprit.1: the coach's disagreements (v10 coaching test) — her To do / Done and the evidence card.
 // Behind the coach app guards AND its own flag, so week 1 of the test sees nothing new.

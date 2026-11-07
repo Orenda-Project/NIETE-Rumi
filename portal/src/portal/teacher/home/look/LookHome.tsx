@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import TeacherPage from '../../TeacherPage';
 import { TEACHER_FRAME } from '../../copy';
@@ -107,6 +107,10 @@ export interface LookHomeProps {
   /** The server's order when the order switch gave one in time, else null (the fixed order). */
   order: HomeTileKey[] | null;
   onGo: (kind: TapKind, href: string) => void;
+  /** bd-33wxxi.2 — a principal on the principal app: their role tag in the band's footer slot (where "Not saved" goes). */
+  role?: ReactNode;
+  /** bd-33wxxi.2 — a principal on the principal app: the "My school" card, after the strip and before the tiles. */
+  school?: ReactNode;
 }
 
 /**
@@ -119,7 +123,7 @@ export interface LookHomeProps {
  * the features (operator, 31 Oct 2026, mockup v10 option A: "The Coach 31/40 strip was not supposed to be removed").
  * English fits one 390x844 screen with it; in Urdu the last tile row's names sit under the phone menu.
  */
-export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
+export function LookHome({ tiles, data, order, onGo, role, school }: LookHomeProps) {
   const C = useCopy(TEACHER_FRAME);
   const H = useCopy(HOME_CARD);
   const lang = useLang();
@@ -178,7 +182,7 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
           brand={C.brand}
           logoAlt={C.logoAlt}
           corner={<LanguagePill lang={switcher} />}
-          footer={switcher.status === 'failed' ? <StatusChip text={C.more.notSaved} tone="error" className="bg-white/10 text-white" /> : undefined}
+          footer={switcher.status === 'failed' ? <StatusChip text={C.more.notSaved} tone="error" className="bg-white/10 text-white" /> : role}
         />
       )}
     >
@@ -190,6 +194,7 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
       {data && chips.length ? <LookScores scores={data.scores} cardKind={drawn?.kind ?? null} onGo={onGo} className={REVEAL} /> : null}
       {holding ? null : (
         <>
+          {school ? <div data-testid="home-my-school" className={REVEAL}>{school}</div> : null}
           {/* The "Quizzes" tile (portal_teacher_home_quiz_tile): in the grid after Lesson plans, only with a quiz home. */}
           <FeatureTiles tiles={tiles} order={order} className={REVEAL} quiz={data?.quizTile && data.quizHome ? { quizHome: data.quizHome, onGo } : null} />
           {/* The evening reminder (portal_push_remind): last, as in the card build. */}
