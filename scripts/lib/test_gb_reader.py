@@ -165,3 +165,20 @@ def test_a_printed_page_given_twice_refuses():
              page(5, 6, [{"type": "prose", "text": "b"}])]
     with pytest.raises(gb.GbBookError):
         gb.build_book("gb_g9_fake", pages, [])
+
+
+def test_a_rescanned_page_gets_a_free_pdf_index_where_it_sits_in_the_book():
+    # textbook_pages is UNIQUE(textbook_id, pdf_page_index): a rescan's index (in the
+    # rescan PDF) must not reuse an original page's. It moves to printed + offset.
+    pages = [page(n, n + 2, [{"type": "prose", "text": f"p{n}"}]) for n in (1, 2, 3)]
+    pages.append(page(4, 3, [{"type": "prose", "text": "rescanned p4"}]))
+    rows = gb.build_book("gb_g9_fake", pages, [{"chapter": 1, "title": "A", "printed_start": 1}])["rows"]
+    assert [r["pdf_page_index"] for r in rows] == [3, 4, 5, 6]
+
+
+def test_a_rescan_whose_natural_slot_is_taken_goes_past_the_last_index():
+    pages = [page(n, n + 2, [{"type": "prose", "text": f"p{n}"}]) for n in (1, 2, 3, 4)]
+    pages.append(page(6, 7, [{"type": "prose", "text": "p6"}]))           # holds 7
+    pages.append(page(5, 3, [{"type": "prose", "text": "rescanned p5"}]))  # wants 5+2=7
+    rows = gb.build_book("gb_g9_fake", pages, [])["rows"]
+    assert [r["pdf_page_index"] for r in rows] == [3, 4, 5, 6, 8, 7]

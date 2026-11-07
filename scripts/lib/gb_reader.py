@@ -130,6 +130,25 @@ def _rows(stem: str, pages: list) -> list:
     return [rows[n] for n in sorted(rows)]
 
 
+def _unique_pdf_index(rows: list, offset: int) -> None:
+    """textbook_pages is UNIQUE(textbook_id, pdf_page_index). Where a rescan's index
+    collides, the page on the book's dominant offset keeps it and the other moves to
+    printed + offset, or past the last index if that is taken too. Nothing in the
+    generator reads this index; it only has to be unique."""
+    by_idx = {}
+    for r in rows:
+        by_idx.setdefault(r["pdf_page_index"], []).append(r)
+    used = set(by_idx)
+    for idx, group in by_idx.items():
+        if len(group) < 2:
+            continue
+        group.sort(key=lambda r: r["pdf_page_index"] - r["textbook_page_number"] != offset)
+        for r in group[1:]:
+            want = r["textbook_page_number"] + offset
+            r["pdf_page_index"] = want if want not in used else max(used) + 1
+            used.add(r["pdf_page_index"])
+
+
 def build_book(stem: str, pages: list, toc: list) -> dict:
     """{rows, toc, meta, report, offset} for one book."""
     rows = _rows(stem, pages)
@@ -137,6 +156,7 @@ def build_book(stem: str, pages: list, toc: list) -> dict:
         raise GbBookError(f"{stem} produced no usable pages")
     offset = dominant_offset([{"book_page_no": r["textbook_page_number"],
                                "pdf_page_no": r["pdf_page_index"]} for r in rows])
+    _unique_pdf_index(rows, offset)
     chapters = build_toc(toc, max_printed=rows[-1]["textbook_page_number"])
     meta = {"source": "gb_page_truth", "stem": stem,
             "content_hash": content_hash(rows, chapters)}
