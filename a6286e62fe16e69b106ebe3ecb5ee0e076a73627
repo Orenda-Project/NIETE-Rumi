@@ -1,0 +1,2 @@
+{"ts":"2026-11-07T14:35:14Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test,fde-board-pattern spec_sync=true","sha":"a6286e62fe16","branch":"bd-apnnh2.4-to-main","user":"tariqtaleemabad"}
+{"ts":"2026-11-07T14:35:37Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"*=none-needed (log-only events: no reply, no write, nothing a teacher sees changes)","sha":"a6286e62fe16","branch":"bd-apnnh2.4-to-main","user":"tariqtaleemabad"}
