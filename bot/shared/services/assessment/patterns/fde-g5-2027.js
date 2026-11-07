@@ -1046,6 +1046,7 @@ const SST = {
       marks_ur: null,
       label_en: 'Section 1 (objective)',
       marks: 30,
+      levels: { Remember: 18, Understand: 6, Apply: 6 }, // a target for the prompt, not FDE's printed split (its SST table by question is not in hand); counted by tags (bd-5jmnfj.27)
       answer_on: 'question_paper',
       note_ur: null,
       slots: [
@@ -1093,6 +1094,7 @@ const SST = {
       marks_ur: 'کل نمبر {t:16}', // transcribed (FDE p.78)
       label_en: 'Section 2 (subjective)',
       marks: 16,
+      levels: { Remember: 0, Understand: 16, Apply: 0 }, // a target for the prompt, not FDE's printed split (its SST table by question is not in hand); counted by tags (bd-5jmnfj.27)
       answer_on: 'answer_sheet',
       note_ur: null,
       slots: [
@@ -1132,6 +1134,7 @@ const SST = {
       marks_ur: 'کل نمبر {t:18}', // transcribed (FDE p.79)
       label_en: 'Section 3',
       marks: 18,
+      levels: { Remember: 0, Understand: 18, Apply: 0 }, // a target for the prompt, not FDE's printed split (its SST table by question is not in hand); counted by tags (bd-5jmnfj.27)
       answer_on: 'answer_sheet',
       note_ur: null,
       slots: [
@@ -1156,6 +1159,7 @@ const SST = {
       marks_ur: 'کل نمبر {t:36}', // transcribed (FDE p.80)
       label_en: 'Section 4',
       marks: 36,
+      levels: { Remember: 12, Understand: 0, Apply: 24 }, // a target for the prompt, not FDE's printed split (its SST table by question is not in hand); counted by tags (bd-5jmnfj.27)
       answer_on: 'answer_sheet',
       note_ur: null,
       slots: [
