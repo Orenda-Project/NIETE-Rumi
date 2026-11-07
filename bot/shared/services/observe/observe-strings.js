@@ -567,7 +567,7 @@ const STRINGS = {
     // Requirement wording, verbatim. No prior report is resent (unlike DC's
     // duplicateRecording): the coach is asked for a new recording instead.
     capture_duplicate_recording: 'This classroom recording has already been analyzed. Please submit a new recording.',
-    // bd-y4ywxn: was "school leaders (field officers) for now" — "field officer"
+    // Was "school leaders (field officers) for now" — "field officer"
     // is the Tanzania role title. Same roles, same order, as the Urdu.
     role_denied:
       '/observe is for school leaders, supervisors, coaches and principals. 💛 If you should have this role, contact your team.\n\n' +
@@ -878,7 +878,7 @@ const STRINGS = {
       "No problem. 💛 When you're ready, type /observe and pick that observation — you'll see the send-report option (📨).",
     send_ask_details:
       'Tell me the teacher\'s name and phone number — one message.\n\nExample: *Ms. Sania, 0301 2345678*',
-    // bd-y4ywxn: was "a Tanzanian phone number" with a Tanzanian example — ported
+    // Was "a Tanzanian phone number" with a Tanzanian example — ported
     // from the TZ bot. "Mobile", no country, as the Urdu re-ask (a landline fails).
     send_details_reask:
       "Sorry, I didn't catch that. Please send the name AND a mobile number together.\n\nExample: *Ms. Sania, 0301 2345678*",
