@@ -215,3 +215,13 @@ describe('r10 board section rules (bd-5jmnfj.38.30): blind-panel 2s', () => {
     expect(t).toMatch(/1 \+ 1/);
   });
 });
+
+describe('method marks for numericals (Amena, 7 Nov 2026: SSC/HSSC science numericals earn method marks)', () => {
+  const t = PROMPTS['eg.task.board_section'];
+  it('each numerical short/long answer lists method/working step marks apart from the final-answer mark, summing to the marks', () => {
+    expect(t).toMatch(/numerical short or long answer[^\n]*method\/working step marks \(formula, substitution, working\)[^\n]*separate from the final-answer mark \(value with unit\)[^\n]*add up to the item's marks/i);
+  });
+  it('a scheme with only a final-answer point is ruled out', () => {
+    expect(t).toMatch(/never a scheme with only a final-answer point/i);
+  });
+});
