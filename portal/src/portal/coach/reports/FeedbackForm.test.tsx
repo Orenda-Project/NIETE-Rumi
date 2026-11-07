@@ -13,7 +13,7 @@ import { leader } from "../../services/api";
 import FeedbackForm from "./FeedbackForm";
 
 /**
- * bd-4404s7.5 — Feedback Form (Blueprint Coach_FeedbackForm), step 2 of 5: the WhatsApp review form, in the portal,
+ * bd-4404s7.5 — Feedback Form (Blueprint Coach_FeedbackForm), step 2 of 4: the WhatsApp review form, in the portal,
  * on the kit. A StepBar over the parts, the legend, one card per indicator (the kit's RatingScale on the scale the bot
  * returns, what was seen, to improve), a lesson-plan part with each move's verdict. Saves through the same keys the
  * form submits (r_ ev_ imp_ fid_r_ fid_e_), every field, changed or not.
@@ -56,11 +56,11 @@ beforeEach(() => {
 });
 
 describe("Feedback Form", () => {
-  it("titled Feedback Form, crumb with Step 2 of 5, a StepBar over the parts and the legend", async () => {
+  it("titled Feedback Form, crumb with Step 2 of 4, a StepBar over the parts and the legend", async () => {
     renderPage();
     await screen.findByText("Start with a story");
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Feedback Form");
-    await waitFor(() => expect(screen.getByTestId("page-crumb")).toHaveTextContent("Ayesha Bibi · Step 2 of 5"));
+    await waitFor(() => expect(screen.getByTestId("page-crumb")).toHaveTextContent("Ayesha Bibi · Step 2 of 4"));
     expect(screen.getByRole("img", { name: "Part 1 of 3" })).toBeInTheDocument();
     expect(screen.getByText("Coach score")).toBeInTheDocument();
     expect(screen.getByText("AI score")).toBeInTheDocument();
