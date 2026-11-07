@@ -48,7 +48,8 @@ describe('correctMisreads', () => {
 });
 
 describe('wiring', () => {
-  const read = (f) => require('fs').readFileSync(require.resolve(`../../bot/shared/services/assessment/${f}`), 'utf8');
+  // A split module is read with its parts (bd-5jmnfj.37).
+  const read = (f) => require('./helpers/source-with-parts').sourceWithParts(f);
   test('the book text is mended where it loads, and the early paper at the end', () => {
     expect(read('assessment-generation.service.js')).toMatch(/correctMisreads\(/);
     expect(read('fde-early-writer.js')).toMatch(/correctMisreads\(/);
