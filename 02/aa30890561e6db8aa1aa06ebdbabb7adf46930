@@ -1,0 +1,2 @@
+{"ts":"2026-11-07T18:23:32Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"02aa30890561","branch":"bd-qi3gei-to-staging","user":""}
+{"ts":"2026-11-07T18:23:43Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-qi3gei-to-staging: training spec: NOT UPDATED e2e: missing","sha":"02aa30890561","branch":"bd-qi3gei-to-staging","user":""}
