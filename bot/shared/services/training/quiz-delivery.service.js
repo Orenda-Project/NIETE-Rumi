@@ -878,7 +878,7 @@ async function startTrainingQuiz(userId, moduleId, phoneNumber) {
     strategy: servingConfig.module_quiz_strategy,
   });
 
-  const made = await ModuleAttempt.insertModuleAttempt(supabase, {
+  const opened = await ModuleAttempt.insertModuleAttempt(supabase, {
     id: attemptId,
     user_id: userId,
     program_id: assignment.program_id,
@@ -890,21 +890,21 @@ async function startTrainingQuiz(userId, moduleId, phoneNumber) {
     total_score: totalQuestions,
     status: 'in_progress',
   }, { surface: 'whatsapp', log: logEvent });
-  if (made.error) {
+  if (opened.error) {
     logToFile('❌ Training-quiz attempt insert failed', {
-      userId, moduleId: moduleIdNum, code: made.error?.code || null, error: made.error?.message,
+      userId, moduleId: moduleIdNum, code: opened.error?.code || null, error: opened.error?.message,
     }, 'error');
     await WhatsAppService.sendMessage(phoneNumber,
       'Could not start the module check — please try again in a moment.');
     return false;
   }
-  if (made.raced) {
+  if (opened.raced) {
     // A parallel start (a second tap) opened its attempt first: resume that
     // one. She may see its question twice; never "could not start".
-    logToFile('🎓 Module check already opened by a parallel start — resuming it', { attemptId: made.id });
-    return await sendQuestion(made.id, phoneNumber);
+    logToFile('🎓 Module check already opened by a parallel start — resuming it', { attemptId: opened.id });
+    return await sendQuestion(opened.id, phoneNumber);
   }
-  const attempt = { id: made.id };
+  const attempt = { id: opened.id };
 
   const startedPayload = {
     user_uuid: userId,

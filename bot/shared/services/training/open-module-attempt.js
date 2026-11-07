@@ -131,9 +131,11 @@ async function resumableModuleAttempt(db, { userId, moduleId, surface, log } = {
  *   raced: true when another start's attempt is returned instead of this row.
  */
 async function insertModuleAttempt(db, row, { surface, log } = {}) {
+  // A literal, not the bare variable: the schema column guard reads the first object after
+  // `.insert(` as the insert's keys, and would otherwise read the result object below.
   const { data, error } = await db
     .from('training_assessment_attempts')
-    .insert(row)
+    .insert({ ...row })
     .select('id')
     .single();
   if (!error && data) return { id: data.id || row.id, raced: false };
