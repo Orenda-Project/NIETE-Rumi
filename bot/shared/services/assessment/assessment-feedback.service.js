@@ -76,12 +76,15 @@ async function _paperContext(paperId) {
   }
 }
 
+// The 🙏 reaction helper is not on every tier yet; where it is missing, the thanks goes as a text.
+const _deps = { loadAck: () => require('../coaching/ack-reaction') };
+
 async function _thank(phone, messageId, userId) {
-  const { reactOrSay } = require('../coaching/ack-reaction');
-  return reactOrSay({
-    to: phone, messageId, emoji: '🙏', what: 'assessment_reason',
-    text: async () => resolveUx('assessmentFeedbackReasonThanks', { language: await _voiceOf(userId) }),
-  });
+  const text = async () => resolveUx('assessmentFeedbackReasonThanks', { language: await _voiceOf(userId) });
+  let ack = null;
+  try { ack = _deps.loadAck(); } catch (err) { if (err.code !== 'MODULE_NOT_FOUND') throw err; }
+  if (!ack) return WhatsAppService.sendMessage(phone, await text());
+  return ack.reactOrSay({ to: phone, messageId, emoji: '🙏', what: 'assessment_reason', text });
 }
 
 // ─── 1. schedule ────────────────────────────────────────────────────────────
@@ -268,4 +271,5 @@ module.exports = {
   REASON_WINDOW_SECS,
   REDIS_REASON_KEY,
   BUTTON_RX,
+  _deps,
 };

@@ -25,9 +25,6 @@ jest.mock('../../bot/shared/services/cache/railway-redis.service', () => ({
   get: (...a) => mockRedisGet(...a),
   delete: (...a) => mockRedisDelete(...a),
 }));
-jest.mock('../../bot/shared/services/coaching/ack-reaction', () => ({
-  reactOrSay: (...a) => mockReactOrSay(...a),
-}));
 jest.mock('../../bot/shared/utils/logger', () => ({
   logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(),
 }));
@@ -69,6 +66,7 @@ beforeEach(() => {
   mockSendInteractiveButtons.mockResolvedValue(true);
   mockSendMessage.mockResolvedValue(true);
   mockReactOrSay.mockResolvedValue(true);
+  Feedback._deps.loadAck = () => ({ reactOrSay: (...a) => mockReactOrSay(...a) });
 });
 
 describe('the ask is scheduled after delivery', () => {
@@ -235,5 +233,14 @@ describe('her answer to "how can we make it better?"', () => {
     expect(await Feedback.consumeReasonIfPending('u1', PHONE, 'fine')).toBe(true);
     expect(dbCalls.some((c) => c.op === 'update')).toBe(false);
     expect(mockReactOrSay).toHaveBeenCalled();
+  });
+
+  test('without the reaction helper (a tier that lacks it) she gets the thanks as a text', async () => {
+    Feedback._deps.loadAck = () => { const e = new Error('Cannot find module'); e.code = 'MODULE_NOT_FOUND'; throw e; };
+    mockRedisGet.mockResolvedValue({ feedbackId: 'fb-1', paperId: PAPER, polarity: 'liked' });
+    dbResults.push({ data: null, error: null }, { data: { preferred_language: 'ur' }, error: null });
+    expect(await Feedback.consumeReasonIfPending('u1', PHONE, 'Add more MCQs', { messageId: 'wamid.1' })).toBe(true);
+    expect(mockReactOrSay).not.toHaveBeenCalled();
+    expect(mockSendMessage).toHaveBeenCalledWith(PHONE, resolveUx('assessmentFeedbackReasonThanks', { language: 'ur' }));
   });
 });
