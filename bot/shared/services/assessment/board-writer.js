@@ -250,7 +250,7 @@ async function writeBoardPaper(args, d) {
       ex = ex2;
       checks = checks2;
     }
-    MR.soften(checks); // round 9b: the review drove the rewrites; what it still flags is a note, not a failure
+    MR.soften(checks, true); // round 9b: the review drove the rewrites; what it still flags is a note, not a failure (a given-away key stays hard until the restore try)
     if (failing(ex, checks) && reviewOnly.size) {
       const back = clone(ex);
       T.dropIds(back, T.droppable(back, hardIds(checks), spare)); // round 10: never leaves a slot fill cannot refill
@@ -258,10 +258,11 @@ async function writeBoardPaper(args, d) {
       const owes = new Map([...want].map(([slot, n]) => [slot, split ? owed(allSlots.find((x) => x.slot === slot), back, split.levels, n) : null]));
       const lvl = (q) => { const it = Array.isArray(q.or) ? q.or[0] : q; return it && it.tag && it.tag.blooms; };
       const ex3 = T.fill(back, spare, want, (q) => { const o = owes.get(q.slot); return o && o[lvl(q)] > 0 ? 0 : 1; }); // owed levels first (A6b)
-      const checks3 = MR.soften(MR.applyFlags(finish(ex3), flags, ex3));
+      const checks3 = MR.soften(MR.applyFlags(finish(ex3), flags, ex3), true);
       tries.unshift({ name: 'restore', ex: ex3, checks: checks3 });
       if (checks3.record.hard <= checks.record.hard) { ex = ex3; checks = checks3; }
     }
+    if (failing(ex, checks)) MR.soften(checks); // 38.33: a leak no spare could replace becomes a paper-level note
     if (failing(ex, checks)) {
       const orig = clone(whole);
       tries.push({ name: 'originals', ex: orig, checks: MR.soften(MR.applyFlags(finish(orig), flags, orig)) });

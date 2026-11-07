@@ -16,8 +16,12 @@ describe('owed', () => {
     expect(owed(slot, tree(or), lv, 2)).toEqual({ K: 0, U: 2, A: 0 });
     expect(owed(slot, null, lv, 6)).toEqual({ K: 2, U: 3, A: 1 });
   });
-  test('no split, or a stimulus slot -> null (no quota)', () => {
+  test('no split -> null (no quota)', () => {
     expect(owed(slot, tree(), null, 2)).toBeNull();
-    expect(owed({ ...slot, stimulus: { count: 1, mcqs_per_stimulus: 4 } }, tree(), lv, 4)).toBeNull();
+  });
+  test('a stimulus slot counts its member items: 4 K members live of 8 -> a rewrite of 4 is told U 2, A 2', () => {
+    const st = { ...slot, type: 'scenario', generate: 8, stimulus: { count: 2, mcqs_per_stimulus: 4 } };
+    const group = { slot: 'B.Q2', stimulus: { text: 't', items: ['K', 'K', 'K', 'K'].map((b) => ({ tag: { blooms: b } })) } };
+    expect(owed(st, tree(group), lv, 4)).toEqual({ K: 0, U: 2, A: 2 });
   });
 });

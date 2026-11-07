@@ -18,7 +18,7 @@ describe('registry run()', () => {
     expect(Object.keys(r).sort()).toEqual(['notes', 'record', 'shortfall']);
     expect(r.shortfall).toEqual([]);
     expect(r.record.mode).toBe('board');
-    expect(r.record.ran).toEqual(['tag-complete', 'blueprint-qa', 'mcq-shape', 'near-dup', 'key-cue', 'item-fit', 'scheme-sum', 'numeric-resolve', 'maths-check-secondary', 'figure-ban', 'key-leak', 'readability']);
+    expect(r.record.ran).toEqual(['tag-complete', 'blueprint-qa', 'mcq-shape', 'near-dup', 'key-cue', 'item-fit', 'scheme-sum', 'mark-consistency', 'numeric-resolve', 'maths-check-secondary', 'figure-ban', 'key-leak', 'readability']);
     expect(r.record.errors).toEqual([]);
     expect(JSON.parse(JSON.stringify(r.record))).toEqual(r.record);
   });
@@ -26,7 +26,7 @@ describe('registry run()', () => {
   test('I1 free mode lists blueprint-qa and scheme-sum as skipped (why: mode)', () => {
     const free = { unseen: { objective: { M: [mcq('a', undefined, 'A')] } } };
     const r = R.run(free, { mode: 'free', P: null, variant: null, subjectConfig: { code: 'maths' } });
-    expect(r.record.skipped).toEqual([{ id: 'blueprint-qa', why: 'mode' }, { id: 'near-dup', why: 'mode' }, { id: 'key-cue', why: 'mode' }, { id: 'item-fit', why: 'mode' }, { id: 'scheme-sum', why: 'mode' }]);
+    expect(r.record.skipped).toEqual([{ id: 'blueprint-qa', why: 'mode' }, { id: 'near-dup', why: 'mode' }, { id: 'key-cue', why: 'mode' }, { id: 'item-fit', why: 'mode' }, { id: 'scheme-sum', why: 'mode' }, { id: 'mark-consistency', why: 'mode' }]);
     expect(r.record.ran).toEqual(['tag-complete', 'mcq-shape', 'numeric-resolve', 'maths-check-secondary', 'figure-ban', 'key-leak', 'readability']);
   });
 
@@ -110,7 +110,7 @@ describe('member files', () => {
   });
 
   test('every member is registered, in contract order (registry.md §3; legacy not built yet)', () => {
-    expect(R.MEMBERS.map((m) => m.name)).toEqual(['tag-complete', 'blueprint-qa', 'mcq-shape', 'near-dup', 'key-cue', 'item-fit', 'scheme-sum', 'numeric-resolve', 'maths-check-secondary', 'figure-ban', 'key-leak', 'readability']);
+    expect(R.MEMBERS.map((m) => m.name)).toEqual(['tag-complete', 'blueprint-qa', 'mcq-shape', 'near-dup', 'key-cue', 'item-fit', 'scheme-sum', 'mark-consistency', 'numeric-resolve', 'maths-check-secondary', 'figure-ban', 'key-leak', 'readability']);
   });
 
   test('members never read the clock, network or fs (static)', () => {

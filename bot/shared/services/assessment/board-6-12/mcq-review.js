@@ -82,24 +82,30 @@ function applyFlags(checks, flags, examJson) {
 /**
  * Round 9b: after the last rewrite the review stops being hard. A live reviewer says yes on ~45% of items, rewrites
  * included, so a hard review fails every paper; its leftovers become notes (mutates checks). Other reasons stay hard.
+ * bd-5jmnfj.38.33: with `keepLeaks` a key_given_away flag stays hard, so the writer can swap that item out or restore a
+ * spare; the writer's last call omits it, and a leak that cannot be replaced ships as a paper-level note, never a throw.
  */
-function soften(checks) {
+function soften(checks, keepLeaks = false) {
   let moved = 0;
+  let kept = 0;
   checks.shortfall = checks.shortfall.filter((row) => {
-    const mine = Object.keys(row.review || {}).filter((id) => row.why && row.why[id] === 'review');
+    const reviewIds = Object.keys(row.review || {}).filter((id) => row.why && row.why[id] === 'review');
+    const leak = (id) => row.review[id].faults.includes('key_given_away');
+    const mine = reviewIds.filter((id) => !(keepLeaks === true && leak(id)));
+    kept += reviewIds.length - mine.length;
     mine.forEach((id) => {
-      checks.notes.push({ check: 'review', id, slot: row.slot, faults: row.review[id].faults, why: row.review[id].why || '' });
+      checks.notes.push({ check: 'review', id, slot: row.slot, faults: row.review[id].faults, why: row.review[id].why || '', ...(leak(id) ? { paper_level: true } : {}) });
       row.items = row.items.filter((x) => x !== id);
       if (row.item_refs) row.item_refs = row.item_refs.filter((x) => x !== id);
       delete row.why[id];
       moved += 1;
     });
-    delete row.review;
+    if (!Object.keys(row.review || {}).some((id) => row.why && row.why[id] === 'review')) delete row.review;
     return !(row.reason === 'review' && !row.items.length);
   });
   const counted = checks.record.per_check && checks.record.per_check.review;
-  checks.record.hard = Math.max(0, (checks.record.hard || 0) - (counted ? counted.hard : moved));
-  if (counted) counted.hard = 0;
+  checks.record.hard = Math.max(0, (checks.record.hard || 0) - (counted ? counted.hard : moved) + kept);
+  if (counted) counted.hard = kept;
   return checks;
 }
 

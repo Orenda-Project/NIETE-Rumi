@@ -3,7 +3,7 @@
 // items over it when the paper misses its split by more than the tolerance. Fictional papers only.
 const LQ = require('../../../bot/shared/services/assessment/board-checks/_level-quota');
 const B = require('../../../bot/shared/services/assessment/board-checks/blueprint-qa');
-const { srq, row, paper, ctxBoard } = require('./paper-builder');
+const { mcq, srq, row, paper, ctxBoard } = require('./paper-builder');
 
 const KUA = { K: 30, U: 50, A: 20 };
 const split = (o = {}) => ({ levels: KUA, tolerance_pp: 5, status: 'verified', ...o });
@@ -43,5 +43,30 @@ describe('blueprint-qa LEVEL_OVER (hard) when the split misses by more than the 
   test('within tolerance (K 33% vs 30%) -> nothing', () => {
     const r = B.run(mk(['K', 'K', 'U', 'U', 'U', 'A']), ctx(split()));
     expect(over(r)).toEqual([]);
+  });
+});
+
+// bd-5jmnfj.38.33 (.38.32): a K excess that sits in stimulus MCQs must be capped too (the group itself is not rewritable,
+// its members are). Fictional papers only.
+describe('LEVEL_OVER reaches the members of stimulus groups', () => {
+  const lvl = (b) => ({ chapter: 1, section: null, code: 'g11.x.ch2.lo1', page: 1, official_slo: null, blooms: b, difficulty: 'easy' });
+  const kid = (id, b) => mcq(id, 'A.Q2', 'A', null, { tag: lvl(b), marks: 1 });
+  const group = (id, bs) => ({ id, slot: 'A.Q2', type: 'scenario', stimulus: { id, kind: 'passage', text: 'A made-up passage.', items: bs.map((b, i) => kid(`${id}k${i}`, b)) } });
+  const mk = (a, b) => paper({
+    sections: [{ id: 'A', marks: 8, slots: [row('A.Q2', { type: 'scenario', attempt: 8, printed: 8, generate: 8, marks_each: 1 })] }],
+    items: [group('g1', a), group('g2', b)],
+  });
+  const ctx = ctxBoard({ variant: { scheme_style: 'analytic_points', sections: [], cognitive_split: split() } });
+
+  test('8 K stimulus MCQs at K30/U50/A20 -> quota K 2 of 8 (rounded 2.4), the last 6 are hard on their member refs (the writer drops the group and the rewrite is steered)', () => {
+    const r = B.run(mk(['K', 'K', 'K', 'K'], ['K', 'K', 'K', 'K']), ctx);
+    const over = r.issues.filter((i) => i.rule === 'LEVEL_OVER');
+    expect(over.map((i) => i.item_ref)).toEqual(['A.Q2#1@s3', 'A.Q2#1@s4', 'A.Q2#2@s1', 'A.Q2#2@s2', 'A.Q2#2@s3', 'A.Q2#2@s4']);
+    expect(over.every((i) => i.hard === true && i.slot === 'A.Q2')).toBe(true);
+    expect(r.ok).toBe(false);
+  });
+  test('stimulus members on target -> nothing', () => {
+    const r = B.run(mk(['K', 'U', 'U', 'A'], ['K', 'U', 'U', 'A']), ctx);
+    expect(r.issues.filter((i) => i.rule === 'LEVEL_OVER')).toEqual([]);
   });
 });
