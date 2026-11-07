@@ -10,6 +10,8 @@
  * query() is injected (sig: (sql, params) => Promise<{rows}>) → unit-testable.
  */
 
+// bd-33wxxi.1 — every principal check reads the role through one helper.
+const { isPrincipalRole } = require('../lib/leader-role');
 const { getOverall } = require('./coaching-frameworks.service');
 // bd-2671's TERMINAL, imported rather than respelled. A leader observation never
 // reaches status='completed' — the coach submits her review and observer_review_complete
@@ -60,8 +62,7 @@ const PRINCIPAL_MEMBERSHIP_SQL = `
 
 /** Which membership proof applies, given the viewer's role. */
 function membershipSqlFor(role) {
-  const r = role == null ? null : String(role).trim().toLowerCase();
-  return r === 'principal' ? PRINCIPAL_MEMBERSHIP_SQL : MEMBERSHIP_SQL;
+  return isPrincipalRole(role) ? PRINCIPAL_MEMBERSHIP_SQL : MEMBERSHIP_SQL;
 }
 
 const SESSIONS_SQL = `
