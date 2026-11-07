@@ -2436,30 +2436,9 @@ function storyNote(section, examJson, shortfall) {
     : `Q1 keeps ${n} story items: at most ${STORY_ITEMS - n} new Q1 items may ask a fact of the story; write the others ${rest}.`;
 }
 
-/**
- * applyLayout(examJson, P, scope, { now }) → { examJson, placed, unplaced, shortfall }
- *
- * P is one subject of a pattern (patterns.get(id).subjects[key]); scope is
- * { kind: 'fde' | 'chapters' | 'pages', chapters, pages }. `opts.reasked` is true once the
- * engine's one re-ask has run (a held item may then fill a place nothing else takes). Social
- * Studies also gets `held`: every item the last pass set aside, { slot, rule, printed, q },
- * `printed` when it was put back.
- * Never throws.
- */
-function applyLayout(examJson, P, scope, opts = {}) {
-  const src = examJson && typeof examJson === 'object' ? clone(examJson) : {};
-  const slots = P.sections.flatMap((sec) => sec.slots);
-  const byId = new Map(slots.map((slot) => [slotKey(slot.slot), slot]));
-  const bySlot = new Map(slots.map((slot) => [slot.slot, []]));
-  const room = (slot) => bySlot.get(slot.slot).length < slot.generate;
-  let unplaced = 0;
-  let putBack = [];
-  let held = [];
-  // Urdu: how many items each rule set aside in the last pass, by slot (`_layout.holds`).
-  let tally = new Map();
-  // Urdu on chosen lessons: Q1 asks only those lessons' own grammar.
-  const lessons = P.key === 'urdu' ? scopeLessons(P, scope) : null;
-
+// Reads each item's tags off it (they never print): the concept and source Urdu declares, the
+// options a stem wrote out, and the words and names a later rule reads.
+function readItems(src, P, lessons) {
   const all = walk(src);
   // Urdu: the concept Section A declares for a Q1 item is read here and taken off the item, so it
   // never prints; it is checked on chosen lessons only.
@@ -2482,21 +2461,103 @@ function applyLayout(examJson, P, scope, opts = {}) {
       delete entry.q.source;
     } else if (storyIds.size && typeof entry.q.question === 'string' && storyIds.has(storyId(entry.q))) sources.set(entry.q, 'story');
   });
-  const storyCount = (list) => list.filter((p) => sources.get(p) === 'story').length;
   // Urdu Q1: the items whose key of several words another Q1 item names as a person (nameInKey).
   const q1Items = P.key === 'urdu' ? all.map((e) => e.q).filter((q) => slotKey(q.slot) === slotKey('urdu.A.Q1')) : [];
   const nameGiven = new Set(q1Items.filter((q) => q1Items.some((b) => b !== q && nameInKey(q, b))));
   // Urdu: the words the reply's first Q3 asks the meaning of (a Q5 never asks them again).
   const q3 = P.key === 'urdu' ? all.find((e) => slotKey(e.q.slot) === slotKey('urdu.C.Q3') && Array.isArray(e.q.words)) : null;
   const q3Words = q3 ? q3.q.words.filter((w) => typeof w === 'string') : [];
-  // The antonym and synonym rows hold a reply to the prompt that gives Q1 its grammar count, one that
-  // declares its concepts; a reply written before it was never asked to keep them once. A paper
-  // laid out again from a counted one (`_layout.counted`) stays counted: its placed items have lost
-  // their tags, and an item a top-up writes without one is still read by its stem.
-  const counted = declared.size || (src._layout && src._layout.counted === true) ? lessons : null;
-  // The lessons a concept is read against: the counted ones, or on the full syllabus all of them (it
-  // teaches the antonym and the synonym, lessons 4–5), so a concept is asked once on every scope.
-  const conceptLessons = counted || (P.key === 'urdu' && !lessons ? P.lessons : null);
+  return { all, declared, story, sources, nameGiven, q3Words };
+}
+
+// Marks, lines and the `_layout` block of a laid-out paper, from what `applyLayout` placed.
+function finishLayout(src, P, scope, opts, laid) {
+  const { slots, bySlot, unplaced, counted, story, sources, storyCount, tally, putBack, held, repeated } = laid;
+  // Marks, lines and the canonical tag come from the pattern, never the model.
+  const unseen = {};
+  const usedKeys = new Set();
+  const shortfall = [];
+  // Social Studies after the re-ask: a choice slot that prints fewer than it offers but still
+  // leaves the child a choice (at least what the child answers, plus one) is not short; it is
+  // recorded. Below that it is short, as a compulsory slot is.
+  const shortChoice = [];
+  const choiceFloor = (slot) => (P.key === 'social_studies' && opts.reasked && slot.compulsory === false ? Math.min(slot.generate, slot.attempt + 1) : slot.generate);
+  let placed = 0;
+  for (const slot of slots) {
+    const list = bySlot.get(slot.slot);
+    list.forEach((q) => {
+      q.slot = slot.slot;
+      q.marks = slot.marks_each;
+      q.lines = slot.lines;
+      if (Array.isArray(slot.parts_spec) && Array.isArray(q.parts)) {
+        q.parts.forEach((part) => {
+          const spec = part && slot.parts_spec.find((s) => s.key === part.key);
+          if (spec && Array.isArray(part.questions)) {
+            part.questions.forEach((sub) => { if (sub && typeof sub === 'object') sub.marks = spec.marks_each; });
+          }
+        });
+      }
+    });
+    placed += list.length;
+    if (list.length < choiceFloor(slot)) shortfall.push({ slot: slot.slot, missing: choiceFloor(slot) - list.length });
+    else if (list.length < slot.generate) shortChoice.push({ slot: slot.slot, printed: list.length, generate: slot.generate });
+    let key = slot.type;
+    for (let n = 2; usedKeys.has(key); n += 1) key = `${slot.type} (${n})`;
+    usedKeys.add(key);
+    if (!unseen[slot.category]) unseen[slot.category] = {};
+    unseen[slot.category][key] = list;
+  }
+
+  const out = {};
+  for (const [k, v] of Object.entries(src)) if (k !== 'seen' && k !== 'unseen' && k !== '_layout') out[k] = v;
+  out.unseen = unseen;
+  out._layout = {
+    v: 2,
+    preset_id: opts.presetId || 'fde_g5_2027',
+    subject: P.key,
+    medium: P.medium,
+    scope: scopeBlock(P, scope),
+    header: clone(P.header),
+    sections: withFramePages(clone(P.sections), bySlot),
+    legend: clone(P.legend),
+    before_exam: clone(P.before_exam),
+    supplies: suppliesFor(P, bySlot),
+    total_marks: P.total_marks,
+    total_time_en: P.total_time_en,
+    total_time_ur: P.total_time_ur,
+    unplaced,
+    generated_at: opts.now || new Date().toISOString(),
+    pages: null,
+    frame_pages: null,
+    notes: [],
+  };
+  // `held` and `repeated` are Social Studies' only (the engine reads `held` for Section D, and logs both). `putBack` (Urdu: the
+  // held items that came back, with their rule) only when there are some. Any other subject gets `held` only for Q1 items
+  // held for a grammar concept the chosen lessons do not teach, and only when there are some.
+  if (shortChoice.length) out._layout.short_choice = shortChoice;
+  // Urdu: the holds by slot and rule, counts only. A paper laid out again from a laid paper (its held
+  // items already gone) keeps the larger count the earlier layout recorded.
+  if (P.key === 'urdu') {
+    if (counted) out._layout.counted = true;
+    // On one story: how many printed Q1 items ask a fact of the story (a top-up is told what is left). A
+    // paper laid out again from a laid one (its sources already gone) keeps the count it had.
+    const told = sources.size ? storyCount(bySlot.get('urdu.A.Q1') || []) : src._layout && src._layout.story_items;
+    if (story && Number.isInteger(told)) out._layout.story_items = told;
+    if (story && sources.size) out._layout.story_ids = (bySlot.get('urdu.A.Q1') || []).filter((p) => sources.get(p) === 'story').map(storyId);
+    const before = src._layout && Array.isArray(src._layout.holds) ? src._layout.holds : [];
+    const counts = new Map(before.map((h) => [`${h.slot}|${h.rule}`, h.n]));
+    tally.forEach((n, k) => counts.set(k, Math.max(n, counts.get(k) || 0)));
+    if (counts.size) out._layout.holds = [...counts].map(([k, n]) => { const [slot, rule] = k.split('|'); return { slot, rule, n }; });
+  }
+  const base = { examJson: out, placed, unplaced, shortfall, ...(putBack.length ? { putBack } : {}) };
+  if (P.key === 'social_studies') return { ...base, held, shortChoice, repeated };
+  const outside = held.filter((h) => h.rule === 'grammar_outside_lessons');
+  return outside.length ? { ...base, held: outside } : base;
+}
+
+// The tests that find two items asking the same thing, for one subject on one scope. `twinRule` names
+// the Social Studies test that matched; `sentences` is the book the passage test reads.
+function twinTests(P, declared, conceptLessons, book) {
   // `id`, the slot both items are placed in: Urdu Q1 items also give each other away by a story
   // name, and ask a grammar concept once.
   // A concept asked again is a twin. `hard`: only a twin that may never print; an antonym or a synonym
@@ -2523,10 +2584,50 @@ function applyLayout(examJson, P, scope, opts = {}) {
     return hard ? shared.some((c) => !LESSON_ONLY.has(c)) : shared.length > 0;
   };
   // Social Studies: the book's sentences, when the engine passes its pages.
-  const sentences = P.key === 'social_studies' ? bookSentences(opts.book) : null;
+  const sentences = P.key === 'social_studies' ? bookSentences(book) : null;
   const twin = (p, q, id, hard = false) => sameQuestion(p, q) || (P.key === 'social_studies' && (sameKeyFact(p, q) || sameTask(p, q) || sameLine(p, q) || samePassage(p, q, sentences)))
     || (P.key === 'urdu' && (sameStemKey(p, q) || stemGivesKey(p, q) || (id === 'urdu.C.Q4' && sameQ4Kind(p, q))
       || (id === 'urdu.A.Q1' && (storyCue(p, q) || nameCue(p, q) || conceptTwin(p, q, hard)))));
+  const twinRule = (p, q) => (sameQuestion(p, q) ? 'same_question' : sameKeyFact(p, q) ? 'same_key_fact' : sameTask(p, q) ? 'same_task'
+    : sameLine(p, q) ? 'same_line' : 'same_passage');
+  return { conceptTwin, sentences, twin, twinRule };
+}
+
+/**
+ * applyLayout(examJson, P, scope, { now }) → { examJson, placed, unplaced, shortfall }
+ *
+ * P is one subject of a pattern (patterns.get(id).subjects[key]); scope is
+ * { kind: 'fde' | 'chapters' | 'pages', chapters, pages }. `opts.reasked` is true once the
+ * engine's one re-ask has run (a held item may then fill a place nothing else takes). Social
+ * Studies also gets `held`: every item the last pass set aside, { slot, rule, printed, q },
+ * `printed` when it was put back.
+ * Never throws.
+ */
+function applyLayout(examJson, P, scope, opts = {}) {
+  const src = examJson && typeof examJson === 'object' ? clone(examJson) : {};
+  const slots = P.sections.flatMap((sec) => sec.slots);
+  const byId = new Map(slots.map((slot) => [slotKey(slot.slot), slot]));
+  const bySlot = new Map(slots.map((slot) => [slot.slot, []]));
+  const room = (slot) => bySlot.get(slot.slot).length < slot.generate;
+  let unplaced = 0;
+  let putBack = [];
+  let held = [];
+  // Urdu: how many items each rule set aside in the last pass, by slot (`_layout.holds`).
+  let tally = new Map();
+  // Urdu on chosen lessons: Q1 asks only those lessons' own grammar.
+  const lessons = P.key === 'urdu' ? scopeLessons(P, scope) : null;
+
+  const { all, declared, story, sources, nameGiven, q3Words } = readItems(src, P, lessons);
+  const storyCount = (list) => list.filter((p) => sources.get(p) === 'story').length;
+  // The antonym and synonym rows hold a reply to the prompt that gives Q1 its grammar count, one that
+  // declares its concepts; a reply written before it was never asked to keep them once. A paper
+  // laid out again from a counted one (`_layout.counted`) stays counted: its placed items have lost
+  // their tags, and an item a top-up writes without one is still read by its stem.
+  const counted = declared.size || (src._layout && src._layout.counted === true) ? lessons : null;
+  // The lessons a concept is read against: the counted ones, or on the full syllabus all of them (it
+  // teaches the antonym and the synonym, lessons 4–5), so a concept is asked once on every scope.
+  const conceptLessons = counted || (P.key === 'urdu' && !lessons ? P.lessons : null);
+  const { conceptTwin, sentences, twin, twinRule } = twinTests(P, declared, conceptLessons, opts.book);
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
   // `within`: Social Studies, a D item answered by another item's points ([{ slot, rule, name, inSlot }],
   // SAME_POINTS); an in-slot row reads the items already placed in its slot.
@@ -2535,8 +2636,6 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // Urdu: the Q5 items the last pass held only for a Q3 word: they may come back after the re-ask, so
   // Section A is read against their words too.
   let mayReturn = [];
-  const twinRule = (p, q) => (sameQuestion(p, q) ? 'same_question' : sameKeyFact(p, q) ? 'same_key_fact' : sameTask(p, q) ? 'same_task'
-    : sameLine(p, q) ? 'same_line' : 'same_passage');
   // `back`: Social Studies, the Q1 items a placed C/D stem gives away (givenBack), with the test that matched.
   const place = (cross, within, back = null) => {
     bySlot.forEach((list) => { list.length = 0; });
@@ -2752,86 +2851,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
   }
   spreadKeys(slots, bySlot);
 
-  // Marks, lines and the canonical tag come from the pattern, never the model.
-  const unseen = {};
-  const usedKeys = new Set();
-  const shortfall = [];
-  // Social Studies after the re-ask: a choice slot that prints fewer than it offers but still
-  // leaves the child a choice (at least what the child answers, plus one) is not short; it is
-  // recorded. Below that it is short, as a compulsory slot is.
-  const shortChoice = [];
-  const choiceFloor = (slot) => (P.key === 'social_studies' && opts.reasked && slot.compulsory === false ? Math.min(slot.generate, slot.attempt + 1) : slot.generate);
-  let placed = 0;
-  for (const slot of slots) {
-    const list = bySlot.get(slot.slot);
-    list.forEach((q) => {
-      q.slot = slot.slot;
-      q.marks = slot.marks_each;
-      q.lines = slot.lines;
-      if (Array.isArray(slot.parts_spec) && Array.isArray(q.parts)) {
-        q.parts.forEach((part) => {
-          const spec = part && slot.parts_spec.find((s) => s.key === part.key);
-          if (spec && Array.isArray(part.questions)) {
-            part.questions.forEach((sub) => { if (sub && typeof sub === 'object') sub.marks = spec.marks_each; });
-          }
-        });
-      }
-    });
-    placed += list.length;
-    if (list.length < choiceFloor(slot)) shortfall.push({ slot: slot.slot, missing: choiceFloor(slot) - list.length });
-    else if (list.length < slot.generate) shortChoice.push({ slot: slot.slot, printed: list.length, generate: slot.generate });
-    let key = slot.type;
-    for (let n = 2; usedKeys.has(key); n += 1) key = `${slot.type} (${n})`;
-    usedKeys.add(key);
-    if (!unseen[slot.category]) unseen[slot.category] = {};
-    unseen[slot.category][key] = list;
-  }
-
-  const out = {};
-  for (const [k, v] of Object.entries(src)) if (k !== 'seen' && k !== 'unseen' && k !== '_layout') out[k] = v;
-  out.unseen = unseen;
-  out._layout = {
-    v: 2,
-    preset_id: opts.presetId || 'fde_g5_2027',
-    subject: P.key,
-    medium: P.medium,
-    scope: scopeBlock(P, scope),
-    header: clone(P.header),
-    sections: withFramePages(clone(P.sections), bySlot),
-    legend: clone(P.legend),
-    before_exam: clone(P.before_exam),
-    supplies: suppliesFor(P, bySlot),
-    total_marks: P.total_marks,
-    total_time_en: P.total_time_en,
-    total_time_ur: P.total_time_ur,
-    unplaced,
-    generated_at: opts.now || new Date().toISOString(),
-    pages: null,
-    frame_pages: null,
-    notes: [],
-  };
-  // `held` and `repeated` are Social Studies' only (the engine reads `held` for Section D, and logs both). `putBack` (Urdu: the
-  // held items that came back, with their rule) only when there are some. Any other subject gets `held` only for Q1 items
-  // held for a grammar concept the chosen lessons do not teach, and only when there are some.
-  if (shortChoice.length) out._layout.short_choice = shortChoice;
-  // Urdu: the holds by slot and rule, counts only. A paper laid out again from a laid paper (its held
-  // items already gone) keeps the larger count the earlier layout recorded.
-  if (P.key === 'urdu') {
-    if (counted) out._layout.counted = true;
-    // On one story: how many printed Q1 items ask a fact of the story (a top-up is told what is left). A
-    // paper laid out again from a laid one (its sources already gone) keeps the count it had.
-    const told = sources.size ? storyCount(bySlot.get('urdu.A.Q1') || []) : src._layout && src._layout.story_items;
-    if (story && Number.isInteger(told)) out._layout.story_items = told;
-    if (story && sources.size) out._layout.story_ids = (bySlot.get('urdu.A.Q1') || []).filter((p) => sources.get(p) === 'story').map(storyId);
-    const before = src._layout && Array.isArray(src._layout.holds) ? src._layout.holds : [];
-    const counts = new Map(before.map((h) => [`${h.slot}|${h.rule}`, h.n]));
-    tally.forEach((n, k) => counts.set(k, Math.max(n, counts.get(k) || 0)));
-    if (counts.size) out._layout.holds = [...counts].map(([k, n]) => { const [slot, rule] = k.split('|'); return { slot, rule, n }; });
-  }
-  const base = { examJson: out, placed, unplaced, shortfall, ...(putBack.length ? { putBack } : {}) };
-  if (P.key === 'social_studies') return { ...base, held, shortChoice, repeated };
-  const outside = held.filter((h) => h.rule === 'grammar_outside_lessons');
-  return outside.length ? { ...base, held: outside } : base;
+  return finishLayout(src, P, scope, opts, { slots, bySlot, unplaced, counted, story, sources, storyCount, tally, putBack, held, repeated });
 }
 
 module.exports = {
