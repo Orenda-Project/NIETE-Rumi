@@ -1,0 +1,3 @@
+{"ts":"2026-11-07T06:45:24Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"65bc267c2ba5","branch":"HEAD","user":""}
+{"ts":"2026-11-07T06:45:25Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"65bc267c2ba5","branch":"HEAD","user":""}
+{"ts":"2026-11-07T06:45:53Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-hz6ez.8-32655: training spec: NOT UPDATED e2e: missing","sha":"65bc267c2ba5","branch":"bd-hz6ez.8-32655","user":""}
