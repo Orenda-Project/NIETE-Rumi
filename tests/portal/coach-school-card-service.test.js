@@ -1381,7 +1381,15 @@ describe('getPrincipalSchoolCard — a principal on the principal app sees her o
     expect(mine.levels).toEqual(coach.levels);
     // the principal herself is never one of the teachers (bd-17v39c.4.15), and the test account is out
     expect(mine.teachers.map((t) => t.teacherExtId).sort()).toEqual([PHONE.t1, PHONE.t2].sort());
-    expect(mine.teachers).toEqual(coach.teachers);
+    expect(mine.teachers.map(({ id, ...row }) => row)).toEqual(coach.teachers);
+  });
+
+  test('bd-33wxxi.3 — each teacher row carries her users.id (a row opens her Analytics page); the coach card has none', async () => {
+    const coach = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    const mine = await Card.getPrincipalSchoolCard(db, 'up', opts());
+    const byExt = Object.fromEntries(mine.teachers.map((t) => [t.teacherExtId, t.id]));
+    expect(byExt).toEqual({ [PHONE.t1]: 'u1', [PHONE.t2]: 'u2' });
+    expect(coach.teachers.every((t) => !('id' in t))).toBe(true);
   });
 
   test('Q1: the DC and coach boxes carry counts and makers only — no average, no score, no series', async () => {
@@ -1411,7 +1419,7 @@ describe('getPrincipalSchoolCard — a principal on the principal app sees her o
     const coach = await Card.getSchoolCard(db, 'coach-1', '901', { ...opts(), level: 'primary' });
     const mine = await Card.getPrincipalSchoolCard(db, 'up', { ...opts(), level: 'primary' });
     expect(mine.level).toBe(coach.level);
-    expect(mine.teachers).toEqual(coach.teachers);
+    expect(mine.teachers.map(({ id, ...row }) => row)).toEqual(coach.teachers);
   });
 
   test('a TEST principal (the operator\'s own test school) also sees the test accounts at her school; a real one never', async () => {
