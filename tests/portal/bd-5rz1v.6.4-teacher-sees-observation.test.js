@@ -315,3 +315,33 @@ describe('GET /coaching-sessions/active and /coaching-session/:id/progress', () 
     expect((await invoke('get', '/coaching-session/:id', { params: { id: 'obs-sent-open' } })).statusCode).toBe(200);
   });
 });
+
+/**
+ * bd-ewbzns.4.2 (queue #54, sandbox walk 7 Nov) — portal_self_observation is the switch for recording HER OWN lessons in
+ * the portal. On sandbox it is a list without the test teacher: her Observations list showed the coach's delivered
+ * report, and opening it said "DC observation not found", because the report page's progress read sat behind that
+ * switch. A coach's report sent to her is hers whatever that switch says; her own lessons stay behind it.
+ */
+describe('a coach\'s report opens for a teacher without the self-observation switch', () => {
+  beforeEach(() => { tableRows.app_settings = [{ key: 'portal_self_observation', value: ['someone-else'] }]; });
+
+  it.each(['obs-sent', 'obs-tap'])('progress of an observation SENT to her (%s) is done', async (id) => {
+    const p = await invoke('get', '/coaching-session/:id/progress', { params: { id } });
+    expect(p.statusCode).toBe(200);
+    expect(p.payload.stage).toBe('done');
+    expect((await invoke('get', '/coaching-session/:id', { params: { id } })).statusCode).toBe(200);
+  });
+
+  it('an observation not yet sent to her is still not found', async () => {
+    expect((await invoke('get', '/coaching-session/:id/progress', { params: { id: 'obs-reviewed' } })).statusCode).toBe(404);
+  });
+
+  it('her own lesson\'s progress stays behind the switch: not found while she is off it', async () => {
+    expect((await invoke('get', '/coaching-session/:id/progress', { params: { id: 'own-1' } })).statusCode).toBe(404);
+  });
+
+  it('…and answered once she is on it', async () => {
+    tableRows.app_settings = [{ key: 'portal_self_observation', value: ['teacher-1'] }];
+    expect((await invoke('get', '/coaching-session/:id/progress', { params: { id: 'own-1' } })).statusCode).toBe(200);
+  });
+});
