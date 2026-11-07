@@ -84,6 +84,13 @@ const Note = ({ children, tone = "grey" }: { children: React.ReactNode; tone?: "
     className={cn("rounded-2xl px-4 py-4 text-[16px] font-semibold", tone === "amber" ? "bg-[#fef3c7] text-[#b45309]" : cn(LIST_CARD, "text-center text-[#6b7280]"))}>{children}</p>
 );
 
+/**
+ * bd-ewbzns.4.5 — writing the guide can outrun the portal→bot request (sandbox, 7 Nov: the Urdu guide took 31.5 s and
+ * the ask came back 502 at 30.7 s), yet the bot finishes and keeps it on the observation. So a 5xx is asked again after
+ * these waits — the kept guide comes back at once — and only after the last does the page say it did not load.
+ */
+export const GUIDE_RETRY_MS = [15_000, 30_000] as const;
+
 export default function Debrief() {
   const C = useCopy(REPORTS);
   const { id = "" } = useParams();
@@ -101,6 +108,10 @@ export default function Debrief() {
   const [pending, setPending] = useState<Pending | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const asked = useRef(false);
+  // bd-ewbzns.4.5 — the guide's ask outlives a re-render of the view; only leaving the page stops it.
+  const mounted = useRef(true);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => { mounted.current = false; if (retryTimer.current) clearTimeout(retryTimer.current); }, []);
 
   const name = teacherNameOf(view);
   const first = firstNameOf(name);
@@ -115,9 +126,22 @@ export default function Debrief() {
     if (view.talk.guide) { asked.current = true; setGuide(view.talk.guide); setGuideState("ready"); return; }
     if (!hers) { asked.current = true; setGuideState("ready"); return; }
     asked.current = true;
-    leader.getTalkGuide(id)
-      .then((r) => { setGuide(r.guide || null); setGuideState("ready"); })
-      .catch((err) => setGuideState((err as { response?: { status?: number } })?.response?.status === 409 ? "not_ready" : "failed"));
+    const ask = (attempt: number) => {
+      leader.getTalkGuide(id)
+        .then((r) => { if (mounted.current) { setGuide(r.guide || null); setGuideState("ready"); } })
+        .catch((err) => {
+          if (!mounted.current) return;
+          const code = (err as { response?: { status?: number } })?.response?.status;
+          if (code === 409) { setGuideState("not_ready"); return; }
+          // A 5xx or no answer: the guide may still be being written; ask again before saying it did not load.
+          if ((code === undefined || code >= 500) && attempt < GUIDE_RETRY_MS.length) {
+            retryTimer.current = setTimeout(() => ask(attempt + 1), GUIDE_RETRY_MS[attempt]);
+            return;
+          }
+          setGuideState("failed");
+        });
+    };
+    ask(0);
   }, [view, hers, id]);
 
   const send = async (audio: Pending) => {
