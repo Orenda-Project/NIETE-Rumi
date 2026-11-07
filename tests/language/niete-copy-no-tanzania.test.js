@@ -49,7 +49,9 @@ describe.each(['en', 'ur'])('observeStrings(%s) — no Tanzania leftovers', (lan
   const entries = walk(observeStrings(lang));
 
   test('the walk reads real entries', () => {
-    expect(entries.length).toBeGreaterThan(200);
+    // A floor, not a count: the tiers carry different feature sets (staging 177
+    // strings, sandbox 193 on 7 Nov), and the guard must hold on every one.
+    expect(entries.length).toBeGreaterThan(100);
   });
 
   test.each(TANZANIA_MARKERS)('no value carries %s', (_label, re) => {
