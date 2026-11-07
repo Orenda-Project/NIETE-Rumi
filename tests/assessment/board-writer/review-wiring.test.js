@@ -91,4 +91,14 @@ describe('per-section MCQ review in the board writer', () => {
     expect(calls.some((c) => /REWRITE/.test(c.user))).toBe(true);
     expect(res.examJson._meta.checks.notes.filter((x) => x.check === 'review')).toHaveLength(1);
   });
+  test('bd-5jmnfj.38.33: a key_given_away flag that persists with no replacement left ships the paper with a paper-level note, not PATTERN_SHORT_SLOT', async () => {
+    const every = (k, n) => ({ items: Array.from({ length: n }, (_, i) => ({ n: i + 1, key_given_away: true, why: 'stem says the key' })) });
+    const { res } = await run(() => undefined, true, every);
+    const rec = res.examJson._meta.checks;
+    expect(rec.record.hard).toBe(0);
+    const notes = rec.notes.filter((n) => n.check === 'review' && n.faults.includes('key_given_away'));
+    expect(notes.length).toBeGreaterThan(0);
+    expect(notes.every((n) => n.paper_level === true)).toBe(true);
+    expect(leavesOf(res.examJson).filter((l) => l.slot === 'A.Q1')).toHaveLength(4);
+  });
 });

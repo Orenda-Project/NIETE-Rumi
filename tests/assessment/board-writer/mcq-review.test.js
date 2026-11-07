@@ -133,15 +133,35 @@ describe('round 9b: review by text once, and leftovers are soft after the last r
     const checks = { shortfall: [{ slot: 'A.Q1', reason: 'D17', items: ['A.Q1#3'], item_refs: ['A.Q1#3'], hard: true, why: { 'A.Q1#3': 'D17' } }], notes: [], record: { hard: 1, per_check: {} } };
     MR.applyFlags(checks, f, ex);
     expect(checks.record.hard).toBe(3);
-    MR.soften(checks, f);
+    MR.soften(checks);
     expect(checks.shortfall).toEqual([{ slot: 'A.Q1', reason: 'D17', items: ['A.Q1#3'], item_refs: ['A.Q1#3'], hard: true, why: { 'A.Q1#3': 'D17' } }]);
     expect(checks.record.hard).toBe(1);
     expect(checks.record.per_check.review).toEqual({ issues: 2, hard: 0 });
     expect(checks.notes).toContainEqual(expect.objectContaining({ check: 'review', id: 'A.Q1#1', faults: ['implausible_distractor'], why: 'silly option' }));
     const solo = { shortfall: [], notes: [], record: { hard: 0, per_check: {} } };
     MR.applyFlags(solo, f.slice(0, 1), two());
-    MR.soften(solo, f);
+    MR.soften(solo);
     expect(solo.shortfall).toEqual([]);
     expect(solo.record.hard).toBe(0);
+  });
+});
+
+describe('bd-5jmnfj.38.33 (A5b): a key given away stays hard after the last rewrite', () => {
+  test('soften keeps an item flagged key_given_away as a hard issue; other review faults still soften', () => {
+    const ex = two();
+    const f = MR.flagsFrom({ items: [{ n: 1, key_given_away: true, why: 'passage says lower shell' }, { n: 2, implausible_distractor: true }] }, MR.sectionsOf(ex)[0]);
+    const checks = { shortfall: [], notes: [], record: { hard: 0, per_check: {} } };
+    MR.applyFlags(checks, f, ex);
+    MR.soften(checks, { hold: true });
+    expect(checks.shortfall).toHaveLength(1);
+    expect(checks.shortfall[0].items).toEqual(['A.Q1#1']);
+    expect(checks.shortfall[0].why).toEqual({ 'A.Q1#1': 'review' });
+    expect(checks.record.hard).toBe(1);
+    expect(checks.notes).toContainEqual(expect.objectContaining({ check: 'review', id: 'A.Q1#2' }));
+    expect(checks.notes.some((n) => n.id === 'A.Q1#1')).toBe(false);
+    MR.soften(checks);
+    expect(checks.shortfall).toEqual([]);
+    expect(checks.record.hard).toBe(0);
+    expect(checks.notes).toContainEqual(expect.objectContaining({ id: 'A.Q1#1', paper_level: true }));
   });
 });

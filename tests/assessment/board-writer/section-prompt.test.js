@@ -148,3 +148,13 @@ describe('checkFaults (round 10)', () => {
       .toEqual(['"Old?": the key stood out (longest option, or always/never)']);
   });
 });
+
+describe('checkFaults: D22 method marks (Amena, 7 Nov 2026)', () => {
+  test('a D22 drop tells the rewrite to list method/working marks apart from the final-answer mark', () => {
+    const [line] = SP.checkFaults([{ question: 'Find v.', check: 'D22' }]);
+    expect(line).toMatch(/^"Find v\.": /);
+    expect(line).toMatch(/only a final-answer mark/);
+    expect(line).toMatch(/formula, substitution, working/);
+    expect(line).toMatch(/value with unit/);
+  });
+});

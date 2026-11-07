@@ -113,7 +113,10 @@ function rewriteNote(rows, stems = [], used = [], phrases = [], figure = false, 
 }
 
 // round 10: deterministic checks whose drop the rewrite should be told about, as a reviewer fault would be
-const CHECK_FAULTS = { D18: 'the key stood out (longest option, or always/never)' };
+const CHECK_FAULTS = {
+  D18: 'the key stood out (longest option, or always/never)',
+  D22: 'its scheme had only a final-answer mark; list method/working step marks (formula, substitution, working) apart from the final-answer mark (value with unit)',
+};
 const checkFaults = (gone) => gone.filter((x) => CHECK_FAULTS[x.check]).map((x) => `"${x.question}": ${CHECK_FAULTS[x.check]}`);
 
 module.exports = { levelPart, earlierStems, levelTally, promptValues, userPrompt, topUpNote, chunkNote, rewriteNote, checkFaults };
