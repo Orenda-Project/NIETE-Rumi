@@ -21,7 +21,7 @@ import ReportsFrame from "./ReportsFrame";
 import { InsightRow } from "./InsightRow";
 import { RubricGuide } from "./RubricGuide";
 import { REPORTS } from "./copy";
-import { observationPath } from "./paths";
+import { OBSERVATION_STEPS, SCREEN_STEP, observationPath } from "./paths";
 import { firstNameOf, teacherNameOf, useObservationView } from "./useObservationView";
 import { useBack } from "../../lib/useBack";
 
@@ -152,7 +152,7 @@ export default function Debrief() {
   const canRetry = view?.problem === "failed" || view?.problem === "feedback_failed";
 
   return (
-    <ReportsFrame title={C.debriefTitle} crumb={name ? C.stepCrumb(name, 3, 5) : C.observation} onBack={recording ? undefined : back}
+    <ReportsFrame title={C.debriefTitle} crumb={name ? C.stepCrumb(name, SCREEN_STEP.debrief, OBSERVATION_STEPS) : C.observation} onBack={recording ? undefined : back}
       chips={recording ? undefined : chips} bare={recording} backTo={recording ? home : undefined} testId="coach-debrief">
       <LoadState status={status === "ok" ? "ok" : status} empty={false} onRetry={reload} />
 

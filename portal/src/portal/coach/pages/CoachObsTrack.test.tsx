@@ -101,7 +101,7 @@ const stepsRegion = () => within(screen.getByRole("region", { name: "Steps" }));
 const stepLabels = () => stepsRegion().getAllByRole("listitem").map((li) => li.querySelector("span.text-\\[16px\\]")?.textContent);
 
 describe("2 — the observation page (v24 ObsTrack, on the kit)", () => {
-  it("header with the school and the TimeStamp, the score ring, play, and the five steps by their names", async () => {
+  it("header with the school and the TimeStamp, the score ring, play, and the four steps by their names (bd-ewbzns.4.1)", async () => {
     renderAt("/portal/coach/observation/cs-1");
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Ayesha Bibi");
     expect(screen.getByText("IMSG I-10/1")).toBeInTheDocument();
@@ -110,7 +110,7 @@ describe("2 — the observation page (v24 ObsTrack, on the kit)", () => {
     expect(screen.getByText("Before your check")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
     await waitFor(() => expect(stepLabels()).toEqual(
-      ["Observation analysed", "Feedback Form", "Debrief", "Your feedback", "Send Ayesha the report"]));
+      ["Observation analysed", "Feedback Form", "Debrief", "Send Ayesha the report"]));
   });
 
   it("in progress at the Feedback Form: that step is 'Your turn' and the dock opens the v2 Feedback Form", async () => {
@@ -125,7 +125,8 @@ describe("2 — the observation page (v24 ObsTrack, on the kit)", () => {
 
   it.each([
     ["talk", "Debrief", "/portal/coach/observation/cs-1/debrief"],
-    ["feedback", "Your feedback", "/portal/coach/observation/cs-1/feedback"],
+    // bd-ewbzns.4.1: her feedback sits inside Debrief — once it is ready, Send is hers.
+    ["feedback", "Send Ayesha the report", "/portal/coach/observation/cs-1/send"],
     ["report", "Send Ayesha the report", "/portal/coach/observation/cs-1/send"],
   ])("at %s: that step is hers, and the dock opens its v2 screen (never the old /leader/observe pages)", async (step, label, href) => {
     C.getObservation.mockResolvedValue(OBS({ step: "talk" })); // the DB knows Debrief; the portal view knows the rest
