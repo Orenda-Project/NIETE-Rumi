@@ -276,7 +276,7 @@ function renderCoachFeedbackMessages(fb, S) {
   const praise = fb.praise_line;
 
   const winLines = fb.wins
-    .map((w) => `✓ *${w.behaviour}*\n_"${w.evidence}"_`)
+    .map((w) => `✓ *${require('./observe-coach-rubric').winName(w.behaviour, S)}*\n_"${w.evidence}"_`)
     .join('\n\n');
 
   // bd-y7jr8 — the same three headings the coach just used with her teacher,
