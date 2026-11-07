@@ -238,6 +238,56 @@ describe("Remove teachers", () => {
   });
 });
 
+// bd-17v39c.4.16 (queue #47, option A) — Remove teachers lists teachers only. The principal is named apart, above the
+// list, in the School card's "Principal: name ›" chip, which opens their Edit teacher page (its "Remove from school" is
+// how a principal leaves a school). The server refuses a principal's number too (coach-school-admin).
+describe("Remove teachers: the principal apart", () => {
+  const HEAD = T("Head Sahib", 9, { isPrincipal: true });
+  const HEAD2 = T("Amna Head", 8, { isPrincipal: true });
+
+  it("teachers only to tick; the principal is a chip that opens their Edit teacher page", async () => {
+    C.getSchool.mockResolvedValue({ success: true, school: SCHOOL, teachers: [HEAD, ...TEACHERS] });
+    at("/portal/coach/school/110/remove-teachers");
+    await screen.findByRole("button", { name: /^next/i });
+    expect(screen.getAllByRole("checkbox").map((c) => c.getAttribute("aria-label"))).toEqual(["Ayesha Bibi", "Bilal Khan", "Sana Gul"]);
+    expect(screen.queryByRole("checkbox", { name: "Head Sahib" })).toBeNull();
+    const chip = screen.getByTestId("remove-principal");
+    expect(chip).toHaveTextContent("Principal: Head Sahib");
+    expect(chip).toHaveAccessibleName("Principal, Head Sahib. Open their page");
+    expect(chip).toHaveAttribute("href", "/portal/coach/teacher/923001110009/edit");
+    // above "Up to 30"
+    expect(chip.compareDocumentPosition(screen.getByText("Up to 30")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("two principals: two chips; none recorded: no chip", async () => {
+    C.getSchool.mockResolvedValue({ success: true, school: SCHOOL, teachers: [...TEACHERS, HEAD, HEAD2] });
+    const { unmount } = at("/portal/coach/school/110/remove-teachers");
+    await screen.findByRole("button", { name: /^next/i });
+    expect(screen.getAllByTestId("remove-principal").map((c) => c.textContent)).toEqual(["Principal: Amna Head", "Principal: Head Sahib"]);
+    unmount();
+    C.getSchool.mockResolvedValue({ success: true, school: SCHOOL, teachers: TEACHERS });
+    at("/portal/coach/school/110/remove-teachers");
+    await screen.findByRole("button", { name: /^next/i });
+    expect(screen.queryByTestId("remove-principal")).toBeNull();
+  });
+
+  it("a school with only its principal: 'No teachers', nothing to tick", async () => {
+    C.getSchool.mockResolvedValue({ success: true, school: { ...SCHOOL, teachers: 0 }, teachers: [HEAD] });
+    at("/portal/coach/school/110/remove-teachers");
+    expect(await screen.findByTestId("no-teachers")).toHaveTextContent("No teachers");
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+    expect(screen.getByTestId("remove-principal")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^next/i })).toBeDisabled();
+  });
+
+  it("Manage: a school with only its principal keeps Edit teacher and has no Remove teachers", async () => {
+    C.getSchool.mockResolvedValue({ success: true, school: { ...SCHOOL, teachers: 0 }, teachers: [HEAD] });
+    at("/portal/coach/school/110");
+    expect(await screen.findByRole("link", { name: /edit teacher/i })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /remove teachers/i })).toBeNull();
+  });
+});
+
 describe("in Urdu", () => {
   const setLang = async (lng: string) => { if (!i18n.isInitialized) await i18n.init({ lng: "en", resources: {} }); await act(async () => { await i18n.changeLanguage(lng); }); };
   beforeEach(async () => { await setLang("ur"); });
@@ -259,5 +309,13 @@ describe("in Urdu", () => {
     expect(within(card).getByText(U.currentSchool)).toBeInTheDocument();
     expect(within(card).getByText(U.newSchool)).toBeInTheDocument();
     expect(screen.getByText(U.changesSchool)).toBeInTheDocument();
+  });
+
+  // bd-17v39c.4.16 — the chip reuses the School card's word: ہیڈ ٹیچر:
+  it("Remove teachers names the principal as ہیڈ ٹیچر:", async () => {
+    C.getSchool.mockResolvedValue({ success: true, school: SCHOOL, teachers: [...TEACHERS, T("Head Sahib", 9, { isPrincipal: true })] });
+    at("/portal/coach/school/110/remove-teachers");
+    expect(await screen.findByTestId("remove-principal")).toHaveTextContent("ہیڈ ٹیچر: Head Sahib");
+    expect(screen.getByText(U.upTo30)).toBeInTheDocument();
   });
 });
