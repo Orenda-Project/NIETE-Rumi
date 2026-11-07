@@ -13,7 +13,10 @@
  *   bands     pick one row (the teacher circles it)
  * then a class grid with one column per task and the oral total.
  *
- * A task with nothing generated throws: the teacher never gets an empty sheet.
+ * A task with nothing generated throws: the teacher never gets an empty sheet. A
+ * `teacher_fills` task (G5 Islamiat Nazra, bd-5jmnfj.39) is the exception: the model
+ * writes no religious text, so it prints «teacher writes this» and `lines` blank lines
+ * for her to write the ayat, words, hadith or dua in, and never prints generated text.
  * Pure: `ctx.text` (the renderer's textOf) does all escaping and script handling.
  */
 
@@ -22,8 +25,8 @@ const { LISTEN_LABEL, scriptLabel } = require('./fde-render-v37'); // v37 G1 Eng
 const GRID_ROWS = 12;
 
 const COPY = {
-  en: { script: 'Read aloud', items: 'Ask', answer: 'Answer', each: 'marks each', eachOne: 'mark each', circle: 'Circle one', score: 'Score', child: 'Child', total: 'Total', grid: 'Class record: oral marks', card: 'The child reads from the reading card printed after this sheet, never from this page.' },
-  ur: { script: 'پڑھ کر سنائیں', items: 'پوچھیں', answer: 'جواب', each: 'نمبر فی جواب', circle: 'ایک پر دائرہ لگائیں', score: 'نمبر', child: 'بچے کا نام', total: 'کل', grid: 'جماعت کا ریکارڈ: زبانی نمبر', card: 'بچہ اس صفحے سے نہیں بلکہ اس شیٹ کے بعد چھپے ریڈنگ کارڈ سے پڑھے۔' },
+  en: { script: 'Read aloud', items: 'Ask', answer: 'Answer', each: 'marks each', eachOne: 'mark each', circle: 'Circle one', score: 'Score', child: 'Child', total: 'Total', grid: 'Class record: oral marks', card: 'The child reads from the reading card printed after this sheet, never from this page.', fill: 'Teacher: write it here before the test' },
+  ur: { script: 'پڑھ کر سنائیں', items: 'پوچھیں', answer: 'جواب', each: 'نمبر فی جواب', circle: 'ایک پر دائرہ لگائیں', score: 'نمبر', child: 'بچے کا نام', total: 'کل', grid: 'جماعت کا ریکارڈ: زبانی نمبر', card: 'بچہ اس صفحے سے نہیں بلکہ اس شیٹ کے بعد چھپے ریڈنگ کارڈ سے پڑھے۔', fill: 'استاد: ٹیسٹ سے پہلے یہاں خود لکھیں' }, // fill: needs fluent-Urdu review
 };
 
 function contentFor(oral, task) {
@@ -57,10 +60,21 @@ function rubricBlock(task, lang, t, w) {
   return `<div class="oral-rubric" data-scoring="${task.scoring}">${head}<table><tr><th></th><th></th>${scoreHead}</tr>${rows}</table></div>`;
 }
 
+// Styled inline, not in ORAL_CSS: every printed paper carries ORAL_CSS and the goldens pin it byte for byte.
+const FILL_LINE = '<div class="fill-line" style="border-bottom: 1px solid #000; height: 9mm;"></div>';
+
+function fillBlock(task, t, w) {
+  return `<div class="oral-fill"><div class="k">${t(w.fill)}</div>${FILL_LINE.repeat(task.lines || 0)}</div>`;
+}
+
 function taskBlock(oral, task, lang, t, w) {
-  const c = contentFor(oral, task);
   const parts = [`<div class="oral-head"><span class="lab">${t(task[`label_${lang}`])}</span> <span class="m">${t(`(${task.marks})`)}</span></div>`];
   if (task[`instruction_${lang}`]) parts.push(`<div class="oral-ins">${t(task[`instruction_${lang}`])}</div>`);
+  if (task.teacher_fills) {
+    parts.push(fillBlock(task, t, w), rubricBlock(task, lang, t, w));
+    return `<div class="oral-task" data-task="${task.id}">${parts.join('')}</div>`;
+  }
+  const c = contentFor(oral, task);
   if (task.kind === 'read_aloud') parts.push(`<div class="oral-reads-from">${t(w.card)}</div>`);
   if (c.script) parts.push(`<div class="oral-script"><div class="k">${t(task.kind === 'listening' ? scriptLabel(task, lang, c) : w.script)}</div>${t(task.kind === 'read_aloud' ? onceEach(c.script) : c.script)}</div>`);
   // A read-aloud script with bare, answerless words under it (v25 G2 Urdu dialogue) is no list to ask.
