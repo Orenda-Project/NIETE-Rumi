@@ -385,6 +385,17 @@ const STRINGS = {
     coach_card_subtitle: 'استاد سے آپ کی گفتگو سے — صرف میرے اور آپ کے درمیان۔',
     // bd-y7jr8 — the 3+1 headings, matching the debrief guide the coach reads
     coach_card_wins_label: 'خوبیاں',
+    // bd-ewbzns.7 — a win the judge wrote as a rubric KEY is shown by its name (observe-coach-rubric.winName);
+    // the wording is sandbox's coach_rubric_names (bd-rlxkkt.3), the seven behaviours main's judge scores.
+    coach_rubric_names: {
+      opened_with_specific_praise: 'مخصوص تعریف',
+      anchored_in_real_moment: 'سبق کے لمحے کا حوالہ',
+      asked_and_waited: 'سوال کے بعد انتظار',
+      one_improvement_only: 'صرف ایک بہتری',
+      moves_not_teacher: 'تدریس پر بات',
+      elicited_if_then: 'استاد کا اپنا اگلا قدم',
+      righting_reflex_held: 'استاد کو بولنے کا موقع',
+    },
     coach_card_action_label: 'عملی منصوبہ',
     coach_card_reflect_label: 'اگلی بار سے پہلے خود سے پوچھیں',
     guide_reflect_label: 'یہ سوال آخر میں پوچھیں',
@@ -631,6 +642,17 @@ const STRINGS = {
     coach_card_subtitle: 'From your conversation with the teacher — between you and me only.',
     // bd-y7jr8 — the 3+1 headings, matching the debrief guide the coach reads
     coach_card_wins_label: 'Strengths',
+    // bd-ewbzns.7 — a win the judge wrote as a rubric KEY is shown by its name (observe-coach-rubric.winName);
+    // the wording is sandbox's coach_rubric_names (bd-rlxkkt.3), the seven behaviours main's judge scores.
+    coach_rubric_names: {
+      opened_with_specific_praise: 'Specific praise',
+      anchored_in_real_moment: 'Real moment',
+      asked_and_waited: 'Asked & waited',
+      one_improvement_only: 'One improvement',
+      moves_not_teacher: 'Moves, not person',
+      elicited_if_then: 'Teacher’s own step',
+      righting_reflex_held: 'Talked less',
+    },
     coach_card_action_label: 'Action plan',
     coach_card_reflect_label: 'Ask yourself before next time',
     guide_reflect_label: 'Ask this last',
