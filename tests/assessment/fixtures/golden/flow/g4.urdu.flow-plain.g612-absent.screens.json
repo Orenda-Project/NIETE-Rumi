@@ -385,6 +385,7 @@
     }
   ],
   "writes": {
+    "users": [],
     "textbooks": [],
     "region_features": [],
     "assessment_requests": [

@@ -1472,6 +1472,23 @@ const UX_STRINGS = {
     ur: 'آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — تیار ہوتے ہی اسی چیٹ میں بھیج دیا جائے گا۔',
   },
 
+  // bd-rj6w0n.14.4 — a Gilgit-Baltistan teacher's lesson-plan menu covers Grades 1-5 only; a stale or
+  // tampered grade outside that range is refused with this Flow error line.
+  lp612GbGradeOnly: {
+    en: 'Lesson plans here are for Grades 1-5. Please pick one of those classes.',
+    ur: 'یہاں سبق کے منصوبے جماعت ⁦1-5⁩ کے لیے ہیں۔ براہِ کرم انہی میں سے کوئی جماعت چنیں۔',
+  },
+  // bd-rj6w0n.14.5 — a GB book whose plans are not ready yet: the row label (Flow description, cap 20)
+  // and the refusal when it is tapped.
+  lp612GbComingSoon: {
+    en: 'Coming Soon',
+    ur: 'جلد آ رہا ہے',
+  },
+  lp612GbComingSoonTap: {
+    en: 'Lesson plans for this book are coming soon. Please pick another book for now.',
+    ur: 'اس کتاب کے سبق کے منصوبے جلد آ رہے ہیں۔ فی الحال براہِ کرم کوئی اور کتاب چنیں۔',
+  },
+
   // Sent with the PDF. {topic} is the book's own subtopic wording.
   //
   // The Urdu line wraps {subject} and {pages} in LRI…PDI (U+2066/U+2069)
@@ -1481,6 +1498,16 @@ const UX_STRINGS = {
   // EUROPEAN numbers across a hyphen, and N1 then orders the two halves RTL.
   // The placeholder is isolated rather than the value because the value's bidi
   // class is unknowable at authoring time (language-protocol §9 rule 8).
+  // bd-rj6w0n.14.7: a GB card. No pages line: imported GB segments may carry page 0.
+  lp612GbCaption: {
+    en: '{topic}\nGrade {grade} · {subject}',
+    ur: '{topic}\nجماعت {grade} · ⁦{subject}⁩',
+  },
+  lp612WrongCurriculum: {
+    en: "This lesson plan is not part of your school's books. Please pick a lesson from the menu again.",
+    ur: 'یہ سبق کا منصوبہ آپ کے اسکول کی کتابوں میں شامل نہیں۔ براہِ کرم مینو سے دوبارہ سبق چنیں۔',
+  },
+
   lp612Caption: {
     en: '{topic}\nGrade {grade} · {subject} · pages {pages}',
     ur: '{topic}\nجماعت {grade} · ⁦{subject}⁩ · صفحات ⁦{pages}⁩',

@@ -28,7 +28,8 @@ function mockBuilder() {
   const state = { filters: [] };
   const rows = () => {
     let out = mockTable;
-    for (const [c, v] of state.filters) out = out.filter((r) => r[c] === v);
+    // V1.8.6 (bd-97daxo.5): a row built without `curriculum` is ICT's — the column's default.
+    for (const [c, v] of state.filters) out = out.filter((r) => (c === 'curriculum' && r[c] === undefined ? 'ict' : r[c]) === v);
     return out;
   };
   const api = {

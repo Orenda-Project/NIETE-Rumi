@@ -45,6 +45,8 @@ const Lp612Lifecycle = require('./lp612-lifecycle.service');
 // wrapper, which the root suites already stub, and a lazy require here would hide a missing
 // dependency until the first real delivery.
 const LPShelfService = require('./lp-shelf.service');
+const GbDelivery = require('./lp612-gb-delivery.service');
+const GbLane = require('./gb-lp-serving.service');
 const {
   isReligiousEnabled, templateVersion, authorTimeoutMs,
   heartbeatCeilingMs, queueAbandonMs, SQS_VISIBILITY_WINDOW_MS,
@@ -756,6 +758,8 @@ async function deliverRender({
   // reads them.
   askedAt, generatedAt, correlationId,
 }) {
+  // bd-rj6w0n.14.16: a GB K-5 plan (the v10 card PDF) goes exactly like ICT's; only its caption is GB's.
+  const gb = GbDelivery.isGbK5Segment(segment);
   let url;
   try {
     url = await getPresignedUrl(buildR2PublicUrl(r2Key));
@@ -795,14 +799,20 @@ async function deliverRender({
   // to a successful one to everything downstream — recordDelivery ran, the feedback prompt was
   // scheduled, and the worker's per-waiter loop counted her as `delivered`. A teacher who got
   // nothing was told, on every surface, that she had been served.
+  const filename = buildFilename(segment, lang);
+  // bd-rj6w0n.14.8: an Urdu GB book's message is Urdu, with an Urdu title or none.
+  const cardLang = gb ? GbDelivery.cardLanguage(segment, lang) : lang;
+  const caption = gb
+    ? GbDelivery.cardCaption({ segment, lang: cardLang, subject: subjectNameFor(segment.subject, cardLang) })
+    : buildCaption(segment, lang, {
+      overlayDropped: overlayDropped === true,
+      renderDegraded: renderDegraded === true,
+    });
   const sent = await sendDocumentWithRetry({
     phone,
     url,
-    filename: buildFilename(segment, lang),
-    caption: buildCaption(segment, lang, {
-      overlayDropped: overlayDropped === true,
-      renderDegraded: renderDegraded === true,
-    }),
+    filename,
+    caption,
     maxAttempts: sendMaxAttempts,
     retryDelaysMs: sendRetryDelaysMs,
     deadlineAt: sendDeadlineAt,
@@ -833,6 +843,12 @@ async function deliverRender({
     // the bug this closes — is what let a failed send read as a success on every surface below.
     throw new Error(`LP 6-12: document send failed after ${sent.attempts} attempt(s): ${sent.error}`);
   }
+
+  // bd-oak77.20: the caption she received with the PDF (it carries the overlay/degraded notices).
+  logEvent('lp612.send.sent', {
+    kind: 'document', segmentId: segment && segment.segment_id, lang, renderId, userId: userId || null,
+    filename, copy: caption, attempts: sent.attempts,
+  });
 
   // AFTER the document, never before, and ONLY on a send that actually succeeded: recording is
   // for us, the PDF is for her, and a record of a lesson she never received is worse than no
@@ -1168,6 +1184,17 @@ async function requestLessonImpl(
   const retry = () => requestLessonImpl(
     { segmentId, userId, phone, lang, uiLang, correlationId, surface, askedAt, reader }, depth + 1,
   );
+
+  // bd-rj6w0n.14.7: never a GB plan to an ICT teacher, nor an ICT plan to a GB teacher. Before any
+  // render row is read, claimed or authored.
+  if (await GbDelivery.refusesCurriculum({ segment, userId })) {
+    logToFile('LP GB: segment outside the teacher\'s curriculum, refused', { segmentId, correlationId });
+    await tell(phone, 'lp612WrongCurriculum', voice);
+    return { outcome: 'wrong_curriculum' };
+  }
+  // bd-rj6w0n.14.16: a GB lesson goes to GB's own lane (own rows, own gb-lp/ keys, own job). Flag off, the guard
+  // above has already refused every GB segment, so this line never runs.
+  if (GbDelivery.isGbSegment(segment)) return GbLane.requestLesson({ segment, userId, phone, voice, correlationId, askedAt, surface });
 
   const { render: existing, readFailed } = await findRender(segmentId, language, tv);
 

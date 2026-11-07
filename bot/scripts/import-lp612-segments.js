@@ -94,14 +94,16 @@ function isReligiousSegment(segment) {
  * row would mean a second cache entry and the same lesson authored twice at ~$0.60 a go. One row
  * listed under two grades costs nothing and dedupes by construction.
  *
- * Returns null for anything outside 6-12, so the range guard is narrowed by this, never widened.
+ * Returns null for anything outside 6-12 (1-12 for nbf_snc), so the range guard is narrowed by this, never widened.
  */
-function parseGradeSpan(spec) {
+function parseGradeSpan(spec, { curriculum = null } = {}) {
+  // bd-rj6w0n.14.16: GB's nbf_snc books also run Grades 1-5; every other curriculum stays 6-12.
+  const low = String(curriculum || '').toLowerCase() === 'nbf_snc' ? 1 : 6;
   const raw = String(spec == null ? '' : spec).trim();
   // en-dash as well as hyphen: parts of this corpus are written by hand.
   const parts = raw.split(/[-–]/).map((x) => parseInt(x, 10));
   if (!parts.length || parts.some((n) => !Number.isFinite(n))) return null;
-  if (parts.some((n) => n < 6 || n > 12)) return null;
+  if (parts.some((n) => n < low || n > 12)) return null;
   const [grade, ...alsoGrades] = parts;
   return { grade, alsoGrades };
 }
@@ -223,17 +225,18 @@ const REQUIRED = [
  * anyway — so it is reported and imported, because dropping the lesson would be
  * the larger harm.
  */
-function validateSegment(segment) {
+function validateSegment(segment, { curriculum = null } = {}) {
   const errors = [];
   const warnings = [];
   const s = segment || {};
+  const span = { curriculum: s.curriculum || curriculum };
 
   for (const f of REQUIRED) {
     if (s[f] === undefined || s[f] === null || s[f] === '') errors.push(`missing ${f}`);
   }
 
   // A span ("9-10") is valid; anything that does not resolve to grades inside 6-12 is not.
-  if (s.grade !== undefined && !parseGradeSpan(s.grade)) {
+  if (s.grade !== undefined && !parseGradeSpan(s.grade, span)) {
     errors.push(`grade ${s.grade} is outside 6-12`);
   }
 
@@ -288,15 +291,24 @@ const intOrNull = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
-function toRow(segment, { corpusVersion = 'v1' } = {}) {
+function toRow(segment, { corpusVersion = 'v1', curriculum = null } = {}) {
   const s = segment || {};
+  // Whose book (V1.8.6, bd-97daxo.5): the segment's own tag, else the file's `_meta.curriculum`, else
+  // ICT. Written only when it is not ICT (the column defaults to 'ict'), so an ICT row is unchanged.
+  // A non-ICT book_stem must start with its curriculum (nbf_snc_grade_9_chemistry): segment_id is built from
+  // the stem, so that is what keeps an NBF segment from ever overwriting an ICT one.
+  const tag = String(s.curriculum || curriculum || 'ict').trim().toLowerCase();
+  if (tag !== 'ict' && !String(s.book_stem || '').startsWith(`${tag}_`)) {
+    throw new Error(`a ${tag} segment's book_stem must start with "${tag}_" (got "${s.book_stem}")`);
+  }
   return {
+    ...(tag !== 'ict' ? { curriculum: tag } : {}),
     segment_id: s.segment_id,
     book_stem: s.book_stem,
-    grade: (parseGradeSpan(s.grade) || {}).grade ?? null,
+    grade: (parseGradeSpan(s.grade, { curriculum: tag }) || {}).grade ?? null,
     // The OTHER years this same row is taught in. One row, one segment_id, one render —
     // listed under two menus rather than authored twice.
-    also_grades: (parseGradeSpan(s.grade) || {}).alsoGrades || [],
+    also_grades: (parseGradeSpan(s.grade, { curriculum: tag }) || {}).alsoGrades || [],
     subject: s.subject,
     medium: s.medium ?? null,
     // clampLanguage, not `|| 'en'`. An independent English floor is a language
@@ -479,10 +491,10 @@ function parseFile(file) {
 
 // ── main ────────────────────────────────────────────────────────────────────
 
-async function importFile({ supabase, file, segments, corpusVersion, dryRun, report, ytCovered }) {
+async function importFile({ supabase, file, segments, corpusVersion, dryRun, report, ytCovered, curriculum = null }) {
   const rows = [];
   for (const s of segments) {
-    const { errors, warnings } = validateSegment(s);
+    const { errors, warnings } = validateSegment(s, { curriculum });
     if (errors.length) {
       report.errors.push({ file, segment_id: s && s.segment_id, errors });
       continue;
@@ -490,7 +502,7 @@ async function importFile({ supabase, file, segments, corpusVersion, dryRun, rep
     if (warnings.length) {
       report.warnings.push({ file, segment_id: s.segment_id, warnings });
     }
-    rows.push(toRow(s, { corpusVersion }));
+    rows.push(toRow(s, { corpusVersion, curriculum }));
   }
   if (!rows.length) return;
 
@@ -581,7 +593,7 @@ async function main(argv = process.argv.slice(2)) {
   };
 
   for (const file of readSegmentFiles(target)) {
-    const { segments } = parseFile(file);
+    const { segments, meta } = parseFile(file);
     report.files += 1;
 
     // The overlay is per BOOK and by filename, because that is how both fleets
@@ -603,7 +615,7 @@ async function main(argv = process.argv.slice(2)) {
       }
     }
 
-    await importFile({ supabase, file, segments: merged, corpusVersion, dryRun, report, ytCovered });
+    await importFile({ supabase, file, segments: merged, corpusVersion, dryRun, report, ytCovered, curriculum: meta.curriculum || null });
   }
 
   console.log(`\nlp612 segment import ${dryRun ? '(DRY RUN) ' : ''}—`);

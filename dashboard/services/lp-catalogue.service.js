@@ -80,9 +80,10 @@ async function ask(path, body) {
   return post(`/api/internal/lp/v8/${path}`, body);
 }
 
+
 /**
- * `userId` (the SESSION's teacher, never a request's) lets the bot give her her region's books (bd-97daxo.4).
- * Sent only when known, so a call without one is the body it always was.
+ * `userId` (the SESSION's teacher, never a request's) lets the bot give her her region's books
+ * (bd-97daxo.5). Sent only when known, so a call without one is the body it always was.
  */
 const who = (userId) => (userId ? { userId } : {});
 

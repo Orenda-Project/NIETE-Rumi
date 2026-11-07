@@ -2906,7 +2906,7 @@ const isOpenHint = (v) => v === '1' || v === 'true';
 /** GET /api/portal/lp612/grades → { success, grades: [{ grade }] } */
 router.get('/lp612/grades', requirePortalAuth, async (req, res) => {
   try {
-    res.json({ success: true, grades: await Lp612.listGrades() });
+    res.json({ success: true, grades: await Lp612.listGrades(req.session.portalUserId) });
   } catch (error) {
     console.error('❌ Portal lp612/grades failed', { error: error?.message });
     res.status(502).json({ success: false, error: 'Could not load grades' });
@@ -2920,7 +2920,7 @@ router.get('/lp612/subjects', requirePortalAuth, async (req, res) => {
     if (!Number.isFinite(grade)) {
       return res.status(400).json({ success: false, error: 'grade required' });
     }
-    res.json({ success: true, subjects: await Lp612.listSubjects(grade) });
+    res.json({ success: true, subjects: await Lp612.listSubjects(grade, req.session.portalUserId) });
   } catch (error) {
     console.error('❌ Portal lp612/subjects failed', { error: error?.message });
     res.status(502).json({ success: false, error: 'Could not load subjects' });
@@ -2935,7 +2935,7 @@ router.get('/lp612/chapters', requirePortalAuth, async (req, res) => {
     if (!Number.isFinite(grade) || !subject) {
       return res.status(400).json({ success: false, error: 'grade + subject required' });
     }
-    res.json({ success: true, chapters: await Lp612.listChapters(grade, subject) });
+    res.json({ success: true, chapters: await Lp612.listChapters(grade, subject, req.session.portalUserId) });
   } catch (error) {
     console.error('❌ Portal lp612/chapters failed', { error: error?.message });
     res.status(502).json({ success: false, error: 'Could not load chapters' });
@@ -3177,7 +3177,7 @@ router.get('/assessment/options', requirePortalAuth, async (req, res) => {
     const data = await Assessment.options({
       grade: Number.isFinite(grade) ? grade : null,
       subject,
-      // The session user, so the bot's 6-12 grade gate can admit her (as create does).
+      // Her region's books (bd-97daxo.4): the session's teacher, never a request's.
       userId: req.session.portalUserId,
     });
     res.json({ success: true, ...data });

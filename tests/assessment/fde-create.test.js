@@ -319,7 +319,10 @@ describe('POST /assessment/create — a board-pattern paper', () => {
     // lists (bd-97daxo.4: G1-5 assessments are keyed by the teacher's books), cached for a minute per process.
     expect(reads.filter((r) => r.table !== 'region_features')).toEqual([]);
     const supabase = require('../../bot/shared/config/supabase');
-    expect(supabase.from.mock.calls.map((c) => c[0]).filter((t) => t !== 'region_features')).toEqual(['assessment_requests']);
+    // `users`: her region, for her curriculum's books (bd-97daxo.4). An ICT teacher's request is otherwise
+    // exactly today's — the createAndQueue call above has no curriculum key. region_features: the region book
+    // lists the G1-5 offer is keyed on (cached a minute per process).
+    expect(supabase.from.mock.calls.map((c) => c[0]).filter((t) => t !== 'region_features')).toEqual(['users', 'assessment_requests']);
   });
 
   test('job payload carries pattern and scope; a non-pattern payload has neither key', async () => {
