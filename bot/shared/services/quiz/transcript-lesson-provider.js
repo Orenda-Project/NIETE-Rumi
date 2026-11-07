@@ -124,6 +124,15 @@ async function enqueueGenerate(quizId, phone, lang, source = 'list', quizSource 
 }
 
 /**
+ * A recording whose quiz the offer skipped for its subject (transcript-quiz-offer markSkipped,
+ * subject_not_allowed — Islamiat until the religious review clears it). No door may re-make it
+ * (bd-37q6ye: 7 such quizzes were re-made from /quiz and reached children).
+ */
+function subjectHeld(quiz) {
+  return Boolean(quiz && quiz.status === 'skipped' && quiz.meta && quiz.meta.skip_reason === 'subject_not_allowed');
+}
+
+/**
  * Claim a lesson for generation — the ONE place a menu turns "make this one"
  * into a `generating` quizzes row, whether the tap came from the list message
  * or from the /quiz Flow. It is called only once the quiz language is settled
@@ -133,6 +142,7 @@ async function enqueueGenerate(quizId, phone, lang, source = 'list', quizSource 
  * Returns `{ quizId, from }` or `{ error }` — never throws, never sends.
  */
 async function claimForGeneration({ userId, sessionId, session, quiz, quizLanguage, source = 'list' }) {
+  if (subjectHeld(quiz)) return { error: 'held' };
   if (quiz) {
     await supabase.from('quizzes')
       .update({
@@ -183,6 +193,11 @@ async function startTranscriptLesson(user, sessionId, { phone, quizLanguage = nu
   const { data: quiz } = await supabase.from('quizzes')
     .select('id, status, topic, subject, language, meta, coaching_session_id')
     .eq('coaching_session_id', sessionId).eq('quiz_source', TRANSCRIPT).maybeSingle();
+  if (subjectHeld(quiz)) {
+    await WhatsAppService.sendMessage(phone, resolveUx('tqRecordingHeld', { language: lang }));
+    logEvent('transcript_quiz.held', { userId: user.id, quizId: quiz.id, from: 'list' });
+    return true;
+  }
 
   // The quiz language is the teacher's to choose here too — a lesson picked from /quiz
   // reaches exactly the same decision as a "yes" on the offer. The subject
@@ -299,7 +314,7 @@ async function makeTranscriptQuizIn(user, sessionId, { phone, quizLanguage, via,
   const claimed = await claimForGeneration({
     userId: user.id, sessionId, session, quiz: quiz || null, quizLanguage, source: via,
   });
-  if (claimed.error) return { outcome: 'claim_failed' };
+  if (claimed.error) return { outcome: claimed.error === 'held' ? 'held' : 'claim_failed' };
   await enqueueGenerate(claimed.quizId, phone, lang, via);
   logEvent('transcript_quiz.list_generate', {
     userId: user.id, quizId: claimed.quizId, from: claimed.from, source: via, language: quizLanguage,
@@ -331,6 +346,6 @@ const TranscriptProvider = {
 module.exports = {
   ...TranscriptProvider,
   TranscriptProvider,
-  countsFor, loadEligibleSessions, loadEligibleSessionsLight, AT_LEAST_MIN_CHARS, enqueueGenerate, claimForGeneration, startTranscriptLesson,
+  countsFor, loadEligibleSessions, loadEligibleSessionsLight, AT_LEAST_MIN_CHARS, enqueueGenerate, claimForGeneration, startTranscriptLesson, subjectHeld,
   LINK_PREFIX, REPORT_PREFIX, BACK_PREFIX,
 };
