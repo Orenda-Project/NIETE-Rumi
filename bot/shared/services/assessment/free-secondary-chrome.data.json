@@ -6,19 +6,19 @@
   "rule": "Language is data (rumi Rule 20). Every Urdu string is copied from an existing repo string, named in `from` (relative to this folder); a string with no existing Urdu wording is design_pending (ur null) and is left off the Urdu paper, never printed in English and never translated here.",
   "urdu_review": "every ur string is a draft: needs fluent-Urdu review",
   "labels": {
-    "studentName": { "en": "Student Name", "ur": "نام طالب علم", "from": "patterns/fde-g5-2027.js" },
-    "rollNo": { "en": "Roll No", "ur": "رول نمبر", "from": "patterns/fde-g5-2027.js" },
-    "date": { "en": "Date", "ur": "تاریخ", "from": "patterns/fde-g5-2027.js" },
-    "totalMarks": { "en": "Total Marks", "ur": "کل نمبر", "from": "patterns/fde-g5-2027.js" },
-    "obtainedMarks": { "en": "Obtained Marks", "ur": "حاصل کردہ نمبر", "from": "patterns/fde-g5-2027.js" },
-    "instructions": { "en": "Instructions", "ur": "ہدایات", "from": "patterns/fde-g5-2027.js" },
+    "studentName": { "en": "Student Name", "ur": "نام طالب علم", "from": "patterns/fde-g5-2027/common.js" },
+    "rollNo": { "en": "Roll No", "ur": "رول نمبر", "from": "patterns/fde-g5-2027/common.js" },
+    "date": { "en": "Date", "ur": "تاریخ", "from": "patterns/fde-g5-2027/common.js" },
+    "totalMarks": { "en": "Total Marks", "ur": "کل نمبر", "from": "patterns/fde-g5-2027/common.js" },
+    "obtainedMarks": { "en": "Obtained Marks", "ur": "حاصل کردہ نمبر", "from": "patterns/fde-g5-2027/common.js" },
+    "instructions": { "en": "Instructions", "ur": "ہدایات", "from": "patterns/fde-g5-2027/urdu.js" },
     "marks": { "en": "marks", "ur": "نمبر", "from": "board-render/view.js" }
   },
   "instructions": [
     { "en": "Read all questions carefully before answering.", "ur": null, "status": "design_pending" },
     { "en": "Answer all questions in the space provided.", "ur": null, "status": "design_pending" },
     { "en": "Write clearly and legibly.", "ur": null, "status": "design_pending" },
-    { "en": "Time allowed: {t} minutes.", "ur": "وقت: {t} منٹ", "from": "patterns/fde-g5-2027.js", "time": true }
+    { "en": "Time allowed: {t} minutes.", "ur": "وقت: {t} منٹ", "from": "patterns/fde-g5-2027/urdu.js", "time": true }
   ],
   "headings_note": "A section heading is the title_ur of its question type in question-types-6-12.data.json; `bucket_types` maps the bucket names the writer uses that are not a type's title_en. A bucket that maps to nothing keeps its own name.",
   "bucket_types": {
