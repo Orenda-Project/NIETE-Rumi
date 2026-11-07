@@ -6222,7 +6222,7 @@ router.post('/training/module/:id/quiz-attempts/start', requirePortalAuth, async
       if (!assignment) return res.status(400).json({ success: false, error: 'No active training program assignment' });
       const now = new Date().toISOString();
       // Shape parity with quiz-delivery.service.js startTrainingQuiz.
-      const made = await ModuleAttempt.insertModuleAttempt(supabase, {
+      const opened = await ModuleAttempt.insertModuleAttempt(supabase, {
         id: attemptId,
         user_id: userId,
         program_id: assignment.program_id,
@@ -6236,11 +6236,11 @@ router.post('/training/module/:id/quiz-attempts/start', requirePortalAuth, async
         started_at: now,
         last_activity_at: now,
       }, { surface: 'portal', log: events });
-      if (made.error) throw made.error;
-      if (made.raced) {
+      if (opened.error) throw opened.error;
+      if (opened.raced) {
         // A parallel start for this module opened its attempt first: serve that one, by its id, so
         // both requests show the same paper and her answers land on the one open attempt.
-        attempt = await _ownModuleAttempt(userId, moduleId, made.id);
+        attempt = await _ownModuleAttempt(userId, moduleId, opened.id);
         if (!attempt) throw new Error('the open attempt a parallel start made could not be read back');
         paper = await serve(attempt.id);
         if (!paper) return res.status(503).json(SERVE_UNAVAILABLE);
