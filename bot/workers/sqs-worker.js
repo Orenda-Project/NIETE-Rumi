@@ -639,7 +639,8 @@ class SQSCoachingWorker {
         break;
       }
 
-      case 'lp612_author': {
+      case 'lp612_author':
+      case 'gb_lp_author': { // bd-rj6w0n.14.16.12: a GB runtime lesson runs the same author, so the same heartbeat
         // Write a 6-12 lesson plan that has never been asked for
         // before, render it, cache it in R2 and send it.
         //
@@ -676,16 +677,18 @@ class SQSCoachingWorker {
           // No correlationId here: it's not a parameter of executeJob(), and logToFile already
           // pulls the current one from AsyncLocalStorage (set by runWithCorrelation in
           // processJob(), which wraps this whole call) — see shared/utils/logger.js.
-          onExtendError: (err) => logToFile('lp612_author heartbeat: extend failed, continuing', {
+          onExtendError: (err) => logToFile(`${jobType} heartbeat: extend failed, continuing`, {
             sessionId, error: err.message,
           }),
-          onCeilingReached: () => logToFile('lp612_author heartbeat: ceiling reached, no longer extending', {
+          onCeilingReached: () => logToFile(`${jobType} heartbeat: ceiling reached, no longer extending`, {
             sessionId,
           }),
         });
         try {
-          const Lp612AuthorWorker = require('./lp612-author.worker');
-          await Lp612AuthorWorker.process(payload);
+          const AuthorWorker = jobType === 'gb_lp_author'
+            ? require('./gb-lp-author.worker')
+            : require('./lp612-author.worker');
+          await AuthorWorker.process(payload);
         } finally {
           heartbeat.stop();
         }
@@ -970,7 +973,7 @@ class SQSCoachingWorker {
    * paper simply died with its message hidden for 900 s and its row reading as busy. A paper is
    * now handed back the moment SIGTERM arrives (_handBackPapers), and its row says so.
    */
-  static LONG_JOB_TYPES = new Set(['lp612_author']);
+  static LONG_JOB_TYPES = new Set(['lp612_author', 'gb_lp_author']);
 
   /**
    * Hand every in-flight paper back at once: row to `queued` FIRST, then the message to
