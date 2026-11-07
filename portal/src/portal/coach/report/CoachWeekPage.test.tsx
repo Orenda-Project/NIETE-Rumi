@@ -191,4 +191,19 @@ describe("bd-enec2e.5 — found in the 7 Nov sandbox e2e", () => {
     renderAt("/portal/coach/week/2026-11-02");
     expect((await screen.findByTestId("week-hero")).textContent).toContain("2–6 Nov");
   });
+  it("a debrief row says the day when the report was not ready today (it waits up to 3 days)", async () => {
+    getConfig.mockResolvedValue({ success: true, features: { coachReportsApp: true } });
+    const now = new Date().toISOString();
+    getReadyReports.mockResolvedValue([
+      { kind: "debrief", id: "33333333-3333-4333-8333-333333333333", at: "2026-11-05T06:00:00.000Z", teacher: "Ms. Sadia", subject: null, grade: null },
+      { kind: "debrief", id: "44444444-4444-4444-8444-444444444444", at: now, teacher: "Ms. Amna", subject: null, grade: null },
+    ]);
+    renderAt("/portal/coach");
+    const rows = await screen.findAllByTestId("coach-report-card-row");
+    const old = rows.find((r) => r.textContent?.includes("Ms. Sadia"))!;
+    const today = rows.find((r) => r.textContent?.includes("Ms. Amna"))!;
+    expect(old.textContent).toMatch(/Ms\. Sadia · 5 Nov, 11:00\s?am/i);
+    expect(today.textContent).not.toMatch(/Nov|Dec|Jan/);
+  });
 });
+
