@@ -117,7 +117,7 @@ const {
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
-const { publicUserPayload, makeRequireLeaderRole } = require('../lib/leader-role');
+const { publicUserPayload, makeRequireLeaderRole, isPrincipalRole } = require('../lib/leader-role');
 // bd-33wxxi.1 — the teacher-app switches through one gate (a principal on the principal app is on too).
 const { teacherAppOnFor, isPrincipalAppUser } = require('../lib/teacher-app');
 // The bot's ONE definition of "registered" (pure, no requires) — bd-x7aprz.3.
@@ -2305,6 +2305,12 @@ router.use(require('./coach-school-card.routes').createCoachSchoolCardRouter({
   query: (sql, params) => pool.query(sql, params),
   // bd-hl4a4y: her Training page's "Level N of M", from the bot as her own Training page reads it.
   levelStates: (userId) => TrainingRules.getLevelStates(userId),
+}));
+// bd-33wxxi.2: the principal app's school API — her OWN school's card, counts only (portal_principal_app; off → 404).
+router.use(require('./portal-principal.routes').createPrincipalRouter({
+  guards: [requirePortalAuth],
+  supabase,
+  query: (sql, params) => pool.query(sql, params),
 }));
 
 // bd-tbprit.1: the coach's disagreements (v10 coaching test) — her To do / Done and the evidence card.
@@ -8165,9 +8171,16 @@ router.post('/coaching-session/:id/reflection', requirePortalAuth, requireSelfOb
  * ------------------------------------------------------------------------- */
 
 async function requireCoachObservation(req, res, next) {
+  const userId = req.session && req.session.portalUserId;
+  // bd-33wxxi.4 — a PRINCIPAL observes from the principal app, so for her it is the principal app's switch
+  // (portal_principal_app names her), never the coach pilots: with portal_coach_observation = true any principal could
+  // otherwise drive the pipeline through the API alone. requireLeaderRole ran first and holds her users row.
+  const role = req.portalUser && req.portalUser.role;
   // bd-o15qnr: coach v2's Take observation runs on this pipeline, so either
   // pilot flag opens it (feature-flags.isCoachObservationOn).
-  const on = await isCoachObservationOn(supabase, req.session && req.session.portalUserId);
+  const on = isPrincipalRole(role)
+    ? await isPrincipalAppUser(supabase, userId)
+    : await isCoachObservationOn(supabase, userId);
   if (!on) return res.status(404).json({ success: false, error: 'Not found' });
   return next();
 }

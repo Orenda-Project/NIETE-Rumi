@@ -1,22 +1,21 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef } from "react";
 import { useParams } from "react-router-dom";
 import { CalendarDays, MapPin, UserRound } from "lucide-react";
 import { PageChip, PageLinkChip } from "../../teacher/TeacherPage";
 import { FEATURE_HUE } from "../../teacher/icons/features";
 import { TEACHER_FRAME } from "../../teacher/copy";
 import { useCopy } from "../../teacher/i18n";
-import { Loading, SearchBox, SectionLabel } from "../ui";
+import { Loading, SectionLabel } from "../ui";
 import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
 import ManageSchool from "../people/ManageSchool";
 import { EmptyRow, Notice, useNotice } from "../people/rows";
 import { LevelChips, useLevel, withLevel, type TeachingLevel } from "../people/level";
-import { PEOPLE } from "../people/copy";
 import { SCHOOL_CARD } from "./copy";
 import { card } from "./api";
 import { useCardLoad } from "./frame";
 import { usePeriod, withPeriod } from "./period";
 import { PeriodChips } from "./parts";
-import { CoachObsTable, OverviewCard, TeacherTable } from "./schoolView";
+import { CoachObsTable, OverviewCard, SchoolTeachers } from "./schoolView";
 import type { PeriodKey, SchoolCardData, SchoolPrincipal } from "./types";
 import { WhereDoor } from "./whereDoor";
 import { WHERE } from "./whereCopy";
@@ -33,8 +32,6 @@ import { firstTo } from "./where";
  * recorded ›" chip that opens the school's Edit teacher, where a coach can set who is the principal.
  * No Share, no Schedule dock. Every number is the server's; one that did not load is "—", never 0.
  */
-
-const SEARCH_FROM = 10;
 
 /**
  * bd-17v39c.4.15 — the school's principal(s) in its header, in the Schools feature's colour (the kit's FEATURE_HUE): one
@@ -69,7 +66,6 @@ export function PrincipalChips({ principals, emis, period, level }: {
 export default function SchoolCardPage() {
   const C = useCopy(SCHOOL_CARD);
   const F = useCopy(TEACHER_FRAME);
-  const P = useCopy(PEOPLE);
   const W = useCopy(WHERE);
   const { emis = "" } = useParams();
   const [period] = usePeriod();
@@ -77,7 +73,6 @@ export default function SchoolCardPage() {
   const [level] = useLevel();
   const { notice } = useNotice();
   const { data, failed, reload } = useCardLoad<SchoolCardData>(() => card.school(emis, period, level), [emis, period, level]);
-  const [query, setQuery] = useState("");
   // The school's name and numbers stay in the header while another period loads.
   const known = useRef<SchoolCardData["school"] | null>(null);
   if (data?.school) known.current = data.school;
@@ -88,11 +83,6 @@ export default function SchoolCardPage() {
 
   const base = `/portal/coach/school/${encodeURIComponent(emis)}`;
   const teachers = data?.teachers ?? [];
-  const q = query.trim().toLowerCase();
-  const shown = useMemo(() => (q ? teachers.filter((t) => t.name.toLowerCase().includes(q)) : teachers), [teachers, q]);
-  const active = shown.filter((t) => t.total > 0)
-    .sort((a, b) => (b.total - a.total) || a.name.localeCompare(b.name));
-  const none = shown.filter((t) => !(t.total > 0)).sort((a, b) => a.name.localeCompare(b.name));
   const teacherLink = (ext: string) => withPeriod(`/portal/coach/teacher/${encodeURIComponent(ext)}`, period);
   const observationsLink = (ext: string) => withPeriod(`/portal/coach/teacher/${encodeURIComponent(ext)}/observations`, period);
   const schoolPage = (path: string) => withLevel(withPeriod(path, period), level);
@@ -118,12 +108,8 @@ export default function SchoolCardPage() {
         <>
           <OverviewCard ov={data.overview} scores={data.scores} period={period} link={(kind) => schoolPage(`${base}/feature/${kind}`)} />
 
-          <SectionLabel>{C.teachers}</SectionLabel>
-          <p className="m-0 mx-1 -mt-2 text-[13px] font-semibold text-[#6b7280] rtl:leading-[1.8]">{C.tapTeacher}</p>
-          {teachers.length > SEARCH_FROM && <SearchBox value={query} onChange={setQuery} placeholder={C.teacherName} />}
-          {teachers.length === 0 && <EmptyRow icon={<span>·</span>} testId="no-teachers">{level ? P.noneAtLevel : C.noTeachers}</EmptyRow>}
-          {teachers.length > 0 && shown.length === 0 && <EmptyRow icon={<span>·</span>} testId="no-match">{C.noMatch}</EmptyRow>}
-          {shown.length > 0 && <TeacherTable key={`${period}|${level}|${q}`} active={active} quiet={none} period={period} linkOf={teacherLink} state={linkState} />}
+          {/* bd-33wxxi.3 — the Teachers section is one shared piece (a principal's My school draws it too). */}
+          <SchoolTeachers teachers={teachers} period={period} level={level} linkOf={teacherLink} state={linkState} />
 
           <SectionLabel>{C.coachObsName}</SectionLabel>
           {coachObs.length > 0 && coachScores ? (

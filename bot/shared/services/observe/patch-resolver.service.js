@@ -260,7 +260,55 @@ function schoolIdsForHoldings(holdings) {
   return out;
 }
 
+/** bd-33wxxi.4 — app_settings key of the principal app (dashboard/lib/feature-flags.js PORTAL_PRINCIPAL_APP_KEY). */
+const PRINCIPAL_APP_KEY = 'portal_principal_app';
+
+/**
+ * bd-33wxxi.4 — the school of a principal ON THE PRINCIPAL APP, or null. The switch is read with the portal's rule
+ * (true, "true", or a list of users.id naming her; anything else, no row or a failed read is off), and her own users row
+ * must say principal with a school_id. Fail-closed: null means today's roster (her leader_schools holdings).
+ */
+async function principalAppSchoolId(supabase, userId) {
+  if (!userId) return null;
+  try {
+    const { data: flag, error } = await supabase.from('app_settings').select('value').eq('key', PRINCIPAL_APP_KEY).maybeSingle();
+    if (error || !flag) return null;
+    let v = flag.value;
+    if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* the raw string */ } }
+    const on = v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true')
+      || (Array.isArray(v) && v.some((id) => typeof id === 'string' && id === userId));
+    if (!on) return null;
+    const { data: me, error: meErr } = await supabase.from('users').select('role, school_id').eq('id', userId).maybeSingle();
+    if (meErr || !me || String(me.role || '').trim().toLowerCase() !== 'principal') return null;
+    return me.school_id || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * bd-33wxxi.4 — a principal on the principal app observes HER OWN school (#55 P3): its teachers by users.school_id,
+ * never herself and never another principal (a principal is not one of the school's teachers, bd-17v39c.4.15).
+ */
+async function ownSchoolPatch(supabase, principalId, schoolId) {
+  const { data: schools } = await supabase.from('schools').select('id, name, emis').in('id', [schoolId]);
+  const school = (schools || [])[0];
+  if (!school) return [];
+  const { data: people } = await supabase
+    .from('users')
+    .select('id, phone_number, name, role, school_id, teacher_level')
+    .eq('school_id', schoolId)
+    .in('role', ['teacher']);
+  return dedupePatch((people || [])
+    .filter((u) => String(u.id) !== String(principalId))
+    .map((u) => shapePatchRow({ ...u, user_id: u.id, school_name: school.name, emis: school.emis })));
+}
+
 async function listPatchViaSupabase(supabase, leaderUserId, schoolExtId = null) {
+  // bd-33wxxi.4 — a principal on the principal app: her own school, whatever she holds (one school, so no filter).
+  const ownSchool = await principalAppSchoolId(supabase, leaderUserId);
+  if (ownSchool) return ownSchoolPatch(supabase, leaderUserId, ownSchool);
+
   const { data: mine } = await supabase
     .from('leader_schools').select('school_ext_id, school_id').eq('leader_user_id', leaderUserId);
 
@@ -326,6 +374,7 @@ function toLeaderSourceRow(p = {}) {
 module.exports = {
   PATCH_ROLES,
   listPatchViaSupabase,
+  principalAppSchoolId,
   toLeaderSourceRow,
   PATCH_SQL,
   bandOf,
