@@ -28,6 +28,17 @@ test('the prototype card prints on one 520x2000 page and fits', async () => {
   expect([Math.round(width), Math.round(height)]).toEqual([390, 1500]); // 520x2000 css px at 72/96
 }, 60000);
 
+// Sandbox 7 Nov: a 2941px card was dropped. It prints whole, on one page as long as the card.
+test('a card longer than 2000px prints whole on one longer page', async () => {
+  if (!canLaunch) return;
+  const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'v10print-')), 'tall.pdf');
+  const { printPx } = await printCard('<html><body style="margin:0"><div class="page" style="height:2941px">x</div></body></html>', out);
+  expect(printPx).toBe(2941);
+  const pdf = await PDFDocument.load(fs.readFileSync(out));
+  expect(pdf.getPageCount()).toBe(1);
+  expect(Math.round(pdf.getPage(0).getSize().height)).toBe(Math.round(2941 * 0.75));
+}, 60000);
+
 test('a page with no .page reports no height, so the caller refuses it', async () => {
   if (!canLaunch) return;
   const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'v10print-')), 'x.pdf');

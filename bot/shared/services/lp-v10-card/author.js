@@ -75,7 +75,8 @@ async function authorCard({ v9Html, moves, stem, subject, lang, validate, client
       const content = (response.choices && response.choices[0] && response.choices[0].message.content) || '';
       let card;
       try { card = { ...safeJsonParse(content), v9_html: `${stem}.v9.html` }; } catch (e) { card = null; reasons = [`not JSON: ${e.message}`]; }
-      if (card) reasons = validate(card);
+      // A card the gates throw on (a field missing) is refused with the error, never sent (sandbox, 7 Nov).
+      if (card) try { reasons = validate(card); } catch (e) { card = null; reasons = [`the card cannot be checked: ${e.message}`]; }
       if (card && reasons.length === 0) return { card, rounds: round, model: useModel, reasons };
       if (card && (!best || reasons.length < best.reasons.length)) best = { card, reasons };
       onRefused({ round, reasons });

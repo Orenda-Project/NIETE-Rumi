@@ -1,7 +1,7 @@
 'use strict';
 /**
  * The v10 card on a GB lesson written on request (bd-rj6w0n.14.16.6), made the way the 838 live ones were made
- * offline: moves from the v9 lesson, the card written and checked by ICT's gates, printed at 520x2000, and joined
+ * offline: moves from the v9 lesson, the card written and checked by ICT's gates, printed 520 wide (one page, 2000 tall or the card's length), and joined
  * ahead of the v9 PDF (gb_v10_manifest.join). Revision and assessment days get no card (gb_v10.NO_CARD).
  */
 const fs = require('fs');
@@ -13,7 +13,6 @@ const { extractMoves } = require('./moves');
 const { authorCard } = require('./author');
 
 const NO_CARD = new Set(['revision', 'assessment']);
-const MAX_PRINT = 2000;
 
 const cardDay = (segment) => !NO_CARD.has(segment.skill_type) && !NO_CARD.has(segment.lp_type);
 
@@ -64,7 +63,8 @@ async function attachCard({ lpDoc, v9HtmlPath, v9PdfPath, segment, lang, stem, o
   const cardPdf = path.join(outDir, `${stem}.v10-card.pdf`);
   await fs.promises.writeFile(cardHtml, html);
   const { printPx } = await printCard(html, cardPdf);
-  if (!(printPx <= MAX_PRINT)) throw fail('card_too_long', `v10 card prints ${printPx}px, over ${MAX_PRINT}`);
+  // A card longer than 2000px prints on one longer page (print.js) and still goes with v9 (Amena, 7 Nov).
+  if (!printPx) throw fail('card_unprintable', 'v10 card has no printable page');
   const pdfPath = path.join(outDir, `${stem}.v10.pdf`);
   const pageCount = await join(cardPdf, v9PdfPath, pdfPath);
   return { pdfPath, pageCount, card, moves, reasons, timings: { moves_ms, card_ms, render_ms: Date.now() - t2 } };

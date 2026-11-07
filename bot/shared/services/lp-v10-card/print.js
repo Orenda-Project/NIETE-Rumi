@@ -1,7 +1,7 @@
 'use strict';
 /**
- * The v10 card's print PDF, as ICT's shots.js makes it: a 520x2000 viewport under print media, one 520x2000 page,
- * backgrounds on. Returns the printed height of .page; the caller refuses a card over 2000. The browser is launched
+ * The v10 card's print PDF, as ICT's shots.js makes it: a 520x2000 viewport under print media, one 520-wide page 2000 tall or as long as the card,
+ * backgrounds on. Returns the printed height of .page; the caller refuses a card with none. The browser is launched
  * as the v9 renderer launches it (render_lp.js: LP612_CHROME_CHANNEL, container flags).
  */
 const fs = require('fs');
@@ -26,7 +26,8 @@ async function printCard(html, outPdf, { pw = require('playwright-core') } = {})
     await page.goto(`file://${file}`, { waitUntil: 'load' });
     await page.emulateMedia({ media: 'print' });
     const printPx = await page.evaluate(() => { const p = document.querySelector('.page'); return p ? p.scrollHeight : null; });
-    await page.pdf({ path: outPdf, width: '520px', height: '2000px', printBackground: true });
+    // A card longer than 2000px prints whole on one longer page rather than being dropped (sandbox, 7 Nov).
+    await page.pdf({ path: outPdf, width: '520px', height: `${Math.max(2000, printPx || 0)}px`, printBackground: true });
     return { printPx };
   } finally {
     await browser.close();
