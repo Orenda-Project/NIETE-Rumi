@@ -105,4 +105,4 @@ function run(examJson) {
   return { ok: !out.some((i) => i.hard), issues: out };
 }
 
-module.exports = { id: ID, name: 'numeric-resolve', hard: true, modes: ['free', 'board'], LIMITS, run, evaluate };
+module.exports = { id: ID, name: 'numeric-resolve', hard: true, modes: ['free', 'board'], LIMITS, run, evaluate, lastNumber };
