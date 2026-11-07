@@ -173,4 +173,28 @@ describe('removeTeachers', () => {
     expect((await Admin.removeTeachers(query, client, ME, '999', ['923001110001'], '')).status).toBe(404);
     expect(client.removeTeachers).not.toHaveBeenCalled();
   });
+
+  // bd-17v39c.4.16 (queue #47) — Remove teachers lists teachers only; a principal leaves
+  // a school from their own Edit teacher page. The save refuses a principal's number.
+  describe('a principal is never removed from here', () => {
+    const HEAD = { ...patchRow('923001110007', 'Head Sahib', 'niete:110', 'u-head'), role: 'principal' };
+    const withHead = async (sql) => {
+      if (sql === PATCH_TEACHERS_SQL) return { rows: [...PATCH, HEAD] };
+      return query(sql);
+    };
+
+    test('a principal in a batch is dropped; the teachers go', async () => {
+      const client = fakeClient();
+      await Admin.removeTeachers(withHead, client, ME, '110', ['923001110001', '923001110007'], '');
+      expect(client.removeTeachers).toHaveBeenCalledWith({
+        leaderUserId: ME, schoolExtId: 'niete:110', userIds: ['u-ayesha'], reason: null,
+      });
+    });
+
+    test('only the principal asked: 404, the bot is never asked', async () => {
+      const client = fakeClient();
+      expect((await Admin.removeTeachers(withHead, client, ME, '110', ['923001110007'], '')).status).toBe(404);
+      expect(client.removeTeachers).not.toHaveBeenCalled();
+    });
+  });
 });

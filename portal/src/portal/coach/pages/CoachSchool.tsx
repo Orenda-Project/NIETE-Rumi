@@ -55,7 +55,7 @@ function CoachSchoolToday() {
           <LevelChips counts={levelCounts(data.teachers)} />
           {[...data.teachers].filter((t) => atLevel(t.levels, level)).sort(bySince).map((t) => <TeacherCard key={t.teacherExtId || t.name} t={t} />)}
 
-          <ManageSchool emis={emis} name={s.name} teacherCount={data.teachers.length} />
+          <ManageSchool emis={emis} name={s.name} teacherCount={data.teachers.length} removeCount={data.teachers.filter((t) => !t.isPrincipal).length} />
         </>
       )}
     </PeopleFrame>
