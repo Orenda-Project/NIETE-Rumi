@@ -96,6 +96,23 @@ describe('lp-v10-card author', () => {
     expect(out.reasons).toEqual(['move 7: do is 81 characters']);
   });
 
+  // Sandbox 7 Nov, G3 Maths c04 s004: round 2's card had a field missing, the gates threw "reading 'forEach'" and
+  // the throw ended the job with v9 alone. A card that cannot be checked is a refusal fed back, never the card sent.
+  test('a card the gates cannot check is refused with the error and the rounds go on', async () => {
+    const client = clientOf(() => reply({ v: 1 }), () => reply({ v: 2 }));
+    const validate = (c) => { if (c.v === 1) throw new TypeError("Cannot read properties of undefined (reading 'forEach')"); return []; };
+    const out = await authorCard({ ...base, client, model: 'm', validate });
+    expect(client.calls[1].messages.at(-1).content).toMatch(/reading 'forEach'/);
+    expect(out.card.v).toBe(2);
+  });
+
+  test('a card the gates cannot check is never the one sent', async () => {
+    const client = clientOf(() => reply({ v: 1 }), () => reply({ v: 2 }), () => reply({ v: 3 }), () => reply({ v: 4 }));
+    const validate = (c) => { if (c.v === 1) throw new TypeError('boom'); return ['a', 'b']; };
+    const out = await authorCard({ ...base, client, model: 'm', validate });
+    expect(out.card.v).not.toBe(1);
+  });
+
   test('no card at all after the last round is an error with the reasons', async () => {
     const empty = () => ({ choices: [{ message: { content: '' } }] });
     const client = clientOf(empty, empty, empty, empty);

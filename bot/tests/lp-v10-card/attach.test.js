@@ -100,10 +100,18 @@ describe('attachCard', () => {
     expect(printOk.mock.calls[0][0]).toMatch(/SCIENCE|Science/);
   });
 
-  test('a card that prints longer than 2000px is refused and nothing is joined', async () => {
-    const tall = jest.fn(async (html, outPdf) => { await pdfOf(1, outPdf); return { printPx: 2400 }; });
-    await expect(attachCard(opts, { client: fakeClient([L.card()]), model: 'm', printCard: tall }))
-      .rejects.toMatchObject({ code: 'card_too_long' });
+  // Sandbox 7 Nov, G3 English c03 s002: the card printed 2941px and was dropped, so v9 went alone. Amena: the card
+  // goes with v9. A long card prints on one longer page (print.js) and is joined.
+  test('a card that prints longer than 2000px is still joined ahead of v9', async () => {
+    const tall = jest.fn(async (html, outPdf) => { await pdfOf(1, outPdf); return { printPx: 2941 }; });
+    const out = await attachCard(opts, { client: fakeClient([L.card()]), model: 'm', printCard: tall });
+    expect(out.pageCount).toBe(4);
+  });
+
+  test('a card with no printable page is an error', async () => {
+    const none = jest.fn(async (html, outPdf) => { await pdfOf(1, outPdf); return { printPx: null }; });
+    await expect(attachCard(opts, { client: fakeClient([L.card()]), model: 'm', printCard: none }))
+      .rejects.toMatchObject({ code: 'card_unprintable' });
   });
 
   test('moves that fail are an error the worker can name', async () => {
