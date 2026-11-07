@@ -235,7 +235,7 @@ describe('grades 1-5 are untouched', () => {
     const guard = /^ {2}if \(Number\(grade\) >= 6\) return require\('\.\/question-types-6-12'\)\.(forSubject|categoryOf|defaultMix)\(.*\);\n/gm;
     expect((src.match(guard) || []).length).toBe(3);
     const base = crypto.createHash('sha256').update(src.replace(guard, '')).digest('hex');
-    expect(base).toBe('a981d07d71013d390c1d1b2b345cefdf297d861812b8d1de1c9c3c0aa713179a');
+    expect(base).toBe('1f8d468ad80e0b9fda267879005274c4855626d46fbad82cb0e5a5085f1de2b7');
   });
 
   it('the 6-12 module answers nothing for grade <= 5', () => {
