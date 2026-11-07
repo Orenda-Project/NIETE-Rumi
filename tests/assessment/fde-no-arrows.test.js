@@ -65,7 +65,8 @@ describe('noArrows: the exam JSON guard', () => {
 
   it('runs in both writers', () => {
     expect(fs.readFileSync(path.join(SVC, 'fde-early-writer.js'), 'utf8')).toMatch(/noArrows\(dealScrambles\(dealOrders\(examJson\)\)\)/);
-    expect(fs.readFileSync(path.join(SVC, 'assessment-generation.service.js'), 'utf8')).toMatch(/noArrows\(scheme\.examJson\)/);
+    // The service is an index over assessment-generation/*.js (bd-5jmnfj.37): read it and its parts.
+    expect(require('./helpers/source-with-parts').sourceWithParts('assessment-generation.service.js')).toMatch(/noArrows\(scheme\.examJson\)/);
   });
 });
 

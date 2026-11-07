@@ -87,7 +87,8 @@ describe('untouched maps', () => {
     expect(Vocab.SUBJECT_LABEL).toEqual(OLD_LABEL);
   });
   it('URDU_MEDIUM line is unchanged', () => {
-    const src = fs.readFileSync(path.join(__dirname, A, 'assessment-generation.service.js'), 'utf8');
+    // The service is an index over assessment-generation/*.js (bd-5jmnfj.37): read it and its parts.
+    const src = require('./helpers/source-with-parts').sourceWithParts('assessment-generation.service.js');
     expect(src).toContain("const URDU_MEDIUM = new Set(['urdu', 'islamiat', 'genk', 'sst']);");
   });
 });
