@@ -2,8 +2,8 @@
 /**
  * The v10 card written on request (bd-rj6w0n.14.16.6). The model gets the same rules the 838 GB cards were
  * written with offline (GB_WORKER_PROMPT.md: the brief, EXIT_GOAL + HOME_TURN on the first pass, the GB rules,
- * the Urdu rules for Urdu, the approved example), the v9 HTML and the moves. The gate's reasons go back for one
- * repair round. A deadline bounds the whole step so the teacher never waits longer than ICT (the caller sends
+ * the Urdu rules for Urdu, the approved example), the v9 HTML and the moves. The gate's reasons go back for repair
+ * rounds (up to three). A deadline bounds the whole step so the teacher never waits longer than ICT (the caller sends
  * v9 alone when it fires).
  */
 const fs = require('fs');
@@ -51,7 +51,7 @@ function userPrompt({ v9Html, moves, stem }) {
 function fail(code, message, extra) { return Object.assign(new Error(message), { code }, extra); }
 
 // onRefused({ round, reasons }) is called as each refusal happens, so the reasons survive a deadline that fires later.
-async function authorCard({ v9Html, moves, stem, subject, lang, validate, client, model, deadlineMs = 8 * 60 * 1000, maxTokens = 12000, onRefused = () => {} }) {
+async function authorCard({ v9Html, moves, stem, subject, lang, validate, client, model, deadlineMs = 8 * 60 * 1000, maxTokens = 12000, maxRounds = 4, onRefused = () => {} }) {
   const llm = client || require('../llm-client').getClient();
   const useModel = model || require('../../config/model-registry').modelFor(JOB);
   const messages = [
@@ -64,20 +64,26 @@ async function authorCard({ v9Html, moves, stem, subject, lang, validate, client
   });
   const work = async () => {
     let reasons = [];
-    for (let round = 1; round <= 2; round++) {
+    let best = null;
+    for (let round = 1; round <= maxRounds; round++) {
       const response = await llm.chat.completions.create({
         model: useModel, job: JOB, temperature: 0, messages: [...messages],
         max_completion_tokens: maxTokens, response_format: { type: 'json_object' },
+        // Thinking on, Sonnet 5 spent all 12,000 tokens reasoning and sent an empty card (sandbox, 7 Nov).
+        reasoning: { enabled: false },
       });
       const content = (response.choices && response.choices[0] && response.choices[0].message.content) || '';
       let card;
       try { card = { ...safeJsonParse(content), v9_html: `${stem}.v9.html` }; } catch (e) { card = null; reasons = [`not JSON: ${e.message}`]; }
       if (card) reasons = validate(card);
-      if (card && reasons.length === 0) return { card, rounds: round, model: useModel };
+      if (card && reasons.length === 0) return { card, rounds: round, model: useModel, reasons };
+      if (card && (!best || reasons.length < best.reasons.length)) best = { card, reasons };
       onRefused({ round, reasons });
       messages.push({ role: 'assistant', content },
         { role: 'user', content: `The gate REFUSED this card. Fix each reason and reply with the whole card.json:\n- ${reasons.join('\n- ')}` });
     }
+    // Amena, 7 Nov: the card goes with v9. The closest card is sent; only no card at all is an error.
+    if (best) return { card: best.card, rounds: maxRounds, model: useModel, reasons: best.reasons };
     throw fail('card_refused', `v10 card refused: ${reasons.join('; ')}`, { reasons });
   };
   try { return await Promise.race([work(), deadline]); } finally { clearTimeout(timer); }

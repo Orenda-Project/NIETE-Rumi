@@ -49,6 +49,9 @@ describe('lp-v10-card author', () => {
     const out = await authorCard({ ...base, client, model: 'm', validate: () => [] });
     expect(client.calls).toHaveLength(1);
     expect(client.calls[0]).toMatchObject({ model: 'm', job: 'lp.v10card' });
+    // Sandbox 7 Nov: with thinking on, Sonnet 5 spent all 12,000 output tokens reasoning on a real lesson and
+    // returned an empty card both rounds ("not JSON ... position 0"). Off, as ICT's author has it.
+    expect(client.calls[0].reasoning).toEqual({ enabled: false });
     expect(out.card).toMatchObject({ header: { title: 'T' }, v9_html: 'g3_ch1_Maths_seg1.v9.html' });
     expect(out.rounds).toBe(1);
   });
@@ -74,10 +77,30 @@ describe('lp-v10-card author', () => {
     expect(refused).toEqual([{ round: 1, reasons: ['we: needs ONE NEIGHBOUR TURN'] }]);
   });
 
-  test('still refused after the repair round is an error with the reasons', async () => {
-    const client = clientOf(() => reply({}), () => reply({}));
-    await expect(authorCard({ ...base, client, model: 'm', validate: () => ['too long'] }))
-      .rejects.toMatchObject({ code: 'card_refused', reasons: ['too long'] });
+  // Sandbox 7 Nov, thinking off: both live cards came back in ~20 s a round and were refused only on a move a few
+  // characters over 70 after round 2. The deadline, not a round count of two, is what bounds the teacher's wait.
+  test('repair rounds go on to four while the deadline allows', async () => {
+    const client = clientOf(() => reply({ v: 1 }), () => reply({ v: 2 }), () => reply({ v: 3 }), () => reply({ v: 4 }));
+    const out = await authorCard({ ...base, client, model: 'm', validate: (c) => (c.v < 4 ? ['move 6: do is 74 characters'] : []) });
+    expect(client.calls).toHaveLength(4);
+    expect(out.rounds).toBe(4);
+  });
+
+  // Amena, 7 Nov: "v10 embedded with v9 — make it happen for GB". A card the gates still query after the last
+  // round goes out (the one with fewest reasons) and the reasons are reported; only no card at all is an error.
+  test('still queried after the last round: the closest card is sent, with its reasons', async () => {
+    const client = clientOf(() => reply({ v: 1 }), () => reply({ v: 2 }), () => ({ choices: [{ message: { content: '' } }] }), () => reply({ v: 4 }));
+    const validate = (c) => (c.v === 2 ? ['move 7: do is 81 characters'] : ['a', 'b']);
+    const out = await authorCard({ ...base, client, model: 'm', validate });
+    expect(out.card.v).toBe(2);
+    expect(out.reasons).toEqual(['move 7: do is 81 characters']);
+  });
+
+  test('no card at all after the last round is an error with the reasons', async () => {
+    const empty = () => ({ choices: [{ message: { content: '' } }] });
+    const client = clientOf(empty, empty, empty, empty);
+    await expect(authorCard({ ...base, client, model: 'm', validate: () => [] }))
+      .rejects.toMatchObject({ code: 'card_refused' });
   });
 
   test('the deadline stops a slow model', async () => {

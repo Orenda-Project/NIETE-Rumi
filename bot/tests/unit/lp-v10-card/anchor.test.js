@@ -27,4 +27,18 @@ describe('anchor: give each v9 section a stable id', () => {
     expect(missing(addIds(SECS.replace('s-h', 's-x')))).toEqual(['hw']);
     expect(missing('')).toEqual(ORDER);
   });
+  // Sandbox 7 Nov: an ICT 6-12 page (the runtime v9) has no s-we bar. Its We Do is a block marked `we` inside
+  // the Activity section, so every card that linked "we" was refused: "v9 has no section to land on: we".
+  test('an ICT 6-12 page lands "we" on its We Do block', () => {
+    const ict = SECS.replace('<div data-atom class="s-we"></div>', '')
+      .replace('<div data-atom class="s-a"></div>', '<div data-atom class="bar s-a"></div><div data-atom class="blk exq we sp-2"></div>');
+    const h = addIds(ict);
+    expect(h).toContain('<div data-atom id="v9-we" class="blk exq we sp-2">');
+    expect(missing(h)).toEqual([]);
+  });
+  test('a GB page keeps "we" on its s-we bar, not a later We Do block', () => {
+    const h = addIds(SECS.replace('<div data-atom class="s-a"></div>', '<div data-atom class="s-a"></div><div data-atom class="blk we"></div>'));
+    expect(h).toContain('<div data-atom id="v9-we" class="s-we">');
+    expect(h.match(/id="v9-we"/g)).toHaveLength(1);
+  });
 });

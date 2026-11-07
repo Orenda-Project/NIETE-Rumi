@@ -54,9 +54,10 @@ async function attachCard({ lpDoc, v9HtmlPath, v9PdfPath, segment, lang, stem, o
     return gates(asEnglish(card), html, v9, must);
   };
   const t1 = Date.now();
-  const { card } = await authorCard({ v9Html: v9, moves, stem, subject: segment.subject, lang, validate: check,
+  const { card, reasons } = await authorCard({ v9Html: v9, moves, stem, subject: segment.subject, lang, validate: check,
     client, model, deadlineMs: Math.max(1, deadlineMs - (t1 - started)), onRefused });
   const card_ms = Date.now() - t1;
+  html = render(withVideo(card, v9)); // the card sent may be an earlier round's than the last one checked
 
   const t2 = Date.now();
   const cardHtml = path.join(outDir, `${stem}.v10-card.html`);
@@ -66,7 +67,7 @@ async function attachCard({ lpDoc, v9HtmlPath, v9PdfPath, segment, lang, stem, o
   if (!(printPx <= MAX_PRINT)) throw fail('card_too_long', `v10 card prints ${printPx}px, over ${MAX_PRINT}`);
   const pdfPath = path.join(outDir, `${stem}.v10.pdf`);
   const pageCount = await join(cardPdf, v9PdfPath, pdfPath);
-  return { pdfPath, pageCount, card, moves, timings: { moves_ms, card_ms, render_ms: Date.now() - t2 } };
+  return { pdfPath, pageCount, card, moves, reasons, timings: { moves_ms, card_ms, render_ms: Date.now() - t2 } };
 }
 
 module.exports = { attachCard, cardDay, asEnglish, join };

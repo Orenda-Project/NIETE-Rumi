@@ -43,6 +43,7 @@ describe('lp-v10-card moves', () => {
   test('extractMoves calls the model once and stamps the fidelity-moves-v1 output', async () => {
     const client = fakeClient('```json\n{"template":"STANDARD","total_minutes":40,"moves":[{"move_id":"m1","phase":"explain","bucket":"must_happen","text":"t"}]}\n```');
     const out = await extractMoves({ lpDoc: { title: 'T' }, lessonId: 'L1', client, model: 'm-x' });
+    expect(client.calls[0].reasoning).toEqual({ enabled: false }); // thinking off, as the card and ICT's author
     expect(client.calls).toHaveLength(1);
     expect(client.calls[0]).toMatchObject({ model: 'm-x', job: 'lp.v10moves', temperature: 0 });
     expect(out).toMatchObject({
