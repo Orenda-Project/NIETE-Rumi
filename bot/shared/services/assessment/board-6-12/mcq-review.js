@@ -81,12 +81,15 @@ function applyFlags(checks, flags, examJson) {
 
 /**
  * Round 9b: after the last rewrite the review stops being hard. A live reviewer says yes on ~45% of items, rewrites
- * included, so a hard review fails every paper; its leftovers become notes (mutates checks). Other reasons stay hard.
+ * included, so a hard review fails every paper; its leftovers become notes (mutates checks). Other reasons stay hard,
+ * and so do the ids in `keep` (bd-5jmnfj.38.34: members of a kept stimulus group never ship with a fault).
  */
-function soften(checks) {
+function soften(checks, _flags, keep = new Set()) {
   let moved = 0;
+  let kept = 0;
   checks.shortfall = checks.shortfall.filter((row) => {
-    const mine = Object.keys(row.review || {}).filter((id) => row.why && row.why[id] === 'review');
+    const mine = Object.keys(row.review || {}).filter((id) => row.why && row.why[id] === 'review' && !keep.has(id));
+    kept += Object.keys(row.review || {}).filter((id) => keep.has(id)).length;
     mine.forEach((id) => {
       checks.notes.push({ check: 'review', id, slot: row.slot, faults: row.review[id].faults, why: row.review[id].why || '' });
       row.items = row.items.filter((x) => x !== id);
@@ -94,12 +97,12 @@ function soften(checks) {
       delete row.why[id];
       moved += 1;
     });
-    delete row.review;
+    if (!Object.keys(row.review || {}).some((id) => keep.has(id))) delete row.review;
     return !(row.reason === 'review' && !row.items.length);
   });
   const counted = checks.record.per_check && checks.record.per_check.review;
-  checks.record.hard = Math.max(0, (checks.record.hard || 0) - (counted ? counted.hard : moved));
-  if (counted) counted.hard = 0;
+  checks.record.hard = Math.max(0, (checks.record.hard || 0) - (counted ? counted.hard - kept : moved));
+  if (counted) counted.hard = kept;
   return checks;
 }
 
