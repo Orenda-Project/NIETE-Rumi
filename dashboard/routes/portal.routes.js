@@ -79,6 +79,9 @@ const { buildIsapsScoreSheet } = require('../../bot/shared/services/training/isa
 // (zero requires, like paper-marking.service.js); the portal hands it its logger.
 const { servableQuestions } = require('../../bot/shared/services/training/question-stem.rules');
 const _logBlankStems = (msg, data) => console.warn(msg, JSON.stringify(data));
+// One open module attempt per teacher per module: the rule a module quiz starts by, on both surfaces.
+// Zero requires, like the two above; the portal hands it its own client and the telemetry sink.
+const ModuleAttempt = require('../../bot/shared/services/training/open-module-attempt');
 // bd-2460 — Assessment Generator availability. Fail-closed, shared with the
 // bot via one app_settings row (see dashboard/lib/feature-flags.js).
 const {
@@ -6063,6 +6066,27 @@ async function _attemptAnswers(attemptId) {
 const _resultsOf = (rows) => rows.map((r) => ({ question_id: r.question_id, question_index: r.question_index, is_correct: Boolean(r.is_correct) }));
 
 /**
+ * A module-quiz step that failed: on Axiom (the portal's telemetry sink) as well as the Railway
+ * console. The console line used to be all there was, so a start that answered 500 left nothing in
+ * the logs anyone queries. Carries the pg code and the request's correlation id, which the 5xx body
+ * also returns, so one report can be matched to one log line.
+ */
+function _quizAttemptFailed(step, { correlationId, userId, moduleId, attemptId = null, error }) {
+  const pgCode = (error && error.code) || null;
+  const message = String((error && error.message) || error || '').slice(0, 300);
+  console.error(`quiz-attempts/${step} failed: ${JSON.stringify({ correlationId, userId, moduleId, attemptId, pgCode, error: message })}`);
+  try {
+    telemetry.logEvent('training_quiz_attempt_error', {
+      step, correlation_id: correlationId, user_uuid: userId, module_row_id: moduleId,
+      attempt_uuid: attemptId, pg_code: pgCode, error: message, surface: 'portal',
+    });
+  } catch (_) { /* telemetry never fails the request */ }
+}
+
+/** The event logger handed to open-module-attempt, stamping this request's correlation id. */
+const _quizEvents = (correlationId) => (event, data) => telemetry.logEvent(event, { ...data, correlation_id: correlationId });
+
+/**
  * Close the attempt and save its result. Idempotent: an attempt already closed
  * (by an earlier call, or by WhatsApp) returns what is stored. THROWS when the
  * bot cannot mark or decide — nothing is closed, and the caller says "try again".
@@ -6156,35 +6180,34 @@ async function _finishModuleQuizAttempt(userId, moduleId, attempt, paper) {
 }
 
 router.post('/training/module/:id/quiz-attempts/start', requirePortalAuth, async (req, res) => {
+  const correlationId = crypto.randomUUID();
+  const userId = req.session && req.session.portalUserId;
+  const moduleId = parseInt(req.params.id, 10);
+  const SERVE_UNAVAILABLE = { success: false, error: 'We could not load this quiz just now. Please try again in a moment.', correlation_id: correlationId };
   try {
-    const userId = req.session.portalUserId;
-    const moduleId = parseInt(req.params.id, 10);
     if (!Number.isFinite(moduleId)) return res.status(400).json({ success: false, error: 'Invalid module id' });
 
     const ctx = await _moduleQuizContext(userId, moduleId);
     if (ctx.error) return res.status(ctx.error[0]).json(ctx.error[1]);
 
-    // Resume an open attempt on this module, as WhatsApp's start does — which
-    // is also what a page reload lands on.
-    const { data: latest } = await supabase
-      .from('training_assessment_attempts')
-      .select('id, status')
-      .eq('user_id', userId)
-      .eq('training_module_id', moduleId)
-      .eq('quiz_kind', 'training_module')
-      .order('started_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const open = latest && latest.status === 'in_progress' ? await _ownModuleAttempt(userId, moduleId, latest.id) : null;
+    // Resume her open attempt on this module, as WhatsApp's start does, which is also what a page
+    // reload lands on. Any open attempt, not only her newest row; one under a newer finished attempt
+    // is stale, and is abandoned so a fresh one opens (open-module-attempt.js).
+    const events = _quizEvents(correlationId);
+    const resumable = await ModuleAttempt.resumableModuleAttempt(supabase, { userId, moduleId, surface: 'portal', log: events });
+    const open = resumable.id ? await _ownModuleAttempt(userId, moduleId, resumable.id) : null;
     const attemptId = open ? open.id : crypto.randomUUID();
 
-    let paper;
-    try {
-      paper = await _servedModulePaper(moduleId, ctx.levelId, attemptId);
-    } catch (serveErr) {
-      console.error('quiz-attempts/start — serving unavailable, nothing written', { moduleId, error: serveErr?.message });
-      return res.status(503).json({ success: false, error: 'We could not load this quiz just now. Please try again in a moment.' });
-    }
+    const serve = async (id) => {
+      try {
+        return await _servedModulePaper(moduleId, ctx.levelId, id);
+      } catch (serveErr) {
+        _quizAttemptFailed('start_serve', { correlationId, userId, moduleId, attemptId: id, error: serveErr });
+        return null;
+      }
+    };
+    let paper = await serve(attemptId);
+    if (!paper) return res.status(503).json(SERVE_UNAVAILABLE);
     if (paper.length === 0) return res.status(400).json({ success: false, error: 'This module has no active questions' });
 
     let attempt = open;
@@ -6198,31 +6221,36 @@ router.post('/training/module/:id/quiz-attempts/start', requirePortalAuth, async
         .maybeSingle();
       if (!assignment) return res.status(400).json({ success: false, error: 'No active training program assignment' });
       const now = new Date().toISOString();
-      // Shape parity with quiz-delivery.service.js startModuleQuiz.
-      const { data: made, error: insErr } = await supabase
-        .from('training_assessment_attempts')
-        .insert({
-          id: attemptId,
-          user_id: userId,
-          program_id: assignment.program_id,
-          quiz_kind: 'training_module',
-          training_module_id: moduleId,
-          level_id: ctx.levelId,
-          current_question_index: 0,
-          total_questions: paper.length,
-          total_score: paper.length,
-          status: 'in_progress',
-          started_at: now,
-          last_activity_at: now,
-        })
-        .select('id')
-        .single();
-      if (insErr || !made) throw insErr || new Error('attempt insert returned nothing');
-      attempt = { id: attemptId, current_question_index: 0, total_questions: paper.length };
-      try {
-        const { logEvent } = require('../../bot/shared/utils/structured-logger');
-        logEvent('training_quiz_started', { user_uuid: userId, attempt_uuid: attemptId, module_row_id: moduleId, total_qs: paper.length, surface: 'portal' });
-      } catch (_) { /* best-effort telemetry */ }
+      // Shape parity with quiz-delivery.service.js startTrainingQuiz.
+      const made = await ModuleAttempt.insertModuleAttempt(supabase, {
+        id: attemptId,
+        user_id: userId,
+        program_id: assignment.program_id,
+        quiz_kind: 'training_module',
+        training_module_id: moduleId,
+        level_id: ctx.levelId,
+        current_question_index: 0,
+        total_questions: paper.length,
+        total_score: paper.length,
+        status: 'in_progress',
+        started_at: now,
+        last_activity_at: now,
+      }, { surface: 'portal', log: events });
+      if (made.error) throw made.error;
+      if (made.raced) {
+        // A parallel start for this module opened its attempt first: serve that one, by its id, so
+        // both requests show the same paper and her answers land on the one open attempt.
+        attempt = await _ownModuleAttempt(userId, moduleId, made.id);
+        if (!attempt) throw new Error('the open attempt a parallel start made could not be read back');
+        paper = await serve(attempt.id);
+        if (!paper) return res.status(503).json(SERVE_UNAVAILABLE);
+      } else {
+        attempt = { id: attemptId, current_question_index: 0, total_questions: paper.length };
+        try {
+          const { logEvent } = require('../../bot/shared/utils/structured-logger');
+          logEvent('training_quiz_started', { user_uuid: userId, attempt_uuid: attemptId, module_row_id: moduleId, total_qs: paper.length, surface: 'portal' });
+        } catch (_) { /* best-effort telemetry */ }
+      }
     }
 
     const done = await _attemptAnswers(attempt.id);
@@ -6244,15 +6272,17 @@ router.post('/training/module/:id/quiz-attempts/start', requirePortalAuth, async
       answered: done.map((r) => ({ question_id: r.question_id, chosen_option: r.chosen_option, is_correct: Boolean(r.is_correct) })),
     });
   } catch (error) {
-    console.error('quiz-attempts/start error:', error);
-    return res.status(500).json({ success: false, error: 'Failed to start the quiz' });
+    _quizAttemptFailed('start', { correlationId, userId, moduleId, error });
+    return res.status(500).json({ success: false, error: 'Failed to start the quiz', correlation_id: correlationId });
   }
 });
 
 router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePortalAuth, async (req, res) => {
+  const correlationId = crypto.randomUUID();
+  const userId = req.session && req.session.portalUserId;
+  const moduleId = parseInt(req.params.id, 10);
+  const attemptId = req.params.attemptId;
   try {
-    const userId = req.session.portalUserId;
-    const moduleId = parseInt(req.params.id, 10);
     if (!Number.isFinite(moduleId)) return res.status(400).json({ success: false, error: 'Invalid module id' });
     const questionId = req.body ? req.body.question_id : null;
     const chosen = req.body && req.body.chosen_option != null ? String(req.body.chosen_option).trim() : '';
@@ -6265,8 +6295,8 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePorta
     try {
       paper = await _servedModulePaper(moduleId, attempt.level_id, attempt.id);
     } catch (serveErr) {
-      console.error('quiz-attempts/answer — serving unavailable, nothing written', { moduleId, error: serveErr?.message });
-      return res.status(503).json({ success: false, error: 'We could not check this answer just now. Please try again in a moment.' });
+      _quizAttemptFailed('answer_serve', { correlationId, userId, moduleId, attemptId, error: serveErr });
+      return res.status(503).json({ success: false, error: 'We could not check this answer just now. Please try again in a moment.', correlation_id: correlationId });
     }
     const index = paper.findIndex((p) => String(p.q.id) === String(questionId));
     if (index < 0) return res.status(400).json({ success: false, error: 'That question is not on this quiz' });
@@ -6293,8 +6323,8 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePorta
         [{ question_id: q.id, chosen_option: chosen }],
       );
     } catch (markErr) {
-      console.error('quiz-attempts/answer — marking unavailable, nothing written', { moduleId, error: markErr?.message });
-      return res.status(503).json({ success: false, error: 'We could not check this answer just now. Please try again in a moment.' });
+      _quizAttemptFailed('answer_mark', { correlationId, userId, moduleId, attemptId, error: markErr });
+      return res.status(503).json({ success: false, error: 'We could not check this answer just now. Please try again in a moment.', correlation_id: correlationId });
     }
     const g = marked.graded[0];
     if (!g) return res.status(400).json({ success: false, error: 'That question is not on this quiz' });
@@ -6335,7 +6365,7 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePorta
         if (out.status === 200) result = out.body;
       } catch (finErr) {
         // The answer is saved; Submit (finish) closes the attempt once the bot answers.
-        console.error('quiz-attempts/answer — could not close the attempt yet', { moduleId, error: finErr?.message });
+        _quizAttemptFailed('answer_close', { correlationId, userId, moduleId, attemptId, error: finErr });
       }
     }
 
@@ -6348,15 +6378,17 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePorta
       result,
     });
   } catch (error) {
-    console.error('quiz-attempts/answer error:', error);
-    return res.status(500).json({ success: false, error: 'Failed to save the answer' });
+    _quizAttemptFailed('answer', { correlationId, userId, moduleId, attemptId, error });
+    return res.status(500).json({ success: false, error: 'Failed to save the answer', correlation_id: correlationId });
   }
 });
 
 router.post('/training/module/:id/quiz-attempts/:attemptId/finish', requirePortalAuth, async (req, res) => {
+  const correlationId = crypto.randomUUID();
+  const userId = req.session && req.session.portalUserId;
+  const moduleId = parseInt(req.params.id, 10);
+  const attemptId = req.params.attemptId;
   try {
-    const userId = req.session.portalUserId;
-    const moduleId = parseInt(req.params.id, 10);
     if (!Number.isFinite(moduleId)) return res.status(400).json({ success: false, error: 'Invalid module id' });
     const attempt = await _ownModuleAttempt(userId, moduleId, req.params.attemptId);
     if (!attempt) return res.status(404).json({ success: false, error: 'Quiz not found' });
@@ -6366,13 +6398,13 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/finish', requirePorta
       const paper = await _servedModulePaper(moduleId, attempt.level_id, attempt.id);
       out = await _finishModuleQuizAttempt(userId, moduleId, attempt, paper);
     } catch (finErr) {
-      console.error('quiz-attempts/finish — marking unavailable, nothing closed', { moduleId, error: finErr?.message });
-      return res.status(503).json({ success: false, error: 'We could not mark this quiz just now. Please try again in a moment.' });
+      _quizAttemptFailed('finish_mark', { correlationId, userId, moduleId, attemptId, error: finErr });
+      return res.status(503).json({ success: false, error: 'We could not mark this quiz just now. Please try again in a moment.', correlation_id: correlationId });
     }
     return res.status(out.status).json(out.body);
   } catch (error) {
-    console.error('quiz-attempts/finish error:', error);
-    return res.status(500).json({ success: false, error: 'Failed to finish the quiz' });
+    _quizAttemptFailed('finish', { correlationId, userId, moduleId, attemptId, error });
+    return res.status(500).json({ success: false, error: 'Failed to finish the quiz', correlation_id: correlationId });
   }
 });
 
