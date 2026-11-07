@@ -50,6 +50,8 @@ export interface CoachWeek {
   complete: number;
   debriefs: number;
   small: boolean;
+  /** No debrief before this week at all (bd-enec2e.5): only then is a week with no last week "her first week". */
+  firstWeek?: boolean;
   respectAll: boolean;
   focus: {
     key: string; module: number | null; name: Both; why: Both;

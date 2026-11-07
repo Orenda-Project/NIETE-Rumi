@@ -142,6 +142,8 @@ function summariseWeek({ monday, thisWeek = [], lastWeek = [], before = [] }) {
     complete: n,
     debriefs: n,
     small,
+    // bd-enec2e.5: "your first week" only when no debrief came before it, not merely none last week.
+    firstWeek: before.length === 0,
     focus,
     strengths,
     keepInMind,
