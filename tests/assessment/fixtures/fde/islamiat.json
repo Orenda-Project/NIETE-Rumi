@@ -1,0 +1,759 @@
+{
+  "_fixture": "bd-5jmnfj.39.1: fake model replies for the G5 Islamiat chain test. Q3 is the teacher's to write, so nothing here is tagged islamiat.B.Q3.",
+  "unseen": {
+    "objective": {
+      "Fill in the Blanks": [
+        {
+          "slot": "islamiat.A.Q1",
+          "question": "نماز دن میں ____ بار فرض ہے۔",
+          "answer": "پانچ",
+          "blooms": "Remember",
+          "scheme": {
+            "points": [
+              {
+                "text": "پانچ",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "پانچ"
+            ],
+            "common_error": "کوئی دوسرا لفظ"
+          }
+        },
+        {
+          "slot": "islamiat.A.Q1",
+          "question": "حضور اکرم ﷺ کی ولادت ____ میں ہوئی۔",
+          "answer": "مکہ مکرمہ",
+          "blooms": "Remember",
+          "scheme": {
+            "points": [
+              {
+                "text": "مکہ مکرمہ",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "مکہ مکرمہ"
+            ],
+            "common_error": "کوئی دوسرا لفظ"
+          }
+        },
+        {
+          "slot": "islamiat.A.Q1",
+          "question": "روزہ اسلامی سال کے مہینے ____ میں فرض ہے۔",
+          "answer": "رمضان",
+          "blooms": "Remember",
+          "scheme": {
+            "points": [
+              {
+                "text": "رمضان",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "رمضان"
+            ],
+            "common_error": "کوئی دوسرا لفظ"
+          }
+        },
+        {
+          "slot": "islamiat.A.Q1",
+          "question": "زکوٰۃ مال کا ____ حصہ ہے۔",
+          "answer": "چالیسواں",
+          "blooms": "Remember",
+          "scheme": {
+            "points": [
+              {
+                "text": "چالیسواں",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "چالیسواں"
+            ],
+            "common_error": "کوئی دوسرا لفظ"
+          }
+        },
+        {
+          "slot": "islamiat.A.Q1",
+          "question": "حضرت ابوبکر صدیقؓ کا لقب ____ تھا۔",
+          "answer": "صدیق",
+          "blooms": "Remember",
+          "scheme": {
+            "points": [
+              {
+                "text": "صدیق",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "صدیق"
+            ],
+            "common_error": "کوئی دوسرا لفظ"
+          }
+        }
+      ],
+      "MCQs": [
+        {
+          "slot": "islamiat.A.Q2",
+          "question": "اسلام کا پہلا رکن ہے",
+          "options": [
+            "نماز",
+            "کلمہ",
+            "روزہ",
+            "حج"
+          ],
+          "answer": "ب",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "islamiat.A.Q2",
+          "question": "حج کس مہینے میں ادا کیا جاتا ہے؟",
+          "options": [
+            "رمضان",
+            "شوال",
+            "ذوالحجہ",
+            "محرم"
+          ],
+          "answer": "ج",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "islamiat.A.Q2",
+          "question": "ہجرت کے وقت آپ ﷺ کے ساتھی تھے",
+          "options": [
+            "حضرت ابوبکرؓ",
+            "حضرت عمرؓ",
+            "حضرت عثمانؓ",
+            "حضرت علیؓ"
+          ],
+          "answer": "الف",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "islamiat.A.Q2",
+          "question": "مسلمانوں کا قبلہ ہے",
+          "options": [
+            "مسجد نبوی",
+            "خانہ کعبہ",
+            "مسجد اقصیٰ",
+            "مسجد قبا"
+          ],
+          "answer": "ب",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "islamiat.A.Q2",
+          "question": "وضو کے فرض ہیں",
+          "options": [
+            "دو",
+            "تین",
+            "چار",
+            "پانچ"
+          ],
+          "answer": "ج",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "islamiat.A.Q2",
+          "question": "سچ بولنے والے کو کہتے ہیں",
+          "options": [
+            "صادق",
+            "امین",
+            "سخی",
+            "عادل"
+          ],
+          "answer": "الف",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "islamiat.A.Q2",
+          "question": "آپ ﷺ کی والدہ کا نام تھا",
+          "options": [
+            "حضرت حلیمہؓ",
+            "حضرت آمنہؓ",
+            "حضرت خدیجہؓ",
+            "حضرت فاطمہؓ"
+          ],
+          "answer": "ب",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "islamiat.A.Q2",
+          "question": "پڑوسی کے حقوق ادا کرنا ہے",
+          "options": [
+            "فرض",
+            "نیکی",
+            "مکروہ",
+            "منع"
+          ],
+          "answer": "ب",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "islamiat.A.Q2",
+          "question": "زکوٰۃ کس پر فرض ہے؟",
+          "options": [
+            "ہر بچے پر",
+            "صاحبِ نصاب پر",
+            "مسافر پر",
+            "بیمار پر"
+          ],
+          "answer": "ب",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "islamiat.A.Q2",
+          "question": "غزوۂ بدر کس سن ہجری میں ہوا؟",
+          "options": [
+            "1",
+            "2",
+            "3",
+            "5"
+          ],
+          "answer": "ب",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "islamiat.A.Q2",
+          "question": "ایمانِ مفصل میں ایمان کی باتیں ہیں",
+          "options": [
+            "پانچ",
+            "چھ",
+            "سات",
+            "آٹھ"
+          ],
+          "answer": "ج",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "islamiat.A.Q2",
+          "question": "امانت دار کو کہتے ہیں",
+          "options": [
+            "امین",
+            "صادق",
+            "حلیم",
+            "کریم"
+          ],
+          "answer": "الف",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "islamiat.A.Q2",
+          "question": "صفائی کو کہا گیا ہے ایمان کا",
+          "options": [
+            "حصہ",
+            "دشمن",
+            "بدلہ",
+            "انعام"
+          ],
+          "answer": "الف",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "islamiat.A.Q2",
+          "question": "عید الفطر منائی جاتی ہے",
+          "options": [
+            "رمضان کے بعد",
+            "حج کے بعد",
+            "محرم میں",
+            "ربیع الاول میں"
+          ],
+          "answer": "الف",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "islamiat.A.Q2",
+          "question": "والدین کا ادب کرنا ہے",
+          "options": [
+            "سنت",
+            "حکم",
+            "مباح",
+            "مکروہ"
+          ],
+          "answer": "ب",
+          "blooms": "Remember"
+        }
+      ]
+    },
+    "subjective": {
+      "Short Questions": [
+        {
+          "slot": "islamiat.B.Q4",
+          "question": "نماز کی پابندی کے چار فائدے لکھیں۔",
+          "answer": "کتاب کے چار نکات",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "پہلا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "دوسرا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "تیسرا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "چوتھا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "کتاب کے نکات کسی بھی ترتیب میں"
+            ],
+            "common_error": "صرف ایک نکتہ"
+          }
+        },
+        {
+          "slot": "islamiat.B.Q4",
+          "question": "روزے سے ہمیں کیا سبق ملتا ہے؟",
+          "answer": "کتاب کے چار نکات",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "پہلا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "دوسرا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "تیسرا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "چوتھا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "کتاب کے نکات کسی بھی ترتیب میں"
+            ],
+            "common_error": "صرف ایک نکتہ"
+          }
+        },
+        {
+          "slot": "islamiat.B.Q4",
+          "question": "ہجرتِ مدینہ کا مختصر حال لکھیں۔",
+          "answer": "کتاب کے چار نکات",
+          "blooms": "Remember",
+          "scheme": {
+            "points": [
+              {
+                "text": "پہلا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "دوسرا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "تیسرا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "چوتھا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "کتاب کے نکات کسی بھی ترتیب میں"
+            ],
+            "common_error": "صرف ایک نکتہ"
+          }
+        },
+        {
+          "slot": "islamiat.B.Q4",
+          "question": "پڑوسیوں کے چار حقوق لکھیں۔",
+          "answer": "کتاب کے چار نکات",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "پہلا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "دوسرا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "تیسرا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "چوتھا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "کتاب کے نکات کسی بھی ترتیب میں"
+            ],
+            "common_error": "صرف ایک نکتہ"
+          }
+        },
+        {
+          "slot": "islamiat.B.Q4",
+          "question": "سچائی کی اہمیت پر مختصر نوٹ لکھیں۔",
+          "answer": "کتاب کے چار نکات",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "پہلا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "دوسرا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "تیسرا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "چوتھا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "کتاب کے نکات کسی بھی ترتیب میں"
+            ],
+            "common_error": "صرف ایک نکتہ"
+          }
+        },
+        {
+          "slot": "islamiat.B.Q4",
+          "question": "حضرت ابوبکر صدیقؓ کی دو خوبیاں لکھیں۔",
+          "answer": "کتاب کے چار نکات",
+          "blooms": "Remember",
+          "scheme": {
+            "points": [
+              {
+                "text": "پہلا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "دوسرا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "تیسرا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "چوتھا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "کتاب کے نکات کسی بھی ترتیب میں"
+            ],
+            "common_error": "صرف ایک نکتہ"
+          }
+        },
+        {
+          "slot": "islamiat.B.Q4",
+          "question": "صفائی کے بارے میں اسلام کیا سکھاتا ہے؟",
+          "answer": "کتاب کے چار نکات",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "پہلا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "دوسرا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "تیسرا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "چوتھا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "کتاب کے نکات کسی بھی ترتیب میں"
+            ],
+            "common_error": "صرف ایک نکتہ"
+          }
+        },
+        {
+          "slot": "islamiat.B.Q4",
+          "question": "زکوٰۃ ادا کرنے کے دو فائدے لکھیں۔",
+          "answer": "کتاب کے چار نکات",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "پہلا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "دوسرا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "تیسرا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "چوتھا نکتہ",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "کتاب کے نکات کسی بھی ترتیب میں"
+            ],
+            "common_error": "صرف ایک نکتہ"
+          }
+        }
+      ],
+      "Long Question": [
+        {
+          "slot": "islamiat.B.Q5",
+          "question": "فتح مکہ کا واقعہ تفصیل سے لکھیں اور اس سے ملنے والا سبق بتائیں۔",
+          "answer": "کتاب کے پانچ نکات",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "نکتہ 1",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 2",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 3",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 4",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 5",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "کتاب کے نکات کسی بھی ترتیب میں"
+            ],
+            "common_error": "صرف واقعہ، سبق نہیں"
+          }
+        },
+        {
+          "slot": "islamiat.B.Q5",
+          "question": "حج کے ارکان تفصیل سے بیان کریں۔",
+          "answer": "کتاب کے پانچ نکات",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "نکتہ 1",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 2",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 3",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 4",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 5",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "کتاب کے نکات کسی بھی ترتیب میں"
+            ],
+            "common_error": "صرف واقعہ، سبق نہیں"
+          }
+        },
+        {
+          "slot": "islamiat.B.Q5",
+          "question": "حضور اکرم ﷺ کے اخلاقِ حسنہ پر تفصیلی نوٹ لکھیں۔",
+          "answer": "کتاب کے پانچ نکات",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "نکتہ 1",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 2",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 3",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 4",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 5",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "کتاب کے نکات کسی بھی ترتیب میں"
+            ],
+            "common_error": "صرف واقعہ، سبق نہیں"
+          }
+        },
+        {
+          "slot": "islamiat.B.Q5",
+          "question": "والدین کے حقوق تفصیل سے لکھیں۔",
+          "answer": "کتاب کے پانچ نکات",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "نکتہ 1",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 2",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 3",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 4",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 5",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "کتاب کے نکات کسی بھی ترتیب میں"
+            ],
+            "common_error": "صرف واقعہ، سبق نہیں"
+          }
+        },
+        {
+          "slot": "islamiat.B.Q5",
+          "question": "غزوۂ بدر کے حالات لکھیں۔",
+          "answer": "کتاب کے پانچ نکات",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "نکتہ 1",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 2",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 3",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 4",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "نکتہ 5",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "کتاب کے نکات کسی بھی ترتیب میں"
+            ],
+            "common_error": "صرف واقعہ، سبق نہیں"
+          }
+        }
+      ]
+    }
+  }
+}
