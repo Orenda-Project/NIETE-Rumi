@@ -2,14 +2,10 @@
 /**
  * Writes a G6-12 board paper (SPEC §7, deps contract §5-§6). One call per section (per timed part), each told
  * what the earlier ones asked; teacher-marked slots generate nothing; a short slot is asked once more (a second
- * shortfall fails the paper: PATTERN_SHORT_SLOT; the top-up is T.topUp, never d.topUp, which is blind to OR and
- * stimulus nodes). Then board-checks in board mode BEFORE the trim: hard items are dropped and the top-up's extras
- * fill the gap; a slot still short gets one targeted rewrite of the dropped items (round 5), and of the rewrite and
- * the originals the version with fewer hard issues is kept (a failure reports it). A same-section key leak that
- * survives that rewrite gets a second rewrite of the KEYED item, told the phrases not to use (round 6); when the keyed
- * item is a stimulus-group child and the stem holder a plain item, the holder is rewritten instead (round 7). An N20
- * drop's rewrite is told to print the data or drop the graph; the winning version is logged. Then the scheme normaliser.
- *
+ * shortfall fails: PATTERN_SHORT_SLOT; the top-up is T.topUp, blind to OR and stimulus nodes only in d.topUp). Then
+ * board-checks BEFORE the trim: hard items are dropped, the extras fill the gap, one targeted rewrite (round 5) and
+ * a second of the keyed item (rounds 6-7) follow; the version with fewer hard issues is kept (a failure reports it). A
+ * faulted stimulus-group member is re-asked GF.ATTEMPTS times; any review flag left then ships as a paper-level note.
  * The service's helpers arrive as `d` (_boardDeps); this module never requires the service, and never uses the
  * G5 layout engine (the layout is board-layout.js). Returns the board wrapper shape of _writePatternPaper.
  *
@@ -26,6 +22,7 @@ const { usedKeys } = require('./board-checks/key-leak');
 const { leaves } = require('./board-checks/walk');
 const { owed } = require('./board-6-12/slot-quota');
 const MR = require('./board-6-12/mcq-review');
+const GF = require('./board-6-12/group-faults');
 
 const EXTRA = 1.25; // design_pending: the top-up asks for the shortfall plus about a quarter (round 4)
 
@@ -215,8 +212,17 @@ async function writeBoardPaper(args, d) {
     }
     return out;
   };
+  // Drop `bad` from a copy of `src`, ask for replacements, re-check with them marked fresh.
+  const reask = async (src, bad, run, phrases) => {
+    const next = clone(src);
+    const from = dropped.length;
+    drop(next, bad, run);
+    const was = new Set(ids(next));
+    const out = await rewrite(next, from, phrases);
+    return { ex: out, checks: await reviewed(out, finish(out, was), new Set(ids(out).filter((id) => !was.has(id)))) };
+  };
   const failing = (tree, run) => run.shortfall.length > 0 || T.shortfallOf(tree, allSlots).length > 0;
-  // round 8: which checks each try's hard issues came from, so a rewrite that got worse can be read
+  // round 8: the checks each try's hard issues came from
   const byCheck = (rec) => Object.fromEntries(Object.entries(rec.per_check || {}).filter(([, v]) => v.hard > 0).map(([k, v]) => [k, v.hard]));
   const outcome = (tries, kept) => d.logToFile('[assessment] board rewrite outcome', {
     kept: kept.name,
@@ -228,29 +234,27 @@ async function writeBoardPaper(args, d) {
     const spare = clone(ex);
     T.dropIds(spare, new Set(ids(spare).filter((id) => !reviewOnly.has(id))));
     drop(ex, hardIds(checks), checks);
-    let before = new Set(ids(ex));
+    const before = new Set(ids(ex));
     ex = await rewrite(ex, 0);
     checks = await reviewed(ex, finish(ex, before), new Set(ids(ex).filter((id) => !before.has(id))));
     const tries = [{ name: 'rewrite 1', ex, checks }];
-    // 3b (round 6). A same-section concept leak left after that: one rewrite of the KEYED items, told the phrases.
-    // Round 7: a keyed stimulus child quoted by a plain item -> rewrite the plain item (a whole group is harder to swap).
+    // 3b (round 6): a concept leak left after that gets a rewrite of the KEYED items, told the phrases (round 7: the plain holder of a group child's key).
     const keyed = checks.shortfall.flatMap((r) => r.keyed || []);
     if (failing(ex, checks) && keyed.length) {
       const inGroup = new Set();
       T.eachList(ex, (list) => list.forEach((q) => { if (T.isGroup(q)) T.leavesOfNode(q).forEach((l) => inGroup.add(l.id)); }));
       const target = (k) => (inGroup.has(k.id) && k.holder != null && !inGroup.has(k.holder) ? k.holder : k.id);
-      const next = clone(ex);
-      const from = dropped.length;
-      drop(next, new Set(keyed.map(target)), checks);
-      before = new Set(ids(next));
-      const phrases = [...new Set(keyed.map((k) => k.phrase))];
-      const ex2 = await rewrite(next, from, phrases);
-      const checks2 = await reviewed(ex2, finish(ex2, before), new Set(ids(ex2).filter((id) => !before.has(id))));
-      tries.unshift({ name: 'rewrite 2', ex: ex2, checks: checks2 });
-      ex = ex2;
-      checks = checks2;
+      const got = await reask(ex, new Set(keyed.map(target)), checks, [...new Set(keyed.map((k) => k.phrase))]);
+      tries.unshift({ name: 'rewrite 2', ...got });
+      ({ ex, checks } = got);
     }
-    MR.soften(checks, true); // round 9b: the review drove the rewrites; what it still flags is a note, not a failure (a given-away key stays hard until the restore try)
+    // 3c (bd-5jmnfj.38.34): a review fault inside a kept group is re-asked up to GF.ATTEMPTS times (a fresh group is flagged ~45% per item)
+    for (let n = 0, stuck = GF.stuck(checks, ex); n < GF.ATTEMPTS && failing(ex, checks) && stuck.size; n += 1, stuck = GF.stuck(checks, ex)) {
+      const got = await reask(ex, stuck, checks);
+      tries.unshift({ name: `rewrite ${3 + n}`, ...got });
+      ({ ex, checks } = got);
+    }
+    MR.soften(checks, { hold: true, groups: GF.memberIds(ex) }); // round 9b: the review's leftovers turn to notes; leaks and group members are held for the restore
     if (failing(ex, checks) && reviewOnly.size) {
       const back = clone(ex);
       T.dropIds(back, T.droppable(back, hardIds(checks), spare)); // round 10: never leaves a slot fill cannot refill
@@ -258,14 +262,14 @@ async function writeBoardPaper(args, d) {
       const owes = new Map([...want].map(([slot, n]) => [slot, split ? owed(allSlots.find((x) => x.slot === slot), back, split.levels, n) : null]));
       const lvl = (q) => { const it = Array.isArray(q.or) ? q.or[0] : q; return it && it.tag && it.tag.blooms; };
       const ex3 = T.fill(back, spare, want, (q) => { const o = owes.get(q.slot); return o && o[lvl(q)] > 0 ? 0 : 1; }); // owed levels first (A6b)
-      const checks3 = MR.soften(MR.applyFlags(finish(ex3), flags, ex3), true);
+      const checks3 = MR.soften(MR.applyFlags(finish(ex3), flags, ex3), { hold: true, groups: GF.memberIds(ex3) });
       tries.unshift({ name: 'restore', ex: ex3, checks: checks3 });
       if (checks3.record.hard <= checks.record.hard) { ex = ex3; checks = checks3; }
     }
-    if (failing(ex, checks)) MR.soften(checks); // 38.33: a leak no spare could replace becomes a paper-level note
+    if (failing(ex, checks)) MR.soften(checks, { groups: GF.memberIds(ex) }); // ship with note: a held flag nothing replaced is a paper-level note
     if (failing(ex, checks)) {
       const orig = clone(whole);
-      tries.push({ name: 'originals', ex: orig, checks: MR.soften(MR.applyFlags(finish(orig), flags, orig)) });
+      tries.push({ name: 'originals', ex: orig, checks: MR.soften(MR.applyFlags(finish(orig), flags, orig), { groups: GF.memberIds(orig) }) });
       const best = tries.reduce((a, b) => (b.checks.record.hard < a.checks.record.hard ? b : a));
       outcome(tries, best);
       throw shortError(best.checks.shortfall.length ? best.checks.shortfall : T.shortfallOf(best.ex, allSlots), best.ex);
