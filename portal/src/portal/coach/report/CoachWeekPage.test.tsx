@@ -159,3 +159,36 @@ describe("the week on her Home card", () => {
     expect(markSeen).toHaveBeenCalledWith("33333333-3333-4333-8333-333333333333");
   });
 });
+
+describe("bd-enec2e.5 — found in the 7 Nov sandbox e2e", () => {
+  it("no debriefs last week is not her first week: 'No debriefs last week' unless nothing came before", async () => {
+    getCoachWeek.mockResolvedValue({ ...WEEK, firstWeek: false, focus: { ...WEEK.focus!, last: null } });
+    const { unmount } = renderAt("/portal/coach/week/2026-11-02");
+    expect((await screen.findByTestId("week-compare")).textContent).toBe("No debriefs last week");
+    unmount();
+    getCoachWeek.mockResolvedValue({ ...WEEK, firstWeek: true, focus: { ...WEEK.focus!, last: null } });
+    renderAt("/portal/coach/week/2026-11-02");
+    expect((await screen.findByTestId("week-compare")).textContent).toBe("Your first week");
+  });
+
+  it("a week across two months names both months, on the page and on the Home card", async () => {
+    const sep = { ...WEEK, monday: "2026-09-28", friday: "2026-10-02" };
+    getCoachWeek.mockResolvedValue(sep);
+    const { unmount } = renderAt("/portal/coach/week/2026-09-28");
+    // en-GB writes "Sept" in current ICU (Chrome, Node 22+), "Sep" in older ones: either names both months.
+    expect((await screen.findByTestId("week-hero")).textContent).toMatch(/28 Sept? – 2 Oct/);
+    expect(screen.getByTestId("week-hero").textContent).not.toContain("28–2 Oct");
+    unmount();
+    getConfig.mockResolvedValue({ success: true, features: { coachReportsApp: true } });
+    getReadyReports.mockResolvedValue([{ kind: "week", id: "2026-09-28", monday: "2026-09-28", friday: "2026-10-02", at: "2026-10-02T11:00:00.000Z", debriefs: 4 }]);
+    renderAt("/portal/coach");
+    const row = (await screen.findAllByTestId("coach-report-card-row"))[0];
+    expect(row.textContent).toMatch(/Your week: 28 Sept? – 2 Oct/);
+  });
+
+  it("a week in one month stays short", async () => {
+    getCoachWeek.mockResolvedValue(WEEK);
+    renderAt("/portal/coach/week/2026-11-02");
+    expect((await screen.findByTestId("week-hero")).textContent).toContain("2–6 Nov");
+  });
+});

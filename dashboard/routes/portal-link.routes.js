@@ -91,9 +91,15 @@ const AREAS = {
   },
 };
 
-/** What every link session needs for the portal's frame (who she is, flags, language, log out). */
+/**
+ * What every link session needs for the portal's frame (who she is, flags, language, log out).
+ * bd-enec2e.5: GET /me is how the app asks who is signed in (bd-fxk3t8, hooks/useAuth.ts), and a 403 there means "not
+ * signed in", so without it every link landed on its page and was then sent to the sign-in. PUT /me/language is the
+ * one language writer (the page turns only after it is saved), so the language pill on a linked page works.
+ */
 const FRAME = [
-  { method: 'GET', test: (p) => p === '/dashboard' || p === '/auth/verify' || p === '/config' || p === '/me/language' },
+  { method: 'GET', test: (p) => p === '/dashboard' || p === '/auth/verify' || p === '/config' || p === '/me' || p === '/me/language' },
+  { method: 'PUT', test: (p) => p === '/me/language' },
   { method: 'POST', test: (p) => p === '/logout' },
   // bd-4r3rei — the page-view report (app-funnel.routes.js): a link session's pages are part of the journey too.
   { method: 'POST', test: (p) => p === '/funnel/events' },
