@@ -29,6 +29,7 @@ const KEYS_HEAD = '=== Q1 ANSWER KEY (for you only; the paper does not print it)
 const ONLY_HEAD = 'Judge ONLY these items:';
 const ANSWERS_HEAD = '=== ANSWERS (for you only; the paper does not print them) ===';
 const CANDIDATES_HEAD = '=== CANDIDATES CODE FOUND (judge each one too) ===';
+const SST_CANDIDATES_HEAD = '=== CANDIDATES (code found each Q1 key below printed in a Q5, Q6 or Q7 stem) ===';
 
 const OPTION_HEAD = /^\s*\(?(?:[a-dA-D]|الف|ب|ج|د)\s*[).]\s*/u;
 const strip = (t) => String(t == null ? '' : t).replace(/\s+/g, ' ').trim();
@@ -273,6 +274,9 @@ function buildSstReaderPrompt(examJson, P, opts = {}) {
   const blocks = new Map();
   const paper = [];
   const answers = [];
+  // Q1's keys and the judged items' stems, folded: a Q1 key a Q5, Q6 or Q7 stem prints is a candidate.
+  const q1Keys = [];
+  const stems = [];
   for (const section of P.sections) {
     for (const slot of section.slots) {
       const list = itemsOf(examJson, slot.slot);
@@ -286,6 +290,8 @@ function buildSstReaderPrompt(examJson, P, opts = {}) {
         const lines = printedLines(q);
         const [first, ...rest] = lines;
         const { key, points } = answerOf(q);
+        if (name === 'Q1') q1Keys.push({ label, key, folded: fold(key) });
+        if (judged.has(slot.slot)) stems.push({ label, folded: fold(q.question) });
         blocks.set(label, fold([...lines, key, ...points].join(' ')));
         paper.push(`${label} ${first || ''}`.trim());
         rest.forEach((l) => paper.push(`    ${l}`));
@@ -299,6 +305,11 @@ function buildSstReaderPrompt(examJson, P, opts = {}) {
   const only = Array.isArray(opts.only) && opts.only.length
     ? [...labels.entries()].filter(([, q]) => opts.only.includes(q)).map(([label]) => label)
     : null;
+  // Every Q1 key (with a word of three letters or more) a judged stem prints, whole words in order: handed to
+  // the reader to judge beside its open read, which misses a key printed in a stem on another topic.
+  const named = (k) => Boolean(k.folded) && k.folded.trim().split(' ').some((w) => w.length >= QUOTE_WORD);
+  const candidates = stems.filter((x) => !only || only.includes(x.label))
+    .flatMap((x) => q1Keys.filter((k) => named(k) && x.folded.includes(k.folded)).map((k) => `- ${x.label} prints «${k.key}», the key of ${k.label}`));
 
   const prompt = [
     READER_MARK,
@@ -309,6 +320,10 @@ function buildSstReaderPrompt(examJson, P, opts = {}) {
     '',
     'The test: a child who answers one has answered the other. Flag a Q5, Q6 or Q7 item when:',
     '- another item on the paper asks the same question, in any wording (a duplicate);',
+    '- a Q5, Q6 or Q7 stem that prints a Q1 key (a name, a year or a number) beside that Q1 item\'s topic',
+    '  («قراردادِ پاکستان 23 مارچ 1940ء کو …» beside Q1 «قراردادِ پاکستان کس سال منظور ہوئی؟ → 1940ء»), or',
+    '  a Q1 item that asks what a Q5 asks («… کیوں سمجھا جاتا ہے؟» beside the Q5 «… کیوں کہا جاتا ہے؟ دو وجوہات لکھیں۔»):',
+    '  flag the Q5, Q6 or Q7 item and name the Q1 item in "by";',
     '- a Q1 key, or a fact a Q1 stem states, is its whole answer: Q1 «پاکستان 1947ء میں کس رہنما کی قیادت میں …»',
     '  answers «پاکستان کس سال ابھرا؟ → 1947ء»; two Q1 items that together print its whole answer count too;',
     '- EVERY fact its answer needs is printed in Section A: in a Q1 stem, in a Q1 key, or across two Q1 items. Read every',
@@ -353,6 +368,12 @@ function buildSstReaderPrompt(examJson, P, opts = {}) {
     ...paper,
     ANSWERS_HEAD,
     ...answers,
+    ...(candidates.length ? ['', SST_CANDIDATES_HEAD,
+      'Judge every candidate below as well as reading the whole paper: flag the Q5, Q6 or Q7 item when its stem tells a',
+      'child the Q1 item\'s answer, with that Q1 label in "by" and the key, copied from the Q1 item, as the evidence.',
+      'A stem tells the answer when it states the fact the Q1 item asks (the Q1 written as a sentence with its key filled',
+      'in). A stem that only names the key, alone or beside a related topic, does not: decide it given_away false.',
+      ...candidates] : []),
   ].join('\n');
   return { prompt, labels, only, blocks, split: true };
 }
