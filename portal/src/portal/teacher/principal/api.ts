@@ -1,5 +1,6 @@
 import api from "../../services/api";
 import type { ActivityTile, CardTeacher, Overview, Period, PeriodKey, SchoolPrincipal } from "../../coach/card/types";
+import type { TeachingLevel } from "../../coach/people/level";
 
 /**
  * bd-33wxxi.2 — GET /api/portal/principal/school/card (dashboard/routes/portal-principal.routes.js): the principal's OWN
@@ -12,12 +13,14 @@ export type PrincipalSchoolCard = {
   period?: Period;
   overview?: Overview;
   tiles?: ActivityTile[];
-  teachers?: CardTeacher[];
+  /** Her school's teachers as the coach card's rows, each with her users.id (a row opens her Analytics page). */
+  teachers?: (CardTeacher & { id: string | null })[];
   scores?: Record<"dc" | "coach", { count: number; makers: number }>;
   level?: string | null;
   levels?: Partial<Record<"PRIMARY" | "MIDDLE" | "HIGH", number>>;
 };
 
-export function getPrincipalSchoolCard(period: PeriodKey = "week"): Promise<PrincipalSchoolCard> {
-  return api.get("/principal/school/card", { params: { period } }).then((r) => r.data as PrincipalSchoolCard);
+export function getPrincipalSchoolCard(period: PeriodKey = "week", level?: TeachingLevel | null): Promise<PrincipalSchoolCard> {
+  const params = { period, ...(level ? { level: level.toLowerCase() } : {}) };
+  return api.get("/principal/school/card", { params }).then((r) => r.data as PrincipalSchoolCard);
 }

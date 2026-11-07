@@ -49,6 +49,12 @@ function Cards({ data }: { data: SchoolAnalyticsResponse }) {
   );
 }
 
+/** "School · N teachers" under My school's tabs (one piece: the principal app's My school draws it too, bd-33wxxi.3). */
+export function SchoolLine({ name, teachers }: { name: string; teachers: number }) {
+  const C = useCopy(ANALYTICS);
+  return <p className="mx-1 text-[14px] font-semibold text-[#4b5563]">{name} · {C.teachersN(teachers)}</p>;
+}
+
 export function SchoolView() {
   const C = useCopy(ANALYTICS);
   const r = useRange();
@@ -65,9 +71,7 @@ export function SchoolView() {
 
   return (
     <>
-      {s?.cur.school?.name ? (
-        <p className="mx-1 text-[14px] font-semibold text-[#4b5563]">{s.cur.school.name} · {C.teachersN(s.cur.school.totalTeachers)}</p>
-      ) : null}
+      {s?.cur.school?.name ? <SchoolLine name={s.cur.school.name} teachers={s.cur.school.totalTeachers} /> : null}
       <DateRangeBar value={r.range} onChange={(x) => r.setRange(x)} />
       {s ? (
         <>
