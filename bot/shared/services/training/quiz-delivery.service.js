@@ -64,6 +64,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const { issueCertificate } = require('./certificate.service');
 const { hasImageOptions, parseOptionImages, imageOptionRows } = require('./question-images.rules');
 const { servableQuestions } = require('./question-stem.rules');
+const ModuleAttempt = require('./open-module-attempt');
 const {
   isPerModuleQuiz, moduleSourceQuizId, isLevelCertifyingAttempt, moduleExamPassMessage,
 } = require('./isaps-module-exam.rules');
@@ -836,20 +837,28 @@ async function startTrainingQuiz(userId, moduleId, phoneNumber) {
     levelId = course?.level_id || null;
   }
 
-  // 5. If there's already an in-progress training-module attempt for this
-  // module, resume it rather than starting a new one.
-  const { data: existing } = await supabase
-    .from('training_assessment_attempts')
-    .select('id, status')
-    .eq('user_id', userId)
-    .eq('training_module_id', moduleIdNum)
-    .eq('quiz_kind', KIND_TRAINING_MODULE)
-    .order('started_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (existing?.status === 'in_progress') {
-    logToFile('🎓 Resuming in-progress training-module attempt', { attemptId: existing.id });
-    return await sendQuestion(existing.id, phoneNumber);
+  // 5. If she has an open training-module attempt on this module, resume it
+  // rather than starting a new one: the same rule as the portal's start
+  // (open-module-attempt.js). Any open attempt, not only her newest row; one
+  // under a newer finished attempt is stale, and is abandoned so a fresh one
+  // opens below.
+  let resumable;
+  try {
+    resumable = await ModuleAttempt.resumableModuleAttempt(supabase, {
+      userId, moduleId: moduleIdNum, surface: 'whatsapp', log: logEvent,
+    });
+  } catch (readErr) {
+    // No raw person id on a log line; the correlation id logToFile stamps finds the teacher.
+    logToFile('❌ Training-quiz open attempt lookup failed', {
+      moduleId: moduleIdNum, code: readErr?.code || null, error: readErr?.message,
+    }, 'error');
+    await WhatsAppService.sendMessage(phoneNumber,
+      'Could not start the module check — please try again in a moment.');
+    return false;
+  }
+  if (resumable.id) {
+    logToFile('🎓 Resuming in-progress training-module attempt', { attemptId: resumable.id });
+    return await sendQuestion(resumable.id, phoneNumber);
   }
 
   // 6. Create attempt.
@@ -869,28 +878,33 @@ async function startTrainingQuiz(userId, moduleId, phoneNumber) {
     strategy: servingConfig.module_quiz_strategy,
   });
 
-  const { data: attempt, error: aErr } = await supabase
-    .from('training_assessment_attempts')
-    .insert({
-      id: attemptId,
-      user_id: userId,
-      program_id: assignment.program_id,
-      quiz_kind: KIND_TRAINING_MODULE,
-      training_module_id: moduleIdNum,
-      level_id: levelId,
-      current_question_index: 0,
-      total_questions: totalQuestions,
-      total_score: totalQuestions,
-      status: 'in_progress',
-    })
-    .select('id')
-    .single();
-  if (aErr || !attempt) {
-    logToFile('❌ Training-quiz attempt insert failed', { userId, moduleId: moduleIdNum, error: aErr?.message }, 'error');
+  const opened = await ModuleAttempt.insertModuleAttempt(supabase, {
+    id: attemptId,
+    user_id: userId,
+    program_id: assignment.program_id,
+    quiz_kind: KIND_TRAINING_MODULE,
+    training_module_id: moduleIdNum,
+    level_id: levelId,
+    current_question_index: 0,
+    total_questions: totalQuestions,
+    total_score: totalQuestions,
+    status: 'in_progress',
+  }, { surface: 'whatsapp', log: logEvent });
+  if (opened.error) {
+    logToFile('❌ Training-quiz attempt insert failed', {
+      userId, moduleId: moduleIdNum, code: opened.error?.code || null, error: opened.error?.message,
+    }, 'error');
     await WhatsAppService.sendMessage(phoneNumber,
       'Could not start the module check — please try again in a moment.');
     return false;
   }
+  if (opened.raced) {
+    // A parallel start (a second tap) opened its attempt first: resume that
+    // one. She may see its question twice; never "could not start".
+    logToFile('🎓 Module check already opened by a parallel start — resuming it', { attemptId: opened.id });
+    return await sendQuestion(opened.id, phoneNumber);
+  }
+  const attempt = { id: opened.id };
 
   const startedPayload = {
     user_uuid: userId,
