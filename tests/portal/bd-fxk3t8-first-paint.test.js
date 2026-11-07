@@ -72,7 +72,8 @@ describe('GET /config — the flag reads run together', () => {
     }
     await done;
 
-    expect(started).toBe(8); // the seven flags staging has, and coach_disagreement_card (bd-tbprit.1)
+    // Every read in staging's /config Promise.all, the principal app (bd-33wxxi.1) included (staging had pinned a stale 8).
+    expect(started).toBe(20);
     expect(payload.features).toMatchObject({
       assessmentGenerator: true,
       assessmentEditing: true,
