@@ -33,6 +33,12 @@ function liveBySlot(examJson, L) {
   return by;
 }
 
+/** Marks on slots the teacher writes herself, which carry no thinking level. */
+function teacherMarks(L) {
+  return L.sections.flatMap((sec) => sec.slots).filter((slot) => slot.teacher_fills)
+    .reduce((sum, slot) => sum + slot.attempt * slot.marks_each, 0);
+}
+
 /**
  * @param {object} examJson  a paper applyLayout has laid out (carries `_layout`)
  * @param {object} [opts]
@@ -57,6 +63,9 @@ function checkBlueprint(examJson, { tos = null, tolerance = TOLERANCE, sectionLe
     let marks = 0;
     const own = Object.fromEntries(LEVELS.map((band) => [band, { marks: 0 }]));
     for (const slot of sec.slots) {
+      // A slot the teacher writes before photocopying (bd-5jmnfj.39.1, Islamiat Q3) holds no item:
+      // its marks count in the section and total, and in no thinking level.
+      if (slot.teacher_fills) { marks += slot.attempt * slot.marks_each; continue; }
       const list = live.get(slot.slot);
       if (list.length < slot.attempt) {
         problems.push({ code: 'SLOT_SHORT', slot: slot.slot, live: list.length, attempt: slot.attempt });
@@ -98,8 +107,10 @@ function checkBlueprint(examJson, { tos = null, tolerance = TOLERANCE, sectionLe
   const total = sections.reduce((sum, s) => sum + s.marks, 0);
   if (total !== L.total_marks) problems.push({ code: 'TOTAL', total, expected: L.total_marks });
 
+  // Levels are read over the marks the model wrote; with no teacher-filled slot that is the total.
+  const base = total - teacherMarks(L);
   for (const band of LEVELS) {
-    levels[band].pct = total ? (levels[band].marks / total) * 100 : 0;
+    levels[band].pct = base ? (levels[band].marks / base) * 100 : 0;
     if (!tos || typeof tos[band] !== 'number') continue;
     const off = levels[band].pct - tos[band];
     levels[band].target = tos[band];

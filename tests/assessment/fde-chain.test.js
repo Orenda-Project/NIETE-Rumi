@@ -58,9 +58,11 @@ const fixture = (subject) => JSON.parse(fs.readFileSync(path.join(__dirname, 'fi
 /** The model: for each section prompt, the fixture's items for that section's slots, as JSON. */
 function modelReplyFor(subject, prompt) {
   const S = P.subjects[subject];
-  const section = S.sections.find((sec) => sec.slots.every((slot) => prompt.includes(slot.slot)));
+  // A slot the teacher fills (Islamiat Q3, generate 0) is never in a prompt (bd-5jmnfj.39.1).
+  const asked = (sec) => sec.slots.filter((slot) => slot.generate !== 0);
+  const section = S.sections.find((sec) => asked(sec).every((slot) => prompt.includes(slot.slot)));
   if (!section) throw new Error(`no section recognised in the prompt for ${subject}`);
-  const mine = new Set(section.slots.map((s) => s.slot));
+  const mine = new Set(asked(section).map((s) => s.slot));
   const tree = {};
   for (const [cat, types] of Object.entries(fixture(subject).unseen)) {
     for (const [type, items] of Object.entries(types)) {
@@ -97,7 +99,7 @@ function load() {
     } } } }),
   }));
   jest.doMock('../../bot/shared/utils/html-to-pdf', () => ({
-    htmlToPdf: async (html, opts) => { state.pdfs.push(opts); return /class="record"/.test(html) ? fakePdf(5) : fakePdf(4); },
+    htmlToPdf: async (html, opts) => { state.pdfs.push(opts); (state.htmls ||= []).push(html); return /class="record"/.test(html) ? fakePdf(5) : fakePdf(4); },
   }));
   jest.doMock('../../bot/shared/storage/r2', () => ({
     uploadExamBuffer: async ({ filename }) => { state.uploads.push(filename); return `exams/u1/${filename}`; },
@@ -118,9 +120,9 @@ async function create(router, body) {
   return { statusCode, payload };
 }
 
-const LABEL = { maths: 'Maths', science: 'Science', urdu: 'Urdu' };
+const LABEL = { maths: 'Maths', science: 'Science', urdu: 'Urdu', islamiat: 'Islamiat' };
 
-describe.each(['maths', 'science', 'urdu'])('%s: tap → job → two stored files', (subject) => {
+describe.each(['maths', 'science', 'urdu', 'islamiat'])('%s: tap → job → two stored files', (subject) => {
   beforeEach(() => {
     state = { subject, rows: {}, seq: 0, settings: { assessment_fde_pattern_enabled: true }, queued: [], calls: [], sections: [], pdfs: [], uploads: [], logs: [], updates: [] };
   });
@@ -134,7 +136,8 @@ describe.each(['maths', 'science', 'urdu'])('%s: tap → job → two stored file
     expect(jobType).toBe('assessment_generate');
 
     const out = await Orchestrator.buildPaper(job, {});
-    expect(out).toMatchObject({ status: 'ready', marks: 100, filename: `Grade5_${LABEL[subject]}_FDE.pdf` });
+    // Islamiat's printed paper is the 60 written marks; its 40 oral marks sit on the teacher sheet.
+    expect(out).toMatchObject({ status: 'ready', marks: subject === 'islamiat' ? 60 : 100, filename: `Grade5_${LABEL[subject]}_FDE.pdf` });
 
     // One model call per section, each with the section's own slots and the per-section ceiling.
     expect(state.sections.sort()).toEqual(P.subjects[subject].sections.map((s) => s.id).sort());
@@ -142,7 +145,7 @@ describe.each(['maths', 'science', 'urdu'])('%s: tap → job → two stored file
 
     const row = state.rows.assessment_papers[0];
     expect(row.status).toBe('ready');
-    expect(row.total_marks).toBe(100);
+    expect(row.total_marks).toBe(subject === 'islamiat' ? 60 : 100);
     expect(row.exam_json._layout.preset_id).toBe('fde_g5_2027');
     expect(row.exam_json._layout.pages).toEqual({ paper: 4, scheme: 5 });
     expect(state.uploads).toEqual([`Grade5_${LABEL[subject]}_FDE.pdf`, `Grade5_${LABEL[subject]}_FDE_MarkingScheme.pdf`]);
@@ -171,4 +174,32 @@ test('without a pattern the same route queues today\'s job and buildPaper never 
   expect(job).not.toHaveProperty('pattern');
   expect(job).not.toHaveProperty('scope');
   expect(spy).not.toHaveBeenCalled();
+});
+
+// bd-5jmnfj.39.1: the G5 Islamiat paper writes no religious text. Q3 (translate a dua or the durood) and
+// every Nazra task print as space the teacher fills; the model is never asked for them.
+test('islamiat: Q3 and the Nazra sheet are left for the teacher, never asked of the model', async () => {
+  state = { subject: 'islamiat', rows: {}, seq: 0, settings: { assessment_fde_pattern_enabled: true }, queued: [], calls: [], sections: [], pdfs: [], uploads: [], logs: [], updates: [] };
+  const { router, Orchestrator } = load();
+  const made = await create(router, { userId: 'u1', grade: 5, subject: 'islamiat', pattern: 'fde_g5_2027', scope: 'fde' });
+  const out = await Orchestrator.buildPaper(state.queued[0][2], {});
+  expect(out.status).toBe('ready');
+  expect(made.statusCode).toBe(202);
+
+  const S = P.subjects.islamiat;
+  const q3 = S.sections.flatMap((s) => s.slots).find((s) => s.slot === 'islamiat.B.Q3');
+  state.calls.forEach((c) => expect(c.messages[1].content).not.toContain('islamiat.B.Q3'));
+
+  const ex = state.rows.assessment_papers[0].exam_json;
+  const items = Object.values(ex.unseen).flatMap((t) => Object.values(t).flat());
+  expect(items.some((q) => q.slot === 'islamiat.B.Q3')).toBe(false);
+  expect(ex._layout.oral.tasks.map((t) => t.id)).toEqual(S.oral.tasks.map((t) => t.id));
+
+  // The paper prints Q3's space and note; the scheme (the teacher's copy) its marking row and the Nazra sheet.
+  const [paper, scheme] = state.htmls;
+  expect(paper).toContain(q3.teacher_note_ur);
+  expect(paper).toContain(q3.instruction_ur);
+  expect(scheme).toContain(q3.key_note_ur);
+  expect(scheme).toContain(S.oral.title_ur);
+  S.oral.tasks.forEach((t) => expect(scheme).toContain(`data-task="${t.id}"`));
 });
