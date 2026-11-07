@@ -116,6 +116,23 @@ describe("Teachers tab: grouped by school", () => {
     expect(within(ayesha).getByText("Principal")).toBeInTheDocument();
     expect(within(sana).queryByText("Principal")).toBeNull();
   });
+
+  // bd-17v39c.4.16 (queue #47, Q1 yes) — the principal's row stays, but the school's "N teachers" and the tab's own number
+  // count teachers only, so the Teachers tab agrees with the Schools tab and the School card.
+  it("the school's header and the tab number count teachers only; the principal's row stays", async () => {
+    C.getPeople.mockResolvedValue({ ...PEOPLE, teachers: PEOPLE.teachers.map((t) => (t.name === "Ayesha Bibi" ? { ...t, isPrincipal: true } : t)) });
+    renderAt("/portal/coach/people?tab=teachers");
+    const groups = await screen.findAllByTestId("school-group");
+    const imsg = groups.find((g) => g.getAttribute("data-school") === "niete:110")!;
+    // Ayesha (principal), Sana and Zoya: 2 teachers
+    expect(imsg).toHaveTextContent("2 teachers");
+    expect(imsg).not.toHaveTextContent("3 teachers");
+    const tab = screen.getAllByTestId("tab").find((t) => t.textContent?.startsWith("Teachers"))!;
+    expect(tab).toHaveTextContent(/^Teachers4$/);
+    fireEvent.click(within(imsg).getByTestId("school-toggle"));
+    fireEvent.click(within(imsg).getByRole("button", { name: /show all/i }));
+    expect(within(imsg).getAllByTestId("teacher-row").map((r) => titleOf(r))).toContain("Ayesha Bibi");
+  });
 });
 
 describe("Schools tab", () => {

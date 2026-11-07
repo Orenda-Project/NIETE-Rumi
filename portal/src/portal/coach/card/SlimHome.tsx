@@ -74,7 +74,7 @@ export default function SlimHome() {
             <FeatureTile feature="training" label={F.coachNav.training} to="/portal/coach/training"
               chip={courses != null ? { text: C.coursesN(courses), tone: "info" } : null} />
             <FeatureTile feature="schools" label={F.coachNav.schools} to="/portal/coach/people"
-              chip={p ? { text: C.schoolsTeachers(p.schools.length, p.teachers.length), tone: "info" } : null} />
+              chip={p ? { text: C.schoolsTeachers(p.schools.length, p.teachers.filter((t) => !t.isPrincipal).length), tone: "info" } : null} />
             <FeatureTile feature="coachTraining" label={T.title} to={COACH_TRAINING_PATH} wide />
           </nav>
         </FeatureMotionProvider>

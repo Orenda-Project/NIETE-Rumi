@@ -101,3 +101,35 @@ describe("the principal in the school's header (option A)", () => {
     expect(await screen.findByTestId("card-principal-none")).toHaveTextContent("ہیڈ ٹیچر: درج نہیں");
   });
 });
+
+// bd-17v39c.4.16 (queue #47) — Manage on the School card: Remove teachers lists teachers only, so a school whose roster
+// is only its principal has no Remove teachers row; Edit teacher (everyone, the principal too) stays. And the slim Home's
+// "N schools · N teachers" counts teachers only, as the Teachers tab does.
+describe("teachers only, around the card", () => {
+  it("a school whose roster is only its principal: Edit teacher stays, Remove teachers goes", async () => {
+    const c = schoolCard();
+    on({ ...c, school: { ...c.school, teachers: 0, roster: 1, principals: [HEAD] }, teachers: [] });
+    await renderApp(CARD);
+    const manage = await screen.findByTestId("manage");
+    expect(within(manage).getByRole("link", { name: /edit teacher/i })).toBeInTheDocument();
+    expect(within(manage).queryByRole("link", { name: /remove teachers/i })).toBeNull();
+  });
+
+  it("a school with teachers and its principal keeps Remove teachers", async () => {
+    const c = schoolCard();
+    on({ ...c, school: { ...c.school, roster: c.school.teachers + 1, principals: [HEAD] } });
+    await renderApp(CARD);
+    const manage = await screen.findByTestId("manage");
+    expect(within(manage).getByRole("link", { name: /remove teachers/i })).toBeInTheDocument();
+  });
+
+  it("the slim Home's My schools chip counts teachers only", async () => {
+    on(schoolCard());
+    net.answers.set("/coach/people", { success: true, schools: [{ emis: EMIS, name: "Model School Nine", teachers: 3 }],
+      teachers: [{ teacherExtId: "t1", name: "T1" }, { teacherExtId: "t2", name: "T2" }, { teacherExtId: "t3", name: "T3" },
+        { teacherExtId: HEAD.teacherExtId, name: HEAD.name, isPrincipal: true }] });
+    await renderApp("/portal/coach");
+    const tiles = await screen.findByTestId("feature-tiles");
+    await waitFor(() => expect(tiles).toHaveTextContent("1 school · 3 teachers"));
+  });
+});
