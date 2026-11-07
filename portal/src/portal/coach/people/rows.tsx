@@ -58,6 +58,8 @@ export function TeacherCard({ t }: { t: CoachTeacher }) {
 /**
  * A school in the grouped Teachers list. The school's own row is information; the 56px toggle at its end opens the
  * school IN PLACE to its first two teachers (in the page's sort order), and "Show all N" reveals the rest.
+ * bd-17v39c.4.16 — its "N teachers" counts teachers only, as the Schools tab and the School card do; the principal's
+ * row stays (with its tag), so "Show all N" counts every row.
  */
 export function SchoolGroup({ id, name, teachers, defaultOpen }: { id: string; name: string; teachers: CoachTeacher[]; defaultOpen: boolean }) {
   const C = useCopy(PEOPLE);
@@ -68,7 +70,7 @@ export function SchoolGroup({ id, name, teachers, defaultOpen }: { id: string; n
     <section data-testid="school-group" data-school={id} className={CARD}>
       <div className="flex items-stretch bg-white">
         <div className="min-w-0 flex-1">
-          <HistoryRow lead="school" wrapTitle title={name} extra={C.teachersN(teachers.length)} action="none" />
+          <HistoryRow lead="school" wrapTitle title={name} extra={C.teachersN(teachers.filter((t) => !t.isPrincipal).length)} action="none" />
         </div>
         <button type="button" data-testid="school-toggle" aria-expanded={open} aria-label={name} onClick={() => setOpen((o) => !o)}
           className="flex min-h-[56px] w-14 shrink-0 items-center justify-center text-[#33374a]">

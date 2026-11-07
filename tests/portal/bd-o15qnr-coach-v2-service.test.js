@@ -84,7 +84,7 @@ function fakeQuery(overrides = {}) {
     const S = SVC.SQL;
     if (sql === PATCH_TEACHERS_SQL) return { rows: overrides.patch || PATCH };
     if (sql === S.LEADER_SCHOOLS) return { rows: LEADER_SCHOOLS };
-    if (sql === S.TEACHER_FACTS) return { rows: FACTS.filter((f) => params[0].includes(f.user_id)) };
+    if (sql === S.TEACHER_FACTS) return { rows: (overrides.facts || FACTS).filter((f) => params[0].includes(f.user_id)) };
     if (sql === S.TEACHER_TRAINING) return { rows: TRAINING.filter((t) => params[0].includes(t.user_id)) };
     if (sql === S.COACH_SESSIONS) return { rows: COACH_SESSIONS };
     if (sql === S.MY_SCHEDULES) return { rows: MY_SCHEDULES };
@@ -165,6 +165,69 @@ describe('getCoachPeople — the Teachers and Schools tabs', () => {
     expect(i10).toMatchObject({ teachers: 2, visits: 4, daysSinceVisit: 0 });
     // average of the scored HITL visits of its teachers: 61, 64, 58, 72
     expect(i10.avgHitl).toBe(63.8);
+  });
+});
+
+// bd-17v39c.4.16 (queue #47) — the Schools tab row counts teachers only, as the
+// School card does since #44. Principals stay in the roster (Edit teacher's list
+// needs them), flagged, but never in "N teachers", the Teachers number or the avg.
+describe('getCoachPeople — principals are not counted on the Schools tab', () => {
+  const principal = (ext, name, school, rumi) => ({
+    teacher_ext_id: ext, name, phone: ext, school_ext_id: school, role: 'principal', rumi_user_id: rumi,
+    coaching_sessions: 1, observations: 1, training_modules: 0, last_analysis_data: pct(95),
+    school_name: school === 'niete:110' ? 'IMSG I-10/1' : 'IMSG G-6/2',
+  });
+  const SANA = {
+    teacher_ext_id: '923001110005', name: 'Sana Iqbal', phone: '923001110005', school_ext_id: 'niete:110',
+    role: 'teacher', rumi_user_id: 'u-sana', coaching_sessions: 0, observations: 0, training_modules: 0,
+    last_analysis_data: null, school_name: 'IMSG I-10/1',
+  };
+  // I-10/1: three teachers and one principal (who has a score); G-6/2: two teachers and two principals.
+  const patch = [
+    ...PATCH, SANA,
+    principal('923001119001', 'Head I-10', 'niete:110', 'u-head110'),
+    principal('923001119002', 'Head G-6 A', 'niete:620', 'u-head620a'),
+    principal('923001119003', 'Head G-6 B', 'niete:620', 'u-head620b'),
+  ];
+  const facts = [
+    ...FACTS,
+    { user_id: 'u-head110', created_at: '2026-09-20T09:00:00Z', status: 'completed', analysis_data: pct(95) },
+    { user_id: 'u-head620a', created_at: '2026-09-21T09:00:00Z', status: 'completed', analysis_data: pct(90) },
+  ];
+  const q = () => fakeQuery({ patch, facts });
+
+  test('"N teachers" is role teacher only: 3 at I-10/1, 2 at G-6/2 with two principals', async () => {
+    const { schools } = await SVC.getCoachPeople(q(), ME, { today: TODAY });
+    expect(schools.find((s) => s.emis === '110').teachers).toBe(3);
+    expect(schools.find((s) => s.emis === '620').teachers).toBe(2);
+  });
+
+  test('the avg leaves out a principal\'s scores', async () => {
+    const { schools } = await SVC.getCoachPeople(q(), ME, { today: TODAY });
+    // the teachers' scored visits only: 61, 64, 58, 72 (not the principal's 95)
+    expect(schools.find((s) => s.emis === '110').avgHitl).toBe(63.8);
+    // G-6/2's teachers have no scores; the principal's 90 does not make one
+    expect(schools.find((s) => s.emis === '620').avgHitl).toBeNull();
+  });
+
+  test('the people list still carries every principal, flagged', async () => {
+    const { teachers } = await SVC.getCoachPeople(q(), ME, { today: TODAY });
+    expect(teachers.filter((t) => t.isPrincipal).map((t) => t.name).sort())
+      .toEqual(['Head G-6 A', 'Head G-6 B', 'Head I-10']);
+  });
+
+  // Home's "N teachers" tile is the same total as the Teachers tab number.
+  test('Home\'s teacher count leaves out principals: 5 teachers, 3 principals', async () => {
+    const out = await SVC.getCoachHome(q(), ME, { today: TODAY });
+    expect(out.counts.teachers).toBe(5);
+  });
+
+  test('getCoachSchool returns all four people at I-10/1, the principal flagged; the school says 3', async () => {
+    const out = await SVC.getCoachSchool(q(), ME, '110', { today: TODAY });
+    expect(out.school.teachers).toBe(3);
+    expect(out.teachers.map((t) => [t.name, t.isPrincipal]).sort()).toEqual([
+      ['Ayesha Bibi', false], ['Head I-10', true], ['Mehwish Khan', false], ['Sana Iqbal', false],
+    ]);
   });
 });
 
