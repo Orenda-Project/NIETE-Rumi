@@ -36,7 +36,7 @@ async function join(cardPdf, v9Pdf, dest) {
   return out.getPageCount();
 }
 
-async function attachCard({ lpDoc, v9HtmlPath, v9PdfPath, segment, lang, stem, outDir, deadlineMs }, deps = {}) {
+async function attachCard({ lpDoc, v9HtmlPath, v9PdfPath, segment, lang, stem, outDir, deadlineMs, onRefused }, deps = {}) {
   const { client, model, printCard = require('./print').printCard } = deps;
   const started = Date.now();
   const v9 = addIds(await fs.promises.readFile(v9HtmlPath, 'utf8'));
@@ -55,7 +55,7 @@ async function attachCard({ lpDoc, v9HtmlPath, v9PdfPath, segment, lang, stem, o
   };
   const t1 = Date.now();
   const { card } = await authorCard({ v9Html: v9, moves, stem, subject: segment.subject, lang, validate: check,
-    client, model, deadlineMs: Math.max(1, deadlineMs - (t1 - started)) });
+    client, model, deadlineMs: Math.max(1, deadlineMs - (t1 - started)), onRefused });
   const card_ms = Date.now() - t1;
 
   const t2 = Date.now();

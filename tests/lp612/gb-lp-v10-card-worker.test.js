@@ -155,6 +155,27 @@ describe('flag on: the v10 card goes ahead of v9', () => {
     expect(mockAttachCard.mock.calls[1][0].deadlineMs).toBeLessThanOrEqual(600000);
   });
 
+  test('the card gets 350 s by default (Amena, 7 Nov: the card can be made within 350 s)', async () => {
+    process.env.LP612_AUTHOR_TIMEOUT_MS = '600000';
+    happyReads();
+    await Worker.process(JOB);
+    const { deadlineMs } = mockAttachCard.mock.calls[0][0];
+    expect(deadlineMs).toBeLessThanOrEqual(350000);
+    expect(deadlineMs).toBeGreaterThan(340000);
+  });
+
+  test('each round the gates refuse is logged with its reasons', async () => {
+    happyReads();
+    mockAttachCard.mockImplementation(async ({ onRefused }) => {
+      onRefused({ round: 1, reasons: ['we: needs ONE NEIGHBOUR TURN'] });
+      throw Object.assign(new Error('late'), { code: 'card_timeout' });
+    });
+    await Worker.process(JOB);
+    expect(mockLogEvent).toHaveBeenCalledWith('gb_lp.v10card.refused', expect.objectContaining({
+      renderId: 'r-1', segmentId: SEG.segment_id, round: 1, reasons: ['we: needs ONE NEIGHBOUR TURN'], correlationId: 'c-1',
+    }));
+  });
+
   test.each(['card_timeout', 'card_refused', 'MOVES_FAILED'])('a card that fails (%s) never holds the lesson back: v9 is sent', async (code) => {
     happyReads();
     mockAttachCard.mockRejectedValue(Object.assign(new Error('no card'), { code }));

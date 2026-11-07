@@ -75,6 +75,15 @@ describe('attachCard', () => {
     expect(out.pageCount).toBe(4);
   });
 
+  test('a refused round reaches the caller with its reasons', async () => {
+    const refused = [];
+    const client = fakeClient([MISSING.card, L.card()]);
+    await attachCard({ ...opts, onRefused: (r) => refused.push(r) }, { client, model: 'm', printCard: printOk });
+    expect(refused).toHaveLength(1);
+    expect(refused[0].round).toBe(1);
+    expect(refused[0].reasons.length).toBeGreaterThan(0);
+  });
+
   test('a GB Science card is checked by the English rules and keeps "Science" on its header', async () => {
     const sci = L.card();
     sci.header.subject = 'Science';

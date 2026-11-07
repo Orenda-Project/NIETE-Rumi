@@ -122,8 +122,9 @@ async function renderForDelivery(args) {
 }
 
 // The v10 card (bd-rj6w0n.14.16.6) runs on what is left of ICT's clock, so a GB lesson never takes longer
-// than an ICT one; its own setting can only shorten that. Under a minimum it is not attempted.
-const CARD_DEADLINE_MS = 4 * 60 * 1000;
+// than an ICT one; its own setting can only shorten that. Under a minimum it is not attempted. 350 s fits moves
+// plus a repair round (Amena, 7 Nov).
+const CARD_DEADLINE_MS = 350 * 1000;
 const CARD_MIN_MS = 30 * 1000;
 // `process` below is this module's job handler, so the environment is read off globalThis.
 const v10Enabled = () => globalThis.process.env.LP_GB_V10_CARD_ENABLED === 'true';
@@ -143,6 +144,8 @@ async function withV10Card({ authored, rendered, segment, lang, stem, outDir, st
     const out = await withTimeout(attachCard({
       lpDoc: authored.lpDoc, v9HtmlPath: rendered.htmlPath, v9PdfPath: rendered.pdfPath,
       segment, lang, stem, outDir, deadlineMs, correlationId,
+      onRefused: ({ round, reasons }) => logEvent('gb_lp.v10card.refused',
+        { renderId, segmentId: segment.segment_id, round, reasons, correlationId }),
     }), deadlineMs).catch((e) => { throw e.code === 'AUTHOR_TIMEOUT' ? Object.assign(e, { code: 'card_timeout' }) : e; });
     return {
       rendered: { pdfPath: out.pdfPath, pageCount: out.pageCount ?? rendered.pageCount },
