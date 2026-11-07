@@ -56,7 +56,7 @@ const Q6 = 'social_studies.D.Q6';
 const Q7 = 'social_studies.D.Q7';
 const local = (name) => fixture(`r17i-sst-local-${name}`);
 
-const Q1_BANDS = 'Q1: at least 16 Remember items and at most 2 Understand; any other Q1 item is Apply (a situation the child decides).';
+const Q1_BANDS = 'Q1: exactly 8 Remember items, 6 Understand and 6 Apply (an Apply item is a situation the child decides).';
 const Q7_COMMON = 'A Q7 item is never a fact every Grade 5 child knows without the book (the year Pakistan was made, its capital, its national language, washing hands before eating, that television shows pictures («… ٹی وی پر اور کیا دکھایا جاتا ہے؟ → تصویر»), the name of a social media app); it asks a fact these pages teach.';
 
 const textOf = (req) => req.messages.map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n');
@@ -91,11 +91,11 @@ const FRESH_A = fixture('sst-a-reask-fresh').reply;
 
 beforeEach(() => { mockCreate.mockReset(); mockLog.mockReset(); });
 
-describe('2. Q1: at least 16 Remember, at most 2 Understand; the recall lines agree', () => {
+describe('2. Q1: exactly 8 Remember, 6 Understand, 6 Apply; the recall lines agree', () => {
   test('Section A carries the counts and no «3 to 5» recall line', () => {
     const A = prompt(SST, sec('A'), 'social_studies');
     expect(A).toContain(Q1_BANDS);
-    expect(A).toContain('at least 16 of them pure recall');
+    expect(A).toContain('exactly 8 of them pure recall');
     expect(A).not.toContain('3 to 5 pure recall');
     expect(A).not.toContain('include 3–5 straight recall MCQs');
     expect(A).not.toContain('at least 12 Remember');
@@ -115,7 +115,7 @@ describe('2. Q1: at least 16 Remember, at most 2 Understand; the recall lines ag
     const n = (b) => q1.filter((q) => q.blooms === b).length;
     expect(line).toEqual(expect.objectContaining({
       remember: n('Remember'), understand: n('Understand'), apply: n('Apply'),
-      meets: n('Remember') >= 16 && n('Understand') <= 2,
+      meets: n('Remember') === 8 && n('Understand') === 6 && n('Apply') === 6,
     }));
     expect(line.by_stem).toEqual(expect.objectContaining({ remember: expect.any(Number), understand: expect.any(Number), apply: expect.any(Number) }));
     expect(line.by_stem.remember + line.by_stem.understand + line.by_stem.apply).toBe(q1.length);

@@ -1011,6 +1011,10 @@ const RULE = {
   // item among situations, so the child's choice changed how hard the paper was. Q6's situations carry
   // the Apply marks the counted situation rule used to spread over Q5 and Q6.
   sstBand: {
+    // The map, flow chart and mind map are FDE's fixed tasks; the level is asked of what the model writes in them (bd-5jmnfj.27).
+    Q2: 'Every Q2 item is Remember: the child names places on the map.',
+    Q3: 'Every Q3 item is Understand: the topic needs the child to show how its steps or parts connect, not to copy a list from the book.',
+    Q4: 'Every Q4 item is Understand: the topic asks the child to explain or group ideas, so each of its branches says what something means or why; not a list of duties or facts to recall.',
     Q5: 'Every Q5 item is Understand: define a term, explain why, give two reasons, or compare two things from these pages. No Q5 item sets a situation to decide, and none is a one-fact recall item.',
     Q6: 'Every Q6 item is Apply: it sets a situation a Grade 5 child could meet (a decision, a dispute, a journey, a map reading, a weather report) and asks the child to use a concept from these pages to decide or explain. No Q6 item asks to define, list or recall a book fact. '
       + 'A Q6 situation needs the child to apply two different ideas from these pages; never one fact said twice (never "name the tier" twice, never the same government or body as the answer to both parts). '
@@ -1024,10 +1028,9 @@ const RULE = {
     Q7: 'Every Q7 item is Remember: one fact (who, what, where, when, how many) answered in one line. No Q7 item asks why or sets a situation. '
       + 'A Q7 item is never a fact every Grade 5 child knows without the book (the year Pakistan was made, its capital, its national language, washing hands before eating, that television shows pictures («… ٹی وی پر اور کیا دکھایا جاتا ہے؟ → تصویر»), the name of a social media app); it asks a fact these pages teach.',
   },
-  // Social Studies Q1: Q2–Q4 and nine Understand Q5s already put about 44 attempted marks on Understand, so the paper
-  // keeps inside FDE's band only when Q1 carries few Understand items, with room for one Q6 read as Understand.
-  // FDE's own Q1 is twenty recall items. A count, as the model follows counts.
-  sstQ1Levels: 'Q1: at least 16 Remember items and at most 2 Understand; any other Q1 item is Apply (a situation the child decides).',
+  // Social Studies Q1 (bd-5jmnfj.27): Q2 (map), Q7 and Q4's tags are fixed by their tasks, so the paper reaches
+  // FDE's 30/40/30 only if Q1 carries 8 Remember, 6 Understand and 6 Apply. A count, as the model follows counts.
+  sstQ1Levels: 'Q1: exactly 8 Remember items, 6 Understand and 6 Apply (an Apply item is a situation the child decides).',
   sstGroups: 'The child chooses which items of a question to answer, so every item of Q5, of Q6 and of Q7 is the same kind as the others in its question and as hard.',
   // Social Studies: a marking point that names no fact («پہلی وجہ درست بتانا») tells the teacher nothing
   // to look for, and the layout compares items by their points.
@@ -1214,7 +1217,7 @@ const MATHS_RECALL_FROM = '3 to 5 of them pure recall';
 const MATHS_RECALL_TO = 'at least 8 of them pure recall';
 // Social Studies Q1's slot rule asks for 3 to 5 recall MCQs; its level count asks for at least 16.
 const SST_RECALL_FROM = '3 to 5 pure recall';
-const SST_RECALL_TO = 'at least 16 of them pure recall';
+const SST_RECALL_TO = 'exactly 8 of them pure recall';
 
 /** "1 mark each", "1.25 marks each", "20 marks (parts 10 + 8 + 2)". */
 function _marksPhrase(slot) {
@@ -2623,13 +2626,15 @@ async function generatePatternExam({ splitRetry = false, ...args }) {
     return first;
   }
   const better = levelDistance(second.examJson._layout.blueprint) < levelDistance(bp);
-  logToFile('[assessment] level split re-ask kept', {
-    requestId, pattern, kept: better ? 'second' : 'first',
-    first: levelDistance(bp), second: levelDistance(second.examJson._layout.blueprint),
-  });
+  // The better paper is kept and carries what it still misses by (bd-5jmnfj.27): a split the re-ask did not close is reported, not hidden.
+  const miss = { first: levelDistance(bp), second: levelDistance(second.examJson._layout.blueprint) };
+  const chosen = better ? second : first;
+  const residual = better ? miss.second : miss.first;
+  logToFile('[assessment] level split re-ask kept', { requestId, pattern, kept: better ? 'second' : 'first', ...miss, residual });
+  chosen.examJson._layout.split_retry = { ...miss, kept: better ? 'second' : 'first', residual };
   const t = (k) => (first.tokenData[k] || 0) + (second.tokenData[k] || 0);
   return {
-    ...(better ? second : first),
+    ...chosen,
     tokenData: { inputTokens: t('inputTokens'), outputTokens: t('outputTokens'), totalTokens: t('totalTokens'), cost: t('cost'), model: first.tokenData.model },
     elapsedMs: first.elapsedMs + second.elapsedMs,
   };
@@ -3124,7 +3129,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     q1.forEach((q) => { byStem[sstStemLevel(q)] += 1; });
     logToFile('[assessment] q1 levels', {
       requestId, pattern, remember, understand, apply, untagged: q1.length - remember - understand - apply,
-      meets: remember >= 16 && understand <= 2, by_stem: byStem,
+      meets: remember === 8 && understand === 6 && apply === 6, by_stem: byStem,
     });
   }
 
