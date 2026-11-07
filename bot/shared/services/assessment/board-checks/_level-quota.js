@@ -73,8 +73,12 @@ function overQuota(examJson, target) {
   const out = [];
   const bySlot = new Map();
   topNodes(examJson).forEach((t) => {
-    if (t.slot == null || !t.row || t.row.teacher_marked || isGroup(t.item)) return;
-    (bySlot.get(t.slot) || bySlot.set(t.slot, []).get(t.slot)).push(t);
+    if (t.slot == null || !t.row || t.row.teacher_marked) return;
+    const list = bySlot.get(t.slot) || bySlot.set(t.slot, []).get(t.slot);
+    // bd-5jmnfj.38.32: each member of a stimulus group counts against the slot quota. A member over it is hard: the writer drops
+    // the whole group (tree.dropIds) and the rewrite is told the levels the members still owe (slot-quota.js).
+    if (isGroup(t.item)) t.item.stimulus.items.forEach((m, k) => { if (m && m.removed !== true) list.push({ ...t, item: m, member: true, ref: `${t.ref}@s${k + 1}` }); });
+    else list.push(t);
   });
   over.forEach((l) => bySlot.forEach((nodes, slot) => {
     const row = nodes[0].row;
