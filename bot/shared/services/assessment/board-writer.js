@@ -5,7 +5,7 @@
  * shortfall fails: PATTERN_SHORT_SLOT; the top-up is T.topUp, blind to OR and stimulus nodes only in d.topUp). Then
  * board-checks BEFORE the trim: hard items are dropped, the extras fill the gap, one targeted rewrite (round 5) and
  * a second of the keyed item (rounds 6-7) follow; the version with fewer hard issues is kept (a failure reports it). A
- * faulted stimulus-group member is re-asked GF.ATTEMPTS times; any review flag left then ships as a paper-level note.
+ * faulted stimulus-group member is re-asked GF.ATTEMPTS times; a review flag or D22 left then ships as a paper-level note.
  * The service's helpers arrive as `d` (_boardDeps); this module never requires the service, and never uses the
  * G5 layout engine (the layout is board-layout.js). Returns the board wrapper shape of _writePatternPaper.
  *
@@ -23,9 +23,9 @@ const { leaves } = require('./board-checks/walk');
 const { owed } = require('./board-6-12/slot-quota');
 const MR = require('./board-6-12/mcq-review');
 const GF = require('./board-6-12/group-faults');
+const SN = require('./board-6-12/ship-notes');
 
 const EXTRA = 1.25; // design_pending: the top-up asks for the shortfall plus about a quarter (round 4)
-
 const SHORT_MESSAGE = 'A section is still short of questions after one more try.';
 
 /** board-layout's flat slots also nested into their sections (the checkers index by section; the renderers read the flat list). */
@@ -266,10 +266,10 @@ async function writeBoardPaper(args, d) {
       tries.unshift({ name: 'restore', ex: ex3, checks: checks3 });
       if (checks3.record.hard <= checks.record.hard) { ex = ex3; checks = checks3; }
     }
-    if (failing(ex, checks)) MR.soften(checks, { groups: GF.memberIds(ex) }); // ship with note: a held flag nothing replaced is a paper-level note
+    if (failing(ex, checks)) SN.finalSoften(checks, GF.memberIds(ex)); // ship with note: a held flag or D22 nothing replaced is a paper-level note
     if (failing(ex, checks)) {
       const orig = clone(whole);
-      tries.push({ name: 'originals', ex: orig, checks: MR.soften(MR.applyFlags(finish(orig), flags, orig), { groups: GF.memberIds(orig) }) });
+      tries.push({ name: 'originals', ex: orig, checks: SN.finalSoften(MR.applyFlags(finish(orig), flags, orig), GF.memberIds(orig)) });
       const best = tries.reduce((a, b) => (b.checks.record.hard < a.checks.record.hard ? b : a));
       outcome(tries, best);
       throw shortError(best.checks.shortfall.length ? best.checks.shortfall : T.shortfallOf(best.ex, allSlots), best.ex);
