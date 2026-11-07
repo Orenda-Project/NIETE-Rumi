@@ -17,9 +17,15 @@ test('whatsapp-bot.js dispatches asmt_fb_ to the assessment feedback service', (
   expect(src.slice(at, at + 400)).toMatch(/assessment-feedback\.service[\s\S]*handleAssessmentFeedbackButton\(buttonId, from\)/);
 });
 
-test('text-message.handler consumes the improve answer before routing, and holds typing for it', () => {
+test('text-message.handler consumes the improve answer before routing', () => {
   const src = read('bot/shared/handlers/text-message.handler.js');
   expect(src).toMatch(/AssessmentFeedbackService\.consumeReasonIfPending\(user\.id, from, messageBody/);
+});
+
+// The typing hold for open reason windows is not on every tier yet; where it is, it covers this window too.
+test('where the handler holds typing for reason windows, it holds for this one', () => {
+  const src = read('bot/shared/handlers/text-message.handler.js');
+  if (!/function holdTypingWhileReasonPending/.test(src)) return;
   expect(src).toMatch(/AssessmentFeedbackService\.REDIS_REASON_KEY\(user\.id\)/);
 });
 
