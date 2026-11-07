@@ -26,15 +26,17 @@
  * THE ROLE IS THE SERVER'S. Read from `users` on every open, never from the client. The request carries no role
  * (requirePortalAuth loads no user; the session holds the user id only), so this is one indexed read by primary key,
  * BOUNDED: the whole decision is raced against READ_TIMEOUT_MS, and a decision that does not come in time is a
- * teacher's, so a slow or hung read can never hold a teacher's plan. A principal ON the teacher app (portal_teacher_v2)
- * is a teacher here: she gets the teacher app exactly as a teacher does (operator, 2026-10-09). Anything unreadable —
+ * teacher's, so a slow or hung read can never hold a teacher's plan. A principal ON the teacher app (portal_teacher_v2,
+ * or portal_principal_app for her: lib/teacher-app.js) is a teacher here: she gets the teacher app exactly as a
+ * teacher does (operator, 2026-10-09). Anything unreadable —
  * the role, or a principal's teacher-app switch — is a teacher too: today's path is the safe one for the opens that are
  * nearly all teachers', and a leader's stray row is recoverable where a teacher's lost open is not.
  */
 
 const supabase = require('../config/supabase');
-const { isLeaderRole } = require('../lib/leader-role');
-const { isFlagEnabledForUser, PORTAL_TEACHER_V2_KEY } = require('../lib/feature-flags');
+const { isLeaderRole, isPrincipalRole } = require('../lib/leader-role');
+const { PORTAL_TEACHER_V2_KEY } = require('../lib/feature-flags');
+const { teacherAppOnFor } = require('../lib/teacher-app');
 const LpActivity = require('./lp-activity.service');
 const telemetry = require('./telemetry.service');
 
@@ -65,7 +67,8 @@ async function decide(userId, known) {
     const role = Object.prototype.hasOwnProperty.call(known, 'role') ? normalize(known.role) : await readRole(userId);
     if (!isLeaderRole(role)) return { leader: false, role };
     // `strict`: a switch that cannot be read throws (→ a teacher below), never reads as "not on the teacher app".
-    if (role === 'principal' && await isFlagEnabledForUser(supabase, PORTAL_TEACHER_V2_KEY, userId, { strict: true })) {
+    // bd-33wxxi.1 — "on the teacher app" is teacherAppOnFor's answer: portal_teacher_v2, or the principal app for her.
+    if (isPrincipalRole(role) && await teacherAppOnFor(supabase, PORTAL_TEACHER_V2_KEY, userId, { strict: true })) {
       return { leader: false, role };
     }
     return { leader: true, role };
