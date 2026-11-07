@@ -83,6 +83,11 @@
       "marks_ur": null,
       "label_en": "Section 1 (objective)",
       "marks": 30,
+      "levels": {
+        "Remember": 18,
+        "Understand": 6,
+        "Apply": 6
+      },
       "answer_on": "question_paper",
       "note_ur": null,
       "slots": [
@@ -174,6 +179,11 @@
       "marks_ur": "کل نمبر {t:16}",
       "label_en": "Section 2 (subjective)",
       "marks": 16,
+      "levels": {
+        "Remember": 0,
+        "Understand": 16,
+        "Apply": 0
+      },
       "answer_on": "answer_sheet",
       "note_ur": null,
       "slots": [
@@ -253,6 +263,11 @@
       "marks_ur": "کل نمبر {t:18}",
       "label_en": "Section 3",
       "marks": 18,
+      "levels": {
+        "Remember": 0,
+        "Understand": 18,
+        "Apply": 0
+      },
       "answer_on": "answer_sheet",
       "note_ur": null,
       "slots": [
@@ -298,6 +313,11 @@
       "marks_ur": "کل نمبر {t:36}",
       "label_en": "Section 4",
       "marks": 36,
+      "levels": {
+        "Remember": 12,
+        "Understand": 0,
+        "Apply": 24
+      },
       "answer_on": "answer_sheet",
       "note_ur": null,
       "slots": [
