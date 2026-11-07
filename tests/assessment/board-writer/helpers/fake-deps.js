@@ -68,7 +68,8 @@ function buildReply(slots, ctx, state) {
     const seq = seqOf(slot);
     if (slot.stimulus) {
       for (let g = 0; g < slot.stimulus.count; g += 1) {
-        const inner = Array.from({ length: slot.stimulus.mcqs_per_stimulus }, () => { state.n += 1; return mcq(slot, state.n); });
+        const per = slot.stimulus.mcqs_per_stimulus; // .38.32: members follow the slot quota too
+        const inner = Array.from({ length: per }, (_, i) => { state.n += 1; return mcq(slot, state.n, seq[g * per + i]); });
         items.push({ slot: slot.slot, stimulus: { text: `A made-up passage ${g + 1} about a ${NOUNS[(state.n + g) % NOUNS.length]} and its use.`, items: inner } });
       }
       return;
