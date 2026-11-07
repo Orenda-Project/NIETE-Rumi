@@ -11,7 +11,7 @@ import { BottomButton } from "../ui";
 import ReportsFrame from "./ReportsFrame";
 import { REPORTS } from "./copy";
 import { countChanges, initialValues, rungName, titleOf, type Values } from "./formModel";
-import { observationPath } from "./paths";
+import { OBSERVATION_STEPS, SCREEN_STEP, observationPath } from "./paths";
 import { teacherNameOf, useObservationView } from "./useObservationView";
 import { PlanSource } from "../observe/PlanState";
 
@@ -147,7 +147,7 @@ export default function FeedbackForm() {
   };
 
   return (
-    <ReportsFrame title={C.formTitle} crumb={name ? C.stepCrumb(name, 2, 5) : C.observation} onBack={back} dock={dock} testId="coach-feedback-form">
+    <ReportsFrame title={C.formTitle} crumb={name ? C.stepCrumb(name, SCREEN_STEP.form, OBSERVATION_STEPS) : C.observation} onBack={back} dock={dock} testId="coach-feedback-form">
       <LoadState status={load} empty={false} onRetry={() => setTick((n) => n + 1)} />
       <div ref={top} />
       {draft && section && (

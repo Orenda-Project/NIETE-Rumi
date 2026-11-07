@@ -38,10 +38,10 @@ const renderPage = () => render(
 beforeEach(() => { vi.clearAllMocks(); L.getObservation.mockResolvedValue(VIEW("feedback")); });
 
 describe("Your feedback", () => {
-  it("titled Your feedback, with the teacher and Step 4 of 5 in the crumb", async () => {
+  it("titled Your feedback, with the teacher and Step 3 of 4 in the crumb (her feedback sits inside Debrief)", async () => {
     renderPage();
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Your feedback");
-    expect(screen.getByTestId("page-crumb")).toHaveTextContent("Ayesha Bibi · Step 4 of 5");
+    expect(screen.getByTestId("page-crumb")).toHaveTextContent("Ayesha Bibi · Step 3 of 4");
   });
 
   it("shows what she did well, what to try next time, and the question to ask herself", async () => {

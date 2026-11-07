@@ -43,10 +43,10 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); });
 
 describe("Send {name} the report", () => {
-  it("titled with the teacher's name, Step 5 of 5, and the report as she will get it", async () => {
+  it("titled with the teacher's name, Step 4 of 4, and the report as she will get it", async () => {
     renderPage();
     await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Send Ayesha the report"));
-    expect(screen.getByTestId("page-crumb")).toHaveTextContent("Ayesha Bibi · Step 5 of 5");
+    expect(screen.getByTestId("page-crumb")).toHaveTextContent("Ayesha Bibi · Step 4 of 4");
     expect(await screen.findByRole("img", { name: /Ayesha/ })).toHaveAttribute("src", "https://signed.example/report.png");
     expect(screen.getByText("Your report, Ayesha")).toBeInTheDocument();
   });
