@@ -82,19 +82,21 @@ function applyFlags(checks, flags, examJson) {
 /**
  * Round 9b: after the last rewrite the review stops being hard. A live reviewer says yes on ~45% of items, rewrites
  * included, so a hard review fails every paper; its leftovers become notes (mutates checks). Other reasons stay hard.
- * bd-5jmnfj.38.33: with `keepLeaks` a key_given_away flag stays hard, so the writer can swap that item out or restore a
- * spare; the writer's last call omits it, and a leak that cannot be replaced ships as a paper-level note, never a throw.
+ * `groups` holds the ids of stimulus-group members. With `hold` (the writer's calls before its last), a key_given_away flag
+ * (bd-5jmnfj.38.33) and a fault on a group member (bd-5jmnfj.38.34) stay hard, so the writer can swap or re-ask them.
+ * Without it (the final call) every review flag left becomes a note, and those two kinds are marked paper_level: the
+ * paper ships with them noted, never a throw (Amena's ruling, "ship with note").
  */
-function soften(checks, keepLeaks = false) {
+function soften(checks, { hold = false, groups = new Set() } = {}) {
   let moved = 0;
   let kept = 0;
   checks.shortfall = checks.shortfall.filter((row) => {
     const reviewIds = Object.keys(row.review || {}).filter((id) => row.why && row.why[id] === 'review');
-    const leak = (id) => row.review[id].faults.includes('key_given_away');
-    const mine = reviewIds.filter((id) => !(keepLeaks === true && leak(id)));
+    const serious = (id) => groups.has(id) || row.review[id].faults.includes('key_given_away');
+    const mine = reviewIds.filter((id) => !(hold && serious(id)));
     kept += reviewIds.length - mine.length;
     mine.forEach((id) => {
-      checks.notes.push({ check: 'review', id, slot: row.slot, faults: row.review[id].faults, why: row.review[id].why || '', ...(leak(id) ? { paper_level: true } : {}) });
+      checks.notes.push({ check: 'review', id, slot: row.slot, faults: row.review[id].faults, why: row.review[id].why || '', ...(serious(id) ? { paper_level: true } : {}) });
       row.items = row.items.filter((x) => x !== id);
       if (row.item_refs) row.item_refs = row.item_refs.filter((x) => x !== id);
       delete row.why[id];
