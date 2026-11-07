@@ -105,7 +105,7 @@ function buildCoachCardHtml(fb, { lang = 'sw', brand } = {}) {
       <div class="win">
         <div class="tick">✓</div>
         <div>
-          <div class="wt">${esc(w.behaviour)}</div>
+          <div class="wt">${esc(require('./observe-coach-rubric').winName(w.behaviour, S))}</div>
           <div class="wq">“${esc(w.evidence)}”</div>
         </div>
       </div>`).join('');
