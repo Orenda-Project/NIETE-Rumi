@@ -66,7 +66,9 @@ describe('isPortalAssessmentEditingEnabled truth table', () => {
 
 describe('/config', () => {
   const src = fs.readFileSync(path.join(__dirname, '../../dashboard/routes/portal.routes.js'), 'utf8');
-  const block = src.slice(src.indexOf("router.get('/config'"), src.indexOf("router.get('/config'") + 3000);
+  // bd-lz2zt8: the whole route, to its closing `});`, not a fixed window: the route grows.
+  const start = src.indexOf("router.get('/config'");
+  const block = src.slice(start, src.indexOf('\n});', start));
 
   test('features.assessmentEditing comes from the portal switch', () => {
     // bd-fxk3t8: the flags are read together (one Promise.all), so the pairing is positional:
@@ -80,6 +82,10 @@ describe('/config', () => {
   });
 
   test('imported beside the other flags', () => {
-    expect(src).toMatch(/isPortalAssessmentEditingEnabled,[\s\S]{0,400}\} = require\('\.\.\/lib\/feature-flags'\)/);
+    // bd-lz2zt8: inside the feature-flags destructuring, however long that list grows.
+    const end = src.indexOf("} = require('../lib/feature-flags')");
+    const imports = src.slice(src.lastIndexOf('const {', end), end);
+    expect(end).toBeGreaterThan(-1);
+    expect(imports).toMatch(/\bisPortalAssessmentEditingEnabled,/);
   });
 });
