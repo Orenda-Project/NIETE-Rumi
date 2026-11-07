@@ -6,12 +6,14 @@ const { W } = require('./pytext');
 
 const BAR = { 's-i': 'open', 's-d': 'explain', 's-we': 'we', 's-a': 'you', 's-c': 'check', 's-h': 'hw' };
 const ORDER = ['open', 'explain', 'we', 'you', 'check', 'hw'];
+// An ICT 6-12 page (the runtime v9) has no s-we bar: its We Do is a block marked `we` inside the Activity section.
+const CLASS_SEC = { ...BAR, we: 'we' };
 
 /** The html with each v9 section's first block tagged id="v9-<sec>" (idempotent). */
 function addIds(html) {
   const seen = new Set([...html.matchAll(new RegExp(`id="v9-(${W}+)"`, 'gu'))].map((m) => m[1]));
   return html.replace(/<div data-atom class="([^"]*)"/g, (all, cls) => {
-    const sec = cls.split(/\s+/).filter(Boolean).map((c) => (Object.prototype.hasOwnProperty.call(BAR, c) ? BAR[c] : null))
+    const sec = cls.split(/\s+/).filter(Boolean).map((c) => (Object.prototype.hasOwnProperty.call(CLASS_SEC, c) ? CLASS_SEC[c] : null))
       .find((s) => s !== null);
     if (sec === undefined || seen.has(sec)) return all;
     seen.add(sec);

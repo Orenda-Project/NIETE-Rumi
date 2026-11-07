@@ -75,6 +75,7 @@ async function extractMoves({ lpDoc, lessonId, client, model, maxTokens = 6000, 
       messages: [{ role: 'user', content: prompt }],
       max_completion_tokens: maxTokens,
       response_format: { type: 'json_object' },
+      reasoning: { enabled: false }, // thinking off, as the card (author.js)
     });
     const choice = response.choices && response.choices[0];
     try {

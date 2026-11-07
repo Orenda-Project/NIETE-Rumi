@@ -84,6 +84,13 @@ describe('attachCard', () => {
     expect(refused[0].reasons.length).toBeGreaterThan(0);
   });
 
+  test('a card still queried after the last round is joined ahead of v9 anyway, with its reasons', async () => {
+    const client = fakeClient([MISSING.card, MISSING.card, MISSING.card, MISSING.card]);
+    const out = await attachCard(opts, { client, model: 'm', printCard: printOk });
+    expect(out.pageCount).toBe(4);
+    expect(out.reasons.length).toBeGreaterThan(0);
+  });
+
   test('a GB Science card is checked by the English rules and keeps "Science" on its header', async () => {
     const sci = L.card();
     sci.header.subject = 'Science';
