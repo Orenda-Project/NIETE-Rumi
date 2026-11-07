@@ -5,7 +5,7 @@
  * its final-answer point: a method/working step (formula, substitution, working). Hard ANSWER_ONLY when it has only one
  * point, or when every point states the final value, so the writer drops the item and the rewrite is told why (D22 in
  * section-prompt CHECK_FAULTS). Numerical = calc present, type/kind 'numerical', or a number with a unit in the answer.
- * An item with no points is D14's (NO_POINTS). Pure.
+ * An item with no points is D14's (NO_POINTS). Left after the rewrites it ships as a paper-level note (ship-notes). Pure.
  */
 const { leaves } = require('./walk');
 const { issue } = require('./common');
@@ -16,6 +16,8 @@ const LIMITS = { minMarks: 2 }; // a 1-mark item cannot pay a method mark and an
 const CODES = ['physics', 'chemistry', 'biology'];
 // design_pending: the SI/board units a numerical answer ends in; extend when a subject brings another
 const UNIT = /\d\s*(?:x\s*10\^-?\d+\s*)?(?:m\/s\^?2|m\/s|ms\^-1|km\/h|kg|g|mg|m|cm|mm|km|s|min|h|N|J|kJ|W|kW|kWh|Pa|kPa|Hz|V|A|mA|ohm|Ω|C|°C|K|mol|mol\/dm\^?3|dm\^?3|cm\^?3|L|mL|eV)(?![\p{L}\d])/u;
+
+const MSG = 'numerical scheme has only a final-answer point; list method/working marks (formula, substitution, working) apart from the answer mark';
 
 const pointsOf = (item) => (item.scheme && Array.isArray(item.scheme.points) ? item.scheme.points : []);
 const isNumerical = (item) => !!item.calc || item.type === 'numerical' || item.kind === 'numerical' || UNIT.test(String(item.answer == null ? '' : item.answer));
@@ -39,9 +41,9 @@ function run(examJson, ctx) {
     if (Array.isArray(item.options) || Number(item.marks) < LIMITS.minMarks || !isNumerical(item)) return;
     const pts = pointsOf(item);
     if (!pts.length || !answerOnly(item, pts)) return;
-    out.push(issue(ID, 'ANSWER_ONLY', ref, 'numerical scheme has only a final-answer point; list method/working marks (formula, substitution, working) apart from the answer mark', true, slot == null ? undefined : slot));
+    out.push(issue(ID, 'ANSWER_ONLY', ref, MSG, true, slot == null ? undefined : slot));
   });
   return { ok: !out.some((i) => i.hard), issues: out };
 }
 
-module.exports = { id: ID, name: 'method-marks', hard: true, modes: ['board'], LIMITS, run };
+module.exports = { id: ID, name: 'method-marks', hard: true, modes: ['board'], LIMITS, MSG, run };
