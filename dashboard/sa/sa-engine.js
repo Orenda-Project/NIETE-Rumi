@@ -122,6 +122,7 @@
           }).then(function () { if (opts.onEvent) opts.onEvent(e); if (sync) sync.poke(); });
           if (HOOK[e.type]) fire(HOOK[e.type], e);
           if (e.type === 'silence_repeat') discardFor = e.task_id;
+          if (e.type === 'task_intro') warmFor(e.task_id);
           if (e.type === 'battery_end') batteryEnd();
           // The game's mic check is kept for this phone (the coach's pre-flight writes the same keys).
           if (e.type === 'mic_check' && micMod) micMod.remember(!!(e.value && e.value.ok), e.value && e.value.rms);
@@ -137,6 +138,7 @@
         // is discarded (never uploaded), so the repeat's is the one kept.
         var silenceRepeat = (battery.ui || {}).silence_repeat === true && mode === 'proctored' && opts.manual !== true;
         var discardFor = null;
+        var warmedFor = null; // round 10 (r10_practice_gap): the task whose practice answers are warmed
         // The sandbox-only "Jump to…" (RULING #43): only when the server put SA_DEV_TOOLS = true on the page (it does
         // so only on the sandbox service), and only for the coach.
         var devTools = mode === 'proctored' && (deps.win || root).SA_DEV_TOOLS === true;
@@ -153,9 +155,34 @@
           // round 7b (the runner keeps each to its mode: end_section RDF manual; incomplete and silence_repeat RDF auto)
           end_section: w3.end_section === true && mode === 'proctored', incomplete: w3.incomplete_move_on === true && mode === 'proctored',
           silence_repeat: silenceRepeat });
-        var voice = voiceMod.create({ lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); }, onSilent: function (s) { fire('silent', s); },
+        var vo = { lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); }, onSilent: function (s) { fire('silent', s); },
           // a line held by a hidden page (parked, paused, resumed, gave_up): kept on the session (voice_held)
-          onHeld: function (h) { runner.log('voice_held', { task_id: runner.view().task ? runner.view().task.id : undefined, value: { kind: h.kind } }); } });
+          onHeld: function (h) { runner.log('voice_held', { task_id: runner.view().task ? runner.view().task.id : undefined, value: { kind: h.kind } }); } };
+        // round 10 (battery.ui.r10_bigger_audio, r10_practice_gap): Jugnu's own tap-unlocked elements; a practice task's
+        // answers loaded before they are said (a warmed element is an unlocked one, so the gap switch brings unlock too)
+        if (w3.r10_bigger_audio === true || w3.r10_practice_gap === true) vo.unlock = true;
+        if (w3.r10_practice_gap === true) vo.warm = true;
+        var voice = voiceMod.create(vo);
+        warmFor(runner.view().task);
+        /** r10_practice_gap: a task's practice answers, the clips said straight after another ("The answer is:", "Yes!"). */
+        function warmFor(t) {
+          if (w3.r10_practice_gap !== true || !voice || typeof voice.warm !== 'function') return;
+          if (typeof t === 'string') t = battery.tasks.filter(function (x) { return x.id === t; })[0];
+          if (!t || t.id === warmedFor) return;
+          warmedFor = t.id;
+          var list = [], seen = {};
+          (t.practice || []).forEach(function (p) {
+            var fb = p.feedback || {};
+            [p.model, fb.correct, fb.right, fb.wrong].forEach(function (ch) {
+              if (!Array.isArray(ch)) return;
+              ch.slice(1).forEach(function (x) {
+                var k = x && x.audio ? JSON.stringify(x.audio) : null;
+                if (k && !seen[k]) { seen[k] = true; list.push(x.audio); }
+              });
+            });
+          });
+          if (list.length) voice.warm(list);
+        }
         if (syncMod && opts.sink) {
           sync = syncMod.create({ store: store, sink: opts.sink, session_id: sessionId, onStatus: function (s) { fire('sync', s); } });
         }
