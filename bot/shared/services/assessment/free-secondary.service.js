@@ -46,6 +46,8 @@ const { paperIssues, estimateMinutes, printedMinutes } = require('./free-seconda
 const { balanceKeys, sortNumeric } = require('./free-secondary-keys');
 const Rewrite = require('./free-secondary-rewrite');
 const Pool = require('./free-secondary-pool');
+const { resolveLeaks } = require('./free-secondary-leakfix');
+const { typeShortfall } = require('./free-secondary-mix');
 const Review = require('./free-secondary-review');
 const Levels = require('./free-secondary-levels');
 const { statedType } = require('./free-secondary-grammar');
@@ -225,13 +227,14 @@ async function generateExam(args) {
   issues = [...issues, ...reviewed, ...a8(examJson)];
 
   const check = (exam) => [...paperIssues(exam, checkOpts), ...Review.stillOpen(exam, reviewed), ...a8(exam)];
+  const tidy = (exam) => { Gen.stripImageKeys(exam); Gen.normaliseAnswers(exam); };
   const targeted = await Rewrite.rounds({
     examJson, issues, check, max: 1,
     ask: async (text) => {
       const out = await ask([messages[0], { role: 'user', content: `${messages[1].content}\n\n${text}` }]);
       return extractJsonFromResponse(out?.choices?.[0]?.message?.content || '');
     },
-    tidy: (exam) => { Gen.stripImageKeys(exam); Gen.normaliseAnswers(exam); },
+    tidy,
     onError: (err) => logToFile('[assessment] targeted rewrite skipped', { error: err.message }),
   });
   examJson = targeted.exam; issues = targeted.issues;
@@ -239,6 +242,12 @@ async function generateExam(args) {
   // An MCQ still giving another item away is replaced by a spare from the pool (G7 a6 Q2 against Q5).
   const swapped = Pool.swapLeaks(examJson, spares, check);
   if (swapped) issues = check(examJson);
+  // A leak still standing gets one follow-up quoting it, then a repair in code (a8b Q1 against Q11).
+  const fixed = await resolveLeaks({ examJson, check, tidy, onError: (err) => logToFile('[assessment] leak follow-up failed', { error: err.message }),
+    ask: async (text) => extractJsonFromResponse((await ask([messages[0], { role: 'user', content: `${messages[1].content}\n\n${text}` }]))?.choices?.[0]?.message?.content || '') });
+  examJson = fixed.exam; issues = fixed.issues;
+  const shortfall = typeShortfall(questionTypes, sized.types);
+  if (shortfall.length || fixed.dropped.length) logToFile('[assessment] shortfall (grades 6-12 free)', { grade, subject, types: shortfall, droppedLeaks: fixed.dropped });
 
   const produced = Gen.countQuestions(examJson);
   if (produced === 0) throw fail('NO_QUESTIONS', 'The question writer returned no questions.');
@@ -265,7 +274,7 @@ async function generateExam(args) {
     loadMinutes: Math.round(load), timeMinutes: examJson._timeMinutes, overBand, elapsedMs: Date.now() - startedAt,
   });
   return {
-    examJson, questionCount: produced, tokenData, plan, issues, revised, rewritten, pooled,
+    examJson, questionCount: produced, tokenData, plan, issues, revised, rewritten, pooled, droppedLeaks: fixed.dropped, typeShortfall: shortfall,
     trimmed: cleaned.removedSeen > 0 ? { seen: cleaned.removedSeen } : {},
     marksRemoved: cleaned.marksRemoved, answerCoverage: coverage, elapsedMs: Date.now() - startedAt,
   };

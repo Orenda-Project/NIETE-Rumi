@@ -21,6 +21,7 @@
 const { bandOf, LOAD_SHARE } = require('./free-secondary-rules');
 const { keyIndex, textOf, isMcq } = require('./free-secondary-keys');
 const { schemeIssue } = require('./free-secondary-scheme');
+const { keySkewIssues, unprintedReferenceIssue, bandIssue } = require('./free-secondary-flaws');
 
 const ABSOLUTE = /\b(always|never|only)\b|all of the above|none of the above|ہمیشہ|کبھی نہیں|صرف|مندرجہ بالا تمام|ان میں سے کوئی نہیں/i;
 const STOP = new Set(['which', 'what', 'when', 'where', 'name', 'does', 'that', 'this', 'from', 'with',
@@ -223,6 +224,7 @@ function paperIssues(examJson, { grade, lessonTitle } = {}) {
   const band = bandOf(grade);
   const all = items(examJson);
   const leaked = leaks(all);
+  const skew = new Map(keySkewIssues(all).map((i) => [i.n, i]));
   const out = [];
   all.forEach((e) => {
     const add = (check, text) => out.push({ n: e.n, check, text });
@@ -232,7 +234,13 @@ function paperIssues(examJson, { grade, lessonTitle } = {}) {
     if (scheme) add('scheme', scheme);
     const len = lengthIssue(e, band);
     if (len) add(...len);
-    optionIssues(e).forEach((o) => add(...o));
+    const optIssues = optionIssues(e);
+    optIssues.forEach((o) => add(...o));
+    if (skew.has(e.n) && !optIssues.some((o) => o[0] === 'longest-key')) add('longest-key', skew.get(e.n).text);
+    const ref = unprintedReferenceIssue(e);
+    if (ref) add('unprinted-ref', ref);
+    const bands = bandIssue(e);
+    if (bands) add('band-overlap', bands);
     const parts = partLevelsIssue(e);
     if (parts) add('part-levels', parts);
     if (leaked.has(e.n)) {
