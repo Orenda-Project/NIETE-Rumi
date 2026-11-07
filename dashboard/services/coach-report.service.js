@@ -62,8 +62,9 @@ const SQL = {
     WHERE c.id = $1 AND c.observation_type = 'leader_observation'
   `,
 
-  // Her coached debriefs she has neither opened nor closed, newest first: what the Home card shows. Served by the
-  // coach_report_notice.sql partial index (rows still waiting on the coach, by created_at).
+  // Her coached debriefs she has neither opened nor closed, newest first by the time each was READY (the time the card
+  // shows; bd-enec2e.5), what the Home card shows. The coach_report_notice.sql partial index finds the rows still waiting
+  // on her (by created_at); the few found are sorted by that time.
   READY: `
     SELECT c.id, c.created_at,
            c.analysis_data->'observer_debrief'->>'completed_at' AS feedback_at,
@@ -77,7 +78,7 @@ const SQL = {
       AND c.coach_report_seen_at IS NULL
       AND c.created_at >= now() - interval '${READY_WINDOW_DAYS} days'
       AND c.analysis_data->'observer_debrief' ? 'feedback'
-    ORDER BY c.created_at DESC
+    ORDER BY COALESCE((c.analysis_data->'observer_debrief'->>'completed_at')::timestamptz, c.created_at) DESC
     LIMIT ${READY_LIMIT}
   `,
 

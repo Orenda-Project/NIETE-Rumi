@@ -8,6 +8,7 @@ import { useCopy, useLang, type Lang } from "../../teacher/i18n";
 import { portal } from "../../services/api";
 import { COACH_REPORT, type CoachReportCopy } from "./copy";
 import { coachReportPath, coachWeekPath, getReadyReports, markSeen, markWeek, type ReadyDebrief, type ReadyReport } from "./api";
+import { weekSpan } from "./weekSpan";
 
 /**
  * Coach reports in the app — the card above the tiles on her Home when a report is ready. The teacher Home's "Next for
@@ -57,22 +58,26 @@ export function useReadyReports(on: boolean | null): { reports: ReadyReport[]; d
   return { reports, dismiss };
 }
 
+/**
+ * When the report was ready, in Pakistan time: the time alone today, the day and time before that (a report waits on the
+ * card for up to 3 days, and "11:00 am" for one from two days ago read as today; bd-enec2e.5).
+ */
 const timeOf = (iso: string | null, lang: Lang) => {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat(lang === "ur" ? "ur-PK" : "en-GB", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Karachi" }).format(d);
+  const loc = lang === "ur" ? "ur-PK" : "en-GB";
+  const tz = { timeZone: "Asia/Karachi" } as const;
+  const dayOf = (x: Date) => new Intl.DateTimeFormat("en-CA", { ...tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(x);
+  const time = new Intl.DateTimeFormat(loc, { ...tz, hour: "numeric", minute: "2-digit", hour12: true }).format(d);
+  if (dayOf(d) === dayOf(new Date())) return time;
+  return `${new Intl.DateTimeFormat(loc, { ...tz, day: "numeric", month: "short" }).format(d)}, ${time}`;
 };
 
 function subOf(r: ReadyDebrief, lang: Lang): string {
   const cls = [r.grade ? (lang === "ur" ? `جماعت ${r.grade}` : `Grade ${r.grade}`) : null, r.subject].filter(Boolean).join(" ");
   return [r.teacher, cls || null, timeOf(r.at, lang)].filter(Boolean).join(" · ");
 }
-
-const weekSpan = (monday: string, friday: string, lang: Lang) => {
-  const f = (d: string, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(lang === "ur" ? "ur-PK" : "en-GB", { ...o, timeZone: "UTC" }).format(new Date(`${d}T00:00:00Z`));
-  return `${f(monday, { day: "numeric" })}–${f(friday, { day: "numeric", month: "short" })}`;
-};
 
 /** The card itself, or nothing (switch off, nothing ready). Placed first under the band on both coach Homes. */
 export function ReadyReportCard({ className }: { className?: string }) {
