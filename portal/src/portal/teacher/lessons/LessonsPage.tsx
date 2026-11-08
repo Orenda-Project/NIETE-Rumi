@@ -13,7 +13,11 @@ import TeacherPage from '../TeacherPage';
 import { lessonsUrl, readAt, type LessonsAt } from './paths';
 import { useOpenLesson } from './useOpenLesson';
 import { Steps } from './Steps';
-import { OwnRow } from './own/OwnRow';
+import { lazy, Suspense } from 'react';
+import { useLpMakeOwn } from './own/flag';
+
+// bd-snkn32 — the Make my own row's code loads only for a teacher it is on for (the page's own bytes stay as they were).
+const OwnRow = lazy(() => import('./own/OwnRow').then((m) => ({ default: m.OwnRow })));
 import { attachToDc, DC_PICK, PICK_DEPTH, type PickTarget } from '../coaching/libraryPick';
 
 /**
@@ -54,6 +58,7 @@ function Lessons({ at }: { at: LessonsAt & { chapter: string } }) {
   const navigate = useNavigate();
   const location = useLocation();
   const picking = at.pick === DC_PICK;
+  const ownOn = useLpMakeOwn() === true;
 
   if (picking) {
     const plans = list.filter((l) => l.kind !== 'worksheet' && l.kind !== 'revision');
@@ -113,7 +118,7 @@ function Lessons({ at }: { at: LessonsAt & { chapter: string } }) {
         </div>
       ) : null}
       {/* bd-snkn32 — Make my own: nothing at all unless it is on for her and can work here. */}
-      <OwnRow at={at} list={list} />
+      {ownOn ? <Suspense fallback={null}><OwnRow at={at} list={list} /></Suspense> : null}
     </TeacherPage>
   );
 }
