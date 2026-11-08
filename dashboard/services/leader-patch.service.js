@@ -152,6 +152,8 @@ const PATCH_LATERALS = `
 // on 230 rows; a join cannot disagree with itself.
 // DISTINCT ON because two of a coach's school_ext_ids can resolve to one
 // schools row (niete:607 covers two real schools in the register).
+// Live accounts only (bd-apnnh2.11): a fold retires the spare account but keeps
+// its school and role, so without the filter it shows as a second, empty copy.
 const PATCH_TEACHERS_SQL = `${PATCH_SELECT}
   FROM leader_schools lsch
   JOIN schools sch
@@ -159,6 +161,7 @@ const PATCH_TEACHERS_SQL = `${PATCH_SELECT}
   JOIN users u
     ON u.school_id = sch.id
    AND u.role IN ('teacher', 'principal')
+   AND u.deleted_at IS NULL
 ${PATCH_LATERALS}
   WHERE lsch.leader_user_id = $1
   ORDER BY u.id, u.name ASC
@@ -189,6 +192,7 @@ const PRINCIPAL_PATCH_SQL = `${PATCH_SELECT}
   JOIN users u
     ON u.school_id = sch.id
    AND u.role IN ('teacher', 'principal')
+   AND u.deleted_at IS NULL
 ${PATCH_LATERALS}
   WHERE me.id = $1
     AND me.role = 'principal'
