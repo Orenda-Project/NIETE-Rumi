@@ -195,3 +195,8 @@ export const COPY_ENTRY: CopyEntry = {
   // "Use this lesson plan" is four words in Urdu (لیسن پلان is one term).
   longOk: ['pleaseHold', 'all.whatsapp', 'startDc', 'usePlan'],
 };
+
+/** bd-snkn32 — the "Make my own" words (lessons/own/copy.ts), registered here: the registry globs only teacher/<feature>/copy.ts. */
+export { OWN_COPY_ENTRY } from './own/copy';
+import { OWN_COPY_ENTRY as OWN_ENTRY } from './own/copy';
+export const COPY_ENTRIES: readonly CopyEntry[] = [OWN_ENTRY];
