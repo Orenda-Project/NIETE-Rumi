@@ -111,12 +111,12 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 - **DB bootstrap**: `npm run bootstrap:db` applies schema → RLS → seed (idempotent).
 
 ## Map (generated)
-<!-- kg:map repo=NIETE-Rumi gen=1b67797f7dec -->
+<!-- kg:map repo=NIETE-Rumi gen=99b7f21c76aa -->
 | dir | what it is |
 |---|---|
 | `.claude/` | Agent & skill config (L1) → `.claude/CLAUDE.md` |
 | `.cursor/` | (no door; 1 files) |
-| `.githooks/` | (no door; 4 files) |
+| `.githooks/` | (no door; 5 files) |
 | `.github/` | GitHub repo config: contributing guide, issue templates, CI workflows → `.github/CLAUDE.md` |
 | `bot/` | NIETE WhatsApp bot: webhook, workers, services, tests, migrations → `bot/CLAUDE.md` |
 | `dashboard/` | Express server: admin pages, teacher/coach portal API, child-quiz edge → `dashboard/CLAUDE.md` |
