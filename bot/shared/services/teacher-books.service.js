@@ -99,6 +99,9 @@ const ASSESSMENT_BOOK_SUBJECT = {
   general_science: 'general_science',
   general_knowledge: 'general_knowledge_ur',
   social_studies: 'social_studies_ur',
+  // The English-medium books (bd-uam6dh): GB's shelf, and ICT's when she teaches from them.
+  general_knowledge_en: 'general_knowledge',
+  social_studies_en: 'social_studies_en',
   islamiat: 'islamiat',
 };
 
