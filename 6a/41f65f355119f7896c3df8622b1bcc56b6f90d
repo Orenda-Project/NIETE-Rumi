@@ -1,2 +1,5 @@
 {"ts":"2026-11-07T05:36:22Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"6a41f65f3551","branch":"bd-5jmnfj.38.42-to-main","user":""}
 {"ts":"2026-11-07T05:59:01Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=session-hooks engine=2.0.0","sha":"6a41f65f3551","branch":"bd-5jmnfj.38.42-to-main","user":""}
+{"ts":"2026-11-08T07:18:15Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=session-hooks engine=2.0.0","sha":"6a41f65f3551","branch":"bd-5jmnfj.38.42-to-main","user":""}
+{"ts":"2026-11-08T07:18:15Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=session-hooks engine=2.0.0","sha":"6a41f65f3551","branch":"bd-5jmnfj.38.42-to-main","user":""}
+{"ts":"2026-11-08T07:18:15Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=session-hooks engine=2.0.0","sha":"6a41f65f3551","branch":"bd-5jmnfj.38.42-to-main","user":""}
