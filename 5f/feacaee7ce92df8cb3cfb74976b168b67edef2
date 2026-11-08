@@ -1,1 +1,4 @@
 {"ts":"2026-11-07T06:03:54Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe spec_sync=true","sha":"5ffeacaee7ce","branch":"HEAD","user":""}
+{"ts":"2026-11-08T07:18:10Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=session-hooks engine=2.0.0","sha":"5ffeacaee7ce","branch":"bd-rj6w0n.25-gb-main","user":""}
+{"ts":"2026-11-08T07:18:10Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=session-hooks engine=2.0.0","sha":"5ffeacaee7ce","branch":"bd-rj6w0n.25-gb-main","user":""}
+{"ts":"2026-11-08T07:18:10Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=session-hooks engine=2.0.0","sha":"5ffeacaee7ce","branch":"bd-rj6w0n.25-gb-main","user":""}
