@@ -94,6 +94,12 @@ const ASSESSMENT_FDE_STEM_CHECK_SUBJECTS_KEY = 'assessment_fde_stem_check_subjec
 // (the topics list comes back empty). Off until the A/B test starts.
 const ASSESSMENT_TOPIC_CTA_KEY = 'assessment_topic_cta_enabled';
 
+/**
+ * WhatsApp's own number-change notice moves the teacher's account to her new number
+ * (services/identity/number-change.js). Off by default: with it off the notice is only recorded, as before.
+ */
+const META_NUMBER_CHANGE_KEY = 'meta_number_change_enabled';
+
 async function isFlagEnabled(key) {
   try {
     const { data, error } = await supabase
@@ -122,6 +128,7 @@ const isAssessmentVersionsEnabled = () => isFlagEnabled(ASSESSMENT_VERSIONS_KEY)
 const isAssessmentFdePatternEnabled = () => isFlagEnabled(ASSESSMENT_FDE_PATTERN_KEY);
 const isAssessmentBoardPatternEnabled = () => isFlagEnabled(ASSESSMENT_BOARD_PATTERN_KEY);
 const isAssessmentTopicCtaEnabled = () => isFlagEnabled(ASSESSMENT_TOPIC_CTA_KEY);
+const isMetaNumberChangeEnabled = () => isFlagEnabled(META_NUMBER_CHANGE_KEY);
 
 /**
  * The subject keys the pattern may be offered for, lower-cased, or null for "all".
@@ -277,6 +284,7 @@ module.exports = {
   ASSESSMENT_FDE_READER_PASS_SUBJECTS_KEY, fdeReaderPassSubjects,
   ASSESSMENT_FDE_STEM_CHECK_SUBJECTS_KEY, fdeStemCheckSubjects,
   ASSESSMENT_TOPIC_CTA_KEY, isAssessmentTopicCtaEnabled,
+  META_NUMBER_CHANGE_KEY, isMetaNumberChangeEnabled,
   ASSESSMENT_GRADES_6_12_KEY, ASSESSMENT_GRADES_6_12_KILL_KEY, ASSESSMENT_GRADES_6_12_KILL_CELLS_KEY,
   GradeGateSettings, isFlagEnabledForUser,
 };
