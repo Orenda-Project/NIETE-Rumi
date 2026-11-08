@@ -1,2 +1,3 @@
 {"ts":"2026-11-08T18:38:41Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"4788549c0d15","branch":"bd-snkn32-62686","user":""}
 {"ts":"2026-11-08T18:38:43Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"4788549c0d15","branch":"bd-snkn32-62686","user":""}
+{"ts":"2026-11-08T19:06:06Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32-62686: lesson-plan spec: NOT UPDATED e2e: missing","sha":"4788549c0d15","branch":"bd-snkn32-62686","user":""}
