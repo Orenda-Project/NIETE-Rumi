@@ -40,6 +40,8 @@ const SUBJECT_CODES = {
   science: 'science', gensci: 'science',
   genk: 'general_knowledge', general_knowledge: 'general_knowledge',
   sst: 'social_studies', social_studies: 'social_studies',
+  general_knowledge_en: 'general_knowledge_en',
+  social_studies_en: 'social_studies_en',
 };
 
 function fail(code, message, extra = {}) {
