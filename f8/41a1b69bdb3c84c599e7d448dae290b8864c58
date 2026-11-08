@@ -1,1 +1,2 @@
 {"ts":"2026-11-08T07:44:58Z","hook":"post-commit","event":"switch-off","switch":"QA_HOOKS_OFF","detail":"","sha":"f841a1b69bdb","branch":"bd-nzy6je-stg","user":""}
+{"ts":"2026-11-08T08:31:22Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=session-hooks engine=2.0.0","sha":"f841a1b69bdb","branch":"bd-nzy6je-stg","user":""}
