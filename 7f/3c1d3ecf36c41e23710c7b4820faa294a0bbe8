@@ -1,1 +1,2 @@
 {"ts":"2026-11-08T18:33:38Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"7f3c1d3ecf36","branch":"bd-snkn32-62686","user":""}
+{"ts":"2026-11-08T19:04:58Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32-make-my-own: lesson-plan spec: NOT UPDATED e2e: missing","sha":"7f3c1d3ecf36","branch":"bd-snkn32-62686","user":""}
