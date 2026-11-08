@@ -1593,3 +1593,16 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then I get no "Open" button and no School card line
     And the bot answers the message the way it answers any other text
     # A teacher, or a coach off the coach app, gets the same: the door answers only a coach the switch covers.
+
+  # bd-apnnh2.11, 9 Nov 2026: a merged account is in nobody's list. When two accounts of one teacher are merged
+  # (the coach's Edit teacher today; a WhatsApp number change and "Is this you?" later), the spare account is
+  # retired (users.deleted_at set, its number becomes merged:<id>) but keeps its school and role. Every list of a
+  # coach's teachers skips it: this picker (patch-resolver listPatchViaSupabase), My Patch on the portal, and
+  # booking a visit on the portal. Unit: tests/observe/bd-apnnh2.11-patch-skips-retired.test.js.
+  @e2e @destructive @P2 @OBS76
+  Scenario: A teacher whose old account was merged appears once in my teacher list
+    Given the NIETE bot chat is open on a coach account
+    And a teacher at one of my schools had her old account merged into her current one
+    When I open the list of teachers at that school to start an observation
+    Then she appears once in the list
+    And picking her starts the observation on her current account
