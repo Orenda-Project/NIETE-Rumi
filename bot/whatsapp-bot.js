@@ -2443,8 +2443,10 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
     } else {
       // A WhatsApp number change arrives as a `system` message: recorded (identity-events), then moved to the new number
       // when its switch is on and Meta's signature verified (identity/number-change). Never answered; neither throws.
-      // Awaited, after the ack, so a deploy's drain waits for a move in flight.
+      // Awaited, after the ack, so a deploy's drain waits for a move in flight; "typing…" is settled first, so a slow
+      // recorder or move never shows it over a message that gets no reply.
       if (messageType === 'system') {
+        InboundTyping.nothingComing({ reason: 'system_message' });
         const signatureOk = req.webhookSignatureOk === true;
         await require('./shared/services/identity/identity-events').recordSystem({ message, user }).catch(() => {})
           .then(() => require('./shared/services/identity/number-change').applyNumberChange({ message, user, signatureOk }))

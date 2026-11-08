@@ -304,51 +304,66 @@ async function checkPhone({ actorLeaderUserId, schoolExtId, userId, phone: raw }
  *   taken  nothing is written                       → { ok: false, reason: 'taken', verdict }
  *   shell  the shell is retired, she takes the number, the shell's rows follow her
  *   free   she takes the number
- * Booked visits follow her number. A refused retirement or number write stops there with
- * { ok: false, reason: 'failed', verdict }; a retirement already made stands. No audit row: each caller records the
- * move in its own words, and moveDetail is the detail both write.
+ * Booked visits follow her number. It reports each step, so a caller can record a move that stopped half way:
+ *   refused     the step whose write was refused ('retire' | 'phone'); the move stops there, and a retirement
+ *               already made stands (retiredId names it)       → { ok: false, reason: 'failed', verdict, retiredId, refused }
+ *   visitsFailed the booked visits did not follow (the move stands; logged)
+ *   reparent     what the retired shell handed over, table by table (reparentShellRows)
+ * A write that throws is rethrown with how far the move got on it (err.moveProgress: { verdict, retiredId, step }).
+ * No audit row: each caller records the move in its own words, and moveDetail is the detail both write.
  *
  * `actor` is who retires a shell, in the soft-delete convention's deleted_by: a coach's users.id, or a process name
  * ('meta_number_change').
  *
- * @returns {Promise<{ok: true, verdict: string, retiredId: ?string, moved: ?object}
- *   | {ok: false, reason: 'taken'|'failed', verdict: string}>}
+ * @returns {Promise<{ok: true, verdict: string, retiredId: ?string, refused: null, visitsFailed: boolean, reparent: ?object}
+ *   | {ok: false, reason: 'taken'|'failed', verdict: string, retiredId: ?string, refused: ?string}>}
  */
 async function moveNumber({ userId, fromPhone, toPhone, target, actor }) {
   const verdict = E.classifyTarget(target);
-  if (verdict === E.CASE_TAKEN) return { ok: false, reason: 'taken', verdict };
+  if (verdict === E.CASE_TAKEN) return { ok: false, reason: 'taken', verdict, retiredId: null, refused: null };
 
   const supabase = _db();
+  const at = { retiredId: null, step: 'retire' };
+  try {
+    // Retire the shell FIRST: phone_number is UNIQUE, and a soft delete keeps it
+    // recoverable if the classifier was ever wrong.
+    if (verdict === E.CASE_SHELL && target && target.id) {
+      const { error: rErr } = await supabase.from('users')
+        .update({ ...E.retireMergedPatch(actor), phone_number: `merged:${target.id}` })
+        .eq('id', target.id);
+      if (rErr) return { ok: false, reason: 'failed', verdict, retiredId: null, refused: 'retire' };
+      at.retiredId = target.id;
+    }
 
-  // Retire the shell FIRST: phone_number is UNIQUE, and a soft delete keeps it
-  // recoverable if the classifier was ever wrong.
-  if (verdict === E.CASE_SHELL && target && target.id) {
-    const { error: rErr } = await supabase.from('users')
-      .update({ ...E.retireMergedPatch(actor), phone_number: `merged:${target.id}` })
-      .eq('id', target.id);
-    if (rErr) return { ok: false, reason: 'failed', verdict };
+    at.step = 'phone';
+    const { error } = await supabase.from('users').update({ phone_number: toPhone }).eq('id', userId);
+    if (error) return { ok: false, reason: 'failed', verdict, retiredId: at.retiredId, refused: 'phone' };
+
+    // The roster and any booked visit key on the phone STRING, so they follow. A refusal does not undo the move.
+    at.step = 'visits';
+    const { error: vErr } = (await supabase.from('observation_schedules')
+      .update({ teacher_ext_id: toPhone }).eq('teacher_ext_id', fromPhone)) || {};
+    if (vErr) logToFile('booked visits did not follow the number - the move stands', { error: vErr.message }, 'error');
+
+    // What the retired shell owns moves to her, after the number has (a failure here never undoes the move).
+    at.step = 'reparent';
+    const reparent = at.retiredId ? await reparentShellRows(supabase, at.retiredId, userId) : null;
+    return { ok: true, verdict, retiredId: at.retiredId, refused: null, visitsFailed: Boolean(vErr), reparent };
+  } catch (err) {
+    if (err && typeof err === 'object') err.moveProgress = { verdict, retiredId: at.retiredId, step: at.step };
+    throw err;
   }
-
-  const { error } = await supabase.from('users').update({ phone_number: toPhone }).eq('id', userId);
-  if (error) return { ok: false, reason: 'failed', verdict };
-
-  // The roster and any booked visit key on the phone STRING, so they follow.
-  await supabase.from('observation_schedules').update({ teacher_ext_id: toPhone }).eq('teacher_ext_id', fromPhone);
-
-  // What the retired shell owns moves to her, after the number has (a failure here never undoes the move).
-  const retiredId = verdict === E.CASE_SHELL && target ? target.id : null;
-  const moved = retiredId ? await reparentShellRows(supabase, retiredId, userId) : null;
-  return { ok: true, verdict, retiredId, moved };
 }
 
-/** The edit_phone audit detail for a move: from, to, the case, and what a retired shell handed over. */
-function moveDetail(fromPhone, toPhone, { verdict, retiredId, moved }) {
+/** The edit_phone audit detail for a move: from, to, the case, what a retired shell handed over, visits left behind. */
+function moveDetail(fromPhone, toPhone, { verdict, retiredId, reparent, visitsFailed }) {
   return {
     from_phone: fromPhone, to_phone: toPhone, case: verdict,
     retired_user_id: retiredId,
-    ...(moved ? { reparented: moved.reparented } : {}),
-    ...(moved && Object.keys(moved.skipped).length ? { reparent_skipped: moved.skipped } : {}),
-    ...(moved && moved.failed.length ? { reparent_failed: moved.failed } : {}),
+    ...(reparent ? { reparented: reparent.reparented } : {}),
+    ...(reparent && Object.keys(reparent.skipped).length ? { reparent_skipped: reparent.skipped } : {}),
+    ...(reparent && reparent.failed.length ? { reparent_failed: reparent.failed } : {}),
+    ...(visitsFailed ? { visits_failed: true } : {}),
   };
 }
 

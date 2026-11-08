@@ -117,7 +117,7 @@ describe('the three gates: the switch, the signature, the new number', () => {
   test('the switch absent (the default): nothing is read past it, nothing written, skipped_flag_off', async () => {
     db.tables.app_settings = [];
     await expect(apply()).resolves.toBeUndefined();
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: null, action: 'skipped_flag_off' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: null, action: 'skipped_flag_off', reason: 'flag_off' }]);
     expect(db.writes).toEqual([]);
     expect(row(HER.id).phone_number).toBe(OLD);
   });
@@ -125,28 +125,28 @@ describe('the three gates: the switch, the signature, the new number', () => {
   test.each([['false', false], ['"false"', 'false'], ['junk', 'yes']])('the switch set to %s: skipped_flag_off', async (_l, value) => {
     db.tables.app_settings = [{ key: 'meta_number_change_enabled', value }];
     await apply();
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: null, action: 'skipped_flag_off' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: null, action: 'skipped_flag_off', reason: 'flag_off' }]);
     expect(db.writes).toEqual([]);
   });
 
   test.each([['false', false], ['absent', undefined], ['the string "true"', 'true'], ['1', 1]])(
     'the signature verdict %s: skipped_unverified, nothing written', async (_l, signatureOk) => {
       await apply({ signatureOk });
-      expect(applied()).toEqual([{ tk: tk(HER.id), verdict: null, action: 'skipped_unverified' }]);
+      expect(applied()).toEqual([{ tk: tk(HER.id), verdict: null, action: 'skipped_unverified', reason: 'signature_not_verified' }]);
       expect(db.writes).toEqual([]);
     },
   );
 
   test('no new number in the notice: skipped_no_number, nothing written', async () => {
     await apply({ message: notice({ wa_id: undefined }) });
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: null, action: 'skipped_no_number' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: null, action: 'skipped_no_number', reason: 'no_new_number' }]);
     expect(db.writes).toEqual([]);
   });
 
-  test('the database unreachable: the switch reads as off (fail closed), nothing thrown', async () => {
+  test('the database unreachable: the switch cannot be read, so nothing moves (fail closed), and it is not logged as off', async () => {
     db.down = true;
     await expect(apply()).resolves.toBeUndefined();
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: null, action: 'skipped_flag_off' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: null, action: 'skipped_flag_unreadable', reason: 'flag_unreadable' }]);
   });
 
   test('not a number change (a user-id change, another system type, odd input): no event, no write, nothing thrown', async () => {
@@ -169,13 +169,13 @@ describe('the coach edit verdict for the new number decides', () => {
       W.audit(metaAudit('edit_phone', { from_phone: OLD, to_phone: NEW, case: 'free', retired_user_id: null })),
     ]);
     expect(row(HER.id).phone_number).toBe(NEW);
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'free', action: 'moved' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'free', action: 'moved', reason: null }]);
   });
 
   test('the older type name with new_wa_id moves her too', async () => {
     await apply({ message: notice({ type: 'customer_changed_number', wa_id: undefined, new_wa_id: NEW }) });
     expect(row(HER.id).phone_number).toBe(NEW);
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'free', action: 'moved' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'free', action: 'moved', reason: null }]);
   });
 
   test("shell: the empty account her new phone made is retired (merged:<id>), its rows follow her, she takes the number", async () => {
@@ -193,7 +193,7 @@ describe('the coach edit verdict for the new number decides', () => {
       retired_user_id: SHELL.id,
       reparented: expect.objectContaining({ niete_lp_opens: 1 }),
     })]);
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'shell', action: 'folded' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'shell', action: 'folded', reason: null }]);
   });
 
   test("taken: nothing moves; the coach edit's escalation row is raised for a person", async () => {
@@ -205,7 +205,7 @@ describe('the coach edit verdict for the new number decides', () => {
     ]);
     expect(row(HER.id).phone_number).toBe(OLD);
     expect(row(OTHER.id).phone_number).toBe(NEW);
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'taken', action: 'escalated' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'taken', action: 'escalated', reason: 'destination_has_history' }]);
   });
 
   test('a history that could not be read is taken (fail closed): escalated, nothing moves', async () => {
@@ -214,19 +214,19 @@ describe('the coach edit verdict for the new number decides', () => {
     await apply();
     expect(row(SHELL.id).phone_number).toBe(NEW);
     expect(row(HER.id).phone_number).toBe(OLD);
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'taken', action: 'escalated' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'taken', action: 'escalated', reason: 'destination_has_history' }]);
   });
 
-  test('a "shell" OLDER than her own account is not her new phone\'s: escalated, never folded (no person in the loop)', async () => {
-    db.tables.users.push({ ...OTHER }); // nothing irreplaceable, so the classifier says shell, but it predates her
+  test('a "shell" made before the change is not her new phone\'s: escalated, never folded (no person in the loop)', async () => {
+    db.tables.users.push({ ...OTHER }); // nothing irreplaceable, so the classifier says shell, but it predates the change
     await apply();
     expect(db.writes).toEqual([
-      W.audit(metaAudit('edit_phone_escalated', { to_phone: NEW, reason: 'destination_older_than_account' })),
+      W.audit(metaAudit('edit_phone_escalated', { to_phone: NEW, reason: 'destination_predates_change' })),
     ]);
     expect(row(OTHER.id).phone_number).toBe(NEW);
     expect(row(OTHER.id).deleted_at).toBeUndefined();
     expect(row(HER.id).phone_number).toBe(OLD);
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'shell', action: 'escalated' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'shell', action: 'escalated', reason: 'destination_predates_change' }]);
   });
 
   test('every write runs as her (the history ledger names her, not the connection)', async () => {
@@ -245,7 +245,7 @@ describe('idempotent: Meta can resend', () => {
     db.tables.users[0].phone_number = NEW;
     await apply({ user: { ...HER, phone_number: NEW } });
     expect(db.writes).toEqual([]);
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: null, action: 'already_done' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: null, action: 'already_done', reason: 'already_on_number' }]);
   });
 
   test('a resend after the move comes from the old number, where a new empty account was made: nothing more is written', async () => {
@@ -257,7 +257,7 @@ describe('idempotent: Meta can resend', () => {
     expect(row(HER.id).phone_number).toBe(NEW);
     expect(row(HER.id).deleted_at).toBeUndefined();
     expect(applied().map((e) => e.action)).toEqual(['moved', 'already_done']);
-    expect(applied()[1]).toEqual({ tk: tk(STUB.id), verdict: null, action: 'already_done' });
+    expect(applied()[1]).toEqual({ tk: tk(STUB.id), verdict: 'shell', action: 'already_done', reason: 'move_on_record' });
   });
 
   test('a coach already moved her, and an account appeared on her old number before the change: already_done, she is never folded into it', async () => {
@@ -273,10 +273,10 @@ describe('idempotent: Meta can resend', () => {
     expect(db.writes).toEqual([]);
     expect(row(HER.id)).toEqual(expect.objectContaining({ phone_number: NEW }));
     expect(row(HER.id).deleted_at).toBeUndefined();
-    expect(applied()).toEqual([{ tk: tk(early.id), verdict: 'shell', action: 'already_done' }]);
+    expect(applied()).toEqual([{ tk: tk(early.id), verdict: 'shell', action: 'already_done', reason: 'move_on_record' }]);
   });
 
-  test('the same, with no record of how she got there: the older account on the new number is escalated, never folded', async () => {
+  test('the same, with no record of how she got there: her account on the new number predates the change, so it is escalated, never folded', async () => {
     db.tables.users[0].phone_number = NEW;
     const early = { ...STUB, created_at: '2026-11-05T10:00:00' };
     db.tables.users.push(early);
@@ -284,20 +284,23 @@ describe('idempotent: Meta can resend', () => {
     expect(row(HER.id)).toEqual(expect.objectContaining({ phone_number: NEW }));
     expect(row(HER.id).deleted_at).toBeUndefined();
     expect(db.writes.map((w) => [w.table, w.op])).toEqual([['leader_roster_audit', 'insert']]);
-    expect(applied()).toEqual([{ tk: tk(early.id), verdict: 'shell', action: 'escalated' }]);
+    expect(applied()).toEqual([{ tk: tk(early.id), verdict: 'shell', action: 'escalated', reason: 'destination_predates_change' }]);
   });
 
-  test('the account on her old number was made by the notice itself (the bot never knew it): already_done, her account on the new number is kept', async () => {
+  test('the account on her old number was made by the notice itself and nothing is on record: escalated (sender_account_new), her account on the new number kept', async () => {
     db.tables.users = [{ ...SHELL, name: 'Ayesha On Her New Phone', registration_completed: true, created_at: '2026-10-01T08:00:00' }, { ...STUB }];
     await apply({ user: { ...STUB } });
-    expect(db.writes).toEqual([]);
+    expect(db.writes).toEqual([
+      W.audit(metaAudit('edit_phone_escalated', { to_phone: NEW, reason: 'sender_account_new' }, STUB)),
+    ]);
     expect(row(SHELL.id).phone_number).toBe(NEW);
-    expect(applied()).toEqual([{ tk: tk(STUB.id), verdict: null, action: 'already_done' }]);
+    expect(applied()).toEqual([{ tk: tk(STUB.id), verdict: 'shell', action: 'escalated', reason: 'sender_account_new' }]);
   });
 
   test("a minute's grace for the two clocks: made 30 s before the change counts as made by it; 2 min before does not", async () => {
     await apply({ user: { ...HER, created_at: '2026-11-08T08:59:30' } });
-    expect(applied().pop()).toEqual(expect.objectContaining({ action: 'already_done' }));
+    expect(applied().pop()).toEqual(expect.objectContaining({ action: 'escalated', reason: 'sender_account_new' }));
+    db.tables.leader_roster_audit = []; // a separate case: no escalation on record from the first
     await apply({ user: { ...HER, created_at: '2026-11-08T08:58:00' } });
     expect(applied().pop()).toEqual(expect.objectContaining({ action: 'moved' }));
   });
@@ -309,8 +312,8 @@ describe('idempotent: Meta can resend', () => {
     await apply();
     expect(audits().map((r) => r.action)).toEqual(['edit_phone_escalated']);
     expect(applied()).toEqual([
-      { tk: tk(HER.id), verdict: 'taken', action: 'escalated' },
-      { tk: tk(HER.id), verdict: 'taken', action: 'already_done' },
+      { tk: tk(HER.id), verdict: 'taken', action: 'escalated', reason: 'destination_has_history' },
+      { tk: tk(HER.id), verdict: 'taken', action: 'already_done', reason: 'escalation_on_record' },
     ]);
   });
 
@@ -322,7 +325,7 @@ describe('idempotent: Meta can resend', () => {
       created_at: '2026-11-06T09:00:00+00:00',
     });
     await apply();
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'taken', action: 'escalated' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'taken', action: 'escalated', reason: 'destination_has_history' }]);
   });
 });
 
@@ -331,7 +334,7 @@ describe('failures: never thrown, never half-claimed', () => {
     db.refuse = (table, op, patch) => table === 'users' && patch.phone_number === NEW;
     await expect(apply()).resolves.toBeUndefined();
     expect(db.writes).toEqual([W.phone()]);
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'free', action: 'failed' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'free', action: 'failed', reason: 'phone_refused' }]);
   });
 
   test('the shell retirement refused: failed, she stays where she was', async () => {
@@ -339,34 +342,34 @@ describe('failures: never thrown, never half-claimed', () => {
     db.refuse = (table, op, patch) => table === 'users' && String(patch.phone_number).startsWith('merged:');
     await apply();
     expect(row(HER.id).phone_number).toBe(OLD);
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'shell', action: 'failed' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'shell', action: 'failed', reason: 'retire_refused' }]);
   });
 
-  test('the audit record unreadable: failed before any write (it cannot tell a resend)', async () => {
+  test('the audit record unreadable: failed before any write (it cannot tell a stale notice or a resend)', async () => {
     db.refuseRead = (table) => table === 'leader_roster_audit';
     await apply();
     expect(db.writes).toEqual([]);
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'free', action: 'failed' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: null, action: 'failed', reason: 'audit_unreadable' }]);
   });
 
   test('the account lookup throws: failed, verdict unknown', async () => {
     db.throwOn = (table) => table === 'users';
     await expect(apply()).resolves.toBeUndefined();
     expect(db.writes).toEqual([]);
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'unknown', action: 'failed' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'unknown', action: 'failed', reason: 'lookup_failed' }]);
   });
 
   test('no account for the sender (the lookup upstream failed): failed, with no reference', async () => {
     await apply({ user: null });
     expect(db.writes).toEqual([]);
-    expect(applied()).toEqual([{ tk: null, verdict: null, action: 'failed' }]);
+    expect(applied()).toEqual([{ tk: null, verdict: null, action: 'failed', reason: 'no_account' }]);
   });
 
-  test('the audit row refused: the move stands, and the rejection is logged with her tk, never her raw id', async () => {
+  test('the audit row refused: the move stands, the outcome says it went unrecorded, and the rejection is logged with her tk, never her raw id', async () => {
     db.refuse = (table) => table === 'leader_roster_audit';
     await apply();
     expect(row(HER.id).phone_number).toBe(NEW);
-    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'free', action: 'moved' }]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'free', action: 'moved', reason: 'audit_unrecorded' }]);
     const rejected = fileLog.mock.calls.filter(([msg]) => /roster audit row REJECTED/.test(msg));
     expect(rejected).toHaveLength(1);
     expect(rejected[0][1]).toEqual(expect.objectContaining({ tk: tk(HER.id), action: 'edit_phone', why: 'insert_rejected' }));
@@ -383,19 +386,22 @@ describe('failures: never thrown, never half-claimed', () => {
 describe('what the event carries, and what it never does', () => {
   test('the actions are a closed list', () => {
     expect(NC.ACTIONS).toEqual([
-      'moved', 'folded', 'escalated', 'skipped_flag_off', 'skipped_unverified', 'skipped_no_number', 'already_done', 'failed',
+      'moved', 'folded', 'escalated', 'skipped_flag_off', 'skipped_flag_unreadable', 'skipped_unverified', 'skipped_no_number',
+      'skipped_stale', 'already_done', 'failed',
     ]);
   });
 
-  test('exactly tk, verdict and action; never a phone number, a name or a raw id; nothing sent to anyone', async () => {
+  test('exactly tk, verdict, action and reason; never a phone number, a name or a raw id; nothing sent to anyone', async () => {
     await apply(); // moved
     db.tables.users = [{ ...HER }, { ...SHELL }];
+    db.tables.leader_roster_audit = []; // separate cases: no earlier move on record
     await apply(); // folded
     db.tables.users = [{ ...HER }, { ...OTHER }];
+    db.tables.leader_roster_audit = [];
     db.tables.coaching_sessions.push({ id: 'cs-1', user_id: OTHER.id });
     await apply(); // escalated
     expect(applied().map((e) => e.action)).toEqual(['moved', 'folded', 'escalated']);
-    for (const e of applied()) expect(Object.keys(e).sort()).toEqual(['action', 'tk', 'verdict']);
+    for (const e of applied()) expect(Object.keys(e).sort()).toEqual(['action', 'reason', 'tk', 'verdict']);
     const text = JSON.stringify(applied());
     for (const secret of [OLD, NEW, HER.name, SHELL.name, OTHER.name, HER.id, SHELL.id, OTHER.id]) expect(text).not.toContain(secret);
     expect(sent).not.toHaveBeenCalled();
@@ -405,6 +411,6 @@ describe('what the event carries, and what it never does', () => {
     const saved = process.env.WEB_QUIZ_KID_KEY;
     delete process.env.WEB_QUIZ_KID_KEY;
     try { await apply(); } finally { process.env.WEB_QUIZ_KID_KEY = saved; }
-    expect(applied()).toEqual([{ tk: null, verdict: 'free', action: 'moved' }]);
+    expect(applied()).toEqual([{ tk: null, verdict: 'free', action: 'moved', reason: null }]);
   });
 });

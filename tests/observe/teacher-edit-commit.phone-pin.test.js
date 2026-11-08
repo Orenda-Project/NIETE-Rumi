@@ -18,6 +18,7 @@ let tables;
 let writes;
 let refuse; // (table, op, payload, where) => true to answer that write with an error
 let refuseRead; // (table) => true to answer a read of that table with an error
+let throwWrite; // (table, op, payload) => true to make that write reject, as a dropped connection would
 
 function fakeSupabase() {
   return {
@@ -41,6 +42,7 @@ function fakeSupabase() {
         }
         if (op === 'update') {
           writes.push({ table: name, op, patch: { ...patch }, where: where() });
+          if (throwWrite(name, op, patch)) throw new Error('connection reset');
           if (refuse(name, op, patch, where())) return { data: null, error: { message: `update ${name} refused` } };
           const hits = t.filter(match);
           hits.forEach((r) => Object.assign(r, patch));
@@ -110,6 +112,7 @@ beforeEach(() => {
   writes = [];
   refuse = () => false;
   refuseRead = () => false;
+  throwWrite = () => false;
   jest.spyOn(Date, 'now').mockReturnValue(NOW);
   jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
   jest.doMock('../../bot/shared/config/supabase', () => fakeSupabase());
@@ -287,6 +290,43 @@ describe('commitPhone: what the coach path writes, in order', () => {
   test('her number write refused on a free number: failed, no visit or audit write', async () => {
     refuse = (table, op) => table === 'users' && op === 'update';
     expect(await svc().commitPhone({ ...base, phone: FREE })).toEqual({ ok: false, reason: 'failed' });
+    expect(writes).toEqual([W.phone(FREE)]);
+  });
+
+  test('her booked visits refused: the move stands, the coach still gets moved, and the move is audited', async () => {
+    refuse = (table) => table === 'observation_schedules';
+    const out = await svc().commitPhone({ ...base, phone: FREE });
+    expect(out).toEqual({ ok: true, outcome: 'moved', phone: FREE, case: 'free' });
+    expect(user('u-ayesha').phone_number).toBe(FREE);
+    expect(tables.observation_schedules[0].teacher_ext_id).toBe(OLD);
+    expect(writes).toEqual([
+      W.phone(FREE),
+      W.visits(FREE),
+      W.audit(expect.objectContaining({
+        ...auditRow('edit_phone', {}),
+        detail: expect.objectContaining({ via: 'portal_coach_v2', from_phone: OLD, to_phone: FREE, case: 'free', retired_user_id: null }),
+      })),
+    ]);
+  });
+
+  test('a shell table refused while it hands over: the move stands, the coach still gets moved, the audit names the table', async () => {
+    tables.student_lists = [{ id: 'sl-3a', user_id: 'u-shell', class_name: 'Grade 3-A', academic_year: '2026-27', is_active: true }];
+    refuse = (table, op) => table === 'student_lists' && op === 'update';
+    const out = await svc().commitPhone({ ...base, phone: SHELL_PHONE });
+    expect(out).toEqual({ ok: true, outcome: 'moved', phone: SHELL_PHONE, case: 'shell' });
+    expect(user('u-ayesha').phone_number).toBe(SHELL_PHONE);
+    expect(tables.student_lists[0].user_id).toBe('u-shell');
+    expect(writes.filter((w) => w.table === 'leader_roster_audit').map((w) => w.rows[0])).toEqual([expect.objectContaining({
+      ...auditRow('edit_phone', {}),
+      detail: expect.objectContaining({
+        from_phone: OLD, to_phone: SHELL_PHONE, case: 'shell', retired_user_id: 'u-shell', reparent_failed: ['student_lists'],
+      }),
+    })]);
+  });
+
+  test('a write that throws mid-move: commitPhone rejects (the route answers 500), and nothing after it is attempted', async () => {
+    throwWrite = (table, op, patch) => table === 'users' && patch.phone_number === FREE;
+    await expect(svc().commitPhone({ ...base, phone: FREE })).rejects.toThrow('connection reset');
     expect(writes).toEqual([W.phone(FREE)]);
   });
 

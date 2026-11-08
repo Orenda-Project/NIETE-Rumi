@@ -249,6 +249,19 @@ describe('the webhook hands a number change to the move, after the recorder, wit
     } finally { await app.close(); }
   });
 
+  test('a system message never shows "typing…", even when the recorder outlasts the 2 s deferral', async () => {
+    const app = await boot({ record: () => new Promise((r) => setTimeout(r, 2500)) });
+    try {
+      await app.post(numberChange(), { done: systemDone(app) });
+      const WA = require('../../bot/shared/services/whatsapp.service');
+      expect(app.order).toEqual(['record', 'recorded', 'move']);
+      expect(WA.showTypingIndicator).not.toHaveBeenCalled();
+      expect(app.logs.filter((l) => l.msg === 'inbound_typing.done').map((l) => l.data)).toEqual([
+        expect.objectContaining({ typing: 'skipped', silentReason: 'system_message' }),
+      ]);
+    } finally { await app.close(); }
+  });
+
   test('a sticker is not a system message: neither the recorder nor the move is called', async () => {
     const app = await boot();
     try {
