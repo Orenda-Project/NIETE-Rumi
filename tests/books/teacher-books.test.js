@@ -66,3 +66,50 @@ it('while no region names books, a teacher is not looked up at all', async () =>
   expect(await TeacherBooks.bookKeysForUser('gb', { client })).toBeNull();
   expect(from.mock.calls.map((c) => c[0])).not.toContain('users');
 });
+
+// bd-6nskfq.1 — GB's own books are loaded as textbooks under her curriculum (nbf_snc, bd-6nskfq). A G1-5 subject
+// is offered when her list names her own book for it (gb_g5_maths) AND her curriculum holds that textbook; the
+// generator then reads her book (book-curriculum). A key with no loaded book offers nothing, so she is never handed
+// ICT's book under her own book's name.
+describe('assessmentOfferedFor — her own curriculum\'s book', () => {
+  const GB = ['gb_g5_maths', 'gb_g5_science', 'gb_g5_urdu', 'grade_5_islamiat'];
+  const books = (rows) => createMemorySupabase({ textbooks: rows });
+  const nbf = (grade, subject) => ({ id: `nbf-${grade}-${subject}`, curriculum: 'nbf_snc', grade, subject });
+
+  it('offers G5 Maths and Science when her list has gb_g5_<subject> and an nbf_snc textbook is loaded', async () => {
+    const client = books([nbf(5, 'maths'), nbf(5, 'science')]);
+    expect(await TeacherBooks.assessmentOfferedFor(5, 'maths', GB, 'nbf_snc', { client })).toBe(true);
+    expect(await TeacherBooks.assessmentOfferedFor(5, 'science', GB, 'nbf_snc', { client })).toBe(true);
+  });
+
+  it('does not offer a subject whose book is on her list but not loaded (no nbf_snc row)', async () => {
+    const client = books([nbf(5, 'maths')]);
+    expect(await TeacherBooks.assessmentOfferedFor(5, 'urdu', GB, 'nbf_snc', { client })).toBe(false);
+  });
+
+  it('does not offer a loaded book that is not on her list', async () => {
+    const client = books([nbf(5, 'english')]);
+    expect(await TeacherBooks.assessmentOfferedFor(5, 'english', GB, 'nbf_snc', { client })).toBe(false);
+  });
+
+  it('an ICT teacher (no list, or curriculum ict) is the rule she had, with no textbook read', async () => {
+    const client = books([nbf(5, 'maths')]);
+    const from = jest.spyOn(client, 'from');
+    expect(await TeacherBooks.assessmentOfferedFor(5, 'maths', null, 'ict', { client })).toBe(true);
+    expect(await TeacherBooks.assessmentOfferedFor(5, 'maths', GB, 'ict', { client })).toBe(false);
+    expect(await TeacherBooks.assessmentOfferedFor(5, 'islamiat', GB, 'nbf_snc', { client })).toBe(true);
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it('a textbook read that fails offers nothing (never ICT\'s book under her book\'s name)', async () => {
+    const broken = { from: () => { throw new Error('boom'); } };
+    expect(await TeacherBooks.assessmentOfferedFor(5, 'maths', GB, 'nbf_snc', { client: broken })).toBe(false);
+  });
+
+  it('maps the subject spellings the generator uses onto the book key', () => {
+    expect(TeacherBooks.ownBookListed(5, 'math', GB)).toBe(true);
+    expect(TeacherBooks.ownBookListed(5, 'general_science', GB)).toBe(true);
+    expect(TeacherBooks.ownBookListed(4, 'maths', GB)).toBe(false);
+    expect(TeacherBooks.ownBookListed(5, 'islamiat', GB)).toBe(false);
+  });
+});
