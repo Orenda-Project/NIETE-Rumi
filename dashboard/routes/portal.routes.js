@@ -109,6 +109,7 @@ const {
   PORTAL_TEACHER_HOME_ORDER_KEY,
   PORTAL_TEACHER_HOME_LOOK_KEY,
   PORTAL_HELP_VIDEOS_KEY,
+  PORTAL_LP_MAKE_OWN_KEY,
   isCoachObservationOn,
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
@@ -9254,6 +9255,7 @@ router.get('/config', async (req, res) => {
       coachReportsAppRaw,
       principalApp,
       helpVideosRaw,
+      lpMakeOwnRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9293,6 +9295,8 @@ router.get('/config', async (req, res) => {
       isPrincipalAppUser(supabase, userId),
       // bd-ik5e8j.4 — the help videos ("?" + More → How to use), per user; it rides with the teacher app v2 on.
       isFlagEnabledForUser(supabase, PORTAL_HELP_VIDEOS_KEY, userId),
+      // bd-snkn32 — Make my own lesson plan, per user; it rides with the teacher app v2 on.
+      isFlagEnabledForUser(supabase, PORTAL_LP_MAKE_OWN_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -9319,6 +9323,7 @@ router.get('/config', async (req, res) => {
         roleSwitch,
         principalApp,
         helpVideos: teacherV2 && helpVideosRaw,
+        lpMakeOwn: teacherV2 && lpMakeOwnRaw,
       },
     });
   } catch (error) {
@@ -9346,6 +9351,7 @@ router.get('/config', async (req, res) => {
         roleSwitch: false,
         principalApp: false,
         helpVideos: false,
+        lpMakeOwn: false,
       },
       roleSwitchRoles: [],
     });
