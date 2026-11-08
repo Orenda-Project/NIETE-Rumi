@@ -5612,6 +5612,18 @@ COMMENT ON COLUMN lp_feedback.used_in_class IS
   'has not answered yet. The only column separating "an artefact was produced" from "a lesson was '
   'taught", and the only delivery signal the 6-12 lane has at all.';
 
+-- The assessment survey (V1.9.4): which paper a verdict is about. One line for the
+-- column-completeness guard, as above.
+ALTER TABLE lp_feedback ADD COLUMN IF NOT EXISTS assessment_paper_id UUID REFERENCES assessment_papers(id) ON DELETE SET NULL;
+
+COMMENT ON COLUMN lp_feedback.assessment_paper_id IS
+  'The assessment paper this verdict is about (assessment_papers.id). NULL for every lesson-plan row. Set '
+  'together with lp_variant = ''assessment_en'' | ''assessment_ur'', the lane + language discriminator.';
+
+CREATE INDEX IF NOT EXISTS idx_lp_feedback_assessment_paper
+  ON lp_feedback (assessment_paper_id, created_at DESC)
+  WHERE assessment_paper_id IS NOT NULL;
+
 NOTIFY pgrst, 'reload schema';
 
 
