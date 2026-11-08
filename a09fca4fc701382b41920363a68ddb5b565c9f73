@@ -1,3 +1,4 @@
 {"ts":"2026-11-08T20:25:14Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"a09fca4fc701","branch":"bd-apnnh2.5-26366","user":"tariqtaleemabad"}
 {"ts":"2026-11-08T20:25:15Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"a09fca4fc701","branch":"bd-apnnh2.5-26366","user":"tariqtaleemabad"}
 {"ts":"2026-11-08T20:25:23Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"*=none-needed (ships off; no teacher-visible change while the flag is off)","sha":"a09fca4fc701","branch":"bd-apnnh2.5-26366","user":"tariqtaleemabad"}
+{"ts":"2026-11-08T20:25:23Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"c1ca41c0-6958-4cf4-804e-2f84c4f7df7d","sha":"a09fca4fc701","branch":"bd-apnnh2.5-26366","user":"tariqtaleemabad"}
