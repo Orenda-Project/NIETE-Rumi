@@ -105,8 +105,8 @@ const ASSESSMENT_BOOK_SUBJECT = {
 /**
  * May a teacher with this book list be offered an assessment on (grade, subject)? Assessments are keyed by
  * book: yes when she has no list, for Grades 6-12 (her list is a Grade 1-5 list), or when the ICT book the
- * generator reads is on her list. GB's NBF books have no assessment content yet, so their subjects are not
- * offered (separate bead). Pure and synchronous.
+ * generator reads is on her list. Her region's own books (GB's NBF books) are offered by assessmentOfferedFor,
+ * which also checks the book is loaded. Pure and synchronous.
  */
 function assessmentOffered(grade, subject, bookKeys) {
   if (!Array.isArray(bookKeys)) return true;
@@ -117,6 +117,39 @@ function assessmentOffered(grade, subject, bookKeys) {
   const Catalog = require('./lp-v8-catalog.service');
   const book = Catalog.bookFor(Number(grade), subjectKey, null);
   return Boolean(book && bookKeys.includes(book.book_key || book.stem));
+}
+
+/** The book-key subject of a generator subject: `gb_g5_maths`, `gb_g5_science` (the textbooks.subject codes). */
+const OWN_BOOK_SUBJECT = { math: 'maths', general_science: 'science' };
+
+/**
+ * Does her list name her region's OWN book for this grade and subject — a `<prefix>_g<N>_<subject>` key such as
+ * `gb_g5_maths` (bd-6nskfq.1)? Pure. Says nothing about whether that book is loaded.
+ */
+function ownBookListed(grade, subject, bookKeys) {
+  if (!Array.isArray(bookKeys)) return false;
+  const s = String(subject || '').trim().toLowerCase();
+  const re = new RegExp(`^[a-z]+_g${Number(grade)}_${OWN_BOOK_SUBJECT[s] || s}$`);
+  return bookKeys.some((k) => re.test(String(k)));
+}
+
+/**
+ * assessmentOffered, plus her own curriculum's book (bd-6nskfq.1): a G1-5 subject is also offered when her list
+ * names her own book for it AND her curriculum (not ICT) holds that textbook — the generator then reads her book
+ * (book-curriculum). A listed book that is not loaded offers nothing, so she is never handed ICT's book under her
+ * own book's name; a failed read offers nothing for the same reason. An ICT teacher costs no read.
+ */
+async function assessmentOfferedFor(grade, subject, bookKeys, curriculum, { client } = {}) {
+  if (assessmentOffered(grade, subject, bookKeys)) return true;
+  const BookCurriculum = require('./book-curriculum.service');
+  const c = BookCurriculum.normalise(curriculum);
+  if (c === BookCurriculum.ICT || !ownBookListed(grade, subject, bookKeys)) return false;
+  try {
+    return await BookCurriculum.hasTextbook(c, grade, subject, { client });
+  } catch (err) {
+    logToFile('[teacher-books] textbooks unreadable — subject not offered', { grade, subject, curriculum: c, error: err && err.message });
+    return false;
+  }
 }
 
 /** The grade a book key is for: the catalog's own grade, else the key's `grade_7_` / `gb_g7_` prefix. */
@@ -172,6 +205,8 @@ module.exports = {
   bookKeysForRegion,
   bookKeysForUser,
   assessmentOffered,
+  assessmentOfferedFor,
+  ownBookListed,
   gradeCovered,
   gradeNotCoveredMessage,
   languageForUser,
