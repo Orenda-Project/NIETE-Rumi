@@ -157,6 +157,8 @@ const PATCH_LATERALS = `
 // on 230 rows; a join cannot disagree with itself.
 // DISTINCT ON because two of a coach's school_ext_ids can resolve to one
 // schools row (niete:607 covers two real schools in the register).
+// Live accounts only (bd-apnnh2.11): a fold retires the spare account but keeps
+// its school and role, so without the filter it shows as a second, empty copy.
 // bd-97daxo.22: a school with no EMIS (two GB schools came from main Rumi without one) is keyed by the coach's own
 // holding (leader_schools.school_ext_id, e.g. 'niete:gb-mf-community-school-hoto-mf-community'). 'niete:' || NULL
 // left its teachers with no school key, so My schools said "0 teachers" and the school page listed nobody.
@@ -170,6 +172,7 @@ const PATCH_TEACHERS_SQL = `${PATCH_SELECT.replace('__SCHOOL_KEY__', COACH_SCHOO
   JOIN users u
     ON u.school_id = sch.id
    AND u.role IN ('teacher', 'principal')
+   AND u.deleted_at IS NULL
 ${PATCH_LATERALS}
   WHERE lsch.leader_user_id = $1
   ORDER BY u.id, u.name ASC
@@ -200,6 +203,7 @@ const PRINCIPAL_PATCH_SQL = `${PATCH_SELECT.replace('__SCHOOL_KEY__', EMIS_SCHOO
   JOIN users u
     ON u.school_id = sch.id
    AND u.role IN ('teacher', 'principal')
+   AND u.deleted_at IS NULL
 ${PATCH_LATERALS}
   WHERE me.id = $1
     AND me.role = 'principal'
