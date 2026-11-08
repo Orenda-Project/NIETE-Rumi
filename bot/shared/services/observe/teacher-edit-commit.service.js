@@ -297,7 +297,62 @@ async function checkPhone({ actorLeaderUserId, schoolExtId, userId, phone: raw }
   return { ok: true, outcome: verdict === E.CASE_SHELL ? 'shell' : 'free', phone, from: person.phone || null };
 }
 
-/** main: teacher_edit_phone_commit — RE-CLASSIFIES, then moves her number. */
+/**
+ * The number move itself, shared by the coach's commit (commitPhone) and WhatsApp's own number-change notice
+ * (identity/number-change.js). `target` is loadTargetWithHistory(toPhone), read by the caller just before: that
+ * read is the RE-CLASSIFICATION. The verdict is decided here from it, so no caller can fold a taken number:
+ *   taken  nothing is written                       → { ok: false, reason: 'taken', verdict }
+ *   shell  the shell is retired, she takes the number, the shell's rows follow her
+ *   free   she takes the number
+ * Booked visits follow her number. A refused retirement or number write stops there with
+ * { ok: false, reason: 'failed', verdict }; a retirement already made stands. No audit row: each caller records the
+ * move in its own words, and moveDetail is the detail both write.
+ *
+ * `actor` is who retires a shell, in the soft-delete convention's deleted_by: a coach's users.id, or a process name
+ * ('meta_number_change').
+ *
+ * @returns {Promise<{ok: true, verdict: string, retiredId: ?string, moved: ?object}
+ *   | {ok: false, reason: 'taken'|'failed', verdict: string}>}
+ */
+async function moveNumber({ userId, fromPhone, toPhone, target, actor }) {
+  const verdict = E.classifyTarget(target);
+  if (verdict === E.CASE_TAKEN) return { ok: false, reason: 'taken', verdict };
+
+  const supabase = _db();
+
+  // Retire the shell FIRST: phone_number is UNIQUE, and a soft delete keeps it
+  // recoverable if the classifier was ever wrong.
+  if (verdict === E.CASE_SHELL && target && target.id) {
+    const { error: rErr } = await supabase.from('users')
+      .update({ ...E.retireMergedPatch(actor), phone_number: `merged:${target.id}` })
+      .eq('id', target.id);
+    if (rErr) return { ok: false, reason: 'failed', verdict };
+  }
+
+  const { error } = await supabase.from('users').update({ phone_number: toPhone }).eq('id', userId);
+  if (error) return { ok: false, reason: 'failed', verdict };
+
+  // The roster and any booked visit key on the phone STRING, so they follow.
+  await supabase.from('observation_schedules').update({ teacher_ext_id: toPhone }).eq('teacher_ext_id', fromPhone);
+
+  // What the retired shell owns moves to her, after the number has (a failure here never undoes the move).
+  const retiredId = verdict === E.CASE_SHELL && target ? target.id : null;
+  const moved = retiredId ? await reparentShellRows(supabase, retiredId, userId) : null;
+  return { ok: true, verdict, retiredId, moved };
+}
+
+/** The edit_phone audit detail for a move: from, to, the case, and what a retired shell handed over. */
+function moveDetail(fromPhone, toPhone, { verdict, retiredId, moved }) {
+  return {
+    from_phone: fromPhone, to_phone: toPhone, case: verdict,
+    retired_user_id: retiredId,
+    ...(moved ? { reparented: moved.reparented } : {}),
+    ...(moved && Object.keys(moved.skipped).length ? { reparent_skipped: moved.skipped } : {}),
+    ...(moved && moved.failed.length ? { reparent_failed: moved.failed } : {}),
+  };
+}
+
+/** main: teacher_edit_phone_commit — RE-CLASSIFIES, then moves her number (moveNumber). */
 async function commitPhone({ actorLeaderUserId, schoolExtId, userId, phone: raw }) {
   const person = await editPerson(actorLeaderUserId, schoolExtId, userId);
   if (!person) return notFound();
@@ -305,45 +360,19 @@ async function commitPhone({ actorLeaderUserId, schoolExtId, userId, phone: raw 
   if (!phone) return { ok: false, reason: 'invalid_phone' };
   if (person.row && phone === person.row.phone_number) return { ok: true, outcome: 'unchanged', phone };
 
+  const oldPhone = person.row && person.row.phone_number;
   const target = await loadTargetWithHistory(phone);
-  const verdict = E.classifyTarget(target);
-  if (verdict === E.CASE_TAKEN) {
+  const move = await moveNumber({ userId, fromPhone: oldPhone, toPhone: phone, target, actor: actorLeaderUserId });
+  if (move.reason === 'taken') {
     await _editAudit(actorLeaderUserId, person, 'edit_phone_escalated', {
       to_phone: phone, reason: 'destination_has_history_at_commit',
     });
     return { ok: false, reason: 'taken', heading: TAKEN_HEADING, message: TAKEN_BODY };
   }
+  if (!move.ok) return { ok: false, reason: 'failed' };
 
-  const supabase = _db();
-  const oldPhone = person.row && person.row.phone_number;
-
-  // Retire the shell FIRST: phone_number is UNIQUE, and a soft delete keeps it
-  // recoverable if the classifier was ever wrong.
-  if (verdict === E.CASE_SHELL && target && target.id) {
-    const { error: rErr } = await supabase.from('users')
-      .update({ ...E.retireMergedPatch(actorLeaderUserId), phone_number: `merged:${target.id}` })
-      .eq('id', target.id);
-    if (rErr) return { ok: false, reason: 'failed' };
-  }
-
-  const { error } = await supabase.from('users').update({ phone_number: phone }).eq('id', userId);
-  if (error) return { ok: false, reason: 'failed' };
-
-  // The roster and any booked visit key on the phone STRING, so they follow.
-  await supabase.from('observation_schedules').update({ teacher_ext_id: phone }).eq('teacher_ext_id', oldPhone);
-
-  // What the retired shell owns moves to her, after the number has (a failure here never undoes the move).
-  const retiredId = verdict === E.CASE_SHELL && target ? target.id : null;
-  const moved = retiredId ? await reparentShellRows(supabase, retiredId, userId) : null;
-
-  await _editAudit(actorLeaderUserId, person, 'edit_phone', {
-    from_phone: oldPhone, to_phone: phone, case: verdict,
-    retired_user_id: retiredId,
-    ...(moved ? { reparented: moved.reparented } : {}),
-    ...(moved && Object.keys(moved.skipped).length ? { reparent_skipped: moved.skipped } : {}),
-    ...(moved && moved.failed.length ? { reparent_failed: moved.failed } : {}),
-  });
-  return { ok: true, outcome: 'moved', phone, case: verdict };
+  await _editAudit(actorLeaderUserId, person, 'edit_phone', moveDetail(oldPhone, phone, move));
+  return { ok: true, outcome: 'moved', phone, case: move.verdict };
 }
 
 /** Her current bands, for the edit screen (read with the ported reader). */
@@ -358,6 +387,8 @@ module.exports = {
   editRole,
   checkPhone,
   commitPhone,
+  moveNumber,
+  moveDetail,
   currentLevels,
   writeRosterAudit,
   buildEditAuditRow,
