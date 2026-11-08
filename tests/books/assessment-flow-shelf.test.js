@@ -1,7 +1,8 @@
 /**
  * The WhatsApp assessment Flow offers a teacher only the G1-5 subjects whose book she has (bd-97daxo.4).
  * Assessments are keyed by book: the generator reads ICT's books, so GB (NBF English/Urdu/Maths/Science, ICT's
- * English-medium GK) is offered Islamiat in G1 until NBF topics exist. Everyone else: today's list.
+ * English-medium GK) is offered Islamiat in G1 while no NBF book is loaded; once one is, it is offered too
+ * (bd-6nskfq.1, below). Everyone else: today's list.
  */
 const H = require('../assessment/helpers/golden-g1-5');
 
@@ -57,5 +58,30 @@ describe('the grade list follows the region book list', () => {
 
   test('an ICT teacher is offered Grade 7', async () => {
     expect(await grades('sector-teacher')).toEqual(['1', '7']);
+  });
+});
+
+// bd-6nskfq.1 — once GB's own books are loaded (textbooks, curriculum nbf_snc), a GB teacher is offered each G1-5
+// subject whose own book is on her list AND loaded: English and Maths here; Urdu is on her list but not loaded, so
+// it stays off (never ICT's Urdu under her book's name). Islamiat stays (ICT's book, on her list).
+describe('her own books, once loaded (bd-6nskfq.1)', () => {
+  beforeEach(() => {
+    ['english', 'maths'].forEach((s) => state.tables.textbooks.push(
+      { id: `nbf-1-${s}`, curriculum: 'nbf_snc', grade: 1, subject: s, total_pages: 80 }));
+    jest.doMock('../../bot/shared/services/book-curriculum.service', () => ({
+      ...jest.requireActual('../../bot/shared/services/book-curriculum.service'),
+      curriculumForUser: jest.fn(async (id) => (id === 'gb-teacher' ? 'nbf_snc' : 'ict')),
+    }));
+    jest.resetModules();
+    Flow = require('../../bot/shared/routes/assessment-gen-endpoint');
+  });
+
+  test('a GB teacher is offered English, Islamiat and Maths in Grade 1', async () => {
+    const init = await Flow.handleAssessmentGenInit('gb-teacher', 'init-gb-own');
+    expect(init.data.subjects.map((s) => s.id).sort()).toEqual(['english', 'islamiat', 'maths']);
+  });
+
+  test('an ICT teacher keeps exactly her Grade 1 list', async () => {
+    expect((await subjects('sector-teacher')).sort()).toEqual(['english', 'general_knowledge', 'islamiat', 'maths', 'urdu']);
   });
 });
