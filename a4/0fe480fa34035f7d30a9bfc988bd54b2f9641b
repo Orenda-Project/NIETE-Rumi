@@ -1,0 +1,2 @@
+{"ts":"2026-11-08T19:28:49Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"a40fe480fa34","branch":"bd-n3n2d-65314","user":""}
+{"ts":"2026-11-08T19:28:52Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-n3n2d-65314: training spec: NOT UPDATED e2e: missing","sha":"a40fe480fa34","branch":"bd-n3n2d-65314","user":""}
