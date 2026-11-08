@@ -71,6 +71,7 @@ function normalise(subject) {
   const alias = {
     eng: 'english', math: 'maths', mathematics: 'maths', gensci: 'science',
     genk: 'general_knowledge', sst: 'social_studies',
+    general_knowledge_en: 'general_knowledge', social_studies_en: 'social_studies',
   };
   return alias[k] || k;
 }
