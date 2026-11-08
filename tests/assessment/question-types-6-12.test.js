@@ -234,7 +234,10 @@ describe('grades 1-5 are untouched', () => {
     const src = fs.readFileSync(path.join(__dirname, '../../bot/shared/services/assessment/question-types.js'), 'utf8');
     const guard = /^ {2}if \(Number\(grade\) >= 6\) return require\('\.\/question-types-6-12'\)\.(forSubject|categoryOf|defaultMix)\(.*\);\n/gm;
     expect((src.match(guard) || []).length).toBe(3);
-    const base = crypto.createHash('sha256').update(src.replace(guard, '')).digest('hex');
+    // bd-uam6dh: the English-medium GK/SST books share their Urdu twins' question types.
+    const enAlias = /^ {4}general_knowledge_en: 'general_knowledge', social_studies_en: 'social_studies',\n/gm;
+    expect((src.match(enAlias) || []).length).toBe(1);
+    const base = crypto.createHash('sha256').update(src.replace(guard, '').replace(enAlias, '')).digest('hex');
     expect(base).toBe('1f8d468ad80e0b9fda267879005274c4855626d46fbad82cb0e5a5085f1de2b7');
   });
 
