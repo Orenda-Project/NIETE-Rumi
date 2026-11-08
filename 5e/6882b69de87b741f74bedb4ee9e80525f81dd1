@@ -1,0 +1,3 @@
+{"ts":"2026-11-08T19:02:12Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"5e6882b69de8","branch":"bd-snkn32-62686","user":""}
+{"ts":"2026-11-08T19:02:14Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"5e6882b69de8","branch":"bd-snkn32-62686","user":""}
+{"ts":"2026-11-08T19:03:18Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32-62686: lesson-plan spec: NOT UPDATED e2e: DEGRADED (1 failed);portal-login web lane spec: NOT UPDATED e2e: missing;teacher-lessons web lane spec: NOT UPDATED e2e: DEGRADED","sha":"5e6882b69de8","branch":"bd-snkn32-62686","user":""}
