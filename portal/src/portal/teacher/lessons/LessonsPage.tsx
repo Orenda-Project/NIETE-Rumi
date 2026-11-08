@@ -13,6 +13,7 @@ import TeacherPage from '../TeacherPage';
 import { lessonsUrl, readAt, type LessonsAt } from './paths';
 import { useOpenLesson } from './useOpenLesson';
 import { Steps } from './Steps';
+import { OwnRow } from './own/OwnRow';
 import { attachToDc, DC_PICK, PICK_DEPTH, type PickTarget } from '../coaching/libraryPick';
 
 /**
@@ -111,6 +112,8 @@ function Lessons({ at }: { at: LessonsAt & { chapter: string } }) {
           ))}
         </div>
       ) : null}
+      {/* bd-snkn32 — Make my own: nothing at all unless it is on for her and can work here. */}
+      <OwnRow at={at} list={list} />
     </TeacherPage>
   );
 }
