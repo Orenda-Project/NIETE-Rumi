@@ -1,2 +1,3 @@
 {"ts":"2026-11-08T18:50:42Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons,portal-smoke spec_sync=true","sha":"ba2d31be7a25","branch":"bd-snkn32-62686","user":""}
 {"ts":"2026-11-08T18:50:43Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons,portal-smoke spec_sync=true","sha":"ba2d31be7a25","branch":"bd-snkn32-62686","user":""}
+{"ts":"2026-11-08T19:07:34Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32-62686: teacher-lessons web lane spec: NOT UPDATED e2e: missing","sha":"ba2d31be7a25","branch":"bd-snkn32-62686","user":""}
