@@ -1,1 +1,2 @@
 {"ts":"2026-11-08T18:43:36Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-login,portal-smoke spec_sync=true","sha":"335a8f270f71","branch":"bd-snkn32-62686","user":""}
+{"ts":"2026-11-08T19:07:24Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32-62686: portal-login web lane spec: NOT UPDATED e2e: missing","sha":"335a8f270f71","branch":"bd-snkn32-62686","user":""}
