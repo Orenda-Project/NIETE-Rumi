@@ -1,1 +1,2 @@
 {"ts":"2026-11-08T07:44:58Z","hook":"post-commit","event":"switch-off","switch":"QA_HOOKS_OFF","detail":"","sha":"f2b5a08bd26a","branch":"bd-mo5pru.1-stg","user":""}
+{"ts":"2026-11-08T07:44:59Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test,fde-board-pattern spec_sync=true","sha":"f2b5a08bd26a","branch":"bd-mo5pru.1-stg","user":""}
