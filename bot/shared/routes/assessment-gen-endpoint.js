@@ -113,8 +113,9 @@ async function gradesOnOffer(userId, curriculum) {
 
 /**
  * Which subjects we hold a book for, in this grade, that this user is offered.
- * Keyed by book (bd-97daxo.4): a G1-5 subject is offered only where the ICT book the generator reads is on her
- * region's list (teacher-books); a grade her list does not cover offers none. No list offers everything, as before.
+ * Keyed by book (bd-97daxo.4): a G1-5 subject is offered only where the ICT book the generator reads, or her own
+ * loaded book (bd-6nskfq.1), is on her region's list (teacher-books); a grade her list does not cover (GB: 6+, operator 6 Nov) offers none. No list
+ * offers everything, as before.
  */
 async function subjectsOnOffer(grade, userId, curriculum) {
   const g = await gradeGateFor([grade]);
@@ -124,16 +125,17 @@ async function subjectsOnOffer(grade, userId, curriculum) {
   // Two curricula can both hold a subject; she is offered it once. One curriculum: no change.
   const both = BookCurriculum.curriculaFor(curriculum).length > 1;
   const seen = new Set();
-  return (data || [])
+  const cells = (data || [])
     .map((r) => r.subject)
     .filter((s) => !both || (seen.has(s) ? false : seen.add(s)))
     .filter((s) => {
       const band = GRADE_BANDS[s];
       return !band || band.includes(Number(grade));
     })
-    .filter((s) => GradeGate.cellAllowed(grade, s, g.flag, g.kill, g.killCells, userId))
-    .filter((s) => TeacherBooks.assessmentOffered(grade, s, shelf))
-    .map((s, _i, offered) => ({ id: s, title: menuTitle(s, offered) }));
+    .filter((s) => GradeGate.cellAllowed(grade, s, g.flag, g.kill, g.killCells, userId));
+  // bd-6nskfq.1 — her own loaded book (GB: gb_g5_maths + an nbf_snc textbook) is offered too.
+  const offered = await Promise.all(cells.map((s) => TeacherBooks.assessmentOfferedFor(grade, s, shelf, curriculum)));
+  return cells.filter((_, i) => offered[i]).map((s, _i, list) => ({ id: s, title: menuTitle(s, list) }));
 }
 
 /**

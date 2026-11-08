@@ -1522,15 +1522,22 @@ async function gradeGateFor(grades) {
   if (grades.every((g) => Number(g) < 6)) return { flag: false };
   return require('../config/feature-flags').GradeGateSettings.load();
 }
-async function cellOffered(grade, subject, userId) {
+async function cellOffered(grade, subject, userId, { pattern = false } = {}) {
   const g = await gradeGateFor([grade]);
   if (!GradeGate.cellAllowed(grade, subject, g.flag, g.kill, g.killCells, userId)) return false;
-  return TeacherBooks.assessmentOffered(grade, subject, await assessmentShelf(userId));
+  const shelf = await assessmentShelf(userId);
+  // A pattern paper (FDE/board) is built from ICT's book under its board's header: her own region's book
+  // (bd-6nskfq.1) never opens one — no GB pattern is designed yet, so it stays "design pending".
+  if (pattern) return TeacherBooks.assessmentOffered(grade, subject, shelf);
+  return TeacherBooks.assessmentOfferedFor(grade, subject, shelf, Array.isArray(shelf) ? await userCurriculum(userId) : null);
 }
+/** Her curriculum for the own-book rule (bd-6nskfq.1); no user is ICT, as teacherCurriculum. */
+const userCurriculum = (userId) => teacherCurriculum({ userId });
 /**
  * Assessments are keyed by book (bd-97daxo.4): a G1-5 subject is offered only where the ICT book the generator
- * reads is on her region's list, and a grade her list does not cover (GB: 6+) offers nothing. The teacher is the
- * portal SESSION's (body.userId); no userId, or a region with no list, offers everything exactly as before.
+ * reads, or her own loaded book (bd-6nskfq.1), is on her region's list, and a grade her list does not cover (GB: 6+)
+ * offers nothing. The teacher is the portal SESSION's (body.userId); no userId, or a region with no list, offers
+ * everything exactly as before.
  */
 const TeacherBooks = require('../services/teacher-books.service');
 async function assessmentShelf(userId) {
@@ -1549,8 +1556,10 @@ async function offeredGrades(grades, userId) {
 async function offeredSubjects(grade, subjects, userId) {
   const g = await gradeGateFor([grade]);
   const shelf = await assessmentShelf(userId);
-  return subjects.filter((s) => GradeGate.cellAllowed(grade, s.subject_key, g.flag, g.kill, g.killCells, userId)
-    && TeacherBooks.assessmentOffered(grade, s.subject_key, shelf));
+  const curriculum = Array.isArray(shelf) ? await userCurriculum(userId) : null; // no list: no extra read
+  const allowed = subjects.filter((s) => GradeGate.cellAllowed(grade, s.subject_key, g.flag, g.kill, g.killCells, userId));
+  const offered = await Promise.all(allowed.map((s) => TeacherBooks.assessmentOfferedFor(grade, s.subject_key, shelf, curriculum)));
+  return allowed.filter((_, i) => offered[i]);
 }
 /** The session user the portal forwards (server-to-server field); absent = G6-12 hidden. */
 const bodyUserId = (body) => (typeof body.userId === 'string' && body.userId.trim()) || null;
@@ -1618,7 +1627,7 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
     const allowed = await Flags.fdePatternSubjects();
     const listed = (s) => allowed === null || allowed.includes(Patterns.normalise(s));
     if (grade !== null && subject && listed(subject)) {
-      const offered = await cellOffered(grade, subject, userId);
+      const offered = await cellOffered(grade, subject, userId, { pattern: true });
       const ids = Patterns.list().filter((id) => offered && Patterns.isOffered(id) && Patterns.isEligible(id, grade, subject));
       if (ids.length) out.patterns = ids.map((id) => ({ id, ...Patterns.summaryFor(id, subject) }));
     }
@@ -1640,7 +1649,7 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
     const Board = require('../services/assessment/patterns/board');
     // isEligible holds the grade and subject checks: a pattern sets one grade and only its subjects.
     const ids = Board.list().filter((id) => Board.isEligible(id, grade, subject));
-    if (ids.length && await cellOffered(grade, subject, userId)) {
+    if (ids.length && await cellOffered(grade, subject, userId, { pattern: true })) {
       out.patterns = (out.patterns || []).concat(ids.map((id) => ({ id, ...Board.summaryFor(id, subject) })));
     }
     // Board grades (9-12) sit after any FDE grades (1-5), so the joined list stays ascending.
@@ -1931,7 +1940,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
   // The grade gate runs before the pattern branch and before bookFor: a hidden grade is refused
   // whatever else the request asks for (contract 1 §3 E3a, E4c).
-  if (!(await cellOffered(grade, subject, userId))) return res.status(400).json(GRADE_NOT_OFFERED);
+  if (!(await cellOffered(grade, subject, userId, { pattern: Boolean(body.pattern) }))) return res.status(400).json(GRADE_NOT_OFFERED);
   // Which door the paper came through (bd-pw1ccr.1): 'report' from the Class Quiz Traffic Light report's button.
   const origin = body.origin == null || body.origin === '' ? null : String(body.origin);
   if (origin !== null && !ORIGINS.includes(origin)) {
