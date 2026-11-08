@@ -9,10 +9,13 @@
  *   db.refuse = (table, op, payload, where) => true  → that write answers an error (and is still recorded)
  *   db.refuseRead = (table) => true                  → a read of that table answers an error
  *   db.throwOn = (table) => true                     → from(table) throws (one table unreachable)
+ *   db.throwWrite = (table, op, payload) => true     → that write rejects, as a dropped connection would (recorded)
  *   db.down = true                                   → from() throws, as an unreachable database would
  */
 function recordingDb(tables = {}) {
-  const db = { tables, writes: [], refuse: () => false, refuseRead: () => false, throwOn: () => false, down: false };
+  const db = {
+    tables, writes: [], refuse: () => false, refuseRead: () => false, throwOn: () => false, throwWrite: () => false, down: false,
+  };
   db.client = {
     from(name) {
       if (db.down || db.throwOn(name)) throw new Error('database unreachable');
@@ -37,6 +40,7 @@ function recordingDb(tables = {}) {
         }
         if (op === 'update') {
           db.writes.push({ table: name, op, patch: { ...patch }, where: where() });
+          if (db.throwWrite(name, op, patch)) throw new Error('connection reset');
           if (db.refuse(name, op, patch, where())) return { data: null, error: { message: `update ${name} refused` } };
           const hits = t.filter(match);
           hits.forEach((r) => Object.assign(r, patch));

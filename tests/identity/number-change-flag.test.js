@@ -53,3 +53,25 @@ test('a failed read -> off', async () => {
   mockRow.throws = true;
   expect(await Flags.isMetaNumberChangeEnabled()).toBe(false);
 });
+
+describe('metaNumberChangeState: a read that failed is told apart from a switch that is off (both act as off)', () => {
+  test('a written true -> on', async () => {
+    mockRow.data = { value: true };
+    expect(await Flags.metaNumberChangeState()).toBe('on');
+    mockRow.data = { value: 'true' };
+    expect(await Flags.metaNumberChangeState()).toBe('on');
+  });
+
+  test.each([['absent row', null], ['false', { value: false }], ['junk', { value: 'yes' }]])('%s -> off', async (_l, data) => {
+    mockRow.data = data;
+    expect(await Flags.metaNumberChangeState()).toBe('off');
+  });
+
+  test('an error answer, or a read that throws -> unreadable', async () => {
+    mockRow.error = { message: 'boom' };
+    expect(await Flags.metaNumberChangeState()).toBe('unreadable');
+    mockRow.error = null;
+    mockRow.throws = true;
+    expect(await Flags.metaNumberChangeState()).toBe('unreadable');
+  });
+});
