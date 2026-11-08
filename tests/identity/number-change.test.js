@@ -166,7 +166,9 @@ describe('the coach edit verdict for the new number decides', () => {
     expect(db.writes).toEqual([
       W.phone(),
       W.visits,
-      W.audit(metaAudit('edit_phone', { from_phone: OLD, to_phone: NEW, case: 'free', retired_user_id: null })),
+      W.audit(metaAudit('edit_phone', {
+        from_phone: OLD, to_phone: NEW, case: 'free', retired_user_id: null, changed_at: new Date(CHANGED_AT).toISOString(),
+      })),
     ]);
     expect(row(HER.id).phone_number).toBe(NEW);
     expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'free', action: 'moved', reason: null }]);
@@ -192,6 +194,7 @@ describe('the coach edit verdict for the new number decides', () => {
       case: 'shell',
       retired_user_id: SHELL.id,
       reparented: expect.objectContaining({ niete_lp_opens: 1 }),
+      changed_at: new Date(CHANGED_AT).toISOString(),
     })]);
     expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'shell', action: 'folded', reason: null }]);
   });
