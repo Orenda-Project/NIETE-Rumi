@@ -1,1 +1,2 @@
 {"ts":"2026-11-08T04:31:42Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"fe9e20033c5c","branch":"bd-dfan5f-11205","user":""}
+{"ts":"2026-11-08T04:31:53Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"fe9e20033c5c","branch":"bd-dfan5f-11205","user":""}
