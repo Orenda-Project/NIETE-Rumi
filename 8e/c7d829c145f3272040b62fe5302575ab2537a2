@@ -1,3 +1,4 @@
 {"ts":"2026-11-07T03:30:50Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"8ec7d829c145","branch":"bd-rj6w0n.14.16.15-gb-no-crops","user":""}
 {"ts":"2026-11-08T07:18:07Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=- engine=2.0.0","sha":"8ec7d829c145","branch":"bd-rj6w0n.14.16.15-gb-no-crops","user":""}
 {"ts":"2026-11-08T07:18:07Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=- engine=2.0.0","sha":"8ec7d829c145","branch":"bd-rj6w0n.14.16.15-gb-no-crops","user":""}
+{"ts":"2026-11-08T07:18:07Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=- engine=2.0.0","sha":"8ec7d829c145","branch":"bd-rj6w0n.14.16.15-gb-no-crops","user":""}
