@@ -1997,6 +1997,9 @@ async function getVendorCooldownHoursByLevel(levelId) {
  *                          module; a fail holds the teacher here with an
  *                          immediate retry. No cooldown either way.
  */
+// bd-mo5pru — `phoneNumber` is null when the portal grades (submitModuleExamPaper's
+// background marking): a web request has no phone. The verdict is still written;
+// every WhatsApp send below is skipped, the way the HELD branch always did.
 async function gradeAttempt(attemptId, phoneNumber) {
   const { data: attempt } = await supabase
     .from('training_assessment_attempts')
@@ -2091,19 +2094,21 @@ async function gradeAttempt(attemptId, phoneNumber) {
         pct_required: passingPct,
       });
       const pctRounded = Math.round(pct);
-      await WhatsAppService.sendMessage(
-        phoneNumber,
-        `📝 *Module check — not quite.*\n\n` +
-        `You got *${score}/${total}* (${pctRounded}%). You need ${passingPct}% to move on.\n\n` +
-        `Give it another go — you can retry right away.`
-      );
-      await WhatsAppService.sendInteractiveButtons(phoneNumber, {
-        body: 'Ready to try the module check again?',
-        buttons: [
-          { id: `training_quiz_retry_${attempt.training_module_id}`, title: '🔄 Try again' },
-          { id: 'training_pause', title: '⏸ Pause' },
-        ],
-      });
+      if (phoneNumber) {
+        await WhatsAppService.sendMessage(
+          phoneNumber,
+          `📝 *Module check — not quite.*\n\n` +
+          `You got *${score}/${total}* (${pctRounded}%). You need ${passingPct}% to move on.\n\n` +
+          `Give it another go — you can retry right away.`
+        );
+        await WhatsAppService.sendInteractiveButtons(phoneNumber, {
+          body: 'Ready to try the module check again?',
+          buttons: [
+            { id: `training_quiz_retry_${attempt.training_module_id}`, title: '🔄 Try again' },
+            { id: 'training_pause', title: '⏸ Pause' },
+          ],
+        });
+      }
       return true;
     }
 
@@ -2135,10 +2140,12 @@ async function gradeAttempt(attemptId, phoneNumber) {
       : `You got *${score}/${total}* (${pctRounded}%) — that clears the ${passingPct}% bar.`;
     // bd-2446 — say the module is unlocked, since that is what the teacher was
     // promised when they tapped "📝 Take quiz".
-    await WhatsAppService.sendMessage(
-      phoneNumber,
-      `📝 *Module check — passed.*\n\n${line}\n\nLoading the next module…`
-    );
+    if (phoneNumber) {
+      await WhatsAppService.sendMessage(
+        phoneNumber,
+        `📝 *Module check — passed.*\n\n${line}\n\nLoading the next module…`
+      );
+    }
 
     // bd-2234 — Oxbridge-style levels certify on quiz scores (all modules
     // complete, best score >= 70% each). Cheap early-outs inside; capstone
@@ -2151,7 +2158,7 @@ async function gradeAttempt(attemptId, phoneNumber) {
       attemptId: attempt.id,
       programId: attempt.program_id,
     });
-    if (certRes.issued) {
+    if (certRes.issued && phoneNumber) {
       await WhatsAppService.sendMessage(
         phoneNumber,
         `🏆 *Congratulations, ${certRes.teacher_name}!*\n\n` +
@@ -2274,13 +2281,15 @@ async function gradeAttempt(attemptId, phoneNumber) {
         .eq('level_id', attempt.level_id).ilike('title', `Module ${modNo}%`).maybeSingle();
       moduleTitle = c?.title || course?.title || null;
     }
-    await WhatsAppService.sendMessage(phoneNumber, moduleExamPassMessage({
-      // MARKS, not the question count. `score` here is already a
-      // mark total (2 MCQs at 1 each + a CRQ out of 10), so dividing it by
-      // attempt.total_questions printed "12/3". examTotal is the same
-      // denominator the pass/fail decision above is computed against.
-      moduleTitle, score, total: examTotal, hasCrq: Boolean(crqQuizId),
-    }));
+    if (phoneNumber) {
+      await WhatsAppService.sendMessage(phoneNumber, moduleExamPassMessage({
+        // MARKS, not the question count. `score` here is already a
+        // mark total (2 MCQs at 1 each + a CRQ out of 10), so dividing it by
+        // attempt.total_questions printed "12/3". examTotal is the same
+        // denominator the pass/fail decision above is computed against.
+        moduleTitle, score, total: examTotal, hasCrq: Boolean(crqQuizId),
+      }));
+    }
     logToFile('🎓 Module exam passed — no level certificate', {
       userId: attempt.user_id, attemptId, sourceQuizId: attemptQuiz?.source_quiz_id,
       hasCrq: Boolean(crqQuizId),
@@ -2319,7 +2328,7 @@ async function gradeAttempt(attemptId, phoneNumber) {
       attemptId: attempt.id,
       programId: attempt.program_id,
     });
-    if (levelCert.issued) {
+    if (levelCert.issued && phoneNumber) {
       await WhatsAppService.sendMessage(
         phoneNumber,
         `🏆 *Congratulations, ${levelCert.teacher_name}!*\n\n`
@@ -2341,14 +2350,16 @@ async function gradeAttempt(attemptId, phoneNumber) {
       levelId: attempt.level_id,
       attemptId: attempt.id,
     });
-    await WhatsAppService.sendMessage(
-      phoneNumber,
-      `🏆 *Congratulations, ${cert.teacher_name}!*\n\n` +
-      `You passed the ${cert.level_name} grand quiz with *${score}/${attempt.total_questions}* (${Math.round(examPct)}%).\n\n` +
-      `Certificate code: \`${cert.certificate_code}\`\n\nSend /training to continue to the next level.`
-    );
-    await deliverCertificatePdf(phoneNumber, cert);
-  } else {
+    if (phoneNumber) {
+      await WhatsAppService.sendMessage(
+        phoneNumber,
+        `🏆 *Congratulations, ${cert.teacher_name}!*\n\n` +
+        `You passed the ${cert.level_name} grand quiz with *${score}/${attempt.total_questions}* (${Math.round(examPct)}%).\n\n` +
+        `Certificate code: \`${cert.certificate_code}\`\n\nSend /training to continue to the next level.`
+      );
+      await deliverCertificatePdf(phoneNumber, cert);
+    }
+  } else if (phoneNumber) {
     await WhatsAppService.sendMessage(
       phoneNumber,
       `❌ *Not this time.*\n\nYou scored *${score}/${attempt.total_questions}* (${Math.round(examPct)}%). This exam requires ${examPassingPct}%.\n\n` +
