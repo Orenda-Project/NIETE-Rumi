@@ -920,6 +920,14 @@ async function process(job) {
       }
     }
 
+    // "Was this paper useful? How can we make it better?" — 30s later, once per paper. An
+    // addition like the review offer: it can never turn a delivered paper into a failure.
+    try {
+      require('./assessment-feedback.service').scheduleAssessmentFeedback({ paperId, userId, phone });
+    } catch (err) {
+      logToFile('[assessment] could not schedule the survey', { paperId, error: err.message });
+    }
+
     logToFile('[assessment] delivered', {
       userId, requestId, paperId, questions: questionCount, key, answerKeySent,
     });

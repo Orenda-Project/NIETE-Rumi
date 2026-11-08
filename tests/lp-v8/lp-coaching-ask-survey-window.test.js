@@ -197,6 +197,7 @@ describe('every survey that takes the next typed message counts, under its owner
     ['coaching_survey', '../../bot/shared/services/coaching/coaching-feedback.service'],
     ['video_survey', '../../bot/shared/services/student-video-feedback.service'],
     ['lp_survey', '../../bot/shared/services/lp-feedback.service'],
+    ['assessment_survey', '../../bot/shared/services/assessment/assessment-feedback.service'],
     // A tier without the coaching survey (staging, until it is promoted) has no window
     // for it to arm; the sweeper's table still names it, harmlessly.
   ].filter(([, owner]) => moduleExists(owner)))('%s', async (kind, owner) => {
