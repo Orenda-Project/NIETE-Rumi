@@ -3,3 +3,4 @@
 {"ts":"2026-11-08T04:26:41Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"language=none-needed (no teacher-facing string added or changed)","sha":"9547107ea57c","branch":"bd-6nskfq.1-11193","user":""}
 {"ts":"2026-11-08T04:26:51Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (shared internal-api file; only the assessment offer rule changed)","sha":"9547107ea57c","branch":"bd-6nskfq.1-11193","user":""}
 {"ts":"2026-11-08T04:26:51Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (teacher-books shared; LP menus untouched, only the assessment offer rule changed)","sha":"9547107ea57c","branch":"bd-6nskfq.1-11193","user":""}
+{"ts":"2026-11-08T04:35:05Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"7b468a32-1b0f-4585-b0e7-fc82661d687e","sha":"9547107ea57c","branch":"bd-6nskfq.1-11193","user":""}
