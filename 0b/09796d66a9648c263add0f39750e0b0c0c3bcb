@@ -1,0 +1,1 @@
+{"ts":"2026-11-08T19:05:20Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32-62686: lesson-plan spec: NOT UPDATED e2e: DEGRADED (1 failed);portal-login web lane spec: NOT UPDATED e2e: missing;teacher-lessons web lane spec: NOT UPDATED e2e: DEGRADED","sha":"0b09796d66a9","branch":"bd-snkn32-62686","user":""}
