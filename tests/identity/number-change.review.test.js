@@ -417,3 +417,63 @@ describe('round 2: a date that cannot be read never clears a fold', () => {
     expect(row(HER.id).phone_number).toBe(A);
   });
 });
+
+describe('round 3: changes that cross, rows from an older build, and resends of a coach-edit escalation', () => {
+  const HER = { id: id(30), phone_number: A, name: 'Her', registration_completed: true, created_at: '2025-01-10T08:00:00' };
+  const HOUR = 60 * 60 * 1000;
+  const coachRow = () => ({
+    action: 'edit_phone', actor_user_id: id(500), teacher_ext_id: HER.id, teacher_phone_e164: fx(999),
+    created_at: '2026-11-08T09:10:00+00:00',
+    detail: { via: 'portal_coach_v2', from_phone: fx(999), to_phone: A, case: 'free', retired_user_id: null },
+  });
+
+  test('S13: B->C applied first to her B-phone account, then A->B: escalated (destination_changed_again), never moved onto a number she left', async () => {
+    const SB = { id: id(31), phone_number: B, name: null, registration_completed: false, created_at: '2026-11-08T09:10:00' };
+    setup([{ ...HER }, { ...SB }]);
+    clock = CHANGED_AT + 3 * HOUR; // both delivered late, B->C first
+    await apply(notice(B, C, CHANGED_AT + HOUR), senderOn(B));
+    await apply(notice(A, B), senderOn(A));
+    expect(said()).toEqual(['free/moved/null', 'free/escalated/destination_changed_again']);
+    expect(row(HER.id).phone_number).toBe(A);
+    expect(row(SB.id).phone_number).toBe(C);
+    expect(escalations()).toEqual([expect.objectContaining({
+      actor_user_id: HER.id, detail: { via: VIA, to_phone: B, reason: 'destination_changed_again' },
+    })]);
+  });
+
+  test('a move away from the new number made BEFORE this change does not hold it back', async () => {
+    const SB = { id: id(32), phone_number: B, name: null, registration_completed: false, created_at: '2026-11-07T09:10:00' };
+    setup([{ ...HER }, { ...SB }]);
+    await apply(notice(B, C, CHANGED_AT - HOUR), senderOn(B)); // someone left B an hour before she changed to it
+    await apply(notice(A, B), senderOn(A));
+    expect(said()).toEqual(['free/moved/null', 'free/moved/null']);
+    expect(row(HER.id).phone_number).toBe(B);
+  });
+
+  test('S14: Meta rows an older build wrote without changed_at still count, by when they were written', async () => {
+    setup([{ ...HER }]);
+    await apply(notice(A, B), senderOn(A));
+    clock = NOW + HOUR;
+    await apply(notice(B, A, CHANGED_AT + HOUR), senderOn(B));
+    for (const r of db.tables.leader_roster_audit) if (r.detail) delete r.detail.changed_at; // as an older build wrote them
+    clock = NOW + 2 * HOUR;
+    await apply(notice(A, B), senderOn(A));
+    expect(said()).toEqual(['free/moved/null', 'free/moved/null', 'null/skipped_stale/notice_older_than_last_move']);
+    expect(row(HER.id).phone_number).toBe(A);
+  });
+
+  test('S16: S11, then two resends: one escalation, and the resends write nothing', async () => {
+    setup([{ ...HER }]);
+    db.tables.leader_roster_audit.push(coachRow());
+    clock = Date.parse('2026-11-08T09:15:00.000Z');
+    await apply(notice(A, B), senderOn(A));
+    const written = db.writes.length;
+    await apply(notice(A, B), senderOn(A));
+    await apply(notice(A, B), senderOn(A));
+    expect(said()).toEqual([
+      'free/escalated/notice_predates_coach_edit', 'free/already_done/escalation_on_record', 'free/already_done/escalation_on_record',
+    ]);
+    expect(db.writes.length).toBe(written);
+    expect(escalations()).toHaveLength(1);
+  });
+});

@@ -20,7 +20,9 @@
  * at or after the change (the account her new phone made), never finished sign-up, and is not itself the sender of a
  * number change that waits on a person. Any other shell is escalated: destination_predates_change (it was there before
  * she changed number: a stranger's, or her own real account), destination_registered (someone signed up on it),
- * destination_changed_again (it has its own open change: a person settles both at once).
+ * destination_changed_again (it has its own open change: a person settles both at once). The same reason stops any
+ * move, free or fold, onto a number whose account left it by a Meta change made after this one (the two changes
+ * crossed in delivery).
  *
  * Stale, repeated and out-of-order notices (Meta can resend, and deliveries can cross):
  *   - she is already on the new number                                         → already_done (already_on_number)
@@ -90,9 +92,18 @@ function settle(out, action, reason) {
 }
 
 /**
+ * When the change a Meta edit_phone row records was made: its detail.changed_at, or, for a row an older build wrote
+ * without one, when the row was written.
+ */
+function changeTimeOf(r) {
+  const at = utcMs(r && r.detail && r.detail.changed_at);
+  return Number.isFinite(at) ? at : utcMs(r && r.created_at);
+}
+
+/**
  * What her own edit_phone rows say about this notice. It compares CHANGE times, never when a row was written: a notice
  * delivered late is still in order with the changes around it.
- *   'stale'  one of her Meta moves was for a change made after this one (its detail.changed_at): this is a replay;
+ *   'stale'  one of her Meta moves was for a change made after this one (changeTimeOf): this is a replay;
  *   'coach'  a coach changed her number after this change was made (the coach row's created_at): a person reconciles;
  *   null     neither (or the notice has no time to compare). Throws on a refused read.
  */
@@ -104,12 +115,24 @@ async function laterMoves(supabase, userId, changedAt) {
   for (const r of data || []) {
     const d = (r && r.detail) || {};
     if (d.via === VIA) {
-      if (utcMs(d.changed_at) > changedAt) return 'stale';
+      if (changeTimeOf(r) > changedAt) return 'stale';
     } else if (utcMs(r && r.created_at) > changedAt) {
       coach = true;
     }
   }
   return coach ? 'coach' : null;
+}
+
+/**
+ * Did the account on the new number leave it by a Meta change made after this one? Then the two changes crossed in
+ * delivery (B->C handled before A->B), and moving her onto B would put her history on a number she has already left: a
+ * person settles it. One read, on the indexed teacher_phone_e164. Throws on a refused read.
+ */
+async function movedAwayLater(supabase, toPhone, changedAt) {
+  const { data, error } = await supabase.from('leader_roster_audit')
+    .select('created_at, detail').eq('teacher_phone_e164', toPhone).eq('action', 'edit_phone');
+  if (error) throw new Error(error.message || 'audit read refused');
+  return (data || []).some((r) => r && r.detail && r.detail.via === VIA && changeTimeOf(r) > changedAt);
 }
 
 /**
@@ -271,6 +294,15 @@ async function decide(out, { message, user, signatureOk }, change) {
     }
     if (why) return escalate(out, supabase, user, toPhone, why);
   }
+
+  let awayLater;
+  try {
+    awayLater = await movedAwayLater(supabase, toPhone, changedAt);
+  } catch (err) {
+    settle(out, 'failed', 'audit_unreadable');
+    throw err;
+  }
+  if (awayLater) return escalate(out, supabase, user, toPhone, 'destination_changed_again');
 
   const where = { fromPhone, toPhone, changedIso };
   let move;
