@@ -40,7 +40,9 @@
 // exists; checked before every message (sa-offline.js guarded()), and a newer worker that activates gets the whole visit.
 // sa-20: round 9: the engine files (sa-rec.js lets go of the call-mode microphone between recordings; a phone that loads
 // the page offline gets it only through this bump).
-var VERSION = 'sa-20';
+// sa-21: round 10: the engine files of three lanes in one bump (sa-ui.js and sa.css: the hint heard once, Next at once after
+// practice, Urdu centred and whole, numbers sized to their box; sa-voice.js and sa-engine.js: clips play with no tap behind them).
+var VERSION = 'sa-21';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -56,7 +58,9 @@ var CORE = 'sa-core-' + VERSION;
 // v8: round 9: every v4 clip levelled again to -16 LUFS under its key (quiet on some phones), the Urdu sums re-voiced under
 // their keys with the operation in English ("plus", "minus", "times", "equals"), and the battery files' new lines (the
 // reviewers' Section 11 edits, "my friend" / «پیارے دوست», operations named in English); a kept copy would play the old one.
-var SESSION = 'sa-session-v12';
+// v14: round 10 release A: the reviewers' 6 Nov corrections in the battery files («جزیرہ», «ہر جواب», "Jugnu will just
+// listen", «دبائیں» for every "press") and Urdu v4 clips re-voiced under their keys so «آواز میں» is said in full.
+var SESSION = 'sa-session-v14';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;

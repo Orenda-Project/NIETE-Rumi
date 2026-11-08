@@ -1059,3 +1059,26 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: With sa_r9_audio off, the microphone stays open for the whole battery as today
     Given sa_r9_audio is off
     Then the microphone is asked for once and kept open until the battery ends
+
+  @e2e @wip @draft @config-gated @P1 @CT171 @no-mock-driver
+  # No mock driver: the mock browser plays every clip. The Android in-app browser's rule (a new clip only inside a tap) is
+  # modelled in dashboard/tests/sa-r10-audio.service.test.js; that the instruction is heard needs a real phone.
+  Scenario: With sa_r10_bigger_audio on, an instruction reached with no tap is still heard ("Which is bigger")
+    Given sa_r10_bigger_audio is on and a child runs RDF auto on a phone's in-app browser
+    And the child has tapped at least once since the test began
+    When a part ends by itself and the next part's instruction starts with no tap behind it
+    Then Jugnu says the instruction
+    And a clip the browser still refuses is kept on the session as voice_held "refused"
+
+  @e2e @wip @draft @config-gated @P1 @CT172 @no-mock-driver
+  # No mock driver: preloading and the browser's start delay are not visible to the mock. Asserted in
+  # dashboard/tests/sa-r10-audio.service.test.js; smoothness to the ear needs a real phone.
+  Scenario: With sa_r10_practice_gap on, the practice answer follows "The answer is:" without a break
+    Given sa_r10_practice_gap is on and a practice item models its answer as "The answer is:" then the answer
+    When Jugnu says "The answer is:"
+    Then the answer clip is already loaded and starts as soon as "The answer is:" ends
+
+  @e2e @wip @draft @config-gated @P1 @CT172 @no-mock-driver
+  Scenario: With sa_r10_bigger_audio and sa_r10_practice_gap off, every clip plays on a new element as today
+    Given sa_r10_bigger_audio and sa_r10_practice_gap are off
+    Then the served battery has neither r10_bigger_audio nor r10_practice_gap

@@ -56,6 +56,7 @@
  *   say_then_next     lines.r7_say_next / r7_say_done after the task's instruction (said and shown) and shown under the
  *                     item while the child answers; tick_prompt: lines.r7_type_tick for a typed number; story_scroll:
  *                     lines.r7_scroll after the story's instruction, and a down arrow under the story while more is below.
+ *   r10_hint_once     round 10 audio 1: the say-then-press hint is not said after the instruction (which says it), only shown.
  *
  * Round 8, the child's flow (each OFF unless battery.ui.<flag>):
  *   r8_reading_no_done   a reading (passage) screen says nothing about "done" on the way in; the recorder opens after a
@@ -231,7 +232,7 @@
       well_done: 'شاباش!',
       all_done: 'سب ہو گیا پیارے دوست!',
       all_done_sub: 'جگنو کے ساتھ کھیلنے کا شکریہ۔',
-      back_wait: 'آپ کا جائزہ اس فون پر محفوظ ہے۔ انٹرنیٹ آتے ہی چلا دیا جائے گا۔',
+      back_wait: 'آپ کا جزیرہ اس فون پر محفوظ ہے۔ انٹرنیٹ آتے ہی چلا دیا جائے گا۔',
       back: 'واپس جائیں',
       give_teacher: 'اب فون ٹیچر کو واپس دے دیں۔',
       give_coach: 'پیارے دوست، اب فون کوچ کو واپس دے دیں۔',
@@ -265,7 +266,7 @@
       voice_not_ready: 'آواز ابھی تیار نہیں',
       please_go_on: 'آگے چلیں۔',
       coach_will_instruct: 'اب آپ کے کوچ ہدایات دیں گے۔',
-      silence_repeat: 'جگنو آپ کی آواز نہیں سن سکا۔ جواب کو دوبار اونچی آواز میں بولیں۔ آئیے یہ حصہ دوبارہ کرتے ہیں۔',
+      silence_repeat: 'جگنو آپ کی آواز نہیں سن سکا۔ ہر جواب اونچی آواز میں بولیں۔ آئیے یہ حصہ دوبارہ کرتے ہیں۔',
       silence_again: 'دوبارہ کریں',
       silence_title: 'اونچی آواز میں بولیں',
       coach_read: 'یہ بچے کو پڑھ کر سنائیں:',
@@ -306,6 +307,8 @@
   ];
 
   var FEEDBACK_MS = 1200;
+  // Round 10 timing 1 (r10_practice_next): a tap this soon after the tap that ended a practice is the same double tap
+  var DOUBLE_TAP_MS = 300;
   var TASK_END_MS = 1500;
   var TASK_END_CAP_MS = 8000; // the part's closing line is awaited to its end, never longer than this
   var MIC_SKIP_MS = 3000;   // a record task skipped for no microphone: its line stays this long (RULING #38b)
@@ -498,8 +501,19 @@
     // Round 9 item 7 (r9_scroll_cue): a scroll cue on any screen whose content runs past the bottom
     var r9Scroll = r7.r9_scroll_cue === true;
     var scrollCue = null; // { s, el, ro, type, phase, task, asked }: the cue of the screen on show
+    // Round 10 layout 2 (r10_number_fit): a maths number as large as its box allows, whatever its digits (numFit)
+    var r10Num = r7.r10_number_fit === true;
+    // Round 10 layout 1 (r10_urdu_fit): every Urdu label centred on its ink, the whole Nastaliq word inside its box
+    var r10Fit = r7.r10_urdu_fit === true;
     var scrollSaid = {};  // screen types (phase, or running:<mode>) the cue line was said on
     var talk = null, talkN = 0; // r9Scroll: Jugnu's latest line, and how many are still playing
+    // Round 10 audio 1 (r10_hint_once): the say-then-press hint is heard once per task, in the instruction; it stays on the
+    // screen but is not said again after the instruction (nor on its replay)
+    var r10HintOnce = r7.r10_hint_once === true;
+    // Round 10 timing 1 (r10_practice_next): the screen after a practice takes Next at once, no fixed wait on top of
+    // Jugnu's words; a double tap still moves one screen (the Go tap inside DOUBLE_TAP_MS of the ending tap is ignored)
+    var r10Next = r7.r10_practice_next === true;
+    var practiceEndAt = null; // when the tap that ended the practice came (Date.now())
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
@@ -541,6 +555,8 @@
     /** r8_comp_wait_next: a story or listening question, which waits for Next (sa-core drops its timeout). */
     function compWait(t) { return r7.r8_comp_wait_next === true && !!t && t.mode === 'oral' && /comprehension$/.test(t.subtask || '') && (!manual || appAsks); }
     function sayNext(t) { return r7.say_then_next === true && cellish(t) && !!line('r7_say_next'); }
+    /** r10_hint_once: whether hint line hl is one of the say-then-press lines (the instruction already says it). */
+    function sayHint(hl) { return !!hl && (hl === line('r7_say_next') || hl === line('r7_say_done') || hl === line('r7_say_next_q')); }
     function hintEl(t, cls) {
       var hl = hintOf(t);
       if (!hl) return null;
@@ -589,6 +605,27 @@
       window.addEventListener('scroll', function () { if (alive) scrollCheck(); }, true);
       window.addEventListener('resize', function () { if (alive) scrollCheck(); });
       el.addEventListener('load', function () { if (alive) scrollCheck(); }, true);
+    }
+    // Round 10 layout 2: a resize sizes the numbers again (before mnFit's own pass, which then fits them above the foot)
+    var numRefit = null;
+    if (r10Num && typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('resize', function () {
+        if (!alive) return;
+        clearTimeout(numRefit);
+        numRefit = later(function () { var s = el.querySelector('.sae-screen'); numFitOn(s); if (r8Mn) mnFit(s); }, 120);
+      });
+    }
+    // Round 10 layout 1 (r10_urdu_fit): a resize, or a label shown or changed after the draw (the scroll cue, the coach's
+    // menu, a gated Next), is fitted again
+    if (r10Fit && typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('resize', function () { if (alive) urFitSoon(); });
+      if (typeof window.MutationObserver === 'function') {
+        // only a change that shows Urdu words counts (the clock's digits change every frame)
+        var urShown = function (n) { return !!n && UR_LETTER.test(n.textContent || ''); };
+        new window.MutationObserver(function (recs) {
+          if (alive && recs.some(function (r) { return r.type === 'attributes' ? urShown(r.target) : Array.prototype.some.call(r.addedNodes, urShown); })) urFitSoon();
+        }).observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+      }
     }
     // Round 8 item 30: a resize fits the missing number above the foot again
     if (r8Mn && typeof window !== 'undefined' && window.addEventListener) {
@@ -842,6 +879,7 @@
     if (r9Skip) el.classList.add('is-r9-skip'); // round 9 item 3 (sa.css "Round 9 item 3")
     // Round 9 item 7 (sa.css "Round 9 item 7": every rule under this class)
     if (r9Scroll) el.classList.add('is-r9-scroll');
+    if (r10Num) el.classList.add('is-r10-numfit'); // round 10 layout 2 (sa.css "Round 10 layout 2")
     // in the coach page's frame, under its corner hold (sa.css keeps the scrolling body below it)
     if (opts.ur_fit && opts.embed) el.classList.add('is-embed');
     // round 8 (items 25/26, r8_nudges): the speak / tap cue's styles (sa.css "Round 8")
@@ -850,6 +888,8 @@
     if (r7.r8_highlight === true) el.classList.add('is-r8-hl');
     // round 9 item 6 (r9_comp_text): the story question's styles (sa.css "Round 9 item 6")
     if (r9Comp) el.classList.add('is-r9-comp');
+    // round 10 layout 1 (r10_urdu_fit): urFitAll pads each Urdu label to its ink (sa.css "Round 10 layout 1")
+    if (r10Fit) el.classList.add('is-r10-urfit');
     el.setAttribute('lang', lang);
     el.setAttribute('dir', lang === 'ur' ? 'rtl' : 'ltr');
     el.setAttribute('data-mode', mode);
@@ -930,7 +970,7 @@
     /** glyphs: the item's picture per option (a picture pattern): drawn large, the option's word as its caption. */
     function tiles(options, onPick, decorate, tl, t, glyphs) {
       var n = options.length;
-      var g = h('div', { class: 'sae-opts sa-tiles' + (n > 4 ? ' is-five' : ''), lang: tl, dir: tl === 'ur' ? 'rtl' : 'ltr' });
+      var g = h('div', { class: 'sae-opts sa-tiles' + (n > 4 ? ' is-five' : '') + (numTiles(options, t) ? ' is-r10-num' : ''), lang: tl, dir: tl === 'ur' ? 'rtl' : 'ltr' });
       options.forEach(function (o, i) {
         var pic = picOf(t, o);
         var gl = !pic && Array.isArray(glyphs) && typeof glyphs[i] === 'string' && glyphs[i] ? glyphs[i] : null;
@@ -1024,6 +1064,104 @@
         if (fs > MN_FS_MIN) { fs = Math.max(MN_FS_MIN, fs * 0.88); row.style.setProperty('--mn-fs', fs.toFixed(1) + 'px'); continue; }
         break;
       }
+    }
+    /**
+     * Round 10 layout 2 (r10_number_fit): a number on a maths screen is as large as its box allows. Today a card with
+     * one or two characters is drawn large (.is-short) and a longer one, a 3-digit number too, at about half that, room
+     * or not. ON, after drawing (and on a resize, and once the font has loaded), every number is set to the largest size
+     * that fits its box, measured:
+     *   - a card (a number or a sum): at most the size a 2-digit number has today, so a 3-digit number is as large as a
+     *     2-digit one unless the card is too narrow, and a 1-digit one is no larger than today;
+     *   - the choices (which is bigger, the missing number's): ONE size for the group, the largest that fits every tile,
+     *     so the bigger number never looks smaller;
+     *   - the missing number's row: one size for the row, the largest at which the whole row (its blank holding the
+     *     longest number it can be given) fits its width, at most the row's size today (mnFit still shrinks it when a
+     *     choice would sit under the foot).
+     * Text grows in proportion to its size, so one measurement at a known size gives the size that fits.
+     */
+    var NUM_FILL_W = 0.92, NUM_FILL_H_CARD = 0.9, NUM_FILL_H_TILE = 0.8, NUM_CAP_TILE = 160, NUM_CAP_ROW = 96, NUM_MIN = 20;
+    function isMaths(t) { return /^ma\./.test(String((t && t.id) || '')); }
+    function numTiles(options, t) {
+      return r10Num && isMaths(t) && Array.isArray(options) && options.length > 0 &&
+        options.every(function (o) { return /^[\d\u06F0-\u06F9\u0660-\u0669.,\s-]+$/.test(String(o)); });
+    }
+    /** The 2-digit card's size today (sa.css .sae-onecell.is-short: clamp(72px, 30vw, 160px)). */
+    function numCardCap() { return Math.min(160, Math.max(72, 0.3 * (window.innerWidth || 360))); }
+    function contentBox(n) {
+      var cs = getComputedStyle(n);
+      var pad = function (k) { var v = parseFloat(cs[k]); return v > 0 ? v : 0; };
+      return [n.clientWidth - pad('paddingLeft') - pad('paddingRight'), n.clientHeight - pad('paddingTop') - pad('paddingBottom')];
+    }
+    /**
+     * One size for every ink of the group: the largest (to `cap`) at which each fits its own box. The boxes are
+     * measured first, at the size the page gives the number, because a tile grows with what is in it; and a number
+     * that fits at that size is never drawn smaller than it (a long sum keeps today's size on a phone).
+     */
+    function numGroup(inks, cap, fillH) {
+      var k = Infinity;
+      inks.forEach(function (ink) { ink.style.removeProperty('font-size'); });
+      var boxes = inks.map(function (ink) { return contentBox(ink.parentNode); });
+      var today = Infinity;
+      inks.forEach(function (ink, i) {
+        var r0 = ink.getBoundingClientRect(), f0 = parseFloat(getComputedStyle(ink).fontSize);
+        today = f0 > 0 && r0.width <= boxes[i][0] && r0.height <= boxes[i][1] ? Math.min(today, f0) : 0;
+      });
+      inks.forEach(function (ink) { ink.style.fontSize = cap + 'px'; });
+      inks.forEach(function (ink, i) {
+        var b = boxes[i], r = ink.getBoundingClientRect();
+        if (!(b[0] > 0 && b[1] > 0 && r.width > 0 && r.height > 0)) return;
+        k = Math.min(k, (b[0] * NUM_FILL_W) / r.width, (b[1] * fillH) / r.height);
+      });
+      if (k === Infinity) { inks.forEach(function (ink) { ink.style.removeProperty('font-size'); }); return; }
+      var fs = Math.max(NUM_MIN, Math.floor(cap * Math.min(1, k)), today === Infinity ? 0 : Math.floor(today));
+      inks.forEach(function (ink) {
+        ink.style.fontSize = fs + 'px';
+        if (r8Layout) fitInk(ink, 0); // centred on its ink again at its new size
+      });
+    }
+    function numRow(s) {
+      var row = s.querySelector('.sae-seq.is-r8-mn');
+      if (!row || !row.parentNode) return;
+      var avail = row.clientWidth;
+      if (!(avail > 0)) return;
+      var longest = 2;
+      Array.prototype.forEach.call(s.querySelectorAll('.sae-seq.is-r8-mn .sae-seq-tile:not(.sae-gap), .sae-opts .sae-opt'), function (n) {
+        longest = Math.max(longest, String(n.textContent || '').trim().length);
+      });
+      // measured on a hidden copy at its natural width, the blank holding the longest number
+      var F0 = 40;
+      var probe = row.cloneNode(true);
+      probe.removeAttribute('id');
+      probe.setAttribute('aria-hidden', 'true');
+      probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;left:0;top:0;width:max-content;max-width:none;font-size:' + F0 + 'px';
+      Array.prototype.forEach.call(probe.querySelectorAll('.sae-seq-tile'), function (n) { n.style.flex = 'none'; });
+      Array.prototype.forEach.call(probe.querySelectorAll('.sae-gap .sae-mn-ink'), function (n) { n.textContent = new Array(longest + 1).join('0'); });
+      row.parentNode.appendChild(probe);
+      var w = probe.getBoundingClientRect().width;
+      probe.parentNode.removeChild(probe);
+      if (!(w > 0)) return;
+      // never smaller than the row's size today when the row (its blank holding the longest number) fits at that size
+      var f0 = parseFloat(getComputedStyle(row).fontSize);
+      var keep = f0 > 0 && (w * f0) / F0 <= avail ? Math.floor(f0) : 0;
+      var fs = Math.max(NUM_MIN, keep, Math.min(NUM_CAP_ROW, Math.floor((avail * 0.96 * F0) / w)));
+      row.style.setProperty('font-size', 'var(--mn-fs, ' + fs + 'px)');
+    }
+    function numFit(s) {
+      if (!r10Num || !s || !s.querySelectorAll || typeof window === 'undefined') return;
+      Array.prototype.forEach.call(s.querySelectorAll('.sae-onecell.is-r10-num > .sae-ink'), function (ink) {
+        numGroup([ink], numCardCap(), NUM_FILL_H_CARD);
+      });
+      Array.prototype.forEach.call(s.querySelectorAll('.sae-opts.is-r10-num'), function (g) {
+        var inks = Array.prototype.filter.call(g.querySelectorAll('.sae-opt > .sae-ink'), Boolean);
+        if (inks.length) numGroup(inks, NUM_CAP_TILE, NUM_FILL_H_TILE);
+      });
+      if (r8Mn) numRow(s);
+    }
+    /** numFit now, and again once the page's fonts have loaded (measured in a stand-in font, a number is the wrong size). */
+    function numFitOn(s) {
+      numFit(s);
+      if (!s || typeof document === 'undefined' || !document.fonts || !document.fonts.ready) return;
+      document.fonts.ready.then(function () { if (alive && s.isConnected) { numFit(s); if (r8Mn) mnFit(s); } }, function () {});
     }
     function reducedMotion() {
       try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
@@ -1173,6 +1311,7 @@
     function playIntroAll(t) {
       var g = gen;
       var hl = hintOf(t);
+      if (r10HintOnce && sayHint(hl)) hl = null;
       return playIntro(t).then(function () { if (hl && alive && g === gen) return say(hl); });
     }
     /** RDF manual: the coach's screen in front of each task (the words to read out), then the phone goes to the child. */
@@ -1324,6 +1463,9 @@
       var res = runner.practiceAnswer(value);
       if (!res) return;
       busy = true;
+      // r10_practice_next: the last answer waits for Jugnu's feedback only, not the FEEDBACK_MS floor
+      var ended = r10Next && runner.view().phase === 'ready';
+      if (ended) practiceEndAt = Date.now();
       var f = (r8Lang && p && p.feedback) || res.feedback || {};
       var said = res.ok ? (f.correct || f.right || copyLine('right'))
         : res.retry ? copyLine('try_again')
@@ -1333,7 +1475,7 @@
       hold = { item: p, value: value, res: res, text: shownNums(p && p.id, chain.map(tx).join(' ')) };
       try { if (opts.onFeedback) opts.onFeedback({ kind: 'practice', ok: !!res.ok }); } catch (e) { /* skin */ }
       draw();
-      Promise.all([delay(FEEDBACK_MS), capped(sayChain(chain.map(function (x) { return [x, undefined, appAsks]; })), 7000)]).then(function () {
+      Promise.all([ended ? null : delay(FEEDBACK_MS), capped(sayChain(chain.map(function (x) { return [x, undefined, appAsks]; })), 7000)]).then(function () {
         if (!alive) return;
         hold = null;
         busy = false;
@@ -1348,6 +1490,7 @@
         jugnu('hello'),
         h('h1', { class: 'sae-h1 sae-xl' }, [].concat(named(C.ready))),
       ], [gatedBtn(v, C.go, function () {
+        if (r10Next && practiceEndAt != null && Date.now() - practiceEndAt < DOUBLE_TAP_MS) return; // the same double tap
         var t = v.task;
         if (t.mode === 'oral' && t.passage && t.passage.shown === false && !heard[t.id]) { listenThenBegin(t); return; }
         runner.begin();
@@ -1577,7 +1720,7 @@
     function oneCell(text, t, i) {
       var s = String(text);
       var numeric = NUMERIC_RX.test(s);
-      return h('div', { class: 'sae-onecell sa-onecell' + (Array.from(s).length <= 2 ? ' is-short' : ''), dir: numeric ? 'ltr' : dirOf(t), lang: numeric ? 'en' : taskLang(t), 'data-i': i == null ? null : String(i) }, [
+      return h('div', { class: 'sae-onecell sa-onecell' + (Array.from(s).length <= 2 ? ' is-short' : '') + (r10Num && numeric && isMaths(t) ? ' is-r10-num' : ''), dir: numeric ? 'ltr' : dirOf(t), lang: numeric ? 'en' : taskLang(t), 'data-i': i == null ? null : String(i) }, [
         isSum(s) ? h('span', { class: 'sae-ink' }, sumKids(s)) : h('span', { class: 'sae-ink' }, [s]),
       ]);
     }
@@ -1634,6 +1777,112 @@
       var dy = (c.top + c.bottom) / 2 - (base + (m.actualBoundingBoxDescent - m.actualBoundingBoxAscent) / 2);
       ink.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px)';
     }
+    /**
+     * Round 10 layout 1 (r10_urdu_fit). An Urdu label's line box is set by the font's ascent and descent, but Nastaliq's
+     * ink runs well past both (a «ک» or «ھ» far above, the tail of «م» or «ے» below) and differs word to word, so a box
+     * padded for the tallest word holds a short one low (the round 6 pill: 1.3em above, .4em below). Here each label is
+     * measured by its own ink: a canvas gives the drawn word's height above and below its baseline, the letters' boxes
+     * give where each line's baseline is, and the label's top and bottom padding are moved so the ink is in the middle
+     * with at least UR_FIT_ROOM px (or .15em) on each side. The label keeps its size unless the ink needs more room. A
+     * one-line pill is centred side to side the same way. Labels with no Urdu letter (numbers) are left alone, and so
+     * are the letter cards, tiles and passage words (fitCells places those).
+     */
+    var UR_FIT_SEL = '.sae-btn, .sae-chip, .sae-choice, .sae-star-word, .sae-pic-w, .sae-more-w, .sae-r9-scroll-w, .sae-r8-lang-o, .sae-task-tag, ' +
+      '.sae-fb, .sae-cap, .sae-coach-says > summary, .sae-r9-q, .sae-handback, .sae-r8-stuck, .sae-h1, .sae-sub, .sae-say, .sae-p, .sae-coach-line, ' +
+      '.sae-coach-items > li';
+    // a pill (a box drawn round one line) is centred side to side too; running text keeps its own alignment
+    var UR_FIT_PILL = /(^|\s)sae-(btn|chip|choice|star-word|pic-w|more-w|r9-scroll-w|r8-lang-o|fb|cap|r9-q)(\s|$)/;
+    var UR_LETTER = /[\u0621-\u063A\u0641-\u064A\u0671-\u06D3\u06D5]/; // an Arabic-script letter (not a digit)
+    var UR_FIT_ROOM = 4;
+    var urFitT = null;
+    function urFitAll() {
+      if (!r10Fit || !alive || typeof document === 'undefined' || !el.querySelectorAll) return;
+      var g = document.createElement('canvas').getContext('2d');
+      if (!g) return;
+      var list = Array.prototype.filter.call(el.querySelectorAll(UR_FIT_SEL), function (n) {
+        var l = n.closest('[lang]');
+        return l && l.getAttribute('lang') === 'ur' && UR_LETTER.test(n.textContent || '') && !n.querySelector('.sae-ink, ' + UR_FIT_SEL);
+      });
+      list.forEach(function (n) { urFitOne(n, g, 0); });
+      // the face may still be on its way: once it is, the ink is measured again
+      if (list.length && document.fonts && document.fonts.load) {
+        document.fonts.load(getComputedStyle(list[0]).font || '16px serif', '\u0627\u0628\u067E').then(function () {
+          list.forEach(function (n) { if (alive && n.isConnected) urFitOne(n, g, 0); });
+        }, function () {});
+      }
+    }
+    function urFitSoon() {
+      if (!r10Fit) return;
+      clearTimeout(urFitT);
+      urFitT = later(urFitAll, 30);
+    }
+    function urFitOne(n, g, tries) {
+      var b = n.getBoundingClientRect();
+      if (!b || !b.height || !b.width) return;
+      var cs = getComputedStyle(n);
+      g.font = cs.font; g.direction = 'rtl'; g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+      // the page's word spacing (.12em on Urdu) widens the line: the canvas spaces the words the same way
+      if ('wordSpacing' in g) g.wordSpacing = cs.wordSpacing && cs.wordSpacing !== 'normal' ? cs.wordSpacing : '0px';
+      var asc = g.measureText('\u0627').fontBoundingBoxAscent;
+      if (asc == null) return;
+      var lines = urLines(n, asc);
+      var ink = null;
+      lines.forEach(function (ln) {
+        if (ln.base == null) return;
+        var m = g.measureText(ln.text);
+        if (m.actualBoundingBoxAscent == null) return;
+        var t = ln.base - m.actualBoundingBoxAscent, bt = ln.base + m.actualBoundingBoxDescent;
+        var l = ln.left - (m.actualBoundingBoxLeft || 0), r = ln.left + (m.actualBoundingBoxRight || 0);
+        ink = ink ? { t: Math.min(ink.t, t), b: Math.max(ink.b, bt), l: Math.min(ink.l, l), r: Math.max(ink.r, r) } : { t: t, b: bt, l: l, r: r };
+      });
+      if (!ink) return;
+      var px = function (x) { var f = parseFloat(x); return isFinite(f) ? f : 0; };
+      var room = Math.max(UR_FIT_ROOM, Math.round(px(cs.fontSize) * 0.15));
+      var v = urSplit(ink.t - b.top - px(cs.borderTopWidth), b.bottom - px(cs.borderBottomWidth) - ink.b, px(cs.paddingTop), px(cs.paddingBottom), room);
+      var gl = ink.l - b.left - px(cs.borderLeftWidth), gr = b.right - px(cs.borderRightWidth) - ink.r;
+      var pl = px(cs.paddingLeft), pr = px(cs.paddingRight);
+      // side to side: a one-line pill is centred; one line of running text only gets room where its swash runs out
+      var hz = lines.length !== 1 ? null : UR_FIT_PILL.test(n.className || '') ? urSplit(gl, gr, pl, pr, room)
+        : gl < room - 0.75 || gr < room - 0.75 ? { a: pl + Math.max(0, room - gl), b: pr + Math.max(0, room - gr), change: true } : null;
+      if (!v.change && !(hz && hz.change)) return;
+      if (v.change) { n.style.paddingTop = v.a + 'px'; n.style.paddingBottom = v.b + 'px'; }
+      if (hz && hz.change) { n.style.paddingLeft = hz.a + 'px'; n.style.paddingRight = hz.b + 'px'; }
+      // a box held at its min-height moves its ink half as far as an auto-height one: measure again until it is even
+      if (tries < 3) urFitOne(n, g, tries + 1);
+    }
+    /** gaps a, b between the ink and the box's two sides, paddings pa, pb: the paddings that make the gaps even and >= room
+     *  (an auto-sized box moves the ink by the whole padding change, a centred fixed one by half: both end even). */
+    function urSplit(a, b, pa, pb, room) {
+      var grow = Math.max(0, room - (a + b) / 2);
+      var x = (b - a) / 2 + grow, y = (a - b) / 2 + grow;
+      var lift = Math.max(0, -(pa + x), -(pb + y));
+      x += lift; y += lift;
+      return { a: Math.round((pa + x) * 10) / 10, b: Math.round((pb + y) * 10) / 10, change: Math.abs(x) > 0.75 || Math.abs(y) > 0.75 };
+    }
+    /** The label's lines (letters grouped by the line they are on): each line's text, left edge and baseline (an Urdu
+     *  letter's box top + the face's ascent). */
+    function urLines(n, asc) {
+      var lines = [], rg = document.createRange(), last = null;
+      var w = document.createTreeWalker(n, 4 /* text */, null, false), t;
+      while ((t = w.nextNode())) {
+        for (var i = 0; i < t.data.length; i++) {
+          var ch = t.data.charAt(i);
+          if (/\s/.test(ch)) { if (last) last.text += ' '; continue; }
+          rg.setStart(t, i); rg.setEnd(t, i + 1);
+          var r = rg.getBoundingClientRect();
+          if (!r || (!r.width && !r.height)) continue;
+          var cy = (r.top + r.bottom) / 2, ln = null;
+          for (var k = 0; k < lines.length; k++) if (cy >= lines[k].top && cy <= lines[k].bottom) { ln = lines[k]; break; }
+          if (!ln) { ln = { top: r.top, bottom: r.bottom, left: r.left, text: '', base: null }; lines.push(ln); }
+          ln.left = Math.min(ln.left, r.left);
+          ln.text += ch;
+          if (ln.base == null && UR_LETTER.test(ch)) ln.base = r.top + asc;
+          last = ln;
+        }
+      }
+      lines.forEach(function (ln) { ln.text = ln.text.replace(/\s+$/, ''); });
+      return lines;
+    }
     function sRunCell(v) {
       var t = v.task, it = v.cell_item;
       // r8_layout: the card screen fits the phone (sa.css "Round 8 fit": the card takes what is left above the foot)
@@ -1673,11 +1922,13 @@
       ], [gatedBtn(v, C.next, function () {
         busy = true;
         var k = keyOf(runner.view());
+        var tapAt = Date.now();
         // r8_practice_autoplay: the answer was said on arrival (the chip says it again), so Next just goes on
         (p.role === 'example' || autoAnswer(t, p) ? Promise.resolve() : capped(sayChain(modelOf(p)), 7000)).then(function () {
           busy = false;
           if (!alive || keyOf(runner.view()) !== k) return;
           runner.practiceAnswer(p.target);
+          if (r10Next && runner.view().phase === 'ready') practiceEndAt = tapAt;
           draw();
         });
       }, 'sae-primary sa-next')]);
@@ -2593,7 +2844,9 @@
         coachLayer(v).forEach(function (n) { el.appendChild(n); });
         if (coachMenu) el.appendChild(sCoachMenu(v));
       }
+      if (r10Fit) urFitAll();
       if (r8Digits) latinScreen(el, v.task);
+      if (r10Num) numFitOn(s);
       if (r8Mn) mnFit(s);
       el.setAttribute('data-phase', showPhase);
       el.setAttribute('data-task-mode', v.task ? v.task.mode : '');

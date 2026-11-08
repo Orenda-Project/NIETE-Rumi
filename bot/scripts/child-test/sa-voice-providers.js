@@ -82,6 +82,14 @@ function withEnglishWords(text, lang) {
   return Object.entries(UR_SAY_EN).reduce((t, [w, en]) => t.split(w).join(en), String(text));
 }
 
+// A short word the voice runs into the next one (round 10, the reviewers' 6 Nov list: «اونچی آواز میں بولیں» heard as
+// «اونچی آواز بولیں»): the voice is given a pause after it, so it is said in full. The screen keeps its text.
+const HELD = /(آواز میں)(?=\s+[^\s،۔؟!,.:;«»"'])/g;
+function withHeldWords(text, lang) {
+  if (lang !== 'ur') return text;
+  return String(text).replace(HELD, '$1،');
+}
+
 // A letter SOUND is voiced as a sound, never a letter name (the content owner, round 8 items 8, 10, 22; the voicenote
 // phonics grammar): a held sound is stretched (Urdu «لَ» "lllll", «نَ» "nnnnn"), a stop stays short ("tuh"), and each
 // sound gets its own [slowly]. The screen keeps its text; only what the voice is given changes.
@@ -164,4 +172,4 @@ async function synthesize(job, { env = process.env, fetchImpl = fetch, attempts 
   throw err;
 }
 
-module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withEnglishOps, withEnglishWords, withSounds, isPraise, withTag, requestFor, synthesize };
+module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withEnglishOps, withEnglishWords, withHeldWords, withSounds, isPraise, withTag, requestFor, synthesize };
