@@ -37,7 +37,7 @@ const { SUBJECT_LABEL: SUBJECT_TITLE } = require('../services/assessment/assessm
 
 // Which subjects a grade is actually taught. Shared, so the Flow and the
 // portal cannot answer this differently. See assessment-vocabulary.
-const { GRADE_BANDS } = require('../services/assessment/assessment-vocabulary');
+const { GRADE_BANDS, menuTitle } = require('../services/assessment/assessment-vocabulary');
 const GradeGate = require('../services/assessment/grade-gate');
 
 const COUNT_CHOICES = [10, 15, 20, 25, 30];
@@ -133,7 +133,7 @@ async function subjectsOnOffer(grade, userId, curriculum) {
     })
     .filter((s) => GradeGate.cellAllowed(grade, s, g.flag, g.kill, g.killCells, userId))
     .filter((s) => TeacherBooks.assessmentOffered(grade, s, shelf))
-    .map((s) => ({ id: s, title: SUBJECT_TITLE[s] || s }));
+    .map((s, _i, offered) => ({ id: s, title: menuTitle(s, offered) }));
 }
 
 /**

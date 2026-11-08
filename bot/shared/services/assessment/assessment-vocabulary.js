@@ -24,7 +24,34 @@ const SUBJECT_LABEL = {
   science: 'Science',
   general_knowledge: 'General Knowledge',
   social_studies: 'Social Studies',
+  // The English-medium books (bd-uam6dh). The printed name carries no medium:
+  // the paper is in English, so it says what it is.
+  general_knowledge_en: 'General Knowledge',
+  social_studies_en: 'Social Studies',
 };
+
+/**
+ * Subjects taught from two books, one per medium. Where a grade holds both,
+ * the menu names each by its medium so she picks the book she teaches from.
+ */
+const MEDIUM_OF = {
+  general_knowledge: 'Urdu',
+  general_knowledge_en: 'English',
+  social_studies: 'Urdu',
+  social_studies_en: 'English',
+};
+const TWIN = {
+  general_knowledge: 'general_knowledge_en',
+  general_knowledge_en: 'general_knowledge',
+  social_studies: 'social_studies_en',
+  social_studies_en: 'social_studies',
+};
+
+/** The menu title of a subject among the subjects on offer: the medium is named only when both books are. */
+function menuTitle(subject, offered) {
+  const label = subjectLabel(subject);
+  return offered.includes(TWIN[subject]) ? `${label} (${MEDIUM_OF[subject]})` : label;
+}
 
 /**
  * Which grades a subject is actually taught in.
@@ -40,6 +67,8 @@ const GRADE_BANDS = {
   science: [4, 5],
   social_studies: [4, 5],
   general_knowledge: [1, 2, 3],
+  social_studies_en: [4, 5],
+  general_knowledge_en: [1, 2, 3],
 };
 
 /** The printable name, falling back to the code so nothing renders blank. */
@@ -101,6 +130,6 @@ function defaultInstruction(kind, rtl) {
 }
 
 module.exports = {
-  SUBJECT_LABEL, GRADE_BANDS, subjectLabel, taughtIn,
+  SUBJECT_LABEL, GRADE_BANDS, subjectLabel, taughtIn, menuTitle,
   SHORT_TYPE, shortType, INSTRUCTION_KEY, defaultInstruction,
 };
