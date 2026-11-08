@@ -97,6 +97,20 @@ function createOwnService(deps) {
   return { requestOwn, ownStatus };
 }
 
+function logInsertFailed(log, row, err) {
+  log('LP 6-12 own: insert failed', { segment: row.segment_id, reason: err.message });
+}
+
+/** Is this segment in the catalogue? (A plain function: the schema guards read `.from()` calls written this way.) */
+async function segmentExists(supabase, segmentId) {
+  const { data, error } = await supabase
+    .from('niete_lp612_segments')
+    .select('segment_id')
+    .eq('segment_id', segmentId)
+    .maybeSingle();
+  return !error && !!data;
+}
+
 /** The real wiring. Lazy requires: the queue pulls the AWS SDK, and root suites run before bot/ npm ci. */
 function liveDeps() {
   const supabase = require('../config/supabase');
@@ -105,25 +119,21 @@ function liveDeps() {
   const { templateVersion } = require('../config/lp612-flags');
   return {
     templateVersion,
-    segmentExists: async (segmentId) => {
-      const { data, error } = await supabase
-        .from('niete_lp612_segments').select('segment_id').eq('segment_id', segmentId).maybeSingle();
-      return !error && !!data;
-    },
+    segmentExists: (segmentId) => segmentExists(supabase, segmentId),
     readStoredDoc: (args) => Serving.readStoredDoc(args),
     requestParent: (args) => Serving.requestLesson(args),
     insertOwn: async (row) => {
-      const { data, error } = await supabase.from(OWN_TABLE).insert(row).select('id').single();
-      if (error) logToFile('LP 6-12 own: insert failed', { segmentId: row.segment_id, error: error.message });
-      return error ? null : data;
+      const out = await supabase.from('niete_lp612_own_plans').insert(row).select('id').single();
+      if (out.error) logInsertFailed(logToFile, row, out.error);
+      return out.error ? null : out.data;
     },
     patchOwn: async (id, fields) => {
-      await supabase.from(OWN_TABLE).update({ ...fields, updated_at: new Date().toISOString() }).eq('id', id);
+      await supabase.from('niete_lp612_own_plans').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', id);
     },
     queueJob: (...args) => require('./queue').queueJob(...args),
     selectOwn: async (id, userId) => {
       const { data, error } = await supabase
-        .from(OWN_TABLE)
+        .from('niete_lp612_own_plans')
         .select('id, user_id, segment_id, status, r2_key, error_code, lang, started_at, completed_at')
         .eq('id', id).eq('user_id', userId).maybeSingle();
       if (error) throw new Error(error.message);

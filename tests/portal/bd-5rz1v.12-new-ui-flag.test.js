@@ -178,7 +178,7 @@ describe('GET /config — features.newUi', () => {
     const { payload } = await getConfig();
     expect(Object.keys(payload.features).sort()).toEqual([
       'assessmentEditing', 'assessmentGenerator', 'assessmentGeneratorMessage', 'childTest', 'childTestSa', 'coachDisagreements',
-      'coachFullApp', 'coachObservation', 'coachReportsApp', 'coachV2',
+      'coachFullApp', 'coachObservation', 'coachReportsApp', 'coachV2', 'helpVideos',
       // bd-snkn32 — Make my own lesson plan, a real false unless portal_lp_make_own (and the teacher app) are on for her.
       'lpMakeOwn',
       'newUi',

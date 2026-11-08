@@ -112,6 +112,16 @@ function createOwnWorker(deps) {
   return { process };
 }
 
+/** The segment row, or null (the author worker's loadSegment, in the shape the schema guards read). */
+async function loadSegment(supabase, segmentId) {
+  const { data, error } = await supabase
+    .from('niete_lp612_segments')
+    .select('*')
+    .eq('segment_id', segmentId)
+    .maybeSingle();
+  return error ? null : (data || null);
+}
+
 function liveDeps() {
   const supabase = require('../shared/config/supabase');
   const { logToFile } = require('../shared/utils/logger');
@@ -121,7 +131,7 @@ function liveDeps() {
     claimOwn: async (id) => {
       if (!id) return null;
       const { data, error } = await supabase
-        .from(OWN_TABLE)
+        .from('niete_lp612_own_plans')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', id).eq('status', 'authoring')
         .select('id, user_id, segment_id, lang, template_version, status, answers')
@@ -129,17 +139,14 @@ function liveDeps() {
       if (error) logToFile('LP 6-12 own: claim failed', { ownId: id, error: error.message });
       return error ? null : data;
     },
-    loadSegment: async (segmentId) => {
-      const { data, error } = await supabase.from('niete_lp612_segments').select('*').eq('segment_id', segmentId).maybeSingle();
-      return error ? null : data;
-    },
+    loadSegment: (segmentId) => loadSegment(supabase, segmentId),
     readStoredDoc: (args) => Serving.readStoredDoc(args),
     revise: (args) => require('../shared/services/lp612-author.service').reviseLessonPlan(args),
     render: (args) => require('../shared/services/lp612-render.service').renderLessonPlan(args),
     readFile: (p) => fs.promises.readFile(p),
     upload: (buf, key, type) => require('../shared/storage/r2').uploadBuffer(buf, key, type),
     patchOwn: async (id, fields) => {
-      const { error } = await supabase.from(OWN_TABLE).update({ ...fields, updated_at: new Date().toISOString() }).eq('id', id);
+      const { error } = await supabase.from('niete_lp612_own_plans').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', id);
       if (error) logToFile('LP 6-12 own: row update failed', { ownId: id, error: error.message });
     },
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
