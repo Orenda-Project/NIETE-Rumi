@@ -137,6 +137,7 @@ function requireMetaSignature({ route, rejectStatus = 401 }) {
       return next();
     }
     const verdict = checkSignature({ rawBody: req.rawBody, header: req.get(HEADER), secret });
+    req.webhookSignatureOk = verdict.ok === true; // the verdict travels with the request (identity/number-change reads it)
     if (verdict.ok) {
       if (mode === 'log') logToFile('webhook.signature_valid', { route, mode });
       return next();
