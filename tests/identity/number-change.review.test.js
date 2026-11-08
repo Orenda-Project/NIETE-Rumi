@@ -10,13 +10,18 @@
  *   S2: a stranger's older account on a recycled number must not be folded into hers.
  *   S3: a resend after a move whose audit row was lost, with the bot's clock behind Meta's, must not fold her.
  *
- *   Stale and out-of-order notices. A notice older than her latest edit_phone row is ignored (skipped_stale). An
- *   account on the old number that the notice itself made, with no record of the move, is escalated
- *   (sender_account_new); a true resend (the move is on record) stays already_done.
- *   S4: B->C delivered before A->B.  S6: A->B replayed after she changed back.
+ *   Stale and out-of-order notices. A notice whose change happened before the change of her latest Meta move is a
+ *   replay and is ignored (skipped_stale): the comparison is between the two CHANGE times (the Meta row carries its
+ *   notice's changed_at), never with when a row was written. A coach's edit made after the change is escalated
+ *   (notice_predates_coach_edit). An account on the old number that the notice itself made, with no record of the
+ *   move, is escalated (sender_account_new); a true resend (the move is on record) stays already_done. A shell that is
+ *   itself the sender of an open Meta escalation is never folded (destination_changed_again).
+ *   S4: B->C delivered before A->B.  S6: A->B replayed after she changed back.  S7: A->B and B->C both delivered late.
+ *   S11: a coach moved her onto the old number after she had left it.
  *
  *   A half-finished move is recorded. S5: the shell was retired, then her number write was refused: an
- *   edit_phone_escalated row names the retired account and the step that failed, and a log line says so.
+ *   edit_phone_escalated row names the retired account and the step that failed, and a log line says so. S12: a write
+ *   that throws after her number moved still records the move and escalates the step that threw.
  *
  *   Every outcome is honest: a refused escalation row is failed, an unreadable switch is not "off", and every outcome
  *   that is not a clean move carries a machine reason.
@@ -42,6 +47,7 @@ let db;
 let events;
 let fileLog;
 let NC;
+let clock;
 
 function setup(users, extra = {}) {
   jest.resetModules();
@@ -52,7 +58,8 @@ function setup(users, extra = {}) {
     observation_schedules: [], leader_roster_audit: [], student_lists: [], niete_lp_opens: [],
     ...extra,
   });
-  jest.spyOn(Date, 'now').mockReturnValue(NOW);
+  clock = NOW;
+  jest.spyOn(Date, 'now').mockImplementation(() => clock);
   jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
   jest.doMock('../../bot/shared/config/supabase', () => db.client);
   const SL = require('../../bot/shared/utils/structured-logger');
@@ -72,7 +79,7 @@ const row = (uid) => db.tables.users.find((u) => u.id === uid);
 const escalations = () => db.writes.filter((w) => w.table === 'leader_roster_audit' && w.rows[0].action === 'edit_phone_escalated')
   .map((w) => w.rows[0]);
 // What getOrCreateUser hands the webhook: the row on `from`, or a fresh row made now by the bot's clock.
-function senderOn(phone, botClockMs = NOW) {
+function senderOn(phone, botClockMs = clock) {
   let u = db.tables.users.find((x) => x.phone_number === phone);
   if (!u) {
     u = { id: id(900 + db.tables.users.length), phone_number: phone, registration_completed: false,
@@ -144,16 +151,23 @@ describe('fold only the account the change made (S1, S2, S3)', () => {
 });
 
 describe('stale and out-of-order notices (S4, S6)', () => {
-  test('S4: B->C before A->B: the first is escalated (sender_account_new), not dropped as done; A->B then folds', async () => {
+  test('S4: B->C before A->B: both stay open for a person, one naming her; the stub is never folded; a resend changes nothing', async () => {
     const HER = { id: id(10), phone_number: A, name: 'Her', registration_completed: true, created_at: '2025-01-10T08:00:00' };
     setup([HER]);
-    await apply(notice(B, C, CHANGED_AT + 30 * 1000), senderOn(B));
+    const stub = senderOn(B);
+    await apply(notice(B, C, CHANGED_AT + 30 * 1000), stub);
     await apply(notice(A, B), senderOn(A));
-    expect(said()).toEqual(['free/escalated/sender_account_new', 'shell/folded/null']);
-    expect(row(HER.id).phone_number).toBe(B);
-    expect(escalations()).toEqual([expect.objectContaining({
-      teacher_phone_e164: B, detail: { via: VIA, to_phone: C, reason: 'sender_account_new' },
-    })]);
+    await apply(notice(B, C, CHANGED_AT + 30 * 1000), senderOn(B)); // B->C resent past the dedupe
+    expect(said()).toEqual([
+      'free/escalated/sender_account_new', 'shell/escalated/destination_changed_again', 'free/already_done/escalation_on_record',
+    ]);
+    expect(row(HER.id).phone_number).toBe(A);
+    expect(row(stub.id).phone_number).toBe(B);
+    expect(row(stub.id).deleted_at).toBeUndefined();
+    expect(escalations()).toEqual([
+      expect.objectContaining({ actor_user_id: stub.id, teacher_phone_e164: B, detail: { via: VIA, to_phone: C, reason: 'sender_account_new' } }),
+      expect.objectContaining({ actor_user_id: HER.id, teacher_phone_e164: A, detail: { via: VIA, to_phone: B, reason: 'destination_changed_again' } }),
+    ]);
   });
 
   test('S6: A->B, then B->A, then A->B replayed: the replay is older than her last move and is skipped', async () => {
@@ -281,5 +295,125 @@ describe('honest outcomes', () => {
       expect(typeof o.reason).toBe('string');
     }
     expect(outcomes().map((o) => o.action)).toEqual(['escalated', 'skipped_unverified', 'skipped_flag_off']);
+  });
+});
+
+describe('round 2: stale means an older CHANGE, not an older row (S7, S11)', () => {
+  const HER = { id: id(20), phone_number: A, name: 'Her', registration_completed: true, created_at: '2025-01-10T08:00:00' };
+  const HOUR = 60 * 60 * 1000;
+
+  test('S7: A->B and B->C an hour apart, both delivered after a 2 h outage: both apply, she ends on C', async () => {
+    setup([{ ...HER }]);
+    clock = CHANGED_AT + 2 * HOUR; // the bot is back: Meta redelivers A->B first
+    await apply(notice(A, B), senderOn(A));
+    clock += 5000; // then B->C, which she made at +1 h, during the outage
+    await apply(notice(B, C, CHANGED_AT + HOUR), senderOn(B));
+    expect(said()).toEqual(['free/moved/null', 'free/moved/null']);
+    expect(row(HER.id).phone_number).toBe(C);
+    expect(escalations()).toEqual([]);
+  });
+
+  test('a Meta move records when its change happened (changed_at), which is what a later notice is compared with', async () => {
+    setup([{ ...HER }]);
+    clock = CHANGED_AT + 2 * HOUR;
+    await apply(notice(A, B), senderOn(A));
+    const move = db.writes.find((w) => w.table === 'leader_roster_audit').rows[0];
+    expect(move.detail).toEqual(expect.objectContaining({ via: VIA, changed_at: new Date(CHANGED_AT).toISOString() }));
+  });
+
+  test('S7b: the same with no outage: both apply', async () => {
+    setup([{ ...HER }]);
+    clock = CHANGED_AT + 3000;
+    await apply(notice(A, B), senderOn(A));
+    clock = CHANGED_AT + HOUR + 3000;
+    await apply(notice(B, C, CHANGED_AT + HOUR), senderOn(B));
+    expect(said()).toEqual(['free/moved/null', 'free/moved/null']);
+    expect(row(HER.id).phone_number).toBe(C);
+  });
+
+  test('S11: a coach moved her onto A after she left A in WhatsApp: the notice is escalated, not dropped as stale', async () => {
+    setup([{ ...HER, phone_number: A }]);
+    db.tables.leader_roster_audit.push({
+      action: 'edit_phone', actor_user_id: id(500), teacher_ext_id: HER.id, teacher_phone_e164: fx(999),
+      created_at: '2026-11-08T09:10:00+00:00',
+      detail: { via: 'portal_coach_v2', from_phone: fx(999), to_phone: A, case: 'free', retired_user_id: null },
+    });
+    clock = Date.parse('2026-11-08T09:15:00.000Z');
+    await apply(notice(A, B), senderOn(A));
+    expect(said()).toEqual(['free/escalated/notice_predates_coach_edit']);
+    expect(row(HER.id).phone_number).toBe(A);
+    expect(escalations()).toEqual([expect.objectContaining({
+      actor_user_id: HER.id, detail: { via: VIA, to_phone: B, reason: 'notice_predates_coach_edit' },
+    })]);
+  });
+
+  test('a coach edit made BEFORE the change does not hold the notice back', async () => {
+    setup([{ ...HER }]);
+    db.tables.leader_roster_audit.push({
+      action: 'edit_phone', actor_user_id: id(500), teacher_ext_id: HER.id, teacher_phone_e164: fx(999),
+      created_at: '2026-11-01T09:10:00+00:00',
+      detail: { via: 'portal_coach_v2', from_phone: fx(999), to_phone: A, case: 'free', retired_user_id: null },
+    });
+    await apply(notice(A, B), senderOn(A));
+    expect(said()).toEqual(['free/moved/null']);
+    expect(row(HER.id).phone_number).toBe(B);
+  });
+});
+
+describe('round 2: a write that throws after her number moved (S12)', () => {
+  const HER = { id: id(21), phone_number: A, name: 'Her', registration_completed: true, created_at: '2025-01-10T08:00:00' };
+  const SHELL = { id: id(22), phone_number: B, name: null, registration_completed: false, created_at: '2026-11-08T09:00:30' };
+
+  test('S12: a free move whose visits write throws: she is on B, the move is recorded, the step that threw is escalated', async () => {
+    setup([{ ...HER }], { observation_schedules: [{ id: 'v1', teacher_ext_id: A }] });
+    db.throwWrite = (table) => table === 'observation_schedules';
+    await expect(apply(notice(A, B), senderOn(A))).resolves.toBeUndefined();
+    expect(said()).toEqual(['free/moved/move_incomplete']);
+    expect(row(HER.id).phone_number).toBe(B);
+    const move = db.writes.find((w) => w.table === 'leader_roster_audit' && w.rows[0].action === 'edit_phone').rows[0];
+    expect(move.detail).toEqual(expect.objectContaining({ case: 'free', retired_user_id: null, visits_failed: true }));
+    expect(escalations()).toEqual([expect.objectContaining({
+      detail: { via: VIA, to_phone: B, reason: 'move_incomplete', retired_user_id: null, failed_step: 'visits' },
+    })]);
+  });
+
+  test('a fold whose visits write throws: folded, and the escalation says the shell\'s rows were never handed over', async () => {
+    setup([{ ...HER }, { ...SHELL }], { observation_schedules: [{ id: 'v1', teacher_ext_id: A }], niete_lp_opens: [{ id: 'o1', user_id: SHELL.id }] });
+    db.throwWrite = (table) => table === 'observation_schedules';
+    await apply(notice(A, B), senderOn(A));
+    expect(said()).toEqual(['shell/folded/move_incomplete']);
+    expect(row(HER.id).phone_number).toBe(B);
+    expect(db.tables.niete_lp_opens[0].user_id).toBe(SHELL.id);
+    const move = db.writes.find((w) => w.table === 'leader_roster_audit' && w.rows[0].action === 'edit_phone').rows[0];
+    expect(move.detail).toEqual(expect.objectContaining({ case: 'shell', retired_user_id: SHELL.id }));
+    expect(escalations()).toEqual([expect.objectContaining({
+      detail: {
+        via: VIA, to_phone: B, reason: 'move_incomplete', retired_user_id: SHELL.id, failed_step: 'visits', not_run: ['reparent'],
+      },
+    })]);
+  });
+});
+
+describe('round 2: a date that cannot be read never clears a fold', () => {
+  const HER = { id: id(23), phone_number: A, name: 'Her', registration_completed: true, created_at: '2025-01-10T08:00:00' };
+
+  test('the account on the new number has no created_at: escalated (destination_predates_change), never folded', async () => {
+    const UNDATED = { id: id(24), phone_number: B, name: null, registration_completed: false, created_at: null };
+    setup([{ ...HER }, UNDATED]);
+    await apply(notice(A, B), senderOn(A));
+    expect(said()).toEqual(['shell/escalated/destination_predates_change']);
+    expect(row(UNDATED.id).phone_number).toBe(B);
+    expect(row(HER.id).phone_number).toBe(A);
+  });
+
+  test('the notice carries no timestamp: a shell is escalated (destination_predates_change), never folded', async () => {
+    const MADE = { id: id(25), phone_number: B, name: null, registration_completed: false, created_at: '2026-11-08T09:00:30' };
+    setup([{ ...HER }, MADE]);
+    const untimed = { ...notice(A, B) };
+    delete untimed.timestamp;
+    await apply(untimed, senderOn(A));
+    expect(said()).toEqual(['shell/escalated/destination_predates_change']);
+    expect(row(MADE.id).phone_number).toBe(B);
+    expect(row(HER.id).phone_number).toBe(A);
   });
 });
