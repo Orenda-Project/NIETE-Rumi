@@ -715,6 +715,8 @@ export type PortalConfig = {
     principalApp?: boolean;
     /** bd-ik5e8j.4 — the help videos: the "?" and More → How to use (portal_help_videos, with the teacher app on; fail-closed). */
     helpVideos?: boolean;
+    /** bd-snkn32 — Make my own lesson plan (portal_lp_make_own, with the teacher app on; fail-closed). */
+    lpMakeOwn?: boolean;
   };
   /** bd-tacnwy — the profile types the switch offers (teacher, coach, principal); empty unless features.roleSwitch. */
   roleSwitchRoles?: string[];
