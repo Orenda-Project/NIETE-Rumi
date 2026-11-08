@@ -1,2 +1,3 @@
 {"ts":"2026-11-08T09:25:39Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"c312d6ba0ed2","branch":"bd-6nskfq.1-11193","user":""}
 {"ts":"2026-11-08T09:25:40Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"c312d6ba0ed2","branch":"bd-6nskfq.1-11193","user":""}
+{"ts":"2026-11-08T09:27:31Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"612c9509-03c9-4687-8d56-89d22fc4f739","sha":"c312d6ba0ed2","branch":"bd-6nskfq.1-11193","user":""}
