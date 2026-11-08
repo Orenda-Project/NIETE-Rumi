@@ -17,13 +17,17 @@
  *   taken  nothing moves; the coach edit's escalation is raised for a person             → escalated
  *          (a leader_roster_audit edit_phone_escalated row, the queue a human works)
  * No person is in this loop, so it folds less than the coach screen does. A shell is folded only when it was created
- * at or after the change (the account her new phone made) and never finished sign-up. Any other shell is escalated:
- * destination_predates_change (it was there before she changed number: a stranger's, or her own real account),
- * destination_registered (someone signed up on it).
+ * at or after the change (the account her new phone made), never finished sign-up, and is not itself the sender of a
+ * number change that waits on a person. Any other shell is escalated: destination_predates_change (it was there before
+ * she changed number: a stranger's, or her own real account), destination_registered (someone signed up on it),
+ * destination_changed_again (it has its own open change: a person settles both at once).
  *
  * Stale, repeated and out-of-order notices (Meta can resend, and deliveries can cross):
  *   - she is already on the new number                                         → already_done (already_on_number)
- *   - the notice is older than her latest edit_phone row: she has moved since  → skipped_stale
+ *   - one of her Meta moves was for a change made after this one: a replay     → skipped_stale
+ *     (CHANGE times are compared: each Meta edit_phone row keeps its notice's changed_at, so a late delivery is still
+ *     in order; when a row was written never decides it)
+ *   - a coach changed her number after this change was made                    → escalated (notice_predates_coach_edit)
  *   - the change is already on record: the account on the new number was moved there from the old one (an edit_phone
  *     row, by a coach or by this), or this change already waits on a person (its escalation, within the day the
  *     webhook still accepts a resend in)                                       → already_done (move_on_record, escalation_on_record)
@@ -33,7 +37,8 @@
  *
  * A move that stops half way is recorded, never left silent: when the shell was retired and her number write then
  * failed, or her booked visits or a shell table did not follow, an edit_phone_escalated row names the retired account
- * and the step that failed (reason move_incomplete), and a log line says so.
+ * and the step that failed (reason move_incomplete), and a log line says so. A write that throws after her number
+ * moved still writes the move's edit_phone row, and escalates the step that threw.
  *
  * Every move and escalation leaves the coach edit's audit row, written as her own change: she is the actor (she changed
  * her number), no coach's roster is affected, detail.via is 'meta_number_change'; its writes run as her too
@@ -84,12 +89,27 @@ function settle(out, action, reason) {
   out.reason = reason;
 }
 
-/** When her latest edit_phone row was written (epoch ms), or NaN when she has none. Throws on a refused read. */
-async function lastMoveAt(supabase, userId) {
+/**
+ * What her own edit_phone rows say about this notice. It compares CHANGE times, never when a row was written: a notice
+ * delivered late is still in order with the changes around it.
+ *   'stale'  one of her Meta moves was for a change made after this one (its detail.changed_at): this is a replay;
+ *   'coach'  a coach changed her number after this change was made (the coach row's created_at): a person reconciles;
+ *   null     neither (or the notice has no time to compare). Throws on a refused read.
+ */
+async function laterMoves(supabase, userId, changedAt) {
   const { data, error } = await supabase.from('leader_roster_audit')
-    .select('created_at').eq('teacher_ext_id', userId).eq('action', 'edit_phone');
+    .select('created_at, detail').eq('teacher_ext_id', userId).eq('action', 'edit_phone');
   if (error) throw new Error(error.message || 'audit read refused');
-  return (data || []).reduce((latest, r) => Math.max(latest, utcMs(r && r.created_at) || -Infinity), -Infinity);
+  let coach = false;
+  for (const r of data || []) {
+    const d = (r && r.detail) || {};
+    if (d.via === VIA) {
+      if (utcMs(d.changed_at) > changedAt) return 'stale';
+    } else if (utcMs(r && r.created_at) > changedAt) {
+      coach = true;
+    }
+  }
+  return coach ? 'coach' : null;
 }
 
 /**
@@ -119,7 +139,9 @@ async function alreadyOnRecord(supabase, { user, target, fromPhone, toPhone }) {
 
 /**
  * Why this shell may NOT be folded, or null when it may: it must have been created at or after the change (the account
- * her new phone made) and never have finished sign-up. A date that cannot be read cannot clear it (fail closed).
+ * her new phone made), never have finished sign-up, and not itself be the sender of a number change that waits on a
+ * person (folding it would retire the account that escalation names: a person settles both at once). A date that
+ * cannot be read cannot clear it (fail closed).
  */
 async function whyNotFold(supabase, target, changedAt) {
   const { data, error } = await supabase.from('users')
@@ -128,6 +150,13 @@ async function whyNotFold(supabase, target, changedAt) {
   const made = utcMs(data && data.created_at);
   if (!Number.isFinite(made) || !Number.isFinite(changedAt) || made < changedAt - CLOCK_GRACE_MS) return 'destination_predates_change';
   if (data.registration_completed === true) return 'destination_registered';
+  const { data: open, error: openError } = await supabase.from('leader_roster_audit')
+    .select('detail, created_at').eq('teacher_ext_id', target.id).eq('action', 'edit_phone_escalated');
+  if (openError) throw new Error(openError.message || 'audit read refused');
+  const now = Date.now();
+  if ((open || []).some((r) => r && r.detail && r.detail.via === VIA && now - utcMs(r.created_at) < RESEND_WINDOW_MS)) {
+    return 'destination_changed_again';
+  }
   return null;
 }
 
@@ -163,6 +192,22 @@ async function escalate(out, supabase, user, toPhone, reason, extra = {}) {
   else settle(out, 'failed', 'escalation_unrecorded');
 }
 
+/**
+ * Her number has moved: write the move's edit_phone row (with the change's own time, changed_at, which a later notice
+ * is compared with), then escalate any step left behind (`left`: { failed_step, ... }) for a person. The outcome is the
+ * move; the reason says what is left (move_incomplete), or that a row could not be written.
+ */
+async function recordMove(out, supabase, user, { fromPhone, toPhone, changedIso }, move, left) {
+  const action = move.verdict === _E().CASE_SHELL ? 'folded' : 'moved';
+  const detail = { ..._C().moveDetail(fromPhone, toPhone, move), changed_at: changedIso };
+  const recorded = await audit(supabase, user, 'edit_phone', detail);
+  if (left) {
+    await escalate(out, supabase, user, toPhone, 'move_incomplete', { retired_user_id: move.retiredId || null, ...left });
+    return settle(out, action, out.action === 'escalated' ? 'move_incomplete' : 'escalation_unrecorded');
+  }
+  return settle(out, action, recorded ? null : 'audit_unrecorded');
+}
+
 /** The gates, then the verdict. Fills `out` as it goes, so a failure part-way still reports what was known. */
 async function decide(out, { message, user, signatureOk }, change) {
   const state = await require('../../config/feature-flags').metaNumberChangeState();
@@ -178,14 +223,16 @@ async function decide(out, { message, user, signatureOk }, change) {
 
   const supabase = _db();
   const changedAt = Number(message && message.timestamp) * 1000;
-  let last;
+  const changedDate = new Date(changedAt);
+  const changedIso = Number.isNaN(changedDate.getTime()) ? null : changedDate.toISOString();
+  let later;
   try {
-    last = await lastMoveAt(supabase, user.id);
+    later = await laterMoves(supabase, user.id, changedAt);
   } catch (err) {
     settle(out, 'failed', 'audit_unreadable');
     throw err;
   }
-  if (Number.isFinite(changedAt) && changedAt < last) return settle(out, 'skipped_stale', 'notice_older_than_last_move');
+  if (later === 'stale') return settle(out, 'skipped_stale', 'notice_older_than_last_move');
 
   const C = _C();
   const E = _E();
@@ -207,6 +254,7 @@ async function decide(out, { message, user, signatureOk }, change) {
     throw err;
   }
   if (onRecord) return settle(out, 'already_done', onRecord);
+  if (later === 'coach') return escalate(out, supabase, user, toPhone, 'notice_predates_coach_edit');
 
   const made = utcMs(user.created_at);
   if (Number.isFinite(made) && Number.isFinite(changedAt) && made >= changedAt - CLOCK_GRACE_MS) {
@@ -224,11 +272,20 @@ async function decide(out, { message, user, signatureOk }, change) {
     if (why) return escalate(out, supabase, user, toPhone, why);
   }
 
+  const where = { fromPhone, toPhone, changedIso };
   let move;
   try {
     move = await C.moveNumber({ userId: user.id, fromPhone, toPhone, target, actor: VIA });
   } catch (err) {
     const at = (err && err.moveProgress) || {};
+    if (at.step === 'visits' || at.step === 'reparent') {
+      // Her number had already moved when this write threw: record the move, and the step that threw for a person.
+      // A throw at the visits step means the shell's rows were never handed over either.
+      swallow('identity.number_change_applied: move', err);
+      return recordMove(out, supabase, user, where,
+        { verdict: at.verdict, retiredId: at.retiredId, reparent: null, visitsFailed: at.step === 'visits' },
+        { failed_step: at.step, ...(at.retiredId && at.step === 'visits' ? { not_run: ['reparent'] } : {}) });
+    }
     if (at.retiredId) {
       swallow('identity.number_change_applied: move', err);
       return escalate(out, supabase, user, toPhone, 'move_incomplete', { retired_user_id: at.retiredId, failed_step: at.step });
@@ -243,18 +300,11 @@ async function decide(out, { message, user, signatureOk }, change) {
     return settle(out, 'failed', `${move.refused || 'move'}_refused`);
   }
 
-  const action = move.verdict === E.CASE_SHELL ? 'folded' : 'moved';
-  const recorded = await audit(supabase, user, 'edit_phone', C.moveDetail(fromPhone, toPhone, move));
   const failedRows = (move.reparent && move.reparent.failed) || [];
   const left = [move.visitsFailed && 'visits', failedRows.length && 'reparent'].filter(Boolean);
-  if (left.length) {
-    await escalate(out, supabase, user, toPhone, 'move_incomplete', {
-      retired_user_id: move.retiredId, failed_step: left.join(','), ...(failedRows.length ? { reparent_failed: failedRows } : {}),
-    });
-    // The number moved either way: the outcome is the move, the reason says what is left for a person.
-    return settle(out, action, out.action === 'escalated' ? 'move_incomplete' : 'escalation_unrecorded');
-  }
-  return settle(out, action, recorded ? null : 'audit_unrecorded');
+  return recordMove(out, supabase, user, where, move, left.length
+    ? { failed_step: left.join(','), ...(failedRows.length ? { reparent_failed: failedRows } : {}) }
+    : null);
 }
 
 /**
