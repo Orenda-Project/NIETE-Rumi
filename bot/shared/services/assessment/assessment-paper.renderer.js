@@ -76,6 +76,7 @@ const SUBJECT_NAMES = {
   science: 'Science', gensci: 'Science',
   genk: 'General Knowledge', general_knowledge: 'General Knowledge',
   sst: 'Social Studies', social_studies: 'Social Studies',
+  general_knowledge_en: 'General Knowledge', social_studies_en: 'Social Studies',
   // G6-12 registry codes (subject-config.js).
   general_science: 'General Science', computer_science: 'Computer Science', history: 'History',
   geography: 'Geography', zarai_taleem: 'Zarai Taleem', physics: 'Physics', chemistry: 'Chemistry',
