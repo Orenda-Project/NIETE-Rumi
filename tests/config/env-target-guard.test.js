@@ -75,6 +75,19 @@ describe('evaluateEnvTarget', () => {
     expect(evaluateEnvTarget({ fileVars: {}, env: procEnv() }).ok).toBe(true);
   });
 
+  it('allows an unlabelled .env whose SUPABASE_URL is a loopback database (the local E2E stack)', () => {
+    for (const url of ['http://127.0.0.1:54411', 'http://localhost:54321', 'http://[::1]:5432']) {
+      const r = evaluateEnvTarget({ fileVars: { SUPABASE_URL: url }, env: { SUPABASE_URL: url } });
+      expect(r).toEqual({ ok: true, target: 'local' });
+    }
+  });
+
+  it('does not treat a lookalike host as loopback', () => {
+    const url = 'https://localhost.example-ref.supabase.co';
+    const r = evaluateEnvTarget({ fileVars: { SUPABASE_URL: url }, env: { SUPABASE_URL: url } });
+    expect(r.ok).toBe(false);
+  });
+
   it('stays out of the way when the process env overrides the file URL', () => {
     const r = evaluateEnvTarget({
       fileVars: fromFile(),

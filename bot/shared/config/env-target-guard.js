@@ -14,10 +14,21 @@
  */
 
 const PRODUCTION_LABELS = new Set(['production', 'prod']);
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]']);
+
+function isLoopback(url) {
+  try {
+    return LOOPBACK_HOSTS.has(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
 
 function evaluateEnvTarget({ fileVars, env }) {
   const fileUrl = fileVars && fileVars.SUPABASE_URL;
   if (!fileUrl || fileUrl !== env.SUPABASE_URL) return { ok: true, target: null };
+  // A database on this machine (the local E2E stack) cannot be a hosted production project.
+  if (isLoopback(fileUrl)) return { ok: true, target: 'local' };
 
   const target = String(fileVars.RUMI_ENV_TARGET || '').trim().toLowerCase();
   if (!target) {
