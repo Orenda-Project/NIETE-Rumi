@@ -1,0 +1,2 @@
+{"ts":"2026-11-08T19:59:15Z","hook":"post-commit","event":"armed","switch":"","detail":"features=observe,portal-smoke spec_sync=true","sha":"da62e7de93bf","branch":"bd-apnnh2.11-65359","user":"tariqtaleemabad"}
+{"ts":"2026-11-08T19:59:18Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=observe,portal-smoke spec_sync=true","sha":"da62e7de93bf","branch":"bd-apnnh2.11-65359","user":"tariqtaleemabad"}
