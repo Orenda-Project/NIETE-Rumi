@@ -25,7 +25,8 @@ const { extractJsonFromResponse } = require('./assessment-json.util');
 const { stemsBlock, applyStems } = require('./topics/stem-prompt');
 const { capBlooms, appliesToGrade, APPLY_NOTE } = require('./bloom-ceiling');
 
-const PROMPTS = require('./ict-prompts.json');
+// The English-medium GK/SST prompts (bd-uam6dh) sit in their own file: ict-prompts.json is pinned key by key.
+const PROMPTS = { ...require('./ict-prompts.json'), ...require('./gk-sst-en-prompts.json') };
 
 /** One question, one answer: what this family should run right now. */
 function familyModel(family) {
@@ -76,6 +77,9 @@ const CANON = {
   science: 'science', gensci: 'science',
   genk: 'genk', general_knowledge: 'genk',
   sst: 'sst', social_studies: 'sst',
+  // The English-medium books (bd-uam6dh): English prompt, English model, not in URDU_MEDIUM.
+  general_knowledge_en: 'genk_en',
+  social_studies_en: 'sst_en',
 };
 
 const SYSTEM_PROMPT = {
@@ -86,6 +90,8 @@ const SYSTEM_PROMPT = {
   sst: 'eg.ict.sst.system',
   islamiat: 'eg.ict.islamiat.system',
   genk: 'eg.ict.genk.system',
+  genk_en: 'eg.ict.genk_en.system',
+  sst_en: 'eg.ict.sst_en.system',
 };
 
 // Which output-format prompt a subject gets. Not arbitrary:
