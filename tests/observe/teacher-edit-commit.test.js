@@ -31,7 +31,12 @@ function fakeSupabase() {
       let headCount = false;
       let single = false;
       let returning = false;
-      const match = (row) => filters.every(([kind, c, v]) => (kind === 'eq' ? row[c] === v : v.includes(row[c])));
+      const match = (row) => filters.every(([kind, c, v]) => {
+        if (kind === 'eq') return row[c] === v;
+        // PostgREST IS: a column the row does not carry reads as NULL.
+        if (kind === 'is') return (row[c] === undefined ? null : row[c]) === v;
+        return v.includes(row[c]);
+      });
       const run = () => {
         if (op === 'insert') { t.push(...inserted); return { data: null, error: null }; }
         const hits = t.filter(match);
@@ -49,6 +54,7 @@ function fakeSupabase() {
         select(_cols, opts) { if (opts && opts.head) headCount = true; if (op === 'update') returning = true; return chain; },
         eq(c, v) { filters.push(['eq', c, v]); return chain; },
         in(c, v) { filters.push(['in', c, v]); return chain; },
+        is(c, v) { filters.push(['is', c, v]); return chain; },
         limit() { return chain; },
         maybeSingle() { single = true; return chain; },
         update(p) { op = 'update'; patch = p; return chain; },
