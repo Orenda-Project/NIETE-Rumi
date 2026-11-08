@@ -83,8 +83,10 @@ describe('SUBJECT_NAMES / RTL_SUBJECTS (assessment-paper.renderer.js)', () => {
 });
 
 describe('untouched maps', () => {
-  it('SUBJECT_LABEL is unchanged', () => {
-    expect(Vocab.SUBJECT_LABEL).toEqual(OLD_LABEL);
+  it('SUBJECT_LABEL is unchanged, bar the English-medium GK/SST codes (bd-uam6dh)', () => {
+    const { general_knowledge_en: gk, social_studies_en: sst, ...rest } = Vocab.SUBJECT_LABEL;
+    expect(rest).toEqual(OLD_LABEL);
+    expect([gk, sst]).toEqual(['General Knowledge', 'Social Studies']);
   });
   it('URDU_MEDIUM line is unchanged', () => {
     const src = fs.readFileSync(path.join(__dirname, A, 'assessment-generation.service.js'), 'utf8');
