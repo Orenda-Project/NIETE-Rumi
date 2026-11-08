@@ -1,2 +1,3 @@
 {"ts":"2026-11-08T07:38:57Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test,fde-board-pattern spec_sync=true","sha":"568aae0fdbb9","branch":"bd-nzy6je-23369","user":""}
 {"ts":"2026-11-08T07:39:00Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test,fde-board-pattern spec_sync=true","sha":"568aae0fdbb9","branch":"bd-nzy6je-23369","user":""}
+{"ts":"2026-11-08T07:46:18Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"5712980b-f3f2-4113-8c11-cd66e58760e9","sha":"568aae0fdbb9","branch":"bd-nzy6je-stg","user":""}
