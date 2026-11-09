@@ -101,6 +101,7 @@ const {
   PORTAL_TEACHER_HOME_CARD_KEY,
   PORTAL_TEACHER_HOME_ORDER_KEY,
   PORTAL_TEACHER_HOME_LOOK_KEY,
+  PORTAL_LP_MAKE_OWN_KEY,
   PORTAL_COACHIP_KEY,
   PORTAL_COACHIP_DECODE_KEY,
   rmSectorFor,
@@ -9169,6 +9170,7 @@ router.get('/config', async (req, res) => {
       coachFullAppRaw,
       coachReportsAppRaw,
       principalApp,
+      lpMakeOwnRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9213,6 +9215,8 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, userId),
       // bd-33wxxi.1 — the principal app (portal_principal_app): a principal on it gets the teacher app plus her school.
       isPrincipalAppUser(supabase, userId),
+      // bd-snkn32 — Make my own lesson plan, per user; it rides with the teacher app v2 on.
+      isFlagEnabledForUser(supabase, PORTAL_LP_MAKE_OWN_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -9245,6 +9249,7 @@ router.get('/config', async (req, res) => {
         coachReportsApp: coachV2 && coachReportsAppRaw,
         roleSwitch,
         principalApp,
+        lpMakeOwn: teacherV2 && lpMakeOwnRaw,
       },
     });
   } catch (error) {
@@ -9276,6 +9281,7 @@ router.get('/config', async (req, res) => {
         coachFullApp: false,
         roleSwitch: false,
         principalApp: false,
+        lpMakeOwn: false,
       },
       roleSwitchRoles: [],
     });
