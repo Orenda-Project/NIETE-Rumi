@@ -3,3 +3,4 @@
 {"ts":"2026-11-09T13:09:53Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"45af9fcda835","branch":"bd-iceyyu-28480","user":""}
 {"ts":"2026-11-09T13:10:00Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-iceyyu-28480: lesson-plan spec: NOT UPDATED e2e: missing","sha":"45af9fcda835","branch":"bd-iceyyu-28480","user":""}
 {"ts":"2026-11-09T13:39:15Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (spec synced in 3063b1130: two Make my own scenarios, validator OK; db166cd and 45af9fc only change log levels and log ids, nothing a teacher sees)","sha":"45af9fcda835","branch":"bd-iceyyu-28480","user":""}
+{"ts":"2026-11-09T13:39:15Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"b8ba827b-b158-4cd4-be28-f6e3bdea09ac","sha":"45af9fcda835","branch":"bd-iceyyu-28480","user":""}
