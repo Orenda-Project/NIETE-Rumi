@@ -302,7 +302,12 @@ async function renderStatus(renderId, userId) {
   // bd-snkn32 — no render by that id: it may be her "Make my own" fork, answered in this same shape so the portal's
   // poll, viewer and PDF relay need no second path. Only on a miss (a real render never reaches it), and read by id
   // AND her user id, so nobody else's fork is answered.
-  if (!data) return require('./lp612-own.service').ownStatus(renderId, userId);
+  if (!data) {
+    // Queue #71 — a GB lesson written on her tap in the app lives in GB's own rows (niete_gb_lp_renders).
+    const gb = await require('./gb-lp-serving.service').renderStatus(renderId, userId);
+    if (gb) return gb;
+    return require('./lp612-own.service').ownStatus(renderId, userId);
+  }
   // Filtered in JS rather than in the query on purpose — see `claims()`. The waiter list is
   // EMPTIED the moment the render completes, so a `.contains('waiters', …)` predicate would
   // stop matching at exactly the moment she is polling for the good news.
