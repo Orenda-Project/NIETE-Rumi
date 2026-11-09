@@ -38,6 +38,7 @@
 const { isPrincipalRole } = require('../lib/leader-role');
 const { getOverall } = require('./coaching-frameworks.service');
 const { createScoreMemo } = require('./schools-analytics.service');
+const { parseLessonRef } = require('../../bot/shared/utils/lesson-ref');
 const { indicatorsOf, movesOf } = require('./coach-disagreement-evidence');
 const { displayNameOf } = require('../../bot/shared/services/observe/patch-resolver.service');
 const { teacherLevelOf, VALID_LEVELS } = require('../../bot/shared/utils/teacher-level');
@@ -266,8 +267,6 @@ const SQL = Object.freeze({
 
 // ── the counting definitions (one function each) ─────────────────────────────
 
-const PLAN_REF_RX = /^grade_(\d+)_(.+?)_ch\d+_seg/;
-
 /**
  * LESSON PLANS. The RDF's lp_use (routine-data-flow rdf_niete/lp_use.py with_app_opens; the same rule
  * schools-analytics teachersSql counts as lpsUsed), with ONE change so repeat requests do not inflate it:
@@ -313,10 +312,11 @@ function lessonPlansOf(rows = [], opens = []) {
   for (const o of [...opens].sort(byAt)) {
     const day = P.pkDayOf(o.at);
     if (!day || !o.user_id || have.has(`${o.user_id}|${day}`)) continue;
-    const m = PLAN_REF_RX.exec(String(o.plan_ref || ''));
+    // A K-5 plan key — ICT's grade_<n>_…, GB's gb_g<n>_… or GB's v10 segment id (bd-97daxo.16, lesson-ref).
+    const p = parseLessonRef(String(o.plan_ref || ''), { kind: 'k5' });
     add(`app|${o.user_id}|${day}|${o.plan_ref}`, {
       id: `open:${o.id}`, userId: o.user_id, day, at: o.at, ref: o.plan_ref,
-      grade: m ? m[1] : null, subject: m ? m[2] : null, title: null,
+      grade: p ? String(p.grade) : null, subject: p ? p.subject : null, title: null,
     });
   }
   return out;

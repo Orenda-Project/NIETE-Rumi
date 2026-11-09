@@ -318,7 +318,10 @@ describe('the reads', () => {
     expect(a.sql).toMatch(/FROM lesson_plans l/);
     expect(a.sql).toMatch(/FROM niete_lp_opens o/);
     expect(a.sql).toMatch(/o\.plan_kind = 'k5'/);
-    expect(a.sql).not.toMatch(/g612|niete_lp612|lp_feedback/);
+    // bd-97daxo.16: the segment lane reaches Primary only for a Grade 1-5 segment (GB's v10 K-5 books; ICT has none)
+    const [before, segmentLane] = a.sql.split(/\n\s*UNION\n\s*SELECT t\.user_id/);
+    expect(before).not.toMatch(/g612|niete_lp612|lp_feedback/);
+    expect(segmentLane).toMatch(/JOIN niete_lp612_segments s ON s\.segment_id = t\.ref\s+WHERE s\.grade BETWEEN 1 AND 5\s*$/);
     // lesson_plans.created_at is a timestamp WITHOUT time zone holding UTC
     expect(a.sql).toMatch(/l\.created_at >= \(\$2::timestamptz AT TIME ZONE 'UTC'\)/);
     expect(a.sql).toMatch(/o\.opened_at < \$3::timestamptz/);
