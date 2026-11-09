@@ -1,0 +1,3 @@
+{"ts":"2026-11-09T13:01:10Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"3063b1130787","branch":"bd-iceyyu-28480","user":""}
+{"ts":"2026-11-09T13:01:15Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"3063b1130787","branch":"bd-iceyyu-28480","user":""}
+{"ts":"2026-11-09T13:01:53Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-iceyyu-28480: language spec: NOT UPDATED e2e: missing","sha":"3063b1130787","branch":"bd-iceyyu-28480","user":""}
