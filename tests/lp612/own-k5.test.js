@@ -122,6 +122,7 @@ describe('renderK5Own — the phone page', () => {
     expect(html).not.toMatch(/fonts\.googleapis|<link/); // the Railway Chromium fetches nothing: fonts are embedded
     expect(renderK5Own(script('ur'), { lang: 'ur', fontCss: '@font-face{x}' })).toContain('@font-face{x}');
     expect(html).toContain('ہوم ورک');
+    expect(html).toContain('دن ۲ از ۱۲'); // Urdu digits in the header, as in the body
     expect(renderK5Own(script('ur'), { lang: 'ur', subject: 'Urdu' })).toContain('اردو'); // the catalogue's English name, in Urdu
     expect(html).not.toContain('>Homework<');
   });
