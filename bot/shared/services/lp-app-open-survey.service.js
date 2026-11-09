@@ -2,7 +2,7 @@
 // (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
 // flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
 // (Hataf) before any new LP table.
-// Why, target model, follow-up (bd-42mo0w, audit planned): docs/lesson-plan-data-model-debt.md
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 'use strict';
 /**
  * The lesson-plan survey, for a plan she opened in the teacher app (bd-qvevax.2).

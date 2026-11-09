@@ -3,7 +3,7 @@
 // flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
 // (Hataf) before any new LP table.
 // Here: the GB hook forks into niete_gb_lp_renders, a copy of this lane's table; extend this table instead.
-// Why, target model, follow-up (bd-42mo0w, audit planned): docs/lesson-plan-data-model-debt.md
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 /**
  * What happens between the tap and the PDF, for grades 6-12.
  *

@@ -3,7 +3,7 @@
 // flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
 // (Hataf) before any new LP table.
 // Here: niete_gb_lp_renders is a copy of niete_lp612_renders (same FK, same unique key); it merges back first.
-// Why, target model, follow-up (bd-42mo0w, audit planned): docs/lesson-plan-data-model-debt.md
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 'use strict';
 /**
  * The GB K-5 subject screen (bd-rj6w0n.14.5, bd-rj6w0n.14.16): the grade's on-request books (English,
