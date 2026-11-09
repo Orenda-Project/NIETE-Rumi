@@ -1,0 +1,2 @@
+{"ts":"2026-11-09T13:09:41Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"45af9fcda835","branch":"bd-iceyyu-28480","user":""}
+{"ts":"2026-11-09T13:09:43Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-iceyyu-28480: lesson-plan spec: NOT UPDATED e2e: missing","sha":"45af9fcda835","branch":"bd-iceyyu-28480","user":""}
