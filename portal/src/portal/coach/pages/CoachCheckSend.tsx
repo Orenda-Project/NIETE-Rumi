@@ -7,7 +7,7 @@ import { AudioCard, ListRow } from "../../teacher/ui";
 import { Tray } from "../../teacher/ui/Tray";
 import { TimeStamp } from "../../teacher/ui/TimeStamp";
 import { StatusChip } from "../../teacher/ui/StatusChip";
-import { coach, leader, type RecentLessonPlan } from "../../services/api";
+import { leader, type RecentLessonPlan } from "../../services/api";
 import { Card, Loading, Failed, useLoad } from "../ui";
 import { clearDraft, getDraft, setDraft, type DraftAudio } from "../observeDraft";
 import LibraryPicker, { type PickedPlan } from "../../components/coaching/LibraryPicker";
@@ -19,7 +19,8 @@ import { withDuration } from "../../lib/webmDuration";
 import { OBSERVE, type ObserveCopy } from "../observe/copy";
 import { lengthShort, planKindLabel } from "../observe/format";
 import ObservePage from "../observe/ObservePage";
-import { sendingPath, startSend, useSendJob } from "../observe/sender";
+import { useObserveRoutes } from "../observe/observeRoutes";
+import { startSend, useSendJob } from "../observe/sender";
 import { lessonFilename } from "./CoachRecord";
 import type { CoachVisit } from "../types";
 
@@ -84,6 +85,7 @@ function SheetRow({ icon, label, onClick }: { icon: ReactNode; label: string; on
 const planSub = (p: RecentLessonPlan, C: ObserveCopy) => [p.grade != null ? C.grade(Number(p.grade)) : null, p.subject].filter(Boolean).join(" · ");
 
 function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
+  const routes = useObserveRoutes();
   const C = useCopy(OBSERVE);
   const navigate = useNavigate();
   const [stage, setStage] = useState<Stage>("check");
@@ -111,7 +113,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       forgetRecording(audio.recordingId);
     }
     clearDraft(visit.id);
-    navigate(`/portal/coach/visit/${visit.id}/${audio.recordingId ? "record" : "attach"}`, { replace: true });
+    navigate(audio.recordingId ? routes.record(visit.id) : routes.attach(visit.id), { replace: true });
   };
 
   const loadTheirRecent = useCallback(
@@ -155,8 +157,11 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       audio: { blob: audio.blob, filename: audio.filename },
       plan: plan ? (plan.kind === "library" ? { kind: "library", pick: plan.pick } : { kind: "file", file: plan.file }) : null,
       photos,
+      // bd-33wxxi.4 — where the strip's tap and the ready banner go (the principal app's own screens, or the coach's).
+      waitHref: routes.sending(visit.id),
+      observationHref: (obsId) => routes.observation(obsId),
     });
-    navigate(sendingPath(visit.id), { replace: true }); // Check and send is done: Back from Sending is never this page (it would bounce straight on)
+    navigate(routes.sending(visit.id), { replace: true }); // Check and send is done: Back from Sending is never this page (it would bounce straight on)
   };
 
   const crumb = <>{teacherName} · <TimeStamp time={visit.scheduledSlot} size={13} /></>;
@@ -172,7 +177,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   }
 
   return (
-    <ObservePage banner={false} title={C.checkAndSend} crumb={crumb} backTo={`/portal/coach/visit/${visit.id}`} feature="observations"
+    <ObservePage banner={false} title={C.checkAndSend} crumb={crumb} backTo={routes.visit(visit.id)} feature="observations"
       dock={(
         <button type="button" onClick={send}
           className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">
@@ -246,7 +251,8 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
 const CoachCheckSend = () => {
   const C = useCopy(OBSERVE);
   const { id = "" } = useParams();
-  const { data, failed, reload } = useLoad(() => coach.getVisit(id), [id]);
+  const routes = useObserveRoutes();
+  const { data, failed, reload } = useLoad(() => routes.loadVisit(id), [id]);
   const [audio, setAudio] = useState<DraftAudio | null>(() => getDraft(id));
   const [looked, setLooked] = useState(() => getDraft(id) != null);
   const job = useSendJob(id);
@@ -274,12 +280,12 @@ const CoachCheckSend = () => {
   }, [audio, visit, id, C]);
 
   // Being sent already: that is the page to be on.
-  if (job?.state === "sending") return <Navigate to={sendingPath(id)} replace />;
-  if (visit && (visit.status !== "upcoming" || !visit.teacherExtId)) return <Navigate to={`/portal/coach/visit/${id}`} replace />;
+  if (job?.state === "sending") return <Navigate to={routes.sending(id)} replace />;
+  if (visit && (visit.status !== "upcoming" || !visit.teacherExtId)) return <Navigate to={routes.visit(id)} replace />;
   if (visit && audio) return <CheckSend visit={visit} audio={audio} />;
 
   return (
-    <ObservePage banner={false} title={C.checkAndSend} backTo={`/portal/coach/visit/${id}`} feature="observations"
+    <ObservePage banner={false} title={C.checkAndSend} backTo={routes.visit(id)} feature="observations"
       crumb={visit ? <>{visit.teacherName || C.dash} · <TimeStamp time={visit.scheduledSlot} size={13} /></> : undefined}>
       {failed && <Failed onRetry={reload} />}
       {(!data || !looked) && !failed && <Loading />}
@@ -287,8 +293,8 @@ const CoachCheckSend = () => {
         <Card className="flex flex-col gap-3 p-4">
           <h2 className="text-xl font-light">{C.noRecording}</h2>
           <div className="[display:grid] grid-cols-2 gap-2.5">
-            <Link to={`/portal/coach/visit/${id}/record`} className="flex h-14 items-center justify-center rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.startRecording}</Link>
-            <Link to={`/portal/coach/visit/${id}/attach`} className="flex h-14 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025]">{C.uploadRecording}</Link>
+            <Link to={routes.record(id)} className="flex h-14 items-center justify-center rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.startRecording}</Link>
+            <Link to={routes.attach(id)} className="flex h-14 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025]">{C.uploadRecording}</Link>
           </div>
         </Card>
       )}

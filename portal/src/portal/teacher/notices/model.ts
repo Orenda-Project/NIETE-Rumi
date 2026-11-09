@@ -59,6 +59,8 @@ export interface NoticeItem {
   /** Real upload progress, 0..1. */
   progress?: number;
   observationId?: string | null;
+  /** bd-33wxxi.4 — where the ready observation opens when it is not the coach's page (the principal app's own). */
+  openHref?: string | null;
 }
 
 /** What tracking a new job needs; the rest is the tracker's. */

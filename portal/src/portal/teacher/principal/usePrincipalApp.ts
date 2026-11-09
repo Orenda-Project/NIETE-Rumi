@@ -9,8 +9,17 @@ import { principalOf, type RoleUserLike } from "../../lib/leaderRole";
  * the teacher app draws exactly what it draws for a teacher.
  */
 export function usePrincipalApp(user: RoleUserLike | null | undefined): boolean {
+  return usePrincipalAppState(user) === true;
+}
+
+/**
+ * bd-33wxxi.4 — the same answer, with `null` while /config has not answered yet (a page that must not redirect on a
+ * guess). Not a principal: false at once. A failed read: false.
+ */
+export function usePrincipalAppState(user: RoleUserLike | null | undefined): boolean | null {
   const principal = principalOf(user);
-  const [on, setOn] = useState<boolean>(() => principal && peekConfig()?.features?.principalApp === true);
+  const peeked = peekConfig();
+  const [on, setOn] = useState<boolean | null>(() => (!principal ? false : peeked ? peeked.features?.principalApp === true : null));
   useEffect(() => {
     if (!principal) { setOn(false); return undefined; }
     let live = true;
@@ -19,5 +28,5 @@ export function usePrincipalApp(user: RoleUserLike | null | undefined): boolean 
       .catch(() => { if (live) setOn(false); });
     return () => { live = false; };
   }, [principal]);
-  return principal && on;
+  return principal ? on : false;
 }
