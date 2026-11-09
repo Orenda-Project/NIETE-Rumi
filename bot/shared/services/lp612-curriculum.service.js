@@ -3,7 +3,7 @@
 // flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
 // (Hataf) before any new LP table.
 // Here: GB is gated by LP_GB_K5_ENABLED, a temporary launch gate; route by the region's books, not a new flag.
-// Why, target model, follow-up (bd-42mo0w, audit planned): docs/lesson-plan-data-model-debt.md
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 'use strict';
 /**
  * The GB K-5 lane's helpers (bd-rj6w0n.14.4).

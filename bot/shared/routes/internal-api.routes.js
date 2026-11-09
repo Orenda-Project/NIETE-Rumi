@@ -1334,7 +1334,7 @@ router.post('/classes/remove', requireInternalKey, async (req, res) => {
 // KNOWN DESIGN DEBT (Nov 2026): this branch exists because GB is gated by LP_GB_K5_ENABLED, a temporary launch
 // gate retired after the GB switch. Route by the region's books; do NOT add another per-region or
 // per-generation LP flag or catalogue here without asking the operator (Hataf).
-// Why, target model, follow-up (bd-42mo0w, audit planned): docs/lesson-plan-data-model-debt.md
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 /**
  * Which catalogue a portal browse reads (bd-rj6w0n.14): a GB teacher's, with LP_GB_K5_ENABLED on, is the GB K-5
  * lane (gb-k5-browse — the v10 plans WhatsApp serves); everyone else's is lp-v8-browse, unchanged. A pdf call goes
