@@ -1,3 +1,4 @@
 {"ts":"2026-11-09T09:20:37Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan,language spec_sync=true","sha":"8584685ffabd","branch":"bd-6nskfq.1-main-x","user":""}
 {"ts":"2026-11-09T09:20:38Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training,lesson-plan,language spec_sync=true","sha":"8584685ffabd","branch":"bd-6nskfq.1-main-x","user":""}
 {"ts":"2026-11-09T09:38:22Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks engine=2.0.0","sha":"8584685ffabd","branch":"bd-6nskfq.1-main-x","user":""}
+{"ts":"2026-11-09T09:49:25Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"language=none-needed (same: no teacher-facing string or language change)","sha":"8584685ffabd","branch":"bd-6nskfq.1-main-x","user":""}
