@@ -94,6 +94,7 @@ test('only the app features have a landing; anything else cannot be signed', () 
     assessment_topics: '/portal/teacher/assessment/new/class?by=topics', // bd-6clakk Task 9
     assessment_report: '/portal/teacher/assessment/new/class', // bd-pw1ccr.2, the A/B report button
     assessment_topic_nudge: '/portal/teacher/assessment/new/class', // bd-pw1ccr.4.2, the topic-end nudge button
+    lp_make_own: '/portal/teacher/lessons/own', // bd-iceyyu, the lesson-plan Flow's Make my own row
   });
   expect(signAppLink(USER, 'quiz')).toBeNull();
   expect(signAppLink(USER, 'observe')).toBeNull();
