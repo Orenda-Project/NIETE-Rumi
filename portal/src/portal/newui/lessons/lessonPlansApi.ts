@@ -9,6 +9,9 @@ import type { LessonPlanSource } from '../../lib/lessonPlanOpen';
  *   grades 1–5   /api/portal/curriculum/*   pre-written PDFs; a lesson listed is a lesson there
  *   grades 6–12  /api/portal/lp612/*        segments written on request (~3 min) and then kept
  *
+ * One exception, decided by the service and not by the grade: a GB teacher's own Grades 1-5 books (queue #71,
+ * "GB follows ICT 6-12") list every lesson with `on_request`; such a lesson is opened like a 6-12 one.
+ *
  * They answer in different dialects — a subject is a subject_key ('math') in one and a display
  * name ('Physics') in the other; a chapter is a number in one and a chapter_key in the other; a
  * 1–5 lesson is "there" while a 6–12 one may still have to be written. Everything below turns both
@@ -101,7 +104,10 @@ function k5Kind(row: Row): LessonKind {
   return 'day';
 }
 
-function k5Lesson(row: Row): LpLesson {
+function k5Lesson(row: Row, index: number): LpLesson {
+  // Queue #71 — a GB lesson (`on_request`) is listed in grades 1-5 but served like a 6-12 one: asked for through
+  // /lp612/request (written ones answer ready at once, unwritten ones are written, ~3 min), and picked by segment.
+  if (row.on_request === true) return { ...g612Lesson({ ...row, segment_id: row.lesson_id, title: row.topic }, index) };
   const { day, part } = parseDay(row.day_label);
   const kind = k5Kind(row);
   return {
@@ -227,7 +233,7 @@ export function createLessonPlansApi() {
     if (!lane) return [];
     if (lane === 'k5') {
       const { data } = await api.get('/curriculum/lps', { params: { grade, subject, chapter_number: chapter } });
-      return ((data?.lessons || []) as Row[]).map(k5Lesson);
+      return ((data?.lessons || []) as Row[]).map((row, i) => k5Lesson(row, i));
     }
     const { data } = await api.get('/lp612/lessons', { params: { grade, subject, chapter_key: chapter, lang: LANG_612 } });
     return ((data?.lessons || []) as Row[]).map(g612Lesson);
