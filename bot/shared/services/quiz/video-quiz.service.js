@@ -38,6 +38,7 @@ const Lead = require('./video-quiz-lead');
 // 2026-08-13, 80 minutes after the throttle shipped) hit exactly this gap.
 const rateLimiter = require('./video-quiz-rate-limiter.service');
 const Funnel = require('./quiz-funnel');
+const { isSameOpenRun } = require('./video-quiz-open-run');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 
 // Chrome a CHILD reads around the questions, in the quiz language.
@@ -427,6 +428,18 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
   // class link, which never saw an offer — so this is where the phone learns the
   // run's language for the taps that arrive after the run is over.
   await rememberRunLanguage(phone, language);
+
+  // bd-l9fr2: the same child re-sending the same class code while their run is open gets that run
+  // back (its current question again), never a second, empty session.
+  if (source === 'share_link') {
+    const open = await getActiveState(phone);
+    if (isSameOpenRun(open, { quizId, shareCodeId, studentId, userId })) {
+      logEvent('video_quiz.session_reused', { sessionId: open.sessionId, quizId, atIndex: open.index });
+      await sendNextQuestion(phone, open, lead ? { lead: { kind: 'opener', text: lead, gapMs: 0 } } : {});
+      return open;
+    }
+  }
+
   const { data: questions, error } = await supabase
     .from('quiz_questions')
     .select('id, external_id, sort_order')
