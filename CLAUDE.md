@@ -68,6 +68,11 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 6. **Pilot vendors' certificates are watermarked "NOT A REAL CERTIFICATE" in production too** — list them in
    `PILOT_WATERMARK_VENDORS` (`bot/shared/services/training/certificate-env.rules.js`). Empty since I-SAPS went
    live for all Middle & High teachers on 2026-10-01; `tests/training/isaps-pilot-watermark.test.js` pins it.
+7. **Lesson plans are known design debt (Nov 2026).** They are spread over ~20 tables, one set per product
+   generation. Do NOT add another per-region or per-generation LP table or env flag: extend the existing
+   table with the book as the separator, say so in the PR, and ask the operator (Hataf) before any new LP
+   table. Why and the target model: [docs/lesson-plan-data-model-debt.md](docs/lesson-plan-data-model-debt.md)
+   (follow-up `bd-42mo0w`, audit planned).
 
 ## Working rules
 
