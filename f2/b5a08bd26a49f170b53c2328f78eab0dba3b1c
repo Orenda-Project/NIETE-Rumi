@@ -13,3 +13,4 @@
 {"ts":"2026-11-08T07:46:55Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"fde-board-pattern=none-needed (shared-only: sendMessage now returns false without calling Meta when there is no recipient; every send with a recipient is unchanged)","sha":"f2b5a08bd26a","branch":"bd-mo5pru.1-stg","user":""}
 {"ts":"2026-11-08T07:46:55Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"5712980b-f3f2-4113-8c11-cd66e58760e9","sha":"f2b5a08bd26a","branch":"bd-mo5pru.1-stg","user":""}
 {"ts":"2026-11-08T08:31:21Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=session-hooks engine=2.0.0","sha":"f2b5a08bd26a","branch":"bd-mo5pru.1-stg","user":""}
+{"ts":"2026-11-09T06:06:42Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks engine=2.0.0","sha":"f2b5a08bd26a","branch":"bd-mo5pru.1-stg","user":""}
