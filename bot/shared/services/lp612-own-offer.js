@@ -102,7 +102,9 @@ async function sendOwnLink({ userId, phone, language, grade, subject, chapterKey
     let via = 'cta_url';
     let sent = await WhatsAppService.sendCtaUrl(phone, { body, buttonText, url });
     if (!sent) { via = 'text'; sent = await WhatsAppService.sendMessage(phone, `${body}\n${url}`); }
-    logToFile(sent ? '🔗 Make my own: link sent' : '❌ Make my own: link not delivered', { userId, grade, subject, chapterKey, via });
+    const at = { userId, grade, subject, chapterKey, via };
+    if (sent) logToFile('🔗 Make my own: link sent', at);
+    else logToFile('❌ Make my own: link not delivered', at, 'error');
     return Boolean(sent);
   } catch (err) {
     logToFile('❌ Make my own: link send threw', { userId, error: err && err.message }, 'error');
