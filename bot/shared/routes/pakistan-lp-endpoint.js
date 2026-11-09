@@ -69,6 +69,7 @@ const {
 } = require('../config/lp612-flags');
 const Lp612Curriculum = require('../services/lp612-curriculum.service');
 const Lp612GbShelf = require('../services/lp612-gb-shelf.service');
+const Lp612OwnOffer = require('../services/lp612-own-offer'); // bd-iceyyu — Make my own, a hand-off to the portal
 const { LANGUAGE_OFFER, offerDefaultLanguage } = require('../config/languages');
 const FlowTelemetry = require('./pakistan-lp-telemetry');
 
@@ -266,9 +267,10 @@ async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
   // off must be refused, not served.
   if (step === 'lp612_subject')      return lp612Guard(async () => selectLp612Subject(d, await books()));
   if (step === 'lp612_chapter_page') return lp612Guard(async () => selectLp612ChapterPage(d, await books()));
-  if (step === 'lp612_chapter')      return lp612Guard(async () => selectLp612Chapter(d, await books()));
+  if (step === 'lp612_chapter')      return lp612Guard(async () => selectLp612Chapter(d, await books(), flowToken));
   if (step === 'lp612_segment')      return lp612Guard(() => selectLp612Segment(flowToken, d));
   if (step === 'lp612_segment_page') return lp612Guard(async () => selectLp612SegmentPage(d, await books()));
+  if (step === Lp612OwnOffer.STEP)   return lp612Guard(() => selectLp612Own(flowToken, d));
   if (step === 'lp612_serve')        return lp612Guard(() => serveLp612Segment(flowToken, d));
   // bd-rj6w0n.14.5 — a Coming Soon GB book can be seen but never opened.
   if (step === Lp612GbShelf.SOON_STEP) {
@@ -991,7 +993,7 @@ async function selectLp612ChapterPage(d, curriculum) {
   return lp612ChapterScreen(d, parseInt(d.page, 10) || 2, 'SELECT_CHAPTER_MORE', curriculum);
 }
 
-async function lp612SegmentScreen(d, page, screenId, curriculum) {
+async function lp612SegmentScreen(d, page, screenId, curriculum, flowToken = null) {
   const grade = parseInt(d.grade, 10);
   if (!Number.isFinite(grade) || !d.subject || !d.chapter_key) {
     return { data: { error: { message: 'Please pick a chapter again.' } } };
@@ -1000,8 +1002,17 @@ async function lp612SegmentScreen(d, page, screenId, curriculum) {
   // (grade, subject) and number their chapters from c01, so without it this lists
   // both books' lessons under one chapter (bd-oak77.5). Absent on rows rendered
   // before that shipped, which is why buildSegmentItems treats it as optional.
-  const { items, total } = await Lp612Catalog.buildSegmentItems(
-    grade, d.subject, d.chapter_key, page, d.book_stem || null, ...lp612Args(curriculum));
+  // bd-iceyyu — Make my own goes first on page 1 for a flag-on teacher; the catalogue keeps a row free for it, and a
+  // later page knows from its More row (`lead`). Flag off: the catalogue is asked exactly as before.
+  const offered = page === 1 && Boolean(flowToken) && await Lp612OwnOffer.isOfferedTo(userIdFrom(flowToken));
+  const lead = offered || (page > 1 && d.lead === '1') ? 1 : 0;
+  const args = lead ? [{ ...(lp612Args(curriculum)[0] || {}), lead }] : lp612Args(curriculum);
+  const { items, total, rtl } = await Lp612Catalog.buildSegmentItems(
+    grade, d.subject, d.chapter_key, page, d.book_stem || null, ...args);
+  if (offered && items.length) {
+    items.unshift(Lp612OwnOffer.ownRow({ grade, subject: d.subject, chapterKey: String(d.chapter_key), rtl: Boolean(rtl) }));
+    logToFile('LP 6-12: Make my own row shown', { userId: userIdFrom(flowToken), grade, subject: d.subject, chapterKey: d.chapter_key });
+  }
   if (!items.length) {
     return { data: { error: { message: 'Those lesson plans are being prepared — check back soon.' } } };
   }
@@ -1018,8 +1029,29 @@ async function lp612SegmentScreen(d, page, screenId, curriculum) {
   };
 }
 
-async function selectLp612Chapter(d, curriculum) {
-  return lp612SegmentScreen(d, 1, 'SELECT_LESSON', curriculum);
+async function selectLp612Chapter(d, curriculum, flowToken = null) {
+  return lp612SegmentScreen(d, 1, 'SELECT_LESSON', curriculum, flowToken);
+}
+
+/**
+ * bd-iceyyu — "Make my own" was tapped. ONE message (a button into the portal's Make my own on this chapter, signed
+ * in), and the Flow closes saying the button is in the chat. Re-checked here: a row in scrollback outlives the flag.
+ */
+async function selectLp612Own(flowToken, d) {
+  const grade = parseInt(d.grade, 10);
+  const unavailable = (language) => ({ data: { error: { message: resolveUx('lpOwnUnavailable', { language }) } } });
+  if (!Number.isInteger(grade) || grade < 6 || grade > 12 || !d.subject || !d.chapter_key) return unavailable();
+  const userId = userIdFrom(flowToken);
+  if (!(await Lp612OwnOffer.isOfferedTo(userId))) return unavailable();
+  const who = await getPhoneForUser(userId);
+  if (!who || !who.phone_number) return unavailable();
+  const language = who.preferred_language;
+  logToFile('LP 6-12: Make my own row tapped', { userId, grade, subject: d.subject, chapterKey: d.chapter_key });
+  const sent = await Lp612OwnOffer.sendOwnLink({
+    userId, phone: who.phone_number, language, grade, subject: d.subject, chapterKey: String(d.chapter_key),
+  });
+  if (!sent) return unavailable(language);
+  return { screen: 'SUCCESS', data: { message: resolveUx('lpOwnFlowAck', { language }) } };
 }
 
 /** "More lessons →" — a second screen, because Meta rejects a self-route. */
