@@ -20,6 +20,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `quiz/` | Quiz and Challenge audio, language and kept-reading maintenance scripts → `quiz/CLAUDE.md` |
 | `render/` | Prototype LP renderers and Gamma-grounded LP smoke tests → `render/CLAUDE.md` |
 | `setup/` | Register WhatsApp Flows, templates and encryption with Meta; doctor preflight → `setup/CLAUDE.md` |
+| `sheet-lps/` | (no description yet) → `sheet-lps/CLAUDE.md` |
 | `templates/` | Menu carousel template creation and video upload; WABA-bound ids → `templates/CLAUDE.md` |
 | `testing/` | Local chat and webhook simulators for manual testing → `testing/CLAUDE.md` |
 | `video-reco/` | Builds the training-video catalogue for the recommender → `video-reco/CLAUDE.md` |
@@ -40,6 +41,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `exam-checker-annotate-demo.js` | Demo of the exam checker pipeline OCR to grade to annotated image; output goes to scripts/output |
 | `exam-checker-dry-run.js` | Dry-run test of the exam checker OCR plus grading pipeline on a sample exam image |
 | `export-lp612-segments.js` | Writes the live Grades 6-12 menu back out as corpus files, the first half of a video refresh before import-lp612-segmen… |
+| `gb-seed-renders.js` | (unmapped) |
 | `generate-child-test-check-flow-json.js` | Regenerates docs/flows/child-test-check.json from its generator; a contract test fails on drift |
 | `generate-child-test-review-flow-json.js` | Regenerates docs/flows/child-test-review.json (end-of-visit review Flow) from its generator; a contract test fails on d… |
 | `generate-coaching-excel.js` | Exports coaching sessions to an Excel sheet grouped by teacher with all observation data, for a coach |
@@ -70,6 +72,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `set-conversational-components.js` | Publishes the conversational-components manifest (ice breakers, slash commands, welcome) to one number from bot config… |
 | `setup-flow-encryption.js` | Generates an RSA-2048 key pair for Flow encryption, registers the public key with Meta, prints the private key for env |
 | `simulate.js` | CLI simulator building WhatsApp webhook payloads from text input for local testing without WhatsApp |
+| `sync-sheet-lps.js` | (unmapped) |
 | `upload-lp-v8-to-r2.js` | Compresses rendered v8 K-5 PDFs from the manifest, uploads to R2 by content hash and records niete_lp_assets; re-runnab… |
 | `upload-lp612-figures.js` | Uploads only the figure crops a diagram plan references to the shared bucket under lp612/ (bd-17mht) |
 | `upload-lp612-page-truth.js` | Uploads per-book _book.json, _toc.json and page JSONs so the Grades 6-12 runtime author can read printed-page text |
@@ -79,19 +82,23 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `verify-lp-v8-r2.js` | Fetches an uploaded LP PDF through the same presigned path a teacher's phone uses and checks it against niete_lp_assets |
 
 ## Who reads this (all, generated)
-- `build-lp-catalog.js` ← imported by `bot/scripts/lp-catalog-merge.js:42:c8e4b35f` · `bot/scripts/apply-lp-splits.js:14:4cb126a8`
-- `lp-catalog-splits.js` ← imported by `bot/scripts/build-lp-catalog.js:32:60ad3b78` · `bot/scripts/apply-lp-splits.js:15:60ad3b78`
-- column `niete_lp_assets.asset_kind` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/calls/call-tools.repo.js:177:bcc39851` · `bot/shared/services/coaching/live-moves/card-store.js:49:6d6b56b2` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:47:2fff1c6b` · `bot/shared/services/lp-ab-ch310.service.js:81:99dc5e17` (+10: `python3 kg/kg.py who-reads niete_lp_assets.asset_kind`)
+- `build-lp-catalog.js` ← imported by `bot/scripts/lp-catalog-merge.js:44:c8e4b35f` · `bot/scripts/sheet-lps/matrix.js:16:933bb1cf` · `bot/scripts/apply-lp-splits.js:14:4cb126a8`
+- `lp-catalog-splits.js` ← imported by `bot/scripts/build-lp-catalog.js:44:60ad3b78` · `bot/scripts/apply-lp-splits.js:15:60ad3b78`
+- `upload-lp-v8-to-r2.js` ← imported by `bot/scripts/sync-sheet-lps.js:158:fbb4c266`
+- column `niete_lp_assets.asset_kind` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/calls/call-tools.repo.js:182:bcc39851` · `bot/shared/services/coaching/live-moves/card-store.js:54:6d6b56b2` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:52:2fff1c6b` · `bot/shared/services/lp-ab-ch310.service.js:86:99dc5e17` (+11: `python3 kg/kg.py who-reads niete_lp_assets.asset_kind`)
 - column `niete_lp_assets.bytes` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/scripts/verify-lp-v8-r2.js:112:ed6ce269`
-- column `niete_lp_assets.catalog_version` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/services/lp-v8-delivery.service.js:114:f7c96069` · `scripts/backfill-lp-fidelity-moves.js:39:1967989e`
-- column `niete_lp_assets.content_hash` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/calls/call-tools.repo.js:178:749a8246` · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:53:b2096bb1` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:47:2fff1c6b` · `bot/shared/services/lp-ab-ch310.service.js:81:99dc5e17` (+8: `python3 kg/kg.py who-reads niete_lp_assets.content_hash`)
-- column `niete_lp_assets.is_current` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/services/coaching/live-moves/card-store.js:50:ee732571` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:47:2fff1c6b` · `bot/shared/services/lp-ab-ch310.service.js:81:99dc5e17` · `bot/shared/services/lp-v10-card.service.js:28:2fff1c6b` (+4: `python3 kg/kg.py who-reads niete_lp_assets.is_current`)
-- column `niete_lp_assets.lesson_id` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/calls/call-tools.repo.js:176:9a814673` · `bot/shared/services/coaching/live-moves/card-store.js:47:c6a45353` · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:53:b2096bb1` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:47:2fff1c6b` (+9: `python3 kg/kg.py who-reads niete_lp_assets.lesson_id`)
-- column `niete_lp_assets.r2_key` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/calls/call-tools.repo.js:175:e28a101f` · `bot/shared/services/coaching/live-moves/card-store.js:47:c6a45353` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:47:2fff1c6b` · `bot/shared/services/lp-ab-ch310.service.js:81:99dc5e17` (+4: `python3 kg/kg.py who-reads niete_lp_assets.r2_key`)
-- column `niete_lp_assets.source_sha1` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/scripts/ingest-lp-v9-html.js:176:34db02f7`
-- column `niete_lp_assets.version_stamp` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/services/coaching/live-moves/card-store.js:47:c6a45353` · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:53:b2096bb1` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:47:2fff1c6b` · `bot/shared/services/lp-ab-ch310.service.js:81:99dc5e17` (+7: `python3 kg/kg.py who-reads niete_lp_assets.version_stamp`)
-- table `niete_lp_assets` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/calls/call-tools.repo.js:174:c7464c20`? · `bot/shared/services/coaching/live-moves/card-store.js:46:c7464c20`? · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:52:c7464c20`? · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:46:c7464c20`? (+11: `python3 kg/kg.py who-reads niete_lp_assets`)
-- table `pre_generated_lps` (written by `seed-feat059-feat080-pakistan-lps.js`) ← read by `bot/shared/routes/pakistan-lp-endpoint.js:95:a684f67f`? · `bot/shared/services/pregen-lookup.service.js:26:a684f67f`? · `bot/scripts/migration/survey-lp-inventory.js:59:a684f67f`?
+- column `niete_lp_assets.catalog_version` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/services/lp-v8-delivery.service.js:119:f7c96069` · `scripts/backfill-lp-fidelity-moves.js:39:1967989e` · `bot/scripts/sync-sheet-lps.js:112:0ac4c930`
+- column `niete_lp_assets.content_hash` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/calls/call-tools.repo.js:183:749a8246` · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:58:b2096bb1` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:52:2fff1c6b` · `bot/shared/services/lp-ab-ch310.service.js:86:99dc5e17` (+9: `python3 kg/kg.py who-reads niete_lp_assets.content_hash`)
+- column `niete_lp_assets.is_current` (written by `sync-sheet-lps.js`, `upload-lp-v8-to-r2.js`) ← read by `bot/shared/services/coaching/live-moves/card-store.js:55:ee732571` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:52:2fff1c6b` · `bot/shared/services/lp-ab-ch310.service.js:86:99dc5e17` · `bot/shared/services/lp-v10-card.service.js:33:2fff1c6b` (+6: `python3 kg/kg.py who-reads niete_lp_assets.is_current`)
+- column `niete_lp_assets.lesson_id` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/calls/call-tools.repo.js:181:9a814673` · `bot/shared/services/coaching/live-moves/card-store.js:52:c6a45353` · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:58:b2096bb1` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:52:2fff1c6b` (+10: `python3 kg/kg.py who-reads niete_lp_assets.lesson_id`)
+- column `niete_lp_assets.r2_key` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/calls/call-tools.repo.js:180:e28a101f` · `bot/shared/services/coaching/live-moves/card-store.js:52:c6a45353` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:52:2fff1c6b` · `bot/shared/services/lp-ab-ch310.service.js:86:99dc5e17` (+4: `python3 kg/kg.py who-reads niete_lp_assets.r2_key`)
+- column `niete_lp_assets.source_sha1` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/scripts/ingest-lp-v9-html.js:181:34db02f7` · `bot/scripts/sync-sheet-lps.js:111:60dc5751`
+- column `niete_lp_assets.version_stamp` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/services/coaching/live-moves/card-store.js:52:c6a45353` · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:58:b2096bb1` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:52:2fff1c6b` · `bot/shared/services/lp-ab-ch310.service.js:86:99dc5e17` (+8: `python3 kg/kg.py who-reads niete_lp_assets.version_stamp`)
+- column `region_features.book_keys` (written by `sync-sheet-lps.js`) ← read by `bot/shared/services/teacher-books.service.js:41:46643abf`
+- table `region_features` whole row (`*`) (written by `sync-sheet-lps.js`) ← read by `bot/shared/services/region-features.service.js:55:d2b02c3e`?
+- table `niete_lp_assets` (written by `sync-sheet-lps.js`, `upload-lp-v8-to-r2.js`) ← read by `bot/shared/calls/call-tools.repo.js:179:c7464c20`? · `bot/shared/services/coaching/live-moves/card-store.js:51:c7464c20`? · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:57:c7464c20`? · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:51:c7464c20`? (+13: `python3 kg/kg.py who-reads niete_lp_assets`)
+- table `pre_generated_lps` (written by `seed-feat059-feat080-pakistan-lps.js`) ← read by `bot/shared/routes/pakistan-lp-endpoint.js:108:a684f67f`? · `bot/shared/services/pregen-lookup.service.js:31:a684f67f`? · `bot/scripts/migration/survey-lp-inventory.js:59:a684f67f`?
+- table `region_features` (written by `sync-sheet-lps.js`) ← read by `bot/shared/services/region-features.service.js:54:0fcdd9ba`? · `bot/shared/services/region-registry.js:32:0fcdd9ba`? · `bot/shared/services/teacher-books.service.js:41:46643abf`? · `scripts/migrate-gb-from-rumi.py:169:4c2b9b89`?
 - env `ALLOW_MISSING_CANVAS` read at `bot/scripts/assert-native-modules.js:18:533a7908`
 - env `APP_URL` read at `bot/scripts/register-attendance-flows.js:39:4b8816ad`
 - env `AWS_ACCESS_KEY_ID` read at `bot/scripts/requeue-lesson-plan.js:23:b1d05116`
@@ -102,10 +109,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `ENV_FILE` read at `bot/scripts/run_upload.sh:63:4c591906`
 - env `FLOW_ENDPOINT_BASE` read at `bot/scripts/register-student-quiz-flow.js:25:5b85a09e`
 - env `GRAPH_API_VERSION` read at `bot/scripts/broadcast-fa-video.js:20:d04e05b0` · `bot/scripts/send-outage-broadcast.js:19:ddcada1f` · `bot/scripts/set-conversational-components.js:36:bbb8581f` · `bot/scripts/upload-staging-video.js:19:ddcada1f`
-- env `LP_SEGMENTATION_DIR` read at `bot/scripts/build-lp-catalog.js:512:010859b5`
-- env `LP_TOC_DIR` read at `bot/scripts/build-lp-catalog.js:513:bfd5f9f4`
+- env `LP_SEGMENTATION_DIR` read at `bot/scripts/build-lp-catalog.js:577:010859b5`
+- env `LP_TOC_DIR` read at `bot/scripts/build-lp-catalog.js:578:bfd5f9f4`
 - env `LP_V8_CORPUS` read at `bot/scripts/run_upload.sh:35:f093f4fa`
-- env `LP_V8_LOG_DIR` read at `bot/scripts/run_upload.sh:155:be45d167` · `bot/scripts/upload-lp-v8-to-r2.js:791:ed3e9549`
+- env `LP_V8_LOG_DIR` read at `bot/scripts/run_upload.sh:155:be45d167` · `bot/scripts/upload-lp-v8-to-r2.js:796:ed3e9549`
 - env `MISTRAL_API_KEY` read at `bot/scripts/exam-checker-dry-run.js:15:0dd6ee05`
 - env `NIETE_ENV_FILE` read at `bot/scripts/run_upload.sh:36:8549e2c9`
 - env `OPENAI_API_KEY` read at `bot/scripts/exam-checker-dry-run.js:18:d7d391c6`
@@ -119,7 +126,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `R2_SECRET_ACCESS_KEY` read at `bot/scripts/upload-reading-backgrounds.js:16:5687c9ca`
 - env `SQS_QUEUE_URL` read at `bot/scripts/requeue-lesson-plan.js:28:06371e86`
 - env `SUPABASE_SERVICE_ROLE_KEY` read at `bot/scripts/generate-coaching-excel.js:17:90118d4a` · `bot/scripts/requeue-lesson-plan.js:17:90118d4a` · `bot/scripts/seed-niete-leader-roles.js:22:a4b14f4f` · `bot/scripts/send-outage-broadcast.js:13:90118d4a`
-- env `SUPABASE_URL` read at `bot/scripts/apply-lp612-figure-notes.js:61:c2c6132b` · `bot/scripts/apply-lp612-salutation-stamps.js:152:c2c6132b` · `bot/scripts/generate-coaching-excel.js:16:e84bc099` · `bot/scripts/ingest-lp-v9-html.js:157:8f304073` · `bot/scripts/requeue-lesson-plan.js:16:e84bc099` · `bot/scripts/revert-lp612-figure-notes.js:28:c2c6132b` · `bot/scripts/seed-niete-leader-roles.js:21:2a5ea60a` · `bot/scripts/send-outage-broadcast.js:12:e84bc099`
+- env `SUPABASE_URL` read at `bot/scripts/apply-lp612-figure-notes.js:61:c2c6132b` · `bot/scripts/apply-lp612-salutation-stamps.js:152:c2c6132b` · `bot/scripts/generate-coaching-excel.js:16:e84bc099` · `bot/scripts/ingest-lp-v9-html.js:162:8f304073` · `bot/scripts/requeue-lesson-plan.js:16:e84bc099` · `bot/scripts/revert-lp612-figure-notes.js:28:c2c6132b` · `bot/scripts/seed-niete-leader-roles.js:21:2a5ea60a` · `bot/scripts/send-outage-broadcast.js:12:e84bc099` · `bot/scripts/sync-sheet-lps.js:291:18f98ad9`
 - env `WABA_ID` read at `bot/scripts/broadcast-fa-video.js:69:6eac9260` · `bot/scripts/register-attendance-flows.js:30:6007273c` · `bot/scripts/register-coach-visit-request-template.js:25:601afc5a` · `bot/scripts/register-observe-report-template.js:21:601afc5a` · `bot/scripts/register-observe-visit-templates.js:22:601afc5a` · `bot/scripts/register-student-quiz-flow.js:23:601afc5a` · `bot/scripts/register-weekly-usage-templates.js:19:601afc5a`
 - env `WHATSAPP_API_VERSION` read at `bot/scripts/register-student-quiz-flow.js:21:14d03902`
 - env `WHATSAPP_TOKEN` read at `bot/scripts/broadcast-fa-video.js:69:6eac9260` · `bot/scripts/register-attendance-flows.js:31:651a42a4` · `bot/scripts/register-coach-visit-request-template.js:26:99dd7162` · `bot/scripts/register-observe-report-template.js:22:99dd7162` · `bot/scripts/register-observe-visit-templates.js:23:99dd7162` · `bot/scripts/register-student-quiz-flow.js:24:99dd7162` · `bot/scripts/register-weekly-usage-templates.js:20:99dd7162` · `bot/scripts/send-outage-broadcast.js:17:60bafac2` · `bot/scripts/set-conversational-components.js:46:99dd7162` · `bot/scripts/setup-flow-encryption.js:31:babb0b93` · `bot/scripts/upload-staging-video.js:18:922e7ad9`
@@ -134,9 +141,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `challenge-stock-seed.js` ← `bot/tests/quiz/web-quiz/challenge-stock-seed.test.js`
 - `check-syntax.js` ← `bot/tests/unit/check-syntax.test.js`
 - `export-lp612-segments.js` ← `tests/lp612/export-segments.test.js`
+- `gb-seed-renders.js` ← `tests/lp612/gb-seed-renders.test.js`
 - `generate-observe-flow-json.js` ← `tests/coaching/bd-5n1a2-flow-generator-shape.test.js`
-- `import-assessment-topics.js` ← `tests/assessment/topics/import-cli.test.js`
-- `import-lp612-segments.js` ← `tests/lp612/export-segments.test.js` · `tests/lp612/import-salutation-carried.test.js` · `tests/lp612/import.test.js` · `tests/lp612/shared-grade-book.test.js` · `tests/lp612/video-withdrawal.test.js`
+- `import-assessment-topics.js` ← `tests/assessment/topics/import-cli.test.js` · `tests/assessment/topics/import-curriculum.test.js`
+- `import-lp612-segments.js` ← `tests/lp612/export-segments.test.js` · `tests/lp612/gb-k5-import.test.js` · `tests/lp612/import-salutation-carried.test.js` · `tests/lp612/import.test.js` · `tests/lp612/shared-grade-book.test.js` · `tests/lp612/video-withdrawal.test.js`
 - `ingest-lp-v9-html.js` ← `bot/tests/lp-v8/ingest-lp-v9-html.test.js`
 - `lp-catalog-merge.js` ← `bot/tests/lp-v8/elective-catalog-merge.test.js`
 - `lp-catalog-splits.js` ← `tests/lp-v8/catalog-splits.test.js`
@@ -148,9 +156,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `register-weekly-usage-templates.js` ← `bot/tests/coaching/weekly-report/register-script.test.js`
 - `seed-feat059-feat080-pakistan-lps.js` ← `tests/pregen/feat-059-080-pakistan-lps.test.js`
 - `simulate.js` ← `bot/scripts/e2e/child-test-sim/transports.js` · `bot/scripts/e2e/mock-graph-api.js` · `tests/e2e-mock/simulate-builders.test.js`
+- `sync-sheet-lps.js` ← `tests/books/sync-sheet-lps.test.js`
 - `upload-lp-v8-to-r2.js` ← `bot/tests/lp-v8/upload-writes-slide-script.test.js` · `bot/tests/lp-v8/uploader-card-kind.test.js` · `bot/tests/lp-v8/uploader-r2-only.test.js` · `bot/tests/lp-v8/uploader-resumable.test.js` · `bot/tests/lp-v8/uploader.test.js`
 - `upload-lp612-page-truth.js` ← `tests/lp612/page-truth-upload.test.js`
 - `verify-lp-v8-r2.js` ← `bot/tests/lp-v8/uploader-r2-only.test.js`
 
 ## Related (all, generated)
-- docs: `bot/CLAUDE.md`? · `docs/LP_PATHS.md`? · `docs/e2e-mock-lane.md`? · `docs/lp612/video-enhancement-test.md`?
+- docs: `bot/CLAUDE.md`? · `docs/LP_PATHS.md`? · `docs/e2e-mock-lane.md`? · `docs/lesson-plan-data-model-debt.md`? · `docs/lp612/video-enhancement-test.md`?

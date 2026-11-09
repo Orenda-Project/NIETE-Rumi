@@ -1,7 +1,7 @@
 # scripts — Operator scripts: LP corpus builds, backfills, template and Flow registration
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts kg=361ddfa0a594 gen=682d61b4f297 overflow=84 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts kg=7b4dda054d6f gen=7a29f271a9e5 overflow=95 rendered=2026-11-09 kg.py=1.1.0 -->
 
 ## Entry points
 - `check-syntax.js` — parse every tracked JS file before deploy
@@ -12,15 +12,14 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| 17 sub-dirs, each with `CLAUDE.md` | `assessment/` · `assets/` · `audit/` · `child-test/` · `deployment/` · `docs/` · `e2e/` · `load/` · `migration/` · `onboarding/` · `ops/` · `quiz/` · `render/` · `setup/` · `templates/` · `testing/` · `video-reco/` |
+| 18 sub-dirs, each with `CLAUDE.md` | `assessment/` · `assets/` · `audit/` · `child-test/` · `deployment/` · `docs/` · `e2e/` · `load/` · `migration/` · `onboarding/` · `ops/` · `quiz/` · `render/` · `setup/` · `sheet-lps/` · `templates/` · `testing/` · `video-reco/` |
 | `import-lp612-segments.js` | Loads the Grades 6-12 segmentation corpus JSONs into the serving menu; supports corpus version and dry-run |
-| `build-lp-catalog.js` | Offline build of bot/data/lp_catalog.json from the K-5 ingestion tree; the LP Flow endpoint reads the output at runtime |
-| … | 68 more → `CLAUDE.index.md` |
+| … | 72 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `niete_lp_assets` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/calls/call-tools.repo.js:174:c7464c20`? · `bot/shared/services/coaching/live-moves/card-store.js:46:c7464c20`? (+13)
-- column `niete_lp_assets.asset_kind` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/calls/call-tools.repo.js:177:bcc39851` · `bot/shared/services/coaching/live-moves/card-store.js:49:6d6b56b2` (+12)
-- … 42 more → `CLAUDE.index.md`
+- table `niete_lp_assets` (written by `sync-sheet-lps.js` (+1)) ← read by `bot/shared/calls/call-tools.repo.js:179:c7464c20`? · `bot/shared/services/coaching/live-moves/card-store.js:51:c7464c20`? (+15)
+- column `niete_lp_assets.asset_kind` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/calls/call-tools.repo.js:182:bcc39851` · `bot/shared/services/coaching/live-moves/card-store.js:54:6d6b56b2` (+13)
+- … 46 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Parse-check all JS before a push; an unbootable entry file once shipped green (check-syntax.js:4, bd-wpx18)
@@ -31,7 +30,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/lp-v8/elective-catalog-merge.test.js` (build-lp-catalog.js, lp-catalog-merge.js)
 - `bot/tests/lp-v8/uploader-r2-only.test.js` (upload-lp-v8-to-r2.js, verify-lp-v8-r2.js)
-- … 36 more → `CLAUDE.index.md`
+- … 40 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/CLAUDE.md`? · `docs/LP_PATHS.md`? · `docs/e2e-mock-lane.md`? · `docs/lp612/video-enhancement-test.md`?
+- docs: `bot/CLAUDE.md`? · `docs/LP_PATHS.md`? · `docs/e2e-mock-lane.md`? · `docs/lesson-plan-data-model-debt.md`? · `docs/lp612/video-enhancement-test.md`?
