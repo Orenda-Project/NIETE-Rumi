@@ -126,11 +126,14 @@ describe('the debrief job, coach reports in the app', () => {
     expect(sent.filter((s) => s.kind === 'text').length).toBeGreaterThanOrEqual(1);
   });
 
-  test('switch off for her: exactly today\'s picture', async () => {
+  // Staging (bd-enec2e.6): today's flow here is the praise on its own, then the picture (sandbox puts the praise in the
+  // picture's caption; that change is not on staging).
+  test('switch off for her: exactly today\'s praise, then the picture', async () => {
     linkAnswer = 'off';
     const Debrief = load(row({ teacher: TEACHER_UR, coach: COACH_EN }));
     await Debrief.processDebriefRecording(SID, { from: COACH_EN.phone_number });
-    expect(sent[0]).toMatchObject({ kind: 'image', to: COACH_EN.phone_number });
+    expect(sent[0]).toMatchObject({ kind: 'text', to: COACH_EN.phone_number });
+    expect(sent[1]).toMatchObject({ kind: 'image', to: COACH_EN.phone_number });
   });
 
   test('a debrief recorded in the portal never asks for the link here (the sweep owns it)', async () => {

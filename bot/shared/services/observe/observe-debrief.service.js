@@ -734,7 +734,6 @@ async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, la
   }
   const { renderCoachFeedbackMessages } = require('./observe-coach-feedback');
   const [praiseMsg, cardMsg] = renderCoachFeedbackMessages(feedback, S);
-  const sentPraise = await WhatsAppService.sendMessage(from, praiseMsg);
 
   // Coach reports in the app: for a coach with app_settings.coach_reports_app on, the report is a page in her app, so
   // ONE link to it goes in place of the picture and its caption ('sent'; 'not_claimed' = already opened, closed or
@@ -751,6 +750,10 @@ async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, la
     await _offerSendReport(sessionId, from, S);
     return;
   }
+
+  // Off for her: today's praise message, then the picture (staging sends the praise on its own; the link above
+  // replaces both, so it goes only here — bd-enec2e.6).
+  const sentPraise = await WhatsAppService.sendMessage(from, praiseMsg);
 
   // bd-44: the celebration card ships as a rendered image (hero design,
   // value-anchored). renderCoachCard returns null for harmful debriefs and on

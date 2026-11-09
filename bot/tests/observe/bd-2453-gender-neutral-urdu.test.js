@@ -51,9 +51,21 @@ const TEACHER_FACING_FILES = [
   'services/observe/observe-brief-card.js',
 ];
 
+// Words the ICT HITL owner supplied VERBATIM (5 Nov, her "Daily Feedback Report: Gaps to Fix", fix 7): the ready "Try:"
+// line a coach says to a teacher, quoted as she wrote it in observe-strings (coach_report_try_lines and the matching
+// weekly step). Not ours to change; her neutral wording is asked for (q#23). Exempt by the exact sentence, nothing wider.
+const OWNER_VERBATIM = {
+  'services/observe/observe-strings.js': ['اگلی بار آپ کیا مختلف کریں گی؟ اپنے الفاظ میں بتائیں۔'],
+};
+const withoutVerbatim = (file) => (OWNER_VERBATIM[file] || []).reduce((src, line) => src.split(line).join(''), SRC(file));
+
 describe('bd-2453 A — static Urdu strings are gender-neutral toward the teacher', () => {
+  test('the owner\'s verbatim lines are really there (the exemption is not a blanket one)', () => {
+    for (const [file, lines] of Object.entries(OWNER_VERBATIM)) for (const l of lines) expect(SRC(file)).toContain(l);
+  });
+
   test.each(TEACHER_FACING_FILES)('%s has no feminine 2nd-person stems addressing آپ', (file) => {
-    const hits = SRC(file).match(FEM_2P) || [];
+    const hits = withoutVerbatim(file).match(FEM_2P) || [];
     expect(hits).toEqual([]);
   });
 
