@@ -21,7 +21,13 @@
  * is set), a teacher is never looked up at all: the menu costs exactly the reads it did before.
  */
 
-const { logToFile } = require('../utils/logger');
+// The bot logger loads pino, which the portal service does not install, and the portal reads this file too (FLN access,
+// dashboard/lib/fln-access.js): the logger is required only when a line is written, and one that cannot load is skipped.
+function logToFile(...args) {
+  try {
+    require('../utils/logger').logToFile(...args);
+  } catch (_) { /* the portal process: no bot logger */ }
+}
 const { getUserRegion } = require('../utils/region');
 const { regionKey } = require('./region-registry');
 
