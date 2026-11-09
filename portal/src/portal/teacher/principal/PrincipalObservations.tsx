@@ -29,7 +29,8 @@ const RECENT_COUNT = 5;
  *                                                          lesson, the teacher app's flow); One of my teachers → Pick the
  *                                                          teacher, with the coach's "N waiting" chip when one waits on her
  *   the observations she made                              the coach Reports' recent rows (GET /coach/reports, her own
- *                                                          school's teachers), each opening its observation page here
+ *                                                          school's teachers), each opening its observation page here;
+ *                                                          a sent one says Sent, never its score (#55 Q1)
  *   about her                                              the teacher page's own sections, unchanged (ObservationsAboutMe)
  */
 export function PrincipalObservations() {
@@ -42,11 +43,13 @@ export function PrincipalObservations() {
   const data = dataOf(load);
   const today = pkToday();
   const waiting = data?.waiting.length ?? 0;
-  const groups = useMemo(
-    () => reportGroups(dayGroups((data?.all.items ?? []).slice(0, RECENT_COUNT)), (d) => dayName(d, today, days), R,
-      (r) => principalObservationPath(r.id)),
-    [data, days, R, today],
-  );
+  const groups = useMemo(() => {
+    const items = (data?.all.items ?? []).slice(0, RECENT_COUNT);
+    const sent = new Set(items.filter((r) => r.step === "sent").map((r) => r.id));
+    // #55 Q1 and the approved mockup: a sent observation says Sent (the Observe word), never its score.
+    return reportGroups(dayGroups(items), (d) => dayName(d, today, days), R, (r) => principalObservationPath(r.id))
+      .map((g) => ({ ...g, items: g.items.map((it) => (sent.has(String(it.id)) ? { ...it, chip: { text: B.lastStep.sent, tone: "done" as const } } : it)) }));
+  }, [data, days, R, B, today]);
 
   return (
     <TeacherPage feature="observations" title={O.title} crumb={O.home} backTo={teacherPath("home")} testId="obs-home">
