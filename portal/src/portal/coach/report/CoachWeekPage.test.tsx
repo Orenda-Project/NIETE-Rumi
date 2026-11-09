@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import i18n from "i18next";
 
@@ -77,7 +77,8 @@ describe("her week", () => {
     expect(screen.getByTestId("week-compare").textContent).toContain("↑ Up by 3");
     expect(screen.getByTestId("week-compare").textContent).toContain("Last week: 1 of 9");
     expect(body.textContent).not.toMatch(/%/);
-    expect(markWeek).toHaveBeenCalledWith("2026-11-02", "opened");
+    // The stamp is an effect after the page draws: wait for it (asserting at once was flaky, 1 in 3 on a loaded machine).
+    await waitFor(() => expect(markWeek).toHaveBeenCalledWith("2026-11-02", "opened"));
     expect(markWeek).toHaveBeenCalledTimes(1);
   });
 
