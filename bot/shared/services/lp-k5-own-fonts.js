@@ -1,7 +1,7 @@
 'use strict';
 /**
  * bd-snkn32.4 — the fonts a grades 1–5 Make my own page prints with, embedded as base64 @font-face (the
- * playwrite-reports rule, bd-2664): the Railway Chromium has NO system fonts, so a page that links a web font or
+ * playwrite-reports skill's rule): the Railway Chromium has NO system fonts, so a page that links a web font or
  * leans on what is installed prints Urdu as tofu boxes. Lexend for Latin, Noto Nastaliq Urdu for an Urdu book.
  * Read once per process; a missing file is an empty face (the page still prints), never a throw.
  */

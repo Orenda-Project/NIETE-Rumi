@@ -63,7 +63,7 @@ function createOwnService(deps) {
     const row = await d.insertOwn({
       user_id: userId,
       lesson_id: lessonId,
-      lang: lesson.lang === 'ur' ? 'ur' : 'en',
+      lang: lesson.lang, // already clamped to the book's language (lp-k5-own-source)
       template_version: K5_TV,
       status: 'authoring',
       answers,
