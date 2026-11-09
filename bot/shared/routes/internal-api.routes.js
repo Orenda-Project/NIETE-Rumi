@@ -1543,6 +1543,14 @@ async function assessmentShelf(grade, userId) {
   if (!userId) return null;
   return TeacherBooks.bookKeysForUser(userId); // every grade: a list that stops at 5 offers nothing at 6+ (6 Nov)
 }
+/**
+ * Board-pattern papers (FDE G1-5, FBISE G9-12) are ICT's. A teacher whose region names its own books (GB: her shelf
+ * is a list) is offered none and may make none (operator, 9 Nov: "Those should not be the subjects for GB"). The
+ * same shelf read as her subjects; an ICT teacher, or no user, is offered them exactly as before.
+ */
+async function patternsOfferedTo(userId) {
+  return !Array.isArray(await assessmentShelf(null, userId));
+}
 /** Browse's grade list as this user is offered it (the gate lives here, not in the browse service). */
 async function offeredGrades(grades, userId) {
   const n = (x) => Number(x && typeof x === 'object' ? x.grade : x);
@@ -1620,8 +1628,12 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
   // flag read that throws is off: offering a pattern create would then refuse
   // is worse than not offering it.
   const Flags = require('../config/feature-flags');
+  // A GB teacher (her region names its own books) is offered no board pattern at all: neither key is added for her.
+  let forHer = null;
+  const patternsForHer = () => (forHer = forHer || patternsOfferedTo(userId));
   let patternsOn = false;
   try { patternsOn = await Flags.isAssessmentFdePatternEnabled(); } catch (_) { patternsOn = false; }
+  if (patternsOn && !(await patternsForHer())) patternsOn = false;
   if (patternsOn) {
     const Patterns = require('../services/assessment/patterns');
     // null = every subject the pattern holds; a list narrows it.
@@ -1646,6 +1658,7 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
   // 6-12 grade gate decides who sees them, so with it shut no key appears for a board grade.
   let boardOn = false;
   try { boardOn = await Flags.isAssessmentBoardPatternEnabled(); } catch (_) { /* a failed read is off */ }
+  if (boardOn && !(await patternsForHer())) boardOn = false;
   if (boardOn) {
     const Board = require('../services/assessment/patterns/board');
     // isEligible holds the grade and subject checks: a pattern sets one grade and only its subjects.
@@ -1968,9 +1981,10 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
       });
     }
     const Patterns = require('../services/assessment/patterns');
-    const eligible = board
+    // A GB teacher is refused like any pattern her class does not have (patternsOfferedTo): a hand-built request too.
+    const eligible = (await patternsOfferedTo(userId)) && (board
       ? Board.isEligible(pattern, grade, subject)
-      : await fdeEligible(Flags, Patterns, pattern, grade, subject);
+      : await fdeEligible(Flags, Patterns, pattern, grade, subject));
     if (!eligible) {
       return res.status(400).json({
         success: false,
