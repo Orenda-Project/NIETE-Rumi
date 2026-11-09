@@ -8,6 +8,7 @@ import type { AnyFeature } from "../../teacher/icons";
 import CoachGate from "../CoachGate";
 import { readPending, type Pending } from "../ui";
 import { OBSERVE } from "./copy";
+import { useObserveRoutes } from "./observeRoutes";
 
 /**
  * bd-4404s7.4 — the frame of every Observe screen: the coach gate, the kit's page frame (TeacherPage: the header card, the
@@ -52,12 +53,13 @@ export default function ObservePage({
 }) {
   const { user, loading } = useAuth();
   useFollowPreferredLanguage(!loading && !!user);
-  return (
-    <CoachGate>
-      <TeacherPage title={title} crumb={crumb} backTo={backTo} onBack={onBack} feature={feature} dock={dock} bare={bare}>
-        {banner && !bare && <CoachAttention />}
-        {children}
-      </TeacherPage>
-    </CoachGate>
+  const routes = useObserveRoutes();
+  // bd-33wxxi.4 — the principal app's screens: no coach gate (TeacherGate ran) and no coach "reports waiting" banner.
+  const page = (
+    <TeacherPage title={title} crumb={crumb} backTo={backTo} onBack={onBack} feature={feature} dock={dock} bare={bare}>
+      {banner && !bare && routes.coachGate && <CoachAttention />}
+      {children}
+    </TeacherPage>
   );
+  return routes.coachGate ? <CoachGate>{page}</CoachGate> : page;
 }

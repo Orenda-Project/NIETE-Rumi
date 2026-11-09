@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useObserveRoutes } from "../observe/observeRoutes";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Check, Compass, MessageCircle, Sparkles } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
@@ -21,7 +22,7 @@ import ReportsFrame from "./ReportsFrame";
 import { InsightRow } from "./InsightRow";
 import { RubricGuide } from "./RubricGuide";
 import { REPORTS } from "./copy";
-import { OBSERVATION_STEPS, SCREEN_STEP, observationPath } from "./paths";
+import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
 import { firstNameOf, teacherNameOf, useObservationView } from "./useObservationView";
 import { useBack } from "../../lib/useBack";
 
@@ -94,9 +95,10 @@ export const GUIDE_RETRY_MS = [15_000, 30_000] as const;
 export default function Debrief() {
   const C = useCopy(REPORTS);
   const { id = "" } = useParams();
+  const routes = useObserveRoutes();
   const navigate = useNavigate();
   const { view, status, reload } = useObservationView(id);
-  const home = observationPath(id);
+  const home = routes.observation(id);
   const back = useBack(home);
   const [guide, setGuide] = useState<TalkGuide | null>(null);
   const [guideState, setGuideState] = useState<GuideState>("loading");

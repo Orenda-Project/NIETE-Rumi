@@ -46,6 +46,8 @@ export interface SendJob {
   observationId: string | null;
   /** Why it failed: a SendError's kind, or the server's own reason (`not_your_teacher`). */
   errorCode: string | null;
+  /** bd-33wxxi.4 — the Sending page the strip's tap opens, when it is not the coach's (the principal app's). */
+  waitHref?: string;
 }
 
 export interface SendArgs {
@@ -59,6 +61,9 @@ export interface SendArgs {
   audio: { blob: Blob; filename: string };
   plan: PlanChoice | null;
   photos: File[];
+  /** bd-33wxxi.4 — the principal app's Sending page and observation page; absent, the coach's (sendingPath, the coach's observation page). */
+  waitHref?: string;
+  observationHref?: (observationId: string) => string;
 }
 
 /** Where the Sending page for a visit is (the strip's tap, and the page the banner is quiet on). */
@@ -100,7 +105,7 @@ function track(job: SendJob) {
   }
   noticeTracker.track({
     kind: 'observation', ref: job.visitId, title: job.teacherName, grade: null, subject: null, questions: null,
-    waitHref: sendingPath(job.visitId), visitId: job.visitId, visitDay: job.visitDay, durationMs: job.durationMs,
+    waitHref: job.waitHref || sendingPath(job.visitId), visitId: job.visitId, visitDay: job.visitDay, durationMs: job.durationMs,
   });
 }
 
@@ -131,7 +136,10 @@ async function run(visitId: string): Promise<void> {
     }
     clearDraft(visitId);
     change(visitId, { state: 'sent', pct: 100, observationId: out.coachingSessionId, errorCode: null });
-    noticeTracker.update(id, { state: 'ready', progress: 1, readyAt: Date.now(), observationId: out.coachingSessionId });
+    noticeTracker.update(id, {
+      state: 'ready', progress: 1, readyAt: Date.now(), observationId: out.coachingSessionId,
+      ...(args.observationHref ? { openHref: args.observationHref(out.coachingSessionId) } : {}),
+    });
   } catch (err) {
     const code = errorCodeOf(err);
     change(visitId, { state: 'failed', errorCode: code });
@@ -151,6 +159,7 @@ export function startSend(args: SendArgs): SendJob {
     visitDay: args.visitDay, durationMs: args.durationMs, recordingId: args.recordingId,
     planKind: args.plan && args.plan.kind === 'file' ? planKindOf(args.plan.file.name) : null,
     state: 'sending', pct: 0, observationId: null, errorCode: null,
+    ...(args.waitHref ? { waitHref: args.waitHref } : {}),
   };
   held.set(args.visitId, { job, args });
   emit();
