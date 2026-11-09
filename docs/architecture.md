@@ -77,7 +77,7 @@ Meta WhatsApp API
 | **Conversation state** | `conversations`, `chat_sessions`, `chat_starts`, `cta_clicks`, `feature_suggestions`, `user_feature_first_use` | active |
 | **Configuration** | `app_settings`, `region_features` | active |
 | **Coaching** | `coaching_sessions`, `coaching_quality_metrics`, `audio_sessions` | active |
-| **Lesson plans** | `lesson_plans`, `lesson_plan_requests`, `pre_generated_lps`, `pic_lp_sessions` (read via the `TABLE` constant in `pic-lp-session.service.js`) | active |
+| **Lesson plans** | `lesson_plans`, `lesson_plan_requests`, `pre_generated_lps`, `pic_lp_sessions` (read via the `TABLE` constant in `pic-lp-session.service.js`), plus the `niete_lp*` and `curriculum_lp_ast` tables. Known design debt: read [lesson-plan-data-model-debt.md](lesson-plan-data-model-debt.md) before adding to any of them | active |
 | **Reading assessment** | `reading_assessments`, `student_lists`, `students` | active |
 | **Quizzes** | `quizzes`, `quiz_sessions`, `quiz_questions`, `quiz_answers` | active |
 | **Exam checker** | `exam_check_sessions`, `exam_submissions`, `exam_grades`, `image_analysis_requests` | active |

@@ -18,6 +18,8 @@ export const LESSONS_VIEWER = `${LESSONS_HOME}/plan`;
 export const LESSONS_ALL = `${LESSONS_HOME}/all`;
 /** Reopen a plan by its key (Recent, All lesson plans): `?plan=k5:<id>|g612:<segment>&lang=&title=&grade=`. */
 export const LESSONS_OPEN = `${LESSONS_HOME}/open`;
+/** bd-snkn32 — Make my own: `?grade&subject&chapter&step&seg&size&res&level&way` (own/state.ts). */
+export const LESSONS_OWN = `${LESSONS_HOME}/own`;
 
 /**
  * bd-4joiqz — THE way back to the lesson plans, for every page that sends someone there (an FLN list's Back, an FLN

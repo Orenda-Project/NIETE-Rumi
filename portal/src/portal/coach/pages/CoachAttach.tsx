@@ -5,11 +5,11 @@ import { useCopy } from "../../teacher/i18n";
 import { StatusChip } from "../../teacher/ui/StatusChip";
 import { TimeStamp } from "../../teacher/ui/TimeStamp";
 import { Tray } from "../../teacher/ui/Tray";
-import { coach } from "../../services/api";
 import { Chevron, Loading, Failed, useLoad } from "../ui";
 import { OBSERVE } from "../observe/copy";
 import { dayShort, lengthShort } from "../observe/format";
 import ObservePage from "../observe/ObservePage";
+import { useObserveRoutes } from "../observe/observeRoutes";
 import { setDraft, type DraftAudio } from "../observeDraft";
 import { acceptFor, checkFile, formatSize, readAudioDuration } from "../../lib/coachingUpload";
 
@@ -26,7 +26,8 @@ const CoachAttach = () => {
   const C = useCopy(OBSERVE);
   const { id = "" } = useParams();
   const navigate = useNavigate();
-  const { data, failed, reload } = useLoad(() => coach.getVisit(id), [id]);
+  const routes = useObserveRoutes();
+  const { data, failed, reload } = useLoad(() => routes.loadVisit(id), [id]);
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [file, setFile] = useState<DraftAudio | null>(null);
@@ -52,13 +53,13 @@ const CoachAttach = () => {
   const next = () => {
     if (!file || pct < 100) return;
     setDraft(id, file);
-    navigate(`/portal/coach/visit/${id}/check`, { replace: true }); // the upload step is done: Back from Check and send is the visit, not an empty picker
+    navigate(routes.check(id), { replace: true }); // the upload step is done: Back from Check and send is the visit, not an empty picker
   };
 
-  if (visit && (visit.status !== "upcoming" || !visit.teacherExtId)) return <Navigate to={`/portal/coach/visit/${id}`} replace />;
+  if (visit && (visit.status !== "upcoming" || !visit.teacherExtId)) return <Navigate to={routes.visit(id)} replace />;
 
   return (
-    <ObservePage banner={false} title={visit?.teacherName || C.dash} backTo={`/portal/coach/visit/${id}`} feature="observations"
+    <ObservePage banner={false} title={visit?.teacherName || C.dash} backTo={routes.visit(id)} feature="observations"
       crumb={`${C.takeObservation} · ${visit?.scheduledFor ? dayShort(visit.scheduledFor, C) : ""}`}>
       {failed && <Failed onRetry={reload} />}
       {!data && !failed && <Loading />}
@@ -67,10 +68,10 @@ const CoachAttach = () => {
         <div className="[display:grid] grid-cols-2 gap-3"><div className="h-[156px] rounded-2xl border border-[#e5e7eb] bg-white" /><div className="h-[156px] rounded-2xl border border-[#e5e7eb] bg-white" /></div>
       </div>
 
-      <Tray open={!!visit} title={C.uploadRecording} onClose={() => navigate(`/portal/coach/visit/${id}`)}>
+      <Tray open={!!visit} title={C.uploadRecording} onClose={() => navigate(routes.visit(id))}>
         <div className="flex flex-wrap gap-2">
           <span className="inline-flex h-[30px] items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3 text-[13px] font-semibold text-[#4b5563]">
-            <CalendarDays className="h-[15px] w-[15px]" aria-hidden="true" />{visit?.teacherName || C.dash} · <TimeStamp time={visit?.scheduledSlot} size={13} />
+            <CalendarDays className="h-[15px] w-[15px]" aria-hidden="true" />{visit?.teacherName || C.dash}{visit?.scheduledSlot && <> · <TimeStamp time={visit.scheduledSlot} size={13} /></>}
           </span>
         </div>
         <button type="button" onClick={() => input.current?.click()}

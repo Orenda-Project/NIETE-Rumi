@@ -720,6 +720,8 @@ export type PortalConfig = {
      * (teacherV2, teacherHomeCard and teacherHomeLook already answer on for her) plus her school.
      */
     principalApp?: boolean;
+    /** bd-snkn32 — Make my own lesson plan (portal_lp_make_own, with the teacher app on; fail-closed). */
+    lpMakeOwn?: boolean;
   };
   /** bd-tacnwy — the profile types the switch offers (teacher, coach, principal); empty unless features.roleSwitch. */
   roleSwitchRoles?: string[];

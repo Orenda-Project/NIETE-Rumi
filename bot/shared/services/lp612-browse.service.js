@@ -1,3 +1,8 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 'use strict';
 /**
  * The 6-12 lesson-plan corpus, in a surface-neutral shape.
@@ -294,7 +299,10 @@ async function renderStatus(renderId, userId) {
     logToFile('LP 6-12 browse: status lookup failed', { renderId, error: error.message });
     return null;
   }
-  if (!data) return null;
+  // bd-snkn32 — no render by that id: it may be her "Make my own" fork, answered in this same shape so the portal's
+  // poll, viewer and PDF relay need no second path. Only on a miss (a real render never reaches it), and read by id
+  // AND her user id, so nobody else's fork is answered.
+  if (!data) return require('./lp612-own.service').ownStatus(renderId, userId);
   // Filtered in JS rather than in the query on purpose — see `claims()`. The waiter list is
   // EMPTIED the moment the render completes, so a `.contains('waiters', …)` predicate would
   // stop matching at exactly the moment she is polling for the good news.
