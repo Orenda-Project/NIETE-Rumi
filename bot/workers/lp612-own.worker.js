@@ -167,7 +167,8 @@ async function loadSegment(supabase, segmentId) {
 /** bd-snkn32.4 — the page (pure) printed by the v10 card's printer: one 520-wide page, as long as the plan. */
 async function renderK5Pdf({ script, lang, grade, subject, way }) {
   const { renderK5Own, WAY_NAMES } = require('../shared/services/lp-k5-own-render');
-  const html = renderK5Own(script, { lang, grade, subject, way: WAY_NAMES[lang === 'ur' ? 'ur' : 'en'][way] });
+  const { fontCss } = require('../shared/services/lp-k5-own-fonts');
+  const html = renderK5Own(script, { lang, grade, subject, way: WAY_NAMES[lang === 'ur' ? 'ur' : 'en'][way], fontCss: fontCss(lang) });
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'k5-own-'));
   try {
     const out = path.join(dir, 'own.pdf');
