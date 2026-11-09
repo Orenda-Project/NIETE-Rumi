@@ -1,8 +1,8 @@
 # Make my own, grades 1–5: how to test on sandbox (bd-snkn32.4, PR #4443)
 
-Test teacher: 03345027774 (sandbox user 2598108b…). The account is ICT and now teaches grade 3 as well as grades 6–8. Both `portal_lp_make_own` and `portal_teacher_v2` are on for this user.
+Test teacher: the operator's sandbox number (0334•••7774) (sandbox user 2598108b…). The account is ICT and now teaches grade 3 as well as grades 6–8. Both `portal_lp_make_own` and `portal_teacher_v2` are on for this user.
 
-1. Open https://portal-sandbox.up.railway.app/login. Log out first so the session reloads, then log in with 03345027774 and its OTP.
+1. Open https://portal-sandbox.up.railway.app/login. Log out first so the session reloads, then log in with the operator's sandbox number (0334•••7774) and its OTP.
 2. Go to **Lesson Plans → Grade 3 → Math → chapter 1**. **Make my own** is the first card, above the days, with no scrolling needed.
 3. Tap it. Step 1 is **Which day?** and lists Day 1, Day 2 and so on. There is no Worksheet or Revision.
 4. Answer the five questions. Then tap **Make my plan**. The waiting page shows while the plan is written, which takes about 1–3 minutes. The plan then opens in the viewer as a phone page with these sections: Opening, I Do, We Do, You Do, Check and Homework. The header says "Mine".
