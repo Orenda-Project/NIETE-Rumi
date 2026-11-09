@@ -154,6 +154,20 @@ describe("the principal app's Observations", () => {
     expect(H.post).not.toHaveBeenCalled();
   });
 
+  it("a picked teacher has no visit time, so each crumb is her name alone (no dangling ·)", async () => {
+    serve();
+    for (const at of ["/portal/teacher/principal/observe/900001", "/portal/teacher/principal/observe/900001/attach"]) {
+      const view = open(at);
+      await screen.findAllByText(/Ayesha Sample/, undefined, T);
+      // the page crumb, and the visit chip on Upload: wherever her name is shown with the visit's time
+      const crumbs = [...document.body.querySelectorAll("[data-testid=page-crumb], span")]
+        .map((e) => (e.textContent || "").replace(/\s+/g, " ").trim()).filter((x) => x.includes("Ayesha Sample"));
+      expect(crumbs.length, at).toBeGreaterThan(0);
+      for (const x of crumbs) expect(x, at).not.toMatch(/·$/);
+      view.unmount();
+    }
+  });
+
   it("anyone the principal app does not name is sent to Observations from a principal route", async () => {
     serve(false);
     open("/portal/teacher/principal/pick");

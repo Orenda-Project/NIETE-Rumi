@@ -71,7 +71,7 @@ const CoachAttach = () => {
       <Tray open={!!visit} title={C.uploadRecording} onClose={() => navigate(routes.visit(id))}>
         <div className="flex flex-wrap gap-2">
           <span className="inline-flex h-[30px] items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3 text-[13px] font-semibold text-[#4b5563]">
-            <CalendarDays className="h-[15px] w-[15px]" aria-hidden="true" />{visit?.teacherName || C.dash} · <TimeStamp time={visit?.scheduledSlot} size={13} />
+            <CalendarDays className="h-[15px] w-[15px]" aria-hidden="true" />{visit?.teacherName || C.dash}{visit?.scheduledSlot && <> · <TimeStamp time={visit.scheduledSlot} size={13} /></>}
           </span>
         </div>
         <button type="button" onClick={() => input.current?.click()}
