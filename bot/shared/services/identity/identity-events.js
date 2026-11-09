@@ -5,14 +5,16 @@
  *   identity.number_changed       WhatsApp says a teacher moved to a new number (`user_changed_number`: the sender is
  *                                 the OLD number, `system.wa_id` the new one) or to a new user id
  *                                 (`user_changed_user_id`, no number). Recorded with what a move WOULD do, using the
- *                                 coach phone edit's own read-only steps: free, shell or taken.
+ *                                 coach phone edit's own read-only steps: free, shell or taken. The move itself is
+ *                                 number-change.js, which the webhook runs after this, behind its own switch.
  *   identity.deleted_row_resumed  A soft-deleted account, found by its number, was served as live again. Once per
  *                                 account per process: the lookup runs on every message.
  *   registration.would_match      A finished sign-up sits next to another live account with the same school and the
  *                                 same name. Once per account per process: a sign-up can finish in more than one place.
  *
  * Log only: no reply, no write. Every function swallows its own failure, so a hook can never change what the teacher
- * sees, and the callers fire it without waiting. Events carry a teacher's keyed reference (`tk`, the HMAC of users.id
+ * sees, and the callers fire it without waiting (the webhook awaits recordSystem, after its ack, so the move can follow
+ * it). Events carry a teacher's keyed reference (`tk`, the HMAC of users.id
  * that every NIETE log line uses instead of the raw id), counts and verdicts: never a raw id, a phone number or a name.
  * Without the key on the service a reference is null and the event is still counted.
  */
@@ -63,6 +65,16 @@ function normaliseName(raw) {
 function isLiveNumber(phone) {
   const s = String(phone == null ? '' : phone);
   return s !== '' && !s.startsWith('retired:') && !s.startsWith('merged:');
+}
+
+/**
+ * A number-change notice: its type and the new number (digits; '' when Meta could not share it). Null for any other
+ * message. The move (number-change.js) reads the notice through this, so both agree on what a number change is.
+ */
+function numberChangeOf(message) {
+  const s = (message && message.system) || {};
+  if (!NUMBER_CHANGE_TYPES.has(s.type)) return null;
+  return { type: s.type, newPhone: digits(s.wa_id || s.new_wa_id) };
 }
 
 /** What moving to this number would do: the coach phone edit's own two read-only steps. */
@@ -143,4 +155,4 @@ async function checkWouldMatch(userId, source) {
   }
 }
 
-module.exports = { recordSystem, deletedRowResumed, checkWouldMatch, normaliseName };
+module.exports = { recordSystem, deletedRowResumed, checkWouldMatch, normaliseName, numberChangeOf, ref };

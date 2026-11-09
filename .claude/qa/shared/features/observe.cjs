@@ -794,4 +794,7 @@ exports.run = async ({ api, rec, want = () => true }) => {
   // bd-qmahx1: placeholders for #3317's video-recommendation scenarios (bd-gzfdu9), so the coverage gate sees them.
   rec('OBS71', 'The observed teacher gets the clip after the report the coach sent', 'BLOCKED', { reason: 'no driver yet: the video-recommendation scenarios were added in #3317 (bd-gzfdu9) as @wip @draft Gherkin without driver code; this placeholder only makes them visible in every run, it is not coverage' }, 0);
   rec('OBS72', 'No clip when the report went only as an invite or to the review number', 'BLOCKED', { reason: 'no driver yet: the video-recommendation scenarios were added in #3317 (bd-gzfdu9) as @wip @draft Gherkin without driver code; this placeholder only makes them visible in every run, it is not coverage' }, 0);
+
+  // bd-apnnh2.11: placeholder so the coverage gate sees the merged-account scenario. It is not coverage.
+  rec('OBS76', 'A teacher whose old account was merged appears once in my teacher list', 'BLOCKED', { reason: 'no driver yet: needs a merged-account fixture in the mock seed (two users rows for one teacher at a coach\'s school, one retired by a fold: deleted_at set, phone merged:<id>). The mock lane could not run on the machine that wrote this, so an implementation could not be verified. Unit-pinned by tests/observe/bd-apnnh2.11-patch-skips-retired.test.js' }, 0);
 };

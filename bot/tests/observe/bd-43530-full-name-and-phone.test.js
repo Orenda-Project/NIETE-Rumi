@@ -108,7 +108,7 @@ describe('bd-43530 · both queries actually ASK for the name columns', () => {
     const table = (rows) => {
       const q = {
         select: (cols) => { selects.push(cols); return q; },
-        eq: () => q, in: () => q, then: (r) => r({ data: rows }),
+        eq: () => q, in: () => q, is: () => q, then: (r) => r({ data: rows }),
       };
       return q;
     };
@@ -127,7 +127,7 @@ describe('bd-43530 · both queries actually ASK for the name columns', () => {
 
   it('the derived person still reaches the Flow as a full name', async () => {
     const table = (rows) => {
-      const q = { select: () => q, eq: () => q, in: () => q, then: (r) => r({ data: rows }) };
+      const q = { select: () => q, eq: () => q, in: () => q, is: () => q, then: (r) => r({ data: rows }) };
       return q;
     };
     const sb = { from: (t) => table({
