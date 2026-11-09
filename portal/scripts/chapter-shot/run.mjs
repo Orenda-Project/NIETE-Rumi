@@ -133,9 +133,12 @@ try {
   });
   const at = BAND === 'k5' ? '/portal/teacher/lessons/lessons?grade=3&subject=math&chapter=1'
     : '/portal/teacher/lessons/lessons?grade=7&subject=ICT&chapter=c03';
-  const HEAD = BAND === 'k5' ? 'Number Ninjas: Mastering the Thousands' : 'Computer Networks';
+  // bd-snkn32.4 — --own: Make my own's step 1 for the same chapter ("Which day?" in grades 1–5)
+  const OWN = process.argv.includes('--own');
+  const atNow = OWN ? at.replace('/lessons/lessons?', '/lessons/own?') : at;
+  const HEAD = OWN ? (BAND === 'k5' ? (LANG === 'ur' ? 'کون سا دن؟' : 'Which day?') : 'Book pages') : BAND === 'k5' ? 'Number Ninjas: Mastering the Thousands' : 'Computer Networks';
   const FIRST = BAND === 'k5' ? K5_DAYS[0] : 'What is a computer network?';
-  await page.goto(`${origin}/scripts/chapter-shot/harness.html?lang=${LANG}&at=${encodeURIComponent(at)}`);
+  await page.goto(`${origin}/scripts/chapter-shot/harness.html?lang=${LANG}&at=${encodeURIComponent(atNow)}`);
   if (SLOW) {
     await page.waitForTimeout(2500);
     mkdirSync(OUT, { recursive: true });
@@ -166,7 +169,14 @@ try {
     const t = [...document.querySelectorAll('*')].find((e) => e.childElementCount === 0 && e.textContent === FIRST);
     return t ? Math.round(t.getBoundingClientRect().top) : null;
   }, FIRST);
-  console.log(JSON.stringify({ name: NAME, viewport: `${W}x${H}`, flag: FLAG, lang: LANG, ownEntry: box,
+  // bd-snkn32.4 — anything wider than the phone (a sideways scroll she would have to fight)
+  const overflow = await page.evaluate((W) => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    wide: [...document.querySelectorAll('body *')].map((e) => [e, e.getBoundingClientRect()])
+      .filter(([, r]) => r.width > 0 && (r.right > W + 1 || r.left < -1))
+      .slice(0, 5).map(([e, r]) => `${e.tagName.toLowerCase()}.${String(e.className).slice(0, 60)} ${Math.round(r.left)}..${Math.round(r.right)}`),
+  }), W);
+  console.log(JSON.stringify({ name: NAME, overflow, viewport: `${W}x${H}`, flag: FLAG, lang: LANG, ownEntry: box,
     ownAboveFold: box ? box.bottom <= H : null, firstLessonTop: firstLesson, asked: [...new Set(asked)] }, null, 1));
 } finally {
   await browser.close();
