@@ -313,12 +313,14 @@ export const portal = {
       id: String(l.lesson_id),
       label: String(l.topic || l.section || `Lesson ${l.segment_index}`),
       sub: [l.day_label, l.pages_label].filter(Boolean).join(' · ') || null,
-      ready: true,
+      // A GB lesson (queue #71) says whether it is written yet; every other 1-5 lesson is there.
+      ready: l.on_request === true ? l.ready === true : true,
       used: l.downloaded === true,
+      ...(l.on_request === true ? { onRequest: true } : {}),
     }));
   },
 
-  /** Ask for a 6-12 lesson to be written (the Curriculum page's request). */
+  /** Ask for a 6-12 (or GB) lesson to be written (the Curriculum page's request). */
   requestLibraryLesson: async (segmentId: string): Promise<{ state: string; renderId: string }> => {
     const { data } = await api.post('/lp612/request', { segment_id: segmentId, lang: 'en' });
     return data;
@@ -653,8 +655,11 @@ export type RecentLessonPlan = {
 export type LibraryLane = 'k5' | 'g612';
 export type LibraryGrade = { grade: number; lane: LibraryLane };
 export type LibraryOption = { key: string; label: string };
-/** `ready` is false only for a 6-12 lesson not written yet; `used` = she downloaded it. */
-export type LibraryLesson = { id: string; label: string; sub: string | null; ready: boolean; used: boolean };
+/**
+ * `ready` is false only for a lesson not written yet (6-12, or GB); `used` = she downloaded it. `onRequest`: a
+ * Grades 1-5 lesson served like a 6-12 one — asked for, written once, kept (GB's own books, queue #71).
+ */
+export type LibraryLesson = { id: string; label: string; sub: string | null; ready: boolean; used: boolean; onRequest?: boolean };
 
 export type PortalConfig = {
   success: boolean;
