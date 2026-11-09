@@ -1,4 +1,5 @@
 import { Check, ChevronRight, Compass, MessageCircle, Sparkles } from "lucide-react";
+import { useObserveRoutes } from "../observe/observeRoutes";
 import { Link, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useCopy } from "../../teacher/i18n";
@@ -7,7 +8,7 @@ import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
 import ReportsFrame from "./ReportsFrame";
 import { InsightRow } from "./InsightRow";
 import { REPORTS } from "./copy";
-import { OBSERVATION_STEPS, SCREEN_STEP, observationPath } from "./paths";
+import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
 import { teacherNameOf, useObservationView } from "./useObservationView";
 import { useBack } from "../../lib/useBack";
 
@@ -23,14 +24,15 @@ import { useBack } from "../../lib/useBack";
 export default function YourFeedback() {
   const C = useCopy(REPORTS);
   const { id = "" } = useParams();
+  const routes = useObserveRoutes();
   const { view, status, reload } = useObservationView(id);
-  const back = useBack(observationPath(id));
+  const back = useBack(routes.observation(id));
   const name = teacherNameOf(view);
   const fb = view?.talk.feedback ?? null;
   const hers = view?.step === "feedback";
 
   const dock = hers ? (
-    <Link to={observationPath(id, "send")} data-testid="feedback-next"
+    <Link to={routes.observation(id, "send")} data-testid="feedback-next"
       className={cn("flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white", FOCUS)}>
       {C.nextStep}<ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
     </Link>
