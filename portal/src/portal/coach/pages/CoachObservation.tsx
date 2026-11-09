@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useObserveRoutes } from "../observe/observeRoutes";
 import { Link, useParams } from "react-router-dom";
 import { useBack } from "../../lib/useBack";
 import { AlertTriangle, ChevronRight, MapPin } from "lucide-react";
@@ -19,7 +20,7 @@ import { Card, useLoad } from "../ui";
 import ReportsFrame from "../reports/ReportsFrame";
 import { REPORTS } from "../reports/copy";
 import { pkTime } from "../reports/data";
-import { OBSERVATION_STEPS, observationPath } from "../reports/paths";
+import { OBSERVATION_STEPS } from "../reports/paths";
 import { LessonPlanRow } from "../observe/PlanState";
 
 /**
@@ -69,6 +70,7 @@ const CoachObservation = () => {
   const bidi = useBidi();
   const { days } = useCopy(LESSONS);
   const { id = "" } = useParams();
+  const routes = useObserveRoutes();
   // bd-jjcofw.9 — a fresh read of both answers on every tick: while the Digital Coach works, and when she comes back.
   const [tick, setTick] = useState(0);
   const { data, failed, reload } = useLoad(() => coach.getObservation(id), [id, tick]);
@@ -93,7 +95,7 @@ const CoachObservation = () => {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
-  const back = useBack("/portal/coach/reports");
+  const back = useBack(routes.reports);
   const name = data?.teacher?.name || view?.teacher?.name || C.dash;
   const first = name.split(/\s+/)[0] || name;
   const stopped = view?.step === "stopped";
@@ -134,7 +136,7 @@ const CoachObservation = () => {
 
   const time = data ? pkTime(data.date) : null;
   const dock = dockStep ? (
-    <Link to={observationPath(id, dockStep)} data-testid="obs-dock"
+    <Link to={routes.observation(id, dockStep)} data-testid="obs-dock"
       className={cn("flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white", FOCUS)}>
       {labels[at]}<ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
     </Link>
@@ -185,9 +187,9 @@ const CoachObservation = () => {
             <>
               <h2 className="mx-1 mt-2 text-[22px] font-semibold leading-[1.2]">{C.whatYouMade}</h2>
               <div className={LIST_CARD} data-testid="what-you-made">
-                <ListRow icon="file" label={C.stepForm} subtitle={C.formRowSub} variant="row" first to={observationPath(id, "form")} />
-                {view?.talk.guide && <ListRow icon="file" label={C.stepDebrief} subtitle={C.debriefRowSub} variant="row" first={false} to={observationPath(id, "debrief")} />}
-                {view?.talk.feedback && <ListRow icon="file" label={C.stepFeedback} subtitle={C.feedbackRowSub} variant="row" first={false} to={observationPath(id, "feedback")} />}
+                <ListRow icon="file" label={C.stepForm} subtitle={C.formRowSub} variant="row" first to={routes.observation(id, "form")} />
+                {view?.talk.guide && <ListRow icon="file" label={C.stepDebrief} subtitle={C.debriefRowSub} variant="row" first={false} to={routes.observation(id, "debrief")} />}
+                {view?.talk.feedback && <ListRow icon="file" label={C.stepFeedback} subtitle={C.feedbackRowSub} variant="row" first={false} to={routes.observation(id, "feedback")} />}
               </div>
             </>
           )}

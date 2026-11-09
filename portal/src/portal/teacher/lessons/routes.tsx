@@ -1,5 +1,5 @@
 import type { TeacherRoute } from '../routes';
-import { LESSONS_ALL, LESSONS_HOME, LESSONS_NEW, LESSONS_OPEN, LESSONS_VIEWER } from './paths';
+import { LESSONS_ALL, LESSONS_HOME, LESSONS_NEW, LESSONS_OPEN, LESSONS_OWN, LESSONS_VIEWER } from './paths';
 import { lazyPage as page } from '@/lib/lazyPage';
 
 // bd-sex15q.34 — each page is its own chunk (lib/lazyPage), so the teacher app is not in every first open.
@@ -11,6 +11,7 @@ const NewLessonPage = page(() => import('./NewLessonPage').then((m) => ({ defaul
 const OpenPlanPage = page(() => import('./OpenPlanPage').then((m) => ({ default: m.OpenPlanPage })));
 const PreparingPage = page(() => import('./PreparingPage').then((m) => ({ default: m.PreparingPage })));
 const ViewerPage = page(() => import('./ViewerPage').then((m) => ({ default: m.ViewerPage })));
+const OwnPage = page(() => import('./own/OwnPage').then((m) => ({ default: m.OwnPage })));
 
 /**
  * bd-fmf24g.3 — the teacher v2 Lesson Plans pages (each one flag-gated by App's TeacherGate). The main
@@ -30,6 +31,8 @@ const routes: TeacherRoute[] = [
   { path: LESSONS_OPEN, element: <OpenPlanPage />, leaders: true },
   { path: LESSONS_ALL, element: <LessonsAllPage /> },
   { path: LESSONS_VIEWER, element: <ViewerPage />, leaders: true },
+  // bd-snkn32 — Make my own (dark unless lpMakeOwn): a teacher's own plan, so not the leaders'.
+  { path: LESSONS_OWN, element: <OwnPage /> },
 ];
 
 export default routes;

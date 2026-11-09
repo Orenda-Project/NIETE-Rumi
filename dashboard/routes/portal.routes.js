@@ -1,3 +1,8 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 /**
  * Teacher Portal API Routes
  * Handles authentication and data access for teacher portal
@@ -101,6 +106,7 @@ const {
   PORTAL_TEACHER_HOME_CARD_KEY,
   PORTAL_TEACHER_HOME_ORDER_KEY,
   PORTAL_TEACHER_HOME_LOOK_KEY,
+  PORTAL_LP_MAKE_OWN_KEY,
   PORTAL_COACHIP_KEY,
   PORTAL_COACHIP_DECODE_KEY,
   rmSectorFor,
@@ -117,7 +123,7 @@ const {
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
-const { publicUserPayload, makeRequireLeaderRole } = require('../lib/leader-role');
+const { publicUserPayload, makeRequireLeaderRole, isPrincipalRole } = require('../lib/leader-role');
 // bd-33wxxi.1 — the teacher-app switches through one gate (a principal on the principal app is on too).
 const { teacherAppOnFor, isPrincipalAppUser } = require('../lib/teacher-app');
 // The bot's ONE definition of "registered" (pure, no requires) — bd-x7aprz.3.
@@ -2289,6 +2295,19 @@ async function requireCoachV2(req, res, next) {
 }
 const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
 
+// bd-33wxxi.4 — the two coach-app reads the observation screens need, for a principal too: a PRINCIPAL passes on the
+// principal app (portal_principal_app names her; never portal_coach_v2), everyone else on portal_coach_v2 exactly as
+// coachV2. `req.observerRole` tells the service whose teachers to read (her own school, or the coach's schools).
+async function requireCoachV2OrPrincipalApp(req, res, next) {
+  const userId = req.session && req.session.portalUserId;
+  const principal = isPrincipalRole(req.portalUser && req.portalUser.role);
+  const on = principal ? await isPrincipalAppUser(supabase, userId) : await isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, userId);
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  req.observerRole = principal ? 'principal' : 'coach';
+  return next();
+}
+const observerReads = [requirePortalAuth, requireLeaderRole, requireCoachV2OrPrincipalApp];
+
 // The coach School Card: its own switch on top of the coach app v2 chain. Off for her → 404, nothing is read.
 async function requireSchoolCard(req, res, next) {
   const on = await isFlagEnabledForUser(supabase, PORTAL_COACH_SCHOOL_CARD_KEY, req.session && req.session.portalUserId);
@@ -2305,6 +2324,12 @@ router.use(require('./coach-school-card.routes').createCoachSchoolCardRouter({
   query: (sql, params) => pool.query(sql, params),
   // bd-hl4a4y: her Training page's "Level N of M", from the bot as her own Training page reads it.
   levelStates: (userId) => TrainingRules.getLevelStates(userId),
+}));
+// bd-33wxxi.2: the principal app's school API — her OWN school's card, counts only (portal_principal_app; off → 404).
+router.use(require('./portal-principal.routes').createPrincipalRouter({
+  guards: [requirePortalAuth],
+  supabase,
+  query: (sql, params) => pool.query(sql, params),
 }));
 
 // bd-tbprit.1: the coach's disagreements (v10 coaching test) — her To do / Done and the evidence card.
@@ -2526,10 +2551,10 @@ router.get('/coach/teacher/:teacherExtId', ...coachV2, async (req, res) => {
  * the one the teacher received (teacher_delivery.report_key), signed here the
  * same way the teacher's own session page signs it, and so is the lesson audio.
  */
-router.get('/coach/observation/:id', ...coachV2, async (req, res) => {
+router.get('/coach/observation/:id', ...observerReads, async (req, res) => {
   if (!UUID_RX.test(String(req.params.id || ''))) return res.status(404).json({ success: false, error: 'Not found' });
   try {
-    const out = await CoachV2.getCoachObservation(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req) });
+    const out = await CoachV2.getCoachObservation(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req), role: req.observerRole });
     if (!out) return res.status(404).json({ success: false, error: 'Not found' });
     const { reportKey, audioKey, ...rest } = out;
     const imageUrl = reportKey && process.env.R2_ENDPOINT && process.env.R2_BUCKET_NAME
@@ -2665,11 +2690,11 @@ router.get('/coach/visit/:id', ...coachV2, async (req, res) => {
 });
 
 /** GET /api/portal/coach/reports?page=&q= — waiting for her, in progress, then every observation. */
-router.get('/coach/reports', ...coachV2, async (req, res) => {
+router.get('/coach/reports', ...observerReads, async (req, res) => {
   const { page, q } = req.query || {};
   try {
     const out = await CoachV2.getCoachReports(pgQuery, req.session.portalUserId, {
-      page, q: typeof q === 'string' ? q.slice(0, 64) : undefined,
+      page, q: typeof q === 'string' ? q.slice(0, 64) : undefined, role: req.observerRole,
     });
     return res.json({ success: true, ...out });
   } catch (error) { return coachFail(res, 'reports', error); }
@@ -8165,9 +8190,16 @@ router.post('/coaching-session/:id/reflection', requirePortalAuth, requireSelfOb
  * ------------------------------------------------------------------------- */
 
 async function requireCoachObservation(req, res, next) {
+  const userId = req.session && req.session.portalUserId;
+  // bd-33wxxi.4 — a PRINCIPAL observes from the principal app, so for her it is the principal app's switch
+  // (portal_principal_app names her), never the coach pilots: with portal_coach_observation = true any principal could
+  // otherwise drive the pipeline through the API alone. requireLeaderRole ran first and holds her users row.
+  const role = req.portalUser && req.portalUser.role;
   // bd-o15qnr: coach v2's Take observation runs on this pipeline, so either
   // pilot flag opens it (feature-flags.isCoachObservationOn).
-  const on = await isCoachObservationOn(supabase, req.session && req.session.portalUserId);
+  const on = isPrincipalRole(role)
+    ? await isPrincipalAppUser(supabase, userId)
+    : await isCoachObservationOn(supabase, userId);
   if (!on) return res.status(404).json({ success: false, error: 'Not found' });
   return next();
 }
@@ -9143,6 +9175,7 @@ router.get('/config', async (req, res) => {
       coachFullAppRaw,
       coachReportsAppRaw,
       principalApp,
+      lpMakeOwnRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9187,6 +9220,8 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, userId),
       // bd-33wxxi.1 — the principal app (portal_principal_app): a principal on it gets the teacher app plus her school.
       isPrincipalAppUser(supabase, userId),
+      // bd-snkn32 — Make my own lesson plan, per user; it rides with the teacher app v2 on.
+      isFlagEnabledForUser(supabase, PORTAL_LP_MAKE_OWN_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -9219,6 +9254,7 @@ router.get('/config', async (req, res) => {
         coachReportsApp: coachV2 && coachReportsAppRaw,
         roleSwitch,
         principalApp,
+        lpMakeOwn: teacherV2 && lpMakeOwnRaw,
       },
     });
   } catch (error) {
@@ -9250,6 +9286,7 @@ router.get('/config', async (req, res) => {
         coachFullApp: false,
         roleSwitch: false,
         principalApp: false,
+        lpMakeOwn: false,
       },
       roleSwitchRoles: [],
     });

@@ -1331,6 +1331,10 @@ router.post('/classes/remove', requireInternalKey, async (req, res) => {
 // rows from the same catalogue; the portal renders these. One source for what
 // exists, each surface responsible for how it looks.
 
+// KNOWN DESIGN DEBT (Nov 2026): this branch exists because GB is gated by LP_GB_K5_ENABLED, a temporary launch
+// gate retired after the GB switch. Route by the region's books; do NOT add another per-region or
+// per-generation LP flag or catalogue here without asking the operator (Hataf).
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 /**
  * Which catalogue a portal browse reads (bd-rj6w0n.14): a GB teacher's, with LP_GB_K5_ENABLED on, is the GB K-5
  * lane (gb-k5-browse — the v10 plans WhatsApp serves); everyone else's is lp-v8-browse, unchanged. A pdf call goes
@@ -2267,6 +2271,7 @@ router.use(require('./internal-assessment-view.routes'));
 router.use(require('./internal-attendance.routes'));
 // bd-fmf24g.30 — Send on WhatsApp from a portal screen (template only, the real result).
 router.use(require('./internal-share.routes'));
+router.use(require('./internal-lp612-own.routes')); // bd-snkn32 Make my own — its own file; see its header.
 router.use(require('./internal-fln-send.routes')); // FLN Send to teacher (PR-E) — its own file; see its header.
 
 // ─── coaching ───────────────────────────────────────────────────────────────
