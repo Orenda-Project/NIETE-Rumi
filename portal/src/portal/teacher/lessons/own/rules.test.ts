@@ -83,3 +83,20 @@ describe('isComplete — Make my plan is only offered with every answer in', () 
     expect(isComplete(at({ way: 'story', resources: [] }))).toBe(true);
   });
 });
+
+// bd-snkn32.4 — grades 1–5 subjects ride the address by their catalogue KEY (lp_catalog subject_key), not a name.
+describe('grades 1–5 subject keys (the product reviewer\'s check)', () => {
+  it('maths offers Things → pictures → numbers; Urdu and English in grades 1–3 offer Sounds first', () => {
+    expect(waysFor({ grade: 3, subject: 'math' })).toContain('cpa');
+    expect(waysFor({ grade: 2, subject: 'urdu' })).toContain('phonics');
+    expect(waysFor({ grade: 1, subject: 'english' })).toContain('phonics');
+    expect(waysFor({ grade: 4, subject: 'urdu' })).not.toContain('phonics');
+  });
+  it('the other primary subjects are neither maths nor a language', () => {
+    for (const subject of ['islamiat', 'general_knowledge', 'general_knowledge_ur', 'social_studies_ur', 'social_studies_en', 'general_science']) {
+      const w = waysFor({ grade: 2, subject });
+      expect(w).not.toContain('cpa');
+      expect(w).not.toContain('phonics');
+    }
+  });
+});
