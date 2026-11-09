@@ -294,8 +294,10 @@ function normalisePhone(digits) {
 
 // ── teachers: the patch plus the three new numbers ──────────────────────────
 
-async function loadTeachers(query, leaderUserId, today) {
-  const patch = await getPatchTeachers(query, leaderUserId, { role: 'coach' });
+// bd-33wxxi.4 — `role` 'principal' (the principal app's observation screens) reads her own school (leader-patch's
+// principal entry, users.school_id); every coach read passes nothing and stays 'coach'.
+async function loadTeachers(query, leaderUserId, today, role = 'coach') {
+  const patch = await getPatchTeachers(query, leaderUserId, { role });
   const ids = [...new Set(patch.map((t) => t.rumiUserId).filter(Boolean))];
 
   const facts = new Map();
@@ -553,7 +555,7 @@ async function getCoachObservation(query, leaderUserId, sessionId, opts = {}) {
   if (!row || !row.user_id) return null;
   const step = stepOf(row);
 
-  const teachers = await loadTeachers(query, leaderUserId, today);
+  const teachers = await loadTeachers(query, leaderUserId, today, opts.role || 'coach');
   const teacher = teachers.find((t) => t.rumiUserId && t.rumiUserId === row.user_id);
   if (!teacher) return null;
 
@@ -748,7 +750,7 @@ async function getCoachReports(query, leaderUserId, opts = {}) {
   const pageSize = Math.min(100, Math.max(1, Number(opts.pageSize) || 30));
   const [sessionsRes, patch] = await Promise.all([
     query(SQL.COACH_SESSIONS, [leaderUserId]),
-    getPatchTeachers(query, leaderUserId, { role: 'coach' }),
+    getPatchTeachers(query, leaderUserId, { role: opts.role || 'coach' }),
   ]);
   const teacherByUser = new Map(patch.filter((t) => t.rumiUserId).map((t) => [t.rumiUserId, {
     teacherExtId: t.teacherExtId, schoolName: t.schoolName, schoolExtId: t.emis ? `niete:${t.emis}` : null,

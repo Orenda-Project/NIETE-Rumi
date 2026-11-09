@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,11 @@ import { DateRangeBar, Tabs } from '../ui';
 import { useAuth } from '../../hooks/useAuth';
 import { principalOf } from '../../lib/leaderRole';
 import { SchoolView } from './SchoolView';
+import { usePrincipalApp } from '../principal/usePrincipalApp';
+
+// bd-33wxxi.3 — the principal app's My school (the coach card's pieces) is its own chunk: only a principal on the
+// principal app loads it, so a teacher's Analytics page is no heavier than it was.
+const MySchool = lazy(() => import('../principal/MySchool').then((m) => ({ default: m.MySchool })));
 import { useKitCopy } from '../ui/useKitCopy';
 import { useCopy } from '../i18n';
 import { resolveRange } from '../ui/range';
@@ -128,13 +133,15 @@ export function AnalyticsPage() {
   const C = useCopy(ANALYTICS);
   const { user } = useAuth();
   const principal = principalOf(user);
+  // bd-33wxxi.3 — a principal on the principal app: My school is the coach's School view for her school (MySchool).
+  const principalApp = usePrincipalApp(user);
   const [tab, setTab] = useState<'school' | 'me'>('school');
   return (
     <TeacherPage crumb={C.more} title={C.title} backTo={teacherPath('more')} feature="reports">
       {principal ? (
         <>
           <Tabs label={C.title} value={tab} onChange={(k) => setTab(k === 'me' ? 'me' : 'school')} tabs={[{ key: 'school', label: C.mySchool }, { key: 'me', label: C.me }]} />
-          {tab === 'school' ? <SchoolView /> : <MeAnalytics />}
+          {tab === 'school' ? (principalApp ? <Suspense fallback={null}><MySchool /></Suspense> : <SchoolView />) : <MeAnalytics />}
         </>
       ) : <MeAnalytics />}
     </TeacherPage>

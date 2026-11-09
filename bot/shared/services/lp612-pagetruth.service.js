@@ -334,5 +334,32 @@ async function stageFigures({ refs = [], outDir, correlationId, segmentId, rende
   return { staged, missing };
 }
 
+/**
+ * Is this book's page text loaded — can a lesson of it be written at all? (queue #71.) fetchPages refuses a book
+ * with no `_book.json` (PAGE_TRUTH_MISSING), so a shelf that offers to write a lesson asks this first and lists an
+ * unwritten lesson only when the answer is yes. One HEAD per book, kept 10 minutes (a book loaded later shows up
+ * by itself); a failed check is "no", kept 1 minute. Never throws.
+ */
+const BOOK_TTL_MS = 10 * 60 * 1000;
+const BOOK_MISS_TTL_MS = 60 * 1000;
+const bookCache = new Map(); // bookStem -> { at, has }
+async function hasBook(bookStem) {
+  if (!bookStem) return false;
+  const hit = bookCache.get(bookStem);
+  if (hit && Date.now() - hit.at < (hit.has ? BOOK_TTL_MS : BOOK_MISS_TTL_MS)) return hit.has;
+  let has = false;
+  const localDir = process.env.LP612_PAGE_TRUTH_DIR || null;
+  try {
+    if (localDir) has = fs.existsSync(path.join(localDir, bookStem, '_book.json'));
+    else has = (await require('../storage/r2').headObject(`${R2_PREFIX}/${bookStem}/_book.json`)).exists === true;
+  } catch (e) {
+    logToFile('lp612 page-truth: book check failed — treated as not loaded', { bookStem, error: e.message }, 'warn');
+  }
+  bookCache.set(bookStem, { at: Date.now(), has });
+  return has;
+}
+/** Tests only. */
+const resetBookCache = () => bookCache.clear();
+
 module.exports = {
-  WIDE_SEGMENT_PAGE_CEILING, fetchPages, MAX_SEGMENT_PAGES, refsFromDoc, stageFigures, figureKeyFor };
+  WIDE_SEGMENT_PAGE_CEILING, fetchPages, MAX_SEGMENT_PAGES, refsFromDoc, stageFigures, figureKeyFor, hasBook, resetBookCache };

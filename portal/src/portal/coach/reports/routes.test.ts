@@ -19,6 +19,11 @@ describe("coach Reports routes", () => {
 
   it("a Reports page gates itself through ReportsFrame (CoachGate)", () => {
     const frame = readFileSync(resolve(__dirname, "ReportsFrame.tsx"), "utf8");
-    expect(frame).toMatch(/<CoachGate>\s*<TeacherPage/);
+    // bd-33wxxi.4 — the gate is the observe routes' choice: the coach app's (the default) keeps CoachGate; only the
+    // principal app (behind TeacherGate) draws the same screens without it.
+    expect(frame).toMatch(/routes\.coachGate \? <CoachGate>\{page\}<\/CoachGate> : page/);
+    expect(frame).toMatch(/const page = \(\s*<TeacherPage/);
+    const routes = readFileSync(resolve(__dirname, "../observe/observeRoutes.tsx"), "utf8");
+    expect(routes).toMatch(/COACH_OBSERVE_ROUTES: ObserveRoutes = \{\s*coachGate: true,/);
   });
 });

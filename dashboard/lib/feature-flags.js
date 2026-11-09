@@ -208,6 +208,14 @@ const PORTAL_COACH_V2_KEY = 'portal_coach_v2';
 const PORTAL_TEACHER_V2_KEY = 'portal_teacher_v2';
 
 /**
+ * bd-snkn32 — app_settings key for "Make my own" lesson plan in the teacher app (Lesson Plans, grades 6-12): her class
+ * answers rewrite the chapter's plan into a fork that is hers. Read only with portal_teacher_v2 on. Same shape and rule
+ * as the keys above: true = everyone, a list of users.id = a pilot, "teachers" = every teacher, absent = off. Off, the
+ * chapter page is today's and POST /api/portal/lp612/own is 404.
+ */
+const PORTAL_LP_MAKE_OWN_KEY = 'portal_lp_make_own';
+
+/**
  * bd-33wxxi.1 — the PRINCIPAL app, per user: app_settings key that puts a principal (users.role principal) on the
  * teacher app every teacher has (lib/teacher-app.js teacherAppOnFor: portal_teacher_v2, portal_teacher_home_card and
  * portal_teacher_home_look then answer ON for her), plus her school. Same shape and rule as the keys above: a list of
@@ -591,6 +599,7 @@ module.exports = {
   PORTAL_COACH_FULL_APP_KEY,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
+  PORTAL_LP_MAKE_OWN_KEY,
   PORTAL_PRINCIPAL_APP_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,

@@ -51,6 +51,8 @@ const LANDINGS = Object.freeze({
   assessment_report: '/portal/teacher/assessment/new/class',
   // bd-pw1ccr.4.2 — not a command: the topic-end nudge button. Opens Topics on the chapter she just finished; untagged.
   assessment_topic_nudge: '/portal/teacher/assessment/new/class',
+  // bd-iceyyu — not a command: the "Make my own" row on the lesson-plan Flow. Opens Make my own on that 6-12 chapter.
+  lp_make_own: '/portal/teacher/lessons/own',
 });
 /** Where a teacher who is no longer on the teacher app lands instead (today's portal home). */
 const LEGACY_LANDING = '/portal/dashboard';
@@ -118,7 +120,25 @@ const PREFILL_FEATURES = Object.freeze({
   assessment_report: { origin: 'report' },
   assessment_topic_nudge: { by: 'topics' },
 });
-const carriesPrefill = (f) => typeof f === 'string' && own(PREFILL_FEATURES, f);
+/**
+ * bd-iceyyu — the Make my own landing's pre-fill is a 6-12 chapter as the portal names it (own/state.ts): the corpus
+ * subject ("Pakistan Studies") and the chapter key ("c01", "p3c01"). No query of its own; the pre-fill is the query.
+ */
+const OWN_PREFILL = 'lp_make_own';
+const carriesPrefill = (f) => typeof f === 'string' && (own(PREFILL_FEATURES, f) || f === OWN_PREFILL);
+
+/** {grade, subject, chapter} for a 6-12 chapter, else null. */
+function ownPrefillOf(q) {
+  if (!q || typeof q !== 'object') return null;
+  const { grade, subject, chapter } = q;
+  if (!Number.isInteger(grade) || grade < 6 || grade > 12) return null;
+  if (typeof subject !== 'string' || !/^[A-Za-z][A-Za-z0-9 &.()'-]{0,59}$/.test(subject)) return null;
+  if (typeof chapter !== 'string' || !/^[a-z0-9]{1,16}$/.test(chapter)) return null;
+  return { grade, subject, chapter };
+}
+
+/** {grade, subject, chapter} when `q` is a well-formed pre-fill for feature `f`, else null. */
+const prefillFor = (f, q) => (f === OWN_PREFILL ? ownPrefillOf(q) : prefillOf(q));
 
 /** {grade, subject, chapter} when `q` is a well-formed pre-fill, else null. */
 function prefillOf(q) {
@@ -133,7 +153,7 @@ function prefillOf(q) {
 /** The landing's query for a verified payload: the feature's own query plus its pre-fill for a pre-fill feature, '' otherwise. */
 function landingQuery(payload) {
   if (!payload || !carriesPrefill(payload.f)) return '';
-  const p = new URLSearchParams(PREFILL_FEATURES[payload.f]);
+  const p = new URLSearchParams(PREFILL_FEATURES[payload.f] || {});
   if (payload.q) Object.entries(payload.q).forEach(([k, v]) => p.set(k, String(v)));
   return `?${p}`;
 }
@@ -151,7 +171,7 @@ function signAppLink(userId, feature, journeyId, prefill) {
   const cipher = crypto.createCipheriv('aes-256-gcm', k, iv);
   const body = { k: KIND, u: String(userId), f: feature, exp: nowS() + TTL_S };
   if (isJourneyId(journeyId)) body.j = journeyId;
-  const q = carriesPrefill(feature) ? prefillOf(prefill) : null;
+  const q = carriesPrefill(feature) ? prefillFor(feature, prefill) : null;
   if (q) body.q = q;
   const plain = Buffer.from(JSON.stringify(body));
   const enc = Buffer.concat([cipher.update(plain), cipher.final()]);
@@ -176,7 +196,7 @@ function verifyAppLink(token) {
     if (!p || p.k !== KIND || typeof p.u !== 'string' || !p.u) return null;
     if (!linkable(p.f)) return null;
     if (!Number.isFinite(p.exp) || p.exp < nowS()) return null;
-    const q = carriesPrefill(p.f) ? prefillOf(p.q) : null;
+    const q = carriesPrefill(p.f) ? prefillFor(p.f, p.q) : null;
     return { u: p.u, f: p.f, exp: p.exp, j: isJourneyId(p.j) ? p.j : null, q };
   } catch (_) {
     return null;

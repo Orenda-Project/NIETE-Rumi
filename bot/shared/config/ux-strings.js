@@ -1736,6 +1736,20 @@ const UX_STRINGS = {
   // it is shared with, and only changeable by republishing the Flow), so a
   // number here would argue with the line directly beneath it. The estimate
   // belongs in the chat ack, where nothing contradicts it.
+  // bd-iceyyu — "Make my own" on the lesson-plan Flow (lp612-own-offer.js). Copy signed off by the product reviewer
+  // (docs/reviews/bd-iceyyu-make-my-own-bot-handoff.md). Row: title ≤30, description ≤20, metadata ≤80 code points.
+  // The row speaks the BOOK's language (like the lesson rows under it); the Flow line and the chat message, hers.
+  lpOwnRowTitle: { en: 'Make my own', ur: 'اپنا پلان بنائیں' },
+  lpOwnRowDesc: { en: '5 questions · 1 min', ur: '۵ سوال · ایک منٹ' },
+  lpOwnRowMeta: { en: 'Your plan, made for your class', ur: 'آپ کی کلاس کے لیے آپ کا اپنا پلان' },
+  lpOwnFlowAck: { en: 'Done. Tap the button in the chat to start.', ur: 'ہو گیا۔ شروع کرنے کے لیے چیٹ میں بٹن دبائیں۔' },
+  lpOwnLinkBody: {
+    en: 'Make your own plan for this chapter. 5 quick taps, about a minute. Link works for 24 hours.',
+    ur: 'اس باب کا اپنا پلان بنائیں۔ ۵ آسان سوال، تقریباً ایک منٹ۔ لنک ۲۴ گھنٹے چلے گا۔',
+  },
+  lpOwnLinkButton: { en: 'Make my own', ur: 'اپنا پلان بنائیں' },
+  lpOwnUnavailable: { en: 'Make my own is not available right now.', ur: 'اپنا پلان بنانا ابھی دستیاب نہیں۔' },
+
   lp612FlowAck: {
     en: 'Your lesson plan is being written now — I will send it to this chat as soon as it is ready.',
     ur: 'آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — تیار ہوتے ہی اسی چیٹ میں بھیج دیا جائے گا۔',

@@ -49,11 +49,11 @@ const NAMED = {
   role: 'teacher', school_id: 's-1', teacher_level: null, grades_taught: null,
 };
 
-/** A PostgREST-shaped fake: `.select().eq()/.in()` then await. */
+/** A PostgREST-shaped fake: `.select().eq()/.in()/.is()` then await. */
 function fakeSupabase(people) {
   const table = (result) => {
     const q = {
-      select: () => q, eq: () => q, in: () => q,
+      select: () => q, eq: () => q, in: () => q, is: () => q,
       then: (resolve) => resolve(result),
     };
     return q;

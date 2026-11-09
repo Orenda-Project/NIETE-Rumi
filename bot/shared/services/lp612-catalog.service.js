@@ -1,3 +1,8 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 /**
  * The 6-12 menu tree: grade -> subject -> chapter -> subtopic.
  *
@@ -526,7 +531,10 @@ async function buildChapterItems(grade, subject, page = 1, { curriculum } = {}) 
  * Page 1 carries PAGE_SIZE-1 real rows plus a More row, because Meta rejects a
  * row that routes back to its own screen — overflow has to be a second screen.
  */
-async function buildSegmentItems(grade, subject, chapterKey, page = 1, bookStem = null, { curriculum } = {}) {
+// bd-iceyyu — `lead` (0 or 1): rows the caller puts ABOVE page 1's lessons ("Make my own"). Page 1 shows that many fewer
+// lessons, so the screen stays inside Meta's 20 rows, and every later page starts where page 1 stopped; the More row
+// carries `lead` back so page 2 knows. 0 (every flag-off teacher) is today's paging exactly.
+async function buildSegmentItems(grade, subject, chapterKey, page = 1, bookStem = null, { curriculum, lead = 0 } = {}) {
   const own = await curriculumOf(grade, subject, curriculum);
   const buildQuery = () => {
     let q = byGrade(menuQuery('segment_id, menu_title, subtopic_title, printed_page_start, ' +
@@ -552,9 +560,11 @@ async function buildSegmentItems(grade, subject, chapterKey, page = 1, bookStem 
   const total = rows.length;
   const p = Math.max(1, parseInt(String(page), 10) || 1);
   const perPage = PAGE_SIZE - 1;
-  const start = (p - 1) * perPage;
-  const slice = rows.slice(start, start + perPage);
-  const hasMore = start + perPage < total;
+  const ahead = lead === 1 ? 1 : 0;
+  const start = p === 1 ? 0 : (p - 1) * perPage - ahead;
+  const size = p === 1 ? perPage - ahead : perPage;
+  const slice = rows.slice(start, start + size);
+  const hasMore = start + size < total;
 
   const items = slice.map((r) => {
     const rtl = r.language === 'ur';
@@ -628,12 +638,14 @@ async function buildSegmentItems(grade, subject, chapterKey, page = 1, bookStem 
           // page 2 of a chapter must stay inside the SAME book as page 1
           ...(bookStem ? { book_stem: bookStem } : {}),
           page: String(p + 1),
+          ...(ahead ? { lead: '1' } : {}),
         },
       },
     });
   }
 
-  return { items, hasMore, total, page: p };
+  const rtl = ((slice[0] || rows[0] || {}).language) === 'ur';
+  return { items, hasMore, total, page: p, rtl };
 }
 
 // ── one segment ─────────────────────────────────────────────────────────────
