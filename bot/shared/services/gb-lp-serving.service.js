@@ -20,6 +20,10 @@
  * Until LP_GB_AUTHOR_ENABLED=true (the gb_lp_author worker), only built plans are served: a miss is told
  * "coming soon" and nothing is written or queued. Built plans are seeded by bot/scripts/gb-seed-renders.js.
  *
+ * Two surfaces, as on 6-12 (queue #71, "GB follows ICT 6-12"): WhatsApp is sent the PDF; the app ('portal',
+ * through /api/internal/lp612/request) is never sent anything — a hit answers its render id, a miss claims the
+ * row and queues gb_lp_author with a phone-less waiter, and the app polls /lp612/status (renderStatus below).
+ *
  * GB grades 1-5: the v10 coach card with the v9 plan embedded, one plan per lesson in its BOOK's language,
  * for English, Urdu, Maths and Science only (isGbOnRequestSubject); any other subject is told "coming soon".
  * GB grades 6-12: design pending (no nbf_snc 6-12 book is in the store; GB teachers get ICT's 6-12 books on
@@ -72,9 +76,11 @@ async function tell(phone, key, lang) {
   }
 }
 
-const waiterEntry = ({ userId, phone, voice, correlationId, askedAt }) => ({
+// An app waiter has no phone: the worker sends nothing to it (gb-lp-author.worker skips a phone-less waiter), and
+// renderStatus answers its poll.
+const waiterEntry = ({ userId, phone, voice, correlationId, askedAt, surface }) => ({
   user_id: userId || null, phone: phone || null, ui_lang: voice, correlation_id: correlationId || null,
-  asked_at: askedAt || new Date().toISOString(),
+  asked_at: askedAt || new Date().toISOString(), surface: surface || 'whatsapp',
 });
 
 async function findRender(segmentId, lang, tv) {
@@ -133,9 +139,13 @@ async function join(renderId, entry) {
  * @returns {{outcome: string, renderId?: string, error?: string}}
  */
 async function requestLesson(req, depth = 0) {
-  const { segment, userId, phone, voice, correlationId, askedAt, surface } = req;
+  const { segment, userId, voice, correlationId, askedAt, surface } = req;
   const segmentId = segment.segment_id;
   const t0 = Date.now();
+  // The app delivers itself (it presigns the render through /lp612/status): a non-WhatsApp ask is never sent
+  // anything, not even a status line, whatever phone the caller had in scope.
+  const toWhatsApp = (surface || 'whatsapp') === 'whatsapp';
+  const phone = toWhatsApp ? req.phone : null;
   if (!GbDelivery.isGbK5Segment(segment)) {
     logToFile('LP GB: grade 6-12 GB lesson asked, design pending', { segmentId, correlationId });
     await tell(phone, 'lp612GbComingSoonTap', voice);
@@ -146,10 +156,6 @@ async function requestLesson(req, depth = 0) {
     logToFile('LP GB: subject not written on request', { segmentId, subject: segment.subject, correlationId });
     await tell(phone, 'lp612GbComingSoonTap', voice);
     return { outcome: 'gb_subject_off' };
-  }
-  if ((surface || 'whatsapp') !== 'whatsapp') {
-    logToFile('LP GB: non-WhatsApp surface asked, design pending', { segmentId, surface, correlationId });
-    return { outcome: 'gb_design_pending' };
   }
   if (depth > 2) {
     await tell(phone, 'lp612Failed', voice);
@@ -164,8 +170,12 @@ async function requestLesson(req, depth = 0) {
     return { outcome: 'error', error: 'render lookup failed' };
   }
 
-  // hit — GB's own cached PDF, sent like ICT's.
+  // hit — GB's own cached PDF, sent like ICT's; the app gets the render to open.
   if (row && row.status === 'ready' && row.r2_key) {
+    if (!toWhatsApp) {
+      logEvent('gb_lp.serve.hit', { segmentId, lang, tv, renderId: row.id, surface, ms: Date.now() - t0, correlationId });
+      return { outcome: 'cache_hit', renderId: row.id, r2Key: row.r2_key };
+    }
     try {
       await deliver({
         phone, userId, r2Key: row.r2_key, segment, lang, askedAt, generatedAt: askedAt, correlationId,
@@ -186,7 +196,7 @@ async function requestLesson(req, depth = 0) {
     return { outcome: 'gb_not_built' };
   }
 
-  const entry = waiterEntry({ userId, phone, voice, correlationId, askedAt });
+  const entry = waiterEntry({ userId, phone, voice, correlationId, askedAt, surface });
 
   // in flight — join it.
   if (row && row.status === 'authoring' && !isStranded(row)) {
@@ -231,7 +241,26 @@ async function requestLesson(req, depth = 0) {
   return { outcome: 'queued', renderId };
 }
 
+/**
+ * A GB render, for the app's poll (/lp612/status, /lp612/file) — the 6-12 status row's shape — or null.
+ * Answered to a teacher whose curriculum is the lesson's (any GB teacher may open any GB plan, as she can a
+ * written one through /lp/v8/pdf); null for anyone else, identically to a render that does not exist.
+ */
+async function renderStatus(renderId, userId) {
+  if (!renderId || !userId || !require('../config/lp612-flags').isGbK5Enabled()) return null;
+  const { data, error } = await supabase.from(RENDERS)
+    .select('id, segment_id, status, r2_key, error_code, lang, started_at, completed_at')
+    .eq('id', renderId).maybeSingle();
+  if (error || !data) return null;
+  const { data: seg, error: sErr } = await supabase.from('niete_lp612_segments')
+    .select('segment_id, grade, subject, curriculum').eq('segment_id', data.segment_id).limit(1);
+  const segment = Array.isArray(seg) ? seg[0] : seg;
+  if (sErr || !segment || !GbDelivery.isGbSegment(segment)) return null;
+  if (await GbDelivery.refusesCurriculum({ segment, userId })) return null;
+  return { ...data, one_screen: null };
+}
+
 module.exports = {
   requestLesson, deliver, keyFor, isGbKey, assertGbKey, isStranded, templateVersion, waiterEntry, isAuthorEnabled,
-  RENDERS, JOB_TYPE, R2_PREFIX,
+  renderStatus, RENDERS, JOB_TYPE, R2_PREFIX,
 };

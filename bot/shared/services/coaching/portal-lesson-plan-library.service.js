@@ -28,6 +28,8 @@
  *   readyRender({ segmentId })  grades 6-12 have no asset to link — the WhatsApp list
  *                               cannot offer them either. A lesson that has been
  *                               WRITTEN has a PDF; the caller attaches it as an upload.
+ *                               A GB lesson (nbf_snc) is served the same way (queue #71):
+ *                               its written PDF is GB's own render (niete_gb_lp_renders).
  *   recent(userId)              the WhatsApp list's source (getRecentFidelityLps).
  *
  * Every collaborator is required lazily: this module is loaded by
@@ -66,6 +68,7 @@ function withDefaults(deps = {}) {
     linker: () => require('./lp-coaching/lp-coaching-linker.service'),
     getRecentFidelityLps: () => require('./lp-coaching/recent-fidelity-lps.service').getRecentFidelityLps,
     templateVersion: () => require('../../config/lp612-flags').templateVersion,
+    gbTemplateVersion: () => require('../gb-lp-serving.service').templateVersion,
   };
   const d = {};
   for (const [name, load] of Object.entries(lazy)) {
@@ -118,6 +121,19 @@ async function resolveAsset({ userId, assetId, lessonId }, deps) {
 async function readyRender({ segmentId, lang }, deps) {
   if (!segmentId || !LANGS.has(lang)) return null;
   const d = withDefaults(deps);
+  // Queue #71 — a GB lesson (nbf_snc) is written into GB's own rows, at GB's template version, in its BOOK's
+  // language (one plan per lesson), so the app's browse language does not pick it. Only a ready row counts.
+  if (String(segmentId).startsWith('nbf_snc_')) {
+    const { data: gb } = await d.supabase
+      .from('niete_gb_lp_renders')
+      .select('r2_key')
+      .eq('segment_id', segmentId)
+      .eq('template_version', d.gbTemplateVersion())
+      .eq('status', 'ready')
+      .limit(1);
+    const row = Array.isArray(gb) ? gb[0] : gb;
+    return row && row.r2_key ? { r2Key: row.r2_key } : null;
+  }
   const { data } = await d.supabase
     .from('niete_lp612_renders')
     .select('r2_key')
