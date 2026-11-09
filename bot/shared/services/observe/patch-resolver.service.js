@@ -303,7 +303,8 @@ async function ownSchoolPatch(supabase, principalId, schoolId) {
     .from('users')
     .select('id, phone_number, name, role, school_id, teacher_level')
     .eq('school_id', schoolId)
-    .in('role', ['teacher']);
+    .in('role', ['teacher'])
+    .is('deleted_at', null); // live accounts only, as every patch (bd-apnnh2.11)
   return dedupePatch((people || [])
     .filter((u) => String(u.id) !== String(principalId))
     .map((u) => shapePatchRow({ ...u, user_id: u.id, school_name: school.name, emis: school.emis })));
