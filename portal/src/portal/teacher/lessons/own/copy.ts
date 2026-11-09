@@ -11,10 +11,9 @@ import { bilingual, type Bilingual, type Words } from '../../i18n';
 import type { CopyEntry } from '../../copyRegistry';
 
 export const OWN_COPY = {
-  /* the chapter page's row */
-  forYourClass: 'For your class',
+  /* the chapter page's card (bd-oitowp: first on the page, no heading; "Lesson plan" says what she makes) */
   makeMyOwn: 'Make my own',
-  fiveQuestions: '5 questions',
+  lessonPlanFive: 'Lesson plan · 5 questions',
   /* the steps */
   title: 'Make my own',
   ok: 'OK',
@@ -45,9 +44,8 @@ export const OWN_COPY = {
 } as const;
 
 const OWN_COPY_UR: Words<typeof OWN_COPY> = {
-  forYourClass: 'آپ کی کلاس کے لیے',
   makeMyOwn: 'اپنا بنائیں',
-  fiveQuestions: '5 سوال',
+  lessonPlanFive: 'لیسن پلان · 5 سوال',
   title: 'اپنا بنائیں',
   ok: 'ٹھیک ہے',
   pages: 'کتاب کے صفحات',
@@ -83,5 +81,5 @@ export const OWN_COPY_ENTRY: CopyEntry = {
   // Digits and dashes read the same in both languages.
   same: ['sizes.31_50', 'sizes.51_70'],
   // A suggestion's name mirrors the FLN strategy's own name word for word.
-  longOk: ['ways.tarl', 'ways.cpa', 'suggested', 'resourceNames.charts', 'objectsHint', 'level', 'forYourClass', 'makeMyPlan'],
+  longOk: ['ways.tarl', 'ways.cpa', 'suggested', 'resourceNames.charts', 'objectsHint', 'level', 'makeMyPlan'],
 };
