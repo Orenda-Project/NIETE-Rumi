@@ -196,15 +196,16 @@ describe('Grade 6+ for a region whose books stop at Grade 5 (operator, 6 Nov)', 
     expect(ict.payload.grades).toEqual([1, 2, 5]); // the G6-12 grade gate is off in this file, as before
   });
 
-  test('a GB Grade 7 paper is refused at the door; the portal 6-12 lesson lists are empty for her', async () => {
+  // Queue #71 (operator, 9 Nov: "GB should follow the currently ict 6-12 one"): the 6-12 LESSON lists are no longer
+  // empty for her — where GB has no book she gets ICT's (lp612-browse through her curriculum). Papers are unchanged.
+  test("a GB Grade 7 paper is refused at the door; the portal 6-12 lesson lists are ICT's for her", async () => {
     const chapters = await invoke('/assessment/chapters', { userId: 'gb-teacher', grade: 7, subject: 'english' });
     expect(chapters.statusCode).toBe(400);
     const Lp612 = require('../../bot/shared/services/lp612-browse.service');
     const grades = await invoke('/lp612/grades', { userId: 'gb-teacher' });
-    expect(grades.payload.grades).toEqual([]);
+    expect(grades.payload.grades).toEqual([{ grade: 6 }, { grade: 7 }]);
     const subjects = await invoke('/lp612/subjects', { userId: 'gb-teacher', grade: 7 });
-    expect(subjects.payload.subjects).toEqual([]);
-    expect(Lp612.listSubjects).not.toHaveBeenCalled();
+    expect(subjects.payload.subjects).toEqual([{ subject: 'English' }]);
     await invoke('/lp612/grades', { userId: 'sector-teacher' });
     expect(Lp612.listGrades).toHaveBeenCalled();
   });

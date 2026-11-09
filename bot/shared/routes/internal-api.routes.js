@@ -2317,24 +2317,16 @@ function lp612Route(name, handler) {
  * POST /api/internal/lp612/grades
  * Body {} → { success, grades: [{ grade }] }
  */
+// Queue #71 (operator, 9 Nov: "GB should follow the currently ict 6-12 one"): the Grades 6-12 lists are every
+// teacher's. On 6 Nov they were refused to a region whose books stop at Grade 5 (GB); now, where her
+// region has no 6-12 book, she gets ICT's, as an ICT teacher does — #4091's fallback, which lp612-browse applies
+// through her curriculum and the serving guard (lp612-gb-delivery refusesCurriculum) already allows. The WhatsApp
+// Flow's polite Grade 6+ refusal (pakistan-lp-endpoint) is unchanged: prod redirects lesson asks to the app.
 router.post('/lp612/grades', requireInternalKey, lp612Route('grades', async (Browse, req, res) => {
-  const shelf = await lp612Shelf(req.body);
-  if (shelf.none) return res.json({ success: true, grades: [] });
-  const grades = (await Browse.listGrades(...curriculumArgs(await teacherCurriculum(req.body))))
-    .filter((g) => shelf.covers(g && g.grade));
+  const grades = await Browse.listGrades(...curriculumArgs(await teacherCurriculum(req.body)));
   return res.json({ success: true, grades });
 }));
 
-/**
- * bd-97daxo.4 (operator, 6 Nov) — the Grades 6-12 lists for the portal SESSION's teacher: a region whose books
- * stop at Grade 5 (GB) gets none, so she is never handed ICT's 6-12 books. No list: every grade, as before.
- */
-async function lp612Shelf(body) {
-  const keys = (await shelfArgs(body))[0];
-  if (!Array.isArray(keys)) return { none: false, covers: () => true };
-  const covers = (g) => TeacherBooks.gradeCovered(g, keys);
-  return { none: ![6, 7, 8, 9, 10, 11, 12].some(covers), covers };
-}
 
 /**
  * POST /api/internal/lp612/subjects
@@ -2344,7 +2336,6 @@ router.post('/lp612/subjects', requireInternalKey, lp612Route('subjects', async 
   const grade = num((req.body || {}).grade);
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
 
-  if (!(await lp612Shelf(req.body)).covers(grade)) return res.json({ success: true, subjects: [] });
   const subjects = await Browse.listSubjects(grade, ...curriculumArgs(await teacherCurriculum(req.body)));
   return res.json({ success: true, subjects });
 }));
@@ -2360,7 +2351,6 @@ router.post('/lp612/chapters', requireInternalKey, lp612Route('chapters', async 
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
 
-  if (!(await lp612Shelf(body)).covers(grade)) return res.json({ success: true, chapters: [] });
   const chapters = await Browse.listChapters(grade, subject, ...curriculumArgs(await teacherCurriculum(body)));
   return res.json({ success: true, chapters });
 }));
@@ -2383,7 +2373,6 @@ router.post('/lp612/lessons', requireInternalKey, lp612Route('lessons', async (B
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
   if (!chapterKey) return res.status(400).json({ success: false, error: 'chapterKey is required' });
 
-  if (!(await lp612Shelf(body)).covers(grade)) return res.json({ success: true, lessons: [] });
   const lang = clampLanguage(body.lang);
   // bd-5rz1v.14 — the teacher whose ✓✓ Sent marks the list (the portal passes its session's).
   const userId = String(body.userId || '').trim() || null;
@@ -2431,7 +2420,9 @@ router.post('/lp612/request', requireInternalKey, async (req, res) => {
     if (out.outcome === 'not_found') {
       return res.status(404).json({ success: false, error: 'That lesson is not in the catalogue' });
     }
-    if (out.outcome === 'held') {
+    // Queue #71 — the GB lane's "not on request" answers (writing off, a book never written on request, a curriculum
+    // that is not hers) are a refusal too: without this they fell through to a 202 with no render to poll.
+    if (out.outcome === 'held' || out.outcome === 'wrong_curriculum' || String(out.outcome || '').startsWith('gb_')) {
       return res.status(403).json({ success: false, error: 'That lesson is not available yet' });
     }
     if (out.outcome === 'error' || out.outcome === 'deliver_failed') {
