@@ -8,6 +8,8 @@
  * Reads only. Dependencies injectable for tests (createK5Source).
  */
 
+const { clampLanguage } = require('../config/ux-strings');
+
 function createK5Source(deps) {
   const d = deps;
 
@@ -19,7 +21,7 @@ function createK5Source(deps) {
     if (lpType === 'assessment' || lpType === 'revision') return null; // a worksheet or a revision is not a day plan
     return {
       lessonId,
-      lang: hit.book.language === 'ur' ? 'ur' : 'en',
+      lang: clampLanguage(hit.book.language), // the BOOK's language, through the one clamp
       grade: Number(hit.book.grade),
       subject: hit.book.subject_key,
       subjectName: hit.book.subject,
