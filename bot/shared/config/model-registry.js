@@ -238,6 +238,9 @@ const JOBS = {
   // GB K-5 v10 card written on request (bd-rj6w0n.14.16.6): the moves read, then the card itself.
   'lp.v10moves': { env: 'LP_V10_MOVES_MODEL', default: 'anthropic/claude-sonnet-5', site: 'shared/services/lp-v10-card/moves.js' },
   'lp.v10card': { env: 'LP_V10_CARD_MODEL', default: 'anthropic/claude-sonnet-5', site: 'shared/services/lp-v10-card/author.js' },
+  // Make my own, grades 1–5 (bd-snkn32.4): a day's slide script rewritten for one teacher's class. No env var of its own
+  // (no new LP flag); the per-job override moves it.
+  'lp.k5own': { env: null, default: 'anthropic/claude-sonnet-5', site: 'shared/services/lp-k5-own-author.js' },
   // These four call api.openai.com directly on their own client, so their model must be one it serves:
   // a bare OpenAI id and no env var. Only the per-job override (which routes it) moves them elsewhere.
   'quiz.generate': { env: null, default: 'gpt-4o', lane: 'openai-direct', site: 'shared/services/quiz/quiz-generation.service.js' },
@@ -412,6 +415,7 @@ const JSON_REPAIRED_BY_CALLER = Object.freeze({
   'lp.extractUpload': 'whole',           // coaching/fidelity/lp-upload-extractor.js safeJsonParse
   'lp.v10moves': 'whole',                // lp-v10-card/moves.js safeJsonParse
   'lp.v10card': 'whole',                 // lp-v10-card/author.js safeJsonParse
+  'lp.k5own': 'whole',                   // lp-k5-own.js parseK5Reply: JSON.parse, then jsonrepair
   'lp.fidelity': 'whole',                // coaching/fidelity/fidelity-analyzer.js safeJsonParse
   'vision.analyse': 'whole',             // classroom-photo/photo-analysis.service.js parseJsonObject: JSON.parse, then jsonrepair (bd-gr4fy.5.7)
   'coaching.fidelityFallback': 'span',   // gpt5-mini.service.js: /\{[\s\S]*\}/, then _safeJsonParse

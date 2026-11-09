@@ -13,15 +13,16 @@ import { lessonsUrl } from '../paths';
 import { OWN, type OwnCopy } from './copy';
 import { LEVELS, RESOURCES, SIZES, isComplete, suggestWay, waysFor, type Resource } from './rules';
 import { OWN_STEPS, nextStep, ownUrl, prevStep, readOwn, toAnswers, type OwnAt } from './state';
-import { makeOwnPlan, useLpMakeOwn } from './api';
+import { makeOwnPlan, ownable, useLpMakeOwn } from './api';
 
 /**
  * bd-snkn32 — "Make my own" lesson plan (the flow draft, artifact KbsvCwJgs6QWy1DQmGjfzi, screens 3–8): one question
  * per screen, full-width rows, one sticky OK (the WhatsApp-flow form pattern), every answer in the address. Make my
  * plan hands over to the 6-12 Preparing page, whose poll, ready banner and viewer already answer her fork's id.
  *
- * Grades 6–12 only (the rewrite starts from a 6-12 plan). Pages are the chapter's lessons, by their book pages — the
- * draft's fallback where a book has no page images. Children in class is remembered on this phone (the draft: "she
+ * Pages are the chapter's lessons, by their book pages — the draft's fallback where a book has no page images. Grades
+ * 1–5 (bd-snkn32.4): step 1 is "Which day?", the chapter's days as the chapter page lists them (no worksheet or
+ * revision: there is no day plan to rewrite); the bot rewrites that day's plan in its book's language. Children in class is remembered on this phone (the draft: "she
  * only changes it when it changes"). Dark unless lpMakeOwn: off, this page sends her back to Lesson Plans.
  */
 
@@ -44,7 +45,9 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [lessons, retry] = useLoad(() => lessonPlans.lessons(s.grade, s.subject, s.chapter), `l:${s.grade}:${s.subject}:${s.chapter}`);
-  const plans = (dataOf(lessons) ?? []).filter((l) => l.lane === 'g612' && l.kind === 'lesson');
+  const plans = (dataOf(lessons) ?? []).filter(ownable);
+  const k5 = plans.some((l) => l.lane === 'k5');
+  const dayOf = (l: { number: number | null; title: string }) => (l.number != null ? `${C.dayN(l.number)} · ${l.title}` : l.title);
   const seg = plans.find((l) => l.id === s.seg) ?? null;
   const chapterUrl = lessonsUrl('lessons', { grade: s.grade, subject: s.subject, chapter: s.chapter });
   const go = (over: Partial<OwnAt>) => navigate(ownUrl({ ...s, ...over }), { replace: true });
@@ -62,10 +65,10 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   );
 
   async function make() {
-    if (!s.seg || busy) return;
+    if (!seg || busy) return; // her plan's own lane (6–12 or 1–5) decides what is sent: wait for the list
     setBusy(true);
     setFailed(false);
-    const id = await makeOwnPlan(s.seg, toAnswers(s, note));
+    const id = await makeOwnPlan(seg, toAnswers(s, note));
     setBusy(false);
     if (!id) { setFailed(true); return; }
     navigate(lessonsUrl('preparing', {
@@ -78,13 +81,13 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
       : s.step === 'resources' ? ok({}, true)
         : s.step === 'level' ? ok({}, !!s.level)
           : s.step === 'way' ? ok({ way: wayNow }, true)
-            : <DockButton disabled={busy || !isComplete({ grade: s.grade, subject: s.subject, segment: s.seg ?? '', size: s.size, resources: s.res, level: s.level, way: s.way })} testId="own-make" onClick={() => { void make(); }}>{failed ? C.tryAgain : C.makeMyPlan}</DockButton>;
+            : <DockButton disabled={busy || !seg || !isComplete({ grade: s.grade, subject: s.subject, segment: s.seg ?? '', size: s.size, resources: s.res, level: s.level, way: s.way })} testId="own-make" onClick={() => { void make(); }}>{failed ? C.tryAgain : C.makeMyPlan}</DockButton>;
 
   return (
     <TeacherPage
       feature="lessons"
       crumb={C.title}
-      title={s.step === 'check' ? C.yourPlan : C[s.step]}
+      title={s.step === 'check' ? C.yourPlan : s.step === 'pages' && k5 ? C.day : C[s.step]}
       backTo={back ? ownUrl({ ...s, step: back }) : chapterUrl}
       dock={dock}
       testId={`own-${s.step}`}
@@ -93,7 +96,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
       {s.step === 'pages' ? (
         <>
           <LoadState status={lessons.status} empty={!plans.length} onRetry={retry} />
-          <Rows items={plans.map((l) => ({ key: l.id, label: l.pages ?? l.title, subtitle: l.pages ? l.title : undefined }))} chosen={[s.seg]} onPick={(k) => go({ seg: k })} />
+          <Rows items={plans.map((l) => (l.lane === 'k5' ? { key: l.id, label: dayOf(l), subtitle: l.pages ?? undefined } : { key: l.id, label: l.pages ?? l.title, subtitle: l.pages ? l.title : undefined }))} chosen={[s.seg]} onPick={(k) => go({ seg: k })} />
         </>
       ) : null}
       {s.step === 'size' ? (
@@ -119,7 +122,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
         />
       ) : null}
       {s.step === 'check' ? (
-        <Check s={s} C={C} pagesLabel={seg?.pages ?? seg?.title ?? '—'} gradeLabel={L.grade(s.grade)} note={note} setNote={setNote} failed={failed} />
+        <Check s={s} C={C} k5={k5} pagesLabel={seg ? (seg.lane === 'k5' ? dayOf(seg) : seg.pages ?? seg.title) : '—'} gradeLabel={L.grade(s.grade)} note={note} setNote={setNote} failed={failed} />
       ) : null}
     </TeacherPage>
   );
@@ -147,15 +150,15 @@ function Rows({ items, chosen, onPick }: {
   );
 }
 
-function Check({ s, C, pagesLabel, gradeLabel, note, setNote, failed }: {
-  s: OwnAt; C: OwnCopy; pagesLabel: string; gradeLabel: string; note: string; setNote: (v: string) => void; failed: boolean;
+function Check({ s, C, k5, pagesLabel, gradeLabel, note, setNote, failed }: {
+  s: OwnAt; C: OwnCopy; k5: boolean; pagesLabel: string; gradeLabel: string; note: string; setNote: (v: string) => void; failed: boolean;
 }) {
   const at = (step: OwnAt['step']) => ownUrl({ ...s, step });
   return (
     <>
       <ChosenSoFar
         items={[
-          { label: C.pages, value: pagesLabel, sub: `${gradeLabel} · ${s.subject}`, to: at('pages') },
+          { label: k5 ? C.dayLabel : C.pages, value: pagesLabel, sub: `${gradeLabel} · ${s.subject}`, to: at('pages') },
           { label: C.size, value: s.size ? C.sizes[s.size] : '—', to: at('size') },
           { label: C.resources, value: ['textbook', ...s.res].map((r) => C.resourceNames[r as Resource]).join(', '), to: at('resources') },
           { label: C.level, value: s.level ? C.levels[s.level] : '—', to: at('level') },

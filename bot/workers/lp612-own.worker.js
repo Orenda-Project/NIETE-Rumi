@@ -15,6 +15,11 @@
  * portal's waiting page says "Couldn't make it" instead of waiting forever. It never throws to the queue: a retry
  * would only pay for the same rejection again.
  *
+ * GRADES 1–5 (bd-snkn32.4): a row with `lesson_id` → that day's own stored plan (its slide script, in its book's
+ * language) → her answers, ONE rewrite (lp-k5-own-author: gated, one repair round) → printed as a phone page in the v10
+ * card's look → her fork under lp612/own-k5/{lang}/{lesson}/{hash}.pdf (+ .json) → her row ready. Nothing shared is
+ * written; the key stays in the lp612/ prefix.
+ *
  * Dependencies are injected (createOwnWorker) so the rules are testable without an LLM, Chromium, R2 or Supabase.
  */
 
@@ -67,12 +72,44 @@ function createOwnWorker(deps) {
     }
   }
 
+  /** bd-snkn32.4 — a grades 1–5 day. Throws stop(...) on every failure, like the 6-12 path. */
+  async function processK5(row, correlationId) {
+    const day = await d.loadK5(row.lesson_id);
+    if (!day) throw stop('NO_PARENT', 'the day has no stored plan to start from');
+    const out = await d.rewriteK5({
+      script: day.script, answers: row.answers, lang: day.lang, grade: day.grade, subject: day.subject, correlationId,
+    });
+    if (!out || !out.script) throw stop('NOT_ACCEPTED', 'the gate refused the rewrite');
+    let pdf;
+    try {
+      pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && row.answers.way });
+    } catch (e) {
+      throw stop('RENDER_FAILED', (e && e.message) || 'print failed');
+    }
+    const hash = require('crypto').createHash('sha256')
+      .update(JSON.stringify({ a: row.answers, s: out.script })).digest('hex').slice(0, 16);
+    const base = `lp612/own-k5/${day.lang}/${row.lesson_id}/${hash}`;
+    const pdfKey = keys().assertKeyInPrefix(`${base}.pdf`);
+    await d.upload(pdf, pdfKey, 'application/pdf');
+    try {
+      await d.upload(Buffer.from(JSON.stringify(out.script, null, 1), 'utf8'), keys().assertKeyInPrefix(`${base}.json`), 'application/json');
+    } catch (err) {
+      d.log('LP K-5 own: could not store the script', { ownId: row.id, error: err.message, correlationId });
+    }
+    await d.patchOwn(row.id, {
+      status: 'ready', r2_key: pdfKey, edit_hash: hash, model_used: out.model || null,
+      error_code: null, error_detail: null, completed_at: new Date().toISOString(),
+    });
+  }
+
   async function process(payload = {}) {
     const { ownId, correlationId = null } = payload;
     const row = await d.claimOwn(ownId);
     if (!row) return;
 
     try {
+      if (row.lesson_id) { await processK5(row, correlationId); return; }
+
       const segment = await d.loadSegment(row.segment_id);
       if (!segment) throw stop('NO_SEGMENT', 'segment not in the catalogue');
 
@@ -127,6 +164,21 @@ async function loadSegment(supabase, segmentId) {
   return error ? null : (data || null);
 }
 
+/** bd-snkn32.4 — the page (pure) printed by the v10 card's printer: one 520-wide page, as long as the plan. */
+async function renderK5Pdf({ script, lang, grade, subject, way }) {
+  const { renderK5Own, WAY_NAMES } = require('../shared/services/lp-k5-own-render');
+  const { fontCss } = require('../shared/services/lp-k5-own-fonts');
+  const html = renderK5Own(script, { lang, grade, subject, way: (WAY_NAMES[lang] || WAY_NAMES.en)[way], fontCss: fontCss(lang) });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'k5-own-'));
+  try {
+    const out = path.join(dir, 'own.pdf');
+    await require('../shared/services/lp-v10-card/print').printCard(html, out);
+    return await fs.promises.readFile(out);
+  } finally {
+    fs.rm(dir, { recursive: true, force: true }, () => {});
+  }
+}
+
 function liveDeps() {
   const supabase = require('../shared/config/supabase');
   const { logToFile } = require('../shared/utils/logger');
@@ -139,7 +191,7 @@ function liveDeps() {
         .from('niete_lp612_own_plans')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', id).eq('status', 'authoring')
-        .select('id, user_id, segment_id, lang, template_version, status, answers')
+        .select('id, user_id, segment_id, lesson_id, lang, template_version, status, answers')
         .maybeSingle();
       if (error) logToFile('LP 6-12 own: claim failed', { ownId: id, error: error.message });
       return error ? null : data;
@@ -147,6 +199,9 @@ function liveDeps() {
     loadSegment: (segmentId) => loadSegment(supabase, segmentId),
     readStoredDoc: (args) => Serving.readStoredDoc(args),
     revise: (args) => require('../shared/services/lp612-author.service').reviseLessonPlan(args),
+    loadK5: (lessonId) => require('../shared/services/lp-k5-own-source').loadK5(lessonId),
+    rewriteK5: (args) => require('../shared/services/lp-k5-own-author').rewriteK5({ ...args, log: (m, x) => logToFile(m, x) }),
+    renderK5: (args) => renderK5Pdf(args),
     render: (args) => require('../shared/services/lp612-render.service').renderLessonPlan(args),
     readFile: (p) => fs.promises.readFile(p),
     upload: (buf, key, type) => require('../shared/storage/r2').uploadBuffer(buf, key, type),

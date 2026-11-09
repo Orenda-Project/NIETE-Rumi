@@ -5268,7 +5268,8 @@ CREATE INDEX IF NOT EXISTS idx_gb_lp_renders_inflight
 CREATE TABLE IF NOT EXISTS niete_lp612_own_plans (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id           UUID NOT NULL REFERENCES users(id),
-  segment_id        TEXT NOT NULL REFERENCES niete_lp612_segments(segment_id),
+  segment_id        TEXT REFERENCES niete_lp612_segments(segment_id),
+  lesson_id         TEXT,  -- V1.9.7: a grades 1-5 day (bd-snkn32.4); exactly one of segment_id / lesson_id
   lang              TEXT NOT NULL DEFAULT 'en' CHECK (lang IN ('en', 'ur')),
   template_version  TEXT NOT NULL,
   answers           JSONB NOT NULL,
@@ -5282,7 +5283,8 @@ CREATE TABLE IF NOT EXISTS niete_lp612_own_plans (
   started_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   completed_at      TIMESTAMPTZ,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT niete_lp612_own_plans_one_parent CHECK (num_nonnulls(segment_id, lesson_id) = 1)
 );
 
 CREATE INDEX IF NOT EXISTS idx_lp612_own_plans_user

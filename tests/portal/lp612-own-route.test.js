@@ -112,3 +112,20 @@ test('a bot that cannot be reached is 502, never a plan', async () => {
   await start();
   expect((await post(BODY)).status).toBe(502);
 });
+
+// bd-snkn32.4 — a grades 1–5 day: lesson_id instead of segment_id, never both.
+test('a grades 1–5 lesson_id goes to the bot as lessonId, as the session user', async () => {
+  await start();
+  const out = await post({ lesson_id: 'grade_3_urdu_ch1_seg2', answers: ANSWERS });
+  expect(out.status).toBe(202);
+  expect(botCalls).toEqual([{
+    url: 'http://bot/api/internal/lp612/own',
+    body: { userId: 'u-session', lessonId: 'grade_3_urdu_ch1_seg2', answers: ANSWERS },
+  }]);
+});
+
+test('both a segment and a lesson: 400 before the bot', async () => {
+  await start();
+  expect((await post({ segment_id: 'seg', lesson_id: 'l', answers: ANSWERS })).status).toBe(400);
+  expect(botCalls).toEqual([]);
+});

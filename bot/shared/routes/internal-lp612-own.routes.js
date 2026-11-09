@@ -22,6 +22,8 @@ router.post('/lp612/own', requireInternalKey, async (req, res) => {
     const out = await require('../services/lp612-own.service').requestOwn({
       userId: String(body.userId || '').trim(),
       segmentId: String(body.segmentId || '').trim(),
+      // bd-snkn32.4 — a grades 1–5 day; the service refuses both or neither.
+      lessonId: String(body.lessonId || '').trim() || undefined,
       answers: body.answers,
       correlationId: body.correlationId || null,
     });

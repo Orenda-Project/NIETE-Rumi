@@ -26,7 +26,8 @@ const LANG = arg('lang', 'en');
 const W = Number(arg('w', '360'));
 const H = Number(arg('h', '640'));
 const SLOW = process.argv.includes('--slow'); // hold the lesson list back and shoot mid-load
-const NAME = arg('name', `chapter-${FLAG ? 'on' : 'off'}-${LANG}-${W}`);
+const BAND = arg('band', '612'); // bd-snkn32.4: 'k5' shoots a grade 3 Math chapter (the grades 1–5 lane)
+const NAME = arg('name', `chapter-${BAND}-${FLAG ? 'on' : 'off'}-${LANG}-${W}`);
 
 function findChromium() {
   const base = path.join(homedir(), 'Library', 'Caches', 'ms-playwright');
@@ -84,6 +85,22 @@ const FIXTURE = {
     { segment_id: 'ict7.c03.rev', kind: 'revision', title: 'Revision', sent: false },
   ] },
 };
+// bd-snkn32.4 — a grade 3 ICT Math chapter on the grades 1–5 lane: eight days, a worksheet, a revision.
+const K5_DAYS = ['Place value up to 9999', 'Reading 4-digit numbers', 'Writing numbers in words', 'Comparing numbers',
+  'Ordering numbers', 'Rounding to the nearest 10', 'Rounding to the nearest 100', 'Number patterns'];
+const K5 = {
+  '/config': FIXTURE['/config'],
+  '/curriculum/grades': { grades: [{ grade: 3, subject_count: 1 }] },
+  '/lp612/grades': { grades: [{ grade: 7 }] },
+  '/curriculum/subjects': { subjects: [{ subject_key: 'math', subject: 'Math', lesson_count: 10 }] },
+  '/curriculum/chapters': { chapters: [{ chapter_number: 1, chapter_title: 'Number Ninjas: Mastering the Thousands', lesson_count: 10 }] },
+  '/curriculum/lps': { lessons: [
+    ...K5_DAYS.map((topic, i) => ({ lesson_id: `grade_3_math_ch1_seg${i + 1}`, lp_type: 'content', day_label: `Day ${i + 1}`, topic, downloaded: i === 0 })),
+    { lesson_id: 'grade_3_math_ch1_seg990', lp_type: 'assessment', day_label: 'Worksheet', topic: 'Worksheet' },
+    { lesson_id: 'grade_3_math_ch1_seg995', lp_type: 'revision', day_label: 'Revision', topic: 'Revision' },
+  ] },
+};
+if (BAND === 'k5') { for (const k of Object.keys(FIXTURE)) delete FIXTURE[k]; Object.assign(FIXTURE, K5); }
 const DEV = /^\/(src|node_modules|@vite|@react-refresh|@id|@fs|scripts|bot)\//;
 
 const server = await createServer({
@@ -114,8 +131,14 @@ try {
     asked.push(`${u.pathname}${key ? '' : ' (stub {})'}`);
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(key ? FIXTURE[key] : { success: true }) });
   });
-  const at = '/portal/teacher/lessons/lessons?grade=7&subject=ICT&chapter=c03';
-  await page.goto(`${origin}/scripts/chapter-shot/harness.html?lang=${LANG}&at=${encodeURIComponent(at)}`);
+  const at = BAND === 'k5' ? '/portal/teacher/lessons/lessons?grade=3&subject=math&chapter=1'
+    : '/portal/teacher/lessons/lessons?grade=7&subject=ICT&chapter=c03';
+  // bd-snkn32.4 — --own: Make my own's step 1 for the same chapter ("Which day?" in grades 1–5)
+  const OWN = process.argv.includes('--own');
+  const atNow = OWN ? at.replace('/lessons/lessons?', '/lessons/own?') : at;
+  const HEAD = OWN ? (BAND === 'k5' ? (LANG === 'ur' ? 'کون سا دن؟' : 'Which day?') : 'Book pages') : BAND === 'k5' ? 'Number Ninjas: Mastering the Thousands' : 'Computer Networks';
+  const FIRST = BAND === 'k5' ? K5_DAYS[0] : 'What is a computer network?';
+  await page.goto(`${origin}/scripts/chapter-shot/harness.html?lang=${LANG}&at=${encodeURIComponent(atNow)}`);
   if (SLOW) {
     await page.waitForTimeout(2500);
     mkdirSync(OUT, { recursive: true });
@@ -126,7 +149,7 @@ try {
   page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text().slice(0, 200)); });
   page.on('pageerror', (e) => errs.push(String(e).slice(0, 200)));
   try {
-    await page.getByText('Computer Networks').first().waitFor({ timeout: 30000 });
+    await page.getByText(HEAD).first().waitFor({ timeout: 30000 });
   } catch (e) {
     console.log(JSON.stringify({ errs, asked, body: (await page.evaluate(() => document.body.innerText)).slice(0, 400) }, null, 1));
     throw e;
@@ -142,11 +165,18 @@ try {
     const first = document.querySelector('a[href*="/lessons/"], button');
     return { top: Math.round(r.top), bottom: Math.round(r.bottom), height: Math.round(r.height) };
   });
-  const firstLesson = await page.evaluate(() => {
-    const t = [...document.querySelectorAll('*')].find((e) => e.childElementCount === 0 && e.textContent === 'What is a computer network?');
+  const firstLesson = await page.evaluate((FIRST) => {
+    const t = [...document.querySelectorAll('*')].find((e) => e.childElementCount === 0 && e.textContent === FIRST);
     return t ? Math.round(t.getBoundingClientRect().top) : null;
-  });
-  console.log(JSON.stringify({ name: NAME, viewport: `${W}x${H}`, flag: FLAG, lang: LANG, ownEntry: box,
+  }, FIRST);
+  // bd-snkn32.4 — anything wider than the phone (a sideways scroll she would have to fight)
+  const overflow = await page.evaluate((W) => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    wide: [...document.querySelectorAll('body *')].map((e) => [e, e.getBoundingClientRect()])
+      .filter(([, r]) => r.width > 0 && (r.right > W + 1 || r.left < -1))
+      .slice(0, 5).map(([e, r]) => `${e.tagName.toLowerCase()}.${String(e.className).slice(0, 60)} ${Math.round(r.left)}..${Math.round(r.right)}`),
+  }), W);
+  console.log(JSON.stringify({ name: NAME, overflow, viewport: `${W}x${H}`, flag: FLAG, lang: LANG, ownEntry: box,
     ownAboveFold: box ? box.bottom <= H : null, firstLessonTop: firstLesson, asked: [...new Set(asked)] }, null, 1));
 } finally {
   await browser.close();
