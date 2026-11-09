@@ -244,6 +244,47 @@ describe('POST /webhook — off', () => {
   });
 });
 
+describe('the verdict travels with the request to the handler (req.webhookSignatureOk)', () => {
+  // The request the /webhook handler received: the first argument its first validator was called with.
+  const seen = (validators) => validators.validateWebhookStatus.mock.calls[0][0];
+
+  test('log: a correctly signed body reaches the handler marked true', async () => {
+    const { validators } = load({ mode: 'log' });
+    await post('/webhook', RAW, { 'x-hub-signature-256': sign(RAW) });
+    expect(seen(validators).webhookSignatureOk).toBe(true);
+  });
+
+  test('enforce: a correctly signed body reaches the handler marked true', async () => {
+    const { validators } = load({ mode: 'enforce' });
+    await post('/webhook', RAW, { 'x-hub-signature-256': sign(RAW) });
+    expect(seen(validators).webhookSignatureOk).toBe(true);
+  });
+
+  test('log: an unsigned body is processed, marked false', async () => {
+    const { validators } = load({ mode: 'log' });
+    await post('/webhook', RAW);
+    expect(seen(validators).webhookSignatureOk).toBe(false);
+  });
+
+  test('log: a tampered body, or one signed with another secret, is processed, marked false', async () => {
+    let { validators } = load({ mode: 'log' });
+    await post('/webhook', RAW.replace('pnid', 'pnix'), { 'x-hub-signature-256': sign(RAW) });
+    expect(seen(validators).webhookSignatureOk).toBe(false);
+    ({ validators } = load({ mode: 'log' }));
+    await post('/webhook', RAW, { 'x-hub-signature-256': sign(RAW, 'not-the-app-secret') });
+    expect(seen(validators).webhookSignatureOk).toBe(false);
+  });
+
+  test('off, or log with no App Secret: nothing was checked, so no verdict is recorded (never true)', async () => {
+    let { validators } = load({ mode: 'off' });
+    await post('/webhook', RAW, { 'x-hub-signature-256': sign(RAW) });
+    expect(seen(validators).webhookSignatureOk).toBeUndefined();
+    ({ validators } = load({ mode: 'log', secret: null }));
+    await post('/webhook', RAW, { 'x-hub-signature-256': sign(RAW) });
+    expect(seen(validators).webhookSignatureOk).toBeUndefined();
+  });
+});
+
 describe('the app_settings switch overrides the env without a deploy', () => {
   test('env says log, app_settings says enforce → an unsigned body is refused', async () => {
     const { validators } = load({ mode: 'log', appSetting: 'enforce' });
