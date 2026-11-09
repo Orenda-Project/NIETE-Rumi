@@ -117,6 +117,9 @@ describe("the principal app's Observations", () => {
     expect(hrefs).toContain("/portal/teacher/principal/observation/aaaaaaaa-0000-4000-8000-000000000001");
     expect(hrefs.every((h) => !String(h).startsWith("/portal/coach"))).toBe(true);
     expect(screen.getByText("Next visit")).toBeTruthy();
+    // #55 Q1 (no raw scores) and the approved mockup: a sent one says Sent, never its score
+    expect(within(mine).getByText("Sent")).toBeTruthy();
+    expect(within(mine).queryByText(/%/)).toBeNull();
   });
 
   it("a teacher's Observations is unchanged: no tiles, no reports of hers asked", async () => {
