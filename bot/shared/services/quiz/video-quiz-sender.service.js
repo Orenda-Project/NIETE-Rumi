@@ -227,6 +227,13 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
         emitPhaseSent(true);
         return { sent, failed, pickerFailed: true };
       }
+      // A dropped QUESTION CARD is the question itself: the picker that would follow says "the
+      // question is in the picture above" over no picture. The phase stops here and the caller
+      // treats it as an unsent question (retry, then skip) — bd-1r3k2h, mock run 20261026-2335-par T42.
+      if (m.role === 'question_card') {
+        emitPhaseSent(true);
+        return { sent, failed, pickerFailed: true, cardFailed: true };
+      }
     }
     const gapStart = Date.now();
     await sleep(m.kind === 'text' ? GAP_TEXT_MS : GAP_MEDIA_MS);

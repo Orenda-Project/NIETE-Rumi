@@ -599,8 +599,10 @@ async function sendNextQuestion(phone, state) {
   });
   const ctx = { questionId: q.id, sessionId: state.sessionId, language: state.language };
 
-  await sender.sendPhase(phone, msgs, 'question', ctx);
-  const res = await sender.sendPhase(phone, msgs, 'interaction', ctx);
+  const qRes = await sender.sendPhase(phone, msgs, 'question', ctx);
+  // The question card could not be sent: no picker over a missing picture. The interaction phase is
+  // skipped and the question is handled below exactly like an unsent picker (bd-1r3k2h).
+  const res = qRes && qRes.cardFailed ? qRes : await sender.sendPhase(phone, msgs, 'interaction', ctx);
 
   if (res.pickerFailed) {
     // No tap surface reached the child. Most of the time this is transient
