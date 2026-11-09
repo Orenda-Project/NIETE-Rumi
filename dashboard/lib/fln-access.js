@@ -15,10 +15,15 @@
  * session; a failed read is "not a leader". Every FLN route uses requireFln, and every FLN answer
  * is `Cache-Control: no-store` (shared phones in schools: a coach's Share must never be replayed
  * from the browser cache for the teacher who signs in next).
+ *
+ * FLN is ICT's. A user whose region names its own books (Gilgit-Baltistan; operator, 9 Nov 2026: "Those should not
+ * be the subjects for GB") gets neither, whatever the switches say: the answer of the lesson shelf itself, teacher-books
+ * bookKeysForUser (a list = her region's own books). It fails open to null, so a failed read is today's answer.
  */
 const supabase = require('../config/supabase');
 const { isFlagEnabledForUser } = require('./feature-flags');
 const { isLeaderRole } = require('./leader-role');
+const TeacherBooks = require('../../bot/shared/services/teacher-books.service');
 // The portal's one sign-in check (a retired account's session is ended there too); re-exported for the FLN routers.
 const { requirePortalAuth } = require('./portal-auth');
 
@@ -42,15 +47,17 @@ async function readUser(userId) {
  */
 async function flnAccess(userId) {
   if (!userId) return { lessons: false, share: false, role: null, ui_lang: 'en' };
-  const [user, lessonsOn, shareOn] = await Promise.all([
+  const [user, lessonsOn, shareOn, ownBooks] = await Promise.all([
     readUser(userId),
     isFlagEnabledForUser(supabase, FLN_LESSONS_KEY, userId),
     isFlagEnabledForUser(supabase, FLN_SHARE_KEY, userId),
+    TeacherBooks.bookKeysForUser(userId, { client: supabase }),
   ]);
   const role = user && typeof user.role === 'string' ? user.role : null;
-  const share = shareOn === true && isLeaderRole(role);
+  const ict = !Array.isArray(ownBooks);
+  const share = ict && shareOn === true && isLeaderRole(role);
   return {
-    lessons: lessonsOn === true || share,
+    lessons: ict && (lessonsOn === true || share),
     share,
     role,
     ui_lang: user && user.preferred_language === 'ur' ? 'ur' : 'en',
