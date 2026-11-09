@@ -6,7 +6,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
  * bd-snkn32 — "Make my own" as a teacher walks it (BDD over the real pages; the network stubbed):
  *
  *   Given the flag is off       the chapter page is today's: no "Make my own", and its address sends her back
- *   Given the flag is on        a grades 6–12 chapter shows the row; a grades 1–5 chapter does not
+ *   Given the flag is on        a grades 6–12 chapter shows the row, and so does a grades 1–5 one (bd-snkn32.4)
  *   When she answers the five   OK moves her on, each answer in the address; the teaching way is suggested first
  *   And taps Make my plan       her codes go to POST /lp612/own and the Preparing page opens on her fork's id
  *   But it cannot be started    she sees "Couldn't make it" and stays on the check screen
@@ -68,7 +68,11 @@ beforeEach(() => {
         { segment_id: 'sci8.c02.p010', title: 'Speed', pages_label: 'p.10–13', sent: false },
         { segment_id: 'sci8.c02.p014', title: 'Distance', pages_label: 'p.14–16', sent: false },
       ] },
-      '/curriculum/lps': { lessons: [{ lesson_id: 'g4m1', lp_type: 'content', day_label: 'Day 1', topic: 'Counting', pages_label: 'p.2' }] },
+      '/curriculum/lps': { lessons: [
+        { lesson_id: 'g4m1', lp_type: 'content', day_label: 'Day 1', topic: 'Counting', pages_label: 'p.2' },
+        { lesson_id: 'g4m2', lp_type: 'content', day_label: 'Day 2', topic: 'Adding', pages_label: 'p.3' },
+        { lesson_id: 'g4m990', lp_type: 'assessment', day_label: 'Worksheet', topic: 'Worksheet' },
+      ] },
     };
     if (!(url in data)) throw Object.assign(new Error(`404 ${url}`), { response: { status: 404 } });
     return { data: data[url] };
@@ -118,7 +122,16 @@ describe('the chapter page', () => {
     expect(screen.getByText('Speed')).toBeTruthy();
   });
 
-  it('flag on, grades 1–5: no row (nothing to rewrite from)', async () => {
+  // bd-snkn32.4 — operator, 9 Nov: "do it for 1-5 also". The same card, first, above the ready plans.
+  it('flag on, grades 1–5: the Make my own row FIRST, above the days', async () => {
+    at(lessonsUrl('lessons', { grade: 4, subject: 'math', chapter: '1' }));
+    const entry = await screen.findByTestId('own-entry');
+    expect(entry.compareDocumentPosition(screen.getByText('Counting')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByTestId('own-entry-row').getAttribute('href')).toBe(`${LESSONS_OWN}?grade=4&subject=math&chapter=1`);
+  });
+
+  it('flag off, grades 1–5: the chapter page as today', async () => {
+    flag.on = false;
     at(lessonsUrl('lessons', { grade: 4, subject: 'math', chapter: '1' }));
     await screen.findByText('Counting');
     await new Promise((r) => setTimeout(r, 0));
@@ -197,5 +210,26 @@ describe('Make my own', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(C.couldNotMake);
     expect(where()).toContain(LESSONS_OWN);
     expect(screen.getByTestId('own-make')).toHaveTextContent(C.tryAgain);
+  });
+});
+
+describe('Make my own, grades 1–5 (bd-snkn32.4)', () => {
+  it('step 1 lists the chapter\'s lesson plans (days only, no worksheet), and Make my plan sends lesson_id', async () => {
+    http.post.mockResolvedValue({ data: { success: true, state: 'authoring', renderId: 'own-k5' } });
+    at(`${LESSONS_OWN}?grade=4&subject=math&chapter=1`);
+    const day2 = await screen.findByTestId('own-opt-g4m2');
+    expect(day2.textContent).toContain('Day 2 · Adding');
+    expect(day2.textContent).toContain('p.3');
+    expect(screen.queryByTestId('own-opt-g4m990')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(C.day);
+    fireEvent.click(day2);
+    await waitFor(() => expect(where()).toContain('seg=g4m2'));
+
+    at(`${LESSONS_OWN}?grade=4&subject=math&chapter=1&step=check&seg=g4m2&size=over70&level=behind&way=tarl`);
+    fireEvent.click(await screen.findAllByTestId('own-make').then((b) => b[b.length - 1]));
+    await waitFor(() => expect(http.post).toHaveBeenCalledWith('/lp612/own', {
+      lesson_id: 'g4m2',
+      answers: { size: 'over70', resources: ['textbook'], level: 'behind', way: 'tarl', note: '' },
+    }));
   });
 });
