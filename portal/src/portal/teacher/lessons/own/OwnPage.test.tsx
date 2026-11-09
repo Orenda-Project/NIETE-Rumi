@@ -84,11 +84,38 @@ describe('the chapter page', () => {
     expect(screen.queryByTestId('own-entry')).toBeNull();
   });
 
-  it('flag on, grades 6–12: one more row under the ready plans, into step 1', async () => {
+  it('flag on, grades 6–12: the Make my own row, into step 1', async () => {
     at(lessonsUrl('lessons', { grade: 8, subject: 'Science', chapter: 'c02' }));
     const row = await screen.findByTestId('own-entry-row');
     expect(row.textContent).toContain(C.makeMyOwn);
     expect(row.getAttribute('href')).toBe(`${LESSONS_OWN}?grade=8&subject=Science&chapter=c02`);
+  });
+
+  // bd-oitowp — operator, 9 Nov: "at the top, not scrolling to the bottom, it'll be missed then".
+  it('flag on: Make my own comes FIRST, above the ready plans, as its own card with no heading', async () => {
+    at(lessonsUrl('lessons', { grade: 8, subject: 'Science', chapter: 'c02' }));
+    const entry = await screen.findByTestId('own-entry');
+    const firstPlan = screen.getByText('Speed');
+    expect(entry.compareDocumentPosition(firstPlan) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(entry.contains(firstPlan)).toBe(false);
+    expect(screen.queryByRole('heading', { name: 'For your class' })).toBeNull();
+    expect(screen.getByTestId('own-entry-row').textContent).toContain(C.lessonPlanFive);
+  });
+
+  it('flag on: the card and the plans arrive together (no card alone while the plans load)', async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => { release = r; });
+    const plain = http.get.getMockImplementation()!;
+    http.get.mockImplementation(async (url: string, ...rest: unknown[]) => {
+      if (url === '/lp612/lessons') await gate;
+      return plain(url, ...rest);
+    });
+    at(lessonsUrl('lessons', { grade: 8, subject: 'Science', chapter: 'c02' }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByTestId('own-entry')).toBeNull();
+    release();
+    await screen.findByTestId('own-entry');
+    expect(screen.getByText('Speed')).toBeTruthy();
   });
 
   it('flag on, grades 1–5: no row (nothing to rewrite from)', async () => {
