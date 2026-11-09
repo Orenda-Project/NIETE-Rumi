@@ -27,7 +27,9 @@ const STEP = 'lp612_own';
 const ROW_ID = 'lp612_own';
 const FEATURE = 'lp_make_own';
 const TTL_MS = 30_000;
-const RLM = '‏';
+const RLM = '\u200F';
+// Logs carry her keyed reference, never the raw id (tests/setup/log-raw-ids.test.js).
+const teacherRef = (id) => { try { return id ? require('./quiz/web-quiz-kid').tk(id) : null; } catch (_) { return null; } };
 
 let held = null;
 
@@ -62,7 +64,7 @@ async function isOfferedTo(userId, { now = Date.now() } = {}) {
     if (!on) return false;
     return Boolean(await require('./app-redirect.service').isOnTeacherApp(userId));
   } catch (err) {
-    logToFile('⚠️ Make my own: switch read failed — off', { userId, error: err && err.message }, 'warn');
+    logToFile('⚠️ Make my own: switch read failed — off', { tk: teacherRef(userId), error: err && err.message }, 'warn');
     return false;
   }
 }
@@ -92,7 +94,7 @@ async function sendOwnLink({ userId, phone, language, grade, subject, chapterKey
   const base = String(portalUrl() || '').replace(/\/+$/, '');
   const token = base ? signAppLink(userId, FEATURE, null, { grade, subject, chapter: chapterKey }) : null;
   if (!token) {
-    logToFile('⚠️ Make my own: no portal url or signing key here — no link', { userId }, 'warn');
+    logToFile('⚠️ Make my own: no portal url or signing key here — no link', { tk: teacherRef(userId) }, 'warn');
     return false;
   }
   const url = `${base}/go/${token}`;
@@ -102,12 +104,12 @@ async function sendOwnLink({ userId, phone, language, grade, subject, chapterKey
     let via = 'cta_url';
     let sent = await WhatsAppService.sendCtaUrl(phone, { body, buttonText, url });
     if (!sent) { via = 'text'; sent = await WhatsAppService.sendMessage(phone, `${body}\n${url}`); }
-    const at = { userId, grade, subject, chapterKey, via };
+    const at = { tk: teacherRef(userId), grade, subject, chapterKey, via };
     if (sent) logToFile('🔗 Make my own: link sent', at);
     else logToFile('❌ Make my own: link not delivered', at, 'error');
     return Boolean(sent);
   } catch (err) {
-    logToFile('❌ Make my own: link send threw', { userId, error: err && err.message }, 'error');
+    logToFile('❌ Make my own: link send threw', { tk: teacherRef(userId), error: err && err.message }, 'error');
     return false;
   }
 }

@@ -70,6 +70,7 @@ const {
 const Lp612Curriculum = require('../services/lp612-curriculum.service');
 const Lp612GbShelf = require('../services/lp612-gb-shelf.service');
 const Lp612OwnOffer = require('../services/lp612-own-offer'); // bd-iceyyu — Make my own, a hand-off to the portal
+const teacherRef = (id) => { try { return id ? require('../services/quiz/web-quiz-kid').tk(id) : null; } catch (_) { return null; } };
 const { LANGUAGE_OFFER, offerDefaultLanguage } = require('../config/languages');
 const FlowTelemetry = require('./pakistan-lp-telemetry');
 
@@ -1011,7 +1012,7 @@ async function lp612SegmentScreen(d, page, screenId, curriculum, flowToken = nul
     grade, d.subject, d.chapter_key, page, d.book_stem || null, ...args);
   if (offered && items.length) {
     items.unshift(Lp612OwnOffer.ownRow({ grade, subject: d.subject, chapterKey: String(d.chapter_key), rtl: Boolean(rtl) }));
-    logToFile('LP 6-12: Make my own row shown', { userId: userIdFrom(flowToken), grade, subject: d.subject, chapterKey: d.chapter_key });
+    logToFile('LP 6-12: Make my own row shown', { tk: teacherRef(userIdFrom(flowToken)), grade, subject: d.subject, chapterKey: d.chapter_key });
   }
   if (!items.length) {
     return { data: { error: { message: 'Those lesson plans are being prepared — check back soon.' } } };
@@ -1046,7 +1047,7 @@ async function selectLp612Own(flowToken, d) {
   const who = await getPhoneForUser(userId);
   if (!who || !who.phone_number) return unavailable();
   const language = who.preferred_language;
-  logToFile('LP 6-12: Make my own row tapped', { userId, grade, subject: d.subject, chapterKey: d.chapter_key });
+  logToFile('LP 6-12: Make my own row tapped', { tk: teacherRef(userId), grade, subject: d.subject, chapterKey: d.chapter_key });
   const sent = await Lp612OwnOffer.sendOwnLink({
     userId, phone: who.phone_number, language, grade, subject: d.subject, chapterKey: String(d.chapter_key),
   });
