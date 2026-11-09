@@ -1189,3 +1189,27 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the session records not_lesson_plan or a failed status for the app to show
     And no "doesn't look like a lesson plan" or "couldn't read the file" message is sent to the teacher
     And a teacher who uploaded her own plan on WhatsApp is still told, as before
+
+  # ─────────────── Make my own, a hand-off to the portal (bd-iceyyu, app_settings portal_lp_make_own) ───────────────
+  # Operator, 9 Nov: WhatsApp messages cost money since 1 Oct, so the five questions are the portal's; the bot sends
+  # ONE link. Unit: tests/lp612/bd-iceyyu-own-offer.test.js, bd-iceyyu-endpoint-own.test.js, bd-iceyyu-catalog-lead.test.js.
+  # Flow screens render only on a real phone: sandbox, operator's number, flag on.
+
+  @e2e @config-gated @flow @P1
+  Scenario: With Make my own on for me, a Grades 6-12 chapter opens with Make my own first, and one tap sends one link
+    Given "portal_lp_make_own" is true, "teachers", or lists me, and I am on the teacher app
+    When I open the lesson-plan Flow and pick a Grade 6-12 grade, subject and chapter
+    Then the first row on the chapter's lesson screen is "Make my own" ("اپنا پلان بنائیں" on an Urdu book), above the lessons
+    And the screen never shows more than 20 rows, and every lesson is still reachable through "More lessons"
+    When I tap "Make my own"
+    Then the Flow closes saying the button is in the chat
+    And I get exactly ONE message in my language with a "Make my own" button
+    When I tap the button
+    Then the portal's Make my own opens signed in, on that chapter, at its first question
+
+  @e2e @config-gated @negative @flow @P1
+  Scenario: With Make my own off or not for me, the chapter's lesson screen is exactly as before
+    Given "portal_lp_make_own" is absent, false, or a list without me, or I am not on the teacher app
+    When I open the lesson-plan Flow and pick a Grade 6-12 chapter
+    Then the lesson screen shows the lessons exactly as before, with no "Make my own" row
+    And a "Make my own" row left in my scrollback from before is refused and sends nothing
