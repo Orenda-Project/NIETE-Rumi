@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import i18n from "i18next";
 
@@ -104,8 +104,9 @@ describe("the debrief report page", () => {
     expect(within(screen.getByTestId("report-hero")).getByTestId("report-score").textContent).toContain("3/8");
     expect(screen.getByTestId("report-hero").textContent).toContain("Ms. Sadia");
     expect(screen.getByTestId("report-hero").textContent).toContain("Grade 5 Islamiyat");
+    // The stamp is an effect after the page draws: wait for it, then check it ran once.
+    await waitFor(() => expect(markOpened).toHaveBeenCalledWith(ID));
     expect(markOpened).toHaveBeenCalledTimes(1);
-    expect(markOpened).toHaveBeenCalledWith(ID);
   });
 
   it("says each thing once: no reflection question and no praise banner", async () => {
