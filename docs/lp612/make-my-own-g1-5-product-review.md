@@ -108,3 +108,13 @@ The Urdu stays machine-drafted and pending human review, as copy.ts already note
 3. The check screen says "Day" (not "Book pages"). The way suggestion shows its reason. The note is optional.
 4. The made plan from an Urdu book is Urdu Nastaliq throughout. An English book keeps the Roman-Urdu lines. Both show the
    five sections in order and contain no "not ready" placeholder.
+
+## Verdict on the 360px screenshots (2026-11-09): SIGN-OFF WITH NOTES
+
+1. Card: passes. "Make my own" is first and inside the first screen in EN and UR. With the flag off, the page is unchanged.
+2. Step 1: passes. "Which day?" / "کون سا دن؟" with "Day N · topic" rows, and no worksheet or revision rows. Missing: the page line under each row that the memo asked for. Add it if the day carries a page; otherwise drop it from the spec. Not a blocker.
+3. Empty grey square (pre-existing, also on 6–12): fill it with the existing `dayBadge` ("D1") so the slot means something. This can be a follow-up bead.
+4. Output: the Urdu book prints Urdu Nastaliq with Urdu headings, and the English book prints English with "Teaching way" and "Mine". The Urdu header uses Western digits ("دن 2 از 9") while the body uses ۲. Make the header match the body.
+5. Accepting 1.3× length instead of ±10%, since big-class rewrites add lines. Each section still opens with its action line.
+6. Not yet seen: a real rewrite. Before closing, check one sandbox rewrite per medium: five sections in order, no "not ready" line, only ticked resources.
+7. Accepted as pre-existing: the chapter list says "LP # N" and step 1 says "Day N" (the numbers match); the Urdu UI shows an English topic on an English book.

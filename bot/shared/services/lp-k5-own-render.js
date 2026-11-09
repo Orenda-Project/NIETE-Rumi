@@ -107,14 +107,17 @@ function homework(s) {
 
 /** The page. `way` is the chosen teaching way's name in the plan's language. */
 /** `fontCss`: the embedded @font-face rules (lp-k5-own-fonts), passed in so this stays pure. */
+const URDU_DIGITS = (v) => String(v).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+
 function renderK5Own(script, { lang = 'en', grade, subject, way, fontCss = '' } = {}) {
   const ur = lang === 'ur';
+  const num = (v) => (ur ? URDU_DIGITS(v) : v); // the reviewer: the header's digits match the Urdu body's (۲, not 2)
   const W = WORDS[ur ? 'ur' : 'en'];
   const s = script || {};
   const m = s.meta || {};
-  const day = has(m.day) ? `${W.day} ${esc(m.day)}${has(m.total) ? ` ${W.of} ${esc(m.total)}` : ''}` : '';
-  const head = `<div class="hd"><div class="k"><span><b>${W.grade} ${esc(grade ?? m.grade ?? '')} · ${esc(subjectFor(subject || m.subject || '', ur))}</b></span>`
-    + `<span>${day}${has(m.minutes) ? ` · ${esc(m.minutes)} ${W.min}` : ''} · ${W.mine}</span></div>`
+  const day = has(m.day) ? `${W.day} ${esc(num(m.day))}${has(m.total) ? ` ${W.of} ${esc(num(m.total))}` : ''}` : '';
+  const head = `<div class="hd"><div class="k"><span><b>${W.grade} ${esc(num(grade ?? m.grade ?? ''))} · ${esc(subjectFor(subject || m.subject || '', ur))}</b></span>`
+    + `<span>${day}${has(m.minutes) ? ` · ${esc(num(m.minutes))} ${W.min}` : ''} · ${W.mine}</span></div>`
     + `<h1>${esc(m.topic || '')}</h1><div class="goal">${esc(s.goal || '')}</div></div>`
     + (has(way) ? `<div class="info"><b>${W.way}</b><span>${esc(way)}</span></div>` : '');
   const body = [
