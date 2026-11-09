@@ -6,11 +6,11 @@ import { HistoryRow } from "../../teacher/ui";
 import { StatusChip } from "../../teacher/ui/StatusChip";
 import { ConfirmTray } from "../../teacher/ui/ConfirmTray";
 import { TimeStamp } from "../../teacher/ui/TimeStamp";
-import { coach } from "../../services/api";
 import { Card, Loading, Failed, useLoad } from "../ui";
 import { OBSERVE } from "../observe/copy";
 import { lengthShort } from "../observe/format";
 import ObservePage from "../observe/ObservePage";
+import { useObserveRoutes } from "../observe/observeRoutes";
 import { setDraft } from "../observeDraft";
 import { useCoachRecording } from "../../lib/useCoachRecording";
 import { useRecordingBackGuard } from "../../lib/useRecordingBackGuard";
@@ -59,6 +59,7 @@ function LevelMeter({ level, live }: { level: number | null; live: boolean }) {
 }
 
 function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => void }) {
+  const routes = useObserveRoutes();
   const C = useCopy(OBSERVE);
   const navigate = useNavigate();
   const [asking, setAsking] = useState(false);
@@ -78,14 +79,14 @@ function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => vo
       blob: out.blob, filename: lessonFilename(out.type.ext), durationMs: out.durationMs, recordingId: out.id,
       label: C.observationOf(visit.teacherName || C.dash), sub: [lengthShort(out.durationMs, C), C.justNow].filter(Boolean).join(" · "),
     });
-    navigate(`/portal/coach/visit/${visit.id}/check`, { replace: true }); // a finished recording is not a screen to go Back to
+    navigate(routes.check(visit.id), { replace: true }); // a finished recording is not a screen to go Back to
   };
 
   if (micBlocked) return null;
   const now = elapsedNow();
 
   return (
-    <ObservePage bare banner={false} title={C.recordTitle} onBack={() => (recording ? setAsking(true) : navigate(`/portal/coach/visit/${visit.id}`))}
+    <ObservePage bare banner={false} title={C.recordTitle} onBack={() => (recording ? setAsking(true) : navigate(routes.visit(visit.id)))}
       crumb={<><span className="me-1.5 inline-block h-2 w-2 rounded-full bg-[#c8331f] align-middle" aria-hidden="true" />{visit.teacherName || C.dash} · <TimeStamp time={visit.scheduledSlot} size={13} /></>}
       dock={(
         <>
@@ -142,7 +143,8 @@ function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => vo
 const CoachRecord = () => {
   const C = useCopy(OBSERVE);
   const { id = "" } = useParams();
-  const { data, failed, reload } = useLoad(() => coach.getVisit(id), [id]);
+  const routes = useObserveRoutes();
+  const { data, failed, reload } = useLoad(() => routes.loadVisit(id), [id]);
   const [attempt, setAttempt] = useState(0);
   const [blocked, setBlocked] = useState(false);
   const block = useCallback(() => setBlocked(true), []);
@@ -150,7 +152,7 @@ const CoachRecord = () => {
 
   if (!visit || blocked) {
     return (
-      <ObservePage banner={false} title={C.recordTitle} backTo={`/portal/coach/visit/${id}`}
+      <ObservePage banner={false} title={C.recordTitle} backTo={routes.visit(id)}
         crumb={visit ? <>{visit.teacherName || C.dash} · <TimeStamp time={visit.scheduledSlot} size={13} /></> : undefined}>
         {failed && <Failed onRetry={reload} />}
         {!data && !failed && <Loading />}
@@ -161,7 +163,7 @@ const CoachRecord = () => {
             <p className="text-[15px] text-[#4b5563]">{C.micAllow}</p>
             <button type="button" onClick={() => { setBlocked(false); setAttempt((n) => n + 1); }}
               className="flex h-14 w-full items-center justify-center rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.tryAgain}</button>
-            <Link to={`/portal/coach/visit/${id}/attach`}
+            <Link to={routes.attach(id)}
               className="flex h-14 w-full items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025]">{C.uploadRecording}</Link>
           </Card>
         )}
@@ -169,7 +171,7 @@ const CoachRecord = () => {
     );
   }
   // Only an upcoming visit is recorded; a done or cancelled one goes back to its page.
-  if (visit.status !== "upcoming" || !visit.teacherExtId) return <Navigate to={`/portal/coach/visit/${id}`} replace />;
+  if (visit.status !== "upcoming" || !visit.teacherExtId) return <Navigate to={routes.visit(id)} replace />;
   return <Recorder key={attempt} visit={visit} onBlocked={block} />;
 };
 

@@ -2320,6 +2320,19 @@ async function requireCoachV2(req, res, next) {
 }
 const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
 
+// bd-33wxxi.4 — the two coach-app reads the observation screens need, for a principal too: a PRINCIPAL passes on the
+// principal app (portal_principal_app names her; never portal_coach_v2), everyone else on portal_coach_v2 exactly as
+// coachV2. `req.observerRole` tells the service whose teachers to read (her own school, or the coach's schools).
+async function requireCoachV2OrPrincipalApp(req, res, next) {
+  const userId = req.session && req.session.portalUserId;
+  const principal = isPrincipalRole(req.portalUser && req.portalUser.role);
+  const on = principal ? await isPrincipalAppUser(supabase, userId) : await isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, userId);
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  req.observerRole = principal ? 'principal' : 'coach';
+  return next();
+}
+const observerReads = [requirePortalAuth, requireLeaderRole, requireCoachV2OrPrincipalApp];
+
 // The coach School Card: its own switch on top of the coach app v2 chain. Off for her → 404, nothing is read.
 async function requireSchoolCard(req, res, next) {
   const on = await isFlagEnabledForUser(supabase, PORTAL_COACH_SCHOOL_CARD_KEY, req.session && req.session.portalUserId);
@@ -2501,10 +2514,10 @@ router.get('/coach/teacher/:teacherExtId', ...coachV2, async (req, res) => {
  * the one the teacher received (teacher_delivery.report_key), signed here the
  * same way the teacher's own session page signs it, and so is the lesson audio.
  */
-router.get('/coach/observation/:id', ...coachV2, async (req, res) => {
+router.get('/coach/observation/:id', ...observerReads, async (req, res) => {
   if (!UUID_RX.test(String(req.params.id || ''))) return res.status(404).json({ success: false, error: 'Not found' });
   try {
-    const out = await CoachV2.getCoachObservation(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req) });
+    const out = await CoachV2.getCoachObservation(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req), role: req.observerRole });
     if (!out) return res.status(404).json({ success: false, error: 'Not found' });
     const { reportKey, audioKey, ...rest } = out;
     const imageUrl = reportKey && process.env.R2_ENDPOINT && process.env.R2_BUCKET_NAME
@@ -2640,11 +2653,11 @@ router.get('/coach/visit/:id', ...coachV2, async (req, res) => {
 });
 
 /** GET /api/portal/coach/reports?page=&q= — waiting for her, in progress, then every observation. */
-router.get('/coach/reports', ...coachV2, async (req, res) => {
+router.get('/coach/reports', ...observerReads, async (req, res) => {
   const { page, q } = req.query || {};
   try {
     const out = await CoachV2.getCoachReports(pgQuery, req.session.portalUserId, {
-      page, q: typeof q === 'string' ? q.slice(0, 64) : undefined,
+      page, q: typeof q === 'string' ? q.slice(0, 64) : undefined, role: req.observerRole,
     });
     return res.json({ success: true, ...out });
   } catch (error) { return coachFail(res, 'reports', error); }
