@@ -1,0 +1,2 @@
+{"ts":"2026-11-09T09:08:39Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan,language spec_sync=true","sha":"84b8cbb6bfc7","branch":"bd-6nskfq.1-main","user":""}
+{"ts":"2026-11-09T09:08:41Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training,lesson-plan,language spec_sync=true","sha":"84b8cbb6bfc7","branch":"bd-6nskfq.1-main","user":""}
