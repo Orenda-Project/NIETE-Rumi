@@ -28,6 +28,7 @@ Full index: `CLAUDE.index.md`
 - supabase.js exits 78 when DB env is missing; keep that boot gate (supabase.js:8)
 - tts-voices.js does not route voices; VOICE_MODELS in utils/constants.js does (tts-voices.js:4)
 - feature-flags.js is fail-closed (feature-flags.js:2); model-settings is fail-safe
+- Never add a per-region or per-generation lesson-plan table or env flag; extend the existing one, book as separator (docs/lesson-plan-data-model-debt.md)
 <!-- read: map-read-niete-bot 2026-10-29 -->
 
 ## Tests (generated)

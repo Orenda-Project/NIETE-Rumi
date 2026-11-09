@@ -25,6 +25,7 @@ Full index: `CLAUDE.index.md`
 ## Never (human)
 - Never let an edge router answer while its switch is off; it must call next() (`edge-mounts.js:5`)
 - Never take the teacher from the request; use the session user (`portal-share.routes.js:9`)
+- Never add a per-region or per-generation lesson-plan table or env flag; extend the existing one, book as separator (docs/lesson-plan-data-model-debt.md)
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
 ## Tests (generated)

@@ -25,6 +25,7 @@ Full index: `CLAUDE.index.md`
 ## Never (human)
 - Flow responses never include a `version` field (observe-mewaka-endpoint.js:5)
 - Every internal-api.routes.js route uses requireInternalKey, which refuses when the key is unset (shared/middleware/require-internal-key.js:7)
+- Never add a per-region or per-generation lesson-plan table or env flag; extend the existing one, book as separator (docs/lesson-plan-data-model-debt.md)
 <!-- read: map-read-niete-bot 2026-10-29 -->
 
 ## Tests (generated)

@@ -25,6 +25,7 @@ Full index: `CLAUDE.index.md`
 ## Never (human)
 - Parse-check all JS before a push; an unbootable entry file once shipped green (check-syntax.js:4, bd-wpx18)
 - Grades 6-12 uploads share a bucket with PK production; keys stay under lp612/ (upload-lp612-figures.js:9)
+- Never add a per-region or per-generation lesson-plan table or env flag; extend the existing one, book as separator (docs/lesson-plan-data-model-debt.md)
 <!-- read: map-read-niete-bot 2026-10-29 -->
 
 ## Tests (generated)

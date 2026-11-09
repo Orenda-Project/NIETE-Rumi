@@ -1,3 +1,9 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Here: GB is gated by LP_GB_K5_ENABLED, a temporary launch gate; route by the region's books, not a new flag.
+// Why, target model, follow-up (bd-42mo0w, audit planned): docs/lesson-plan-data-model-debt.md
 'use strict';
 /**
  * bd-rj6w0n.14.2 — the one-time ICT-or-GB choice on the teacher app's Lesson Plans page. Mounted at

@@ -27,6 +27,7 @@ Full index: `CLAUDE.index.md`
 ## Never (human)
 - Never require bot modules needing pino; call the bot over HTTP instead (`telemetry.service.js:8`)
 - Never log AWS/ffmpeg err.message in COACHIP media code (`coachip-clip.service.js:7`)
+- Never add a per-region or per-generation lesson-plan table or env flag; extend the existing one, book as separator (docs/lesson-plan-data-model-debt.md)
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
 ## Tests (generated)

@@ -25,6 +25,7 @@ Full index: `CLAUDE.index.md`
 
 ## Never (human)
 - Do not add BEGIN/COMMIT to a migration; exec_sql refuses transaction control (migrations/V1.8.0__coachip_insights.sql:20)
+- Never add a per-region or per-generation lesson-plan table or env flag; extend the existing one, book as separator (docs/lesson-plan-data-model-debt.md)
 <!-- read: map-read-niete-bot 2026-10-29 -->
 
 ## Tests (generated)
