@@ -387,6 +387,11 @@ CREATE TABLE IF NOT EXISTS teacher_facts (
 -- Lesson Plans
 -- ---------------------------------------------------------------------------
 
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: legacy generated plans, one row per request. Target: lesson files + events.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS lesson_plans (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     user_id UUID,
@@ -401,6 +406,11 @@ CREATE TABLE IF NOT EXISTS lesson_plans (
     PRIMARY KEY (id)
 );
 
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: request queue and log for generated plans. Target: the one events table.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS lesson_plan_requests (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
@@ -3417,6 +3427,11 @@ CREATE TABLE IF NOT EXISTS textbook_toc (
 CREATE INDEX IF NOT EXISTS idx_textbook_toc_keywords ON textbook_toc USING gin (topic_keywords);
 CREATE INDEX IF NOT EXISTS idx_textbook_toc_lookup ON textbook_toc USING btree (curriculum, grade, subject);
 
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: pre-generated chapter PDFs per textbook. Target: the one lesson-files table.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS pre_generated_lps (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     textbook_id UUID REFERENCES textbooks(id) ON DELETE SET NULL,
@@ -3488,6 +3503,11 @@ CREATE TRIGGER update_app_settings_updated_at
 -- correlation_id threading). expires_at carries the per-status TTL invariant
 -- (set in pic-lp-session.service.js) so the stale-session sweeper can expire
 -- abandoned non-terminal rows.
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: photo-to-plan conversation state. Target: the one events table, or retire.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS pic_lp_sessions (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -4127,6 +4147,11 @@ CREATE INDEX IF NOT EXISTS idx_users_conversation_state_expiry
 -- teacher-facing PDFs, cached back into pdf_r2_key_{en|ur}.
 -- ---------------------------------------------------------------------------
 
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: imported JSON step corpus. Target: the one lessons table.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS curriculum_lp_ast (
   id                            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   source_lp_uuid                UUID NOT NULL,
@@ -4185,6 +4210,11 @@ CREATE INDEX IF NOT EXISTS idx_curriculum_lp_ast_publisher
 -- Post-delivery "Was this useful?" survey. One row per (user, lesson_plan)
 -- button tap. reason_text is UPDATEd when the teacher replies to the follow-up
 -- "Tell us why?" prompt within the 10-min Redis window.
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: 'Was this useful?' answers. Target: the one events table.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS lp_feedback (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -4654,6 +4684,11 @@ CREATE INDEX IF NOT EXISTS idx_student_lists_class
 -- ============================================================
 
 
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: K-5 v8/v9 PDF and card versions. Target: the one lesson-files table.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS niete_lp_assets (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
@@ -4709,6 +4744,11 @@ COMMENT ON TABLE niete_lp_assets IS
 
 -- ── Download tracking (also the ✓/○ tick) ───────────────────────────────────
 
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: K-5 PDF sends. Target: the one events table.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS niete_lp_downloads (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id        UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -4958,6 +4998,11 @@ COMMENT ON COLUMN schools.is_active IS
 -- infrastructure/supabase/migrations/V1.2.8__lp612_runtime_lesson_plans.sql
 -- ---------------------------------------------------------------------------
 
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: 6-12 + GB menu tree, book-scoped. Target: the one lessons table (nearest shape).
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS niete_lp612_segments (
   segment_id            TEXT PRIMARY KEY,
   book_stem             TEXT    NOT NULL,
@@ -5025,6 +5070,11 @@ COMMENT ON COLUMN niete_lp612_segments.is_religious IS
   'LP_612_RELIGIOUS_ENABLED is on, which is separate from the feature flag so '
   'that enabling the feature cannot enable these by accident.';
 
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: 6-12 generated PDFs (cache + lock). Target: the one lesson-files table.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS niete_lp612_renders (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   segment_id        TEXT NOT NULL REFERENCES niete_lp612_segments(segment_id),
@@ -5175,6 +5225,12 @@ COMMENT ON FUNCTION lp612_claim_waiters(UUID) IS
 
 -- GB (nbf_snc) lesson-plan cache: GB's own lane beside niete_lp612_renders, never mixed with it.
 -- Mirrors migrations/V1.9.3 (bd-rj6w0n.14.16).
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: a copy of niete_lp612_renders (same FK, same UNIQUE (segment_id, lang, template_version);
+-- segment_id is already book-scoped). Target: merge back into niete_lp612_renders first.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS niete_gb_lp_renders (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   segment_id        TEXT NOT NULL REFERENCES niete_lp612_segments(segment_id),
@@ -5204,6 +5260,11 @@ CREATE INDEX IF NOT EXISTS idx_gb_lp_renders_inflight
   ON niete_gb_lp_renders (status, started_at) WHERE status = 'authoring';
 
 -- V1.9.6 (bd-snkn32): Make my own lesson plans, a teacher's fork of a 6-12 plan.
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: a teacher's own edited 6-12 plan. Target: lesson files, owned by a teacher.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS niete_lp612_own_plans (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id           UUID NOT NULL REFERENCES users(id),
@@ -6165,6 +6226,11 @@ COMMENT ON COLUMN users.deleted_by IS
 -- bootstrapped from this file has the table the LP-born quiz reads its source from.
 -- One row per lesson asset; the version triple is the upsert key, and `verified` says
 -- how the script is known to belong to that PDF.
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: the slide script behind a K-5 asset. Target: the one lesson-files table.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS niete_lp_asset_sources (
   asset_id      uuid PRIMARY KEY REFERENCES niete_lp_assets(id) ON DELETE CASCADE,
   lesson_id     text NOT NULL,
@@ -6297,6 +6363,11 @@ CREATE INDEX IF NOT EXISTS idx_quiz_share_codes_class ON quiz_share_codes (class
 -- =============================================================================
 
 -- ─── lesson_plan_catalog (V1.0.4): lesson plans imported from the legacy system ───
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: plans imported from the legacy system. Target: the one lessons table, or retire.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS lesson_plan_catalog (
     id                   BIGSERIAL PRIMARY KEY,
     source               VARCHAR(32) NOT NULL,
@@ -6436,6 +6507,11 @@ CREATE TABLE IF NOT EXISTS coach_directory (
 CREATE INDEX IF NOT EXISTS idx_coach_directory_leader ON coach_directory (leader_user_id);
 
 -- ─── niete_lp_fidelity_moves (V1.1.9): a lesson plan decomposed into gradeable moves ───
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: a K-5 plan split into gradeable moves. Target: keyed by the one lesson id.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS niete_lp_fidelity_moves (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   lesson_id      text NOT NULL,
@@ -6476,6 +6552,11 @@ COMMENT ON COLUMN niete_lp612_renders.render_degraded IS
 -- index; the migration's one-off backfill from niete_lp612_renders.requested_by is not repeated
 -- here — a fresh install has no renders to copy). Written by lp612-serving.deliverRender after a
 -- confirmed send; read by the lp612 /quiz lesson provider.
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: 6-12 plans each teacher received. Target: the one events table.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS niete_lp612_deliveries (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id           uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -6602,6 +6683,11 @@ NOTIFY pgrst, 'reload schema';
 -- ─── niete_lp_ab_assignment (migration V1.5.8) — ICT G1-5 ch3-10 LP A/B group per school ──
 -- Mirrors infrastructure/supabase/migrations/V1.5.8__niete_lp_ab_assignment.sql: written once at
 -- the draw; A = August v8 PDF, B = current v9. Transitional, dropped when the test is promoted.
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: K-5 A/B group per school (transitional). Target: drop when the test ends.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS niete_lp_ab_assignment (
   school_id  UUID PRIMARY KEY REFERENCES schools (id),
   ab_group   TEXT NOT NULL CHECK (ab_group IN ('A', 'B')),
@@ -7026,6 +7112,11 @@ ALTER TABLE coach_visit_requests ENABLE ROW LEVEL SECURITY;
 -- Mirrors infrastructure/supabase/migrations/V1.6.1__niete_lp_opens.sql. One row per portal open
 -- (same teacher + plan + lang within 5 minutes stored once). Written by the portal service after the
 -- open succeeded; read for "last opened", recent lesson plans and the Home's lesson-plans-used count.
+-- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
+-- This table: plans opened in the portal. Target: the one events table.
+-- Do NOT add another per-region or per-generation LP table: extend this one with the book as the
+-- separator, say so in the PR, and ask the operator (Hataf) first.
+-- Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 CREATE TABLE IF NOT EXISTS niete_lp_opens (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,

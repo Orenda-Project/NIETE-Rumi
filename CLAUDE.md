@@ -65,6 +65,11 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
    no secrets, no internal phone numbers, no internal ticket refs in source (CI enforces all three).
 6. **Pilot-certificate watermark** (`PILOT_WATERMARK_VENDORS`, empty since 2026-10-01): rule and test in
    [bot/shared/services/training/CLAUDE.md](bot/shared/services/training/CLAUDE.md).
+7. **Lesson plans are known design debt (Nov 2026).** They are spread over ~20 tables, one set per product
+   generation. Do NOT add another per-region or per-generation LP table or env flag: extend the existing
+   table with the book as the separator, say so in the PR, and ask the operator (Hataf) before any new LP
+   table. Why and the target model: [docs/lesson-plan-data-model-debt.md](docs/lesson-plan-data-model-debt.md)
+   (follow-up `bd-42mo0w`, audit planned).
 
 ## Working rules
 
