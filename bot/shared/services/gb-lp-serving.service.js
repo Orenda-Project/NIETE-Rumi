@@ -1,3 +1,9 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Here: niete_gb_lp_renders is a copy of niete_lp612_renders (same FK, same unique key); it merges back first.
+// Why, target model, follow-up (bd-42mo0w, audit planned): docs/lesson-plan-data-model-debt.md
 'use strict';
 /**
  * GB's own lesson-plan lane (bd-rj6w0n.14.16).
@@ -37,6 +43,8 @@ const DEFAULT_STRANDED_MS = 20 * 60 * 1000;
 const FIND_COLUMNS = 'id, status, r2_key, waiters, started_at, picked_up_at';
 
 const templateVersion = () => String(process.env.LP_GB_TEMPLATE_VERSION || DEFAULT_TV).trim() || DEFAULT_TV;
+// KNOWN DESIGN DEBT (Nov 2026): LP_GB_AUTHOR_ENABLED is a temporary launch gate, retired after the GB switch with
+// LP_GB_K5_ENABLED (lp612-flags.js); do not add another region flag. See docs/lesson-plan-data-model-debt.md.
 /** Runtime authoring of a GB miss. Off until the gb_lp_author worker exists: a miss is then "coming soon". */
 const isAuthorEnabled = () => process.env.LP_GB_AUTHOR_ENABLED === 'true';
 const strandedMs = () => Number(process.env.LP_GB_STRANDED_MS) || DEFAULT_STRANDED_MS;

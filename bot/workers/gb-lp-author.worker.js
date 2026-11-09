@@ -1,3 +1,9 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Here: niete_gb_lp_renders is a copy of niete_lp612_renders (same FK, same unique key); it merges back first.
+// Why, target model, follow-up (bd-42mo0w, audit planned): docs/lesson-plan-data-model-debt.md
 'use strict';
 /**
  * gb_lp_author — a GB lesson nobody pregenerated, written at runtime (bd-rj6w0n.14.16.12).
