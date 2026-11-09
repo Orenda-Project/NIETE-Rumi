@@ -696,6 +696,11 @@ export type PortalConfig = {
     coachipDecode?: boolean;
     /** bd-tacnwy — this user is an internal tester on portal_role_switch (list-only; fail-closed): draw "Profile type". */
     roleSwitch?: boolean;
+    /**
+     * bd-33wxxi.1 — this user is a principal on the principal app (portal_principal_app; fail-closed): the teacher app
+     * (teacherV2, teacherHomeCard and teacherHomeLook already answer on for her) plus her school.
+     */
+    principalApp?: boolean;
   };
   /** bd-tacnwy — the profile types the switch offers (teacher, coach, principal); empty unless features.roleSwitch. */
   roleSwitchRoles?: string[];

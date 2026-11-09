@@ -17,7 +17,9 @@
 const express = require('express');
 const supabase = require('../config/supabase');
 const pool = require('../config/database');
-const { isFlagEnabledForUser, PORTAL_TEACHER_V2_KEY } = require('../lib/feature-flags');
+const { PORTAL_TEACHER_V2_KEY } = require('../lib/feature-flags');
+// bd-33wxxi.1 — the teacher-app switches go through one gate: a principal on the principal app is on too.
+const { teacherAppOnFor } = require('../lib/teacher-app');
 const Notices = require('../services/teacher-notices.service');
 
 const router = express.Router();
@@ -29,7 +31,7 @@ const { requirePortalAuth } = require('../lib/portal-auth');
 async function requireTeacherV2(req, res, next) {
   let on = false;
   try {
-    on = await isFlagEnabledForUser(supabase, PORTAL_TEACHER_V2_KEY, req.session.portalUserId);
+    on = await teacherAppOnFor(supabase, PORTAL_TEACHER_V2_KEY, req.session.portalUserId);
   } catch (error) {
     on = false; // a failed read is OFF, as every flag read is
   }

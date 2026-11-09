@@ -117,6 +117,8 @@ const {
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
 const { publicUserPayload, makeRequireLeaderRole } = require('../lib/leader-role');
+// bd-33wxxi.1 — the teacher-app switches through one gate (a principal on the principal app is on too).
+const { teacherAppOnFor, isPrincipalAppUser } = require('../lib/teacher-app');
 // The bot's ONE definition of "registered" (pure, no requires) — bd-x7aprz.3.
 const { isRegistered } = require('../../bot/shared/utils/registration-status');
 // This deployment's own bot, as a wa.me link with a command typed (WHATSAPP_BOT_NUMBER / REFERRAL_BOT_NUMBER).
@@ -9058,6 +9060,7 @@ router.get('/config', async (req, res) => {
       schoolCardRaw,
       roleSwitch,
       coachFullAppRaw,
+      principalApp,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9070,8 +9073,9 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_NEW_UI_KEY, userId),
       // bd-o15qnr: the coach app v2, per user. The portal shows it to role=coach only.
       isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, userId),
-      // bd-fmf24g.1: the teacher app v2, per user. The portal shows it to teachers only.
-      isFlagEnabledForUser(supabase, PORTAL_TEACHER_V2_KEY, userId),
+      // bd-fmf24g.1: the teacher app v2, per user. The portal shows it to teachers (and principals) only.
+      // bd-33wxxi.1: through the one teacher-app gate, so a principal on the principal app is on too.
+      teacherAppOnFor(supabase, PORTAL_TEACHER_V2_KEY, userId),
       // bd-tbprit.1: the coach's disagreements card, per user (off unless set).
       isFlagEnabledForUser(supabase, COACH_DISAGREEMENT_CARD_KEY, userId),
       // bd-s1oo0.7: the child test in the coach app, per user, same rule.
@@ -9079,10 +9083,10 @@ router.get('/config', async (req, res) => {
       // the coach's Learning assessment (the child takes the battery alone), per user.
       isFlagEnabledForUser(supabase, PORTAL_CHILD_TEST_SA_KEY, userId),
       // Teacher Home: the teacher Home's card, and its per-teacher order — the order only rides with the card on.
-      isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_CARD_KEY, userId),
+      teacherAppOnFor(supabase, PORTAL_TEACHER_HOME_CARD_KEY, userId),
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_ORDER_KEY, userId),
       // the Home's new look, which also rides with the card on.
-      isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_LOOK_KEY, userId),
+      teacherAppOnFor(supabase, PORTAL_TEACHER_HOME_LOOK_KEY, userId),
       // bd-sex15q.13 — COACHIP: the coach insight portal, the RM's sector view, and the name-decode tap (per user;
       // the RM row is an object, read by rmSectorFor). Decode only rides with the coach switch on.
       isFlagEnabledForUser(supabase, PORTAL_COACHIP_KEY, userId),
@@ -9095,6 +9099,8 @@ router.get('/config', async (req, res) => {
       isRoleSwitchUser(supabase, userId),
       // bd-jjcofw — the full coach app (Schedule + Observe) for a listed tester; rides with the coach app v2 on.
       isFlagEnabledForUser(supabase, PORTAL_COACH_FULL_APP_KEY, userId),
+      // bd-33wxxi.1 — the principal app (portal_principal_app): a principal on it gets the teacher app plus her school.
+      isPrincipalAppUser(supabase, userId),
     ]);
     return res.json({
       success: true,
@@ -9121,6 +9127,7 @@ router.get('/config', async (req, res) => {
         schoolCard: coachV2 && schoolCardRaw,
         coachFullApp: coachV2 && coachFullAppRaw,
         roleSwitch,
+        principalApp,
       },
     });
   } catch (error) {
@@ -9149,6 +9156,7 @@ router.get('/config', async (req, res) => {
         schoolCard: false,
         coachFullApp: false,
         roleSwitch: false,
+        principalApp: false,
       },
       roleSwitchRoles: [],
     });
