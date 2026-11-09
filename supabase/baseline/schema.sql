@@ -1,6 +1,7 @@
 -- NIETE sandbox schema baseline (project olvritwoqujtjvwfulbh), schema only — no rows.
 -- Regenerate: bash bot/scripts/e2e/local-db.sh baseline · dumped 2026-10-14T07:32Z
 -- region_features alone re-dumped from the live sandbox 2026-11-05 (bd-qg6j5s): V1.8.8 registry columns + book_keys.
+-- V1.8.6, V1.8.11, V1.8.12, V1.9.0, V1.9.3, V1.9.4, V1.9.6, V1.9.7 replayed onto this baseline and re-dumped 2026-11-09 (bd-4hyyp2).
 --
 -- PostgreSQL database dump
 --
@@ -893,6 +894,54 @@ BEGIN
       error_stack = p_error_stack
     WHERE id = p_job_id;
   END IF;
+END;
+$$;
+
+
+--
+-- Name: gb_lp_claim_waiters(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.gb_lp_claim_waiters(p_render_id uuid) RETURNS jsonb
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  v_waiters JSONB;
+BEGIN
+  SELECT waiters INTO v_waiters FROM niete_gb_lp_renders WHERE id = p_render_id FOR UPDATE;
+  IF NOT FOUND THEN RETURN '[]'::jsonb; END IF;
+  UPDATE niete_gb_lp_renders SET waiters = '[]'::jsonb, updated_at = NOW() WHERE id = p_render_id;
+  RETURN COALESCE(v_waiters, '[]'::jsonb);
+END;
+$$;
+
+
+--
+-- Name: gb_lp_join_waiters(uuid, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.gb_lp_join_waiters(p_render_id uuid, p_entry jsonb) RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  v_updated INTEGER;
+  v_status  TEXT;
+BEGIN
+  UPDATE niete_gb_lp_renders
+     SET waiters    = waiters || jsonb_build_array(p_entry),
+         updated_at = NOW()
+   WHERE id = p_render_id
+     AND status = 'authoring'
+     AND NOT EXISTS (
+       SELECT 1 FROM jsonb_array_elements(waiters) AS w
+        WHERE w->>'phone' IS NOT DISTINCT FROM p_entry->>'phone'
+     );
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  IF v_updated = 1 THEN RETURN 'joined'; END IF;
+  SELECT status INTO v_status FROM niete_gb_lp_renders WHERE id = p_render_id;
+  IF v_status IS NULL        THEN RETURN 'missing';       END IF;
+  IF v_status <> 'authoring' THEN RETURN 'not_authoring'; END IF;
+  RETURN 'duplicate';
 END;
 $$;
 
@@ -4284,6 +4333,7 @@ CREATE TABLE public.lp_feedback (
     useful_component text,
     used_in_class text,
     lp612_segment_id text,
+    assessment_paper_id uuid,
     CONSTRAINT lp_feedback_reason_polarity_check CHECK ((reason_polarity = ANY (ARRAY['liked'::text, 'disliked'::text, 'unknown'::text]))),
     CONSTRAINT lp_feedback_trigger_mode_check CHECK ((trigger_mode = ANY (ARRAY['after_voice_note'::text, 'after_pdf_only'::text]))),
     CONSTRAINT lp_feedback_used_in_class_chk CHECK (((used_in_class IS NULL) OR (used_in_class = ANY (ARRAY['taught'::text, 'planned'::text, 'not_yet'::text])))),
@@ -4770,6 +4820,38 @@ CREATE MATERIALIZED VIEW public.mv_retention_cohorts AS
 
 
 --
+-- Name: niete_gb_lp_renders; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.niete_gb_lp_renders (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    segment_id text NOT NULL,
+    lang text NOT NULL,
+    template_version text NOT NULL,
+    status text DEFAULT 'authoring'::text NOT NULL,
+    r2_key text,
+    page_count integer,
+    model_used text,
+    lint_clean boolean,
+    lint_fails jsonb,
+    timings jsonb,
+    error_code text,
+    error_detail text,
+    waiters jsonb DEFAULT '[]'::jsonb NOT NULL,
+    requested_by uuid,
+    correlation_id text,
+    started_at timestamp with time zone DEFAULT now() NOT NULL,
+    picked_up_at timestamp with time zone,
+    completed_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT niete_gb_lp_renders_lang_check CHECK ((lang = ANY (ARRAY['en'::text, 'ur'::text]))),
+    CONSTRAINT niete_gb_lp_renders_r2_key_check CHECK (((r2_key IS NULL) OR (r2_key ~~ 'gb-lp/%'::text))),
+    CONSTRAINT niete_gb_lp_renders_status_check CHECK ((status = ANY (ARRAY['authoring'::text, 'ready'::text, 'failed'::text])))
+);
+
+
+--
 -- Name: niete_lp612_deliveries; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -4789,6 +4871,36 @@ CREATE TABLE public.niete_lp612_deliveries (
     request_id uuid,
     CONSTRAINT niete_lp612_deliveries_lang_check CHECK ((lang = ANY (ARRAY['en'::text, 'ur'::text]))),
     CONSTRAINT niete_lp612_deliveries_surface_check CHECK ((surface = ANY (ARRAY['whatsapp'::text, 'portal'::text, 'backfill'::text])))
+);
+
+
+--
+-- Name: niete_lp612_own_plans; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.niete_lp612_own_plans (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    segment_id text,
+    lang text DEFAULT 'en'::text NOT NULL,
+    template_version text NOT NULL,
+    answers jsonb NOT NULL,
+    edit_hash text,
+    status text DEFAULT 'authoring'::text NOT NULL,
+    r2_key text,
+    model_used text,
+    error_code text,
+    error_detail text,
+    correlation_id text,
+    started_at timestamp with time zone DEFAULT now() NOT NULL,
+    completed_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    lesson_id text,
+    CONSTRAINT niete_lp612_own_plans_lang_check CHECK ((lang = ANY (ARRAY['en'::text, 'ur'::text]))),
+    CONSTRAINT niete_lp612_own_plans_one_parent CHECK ((num_nonnulls(segment_id, lesson_id) = 1)),
+    CONSTRAINT niete_lp612_own_plans_r2_key_check CHECK (((r2_key IS NULL) OR (r2_key ~~ 'lp612/%'::text))),
+    CONSTRAINT niete_lp612_own_plans_status_check CHECK ((status = ANY (ARRAY['authoring'::text, 'ready'::text, 'failed'::text])))
 );
 
 
@@ -4872,7 +4984,8 @@ CREATE TABLE public.niete_lp612_segments (
     slo_source text,
     section text,
     also_grades integer[] DEFAULT '{}'::integer[] NOT NULL,
-    CONSTRAINT niete_lp612_segments_grade_check CHECK (((grade >= 6) AND (grade <= 12))),
+    curriculum text DEFAULT 'ict'::text NOT NULL,
+    CONSTRAINT niete_lp612_segments_grade_check CHECK (((grade >= 1) AND (grade <= 12))),
     CONSTRAINT niete_lp612_segments_language_check CHECK ((language = ANY (ARRAY['en'::text, 'ur'::text]))),
     CONSTRAINT niete_lp612_segments_lp_type_check CHECK ((lp_type = ANY (ARRAY['content'::text, 'exercise_review'::text, 'assessment'::text, 'practical'::text, 'revision'::text])))
 );
@@ -5944,7 +6057,7 @@ CREATE TABLE public.teacher_nudges (
     quiz_id uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT teacher_nudges_kind_check CHECK ((kind = ANY (ARRAY['coaching_after_lp'::text, 'lp_quiz_offer'::text]))),
+    CONSTRAINT teacher_nudges_kind_check CHECK ((kind = ANY (ARRAY['coaching_after_lp'::text, 'lp_quiz_offer'::text, 'weekly_usage_report'::text, 'topic_end_nudge'::text, 'coach_weekly_report'::text]))),
     CONSTRAINT teacher_nudges_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'sending'::text, 'sent'::text, 'failed'::text, 'skipped'::text, 'expired'::text])))
 );
 
@@ -6053,6 +6166,7 @@ CREATE TABLE public.textbooks (
     ocr_completed_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
+    meta jsonb DEFAULT '{}'::jsonb NOT NULL,
     CONSTRAINT textbooks_grade_check CHECK (((grade >= 1) AND (grade <= 12)))
 );
 
@@ -7449,11 +7563,35 @@ ALTER TABLE ONLY public.migration_test
 
 
 --
+-- Name: niete_gb_lp_renders niete_gb_lp_renders_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_gb_lp_renders
+    ADD CONSTRAINT niete_gb_lp_renders_key UNIQUE (segment_id, lang, template_version);
+
+
+--
+-- Name: niete_gb_lp_renders niete_gb_lp_renders_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_gb_lp_renders
+    ADD CONSTRAINT niete_gb_lp_renders_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: niete_lp612_deliveries niete_lp612_deliveries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.niete_lp612_deliveries
     ADD CONSTRAINT niete_lp612_deliveries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: niete_lp612_own_plans niete_lp612_own_plans_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_lp612_own_plans
+    ADD CONSTRAINT niete_lp612_own_plans_pkey PRIMARY KEY (id);
 
 
 --
@@ -9254,6 +9392,13 @@ CREATE INDEX idx_feature_suggestions_user ON public.feature_suggestions USING bt
 
 
 --
+-- Name: idx_gb_lp_renders_inflight; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gb_lp_renders_inflight ON public.niete_gb_lp_renders USING btree (status, started_at) WHERE (status = 'authoring'::text);
+
+
+--
 -- Name: idx_grade_audit_grade; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9485,6 +9630,20 @@ CREATE INDEX idx_lp612_deliveries_user_recent ON public.niete_lp612_deliveries U
 
 
 --
+-- Name: idx_lp612_own_plans_inflight; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lp612_own_plans_inflight ON public.niete_lp612_own_plans USING btree (status, started_at) WHERE (status = 'authoring'::text);
+
+
+--
+-- Name: idx_lp612_own_plans_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lp612_own_plans_user ON public.niete_lp612_own_plans USING btree (user_id, created_at DESC);
+
+
+--
 -- Name: idx_lp612_renders_inflight; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9559,6 +9718,13 @@ CREATE INDEX idx_lp_downloads_tick ON public.niete_lp_downloads USING btree (use
 --
 
 CREATE INDEX idx_lp_downloads_user_time ON public.niete_lp_downloads USING btree (user_id, created_at DESC);
+
+
+--
+-- Name: idx_lp_feedback_assessment_paper; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lp_feedback_assessment_paper ON public.lp_feedback USING btree (assessment_paper_id, created_at DESC) WHERE (assessment_paper_id IS NOT NULL);
 
 
 --
@@ -12204,6 +12370,14 @@ ALTER TABLE ONLY public.lesson_plans
 
 
 --
+-- Name: lp_feedback lp_feedback_assessment_paper_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lp_feedback
+    ADD CONSTRAINT lp_feedback_assessment_paper_id_fkey FOREIGN KEY (assessment_paper_id) REFERENCES public.assessment_papers(id) ON DELETE SET NULL;
+
+
+--
 -- Name: lp_feedback lp_feedback_lesson_plan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12225,6 +12399,22 @@ ALTER TABLE ONLY public.lp_feedback
 
 ALTER TABLE ONLY public.lp_feedback
     ADD CONSTRAINT lp_feedback_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: niete_gb_lp_renders niete_gb_lp_renders_requested_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_gb_lp_renders
+    ADD CONSTRAINT niete_gb_lp_renders_requested_by_fkey FOREIGN KEY (requested_by) REFERENCES public.users(id);
+
+
+--
+-- Name: niete_gb_lp_renders niete_gb_lp_renders_segment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_gb_lp_renders
+    ADD CONSTRAINT niete_gb_lp_renders_segment_id_fkey FOREIGN KEY (segment_id) REFERENCES public.niete_lp612_segments(segment_id);
 
 
 --
@@ -12257,6 +12447,22 @@ ALTER TABLE ONLY public.niete_lp612_deliveries
 
 ALTER TABLE ONLY public.niete_lp612_deliveries
     ADD CONSTRAINT niete_lp612_deliveries_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: niete_lp612_own_plans niete_lp612_own_plans_segment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_lp612_own_plans
+    ADD CONSTRAINT niete_lp612_own_plans_segment_id_fkey FOREIGN KEY (segment_id) REFERENCES public.niete_lp612_segments(segment_id);
+
+
+--
+-- Name: niete_lp612_own_plans niete_lp612_own_plans_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_lp612_own_plans
+    ADD CONSTRAINT niete_lp612_own_plans_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
 
 
 --
@@ -13434,10 +13640,22 @@ ALTER TABLE public.lesson_plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.migration_test ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: niete_gb_lp_renders; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.niete_gb_lp_renders ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: niete_lp612_deliveries; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
 ALTER TABLE public.niete_lp612_deliveries ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: niete_lp612_own_plans; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.niete_lp612_own_plans ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: niete_lp_downloads; Type: ROW SECURITY; Schema: public; Owner: -
@@ -14236,6 +14454,24 @@ GRANT ALL ON FUNCTION public.exec_sql(query text) TO service_role;
 --
 
 GRANT ALL ON FUNCTION public.fail_coaching_job(p_job_id uuid, p_error_message text, p_error_stack text, p_retry_delay_seconds integer) TO service_role;
+
+
+--
+-- Name: FUNCTION gb_lp_claim_waiters(p_render_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.gb_lp_claim_waiters(p_render_id uuid) TO anon;
+GRANT ALL ON FUNCTION public.gb_lp_claim_waiters(p_render_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.gb_lp_claim_waiters(p_render_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION gb_lp_join_waiters(p_render_id uuid, p_entry jsonb); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.gb_lp_join_waiters(p_render_id uuid, p_entry jsonb) TO anon;
+GRANT ALL ON FUNCTION public.gb_lp_join_waiters(p_render_id uuid, p_entry jsonb) TO authenticated;
+GRANT ALL ON FUNCTION public.gb_lp_join_waiters(p_render_id uuid, p_entry jsonb) TO service_role;
 
 
 --
@@ -15225,10 +15461,28 @@ GRANT SELECT ON TABLE public.mv_retention_cohorts TO authenticated;
 
 
 --
+-- Name: TABLE niete_gb_lp_renders; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON TABLE public.niete_gb_lp_renders TO anon;
+GRANT ALL ON TABLE public.niete_gb_lp_renders TO authenticated;
+GRANT ALL ON TABLE public.niete_gb_lp_renders TO service_role;
+
+
+--
 -- Name: TABLE niete_lp612_deliveries; Type: ACL; Schema: public; Owner: -
 --
 
 GRANT ALL ON TABLE public.niete_lp612_deliveries TO service_role;
+
+
+--
+-- Name: TABLE niete_lp612_own_plans; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON TABLE public.niete_lp612_own_plans TO anon;
+GRANT ALL ON TABLE public.niete_lp612_own_plans TO authenticated;
+GRANT ALL ON TABLE public.niete_lp612_own_plans TO service_role;
 
 
 --
