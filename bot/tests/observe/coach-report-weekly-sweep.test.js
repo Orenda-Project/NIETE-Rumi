@@ -30,7 +30,7 @@ const debrief = (id, iso, coach = COACH) => ({
 });
 
 beforeEach(() => {
-  process.env.WEB_TRAINING_TOKEN_SECRET = 'test-secret';
+  process.env.INTERNAL_API_KEY = 'test-internal-key';
   process.env.PORTAL_URL = 'https://portal-sandbox.example';
   db = tableDouble({
     app_settings: [{ key: 'coach_reports_app', value: [COACH] }],
@@ -45,9 +45,9 @@ test('Friday 16:31, unopened, window open: one link to her week, the row claimed
   const out = await S.runWeeklySweep({ now: FRI_1631, windowOpen: async () => true });
   expect(out).toMatchObject({ enabled: true, sent: 1 });
   expect(wa.sendCtaUrl).toHaveBeenCalledTimes(1);
-  const { verifyPortalLink } = require('../../shared/services/portal-link-token');
+  const { verifyAppLink } = require('../../shared/services/app-login-link');
   const url = wa.sendCtaUrl.mock.calls[0][1].url;
-  expect(verifyPortalLink(url.split('/t/')[1])).toMatchObject({ u: COACH, area: 'coachreport', i: 'week:2026-11-02' });
+  expect(verifyAppLink(url.split('/go/')[1])).toMatchObject({ u: COACH, f: 'coach_week:2026-11-02' });
   expect(wa.sendCtaUrl.mock.calls[0][1].buttonText).toBe('Open my week');
   expect(db.tables.teacher_nudges).toHaveLength(1);
   expect(db.tables.teacher_nudges[0]).toMatchObject({ user_id: COACH, kind: 'coach_weekly_report', nudge_date: '2026-11-02', status: 'sent' });

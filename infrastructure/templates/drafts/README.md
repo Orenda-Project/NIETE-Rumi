@@ -12,10 +12,12 @@ neither opens it nor closes its Home card, ONE WhatsApp message follows with a l
 window that is a free-form `cta_url` button and needs no template; outside it, this UTILITY template is the only way:
 no header, a fixed body with no variables (it names neither the teacher nor the report's contents: messages get
 forwarded), the footer "NIETE Digital Coach", and one URL button ("Open my report" / «میری رپورٹ کھولیں») on
-`https://portal.niete.edu.pk/t/{{1}}`, where `{{1}}` is a signed portal link token (`portal-link-token.js`, area
-`coachreport`, item `debrief:<id>` or `week:<date>`). The body says "coaching report", so one template serves both
-reports. Measured in code points and held by `tests/portal/coach-report-template.test.js`. Per WABA: sandbox's button
-base is the sandbox portal, not portal.niete.edu.pk; change the URL in the sandbox submission.
+`https://portal.niete.edu.pk/go/{{1}}`, where `{{1}}` is a one-tap app link token (`app-login-link.js`, the door every
+coach link on staging and production uses), its target naming ONE report (`coach-report-target.js`: `coach_report:<id>`
+or `coach_week:<Monday>`). The body says "coaching report", so one template serves both reports. Measured in code points
+and held by `tests/portal/coach-report-template.test.js`. Per WABA: staging's button base is the staging portal, not
+portal.niete.edu.pk; change the URL in the staging submission. (Sandbox's submission, 7 Nov, uses sandbox's own
+`/t/{{1}}` door, which staging and production do not have.)
 
 It is sent only when `app_settings.coach_report_template_enabled` is `true` (absent = off) AND the coach is on
 `app_settings.coach_reports_app`; until then a closed window means no message (the Home card still shows the report).
