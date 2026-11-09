@@ -22,6 +22,10 @@
  * uses (lp612-browse renderStatus falls back here on a miss), so the waiting page, the viewer and the PDF relay need
  * no second path. The read is by id AND her user id, so nobody else's fork is ever answered.
  *
+ * GRADES 1–5 (bd-snkn32.4). A `lessonId` (a grades 1–5 day) instead of a segment: the parent is that day's own stored
+ * plan (its slide script), so nothing is asked for first, and the row carries `lesson_id` and the BOOK's language (an
+ * Urdu book's plan is rewritten in Urdu). Same table (V1.9.7 widens it), same job type, same status poll.
+ *
  * Dependencies are injected (createOwnService) so the rules are testable without Supabase, R2 or a queue.
  */
 
@@ -30,14 +34,52 @@ const { parseOwnAnswers } = require('./lp612-own-instruction');
 const OWN_TABLE = 'niete_lp612_own_plans';
 const OWN_JOB_TYPE = 'lp612_own';
 const OWN_LANG = 'en';
+/** The template of a grades 1–5 fork: the stored slide script, rewritten (lp-k5-own) and printed (lp-k5-own-render). */
+const K5_TV = 'k5_own_v1';
 
 function createOwnService(deps) {
   const d = deps;
 
-  async function requestOwn({ userId, segmentId, answers, correlationId = null } = {}) {
-    if (!userId || !segmentId) return { outcome: 'bad_request', error: 'userId and segmentId are required' };
+  async function queue(row, key, correlationId) {
+    try {
+      await d.queueJob(key, OWN_JOB_TYPE, { ownId: row.id, correlationId }, {
+        // Volatile parts first, as lp612-serving's enqueue does: the clock keeps a retry from deduping away.
+        deduplicationId: `${Date.now()}-${OWN_JOB_TYPE}-${row.id}`.slice(0, 128),
+      });
+    } catch (err) {
+      d.log('LP 6-12 own: could not enqueue', { ownId: row.id, key, error: err.message, correlationId });
+      await d.patchOwn(row.id, {
+        status: 'failed', error_code: 'ENQUEUE_FAILED', error_detail: err.message, completed_at: new Date().toISOString(),
+      });
+      return { outcome: 'error' };
+    }
+    return { outcome: 'queued', ownId: row.id };
+  }
+
+  /** bd-snkn32.4 — a grades 1–5 day: its own stored plan is the parent, in its book's language. */
+  async function requestK5({ userId, lessonId, answers, correlationId }) {
+    const lesson = await d.k5Lesson(lessonId);
+    if (!lesson) return { outcome: 'not_found' };
+    const row = await d.insertOwn({
+      user_id: userId,
+      lesson_id: lessonId,
+      lang: lesson.lang === 'ur' ? 'ur' : 'en',
+      template_version: K5_TV,
+      status: 'authoring',
+      answers,
+      correlation_id: correlationId,
+    });
+    if (!row || !row.id) return { outcome: 'error' };
+    return queue(row, lessonId, correlationId);
+  }
+
+  async function requestOwn({ userId, segmentId, lessonId, answers, correlationId = null } = {}) {
+    if (!userId || (!segmentId === !lessonId)) {
+      return { outcome: 'bad_request', error: 'userId and one of segmentId or lessonId are required' };
+    }
     const parsed = parseOwnAnswers(answers);
     if (!parsed.ok) return { outcome: 'bad_request', error: parsed.error };
+    if (lessonId) return requestK5({ userId, lessonId, answers: parsed.answers, correlationId });
     if (!(await d.segmentExists(segmentId))) return { outcome: 'not_found' };
 
     const tv = d.templateVersion();
@@ -60,19 +102,7 @@ function createOwnService(deps) {
     });
     if (!row || !row.id) return { outcome: 'error' };
 
-    try {
-      await d.queueJob(segmentId, OWN_JOB_TYPE, { ownId: row.id, correlationId }, {
-        // Volatile parts first, as lp612-serving's enqueue does: the clock keeps a retry from deduping away.
-        deduplicationId: `${Date.now()}-${OWN_JOB_TYPE}-${row.id}`.slice(0, 128),
-      });
-    } catch (err) {
-      d.log('LP 6-12 own: could not enqueue', { ownId: row.id, segmentId, error: err.message, correlationId });
-      await d.patchOwn(row.id, {
-        status: 'failed', error_code: 'ENQUEUE_FAILED', error_detail: err.message, completed_at: new Date().toISOString(),
-      });
-      return { outcome: 'error' };
-    }
-    return { outcome: 'queued', ownId: row.id };
+    return queue(row, segmentId, correlationId);
   }
 
   /** Her fork in the render row's shape (renderStatus), or null — never someone else's, never a throw. */
@@ -88,7 +118,7 @@ function createOwnService(deps) {
     if (!r || r.user_id !== userId) return null;
     return {
       id: r.id,
-      segment_id: r.segment_id,
+      segment_id: r.segment_id || r.lesson_id || null, // bd-snkn32.4: a grades 1–5 fork names its day
       status: r.status,
       r2_key: r.r2_key,
       one_screen: null,
@@ -126,6 +156,7 @@ function liveDeps() {
     templateVersion,
     segmentExists: (segmentId) => segmentExists(supabase, segmentId),
     readStoredDoc: (args) => Serving.readStoredDoc(args),
+    k5Lesson: (lessonId) => require('./lp-k5-own-source').k5Lesson(lessonId),
     requestParent: (args) => Serving.requestLesson(args),
     insertOwn: async (row) => {
       const out = await supabase.from('niete_lp612_own_plans').insert(row).select('id').single();
@@ -139,7 +170,7 @@ function liveDeps() {
     selectOwn: async (id, userId) => {
       const { data, error } = await supabase
         .from('niete_lp612_own_plans')
-        .select('id, user_id, segment_id, status, r2_key, error_code, lang, started_at, completed_at')
+        .select('id, user_id, segment_id, lesson_id, status, r2_key, error_code, lang, started_at, completed_at')
         .eq('id', id).eq('user_id', userId).maybeSingle();
       if (error) throw new Error(error.message);
       return data || null;
@@ -158,4 +189,5 @@ module.exports = {
   OWN_TABLE,
   OWN_JOB_TYPE,
   OWN_LANG,
+  K5_TV,
 };
