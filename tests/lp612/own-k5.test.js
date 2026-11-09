@@ -119,7 +119,10 @@ describe('renderK5Own — the phone page', () => {
     expect(html).toContain('dir="rtl"');
     expect(html).toContain('lang="ur"');
     expect(html).toMatch(/Nastaliq/);
+    expect(html).not.toMatch(/fonts\.googleapis|<link/); // the Railway Chromium fetches nothing: fonts are embedded
+    expect(renderK5Own(script('ur'), { lang: 'ur', fontCss: '@font-face{x}' })).toContain('@font-face{x}');
     expect(html).toContain('ہوم ورک');
+    expect(renderK5Own(script('ur'), { lang: 'ur', subject: 'Urdu' })).toContain('اردو'); // the catalogue's English name, in Urdu
     expect(html).not.toContain('>Homework<');
   });
 });

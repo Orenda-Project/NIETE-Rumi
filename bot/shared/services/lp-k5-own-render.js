@@ -28,7 +28,12 @@ const WAY_NAMES = {
     games: 'کھیل اور حرکت', story: 'کہانی اور بات چیت' },
 };
 
-const URDU_CSS = '[dir=rtl] body,[dir=rtl] .page{font-family:"Noto Nastaliq Urdu","Jameel Noori Nastaleeq",serif;line-height:2.1}'
+/** An Urdu book's subject in Urdu, where the catalogue names it in English. */
+const SUBJECT_UR = { urdu: 'اردو', 'social studies (urdu)': 'معاشرتی علوم', 'general knowledge': 'واقفیتِ عامہ' };
+const subjectFor = (subject, ur) => (ur && !/[\u0600-\u06FF]/.test(String(subject || ''))
+  ? SUBJECT_UR[String(subject || '').trim().toLowerCase()] || subject : subject);
+
+const URDU_CSS = '[dir=rtl] .hd h1{line-height:1.9}.n,.t,bdi{unicode-bidi:isolate}[dir=rtl] body,[dir=rtl] .page{font-family:"Noto Nastaliq Urdu","Jameel Noori Nastaleeq",serif;line-height:2.1}'
   + '[dir=rtl] .say::before{content:"کہیں: "}[dir=rtl] .sec{border-inline-start-width:7px}';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -101,13 +106,14 @@ function homework(s) {
 }
 
 /** The page. `way` is the chosen teaching way's name in the plan's language. */
-function renderK5Own(script, { lang = 'en', grade, subject, way } = {}) {
+/** `fontCss`: the embedded @font-face rules (lp-k5-own-fonts), passed in so this stays pure. */
+function renderK5Own(script, { lang = 'en', grade, subject, way, fontCss = '' } = {}) {
   const ur = lang === 'ur';
   const W = WORDS[ur ? 'ur' : 'en'];
   const s = script || {};
   const m = s.meta || {};
   const day = has(m.day) ? `${W.day} ${esc(m.day)}${has(m.total) ? ` ${W.of} ${esc(m.total)}` : ''}` : '';
-  const head = `<div class="hd"><div class="k"><span><b>${W.grade} ${esc(grade ?? m.grade ?? '')} · ${esc(subject || m.subject || '')}</b></span>`
+  const head = `<div class="hd"><div class="k"><span><b>${W.grade} ${esc(grade ?? m.grade ?? '')} · ${esc(subjectFor(subject || m.subject || '', ur))}</b></span>`
     + `<span>${day}${has(m.minutes) ? ` · ${esc(m.minutes)} ${W.min}` : ''} · ${W.mine}</span></div>`
     + `<h1>${esc(m.topic || '')}</h1><div class="goal">${esc(s.goal || '')}</div></div>`
     + (has(way) ? `<div class="info"><b>${W.way}</b><span>${esc(way)}</span></div>` : '');
@@ -121,8 +127,7 @@ function renderK5Own(script, { lang = 'en', grade, subject, way } = {}) {
   ].join('\n');
   return `<!doctype html><html lang="${ur ? 'ur' : 'en'}"${ur ? ' dir="rtl"' : ''}><head><meta charset="utf-8">`
     + '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    + (ur ? '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=block">' : '')
-    + `<style>${CSS}${ur ? URDU_CSS : ''}</style></head><body><div class="page">${head}\n${body}</div></body></html>`;
+    + `<style>${CSS}${fontCss}${ur ? URDU_CSS : ''}</style></head><body><div class="page">${head}\n${body}</div></body></html>`;
 }
 
 module.exports = { renderK5Own, WORDS, WAY_NAMES };
