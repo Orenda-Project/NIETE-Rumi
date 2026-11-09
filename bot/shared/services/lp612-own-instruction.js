@@ -82,4 +82,4 @@ function buildOwnInstruction(answers) {
   return lines.join('\n');
 }
 
-module.exports = { parseOwnAnswers, buildOwnInstruction, NOTE_MAX };
+module.exports = { parseOwnAnswers, buildOwnInstruction, NOTE_MAX, SIZES, RESOURCES, LEVELS, WAYS };
