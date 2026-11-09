@@ -67,3 +67,11 @@ test('a throw is a 500 with no id', async () => {
   expect(out.status).toBe(500);
   expect(out.body.renderId).toBeUndefined();
 });
+
+// bd-snkn32.4 — a grades 1–5 day comes as lessonId; the route passes it on and adds no rule.
+test('passes a grades 1–5 lessonId through', async () => {
+  mockRequestOwn.mockResolvedValue({ outcome: 'queued', ownId: 'own-k5' });
+  const out = await post({ userId: 'u1', lessonId: 'grade_3_urdu_ch1_seg2', answers: { size: 'up30' } });
+  expect(mockRequestOwn).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1', lessonId: 'grade_3_urdu_ch1_seg2', segmentId: '' }));
+  expect(out.body.renderId).toBe('own-k5');
+});

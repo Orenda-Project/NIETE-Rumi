@@ -235,6 +235,9 @@ const JOBS = {
   'lp.extractUpload': {
     env: 'LP_FIDELITY_MODEL', default: 'openai/gpt-5.6-luna', site: 'shared/services/coaching/fidelity/lp-upload-extractor.js',
   },
+  // Make my own, grades 1–5 (bd-snkn32.4): a day's slide script rewritten for one teacher's class. No env var of its own
+  // (no new LP flag); the per-job override moves it.
+  'lp.k5own': { env: null, default: 'anthropic/claude-sonnet-5', site: 'shared/services/lp-k5-own-author.js' },
   // These four call api.openai.com directly on their own client, so their model must be one it serves:
   // a bare OpenAI id and no env var. Only the per-job override (which routes it) moves them elsewhere.
   'quiz.generate': { env: null, default: 'gpt-4o', lane: 'openai-direct', site: 'shared/services/quiz/quiz-generation.service.js' },
@@ -407,6 +410,7 @@ const JSON_REPAIRED_BY_CALLER = Object.freeze({
   'coaching.questionRouter': 'whole',    // gpt5-mini.service.js _generateReflectiveQuestionV12: _safeJsonParse(content)
   'coaching.reflectiveCorpus': 'whole',  // gpt5-mini.service.js extractReflectiveCorpus: _safeJsonParse(content)
   'lp.extractUpload': 'whole',           // coaching/fidelity/lp-upload-extractor.js safeJsonParse
+  'lp.k5own': 'whole',                   // lp-k5-own.js parseK5Reply: JSON.parse, then jsonrepair
   'lp.fidelity': 'whole',                // coaching/fidelity/fidelity-analyzer.js safeJsonParse
   'vision.analyse': 'whole',             // classroom-photo/photo-analysis.service.js parseJsonObject: JSON.parse, then jsonrepair (bd-gr4fy.5.7)
   'coaching.fidelityFallback': 'span',   // gpt5-mini.service.js: /\{[\s\S]*\}/, then _safeJsonParse
