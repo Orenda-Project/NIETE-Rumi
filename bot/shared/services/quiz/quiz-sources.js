@@ -3,7 +3,7 @@
 // flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
 // (Hataf) before any new LP table.
 // Here: lp_v8 and lp612 key a lesson differently because identity depends on the generation; no third shape.
-// Why, target model, follow-up (bd-42mo0w, audit planned): docs/lesson-plan-data-model-debt.md
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 'use strict';
 /**
  * `quizzes.quiz_source` — the one place the values are named.
