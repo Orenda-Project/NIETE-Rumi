@@ -87,7 +87,7 @@ function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => vo
 
   return (
     <ObservePage bare banner={false} title={C.recordTitle} onBack={() => (recording ? setAsking(true) : navigate(routes.visit(visit.id)))}
-      crumb={<><span className="me-1.5 inline-block h-2 w-2 rounded-full bg-[#c8331f] align-middle" aria-hidden="true" />{visit.teacherName || C.dash} · <TimeStamp time={visit.scheduledSlot} size={13} /></>}
+      crumb={<><span className="me-1.5 inline-block h-2 w-2 rounded-full bg-[#c8331f] align-middle" aria-hidden="true" />{visit.teacherName || C.dash}{visit.scheduledSlot && <> · <TimeStamp time={visit.scheduledSlot} size={13} /></>}</>}
       dock={(
         <>
           <button type="button" onClick={togglePause} disabled={!recording}
@@ -153,7 +153,7 @@ const CoachRecord = () => {
   if (!visit || blocked) {
     return (
       <ObservePage banner={false} title={C.recordTitle} backTo={routes.visit(id)}
-        crumb={visit ? <>{visit.teacherName || C.dash} · <TimeStamp time={visit.scheduledSlot} size={13} /></> : undefined}>
+        crumb={visit ? <>{visit.teacherName || C.dash}{visit.scheduledSlot && <> · <TimeStamp time={visit.scheduledSlot} size={13} /></>}</> : undefined}>
         {failed && <Failed onRetry={reload} />}
         {!data && !failed && <Loading />}
         {blocked && (

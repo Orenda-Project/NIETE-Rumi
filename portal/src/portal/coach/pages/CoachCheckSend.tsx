@@ -164,7 +164,8 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
     navigate(routes.sending(visit.id), { replace: true }); // Check and send is done: Back from Sending is never this page (it would bounce straight on)
   };
 
-  const crumb = <>{teacherName} · <TimeStamp time={visit.scheduledSlot} size={13} /></>;
+  // A visit without a time (the principal app's picked teacher, bd-33wxxi.4) shows the name alone, never "Name ·".
+  const crumb = <>{teacherName}{visit.scheduledSlot && <> · <TimeStamp time={visit.scheduledSlot} size={13} /></>}</>;
 
   if (stage === "library") {
     return (
@@ -286,7 +287,7 @@ const CoachCheckSend = () => {
 
   return (
     <ObservePage banner={false} title={C.checkAndSend} backTo={routes.visit(id)} feature="observations"
-      crumb={visit ? <>{visit.teacherName || C.dash} · <TimeStamp time={visit.scheduledSlot} size={13} /></> : undefined}>
+      crumb={visit ? <>{visit.teacherName || C.dash}{visit.scheduledSlot && <> · <TimeStamp time={visit.scheduledSlot} size={13} /></>}</> : undefined}>
       {failed && <Failed onRetry={reload} />}
       {(!data || !looked) && !failed && <Loading />}
       {visit && looked && !audio && (
