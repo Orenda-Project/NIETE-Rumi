@@ -1,0 +1,2 @@
+{"ts":"2026-11-09T16:46:13Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"070a8196406a","branch":"bd-z959b-42521","user":""}
+{"ts":"2026-11-09T16:46:15Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"070a8196406a","branch":"bd-z959b-42521","user":""}
