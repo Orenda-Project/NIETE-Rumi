@@ -17,9 +17,9 @@
         {
           "type": "URL",
           "text": "Open my report",
-          "url": "https://portal.niete.edu.pk/t/{{1}}",
+          "url": "https://portal.niete.edu.pk/go/{{1}}",
           "example": [
-            "https://portal.niete.edu.pk/t/Zm9v.YWJj"
+            "https://portal.niete.edu.pk/go/QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9w"
           ]
         }
       ]

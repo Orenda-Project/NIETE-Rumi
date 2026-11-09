@@ -1,8 +1,12 @@
 /**
  * Coach reports in the app — the drafted UTILITY template coach_report_ready_v1 (en, ur) is inside Meta's caps, has
- * no variable in its body (it names nobody: messages get forwarded), one URL button carrying the signed link token,
+ * no variable in its body (it names nobody: messages get forwarded), one URL button carrying the one-tap app link token (/go/),
  * the button word the bot's cta_url uses, and the name and languages the sweep sends with.
  */
+// The service reads the bot's Supabase config when required; a stand-in address, as the other suites set (nothing is called).
+process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://localhost';
+process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'test-key';
+
 const fs = require('fs');
 const path = require('path');
 
@@ -26,7 +30,7 @@ for (const lang of ['en', 'ur']) {
     expect(cp(foot.text)).toBeLessThanOrEqual(60);
     expect(button.type).toBe('URL');
     expect(cp(button.text)).toBeLessThanOrEqual(25);
-    expect(button.url).toMatch(/\/t\/\{\{1\}\}$/);
+    expect(button.url).toMatch(/^https:\/\/portal\.niete\.edu\.pk\/go\/\{\{1\}\}$/); // staging/production: the /go/ door
     expect(button.text).toBe(observeStrings(lang).coach_report_link_button);
   });
 }

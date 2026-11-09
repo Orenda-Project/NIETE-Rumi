@@ -10,7 +10,8 @@
  *     switched on; until then nothing is sent and nothing is claimed).
  * At most one message per report: one conditional UPDATE claims it (coach_report_whatsapp_at, opened and seen all
  * NULL); only the claimer sends; a refused send is not retried.
- * The link is a signed portal link to that ONE report (area 'coachreport', item 'debrief:<id>').
+ * The link is staging's one-tap app link (/go/<token>, app-login-link.js) to that ONE report (target
+ * 'coach_report:<id>', coach-report-target.js); sandbox's /t/ door is not on staging.
  */
 
 process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://localhost';
@@ -45,7 +46,7 @@ const session = (over = {}) => ({
 });
 
 beforeEach(() => {
-  process.env.WEB_TRAINING_TOKEN_SECRET = 'test-secret';
+  process.env.INTERNAL_API_KEY = 'test-internal-key';
   process.env.PORTAL_URL = 'https://portal-sandbox.example';
   windowOpen = true;
   db = tableDouble({
@@ -56,21 +57,27 @@ beforeEach(() => {
 });
 
 describe('the link', () => {
-  test('a signed portal link to ONE report: area coachreport, item debrief:<id>', () => {
+  test('the one-tap app link (/go/) to ONE report: target coach_report:<id>', () => {
     const S = load();
-    const { verifyPortalLink } = require('../../shared/services/portal-link-token');
+    const { verifyAppLink } = require('../../shared/services/app-login-link');
     const url = S.reportLinkUrl(COACH, ID);
-    expect(url).toMatch(/^https:\/\/portal-sandbox\.example\/t\/[^/]+$/);
-    const p = verifyPortalLink(url.split('/t/')[1]);
-    expect(p).toMatchObject({ u: COACH, area: 'coachreport', i: `debrief:${ID}` });
+    expect(url).toMatch(/^https:\/\/portal-sandbox\.example\/go\/[^/]+$/);
+    expect(verifyAppLink(url.split('/go/')[1])).toMatchObject({ u: COACH, f: `coach_report:${ID}` });
   });
 
-  test('a coachreport token with anything but a well-formed item is no token', () => {
-    load();
-    const { signPortalLink } = require('../../shared/services/portal-link-token');
-    expect(signPortalLink(COACH, 'coachreport', { i: 'paper:x' })).toBeNull();
-    expect(signPortalLink(COACH, 'coachreport', {})).toBeNull();
-    expect(signPortalLink(COACH, 'coachreport', { i: 'week:2026-11-06' })).not.toBeNull();
+  test('no id that is a uuid, no link (and nothing else can be named)', () => {
+    const S = load();
+    expect(S.reportLinkUrl(COACH, 'not-a-uuid')).toBeNull();
+    expect(S.reportLinkUrl(COACH, `${ID}/x`)).toBeNull();
+  });
+
+  test('no signing key or no portal address: no link', () => {
+    const S = load();
+    delete process.env.INTERNAL_API_KEY;
+    expect(S.reportLinkUrl(COACH, ID)).toBeNull();
+    process.env.INTERNAL_API_KEY = 'test-internal-key';
+    process.env.PORTAL_URL = '';
+    expect(S.reportLinkUrl(COACH, ID)).toBeNull();
   });
 });
 
@@ -83,7 +90,7 @@ describe('recorded on WhatsApp: the link goes at once', () => {
     const [to, msg] = wa.sendCtaUrl.mock.calls[0];
     expect(to).toBe('920000000001');
     expect(msg.buttonText).toBe('میری رپورٹ کھولیں');
-    expect(msg.url).toMatch(/\/t\//);
+    expect(msg.url).toMatch(/\/go\//);
     expect([...msg.buttonText].length).toBeLessThanOrEqual(20);
     expect(db.tables.coaching_sessions[0].coach_report_whatsapp_at).not.toBeNull();
   });

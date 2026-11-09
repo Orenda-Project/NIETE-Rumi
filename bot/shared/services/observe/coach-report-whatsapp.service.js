@@ -21,7 +21,8 @@
  * (coach_report_whatsapp_at set where it, coach_report_opened_at and coach_report_seen_at are all NULL, RETURNING the row)
  * claims the report; only the caller that gets the row back sends. A refused send is logged at ERROR and NOT retried.
  *
- * THE LINK names the coach and ONE report (portal-link-token area 'coachreport', item 'debrief:<id>'); it opens that
+ * THE LINK is the one-tap app link (/go/<token>, app-login-link.js) with a target naming ONE report
+ * (coach-report-target.js: `coach_report:<id>` or `coach_week:<Monday>`); it opens that
  * report and nothing else. The message never names the teacher (messages get forwarded).
  *
  * PRE-MERGE CLASSES. G: outside the window a template only. M: the button text is inside 20 code points (test). N: every
@@ -34,8 +35,10 @@ const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
-const { signPortalLink } = require('../portal-link-token');
-const { isTrue, TEMPLATE_LANGUAGES } = require('../portal-web-link');
+// Staging (bd-enec2e.6): sandbox signs a /t/ link (portal-link-token.js, area 'coachreport'); staging and production have
+// no /t/ door, so the link is the /go/ one-tap app link every other coach link uses, with the report as its target.
+const { signAppLink } = require('../app-login-link');
+const { coachReportTarget, coachWeekTarget } = require('../coach-report-target');
 const { observeStrings } = require('./observe-strings');
 
 const SETTING_SWITCH = 'coach_reports_app';
@@ -50,6 +53,17 @@ const LOOKBACK_MS = 24 * 60 * 60 * 1000;
 const PER_TICK = 10;
 const FIRST_RUN_MS = 90 * 1000;
 const SWEEP_EVERY_MS = 20 * 1000;
+
+/** The languages the template is drafted in; English is the floor (Rule 20). */
+const TEMPLATE_LANGUAGES = Object.freeze(['en', 'ur']);
+
+/** An app_settings value that means on: true, or the string "true". */
+function isTrue(value) {
+  let v = value;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a bare string */ } }
+  if (v === true) return true;
+  return typeof v === 'string' && v.trim().toLowerCase() === 'true';
+}
 
 const errorLog = (message, data) => logToFile(`❌ coach_report_whatsapp: ${message}`, data, 'error');
 const iso = (ms) => new Date(ms).toISOString();
@@ -87,15 +101,18 @@ async function coachReportsOn(coachId) {
 
 /* ── the link and the words ─────────────────────────────────────────────────────────────────────────────────── */
 
-const itemOf = (sessionId) => `debrief:${sessionId}`;
-const weekItemOf = (monday) => `week:${monday}`;
+const itemOf = (sessionId) => coachReportTarget(sessionId);
+const weekItemOf = (monday) => coachWeekTarget(monday);
 
-/** The signed link to one report item (`debrief:<id>` | `week:<Monday>`), or null (no PORTAL_URL or no signing secret). */
+/** The /go token for one report target, or null (no target, or no signing key on this deployment). */
+const tokenFor = (coachId, item) => (item ? signAppLink(coachId, item) : null);
+
+/** The one-tap link to one report target (`coach_report:<id>` | `coach_week:<Monday>`), or null (no PORTAL_URL or no key). */
 function linkUrl(coachId, item) {
   const base = String(process.env.PORTAL_URL || '').trim().replace(/\/+$/, '');
-  const token = signPortalLink(coachId, 'coachreport', { i: item });
+  const token = tokenFor(coachId, item);
   if (!base || !token) return null;
-  return `${base}/t/${token}`;
+  return `${base}/go/${token}`;
 }
 
 /** The signed link to this one debrief report. */
@@ -137,7 +154,7 @@ async function sendButton(phone, lang, url, kind = 'debrief') {
 }
 
 async function sendTemplate(phone, lang, coachId, sessionId, item = itemOf(sessionId)) {
-  const token = signPortalLink(coachId, 'coachreport', { i: item });
+  const token = tokenFor(coachId, item);
   if (!token) return false;
   const name = (process.env[TEMPLATE_ENV] || '').trim() || TEMPLATE_DEFAULT;
   const components = [{ type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: token }] }];
