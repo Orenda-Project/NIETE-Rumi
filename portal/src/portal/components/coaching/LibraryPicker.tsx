@@ -14,7 +14,8 @@ import { SkeletonList } from '../Skeleton';
  *
  * Grades 1-5 and 6-12 are two catalogues behind one picker (as on the
  * Curriculum page). A 6-12 lesson that has not been written yet is got ready
- * first (the Curriculum page's request, ~3 minutes) and picked once it is.
+ * first (the Curriculum page's request, ~3 minutes) and picked once it is. A GB
+ * Grades 1-5 lesson (`onRequest`, queue #71) is handled exactly like a 6-12 one.
  */
 
 export type PickedPlan = { pick: LibraryPick; title: string; sub: string };
@@ -147,7 +148,8 @@ const LibraryPicker = ({ onPick, onStepChange, backSignal, loadRecent, recentTit
   const pickLesson = (lesson: LibraryLesson) => {
     if (step.level !== 3) return;
     const sub = `${COPY.fromLibrary} · Grade ${step.grade.grade} · ${step.subject.label}`;
-    if (step.grade.lane === 'k5') {
+    // A GB lesson (queue #71) is picked and got ready like a 6-12 one; every other 1-5 lesson by its id, as before.
+    if (step.grade.lane === 'k5' && !lesson.onRequest) {
       onPick({ pick: { lessonId: lesson.id }, title: lesson.label, sub });
       return;
     }
@@ -156,7 +158,7 @@ const LibraryPicker = ({ onPick, onStepChange, backSignal, loadRecent, recentTit
     void prepare(lesson, picked);
   };
 
-  /** Ask for a 6-12 lesson to be written, then pick it once it is ready. */
+  /** Ask for a 6-12 (or GB) lesson to be written, then pick it once it is ready. */
   const prepare = async (lesson: LibraryLesson, picked: PickedPlan) => {
     setPreparing(lesson.id);
     setPrepFailed(null);

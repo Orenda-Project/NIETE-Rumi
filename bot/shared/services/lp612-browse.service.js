@@ -294,7 +294,10 @@ async function renderStatus(renderId, userId) {
     logToFile('LP 6-12 browse: status lookup failed', { renderId, error: error.message });
     return null;
   }
-  if (!data) return null;
+  if (!data) {
+    // Queue #71 — a GB lesson written on her tap in the app lives in GB's own rows (niete_gb_lp_renders).
+    return require('./gb-lp-serving.service').renderStatus(renderId, userId);
+  }
   // Filtered in JS rather than in the query on purpose — see `claims()`. The waiter list is
   // EMPTIED the moment the render completes, so a `.contains('waiters', …)` predicate would
   // stop matching at exactly the moment she is polling for the good news.

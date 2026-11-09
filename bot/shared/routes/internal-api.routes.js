@@ -1543,6 +1543,14 @@ async function assessmentShelf(grade, userId) {
   if (!userId) return null;
   return TeacherBooks.bookKeysForUser(userId); // every grade: a list that stops at 5 offers nothing at 6+ (6 Nov)
 }
+/**
+ * Board-pattern papers (FDE G1-5, FBISE G9-12) are ICT's. A teacher whose region names its own books (GB: her shelf
+ * is a list) is offered none and may make none (operator, 9 Nov: "Those should not be the subjects for GB"). The
+ * same shelf read as her subjects; an ICT teacher, or no user, is offered them exactly as before.
+ */
+async function patternsOfferedTo(userId) {
+  return !Array.isArray(await assessmentShelf(null, userId));
+}
 /** Browse's grade list as this user is offered it (the gate lives here, not in the browse service). */
 async function offeredGrades(grades, userId) {
   const n = (x) => Number(x && typeof x === 'object' ? x.grade : x);
@@ -1620,8 +1628,12 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
   // flag read that throws is off: offering a pattern create would then refuse
   // is worse than not offering it.
   const Flags = require('../config/feature-flags');
+  // A GB teacher (her region names its own books) is offered no board pattern at all: neither key is added for her.
+  let forHer = null;
+  const patternsForHer = () => (forHer = forHer || patternsOfferedTo(userId));
   let patternsOn = false;
   try { patternsOn = await Flags.isAssessmentFdePatternEnabled(); } catch (_) { patternsOn = false; }
+  if (patternsOn && !(await patternsForHer())) patternsOn = false;
   if (patternsOn) {
     const Patterns = require('../services/assessment/patterns');
     // null = every subject the pattern holds; a list narrows it.
@@ -1646,6 +1658,7 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
   // 6-12 grade gate decides who sees them, so with it shut no key appears for a board grade.
   let boardOn = false;
   try { boardOn = await Flags.isAssessmentBoardPatternEnabled(); } catch (_) { /* a failed read is off */ }
+  if (boardOn && !(await patternsForHer())) boardOn = false;
   if (boardOn) {
     const Board = require('../services/assessment/patterns/board');
     // isEligible holds the grade and subject checks: a pattern sets one grade and only its subjects.
@@ -1968,9 +1981,10 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
       });
     }
     const Patterns = require('../services/assessment/patterns');
-    const eligible = board
+    // A GB teacher is refused like any pattern her class does not have (patternsOfferedTo): a hand-built request too.
+    const eligible = (await patternsOfferedTo(userId)) && (board
       ? Board.isEligible(pattern, grade, subject)
-      : await fdeEligible(Flags, Patterns, pattern, grade, subject);
+      : await fdeEligible(Flags, Patterns, pattern, grade, subject));
     if (!eligible) {
       return res.status(400).json({
         success: false,
@@ -2318,24 +2332,16 @@ function lp612Route(name, handler) {
  * POST /api/internal/lp612/grades
  * Body {} → { success, grades: [{ grade }] }
  */
+// Queue #71 (operator, 9 Nov: "GB should follow the currently ict 6-12 one"): the Grades 6-12 lists are every
+// teacher's. On 6 Nov they were refused to a region whose books stop at Grade 5 (GB); now, where her
+// region has no 6-12 book, she gets ICT's, as an ICT teacher does — #4091's fallback, which lp612-browse applies
+// through her curriculum and the serving guard (lp612-gb-delivery refusesCurriculum) already allows. The WhatsApp
+// Flow's polite Grade 6+ refusal (pakistan-lp-endpoint) is unchanged: prod redirects lesson asks to the app.
 router.post('/lp612/grades', requireInternalKey, lp612Route('grades', async (Browse, req, res) => {
-  const shelf = await lp612Shelf(req.body);
-  if (shelf.none) return res.json({ success: true, grades: [] });
-  const grades = (await Browse.listGrades(...curriculumArgs(await teacherCurriculum(req.body))))
-    .filter((g) => shelf.covers(g && g.grade));
+  const grades = await Browse.listGrades(...curriculumArgs(await teacherCurriculum(req.body)));
   return res.json({ success: true, grades });
 }));
 
-/**
- * bd-97daxo.4 (operator, 6 Nov) — the Grades 6-12 lists for the portal SESSION's teacher: a region whose books
- * stop at Grade 5 (GB) gets none, so she is never handed ICT's 6-12 books. No list: every grade, as before.
- */
-async function lp612Shelf(body) {
-  const keys = (await shelfArgs(body))[0];
-  if (!Array.isArray(keys)) return { none: false, covers: () => true };
-  const covers = (g) => TeacherBooks.gradeCovered(g, keys);
-  return { none: ![6, 7, 8, 9, 10, 11, 12].some(covers), covers };
-}
 
 /**
  * POST /api/internal/lp612/subjects
@@ -2345,7 +2351,6 @@ router.post('/lp612/subjects', requireInternalKey, lp612Route('subjects', async 
   const grade = num((req.body || {}).grade);
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
 
-  if (!(await lp612Shelf(req.body)).covers(grade)) return res.json({ success: true, subjects: [] });
   const subjects = await Browse.listSubjects(grade, ...curriculumArgs(await teacherCurriculum(req.body)));
   return res.json({ success: true, subjects });
 }));
@@ -2361,7 +2366,6 @@ router.post('/lp612/chapters', requireInternalKey, lp612Route('chapters', async 
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
 
-  if (!(await lp612Shelf(body)).covers(grade)) return res.json({ success: true, chapters: [] });
   const chapters = await Browse.listChapters(grade, subject, ...curriculumArgs(await teacherCurriculum(body)));
   return res.json({ success: true, chapters });
 }));
@@ -2384,7 +2388,6 @@ router.post('/lp612/lessons', requireInternalKey, lp612Route('lessons', async (B
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
   if (!chapterKey) return res.status(400).json({ success: false, error: 'chapterKey is required' });
 
-  if (!(await lp612Shelf(body)).covers(grade)) return res.json({ success: true, lessons: [] });
   const lang = clampLanguage(body.lang);
   // bd-5rz1v.14 — the teacher whose ✓✓ Sent marks the list (the portal passes its session's).
   const userId = String(body.userId || '').trim() || null;
@@ -2432,7 +2435,9 @@ router.post('/lp612/request', requireInternalKey, async (req, res) => {
     if (out.outcome === 'not_found') {
       return res.status(404).json({ success: false, error: 'That lesson is not in the catalogue' });
     }
-    if (out.outcome === 'held') {
+    // Queue #71 — the GB lane's "not on request" answers (writing off, a book never written on request, a curriculum
+    // that is not hers) are a refusal too: without this they fell through to a 202 with no render to poll.
+    if (out.outcome === 'held' || out.outcome === 'wrong_curriculum' || String(out.outcome || '').startsWith('gb_')) {
       return res.status(403).json({ success: false, error: 'That lesson is not available yet' });
     }
     if (out.outcome === 'error' || out.outcome === 'deliver_failed') {
