@@ -2,3 +2,4 @@
 {"ts":"2026-11-07T03:23:40Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=session-hooks engine=2.0.0","sha":"2b880aeedd0b","branch":"bd-rj6w0n.14.16.12-stg","user":""}
 {"ts":"2026-11-08T07:18:06Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=session-hooks engine=2.0.0","sha":"2b880aeedd0b","branch":"bd-rj6w0n.14.16.12-stg","user":""}
 {"ts":"2026-11-08T07:18:06Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=session-hooks engine=2.0.0","sha":"2b880aeedd0b","branch":"bd-rj6w0n.14.16.12-stg","user":""}
+{"ts":"2026-11-09T06:06:45Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks engine=2.0.0","sha":"2b880aeedd0b","branch":"bd-rj6w0n.14.16.12-stg","user":""}
