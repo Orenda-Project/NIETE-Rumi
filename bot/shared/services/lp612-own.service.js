@@ -77,7 +77,8 @@ function createOwnService(deps) {
     if (!userId || (!segmentId === !lessonId)) {
       return { outcome: 'bad_request', error: 'userId and one of segmentId or lessonId are required' };
     }
-    const parsed = parseOwnAnswers(answers);
+    // bd-snkn32.13: a 6–12 segment's answers are checked against its grade band's ways (a 1–5 day: the primary ones).
+    const parsed = parseOwnAnswers(answers, lessonId ? undefined : { segmentId });
     if (!parsed.ok) return { outcome: 'bad_request', error: parsed.error };
     if (lessonId) return requestK5({ userId, lessonId, answers: parsed.answers, correlationId });
     if (!(await d.segmentExists(segmentId))) return { outcome: 'not_found' };
