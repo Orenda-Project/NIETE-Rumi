@@ -159,6 +159,21 @@ describe('the one message', () => {
       .toBe('/portal/teacher/lessons/own?grade=7&subject=Physics&chapter=c01');
   });
 
+  test('grades 1-5: a v8 subject key and chapter (number or review R1) land on that chapter', async () => {
+    const Link = require('../../bot/shared/services/app-login-link');
+    for (const [q, want] of [
+      [{ grade: 3, subject: 'urdu', chapterKey: '4' }, '?grade=3&subject=urdu&chapter=4'],
+      [{ grade: 1, subject: 'general_knowledge', chapterKey: 'R1' }, '?grade=1&subject=general_knowledge&chapter=R1'],
+    ]) {
+      WA.sendCtaUrl.mockClear();
+      expect(await Offer.sendOwnLink({ userId: USER, phone: '92', language: 'en', ...q })).toBe(true);
+      const token = WA.sendCtaUrl.mock.calls[0][1].url.split('/go/')[1];
+      const p = Link.verifyAppLink(token);
+      expect(p).not.toBeNull();
+      expect(Link.landingQuery(p)).toBe(want);
+    }
+  });
+
   test('Urdu: the Urdu line and button', async () => {
     await Offer.sendOwnLink({ userId: USER, phone: '92', language: 'ur', ...at });
     const [, { body, buttonText }] = WA.sendCtaUrl.mock.calls[0];
@@ -189,7 +204,7 @@ describe('the token\'s pre-fill is checked', () => {
   const Link = () => require('../../bot/shared/services/app-login-link');
 
   test.each([
-    [{ grade: 3, subject: 'Physics', chapter: 'c01' }],
+    [{ grade: 13, subject: 'Physics', chapter: 'c01' }],
     [{ grade: 7, subject: 'Phys<script>', chapter: 'c01' }],
     [{ grade: 7, subject: 'Physics', chapter: '../x' }],
     [{ grade: '7', subject: 'Physics', chapter: 'c01' }],
