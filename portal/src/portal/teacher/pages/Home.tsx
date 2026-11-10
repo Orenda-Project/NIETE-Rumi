@@ -18,6 +18,10 @@ import { ScoresRow } from "../home/ScoresRow";
 import { useHomeData, useHomeGo, useHomeSwitches } from "../home/useHomeData";
 import { LookHome } from "../home/look/LookHome";
 import { QuizFeatureTile } from "../home/QuizTile";
+import { StatusChip } from "../ui";
+import { PEOPLE } from "../../coach/people/copy";
+import { usePrincipalApp } from "../principal/usePrincipalApp";
+import { SchoolHomeCard } from "../principal/SchoolHomeCard";
 
 /**
  * bd-fmf24g.1 — teacher v2 Home (canvas v28 Main, after the operator's changes 1–3):
@@ -54,8 +58,18 @@ export default function Home() {
   const { data, order } = useHomeData(sw.card, sw.order, user?.phoneNumber);
   const tray = useSyncExternalStore(noticeTracker.subscribe, noticeTracker.getHome, noticeTracker.getHome);
   const go = useHomeGo();
+  // bd-33wxxi.2 — a principal on the principal app (portal_principal_app): the same Home, plus her role tag in the band
+  // and her school's card. Everyone else: nothing passed, so the look draws exactly what it drew.
+  const principalApp = usePrincipalApp(user);
+  const P = useCopy(PEOPLE);
   // The new look (portal_teacher_home_look, only ever on with the card's switch): its own tree; the two below are untouched.
-  if (sw.card && sw.look) return <LookHome tiles={TILES} data={data} order={order} onGo={go} />;
+  if (sw.card && sw.look) {
+    return (
+      <LookHome tiles={TILES} data={data} order={order} onGo={go}
+        role={principalApp ? <StatusChip text={P.rolePrincipal} tone="info" className="bg-white/10 text-white" /> : undefined}
+        school={principalApp ? <SchoolHomeCard /> : undefined} />
+    );
+  }
   if (sw.card) {
     const greeting = (
       <HomeGreeting

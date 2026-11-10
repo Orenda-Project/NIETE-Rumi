@@ -19,7 +19,7 @@ export function reportChip(r: CoachReport, C: ReportsCopy): ChipData {
 }
 
 /** One report as a HistoryRow's props (the school on line 2, the time above the name). */
-export function reportItem(r: CoachReport, C: ReportsCopy): HistoryItem {
+export function reportItem(r: CoachReport, C: ReportsCopy, href: (r: Pick<CoachReport, "id">) => string = reportHref): HistoryItem {
   return {
     id: r.id,
     lead: "person",
@@ -27,13 +27,15 @@ export function reportItem(r: CoachReport, C: ReportsCopy): HistoryItem {
     extra: r.schoolName || undefined,
     time: pkTime(r.createdAt),
     chip: reportChip(r, C),
-    to: reportHref(r),
+    to: href(r),
   };
 }
 
 /** The day groups HistoryList takes: `dayName` is the screen's words ("Today", "Mon 5 Oct"). */
-export function reportGroups(groups: DayGroup[], dayName: (day: string) => string, C: ReportsCopy): HistoryGroup[] {
-  return groups.map((g) => ({ day: dayName(g.day), items: g.items.map((r) => reportItem(r, C)) }));
+export function reportGroups(
+  groups: DayGroup[], dayName: (day: string) => string, C: ReportsCopy, href: (r: Pick<CoachReport, "id">) => string = reportHref,
+): HistoryGroup[] {
+  return groups.map((g) => ({ day: dayName(g.day), items: g.items.map((r) => reportItem(r, C, href)) }));
 }
 
 /** The four labelled segments under a waiting / in-progress card: the kit's StepBar, filled through the current stage. */

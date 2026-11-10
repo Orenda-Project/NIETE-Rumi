@@ -206,6 +206,16 @@ const PORTAL_COACH_V2_KEY = 'portal_coach_v2';
 const PORTAL_TEACHER_V2_KEY = 'portal_teacher_v2';
 
 /**
+ * bd-33wxxi.1 — the PRINCIPAL app, per user: app_settings key that puts a principal (users.role principal) on the
+ * teacher app every teacher has (lib/teacher-app.js teacherAppOnFor: portal_teacher_v2, portal_teacher_home_card and
+ * portal_teacher_home_look then answer ON for her), plus her school. Same shape and rule as the keys above: a list of
+ * users.id = those principals, true = every principal, absent = off. It never opens anything for a teacher or a coach
+ * (a coach who is also a principal at a school keeps the coach app), and "teachers" names nobody here. Off, every
+ * principal keeps /portal/leader exactly as it was. /config sends it as features.principalApp.
+ */
+const PORTAL_PRINCIPAL_APP_KEY = 'portal_principal_app';
+
+/**
  * bd-tbprit.1 — app_settings key for the coach's disagreements card in the portal (the C/D teachers who
  * answered "Not accurate" to their coaching report, v10 coaching test). Same rule as the keys above:
  * true = everyone, a list of users.id = a pilot, absent = off. Off, /cv/:token keeps the v1 card.
@@ -523,6 +533,7 @@ module.exports = {
   PORTAL_COACH_FULL_APP_KEY,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
+  PORTAL_PRINCIPAL_APP_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,
   PORTAL_TEACHER_HOME_ORDER_KEY,

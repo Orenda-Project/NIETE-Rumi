@@ -22,6 +22,8 @@
  * unit-testable without a live DB; production wires it to the pg pool.
  */
 
+// bd-33wxxi.1 — every principal check reads the role through one helper.
+const { isPrincipalRole } = require('../lib/leader-role');
 const { getOverall } = require('./coaching-frameworks.service');
 // The one name chain, shared with the bot rather than re-derived here. That
 // module is pure — no supabase, no env — so requiring it from the dashboard is
@@ -252,7 +254,7 @@ function shapeTeacher(r) {
     emis: emisOf(r.school_ext_id),
     // 354 principals join patches that never had them. An unlabelled principal
     // in a teacher list is how the wrong person gets observed.
-    isPrincipal: r.role === 'principal',
+    isPrincipal: isPrincipalRole(r.role),
     // bd-ewbzns.1 — PRIMARY / MIDDLE / HIGH in canonical order, read by the bot's one reader; [] when none recorded.
     levels: teacherLevelOf(r),
   };
@@ -267,8 +269,7 @@ function shapeTeacher(r) {
  * existed, so an un-passed role cannot change an existing answer.
  */
 function patchSqlFor(role) {
-  const r = role == null ? null : String(role).trim().toLowerCase();
-  return r === 'principal' ? PRINCIPAL_PATCH_SQL : PATCH_TEACHERS_SQL;
+  return isPrincipalRole(role) ? PRINCIPAL_PATCH_SQL : PATCH_TEACHERS_SQL;
 }
 
 /**

@@ -72,8 +72,9 @@ describe('GET /config — the flag reads run together', () => {
     }
     await done;
 
-    // Every read in main's /config Promise.all, coach reports in the app included (main had pinned a stale 8).
-    expect(started).toBe(17);
+    // Every read in main's /config Promise.all, coach reports in the app and the principal app (bd-33wxxi.1) included
+    // (main had pinned a stale 8; staging, with the COACHIP reads, has 21).
+    expect(started).toBe(18);
     expect(payload.features).toMatchObject({
       assessmentGenerator: true,
       assessmentEditing: true,
