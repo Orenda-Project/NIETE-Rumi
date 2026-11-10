@@ -55,6 +55,12 @@ export const OWN_COPY = {
   focus: 'Which outcomes first?',
   focusLabel: 'Outcomes first',
   foci: { summative: 'Board exam (Summative)', formative: 'Classroom (Formative)' },
+  /* bd-snkn32.14 — add the next lesson's pages (step 1, grades 6–12, not on a chapter's last lesson) */
+  addNext: "Add the next lesson's pages",
+  nextLesson: 'Next lesson',
+  extendNone: 'No, just these pages',
+  extends: { one_period: 'Cover more in one period', double: 'Double period' },
+  extendHints: { one_period: 'Both lessons in one period', double: 'Two periods together' },
   /* the check screen */
   yourPlan: 'Your plan',
   note: 'Anything else',
@@ -104,6 +110,11 @@ const OWN_COPY_UR: Words<typeof OWN_COPY> = {
   focus: 'پہلے کون سے نتائج؟',
   focusLabel: 'پہلے نتائج',
   foci: { summative: 'بورڈ امتحان (Summative)', formative: 'کلاس روم (Formative)' },
+  addNext: 'اگلے سبق کے صفحات بھی شامل کریں',
+  nextLesson: 'اگلا سبق',
+  extendNone: 'نہیں، صرف یہی صفحات',
+  extends: { one_period: 'ایک پیریڈ میں زیادہ پڑھائیں', double: 'ڈبل پیریڈ' },
+  extendHints: { one_period: 'دونوں سبق ایک پیریڈ میں', double: 'دو پیریڈ اکٹھے' },
   yourPlan: 'آپ کا لیسن پلان',
   note: 'کچھ اور',
   optional: 'اختیاری',
@@ -123,5 +134,7 @@ export const OWN_COPY_ENTRY: CopyEntry = {
   // A suggestion's name mirrors the FLN strategy's own name word for word.
   // A step's question ("Which day?", "What is this lesson for?") is a title, not a label (bd-snkn32.13).
   longOk: ['ways.tarl', 'ways.cpa', 'suggested', 'resourceNames.charts', 'objectsHint', 'level', 'makeMyPlan', 'day', 'purpose', 'focus',
-    'pagesHint', 'badPages', 'addNextDay'],
+    'pagesHint', 'badPages', 'addNextDay',
+    // bd-snkn32.14 — the two shapes are named in full: "one period" vs "double" is the whole choice.
+    'addNext', 'extends.one_period', 'extendHints'],
 };

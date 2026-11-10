@@ -1,5 +1,6 @@
 import api from '../../../services/api';
 import type { Focus, Level, Purpose, Resource, Size, Way } from './rules';
+import type { Extend } from './extend';
 
 /**
  * bd-snkn32 — "Make my own": is it on for her (GET /config features.lpMakeOwn, fail-closed), and Make my plan
@@ -18,6 +19,8 @@ export type OwnBody = {
   size: Size | null; resources: Resource[]; level: Level | null; way: Way | null; note: string; purpose?: Purpose; focus?: Focus;
   /** bd-snkn32.17 — grades 1–5 only: her book pages, when not the day's own. */
   pages?: { start: number; end: number };
+  /** bd-snkn32.14 — grades 6–12: the next lesson's pages joined on, and how. */
+  extend?: { next: string; shape: Extend };
 };
 
 /** bd-snkn32.13 — a Grade 9–12 lesson's FBISE SLOs, split when they mix Summative and Formative. Not mixed on any failure. */

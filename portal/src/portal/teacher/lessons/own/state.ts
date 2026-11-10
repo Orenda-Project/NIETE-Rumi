@@ -2,6 +2,7 @@ import { LESSONS_OWN } from '../paths';
 import {
   FOCI, LEVELS, PURPOSES, RESOURCES, SIZES, WAYS, isSecondary, type Focus, type Level, type Purpose, type Resource, type Size, type Way,
 } from './rules';
+import { EXTENDS, type Extend } from './extend';
 import { fmtPg, parsePg, type PageRange } from './pages';
 
 /**
@@ -27,6 +28,8 @@ export type OwnAt = {
   /** bd-snkn32.13 — grades 6–12: what the lesson is for, and (a mixed lesson) which SLOs first. */
   purpose: Purpose | null;
   focus: Focus | null;
+  /** bd-snkn32.14 — add the next lesson's pages, and how (grades 6–12). */
+  ext?: Extend | null;
   /** bd-snkn32.17 — grades 1–5: the book pages she chose, when not the day's own. */
   pg?: PageRange;
 };
@@ -44,6 +47,7 @@ export function ownUrl(s: Partial<OwnAt> & { grade: number; subject: string; cha
   if (s.way) q.set('way', s.way);
   if (s.purpose) q.set('purpose', s.purpose);
   if (s.focus) q.set('focus', s.focus);
+  if (s.ext) q.set('ext', s.ext);
   if (s.pg) q.set('pg', fmtPg(s.pg));
   return `${LESSONS_OWN}?${q.toString()}`;
 }
@@ -66,6 +70,7 @@ export function readOwn(search: string): OwnAt | null {
     way: pick(WAYS, q.get('way')),
     purpose: pick(PURPOSES, q.get('purpose')),
     focus: pick(FOCI, q.get('focus')),
+    ...(pick(EXTENDS, q.get('ext')) ? { ext: pick(EXTENDS, q.get('ext')) } : {}),
     ...(pg ? { pg } : {}),
   };
 }
@@ -90,12 +95,16 @@ export function prevStep(step: OwnStep, steps: readonly OwnStep[] = PRIMARY_STEP
   return i > 0 ? steps[i - 1] : null;
 }
 
-/** The body Make my plan sends (the bot checks it again). Purpose and focus ride only when answered (grades 6–12). */
-export function toAnswers(s: OwnAt, note: string) {
+/**
+ * The body Make my plan sends (the bot checks it again). Purpose and focus ride only when answered (grades 6–12).
+ * `next`: the lesson after hers, when she adds its pages (bd-snkn32.14).
+ */
+export function toAnswers(s: OwnAt, note: string, next: string | null = null) {
   return {
     size: s.size, resources: ['textbook', ...s.res] as Resource[], level: s.level, way: s.way, note: note.trim(),
     ...(s.purpose ? { purpose: s.purpose } : {}),
     ...(s.focus ? { focus: s.focus } : {}),
+    ...(s.ext && next ? { extend: { next, shape: s.ext } } : {}),
     ...(s.pg ? { pages: s.pg } : {}),
   };
 }

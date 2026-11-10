@@ -27,6 +27,7 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const { buildOwnInstruction } = require('../shared/services/lp612-own-instruction');
+const Extend = require('../shared/services/lp612-own-extend');
 
 const OWN_TABLE = 'niete_lp612_own_plans';
 /** A shared lesson takes a median of ~3 min and up to ~10 to write; her fork waits that long for it, then gives up. */
@@ -46,6 +47,24 @@ function stop(code, message) {
 function createOwnWorker(deps) {
   const d = deps;
   const keys = () => d.keys || require('../shared/services/lp612-serving.service');
+
+  /**
+   * bd-snkn32.14 — "Add the next lesson's pages": the next lesson is re-checked against the catalogue (adjacent, same
+   * chapter), its shared plan waited for like hers, and the rewrite gets the joined segment + both plans + the shape.
+   */
+  async function joinNext(row, segment, instruction, correlationId) {
+    const ext = row.answers && row.answers.extend;
+    if (!ext) return { segment, instruction };
+    const rows = await d.chapterSegments(segment);
+    const next = Extend.nextInChapter(segment, rows);
+    if (!next || next.segment_id !== ext.next) throw stop('BAD_EXTEND', 'the next lesson is not the adjacent one in this chapter');
+    const nextDoc = await waitForParent({ ...row, segment_id: next.segment_id }, correlationId);
+    if (!nextDoc) throw stop('NO_PARENT', 'the next lesson was not written in time');
+    return {
+      segment: Extend.joinSegments(segment, next, ext.shape),
+      instruction: `${instruction}\n${Extend.buildExtendInstruction({ first: segment, next, nextDoc, shape: ext.shape })}`,
+    };
+  }
 
   async function waitForParent(row, correlationId) {
     const until = d.now() + (d.parentWaitMs ?? PARENT_WAIT_MS);
@@ -133,8 +152,10 @@ function createOwnWorker(deps) {
       const parent = await waitForParent(row, correlationId);
       if (!parent) throw stop('NO_PARENT', 'the shared lesson was not written in time');
 
-      const instruction = buildOwnInstruction(row.answers, { grade: segment.grade, segmentId: row.segment_id }); // bd-snkn32.13
-      const out = await d.revise({ doc: parent, instruction, segment, lang: row.lang, correlationId });
+      const own = buildOwnInstruction(row.answers, { grade: segment.grade, segmentId: row.segment_id }); // bd-snkn32.13
+      const joined = await joinNext(row, segment, own, correlationId); // bd-snkn32.14
+      const { instruction } = joined;
+      const out = await d.revise({ doc: parent, instruction, segment: joined.segment, lang: row.lang, correlationId });
       if (!out || !out.accepted) throw stop('NOT_ACCEPTED', 'the gates rejected the rewrite');
 
       const pdf = await renderPdf(out.lpDoc, row, correlationId);
@@ -216,6 +237,7 @@ function liveDeps() {
       return error ? null : data;
     },
     loadSegment: (segmentId) => loadSegment(supabase, segmentId),
+    chapterSegments: (seg) => require('../shared/services/lp612-own-extend.store').chapterSegments(supabase, seg),
     readStoredDoc: (args) => Serving.readStoredDoc(args),
     revise: (args) => require('../shared/services/lp612-author.service').reviseLessonPlan(args),
     loadK5: (lessonId) => require('../shared/services/lp-k5-own-source').loadK5(lessonId),
