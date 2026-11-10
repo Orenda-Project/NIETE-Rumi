@@ -103,3 +103,26 @@ export async function fetchSections(ownId: string, band: Band): Promise<{ change
     return null;
   }
 }
+
+/**
+ * bd-snkn32.20 — "Your plans for this chapter": her own plans on these lessons, newest first (GET /lp612/own/mine,
+ * dashboard relay → bot, always the session's user). `ownId` is the plan to open (the latest ready change, else the
+ * plan itself). No lessons, a failure, or a malformed row: nothing.
+ */
+export type MyOwnPlan = {
+  ownId: string; rootId: string; lesson: string; band: 'k5' | 'g612'; status: string; changesLeft: number; round: number; createdAt: string;
+};
+const isMine = (p: unknown): p is MyOwnPlan => {
+  const r = p as Partial<MyOwnPlan> | null;
+  return !!r && typeof r.ownId === 'string' && !!r.ownId && typeof r.lesson === 'string' && typeof r.status === 'string'
+    && Number.isInteger(r.changesLeft) && (r.band === 'k5' || r.band === 'g612');
+};
+export async function fetchMyOwnPlans(keys: string[]): Promise<MyOwnPlan[]> {
+  if (!keys.length) return [];
+  try {
+    const { data } = await api.get('/lp612/own/mine', { params: { keys: keys.join(',') } });
+    return (Array.isArray(data?.plans) ? data.plans : []).filter(isMine);
+  } catch {
+    return [];
+  }
+}

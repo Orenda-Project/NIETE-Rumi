@@ -19,6 +19,7 @@ import { nextLesson } from './extend';
 import type { Refusal } from './change';
 import { checkBand, fmtPg, parseLabel, pgToSend, type PageRange, type PagesPick } from './pages';
 import { PagesStep, type PlanRow } from './PagesStep';
+import { MyOwnPlans } from './MyOwnPlans';
 import { RadioList, TickList } from './Options';
 import { bandWords } from './bandCopy';
 import { Check } from './Check';
@@ -131,6 +132,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
               onExt={(ext) => go({ ext })}
             />
           ) : null}
+          {plans.length && !s.seg ? <MyOwnPlans at={{ grade: s.grade, subject: s.subject, chapter: s.chapter }} plans={plans} /> : null}
         </>
       ) : null}
       {s.step === 'purpose' ? (

@@ -144,7 +144,34 @@ router.get('/lp612/own/pages', requirePortalAuth, requireMakeOwn, async (req, re
 });
 
 /**
- * GET /api/portal/lp612/own/:ownId/sections → { success, band, changed,
+ * bd-snkn32.20 — GET /api/portal/lp612/own/mine?keys=<lesson ids> → { success, plans }: "Your plans for this
+ * chapter", from the bot (GET /api/internal/lp612/own/mine). Always the SESSION's user. Declared before /:ownId.
+ */
+const MINE_FIELDS = ['ownId', 'rootId', 'lesson', 'band', 'status', 'changesLeft', 'round', 'createdAt'];
+router.get('/lp612/own/mine', requirePortalAuth, requireMakeOwn, async (req, res) => {
+  const keys = typeof (req.query || {}).keys === 'string' ? req.query.keys.trim().slice(0, 4000) : '';
+  if (!keys) return res.status(400).json({ success: false, error: 'keys is required' });
+  try {
+    const axios = require('axios');
+    const { baseUrl, headers } = botConfig();
+    const r = await axios.get(`${baseUrl}/api/internal/lp612/own/mine`, {
+      params: { userId: req.session.portalUserId, keys }, headers, timeout: 20000, validateStatus: () => true,
+    });
+    if (r.status === 200 && r.data && r.data.success) {
+      const plans = (Array.isArray(r.data.plans) ? r.data.plans : [])
+        .map((p) => Object.fromEntries(MINE_FIELDS.map((f) => [f, p && p[f]])));
+      return res.json({ success: true, plans });
+    }
+    if (r.status === 400) return res.status(400).json({ success: false, error: 'keys is required' });
+    throw new Error(`lp612/own/mine failed (HTTP ${r.status})`);
+  } catch (error) {
+    console.error('❌ Portal lp612/own/mine failed', { error: error && error.message });
+    return res.status(502).json({ success: false, error: 'Could not list your plans' });
+  }
+});
+
+/**
+ * GET /api/portal/lp612/own/:ownId/sections →{ success, band, changed,
  * sections: [{ part, text, before? }] }: her ready plan as section cards, from the bot
  * (GET /api/internal/lp612/own/:ownId/sections). Always the SESSION's user. Bot 404 passes on; anything else is 502.
  */
