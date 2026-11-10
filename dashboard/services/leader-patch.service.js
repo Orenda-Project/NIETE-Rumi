@@ -61,7 +61,7 @@ const PATCH_SELECT = `
     -- exactly like "she is not in the data", and that is how it was reported.
     u.name                AS name,
     u.phone_number        AS phone,
-    'niete:' || sch.emis  AS school_ext_id,
+    __SCHOOL_KEY__ AS school_ext_id,
     u.role                AS role,
     u.id                  AS rumi_user_id,
     u.name          AS rumi_first_name,
@@ -155,7 +155,13 @@ const PATCH_LATERALS = `
 // on 230 rows; a join cannot disagree with itself.
 // DISTINCT ON because two of a coach's school_ext_ids can resolve to one
 // schools row (niete:607 covers two real schools in the register).
-const PATCH_TEACHERS_SQL = `${PATCH_SELECT}
+// bd-97daxo.22: a school with no EMIS (two GB schools came from main Rumi without one) is keyed by the coach's own
+// holding (leader_schools.school_ext_id, e.g. 'niete:gb-mf-community-school-hoto-mf-community'). 'niete:' || NULL
+// left its teachers with no school key, so My schools said "0 teachers" and the school page listed nobody.
+// A principal has no holding, so her query keeps the EMIS key alone.
+const COACH_SCHOOL_KEY = "COALESCE('niete:' || sch.emis, lsch.school_ext_id)";
+const EMIS_SCHOOL_KEY = "'niete:' || sch.emis";
+const PATCH_TEACHERS_SQL = `${PATCH_SELECT.replace('__SCHOOL_KEY__', COACH_SCHOOL_KEY)}
   FROM leader_schools lsch
   JOIN schools sch
     ON lsch.school_id = sch.id OR 'niete:' || sch.emis = lsch.school_ext_id
@@ -185,7 +191,7 @@ ${PATCH_LATERALS}
 // instead of their real multi-school one, which is a wrong answer wearing the
 // clothes of a right one. principals only, by decision — coaches keep entry
 // point 1, and the other three leader roles are multi-school by nature.
-const PRINCIPAL_PATCH_SQL = `${PATCH_SELECT}
+const PRINCIPAL_PATCH_SQL = `${PATCH_SELECT.replace('__SCHOOL_KEY__', EMIS_SCHOOL_KEY)}
   FROM users me
   JOIN schools sch
     ON sch.id = me.school_id
