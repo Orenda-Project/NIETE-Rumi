@@ -1,0 +1,2 @@
+{"ts":"2026-11-10T13:44:07Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"2b6515018c6a","branch":"bd-fwz1uy-own-k5-row","user":""}
+{"ts":"2026-11-10T13:44:10Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-fwz1uy-own-k5-row: lesson-plan spec: NOT UPDATED e2e: missing","sha":"2b6515018c6a","branch":"bd-fwz1uy-own-k5-row","user":""}
