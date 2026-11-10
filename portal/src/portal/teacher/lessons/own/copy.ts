@@ -114,6 +114,10 @@ export const OWN_COPY = {
     objectives: 'Objectives', introduction: 'Introduction', development: 'Development', activity: 'Activity',
     conclusion: 'Conclusion', homework: 'Homework',
   },
+  /* bd-snkn32.20 — her plans for this chapter, reopened from step 1 */
+  myPlans: 'Your plans for this chapter',
+  changesLeft: (n: number) => (n === 0 ? 'No more changes' : n === 1 ? '1 more change' : `${n} more changes`),
+  beingMade: 'Being made',
   usedBoth: "You've used both changes. To start fresh, make a new plan from the chapter.",
   refusals: {
     too_short: 'Please say a little more about what should change.',
@@ -217,6 +221,9 @@ const OWN_COPY_UR: Words<typeof OWN_COPY> = {
     objectives: 'مقاصد', introduction: 'تعارف', development: 'تفصیل', activity: 'سرگرمی',
     conclusion: 'خلاصہ', homework: 'گھر کا کام',
   },
+  myPlans: 'اس باب کے آپ کے لیسن پلان',
+  changesLeft: (n: number) => (n === 0 ? 'کوئی تبدیلی باقی نہیں' : n === 1 ? '1 تبدیلی باقی' : `${n} تبدیلیاں باقی`),
+  beingMade: 'بن رہا ہے',
   usedBoth: 'آپ دونوں تبدیلیاں کر چکی ہیں۔ نئے سرے سے شروع کرنے کے لیے باب سے نیا لیسن پلان بنائیں۔',
   refusals: {
     too_short: 'براہ مہربانی تھوڑا اور بتائیں کہ کیا تبدیل ہو۔',
@@ -250,5 +257,6 @@ export const OWN_COPY_ENTRY: CopyEntry = {
     // or way named for a subject classroom, and a label carrying its method in brackets, run past four words.
     'tickAll', 'resourceNames612', 'objectsHint612', 'ways.writing', 'ways.phonics', 'ways.exam_fde', 'grrLine', 'purposeHints',
     'purposeBoardFde', 'foci', 'whichLesson', 'pagesOneHint', 'badPages612', 'addNextLesson', 'bothHow', 'fromYourBook',
-    'pageMissing', 'bookNotLoaded', 'picturesPending', 'changeSection', 'lessonPlanFive', 'sizeSecondary'],
+    'pageMissing', 'bookNotLoaded', 'picturesPending', 'changeSection', 'lessonPlanFive', 'sizeSecondary',
+    'myPlans', 'changesLeft'],
 };
