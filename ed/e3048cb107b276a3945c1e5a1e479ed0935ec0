@@ -1,0 +1,2 @@
+{"ts":"2026-11-10T07:38:18Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,teacher-lessons spec_sync=true","sha":"ede3048cb107","branch":"HEAD","user":""}
+{"ts":"2026-11-10T07:39:50Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-lessons=none-needed (already synced for 3381a1b in 2ffc30b: OWN01-03; validate_specs OK)","sha":"ede3048cb107","branch":"bd-snkn32.14-92417","user":""}
