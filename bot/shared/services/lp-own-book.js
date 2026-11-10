@@ -33,10 +33,19 @@ function parseRange(rawFrom, rawTo) {
   return { ok: true, from, to };
 }
 
+// The grades 1–5 catalog's own subject keys (lp_catalog.json subject_key). Translated here, not in
+// book-content's normaliseSubject: there `general_science` is a grade 6–12 code a grade 1–5 call must refuse.
+const K5_CATALOG_CODES = {
+  general_science: 'science', general_knowledge_ur: 'general_knowledge', social_studies_ur: 'social_studies',
+};
+
 /** The textbooks subject code for a grade's subject, or null. */
 function bookCode(grade, subject) {
   const { normaliseSubject } = require('./assessment/book-content.service');
-  if (Number(grade) < 6) return normaliseSubject(subject, grade);
+  if (Number(grade) < 6) {
+    const k = String(subject || '').trim().toLowerCase();
+    return normaliseSubject(K5_CATALOG_CODES[k] || k, grade);
+  }
   const { normalizeSubject } = require('../config/lp612-subject-order');
   const folded = normalizeSubject(subject);
   const key = SEGMENT_CODES[folded] || folded.replace(/\s+/g, '_');
