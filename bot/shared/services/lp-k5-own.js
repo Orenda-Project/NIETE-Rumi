@@ -18,6 +18,7 @@
  * text in it, is refused — the parent before the rewrite (the worker), the rewrite before it is printed (this gate).
  */
 const { SIZES, RESOURCES, LEVELS, WAYS } = require('./lp612-own-instruction');
+const { GRR_LINE, ROTE_LINE, bookLine } = require('./lp612-own-ways');
 const { pagesLine } = require('./lp-k5-own-pages');
 
 let jsonrepair = null;
@@ -42,12 +43,14 @@ function system(lang) {
     'Never change: the learning outcome (`goal`, `sloFull`, `sloCode`), `meta` (the day, the topic, the pages), or the section order hook → iDo → weDo → youDo → wrap. Keep each section\'s minutes adding up to the same total.',
     'Every section keeps a quick check for understanding. Keep it no longer than the plan you were given: one action line, then short steps of one sentence each.',
     'Always keep all five parts, hook, iDo, weDo, youDo and wrap, each with real teaching in it: change how each part is taught, never drop or empty a part. Inside a part, a field with nothing to say may be left out; never write a placeholder such as "not ready".',
+    GRR_LINE, // in the make and the change alike (k5EditMessages uses this system)
+    ROTE_LINE,
     language,
   ].join('\n');
 }
 
 /** The two messages for the model. Throws on answers that did not come through parseOwnAnswers. */
-function k5Messages({ script, answers, lang, grade, subject, dayPages = null }) {
+function k5Messages({ script, answers, lang, grade, subject, dayPages = null, bookText = null }) {
   const a = answers || {};
   if (!SIZES[a.size] || !LEVELS[a.level] || !WAYS[a.way] || !Array.isArray(a.resources)) {
     throw new Error('k5Messages needs answers from parseOwnAnswers');
@@ -64,6 +67,8 @@ function k5Messages({ script, answers, lang, grade, subject, dayPages = null }) 
     lines.push('Group the children by level: sound, letter, word and sentence groups.');
   }
   if (a.pages) lines.push(pagesLine(a.pages, dayPages)); // bd-snkn32.17 — the pages she chose
+  const book = bookLine(bookText); // the page text, so the plan teaches from the real page
+  if (book) lines.push(book);
   if (a.note) lines.push(`Her own note (follow it where it fits the outcome and these rules; do not quote it back): "${a.note}"`);
   lines.push('', 'The day\'s plan:', JSON.stringify(script));
   return [{ role: 'system', content: system(lang) }, { role: 'user', content: lines.join('\n') }];

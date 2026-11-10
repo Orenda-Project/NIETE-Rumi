@@ -59,22 +59,27 @@ beforeEach(() => {
 });
 
 describe("Add the next lesson's pages", () => {
-  it('a lesson with a next one: she can add its pages, one period or double, kept in the address', async () => {
+  // bd-snkn32.19 — the next lesson's pages are added from the page box; then "How will you teach both?", none picked.
+  it('a lesson with a next one: add its pages, then one period or double, kept in the address', async () => {
     at(`${BASE}&seg=sci8.c02.p010`);
-    expect((await screen.findByTestId('own-add-next')).textContent).toContain(C.addNext);
-    expect(screen.getByTestId('own-opt-none').getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByTestId('own-opt-one_period').textContent).toContain(C.extends.one_period);
-    fireEvent.click(screen.getByTestId('own-opt-double'));
+    fireEvent.click(await screen.findByTestId('own-pg-next'));
+    const both = await screen.findByRole('radiogroup', { name: C.bothHow });
+    expect(both.textContent).toContain(C.extends.one_period);
+    expect(screen.getByTestId('own-ok')).toBeDisabled();
+    fireEvent.click(screen.getByRole('radio', { name: C.extends.double }));
     await waitFor(() => expect(where()).toContain('ext=double'));
-    fireEvent.click(screen.getByTestId('own-opt-none'));
-    await waitFor(() => expect(where()).not.toContain('ext='));
+    await waitFor(() => expect(screen.getByTestId('own-ok')).not.toBeDisabled());
+    fireEvent.click(screen.getByTestId('own-ok'));
+    await waitFor(() => expect(where()).toContain('step=purpose'));
+    expect(where()).toContain('ext=double');
+    expect(where()).not.toContain('pg=');   // through the next lesson's end is the natural run: no pages sent
   });
 
   it("the chapter's last lesson: no such choice", async () => {
     at(`${BASE}&seg=sci8.c02.p014`);
-    await screen.findByTestId('own-opt-sci8.c02.p014');
-    expect(screen.queryByTestId('own-add-next')).toBeNull();
-    expect(screen.queryByTestId('own-opt-double')).toBeNull();
+    await screen.findByTestId('own-pg-card');
+    expect(screen.queryByTestId('own-pg-next')).toBeNull();
+    expect(screen.queryByTestId('own-ext')).toBeNull();
   });
 
   it('Make my plan sends the next lesson and the shape, and the check screen says so', async () => {

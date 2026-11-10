@@ -67,7 +67,7 @@ describe('buildOwnInstruction', () => {
   });
   it('keeps the FLN guardrails: checks for understanding, no rote-only activity, the book pages', () => {
     expect(text).toMatch(/check for understanding/i);
-    expect(text).toMatch(/not only copying, repeating or memorising/i);
+    expect(text).toMatch(/Never turn any part into rote drill/i);
     expect(text).toMatch(/same pages/i);
   });
   it('quotes her note as hers when there is one, and says nothing when there is none', () => {
