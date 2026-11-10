@@ -8,8 +8,10 @@
  * produced the same questions in a different order on every run, the solve prompt
  * changed, and on the mock lane its cassette key changed with it: 25 recorded answers
  * for this call never replayed (NIETE-Rumi #4466, training: 15 misses before and after
- * recording). The order now depends on the item and its wording, and on which look it
- * is (the `again` re-solve still shows a different order), never on the quiz id.
+ * recording). The order now depends on the item (its position, stem and options) and on
+ * which look it is, never on the quiz id. The second look never shows an item the way
+ * the first did: with the quiz id gone, an item whose two orders happened to match
+ * would match in every quiz.
  *
  * Mocked at the boundary only: the LLM client. itemFor, the shuffle and the prompt
  * builder run for real.
@@ -34,6 +36,13 @@ function promptFor({ quizId, again = false }) {
   });
 }
 
+/** Many small items: two and three options are where two shuffles collide most. */
+const ITEMS = Array.from({ length: 60 }, (_, k) => ({
+  question: `Which word names thing number ${k}?`,
+  options: k % 2 ? ['cat', 'bat'] : ['sun', 'run', 'fun'],
+  correct_index: 0,
+}));
+
 describe('the blind solve does not depend on the quiz id', () => {
   test('two quizzes with the same questions get the same solve prompt', async () => {
     const a = await promptFor({ quizId: '6f1c2b8e-1d2a-4c3b-9e8f-0a1b2c3d4e5f' });
@@ -41,11 +50,24 @@ describe('the blind solve does not depend on the quiz id', () => {
     expect(a).toBe(b);
   });
 
-  test('the second look still shows the options in a different order, and that order is stable too', async () => {
-    const first = await promptFor({ quizId: 'q-one' });
+  test('the second look is stable across quizzes too', async () => {
     const againA = await promptFor({ quizId: 'q-one', again: true });
     const againB = await promptFor({ quizId: 'q-two', again: true });
     expect(againA).toBe(againB);
-    expect(againA).not.toBe(first);
+  });
+});
+
+describe('the shown order', () => {
+  test('the second look never shows an item in the order the first look did', () => {
+    const same = ITEMS.filter((q, i) => KV.itemFor(q, i).order.join() === KV.itemFor(q, i, true).order.join());
+    expect(same).toEqual([]);
+  });
+
+  test('an item rewritten under the same stem gets its own order', () => {
+    const moved = ITEMS.filter((q, i) => {
+      const rewritten = { ...q, options: q.options.map((o) => `${o}s`) };
+      return KV.itemFor(q, i).order.join() !== KV.itemFor(rewritten, i).order.join();
+    });
+    expect(moved.length).toBeGreaterThan(0);
   });
 });

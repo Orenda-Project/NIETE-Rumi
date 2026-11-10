@@ -120,10 +120,10 @@ function seedOf(key) {
 
 /**
  * The order the solver is SHOWN the options in: `order[shownPosition] = authoredIndex`.
- * Seeded on the look, the item and its wording, so the same item always shows the
- * same way (a re-solve of a rewritten item gets its own order). Never on the quiz id:
- * that is a fresh UUID per generation, so the same lesson's quiz was shown in a new
- * order every time and its mock-lane cassette never replayed (bd-jfiqae.1).
+ * Seeded on the look, the item's position, stem and options, so the same item always
+ * shows the same way (a rewritten item gets its own order). Never on the quiz id: that
+ * is a fresh UUID per generation, so the same lesson's quiz was shown in a new order
+ * every time and its mock-lane cassette never replayed (bd-jfiqae.1).
  */
 function shownOrder(n, key) {
   const order = Array.from({ length: n }, (_, k) => k);
@@ -158,13 +158,22 @@ function optionText(q, indices) {
  * Everything the solve needs about one item, and nothing that gives its key
  * away: no correct index, no explanation, no feedback, no "selected_because".
  */
-function itemFor(q, index, look = '') {
+function itemFor(q, index, again = false) {
   const options = arr(q && q.options).map(line);
+  const key = `${index}:${line(q && q.question)}:${options.join('|')}`;
+  let order = shownOrder(options.length, key);
+  if (again) {
+    // The second look must differ from the first, or a slip between an option's
+    // position and its text survives it; when the two shuffles match, rotate by one.
+    const first = order;
+    order = shownOrder(options.length, `again:${key}`);
+    if (order.join() === first.join()) order = order.slice(1).concat(order.slice(0, 1));
+  }
   return {
     index,
     question: line(q && q.question),
     options,
-    order: shownOrder(options.length, `${look || ''}:${index}:${line(q && q.question)}`),
+    order,
     keyed: keyedIndices(q).slice().sort((a, b) => a - b),
     multi: Multi.isMultiQuestion(q),
     figure: q && q.figure && typeof q.figure === 'object' ? q.figure : null,
@@ -348,7 +357,7 @@ function disagreementComplaint(verdict, q) {
  *   latencyMs:number, promptChars?:number, skipped?:string}>}
  */
 async function verifyKeys({
-  questions, indices = null, language, grade = null, subject = null, digest = null, lessonSummary = null, quizId = null,
+  questions, indices = null, language, grade = null, subject = null, digest = null, lessonSummary = null,
   withLesson = true, again = false, strictKey = GatesV2.enabled(),
 }) {
   const qs = arr(questions);
@@ -358,7 +367,7 @@ async function verifyKeys({
   const askSameFact = withLesson && !Array.isArray(indices) && !again;
   // `again`: the same items in a DIFFERENT shown order — a second look that a
   // solver's slip between an option's position and its text cannot survive.
-  const items = idx.map((i) => itemFor(qs[i], i, again ? 'again' : ''));
+  const items = idx.map((i) => itemFor(qs[i], i, again));
   const prompt = buildVerifyPrompt({
     items, language, grade, subject, digest, lessonSummary, withLesson, askSameFact, strictKey,
   });
