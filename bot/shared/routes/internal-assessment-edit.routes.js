@@ -14,7 +14,7 @@ const router = express.Router();
 const STATUS = {
   EDITING_DISABLED: 403, NOT_FOUND: 404, NOT_READY: 409,
   INVALID_CHANGES: 400, EMPTY_SELECTION: 400, NO_CHANGES: 400, EDIT_REJECTED: 400,
-  PATTERN_NO_ADD: 400, PATTERN_EMPTY_SLOT: 400, PATTERN_FIXED_MARKS: 400,
+  PATTERN_NO_ADD: 400, PATTERN_EMPTY_SLOT: 400, PATTERN_FIXED_MARKS: 400, PATTERN_NO_EDIT: 400,
 };
 
 // A board-pattern paper is edited like any other, but nothing is added to it: the pattern fixes
@@ -24,6 +24,8 @@ const PATTERN_NO_ADD = 'PATTERN_NO_ADD';
 const PATTERN_EMPTY_SLOT = 'PATTERN_EMPTY_SLOT';
 // Nor is a question's mark changed: the pattern prints one count per part.
 const PATTERN_FIXED_MARKS = 'PATTERN_FIXED_MARKS';
+// Nor is anything about a question changed: a board-pattern question is only removed or put back.
+const PATTERN_NO_EDIT = 'PATTERN_NO_EDIT';
 const PATTERN_REFUSALS = {
   [PATTERN_NO_ADD]: { code: 'EDIT_REJECTED', errorCode: PATTERN_NO_ADD, error: 'Board-pattern papers keep their shape.' },
   [PATTERN_EMPTY_SLOT]: {
@@ -32,6 +34,9 @@ const PATTERN_REFUSALS = {
   },
   [PATTERN_FIXED_MARKS]: {
     code: 'EDIT_REJECTED', errorCode: PATTERN_FIXED_MARKS, error: "Board-pattern papers fix each question's marks.",
+  },
+  [PATTERN_NO_EDIT]: {
+    code: 'EDIT_REJECTED', errorCode: PATTERN_NO_EDIT, error: 'Board-pattern papers can only have questions removed.',
   },
 };
 
