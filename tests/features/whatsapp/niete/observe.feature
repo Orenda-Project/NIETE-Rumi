@@ -1600,6 +1600,10 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   # coach's teachers skips it: this picker (patch-resolver listPatchViaSupabase), a principal's own-school list on
   # the principal app (ownSchoolPatch), My Patch on the portal, and booking a visit on the portal.
   # Unit: tests/observe/bd-apnnh2.11-patch-skips-retired.test.js.
+  # bd-apnnh2.15, 10 Nov 2026: every list of a school's teachers skips it too: a principal's teachers on /remark
+  # (remark-cycle.repository listSchoolTeachers), the class-teacher picker on /roster, the staff attendance register
+  # and the principal's teacher attendance on the portal (attendance.feature, "A teacher whose old account was
+  # merged appears once on my staff register"). Unit: tests/identity/bd-apnnh2.15-lists-skip-retired.test.js.
   @e2e @destructive @P2 @OBS76
   Scenario: A teacher whose old account was merged appears once in my teacher list
     Given the NIETE bot chat is open on a coach account
