@@ -4,7 +4,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { vi } from "vitest";
+import { afterEach, vi } from "vitest";
 
 const html = fs.readFileSync(path.resolve(__dirname, "../../index.html"), "utf8");
 const doc = new DOMParser().parseFromString(html, "text/html");
@@ -83,5 +83,55 @@ describe("index.html — the teacher Home's boot reads (bd-1q4z4o)", () => {
     expect(runAt("/portal/coach/insights").fetch.mock.calls.some((c) => String(c[0]).includes("/me/home"))).toBe(false);
     for (const p of ["/portal/teacher/lessons", "/portal/teacherx"]) expect(runAt(p).fetch).not.toHaveBeenCalled();
     expect(runAt("/portal/teacher", { native: true }).fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("index.html — the coach's report page boot reads (coach reports in the app)", () => {
+  const ID = "11111111-1111-4111-8111-111111111111";
+  it("/portal/coach/report/<id> (where the WhatsApp link and the Home card land): the report, /config, /me and her language at once", async () => {
+    const { fetch, boot } = runAt(`/portal/coach/report/${ID}`);
+    expect(fetch.mock.calls.map((c) => c[0]).sort()).toEqual([
+      "/api/portal/coach/report/" + ID, "/api/portal/config", "/api/portal/me", "/api/portal/me/language",
+    ]);
+    for (const c of fetch.mock.calls) expect((c as unknown[])[1]).toMatchObject({ credentials: "include" });
+    expect(await (boot as Record<string, Promise<unknown>>).coachReport).toEqual({ url: "/api/portal/coach/report/" + ID });
+  });
+
+  it("only a well-formed id is read; a deeper path or the Android app asks for nothing", () => {
+    for (const p of ["/portal/coach/report/nope", `/portal/coach/report/${ID}/x`, "/portal/coach/reports"]) {
+      expect(runAt(p).fetch).not.toHaveBeenCalled();
+    }
+    expect(runAt(`/portal/coach/report/${ID}`, { native: true }).fetch).not.toHaveBeenCalled();
+  });
+
+  it("the teacher Home does not ask for her language on staging (only the report page does)", () => {
+    expect(runAt("/portal/teacher").fetch.mock.calls.some((c) => String(c[0]).includes("/me/language"))).toBe(false);
+  });
+
+  describe("an Urdu coach's font starts downloading with her language", () => {
+    const css = fs.readFileSync(path.resolve(__dirname, "../index.css"), "utf8");
+    const nastaliq = (css.match(/font-family:\s*"NIETE Nastaliq";[\s\S]*?url\(([^)]+)\)/) || [])[1]?.replace(/["']/g, "");
+    function runWithLanguage(language: string) {
+      const fetch = vi.fn((url: string) => Promise.resolve({ ok: true, json: () => Promise.resolve(url.endsWith("/me/language") ? { success: true, language } : { url }) }));
+      const win: { __nieteBoot?: Boot & { language?: Promise<unknown> } } = {};
+      new Function("window", "location", "fetch", code)(win, { pathname: `/portal/coach/report/${ID}`, protocol: "https:" }, fetch);
+      return win.__nieteBoot!;
+    }
+    const preloads = () => [...document.head.querySelectorAll('link[rel="preload"][as="font"]')] as HTMLLinkElement[];
+    afterEach(() => preloads().forEach((l) => l.remove()));
+
+    it("index.css's Urdu face is the file index.html preloads (one URL, kept in step)", () => {
+      expect(nastaliq).toMatch(/^https:\/\/fonts\.gstatic\.com\/.+\.woff2$/);
+      expect(code).toContain(nastaliq);
+    });
+    it("Urdu: one font preload, the same file; English: none", async () => {
+      await runWithLanguage("ur").language;
+      await new Promise((r) => setTimeout(r, 0));
+      expect(preloads().map((l) => l.href)).toEqual([nastaliq]);
+      preloads().forEach((l) => l.remove());
+      await runWithLanguage("en").language;
+      await new Promise((r) => setTimeout(r, 0));
+      expect(preloads()).toHaveLength(0);
+    });
   });
 });

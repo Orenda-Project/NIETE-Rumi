@@ -140,6 +140,9 @@ const CoachFeedbackForm = page(() => import("./portal/coach/reports/FeedbackForm
 const CoachDebrief = page(() => import("./portal/coach/reports/Debrief"));
 const CoachYourFeedback = page(() => import("./portal/coach/reports/YourFeedback"));
 const CoachSendReport = page(() => import("./portal/coach/reports/SendReport"));
+// Coach reports in the app: her debrief report as a page (behind coach_reports_app; the route answers 404 when off).
+const CoachReportPage = page(() => import("./portal/coach/report/CoachReportPage"));
+const CoachWeekPage = page(() => import("./portal/coach/report/CoachWeekPage"));
 const CoachEditTeacher = page(() => import("./portal/coach/pages/CoachEditTeacher"));
 // bd-4404s7.2 — the coach's More and her own profile.
 const CoachMore = page(() => import("./portal/coach/profile/CoachMore"));
@@ -371,6 +374,8 @@ const App = () => {
             <Route path="/portal/coach/observation/:id/debrief" element={<CoachDebrief />} />
             <Route path="/portal/coach/observation/:id/feedback" element={<CoachYourFeedback />} />
             <Route path="/portal/coach/observation/:id/send" element={<CoachSendReport />} />
+            <Route path="/portal/coach/report/:id" element={<CoachReportPage />} />
+            <Route path="/portal/coach/week/:monday" element={<CoachWeekPage />} />
             {/* bd-o15qnr.11 — Edit teacher (saved by the /observe teacher admin) */}
             <Route path="/portal/coach/teacher/:ext/edit" element={<CoachEditTeacher />} />
             {/* bd-4404s7.2 — the coach menu and her own profile. */}

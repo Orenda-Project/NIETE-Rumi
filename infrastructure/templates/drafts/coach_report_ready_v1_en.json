@@ -1,0 +1,28 @@
+{
+  "name": "coach_report_ready_v1",
+  "category": "UTILITY",
+  "language": "en",
+  "components": [
+    {
+      "type": "BODY",
+      "text": "Your coaching report is ready in your NIETE app. It is just for you. Tap the button to open it."
+    },
+    {
+      "type": "FOOTER",
+      "text": "NIETE Digital Coach"
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "URL",
+          "text": "Open my report",
+          "url": "https://portal.niete.edu.pk/go/{{1}}",
+          "example": [
+            "https://portal.niete.edu.pk/go/QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9w"
+          ]
+        }
+      ]
+    }
+  ]
+}

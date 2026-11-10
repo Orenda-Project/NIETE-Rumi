@@ -150,7 +150,8 @@ describe('renderCoachFeedbackMessages — harmful path', () => {
 
   test('healthy path still renders the two-wins card', () => {
     const card = renderCoachFeedbackMessages(healthy(), S).join('\n');
-    expect((card.match(/✓/g) || [])).toHaveLength(2);
+    // the two wins are the bold ✓ lines (the rubric marks above them are plain ✓/○ lines, computed from the booleans)
+    expect((card.match(/✓ \*/g) || [])).toHaveLength(2);
   });
 });
 

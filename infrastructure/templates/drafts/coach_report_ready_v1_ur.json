@@ -1,0 +1,28 @@
+{
+  "name": "coach_report_ready_v1",
+  "category": "UTILITY",
+  "language": "ur",
+  "components": [
+    {
+      "type": "BODY",
+      "text": "آپ کی کوچنگ رپورٹ آپ کی NIETE ایپ میں تیار ہے۔ یہ صرف آپ کے لیے ہے۔ کھولنے کے لیے نیچے دبائیں۔"
+    },
+    {
+      "type": "FOOTER",
+      "text": "NIETE ڈیجیٹل کوچ"
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "URL",
+          "text": "میری رپورٹ کھولیں",
+          "url": "https://portal.niete.edu.pk/go/{{1}}",
+          "example": [
+            "https://portal.niete.edu.pk/go/QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9w"
+          ]
+        }
+      ]
+    }
+  ]
+}
