@@ -171,6 +171,30 @@ router.get('/lp612/own/mine', requirePortalAuth, requireMakeOwn, async (req, res
 });
 
 /**
+ * bd-snkn32.5 — GET /api/portal/lp612/own/recent → { success, plans }: "My own plans" on Lesson Plans home, from the
+ * bot (GET /api/internal/lp612/own/recent): her recent plans across lessons, each with where it lives. SESSION user.
+ */
+const RECENT_FIELDS = [...MINE_FIELDS, 'grade', 'subject', 'chapter', 'title'];
+router.get('/lp612/own/recent', requirePortalAuth, requireMakeOwn, async (req, res) => {
+  try {
+    const axios = require('axios');
+    const { baseUrl, headers } = botConfig();
+    const r = await axios.get(`${baseUrl}/api/internal/lp612/own/recent`, {
+      params: { userId: req.session.portalUserId }, headers, timeout: 20000, validateStatus: () => true,
+    });
+    if (r.status === 200 && r.data && r.data.success) {
+      const plans = (Array.isArray(r.data.plans) ? r.data.plans : [])
+        .map((p) => Object.fromEntries(RECENT_FIELDS.map((f) => [f, p && p[f]])));
+      return res.json({ success: true, plans });
+    }
+    throw new Error(`lp612/own/recent failed (HTTP ${r.status})`);
+  } catch (error) {
+    console.error('❌ Portal lp612/own/recent failed', { error: error && error.message });
+    return res.status(502).json({ success: false, error: 'Could not list your plans' });
+  }
+});
+
+/**
  * GET /api/portal/lp612/own/:ownId/sections →{ success, band, changed,
  * sections: [{ part, text, before? }] }: her ready plan as section cards, from the bot
  * (GET /api/internal/lp612/own/:ownId/sections). Always the SESSION's user. Bot 404 passes on; anything else is 502.

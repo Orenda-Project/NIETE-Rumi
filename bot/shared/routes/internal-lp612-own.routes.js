@@ -107,6 +107,22 @@ router.get('/lp612/own/mine', requireInternalKey, async (req, res) => {
 });
 
 /**
+ * bd-snkn32.5 — GET /api/internal/lp612/own/recent?userId=<session user> → 200 { success, plans: [mine's fields +
+ * grade, subject, chapter, title] }: "My own plans" on Lesson Plans home (services/lp-own-recent). No user 400.
+ */
+router.get('/lp612/own/recent', requireInternalKey, async (req, res) => {
+  const q = req.query || {};
+  const userId = typeof q.userId === 'string' ? q.userId.trim().slice(0, 200) : '';
+  if (!userId) return res.status(400).json({ success: false, error: 'bad_request' });
+  try {
+    return res.json({ success: true, plans: await require('../services/lp-own-recent').listRecentLive({ userId }) });
+  } catch (error) {
+    logToFile('❌ Internal LP own recent failed', { error: error && error.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Could not list your plans' });
+  }
+});
+
+/**
  * GET /api/internal/lp612/own/:ownId/sections?userId=<session user> → 200
  * { success, band, changed, sections: [{ part, text, before? }] }: her ready plan as section cards, read from the JSON
  * stored beside its PDF (services/lp-own-sections). No user 400; not hers, not ready or no stored JSON 404.

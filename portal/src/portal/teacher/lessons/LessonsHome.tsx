@@ -16,6 +16,7 @@ import { recentGroups } from './recent';
 import { useLessonsLeader } from './audience';
 import { FlnBand } from '../../fln/FlnBand';
 import { RegionCard } from './RegionCard';
+import { RecentOwnPlans } from './own/RecentOwnPlans';
 
 /**
  * bd-fmf24g.3 — the teacher v2 Lesson Plans main page. bd-fgj73x — in the Assessment flow (AssessmentHub), the
@@ -80,6 +81,9 @@ export function LessonsHomePage() {
           </section>
         </>
       )}
+
+      {/* bd-snkn32.5 — her own Make my own plans, so they open from the portal too, not only from WhatsApp. */}
+      {leader ? null : <RecentOwnPlans />}
 
       {leader ? null : (
         <div className="mt-3.5">
