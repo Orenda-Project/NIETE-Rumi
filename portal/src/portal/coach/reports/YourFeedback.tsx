@@ -2,7 +2,7 @@ import { Check, ChevronRight, Compass, MessageCircle, Sparkles } from "lucide-re
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { Link, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { useCopy } from "../../teacher/i18n";
+import { useCopy, useLang } from "../../teacher/i18n";
 import { LoadState } from "../../teacher/lessons/LoadState";
 import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
 import ReportsFrame from "./ReportsFrame";
@@ -23,6 +23,7 @@ import { useBack } from "../../lib/useBack";
  */
 export default function YourFeedback() {
   const C = useCopy(REPORTS);
+  const lang = useLang();
   const { id = "" } = useParams();
   const routes = useObserveRoutes();
   const { view, status, reload } = useObservationView(id);
@@ -63,7 +64,7 @@ export default function YourFeedback() {
           {fb.wins.map((w) => (
             <div key={w.behaviour} className="flex gap-2.5 ps-12 text-[15px] leading-[1.4]">
               <span className="flex min-w-0 flex-col gap-0.5">
-                <b className="font-semibold" dir="auto">{w.behaviour}</b>
+                <b className="font-semibold" dir="auto">{w.name ? (w.name[lang] || w.name.en) : w.behaviour}</b>
                 <span className="text-[#6b7280]" dir="auto">{w.evidence}</span>
               </span>
             </div>
