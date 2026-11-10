@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useObserveRoutes } from "../observe/observeRoutes";
 import { useNavigate, useParams } from "react-router-dom";
 import { leader } from "../../services/api";
 import type { DraftIndicator, DraftMove, DraftOption, DraftSection, ObservationDraft } from "../../services/api";
@@ -11,7 +12,7 @@ import { BottomButton } from "../ui";
 import ReportsFrame from "./ReportsFrame";
 import { REPORTS } from "./copy";
 import { countChanges, initialValues, rungName, titleOf, type Values } from "./formModel";
-import { OBSERVATION_STEPS, SCREEN_STEP, observationPath } from "./paths";
+import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
 import { teacherNameOf, useObservationView } from "./useObservationView";
 import { PlanSource } from "../observe/PlanState";
 
@@ -49,9 +50,10 @@ function Field({ id, label, value, onChange, readOnly }: { id: string; label: st
 export default function FeedbackForm() {
   const C = useCopy(REPORTS);
   const { id = "" } = useParams();
+  const routes = useObserveRoutes();
   const navigate = useNavigate();
   const { view } = useObservationView(id);
-  const home = observationPath(id);
+  const home = routes.observation(id);
   const [draft, setDraft] = useState<ObservationDraft | null>(null);
   const [load, setLoad] = useState<"loading" | "error" | "ok">("loading");
   const [tick, setTick] = useState(0);
