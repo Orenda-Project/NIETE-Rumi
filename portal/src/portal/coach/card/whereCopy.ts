@@ -7,7 +7,8 @@
  * "DC sessions" read "DC observations", her "HITL" reads "coach observations", and scores say whose they are.
  *
  * URDU: her Urdu where she wrote it (headings, the four steps, the why lines, the check-in, What to try, Your focus,
- * کہاں کوچنگ کریں, پلان پر کتنا عمل ہوا). The rest is MACHINE-DRAFTED and waits for a native check (verdict
+ * کہاں کوچنگ کریں, پلان پر کتنا عمل ہوا, shown as لیسن پلان پر کتنا عمل ہوا: the locked vocabulary never says پلان alone,
+ * bd-17v39c.4.14.12). The rest is MACHINE-DRAFTED and waits for a native check (verdict
  * NATIVE-CHECK), like the School card's other copy. The who-to-coach-first group names are new words (ours).
  */
 import { bilingual, type Bilingual, type Words } from "../../teacher/i18n";
@@ -23,13 +24,13 @@ export const WHERE_EN = {
   unit: { today: "today", week: "this week", month: "this month" } as Record<U, string>,
   early: "Based on one session — an early signal",
   coachOnly: "No Digital Coaching in this period: from coach observations only",
-  empty: "Choose a longer period to see where to coach.",
+  empty: "Select a longer period to see where to coach.",
 
   convoH: "How to run the conversation",
   c1h: "Start with a strength",
   c1: (code: string, name: string, avg: string) => `${code} ${name} went well in her sessions (${avg}).`,
   c1None: "Ask her what went well in her last lesson.",
-  c2h: "Pick one focus",
+  c2h: "One focus practice",
   c3h: "Show it, then let her try",
   c4h: "Agree the next step",
   c4: (code: string) => `Record one DC observation this week while trying this. Look at ${code} together on your next visit.`,
@@ -168,11 +169,11 @@ export const WHERE_UR: WhereCopy = {
   lookFor: "کلاس میں دیکھیں",
   tryThis: "ان کے ساتھ یہ آزمائیں",
 
-  planH: "پلان پر کتنا عمل ہوا",
+  planH: "لیسن پلان پر کتنا عمل ہوا",
   planLine: (pct) => `انہوں نے NIETE لیسن پلان کے ${pct}% مراحل پر عمل کیا۔`,
   planUsed: (m, n) => `${n} میں سے ${m} ڈیجیٹل کوچنگ مشاہدات میں NIETE لیسن پلان استعمال ہوا۔`,
   skippedH: "سب سے زیادہ چھوڑے گئے مراحل",
-  skippedRow: (k, n) => `${n} میں سے ${k} پلان`,
+  skippedRow: (k, n) => `${n} میں سے ${k} لیسن پلان`,
   noSkipped: "کوئی مرحلہ نہیں چھوڑا گیا",
   noPlan: "ان کے ڈیجیٹل کوچنگ مشاہدات سے کوئی NIETE لیسن پلان نہیں جڑا تھا۔",
 
@@ -193,7 +194,7 @@ export const WHERE_UR: WhereCopy = {
   teachersN: (n) => `${n} ٹیچرز`,
   groups: {
     agree_low: "آپ اور AI کوچ دونوں نے کم اسکور دیا",
-    low_most: "زیادہ تر اسباق میں کمزور",
+    low_most: "زیادہ تر ڈیجیٹل کوچنگ مشاہدات میں کمزور",
     no_dc: (u) => `${u} کوئی ڈیجیٹل کوچنگ مشاہدہ نہیں · رکاوٹ پوچھیں`,
     one_dc: "ابھی ایک ہی سبق · ابتدائی اشارہ",
     none: "کوئی کمزور پیٹرن نہیں · تعریف سے آغاز کریں",
@@ -209,7 +210,7 @@ export const WHERE_UR: WhereCopy = {
     "3 اس مدت میں کوئی ڈیجیٹل کوچنگ مشاہدہ نہیں۔",
     "4 صرف ایک ڈیجیٹل کوچنگ مشاہدہ: ابتدائی اشارہ۔",
     "5 ان میں سے کچھ نہیں۔",
-    "ایک گروپ کے اندر: جو زیادہ اسباق میں کمزور ہو وہ پہلے، پھر کم اوسط۔",
+    "ایک گروپ کے اندر: جو زیادہ ڈیجیٹل کوچنگ مشاہدات میں کمزور ہو وہ پہلے، پھر کم اوسط۔",
   ],
 };
 
