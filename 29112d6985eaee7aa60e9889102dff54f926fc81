@@ -1,0 +1,2 @@
+{"ts":"2026-11-10T10:35:55Z","hook":"post-commit","event":"armed","switch":"","detail":"features=menu,observe spec_sync=true","sha":"29112d6985ea","branch":"bd-apnnh2.5-to-main","user":"tariqtaleemabad"}
+{"ts":"2026-11-10T10:41:02Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"*=none-needed (ships off; no teacher-visible change while the flag is off)","sha":"29112d6985ea","branch":"bd-apnnh2.5-to-main","user":"tariqtaleemabad"}
