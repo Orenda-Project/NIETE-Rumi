@@ -148,14 +148,11 @@ describe('buildVersion on a board-pattern paper (E8.4)', () => {
     expect(mockRenders).toHaveLength(0);
   });
 
-  test('an answer edit lands on the v2 tree without its old scheme points', async () => {
+  test('an answer edit never reaches the v2 tree: applyEdit refuses it (remove only)', () => {
     const id = q2Ids(EXAM)[0];
     const Edit = require('../../bot/shared/services/assessment/assessment-edit');
-    const edited = Selection.replaceAt(EXAM, id, Edit.applyEdit(Selection.indexQuestions(EXAM).find((q) => q.id === id).question, { answer: 'Seven million and more' }));
-    const out = await Revision.buildVersion({ parentId: 'v1', userId: U, tree: edited });
-    expect(out.status).toBe('ready');
-    const q = Selection.indexQuestions(newRow().exam_json).find((x) => x.id === id).question;
-    expect(q.scheme.points).toBeUndefined();
+    const q = Selection.indexQuestions(EXAM).find((x) => x.id === id).question;
+    expect(() => Edit.applyEdit(q, { answer: 'Seven million and more' })).toThrow('Board-pattern papers can only have questions removed.');
   });
 
   test('a plain paper still renders with one argument and the old names', async () => {
@@ -204,12 +201,10 @@ describe('the older in-place paths on a board-pattern paper', () => {
     expect(mockRenders).toHaveLength(0);
   });
 
-  test('saveEdit: a wording edit is saved and the total stays the pattern total', async () => {
+  test('saveEdit: a wording edit is rejected and the paper is untouched', async () => {
     const id = q2Ids(EXAM)[0];
     const out = await Revision.saveEdit({ paperId: 'v1', userId: U, questionId: id, edit: { question: 'Write 7,083,451 in words.' } });
-    expect(out).toMatchObject({ status: 'ok', questionId: id });
-    const row = mockDb.tables.assessment_papers[0];
-    expect(row.total_marks).toBe(100);
-    expect(row.exam_json._layout.preset_id).toBe('fde_g5_2027');
+    expect(out).toEqual({ status: 'rejected', code: 'EDIT_REJECTED', message: 'Board-pattern papers can only have questions removed.' });
+    expect(mockDb.tables.assessment_papers[0].exam_json).toEqual(EXAM);
   });
 });
