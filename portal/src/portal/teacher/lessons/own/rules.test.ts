@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WAYS, isComplete, suggestWay, waysFor, type OwnAnswers } from './rules';
+import { WAYS, isComplete, purposesFor, suggestWay, waysFor, type OwnAnswers } from './rules';
 
 /**
  * bd-snkn32 — the teaching way "Make my own" suggests from her answers (design: first match wins, the
@@ -7,7 +7,7 @@ import { WAYS, isComplete, suggestWay, waysFor, type OwnAnswers } from './rules'
  */
 
 const base: OwnAnswers = {
-  grade: 7, subject: 'Science', segment: 's1', size: 'up30', resources: ['textbook'], level: 'on_track', way: null,
+  grade: 4, subject: 'Science', segment: 's1', size: 'up30', resources: ['textbook'], level: 'on_track', way: null,
 };
 const at = (over: Partial<OwnAnswers>): OwnAnswers => ({ ...base, ...over });
 
@@ -62,8 +62,8 @@ describe('waysFor — the choices offered, filtered to the subject', () => {
     expect(w).toContain('phonics');
     expect(w).not.toContain('cpa');
   });
-  it('grade 7 Science gets neither', () => {
-    expect(waysFor({ grade: 7, subject: 'Science' })).toEqual(['tarl', 'games', 'story']);
+  it('grade 4 Science gets neither', () => {
+    expect(waysFor({ grade: 4, subject: 'Science' })).toEqual(['tarl', 'games', 'story']);
   });
   it('every offered way is a known way, in WAYS order', () => {
     const w = waysFor({ grade: 1, subject: 'English' });
@@ -98,5 +98,43 @@ describe('grades 1–5 subject keys (the product reviewer\'s check)', () => {
       expect(w).not.toContain('cpa');
       expect(w).not.toContain('phonics');
     }
+  });
+});
+
+// bd-snkn32.13 — phonics, counting with stones and TaRL do not fit a Grade 10 Chemistry lesson.
+describe('grades 6–12: their own ways, what the lesson is for', () => {
+  const PRIMARY = ['tarl', 'cpa', 'phonics', 'games', 'story'];
+  it('6–8 and 9–12 offer none of the primary ways; past-paper practice is 9–12 only', () => {
+    const middle = waysFor({ grade: 7, subject: 'Science' });
+    const senior = waysFor({ grade: 10, subject: 'Chemistry' });
+    for (const w of [...middle, ...senior]) expect(PRIMARY).not.toContain(w);
+    expect(middle).toEqual(['worked', 'numericals', 'practical', 'inquiry', 'concept_map', 'discussion', 'reading']);
+    expect(senior).toEqual([...middle, 'past_paper']);
+  });
+  it('more choice than primary: the whole band set whatever the subject', () => {
+    expect(waysFor({ grade: 9, subject: 'Urdu' })).toEqual(waysFor({ grade: 9, subject: 'Physics' }));
+  });
+  it('purposes: board exam practice only from Grade 9; none for 1–5', () => {
+    expect(purposesFor(4)).toEqual([]);
+    expect(purposesFor(7)).toEqual(['new', 'revise', 'reteach']);
+    expect(purposesFor(11)).toEqual(['new', 'revise', 'board', 'reteach']);
+  });
+  it('the suggestion fits the subject and the purpose', () => {
+    const g = (over: Partial<OwnAnswers>) => suggestWay(at({ grade: 10, level: 'behind', ...over })).way;
+    expect(g({ subject: 'Chemistry', purpose: 'board' })).toBe('past_paper');
+    expect(g({ subject: 'Mathematics' })).toBe('worked');
+    expect(g({ subject: 'Physics' })).toBe('numericals');
+    expect(g({ subject: 'Biology' })).toBe('practical');
+    expect(g({ subject: 'English' })).toBe('reading');
+    expect(g({ subject: 'Pakistan Studies' })).toBe('discussion');
+    expect(g({ grade: 7, subject: 'Science', purpose: 'board' })).toBe('practical');
+  });
+  it('a 6–12 plan needs what the lesson is for; 1–5 does not', () => {
+    expect(isComplete(at({ grade: 8, way: 'worked' }))).toBe(false);
+    expect(isComplete(at({ grade: 8, way: 'worked', purpose: 'revise' }))).toBe(true);
+    expect(isComplete(at({ grade: 4, way: 'story' }))).toBe(true);
+  });
+  it('every way is a known way', () => {
+    for (const g of [2, 7, 11]) for (const w of waysFor({ grade: g, subject: 'English' })) expect(WAYS).toContain(w);
   });
 });

@@ -30,12 +30,17 @@
  */
 
 const { parseOwnAnswers } = require('./lp612-own-instruction');
+const { parseExtend, isAdjacentNext } = require('./lp612-own-extend');
+const { parseK5Pages } = require('./lp-k5-own-pages');
 
 const OWN_TABLE = 'niete_lp612_own_plans';
 const OWN_JOB_TYPE = 'lp612_own';
 const OWN_LANG = 'en';
 /** The template of a grades 1–5 fork: the stored slide script, rewritten (lp-k5-own) and printed (lp-k5-own-render). */
 const K5_TV = 'k5_own_v1';
+/** Her status read. Plus the AI reviewer's library verdict (V1.9.9). */
+const OWN_READ = 'id, user_id, segment_id, lesson_id, status, r2_key, error_code, lang, started_at, completed_at, '
+  + 'library_eligible, review_score';
 
 function createOwnService(deps) {
   const d = deps;
@@ -57,9 +62,13 @@ function createOwnService(deps) {
   }
 
   /** bd-snkn32.4 — a grades 1–5 day: its own stored plan is the parent, in its book's language. */
-  async function requestK5({ userId, lessonId, answers, correlationId }) {
+  async function requestK5({ userId, lessonId, answers, pages, correlationId }) {
     const lesson = await d.k5Lesson(lessonId);
     if (!lesson) return { outcome: 'not_found' };
+    // bd-snkn32.17 — her own page range, checked against the day's pages; kept in her answers (JSONB, no new column).
+    const p = parseK5Pages(pages, lesson.pages || null);
+    if (!p.ok) return { outcome: 'bad_request', error: p.error };
+    if (p.pages) answers = { ...answers, pages: p.pages };
     const row = await d.insertOwn({
       user_id: userId,
       lesson_id: lessonId,
@@ -73,16 +82,43 @@ function createOwnService(deps) {
     return queue(row, lessonId, correlationId);
   }
 
+  /**
+   * bd-snkn32.14 — "Add the next lesson's pages": the next lesson must be the ADJACENT one in the SAME book and chapter
+   * (the book's order), checked here before anything is written. Its shared plan is asked for like hers. null = fine.
+   */
+  async function checkExtend({ segmentId, extend, userId, tv, correlationId }) {
+    const first = await d.loadSegment(segmentId);
+    const rows = first ? await d.chapterSegments(first) : [];
+    if (!isAdjacentNext(first, extend.next, rows)) {
+      return { outcome: 'bad_request', error: 'extend.next is not the next lesson of this chapter' };
+    }
+    const doc = await d.readStoredDoc({ segmentId: extend.next, lang: OWN_LANG, tv, correlationId });
+    if (doc) return null;
+    const asked = await d.requestParent({ segmentId: extend.next, userId, lang: OWN_LANG, surface: 'portal', correlationId });
+    const outcome = asked && asked.outcome;
+    if (outcome === 'held' || outcome === 'not_found') return { outcome };
+    if (outcome === 'error' || outcome === 'deliver_failed') return { outcome: 'error' };
+    return null;
+  }
+
   async function requestOwn({ userId, segmentId, lessonId, answers, correlationId = null } = {}) {
     if (!userId || (!segmentId === !lessonId)) {
       return { outcome: 'bad_request', error: 'userId and one of segmentId or lessonId are required' };
     }
-    const parsed = parseOwnAnswers(answers);
+    // bd-snkn32.13: a 6–12 segment's answers are checked against its grade band's ways (a 1–5 day: the primary ones).
+    const parsed = parseOwnAnswers(answers, lessonId ? undefined : { segmentId });
     if (!parsed.ok) return { outcome: 'bad_request', error: parsed.error };
-    if (lessonId) return requestK5({ userId, lessonId, answers: parsed.answers, correlationId });
+    const ext = parseExtend(answers.extend);
+    if (!ext.ok) return { outcome: 'bad_request', error: ext.error };
+    if (ext.extend && lessonId) return { outcome: 'bad_request', error: 'extend is for a grades 6-12 lesson' };
+    if (lessonId) return requestK5({ userId, lessonId, answers: parsed.answers, pages: answers.pages, correlationId });
     if (!(await d.segmentExists(segmentId))) return { outcome: 'not_found' };
 
     const tv = d.templateVersion();
+    if (ext.extend) {
+      const refused = await checkExtend({ segmentId, extend: ext.extend, userId, tv, correlationId });
+      if (refused) return refused;
+    }
     const parent = await d.readStoredDoc({ segmentId, lang: OWN_LANG, tv, correlationId });
     if (!parent) {
       const asked = await d.requestParent({ segmentId, userId, lang: OWN_LANG, surface: 'portal', correlationId });
@@ -97,7 +133,7 @@ function createOwnService(deps) {
       lang: OWN_LANG,
       template_version: tv,
       status: 'authoring',
-      answers: parsed.answers,
+      answers: ext.extend ? { ...parsed.answers, extend: ext.extend } : parsed.answers,
       correlation_id: correlationId,
     });
     if (!row || !row.id) return { outcome: 'error' };
@@ -126,6 +162,8 @@ function createOwnService(deps) {
       lang: r.lang,
       started_at: r.started_at,
       completed_at: r.completed_at,
+      library_eligible: r.library_eligible === true, // library only; never gates her plan
+      review_score: r.review_score ?? null,
     };
   }
 
@@ -155,6 +193,8 @@ function liveDeps() {
   return {
     templateVersion,
     segmentExists: (segmentId) => segmentExists(supabase, segmentId),
+    loadSegment: (segmentId) => require('./lp612-own-extend.store').loadSegment(supabase, segmentId),
+    chapterSegments: (seg) => require('./lp612-own-extend.store').chapterSegments(supabase, seg),
     readStoredDoc: (args) => Serving.readStoredDoc(args),
     k5Lesson: (lessonId) => require('./lp-k5-own-source').k5Lesson(lessonId),
     requestParent: (args) => Serving.requestLesson(args),
@@ -170,7 +210,7 @@ function liveDeps() {
     selectOwn: async (id, userId) => {
       const { data, error } = await supabase
         .from('niete_lp612_own_plans')
-        .select('id, user_id, segment_id, lesson_id, status, r2_key, error_code, lang, started_at, completed_at')
+        .select(OWN_READ)
         .eq('id', id).eq('user_id', userId).maybeSingle();
       if (error) throw new Error(error.message);
       return data || null;
@@ -190,4 +230,5 @@ module.exports = {
   OWN_JOB_TYPE,
   OWN_LANG,
   K5_TV,
+  OWN_READ,
 };

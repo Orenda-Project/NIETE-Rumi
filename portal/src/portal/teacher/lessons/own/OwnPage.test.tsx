@@ -174,22 +174,33 @@ describe('Make my own', () => {
     await waitFor(() => expect(where()).toContain('level=mixed'));
     fireEvent.click(ok());
 
-    // Mixed → teach at each child's level, suggested and first; Science offers no CPA or phonics.
-    const first = await screen.findByTestId('own-opt-tarl');
+    // bd-snkn32.13 — Grade 8: what is this lesson for? (no board exam below Grade 9)
+    await screen.findByTestId('own-opt-revise');
+    expect(screen.queryByTestId('own-opt-board')).toBeNull();
+    expect(ok()).toBeDisabled();
+    fireEvent.click(screen.getByTestId('own-opt-revise'));
+    await waitFor(() => expect(where()).toContain('purpose=revise'));
+    fireEvent.click(ok());
+
+    // Science → demonstration or practical, suggested and first; none of the primary ways.
+    const first = await screen.findByTestId('own-opt-practical');
     expect(first.textContent).toContain(C.suggested);
-    expect(screen.queryByTestId('own-opt-cpa')).toBeNull();
-    expect(screen.queryByTestId('own-opt-phonics')).toBeNull();
+    for (const w of ['tarl', 'cpa', 'phonics', 'games', 'story']) expect(screen.queryByTestId(`own-opt-${w}`)).toBeNull();
+    expect(screen.getByTestId('own-opt-worked')).toBeTruthy();
     fireEvent.click(ok());   // keeps the suggestion
 
     await screen.findByTestId('own-make');
-    expect(where()).toContain('way=tarl');
+    expect(where()).toContain('way=practical');
+    expect(screen.getByText(C.purposes.revise)).toBeTruthy();
     fireEvent.change(screen.getByTestId('own-note'), { target: { value: 'Two grades in one room' } });
     fireEvent.click(screen.getByTestId('own-make'));
 
     await waitFor(() => expect(where()).toContain('/lessons/preparing?'));
     expect(http.post).toHaveBeenCalledWith('/lp612/own', {
       segment_id: 'sci8.c02.p014',
-      answers: { size: '51_70', resources: ['textbook', 'board'], level: 'mixed', way: 'tarl', note: 'Two grades in one room' },
+      answers: {
+        size: '51_70', resources: ['textbook', 'board'], level: 'mixed', way: 'practical', note: 'Two grades in one room', purpose: 'revise',
+      },
     });
     expect(where()).toContain('render=own-1');
     expect(where()).toContain('lesson=sci8.c02.p014');
@@ -205,11 +216,68 @@ describe('Make my own', () => {
 
   it('a plan that cannot be started: "Couldn\'t make it", and she stays to try again', async () => {
     http.post.mockRejectedValue(Object.assign(new Error('502'), { response: { status: 502 } }));
-    at(`${LESSONS_OWN}?grade=8&subject=Science&chapter=c02&step=check&seg=sci8.c02.p010&size=up30&level=ahead&way=games`);
+    at(`${LESSONS_OWN}?grade=8&subject=Science&chapter=c02&step=check&seg=sci8.c02.p010&size=up30&level=ahead&purpose=new&way=worked`);
     fireEvent.click(await screen.findByTestId('own-make'));
     expect(await screen.findByRole('alert')).toHaveTextContent(C.couldNotMake);
     expect(where()).toContain(LESSONS_OWN);
     expect(screen.getByTestId('own-make')).toHaveTextContent(C.tryAgain);
+  });
+});
+
+// bd-snkn32.13 — a Grade 9–12 lesson whose FBISE SLOs mix Summative and Formative asks which come first.
+describe('Make my own, grades 9–12', () => {
+  const mix = (mixed: boolean) => {
+    const plain = http.get.getMockImplementation()!;
+    http.get.mockImplementation(async (url: string, ...rest: unknown[]) => {
+      if (url === '/lp612/grades') return { data: { grades: [{ grade: 8 }, { grade: 10 }] } };
+      if (url.startsWith('/lp612/own/slo/')) {
+        return { data: mixed ? { success: true, mixed: true, summative: ['C-10-A-01'], formative: ['C-10-A-02'] } : { success: true, mixed: false, summative: [], formative: [] } };
+      }
+      return plain(url, ...rest);
+    });
+  };
+  const base = `${LESSONS_OWN}?grade=10&subject=Chemistry&chapter=c02&seg=sci8.c02.p014&size=up30&level=ahead`;
+
+  it('board exam practice is offered, and suggests past papers', async () => {
+    mix(false);
+    at(`${base}&step=purpose`);
+    fireEvent.click(await screen.findByTestId('own-opt-board'));
+    await waitFor(() => expect(where()).toContain('purpose=board'));
+    fireEvent.click(screen.getByTestId('own-ok'));
+    expect((await screen.findByTestId('own-opt-past_paper')).textContent).toContain(C.suggested);
+  });
+
+  it('a mixed lesson: after the way, which SLOs first, then the check; the choice is sent', async () => {
+    mix(true);
+    http.post.mockResolvedValue({ data: { success: true, state: 'authoring', renderId: 'own-2' } });
+    at(`${base}&purpose=new&way=worked&step=way`);
+    await screen.findByTestId('own-opt-worked');
+    await waitFor(() => expect(http.get).toHaveBeenCalledWith('/lp612/own/slo/sci8.c02.p014'));
+    fireEvent.click(screen.getByTestId('own-ok'));
+    const summative = await screen.findByTestId('own-opt-summative');
+    expect(summative.textContent).toContain('C-10-A-01');
+    expect(screen.getByTestId('own-ok')).toBeDisabled();
+    fireEvent.click(summative);
+    await waitFor(() => expect(where()).toContain('focus=summative'));
+    fireEvent.click(screen.getByTestId('own-ok'));
+    const make = await screen.findByTestId('own-make');
+    expect(screen.getByText(C.foci.summative)).toBeTruthy();
+    await waitFor(() => expect(make).not.toBeDisabled());
+    fireEvent.click(make);
+    await waitFor(() => expect(http.post).toHaveBeenCalledWith('/lp612/own', {
+      segment_id: 'sci8.c02.p014',
+      answers: { size: 'up30', resources: ['textbook'], level: 'ahead', way: 'worked', note: '', purpose: 'new', focus: 'summative' },
+    }));
+  });
+
+  it('a lesson that is not mixed goes from the way straight to the check', async () => {
+    mix(false);
+    at(`${base}&purpose=new&way=worked&step=way`);
+    await screen.findByTestId('own-opt-worked');
+    await waitFor(() => expect(http.get).toHaveBeenCalledWith('/lp612/own/slo/sci8.c02.p014'));
+    await new Promise((r) => setTimeout(r, 0));
+    fireEvent.click(screen.getByTestId('own-ok'));
+    await screen.findByTestId('own-make');
   });
 });
 

@@ -6,7 +6,7 @@
 
 const { createOwnService, OWN_JOB_TYPE } = require('../../bot/shared/services/lp612-own.service');
 
-const ANSWERS = { size: '51_70', resources: ['board'], level: 'mixed', way: 'tarl', note: '' };
+const ANSWERS = { size: '51_70', resources: ['board'], level: 'mixed', way: 'worked', note: '' };
 const SEG = 'grade_8_science.c02.p010-013';
 
 function harness(over = {}) {
@@ -27,6 +27,15 @@ function harness(over = {}) {
 }
 
 describe('requestOwn', () => {
+  it('bd-snkn32.13: a Grade 8 lesson takes a 6–8 way and what it is for; a primary way is refused', async () => {
+    const { svc, calls } = harness();
+    const ok = await svc.requestOwn({ userId: 'u1', segmentId: SEG, answers: { ...ANSWERS, way: 'practical', purpose: 'revise' } });
+    expect(ok.outcome).toBe('queued');
+    expect(calls.inserts[0].answers).toMatchObject({ way: 'practical', purpose: 'revise' });
+    const no = await svc.requestOwn({ userId: 'u1', segmentId: SEG, answers: { ...ANSWERS, way: 'phonics' } });
+    expect(no.outcome).toBe('bad_request');
+  });
+
   it('refuses bad answers without touching anything', async () => {
     const { svc, deps } = harness();
     const out = await svc.requestOwn({ userId: 'u1', segmentId: SEG, answers: { ...ANSWERS, way: 'lecture' } });
@@ -109,6 +118,7 @@ describe('ownStatus — the row in the render shape, hers only', () => {
     expect(out).toEqual({
       id: 'own-1', segment_id: SEG, status: 'ready', r2_key: row.r2_key, one_screen: null,
       error_code: null, lang: 'en', started_at: 't0', completed_at: 't1',
+      library_eligible: false, review_score: null, // bd-snkn32.16: not reviewed yet
     });
   });
 

@@ -46,6 +46,7 @@ export async function principalVisit(ext: string): Promise<{ visit: CoachVisit |
 
 export const PRINCIPAL_OBSERVE_ROUTES: ObserveRoutes = {
   coachGate: false,
+  showScores: false,
   loadVisit: principalVisit,
   visit: () => PRINCIPAL_PICK,
   record: (ext) => `${principalCheckPath(ext)}/record`,
