@@ -9,7 +9,13 @@
  * Pure: no I/O. The same answers always give the same text, so the fork's content hash (editHash) is stable.
  */
 
+const {
+  SECONDARY_WAYS, PURPOSES, bandOf, gradeOfSegment, waysOfBand, purposesOfBand,
+} = require('./lp612-own-ways');
+const { sloMix, sloCodes } = require('./lp612-own-slo');
+
 const NOTE_MAX = 200;
+const FOCI = ['summative', 'formative'];
 
 const SIZES = {
   up30: 'up to 30 children',
@@ -45,13 +51,32 @@ function bad(error) {
   return { ok: false, error };
 }
 
-/** @returns {{ok:true, answers:object} | {ok:false, error:string}} */
-function parseOwnAnswers(body) {
+/**
+ * bd-snkn32.13 — her grade band, from ctx.grade or the segment id: 'middle' / 'senior' for grades 6–12, else null
+ * (grades 1–5, or no context at all: the primary ways, as before).
+ */
+function secondaryBand(ctx) {
+  const c = ctx || {};
+  const band = bandOf(c.grade != null ? c.grade : gradeOfSegment(c.segmentId));
+  if (band === 'middle' || band === 'senior') return band;
+  // A segment is always a 6–12 lesson: one whose id names no grade gets the widest 6–12 set.
+  return band == null && c.segmentId ? 'senior' : null;
+}
+
+/**
+ * @param ctx {{grade?:number, segmentId?:string, sloMap?:object}} — grades 6–12 check the way against their band's
+ *   set and also take `purpose` (what the lesson is for) and `focus` (Summative or Formative SLOs first; kept only
+ *   when the segment's SLOs are mixed).
+ * @returns {{ok:true, answers:object} | {ok:false, error:string}}
+ */
+function parseOwnAnswers(body, ctx) {
   const b = body && typeof body === 'object' ? body : null;
   if (!b) return bad('answers are required');
   if (!Object.prototype.hasOwnProperty.call(SIZES, b.size)) return bad('size is not one of the choices');
   if (!Object.prototype.hasOwnProperty.call(LEVELS, b.level)) return bad('level is not one of the choices');
-  if (!Object.prototype.hasOwnProperty.call(WAYS, b.way)) return bad('way is not one of the choices');
+  const band = secondaryBand(ctx);
+  const ways = band ? waysOfBand(band) : Object.keys(WAYS);
+  if (!ways.includes(b.way)) return bad('way is not one of the choices');
   const given = b.resources == null ? [] : b.resources;
   if (!Array.isArray(given)) return bad('resources must be a list');
   if (given.some((r) => !Object.prototype.hasOwnProperty.call(RESOURCES, r))) return bad('resources has an unknown item');
@@ -60,13 +85,40 @@ function parseOwnAnswers(body) {
   const note = typeof b.note === 'string'
     ? b.note.replace(/["“”]/g, '').replace(/\s+/g, ' ').trim().slice(0, NOTE_MAX)
     : '';
-  return { ok: true, answers: { size: b.size, resources, level: b.level, way: b.way, note } };
+  const answers = { size: b.size, resources, level: b.level, way: b.way, note };
+  if (!band) return { ok: true, answers };
+  if (b.purpose != null) {
+    if (!purposesOfBand(band).includes(b.purpose)) return bad('purpose is not one of the choices');
+    answers.purpose = b.purpose;
+  }
+  if (b.focus != null) {
+    if (!FOCI.includes(b.focus)) return bad('focus is not one of the choices');
+    if (sloMix(ctx.segmentId, ctx.sloMap)) answers.focus = b.focus;
+  }
+  return { ok: true, answers };
 }
 
-/** The instruction for reviseLessonPlan. Takes parsed answers only. */
-function buildOwnInstruction(answers) {
+/** bd-snkn32.13 — the grades 6–12 lines: room to adapt, what the lesson is for, which SLOs come first. */
+function secondaryLines(a, ctx) {
+  const lines = ['Grades 6-12: the teacher may reorder or replace activities to fit her class, as long as every learning outcome is still taught.'];
+  if (PURPOSES[a.purpose]) lines.push(PURPOSES[a.purpose]);
+  const codes = sloCodes(ctx.segmentId, ctx.sloMap);
+  if (a.purpose === 'board' && codes.length) lines.push(`The SLO codes for these pages: ${codes.join(', ')}.`);
+  const mix = FOCI.includes(a.focus) ? sloMix(ctx.segmentId, ctx.sloMap) : null;
+  if (mix) {
+    const [first, then] = a.focus === 'summative'
+      ? [`${mix.summative.join(', ')} (Summative: tested in the board exam)`, `${mix.formative.join(', ')} (Formative)`]
+      : [`${mix.formative.join(', ')} (Formative: assessed in class)`, `${mix.summative.join(', ')} (Summative)`];
+    lines.push(`SLO focus: Focus first on ${first}; give them most of the time and practice. Treat ${then} more briefly.`);
+  }
+  return lines;
+}
+
+/** The instruction for reviseLessonPlan. Takes parsed answers only; ctx as parseOwnAnswers's. */
+function buildOwnInstruction(answers, ctx) {
   const a = answers || {};
-  if (!SIZES[a.size] || !LEVELS[a.level] || !WAYS[a.way] || !Array.isArray(a.resources)) {
+  const way = WAYS[a.way] || SECONDARY_WAYS[a.way];
+  if (!SIZES[a.size] || !LEVELS[a.level] || !way || !Array.isArray(a.resources)) {
     throw new Error('buildOwnInstruction needs answers from parseOwnAnswers');
   }
   const have = a.resources.map((r) => RESOURCES[r]).join(', ');
@@ -74,10 +126,11 @@ function buildOwnInstruction(answers) {
     'Rewrite this lesson for ONE teacher\'s own class. Keep the same pages, the same learning outcomes and the same layout and length.',
     `Her class: ${SIZES[a.size]}; ${LEVELS[a.level]}.`,
     `What she has: ${have}. Do not use anything else (no slates, printing or electricity unless listed).`,
-    `Teaching way: ${WAYS[a.way]}`,
+    `Teaching way: ${way}`,
     'Every part still names the book page it uses. Every part has a quick check for understanding.',
     'Activities may go beyond the book but stay rooted in the page; they are not only copying, repeating or memorising.',
   ];
+  if (secondaryBand(ctx)) lines.push(...secondaryLines(a, ctx || {}));
   if (a.note) lines.push(`Her own note: "${a.note}"`);
   return lines.join('\n');
 }
