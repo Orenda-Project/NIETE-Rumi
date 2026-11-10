@@ -215,6 +215,26 @@ describe('loadPageRangeContent', () => {
     expect(last.filters.find((f) => f.fn === 'eq').args).toEqual(['textbook_id', 'tb-cs9']);
   });
 
+  // Production cases (bd-qyi45h, 10 Nov 2026): 3 of the 7 refusals were G11 computer science,
+  // whose book has 214 page rows and prints up to page 220.
+  it('accepts the last chapter of the G11 computer science book (214 rows, prints to 220)', async () => {
+    mockResults.push({ data: { id: 'tb-cs11', total_pages: 214, pdf_page_offset: 0 }, error: null });
+    mockResults.push({ data: { textbook_page_number: 220 }, error: null });
+    mockResults.push({
+      data: [215, 216, 217, 218, 219, 220].map((n) => ({ textbook_page_number: n, page_content: `p${n}` })),
+      error: null,
+    });
+    const out = await BookContent.loadPageRangeContent({ grade: 11, subject: 'computer_science', pageRanges: '215-220' });
+    expect(out.pagesFound).toEqual([215, 216, 217, 218, 219, 220]);
+  });
+
+  it('does not look the last page up when every typed page is within total_pages', async () => {
+    mockResults.push({ data: SHORT, error: null });
+    mockResults.push({ data: [{ textbook_page_number: 66, page_content: 'p66' }], error: null });
+    await BookContent.loadPageRangeContent({ grade: 9, subject: 'computer_science', pageRanges: '66' });
+    expect(mockCalls.filter((c) => c.table === 'textbook_pages')).toHaveLength(1);
+  });
+
   it('tolerates a gap — asks for 3, gets 2, says which it got', async () => {
     mockResults.push({ data: BOOK, error: null });
     mockResults.push({
