@@ -17,6 +17,7 @@ import {
 import { nextStep, ownUrl, prevStep, readOwn, stepsFor, toAnswers, type OwnAt } from './state';
 import { fetchSloMix, makeOwnPlan, ownable, useLpMakeOwn } from './api';
 import { EXTENDS, nextLesson } from './extend';
+import type { Refusal } from './change';
 import { PagesBox } from './PagesBox';
 import { fmtPg, parseLabel, samePages, type PageRange } from './pages';
 
@@ -51,7 +52,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const navigate = useNavigate();
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<Refusal | 'error' | null>(null);
   const [lessons, retry] = useLoad(() => lessonPlans.lessons(s.grade, s.subject, s.chapter), `l:${s.grade}:${s.subject}:${s.chapter}`);
   const plans = (dataOf(lessons) ?? []).filter(ownable);
   const k5 = plans.some((l) => l.lane === 'k5');
@@ -87,10 +88,11 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   async function make() {
     if (!seg || busy) return; // her plan's own lane (6–12 or 1–5) decides what is sent: wait for the list
     setBusy(true);
-    setFailed(false);
-    const id = await makeOwnPlan(seg, toAnswers(s, note, next?.id ?? null));
+    setFailed(null);
+    const r = await makeOwnPlan(seg, toAnswers(s, note, next?.id ?? null));
     setBusy(false);
-    if (!id) { setFailed(true); return; }
+    if (!r || !('renderId' in r)) { setFailed(r && 'outcome' in r ? r.outcome : 'error'); return; }
+    const id = r.renderId;
     navigate(lessonsUrl('preparing', {
       grade: s.grade, subject: s.subject, chapter: s.chapter, lesson: s.seg, render: id, title: seg?.title ?? C.makeMyOwn,
     }), { replace: true });
@@ -103,7 +105,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
           : s.step === 'purpose' ? ok({}, !!s.purpose)
             : s.step === 'way' ? ok({ way: wayNow }, slo.status !== 'loading') // which step is next waits for the SLO mix
               : s.step === 'focus' ? ok({}, !!s.focus)
-                : <DockButton disabled={busy || !seg || !isComplete({ grade: s.grade, subject: s.subject, segment: s.seg ?? '', size: s.size, resources: s.res, level: s.level, way: s.way, purpose: s.purpose })} testId="own-make" onClick={() => { void make(); }}>{failed ? C.tryAgain : C.makeMyPlan}</DockButton>;
+                : <DockButton disabled={busy || !seg || !isComplete({ grade: s.grade, subject: s.subject, segment: s.seg ?? '', size: s.size, resources: s.res, level: s.level, way: s.way, purpose: s.purpose })} testId="own-make" onClick={() => { void make(); }}>{failed === 'error' ? C.tryAgain : C.makeMyPlan}</DockButton>;
 
   return (
     <TeacherPage
@@ -197,7 +199,7 @@ function AddNext({ C, chosen, nextLabel, onPick }: {
 }
 
 function Check({ s, C, k5, nextLabel, pagesLabel, gradeLabel, note, setNote, failed }: {
-  s: OwnAt; C: OwnCopy; k5: boolean; nextLabel: string | null; pagesLabel: string; gradeLabel: string; note: string; setNote: (v: string) => void; failed: boolean;
+  s: OwnAt; C: OwnCopy; k5: boolean; nextLabel: string | null; pagesLabel: string; gradeLabel: string; note: string; setNote: (v: string) => void; failed: Refusal | 'error' | null;
 }) {
   const at = (step: OwnAt['step']) => ownUrl({ ...s, step });
   return (
@@ -224,7 +226,7 @@ function Check({ s, C, k5, nextLabel, pagesLabel, gradeLabel, note, setNote, fai
           data-testid="own-note"
         />
       </label>
-      {failed ? <p role="alert" className="text-[16px] font-semibold text-[#c8331f]">{C.couldNotMake}</p> : null}
+      {failed ? <p role="alert" className="text-[16px] font-semibold text-[#c8331f]">{failed === 'error' ? C.couldNotMake : C.refusals[failed]}</p> : null}
     </>
   );
 }

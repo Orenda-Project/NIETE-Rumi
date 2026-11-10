@@ -48,6 +48,7 @@ function service(lesson = { lessonId: LESSON, lang: 'en', grade: 1, subject: 'en
     patchOwn: jest.fn(),
     queueJob: jest.fn(async () => {}),
     selectOwn: jest.fn(),
+    countToday: jest.fn(async () => 0), // bd-snkn32.15: the daily limit is read first
     log: jest.fn(),
   });
   return { svc, inserts };

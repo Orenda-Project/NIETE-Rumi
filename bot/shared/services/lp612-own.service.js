@@ -30,6 +30,7 @@
  */
 
 const { parseOwnAnswers } = require('./lp612-own-instruction');
+const { DAILY_LIMIT, karachiDayStart, changesLeft, bandOf } = require('./lp-own-edit-guard');
 const { parseExtend, isAdjacentNext } = require('./lp612-own-extend');
 const { parseK5Pages } = require('./lp-k5-own-pages');
 
@@ -38,14 +39,12 @@ const OWN_JOB_TYPE = 'lp612_own';
 const OWN_LANG = 'en';
 /** The template of a grades 1–5 fork: the stored slide script, rewritten (lp-k5-own) and printed (lp-k5-own-render). */
 const K5_TV = 'k5_own_v1';
-/** Her status read. Plus the AI reviewer's library verdict (V1.9.9). */
+/** Her status read. Plus the AI reviewer's library verdict (V1.9.9) and her change chain's root (V1.9.8). */
 const OWN_READ = 'id, user_id, segment_id, lesson_id, status, r2_key, error_code, lang, started_at, completed_at, '
-  + 'library_eligible, review_score';
+  + 'parent_own_id, library_eligible, review_score';
 
-function createOwnService(deps) {
-  const d = deps;
-
-  async function queue(row, key, correlationId) {
+/** Queue her row's job; a queue that fails marks the row failed, so it never counts (shared with lp612-own-change). */
+async function queueOwn(d, row, key, correlationId) {
     try {
       await d.queueJob(key, OWN_JOB_TYPE, { ownId: row.id, correlationId }, {
         // Volatile parts first, as lp612-serving's enqueue does: the clock keeps a retry from deduping away.
@@ -59,7 +58,12 @@ function createOwnService(deps) {
       return { outcome: 'error' };
     }
     return { outcome: 'queued', ownId: row.id };
-  }
+}
+
+function createOwnService(deps) {
+  const d = deps;
+  const queue = (row, key, correlationId) => queueOwn(d, row, key, correlationId);
+  const now = () => (d.now ? d.now() : Date.now());
 
   /** bd-snkn32.4 — a grades 1–5 day: its own stored plan is the parent, in its book's language. */
   async function requestK5({ userId, lessonId, answers, pages, correlationId }) {
@@ -111,6 +115,8 @@ function createOwnService(deps) {
     const ext = parseExtend(answers.extend);
     if (!ext.ok) return { outcome: 'bad_request', error: ext.error };
     if (ext.extend && lessonId) return { outcome: 'bad_request', error: 'extend is for a grades 6-12 lesson' };
+    // bd-snkn32.15: five makes + changes per Pakistan day, checked before anything is written or asked for.
+    if ((await d.countToday(userId, karachiDayStart(now()))) >= DAILY_LIMIT) return { outcome: 'daily_limit' };
     if (lessonId) return requestK5({ userId, lessonId, answers: parsed.answers, pages: answers.pages, correlationId });
     if (!(await d.segmentExists(segmentId))) return { outcome: 'not_found' };
 
@@ -152,7 +158,7 @@ function createOwnService(deps) {
       return null;
     }
     if (!r || r.user_id !== userId) return null;
-    return {
+    const out = {
       id: r.id,
       segment_id: r.segment_id || r.lesson_id || null, // bd-snkn32.4: a grades 1–5 fork names its day
       status: r.status,
@@ -165,6 +171,15 @@ function createOwnService(deps) {
       library_eligible: r.library_eligible === true, // library only; never gates her plan
       review_score: r.review_score ?? null,
     };
+    if (r.status !== 'ready') return out;
+    // bd-snkn32.15: how many of her two changes are left, counted on the root's whole chain.
+    try {
+      const chain = await d.listChain(r.parent_own_id || r.id, userId);
+      return { ...out, changes_left: changesLeft(chain), own_band: bandOf(r) };
+    } catch (err) {
+      d.log('LP 6-12 own: chain read failed', { ownId, error: err.message });
+      return out;
+    }
   }
 
   return { requestOwn, ownStatus };
@@ -182,6 +197,27 @@ async function segmentExists(supabase, segmentId) {
     .eq('segment_id', segmentId)
     .maybeSingle();
   return !error && !!data;
+}
+
+/** bd-snkn32.15 — the root plan and every change row under it, hers only. */
+async function listChain(supabase, rootId, userId) {
+  const { data, error } = await supabase
+    .from('niete_lp612_own_plans')
+    .select('id, user_id, parent_own_id, edit_round, edit_request, status, r2_key, segment_id, lesson_id, lang, template_version, answers')
+    .or(`id.eq.${rootId},parent_own_id.eq.${rootId}`)
+    .eq('user_id', userId);
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+/** bd-snkn32.15 — her makes + changes since `since` (her Pakistan midnight); failed rows never count. */
+async function countToday(supabase, userId, since) {
+  const { count, error } = await supabase
+    .from('niete_lp612_own_plans')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId).gte('created_at', since).neq('status', 'failed');
+  if (error) throw new Error(error.message);
+  return count || 0;
 }
 
 /** The real wiring. Lazy requires: the queue pulls the AWS SDK, and root suites run before bot/ npm ci. */
@@ -215,6 +251,8 @@ function liveDeps() {
       if (error) throw new Error(error.message);
       return data || null;
     },
+    listChain: (rootId, userId) => listChain(supabase, rootId, userId),
+    countToday: (userId, since) => countToday(supabase, userId, since),
     log: (msg, meta) => logToFile(msg, meta),
   };
 }
@@ -224,6 +262,9 @@ const service = () => { live = live || createOwnService(liveDeps()); return live
 
 module.exports = {
   createOwnService,
+  queueOwn,
+  liveDeps,
+  listChain,
   requestOwn: (args) => service().requestOwn(args),
   ownStatus: (id, userId) => service().ownStatus(id, userId),
   OWN_TABLE,
