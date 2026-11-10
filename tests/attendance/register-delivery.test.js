@@ -58,7 +58,8 @@ function db({ records = [], school = { id: 'sch1', name: 'GGPS Dhoke Ratta' }, p
         select: () => ({
           eq: () => ({
             maybeSingle: async () => ({ data: principal, error: null }),
-            eq: () => ({ order: async () => ({ data: STAFF, error: null }) }),
+            // loadStaffRoster: .eq('school_id').eq('role').is('deleted_at', null).order()
+            eq: () => { const q = { is: () => q, order: async () => ({ data: STAFF, error: null }) }; return q; },
           }),
         }),
       };

@@ -177,6 +177,11 @@ async function schoolsFor(user) {
  * Two sources, in order: the coach's own mapped patch (`leader_teachers`, matched to
  * accounts by phone), then anyone whose account already says they are at this
  * school. A principal has no patch, so the second source is what serves them.
+ *
+ * Live accounts only, from both sources (bd-apnnh2.15). A fold retires the spare
+ * account (deleted_at set, phone 'merged:<id>') and keeps its school and role, so
+ * the school source showed it as a second copy of the teacher; a row retired in the
+ * migrated source system can still hold a real phone, so the mapped source asks too.
  */
 async function teachersFor(user, schoolId, skip = opt('none', TEACHER_SKIP_TITLE)) {
   const byId = new Map();
@@ -191,7 +196,8 @@ async function teachersFor(user, schoolId, skip = opt('none', TEACHER_SKIP_TITLE
   const phones = [...new Set((mapped || []).map((t) => t.teacher_phone_e164).filter(Boolean))];
   if (phones.length) {
     const { data: accounts } = await supabase
-      .from('users').select('id, phone_number, name').in('phone_number', phones);
+      .from('users').select('id, phone_number, name').in('phone_number', phones)
+      .is('deleted_at', null);
     const byPhone = new Map((accounts || []).map((u) => [u.phone_number, u]));
     for (const t of mapped || []) {
       const u = byPhone.get(t.teacher_phone_e164);
@@ -203,6 +209,7 @@ async function teachersFor(user, schoolId, skip = opt('none', TEACHER_SKIP_TITLE
     .from('users')
     .select('id, role, name')
     .eq('school_id', schoolId)
+    .is('deleted_at', null) // live accounts only (bd-apnnh2.15)
     .limit(OPTION_CAP * 2);
   for (const u of atSchool || []) {
     // Coaches and principals are at the school too; they are not its class teachers.

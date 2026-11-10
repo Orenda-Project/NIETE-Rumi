@@ -50,7 +50,8 @@ function db(n, { enrolled = {}, legacy = {} } = {}) {
         select: () => ({
           eq: () => ({
             maybeSingle: () => Promise.resolve({ data: { id: 't1', role: 'teacher' }, error: null }),
-            eq: () => ({ order: () => Promise.resolve({ data: [], error: null }) }),
+            // loadStaffRoster: .eq('school_id').eq('role').is('deleted_at', null).order()
+            eq: () => { const q = { is: () => q, order: () => Promise.resolve({ data: [], error: null }) }; return q; },
           }),
         }),
       };
