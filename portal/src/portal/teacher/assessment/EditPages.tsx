@@ -182,6 +182,12 @@ export function EditPaperPage() {
                     <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-[#f3f4f6] text-[13px] font-bold text-[#9ca3af]">{it.number ?? ''}</span>
                     <span className="line-clamp-2 min-w-0 flex-1 text-[14px] text-[#9ca3af] line-through" dir={d.paper.rtl ? 'rtl' : 'ltr'}>{text}</span>
                   </div>
+                ) : fde ? (
+                  // A board-pattern question is removed or put back, never edited (PATTERN_NO_EDIT): no editor to open.
+                  <div className="flex min-h-[60px] min-w-0 flex-1 items-center gap-2.5 ps-2.5">
+                    <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-[#f3f4f6] text-[13px] font-bold text-[#33374a]">{it.number ?? ''}</span>
+                    <span className="line-clamp-2 min-w-0 flex-1 text-[14px] font-medium leading-snug" dir={d.paper.rtl ? 'rtl' : 'ltr'}>{text}</span>
+                  </div>
                 ) : (
                   <Link to={editQuestionPath(paperId, it.id)} className={cn('flex min-h-[60px] min-w-0 flex-1 items-center gap-2.5 ps-2.5', FOCUS)}>
                     <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-[#f3f4f6] text-[13px] font-bold text-[#33374a]">{it.number ?? ''}</span>
@@ -207,7 +213,7 @@ export function EditPaperPage() {
                 const line = willSay(it, removed);
                 return line ? <p data-testid="will-say" className="-mt-1.5 pb-2.5 pe-3 ps-12 text-[13px] text-[#6b7280]">{line}</p> : null;
               })()}
-              {!removed && (it.subs ?? []).map((s) => (
+              {!removed && !fde && (it.subs ?? []).map((s) => (
                 <Link
                   key={s.index}
                   to={editQuestionPath(paperId, `${it.id}#${s.index}`)}
@@ -340,7 +346,8 @@ export function EditQuestionPage({ mode }: { mode: 'edit' | 'add' }) {
       </TeacherPage>
     );
   }
-  if (!ready || !d) return <Navigate to={editPath(paperId)} replace />;
+  // A board-pattern paper is remove / put back only (PATTERN_NO_EDIT): a typed or stale edit link goes back to its editor.
+  if (!ready || !d || (mode === 'edit' && (d.paper as PatternPaper).pattern)) return <Navigate to={editPath(paperId)} replace />;
 
   const form = values ?? (mode === 'edit' ? valuesFromFields(fields as EditFields) : blankValues(kind!));
 

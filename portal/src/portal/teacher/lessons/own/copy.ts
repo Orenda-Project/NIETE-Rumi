@@ -43,7 +43,24 @@ export const OWN_COPY = {
   ways: {
     tarl: "Teach at each child's level", cpa: 'Things → pictures → numbers', phonics: 'Sounds first',
     games: 'Games and movement', story: 'Story and talk',
+    /* grades 6–12 (bd-snkn32.13) */
+    worked: 'Worked examples', numericals: 'Numericals step by step', practical: 'Demonstration or practical',
+    inquiry: 'Inquiry', concept_map: 'Concept map', discussion: 'Structured discussion', reading: 'Close reading',
+    past_paper: 'Past-paper practice',
   },
+  /* grades 6–12: what the lesson is for, and (a mixed lesson) which outcomes first (bd-snkn32.13) */
+  purpose: 'What is this lesson for?',
+  purposeLabel: 'Lesson for',
+  purposes: { new: 'Teach new', revise: 'Revise', board: 'Board exam practice', reteach: 'Re-teach' },
+  focus: 'Which outcomes first?',
+  focusLabel: 'Outcomes first',
+  foci: { summative: 'Board exam (Summative)', formative: 'Classroom (Formative)' },
+  /* bd-snkn32.14 — add the next lesson's pages (step 1, grades 6–12, not on a chapter's last lesson) */
+  addNext: "Add the next lesson's pages",
+  nextLesson: 'Next lesson',
+  extendNone: 'No, just these pages',
+  extends: { one_period: 'Cover more in one period', double: 'Double period' },
+  extendHints: { one_period: 'Both lessons in one period', double: 'Two periods together' },
   /* the check screen */
   yourPlan: 'Your plan',
   note: 'Anything else',
@@ -104,7 +121,21 @@ const OWN_COPY_UR: Words<typeof OWN_COPY> = {
   ways: {
     tarl: 'ہر بچے کی سطح پر پڑھائیں', cpa: 'چیزیں ← تصویریں ← اعداد', phonics: 'پہلے آوازیں',
     games: 'کھیل اور حرکت', story: 'کہانی اور بات چیت',
+    worked: 'حل شدہ مثالیں', numericals: 'سوالات مرحلہ وار', practical: 'عملی مظاہرہ',
+    inquiry: 'سوال اور تحقیق', concept_map: 'تصوراتی نقشہ', discussion: 'منظم بحث', reading: 'غور سے پڑھنا',
+    past_paper: 'پچھلے پرچوں کی مشق',
   },
+  purpose: 'یہ سبق کس لیے ہے؟',
+  purposeLabel: 'سبق کا مقصد',
+  purposes: { new: 'نیا پڑھائیں', revise: 'دہرائی', board: 'بورڈ امتحان کی تیاری', reteach: 'دوبارہ پڑھائیں' },
+  focus: 'پہلے کون سے نتائج؟',
+  focusLabel: 'پہلے نتائج',
+  foci: { summative: 'بورڈ امتحان (Summative)', formative: 'کلاس روم (Formative)' },
+  addNext: 'اگلے سبق کے صفحات بھی شامل کریں',
+  nextLesson: 'اگلا سبق',
+  extendNone: 'نہیں، صرف یہی صفحات',
+  extends: { one_period: 'ایک پیریڈ میں زیادہ پڑھائیں', double: 'ڈبل پیریڈ' },
+  extendHints: { one_period: 'دونوں سبق ایک پیریڈ میں', double: 'دو پیریڈ اکٹھے' },
   yourPlan: 'آپ کا لیسن پلان',
   note: 'کچھ اور',
   optional: 'اختیاری',
@@ -142,5 +173,11 @@ export const OWN_COPY_ENTRY: CopyEntry = {
   // Digits and dashes read the same in both languages.
   same: ['sizes.31_50', 'sizes.51_70'],
   // A suggestion's name mirrors the FLN strategy's own name word for word.
-  longOk: ['ways.tarl', 'ways.cpa', 'suggested', 'resourceNames.charts', 'objectsHint', 'level', 'makeMyPlan', 'pagesHint', 'badPages', 'addNextDay'],
+  // A step's question ("Which day?", "What is this lesson for?") is a title, not a label (bd-snkn32.13).
+  longOk: ['ways.tarl', 'ways.cpa', 'suggested', 'resourceNames.charts', 'objectsHint', 'level', 'makeMyPlan', 'day', 'purpose', 'focus',
+    'pagesHint', 'badPages', 'addNextDay',
+    // bd-snkn32.14 — the two shapes are named in full: "one period" vs "double" is the whole choice.
+    'addNext', 'extends.one_period', 'extendHints',
+    // bd-snkn32.15 — Change this plan: its titles and questions, and each refusal she is told about, are sentences.
+    'changeThisPlan', 'changeTitle', 'whichPart', 'whatToChange', 'changeHint', 'changeMyPlan', 'usedBoth', 'refusals'],
 };

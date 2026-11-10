@@ -252,3 +252,80 @@ Feature: Teacher lesson plans
     Then "Check the pages" shows and OK is disabled
     When she sets the pages back to a valid range, answers the rest and reaches the check screen
     Then the check screen shows the day with her pages, and the plan she gets names those pages in its header
+
+  # bd-snkn32.13 — "Make my own" for grades 6–12: what the lesson is for, the band's teaching ways, and (Grade 9–12, a
+  # lesson whose FBISE SLOs mix Summative and Formative) which outcomes come first. Written by hand like the blocks
+  # above; the web driver has no code for them yet (@draft): the demo stack carries no 6–12 catalogue to walk.
+  # Pinned by OwnPage.test.tsx (portal) and tests/lp612/own-ways.test.js (bot). Carry this block over on a regenerate.
+
+  @MKO01 @draft @config-gated
+  Scenario: A Grade 8 teacher says what the lesson is for, and gets ways for a subject lesson
+    Given portal_teacher_v2 and portal_lp_make_own are true
+    And demo teacher 03000000911 is signed in
+    When she opens Make my own on a Grade 8 Science chapter and answers pages, children, what she has and her class
+    Then "What is this lesson for?" offers Teach new, Revise and Re-teach, and no Board exam practice
+    And OK stays off until she picks one
+    When she picks Revise
+    Then the teaching ways start with "Demonstration or practical", marked suggested
+    And none of the grades 1–5 ways is offered (Teach at each child's level, Things → pictures → numbers, Sounds first)
+    When she keeps the suggestion and taps Make my plan
+    Then POST /lp612/own carries way practical and purpose revise, and Preparing opens on her plan
+
+  @MKO02 @draft @config-gated
+  Scenario: A Grade 10 teacher preparing for the board exam is suggested past-paper practice
+    Given portal_teacher_v2 and portal_lp_make_own are true
+    And demo teacher 03000000911 is signed in
+    When she opens Make my own on a Grade 10 Chemistry lesson and reaches "What is this lesson for?"
+    Then Board exam practice is offered
+    When she picks Board exam practice
+    Then "Past-paper practice" is the first teaching way, marked suggested
+
+  @MKO03 @draft @config-gated
+  Scenario: A Grade 10 lesson whose SLOs are mixed asks which outcomes come first; one that is not mixed does not
+    Given portal_teacher_v2 and portal_lp_make_own are true
+    And demo teacher 03000000911 is signed in
+    And GET /lp612/own/slo/<segment> says the lesson mixes Summative and Formative SLOs
+    When she answers through the teaching way and taps OK
+    Then "Which outcomes first?" offers Board exam (Summative) and Classroom (Formative), each with its SLO codes
+    When she picks Board exam (Summative) and taps Make my plan
+    Then POST /lp612/own carries focus summative
+    When she makes her own plan on a lesson that is not mixed
+    Then OK on the teaching way goes straight to "Your plan"
+
+  @MKO04 @draft @config-gated
+  Scenario: A Grade 1–5 Make my own is unchanged
+    Given portal_teacher_v2 and portal_lp_make_own are true
+    And demo teacher 03000000911 is signed in
+    When she opens Make my own on a Grade 4 Math chapter
+    Then there is no "What is this lesson for?" step and no outcomes step
+    And the teaching ways are the grades 1–5 ones, as before
+
+  # Make my own, Grades 6–12: "Add the next lesson's pages" (bd-snkn32.14). Behind app_settings `portal_lp_make_own`.
+  # Hand-written after the generated TL scenarios, like the FLN block: not page-health rows, so gen_page_features.py
+  # cannot express them and the web driver has no code for them yet (@draft). The component-level proof is
+  # portal/src/portal/teacher/lessons/own/OwnExtend.test.tsx; the server-side refusal is tests/lp612/own-extend.test.js.
+  # Re-running the generator rewrites this file — carry this block over when it does.
+
+  @OWN02 @draft @config-gated
+  Scenario: Make my own offers the next lesson's pages, and the plan she asks for covers both lessons
+    Given portal_lp_make_own is on for demo teacher 03000000911
+    And she opens Make my own on a Grades 6–12 chapter and picks a lesson that is not the chapter's last
+    Then "Add the next lesson's pages" is shown under the lessons, naming the next lesson, with "No, just these pages" chosen
+    And it offers "Cover more in one period" and "Double period"
+    When she picks "Double period" and answers the rest
+    Then the check screen shows "Next lesson" as "Double period" with the next lesson's name
+    When she makes the plan
+    Then her plan is made from both lessons' pages, at two periods' length
+
+  @OWN03 @draft @config-gated
+  Scenario: On the last lesson of a chapter there is no next lesson to add
+    Given portal_lp_make_own is on for demo teacher 03000000911
+    When she opens Make my own on a Grades 6–12 chapter and picks its last lesson
+    Then "Add the next lesson's pages" is not shown, and the plan she makes covers that lesson's pages only
+
+  @OWN04 @draft @config-gated
+  Scenario: Changing the lesson clears the next-lesson choice
+    Given portal_lp_make_own is on for demo teacher 03000000911
+    And she has picked a lesson and "Cover more in one period"
+    When she picks a different lesson
+    Then "No, just these pages" is chosen again, so a choice made for one lesson never rides on another

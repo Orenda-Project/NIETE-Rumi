@@ -31,6 +31,7 @@
 
 const { parseOwnAnswers } = require('./lp612-own-instruction');
 const { DAILY_LIMIT, karachiDayStart, changesLeft, bandOf } = require('./lp-own-edit-guard');
+const { parseExtend, isAdjacentNext } = require('./lp612-own-extend');
 const { parseK5Pages } = require('./lp-k5-own-pages');
 
 const OWN_TABLE = 'niete_lp612_own_plans';
@@ -85,18 +86,45 @@ function createOwnService(deps) {
     return queue(row, lessonId, correlationId);
   }
 
+  /**
+   * bd-snkn32.14 — "Add the next lesson's pages": the next lesson must be the ADJACENT one in the SAME book and chapter
+   * (the book's order), checked here before anything is written. Its shared plan is asked for like hers. null = fine.
+   */
+  async function checkExtend({ segmentId, extend, userId, tv, correlationId }) {
+    const first = await d.loadSegment(segmentId);
+    const rows = first ? await d.chapterSegments(first) : [];
+    if (!isAdjacentNext(first, extend.next, rows)) {
+      return { outcome: 'bad_request', error: 'extend.next is not the next lesson of this chapter' };
+    }
+    const doc = await d.readStoredDoc({ segmentId: extend.next, lang: OWN_LANG, tv, correlationId });
+    if (doc) return null;
+    const asked = await d.requestParent({ segmentId: extend.next, userId, lang: OWN_LANG, surface: 'portal', correlationId });
+    const outcome = asked && asked.outcome;
+    if (outcome === 'held' || outcome === 'not_found') return { outcome };
+    if (outcome === 'error' || outcome === 'deliver_failed') return { outcome: 'error' };
+    return null;
+  }
+
   async function requestOwn({ userId, segmentId, lessonId, answers, correlationId = null } = {}) {
     if (!userId || (!segmentId === !lessonId)) {
       return { outcome: 'bad_request', error: 'userId and one of segmentId or lessonId are required' };
     }
-    const parsed = parseOwnAnswers(answers);
+    // bd-snkn32.13: a 6–12 segment's answers are checked against its grade band's ways (a 1–5 day: the primary ones).
+    const parsed = parseOwnAnswers(answers, lessonId ? undefined : { segmentId });
     if (!parsed.ok) return { outcome: 'bad_request', error: parsed.error };
+    const ext = parseExtend(answers.extend);
+    if (!ext.ok) return { outcome: 'bad_request', error: ext.error };
+    if (ext.extend && lessonId) return { outcome: 'bad_request', error: 'extend is for a grades 6-12 lesson' };
     // bd-snkn32.15: five makes + changes per Pakistan day, checked before anything is written or asked for.
     if ((await d.countToday(userId, karachiDayStart(now()))) >= DAILY_LIMIT) return { outcome: 'daily_limit' };
     if (lessonId) return requestK5({ userId, lessonId, answers: parsed.answers, pages: answers.pages, correlationId });
     if (!(await d.segmentExists(segmentId))) return { outcome: 'not_found' };
 
     const tv = d.templateVersion();
+    if (ext.extend) {
+      const refused = await checkExtend({ segmentId, extend: ext.extend, userId, tv, correlationId });
+      if (refused) return refused;
+    }
     const parent = await d.readStoredDoc({ segmentId, lang: OWN_LANG, tv, correlationId });
     if (!parent) {
       const asked = await d.requestParent({ segmentId, userId, lang: OWN_LANG, surface: 'portal', correlationId });
@@ -111,7 +139,7 @@ function createOwnService(deps) {
       lang: OWN_LANG,
       template_version: tv,
       status: 'authoring',
-      answers: parsed.answers,
+      answers: ext.extend ? { ...parsed.answers, extend: ext.extend } : parsed.answers,
       correlation_id: correlationId,
     });
     if (!row || !row.id) return { outcome: 'error' };
@@ -201,6 +229,8 @@ function liveDeps() {
   return {
     templateVersion,
     segmentExists: (segmentId) => segmentExists(supabase, segmentId),
+    loadSegment: (segmentId) => require('./lp612-own-extend.store').loadSegment(supabase, segmentId),
+    chapterSegments: (seg) => require('./lp612-own-extend.store').chapterSegments(supabase, seg),
     readStoredDoc: (args) => Serving.readStoredDoc(args),
     k5Lesson: (lessonId) => require('./lp-k5-own-source').k5Lesson(lessonId),
     requestParent: (args) => Serving.requestLesson(args),

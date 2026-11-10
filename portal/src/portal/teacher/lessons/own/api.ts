@@ -1,5 +1,6 @@
 import api from '../../../services/api';
-import type { Level, Resource, Size, Way } from './rules';
+import type { Focus, Level, Purpose, Resource, Size, Way } from './rules';
+import type { Extend } from './extend';
 import { isRefusal, type Refusal } from './change';
 
 /**
@@ -16,13 +17,27 @@ export const ownable = (l: Pick<LpLesson, 'lane' | 'kind'>) =>
   (l.lane === 'g612' && l.kind === 'lesson') || (l.lane === 'k5' && l.kind === 'day');
 
 export type OwnBody = {
-  size: Size | null; resources: Resource[]; level: Level | null; way: Way | null; note: string;
+  size: Size | null; resources: Resource[]; level: Level | null; way: Way | null; note: string; purpose?: Purpose; focus?: Focus;
   /** bd-snkn32.17 — grades 1–5 only: her book pages, when not the day's own. */
   pages?: { start: number; end: number };
+  /** bd-snkn32.14 — grades 6–12: the next lesson's pages joined on, and how. */
+  extend?: { next: string; shape: Extend };
 };
 
 /** What the bot answered: her new plan's id, a refusal she is told about (bd-snkn32.15), or null (could not reach it). */
 export type OwnAnswer = { renderId: string } | { outcome: Refusal } | null;
+
+/** bd-snkn32.13 — a Grade 9–12 lesson's FBISE SLOs, split when they mix Summative and Formative. Not mixed on any failure. */
+export type SloMix = { mixed: boolean; summative: string[]; formative: string[] };
+export async function fetchSloMix(segmentId: string): Promise<SloMix> {
+  try {
+    const { data } = await api.get(`/lp612/own/slo/${encodeURIComponent(segmentId)}`);
+    const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+    return { mixed: data?.mixed === true, summative: list(data?.summative), formative: list(data?.formative) };
+  } catch {
+    return { mixed: false, summative: [], formative: [] };
+  }
+}
 
 async function postOwn(url: string, body: object): Promise<OwnAnswer> {
   try {

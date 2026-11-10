@@ -100,4 +100,15 @@ router.post('/lp612/own/:ownId/change', requirePortalAuth, requireMakeOwn, async
   }
 });
 
+/**
+ * bd-snkn32.13 — GET /api/portal/lp612/own/slo/:segmentId → { success, mixed, summative, formative }. The form asks
+ * "which learning outcomes first?" only for a lesson whose FBISE SLOs mix Summative and Formative. Read from the
+ * bot's own map (no bot round trip: it is a file in this deploy), so the form and the instruction agree.
+ */
+router.get('/lp612/own/slo/:segmentId', requirePortalAuth, requireMakeOwn, (req, res) => {
+  const { sloMix } = require('../../bot/shared/services/lp612-own-slo');
+  const mix = sloMix(String(req.params.segmentId || '').slice(0, 200));
+  return res.json({ success: true, mixed: !!mix, summative: mix ? mix.summative : [], formative: mix ? mix.formative : [] });
+});
+
 module.exports = router;

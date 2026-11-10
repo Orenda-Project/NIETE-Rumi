@@ -106,7 +106,7 @@ export default function SendReport() {
       {ready && view && (
         <>
           <h2 className="mx-1 mt-1 text-[22px] font-semibold leading-[1.2]">{C.preview}</h2>
-          {row && (row.score ?? row.dcScore) != null && (
+          {routes.showScores && row && (row.score ?? row.dcScore) != null && (
             <section data-testid="send-score" className={cn(LIST_CARD, "flex items-center gap-3.5 p-3.5")}>
               <ScoreRing value={row.score ?? row.dcScore ?? null} label={C.dcScore} />
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">

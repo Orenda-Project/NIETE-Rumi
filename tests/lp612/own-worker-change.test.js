@@ -10,7 +10,7 @@ jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
 const { createOwnWorker } = require('../../bot/workers/lp612-own.worker');
 
-const ANSWERS = { size: '51_70', resources: ['textbook'], level: 'mixed', way: 'tarl', note: '' };
+const ANSWERS = { size: '51_70', resources: ['textbook'], level: 'mixed', way: 'practical', note: '' };
 const SEG = 'grade_8_science.c02.p010-013';
 const ROOT = { id: 'root', user_id: 'u1', segment_id: SEG, status: 'ready', parent_own_id: null, r2_key: `lp612/v9.1/en/edits/${SEG}/aaa.pdf` };
 const R1 = { id: 'r1', user_id: 'u1', segment_id: SEG, status: 'ready', parent_own_id: 'root', edit_round: 1, r2_key: `lp612/v9.1/en/edits/${SEG}/bbb.pdf` };
@@ -88,5 +88,23 @@ test('grades 1–5: the latest ready script is rewritten with her one change, ke
     script: SCRIPT, edit: { part: 'we_do', text: 'کنکروں سے گنتی کروائیں جوڑوں میں' }, lang: 'ur', grade: 3,
   }));
   expect(puts[0].key).toMatch(new RegExp(`^lp612/own-k5/ur/${LESSON}/[0-9a-f]{16}\\.pdf$`));
+  expect(patches[patches.length - 1]).toMatchObject({ status: 'ready' });
+});
+
+test('6–12, a plan with the next lesson\'s pages: the change keeps both lessons\' pages and never waits for a shared plan', async () => {
+  const A = { segment_id: SEG, grade: 8, book_stem: 'sci8', chapter_key: 'c02', order_index: 1, printed_page_start: 10, printed_page_end: 13, subtopic_title: 'a', menu_title: 'a', slo_codes: [], slo_descriptions: [] };
+  const B = { ...A, segment_id: 'grade_8_science.c02.p014-016', order_index: 2, printed_page_start: 14, printed_page_end: 16, subtopic_title: 'b', menu_title: 'b' };
+  const answers = { ...ANSWERS, extend: { next: B.segment_id, shape: 'double' } };
+  const { worker, deps, patches } = harness({
+    claimOwn: jest.fn(async () => ({ ...ROW, answers })),
+    loadSegment: jest.fn(async () => A),
+    chapterSegments: jest.fn(async () => [A, B]),
+  });
+  await worker.process({ ownId: 'r2' });
+  expect(deps.readStoredDoc).not.toHaveBeenCalled();
+  const args = deps.revise.mock.calls[0][0];
+  expect(args.doc).toEqual({ v: 'r1' });
+  expect(args.segment.printed_page_end).toBe(16);
+  expect(args.instruction).toMatch(/role play with four groups/);
   expect(patches[patches.length - 1]).toMatchObject({ status: 'ready' });
 });
