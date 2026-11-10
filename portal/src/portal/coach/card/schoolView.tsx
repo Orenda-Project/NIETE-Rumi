@@ -1,11 +1,13 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Star, Users } from "lucide-react";
 import { FEATURE_HUE } from "../../teacher/icons/features";
 import { useCopy } from "../../teacher/i18n";
 import { SCHOOL_CARD } from "./copy";
 import { PEOPLE } from "../people/copy";
-import { useLevelNames } from "../people/level";
+import { useLevelNames, type TeachingLevel } from "../people/level";
+import { EmptyRow } from "../people/rows";
+import { SearchBox, SectionLabel } from "../ui";
 import { CARD_FEATURES, FEATURE_OF, GLYPH } from "./parts";
 import type { CardFeature, CardTeacher, CoachObsTeacher, Overview, PeriodKey, SchoolScores } from "./types";
 
@@ -38,7 +40,7 @@ const BOX_ART = { lp: FEATURE_OF.lp, training: FEATURE_OF.training, papers: FEAT
 
 /** A box of the overview: its glyph and name with a ›, its number big in its colour, then a white pill and a grey line. */
 function Box({ kind, name, number, word, pill, line, to, wide = false }: {
-  kind: BoxKind; name: string; number: string; word?: string; pill?: string | null; line?: string | null; to: string; wide?: boolean;
+  kind: BoxKind; name: string; number: string; word?: string; pill?: string | null; line?: string | null; to?: string; wide?: boolean;
 }) {
   const hue = FEATURE_HUE[BOX_ART[kind]];
   const Glyph = kind === "coach" ? Users : GLYPH[kind as CardFeature];
@@ -52,19 +54,29 @@ function Box({ kind, name, number, word, pill, line, to, wide = false }: {
       {line ? <span className="text-[12px] font-semibold leading-[1.35] text-[#4b5563] rtl:leading-[1.8]">{line}</span> : null}
     </>
   );
-  return (
-    <Link to={to} data-testid={`box-${kind}`}
-      aria-label={[name, number, word, pill, line].filter(Boolean).join(", ")}
-      className={`flex min-h-[112px] min-w-0 flex-col gap-1 rounded-[18px] p-3 ${TAP} ${wide ? "col-span-2" : ""}`} style={{ background: hue.bg }}>
+  const body = (
+    <>
       <span className="flex items-center gap-1.5">
         <Glyph className="h-[17px] w-[17px] shrink-0" strokeWidth={2.2} style={{ color: hue.fg }} aria-hidden="true" />
         <span className="min-w-0 flex-1 text-[14px] font-semibold leading-[1.25] text-[#1d2025] rtl:leading-[1.8]">{name}</span>
-        <ChevronRight className="h-[18px] w-[18px] shrink-0 text-[#6b7280] rtl:rotate-180" aria-hidden="true" />
+        {to ? <ChevronRight className="h-[18px] w-[18px] shrink-0 text-[#6b7280] rtl:rotate-180" aria-hidden="true" /> : null}
       </span>
       {wide
         ? <span className="flex items-center gap-3">{big}<span className="flex min-w-0 flex-col gap-0.5">{lines}</span></span>
         : <>{big}{lines}</>}
-    </Link>
+    </>
+  );
+  const label = [name, number, word, pill, line].filter(Boolean).join(", ");
+  // bd-33wxxi.3 — no page behind it (a principal's My school): information, so flat — no link, no chevron, no tap look.
+  if (!to) {
+    return (
+      <div data-testid={`box-${kind}`} aria-label={label}
+        className={`flex min-h-[112px] min-w-0 flex-col gap-1 rounded-[18px] p-3 ${wide ? "col-span-2" : ""}`} style={{ background: hue.bg }}>{body}</div>
+    );
+  }
+  return (
+    <Link to={to} data-testid={`box-${kind}`} aria-label={label}
+      className={`flex min-h-[112px] min-w-0 flex-col gap-1 rounded-[18px] p-3 ${TAP} ${wide ? "col-span-2" : ""}`} style={{ background: hue.bg }}>{body}</Link>
   );
 }
 
@@ -72,16 +84,21 @@ function Box({ kind, name, number, word, pill, line, to, wide = false }: {
  * The overview card. `ov` absent (an older server, or not loaded): every number is "—". `link(kind)` is the box's page,
  * carrying the period and the level.
  */
-export function OverviewCard({ ov, scores, period, link }: {
-  ov: Overview | null | undefined; scores: Partial<Record<"dc" | "coach", SchoolScores>> | null | undefined; period: PeriodKey;
-  link: (kind: BoxKind) => string;
+export function OverviewCard({ ov, scores, period, link, countsOnly = false }: {
+  ov: Overview | null | undefined;
+  scores: Partial<Record<"dc" | "coach", Pick<SchoolScores, "count" | "makers"> & Partial<SchoolScores>>> | null | undefined;
+  period: PeriodKey;
+  /** Each box's page. Absent (a principal's My school: no page behind the boxes), the boxes are flat information. */
+  link?: (kind: BoxKind) => string;
+  /** bd-33wxxi.3 — a principal's My school (#55 Q1): the DC and Coach boxes show how many and by how many teachers, never an average. */
+  countsOnly?: boolean;
 }) {
   const C = useCopy(SCHOOL_CARD);
   const n = ov?.teachers ?? null;
   const rate = oneDecimal(ov?.lp.perTeacherDay);
   const rateBefore = oneDecimal(ov?.lp.prev.perTeacherDay);
   const pct = (v: number | null | undefined) => C.pct(v ?? null);
-  const scoreLine = (s: SchoolScores | undefined) => {
+  const scoreLine = (s: (Pick<SchoolScores, "count" | "makers"> & Partial<SchoolScores>) | undefined) => {
     if (!s) return null;
     const before = s.prevAvg != null ? C.pctBefore[period](pct(s.prevAvg)) : null;
     return [C.obsN(s.count), before].filter(Boolean).join(" · ");
@@ -95,16 +112,28 @@ export function OverviewCard({ ov, scores, period, link }: {
       <span className="text-[17px] font-semibold leading-[1.3] text-[#1d2025] rtl:leading-[1.8]">{C.usedNiete[period]}</span>
       {ov && n != null && <span className="text-[14px] font-semibold text-[#6b7280] rtl:leading-[1.8]">{C.usedBefore[period](ov.active.prev, n)}</span>}
       {ov && ov.active.now === 0 && <span data-testid="no-use-yet" className="mt-1 text-[15px] leading-[1.4] text-[#1d2025] rtl:leading-[1.9]">{C.noUseYet[period]}</span>}
-      {n != null && <span className="mt-2.5 text-[13px] font-semibold text-[#6b7280] rtl:leading-[1.8]">{C.acrossTap[period](n)}</span>}
+      {/* "· tap a box for details" only when the boxes open a page (not on a principal's My school, bd-33wxxi.3) */}
+      {n != null && link && <span className="mt-2.5 text-[13px] font-semibold text-[#6b7280] rtl:leading-[1.8]">{C.acrossTap[period](n)}</span>}
       <div data-testid="overview-boxes" className="mt-2 grid grid-cols-2 gap-2.5">
-        <Box kind="lp" name={C.tiles.lp} number={num(ov?.lp.total, C.dash)} to={link("lp")}
+        <Box kind="lp" name={C.tiles.lp} number={num(ov?.lp.total, C.dash)} to={link?.("lp")}
           pill={rate ? C.perTeacherDay[period](rate) : null} line={rateBefore ? C.rateBefore[period](rateBefore) : null} />
-        <Box kind="training" name={C.boxTraining} number={num(ov?.training.modules, C.dash)} to={link("training")}
+        <Box kind="training" name={C.boxTraining} number={num(ov?.training.modules, C.dash)} to={link?.("training")}
           word={C.tileLabel.training(ov?.training.modules ?? 0)} pill={ov && n != null ? C.byN(ov.training.makers, n) : null} />
-        <Box kind="papers" name={C.tiles.papers} number={num(ov?.papers.total, C.dash)} to={link("papers")}
+        <Box kind="papers" name={C.tiles.papers} number={num(ov?.papers.total, C.dash)} to={link?.("papers")}
           word={C.tileLabel.papers(ov?.papers.total ?? 0)} pill={ov && n != null ? C.byN(ov.papers.makers, n) : null} />
-        <Box kind="dc" name={C.digitalCoaching} number={pct(scores?.dc?.avg)} to={link("dc")} word={C.average} line={scoreLine(scores?.dc)} />
-        <Box kind="coach" name={C.coachObsName} number={pct(scores?.coach?.avg)} to={link("coach")} word={C.coachAverage} line={scoreLine(scores?.coach)} wide />
+        {countsOnly ? (
+          <>
+            <Box kind="dc" name={C.digitalCoaching} number={num(scores?.dc?.count, C.dash)} to={link?.("dc")}
+              word={C.tileLabel.dc(scores?.dc?.count ?? 0)} pill={scores?.dc && n != null ? C.byN(scores.dc.makers, n) : null} />
+            <Box kind="coach" name={C.coachObsName} number={num(scores?.coach?.count, C.dash)} to={link?.("coach")}
+              word={C.tileLabel.coach(scores?.coach?.count ?? 0)} pill={scores?.coach && n != null ? C.byN(scores.coach.makers, n) : null} wide />
+          </>
+        ) : (
+          <>
+            <Box kind="dc" name={C.digitalCoaching} number={pct(scores?.dc?.avg)} to={link?.("dc")} word={C.average} line={scoreLine(scores?.dc)} />
+            <Box kind="coach" name={C.coachObsName} number={pct(scores?.coach?.avg)} to={link?.("coach")} word={C.coachAverage} line={scoreLine(scores?.coach)} wide />
+          </>
+        )}
       </div>
     </section>
   );
@@ -193,6 +222,37 @@ export function TeacherTable({ active, quiet, period, linkOf, state }: {
         </>
       )}
     </section>
+  );
+}
+
+/** Search shows from this many teachers up (the School card's rule). */
+const SEARCH_FROM = 10;
+
+/**
+ * bd-33wxxi.3 — the School view's Teachers section, ONE piece for the coach's School card and a principal's My school
+ * (lifted out of SchoolCardPage, unchanged): the label and its tap hint, search from SEARCH_FROM teachers, the empty
+ * rows, then the table (the active ones by total, the ones with nothing A to Z). `linkOf` is where a row opens.
+ */
+export function SchoolTeachers({ teachers, period, level, linkOf, state }: {
+  teachers: CardTeacher[]; period: PeriodKey; level: TeachingLevel | null; linkOf: (ext: string) => string; state: unknown;
+}) {
+  const C = useCopy(SCHOOL_CARD);
+  const P = useCopy(PEOPLE);
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const shown = useMemo(() => (q ? teachers.filter((t) => t.name.toLowerCase().includes(q)) : teachers), [teachers, q]);
+  const active = shown.filter((t) => t.total > 0)
+    .sort((a, b) => (b.total - a.total) || a.name.localeCompare(b.name));
+  const none = shown.filter((t) => !(t.total > 0)).sort((a, b) => a.name.localeCompare(b.name));
+  return (
+    <>
+      <SectionLabel>{C.teachers}</SectionLabel>
+      <p className="m-0 mx-1 -mt-2 text-[13px] font-semibold text-[#6b7280] rtl:leading-[1.8]">{C.tapTeacher}</p>
+      {teachers.length > SEARCH_FROM && <SearchBox value={query} onChange={setQuery} placeholder={C.teacherName} />}
+      {teachers.length === 0 && <EmptyRow icon={<span>·</span>} testId="no-teachers">{level ? P.noneAtLevel : C.noTeachers}</EmptyRow>}
+      {teachers.length > 0 && shown.length === 0 && <EmptyRow icon={<span>·</span>} testId="no-match">{C.noMatch}</EmptyRow>}
+      {shown.length > 0 && <TeacherTable key={`${period}|${level}|${q}`} active={active} quiet={none} period={period} linkOf={linkOf} state={state} />}
+    </>
   );
 }
 

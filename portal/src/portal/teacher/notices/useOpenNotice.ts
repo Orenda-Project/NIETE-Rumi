@@ -14,6 +14,8 @@ export interface Openable {
   paperId?: string | null;
   /** The coach's observation, once the server has it. */
   observationId?: string | null;
+  /** bd-33wxxi.4 — the page it opens on when that is not the coach's (the principal app's observation page). */
+  openHref?: string | null;
   renderId?: string | null;
   lessonId?: string | null;
   at?: LessonsAt;
@@ -29,7 +31,7 @@ export function useOpenNotice() {
   const openPlan = useLessonPlanOpener();
   return useCallback((item: Openable) => {
     if (item.kind === 'observation') {
-      if (item.observationId) navigate(`/portal/coach/observation/${item.observationId}`);
+      if (item.observationId) navigate(item.openHref || `/portal/coach/observation/${item.observationId}`);
     } else if (item.kind === 'paper' && item.paperId) {
       navigate(paperPath(item.paperId));
     } else if (item.kind === 'lesson' && item.renderId) {

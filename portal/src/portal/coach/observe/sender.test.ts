@@ -165,3 +165,26 @@ describe("a failure", () => {
     expect(retrySend("other")).toBe(false);
   });
 });
+
+// bd-33wxxi.4 — the principal app sends on the same sender: its own Sending page and observation page ride the job.
+describe("the principal app's links", () => {
+  it("the strip opens her Sending page and the ready item opens her observation page; a coach's stay as they were", async () => {
+    const p = pending();
+    startSend(args({ visitId: "900001", waitHref: "/portal/teacher/principal/observe/900001/sending",
+      observationHref: (id) => `/portal/teacher/principal/observation/${id}` }));
+    expect(noticeTracker.getItems()[0]).toMatchObject({ waitHref: "/portal/teacher/principal/observe/900001/sending" });
+    p.done({ coachingSessionId: "cs-9" });
+    await settle();
+    expect(noticeTracker.getItems()[0]).toMatchObject({ state: "ready", observationId: "cs-9", openHref: "/portal/teacher/principal/observation/cs-9" });
+
+    noticeTracker.reset();
+    noticeTracker.attach("923001234567", { server: false });
+    const q = pending();
+    startSend(args());
+    expect(noticeTracker.getItems()[0]).toMatchObject({ waitHref: sendingPath("v1") });
+    q.done({ coachingSessionId: "cs-8" });
+    await settle();
+    expect(noticeTracker.getItems()[0].openHref).toBeUndefined();
+  });
+});
+
