@@ -1,0 +1,2 @@
+{"ts":"2026-11-10T16:00:40Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-home spec_sync=true","sha":"eabc5eec42ea","branch":"bd-snkn32.21-26310","user":""}
+{"ts":"2026-11-10T16:00:43Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.21-26310: teacher-home web lane spec: NOT UPDATED e2e: missing","sha":"eabc5eec42ea","branch":"bd-snkn32.21-26310","user":""}
