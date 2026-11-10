@@ -109,10 +109,19 @@ const BANNED: Ban[] = [
   { lang: "ur", re: /[\u0600-\u06FF]\s*[,?;]|[\u0600-\u06FF]\.(\s|$)/, use: "Urdu punctuation ، ؟ ۔" },
 ];
 
-/** A leaf exempt from the bans, with the ontology's reason. */
-const EXEMPT: Array<{ path: RegExp; why: string }> = [
+/**
+ * A leaf exempt from the bans, with the ontology's reason. `screen` limits it to one copy module's leaves, and `bans`
+ * to those bans only (both optional: no `screen` is every screen, no `bans` is every ban).
+ */
+const EXEMPT: Array<{ screen?: string; path: RegExp; bans?: RegExp[]; why: string }> = [
   { path: /^report\.(lessons|journeyAria)\(\)$/, why: "scores over N taught lessons: the class she taught, not a plan (ontology: Lesson)" },
   { path: /^coach(Module|Intro)$/, why: "Coach Training: the coaching programme's own word for its parts (its pages say MODULE 8 OF 9), not the teacher's Training (Course, Part)" },
+  // bd-17v39c.4.13.10 (queue #19) — the operator, 5 Nov: ONE training number on the coach School card, "modules
+  // completed" (ماڈیول مکمل), one teacher_training_progress row per active module. A coach's screen, not the teacher's;
+  // the teacher app keeps Course and Part until the operator queues the rename (#19 follow-up F2).
+  { screen: "coach · school card", path: /^(featureName\.training|tileLabel\.training\(\)|countsSpoken\(\)|noneYet\.training\.(today|week|month)|modulesOf\(\))$/,
+    bans: [/\bModules?\b/, /ماڈیول/],
+    why: "the coach School card counts Training in modules completed (the operator's 5 Nov decision, queue #19)" },
 ];
 
 describe("the vocabulary guard sees the copy", () => {
@@ -127,16 +136,42 @@ describe("no word the ontology lists under Never", () => {
   for (const ban of BANNED) {
     it(`${ban.lang}: ${ban.re} -> ${ban.use}`, () => {
       const hits = LEAVES.filter((l) => l.lang === ban.lang && ban.re.test(l.text))
-        .filter((l) => !EXEMPT.some((e) => e.path.test(l.path)))
+        .filter((l) => !EXEMPT.some((e) => (!e.screen || e.screen === l.screen)
+          && (!e.bans || e.bans.some((b) => String(b) === String(ban.re))) && e.path.test(l.path)))
         .map((l) => `${l.screen} :: ${l.path} = "${l.text}"`);
       expect(hits, `use "${ban.use}"`).toEqual([]);
     });
   }
 });
 
+// bd-17v39c.4.13.10 (queue #19) — the coach School card counts Training in "modules completed" (the operator, 5 Nov):
+// the Module bans do not apply to its training lines, and the words stay as decided.
+describe("the coach School card's training word (bd-17v39c.4.13.10)", () => {
+  const SCREEN = "coach · school card";
+  const MODULE_BANS = BANNED.filter((b) => String(b.re) === String(/\bModules?\b/) || String(b.re) === String(/ماڈیول/));
+
+  it("the Module bans pass over the card's copy", () => {
+    expect(MODULE_BANS).toHaveLength(2);
+    const hits = LEAVES.filter((l) => l.screen === SCREEN)
+      .filter((l) => MODULE_BANS.some((ban) => ban.lang === l.lang && ban.re.test(l.text)
+        && !EXEMPT.some((e) => (!e.screen || e.screen === l.screen)
+          && (!e.bans || e.bans.some((b) => String(b) === String(ban.re))) && e.path.test(l.path))))
+      .map((l) => `${l.path} = "${l.text}"`);
+    expect(hits).toEqual([]);
+  });
+
+  it("is exempt from the Module bans only, nowhere else", () => {
+    const card = EXEMPT.filter((e) => e.screen === SCREEN);
+    expect(card).toHaveLength(1);
+    expect((card[0].bans || []).map(String).sort()).toEqual(MODULE_BANS.map((b) => String(b.re)).sort());
+  });
+});
+
 /** The decided words, by path inside the module, per screen. */
 type Pin = { screen: string; path: string; en?: string; ur?: string };
 const PINNED: Pin[] = [
+  // bd-17v39c.4.13.10 (queue #19) — the operator, 5 Nov: one training number on the coach School card.
+  { screen: "coach · school card", path: "featureName.training", en: "Modules completed", ur: "ماڈیول مکمل" },
   { screen: "frame (menu, Home, More, My profile)", path: "nav.lessons", en: "Lesson Plans", ur: "لیسن پلان" },
   { screen: "frame (menu, Home, More, My profile)", path: "more.logout", en: "Log out", ur: "لاگ آؤٹ" },
   { screen: "frame (menu, Home, More, My profile)", path: "profile.locked", en: "Locked", ur: "مقفل" },
