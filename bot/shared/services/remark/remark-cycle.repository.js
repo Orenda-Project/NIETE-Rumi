@@ -48,6 +48,8 @@ async function getActiveCycle(now = new Date()) {
 /**
  * The teachers of this principal's school.
  * Scoped by school_id: a principal only ever sees her own school (spec §9).
+ * Live accounts only (bd-apnnh2.15): a fold retires the spare account but keeps
+ * its school and role, so without the filter she would see the teacher twice.
  */
 async function listSchoolTeachers(principal) {
   if (!principal || !principal.school_id) return [];
@@ -56,6 +58,7 @@ async function listSchoolTeachers(principal) {
     .select('id, phone_number, preferred_language, name')
     .eq('school_id', principal.school_id)
     .eq('role', 'teacher')
+    .is('deleted_at', null)
     .order('name', { ascending: true });
   if (error) throw new Error(`remark-cycle: listSchoolTeachers failed — ${error.message}`);
   return data || [];
