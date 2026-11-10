@@ -35,7 +35,7 @@ const LOOK = { teacherHomeCard: true, teacherHomeLook: true, teacherV2: true };
 const HOME = { success: true, now: new Date().toISOString(), order: null, orderOn: false, card: null, scores: { coach: null, observation: null }, quizHome: null };
 const TODAY_TILES = ["Lesson Plans", "Digital Coaching", "Observations", "Training", "Assessment", "Attendance", "My Classes", "Analytics"];
 
-function serve({ features = { ...LOOK, principalApp: true }, home = HOME as Record<string, unknown> } = {}) {
+function serve({ features = { ...LOOK, principalApp: true } as Record<string, unknown>, home = HOME as Record<string, unknown> } = {}) {
   vi.mocked(portal.getConfig).mockResolvedValue({ features } as never);
   vi.mocked(api.get).mockImplementation(((url: string) => {
     if (url === "/me/home") return Promise.resolve({ data: home });
