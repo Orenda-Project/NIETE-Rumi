@@ -13,6 +13,7 @@ import { OFFLINE_COPY } from '../components/assess/offlineCopy';
 import {
   checkForms, dropPageOffline, FAST_START_MS, formFor, prepForms, readPreparedList, readSchools, useR8Switches, within, writeSchools, type PrepResult, type Progress,
 } from '../components/assess/offlineReady';
+import { reportSaOffline, safely, workerState } from '../lib/assess/offlineReport';
 import { childTestSa } from '../services/api';
 import { useChildTestSa } from '../lib/useChildTestSa';
 import { COPY, urDigits, type Lang } from '../lib/assess/copy';
@@ -51,6 +52,8 @@ const LIST_SIZE = 5;
 const TICK_MS = 30_000;
 const DRAIN_EVERY_MS = 30_000;
 const TOAST_MS = 2500;
+/** A class list still not on screen this long after its read began is reported once (sa_list.slow). */
+export const LIST_SLOW_MS = 15_000;
 // a visit start older than twice the visit's 45 minutes belongs to an earlier sitting (sa_resume_repick)
 const SITTING_MS = 2 * VISIT_LIMIT_MS;
 const earlierSitting = (at: number) => Date.now() - at > SITTING_MS;
@@ -208,22 +211,47 @@ export default function LeaderAssess() {
   }, [enabled, step.kind, r8.offlinePrep]);
 
   // the list
+  /** The list read in flight, for the logs (sa_list.*): when it began, whether it was reported slow. */
+  const listRead = useRef<{ t0: number; slow: boolean; timer: number } | null>(null);
   const loadList = useCallback(async (s: SaSchool, key: string) => {
     setLoadFailed(false);
     setProblem(null);
     setOffline(false);
+    const grade = s.grade ?? null;
+    const read = { t0: Date.now(), slow: false, timer: 0 };
+    if (listRead.current) window.clearTimeout(listRead.current.timer);
+    listRead.current = read;
+    read.timer = window.setTimeout(() => safely(async () => {
+      if (listRead.current !== read) return;
+      read.slow = true;
+      const w = await workerState();
+      reportSaOffline({ k: 'list_slow', elapsedMs: Date.now() - read.t0, pending: true, grade, ...w });
+    }), LIST_SLOW_MS);
+    const settled = () => { window.clearTimeout(read.timer); if (listRead.current === read) listRead.current = null; };
     try {
       const out = s.grade ? await childTestSa.getList(s.schoolId, s.visitId, s.grade) : await childTestSa.getList(s.schoolId, s.visitId);
+      settled();
       setList(out.list);
       updateVisit(key, (m) => ({ ...m, list: out.list }));
+      if (read.slow) safely(() => reportSaOffline({ k: 'list_late', elapsedMs: Date.now() - read.t0, grade }));
     } catch (err) {
+      settled();
       const { reason, network } = errorOf(err);
-      if (reason === 'no_class_list' || reason === 'frame_exhausted' || reason === 'not_found') { setProblem(reason); return; }
+      const status = (err as { response?: { status?: number } })?.response?.status ?? null;
+      const failed = (shown: 'problem' | 'failed' | 'saved_list') => safely(() => reportSaOffline({
+        k: 'list_failed', reason, shown, network, status, elapsedMs: Date.now() - read.t0, grade,
+      }));
+      if (reason === 'no_class_list' || reason === 'frame_exhausted' || reason === 'not_found') { failed('problem'); setProblem(reason); return; }
       // sa_r8_offline_prep: a list kept by "Get ready for offline" when today's visit has none on this phone
       const saved = readVisit(key).list || (r8Ref.current.offlinePrep ? readPreparedList(s.schoolId, s.grade) : null);
-      if (network && saved) { setList(saved); setOffline(true); } else setLoadFailed(true);
+      if (network && saved) { failed('saved_list'); setList(saved); setOffline(true); } else { failed('failed'); setLoadFailed(true); }
     }
   }, [updateVisit]);
+
+  // the list step left (or the page closed) before the read answered: no slow report for a screen no longer shown
+  useEffect(() => () => {
+    if (listRead.current) { window.clearTimeout(listRead.current.timer); listRead.current = null; }
+  }, [step]);
 
   useEffect(() => {
     if (step.kind === 'list') void loadList(step.school, visitKey(step.school.schoolId, undefined, step.school.grade));
