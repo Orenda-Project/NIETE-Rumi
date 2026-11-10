@@ -1,0 +1,2 @@
+{"ts":"2026-11-10T08:54:41Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,teacher-lessons spec_sync=true","sha":"5cbe1ec04286","branch":"bd-snkn32.13-92412","user":""}
+{"ts":"2026-11-10T08:54:44Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.13-92412: lesson-plan spec: NOT UPDATED e2e: HEALTHY;teacher-coaching web lane spec: NOT UPDATED e2e: missing;teacher-assessment web lane spec: NOT UPDATED e2e: missing","sha":"5cbe1ec04286","branch":"bd-snkn32.13-92412","user":""}
