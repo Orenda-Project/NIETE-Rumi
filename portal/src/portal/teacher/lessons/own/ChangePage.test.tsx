@@ -101,10 +101,19 @@ describe('Change this plan', () => {
     expect(screen.getByTestId('own-change-send')).not.toBeDisabled();
   });
 
-  it('grades 6–12 may change the whole plan', async () => {
+  // bd-snkn32.19 — no "whole plan" at any grade: a change is one section, so I do / We do / You do always stays.
+  it('grades 6–12: the plan\'s sections, never the whole plan', async () => {
     at(changeUrl({ ...AT, band: 'g612', lesson: 'sci8.c02.p010' }));
-    expect(await screen.findByTestId('own-part-whole')).toBeTruthy();
+    expect(await screen.findByTestId('own-part-development')).toBeTruthy();
+    expect(screen.queryByTestId('own-part-whole')).toBeNull();
     expect(screen.queryByTestId('own-part-we_do')).toBeNull();
+  });
+
+  // bd-snkn32.19 — "Change this section" on a section card opens the change page with that section picked.
+  it('a section named in the address comes picked', async () => {
+    at(changeUrl({ ...AT, part: 'we_do' }));
+    expect((await screen.findByTestId('own-part-we_do')).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByTestId('own-part-hook').getAttribute('aria-pressed')).toBe('false');
   });
 
   it('sends her words and opens the waiting screen on the change', async () => {

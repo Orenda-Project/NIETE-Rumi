@@ -8,7 +8,8 @@
 
 const PARTS = Object.freeze({
   k5: Object.freeze(['hook', 'i_do', 'we_do', 'you_do', 'wrap']),
-  g612: Object.freeze(['objectives', 'introduction', 'development', 'activity', 'conclusion', 'homework', 'whole']),
+  // no 'whole': a change is to one section, so it cannot quietly rewrite the gradual release away.
+  g612: Object.freeze(['objectives', 'introduction', 'development', 'activity', 'conclusion', 'homework']),
 });
 const TEXT_MIN = 15;
 const TEXT_MAX = 300;
@@ -64,6 +65,58 @@ function isTinyEdit(text) {
   return content.length < 3;
 }
 
+/*
+ * a first filter for the two rules no change can lift: the gradual release (I do → We do → You do) is
+ * never dropped, skipped or merged ('grr'), and no part becomes rote drill ('rote'). Small on purpose: the instruction
+ * (GRR_LINE, ROTE_LINE) and the gates after the rewrite are the real guard. Run on normalise()d text; a hit right after
+ * a negation ("don't skip We do", "do not make them memorise") is not a request for it. Roman-Urdu and Urdu phrases are
+ * machine-drafted.
+ */
+const PHASE = '(?:i ?do|we ?do|you ?do|میں کروں|ہم کریں|آپ کریں)';
+const DROP = '(?:skip|drop|remove|delete|cut|omit|leave out|merge|combine|hata|hatao|hatado|nikal|nikalo|chhor|chor)';
+const GRR_PATTERNS = [
+  new RegExp(`\\b${DROP} (?:the |whole |entire |both )*${PHASE}(?= |$)`, 'u'),
+  new RegExp(`(?:without|no need for|no) (?:the |any )?${PHASE}(?= |$)`, 'u'),
+  new RegExp(`${PHASE} (?:ko |wala hissa |کو |والا حصہ )?(?:hata|hatao|nikal|nikalo|khatam|chhor|chor|ہٹا|نکال|چھوڑ|ختم)`, 'u'),
+  new RegExp(`${PHASE} (?:ko )(?:skip|remove|drop)`, 'u'),
+  new RegExp(`${PHASE} کے بغیر`, 'u'),
+];
+// Rote = learning answers, definitions or passages off by heart, or copying them. Choral practice of a sound or a word
+// (phonics) is NOT rote and must pass, so counted repetition and memorising only count when aimed at such text.
+const ROTE_TEXT = '(?:answers?|definitions?|passages?|paragraphs?|poems?|texts?|lines|sentences|questions?|chapters?|pages?|notes|tables?)';
+const ROTE_PATTERNS = [
+  /\b(?:word for word|rote|cram|cramming|ratta|rata)\b/u,
+  new RegExp(`\\b(?:memori[sz]e|memori[sz]ing)(?: \\S+){0,3} ${ROTE_TEXT}\\b`, 'u'),
+  new RegExp(`\\b${ROTE_TEXT}(?: \\S+){0,2} (?:by heart|off by heart)\\b`, 'u'),
+  new RegExp(`\\brepeat(?: \\S+){0,3} ${ROTE_TEXT}(?: \\S+){0,3} (?:\\d+|two|three|four|five|ten|twenty) times\\b`, 'u'),
+  /\bcopy(?: \S+){0,4} (?:from|off) (?:the )?board\b/u,
+  /(?:رٹا|رٹے|رٹہ|زبانی یاد|یاد کروا)/u,
+];
+// A hit followed by "is not needed" and the like is a refusal of rote, not a request for it.
+const NEGATED_AFTER = /^(?: \S+){0,4} (?:is |are )?(?:not needed|not required|unnecessary|not allowed|zaroori nahi|zaroori nahin)\b/u;
+const NEGATION = new Set(['no', 'not', 'never', 'dont', 'don', 'doesn', 'without', 'avoid', 'instead', 'na', 'nahi', 'nahin', 'mat', 'نہ', 'نہیں', 'مت', 'بغیر']);
+
+/** True when a pattern matches somewhere not just after a negation (the 3 words before it). */
+function asksFor(norm, patterns) {
+  return patterns.some((re) => {
+    const g = new RegExp(re.source, `${re.flags.replace('g', '')}g`);
+    for (const m of norm.matchAll(g)) {
+      const before = norm.slice(0, m.index).split(' ').filter(Boolean).slice(-3);
+      const after = norm.slice(m.index + m[0].length);
+      if (!before.some((w) => NEGATION.has(w)) && !NEGATED_AFTER.test(after)) return true;
+    }
+    return false;
+  });
+}
+
+/** 'grr', 'rote' or null for her request text. */
+function ruleBreak(text) {
+  const norm = normalise(text);
+  if (asksFor(norm, GRR_PATTERNS)) return 'grr';
+  if (asksFor(norm, ROTE_PATTERNS)) return 'rote';
+  return null;
+}
+
 /** Start of the current Pakistan day (Asia/Karachi midnight) as an ISO string. */
 function karachiDayStart(nowMs) {
   const local = nowMs + KARACHI_OFFSET_MS;
@@ -89,6 +142,8 @@ function checkChange({ band, part, text, chain, todayCount }) {
   if (!parts || !parts.includes(part)) return refuse('bad_request');
   if (typeof text !== 'string' || text.trim().length < TEXT_MIN) return refuse('too_short');
   const clean = text.replace(/\s+/g, ' ').trim().slice(0, TEXT_MAX);
+  const broken = ruleBreak(clean);
+  if (broken) return refuse(broken);
 
   const rows = chain || [];
   const root = rows.find((r) => r && !r.parent_own_id);
@@ -129,5 +184,5 @@ function statusFields(row) {
 
 module.exports = {
   PARTS, TEXT_MIN, TEXT_MAX, MAX_ROUNDS, DAILY_LIMIT,
-  normalise, isTinyEdit, karachiDayStart, changesLeft, checkChange, bandOf, editBase, baseJsonKey, statusFields,
+  normalise, isTinyEdit, ruleBreak, karachiDayStart, changesLeft, checkChange, bandOf, editBase, baseJsonKey, statusFields,
 };

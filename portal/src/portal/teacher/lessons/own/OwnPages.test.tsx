@@ -24,6 +24,7 @@ import api from '../../../services/api';
 import { resetLessonPlans } from '../../../newui/lessons/lessonPlansApi';
 import { OwnPage } from './OwnPage';
 import { LESSONS_OWN } from './state';
+import { OWN_COPY } from './copy';
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
 
@@ -115,9 +116,17 @@ describe('Make my own, grades 1–5: the book pages (bd-snkn32.17)', () => {
     }));
   });
 
-  it('a grades 6–12 lesson has no page box', async () => {
+  // bd-snkn32.19 — every band gets the page box now; 6–12 stays inside the lesson or runs to the next one's end.
+  it('a grades 6–12 lesson has the page box too; a page outside the lesson stops OK', async () => {
     at(`${LESSONS_OWN}?grade=8&subject=Science&chapter=c02&seg=sci8.c02.p010`);
-    await screen.findByTestId('own-opt-sci8.c02.p010');
-    expect(screen.queryByTestId('own-pg-box')).toBeNull();
+    expect(await screen.findByTestId('own-pg-box')).toBeTruthy();
+    expect(screen.queryByTestId('own-pg-next')).toBeNull();   // the chapter's only lesson: nothing to add
+    fireEvent.change(screen.getByTestId('own-pg-to'), { target: { value: '15' } });
+    expect((await screen.findByTestId('own-pg-bad')).textContent).toBe(OWN_COPY.badPages612);
+    expect(await okButton()).toBeDisabled();
+    fireEvent.change(screen.getByTestId('own-pg-to'), { target: { value: '12' } });
+    await waitFor(async () => expect(await okButton()).not.toBeDisabled());
+    fireEvent.click(await okButton());
+    await waitFor(() => expect(where()).toContain('pg=10-12'));
   });
 });

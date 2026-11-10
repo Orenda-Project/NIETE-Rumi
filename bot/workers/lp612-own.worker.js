@@ -31,10 +31,11 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const { buildOwnInstruction } = require('../shared/services/lp612-own-instruction');
+const { bookRange } = require('../shared/services/lp612-own-pages'); // item 14
 const { buildEditInstruction } = require('../shared/services/lp-own-edit-instruction');
 const { editBase, baseJsonKey, bandOf } = require('../shared/services/lp-own-edit-guard');
+const Extend = require('../shared/services/lp612-own-extend');
 
-const OWN_TABLE = 'niete_lp612_own_plans';
 /** A shared lesson takes a median of ~3 min and up to ~10 to write; her fork waits that long for it, then gives up. */
 const PARENT_WAIT_MS = 12 * 60 * 1000;
 const PARENT_POLL_MS = 20 * 1000;
@@ -52,6 +53,28 @@ function stop(code, message) {
 function createOwnWorker(deps) {
   const d = deps;
   const keys = () => d.keys || require('../shared/services/lp612-serving.service');
+  /** her book's page text for the rewrite; never fails her plan (no reader, a throw → no text). */
+  const textOf = async (q) => { try { return d.bookText ? (await d.bookText(q)) || null : null; } catch (_) { return null; } };
+
+  /**
+   * bd-snkn32.14 — "Add the next lesson's pages": the next lesson is re-checked against the catalogue (adjacent, same
+   * chapter), its shared plan waited for like hers, and the rewrite gets the joined segment + both plans + the shape.
+   * A change (bd-snkn32.15) keeps the joined pages only: its base, her last plan, already holds both lessons.
+   */
+  async function joinNext(row, segment, instruction, correlationId) {
+    const ext = row.answers && row.answers.extend;
+    if (!ext) return { segment, instruction };
+    const rows = await d.chapterSegments(segment);
+    const next = Extend.nextInChapter(segment, rows);
+    if (!next || next.segment_id !== ext.next) throw stop('BAD_EXTEND', 'the next lesson is not the adjacent one in this chapter');
+    if (row.parent_own_id) return { segment: Extend.joinSegments(segment, next, ext.shape), instruction };
+    const nextDoc = await waitForParent({ ...row, segment_id: next.segment_id }, correlationId);
+    if (!nextDoc) throw stop('NO_PARENT', 'the next lesson was not written in time');
+    return {
+      segment: Extend.joinSegments(segment, next, ext.shape),
+      instruction: `${instruction}\n${Extend.buildExtendInstruction({ first: segment, next, nextDoc, shape: ext.shape })}`,
+    };
+  }
 
   async function waitForParent(row, correlationId) {
     const until = d.now() + (d.parentWaitMs ?? PARENT_WAIT_MS);
@@ -96,13 +119,15 @@ function createOwnWorker(deps) {
     // bd-snkn32.12 — the gradual release is never dropped: a parent without every part is not a day to rewrite.
     const missing = require('../shared/services/lp-k5-own').missingGrr(script);
     if (missing.length) throw stop('INCOMPLETE_PARENT', `the day's plan has no ${missing.join(', ')}`);
+    const pg = (row.answers && row.answers.pages) || day.pages || {};
+    const bookText = await textOf({ grade: day.grade, subject: day.subject, from: pg.start, to: pg.end });
     const out = await d.rewriteK5({
-      script, answers: row.answers, edit: row.edit_request || undefined, lang: day.lang, grade: day.grade, subject: day.subject, correlationId,
+      script, answers: row.answers, edit: row.edit_request || undefined, lang: day.lang, grade: day.grade, subject: day.subject, dayPages: day.pages || null, bookText, correlationId,
     });
     if (!out || !out.script) throw stop('NOT_ACCEPTED', 'the gate refused the rewrite');
     let pdf;
     try {
-      pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && row.answers.way });
+      pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && row.answers.way, pages: (row.answers && row.answers.pages) || day.pages || null });
     } catch (e) {
       throw stop('RENDER_FAILED', (e && e.message) || 'print failed');
     }
@@ -122,14 +147,28 @@ function createOwnWorker(deps) {
     });
   }
 
+  /** Her row is already ready: the AI reviewer scores it for the library only, and never fails her. */
+  async function reviewAfterReady(row, correlationId) {
+    if (!d.review) return;
+    try {
+      await d.review(row.id, correlationId);
+    } catch (err) {
+      d.log('LP own review: failed after ready', { ownId: row.id, error: err.message, correlationId });
+    }
+  }
+
   async function process(payload = {}) {
     const { ownId, correlationId = null } = payload;
     const row = await d.claimOwn(ownId);
     if (!row) return;
+    if (await make(row, ownId, correlationId)) await reviewAfterReady(row, correlationId);
+  }
 
+  /** true when her row ended ready. */
+  async function make(row, ownId, correlationId) {
     try {
       const base = row.parent_own_id ? await changeBase(row) : null;
-      if (row.lesson_id) { await processK5(row, correlationId, base); return; }
+      if (row.lesson_id) { await processK5(row, correlationId, base); return true; }
 
       const segment = await d.loadSegment(row.segment_id);
       if (!segment) throw stop('NO_SEGMENT', 'segment not in the catalogue');
@@ -137,9 +176,15 @@ function createOwnWorker(deps) {
       const parent = base || await waitForParent(row, correlationId);
       if (!parent) throw stop('NO_PARENT', 'the shared lesson was not written in time');
 
-      const instruction = row.parent_own_id ? buildEditInstruction(row.edit_request) : buildOwnInstruction(row.answers);
-      const out = await d.revise({ doc: parent, instruction, segment, lang: row.lang, correlationId });
+      const own = row.parent_own_id ? buildEditInstruction(row.edit_request) // bd-snkn32.15: her one change
+        : buildOwnInstruction(row.answers, { grade: segment.grade, segmentId: row.segment_id, // 
+          bookText: await textOf({ grade: segment.grade, subject: segment.subject, ...bookRange(row.answers, segment), curriculum: segment.curriculum }) });
+      const joined = await joinNext(row, segment, own, correlationId); // bd-snkn32.14
+      const { instruction } = joined;
+      const out = await d.revise({ doc: parent, instruction, segment: joined.segment, lang: row.lang, correlationId });
       if (!out || !out.accepted) throw stop('NOT_ACCEPTED', 'the gates rejected the rewrite');
+      const lost = require('../shared/services/lp612-own-grr').droppedGrr(parent, out.lpDoc); // GRR stays
+      if (lost.length) throw stop('GRR_DROPPED', `the rewrite dropped ${lost.join(', ')}`);
 
       const pdf = await renderPdf(out.lpDoc, row, correlationId);
 
@@ -149,11 +194,7 @@ function createOwnWorker(deps) {
       const pdfKey = K.assertKeyInPrefix(K.editKeyFor(at));
       await d.upload(pdf, pdfKey, 'application/pdf');
       try {
-        await d.upload(
-          Buffer.from(JSON.stringify(out.lpDoc, null, 1), 'utf8'),
-          K.assertKeyInPrefix(K.editKeyFor({ ...at, ext: 'lp.json' })),
-          'application/json',
-        );
+        await d.upload(Buffer.from(JSON.stringify(out.lpDoc, null, 1), 'utf8'), K.assertKeyInPrefix(K.editKeyFor({ ...at, ext: 'lp.json' })), 'application/json');
       } catch (err) {
         // The PDF is the product; the document beside it is for us (the author worker's rule).
         d.log('LP 6-12 own: could not store the document', { ownId, error: err.message, correlationId });
@@ -163,12 +204,14 @@ function createOwnWorker(deps) {
         status: 'ready', r2_key: pdfKey, edit_hash: hash, model_used: out.model || null,
         error_code: null, error_detail: null, completed_at: new Date().toISOString(),
       });
+      return true;
     } catch (e) {
       d.log('LP 6-12 own: could not make her plan', { ownId, code: e.code || null, error: e.message, correlationId });
       await d.patchOwn(row.id, {
         status: 'failed', error_code: e.code || 'OWN_FAILED', error_detail: String(e.message || '').slice(0, 500),
         completed_at: new Date().toISOString(),
       });
+      return false;
     }
   }
 
@@ -177,19 +220,15 @@ function createOwnWorker(deps) {
 
 /** The segment row, or null (the author worker's loadSegment, in the shape the schema guards read). */
 async function loadSegment(supabase, segmentId) {
-  const { data, error } = await supabase
-    .from('niete_lp612_segments')
-    .select('*')
-    .eq('segment_id', segmentId)
-    .maybeSingle();
+  const { data, error } = await supabase.from('niete_lp612_segments').select('*').eq('segment_id', segmentId).maybeSingle();
   return error ? null : (data || null);
 }
 
 /** bd-snkn32.4 — the page (pure) printed by the v10 card's printer: one 520-wide page, as long as the plan. */
-async function renderK5Pdf({ script, lang, grade, subject, way }) {
+async function renderK5Pdf({ script, lang, grade, subject, way, pages }) {
   const { renderK5Own, WAY_NAMES } = require('../shared/services/lp-k5-own-render');
   const { fontCss } = require('../shared/services/lp-k5-own-fonts');
-  const html = renderK5Own(script, { lang, grade, subject, way: (WAY_NAMES[lang] || WAY_NAMES.en)[way], fontCss: fontCss(lang) });
+  const html = renderK5Own(script, { lang, grade, subject, way: (WAY_NAMES[lang] || WAY_NAMES.en)[way], pages, fontCss: fontCss(lang) });
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'k5-own-'));
   try {
     const out = path.join(dir, 'own.pdf');
@@ -227,9 +266,11 @@ function liveDeps() {
         return null;
       }
     },
+    chapterSegments: (seg) => require('../shared/services/lp612-own-extend.store').chapterSegments(supabase, seg),
     readStoredDoc: (args) => Serving.readStoredDoc(args),
     revise: (args) => require('../shared/services/lp612-author.service').reviseLessonPlan(args),
     loadK5: (lessonId) => require('../shared/services/lp-k5-own-source').loadK5(lessonId),
+    bookText: (q) => require('../shared/services/lp-own-book').bookTextFor(q),
     rewriteK5: (args) => require('../shared/services/lp-k5-own-author').rewriteK5({ ...args, log: (m, x) => logToFile(m, x) }),
     renderK5: (args) => renderK5Pdf(args),
     render: (args) => require('../shared/services/lp612-render.service').renderLessonPlan(args),
@@ -242,6 +283,7 @@ function liveDeps() {
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
     now: () => Date.now(),
     log: (msg, meta) => logToFile(msg, meta),
+    review: (id, correlationId) => require('../shared/services/lp612-own-reviewer').review(id, correlationId),
   };
 }
 

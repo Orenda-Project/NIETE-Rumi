@@ -172,7 +172,7 @@ describe('POST /lp612/own/:ownId/change', () => {
     expect(botCalls).toEqual([]);
   });
 
-  it.each(['too_short', 'too_small', 'repeat', 'in_flight', 'cap_reached', 'daily_limit'])(
+  it.each(['too_short', 'too_small', 'repeat', 'in_flight', 'cap_reached', 'daily_limit', 'grr', 'rote'])(
     'bot refusal %s → 409 with that outcome', async (outcome) => {
       botAnswer = { status: 409, data: { success: false, outcome } };
       await start();

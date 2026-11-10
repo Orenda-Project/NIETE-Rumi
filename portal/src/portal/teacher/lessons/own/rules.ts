@@ -10,10 +10,16 @@ export const SIZES = ['up30', '31_50', '51_70', 'over70'] as const;
 export const RESOURCES = ['textbook', 'board', 'charts', 'objects', 'audio'] as const;
 export const LEVELS = ['behind', 'on_track', 'ahead', 'mixed'] as const;
 export const PRIMARY_WAYS = ['tarl', 'cpa', 'phonics', 'games', 'story'] as const;
-/** bd-snkn32.13 — grades 6–12 (the bot's lp612-own-ways): past-paper practice is 9–12 only, there is no board below. */
-export const SECONDARY_WAYS = ['worked', 'numericals', 'practical', 'inquiry', 'concept_map', 'discussion', 'reading', 'past_paper'] as const;
+/**
+ * grades 6–12 (the bot's lp612-own-ways). `writing` (model, plan, write) for English and
+ * Urdu; exam practice from Grade 8 (FDE centralised annual exam, Amena 10 Nov), board practice 9–12. No way is rote:
+ * every way is how We do and You do are taught, never a replacement for a phase.
+ */
+export const SECONDARY_WAYS = ['worked', 'numericals', 'practical', 'inquiry', 'reading', 'writing', 'concept_map', 'discussion', 'past_paper', 'exam_fde'] as const;
 export const WAYS = [...PRIMARY_WAYS, ...SECONDARY_WAYS] as const;
-/** What a 6–12 lesson is for: teach new, revise, board exam practice (9–12), re-teach. */
+/** grades 1–5 guardrails (science of reading, numeracy): offered wherever they fit, never removed. */
+export const GUARDRAIL_WAYS = ['phonics', 'cpa'] as const;
+/** What a 6–12 lesson is for: teach new, revise, board / exam practice (Grade 8+), re-teach. */
 export const PURPOSES = ['new', 'revise', 'board', 'reteach'] as const;
 /** On a lesson whose FBISE SLOs are mixed: which come first. */
 export const FOCI = ['summative', 'formative'] as const;
@@ -24,6 +30,8 @@ export type Level = (typeof LEVELS)[number];
 export type Way = (typeof WAYS)[number];
 export type Purpose = (typeof PURPOSES)[number];
 export type Focus = (typeof FOCI)[number];
+export type GradeBand = 'primary' | 'middle' | 'senior';
+type SecondaryWay = (typeof SECONDARY_WAYS)[number];
 
 export type OwnAnswers = {
   grade: number;
@@ -39,23 +47,52 @@ export type OwnAnswers = {
 };
 
 /** A reason shown under the suggestion ("Why: mixed class · 51–70 children"). */
-export type Why = Size | Level | 'math' | 'objects' | 'language' | 'early' | 'board' | 'numbers' | 'science';
+export type Why = Size | Level | 'math' | 'objects' | 'language' | 'early' | 'board' | 'numbers' | 'science' | 'reteach';
 
 const isMath = (subject: string) => /^math/i.test(subject.trim());
 const isLanguage = (subject: string) => /^(urdu|english)\b/i.test(subject.trim());
+const isComputer = (subject: string) => /computer/i.test(subject);
+const isPhysChem = (subject: string) => /physics|chemistry/i.test(subject);
+const isScience = (subject: string) => !isComputer(subject) && /science|biology/i.test(subject);
+const isHumanities = (subject: string) => /social|pak|history|geography|islami/i.test(subject);
 const isEarly = (grade: number) => grade >= 1 && grade <= 3;
 /** Grades 6–12 get their own ways and more say (bd-snkn32.13). */
 export const isSecondary = (grade: number) => grade >= 6;
+/** the band, from the grade once (as the bot's lp612-own-ways bandOf). */
+export const bandOf = (grade: number): GradeBand => (grade <= 5 ? 'primary' : grade <= 8 ? 'middle' : 'senior');
+/** Exam practice: Grade 8 (FDE centralised annual exam) and the board years 9–12. */
+export const hasExam = (grade: number) => grade >= 8;
 
-/** bd-snkn32.13 — a subject teacher's suggestion: from what the lesson is for, then the subject. */
+/** which 6–12 way fits which subject (the unified spec's table). */
+const FITS: Record<SecondaryWay, (subject: string, grade: number) => boolean> = {
+  worked: (s) => isMath(s) || isComputer(s),
+  numericals: (s, g) => isPhysChem(s) || (g <= 8 && isScience(s) && !/biology/i.test(s)),
+  practical: (s) => isPhysChem(s) || isScience(s) || isComputer(s),
+  inquiry: (s) => !isLanguage(s),
+  reading: (s) => isLanguage(s) || isHumanities(s),
+  writing: (s) => isLanguage(s),
+  concept_map: () => true,
+  discussion: () => true,
+  // The bot's codes (lp612-own-ways waysOfGrade): FBISE past papers 9–12, FDE exam practice at Grade 8 only.
+  past_paper: (_s, g) => g >= 9,
+  exam_fde: (_s, g) => g === 8,
+};
+
+/** a subject teacher's suggestion: from what the lesson is for, then the subject (always on her list). */
 function suggestSecondary(a: OwnAnswers): { way: Way; why: Why[] } {
   const subject = a.subject.trim();
-  if (a.purpose === 'board' && a.grade >= 9) return { way: 'past_paper', why: ['board'] };
-  if (isLanguage(subject)) return { way: 'reading', why: ['language'] };
-  if (isMath(subject) || /computer/i.test(subject)) return { way: 'worked', why: ['math'] };
-  if (/physics|chemistry/i.test(subject)) return { way: 'numericals', why: ['numbers'] };
-  if (/biology|science/i.test(subject)) return { way: 'practical', why: ['science'] };
-  return { way: 'discussion', why: [] };
+  const list = waysFor(a);
+  const exam = list.find((w) => w === 'past_paper' || w === 'exam_fde');
+  if (a.purpose === 'board' && exam) return { way: exam, why: ['board'] };
+  // a re-teach or a class behind: the subject's most guided way, and the reason says why.
+  const slow: Why[] = a.purpose === 'reteach' ? ['reteach'] : a.level === 'behind' || a.level === 'mixed' ? [a.level] : [];
+  const pick = (way: Way, why: Why[]) => (list.includes(way) ? { way, why: [...slow, ...why] } : null);
+  return (isLanguage(subject) && pick('reading', ['language']))
+    || ((isMath(subject) || isComputer(subject)) && pick('worked', ['math']))
+    || (isPhysChem(subject) && pick('numericals', ['numbers']))
+    || (isScience(subject) && pick('practical', ['science']))
+    || (isHumanities(subject) && pick('reading', []))
+    || { way: 'discussion', why: slow };
 }
 
 export function suggestWay(a: OwnAnswers): { way: Way; why: Why[] } {
@@ -70,18 +107,18 @@ export function suggestWay(a: OwnAnswers): { way: Way; why: Why[] } {
 }
 
 /**
- * The ways offered for this subject and grade, in WAYS order. Grades 6–12: the whole band set, whatever the subject
- * (more say than primary; the suggestion comes first).
+ * The ways offered for this subject and grade, in WAYS order. Grades 1–5: the primary list, phonics for English and
+ * Urdu and CPA for Maths in every grade 1–5 (guardrails). Grades 6–12: the band's ways that fit the subject (4–6 rows).
  */
 export function waysFor({ grade, subject }: { grade: number; subject: string }): Way[] {
-  if (isSecondary(grade)) return SECONDARY_WAYS.filter((w) => w !== 'past_paper' || grade >= 9);
-  return PRIMARY_WAYS.filter((w) => (w === 'cpa' ? isMath(subject) : w === 'phonics' ? isLanguage(subject) && isEarly(grade) : true));
+  if (isSecondary(grade)) return SECONDARY_WAYS.filter((w) => FITS[w](subject.trim(), grade));
+  return PRIMARY_WAYS.filter((w) => (w === 'cpa' ? isMath(subject) : w === 'phonics' ? isLanguage(subject) : true));
 }
 
-/** What a lesson can be for in this grade, in order (none for grades 1–5). */
+/** What a lesson can be for in this grade, in order (none for grades 1–5; exam practice from Grade 8). */
 export function purposesFor(grade: number): Purpose[] {
   if (!isSecondary(grade)) return [];
-  return PURPOSES.filter((p) => p !== 'board' || grade >= 9);
+  return ['new', 'revise', 'reteach', ...(hasExam(grade) ? ['board' as const] : [])];
 }
 
 /** Every answer in: Make my plan can be offered. The textbook is always assumed, so no resource is required. */

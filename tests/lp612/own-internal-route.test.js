@@ -101,7 +101,7 @@ describe('POST /lp612/own/:ownId/change', () => {
     expect(out).toEqual({ status: 202, body: { success: true, state: 'authoring', renderId: 'chg-1' } });
   });
 
-  it.each(['too_short', 'too_small', 'repeat', 'in_flight', 'cap_reached', 'daily_limit'])(
+  it.each(['too_short', 'too_small', 'repeat', 'in_flight', 'cap_reached', 'daily_limit', 'grr', 'rote'])(
     '%s is a 409 naming the outcome, no id', async (outcome) => {
       mockRequestChange.mockResolvedValue({ outcome });
       const out = await post(ASK, 'k', CHANGE);
