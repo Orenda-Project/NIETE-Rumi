@@ -60,7 +60,9 @@ var CORE = 'sa-core-' + VERSION;
 // reviewers' Section 11 edits, "my friend" / «پیارے دوست», operations named in English); a kept copy would play the old one.
 // v14: round 10 release A: the reviewers' 6 Nov corrections in the battery files («جزیرہ», «ہر جواب», "Jugnu will just
 // listen", «دبائیں» for every "press") and Urdu v4 clips re-voiced under their keys so «آواز میں» is said in full.
-var SESSION = 'sa-session-v14';
+// v15: round 10 release B: the English v4 clips re-made under their keys in the reviewers' picked voice (lower, calmer and
+// a little slower), their word timings scaled to match.
+var SESSION = 'sa-session-v15';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
