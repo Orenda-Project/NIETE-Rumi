@@ -424,7 +424,7 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
     const open = await getActiveState(phone);
     if (isSameOpenRun(open, { quizId, shareCodeId, studentId, userId })) {
       logEvent('video_quiz.session_reused', { sessionId: open.sessionId, quizId, atIndex: open.index });
-      await sendNextQuestion(phone, open, lead ? { lead: { kind: 'opener', text: lead, gapMs: 0 } } : {});
+      await sendNextQuestion(phone, open);
       return open;
     }
   }
