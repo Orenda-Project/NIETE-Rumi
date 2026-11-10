@@ -23,11 +23,12 @@ describe('part and text', () => {
     expect(ask({ part }).outcome).toBe('bad_request');
   });
 
-  it('grades 6–12 take the plan\'s own sections, or the whole plan', () => {
-    for (const part of ['objectives', 'introduction', 'development', 'activity', 'conclusion', 'homework', 'whole']) {
+  it('grades 6–12 take the plan\'s own sections, never the whole plan (bd-snkn32.19)', () => {
+    for (const part of ['objectives', 'introduction', 'development', 'activity', 'conclusion', 'homework']) {
       expect(ask({ band: 'g612', part }).ok).toBe(true);
     }
     expect(ask({ band: 'g612', part: 'hook' }).outcome).toBe('bad_request');
+    expect(ask({ band: 'g612', part: 'whole' }).outcome).toBe('bad_request');
   });
 
   it('text under 15 characters after trimming is too short', () => {

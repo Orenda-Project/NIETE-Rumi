@@ -31,11 +31,11 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const { buildOwnInstruction } = require('../shared/services/lp612-own-instruction');
+const { bookRange } = require('../shared/services/lp612-own-pages'); // item 14
 const { buildEditInstruction } = require('../shared/services/lp-own-edit-instruction');
 const { editBase, baseJsonKey, bandOf } = require('../shared/services/lp-own-edit-guard');
 const Extend = require('../shared/services/lp612-own-extend');
 
-const OWN_TABLE = 'niete_lp612_own_plans';
 /** A shared lesson takes a median of ~3 min and up to ~10 to write; her fork waits that long for it, then gives up. */
 const PARENT_WAIT_MS = 12 * 60 * 1000;
 const PARENT_POLL_MS = 20 * 1000;
@@ -53,6 +53,8 @@ function stop(code, message) {
 function createOwnWorker(deps) {
   const d = deps;
   const keys = () => d.keys || require('../shared/services/lp612-serving.service');
+  /** her book's page text for the rewrite; never fails her plan (no reader, a throw → no text). */
+  const textOf = async (q) => { try { return d.bookText ? (await d.bookText(q)) || null : null; } catch (_) { return null; } };
 
   /**
    * bd-snkn32.14 — "Add the next lesson's pages": the next lesson is re-checked against the catalogue (adjacent, same
@@ -117,8 +119,10 @@ function createOwnWorker(deps) {
     // bd-snkn32.12 — the gradual release is never dropped: a parent without every part is not a day to rewrite.
     const missing = require('../shared/services/lp-k5-own').missingGrr(script);
     if (missing.length) throw stop('INCOMPLETE_PARENT', `the day's plan has no ${missing.join(', ')}`);
+    const pg = (row.answers && row.answers.pages) || day.pages || {};
+    const bookText = await textOf({ grade: day.grade, subject: day.subject, from: pg.start, to: pg.end });
     const out = await d.rewriteK5({
-      script, answers: row.answers, edit: row.edit_request || undefined, lang: day.lang, grade: day.grade, subject: day.subject, dayPages: day.pages || null, correlationId,
+      script, answers: row.answers, edit: row.edit_request || undefined, lang: day.lang, grade: day.grade, subject: day.subject, dayPages: day.pages || null, bookText, correlationId,
     });
     if (!out || !out.script) throw stop('NOT_ACCEPTED', 'the gate refused the rewrite');
     let pdf;
@@ -173,11 +177,14 @@ function createOwnWorker(deps) {
       if (!parent) throw stop('NO_PARENT', 'the shared lesson was not written in time');
 
       const own = row.parent_own_id ? buildEditInstruction(row.edit_request) // bd-snkn32.15: her one change
-        : buildOwnInstruction(row.answers, { grade: segment.grade, segmentId: row.segment_id }); // bd-snkn32.13
+        : buildOwnInstruction(row.answers, { grade: segment.grade, segmentId: row.segment_id, // 
+          bookText: await textOf({ grade: segment.grade, subject: segment.subject, ...bookRange(row.answers, segment), curriculum: segment.curriculum }) });
       const joined = await joinNext(row, segment, own, correlationId); // bd-snkn32.14
       const { instruction } = joined;
       const out = await d.revise({ doc: parent, instruction, segment: joined.segment, lang: row.lang, correlationId });
       if (!out || !out.accepted) throw stop('NOT_ACCEPTED', 'the gates rejected the rewrite');
+      const lost = require('../shared/services/lp612-own-grr').droppedGrr(parent, out.lpDoc); // GRR stays
+      if (lost.length) throw stop('GRR_DROPPED', `the rewrite dropped ${lost.join(', ')}`);
 
       const pdf = await renderPdf(out.lpDoc, row, correlationId);
 
@@ -187,11 +194,7 @@ function createOwnWorker(deps) {
       const pdfKey = K.assertKeyInPrefix(K.editKeyFor(at));
       await d.upload(pdf, pdfKey, 'application/pdf');
       try {
-        await d.upload(
-          Buffer.from(JSON.stringify(out.lpDoc, null, 1), 'utf8'),
-          K.assertKeyInPrefix(K.editKeyFor({ ...at, ext: 'lp.json' })),
-          'application/json',
-        );
+        await d.upload(Buffer.from(JSON.stringify(out.lpDoc, null, 1), 'utf8'), K.assertKeyInPrefix(K.editKeyFor({ ...at, ext: 'lp.json' })), 'application/json');
       } catch (err) {
         // The PDF is the product; the document beside it is for us (the author worker's rule).
         d.log('LP 6-12 own: could not store the document', { ownId, error: err.message, correlationId });
@@ -217,11 +220,7 @@ function createOwnWorker(deps) {
 
 /** The segment row, or null (the author worker's loadSegment, in the shape the schema guards read). */
 async function loadSegment(supabase, segmentId) {
-  const { data, error } = await supabase
-    .from('niete_lp612_segments')
-    .select('*')
-    .eq('segment_id', segmentId)
-    .maybeSingle();
+  const { data, error } = await supabase.from('niete_lp612_segments').select('*').eq('segment_id', segmentId).maybeSingle();
   return error ? null : (data || null);
 }
 
@@ -271,6 +270,7 @@ function liveDeps() {
     readStoredDoc: (args) => Serving.readStoredDoc(args),
     revise: (args) => require('../shared/services/lp612-author.service').reviseLessonPlan(args),
     loadK5: (lessonId) => require('../shared/services/lp-k5-own-source').loadK5(lessonId),
+    bookText: (q) => require('../shared/services/lp-own-book').bookTextFor(q),
     rewriteK5: (args) => require('../shared/services/lp-k5-own-author').rewriteK5({ ...args, log: (m, x) => logToFile(m, x) }),
     renderK5: (args) => renderK5Pdf(args),
     render: (args) => require('../shared/services/lp612-render.service').renderLessonPlan(args),

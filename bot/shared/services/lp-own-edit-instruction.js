@@ -8,6 +8,7 @@
  * answers; the same gate (checkK5Rewrite) then checks it against the plan it started from.
  */
 const { system } = require('./lp-k5-own');
+const { GRR_LINE, ROTE_LINE } = require('./lp612-own-ways');
 
 const G612_NAMES = Object.freeze({
   objectives: 'Objectives', introduction: 'Introduction', development: 'Development', activity: 'Activity',
@@ -21,10 +22,12 @@ const quoted = (text) => `"${String(text).replace(/"/g, "'")}"`;
 /** 6-12: the instruction reviseLessonPlan takes. Throws on a part the guard would have refused. */
 function buildEditInstruction({ part, text }) {
   const ask = `Her request (follow it where it fits the learning outcomes and the plan's rules; do not quote it back): ${quoted(text)}`;
+  // 'whole' is no longer accepted ; kept only for a change queued before that deploy.
   if (part === 'whole') {
     return [
       'The teacher asks for ONE change, across the whole plan.',
       'Keep the learning outcomes, the textbook pages and the total time exactly as they are.',
+      GRR_LINE, ROTE_LINE,
       ask,
     ].join('\n');
   }
@@ -33,6 +36,7 @@ function buildEditInstruction({ part, text }) {
   return [
     `The teacher asks for ONE change, to only the ${name} section of her plan.`,
     'Keep every other section exactly as it is, and keep the learning outcomes, the textbook pages and the total time.',
+    GRR_LINE, ROTE_LINE,
     ask,
   ].join('\n');
 }

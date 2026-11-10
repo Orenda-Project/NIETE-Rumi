@@ -19,7 +19,7 @@ import { attachToDc, PICK_DEPTH, type PickTarget } from '../coaching/libraryPick
 import { ThingToTryStrip } from './ThingToTryStrip';
 import { LessonQuizButton } from '../home/LessonQuizButton';
 import { useLessonsLeader } from './audience';
-import { ChangeEntry } from './own/ChangeEntry';
+import { OwnSections } from './own/OwnSections';
 import type { ChangeAt } from './own/change';
 
 /**
@@ -126,8 +126,8 @@ export function ViewerPage() {
           <ChevronRight className={cn('h-[22px] w-[22px]', CHEVRON)} strokeWidth={2.4} aria-hidden="true" />
         </Link>
       ) : null}
-      {/* bd-snkn32.15 — her own plan, opened from its waiting screen: Change this plan (N left). */}
-      {teacherActions && state?.own ? <ChangeEntry at={state.own} /> : null}
+      {/* /.19 — her own plan, opened from its waiting screen: section cards (spec item 7), each with Change. */}
+      {teacherActions && state?.own ? <OwnSections at={state.own} /> : null}
       {answerKey && !leader ? (
         <ThingToTryStrip
           lessonId={answerKey.lessonId}
