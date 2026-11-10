@@ -22,6 +22,13 @@ export const OWN_COPY = {
   day: 'Which day?',
   dayLabel: 'Day',
   dayN: (n: number) => `Day ${n}`,
+  /* grades 1–5 book pages (bd-snkn32.17): the day's own, ready to change */
+  pagesHint: 'Change them if you will teach other pages.',
+  pageFrom: 'From page',
+  pageTo: 'To page',
+  addNextDay: (r: string) => `Add the next day's pages (p.${r})`,
+  badPages: 'Check the pages: first page, then last, 10 pages at most.',
+  pagesShort: (r: string) => `p.${r}`,
   size: 'Children in class',
   sizes: { up30: 'Up to 30', '31_50': '31 – 50', '51_70': '51 – 70', over70: 'More than 70' },
   resources: 'What you have',
@@ -67,6 +74,12 @@ const OWN_COPY_UR: Words<typeof OWN_COPY> = {
   day: 'کون سا دن؟',
   dayLabel: 'دن',
   dayN: (n: number) => `دن ${n}`,
+  pagesHint: 'اگر آپ دوسرے صفحات پڑھائیں گی تو بدل دیں۔',
+  pageFrom: 'صفحہ سے',
+  pageTo: 'صفحہ تک',
+  addNextDay: (r: string) => `اگلے دن کے صفحات بھی (ص ${r})`,
+  badPages: 'صفحات دیکھیں: پہلا صفحہ، پھر آخری، زیادہ سے زیادہ 10 صفحات۔',
+  pagesShort: (r: string) => `ص ${r}`,
   size: 'کلاس میں بچے',
   sizes: { up30: '30 تک', '31_50': '31 – 50', '51_70': '51 – 70', over70: '70 سے زیادہ' },
   resources: 'آپ کے وسائل',
@@ -109,5 +122,6 @@ export const OWN_COPY_ENTRY: CopyEntry = {
   same: ['sizes.31_50', 'sizes.51_70'],
   // A suggestion's name mirrors the FLN strategy's own name word for word.
   // A step's question ("Which day?", "What is this lesson for?") is a title, not a label (bd-snkn32.13).
-  longOk: ['ways.tarl', 'ways.cpa', 'suggested', 'resourceNames.charts', 'objectsHint', 'level', 'makeMyPlan', 'day', 'purpose', 'focus'],
+  longOk: ['ways.tarl', 'ways.cpa', 'suggested', 'resourceNames.charts', 'objectsHint', 'level', 'makeMyPlan', 'day', 'purpose', 'focus',
+    'pagesHint', 'badPages', 'addNextDay'],
 };

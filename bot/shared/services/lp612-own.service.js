@@ -30,12 +30,16 @@
  */
 
 const { parseOwnAnswers } = require('./lp612-own-instruction');
+const { parseK5Pages } = require('./lp-k5-own-pages');
 
 const OWN_TABLE = 'niete_lp612_own_plans';
 const OWN_JOB_TYPE = 'lp612_own';
 const OWN_LANG = 'en';
 /** The template of a grades 1–5 fork: the stored slide script, rewritten (lp-k5-own) and printed (lp-k5-own-render). */
 const K5_TV = 'k5_own_v1';
+/** Her status read. Plus the AI reviewer's library verdict (V1.9.9). */
+const OWN_READ = 'id, user_id, segment_id, lesson_id, status, r2_key, error_code, lang, started_at, completed_at, '
+  + 'library_eligible, review_score';
 
 function createOwnService(deps) {
   const d = deps;
@@ -57,9 +61,13 @@ function createOwnService(deps) {
   }
 
   /** bd-snkn32.4 — a grades 1–5 day: its own stored plan is the parent, in its book's language. */
-  async function requestK5({ userId, lessonId, answers, correlationId }) {
+  async function requestK5({ userId, lessonId, answers, pages, correlationId }) {
     const lesson = await d.k5Lesson(lessonId);
     if (!lesson) return { outcome: 'not_found' };
+    // bd-snkn32.17 — her own page range, checked against the day's pages; kept in her answers (JSONB, no new column).
+    const p = parseK5Pages(pages, lesson.pages || null);
+    if (!p.ok) return { outcome: 'bad_request', error: p.error };
+    if (p.pages) answers = { ...answers, pages: p.pages };
     const row = await d.insertOwn({
       user_id: userId,
       lesson_id: lessonId,
@@ -80,7 +88,7 @@ function createOwnService(deps) {
     // bd-snkn32.13: a 6–12 segment's answers are checked against its grade band's ways (a 1–5 day: the primary ones).
     const parsed = parseOwnAnswers(answers, lessonId ? undefined : { segmentId });
     if (!parsed.ok) return { outcome: 'bad_request', error: parsed.error };
-    if (lessonId) return requestK5({ userId, lessonId, answers: parsed.answers, correlationId });
+    if (lessonId) return requestK5({ userId, lessonId, answers: parsed.answers, pages: answers.pages, correlationId });
     if (!(await d.segmentExists(segmentId))) return { outcome: 'not_found' };
 
     const tv = d.templateVersion();
@@ -127,6 +135,8 @@ function createOwnService(deps) {
       lang: r.lang,
       started_at: r.started_at,
       completed_at: r.completed_at,
+      library_eligible: r.library_eligible === true, // library only; never gates her plan
+      review_score: r.review_score ?? null,
     };
   }
 
@@ -171,7 +181,7 @@ function liveDeps() {
     selectOwn: async (id, userId) => {
       const { data, error } = await supabase
         .from('niete_lp612_own_plans')
-        .select('id, user_id, segment_id, lesson_id, status, r2_key, error_code, lang, started_at, completed_at')
+        .select(OWN_READ)
         .eq('id', id).eq('user_id', userId).maybeSingle();
       if (error) throw new Error(error.message);
       return data || null;
@@ -191,4 +201,5 @@ module.exports = {
   OWN_JOB_TYPE,
   OWN_LANG,
   K5_TV,
+  OWN_READ,
 };

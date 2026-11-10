@@ -240,6 +240,19 @@ Feature: Teacher lesson plans
     Then /portal/fln/p/<that plan's id>?grade=3 opens
     And Send to teacher and Share link work as before
 
+  @OWN01 @draft @config-gated
+  Scenario: Make my own for grades 1–5: she sees the day's book pages and can add the next day's
+    Given Make my own is on for demo teacher 03000000911
+    And she is signed in
+    When she opens Make my own on a grade 1–5 chapter and picks a day whose list shows "p.3-4"
+    Then the From page and To page boxes read 3 and 4
+    When she taps "Add the next day's pages"
+    Then To page reads the next day's last page and OK is enabled
+    When she types a To page before the From page
+    Then "Check the pages" shows and OK is disabled
+    When she sets the pages back to a valid range, answers the rest and reaches the check screen
+    Then the check screen shows the day with her pages, and the plan she gets names those pages in its header
+
   # bd-snkn32.13 — "Make my own" for grades 6–12: what the lesson is for, the band's teaching ways, and (Grade 9–12, a
   # lesson whose FBISE SLOs mix Summative and Formative) which outcomes come first. Written by hand like the blocks
   # above; the web driver has no code for them yet (@draft): the demo stack carries no 6–12 catalogue to walk.

@@ -16,6 +16,8 @@ export const ownable = (l: Pick<LpLesson, 'lane' | 'kind'>) =>
 
 export type OwnBody = {
   size: Size | null; resources: Resource[]; level: Level | null; way: Way | null; note: string; purpose?: Purpose; focus?: Focus;
+  /** bd-snkn32.17 — grades 1–5 only: her book pages, when not the day's own. */
+  pages?: { start: number; end: number };
 };
 
 /** bd-snkn32.13 — a Grade 9–12 lesson's FBISE SLOs, split when they mix Summative and Formative. Not mixed on any failure. */
