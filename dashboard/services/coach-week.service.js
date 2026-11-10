@@ -8,7 +8,7 @@
  * the bot's Friday 16:30 sweep inserts it ('sending' → 'sent'); the first writer wins (UNIQUE user_id, nudge_date, kind).
  *
  * Fixed words come in English and Urdu (behaviour names and why-it-matters from the bot's observe-strings, the four
- * steps from observe-strings coach_week_steps, drafts until reviewed), so the language pill switches the page without a second read.
+ * steps from observe-strings coach_week_steps, approved 10 Nov), so the language pill switches the page without a second read.
  *
  * WHO. Only the session's coach, by her own observer_user_id; there is no id of anyone else to ask for.
  * READS. One bounded read of her latest coached debriefs (narrow JSON slices: the feedback's rubric and its time).
@@ -55,8 +55,8 @@ const SQL = {
   `,
 };
 
-/** The weekly steps (observe-strings coach_week_steps) are drafts until the ICT HITL owner has reviewed them. */
-const STEPS_REVIEWED = false;
+/** The weekly steps (observe-strings coach_week_steps): approved by the ICT HITL owner (operator, 10 Nov), so not marked as drafts. */
+const STEPS_REVIEWED = true;
 
 const EN = observeStrings('en');
 const UR = observeStrings('ur');

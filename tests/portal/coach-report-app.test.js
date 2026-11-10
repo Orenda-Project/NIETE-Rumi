@@ -94,7 +94,8 @@ describe('the shaper says what the judge said, once, in the rubric order', () =>
       tryLine: TRY_LINES.elicited_if_then,
     });
     expect(TRY_LINES.elicited_if_then.en).toBe('“Next time, what will you do differently? Tell me in your own words.”');
-    expect(TRY_LINES.elicited_if_then.ur).toBe('"اگلی بار آپ کیا مختلف کریں گی؟ اپنے الفاظ میں بتائیں۔"');
+    // The owner's words; only the verb is gender-neutral (operator, 10 Nov): the آپ-subjunctive, not «کریں گی».
+    expect(TRY_LINES.elicited_if_then.ur).toBe('"اگلی بار آپ کیا مختلف کریں؟ اپنے الفاظ میں بتائیں۔"');
   });
 
   test('a focus whose ready line has not been supplied carries none (the page marks the gap, nothing is invented)', () => {
