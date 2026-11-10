@@ -1,0 +1,2 @@
+{"ts":"2026-11-10T07:29:07Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test,fde-board-pattern spec_sync=true","sha":"4dfc07d43f51","branch":"bd-snkn32.16-92422","user":""}
+{"ts":"2026-11-10T07:29:16Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.16-92422: lesson-plan spec: NOT UPDATED e2e: missing","sha":"4dfc07d43f51","branch":"bd-snkn32.16-92422","user":""}
