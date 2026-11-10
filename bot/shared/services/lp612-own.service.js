@@ -36,6 +36,9 @@ const OWN_JOB_TYPE = 'lp612_own';
 const OWN_LANG = 'en';
 /** The template of a grades 1–5 fork: the stored slide script, rewritten (lp-k5-own) and printed (lp-k5-own-render). */
 const K5_TV = 'k5_own_v1';
+/** Her status read. bd-snkn32.16: plus the AI reviewer's library verdict (V1.9.9). */
+const OWN_READ = 'id, user_id, segment_id, lesson_id, status, r2_key, error_code, lang, started_at, completed_at, '
+  + 'library_eligible, review_score';
 
 function createOwnService(deps) {
   const d = deps;
@@ -126,6 +129,8 @@ function createOwnService(deps) {
       lang: r.lang,
       started_at: r.started_at,
       completed_at: r.completed_at,
+      library_eligible: r.library_eligible === true, // bd-snkn32.16: library only; never gates her plan
+      review_score: r.review_score ?? null,
     };
   }
 
@@ -170,7 +175,7 @@ function liveDeps() {
     selectOwn: async (id, userId) => {
       const { data, error } = await supabase
         .from('niete_lp612_own_plans')
-        .select('id, user_id, segment_id, lesson_id, status, r2_key, error_code, lang, started_at, completed_at')
+        .select(OWN_READ)
         .eq('id', id).eq('user_id', userId).maybeSingle();
       if (error) throw new Error(error.message);
       return data || null;
@@ -190,4 +195,5 @@ module.exports = {
   OWN_JOB_TYPE,
   OWN_LANG,
   K5_TV,
+  OWN_READ,
 };
