@@ -14,6 +14,7 @@ import { COACH_TRAINING } from "../coachTraining/copy";
 import { COACH_TRAINING_PATH } from "../coachTraining/modules";
 import { COACH_HOME } from "../home/copy";
 import { useCoachFeatureReady } from "../training/useCoachFullApp";
+import { ReadyReportCard } from "../report/ReadyReportCard";
 
 /**
  * The slim Coach Home (the School card switch on): the NIETE band (the kit's HomeGreeting, as on the full coach Home) and
@@ -61,6 +62,8 @@ export default function SlimHome() {
           />
         )}
       >
+        {/* Coach reports in the app: the card above the tiles when her report is ready (nothing when off). */}
+        <ReadyReportCard />
         <FeatureMotionProvider>
           <nav aria-label={F.home.features} data-testid="feature-tiles" className="mt-2 [display:grid] grid-cols-2 gap-3">
             {fullApp && (

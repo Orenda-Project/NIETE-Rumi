@@ -17,6 +17,7 @@ import { CurrentVisit, visitItem } from "../home/VisitCards";
 import { Failed, Loading, SectionLabel, useLoad } from "../ui";
 import { COACH_TRAINING } from "../coachTraining/copy";
 import { COACH_TRAINING_PATH } from "../coachTraining/modules";
+import { ReadyReportCard } from "../report/ReadyReportCard";
 
 /**
  * bd-o15qnr / bd-4404s7.2 — coach Home on the shared kit (Coach_Home, Coach_HomeBusy, Coach_Home_Urdu):
@@ -53,6 +54,8 @@ const CoachHome = () => {
           />
         )}
       >
+        {/* Coach reports in the app: the card above the tiles when her report is ready (nothing when off). */}
+        <ReadyReportCard />
         {waiting > 0 && <AttentionBanner testId="reports-waiting" text={W.reportsWaiting(waiting)} to="/portal/coach/reports?show=waiting" />}
 
         <SectionLabel count={<span data-testid="todays-visits">{home ? home.today.length : 0}</span>}>{W.todaysVisits}</SectionLabel>

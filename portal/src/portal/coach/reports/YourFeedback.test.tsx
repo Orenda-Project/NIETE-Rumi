@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, render, screen, within } from "@testing-library/react";
+import i18n from "i18next";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
@@ -36,6 +37,40 @@ const renderPage = () => render(
 );
 
 beforeEach(() => { vi.clearAllMocks(); L.getObservation.mockResolvedValue(VIEW("feedback")); });
+
+/**
+ * bd-ewbzns.4.3 (queue #54, sandbox 7 Nov) — since the 3 Nov debrief rubric a win's behaviour is the rubric KEY; the view
+ * names it in English and Urdu (observe-strings coach_rubric_names). The page shows the name in its own language, never
+ * the key; a free-text behaviour (the older judge) is shown as written.
+ */
+describe("Your feedback — a rubric win is named, never shown as its key", () => {
+  const RUBRIC_FB = { ...FEEDBACK, wins: [
+    { behaviour: "opened_with_specific_praise", evidence: "That question made the whole class see the thinking.", name: { en: "Specific praise", ur: "مخصوص تعریف" } },
+    { behaviour: "Asked Ayesha to name her next step", evidence: "What will you try tomorrow?", name: null },
+  ] };
+  beforeEach(async () => {
+    if (!i18n.isInitialized) await i18n.init({ lng: "en", resources: {} });
+    await act(async () => { await i18n.changeLanguage("en"); });
+    L.getObservation.mockResolvedValue(VIEW("feedback", { talk: { guide: null, recordedAt: "2026-10-06T09:00:00Z", feedback: RUBRIC_FB } }));
+  });
+  afterEach(async () => { await act(async () => { await i18n.changeLanguage("en"); }); });
+
+  it("English: the name, not the key; free text as written", async () => {
+    renderPage();
+    const well = within(await screen.findByTestId("feedback-well"));
+    expect(well.getByText("Specific praise")).toBeInTheDocument();
+    expect(well.queryByText(/opened_with_specific_praise/)).toBeNull();
+    expect(well.getByText("Asked Ayesha to name her next step")).toBeInTheDocument();
+  });
+
+  it("Urdu: the Urdu name", async () => {
+    await act(async () => { await i18n.changeLanguage("ur"); });
+    renderPage();
+    const well = within(await screen.findByTestId("feedback-well"));
+    expect(well.getByText("مخصوص تعریف")).toBeInTheDocument();
+    expect(well.queryByText(/opened_with_specific_praise/)).toBeNull();
+  });
+});
 
 describe("Your feedback", () => {
   it("titled Your feedback, with the teacher and Step 3 of 4 in the crumb (her feedback sits inside Debrief)", async () => {

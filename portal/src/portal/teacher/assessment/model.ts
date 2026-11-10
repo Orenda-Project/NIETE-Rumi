@@ -43,8 +43,8 @@ export function stepsFor(p: Pick<Picks, 'style'>, eligible: boolean): readonly S
 
 /**
  * Edit on a board-pattern paper (the paper page and Versions). On since the server's editor for those papers went live
- * (#2336): remove / put back / edit makes a v2 with both files; adding (PATTERN_NO_ADD) and changed marks
- * (PATTERN_FIXED_MARKS) are still refused, and the editor says so in the deck's words.
+ * (#2336): remove / put back makes a v2 with both files. Rewording or changing an answer (PATTERN_NO_EDIT), adding
+ * (PATTERN_NO_ADD) and changed marks (PATTERN_FIXED_MARKS) are refused, and the editor opens no question form.
  */
 export const FDE_EDITING = true;
 

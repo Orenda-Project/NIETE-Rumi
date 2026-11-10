@@ -277,6 +277,25 @@ function filledSlots(slots) {
  * would be unrecoverable.
  */
 function applyEdit(question, edit) {
+  const out = _applyEdit(question, edit);
+  if (question && question.slot && _content(out) !== _content(question)) {
+    throw Object.assign(new Error(PATTERN_NO_EDIT_MESSAGE), { code: 'EDIT_REJECTED', errorCode: PATTERN_NO_EDIT });
+  }
+  return out;
+}
+
+// A board-pattern (FDE / FBISE) question is only removed or put back: its wording,
+// options, pairs and answer stay as the board paper and its marking scheme have them.
+const PATTERN_NO_EDIT = 'PATTERN_NO_EDIT';
+const PATTERN_NO_EDIT_MESSAGE = 'Board-pattern papers can only have questions removed.';
+
+/** What a question says, leaving out whether it is on the paper. */
+function _content(q) {
+  const { removed, ...rest } = q || {};
+  return JSON.stringify(rest);
+}
+
+function _applyEdit(question, edit) {
   const q = JSON.parse(JSON.stringify(question || {}));
   const e = edit || {};
 
@@ -457,5 +476,5 @@ function newQuestion(kind, edit) {
 module.exports = {
   shapeOf, fieldsFor, applyEdit, SHAPES, SLOT_CAP,
   correctIndexOf, newQuestion, NEW_DEFAULTS, LINES_MAX, ANSWER_MAX, RADIO_TITLE_MAX,
-  PATTERN_FIXED_MARKS, PATTERN_FIXED_MARKS_MESSAGE,
+  PATTERN_FIXED_MARKS, PATTERN_FIXED_MARKS_MESSAGE, PATTERN_NO_EDIT, PATTERN_NO_EDIT_MESSAGE,
 };

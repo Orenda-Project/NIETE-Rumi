@@ -303,6 +303,19 @@ describe('bd-15y1pc — her own observation reads the same from either side', ()
     });
   });
 
+  // bd-ewbzns.4.3 — a win's behaviour is a rubric key since the 3 Nov rubric: the view names it in both languages
+  // (observe-strings coach_rubric_names) so the page can show the name in its own; free text has no name.
+  test('observationView names each win in English and Urdu; a free-text behaviour has no name', async () => {
+    const fb = { praise_line: 'p', wins: [{ behaviour: 'asked_and_waited', evidence: 'e1' }, { behaviour: 'Asked open questions', evidence: 'e2' }], try: null, reflection_question: 'q' };
+    const out = await Svc.observationView({ userId: COACH, coachingSessionId: SID }, withRow({
+      status: 'observer_review_complete', debrief_status: 'done', analysis_data: { observer_debrief: { feedback: fb } },
+    }));
+    expect(out.talk.feedback.wins).toEqual([
+      { behaviour: 'asked_and_waited', evidence: 'e1', name: { en: 'Asked & waited', ur: 'سوال کے بعد انتظار' } },
+      { behaviour: 'Asked open questions', evidence: 'e2', name: null },
+    ]);
+  });
+
   test('observationView marks her portal observation as one the portal takes through its steps', async () => {
     expect(await Svc.observationView({ userId: COACH, coachingSessionId: SID }, withRow({}))).toMatchObject({ status: 'ok', portal: true });
   });

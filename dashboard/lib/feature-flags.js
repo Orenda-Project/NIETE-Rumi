@@ -261,6 +261,15 @@ const PORTAL_COACH_SCHOOL_CARD_KEY = 'portal_coach_school_card';
 const PORTAL_COACH_FULL_APP_KEY = 'portal_coach_full_app';
 
 /**
+ * Coach reports in the app — the coach's debrief report as a page in the coach app (dashboard/services/coach-report.service.js),
+ * the card on her Home that announces it, and, in the bot, the link that replaces today's WhatsApp report picture. Same
+ * shape and rule as the keys above: a list of users.id = those coaches, true = every coach, absent = off. Its routes also
+ * need portal_coach_v2; off for her, every one is a 404 and /config says coachReportsApp: false. The bot reads the same key
+ * (one row, one answer for both services).
+ */
+const COACH_REPORTS_APP_KEY = 'coach_reports_app';
+
+/**
  * bd-3bvfj — a flag that can be on for EVERYONE or for a PILOT.
  *
  *   true (or "true")            → on for every user
@@ -512,6 +521,7 @@ module.exports = {
   PORTAL_COACH_V2_KEY,
   PORTAL_COACH_SCHOOL_CARD_KEY,
   PORTAL_COACH_FULL_APP_KEY,
+  COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,
