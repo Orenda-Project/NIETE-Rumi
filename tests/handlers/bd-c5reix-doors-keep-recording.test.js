@@ -30,7 +30,6 @@ jest.mock('../../bot/shared/services/audio.service', () => ({
   getAudioDuration: jest.fn(() => Promise.resolve(global.__KR_PROBED)),
   convertToWav: jest.fn(() => Promise.resolve()),
   transcribeWithLanguagePreference: jest.fn(() => Promise.resolve({ text: 'x', language: 'ur', engine: 'soniox' })),
-  transcribeAudio: jest.fn(() => Promise.resolve('x')),
   getASREngine: jest.fn(() => 'soniox'),
 }));
 jest.mock('../../bot/shared/services/tts', () => ({ synthesize: jest.fn() }));

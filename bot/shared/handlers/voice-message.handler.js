@@ -155,8 +155,17 @@ async function handleVoiceMessage(message, from, user = null) {
           // Download and transcribe the audio to get the name
           const audioBuffer = await WhatsAppService.downloadMedia(audioId);
 
-          // Transcribe with OpenAI Whisper
-          const transcriptText = await AudioService.transcribeAudio(audioBuffer, userLanguage);
+          // Transcribe the way the main voice path does: a private wav, routed by her language.
+          // (This used to call a transcribe method audio.service has never had, so the
+          // TypeError sent every spoken name into the ordinary voice flow and it was never saved.)
+          const wav = privateTempPath(TEMP_DIR, 'name.wav', 'voice-');
+          let transcriptText;
+          try {
+            await AudioService.convertToWav(audioBuffer, wav.filePath);
+            transcriptText = (await AudioService.transcribeWithLanguagePreference(wav.filePath, userLanguage)).text;
+          } finally {
+            removePrivateTemp(wav);
+          }
           logToFile('Voice name transcription result', { transcript: transcriptText });
 
           // Handle the name response
