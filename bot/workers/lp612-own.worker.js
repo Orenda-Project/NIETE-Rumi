@@ -105,13 +105,27 @@ function createOwnWorker(deps) {
     });
   }
 
+  /** Her row is already ready: the AI reviewer scores it for the library only, and never fails her. */
+  async function reviewAfterReady(row, correlationId) {
+    if (!d.review) return;
+    try {
+      await d.review(row.id, correlationId);
+    } catch (err) {
+      d.log('LP own review: failed after ready', { ownId: row.id, error: err.message, correlationId });
+    }
+  }
+
   async function process(payload = {}) {
     const { ownId, correlationId = null } = payload;
     const row = await d.claimOwn(ownId);
     if (!row) return;
+    if (await make(row, ownId, correlationId)) await reviewAfterReady(row, correlationId);
+  }
 
+  /** true when her row ended ready. */
+  async function make(row, ownId, correlationId) {
     try {
-      if (row.lesson_id) { await processK5(row, correlationId); return; }
+      if (row.lesson_id) { await processK5(row, correlationId); return true; }
 
       const segment = await d.loadSegment(row.segment_id);
       if (!segment) throw stop('NO_SEGMENT', 'segment not in the catalogue');
@@ -145,12 +159,14 @@ function createOwnWorker(deps) {
         status: 'ready', r2_key: pdfKey, edit_hash: hash, model_used: out.model || null,
         error_code: null, error_detail: null, completed_at: new Date().toISOString(),
       });
+      return true;
     } catch (e) {
       d.log('LP 6-12 own: could not make her plan', { ownId, code: e.code || null, error: e.message, correlationId });
       await d.patchOwn(row.id, {
         status: 'failed', error_code: e.code || 'OWN_FAILED', error_detail: String(e.message || '').slice(0, 500),
         completed_at: new Date().toISOString(),
       });
+      return false;
     }
   }
 
@@ -215,6 +231,7 @@ function liveDeps() {
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
     now: () => Date.now(),
     log: (msg, meta) => logToFile(msg, meta),
+    review: (id, correlationId) => require('../shared/services/lp612-own-reviewer').review(id, correlationId),
   };
 }
 
