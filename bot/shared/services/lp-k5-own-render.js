@@ -12,11 +12,11 @@ const { CSS } = require('./lp-v10-card/css');
 const WORDS = {
   en: { grade: 'GRADE', day: 'Day', of: 'of', min: 'min', mine: 'Mine', way: 'Teaching way', open: 'Opening',
     explain: 'Explanation · I Do', we: 'We Do', you: 'You Do', check: 'Check · exit ticket', hw: 'Homework',
-    ask: 'Ask', listen: 'Listen for', words: 'Words', ifStuck: 'If stuck', mistake: 'Common mistake', fix: 'Fix',
+    ask: 'Ask', listen: 'Listen for', words: 'Words', materials: 'You need', reteach: 'Re-teach', ifStuck: 'If stuck', mistake: 'Common mistake', fix: 'Fix',
     answer: 'Answer', behind: 'Needs help', ahead: 'Ready for more', checkQ: 'Check', board: 'Board', say: 'Say' },
   ur: { grade: 'جماعت', day: 'دن', of: 'از', min: 'منٹ', mine: 'میرا', way: 'پڑھانے کا طریقہ', open: 'آغاز',
     explain: 'وضاحت · میں کروں', we: 'ہم کریں', you: 'آپ کریں', check: 'جانچ · ایگزٹ ٹکٹ', hw: 'ہوم ورک',
-    ask: 'پوچھیں', listen: 'سنیں', words: 'الفاظ', ifStuck: 'اگر مشکل ہو', mistake: 'عام غلطی', fix: 'درستی',
+    ask: 'پوچھیں', listen: 'سنیں', words: 'الفاظ', materials: 'ضروری سامان', reteach: 'دوبارہ پڑھائیں', ifStuck: 'اگر مشکل ہو', mistake: 'عام غلطی', fix: 'درستی',
     answer: 'جواب', behind: 'مدد چاہیے', ahead: 'مزید کے لیے تیار', checkQ: 'جانچ', board: 'بورڈ', say: 'کہیں' },
 };
 
@@ -67,8 +67,9 @@ function section(key, title, minutes, inner) {
 function opening(s, W) {
   const h = s.hook || {};
   const words = (h.keyWords || []).map((k) => (k && typeof k === 'object' ? `<b>${esc(k.term || '')}</b>${has(k.def) ? ` — ${esc(k.def)}` : ''}` : esc(k)));
-  return [line(W.ask, g(h, 'warmUp', 'teacherAsks')), line(W.listen, g(h, 'warmUp', 'expectedAnswer')), p(h.story),
-    (h.conversation || []).map((c) => line(W.ask, c && c.teacherAsks)).join(''),
+  const mats = (h.materials || []).filter(has);
+  return [mats.length ? line(W.materials, mats.join(' · ')) : '', line(W.ask, g(h, 'warmUp', 'teacherAsks')), line(W.listen, g(h, 'warmUp', 'expectedAnswer')), p(h.story),
+    (h.conversation || []).map((c) => line(W.ask, c && c.teacherAsks)).join(''), moves(h.steps),
     words.length ? box(W.words, `<p>${words.join(' · ')}</p>`) : '',
     box(W.board, [p(g(h, 'board', 'instruction')), has(g(h, 'board', 'content')) ? `<p>${esc(h.board.content).replace(/\n/g, '<br>')}</p>` : ''].join(''))].join('');
 }
@@ -92,12 +93,12 @@ function youDo(s, W) {
   const d = s.youDo || {};
   const probs = (d.problems || []).map((x) => (x && typeof x === 'object' ? `<li>${esc(x.prompt || '')}</li>` : `<li>${esc(x)}</li>`)).join('');
   return [p(d.action, 'do'), moves(d.steps), probs ? `<ol class="steps">${probs}</ol>` : '', p(g(d, 'wordProblem', 'prompt')),
-    line(W.behind, g(d, 'behind', 'prompt')), line(W.ahead, g(d, 'ahead', 'prompt'))].join('');
+    line(W.checkQ, d.cfu), line(W.behind, g(d, 'behind', 'prompt')), line(W.ahead, g(d, 'ahead', 'prompt'))].join('');
 }
 
 function check(s, W) {
   const ex = (g(s, 'wrap', 'exitOptions') || [])[0] || {};
-  return [p(ex.prompt, 'do'), p(ex.howToRun), p(s.exitSuccessCriteria)].join('');
+  return [p(ex.prompt, 'do'), p(ex.howToRun), p(s.exitSuccessCriteria), line(W.reteach, g(s, 'wrap', 'reteach'))].join('');
 }
 
 function homework(s) {

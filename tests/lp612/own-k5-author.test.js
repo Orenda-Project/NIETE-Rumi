@@ -4,7 +4,7 @@
  */
 const { rewriteK5, JOB } = require('../../bot/shared/services/lp-k5-own-author');
 
-const SCRIPT = { goal: 'Place value', meta: { day: 2 }, hook: {}, iDo: { steps: [{ say: 'a' }] }, weDo: {}, youDo: {}, wrap: {} };
+const SCRIPT = { goal: 'Place value', meta: { day: 2 }, hook: { story: 'h' }, iDo: { steps: [{ say: 'a' }] }, weDo: { action: 'w' }, youDo: { action: 'y' }, wrap: { homework: ['hw'] } };
 const ANSWERS = { size: 'up30', resources: ['textbook'], level: 'ahead', way: 'games', note: '' };
 const reply = (o) => ({ choices: [{ message: { content: typeof o === 'string' ? o : JSON.stringify(o) } }] });
 

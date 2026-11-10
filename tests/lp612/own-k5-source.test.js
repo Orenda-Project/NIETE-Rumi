@@ -36,3 +36,35 @@ test('nothing to rewrite: unknown day, a worksheet, no current asset, no stored 
   expect(await src({ currentAsset: async () => null }).s.k5Lesson('grade_3_math_ch1_seg1')).toBeNull();
   expect(await src({ resolveSlideScript: async () => null }).s.k5Lesson('grade_3_math_ch1_seg1')).toBeNull();
 });
+
+describe('bd-snkn32.12 — a v9/v10 day starts from its whole document, not the quiz digest', () => {
+  const { EN } = require('./fixtures/k5-own-v10-html');
+  const { missingGrr } = require('../../bot/shared/services/lp-k5-own');
+  const DIGEST = { meta: { source: 'v9_html' }, goal: 'g', iDo: { keyFact: 'k', worked: null }, youDo: { problems: [] }, wrap: { exitOptions: [] } };
+  const v9 = (over = {}) => src({
+    resolveSlideScript: jest.fn(async () => ({ slideScript: DIGEST, verified: 'v9_html', sourceUrl: 'lp/v9/html/grade_3_math_ch1_seg1/abc.html' })),
+    readHtml: jest.fn(async () => EN),
+    ...over,
+  });
+
+  it('reads the stored HTML of that exact version and returns every gradual-release part', async () => {
+    const { s, deps } = v9();
+    const day = await s.loadK5('grade_3_math_ch1_seg1');
+    expect(deps.readHtml).toHaveBeenCalledWith('lp/v9/html/grade_3_math_ch1_seg1/abc.html');
+    expect(missingGrr(day.script)).toEqual([]);
+    expect(day.script.meta.lessonId).toBe('grade_3_math_ch1_seg1');
+  });
+
+  it('the request check stays cheap: k5Lesson never downloads the document', async () => {
+    const { s, deps } = v9();
+    expect(await s.k5Lesson('grade_3_math_ch1_seg1')).toEqual(expect.objectContaining({ lessonId: 'grade_3_math_ch1_seg1' }));
+    expect(deps.readHtml).not.toHaveBeenCalled();
+  });
+
+  it('a v9 row with no stored document has nothing to start from; a v8 script is used as stored', async () => {
+    expect(await v9({ resolveSlideScript: async () => ({ slideScript: DIGEST, verified: 'v9_html', sourceUrl: null }) }).s.loadK5('grade_3_math_ch1_seg1')).toBeNull();
+    const { s, deps } = src({ readHtml: jest.fn() });
+    expect((await s.loadK5('grade_3_math_ch1_seg1')).script).toBe(SCRIPT);
+    expect(deps.readHtml).not.toHaveBeenCalled();
+  });
+});
