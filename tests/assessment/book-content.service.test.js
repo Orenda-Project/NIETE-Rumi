@@ -181,6 +181,40 @@ describe('loadPageRangeContent', () => {
       .rejects.toMatchObject({ code: 'PAGE_OUT_OF_RANGE', totalPages: 166 });
   });
 
+  // bd-ehz254.7: total_pages counts page ROWS; printed numbers run past it (G9 CS: 66 rows, last printed page 71).
+  // Production 6-10 Nov 2026: 7 of 34 grade 6-12 papers refused pages the book has.
+  const SHORT = { id: 'tb-cs9', total_pages: 66, pdf_page_offset: 0 };
+
+  it('accepts printed pages past the row count when the book prints them', async () => {
+    mockResults.push({ data: SHORT, error: null });
+    mockResults.push({ data: { textbook_page_number: 71 }, error: null });
+    mockResults.push({
+      data: [65, 66, 67, 68, 69, 70].map((n) => ({ textbook_page_number: n, page_content: `p${n}` })),
+      error: null,
+    });
+    const out = await BookContent.loadPageRangeContent({ grade: 9, subject: 'computer_science', pageRanges: '65-70' });
+    expect(out.pagesFound).toEqual([65, 66, 67, 68, 69, 70]);
+  });
+
+  it('still refuses a page past the last printed page, and names that page', async () => {
+    mockResults.push({ data: SHORT, error: null });
+    mockResults.push({ data: { textbook_page_number: 71 }, error: null });
+    const err = await BookContent.loadPageRangeContent({ grade: 9, subject: 'computer_science', pageRanges: '70-72' })
+      .catch((e) => e);
+    expect(err).toMatchObject({ code: 'PAGE_OUT_OF_RANGE', totalPages: 71, beyond: [72] });
+    expect(err.message).toContain('1-71');
+  });
+
+  it('falls back to total_pages when the last-page lookup fails', async () => {
+    mockResults.push({ data: SHORT, error: null });
+    mockResults.push({ data: null, error: { message: 'boom' } });
+    await expect(BookContent.loadPageRangeContent({ grade: 9, subject: 'computer_science', pageRanges: '70' }))
+      .rejects.toMatchObject({ code: 'PAGE_OUT_OF_RANGE', totalPages: 66, beyond: [70] });
+    const last = mockCalls.find((c) => c.table === 'textbook_pages');
+    expect(last.filters.find((f) => f.fn === 'order').args).toEqual(['textbook_page_number', { ascending: false }]);
+    expect(last.filters.find((f) => f.fn === 'eq').args).toEqual(['textbook_id', 'tb-cs9']);
+  });
+
   it('tolerates a gap — asks for 3, gets 2, says which it got', async () => {
     mockResults.push({ data: BOOK, error: null });
     mockResults.push({
