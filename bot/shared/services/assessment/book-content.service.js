@@ -204,6 +204,27 @@ async function loadChapterContent({ grade, subject, chapterNumber, curriculum })
   };
 }
 
+/**
+ * The last page number printed in the book. textbooks.total_pages counts page ROWS, and the
+ * printed numbers run past it (G9 CS: 66 rows, prints to 71; bd-ehz254.7). Falls back to
+ * `fallback` when the book has no page rows or the lookup fails.
+ */
+async function lastPrintedPage(textbookId, fallback = null) {
+  if (!textbookId) return fallback;
+  const { data, error } = await supabase
+    .from('textbook_pages')
+    .select('textbook_page_number')
+    .eq('textbook_id', textbookId)
+    .order('textbook_page_number', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    logToFile('[assessment] last page lookup failed', { textbookId, error: error.message });
+    return fallback;
+  }
+  return (data && data.textbook_page_number) || fallback;
+}
+
 /** Exactly the pages she typed. The escape hatch from the chapter list. */
 async function loadPageRangeContent({ grade, subject, pageRanges, curriculum }) {
   const book = await _book(grade, subject, curriculum);
@@ -211,8 +232,13 @@ async function loadPageRangeContent({ grade, subject, pageRanges, curriculum }) 
 
   // Say the range is wrong before fetching nothing and blaming the content —
   // "this book has pages 1-166" is a fixable answer, "no content" is not.
-  const total = book.total_pages;
-  const beyond = total ? wanted.filter((p) => p > total) : [];
+  // total_pages is only a hint: the real bound is looked up when a page passes it.
+  let total = book.total_pages;
+  let beyond = total ? wanted.filter((p) => p > total) : [];
+  if (beyond.length > 0) {
+    total = await lastPrintedPage(book.id, total);
+    beyond = wanted.filter((p) => p > total);
+  }
   if (beyond.length > 0) {
     throw fail('PAGE_OUT_OF_RANGE',
       `This book has pages 1-${total}. You asked for ${beyond.join(', ')}.`,
@@ -238,6 +264,7 @@ module.exports = {
   listChapters,
   loadChapterContent,
   loadPageRangeContent,
+  lastPrintedPage,
   parsePageRanges,
   normaliseSubject,
 };
