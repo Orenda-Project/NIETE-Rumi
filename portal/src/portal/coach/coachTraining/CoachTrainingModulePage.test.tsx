@@ -70,8 +70,79 @@ describe("a module's own screen: PDF or Video", () => {
 
   it("a module that does not exist goes back to the list", async () => {
     await act(async () => { await i18n.changeLanguage("en"); });
-    renderAt("/portal/coach/coach-training/10");
+    renderAt("/portal/coach/coach-training/11");
     expect(screen.getByText("the module list")).toBeTruthy();
+  });
+});
+
+/**
+ * bd-rlxkkt.12 — Module 10, "No evidence, no level" (the ICT HITL owner's DM, 10 Nov 2026), has its page but no video yet.
+ * Its screen keeps the same two squares so nothing looks broken: PDF opens her page; Video says Coming soon and opens
+ * nothing. Modules 1–9 keep their videos.
+ */
+describe("Module 10: its page now, its video coming soon", () => {
+  beforeAll(async () => { if (!i18n.isInitialized) await i18n.init({ lng: "en", resources: {} }); });
+  let open: ReturnType<typeof vi.fn>;
+  beforeEach(() => {
+    open = vi.fn(); vi.stubGlobal("open", open);
+    progress.get.mockReset().mockResolvedValue({ success: true, done: {} });
+    progress.set.mockReset();
+  });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  const renderAt = (path: string) => render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path={COACH_MODULE_PATH} element={<CoachTrainingModulePage />} />
+        <Route path={COACH_TRAINING_PATH} element={<p>the module list</p>} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  it("English: Module 10's title; PDF opens her page; Video reads Coming soon, is off, and opens nothing", async () => {
+    await act(async () => { await i18n.changeLanguage("en"); });
+    renderAt("/portal/coach/coach-training/10");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("No evidence, no level");
+    expect(screen.getByTestId("coach-training-module")).toHaveTextContent("Module 10");
+    fireEvent.click(screen.getByTestId("coach-format-pdf"));
+    expect(open).toHaveBeenLastCalledWith("https://claude.ai/artifact/62371mmVGLxniEHz6VGRXx", "_blank", "noopener,noreferrer");
+    const video = screen.getByTestId("coach-format-video");
+    expect(video).toBeDisabled();
+    expect(video).toHaveTextContent("Video");
+    expect(video).toHaveTextContent("Coming soon");
+    expect(video).toHaveAccessibleName("Video, Coming soon");
+    open.mockClear();
+    fireEvent.click(video);
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it("Urdu: ویڈیو — جلد آ رہی ہے", async () => {
+    await act(async () => { await i18n.changeLanguage("ur"); });
+    renderAt("/portal/coach/coach-training/10");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("ثبوت نہیں تو لیول نہیں");
+    const video = screen.getByTestId("coach-format-video");
+    expect(video).toBeDisabled();
+    expect(video).toHaveTextContent("جلد آ رہی ہے");
+    await act(async () => { await i18n.changeLanguage("en"); });
+  });
+
+  it("modules 1–9 keep a working Video (no Coming soon)", async () => {
+    await act(async () => { await i18n.changeLanguage("en"); });
+    renderAt("/portal/coach/coach-training/9");
+    const video = screen.getByTestId("coach-format-video");
+    expect(video).not.toBeDisabled();
+    expect(video).not.toHaveTextContent("Coming soon");
+    fireEvent.click(video);
+    expect(open).toHaveBeenLastCalledWith("https://claude.ai/artifact/MUxJFCkertstuJXnNNF9LC", "_blank", "noopener,noreferrer");
+  });
+
+  it("Mark done works on Module 10 (its key is evidence)", async () => {
+    await act(async () => { await i18n.changeLanguage("en"); });
+    progress.set.mockResolvedValue({ success: true, done: { evidence: "2026-11-10T12:00:00.000Z" } });
+    renderAt("/portal/coach/coach-training/10");
+    fireEvent.click(await screen.findByTestId("coach-mark-done"));
+    expect(progress.set).toHaveBeenCalledWith("evidence", true);
+    expect(await screen.findByTestId("coach-module-done")).toHaveTextContent("Done");
   });
 });
 

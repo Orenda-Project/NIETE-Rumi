@@ -27,6 +27,8 @@ import { COPY_MODULES } from "../../teacher/copyRegistry";
 const IDS = [
   "Kfy7kDWtaZ4gQ2wX5BHceu", "NdMiwNiFxU5vcxfj8nFGmV", "DSJ3usPDiwBEnTNc8jU4qz", "V7XLdPCcyUZu1v1PGrZF9H", "1wkxNT3zTTKSrEAwMV5VPN",
   "CaqizBAbzEiAwMdKK2mNfx", "SBrvLUoSySSXCKVyshX72q", "MGVm5YMAdQhRCrWRWWg65C", "SZyvWZYrmMFn1XrhtnFGL8",
+  // bd-rlxkkt.12 — Module 10, "No evidence, no level" (the ICT HITL owner's DM, 10 Nov 2026): her page, linked as-is
+  "62371mmVGLxniEHz6VGRXx",
 ];
 
 /** bd-rlxkkt.5 — the ICT HITL owner's video lesson for each module (her DM, 5 Nov 2026), in the same order. */
@@ -35,18 +37,28 @@ const VIDEOS = [
   "8PfwS2qKp3rtuwCJ1GiwAZ", "GgzCzuPjSBYNFH7qspadNy", "FnhqM4ae3uV1XwwwgSYfYs", "MUxJFCkertstuJXnNNF9LC",
 ];
 
-describe("the nine modules", () => {
-  it("each has its video lesson as well as its module page, and the two are different pages", () => {
-    expect(COACH_MODULES.map((m) => videoUrl(m))).toEqual(VIDEOS.map((id) => `https://claude.ai/artifact/${id}`));
-    for (const m of COACH_MODULES) expect(m.video).not.toBe(m.artifact);
+describe("the ten modules", () => {
+  it("modules 1–9 each have their video lesson as well as their module page, and the two are different pages", () => {
+    const nine = COACH_MODULES.slice(0, 9);
+    expect(nine.map((m) => videoUrl(m))).toEqual(VIDEOS.map((id) => `https://claude.ai/artifact/${id}`));
+    for (const m of nine) expect(m.video).not.toBe(m.artifact);
   });
 
-  it("are numbered 1–9 in the rubric's order, each a claude.ai page", () => {
-    expect(COACH_MODULES.map((m) => m.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  it("bd-rlxkkt.12 — Module 10 has its page but no video yet (null, never a guessed link)", () => {
+    const ten = COACH_MODULES[9];
+    expect(ten).toMatchObject({ n: 10, key: "evidence", artifact: "62371mmVGLxniEHz6VGRXx", video: null });
+    expect(videoUrl(ten)).toBeNull();
+    expect(ten.title).toEqual({ en: "No evidence, no level", ur: "ثبوت نہیں تو لیول نہیں" });
+  });
+
+  it("are numbered 1–10: the rubric's order, then Module 10; each a claude.ai page", () => {
+    expect(COACH_MODULES.map((m) => m.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(new Set(COACH_MODULES.map((m) => m.key)).size).toBe(COACH_MODULES.length);
     expect(COACH_MODULES.map((m) => moduleUrl(m))).toEqual(IDS.map((id) => `https://claude.ai/artifact/${id}`));
     expect(COACH_MODULES[0].title.en).toBe("Open with specific praise");
     expect(COACH_MODULES[7].title.en).toBe("Rehearse it aloud");
     expect(COACH_MODULES[8].title.en).toBe("The full debrief");
+    expect(COACH_MODULES[9].title.en).toBe("No evidence, no level");
     for (const m of COACH_MODULES) expect(m.title.ur).toMatch(/[؀-ۿ]/);
   });
 
@@ -85,13 +97,16 @@ describe("the page", () => {
     </MemoryRouter>,
   );
 
-  it("English: Coach Training, nine module rows; a tap opens that module's own screen (no Video/PDF on the list)", async () => {
+  it("English: Coach Training, ten module rows; a tap opens that module's own screen (no Video/PDF on the list)", async () => {
     await act(async () => { await i18n.changeLanguage("en"); });
     renderPage();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Coach Training");
     const rows = within(screen.getByTestId("coach-modules")).getAllByTestId("coach-module");
-    expect(rows).toHaveLength(9);
+    expect(rows).toHaveLength(10);
+    expect(screen.getByText("Ten coaching modules")).toBeTruthy();
     expect(rows[0]).toHaveTextContent("Open with specific praise");
+    expect(rows[9]).toHaveTextContent("No evidence, no level");
+    expect(rows[9]).toHaveTextContent("10");
     expect(rows[0]).toHaveTextContent("Module");
     rows.forEach((row, i) => expect(row).toHaveAttribute("href", `/portal/coach/coach-training/${i + 1}`));
     expect(screen.queryByTestId("coach-module-video")).toBeNull();
@@ -99,12 +114,14 @@ describe("the page", () => {
     expect(COACH_MODULES.map(modulePath)).toEqual(COACH_MODULES.map((m) => `/portal/coach/coach-training/${m.n}`));
   });
 
-  it("Urdu: the same nine, in Urdu", async () => {
+  it("Urdu: the same ten, in Urdu", async () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     renderPage();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("کوچ ٹریننگ");
     const rows = within(screen.getByTestId("coach-modules")).getAllByTestId("coach-module");
     expect(rows[7]).toHaveTextContent("جانے سے پہلے زبانی پریکٹس");
+    expect(rows[9]).toHaveTextContent("ثبوت نہیں تو لیول نہیں");
+    expect(screen.getByText("کوچنگ کے دس ماڈیول")).toBeTruthy();
     await act(async () => { await i18n.changeLanguage("en"); });
   });
 });
@@ -117,21 +134,21 @@ describe("which modules she has done (bd-rlxkkt.9)", () => {
     </MemoryRouter>,
   );
 
-  it("a Done tick on each module she marked, and the count: 3 of 9 done", async () => {
+  it("a Done tick on each module she marked, and the count: 3 of 10 done", async () => {
     await act(async () => { await i18n.changeLanguage("en"); });
     progress.get.mockReset().mockResolvedValue({ success: true, done: { praise: "a", moment: "b", rehearse: "c" } });
     renderPage();
-    await waitFor(() => expect(screen.getByTestId("coach-training-count")).toHaveTextContent("3 of 9 done"));
+    await waitFor(() => expect(screen.getByTestId("coach-training-count")).toHaveTextContent("3 of 10 done"));
     const rows = within(screen.getByTestId("coach-modules")).getAllByTestId("coach-module");
     const doneRows = rows.map((r, i) => (/Done/.test(r.textContent ?? "") ? i + 1 : 0)).filter(Boolean);
     expect(doneRows).toEqual([1, 2, 8]);
   });
 
-  it("nothing done: 0 of 9 done and no ticks; a count that did not load shows —, never a 0", async () => {
+  it("nothing done: 0 of 10 done and no ticks; a count that did not load shows —, never a 0", async () => {
     await act(async () => { await i18n.changeLanguage("en"); });
     progress.get.mockReset().mockResolvedValue({ success: true, done: {} });
     const first = renderPage();
-    await waitFor(() => expect(screen.getByTestId("coach-training-count")).toHaveTextContent("0 of 9 done"));
+    await waitFor(() => expect(screen.getByTestId("coach-training-count")).toHaveTextContent("0 of 10 done"));
     expect(screen.queryAllByText("Done")).toHaveLength(0);
     first.unmount();
     progress.get.mockReset().mockRejectedValue(new Error("down"));
@@ -140,15 +157,32 @@ describe("which modules she has done (bd-rlxkkt.9)", () => {
     await waitFor(() => expect(screen.getByTestId("coach-training-count")).toHaveTextContent("—"));
   });
 
-  it("Urdu: 3/9 مکمل and the مکمل tick", async () => {
+  it("Urdu: 3/10 مکمل and the مکمل tick", async () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     progress.get.mockReset().mockResolvedValue({ success: true, done: { praise: "a", moment: "b", rehearse: "c" } });
     renderPage();
-    // the chip isolates "3/9" (LRI … PDI) so it reads in order on an Urdu line
-    await waitFor(() => expect(screen.getByTestId("coach-training-count").textContent?.replace(/[\u2066-\u2069]/g, "")).toBe("3/9 مکمل"));
+    // the chip isolates "3/10" (LRI … PDI) so it reads in order on an Urdu line
+    await waitFor(() => expect(screen.getByTestId("coach-training-count").textContent?.replace(/[\u2066-\u2069]/g, "")).toBe("3/10 مکمل"));
     const rows = within(screen.getByTestId("coach-modules")).getAllByTestId("coach-module");
     expect(rows[0]).toHaveTextContent("مکمل");
     await act(async () => { await i18n.changeLanguage("en"); });
+  });
+});
+
+describe("all ten done (bd-rlxkkt.12)", () => {
+  beforeAll(async () => { if (!i18n.isInitialized) await i18n.init({ lng: "en", resources: {} }); });
+  it("Module 10 counts: 10 of 10 done, and its row carries the tick", async () => {
+    await act(async () => { await i18n.changeLanguage("en"); });
+    const done = Object.fromEntries(COACH_MODULES.map((m) => [m.key, "2026-11-10T12:00:00.000Z"]));
+    progress.get.mockReset().mockResolvedValue({ success: true, done });
+    render(
+      <MemoryRouter initialEntries={[COACH_TRAINING_PATH]}>
+        <Routes><Route path={COACH_TRAINING_PATH} element={<CoachTrainingPage />} /></Routes>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByTestId("coach-training-count")).toHaveTextContent("10 of 10 done"));
+    const rows = within(screen.getByTestId("coach-modules")).getAllByTestId("coach-module");
+    expect(rows[9]).toHaveTextContent("Done");
   });
 });
 
@@ -167,7 +201,9 @@ describe("its words and its door", () => {
     for (const ready of [coachReadyFor(false, true), coachReadyFor(true, false), coachReadyFor(false, false)]) {
       expect(coachPathReady(COACH_TRAINING_PATH, ready)).toBe(true);
       for (const m of COACH_MODULES) expect(coachPathReady(modulePath(m), ready)).toBe(true);
-      expect(coachPathReady("/portal/coach/coach-training/10", ready)).toBe(false);
+      // bd-rlxkkt.12 — Module 10's screen is reachable (the guard allowed only 1–9); a number past the last is not
+      expect(coachPathReady("/portal/coach/coach-training/10", ready)).toBe(true);
+      expect(coachPathReady("/portal/coach/coach-training/11", ready)).toBe(false);
     }
     expect(COACH_TRAINING_PATH).toBe("/portal/coach/coach-training");
   });
