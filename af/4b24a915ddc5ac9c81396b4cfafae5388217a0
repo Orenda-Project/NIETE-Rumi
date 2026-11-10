@@ -2,3 +2,4 @@
 {"ts":"2026-11-10T14:43:04Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.20-21155: teacher-lessons web lane spec: NOT UPDATED e2e: missing","sha":"af4b24a915dd","branch":"bd-snkn32.20-21155","user":""}
 {"ts":"2026-11-10T14:43:20Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.20-21155: teacher-lessons web lane spec: NOT UPDATED e2e: missing","sha":"af4b24a915dd","branch":"bd-snkn32.20-21155","user":""}
 {"ts":"2026-11-10T14:43:36Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.20-21155: teacher-lessons web lane spec: NOT UPDATED e2e: missing","sha":"af4b24a915dd","branch":"bd-snkn32.20-21155","user":""}
+{"ts":"2026-11-10T15:11:28Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current engine=2.0.0","sha":"af4b24a915dd","branch":"bd-snkn32.20-21155","user":""}
