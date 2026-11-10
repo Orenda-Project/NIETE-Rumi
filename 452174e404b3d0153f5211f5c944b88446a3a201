@@ -1,2 +1,3 @@
 {"ts":"2026-11-10T10:35:58Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"452174e404b3","branch":"bd-apnnh2.5-to-main","user":"tariqtaleemabad"}
 {"ts":"2026-11-10T10:41:03Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"*=none-needed (ships off; no teacher-visible change while the flag is off)","sha":"452174e404b3","branch":"bd-apnnh2.5-to-main","user":"tariqtaleemabad"}
+{"ts":"2026-11-10T10:41:03Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-452174e404b3","sha":"452174e404b3","branch":"bd-apnnh2.5-to-main","user":"tariqtaleemabad"}
