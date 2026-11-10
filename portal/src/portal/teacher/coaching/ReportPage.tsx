@@ -25,6 +25,7 @@ import { ClassCheck, Reflection, stoppedLine } from './reportLive';
 import { useDcReport } from './useDcReport';
 import { VideoRecoCard } from './VideoRecoCard';
 import { LessonQuizButton } from '../home/LessonQuizButton';
+import { usePrincipalAppState } from '../principal/usePrincipalApp';
 
 /**
  * bd-fmf24g.4 — the shared report page (v28 canvas CoachingLesson; the coach-visit report uses the same
@@ -63,6 +64,11 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
   const crumb = crumbProp ?? C.title;
   const { id = '' } = useParams();
   const { user } = useAuth();
+  // bd-33wxxi.6 — a principal on the principal app sees no score on her own lesson's report (#55, the operator, 10 Nov
+  // on Q1: "Lets start with hiding the scores … on the report for Principals"): ReportBody's own no-marks case, so the
+  // % and the marks are left out and every section stays. Hidden while /config is read too, so it never flashes; a
+  // teacher (and a principal the switch does not name) is unchanged.
+  const hideScore = usePrincipalAppState(user) !== false;
   // The progress and her answer, shared with the one screen (reportLive.tsx).
   const r = useDcReport(id);
   const navigate = useNavigate();
@@ -246,7 +252,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
             )
             : (
               <ReportBody
-                data={toReportData(detail, { teacher: fullName(user), journey, words: C, days })}
+                data={{ ...toReportData(detail, { teacher: fullName(user), journey, words: C, days }), ...(hideScore ? { marks: null, max: null } : {}) }}
                 afterTryNext={detail.video_recommendation ? <VideoRecoCard video={detail.video_recommendation} /> : undefined}
               />
             )}
