@@ -34,6 +34,9 @@ const COMMANDS = new Set([
   // stem), so "/attendance" and "/coaching" reach them like any other command. They were missing,
   // and "/attendence" and "/couching" were among the commonest slips answered by the chat.
   'attendance', 'coaching',
+  // /feedback and /bug (services/feedback/whatsapp-feedback-intake.service.js): "feedback/" and "/fedback" reach it.
+  // The bare word "feedback" is NOT rewritten (no slash, no command): it still routes to coaching.
+  'feedback', 'bug',
 ]);
 
 // Real commands this canonicaliser does NOT rewrite into: their own doors read them (quiz above;

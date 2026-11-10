@@ -96,6 +96,26 @@ async function handleVoiceMessage(message, from, user = null) {
       }
     }
 
+    // /feedback or /bug is waiting (feedback/whatsapp-feedback-intake.service.js): a voice note of up to five minutes
+    // is the report. FIRST, before the child test and observe: a coach in observe's awaiting_audio who has just typed
+    // /bug is answering that, not sending a lesson recording. A longer recording is not feedback — the wait ends and
+    // it goes on below as before. Nothing waiting (or WHATSAPP_FEEDBACK off): false, one Redis read.
+    if (user) {
+      try {
+        const WaFeedback = require('../services/feedback/whatsapp-feedback-intake.service');
+        const took = await WaFeedback.tryHandleVoice({
+          user, from, messageId: message.id, audioId,
+          durationSeconds: message.voice?.duration || message.audio?.duration || null,
+        });
+        if (took) {
+          typingController.stop();
+          return;
+        }
+      } catch (feedbackErr) {
+        logToFile('⚠️ WhatsApp feedback voice intake failed — routing on', { error: feedbackErr.message }, 'error');
+      }
+    }
+
     // Child test (bd-s1oo0.4): a coach's voice note while a child-test block is waiting for it is
     // that block's recording. Checked BEFORE routeLeaderAudio, which would otherwise take any
     // audio from a leader in observe's awaiting_audio as the lesson recording. Claims only in the

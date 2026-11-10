@@ -495,6 +495,23 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   turn.user = user;
   turn.lookupFailed = userLookupFailed;
 
+  // /feedback and /bug (feedback/whatsapp-feedback-intake.service.js): the command, then her next message is the
+  // report. Right after the account lookup, so the report is never taken by a later door. Any slash command while
+  // waiting ends the wait and goes on to its own door. Switch WHATSAPP_FEEDBACK; off, both calls return false and
+  // nothing changes.
+  if (messageBody) {
+    try {
+      const WaFeedback = require('../services/feedback/whatsapp-feedback-intake.service');
+      const feedbackArgs = { user, from, messageBody, messageId: message && message.id, lookupFailed: userLookupFailed };
+      if (await WaFeedback.tryHandleTrigger(feedbackArgs) || await WaFeedback.tryHandleText(feedbackArgs)) {
+        typingController.stop();
+        return;
+      }
+    } catch (feedbackErr) {
+      logToFile('⚠️ WhatsApp feedback intake failed — routing on', { error: feedbackErr.message }, 'error');
+    }
+  }
+
   // NOTE: Funnel tracking (chat start) is handled centrally in whatsapp-bot.js
   // before routing to this handler
 
