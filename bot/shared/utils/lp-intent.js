@@ -26,9 +26,11 @@
 // bare messages were "/lesson plan"), a stray slash after, and trailing
 // punctuation in either script. Word forms: lp/lps, lesson/lessons,
 // lesson plan(s) joined or hyphenated, and the Urdu names.
+// bd-xw56ed.7: and "ip", which is "lp" typed with a capital I (I and l look the same on a phone). Production and
+// sandbox answered "IP" / "/IP" "not sure" + the menu. Whole message only: "IP address" is not a command.
 const BARE = new RegExp(
   '^\\/?\\s*(?:'
-  + 'lps?|lessons?(?:[\\s-]*plans?)?'
+  + 'lps?|ip|lessons?(?:[\\s-]*plans?)?'
   + '|لیسن(?:\\s*پلان)?'
   + '|سبق\\s*ک[اے]\\s*منصوبہ'
   + ')\\s*\\/?[\\s.!?،۔؟]*$',
