@@ -36,7 +36,18 @@ export const OWN_COPY = {
   ways: {
     tarl: "Teach at each child's level", cpa: 'Things → pictures → numbers', phonics: 'Sounds first',
     games: 'Games and movement', story: 'Story and talk',
+    /* grades 6–12 (bd-snkn32.13) */
+    worked: 'Worked examples', numericals: 'Numericals step by step', practical: 'Demonstration or practical',
+    inquiry: 'Inquiry', concept_map: 'Concept map', discussion: 'Structured discussion', reading: 'Close reading',
+    past_paper: 'Past-paper practice',
   },
+  /* grades 6–12: what the lesson is for, and (a mixed lesson) which outcomes first (bd-snkn32.13) */
+  purpose: 'What is this lesson for?',
+  purposeLabel: 'Lesson for',
+  purposes: { new: 'Teach new', revise: 'Revise', board: 'Board exam practice', reteach: 'Re-teach' },
+  focus: 'Which outcomes first?',
+  focusLabel: 'Outcomes first',
+  foci: { summative: 'Board exam (Summative)', formative: 'Classroom (Formative)' },
   /* the check screen */
   yourPlan: 'Your plan',
   note: 'Anything else',
@@ -70,7 +81,16 @@ const OWN_COPY_UR: Words<typeof OWN_COPY> = {
   ways: {
     tarl: 'ہر بچے کی سطح پر پڑھائیں', cpa: 'چیزیں ← تصویریں ← اعداد', phonics: 'پہلے آوازیں',
     games: 'کھیل اور حرکت', story: 'کہانی اور بات چیت',
+    worked: 'حل شدہ مثالیں', numericals: 'سوالات مرحلہ وار', practical: 'عملی مظاہرہ',
+    inquiry: 'سوال اور تحقیق', concept_map: 'تصوراتی نقشہ', discussion: 'منظم بحث', reading: 'غور سے پڑھنا',
+    past_paper: 'پچھلے پرچوں کی مشق',
   },
+  purpose: 'یہ سبق کس لیے ہے؟',
+  purposeLabel: 'سبق کا مقصد',
+  purposes: { new: 'نیا پڑھائیں', revise: 'دہرائی', board: 'بورڈ امتحان کی تیاری', reteach: 'دوبارہ پڑھائیں' },
+  focus: 'پہلے کون سے نتائج؟',
+  focusLabel: 'پہلے نتائج',
+  foci: { summative: 'بورڈ امتحان (Summative)', formative: 'کلاس روم (Formative)' },
   yourPlan: 'آپ کا لیسن پلان',
   note: 'کچھ اور',
   optional: 'اختیاری',
@@ -88,5 +108,6 @@ export const OWN_COPY_ENTRY: CopyEntry = {
   // Digits and dashes read the same in both languages.
   same: ['sizes.31_50', 'sizes.51_70'],
   // A suggestion's name mirrors the FLN strategy's own name word for word.
-  longOk: ['ways.tarl', 'ways.cpa', 'suggested', 'resourceNames.charts', 'objectsHint', 'level', 'makeMyPlan'],
+  // A step's question ("Which day?", "What is this lesson for?") is a title, not a label (bd-snkn32.13).
+  longOk: ['ways.tarl', 'ways.cpa', 'suggested', 'resourceNames.charts', 'objectsHint', 'level', 'makeMyPlan', 'day', 'purpose', 'focus'],
 };
