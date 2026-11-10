@@ -110,7 +110,14 @@ function homework(s) {
 /** `fontCss`: the embedded @font-face rules (lp-k5-own-fonts), passed in so this stays pure. */
 const URDU_DIGITS = (v) => String(v).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
-function renderK5Own(script, { lang = 'en', grade, subject, way, fontCss = '' } = {}) {
+/** bd-snkn32.17 — the book pages her plan teaches (`p.3-6`; `ص ۳-۶` in an Urdu book), or ''. */
+function pageSpan(p, ur, num) {
+  if (!p || !Number.isInteger(p.start) || !Number.isInteger(p.end)) return '';
+  const r = p.start === p.end ? num(p.start) : `${num(p.start)}-${num(p.end)}`;
+  return ` · <span class="pg">${ur ? `ص ${r}` : `p.${r}`}</span>`;
+}
+
+function renderK5Own(script, { lang = 'en', grade, subject, way, pages = null, fontCss = '' } = {}) {
   const ur = lang === 'ur';
   const num = (v) => (ur ? URDU_DIGITS(v) : v); // the reviewer: the header's digits match the Urdu body's (۲, not 2)
   const W = WORDS[ur ? 'ur' : 'en'];
@@ -118,7 +125,7 @@ function renderK5Own(script, { lang = 'en', grade, subject, way, fontCss = '' } 
   const m = s.meta || {};
   const day = has(m.day) ? `${W.day} ${esc(num(m.day))}${has(m.total) ? ` ${W.of} ${esc(num(m.total))}` : ''}` : '';
   const head = `<div class="hd"><div class="k"><span><b>${W.grade} ${esc(num(grade ?? m.grade ?? ''))} · ${esc(subjectFor(subject || m.subject || '', ur))}</b></span>`
-    + `<span>${day}${has(m.minutes) ? ` · ${esc(num(m.minutes))} ${W.min}` : ''} · ${W.mine}</span></div>`
+    + `<span>${day}${has(m.minutes) ? ` · ${esc(num(m.minutes))} ${W.min}` : ''}${pageSpan(pages, ur, num)} · ${W.mine}</span></div>`
     + `<h1>${esc(m.topic || '')}</h1><div class="goal">${esc(s.goal || '')}</div></div>`
     + (has(way) ? `<div class="info"><b>${W.way}</b><span>${esc(way)}</span></div>` : '');
   const body = [
