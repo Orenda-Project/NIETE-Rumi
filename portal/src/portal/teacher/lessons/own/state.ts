@@ -1,6 +1,7 @@
 import { LESSONS_OWN } from '../paths';
 import { LEVELS, RESOURCES, SIZES, WAYS, type Level, type Resource, type Size, type Way } from './rules';
 import { EXTENDS, type Extend } from './extend';
+import { fmtPg, parsePg, type PageRange } from './pages';
 
 /**
  * bd-snkn32 — where "Make my own" is, all in the address (the Lesson Plans rule, paths.ts: Back and a reload land where
@@ -23,6 +24,8 @@ export type OwnAt = {
   way: Way | null;
   /** bd-snkn32.14 — add the next lesson's pages, and how (grades 6–12). */
   ext?: Extend | null;
+  /** bd-snkn32.17 — grades 1–5: the book pages she chose, when not the day's own. */
+  pg?: PageRange;
 };
 
 const pick = <T extends string>(list: readonly T[], v: string | null): T | null => (v && (list as readonly string[]).includes(v) ? v as T : null);
@@ -37,6 +40,7 @@ export function ownUrl(s: Partial<OwnAt> & { grade: number; subject: string; cha
   if (s.level) q.set('level', s.level);
   if (s.way) q.set('way', s.way);
   if (s.ext) q.set('ext', s.ext);
+  if (s.pg) q.set('pg', fmtPg(s.pg));
   return `${LESSONS_OWN}?${q.toString()}`;
 }
 
@@ -46,6 +50,7 @@ export function readOwn(search: string): OwnAt | null {
   const subject = q.get('subject');
   const chapter = q.get('chapter');
   if (!Number.isInteger(grade) || grade < 1 || grade > 12 || !subject || !chapter) return null;
+  const pg = parsePg(q.get('pg'));
   const res = (q.get('res') ?? '').split(',').map((r) => pick(RESOURCES, r)).filter((r): r is Resource => !!r && r !== 'textbook');
   return {
     grade, subject, chapter,
@@ -56,6 +61,7 @@ export function readOwn(search: string): OwnAt | null {
     level: pick(LEVELS, q.get('level')),
     way: pick(WAYS, q.get('way')),
     ...(pick(EXTENDS, q.get('ext')) ? { ext: pick(EXTENDS, q.get('ext')) } : {}),
+    ...(pg ? { pg } : {}),
   };
 }
 
@@ -74,5 +80,6 @@ export function toAnswers(s: OwnAt, note: string, next: string | null = null) {
   return {
     size: s.size, resources: ['textbook', ...s.res] as Resource[], level: s.level, way: s.way, note: note.trim(),
     ...(s.ext && next ? { extend: { next, shape: s.ext } } : {}),
+    ...(s.pg ? { pages: s.pg } : {}),
   };
 }

@@ -5284,7 +5284,16 @@ CREATE TABLE IF NOT EXISTS niete_lp612_own_plans (
   completed_at      TIMESTAMPTZ,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT niete_lp612_own_plans_one_parent CHECK (num_nonnulls(segment_id, lesson_id) = 1)
+  -- V1.9.9: the AI reviewer's gate v2 verdict, for shared-library eligibility only
+  review_score      NUMERIC(4,1) CONSTRAINT niete_lp612_own_plans_review_score_range
+                      CHECK (review_score IS NULL OR (review_score >= 0 AND review_score <= 100)),
+  review_pass       BOOLEAN,
+  review_items      JSONB,
+  review_model      TEXT,
+  reviewed_at       TIMESTAMPTZ,
+  library_eligible  BOOLEAN NOT NULL DEFAULT false,
+  CONSTRAINT niete_lp612_own_plans_one_parent CHECK (num_nonnulls(segment_id, lesson_id) = 1),
+  CONSTRAINT niete_lp612_own_plans_library_needs_pass CHECK (NOT library_eligible OR review_pass IS TRUE)
 );
 
 CREATE INDEX IF NOT EXISTS idx_lp612_own_plans_user
@@ -5292,6 +5301,9 @@ CREATE INDEX IF NOT EXISTS idx_lp612_own_plans_user
 
 CREATE INDEX IF NOT EXISTS idx_lp612_own_plans_inflight
   ON niete_lp612_own_plans (status, started_at) WHERE status = 'authoring';
+
+CREATE INDEX IF NOT EXISTS idx_lp612_own_plans_library
+  ON niete_lp612_own_plans (reviewed_at DESC) WHERE library_eligible;
 
 ALTER TABLE niete_lp612_own_plans ENABLE ROW LEVEL SECURITY;
 

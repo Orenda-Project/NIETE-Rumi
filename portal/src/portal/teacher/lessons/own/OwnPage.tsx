@@ -15,6 +15,8 @@ import { LEVELS, RESOURCES, SIZES, isComplete, suggestWay, waysFor, type Resourc
 import { OWN_STEPS, nextStep, ownUrl, prevStep, readOwn, toAnswers, type OwnAt } from './state';
 import { makeOwnPlan, ownable, useLpMakeOwn } from './api';
 import { EXTENDS, nextLesson } from './extend';
+import { PagesBox } from './PagesBox';
+import { fmtPg, parseLabel, samePages, type PageRange } from './pages';
 
 /**
  * bd-snkn32 — "Make my own" lesson plan (the flow draft, artifact KbsvCwJgs6QWy1DQmGjfzi, screens 3–8): one question
@@ -51,6 +53,13 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const dayOf = (l: { number: number | null; title: string }) => (l.number != null ? `${C.dayN(l.number)} · ${l.title}` : l.title);
   const seg = plans.find((l) => l.id === s.seg) ?? null;
   const next = nextLesson(dataOf(lessons) ?? [], s.seg); // bd-snkn32.14 — none on the chapter's last lesson
+  // bd-snkn32.17 — a grades 1–5 day's book pages: the day's own, hers (pg), and the next day's to extend to.
+  const dayPages = seg?.lane === 'k5' ? parseLabel(seg.pages) : null;
+  const nextSeg = seg?.lane === 'k5' ? plans[plans.indexOf(seg) + 1] : undefined;
+  const nextPages = nextSeg?.lane === 'k5' ? parseLabel(nextSeg.pages) : null;
+  const [pgEdit, setPgEdit] = useState<PageRange | null | undefined>(undefined); // undefined: not touched
+  const pgNow = pgEdit === undefined ? (s.pg ?? dayPages) : pgEdit;
+  const pgOver = { pg: pgNow && dayPages && !samePages(pgNow, dayPages) ? pgNow : undefined };
   const chapterUrl = lessonsUrl('lessons', { grade: s.grade, subject: s.subject, chapter: s.chapter });
   const go = (over: Partial<OwnAt>) => navigate(ownUrl({ ...s, ...over }), { replace: true });
   const back = prevStep(s.step);
@@ -78,7 +87,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
     }), { replace: true });
   }
 
-  const dock = s.step === 'pages' ? ok({}, !!seg)
+  const dock = s.step === 'pages' ? ok(dayPages ? pgOver : {}, !!seg && (!dayPages || pgNow !== null))
     : s.step === 'size' ? ok({ size: sizeNow }, !!sizeNow)
       : s.step === 'resources' ? ok({}, true)
         : s.step === 'level' ? ok({}, !!s.level)
@@ -98,8 +107,9 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
       {s.step === 'pages' ? (
         <>
           <LoadState status={lessons.status} empty={!plans.length} onRetry={retry} />
-          <Rows items={plans.map((l) => (l.lane === 'k5' ? { key: l.id, label: dayOf(l), subtitle: l.pages ?? undefined } : { key: l.id, label: l.pages ?? l.title, subtitle: l.pages ? l.title : undefined }))} chosen={[s.seg]} onPick={(k) => go({ seg: k, ext: null })} />
+          <Rows items={plans.map((l) => (l.lane === 'k5' ? { key: l.id, label: dayOf(l), subtitle: l.pages ?? undefined } : { key: l.id, label: l.pages ?? l.title, subtitle: l.pages ? l.title : undefined }))} chosen={[s.seg]} onPick={(k) => { setPgEdit(undefined); go({ seg: k, pg: undefined, ext: null }); }} />
           {next ? <AddNext C={C} chosen={s.ext ?? null} nextLabel={next.pages ?? next.title} onPick={(ext) => go({ ext })} /> : null}
+          {dayPages ? <PagesBox key={s.seg ?? ''} C={C} start={s.pg ?? dayPages} day={dayPages} next={nextPages} onChange={setPgEdit} /> : null}
         </>
       ) : null}
       {s.step === 'size' ? (
@@ -125,7 +135,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
         />
       ) : null}
       {s.step === 'check' ? (
-        <Check s={s} C={C} k5={k5} nextLabel={next && s.ext ? next.pages ?? next.title : null} pagesLabel={seg ? (seg.lane === 'k5' ? dayOf(seg) : seg.pages ?? seg.title) : '—'} gradeLabel={L.grade(s.grade)} note={note} setNote={setNote} failed={failed} />
+        <Check s={s} C={C} k5={k5} nextLabel={next && s.ext ? next.pages ?? next.title : null} pagesLabel={seg ? (seg.lane === 'k5' ? `${dayOf(seg)}${s.pg ? ` · ${C.pagesShort(fmtPg(s.pg))}` : ''}` : seg.pages ?? seg.title) : '—'} gradeLabel={L.grade(s.grade)} note={note} setNote={setNote} failed={failed} />
       ) : null}
     </TeacherPage>
   );
