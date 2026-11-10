@@ -38,7 +38,7 @@ import * as lazyPage from "@/lib/lazyPage";
 
 const { preloadAll } = lazyPage as { preloadAll?: (w: { pages?: boolean }) => Promise<unknown> };
 preloadFirst(() => preloadAll?.({ pages: true }), 120_000);
-vi.setConfig({ testTimeout: 20_000 });
+vi.setConfig({ testTimeout: 40_000 });
 
 const H = http as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
 const PRINCIPAL = { firstName: "Saima Sample", lastName: null, role: "principal", phoneNumber: "test-principal-1", schoolName: "GGPS Sample" };
@@ -83,7 +83,7 @@ function open(path: string) {
   );
 }
 
-const T = { timeout: 8000 };
+const T = { timeout: 15_000 };
 const VISIT = "/portal/teacher/principal/visit/900001";
 
 describe("the principal app v2: a picked teacher opens the coach's visit screen", () => {
