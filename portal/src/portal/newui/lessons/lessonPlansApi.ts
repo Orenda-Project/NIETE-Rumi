@@ -75,8 +75,11 @@ export type OpenResult =
   | { state: 'preparing'; renderId: string }
   | { state: 'unavailable' };
 
+/** bd-snkn32.15 — a teacher's own plan: how many of its two changes are left, and its band (the parts it offers). */
+export type OwnPlanInfo = { changesLeft: number; band: 'k5' | 'g612' };
+
 export type PrepareStatus =
-  | { state: 'ready'; source: LessonPlanSource }
+  | { state: 'ready'; source: LessonPlanSource; own?: OwnPlanInfo }
   | { state: 'preparing' }
   | { state: 'failed' };
 
@@ -273,7 +276,11 @@ export function createLessonPlansApi() {
   async function status(renderId: string): Promise<PrepareStatus> {
     try {
       const { data } = await api.get(`/lp612/status/${encodeURIComponent(renderId)}`);
-      if (data?.state === 'ready') return { state: 'ready', source: { lane: 'g612', renderId } };
+      if (data?.state === 'ready') {
+        const own = typeof data.changesLeft === 'number' && (data.ownBand === 'k5' || data.ownBand === 'g612')
+          ? { own: { changesLeft: data.changesLeft as number, band: data.ownBand as OwnPlanInfo['band'] } } : {};
+        return { state: 'ready', source: { lane: 'g612', renderId }, ...own };
+      }
       if (data?.state === 'failed') return { state: 'failed' };
       return { state: 'preparing' };
     } catch (err) {

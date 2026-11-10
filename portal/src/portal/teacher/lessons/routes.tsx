@@ -5,10 +5,12 @@ import { LessonsHomePage } from './LessonsHome';
 import { LessonsPage } from './LessonsPage';
 import { NewLessonPage } from './NewLessonPage';
 import { OpenPlanPage } from './OpenPlanPage';
+import { ChangePage } from './own/ChangePage';
 import { OwnPage } from './own/OwnPage';
 import { PreparingPage } from './PreparingPage';
 import { ViewerPage } from './ViewerPage';
 import { LESSONS_ALL, LESSONS_HOME, LESSONS_NEW, LESSONS_OPEN, LESSONS_OWN, LESSONS_VIEWER } from './paths';
+import { LESSONS_CHANGE } from './own/change';
 
 /**
  * bd-fmf24g.3 — the teacher v2 Lesson Plans pages (each one flag-gated by App's TeacherGate). The main
@@ -30,6 +32,8 @@ const routes: TeacherRoute[] = [
   { path: LESSONS_VIEWER, element: <ViewerPage />, leaders: true },
   // bd-snkn32 — Make my own (dark unless lpMakeOwn): a teacher's own plan, so not the leaders'.
   { path: LESSONS_OWN, element: <OwnPage /> },
+  // bd-snkn32.15 — Change this plan: hers too.
+  { path: LESSONS_CHANGE, element: <ChangePage /> },
 ];
 
 export default routes;
