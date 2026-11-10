@@ -73,24 +73,47 @@ function isRemoved(question) {
  * A removed question is still listed — she has to be able to see it to bring it
  * back — but it has no number, because the paper does not print it. `number` is
  * the position among the ACTIVE questions, which is the number on the page.
+ *
+ * A board (G6-12) paper prints section by section, slot by slot, from its own `_layout` — not by question type.
+ * Its board types (srq, erq, grammar, essay…) mostly tie in assessment-order, so a type walk fell back to jsonb's
+ * key order and listed Section C before B, and a type both sections use sat in one run (bd-cmd4sl). So a board
+ * paper's list is re-ordered by the slot each item carries, in the layout's order. Ids are untouched.
  */
 function indexQuestions(examJson) {
   const out = [];
-  let printed = 0;
   _walk(examJson, ({ path, index, question, type }) => {
-    const removed = isRemoved(question);
-    if (!removed) printed += 1;
     out.push({
       id: questionId(path, index),
-      number: removed ? null : printed,
-      removed,
+      number: null,
+      removed: isRemoved(question),
       type,
       marks: marksOf(question),
       text: String(question?.question || question?.main_question || '').trim(),
       question,
     });
   });
-  return out;
+  const listed = _boardOrder(examJson, out);
+  let printed = 0;
+  for (const q of listed) if (!q.removed) q.number = (printed += 1);
+  return listed;
+}
+
+/**
+ * A board paper's items in printed order: by the rank of their slot (sections in `_layout.sections` order, slots
+ * in `_layout.slots` order within a section). Stable, so items keep their tree order inside a slot, as the PDF
+ * prints them; an item with no known slot goes last. Any other paper comes back as it is.
+ */
+function _boardOrder(examJson, items) {
+  const L = examJson && examJson._layout;
+  if (!L || L.profile !== 'board' || !Array.isArray(L.sections) || !Array.isArray(L.slots)) return items;
+  const rank = new Map();
+  for (const sec of L.sections) {
+    for (const s of L.slots) if (s && s.section === sec.id && !rank.has(s.slot)) rank.set(s.slot, rank.size);
+  }
+  const rankOf = (q) => (rank.has(q.question?.slot) ? rank.get(q.question.slot) : rank.size);
+  return items.map((q, i) => ({ q, i, r: rankOf(q) }))
+    .sort((a, b) => a.r - b.r || a.i - b.i)
+    .map((x) => x.q);
 }
 
 /**
