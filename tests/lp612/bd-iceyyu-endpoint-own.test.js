@@ -125,7 +125,7 @@ describe('tapping Make my own', () => {
 
   test('a malformed tap: refused, nothing sent', async () => {
     Offer.isOfferedTo.mockResolvedValue(true);
-    const res = await EP.handlePakistanLpDataExchange(TOKEN, 'SELECT_LESSON', { ...tap, grade: '3' });
+    const res = await EP.handlePakistanLpDataExchange(TOKEN, 'SELECT_LESSON', { ...tap, grade: '13' });
     expect(res.data.error).toBeDefined();
     expect(Offer.sendOwnLink).not.toHaveBeenCalled();
   });
