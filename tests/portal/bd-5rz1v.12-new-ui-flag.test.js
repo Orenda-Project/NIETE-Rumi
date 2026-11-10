@@ -178,8 +178,9 @@ describe('GET /config — features.newUi', () => {
     const { payload } = await getConfig();
     expect(Object.keys(payload.features).sort()).toEqual([
       'assessmentEditing', 'assessmentGenerator', 'assessmentGeneratorMessage', 'childTest', 'childTestSa', 'coachDisagreements',
-      'coachFullApp', 'coachObservation', 'coachReportsApp', 'coachV2', 'newUi', 'roleSwitch', 'schoolCard', 'selfObservation',
-      'teacherHomeCard', 'teacherHomeLook', 'teacherHomeOrder', 'teacherV2',
+      'coachFullApp', 'coachObservation', 'coachReportsApp', 'coachV2', 'newUi',
+      // bd-33wxxi.1 — the principal app's switch, a real false unless portal_principal_app names her.
+      'principalApp', 'roleSwitch', 'schoolCard', 'selfObservation', 'teacherHomeCard', 'teacherHomeLook', 'teacherHomeOrder', 'teacherV2',
     ]);
   });
 });

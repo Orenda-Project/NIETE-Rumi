@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { isLeader, resolveRole } from "../lib/leaderRole";
+import { isLeader, principalOf } from "../lib/leaderRole";
 import { forgetConfig, readConfigShared } from "../lib/useNewUi";
 
 /**
@@ -53,7 +53,7 @@ export function useTeacherV2(userKey?: string | null, ready = true): boolean | n
  * already names her. Loading or unknown is no.
  */
 export function isTeacherV2For(user: { role?: string | null } | null | undefined, flag: boolean | null): boolean {
-  return flag === true && !!user && (!isLeader(user) || resolveRole(user) === "principal");
+  return flag === true && !!user && (!isLeader(user) || principalOf(user));
 }
 
 /** Tests only: forget the remembered answer. */

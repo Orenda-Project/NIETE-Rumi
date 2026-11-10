@@ -111,10 +111,12 @@ async function defaultFindUser(id) {
   return data || null;
 }
 
+/** On the teacher app (bd-33wxxi.1: or a principal on the principal app), the one gate the portal asks. */
 async function defaultIsTeacherV2(userId) {
   const supabase = require('../config/supabase');
-  const { isFlagEnabledForUser, PORTAL_TEACHER_V2_KEY } = require('../lib/feature-flags');
-  return isFlagEnabledForUser(supabase, PORTAL_TEACHER_V2_KEY, userId);
+  const { PORTAL_TEACHER_V2_KEY } = require('../lib/feature-flags');
+  const { teacherAppOnFor } = require('../lib/teacher-app');
+  return teacherAppOnFor(supabase, PORTAL_TEACHER_V2_KEY, userId);
 }
 
 /** bd-fmf24g.52 — on the coach app: portal_coach_v2 for them AND role coach (dashboard/lib/feature-flags.js). */

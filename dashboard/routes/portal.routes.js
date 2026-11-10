@@ -119,7 +119,9 @@ const {
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
-const { publicUserPayload, makeRequireLeaderRole } = require('../lib/leader-role');
+const { publicUserPayload, makeRequireLeaderRole, isPrincipalRole } = require('../lib/leader-role');
+// bd-33wxxi.1 — the teacher-app switches through one gate (a principal on the principal app is on too).
+const { teacherAppOnFor, isPrincipalAppUser } = require('../lib/teacher-app');
 // The bot's ONE definition of "registered" (pure, no requires) — bd-x7aprz.3.
 const { isRegistered } = require('../../bot/shared/utils/registration-status');
 // This deployment's own bot, as a wa.me link with a command typed (WHATSAPP_BOT_NUMBER / REFERRAL_BOT_NUMBER).
@@ -2316,6 +2318,19 @@ async function requireCoachV2(req, res, next) {
 }
 const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
 
+// bd-33wxxi.4 — the two coach-app reads the observation screens need, for a principal too: a PRINCIPAL passes on the
+// principal app (portal_principal_app names her; never portal_coach_v2), everyone else on portal_coach_v2 exactly as
+// coachV2. `req.observerRole` tells the service whose teachers to read (her own school, or the coach's schools).
+async function requireCoachV2OrPrincipalApp(req, res, next) {
+  const userId = req.session && req.session.portalUserId;
+  const principal = isPrincipalRole(req.portalUser && req.portalUser.role);
+  const on = principal ? await isPrincipalAppUser(supabase, userId) : await isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, userId);
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  req.observerRole = principal ? 'principal' : 'coach';
+  return next();
+}
+const observerReads = [requirePortalAuth, requireLeaderRole, requireCoachV2OrPrincipalApp];
+
 // The coach School Card: its own switch on top of the coach app v2 chain. Off for her → 404, nothing is read.
 async function requireSchoolCard(req, res, next) {
   const on = await isFlagEnabledForUser(supabase, PORTAL_COACH_SCHOOL_CARD_KEY, req.session && req.session.portalUserId);
@@ -2332,6 +2347,12 @@ router.use(require('./coach-school-card.routes').createCoachSchoolCardRouter({
   query: (sql, params) => pool.query(sql, params),
   // bd-hl4a4y: her Training page's "Level N of M", from the bot as her own Training page reads it.
   levelStates: (userId) => TrainingRules.getLevelStates(userId),
+}));
+// bd-33wxxi.2: the principal app's school API — her OWN school's card, counts only (portal_principal_app; off → 404).
+router.use(require('./portal-principal.routes').createPrincipalRouter({
+  guards: [requirePortalAuth],
+  supabase,
+  query: (sql, params) => pool.query(sql, params),
 }));
 
 // bd-tbprit.1: the coach's disagreements (v10 coaching test) — her To do / Done and the evidence card.
@@ -2535,7 +2556,8 @@ router.get('/coach/people', ...coachV2, async (req, res) => {
 /** GET /api/portal/coach/school/:emis — one of her schools and its teachers. */
 router.get('/coach/school/:emis', ...coachV2, async (req, res) => {
   const emis = String(req.params.emis || '');
-  if (!/^[A-Za-z0-9-]{1,32}$/.test(emis)) return res.status(404).json({ success: false, error: 'Not found' });
+  // bd-97daxo.22: up to 64 — a GB school without an EMIS is keyed by its name (40 characters).
+  if (!/^[A-Za-z0-9-]{1,64}$/.test(emis)) return res.status(404).json({ success: false, error: 'Not found' });
   try {
     const out = await CoachV2.getCoachSchool(pgQuery, req.session.portalUserId, emis, { today: coachToday(req) });
     if (!out) return res.status(404).json({ success: false, error: 'Not found' });
@@ -2561,10 +2583,10 @@ router.get('/coach/teacher/:teacherExtId', ...coachV2, async (req, res) => {
  * the one the teacher received (teacher_delivery.report_key), signed here the
  * same way the teacher's own session page signs it, and so is the lesson audio.
  */
-router.get('/coach/observation/:id', ...coachV2, async (req, res) => {
+router.get('/coach/observation/:id', ...observerReads, async (req, res) => {
   if (!UUID_RX.test(String(req.params.id || ''))) return res.status(404).json({ success: false, error: 'Not found' });
   try {
-    const out = await CoachV2.getCoachObservation(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req) });
+    const out = await CoachV2.getCoachObservation(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req), role: req.observerRole });
     if (!out) return res.status(404).json({ success: false, error: 'Not found' });
     const { reportKey, audioKey, ...rest } = out;
     const imageUrl = reportKey && process.env.R2_ENDPOINT && process.env.R2_BUCKET_NAME
@@ -2630,7 +2652,8 @@ router.post('/coach/teacher/:teacherExtId/remove', ...coachV2, async (req, res) 
  *   POST /api/portal/coach/school/:emis/teachers         Body { phone, name? } — new, or a move
  *   POST /api/portal/coach/school/:emis/teachers/remove  Body { teacherExtIds[1–30], reason? }
  */
-const EMIS_RX = /^[A-Za-z0-9-]{1,32}$/;
+// bd-97daxo.22: up to 64 — a GB school without an EMIS is keyed by its name (40 characters).
+const EMIS_RX = /^[A-Za-z0-9-]{1,64}$/;
 const coachEmis = (req) => {
   const emis = String((req.params && req.params.emis) || '');
   return EMIS_RX.test(emis) ? emis : null;
@@ -2700,11 +2723,11 @@ router.get('/coach/visit/:id', ...coachV2, async (req, res) => {
 });
 
 /** GET /api/portal/coach/reports?page=&q= — waiting for her, in progress, then every observation. */
-router.get('/coach/reports', ...coachV2, async (req, res) => {
+router.get('/coach/reports', ...observerReads, async (req, res) => {
   const { page, q } = req.query || {};
   try {
     const out = await CoachV2.getCoachReports(pgQuery, req.session.portalUserId, {
-      page, q: typeof q === 'string' ? q.slice(0, 64) : undefined,
+      page, q: typeof q === 'string' ? q.slice(0, 64) : undefined, role: req.observerRole,
     });
     return res.json({ success: true, ...out });
   } catch (error) { return coachFail(res, 'reports', error); }
@@ -8163,9 +8186,16 @@ router.post('/coaching-session/:id/reflection', requirePortalAuth, requireSelfOb
  * ------------------------------------------------------------------------- */
 
 async function requireCoachObservation(req, res, next) {
+  const userId = req.session && req.session.portalUserId;
+  // bd-33wxxi.4 — a PRINCIPAL observes from the principal app, so for her it is the principal app's switch
+  // (portal_principal_app names her), never the coach pilots: with portal_coach_observation = true any principal could
+  // otherwise drive the pipeline through the API alone. requireLeaderRole ran first and holds her users row.
+  const role = req.portalUser && req.portalUser.role;
   // bd-o15qnr: coach v2's Take observation runs on this pipeline, so either
   // pilot flag opens it (feature-flags.isCoachObservationOn).
-  const on = await isCoachObservationOn(supabase, req.session && req.session.portalUserId);
+  const on = isPrincipalRole(role)
+    ? await isPrincipalAppUser(supabase, userId)
+    : await isCoachObservationOn(supabase, userId);
   if (!on) return res.status(404).json({ success: false, error: 'Not found' });
   return next();
 }
@@ -9136,6 +9166,7 @@ router.get('/config', async (req, res) => {
       roleSwitch,
       coachFullAppRaw,
       coachReportsAppRaw,
+      principalApp,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9148,8 +9179,9 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_NEW_UI_KEY, userId),
       // bd-o15qnr: the coach app v2, per user. The portal shows it to role=coach only.
       isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, userId),
-      // bd-fmf24g.1: the teacher app v2, per user. The portal shows it to teachers only.
-      isFlagEnabledForUser(supabase, PORTAL_TEACHER_V2_KEY, userId),
+      // bd-fmf24g.1: the teacher app v2, per user. The portal shows it to teachers (and principals) only.
+      // bd-33wxxi.1: through the one teacher-app gate, so a principal on the principal app is on too.
+      teacherAppOnFor(supabase, PORTAL_TEACHER_V2_KEY, userId),
       // bd-tbprit.1: the coach's disagreements card, per user (off unless set).
       isFlagEnabledForUser(supabase, COACH_DISAGREEMENT_CARD_KEY, userId),
       // bd-s1oo0.7: the child test in the coach app, per user, same rule.
@@ -9157,10 +9189,10 @@ router.get('/config', async (req, res) => {
       // the coach's Learning assessment (the child takes the battery alone), per user.
       isFlagEnabledForUser(supabase, PORTAL_CHILD_TEST_SA_KEY, userId),
       // Teacher Home: the teacher Home's card, and its per-teacher order — the order only rides with the card on.
-      isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_CARD_KEY, userId),
+      teacherAppOnFor(supabase, PORTAL_TEACHER_HOME_CARD_KEY, userId),
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_ORDER_KEY, userId),
       // the Home's new look, which also rides with the card on.
-      isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_LOOK_KEY, userId),
+      teacherAppOnFor(supabase, PORTAL_TEACHER_HOME_LOOK_KEY, userId),
       // The coach School Card, per user; its routes also need the coach app v2, so it rides with that on.
       isFlagEnabledForUser(supabase, PORTAL_COACH_SCHOOL_CARD_KEY, userId),
       // bd-tacnwy — the internal tester's "Switch profile" (POST /me/role). List-only and per user: everyone else,
@@ -9170,6 +9202,8 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_COACH_FULL_APP_KEY, userId),
       // Coach reports in the app: her debrief report as a page and its Home card; rides with the coach app v2 on.
       isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, userId),
+      // bd-33wxxi.1 — the principal app (portal_principal_app): a principal on it gets the teacher app plus her school.
+      isPrincipalAppUser(supabase, userId),
     ]);
     return res.json({
       success: true,
@@ -9194,6 +9228,7 @@ router.get('/config', async (req, res) => {
         coachFullApp: coachV2 && coachFullAppRaw,
         coachReportsApp: coachV2 && coachReportsAppRaw,
         roleSwitch,
+        principalApp,
       },
     });
   } catch (error) {
@@ -9219,6 +9254,7 @@ router.get('/config', async (req, res) => {
         schoolCard: false,
         coachFullApp: false,
         roleSwitch: false,
+        principalApp: false,
       },
       roleSwitchRoles: [],
     });

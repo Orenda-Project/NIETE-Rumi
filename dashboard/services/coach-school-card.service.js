@@ -34,6 +34,8 @@
  * injected ((sql, params) => Promise<{rows}>), as in every leader-* and coach-* service.
  */
 
+// bd-33wxxi.1 — every principal check reads the role through one helper.
+const { isPrincipalRole } = require('../lib/leader-role');
 const { getOverall } = require('./coaching-frameworks.service');
 const { createScoreMemo } = require('./schools-analytics.service');
 const { indicatorsOf, movesOf } = require('./coach-disagreement-evidence');
@@ -114,6 +116,20 @@ const SQL = Object.freeze({
     SELECT u.id, u.phone_number, u.name, u.role, u.school_id, u.teacher_level
       FROM users u
      WHERE u.school_id = ANY($1::uuid[]) AND ${ROSTER}`,
+
+  // bd-33wxxi.2 — a PRINCIPAL's own school: her users.school_id (the dashboard's rule for a principal), never a request
+  // value. viewer_test: she is a test account, so her roster keeps the test accounts at her school (rosterWithTest).
+  principalSchool: `/* sc:principal-school */
+    SELECT sch.id, sch.name, sch.emis, NULL::text AS school_name, (me.is_test_user IS TRUE) AS viewer_test
+      FROM users me JOIN schools sch ON sch.id = me.school_id
+     WHERE me.id = $1::uuid AND me.role = 'principal' AND me.deleted_at IS NULL`,
+
+  // The roster with the test accounts kept: only ever for a principal who is a test account herself (the operator's
+  // test school, whose teachers are all test accounts). A real principal, and every coach, reads SQL.roster.
+  rosterWithTest: `/* sc:roster-with-test */
+    SELECT u.id, u.phone_number, u.name, u.role, u.school_id, u.teacher_level
+      FROM users u
+     WHERE u.school_id = ANY($1::uuid[]) AND u.role IN ${ROSTER_ROLES} AND u.deleted_at IS NULL`,
 
   // The access check for a teacher: on the roster of a school she holds.
   teacher: `/* sc:teacher */
@@ -674,11 +690,29 @@ async function schoolContext(query, coachId, emis, rawLevel) {
   if (!coachId || !emis) return null;
   const schools = rowsOf(await query(SQL.school, [coachId, String(emis)]));
   if (!schools.length) return null;
+  return contextOf(query, schools, String(emis), rawLevel);
+}
+
+/**
+ * bd-33wxxi.2 — the same context for a PRINCIPAL: her own school (users.school_id), or null when she is not a principal
+ * or her row names no school. Her teachers are the school's teachers, as on the coach card (she is never one of them);
+ * a principal who is a test account keeps the test accounts at her school (SQL.rosterWithTest).
+ */
+async function principalContext(query, principalId, rawLevel) {
+  if (!principalId) return null;
+  const schools = rowsOf(await query(SQL.principalSchool, [principalId]));
+  if (!schools.length) return null;
+  const emis = schools[0].emis == null ? null : String(schools[0].emis);
+  return contextOf(query, schools, emis, rawLevel, { withTest: schools[0].viewer_test === true });
+}
+
+/** The roster and the levels of these schools rows (schoolContext's and principalContext's shared half). */
+async function contextOf(query, schools, emis, rawLevel, { withTest = false } = {}) {
   const ids = [...new Set(schools.map((s) => s.id))];
-  const roster = rowsOf(await query(SQL.roster, [ids]));
+  const roster = rowsOf(await query(withTest ? SQL.rosterWithTest : SQL.roster, [ids]));
   const seen = new Set();
   const everyone = roster.filter((u) => !seen.has(u.id) && seen.add(u.id)).map((u) => ({
-    id: u.id, teacherExtId: u.phone_number, name: displayNameOf(u), isPrincipal: u.role === 'principal',
+    id: u.id, teacherExtId: u.phone_number, name: displayNameOf(u), isPrincipal: isPrincipalRole(u.role),
     levels: teacherLevelOf(u),
   }));
   const staff = everyone.filter((t) => !t.isPrincipal);
@@ -686,7 +720,7 @@ async function schoolContext(query, coachId, emis, rawLevel) {
   const level = levelOf(rawLevel);
   const levels = Object.fromEntries(VALID_LEVELS.map((l) => [l, staff.filter((t) => t.levels.includes(l)).length]));
   return {
-    school: { emis: String(emis), name: text(schools[0].school_name) || text(schools[0].name), ids },
+    school: { emis, name: text(schools[0].school_name) || text(schools[0].name), ids },
     teachers: level ? staff.filter((t) => t.levels.includes(level)) : staff,
     principals,
     roster: everyone.length,
@@ -888,7 +922,32 @@ const withPrevious = (period, prev) => ({ from: prev.from, to: period.to });
 /** GET /school/:emis/card */
 async function getSchoolCard(query, coachId, emis, opts = {}) {
   const ctx = await schoolContext(query, coachId, emis, opts.level);
+  return ctx ? cardOf(query, ctx, opts) : null;
+}
+
+/**
+ * bd-33wxxi.2 — GET /principal/school/card: the principal's OWN school's card (principalContext), the coach card's
+ * numbers for it, shaped for a principal (#55 Q1, "counts + bands, no raw scores"): the DC and coach boxes carry how many
+ * and by how many teachers, never an average, a score or a series; no coach-observations table. Null when she is not a
+ * principal or her row names no school.
+ */
+async function getPrincipalSchoolCard(query, principalId, opts = {}) {
+  const ctx = await principalContext(query, principalId, opts.level);
   if (!ctx) return null;
+  const { coachObservations, scores, ...card } = await cardOf(query, ctx, opts);
+  const countsOf = (s) => ({ count: s ? s.count : 0, makers: s ? s.makers : 0 });
+  // bd-33wxxi.3 — a row opens that teacher's Analytics page, which is addressed by her users.id (her own school's
+  // teachers only: the page's server checks the same school).
+  const idOf = new Map(ctx.teachers.map((t) => [t.teacherExtId, t.id]));
+  return {
+    ...card,
+    teachers: card.teachers.map((t) => ({ ...t, id: idOf.get(t.teacherExtId) || null })),
+    scores: Object.fromEntries(SCORE_KINDS.map((k) => [k, countsOf(scores[k])])),
+  };
+}
+
+/** The card of a school context (getSchoolCard's and getPrincipalSchoolCard's shared body). */
+async function cardOf(query, ctx, opts) {
   const period = resolvePeriod(opts);
   const ids = ctx.teachers.map((t) => t.id);
   // The same days of the period before too: the overview and the score tiles compare against them; every count of the
@@ -1195,7 +1254,7 @@ function coachingChartOf(act, dc, visits, inP) {
 const teacherOut = (teacher) => ({
   teacherExtId: teacher.phone_number, name: teacher.displayName, school: text(teacher.school_name), emis: teacher.emis == null ? null : String(teacher.emis),
   // bd-ewbzns.2 — her role and teaching levels, so what Edit teacher changed shows on her page.
-  isPrincipal: teacher.role === 'principal', levels: teacherLevelOf(teacher),
+  isPrincipal: isPrincipalRole(teacher.role), levels: teacherLevelOf(teacher),
 });
 
 /** GET /teacher/:ext/card */
@@ -1406,6 +1465,7 @@ module.exports = {
   reportTitleOf,
   levelOf,
   getSchoolCard,
+  getPrincipalSchoolCard,
   getSchoolFeature,
   getTeacherCard,
   getTeacherItems,

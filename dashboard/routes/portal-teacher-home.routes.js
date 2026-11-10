@@ -40,6 +40,8 @@ const {
   isFlagEnabledForUser, PORTAL_TEACHER_V2_KEY, PORTAL_TEACHER_HOME_CARD_KEY, PORTAL_TEACHER_HOME_ORDER_KEY,
   PORTAL_SELF_OBSERVATION_KEY, PORTAL_TEACHER_HOME_QUIZ_TILE_KEY,
 } = require('../lib/feature-flags');
+// bd-33wxxi.1 — the teacher-app switches go through one gate: a principal on the principal app is on too.
+const { teacherAppOnFor } = require('../lib/teacher-app');
 const telemetry = require('../services/telemetry.service');
 const TeacherObservation = require('../lib/teacher-observation');
 const Order = require('../services/teacher-home-order.service');
@@ -61,14 +63,14 @@ const { requirePortalAuth } = require('../lib/portal-auth');
 
 async function requireTeacherV2(req, res, next) {
   let on = false;
-  try { on = await isFlagEnabledForUser(supabase, PORTAL_TEACHER_V2_KEY, req.session.portalUserId); } catch (_) { on = false; }
+  try { on = await teacherAppOnFor(supabase, PORTAL_TEACHER_V2_KEY, req.session.portalUserId); } catch (_) { on = false; }
   if (!on) return res.status(404).json({ success: false, error: 'Not found' });
   return next();
 }
 
 async function requireHomeCard(req, res, next) {
   let on = false;
-  try { on = await isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_CARD_KEY, req.session.portalUserId); } catch (_) { on = false; }
+  try { on = await teacherAppOnFor(supabase, PORTAL_TEACHER_HOME_CARD_KEY, req.session.portalUserId); } catch (_) { on = false; }
   if (!on) return res.status(404).json({ success: false, off: true });
   return next();
 }
