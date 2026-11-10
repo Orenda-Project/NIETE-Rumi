@@ -146,6 +146,8 @@ function fakeSupabase(tables, spy = {}) {
         select() { return q; },
         eq(col, val) { q._rows = q._rows.filter((r) => r[col] === val); return q; },
         in(col, vals) { q._rows = q._rows.filter((r) => vals.includes(r[col])); return q; },
+        // PostgREST's IS: a column the row does not carry reads as NULL (bd-apnnh2.11).
+        is(col, val) { q._rows = q._rows.filter((r) => (r[col] === undefined ? null : r[col]) === val); return q; },
         then(res) { return res({ data: q._rows, error: null }); },
       };
       return q;
