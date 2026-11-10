@@ -7978,7 +7978,10 @@ router.get('/coaching-sessions/active', requirePortalAuth, requireSelfObservatio
  * a WhatsApp session's debrief is happening in her chat, and answering it here
  * as well would put two answers on one question.
  */
-router.get('/coaching-session/:id/progress', requirePortalAuth, requireSelfObservation, async (req, res) => {
+// bd-ewbzns.4.2 — no requireSelfObservation in front: that switch is for recording HER OWN lessons. A coach's report
+// sent to her is hers whatever it says (her Observations list shows it; opening it read this route and 404'd on sandbox,
+// where the switch is a list). Her own lessons are still gated, below, once the row says which kind it is.
+router.get('/coaching-session/:id/progress', requirePortalAuth, async (req, res) => {
   try {
     const { data: row, error } = await supabase
       .from('coaching_sessions')
@@ -7991,6 +7994,10 @@ router.get('/coaching-session/:id/progress', requirePortalAuth, requireSelfObser
     // Same answer for "not hers", "does not exist" and "a coach's draft".
     if (!row || row.user_id !== req.session.portalUserId || !TeacherObservation.teacherMaySee(row, row.delivery_status)) {
       return res.status(404).json({ success: false, error: 'Session not found' });
+    }
+    if (!TeacherObservation.isObservation(row)
+      && !(await isFlagEnabledForUser(supabase, PORTAL_SELF_OBSERVATION_KEY, req.session.portalUserId))) {
+      return res.status(404).json({ success: false, error: 'Not found' });
     }
 
     const portal = isPortalSession(row);
