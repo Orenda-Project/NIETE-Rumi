@@ -239,3 +239,33 @@ Feature: Teacher lesson plans
     When they tap View on a row
     Then /portal/fln/p/<that plan's id>?grade=3 opens
     And Send to teacher and Share link work as before
+
+  # Make my own, Grades 6–12: "Add the next lesson's pages" (bd-snkn32.14). Behind app_settings `portal_lp_make_own`.
+  # Hand-written after the generated TL scenarios, like the FLN block: not page-health rows, so gen_page_features.py
+  # cannot express them and the web driver has no code for them yet (@draft). The component-level proof is
+  # portal/src/portal/teacher/lessons/own/OwnExtend.test.tsx; the server-side refusal is tests/lp612/own-extend.test.js.
+  # Re-running the generator rewrites this file — carry this block over when it does.
+
+  @OWN01 @draft @config-gated
+  Scenario: Make my own offers the next lesson's pages, and the plan she asks for covers both lessons
+    Given portal_lp_make_own is on for demo teacher 03000000911
+    And she opens Make my own on a Grades 6–12 chapter and picks a lesson that is not the chapter's last
+    Then "Add the next lesson's pages" is shown under the lessons, naming the next lesson, with "No, just these pages" chosen
+    And it offers "Cover more in one period" and "Double period"
+    When she picks "Double period" and answers the rest
+    Then the check screen shows "Next lesson" as "Double period" with the next lesson's name
+    When she makes the plan
+    Then her plan is made from both lessons' pages, at two periods' length
+
+  @OWN02 @draft @config-gated
+  Scenario: On the last lesson of a chapter there is no next lesson to add
+    Given portal_lp_make_own is on for demo teacher 03000000911
+    When she opens Make my own on a Grades 6–12 chapter and picks its last lesson
+    Then "Add the next lesson's pages" is not shown, and the plan she makes covers that lesson's pages only
+
+  @OWN03 @draft @config-gated
+  Scenario: Changing the lesson clears the next-lesson choice
+    Given portal_lp_make_own is on for demo teacher 03000000911
+    And she has picked a lesson and "Cover more in one period"
+    When she picks a different lesson
+    Then "No, just these pages" is chosen again, so a choice made for one lesson never rides on another
