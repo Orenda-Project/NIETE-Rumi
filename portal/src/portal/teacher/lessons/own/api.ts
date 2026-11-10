@@ -1,5 +1,7 @@
 import api from '../../../services/api';
-import type { Level, Resource, Size, Way } from './rules';
+import type { Focus, Level, Purpose, Resource, Size, Way } from './rules';
+import type { Extend } from './extend';
+import { isRefusal, type Refusal } from './change';
 
 /**
  * bd-snkn32 — "Make my own": is it on for her (GET /config features.lpMakeOwn, fail-closed), and Make my plan
@@ -14,15 +16,46 @@ export { useLpMakeOwn } from './flag';
 export const ownable = (l: Pick<LpLesson, 'lane' | 'kind'>) =>
   (l.lane === 'g612' && l.kind === 'lesson') || (l.lane === 'k5' && l.kind === 'day');
 
-export type OwnBody = { size: Size | null; resources: Resource[]; level: Level | null; way: Way | null; note: string };
+export type OwnBody = {
+  size: Size | null; resources: Resource[]; level: Level | null; way: Way | null; note: string; purpose?: Purpose; focus?: Focus;
+  /** bd-snkn32.17 — grades 1–5 only: her book pages, when not the day's own. */
+  pages?: { start: number; end: number };
+  /** bd-snkn32.14 — grades 6–12: the next lesson's pages joined on, and how. */
+  extend?: { next: string; shape: Extend };
+};
 
-/** Her fork's id, or null when it could not be started (the page says "Couldn't make it"). */
-export async function makeOwnPlan(lesson: Pick<LpLesson, 'id' | 'lane'>, answers: OwnBody): Promise<string | null> {
+/** What the bot answered: her new plan's id, a refusal she is told about (bd-snkn32.15), or null (could not reach it). */
+export type OwnAnswer = { renderId: string } | { outcome: Refusal } | null;
+
+/** bd-snkn32.13 — a Grade 9–12 lesson's FBISE SLOs, split when they mix Summative and Formative. Not mixed on any failure. */
+export type SloMix = { mixed: boolean; summative: string[]; formative: string[] };
+export async function fetchSloMix(segmentId: string): Promise<SloMix> {
   try {
-    const at = lesson.lane === 'k5' ? { lesson_id: lesson.id } : { segment_id: lesson.id };
-    const { data } = await api.post('/lp612/own', { ...at, answers });
-    return typeof data?.renderId === 'string' && data.renderId ? data.renderId : null;
+    const { data } = await api.get(`/lp612/own/slo/${encodeURIComponent(segmentId)}`);
+    const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+    return { mixed: data?.mixed === true, summative: list(data?.summative), formative: list(data?.formative) };
   } catch {
-    return null;
+    return { mixed: false, summative: [], formative: [] };
   }
+}
+
+async function postOwn(url: string, body: object): Promise<OwnAnswer> {
+  try {
+    const { data } = await api.post(url, body);
+    return typeof data?.renderId === 'string' && data.renderId ? { renderId: data.renderId } : null;
+  } catch (err) {
+    const r = (err as { response?: { status?: number; data?: { outcome?: unknown } } } | null)?.response;
+    return r?.status === 409 && isRefusal(r.data?.outcome) ? { outcome: r.data.outcome } : null;
+  }
+}
+
+/** Make my plan: her fork's id, or the daily limit, or null (the page says "Couldn't make it"). */
+export function makeOwnPlan(lesson: Pick<LpLesson, 'id' | 'lane'>, answers: OwnBody): Promise<OwnAnswer> {
+  const at = lesson.lane === 'k5' ? { lesson_id: lesson.id } : { segment_id: lesson.id };
+  return postOwn('/lp612/own', { ...at, answers });
+}
+
+/** bd-snkn32.15 — Change this plan: any id in her plan's chain, the part, her words. */
+export function requestChange(ownId: string, part: string, text: string): Promise<OwnAnswer> {
+  return postOwn(`/lp612/own/${encodeURIComponent(ownId)}/change`, { part, text });
 }

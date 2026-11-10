@@ -9,10 +9,13 @@ const { k5Messages, parseK5Reply, checkK5Rewrite } = require('./lp-k5-own');
 const JOB = 'lp.k5own';
 const ROUNDS = 2;
 
-async function rewriteK5({ script, answers, lang, grade, subject, client, model, log = () => {} }) {
+async function rewriteK5({ script, answers, edit, lang, grade, subject, dayPages = null, client, model, log = () => {} }) {
   const llm = client || require('./llm-client').getClient();
   const useModel = model || require('../config/model-registry').modelFor(JOB);
-  const messages = k5Messages({ script, answers, lang, grade, subject });
+  // bd-snkn32.15: a change ("Change this plan") sends her one change instead of the class answers; same gate.
+  const messages = edit
+    ? require('./lp-own-edit-instruction').k5EditMessages({ script, edit, lang, grade, subject })
+    : k5Messages({ script, answers, lang, grade, subject, dayPages });
   for (let round = 1; round <= ROUNDS; round++) {
     const res = await llm.chat.completions.create({
       model: useModel, job: JOB, temperature: 0.3, messages: [...messages],

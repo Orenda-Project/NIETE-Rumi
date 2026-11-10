@@ -18,6 +18,7 @@
  * text in it, is refused — the parent before the rewrite (the worker), the rewrite before it is printed (this gate).
  */
 const { SIZES, RESOURCES, LEVELS, WAYS } = require('./lp612-own-instruction');
+const { pagesLine } = require('./lp-k5-own-pages');
 
 let jsonrepair = null;
 try { ({ jsonrepair } = require('jsonrepair')); } catch (_) { /* strict parse only */ }
@@ -46,7 +47,7 @@ function system(lang) {
 }
 
 /** The two messages for the model. Throws on answers that did not come through parseOwnAnswers. */
-function k5Messages({ script, answers, lang, grade, subject }) {
+function k5Messages({ script, answers, lang, grade, subject, dayPages = null }) {
   const a = answers || {};
   if (!SIZES[a.size] || !LEVELS[a.level] || !WAYS[a.way] || !Array.isArray(a.resources)) {
     throw new Error('k5Messages needs answers from parseOwnAnswers');
@@ -62,6 +63,7 @@ function k5Messages({ script, answers, lang, grade, subject }) {
   if (a.way === 'tarl' && isLanguage(subject) && isEarly(grade)) {
     lines.push('Group the children by level: sound, letter, word and sentence groups.');
   }
+  if (a.pages) lines.push(pagesLine(a.pages, dayPages)); // bd-snkn32.17 — the pages she chose
   if (a.note) lines.push(`Her own note (follow it where it fits the outcome and these rules; do not quote it back): "${a.note}"`);
   lines.push('', 'The day\'s plan:', JSON.stringify(script));
   return [{ role: 'system', content: system(lang) }, { role: 'user', content: lines.join('\n') }];
@@ -126,4 +128,4 @@ function checkK5Rewrite(orig, next, { lang } = {}) {
   return reasons;
 }
 
-module.exports = { k5Messages, parseK5Reply, checkK5Rewrite, missingGrr, SECTIONS, NOT_READY_UR, MAX_GROWTH };
+module.exports = { system, k5Messages, parseK5Reply, checkK5Rewrite, missingGrr, SECTIONS, NOT_READY_UR, MAX_GROWTH };

@@ -27,6 +27,7 @@ function service(over = {}) {
     patchOwn: jest.fn(),
     queueJob: jest.fn(async (...a) => { calls.queued.push(a); }),
     selectOwn: jest.fn(async () => null),
+    countToday: jest.fn(async () => 0),
     log: jest.fn(),
     ...over,
   };

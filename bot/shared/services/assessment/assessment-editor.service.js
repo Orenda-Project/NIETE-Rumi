@@ -190,27 +190,34 @@ async function validateEdit({ userId, paperId, id, kind, edit }) {
     };
   } catch (err) {
     if (err.code !== 'EDIT_REJECTED') throw err;
-    if (err.errorCode === Edit.PATTERN_FIXED_MARKS) return { code: Edit.PATTERN_FIXED_MARKS };
+    if (PATTERN_EDIT_CODES.has(err.errorCode)) return { code: err.errorCode };
     return { ok: false, message: err.message };
   }
 }
 
+/** The board-pattern refusals the app tells apart by their code. */
+const PATTERN_EDIT_CODES = new Set([Edit.PATTERN_FIXED_MARKS, Edit.PATTERN_NO_EDIT]);
+
 /**
- * A changed mark on a board-pattern question, found before the edits are applied:
- * applyChanges files every refusal as INVALID_CHANGES, and the app tells this one
- * apart by its code.
+ * A board-pattern refusal (a changed mark, or any change but removal), found before
+ * the edits are applied: applyChanges files every refusal as INVALID_CHANGES, and
+ * the app tells these apart by their code. The first code found answers the save.
  */
-function _fixedMarksErrors(tree, edits) {
+function _patternErrors(tree, edits) {
   const index = Selection.indexQuestions(tree);
   const errors = [];
+  let code = null;
   for (const { id, edit } of edits || []) {
     const hit = index.find((q) => q.id === id);
     if (!hit) continue;
     try { Edit.applyEdit(hit.question, edit); } catch (err) {
-      if (err.errorCode === Edit.PATTERN_FIXED_MARKS) errors.push({ id, message: err.message });
+      if (PATTERN_EDIT_CODES.has(err.errorCode)) {
+        code = code || err.errorCode;
+        errors.push({ id, message: err.message });
+      }
     }
   }
-  return errors;
+  return { code, errors };
 }
 
 async function saveVersion({ userId, parentId, changes }) {
@@ -224,8 +231,8 @@ async function saveVersion({ userId, parentId, changes }) {
     return { status: 'failed', code: PATTERN_NO_ADD };
   }
   if (Revision.isPatternPaper(loaded.paper)) {
-    const errors = _fixedMarksErrors(loaded.paper.exam_json, changes.edits);
-    if (errors.length) return { status: 'failed', code: Edit.PATTERN_FIXED_MARKS, errors };
+    const { code, errors } = _patternErrors(loaded.paper.exam_json, changes.edits);
+    if (code) return { status: 'failed', code, errors };
   }
   const req = loaded.paper.assessment_requests || {};
   const applied = applyChanges(loaded.paper.exam_json, changes, { subject: req.subject_code, grade: _gradeOf(req) });

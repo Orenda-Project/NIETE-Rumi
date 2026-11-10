@@ -19,6 +19,8 @@ import { attachToDc, PICK_DEPTH, type PickTarget } from '../coaching/libraryPick
 import { ThingToTryStrip } from './ThingToTryStrip';
 import { LessonQuizButton } from '../home/LessonQuizButton';
 import { useLessonsLeader } from './audience';
+import { ChangeEntry } from './own/ChangeEntry';
+import type { ChangeAt } from './own/change';
 
 /**
  * bd-fmf24g.3 — a lesson plan, open (v28 canvas LessonViewer): the plan under its title, and above it
@@ -48,7 +50,7 @@ import { useLessonsLeader } from './audience';
  * lesson (her quiz home), no Send on WhatsApp (a template to her own number).
  */
 
-type ViewerState = { lessonPlan?: LessonPlanView; dc?: DcPrefill; pick?: PickTarget; fromDc?: boolean } | null;
+type ViewerState = { lessonPlan?: LessonPlanView; dc?: DcPrefill; pick?: PickTarget; fromDc?: boolean; own?: ChangeAt } | null;
 
 export function ViewerPage() {
   const C = useCopy(LESSONS);
@@ -124,6 +126,8 @@ export function ViewerPage() {
           <ChevronRight className={cn('h-[22px] w-[22px]', CHEVRON)} strokeWidth={2.4} aria-hidden="true" />
         </Link>
       ) : null}
+      {/* bd-snkn32.15 — her own plan, opened from its waiting screen: Change this plan (N left). */}
+      {teacherActions && state?.own ? <ChangeEntry at={state.own} /> : null}
       {answerKey && !leader ? (
         <ThingToTryStrip
           lessonId={answerKey.lessonId}

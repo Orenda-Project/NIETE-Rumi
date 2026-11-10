@@ -5270,6 +5270,9 @@ CREATE TABLE IF NOT EXISTS niete_lp612_own_plans (
   user_id           UUID NOT NULL REFERENCES users(id),
   segment_id        TEXT REFERENCES niete_lp612_segments(segment_id),
   lesson_id         TEXT,  -- V1.9.7: a grades 1-5 day (bd-snkn32.4); exactly one of segment_id / lesson_id
+  parent_own_id     UUID REFERENCES niete_lp612_own_plans(id),  -- V1.9.8: change this plan (bd-snkn32.15); the root plan
+  edit_round        SMALLINT,  -- V1.9.8: 1 or 2
+  edit_request      JSONB,     -- V1.9.8: {part, text}
   lang              TEXT NOT NULL DEFAULT 'en' CHECK (lang IN ('en', 'ur')),
   template_version  TEXT NOT NULL,
   answers           JSONB NOT NULL,
@@ -5284,7 +5287,20 @@ CREATE TABLE IF NOT EXISTS niete_lp612_own_plans (
   completed_at      TIMESTAMPTZ,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT niete_lp612_own_plans_one_parent CHECK (num_nonnulls(segment_id, lesson_id) = 1)
+  -- V1.9.9: the AI reviewer's gate v2 verdict, for shared-library eligibility only
+  review_score      NUMERIC(4,1) CONSTRAINT niete_lp612_own_plans_review_score_range
+                      CHECK (review_score IS NULL OR (review_score >= 0 AND review_score <= 100)),
+  review_pass       BOOLEAN,
+  review_items      JSONB,
+  review_model      TEXT,
+  reviewed_at       TIMESTAMPTZ,
+  library_eligible  BOOLEAN NOT NULL DEFAULT false,
+  CONSTRAINT niete_lp612_own_plans_one_parent CHECK (num_nonnulls(segment_id, lesson_id) = 1),
+  CONSTRAINT niete_lp612_own_plans_edit_round CHECK (
+    (parent_own_id IS NULL AND edit_round IS NULL AND edit_request IS NULL)
+    OR (parent_own_id IS NOT NULL AND edit_round IN (1, 2) AND edit_request IS NOT NULL)
+  ),
+  CONSTRAINT niete_lp612_own_plans_library_needs_pass CHECK (NOT library_eligible OR review_pass IS TRUE)
 );
 
 CREATE INDEX IF NOT EXISTS idx_lp612_own_plans_user
@@ -5292,6 +5308,12 @@ CREATE INDEX IF NOT EXISTS idx_lp612_own_plans_user
 
 CREATE INDEX IF NOT EXISTS idx_lp612_own_plans_inflight
   ON niete_lp612_own_plans (status, started_at) WHERE status = 'authoring';
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_lp612_own_plans_round
+  ON niete_lp612_own_plans (parent_own_id, edit_round) WHERE status <> 'failed';
+
+CREATE INDEX IF NOT EXISTS idx_lp612_own_plans_library
+  ON niete_lp612_own_plans (reviewed_at DESC) WHERE library_eligible;
 
 ALTER TABLE niete_lp612_own_plans ENABLE ROW LEVEL SECURITY;
 
