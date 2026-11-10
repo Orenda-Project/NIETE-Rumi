@@ -21,6 +21,8 @@ vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast }) }));
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 vi.mock("../../lib/recordingSession", () => ({ useRecordingSession: () => null }));
 vi.mock("../../services/api", () => ({ default: { get: vi.fn(), post: vi.fn() } }));
+// bd-snkn32.5 — "My own plans" is pinned in own/RecentOwnPlans.test.tsx; here only that the home page draws it.
+vi.mock("./own/RecentOwnPlans", () => ({ RecentOwnPlans: () => <div data-testid="own-recent-mounted" /> }));
 
 import api from "../../services/api";
 import { resetLessonPlans } from "../../newui/lessons/lessonPlansApi";
@@ -209,6 +211,13 @@ describe("Recent Lesson Plans", () => {
     await screen.findByRole("button", { name: new RegExp(C.recent) });
     const all = screen.getAllByRole("link", { name: /See all/ });
     expect(all.every((a) => a.getAttribute("href") === LESSONS_ALL)).toBe(true);
+  });
+});
+
+describe("My own plans (bd-snkn32.5: her Make my own plans open from the portal, not only from WhatsApp)", () => {
+  it("a teacher's Lesson Plans home draws it", async () => {
+    renderAt(LESSONS_HOME, <LessonsHomePage />);
+    expect(await screen.findByTestId("own-recent-mounted")).toBeTruthy();
   });
 });
 

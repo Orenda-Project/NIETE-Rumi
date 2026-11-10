@@ -71,6 +71,6 @@ async function listMine(supabase, { userId, keys }) {
 }
 
 module.exports = {
-  cleanKeys, summarise, listMine,
+  cleanKeys, summarise, listMine, readRounds,
   listMineLive: (args) => listMine(require('../config/supabase'), args),
 };
