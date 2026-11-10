@@ -15,6 +15,9 @@ import { COACHING } from './copy';
 import { readPrefill } from './draft';
 import { COACHING_ALL, COACHING_NEW } from './paths';
 import { WaitingRecording } from './parts';
+import { useAuth } from '../../hooks/useAuth';
+import { usePrincipalAppState } from '../principal/usePrincipalApp';
+import { OBS_HOME } from '../observations/paths';
 
 /**
  * The teacher v2 Digital Coaching main page, in Assessment's shape (design v6, the hub template of 12 Oct):
@@ -32,6 +35,10 @@ import { WaitingRecording } from './parts';
  * (This departs from the hub template's "Recent, newest four" for Digital Coaching only; the operator's go, 28 Oct.)
  *
  * Opened from a lesson plan (Start DC observation, ?grade&subject&plan) she goes straight to the one screen with it.
+ *
+ * bd-33wxxi.9.2 — a principal on the principal app (#78): her DC lessons live on Observe (her own and her teachers'), so
+ * this page sends her there, and every Back inside Digital Coaching (New, All, a report) lands on Observe. A teacher:
+ * unchanged (answered at once, nothing read).
  */
 
 export function CoachingHomePage() {
@@ -49,8 +56,11 @@ export function CoachingHomePage() {
   const analysing = useMemo(() => items.filter((it) => !it.reportReady && it.percentage == null && it.state !== 'stopped'), [items]);
   const making = useMemo(() => lessonGroups(analysing, undefined, C, days).flatMap((g) => g.items), [analysing, C, days]);
   const total = dataOf(history)?.total;
+  const { user } = useAuth();
+  const principalApp = usePrincipalAppState(user);
 
   if (prefill.pick || prefill.grade != null) return <Navigate to={`${COACHING_NEW}${location.search}`} replace />;
+  if (principalApp === true) return <Navigate to={OBS_HOME} replace />;
 
   return (
     <TeacherPage feature="coaching" title={C.title} crumb={C.home} backTo={teacherPath('home')} testId="dc-home">
