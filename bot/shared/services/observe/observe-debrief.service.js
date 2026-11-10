@@ -735,6 +735,25 @@ async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, la
   }
   const { renderCoachFeedbackMessages } = require('./observe-coach-feedback');
   const [praiseMsg, cardMsg] = renderCoachFeedbackMessages(feedback, S);
+
+  // Coach reports in the app: for a coach with app_settings.coach_reports_app on, the report is a page in her app, so
+  // ONE link to it goes in place of the picture and its caption ('sent'; 'not_claimed' = already opened, closed or
+  // messaged). If Meta refuses the link, today's text card goes, so she is never left without her feedback. Off for
+  // her (or no link here): exactly today's picture below. The "Send the report?" buttons follow either way.
+  const { sendReportLinkNow } = require('./coach-report-whatsapp.service');
+  const link = await sendReportLinkNow({ sessionId, coachId: opts.coachUserId || null, phone: from, lang });
+  if (link === 'sent' || link === 'not_claimed' || link === 'failed') {
+    if (link === 'failed') {
+      const sentText = await WhatsAppService.sendMessage(from, cardMsg);
+      if (sentText === false) throw new Error('observe debrief: feedback send failed — retrying via SQS');
+    }
+    await _markDebriefDone(sessionId, feedback);
+    await _offerSendReport(sessionId, from, S);
+    return;
+  }
+
+  // Off for her: today's praise message, then the picture (staging sends the praise on its own; the link above
+  // replaces both, so it goes only here — bd-enec2e.6).
   const sentPraise = await WhatsAppService.sendMessage(from, praiseMsg);
 
   // bd-44: the celebration card ships as a rendered image (hero design,
@@ -761,10 +780,13 @@ async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, la
     throw new Error('observe debrief: feedback send failed — retrying via SQS');
   }
   await _markDebriefDone(sessionId, feedback);
+  await _offerSendReport(sessionId, from, S);
+}
 
-  // FEAT-053 bd-24: the natural next step — offer to send the teacher her
-  // combined report. Non-fatal: the /observe list carries an unsent-report
-  // row as the durable re-entry point.
+// FEAT-053 bd-24: the natural next step — offer to send the teacher her
+// combined report. Non-fatal: the /observe list carries an unsent-report
+// row as the durable re-entry point.
+async function _offerSendReport(sessionId, from, S) {
   try {
     const { buildSendChoiceButtons } = require('./observe-send.service');
     await WhatsAppService.sendInteractiveButtons(from, buildSendChoiceButtons(sessionId, S));
@@ -800,7 +822,7 @@ async function _markDebriefDone(sessionId, feedback) {
  * — a repair that still fails validation throws; there is no bypass and no
  * manufactured praise.
  */
-async function coachFeedbackWithRepair(prompt, sessionId) {
+async function coachFeedbackWithRepair(prompt, sessionId, validateOpts = {}) {
   const { validateCoachFeedback } = require('./observe-coach-feedback');
   // Soft, log only (observe.gendered_address): the card is returned exactly as
   // written and never re-asked for a verb — the repair below is for shape only.
@@ -809,7 +831,7 @@ async function coachFeedbackWithRepair(prompt, sessionId) {
     maxTokens: 6000, label: 'observeCoachFeedback', job: 'coaching.observeDebrief',
   });
   try {
-    validateCoachFeedback(result);
+    validateCoachFeedback(result, validateOpts);
     noteGenderedAddress('coach_feedback', feedbackFields(result), { sessionId });
     return result;
   } catch (vErr) {
@@ -820,7 +842,7 @@ async function coachFeedbackWithRepair(prompt, sessionId) {
     const { result: repaired } = await GPT5MiniService.completeJson(repairPrompt, {
       maxTokens: 6000, label: 'observeCoachFeedbackRepair', job: 'coaching.observeDebrief',
     });
-    validateCoachFeedback(repaired);   // still strict — throws on a second miss
+    validateCoachFeedback(repaired, validateOpts);   // still strict — throws on a second miss
     noteGenderedAddress('coach_feedback', feedbackFields(repaired), { sessionId, repaired: true });
     return repaired;
   }
@@ -1064,7 +1086,7 @@ async function processDebriefRecording(sessionId, payload = {}) {
   if (observerDebrief.feedback) {
     logToFile('🔭 observe debrief: feedback stored — deliver-only redelivery', { sessionId });
     await _deliverCoachFeedback(sessionId, from, observerDebrief.feedback, S,
-      session.analysis_data && session.analysis_data.framework, lang, { portal });
+      session.analysis_data && session.analysis_data.framework, lang, { portal, coachUserId: session.observer_user_id });
     return;
   }
 
@@ -1165,7 +1187,8 @@ async function processDebriefRecording(sessionId, payload = {}) {
         diarization,
         language: lang,
       });
-      feedback = await coachFeedbackWithRepair(prompt, sessionId);
+      // ur/en: the judge scores rehearsal too (the rubric's eighth behaviour); Swahili's prompt does not ask for it.
+      feedback = await coachFeedbackWithRepair(prompt, sessionId, { rehearsal: _fbLang !== 'sw' });
     } catch (llmErr) {
       logToFile('⚠️ observe debrief: coach-feedback LLM failed/invalid', {
         sessionId, error: llmErr.message,
@@ -1183,7 +1206,7 @@ async function processDebriefRecording(sessionId, payload = {}) {
       feedback, completed_at: new Date().toISOString(),
     });
     await _deliverCoachFeedback(sessionId, from, feedback, S,
-      session.analysis_data && session.analysis_data.framework, _fbLang, { portal });
+      session.analysis_data && session.analysis_data.framework, _fbLang, { portal, coachUserId: session.observer_user_id });
   } finally {
     try { if (fs.existsSync(tempAudioPath)) fs.unlinkSync(tempAudioPath); } catch (_) { /* temp cleanup */ }
   }

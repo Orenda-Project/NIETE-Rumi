@@ -178,8 +178,8 @@ describe('GET /config — features.newUi', () => {
     const { payload } = await getConfig();
     expect(Object.keys(payload.features).sort()).toEqual([
       'assessmentEditing', 'assessmentGenerator', 'assessmentGeneratorMessage', 'childTest', 'childTestSa', 'coachDisagreements',
-      'coachFullApp', 'coachObservation', 'coachV2', 'newUi', 'roleSwitch', 'schoolCard', 'selfObservation', 'teacherHomeCard',
-      'teacherHomeLook', 'teacherHomeOrder', 'teacherV2',
+      'coachFullApp', 'coachObservation', 'coachReportsApp', 'coachV2', 'newUi', 'roleSwitch', 'schoolCard', 'selfObservation',
+      'teacherHomeCard', 'teacherHomeLook', 'teacherHomeOrder', 'teacherV2',
     ]);
   });
 });
