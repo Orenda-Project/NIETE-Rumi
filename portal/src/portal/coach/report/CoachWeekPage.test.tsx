@@ -103,6 +103,10 @@ describe("her week", () => {
     expect(within(next).getByTestId("week-steps-draft")).toBeTruthy();
     expect(next.textContent).toContain("your next focus will be One improvement.");
     expect(within(next).getByTestId("week-open-module").textContent).toBe("Open Module 3: Ask, then wait");
+    // bd-rlxkkt.12 — the link to the list counts the modules it lists (it said "All 9" when there were ten)
+    const all = within(next).getByTestId("week-all-modules");
+    expect(all.textContent).toBe("All 10 Coach Training modules");
+    expect(all).toHaveAttribute("href", "/portal/coach/coach-training");
   });
 
   it("the full table stays folded until she opens it", async () => {
