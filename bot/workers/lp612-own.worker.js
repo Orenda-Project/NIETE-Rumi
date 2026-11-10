@@ -97,12 +97,12 @@ function createOwnWorker(deps) {
     const missing = require('../shared/services/lp-k5-own').missingGrr(script);
     if (missing.length) throw stop('INCOMPLETE_PARENT', `the day's plan has no ${missing.join(', ')}`);
     const out = await d.rewriteK5({
-      script, answers: row.answers, edit: row.edit_request || undefined, lang: day.lang, grade: day.grade, subject: day.subject, correlationId,
+      script, answers: row.answers, edit: row.edit_request || undefined, lang: day.lang, grade: day.grade, subject: day.subject, dayPages: day.pages || null, correlationId,
     });
     if (!out || !out.script) throw stop('NOT_ACCEPTED', 'the gate refused the rewrite');
     let pdf;
     try {
-      pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && row.answers.way });
+      pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && row.answers.way, pages: (row.answers && row.answers.pages) || day.pages || null });
     } catch (e) {
       throw stop('RENDER_FAILED', (e && e.message) || 'print failed');
     }
@@ -122,14 +122,28 @@ function createOwnWorker(deps) {
     });
   }
 
+  /** Her row is already ready: the AI reviewer scores it for the library only, and never fails her. */
+  async function reviewAfterReady(row, correlationId) {
+    if (!d.review) return;
+    try {
+      await d.review(row.id, correlationId);
+    } catch (err) {
+      d.log('LP own review: failed after ready', { ownId: row.id, error: err.message, correlationId });
+    }
+  }
+
   async function process(payload = {}) {
     const { ownId, correlationId = null } = payload;
     const row = await d.claimOwn(ownId);
     if (!row) return;
+    if (await make(row, ownId, correlationId)) await reviewAfterReady(row, correlationId);
+  }
 
+  /** true when her row ended ready. */
+  async function make(row, ownId, correlationId) {
     try {
       const base = row.parent_own_id ? await changeBase(row) : null;
-      if (row.lesson_id) { await processK5(row, correlationId, base); return; }
+      if (row.lesson_id) { await processK5(row, correlationId, base); return true; }
 
       const segment = await d.loadSegment(row.segment_id);
       if (!segment) throw stop('NO_SEGMENT', 'segment not in the catalogue');
@@ -163,12 +177,14 @@ function createOwnWorker(deps) {
         status: 'ready', r2_key: pdfKey, edit_hash: hash, model_used: out.model || null,
         error_code: null, error_detail: null, completed_at: new Date().toISOString(),
       });
+      return true;
     } catch (e) {
       d.log('LP 6-12 own: could not make her plan', { ownId, code: e.code || null, error: e.message, correlationId });
       await d.patchOwn(row.id, {
         status: 'failed', error_code: e.code || 'OWN_FAILED', error_detail: String(e.message || '').slice(0, 500),
         completed_at: new Date().toISOString(),
       });
+      return false;
     }
   }
 
@@ -186,10 +202,10 @@ async function loadSegment(supabase, segmentId) {
 }
 
 /** bd-snkn32.4 — the page (pure) printed by the v10 card's printer: one 520-wide page, as long as the plan. */
-async function renderK5Pdf({ script, lang, grade, subject, way }) {
+async function renderK5Pdf({ script, lang, grade, subject, way, pages }) {
   const { renderK5Own, WAY_NAMES } = require('../shared/services/lp-k5-own-render');
   const { fontCss } = require('../shared/services/lp-k5-own-fonts');
-  const html = renderK5Own(script, { lang, grade, subject, way: (WAY_NAMES[lang] || WAY_NAMES.en)[way], fontCss: fontCss(lang) });
+  const html = renderK5Own(script, { lang, grade, subject, way: (WAY_NAMES[lang] || WAY_NAMES.en)[way], pages, fontCss: fontCss(lang) });
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'k5-own-'));
   try {
     const out = path.join(dir, 'own.pdf');
@@ -242,6 +258,7 @@ function liveDeps() {
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
     now: () => Date.now(),
     log: (msg, meta) => logToFile(msg, meta),
+    review: (id, correlationId) => require('../shared/services/lp612-own-reviewer').review(id, correlationId),
   };
 }
 

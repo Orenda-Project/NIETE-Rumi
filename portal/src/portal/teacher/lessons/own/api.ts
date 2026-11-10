@@ -15,7 +15,11 @@ export { useLpMakeOwn } from './flag';
 export const ownable = (l: Pick<LpLesson, 'lane' | 'kind'>) =>
   (l.lane === 'g612' && l.kind === 'lesson') || (l.lane === 'k5' && l.kind === 'day');
 
-export type OwnBody = { size: Size | null; resources: Resource[]; level: Level | null; way: Way | null; note: string };
+export type OwnBody = {
+  size: Size | null; resources: Resource[]; level: Level | null; way: Way | null; note: string;
+  /** bd-snkn32.17 — grades 1–5 only: her book pages, when not the day's own. */
+  pages?: { start: number; end: number };
+};
 
 /** What the bot answered: her new plan's id, a refusal she is told about (bd-snkn32.15), or null (could not reach it). */
 export type OwnAnswer = { renderId: string } | { outcome: Refusal } | null;

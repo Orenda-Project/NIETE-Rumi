@@ -16,17 +16,20 @@ const { toK5Script } = require('./lp-k5-own-html');
 const isV9 = (src) => src.verified === 'v9_html' || (src.slideScript && src.slideScript.meta && src.slideScript.meta.source === 'v9_html');
 
 const { clampLanguage } = require('../config/ux-strings');
+const { dayPages } = require('./lp-k5-own-pages');
 
 function createK5Source(deps) {
   const d = deps;
 
-  /** { lessonId, lang, grade, subject, subjectName } for a day of the catalogue, or null. */
+  /** { lessonId, lang, grade, subject, subjectName, pages? } for a day of the catalogue, or null. */
   function book(lessonId) {
     const hit = lessonId ? d.lessonById(lessonId) : null;
     if (!hit || !hit.book) return null;
     const lpType = hit.lesson && hit.lesson.lp_type;
     if (lpType === 'assessment' || lpType === 'revision') return null; // a worksheet or a revision is not a day plan
+    const pages = dayPages(hit.lesson); // bd-snkn32.17 — the day's own book pages, when the catalogue lists them
     return {
+      ...(pages ? { pages } : {}),
       lessonId,
       lang: clampLanguage(hit.book.language), // the BOOK's language, through the one clamp
       grade: Number(hit.book.grade),
