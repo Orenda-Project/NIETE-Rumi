@@ -126,3 +126,23 @@ export async function fetchMyOwnPlans(keys: string[]): Promise<MyOwnPlan[]> {
     return [];
   }
 }
+
+/**
+ * bd-snkn32.5 — "My own plans" on Lesson Plans home: her recent plans across every lesson, newest first, each with
+ * where it lives (GET /lp612/own/recent, dashboard relay → bot, always the session's user), so the portal opens one
+ * without going through Make my own. A failure, or a malformed row: nothing.
+ */
+export type RecentOwnPlan = MyOwnPlan & { grade: number; subject: string; chapter: string; title: string };
+const isRecent = (p: unknown): p is RecentOwnPlan => {
+  const r = p as Partial<RecentOwnPlan> | null;
+  return isMine(p) && Number.isInteger(r!.grade) && typeof r!.subject === 'string' && !!r!.subject
+    && typeof r!.chapter === 'string' && !!r!.chapter && typeof r!.title === 'string';
+};
+export async function fetchRecentOwnPlans(): Promise<RecentOwnPlan[]> {
+  try {
+    const { data } = await api.get('/lp612/own/recent');
+    return (Array.isArray(data?.plans) ? data.plans : []).filter(isRecent);
+  } catch {
+    return [];
+  }
+}
