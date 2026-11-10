@@ -63,6 +63,19 @@ test('her answers become the instruction, applied to the shared English document
   }));
 });
 
+test('bd-snkn32.13: a 6–12 row gets its band\'s way and its purpose in the instruction', async () => {
+  const answers = { ...ROW.answers, way: 'worked', purpose: 'reteach' };
+  const { worker, deps } = harness({
+    claimOwn: jest.fn(async () => ({ ...ROW, answers })),
+    loadSegment: jest.fn(async () => ({ segment_id: ROW.segment_id, grade: 8, book_stem: 'g8sci' })),
+  });
+  await worker.process({ ownId: 'own-1' });
+  const { instruction } = deps.revise.mock.calls[0][0];
+  expect(instruction).toMatch(/Teaching way: Worked examples/);
+  expect(instruction).toMatch(/did not understand/);
+  expect(instruction).toMatch(/may reorder or replace activities/);
+});
+
 test('the fork is stored ONLY under the edits/ path, PDF and its document, and her row is ready', async () => {
   const { worker, puts, patches } = harness();
   await worker.process({ ownId: 'own-1' });

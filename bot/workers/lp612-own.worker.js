@@ -1,3 +1,8 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 /**
  * bd-snkn32 — the "Make my own" job (jobType lp612_own, queued by lp612-own.service).
  *
@@ -22,7 +27,6 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const { buildOwnInstruction } = require('../shared/services/lp612-own-instruction');
-const Extend = require('../shared/services/lp612-own-extend');
 
 const OWN_TABLE = 'niete_lp612_own_plans';
 /** A shared lesson takes a median of ~3 min and up to ~10 to write; her fork waits that long for it, then gives up. */
@@ -42,24 +46,6 @@ function stop(code, message) {
 function createOwnWorker(deps) {
   const d = deps;
   const keys = () => d.keys || require('../shared/services/lp612-serving.service');
-
-  /**
-   * bd-snkn32.14 — "Add the next lesson's pages": the next lesson is re-checked against the catalogue (adjacent, same
-   * chapter), its shared plan waited for like hers, and the rewrite gets the joined segment + both plans + the shape.
-   */
-  async function joinNext(row, segment, instruction, correlationId) {
-    const ext = row.answers && row.answers.extend;
-    if (!ext) return { segment, instruction };
-    const rows = await d.chapterSegments(segment);
-    const next = Extend.nextInChapter(segment, rows);
-    if (!next || next.segment_id !== ext.next) throw stop('BAD_EXTEND', 'the next lesson is not the adjacent one in this chapter');
-    const nextDoc = await waitForParent({ ...row, segment_id: next.segment_id }, correlationId);
-    if (!nextDoc) throw stop('NO_PARENT', 'the next lesson was not written in time');
-    return {
-      segment: Extend.joinSegments(segment, next, ext.shape),
-      instruction: `${instruction}\n${Extend.buildExtendInstruction({ first: segment, next, nextDoc, shape: ext.shape })}`,
-    };
-  }
 
   async function waitForParent(row, correlationId) {
     const until = d.now() + (d.parentWaitMs ?? PARENT_WAIT_MS);
@@ -94,12 +80,12 @@ function createOwnWorker(deps) {
     const missing = require('../shared/services/lp-k5-own').missingGrr(day.script);
     if (missing.length) throw stop('INCOMPLETE_PARENT', `the day's plan has no ${missing.join(', ')}`);
     const out = await d.rewriteK5({
-      script: day.script, answers: row.answers, lang: day.lang, grade: day.grade, subject: day.subject, dayPages: day.pages || null, correlationId,
+      script: day.script, answers: row.answers, lang: day.lang, grade: day.grade, subject: day.subject, correlationId,
     });
     if (!out || !out.script) throw stop('NOT_ACCEPTED', 'the gate refused the rewrite');
     let pdf;
     try {
-      pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && row.answers.way, pages: (row.answers && row.answers.pages) || day.pages || null });
+      pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && row.answers.way });
     } catch (e) {
       throw stop('RENDER_FAILED', (e && e.message) || 'print failed');
     }
@@ -119,27 +105,13 @@ function createOwnWorker(deps) {
     });
   }
 
-  /** Her row is already ready: the AI reviewer scores it for the library only, and never fails her. */
-  async function reviewAfterReady(row, correlationId) {
-    if (!d.review) return;
-    try {
-      await d.review(row.id, correlationId);
-    } catch (err) {
-      d.log('LP own review: failed after ready', { ownId: row.id, error: err.message, correlationId });
-    }
-  }
-
   async function process(payload = {}) {
     const { ownId, correlationId = null } = payload;
     const row = await d.claimOwn(ownId);
     if (!row) return;
-    if (await make(row, ownId, correlationId)) await reviewAfterReady(row, correlationId);
-  }
 
-  /** true when her row ended ready. */
-  async function make(row, ownId, correlationId) {
     try {
-      if (row.lesson_id) { await processK5(row, correlationId); return true; }
+      if (row.lesson_id) { await processK5(row, correlationId); return; }
 
       const segment = await d.loadSegment(row.segment_id);
       if (!segment) throw stop('NO_SEGMENT', 'segment not in the catalogue');
@@ -147,9 +119,8 @@ function createOwnWorker(deps) {
       const parent = await waitForParent(row, correlationId);
       if (!parent) throw stop('NO_PARENT', 'the shared lesson was not written in time');
 
-      const joined = await joinNext(row, segment, buildOwnInstruction(row.answers), correlationId);
-      const { instruction } = joined;
-      const out = await d.revise({ doc: parent, instruction, segment: joined.segment, lang: row.lang, correlationId });
+      const instruction = buildOwnInstruction(row.answers, { grade: segment.grade, segmentId: row.segment_id }); // bd-snkn32.13
+      const out = await d.revise({ doc: parent, instruction, segment, lang: row.lang, correlationId });
       if (!out || !out.accepted) throw stop('NOT_ACCEPTED', 'the gates rejected the rewrite');
 
       const pdf = await renderPdf(out.lpDoc, row, correlationId);
@@ -174,14 +145,12 @@ function createOwnWorker(deps) {
         status: 'ready', r2_key: pdfKey, edit_hash: hash, model_used: out.model || null,
         error_code: null, error_detail: null, completed_at: new Date().toISOString(),
       });
-      return true;
     } catch (e) {
       d.log('LP 6-12 own: could not make her plan', { ownId, code: e.code || null, error: e.message, correlationId });
       await d.patchOwn(row.id, {
         status: 'failed', error_code: e.code || 'OWN_FAILED', error_detail: String(e.message || '').slice(0, 500),
         completed_at: new Date().toISOString(),
       });
-      return false;
     }
   }
 
@@ -199,10 +168,10 @@ async function loadSegment(supabase, segmentId) {
 }
 
 /** bd-snkn32.4 — the page (pure) printed by the v10 card's printer: one 520-wide page, as long as the plan. */
-async function renderK5Pdf({ script, lang, grade, subject, way, pages }) {
+async function renderK5Pdf({ script, lang, grade, subject, way }) {
   const { renderK5Own, WAY_NAMES } = require('../shared/services/lp-k5-own-render');
   const { fontCss } = require('../shared/services/lp-k5-own-fonts');
-  const html = renderK5Own(script, { lang, grade, subject, way: (WAY_NAMES[lang] || WAY_NAMES.en)[way], pages, fontCss: fontCss(lang) });
+  const html = renderK5Own(script, { lang, grade, subject, way: (WAY_NAMES[lang] || WAY_NAMES.en)[way], fontCss: fontCss(lang) });
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'k5-own-'));
   try {
     const out = path.join(dir, 'own.pdf');
@@ -231,7 +200,6 @@ function liveDeps() {
       return error ? null : data;
     },
     loadSegment: (segmentId) => loadSegment(supabase, segmentId),
-    chapterSegments: (seg) => require('../shared/services/lp612-own-extend.store').chapterSegments(supabase, seg),
     readStoredDoc: (args) => Serving.readStoredDoc(args),
     revise: (args) => require('../shared/services/lp612-author.service').reviseLessonPlan(args),
     loadK5: (lessonId) => require('../shared/services/lp-k5-own-source').loadK5(lessonId),
@@ -247,7 +215,6 @@ function liveDeps() {
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
     now: () => Date.now(),
     log: (msg, meta) => logToFile(msg, meta),
-    review: (id, correlationId) => require('../shared/services/lp612-own-reviewer').review(id, correlationId),
   };
 }
 
