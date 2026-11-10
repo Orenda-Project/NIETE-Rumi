@@ -738,7 +738,7 @@ export type TalkGuide = {
   /** The rubric-shaped notes (ur/en, current): went well, work on first, a moment, six lines in rubric order. */
   went_well?: string[];
   work_on_first?: { title: string; seen?: string; next_step?: string; recall?: string };
-  moment?: { time?: string | null; text: string } | null;
+  moment?: { time?: string | null; text: string; answer?: "right" | "partly right" | "wrong" | null } | null;
   conversation?: string[];
 };
 

@@ -140,8 +140,8 @@ function buildGuidePrompt(v2Analysis, options = {}) {
 
 After the debrief, the officer's conversation is judged against a coaching rubric. These notes teach that rubric by example, so the officer knows beforehand what a good debrief does. THE SHAPE — four parts:
   1. "went_well" — ONE or TWO things that went well, never more: each a short label in plain ${langName} words, a colon, then what the teacher actually did, from the data. A label is never a code, a key or a word_with_underscores: write "Clear aim", never "clear_objective".
-  2. "work_on_first" — exactly ONE thing to improve, framed as a teaching MOVE: "title" (a few words), "seen" (what the officer saw, from the data), "next_step" (one concrete move for next time; it is for the officer to know, not to say). The step must fit the moment: if the moment shows a wrong answer, the step is to correct it kindly (thank the student, give the right answer or a hint, ask again); a partly right answer is built on.
-  3. "moment" — ONE real moment from the lesson to bring up, tied to work_on_first: "text" says what happened at that moment: the question asked, the student's answer and what the teacher did (quoted from the data where possible), not just a name. "time": the time of that moment (such as "17:25") ONLY if that exact time is in the data, otherwise null — never invent a time. If the data holds no clear moment, "moment" is null.
+  2. "work_on_first" — exactly ONE thing to improve, framed as a teaching MOVE: "title" (a few words), "seen" (what the officer saw, from the data), "next_step" (one concrete move for next time; it is for the officer to know, not to say). The step must fit the moment's "answer": if it is "wrong", the step is to correct it kindly (thank the student, give the right answer or a hint, ask again); if "partly right", build on the right part; never build on a wrong answer as if it were right.
+  3. "moment" — ONE real moment from the lesson to bring up, tied to work_on_first: "text" says what happened at that moment: the question asked, the student's answer and what the teacher did (quoted from the data where possible), not just a name. "answer": your own judgement of the student's answer at that moment, against the subject facts: "right", "partly right" or "wrong" (null when there is no answer to judge). The teacher's reaction is not the judgement: praise does not make an answer right (a wrong name, date or fact can still get «شاباش»). When it is "wrong", "text" must say so plainly and give the right answer when the fact is certain, and the step must correct it kindly. "time": the time of that moment (such as "17:25") ONLY if that exact time is in the data, otherwise null — never invent a time. If the data holds no clear moment, "moment" is null.
   4. "conversation" — what the officer can say, exactly 6 lines, in this order (the rubric):
      1. specific praise — open with one specific, real thing from this lesson, never a generic "well done".
      2. the real moment — name the moment from part 3 so the teacher knows exactly which one.
@@ -154,7 +154,7 @@ ${prevBlock}
 Rules on every line: talk less — one or two short sentences, so the teacher does most of the talking; about the teaching moves, never about the teacher as a person; questions open, never yes/no, never leading, never "could you have done better". Plain words only: never a code, a key or a word_with_underscores from the data. Warm, specific, anchored ONLY to real moments in the data — if the data doesn't clearly support something, keep it general rather than inventing it. Write ALL text in ${langName}. Keep it SHORT: the whole notes, rendered, must stay under ${guideBudget(language)} characters — tight lines, no filler.
 GENDER (mandatory): the officer AND the teacher may each be a man or a woman (مرد بھی ہو سکتے ہیں اور خاتون بھی) — never assume. Every "conversation" line is spoken TO the teacher, and every other line TO the officer, so all of them must be gender-neutral. ${URDU_ADDRESS_RULE} ${URDU_THIRD_PERSON_RULE}
 
-Return JSON EXACTLY: { "intro": "<one short opening line to the officer>", "went_well": ["<label: what the teacher did>", "<optional second>"], "work_on_first": { "title": "<a few words>", "seen": "<what you saw>", "next_step": "<one move for next time>" }, "moment": { "time": "<the time from the data, or null>", "text": "<the moment>" }, "conversation": ["<1 specific praise>", "<2 the real moment>", "<3 the open question>", "<4 the one improvement>", "<5 the question that lets the teacher name the step>", "<6 the ask to rehearse it aloud>"], "outro": "<one short closing line: no number to hand over>" }
+Return JSON EXACTLY: { "intro": "<one short opening line to the officer>", "went_well": ["<label: what the teacher did>", "<optional second>"], "work_on_first": { "title": "<a few words>", "seen": "<what you saw>", "next_step": "<one move for next time>" }, "moment": { "time": "<the time from the data, or null>", "text": "<the moment>", "answer": "right"|"partly right"|"wrong"|null }, "conversation": ["<1 specific praise>", "<2 the real moment>", "<3 the open question>", "<4 the one improvement>", "<5 the question that lets the teacher name the step>", "<6 the ask to rehearse it aloud>"], "outro": "<one short closing line: no number to hand over>" }
 
 OBSERVATION DATA (scores removed):
 ${JSON.stringify(_plainKeys(data))}
@@ -326,7 +326,9 @@ function _renderRubricShape(guide, S, lines) {
   const m = guide.moment;
   if (m && _filled(m.text)) {
     const time = _filled(m.time) ? ` (${m.time.trim()})` : '';
-    lines.push(`📍 *${_label(S, 'guide_moment_label')}${time}*`, m.text, '');
+    const judged = m.answer === 'wrong' ? `: ${_label(S, 'guide_moment_wrong_label')}`
+      : m.answer === 'partly right' ? `: ${_label(S, 'guide_moment_partly_label')}` : '';
+    lines.push(`📍 *${_label(S, 'guide_moment_label')}${time}${judged}*`, m.text, '');
   }
 
   lines.push(`🗣 *${_label(S, 'guide_conversation_label')}*`);
@@ -487,6 +489,20 @@ function buildFallbackGuide(v2Analysis, options = {}) {
   };
 }
 
+// The model's judgement of the student's answer at the moment, kept only as one of three plain values.
+const MOMENT_ANSWERS = { right: 'right', 'partly right': 'partly right', wrong: 'wrong' };
+
+/**
+ * The moment's "answer" (the model's own judgement of the student's answer, against the subject facts) as one of
+ * "right", "partly right" or "wrong", else null. Notes without a moment, and other shapes, are returned as they came.
+ */
+function normaliseMomentAnswer(guide) {
+  const m = guide && guide.moment;
+  if (!m || typeof m !== 'object') return guide;
+  const word = typeof m.answer === 'string' ? m.answer.trim().toLowerCase().replace(/[_-]+/g, ' ') : '';
+  return { ...guide, moment: { ...m, answer: MOMENT_ANSWERS[word] || null } };
+}
+
 /**
  * A moment's time stays only when the observation data holds it, word for word: the model is told
  * never to invent one, and this is the check that it did not. Other guide shapes pass through.
@@ -508,6 +524,7 @@ module.exports = {
   CONVERSATION_STEPS,
   groundMomentTime,
   plainCodeNames,
+  normaliseMomentAnswer,
   GUIDE_CHAR_BUDGET,
   SUBJECT_FLAG_MIN_CONFIDENCE,
   buildGuidePrompt,
