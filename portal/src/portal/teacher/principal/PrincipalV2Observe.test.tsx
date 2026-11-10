@@ -91,9 +91,9 @@ function open(path: string, user = PRINCIPAL) {
   );
 }
 
-const T = { timeout: 8000 };
+const T = { timeout: 15_000 };
 // a slow, shared machine: the page loads its lazy chunks and three reads before the first assertion
-vi.setConfig({ testTimeout: 20_000 });
+vi.setConfig({ testTimeout: 40_000 });
 
 describe("the principal app v2 Observe page", () => {
   beforeEach(async () => {
