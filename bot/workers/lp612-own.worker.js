@@ -76,6 +76,9 @@ function createOwnWorker(deps) {
   async function processK5(row, correlationId) {
     const day = await d.loadK5(row.lesson_id);
     if (!day) throw stop('NO_PARENT', 'the day has no stored plan to start from');
+    // bd-snkn32.12 — the gradual release is never dropped: a parent without every part is not a day to rewrite.
+    const missing = require('../shared/services/lp-k5-own').missingGrr(day.script);
+    if (missing.length) throw stop('INCOMPLETE_PARENT', `the day's plan has no ${missing.join(', ')}`);
     const out = await d.rewriteK5({
       script: day.script, answers: row.answers, lang: day.lang, grade: day.grade, subject: day.subject, correlationId,
     });

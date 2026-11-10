@@ -13,7 +13,7 @@ const { createOwnWorker } = require('../../bot/workers/lp612-own.worker');
 
 const ANSWERS = { size: 'over70', resources: ['board'], level: 'behind', way: 'tarl', note: '' };
 const LESSON = 'grade_3_urdu_ch1_seg2';
-const SCRIPT = { goal: 'ہدف', meta: { day: 2 }, hook: {}, iDo: { steps: [{ say: 'سنیں' }] }, weDo: {}, youDo: {}, wrap: {} };
+const SCRIPT = { goal: 'ہدف', meta: { day: 2 }, hook: { conversation: [{ teacherAsks: 'کیا دیکھا؟' }] }, iDo: { steps: [{ say: 'سنیں' }] }, weDo: { action: 'مل کر' }, youDo: { action: 'خود' }, wrap: { homework: ['گھر'] } };
 
 function service(over = {}) {
   const calls = { inserts: [], queued: [] };
@@ -102,6 +102,7 @@ describe('the job for a grades 1–5 row', () => {
   it('a day with no stored plan, a rejected rewrite, or a failed print ends her row failed, nothing stored', async () => {
     for (const [over, code] of [
       [{ loadK5: jest.fn(async () => null) }, 'NO_PARENT'],
+      [{ loadK5: jest.fn(async () => ({ script: { ...SCRIPT, weDo: {} }, lang: 'ur', grade: 3, subject: 'urdu' })) }, 'INCOMPLETE_PARENT'],
       [{ rewriteK5: jest.fn(async () => null) }, 'NOT_ACCEPTED'],
       [{ renderK5: jest.fn(async () => { throw new Error('chrome'); }) }, 'RENDER_FAILED'],
     ]) {
@@ -111,4 +112,12 @@ describe('the job for a grades 1–5 row', () => {
       expect(patches[patches.length - 1]).toEqual(expect.objectContaining({ status: 'failed', error_code: code }));
     }
   });
+});
+
+it('bd-snkn32.12: a parent missing a gradual-release part is refused before any rewrite, naming the part', async () => {
+  const { w, deps, patches } = worker({ loadK5: jest.fn(async () => ({ script: { ...SCRIPT, hook: {} }, lang: 'ur', grade: 3, subject: 'urdu' })) });
+  await w.process({ ownId: 'own-k5' });
+  expect(deps.rewriteK5).not.toHaveBeenCalled();
+  expect(patches[patches.length - 1]).toEqual(expect.objectContaining({ status: 'failed', error_code: 'INCOMPLETE_PARENT' }));
+  expect(patches[patches.length - 1].error_detail).toMatch(/hook/);
 });
