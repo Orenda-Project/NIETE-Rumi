@@ -105,7 +105,7 @@ function createOwnWorker(deps) {
     });
   }
 
-  /** bd-snkn32.16 — her row is already ready: the AI reviewer scores it for the library only, and never fails her. */
+  /** Her row is already ready: the AI reviewer scores it for the library only, and never fails her. */
   async function reviewAfterReady(row, correlationId) {
     if (!d.review) return;
     try {

@@ -5284,7 +5284,7 @@ CREATE TABLE IF NOT EXISTS niete_lp612_own_plans (
   completed_at      TIMESTAMPTZ,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  -- V1.9.9: the AI reviewer's gate v2 verdict, for shared-library eligibility only (bd-snkn32.16)
+  -- V1.9.9: the AI reviewer's gate v2 verdict, for shared-library eligibility only
   review_score      NUMERIC(4,1) CONSTRAINT niete_lp612_own_plans_review_score_range
                       CHECK (review_score IS NULL OR (review_score >= 0 AND review_score <= 100)),
   review_pass       BOOLEAN,
