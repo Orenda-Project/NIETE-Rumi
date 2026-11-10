@@ -23,7 +23,7 @@ const { MIN_TRANSCRIPT_CHARS, sendLanguageAsk } = require('./transcript-quiz-off
 const { isSelfTest } = require('./teacher-self-test');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { TRANSCRIPT } = require('./quiz-sources');
-const Funnel = require('./quiz-funnel');
+const { enqueueGenerate } = require('./transcript-quiz-enqueue');
 
 const LINK_PREFIX = 'tq_link_';
 const REPORT_PREFIX = 'tq_report_';
@@ -113,14 +113,6 @@ async function loadEligibleSessionsLight(userId, needed) {
     return { id: s.id, created_at: s.created_at, eligible: true, analysis_data: { topic: s.topic !== undefined ? s.topic : a.topic, subject: s.subject !== undefined ? s.subject : a.subject } };
   });
   return { sessions, exhausted: sessions.length < Math.max(1, needed) };
-}
-
-async function enqueueGenerate(quizId, phone, lang, source = 'list', quizSource = TRANSCRIPT) {
-  const SQSQueueService = require('../queue');
-  await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, language: lang, source }, { delaySeconds: 0 });
-  // Every /quiz path that makes a quiz queues it here — the list, the Flow, a retry.
-  Funnel.emit('accepted', { quiz_id: quizId, source: quizSource, channel: Funnel.channelOf(source) });
-  await WhatsAppService.sendMessage(phone, resolveUx('tqMaking', { language: lang }));
 }
 
 /**
@@ -300,7 +292,7 @@ async function makeTranscriptQuizIn(user, sessionId, { phone, quizLanguage, via,
     userId: user.id, sessionId, session, quiz: quiz || null, quizLanguage, source: via,
   });
   if (claimed.error) return { outcome: 'claim_failed' };
-  await enqueueGenerate(claimed.quizId, phone, lang, via);
+  if (!(await enqueueGenerate(claimed.quizId, phone, lang, via))) return { outcome: 'queue_failed', quizId: claimed.quizId };
   logEvent('transcript_quiz.list_generate', {
     userId: user.id, quizId: claimed.quizId, from: claimed.from, source: via, language: quizLanguage,
   });
