@@ -33,7 +33,7 @@ export function RubricGuide({ guide }: { guide: TalkGuide }) {
         </InsightRow>
       )}
       {m && m.text && (
-        <InsightRow tone="action" icon={icon(MapPin)} label={m.time ? `${C.guideMoment} (${m.time})` : C.guideMoment}>
+        <InsightRow tone="action" icon={icon(MapPin)} label={`${m.time ? `${C.guideMoment} (${m.time})` : C.guideMoment}${m.answer === "wrong" ? `: ${C.guideMomentWrong}` : m.answer === "partly right" ? `: ${C.guideMomentPartly}` : ""}`}>
           {m.text}
         </InsightRow>
       )}

@@ -161,6 +161,19 @@ describe("Debrief", () => {
     expect(guide.queryByText("Ask this last")).toBeNull();
   });
 
+  // bd-rlxkkt.8: the model judges the student's answer at the moment; a wrong one is labelled for the coach.
+  it("the moment says when the student's answer was wrong", async () => {
+    L.getTalkGuide.mockResolvedValue({ guide: {
+      went_well: ["Clear aim: stated."],
+      work_on_first: { title: "Feedback on answers", next_step: "correct it kindly." },
+      moment: { time: "14:06", text: "A student said Hazrat Umar.", answer: "wrong" },
+      conversation: ["1", "2", "3", "4", "5", "6"],
+    } });
+    renderPage();
+    const guide = within(await screen.findByTestId("talk-guide"));
+    expect(guide.getByText(/A moment to raise/)).toHaveTextContent("A moment to raise (14:06): A wrong answer");
+  });
+
   it("Start recording and Upload recording are the kit's pair", async () => {
     renderPage();
     expect(await screen.findByRole("button", { name: "Start recording" })).toBeInTheDocument();
