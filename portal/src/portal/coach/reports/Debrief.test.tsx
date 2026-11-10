@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
@@ -20,7 +20,7 @@ vi.mock("../../components/coaching/coach/CoachRecorder", () => ({
   ),
 }));
 import { leader, portal } from "../../services/api";
-import Debrief from "./Debrief";
+import Debrief, { GUIDE_RETRY_MS } from "./Debrief";
 
 /**
  * bd-4404s7.5 — Debrief (Blueprint Coach_Debrief), step 3 of 4: the guide for her talk with the teacher (what went well,
@@ -66,6 +66,48 @@ beforeEach(() => {
   P.uploadToR2.mockResolvedValue(undefined);
   L.startTalk.mockResolvedValue({ success: true });
   L.retryTalk.mockResolvedValue({ success: true });
+});
+
+/**
+ * bd-ewbzns.4.5 (queue #54, Urdu walk 7 Nov, obs dae7c48c) — writing the guide took 31.5 s and the first ask came back
+ * 502 at 30.7 s, so the coach read "Guide did not load" though the guide was built and saved. A 5xx now keeps "Writing
+ * your guide" and asks again (after GUIDE_RETRY_MS): the saved guide comes back at once. 409 still means the form is
+ * not saved yet, with no second ask.
+ */
+describe("Debrief — a slow guide is asked for again, not given up on", () => {
+  const fail = (status: number) => Object.assign(new Error(`HTTP ${status}`), { response: { status } });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("a 502 then the guide: the guide shows, and 'did not load' never does", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    L.getTalkGuide.mockRejectedValueOnce(fail(502)).mockResolvedValueOnce({ guide: GUIDE });
+    renderPage();
+    await waitFor(() => expect(L.getTalkGuide).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("Writing your guide")).toBeInTheDocument();
+    expect(screen.queryByText("Guide did not load")).toBeNull();
+    await act(async () => { await vi.advanceTimersByTimeAsync(GUIDE_RETRY_MS[0] + 100); });
+    expect(await screen.findByTestId("talk-guide")).toBeInTheDocument();
+    expect(L.getTalkGuide).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText("Guide did not load")).toBeNull();
+  });
+
+  it("5xx every time: 'did not load' after the last ask", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    L.getTalkGuide.mockRejectedValue(fail(502));
+    renderPage();
+    await waitFor(() => expect(L.getTalkGuide).toHaveBeenCalledTimes(1));
+    for (const ms of GUIDE_RETRY_MS) await act(async () => { await vi.advanceTimersByTimeAsync(ms + 100); });
+    expect(await screen.findByText("Guide did not load")).toBeInTheDocument();
+    expect(L.getTalkGuide).toHaveBeenCalledTimes(GUIDE_RETRY_MS.length + 1);
+  });
+
+  it("409 (the form is not saved yet): said at once, no second ask", async () => {
+    L.getTalkGuide.mockRejectedValue(fail(409));
+    renderPage();
+    await waitFor(() => expect(L.getTalkGuide).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("Save the form first")).toBeInTheDocument();
+    expect(L.getTalkGuide).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("Debrief", () => {
@@ -174,8 +216,13 @@ describe("Debrief", () => {
   });
 
   it("a guide that will not load still lets her record", async () => {
+    // bd-ewbzns.4.5: a failed ask is tried again (GUIDE_RETRY_MS) before the page says it did not load.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     L.getTalkGuide.mockRejectedValue(new Error("down"));
     renderPage();
+    await waitFor(() => expect(L.getTalkGuide).toHaveBeenCalledTimes(1));
+    for (const ms of GUIDE_RETRY_MS) await act(async () => { await vi.advanceTimersByTimeAsync(ms + 100); });
+    vi.useRealTimers();
     expect(await screen.findByText("Guide did not load")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start recording" })).toBeInTheDocument();
   });
