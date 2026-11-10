@@ -7,6 +7,7 @@ import { coach, leader } from "../../services/api";
 import type { CoachObservationView } from "../../services/api";
 import { useCopy } from "../../teacher/i18n";
 import { LESSONS } from "../../teacher/lessons/copy";
+import { COACHING } from "../../teacher/coaching/copy";
 import { dayName, pkDayOf, pkToday } from "../../teacher/lessons/days";
 import { LoadState } from "../../teacher/lessons/LoadState";
 import { PageChip } from "../../teacher/TeacherPage";
@@ -66,6 +67,7 @@ const HER_STEPS = ["draft", "talk", "feedback", "report"];
 
 const CoachObservation = () => {
   const C = useCopy(REPORTS);
+  const { stepRecording } = useCopy(COACHING);
   const kit = useKitCopy();
   const bidi = useBidi();
   const { days } = useCopy(LESSONS);
@@ -155,6 +157,9 @@ const CoachObservation = () => {
       {data && (
         <>
           {(() => {
+            // bd-33wxxi.6 — no scores (the principal app, #55 Q1): the lesson still plays, under its own word
+            // ("Class recording", Digital Coaching's), with no ring and no score line; no recording, no card.
+            if (!routes.showScores) return data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} /> : null;
             const ring = <ScoreRing value={score} label={C.dcScore} />;
             const sub = allDone && data.score != null ? C.finalScore(C.pct(data.score)) : C.draftBeforeCheck;
             return data.audioUrl
