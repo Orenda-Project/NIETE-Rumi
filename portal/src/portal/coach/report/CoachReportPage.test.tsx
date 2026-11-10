@@ -66,7 +66,7 @@ const REPORT: CoachReport = {
     { key: "elicited_if_then", name: both("Teacher’s own step", "استاد کا اپنا اگلا قدم"), line: "You gave the step yourself.", why: both("Own words stick.", "اپنے الفاظ"), module: 6 },
   ],
   focus: { key: "elicited_if_then", move: "Let the teacher name the next step", why: "It was missed most often.", module: 6,
-    tryLine: { en: "“Next time, what will you do differently? Tell me in your own words.”", ur: "\"اگلی بار آپ کیا مختلف کریں گی؟ اپنے الفاظ میں بتائیں۔\"" } },
+    tryLine: { en: "“Next time, what will you do differently? Tell me in your own words.”", ur: "\"اگلی بار آپ کیا مختلف کریں؟ اپنے الفاظ میں بتائیں۔\"" } },
 };
 
 function renderPage(path = `/portal/coach/report/${ID}`) {

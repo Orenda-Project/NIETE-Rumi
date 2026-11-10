@@ -46,6 +46,8 @@ describe('her week', () => {
     expect(w.focus.name.ur).toBeTruthy();
     expect(w.focus.steps.en).toHaveLength(4);
     expect(w.focus.steps.ur).toHaveLength(4);
+    // The ICT HITL owner approved the steps (operator, 10 Nov): no longer marked as drafts.
+    expect(w.focus.steps.reviewed).toBe(true);
     expect(w.table).toHaveLength(8);
     expect(w.table[0].name.en).toBe('Specific praise');
     expect(q.mock.calls[0][1][0]).toBe(ME);

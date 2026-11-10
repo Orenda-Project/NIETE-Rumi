@@ -435,17 +435,18 @@ const STRINGS = {
     // Coach reports in the app: the ONE WhatsApp message with the link to her debrief report page (button <= 20).
     coach_report_link_body: 'آپ کی ڈی بریف رپورٹ تیار ہے۔ یہ ایپ میں کھلتی ہے، انگریزی یا اردو میں۔',
     coach_report_link_button: 'میری رپورٹ کھولیں',
-    // The ready "Try:" line that ends the next-focus box, per behaviour (the ICT HITL owner's words, verbatim). A behaviour
-    // with no line here has none yet: the page shows a marked placeholder, never a line we wrote.
+    // The ready "Try:" line that ends the next-focus box, per behaviour (the ICT HITL owner's words; operator 10 Nov: only the
+    // verb made gender-neutral, کریں گی → the آپ-subjunctive کریں, as the address rule requires). A behaviour with no line
+    // here has none yet: the page shows a marked placeholder, never a line we wrote (operator: go live with the placeholders).
     coach_report_try_lines: {
-      elicited_if_then: '"اگلی بار آپ کیا مختلف کریں گی؟ اپنے الفاظ میں بتائیں۔"',
+      elicited_if_then: '"اگلی بار آپ کیا مختلف کریں؟ اپنے الفاظ میں بتائیں۔"',
     },
     // Phase 3: the ONE WhatsApp message on Friday with the link to her week (button <= 20).
     coach_week_link_body: 'آپ کی ہفتہ وار کوچنگ رپورٹ تیار ہے: آپ کا ہفتہ، اور اگلے ہفتے کا فوکس۔ یہ صرف آپ کے لیے ہے۔',
     coach_week_link_button: 'میرا ہفتہ کھولیں',
-    // The four steps "How to do it next week" for the week's focus, per behaviour. DRAFT (5 Nov) for the ICT HITL
-    // owner's review: her design asks for four steps and gives none. The portal marks them as drafts until reviewed
-    // (dashboard/services/coach-week.service.js STEPS_REVIEWED). Urdu machine-drafted, gender-neutral; awaits a native check.
+    // The four steps "How to do it next week" for the week's focus, per behaviour. Drafted 5 Nov for the ICT HITL owner,
+    // approved 10 Nov (operator: "all other things of Rifat are approved"; coach-week.service.js STEPS_REVIEWED = true).
+    // Urdu gender-neutral (the address rule).
     coach_week_steps: {
       opened_with_specific_praise: [
         'ڈی بریف سے پہلے سبق کی ایک ایسی بات چنیں جو واقعی کامیاب رہی۔',
@@ -479,7 +480,7 @@ const STRINGS = {
       ],
       elicited_if_then: [
         'تبدیلی پر اتفاق ہو جائے تو اگلا قدم خود بتانے سے پہلے رک جائیں۔',
-        'یوں کہیں: "اگلی بار آپ کیا مختلف کریں گی؟ اپنے الفاظ میں بتائیں۔"',
+        'یوں کہیں: "اگلی بار آپ کیا مختلف کریں؟ اپنے الفاظ میں بتائیں۔"',
         'انتظار کریں اور استاد کو اپنے الفاظ میں کہنے دیں۔',
         'ان کا قدم ایک بار انہی کے الفاظ میں دہرائیں۔',
       ],
@@ -795,17 +796,17 @@ const STRINGS = {
     // Coach reports in the app: the ONE WhatsApp message with the link to her debrief report page (button <= 20).
     coach_report_link_body: 'Your debrief report is ready. It opens in the app, in English or Urdu.',
     coach_report_link_button: 'Open my report',
-    // The ready "Try:" line that ends the next-focus box, per behaviour (the ICT HITL owner's words, verbatim, 5 Nov). A
-    // behaviour with no line here has none yet: the page shows a marked placeholder, never a line we wrote.
+    // The ready "Try:" line that ends the next-focus box, per behaviour (the ICT HITL owner's words, 5 Nov). A behaviour
+    // with no line here has none yet: the page shows a marked placeholder, never a line we wrote (operator: go live with them).
     coach_report_try_lines: {
       elicited_if_then: '“Next time, what will you do differently? Tell me in your own words.”',
     },
     // Phase 3: the ONE WhatsApp message on Friday with the link to her week (button <= 20).
     coach_week_link_body: 'Your weekly coaching report is ready: your week, and your focus for next week. It is just for you.',
     coach_week_link_button: 'Open my week',
-    // The four steps "How to do it next week" for the week's focus, per behaviour. DRAFT (5 Nov) for the ICT HITL
-    // owner's review: her design asks for four steps and gives none. The portal marks them as drafts until reviewed
-    // (dashboard/services/coach-week.service.js STEPS_REVIEWED). Urdu machine-drafted, gender-neutral; awaits a native check.
+    // The four steps "How to do it next week" for the week's focus, per behaviour. Drafted 5 Nov for the ICT HITL owner,
+    // approved 10 Nov (operator: "all other things of Rifat are approved"; coach-week.service.js STEPS_REVIEWED = true).
+    // Urdu gender-neutral (the address rule).
     coach_week_steps: {
       opened_with_specific_praise: [
         'Before the debrief, pick one thing that really worked in the lesson.',
