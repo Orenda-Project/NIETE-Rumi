@@ -791,6 +791,8 @@ fn:cleanup_old_coaching_jobs(p_days_old integer)
 fn:complete_coaching_job(p_job_id uuid)
 fn:exec_sql(query text)
 fn:fail_coaching_job(p_job_id uuid, p_error_message text, p_error_stack text, p_retry_delay_seconds integer)
+fn:gb_lp_claim_waiters(p_render_id uuid)
+fn:gb_lp_join_waiters(p_render_id uuid, p_entry jsonb)
 fn:get_attendance_summary(p_list_id uuid, p_start_date date, p_end_date date)
 fn:get_broadcast_counts(p_broadcast_id uuid)
 fn:get_or_create_session(p_user_id uuid, p_session_timeout_minutes integer)
@@ -1017,6 +1019,7 @@ lesson_plans.textbook_metadata:jsonb
 lesson_plans.topic:character varying
 lesson_plans.type:character varying
 lesson_plans.user_id:uuid
+lp_feedback.assessment_paper_id:uuid
 lp_feedback.chapter_number:integer
 lp_feedback.created_at:timestamp with time zone
 lp_feedback.grade:integer
@@ -1039,6 +1042,27 @@ lp_feedback.user_id:uuid
 migration_test.created_at:timestamp without time zone
 migration_test.id:integer
 migration_test.test_message:text
+niete_gb_lp_renders.completed_at:timestamp with time zone
+niete_gb_lp_renders.correlation_id:text
+niete_gb_lp_renders.created_at:timestamp with time zone
+niete_gb_lp_renders.error_code:text
+niete_gb_lp_renders.error_detail:text
+niete_gb_lp_renders.id:uuid
+niete_gb_lp_renders.lang:text
+niete_gb_lp_renders.lint_clean:boolean
+niete_gb_lp_renders.lint_fails:jsonb
+niete_gb_lp_renders.model_used:text
+niete_gb_lp_renders.page_count:integer
+niete_gb_lp_renders.picked_up_at:timestamp with time zone
+niete_gb_lp_renders.r2_key:text
+niete_gb_lp_renders.requested_by:uuid
+niete_gb_lp_renders.segment_id:text
+niete_gb_lp_renders.started_at:timestamp with time zone
+niete_gb_lp_renders.status:text
+niete_gb_lp_renders.template_version:text
+niete_gb_lp_renders.timings:jsonb
+niete_gb_lp_renders.updated_at:timestamp with time zone
+niete_gb_lp_renders.waiters:jsonb
 niete_lp612_deliveries.created_at:timestamp with time zone
 niete_lp612_deliveries.delivered_at:timestamp with time zone
 niete_lp612_deliveries.id:uuid
@@ -1052,6 +1076,24 @@ niete_lp612_deliveries.segment_id:text
 niete_lp612_deliveries.surface:text
 niete_lp612_deliveries.template_version:text
 niete_lp612_deliveries.user_id:uuid
+niete_lp612_own_plans.answers:jsonb
+niete_lp612_own_plans.completed_at:timestamp with time zone
+niete_lp612_own_plans.correlation_id:text
+niete_lp612_own_plans.created_at:timestamp with time zone
+niete_lp612_own_plans.edit_hash:text
+niete_lp612_own_plans.error_code:text
+niete_lp612_own_plans.error_detail:text
+niete_lp612_own_plans.id:uuid
+niete_lp612_own_plans.lang:text
+niete_lp612_own_plans.lesson_id:text
+niete_lp612_own_plans.model_used:text
+niete_lp612_own_plans.r2_key:text
+niete_lp612_own_plans.segment_id:text
+niete_lp612_own_plans.started_at:timestamp with time zone
+niete_lp612_own_plans.status:text
+niete_lp612_own_plans.template_version:text
+niete_lp612_own_plans.updated_at:timestamp with time zone
+niete_lp612_own_plans.user_id:uuid
 niete_lp612_renders.checkpoint:jsonb
 niete_lp612_renders.completed_at:timestamp with time zone
 niete_lp612_renders.correlation_id:text
@@ -1086,6 +1128,7 @@ niete_lp612_segments.chapter_number:integer
 niete_lp612_segments.chapter_title:text
 niete_lp612_segments.corpus_version:text
 niete_lp612_segments.created_at:timestamp with time zone
+niete_lp612_segments.curriculum:text
 niete_lp612_segments.day_number:integer
 niete_lp612_segments.grade:integer
 niete_lp612_segments.is_current:boolean
@@ -1857,6 +1900,7 @@ textbooks.curriculum:text
 textbooks.filename:text
 textbooks.grade:integer
 textbooks.id:uuid
+textbooks.meta:jsonb
 textbooks.ocr_completed_at:timestamp with time zone
 textbooks.ocr_status:text
 textbooks.pdf_page_offset:integer
