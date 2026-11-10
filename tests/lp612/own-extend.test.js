@@ -30,7 +30,7 @@ const B = {
   prev_segment_id: A.segment_id, next_segment_id: 'g8sci.c03.p016-018',
 };
 const C3 = { ...B, segment_id: 'g8sci.c03.p016-018', chapter_key: 'c03', order_index: 6, printed_page_start: 16, printed_page_end: 18 };
-const ANSWERS = { size: '51_70', resources: ['board'], level: 'behind', way: 'tarl', note: '' };
+const ANSWERS = { size: '51_70', resources: ['board'], level: 'behind', way: 'practical', note: '' }; // a Grade 8 lesson: a 6–12 way (bd-snkn32.13)
 
 describe('parseExtend', () => {
   it('no extend is the ordinary plan', () => {

@@ -79,13 +79,13 @@ describe("Add the next lesson's pages", () => {
 
   it('Make my plan sends the next lesson and the shape, and the check screen says so', async () => {
     http.post.mockResolvedValue({ data: { success: true, state: 'authoring', renderId: 'own-1' } });
-    at(`${BASE}&step=check&seg=sci8.c02.p010&size=up30&level=behind&way=tarl&ext=one_period`);
+    at(`${BASE}&step=check&seg=sci8.c02.p010&size=up30&level=behind&purpose=new&way=practical&ext=one_period`); // a Grade 8 plan: a 6–12 way and its purpose (bd-snkn32.13)
     expect(await screen.findByText(C.extends.one_period)).toBeTruthy();
     fireEvent.click(await screen.findByTestId('own-make'));
     await waitFor(() => expect(http.post).toHaveBeenCalledWith('/lp612/own', {
       segment_id: 'sci8.c02.p010',
       answers: {
-        size: 'up30', resources: ['textbook'], level: 'behind', way: 'tarl', note: '',
+        size: 'up30', resources: ['textbook'], level: 'behind', way: 'practical', note: '', purpose: 'new',
         extend: { next: 'sci8.c02.p014', shape: 'one_period' },
       },
     }));

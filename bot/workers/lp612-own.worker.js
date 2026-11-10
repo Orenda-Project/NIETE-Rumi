@@ -152,7 +152,8 @@ function createOwnWorker(deps) {
       const parent = await waitForParent(row, correlationId);
       if (!parent) throw stop('NO_PARENT', 'the shared lesson was not written in time');
 
-      const joined = await joinNext(row, segment, buildOwnInstruction(row.answers), correlationId);
+      const own = buildOwnInstruction(row.answers, { grade: segment.grade, segmentId: row.segment_id }); // bd-snkn32.13
+      const joined = await joinNext(row, segment, own, correlationId); // bd-snkn32.14
       const { instruction } = joined;
       const out = await d.revise({ doc: parent, instruction, segment: joined.segment, lang: row.lang, correlationId });
       if (!out || !out.accepted) throw stop('NOT_ACCEPTED', 'the gates rejected the rewrite');
