@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-snkn32.16 — the AI reviewer's rules for a teacher's own plan (pure: no I/O, no model call).
+ * the AI reviewer's rules for a teacher's own plan (pure: no I/O, no model call).
  *
  * GATE V2, as the lesson-plan production gate states it: a plan PASSES when
  *   - no check is rated 1 ("missing"),

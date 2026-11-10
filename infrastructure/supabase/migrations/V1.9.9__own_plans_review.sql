@@ -1,4 +1,4 @@
--- V1.9.9 — "Make my own": the AI reviewer's verdict on a teacher's own plan (bd-snkn32.16).
+-- V1.9.9 — "Make my own": the AI reviewer's verdict on a teacher's own plan.
 -- Versioned migration. Applied per environment, in order, from infrastructure/supabase/migrations.
 --
 -- WHY. After her plan is ready, a cheaper model scores it against gate v2 (judge % >= 85, no check rated 1, key
@@ -7,7 +7,7 @@
 -- The EXISTING own-plan table is widened (docs/lesson-plan-data-model-debt.md: no new LP table).
 -- DATA CLASSIFICATION (D6): unchanged, '[Confidential]' (user_id + her note). The new columns are a model's ratings,
 -- not PII. The library read (lp612-own-library) selects no user_id and no answers.
--- OWNER (D7): NIETE-Rumi platform (bd-snkn32.16).
+-- OWNER (D7): NIETE-Rumi platform.
 -- DATA. Existing rows: all review columns NULL, library_eligible false (never reviewed = not in the library).
 -- LOAD. One UPDATE per ready plan. SECURITY. Unchanged (RLS on, service role only).
 -- IDEMPOTENT. IF NOT EXISTS / DROP CONSTRAINT IF EXISTS. Rollback: ROLLBACK_V1.9.9__own_plans_review.sql

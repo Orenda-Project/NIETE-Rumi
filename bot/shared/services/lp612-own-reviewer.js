@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-snkn32.16 — the AI reviewer of a teacher's own plan (job lp.ownReview, a cheaper model).
+ * the AI reviewer of a teacher's own plan (job lp.ownReview, a cheaper model).
  *
  * WHEN. After her row is `ready` (lp612-own.worker calls review() once her plan is stored), so it adds no wait:
  * the waiting page already has her plan. Any later path that makes a row ready again (a change) calls it the same way.
