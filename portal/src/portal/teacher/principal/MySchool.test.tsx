@@ -30,9 +30,11 @@ import analyticsRoutes from "../analytics/routes";
 import { ANALYTICS_HOME } from "../analytics/paths";
 import { oneTeacherPath } from "../analytics/school";
 import { beforeAll as preloadFirst } from "vitest";
-import { preloadAll } from "@/lib/lazyPage";
+import * as lazyPage from "@/lib/lazyPage";
 
-preloadFirst(() => preloadAll({ pages: true }), 120_000);
+// Lazy pages load at once where the app has preloadAll (sandbox, staging); where it does not, findBy waits for them.
+const { preloadAll } = lazyPage as { preloadAll?: (w: { pages?: boolean }) => Promise<unknown> };
+preloadFirst(() => preloadAll?.({ pages: true }), 120_000);
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn> };
 const PRINCIPAL = { firstName: "Saima Sample", lastName: null, role: "principal", phoneNumber: "test-principal-1", schoolName: "GGPS Sample" };
