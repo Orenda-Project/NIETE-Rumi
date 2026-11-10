@@ -36,11 +36,27 @@ const read = (p) => fs.readFileSync(p, 'utf8');
  * says: both files document at length the tables and rules they deliberately do not touch, and
  * that history is the point of the docblocks. A raw-text match would fail on the explanation.
  */
-const code = (p) => read(p)
+const strip = (text) => text
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .split('\n')
   .filter((l) => !l.trim().startsWith('//'))
   .join('\n');
+const code = (p) => strip(read(p));
+
+/**
+ * The portal route file's lp612 block, comments stripped: from the lp612 client's require to the ASSESSMENT GENERATOR
+ * banner. The banner is a comment, so the block is cut from the RAW file first and stripped after (bd-33wxxi.8: cut
+ * from the stripped text, the banner was gone and the "block" ran to the end of the file, so a later feature's
+ * req.portalUser — the principal app's observe gate, behind requireLeaderRole — failed this lp612 test).
+ */
+function lp612Block() {
+  const raw = read(ROUTES);
+  const start = raw.indexOf("require('../services/lp612.service')");
+  const end = raw.indexOf('ASSESSMENT GENERATOR', start);
+  expect(start).toBeGreaterThan(-1);
+  expect(end).toBeGreaterThan(start);
+  return strip(raw.slice(start, end));
+}
 
 const LP612_TABLES = ['niete_lp612_segments', 'niete_lp612_renders'];
 
@@ -53,12 +69,9 @@ describe('the portal owns no 6-12 lesson-plan logic', () => {
   });
 
   test('the portal route block reads no lp612 table', () => {
-    const src = code(ROUTES);
-    const start = src.indexOf("require('../services/lp612.service')");
-    expect(start).toBeGreaterThan(-1);
     // Bounded to this feature's own block: the file is thousands of lines and other features
     // legitimately read their own tables.
-    const block = src.slice(start, src.indexOf('ASSESSMENT GENERATOR', start));
+    const block = lp612Block();
     for (const table of LP612_TABLES) expect(block).not.toContain(table);
   });
 
@@ -144,9 +157,7 @@ describe('a real answer is not a fault', () => {
 
 describe('identity comes from the session', () => {
   test('every lp612 portal route that names a teacher reads the session', () => {
-    const src = code(ROUTES);
-    const start = src.indexOf("require('../services/lp612.service')");
-    const block = src.slice(start, src.indexOf('ASSESSMENT GENERATOR', start));
+    const block = lp612Block();
 
     // The three routes that carry identity.
     for (const marker of ['/lp612/request', '/lp612/status/:render_id', '/lp612/mine']) {
