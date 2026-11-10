@@ -271,7 +271,8 @@ async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
   if (step === 'lp612_chapter')      return lp612Guard(async () => selectLp612Chapter(d, await books(), flowToken));
   if (step === 'lp612_segment')      return lp612Guard(() => selectLp612Segment(flowToken, d));
   if (step === 'lp612_segment_page') return lp612Guard(async () => selectLp612SegmentPage(d, await books()));
-  if (step === Lp612OwnOffer.STEP)   return lp612Guard(() => selectLp612Own(flowToken, d));
+  // A 1-5 row is the K-5 lane's, so the 6-12 switch does not close it; isOfferedTo is its own switch.
+  if (step === Lp612OwnOffer.STEP)   return isV8Grade(d.grade) ? selectLp612Own(flowToken, d) : lp612Guard(() => selectLp612Own(flowToken, d));
   if (step === 'lp612_serve')        return lp612Guard(() => serveLp612Segment(flowToken, d));
   // bd-rj6w0n.14.5 — a Coming Soon GB book can be seen but never opened.
   if (step === Lp612GbShelf.SOON_STEP) {
@@ -595,15 +596,24 @@ const userIdFrom = (flowToken) => String(flowToken || '').split(':')[0];
  * Build a SELECT_LESSON (or SELECT_LESSON_MORE) screen for one chapter.
  * The ✓/○ tick is per-teacher, so this needs the flow token.
  */
-async function v8LessonScreen(flowToken, grade, subject, chapter, page, screenId, bookKeys) {
+async function v8LessonScreen(flowToken, grade, subject, chapter, page, screenId, bookKeys, carriedLead = false) {
   const userId = userIdFrom(flowToken);
   const [available, downloaded] = await Promise.all([
     V8Delivery.availableLessonIds(),
     V8Delivery.downloadedLessonIds(userId),
   ]);
-  const { items, total } = V8Catalog.buildLessonItems(grade, subject, chapter, available, downloaded, page, ...v8Shelf(bookKeys));
+  // Make my own goes first on page 1 when it is on for her; page 2 learns of it from the More row's lead.
+  const offered = page === 1 && Boolean(userId) && await Lp612OwnOffer.isOfferedTo(userId);
+  const lead = offered || (page > 1 && carriedLead);
+  const shelfArgs = lead ? [Array.isArray(bookKeys) ? bookKeys : undefined, 1] : v8Shelf(bookKeys);
+  const { items, total } = V8Catalog.buildLessonItems(grade, subject, chapter, available, downloaded, page, ...shelfArgs);
   if (!items.length) {
     return { data: { error: { message: 'Those lesson plans are being prepared — check back soon.' } } };
+  }
+  if (offered) {
+    const rtl = Boolean((V8Catalog.bookFor(grade, subject, ...v8Shelf(bookKeys)) || {}).rtl);
+    items.unshift(Lp612OwnOffer.ownRow({ grade, subject, chapterKey: String(chapter), rtl }));
+    logToFile('LP 1-5: Make my own row shown', { tk: teacherRef(userId), grade, subject, chapter: String(chapter) });
   }
   const ch = V8Catalog.chapterFor(grade, subject, chapter, ...v8Shelf(bookKeys));
   // A review chapter (GB's 'R1' "Review 1") is named by its title; every other header reads as it always has.
@@ -627,7 +637,7 @@ async function selectLessonPage(flowToken, d, bookKeys) {
   if (!isV8Grade(grade) || !d.subject || d.chapter === undefined) {
     return { data: { error: { message: 'Please pick a chapter again.' } } };
   }
-  return v8LessonScreen(flowToken, grade, d.subject, d.chapter, parseInt(d.page, 10) || 2, 'SELECT_LESSON_MORE', bookKeys);
+  return v8LessonScreen(flowToken, grade, d.subject, d.chapter, parseInt(d.page, 10) || 2, 'SELECT_LESSON_MORE', bookKeys, d.lead === '1');
 }
 
 /**
@@ -1041,13 +1051,13 @@ async function selectLp612Chapter(d, curriculum, flowToken = null) {
 async function selectLp612Own(flowToken, d) {
   const grade = parseInt(d.grade, 10);
   const unavailable = (language) => ({ data: { error: { message: resolveUx('lpOwnUnavailable', { language }) } } });
-  if (!Number.isInteger(grade) || grade < 6 || grade > 12 || !d.subject || !d.chapter_key) return unavailable();
+  if (!Number.isInteger(grade) || grade < 1 || grade > 12 || !d.subject || !d.chapter_key) return unavailable();
   const userId = userIdFrom(flowToken);
   if (!(await Lp612OwnOffer.isOfferedTo(userId))) return unavailable();
   const who = await getPhoneForUser(userId);
   if (!who || !who.phone_number) return unavailable();
   const language = who.preferred_language;
-  logToFile('LP 6-12: Make my own row tapped', { tk: teacherRef(userId), grade, subject: d.subject, chapterKey: d.chapter_key });
+  logToFile(`LP ${grade <= 5 ? '1-5' : '6-12'}: Make my own row tapped`, { tk: teacherRef(userId), grade, subject: d.subject, chapterKey: d.chapter_key });
   const sent = await Lp612OwnOffer.sendOwnLink({
     userId, phone: who.phone_number, language, grade, subject: d.subject, chapterKey: String(d.chapter_key),
   });
