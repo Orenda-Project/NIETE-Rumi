@@ -249,6 +249,31 @@ describe('an undeliverable question is skipped, never turned into a finish', () 
     ]);
   });
 
+  test('a question CARD that cannot be sent skips the question like an unsent picker — the child is never told "the question is in the picture above" with no picture (bd-1r3k2h)', async () => {
+    // Four options → a list picker, so the card goes as its own image first (video-quiz-render: the card rides
+    // the picker only when the picker is buttons). Mock run 20261026-2335-par T42: the image failed
+    // ("video-quiz message not delivered", role question_card) and the list still went out.
+    const questions = [0, 1, 2].map(question).map((q) => ({ ...q, option_d: 'd' }));
+    questions[1].media = { question_card: 'https://example.invalid/qa-missing-card.png' };
+    const store = stubStores({ questions });
+    const kv = stubRedis();
+    stubWhatsApp();
+    WhatsAppService.sendImageFromUrl.mockImplementation(async (_p, url) => !/example\.invalid/.test(String(url)));
+    const listsFor = () => WhatsAppService.sendInteractiveMessage.mock.calls
+      .map((c) => String(((((c[1] || {}).action || {}).sections || [])[0] || {}).rows?.[0]?.id || '').split('_')[1]).filter(Boolean);
+    kv.set(stateKey, JSON.stringify(baseState(questions)));
+
+    await drive(VideoQuiz.sendNextQuestion(PHONE, JSON.parse(kv.get(stateKey))));
+    await drive(VideoQuiz.handleAnswer(PHONE, 'vq_q-0_0'));   // Q1 right
+
+    expect(listsFor()).toEqual(['q-0', 'q-2']);               // Q2's list never went out
+    expect(sentTexts()).toContain(resolveUx('vqQuestionSkipped', { language: 'en', params: { i: 2 } }));
+    expect(events('video_quiz.question_skipped')).toEqual([
+      expect.objectContaining({ sessionId: SESSION, questionId: 'q-1', position: 2, reason: 'undeliverable' }),
+    ]);
+    expect(store.sessionRow.status).toBe('in_progress');
+  });
+
   test('a question row that cannot be read is skipped ONCE — the session never walks back to it and re-asks the one after', async () => {
     const questions = [0, 1, 2].map(question);
     const store = stubStores({ questions, missing: ['q-1'] });
