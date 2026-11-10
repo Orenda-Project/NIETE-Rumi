@@ -3,7 +3,7 @@
  * grades 1–5 format) in its book's language, checked before it is rendered (lp-k5-own.js, pure), and printed as a
  * phone page in the v10 card's look (lp-k5-own-render.js, pure).
  */
-const { k5Messages, checkK5Rewrite, parseK5Reply, NOT_READY_UR } = require('../../bot/shared/services/lp-k5-own');
+const { k5Messages, checkK5Rewrite, parseK5Reply, missingGrr, NOT_READY_UR } = require('../../bot/shared/services/lp-k5-own');
 const { renderK5Own } = require('../../bot/shared/services/lp-k5-own-render');
 
 const ANSWERS = { size: 'over70', resources: ['textbook', 'board'], level: 'behind', way: 'tarl', note: 'Two grades in one room' };
@@ -76,6 +76,18 @@ describe('checkK5Rewrite — the gate before it is rendered', () => {
     expect(checkK5Rewrite(script(), empty, { lang: 'en' }).join(' ')).toMatch(/iDo/);
   });
 
+  it('bd-snkn32.12: every gradual-release part must be there AND filled, even when the parent lacked it', () => {
+    for (const k of ['hook', 'iDo', 'weDo', 'youDo', 'wrap']) {
+      const gone = script(); delete gone[k];
+      expect(checkK5Rewrite(script(), gone, { lang: 'en' }).join(' ')).toMatch(new RegExp(k));
+      const blank = script(); blank[k] = { minutes: 5, action: '  ', steps: [] };
+      expect(checkK5Rewrite(script(), blank, { lang: 'en' }).join(' ')).toMatch(new RegExp(k));
+      const parentLacked = script(); delete parentLacked[k];
+      const next = script(); delete next[k];
+      expect(checkK5Rewrite(parentLacked, next, { lang: 'en' }).join(' ')).toMatch(new RegExp(k));
+    }
+  });
+
   it('the learning outcome and the day may not move', () => {
     const moved = script(); moved.goal = 'Something else';
     expect(checkK5Rewrite(script(), moved, { lang: 'en' }).join(' ')).toMatch(/goal/);
@@ -96,6 +108,21 @@ describe('checkK5Rewrite — the gate before it is rendered', () => {
   });
 });
 
+describe('missingGrr — the parts a plan may never lose (bd-snkn32.12)', () => {
+  it('a full plan misses nothing; absent, non-object or text-free parts are named in order', () => {
+    expect(missingGrr(script())).toEqual([]);
+    const s = script(); delete s.hook; s.weDo = 'We do it'; s.wrap = { minutes: 3, homework: [''], exitOptions: [] };
+    expect(missingGrr(s)).toEqual(['hook', 'weDo', 'wrap']);
+    expect(missingGrr(null)).toEqual(['hook', 'iDo', 'weDo', 'youDo', 'wrap']);
+  });
+
+  it('the rewrite request says the five parts always stay, each with something in it', () => {
+    const sys = k5Messages({ script: script(), answers: ANSWERS, lang: 'en', grade: 3, subject: 'math' })[0].content;
+    expect(sys).toMatch(/hook, iDo, weDo, youDo and wrap/);
+    expect(sys).not.toMatch(/leave it empty/);
+  });
+});
+
 describe('renderK5Own — the phone page', () => {
   it('English: the five sections in order, her day, the way named once, text escaped', () => {
     const s = script(); s.weDo.action = 'Build <256> & check';
@@ -112,6 +139,16 @@ describe('renderK5Own — the phone page', () => {
     expect(html).toContain('Build &lt;256&gt; &amp; check');
     expect(html).toContain('class="page"');
     expect(html).not.toContain('dir="rtl"');
+  });
+
+  it('bd-snkn32.12: prints what the full day carries: Opening steps, You Do check, re-teach rule, materials', () => {
+    const s = script();
+    s.hook.steps = [{ n: 1, action: 'Children guess aloud.' }];
+    s.hook.materials = ['twelve pebbles'];
+    s.youDo.cfu = 'How did you check?';
+    s.wrap.reteach = 'If under 2 of 3, redo it.';
+    const html = renderK5Own(s, { lang: 'en', grade: 3, subject: 'Math' });
+    for (const t of ['Children guess aloud.', 'twelve pebbles', 'How did you check?', 'If under 2 of 3, redo it.']) expect(html).toContain(t);
   });
 
   it('Urdu: right to left, Urdu headings, Nastaliq', () => {

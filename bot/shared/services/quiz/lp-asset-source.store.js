@@ -90,7 +90,7 @@ async function resolvableVersions(rows, opts = {}) {
  *
  * @param {{lessonId:string, versionStamp?:string, contentHash?:string}} key
  * @param {{client?:object}} opts
- * @returns {Promise<{slideScript:object, verified:string, assetId:string}|null>}
+ * @returns {Promise<{slideScript:object, verified:string, assetId:string, sourceUrl:string|null}|null>}
  *   null when no row matches that exact version. Throws on a DB error — an error
  *   must never be mistaken for "this lesson has no source".
  */
@@ -114,7 +114,7 @@ async function resolveSlideScript(key, opts = {}) {
   if (error) throw new Error(`${TABLE}: ${error.message || error}`);
   if (!data) return null;
 
-  return { slideScript: data.slide_script, verified: data.verified, assetId: data.asset_id };
+  return { slideScript: data.slide_script, verified: data.verified, assetId: data.asset_id, sourceUrl: data.source_url || null };
 }
 
 /**

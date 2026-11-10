@@ -12,6 +12,10 @@
  * We Do and You Do; her note is followed, never quoted back; an Urdu book stays Urdu throughout with no Roman Urdu,
  * an English book keeps its Roman-Urdu `sayLocal` lines; no longer than her day plan; a part with nothing in it is
  * dropped, never printed as "not ready". TaRL in an early language class groups by sound, letter, word, sentence.
+ *
+ * THE GRADUAL RELEASE NEVER GOES (bd-snkn32.12). Her answers change the strategy INSIDE each part; the parts themselves
+ * (hook/Opening → I Do → We Do → You Do → wrap/Check) are fixed. A plan missing any of them, or with one that has no
+ * text in it, is refused — the parent before the rewrite (the worker), the rewrite before it is printed (this gate).
  */
 const { SIZES, RESOURCES, LEVELS, WAYS } = require('./lp612-own-instruction');
 
@@ -36,7 +40,7 @@ function system(lang) {
     'You get the day\'s plan as JSON. Reply with the rewritten plan as JSON only, in the same JSON shape: the same top-level keys and the same field names, so the same printer can print it.',
     'Never change: the learning outcome (`goal`, `sloFull`, `sloCode`), `meta` (the day, the topic, the pages), or the section order hook → iDo → weDo → youDo → wrap. Keep each section\'s minutes adding up to the same total.',
     'Every section keeps a quick check for understanding. Keep it no longer than the plan you were given: one action line, then short steps of one sentence each.',
-    'If a part has nothing in it, leave it empty; never write a placeholder such as "not ready".',
+    'Always keep all five parts, hook, iDo, weDo, youDo and wrap, each with real teaching in it: change how each part is taught, never drop or empty a part. Inside a part, a field with nothing to say may be left out; never write a placeholder such as "not ready".',
     language,
   ].join('\n');
 }
@@ -90,13 +94,19 @@ function urduEnough(s) {
   return ARABIC.test(s) && arabic >= latin;
 }
 
+/** The gradual-release parts a plan lacks: absent, not an object, or with no text in it. [] = all five there. */
+function missingGrr(script) {
+  const s = script && typeof script === 'object' ? script : {};
+  return SECTIONS.filter((k) => {
+    const v = s[k];
+    return !v || typeof v !== 'object' || Array.isArray(v) || !strings(v).some((x) => x.trim());
+  });
+}
+
 /** Reasons to refuse the rewrite; [] passes. */
 function checkK5Rewrite(orig, next, { lang } = {}) {
   if (!next || typeof next !== 'object') return ['no plan'];
-  const reasons = [];
-  for (const k of SECTIONS) {
-    if (orig[k] && (!next[k] || typeof next[k] !== 'object')) reasons.push(`section ${k} is missing`);
-  }
+  const reasons = missingGrr(next).map((k) => `section ${k} is missing or empty`);
   const steps = next.iDo && next.iDo.steps;
   if (orig.iDo && Array.isArray(orig.iDo.steps) && orig.iDo.steps.length && (!Array.isArray(steps) || !steps.length)) {
     reasons.push('iDo has no steps');
@@ -116,4 +126,4 @@ function checkK5Rewrite(orig, next, { lang } = {}) {
   return reasons;
 }
 
-module.exports = { k5Messages, parseK5Reply, checkK5Rewrite, SECTIONS, NOT_READY_UR, MAX_GROWTH };
+module.exports = { k5Messages, parseK5Reply, checkK5Rewrite, missingGrr, SECTIONS, NOT_READY_UR, MAX_GROWTH };
