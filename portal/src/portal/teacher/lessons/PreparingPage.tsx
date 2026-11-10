@@ -14,6 +14,7 @@ import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
 import { LESSONS_VIEWER, lessonsUrl, openUrl, readAt, type LessonsAt } from './paths';
 import { dcFor, useOpenLesson } from './useOpenLesson';
+import { ownChangeAt } from './own/change';
 
 /**
  * bd-fmf24g.3 — a grades 6–12 plan being written (v28 canvas LessonPreparing): a countdown ring over
@@ -102,7 +103,13 @@ function Preparing({ at }: { at: AtRender }) {
         if (!live) return;
         if (s.state === 'ready') {
           void openPlan(s.source, lessonRef.current?.title ?? at.title ?? C.planFallback, {
-            replace: true, page: LESSONS_VIEWER, state: { dc: dcFor({ id: at.lesson, lane: 'g612' }, at) },
+            replace: true,
+            page: LESSONS_VIEWER,
+            state: {
+              dc: dcFor({ id: at.lesson, lane: 'g612' }, at),
+              // bd-snkn32.15 — her own plan: the viewer offers Change this plan with what is left.
+              ...(s.own ? { own: ownChangeAt(at, s.own, lessonRef.current?.title ?? at.title) } : {}),
+            },
           });
           return;
         }

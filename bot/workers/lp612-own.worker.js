@@ -20,6 +20,10 @@
  * card's look → her fork under lp612/own-k5/{lang}/{lesson}/{hash}.pdf (+ .json) → her row ready. Nothing shared is
  * written; the key stays in the lp612/ prefix.
  *
+ * CHANGES (bd-snkn32.15): a row with `parent_own_id` is one of her two changes. It starts from her latest READY plan
+ * in the chain (the document stored beside that plan's PDF), never the shared plan, and its instruction is her one
+ * change (lp-own-edit-instruction), not her class answers. Same rewrite, gates, keys and status as a make.
+ *
  * Dependencies are injected (createOwnWorker) so the rules are testable without an LLM, Chromium, R2 or Supabase.
  */
 
@@ -27,6 +31,8 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const { buildOwnInstruction } = require('../shared/services/lp612-own-instruction');
+const { buildEditInstruction } = require('../shared/services/lp-own-edit-instruction');
+const { editBase, baseJsonKey, bandOf } = require('../shared/services/lp-own-edit-guard');
 
 const OWN_TABLE = 'niete_lp612_own_plans';
 /** A shared lesson takes a median of ~3 min and up to ~10 to write; her fork waits that long for it, then gives up. */
@@ -57,6 +63,16 @@ function createOwnWorker(deps) {
     }
   }
 
+  /** bd-snkn32.15 — a change starts from her latest ready plan in the chain (never itself): its stored document. */
+  async function changeBase(row) {
+    const chain = await d.listChain(row.parent_own_id, row.user_id);
+    const base = editBase((chain || []).filter((r) => r && r.id !== row.id));
+    const key = base && baseJsonKey(base.r2_key, bandOf(row));
+    const doc = key ? await d.readJson(key) : null;
+    if (!doc) throw stop('NO_PARENT', 'her last ready plan has no stored document to change');
+    return doc;
+  }
+
   async function renderPdf(lpDoc, row, correlationId) {
     const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lp612-own-'));
     try {
@@ -73,14 +89,15 @@ function createOwnWorker(deps) {
   }
 
   /** bd-snkn32.4 — a grades 1–5 day. Throws stop(...) on every failure, like the 6-12 path. */
-  async function processK5(row, correlationId) {
+  async function processK5(row, correlationId, startFrom) {
     const day = await d.loadK5(row.lesson_id);
     if (!day) throw stop('NO_PARENT', 'the day has no stored plan to start from');
+    const script = startFrom || day.script; // bd-snkn32.15: a change rewrites her latest plan; the day gives its meta
     // bd-snkn32.12 — the gradual release is never dropped: a parent without every part is not a day to rewrite.
-    const missing = require('../shared/services/lp-k5-own').missingGrr(day.script);
+    const missing = require('../shared/services/lp-k5-own').missingGrr(script);
     if (missing.length) throw stop('INCOMPLETE_PARENT', `the day's plan has no ${missing.join(', ')}`);
     const out = await d.rewriteK5({
-      script: day.script, answers: row.answers, lang: day.lang, grade: day.grade, subject: day.subject, correlationId,
+      script, answers: row.answers, edit: row.edit_request || undefined, lang: day.lang, grade: day.grade, subject: day.subject, correlationId,
     });
     if (!out || !out.script) throw stop('NOT_ACCEPTED', 'the gate refused the rewrite');
     let pdf;
@@ -90,7 +107,7 @@ function createOwnWorker(deps) {
       throw stop('RENDER_FAILED', (e && e.message) || 'print failed');
     }
     const hash = require('crypto').createHash('sha256')
-      .update(JSON.stringify({ a: row.answers, s: out.script })).digest('hex').slice(0, 16);
+      .update(JSON.stringify({ a: row.answers, s: out.script, e: row.edit_request || undefined })).digest('hex').slice(0, 16);
     const base = `lp612/own-k5/${day.lang}/${row.lesson_id}/${hash}`;
     const pdfKey = keys().assertKeyInPrefix(`${base}.pdf`);
     await d.upload(pdf, pdfKey, 'application/pdf');
@@ -111,15 +128,16 @@ function createOwnWorker(deps) {
     if (!row) return;
 
     try {
-      if (row.lesson_id) { await processK5(row, correlationId); return; }
+      const base = row.parent_own_id ? await changeBase(row) : null;
+      if (row.lesson_id) { await processK5(row, correlationId, base); return; }
 
       const segment = await d.loadSegment(row.segment_id);
       if (!segment) throw stop('NO_SEGMENT', 'segment not in the catalogue');
 
-      const parent = await waitForParent(row, correlationId);
+      const parent = base || await waitForParent(row, correlationId);
       if (!parent) throw stop('NO_PARENT', 'the shared lesson was not written in time');
 
-      const instruction = buildOwnInstruction(row.answers);
+      const instruction = row.parent_own_id ? buildEditInstruction(row.edit_request) : buildOwnInstruction(row.answers);
       const out = await d.revise({ doc: parent, instruction, segment, lang: row.lang, correlationId });
       if (!out || !out.accepted) throw stop('NOT_ACCEPTED', 'the gates rejected the rewrite');
 
@@ -194,12 +212,21 @@ function liveDeps() {
         .from('niete_lp612_own_plans')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', id).eq('status', 'authoring')
-        .select('id, user_id, segment_id, lesson_id, lang, template_version, status, answers')
+        .select('id, user_id, segment_id, lesson_id, lang, template_version, status, answers, parent_own_id, edit_round, edit_request')
         .maybeSingle();
       if (error) logToFile('LP 6-12 own: claim failed', { ownId: id, error: error.message });
       return error ? null : data;
     },
     loadSegment: (segmentId) => loadSegment(supabase, segmentId),
+    listChain: (rootId, userId) => require('../shared/services/lp612-own.service').listChain(supabase, rootId, userId),
+    readJson: async (key) => {
+      try {
+        return JSON.parse((await require('../shared/storage/r2').downloadFromR2(key)).toString('utf8'));
+      } catch (err) {
+        logToFile('LP own change: could not read her last plan', { key, error: err.message });
+        return null;
+      }
+    },
     readStoredDoc: (args) => Serving.readStoredDoc(args),
     revise: (args) => require('../shared/services/lp612-author.service').reviseLessonPlan(args),
     loadK5: (lessonId) => require('../shared/services/lp-k5-own-source').loadK5(lessonId),

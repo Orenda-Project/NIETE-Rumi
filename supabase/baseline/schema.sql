@@ -2,6 +2,7 @@
 -- Regenerate: bash bot/scripts/e2e/local-db.sh baseline · dumped 2026-10-14T07:32Z
 -- region_features alone re-dumped from the live sandbox 2026-11-05 (bd-qg6j5s): V1.8.8 registry columns + book_keys.
 -- V1.8.6, V1.8.11, V1.8.12, V1.9.0, V1.9.3, V1.9.4, V1.9.6, V1.9.7 replayed onto this baseline and re-dumped 2026-11-09 (bd-4hyyp2).
+-- V1.9.8 (own-plan changes) hand-applied in dump form 2026-11-10 (bd-snkn32.15); no database was reached.
 --
 -- PostgreSQL database dump
 --
@@ -4897,6 +4898,10 @@ CREATE TABLE public.niete_lp612_own_plans (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     lesson_id text,
+    parent_own_id uuid,
+    edit_round smallint,
+    edit_request jsonb,
+    CONSTRAINT niete_lp612_own_plans_edit_round CHECK ((((parent_own_id IS NULL) AND (edit_round IS NULL) AND (edit_request IS NULL)) OR ((parent_own_id IS NOT NULL) AND (edit_round = ANY (ARRAY[1, 2])) AND (edit_request IS NOT NULL)))),
     CONSTRAINT niete_lp612_own_plans_lang_check CHECK ((lang = ANY (ARRAY['en'::text, 'ur'::text]))),
     CONSTRAINT niete_lp612_own_plans_one_parent CHECK ((num_nonnulls(segment_id, lesson_id) = 1)),
     CONSTRAINT niete_lp612_own_plans_r2_key_check CHECK (((r2_key IS NULL) OR (r2_key ~~ 'lp612/%'::text))),
@@ -9644,6 +9649,13 @@ CREATE INDEX idx_lp612_own_plans_user ON public.niete_lp612_own_plans USING btre
 
 
 --
+-- Name: uq_lp612_own_plans_round; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_lp612_own_plans_round ON public.niete_lp612_own_plans USING btree (parent_own_id, edit_round) WHERE (status <> 'failed'::text);
+
+
+--
 -- Name: idx_lp612_renders_inflight; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -12447,6 +12459,14 @@ ALTER TABLE ONLY public.niete_lp612_deliveries
 
 ALTER TABLE ONLY public.niete_lp612_deliveries
     ADD CONSTRAINT niete_lp612_deliveries_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: niete_lp612_own_plans niete_lp612_own_plans_parent_own_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_lp612_own_plans
+    ADD CONSTRAINT niete_lp612_own_plans_parent_own_id_fkey FOREIGN KEY (parent_own_id) REFERENCES public.niete_lp612_own_plans(id);
 
 
 --

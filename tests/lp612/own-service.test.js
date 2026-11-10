@@ -20,6 +20,9 @@ function harness(over = {}) {
     patchOwn: jest.fn(async (id, fields) => { calls.patches.push({ id, fields }); }),
     queueJob: jest.fn(async (...args) => { calls.queued.push(args); }),
     selectOwn: jest.fn(async () => null),
+    listChain: jest.fn(async () => []),
+    countToday: jest.fn(async () => 0),
+    now: () => Date.now(),
     log: jest.fn(),
     ...over,
   };
@@ -108,7 +111,7 @@ describe('ownStatus — the row in the render shape, hers only', () => {
     expect(deps.selectOwn).toHaveBeenCalledWith('own-1', 'u1');
     expect(out).toEqual({
       id: 'own-1', segment_id: SEG, status: 'ready', r2_key: row.r2_key, one_screen: null,
-      error_code: null, lang: 'en', started_at: 't0', completed_at: 't1',
+      error_code: null, lang: 'en', started_at: 't0', completed_at: 't1', changes_left: 2, own_band: 'g612',
     });
   });
 
@@ -122,5 +125,33 @@ describe('ownStatus — the row in the render shape, hers only', () => {
   it('a read that throws is nothing, never a crash', async () => {
     const { svc } = harness({ selectOwn: jest.fn(async () => { throw new Error('db'); }) });
     expect(await svc.ownStatus('own-1', 'u1')).toBeNull();
+  });
+});
+
+describe('bd-snkn32.15 — the daily limit and changes left', () => {
+  it('a sixth make in her Pakistan day is refused before anything is written or asked for', async () => {
+    const { svc, deps } = harness({ countToday: jest.fn(async () => 5) });
+    const out = await svc.requestOwn({ userId: 'u1', segmentId: SEG, answers: ANSWERS });
+    expect(out.outcome).toBe('daily_limit');
+    expect(deps.requestParent).not.toHaveBeenCalled();
+    expect(deps.insertOwn).not.toHaveBeenCalled();
+  });
+
+  it('a ready plan says how many changes are left and which band it is', async () => {
+    const row = { id: 'own-1', user_id: 'u1', segment_id: SEG, status: 'ready', r2_key: 'lp612/k.pdf', lang: 'en', parent_own_id: null };
+    const chain = [row, { id: 'r1', parent_own_id: 'own-1', edit_round: 1, status: 'ready' }];
+    const { svc, deps } = harness({ selectOwn: jest.fn(async () => row), listChain: jest.fn(async () => chain) });
+    const out = await svc.ownStatus('own-1', 'u1');
+    expect(out).toMatchObject({ changes_left: 1, own_band: 'g612' });
+    expect(deps.listChain).toHaveBeenCalledWith('own-1', 'u1');
+  });
+
+  it('a change row counts its root\'s chain; a plan still being written says nothing about changes', async () => {
+    const row = { id: 'r1', user_id: 'u1', lesson_id: 'grade_3_urdu_ch1_seg2', status: 'ready', parent_own_id: 'own-1' };
+    const { svc, deps } = harness({ selectOwn: jest.fn(async () => row), listChain: jest.fn(async () => [row]) });
+    expect(await svc.ownStatus('r1', 'u1')).toMatchObject({ changes_left: 1, own_band: 'k5' }); // r1 itself is used
+    expect(deps.listChain).toHaveBeenCalledWith('own-1', 'u1');
+    const { svc: s2 } = harness({ selectOwn: jest.fn(async () => ({ ...row, status: 'authoring' })) });
+    expect(await s2.ownStatus('r1', 'u1')).not.toHaveProperty('changes_left');
   });
 });

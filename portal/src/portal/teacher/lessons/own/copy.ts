@@ -45,6 +45,27 @@ export const OWN_COPY = {
   /* failures */
   couldNotMake: "Couldn't make it",
   tryAgain: 'Try again',
+  /* bd-snkn32.15 — Change this plan (up to two changes; the bot refuses what is not worth a new plan) */
+  changeThisPlan: (n: number) => `Change this plan (${n} left)`,
+  changeTitle: 'Change this plan',
+  whichPart: 'Which part?',
+  whatToChange: 'What should change?',
+  changeHint: 'Say what to do differently, in your own words.',
+  changeMyPlan: 'Change my plan',
+  partNames: {
+    hook: 'Hook', i_do: 'I do', we_do: 'We do', you_do: 'You do', wrap: 'Wrap-up',
+    objectives: 'Objectives', introduction: 'Introduction', development: 'Development', activity: 'Activity',
+    conclusion: 'Conclusion', homework: 'Homework', whole: 'The whole plan',
+  },
+  usedBoth: "You've used both changes. To start fresh, make a new plan from the chapter.",
+  refusals: {
+    too_short: 'Please say a little more about what should change.',
+    too_small: 'Small fixes like this you can make by hand on the plan.',
+    repeat: 'You asked for this change already. Ask for something different.',
+    in_flight: 'Your plan is still being changed. Please wait for it.',
+    cap_reached: "You've used both changes. To start fresh, make a new plan from the chapter.",
+    daily_limit: "You've made 5 plans today. You can make more tomorrow.",
+  },
 } as const;
 
 const OWN_COPY_UR: Words<typeof OWN_COPY> = {
@@ -77,6 +98,26 @@ const OWN_COPY_UR: Words<typeof OWN_COPY> = {
   makeMyPlan: 'میرا لیسن پلان بنائیں',
   couldNotMake: 'نہیں بن سکا',
   tryAgain: 'دوبارہ کوشش کریں',
+  changeThisPlan: (n: number) => `یہ لیسن پلان تبدیل کریں (${n} باقی)`,
+  changeTitle: 'یہ لیسن پلان تبدیل کریں',
+  whichPart: 'کون سا حصہ؟',
+  whatToChange: 'کیا تبدیل ہو؟',
+  changeHint: 'اپنے الفاظ میں بتائیں کہ کیا مختلف کرنا ہے۔',
+  changeMyPlan: 'میرا لیسن پلان تبدیل کریں',
+  partNames: {
+    hook: 'آغاز', i_do: 'میں کروں', we_do: 'ہم کریں', you_do: 'آپ کریں', wrap: 'اختتام',
+    objectives: 'مقاصد', introduction: 'تعارف', development: 'تفصیل', activity: 'سرگرمی',
+    conclusion: 'خلاصہ', homework: 'گھر کا کام', whole: 'پورا لیسن پلان',
+  },
+  usedBoth: 'آپ دونوں تبدیلیاں کر چکی ہیں۔ نئے سرے سے شروع کرنے کے لیے باب سے نیا لیسن پلان بنائیں۔',
+  refusals: {
+    too_short: 'براہ مہربانی تھوڑا اور بتائیں کہ کیا تبدیل ہو۔',
+    too_small: 'ایسی چھوٹی درستیاں آپ لیسن پلان پر خود کر سکتی ہیں۔',
+    repeat: 'آپ یہ تبدیلی پہلے مانگ چکی ہیں۔ کچھ مختلف مانگیں۔',
+    in_flight: 'آپ کا لیسن پلان ابھی تبدیل ہو رہا ہے۔ براہ مہربانی انتظار کریں۔',
+    cap_reached: 'آپ دونوں تبدیلیاں کر چکی ہیں۔ نئے سرے سے شروع کرنے کے لیے باب سے نیا لیسن پلان بنائیں۔',
+    daily_limit: 'آج آپ 5 لیسن پلان بنا چکی ہیں۔ کل مزید بنا سکیں گی۔',
+  },
 };
 
 export const OWN = bilingual(OWN_COPY, OWN_COPY_UR);
