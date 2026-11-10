@@ -15,6 +15,12 @@ import { observationPath, REPORTS_PATH, type ObservationScreen } from "../report
 export interface ObserveRoutes {
   /** The coach app's screens sit behind CoachGate; the principal app's do not (TeacherGate). */
   coachGate: boolean;
+  /**
+   * bd-33wxxi.6 — whether one observation's screens show its AI score and coach score (the score ring, "Coach score
+   * N%", the Send preview's score header). The coach app: yes. The principal app: no (#55, the operator, 10 Nov on Q1:
+   * "Lets start with hiding the scores … on the report for Principals"); everything else on those screens stays.
+   */
+  showScores: boolean;
   /** The visit a screen is for: the coach's scheduled visit, or the principal's picked teacher shaped as one. */
   loadVisit: (id: string) => Promise<{ visit?: CoachVisit | null }>;
   /** Where Back goes from the recording screens (the coach's visit page; the principal's Pick the teacher). */
@@ -30,6 +36,7 @@ export interface ObserveRoutes {
 
 export const COACH_OBSERVE_ROUTES: ObserveRoutes = {
   coachGate: true,
+  showScores: true,
   loadVisit: (id) => coach.getVisit(id),
   visit: (id) => `/portal/coach/visit/${id}`,
   record: (id) => `/portal/coach/visit/${id}/record`,
