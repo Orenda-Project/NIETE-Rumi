@@ -39,9 +39,11 @@ import { resetShareAvailability } from "../share/api";
 import CoachObservation from "../../coach/pages/CoachObservation";
 import SendReport from "../../coach/reports/SendReport";
 import { beforeAll as preloadFirst } from "vitest";
-import { preloadAll } from "@/lib/lazyPage";
+import * as lazyPage from "@/lib/lazyPage";
 
-preloadFirst(() => preloadAll({ pages: true }), 120_000);
+// Lazy pages load at once where the app has preloadAll (sandbox, staging); where it does not, findBy waits for them.
+const { preloadAll } = lazyPage as { preloadAll?: (w: { pages?: boolean }) => Promise<unknown> };
+preloadFirst(() => preloadAll?.({ pages: true }), 120_000);
 
 const H = http as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
 const PRINCIPAL = { firstName: "Saima", lastName: "Sample", role: "principal", phoneNumber: "test-principal-1", schoolName: "GGPS Sample" };
