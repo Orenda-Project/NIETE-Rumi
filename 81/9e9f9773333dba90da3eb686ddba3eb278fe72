@@ -1,0 +1,2 @@
+{"ts":"2026-11-10T16:59:29Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"819e9f977333","branch":"promo-4521-main","user":""}
+{"ts":"2026-11-10T17:11:29Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks engine=2.0.0","sha":"819e9f977333","branch":"promo-4521-main","user":""}
