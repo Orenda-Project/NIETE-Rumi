@@ -1,0 +1,2 @@
+{"ts":"2026-11-10T06:59:28Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan,language,teacher-lessons,portal-smoke spec_sync=true","sha":"f2a2bc9f4d29","branch":"bd-snkn32.15-91612","user":""}
+{"ts":"2026-11-10T06:59:41Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.15-91612: lesson-plan spec: NOT UPDATED e2e: missing;teacher-lessons web lane spec: NOT UPDATED e2e: missing","sha":"f2a2bc9f4d29","branch":"bd-snkn32.15-91612","user":""}
