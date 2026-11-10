@@ -43,6 +43,11 @@ const SUBJECT_CODES = {
   general_knowledge_en: 'general_knowledge_en',
   social_studies_en: 'social_studies_en',
 };
+// the grades 1–5 catalog's subject keys (lp_catalog.json subject_key), for "Make my own". Grades 1–5
+// only: at 6–12 `general_science` is already a book code (subject-config) and must stay one.
+const K5_CATALOG_CODES = {
+  general_science: 'science', general_knowledge_ur: 'general_knowledge', social_studies_ur: 'social_studies',
+};
 
 function fail(code, message, extra = {}) {
   const err = new Error(message);
@@ -57,7 +62,9 @@ const SECONDARY_CODES = require('./subject-config').codes();
 
 function normaliseSubject(subject, grade) {
   const k = String(subject || '').trim().toLowerCase();
-  return SUBJECT_CODES[k] || (Number(grade) >= 6 && SECONDARY_CODES.has(k) ? k : null);
+  if (SUBJECT_CODES[k]) return SUBJECT_CODES[k];
+  if (Number(grade) >= 6) return SECONDARY_CODES.has(k) ? k : null;
+  return K5_CATALOG_CODES[k] || null;
 }
 
 /**

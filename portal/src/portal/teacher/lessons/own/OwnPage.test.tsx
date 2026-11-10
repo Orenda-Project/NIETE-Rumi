@@ -146,27 +146,35 @@ describe('Make my own', () => {
     await waitFor(() => expect(where()).toContain('/lessons/lessons?'));
   });
 
-  it('walks the five questions, then Make my plan opens Preparing on her fork', async () => {
+  // bd-snkn32.19 — one flow for every band (the unified spec): lesson + pages, what it is for, size, level, resources, way.
+  it('walks the questions, then Make my plan opens Preparing on her fork', async () => {
     http.post.mockResolvedValue({ data: { success: true, state: 'authoring', renderId: 'own-1' } });
     at(`${LESSONS_OWN}?grade=8&subject=Science&chapter=c02`);
 
     const ok = () => screen.getByTestId('own-ok');
     await screen.findByTestId('own-opt-sci8.c02.p014');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(C.whichLesson);
     expect(ok()).toBeDisabled();
     fireEvent.click(screen.getByTestId('own-opt-sci8.c02.p014'));
     await waitFor(() => expect(where()).toContain('seg=sci8.c02.p014'));
+    expect(await screen.findByTestId('own-pg-card')).toBeTruthy();
+    expect(screen.getByTestId('own-pg-box')).toBeTruthy();
+    await waitFor(() => expect(ok()).not.toBeDisabled());
+    fireEvent.click(ok());
+
+    // Grade 8: what is this lesson for? "Teach new" comes picked; exam practice is the FDE annual exam.
+    const fresh = await screen.findByTestId('own-opt-new');
+    expect(fresh.getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByTestId('own-opt-board').textContent).toContain(C.purposeBoardFde);
+    expect(screen.getByTestId('own-opt-revise').textContent).toContain(C.purposeHints.revise);
+    fireEvent.click(screen.getByTestId('own-opt-revise'));
+    await waitFor(() => expect(where()).toContain('purpose=revise'));
     fireEvent.click(ok());
 
     await screen.findByTestId('own-opt-51_70');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(C.sizeSecondary);
     fireEvent.click(screen.getByTestId('own-opt-51_70'));
     await waitFor(() => expect(where()).toContain('size=51_70'));
-    fireEvent.click(ok());
-
-    await screen.findByTestId('own-opt-objects');
-    fireEvent.click(screen.getByTestId('own-opt-textbook'));   // always there: a tap changes nothing
-    fireEvent.click(screen.getByTestId('own-opt-board'));
-    await waitFor(() => expect(where()).toContain('res=board'));
-    expect(where()).not.toContain('textbook');
     fireEvent.click(ok());
 
     await screen.findByTestId('own-opt-mixed');
@@ -174,19 +182,23 @@ describe('Make my own', () => {
     await waitFor(() => expect(where()).toContain('level=mixed'));
     fireEvent.click(ok());
 
-    // bd-snkn32.13 — Grade 8: what is this lesson for? (no board exam below Grade 9)
-    await screen.findByTestId('own-opt-revise');
-    expect(screen.queryByTestId('own-opt-board')).toBeNull();
-    expect(ok()).toBeDisabled();
-    fireEvent.click(screen.getByTestId('own-opt-revise'));
-    await waitFor(() => expect(where()).toContain('purpose=revise'));
+    await screen.findByTestId('own-opt-objects');
+    expect(screen.getByTestId('own-opt-objects').textContent).toContain(C.resourceNames612.objects);
+    fireEvent.click(screen.getByTestId('own-opt-textbook'));   // locked on: a tap changes nothing
+    fireEvent.click(screen.getByTestId('own-opt-board'));
+    await waitFor(() => expect(where()).toContain('res=board'));
+    expect(where()).not.toContain('textbook');
     fireEvent.click(ok());
 
-    // Science → demonstration or practical, suggested and first; none of the primary ways.
+    // Science → demonstration or practical, suggested and first; none of the primary ways; GRR stays.
     const first = await screen.findByTestId('own-opt-practical');
     expect(first.textContent).toContain(C.suggested);
-    for (const w of ['tarl', 'cpa', 'phonics', 'games', 'story']) expect(screen.queryByTestId(`own-opt-${w}`)).toBeNull();
-    expect(screen.getByTestId('own-opt-worked')).toBeTruthy();
+    for (const w of ['tarl', 'cpa', 'phonics', 'games', 'story', 'rote']) expect(screen.queryByTestId(`own-opt-${w}`)).toBeNull();
+    expect(screen.getByTestId('own-grr').textContent).toBe(C.grrLine);
+    expect(C.grrLine).toContain('No rote drill.');
+    // Above the options, never under the fold (layout rule 5).
+    const grr = screen.getByTestId('own-grr');
+    expect(grr.compareDocumentPosition(screen.getByRole('radiogroup')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     fireEvent.click(ok());   // keeps the suggestion
 
     await screen.findByTestId('own-make');
@@ -206,17 +218,25 @@ describe('Make my own', () => {
     expect(where()).toContain('lesson=sci8.c02.p014');
   });
 
+  it('Grade 8 exam practice suggests Exam practice (FDE), sent as the bot\'s exam_fde code', async () => {
+    at(`${LESSONS_OWN}?grade=8&subject=Science&chapter=c02&seg=sci8.c02.p010&purpose=board&step=way`);
+    const pp = await screen.findByTestId('own-opt-exam_fde');
+    expect(pp.textContent).toContain('Exam practice (FDE)');
+    expect(screen.queryByTestId('own-opt-past_paper')).toBeNull();
+    expect(pp.textContent).toContain(C.suggested);
+  });
+
   it('remembers children in class on this phone', async () => {
     localStorage.setItem('lp-own-size', '31_50');
     at(`${LESSONS_OWN}?grade=8&subject=Science&chapter=c02&step=size&seg=sci8.c02.p010`);
     const row = await screen.findByTestId('own-opt-31_50');
-    expect(row.getAttribute('aria-pressed')).toBe('true');
+    expect(row.getAttribute('aria-checked')).toBe('true');
     expect(screen.getByTestId('own-ok')).not.toBeDisabled();
   });
 
   it('a plan that cannot be started: "Couldn\'t make it", and she stays to try again', async () => {
     http.post.mockRejectedValue(Object.assign(new Error('502'), { response: { status: 502 } }));
-    at(`${LESSONS_OWN}?grade=8&subject=Science&chapter=c02&step=check&seg=sci8.c02.p010&size=up30&level=ahead&purpose=new&way=worked`);
+    at(`${LESSONS_OWN}?grade=8&subject=Science&chapter=c02&step=check&seg=sci8.c02.p010&size=up30&level=ahead&purpose=new&way=practical`);
     fireEvent.click(await screen.findByTestId('own-make'));
     expect(await screen.findByRole('alert')).toHaveTextContent(C.couldNotMake);
     expect(where()).toContain(LESSONS_OWN);
@@ -227,70 +247,12 @@ describe('Make my own', () => {
 describe('Make my own: the daily limit (bd-snkn32.15)', () => {
   it('five plans today: she is told she can make more tomorrow, and stays', async () => {
     http.post.mockRejectedValue(Object.assign(new Error('409'), { response: { status: 409, data: { success: false, outcome: 'daily_limit' } } }));
-    at(`${LESSONS_OWN}?grade=8&subject=Science&chapter=c02&step=check&seg=sci8.c02.p010&size=up30&level=ahead&purpose=new&way=worked`);
+    at(`${LESSONS_OWN}?grade=8&subject=Science&chapter=c02&step=check&seg=sci8.c02.p010&size=up30&level=ahead&purpose=new&way=practical`);
     fireEvent.click(await screen.findByTestId('own-make'));
     expect(await screen.findByRole('alert')).toHaveTextContent(C.refusals.daily_limit);
     expect(where()).toContain(LESSONS_OWN);
   });
 });
-
-// bd-snkn32.13 — a Grade 9–12 lesson whose FBISE SLOs mix Summative and Formative asks which come first.
-describe('Make my own, grades 9–12', () => {
-  const mix = (mixed: boolean) => {
-    const plain = http.get.getMockImplementation()!;
-    http.get.mockImplementation(async (url: string, ...rest: unknown[]) => {
-      if (url === '/lp612/grades') return { data: { grades: [{ grade: 8 }, { grade: 10 }] } };
-      if (url.startsWith('/lp612/own/slo/')) {
-        return { data: mixed ? { success: true, mixed: true, summative: ['C-10-A-01'], formative: ['C-10-A-02'] } : { success: true, mixed: false, summative: [], formative: [] } };
-      }
-      return plain(url, ...rest);
-    });
-  };
-  const base = `${LESSONS_OWN}?grade=10&subject=Chemistry&chapter=c02&seg=sci8.c02.p014&size=up30&level=ahead`;
-
-  it('board exam practice is offered, and suggests past papers', async () => {
-    mix(false);
-    at(`${base}&step=purpose`);
-    fireEvent.click(await screen.findByTestId('own-opt-board'));
-    await waitFor(() => expect(where()).toContain('purpose=board'));
-    fireEvent.click(screen.getByTestId('own-ok'));
-    expect((await screen.findByTestId('own-opt-past_paper')).textContent).toContain(C.suggested);
-  });
-
-  it('a mixed lesson: after the way, which SLOs first, then the check; the choice is sent', async () => {
-    mix(true);
-    http.post.mockResolvedValue({ data: { success: true, state: 'authoring', renderId: 'own-2' } });
-    at(`${base}&purpose=new&way=worked&step=way`);
-    await screen.findByTestId('own-opt-worked');
-    await waitFor(() => expect(http.get).toHaveBeenCalledWith('/lp612/own/slo/sci8.c02.p014'));
-    fireEvent.click(screen.getByTestId('own-ok'));
-    const summative = await screen.findByTestId('own-opt-summative');
-    expect(summative.textContent).toContain('C-10-A-01');
-    expect(screen.getByTestId('own-ok')).toBeDisabled();
-    fireEvent.click(summative);
-    await waitFor(() => expect(where()).toContain('focus=summative'));
-    fireEvent.click(screen.getByTestId('own-ok'));
-    const make = await screen.findByTestId('own-make');
-    expect(screen.getByText(C.foci.summative)).toBeTruthy();
-    await waitFor(() => expect(make).not.toBeDisabled());
-    fireEvent.click(make);
-    await waitFor(() => expect(http.post).toHaveBeenCalledWith('/lp612/own', {
-      segment_id: 'sci8.c02.p014',
-      answers: { size: 'up30', resources: ['textbook'], level: 'ahead', way: 'worked', note: '', purpose: 'new', focus: 'summative' },
-    }));
-  });
-
-  it('a lesson that is not mixed goes from the way straight to the check', async () => {
-    mix(false);
-    at(`${base}&purpose=new&way=worked&step=way`);
-    await screen.findByTestId('own-opt-worked');
-    await waitFor(() => expect(http.get).toHaveBeenCalledWith('/lp612/own/slo/sci8.c02.p014'));
-    await new Promise((r) => setTimeout(r, 0));
-    fireEvent.click(screen.getByTestId('own-ok'));
-    await screen.findByTestId('own-make');
-  });
-});
-
 describe('Make my own, grades 1–5 (bd-snkn32.4)', () => {
   it('step 1 lists the chapter\'s lesson plans (days only, no worksheet), and Make my plan sends lesson_id', async () => {
     http.post.mockResolvedValue({ data: { success: true, state: 'authoring', renderId: 'own-k5' } });

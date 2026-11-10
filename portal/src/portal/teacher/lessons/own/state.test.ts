@@ -10,10 +10,10 @@ const at = { grade: 8, subject: 'Science', chapter: 'c02' };
 
 describe('ownUrl / readOwn round trip', () => {
   it('carries the chapter, the step and every answer', () => {
-    const url = ownUrl({ ...at, step: 'check', seg: 's1', size: '51_70', res: ['board', 'objects'], level: 'mixed', way: 'tarl' });
+    const url = ownUrl({ ...at, step: 'check', seg: 's1', size: '51_70', res: ['board', 'objects'], level: 'mixed', way: 'practical', purpose: 'board' });
     expect(url.startsWith('/portal/teacher/lessons/own?')).toBe(true);
     const back = readOwn(url.split('?')[1]);
-    expect(back).toEqual({ ...at, step: 'check', seg: 's1', size: '51_70', res: ['board', 'objects'], level: 'mixed', way: 'tarl', purpose: null, focus: null });
+    expect(back).toEqual({ ...at, step: 'check', seg: 's1', size: '51_70', res: ['board', 'objects'], level: 'mixed', way: 'practical', purpose: 'board', focus: null });
   });
 
   it('starts at pages with nothing answered', () => {
@@ -39,38 +39,65 @@ describe('ownUrl / readOwn round trip', () => {
   });
 });
 
-describe('steps', () => {
-  it('grades 1–5 run pages → size → resources → level → way → check', () => {
+describe('steps — bd-snkn32.19: one flow 1–12, only the lists differ', () => {
+  it('grades 1–5 run pages → size → level → resources → way → check', () => {
     const steps = stepsFor({ grade: 4, mixed: false });
-    expect(steps).toEqual(['pages', 'size', 'resources', 'level', 'way', 'check']);
+    expect(steps).toEqual(['pages', 'size', 'level', 'resources', 'way', 'check']);
     expect(nextStep('pages', steps)).toBe('size');
     expect(nextStep('way', steps)).toBe('check');
     expect(nextStep('check', steps)).toBeNull();
     expect(prevStep('size', steps)).toBe('pages');
     expect(prevStep('pages', steps)).toBeNull();
   });
-  // bd-snkn32.13
-  it('grades 6–12 add what the lesson is for, and which outcomes first only on a mixed lesson', () => {
-    expect(stepsFor({ grade: 8, mixed: false })).toEqual(['pages', 'size', 'resources', 'level', 'purpose', 'way', 'check']);
-    const mixed = stepsFor({ grade: 10, mixed: true });
-    expect(mixed).toEqual(['pages', 'size', 'resources', 'level', 'purpose', 'way', 'focus', 'check']);
-    expect(nextStep('way', mixed)).toBe('focus');
-    expect(prevStep('check', mixed)).toBe('focus');
+  it('grades 6–12 ask what the lesson is for right after the pages', () => {
+    expect(stepsFor({ grade: 8, mixed: false })).toEqual(['pages', 'purpose', 'size', 'level', 'resources', 'way', 'check']);
+    expect(stepsFor({ grade: 7, mixed: true })).not.toContain('focus');
+  });
+  it('which outcomes first: grades 9–12, a mixed lesson, and not exam practice', () => {
+    const mixed = stepsFor({ grade: 10, mixed: true, purpose: 'new' });
+    expect(mixed).toEqual(['pages', 'purpose', 'focus', 'size', 'level', 'resources', 'way', 'check']);
+    expect(nextStep('purpose', mixed)).toBe('focus');
+    expect(prevStep('size', mixed)).toBe('focus');
+    expect(stepsFor({ grade: 10, mixed: true, purpose: 'board' })).not.toContain('focus');
+    expect(stepsFor({ grade: 10, mixed: false, purpose: 'new' })).not.toContain('focus');
     expect(stepsFor({ grade: 4, mixed: true })).not.toContain('focus');
+  });
+});
+
+describe('readOwn — the band decides what survives (bd-snkn32.19)', () => {
+  it('drops a way that is not on her list for this grade and subject', () => {
+    expect(readOwn('grade=8&subject=Science&chapter=c02&way=tarl')!.way).toBeNull();
+    expect(readOwn('grade=4&subject=Science&chapter=c02&way=past_paper')!.way).toBeNull();
+    expect(readOwn('grade=10&subject=Chemistry&chapter=c02&way=worked')!.way).toBeNull();
+    expect(readOwn('grade=4&subject=Urdu&chapter=c02&way=phonics')!.way).toBe('phonics');
+  });
+  it('drops exam practice below Grade 8 and any purpose at 1–5', () => {
+    expect(readOwn('grade=7&subject=Science&chapter=c02&purpose=board')!.purpose).toBeNull();
+    expect(readOwn('grade=8&subject=Science&chapter=c02&purpose=board')!.purpose).toBe('board');
+    expect(readOwn('grade=4&subject=Science&chapter=c02&purpose=new')!.purpose).toBeNull();
+  });
+  it('drops the outcomes focus below Grade 9 and on exam practice', () => {
+    expect(readOwn('grade=8&subject=Science&chapter=c02&focus=summative')!.focus).toBeNull();
+    expect(readOwn('grade=10&subject=Physics&chapter=c02&purpose=board&focus=summative')!.focus).toBeNull();
+    expect(readOwn('grade=10&subject=Physics&chapter=c02&purpose=new&focus=summative')!.focus).toBe('summative');
+  });
+  it('drops adding the next lesson at 1–5 and keeps chosen pages at every band', () => {
+    expect(readOwn('grade=4&subject=Science&chapter=c02&ext=double')!.ext).toBeUndefined();
+    expect(readOwn('grade=10&subject=Physics&chapter=c02&pg=12-14')!.pg).toEqual({ start: 12, end: 14 });
   });
 });
 
 describe('toAnswers — what Make my plan sends', () => {
   it('the codes, the textbook added, and the note', () => {
-    const s = readOwn('grade=8&subject=Science&chapter=c02&seg=s1&size=up30&res=board&level=ahead&way=games')!;
+    const s = readOwn('grade=4&subject=Science&chapter=c02&seg=s1&size=up30&res=board&level=ahead&way=games')!;
     expect(toAnswers(s, '  two grades  ')).toEqual({
       size: 'up30', resources: ['textbook', 'board'], level: 'ahead', way: 'games', note: 'two grades',
     });
   });
   it('bd-snkn32.13: a 6–12 plan also sends what it is for and the SLO focus', () => {
-    const s = readOwn('grade=10&subject=Chemistry&chapter=c01&seg=s1&size=up30&level=ahead&way=worked&purpose=board&focus=summative')!;
+    const s = readOwn('grade=10&subject=Mathematics&chapter=c01&seg=s1&size=up30&level=ahead&way=worked&purpose=revise&focus=summative')!;
     expect(toAnswers(s, '')).toEqual({
-      size: 'up30', resources: ['textbook'], level: 'ahead', way: 'worked', note: '', purpose: 'board', focus: 'summative',
+      size: 'up30', resources: ['textbook'], level: 'ahead', way: 'worked', note: '', purpose: 'revise', focus: 'summative',
     });
   });
 });
