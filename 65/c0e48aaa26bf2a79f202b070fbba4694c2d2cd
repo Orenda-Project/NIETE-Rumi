@@ -1,2 +1,3 @@
 {"ts":"2026-11-10T05:23:44Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan spec_sync=true","sha":"65c0e48aaa26","branch":"bd-snkn32.12-87191","user":""}
 {"ts":"2026-11-10T05:23:49Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.12-87191: training spec: NOT UPDATED e2e: missing;lesson-plan spec: NOT UPDATED e2e: missing","sha":"65c0e48aaa26","branch":"bd-snkn32.12-87191","user":""}
+{"ts":"2026-11-10T05:24:07Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.12-87191: training spec: NOT UPDATED e2e: missing;lesson-plan spec: NOT UPDATED e2e: missing","sha":"65c0e48aaa26","branch":"bd-snkn32.12-87191","user":""}
