@@ -23,6 +23,36 @@ export function currentMenuItem(pathname: string): NavFeature | null {
   return f ? MENU_ITEM_OF[f] : null;
 }
 
+/**
+ * bd-33wxxi.9.1 — the principal app's menu (#78, a principal on portal_principal_app): Home · Observe · Lesson Plans ·
+ * Training · More. Observe is the coach's word and glyph and opens Observations (her Observe page: her own lessons and
+ * her teachers'), so it holds Observations, Digital Coaching and her own observe screens (/portal/teacher/principal/…).
+ * Everything else is the teacher's menu rule (pages reached from More keep More current).
+ */
+export type PrincipalNavKey = "home" | "observe" | "lessons" | "training" | "more";
+
+export const PRINCIPAL_NAV_KEYS: readonly PrincipalNavKey[] = ["home", "observe", "lessons", "training", "more"];
+
+/** The teacher feature each principal item opens (its page through teacherPath). */
+export const PRINCIPAL_NAV_FEATURE: Record<PrincipalNavKey, TeacherFeature> = {
+  home: "home",
+  observe: "observations",
+  lessons: "lessons",
+  training: "training",
+  more: "more",
+};
+
+const PRINCIPAL_SCREENS = "/portal/teacher/principal";
+
+export function currentPrincipalMenuItem(pathname: string): PrincipalNavKey | null {
+  const path = pathname.replace(/\/+$/, "") || "/";
+  if (path === PRINCIPAL_SCREENS || path.startsWith(`${PRINCIPAL_SCREENS}/`)) return "observe";
+  const f = featureOf(path);
+  if (f === "observations" || f === "coaching") return "observe";
+  const item = currentMenuItem(path);
+  return item === "coaching" ? "observe" : item;
+}
+
 
 /**
  * bd-4404s7.1 — the COACH's menu (Coach_Home board): Home, Schedule, Observe, Schools, More. Same bar, same still

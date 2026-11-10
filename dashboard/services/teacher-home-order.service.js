@@ -159,11 +159,13 @@ const isoOf = (v) => (Number.isFinite(toMs(v)) ? new Date(toMs(v)).toISOString()
  * @param {number|null} p.lpCount      lesson_plans ever (null when the read failed: rung 5 cannot fire on a failure)
  * @param {string|null} [p.quizHome]   the signed quiz home path (defaults to bot.path)
  * @param {boolean} [p.isCoach]        a coach / principal: never rungs 1 and 3
+ * @param {boolean} [p.firstPlan]      false: never rung 5 (a principal on the principal app, bd-33wxxi.9.1: her Home does
+ *                                     not lead with "Make your first lesson plan"); default true
  * @param {string|number|Date} p.now
  * @returns {null|{kind, title, played?, from?, score?, max?, at?, href, id?}}  score = the marks, max beside it (both
  *          null when the row has no usable marks)
  */
-function pickCard({ bot = null, coach = null, observation = null, lastPlan = null, lpCount = null, quizHome, isCoach = false, now = new Date() } = {}) {
+function pickCard({ bot = null, coach = null, observation = null, lastPlan = null, lpCount = null, quizHome, isCoach = false, firstPlan = true, now = new Date() } = {}) {
   const t = toMs(now);
   const home = quizHome !== undefined ? quizHome : (bot && typeof bot.path === 'string' ? bot.path : null);
   const quizOk = !isCoach && typeof home === 'string' && home.length > 0;
@@ -207,8 +209,8 @@ function pickCard({ bot = null, coach = null, observation = null, lastPlan = nul
       score: s ? s.marks : null, max: s ? s.max : null, at: isoOf(observation.created_at), href: '/portal/teacher/observations', id: String(observation.id),
     };
   }
-  // 5 — first plan: none ever (a failed count is not zero).
-  if (lpCount === 0) return { kind: 'first_plan', title: '', href: '/portal/teacher/lessons' };
+  // 5 — first plan: none ever (a failed count is not zero). Never for a principal on the principal app (firstPlan false).
+  if (firstPlan !== false && lpCount === 0) return { kind: 'first_plan', title: '', href: '/portal/teacher/lessons' };
   return null;
 }
 
