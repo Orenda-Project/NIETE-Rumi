@@ -54,12 +54,13 @@ function fakeSupabase(preferences) {
 
 const req = (extra = {}) => ({ params: {}, body: {}, query: {}, session: { portalUserId: ME }, ...extra });
 
-describe('the nine module keys', () => {
+describe('the module keys (ten since bd-rlxkkt.12)', () => {
   it('are the Coach Training page\'s own (portal coachTraining/modules.ts), in order', () => {
     const src = fs.readFileSync(path.join(__dirname, '../../portal/src/portal/coach/coachTraining/modules.ts'), 'utf8');
     const keys = [...src.matchAll(/\{ n: \d+, key: "([a-z]+)"/g)].map((m) => m[1]);
-    expect(keys).toHaveLength(9);
+    expect(keys).toHaveLength(10);
     expect(MODULE_KEYS).toEqual(keys);
+    expect(MODULE_KEYS[9]).toBe('evidence');
   });
 });
 
@@ -103,6 +104,19 @@ describe('PUT /coach/coach-training/progress/:key', () => {
     });
   });
 
+  it('bd-rlxkkt.12 — Module 10 (evidence) can be marked done and undone like the other nine', async () => {
+    const { client, state } = fakeSupabase({ coach_training_done: { praise: 'a' } });
+    const res = await put(client, 'evidence', { done: true });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ success: true, done: { praise: 'a', evidence: '2026-11-06T09:00:00.000Z' } });
+    expect(state.row.preferences).toEqual({ coach_training_done: { praise: 'a', evidence: '2026-11-06T09:00:00.000Z' } });
+    const read = fakeRes();
+    await last(handlersOf(createCoachTrainingProgressRouter({ supabase: client }), 'get', '/coach/coach-training/progress'))(req(), read);
+    expect(read.body.done).toEqual({ praise: 'a', evidence: '2026-11-06T09:00:00.000Z' });
+    const undo = await put(client, 'evidence', { done: false });
+    expect(undo.body).toEqual({ success: true, done: { praise: 'a' } });
+  });
+
   it('done: true on a module already done keeps its first time', async () => {
     const { client } = fakeSupabase({ coach_training_done: { praise: '2026-11-06T08:00:00.000Z' } });
     const res = await put(client, 'praise', { done: true });
@@ -116,7 +130,7 @@ describe('PUT /coach/coach-training/progress/:key', () => {
     expect(state.row.preferences).toEqual({ observe_teachers: ['t1'], coach_training_done: { moment: 'b' } });
   });
 
-  it('a key that is not one of the nine is 404, and a done that is not true/false is 400; nothing is written', async () => {
+  it('a key that is not one of the ten is 404, and a done that is not true/false is 400; nothing is written', async () => {
     const { client, state } = fakeSupabase({});
     expect((await put(client, 'nope', { done: true })).statusCode).toBe(404);
     expect((await put(client, 'praise', { done: 'yes' })).statusCode).toBe(400);

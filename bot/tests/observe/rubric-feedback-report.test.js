@@ -50,13 +50,20 @@ const feedback = (over = {}) => ({
 });
 
 describe('the module map lives in the bot too', () => {
-  it('nine modules; every judged behaviour has one; the same map the portal holds', () => {
-    expect(M.COACH_MODULES.map((m) => m.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  it('ten modules; every judged behaviour has one; the same map the portal holds', () => {
+    expect(M.COACH_MODULES.map((m) => m.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(M.BEHAVIOUR_MODULE).toEqual({
       opened_with_specific_praise: 1, anchored_in_real_moment: 2, asked_and_waited: 3, one_improvement_only: 4,
       moves_not_teacher: 5, elicited_if_then: 6, righting_reflex_held: 7, rehearsed_the_step: 8,
     });
     expect(M.moduleUrl(M.moduleFor('rehearsed_the_step'))).toBe('https://claude.ai/artifact/MGVm5YMAdQhRCrWRWWg65C');
+  });
+  it('bd-rlxkkt.12 — Module 10 (No evidence, no level) is no debrief behaviour\'s module, and the capstone stays 9', () => {
+    const ten = M.moduleByNumber(10);
+    expect(ten).toMatchObject({ n: 10, key: 'evidence', artifact: '62371mmVGLxniEHz6VGRXx', video: null });
+    expect(M.moduleUrl(ten)).toBe('https://claude.ai/artifact/62371mmVGLxniEHz6VGRXx');
+    expect(Object.values(M.BEHAVIOUR_MODULE)).not.toContain(10);
+    expect(M.FULL_DEBRIEF_MODULE).toBe(9);
   });
 });
 
