@@ -1,0 +1,2 @@
+{"ts":"2026-11-10T11:18:29Z","hook":"post-commit","event":"armed","switch":"","detail":"features=observe spec_sync=true","sha":"3f7f6e6a2734","branch":"stg-bd-apnnh2.11-ownschool","user":"tariqtaleemabad"}
+{"ts":"2026-11-10T11:22:49Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"*=none-needed (same behaviour as OBS76, one more surface; pinned by unit test)","sha":"3f7f6e6a2734","branch":"stg-bd-apnnh2.11-ownschool","user":"tariqtaleemabad"}
