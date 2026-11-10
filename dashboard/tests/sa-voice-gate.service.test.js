@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-21'); // sa-21: round 10, the engine files (sa-ui.js, sa.css, sa-voice.js, sa-engine.js)
+    expect(sw.CORE).toBe('sa-core-sa-21-sbx1'); // sandbox-only probe of the update path (reverted the same day); sa-21: round 10, the engine files (sa-ui.js, sa.css, sa-voice.js, sa-engine.js)
   });
 });
 
