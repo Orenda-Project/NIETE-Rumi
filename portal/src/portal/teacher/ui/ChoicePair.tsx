@@ -72,7 +72,7 @@ export function ChoicePair({ items, compact = false, className }: ChoicePairProp
         {items.map((it) => (
           <PairSquare key={it.key} to={it.off ? undefined : it.to} onPress={it.off ? undefined : it.onPress} off={it.off}
             name={it.off && it.note ? `${it.label}, ${it.note}` : it.label} compact={compact} testId={it.testId} className={PLAIN_SQUARE}>
-            <span aria-hidden="true" className={cn(discClass(compact), it.off && 'opacity-60')}>{it.art}</span>
+            <span aria-hidden="true" className={cn(discClass(compact), it.off && 'text-[#9ca3af]')}>{it.art}</span>
             {it.off && it.note ? (
               <span aria-hidden="true" className="flex flex-col items-center gap-1">
                 <span>{it.label}</span>
