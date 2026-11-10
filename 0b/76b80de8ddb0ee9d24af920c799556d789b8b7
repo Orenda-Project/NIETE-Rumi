@@ -1,3 +1,4 @@
 {"ts":"2026-11-10T06:59:28Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"0b76b80de8dd","branch":"bd-snkn32.13-92412","user":""}
 {"ts":"2026-11-10T07:03:08Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons spec_sync=true","sha":"0b76b80de8dd","branch":"bd-snkn32.13-92412","user":""}
 {"ts":"2026-11-10T07:30:18Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"6773817f-3e1c-437e-938d-244a8fe0f3ca","sha":"0b76b80de8dd","branch":"bd-snkn32.13-92412","user":""}
+{"ts":"2026-11-10T07:31:30Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current engine=2.0.0","sha":"0b76b80de8dd","branch":"bd-snkn32.13-92412","user":""}
