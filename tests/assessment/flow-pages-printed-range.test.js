@@ -7,13 +7,15 @@ const H = require('./helpers/golden-g1-5');
 
 let state;
 let Flow;
-function load() {
+let lookups;
+function load({ totalPages = 66, printed = [65, 70, 71] } = {}) {
+  lookups = [];
   jest.resetModules();
   state = {
     rows: {}, seq: 0, updates: [], settings: {}, queued: [], redis: new Map(),
     tables: {
-      textbooks: [{ id: 'book-3-english', curriculum: 'ict', grade: 3, subject: 'english', total_pages: 66 }],
-      textbook_pages: [65, 70, 71].map((n) => ({ textbook_id: 'book-3-english', textbook_page_number: n })),
+      textbooks: [{ id: 'book-3-english', curriculum: 'ict', grade: 3, subject: 'english', total_pages: totalPages }],
+      textbook_pages: printed.map((n) => ({ textbook_id: 'book-3-english', textbook_page_number: n })),
     },
   };
   jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
@@ -26,7 +28,11 @@ function load() {
   }));
   jest.doMock('../../bot/shared/services/queue', () => ({ queueJob: async () => ({ messageId: 'm' }) }));
   const Real = jest.requireActual('../../bot/shared/services/assessment/book-content.service');
-  jest.doMock('../../bot/shared/services/assessment/book-content.service', () => ({ ...Real, listChapters: async () => [] }));
+  jest.doMock('../../bot/shared/services/assessment/book-content.service', () => ({
+    ...Real,
+    listChapters: async () => [],
+    lastPrintedPage: async (...args) => { lookups.push(args); return Real.lastPrintedPage(...args); },
+  }));
   Flow = require('../../bot/shared/routes/assessment-gen-endpoint');
 }
 
@@ -61,5 +67,53 @@ describe('Flow PAGES screen bounds on the last printed page', () => {
     const out = await Flow.handleAssessmentGenDataExchange(user, 'PAGES', { page_ranges: 'chapter six' }, 'flow-pages-4');
     expect(out.data.error).toBe('Try something like 4-14, or 4, 9, 12.');
     expect(out.data.hint).toBe('This book has pages 1-71.');
+  });
+
+  it('a typo stays on the PAGES screen', async () => {
+    load();
+    const { user } = await toPages('flow-pages-5');
+    const out = await Flow.handleAssessmentGenDataExchange(user, 'PAGES', { page_ranges: 'chapter six' }, 'flow-pages-5');
+    expect(out.screen).toBe('PAGES');
+  });
+
+  it('a typo on a book with no page count and no page rows gives no hint', async () => {
+    load({ totalPages: null, printed: [] });
+    const { user } = await toPages('flow-pages-6');
+    const out = await Flow.handleAssessmentGenDataExchange(user, 'PAGES', { page_ranges: 'chapter six' }, 'flow-pages-6');
+    expect(out.data.hint).toBe('');
+    expect(out.data.error).toBe('Try something like 4-14, or 4, 9, 12.');
+  });
+
+  it.each([['the last counted page', '66'], ['an early range', '10-12']])(
+    'accepts %s without looking the last printed page up', async (_l, typed) => {
+      load();
+      const { user } = await toPages('flow-pages-7');
+      const out = await Flow.handleAssessmentGenDataExchange(user, 'PAGES', { page_ranges: typed }, 'flow-pages-7');
+      expect(out.screen).toBe('QUESTIONS');
+      expect(lookups).toEqual([]);
+    });
+
+  it('a book with no page count takes the typed pages without a lookup', async () => {
+    load({ totalPages: null, printed: [] });
+    const { user } = await toPages('flow-pages-8');
+    const out = await Flow.handleAssessmentGenDataExchange(user, 'PAGES', { page_ranges: '5' }, 'flow-pages-8');
+    expect(out.screen).toBe('QUESTIONS');
+    expect(lookups).toEqual([]);
+  });
+
+  it('looks the last printed page up once, for this book, when a page passes the count', async () => {
+    load();
+    const { user } = await toPages('flow-pages-9');
+    await Flow.handleAssessmentGenDataExchange(user, 'PAGES', { page_ranges: '67' }, 'flow-pages-9');
+    expect(lookups).toEqual([['book-3-english', 66]]);
+  });
+
+  it('choosing pages shows the last printed page in the hint', async () => {
+    load();
+    const { user } = await toPages('flow-pages-10');
+    const out = await Flow.handleAssessmentGenDataExchange(user, 'COVERAGE', { use_pages: true }, 'flow-pages-10');
+    expect(out.screen).toBe('PAGES');
+    expect(out.data.hint).toBe('This book has pages 1-71.');
+    expect(out.data.error).toBe('');
   });
 });

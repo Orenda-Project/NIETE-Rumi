@@ -41,6 +41,36 @@ const BOOK = { id: 'tb-1', total_pages: 166, pdf_page_offset: 3 };
 
 beforeEach(() => { mockResults.length = 0; mockCalls.length = 0; jest.clearAllMocks(); });
 
+describe('lastPrintedPage', () => {
+  const { logToFile } = require('../../bot/shared/utils/logger');
+
+  it('returns the fallback without querying when there is no book id', async () => {
+    expect(await BookContent.lastPrintedPage(null, 7)).toBe(7);
+    expect(mockCalls).toHaveLength(0);
+  });
+
+  it('reads the highest printed page number for the book', async () => {
+    mockResults.push({ data: { textbook_page_number: 220 }, error: null });
+    expect(await BookContent.lastPrintedPage('tb-cs11', 214)).toBe(220);
+    const call = mockCalls[0];
+    expect(call.table).toBe('textbook_pages');
+    expect(call.filters.find((f) => f.fn === 'select').args).toEqual(['textbook_page_number']);
+    expect(call.filters.find((f) => f.fn === 'limit').args).toEqual([1]);
+  });
+
+  it('falls back when the book has no page rows', async () => {
+    mockResults.push({ data: null, error: null });
+    expect(await BookContent.lastPrintedPage('tb-empty', 66)).toBe(66);
+    expect(logToFile).not.toHaveBeenCalled();
+  });
+
+  it('logs a failed lookup and falls back', async () => {
+    mockResults.push({ data: { textbook_page_number: 999 }, error: { message: 'boom' } });
+    expect(await BookContent.lastPrintedPage('tb-cs9', 66)).toBe(66);
+    expect(logToFile).toHaveBeenCalledWith('[assessment] last page lookup failed', { textbookId: 'tb-cs9', error: 'boom' });
+  });
+});
+
 describe('parsePageRanges', () => {
   it.each([
     ['a single page', '12', [12]],
@@ -226,6 +256,14 @@ describe('loadPageRangeContent', () => {
     });
     const out = await BookContent.loadPageRangeContent({ grade: 11, subject: 'computer_science', pageRanges: '215-220' });
     expect(out.pagesFound).toEqual([215, 216, 217, 218, 219, 220]);
+  });
+
+  it('takes any page when the book has no page count, without a lookup', async () => {
+    mockResults.push({ data: { id: 'tb-x', total_pages: null, pdf_page_offset: 0 }, error: null });
+    mockResults.push({ data: [{ textbook_page_number: 300, page_content: 'p300' }], error: null });
+    const out = await BookContent.loadPageRangeContent({ grade: 9, subject: 'computer_science', pageRanges: '300' });
+    expect(out.pagesFound).toEqual([300]);
+    expect(mockCalls.filter((c) => c.table === 'textbook_pages')).toHaveLength(1);
   });
 
   it('does not look the last page up when every typed page is within total_pages', async () => {
