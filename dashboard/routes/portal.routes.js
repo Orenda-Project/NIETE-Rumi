@@ -2525,7 +2525,8 @@ router.get('/coach/people', ...coachV2, async (req, res) => {
 /** GET /api/portal/coach/school/:emis — one of her schools and its teachers. */
 router.get('/coach/school/:emis', ...coachV2, async (req, res) => {
   const emis = String(req.params.emis || '');
-  if (!/^[A-Za-z0-9-]{1,32}$/.test(emis)) return res.status(404).json({ success: false, error: 'Not found' });
+  // bd-97daxo.22: up to 64 — a GB school without an EMIS is keyed by its name (40 characters).
+  if (!/^[A-Za-z0-9-]{1,64}$/.test(emis)) return res.status(404).json({ success: false, error: 'Not found' });
   try {
     const out = await CoachV2.getCoachSchool(pgQuery, req.session.portalUserId, emis, { today: coachToday(req) });
     if (!out) return res.status(404).json({ success: false, error: 'Not found' });
@@ -2620,7 +2621,8 @@ router.post('/coach/teacher/:teacherExtId/remove', ...coachV2, async (req, res) 
  *   POST /api/portal/coach/school/:emis/teachers         Body { phone, name? } — new, or a move
  *   POST /api/portal/coach/school/:emis/teachers/remove  Body { teacherExtIds[1–30], reason? }
  */
-const EMIS_RX = /^[A-Za-z0-9-]{1,32}$/;
+// bd-97daxo.22: up to 64 — a GB school without an EMIS is keyed by its name (40 characters).
+const EMIS_RX = /^[A-Za-z0-9-]{1,64}$/;
 const coachEmis = (req) => {
   const emis = String((req.params && req.params.emis) || '');
   return EMIS_RX.test(emis) ? emis : null;
