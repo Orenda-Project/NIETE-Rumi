@@ -22,13 +22,6 @@ export const OWN_COPY = {
   day: 'Which day?',
   dayLabel: 'Day',
   dayN: (n: number) => `Day ${n}`,
-  /* grades 1–5 book pages (bd-snkn32.17): the day's own, ready to change */
-  pagesHint: 'Change them if you will teach other pages.',
-  pageFrom: 'From page',
-  pageTo: 'To page',
-  addNextDay: (r: string) => `Add the next day's pages (p.${r})`,
-  badPages: 'Check the pages: first page, then last, 10 pages at most.',
-  pagesShort: (r: string) => `p.${r}`,
   size: 'Children in class',
   sizes: { up30: 'Up to 30', '31_50': '31 – 50', '51_70': '51 – 70', over70: 'More than 70' },
   resources: 'What you have',
@@ -44,6 +37,12 @@ export const OWN_COPY = {
     tarl: "Teach at each child's level", cpa: 'Things → pictures → numbers', phonics: 'Sounds first',
     games: 'Games and movement', story: 'Story and talk',
   },
+  /* bd-snkn32.14 — add the next lesson's pages (step 1, grades 6–12, not on a chapter's last lesson) */
+  addNext: "Add the next lesson's pages",
+  nextLesson: 'Next lesson',
+  extendNone: 'No, just these pages',
+  extends: { one_period: 'Cover more in one period', double: 'Double period' },
+  extendHints: { one_period: 'Both lessons in one period', double: 'Two periods together' },
   /* the check screen */
   yourPlan: 'Your plan',
   note: 'Anything else',
@@ -63,12 +62,6 @@ const OWN_COPY_UR: Words<typeof OWN_COPY> = {
   day: 'کون سا دن؟',
   dayLabel: 'دن',
   dayN: (n: number) => `دن ${n}`,
-  pagesHint: 'اگر آپ دوسرے صفحات پڑھائیں گی تو بدل دیں۔',
-  pageFrom: 'صفحہ سے',
-  pageTo: 'صفحہ تک',
-  addNextDay: (r: string) => `اگلے دن کے صفحات بھی (ص ${r})`,
-  badPages: 'صفحات دیکھیں: پہلا صفحہ، پھر آخری، زیادہ سے زیادہ 10 صفحات۔',
-  pagesShort: (r: string) => `ص ${r}`,
   size: 'کلاس میں بچے',
   sizes: { up30: '30 تک', '31_50': '31 – 50', '51_70': '51 – 70', over70: '70 سے زیادہ' },
   resources: 'آپ کے وسائل',
@@ -84,6 +77,11 @@ const OWN_COPY_UR: Words<typeof OWN_COPY> = {
     tarl: 'ہر بچے کی سطح پر پڑھائیں', cpa: 'چیزیں ← تصویریں ← اعداد', phonics: 'پہلے آوازیں',
     games: 'کھیل اور حرکت', story: 'کہانی اور بات چیت',
   },
+  addNext: 'اگلے سبق کے صفحات بھی شامل کریں',
+  nextLesson: 'اگلا سبق',
+  extendNone: 'نہیں، صرف یہی صفحات',
+  extends: { one_period: 'ایک پیریڈ میں زیادہ پڑھائیں', double: 'ڈبل پیریڈ' },
+  extendHints: { one_period: 'دونوں سبق ایک پیریڈ میں', double: 'دو پیریڈ اکٹھے' },
   yourPlan: 'آپ کا لیسن پلان',
   note: 'کچھ اور',
   optional: 'اختیاری',
@@ -101,5 +99,7 @@ export const OWN_COPY_ENTRY: CopyEntry = {
   // Digits and dashes read the same in both languages.
   same: ['sizes.31_50', 'sizes.51_70'],
   // A suggestion's name mirrors the FLN strategy's own name word for word.
-  longOk: ['ways.tarl', 'ways.cpa', 'suggested', 'resourceNames.charts', 'objectsHint', 'level', 'makeMyPlan', 'pagesHint', 'badPages', 'addNextDay'],
+  longOk: ['ways.tarl', 'ways.cpa', 'suggested', 'resourceNames.charts', 'objectsHint', 'level', 'makeMyPlan',
+    // bd-snkn32.14 — the two shapes are named in full: "one period" vs "double" is the whole choice.
+    'addNext', 'extends.one_period', 'extendHints'],
 };
