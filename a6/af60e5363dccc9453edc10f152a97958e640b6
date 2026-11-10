@@ -1,0 +1,2 @@
+{"ts":"2026-11-10T07:51:14Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-assessment,fde-board-pattern spec_sync=true","sha":"a6af60e5363d","branch":"bd-cj8ggk.7-96415","user":""}
+{"ts":"2026-11-10T07:54:04Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-cj8ggk.7-96415: teacher-assessment web lane spec: NOT UPDATED e2e: missing;fde-board-pattern web lane spec: NOT UPDATED e2e: missing","sha":"a6af60e5363d","branch":"bd-cj8ggk.7-96415","user":""}
