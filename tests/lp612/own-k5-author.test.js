@@ -33,3 +33,13 @@ test('still refused, or not JSON: null', async () => {
   const c = client('nonsense', { ...SCRIPT, goal: 'no' });
   expect(await rewriteK5({ script: SCRIPT, answers: ANSWERS, lang: 'en', grade: 3, subject: 'math', client: c, model: 'm' })).toBeNull();
 });
+
+test('bd-snkn32.15: a change sends her one change, not the class answers, and the same gate checks it', async () => {
+  const c = client({ ...SCRIPT, weDo: { action: 'Pair game with stones' } });
+  const edit = { part: 'we_do', text: 'Make it a pair game with stones' };
+  const out = await rewriteK5({ script: SCRIPT, edit, lang: 'en', grade: 3, subject: 'math', client: c, model: 'm' });
+  expect(out.script.weDo).toEqual({ action: 'Pair game with stones' });
+  const user = c.create.mock.calls[0][0].messages[1].content;
+  expect(user).toMatch(/Change only the weDo part/);
+  expect(user).toMatch(/pair game with stones/);
+});

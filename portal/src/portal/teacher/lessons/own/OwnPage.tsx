@@ -11,11 +11,10 @@ import { LoadState } from '../LoadState';
 import { LESSONS } from '../copy';
 import { lessonsUrl } from '../paths';
 import { OWN, type OwnCopy } from './copy';
-import {
-  FOCI, LEVELS, RESOURCES, SIZES, isComplete, isSecondary, purposesFor, suggestWay, waysFor, type Resource,
-} from './rules';
-import { nextStep, ownUrl, prevStep, readOwn, stepsFor, toAnswers, type OwnAt } from './state';
-import { fetchSloMix, makeOwnPlan, ownable, useLpMakeOwn } from './api';
+import { LEVELS, RESOURCES, SIZES, isComplete, suggestWay, waysFor, type Resource } from './rules';
+import { OWN_STEPS, nextStep, ownUrl, prevStep, readOwn, toAnswers, type OwnAt } from './state';
+import { makeOwnPlan, ownable, useLpMakeOwn } from './api';
+import type { Refusal } from './change';
 
 /**
  * bd-snkn32 — "Make my own" lesson plan (the flow draft, artifact KbsvCwJgs6QWy1DQmGjfzi, screens 3–8): one question
@@ -26,9 +25,6 @@ import { fetchSloMix, makeOwnPlan, ownable, useLpMakeOwn } from './api';
  * 1–5 (bd-snkn32.4): step 1 is "Which day?", the chapter's days as the chapter page lists them (no worksheet or
  * revision: there is no day plan to rewrite); the bot rewrites that day's plan in its book's language. Children in class is remembered on this phone (the draft: "she
  * only changes it when it changes"). Dark unless lpMakeOwn: off, this page sends her back to Lesson Plans.
- *
- * bd-snkn32.13 — grades 6–12 also say what the lesson is for, pick from their band's ways, and (Grade 9–12, a lesson
- * whose FBISE SLOs mix Summative and Formative) which outcomes come first.
  */
 
 const SIZE_KEY = 'lp-own-size';
@@ -48,7 +44,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const navigate = useNavigate();
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<Refusal | 'error' | null>(null);
   const [lessons, retry] = useLoad(() => lessonPlans.lessons(s.grade, s.subject, s.chapter), `l:${s.grade}:${s.subject}:${s.chapter}`);
   const plans = (dataOf(lessons) ?? []).filter(ownable);
   const k5 = plans.some((l) => l.lane === 'k5');
@@ -56,30 +52,27 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const seg = plans.find((l) => l.id === s.seg) ?? null;
   const chapterUrl = lessonsUrl('lessons', { grade: s.grade, subject: s.subject, chapter: s.chapter });
   const go = (over: Partial<OwnAt>) => navigate(ownUrl({ ...s, ...over }), { replace: true });
-  const askMix = s.grade >= 9 && !!s.seg;
-  const [slo] = useLoad(askMix ? () => fetchSloMix(s.seg as string) : null, `slo:${askMix ? s.seg : ''}`);
-  const mix = dataOf(slo);
-  const steps = stepsFor({ grade: s.grade, mixed: !!mix?.mixed });
-  const back = prevStep(s.step, steps);
-  const n = steps.indexOf(s.step) + 1;
+  const back = prevStep(s.step);
+  const n = OWN_STEPS.indexOf(s.step) + 1;
   const sizeNow = s.size ?? SIZES.find((x) => x === remembered()) ?? null;
-  const suggestion = suggestWay({ grade: s.grade, subject: s.subject, segment: s.seg ?? '', size: s.size, resources: ['textbook', ...s.res], level: s.level, way: null, purpose: s.purpose });
+  const suggestion = suggestWay({ grade: s.grade, subject: s.subject, segment: s.seg ?? '', size: s.size, resources: ['textbook', ...s.res], level: s.level, way: null });
   const wayNow = s.way ?? suggestion.way;
 
   // Off is a real answer (back to the chapter); unknown is not, so the frame waits for /config.
   if (on === false) return <Navigate to={chapterUrl} replace />;
 
   const ok = (over: Partial<OwnAt>, enabled: boolean) => (
-    <DockButton disabled={!enabled} testId="own-ok" onClick={() => go({ ...over, step: nextStep(s.step, steps) ?? s.step })}>{C.ok}</DockButton>
+    <DockButton disabled={!enabled} testId="own-ok" onClick={() => go({ ...over, step: nextStep(s.step) ?? s.step })}>{C.ok}</DockButton>
   );
 
   async function make() {
     if (!seg || busy) return; // her plan's own lane (6–12 or 1–5) decides what is sent: wait for the list
     setBusy(true);
-    setFailed(false);
-    const id = await makeOwnPlan(seg, toAnswers(s, note));
+    setFailed(null);
+    const r = await makeOwnPlan(seg, toAnswers(s, note));
     setBusy(false);
-    if (!id) { setFailed(true); return; }
+    if (!r || !('renderId' in r)) { setFailed(r && 'outcome' in r ? r.outcome : 'error'); return; }
+    const id = r.renderId;
     navigate(lessonsUrl('preparing', {
       grade: s.grade, subject: s.subject, chapter: s.chapter, lesson: s.seg, render: id, title: seg?.title ?? C.makeMyOwn,
     }), { replace: true });
@@ -89,10 +82,8 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
     : s.step === 'size' ? ok({ size: sizeNow }, !!sizeNow)
       : s.step === 'resources' ? ok({}, true)
         : s.step === 'level' ? ok({}, !!s.level)
-          : s.step === 'purpose' ? ok({}, !!s.purpose)
-            : s.step === 'way' ? ok({ way: wayNow }, slo.status !== 'loading') // which step is next waits for the SLO mix
-              : s.step === 'focus' ? ok({}, !!s.focus)
-                : <DockButton disabled={busy || !seg || !isComplete({ grade: s.grade, subject: s.subject, segment: s.seg ?? '', size: s.size, resources: s.res, level: s.level, way: s.way, purpose: s.purpose })} testId="own-make" onClick={() => { void make(); }}>{failed ? C.tryAgain : C.makeMyPlan}</DockButton>;
+          : s.step === 'way' ? ok({ way: wayNow }, true)
+            : <DockButton disabled={busy || !seg || !isComplete({ grade: s.grade, subject: s.subject, segment: s.seg ?? '', size: s.size, resources: s.res, level: s.level, way: s.way })} testId="own-make" onClick={() => { void make(); }}>{failed === 'error' ? C.tryAgain : C.makeMyPlan}</DockButton>;
 
   return (
     <TeacherPage
@@ -103,7 +94,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
       dock={dock}
       testId={`own-${s.step}`}
     >
-      {s.step !== 'check' ? <StepBar total={steps.length - 1} current={n} /> : null}
+      {s.step !== 'check' ? <StepBar total={5} current={n} /> : null}
       {s.step === 'pages' ? (
         <>
           <LoadState status={lessons.status} empty={!plans.length} onRetry={retry} />
@@ -123,9 +114,6 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
       {s.step === 'level' ? (
         <Rows items={LEVELS.map((k) => ({ key: k, label: C.levels[k] }))} chosen={[s.level]} onPick={(k) => go({ level: k as OwnAt['level'] })} />
       ) : null}
-      {s.step === 'purpose' ? (
-        <Rows items={purposesFor(s.grade).map((k) => ({ key: k, label: C.purposes[k] }))} chosen={[s.purpose]} onPick={(k) => go({ purpose: k as OwnAt['purpose'] })} />
-      ) : null}
       {s.step === 'way' ? (
         <Rows
           items={[suggestion.way, ...waysFor(s).filter((w) => w !== suggestion.way)].map((k) => ({
@@ -134,9 +122,6 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
           chosen={[wayNow]}
           onPick={(k) => go({ way: k as OwnAt['way'] })}
         />
-      ) : null}
-      {s.step === 'focus' ? (
-        <Rows items={FOCI.map((k) => ({ key: k, label: C.foci[k], subtitle: (mix?.[k] ?? []).join(', ') || undefined }))} chosen={[s.focus]} onPick={(k) => go({ focus: k as OwnAt['focus'] })} />
       ) : null}
       {s.step === 'check' ? (
         <Check s={s} C={C} k5={k5} pagesLabel={seg ? (seg.lane === 'k5' ? dayOf(seg) : seg.pages ?? seg.title) : '—'} gradeLabel={L.grade(s.grade)} note={note} setNote={setNote} failed={failed} />
@@ -168,7 +153,7 @@ function Rows({ items, chosen, onPick }: {
 }
 
 function Check({ s, C, k5, pagesLabel, gradeLabel, note, setNote, failed }: {
-  s: OwnAt; C: OwnCopy; k5: boolean; pagesLabel: string; gradeLabel: string; note: string; setNote: (v: string) => void; failed: boolean;
+  s: OwnAt; C: OwnCopy; k5: boolean; pagesLabel: string; gradeLabel: string; note: string; setNote: (v: string) => void; failed: Refusal | 'error' | null;
 }) {
   const at = (step: OwnAt['step']) => ownUrl({ ...s, step });
   return (
@@ -179,9 +164,7 @@ function Check({ s, C, k5, pagesLabel, gradeLabel, note, setNote, failed }: {
           { label: C.size, value: s.size ? C.sizes[s.size] : '—', to: at('size') },
           { label: C.resources, value: ['textbook', ...s.res].map((r) => C.resourceNames[r as Resource]).join(', '), to: at('resources') },
           { label: C.level, value: s.level ? C.levels[s.level] : '—', to: at('level') },
-          ...(isSecondary(s.grade) ? [{ label: C.purposeLabel, value: s.purpose ? C.purposes[s.purpose] : '—', to: at('purpose') }] : []),
           { label: C.way, value: s.way ? C.ways[s.way] : '—', to: at('way') },
-          ...(s.focus ? [{ label: C.focusLabel, value: C.foci[s.focus], to: at('focus') }] : []),
         ]}
       />
       <label className="flex flex-col gap-1.5">
@@ -194,7 +177,7 @@ function Check({ s, C, k5, pagesLabel, gradeLabel, note, setNote, failed }: {
           data-testid="own-note"
         />
       </label>
-      {failed ? <p role="alert" className="text-[16px] font-semibold text-[#c8331f]">{C.couldNotMake}</p> : null}
+      {failed ? <p role="alert" className="text-[16px] font-semibold text-[#c8331f]">{failed === 'error' ? C.couldNotMake : C.refusals[failed]}</p> : null}
     </>
   );
 }
