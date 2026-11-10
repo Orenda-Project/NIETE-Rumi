@@ -2,3 +2,4 @@
 {"ts":"2026-11-10T07:04:56Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons spec_sync=true","sha":"2ffc30b51dce","branch":"bd-snkn32.14-92417","user":""}
 {"ts":"2026-11-10T07:06:39Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"4acefa96-38aa-4b82-b300-4b952866ccaa","sha":"2ffc30b51dce","branch":"bd-snkn32.14-92417","user":""}
 {"ts":"2026-11-10T07:08:05Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.14-92417: lesson-plan spec: NOT UPDATED e2e: missing","sha":"2ffc30b51dce","branch":"bd-snkn32.14-92417","user":""}
+{"ts":"2026-11-10T07:31:31Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current engine=2.0.0","sha":"2ffc30b51dce","branch":"bd-snkn32.14-92417","user":""}
