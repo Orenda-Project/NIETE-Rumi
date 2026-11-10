@@ -14,7 +14,11 @@ export { useLpMakeOwn } from './flag';
 export const ownable = (l: Pick<LpLesson, 'lane' | 'kind'>) =>
   (l.lane === 'g612' && l.kind === 'lesson') || (l.lane === 'k5' && l.kind === 'day');
 
-export type OwnBody = { size: Size | null; resources: Resource[]; level: Level | null; way: Way | null; note: string };
+export type OwnBody = {
+  size: Size | null; resources: Resource[]; level: Level | null; way: Way | null; note: string;
+  /** bd-snkn32.17 — grades 1–5 only: her book pages, when not the day's own. */
+  pages?: { start: number; end: number };
+};
 
 /** Her fork's id, or null when it could not be started (the page says "Couldn't make it"). */
 export async function makeOwnPlan(lesson: Pick<LpLesson, 'id' | 'lane'>, answers: OwnBody): Promise<string | null> {

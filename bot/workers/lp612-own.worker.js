@@ -80,12 +80,12 @@ function createOwnWorker(deps) {
     const missing = require('../shared/services/lp-k5-own').missingGrr(day.script);
     if (missing.length) throw stop('INCOMPLETE_PARENT', `the day's plan has no ${missing.join(', ')}`);
     const out = await d.rewriteK5({
-      script: day.script, answers: row.answers, lang: day.lang, grade: day.grade, subject: day.subject, correlationId,
+      script: day.script, answers: row.answers, lang: day.lang, grade: day.grade, subject: day.subject, dayPages: day.pages || null, correlationId,
     });
     if (!out || !out.script) throw stop('NOT_ACCEPTED', 'the gate refused the rewrite');
     let pdf;
     try {
-      pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && row.answers.way });
+      pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && row.answers.way, pages: (row.answers && row.answers.pages) || day.pages || null });
     } catch (e) {
       throw stop('RENDER_FAILED', (e && e.message) || 'print failed');
     }
@@ -168,10 +168,10 @@ async function loadSegment(supabase, segmentId) {
 }
 
 /** bd-snkn32.4 — the page (pure) printed by the v10 card's printer: one 520-wide page, as long as the plan. */
-async function renderK5Pdf({ script, lang, grade, subject, way }) {
+async function renderK5Pdf({ script, lang, grade, subject, way, pages }) {
   const { renderK5Own, WAY_NAMES } = require('../shared/services/lp-k5-own-render');
   const { fontCss } = require('../shared/services/lp-k5-own-fonts');
-  const html = renderK5Own(script, { lang, grade, subject, way: (WAY_NAMES[lang] || WAY_NAMES.en)[way], fontCss: fontCss(lang) });
+  const html = renderK5Own(script, { lang, grade, subject, way: (WAY_NAMES[lang] || WAY_NAMES.en)[way], pages, fontCss: fontCss(lang) });
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'k5-own-'));
   try {
     const out = path.join(dir, 'own.pdf');

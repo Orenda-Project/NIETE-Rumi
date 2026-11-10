@@ -30,6 +30,7 @@
  */
 
 const { parseOwnAnswers } = require('./lp612-own-instruction');
+const { parseK5Pages } = require('./lp-k5-own-pages');
 
 const OWN_TABLE = 'niete_lp612_own_plans';
 const OWN_JOB_TYPE = 'lp612_own';
@@ -57,9 +58,13 @@ function createOwnService(deps) {
   }
 
   /** bd-snkn32.4 — a grades 1–5 day: its own stored plan is the parent, in its book's language. */
-  async function requestK5({ userId, lessonId, answers, correlationId }) {
+  async function requestK5({ userId, lessonId, answers, pages, correlationId }) {
     const lesson = await d.k5Lesson(lessonId);
     if (!lesson) return { outcome: 'not_found' };
+    // bd-snkn32.17 — her own page range, checked against the day's pages; kept in her answers (JSONB, no new column).
+    const p = parseK5Pages(pages, lesson.pages || null);
+    if (!p.ok) return { outcome: 'bad_request', error: p.error };
+    if (p.pages) answers = { ...answers, pages: p.pages };
     const row = await d.insertOwn({
       user_id: userId,
       lesson_id: lessonId,
@@ -79,7 +84,7 @@ function createOwnService(deps) {
     }
     const parsed = parseOwnAnswers(answers);
     if (!parsed.ok) return { outcome: 'bad_request', error: parsed.error };
-    if (lessonId) return requestK5({ userId, lessonId, answers: parsed.answers, correlationId });
+    if (lessonId) return requestK5({ userId, lessonId, answers: parsed.answers, pages: answers.pages, correlationId });
     if (!(await d.segmentExists(segmentId))) return { outcome: 'not_found' };
 
     const tv = d.templateVersion();
