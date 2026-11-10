@@ -239,3 +239,50 @@ Feature: Teacher lesson plans
     When they tap View on a row
     Then /portal/fln/p/<that plan's id>?grade=3 opens
     And Send to teacher and Share link work as before
+
+  # bd-snkn32.13 — "Make my own" for grades 6–12: what the lesson is for, the band's teaching ways, and (Grade 9–12, a
+  # lesson whose FBISE SLOs mix Summative and Formative) which outcomes come first. Written by hand like the blocks
+  # above; the web driver has no code for them yet (@draft): the demo stack carries no 6–12 catalogue to walk.
+  # Pinned by OwnPage.test.tsx (portal) and tests/lp612/own-ways.test.js (bot). Carry this block over on a regenerate.
+
+  @MKO01 @draft @config-gated
+  Scenario: A Grade 8 teacher says what the lesson is for, and gets ways for a subject lesson
+    Given portal_teacher_v2 and portal_lp_make_own are true
+    And demo teacher 03000000911 is signed in
+    When she opens Make my own on a Grade 8 Science chapter and answers pages, children, what she has and her class
+    Then "What is this lesson for?" offers Teach new, Revise and Re-teach, and no Board exam practice
+    And OK stays off until she picks one
+    When she picks Revise
+    Then the teaching ways start with "Demonstration or practical", marked suggested
+    And none of the grades 1–5 ways is offered (Teach at each child's level, Things → pictures → numbers, Sounds first)
+    When she keeps the suggestion and taps Make my plan
+    Then POST /lp612/own carries way practical and purpose revise, and Preparing opens on her plan
+
+  @MKO02 @draft @config-gated
+  Scenario: A Grade 10 teacher preparing for the board exam is suggested past-paper practice
+    Given portal_teacher_v2 and portal_lp_make_own are true
+    And demo teacher 03000000911 is signed in
+    When she opens Make my own on a Grade 10 Chemistry lesson and reaches "What is this lesson for?"
+    Then Board exam practice is offered
+    When she picks Board exam practice
+    Then "Past-paper practice" is the first teaching way, marked suggested
+
+  @MKO03 @draft @config-gated
+  Scenario: A Grade 10 lesson whose SLOs are mixed asks which outcomes come first; one that is not mixed does not
+    Given portal_teacher_v2 and portal_lp_make_own are true
+    And demo teacher 03000000911 is signed in
+    And GET /lp612/own/slo/<segment> says the lesson mixes Summative and Formative SLOs
+    When she answers through the teaching way and taps OK
+    Then "Which outcomes first?" offers Board exam (Summative) and Classroom (Formative), each with its SLO codes
+    When she picks Board exam (Summative) and taps Make my plan
+    Then POST /lp612/own carries focus summative
+    When she makes her own plan on a lesson that is not mixed
+    Then OK on the teaching way goes straight to "Your plan"
+
+  @MKO04 @draft @config-gated
+  Scenario: A Grade 1–5 Make my own is unchanged
+    Given portal_teacher_v2 and portal_lp_make_own are true
+    And demo teacher 03000000911 is signed in
+    When she opens Make my own on a Grade 4 Math chapter
+    Then there is no "What is this lesson for?" step and no outcomes step
+    And the teaching ways are the grades 1–5 ones, as before
