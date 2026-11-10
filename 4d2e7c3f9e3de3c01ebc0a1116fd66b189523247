@@ -1,0 +1,2 @@
+{"ts":"2026-11-10T10:34:57Z","hook":"post-commit","event":"armed","switch":"","detail":"features=observe spec_sync=true","sha":"4d2e7c3f9e3d","branch":"bd-apnnh2.11-to-main","user":"tariqtaleemabad"}
+{"ts":"2026-11-10T10:41:02Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"*=none-needed (bug fix restoring one row per person in the coach's lists; pinned by unit tests)","sha":"4d2e7c3f9e3d","branch":"bd-apnnh2.11-to-main","user":"tariqtaleemabad"}
