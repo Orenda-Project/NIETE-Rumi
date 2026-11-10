@@ -4,6 +4,7 @@ import { childTestSa } from '../../services/api';
 import { readVisit, visitKey, writeVisit } from '../../lib/assess/visitStore';
 import type { SaSchool } from '../../types/childTestSa';
 import { OFFLINE_COPY } from './offlineCopy';
+import { reportSaOffline, safely, watchSaWorker, workerState, type PrepWaiting } from '../../lib/assess/offlineReport';
 import {
   checkForms, formsFor, isUpdating, keepPageOffline, listUrl, mb, prepForms, readPrep, today, writePrep, writePreparedList, type Lang, type PrepRecord, type Progress,
 } from './offlineReady';
@@ -18,6 +19,9 @@ import {
  */
 
 const SHOW_ALL_UP_TO = 15;
+/** Get ready still running this long after the tap is reported once (sa_prep.still_waiting). */
+export const PREP_WAIT_MS = 120_000;
+
 const ALL_GRADES = [1, 2, 3, 4, 5];
 
 type Props = { schools: SaSchool[]; lang: Lang; allGrades: boolean };
@@ -73,6 +77,15 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
     const missingGrade = chosen.find((s) => needsGrades(s) && !(gradesAt[s.schoolId] || []).length);
     if (missingGrade) { setNoGrade(missingGrade.name); return; }
     setNoGrade(null);
+    // what this tap did, for the logs (sa_prep.result / sa_prep.still_waiting): where it is, how far, how long
+    const t0 = Date.now();
+    const watch = (() => { try { return watchSaWorker(); } catch { return null; } })();
+    const workers = () => (watch ? watch.state() : workerState());
+    const at: { phase: PrepWaiting['phase']; done: number; total: number } = { phase: 'lists', done: 0, total: 0 };
+    const waiting = window.setTimeout(() => safely(async () => {
+      const w = await workers();
+      reportSaOffline({ k: 'prep_waiting', ...at, elapsedMs: Date.now() - t0, ...w });
+    }), PREP_WAIT_MS);
     // the page itself first: a list read that is slow or fails must not leave the page without its offline copy
     const pageFirst = keepPageOffline([]);
     setProgress({ done: 0, total: 0, bytes: 0 });
@@ -104,14 +117,42 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
     const forms = formsFor([...grades].sort());
     // then once more with the lists just read (registering again is a no-op); the page is small, so it is kept in full
     // before the tests start to download (a coach who loses the signal early can still reopen the page)
-    await pageFirst.then(() => keepPageOffline(lists));
-    const r = await prepForms(forms, (p) => setProgress(p));
+    at.phase = 'page';
+    const pageOut: { missing?: string[] } = {};
+    const pageKept = await pageFirst.then(() => keepPageOffline(lists, pageOut));
+    at.phase = 'files';
+    const r = await prepForms(forms, (p) => { at.done = p.done; at.total = p.total; setProgress(p); });
     const rec: PrepRecord = { at: Date.now(), day: today(), schools: done, forms, ok: r.ok && done.every((d) => d.listed), total: r.total, cached: r.cached, bytes: r.bytes, ...(r.why ? { why: r.why } : {}) };
     writePrep(rec);
     setRecord(rec);
     setStill(r.ok);
     setUpdating(!r.ok && isUpdating(r.why));
     setProgress(null);
+    window.clearTimeout(waiting);
+    safely(async () => {
+      const w = await workers();
+      safely(() => watch?.stop());
+      reportSaOffline({
+        k: 'prep',
+        outcome: rec.ok ? 'ready' : isUpdating(r.why) ? 'updating' : 'partly',
+        ok: rec.ok,
+        why: r.why || null,
+        total: r.total,
+        cached: r.cached,
+        missing: r.missing,
+        // the page worker's misses first (the page and its reads), then nothing more: the engine names batteries, not files
+        missingPaths: (pageOut.missing || []).map((u) => u.split('?')[0]).slice(0, 5),
+        missingForms: (r.forms || []).filter((f) => !f.ok || f.missing > 0).map((f) => f.form),
+        bytes: r.bytes,
+        forms: forms.length,
+        schools: done.length,
+        listed: done.filter((d) => d.listed).length,
+        grades: grades.size,
+        elapsedMs: Date.now() - t0,
+        pageKept: pageKept === true,
+        ...w,
+      });
+    });
   };
 
   const when = record ? new Date(record.at).toLocaleTimeString(lang === 'ur' ? 'ur-PK-u-nu-latn' : 'en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
