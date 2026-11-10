@@ -9,7 +9,7 @@ import { courseTiles, TRAINING_V2_BASE } from "../../teacher/training/model";
 import { ProviderMark, ProviderRing, useTileLine } from "../../teacher/training/TrainingFrame";
 import { providerShort, trainingPaths } from "../../newui/training/trainingApi";
 import { SCHOOL_CARD } from "./copy";
-import type { TrainingByTeacherData, TrainingLevelState, TrainingProgress } from "./types";
+import type { PeriodKey, TrainingByTeacherData, TrainingLevelState, TrainingProgress } from "./types";
 
 /**
  * bd-hl4a4y (operator, 31 Oct: "just show the progress of all the trainings ... NIETE 9/10 done or percentage ... instead
@@ -40,11 +40,16 @@ export function HerTrainings({ vendors, levels }: { vendors: TrainingProgress[];
 }
 
 /**
- * Training by teacher: a row per teacher (it opens her Training page), under her name each of her trainings, its mark,
- * short name and %, or Done. A teacher with none says so, grey; the server puts them last.
+ * Training by teacher: a row per teacher (it opens her Training page): "N of M modules completed" over her trainings and
+ * how many in the period, then each of her trainings, its mark, short name and "130/171", or Done. bd-17v39c.4.13 (one
+ * training metric, modules completed): Done only when every module of it has a row, never a rounded 100%. A teacher with
+ * none says so, grey; the server sorts by the period's modules, then puts those with none last.
  */
-export function TrainingByTeacher({ rows, linkOf, stateOf }: {
+const doneAll = (v: TrainingProgress) => v.module_count > 0 && v.completed_module_count >= v.module_count;
+
+export function TrainingByTeacher({ rows, period, linkOf, stateOf }: {
   rows: TrainingByTeacherData["rows"];
+  period: PeriodKey;
   linkOf: (ext: string | null) => string | null;
   stateOf: (ext: string | null, name: string) => unknown;
 }) {
@@ -60,15 +65,29 @@ export function TrainingByTeacher({ rows, linkOf, stateOf }: {
             <span className="flex min-w-0 flex-1 flex-col gap-1.5">
               <span dir="auto" className={cn("text-[16px] font-semibold", none && "text-[#6b7280]")}>{r.name}</span>
               {none ? <span className="text-[14px] text-[#6b7280]">{C.noTraining}</span> : (
-                <span className="flex flex-wrap gap-x-4 gap-y-1">
-                  {courseTiles(r.vendors, [], PATHS).map((t) => (
-                    <span key={t.key} data-testid="teacher-training" className="inline-flex items-center gap-1.5 text-[14px] text-[#4b5563]">
-                      <ProviderMark logo={t.logo} initials={t.initials} size={18} />
-                      <span>{providerShort(t.key, t.label)}</span>
-                      <b className={cn("font-bold", t.done ? "text-[#2f7a52]" : "text-[#1d2025]")}>{t.done ? T.done : T.pct(t.pct)}</b>
+                <>
+                  {r.modules ? (
+                    <span data-testid="teacher-modules" className="text-[14px] font-semibold text-[#1d2025] rtl:leading-[1.8]">
+                      {C.modulesOf(r.modules.done, r.modules.of)}
+                      {r.inPeriod != null ? <span className="font-semibold text-[#6e52e0]"> · {C.inPeriodN[period](r.inPeriod)}</span> : null}
                     </span>
-                  ))}
-                </span>
+                  ) : null}
+                  <span className="flex flex-wrap gap-x-4 gap-y-1">
+                    {courseTiles(r.vendors, [], PATHS).map((t) => {
+                      const v = r.vendors.find((x) => x.vendor_key === t.key);
+                      const done = !!v && doneAll(v);
+                      return (
+                        <span key={t.key} data-testid="teacher-training" className="inline-flex items-center gap-1.5 text-[14px] text-[#4b5563]">
+                          <ProviderMark logo={t.logo} initials={t.initials} size={18} />
+                          <span>{providerShort(t.key, t.label)}</span>
+                          <b dir="ltr" className={cn("font-bold tabular-nums", done ? "text-[#2f7a52]" : "text-[#1d2025]")}>
+                            {done ? T.done : v ? C.doneOf(v.completed_module_count, v.module_count) : C.dash}
+                          </b>
+                        </span>
+                      );
+                    })}
+                  </span>
+                </>
               )}
             </span>
             {to && <ChevronRight className="h-5 w-5 shrink-0 text-[#9ca3af] rtl:rotate-180" strokeWidth={2.4} aria-hidden="true" />}
