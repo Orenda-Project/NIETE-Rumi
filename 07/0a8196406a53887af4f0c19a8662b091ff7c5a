@@ -2,3 +2,4 @@
 {"ts":"2026-11-09T16:46:15Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"070a8196406a","branch":"bd-z959b-42521","user":""}
 {"ts":"2026-11-09T16:53:51Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (production pick of an already-synced fix: @T42 on main already specifies the card-skip behaviour; no new teacher-visible behaviour)","sha":"070a8196406a","branch":"bd-z959b-42521","user":""}
 {"ts":"2026-11-09T16:53:52Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"66377d31-1301-45f4-9d6d-5e045181a121","sha":"070a8196406a","branch":"bd-z959b-42521","user":""}
+{"ts":"2026-11-10T00:47:28Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks engine=2.0.0","sha":"070a8196406a","branch":"bd-z959b-42521","user":""}
