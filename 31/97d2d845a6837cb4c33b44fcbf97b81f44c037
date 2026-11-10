@@ -1,1 +1,2 @@
 {"ts":"2026-11-10T16:56:53Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"3197d2d845a6","branch":"bd-hbsb4q-29798","user":""}
+{"ts":"2026-11-10T17:08:15Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (superseded promotion pick; @T1181 carried from sandbox 9e024ed1b)","sha":"3197d2d845a6","branch":"bd-hbsb4q-29798","user":""}
