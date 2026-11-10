@@ -1,2 +1,3 @@
 {"ts":"2026-11-10T16:57:27Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"8157d7934cc7","branch":"bd-hbsb4q-29798","user":""}
 {"ts":"2026-11-10T17:08:16Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (superseded promotion pick; @T1181 carried from sandbox 9e024ed1b)","sha":"8157d7934cc7","branch":"bd-hbsb4q-29798","user":""}
+{"ts":"2026-11-10T17:08:16Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-8157d7934cc7","sha":"8157d7934cc7","branch":"bd-hbsb4q-29798","user":""}
