@@ -14,6 +14,7 @@ import { OWN, type OwnCopy } from './copy';
 import { LEVELS, RESOURCES, SIZES, isComplete, suggestWay, waysFor, type Resource } from './rules';
 import { OWN_STEPS, nextStep, ownUrl, prevStep, readOwn, toAnswers, type OwnAt } from './state';
 import { makeOwnPlan, ownable, useLpMakeOwn } from './api';
+import { EXTENDS, nextLesson } from './extend';
 
 /**
  * bd-snkn32 — "Make my own" lesson plan (the flow draft, artifact KbsvCwJgs6QWy1DQmGjfzi, screens 3–8): one question
@@ -49,6 +50,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const k5 = plans.some((l) => l.lane === 'k5');
   const dayOf = (l: { number: number | null; title: string }) => (l.number != null ? `${C.dayN(l.number)} · ${l.title}` : l.title);
   const seg = plans.find((l) => l.id === s.seg) ?? null;
+  const next = nextLesson(dataOf(lessons) ?? [], s.seg); // bd-snkn32.14 — none on the chapter's last lesson
   const chapterUrl = lessonsUrl('lessons', { grade: s.grade, subject: s.subject, chapter: s.chapter });
   const go = (over: Partial<OwnAt>) => navigate(ownUrl({ ...s, ...over }), { replace: true });
   const back = prevStep(s.step);
@@ -68,7 +70,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
     if (!seg || busy) return; // her plan's own lane (6–12 or 1–5) decides what is sent: wait for the list
     setBusy(true);
     setFailed(false);
-    const id = await makeOwnPlan(seg, toAnswers(s, note));
+    const id = await makeOwnPlan(seg, toAnswers(s, note, next?.id ?? null));
     setBusy(false);
     if (!id) { setFailed(true); return; }
     navigate(lessonsUrl('preparing', {
@@ -96,7 +98,8 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
       {s.step === 'pages' ? (
         <>
           <LoadState status={lessons.status} empty={!plans.length} onRetry={retry} />
-          <Rows items={plans.map((l) => (l.lane === 'k5' ? { key: l.id, label: dayOf(l), subtitle: l.pages ?? undefined } : { key: l.id, label: l.pages ?? l.title, subtitle: l.pages ? l.title : undefined }))} chosen={[s.seg]} onPick={(k) => go({ seg: k })} />
+          <Rows items={plans.map((l) => (l.lane === 'k5' ? { key: l.id, label: dayOf(l), subtitle: l.pages ?? undefined } : { key: l.id, label: l.pages ?? l.title, subtitle: l.pages ? l.title : undefined }))} chosen={[s.seg]} onPick={(k) => go({ seg: k, ext: null })} />
+          {next ? <AddNext C={C} chosen={s.ext ?? null} nextLabel={next.pages ?? next.title} onPick={(ext) => go({ ext })} /> : null}
         </>
       ) : null}
       {s.step === 'size' ? (
@@ -122,7 +125,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
         />
       ) : null}
       {s.step === 'check' ? (
-        <Check s={s} C={C} k5={k5} pagesLabel={seg ? (seg.lane === 'k5' ? dayOf(seg) : seg.pages ?? seg.title) : '—'} gradeLabel={L.grade(s.grade)} note={note} setNote={setNote} failed={failed} />
+        <Check s={s} C={C} k5={k5} nextLabel={next && s.ext ? next.pages ?? next.title : null} pagesLabel={seg ? (seg.lane === 'k5' ? dayOf(seg) : seg.pages ?? seg.title) : '—'} gradeLabel={L.grade(s.grade)} note={note} setNote={setNote} failed={failed} />
       ) : null}
     </TeacherPage>
   );
@@ -150,8 +153,24 @@ function Rows({ items, chosen, onPick }: {
   );
 }
 
-function Check({ s, C, k5, pagesLabel, gradeLabel, note, setNote, failed }: {
-  s: OwnAt; C: OwnCopy; k5: boolean; pagesLabel: string; gradeLabel: string; note: string; setNote: (v: string) => void; failed: boolean;
+/** bd-snkn32.14 — "Add the next lesson's pages": no (the default), cover more in one period, or a double period. */
+function AddNext({ C, chosen, nextLabel, onPick }: {
+  C: OwnCopy; chosen: OwnAt['ext'] | null; nextLabel: string; onPick: (ext: OwnAt['ext'] | null) => void;
+}) {
+  return (
+    <section className="flex flex-col gap-1.5" data-testid="own-add-next">
+      <h2 className="text-[13px] font-semibold text-[#4b5563]">{C.addNext} · {nextLabel}</h2>
+      <Rows
+        items={[{ key: 'none', label: C.extendNone }, ...EXTENDS.map((k) => ({ key: k, label: C.extends[k], subtitle: C.extendHints[k] }))]}
+        chosen={[chosen ?? 'none']}
+        onPick={(k) => onPick(k === 'none' ? null : k as OwnAt['ext'])}
+      />
+    </section>
+  );
+}
+
+function Check({ s, C, k5, nextLabel, pagesLabel, gradeLabel, note, setNote, failed }: {
+  s: OwnAt; C: OwnCopy; k5: boolean; nextLabel: string | null; pagesLabel: string; gradeLabel: string; note: string; setNote: (v: string) => void; failed: boolean;
 }) {
   const at = (step: OwnAt['step']) => ownUrl({ ...s, step });
   return (
@@ -159,6 +178,7 @@ function Check({ s, C, k5, pagesLabel, gradeLabel, note, setNote, failed }: {
       <ChosenSoFar
         items={[
           { label: k5 ? C.dayLabel : C.pages, value: pagesLabel, sub: `${gradeLabel} · ${s.subject}`, to: at('pages') },
+          ...(nextLabel && s.ext ? [{ label: C.nextLesson, value: C.extends[s.ext], sub: nextLabel, to: at('pages') }] : []),
           { label: C.size, value: s.size ? C.sizes[s.size] : '—', to: at('size') },
           { label: C.resources, value: ['textbook', ...s.res].map((r) => C.resourceNames[r as Resource]).join(', '), to: at('resources') },
           { label: C.level, value: s.level ? C.levels[s.level] : '—', to: at('level') },

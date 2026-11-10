@@ -1,5 +1,6 @@
 import { LESSONS_OWN } from '../paths';
 import { LEVELS, RESOURCES, SIZES, WAYS, type Level, type Resource, type Size, type Way } from './rules';
+import { EXTENDS, type Extend } from './extend';
 
 /**
  * bd-snkn32 — where "Make my own" is, all in the address (the Lesson Plans rule, paths.ts: Back and a reload land where
@@ -20,6 +21,8 @@ export type OwnAt = {
   res: Resource[];
   level: Level | null;
   way: Way | null;
+  /** bd-snkn32.14 — add the next lesson's pages, and how (grades 6–12). */
+  ext?: Extend | null;
 };
 
 const pick = <T extends string>(list: readonly T[], v: string | null): T | null => (v && (list as readonly string[]).includes(v) ? v as T : null);
@@ -33,6 +36,7 @@ export function ownUrl(s: Partial<OwnAt> & { grade: number; subject: string; cha
   if (res.length) q.set('res', res.join(','));
   if (s.level) q.set('level', s.level);
   if (s.way) q.set('way', s.way);
+  if (s.ext) q.set('ext', s.ext);
   return `${LESSONS_OWN}?${q.toString()}`;
 }
 
@@ -51,6 +55,7 @@ export function readOwn(search: string): OwnAt | null {
     res,
     level: pick(LEVELS, q.get('level')),
     way: pick(WAYS, q.get('way')),
+    ...(pick(EXTENDS, q.get('ext')) ? { ext: pick(EXTENDS, q.get('ext')) } : {}),
   };
 }
 
@@ -64,9 +69,10 @@ export function prevStep(step: OwnStep): OwnStep | null {
   return i > 0 ? OWN_STEPS[i - 1] : null;
 }
 
-/** The body Make my plan sends (the bot checks it again). */
-export function toAnswers(s: OwnAt, note: string) {
+/** The body Make my plan sends (the bot checks it again). `next`: the lesson after hers, when she adds its pages. */
+export function toAnswers(s: OwnAt, note: string, next: string | null = null) {
   return {
     size: s.size, resources: ['textbook', ...s.res] as Resource[], level: s.level, way: s.way, note: note.trim(),
+    ...(s.ext && next ? { extend: { next, shape: s.ext } } : {}),
   };
 }
