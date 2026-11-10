@@ -1,0 +1,2 @@
+{"ts":"2026-11-10T05:38:47Z","hook":"post-commit","event":"armed","switch":"","detail":"features=observe spec_sync=true","sha":"daec38303b61","branch":"stg-bd-apnnh2.11","user":"tariqtaleemabad"}
+{"ts":"2026-11-10T05:50:56Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"*=none-needed (bug fix restoring one row per person in the coach's lists; pinned by unit tests)","sha":"daec38303b61","branch":"stg-bd-apnnh2.11","user":"tariqtaleemabad"}
