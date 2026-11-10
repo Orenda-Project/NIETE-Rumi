@@ -109,6 +109,7 @@ describe('ownStatus — the row in the render shape, hers only', () => {
     expect(out).toEqual({
       id: 'own-1', segment_id: SEG, status: 'ready', r2_key: row.r2_key, one_screen: null,
       error_code: null, lang: 'en', started_at: 't0', completed_at: 't1',
+      library_eligible: false, review_score: null, // bd-snkn32.16: not reviewed yet
     });
   });
 
