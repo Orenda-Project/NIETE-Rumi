@@ -237,6 +237,15 @@ describe('phone — teacher_edit_phone_commit', () => {
     expect(user('u-ayesha').phone_number).toBe('923001110001');
     expect(user('u-real').phone_number).toBe('923003330003');
   });
+
+  test('her booked visits refused: the coach still sees moved; the audit row and a log line record that the visits stayed', async () => {
+    failUpdate.add('observation_schedules');
+    const out = await svc().commitPhone({ ...base, phone: '03004445556' });
+    expect(out).toEqual({ ok: true, outcome: 'moved', phone: '923004445556', case: 'free' });
+    expect(audit().find((r) => r.action === 'edit_phone').detail).toEqual(expect.objectContaining({ visits_failed: true }));
+    const { logToFile } = require('../../bot/shared/utils/logger');
+    expect(logToFile).toHaveBeenCalledWith(expect.stringMatching(/visits did not follow/), expect.any(Object), 'error');
+  });
 });
 
 describe("phone — a shell's own rows follow her to the surviving account", () => {
