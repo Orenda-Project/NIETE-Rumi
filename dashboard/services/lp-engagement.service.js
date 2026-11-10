@@ -14,7 +14,9 @@
  *   Active       at least one lesson-plan use in the selected period (Pakistan days, both ends inclusive), by the
  *                RDF's rule for the band; once per teacher however many plans she used:
  *     Primary    a `lesson_plans` row (any grade — the RDF counts every row), OR a `niete_lp_opens` row with
- *                plan_kind 'k5' (an app open; rdf_niete/lp_use.py).
+ *                plan_kind 'k5' (an app open; rdf_niete/lp_use.py), OR (bd-97daxo.16) a Mid/High trace below of a
+ *                Grade 1-5 segment — a curriculum's K-5 books on the segment lane (GB's NBF Grades 1-5, v10). ICT
+ *                has no Grade 1-5 segment, so ICT's Primary is the RDF's rule exactly.
  *     Mid/High   the RDF 6-12 rule (rdf_niete612/metrics.py): the U1 floor — a `niete_lp612_renders` row she
  *                requested, an `lp_feedback` row carrying `lp612_segment_id`, a `niete_lp_opens` 'g612' open —
  *                UNION a lesson served to her on WhatsApp. The RDF reads the serve from the bot's Axiom log (from
@@ -26,8 +28,9 @@
  *   subject /    a teacher is Active in a subject (grade) when one of her plans in the period is of that subject
  *   grade        (grade); the row is that ÷ the band's population, so one teacher can be Active in several rows.
  *                The "Overall" row is the tab's overall. Grade and subject come from the `lesson_plans` row, or
- *                are parsed from the plan key (K-5 catalogue id, 6-12 segment id); a plan whose key does not
- *                parse, or whose grade is outside the band, still makes her Active, in no row.
+ *                are parsed from the plan key (K-5 catalogue id — ICT's or GB's gb_g… —, segment id — ICT's or
+ *                a curriculum's nbf_snc_… —; bot/shared/utils/lesson-ref); a plan whose key does not parse, or whose
+ *                grade is outside the band, still makes her Active, in no row.
  *   schools      a teacher's school is `users.school_id` when its EMIS is on FDE's programme list
  *                (`fdeSchoolEmis`) and it is in her RDF sector; otherwise — no school on record, one off the
  *                list, or one in another sector — she is on her sector's "No school" line (noSchool true,
@@ -55,6 +58,7 @@
 const { windowBounds, REGION_BUCKETS, bucketOf, ROSTER_TEACHER } = require('./schools-analytics.service');
 const { subjectKey, subjectName, gradeOf } = require('./subject-vocabulary.service');
 const { noSchoolId } = require('../lib/analytics-lists');
+const { parseLessonRef } = require('../../bot/shared/utils/lesson-ref');
 
 const BANDS = Object.freeze(['primary', 'midhigh']);
 
@@ -77,12 +81,9 @@ function parseBandFilter(raw) {
   return { ok: false };
 }
 
-// K-5 corpus key: grade_<n>_<subject>_ch<m>_seg<k> (subject-resolution.js parseCorpusLessonId).
-const K5_REF = /^grade_(\d{1,2})_(.+?)_ch\d+_seg\d+b?$/i;
-// 6-12 segment id: grade_<n>_<subject>.<rest> — lp612-lifecycle's shape, widened: the rest may start
-// .c05 (most), .p1c01 (Urdu by part), .s903 / .r990 (single pages); a combined grade_9_10_ book is
-// read as its first grade.
-const G612_REF = /^grade_(\d{1,2})_(?:\d{1,2}_)?([a-z0-9_]+?)\./i;
+// Plan keys are read by bot/shared/utils/lesson-ref (bd-97daxo.16): a K-5 key is ICT's catalogue id
+// grade_<n>_<subject>_ch<m>_seg<k>, GB's gb_g<n>_<subject>_ch[R]<m>_seg<k>, or GB's v10 segment id (its app lists
+// segments as lessons); a 6-12 key is a segment id, grade_<n>_<subject>.<rest> or nbf_snc_grade_<n>_<subject>.<rest>.
 
 /**
  * Any spelling of a subject → one key (subject-vocabulary.service), after dropping the teaching
@@ -105,9 +106,9 @@ function lpSubjectKey(raw) {
  * @returns {{grade: number|null, subject: string|null}}
  */
 function parsePlanRef(kind, ref) {
-  const m = (kind === 'k5' ? K5_REF : kind === 'g612' ? G612_REF : null)?.exec(String(ref || '').trim());
-  if (!m) return { grade: null, subject: null };
-  return { grade: Number(m[1]), subject: lpSubjectKey(m[2]) };
+  const p = parseLessonRef(String(ref || ''), { kind });
+  if (!p) return { grade: null, subject: null };
+  return { grade: p.grade, subject: lpSubjectKey(p.subject) };
 }
 
 const inGrades = (grade, band) => grade >= BAND_RULES[band].grades[0] && grade <= BAND_RULES[band].grades[1];
@@ -331,10 +332,9 @@ function lpActivitySql(bounds, band, ids) {
     hi && `${col} < (${hi}::timestamptz AT TIME ZONE 'UTC')`,
   ].filter(Boolean).map((c) => `\n     AND ${c}`).join('');
 
-  const sql = band === 'midhigh'
-    ? `
-  WITH pop AS (SELECT unnest($1::uuid[]) AS id),
-  traces AS (
+  // The segment lane's traces of a plan reaching her (the RDF 6-12 rule): a 'g612' open, a delivery that is not a
+  // portal claim, a render she requested, a survey answer on a segment.
+  const segmentTraces = `
     SELECT o.user_id, o.plan_ref AS ref
       FROM niete_lp_opens o
      WHERE o.plan_kind = 'g612'${within('o.opened_at')}
@@ -349,11 +349,20 @@ function lpActivitySql(bounds, band, ids) {
     UNION ALL
     SELECT f.user_id, f.lp612_segment_id
       FROM lp_feedback f
-     WHERE f.lp612_segment_id IS NOT NULL${within('f.created_at')}
+     WHERE f.lp612_segment_id IS NOT NULL${within('f.created_at')}`;
+  const [k5From, k5To] = BAND_RULES.primary.grades;
+
+  const sql = band === 'midhigh'
+    ? `
+  WITH pop AS (SELECT unnest($1::uuid[]) AS id),
+  traces AS (${segmentTraces}
   )
   SELECT DISTINCT t.user_id, NULL::text AS grade, NULL::text AS subject, t.ref
     FROM traces t
     JOIN pop ON pop.id = t.user_id`
+    // bd-97daxo.16 — a curriculum's Grades 1-5 on the segment lane (GB's NBF books, v10, LP_GB_K5_ENABLED) are K-5
+    // lessons: the same traces, of a Grade 1-5 segment, are Primary use. ICT's segments are all Grades 6-12
+    // (V1.9.0 widened the check for GB), so ICT's Primary rows are exactly the two reads above them.
     : `
   WITH pop AS (SELECT unnest($1::uuid[]) AS id)
   SELECT l.user_id, l.grade::text AS grade, l.subject::text AS subject, NULL::text AS ref
@@ -364,7 +373,14 @@ function lpActivitySql(bounds, band, ids) {
   SELECT o.user_id, NULL, NULL, o.plan_ref
     FROM niete_lp_opens o
     JOIN pop ON pop.id = o.user_id
-   WHERE o.plan_kind = 'k5'${within('o.opened_at')}`;
+   WHERE o.plan_kind = 'k5'${within('o.opened_at')}
+  UNION
+  SELECT t.user_id, NULL, NULL, t.ref
+    FROM (${segmentTraces}
+    ) t
+    JOIN pop ON pop.id = t.user_id
+    JOIN niete_lp612_segments s ON s.segment_id = t.ref
+   WHERE s.grade BETWEEN ${k5From} AND ${k5To}`;
   return { sql, params };
 }
 
