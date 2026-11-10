@@ -94,6 +94,7 @@ function svcHarness(over = {}) {
   const deps = {
     templateVersion: () => 'v9.1',
     segmentExists: jest.fn(async () => true),
+    countToday: jest.fn(async () => 0), // bd-snkn32.15: under the daily limit
     loadSegment: jest.fn(async (id) => [A, B, C3].find((s) => s.segment_id === id) || null),
     chapterSegments: jest.fn(async () => [A, B]),
     readStoredDoc: jest.fn(async () => ({ sections: {} })),

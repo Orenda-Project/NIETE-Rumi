@@ -1081,12 +1081,15 @@ niete_lp612_own_plans.completed_at:timestamp with time zone
 niete_lp612_own_plans.correlation_id:text
 niete_lp612_own_plans.created_at:timestamp with time zone
 niete_lp612_own_plans.edit_hash:text
+niete_lp612_own_plans.edit_request:jsonb
+niete_lp612_own_plans.edit_round:smallint
 niete_lp612_own_plans.error_code:text
 niete_lp612_own_plans.error_detail:text
 niete_lp612_own_plans.id:uuid
 niete_lp612_own_plans.lang:text
 niete_lp612_own_plans.lesson_id:text
 niete_lp612_own_plans.model_used:text
+niete_lp612_own_plans.parent_own_id:uuid
 niete_lp612_own_plans.r2_key:text
 niete_lp612_own_plans.segment_id:text
 niete_lp612_own_plans.started_at:timestamp with time zone

@@ -128,4 +128,4 @@ function checkK5Rewrite(orig, next, { lang } = {}) {
   return reasons;
 }
 
-module.exports = { k5Messages, parseK5Reply, checkK5Rewrite, missingGrr, SECTIONS, NOT_READY_UR, MAX_GROWTH };
+module.exports = { system, k5Messages, parseK5Reply, checkK5Rewrite, missingGrr, SECTIONS, NOT_READY_UR, MAX_GROWTH };

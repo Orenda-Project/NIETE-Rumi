@@ -224,6 +224,16 @@ describe('Make my own', () => {
   });
 });
 
+describe('Make my own: the daily limit (bd-snkn32.15)', () => {
+  it('five plans today: she is told she can make more tomorrow, and stays', async () => {
+    http.post.mockRejectedValue(Object.assign(new Error('409'), { response: { status: 409, data: { success: false, outcome: 'daily_limit' } } }));
+    at(`${LESSONS_OWN}?grade=8&subject=Science&chapter=c02&step=check&seg=sci8.c02.p010&size=up30&level=ahead&purpose=new&way=worked`);
+    fireEvent.click(await screen.findByTestId('own-make'));
+    expect(await screen.findByRole('alert')).toHaveTextContent(C.refusals.daily_limit);
+    expect(where()).toContain(LESSONS_OWN);
+  });
+});
+
 // bd-snkn32.13 — a Grade 9–12 lesson whose FBISE SLOs mix Summative and Formative asks which come first.
 describe('Make my own, grades 9–12', () => {
   const mix = (mixed: boolean) => {
