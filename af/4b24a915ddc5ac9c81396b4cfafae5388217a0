@@ -1,0 +1,2 @@
+{"ts":"2026-11-10T14:43:01Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons,portal-smoke spec_sync=true","sha":"af4b24a915dd","branch":"bd-snkn32.20-21155","user":""}
+{"ts":"2026-11-10T14:43:04Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.20-21155: teacher-lessons web lane spec: NOT UPDATED e2e: missing","sha":"af4b24a915dd","branch":"bd-snkn32.20-21155","user":""}
