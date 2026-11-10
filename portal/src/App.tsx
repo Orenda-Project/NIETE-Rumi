@@ -86,6 +86,9 @@ const CoachHerDays = page(() => import("./portal/coach/card/DaysUsedPage"));
 const CoachTeacherScores = page(() => import("./portal/coach/card/TeacherScoresPage"));
 const CoachCoachingRedirect = page(() => import("./portal/coach/card/CoachingRedirect"));
 const CoachSessionReport = page(() => import("./portal/coach/card/SessionReportPage"));
+// bd-17v39c.4.14 — Where to coach (a teacher) and Who to coach first (a school): coach only.
+const CoachWhereToCoach = page(() => import("./portal/coach/card/WhereToCoachPage"));
+const CoachFirst = page(() => import("./portal/coach/card/CoachFirstPage"));
 const CoachScheduling = page(() => import("./portal/coach/pages/CoachScheduling"));
 const CoachSchedule = page(() => import("./portal/coach/pages/CoachSchedule"));
 const CoachTeam = page(() => import("./portal/coach/pages/CoachTeam"));
@@ -340,6 +343,8 @@ const App = () => {
             <Route path="/portal/coach/teacher/:ext/items/dc" element={<CoachCoachingRedirect />} />
             <Route path="/portal/coach/teacher/:ext/items/coach" element={<CoachCoachingRedirect />} />
             <Route path="/portal/coach/session/:id" element={<CoachSessionReport />} />
+            <Route path="/portal/coach/teacher/:ext/where" element={<CoachWhereToCoach />} />
+            <Route path="/portal/coach/school/:emis/first" element={<CoachFirst />} />
             {/* bd-o15qnr.10 — one HITL report, from a teacher's History */}
             <Route path="/portal/coach/observation/:id" element={<CoachObservation />} />
             <Route path="/portal/coach/observation/:id/form" element={<CoachFeedbackForm />} />

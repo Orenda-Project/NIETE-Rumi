@@ -93,6 +93,9 @@ const ROUTES = [
   ['/coach/teacher/:ext/scores/:kind', { ext: EXT, kind: 'dc' }],
   ['/coach/school/:emis/scores/:kind', { emis: '901', kind: 'coach' }],
   ['/coach/session/:id', { id: '00000000-0000-4000-8000-000000000001' }],
+  // bd-17v39c.4.14 — Where to coach and Who to coach first: coach only, behind the same switch.
+  ['/coach/teacher/:ext/where', { ext: EXT }],
+  ['/coach/school/:emis/first', { emis: '901' }],
 ];
 
 /** From the coach v2 gate onward (auth and the leader role are shared, tested middlewares). */

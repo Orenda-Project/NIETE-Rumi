@@ -1473,4 +1473,9 @@ module.exports = {
   getSchoolScores,
   practiceAveragesOf,
   getSession,
+  // bd-17v39c.4.14 — Where to coach (where-to-coach.service.js) reads through the same access rules and readers.
+  internals: {
+    teacherOf, schoolContext, teacherActivity, loadActivity, resolvePeriod, groupOf, teacherOut, trainingsOf,
+    frameworkConstants, pctOfSession, ficoVisitScore, rowsOf,
+  },
 };
