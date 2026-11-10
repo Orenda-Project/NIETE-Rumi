@@ -44,6 +44,15 @@ export const TILES: HomeTile[] = [
 type HomeTile = { key: Exclude<TeacherFeature, "home" | "more" | "profile">; art: AnyFeature };
 
 /**
+ * bd-33wxxi.9.1 — a principal on the principal app (#78, option C; the operator, 10 Nov: "we like C"): today's tiles,
+ * reordered so what a principal does comes first (Observations, Attendance, Analytics), then the rest; no Digital
+ * Coaching tile (her own lesson is "My own lesson" on Observe). Quizzes still follows Lesson Plans. Never the server's
+ * order: hers is fixed.
+ */
+const PRINCIPAL_ORDER: HomeTile["key"][] = ["observations", "attendance", "analytics", "lessons", "assessment", "training", "classes"];
+export const PRINCIPAL_TILES: HomeTile[] = PRINCIPAL_ORDER.map((k) => TILES.find((t) => t.key === k) as HomeTile);
+
+/**
  * The Home card (portal_teacher_home_card, default OFF). OFF, or until /config says otherwise: the tree below the
  * band is exactly today's (the last `return`, untouched). ON: "Ready for you" (when it has rows) or the full card, the score
  * chips, then the tiles (in the server's order under portal_teacher_home_order), with the slim card spanning both
@@ -66,7 +75,7 @@ export default function Home() {
   // The new look (portal_teacher_home_look, only ever on with the card's switch): its own tree; the two below are untouched.
   if (sw.card && sw.look) {
     return (
-      <LookHome tiles={TILES} data={data} order={order} onGo={go}
+      <LookHome tiles={principalApp ? PRINCIPAL_TILES : TILES} data={data} order={principalApp ? null : order} onGo={go}
         role={principalApp ? <StatusChip text={P.rolePrincipal} tone="info" className="bg-white/10 text-white" /> : undefined}
         school={principalApp ? <SchoolHomeCard /> : undefined} />
     );

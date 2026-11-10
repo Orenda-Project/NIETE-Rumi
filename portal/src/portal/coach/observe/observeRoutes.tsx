@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 import { coach } from "../../services/api";
-import type { CoachVisit } from "../types";
+import type { CoachTeacher, CoachVisit, LastVisit } from "../types";
+import type { FeatureCounts } from "../card/types";
 import { observationPath, REPORTS_PATH, type ObservationScreen } from "../reports/paths";
 
 /**
@@ -12,6 +13,20 @@ import { observationPath, REPORTS_PATH, type ObservationScreen } from "../report
  * already ran), the teacher she picked instead of a scheduled visit (no observation_schedules row, so no visit notice
  * goes to the teacher), and its own paths under the teacher app.
  */
+/**
+ * bd-33wxxi.9.3 — what the visit page (CoachVisit) reads: the coach's visit with its teacher's numbers and last visit,
+ * or the principal's picked teacher with her school card's counts for this week and when the principal last observed her.
+ */
+export type VisitPageData = {
+  visit?: CoachVisit | null;
+  teacher?: CoachTeacher | null;
+  lastVisit?: LastVisit | null;
+  /** The principal app: the teacher's row of her school card, this week (counts only, never a score). */
+  counts?: FeatureCounts | null;
+  /** The principal app: when she last observed this teacher (ISO), null when never. */
+  lastObservedAt?: string | null;
+};
+
 export interface ObserveRoutes {
   /** The coach app's screens sit behind CoachGate; the principal app's do not (TeacherGate). */
   coachGate: boolean;
@@ -22,9 +37,18 @@ export interface ObserveRoutes {
    */
   showScores: boolean;
   /** The visit a screen is for: the coach's scheduled visit, or the principal's picked teacher shaped as one. */
-  loadVisit: (id: string) => Promise<{ visit?: CoachVisit | null }>;
-  /** Where Back goes from the recording screens (the coach's visit page; the principal's Pick the teacher). */
+  loadVisit: (id: string) => Promise<VisitPageData>;
+  /** Where Back goes from the recording screens: the visit page (the coach's visit; the principal's picked teacher). */
   visit: (id: string) => string;
+  /**
+   * bd-33wxxi.9.3 — the visit page's Reschedule and Cancel visit, its Last visit row and the coach's Teacher profile: a
+   * booked visit's (the coach app). The principal's picked teacher has no visit to move or cancel: none of them.
+   */
+  visitActions: boolean;
+  /** bd-33wxxi.9.3 — the visit page's own read, when it needs more than loadVisit. Absent: loadVisit. */
+  loadVisitPage?: (id: string) => Promise<VisitPageData>;
+  /** bd-33wxxi.9.3 — where the visit page's Back goes (the coach: her schedule, or Observe's pick when opened from there). */
+  visitBack: (fromObserve: boolean) => string;
   record: (id: string) => string;
   attach: (id: string) => string;
   check: (id: string) => string;
@@ -39,6 +63,8 @@ export const COACH_OBSERVE_ROUTES: ObserveRoutes = {
   showScores: true,
   loadVisit: (id) => coach.getVisit(id),
   visit: (id) => `/portal/coach/visit/${id}`,
+  visitActions: true,
+  visitBack: (fromObserve) => (fromObserve ? "/portal/coach/observe/pick" : "/portal/coach/schedule"),
   record: (id) => `/portal/coach/visit/${id}/record`,
   attach: (id) => `/portal/coach/visit/${id}/attach`,
   check: (id) => `/portal/coach/visit/${id}/check`,
