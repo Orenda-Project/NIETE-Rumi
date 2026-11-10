@@ -1,2 +1,3 @@
 {"ts":"2026-11-09T15:35:47Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.4-28137: language spec: NOT UPDATED e2e: CRITICAL (1 of 4 blocked (not drivable on this lane))","sha":"ab271e712e31","branch":"bd-snkn32.4-28137","user":""}
 {"ts":"2026-11-10T00:47:26Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current engine=2.0.0","sha":"ab271e712e31","branch":"bd-snkn32.4-28137","user":""}
+{"ts":"2026-11-10T00:47:27Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current engine=2.0.0","sha":"ab271e712e31","branch":"bd-snkn32.4-28137","user":""}
