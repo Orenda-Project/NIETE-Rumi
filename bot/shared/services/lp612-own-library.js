@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-snkn32.16 — the shared library's two sources, side by side: standard plans and plans a teacher made
+ * the shared library's two sources, side by side: standard plans and plans a teacher made
  * ("Made by a teacher"). An own plan is listed only once the AI reviewer passed it (library_eligible, gate v2:
  * judge >= 85, no check rated 1, key checks >= 3), and never with her user id or her answers: the pool takes the
  * plan, not the person.
