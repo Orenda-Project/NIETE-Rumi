@@ -1,0 +1,2 @@
+{"ts":"2026-11-10T07:49:16Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,teacher-lessons spec_sync=true","sha":"d2c02ed0dc69","branch":"bd-snkn32.14-92417","user":""}
+{"ts":"2026-11-10T07:49:34Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.14-92417: lesson-plan spec: NOT UPDATED e2e: DEGRADED (1 failed)","sha":"d2c02ed0dc69","branch":"bd-snkn32.14-92417","user":""}
