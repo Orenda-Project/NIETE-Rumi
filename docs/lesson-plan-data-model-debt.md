@@ -116,10 +116,3 @@ with no downtime. The likely first step is the smallest: merge `niete_gb_lp_rend
 in favour of the region's books, once GB has switched over.
 
 Until then this document is a warning, not a plan: keep new work inside the existing tables.
-
-## Not annotated yet
-
-These files also read the lesson-plan tables but were being edited by another change when the warnings
-were added; add the comment when you next touch them:
-`dashboard/services/lp-engagement.service.js`, `dashboard/services/coach-school-card.service.js`,
-`bot/shared/services/coaching/subject-resolution.js`, `bot/shared/services/quiz/lp-quiz-digest.service.js`.
