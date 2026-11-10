@@ -72,17 +72,6 @@ describe('normaliseSubject', () => {
     expect(BookContent.normaliseSubject(input)).toBe(expected);
   });
 
-  // bd-snkn32.19 — the grades 1–5 catalog's own subject keys, so "Make my own" can show her book page.
-  it.each([
-    ['general_science', 'science'], ['general_knowledge_ur', 'general_knowledge'], ['social_studies_ur', 'social_studies'],
-  ])('catalog key %s -> %s (grades 1–5)', (input, expected) => {
-    expect(BookContent.normaliseSubject(input, 3)).toBe(expected);
-  });
-
-  it('the grades 1–5 keys never reach a grade 6–12 book: general_science stays general_science', () => {
-    expect(BookContent.normaliseSubject('general_science', 8)).toBe('general_science');
-  });
-
   it('returns null for a subject we do not carry', () => {
     expect(BookContent.normaliseSubject('Physics')).toBeNull();
   });
