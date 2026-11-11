@@ -56,6 +56,17 @@ function assessQuality(transcript, metadata = {}) {
 
 const storedQuality = (quality) => require('../../../observe/transcript-quality').stored(quality);
 
+/**
+ * Why the gate said 'broken', for the warn log. A self-recording transcript with no [MM:SS] stamps is 'untimed': unlike
+ * /observe2 (moments.js TIMED_RX), nothing stops it earlier, so the gate's 'broken' (11 × IE, no call) is what it gets
+ * (spec §6.3, r1 T8). 'empty' is no text at all; 'loop' is a repeat over the broken share.
+ */
+function brokenReason(transcript, quality) {
+  if (!String(transcript || '').trim()) return 'empty';
+  if (!quality.first_ts) return 'untimed';
+  return (quality.issues || []).some((i) => i.type === 'loop') ? 'loop' : 'unusable';
+}
+
 /** Spec §6.3 'broken': no call; all 11 levels 'IE', the five evidence rows 'IE' with nothing in them. */
 function brokenBlob(quality) {
   const fw = require('../fico17-v6-framework');
@@ -85,7 +96,7 @@ async function scoreV6(transcript, metadata, quality = assessQuality(transcript,
   const transcript_quality = storedQuality(quality);
   if (quality.status === 'broken') {
     logToFile('[fico17-v6 shadow] transcript broken — no scoring call, every DC level IE', {
-      coachingSessionId: meta.coachingSessionId, transcript_quality,
+      coachingSessionId: meta.coachingSessionId, reason: brokenReason(transcript, quality), transcript_quality,
     }, 'warn');
     return brokenBlob(quality);
   }

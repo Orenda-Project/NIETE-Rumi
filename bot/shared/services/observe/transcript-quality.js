@@ -8,7 +8,7 @@
  *
  *   short       coverage = last timestamp (minutes) / period below RECORDING_FULL_SHARE   partial
  *   late_start  first timestamp later than TRANSCRIPT_LATE_START_SEC                      partial
- *   gap         no line for TRANSCRIPT_GAP_MINUTES or more between two lines              partial
+ *   gap         no speech for TRANSCRIPT_GAP_MINUTES or more between two lines             partial
  *   loop        consecutive lines with the same words, or one token making up 80% or more
  *               of their tokens, for TRANSCRIPT_LOOP_MINUTES or more                       partial
  *
@@ -18,6 +18,12 @@
  *
  * `periodMinutes` is the period the coach set (/observe2) or the recording's length (DC). Without one,
  * coverage is judged against the transcript itself (1) and only the other checks apply.
+ *
+ * Lines are read in time order (a transcript stitched from chunks can carry a stray line out of place). A
+ * line is stamped at its start and holds all of one speaker's back-to-back speech (spec §1.2), so a gap runs
+ * from the previous line's estimated end of speech, `sec + ceil(chars / TRANSCRIPT_CHARS_PER_SEC)`, not from
+ * its start (RULINGS R20). 16 characters a second is the 95th percentile of characters / seconds to the next
+ * line on 183 ICT pilot lessons (median 11), so the estimate runs short and silence after a short line flags.
  */
 
 const DEFAULTS = Object.freeze({
@@ -26,6 +32,7 @@ const DEFAULTS = Object.freeze({
   TRANSCRIPT_LOOP_MINUTES: 3,
   TRANSCRIPT_GAP_MINUTES: 3,
   TRANSCRIPT_BROKEN_SHARE: 0.5,
+  TRANSCRIPT_CHARS_PER_SEC: 16,
 });
 const LOOP_TOKEN_SHARE = 0.8;
 
@@ -52,7 +59,7 @@ function norm(text) {
     .trim();
 }
 
-/** The timed lines, in order; an untimed line continues the line before it. */
+/** The timed lines, sorted by time (stable); an untimed line continues the line before it. */
 function parse(transcript) {
   const lines = [];
   for (const raw of String(transcript || '').split(/\r?\n/)) {
@@ -67,19 +74,21 @@ function parse(transcript) {
     line.key = norm(line.text);
     line.tokens = line.key ? line.key.split(' ') : [];
   }
-  return lines;
+  return lines.sort((a, b) => a.sec - b.sec);
 }
 
 /**
  * Runs of consecutive lines that repeat: every line the same words, or one token at least 80% of the
  * run's tokens. A run grows while that holds, then sheds trailing lines that do not repeat themselves
  * (a long loop's share would otherwise swallow the ordinary speech after it). It counts when it lasts
- * loopSec or more (first line's start to last line's start).
+ * loopSec or more (first line's start to last line's start). A line with no words ("...") neither ends a
+ * run nor counts toward it.
  */
 function loops(lines, loopSec) {
   const found = [];
   let i = 0;
   while (i < lines.length) {
+    if (!lines[i].tokens.length) { i += 1; continue; }
     const counts = new Map();
     let total = 0;
     let top = 0;
@@ -88,7 +97,7 @@ function loops(lines, loopSec) {
     let j = i;
     for (; j < lines.length; j += 1) {
       const line = lines[j];
-      if (!line.tokens.length) break;
+      if (!line.tokens.length) continue;
       for (const t of line.tokens) {
         const c = (counts.get(t) || 0) + 1;
         counts.set(t, c);
@@ -98,8 +107,8 @@ function loops(lines, loopSec) {
       same = same && line.key === lines[i].key;
       if (!same && top < LOOP_TOKEN_SHARE * total) break;
     }
-    const repeats = (line) => line.key === lines[i].key
-      || line.tokens.filter((t) => t === topToken).length >= LOOP_TOKEN_SHARE * line.tokens.length;
+    const repeats = (line) => line.tokens.length > 0 && (line.key === lines[i].key
+      || line.tokens.filter((t) => t === topToken).length >= LOOP_TOKEN_SHARE * line.tokens.length);
     let last = j - 1;
     while (last > i && !repeats(lines[last])) last -= 1;
     if (last > i && lines[last].sec - lines[i].sec >= loopSec) {
@@ -123,6 +132,7 @@ function assess({ transcript, periodMinutes, env = process.env } = {}) {
   const loopSec = setting(env, 'TRANSCRIPT_LOOP_MINUTES') * 60;
   const gapSec = setting(env, 'TRANSCRIPT_GAP_MINUTES') * 60;
   const brokenShare = setting(env, 'TRANSCRIPT_BROKEN_SHARE');
+  const charsPerSec = setting(env, 'TRANSCRIPT_CHARS_PER_SEC');
 
   const period = Number(periodMinutes) > 0 ? Number(periodMinutes) : null;
   const lines = parse(transcript);
@@ -137,8 +147,9 @@ function assess({ transcript, periodMinutes, env = process.env } = {}) {
 
   if (firstSec > lateSec) timed.push({ at: firstSec, issue: { type: 'late_start', to: clock(firstSec) } });
   for (let k = 1; k < lines.length; k += 1) {
-    if (lines[k].sec - lines[k - 1].sec >= gapSec) {
-      timed.push({ at: lines[k - 1].sec, issue: { type: 'gap', from: clock(lines[k - 1].sec), to: clock(lines[k].sec) } });
+    const spoke = lines[k - 1].sec + Math.ceil([...lines[k - 1].text.trim()].length / charsPerSec);
+    if (lines[k].sec - spoke >= gapSec) {
+      timed.push({ at: spoke, issue: { type: 'gap', from: clock(spoke), to: clock(lines[k].sec) } });
     }
   }
   const looped = loops(lines, loopSec);
@@ -153,10 +164,31 @@ function assess({ transcript, periodMinutes, env = process.env } = {}) {
   return { status, coverage, issues, period_minutes: period, first_ts: clock(firstSec), last_ts: clock(lastSec) };
 }
 
-/** The spec §5.3 `TRANSCRIPT GAPS:` block, one line per issue; '' when there is nothing to say. */
+const seconds = (ts) => {
+  const [m, s] = String(ts).split(':').map(Number);
+  return m * 60 + s;
+};
+
+/** How much of the period the issues take up, as a whole percentage (at most 100). */
+function missingShare(issues, periodMinutes) {
+  const span = {
+    late_start: (i) => seconds(i.to),
+    gap: (i) => seconds(i.to) - seconds(i.from),
+    loop: (i) => seconds(i.to) - seconds(i.from),
+    short: (i) => periodMinutes * 60 - seconds(i.from),
+  };
+  const missing = issues.reduce((sum, i) => sum + Math.max(0, span[i.type] ? span[i.type](i) : 0), 0);
+  return Math.min(100, Math.round((100 * missing) / (periodMinutes * 60)));
+}
+
+/**
+ * The spec §5.3 `TRANSCRIPT GAPS:` block (CONTRACTS §11.1): one line per issue, how much of the period has no
+ * usable speech when the period is known, then the IE instruction; '' when there is nothing to say.
+ */
 function promptGaps(quality) {
   if (!quality || quality.status === 'ok' || !Array.isArray(quality.issues) || !quality.issues.length) return '';
-  const period = quality.period_minutes ? ` of a ${quality.period_minutes}-minute period` : '';
+  const minutes = Number(quality.period_minutes) > 0 ? Math.round(Number(quality.period_minutes)) : null;
+  const period = minutes ? ` of a ${minutes}-minute period` : '';
   const say = {
     short: (i) => `no speech after ${i.from}${period}`,
     late_start: (i) => `no speech before ${i.to}`,
@@ -165,7 +197,16 @@ function promptGaps(quality) {
   };
   const lines = quality.issues.filter((i) => say[i.type]).map((i) => `- ${say[i.type](i)}`);
   if (!lines.length) return '';
-  return ['TRANSCRIPT GAPS:', ...lines, 'Use "IE" for any indicator whose evidence would fall in these gaps.'].join('\n');
+  const share = minutes
+    ? [`About ${missingShare(quality.issues, Number(quality.period_minutes))}% of the ${minutes}-minute period has no usable speech (gaps, loops, a late start or an early end).`]
+    : [];
+  return [
+    'TRANSCRIPT GAPS:',
+    ...lines,
+    ...share,
+    'For every indicator whose evidence would fall in these gaps, or whose "Couldn\'t tell" line applies because a',
+    'large part of the lesson is missing, return "IE" instead of a level. Do not guess a level from the part that remains.',
+  ].join('\n');
 }
 
 /** The three fields that are persisted (`transcript_quality`); nothing else. */

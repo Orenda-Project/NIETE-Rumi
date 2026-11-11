@@ -33,6 +33,8 @@
  *                     null exactly when its n is 0.
  *   sectionBN / CN / DN  how many sessions that section was scored on (at every level, so B's smaller
  *                     base — scored only with a lesson plan — is visible).
+ *   v6_visits         overview only: observations scored on FICO17 v6 (scores.rubric 'fico17_v6'). They count
+ *                     as observations but give no section % (V3 and v6 never meet in one average; FICO6 r2 T7.D5).
  * Counts SUM from school to region to overview; teachers are distinct sets at each level. Section
  * averages follow HER rule (operator, 2026-10-15: "follow HER rule for the sections ported"): a
  * school's and the overview's average their observations (Σ % ÷ n — her Avg over observations,
@@ -74,12 +76,13 @@ function round1(n) {
 }
 
 function emptyAcc() {
-  return { observations: 0, teachers: new Set(), b: [0, 0], c: [0, 0], d: [0, 0] };
+  return { observations: 0, teachers: new Set(), b: [0, 0], c: [0, 0], d: [0, 0], v6: 0 };
 }
 
 function addSession(acc, s) {
   acc.observations += 1;
   if (s.user_id) acc.teachers.add(s.user_id);
+  if (s.v6 === true) acc.v6 += 1;
   const sections = s.sections || {};
   for (const k of Object.keys(FICO_SECTIONS)) {
     const v = sections[k];
@@ -89,6 +92,7 @@ function addSession(acc, s) {
 
 function mergeInto(into, a) {
   into.observations += a.observations;
+  into.v6 += a.v6;
   for (const t of a.teachers) into.teachers.add(t);
   for (const k of Object.keys(FICO_SECTIONS)) { into[k][0] += a[k][0]; into[k][1] += a[k][1]; }
 }
@@ -125,7 +129,7 @@ function metrics(acc) {
 /**
  * @param {{
  *   schools?: Array<{id, name, emis, region, is_active, is_probable_test}>,
- *   sessions?: Array<{school_id, user_id, is_test, observation_type, sections: {b, c, d}}>
+ *   sessions?: Array<{school_id, user_id, is_test, observation_type, sections: {b, c, d}, v6?: boolean}>
  * }} rows
  * @param {{region?: string|null, lists?: object|null, regions?: readonly string[]}} [opts] region: a bucket name
  *   from parseRegionFilter, or null for all; regions: the viewer's regions (FDE's six when omitted)
@@ -208,7 +212,7 @@ function summarizeObservationsAnalytics(rows = {}, opts = {}) {
     });
     const sectorsActive = regions.filter((r) => (!filter || r.region === filter) && r.observations > 0).length;
     out[kind] = {
-      overview: { schools: overview.schools, ...metrics(overview.acc), sectorsActive },
+      overview: { schools: overview.schools, ...metrics(overview.acc), sectorsActive, v6_visits: overview.acc.v6 },
       regions,
       schools,
     };
