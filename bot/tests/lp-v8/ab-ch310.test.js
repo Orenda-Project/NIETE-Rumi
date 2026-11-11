@@ -7,6 +7,9 @@
  * chapters) is today's delivery, untouched.
  */
 
+// bd-xxejb: the v8 voice note is off by default; these tests cover the flag-on behaviour.
+require('../../shared/config/lp-v8-voicenote').__setForTests(true);
+
 const mockTables = {};
 const mockInserts = {};
 let mockFail = {};
