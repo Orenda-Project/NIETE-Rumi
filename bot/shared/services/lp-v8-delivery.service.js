@@ -33,6 +33,7 @@ const Lifecycle = require('./lesson-plan-lifecycle.service');
 const AppOpens = require('./quiz/lp-app-opens.store');
 const V10Card = require('./lp-v10-card.service');
 const ThingToTry = require('./coaching/thing-to-try');
+const { isLpV8VoicenoteEnabled } = require('../config/lp-v8-voicenote');
 
 const LP_VARIANT = 'niete_v8_segment';
 const { ERROR_CODES } = Lifecycle.LIFECYCLE;
@@ -238,6 +239,7 @@ async function sendAnswerKeyIfAny({ userId, lessonId, phone, book, chapter, cont
  * @returns {Promise<boolean>} true only if WhatsApp accepted the voice message
  */
 async function sendVoicenoteIfAny({ userId, lessonId, phone, asset }) {
+  if (!isLpV8VoicenoteEnabled()) return false;             // feature off (bd-xxejb)
   if (!asset || !asset.r2_key) return false;
   const oggKey = String(asset.r2_key).replace(/\.pdf$/i, '.ogg');
   if (oggKey === asset.r2_key) return false;               // not a .pdf key — nothing to derive
