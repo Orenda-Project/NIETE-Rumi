@@ -97,7 +97,7 @@ function offeredBooks(columns, curriculum) {
 
 /**
  * Which grades we hold any book for, that this user is offered. Numeric order: a bare sort() puts 10 before 2.
- * A grade her region's book list does not cover (GB stops at 5) is not offered (bd-5jmnfj.38.42); no list
+ * A grade her region's book list does not cover (GB stops at 10, bd-qchgya) is not offered (bd-5jmnfj.38.42); no list
  * (ICT) keeps every grade — the portal filters the same way.
  */
 async function gradesOnOffer(userId, curriculum) {
@@ -114,7 +114,7 @@ async function gradesOnOffer(userId, curriculum) {
 /**
  * Which subjects we hold a book for, in this grade, that this user is offered.
  * Keyed by book (bd-97daxo.4): a G1-5 subject is offered only where the ICT book the generator reads, or her own
- * loaded book (bd-6nskfq.1), is on her region's list (teacher-books); a grade her list does not cover (GB: 6+, operator 6 Nov) offers none. No list
+ * loaded book (bd-6nskfq.1), is on her region's list (teacher-books); a grade her list does not cover (GB: 11-12) offers none. No list
  * offers everything, as before.
  */
 async function subjectsOnOffer(grade, userId, curriculum) {
@@ -139,7 +139,7 @@ async function subjectsOnOffer(grade, userId, curriculum) {
 }
 
 /**
- * bd-97daxo.4 (operator, 6 Nov) — a grade her region has no books for (GB: 6+) offers no subjects; say so in her
+ * bd-97daxo.4 (operator, 6 Nov) — a grade her region has no books for (GB: 11-12) offers no subjects; say so in her
  * language rather than showing an empty list. '' (no message) for everyone else, exactly as before.
  */
 async function notCoveredError(grade, userId, subjects) {

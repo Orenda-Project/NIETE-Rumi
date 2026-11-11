@@ -92,8 +92,8 @@ const LP612_ETA = Object.freeze({
 
 const UX_STRINGS = {
   // ─── a grade her region has no books for (bd-97daxo.4, operator 6 Nov 2026) ───────────────────────
-  // Gilgit-Baltistan names Grade 1-5 books only (its Afaq books for Grades 6+ are not ready), so a GB
-  // teacher who picks Grade 6+ (or a Grade 1-5 with no GB book yet) is told so, instead of being handed ICT's
+  // Gilgit-Baltistan names Grade 1-10 books only (ICT's books for 6-10, bd-qchgya), so a GB teacher who
+  // picks Grade 11-12 (or a grade with no book on her list) is told so, instead of being handed the wrong
   // books or an error. {grade} arrives in the reader's digits (Urdu digits for ur). Flow error text.
   lpGradeNotForRegionBooks: {
     en: "Lesson plans for Grade {grade} aren't available for your school yet. We'll add them as soon as they're ready.",

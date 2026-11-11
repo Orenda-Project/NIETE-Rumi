@@ -332,9 +332,11 @@ function catalogBooks(m, cfg) {
 /**
  * The region's book list, from the Books tab: slice 1 → GB's own book (gb_g<grade>_<slug>), whether or not it is
  * segmented yet (a book with no lessons simply shows nothing); slice 2 → ICT's book of that grade and subject key.
+ * Then every ICT 6-12 book of the grades in cfg.ictGrades (GB: 6-10, bd-qchgya), all of them, taken as is.
  * @param {Array} ictBooks the catalog's default list (stem, grade, subject_key)
+ * @param {Array} ict612 ICT's current 6-12 books (stem, grade), from niete_lp612_segments
  */
-function bookKeys(m, cfg, ictBooks) {
+function bookKeys(m, cfg, ictBooks, ict612 = []) {
   const own = [];
   const ict = [];
   const missing = [];
@@ -351,7 +353,9 @@ function bookKeys(m, cfg, ictBooks) {
     }
   }
   if (missing.length) bookKeys.lastMissing = missing;
-  return [...new Set([...own, ...ict])];
+  const grades = new Set(cfg.ictGrades || []);
+  const upper = (ict612 || []).filter((b) => grades.has(Number(b.grade))).map((b) => b.stem);
+  return [...new Set([...own, ...ict, ...upper])];
 }
 
 module.exports = {
