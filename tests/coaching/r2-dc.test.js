@@ -101,6 +101,13 @@ describe('T5.1 D2 comes from code, never the model (spec §5.6, R22)', () => {
     expect(d2Row(fw.computeScores(r, false)).dc_result).toBeNull();
   });
 
+  test('the production order (analyzePedagogy runs computeScores with no transcript, then shadow validates) still refuses it', () => {
+    const r = reply();
+    r.combined_evidence.D2 = { result: 3, student_turns_first_half: 99, student_turns_second_half: 99 };
+    const afterCall = fw.computeScores(r, false); // gpt5-mini.service.js analyzePedagogy: framework.computeScores(result, hasLp)
+    expect(fw.validate(afterCall, TRANSCRIPT).ok).toBe(false);
+  });
+
   test('shadow.scoreV6: a reply with a numeric D2 is stored as invalid, no level kept', async () => {
     const r = reply();
     r.combined_evidence.D2 = { result: 3, student_turns_first_half: 99, student_turns_second_half: 99 };
