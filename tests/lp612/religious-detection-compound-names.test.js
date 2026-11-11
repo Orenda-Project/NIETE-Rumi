@@ -62,6 +62,11 @@ describe('GUARDS — every real mention still marks the document religious (chec
     // not narrowed by this change: a compound name the reviewer has not decided is still held.
     ['محمد ثاقب (not on the reviewer list)', 'محمد ثاقب نے سندھ فتح کیا'],
     ['دین محمد — "the religion of Muhammad", no ال', 'دین محمد کی تعلیم'],
+    // The acceptance-evaluator's probes (2026-11-11): each slipped through the first version.
+    ['یوم الدین (Day of Judgement) before محمد is not a laqab', 'مالک یوم الدین محمد کے بارے میں'],
+    ['the ؐ mark after an -ud-din محمد', 'ظہیر الدین محمدؐ نے فرمایا'],
+    ['(ص) after an -ud-din محمد', 'ظہیر الدین محمد (ص) نے'],
+    ["one of the Prophet's own epithets after an -ud-din محمد", 'ظہیر الدین محمد مصطفیٰ'],
   ])('%s', (_label, text) => {
     expect(holds(lessonSaying(text))).toBe(true);
   });
