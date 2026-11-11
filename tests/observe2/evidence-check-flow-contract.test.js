@@ -39,11 +39,12 @@ describe('the committed JSON is the generator output', () => {
 });
 
 describe('the flow is internally consistent', () => {
-  test('nine v5 screens then six v6 ones, forward-only, one terminal; the plan screen can be skipped', () => {
+  test('nine v5 screens then seven v6 ones, forward-only, one terminal; the plan screen can be skipped', () => {
     const ids = ['HEARD_ASK', 'HEARD_WRONG', 'HEARD_WORK', 'HEARD_EXPLAIN', 'FIDELITY', 'ADDED_ONE', 'ADDED_TWO', 'PRIORITY', 'DONE'];
     // FICO17 v6 (bd-ra8xu.38): the room screens and Rumi's 11, appended so every v5 screen keeps its place.
     // FICO6: "Add one Rumi missed" after them, routed HEARD_EXPLAIN → MISSED → COMBINED_ONE.
-    const v6 = ['COMBINED_ONE', 'COMBINED_TWO', 'COMBINED_THREE', 'ADDED_DC_ONE', 'ADDED_DC_TWO', 'MISSED'];
+    // FICO6 r2: COMBINED_THREE_COUNTS, COMBINED_THREE with D2's counts pre-filled, last.
+    const v6 = ['COMBINED_ONE', 'COMBINED_TWO', 'COMBINED_THREE', 'ADDED_DC_ONE', 'ADDED_DC_TWO', 'MISSED', 'COMBINED_THREE_COUNTS'];
     expect(flow.screens.map((s) => s.id)).toEqual([...ids, ...v6]);
     ids.forEach((id, i) => {
       if (id === 'HEARD_EXPLAIN') expect(flow.routing_model[id]).toEqual(['FIDELITY', 'ADDED_ONE', 'COMBINED_ONE', 'MISSED']);
@@ -51,7 +52,9 @@ describe('the flow is internally consistent', () => {
       else expect(flow.routing_model[id]).toEqual(i < ids.length - 1 ? [ids[i + 1]] : []);
     });
     expect(flow.routing_model.MISSED).toEqual(['COMBINED_ONE']);
+    expect(flow.routing_model.COMBINED_TWO).toEqual(['COMBINED_THREE', 'COMBINED_THREE_COUNTS']);
     expect(flow.routing_model.COMBINED_THREE).toEqual(['FIDELITY', 'ADDED_DC_ONE']);
+    expect(flow.routing_model.COMBINED_THREE_COUNTS).toEqual(['FIDELITY', 'ADDED_DC_ONE']);
     expect(flow.routing_model.ADDED_DC_TWO).toEqual(['PRIORITY']);
     expect(flow.screens.filter((s) => s.terminal).map((s) => s.id)).toEqual(['DONE']);
   });
@@ -73,7 +76,7 @@ describe('the flow is internally consistent', () => {
 
 describe('every screen sends what the coach answered', () => {
   test.each(['HEARD_ASK', 'HEARD_WRONG', 'HEARD_WORK', 'HEARD_EXPLAIN', 'ADDED_ONE', 'ADDED_TWO', 'PRIORITY',
-    'COMBINED_ONE', 'COMBINED_TWO', 'COMBINED_THREE', 'ADDED_DC_ONE', 'ADDED_DC_TWO'])('%s posts its screen id and every field it shows', (id) => {
+    'COMBINED_ONE', 'COMBINED_TWO', 'COMBINED_THREE', 'COMBINED_THREE_COUNTS', 'ADDED_DC_ONE', 'ADDED_DC_TWO'])('%s posts its screen id and every field it shows', (id) => {
     const action = footerOf(screens[id])['on-click-action'];
     expect(action.name).toBe('data_exchange');
     expect(action.payload.screen).toBe(id);

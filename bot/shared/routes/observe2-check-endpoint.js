@@ -25,6 +25,8 @@
  *   HEARD_EXPLAIN → COMBINED_ONE → COMBINED_TWO → COMBINED_THREE   the coach sets C3 C5 C7 D3 D4 D2 from the room, each
  *                   from blank with a reason of 20+ characters; D2 with the two child counts. Refused (the same
  *                   screen, a message under the field) until each is set.
+ *                   COMBINED_THREE_COUNTS stands in for COMBINED_THREE when the form has both child counts and
+ *                   the Flow has it (v6c 3): the count boxes start from the form (spec §7.4); the level stays blank.
  *   COMBINED_THREE → FIDELITY (a graded plan) or ADDED_DC_ONE → ADDED_DC_TWO → PRIORITY   Rumi's other 11 levels,
  *                   pre-filled; a changed level needs a reason. A v6 visit opened on a Flow without the v6 screens
  *                   (no `v6c` from HEARD_EXPLAIN) runs on the v5 screens and is marked v6_fallback.
@@ -39,7 +41,8 @@ const Rules = require('../services/observe/observe2/rules');
 const { addUp } = Rules;
 const { CODES, PLAN_FOCUS, FOCUS, FOCUS_ORDER, ALSO_NONE, pickAlso } = require('../services/observe/observe2/fico17');
 const {
-  SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS, COMBINED_SCREENS, ADDED6_SCREENS, MISSED_SLOTS, MISSED_WORDS_MAX, OVERRIDE_REASONS,
+  SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS, COMBINED_SCREENS, COMBINED_COUNTS, D2_COUNT_INIT, ADDED6_SCREENS, MISSED_SLOTS,
+  MISSED_WORDS_MAX, OVERRIDE_REASONS,
 } = require('../services/observe/observe2/evidence-check.flow');
 const { isV6 } = require('../services/observe/observe2/rubric');
 const MomentTypes = require('../services/observe/observe2/moment-types');
@@ -53,6 +56,9 @@ const MOMENT_OF = Object.fromEntries(HEARD_SCREENS.map((h) => [h.id, h.moment]))
 const ADDED_CODES = Object.fromEntries(ADDED_SCREENS.map((a) => [a.id, a.codes]));
 const COMBINED_IDS = COMBINED_SCREENS.map((c) => c.id);
 const COMBINED_CODES_OF = Object.fromEntries(COMBINED_SCREENS.map((c) => [c.id, c.codes]));
+// COMBINED_THREE_COUNTS is COMBINED_THREE with D2's counts pre-filled: same codes, same place in the walk.
+const combinedBase = (id) => (id === COMBINED_COUNTS.id ? COMBINED_COUNTS.of : id);
+COMBINED_CODES_OF[COMBINED_COUNTS.id] = COMBINED_CODES_OF[COMBINED_COUNTS.of];
 const ADDED6_OF = Object.fromEntries(ADDED6_SCREENS.map((a) => [a.id, a]));
 
 function parseToken(flowToken) {
@@ -458,8 +464,10 @@ function evidenceText(form, code, added) {
     .filter(Boolean).join('\n\n');
 }
 
+const wholeNumber = (v) => (/^\d+$/.test(String(v == null ? '' : v).trim()) ? Number(String(v).trim()) : null);
+
 // D2: what the coach typed on the live form (counts, not levels), shown above the two count boxes (spec §7.4
-// pre-fills them; Meta types a number box's init-value as a number, which a visit with no count cannot give).
+// pre-fills them on COMBINED_THREE_COUNTS; a visit without both counts gets the blank boxes and this line).
 function formCounts(form) {
   const a = (form && form.answers) || {};
   const n = (v) => (/^\d+$/.test(String(v == null ? '' : v).trim()) ? Number(String(v).trim()) : null);
@@ -473,8 +481,29 @@ function formCounts(form) {
   return `On your form: ${parts.join(', ')}${total}.`;
 }
 
-function renderCombined(screenId, form, { errors = {} } = {}) {
+// D2's counts as typed on the live form, as numbers for the pre-filled boxes (spec §7.4): the children who spoke
+// (p1_spoke + p2_new) and those who spoke first in Part 2 (p2_new). Null unless both are whole numbers.
+function formCountsInit(form) {
+  const a = (form && form.answers) || {};
+  const p1 = wholeNumber(a.p1_spoke);
+  const p2new = wholeNumber(a.p2_new);
+  return p1 == null || p2new == null ? null : { d2_children: p1 + p2new, d2_quiet_later: p2new };
+}
+
+// The screen after COMBINED_TWO: the pre-filled copy when the form has both counts and the Flow has that screen
+// (v6_check 3+, posted from HEARD_EXPLAIN); else COMBINED_THREE with blank boxes, as a '2' Flow knows it.
+function renderThird(form) {
+  const v6Check = Number(((form && form.evidence_review) || {}).v6_check || 0);
+  const counts = v6Check >= 3 ? formCountsInit(form) : null;
+  return counts ? renderCombined(COMBINED_COUNTS.id, form, { counts }) : renderCombined(COMBINED_COUNTS.of, form);
+}
+
+function renderCombined(screenId, form, { errors = {}, counts = null } = {}) {
   const data = { error_messages: errors };
+  if (screenId === COMBINED_COUNTS.id) {
+    const init = counts || formCountsInit(form) || {};
+    for (const [field, key] of Object.entries(D2_COUNT_INIT)) data[key] = init[field] == null ? 0 : init[field];
+  }
   const added = form ? addedLevels(form, form.evidence_review || {}) : {};
   for (const code of COMBINED_CODES_OF[screenId]) {
     const text = evidenceText(form, code, added);
@@ -484,7 +513,6 @@ function renderCombined(screenId, form, { errors = {} } = {}) {
   return { screen: screenId, data };
 }
 
-const wholeNumber = (v) => (/^\d+$/.test(String(v == null ? '' : v).trim()) ? Number(String(v).trim()) : null);
 
 /** D2's level from the two counts (spec §7.4). */
 function d2Expected(children, quietLater) {
@@ -533,7 +561,12 @@ function combinedRecord(form, code, screenData, added) {
 async function onCombined(form, step, screenData) {
   const S = observe2Strings('en');
   const errors = validateCombined(step, screenData, S);
-  if (Object.keys(errors).length) return renderCombined(step, form, { errors });
+  if (Object.keys(errors).length) {
+    // Back to the pre-filled screen with the coach's own numbers, not the form's.
+    const typed = { d2_children: wholeNumber(screenData.d2_children), d2_quiet_later: wholeNumber(screenData.d2_quiet_later) };
+    const counts = typed.d2_children != null && typed.d2_quiet_later != null ? typed : null;
+    return renderCombined(step, form, { errors, counts });
+  }
   const review = form.evidence_review || {};
   const added = addedLevels(form, review);
   const patch = {};
@@ -547,7 +580,8 @@ async function onCombined(form, step, screenData) {
   }
   const saved = await Store.saveReview(form, patch);
   const current = saved.ok ? saved.form : form;
-  const next = COMBINED_IDS.indexOf(step) + 1;
+  const next = COMBINED_IDS.indexOf(combinedBase(step)) + 1;
+  if (COMBINED_IDS[next] === COMBINED_COUNTS.of) return renderThird(current);
   if (next < COMBINED_IDS.length) return renderCombined(COMBINED_IDS[next], current);
   return gradedPlan(current) ? renderFidelity(current) : renderAdded6('ADDED_DC_ONE', addedLevels(current, current.evidence_review || {}));
 }
@@ -730,7 +764,7 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     if (step === 'ADDED_TWO') return renderPriority(null, screenData);
     if (step === 'MISSED') return renderCombined('COMBINED_ONE', null);
     if (step === 'COMBINED_ONE' || step === 'COMBINED_TWO') return renderCombined(COMBINED_IDS[COMBINED_IDS.indexOf(step) + 1], null);
-    if (step === 'COMBINED_THREE') return renderAdded6('ADDED_DC_ONE', {});
+    if (combinedBase(step) === 'COMBINED_THREE') return renderAdded6('ADDED_DC_ONE', {});
     if (step === 'ADDED_DC_ONE') return renderAdded6('ADDED_DC_TWO', {});
     if (step === 'ADDED_DC_TWO') return renderPriority(null, screenData);
     return renderDone(null, NOT_AVAILABLE);
@@ -759,7 +793,7 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
   }
 
   if (step === 'MISSED') return isV6(form) ? onMissed(form, screenData) : renderAdded('ADDED_ONE', addedLevels(form, form.evidence_review || {}));
-  if (COMBINED_IDS.includes(step)) return onCombined(form, step, screenData);
+  if (COMBINED_IDS.includes(combinedBase(step))) return onCombined(form, step, screenData);
   if (ADDED6_OF[step]) return onAdded6(form, step, screenData);
 
   if (step === 'FIDELITY') {
