@@ -197,7 +197,7 @@ describe('GET /analytics/observations — the answer', () => {
     expect(payload.range).toEqual({ from: '2026-10-01', to: '2026-10-13' });
     for (const kind of ['dc', 'human']) {
       expect(Object.keys(payload[kind]).sort()).toEqual(KIND_KEYS);
-      expect(Object.keys(payload[kind].overview).sort()).toEqual(['observations', 'schools', 'sectorsActive', 'teachersObserved', ...SECTION_KEYS].sort());
+      expect(Object.keys(payload[kind].overview).sort()).toEqual(['observations', 'schools', 'sectorsActive', 'teachersObserved', 'v6_visits', ...SECTION_KEYS].sort());
       for (const r of payload[kind].regions) expect(Object.keys(r).sort()).toEqual(['observations', 'region', 'schools', 'teachersObserved', ...SECTION_KEYS].sort());
       for (const s of payload[kind].schools) expect(Object.keys(s).sort()).toEqual(['emis', 'name', 'observations', 'region', 'schoolId', 'teachersObserved', ...SECTION_KEYS].sort());
     }
@@ -207,11 +207,11 @@ describe('GET /analytics/observations — the answer', () => {
     tableStates.app_settings = flag([VIEWER]);
     const { payload } = await call('get', ROUTE, { userId: VIEWER });
     expect(payload.dc.overview).toEqual({
-      schools: 2, observations: 2, teachersObserved: 1, sectorsActive: 1,
+      schools: 2, observations: 2, teachersObserved: 1, sectorsActive: 1, v6_visits: 0,
       sectionB: 75, sectionBN: 1, sectionC: 62.5, sectionCN: 2, sectionD: 62.5, sectionDN: 2,
     });
     expect(payload.human.overview).toEqual({
-      schools: 2, observations: 1, teachersObserved: 1, sectorsActive: 1,
+      schools: 2, observations: 1, teachersObserved: 1, sectorsActive: 1, v6_visits: 0,
       sectionB: 50, sectionBN: 1, sectionC: 100, sectionCN: 1, sectionD: 100, sectionDN: 1,
     });
     expect(payload.dc.regions.map((r) => r.region)).toEqual(['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol']);
@@ -226,7 +226,7 @@ describe('GET /analytics/observations — the answer', () => {
     for (const kind of ['dc', 'human']) {
       expect(payload[kind].schools.map((s) => s.name)).toEqual(['IMCG Sihala']);
       const { region, ...card } = payload[kind].regions.find((r) => r.region === 'Sihala');
-      const { sectorsActive, ...ov } = payload[kind].overview;
+      const { sectorsActive, v6_visits, ...ov } = payload[kind].overview;
       expect(ov).toEqual(card);
       expect(payload[kind].regions).toHaveLength(6);
     }

@@ -34,7 +34,7 @@ const { FICO_SECTIONS, sectionPct, pooledPct } = require('../../dashboard/servic
 
 const SIX = ['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol'];
 const SECTION_KEYS = ['sectionB', 'sectionBN', 'sectionC', 'sectionCN', 'sectionD', 'sectionDN'];
-const OVERVIEW_KEYS = ['observations', 'schools', 'sectorsActive', 'teachersObserved', ...SECTION_KEYS].sort();
+const OVERVIEW_KEYS = ['observations', 'schools', 'sectorsActive', 'teachersObserved', 'v6_visits', ...SECTION_KEYS].sort();
 const REGION_KEYS = ['observations', 'region', 'schools', 'teachersObserved', ...SECTION_KEYS].sort();
 const SCHOOL_KEYS = ['emis', 'name', 'observations', 'region', 'schoolId', 'teachersObserved', ...SECTION_KEYS].sort();
 
@@ -187,11 +187,11 @@ describe('summarizeObservationsAnalytics', () => {
 
   it('the overview: totals, distinct teachers, sectors active — and sections POOLED over the observations (her FICO breakdown)', () => {
     expect(out.dc.overview).toEqual({
-      schools: 4, observations: 5, teachersObserved: 4, sectorsActive: 2,
+      schools: 4, observations: 5, teachersObserved: 4, sectorsActive: 2, v6_visits: 0,
       sectionB: 60, sectionBN: 3, sectionC: 60, sectionCN: 4, sectionD: 60, sectionDN: 4,
     });
     expect(out.human.overview).toEqual({
-      schools: 4, observations: 3, teachersObserved: 2, sectorsActive: 2,
+      schools: 4, observations: 3, teachersObserved: 2, sectorsActive: 2, v6_visits: 0,
       sectionB: 80, sectionBN: 2, sectionC: 70, sectionCN: 3, sectionD: 60, sectionDN: 3,
     });
   });
@@ -258,7 +258,7 @@ describe('summarizeObservationsAnalytics', () => {
       const o = summarizeObservationsAnalytics(rows);
       for (const kind of ['dc', 'human']) {
         expect(o[kind].overview).toEqual({
-          schools: 0, observations: 0, teachersObserved: 0, sectorsActive: 0,
+          schools: 0, observations: 0, teachersObserved: 0, sectorsActive: 0, v6_visits: 0,
           sectionB: null, sectionBN: 0, sectionC: null, sectionCN: 0, sectionD: null, sectionDN: 0,
         });
         expect(o[kind].schools).toEqual([]);
