@@ -97,7 +97,8 @@ describe('the WhatsApp lesson-plan Flow, for a GB teacher', () => {
     expect(res.screen).toBe('SELECT_SUBJECT');
     expect(res.data.items.map((i) => i.id)).toEqual(['Physics']);
     // Her curriculum is passed on: the catalogue gives her GB's book where it has one, ICT's otherwise.
-    expect(Lp612Catalog.buildSubjectItems).toHaveBeenCalledWith(7, { curriculum: 'nbf_snc' });
+    // Her list too, so an ICT book left off it (Zarai Taleem) is not offered (bd-la9f5e).
+    expect(Lp612Catalog.buildSubjectItems).toHaveBeenCalledWith(7, { curriculum: 'nbf_snc', bookKeys: expect.arrayContaining(['g7_physics']) });
   });
 
   test('Grade 11 is refused: her list does not cover it', async () => {
