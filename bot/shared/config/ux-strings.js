@@ -964,6 +964,14 @@ const UX_STRINGS = {
   appLinkButtonAttendance: { en: 'Attendance', ur: 'حاضری' },
   appLinkBodyClasses: { en: 'Open your classes.', ur: 'اپنی کلاسیں کھولیں۔' },
   appLinkButtonClasses: { en: 'My classes', ur: 'میری کلاسیں' },
+  // bd-ik5e8j.5 (queue #85) — the caption on Film 1, "How to use NIETE", sent once to a teacher on her first message
+  // after howto_first_touch covers her (howto-first-touch.service). The operator's words: "This is how you use NIETE".
+  // Never "app" (the operator, 11 Nov: NIETE is used through WhatsApp). Imperative, so nothing assumes her gender; the
+  // Urdu opens with Urdu, so it needs no U+200F. A video caption: well under Meta's 1024 code points.
+  howtoFirstTouchCaption: {
+    en: 'Watch this video: how to use NIETE.',
+    ur: 'یہ ویڈیو دیکھیں: NIETE استعمال کرنے کا طریقہ۔',
+  },
   // bd-fmf24g.52 — the COACH app link (app-redirect.service COACH_LINKS): /menu → coach Home, /observe → the coach
   // app's Observe page. Same one-line rule. /menu keeps the /menu words; /observe uses the coach app's own tile
   // (portal coach copy: "Take observation" / مشاہدہ لیں). Imperatives only, so nothing assumes a gender; the Urdu
