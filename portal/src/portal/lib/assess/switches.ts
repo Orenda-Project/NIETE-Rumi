@@ -36,6 +36,8 @@ export function useSaSwitches(enabled: boolean | null): SaSwitches {
           endSection: s.endSection === true,
           // round 8: the microphone check on an iPhone
           iosMic: s.iosMic === true,
+          // round 12: the RDF rows' microphone note opens the check again
+          rdfMicCheck: s.rdfMicCheck === true,
         });
       })
       .catch(() => { /* off */ });
