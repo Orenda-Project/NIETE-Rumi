@@ -1,6 +1,8 @@
 /**
- * Coach Training: the ICT HITL owner's nine coaching modules, one per behaviour of the coach-debrief rubric (the eight the
- * coach's debrief is judged on, in the rubric's order) and a ninth, the full debrief. Each module is a page she hosts
+ * Coach Training: the ICT HITL owner's coaching modules — nine on the debrief, one per behaviour of the coach-debrief
+ * rubric (the eight the coach's debrief is judged on, in the rubric's order) and a ninth, the full debrief; then Module 10,
+ * "No evidence, no level", on evidence and the written reason behind an observation level (her DM, 10 Nov 2026; it is
+ * no debrief behaviour's module, so BEHAVIOUR_MODULE does not name it). Each module is a page she hosts
  * (a claude.ai artifact, checked to open signed out on a phone); moving them to the portal later is a change to this
  * file only. The programme's overview page asks for a sign-in, so it is not linked.
  *
@@ -10,8 +12,11 @@
  * The bot holds the same map (bot/shared/config/coach-training-modules.js, for the Feedback Report's link); change both
  * or neither: modules.pin.test.ts fails the moment they disagree.
  */
-/** `artifact` is the module's page; `video` its video lesson (the owner's DM, 5 Nov 2026: every module has both). */
-export type CoachModule = { n: number; key: string; artifact: string; video: string; title: { en: string; ur: string } };
+/**
+ * `artifact` is the module's page; `video` its video lesson (the owner's DM, 5 Nov 2026: every module has both), or null
+ * while it is still being made (Module 10, 10 Nov 2026): its screen then says the video is coming soon.
+ */
+export type CoachModule = { n: number; key: string; artifact: string; video: string | null; title: { en: string; ur: string } };
 
 export const COACH_TRAINING_PATH = "/portal/coach/coach-training";
 /** bd-rlxkkt.6 — a module's own screen: the choice between its PDF (the module page) and its Video. */
@@ -27,6 +32,7 @@ export const COACH_MODULES: readonly CoachModule[] = [
   { n: 7, key: "less", artifact: "SBrvLUoSySSXCKVyshX72q", video: "GgzCzuPjSBYNFH7qspadNy", title: { en: "Talk less", ur: "کم بولیں، استاد کو بولنے دیں" } },
   { n: 8, key: "rehearse", artifact: "MGVm5YMAdQhRCrWRWWg65C", video: "FnhqM4ae3uV1XwwwgSYfYs", title: { en: "Rehearse it aloud", ur: "جانے سے پہلے زبانی پریکٹس" } },
   { n: 9, key: "full", artifact: "SZyvWZYrmMFn1XrhtnFGL8", video: "MUxJFCkertstuJXnNNF9LC", title: { en: "The full debrief", ur: "مکمل ڈی بریف" } },
+  { n: 10, key: "evidence", artifact: "62371mmVGLxniEHz6VGRXx", video: null, title: { en: "No evidence, no level", ur: "ثبوت نہیں تو لیول نہیں" } },
 ];
 
 /** The judge's rubric key → its module number. */
@@ -42,7 +48,8 @@ export const BEHAVIOUR_MODULE: Readonly<Record<string, number>> = {
 };
 
 export const moduleUrl = (m: CoachModule): string => `https://claude.ai/artifact/${m.artifact}`;
-export const videoUrl = (m: CoachModule): string => `https://claude.ai/artifact/${m.video}`;
+/** Null while the module has no video yet (never a link to nothing). */
+export const videoUrl = (m: CoachModule): string | null => (m.video ? `https://claude.ai/artifact/${m.video}` : null);
 export const modulePath = (m: CoachModule): string => `${COACH_TRAINING_PATH}/${m.n}`;
 export const moduleByNumber = (n: number): CoachModule | null => COACH_MODULES.find((m) => m.n === n) ?? null;
 

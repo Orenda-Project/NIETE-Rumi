@@ -19,6 +19,9 @@ const ART = "h-9 w-9";
  * bd-rlxkkt.9 — the ICT HITL owner, 6 Nov 2026: when she completes a module she gets a "complete" option here. The dock
  * holds Mark done (the Training Library part page's button and words); once done, a Done tick sits under the title and the
  * dock offers Mark not done to take it back. Saved per coach (useCoachTrainingProgress); a failed save says Not saved.
+ *
+ * bd-rlxkkt.12 — a module whose video is not made yet (Module 10, 10 Nov 2026) keeps both squares: Video is greyed, says
+ * Coming soon and opens nothing; PDF and Mark done work as on every module.
  */
 export default function CoachTrainingModulePage() {
   const C = useCopy(COACH_TRAINING);
@@ -29,6 +32,7 @@ export default function CoachTrainingModulePage() {
   if (!m) return <Navigate to={COACH_TRAINING_PATH} replace />;
   const open = (url: string) => { window.open(url, "_blank", "noopener,noreferrer"); };
   const isDone = !!(done && done[m.key]);
+  const video = videoUrl(m);
 
   const chips = isDone || notSaved ? (
     <>
@@ -59,7 +63,9 @@ export default function CoachTrainingModulePage() {
         <ChoicePair
           items={[
             { key: "pdf", label: C.pdf, art: <FileText className={ART} strokeWidth={2} />, onPress: () => open(moduleUrl(m)), testId: "coach-format-pdf" },
-            { key: "video", label: C.video, art: <PlayCircle className={ART} strokeWidth={2} />, onPress: () => open(videoUrl(m)), testId: "coach-format-video" },
+            video
+              ? { key: "video", label: C.video, art: <PlayCircle className={ART} strokeWidth={2} />, onPress: () => open(video), testId: "coach-format-video" }
+              : { key: "video", label: C.video, art: <PlayCircle className={ART} strokeWidth={2} />, off: true, note: C.videoSoon, testId: "coach-format-video" },
           ]}
         />
         <p className="mt-3 flex items-center gap-1.5 text-[13px] text-[#6b7280]">
