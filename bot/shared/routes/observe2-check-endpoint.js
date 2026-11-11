@@ -177,10 +177,13 @@ function renderPriority(form, screenData) {
   };
 }
 
-function renderAdded(screenId, added) {
+// A v6 visit on a Flow without the v6 screens (v6_fallback): the six room levels are the coach's to set, so their rows
+// start blank and give no reason; what the rules add up to for them is the hidden transcript-only result (CONTRACTS
+// §11.4). A v5 visit shows every row as before.
+function renderAdded(screenId, added, form = null) {
   const data = {};
   for (const code of ADDED_CODES[screenId]) {
-    const r = (added || {})[code] || {};
+    const r = (isV6(form) && V6.isCombined(code) ? null : (added || {})[code]) || {};
     data[`${code}_because`] = r.because || '';
     data[`${code}_level`] = levelText(r.level);
   }
@@ -436,12 +439,23 @@ function shownEvidence(form, code, added) {
   return { items, line: items.length ? null : 'v6_ev_none' };
 }
 
+// D2: the Student lines the recording has in each half of the lesson (rumi_moments.d2_turns, spec §5.6, counted in
+// code by the moments job; CONTRACTS §11.2), or null: none counted, or a recording that could not be used.
+function d2Turns(form) {
+  const t = form && form.rumi_moments && form.rumi_moments.d2_turns;
+  const whole = (v) => Number.isInteger(v) && v >= 0;
+  return t && whole(t.first_half) && whole(t.second_half) && !unusable(form) ? t : null;
+}
+
 function evidenceText(form, code, added) {
   const S = observe2Strings('en');
   const ind = V6.indicator(code);
   const { items, line } = shownEvidence(form, code, added);
-  const shown = line ? S[line] : items.map((m) => `${m.minute}  "${clipCp(String(m.quote || ''), EV_QUOTE)}"`).join('\n');
-  return `${ind.definition}\n\n${shown}\n\n${S.v6_coach_adds(ind.coach_adds)}`;
+  // D2 opens with the turns per half when the recording counted them; they are what it showed, so no "nothing" line.
+  const turns = code === 'D2' ? d2Turns(form) : null;
+  const shown = line ? (turns && line === 'v6_ev_none' ? '' : S[line]) : items.map((m) => `${m.minute}  "${clipCp(String(m.quote || ''), EV_QUOTE)}"`).join('\n');
+  return [turns ? S.v6_d2_turns(turns.first_half, turns.second_half) : '', ind.definition, shown, S.v6_coach_adds(ind.coach_adds)]
+    .filter(Boolean).join('\n\n');
 }
 
 // D2: what the coach typed on the live form (counts, not levels), shown above the two count boxes (spec §7.4
@@ -511,7 +525,7 @@ function combinedRecord(form, code, screenData, added) {
     // The transcript-only result (spec §8.4, kept, never shown): rules-v6's dc_result; until it lands, what the
     // rules add up to for the row (addedLevels). D2 has none (its counts are stored instead).
     dc_result: code === 'D2' || !(added && added[code]) ? null : added[code].dc_result,
-    dc_evidence_ids: shownEvidence(form, code, added).items.map((m) => m.id),
+    dc_evidence_ids: [...shownEvidence(form, code, added).items.map((m) => m.id), ...(code === 'D2' && d2Turns(form) ? ['d2_turns'] : [])],
     ...V6.stamp('coach'),
   };
 }
@@ -741,7 +755,7 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
       ...(v6Flow ? { v6_check: v6Check } : {}),
     });
     if (v6Flow) return v6Check >= 2 ? renderMissed() : renderCombined('COMBINED_ONE', current);
-    return gradedPlan(current) ? renderFidelity(current) : renderAdded('ADDED_ONE', added);
+    return gradedPlan(current) ? renderFidelity(current) : renderAdded('ADDED_ONE', added, current);
   }
 
   if (step === 'MISSED') return isV6(form) ? onMissed(form, screenData) : renderAdded('ADDED_ONE', addedLevels(form, form.evidence_review || {}));
@@ -763,14 +777,14 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     }
     const review = current.evidence_review || {};
     if (isV6(current) && review.v6_fallback === false) return renderAdded6('ADDED_DC_ONE', addedLevels(current, review));
-    return renderAdded('ADDED_ONE', addedLevels(current, review));
+    return renderAdded('ADDED_ONE', addedLevels(current, review), current);
   }
 
   if (step === 'ADDED_ONE' || step === 'ADDED_TWO') {
     const keys = ADDED_CODES[step].map((c) => `${c}_final`);
     const saved = await Store.saveReview(form, pickFields(screenData, keys));
     const current = saved.ok ? saved.form : form;
-    if (step === 'ADDED_ONE') return renderAdded('ADDED_TWO', addedLevels(current, current.evidence_review || {}));
+    if (step === 'ADDED_ONE') return renderAdded('ADDED_TWO', addedLevels(current, current.evidence_review || {}), current);
     return renderPriority(current, screenData);
   }
 

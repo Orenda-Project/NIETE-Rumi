@@ -49,6 +49,7 @@ const {
   FIELDS, FIELDS_V4, PREFILL, PREFILLED, PREFILLED_TYPES, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES, switchedOptions,
 } = require('../services/observe/observe2/field-form.flow');
 const { observe2Strings } = require('../services/observe/observe2/strings');
+const { isV6, V6_RUBRIC_VERSION } = require('../services/observe/observe2/rubric');
 const { notesSection } = require('../services/observe/observe2/brief');
 const { logToFile } = require('../utils/logger');
 
@@ -112,6 +113,23 @@ async function teacherName(form) {
   return (data && data.name) || null;
 }
 
+// The visits this process has read as FICO17 v6, by coach and record, so a screen sent when the record cannot be read
+// still shows that visit's C5 titles (switchedOptions). A visit never read here shows today's: v6 is never guessed.
+const KNOWN_V6_MAX = 500;
+const knownV6 = new Set();
+function rememberRubric(t, form) {
+  const key = `${t.userId}:${t.recordId}`;
+  knownV6.delete(key);
+  if (!isV6(form)) return;
+  knownV6.add(key);
+  if (knownV6.size > KNOWN_V6_MAX) knownV6.delete(knownV6.values().next().value);
+}
+/** The visit this token names, as far as the C5 titles need it: a v6 stamp when known, else null (today's titles). */
+function knownVisit(flowToken) {
+  const t = parseToken(flowToken);
+  return t && knownV6.has(`${t.userId}:${t.recordId}`) ? { rubric_version: V6_RUBRIC_VERSION } : null;
+}
+
 /** Load the record for this token; null when it is missing or not this coach's. */
 async function loadForm(flowToken) {
   const t = parseToken(flowToken);
@@ -119,6 +137,7 @@ async function loadForm(flowToken) {
   const got = await Store.getForm(t.recordId);
   if (!got.ok) return { ok: false };
   const form = got.form && got.form.observer_user_id === t.userId ? got.form : null;
+  rememberRubric(t, form);
   return { ok: true, form, userId: t.userId };
 }
 
@@ -471,12 +490,13 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
   const typed = takesPrefill(screenData) ? screenData : null;
 
   if (!loaded.ok) {
+    // The record could not be read: a v6 visit read before keeps its C5 titles (T1 minor); anything else, today's.
     const again = { error: 'Something went wrong on our side. Tap the button again.', has_error: true };
-    if (step === 'PART_TWO') return renderPart2(null, again, typed);
+    if (step === 'PART_TWO') return renderPart2(knownVisit(flowToken), again, typed);
     if (step === 'LESSON_PLAN') return renderPlan(null, again, []);
     if (step.startsWith('LP_') || step.startsWith('PHOTO')) return renderAdd(step, again);
     if (step === 'AFTER') return renderAfter(null, again);
-    return { screen: 'PART_ONE', data: { scored_with: '', teacher_line: '', part_hint: '', switched: switchedOptions(null), ...NO_ERRORS, ...again } };
+    return { screen: 'PART_ONE', data: { scored_with: '', teacher_line: '', part_hint: '', switched: switchedOptions(knownVisit(flowToken)), ...NO_ERRORS, ...again } };
   }
   if (!form) {
     const gone = { error: 'This form is not available. Close it and send /observe2 in the chat.', has_error: true };
