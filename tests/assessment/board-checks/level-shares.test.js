@@ -78,6 +78,11 @@ describe('the checks record names its hard rules', () => {
     expect(run(ex, { mode: 'board' }).record.hard_rules).toEqual({ 'D12 LEVEL_OVER': 2, 'D16 KEY_LEAK': 1 });
   });
 
+  test('an issue built by _text-norm (rule under `code`, e.g. N18 KEY_IN_STEM) is named, not "?" (bd-qyi45h.4)', () => {
+    const run = makeRun([member([{ check: 'N18', code: 'KEY_IN_STEM', item_ref: 'Q1', msg: 'm', hard: true }])]);
+    expect(run(ex, { mode: 'board' }).record.hard_rules).toEqual({ 'N18 KEY_IN_STEM': 1 });
+  });
+
   test('no hard issue, no hard_rules key', () => {
     expect(makeRun([member([])])(ex, { mode: 'board' }).record).not.toHaveProperty('hard_rules');
   });
