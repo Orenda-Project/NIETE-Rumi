@@ -142,7 +142,10 @@ describe('a V3 FICO visit on the same deployment is untouched', () => {
     mockSessionRow = { ...mockSessionRow, framework: 'fico', analysis_data: { framework: 'fico', domains: {} } };
     const res = await handleObserveMewakaRequest({ action: 'data_exchange', flow_token: TOKEN, data: { _screen: 'DOMAIN_B' } });
     expect(res.screen).toBe('DOMAIN_C');
-    expect(Object.keys(res.data)).toEqual(expect.arrayContaining(['scale', 's_C1', 'e_C1', 'i_C1', 's_C12']));
+    // The deployment's own FICO (V3 on staging/prod: C1-C12; V4 on sandbox: fewer C rows) drives this screen.
+    const cRows = require('../../bot/shared/services/coaching/frameworks/fico-framework').getScoringConstants().domains.high_leverage_practices.indicators;
+    const lastC = cRows[cRows.length - 1].id;
+    expect(Object.keys(res.data)).toEqual(expect.arrayContaining(['scale', 's_C1', 'e_C1', 'i_C1', `s_${lastC}`]));
     expect(res.data.err_v).toBeUndefined();
     expect(res.data.cb_C3).toBeUndefined();
   });
