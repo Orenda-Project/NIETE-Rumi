@@ -148,6 +148,7 @@ function domainScreen(key, idx) {
   const initValues = {};
   const payload = { _screen: screenId(key) };
   const data = {
+    ...(idx === 0 ? { scored_with: { type: 'string', __example__: 'FICO V3' } } : {}),
     scale: {
       type: 'array',
       items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' } } },
@@ -261,6 +262,9 @@ function domainScreen(key, idx) {
     'on-click-action': { name: 'data_exchange', payload },
   });
 
+  // bd-ra8xu.43: the session's stored rubric, one small caption atop the first screen (filled by the endpoint), added
+  // after every other child so nothing later can move it.
+  if (idx === 0) children.unshift({ type: 'TextCaption', text: '${data.scored_with}' });
   return {
     id: screenId(key),
     title: L.screenTitle(d, idx + 1, DOMAIN_ORDER.length).slice(0, 30),
@@ -285,6 +289,7 @@ function v6DomainScreen(key, idx) {
   const initValues = {};
   const payload = { _screen: screenId(key) };
   const data = {
+    ...(idx === 0 ? { scored_with: { type: 'string', __example__: 'FICO17 v6' } } : {}),
     err_v: { type: 'boolean', __example__: false },
     err_note: { type: 'string', __example__: 'Please fix these before you go on:\n• Who got to answer: Choose a level.' },
   };
@@ -293,6 +298,7 @@ function v6DomainScreen(key, idx) {
     { type: 'TextBody', text: '${data.err_note}', visible: '${data.err_v}' },
     { type: 'TextBody', text: `Part ${idx + 1}/${DOMAIN_ORDER.length} — Rumi's levels are filled in: change any you saw differently and say why. Set the room levels yourself, with a reason.` },
   ];
+  if (idx === 0) children.unshift({ type: 'TextCaption', text: '${data.scored_with}' });
   const field = (name) => { payload[name] = `\${form.${name}}`; };
   for (const ind of d.indicators) {
     const code = ind.id;

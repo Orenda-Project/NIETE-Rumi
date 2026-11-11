@@ -130,6 +130,8 @@ async function renderPart1(form, extra = {}) {
   return {
     screen: 'PART_ONE',
     data: {
+      // bd-ra8xu.43: the rubric this visit was stamped with (framework + version), never the live switch.
+      scored_with: require('../services/coaching/rubric-label').rubricLabelText({ form }),
       teacher_line: name ? `Teacher: ${name} · ${lesson}` : `${lesson[0].toUpperCase()}${lesson.slice(1)}`,
       part_hint: after ? AFTER_HINT.part1 : PART_1_HINT,
       ...NO_ERRORS,
@@ -470,7 +472,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
     if (step === 'LESSON_PLAN') return renderPlan(null, again, []);
     if (step.startsWith('LP_') || step.startsWith('PHOTO')) return renderAdd(step, again);
     if (step === 'AFTER') return renderAfter(null, again);
-    return { screen: 'PART_ONE', data: { teacher_line: '', part_hint: '', ...NO_ERRORS, ...again } };
+    return { screen: 'PART_ONE', data: { scored_with: '', teacher_line: '', part_hint: '', ...NO_ERRORS, ...again } };
   }
   if (!form) {
     const gone = { error: 'This form is not available. Close it and send /observe2 in the chat.', has_error: true };
@@ -478,7 +480,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
     if (step === 'LESSON_PLAN') return renderPlan(null, gone, []);
     if (step.startsWith('LP_') || step.startsWith('PHOTO')) return renderAdd(step, gone);
     if (step === 'AFTER') return renderAfter(null, gone);
-    return { screen: 'PART_ONE', data: { teacher_line: '', part_hint: '', ...NO_ERRORS, ...gone } };
+    return { screen: 'PART_ONE', data: { scored_with: '', teacher_line: '', part_hint: '', ...NO_ERRORS, ...gone } };
   }
 
   if (step === 'PART_ONE' || step === 'PART_TWO') {

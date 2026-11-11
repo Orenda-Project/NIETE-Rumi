@@ -55,6 +55,10 @@
       "id": "PART_ONE",
       "title": "Part 1",
       "data": {
+        "scored_with": {
+          "type": "string",
+          "__example__": "FICO17 v6"
+        },
         "teacher_line": {
           "type": "string",
           "__example__": "Rabia's lesson · Grade 4 · Maths"
@@ -84,6 +88,10 @@
             "name": "part_one_form",
             "error-messages": "${data.error_messages}",
             "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.scored_with}"
+              },
               {
                 "type": "TextHeading",
                 "text": "Fill this in as you watch"

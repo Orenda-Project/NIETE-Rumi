@@ -119,6 +119,11 @@ function heardScreen({ id, title, moment }) {
     { type: 'TextHeading', text: MOMENT_BY_ID[moment].question },
     { type: 'TextBody', text: `\${data.${intro}}` },
   ];
+  // bd-ra8xu.43: the visit's stored rubric (framework + version), one small line atop the first screen, for debugging.
+  if (id === 'HEARD_ASK') {
+    data.scored_with = { type: 'string', __example__: 'FICO17 v6' };
+    kids.unshift({ type: 'TextCaption', text: '${data.scored_with}' });
+  }
   for (let i = 1; i <= SLOTS; i += 1) {
     const k = `${id.toLowerCase()}_${i}`;
     data[`${k}_t`] = { type: 'string', __example__: '12:41 · open question' };

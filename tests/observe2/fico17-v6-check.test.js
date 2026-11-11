@@ -86,7 +86,7 @@ beforeEach(() => {
   mockFake = createFakeSupabase({
     users: [
       { id: 'coach-1', phone_number: '923000000001', name: 'Coach', preferred_language: 'en', region: 'Sihala' },
-      { id: 'teacher-1', phone_number: '923000000002', name: 'Rabia', preferred_language: 'en' },
+      { id: 'teacher-1', phone_number: '923000000002', name: 'Rabia', preferred_language: 'en', teacher_level: ['PRIMARY'] },  // bd-ra8xu.42: v6 reaches grades 1-5 visits only
     ],
     coaching_sessions: [{ id: 'sess-1', status: 'observe2_checking' }],
   });
@@ -135,6 +135,14 @@ describe('the Flow', () => {
   test('every v5 screen is as it was, but for the v6 marker on the last moments screen\'s footer', () => {
     for (const old of V5_FLOW.screens) {
       const now = JSON.parse(JSON.stringify(byId[old.id]));
+      if (old.id === 'HEARD_ASK') {
+        // bd-ra8xu.43: the rubric caption atop the first screen (one TextCaption + its declaration) is allowed.
+        expect(now.data.scored_with).toEqual({ type: 'string', __example__: 'FICO17 v6' });
+        delete now.data.scored_with;
+        const form = now.layout.children[0];
+        expect(form.children[0]).toEqual({ type: 'TextCaption', text: '${data.scored_with}' });
+        form.children.shift();
+      }
       if (old.id === 'HEARD_EXPLAIN') {
         const footer = fieldsOf(now).find((c) => c.type === 'Footer');
         expect(footer['on-click-action'].payload.v6c).toBe('1');
