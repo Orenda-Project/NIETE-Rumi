@@ -1,6 +1,6 @@
 import type { ComponentType, CSSProperties, ReactNode, SVGProps } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, CircleUserRound, Languages, Loader2, LogOut } from "lucide-react";
+import { ChevronRight, CircleUserRound, Languages, Loader2, LogOut, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../hooks/useAuth";
 import { useLogoutGuard } from "../../lib/recordingSession";
@@ -12,6 +12,9 @@ import { useCopy } from "../i18n";
 import { cleanSchool, formatPhone, fullName, initials } from "../format";
 import { teacherPath } from "../routes";
 import { useLanguageSwitch } from "../useLanguageSwitch";
+import { HELP } from "../help/copy";
+import { HELP_LIST_PATH } from "../help/names";
+import { useHelpSwitch } from "../help/useHelp";
 
 /**
  * bd-fmf24g.33 — teacher v2 More (operator, 2026-10-10: "just Language as a toggle between English and Urdu, Profile and
@@ -92,6 +95,9 @@ export default function More() {
   const name = fullName(user);
   const phone = formatPhone(user?.phoneNumber);
   const school = cleanSchool(user?.schoolName);
+  // bd-ik5e8j.4 — How to use (portal_help_videos): a Help card between who she is and her account; off, nothing.
+  const H = useCopy(HELP);
+  const helpOn = useHelpSwitch();
 
   return (
     <TeacherPage title={C.more.title} testId="teacher-more">
@@ -111,6 +117,12 @@ export default function More() {
           )}
         </span>
       </section>
+
+      {helpOn === true ? (
+        <Card label={H.help}>
+          <RowLink id="howto" to={HELP_LIST_PATH} icon={PlayCircle} label={H.howTo} />
+        </Card>
+      ) : null}
 
       <Card label={C.more.account}>
         <LanguageRow />
