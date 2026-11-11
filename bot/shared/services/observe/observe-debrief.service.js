@@ -287,9 +287,12 @@ const STAGE_A_STATUSES = ['confirmed', 'transcribing', 'analyzing', 'analysis_st
   // message never reached the coach, this list is the only way back to the visit (5 Oct 2026).
   // observe2_moments: Rumi is reading the recording. A recording held for its form (record first) is
   // in the list from the moment it is saved, so its form can be filled meanwhile.
-  'observe2_moments', 'observe2_ready', 'observe2_checking'];
+  'observe2_moments', 'observe2_ready', 'observe2_checking',
+  // bd-pni007: an FDE (obs612) visit whose recording is in and whose FDE form the coach has not submitted yet.
+  'obs612_form'];
 
 function resumeKindFor(status, updatedAt, nowMs = Date.now()) {
+  if (status === 'obs612_form') return 'obs612_form';
   if (String(status || '').startsWith('observe2_')) return 'observe2';
   if (['awaiting_photo', 'awaiting_classroom_photo', 'awaiting_lesson_plan'].includes(status)) return 'gate';
   if (status === 'awaiting_observer_review') return 'form';

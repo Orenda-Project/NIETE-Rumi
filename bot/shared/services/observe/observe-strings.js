@@ -154,6 +154,7 @@ const STRINGS = {
     resume_desc_wait: 'Uchambuzi unaendelea — fomu itafika hivi karibuni',
     resume_desc_observe2: 'Hatua inayofuata ya ziara inasubiri — bonyeza kuifungua',
     resume_desc_observe2_form: 'Somo limerekodiwa — bonyeza kujaza fomu',
+    resume_desc_obs612_form: 'Fomu ya FDE inasubiri — bonyeza kuijaza',
     resume_retry_ack: '🔄 Nimeanzisha tena — nitakutumia fomu ikiwa tayari.',
     resume_retry_exhausted: 'Nimejaribu mara kadhaa na hauwezi kukamilika. Rekodi yako ipo salama. Kama bado una sauti, nitumie tena — nitaanzisha uchunguzi mpya.',
     watchdog_stalled_coach: '⚠️ Uchunguzi uliorekodiwa ulisimama katikati na sikuweza kuuanzisha tena. Hakuna kilichopotea — rekodi ipo salama. Nitumie sauti tena nitaanzisha uchunguzi mpya.',
@@ -373,6 +374,7 @@ const STRINGS = {
     resume_desc_wait: 'تجزیہ جاری ہے — فارم جلد ملے گا',
     resume_desc_observe2: 'وزٹ کا اگلا مرحلہ باقی ہے — دبا کر کھولیں',
     resume_desc_observe2_form: 'سبق ریکارڈ ہو چکا ہے — دبا کر فارم بھریں',
+    resume_desc_obs612_form: 'ایف ڈی ای فارم باقی ہے — دبا کر بھریں',
     resume_retry_ack: '🔄 دوبارہ شروع کر دیا — فارم تیار ہوتے ہی بھیج دوں گی۔',
     resume_retry_exhausted: 'میں نے اسے کئی بار چلایا، لیکن یہ مکمل نہیں ہو سکا۔ ریکارڈنگ محفوظ ہے۔ اگر آڈیو اب بھی موجود ہو تو دوبارہ بھیج دیں — میں نیا مشاہدہ شروع کر دوں گی۔',
     watchdog_stalled_coach: '⚠️ جو مشاہدہ ریکارڈ ہوا تھا وہ درمیان میں رک گیا اور دوبارہ نہیں چل سکا۔ کچھ ضائع نہیں ہوا — ریکارڈنگ محفوظ ہے۔ آڈیو دوبارہ بھیج دیں، میں نیا مشاہدہ شروع کر دوں گی۔',
@@ -724,6 +726,7 @@ const STRINGS = {
     resume_desc_wait: "Analysis in progress — the form is coming soon",
     resume_desc_observe2: 'Next step of your visit is waiting — tap to open it',
     resume_desc_observe2_form: 'Recorded lesson — tap to fill the form',
+    resume_desc_obs612_form: 'FDE form to fill — tap to open it',
     resume_retry_ack: "🔄 Restarted — I'll send the form as soon as it's ready.",
     resume_retry_exhausted: "I've run this one as many times as I can and it won't go through. Your recording is saved. If you still have the audio, send it again and I'll start a fresh observation.",
     watchdog_stalled_coach: "⚠️ The observation you recorded stopped partway and I couldn't restart it. Nothing is lost — your recording is saved. Send the audio again when you can and I'll start a fresh one.",
@@ -983,6 +986,11 @@ const VISIT_CAPTURE_TEMPLATES = {
  * @param {string} lang     coach language ('ur' | anything-else→en)
  * @param {{teacherName?:string, framework?:string}} [opts]
  */
+/** The "send a recorder-app file as a Document" line of the capture prompt, alone (obs612's own prompt reuses it). */
+function visitSendAsDocument(lang) {
+  return VISIT_CAPTURE_TEMPLATES[clampLanguage(lang)].sendAsDocument;
+}
+
 function buildVisitCapturePrompt(lang, opts = {}) {
   const l = clampLanguage(lang);
   const fw = String(opts.framework || 'FICO').toUpperCase();
@@ -1133,7 +1141,7 @@ function mediaTargetString(lang, key) {
 }
 
 module.exports = {
-  observeStrings, observeLang, buildVisitCapturePrompt, buildScheduleDoneAck,
+  observeStrings, observeLang, buildVisitCapturePrompt, visitSendAsDocument, buildScheduleDoneAck,
   buildVisitCancelledAck, buildVisitRescheduledAck,
   buildMediaTargetPrompt, mediaTargetString,
 };

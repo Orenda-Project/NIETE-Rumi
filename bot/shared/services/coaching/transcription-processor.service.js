@@ -679,6 +679,15 @@ class TranscriptionProcessorService {
     const env = deps.env || process.env;
     const gatesOn = env.OBSERVE_CAPTURE_GATES_ENABLED === 'true';
 
+    // bd-pni007: an FDE (obs612) visit is scored by the coach on FDE's form: no model reads it. The transcript is
+    // kept; the session leaves the statuses the watchdog would re-queue for FICO analysis.
+    const Obs612 = deps.obs612 || require('../observe/obs612/visit');
+    const o612 = await Obs612.afterTranscription(coachingSessionId, session);
+    if (o612 && o612.handled) {
+      logToFile('✅ Transcription complete (FDE visit — kept, no analysis)', { coachingSessionId, action: o612.action });
+      return { action: 'obs612', result: o612 };
+    }
+
     // /observe2: a recording linked to a field form goes to its own moments step. The coach took
     // the photos and answered the lesson-plan question in the form, and the classic FICO draft is
     // not what /observe2 sends, so the gates and the analysis below are skipped for it.

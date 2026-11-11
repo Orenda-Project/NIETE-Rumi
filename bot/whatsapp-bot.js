@@ -2115,6 +2115,15 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
         return;
       }
 
+      // bd-pni007 — the lesson's class and subject (FDE's grade 6-12 tools, /observe and /observe2).
+      if (listId.startsWith('o612:')) {
+        const Obs612 = require('./shared/services/observe/obs612/visit');
+        const claimed = user ? await Obs612.handleTap(user, from, listId) : false;
+        if (!claimed) logToFile('⚠️ obs612 lesson row not handled', { listId, hasUser: !!user }, 'warn');
+        ack();
+        return;
+      }
+
       // CRITICAL: Get the CURRENT session first, then query conversations in THAT session
       const { getOrCreateSession } = require('./shared/database/bot-helpers');
       const currentSessionId = await getOrCreateSession(user.id);

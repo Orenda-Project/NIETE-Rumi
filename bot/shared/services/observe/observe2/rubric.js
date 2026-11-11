@@ -41,7 +41,9 @@ function rubricFor(form) {
  *   from users; teacherUserId is the observed teacher (grades 1-5 gate)
  * @returns {Promise<{rubricVersion: string, shadow: boolean}>}
  */
-async function visitRubric({ observerUserId, region, teacherUserId = null } = {}) {
+// `lessonIsPrimary` (bd-pni007): true when the coach named this lesson's class as grades 1-5 (obs612 switch on); that
+// answer decides the grades 1-5 gate instead of the teacher's profile. Absent: the profile, exactly as before.
+async function visitRubric({ observerUserId, region, teacherUserId = null, lessonIsPrimary } = {}) {
   const v5 = { rubricVersion: V5_RUBRIC_VERSION, shadow: false };
   try {
     const sw = require('../../coaching/fico-rubric-switch');
@@ -52,7 +54,7 @@ async function visitRubric({ observerUserId, region, teacherUserId = null } = {}
     // or no teacher bound yet stays on today's rubric until FDE's 6-12 rubric lands (#94).
     if (v === 'v6') {
       const { isPrimaryVisit } = require('../../coaching/fico-visit-grade');
-      if (await isPrimaryVisit(teacherUserId)) return { rubricVersion: V6_RUBRIC_VERSION, shadow: false };
+      if (lessonIsPrimary === true || await isPrimaryVisit(teacherUserId)) return { rubricVersion: V6_RUBRIC_VERSION, shadow: false };
       return v5;
     }
     return { rubricVersion: V5_RUBRIC_VERSION, shadow: v === 'shadow' };
