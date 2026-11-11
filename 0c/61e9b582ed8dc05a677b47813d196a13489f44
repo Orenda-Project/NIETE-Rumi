@@ -1,0 +1,2 @@
+{"ts":"2026-11-11T08:52:19Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan,language spec_sync=true","sha":"0c61e9b582ed","branch":"bd-la9f5e-86598","user":""}
+{"ts":"2026-11-11T08:52:26Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-la9f5e-86598: lesson-plan spec: NOT UPDATED e2e: missing","sha":"0c61e9b582ed","branch":"bd-la9f5e-86598","user":""}
