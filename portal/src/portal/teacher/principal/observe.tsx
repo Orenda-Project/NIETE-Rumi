@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
-import { ObserveRoutesProvider, type ObserveRoutes } from "../../coach/observe/observeRoutes";
+import { ObserveRoutesProvider, type ObserveRoutes, type VisitPageData } from "../../coach/observe/observeRoutes";
+import { coach } from "../../services/api";
 import { karachiDay } from "../../coach/time";
 import type { CoachVisit } from "../../coach/types";
 import type { ObservationScreen } from "../../coach/reports/paths";
@@ -21,13 +22,34 @@ const BASE = "/portal/teacher/principal";
 const seg = encodeURIComponent;
 
 export const PRINCIPAL_PICK = `${BASE}/pick`;
+/** bd-33wxxi.9.3 — the picked teacher's page: the coach's visit screen (Start recording / Upload recording, the Teacher card). */
+export const principalVisitPath = (ext: string) => `${BASE}/visit/${seg(ext)}`;
 export const principalCheckPath = (ext: string) => `${BASE}/observe/${seg(ext)}`;
 export const principalObservationPath = (id: string, screen?: ObservationScreen) =>
   `${BASE}/observation/${seg(id)}${screen ? `/${screen}` : ""}`;
 
 /** The picked teacher as the visit the coach's screens expect: today, nothing scheduled, still to do. */
 export async function principalVisit(ext: string): Promise<{ visit: CoachVisit | null }> {
-  const card = await getPrincipalSchoolCard("week");
+  return principalVisitFrom(await getPrincipalSchoolCard("week"), ext);
+}
+
+/**
+ * bd-33wxxi.9.3 — the picked teacher's page (the coach's visit screen): the visit as above, her row's counts for this week,
+ * and when the principal last observed her (her own observations, newest first; a failed read = not shown as observed).
+ */
+export async function principalVisitPage(ext: string): Promise<VisitPageData> {
+  const [card, reports] = await Promise.all([
+    getPrincipalSchoolCard("week"),
+    coach.getReports({ page: 1 }).catch(() => null),
+  ]);
+  const { visit } = principalVisitFrom(card, ext);
+  if (!visit) return { visit: null };
+  const t = (card.teachers ?? []).find((x) => x.teacherExtId === ext);
+  const last = (reports?.all.items ?? []).find((r) => r.teacherExtId === ext);
+  return { visit, counts: t?.counts ?? null, lastObservedAt: last?.createdAt ?? null };
+}
+
+function principalVisitFrom(card: Awaited<ReturnType<typeof getPrincipalSchoolCard>>, ext: string): { visit: CoachVisit | null } {
   const t = (card.teachers ?? []).find((x) => x.teacherExtId === ext);
   if (!card.school || !t) return { visit: null };
   return {
@@ -48,7 +70,12 @@ export const PRINCIPAL_OBSERVE_ROUTES: ObserveRoutes = {
   coachGate: false,
   showScores: false,
   loadVisit: principalVisit,
-  visit: () => PRINCIPAL_PICK,
+  loadVisitPage: principalVisitPage,
+  // bd-33wxxi.9.3 — Back from her recording screens is the picked teacher's page (the coach's visit screen), whose own
+  // Back is Pick the teacher. No Reschedule / Cancel visit: there is no visit.
+  visit: principalVisitPath,
+  visitActions: false,
+  visitBack: () => PRINCIPAL_PICK,
   record: (ext) => `${principalCheckPath(ext)}/record`,
   attach: (ext) => `${principalCheckPath(ext)}/attach`,
   check: principalCheckPath,
