@@ -178,6 +178,56 @@ describe('R20: a gap is measured from the end of the previous line\'s speech', (
   });
 });
 
+/** One word repeated as ONE line (a one-speaker hallucination is merged into one segment, spec §1.2). */
+const repeatLine = (minutes, charsPerSec, word = 'شکریہ') => Array(Math.ceil((minutes * 60 * charsPerSec) / (word.length + 1))).fill(word).join(' ');
+
+describe('redteam2 R20 regression: one line that repeats one word is a loop over its estimated span', () => {
+  test('a 28-minute single-line repeat of one word (dense, 20 chars/s) is broken', () => {
+    // 40,319 chars / 16 = 2,520 s, capped at the next line's start: 12:30-39:40 is 27 of 40 minutes.
+    const lines = lesson({ from: 10, to: sec(12) }).concat([line(sec(12, 30), 0, repeatLine(28, 20))], [line(sec(39, 40), 1, 'جی')]);
+    const q = assess(lines);
+    expect(q.status).toBe('broken');
+    expect(q.issues).toEqual([{ type: 'loop', from: '12:30', to: '39:40' }]);
+  });
+
+  test('the same repeat at a normal 11 chars/s is not ok: a loop to its estimated end, then a gap', () => {
+    // 18,479 chars / 16 = 1,155 s → 31:45; 19.25 minutes is under half the period, so partial (spec §6.2).
+    const lines = lesson({ from: 10, to: sec(12) }).concat([line(sec(12, 30), 0, repeatLine(28, 11))], [line(sec(39, 40), 1, 'جی')]);
+    const q = assess(lines);
+    expect(q.status).toBe('partial');
+    expect(q.issues).toEqual([{ type: 'loop', from: '12:30', to: '31:45' }, { type: 'gap', from: '31:45', to: '39:40' }]);
+  });
+
+  test('a one-line repeat shorter than TRANSCRIPT_LOOP_MINUTES is not a loop', () => {
+    const lines = lesson({ skip: (s) => s > sec(12) && s < sec(14, 30) });
+    lines.splice(lines.findIndex((l) => l.startsWith('[14:30]')), 0, line(sec(12, 20), 0, repeatLine(2.5, 16)));
+    const q = assess(lines);
+    expect(q.status).toBe('ok');
+  });
+
+  test('a 5-minute one-line repeat mid-lesson is a loop from its own start: the ordinary lines around it stay out', () => {
+    // Before: the repeat line outweighed every other line's tokens, so the run started at 12:00 and ran to the
+    // next line with the same words as 12:00.
+    const lines = lesson({ skip: (s) => s > sec(12) && s < sec(17, 30) });
+    lines.splice(lines.findIndex((l) => l.startsWith('[17:30]')), 0, line(sec(12, 20), 0, repeatLine(5, 16)));
+    const q = assess(lines);
+    expect(q.status).toBe('partial');
+    expect(q.issues).toEqual([{ type: 'loop', from: '12:20', to: '17:20' }]);
+  });
+
+  test('a 3-minute teacher monologue of ordinary speech is not a loop', () => {
+    const lines = lesson({ skip: (s) => s > sec(10) && s < sec(13, 30) });
+    lines.splice(lines.findIndex((l) => l.startsWith('[13:30]')), 0, line(sec(10, 20), 0, monologue(180 * 16)));
+    expect(assess(lines).status).toBe('ok');
+  });
+
+  test('the estimate follows TRANSCRIPT_CHARS_PER_SEC', () => {
+    const lines = lesson({ from: 10, to: sec(12) }).concat([line(sec(12, 30), 0, repeatLine(28, 11))], [line(sec(39, 40), 1, 'جی')]);
+    // At 8 chars/s the same line is estimated at 2,310 s, past the next line: capped, 27 minutes, broken.
+    expect(assess(lines, 40, { TRANSCRIPT_CHARS_PER_SEC: '8' }).status).toBe('broken');
+  });
+});
+
 describe('R21: a loop under half the period, then an early stop, stays partial', () => {
   test('loop 12:00-23:30, last line 24:30, 35-minute period → partial with loop and short', () => {
     const lines = lesson({ to: sec(24, 30), say: loopAt(sec(12), sec(23, 30)) });
