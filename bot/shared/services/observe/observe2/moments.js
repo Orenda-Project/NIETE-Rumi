@@ -29,7 +29,7 @@
 const supabase = require('../../../config/supabase');
 const WhatsAppService = require('../../whatsapp.service');
 const Store = require('./field-form.store');
-const { heardLevels } = require('./rules');
+const { heardLevels, COMBINED_CODES_V6 } = require('./rules');
 const { isV6 } = require('./rubric');
 const Quality = require('../transcript-quality');
 const { checkQuotes } = require('./quote-check');
@@ -450,16 +450,18 @@ async function gradeFidelity(form, transcript, audioDurationSeconds, fidelityDep
 }
 
 /**
- * v6, a transcript the quality gate calls broken (spec §6.3): no model call. Every heard row is IE (a combined
- * row's transcript-only result is IE), the quality is stored with no moments, and the coach is told the
+ * v6, a transcript the quality gate calls broken (spec §6.3): no model call. Every heard row is IE; a combined
+ * row keeps the coach's blank level and its transcript-only result is IE (D2 has none). The quality is stored with no moments, and the coach is told the
  * recording couldn't be used. The check still opens: the coach sets the six room levels from what they saw.
  */
 async function brokenRecording(sessionId, form, quality) {
   const kept = Quality.stored(quality);
   logToFile('❌ [observe2] transcript broken: moments not read', { sessionId, formId: form.id, ...kept }, 'error');
   const because = 'the recording could not be used';
-  const levels = Object.fromEntries(Object.entries(rumiLevels([], {}, V6)).map(([code, row]) => [code,
-    row && 'dc_result' in row ? { ...row, dc_result: 'IE', because } : { level: 'IE', because, source: 'heard' }]));
+  const levels = Object.fromEntries(Object.entries(rumiLevels([], {}, V6)).map(([code, row]) => {
+    if (!COMBINED_CODES_V6.includes(code)) return [code, { level: 'IE', because, source: 'heard' }];
+    return [code, 'dc_result' in row ? { ...row, dc_result: 'IE' } : row];
+  }));
   const stored = await Store.setMoments(form.id, {
     moments: [], counts: { closed_q: 0, praise_generic: 0 }, prompt_version: PROMPT_VERSION_V3, fidelity: null,
     room_evidence: Object.fromEntries(Object.keys(ROOM_KINDS).map((c) => [c, []])), transcript_quality: kept,
