@@ -1159,11 +1159,22 @@ function applyReplacements(doc, replace) {
   const errors = [];
   const planned = [];
 
-  for (const [pointer, value] of Object.entries(replace)) {
+  const seen = new Set();
+  for (const [raw, value] of Object.entries(replace)) {
+    // bd-9mc3nz.1: the model often writes `sections/0` for `/sections/0`. Rejecting it threw away a
+    // valid patch and forced a full rewrite (19 of 31 rejections in 7 days on prod; one pushed a G10
+    // Islamiat lesson past AUTHOR_TIMEOUT). A bare pointer is read with its "/" ONLY when that names
+    // an allowed location; every rule below still applies to it.
+    const pointer = typeof raw === 'string' && !raw.startsWith('/') && allowed.has(`/${raw}`) ? `/${raw}` : raw;
     if (typeof pointer !== 'string' || !pointer.startsWith('/')) {
       errors.push(`malformed pointer: ${pointer}`);
       continue;
     }
+    if (seen.has(pointer)) {
+      errors.push(`pointer named twice: ${pointer}`);
+      continue;
+    }
+    seen.add(pointer);
     if (!allowed.has(pointer)) {
       errors.push(`pointer not in the allowed list: ${pointer}`);
       continue;

@@ -27,7 +27,7 @@
 const { CODES, ROW, PRIORITY, FOCUS, FOCUS_DOMAIN, PLAN_FOCUS, THINKING, isCoachingFocus, pickAlso } = require('./fico17');
 const { buildBrief, TYPE_CODE } = require('./brief');
 const { seenNotes } = require('./rules');
-const { focusSeen, focusNext } = require('./focus-areas');
+const { focusSeen, focusNext, workOnPicks } = require('./focus-areas');
 const { observe2Strings } = require('./strings');
 
 const RUBRIC = 'fico17';
@@ -189,7 +189,7 @@ function focusOf(form, priority) {
   };
 }
 
-const LIFTED = ['transcript_quality', 'shadow_v6'];
+const LIFTED = ['transcript_quality', 'shadow_v6', 'd2_turns'];
 function liftedFromMoments(form) {
   const rm = form.rumi_moments || {};
   return Object.fromEntries(LIFTED.filter((k) => rm[k] != null).map((k) => [k, rm[k]]));
@@ -204,9 +204,11 @@ function buildAnalysis(form, opts = {}) {
   const { applyLpFidelity } = require('../../coaching/frameworks/fico-framework');
   const review = form.evidence_review || {};
   const a = form.answers || {};
-  const priority = review.priority_final || a.priority || null;
-  // "Also work on" (R14): as the check kept them, or for a record checked before it existed, as sealed.
-  const also = Array.isArray(review.also_final) ? pickAlso(review.also_final, priority) : pickAlso([a.also_1, a.also_2], priority);
+  const picked = review.priority_final || a.priority || null;
+  // "Also work on" (R14): as the check kept them, or for a record checked before it existed, as sealed. A v6 record
+  // never works on a row with no level (NA, IE): the picks the brief tells (focus-areas.workOnPicks). v5: as picked.
+  const { priority, also } = workOnPicks(form, picked,
+    Array.isArray(review.also_final) ? pickAlso(review.also_final, picked) : pickAlso([a.also_1, a.also_2], picked));
   const analysis = {
     framework: 'fico',
     domains: {
@@ -229,8 +231,8 @@ function buildAnalysis(form, opts = {}) {
         v6_fallback: Boolean(review.v6_fallback),
         missed: Array.isArray(review.missed) ? review.missed : [],
       } : {}),
-      // FICO6 (CONTRACTS §3, §8): the transcript gate's verdict and the /observe2 shadow run, lifted from the moments
-      // job's record when it wrote them; a visit without them has neither key.
+      // FICO6 (CONTRACTS §3, §8, §11.2): the transcript gate's verdict, the /observe2 shadow run and the student turns
+      // per half (d2_turns), lifted from the moments job's record when it wrote them; a visit without them has none.
       ...liftedFromMoments(form),
       rubric_version: form.rubric_version || null,
       final_levels: form.final_levels || {},

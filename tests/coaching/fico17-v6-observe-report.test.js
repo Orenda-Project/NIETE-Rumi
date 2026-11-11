@@ -122,6 +122,7 @@ describe('hero report score bars', () => {
 describe('journey trend', () => {
   test('a v6 hero report never draws the teacher\'s V3 history beside a v6 score', () => {
     const src = require('fs').readFileSync(require.resolve('../../bot/shared/services/coaching/report-v2/hero-report.service.js'), 'utf8');
-    expect(src).toMatch(/if \(framework !== 'fico17_v6'\) try \{\s*const raw = await loadTrendData/);
+    // FICO6 r2 (redteam T7.D6): gated on the v6 stamp, which an /observe2 v6 visit (framework 'fico') also carries.
+    expect(src).toMatch(/if \(!isV6Scored\(analysis\)\) try \{\s*const raw = await loadTrendData/);
   });
 });

@@ -262,6 +262,14 @@ function validate(analysis, transcript) {
     const kept = checkItems(code, row.items || [], 'items');
     if (errors.length === before) row.items = kept.slice(0, 5);
   }
+  // fix-dc T5.1 (spec §5.6, R22): the schema never asks for D2, so a model that sends one has drifted. Counts the code
+  // could use are tolerated (computeScores overwrites them); a result or anything that is not a count is refused.
+  const d2 = ce && ce.D2;
+  if (d2 !== undefined && d2 !== null) {
+    const counts = ['student_turns_first_half', 'student_turns_second_half'];
+    if (typeof d2 !== 'object' || d2.result !== undefined) errors.push('D2: counted in code; the DC never gives D2 a result');
+    else if (counts.some((k) => d2[k] !== undefined && !(Number.isInteger(d2[k]) && d2[k] >= 0))) errors.push('D2: turn counts must be whole numbers');
+  }
 
   return { ok: errors.length === 0, errors, dropped, warnings };
 }
@@ -290,9 +298,10 @@ function computeScores(analysis, _hasLp, transcript) {
   // dropped here as well, so no stored v6 analysis can carry one.
   for (const code of v6.COMBINED_CODES) delete a.levels[code];
   a.combined_evidence = a.combined_evidence || {};
-  if (transcript && !a.combined_evidence.D2) {
+  // fix-dc T5.1: with a transcript, D2 is always the code's count, whatever the model sent (none when no line is timed).
+  if (transcript) {
     const d2 = countD2(transcript);
-    if (d2) a.combined_evidence.D2 = d2;
+    if (d2) a.combined_evidence.D2 = d2; else delete a.combined_evidence.D2;
   }
 
   const domains = {};
@@ -303,7 +312,7 @@ function computeScores(analysis, _hasLp, transcript) {
         const ce = a.combined_evidence[code] || {};
         return {
           id: code, name: ind.name, kind: 'combined', set_by: 'coach', score: null, result: null, applicable: false,
-          dc_result: ce.result === undefined ? null : (ce.result || null),
+          dc_result: code === 'D2' || ce.result === undefined ? null : (ce.result || null), // D2: counts, never a result
           evidence: (ce.items || []).map((i) => `[${i.time}] "${i.quote}"`).join(' '),
           evidence_items: ce.items || [],
           evidence_summary: '',
