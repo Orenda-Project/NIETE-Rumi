@@ -57,12 +57,16 @@ const LETTERS = ['C', 'D', 'F'];
 const READY_ENV = 'OBSERVE_FICO17_V6_READY';
 const isReady = () => process.env[READY_ENV] === 'true';
 
-async function decideVisitFramework({ userId, region } = {}) {
+async function decideVisitFramework({ userId, region, teacherUserId = null } = {}) {
   if (process.env.OBSERVE_FRAMEWORK !== 'fico') return null;
   if (!isReady()) return null;
   try {
     const { coachRubric } = require('../coaching/fico-rubric-switch');
-    return (await coachRubric({ userId, region })) === 'v6' ? V6 : null;
+    if ((await coachRubric({ userId, region })) !== 'v6') return null;
+    // bd-ra8xu.42: grades 1-5 only (operator 11 Nov ~18:05). A grades 6-12 teacher, an unknown level or an unbound
+    // capture stays V3 until FDE's 6-12 rubric lands (#94).
+    const { isPrimaryVisit } = require('../coaching/fico-visit-grade');
+    return (await isPrimaryVisit(teacherUserId)) ? V6 : null;
   } catch (_) {
     return null;
   }
