@@ -226,7 +226,8 @@ describe('hard checks after layout', () => {
     expect(JSON.stringify(res.examJson)).not.toContain('the answer is');
   });
 
-  test('a hard issue that survives the one repair fails the paper', async () => {
+  // bd-qyi45h.3: on G9-12 a leak left after every rewrite ships with last-try notes; G6-8 still fail
+  test.each([[8, 'fails'], [9, 'ships']])('a key leak that survives every rewrite on G%i %s the paper', async (grade, want) => {
     const cell = CELLS.fictional;
     const { d } = makeDeps({
       ...cell, levels: TOS.levels,
@@ -238,9 +239,15 @@ describe('hard checks after layout', () => {
         return tree;
       },
     });
-    const err = await writeBoardPaper({ grade: 9, subject: 'physics', pattern: 'p', P: cell.P, variant: cell.variant }, d).catch((e) => e);
-    expect(err.code).toBe('PATTERN_SHORT_SLOT');
-    expect(err.shortfall.length).toBeGreaterThan(0);
+    const res = await writeBoardPaper({ grade, subject: 'physics', pattern: 'p', P: cell.P, variant: cell.variant }, d).catch((e) => e);
+    if (want === 'fails') {
+      expect(res.code).toBe('PATTERN_SHORT_SLOT');
+      expect(res.shortfall.length).toBeGreaterThan(0);
+    } else {
+      expect(res.code).toBeUndefined();
+      expect(res.examJson._meta.checks.shortfall).toEqual([]);
+      expect(res.examJson._meta.checks.record.shipped_last_try).toMatchObject({ 'N18 KEY_IN_STEM': expect.any(Number) });
+    }
   });
 });
 
