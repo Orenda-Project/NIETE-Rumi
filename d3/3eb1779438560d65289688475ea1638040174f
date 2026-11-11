@@ -6,3 +6,4 @@
 {"ts":"2026-11-11T01:32:45Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (shared r2.js log line only; no teacher-visible change)","sha":"d33eb1779438","branch":"bd-k7hex-59862","user":""}
 {"ts":"2026-11-11T01:32:45Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (shared r2.js log line only; no teacher-visible change)","sha":"d33eb1779438","branch":"bd-k7hex-59862","user":""}
 {"ts":"2026-11-11T01:32:46Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"coaching=none-needed (shared r2.js log line only; no teacher-visible change)","sha":"d33eb1779438","branch":"bd-k7hex-59862","user":""}
+{"ts":"2026-11-11T01:32:46Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"status=none-needed (shared r2.js log line only; no teacher-visible change)","sha":"d33eb1779438","branch":"bd-k7hex-59862","user":""}
