@@ -135,6 +135,14 @@ describe('the Flow', () => {
   test('every v5 screen is as it was, but for the v6 marker on the last moments screen\'s footer', () => {
     for (const old of V5_FLOW.screens) {
       const now = JSON.parse(JSON.stringify(byId[old.id]));
+      if (old.id === 'HEARD_ASK') {
+        // bd-ra8xu.43: the rubric caption atop the first screen (one TextCaption + its declaration) is allowed.
+        expect(now.data.scored_with).toEqual({ type: 'string', __example__: 'FICO17 v6' });
+        delete now.data.scored_with;
+        const form = now.layout.children[0];
+        expect(form.children[0]).toEqual({ type: 'TextCaption', text: '${data.scored_with}' });
+        form.children.shift();
+      }
       if (old.id === 'HEARD_EXPLAIN') {
         const footer = fieldsOf(now).find((c) => c.type === 'Footer');
         expect(footer['on-click-action'].payload.v6c).toBe(V6_CHECK);
