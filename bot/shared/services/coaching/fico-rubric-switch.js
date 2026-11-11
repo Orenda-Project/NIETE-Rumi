@@ -17,6 +17,16 @@
  * An unknown value, no row, or a failed read is OFF ('current' / 'v3'). Read like ab_v10_enabled: fail closed,
  * 30 s cache (settings/switch-cache).
  *
+ * Failures, as built (bd-qix9oh fix-dc, RULINGS R23):
+ *   - app_settings unreadable: switch-cache answers with the last value this process read successfully, else OFF.
+ *     There is no age limit on that last good value: a process that read 'v6' and then cannot read app_settings
+ *     keeps answering 'v6' until a read succeeds (a rollback to 'current' reaches it on its first good read).
+ *     Accepted (r1 T2.1): visits are stamped at creation, so a blip must not flip one mid-flight.
+ *   - a lookup the map needs to decide fails (the region registry for an "ict"/"gb" key, or the users read for a
+ *     caller that holds only the id): OFF, never "*" (r1 T2.2). With {"*": "v6", "ict": "current"}, landing on "*"
+ *     would put an ICT coach on v6 exactly when we cannot tell they are ICT. A lookup that succeeds and finds no
+ *     region or no organization is not a failure: "*" applies as usual.
+ *
  * 'current' on the coach switch means what each tool scores today: /observe FICO V3, /observe2 FICO17 v5.
  * 'shadow' on the coach switch (bd-qix9oh.5, spec §4.2): an /observe2 visit stays v5 in everything the coach and
  * the teacher see, and its transcript is also read on v6 and stored beside it, never sent (observe2/shadow-v6.js).
@@ -38,6 +48,8 @@ const COACH_OFF = 'current';
 const DC_OFF = 'v3';
 
 const ORG_ALIASES = { niete: ['niete', 'ict'], moawin: ['moawin', 'gb'] };
+// regionOfUser's answer when the users read failed (as opposed to a user with no region).
+const REGION_UNKNOWN = Symbol('region unknown');
 
 function parse(v) {
   if (typeof v !== 'string') return v;
@@ -82,14 +94,11 @@ function resolve(map, { userId, region, organization } = {}, allowed, off) {
   return off;
 }
 
+/** The organization owning a region, null when there is none. Throws when the registry cannot be read (→ OFF). */
 async function organizationFor(region) {
   if (!norm(region)) return null;
-  try {
-    const { organizationForRegion } = require('../region-registry');
-    return await organizationForRegion(supabase, region);
-  } catch (_) {
-    return null; // the region key and "*" still apply
-  }
+  const { organizationForRegion } = require('../region-registry');
+  return organizationForRegion(supabase, region);
 }
 
 function needsOrg(map, region, userId) {
@@ -102,7 +111,21 @@ function needsOrg(map, region, userId) {
 
 async function pickFor(map, who, allowed, off) {
   const w = who || {};
-  const organization = w.organization || (needsOrg(map, w.region, w.userId) ? await organizationFor(w.region) : null);
+  if (w.region === REGION_UNKNOWN) {
+    // The users read failed: only a key that needs no region ("user:<id>", or "*" alone) can decide.
+    const own = w.userId && map[`user:${norm(String(w.userId))}`] !== undefined;
+    if (!own && Object.keys(map).some((k) => k !== '*' && !k.startsWith('user:'))) return off;
+    return resolve(map, { userId: w.userId }, allowed, off);
+  }
+  let organization = w.organization || null;
+  if (!organization && needsOrg(map, w.region, w.userId)) {
+    try {
+      organization = await organizationFor(w.region);
+    } catch (err) {
+      logToFile('fico rubric switch: region registry lookup failed — treating as off', { error: err.message }, 'error');
+      return off;
+    }
+  }
   return resolve(map, { userId: w.userId, region: w.region, organization }, allowed, off);
 }
 
@@ -142,20 +165,24 @@ async function isAnySet(kind, now = Date.now()) {
   }
 }
 
-/** The region of a user id, for callers that hold only the id. Null on any failure (→ "*" or off). */
+/**
+ * The region of a user id, for callers that hold only the id. Null when the user has none; a failed read is
+ * REGION_UNKNOWN, which resolves to OFF wherever the region would have mattered (T2.2), and to "*" where it would not.
+ */
 async function regionOfUser(userId) {
   if (!userId) return null;
   try {
-    const { data } = await supabase.from('users').select('region').eq('id', userId).maybeSingle();
+    const { data, error } = await supabase.from('users').select('region').eq('id', userId).maybeSingle();
+    if (error) return REGION_UNKNOWN;
     return (data && data.region) || null;
   } catch (_) {
-    return null;
+    return REGION_UNKNOWN;
   }
 }
 
 function _resetCache() { cache.reset(); }
 
 module.exports = {
-  COACH_KEY, DC_KEY, COACH_VALUES, DC_VALUES, COACH_OFF, DC_OFF,
+  COACH_KEY, DC_KEY, COACH_VALUES, DC_VALUES, COACH_OFF, DC_OFF, REGION_UNKNOWN,
   asMap, resolve, coachRubric, dcRubric, isAnySet, regionOfUser, _resetCache,
 };
