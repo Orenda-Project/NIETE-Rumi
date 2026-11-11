@@ -30,6 +30,51 @@ describe('creating and reading', () => {
   });
 });
 
+describe('shadow (fico_coach_rubric = shadow, bd-qix9oh.5)', () => {
+  const Rubric = require('../../bot/shared/services/observe/observe2/rubric');
+  const Switch = require('../../bot/shared/services/coaching/fico-rubric-switch');
+  const withSwitch = (value) => { mockFake.__tables.app_settings = [{ key: 'fico_coach_rubric', value }]; Switch._resetCache(); };
+  afterEach(() => Switch._resetCache());
+
+  test('a shadow visit is stamped v5 and marked shadow_v6, keeping the caller\'s visit context', async () => {
+    withSwitch('{"*":"shadow"}');
+    const f = await newForm();
+    expect(f.rubric_version).toBe(Store.RUBRIC_VERSION);
+    expect(f.visit_context).toEqual({ teacher_ext_id: 'x1', shadow_v6: true });
+    expect(Rubric.isShadow(f)).toBe(true);
+    expect(Rubric.isV6(f)).toBe(false);
+    expect(Rubric.rubricFor(f)).toBe('fico17');
+  });
+  test('switch off or v6: no shadow mark; v6 stays v6', async () => {
+    const off = await newForm();
+    expect(off.visit_context).toEqual({ teacher_ext_id: 'x1' });
+    expect(Rubric.isShadow(off)).toBe(false);
+    withSwitch('v6');
+    const v6 = await newForm();
+    expect(v6.rubric_version).toBe('fico17_v6');
+    expect(v6.visit_context).toEqual({ teacher_ext_id: 'x1' });
+    expect(Rubric.rubricFor(v6)).toBe('fico17_v6');
+  });
+  test('setShadowV6 merges into rumi_moments and leaves the v5 moments and levels as they were', async () => {
+    const f = await newForm();
+    await Store.setMoments(f.id, { moments: [{ id: 'ask_1' }], prompt_version: 'observe2-moments-v2' }, { C1: { level: 2 } });
+    const before = (await Store.getForm(f.id)).form;
+    const r = await Store.setShadowV6(f.id, { status: 'ok', prompt_version: 'observe2-moments-v3' });
+    expect(r.ok).toBe(true);
+    const after = (await Store.getForm(f.id)).form;
+    expect(after.rumi_moments).toEqual({ ...before.rumi_moments, shadow_v6: { status: 'ok', prompt_version: 'observe2-moments-v3' } });
+    expect(after.rumi_levels).toEqual(before.rumi_levels);
+    expect(after.moments_ready_at).toBe(before.moments_ready_at);
+  });
+  test('setShadowV6 reports a database error at error, never throws', async () => {
+    const f = await newForm();
+    mockFake.__failNext({ message: 'boom' });
+    const r = await Store.setShadowV6(f.id, { status: 'ok' });
+    expect(r.ok).toBe(false);
+    expect(logToFile).toHaveBeenCalledWith(expect.stringMatching(/setShadowV6 failed/), expect.any(Object), 'error');
+  });
+});
+
 describe('saving parts', () => {
   test('Part 1 keeps only its own fields, stamps the halfway mark once', async () => {
     const f = await newForm();
