@@ -5,8 +5,11 @@
  * on the paper, so the teacher checks it before printing. Wraps the writer, which stays as it is.
  */
 
-const NOTE_EN = 'Note: this paper does not fully match the FDE blueprint — please check it before printing.';
-const NOTE_UR = 'نوٹ: یہ پرچہ FDE بلیو پرنٹ سے مکمل طور پر مطابقت نہیں رکھتا — چھاپنے سے پہلے اسے جانچ لیں۔'; // needs fluent-Urdu review
+const { clampLanguage, resolveUx } = require('../../config/ux-strings');
+
+const NOTE_KEY = 'assessmentOffBlueprintNote';
+const NOTE_EN = resolveUx(NOTE_KEY, { language: 'en' });
+const NOTE_UR = resolveUx(NOTE_KEY, { language: 'ur' });
 
 // Every section carried its own level targets and met them to the mark, and the only misses are
 // whole-paper level shares: the pattern's two targets disagree, so a rewrite cannot fix it.
@@ -21,9 +24,9 @@ const offBlueprint = (paper) => {
 
 function flag(paper) {
   const L = paper.examJson._layout;
-  const lang = L.medium === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(L.medium);
   const key = `note_${lang}`;
-  const note = lang === 'ur' ? NOTE_UR : NOTE_EN;
+  const note = resolveUx(NOTE_KEY, { language: lang });
   L.header = { ...L.header, [key]: L.header && L.header[key] ? `${L.header[key]} ${note}` : note };
   return paper;
 }
