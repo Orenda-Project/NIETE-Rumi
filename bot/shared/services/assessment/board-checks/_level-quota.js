@@ -115,4 +115,21 @@ function overQuota(examJson, target) {
   return out;
 }
 
-module.exports = { quotaFor, leftFor, overQuota, attainable };
+/**
+ * bd-qyi45h.1 (c): one loggable line per run of the level-mix check. Per level: have (the paper's marks share),
+ * target, reach (what the slot quotas reach), each to 0.1; the tolerance, the split's status and pass (no
+ * LEVEL_OVER). Null without a split or a scorable item. Carries no person ids.
+ */
+function levelShares(examJson, target) {
+  if (!target || !target.levels) return null;
+  const have = share(examJson);
+  if (!have) return null;
+  const reach = attainable(examJson, target.levels) || {};
+  const r1 = (x) => (x == null ? null : Math.round(x * 10) / 10);
+  const levels = {};
+  Object.keys(target.levels).forEach((k) => { levels[k] = { have: r1(have[k] || 0), target: Number(target.levels[k]) || 0, reach: r1(reach[k]) }; });
+  const tol = Number.isFinite(target.tolerance_pp) ? target.tolerance_pp : 5;
+  return { levels, tolerance_pp: tol, status: target.status || null, pass: !overQuota(examJson, target).length };
+}
+
+module.exports = { quotaFor, leftFor, overQuota, attainable, levelShares };
