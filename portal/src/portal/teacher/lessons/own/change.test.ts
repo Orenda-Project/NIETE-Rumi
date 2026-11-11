@@ -9,9 +9,10 @@ import { CHANGE_PARTS, LESSONS_CHANGE, changeUrl, checkLocal, isRefusal, readCha
 const AT: ChangeAt = { own: 'own-1', band: 'k5', left: 2, grade: 4, subject: 'math', chapter: '1', lesson: 'g4m2', title: 'Adding' };
 
 describe('the parts she may change', () => {
-  it('grades 1–5: the five GRR steps; grades 6–12: the plan\'s own sections, or the whole plan', () => {
+  it('grades 1–5: the five GRR steps; grades 6–12: the plan\'s own sections — never the whole plan (bd-snkn32.19)', () => {
     expect(CHANGE_PARTS.k5).toEqual(['hook', 'i_do', 'we_do', 'you_do', 'wrap']);
-    expect(CHANGE_PARTS.g612).toEqual(['objectives', 'introduction', 'development', 'activity', 'conclusion', 'homework', 'whole']);
+    expect(CHANGE_PARTS.g612).toEqual(['objectives', 'introduction', 'development', 'activity', 'conclusion', 'homework']);
+    expect(checkLocal('g612', 'whole', 'Rewrite the whole plan please')).toBe('bad_request');
   });
 });
 
@@ -21,6 +22,13 @@ describe('the address', () => {
     expect(readChange(changeUrl(AT).split('?')[1])).toEqual(AT);
     const g612 = { ...AT, band: 'g612' as const, left: 1, chapter: undefined, title: undefined, lesson: 'sci8.c02.p010' };
     expect(readChange(changeUrl(g612).split('?')[1])).toEqual(g612);
+  });
+
+  it('bd-snkn32.19: a section card names its part, and only a part of her band survives', () => {
+    const withPart = { ...AT, part: 'we_do' as const };
+    expect(readChange(changeUrl(withPart).split('?')[1])).toEqual(withPart);
+    expect(readChange(changeUrl(AT).split('?')[1] + '&part=whole')).toEqual(AT);
+    expect(readChange(changeUrl(AT).split('?')[1] + '&part=development')).toEqual(AT);
   });
 
   it('refuses an address without a plan, a band, a grade, a subject or a lesson', () => {
@@ -49,7 +57,7 @@ describe('before anything is sent', () => {
   });
 
   it('knows the bot\'s refusals and nothing else', () => {
-    for (const o of ['too_short', 'too_small', 'repeat', 'in_flight', 'cap_reached', 'daily_limit']) expect(isRefusal(o)).toBe(true);
+    for (const o of ['too_short', 'too_small', 'repeat', 'in_flight', 'cap_reached', 'daily_limit', 'grr', 'rote']) expect(isRefusal(o)).toBe(true);
     expect(isRefusal('bad_request')).toBe(false);
     expect(isRefusal('<script>')).toBe(false);
     expect(isRefusal(undefined)).toBe(false);

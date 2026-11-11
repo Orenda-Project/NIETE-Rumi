@@ -33,6 +33,7 @@ const { parseOwnAnswers } = require('./lp612-own-instruction');
 const { DAILY_LIMIT, karachiDayStart, changesLeft, bandOf } = require('./lp-own-edit-guard');
 const { parseExtend, isAdjacentNext } = require('./lp612-own-extend');
 const { parseK5Pages } = require('./lp-k5-own-pages');
+const { check612Pages } = require('./lp612-own-pages');
 
 const OWN_TABLE = 'niete_lp612_own_plans';
 const OWN_JOB_TYPE = 'lp612_own';
@@ -125,6 +126,8 @@ function createOwnService(deps) {
       const refused = await checkExtend({ segmentId, extend: ext.extend, userId, tv, correlationId });
       if (refused) return refused;
     }
+    const pg = await check612Pages(d, { segmentId, pages: answers.pages, extend: ext.extend }); // item 14
+    if (!pg.ok) return { outcome: 'bad_request', error: pg.error };
     const parent = await d.readStoredDoc({ segmentId, lang: OWN_LANG, tv, correlationId });
     if (!parent) {
       const asked = await d.requestParent({ segmentId, userId, lang: OWN_LANG, surface: 'portal', correlationId });
@@ -139,7 +142,7 @@ function createOwnService(deps) {
       lang: OWN_LANG,
       template_version: tv,
       status: 'authoring',
-      answers: ext.extend ? { ...parsed.answers, extend: ext.extend } : parsed.answers,
+      answers: { ...parsed.answers, ...(ext.extend ? { extend: ext.extend } : {}), ...(pg.pages ? { pages: pg.pages } : {}) },
       correlation_id: correlationId,
     });
     if (!row || !row.id) return { outcome: 'error' };

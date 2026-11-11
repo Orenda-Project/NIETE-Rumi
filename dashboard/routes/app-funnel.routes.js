@@ -273,7 +273,122 @@ function createAppFunnelRouter({ limiter } = {}) {
     (err, _req, res, _next) => res.status(err && err.status === 413 ? 413 : 400).end(),
   );
 
+  /**
+   * "Get ready for offline" and the class list on the coach's page (portal lib/assess/offlineReport.ts). Both ran only
+   * on the phone: a Get ready that never finished, or a class list that never came, left no trace on our side. One
+   * row per report, every field a flat top-level column (never a nested object), the user from the SESSION:
+   *   sa_prep.result         Get ready ended (ready / partly / updating): counts, the engine's reason, up to 5 missing
+   *                          paths (no query string), the two service workers' state
+   *   sa_prep.still_waiting  Get ready still running 120 s after the tap (once per tap), and where it is
+   *   sa_list.failed         the list read failed: the server's reason, a network failure or not, the HTTP status
+   *   sa_list.slow           the list still not on screen 15 s after its step opened
+   *   sa_list.late           a list that was slow did come, and when
+   * Counts, known words and booleans only: no names, no ids, no children.
+   */
+  router.post(
+    '/funnel/sa-offline',
+    requireSession,
+    express.text({ type: 'text/*', limit: '4kb' }),
+    (req, res) => {
+      let body = req.body;
+      if (typeof body === 'string') { try { body = JSON.parse(body); } catch (_) { body = null; } }
+      if (!body || typeof body !== 'object' || Array.isArray(body) || !Object.prototype.hasOwnProperty.call(SA_OFFLINE_KINDS, body.k)) {
+        return res.status(400).end();
+      }
+      const now = Date.now();
+      if (!limits.take(appSessionId(req.session, req), 1, now)) return res.status(429).end();
+      const pick = (v, allowed) => (allowed.includes(v) ? v : 'unknown');
+      const bool = (v) => (typeof v === 'boolean' ? v : null);
+      const ms = (v) => clampInt(v, 60 * 60 * 1000);
+      const grade = (v) => (Number.isInteger(v) && v >= 1 && v <= 12 ? v : null);
+      const { journeyId, ...base } = who(req, now);
+      const props = { ...base, journeyId, feature: 'learning_assessment', browser: browserClass(req, body.b), ...micPhone(req), browserMajor: chromeMajor(req) };
+      const k = body.k;
+      if (k === 'prep' || k === 'prep_waiting' || k === 'list_slow') Object.assign(props, swState(body, bool));
+      if (k === 'prep') {
+        Object.assign(props, {
+          outcome: pick(body.outcome, PREP_OUTCOMES),
+          ok: body.ok === true,
+          why: saWhy(body.why),
+          total: clampInt(body.total, 100000),
+          cached: clampInt(body.cached, 100000),
+          missing: clampInt(body.missing, 100000),
+          missingPaths: (Array.isArray(body.missingPaths) ? body.missingPaths : []).map(sitePath).filter(Boolean).slice(0, 5),
+          missingForms: (Array.isArray(body.missingForms) ? body.missingForms : []).filter((f) => typeof f === 'string' && SA_FORM.test(f)).slice(0, 20),
+          bytes: clampInt(body.bytes, 4 * 1024 * 1024 * 1024),
+          forms: clampInt(body.forms, 100),
+          schools: clampInt(body.schools, 500),
+          listed: clampInt(body.listed, 500),
+          grades: clampInt(body.grades, 12),
+          elapsedMs: ms(body.elapsedMs),
+          pageKept: bool(body.pageKept),
+        });
+      } else if (k === 'prep_waiting') {
+        Object.assign(props, { phase: pick(body.phase, PREP_PHASES), done: clampInt(body.done, 100000), total: clampInt(body.total, 100000), elapsedMs: ms(body.elapsedMs) });
+      } else if (k === 'list_failed') {
+        const status = Number(body.status);
+        Object.assign(props, {
+          reason: body.reason == null ? 'none' : saWhy(body.reason),
+          shown: pick(body.shown, LIST_SHOWN),
+          network: bool(body.network),
+          status: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
+          elapsedMs: ms(body.elapsedMs),
+          grade: grade(body.grade),
+        });
+      } else if (k === 'list_slow') {
+        Object.assign(props, { elapsedMs: ms(body.elapsedMs), pending: bool(body.pending), grade: grade(body.grade) });
+      } else {
+        Object.assign(props, { elapsedMs: ms(body.elapsedMs), grade: grade(body.grade) });
+      }
+      emit(SA_OFFLINE_KINDS[k], props);
+      return res.status(204).end();
+    },
+    (err, _req, res, _next) => res.status(err && err.status === 413 ? 413 : 400).end(),
+  );
+
   return router;
+}
+
+const SA_OFFLINE_KINDS = {
+  prep: 'sa_prep.result', prep_waiting: 'sa_prep.still_waiting', list_failed: 'sa_list.failed', list_slow: 'sa_list.slow', list_late: 'sa_list.late',
+};
+const PREP_OUTCOMES = ['ready', 'partly', 'updating'];
+const PREP_PHASES = ['page', 'lists', 'files'];
+const LIST_SHOWN = ['problem', 'failed', 'saved_list'];
+const SW_STATES = ['none', 'parsed', 'installing', 'installed', 'activating', 'activated', 'redundant'];
+const SA_FORM = /^sa\.coach\.G\d{1,2}\.A\.(en|ur)$/;
+
+/** An engine or server reason: a short snake_case word, else 'other' (a thrown message is never logged as text). */
+function saWhy(v) {
+  if (v == null || v === '') return null;
+  return typeof v === 'string' && /^[a-z][a-z0-9_]{0,39}$/.test(v) ? v : 'other';
+}
+
+/** A same-site path without its query string (a school or visit id never reaches the log), or null. */
+function sitePath(v) {
+  if (typeof v !== 'string' || v[0] !== '/' || v[1] === '/') return null;
+  const path = v.split(/[?#]/)[0];
+  return /^\/[A-Za-z0-9._~/-]{0,160}$/.test(path) ? path : null;
+}
+
+/** The two service workers as the page saw them: the page's (/portal/leader/assess) and the engine's (/sa/). */
+function swState(body, bool) {
+  const script = (v) => (v === '' || v == null ? '' : (sitePath(v) || 'unknown'));
+  return {
+    pageSwControlled: bool(body.pageSwControlled),
+    pageSwScript: script(body.pageSwScript),
+    saSwScript: script(body.saSwScript),
+    saSwActive: SW_STATES.includes(body.saSwActive) ? body.saSwActive : 'unknown',
+    saSwWaiting: bool(body.saSwWaiting),
+    saSwInstalling: bool(body.saSwInstalling),
+    saSwUpdateFound: bool(body.saSwUpdateFound),
+  };
+}
+
+/** Chrome's major version from the user agent (never stored), or null. */
+function chromeMajor(req) {
+  const m = String(req.get('user-agent') || '').slice(0, 300).match(/(?:Chrome|CriOS)\/(\d{2,3})\./);
+  return m ? Number(m[1]) : null;
 }
 
 const MIC_PHASES = ['probe', 'answer'];

@@ -5159,29 +5159,31 @@ DECLARE
   v_updated INTEGER;
   v_status  TEXT;
 BEGIN
-  -- ONE statement: the row lock serialises concurrent callers and `waiters` is re-read under it,
+  -- ONE statement. The row lock serialises concurrent callers and `waiters` is re-read under it,
   -- so an append can never be computed from a stale copy.
   UPDATE niete_lp612_renders
      SET waiters    = waiters || jsonb_build_array(p_entry),
          updated_at = NOW()
    WHERE id = p_render_id
-     -- Refuse to attach a waiter to a run that is already over: the worker clears `waiters` when
-     -- it delivers, so an append a moment later means waiting for ever. The caller re-decides.
      AND status = 'authoring'
-     -- Tapping twice must not mean being sent the lesson twice. Deduped on PHONE, because that is
-     -- what delivery actually uses and it is present for every caller; user_id may be null.
+     -- Tapping twice must not mean being sent the lesson twice. With a phone, de-duplicate on phone
+     -- (what WhatsApp delivery uses). Without one (portal), on (user_id, surface): phone NULL must never
+     -- match another phone NULL, or every portal teacher after the first is silently dropped (bd-2ibyoi).
      AND NOT EXISTS (
        SELECT 1 FROM jsonb_array_elements(waiters) AS w
-        WHERE w->>'phone' IS NOT DISTINCT FROM p_entry->>'phone'
+        WHERE CASE
+                WHEN p_entry->>'phone' IS NOT NULL THEN w->>'phone' = p_entry->>'phone'
+                ELSE w->>'phone' IS NULL
+                 AND w->>'user_id' IS NOT DISTINCT FROM p_entry->>'user_id'
+                 AND COALESCE(w->>'surface', 'whatsapp') = COALESCE(p_entry->>'surface', 'whatsapp')
+              END
      );
-
   GET DIAGNOSTICS v_updated = ROW_COUNT;
   IF v_updated = 1 THEN
     RETURN 'joined';
   END IF;
-
   SELECT status INTO v_status FROM niete_lp612_renders WHERE id = p_render_id;
-  IF v_status IS NULL        THEN RETURN 'missing';       END IF;
+  IF v_status IS NULL       THEN RETURN 'missing';       END IF;
   IF v_status <> 'authoring' THEN RETURN 'not_authoring'; END IF;
   RETURN 'duplicate';
 END;

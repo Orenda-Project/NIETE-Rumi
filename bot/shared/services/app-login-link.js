@@ -131,9 +131,10 @@ const carriesPrefill = (f) => typeof f === 'string' && (own(PREFILL_FEATURES, f)
 function ownPrefillOf(q) {
   if (!q || typeof q !== 'object') return null;
   const { grade, subject, chapter } = q;
-  if (!Number.isInteger(grade) || grade < 6 || grade > 12) return null;
-  if (typeof subject !== 'string' || !/^[A-Za-z][A-Za-z0-9 &.()'-]{0,59}$/.test(subject)) return null;
-  if (typeof chapter !== 'string' || !/^[a-z0-9]{1,16}$/.test(chapter)) return null;
+  if (!Number.isInteger(grade) || grade < 1 || grade > 12) return null;
+  // 1-5 name a subject by its key (general_knowledge) and a review chapter as R1; 6-12 by name and c01.
+  if (typeof subject !== 'string' || !/^[A-Za-z][A-Za-z0-9 _&.()'-]{0,59}$/.test(subject)) return null;
+  if (typeof chapter !== 'string' || !/^[A-Za-z0-9]{1,16}$/.test(chapter)) return null;
   return { grade, subject, chapter };
 }
 

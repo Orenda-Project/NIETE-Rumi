@@ -1,11 +1,13 @@
 'use strict';
 /**
- * Coach Training — the coaching programme's nine modules, one per behaviour of the coach-debrief rubric (the eight a
- * coach's debrief is judged on, in the rubric's order) and a ninth, the full debrief. Each module is a page the ICT HITL
+ * Coach Training — the coaching programme's modules: nine on the debrief, one per behaviour of the coach-debrief rubric
+ * (the eight a coach's debrief is judged on, in the rubric's order) and a ninth, the full debrief; then Module 10, "No
+ * evidence, no level" (the owner's DM, 10 Nov 2026), on evidence and the written reason behind an observation level. It is
+ * no debrief behaviour's module, so BEHAVIOUR_MODULE does not name it. Each module is a page the ICT HITL
  * owner hosts (a claude.ai artifact, checked to open signed out on a phone); moving them is a change here only.
  *
- * Each module has its page (`artifact`) and its video lesson (`video`, the owner's DM 5 Nov 2026); the Coach Training
- * page offers both, and the Feedback Report links the module page.
+ * Each module has its page (`artifact`) and its video lesson (`video`, the owner's DM 5 Nov 2026), or null while the
+ * video is still being made (Module 10); the Coach Training page offers both, and the Feedback Report links the module page.
  *
  * The coach's Feedback Report links its next focus to the module of that behaviour (observe-coach-rubric.js). The
  * portal holds the same map (portal/src/portal/coach/coachTraining/modules.ts, for the Coach Training page) and a test
@@ -22,6 +24,7 @@ const COACH_MODULES = Object.freeze([
   { n: 7, key: 'less', artifact: 'SBrvLUoSySSXCKVyshX72q', video: 'GgzCzuPjSBYNFH7qspadNy', title: { en: 'Talk less', ur: 'کم بولیں، استاد کو بولنے دیں' } },
   { n: 8, key: 'rehearse', artifact: 'MGVm5YMAdQhRCrWRWWg65C', video: 'FnhqM4ae3uV1XwwwgSYfYs', title: { en: 'Rehearse it aloud', ur: 'جانے سے پہلے زبانی پریکٹس' } },
   { n: 9, key: 'full', artifact: 'SZyvWZYrmMFn1XrhtnFGL8', video: 'MUxJFCkertstuJXnNNF9LC', title: { en: 'The full debrief', ur: 'مکمل ڈی بریف' } },
+  { n: 10, key: 'evidence', artifact: '62371mmVGLxniEHz6VGRXx', video: null, title: { en: 'No evidence, no level', ur: 'ثبوت نہیں تو لیول نہیں' } },
 ]);
 
 /** The judge's rubric key → its module number. */

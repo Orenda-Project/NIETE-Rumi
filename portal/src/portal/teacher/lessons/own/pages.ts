@@ -40,3 +40,33 @@ export function checkPages(from: string, to: string, day: PageRange | null): Pag
   const daySpan = day ? day.end - day.start + 1 : 0;
   return r.end - r.start + 1 <= Math.max(MAX_SPAN, daySpan) ? r : null;
 }
+
+/**
+ * grades 6–12: what she typed, kept inside the lesson's pages, or running on to exactly the end of the
+ * next lesson's (then `both`: she teaches the two lessons, in one period or a double). The bot checks again.
+ */
+export function checkPages612(
+  from: string, to: string, lesson: PageRange | null, next: PageRange | null,
+): { range: PageRange; both: boolean } | null {
+  const n = (s: string) => (/^\s*\d+\s*$/.test(s) ? Number(s) : NaN);
+  const r = range(n(from), n(to));
+  if (!r || !lesson || r.start < lesson.start || r.start > lesson.end) return null;
+  if (r.end <= lesson.end) return { range: r, both: false };
+  return next && r.end === next.end ? { range: r, both: true } : null;
+}
+
+export type PagesPick = { range: PageRange; both: boolean };
+
+/** One check for every band: 1–5 as the bot's lp-k5-own-pages, 6–12 inside the lesson or through the next. */
+export function checkBand(k5: boolean, from: string, to: string, lesson: PageRange | null, next: PageRange | null): PagesPick | null {
+  if (!k5) return checkPages612(from, to, lesson, next);
+  const r = checkPages(from, to, lesson);
+  return r ? { range: r, both: false } : null;
+}
+
+/** Her pages ride in the address only when they are not the natural range (the lesson's, or through the next one). */
+export function pgToSend(pick: PagesPick | null, lesson: PageRange | null, next: PageRange | null): PageRange | undefined {
+  if (!pick || !lesson) return undefined;
+  const natural = pick.both && next ? { start: lesson.start, end: next.end } : lesson;
+  return samePages(pick.range, natural) ? undefined : pick.range;
+}

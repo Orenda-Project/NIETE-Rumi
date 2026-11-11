@@ -9,6 +9,10 @@ import { FOCUS, GRID } from './styles';
  * coach's Coach Training module screen uses it plain (PDF / Video). A plain square is white with its art on a grey disc
  * over the word; `to` makes a square a link, `onPress` a button. 176px squares, or 88px with the art beside the word
  * (`compact`).
+ *
+ * bd-rlxkkt.12 — `off` + `note`: a square that is not there yet (Coach Training Module 10's Video, "Coming soon"). It keeps
+ * its place so the pair still reads as two, greyed, a real disabled button with the note under the word, and its name is
+ * "<label>, <note>".
  */
 export interface ChoiceItem {
   key: string;
@@ -18,6 +22,9 @@ export interface ChoiceItem {
   to?: string;
   onPress?: () => void;
   testId?: string;
+  /** Not there yet: drawn greyed and disabled, with `note` under the word. */
+  off?: boolean;
+  note?: string;
 }
 
 export interface ChoicePairProps {
@@ -36,10 +43,14 @@ export const PLAIN_SQUARE = 'border border-[#e5e7eb] bg-white text-[#1d2025] sha
 export const discClass = (compact: boolean) =>
   cn('flex shrink-0 items-center justify-center rounded-full bg-[#e8e9f0] text-[#33374a]', compact ? 'h-11 w-11' : 'h-[84px] w-[84px]');
 
-export function PairSquare({ to, onPress, className, children, name, compact, testId }: {
-  to?: string; onPress?: () => void; className: string; children: ReactNode; name: string; compact?: boolean; testId?: string;
+/** A square that is not there yet: the plain square, greyed. */
+const OFF_SQUARE = 'border border-dashed border-[#d1d5db] bg-[#f3f4f6] text-[#6b7280] cursor-not-allowed';
+
+export function PairSquare({ to, onPress, className, children, name, compact, testId, off }: {
+  to?: string; onPress?: () => void; className: string; children: ReactNode; name: string; compact?: boolean; testId?: string; off?: boolean;
 }) {
   const shape = compact ? COMPACT : SQUARE;
+  if (off) return <button type="button" disabled aria-label={name} data-testid={testId} className={cn(shape, OFF_SQUARE, FOCUS)}>{children}</button>;
   return to
     ? <Link to={to} aria-label={name} data-testid={testId} className={cn(shape, className, FOCUS)}>{children}</Link>
     : <button type="button" onClick={onPress} aria-label={name} data-testid={testId} className={cn(shape, className, FOCUS)}>{children}</button>;
@@ -59,9 +70,15 @@ export function ChoicePair({ items, compact = false, className }: ChoicePairProp
     <PairBox compact={compact} className={className}>
       <div className={cn(GRID, 'grid-cols-2 gap-3')}>
         {items.map((it) => (
-          <PairSquare key={it.key} to={it.to} onPress={it.onPress} name={it.label} compact={compact} testId={it.testId} className={PLAIN_SQUARE}>
-            <span aria-hidden="true" className={discClass(compact)}>{it.art}</span>
-            <span aria-hidden="true">{it.label}</span>
+          <PairSquare key={it.key} to={it.off ? undefined : it.to} onPress={it.off ? undefined : it.onPress} off={it.off}
+            name={it.off && it.note ? `${it.label}, ${it.note}` : it.label} compact={compact} testId={it.testId} className={PLAIN_SQUARE}>
+            <span aria-hidden="true" className={cn(discClass(compact), it.off && 'text-[#9ca3af]')}>{it.art}</span>
+            {it.off && it.note ? (
+              <span aria-hidden="true" className="flex flex-col items-center gap-1">
+                <span>{it.label}</span>
+                <span className="text-[13px] font-medium text-[#6b7280]">{it.note}</span>
+              </span>
+            ) : <span aria-hidden="true">{it.label}</span>}
           </PairSquare>
         ))}
       </div>

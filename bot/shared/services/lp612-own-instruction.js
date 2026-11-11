@@ -10,8 +10,10 @@
  */
 
 const {
-  SECONDARY_WAYS, PURPOSES, bandOf, gradeOfSegment, waysOfBand, purposesOfBand,
+  SECONDARY_WAYS, GRR_LINE, ROTE_LINE, bookLine, bandOf, gradeOfSegment, waysOfBand, waysOfGrade, purposesOfBand,
+  purposesOfGrade, purposeLine,
 } = require('./lp612-own-ways');
+const { pagesLine612 } = require('./lp612-own-pages');
 const { sloMix, sloCodes } = require('./lp612-own-slo');
 
 const NOTE_MAX = 200;
@@ -30,6 +32,13 @@ const RESOURCES = {
   charts: 'charts or flashcards',
   objects: 'things from around (stones, sticks, bottle caps)',
   audio: 'a phone or speaker',
+};
+/** the same codes as a 6–12 teacher means them (spec: same code, band label). */
+const RESOURCES_612 = {
+  ...RESOURCES,
+  charts: 'charts or diagrams',
+  objects: 'lab things or models (magnets, beakers, a globe, a ruler)',
+  audio: 'a phone (video or audio)',
 };
 
 const LEVELS = {
@@ -55,9 +64,11 @@ function bad(error) {
  * bd-snkn32.13 — her grade band, from ctx.grade or the segment id: 'middle' / 'senior' for grades 6–12, else null
  * (grades 1–5, or no context at all: the primary ways, as before).
  */
+const gradeOf = (c) => (c.grade != null ? c.grade : gradeOfSegment(c.segmentId));
+
 function secondaryBand(ctx) {
   const c = ctx || {};
-  const band = bandOf(c.grade != null ? c.grade : gradeOfSegment(c.segmentId));
+  const band = bandOf(gradeOf(c));
   if (band === 'middle' || band === 'senior') return band;
   // A segment is always a 6–12 lesson: one whose id names no grade gets the widest 6–12 set.
   return band == null && c.segmentId ? 'senior' : null;
@@ -75,7 +86,9 @@ function parseOwnAnswers(body, ctx) {
   if (!Object.prototype.hasOwnProperty.call(SIZES, b.size)) return bad('size is not one of the choices');
   if (!Object.prototype.hasOwnProperty.call(LEVELS, b.level)) return bad('level is not one of the choices');
   const band = secondaryBand(ctx);
-  const ways = band ? waysOfBand(band) : Object.keys(WAYS);
+  // by grade, so Grade 8 alone gets FDE exam practice; a segment naming no grade gets the senior set.
+  const grade = gradeOf(ctx || {});
+  const ways = !band ? Object.keys(WAYS) : (bandOf(grade) ? waysOfGrade(grade) : waysOfBand(band));
   if (!ways.includes(b.way)) return bad('way is not one of the choices');
   const given = b.resources == null ? [] : b.resources;
   if (!Array.isArray(given)) return bad('resources must be a list');
@@ -88,7 +101,9 @@ function parseOwnAnswers(body, ctx) {
   const answers = { size: b.size, resources, level: b.level, way: b.way, note };
   if (!band) return { ok: true, answers };
   if (b.purpose != null) {
-    if (!purposesOfBand(band).includes(b.purpose)) return bad('purpose is not one of the choices');
+    // by grade too: Grade 8 has exam practice (FDE) where 6–7 do not.
+    const purposes = bandOf(grade) ? purposesOfGrade(grade) : purposesOfBand(band);
+    if (!purposes.includes(b.purpose)) return bad('purpose is not one of the choices');
     answers.purpose = b.purpose;
   }
   if (b.focus != null) {
@@ -101,7 +116,8 @@ function parseOwnAnswers(body, ctx) {
 /** bd-snkn32.13 — the grades 6–12 lines: room to adapt, what the lesson is for, which SLOs come first. */
 function secondaryLines(a, ctx) {
   const lines = ['Grades 6-12: the teacher may reorder or replace activities to fit her class, as long as every learning outcome is still taught.'];
-  if (PURPOSES[a.purpose]) lines.push(PURPOSES[a.purpose]);
+  const purpose = purposeLine(a.purpose, gradeOf(ctx));
+  if (purpose) lines.push(purpose);
   const codes = sloCodes(ctx.segmentId, ctx.sloMap);
   if (a.purpose === 'board' && codes.length) lines.push(`The SLO codes for these pages: ${codes.join(', ')}.`);
   const mix = FOCI.includes(a.focus) ? sloMix(ctx.segmentId, ctx.sloMap) : null;
@@ -114,25 +130,34 @@ function secondaryLines(a, ctx) {
   return lines;
 }
 
-/** The instruction for reviseLessonPlan. Takes parsed answers only; ctx as parseOwnAnswers's. */
+/**
+ * The instruction for reviseLessonPlan. Takes parsed answers only; ctx as parseOwnAnswers's, plus `bookText` (her
+ * book's page text, lp-own-book; optional).
+ */
 function buildOwnInstruction(answers, ctx) {
   const a = answers || {};
   const way = WAYS[a.way] || SECONDARY_WAYS[a.way];
   if (!SIZES[a.size] || !LEVELS[a.level] || !way || !Array.isArray(a.resources)) {
     throw new Error('buildOwnInstruction needs answers from parseOwnAnswers');
   }
-  const have = a.resources.map((r) => RESOURCES[r]).join(', ');
+  const secondary = secondaryBand(ctx);
+  const have = a.resources.map((r) => (secondary ? RESOURCES_612 : RESOURCES)[r]).join(', ');
   const lines = [
     'Rewrite this lesson for ONE teacher\'s own class. Keep the same pages, the same learning outcomes and the same layout and length.',
     `Her class: ${SIZES[a.size]}; ${LEVELS[a.level]}.`,
     `What she has: ${have}. Do not use anything else (no slates, printing or electricity unless listed).`,
     `Teaching way: ${way}`,
     'Every part still names the book page it uses. Every part has a quick check for understanding.',
-    'Activities may go beyond the book but stay rooted in the page; they are not only copying, repeating or memorising.',
+    'Activities may go beyond the book but stay rooted in the page.',
+    GRR_LINE,
+    ROTE_LINE,
   ];
-  if (secondaryBand(ctx)) lines.push(...secondaryLines(a, ctx || {}));
+  if (secondary) lines.push(...secondaryLines(a, ctx || {}));
+  if (secondary && a.pages) lines.push(pagesLine612(a.pages)); // item 14
+  const book = bookLine(ctx && ctx.bookText);
+  if (book) lines.push(book);
   if (a.note) lines.push(`Her own note: "${a.note}"`);
   return lines.join('\n');
 }
 
-module.exports = { parseOwnAnswers, buildOwnInstruction, NOTE_MAX, SIZES, RESOURCES, LEVELS, WAYS };
+module.exports = { parseOwnAnswers, buildOwnInstruction, NOTE_MAX, SIZES, RESOURCES, RESOURCES_612, LEVELS, WAYS };

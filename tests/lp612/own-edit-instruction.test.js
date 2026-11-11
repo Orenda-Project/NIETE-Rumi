@@ -16,7 +16,7 @@ describe('grades 6–12', () => {
     expect(s).toMatch(/learning outcomes/);
   });
 
-  it('the whole plan: her change across the plan, outcomes and pages kept', () => {
+  it('the whole plan (a change queued before bd-snkn32.19 only): her change across the plan, outcomes and pages kept', () => {
     const s = buildEditInstruction({ part: 'whole', text: 'Make it suit a class of 70 with no board' });
     expect(s).toMatch(/across the whole plan/);
     expect(s).not.toMatch(/only the/);
