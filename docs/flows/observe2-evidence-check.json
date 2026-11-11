@@ -38,9 +38,14 @@
       "COMBINED_TWO"
     ],
     "COMBINED_TWO": [
-      "COMBINED_THREE"
+      "COMBINED_THREE",
+      "COMBINED_THREE_COUNTS"
     ],
     "COMBINED_THREE": [
+      "FIDELITY",
+      "ADDED_DC_ONE"
+    ],
+    "COMBINED_THREE_COUNTS": [
       "FIDELITY",
       "ADDED_DC_ONE"
     ],
@@ -1192,7 +1197,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "HEARD_EXPLAIN",
-                    "v6c": "2",
+                    "v6c": "3",
                     "heard_explain_1": "${form.heard_explain_1}",
                     "heard_explain_2": "${form.heard_explain_2}",
                     "heard_explain_3": "${form.heard_explain_3}",
@@ -4815,6 +4820,172 @@
                     "missed_2_type": "${form.missed_2_type}",
                     "missed_2_min": "${form.missed_2_min}",
                     "missed_2_words": "${form.missed_2_words}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "COMBINED_THREE_COUNTS",
+      "title": "From the room (3 of 3)",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "D4_ev": {
+          "type": "string",
+          "__example__": "Whether children dare to answer when they are not sure: they stay silent, answer only when sure, answer while unsure, or answer unasked and try again after a wrong answer. Only the trying counts, not whether the answer is right.\n\nThe recording showed nothing for this.\n\nCoach adds: how children behave when they are unsure: whether they have a go or go quiet, put a hand up or wait for the teacher, and try again after a wrong answer. The coach sets the final level with a written justification."
+        },
+        "D2_ev": {
+          "type": "string",
+          "__example__": "How many different children speak across the lesson, and whether children silent early on speak later.\n\nThe recording showed nothing for this.\n\nCoach adds: how many different children spoke, and how many children who were quiet in the first half spoke in the second. The coach sets the final level with a written justification."
+        },
+        "d2_children_init": {
+          "type": "number",
+          "__example__": 0
+        },
+        "d2_quiet_init": {
+          "type": "number",
+          "__example__": 0
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "combined_three_counts_form",
+            "init-values": {
+              "d2_children": "${data.d2_children_init}",
+              "d2_quiet_later": "${data.d2_quiet_init}"
+            },
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "Set each level from what you saw in the room. Nothing is chosen for you. Every level needs a reason."
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Trying when unsure"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.D4_ev}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cmb_D4_level",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Silent or waited",
+                    "description": "When the teacher asks, students stay silent, say \"I do not know\", or wait for the teacher to give the answer."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Only answered when sure",
+                    "description": "Students answer only when they are sure. Nobody gives a half-sure answer; when unsure they say nothing."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Tried while unsure, 2+",
+                    "description": "At least two times, a student answers while clearly unsure, for example \"Maybe...\", \"Should I say...?\", or an answer that changes halfway."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Tried unasked or again",
+                    "description": "Beyond level 3, a student answers without being asked, or tries again after a wrong answer instead of giving up."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "cmb_D4_why",
+                "label": "Why this level",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "What you saw, and how it fits the DC's evidence"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "How many children spoke"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.D2_ev}"
+              },
+              {
+                "type": "TextInput",
+                "name": "d2_children",
+                "label": "Children who spoke",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "Count each child once, whole lesson. Not chorus."
+              },
+              {
+                "type": "TextInput",
+                "name": "d2_quiet_later",
+                "label": "Quiet, then spoke",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "Silent in the first half, spoke in the second"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cmb_D2_level",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No child spoke",
+                    "description": "No student speaks during the lesson."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Only 1-2 children",
+                    "description": "Only the same one or two children speak."
+                  },
+                  {
+                    "id": "3",
+                    "title": "3-5 children",
+                    "description": "Three to five different children speak."
+                  },
+                  {
+                    "id": "4",
+                    "title": "6+, and 2+ quiet ones later",
+                    "description": "Six or more different children speak, and at least two children who had not spoken in the first half speak in the second half."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "cmb_D2_why",
+                "label": "Why this level",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "What you saw, and how it fits the DC's evidence"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "COMBINED_THREE_COUNTS",
+                    "cmb_D4_level": "${form.cmb_D4_level}",
+                    "cmb_D4_why": "${form.cmb_D4_why}",
+                    "d2_children": "${form.d2_children}",
+                    "d2_quiet_later": "${form.d2_quiet_later}",
+                    "cmb_D2_level": "${form.cmb_D2_level}",
+                    "cmb_D2_why": "${form.cmb_D2_why}"
                   }
                 }
               }
