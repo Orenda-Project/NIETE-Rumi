@@ -165,7 +165,8 @@ describe('howto first touch — the door never breaks a message', () => {
   test('a missing optional config module (main has no app-settings-ttl.js) does not throw at the door', async () => {
     let maybeSendHowtoFirstTouch;
     jest.isolateModules(() => {
-      jest.doMock('../../shared/config/app-settings-ttl', () => { throw new Error("Cannot find module '../config/app-settings-ttl'"); });
+      // virtual: the path need not exist (main has no such file), so the same test runs on every tier.
+      jest.doMock('../../shared/config/app-settings-ttl', () => { throw new Error("Cannot find module '../config/app-settings-ttl'"); }, { virtual: true });
       jest.doMock('../../shared/config/supabase', () => ({
         from: () => ({ select: () => ({ in: async () => ({ data: [], error: null }) }) }),
       }));
