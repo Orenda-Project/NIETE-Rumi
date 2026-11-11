@@ -2016,6 +2016,17 @@ GPT5MiniService._preserveFrameworkShape = function (enhancedAnalysis, analysisDa
     // Keep OECD stamped so the report-side dispatch doesn't re-fall-through to oecd via null.
     enhancedAnalysis.framework = 'oecd';
   }
+  // bd-qix9oh fix-dc (T6.3, CONTRACTS §11.3): the keys written by code, not by any scorer, ride through for EVERY
+  // framework value (absent and 'oecd' included); report-generator writes this blob whole, so a key missing here is
+  // gone. The first pass is their only source: an enhance-emitted copy never wins. scores.rubric is the v6 stamp that
+  // keeps a row out of V3 averages (fico17-v6/stamp.js), so it survives even when the enhance pass's scores are kept.
+  if (analysisData) {
+    for (const key of ['observe2', 'dc', 'shadow', 'transcript_quality']) {
+      if (analysisData[key] !== undefined) enhancedAnalysis[key] = analysisData[key];
+    }
+    const rubric = analysisData.scores && analysisData.scores.rubric;
+    if (rubric !== undefined) enhancedAnalysis.scores = { ...(enhancedAnalysis.scores || {}), rubric };
+  }
   return enhancedAnalysis;
 };
 
