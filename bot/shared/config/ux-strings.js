@@ -3775,6 +3775,11 @@ const UX_STRINGS = {
     en: 'Keep at least one question on the paper.',
     ur: 'پرچے پر کم از کم ایک سوال رکھیں۔',
   },
+  // Printed on a Grade 1-2 FDE paper still off its blueprint after one rewrite. Urdu needs fluent review.
+  assessmentOffBlueprintNote: {
+    en: 'Note: this paper does not fully match the FDE blueprint — please check it before printing.',
+    ur: 'نوٹ: یہ پرچہ FDE بلیو پرنٹ سے مکمل طور پر مطابقت نہیں رکھتا — چھاپنے سے پہلے اسے جانچ لیں۔',
+  },
   // ─── child test (EGRA/EGMA five-minute test, bd-s1oo0.4) ──────────────────
   // The coach's side of the child test: the offer after /observe2, today's list,
   // Present/Absent/Refused, one voice note per block, the maths strip photo.
