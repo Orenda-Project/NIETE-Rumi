@@ -183,6 +183,6 @@ async function regionOfUser(userId) {
 function _resetCache() { cache.reset(); }
 
 module.exports = {
-  COACH_KEY, DC_KEY, COACH_VALUES, DC_VALUES, COACH_OFF, DC_OFF, REGION_UNKNOWN,
+  COACH_KEY, DC_KEY, COACH_VALUES, DC_VALUES, COACH_OFF, DC_OFF,
   asMap, resolve, coachRubric, dcRubric, isAnySet, regionOfUser, _resetCache,
 };
