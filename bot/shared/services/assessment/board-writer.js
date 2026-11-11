@@ -25,6 +25,7 @@ const MR = require('./board-6-12/mcq-review');
 const GF = require('./board-6-12/group-faults');
 const SN = require('./board-6-12/ship-notes');
 const LL = require('./board-6-12/level-log');
+const LT = require('./board-6-12/last-try');
 
 const EXTRA = 1.25; // design_pending: the top-up asks for the shortfall plus about a quarter (round 4)
 const SHORT_MESSAGE = 'A section is still short of questions after one more try.';
@@ -194,7 +195,6 @@ async function writeBoardPaper(args, d) {
   const pre = probeRun(ex);
   if (pre) drop(ex, hardIds(pre.run), pre.run);
   let checks = await reviewed(ex, finish(ex));
-
   // 3. One targeted rewrite of the dropped items (same slot, told the used keys and the stems to avoid). Nothing new
   // is asked for the slot, so a topped-up slot may be rewritten. Of the rewrite and the originals, fewer hard wins.
   const rewrite = async (tree, from, phrases = []) => {
@@ -273,11 +273,11 @@ async function writeBoardPaper(args, d) {
       tries.push({ name: 'originals', ex: orig, checks: SN.finalSoften(MR.applyFlags(finish(orig), flags, orig), GF.memberIds(orig)) });
       const best = tries.reduce((a, b) => (b.checks.record.hard < a.checks.record.hard ? b : a));
       outcome(tries, best);
-      throw shortError(best.checks.shortfall.length ? best.checks.shortfall : T.shortfallOf(best.ex, allSlots), best.ex, LL.hardDetail(best.checks.record));
-    }
-    outcome(tries, tries[0]);
+      const short = T.shortfallOf(best.ex, allSlots);
+      if (!LT.canShip(best.checks, { grade, slotsShort: short })) throw shortError(best.checks.shortfall.length ? best.checks.shortfall : short, best.ex, LL.hardDetail(best.checks.record));
+      ex = best.ex; checks = LT.ship(best.checks); d.logToFile('[assessment] board paper shipped on last try', { requestId, pattern, grade, subject, rules: checks.record.shipped_last_try }); // bd-qyi45h.3
+    } else outcome(tries, tries[0]);
   }
-
   // 4. The scheme, per the variant's style; then the record.
   normaliseBoardScheme(ex, V.scheme_style);
   const total = d.sumUsage(usages);
