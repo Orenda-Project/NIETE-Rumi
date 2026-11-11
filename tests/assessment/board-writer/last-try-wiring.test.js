@@ -17,15 +17,15 @@ const { fictionalVariant, fictionalEntry } = require('./helpers/fictional-cell')
 
 const variant = fictionalVariant();
 const rowFor = (grade) => ({ code: 'physics', grade, band: grade >= 9 ? '9_10' : '6_8', medium: 'en', rtl: false, prompt_key: 'eg.ict.physics.9_10.system', tos_default: { levels: { K: 30, U: 50, A: 20 }, tolerance_pp: 5 }, board_mode: 'board' });
-const alwaysFlags = (check, rule) => ({
+const alwaysFlags = (check, rule, n = 1) => ({
   id: check, name: `always-${check}`, hard: true, modes: ['board'], LIMITS: {},
-  run: (ex) => { const first = leaves(ex)[0]; return { ok: false, issues: first ? [issue(check, rule, first.ref, 'planted', true)] : [] }; },
+  run: (ex) => ({ ok: false, issues: leaves(ex).slice(0, n).map((q) => issue(check, rule, q.ref, 'planted', true)) }),
 });
 
-async function write(grade, check, rule) {
+async function write(grade, check, rule, n = 1) {
   const row = rowFor(grade);
   const { d } = makeDeps({ grade, row, levels: variant.cognitive_split.levels, style: variant.scheme_style });
-  d.checks = { run: makeRun([...MEMBERS, alwaysFlags(check, rule)]) };
+  d.checks = { run: makeRun([...MEMBERS, alwaysFlags(check, rule, n)]) };
   d.logToFile = () => {};
   return writeBoardPaper({ grade, subject: 'physics', pattern: 'fbise_ssc1_2027', P: fictionalEntry(), variant, requestId: 'r1' }, d).catch((e) => e);
 }
@@ -48,4 +48,16 @@ test('G8: the same flaw still fails PATTERN_SHORT_SLOT', async () => {
 test('G9: a flaw off the soft list (N20) still fails PATTERN_SHORT_SLOT', async () => {
   const res = await write(9, 'N20', 'FIGURE');
   expect(res.code).toBe('PATTERN_SHORT_SLOT');
+});
+
+// bd-qyi45h.5: the fictional paper generates 8 questions, so 2 flagged is 25% (over the 20% cap) and 3 key leaks is over 2.
+test('G9: two D18 flaws on an 8-question paper are over the 20% cap and fail TOO_MANY_FLAWS, items kept', async () => {
+  const res = await write(9, 'D18', 'KEY_LONGEST', 2);
+  expect(res.code).toBe('TOO_MANY_FLAWS');
+  expect(res.shortfall.flatMap((r) => r.items)).toHaveLength(2);
+});
+
+test('G9: three key leaks (N18 KEY_IN_STEM) fail TOO_MANY_FLAWS', async () => {
+  const res = await write(9, 'N18', 'KEY_IN_STEM', 3);
+  expect(res.code).toBe('TOO_MANY_FLAWS');
 });
