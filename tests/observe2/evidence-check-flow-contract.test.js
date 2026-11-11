@@ -39,16 +39,18 @@ describe('the committed JSON is the generator output', () => {
 });
 
 describe('the flow is internally consistent', () => {
-  test('nine v5 screens then five v6 ones, forward-only, one terminal; the plan screen can be skipped', () => {
+  test('nine v5 screens then six v6 ones, forward-only, one terminal; the plan screen can be skipped', () => {
     const ids = ['HEARD_ASK', 'HEARD_WRONG', 'HEARD_WORK', 'HEARD_EXPLAIN', 'FIDELITY', 'ADDED_ONE', 'ADDED_TWO', 'PRIORITY', 'DONE'];
     // FICO17 v6 (bd-ra8xu.38): the room screens and Rumi's 11, appended so every v5 screen keeps its place.
-    const v6 = ['COMBINED_ONE', 'COMBINED_TWO', 'COMBINED_THREE', 'ADDED_DC_ONE', 'ADDED_DC_TWO'];
+    // FICO6: "Add one Rumi missed" after them, routed HEARD_EXPLAIN → MISSED → COMBINED_ONE.
+    const v6 = ['COMBINED_ONE', 'COMBINED_TWO', 'COMBINED_THREE', 'ADDED_DC_ONE', 'ADDED_DC_TWO', 'MISSED'];
     expect(flow.screens.map((s) => s.id)).toEqual([...ids, ...v6]);
     ids.forEach((id, i) => {
-      if (id === 'HEARD_EXPLAIN') expect(flow.routing_model[id]).toEqual(['FIDELITY', 'ADDED_ONE', 'COMBINED_ONE']);
+      if (id === 'HEARD_EXPLAIN') expect(flow.routing_model[id]).toEqual(['FIDELITY', 'ADDED_ONE', 'COMBINED_ONE', 'MISSED']);
       else if (id === 'FIDELITY') expect(flow.routing_model[id]).toEqual(['ADDED_ONE', 'ADDED_DC_ONE']);
       else expect(flow.routing_model[id]).toEqual(i < ids.length - 1 ? [ids[i + 1]] : []);
     });
+    expect(flow.routing_model.MISSED).toEqual(['COMBINED_ONE']);
     expect(flow.routing_model.COMBINED_THREE).toEqual(['FIDELITY', 'ADDED_DC_ONE']);
     expect(flow.routing_model.ADDED_DC_TWO).toEqual(['PRIORITY']);
     expect(flow.screens.filter((s) => s.terminal).map((s) => s.id)).toEqual(['DONE']);
