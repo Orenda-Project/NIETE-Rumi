@@ -1,0 +1,211 @@
+{
+  "name": "form-v5-tech",
+  "note": "FORM_VERSION 5: the recording failed; think ticks (why, ownq) still count on D1 and D5",
+  "captured_at": "afeab2a69b",
+  "input": {
+    "form": {
+      "fv": "5",
+      "present": "30",
+      "p1_spoke": "4",
+      "p1_picked": "hands",
+      "p1_groups": "alone",
+      "p1_listen": [
+        "once"
+      ],
+      "p1_materials": "children",
+      "p1_used": [
+        "book",
+        "objects"
+      ],
+      "p1_change": "no",
+      "p2_spoke": "6",
+      "p2_new": "2",
+      "p2_task": "all",
+      "p2_teacher": [
+        "round",
+        "helped"
+      ],
+      "p2_stuck": "sure",
+      "p2_think": [
+        "why",
+        "ownq"
+      ],
+      "p2_change": "yes",
+      "p2_change_how": "stalled",
+      "incident": "tech",
+      "detail": "recorder stopped at minute 3",
+      "priority": "D1",
+      "seal_ok": true
+    },
+    "confirmed": [
+      {
+        "id": "m1",
+        "type": "open_q_one",
+        "minute": "02:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m2",
+        "type": "reasoning",
+        "minute": "05:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m3",
+        "type": "hedged",
+        "minute": "09:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m4",
+        "type": "content_q",
+        "minute": "11:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m5",
+        "type": "praise_generic",
+        "minute": "13:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m6",
+        "type": "handover",
+        "minute": "18:00",
+        "quote": "synthetic"
+      }
+    ],
+    "heardCounts": {
+      "closed_q": 3
+    }
+  },
+  "output": {
+    "C1": {
+      "level": "IE",
+      "because": "the recording failed, so nothing could be heard",
+      "source": "heard"
+    },
+    "C2": {
+      "level": 2,
+      "because": "you saw while they worked alone, the teacher went round the room; helped those who were stuck",
+      "source": "seen"
+    },
+    "C4": {
+      "level": "IE",
+      "because": "the recording failed, so nothing could be heard",
+      "source": "heard"
+    },
+    "C6": {
+      "level": "IE",
+      "because": "the recording failed, so nothing could be heard",
+      "source": "heard"
+    },
+    "D1": {
+      "level": 2,
+      "hole": true,
+      "because": "one child explained why: the rubric gives this no level, so 2 for now; you saw in Part 2, children explained why or how",
+      "source": "heard"
+    },
+    "D4": {
+      "level": 2,
+      "because": "you saw while they worked alone: tried only when sure",
+      "source": "seen"
+    },
+    "D5": {
+      "level": 3,
+      "because": "a child asked a question about the content; you saw in Part 2, children asked a question about it",
+      "source": "heard"
+    },
+    "F1": {
+      "level": null,
+      "because": "no counting rule yet: pick from the recording's moments",
+      "source": "pick"
+    },
+    "F2": {
+      "level": null,
+      "because": "no counting rule yet: pick from the recording's moments",
+      "source": "pick"
+    },
+    "F3": {
+      "level": null,
+      "because": "no counting rule yet: pick from the recording's moments; you saw in Part 2, children explained why or how",
+      "source": "pick"
+    },
+    "F4": {
+      "level": null,
+      "because": "no counting rule yet: pick from the recording's moments",
+      "source": "pick"
+    },
+    "D2": {
+      "level": 4,
+      "because": "6 different children spoke, 2 of them for the first time in Part 2",
+      "source": "seen"
+    },
+    "C3": {
+      "level": 1,
+      "because": "you saw: only raised hands answered",
+      "source": "seen"
+    },
+    "C5": {
+      "level": 1,
+      "because": "you saw: took long, no clear signal",
+      "source": "seen"
+    },
+    "C7": {
+      "level": 2,
+      "because": "you saw: sat together, worked alone",
+      "source": "seen"
+    },
+    "C8": {
+      "level": 3,
+      "because": "you saw: children used them. Used: the textbook or board; objects or manipulatives",
+      "source": "seen"
+    },
+    "D3": {
+      "level": 2,
+      "because": "you ticked: one child replied to another. A single exchange has no level yet, so 2 for now",
+      "source": "seen",
+      "hole": true
+    }
+  },
+  "heard": {
+    "C1": {
+      "level": 2,
+      "hole": true,
+      "because": "one open question answered by one child: the rubric gives this no level, so 2 for now",
+      "source": "heard"
+    },
+    "C2": {
+      "level": null,
+      "because": "no wrong answers confirmed: pick N/A if none happened",
+      "source": "heard"
+    },
+    "C4": {
+      "level": null,
+      "because": "no real choice confirmed: pick 1 or 2",
+      "source": "heard"
+    },
+    "C6": {
+      "level": 2,
+      "because": "praise only for right answers, in general words",
+      "source": "heard"
+    },
+    "D1": {
+      "level": 2,
+      "hole": true,
+      "because": "one child explained why: the rubric gives this no level, so 2 for now",
+      "source": "heard"
+    },
+    "D4": {
+      "level": 2,
+      "hole": true,
+      "because": "one unsure attempt: the rubric gives this no level, so 2 for now",
+      "source": "heard"
+    },
+    "D5": {
+      "level": 3,
+      "because": "a child asked a question about the content",
+      "source": "heard"
+    }
+  }
+}

@@ -1,0 +1,234 @@
+{
+  "name": "form-v6-error",
+  "note": "FORM_VERSION 6: a wrong fact left standing forces F1 1; Part 2 re-explained a mistake and asked each child",
+  "captured_at": "afeab2a69b",
+  "input": {
+    "form": {
+      "fv": "6",
+      "present": "40",
+      "p1_spoke": "6",
+      "p1_picked": "often",
+      "p1_groups": "combine",
+      "p1_listen": [
+        "often",
+        "once"
+      ],
+      "p1_materials": "teacher",
+      "p1_used": [
+        "book"
+      ],
+      "p1_change": "yes",
+      "p1_change_how": "clear",
+      "p2_spoke": "9",
+      "p2_new": "1",
+      "p2_task": "all",
+      "p2_teacher": [
+        "reteach",
+        "cfu",
+        "checked"
+      ],
+      "p2_stuck": "kept",
+      "p2_think": [
+        "new"
+      ],
+      "p2_change": "yes",
+      "p2_change_how": "slow",
+      "incident": "error",
+      "detail": "minute 21, wrong rule left",
+      "priority": "F1",
+      "seal_ok": true
+    },
+    "confirmed": [
+      {
+        "id": "m1",
+        "type": "open_q_choral",
+        "minute": "01:30",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m2",
+        "type": "wrong_ignored",
+        "minute": "06:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m3",
+        "type": "wrong_reason",
+        "minute": "08:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m4",
+        "type": "wrong_reason",
+        "minute": "10:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m5",
+        "type": "strategy",
+        "minute": "10:30",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m6",
+        "type": "wrong_fixed",
+        "minute": "11:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m7",
+        "type": "reasoning",
+        "minute": "17:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m8",
+        "type": "beyond",
+        "minute": "18:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m9",
+        "type": "proc_q",
+        "minute": "22:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m10",
+        "type": "content_error",
+        "minute": "21:00",
+        "quote": "synthetic"
+      }
+    ],
+    "heardCounts": {
+      "closed_q": 20,
+      "praise_generic": 0
+    }
+  },
+  "output": {
+    "C1": {
+      "level": 2,
+      "because": "questions were yes/no or answered in chorus",
+      "source": "heard"
+    },
+    "C2": {
+      "level": 4,
+      "because": "the reason was given on two or more wrong answers, and a child fixed it and the teacher tried a new way; you saw while they worked alone, the teacher re-explained a common mistake to the whole class; asked children one by one whether they understood or needed help; looked at their work",
+      "source": "heard"
+    },
+    "C4": {
+      "level": null,
+      "because": "no real choice confirmed: pick 1 or 2",
+      "source": "heard"
+    },
+    "C6": {
+      "level": 1,
+      "because": "no encouragement confirmed",
+      "source": "heard"
+    },
+    "D1": {
+      "level": 4,
+      "because": "two or more children explained why, and a child reasoned beyond what was asked; you saw in Part 2, children solved a new problem",
+      "source": "heard"
+    },
+    "D4": {
+      "level": 4,
+      "because": "you saw while they worked alone: tried unasked, kept going",
+      "source": "seen"
+    },
+    "D5": {
+      "level": 2,
+      "because": "only 'which page' questions",
+      "source": "heard"
+    },
+    "F1": {
+      "level": 1,
+      "because": "you reported a wrong fact left standing, which forces 1",
+      "source": "seen"
+    },
+    "F2": {
+      "level": null,
+      "because": "no counting rule yet: pick from the recording's moments",
+      "source": "pick"
+    },
+    "F3": {
+      "level": null,
+      "because": "no counting rule yet: pick from the recording's moments; you saw in Part 2, children solved a new problem",
+      "source": "pick"
+    },
+    "F4": {
+      "level": null,
+      "because": "no counting rule yet: pick from the recording's moments",
+      "source": "pick"
+    },
+    "D2": {
+      "level": 3,
+      "because": "7 different children spoke, in both parts",
+      "source": "seen"
+    },
+    "C3": {
+      "level": 3,
+      "because": "you saw: quiet children picked often; you saw while they worked alone, the teacher asked children one by one whether they understood or needed help",
+      "source": "seen"
+    },
+    "C5": {
+      "level": 2,
+      "because": "you saw: signal given, but took long, the weaker of the two parts",
+      "source": "seen"
+    },
+    "C7": {
+      "level": 3,
+      "because": "you saw: made one thing together",
+      "source": "seen"
+    },
+    "C8": {
+      "level": 2,
+      "because": "you saw: only the teacher used them. Used: the textbook or board",
+      "source": "seen"
+    },
+    "D3": {
+      "level": 3,
+      "because": "you ticked: they replied to each other often; one child replied to another",
+      "source": "seen",
+      "hole": false
+    }
+  },
+  "heard": {
+    "C1": {
+      "level": 2,
+      "because": "questions were yes/no or answered in chorus",
+      "source": "heard"
+    },
+    "C2": {
+      "level": 4,
+      "because": "the reason was given on two or more wrong answers, and a child fixed it and the teacher tried a new way",
+      "source": "heard"
+    },
+    "C4": {
+      "level": null,
+      "because": "no real choice confirmed: pick 1 or 2",
+      "source": "heard"
+    },
+    "C6": {
+      "level": 1,
+      "because": "no encouragement confirmed",
+      "source": "heard"
+    },
+    "D1": {
+      "level": 2,
+      "hole": true,
+      "because": "one child explained why: the rubric gives this no level, so 2 for now",
+      "source": "heard"
+    },
+    "D4": {
+      "level": null,
+      "because": "no unsure attempt confirmed: pick 1 or 2",
+      "source": "heard"
+    },
+    "D5": {
+      "level": 2,
+      "because": "only 'which page' questions",
+      "source": "heard"
+    }
+  }
+}
