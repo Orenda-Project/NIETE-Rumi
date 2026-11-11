@@ -19,7 +19,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bot-migrations-order.allowlist.json` | Shrink-only allowlist of migrations that use another's table without a -- requires: header |
 | `bot-migrations-order.test.js` | Gate: -- requires: headers name real forward migrations, have no cycle, and cover tables a migration uses |
 | `challenge-data-gates-lib.js` | Pure helpers for Challenge data gates: counted-reader detection, BEGIN/COMMIT in migrations, seed and passage titles |
-| `ci-no-token-deploy.test.js` | (unmapped) |
 | `ci-workflow-jobs-always-runnable.test.js` | Gate: no workflow has a single job gated by a job-level secrets.* if, which silently skips on template repos |
 | `ci-workflow-no-silent-masks.test.js` | Gate: CI workflow steps must not end in || true, which silences failures, unless allowed |
 | `circular-deps.allowlist.json` | Allowlist of known require cycles with a reason each, read by circular-deps.test.js |
@@ -82,11 +81,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `migration-check-lists.test.js` | Gate: a migration re-making a named CHECK IN list never narrows what a later migration widened it to |
 | `migration-transaction-control.allowlist.json` | Allowlist of migrations carrying top-level BEGIN/COMMIT, read by migration-transaction-control.test.js |
 | `migration-transaction-control.test.js` | Gate: new bot migrations carry no top-level BEGIN/COMMIT; listed legacy files may |
-| `migration-versions-unique.test.js` | (unmapped) |
 | `migrations-no-transaction-control.test.js` | Guard: migrations from V1.8.0 onward have no top-level transaction control, since exec_sql rejects it |
-| `mock-lane-baseline-migrations.test.js` | (unmapped) |
-| `mock-lane-region-registry.test.js` | (unmapped) |
-| `needs-upstream.test.js` | (unmapped) |
 | `no-config-as-code-under-bot.test.js` | Guard: no bot/railway.json or railway.toml, since Railway services are configured in service settings |
 | `no-eager-sdk-construction.test.js` | Guard: no SDK client is constructed at module load in bot/shared, bot/workers or dashboard |
 | `no-hardcoded-bot-name.test.js` | Guard (bd-2365): teacher-facing text uses branding.botName from BOT_NAME, never a literal self-name |

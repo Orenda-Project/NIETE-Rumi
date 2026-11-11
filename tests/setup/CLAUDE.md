@@ -1,7 +1,7 @@
 # setup — Repo-wide guard tests: schema, migrations, flows, hygiene ratchets and setup scripts
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/setup kg=6c596fa8a557 gen=46dabd1e5148 overflow=77 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/setup kg=b7a3bc269e1a gen=8f64d093ef57 overflow=75 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `ratchet-verdict-lib.js` — shrink-only allowlist verdict most gates here share (fail above list, warn below)
@@ -13,14 +13,14 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `_audit-helpers/` | Static require-graph helper used by the orphan, cycle and unresolved-require audits → `_audit-helpers/CLAUDE.md` |
-| `test-seam-gates-lib.js` | Large shared library of pure readers behind the test-seam gates (repo mocks, copy deck, select columns, fresh-profile) |
 | `ratchet-verdict-lib.js` | Shared verdict for shrink-only allowlist gates: fail above the list, warn below, returns failures and warnings |
+| `test-seam-gates-lib.js` | Large shared library of pure readers behind the test-seam gates (repo mocks, copy deck, select columns, fresh-profile) |
 | `register*` | 3 files; most used `register-all-flows.test.js`: Tests bot/scripts/setup/register-all-flows: all 24 FLOW_CONFIGS and their registration against a mocked MetaAPI |
 | `source-hygiene.test.js` | Guard for the public repo: no internal ticket refs in shipped source or docs/flows JSON authoring metadata |
 | `validate-flows.test.js` | Tests validate-flows preflight: flows and templates exist and are PUBLISHED, encryption configured; returns valid/issues |
 | `migrate.test.js` | Tests infrastructure/scripts/migrate MigrationRunner with a mocked supabase client: applied versions, ordering |
 | `web*` | 3 files; most used `web-quiz-owned-paths.js`: Helper listing the web quiz's own path prefixes so module lists beside query goldens compare only inside them |
-| … | 152 more → `CLAUDE.index.md` |
+| … | 147 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

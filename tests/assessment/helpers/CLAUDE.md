@@ -1,6 +1,6 @@
 # helpers — Shared fakes and replay helpers for the assessment tests (not test files themselves)
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/assessment/helpers kg=7c8bb0e2a131 gen=03531b58f6e5 overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/assessment/helpers kg=58599c526e8d gen=8cd3a797311a overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `fake-postgrest.js` — in-memory PostgREST used by versioned-editing tests (assessment-versions-service.test.js)
@@ -14,9 +14,7 @@
 |---|---|
 | `skip-giveaway-check.js` | (unmapped) |
 | `fake-postgrest.js` | Test helper: small in-memory PostgREST fake (eq/neq/is/in filters, single/maybeSingle/head) for versioned-editing tests |
-| `golden-g1-5.js` | (unmapped) |
 | `urdu-concept-once.js` | Test helper: lists Urdu Q1 items the full syllabus drops for asking antonym/synonym a second time (fde-layout, patterns) |
-| `early-writer-harness.js` | (unmapped) |
 | `urdu-spares.js` | Test helper: fabricates fresh Urdu Section A top-up items so replayed model replies write new items, not held ones |
 
 ## Who reads this (generated)

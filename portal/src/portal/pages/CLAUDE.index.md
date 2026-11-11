@@ -13,7 +13,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `ClassicAssessment.test.tsx` | bd-4n7p4: pins ClassicAssessment as its own page: heading, tabs, generator form, papers panel gets editing from /config |
 | `ClassicAssessment.tsx` | bd-4n7p4: old-UI Assessment Generator (formerly a Curriculum tab), served at /portal/assessment via PortalAssessment |
 | `LeaderAssess.cwpm.test.tsx` | Round 7b sa_cwpm: pins CWPM labelling and formula across the dashboard, results row and review page |
-| `LeaderAssess.r11report.test.tsx` | (unmapped) |
 | `LeaderAssess.r7b.test.tsx` | Round 7b sa_end_test_restart: pins Restart test for an ended child (new phone id, restart:true); OFF shows Stopped |
 | `LeaderAssess.r8offline.test.tsx` | Round 8 switches on LeaderAssess (fast start, offline-first, offline prep): slow Present, queued Present, offline resume |
 | `LeaderAssess.test.tsx` | Pins LeaderAssess end to end: flag gate, school picker, server list, absent/present handover, engine frame, queue |
@@ -177,19 +176,19 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `PortalTraining.tsx` ← imported by `portal/src/App.tsx:81:8b507f06`
 - `PortalTrainingPage.tsx` ← imported by `portal/src/App.tsx:82:d7e20fa2`
 - `PortalTrainingV2.tsx` ← imported by `portal/src/portal/pages/PortalTrainingPage.tsx:8:b09c7a87`
-- `SchoolAnalytics.tsx` ← imported by `portal/src/App.tsx:167:380aa3eb`
-- `SchoolLessons.tsx` ← imported by `portal/src/App.tsx:169:3a991917`
+- `SchoolAnalytics.tsx` ← imported by `portal/src/App.tsx:156:380aa3eb`
+- `SchoolLessons.tsx` ← imported by `portal/src/App.tsx:158:3a991917`
 - `legacyLive.ts` ← imported by `portal/src/portal/pages/PortalCoachingRecord.tsx:31:8621d378`
 - env `PROD` read at `portal/src/portal/pages/PortalReadingAssessments.tsx:66:a940a13e`
 
 ## Tests (all, generated)
 - `ClassicAssessment.tsx` ← `portal/src/portal/pages/ClassicAssessment.tabs.test.tsx` · `portal/src/portal/pages/ClassicAssessment.test.tsx`
-- `LeaderAssess.tsx` ← `portal/src/portal/pages/LeaderAssess.r11report.test.tsx` · `portal/src/portal/pages/LeaderAssess.r7b.test.tsx` · `portal/src/portal/pages/LeaderAssess.r8offline.test.tsx` · `portal/src/portal/pages/LeaderAssess.test.tsx`
+- `LeaderAssess.tsx` ← `portal/src/portal/pages/LeaderAssess.r7b.test.tsx` · `portal/src/portal/pages/LeaderAssess.r8offline.test.tsx` · `portal/src/portal/pages/LeaderAssess.test.tsx`
 - `LeaderAssessDashboard.tsx` ← `portal/src/portal/pages/LeaderAssess.cwpm.test.tsx` · `portal/src/portal/pages/LeaderAssessDashboard.filters.test.tsx` · `portal/src/portal/pages/LeaderAssessDashboard.practice.test.tsx` · `portal/src/portal/pages/LeaderAssessDashboard.test.tsx`
 - `LeaderAssessResults.tsx` ← `portal/src/portal/pages/LeaderAssess.cwpm.test.tsx` · `portal/src/portal/pages/LeaderAssessResults.test.tsx`
 - `LeaderAssessReview.tsx` ← `portal/src/portal/pages/LeaderAssess.cwpm.test.tsx` · `portal/src/portal/pages/LeaderAssessReview.test.tsx`
 - `LeaderChildTest.tsx` ← `portal/src/portal/pages/LeaderChildTest.test.tsx`
-- `LeaderHome.tsx` ← `portal/src/portal/fln/hooks.test.tsx` · `portal/src/portal/pages/LeaderHome.coachV2.test.tsx` · `portal/src/portal/pages/LeaderHome.test.tsx` · `portal/src/portal/pages/steps-removed.test.tsx` · `portal/src/portal/teacher/roleSwitch/RoleSwitch.test.tsx`
+- `LeaderHome.tsx` ← `portal/src/portal/fln/hooks.test.tsx` · `portal/src/portal/pages/LeaderHome.coachV2.test.tsx` · `portal/src/portal/pages/LeaderHome.test.tsx` · `portal/src/portal/pages/steps-removed.test.tsx`
 - `LeaderObservation.tsx` ← `portal/src/portal/pages/LeaderObservation.test.tsx` · `portal/src/portal/pages/LeaderObserve.v2names.test.tsx`
 - `LeaderObservations.tsx` ← `portal/src/portal/pages/LeaderObservations.coachObserve.test.tsx` · `portal/src/portal/pages/LeaderObservations.identity.test.tsx` · `portal/src/portal/pages/LeaderObservations.schedule.test.tsx` · `portal/src/portal/pages/LeaderObservations.test.tsx` · `portal/src/portal/pages/leader-journey.test.tsx`
 - `LeaderObserveDraft.tsx` ← `portal/src/portal/pages/LeaderObserve.v2names.test.tsx` · `portal/src/portal/pages/LeaderObserveDraft.test.tsx`

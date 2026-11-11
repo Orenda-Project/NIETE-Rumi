@@ -1,7 +1,7 @@
 # tasks — Per-task v3 scorers (letters, words, story, listening, maths) on shared engines
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/scoring/tasks kg=ad8abc249e4b gen=b8c545c4c826 overflow=14 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/scoring/tasks kg=31023648e382 gen=a656d3baab35 overflow=13 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — dispatches a v3 task to its scorer
@@ -34,7 +34,7 @@ _None found in code comments, tests or git log for this directory._
 ## Tests (generated)
 - `tests/child-test/L37/score-task.test.js` (common.js)
 - `tests/child-test/L40/e2e-scoring-fixes.test.js` (common.js)
-- … 4 more → `CLAUDE.index.md`
+- … 3 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/child-test/scoring/CLAUDE.md`?

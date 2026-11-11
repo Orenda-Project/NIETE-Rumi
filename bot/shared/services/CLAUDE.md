@@ -1,7 +1,7 @@
 # services — Flat service layer: LP delivery, WhatsApp, LLM, audio, doors, portal links
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services kg=8d02072f6636 gen=fd585d520957 overflow=1161 rendered=2026-11-11 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services kg=d53c37dc93ed gen=af2c2963ff65 overflow=1064 rendered=2026-11-09 kg.py=1.1.0 -->
 
 ## Entry points
 - `whatsapp.service.js` — every outbound WhatsApp send, with code-point caps
@@ -13,11 +13,11 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | 30 sub-dirs, each with `CLAUDE.md` | `assessment/` · `attendance/` · `authz/` · `cache/` · `child-test/` · `classes/` · `coaching/` · `exam-checker/` · `fa-video/` · `feedback/` · `fflp/` · `first-touch/` · `identity/` · `lp-v10-card/` · `monitoring/` · `nudges/` · `observe/` · `push/` · `queue/` · `quiz/` · `reading/` · `remark/` · `roster/` · `sa-game/` · `schools/` · `settings/` · `status/` · `training/` · `tts/` · `video/` |
-| … | 194 more → `CLAUDE.index.md` |
+| … | 169 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `conversation-state.service.js` (+4)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+193)
-- … 317 more → `CLAUDE.index.md`
+- table `users` (written by `conversation-state.service.js` (+3)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+190)
+- … 283 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Don't edit mocks without matching the real signature (`__mocks__/menu.service.js:4`)
@@ -27,8 +27,8 @@ Full index: `CLAUDE.index.md`
 
 ## Tests (generated)
 - `bot/tests/lp-v8/lp-shelf-plumbing.test.js` (lp-feedback.service.js, lp-shelf.service.js, lp-v8-catalog.service.js, lp-v8-delivery.service.js, lp-voicenote-script.service.js, whatsapp.service.js)
-- … 793 more → `CLAUDE.index.md`
+- … 755 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `ab-testing`? · `coaching`? · `cross-agent-safety`? · `debugging`? · `digital-coach`? · `reading-assessment`? (+1)
-- docs: `AGENTS.md`? · `CLAUDE.md`? · `bot/README.md`? · `bot/shared/CLAUDE.md`? · `bot/shared/services/monitoring/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? (+18)
+- docs: `AGENTS.md`? · `CLAUDE.md`? · `bot/README.md`? · `bot/shared/CLAUDE.md`? · `bot/shared/services/monitoring/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? (+17)

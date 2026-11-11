@@ -1,7 +1,7 @@
 # fidelity — Lesson-plan fidelity (Section B): grade moves vs transcript, score in code
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/fidelity kg=2092ae6d148c gen=a9b28ceafafd overflow=41 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/fidelity kg=723d19f14fef gen=e25a1dafd0c1 overflow=41 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `fidelity-orchestrator.js` — entry point; resolves moves, grades, scores
@@ -18,8 +18,8 @@ Full index: `CLAUDE.index.md`
 | … | 10 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `coaching_sessions` (written by `fidelity-recompute.service.js` (+1)) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:56:4a173bcd`? (+89)
-- `fidelity-orchestrator.js` ← imported by `bot/shared/services/coaching/analysis-processor.service.js:420:d298275c` · `bot/shared/services/coaching/lp-coaching/lp-step.service.js:59:7d821bd0` (+5)
+- table `coaching_sessions` (written by `fidelity-recompute.service.js` (+1)) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+88)
+- `fidelity-orchestrator.js` ← imported by `bot/shared/services/coaching/analysis-processor.service.js:415:d298275c` · `bot/shared/services/coaching/lp-coaching/lp-step.service.js:59:7d821bd0` (+5)
 - … 18 more → `CLAUDE.index.md`
 
 ## Never (human)

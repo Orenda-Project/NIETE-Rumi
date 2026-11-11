@@ -1,6 +1,6 @@
 # schools — School lookup from the schools table and the legacy-migration transforms
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/schools kg=633efc5b71b0 gen=0fda36ee1d19 overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/schools kg=c4209c2d9931 gen=c549add2aa41 overflow=0 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `school-resolver.service.js` — user to school via users.school_id
@@ -17,7 +17,7 @@
 
 ## Who reads this (generated)
 - `school-card-door.js` ← imported by `bot/shared/handlers/text-message.handler.js:234:ea91fd53` · `bot/shared/services/app-redirect.service.js:656:7104e6a8`
-- `school-search.service.js` ← imported by `bot/shared/routes/registration-endpoint.js:96:1fc82996` · `bot/shared/services/schools/school-card-door.js:102:cc6600ce`
+- `school-search.service.js` ← imported by `bot/shared/routes/registration-endpoint.js:95:1fc82996` · `bot/shared/services/schools/school-card-door.js:102:cc6600ce`
 - `school-resolver.service.js` ← imported by `bot/shared/routes/registration-endpoint.js:47:32923e9e`
 
 ## Never (human)

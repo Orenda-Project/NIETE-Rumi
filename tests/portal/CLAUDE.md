@@ -1,7 +1,7 @@
 # portal — Root jest tests pinning the portal's dashboard routes, services and Android shell
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/portal kg=f9cd72445f2a gen=ca6aa58825f0 overflow=146 rendered=2026-11-11 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/portal kg=2ba906a1a3df gen=1ea3bc166a90 overflow=137 rendered=2026-11-05 kg.py=1.1.0 -->
 
 ## Entry points
 - `portal-teacher-home.routes.test.js` — typical route suite: real Express over dashboard/routes, injected boundaries
@@ -15,14 +15,13 @@ Full index: `CLAUDE.index.md`
 | `fixtures/` | → (no door; 4 files: 0 test + 4 support) |
 | `helpers/` | Shared fake of the supabase query builder for portal route and service tests → `helpers/CLAUDE.md` |
 | `analytics*` | 11 files; most used `analytics-organization-scope.test.js`: (unmapped) |
-| `bd-33wxxi.1-principal-app-switch.test.js` | (unmapped) |
-| `fln*` | 14 files; most used `fln-routes.test.js`: Pins portal-fln.routes over real Express: access gating, /me, plan, events, funnel logging with real fln-access |
-| `bd-97daxo.22-gb-school-without-emis.test.js` | (unmapped) |
+| `fln*` | 13 files; most used `fln-routes.test.js`: Pins portal-fln.routes over real Express: access gating, /me, plan, events, funnel logging with real fln-access |
 | `bd-o15qnr.8-coach-feedback.test.js` | Pins bd-o15qnr.8 coach v2 round-1 server rules: past-dated visits allowed with no teacher notice, edit and reschedule |
 | `bd-tacnwy-role-switch.test.js` | (unmapped) |
 | `bd-z3cadk-report-extras.test.js` | Pins bd-z3cadk report-extras: portal report shows Last time we asked, journey note, repeat-recording date |
 | `coaching*` | 4 files; most used `coaching-report-page.video.test.js`: Pins bd-gzfdu9: /cr report page adds Watch this next card only with a recommendation, else byte-identical to golden |
-| … | 216 more → `CLAUDE.index.md` |
+| `portal-command-go-link.test.js` | Pins bd-x7aprz.3: bot /portal replies with one button holding the signed /go login link, English and Urdu within caps |
+| … | 192 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -36,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/shared/data/CLAUDE.md`? · `dashboard/lib/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/middleware/rbac/CLAUDE.md`? · `infrastructure/templates/drafts/README.md`? · `portal/ANDROID.md`? (+1)
+- docs: `dashboard/lib/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/middleware/rbac/CLAUDE.md`? · `infrastructure/templates/drafts/README.md`? · `portal/ANDROID.md`? · `tests/CLAUDE.md`?

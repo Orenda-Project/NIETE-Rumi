@@ -1,6 +1,6 @@
 # data — Frozen data files read by COACHIP services
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/data kg=22096ae6f885 gen=a6e4faa9f91d overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/data kg=61d350851c83 gen=37a8b2d73356 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `coachip/INTERVENTIONS.json` — the frozen intervention library the coachip services load
@@ -10,7 +10,6 @@
 | path | purpose |
 |---|---|
 | `coachip/` | COACHIP library, copy and crosswalk JSON loaded by services and the nightly seed → `coachip/CLAUDE.md` |
-| `where-to-coach/` | → (no door; 2 files) |
 
 ## Who reads this (generated)
 - (none)

@@ -1,6 +1,6 @@
 # report-renderers — Registry choosing the report renderer (hero PNG or PDFKit fallback)
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-renderers kg=724a01cd4777 gen=ee9b0e4ffa60 overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-renderers kg=9673923056d2 gen=6b2c88fc28d7 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `renderer-registry.js` — framework key to renderer
@@ -12,7 +12,7 @@
 | `renderer-registry.js` | Routes a framework key to its report renderer: hero Playwright PNG by default, PDFKit fallback |
 
 ## Who reads this (generated)
-- `renderer-registry.js` ← imported by `bot/shared/services/observe/observe-debrief.service.js:840:0ae72910` · `bot/shared/services/observe/observe-send.service.js:1202:0ae72910` (+1)
+- `renderer-registry.js` ← imported by `bot/shared/services/observe/observe-debrief.service.js:817:0ae72910` · `bot/shared/services/observe/observe-send.service.js:1202:0ae72910` (+1)
 
 ## Never (human)
 _None found in code comments, tests or git log for this directory._

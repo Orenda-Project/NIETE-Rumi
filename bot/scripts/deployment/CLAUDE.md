@@ -1,7 +1,7 @@
 # deployment — Reference Meta Graph API scripts from the original Taleemabad WABA; ids are WABA-bound
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/deployment kg=5bb5ced9b02b gen=d870f270ba6f overflow=21 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/deployment kg=87679406a829 gen=6688a0ca69b8 overflow=21 rendered=2026-11-06 kg.py=1.1.0 -->
 
 ## Entry points
 - `README.md` — what is reusable and what is hardcoded
@@ -19,10 +19,10 @@ Full index: `CLAUDE.index.md`
 | … | 20 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `get-portal-test-tokens.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+192)
-- column `users.phone_number` (written by `get-portal-test-tokens.js`) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` (+96)
-- column `users.preferred_language` (written by `get-portal-test-tokens.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:763:6d7fc8d6` (+78)
-- column `users.name` (written by `get-portal-test-tokens.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/calls/call-tools.repo.js:247:774e00e5` (+64)
+- table `users` (written by `get-portal-test-tokens.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+187)
+- column `users.phone_number` (written by `get-portal-test-tokens.js`) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` (+94)
+- column `users.preferred_language` (written by `get-portal-test-tokens.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:763:6d7fc8d6` (+77)
+- column `users.name` (written by `get-portal-test-tokens.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/calls/call-tools.repo.js:242:774e00e5` (+64)
 - … 23 more → `CLAUDE.index.md`
 
 ## Never (human)

@@ -1,7 +1,7 @@
 # lesson-plan-lifecycle — lesson_plan_requests lifecycle rows per LP path, plus the hourly health check
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/lesson-plan-lifecycle kg=391d55919543 gen=679c7ec590ee overflow=9 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/lesson-plan-lifecycle kg=fd2a7238fd9f gen=c20c28c08a81 overflow=9 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `writer.test.js` — Lifecycle.recordOutcome and the LP_LIFECYCLE_PATHS switch; start here
@@ -18,8 +18,8 @@ Full index: `CLAUDE.index.md`
 | `requeue-grounded.test.js` | Pins that stale recovery re-queues a grounded request with its curriculum row so the worker renders it grounded |
 | `v8*` | 3 files; most used `v8-portal-path.test.js`: Pins v8 LP handed to the portal/teacher app: completed portal row, NO_ASSET failure, unknown lesson id writes nothing |
 | `generation-failed-attempts.test.js` | Pins lesson_plan.generation.failed attempt number and final flag across SQS retries (limit 3) in the generation worker |
-| `homework-path.test.js` | Pins homework Flow lifecycle rows: request insert, plan rows naming the request, outcome; unchanged when OFF |
 | `legacy-lanes.test.js` | Pins lifecycle rows for the pre-generated chapter and Oxbridge lanes (completed/DELIVERY_FAILED, none when OFF) |
+| `homework-path.test.js` | Pins homework Flow lifecycle rows: request insert, plan rows naming the request, outcome; unchanged when OFF |
 | … | 18 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)

@@ -1,7 +1,7 @@
 # child-test — Child test (Jugnu) item banks, passages, generated batteries and word lists
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data/child-test kg=7e899adad324 gen=63379f40800a overflow=16 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data/child-test kg=e017918e8810 gen=087a7a4cfcf5 overflow=16 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `item-bank.v3.json` — official-source bank the self-administered batteries are built from
@@ -23,7 +23,7 @@ Full index: `CLAUDE.index.md`
 
 ## Who reads this (generated)
 - `item-bank.v1.json` ← imported by `bot/shared/services/child-test/app/app-api.service.js:101:cceed7b8` · `bot/shared/services/child-test/item-bank.js:14:e4c34bb8` (+1)
-- `item-bank.sa.v1.json` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:465:dccaa0b9` · `bot/shared/services/child-test/sa/score.js:162:c0d0e3dc`
+- `item-bank.sa.v1.json` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:460:dccaa0b9` · `bot/shared/services/child-test/sa/score.js:162:c0d0e3dc`
 - `item-bank.v3.json` ← imported by `bot/shared/services/child-test/item-bank.js:139:12a5564f`
 - `item-bank.v4.json` ← imported by `bot/shared/services/child-test/item-bank.js:200:6ffff5b1`
 

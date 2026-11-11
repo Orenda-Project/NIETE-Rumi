@@ -21,8 +21,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `CoachNewVisit.tsx` | New visit: pick school, pick teacher, pick day and time, then Visit scheduled; also Reschedule |
 | `CoachObsTrack.test.tsx` | Pins the one observation page opened from every Reports row and HITL row (bd-o15qnr.19) |
 | `CoachObservation.lessonPlan.test.tsx` | Pins the observation page's Lesson plan row states, English and Urdu (bd-fmf24g.66) |
-| `CoachObservation.refresh.test.tsx` | (unmapped) |
-| `CoachObservation.steps4.test.tsx` | (unmapped) |
 | `CoachObservation.tsx` | The one v2 observation page with five steps, opened from Reports and teacher History (bd-o15qnr.19) |
 | `CoachObservation.whatsapp.test.tsx` | Pins viewing a WhatsApp-made observation in full on the portal (bd-15y1pc) |
 | `CoachObserve.test.tsx` | Pins Observe hub, Pick the teacher and Visit page with Start or Upload recording (bd-4404s7.4) |
@@ -51,39 +49,39 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `CoachVisit.tsx` | One scheduled visit: teacher card, Start/Upload recording squares, Reschedule and Cancel |
 
 ## Who reads this (all, generated)
-- `CoachAddSchool.tsx` ← imported by `portal/src/App.tsx:130:cceabff9`
-- `CoachAddTeacher.tsx` ← imported by `portal/src/App.tsx:131:05ba7594`
-- `CoachAttach.tsx` ← imported by `portal/src/App.tsx:136:275f6ea3` · `portal/src/portal/teacher/principal/routes.tsx:11:79596b0c`
-- `CoachCheckSend.tsx` ← imported by `portal/src/App.tsx:137:e909be90` · `portal/src/portal/teacher/principal/routes.tsx:9:75d8c57d`
-- `CoachEditTeacher.tsx` ← imported by `portal/src/App.tsx:149:f2cadfd8`
+- `CoachAddSchool.tsx` ← imported by `portal/src/App.tsx:127:cceabff9`
+- `CoachAddTeacher.tsx` ← imported by `portal/src/App.tsx:128:05ba7594`
+- `CoachAttach.tsx` ← imported by `portal/src/App.tsx:133:275f6ea3`
+- `CoachCheckSend.tsx` ← imported by `portal/src/App.tsx:134:e909be90`
+- `CoachEditTeacher.tsx` ← imported by `portal/src/App.tsx:143:f2cadfd8`
 - `CoachHome.tsx` ← imported by `portal/src/portal/coach/card/CoachLanding.tsx:3:f585e580`
-- `CoachNewVisit.tsx` ← imported by `portal/src/App.tsx:119:ba1e5868`
-- `CoachObservation.tsx` ← imported by `portal/src/App.tsx:139:29242f44` · `portal/src/portal/teacher/principal/routes.tsx:13:51504adb`
-- `CoachObserve.tsx` ← imported by `portal/src/App.tsx:120:034cb9cf`
-- `CoachObservePick.tsx` ← imported by `portal/src/App.tsx:121:545aba11`
-- `CoachPeople.tsx` ← imported by `portal/src/App.tsx:126:90c8f423` · `portal/src/portal/coach/card/harness.testdata.tsx:46:4b3728bb` · `portal/src/portal/coach/pages/CoachSchool.tsx:11:ec5002d2`
-- `CoachPickTeacher.tsx` ← imported by `portal/src/App.tsx:133:f0b9bd72`
-- `CoachRecord.tsx` ← imported by `portal/src/App.tsx:135:7da3ce99` · `portal/src/portal/teacher/principal/routes.tsx:10:d60efdfb` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:24:9e4007c8`
-- `CoachRemoveTeachers.tsx` ← imported by `portal/src/App.tsx:132:d86660b8`
-- `CoachReports.tsx` ← imported by `portal/src/App.tsx:123:1fa94ad3`
-- `CoachSchedule.tsx` ← imported by `portal/src/App.tsx:117:e2039db2`
-- `CoachScheduling.tsx` ← imported by `portal/src/App.tsx:116:90cdf75d`
-- `CoachSchool.tsx` ← imported by `portal/src/App.tsx:129:a4567313` · `portal/src/portal/coach/card/harness.testdata.tsx:46:4b3728bb`
-- `CoachSending.tsx` ← imported by `portal/src/App.tsx:138:254fef38` · `portal/src/portal/teacher/principal/routes.tsx:12:bcfc8ee6`
-- `CoachTeacher.tsx` ← imported by `portal/src/App.tsx:134:6c98160d` · `portal/src/portal/coach/card/harness.testdata.tsx:47:e793bea8`
-- `CoachTeam.tsx` ← imported by `portal/src/App.tsx:118:6ebe5b32`
-- `CoachVisit.tsx` ← imported by `portal/src/App.tsx:122:399d7ba2` · `portal/src/portal/teacher/principal/routes.tsx:8:359cddbf`
+- `CoachNewVisit.tsx` ← imported by `portal/src/App.tsx:116:ba1e5868`
+- `CoachObservation.tsx` ← imported by `portal/src/App.tsx:136:29242f44`
+- `CoachObserve.tsx` ← imported by `portal/src/App.tsx:117:034cb9cf`
+- `CoachObservePick.tsx` ← imported by `portal/src/App.tsx:118:545aba11`
+- `CoachPeople.tsx` ← imported by `portal/src/App.tsx:123:90c8f423` · `portal/src/portal/coach/card/harness.testdata.tsx:46:4b3728bb` · `portal/src/portal/coach/pages/CoachSchool.tsx:11:ec5002d2`
+- `CoachPickTeacher.tsx` ← imported by `portal/src/App.tsx:130:f0b9bd72`
+- `CoachRecord.tsx` ← imported by `portal/src/App.tsx:132:7da3ce99` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:23:9e4007c8`
+- `CoachRemoveTeachers.tsx` ← imported by `portal/src/App.tsx:129:d86660b8`
+- `CoachReports.tsx` ← imported by `portal/src/App.tsx:120:1fa94ad3`
+- `CoachSchedule.tsx` ← imported by `portal/src/App.tsx:114:e2039db2`
+- `CoachScheduling.tsx` ← imported by `portal/src/App.tsx:113:90cdf75d`
+- `CoachSchool.tsx` ← imported by `portal/src/App.tsx:126:a4567313` · `portal/src/portal/coach/card/harness.testdata.tsx:46:4b3728bb`
+- `CoachSending.tsx` ← imported by `portal/src/App.tsx:135:254fef38`
+- `CoachTeacher.tsx` ← imported by `portal/src/App.tsx:131:6c98160d` · `portal/src/portal/coach/card/harness.testdata.tsx:47:e793bea8`
+- `CoachTeam.tsx` ← imported by `portal/src/App.tsx:115:6ebe5b32`
+- `CoachVisit.tsx` ← imported by `portal/src/App.tsx:119:399d7ba2`
 
 ## Tests (all, generated)
 - `CoachAddSchool.tsx` ← `portal/src/portal/coach/pages/CoachManageSchools.test.tsx` · `portal/src/portal/coach/people/checks.test.tsx`
 - `CoachAddTeacher.tsx` ← `portal/src/portal/coach/pages/CoachManageSchools.test.tsx` · `portal/src/portal/coach/people/checks.test.tsx`
 - `CoachAttach.tsx` ← `portal/src/portal/coach/PendingBanner.test.tsx` · `portal/src/portal/coach/pages/CoachObserveFlow.test.tsx`
-- `CoachCheckSend.tsx` ← `portal/src/portal/coach/PendingBanner.test.tsx` · `portal/src/portal/coach/pages/CoachBack.test.tsx` · `portal/src/portal/coach/pages/CoachObserveFlow.test.tsx` · `portal/src/portal/coach/pages/CoachOwnPlan.test.tsx` · `portal/src/portal/coach/uxMusts.test.tsx`
+- `CoachCheckSend.tsx` ← `portal/src/portal/coach/PendingBanner.test.tsx` · `portal/src/portal/coach/pages/CoachBack.test.tsx` · `portal/src/portal/coach/pages/CoachObserveFlow.test.tsx` · `portal/src/portal/coach/pages/CoachOwnPlan.test.tsx`
 - `CoachEditTeacher.tsx` ← `portal/src/portal/coach/pages/CoachEditTeacher.test.tsx` · `portal/src/portal/coach/pages/CoachPickTeacher.test.tsx` · `portal/src/portal/coach/people/checks.test.tsx`
 - `CoachHome.tsx` ← `portal/src/portal/coach/home/CoachHome.test.tsx` · `portal/src/portal/coach/pages/CoachFeedback1.test.tsx` · `portal/src/portal/coach/pages/CoachRound3.test.tsx`
 - `CoachNewVisit.tsx` ← `portal/src/portal/coach/canvasColours.test.tsx` · `portal/src/portal/coach/pages/CoachFeedback1.test.tsx` · `portal/src/portal/coach/pages/CoachNewVisit.test.tsx` · `portal/src/portal/coach/pages/CoachTodayKarachi.test.tsx` · `portal/src/portal/coach/schedule/schedule.ur.test.tsx`
-- `CoachObservation.tsx` ← `portal/src/portal/coach/pages/CoachObsTrack.test.tsx` · `portal/src/portal/coach/pages/CoachObservation.lessonPlan.test.tsx` · `portal/src/portal/coach/pages/CoachObservation.refresh.test.tsx` · `portal/src/portal/coach/pages/CoachObservation.steps4.test.tsx` · `portal/src/portal/coach/pages/CoachObservation.whatsapp.test.tsx` · `portal/src/portal/coach/pages/CoachTeacher.history.test.tsx` (+1: `python3 kg/kg.py who-reads portal/src/portal/coach/pages/CoachObservation.tsx`)
-- `CoachObserve.tsx` ← `portal/src/portal/coach/pages/CoachFeedback1.test.tsx` · `portal/src/portal/coach/pages/CoachObserve.test.tsx` · `portal/src/portal/coach/uxMusts.test.tsx`
+- `CoachObservation.tsx` ← `portal/src/portal/coach/pages/CoachObsTrack.test.tsx` · `portal/src/portal/coach/pages/CoachObservation.lessonPlan.test.tsx` · `portal/src/portal/coach/pages/CoachObservation.whatsapp.test.tsx` · `portal/src/portal/coach/pages/CoachTeacher.history.test.tsx`
+- `CoachObserve.tsx` ← `portal/src/portal/coach/pages/CoachFeedback1.test.tsx` · `portal/src/portal/coach/pages/CoachObserve.test.tsx`
 - `CoachObservePick.tsx` ← `portal/src/portal/coach/pages/CoachFeedback1.test.tsx` · `portal/src/portal/coach/pages/CoachObserve.test.tsx` · `portal/src/portal/coach/pages/CoachTodayKarachi.test.tsx`
 - `CoachPeople.tsx` ← `portal/src/portal/coach/canvasColours.test.tsx` · `portal/src/portal/coach/pages/CoachFeedback1.test.tsx` · `portal/src/portal/coach/pages/CoachManageSchools.test.tsx` · `portal/src/portal/coach/pages/CoachPeople.test.tsx` · `portal/src/portal/coach/pages/CoachRound3.test.tsx` · `portal/src/portal/coach/people/checks.test.tsx` (+1: `python3 kg/kg.py who-reads portal/src/portal/coach/pages/CoachPeople.tsx`)
 - `CoachPickTeacher.tsx` ← `portal/src/portal/coach/pages/CoachPickTeacher.test.tsx`
@@ -93,10 +91,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `CoachSchedule.tsx` ← `portal/src/portal/coach/pages/CoachScheduling.test.tsx` · `portal/src/portal/coach/pages/CoachTodayKarachi.test.tsx` · `portal/src/portal/coach/schedule/schedule.ur.test.tsx`
 - `CoachScheduling.tsx` ← `portal/src/portal/coach/pages/CoachFeedback1.test.tsx` · `portal/src/portal/coach/pages/CoachScheduling.test.tsx` · `portal/src/portal/coach/schedule/schedule.ur.test.tsx`
 - `CoachSchool.tsx` ← `portal/src/portal/coach/pages/CoachManageSchools.test.tsx` · `portal/src/portal/coach/pages/CoachPeople.test.tsx` · `portal/src/portal/coach/people/checks.test.tsx` · `portal/src/portal/coach/people/schoolsReady.test.tsx`
-- `CoachSending.tsx` ← `portal/src/portal/coach/pages/CoachBack.test.tsx` · `portal/src/portal/coach/pages/CoachObserveFlow.test.tsx` · `portal/src/portal/coach/pages/CoachOwnPlan.test.tsx` · `portal/src/portal/coach/uxMusts.test.tsx`
+- `CoachSending.tsx` ← `portal/src/portal/coach/pages/CoachBack.test.tsx` · `portal/src/portal/coach/pages/CoachObserveFlow.test.tsx` · `portal/src/portal/coach/pages/CoachOwnPlan.test.tsx`
 - `CoachTeacher.tsx` ← `portal/src/portal/coach/pages/CoachEditTeacher.test.tsx` · `portal/src/portal/coach/pages/CoachLpEngagement.test.tsx` · `portal/src/portal/coach/pages/CoachObsTrack.test.tsx` · `portal/src/portal/coach/pages/CoachPeople.test.tsx` · `portal/src/portal/coach/pages/CoachRound3.test.tsx` · `portal/src/portal/coach/pages/CoachTeacher.history.test.tsx` (+2: `python3 kg/kg.py who-reads portal/src/portal/coach/pages/CoachTeacher.tsx`)
 - `CoachTeam.tsx` ← `portal/src/portal/coach/pages/CoachScheduling.test.tsx` · `portal/src/portal/coach/schedule/schedule.ur.test.tsx`
-- `CoachVisit.tsx` ← `portal/src/portal/coach/pages/CoachBack.test.tsx` · `portal/src/portal/coach/pages/CoachLpEngagement.test.tsx` · `portal/src/portal/coach/pages/CoachObsTrack.test.tsx` · `portal/src/portal/coach/pages/CoachObserve.test.tsx` · `portal/src/portal/coach/pages/CoachObserveFlow.test.tsx` · `portal/src/portal/coach/pages/CoachTodayKarachi.test.tsx` (+2: `python3 kg/kg.py who-reads portal/src/portal/coach/pages/CoachVisit.tsx`)
+- `CoachVisit.tsx` ← `portal/src/portal/coach/pages/CoachBack.test.tsx` · `portal/src/portal/coach/pages/CoachLpEngagement.test.tsx` · `portal/src/portal/coach/pages/CoachObsTrack.test.tsx` · `portal/src/portal/coach/pages/CoachObserve.test.tsx` · `portal/src/portal/coach/pages/CoachObserveFlow.test.tsx` · `portal/src/portal/coach/pages/CoachTodayKarachi.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/people/CLAUDE.md`? · `portal/src/portal/coach/reports/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?
+- docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/people/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

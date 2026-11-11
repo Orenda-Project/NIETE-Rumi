@@ -24,21 +24,21 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Who reads this (all, generated)
 - `AnalyticsPage.tsx` ← imported by `portal/src/portal/teacher/analytics/routes.tsx:6:1830dc8e`
 - `BandChart.tsx` ← imported by `portal/src/portal/teacher/analytics/sections.tsx:6:363546a2`
-- `SchoolView.tsx` ← imported by `portal/src/portal/teacher/principal/MySchool.tsx:12:08ef2178` · `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:15:e08819ef` · `portal/src/portal/teacher/analytics/routes.tsx:7:6cb8dab7`
-- `copy.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:6:ee0fbe19` · `portal/src/portal/coach/analytics/model.ts:4:27fcf88e` · `portal/src/portal/teacher/principal/SchoolHomeCard.tsx:10:fe1a9218` · `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:29:cdce1382` (+4: `python3 kg/kg.py who-reads copy.ts`)
-- `model.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:8:c1135b8e` · `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:32:74d4b72c` · `portal/src/portal/teacher/analytics/BandChart.tsx:2:66cda7d3` · `portal/src/portal/teacher/analytics/SchoolView.tsx:15:bb66a9a3` (+1: `python3 kg/kg.py who-reads model.ts`)
+- `SchoolView.tsx` ← imported by `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:15:e08819ef` · `portal/src/portal/teacher/analytics/routes.tsx:7:6cb8dab7`
+- `copy.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:6:ee0fbe19` · `portal/src/portal/coach/analytics/model.ts:4:27fcf88e` · `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:24:cdce1382` · `portal/src/portal/teacher/analytics/SchoolView.tsx:13:cdce1382` (+3: `python3 kg/kg.py who-reads copy.ts`)
+- `model.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:8:c1135b8e` · `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:27:74d4b72c` · `portal/src/portal/teacher/analytics/BandChart.tsx:2:66cda7d3` · `portal/src/portal/teacher/analytics/SchoolView.tsx:15:bb66a9a3` (+1: `python3 kg/kg.py who-reads model.ts`)
 - `paths.ts` ← imported by `portal/src/portal/teacher/analytics/SchoolView.tsx:14:d1cdb2f6` · `portal/src/portal/teacher/analytics/routes.tsx:2:ac2d7d9e` · `portal/src/portal/teacher/analytics/school.ts:4:d1cdb2f6`
-- `school.ts` ← imported by `portal/src/portal/teacher/principal/MySchool.tsx:13:b8b5bd68` · `portal/src/portal/teacher/analytics/SchoolView.tsx:16:68492cae`
-- `sections.tsx` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:7:6c73a229` · `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:28:f079900c` · `portal/src/portal/teacher/analytics/SchoolView.tsx:17:9e5a81b0`
+- `school.ts` ← imported by `portal/src/portal/teacher/analytics/SchoolView.tsx:16:68492cae`
+- `sections.tsx` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:7:6c73a229` · `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:23:f079900c` · `portal/src/portal/teacher/analytics/SchoolView.tsx:17:9e5a81b0`
 
 ## Tests (all, generated)
 - `AnalyticsPage.tsx` ← `portal/src/portal/teacher/analytics/AnalyticsPage.test.tsx`?
 - `SchoolView.tsx` ← `portal/src/portal/teacher/analytics/SchoolView.test.tsx`?
 - `copy.ts` ← `portal/src/portal/coach/analytics/CoachAnalytics.test.tsx` · `portal/src/portal/teacher/analytics/AnalyticsPage.test.tsx` · `portal/src/portal/teacher/analytics/SchoolView.test.tsx` · `portal/src/portal/teacher/analytics/analytics.ur.test.tsx` · `portal/src/portal/teacher/analytics/checks.test.tsx` · `portal/src/portal/teacher/analytics/model.test.ts`
 - `model.ts` ← `portal/src/portal/teacher/analytics/model.test.ts`
-- `paths.ts` ← `portal/src/portal/teacher/analytics/AnalyticsPage.test.tsx` · `portal/src/portal/teacher/analytics/SchoolView.test.tsx` · `portal/src/portal/teacher/analytics/analytics.ur.test.tsx` · `portal/src/portal/teacher/analytics/checks.test.tsx` · `portal/src/portal/teacher/principal/MySchool.test.tsx`
-- `routes.tsx` ← `portal/src/portal/teacher/analytics/AnalyticsPage.test.tsx` · `portal/src/portal/teacher/analytics/SchoolView.test.tsx` · `portal/src/portal/teacher/analytics/analytics.ur.test.tsx` · `portal/src/portal/teacher/analytics/checks.test.tsx` · `portal/src/portal/teacher/principal/MySchool.test.tsx`
-- `school.ts` ← `portal/src/portal/teacher/analytics/SchoolView.test.tsx` · `portal/src/portal/teacher/principal/MySchool.test.tsx`
+- `paths.ts` ← `portal/src/portal/teacher/analytics/AnalyticsPage.test.tsx` · `portal/src/portal/teacher/analytics/SchoolView.test.tsx` · `portal/src/portal/teacher/analytics/analytics.ur.test.tsx` · `portal/src/portal/teacher/analytics/checks.test.tsx`
+- `routes.tsx` ← `portal/src/portal/teacher/analytics/AnalyticsPage.test.tsx` · `portal/src/portal/teacher/analytics/SchoolView.test.tsx` · `portal/src/portal/teacher/analytics/analytics.ur.test.tsx` · `portal/src/portal/teacher/analytics/checks.test.tsx`
+- `school.ts` ← `portal/src/portal/teacher/analytics/SchoolView.test.tsx`
 - `sections.tsx` ← `portal/src/portal/coach/disagreements/sections.test.ts`?
 
 ## Related (all, generated)

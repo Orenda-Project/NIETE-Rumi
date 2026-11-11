@@ -1,7 +1,7 @@
 # coachip — COACHIP coach/RM insight routes tested over HTTP against a throwaway Postgres
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/coachip kg=da06a4b3c899 gen=43f96f8b2ba1 overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/coachip kg=a939964a7464 gen=15d25e590d30 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `coachip-contract.test.js` — every route in fixtures/routes.json: 401, 404, switch-off behaviour
@@ -12,7 +12,7 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `__golden__/` | → (no door; 4 files: 0 test + 4 support) |
+| `__golden__/` | → (no door; 1 files: 0 test + 1 support) |
 | `fixtures/` | → (no door; 2 files: 0 test + 2 support) |
 | `helpers/` | Shared helpers for COACHIP tests: temp Postgres, app mount, fictional seed rows → `helpers/CLAUDE.md` |
 | `coachip*` | 13 files; most used `coachip-golden.test.js`: bd-sex15q.13: B7 golden route shapes of existing portal routes with no COACHIP setting; UPDATE_GOLDEN=1 regenerates |

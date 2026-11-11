@@ -1,7 +1,7 @@
 # workers — SQS job worker, cron sweeps and per-job handlers run outside the web process
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/workers kg=dae5e122525d gen=a941814ac55d overflow=146 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/workers kg=c286d012c3f5 gen=2c3497e687a3 overflow=139 rendered=2026-11-09 kg.py=1.1.0 -->
 
 ## Entry points
 - `sqs-worker.js` — queue poller and jobType router
@@ -20,7 +20,7 @@ Full index: `CLAUDE.index.md`
 ## Who reads this (generated)
 - table `coaching_sessions` (written by `lesson-plan-extraction.worker.js` (+2)) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:56:4a173bcd`? (+89)
 - table `quiz_sessions` (written by `quiz-job-handler.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:144:a4d322ab`? · `bot/shared/handlers/text-message.handler.js:258:e211522c`? (+45)
-- … 76 more → `CLAUDE.index.md`
+- … 75 more → `CLAUDE.index.md`
 
 ## Never (human)
 - lp612_author runs under a visibility heartbeat, not one fixed extension (sqs-worker.js:674, :703, bd-awqt3)
@@ -30,7 +30,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/observe/cancelled-observation-stays-cancelled.test.js` (sqs-worker.js, stale-session.worker.js)
 - `tests/quiz/quiz-retest-schedule.test.js` (quiz-retest-schedule.js, sqs-worker.js)
-- … 86 more → `CLAUDE.index.md`
+- … 80 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`? · `video-generation`?

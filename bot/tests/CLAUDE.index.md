@@ -11,17 +11,14 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `coaching/` | Jest suites for coaching: guards, report sending, language, subject resolution → `coaching/CLAUDE.md` |
 | `fa-video/` | (no description yet) → `fa-video/CLAUDE.md` |
 | `first-touch/` | Tests for one door, quiz maker and teacher home, with recorded goldens → `first-touch/CLAUDE.md` |
-| `fixtures/` | → (no door; 44 files: 0 test + 44 support) |
-| `handlers/` | → (no door; 11 tests) |
+| `fixtures/` | → (no door; 2 files: 0 test + 2 support) |
+| `handlers/` | → (no door; 10 tests) |
 | `helpers/` | Shared test doubles: Supabase table double and switch-off matrix → `helpers/CLAUDE.md` |
 | `i18n/` | → (no door; 1 tests) |
-| `identity/` | → (no door; 1 tests) |
-| `lp-v10-card/` | → (no door; 5 tests) |
 | `lp-v8/` | Tests for lesson-plan delivery: v8/v9 corpus, Flow, uploader, LP chat context → `lp-v8/CLAUDE.md` |
 | `menu/` | → (no door; 2 tests) |
-| `nudges/` | → (no door; 7 tests) |
+| `nudges/` | → (no door; 6 tests) |
 | `observe/` | Jest tests for the /observe stack: one file per incident or feature (bd-id in name) → `observe/CLAUDE.md` |
-| `onboarding/` | → (no door; 1 tests) |
 | `push/` | → (no door; 3 tests) |
 | `quiz/` | Jest suites for the quiz stack: video/chat quiz, reports, student door, web quiz → `quiz/CLAUDE.md` |
 | `registration/` | → (no door; 8 tests) |
@@ -29,8 +26,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-game/` | → (no door; 4 tests) |
 | `services/` | → (no door; 35 tests) |
 | `settings/` | → (no door; 2 tests) |
-| `training/` | → (no door; 1 tests) |
-| `unit/` | → (no door; 20 tests) |
+| `unit/` | → (no door; 10 tests) |
 | `video/` | → (no door; 10 tests) |
 | `welcome/` | → (no door; 2 tests) |
 | `whatsapp/` | → (no door; 2 tests) |
@@ -50,7 +46,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `model-settings-backoff.test.js` | Pins model-settings back-off: a failing app_settings read is retried on a timer, not on every request (bd-dsr9l) |
 | `model-settings-no-db.test.js` | Pins that loading the model-settings reader without Supabase env does not exit the process (bd-5rd2f) |
 | `model-settings.test.js` | Tests model-settings reader: kill switch, JSON-string values and synchronous last-good-config accessor (bd-5rd2f) |
-| `r2-download-miss-level.test.js` | (unmapped) |
 | `setup-loopback.js` | Jest setupFile that loopbacks service endpoints, dummies credentials and blocks live DB/Redis/LLM/WhatsApp in tests |
 | `setup-loopback.test.js` | Tests jest never reaches a live service: loopback works, jest.config loads guard, ALLOW_LIVE_SERVICES_IN_TESTS opt-out |
 | `setup.js` | Jest global setup: configures test environment, global mocks and test utilities before tests run |

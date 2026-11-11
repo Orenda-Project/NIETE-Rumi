@@ -31,7 +31,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Tests (all, generated)
 - `common.js` ← `tests/child-test/L37/score-task.test.js` · `tests/child-test/L40/e2e-scoring-fixes.test.js` · `tests/child-test/L40/finish-time.test.js` · `tests/child-test/L40/review-seam.test.js`
-- `engine.js` ← `tests/coaching/video-reco/engine.test.js`? · `tests/e2e-mock/engine.js`?
+- `engine.js` ← `tests/coaching/video-reco/engine.test.js`?
 
 ## Related (all, generated)
 - docs: `bot/shared/services/child-test/scoring/CLAUDE.md`?

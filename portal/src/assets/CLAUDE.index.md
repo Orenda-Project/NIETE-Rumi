@@ -58,7 +58,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `illustration-support.png` ← imported by `portal/src/components/AlwaysThere.tsx:3:743e2897`
 - `illustration-voice.png` ← imported by `portal/src/components/AlwaysThere.tsx:2:219cc49d`
 - `niete-logo-white.png` ← imported by `portal/src/portal/coachip-ui/Rail.tsx:3:fc5ff9e5`
-- `niete-logo.png` ← imported by `portal/src/pages/NotFound.tsx:3:4c106db0` · `portal/src/portal/analytics/AnalyticsFrame.tsx:4:252f2bc4` · `portal/src/portal/auth/AuthFrame.tsx:6:252f2bc4` · `portal/src/portal/coachip-ui/Band.tsx:2:a9e49222` (+7: `python3 kg/kg.py who-reads niete-logo.png`)
+- `niete-logo.png` ← imported by `portal/src/pages/NotFound.tsx:3:4c106db0` · `portal/src/portal/analytics/AnalyticsFrame.tsx:4:252f2bc4` · `portal/src/portal/auth/AuthFrame.tsx:6:252f2bc4` · `portal/src/portal/coachip-ui/Band.tsx:2:a9e49222` (+8: `python3 kg/kg.py who-reads niete-logo.png`)
 - `niete-mark.png` ← imported by `portal/src/portal/newui/FeatureIcon.tsx:4:90d82587`
 - `rumi-logo.png` ← imported by `portal/src/components/Navigation.tsx:5:dce9215e` · `portal/src/components/WhatsAppChat.tsx:2:dce9215e` · `portal/src/pages/HowItWorks.tsx:5:dce9215e` · `portal/src/pages/Index.tsx:3:dce9215e`
 

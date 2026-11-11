@@ -1,7 +1,7 @@
 # assess — Learning-assessment (child test) page parts: engine frame, preflight, offline prep
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/assess kg=b63e9fd8ca23 gen=556322fbee1b overflow=18 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/assess kg=2155537c3b6c gen=5bc1ce8f9bf7 overflow=17 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `AssessEngineSlot.tsx` — full-screen iframe running the SA engine's play page for one child
@@ -20,7 +20,7 @@ Full index: `CLAUDE.index.md`
 ## Who reads this (generated)
 - `AssessActions.tsx` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:10:12a1ff1f` · `portal/src/portal/components/assess/AssessOtherPhone.tsx:7:5b0826a6` (+1)
 - `offlineCopy.ts` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:12:0ac30815` · `portal/src/portal/components/assess/AssessOfflineCard.tsx:6:3ffb4701`
-- `offlineReady.ts` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:15:98df4fd3` · `portal/src/portal/components/assess/AssessOfflineCard.tsx:10:28426d80`
+- `offlineReady.ts` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:15:98df4fd3` · `portal/src/portal/components/assess/AssessOfflineCard.tsx:9:28426d80`
 - `AssessDrain.tsx` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:5:a2fe763a`
 - … 5 more → `CLAUDE.index.md`
 
@@ -32,7 +32,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/components/assess/AssessEngineSlot.r7b.test.tsx` (AssessEngineSlot.tsx)
 - `portal/src/portal/components/assess/AssessEngineSlot.test.tsx` (AssessEngineSlot.tsx)
-- … 5 more → `CLAUDE.index.md`
+- … 4 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/components/CLAUDE.md`?

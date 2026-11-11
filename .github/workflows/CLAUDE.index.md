@@ -12,6 +12,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `branch-guard.yml` | Fails any PR or push to main/staging/sandbox if tooling still references the retired develop branch |
 | `ci.yml` | Main CI on PRs and pushes to main/staging/sandbox: root jest test job, lint, and portal newui vitest job |
 | `data-standards.yml` | Data Standards schema gate on every PR and push to main/staging/sandbox; ownership check blocks, report job is advisory |
+| `deploy.yml` | On push to main touching bot/, deploys the bot to Railway with RAILWAY_TOKEN; skips cleanly when the token is unset |
 | `fresh-clone-smoke.yml` | Weekly Monday and manual smoke test that a fresh clone passes npm install and npm test |
 | `kg-check.yml` | On every PR rebuilds the knowledge graph and fails if committed door files or kg summaries drift from the graph |
 | `logger-level.yml` | Fast gate for the logger-severity ratchet on PRs and pushes to main/staging/sandbox touching bot/ |
@@ -29,5 +30,5 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- skills: `niete-mock-e2e`?
-- docs: `.claude/skills/data-standards/reference/instances/niete-rumi.md`? · `.github/CLAUDE.md`? · `docs/migration/08-launch-checklist.md`? · `docs/qa-automation.md`? · `portal/ANDROID.md`?
+- skills: `gherkin-spec-sync`? · `niete-mock-e2e`?
+- docs: `.claude/skills/data-standards/reference/instances/niete-rumi.md`? · `.github/CLAUDE.md`? · `docs/migration/08-launch-checklist.md`? · `docs/qa-automation.md`? · `docs/railway-operations.md`? · `portal/ANDROID.md`?

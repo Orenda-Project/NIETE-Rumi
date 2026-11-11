@@ -39,7 +39,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Tests (all, generated)
 - `BottomSheet.tsx` ← `portal/src/portal/components/coaching/BottomSheet.test.tsx`
 - `CoachingHome.tsx` ← `portal/src/portal/components/coaching/CoachingHome.live.test.tsx` · `portal/src/portal/pages/PortalCoachingRecord.session.test.tsx`
-- `LibraryPicker.tsx` ← `portal/src/portal/components/coaching/LibraryPicker.recent.test.tsx` · `portal/src/portal/newui/lessons/gbOnRequest.test.tsx`
+- `LibraryPicker.tsx` ← `portal/src/portal/components/coaching/LibraryPicker.recent.test.tsx`
 - `SendLessonButton.tsx` ← `portal/src/portal/components/coaching/SendLessonButton.test.tsx`
 
 ## Related (all, generated)

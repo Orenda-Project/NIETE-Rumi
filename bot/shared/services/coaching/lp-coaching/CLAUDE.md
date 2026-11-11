@@ -1,7 +1,7 @@
 # lp-coaching — Lesson-plan step of a coaching session: list, link, upload, paste
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/lp-coaching kg=fcd5ecf315e8 gen=f12780933cc6 overflow=33 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/lp-coaching kg=88718d62de96 gen=21792d37db30 overflow=33 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `lp-step.service.js` — shared landing on the lesson-plan step
@@ -17,9 +17,9 @@ Full index: `CLAUDE.index.md`
 | `send-lp-prompt.js` | Routes an LP prompt to sendInteractiveMessage for lists or buttons so list payloads no longer crash (bd-lqpog) |
 
 ## Who reads this (generated)
-- table `coaching_sessions` (written by `lp-coaching-linker.service.js` (+1)) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:56:4a173bcd`? (+89)
-- column `coaching_sessions.status` (written by `lp-step.service.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:57:23fca46d` (+41)
-- table `coaching_sessions` whole row (`*`) (written by `lp-coaching-linker.service.js` (+1)) ← read by `bot/shared/handlers/text-message.handler.js:1951:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:770:d2b02c3e`? (+13)
+- table `coaching_sessions` (written by `lp-coaching-linker.service.js` (+1)) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+88)
+- column `coaching_sessions.status` (written by `lp-step.service.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:52:23fca46d` (+41)
+- table `coaching_sessions` whole row (`*`) (written by `lp-coaching-linker.service.js` (+1)) ← read by `bot/shared/handlers/text-message.handler.js:1921:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:742:d2b02c3e`? (+13)
 - … 13 more → `CLAUDE.index.md`
 
 ## Never (human)

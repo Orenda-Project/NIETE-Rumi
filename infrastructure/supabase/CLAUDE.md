@@ -1,7 +1,7 @@
 # supabase — Fresh-install SQL (schema, RLS, seed) and versioned migrations for NIETE Supabase
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/supabase kg=4d1e7a2e92d8 gen=763581c29b6e overflow=1021 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/supabase kg=b571b0d3c014 gen=6ca90c59d092 overflow=1001 rendered=2026-11-09 kg.py=1.1.0 -->
 
 ## Entry points
 - `migrations/` — V*.sql plus ROLLBACK_V*.sql pairs, applied in order
@@ -18,9 +18,9 @@ Full index: `CLAUDE.index.md`
 | … | 1 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- column `users.id` (written by `00_complete-schema.sql`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632` · `bot/shared/calls/call-context.repo.js:36:6776a642` (+178)
-- column `app_settings.key` (written by `00_complete-schema.sql`) ← read by `bot/shared/config/feature-flags.js:108:b7610a0c` · `bot/shared/config/model-settings.js:162:19a9a79a` (+129)
-- … 1020 more → `CLAUDE.index.md`
+- column `users.id` (written by `00_complete-schema.sql`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632` · `bot/shared/calls/call-context.repo.js:36:6776a642` (+175)
+- column `app_settings.key` (written by `00_complete-schema.sql`) ← read by `bot/shared/config/feature-flags.js:102:b7610a0c` · `bot/shared/config/model-settings.js:162:19a9a79a` (+127)
+- … 1000 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Do not add BEGIN/COMMIT to a migration; exec_sql refuses transaction control (migrations/V1.8.0__coachip_insights.sql:20)

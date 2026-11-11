@@ -1,7 +1,7 @@
 # tts — Voice gateway for all voice notes: routing, providers, Ogg Opus and text prep
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/tts kg=d418fac393b9 gen=1882eef00397 overflow=10 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/tts kg=6d822dcd3aa9 gen=c78a315422e4 overflow=10 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — synthesize, the one entry features call
@@ -19,7 +19,7 @@ Full index: `CLAUDE.index.md`
 | `routing.js` | Routes a TTS use case to an ordered provider chain from configuration (resolveChain) |
 
 ## Who reads this (generated)
-- `index.js` ← imported by `bot/scripts/child-test/record-sa-voice.js:109:d4fc4e89` · `bot/scripts/quiz/record-one-voice-shared-lines.js:163:84470ea7` (+9)
+- `index.js` ← imported by `bot/scripts/child-test/record-sa-voice.js:102:d4fc4e89` · `bot/scripts/quiz/record-one-voice-shared-lines.js:163:84470ea7` (+9)
 - `ogg-opus.js` ← imported by `bot/shared/services/tts/index.js:22:109dfb74` · `bot/shared/services/tts/providers/soniox.provider.js:30:7656355b`
 - `routing.js` ← imported by `bot/shared/services/tts/index.js:21:eda33c95`
 

@@ -1,6 +1,6 @@
 # migrations — Supabase-CLI migrations: funnel tables (copies) and training_sync_runs ledger
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/supabase/migrations kg=eab6a6b9c748 gen=46e5f3c280f2 overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/supabase/migrations kg=5b42c87ddf31 gen=d5bb856003f2 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `20260807_001_create_training_sync_runs.sql` — ledger deciding when the FDE sync can be retired
@@ -14,11 +14,11 @@
 | `20251107_002_add_user_funnel_columns.sql` | Byte-identical copy of database/migrations/002_add_user_funnel_columns.sql (users funnel columns). |
 
 ## Who reads this (generated)
-- table `users` whole row (`*`) (written by `20251107_001_create_funnel_tables.sql` (+1)) ← read by `bot/shared/database/bot-helpers.js:33:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? (+3)
-- column `users.source` (written by `20251107_001_create_funnel_tables.sql` (+1)) ← read by `dashboard/services/teacher-region.service.js:23:233b851e` · `dashboard/database/verify-funnel-migration.js:50:680bf0db`
+- table `users` whole row (`*`) (written by `20251107_001_create_funnel_tables.sql` (+1)) ← read by `bot/shared/database/bot-helpers.js:28:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? (+3)
 - column `users.first_message_at` (written by `20251107_001_create_funnel_tables.sql` (+1)) ← read by `dashboard/database/verify-funnel-migration.js:50:680bf0db`
 - column `users.registered_at` (written by `20251107_001_create_funnel_tables.sql` (+1)) ← read by `dashboard/database/verify-funnel-migration.js:50:680bf0db`
 - column `users.session_id` (written by `20251107_001_create_funnel_tables.sql` (+1)) ← read by `dashboard/database/verify-funnel-migration.js:50:680bf0db`
+- column `users.source` (written by `20251107_001_create_funnel_tables.sql` (+1)) ← read by `dashboard/database/verify-funnel-migration.js:50:680bf0db`
 - column `website_visits.id` (written by `20251107_001_create_funnel_tables.sql`) ← read by `dashboard/routes/funnel-tracking.routes.js:84:c4cc30e2`
 - column `website_visits.session_id` (written by `20251107_001_create_funnel_tables.sql`) ← read by `dashboard/routes/funnel-tracking.routes.js:85:3a858213`
 

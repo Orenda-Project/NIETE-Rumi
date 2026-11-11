@@ -1,7 +1,7 @@
 # migrations — Hand-applied data and schema migrations, dated; mostly training-content seeds
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/migrations kg=749ed5bfba85 gen=6174386d2e86 overflow=30 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/migrations kg=b3bb50ca2144 gen=535709249f0d overflow=27 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `2026-10-01-attempt-status-pending-review.sql` — an additive enum-value migration (ADD VALUE IF NOT EXISTS)
@@ -15,12 +15,12 @@ Full index: `CLAUDE.index.md`
 | `2026-07-21-level-scoping.sql` | Creates niete_primary and niete_middle_high training programs with vendor/level scopes for grade-band visibility |
 | `2026-08-02-capstone-answer-columns.sql` | Relaxes NOT NULL on chosen_option and is_correct so written capstone answers persist in training_assessment_answers |
 | `2026-08-02-capstone-attempt-kind.sql` | Widens the attempts CHECK constraint to allow quiz_kind='capstone', which was rejected for every insert before |
-| … | 19 more → `CLAUDE.index.md` |
+| … | 16 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `training_vendors` (written by `2026-08-02-quiz-serving-config.sql` (+3)) ← read by `bot/shared/routes/teacher-training-endpoint.js:1235:1ff52097`? · `bot/shared/services/training/capstone-delivery.service.js:160:f399b197`? (+10)
-- table `training_grand_quizzes` (written by `2026-07-21-capstone-import.sql` (+1)) ← read by `bot/shared/routes/teacher-training-endpoint.js:1281:6c918b06`? · `bot/shared/services/training/capstone-delivery.service.js:79:9543a8dd`? (+9)
-- table `training_questions` (written by `2026-07-21-capstone-import.sql`) ← read by `bot/shared/routes/teacher-training-endpoint.js:1608:a56028e9`? · `bot/shared/services/training/capstone-delivery.service.js:92:fc84136d`? (+8)
+- table `training_vendors` (written by `2026-08-02-quiz-serving-config.sql` (+2)) ← read by `bot/shared/routes/teacher-training-endpoint.js:1177:1ff52097`? · `bot/shared/services/training/capstone-delivery.service.js:153:f399b197`? (+9)
+- table `training_grand_quizzes` (written by `2026-07-21-capstone-import.sql` (+1)) ← read by `bot/shared/routes/teacher-training-endpoint.js:1223:4dbdc689`? · `bot/shared/services/training/capstone-delivery.service.js:76:9543a8dd`? (+8)
+- table `training_questions` (written by `2026-07-21-capstone-import.sql`) ← read by `bot/shared/routes/teacher-training-endpoint.js:1531:a56028e9`? · `bot/shared/services/training/capstone-delivery.service.js:88:fc84136d`? (+8)
 - … 11 more → `CLAUDE.index.md`
 
 ## Never (human)

@@ -6,7 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CoachFirstPage.tsx` | (unmapped) |
 | `CoachLanding.tsx` | Landing at /portal/coach: slim Coach Home when the School card switch is on, else the old coach Home |
 | `CoachingRedirect.tsx` | (unmapped) |
 | `DaysUsedPage.tsx` | (unmapped) |
@@ -18,7 +17,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `SlimHome.tsx` | Slim Coach Home with the School card on: NIETE band plus Training Library and My schools tiles |
 | `TeacherCardPage.tsx` | A teacher's card for the period: feature tiles, score chart and coaching reports for the coach |
 | `TeacherScoresPage.tsx` | (unmapped) |
-| `WhereToCoachPage.tsx` | (unmapped) |
 | `api.ts` | School card reads GET /api/portal/coach/... (404 when switch off or not her school); read only |
 | `copy.test.ts` | Pins School card copy: Urdu complete, label-only values, ontology words, dash for unloaded numbers |
 | `copy.ts` | English and Urdu words for every School card screen, typed so missing Urdu fails the build |
@@ -30,7 +28,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `parts.tsx` | School card pieces: period chips, bars, activity tiles, teacher grid, score chart, sparkline |
 | `period.test.ts` | Pins period address handling, bar labels, per-day lines and days-still-ahead wording |
 | `period.ts` | School card period (Today, This week, This month) in the ?period= address plus label helpers |
-| `principal.test.tsx` | (unmapped) |
 | `schoolView.test.tsx` | (unmapped) |
 | `schoolView.tsx` | (unmapped) |
 | `scores.tsx` | (unmapped) |
@@ -39,13 +36,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `training.tsx` | (unmapped) |
 | `types.ts` | Shapes of the School card API answers behind portal_coach_school_card |
 | `useSchoolCard.ts` | Hook reading features.schoolCard from /config (app_settings portal_coach_school_card), fail-closed |
-| `where.ts` | (unmapped) |
-| `whereCopy.ts` | (unmapped) |
-| `whereDoor.tsx` | (unmapped) |
-| `whereToCoach.test.tsx` | (unmapped) |
 
 ## Who reads this (all, generated)
-- `CoachFirstPage.tsx` ← imported by `portal/src/App.tsx:115:3cb70cda`
 - `CoachLanding.tsx` ← imported by `portal/src/App.tsx:102:bfd131cf` · `portal/src/portal/coach/card/harness.testdata.tsx:46:4b3728bb`
 - `CoachingRedirect.tsx` ← imported by `portal/src/App.tsx:111:fc467a13` · `portal/src/portal/coach/card/harness.testdata.tsx:47:e793bea8`
 - `DaysUsedPage.tsx` ← imported by `portal/src/App.tsx:107:e7b7a067` · `portal/src/portal/coach/card/harness.testdata.tsx:48:fb7c5cb3`
@@ -57,32 +49,24 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `SlimHome.tsx` ← imported by `portal/src/portal/coach/card/CoachLanding.tsx:5:2ae79de8`
 - `TeacherCardPage.tsx` ← imported by `portal/src/portal/coach/pages/CoachTeacher.tsx:12:fc6c6141`
 - `TeacherScoresPage.tsx` ← imported by `portal/src/App.tsx:110:03da9cfd` · `portal/src/portal/coach/card/harness.testdata.tsx:47:e793bea8`
-- `WhereToCoachPage.tsx` ← imported by `portal/src/App.tsx:114:9e9c9db6`
 - `api.ts` ← imported by `portal/src/portal/coach/card/DaysUsedPage.tsx:8:b7215193` · `portal/src/portal/coach/card/FeatureGridPage.tsx:6:b7215193` · `portal/src/portal/coach/card/HerItemsPage.tsx:8:b7215193` · `portal/src/portal/coach/card/SchoolCardPage.tsx:14:b7215193` (+4: `python3 kg/kg.py who-reads api.ts`)
-- `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachPickTeacher.tsx:7:bb80576a` · `portal/src/portal/coach/pages/CoachRemoveTeachers.tsx:14:bb80576a` · `portal/src/portal/coach/pages/CoachVisit.tsx:19:bb80576a` · `portal/src/portal/teacher/copyRegistry.ts:13:1838e6da` (+17: `python3 kg/kg.py who-reads copy.ts`)
-- `frame.tsx` ← imported by `portal/src/portal/coach/pages/CoachPeople.tsx:13:7a39566b` · `portal/src/portal/coach/pages/CoachSchool.tsx:13:7a39566b` · `portal/src/portal/coach/pages/CoachTeacher.tsx:11:7a39566b` · `portal/src/portal/teacher/principal/MySchool.tsx:8:7eb1b489` (+12: `python3 kg/kg.py who-reads frame.tsx`)
-- `parts.tsx` ← imported by `portal/src/portal/teacher/principal/MySchool.tsx:10:c74c2752` · `portal/src/portal/coach/card/CoachFirstPage.tsx:11:7541aac6` · `portal/src/portal/coach/card/DaysUsedPage.tsx:11:ae8e732d` · `portal/src/portal/coach/card/FeatureGridPage.tsx:9:afb846b0` (+9: `python3 kg/kg.py who-reads parts.tsx`)
-- `period.ts` ← imported by `portal/src/portal/teacher/principal/MySchool.tsx:9:f321a4f0` · `portal/src/portal/coach/card/CoachFirstPage.tsx:10:ee03a0a6` · `portal/src/portal/coach/card/DaysUsedPage.tsx:10:b405e2b8` · `portal/src/portal/coach/card/FeatureGridPage.tsx:8:d86de784` (+9: `python3 kg/kg.py who-reads period.ts`)
-- `schoolView.tsx` ← imported by `portal/src/portal/teacher/principal/MySchool.tsx:11:9db69164` · `portal/src/portal/coach/card/FeatureGridPage.tsx:10:bfeaffef` · `portal/src/portal/coach/card/SchoolCardPage.tsx:18:cc5da991`
-- `scores.tsx` ← imported by `portal/src/portal/coach/card/ScoresByTeacher.tsx:12:4b225b0b` · `portal/src/portal/coach/card/TeacherCardPage.tsx:17:973be883` · `portal/src/portal/coach/card/TeacherScoresPage.tsx:13:41c06eb2` · `portal/src/portal/coach/card/WhereToCoachPage.tsx:16:1eb3835d`
+- `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachPickTeacher.tsx:7:bb80576a` · `portal/src/portal/teacher/copyRegistry.ts:13:1838e6da` · `portal/src/portal/coach/card/DaysUsedPage.tsx:7:b8c88189` · `portal/src/portal/coach/card/FeatureGridPage.tsx:5:b8c88189` (+12: `python3 kg/kg.py who-reads copy.ts`)
+- `frame.tsx` ← imported by `portal/src/portal/coach/pages/CoachPeople.tsx:13:7a39566b` · `portal/src/portal/coach/pages/CoachSchool.tsx:13:7a39566b` · `portal/src/portal/coach/pages/CoachTeacher.tsx:11:7a39566b` · `portal/src/portal/coach/card/CoachLanding.tsx:4:d0df9fcb` (+9: `python3 kg/kg.py who-reads frame.tsx`)
+- `parts.tsx` ← imported by `portal/src/portal/coach/card/DaysUsedPage.tsx:11:ae8e732d` · `portal/src/portal/coach/card/FeatureGridPage.tsx:9:afb846b0` · `portal/src/portal/coach/card/HerItemsPage.tsx:11:46ad6c60` · `portal/src/portal/coach/card/SchoolCardPage.tsx:17:7541aac6` (+6: `python3 kg/kg.py who-reads parts.tsx`)
+- `period.ts` ← imported by `portal/src/portal/coach/card/DaysUsedPage.tsx:10:b405e2b8` · `portal/src/portal/coach/card/FeatureGridPage.tsx:8:d86de784` · `portal/src/portal/coach/card/HerItemsPage.tsx:10:b405e2b8` · `portal/src/portal/coach/card/SchoolCardPage.tsx:16:ee03a0a6` (+6: `python3 kg/kg.py who-reads period.ts`)
+- `schoolView.tsx` ← imported by `portal/src/portal/coach/card/FeatureGridPage.tsx:10:bfeaffef` · `portal/src/portal/coach/card/SchoolCardPage.tsx:18:3a57efcd`
+- `scores.tsx` ← imported by `portal/src/portal/coach/card/ScoresByTeacher.tsx:12:4b225b0b` · `portal/src/portal/coach/card/TeacherCardPage.tsx:17:973be883` · `portal/src/portal/coach/card/TeacherScoresPage.tsx:13:41c06eb2` · `portal/src/portal/coach/card/schoolView.tsx:10:e40b91ef`
 - `training.tsx` ← imported by `portal/src/portal/coach/card/FeatureGridPage.tsx:13:de652ceb` · `portal/src/portal/coach/card/HerItemsPage.tsx:12:15413451`
-- `types.ts` ← imported by `portal/src/portal/coach/observe/observeRoutes.tsx:4:c1bdee0e` · `portal/src/portal/teacher/principal/api.ts:2:4fde7408` · `portal/src/portal/coach/card/DaysUsedPage.tsx:12:a9641473` · `portal/src/portal/coach/card/FeatureGridPage.tsx:15:901d8c66` (+14: `python3 kg/kg.py who-reads types.ts`)
+- `types.ts` ← imported by `portal/src/portal/coach/card/DaysUsedPage.tsx:12:a9641473` · `portal/src/portal/coach/card/FeatureGridPage.tsx:15:901d8c66` · `portal/src/portal/coach/card/HerItemsPage.tsx:13:a5d3e659` · `portal/src/portal/coach/card/SchoolCardPage.tsx:19:e75a7c12` (+11: `python3 kg/kg.py who-reads types.ts`)
 - `useSchoolCard.ts` ← imported by `portal/src/portal/coach/training/CoachAppGuard.tsx:11:949d6987` · `portal/src/portal/components/PortalNavigation.tsx:17:c3e7bcc1` · `portal/src/portal/coach/card/frame.tsx:8:f661d3b6` · `portal/src/portal/coach/card/harness.testdata.tsx:102:e33dd03d`
-- `where.ts` ← imported by `portal/src/portal/coach/card/CoachFirstPage.tsx:8:33d11ba7` · `portal/src/portal/coach/card/SchoolCardPage.tsx:22:c8af4176` · `portal/src/portal/coach/card/TeacherCardPage.tsx:21:3add90bc` · `portal/src/portal/coach/card/WhereToCoachPage.tsx:12:7c9d1205`
-- `whereCopy.ts` ← imported by `portal/src/portal/teacher/copyRegistry.ts:17:9a7746f0` · `portal/src/portal/coach/card/CoachFirstPage.tsx:7:18a82b96` · `portal/src/portal/coach/card/SchoolCardPage.tsx:21:fa778551` · `portal/src/portal/coach/card/TeacherCardPage.tsx:20:fa778551` (+2: `python3 kg/kg.py who-reads whereCopy.ts`)
-- `whereDoor.tsx` ← imported by `portal/src/portal/coach/card/SchoolCardPage.tsx:20:aede35df` · `portal/src/portal/coach/card/TeacherCardPage.tsx:19:aede35df`
 
 ## Tests (all, generated)
-- `CoachFirstPage.tsx` ← `portal/src/portal/coach/card/whereToCoach.test.tsx`
-- `WhereToCoachPage.tsx` ← `portal/src/portal/coach/card/whereToCoach.test.tsx`
 - `copy.ts` ← `portal/src/portal/coach/card/copy.test.ts` · `portal/src/portal/coach/card/period.test.ts`
-- `fixtures.testdata.ts` ← `portal/src/portal/coach/card/fullApp.test.tsx` · `portal/src/portal/coach/card/level.test.tsx` · `portal/src/portal/coach/card/principal.test.tsx` · `portal/src/portal/coach/card/schoolView.test.tsx` · `portal/src/portal/coach/card/switchOff.test.tsx` · `portal/src/portal/coach/card/switchOn.test.tsx` (+1: `python3 kg/kg.py who-reads portal/src/portal/coach/card/fixtures.testdata.ts`)
-- `harness.testdata.tsx` ← `portal/src/portal/coach/card/fullApp.test.tsx` · `portal/src/portal/coach/card/level.test.tsx` · `portal/src/portal/coach/card/principal.test.tsx` · `portal/src/portal/coach/card/schoolView.test.tsx` · `portal/src/portal/coach/card/switchOff.test.tsx` · `portal/src/portal/coach/card/switchOn.test.tsx` (+2: `python3 kg/kg.py who-reads portal/src/portal/coach/card/harness.testdata.tsx`)
+- `fixtures.testdata.ts` ← `portal/src/portal/coach/card/fullApp.test.tsx` · `portal/src/portal/coach/card/level.test.tsx` · `portal/src/portal/coach/card/schoolView.test.tsx` · `portal/src/portal/coach/card/switchOff.test.tsx` · `portal/src/portal/coach/card/switchOn.test.tsx`
+- `harness.testdata.tsx` ← `portal/src/portal/coach/card/fullApp.test.tsx` · `portal/src/portal/coach/card/level.test.tsx` · `portal/src/portal/coach/card/schoolView.test.tsx` · `portal/src/portal/coach/card/switchOff.test.tsx` · `portal/src/portal/coach/card/switchOn.test.tsx` · `portal/src/portal/coach/people/level.test.tsx`
 - `period.ts` ← `portal/src/portal/coach/card/period.test.ts`
 - `schoolView.tsx` ← `portal/src/portal/coach/card/schoolView.test.tsx`?
-- `types.ts` ← `portal/src/portal/coach/card/period.test.ts` · `portal/src/portal/coach/card/principal.test.tsx` · `portal/src/portal/coach/card/schoolView.test.tsx`
-- `where.ts` ← `portal/src/portal/coach/card/whereToCoach.test.tsx`
-- `whereCopy.ts` ← `portal/src/portal/coach/card/whereToCoach.test.tsx`
+- `types.ts` ← `portal/src/portal/coach/card/period.test.ts` · `portal/src/portal/coach/card/schoolView.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.md`?
+- docs: `portal/src/portal/coach/CLAUDE.md`?

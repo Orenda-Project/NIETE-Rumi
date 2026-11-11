@@ -1,7 +1,7 @@
 # training — New-UI Training screens: providers, levels, parts, quizzes, exams, certificates
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/training kg=c43e48bba943 gen=fc73ed39e266 overflow=52 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/training kg=7455a2f7d94f gen=731fcf999c3a overflow=52 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `TrainingHome.tsx` — providers, Continue, certificates, My grades entries
@@ -19,7 +19,7 @@ Full index: `CLAUDE.index.md`
 | … | 25 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `trainingApi.ts` ← imported by `portal/src/portal/coach/card/fixtures.testdata.ts:6:01798a1f` · `portal/src/portal/coach/card/training.tsx:10:cdec30be` (+25)
+- `trainingApi.ts` ← imported by `portal/src/portal/coach/training/LibraryPages.tsx:20:c1416825` · `portal/src/portal/coach/training/libraryApi.ts:1:3cc0f2b4` (+23)
 - `frame.tsx` ← imported by `portal/src/portal/teacher/training/TrainingFrame.tsx:5:f09838a9` · `portal/src/portal/newui/training/TrainingCertificates.tsx:10:3604d4c0` (+9)
 - `certificateFile.ts` ← imported by `portal/src/portal/components/CertificatesPanel.tsx:53:05801542` · `portal/src/portal/teacher/training/CertificatesPage.tsx:6:f065c924` (+6)
 - … 12 more → `CLAUDE.index.md`

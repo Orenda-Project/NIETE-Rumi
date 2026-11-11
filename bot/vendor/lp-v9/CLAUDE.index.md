@@ -24,9 +24,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Who reads this (all, generated)
 - `g5c_cleared_names.json` ← imported by `bot/vendor/lp-v9/lint_lp.js:1192:41cb7ef9`
 - `g5c_cleared_names_en.json` ← imported by `bot/vendor/lp-v9/lint_lp.js:1345:eedcd6e1`
-- `lint_lp.js` ← imported by `bot/shared/services/lp612-author.service.js:62:ff56f646` · `bot/workers/lp612-author.worker.js:55:b3b531df`
-- `render_lp.js` ← imported by `bot/shared/services/lp612-author.service.js:73:70fb282b` · `bot/shared/services/lp612-render.service.js:45:88b652f0` · `bot/workers/lp612-author.worker.js:51:624f72f2`
-- `visual_check.js` ← imported by `bot/shared/services/lp612-author.service.js:64:cbe13de2` · `bot/vendor/lp-v9/lint_lp.js:56:ed2674cf`
+- `lint_lp.js` ← imported by `bot/shared/services/lp612-author.service.js:57:ff56f646` · `bot/workers/lp612-author.worker.js:50:b3b531df`
+- `render_lp.js` ← imported by `bot/shared/services/lp612-author.service.js:68:70fb282b` · `bot/shared/services/lp612-render.service.js:44:88b652f0` · `bot/workers/lp612-author.worker.js:46:624f72f2`
+- `visual_check.js` ← imported by `bot/shared/services/lp612-author.service.js:59:cbe13de2` · `bot/vendor/lp-v9/lint_lp.js:56:ed2674cf`
 - env `LP612_CHROME_BIN` read at `bot/vendor/lp-v9/render_lp.js:253:caa9dfb2`
 - env `LP612_CHROME_CHANNEL` read at `bot/vendor/lp-v9/render_lp.js:295:54a6876a`
 

@@ -10,7 +10,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `AudioCard.tsx` | Playable recording card with optional lead, title, second line, action and round play button; claims the one kit sound |
 | `ButtonWithReason.tsx` | Main button that, while disabled, shows the plain-words reason above it in a polite live region |
 | `ChoiceChips.tsx` | Row of pill choices that narrow or sort a list (e.g. coach Sort options) |
-| `ChoicePair.tsx` | (unmapped) |
 | `ChosenSoFar.tsx` | Shows plain-text choices made so far in a multi-step flow, for coach and teacher step screens |
 | `ClassPicker.colours.test.tsx` | Pins ClassPicker gradeColours opt-in: the picked class shows as a grade-coloured tile (Digital Coaching one screen) |
 | `ClassPicker.test.tsx` | Pins ClassPicker trigger, tray, starred classes, catalogue fallbacks and selection (bd-fmf24g.14) |
@@ -20,7 +19,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `DateRangeBar.test.tsx` | Tests resolveRange and DateRangeBar: dates and the previous period of equal length, presets tray |
 | `DateRangeBar.tsx` | Date range control at the top of All pages: a 68px card opening a presets tray (This month default, All time) |
 | `DayStrip.tsx` | One week of days to pick from, used by the coach's New visit, My schedule and Team schedule |
-| `DockButton.tsx` | (unmapped) |
 | `FeatureCard.test.tsx` | Pins FeatureCard and MeterRow rendering (bd-fmf24g.27) |
 | `FeatureCard.tsx` | Analytics-style section card wearing its feature art, plus MeterRow for labelled meters (bd-fmf24g.27) |
 | `FeatureTile.tsx` | Big Home tile: 80px feature art above its label on a white card with optional chip |
@@ -101,26 +99,24 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Who reads this (all, generated)
 - `AttentionBanner.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:43:24187b35`
 - `AudioCard.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:57:f858c639`
-- `ButtonWithReason.tsx` ← imported by `portal/src/portal/teacher/assessment/ui.tsx:7:48c76870` · `portal/src/portal/teacher/ui/index.ts:62:cad69b00`
+- `ButtonWithReason.tsx` ← imported by `portal/src/portal/teacher/assessment/ui.tsx:7:48c76870` · `portal/src/portal/teacher/ui/index.ts:60:cad69b00`
 - `ChoiceChips.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:53:49b45f05`
-- `ChoicePair.tsx` ← imported by `portal/src/portal/teacher/ui/RecordUploadPair.tsx:7:1b5f567c` · `portal/src/portal/teacher/ui/index.ts:59:b4999a12`
 - `ChosenSoFar.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:42:a8555ea8`
 - `ClassPicker.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:32:3af811f9`
 - `ConfirmTray.tsx` ← imported by `portal/src/portal/coach/pages/CoachRecord.tsx:7:03890d2d` · `portal/src/portal/components/coaching/coach/CoachRecorder.tsx:4:2494527e` · `portal/src/portal/newui/coaching/RecordPage.tsx:19:d8487683` · `portal/src/portal/teacher/ui/index.ts:21:fb5bbf29`
 - `DateRangeBar.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:34:1ee6444b`
 - `DayStrip.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:46:1fce5607`
-- `DockButton.tsx` ← imported by `portal/src/portal/teacher/training/parts.tsx:115:75ca19e3` · `portal/src/portal/teacher/ui/index.ts:60:6d80be64`
 - `FeatureCard.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:35:eb7b0f1f`
-- `FeatureTile.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:44:605672c0`
+- `FeatureTile.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:44:dd354368`
 - `GradeSubjectButton.tsx` ← imported by `portal/src/portal/teacher/ui/ClassPicker.tsx:10:39273c57` · `portal/src/portal/teacher/ui/index.ts:13:0b2fc848`
 - `HistoryList.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:18:4f702d91`
 - `HistoryRow.tsx` ← imported by `portal/src/portal/teacher/ui/HistoryList.tsx:7:6fa3e2e9` · `portal/src/portal/teacher/ui/index.ts:17:2a484b2f`
-- `HomeGreeting.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:40:4dcb8675`
+- `HomeGreeting.tsx` ← imported by `portal/src/portal/teacher/home/look/HomeBand.tsx:6:22ddb77c` · `portal/src/portal/teacher/ui/index.ts:40:4dcb8675`
 - `KpiTiles.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:36:f8dbd7c7`
 - `LeaveNote.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:24:44862cc5`
 - `ListRow.tsx` ← imported by `portal/src/portal/teacher/ui/SelectField.tsx:6:471aaaa2` · `portal/src/portal/teacher/ui/index.ts:19:d52a85d7`
 - `NoticeIcon.tsx` ← imported by `portal/src/portal/teacher/ui/ReadyBanner.tsx:5:4c6fa82f` · `portal/src/portal/teacher/ui/ReadyCard.tsx:4:4c6fa82f` · `portal/src/portal/teacher/ui/index.ts:26:d52cf4fe`
-- `NumberField.tsx` ← imported by `portal/src/portal/teacher/assessment/ui.tsx:8:bb3c8758` · `portal/src/portal/teacher/ui/index.ts:61:8f227a6d`
+- `NumberField.tsx` ← imported by `portal/src/portal/teacher/assessment/ui.tsx:8:bb3c8758` · `portal/src/portal/teacher/ui/index.ts:59:8f227a6d`
 - `ProgressSteps.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:37:33c6e500`
 - `RatingScale.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:49:77c67ff4`
 - `ReadyBanner.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:23:fe81c62b`
@@ -130,7 +126,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `ReportBody.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:39:c97b3bbe`
 - `ScoreRing.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:55:7e1da484`
 - `SelectField.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:51:feb49636`
-- `ShareActions.tsx` ← imported by `portal/src/portal/coach/reports/SendReport.tsx:14:4dc76120` · `portal/src/portal/fln/share/ShareSheet.tsx:10:3d1a46a5` · `portal/src/portal/teacher/assessment/PaperPage.tsx:11:6c8b2f2d` · `portal/src/portal/teacher/assessment/RequestPage.tsx:8:6c8b2f2d` (+4: `python3 kg/kg.py who-reads ShareActions.tsx`)
+- `ShareActions.tsx` ← imported by `portal/src/portal/coach/reports/SendReport.tsx:13:4dc76120` · `portal/src/portal/fln/share/ShareSheet.tsx:10:3d1a46a5` · `portal/src/portal/teacher/assessment/PaperPage.tsx:11:6c8b2f2d` · `portal/src/portal/teacher/assessment/RequestPage.tsx:8:6c8b2f2d` (+4: `python3 kg/kg.py who-reads ShareActions.tsx`)
 - `SlotGroup.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:50:093d3090`
 - `StatStrip.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:54:40179790`
 - `StatusChip.tsx` ← imported by `portal/src/portal/coach/observe/PlanState.tsx:3:904f105e` · `portal/src/portal/coach/pages/CoachAttach.tsx:5:904f105e` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:9:904f105e` · `portal/src/portal/coach/pages/CoachObservePick.tsx:5:904f105e` (+11: `python3 kg/kg.py who-reads StatusChip.tsx`)
@@ -142,19 +138,19 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `Tray.tsx` ← imported by `portal/src/portal/coach/pages/CoachAttach.tsx:7:c67de01b` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:7:c67de01b` · `portal/src/portal/coach/pages/CoachVisit.tsx:7:c67de01b` · `portal/src/portal/teacher/assessment/FdeCheck.tsx:7:15225517` (+8: `python3 kg/kg.py who-reads Tray.tsx`)
 - `TrendChart.tsx` ← imported by `portal/src/portal/teacher/analytics/BandChart.tsx:1:ccec3648` · `portal/src/portal/teacher/ui/index.ts:56:7d30043f`
 - `VoiceNote.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:38:46c079f2`
-- `bidi.ts` ← imported by `portal/src/portal/coach/pages/CoachObservation.tsx:16:aa536fe5` · `portal/src/portal/teacher/assessment/FdeCheck.tsx:8:8a762185` · `portal/src/portal/teacher/assessment/RequestPage.tsx:21:8a762185` · `portal/src/portal/teacher/ui/AudioCard.tsx:4:ee59f63c` (+16: `python3 kg/kg.py who-reads bidi.ts`)
+- `bidi.ts` ← imported by `portal/src/portal/teacher/assessment/FdeCheck.tsx:8:8a762185` · `portal/src/portal/teacher/assessment/RequestPage.tsx:21:8a762185` · `portal/src/portal/teacher/ui/AudioCard.tsx:4:ee59f63c` · `portal/src/portal/teacher/ui/ChosenSoFar.tsx:3:ee59f63c` (+15: `python3 kg/kg.py who-reads bidi.ts`)
 - `catalogue.ts` ← imported by `portal/src/portal/teacher/ui/ClassPicker.tsx:7:829a71c8` · `portal/src/portal/teacher/ui/index.ts:29:ccb1985a`
 - `copy.ts` ← imported by `portal/src/portal/teacher/ui/AudioCard.tsx:5:5a1954c8` · `portal/src/portal/teacher/ui/ChosenSoFar.tsx:6:5a1954c8` · `portal/src/portal/teacher/ui/ClassPicker.tsx:8:5a1954c8` · `portal/src/portal/teacher/ui/DateRangeBar.tsx:5:5a1954c8` (+23: `python3 kg/kg.py who-reads copy.ts`)
 - `dates.ts` ← imported by `portal/src/portal/teacher/ui/DayStrip.tsx:6:b96b95f3` · `portal/src/portal/teacher/ui/index.ts:45:9c93134e`
-- `digits.ts` ← imported by `portal/src/portal/teacher/assessment/model.ts:229:b13b993e` · `portal/src/portal/teacher/ui/NumberField.tsx:3:f9559031` · `portal/src/portal/teacher/ui/index.ts:63:e8c7a783`
+- `digits.ts` ← imported by `portal/src/portal/teacher/assessment/model.ts:226:b13b993e` · `portal/src/portal/teacher/ui/NumberField.tsx:3:f9559031` · `portal/src/portal/teacher/ui/index.ts:61:e8c7a783`
 - `gradeColours.ts` ← imported by `portal/src/portal/teacher/ui/ClassPicker.tsx:12:986b0bd1` · `portal/src/portal/teacher/ui/HistoryRow.tsx:10:986b0bd1` · `portal/src/portal/teacher/ui/index.ts:14:08870d86`
-- `index.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:5:537d2327` · `portal/src/portal/coach/analytics/model.ts:2:0fe353a8` · `portal/src/portal/coach/card/HerItemsPage.tsx:2:eb562094` · `portal/src/portal/coach/card/SessionReportPage.tsx:4:2e0926c1` (+116: `python3 kg/kg.py who-reads index.ts`)
-- `range.ts` ← imported by `portal/src/portal/coach/reports/CoachReportsAll.tsx:4:3610659c` · `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:23:8ffffdf7` · `portal/src/portal/teacher/analytics/SchoolView.tsx:11:8ffffdf7` · `portal/src/portal/teacher/coaching/CoachingAll.tsx:10:8ffffdf7` (+3: `python3 kg/kg.py who-reads range.ts`)
-- `recordPair.css` ← imported by `portal/src/portal/teacher/ui/RecordUploadPair.tsx:9:450896da`
+- `index.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:5:537d2327` · `portal/src/portal/coach/analytics/model.ts:2:0fe353a8` · `portal/src/portal/coach/card/HerItemsPage.tsx:3:372799f7` · `portal/src/portal/coach/card/SessionReportPage.tsx:4:2e0926c1` (+96: `python3 kg/kg.py who-reads index.ts`)
+- `range.ts` ← imported by `portal/src/portal/coach/reports/CoachReportsAll.tsx:4:3610659c` · `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:18:8ffffdf7` · `portal/src/portal/teacher/analytics/SchoolView.tsx:11:8ffffdf7` · `portal/src/portal/teacher/coaching/CoachingAll.tsx:10:8ffffdf7` (+3: `python3 kg/kg.py who-reads range.ts`)
+- `recordPair.css` ← imported by `portal/src/portal/teacher/ui/RecordUploadPair.tsx:8:450896da`
 - `sounding.ts` ← imported by `portal/src/portal/teacher/ui/AudioCard.tsx:6:d17991ae` · `portal/src/portal/teacher/ui/VoiceNote.tsx:7:d17991ae`
-- `styles.ts` ← imported by `portal/src/portal/coach/card/training.tsx:6:55bdb8b8` · `portal/src/portal/coach/disagreements/CoachingBox.tsx:4:d8e874ab` · `portal/src/portal/coach/disagreements/DisagreementCard.tsx:6:cbd9177e` · `portal/src/portal/coach/disagreements/DisagreementsPage.tsx:7:55bdb8b8` (+131: `python3 kg/kg.py who-reads styles.ts`)
-- `subjects.ts` ← imported by `portal/src/portal/coach/card/WhereToCoachPage.tsx:5:ea579406` · `portal/src/portal/coach/card/scores.tsx:5:ea579406` · `portal/src/portal/teacher/ui/ClassPicker.tsx:13:4527f0db` · `portal/src/portal/teacher/ui/GradeSubjectButton.tsx:8:67fe62e6` (+4: `python3 kg/kg.py who-reads subjects.ts`)
-- `useKitCopy.ts` ← imported by `portal/src/portal/coach/card/SessionReportPage.tsx:6:98653aa9` · `portal/src/portal/coach/feedback/FeedbackPage.tsx:9:98653aa9` · `portal/src/portal/coach/pages/CoachNewVisit.tsx:11:98653aa9` · `portal/src/portal/coach/pages/CoachObservation.tsx:15:98653aa9` (+35: `python3 kg/kg.py who-reads useKitCopy.ts`)
+- `styles.ts` ← imported by `portal/src/portal/coach/disagreements/CoachingBox.tsx:4:d8e874ab` · `portal/src/portal/coach/disagreements/DisagreementCard.tsx:6:cbd9177e` · `portal/src/portal/coach/disagreements/DisagreementsPage.tsx:7:55bdb8b8` · `portal/src/portal/coach/disagreements/appBar.tsx:6:55bdb8b8` (+112: `python3 kg/kg.py who-reads styles.ts`)
+- `subjects.ts` ← imported by `portal/src/portal/coach/card/scores.tsx:5:ea579406` · `portal/src/portal/teacher/ui/ClassPicker.tsx:13:4527f0db` · `portal/src/portal/teacher/ui/GradeSubjectButton.tsx:8:67fe62e6` · `portal/src/portal/teacher/ui/HistoryRow.tsx:11:8c2f0923` (+3: `python3 kg/kg.py who-reads subjects.ts`)
+- `useKitCopy.ts` ← imported by `portal/src/portal/coach/card/SessionReportPage.tsx:6:98653aa9` · `portal/src/portal/coach/pages/CoachNewVisit.tsx:11:98653aa9` · `portal/src/portal/coach/pages/CoachTeam.tsx:8:98653aa9` · `portal/src/portal/coach/reports/CoachReportsAll.tsx:3:98653aa9` (+33: `python3 kg/kg.py who-reads useKitCopy.ts`)
 
 ## Tests (all, generated)
 - `ClassPicker.tsx` ← `portal/src/portal/teacher/ui/ClassPicker.colours.test.tsx` · `portal/src/portal/teacher/ui/ClassPicker.test.tsx` · `portal/src/portal/teacher/ui/checks.test.tsx`

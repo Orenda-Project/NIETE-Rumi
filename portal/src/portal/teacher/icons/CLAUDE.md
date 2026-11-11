@@ -1,7 +1,7 @@
 # icons — Teacher feature art, menu glyphs, shared icon motion, NIETE lattice
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/icons kg=e0103af9ec8d gen=9789de95670e overflow=16 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/icons kg=e1d38aa15958 gen=de7e6104b05b overflow=13 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.ts` — barrel; `FeatureArt.tsx` — 48px illustrations; `FeatureGlyph.tsx` — 24px menu glyphs
@@ -16,13 +16,13 @@ Full index: `CLAUDE.index.md`
 | `features.ts` | Teacher and coach feature lists, order and hues (FEATURE_HUE) shared by the icon art, glyphs and tiles |
 | `FeatureArt.tsx` | 48px spot illustrations per feature (Digital Coaching is a phone) in ink outline and hue, with optional shared motion |
 | `NieteLattice.tsx` | NIETE brand diamond lattice redrawn as thin 45-degree line art, used decoratively in the Home band |
-| … | 8 more → `CLAUDE.index.md` |
+| … | 7 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `index.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:5:cea5fb4f` · `portal/src/portal/coach/insights/components/MoreCoachip.tsx:12:2cbe5904` (+23)
-- `features.ts` ← imported by `portal/src/portal/coach/card/DaysUsedPage.tsx:3:0a302a7a` · `portal/src/portal/coach/card/FeatureGridPage.tsx:11:0a302a7a` (+14)
-- `FeatureArt.tsx` ← imported by `portal/src/portal/coach/card/parts.tsx:5:f39dad9e` · `portal/src/portal/coach/card/scores.tsx:6:f39dad9e` (+7)
-- `NieteLattice.tsx` ← imported by `portal/src/portal/auth/AuthFrame.tsx:8:94edcb97` · `portal/src/portal/teacher/ui/HomeGreeting.tsx:6:7dc51989` (+1)
+- `index.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:5:cea5fb4f` · `portal/src/portal/coach/insights/components/MoreCoachip.tsx:12:2cbe5904` (+20)
+- `features.ts` ← imported by `portal/src/portal/coach/card/DaysUsedPage.tsx:3:0a302a7a` · `portal/src/portal/coach/card/SchoolCardPage.tsx:19:0a302a7a` (+11)
+- `FeatureArt.tsx` ← imported by `portal/src/portal/coach/card/parts.tsx:5:f39dad9e` · `portal/src/portal/coach/card/scores.tsx:6:f39dad9e` (+6)
+- `NieteLattice.tsx` ← imported by `portal/src/portal/auth/AuthFrame.tsx:8:94edcb97` · `portal/src/portal/teacher/home/look/HomeBand.tsx:4:6ff5aaa7` (+2)
 - … 3 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -31,9 +31,9 @@ Full index: `CLAUDE.index.md`
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
 ## Tests (generated)
-- `portal/src/portal/teacher/home/look/FeatureTiles.test.tsx` (index.ts)
 - `portal/src/portal/teacher/icons/NieteLattice.test.tsx` (NieteLattice.tsx)
-- … 5 more → `CLAUDE.index.md`
+- `portal/src/portal/teacher/icons/coachArt.test.tsx` (index.ts)
+- … 3 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/teacher/CLAUDE.md`?

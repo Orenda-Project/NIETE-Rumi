@@ -21,7 +21,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Who reads this (all, generated)
 - `App.tsx` ← imported by `portal/src/main.tsx:2:2af48748`
-- `index.css` ← imported by `portal/scripts/chapter-shot/harness.tsx:9:3ba0d33b` · `portal/scripts/urdu-fit/harness.tsx:9:3ba0d33b` · `portal/src/main.tsx:3:3b87cfb4` · `portal/src/portal/fln/player/bench/states.tsx:7:3ba0d33b`
+- `index.css` ← imported by `portal/scripts/urdu-fit/harness.tsx:9:3ba0d33b` · `portal/src/main.tsx:3:3b87cfb4` · `portal/src/portal/fln/player/bench/states.tsx:7:3ba0d33b`
 
 ## Tests (all, generated)
 - `App.tsx` ← `portal/src/portal/auth/analytics-login.route.test.tsx` · `portal/src/portal/fln/tests/appRoute.test.tsx` · `portal/src/portal/pages/PortalAccount.test.tsx` · `portal/src/portal/pages/PortalDeleteAccount.test.tsx` · `portal/src/portal/pages/PortalPrivacy.test.tsx` · `portal/src/portal/teacher/lessons/leaders.app.test.tsx` (+2: `python3 kg/kg.py who-reads portal/src/App.tsx`)

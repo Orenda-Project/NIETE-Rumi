@@ -1,7 +1,7 @@
 # fln — Reading Hour & Numeracy (FLN) lesson pages, sound player and leader send/share
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln kg=b68186c896eb gen=67f9b64c6700 overflow=52 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln kg=f86541ec8626 gen=a5f4218a7d01 overflow=51 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `FlnRoutes.tsx` — route table under /portal/fln/*, all behind FlnGate
@@ -36,7 +36,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/fln/tests/counts.test.tsx` (FlnBand.tsx, FlnContext.tsx, LessonList.tsx, PlanPage.tsx, strings.ts, types.ts)
 - `portal/src/portal/fln/tests/band.test.tsx` (FlnBand.tsx, FlnBandBody.tsx, strings.ts, types.ts)
-- … 20 more → `CLAUDE.index.md`
+- … 19 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/CLAUDE.md`?

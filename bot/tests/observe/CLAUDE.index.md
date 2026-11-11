@@ -27,7 +27,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-5azz0-lp-step.test.js` | Pins the lesson-plan step wiring and advanceToLessonPlanStep so FICO LP-fidelity is scored (bd-5azz0) |
 | `bd-60093-teacher-fk-binding.test.js` | Pins simplifyName and mayBind from teacher-fk-binding for schedule-to-user binding (bd-60093) |
 | `bd-6cnaj-pending-feedback.test.js` | Pins pending-feedback vs unsent-report rows not sharing one action in the debrief list (bd-6cnaj, bd-0cxz6) |
-| `bd-7vcy1p-debrief-recipient.test.js` | (unmapped) |
 | `bd-88krt-cancel-ack.test.js` | Pins cancel and reschedule acknowledgements not telling the coach to record a lesson (bd-88krt) |
 | `bd-88krt-school-admin.test.js` | Pins school search by name or EMIS, teacher search by name or phone, add/remove school (bd-88krt) |
 | `bd-88krt-visit-actions.test.js` | Pins Flow teacher text search and the three-option action bar on a scheduled visit (bd-88krt) |
@@ -65,7 +64,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-ri5o9-report-tap-routing.test.js` | Pins matchObserveReportTap and the text fallback in report-tap-routing (bd-ri5o9.1) |
 | `bd-rkofm-lang-toggle-dedup.test.js` | Pins re-queued preview dedup nonce and an active nonce mechanism (bd-rkofm, bd-sf6m7, bd-fwqvm) |
 | `bd-rw4so-endpoint-refusal-logged.test.js` | Pins the Flow endpoint refusing a finished observation with a countable log and clear reason (bd-rw4so) |
-| `bd-sweep-market-floor-contract.test.js` | (unmapped) |
 | `bd-tju8f-audio-wall.test.js` | Pins the audio duration wall and duration truth when webhooks carry no duration (bd-tju8f T1.1) |
 | `bd-tju8f-binding.test.js` | Pins the audio-to-observation parking FIFO and binding list in observe-binding (bd-tju8f T1.2) |
 | `bd-tju8f-sweep-observer.test.js` | Pins the photo-gate sweep made safe against replica spam and staleness (bd-tju8f T3.1, bd-m1jih) |
@@ -79,11 +77,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `cancelled-observation-stays-cancelled.test.js` | Pins a cancelled observation not being revived by photo-gate and lesson-plan Yes/No taps sent earlier |
 | `coach-language-bound-observation.test.js` | Pins the coach being written to in the right language on a bound observation: LP skip ack, draft form wrapper |
 | `coach-language-success-path.test.js` | Pins the coach's own language on the debrief success path and the preview line when a teacher has no name |
-| `coach-report-delivery.test.js` | (unmapped) |
-| `coach-report-did-lines.test.js` | (unmapped) |
-| `coach-report-weekly-sweep.test.js` | (unmapped) |
-| `coach-report-whatsapp.test.js` | (unmapped) |
-| `coach-week.test.js` | (unmapped) |
 | `debrief-failure-class-recorded.test.js` | Pins the failure class written on the debrief row and coach copy naming the actual failure state |
 | `debrief-retry-media-gone.test.js` | Pins that a debrief whose WhatsApp media expired is classified, not retried, and the coach told |
 | `deliver-131047-template-fallback.test.js` | Pins error 131047 (24h window closed) falling back to the invite template in observe-send delivery |
@@ -130,12 +123,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `observe-teacher-pick.test.js` | Pins listKnownTeachers and buildTeacherPickPayload for the tap-to-pick teacher list (FEAT-053 bd-43) |
 | `observe-teacher-report.test.js` | Pins buildDebriefNotesPrompt and validateDebriefNotes for the teacher's combined report (FEAT-053 bd-32) |
 | `patch-resolver.test.js` | Pins a coach's people derived from schools, and a principal never silently counted as a teacher |
-| `rubric-debrief-notes-wiring.test.js` | (unmapped) |
-| `rubric-debrief-notes.test.js` | (unmapped) |
-| `rubric-feedback-report-wiring.test.js` | (unmapped) |
-| `rubric-feedback-report.test.js` | (unmapped) |
-| `rubric-notes-wrong-answer.test.js` | (unmapped) |
-| `rubric-round2-sandbox-test.test.js` | (unmapped) |
 | `schedule-store.test.js` | Pins observation-schedule save and list: one active row per coach, school, teacher (bd-2441) |
 | `school-fk.test.js` | Pins adding a school linking the real leader_schools FK and creating the master school if missing |
 | `second-person-address.test.js` | Pins observe prompts stating the masculine Urdu plural is not neutral, with logged check on the guide |

@@ -14,7 +14,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Who reads this (all, generated)
 - `roster-extraction.service.js` ← imported by `bot/shared/routes/roster-flow-endpoint.js:41:a2c77a01`
 - `roster-lines.js` ← imported by `bot/shared/routes/roster-flow-endpoint.js:42:832a6d37`
-- `roster-media.js` ← imported by `bot/shared/routes/observe2-form-endpoint.js:359:6c4c2981` · `bot/shared/routes/roster-flow-endpoint.js:40:6c4c2981` · `bot/shared/services/observe/observe2/added-plan.js:63:26d9b520`
+- `roster-media.js` ← imported by `bot/shared/routes/observe2-form-endpoint.js:359:6c4c2981` · `bot/shared/routes/roster-flow-endpoint.js:40:6c4c2981` · `bot/shared/services/observe/observe2/added-plan.js:58:26d9b520`
 - `roster-storage.js` ← imported by `bot/shared/routes/roster-flow-endpoint.js:43:e3122f53`
 - env `R2_ACCESS_KEY_ID` read at `bot/shared/services/roster/roster-storage.js:64:57449137`
 - env `R2_ENDPOINT` read at `bot/shared/services/roster/roster-storage.js:63:cd87adcc`

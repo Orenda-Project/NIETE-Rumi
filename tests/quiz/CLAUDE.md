@@ -1,7 +1,7 @@
 # quiz — Tests for the quiz stack: authoring, validator, offers, class reports, web quiz
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/quiz kg=470d911c879e gen=84a1a63a94d9 overflow=234 rendered=2026-11-11 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/quiz kg=acedb0e8e762 gen=56019c429678 overflow=229 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `transcript-quiz-validator.test.js` — the deterministic validator all quizzes pass
@@ -22,7 +22,7 @@ Full index: `CLAUDE.index.md`
 | `lp-quiz-cache.test.js` | LP quiz cache: same lesson version reuses a donor quiz's questions with no digest/author/checks; no teacher data leaks |
 | `quiz-daily-cap.test.js` | Runaway guard: at most QUIZ_DAILY_CAP quizzes per teacher per PKT day, counted before any model call, in Redis |
 | `web*` | 6 files; most used `web-quiz-items-generate.test.js`: SCHEMA_v2 web items at generation: media.web stored only on the web arm with web_quiz_items_v2 on; else unchanged |
-| … | 264 more → `CLAUDE.index.md` |
+| … | 258 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

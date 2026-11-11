@@ -20,7 +20,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `setup-picture-ur.png` | (unmapped) |
 
 ## Who reads this (all, generated)
-- `item-bank.sa.v1.json` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:465:dccaa0b9` · `bot/shared/services/child-test/sa/score.js:162:c0d0e3dc`
+- `item-bank.sa.v1.json` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:460:dccaa0b9` · `bot/shared/services/child-test/sa/score.js:162:c0d0e3dc`
 - `item-bank.v1.json` ← imported by `bot/shared/services/child-test/app/app-api.service.js:101:cceed7b8` · `bot/shared/services/child-test/item-bank.js:14:e4c34bb8` · `bot/scripts/child-test/build-print-pack-v2.js:35:0103d76c`
 - `item-bank.v3.json` ← imported by `bot/shared/services/child-test/item-bank.js:139:12a5564f`
 - `item-bank.v4.json` ← imported by `bot/shared/services/child-test/item-bank.js:200:6ffff5b1`

@@ -1,7 +1,7 @@
 # sa — Self-administered battery: bank builder, in-bot spoken-task scorer, Jugnu lines
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/sa kg=e8f1ebf0dd4c gen=254c42f36db8 overflow=52 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/sa kg=fb5932b403ac gen=1ca9adf4031c overflow=51 rendered=2026-11-06 kg.py=1.1.0 -->
 
 ## Entry points
 - `build.js` — builds the SA bank and runtime batteries from official banks
@@ -14,15 +14,15 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `score.js` | Scores self-administered spoken tasks in the bot (CHILD_TEST_SA_SCORER): scoreRow plus a sweep claiming parked rows |
 | `voice-manifest.js` | Lists every line Jugnu speaks once with key, language and ear_check flag, so one clip serves all tasks using it |
-| `reviewed-lines.js` | Overlays content reviewers' wording of Jugnu's lines (sa-lines-reviewed.v1.json) onto the built SA bank; also audioKey |
 | `build.js` | Builds the self-administered battery bank and per-form runtime files from item-bank.v3 with source paths on every item |
+| `reviewed-lines.js` | Overlays content reviewers' wording of Jugnu's lines (sa-lines-reviewed.v1.json) onto the built SA bank; also audioKey |
 | `set-aside.js` | Naming rule (zz.r<attempt>_<task>) for rows of a restarted child's ended attempt; readers of session tasks skip them |
 | … | 6 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `set-aside.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:68:e5ebbf41` · `bot/shared/services/child-test/app/sa-review.service.js:20:e5ebbf41` (+2)
-- `counts.js` ← imported by `dashboard/routes/sa-battery-switches.js:148:c975a915` · `bot/shared/services/child-test/sa/score.js:199:84a91658`
-- `score.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:668:dfafea0e` · `bot/whatsapp-bot.js:3010:1f15208c`
+- `counts.js` ← imported by `dashboard/routes/sa-battery-switches.js:121:c975a915` · `bot/shared/services/child-test/sa/score.js:199:84a91658`
+- `score.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:664:dfafea0e` · `bot/whatsapp-bot.js:2994:1f15208c`
 - `scripts.js` ← imported by `bot/shared/services/child-test/sa/build-w3.js:21:f61e9aac` · `bot/shared/services/child-test/sa/build.js:17:41b0657a`
 - … 18 more → `CLAUDE.index.md`
 
@@ -33,7 +33,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/child-test/sa-rdf-w3.test.js` (build-w3.js, build.js, reviewed-lines.js, voice-manifest.js)
 - `bot/tests/child-test/record-sa-voice-v4.test.js` (ur-tashdeed.js, voice-manifest.js)
-- … 36 more → `CLAUDE.index.md`
+- … 35 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - (none)

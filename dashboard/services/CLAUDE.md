@@ -1,7 +1,7 @@
 # services — Business logic: analytics, coach/teacher app reads, COACHIP, bot HTTP clients, email
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/services kg=d52c86952756 gen=bccf9ab59e68 overflow=364 rendered=2026-11-11 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/services kg=dda2196e1e64 gen=fcc2fb0368b3 overflow=357 rendered=2026-11-09 kg.py=1.1.0 -->
 
 ## Entry points
 - `telemetry.service.js` — portal logging; the bot's logger is not usable here
@@ -18,8 +18,8 @@ Full index: `CLAUDE.index.md`
 | … | 113 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `password-reset.service.js` (+2)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+193)
-- column `users.role` (written by `role-switch.service.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:543:e1438837` (+40)
+- table `users` (written by `password-reset.service.js` (+2)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+190)
+- column `users.role` (written by `role-switch.service.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:543:e1438837` (+39)
 - … 188 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -31,7 +31,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/coaching/bd-v0toag.38.9-agree-ping-service.test.js` (coach-card-token.js, coach-ping-reasons.js, coach-visit-request.js)
 - `tests/coaching/bd-v0toag.79-neutral-question.test.js` (coach-ping-page.js, coaching-report-page.js, coaching-report-view.js)
-- … 158 more → `CLAUDE.index.md`
+- … 151 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `dashboard/CLAUDE.md`? · `docs/attendance-bigquery-sync.md`? · `docs/lesson-plan-data-model-debt.md`? · `docs/migration/DEPLOYMENT.md`? · `infrastructure/templates/README.md`?

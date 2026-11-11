@@ -1,6 +1,6 @@
 # rbac — Role, feature-access and DB-context middleware for admin routes
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/middleware/rbac kg=31c017dd29f1 gen=ce78c7d1b455 overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/middleware/rbac kg=c382a33ce504 gen=738ddbb18275 overflow=0 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `rbac.js` — requireSuperAdmin, requirePartnerAdmin, requireAdmin
@@ -28,7 +28,6 @@
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
 ## Tests (generated)
-- `dashboard/tests/database-context-pooler.service.test.js` (database-context.js)
 - `tests/portal/bd-5gyspy.9-10-db-client-timeouts.test.js` (database-context.js)
 - `tests/portal/bd-sex15q.49-assets-no-db.test.js` (database-context.js)
 

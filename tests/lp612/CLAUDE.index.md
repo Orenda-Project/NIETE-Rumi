@@ -7,7 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `__fixtures__/` | → (no door; 7 files: 0 test + 7 support) |
-| `fixtures/` | → (no door; 1 files: 0 test + 1 support) |
 | `helpers/` | Shared harnesses and doubles for the lp612 E2E and unit suites → `helpers/CLAUDE.md` |
 | `atom-unknown-element.test.js` | bd-8lifl: pins the diagram engine raising ATOM_UNKNOWN_ELEMENT for an unknown atom instead of drawing hydrogen |
 | `author-advisory-prompt.test.js` | bd-owx8t: pins that revision prompts in lp612-author.service carry only blocking defects, not advisory BUDGET lines |
@@ -19,10 +18,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `author-worker.test.js` | Pins lp612-author.worker end to end: author, render, store, deliver to every waiter, plus the failure paths |
 | `author.test.js` | Pins lp612-author.service (port of author_lp.py): model resolution, revision ladder and prompts, with llm-client doubled |
 | `bd-3emr5-diagram-latex.test.js` | bd-3emr5: pins diagram.spec text rendering maths as Unicode, never raw TeX, in the PDF panels |
-| `bd-fwz1uy-endpoint-own-k5.test.js` | (unmapped) |
-| `bd-iceyyu-catalog-lead.test.js` | (unmapped) |
-| `bd-iceyyu-endpoint-own.test.js` | (unmapped) |
-| `bd-iceyyu-own-offer.test.js` | (unmapped) |
 | `bd-lafr9-onescreen-latex.test.js` | bd-lafr9: pins lp612-serving buildBody never putting TeX source in the WhatsApp one-screen body |
 | `bd-oak77-11-checkpoint.test.js` | bd-oak77.11: pins the author worker writing a checkpoint of each ladder candidate so a crash costs one round |
 | `bd-oak77-11-reaper-checkpoint.test.js` | bd-oak77.11: pins isStrandedAuthoring treating a fresh checkpoint as a living owner, not a stranded row |
@@ -68,7 +63,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fbise-section-ssc-only.test.js` | bd-a8veu.18: pins the FBISE-format questions section printed for SSC grades only; support index closes up for 6-8 |
 | `fbise-slo-chips.test.js` | bd-f01ob: pins each FBISE SLO showing its own Summative/Formative chip in the outcome box (template, validate, overlay) |
 | `feedback.test.js` | bd-86ivw: pins a delivered 6-12 lesson scheduling a teacher feedback prompt from deliverRender, with its handling |
-| `figure-column-parity.test.js` | (unmapped) |
 | `figure-notes-additive.test.js` | bd-17mht: pins apply-lp612-figure-notes appending the figure directive to existing segment notes, never overwriting |
 | `figure-repair-telemetry.test.js` | bd-oak77.14: pins lp612.render.figure_repaired event emitted when a render had to widen a figure (lp612-render) |
 | `figure-upload-keys.test.js` | bd-17mht: pins figure uploads only writing under the lp612/ prefix of the shared R2 bucket |
@@ -77,21 +71,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `flow-placement.test.js` | bd-a8veu.10: pins common mistakes and differentiation rendering inline in the lesson flow, not in Reference |
 | `flow-v31-asset.test.js` | Pins the pakistan-lp-flow v3.1 asset: both lesson screens can route to SELECT_LANGUAGE |
 | `footer-page-ref-visible.test.js` | bd-5o0ay.10.38: pins the footer page reference in its own run after the chapter so ellipsis cannot eat it |
-| `gb-feedback-format.test.js` | (unmapped) |
-| `gb-k5-coming-soon.test.js` | (unmapped) |
-| `gb-k5-curriculum.test.js` | (unmapped) |
-| `gb-k5-endpoint.test.js` | (unmapped) |
-| `gb-k5-import.test.js` | (unmapped) |
-| `gb-k5-lifecycle-ids.test.js` | (unmapped) |
-| `gb-k5-serving.test.js` | (unmapped) |
-| `gb-k5-urdu.test.js` | (unmapped) |
-| `gb-lp-author-sqs-hook.test.js` | (unmapped) |
-| `gb-lp-author-worker.test.js` | (unmapped) |
-| `gb-lp-serving.test.js` | (unmapped) |
-| `gb-lp-v10-card-worker.test.js` | (unmapped) |
-| `gb-seed-renders.test.js` | (unmapped) |
-| `gb-seed-traces-main.test.js` | (unmapped) |
-| `gb-seed-traces.test.js` | (unmapped) |
 | `golden-path-races.test.js` | Pins lp612-serving under concurrency: lost insert race reads the append answer, finished winner serves the waiter |
 | `graph-axes.test.js` | bd-gel97: pins GRAPH_AXES lint (both axes named) and graph points agreeing with their curve in diagrams |
 | `grid-cell-text-overlap.test.js` | bd-dmttc: pins grid diagram cell text not overprinting itself, on the page-2 board figure case |
@@ -99,7 +78,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `honest-eta.test.js` | bd-2ym0h: pins no interstitial promising two minutes; the wait estimate is one constant in ux-strings |
 | `import-salutation-carried.test.js` | bd-d6c8y: pins import-lp612-segments carrying the book's salutation into menu rows naming the Prophet |
 | `import.test.js` | Pins import-lp612-segments loading the segmentation corpus idempotently, computing is_religious at import |
-| `join-waiters-portal-dedupe.test.js` | (unmapped) |
 | `key-words-not-a-pill.test.js` | bd-3wjme: pins a key-word entry not rendered as a pill (radius wrong beyond one line) in the template |
 | `labelact.test.js` | Pins LABELACT lint: a board draw_order line must open with an imperative verb, not just name what is there |
 | `language-menu.test.js` | Pins the final language step (Urdu/English) under LP_612_LANG_MENU: off serves stored preference immediately |
@@ -107,7 +85,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `language-worker.test.js` | Pins the worker's overlay_dropped persistence for an Urdu render of an English-medium book lacking its overlay |
 | `latin-honorific-normalise.test.js` | bd-b7txa: unit pins lp612-latin-honorific normaliser for Latin-script honorific shapes the corpus prints |
 | `lp-design-review.test.js` | bd-a8veu.1-.11: pins PDF design-review items as document properties (e.g. question row uses whole measure) |
-| `lp612-curriculum.test.js` | (unmapped) |
 | `missing-column-guard.test.js` | bd-oak77.14: pins the author worker's row patch retrying without a column the DB lacks (PGRST204) so lesson still ships |
 | `molecule-formula-prose.test.js` | bd-oak77.24: pins lint blocking a molecule spec with prose in its formula slot |
 | `nastaliq-ltr-metrics.test.js` | bd-b8ypq: pins Nastaliq line-box metrics applied to Urdu runs on English pages |
@@ -143,42 +120,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `overlay-topup.test.js` | bd-idneu: pins lp612-overlay-topup deriving the delta of missing overlay pointers rather than re-authoring |
 | `overlay-urdu-chrome.test.js` | bd-x3dn6/bd-8g1u7: pins which provenance fields (title, chapter) the Urdu overlay can translate, gated per field |
 | `overlay-urdu-gate.test.js` | bd-y478d: pins OVERLAY_MIN_URDU gate measuring a glossed Urdu delta as a translation, not an English page |
-| `own-612-pages.test.js` | (unmapped) |
-| `own-book.test.js` | (unmapped) |
-| `own-change-service.test.js` | (unmapped) |
-| `own-edit-guard.test.js` | (unmapped) |
-| `own-edit-instruction.test.js` | (unmapped) |
-| `own-extend-store.test.js` | (unmapped) |
-| `own-extend.test.js` | (unmapped) |
-| `own-grr-gate.test.js` | (unmapped) |
-| `own-instruction.test.js` | (unmapped) |
-| `own-internal-route.test.js` | (unmapped) |
-| `own-k5-author.test.js` | (unmapped) |
-| `own-k5-fonts.test.js` | (unmapped) |
-| `own-k5-html.test.js` | (unmapped) |
-| `own-k5-pages-wiring.test.js` | (unmapped) |
-| `own-k5-pages.test.js` | (unmapped) |
-| `own-k5-service.test.js` | (unmapped) |
-| `own-k5-source.test.js` | (unmapped) |
-| `own-k5.test.js` | (unmapped) |
-| `own-library.test.js` | (unmapped) |
-| `own-mine-route.test.js` | (unmapped) |
-| `own-mine.test.js` | (unmapped) |
-| `own-pages-route.test.js` | (unmapped) |
-| `own-recent-route.test.js` | (unmapped) |
-| `own-recent.test.js` | (unmapped) |
-| `own-review.test.js` | (unmapped) |
-| `own-reviewer.test.js` | (unmapped) |
-| `own-sections.test.js` | (unmapped) |
-| `own-service.test.js` | (unmapped) |
-| `own-status-fallback.test.js` | (unmapped) |
-| `own-status-library.test.js` | (unmapped) |
-| `own-unified-rules.test.js` | (unmapped) |
-| `own-ways.test.js` | (unmapped) |
-| `own-worker-book-grr.test.js` | (unmapped) |
-| `own-worker-change.test.js` | (unmapped) |
-| `own-worker-review.test.js` | (unmapped) |
-| `own-worker.test.js` | (unmapped) |
 | `page-cap-policy.test.js` | bd-vjk68: pins page-cap policy: English teach 4/support 3 hard caps plus an unreadable-length ceiling in render_lp |
 | `page-cap.test.js` | Pins the documented 25-page hard cap enforced by lp612-pagetruth/author (brief_segment_v2) |
 | `page-count-advice.test.js` | bd-a8veu.1: pins the page-count defect text saying how many pages over and which part, from the real packer |
@@ -225,7 +166,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `religious-marks-latin-honorific.e2e.test.js` | bd-b7txa: e2e of accept-and-normalise: a Latin PBUH/SAW satisfies the gate and reaches the teacher |
 | `religious-marks-ra-adjacency.test.js` | bd-6tfw6: pins 'RA' counting as an honorific only when adjacent to a name, not the RA value on a diagram |
 | `render-concurrency.test.js` | bd-htueq: pins Chromium launches capped at LP612_RENDER_CONCURRENCY per process in lp612-render.service |
-| `render-defects-log-level.test.js` | (unmapped) |
 | `render-lifecycle-honesty.test.js` | bd-dr216/bd-w36m5: pins niete_lp612_renders status/error_code never lying: reap window vs SQS visibility, heartbeat |
 | `render-overlay-surface.test.js` | Pins lp612-render surfacing overlayApplied (pointers the ur_overlay replaced); empty list when absent |
 | `render-slow-telemetry.test.js` | bd-htueq: pins lp612.render.slow firing past 2x expected duration, separating queue wait from render time |

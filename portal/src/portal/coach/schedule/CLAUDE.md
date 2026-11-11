@@ -1,6 +1,6 @@
 # schedule — Coach Schedule pieces: booked list, clash rules, tiles and copy
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/schedule kg=8e64b11f8b99 gen=364c146ab291 overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/schedule kg=95bcdebaae7c gen=eaa6e2ee621a overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `model.ts` — pure clash and booked-on-day rules
@@ -20,7 +20,7 @@
 | `ScheduleTile.tsx` | One big door tile on the Schedule hub with a rose glyph and status chips |
 
 ## Who reads this (generated)
-- `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachNewVisit.tsx:13:7d7e157d` · `portal/src/portal/coach/pages/CoachSchedule.tsx:9:c5196a0c` (+5)
+- `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachNewVisit.tsx:13:7d7e157d` · `portal/src/portal/coach/pages/CoachSchedule.tsx:9:c5196a0c` (+4)
 - `model.ts` ← imported by `portal/src/portal/coach/pages/CoachNewVisit.tsx:15:8078f905` · `portal/src/portal/coach/pages/CoachSchedule.tsx:10:4d6c2348` (+1)
 - `BookedList.tsx` ← imported by `portal/src/portal/coach/pages/CoachNewVisit.tsx:14:e5beee83`
 - `ScheduleTile.tsx` ← imported by `portal/src/portal/coach/pages/CoachScheduling.tsx:7:c88c3aa1`
@@ -33,7 +33,6 @@
 - `portal/src/portal/coach/schedule/model.test.ts` (copy.ts, model.ts)
 - `portal/src/portal/coach/schedule/copy.test.ts` (copy.ts)
 - `portal/src/portal/coach/schedule/schedule.ur.test.tsx` (copy.ts)
-- `portal/src/portal/coach/uxMusts.test.tsx` (copy.ts)
 
 ## Related (generated)
 - docs: `portal/src/portal/coach/CLAUDE.md`?

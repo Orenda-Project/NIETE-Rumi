@@ -1,7 +1,7 @@
 # video-reco — Tests for video recommendation: clip pick, copy, name redaction, strip, send and A/B
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/coaching/video-reco kg=1839790abc8b gen=1c81250e05f0 overflow=63 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/coaching/video-reco kg=050142eabd90 gen=bea81a6e3744 overflow=61 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `engine.test.js` — engine.recommendForReport: flag off no-op, never throws, shadow storage, none reasons
@@ -13,7 +13,6 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `fixtures/` | → (no door; 2 files: 0 test + 2 support) |
-| `r8-clip-template.test.js` | (unmapped) |
 | `skip*` | 3 files; most used `skip-iab.test.js`: bd-9dbhh0.1: no WhatsApp clip message unless VIDEO_RECO_WA_MESSAGE is on; link in the caption and strip hint |
 | `r7c.test.js` | bd-8hhqhf R7c: seven panel-driven asks before the A/B, e.g. a child's name in the card never reaches the fallback |
 | `r7e-moment.test.js` | bd-8hhqhf R7e: moment rule (no greeting-time moments), B10 closure chapters and copy residuals from panel rows |
@@ -21,7 +20,7 @@ Full index: `CLAUDE.index.md`
 | `r7g.test.js` | bd-8hhqhf R7g: retired step-text route, F5-label closed-question rule, card-frame move check, tag leaks and silences |
 | `r7j-urdu.test.js` | bd-8hhqhf R7j: the engine reads Urdu terms only from the shipped urdu-terms data; slash forms retired |
 | `v13f.test.js` | bd-8hhqhf: card-sentence fallback trims long sentences at a word boundary; name check ignores honorifics and roles |
-| … | 82 more → `CLAUDE.index.md` |
+| … | 80 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

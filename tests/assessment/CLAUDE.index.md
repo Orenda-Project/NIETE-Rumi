@@ -6,13 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `board-checks/` | (no description yet) → `board-checks/CLAUDE.md` |
-| `board-layout/` | → (no door; 3 tests) |
-| `board-render/` | (no description yet) → `board-render/CLAUDE.md` |
-| `board-wiring/` | → (no door; 8 tests) |
-| `board-writer/` | (no description yet) → `board-writer/CLAUDE.md` |
-| `board/` | → (no door; 8 tests) |
-| `fixtures/` | → (no door; 540 files: 0 test + 540 support) |
+| `fixtures/` | → (no door; 214 files: 0 test + 214 support) |
 | `helpers/` | Shared fakes and replay helpers for the assessment tests (not test files themselves) → `helpers/CLAUDE.md` |
 | `topics/` | Tests for assessment topics: curriculum-matrix grouping, topic papers, topic answer key → `topics/CLAUDE.md` |
 | `answer-key-marks.test.js` | Pins renderAnswerKey (assessment-paper.renderer) printing each question's marks beside its answer, comprehension too |
@@ -20,7 +14,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `assessment-answer-key-always.test.js` | bd-bfnsk: generator Flow drops the answer-key option; every request is made with a key (endpoint, request.service) |
 | `assessment-answer-key-persisted.test.js` | bd-60068: pins that the orchestrator persists the answer key's storage location on the paper row, not just a log line |
 | `assessment-answers-and-lines.test.js` | bd-bfnsk AG 1.2 items 3-4: answers always requested and normalised so keys stop being dashes (generation, renderer) |
-| `assessment-browse-curriculum.test.js` | (unmapped) |
 | `assessment-browse-page-past-end.test.js` | Pins listPapers treating a PostgREST past-the-end range error (PGRST103) as an empty page (assessment-browse.service) |
 | `assessment-browse-service.test.js` | Portal 'My papers' browse service: what a teacher may list and download, ownership enforced, no Flow-shaped rows |
 | `assessment-browse-version-tie.test.js` | bd-5ioto.11: listPapers shows a family's latest version even when versions share a created_at (browse.service) |
@@ -40,26 +33,19 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `assessment-edit-routes.test.js` | Route tests for the internal portal edit endpoints in internal-assessment-edit.routes |
 | `assessment-edit-shape.test.js` | Pins shapeOf/fieldsFor: which edit screen and pre-filled fields each question shape gets (assessment-edit.js) |
 | `assessment-editor-service.test.js` | Portal editor service: versions, questions, add-kinds, validate, save; gated by portal_assessment_editing_enabled |
-| `assessment-feedback-hook.test.js` | (unmapped) |
-| `assessment-feedback-wiring.test.js` | (unmapped) |
-| `assessment-feedback.test.js` | (unmapped) |
 | `assessment-flow-contract.test.js` | Pins that every data key the Flow JSON declares is one the endpoint actually sends, avoiding Meta 'Something went wrong' |
-| `assessment-flow-curriculum.test.js` | (unmapped) |
 | `assessment-flow-document-header.test.js` | Pins the interactive Flow message with a document header (PDF + Edit button) built by whatsapp.service |
 | `assessment-flow-entry.test.js` | Pins that a Flow opens on screens[0] and every other screen is reachable by a forward route (docs/flows JSON) |
 | `assessment-format.test.js` | Pins PDF-or-Word rendering where bytes match the extension: rendererFor and the html-to-docx output is a real Word file |
 | `assessment-generation.service.test.js` | Unit tests for assessment-generation.service prompt assembly (system/user prompts from ict-prompts.json) |
-| `assessment-grade-gate-routes.test.js` | (unmapped) |
 | `assessment-json.util.test.js` | Unit tests for repairJson/fixControlCharsInStrings: defensive parsing of fenced, truncated or malformed model JSON |
 | `assessment-limit-and-errors.test.js` | Pins the 50-question ceiling and that refusals show on the screen the teacher is looking at (question-types, endpoint) |
 | `assessment-marks-budget-seam.test.js` | Pins that the total-marks budget survives request service -> SQS payload -> orchestrator -> generator |
 | `assessment-multi-chapter.test.js` | Pins that the COVERAGE screen lets a teacher tick several chapters and the summary line reads correctly (endpoint) |
 | `assessment-navfit-urdu.test.js` | Pins navFit keeping Urdu row titles readable (no \W stripping) and counting code points as Meta does (endpoint) |
 | `assessment-option-title-urdu.test.js` | Pins optionTitle never producing an empty title for Urdu questions, which Meta refuses (assessment-selection) |
-| `assessment-options-grid.test.js` | (unmapped) |
 | `assessment-orchestrator-versions.test.js` | Pins delivery with assessment_versions_enabled ON (Edit button, key follows) versus OFF (unchanged) in the orchestrator |
 | `assessment-orchestrator.service.test.js` | Unit tests for the orchestrator: queued request to delivered paper, recorded steps, and actionable failure messages |
-| `assessment-order.test.js` | (unmapped) |
 | `assessment-paper-fde.renderer.test.js` | Pins the printed board-pattern paper and marking scheme: recomputed counts, header total 100, choiceLine (fde renderer) |
 | `assessment-paper-view-routes.test.js` | Route tests for the portal paper-view endpoint in internal-assessment-view.routes |
 | `assessment-paper-view.test.js` | bd-fmf24g.31: buildPaperView reads a finished paper's questions for the portal paper page; owner-only, answers withheld |
@@ -73,13 +59,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `assessment-request-enqueue.test.js` | S2/S3: pins createAndQueue as the single place a request becomes a job, and deliver flags (request.service) |
 | `assessment-review-flow-v8.test.js` | Pins the shape of docs/flows/assessment-review-flow.json (forward screens, routing model) that Meta's validator accepted |
 | `assessment-review-list.test.js` | Pins the check/cross list: paging, drafts for edits, removals, add-back and new questions (endpoint, revision.service) |
-| `assessment-review-registry.test.js` | (unmapped) |
 | `assessment-review-routing-contract.test.js` | Pins that every screen the review endpoint returns is one the client can move to (e.g. LIST_MORE to ADD_TYPE) |
 | `assessment-review-screen.test.js` | Pins the KEEP screen where teachers untick questions: opening, paging keeps ticks (endpoint) |
 | `assessment-revision.test.js` | Pins rerender: an edit becomes a document via render, upload and send-by-link; asserts the DB columns exist (bd-60024) |
 | `assessment-rtl-latin.test.js` | Pins that an Urdu (dir=rtl) paper isolates Latin runs so bidi does not reorder English (assessment-paper.renderer) |
 | `assessment-seen-unseen.test.js` | Pins the Seen/Unseen wording, screens and counts on every path (endpoint, generation, request.service) |
-| `assessment-selection-board-order.test.js` | (unmapped) |
 | `assessment-selection.test.js` | Pins stable question ids and applySelection: unticking questions yields the tree a new PDF is built from |
 | `assessment-subjects-follow-grade.test.js` | Pins that picking a grade makes the endpoint return that grade's subjects on the CLASS screen |
 | `assessment-submit-coverage.test.js` | Pins that every submitted request records its page ranges, fixing chapter picks that violated page_ranges NOT NULL |
@@ -96,19 +80,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `assessment-versions-service.test.js` | Pins createVersion/versionNumberOf: each Make my paper is a new row and no ready version is rewritten (revision.service) |
 | `assessment-vocabulary.test.js` | Pins shortType and defaultInstruction copy that fits the check/cross list row's 20 code points (assessment-vocabulary) |
 | `backfill-paper-versions.test.js` | Pins the backfill script that splits each old-style edited paper into v1 and v2 with deterministic UUIDv5 ids |
-| `bloom-ceiling-wiring.test.js` | (unmapped) |
-| `bloom-ceiling.test.js` | (unmapped) |
-| `board-pattern-g5-only.test.js` | (unmapped) |
 | `book-content.service.test.js` | Unit tests for book-content.service: parsePageRanges, normaliseSubject and chapter/page text assembly for the model |
 | `composition-criteria.test.js` | Pins fixed marking-scheme criteria templates for compositions (criteriaFor/kindFor, composition-criteria, patterns) |
-| `contracts-cross.test.js` | (unmapped) |
 | `deploy-killed-paper.test.js` | Pins orchestrator stale take-over and the worker keeping a live paper's row fresh so a deploy cannot strand it |
 | `draw-it-prompt.test.js` | Pins the prompt for Mind Map, Flow Chart and Graph types the child draws from text (generation.service) |
-| `english-medium-gk-sst-menu.test.js` | (unmapped) |
-| `english-medium-gk-sst-paper.test.js` | (unmapped) |
 | `eval-plan.test.js` | Unit tests for scripts/assessment/eval-plan: which chapters get an exam and what each exam spec asks for |
 | `fde-answer-repeats.test.js` | (unmapped) |
-| `fde-answer-sheet-wording.test.js` | (unmapped) |
 | `fde-blueprint-check.test.js` | bd-5jmnfj.2: pins the blueprint check recomputing totals, slot counts and thinking-level split versus the board pattern |
 | `fde-blueprint-regenerate.test.js` | bd-5jmnfj.18: pins one regeneration of a board paper off FDE's level split, the nearer paper returned, both runs billed |
 | `fde-blueprint-wiring.test.js` | bd-5jmnfj.2: pins that the level target comes from the pattern and every board paper carries the blueprint result |
@@ -116,12 +93,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fde-chain.test.js` | End-to-end board-pattern paper from create route to two stored files, mocking only DB, queue, storage, PDF engine, model |
 | `fde-create-race.test.js` | Pins that three simultaneous board-pattern creates for one class make a single paper (internal-api.routes 409 guard) |
 | `fde-create.test.js` | Pins POST /assessment/create for a board pattern: ordered checks and the request row it writes (internal-api.routes) |
-| `fde-directed-tasks.test.js` | (unmapped) |
 | `fde-early-answers.test.js` | bd-5jmnfj.4.22: pins Grade 1-2 slots and checks that stop answer keys contradicting their own question (answerShortfall) |
 | `fde-early-asked.test.js` | bd-5jmnfj.4.16: pins that a Grade 1-2 paper never asks a fact twice (askedNote, fde-early-prompt) |
 | `fde-early-chrome.test.js` | bd-5jmnfj.4.2: pins Grade 1-2 pattern builders: slot defaults, shared header, oral-rubric sum check (early/chrome) |
 | `fde-early-dispatch.test.js` | bd-5jmnfj.4.1: pins that a Grade 1-2 pattern job goes to the early writer and is written once (fde-early-writer) |
-| `fde-early-english-accepts.test.js` | (unmapped) |
 | `fde-early-paper.test.js` | Pins the printed Grade 1-2 paper: every item has writing space, picture-naming is picture+box (loads fixtures/early) |
 | `fde-early-pictures-pattern.test.js` | bd-5jmnfj.4.19: pins that Grade 1-2 patterns carry pictures where non-fluent readers need them (patterns, early/chrome) |
 | `fde-early-prompt.test.js` | bd-5jmnfj.4.1: pins Grade 1-2 prompts and checks on replies (oralContent, pictureShortfall) in fde-early-prompt |
@@ -133,56 +108,29 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fde-fixtures-chain.test.js` | Runs three whole board papers (Maths, Urdu, Science) through applyLayout, scheme, maths check and both renderers |
 | `fde-frame-bank.test.js` | (unmapped) |
 | `fde-g1-english-q9.test.js` | bd-5jmnfj.4.38: pins that Grade 1 English Q9 fill-in sentences leave only one right word (patterns) |
-| `fde-g5-islamiat.test.js` | (unmapped) |
 | `fde-generation.test.js` | Pins generatePatternExam: one parallel model call per section and the section prompts (generation.service, patterns) |
-| `fde-glyph-check.test.js` | (unmapped) |
 | `fde-held-terms.test.js` | Pins held content on board papers: Social Studies religious-text items held, paper fails; Urdu stock wording passes |
-| `fde-keep-missing.test.js` | (unmapped) |
 | `fde-key-pattern.test.js` | (unmapped) |
 | `fde-layout.test.js` | Pins applyLayout: puts model output into FDE's shape, deciding slot placement and marks (fde-layout, patterns) |
 | `fde-listening-check.test.js` | (unmapped) |
 | `fde-match-block.test.js` | bd-5jmnfj.4.23: pins match Column B ordering: sorted, turned so no answer sits beside its stem (fde-match-block) |
 | `fde-match.test.js` | bd-5jmnfj.4.23: pins the Urdu match slot printing two columns of stems and shuffled answers (patterns, fde renderer) |
 | `fde-maths-angle-options.test.js` | bd-5jmnfj.11: pins Maths Q4 printing its three angle options i) ii) iii) through layout, scheme and renderer |
-| `fde-maths-name-giveaway.test.js` | (unmapped) |
-| `fde-mcq-arithmetic.test.js` | (unmapped) |
-| `fde-mid-chrome.test.js` | (unmapped) |
-| `fde-mid-g3-english.test.js` | (unmapped) |
-| `fde-mid-g3-general-knowledge.test.js` | (unmapped) |
-| `fde-mid-g3-layout.test.js` | (unmapped) |
-| `fde-mid-g3-maths.test.js` | (unmapped) |
-| `fde-mid-g3-pattern.test.js` | (unmapped) |
-| `fde-mid-g3-spec.js` | (unmapped) |
-| `fde-mid-g3-urdu.test.js` | (unmapped) |
-| `fde-mid-g4-english.test.js` | (unmapped) |
-| `fde-mid-g4-layout.test.js` | (unmapped) |
-| `fde-mid-g4-maths.test.js` | (unmapped) |
-| `fde-mid-g4-pattern.test.js` | (unmapped) |
-| `fde-mid-g4-science.test.js` | (unmapped) |
-| `fde-mid-g4-urdu.test.js` | (unmapped) |
-| `fde-mid-prompt.test.js` | (unmapped) |
-| `fde-mid-registry.test.js` | (unmapped) |
-| `fde-mid-steer.test.js` | (unmapped) |
-| `fde-mid-word-problems.test.js` | (unmapped) |
 | `fde-model-switch.test.js` | Pins the separate assessment.generate.fde model job and the per-section output ceiling (generation.service) |
 | `fde-named-child-pronoun.test.js` | bd-5jmnfj.23: pins that a named child or a boy/girl is never 'they' in generated stems (generation.service) |
 | `fde-no-arrows.test.js` | (unmapped) |
 | `fde-no-disclaimer.test.js` | bd-5jmnfj.4.26: pins that no pattern prints the 'not an official paper' disclaimer (patterns, fde renderer) |
 | `fde-options.test.js` | Pins POST /assessment/options telling the app about a board pattern, only when flagged on and grade+subject have one |
 | `fde-oral-sheet.test.js` | bd-5jmnfj.4.4: pins the oral teacher sheet in Grade 1-2 marking schemes: scripts, rubric, class grid (fde-oral-sheet) |
-| `fde-oral-teacher-fills.test.js` | (unmapped) |
 | `fde-orchestrator.test.js` | Pins a board-pattern job through buildPaper: both PDFs, real page counts, and the paper row written before return |
 | `fde-order-block.test.js` | bd-5jmnfj.4.46: pins Put-in-Order re-numbering each item so the key is not a visible pattern (fde-order-block) |
-| `fde-pagination-9-1.test.js` | (unmapped) |
 | `fde-paper-view-choice-items.test.js` | Pins that the phone paper view passes slot items to choiceLine so single-item '{q}' prompts are filled |
 | `fde-paper-view.test.js` | Pins a board-pattern paper on the portal paper page and papers list, built from the laid-out tree (paper-view.service) |
 | `fde-pattern-module.test.js` | Pins the FDE Grade 5 board pattern as frozen data: marks add up, counts consistent, registry lists it |
 | `fde-pic-grid-break.test.js` | (unmapped) |
 | `fde-picture-block.test.js` | bd-5jmnfj.4.3: pins how a Grade 1-2 picture prints; an item without an image fails the render (fde-picture-block) |
 | `fde-picture-frame.test.js` | bd-5jmnfj.4.36/37: pins that framed pictures are rejected and plain objects carry no face (fde-pictures, picture-kie) |
-| `fde-picture-groups.test.js` | (unmapped) |
 | `fde-picture-kie.test.js` | bd-5jmnfj.4.3: pins Kie image-model prompt and create/poll/download task for Grade 1-2 pictures, with fetch injected |
-| `fde-picture-optional.test.js` | (unmapped) |
 | `fde-picture-place.test.js` | (unmapped) |
 | `fde-picture-svg.test.js` | bd-5jmnfj.4.3: pins SVG drawing of dots, shapes and a clock face; unsupported pictures throw (fde-picture-svg) |
 | `fde-pictures.test.js` | bd-5jmnfj.4.3: pins resolving every Grade 1-2 picture before save: SVG in place, R2 cache, else image model, one retry |
@@ -261,30 +209,21 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fde-reader-refuse-text.test.js` | Pins that the reader-pass record on a paper never stops it printing, and its failure paths (fde-reader) |
 | `fde-reader-urdu.test.js` | Pins the Urdu reader pass after final layout: a flagged item does not print, versus the recorded paper as printed today |
 | `fde-recorded-replies.test.js` | Replays real board-pattern model replies (Urdu held-lessons filter, Maths cutoff) to pin the first real-paper failures |
-| `fde-remove-only.test.js` | (unmapped) |
 | `fde-render-dispatch.test.js` | Pins renderPaper/renderAnswerKey routing a _layout paper to the FDE renderer and others to the old one |
 | `fde-revision.test.js` | Pins a board-pattern new version re-rendering both paper and marking scheme with their own PDF options (E8.4) |
 | `fde-scheme-cover.test.js` | (unmapped) |
 | `fde-scheme-figures.test.js` | (unmapped) |
-| `fde-science-key-stem.test.js` | (unmapped) |
-| `fde-science-mcq-reask.test.js` | (unmapped) |
-| `fde-science-option-keys.test.js` | (unmapped) |
 | `fde-science-q3-levels.test.js` | bd-5jmnfj.14: pins Science Section C's level rule per FDE's table of specification (generation.service, patterns) |
-| `fde-science-task-repeats.test.js` | (unmapped) |
 | `fde-scramble-block.test.js` | (unmapped) |
 | `fde-section-levels.test.js` | bd-5jmnfj.19: pins each section being asked for its own thinking-level split, not the whole paper's |
 | `fde-section-reask.test.js` | Pins a short board-pattern section being asked once more before the paper fails (PATTERN_SHORT_SLOT) |
-| `fde-slot-head-label-nowrap.test.js` | (unmapped) |
 | `fde-split-retry-setting.test.js` | bd-5jmnfj.18: pins assessment_fde_split_retry read by the orchestrator per pattern paper and failing safe |
-| `fde-sst-levels.test.js` | (unmapped) |
 | `fde-status-versions.test.js` | Pins that POST /assessment/status and /edit/versions name a board-pattern request so a reopened page can resume |
 | `fde-stem-check-engine.test.js` | bd-5jmnfj.22: pins the stem check inside the paper writer: rewords unclear questions, records changes, billed |
 | `fde-stem-check-gate.test.js` | bd-5jmnfj.22: pins assessment_fde_stem_check_subjects read per paper, fail closed, English/Maths/Science only |
 | `fde-stem-check-parts.test.js` | bd-5jmnfj.29: pins the stem check seeing an unseen passage's lettered sub-questions (fde-stem-check) |
 | `fde-stem-check-topics.test.js` | bd-5jmnfj.28: pins the stem check seeing the topics an item prints (English Q8 paragraph topics) |
 | `fde-stem-check.test.js` | bd-5jmnfj.22: pins the stem-check prompt and reply reading that catches self-contradicting questions (fde-stem-check) |
-| `fde-teacher-slot.test.js` | (unmapped) |
-| `fde-urdu-common-error-lang.test.js` | (unmapped) |
 | `fde-urdu-lesson-scope-probes.test.js` | Probes Urdu Q1 grammar limited to chosen lessons and its hold; full syllabus and other subjects must not move |
 | `fde-urdu-notes.test.js` | (unmapped) |
 | `fde-v18-paper-fixes.test.js` | Pins v18 sandbox paper fixes: all-same MCQ choices (4.35) and G1 GK land-or-water pictures (4.34) |
@@ -320,202 +259,22 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fde-v26-key-checks.test.js` | (unmapped) |
 | `fde-v26-oral.test.js` | (unmapped) |
 | `fde-v26-repeats.test.js` | (unmapped) |
-| `fde-v27-circuit-frame.test.js` | (unmapped) |
-| `fde-v27-clock-svg.test.js` | (unmapped) |
-| `fde-v27-keys.test.js` | (unmapped) |
-| `fde-v27-lcm-ladder.test.js` | (unmapped) |
-| `fde-v27-marks-line.test.js` | (unmapped) |
-| `fde-v27-option-mark.test.js` | (unmapped) |
-| `fde-v27-oral-dialogue.test.js` | (unmapped) |
-| `fde-v27-oral-numbers.test.js` | (unmapped) |
-| `fde-v27-order-check.test.js` | (unmapped) |
-| `fde-v27-picture-describe.test.js` | (unmapped) |
-| `fde-v27-picture-repeats.test.js` | (unmapped) |
-| `fde-v27-printed-letter-note.test.js` | (unmapped) |
-| `fde-v27-prompt-text.test.js` | (unmapped) |
-| `fde-v27-q8-reask.test.js` | (unmapped) |
-| `fde-v27-repeats.test.js` | (unmapped) |
-| `fde-v27-sentence-count.test.js` | (unmapped) |
-| `fde-v27-situation.test.js` | (unmapped) |
-| `fde-v27-task-line.test.js` | (unmapped) |
-| `fde-v27-who-said.test.js` | (unmapped) |
-| `fde-v27-wide-box.test.js` | (unmapped) |
-| `fde-v28-early-key-fixes.test.js` | (unmapped) |
-| `fde-v28-g5-key-fixes.test.js` | (unmapped) |
-| `fde-v28-near-repeats-stop.test.js` | (unmapped) |
-| `fde-v28-oral-child-card.test.js` | (unmapped) |
-| `fde-v28-placeholder.test.js` | (unmapped) |
-| `fde-v28-prompt-rules.test.js` | (unmapped) |
-| `fde-v28-renderer.test.js` | (unmapped) |
-| `fde-v28-stem-check-rule4.test.js` | (unmapped) |
-| `fde-v28-urdu-punct.test.js` | (unmapped) |
-| `fde-v29-common-error-numbers.test.js` | (unmapped) |
-| `fde-v29-concept-count.test.js` | (unmapped) |
-| `fde-v29-early-english-fixes.test.js` | (unmapped) |
-| `fde-v29-early-english.test.js` | (unmapped) |
-| `fde-v29-early-maths-keys.test.js` | (unmapped) |
-| `fde-v29-early-urdu.test.js` | (unmapped) |
-| `fde-v29-fraction-giveaway.test.js` | (unmapped) |
-| `fde-v29-g5-criteria.test.js` | (unmapped) |
-| `fde-v29-g5-giveaways.test.js` | (unmapped) |
-| `fde-v29-g5-key-fixes-2.test.js` | (unmapped) |
-| `fde-v29-g5-keys.test.js` | (unmapped) |
-| `fde-v29-g5-paper-giveaways.test.js` | (unmapped) |
-| `fde-v29-layout.test.js` | (unmapped) |
-| `fde-v29-listening-asks.test.js` | (unmapped) |
-| `fde-v29-oral-prep.test.js` | (unmapped) |
-| `fde-v29-oral-sentence-repeats.test.js` | (unmapped) |
-| `fde-v29-punctuate-check.test.js` | (unmapped) |
-| `fde-v29-slot-fit.test.js` | (unmapped) |
-| `fde-v29-urdu-oral.test.js` | (unmapped) |
-| `fde-v29-urdu-spelling.test.js` | (unmapped) |
-| `fde-v31-common-errors.test.js` | (unmapped) |
-| `fde-v31-key-echo.test.js` | (unmapped) |
-| `fde-v31-prompt-rules.test.js` | (unmapped) |
-| `fde-v31-work-box.test.js` | (unmapped) |
-| `fde-v32-common-errors.test.js` | (unmapped) |
-| `fde-v32-division-steps.test.js` | (unmapped) |
-| `fde-v32-mid-key-fixes.test.js` | (unmapped) |
-| `fde-v32-prompt-rules.test.js` | (unmapped) |
-| `fde-v32-stem-repeats.test.js` | (unmapped) |
-| `fde-v33-concept-repeats.test.js` | (unmapped) |
-| `fde-v33-key-truth.test.js` | (unmapped) |
-| `fde-v33-maths-mcq-key.test.js` | (unmapped) |
-| `fde-v33-maths-repeats.test.js` | (unmapped) |
-| `fde-v33-maths-slips.test.js` | (unmapped) |
-| `fde-v33-mid-legend.test.js` | (unmapped) |
-| `fde-v33-mid-match.test.js` | (unmapped) |
-| `fde-v33-part-name.test.js` | (unmapped) |
-| `fde-v33-scheme-shape.test.js` | (unmapped) |
-| `fde-v34-early-en-fixes.test.js` | (unmapped) |
-| `fde-v34-early-en-giveaways.test.js` | (unmapped) |
-| `fde-v34-early-en-oral.test.js` | (unmapped) |
-| `fde-v34-early-maths-fixes.test.js` | (unmapped) |
-| `fde-v34-early-urdu-marking.test.js` | (unmapped) |
-| `fde-v34-early-urdu-oral.test.js` | (unmapped) |
-| `fde-v34-early-urdu-topic.test.js` | (unmapped) |
-| `fde-v34-early-urdu-verbs.test.js` | (unmapped) |
-| `fde-v34-early-urdu-walk.test.js` | (unmapped) |
-| `fde-v34-early-urdu-wiring.test.js` | (unmapped) |
-| `fde-v34-early-urdu-wordbox.test.js` | (unmapped) |
-| `fde-v34-g5-lang-criteria.test.js` | (unmapped) |
-| `fde-v34-g5-lang-cross.test.js` | (unmapped) |
-| `fde-v34-g5-lang-fixes.test.js` | (unmapped) |
-| `fde-v34-g5-lang-giveaways.test.js` | (unmapped) |
-| `fde-v34-g5-lang-key-tells.test.js` | (unmapped) |
-| `fde-v34-g5-lang-mcq-truth.test.js` | (unmapped) |
-| `fde-v34-g5-lang-prompts.test.js` | (unmapped) |
-| `fde-v34-g5-lang-tense.test.js` | (unmapped) |
-| `fde-v34-g5-lang-wiring.test.js` | (unmapped) |
-| `fde-v34-g5-maths-keys.test.js` | (unmapped) |
-| `fde-v34-g5-maths-repeats.test.js` | (unmapped) |
-| `fde-v34-g5-sci-concept-caps.test.js` | (unmapped) |
-| `fde-v34-g5-sci-key-terms.test.js` | (unmapped) |
-| `fde-v34-g5-sci-keys.test.js` | (unmapped) |
-| `fde-v34-layout.test.js` | (unmapped) |
-| `fde-v34-urdu-oral-flagged.test.js` | (unmapped) |
-| `fde-v35-early-dupes.test.js` | (unmapped) |
-| `fde-v35-religious-terms.test.js` | (unmapped) |
-| `fde-v35-renderer.test.js` | (unmapped) |
-| `fde-v35-scheme-checks.test.js` | (unmapped) |
-| `fde-v35-urdu-letters.test.js` | (unmapped) |
-| `fde-v36-match-colb.test.js` | (unmapped) |
-| `fde-v36-match-rows.test.js` | (unmapped) |
-| `fde-v36-mcq-stem.test.js` | (unmapped) |
-| `fde-v36-meaning-key.test.js` | (unmapped) |
-| `fde-v36-word-box.test.js` | (unmapped) |
-| `fde-v37-accept-alternatives.test.js` | (unmapped) |
-| `fde-v37-action-ground.test.js` | (unmapped) |
-| `fde-v37-early-english.test.js` | (unmapped) |
-| `fde-v37-early-urdu.test.js` | (unmapped) |
-| `fde-v37-english-r2.test.js` | (unmapped) |
-| `fde-v37-english-r3.test.js` | (unmapped) |
-| `fde-v37-g2-english-loop5.test.js` | (unmapped) |
-| `fde-v37-g5-lang.test.js` | (unmapped) |
-| `fde-v37-g5-mathsci.test.js` | (unmapped) |
-| `fde-v37-maths-r2.test.js` | (unmapped) |
-| `fde-v37-maths-r3.test.js` | (unmapped) |
-| `fde-v37-mathsen-r3.test.js` | (unmapped) |
-| `fde-v37-pick-key-accept.test.js` | (unmapped) |
-| `fde-v37-place-digit.test.js` | (unmapped) |
-| `fde-v37-read-aloud-grammar.test.js` | (unmapped) |
-| `fde-v37-reading-parent.test.js` | (unmapped) |
-| `fde-v37-render.test.js` | (unmapped) |
-| `fde-v37-science-r2.test.js` | (unmapped) |
-| `fde-v37-science-r3.test.js` | (unmapped) |
-| `fde-v37-urdu-nonword.test.js` | (unmapped) |
-| `fde-v37-urdu-oral-r3.test.js` | (unmapped) |
-| `fde-v37-urdu-r2.test.js` | (unmapped) |
-| `fde-v37-urdu-r3.test.js` | (unmapped) |
-| `fde-v37-urdu-r4.test.js` | (unmapped) |
-| `fde-v38-early-urdu-boxkeys.test.js` | (unmapped) |
-| `fde-v38-early-urdu-wiring.test.js` | (unmapped) |
-| `fde-v38-g5-urdu-mends.test.js` | (unmapped) |
-| `fde-v38-poem-title-giveaway.test.js` | (unmapped) |
-| `fde-v38-prompt-rules.test.js` | (unmapped) |
-| `fde-v38-urdu-antonyms.test.js` | (unmapped) |
-| `fde-v38-urdu-first-action.test.js` | (unmapped) |
-| `fde-v38-urdu-form-lines.test.js` | (unmapped) |
-| `fde-v38-urdu-quoted-word.test.js` | (unmapped) |
-| `fde-v38-urdu-use-word.test.js` | (unmapped) |
-| `fde-v38-urdu-walk-all.test.js` | (unmapped) |
-| `fde-v38-word-box-spare.test.js` | (unmapped) |
-| `fde-v39-mcq-form.test.js` | (unmapped) |
-| `fde-v42-accept-line-partial.test.js` | (unmapped) |
-| `fde-v42-short-slot-fit.test.js` | (unmapped) |
-| `fde-work-space.test.js` | (unmapped) |
-| `flow-pages-printed-range.test.js` | (unmapped) |
-| `free-secondary-a8-prompts.test.js` | (unmapped) |
-| `free-secondary-a8-wiring.test.js` | (unmapped) |
-| `free-secondary-checks.test.js` | (unmapped) |
-| `free-secondary-chrome.test.js` | (unmapped) |
-| `free-secondary-grammar.test.js` | (unmapped) |
-| `free-secondary-keys.test.js` | (unmapped) |
-| `free-secondary-levels.test.js` | (unmapped) |
-| `free-secondary-pool.test.js` | (unmapped) |
-| `free-secondary-print.test.js` | (unmapped) |
-| `free-secondary-review-written.test.js` | (unmapped) |
-| `free-secondary-review.test.js` | (unmapped) |
-| `free-secondary-reviewer.test.js` | (unmapped) |
-| `free-secondary-rewrite.test.js` | (unmapped) |
-| `free-secondary-routing.test.js` | (unmapped) |
-| `free-secondary-rules.test.js` | (unmapped) |
-| `free-secondary-scheme.test.js` | (unmapped) |
-| `free-secondary-tidy.test.js` | (unmapped) |
-| `free-secondary.service.test.js` | (unmapped) |
-| `g612-additive-maps.test.js` | (unmapped) |
-| `g612-subjects-migration.test.js` | (unmapped) |
 | `generation-hardening.test.js` | Pins the paper model call's max_tokens ceiling and one retry on an empty reply (generation.service) |
-| `gk-sst-en-subjects-migration.test.js` | (unmapped) |
-| `golden-g1-5-flow.test.js` | (unmapped) |
-| `golden-g1-5-pattern.test.js` | (unmapped) |
-| `golden-g1-5-plain.test.js` | (unmapped) |
-| `golden-g1-5-requests.test.js` | (unmapped) |
 | `golden.test.js` | Golden test: pins today's generator prompts, printed papers/keys and options payloads for non-board-pattern papers |
-| `grade-gate-settings.test.js` | (unmapped) |
-| `grade-gate.test.js` | (unmapped) |
-| `islamiat-no-true-false.test.js` | (unmapped) |
 | `llm-passthrough.test.js` | Pins that max_tokens and a per-call timeout reach the SDK through the shared model client (model-settings) |
 | `marking-scheme.test.js` | Unit tests for normaliseScheme: fixes model-written scheme sums, kinds, MCQ schemes and comprehension words |
 | `maths-check.test.js` | Unit tests for the maths key check: parseForm and recomputing percentages/arithmetic in exact integers and fractions |
 | `orchestrator-duplicate-delivery.test.js` | Pins one request, one paper, one model call when SQS delivers the job twice (orchestrator.service) |
 | `pattern-question-cap.test.js` | Pins that every FDE pattern's slot-count sum fits the DB question_count cap (reads migrations; patterns) |
 | `picture-types-hidden.test.js` | Pins that Label the Diagram and Picture Description are no longer offered (question-types, create route, renderer) |
-| `prompts-6-12.test.js` | (unmapped) |
-| `question-types-6-12.test.js` | (unmapped) |
 | `r2-list-keys.test.js` | Unit test for r2.listKeys(prefix) used by the version backfill to find a paper's first-delivered PDF |
 | `repair-backfilled-v1-created-at.test.js` | bd-5ioto.11: pins the repair script moving backfilled v1 rows' created_at off their child's timestamp |
-| `repeat-guard-wiring.test.js` | (unmapped) |
-| `repeat-guard.test.js` | (unmapped) |
 | `revision-ack-without-text.test.js` | Pins that remaking a paper is acknowledged without an extra text message on versioned and old rebuild paths |
 | `rt-r17s9-premise.test.js` | Pins the Social Studies premise term for Khuda holding its izafat form but never the name Khuda Bakhsh |
 | `rt-r21u3-probes.test.js` | Red-team probes: Urdu Q1 concept rules on chosen lessons, hold counts, Q4 syllable hold, verse source line |
 | `rt-r21u4-probes.test.js` | Red-team probes: on chosen lessons a grammar concept never prints twice after put-back (recorded sandbox papers) |
 | `rt-r21u5-probes.test.js` | Red-team probes: Urdu one-story Q1 rules: story-item cap across re-layouts, name cue, reader candidate list |
 | `scheme-accept-check.test.js` | (unmapped) |
-| `slo-map-chapters.test.js` | (unmapped) |
-| `slo-map.test.js` | (unmapped) |
-| `subject-config.test.js` | (unmapped) |
 | `worker-assessment-heartbeat.test.js` | Pins the SQS worker keeping an assessment message invisible while a paper is made and finishing it on deploy |
 
 ## Who reads this (all, generated)

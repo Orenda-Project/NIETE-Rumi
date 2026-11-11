@@ -51,7 +51,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `assessment-gen-endpoint.js` ← imported by `bot/shared/handlers/flow-response.handler.js:1124:f26aaaa5` · `bot/shared/routes/flow-endpoint.routes.js:99:c504850d`
 - `attendance-marking-endpoint.js` ← imported by `bot/shared/handlers/voice-message.handler.js:235:70b1b9d8` · `bot/shared/services/attendance-portal.service.js:231:31792ed6` · `bot/shared/routes/flow-endpoint.routes.js:23:21407e82`
 - `attendance-setup-endpoint.js` ← imported by `bot/shared/routes/edit-class-endpoint.js:16:c48898bc` · `bot/shared/routes/flow-endpoint.routes.js:31:04047618`
-- `child-test-app.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:3256:035459fa`
+- `child-test-app.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:3249:035459fa`
 - `child-test-check-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:264:61a47844`
 - `class-manager-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:40:674712ff` · `bot/shared/routes/internal-api.routes.js:917:c9308276`
 - `class-round-internal.routes.js` ← imported by `bot/shared/routes/teacher-report-internal.routes.js:381:91363601`
@@ -60,17 +60,17 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `flow-endpoint.routes.js` ← imported by `bot/whatsapp-bot.js:74:d7fbe472`
 - `homework-request-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:74:25e6b28a`
 - `internal-api.routes.js` ← imported by `bot/whatsapp-bot.js:97:1d86e7c5`
-- `internal-assessment-edit.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2281:003972a3`
-- `internal-assessment-view.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2283:709cea0b`
-- `internal-attendance.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2285:39a302ca`
-- `internal-fln-send.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2289:617e0662`
-- `internal-lp612-own.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2288:d0e5a57f`
-- `internal-share.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2287:b5701d16`
+- `internal-assessment-edit.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2267:003972a3`
+- `internal-assessment-view.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2269:709cea0b`
+- `internal-attendance.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2271:39a302ca`
+- `internal-fln-send.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2275:617e0662`
+- `internal-lp612-own.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2274:d0e5a57f`
+- `internal-share.routes.js` ← imported by `bot/shared/routes/internal-api.routes.js:2273:b5701d16`
 - `observe-mewaka-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:17:83181884`
 - `observe2-check-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:244:8b919590`
 - `observe2-form-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:211:c6cd7916`
 - `pakistan-lp-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:104:c2320130`
-- `pakistan-lp-telemetry.js` ← imported by `bot/shared/routes/pakistan-lp-endpoint.js:75:90f7c5d5`
+- `pakistan-lp-telemetry.js` ← imported by `bot/shared/routes/pakistan-lp-endpoint.js:73:90f7c5d5`
 - `quiz-flow-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:79:bad578f0`
 - `registration-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:45:86ecb70b`
 - `remark-endpoint.js` ← imported by `bot/shared/routes/flow-endpoint.routes.js:54:408b6908`
@@ -106,14 +106,14 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - table `lesson_plan_requests` (written by `homework-request-endpoint.js`) ← read by `bot/shared/services/lesson-plan-queue.service.js:55:f61b5e94`? · `bot/shared/services/lp-v8-lifecycle.service.js:48:f61b5e94`? · `bot/shared/services/monitoring/lesson-plan-health.service.js:335:c661c05e`? · `bot/shared/services/teacher-state.service.js:98:f61b5e94`? (+2: `python3 kg/kg.py who-reads lesson_plan_requests`)
 - table `student_lists` (written by `attendance-setup-endpoint.js`, `edit-class-endpoint.js`) ← read by `bot/shared/services/attendance-portal.service.js:243:8479d615`? · `bot/shared/services/attendance-register-delivery.service.js:100:97085a82`? · `bot/shared/services/attendance-router.service.js:87:8479d615`? · `bot/shared/services/classes/class.service.js:206:8479d615`? (+24: `python3 kg/kg.py who-reads student_lists`)
 - table `students` (written by `attendance-setup-endpoint.js`, `edit-class-endpoint.js`) ← read by `bot/shared/services/attendance-register-delivery.service.js:111:1715c2d9`? · `bot/shared/services/attendance-router.service.js:125:2f35b0c2`? · `bot/shared/services/child-test/check-flow/check-store.js:157:651ac2c6`? · `bot/shared/services/child-test/store.js:107:70f88e69`? (+42: `python3 kg/kg.py who-reads students`)
-- table `users` (written by `registration-endpoint.js`, `settings-endpoint.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:247:774e00e5`? · `bot/shared/database/bot-helpers.js:22:61dfd735`? (+191: `python3 kg/kg.py who-reads users`)
-- table `video_quiz_deliveries` (written by `student-videos-endpoint.js`) ← read by `bot/shared/services/quiz/video-quiz.service.js:197:46908910`?
+- table `users` (written by `registration-endpoint.js`, `settings-endpoint.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:247:774e00e5`? · `bot/shared/database/bot-helpers.js:22:61dfd735`? (+188: `python3 kg/kg.py who-reads users`)
+- table `video_quiz_deliveries` (written by `student-videos-endpoint.js`) ← read by `bot/shared/services/quiz/video-quiz.service.js:196:46908910`?
 - env `INTERNAL_API_KEY` read at `bot/shared/routes/child-test-app.routes.js:27:72cfc094`
 - env `REGION_TIME_ZONE` read at `bot/shared/routes/attendance-marking-endpoint.js:51:46900523`
 - env `SUPABASE_URL` read at `bot/shared/routes/teacher-training-endpoint.js:47:34d32b0a`
 
 ## Tests (all, generated)
-- `assessment-gen-endpoint.js` ← `tests/assessment/assessment-answer-key-always.test.js` · `tests/assessment/assessment-chapter-cap.test.js` · `tests/assessment/assessment-chat-ack.test.js` · `tests/assessment/assessment-counts-seen-and-legacy.test.js` · `tests/assessment/assessment-docx-flag.test.js` · `tests/assessment/assessment-edit-findable.test.js` (+25: `python3 kg/kg.py who-reads bot/shared/routes/assessment-gen-endpoint.js`)
+- `assessment-gen-endpoint.js` ← `tests/assessment/assessment-answer-key-always.test.js` · `tests/assessment/assessment-chapter-cap.test.js` · `tests/assessment/assessment-chat-ack.test.js` · `tests/assessment/assessment-counts-seen-and-legacy.test.js` · `tests/assessment/assessment-docx-flag.test.js` · `tests/assessment/assessment-edit-findable.test.js` (+24: `python3 kg/kg.py who-reads bot/shared/routes/assessment-gen-endpoint.js`)
 - `attendance-marking-endpoint.js` ← `tests/attendance/absent-then-leave.test.js` · `tests/attendance/class-screen-query-cost.test.js` · `tests/attendance/completion-classified-from-token.test.js` · `tests/attendance/empty-roster-dead-end.test.js` · `tests/attendance/empty-roster-renders.test.js` · `tests/attendance/enrollment-roster-source.test.js` (+4: `python3 kg/kg.py who-reads bot/shared/routes/attendance-marking-endpoint.js`)
 - `attendance-setup-endpoint.js` ← `tests/attendance/class-setup-endpoint.test.js` · `tests/classes/academic-sessions.test.js`
 - `child-test-app.routes.js` ← `tests/child-test/L7/app-internal.routes.test.js`
@@ -122,20 +122,20 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `edit-class-endpoint.js` ← `tests/attendance/edit-class-enrolls.test.js` · `tests/database/bd-rbtpr-ledger-gaps.test.js`
 - `exam-confirm-endpoint.js` ← `tests/exam-checker/confirm-students-flow.test.js`
 - `homework-request-endpoint.js` ← `tests/homework/homework-flow.test.js` · `tests/lesson-plan-lifecycle/homework-path.test.js`
-- `internal-api.routes.js` ← `tests/assessment/assessment-grade-gate-routes.test.js` · `tests/assessment/board-wiring/board-create.test.js` · `tests/assessment/board-wiring/board-options.test.js` · `tests/assessment/fde-chain.test.js` · `tests/assessment/fde-create-race.test.js` · `tests/assessment/fde-create.test.js` (+48: `python3 kg/kg.py who-reads bot/shared/routes/internal-api.routes.js`)
-- `internal-assessment-edit.routes.js` ← `tests/assessment/assessment-edit-routes.test.js` · `tests/assessment/fde-edit-marks.test.js` · `tests/assessment/fde-edit.test.js` · `tests/assessment/fde-remove-only.test.js` · `tests/assessment/fde-status-versions.test.js`
+- `internal-api.routes.js` ← `tests/assessment/assessment-grade-gate-routes.test.js` · `tests/assessment/board-wiring/board-create.test.js` · `tests/assessment/board-wiring/board-options.test.js` · `tests/assessment/fde-chain.test.js` · `tests/assessment/fde-create-race.test.js` · `tests/assessment/fde-create.test.js` (+45: `python3 kg/kg.py who-reads bot/shared/routes/internal-api.routes.js`)
+- `internal-assessment-edit.routes.js` ← `tests/assessment/assessment-edit-routes.test.js` · `tests/assessment/fde-edit-marks.test.js` · `tests/assessment/fde-edit.test.js` · `tests/assessment/fde-status-versions.test.js`
 - `internal-assessment-view.routes.js` ← `tests/assessment/assessment-paper-view-routes.test.js`
 - `internal-fln-send.routes.js` ← `tests/portal/fln-send-routes.test.js` · `tests/routes/internal-fln-send.test.js`
-- `internal-lp612-own.routes.js` ← `tests/lp612/own-internal-route.test.js` · `tests/lp612/own-mine-route.test.js` · `tests/lp612/own-pages-route.test.js` · `tests/lp612/own-recent-route.test.js`
+- `internal-lp612-own.routes.js` ← `tests/lp612/own-internal-route.test.js`
 - `observe-mewaka-endpoint.js` ← `bot/tests/observe/bd-9tqqi-cancel-terminal.test.js` · `bot/tests/observe/bd-rw4so-endpoint-refusal-logged.test.js` · `bot/tests/observe/observe-endpoint-hots.test.js` · `bot/tests/observe/observe-endpoint.test.js` · `tests/whatsapp/send-sync-budget.test.js`
 - `observe2-check-endpoint.js` ← `tests/child-test/L4/observe2-offer.test.js` · `tests/observe2/check-endpoint.test.js` · `tests/observe2/coach-notes-brief.test.js` · `tests/observe2/end-of-visit.test.js` · `tests/observe2/external-plan.test.js` · `tests/observe2/heard-empty.test.js` (+10: `python3 kg/kg.py who-reads bot/shared/routes/observe2-check-endpoint.js`)
 - `observe2-form-endpoint.js` ← `tests/observe2/classroom-photos.test.js` · `tests/observe2/coach-notes-form.test.js` · `tests/observe2/external-plan.test.js` · `tests/observe2/form-endpoint.test.js` · `tests/observe2/lesson-plan-and-fidelity.test.js` · `tests/observe2/materials-used.test.js` (+9: `python3 kg/kg.py who-reads bot/shared/routes/observe2-form-endpoint.js`)
-- `pakistan-lp-endpoint.js` ← `bot/tests/lp-v8/bd-oak77-endpoint-route-all.test.js` · `bot/tests/lp-v8/endpoint-dispatch.test.js` · `bot/tests/lp-v8/flow-response-telemetry.test.js` · `bot/tests/lp-v8/tick-app-opens.test.js` · `tests/books/chapter-pages.test.js` · `tests/books/gb-lane-wins.test.js` (+18: `python3 kg/kg.py who-reads bot/shared/routes/pakistan-lp-endpoint.js`)
+- `pakistan-lp-endpoint.js` ← `bot/tests/lp-v8/bd-oak77-endpoint-route-all.test.js` · `bot/tests/lp-v8/endpoint-dispatch.test.js` · `bot/tests/lp-v8/flow-response-telemetry.test.js` · `bot/tests/lp-v8/tick-app-opens.test.js` · `tests/books/chapter-pages.test.js` · `tests/books/gb-lane-wins.test.js` (+16: `python3 kg/kg.py who-reads bot/shared/routes/pakistan-lp-endpoint.js`)
 - `pakistan-lp-telemetry.js` ← `bot/tests/lp-v8/flow-response-telemetry.test.js`
 - `quiz-flow-endpoint.js` ← `bot/tests/quiz/web-quiz/story-teacher.test.js` · `tests/quiz/quiz-flow-endpoint.test.js`
 - `registration-endpoint.js` ← `bot/tests/registration/bd-2404-role-persistence.test.js` · `bot/tests/registration/bd-2480-2773-persist-per-screen.test.js` · `tests/identity/identity-events.would-match.test.js` · `tests/registration/bd-97daxo6-organization-from-region.test.js` · `tests/registration/bd-oak77-6-completion-sets-flag.test.js` · `tests/registration/bd-x7aprz2-flow-v5-json.test.js` (+5: `python3 kg/kg.py who-reads bot/shared/routes/registration-endpoint.js`)
 - `remark-endpoint.js` ← `bot/tests/services/remark-init-roster.test.js` · `tests/remark/remark-flow-contract.test.js`
-- `roster-flow-endpoint.js` ← `tests/database/bd-a21ks-actor-ledger.test.js` · `tests/identity/bd-apnnh2.15-lists-skip-retired.test.js` · `tests/roster/roster-class-details.test.js` · `tests/roster/roster-class-teacher-required.test.js` · `tests/roster/roster-edit-save-identity.test.js` · `tests/roster/roster-endpoint-save.test.js` (+7: `python3 kg/kg.py who-reads bot/shared/routes/roster-flow-endpoint.js`)
+- `roster-flow-endpoint.js` ← `tests/database/bd-a21ks-actor-ledger.test.js` · `tests/roster/roster-class-details.test.js` · `tests/roster/roster-class-teacher-required.test.js` · `tests/roster/roster-edit-save-identity.test.js` · `tests/roster/roster-endpoint-save.test.js` · `tests/roster/roster-endpoint-status.test.js` (+6: `python3 kg/kg.py who-reads bot/shared/routes/roster-flow-endpoint.js`)
 - `settings-endpoint.js` ← `tests/settings/settings-flow.test.js` · `tests/settings/settings-language-writer.test.js`
 - `status-flow-endpoint.js` ← `tests/status/status-flow.test.js` · `tests/status/status-lp612-visibility.test.js` · `tests/status/status-task-count.test.js` · `tests/status/status-training-visibility.test.js`
 - `story-teacher-internal.routes.js` ← `bot/tests/quiz/web-quiz/story-teacher-page-csp.test.js` · `bot/tests/quiz/web-quiz/story-teacher.test.js`

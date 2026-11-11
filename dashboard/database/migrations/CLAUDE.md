@@ -1,7 +1,7 @@
 # migrations — Hand-numbered SQL migrations for dashboard tables, RLS, functions and MVs
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/database/migrations kg=8d1bd4aaa128 gen=4dc71faca8b4 overflow=122 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/database/migrations kg=300ea2374107 gen=9407ebe4cd9c overflow=122 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `025_fix_mv_dashboard_stats_refresh.sql` — latest numbered one; explains the CONCURRENTLY refresh failure
@@ -20,9 +20,9 @@ Full index: `CLAUDE.index.md`
 | … | 22 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- column `video_requests.id` (written by `013_create_video_requests_table.sql`) ← read by `bot/shared/services/context.service.js:328:8460890c` · `bot/shared/services/video/video-animation.service.js:363:df7f7cbf` (+7)
-- table `dashboard_users` (written by `002_dashboard_users_rbac.sql`) ← read by `dashboard/index.js:544:36baffc0`? · `dashboard/middleware/auth.js:76:9a69d293`? (+7)
-- column `video_requests.status` (written by `013_create_video_requests_table.sql`) ← read by `bot/shared/services/context.service.js:189:a69ef692` · `bot/shared/services/feature-registration.service.js:160:abb6a119` (+4)
+- column `video_requests.id` (written by `013_create_video_requests_table.sql`) ← read by `bot/shared/services/context.service.js:323:8460890c` · `bot/shared/services/video/video-animation.service.js:363:df7f7cbf` (+7)
+- table `dashboard_users` (written by `002_dashboard_users_rbac.sql`) ← read by `dashboard/index.js:559:36baffc0`? · `dashboard/middleware/auth.js:76:9a69d293`? (+7)
+- column `video_requests.status` (written by `013_create_video_requests_table.sql`) ← read by `bot/shared/services/context.service.js:184:a69ef692` · `bot/shared/services/feature-registration.service.js:155:abb6a119` (+4)
 - … 102 more → `CLAUDE.index.md`
 
 ## Never (human)

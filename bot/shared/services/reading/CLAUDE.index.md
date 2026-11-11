@@ -19,10 +19,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `voice-feedback.service.js` | Generates and voices encouraging reading feedback (LLM script, ElevenLabs or Uplift TTS, phonetic guidance) |
 
 ## Who reads this (all, generated)
-- `analysis.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:1865:f9417b65` · `bot/shared/handlers/voice-message.handler.js:470:02457105` · `bot/shared/services/reading-assessment.service.js:524:df107a41` · `bot/whatsapp-bot.js:1240:78683bde`
+- `analysis.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:1835:f9417b65` · `bot/shared/handlers/voice-message.handler.js:442:02457105` · `bot/shared/services/reading-assessment.service.js:524:df107a41` · `bot/whatsapp-bot.js:1222:78683bde`
 - `auto-level-orchestrator.service.js` ← imported by `bot/shared/handlers/flow-response.handler.js:52:c17cec4c`
 - `benchmark.service.js` ← imported by `bot/shared/services/reading/analysis.service.js:24:2bf3cc60`
-- `comprehension.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:1754:e6cd291e` · `bot/shared/handlers/voice-message.handler.js:341:e6cd291e` · `bot/whatsapp-bot.js:1212:98859d86` · `bot/shared/services/reading/analysis.service.js:1159:651118f1`
+- `comprehension.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:1724:e6cd291e` · `bot/shared/handlers/voice-message.handler.js:313:e6cd291e` · `bot/whatsapp-bot.js:1194:98859d86` · `bot/shared/services/reading/analysis.service.js:1159:651118f1`
 - `fluency.service.js` ← imported by `bot/shared/services/reading/analysis.service.js:588:d851c211` · `bot/shared/services/reading/voice-feedback.service.js:27:d851c211`
 - `passage-generation.service.js` ← imported by `bot/shared/handlers/flow-response.handler.js:51:e9ceb3eb` · `bot/shared/services/reading-assessment.service.js:364:e0652009`
 - `pronunciation.service.js` ← imported by `bot/shared/services/reading/analysis.service.js:544:f9eb1bda`
@@ -30,15 +30,15 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `transcription.service.js` ← imported by `bot/shared/services/reading/analysis.service.js:495:b5c5c779`
 - `vocabulary-image.service.js` ← imported by `bot/shared/services/reading/comprehension.service.js:19:63eeea0a`
 - `voice-feedback.service.js` ← imported by `bot/shared/services/reading/analysis.service.js:1004:8efca90d`
-- column `reading_assessments.accuracy_percentage` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8525:6033d135`
-- column `reading_assessments.completed_at` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8525:6033d135`
-- column `reading_assessments.passage_type` (written by `auto-level-orchestrator.service.js`) ← read by `dashboard/routes/portal.routes.js:8525:6033d135`
-- column `reading_assessments.report_pdf_url` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8525:6033d135`
-- column `reading_assessments.status` (written by `analysis.service.js`, `auto-level-orchestrator.service.js`, `passage-generation.service.js`) ← read by `bot/shared/handlers/voice-message.handler.js:518:1099729a` · `bot/shared/services/context.service.js:175:a69ef692` · `bot/shared/services/reading-assessment.service.js:29:a9e5e72d` · `bot/shared/services/redis-comprehension.service.js:85:64fad2d6` (+3: `python3 kg/kg.py who-reads reading_assessments.status`)
-- column `reading_assessments.voice_feedback_url` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8525:6033d135`
-- column `reading_assessments.wcpm` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8525:6033d135`
-- table `reading_assessments` whole row (`*`) (written by `analysis.service.js`, `auto-level-orchestrator.service.js`, `passage-generation.service.js`) ← read by `bot/shared/handlers/voice-message.handler.js:545:d2b02c3e`? · `bot/shared/services/feature-registration.service.js:152:7a0c163a`? · `dashboard/database/queries.js:754:7a0c163a`? · `dashboard/routes/portal.routes.js:8600:d2b02c3e`? (+2: `python3 kg/kg.py who-reads reading_assessments`)
-- table `reading_assessments` (written by `analysis.service.js`, `auto-level-orchestrator.service.js`, `passage-generation.service.js`) ← read by `bot/shared/handlers/flow-response.handler.js:326:4337985e`? · `bot/shared/handlers/text-message.handler.js:1764:4337985e`? · `bot/shared/handlers/voice-message.handler.js:351:4337985e`? · `bot/shared/services/context.service.js:170:4337985e`? (+11: `python3 kg/kg.py who-reads reading_assessments`)
+- column `reading_assessments.accuracy_percentage` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8259:6033d135`
+- column `reading_assessments.completed_at` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8259:6033d135`
+- column `reading_assessments.passage_type` (written by `auto-level-orchestrator.service.js`) ← read by `dashboard/routes/portal.routes.js:8259:6033d135`
+- column `reading_assessments.report_pdf_url` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8259:6033d135`
+- column `reading_assessments.status` (written by `analysis.service.js`, `auto-level-orchestrator.service.js`, `passage-generation.service.js`) ← read by `bot/shared/handlers/voice-message.handler.js:490:1099729a` · `bot/shared/services/context.service.js:170:a69ef692` · `bot/shared/services/reading-assessment.service.js:29:a9e5e72d` · `bot/shared/services/redis-comprehension.service.js:85:64fad2d6` (+3: `python3 kg/kg.py who-reads reading_assessments.status`)
+- column `reading_assessments.voice_feedback_url` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8259:6033d135`
+- column `reading_assessments.wcpm` (written by `analysis.service.js`) ← read by `dashboard/routes/portal.routes.js:8259:6033d135`
+- table `reading_assessments` whole row (`*`) (written by `analysis.service.js`, `auto-level-orchestrator.service.js`, `passage-generation.service.js`) ← read by `bot/shared/handlers/voice-message.handler.js:517:d2b02c3e`? · `bot/shared/services/feature-registration.service.js:147:7a0c163a`? · `dashboard/database/queries.js:749:7a0c163a`? · `dashboard/routes/portal.routes.js:8334:d2b02c3e`? (+2: `python3 kg/kg.py who-reads reading_assessments`)
+- table `reading_assessments` (written by `analysis.service.js`, `auto-level-orchestrator.service.js`, `passage-generation.service.js`) ← read by `bot/shared/handlers/flow-response.handler.js:326:4337985e`? · `bot/shared/handlers/text-message.handler.js:1734:4337985e`? · `bot/shared/handlers/voice-message.handler.js:323:4337985e`? · `bot/shared/services/context.service.js:165:4337985e`? (+11: `python3 kg/kg.py who-reads reading_assessments`)
 - env `AZURE_SPEECH_KEY` read at `bot/shared/services/reading/pronunciation.service.js:42:b0f86cfa`
 - env `AZURE_SPEECH_REGION` read at `bot/shared/services/reading/pronunciation.service.js:43:996ea854`
 - env `R2_ACCESS_KEY_ID` read at `bot/shared/services/reading/analysis.service.js:946:d6f2a7a2` · `bot/shared/services/reading/passage-generation.service.js:1142:d6f2a7a2` · `bot/shared/services/reading/voice-feedback.service.js:788:d6f2a7a2`

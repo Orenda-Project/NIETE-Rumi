@@ -1,7 +1,7 @@
 # app — Coach-app API and app_settings switches for the self-administered assessment
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/app kg=b1856e77c35a gen=1bbfb6b48c4f overflow=55 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/app kg=674396aa3b5b gen=081efbd7d8d6 overflow=53 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `sa-api.service.js` — schools, day list, outcomes, battery, sessions for the portal
@@ -31,7 +31,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/child-test/sa-practice-only.test.js` (app-api.service.js, practice-only-switch.js, sa-api.service.js)
 - `bot/tests/child-test/sa-any-school.test.js` (any-school-switch.js, sa-api.service.js)
-- … 28 more → `CLAUDE.index.md`
+- … 26 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/child-test/CLAUDE.md`?

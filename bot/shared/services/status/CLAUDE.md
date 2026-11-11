@@ -1,6 +1,6 @@
 # status — Decision for the /status reply before anything is sent
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/status kg=9ec07776fde6 gen=fcef6f5a4f99 overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/status kg=d72d73e22535 gen=92d30df2defa overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `status-command.js` — decideStatusReply
@@ -12,7 +12,7 @@
 | `status-command.js` | Decides the /status reply before sending: Flow CTA only when something is running, else a plain answer |
 
 ## Who reads this (generated)
-- `status-command.js` ← imported by `bot/shared/handlers/text-message.handler.js:2408:ffcdf824`
+- `status-command.js` ← imported by `bot/shared/handlers/text-message.handler.js:2378:ffcdf824`
 
 ## Never (human)
 - Don't open the Flow when nothing runs: INIT returns a terminal screen (`bot/shared/services/status/status-command.js:8`)

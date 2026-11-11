@@ -6,7 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `__golden__/` | → (no door; 4 files: 0 test + 4 support) |
+| `__golden__/` | → (no door; 1 files: 0 test + 1 support) |
 | `fixtures/` | → (no door; 2 files: 0 test + 2 support) |
 | `helpers/` | Shared helpers for COACHIP tests: temp Postgres, app mount, fictional seed rows → `helpers/CLAUDE.md` |
 | `coachip-assert-clean.test.js` | bd-sex15q.19: assertClean wrapper in the COACHIP router 500s any body holding forbidden keys or URL patterns |

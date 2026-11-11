@@ -1,6 +1,6 @@
 # dashboard — Dashboard portal proxy routes to the bot: assessment, classes, board pattern
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/dashboard kg=044599d5dcb5 gen=bd56be7f1bae overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/dashboard kg=4723d9b326d4 gen=9b891ebbd6ae overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `portal-proxy-harness.js` — loads the real portal router with only I/O edges stubbed
@@ -12,9 +12,7 @@
 | path | purpose |
 |---|---|
 | `portal-proxy-harness.js` | Shared harness for dashboard assessment proxy tests: real portal router with Supabase, pg, R2 and axios stubbed |
-| `portal-auth-rate-limit.test.js` | (unmapped) |
 | `assessment-rate-limit.test.js` | Per-teacher paper limit (10/hour, 30/day) behind assessment_rate_limit_enabled; readable "next one at" message |
-| `assessment-userid-forwarding.test.js` | (unmapped) |
 | `assessment-ask-shared-path.test.js` | Dashboard assessment.service: coded 400/409 passthrough applies only to the create path of the shared ask() |
 | `assessment-topics-route.test.js` | GET /api/portal/assessment/topics: portal auth, then the real assessment.service proxies to the bot's topics route |
 | `classes-remove-proxy.test.js` | bd-ql2j3p: DELETE /api/portal/classes/:classId proxies to the bot's remove, teacher id taken from the session |

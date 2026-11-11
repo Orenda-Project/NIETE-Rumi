@@ -1,7 +1,7 @@
 # tests — Goldens and rules tests for the RM screens
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/rm/tests kg=c65ed39e6f50 gen=9b786bd21014 overflow=6 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/rm/tests kg=223d30a56087 gen=7fe1075861dc overflow=5 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `harness.tsx` — rmWorld and renderRm on top of the coach insights harness
@@ -27,7 +27,7 @@ Full index: `CLAUDE.index.md`
 | `layout_s2.test.tsx` | Pins RM layout asks as classes: stacked rows under 640px, picker, unvisited line (fix-r5 s2) |
 | `sector_step_today.test.tsx` | Pins that Set this sector step posts today's Karachi date and says so (fix-r5 s2 item 11) |
 | `s3_qa_rm.test.tsx` | Pins S8 circle zero-checks wording and S9 window legend with no moves (fix-r5 s3) |
-| … | 6 more → `CLAUDE.index.md` |
+| … | 5 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

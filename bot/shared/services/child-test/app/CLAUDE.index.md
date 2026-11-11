@@ -45,8 +45,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `CHILD_TEST_COACH_IDS` read at `bot/shared/services/child-test/app/app-api.service.js:81:7c1feadb`
 - env `CHILD_TEST_ENABLED` read at `bot/shared/services/child-test/app/app-api.service.js:53:b63ce370`
 - env `CHILD_TEST_R2_ENV` read at `bot/shared/services/child-test/app/app-api.service.js:58:882dfd55`
-- env `CHILD_TEST_SA_LINK_ONE_PHONE` read at `bot/shared/services/child-test/app/sa-api.service.js:1025:b78d313b`
-- env `CHILD_TEST_SA_SCORE_LATER` read at `bot/shared/services/child-test/app/sa-api.service.js:485:db6cf7d8`
+- env `CHILD_TEST_SA_LINK_ONE_PHONE` read at `bot/shared/services/child-test/app/sa-api.service.js:1020:b78d313b`
+- env `CHILD_TEST_SA_SCORE_LATER` read at `bot/shared/services/child-test/app/sa-api.service.js:480:db6cf7d8`
 - env `RAILWAY_ENVIRONMENT` read at `bot/shared/services/child-test/app/app-api.service.js:58:882dfd55`
 
 ## Tests (all, generated)
@@ -54,7 +54,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `app-api.service.js` ← `bot/tests/child-test/sa-practice-only.test.js` · `tests/child-test/L0/app-scoring-claimed.test.js` · `tests/child-test/L16/one-rule-both-channels.test.js` · `tests/child-test/L7/app-integration.test.js`
 - `block-history.js` ← `bot/tests/child-test/sa-block-history.test.js`
 - `practice-only-switch.js` ← `bot/tests/child-test/sa-practice-only.test.js`
-- `sa-api.service.js` ← `bot/tests/child-test/sa-add-child.test.js` · `bot/tests/child-test/sa-all-grade-forms.test.js` · `bot/tests/child-test/sa-all-grades.test.js` · `bot/tests/child-test/sa-any-school.test.js` · `bot/tests/child-test/sa-block-history.test.js` · `bot/tests/child-test/sa-device-events.test.js` (+20: `python3 kg/kg.py who-reads bot/shared/services/child-test/app/sa-api.service.js`)
+- `sa-api.service.js` ← `bot/tests/child-test/sa-add-child.test.js` · `bot/tests/child-test/sa-all-grade-forms.test.js` · `bot/tests/child-test/sa-all-grades.test.js` · `bot/tests/child-test/sa-any-school.test.js` · `bot/tests/child-test/sa-block-history.test.js` · `bot/tests/child-test/sa-device-events.test.js` (+18: `python3 kg/kg.py who-reads bot/shared/services/child-test/app/sa-api.service.js`)
 - `sa-review.service.js` ← `bot/tests/child-test/sa-review.test.js`
 
 ## Related (all, generated)

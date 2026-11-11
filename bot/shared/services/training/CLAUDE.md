@@ -1,7 +1,7 @@
 # training — Teacher training: modules, quizzes, certificates, I-SAPS exams and grading
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/training kg=ef96f9ad34eb gen=995d16d35737 overflow=172 rendered=2026-11-10 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/training kg=b52fe0e6cab5 gen=362a9a62455f overflow=165 rendered=2026-10-30 kg.py=1.1.0 -->
 
 ## Entry points
 - `quiz-delivery.service.js` — WhatsApp quiz state machine
@@ -13,12 +13,13 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `quiz-delivery.service.js` | WhatsApp Q-by-Q state machine for grand (level) and module quizzes: serving, grading, retries, certificates |
-| `certificate*` | 3 files; most used `certificate.service.js`: Issues level certificates after a passed level exam for WhatsApp and portal; code generation and quiz-score guard |
-| … | 29 more → `CLAUDE.index.md` |
+| `isaps*` | 12 files; most used `isaps-module-exam.rules.js`: I-SAPS end-of-module exam slot, per-module source quiz id mapping and offer message rules |
+| … | 27 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `band-selection.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+192)
-- … 74 more → `CLAUDE.index.md`
+- table `users` (written by `band-selection.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+174)
+- column `training_assessment_attempts.user_id` (written by `capstone-delivery.service.js` (+1)) ← read by `bot/shared/routes/teacher-training-endpoint.js:1222:7cb7cc00` · `bot/shared/services/teacher-state.service.js:413:219f5683` (+7)
+- … 75 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Bot completions write teacher_training_progress only via progress.service.js (:9-14); the portal also upserts it (dashboard/routes/portal.routes.js:5712)
@@ -27,9 +28,9 @@ Full index: `CLAUDE.index.md`
 <!-- read: map-read-niete-bot 2026-10-29 -->
 
 ## Tests (generated)
-- `tests/training/bd-arghnv-3-blank-stem-never-served.test.js` (capstone-delivery.service.js, isaps-crq-paper.rules.js, progress.service.js, question-stem.rules.js, quiz-delivery.service.js, quiz-serving.service.js)
-- `tests/fixtures/delegate-training-to-bot.js` (capstone-delivery.service.js, certificate.service.js, paper-marking.service.js, quiz-delivery.service.js, quiz-serving.service.js)
-- … 87 more → `CLAUDE.index.md`
+- `tests/training/isaps-crq-hold.test.js` (certificate.service.js, isaps-crq-hold.rules.js, isaps-module-exam.rules.js, isaps-score-sheet.rules.js, quiz-delivery.service.js)
+- `tests/training/isaps-golive-gates.test.js` (certificate-env.rules.js, content-delivery.service.js, isaps-crq-paper.rules.js, isaps-module-exam.rules.js, quiz-delivery.service.js)
+- … 81 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/CLAUDE.md`? · `docs/migration/02-teacher-training.md`? · `docs/reports/bug131-phase3-grand-quiz.md`?
