@@ -24,7 +24,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `r6b_fix.test.tsx` | (unmapped) |
 | `r6c_fix.test.tsx` | (unmapped) |
 | `rmMomentAsRm.test.ts` | Pins that the RM client asks GET /coachip/m/:id with ?as=rm |
-| `rm_logout.test.tsx` | (unmapped) |
 | `s3_qa_rm.test.tsx` | Pins S8 circle zero-checks wording and S9 window legend with no moves (fix-r5 s3) |
 | `sector_step_today.test.tsx` | Pins that Set this sector step posts today's Karachi date and says so (fix-r5 s2 item 11) |
 | `train7_layout.test.tsx` | Pins S10 layout and phone bar classes (fix-r5 s4 train 7) |

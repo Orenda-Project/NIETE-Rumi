@@ -16,7 +16,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `rules.ts` ← imported by `portal/src/portal/newui/checks/source.ts:13:c610a2d8`
 
 ## Tests (all, generated)
-- `rules.ts` ← `portal/src/portal/auth/admin-login.test.tsx` · `portal/src/portal/auth/analytics-login.test.tsx` · `portal/src/portal/auth/auth.pages.test.tsx` · `portal/src/portal/auth/auth.source.test.ts` · `portal/src/portal/auth/password-sign-in.test.tsx` · `portal/src/portal/coach/card/copy.test.ts` (+56: `python3 kg/kg.py who-reads portal/src/portal/newui/checks/rules.ts`)
+- `rules.ts` ← `portal/src/portal/auth/admin-login.test.tsx` · `portal/src/portal/auth/analytics-login.test.tsx` · `portal/src/portal/auth/auth.pages.test.tsx` · `portal/src/portal/auth/auth.source.test.ts` · `portal/src/portal/auth/password-sign-in.test.tsx` · `portal/src/portal/coach/card/copy.test.ts` (+54: `python3 kg/kg.py who-reads portal/src/portal/newui/checks/rules.ts`)
 - `source.ts` ← `portal/src/portal/auth/auth.source.test.ts` · `portal/src/portal/coach/observe/checks.test.tsx` · `portal/src/portal/coach/people/checks.test.tsx` · `portal/src/portal/newui/checks/copy.test.ts` · `portal/src/portal/newui/checks/style.test.tsx` · `portal/src/portal/newui/coaching/RecordingBar.newUi.test.tsx` (+11: `python3 kg/kg.py who-reads portal/src/portal/newui/checks/source.ts`)
 
 ## Related (all, generated)

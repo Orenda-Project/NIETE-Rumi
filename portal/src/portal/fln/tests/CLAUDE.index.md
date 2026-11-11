@@ -16,7 +16,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `counts.test.tsx` | Vitest (R5 Q1): band, list and plan kicker use the placement count of the grade the teacher is viewing |
 | `fln-ab-isolation.client.test.ts` | Vitest: FLN client folder must not import K-5 lesson-plan A/B code (lessonPlansApi, useOpenLesson); server half separate |
 | `gate.test.tsx` | Vitest for FlnGate and FlnRoutes: /me each mount, 401 to sign-in, 404/lessons:false shows unavailable notice |
-| `gbBand.test.tsx` | (unmapped) |
 | `golden.flagOff.test.tsx` | Vitest with recorded snapshots: with FLN off, NewLessonPage and OpenPlanPage render byte-identical to pre-FLN |
 | `hiddenBand.page.test.tsx` | Vitest (bd-4tsjcr): teacher of Grades 6-12 only gets no FLN band, page identical to switch-off; coach still gets it |
 | `hooks.test.tsx` | Vitest for FLN hook lines in shared files: appReady ALWAYS_OPEN, CoachAppGuard lets a v2 coach reach /portal/fln |

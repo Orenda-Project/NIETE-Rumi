@@ -15,7 +15,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `PhonicsTile.tsx` | S1 phonics tile with testing, paused and ok states |
 | `ResultCell.tsx` | S7 card of one school-grade reading-check cell showing counts of children only |
 | `SchoolRow.tsx` | One school on S3 with teacher codes, graded counts and a Trend disclosure |
-| `ShowName.tsx` | (unmapped) |
 | `Sparkline.tsx` | Inline SVG recordings-per-week line for S6, no axis or numbers |
 | `StateBlock.tsx` | Empty, failed and loading block for screens with nothing to show; also used by RM pages |
 | `StatsRow.tsx` | One S6 row: short name, sentence, this window's n of d and optional change pill |
@@ -36,7 +35,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `PhonicsTile.tsx` ← imported by `portal/src/portal/coach/insights/pages/ThisWeek.tsx:18:7d6c192a`
 - `ResultCell.tsx` ← imported by `portal/src/portal/coach/insights/pages/Results.tsx:8:603c80e1`
 - `SchoolRow.tsx` ← imported by `portal/src/portal/coach/insights/pages/Weakness.tsx:10:05cf2cb3` · `portal/src/portal/coach/insights/pages/Where.tsx:8:53b2054e`
-- `ShowName.tsx` ← imported by `portal/src/portal/coach/insights/components/StepCard.tsx:10:1a133edc`
 - `Sparkline.tsx` ← imported by `portal/src/portal/coach/insights/pages/Stats.tsx:11:69c9c4b2`
 - `StateBlock.tsx` ← imported by `portal/src/portal/coach/insights/pages/Listen.tsx:7:844365d7` · `portal/src/portal/coach/insights/pages/MomentRoute.tsx:6:9fe5cbbe` · `portal/src/portal/coach/insights/pages/Move.tsx:13:b755f9cb` · `portal/src/portal/coach/insights/pages/Results.tsx:7:b755f9cb` (+11: `python3 kg/kg.py who-reads StateBlock.tsx`)
 - `StatsRow.tsx` ← imported by `portal/src/portal/coach/insights/pages/Stats.tsx:10:f6dfd060`

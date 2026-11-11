@@ -52,7 +52,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `continue.ts` ← imported by `portal/src/portal/teacher/training/TrainingHub.tsx:6:7e20696d` · `portal/src/portal/teacher/training/model.ts:10:616e5cad` · `portal/src/portal/newui/training/TrainingHome.tsx:13:bcc0f62f`
 - `examParts.tsx` ← imported by `portal/src/portal/newui/training/TrainingLevelExam.tsx:13:b5d8d89c` · `portal/src/portal/newui/training/TrainingModuleExam.tsx:14:50c62726`
 - `frame.tsx` ← imported by `portal/src/portal/teacher/training/TrainingFrame.tsx:5:f09838a9` · `portal/src/portal/newui/training/TrainingCertificates.tsx:10:3604d4c0` · `portal/src/portal/newui/training/TrainingCourse.tsx:10:6d229a0a` · `portal/src/portal/newui/training/TrainingGrades.tsx:9:6d229a0a` (+7: `python3 kg/kg.py who-reads frame.tsx`)
-- `trainingApi.ts` ← imported by `portal/src/portal/coach/card/fixtures.testdata.ts:6:01798a1f` · `portal/src/portal/coach/card/training.tsx:10:cdec30be` · `portal/src/portal/coach/training/LibraryPages.tsx:20:c1416825` · `portal/src/portal/coach/training/libraryApi.ts:1:3cc0f2b4` (+23: `python3 kg/kg.py who-reads trainingApi.ts`)
+- `trainingApi.ts` ← imported by `portal/src/portal/coach/training/LibraryPages.tsx:20:c1416825` · `portal/src/portal/coach/training/libraryApi.ts:1:3cc0f2b4` · `portal/src/portal/newui/home/HomeList.tsx:22:428a29fa` · `portal/src/portal/pages/PortalTrainingV2.tsx:80:6f4cbc5b` (+21: `python3 kg/kg.py who-reads trainingApi.ts`)
 
 ## Tests (all, generated)
 - `TrainingCertificates.tsx` ← `portal/src/portal/newui/training/TrainingCertificates.test.tsx`?

@@ -39,7 +39,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `FlnBandBody.tsx` ← imported by `portal/src/portal/fln/FlnBand.tsx:15:805387e8`
 - `FlnContext.tsx` ← imported by `portal/src/portal/fln/FlnGate.tsx:16:6028f41a` · `portal/src/portal/fln/FlnRoutes.tsx:17:27bf7e20` · `portal/src/portal/fln/LessonList.tsx:16:27bf7e20` · `portal/src/portal/fln/PlanPage.tsx:23:27bf7e20`
 - `FlnGate.tsx` ← imported by `portal/src/portal/fln/FlnRoutes.tsx:16:3fd51080` · `portal/src/portal/fln/LessonList.tsx:17:701a9700`
-- `FlnRoutes.tsx` ← imported by `portal/src/App.tsx:174:56ef1400`
+- `FlnRoutes.tsx` ← imported by `portal/src/App.tsx:163:56ef1400`
 - `FlnSendCard.tsx` ← imported by `portal/src/portal/pages/LeaderHome.tsx:13:d3b0edb8`
 - `FlnSendTile.tsx` ← imported by `portal/src/portal/coach/training/LibraryPages.tsx:23:6907e93d`
 - `LessonList.tsx` ← imported by `portal/src/portal/fln/FlnRoutes.tsx:18:175e80eb`
@@ -52,7 +52,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `types.ts` ← imported by `portal/src/portal/fln/FlnBandBody.tsx:27:09b7cd91` · `portal/src/portal/fln/FlnContext.tsx:8:93f16bf1` · `portal/src/portal/fln/FlnGate.tsx:18:93f16bf1` · `portal/src/portal/fln/LessonList.tsx:21:4e1ebc58` (+10: `python3 kg/kg.py who-reads types.ts`)
 
 ## Tests (all, generated)
-- `FlnBand.tsx` ← `portal/src/portal/fln/tests/band.test.tsx` · `portal/src/portal/fln/tests/counts.test.tsx` · `portal/src/portal/fln/tests/gbBand.test.tsx`
+- `FlnBand.tsx` ← `portal/src/portal/fln/tests/band.test.tsx` · `portal/src/portal/fln/tests/counts.test.tsx`
 - `FlnBandBody.tsx` ← `portal/src/portal/fln/tests/band.test.tsx`
 - `FlnContext.tsx` ← `portal/src/portal/fln/tests/counts.test.tsx` · `portal/src/portal/fln/tests/gate.test.tsx` · `portal/src/portal/fln/tests/list.test.tsx` · `portal/src/portal/fln/tests/low-r5.test.tsx` · `portal/src/portal/fln/tests/naskh.test.tsx`
 - `FlnGate.tsx` ← `portal/src/portal/fln/tests/gate.test.tsx` · `portal/src/portal/fln/tests/rootScope.test.tsx` · `portal/src/portal/teacher/lessons/leaders.test.tsx`
@@ -63,8 +63,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `PlanPage.tsx` ← `portal/src/portal/fln/tests/backlink.test.tsx` · `portal/src/portal/fln/tests/counts.test.tsx` · `portal/src/portal/fln/tests/fixtures/renderPlan.tsx` · `portal/src/portal/fln/tests/planpage.test.tsx` · `portal/src/portal/teacher/lessons/leaders.test.tsx`
 - `listShared.tsx` ← `portal/src/portal/teacher/lessons/leaders.test.tsx`
 - `strings.audio.ts` ← `portal/src/portal/fln/tests/tile-shift.test.tsx` · `portal/src/portal/fln/tests/ui.test.tsx`
-- `strings.ts` ← `portal/src/portal/fln/tests/band.test.tsx` · `portal/src/portal/fln/tests/counts.test.tsx` · `portal/src/portal/fln/tests/fixtures/renderPlan.tsx` · `portal/src/portal/fln/tests/gate.test.tsx` · `portal/src/portal/fln/tests/gbBand.test.tsx` · `portal/src/portal/fln/tests/hiddenBand.page.test.tsx` (+1: `python3 kg/kg.py who-reads portal/src/portal/fln/strings.ts`)
-- `types.ts` ← `portal/src/portal/fln/tests/backlink.test.tsx` · `portal/src/portal/fln/tests/band.test.tsx` · `portal/src/portal/fln/tests/counts.test.tsx` · `portal/src/portal/fln/tests/fixtures/plans.ts` · `portal/src/portal/fln/tests/fixtures/renderPlan.tsx` · `portal/src/portal/fln/tests/gbBand.test.tsx` (+7: `python3 kg/kg.py who-reads portal/src/portal/fln/types.ts`)
+- `strings.ts` ← `portal/src/portal/fln/tests/band.test.tsx` · `portal/src/portal/fln/tests/counts.test.tsx` · `portal/src/portal/fln/tests/fixtures/renderPlan.tsx` · `portal/src/portal/fln/tests/gate.test.tsx` · `portal/src/portal/fln/tests/hiddenBand.page.test.tsx` · `portal/src/portal/fln/tests/list.test.tsx`
+- `types.ts` ← `portal/src/portal/fln/tests/backlink.test.tsx` · `portal/src/portal/fln/tests/band.test.tsx` · `portal/src/portal/fln/tests/counts.test.tsx` · `portal/src/portal/fln/tests/fixtures/plans.ts` · `portal/src/portal/fln/tests/fixtures/renderPlan.tsx` · `portal/src/portal/fln/tests/hiddenBand.page.test.tsx` (+6: `python3 kg/kg.py who-reads portal/src/portal/fln/types.ts`)
 
 ## Related (all, generated)
 - docs: `portal/src/portal/CLAUDE.md`?
