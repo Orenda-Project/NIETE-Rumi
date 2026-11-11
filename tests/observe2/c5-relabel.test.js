@@ -93,6 +93,10 @@ describe('the Flow (form version 7)', () => {
     const strip = (f) => {
       for (const s of f.screens) {
         delete (s.data || {}).switched;
+        // bd-ra8xu.43: the rubric caption atop Part 1 (one TextCaption + its declaration) is the other allowed difference.
+        delete (s.data || {}).scored_with;
+        const dropCaption = (list) => (Array.isArray(list) ? list.filter((c) => !(c && c.type === 'TextCaption' && c.text === '${data.scored_with}')) : list);
+        (s.layout.children || []).forEach((c) => { if (c && c.children) c.children = dropCaption(c.children); });
         const walk = (list) => (list || []).forEach((c) => {
           if (/_change_how$/.test(c.name || '')) c['data-source'] = 'X';
           if (c['on-click-action'] && c['on-click-action'].payload && c['on-click-action'].payload.fv) c['on-click-action'].payload.fv = 'FV';
