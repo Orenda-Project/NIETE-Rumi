@@ -5,6 +5,7 @@
  */
 
 import type { TileLevel, TileVendor } from "../../teacher/training/model";
+import type { Obs612Summary } from "../../lib/obs612";
 
 export type PeriodKey = "today" | "week" | "month";
 
@@ -242,4 +243,6 @@ export type SessionReportData = {
   /** One entry per plan move: `step` is its phase's name, `verdict` the fidelity check's (executed, partial, not_done …). */
   lpSteps: { step: string | null; verdict: string; text?: string | null; mustHappen?: boolean }[] | null;
   reflection: { question: string; answer: string }[];
+  /** bd-pni007 — an FDE visit: its block replaces the score, sections, practices and plan steps; null otherwise. */
+  obs612?: Obs612Summary | null;
 };

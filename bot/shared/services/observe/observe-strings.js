@@ -239,6 +239,7 @@ const STRINGS = {
       '🔎 Ripoti imepelekwa kwa timu ya NIETE kwa ukaguzi wa mwisho (utaratibu wa majaribio). Ikithibitishwa, itamfikia mwalimu.',
     report_caption_teacher:
       'Ripoti yako ya somo 🌱 Imeandaliwa kutokana na uchunguzi wa {fo} — pamoja na kumbukumbu za mazungumzo yenu.',
+    report_caption_teacher_obs612: 'Ripoti yako ya somo 🌱 Kutoka kwa ziara ya {fo}, kwenye zana ya uchunguzi ya FDE.',
     companion_from_label: 'Kutoka kwa',
     companion_commitment_label: 'Ahadi yako',
     companion_closing: 'Tunajivunia kazi yako. Tuko pamoja. 💛',
@@ -556,6 +557,8 @@ const STRINGS = {
     send_template_queued_fo: '📨 استاد نے حال میں مجھے پیغام نہیں بھیجا، اس لیے انہیں دعوت بھیجی ہے — ایک ٹیپ پر رپورٹ مل جائے گی۔ میں بتاؤں گی۔',
     send_operator_review_fo: '📨 رپورٹ جائزے کے لیے بھیج دی گئی ہے — منظوری پر استاد کو پہنچے گی۔',
     report_caption_teacher: '🌱 آپ کے سبق پر مبارک ہو! یہ رہی آپ کی رپورٹ۔',
+    // bd-pni007 (DRAFT for native review): an FDE visit's report, scored by the coach on FDE's own tool.
+    report_caption_teacher_obs612: '🌱 آپ کے سبق کی رپورٹ: {fo} کے وزٹ سے، ایف ڈی ای کے مشاہداتی ٹول پر۔',
     companion_from_label: 'جانب سے',
     companion_commitment_label: 'آپ کا عزم',
     companion_closing: 'ہمیں آپ کے کام پر فخر ہے۔ ہم ساتھ ہیں۔ 💛',
@@ -925,6 +928,8 @@ const STRINGS = {
       '🔎 The report went to the NIETE team for a final check (pilot procedure). Once approved, it reaches the teacher.',
     report_caption_teacher:
       'Your lesson report 🌱 Prepared from {fo}\'s visit — with notes from your conversation together.',
+    // bd-pni007: an FDE visit's report. No debrief conversation is promised: the coach scored FDE's own tool.
+    report_caption_teacher_obs612: 'Your lesson report 🌱 From {fo}\'s visit, on FDE\'s observation tool.',
     companion_from_label: 'From',
     companion_commitment_label: 'Your commitment',
     // bd-2405: was 'We are proud of your work. Tuko pamoja. 💛' — the Swahili

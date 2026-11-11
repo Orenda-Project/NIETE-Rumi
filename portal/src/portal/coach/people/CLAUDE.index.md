@@ -18,17 +18,17 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `visitStatus.ts` | Maps a school's last visit age to a status tone: amber, grey or green |
 
 ## Who reads this (all, generated)
-- `ManageSchool.tsx` ← imported by `portal/src/portal/coach/card/SchoolCardPage.tsx:9:bf2e7884` · `portal/src/portal/coach/pages/CoachSchool.tsx:9:bf2e7884`
-- `PeopleFrame.tsx` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:10:5c9f8184` · `portal/src/portal/coach/card/DaysUsedPage.tsx:5:70e8f104` · `portal/src/portal/coach/card/FeatureGridPage.tsx:4:70e8f104` · `portal/src/portal/coach/card/HerItemsPage.tsx:5:70e8f104` (+13: `python3 kg/kg.py who-reads PeopleFrame.tsx`)
-- `copy.ts` ← imported by `portal/src/portal/coach/card/SchoolCardPage.tsx:12:50f56fe6` · `portal/src/portal/coach/card/TeacherCardPage.tsx:9:50f56fe6` · `portal/src/portal/coach/card/schoolView.tsx:7:50f56fe6` · `portal/src/portal/coach/pages/CoachAddSchool.tsx:9:50f56fe6` (+11: `python3 kg/kg.py who-reads copy.ts`)
-- `level.tsx` ← imported by `portal/src/portal/coach/card/FeatureGridPage.tsx:14:2e133d28` · `portal/src/portal/coach/card/SchoolCardPage.tsx:11:bcd66cb1` · `portal/src/portal/coach/card/ScoresByTeacher.tsx:10:2e133d28` · `portal/src/portal/coach/card/TeacherCardPage.tsx:6:ea4583c0` (+7: `python3 kg/kg.py who-reads level.tsx`)
-- `rows.tsx` ← imported by `portal/src/portal/coach/card/DaysUsedPage.tsx:6:d9a31d0d` · `portal/src/portal/coach/card/HerItemsPage.tsx:6:d9a31d0d` · `portal/src/portal/coach/card/SchoolCardPage.tsx:10:269b69ed` · `portal/src/portal/coach/card/TeacherCardPage.tsx:11:d9a31d0d` (+6: `python3 kg/kg.py who-reads rows.tsx`)
+- `ManageSchool.tsx` ← imported by `portal/src/portal/coach/card/SchoolCardPage.tsx:10:bf2e7884` · `portal/src/portal/coach/pages/CoachSchool.tsx:9:bf2e7884`
+- `PeopleFrame.tsx` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:10:5c9f8184` · `portal/src/portal/coach/card/CoachFirstPage.tsx:6:70e8f104` · `portal/src/portal/coach/card/DaysUsedPage.tsx:5:70e8f104` · `portal/src/portal/coach/card/FeatureGridPage.tsx:4:70e8f104` (+16: `python3 kg/kg.py who-reads PeopleFrame.tsx`)
+- `copy.ts` ← imported by `portal/src/portal/coach/card/TeacherCardPage.tsx:9:50f56fe6` · `portal/src/portal/coach/card/schoolView.tsx:7:50f56fe6` · `portal/src/portal/coach/pages/CoachAddSchool.tsx:9:50f56fe6` · `portal/src/portal/coach/pages/CoachAddTeacher.tsx:10:c206095a` (+14: `python3 kg/kg.py who-reads copy.ts`)
+- `level.tsx` ← imported by `portal/src/portal/coach/card/FeatureGridPage.tsx:14:2e133d28` · `portal/src/portal/coach/card/SchoolCardPage.tsx:12:e4a5be56` · `portal/src/portal/coach/card/ScoresByTeacher.tsx:10:2e133d28` · `portal/src/portal/coach/card/TeacherCardPage.tsx:6:ea4583c0` (+11: `python3 kg/kg.py who-reads level.tsx`)
+- `rows.tsx` ← imported by `portal/src/portal/coach/card/DaysUsedPage.tsx:6:d9a31d0d` · `portal/src/portal/coach/card/HerItemsPage.tsx:6:d9a31d0d` · `portal/src/portal/coach/card/SchoolCardPage.tsx:11:269b69ed` · `portal/src/portal/coach/card/TeacherCardPage.tsx:11:d9a31d0d` (+12: `python3 kg/kg.py who-reads rows.tsx`)
 - `visitStatus.ts` ← imported by `portal/src/portal/coach/people/rows.tsx:10:7d0a280e`
 
 ## Tests (all, generated)
 - `ManageSchool.tsx` ← `portal/src/portal/coach/pages/CoachPickTeacher.test.tsx`
-- `copy.ts` ← `portal/src/portal/coach/pages/CoachEditTeacher.test.tsx` · `portal/src/portal/coach/pages/CoachManageSchools.test.tsx` · `portal/src/portal/coach/pages/CoachPeople.test.tsx` · `portal/src/portal/coach/people/copy.test.ts`
+- `copy.ts` ← `portal/src/portal/coach/pages/CoachEditTeacher.test.tsx` · `portal/src/portal/coach/pages/CoachManageSchools.test.tsx` · `portal/src/portal/coach/pages/CoachPeople.test.tsx` · `portal/src/portal/coach/people/copy.test.ts` · `portal/src/portal/coach/uxMusts.test.tsx`
 - `level.tsx` ← `portal/src/portal/coach/people/level.test.tsx`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/pages/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.md`? · `portal/src/portal/newui/checks/CLAUDE.md`?
+- docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/pages/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.md`? · `portal/src/portal/newui/checks/CLAUDE.md`?

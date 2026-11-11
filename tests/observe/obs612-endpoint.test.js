@@ -248,7 +248,7 @@ describe('Submit', () => {
     expect(made).toHaveLength(1);
     expect(made[0]).toMatchObject({
       user_id: 'teacher-1', observer_user_id: 'coach-1', observation_type: 'leader_observation', status: 'observer_review_complete',
-      debrief_status: 'pending', framework: 'obs612-gen-v1', framework_selection_reason: 'obs612_lesson',
+      debrief_status: 'done', framework: 'obs612-gen-v1', framework_selection_reason: 'obs612_lesson',
     });
     const a = made[0].analysis_data;
     expect(a.framework).toBe('obs612-gen-v1');
@@ -314,6 +314,7 @@ describe('Submit', () => {
 
     const s = sessions().find((x) => x.id === 'sess-1');
     expect(s.status).toBe('observer_review_complete');
+    expect(s.debrief_status).toBe('done'); // the coach's summary is its talk guide: it waits under send-reports
     expect(s.framework).toBe('obs612-msci-v1');
     expect(s.analysis_data.transcript_summary).toBe('kept');
     expect(s.analysis_data.obs612.result.indicators.find((i) => i.key === 'i5').level).toBe(0);

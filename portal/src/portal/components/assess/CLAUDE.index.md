@@ -31,12 +31,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `AssessPreflight.tsx` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:8:6a71005c`
 - `AssessVisitBar.tsx` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:9:8d73f10f`
 - `offlineCopy.ts` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:12:0ac30815` · `portal/src/portal/components/assess/AssessOfflineCard.tsx:6:3ffb4701`
-- `offlineReady.ts` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:15:98df4fd3` · `portal/src/portal/components/assess/AssessOfflineCard.tsx:9:28426d80`
+- `offlineReady.ts` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:15:98df4fd3` · `portal/src/portal/components/assess/AssessOfflineCard.tsx:10:28426d80`
 
 ## Tests (all, generated)
 - `AssessEngineSlot.tsx` ← `portal/src/portal/components/assess/AssessEngineSlot.r7b.test.tsx` · `portal/src/portal/components/assess/AssessEngineSlot.test.tsx`
 - `AssessPreflight.tsx` ← `portal/src/portal/components/assess/AssessPreflight.ios.test.tsx` · `portal/src/portal/components/assess/AssessPreflight.test.tsx`
-- `offlineReady.ts` ← `portal/src/portal/components/assess/offlineReady.test.ts` · `portal/src/portal/pages/LeaderAssess.r8offline.test.tsx`
+- `offlineReady.ts` ← `portal/src/portal/components/assess/offlineReady.test.ts` · `portal/src/portal/pages/LeaderAssess.r11report.test.tsx` · `portal/src/portal/pages/LeaderAssess.r8offline.test.tsx`
 
 ## Related (all, generated)
 - docs: `portal/src/portal/components/CLAUDE.md`?

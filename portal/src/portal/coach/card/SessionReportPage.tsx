@@ -11,6 +11,7 @@ import { card } from "./api";
 import { CardOnly, useCardLoad } from "./frame";
 import { dayLabel, pkDate, usePeriod, withPeriod } from "./period";
 import { Quote } from "./parts";
+import { Obs612Block } from "../../components/coaching/Obs612Block";
 import type { SessionReportData } from "./types";
 
 /**
@@ -64,6 +65,8 @@ function SessionReport() {
   // A coach observation (design v9): the Coach score, her coach, the step agreed; Back to her Coach observations.
   const visit = data?.kind === "coach";
   const scoreWord = visit ? C.coachScore : C.aiScore;
+  // bd-pni007 — an FDE visit: FDE's own result replaces the score ring and the plan steps (FICO's, not FDE's).
+  const fde = data?.obs612 ?? null;
 
   return (
     <PeopleFrame title={C.report} crumb={data?.teacher?.name || undefined} feature={visit ? "observations" : "coaching"}
@@ -83,13 +86,15 @@ function SessionReport() {
       {!data && !failed && <Loading />}
       {data && (
         <>
-          <Card className="flex items-center gap-4 p-4">
-            <ScoreRing value={data.overall} label={scoreWord} size={84} />
-            <span className="flex flex-col gap-1">
-              <b data-testid="overall" dir="ltr" className="self-start text-[22px] font-bold tabular-nums">{C.pct(data.overall)}</b>
-              <span className="text-[15px] font-semibold text-[#4b5563]">{scoreWord}</span>
-            </span>
-          </Card>
+          {fde ? <Obs612Block o={fde} /> : (
+            <Card className="flex items-center gap-4 p-4">
+              <ScoreRing value={data.overall} label={scoreWord} size={84} />
+              <span className="flex flex-col gap-1">
+                <b data-testid="overall" dir="ltr" className="self-start text-[22px] font-bold tabular-nums">{C.pct(data.overall)}</b>
+                <span className="text-[15px] font-semibold text-[#4b5563]">{scoreWord}</span>
+              </span>
+            </Card>
+          )}
 
           {data.whatWentWell.length > 0 && (
             <>
@@ -143,8 +148,8 @@ function SessionReport() {
             </>
           )}
 
-          <SectionLabel right={judged.length ? <span className="text-[13px] font-semibold text-[#6b7280]">{C.stepsDone(stepsDone, judged.length)}</span> : undefined}>{C.lpSteps}</SectionLabel>
-          {steps && steps.length
+          {!fde && <SectionLabel right={judged.length ? <span className="text-[13px] font-semibold text-[#6b7280]">{C.stepsDone(stepsDone, judged.length)}</span> : undefined}>{C.lpSteps}</SectionLabel>}
+          {fde ? null : steps && steps.length
             ? (
               <section data-testid="lp-steps" className={LIST}>
                 {steps.map((s, i) => {

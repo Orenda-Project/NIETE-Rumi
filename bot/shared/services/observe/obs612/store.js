@@ -61,6 +61,11 @@ async function saveDraft(form, draft) {
   return { ok: true, form: data[0] };
 }
 
+// An FDE visit has no FICO debrief: the coach's summary (observe/obs612/summary.js, sent on Submit) is its talk guide.
+// So the visit is debriefed when it is submitted, and waits under the 📨 send-reports list (observe-debrief
+// listUnsentReports: debrief done + review complete) until the coach sends the report, as the summary's "Later" says.
+const DEBRIEF_DONE = 'done';
+
 // The visit's existing session takes the analysis, merged over what it holds.
 async function writeLinkedSession(form, sessionId, analysis) {
   const { data: row, error } = await supabase.from(SESSIONS).select('id, status, analysis_data').eq('id', sessionId).maybeSingle();
@@ -71,7 +76,7 @@ async function writeLinkedSession(form, sessionId, analysis) {
   }
   if (isTerminalStatus(row.status)) return { ok: false, closed: true };
   const { data, error: upErr } = await supabase.from(SESSIONS)
-    .update({ analysis_data: { ...(row.analysis_data || {}), ...analysis }, status: 'observer_review_complete', framework: analysis.framework })
+    .update({ analysis_data: { ...(row.analysis_data || {}), ...analysis }, status: 'observer_review_complete', debrief_status: DEBRIEF_DONE, framework: analysis.framework })
     .eq('id', sessionId).not('status', 'in', TERMINAL_IN_FILTER).select('id');
   if (upErr) return fail('submit: write the session', upErr, { formId: form.id, sessionId });
   if (!(data || []).length) return { ok: false, closed: true };
@@ -86,7 +91,7 @@ async function createSession(form, analysis, at) {
       observer_user_id: form.observer_user_id,
       observation_type: 'leader_observation',
       status: 'observer_review_complete',
-      debrief_status: 'pending',
+      debrief_status: DEBRIEF_DONE,
       framework: analysis.framework,
       framework_selection_reason: 'obs612_lesson',
       analysis_data: analysis,

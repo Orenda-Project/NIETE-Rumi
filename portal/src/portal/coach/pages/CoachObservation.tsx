@@ -23,6 +23,7 @@ import { REPORTS } from "../reports/copy";
 import { pkTime } from "../reports/data";
 import { OBSERVATION_STEPS } from "../reports/paths";
 import { LessonPlanRow } from "../observe/PlanState";
+import { Obs612Block } from "../../components/coaching/Obs612Block";
 
 /**
  * bd-o15qnr.19 / bd-4404s7.5 — the one v2 observation page (Blueprint Coach_Observation and _Sent), opened from
@@ -160,6 +161,15 @@ const CoachObservation = () => {
             // bd-33wxxi.6 — no scores (the principal app, #55 Q1): the lesson still plays, under its own word
             // ("Class recording", Digital Coaching's), with no ring and no score line; no recording, no card.
             if (!routes.showScores) return data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} /> : null;
+            // bd-pni007 — an FDE visit has no FICO score: the lesson (if recorded), then FDE's own result.
+            if (data.obs612) {
+              return (
+                <>
+                  {data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} /> : null}
+                  <Obs612Block o={data.obs612} />
+                </>
+              );
+            }
             const ring = <ScoreRing value={score} label={C.dcScore} />;
             const sub = allDone && data.score != null ? C.finalScore(C.pct(data.score)) : C.draftBeforeCheck;
             return data.audioUrl

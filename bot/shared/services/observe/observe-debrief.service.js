@@ -572,6 +572,15 @@ async function buildDebriefGuide(session, lang) {
   const brief = v2.observe2 && typeof v2.observe2.brief === 'string' ? v2.observe2.brief : '';
   if (brief) return { kind: 'observe2_brief', text: brief, intro: brief, sections: {}, outro: '' };
 
+  // bd-pni007: an FDE (obs612) visit's guide is the coach's own "For the talk with the teacher" (obs612/summary.js), as
+  // written: no model call, and never the FICO guide (its prompt reads FICO domains an FDE visit does not have).
+  if (require('../coaching/frameworks/own-rubric').isObs612Scored(v2)) {
+    const { buildTalkGuide, buildCoachSummary } = require('./obs612/summary');
+    const talk = buildTalkGuide(v2, { lang }) || buildCoachSummary(v2, { lang });
+    if (talk) return { kind: 'obs612_talk', text: talk, intro: talk, sections: {}, outro: '' };
+    return buildFallbackGuide({}, { language: lang });
+  }
+
   // Feedback-uptake loop (flag-gated): the record from BEFORE this visit (what
   // the AI coach asked, which attempt) plus THIS visit's verdict on it (written
   // into this session's own record at form submit). previousFocus had no
