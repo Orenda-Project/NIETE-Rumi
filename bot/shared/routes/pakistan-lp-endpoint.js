@@ -57,7 +57,7 @@ const { clampLanguage, resolveUx } = require('../config/ux-strings');
 const V8Catalog = require('../services/lp-v8-catalog.service');
 const V8Delivery = require('../services/lp-v8-delivery.service');
 // bd-97daxo.4 — the books her region names (null = today's ICT list). Book-first: a region with a list gets its
-// books in the K-5 lane and is told a grade it has no books for is not available yet (GB: 6+, operator 6 Nov).
+// books in the K-5 lane and is told a grade it has no books for is not available yet (GB: 11-12; its 6-10 list is ICT's books, bd-qchgya).
 const TeacherBooks = require('../services/teacher-books.service');
 const Lp612Catalog = require('../services/lp612-catalog.service');
 const Lp612Serving = require('../services/lp612-serving.service');
@@ -178,7 +178,9 @@ async function gbLane(flowToken, curriculum) {
 
 async function openGradePickerFor(flowToken) {
   const curriculum = await teacherCurriculum(flowToken);
-  return openGradePicker(curriculum, await gbLane(flowToken, curriculum));
+  const gb = await gbLane(flowToken, curriculum);
+  // bd-qchgya — her book list says which of Grades 6-10 she has (GB: ICT's 6-10 books); read only in the GB lane.
+  return openGradePicker(curriculum, gb, gb ? await TeacherBooks.bookKeysForUser(userIdFrom(flowToken) || null) : null);
 }
 const notIct = (curriculum) => Boolean(curriculum) && curriculum !== BookCurriculum.ICT;
 /** Trailing positional args for a K-5 catalogue call: her region's book list, none when it names no books. */
@@ -289,14 +291,18 @@ async function dispatchPakistanLpDataExchange(flowToken, screen, screenData) {
 
 // Static 1..10 grade dropdown — surface all grades even where the DB is
 // still empty; the subject screen shows a friendly message if no LPs exist.
-async function openGradePicker(curriculum, gb = null) {
+async function openGradePicker(curriculum, gb = null, bookKeys = null) {
   // Grades 11 and 12 do not exist on this picker today. They appear
   // only when the flag is on AND the 6-12 corpus actually holds segments for
   // them, because unlike 1-10 there is no fallback corpus behind them: an empty
   // grade 12 row would be a dead end, not a "check back soon".
   let grades = STATIC_GRADES;
   if (gb) {
-    grades = Lp612Curriculum.GB_K5_GRADES; // a GB teacher's books are Grades 1-5, nothing else
+    // A GB teacher: her Grades 1-5 books, plus the Grades 6-10 her list names (ICT's books, bd-qchgya) while the
+    // 6-12 lane that serves them is on. No list, or the lane off: Grades 1-5 only, as before.
+    const upper = isLp612Enabled() && Array.isArray(bookKeys)
+      ? STATIC_GRADES.filter((g) => g > 5 && TeacherBooks.gradeCovered(g, bookKeys)) : [];
+    grades = [...Lp612Curriculum.GB_K5_GRADES, ...upper];
   } else if (isLp612Enabled()) {
     try {
       const extra = (await Lp612Catalog.buildGradeItems(...lp612Args(curriculum)))
@@ -326,7 +332,8 @@ async function openGradePicker(curriculum, gb = null) {
 
 // SELECT_GRADE → SELECT_SUBJECT
 // Grade 1–5: subjects from pre_generated_lps.
-// Grade 6–10: subjects from lesson_plan_catalog (Oxbridge).
+// Grade 6–10: subjects from lesson_plan_catalog (Oxbridge), or the 6-12 lane when on.
+// GB 6-10 (bd-qchgya): only the 6-12 lane, never Oxbridge, and only grades her book list covers.
 async function selectGrade(screenData, curriculum, gb = null, bookKeys = null, flowToken = null) {
   const gradeStr = screenData && screenData.grade;
   if (!gradeStr) return { data: { error: { message: 'Please select a class.' } } };
@@ -342,7 +349,9 @@ async function selectGrade(screenData, curriculum, gb = null, bookKeys = null, f
 
   // bd-rj6w0n.14.4 — a GB teacher reads only the nbf_snc books, through the 6-12 catalogue, and never
   // the ICT K-5 v8 corpus or Oxbridge below. Needs LP_612_ENABLED too: the lp612 steps are guarded on it.
-  if (gb) {
+  // bd-qchgya — a Grade 6-10 her list covers goes on to ICT's 6-12 catalogue below (never Oxbridge).
+  const gbUpper = Boolean(gb) && isLp612Enabled() && Array.isArray(bookKeys) && grade > 5;
+  if (gb && !gbUpper) {
     if (!isLp612Enabled() || !Lp612Curriculum.GB_K5_GRADES.includes(grade)) {
       return { data: { error: { message: resolveUx('lp612GbGradeOnly', { language: gb.language }) } } };
     }
@@ -402,7 +411,7 @@ async function selectGrade(screenData, curriculum, gb = null, bookKeys = null, f
     // Oxbridge picker instead — that is the picker being reachable by another name. She gets the
     // honest "nothing for this class yet" that the tail of this function already sends, which
     // names the actual state and points at what will work (rule 24(d)).
-    if (isLp612RouteAll()) {
+    if (isLp612RouteAll() || gbUpper) {
       logToFile('LP route-all: no segments for grade — Oxbridge fallback suppressed', { grade });
       return { data: { error: { message: `No lesson plans available for ${gradeTitle(grade)} yet. Try another class or check back soon.` } } };
     }

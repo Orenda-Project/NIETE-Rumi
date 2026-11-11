@@ -1595,7 +1595,7 @@ async function patternsOfferedTo(userId) {
 /** Browse's grade list as this user is offered it (the gate lives here, not in the browse service). */
 async function offeredGrades(grades, userId) {
   const n = (x) => Number(x && typeof x === 'object' ? x.grade : x);
-  // bd-97daxo.4 — only the grades her region's books cover (GB: 1-5). No list: every grade, as before.
+  // bd-97daxo.4 — only the grades her region's books cover (GB: 1-10, bd-qchgya). No list: every grade, as before.
   const shelf = userId ? await TeacherBooks.bookKeysForUser(userId) : null;
   const covered = Array.isArray(shelf) ? grades.filter((x) => TeacherBooks.gradeCovered(n(x), shelf)) : grades;
   if (!covered.some((x) => n(x) >= 6)) return covered; // G1-5 only: untouched, byte for byte
@@ -2379,7 +2379,10 @@ function lp612Route(name, handler) {
 // through her curriculum and the serving guard (lp612-gb-delivery refusesCurriculum) already allows. The WhatsApp
 // Flow's polite Grade 6+ refusal (pakistan-lp-endpoint) is unchanged: prod redirects lesson asks to the app.
 router.post('/lp612/grades', requireInternalKey, lp612Route('grades', async (Browse, req, res) => {
-  const grades = await Browse.listGrades(...curriculumArgs(await teacherCurriculum(req.body)));
+  const all = await Browse.listGrades(...curriculumArgs(await teacherCurriculum(req.body)));
+  // bd-qchgya — only the grades her region's book list covers (GB: up to 10, never 11-12). No list: every grade.
+  const [shelf] = await shelfArgs(req.body);
+  const grades = shelf ? all.filter((g) => TeacherBooks.gradeCovered(Number(g && typeof g === 'object' ? g.grade : g), shelf)) : all;
   return res.json({ success: true, grades });
 }));
 

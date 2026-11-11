@@ -166,15 +166,15 @@ function gradeOfKey(key) {
   const Catalog = require('./lp-v8-catalog.service');
   const book = Catalog.catalog().books.find((b) => (b.book_key || b.stem) === key);
   if (book) return Number(book.grade);
-  const m = /^(?:grade_(\d{1,2})_|[a-z]+_g(\d{1,2})_)/.exec(String(key || ''));
+  const m = /^(?:grade_(\d{1,2})_|(?:[a-z]+_)?g(\d{1,2})_)/.exec(String(key || ''));
   return m ? Number(m[1] || m[2]) : null;
 }
 
 /**
  * Does her book list cover this grade (operator, 6 Nov)? No list covers every grade, as today. A list covers
- * exactly the grades of its books: GB names Grades 1-5 books only (its Afaq books for 6+ are not ready), so a GB
- * teacher of Grade 6+ gets no lesson plans, no question papers and no book features — and is told so
- * (gradeNotCoveredMessage), never handed ICT's books instead.
+ * exactly the grades of its books. GB names its own Grades 1-5 books plus ICT's Grades 6-10 books (bd-qchgya,
+ * operator 11 Nov), so a GB teacher of Grade 11-12, or of a grade with no book on the list, gets no lesson plans,
+ * no question papers and no book features, and is told so (gradeNotCoveredMessage).
  */
 function gradeCovered(grade, bookKeys) {
   if (!Array.isArray(bookKeys)) return true;
