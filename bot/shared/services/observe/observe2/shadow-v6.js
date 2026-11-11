@@ -9,9 +9,11 @@
  * and label checks, the v6 rules. The result goes to rumi_moments.shadow_v6 and nowhere else:
  *
  *   { prompt_version: 'observe2-moments-v3', moments, counts, room_evidence, rumi_levels, transcript_quality,
- *     at, status: 'ok' }
+ *     d2_turns, at, status: 'ok' }
  *   { prompt_version, transcript_quality, moments: [], ..., status: 'broken' }   the gate said broken: no call
  *   { prompt_version, transcript_quality?, at, status: 'failed', error }        the call or a check failed
+ *
+ * d2_turns (every status but a throw before the gate): the Student lines in each half, counted (moments.d2Turns).
  *
  * runFor returns at once: the read runs in the background, never throws into the moments job and never holds up
  * the check. check-v6's analysis.js copies the blob to analysis_data.observe2.shadow_v6 at check end.
@@ -52,6 +54,7 @@ async function read(form, transcript, { llm, labelLlm, lang }) {
 
   const quality = Quality.assess({ transcript, periodMinutes: form.period_minutes });
   base.transcript_quality = Quality.stored(quality);
+  base.d2_turns = Moments.d2Turns(transcript);
   if (quality.status === 'broken') {
     return {
       ...base,
