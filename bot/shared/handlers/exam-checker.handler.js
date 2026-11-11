@@ -68,6 +68,40 @@ async function hasActiveExamSession(userId) {
   return state.active;
 }
 
+// Words that mean "get me out" — the session ends and normal routing answers.
+const EXIT_WORDS = new Set(['menu', 'cancel', 'stop', 'exit', 'back', 'مینو', 'منسوخ', 'واپس']);
+
+/**
+ * Deliver an orchestrator response. Reply-button interactives go through the
+ * BUTTON sender (the list sender returns false without `sections` and sent nothing,
+ * which is how text turns were swallowed — bd-97daxo.8.12); any `text` is sent too.
+ */
+async function sendExamResponse(from, response) {
+  const interactive = response.interactive;
+  if (interactive?.action?.buttons) {
+    if (response.text) await WhatsAppService.sendMessage(from, response.text);
+    await WhatsAppService.sendInteractiveButtons(from, {
+      body: interactive.body?.text || response.text || '',
+      buttons: interactive.action.buttons.map((b) => ({ id: b.reply.id, title: b.reply.title })),
+    });
+  } else if (interactive) {
+    await WhatsAppService.sendInteractiveMessage(from, interactive);
+  } else if (response.flow) {
+    // data_exchange flow — pass the flow_token; the endpoint serves the
+    // screen data on INIT. (Previously called a method that did not exist.)
+    await WhatsAppService.sendFlow(from, {
+      flowId: response.flow.id,
+      flowToken: response.flow.flowToken,
+      header: response.flow.header,
+      body: response.flow.body,
+      buttonText: response.flow.buttonText || 'Open',
+      footer: 'Powered by NIETE',
+    });
+  } else {
+    await WhatsAppService.sendMessage(from, response.text);
+  }
+}
+
 /**
  * Handle text message for exam checker
  * @param {Object} message - WhatsApp message
@@ -90,6 +124,13 @@ async function handleExamText(message, from, user) {
       return null; // Not for exam checker
     }
 
+    // Menu/exit word mid-flow: end the session and let normal routing answer.
+    if (!triggered && hasSession && EXIT_WORDS.has(text.toLowerCase().trim())) {
+      const state = await ExamCheckerOrchestrator.getSessionState(user.id);
+      await ExamCheckerOrchestrator.cancelSession(state.sessionId);
+      return null;
+    }
+
     logToFile('📝 Exam checker text received', {
       userId: user.id,
       triggered,
@@ -109,22 +150,7 @@ async function handleExamText(message, from, user) {
       typingController.stop();
 
       // Send response
-      if (response.interactive) {
-        await WhatsAppService.sendInteractiveMessage(from, response.interactive);
-      } else if (response.flow) {
-        // data_exchange flow — pass the flow_token; the endpoint serves the
-        // screen data on INIT. (Previously called a method that did not exist.)
-        await WhatsAppService.sendFlow(from, {
-          flowId: response.flow.id,
-          flowToken: response.flow.flowToken,
-          header: response.flow.header,
-          body: response.flow.body,
-          buttonText: response.flow.buttonText || 'Open',
-          footer: 'Powered by NIETE',
-        });
-      } else {
-        await WhatsAppService.sendMessage(from, response.text);
-      }
+      await sendExamResponse(from, response);
 
       return { handled: true };
     } catch (error) {
@@ -197,11 +223,7 @@ async function handleExamImage(message, from, user) {
       typingController.stop();
 
       // Send response
-      if (response.interactive) {
-        await WhatsAppService.sendInteractiveMessage(from, response.interactive);
-      } else {
-        await WhatsAppService.sendMessage(from, response.text);
-      }
+      await sendExamResponse(from, response);
 
       return { handled: true };
     } catch (error) {
@@ -246,22 +268,7 @@ async function handleExamButton(buttonId, from, user) {
       typingController.stop();
 
       // Send response
-      if (response.interactive) {
-        await WhatsAppService.sendInteractiveMessage(from, response.interactive);
-      } else if (response.flow) {
-        // data_exchange flow — pass the flow_token; the endpoint serves the
-        // screen data on INIT. (Previously called a method that did not exist.)
-        await WhatsAppService.sendFlow(from, {
-          flowId: response.flow.id,
-          flowToken: response.flow.flowToken,
-          header: response.flow.header,
-          body: response.flow.body,
-          buttonText: response.flow.buttonText || 'Open',
-          footer: 'Powered by NIETE',
-        });
-      } else {
-        await WhatsAppService.sendMessage(from, response.text);
-      }
+      await sendExamResponse(from, response);
 
       return { handled: true };
     } catch (error) {
@@ -318,22 +325,7 @@ async function handleExamFlow(flowId, flowResponse, from, user) {
       typingController.stop();
 
       // Send response
-      if (response.interactive) {
-        await WhatsAppService.sendInteractiveMessage(from, response.interactive);
-      } else if (response.flow) {
-        // data_exchange flow — pass the flow_token; the endpoint serves the
-        // screen data on INIT. (Previously called a method that did not exist.)
-        await WhatsAppService.sendFlow(from, {
-          flowId: response.flow.id,
-          flowToken: response.flow.flowToken,
-          header: response.flow.header,
-          body: response.flow.body,
-          buttonText: response.flow.buttonText || 'Open',
-          footer: 'Powered by NIETE',
-        });
-      } else {
-        await WhatsAppService.sendMessage(from, response.text);
-      }
+      await sendExamResponse(from, response);
 
       return { handled: true };
     } catch (error) {
