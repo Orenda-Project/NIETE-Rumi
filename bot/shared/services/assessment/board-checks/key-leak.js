@@ -82,6 +82,13 @@ const unitOnly = (key) => { const t = tokens(str(key).replace(/\^\s*[-\u2212]?\d
 /** A number with or without units: data a board paper may give in any stem. */
 const quantity = (key) => givenData(key) && tokens(key).some((x) => /\p{N}/u.test(x));
 
+// bd-qyi45h.6 (2), board only: a short concept MCQ key (<= 3 words once articles go, no digit) in ANOTHER question is a
+// hint, not the answer, so soft; two children of one passage restating each other stay hard. design_pending: the 3.
+const HINT_WORDS = 3;
+const hint = (key) => { const t = tokens(key).filter((x) => !ARTICLES.has(x)); return t.length <= HINT_WORDS && !t.some((x) => /\p{N}/u.test(x)); };
+const groupOf = (n) => (n.ref && n.ref.includes('@') ? n.ref.slice(0, n.ref.indexOf('@')) : null);
+const siblings = (a, b) => { const g = groupOf(a); return !!g && g === groupOf(b); };
+
 /** One word once articles and bare units are set aside, and no digit: chapter vocabulary in a board paper. */
 function vocabulary(key) {
   const t = tokens(key);
@@ -98,6 +105,7 @@ function n18(ls, board) {
       allRaw: raw(() => true),
       noOptionsRaw: raw((f) => f.field !== 'options'),
       own: padded(fields.filter((f) => f.field !== 'options' && f.field !== 'words').map((f) => f.text).join(' . ')),
+      ownNoStim: padded(fields.filter((f) => !['options', 'words', 'stimulus'].includes(f.field)).map((f) => f.text).join(' . ')),
       all: padded(fields.map((f) => f.text).join(' . ')),
       noOptions: padded(fields.filter((f) => f.field !== 'options').map((f) => f.text).join(' . ')),
     };
@@ -107,11 +115,14 @@ function n18(ls, board) {
     const key = board ? bareKey(keyOf(v.n.item)) : keyOf(v.n.item);
     if (!key || !searchable(key)) return;
     const needle = padded(key);
-    if (v.own.includes(needle) && signsIn(key, v.ownRaw)) { out.push(leak(v.n, key, 'its own stem', !(givenData(key) && CALC.test(v.ownRaw)))); return; }
+    if (v.own.includes(needle) && signsIn(key, v.ownRaw)) {
+      const dataOnly = givenData(key) && (CALC.test(v.ownRaw) || (board && quantity(key) && !v.ownNoStim.includes(needle))); // bd-qyi45h.6 (1): a truth-table row
+      out.push(leak(v.n, key, 'its own stem', !dataOnly)); return;
+    }
     const reuseOk = board && Array.isArray(v.n.item.options) && v.n.item.options.length > 1; // an MCQ key
     const other = views.find((w, j) => j !== i && (reuseOk ? w.noOptions : w.all).includes(needle) && signsIn(key, reuseOk ? w.noOptionsRaw : w.allRaw));
     if (!other || (board && unitOnly(key))) return;
-    const soft = (reuseOk && vocabulary(key)) || (board && (quantity(key) || crossSection(v.n, other.n)));
+    const soft = (reuseOk && vocabulary(key)) || (board && (quantity(key) || crossSection(v.n, other.n) || (reuseOk && hint(key) && !!groupOf(other.n) && !siblings(v.n, other.n))));
     out.push({ ...leak(other.n, key, `the key of ${v.n.ref}`, !soft), ...(board ? { keyed_ref: v.n.ref, phrase: key.trim() } : {}) });
   });
   return out;
