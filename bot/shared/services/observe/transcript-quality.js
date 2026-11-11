@@ -10,7 +10,8 @@
  *   late_start  first timestamp later than TRANSCRIPT_LATE_START_SEC                      partial
  *   gap         no speech for TRANSCRIPT_GAP_MINUTES or more between two lines             partial
  *   loop        consecutive lines with the same words, or one token making up 80% or more
- *               of their tokens, for TRANSCRIPT_LOOP_MINUTES or more                       partial
+ *               of their tokens, for TRANSCRIPT_LOOP_MINUTES or more (one such line counts
+ *               over its estimated span of speech)                                         partial
  *
  * `broken` when the loops add up to more than TRANSCRIPT_BROKEN_SHARE of the period, or when no line
  * carries a timestamp at all (nothing can be placed in the lesson). Callers: `broken` → no scoring
@@ -83,8 +84,13 @@ function parse(transcript) {
  * (a long loop's share would otherwise swallow the ordinary speech after it). It counts when it lasts
  * loopSec or more (first line's start to last line's start). A line with no words ("...") neither ends a
  * run nor counts toward it.
+ *
+ * One speaker's back-to-back speech is one line (spec §1.2), so a hallucinated repeat can be a single line.
+ * A line whose tokens are 80% one token and whose estimated span (chars / charsPerSec, cut at the next line's
+ * start) is loopSec or more is a loop by itself. Such a line can outweigh every other line in a run's token
+ * count, so a run also sheds leading lines that do not repeat themselves.
  */
-function loops(lines, loopSec) {
+function loops(lines, loopSec, charsPerSec) {
   const found = [];
   let i = 0;
   while (i < lines.length) {
@@ -107,18 +113,37 @@ function loops(lines, loopSec) {
       same = same && line.key === lines[i].key;
       if (!same && top < LOOP_TOKEN_SHARE * total) break;
     }
-    const repeats = (line) => line.tokens.length > 0 && (line.key === lines[i].key
-      || line.tokens.filter((t) => t === topToken).length >= LOOP_TOKEN_SHARE * line.tokens.length);
+    const ofTop = (line) => line.tokens.filter((t) => t === topToken).length >= LOOP_TOKEN_SHARE * line.tokens.length;
+    let first = i;
+    const next = (k) => {
+      let n = k + 1;
+      while (n < j && !lines[n].tokens.length) n += 1;
+      return n;
+    };
+    while (next(first) < j && !ofTop(lines[first]) && lines[first].key !== lines[next(first)].key) first = next(first);
+    const repeats = (line) => line.tokens.length > 0 && (line.key === lines[first].key || ofTop(line));
     let last = j - 1;
-    while (last > i && !repeats(lines[last])) last -= 1;
-    if (last > i && lines[last].sec - lines[i].sec >= loopSec) {
-      found.push({ fromSec: lines[i].sec, toSec: lines[last].sec });
+    while (last > first && !repeats(lines[last])) last -= 1;
+    if (last > first && lines[last].sec - lines[first].sec >= loopSec) {
+      found.push({ fromSec: lines[first].sec, toSec: lines[last].sec });
       i = last + 1;
-    } else {
-      i += 1;
+      continue;
     }
+    const one = oneLineLoop(lines, i, charsPerSec);
+    if (one && one.toSec - one.fromSec >= loopSec) found.push(one);
+    i += 1;
   }
   return found;
+}
+
+/** Line k as a loop on its own: 80% one token, from its start to its estimated end or the next line's start. */
+function oneLineLoop(lines, k, charsPerSec) {
+  const { tokens, sec, text } = lines[k];
+  const counts = new Map();
+  for (const t of tokens) counts.set(t, (counts.get(t) || 0) + 1);
+  if (!tokens.length || Math.max(...counts.values()) < LOOP_TOKEN_SHARE * tokens.length) return null;
+  const end = sec + Math.ceil([...text.trim()].length / charsPerSec);
+  return { fromSec: sec, toSec: k + 1 < lines.length ? Math.min(end, lines[k + 1].sec) : end };
 }
 
 /**
@@ -152,7 +177,7 @@ function assess({ transcript, periodMinutes, env = process.env } = {}) {
       timed.push({ at: spoke, issue: { type: 'gap', from: clock(spoke), to: clock(lines[k].sec) } });
     }
   }
-  const looped = loops(lines, loopSec);
+  const looped = loops(lines, loopSec, charsPerSec);
   for (const l of looped) timed.push({ at: l.fromSec, issue: { type: 'loop', from: clock(l.fromSec), to: clock(l.toSec) } });
   if (period && coverage < fullShare) timed.push({ at: lastSec, issue: { type: 'short', from: clock(lastSec) } });
 
