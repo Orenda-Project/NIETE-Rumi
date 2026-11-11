@@ -16,13 +16,17 @@
  * Last come the coach's own notes from the visit, word for word, grouped by part (pilot sheet R13,
  * 14 Oct: "this evidence disappears after the form is saved"). Each note gets its own line under its
  * label, so a note typed in English reads in its own direction inside an Urdu brief.
+ *
+ * A FICO17 v6 visit (spec §9.3): rows by their v6 names; NA left out; IE one line, never a level; "work on
+ * first" never an NA or IE row; a broken recording gives no level from it, one line saying so, and the six
+ * levels the coach set in the room still stand (focus-areas.js levelOf, workOnPicks).
  */
 
-const { CODES, MOMENTS, ROW, PRIORITY, FOCUS, PLAN_FOCUS, THINKING, isCoachingFocus, pickAlso } = require('./fico17');
+const { CODES, MOMENTS, PRIORITY, FOCUS, PLAN_FOCUS, THINKING, isCoachingFocus, pickAlso } = require('./fico17');
 const { THINK_SAID, usedPhrase } = require('./rules');
-const { focusSeen, focusNext, FOCUS_MOMENT } = require('./focus-areas');
+const { focusSeen, focusNext, FOCUS_MOMENT, levelOf, rowOf, workOnPicks, transcriptBroken } = require('./focus-areas');
 const { observe2Strings } = require('./strings');
-const { plainOf } = require('./rubric');
+const { isV6, plainOf } = require('./rubric');
 const { clampLanguage } = require('../../../config/ux-strings');
 
 // Which indicator a moment type speaks to, so the moment offered is about the thing to work on.
@@ -117,7 +121,9 @@ const FRAME = {
   },
 };
 
-const numeric = (v) => (/^[1-4]$/.test(String(v)) ? Number(v) : null);
+// v6 report lines (CONTRACTS §6.5), read from strings.js with this English until the keys land there.
+const REPORT_IE = "The recording didn't cover this part of the lesson.";
+const REPORT_BROKEN = "The recording couldn't be used, so this report has no levels from it.";
 const DONE = new Set(['executed', 'substituted_equivalent', 'substituted_better']);
 
 // The boxes a coach types in, in the order they are met: Part 1 and Part 2 ("Anything else", and
@@ -201,9 +207,8 @@ function planFocusLines(form, F) {
 // Children's thinking (R16): what the coach saw of it in Part 2, then the levels of the six indicators
 // that score it, the teacher's practice and the children's responses. Nothing when there is neither.
 function thinkingLines(form, F) {
-  const finals = form.final_levels || {};
   const ticks = Object.keys(THINK_SAID).filter((k) => ((form.answers || {}).p2_think || []).includes(k));
-  const phrases = (codes) => codes.filter((c) => numeric(finals[c])).map((c) => plainOf(form)[c][numeric(finals[c]) - 1].toLowerCase()).join(' · ');
+  const phrases = (codes) => codes.filter((c) => levelOf(form, c)).map((c) => plainOf(form)[c][levelOf(form, c) - 1].toLowerCase()).join(' · ');
   const teacher = phrases(THINKING.teacher);
   const children = phrases(THINKING.children);
   if (!ticks.length && !teacher && !children) return [];
@@ -238,7 +243,7 @@ function alsoSeen(form, id, F, S) {
     const lp = (form.answers || {}).lp;
     return lp === 'none' ? F.plan_none : lp === 'notfollowed' ? F.plan_notfollowed : '';
   }
-  const level = numeric((form.final_levels || {})[id]);
+  const level = levelOf(form, id);
   const used = id === 'C8' ? usedPhrase(form.answers) : '';
   return level ? [plainOf(form)[id][level - 1].toLowerCase(), used].filter(Boolean).join(': ') : '';
 }
@@ -253,22 +258,32 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
   const S = observe2Strings(lang);
   const finals = form.final_levels || {};
   const review = form.evidence_review || {};
-  const priority = review.priority_final || (form.answers || {}).priority || null;
+  const a = form.answers || {};
+  const picked = review.priority_final || a.priority || null;
+  // "Also work on" (R14): after the first pick, one line each.
+  const { priority, also } = workOnPicks(form, picked,
+    Array.isArray(review.also_final) ? pickAlso(review.also_final, picked) : pickAlso([a.also_1, a.also_2], picked));
   const moments = (form.rumi_moments && form.rumi_moments.moments) || [];
   const confirmed = moments.filter((m) => review[`heard_${m.id}`] === 'yes');
 
   const lines = [F.title(teacherName), '', ...F.reflect, '', F.went_well];
   const strengths = CODES
-    .filter((c) => c !== priority && numeric(finals[c]) >= 3)
-    .sort((a, b) => numeric(finals[b]) - numeric(finals[a]))
+    .filter((c) => c !== priority && levelOf(form, c) >= 3)
+    .sort((x, y) => levelOf(form, y) - levelOf(form, x))
     .slice(0, 2);
   // The materials used are named wherever C8 appears (R17).
   const used = usedPhrase(form.answers);
   const withUsed = (c, text) => (c === 'C8' && used ? `${text} (${used})` : text);
   if (strengths.length) {
-    for (const c of strengths) lines.push(`• ${ROW[c]}: ${withUsed(c, plainOf(form)[c][numeric(finals[c]) - 1])}`);
+    for (const c of strengths) lines.push(`• ${rowOf(form, c)}: ${withUsed(c, plainOf(form)[c][levelOf(form, c) - 1])}`);
   } else {
     lines.push(F.find_one);
+  }
+  // v6: what the recording could not show, said once, never as a level.
+  if (transcriptBroken(form)) lines.push('', S.v6_report_broken || REPORT_BROKEN);
+  else if (isV6(form)) {
+    const ie = CODES.filter((c) => String(finals[c]) === 'IE');
+    if (ie.length) lines.push('', ...ie.map((c) => `• ${rowOf(form, c)}: ${S.v6_report_ie || REPORT_IE}`));
   }
 
   const plan = planResult(form);
@@ -276,7 +291,6 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
   else {
     // A plan was given but not graded: say which state it is in, never nothing (a silent gap reads as
     // "no plan" to the coach).
-    const a = form.answers || {};
     const graded = form.rumi_moments && form.rumi_moments.fidelity;
     if ((a.lp_ref || a.lp_upload) && graded && graded.status && graded.status !== 'ok') {
       lines.push('', F.plan_not_checked[graded.status] || F.plan_not_checked.other);
@@ -289,7 +303,7 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
   if (priority === PLAN_FOCUS) {
     lines.push('', F.work_on(FOCUS[PLAN_FOCUS]), ...planFocusLines(form, F));
   } else if (priority && PRIORITY[priority]) {
-    const level = numeric(finals[priority]);
+    const level = levelOf(form, priority);
     lines.push('', F.work_on(PRIORITY[priority]));
     const hole = (review.added_hole || {})[priority];
     const kept = String(finals[priority]) === String((review.added || {})[priority]);
@@ -304,9 +318,6 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
     lines.push('', F.work_on(FOCUS[priority]), ...focusAreaLines(form, priority, F, S, confirmed));
   }
 
-  // "Also work on" (R14): after the first pick, one line each.
-  const a = form.answers || {};
-  const also = Array.isArray(review.also_final) ? pickAlso(review.also_final, priority) : pickAlso([a.also_1, a.also_2], priority);
   if (also.length) lines.push('', ...also.map((id) => F.also(FOCUS[id], alsoSeen(form, id, F, S))));
   const notes = notesSection(form, { lang });
   if (notes.length) lines.push('', ...notes);

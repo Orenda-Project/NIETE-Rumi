@@ -7,13 +7,14 @@
 const crypto = require('crypto');
 const C = require('./constants');
 const { phaseOutcome } = require('./predicates');
+const { isFieldFormRubric } = require('./field-form-rubric');
 
-// ── instrument detection (FICO_CROSSWALK rule 4, §1). fico17 first, then v4, v3, v2, v1; none → null.
+// ── instrument detection (FICO_CROSSWALK rule 4, §1). fico17 first (either field-form rubric, v5 or v6), then v4, v3, v2, v1; none → null.
 // v4 is told by its ids (F9/F10, or four C indicators): prod v3 rows also carry `indicators_applicable`, and v4's
 // teacher_subject_knowledge domain_max (applicable × 2, up to 20) overlaps v3's 20/24/28 (probe 26 Oct, m-insights).
 function detectFicoInstrument(fico) {
   if (!fico) return null;
-  if (fico.rubric === 'fico17') return 'fico17';
+  if (isFieldFormRubric(fico.rubric)) return 'fico17';
   const d = fico.domains || {};
   const ids = new Set();
   let maxScore = null;
@@ -156,7 +157,7 @@ function buildLpFact(session, allowed) {
 function buildFicoFact(session, allowed) {
   const fico = allowed && allowed.fico;
   if (!fico || !fico.domains || !Object.keys(fico.domains).length) {
-    if (fico && fico.rubric === 'fico17') { /* a form with no domains: detected below as failed */ } else return null;
+    if (fico && isFieldFormRubric(fico.rubric)) { /* a form with no domains: detected below as failed */ } else return null;
   }
   const inst = detectFicoInstrument(fico);
   return {
