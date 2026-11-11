@@ -1,3 +1,4 @@
 {"ts":"2026-11-11T01:27:10Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,status,observe spec_sync=true","sha":"a52235ab5131","branch":"bd-ihhkz6-60195","user":""}
 {"ts":"2026-11-11T01:27:23Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=registration,menu,training,lesson-plan,coaching,status,observe spec_sync=true","sha":"a52235ab5131","branch":"bd-ihhkz6-60195","user":""}
 {"ts":"2026-11-11T01:32:38Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"observe=none-needed (shared r2.js log line only)","sha":"a52235ab5131","branch":"bd-ihhkz6-60195","user":""}
+{"ts":"2026-11-11T01:32:47Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"registration=none-needed (shared r2.js log line only; no teacher-visible change)","sha":"a52235ab5131","branch":"bd-ihhkz6-60195","user":""}
