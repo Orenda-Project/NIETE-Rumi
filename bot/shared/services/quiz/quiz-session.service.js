@@ -4,6 +4,7 @@
 const { logToFile } = require('../../utils/logger');
 const { modelFor } = require('../../config/model-registry');
 const supabase = require('../../config/supabase');
+const { resolveUx } = require('../../config/ux-strings');
 const WhatsAppService = require('../whatsapp.service');
 const redisService = require('../cache/railway-redis.service');
 const SQSQueueService = require('../queue');  //  Phase 8 producer side
@@ -41,7 +42,7 @@ class QuizSessionService {
       // instead of letting them keep answering into the void.
       const { data: parentQuiz } = await supabase
         .from('quizzes')
-        .select('status, topic')
+        .select('status, topic, language')
         .eq('id', state.quizId)
         .single();
       if (parentQuiz?.status === 'cancelled') {
@@ -139,7 +140,8 @@ class QuizSessionService {
       const newDifficulty = computeNextDifficulty(state.currentDifficulty || 3, windowAnswers);
 
       // Send feedback
-      await this._sendFeedback(phone, question, selectedOption, isCorrect, state);
+      await this._sendFeedback(phone, question, selectedOption, isCorrect,
+        { ...state, language: state.language || (parentQuiz && parentQuiz.language) });
 
       // Check if quiz should end
       const stopCheck = shouldEndQuiz(newDifficulty, windowAnswers, totalAnswered);
@@ -502,6 +504,7 @@ class QuizSessionService {
 
   static async _sendFeedback(phone, question, selectedOption, isCorrect, state) {
     const correctAnswer = question[`option_${question.correct_option.toLowerCase()}`];
+    const language = state && state.language;
 
     if (isCorrect) {
       const streak = (state.currentStreak || 0) + 1;
@@ -522,8 +525,9 @@ class QuizSessionService {
       // the encouragement, drop the misconception label. The label still
       // lives in DB for teacher-side cluster analysis on quiz reports.
       await WhatsAppService.sendMessage(phone,
-        `Not quite!\n\nThe answer is ${question.correct_option}: ${correctAnswer}\n\n` +
-        `${question.explanation || ''}\n\nKeep going — mistakes help you learn! 💪`
+        `${resolveUx('qsNotQuite', { language })}\n\n` +
+        `${resolveUx('qsAnswerIs', { language, params: { option: question.correct_option, answer: correctAnswer } })}\n\n` +
+        `${question.explanation || ''}\n\n${resolveUx('qsKeepGoing', { language })}`
       );
     }
   }

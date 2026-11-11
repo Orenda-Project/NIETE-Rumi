@@ -44,9 +44,9 @@ describe('lp-selection-format · formatLpRow (Option A)', () => {
 
   test('special segments render as Revision / Assessment when day_label is absent', () => {
     expect(formatLpRow(lp({ lesson_id: 'grade_5_math_ch5_seg995', day_label: null, topic: null }), { now: NOW }).description)
-      .toContain('Ch5 Revision');
+      .toContain('Ch5 Assessment'); // 995 = the assessment worksheet, 990 = revision (build-lp-catalog)
     expect(formatLpRow(lp({ lesson_id: 'grade_5_math_ch5_seg990', day_label: null, topic: null }), { now: NOW }).description)
-      .toContain('Ch5 Assessment');
+      .toContain('Ch5 Revision');
   });
 
   test('missing pieces degrade gracefully (no empty "·" segments, no crash)', () => {

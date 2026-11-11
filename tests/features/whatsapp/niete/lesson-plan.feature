@@ -955,3 +955,14 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the session records not_lesson_plan or a failed status for the app to show
     And no "doesn't look like a lesson plan" or "couldn't read the file" message is sent to the teacher
     And a teacher who uploaded her own plan on WhatsApp is still told, as before
+
+  @e2e @draft @P1
+  Scenario: A Grades 1–5 lesson plan arrives with no voice note and no voice-note script lookup
+    Given the NIETE bot chat is open
+    When I take a Grades 1–5 lesson plan from the LP Flow
+    Then the chat receives the "Preparing" line and the lesson-plan PDF
+    And no lesson voice note follows it
+    And a question I type about that plan is answered without reading a voice-note script
+    # Product decision 11 Nov 2026 (bd-xxejb, bd-juo829, bd-hz6ez.12): K-5 v8 audio is not backfilled,
+    # so every send and script lookup was failing. Code switch bot/shared/config/lp-v8-voicenote.js
+    # (off; not an env flag). Unit: bot/tests/lp-v8/voicenote-off.test.js.
