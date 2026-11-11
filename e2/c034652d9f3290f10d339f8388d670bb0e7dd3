@@ -1,0 +1,2 @@
+{"ts":"2026-11-11T14:01:39Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"e2c034652d9f","branch":"bd-9mc3nz.1-05622","user":""}
+{"ts":"2026-11-11T14:01:42Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-9mc3nz.1-05622: lesson-plan spec: NOT UPDATED e2e: missing","sha":"e2c034652d9f","branch":"bd-9mc3nz.1-05622","user":""}
