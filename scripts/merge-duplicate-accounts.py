@@ -58,10 +58,13 @@ USER_COLS = ("id", "phone_number", "name", "role", "school_id", "organization", 
              "registration_completed_at", "registered_at", "teacher_level", "teacher_level_updated_at",
              "preferred_language", "language_locked", "portal_password_hash", "portal_activated", "portal_last_login",
              "conversation_state", "conversation_state_expires_at", "session_id", "last_message_at",
-             "first_message_at", "grades_taught", "subjects_taught", "subject")
+             "first_message_at", "grades_taught", "subjects_taught", "subject", "teacher_uuid", "portal_invite_token",
+             "portal_invite_expires_at")
 JSONB = ("conversation_state", "subjects_taught")
 REVIEW = "NIETE ICT - Duplicate Teacher Accounts, RM-finalized 10 Nov 2026"
-RETRYABLE = ("could not serialize access", "lock timeout", "deadlock detected")
+# A concurrent insert can take a key the plan moves a row into (the nudge sender, say): a fresh snapshot sees it.
+RETRYABLE = ("could not serialize access", "lock timeout", "deadlock detected",
+             "duplicate key value violates unique constraint")
 ATTEMPTS = 3
 CHUNK = 1000
 AUDIT_COUNT = ("SELECT count(*) AS n FROM leader_roster_audit WHERE action = 'edit_phone' "
@@ -83,11 +86,22 @@ def read_env(path):
 
 
 def ref_of(env):
-    m = re.search(r"postgres\.([a-z0-9]{20})[:@]", env.get("DATABASE_URL", ""))
-    if m:
-        return m.group(1)
+    """The project the connection will actually reach. With a DATABASE_URL (which connect uses) the ref comes from that
+    URL, the pooler user postgres.<ref> or the host db.<ref>.supabase.co, and must agree with SUPABASE_URL when both
+    name one; a DATABASE_URL naming no project is refused. Without one, connect builds the pooler user from the target's
+    ref and SUPABASE_URL must name that ref."""
     m = re.match(r"https://([a-z0-9]+)\.supabase\.co", env.get("SUPABASE_URL", ""))
-    return m.group(1) if m else None
+    url_ref = m.group(1) if m else None
+    dsn = env.get("DATABASE_URL")
+    if not dsn:
+        return url_ref
+    refs = set(re.findall(r"postgres\.([a-z0-9]{20})[:@]", dsn)) | set(re.findall(r"db\.([a-z0-9]{20})\.supabase\.co", dsn))
+    if len(refs) != 1:
+        raise SystemExit("ABORT: cannot tell which project DATABASE_URL reaches; refusing.")
+    ref = refs.pop()
+    if url_ref and url_ref != ref:
+        raise SystemExit(f"ABORT: DATABASE_URL reaches '{ref}' but SUPABASE_URL names '{url_ref}'; refusing.")
+    return ref
 
 
 def connect(env, target, writable):
@@ -105,9 +119,12 @@ def connect(env, target, writable):
 
 
 def masked(msg):
-    """A database error fit to print: its DETAIL and CONTEXT lines (they quote row values) dropped, digits masked."""
-    lines = [ln for ln in str(msg).splitlines() if not ln.strip().startswith(("DETAIL:", "CONTEXT:"))]
-    return re.sub(r"\d{7,}", "<number>", " ".join(lines))
+    """A database error fit to print: its first line only (DETAIL, CONTEXT, LINE and QUERY lines quote row values or
+    the statement with its parameters inlined), with digit runs and password hashes masked."""
+    text = str(msg).strip()
+    first = text.splitlines()[0] if text else ""
+    first = re.sub(r"\$2[aby]?\$\d\d\$[./A-Za-z0-9]{20,}", "<hash>", first)
+    return re.sub(r"\d{7,}", "<number>", first)
 
 
 def ident(name):
@@ -178,6 +195,12 @@ def read_catalog(cur):
             keys.setdefault((r["tbl"], c), []).append(
                 {"name": r["idx"], "cols": tuple(f"_k{n}_{j}" for j in range(len(others))), "exprs": tuple(others),
                  "in": f"_in{n}" if r["pred"] else None, "pred": r["pred"], "nulls_distinct": r["nulls_distinct"]})
+    cur.execute("""SELECT a.attname AS col FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid
+                   AND a.attnum = ANY(i.indkey) WHERE i.indrelid = 'public.users'::regclass AND i.indisunique
+                   AND NOT i.indisprimary""")
+    unknown = sorted({r["col"] for r in cur.fetchall()} - {"phone_number"} - set(md.UNIQUE_TAKE))
+    if unknown:
+        raise SystemExit(f"ABORT: users has unique column(s) {unknown} this tool does not know how to merge.")
     pk_of = {t: pk[0] for (t, _c), pk in fks.items() if pk}
     cur.execute("""
         SELECT con.confrelid::regclass::text AS t, con.conrelid::regclass::text AS rt,
@@ -296,10 +319,13 @@ def plan_pair(state, p, keys, run_id, now_iso, dependents=lambda moves: []):
     owned = {k: [r for r in v if r["owner"] in pids] for k, v in state["owned"].items()}
     moves = md.plan_moves({k: v for k, v in owned.items() if v}, surv, retired, keys)
     patch = md.survivor_patch(rows[surv], [rows[r] for r in retired], p["in_use"])
+    taken, gives_up, conflicts = md.unique_takeover(rows[surv], [rows[r] for r in retired])
+    patch.update(taken)
     final_phone = patch.get("phone_number", rows[surv]["phone_number"])
     numbers = md.phone_moves(rows[surv]["phone_number"], final_phone, [rows[r]["phone_number"] for r in retired])
     visits, clashes = md.plan_visits(state["visits"], numbers)
-    problems = md.guards(rows, surv, retired, p["in_use"], p["survivor"], moves, clashes, dependents(moves))
+    problems = md.guards(rows, surv, retired, p["in_use"], p["survivor"], moves, clashes, dependents(moves),
+                         conflicts)
     moved, skipped = {r: {} for r in retired}, {r: {} for r in retired}
     for (t, _c, _row, owner, action) in moves:
         bucket = moved if action == "move" else skipped
@@ -310,9 +336,10 @@ def plan_pair(state, p, keys, run_id, now_iso, dependents=lambda moves: []):
     return {**p, "survivor": surv, "retired": retired, "problems": problems, "patch": patch,
             "final_phone": final_phone, "moves": moves, "moved": moved, "skipped": skipped,
             "visits": [{"row_id": v, "from_phone": f, "to_phone": t} for v, f, t in visits],
-            "retire": {r: md.retire_patch(r, now_iso) for r in retired}, "audits": audits,
+            "retire": {r: md.retire_patch(r, now_iso, gives_up.get(r, ())) for r in retired}, "audits": audits,
             "before": {i: rows[i] for i in pids},
-            "plan_rows": md.plan_rows(p["pair"], surv, patch, retired, moves, [(v, label[f]) for v, f, _ in visits])}
+            "plan_rows": md.plan_rows(p["pair"], surv, patch, retired, moves, [(v, label[f]) for v, f, _ in visits],
+                                      gives_up)}
 
 
 def _set_users(cols, extra=""):
@@ -388,12 +415,11 @@ def merge_verify(conn, pp, run_id):
             s = now[pp["survivor"]]
             if s["deleted_at"] or s["phone_number"] != pp["final_phone"]:
                 problems.append(f"{pair}: the survivor is not live on the planned number")
-            off = sorted(c for c, v in pp["patch"].items() if s.get(c) != v)
+            off = sorted(c for c, v in pp["patch"].items() if not md.same_value(s.get(c), v))
             if off:
                 problems.append(f"{pair}: survivor columns not as planned: {', '.join(off)}")
             for r in pp["retired"]:
-                x = now[r]
-                if not x["deleted_at"] or x["phone_number"] != f"merged:{r}" or x["deleted_reason"] != md.REASON:
+                if [c for c, v in pp["retire"][r].items() if not md.same_value(now[r].get(c), v)]:
                     problems.append(f"{pair}: {r} is not retired as planned")
             problems += residue(cur, pp)
             if pp["visits"]:
@@ -423,20 +449,21 @@ def merged_state(cur, e, run_id):
     return "untouched" if not mine and not audits else "partial"
 
 
-def restore_steps(e, run_id, fks):
-    """The merge undone in the order that keeps phone_number unique: the survivor gives the number back first."""
-    pair, surv, steps = e["pair"], e["survivor"], []
+def restore_steps(e, run_id, fks, live):
+    """(steps, back, changed): the merge undone in the order that keeps phone_number unique (the survivor gives the
+    number back first). live: the accounts as they are now. The survivor gets back only the columns that still hold
+    what the merge wrote (back); a column edited since (a password reset, a corrected name) is left and reported."""
+    pair, surv, steps, back, changed = e["pair"], e["survivor"], [], [], []
     if e["kind"] == "merge":
-        cols = sorted(e["patch"])
-        if cols:
-            steps.append((_set_users(cols), [db_value(c, e["before"][surv].get(c)) for c in cols] + [surv], 1,
+        back, changed = md.restorable(live[surv], e["patch"])
+        if back:
+            steps.append((_set_users(back), [db_value(c, e["before"][surv].get(c)) for c in back] + [surv], 1,
                           f"{pair}: the survivor as it was"))
         for r in e["retired"]:
             b = e["before"][r]
-            steps.append(("UPDATE users SET deleted_at = %s, deleted_reason = %s, deleted_by = %s, phone_number = %s "
-                          "WHERE id = %s AND deleted_reason = %s",
-                          [b.get("deleted_at"), b.get("deleted_reason"), b.get("deleted_by"), b["phone_number"], r,
-                           md.REASON], 1, f"{pair}: {r} as it was"))
+            cols = sorted(e.get("retire", {}).get(r) or ("deleted_at", "deleted_reason", "deleted_by", "phone_number"))
+            steps.append((_set_users(cols, "AND deleted_reason = %s"), [db_value(c, b.get(c)) for c in cols]
+                          + [r, md.REASON], 1, f"{pair}: {r} as it was"))
         by_number = {}
         for v in e["visits"]:
             by_number.setdefault((v["from_phone"], v["to_phone"]), []).append(v["row_id"])
@@ -452,10 +479,10 @@ def restore_steps(e, run_id, fks):
         steps.append(("DELETE FROM leader_roster_audit WHERE action = 'edit_phone' AND detail->>'run_id' = %s "
                       "AND detail->>'retired_user_id' = ANY(%s)", [run_id, e["retired"]], len(e["retired"]),
                       f"{pair}: this run's audit rows removed"))
-    return steps
+    return steps, back, changed
 
 
-def restore_verify(conn, e, run_id):
+def restore_verify(conn, e, run_id, back):
     def check():
         problems = []
         if e["kind"] != "merge":
@@ -463,8 +490,8 @@ def restore_verify(conn, e, run_id):
         with conn.cursor() as cur:
             now = load_users(cur, list(e["before"]))
             for i, b in e["before"].items():
-                cols = ["phone_number", "deleted_at"] + (sorted(e["patch"]) if i == e["survivor"] else [])
-                off = [c for c in cols if jsonable(now[i].get(c)) != b.get(c)]
+                cols = back if i == e["survivor"] else sorted(e.get("retire", {}).get(i) or ("phone_number", "deleted_at"))
+                off = [c for c in cols if not md.same_value(now[i].get(c), b.get(c))]
                 if off:
                     problems.append(f"{e['pair']}: {i} is not as it was: {', '.join(off)}")
             cur.execute(AUDIT_COUNT, (run_id, e["retired"]))
@@ -490,7 +517,8 @@ def write_private(path, payload):
 def set_entry(image, pp, status, kind="merge"):
     entry = {"pair": pp["pair"], "kind": kind, "status": status, "survivor": pp["survivor"],
              "retired": pp["retired"], "patch": pp.get("patch", {}), "final_phone": pp.get("final_phone"),
-             "before": pp.get("before", {}), "visits": pp.get("visits", []), "moves": pp.get("moves", [])}
+             "before": pp.get("before", {}), "visits": pp.get("visits", []), "moves": pp.get("moves", []),
+             "retire": pp.get("retire", {})}
     image["pairs"] = [e for e in image["pairs"] if e["pair"] != pp["pair"]] + [entry]
     return entry
 
@@ -620,17 +648,18 @@ def run_merge(a, conn, out, stamp, fks, keys, refs):
     results, stopped = [], None
     for p in pairs:
         reviewed = {r for r in reviewed_rows if r[0] == p["pair"]}
+        outcome = None
         for attempt in range(1, ATTEMPTS + 1):
             conn.rollback()
             with conn.cursor() as cur:
                 state = read_state(cur, [p["survivor"]] + p["retired"], fks, keys)
             pp = plan_pair(state, p, keys, run_id, datetime.now(timezone.utc).isoformat(), dependents)
             if pp["problems"]:
-                stopped = {"pair": p["pair"], "status": "refused", "why": pp["problems"]}
+                outcome = {"pair": p["pair"], "status": "refused", "why": pp["problems"]}
                 break
             ok, missing, extra, drift = md.check_plan_matches(reviewed, pp["plan_rows"])
             if not ok:
-                stopped = {"pair": p["pair"], "status": "refused",
+                outcome = {"pair": p["pair"], "status": "refused",
                            "why": [f"decisions changed since the review: {len(missing)} gone, {len(extra)} new"]}
                 break
             set_entry(image, pp, "writing")
@@ -645,18 +674,22 @@ def run_merge(a, conn, out, stamp, fks, keys, refs):
                 if retry:
                     time.sleep(2 * attempt)
                     continue
-                stopped = {"pair": p["pair"], "status": "rolled back", "why": [str(e)]}
+                outcome = {"pair": p["pair"], "status": "rolled back", "why": [str(e)]}
                 break
             set_entry(image, pp, "committed")
             write_private(image_path, image)
-            results.append({"pair": p["pair"], "status": "committed", "attempts": attempt, "steps": n,
-                            "since_review": {" ".join(k[1:]): v for k, v in drift.items()}})
+            outcome = {"pair": p["pair"], "status": "committed", "attempts": attempt, "steps": n,
+                       "since_review": {" ".join(k[1:]): v for k, v in drift.items()}}
             print(f"  {p['pair']}: COMMITTED ({n} steps, attempt {attempt})")
             break
-        if stopped:
+        results.append(outcome)
+        if outcome["status"] == "refused":
             conn.rollback()
-            results.append(stopped)
-            print(f"  {p['pair']}: STOPPED — {'; '.join(stopped['why'])}")
+            print(f"  {p['pair']}: REFUSED, nothing written for this teacher — {'; '.join(outcome['why'])}")
+        elif outcome["status"] == "rolled back":
+            conn.rollback()
+            stopped = outcome
+            print(f"  {p['pair']}: STOPPED — {'; '.join(outcome['why'])}")
             break
     done = [r["pair"] for r in results if r["status"] == "committed"]
     (out / f"merge-commit-{base}.json").write_text(json.dumps(
@@ -667,7 +700,9 @@ def run_merge(a, conn, out, stamp, fks, keys, refs):
     sweep(conn, image, fks, keys, refs, commit=False, out=None, private_dir=None, stamp=stamp)
     print(f"undo: --restore {image_path} · stragglers later: --sweep {image_path}")
     if stopped:
-        raise SystemExit("STOPPED before every teacher was merged; the teachers above stay committed.")
+        raise SystemExit("STOPPED on a failed write; the teachers committed before it stay committed.")
+    if len(done) < len(pairs):
+        raise SystemExit(f"{len(pairs) - len(done)} teacher(s) refused (nothing written for them); the rest committed.")
 
 
 def sweep(conn, image, fks, keys, refs, commit, out, private_dir, stamp):
@@ -695,7 +730,14 @@ def sweep(conn, image, fks, keys, refs, commit, out, private_dir, stamp):
         pp = {"pair": e["pair"], "survivor": e["survivor"], "retired": e["retired"], "moves": moves}
         entry = set_entry(sweep_image, pp, "writing", kind="sweep")
         write_private(path, sweep_image)
-        n = apply(conn, merge_steps(pp, fks), lambda: residue_check(conn, pp))
+        try:
+            n = apply(conn, merge_steps(pp, fks), lambda: residue_check(conn, pp))
+        except SystemExit as err:
+            entry["status"] = "rolled back"
+            write_private(path, sweep_image)
+            results[-1]["problems"] = [str(err)]
+            print(f"  {e['pair']}: sweep rolled back — {err}")
+            continue
         entry["status"] = "committed"
         write_private(path, sweep_image)
         print(f"  {e['pair']}: swept ({n} steps)")
@@ -725,30 +767,40 @@ def run_restore(a, conn, out, stamp, fks):
     run_id = image["run_id"] if image["kind"] == "merge" else image["of"]
     print(f"[{a.target}] restore of {image['run_id']} ({image['kind']}){'' if a.commit else ' (dry run)'}:")
     results = []
-    for e in reversed(image["pairs"]):
-        if e.get("status") not in ("committed", "writing"):
-            continue
-        conn.rollback()
-        if e["kind"] == "merge":
-            with conn.cursor() as cur:
-                live = merged_state(cur, e, run_id)
-            if live != "merged":
-                results.append({"pair": e["pair"], "status": live})
-                print(f"  {e['pair']}: {live} — {'nothing to undo' if live == 'untouched' else 'left for a human'}")
+    try:
+        for e in reversed(image["pairs"]):
+            if e.get("status") not in ("committed", "writing"):
                 continue
-        steps = restore_steps(e, run_id, fks)
-        if not a.commit:
-            results.append({"pair": e["pair"], "status": "would restore", "steps": len(steps)})
-            print(f"  {e['pair']}: would restore ({len(steps)} steps)")
-            continue
-        n = apply(conn, steps, restore_verify(conn, e, run_id))
-        results.append({"pair": e["pair"], "status": "restored", "steps": n})
-        print(f"  {e['pair']}: RESTORED ({n} steps)")
-    conn.rollback()
-    (out / f"merge-restore-{a.target}-{stamp}{'-commit' if a.commit else '-dryrun'}.json").write_text(
-        json.dumps({"restored": image["run_id"], "kind": image["kind"], "results": results}, indent=2))
+            conn.rollback()
+            with conn.cursor() as cur:
+                state = merged_state(cur, e, run_id) if e["kind"] == "merge" else "merged"
+                live = load_users(cur, [e["survivor"]] + e["retired"])
+            if state != "merged":
+                results.append({"pair": e["pair"], "status": state})
+                print(f"  {e['pair']}: {state} — {'nothing to undo' if state == 'untouched' else 'left for a human'}")
+                continue
+            steps, back, changed = restore_steps(e, run_id, fks, live)
+            note = f"; changed since the merge, left as is: {', '.join(changed)}" if changed else ""
+            if not a.commit:
+                results.append({"pair": e["pair"], "status": "would restore", "steps": len(steps), "left": changed})
+                print(f"  {e['pair']}: would restore ({len(steps)} steps){note}")
+                continue
+            try:
+                n = apply(conn, steps, restore_verify(conn, e, run_id, back))
+            except SystemExit as err:
+                results.append({"pair": e["pair"], "status": "not restored", "why": str(err)})
+                print(f"  {e['pair']}: NOT RESTORED, nothing changed for this teacher — {err}")
+                continue
+            results.append({"pair": e["pair"], "status": "restored", "steps": n, "left": changed})
+            print(f"  {e['pair']}: RESTORED ({n} steps){note}")
+    finally:
+        conn.rollback()
+        (out / f"merge-restore-{a.target}-{stamp}{'-commit' if a.commit else '-dryrun'}.json").write_text(
+            json.dumps({"restored": image["run_id"], "kind": image["kind"], "results": results}, indent=2))
     if not a.commit:
         print("DRY RUN — nothing written.")
+    if any(r["status"] in ("not restored", "partial") for r in results):
+        raise SystemExit("some teachers were not restored; see above.")
 
 
 def main():
@@ -793,4 +845,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except psycopg2.Error as err:
+        raise SystemExit(f"ABORT: {masked(err)}") from None

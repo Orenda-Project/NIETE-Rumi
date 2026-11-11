@@ -138,12 +138,61 @@ class SurvivorPatch(unittest.TestCase):
         self.assertEqual(p["first_message_at"], "2026-08-01T00:00:00+00:00")
         self.assertEqual(p["last_message_at"], "2026-11-10T00:00:00+00:00")
 
+    def test_message_times_are_planned_even_when_the_survivor_holds_them(self):
+        # Review 11 Nov: the bot stamps last_message_at on every message, so a column planned only when it differs
+        # appears and disappears with the chat, and the commit refused a teacher for chatting.
+        s = u("s", "1", first_message_at="2026-08-01T00:00:00+00:00", last_message_at="2026-11-10T00:00:00+00:00")
+        r = u("r", "2", first_message_at="2026-09-10T00:00:00+00:00", last_message_at="2026-10-01T00:00:00+00:00")
+        p = md.survivor_patch(s, [r], in_use_id="s")
+        self.assertEqual(p["first_message_at"], "2026-08-01T00:00:00+00:00")
+        self.assertEqual(p["last_message_at"], "2026-11-10T00:00:00+00:00")
+
+    def test_the_language_follows_the_number_even_when_it_is_the_same(self):
+        s = u("s", "923001111111", preferred_language="ur", language_locked=True)
+        r = u("r", "923002222222", preferred_language="ur", language_locked=True)
+        p = md.survivor_patch(s, [r], in_use_id="r")
+        self.assertEqual((p["preferred_language"], p["language_locked"]), ("ur", True))
+
+    def test_an_empty_list_counts_as_empty(self):
+        s = u("s", "1", subjects_taught=[])
+        p = md.survivor_patch(s, [u("r", "2", subjects_taught=["math"])], in_use_id="s")
+        self.assertEqual(p["subjects_taught"], ["math"])
+
 
 class RetirePatch(unittest.TestCase):
     def test_soft_delete_with_the_reason_and_the_number_freed(self):
         self.assertEqual(md.retire_patch("r", NOW), {"deleted_at": NOW, "deleted_reason": "duplicate_merge",
                                                      "deleted_by": "rm_duplicate_review",
                                                      "phone_number": "merged:r"})
+
+    def test_a_unique_value_the_survivor_takes_is_given_up(self):
+        self.assertIsNone(md.retire_patch("r", NOW, gives_up=["teacher_uuid"])["teacher_uuid"])
+
+
+class UniqueTakeover(unittest.TestCase):
+    """users' other unique columns: the FDE teacher id (training syncs map it to an account, deleted or not) and the
+    portal invite link. The survivor takes one it lacks; the duplicate gives it up (the index is unique)."""
+
+    def test_the_survivor_takes_the_fde_id_it_lacks(self):
+        patch, gives_up, conflicts = md.unique_takeover(u("s", "1"), [u("r", "2", teacher_uuid="fde-1")])
+        self.assertEqual((patch, gives_up, conflicts), ({"teacher_uuid": "fde-1"}, {"r": ["teacher_uuid"]}, []))
+
+    def test_the_invite_link_moves_with_its_expiry(self):
+        r = u("r", "2", portal_invite_token="tok", portal_invite_expires_at="2026-11-20T00:00:00+00:00")
+        patch, gives_up, _ = md.unique_takeover(u("s", "1"), [r])
+        self.assertEqual(patch, {"portal_invite_token": "tok", "portal_invite_expires_at": "2026-11-20T00:00:00+00:00"})
+        self.assertEqual(gives_up, {"r": ["portal_invite_token", "portal_invite_expires_at"]})
+
+    def test_two_fde_ids_are_a_conflict(self):
+        _, _, conflicts = md.unique_takeover(u("s", "1", teacher_uuid="a"), [u("r", "2", teacher_uuid="b")])
+        self.assertEqual(conflicts, ["teacher_uuid"])
+        _, _, conflicts = md.unique_takeover(u("s", "1"), [u("r1", "2", teacher_uuid="a"), u("r2", "3", teacher_uuid="b")])
+        self.assertEqual(conflicts, ["teacher_uuid"])
+
+    def test_two_invite_links_stay_where_they_are(self):
+        patch, gives_up, conflicts = md.unique_takeover(u("s", "1", portal_invite_token="x"),
+                                                        [u("r", "2", portal_invite_token="y")])
+        self.assertEqual((patch, gives_up, conflicts), ({}, {}, []))
 
 
 class PlanMoves(unittest.TestCase):
@@ -199,6 +248,11 @@ class PlanMoves(unittest.TestCase):
                                                               ix("per_quiz", "quiz", flag="in_q")]}
         got = {(m[2], m[4]) for m in md.plan_moves(owned, "s", ["r"], keys)}
         self.assertEqual(got, {(1, "move"), (2, "skip")})
+
+    def test_a_list_in_a_key_still_collides(self):
+        owned = {("t", "user_id"): [{"id": 1, "owner": "r", "tags": ["a", "b"]}, {"id": 2, "owner": "s", "tags": ["a", "b"]}]}
+        keys = {("t", "user_id"): [ix("t_tags", "tags")]}
+        self.assertEqual({(m[2], m[4]) for m in md.plan_moves(owned, "s", ["r"], keys)}, {(1, "skip")})
 
     def test_a_key_of_the_owner_alone_holds_one_row(self):
         owned = {("coach_directory", "leader_user_id"): [{"id": 1, "owner": "r"}, {"id": 2, "owner": "s"}]}
@@ -293,6 +347,10 @@ class Guards(unittest.TestCase):
         self.assertTrue(got)
         self.assertIn("students.list_id", " ".join(got))
 
+    def test_two_fde_ids_are_refused(self):
+        got = md.guards(self.rows, "s", ["r"], "r", reviewed_survivor="s", moves=[], identity_conflicts=["teacher_uuid"])
+        self.assertTrue(got)
+
     def test_a_row_left_behind_with_nothing_depending_on_it_is_allowed(self):
         moves = [("teacher_nudges", "user_id", "n1", "r", "skip")]
         self.assertEqual(md.guards(self.rows, "s", ["r"], "r", reviewed_survivor="s", moves=moves, stranded=[]), [])
@@ -380,6 +438,34 @@ class PlanRows(unittest.TestCase):
                        "survivor's old number", "s"), rows)
         self.assertIn(("t1 #10", "audit", "leader_roster_audit", "", "r", "s", ""), rows)
 
+    def test_the_plan_names_what_a_duplicate_gives_up(self):
+        rows = md.plan_rows("p", "s", {"teacher_uuid": "fde-1"}, ["r"], [], [], gives_up={"r": ["teacher_uuid"]})
+        self.assertIn(("p", "retire", "users", "teacher_uuid", "r", "", ""), rows)
+        self.assertNotIn("fde-1", " ".join(" ".join(r) for r in rows))
+
+
+class SameValue(unittest.TestCase):
+    """A restore puts a column back only while it still holds what the merge wrote; timestamps compare as instants,
+    whatever time zone a session printed them in."""
+
+    def test_timestamps_compare_as_instants(self):
+        from datetime import datetime, timezone, timedelta
+        utc = datetime(2026, 11, 11, 9, 0, tzinfo=timezone.utc)
+        self.assertTrue(md.same_value(utc, "2026-11-11T14:00:00+05:00"))
+        self.assertTrue(md.same_value(utc.astimezone(timezone(timedelta(hours=5))), utc.isoformat()))
+        self.assertFalse(md.same_value(utc, "2026-11-11T09:00:01+00:00"))
+
+    def test_other_values_compare_as_they_are(self):
+        self.assertTrue(md.same_value("923001111111", "923001111111"))
+        self.assertFalse(md.same_value("923001111111", "923001111112"))
+        self.assertTrue(md.same_value({"step": "lp"}, {"step": "lp"}))
+        self.assertTrue(md.same_value(None, None))
+
+    def test_only_untouched_columns_are_restored(self):
+        merged = {"name": "From the duplicate", "portal_password_hash": "h-merged"}
+        live = {"name": "From the duplicate", "portal_password_hash": "h-reset-later"}
+        self.assertEqual(md.restorable(live, merged), (["name"], ["portal_password_hash"]))
+
 
 class PlanBinding(unittest.TestCase):
     """A commit is bound to the reviewed dry run's decisions (who retires, which columns the survivor takes, the
@@ -466,6 +552,16 @@ class ApplyPlan(unittest.TestCase):
         self.assertIn("move lesson_plans", str(e.exception))
         self.assertTrue(conn.rolled_back)
         self.assertFalse(conn.committed)
+
+    def test_a_failed_commit_rolls_back_and_stops(self):
+        conn = FakeConn([1, 2])
+
+        def boom():
+            raise RuntimeError("deferred unique check failed at commit")
+        conn.commit = boom
+        with self.assertRaises(SystemExit):
+            md.apply_plan(conn, self.STEPS, verify=lambda: [])
+        self.assertTrue(conn.rolled_back)
 
     def test_a_failed_verify_rolls_back(self):
         conn = FakeConn([1, 2])

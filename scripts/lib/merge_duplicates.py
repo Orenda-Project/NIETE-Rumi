@@ -39,13 +39,19 @@ PORTAL = ("portal_password_hash", "portal_activated", "portal_last_login")
 LANGUAGE = ("preferred_language", "language_locked")
 SESSION = ("conversation_state", "conversation_state_expires_at", "session_id")
 FILL_IF_EMPTY = ("name", "school_id", "organization", "grades_taught", "subjects_taught", "subject")
+# users' other unique columns: {column: companion columns that travel with it}. The survivor takes one it lacks and the
+# duplicate gives it up; two different values of a column in CONFLICT_REFUSES are refused (two FDE teacher identities:
+# training syncs map teacher_uuid to an account, deleted or not). The runner refuses any unique column not listed here.
+UNIQUE_TAKE = {"teacher_uuid": (), "portal_invite_token": ("portal_invite_expires_at",)}
+CONFLICT_REFUSES = ("teacher_uuid",)
+TIMESTAMP_RE = r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}"
 # A commit is bound to the reviewed dry run's decisions; what the accounts own is activity (see check_plan_matches).
 DECISIONS = ("retire", "survivor", "audit")
 ACTIVITY = ("move", "skip", "visits")
 
 
 def _empty(v):
-    return v is None or (isinstance(v, str) and not v.strip())
+    return v is None or (isinstance(v, str) and not v.strip()) or (isinstance(v, (list, dict)) and not v)
 
 
 def choose_survivor(accounts, in_use_id):
@@ -56,8 +62,10 @@ def choose_survivor(accounts, in_use_id):
 def survivor_patch(survivor, others, in_use_id):
     """The columns the survivor takes, as {column: value}.
 
-    When the number moves, the WhatsApp session (SESSION) moves with it as it is, empty included, so the columns
-    planned do not depend on where the chat happens to be; everything else is listed only when it changes."""
+    Columns that move with the chat are planned whatever their values, so the columns a dry run plans do not change
+    while the teacher keeps chatting (the bot stamps last_message_at on every message): when the number moves, the
+    WhatsApp session (SESSION) as it is, empty included, and the language the number has; and the first and last
+    message times across the accounts, always. Everything else is listed only when it changes."""
     patch = {}
     holder = next((o for o in others if o["id"] == in_use_id), None)
     if holder is not None:
@@ -66,7 +74,7 @@ def survivor_patch(survivor, others, in_use_id):
             for c in PORTAL:
                 patch[c] = holder.get(c)
         for c in LANGUAGE:
-            if holder.get(c) is not None and holder.get(c) != survivor.get(c):
+            if holder.get(c) is not None:
                 patch[c] = holder.get(c)
         for c in SESSION:
             patch[c] = holder.get(c)
@@ -97,17 +105,50 @@ def survivor_patch(survivor, others, in_use_id):
     everyone = [survivor] + list(others)
     firsts = [x.get("first_message_at") for x in everyone if x.get("first_message_at")]
     lasts = [x.get("last_message_at") for x in everyone if x.get("last_message_at")]
-    if firsts and min(firsts) != survivor.get("first_message_at"):
+    if firsts:
         patch["first_message_at"] = min(firsts)
-    if lasts and max(lasts) != survivor.get("last_message_at"):
+    if lasts:
         patch["last_message_at"] = max(lasts)
     return patch
 
 
-def retire_patch(user_id, now_iso):
+def unique_takeover(survivor, others, take=None):
+    """(patch, gives_up, conflicts) for users' other unique columns (UNIQUE_TAKE): the survivor takes a value it lacks
+    when exactly one other account has one, with its companion columns, and that account gives them up
+    ({account id: [columns]}); conflicts lists the CONFLICT_REFUSES columns where the accounts hold two values."""
+    patch, gives_up, conflicts = {}, {}, []
+    for col, companions in (take or UNIQUE_TAKE).items():
+        holders = [o for o in others if not _empty(o.get(col))]
+        if not _empty(survivor.get(col)):
+            if holders and col in CONFLICT_REFUSES:
+                conflicts.append(col)
+            continue
+        if len(holders) > 1:
+            if col in CONFLICT_REFUSES:
+                conflicts.append(col)
+            continue
+        if holders:
+            h = holders[0]
+            for c in (col,) + tuple(companions):
+                patch[c] = h.get(c)
+            gives_up.setdefault(h["id"], []).extend((col,) + tuple(companions))
+    return patch, gives_up, conflicts
+
+
+def retire_patch(user_id, now_iso, gives_up=()):
     """The app's soft delete (bot/shared/utils/soft-delete.js) with D6's reason; the number is freed, as moveNumber
-    frees a retired shell's."""
-    return {"deleted_at": now_iso, "deleted_reason": REASON, "deleted_by": VIA, "phone_number": f"merged:{user_id}"}
+    frees a retired shell's, and so is any unique value the survivor takes (gives_up)."""
+    out = {"deleted_at": now_iso, "deleted_reason": REASON, "deleted_by": VIA, "phone_number": f"merged:{user_id}"}
+    out.update({c: None for c in gives_up})
+    return out
+
+
+def _hashable(v):
+    if isinstance(v, list):
+        return tuple(_hashable(x) for x in v)
+    if isinstance(v, dict):
+        return tuple(sorted((k, _hashable(x)) for k, x in v.items()))
+    return v
 
 
 def _entries(row, indexes):
@@ -117,7 +158,7 @@ def _entries(row, indexes):
     for ix in indexes:
         if ix.get("in") and row.get(ix["in"]) is not True:
             continue
-        key = tuple(row.get(c) for c in ix["cols"])
+        key = tuple(_hashable(row.get(c)) for c in ix["cols"])
         if ix.get("nulls_distinct", True) and any(v is None for v in key):
             continue
         out.append((ix["name"], key))
@@ -200,7 +241,8 @@ def _stranded(stranded):
             f"({', '.join(f'{ref} {n}' for ref, n in sorted(deps.items()))}); left for a human"]
 
 
-def guards(rows, survivor_id, retired_ids, in_use_id, reviewed_survivor, moves, visit_clashes=(), stranded=()):
+def guards(rows, survivor_id, retired_ids, in_use_id, reviewed_survivor, moves, visit_clashes=(), stranded=(),
+           identity_conflicts=()):
     """Reasons this pair must not be merged; empty when it may. stranded: [(table, row_id, {"ref_table.col": n})] for
     rows that would stay behind (skips) with rows depending on them."""
     out = []
@@ -228,6 +270,9 @@ def guards(rows, survivor_id, retired_ids, in_use_id, reviewed_survivor, moves, 
     if visit_clashes:
         out.append(f"booked visits: {len(visit_clashes)} upcoming visit(s) would double-book the same coach and "
                    "school on the number in use")
+    if identity_conflicts:
+        out.append(f"the accounts hold two different values of {', '.join(identity_conflicts)} (two FDE teacher "
+                   "identities); left for a human")
     return out + _stranded(stranded)
 
 
@@ -276,11 +321,12 @@ def phone_moves(survivor_old_phone, survivor_final_phone, retired_old_phones):
     return out
 
 
-def plan_rows(pair, survivor_id, patch, retired_ids, moves, visits):
+def plan_rows(pair, survivor_id, patch, retired_ids, moves, visits, gives_up=None):
     """The ids-only plan a reviewer reads and a commit is bound to: (pair, step, table, column, row, from, to).
     No phone number or password hash appears: a patched column is named, never its value.
     visits: [(row_id, label), ...] for booked visits that follow the number, the label saying which number."""
     rows = {(pair, "retire", "users", "", rid, "", "") for rid in retired_ids}
+    rows |= {(pair, "retire", "users", col, rid, "", "") for rid, cols in (gives_up or {}).items() for col in cols}
     rows |= {(pair, "survivor", "users", col, survivor_id, "", "") for col in patch}
     rows |= {(pair, m[4], m[0], m[1], str(m[2]), m[3], survivor_id if m[4] == "move" else "") for m in moves}
     rows |= {(pair, "visits", "observation_schedules", "teacher_ext_id", str(vid), label, survivor_id)
@@ -295,6 +341,35 @@ def _activity(rows):
         if r[1] in ACTIVITY:
             counts[tuple(r[:4])] = counts.get(tuple(r[:4]), 0) + 1
     return counts
+
+
+def _instant(v):
+    """A timestamp as a comparable instant (aware ones in UTC), from a datetime or an ISO string; else None."""
+    from datetime import datetime, timezone
+    import re
+    if isinstance(v, str) and re.match(TIMESTAMP_RE, v):
+        try:
+            v = datetime.fromisoformat(v)
+        except ValueError:
+            return None
+    if isinstance(v, datetime):
+        return v.astimezone(timezone.utc) if v.tzinfo else v
+    return None
+
+
+def same_value(a, b):
+    """Equal as stored: timestamps as instants (a session's time zone changes how they print, not what they are)."""
+    ia, ib = _instant(a), _instant(b)
+    if ia is not None or ib is not None:
+        return ia == ib
+    return a == b
+
+
+def restorable(live, merged):
+    """(columns to put back, columns changed since the merge): a restore puts back only what still holds the value
+    the merge wrote; a later edit (a password reset, a corrected name) is left and reported."""
+    back = sorted(c for c, v in merged.items() if same_value(live.get(c), v))
+    return back, sorted(c for c in merged if c not in back)
 
 
 def check_plan_matches(expected, live):
@@ -328,8 +403,8 @@ def apply_plan(conn, steps, verify):
         problems = verify()
         if problems:
             raise RuntimeError("; ".join(problems[:5]))
+        conn.commit()  # inside the try: a deferred check that fails at commit is a failure like any other
     except Exception as e:  # noqa: BLE001 - every failure ends in an explicit rollback
         conn.rollback()
         raise SystemExit(f"ABORT (rolled back): {e}")
-    conn.commit()
     return len(steps)
