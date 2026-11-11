@@ -1,0 +1,2 @@
+{"ts":"2026-11-11T15:53:52Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,child-test spec_sync=true","sha":"0990626f6a7f","branch":"fix/wxar9l-assess","user":""}
+{"ts":"2026-11-11T15:54:45Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"fix/wxar9l-assess: language spec: NOT UPDATED e2e: missing","sha":"0990626f6a7f","branch":"fix/wxar9l-integrate","user":""}
