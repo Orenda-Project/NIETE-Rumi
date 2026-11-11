@@ -37,10 +37,10 @@ function relTime(created, now) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-// Special segment ids (chapter close-out): 995 = revision, 990 = assessment (curriculum convention).
+// Special segment ids (chapter close-out): 995 = assessment, 990 = revision (curriculum convention).
 function segmentLabel(lessonId) {
-  if (/seg995$/.test(lessonId || '')) return 'Revision';
-  if (/seg990$/.test(lessonId || '')) return 'Assessment';
+  if (/seg995$/.test(lessonId || '')) return 'Assessment';
+  if (/seg990$/.test(lessonId || '')) return 'Revision';
   return '';
 }
 
