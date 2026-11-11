@@ -332,7 +332,8 @@ function catalogBooks(m, cfg) {
 /**
  * The region's book list, from the Books tab: slice 1 → GB's own book (gb_g<grade>_<slug>), whether or not it is
  * segmented yet (a book with no lessons simply shows nothing); slice 2 → ICT's book of that grade and subject key.
- * Then every ICT 6-12 book of the grades in cfg.ictGrades (GB: 6-10, bd-qchgya), all of them, taken as is.
+ * Then every ICT 6-12 book of the grades in cfg.ictGrades (GB: 6-10, bd-qchgya), taken as is, except those
+ * matching cfg.ictExclude (GB: Zarai Taleem, bd-la9f5e).
  * @param {Array} ictBooks the catalog's default list (stem, grade, subject_key)
  * @param {Array} ict612 ICT's current 6-12 books (stem, grade), from niete_lp612_segments
  */
@@ -354,7 +355,9 @@ function bookKeys(m, cfg, ictBooks, ict612 = []) {
   }
   if (missing.length) bookKeys.lastMissing = missing;
   const grades = new Set(cfg.ictGrades || []);
-  const upper = (ict612 || []).filter((b) => grades.has(Number(b.grade))).map((b) => b.stem);
+  const dropped = cfg.ictExclude || [];
+  const upper = (ict612 || []).filter((b) => grades.has(Number(b.grade)))
+    .map((b) => b.stem).filter((s) => !dropped.some((re) => re.test(s)));
   return [...new Set([...own, ...ict, ...upper])];
 }
 
