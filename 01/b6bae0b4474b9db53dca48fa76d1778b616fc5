@@ -1,0 +1,1 @@
+{"ts":"2026-11-11T14:39:11Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-9mc3nz.1-05622: training spec: NOT UPDATED e2e: CRITICAL (4 failed · 35 of 118 blocked (not drivable on this lane));coaching spec: NOT UPDATED e2e: missing;observe spec: NOT UPDATED e2e: missing","sha":"01b6bae0b447","branch":"bd-9mc3nz.1-05622","user":""}
