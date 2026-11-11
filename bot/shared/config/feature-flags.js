@@ -289,6 +289,14 @@ async function isFlagEnabledForUser(key, userId) {
   }
 }
 
+/**
+ * "Is this you?" at sign-up (services/identity/is-this-you.js). Off by default. true or "true": on for
+ * everyone. A JSON list of users.id: on only for those registering accounts (testers). Absent, false, junk or a failed
+ * read: off. Read on every screen with no cache, so turning it off stops the next screen.
+ */
+const REGISTRATION_IS_THIS_YOU_KEY = 'registration_is_this_you_enabled';
+const isRegistrationIsThisYouEnabled = (userId) => isFlagEnabledForUser(REGISTRATION_IS_THIS_YOU_KEY, userId);
+
 module.exports = {
   ASSESSMENT_GENERATOR_KEY, ASSESSMENT_EDITING_KEY, ASSESSMENT_DOCX_KEY, ASSESSMENT_VERSIONS_KEY,
   isFlagEnabled, isAssessmentGeneratorEnabled, isAssessmentEditingEnabled,
@@ -303,4 +311,5 @@ module.exports = {
   META_NUMBER_CHANGE_KEY, isMetaNumberChangeEnabled, metaNumberChangeState,
   ASSESSMENT_GRADES_6_12_KEY, ASSESSMENT_GRADES_6_12_KILL_KEY, ASSESSMENT_GRADES_6_12_KILL_CELLS_KEY,
   GradeGateSettings, isFlagEnabledForUser,
+  REGISTRATION_IS_THIS_YOU_KEY, isRegistrationIsThisYouEnabled,
 };

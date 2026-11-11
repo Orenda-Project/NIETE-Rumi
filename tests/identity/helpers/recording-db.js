@@ -1,7 +1,8 @@
 'use strict';
 /**
- * An in-memory Supabase client for the number-change suites: rows by table, `eq`/`in`/`is` filters (`is` reads as
- * PostgREST IS: a column the row does not carry is NULL), reads, head counts,
+ * An in-memory Supabase client for the number-change and "Is this you?" suites: rows by table, `eq`/`neq`/`in`/`is`/
+ * `gte` filters (`is` reads as PostgREST IS: a column the row does not carry is NULL; a `col->>key` column reads a JSON
+ * key as text; `gte` compares timestamps), reads, head counts,
  * updates (with `.select()` returning the written rows, as PostgREST does) and inserts. Every write is recorded in
  * order as { table, op, patch | rows, where }, so a suite can assert exactly what was written and in what order.
  *
@@ -28,10 +29,20 @@ function recordingDb(tables = {}) {
       let head = false;
       let single = false;
       let returning = false;
+      // `col->>key` reads a JSON column's key as text, as PostgREST does (null when the column or the key is absent).
+      const get = (row, c) => {
+        if (!c.includes('->>')) return row[c];
+        const [col, key] = c.split('->>');
+        const obj = row[col];
+        return obj == null || obj[key] == null ? null : String(obj[key]);
+      };
       const match = (row) => filters.every(([kind, c, v]) => {
-        if (kind === 'eq') return row[c] === v;
-        if (kind === 'is') return (row[c] === undefined ? null : row[c]) === v;
-        return v.includes(row[c]);
+        const x = get(row, c);
+        if (kind === 'eq') return x === v;
+        if (kind === 'neq') return x !== v;
+        if (kind === 'is') return (x === undefined ? null : x) === v;
+        if (kind === 'gte') return x != null && Date.parse(x) >= Date.parse(v);
+        return v.includes(x);
       });
       const where = () => filters.map(([kind, c, v]) => [kind, c, Array.isArray(v) ? [...v] : v]);
       const run = () => {
@@ -60,6 +71,8 @@ function recordingDb(tables = {}) {
       const chain = {
         select(_cols, opts) { if (opts && opts.head) head = true; if (op === 'update') returning = true; return chain; },
         eq(c, v) { filters.push(['eq', c, v]); return chain; },
+        neq(c, v) { filters.push(['neq', c, v]); return chain; },
+        gte(c, v) { filters.push(['gte', c, v]); return chain; },
         in(c, v) { filters.push(['in', c, v]); return chain; },
         is(c, v) { filters.push(['is', c, v]); return chain; },
         limit() { return chain; },
