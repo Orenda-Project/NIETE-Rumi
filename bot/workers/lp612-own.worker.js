@@ -127,7 +127,7 @@ function createOwnWorker(deps) {
     if (!out || !out.script) throw stop('NOT_ACCEPTED', 'the gate refused the rewrite');
     let pdf;
     try {
-      pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && row.answers.way, pages: (row.answers && row.answers.pages) || day.pages || null });
+      pdf = await d.renderK5({ script: out.script, lang: day.lang, grade: day.grade, subject: day.subjectName, way: row.answers && (row.answers.ways || row.answers.way), pages: (row.answers && row.answers.pages) || day.pages || null });
     } catch (e) {
       throw stop('RENDER_FAILED', (e && e.message) || 'print failed');
     }
@@ -228,7 +228,7 @@ async function loadSegment(supabase, segmentId) {
 async function renderK5Pdf({ script, lang, grade, subject, way, pages }) {
   const { renderK5Own, WAY_NAMES } = require('../shared/services/lp-k5-own-render');
   const { fontCss } = require('../shared/services/lp-k5-own-fonts');
-  const html = renderK5Own(script, { lang, grade, subject, way: (WAY_NAMES[lang] || WAY_NAMES.en)[way], pages, fontCss: fontCss(lang) });
+  const html = renderK5Own(script, { lang, grade, subject, way: [].concat(way || []).map((k) => (WAY_NAMES[lang] || WAY_NAMES.en)[k]).filter(Boolean).join(lang === 'ur' ? '، ' : ', ') || undefined, pages, fontCss: fontCss(lang) });
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'k5-own-'));
   try {
     const out = path.join(dir, 'own.pdf');

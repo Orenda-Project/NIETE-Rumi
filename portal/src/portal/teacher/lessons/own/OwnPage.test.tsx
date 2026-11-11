@@ -198,7 +198,7 @@ describe('Make my own', () => {
     expect(C.grrLine).toContain('No rote drill.');
     // Above the options, never under the fold (layout rule 5).
     const grr = screen.getByTestId('own-grr');
-    expect(grr.compareDocumentPosition(screen.getByRole('radiogroup')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(grr.compareDocumentPosition(screen.getByRole('group')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     fireEvent.click(ok());   // keeps the suggestion
 
     await screen.findByTestId('own-make');
@@ -224,6 +224,18 @@ describe('Make my own', () => {
     expect(pp.textContent).toContain('Exam practice (FDE)');
     expect(screen.queryByTestId('own-opt-past_paper')).toBeNull();
     expect(pp.textContent).toContain(C.suggested);
+  });
+
+  it('the way step lets her tick more than one way, and one always stays ticked (bd-snkn32.24)', async () => {
+    at(`${LESSONS_OWN}?grade=8&subject=Science&chapter=c02&seg=sci8.c02.p010&step=way`);
+    const second = await screen.findByTestId('own-opt-discussion');
+    fireEvent.click(second);
+    await waitFor(() => expect(where()).toContain('way=practical%2Cdiscussion'));
+    fireEvent.click(screen.getByTestId('own-opt-practical'));
+    await waitFor(() => expect(where()).toMatch(/way=discussion(&|$)/));
+    fireEvent.click(screen.getByTestId('own-opt-discussion')); // the last tick stays: there is always a way
+    expect(where()).toMatch(/way=discussion(&|$)/);
+    expect(screen.getByTestId('own-ok').hasAttribute('disabled')).toBe(false);
   });
 
   it('remembers children in class on this phone', async () => {

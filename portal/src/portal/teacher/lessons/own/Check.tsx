@@ -27,7 +27,7 @@ export function Check({ s, C, k5, nextLabel, pagesLabel, gradeLabel, note, setNo
           { label: w.size, value: s.size ? C.sizes[s.size] : '—', to: at('size') },
           { label: C.level, value: s.level ? C.levels[s.level] : '—', to: at('level') },
           { label: C.resources, value: ['textbook', ...s.res].map((r) => w.resource(r as Resource)).join(', '), to: at('resources') },
-          { label: C.way, value: s.way ? w.way(s.way) : '—', to: at('way') },
+          { label: C.way, value: s.way ? (s.ways ?? [s.way]).map((k) => w.way(k)).join(', ') : '—', to: at('way') },
         ]}
       />
       <p className="text-[14px] font-semibold text-[#33374a]" data-testid="own-grr">{C.grrLine}</p>

@@ -46,6 +46,7 @@ export const OWN_COPY = {
   level: 'Where is your class on these pages?',
   levels: { behind: 'Behind', on_track: 'On track', ahead: 'Ahead', mixed: 'Mixed' },
   way: 'Teaching way',
+  pickWays: 'Pick one or more',
   suggested: 'Suggested for your class',
   ways: {
     tarl: "Teach at each child's level", cpa: 'Things → pictures → numbers (CPA)', phonics: 'Sounds first (phonics)',
@@ -164,6 +165,7 @@ const OWN_COPY_UR: Words<typeof OWN_COPY> = {
   level: 'ان صفحات پر آپ کی کلاس کہاں ہے؟',
   levels: { behind: 'پیچھے', on_track: 'ساتھ ساتھ', ahead: 'آگے', mixed: 'ملی جلی' },
   way: 'پڑھانے کا طریقہ',
+  pickWays: 'ایک یا زیادہ چنیں',
   suggested: 'آپ کی کلاس کے لیے تجویز',
   ways: {
     tarl: 'ہر بچے کی سطح پر پڑھائیں', cpa: 'چیزیں ← تصویریں ← اعداد (CPA)', phonics: 'پہلے آوازیں (phonics)',

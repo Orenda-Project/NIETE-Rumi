@@ -52,7 +52,8 @@ function system(lang) {
 /** The two messages for the model. Throws on answers that did not come through parseOwnAnswers. */
 function k5Messages({ script, answers, lang, grade, subject, dayPages = null, bookText = null }) {
   const a = answers || {};
-  if (!SIZES[a.size] || !LEVELS[a.level] || !WAYS[a.way] || !Array.isArray(a.resources)) {
+  const ways = a.ways || [a.way]; // bd-snkn32.24 — one or several
+  if (!SIZES[a.size] || !LEVELS[a.level] || !ways.every((k) => WAYS[k]) || !Array.isArray(a.resources)) {
     throw new Error('k5Messages needs answers from parseOwnAnswers');
   }
   const have = a.resources.map((r) => RESOURCES[r]).filter(Boolean).join(', ');
@@ -61,9 +62,11 @@ function k5Messages({ script, answers, lang, grade, subject, dayPages = null, bo
     'Class size: with a big class use choral answers, fingers or slates for the checks, and pairs; no activity needs every child to come to the board.',
     `What she has: ${have}. Use nothing else. With no board, point to the picture on the book page instead.`,
     'Level: behind means start from the skill they need first, in smaller steps; ahead means add a stretch task; mixed means a two-level You Do.',
-    `Teaching way, for We Do and You Do: ${WAYS[a.way]}`,
+    ways.length > 1
+      ? `Teaching ways, combined in We Do and You Do: ${ways.map((k) => WAYS[k]).join(' ')}`
+      : `Teaching way, for We Do and You Do: ${WAYS[a.way]}`,
   ];
-  if (a.way === 'tarl' && isLanguage(subject) && isEarly(grade)) {
+  if (ways.includes('tarl') && isLanguage(subject) && isEarly(grade)) {
     lines.push('Group the children by level: sound, letter, word and sentence groups.');
   }
   if (a.pages) lines.push(pagesLine(a.pages, dayPages)); // bd-snkn32.17 — the pages she chose

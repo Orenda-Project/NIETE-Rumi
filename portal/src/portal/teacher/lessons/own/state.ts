@@ -25,6 +25,8 @@ export type OwnAt = {
   res: Resource[];
   level: Level | null;
   way: Way | null;
+  /** bd-snkn32.24 — every way she ticked, in order, only when more than one (`way` is the first). */
+  ways?: Way[];
   /** bd-snkn32.13 — grades 6–12: what the lesson is for, and (a mixed lesson) which SLOs first. */
   purpose: Purpose | null;
   focus: Focus | null;
@@ -44,7 +46,8 @@ export function ownUrl(s: Partial<OwnAt> & { grade: number; subject: string; cha
   const res = (s.res ?? []).filter((r) => r !== 'textbook');
   if (res.length) q.set('res', res.join(','));
   if (s.level) q.set('level', s.level);
-  if (s.way) q.set('way', s.way);
+  const ways = s.ways?.length ? s.ways : s.way ? [s.way] : [];
+  if (ways.length) q.set('way', ways.join(','));
   if (s.purpose) q.set('purpose', s.purpose);
   if (s.focus) q.set('focus', s.focus);
   if (s.ext) q.set('ext', s.ext);
@@ -63,7 +66,9 @@ export function readOwn(search: string): OwnAt | null {
   // the band decides what survives: a way off her list, exam practice below Grade 8, the outcomes focus
   // below 9 or on exam practice, and adding the next lesson at 1–5 are all dropped (codes only, never trusted).
   const purpose = pick(purposesFor(grade), q.get('purpose'));
-  const way = pick(waysFor({ grade, subject }), q.get('way'));
+  const allowed = waysFor({ grade, subject });
+  const ways = [...new Set((q.get('way') ?? '').split(',').map((x) => pick(allowed, x)).filter((x): x is Way => !!x))];
+  const way = ways[0] ?? null;
   const focus = grade >= 9 && purpose !== 'board' ? pick(FOCI, q.get('focus')) : null;
   const ext = isSecondary(grade) ? pick(EXTENDS, q.get('ext')) : null;
   return {
@@ -74,6 +79,7 @@ export function readOwn(search: string): OwnAt | null {
     res,
     level: pick(LEVELS, q.get('level')),
     way,
+    ...(ways.length > 1 ? { ways } : {}),
     purpose,
     focus,
     ...(ext ? { ext } : {}),
@@ -109,6 +115,7 @@ export function prevStep(step: OwnStep, steps: readonly OwnStep[] = PRIMARY_STEP
 export function toAnswers(s: OwnAt, note: string, next: string | null = null) {
   return {
     size: s.size, resources: ['textbook', ...s.res] as Resource[], level: s.level, way: s.way, note: note.trim(),
+    ...(s.ways && s.ways.length > 1 ? { ways: s.ways } : {}),
     ...(s.purpose ? { purpose: s.purpose } : {}),
     ...(s.focus ? { focus: s.focus } : {}),
     ...(s.ext && next ? { extend: { next, shape: s.ext } } : {}),
