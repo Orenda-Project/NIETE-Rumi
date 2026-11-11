@@ -1,0 +1,2 @@
+{"ts":"2026-11-11T07:15:55Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,child-test spec_sync=true","sha":"f6f4f51cacb9","branch":"bd-qchgya-79073","user":""}
+{"ts":"2026-11-11T07:21:19Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-qchgya-79073: lesson-plan spec: NOT UPDATED e2e: missing;language spec: NOT UPDATED e2e: missing","sha":"f6f4f51cacb9","branch":"bd-qchgya-79073","user":""}
