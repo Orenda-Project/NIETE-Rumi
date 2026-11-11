@@ -538,3 +538,12 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     And my language is Urdu and I have messaged the bot before
     When I send "I need a lesson plan on fractions for class 4"
     Then the bot reply is in Urdu
+
+  @e2e @draft @P1
+  Scenario: A child answering an Urdu quiz wrong is told so in Urdu
+    Given a child is taking an Urdu quiz, either the parent roster quiz or a single-answer video quiz
+    When the child picks a wrong answer
+    Then "Not quite", the right answer line and "keep going" all arrive in Urdu, not English
+    And the video quiz's "Listen, then choose", "Your options" and "tap the picture" lines are in Urdu too
+    # bd-x0m19: this copy was English-only. Now catalogue keys qs* and vq* in ux-strings.js.
+    # Unit: bot/tests/quiz/quiz-session-feedback-language.test.js, bot/tests/quiz/video-quiz-render-language.test.js.

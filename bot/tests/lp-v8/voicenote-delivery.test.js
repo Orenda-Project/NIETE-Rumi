@@ -14,6 +14,9 @@
  *     has no voicenote rather than a stale one describing a lesson that changed.
  */
 
+// bd-xxejb: the v8 voice note is off by default; these tests cover the flag-on behaviour.
+require('../../shared/config/lp-v8-voicenote').__setForTests(true);
+
 const mockTables = { niete_lp_assets: [], niete_lp_downloads: [], users: [], lesson_plans: [] };
 const mockInserts = { niete_lp_downloads: [], lesson_plans: [] };
 
