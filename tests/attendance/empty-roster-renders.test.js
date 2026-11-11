@@ -60,7 +60,8 @@ function db({ user = {}, classes = [], studentsByList = {}, schools = [], staff 
         select: () => ({
           eq: () => ({
             maybeSingle: () => Promise.resolve({ data: user, error: null }),
-            eq: () => ({ order: () => Promise.resolve({ data: staff, error: null }) }),
+            // loadStaffRoster: .eq('school_id').eq('role').is('deleted_at', null).order()
+            eq: () => { const q = { is: () => q, order: () => Promise.resolve({ data: staff, error: null }) }; return q; },
           }),
         }),
       };
