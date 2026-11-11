@@ -12,13 +12,21 @@ function memberIds(examJson) {
   return out;
 }
 
-/** Of the review-flagged ids still in `checks`, those inside a stimulus group of `examJson`. */
+/** Of the review-flagged or key-leaking (N18, bd-qyi45h.6) ids still in `checks`, those inside a stimulus group of
+ * `examJson`: dropIds takes a leaking child's whole group and the restore never refills one, so only a re-ask clears it. */
 function stuck(checks, examJson) {
   const members = memberIds(examJson);
-  return new Set(checks.shortfall.flatMap((r) => Object.keys(r.review || {}).filter((id) => members.has(id))));
+  const leaking = (r) => Object.keys(r.why || {}).filter((id) => r.why[id] === 'N18');
+  return new Set(checks.shortfall.flatMap((r) => [...Object.keys(r.review || {}), ...leaking(r)].filter((id) => members.has(id))));
+}
+
+/** The leaked phrases whose quoting item is in `ids`, once each, for the re-ask's "do not use" line. */
+function leakPhrases(checks, ids) {
+  const out = checks.shortfall.flatMap((r) => (r.keyed || []).filter((k) => ids.has(k.holder) && k.phrase).map((k) => k.phrase));
+  return [...new Set(out)];
 }
 
 /** Re-asks of a stuck group before its fault is shipped as a paper-level note. */
 const ATTEMPTS = 3;
 
-module.exports = { memberIds, stuck, ATTEMPTS };
+module.exports = { memberIds, stuck, leakPhrases, ATTEMPTS };
