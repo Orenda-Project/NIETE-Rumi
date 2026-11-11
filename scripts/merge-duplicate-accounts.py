@@ -131,9 +131,11 @@ def db_value(col, v):
 # ── reads ────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 def read_catalog(cur):
-    """(fks, keys). fks: {(table, owner column): (pk column, pk type) or None} for every foreign key onto users.id.
-    keys: {(table, owner column): [unique index, ...]} for every unique index (not the primary key) that includes an
-    owner column, with the SQL the owned-rows read selects for its other key columns and its partial predicate."""
+    """(fks, keys, refs). fks: {(table, owner column): (pk column, pk type) or None} for every foreign key onto
+    users.id. keys: {(table, owner column): [unique index, ...]} for every unique index (not the primary key) that
+    includes an owner column, with the SQL the owned-rows read selects for its other key columns and its partial
+    predicate. refs: {table: [(referencing table, column)]}, the single-column foreign keys onto each owner table's
+    primary key: what would be left hanging from a row that stays behind."""
     cur.execute("""
         SELECT con.conrelid::regclass::text AS tbl, cardinality(con.conkey) AS n,
                (SELECT a.attname FROM pg_attribute a WHERE a.attrelid = con.conrelid AND a.attnum = con.conkey[1]) AS col,
@@ -176,7 +178,18 @@ def read_catalog(cur):
             keys.setdefault((r["tbl"], c), []).append(
                 {"name": r["idx"], "cols": tuple(f"_k{n}_{j}" for j in range(len(others))), "exprs": tuple(others),
                  "in": f"_in{n}" if r["pred"] else None, "pred": r["pred"], "nulls_distinct": r["nulls_distinct"]})
-    return fks, keys
+    pk_of = {t: pk[0] for (t, _c), pk in fks.items() if pk}
+    cur.execute("""
+        SELECT con.confrelid::regclass::text AS t, con.conrelid::regclass::text AS rt,
+               (SELECT a.attname FROM pg_attribute a WHERE a.attrelid = con.conrelid AND a.attnum = con.conkey[1]) AS rc,
+               (SELECT a.attname FROM pg_attribute a WHERE a.attrelid = con.confrelid AND a.attnum = con.confkey[1]) AS col
+        FROM pg_constraint con WHERE con.contype = 'f' AND cardinality(con.conkey) = 1
+          AND con.confrelid::regclass::text = ANY(%s) ORDER BY 1, 2, 3""", (sorted(pk_of),))
+    refs = {}
+    for r in cur.fetchall():
+        if r["col"] == pk_of[r["t"]]:
+            refs.setdefault(r["t"], []).append((r["rt"], r["rc"]))
+    return fks, keys, refs
 
 
 def load_users(cur, ids):
@@ -243,10 +256,37 @@ def read_state(cur, ids, fks, keys):
             "owned": owned_rows(cur, fks, keys, ids), "visits": load_visits(cur, ids)}
 
 
+def stranded_rows(conn, moves, fks, refs):
+    """[(table, row_id, {"ref_table.col": n})] for rows that would stay behind (a frozen form excepted) while other
+    rows depend on them, counted in the caller's open snapshot, in one round trip."""
+    skipped = {}
+    for (t, c, row, _owner, action) in moves:
+        if action == "skip" and (t, c) not in md.FROZEN:
+            skipped.setdefault(t, (fks[(t, c)], set()))[1].add(row)
+    branches, params = [], {}
+    for i, (t, (pk, rows)) in enumerate(sorted(skipped.items())):
+        params[f"p{i}"] = sorted(rows)
+        for rt, rc in refs.get(t, ()):
+            branches.append(sql.SQL(
+                "SELECT {t}::text AS t, {ref}::text AS ref, {rc}::text AS id, count(*) AS n FROM {rt} "
+                "WHERE {rc} = ANY(%({p})s::{ty}[]) GROUP BY 3").format(
+                    t=sql.Literal(t), ref=sql.Literal(f"{rt}.{rc}"), rc=sql.Identifier(rc), rt=ident(rt),
+                    p=sql.SQL(f"p{i}"), ty=sql.SQL(pk[1])))
+    if not branches:
+        return []
+    with conn.cursor() as cur:
+        cur.execute(sql.SQL(" UNION ALL ").join(branches), params)
+        found = {}
+        for r in cur.fetchall():
+            found.setdefault((r["t"], r["id"]), {})[r["ref"]] = r["n"]
+    return [(t, rid, counts) for (t, rid), counts in sorted(found.items())]
+
+
 # ── plans ────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-def plan_pair(state, p, keys, run_id, now_iso):
-    """Everything one teacher's merge would do, from one snapshot. An empty 'problems' means it may run."""
+def plan_pair(state, p, keys, run_id, now_iso, dependents=lambda moves: []):
+    """Everything one teacher's merge would do, from one snapshot. An empty 'problems' means it may run.
+    dependents(moves): the stranded rows of the plan, read in the same snapshot."""
     pids = [p["survivor"]] + p["retired"]
     rows = {i: state["users"].get(i) for i in pids}
     if any(v is None for v in rows.values()):
@@ -259,7 +299,7 @@ def plan_pair(state, p, keys, run_id, now_iso):
     final_phone = patch.get("phone_number", rows[surv]["phone_number"])
     numbers = md.phone_moves(rows[surv]["phone_number"], final_phone, [rows[r]["phone_number"] for r in retired])
     visits, clashes = md.plan_visits(state["visits"], numbers)
-    problems = md.guards(rows, surv, retired, p["in_use"], p["survivor"], moves, clashes)
+    problems = md.guards(rows, surv, retired, p["in_use"], p["survivor"], moves, clashes, dependents(moves))
     moved, skipped = {r: {} for r in retired}, {r: {} for r in retired}
     for (t, _c, _row, owner, action) in moves:
         bucket = moved if action == "move" else skipped
@@ -513,7 +553,7 @@ def load_scope(a):
     return pairs
 
 
-def run_merge(a, conn, out, stamp, fks, keys):
+def run_merge(a, conn, out, stamp, fks, keys, refs):
     pairs = load_scope(a)
     expected = None
     if a.expect_csv:
@@ -523,7 +563,8 @@ def run_merge(a, conn, out, stamp, fks, keys):
     base = f"{a.target}-{a.go}-{stamp}-{'commit' if a.commit else 'dryrun'}"
     with conn.cursor() as cur:
         state = read_state(cur, sorted({i for p in pairs for i in [p["survivor"]] + p["retired"]}), fks, keys)
-    planned = [plan_pair(state, p, keys, run_id, datetime.now(timezone.utc).isoformat()) for p in pairs]
+    dependents = lambda mv: stranded_rows(conn, mv, fks, refs)  # noqa: E731 - same snapshot as the read
+    planned = [plan_pair(state, p, keys, run_id, datetime.now(timezone.utc).isoformat(), dependents) for p in pairs]
     conn.rollback()
 
     plan_rows = set().union(*(pp.get("plan_rows", set()) for pp in planned))
@@ -583,7 +624,7 @@ def run_merge(a, conn, out, stamp, fks, keys):
             conn.rollback()
             with conn.cursor() as cur:
                 state = read_state(cur, [p["survivor"]] + p["retired"], fks, keys)
-            pp = plan_pair(state, p, keys, run_id, datetime.now(timezone.utc).isoformat())
+            pp = plan_pair(state, p, keys, run_id, datetime.now(timezone.utc).isoformat(), dependents)
             if pp["problems"]:
                 stopped = {"pair": p["pair"], "status": "refused", "why": pp["problems"]}
                 break
@@ -623,13 +664,13 @@ def run_merge(a, conn, out, stamp, fks, keys):
          "before_image": str(image_path)}, indent=2))
     print(f"committed {len(done)} of {len(pairs)} teachers (run_id {run_id}).")
     print("rows that reached a retired account during the run (each should be '-'):")
-    sweep(conn, image, fks, keys, commit=False, out=None, private_dir=None, stamp=stamp)
+    sweep(conn, image, fks, keys, refs, commit=False, out=None, private_dir=None, stamp=stamp)
     print(f"undo: --restore {image_path} · stragglers later: --sweep {image_path}")
     if stopped:
         raise SystemExit("STOPPED before every teacher was merged; the teachers above stay committed.")
 
 
-def sweep(conn, image, fks, keys, commit, out, private_dir, stamp):
+def sweep(conn, image, fks, keys, refs, commit, out, private_dir, stamp):
     """Move what reached a retired account after its merge. Its own before-image makes it restorable."""
     sweep_image = {"run_id": f"{image['run_id']}-sweep-{uuid.uuid4().hex[:6]}", "of": image["run_id"],
                    "target": image["target"], "kind": "sweep", "pairs": []}
@@ -644,7 +685,7 @@ def sweep(conn, image, fks, keys, commit, out, private_dir, stamp):
             users = load_users(cur, ids)
             owned = owned_rows(cur, fks, keys, ids)
         moves = md.plan_moves(owned, e["survivor"], e["retired"], keys)
-        problems = md.sweep_guards(users, e["survivor"], e["retired"], moves)
+        problems = md.sweep_guards(users, e["survivor"], e["retired"], moves, stranded_rows(conn, moves, fks, refs))
         todo = table_counts(moves, "move")
         results.append({"pair": e["pair"], "to_move": todo, "problems": problems})
         print(f"  {e['pair']:8s} to move: {show(todo)}" + (f"  REFUSED: {'; '.join(problems)}" if problems else ""))
@@ -671,10 +712,10 @@ def residue_check(conn, pp):
         return residue(cur, pp)
 
 
-def run_sweep(a, conn, out, stamp, fks, keys):
+def run_sweep(a, conn, out, stamp, fks, keys, refs):
     image = load_image(a.sweep, a.target, kind="merge")
     print(f"[{a.target}] sweep of {image['run_id']}{'' if a.commit else ' (dry run)'}:")
-    sweep(conn, image, fks, keys, commit=a.commit, out=out, private_dir=a.private_dir, stamp=stamp)
+    sweep(conn, image, fks, keys, refs, commit=a.commit, out=out, private_dir=a.private_dir, stamp=stamp)
     if not a.commit:
         print("DRY RUN — nothing written.")
 
@@ -741,14 +782,14 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     with conn.cursor() as cur:
-        fks, keys = read_catalog(cur)
+        fks, keys, refs = read_catalog(cur)
     conn.rollback()
     if a.restore:
         run_restore(a, conn, out, stamp, fks)
     elif a.sweep:
-        run_sweep(a, conn, out, stamp, fks, keys)
+        run_sweep(a, conn, out, stamp, fks, keys, refs)
     else:
-        run_merge(a, conn, out, stamp, fks, keys)
+        run_merge(a, conn, out, stamp, fks, keys, refs)
 
 
 if __name__ == "__main__":

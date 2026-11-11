@@ -187,8 +187,22 @@ def _training_clash(moves):
     return [f"training clash: {len(clash)} rows on both accounts (left for later, D8)"] if clash else []
 
 
-def guards(rows, survivor_id, retired_ids, in_use_id, reviewed_survivor, moves, visit_clashes=()):
-    """Reasons this pair must not be merged; empty when it may."""
+def _stranded(stranded):
+    """A row that stays behind while other rows depend on it would split the teacher's data between the accounts
+    (prod, 11 Nov: a class list with 29 students next to the survivor's empty list for the same class)."""
+    if not stranded:
+        return []
+    deps = {}
+    for _table, _row, counts in stranded:
+        for ref, n in counts.items():
+            deps[ref] = deps.get(ref, 0) + n
+    return [f"{len(stranded)} row(s) that would stay behind hold rows depending on them "
+            f"({', '.join(f'{ref} {n}' for ref, n in sorted(deps.items()))}); left for a human"]
+
+
+def guards(rows, survivor_id, retired_ids, in_use_id, reviewed_survivor, moves, visit_clashes=(), stranded=()):
+    """Reasons this pair must not be merged; empty when it may. stranded: [(table, row_id, {"ref_table.col": n})] for
+    rows that would stay behind (skips) with rows depending on them."""
     out = []
     ids = [survivor_id] + list(retired_ids)
     if len(set(ids)) != len(ids):
@@ -214,10 +228,10 @@ def guards(rows, survivor_id, retired_ids, in_use_id, reviewed_survivor, moves, 
     if visit_clashes:
         out.append(f"booked visits: {len(visit_clashes)} upcoming visit(s) would double-book the same coach and "
                    "school on the number in use")
-    return out
+    return out + _stranded(stranded)
 
 
-def sweep_guards(rows, survivor_id, retired_ids, moves):
+def sweep_guards(rows, survivor_id, retired_ids, moves, stranded=()):
     """Reasons a sweep (moving what reached a retired account after its merge) must not run; empty when it may. It only
     touches pairs this tool merged: a live survivor, and retired accounts soft-deleted by it on a merged: number."""
     out = []
@@ -229,7 +243,7 @@ def sweep_guards(rows, survivor_id, retired_ids, moves):
         if (x is None or not x.get("deleted_at") or x.get("deleted_reason") != REASON
                 or x.get("phone_number") != f"merged:{r}"):
             out.append(f"{r}: not retired by this tool")
-    return out + _training_clash(moves)
+    return out + _training_clash(moves) + _stranded(stranded)
 
 
 def audit_rows(survivor_final, survivor_old_phone, retired, moved, skipped, meta=None):

@@ -284,6 +284,19 @@ class Guards(unittest.TestCase):
         self.assertTrue(md.guards(self.rows, "s", ["r"], "r", reviewed_survivor="s", moves=[],
                                   visit_clashes=["v1"]))
 
+    def test_a_row_left_behind_with_rows_depending_on_it_is_refused(self):
+        # Prod, Go 3a dry run, 11 Nov: the duplicate's class list held 29 students, the survivor's list for the same
+        # class none. Leaving the duplicate's list behind would take the 29 students out of the teacher's view.
+        moves = [("student_lists", "user_id", "l1", "r", "skip")]
+        got = md.guards(self.rows, "s", ["r"], "r", reviewed_survivor="s", moves=moves,
+                        stranded=[("student_lists", "l1", {"students.list_id": 29})])
+        self.assertTrue(got)
+        self.assertIn("students.list_id", " ".join(got))
+
+    def test_a_row_left_behind_with_nothing_depending_on_it_is_allowed(self):
+        moves = [("teacher_nudges", "user_id", "n1", "r", "skip")]
+        self.assertEqual(md.guards(self.rows, "s", ["r"], "r", reviewed_survivor="s", moves=moves, stranded=[]), [])
+
 
 class SweepGuards(unittest.TestCase):
     """A sweep moves what reached a retired account after its merge (a message in flight at the commit). It only
@@ -308,6 +321,11 @@ class SweepGuards(unittest.TestCase):
     def test_a_training_clash_is_refused(self):
         moves = [("training_certificates", "user_id", 7, "r", "skip")]
         self.assertTrue(md.sweep_guards(self.rows, "s", ["r"], moves=moves))
+
+    def test_a_row_left_behind_with_rows_depending_on_it_is_refused(self):
+        moves = [("student_lists", "user_id", "l1", "r", "skip")]
+        self.assertTrue(md.sweep_guards(self.rows, "s", ["r"], moves=moves,
+                                        stranded=[("student_lists", "l1", {"students.list_id": 2})]))
 
 
 class AuditRows(unittest.TestCase):
