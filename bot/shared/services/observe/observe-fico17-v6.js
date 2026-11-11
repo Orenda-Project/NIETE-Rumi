@@ -109,6 +109,8 @@ function v6Row(analysis, code) {
 
 /** Rumi's level for a DC code: 1-4, 'NA', 'IE', or null when the analysis has none. */
 function rumiLevel(analysis, code) {
+  // Design rule (bd-ra8xu.44): Rumi never has a level for the six combined indicators, whatever an analysis carries.
+  if (v6.isCombined(code)) return null;
   const lv = ((analysis || {}).levels || {})[code];
   if (lv && lv.result !== undefined) return v6.normLevel(lv.result);
   const row = v6Row(analysis, code);

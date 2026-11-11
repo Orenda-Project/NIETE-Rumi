@@ -1,7 +1,7 @@
 'use strict';
 /**
  * The DC v6 self-recording report (operator 11 Nov ~17:50; Ahwaz 15:06 "show evidence but do not grade"): the 11
- * levels the Digital Coach sets, then the six room indicators (C3 C5 C7 D2 D3 D4) by name with what the recording
+ * levels the Digital Coach sets, then the six combined indicators (C3 C5 C7 D2 D3 D4) by name with what the recording
  * showed — timestamps and quotes, D2 as student turns per half — and NEVER a level for them.
  * Still behind fico_dc_rubric: nothing sends this report while the DC switch is off.
  */
@@ -23,7 +23,7 @@ const EVIDENCE = {
   D2: { student_turns_first_half: 38, student_turns_second_half: 22 },
 };
 
-describe('the six room indicators: evidence, never a level', () => {
+describe('the six combined indicators: evidence, never a level', () => {
   const r = buildTeacherReport(LEVELS, { language: 'en', combinedEvidence: EVIDENCE });
 
   test('each of the six is named, with what the recording showed', () => {
@@ -42,7 +42,7 @@ describe('the six room indicators: evidence, never a level', () => {
       expect(row.level_text).toBeUndefined();
     }
     // The six's section only: short titles such as '2+ times' also occur inside DC titles above it.
-    const six = r.text.slice(r.text.indexOf('What the recording showed for six more'));
+    const six = r.text.slice(r.text.indexOf('Combined indicators: what the recording showed'));
     expect(six.length).toBeGreaterThan(0);
     for (const code of V6.COMBINED_CODES) {
       for (const t of V6.TITLES[code]) expect(six).not.toContain(t);
@@ -58,9 +58,9 @@ describe('the six room indicators: evidence, never a level', () => {
     expect(line('D3')).toMatch(/no child-to-child talk/i);
   });
 
-  test('the old option-A line is gone; the coach still sets these six', () => {
+  test('the old option-A line is gone; the coach still sets the combined indicators', () => {
     expect(r.text).not.toContain('These six are scored when your coach visits');
-    expect(r.text).toMatch(/your coach sets these six/i);
+    expect(r.text).toMatch(/your coach sets these levels in the room/i);
   });
 
   test('the 11 levels stay as they were: NA left out, IE one line', () => {
