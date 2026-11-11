@@ -1781,7 +1781,7 @@ function page1(doc, ctx, secIndex) {
   // the video (D), the checkpoint / exit ticket / re-teach rule (C), the tagged homework (H).
   // They render in a fixed position inside their section so a teacher finds them in the same
   // place in every plan — which is the whole point of a closed heading system.
-  const flowHost = flowHosts(doc);
+  const flowHost = flowHosts(doc, ctx);
   const before = (s) => {
     const out = [];
     if (s.id === "introduction" && s.warmup) out.push({ html: warmupBody(s.warmup), sp: 2 });
@@ -2039,7 +2039,11 @@ function boardPlanAtoms(doc, ctx) {
  *
  * @returns {{mistakes: string|null, differentiation: string|null}} section ids, or null
  */
-function flowHosts(doc) {
+function flowHosts(doc, ctx) {
+  // VENDOR DIVERGENCE (see SYNC.md §3, "over-cap: in-flow groups go back to Reference",
+  // bd-9mc3nz.2): `buildHtml(doc, {noFlowHosts: true})` answers "no host" for both groups, so
+  // both stay in Reference. renderDoc asks for it only when TEACH is over its cap.
+  if (ctx && ctx.noFlowHosts) return { mistakes: null, differentiation: null };
   const secs = doc.sections || [];
   const practice = secs.find((s) => (s.blocks || []).some((b) => b.type === "practice" || b.type === "faded_example"));
   return {
@@ -2088,7 +2092,7 @@ function page2(doc, ctx, secIndex) {
   const L = ctx.L;
   const P = doc.page2;
   // bd-a8veu.10: a group with a host in the flow is NOT painted here. See flowHosts.
-  const hosts = flowHosts(doc);
+  const hosts = flowHosts(doc, ctx);
   const p = doc.provenance;
   const A = [];
   /**
@@ -2462,6 +2466,7 @@ function buildHtml(input, opts = {}) {
     figureRepair: (r) => figureRepairs.push(r),
     rasterFigure: false,
     vectorFigure: false,
+    noFlowHosts: !!opts.noFlowHosts,
   };
 
   const fonts = fontCss({ urdu: rtl || urduScript, quranic: true });
@@ -2517,6 +2522,12 @@ ${paginate("support", support.atoms, breaks.support || [], ctx, doc, secIndex, t
     childCounts: { teach: teach.atoms.length, support: support.atoms.length },
     hasRasterFigure: ctx.rasterFigure,
     hasVectorFigure: ctx.vectorFigure,
+    // bd-9mc3nz.2 — does either page2 group print in the teaching flow in this build?
+    flowHosted: (() => {
+      const h = flowHosts(doc, ctx);
+      const P2 = doc.page2 || {};
+      return !!((h.mistakes && (P2.mistakes || []).length) || (h.differentiation && P2.differentiation));
+    })(),
     pageContentHeight: PAGE_CONTENT_H,
   };
 }

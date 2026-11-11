@@ -142,6 +142,19 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # decide is still withheld, which is the scenario below.
 
   @e2e @content-driven @P1
+  Scenario: A history plan naming Zahiruddin Muhammad Babur is delivered in Urdu, not swapped for English
+    Given the NIETE bot chat is open on a teacher whose language is Urdu
+    And I have opened the LP Flow
+    When I complete it for "grade_7_history.c05.p081-082" (The Mughal Empire) and choose Urdu
+    Then a lesson-plan PDF is delivered to the chat
+    And the plan is in Urdu, with no note that it was sent in English instead
+    # bd-9mc3nz. Production 2026-11-11: the Urdu page set Babur's name as «ظہیر الدین محمد بابر», the
+    # religious gate's DETECTION counted that محمد as the Prophet, check 6 refused the page for lacking
+    # the human-review hold, and the teacher got English. A محمد straight after an "-ud-din" title is a
+    # ruler's laqab, never the Prophet; every real mention is still held (religious-detection-compound-
+    # names.test.js pins the guards).
+
+  @e2e @content-driven @P1
   Scenario: An English-medium plan naming the Quaid is delivered, because the same review cleared the Latin spelling
     Given the NIETE bot chat is open
     And the G5c review has decided "Muhammad Ali Jinnah" is an ordinary person, and the bare name "Muhammad" is the Prophet
