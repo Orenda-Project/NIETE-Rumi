@@ -40,9 +40,9 @@ async function writeBoardPaper(args, d) {
   const { grade, subject, pattern, P, scope = null, pageRanges = null, chapterNumber = null, onSection = null, requestId = null } = args;
   const startedAt = Date.now();
   const row = d.resolveSubject(grade, subject);
-  const V = args.variant || d.variantFor(P, { grade });
-  if (!V) throw d.fail('PATTERN_NO_VARIANT', 'No variant of this board pattern applies.', { pattern, grade, subject });
   const loaded = await d.loadPatternContent({ grade, subject, P, scope, pageRanges, chapterNumber });
+  const V = require('./board-6-12/genre-presence').forContent(args.variant || d.variantFor(P, { grade }), subject, loaded.content); // bd-qyi45h.1: no poem/ghazal in the pages → those Urdu slots go
+  if (!V) throw d.fail('PATTERN_NO_VARIANT', 'No variant of this board pattern applies.', { pattern, grade, subject });
   if (typeof d.ensureCurrent === 'function') await d.ensureCurrent();
   const { model, job } = d.patternModel(d.family);
   const ownModel = d.resolveModelForJob('assessment.generate', { family: d.family }).model;
