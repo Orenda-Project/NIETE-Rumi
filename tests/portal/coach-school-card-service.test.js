@@ -750,6 +750,13 @@ describe('the next step she was shown (v10 A/B)', () => {
     expect(JSON.stringify([scores, session])).not.toMatch(/TRY-/);
   });
 
+  // bd-ra8xu.43 (operator 11 Nov ~18:15/18:45): every observation names the rubric it was scored with, from what was
+  // stored: framework + version only.
+  test('the coach view of a session carries its stored rubric', async () => {
+    const session = await Card.getSession(db, 'coach-1', 'd1', opts());
+    expect(session.rubric).toMatch(/^FICO V[34]$/);
+  });
+
   test('a group C school: the thing to try where it has words, the action where it has none', async () => {
     tables.ab.push({ school_id: 's1', ab_group: 'C' });
     expect((await Card.getSession(db, 'coach-1', 'd5', opts())).nextStep).toBe('ACTION-d5');
@@ -1468,6 +1475,12 @@ describe('a FICO17 v6 field-form visit is a field-form visit (rubric fico17_v6; 
     tables = baseTables();
     db = fakeDb(tables);
     asV6();
-    expect(await reads()).toEqual(v5);
+    const v6 = await reads();
+    // bd-ra8xu.43: the one difference is the session's own rubric label, which names what each visit was scored with.
+    expect(v5[4].rubric).toBe('FICO17 v5');
+    expect(v6[4].rubric).toBe('FICO17 v6');
+    delete v5[4].rubric;
+    delete v6[4].rubric;
+    expect(v6).toEqual(v5);
   });
 });

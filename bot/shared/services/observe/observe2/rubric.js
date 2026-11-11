@@ -37,17 +37,24 @@ function rubricFor(form) {
 /**
  * The stamp for a visit being made now, and whether it is a shadow visit. Never throws: any failure is v5, no
  * shadow.
- * @param {{observerUserId: string, region?: string|null}} who  region omitted → read from users
+ * @param {{observerUserId: string, region?: string|null, teacherUserId?: string|null}} who  region omitted → read
+ *   from users; teacherUserId is the observed teacher (grades 1-5 gate)
  * @returns {Promise<{rubricVersion: string, shadow: boolean}>}
  */
-async function visitRubric({ observerUserId, region } = {}) {
+async function visitRubric({ observerUserId, region, teacherUserId = null } = {}) {
   const v5 = { rubricVersion: V5_RUBRIC_VERSION, shadow: false };
   try {
     const sw = require('../../coaching/fico-rubric-switch');
     if (!(await sw.isAnySet('coach'))) return v5; // default off: no region lookup
     const reg = region !== undefined ? region : await sw.regionOfUser(observerUserId);
     const v = await sw.coachRubric({ userId: observerUserId, region: reg });
-    if (v === 'v6') return { rubricVersion: V6_RUBRIC_VERSION, shadow: false };
+    // bd-ra8xu.42: v6 reaches grades 1-5 only (operator 11 Nov ~18:05); a teacher of grades 6-12, of unknown level,
+    // or no teacher bound yet stays on today's rubric until FDE's 6-12 rubric lands (#94).
+    if (v === 'v6') {
+      const { isPrimaryVisit } = require('../../coaching/fico-visit-grade');
+      if (await isPrimaryVisit(teacherUserId)) return { rubricVersion: V6_RUBRIC_VERSION, shadow: false };
+      return v5;
+    }
     return { rubricVersion: V5_RUBRIC_VERSION, shadow: v === 'shadow' };
   } catch (_) {
     return v5;

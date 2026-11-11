@@ -69,7 +69,12 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
   // Everything later reads this stamp, never the live switch.
   let v6Stamp = null;
   try {
-    v6Stamp = await require('./observe-fico17-v6').decideVisitFramework({ userId: user.id, region: user.region });
+    v6Stamp = await require('./observe-fico17-v6').decideVisitFramework({
+      userId: user.id,
+      region: user.region,
+      // The observed teacher, when the visit picker bound one (grades 1-5 gate); an unbound capture has none.
+      teacherUserId: ownerUserId !== user.id ? ownerUserId : null,
+    });
   } catch (_) { v6Stamp = null; }
 
   const { data: session, error } = await supabase

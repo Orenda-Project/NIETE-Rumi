@@ -50,6 +50,8 @@ describe('shadow (fico_coach_rubric = shadow, bd-qix9oh.5)', () => {
     expect(off.visit_context).toEqual({ teacher_ext_id: 'x1' });
     expect(Rubric.isShadow(off)).toBe(false);
     withSwitch('v6');
+    // bd-ra8xu.42: v6 reaches grades 1-5 visits only, so the observed teacher is PRIMARY-only here.
+    mockFake.__tables.users = [...(mockFake.__tables.users || []), { id: 't-1', teacher_level: ['PRIMARY'] }];
     const v6 = await newForm();
     expect(v6.rubric_version).toBe('fico17_v6');
     expect(v6.visit_context).toEqual({ teacher_ext_id: 'x1' });

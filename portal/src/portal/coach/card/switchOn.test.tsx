@@ -608,6 +608,17 @@ describe("the coach's view of a DC report", () => {
     await renderApp(`/portal/coach/session/${SESSION}`);
     expect(await screen.findByTestId("no-plan")).toHaveTextContent("No lesson plan linked");
   });
+
+  // bd-ra8xu.43 (operator 11 Nov ~18:15/18:45): the stored rubric, framework + version only, in tiny muted text.
+  it("the session names the rubric it was scored with, small and muted; none stored, no line", async () => {
+    on();
+    net.answers.set(`/coach/session/${SESSION}`, { ...SESSION_REPORT, rubric: "FICO17 v6" });
+    await renderApp(`/portal/coach/session/${SESSION}`);
+    const line = await screen.findByTestId("session-rubric");
+    expect(line).toHaveTextContent(/^FICO17 v6$/);
+    expect(line).toHaveClass("text-[10px]", "text-[#9ca3af]");
+    expect(line).toHaveAttribute("dir", "ltr");
+  });
 });
 
 describe("Urdu", () => {

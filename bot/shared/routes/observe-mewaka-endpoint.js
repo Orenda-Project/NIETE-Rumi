@@ -229,6 +229,10 @@ async function handleObserveMewakaRequest(decrypted) {
     const loaded = await loadSessionFromToken(flowToken, action);
     if (loaded.error) return errorResponse(loaded.error);
     const { session, sessionId } = loaded;
+    // bd-ra8xu.43: the first screen's caption — the rubric this session was scored with, from what was stored.
+    const fill = (scr, d) => (scr === packScreens(session).screens[0]
+      ? { ...d, scored_with: require('../services/coaching/rubric-label').rubricLabelText({ session }) }
+      : d);
 
     if (action === 'INIT') {
       // bd-59: the first domain comes from the PACK — 'introduction' is a
@@ -237,7 +241,7 @@ async function handleObserveMewakaRequest(decrypted) {
       const first = packScreens(session).screens[0];
       return {
         screen: first,
-        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(first, session), await coachLanguageIfNeeded(session)),
+        data: fill(first, ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(first, session), await coachLanguageIfNeeded(session))),
       };
     }
 
@@ -247,7 +251,7 @@ async function handleObserveMewakaRequest(decrypted) {
       const target = packScreens(session).screens.includes(screen) ? screen : packScreens(session).screens[0];
       return {
         screen: target,
-        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(target, session), await coachLanguageIfNeeded(session)),
+        data: fill(target, ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(target, session), await coachLanguageIfNeeded(session))),
       };
     }
 
@@ -274,7 +278,7 @@ async function handleObserveMewakaRequest(decrypted) {
           });
           return {
             screen: currentScreen,
-            data: ObserveV6.buildScreenPrefill(session.analysis_data, currentScreen.slice(-1), { edits: merged, errors: shown, S }),
+            data: fill(currentScreen, ObserveV6.buildScreenPrefill(session.analysis_data, currentScreen.slice(-1), { edits: merged, errors: shown, S })),
           };
         }
       }
@@ -307,7 +311,7 @@ async function handleObserveMewakaRequest(decrypted) {
       const next = nextScreen(currentScreen, session);
       return {
         screen: next,
-        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(next, session), await coachLanguageIfNeeded(session)),
+        data: fill(next, ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(next, session), await coachLanguageIfNeeded(session))),
       };
     }
 

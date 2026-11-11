@@ -60,6 +60,10 @@
           "type": "string",
           "__example__": "These moments were picked from the recording as evidence for this part of the lesson. Say whether each one happened as written."
         },
+        "scored_with": {
+          "type": "string",
+          "__example__": "FICO17 v6"
+        },
         "heard_ask_1_t": {
           "type": "string",
           "__example__": "12:41 · open question"
@@ -164,6 +168,10 @@
             "type": "Form",
             "name": "heard_ask_form",
             "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.scored_with}"
+              },
               {
                 "type": "TextHeading",
                 "text": "When the teacher asks, who answers, and how?"

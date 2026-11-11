@@ -150,3 +150,30 @@ describe('a V3 FICO visit on the same deployment is untouched', () => {
     expect(res.data.cb_C3).toBeUndefined();
   });
 });
+
+// bd-ra8xu.43 (operator 11 Nov ~18:15/18:45): the review opens with the visit's stored rubric, framework + version only.
+describe('the /observe review names its stored rubric on the first screen', () => {
+  const firstScreen = (file) => {
+    const flow = require(`../../bot/docs/flows/${file}`);
+    const s = flow.screens[0];
+    return { s, kids: s.layout.children[0].children };
+  };
+  test.each(['observe-fico-flow.json', 'observe-fico17_v6-flow.json'])('%s: one caption bound to scored_with tops the first screen', (file) => {
+    const { s, kids } = firstScreen(file);
+    expect(kids[0]).toEqual({ type: 'TextCaption', text: '${data.scored_with}' });
+    expect(s.data.scored_with).toMatchObject({ type: 'string' });
+  });
+  test('INIT for a v6 visit sends FICO17 v6 (never the prompt hash)', async () => {
+    const res = await handleObserveMewakaRequest({ action: 'INIT', flow_token: TOKEN });
+    expect(res.data.scored_with).toBe('FICO17 v6');
+  });
+  test('INIT for a V3 visit sends FICO V3; BACK to the first screen sends it again; later screens do not carry it', async () => {
+    mockSessionRow = { ...mockSessionRow, framework: 'fico', analysis_data: { framework: 'fico', domains: {} } };
+    const init = await handleObserveMewakaRequest({ action: 'INIT', flow_token: TOKEN });
+    expect(init.data.scored_with).toBe('FICO V3');
+    const back = await handleObserveMewakaRequest({ action: 'BACK', flow_token: TOKEN, screen: 'DOMAIN_B' });
+    expect(back.data.scored_with).toBe('FICO V3');
+    const next = await handleObserveMewakaRequest({ action: 'data_exchange', flow_token: TOKEN, data: { _screen: 'DOMAIN_B' } });
+    expect(next.data.scored_with).toBeUndefined();
+  });
+});

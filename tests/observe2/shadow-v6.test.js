@@ -115,7 +115,8 @@ async function visit({ swValue = 'shadow', transcript = OK_T, sealed = true, pat
 beforeEach(() => {
   jest.clearAllMocks();
   mockFake = createFakeSupabase({
-    users: [{ id: 'coach-1', phone_number: '923000000001', name: 'Coach', preferred_language: 'en', region: 'Sihala' }],
+    users: [{ id: 'coach-1', phone_number: '923000000001', name: 'Coach', preferred_language: 'en', region: 'Sihala' },
+      { id: 'teacher-1', phone_number: '923000000002', name: 'Rabia', preferred_language: 'en', teacher_level: ['PRIMARY'] }], // bd-ra8xu.42: grades 1-5 gate
   });
   Switch._resetCache();
   process.env.OBSERVE2_CHECK_FLOW_ID = 'F-CHECK';
