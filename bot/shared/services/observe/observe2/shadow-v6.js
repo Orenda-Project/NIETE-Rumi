@@ -118,7 +118,7 @@ async function runFor(form, transcript, deps = {}) {
   return { started: true, done };
 }
 
-/** Settles when every shadow read started so far has finished (tests, and a graceful shutdown). */
+/** Settles when every shadow read started so far has finished (for the tests). */
 function idle() {
   return Promise.all([...pending]).then(() => undefined);
 }

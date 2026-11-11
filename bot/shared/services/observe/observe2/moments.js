@@ -569,6 +569,9 @@ async function runForSession(sessionId, from, deps = {}) {
       moments, counts, prompt_version: promptVersionFor(rubric), verified: stats, fidelity, ...(sealed ? {} : { fidelity_at_seal: true }), ...v6,
     }, rumiLevels(moments, counts, rubric));
     if (!stored.ok) throw new Error(stored.error || 'moments not stored');
+    // Shadow visits only (fico_coach_rubric = shadow, shadow-v6.js): the v6 read of the same transcript, stored
+    // beside these moments and never shown. It runs in the background: it never throws here or holds up the check.
+    await require('./shadow-v6').runFor(form, transcript, { llm, labelLlm, lang }).catch(() => null);
     const again = await Store.getForm(form.id);
     form = (again.ok && again.form) || form;
     // Sealed while the moments were being read: onSealed found no moments then, so grade it here.
