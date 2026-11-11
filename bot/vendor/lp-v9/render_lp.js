@@ -947,31 +947,60 @@ async function renderDoc(a) {
   };
 
   const pw = loadPlaywright();
-  let built = buildHtml(doc, { lang, docDir: path.dirname(docPath), probeCont: !!pw });
-  const { warnings, fontReport, pageContentHeight, hasRasterFigure } = built;
-  let figureProblems = built.figureProblems || [];
-  // bd-oak77.14 — the figures the layout had to WIDEN to keep legible. Reported, never inferred:
-  // a repair nobody can count is a fallback that masks itself (rule 24(b)).
-  let figureRepairs = built.figureRepairs || [];
   const htmlPath = path.join(outDir, `${stem}.html`);
-  fs.writeFileSync(htmlPath, built.html);
-
   const pdfPath = a.pdf ? path.join(outDir, `${stem}.pdf`) : null;
-  let result;
-  if (pw) {
-    const repaginate = {
-      capacity: pageContentHeight,
-      atoms: built.atoms,
-      rebuild: (breaks) => buildHtml(doc, { lang, docDir: path.dirname(docPath), breaks }),
-    };
-    result = await renderWithPlaywright(pw, htmlPath, pdfPath, path.join(outDir, stem), a.png, repaginate, pdfMeta);
-    if (repaginate.warnings) { warnings.length = 0; warnings.push(...repaginate.warnings); }
-    if (repaginate.figureProblems) figureProblems = repaginate.figureProblems;
-    if (repaginate.figureRepairs) figureRepairs = repaginate.figureRepairs;
-  } else {
-    console.error("! playwright-core unavailable — falling back to Chrome CLI (no overflow probe, no PNGs)");
-    result = pdfPath ? renderWithChromeCli(htmlPath, pdfPath) : { probe: null, pdfPages: null };
+  const CAPS = pageCapsFor(lang);
+  // VENDOR DIVERGENCE (see SYNC.md §3, "over-cap: in-flow groups go back to Reference",
+  // bd-9mc3nz.2). One paint = build, write, measure, print. `noFlowHosts` turns bd-a8veu.10 off
+  // for this paint: common mistakes and differentiation print in Reference, not in the flow.
+  const paint = async (noFlowHosts) => {
+    const built = buildHtml(doc, { lang, docDir: path.dirname(docPath), probeCont: !!pw, noFlowHosts });
+    let figureProblems = built.figureProblems || [];
+    // bd-oak77.14 — the figures the layout had to WIDEN to keep legible. Reported, never inferred:
+    // a repair nobody can count is a fallback that masks itself (rule 24(b)).
+    let figureRepairs = built.figureRepairs || [];
+    fs.writeFileSync(htmlPath, built.html);
+    let result;
+    if (pw) {
+      const repaginate = {
+        capacity: built.pageContentHeight,
+        atoms: built.atoms,
+        rebuild: (breaks) => buildHtml(doc, { lang, docDir: path.dirname(docPath), breaks, noFlowHosts }),
+      };
+      result = await renderWithPlaywright(pw, htmlPath, pdfPath, path.join(outDir, stem), a.png, repaginate, pdfMeta);
+      if (repaginate.warnings) { built.warnings.length = 0; built.warnings.push(...repaginate.warnings); }
+      if (repaginate.figureProblems) figureProblems = repaginate.figureProblems;
+      if (repaginate.figureRepairs) figureRepairs = repaginate.figureRepairs;
+    } else {
+      console.error("! playwright-core unavailable — falling back to Chrome CLI (no overflow probe, no PNGs)");
+      result = pdfPath ? renderWithChromeCli(htmlPath, pdfPath) : { probe: null, pdfPages: null };
+    }
+    return { built, result, figureProblems, figureRepairs, noFlowHosts };
+  };
+  /** Pages past the caps, summed over both parts. 0 = within both caps. */
+  const overage = (pp) => {
+    const byP = (pp.result.probe && pp.result.probe.pagesByPart) || {};
+    return Object.entries(CAPS.max).reduce((t, [part, cap]) => t + Math.max(0, (byP[part] || 0) - cap), 0);
+  };
+  const teachOver = (pp) => {
+    const byP = (pp.result.probe && pp.result.probe.pagesByPart) || {};
+    return (byP.teach || 0) > CAPS.max.teach;
+  };
+  // bd-9mc3nz.2 — a lesson whose TEACH part is over its cap gets ONE more paint with the two
+  // groups back in Reference (Reference has room: 109 over-cap lessons in 7 days, 72 fit both
+  // caps this way). It is kept only if it is over by fewer pages in total; otherwise the first
+  // layout is painted again so the files on disk are the ones reported. A lesson that fits
+  // keeps the groups in the flow, exactly as bd-a8veu.10 placed them.
+  let pass = await paint(false);
+  let flowGroupsMoved = false;
+  if (pass.built.flowHosted && teachOver(pass)) {
+    const alt = await paint(true);
+    if (overage(alt) < overage(pass)) { pass = alt; flowGroupsMoved = true; }
+    else pass = await paint(false);
   }
+  const { built, result } = pass;
+  const { warnings, fontReport, hasRasterFigure } = built;
+  const { figureProblems, figureRepairs } = pass;
 
   // ── report ────────────────────────────────────────────────────────────────
   const problems = [...figureProblems];   // an illegible or over-tall figure is a FAILURE,
@@ -994,7 +1023,6 @@ async function renderDoc(a) {
     }
   }
   const byPart = (probe && probe.pagesByPart) || {};
-  const CAPS = pageCapsFor(lang);
   for (const [part, cap] of Object.entries(CAPS.max)) {
     const n = byPart[part] || 0;
     if (n > cap) {
@@ -1046,6 +1074,9 @@ async function renderDoc(a) {
     overflow_absorbed: result.absorbed || [],
     // bd-oak77.14. `[]` on a document whose figures all fitted — never absent.
     figure_repairs: figureRepairs,
+    // bd-9mc3nz.2 — true when TEACH was over its cap and the mistakes/differentiation groups were
+    // moved back to Reference to bring it down. Recorded so the count can be read off the reports.
+    flow_groups_moved: flowGroupsMoved,
     overflow_absorb_max_px: OVERFLOW_ABSORB_MAX_PX,
     html: path.relative(REPO_ROOT, htmlPath),
     pdf: pdfPath ? path.relative(REPO_ROOT, pdfPath) : null,
@@ -1074,7 +1105,7 @@ async function renderDoc(a) {
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
 
   return { report, reportPath, problems, warnings, htmlPath, pdfPath,
-           pagesByPart: byPart, probe, pdfPages: result.pdfPages, figureRepairs };
+           pagesByPart: byPart, probe, pdfPages: result.pdfPages, figureRepairs, flowGroupsMoved };
 }
 
 async function main() {
