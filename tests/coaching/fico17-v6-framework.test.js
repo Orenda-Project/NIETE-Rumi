@@ -86,7 +86,7 @@ describe('bd-qix9oh.2 — the per-lesson part of the prompt (spec §5.3 TRANSCRI
     expect(block).toMatch(/^TRANSCRIPT GAPS:/);
     expect(user).toContain(block);
     expect(user.split('TRANSCRIPT GAPS:')).toHaveLength(2);
-    expect(user.split('Use "IE" for any indicator whose evidence would fall in these gaps.')).toHaveLength(2);
+    expect(user.split('return "IE" instead of a level.')).toHaveLength(2);
   });
 
   test("an 'ok' transcript, or none assessed, adds no gaps block: the prompt is byte-for-byte the one before the gate", () => {
