@@ -7766,6 +7766,9 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
         duration: session.audio_duration_seconds,
         status: session.status,
         observation,
+        // bd-ra8xu.43 — the rubric this session was scored with, from what was stored (never the live switch), shown
+        // in very small text for debugging (operator 11 Nov ~18:15). Null when nothing was scored.
+        rubric: require('../../bot/shared/services/coaching/rubric-label').rubricLabelText({ session }) || null,
         // bd-5rz1v — the lesson page's title line; null when not found.
         topic: session.analysis_data?.topic || null,
         subject: session.analysis_data?.subject || null,
