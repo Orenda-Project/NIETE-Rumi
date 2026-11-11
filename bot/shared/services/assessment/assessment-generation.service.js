@@ -196,8 +196,6 @@ function buildSystemPrompt({ subject, includeAnswerKey }) {
     PROMPTS['eg.task.ict_final'],
     PROMPTS[FORMAT_PROMPT[key] || 'eg.format.exam'],
     ANSWER_KEY_ON,
-    // bd-upejat.208: the pattern path's religious rule; Islamiat is a religious subject, so it carries none.
-    ...(key === 'islamiat' ? [] : [`\n\n${RULE.religious}`]),
     PROMPTS['eg.safety.policies'],
   ];
   return parts.join('');
@@ -636,7 +634,10 @@ async function generateExam(args) {
   const honestBlooms = appliesToGrade(grade);
 
   const messages = [
-    { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) + (honestBlooms ? APPLY_NOTE : '') },
+    // bd-upejat.208: the pattern path's religious rule, on this call only (the pattern path adds its own).
+    // Islamiat is a religious subject, so it carries none.
+    { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) + (honestBlooms ? APPLY_NOTE : '')
+      + (key === 'islamiat' ? '' : `\n\n${RULE.religious}`) },
     { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, slos }) + avoidNote(avoidQuestions) },
   ];
 
@@ -703,7 +704,9 @@ async function generateExam(args) {
       logToFile('[assessment] model returned unusable JSON', {
         model, attempt, error: err.message, preview: raw.slice(0, 300),
       });
-      if (attempt >= 2) {
+      // Only a paper that broke mid-JSON is asked again; prose (a refusal) or a billed
+      // empty reply would only run the same failure twice.
+      if (attempt >= 2 || !raw.includes('{')) {
         throw fail('BAD_JSON', 'The question writer returned something we could not read.',
           { cause: err.message });
       }

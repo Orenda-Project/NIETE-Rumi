@@ -63,7 +63,9 @@ describe('grades 1-2 are FDE model assessments: left exactly as written', () => 
     expect(out.examJson.unseen.objective.MCQs[0].blooms).toBe('Apply');
     expect(mockLog.mock.calls.find(([msg]) => /bloom/i.test(msg))).toBeUndefined();
     const sys = mockCreate.mock.calls[0][0].messages[0].content;
-    expect(sys).toBe(Gen.buildSystemPrompt({ subject: 'Maths', includeAnswerKey: true }));
+    // The base prompt, then only the religious-content rule regular papers now carry (bd-upejat.208): no Bloom note.
+    expect(sys.startsWith(Gen.buildSystemPrompt({ subject: 'Maths', includeAnswerKey: true }))).toBe(true);
+    expect(sys.slice(Gen.buildSystemPrompt({ subject: 'Maths', includeAnswerKey: true }).length)).toMatch(/^\n\nNever set an item that quotes, explains or evaluates a religious text[^]*$/);
   });
   test.each([3, '5'])('grade %p still gets the cap', async (grade) => {
     const out = await runDrill(grade);
