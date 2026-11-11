@@ -121,6 +121,45 @@ describe('F3 held (a combined code without a level, v6_fallback only)', () => {
   });
 });
 
+// redteam2 2(d): a section with no numeric level kept score 0 of max 0, drawn as "0/0" over an empty bar.
+describe('redteam2 2(d) a section whose rows are all IE (or IE and NA)', () => {
+  const DC_CODES = ['C1', 'C2', 'C4', 'C6', 'C8', 'D1', 'D5', 'F1', 'F2', 'F3', 'F4'];
+  const notAssessed = (html, key) => new RegExp(`<span class="sc-n">${sectionName(key)}</span><span class="sc-s sc-na">`).test(html);
+
+  test('every DC code IE, coach room levels numeric: Section F reads "not assessed", keeps its IE lines, no 0/0', async () => {
+    const levels = { ...LEVELS };
+    for (const c of DC_CODES) levels[c] = 'IE';
+    const html = await image(buildAnalysis(v6Form({ levels })));
+    expect(html).not.toMatch(/0\s*\/\s*0/);
+    expect(notAssessed(html, 'teacher_subject_knowledge')).toBe(true);
+    expect(barred(html)).not.toContain(sectionName('teacher_subject_knowledge'));
+    expect(barred(html)).toEqual(expect.arrayContaining([sectionName('high_leverage_practices'), sectionName('student_engagement')]));
+    for (const c of ['F1', 'F2', 'F3', 'F4']) expect(html).toContain(`${V6.indicator(c).name}: ${IE_LINE}`);
+  });
+
+  test('IE and NA only in a section: "not assessed", the NA row still unnamed', async () => {
+    const html = await image(buildAnalysis(v6Form({ levels: { ...LEVELS, F1: 'IE', F2: 'NA', F3: 'IE', F4: 'IE' } })));
+    expect(notAssessed(html, 'teacher_subject_knowledge')).toBe(true);
+    expect(html).not.toContain(V6.indicator('F2').name);
+    expect(html).not.toMatch(/0\s*\/\s*0/);
+  });
+
+  test('all 17 IE: no section reads 0/0 and no "0/N marks" line under the headline', async () => {
+    const all = Object.fromEntries(Object.keys(LEVELS).map((c) => [c, 'IE']));
+    const html = await image(buildAnalysis(v6Form({ levels: all, priority: 'C1' })));
+    expect(html).not.toMatch(/0\s*\/\s*0/);
+    expect(barred(html)).toEqual([]);
+    expect(html).not.toMatch(/<div class="s">\d+\/\d+/);
+  });
+
+  test('one numeric row left in a section: it keeps its bar', async () => {
+    const levels = { ...LEVELS };
+    for (const c of ['F1', 'F2', 'F3']) levels[c] = 'IE';
+    const html = await image(buildAnalysis(v6Form({ levels })));
+    expect(barred(html)).toContain(sectionName('teacher_subject_knowledge'));
+  });
+});
+
 describe('T7.D6 the journey line', () => {
   test('an /observe2 v6 record (framework fico, v6 stamp) never reads the V3 trend', async () => {
     const a = buildAnalysis(v6Form());
