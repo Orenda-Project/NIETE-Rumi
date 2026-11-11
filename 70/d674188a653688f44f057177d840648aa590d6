@@ -2,3 +2,4 @@
 {"ts":"2026-11-11T13:14:29Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-ehz254.9-02203: training spec: NOT UPDATED e2e: missing","sha":"70d674188a65","branch":"bd-ehz254.9-02203","user":""}
 {"ts":"2026-11-11T13:14:38Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"70d674188a65","branch":"bd-ehz254.9-02203","user":""}
 {"ts":"2026-11-11T13:19:53Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (log-level only: web_quiz.ch_read_failed child outcomes log at warn not error; no row, reply, poll or message change; file is web-quiz challenge, mapped to training by path)","sha":"70d674188a65","branch":"bd-ehz254.9-02203","user":""}
+{"ts":"2026-11-11T13:20:07Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"c9530979-9d07-4cc8-bbf2-4396977ceb54","sha":"70d674188a65","branch":"bd-ehz254.9-02203","user":""}
