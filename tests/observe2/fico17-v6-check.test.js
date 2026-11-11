@@ -86,7 +86,7 @@ beforeEach(() => {
   mockFake = createFakeSupabase({
     users: [
       { id: 'coach-1', phone_number: '923000000001', name: 'Coach', preferred_language: 'en', region: 'Sihala' },
-      { id: 'teacher-1', phone_number: '923000000002', name: 'Rabia', preferred_language: 'en' },
+      { id: 'teacher-1', phone_number: '923000000002', name: 'Rabia', preferred_language: 'en', teacher_level: ['PRIMARY'] },  // bd-ra8xu.42: v6 reaches grades 1-5 visits only
     ],
     coaching_sessions: [{ id: 'sess-1', status: 'observe2_checking' }],
   });
