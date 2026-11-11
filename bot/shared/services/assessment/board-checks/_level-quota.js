@@ -64,12 +64,36 @@ function share(examJson) {
   return total ? Object.fromEntries(Object.entries(sums).map(([k, v]) => [k, (v / total) * 100])) : null;
 }
 
+/**
+ * bd-5jmnfj.38.25.9: the marks-weighted share a paper gets when every generated slot sits exactly at its quota.
+ * quotaFor counts items, not marks, and a 1-item slot's quota is always the largest level, so a pattern made of
+ * single high-mark slots (FBISE Urdu/English) cannot reach its split even when every slot obeys its quota. Null
+ * without layout slots.
+ */
+function attainable(examJson, levels) {
+  const L = (examJson && examJson._layout) || {};
+  const rows = Array.isArray(L.sections) ? L.sections.flatMap((s) => (Array.isArray(s.slots) ? s.slots : [])) : (Array.isArray(L.slots) ? L.slots : []);
+  const sums = {};
+  let total = 0;
+  rows.forEach((r) => {
+    if (!r || r.teacher_marked || r.project) return;
+    const n = Number(r.generate != null ? r.generate : r.printed) || 0;
+    const m = Number(r.marks_each) || 0;
+    Object.entries(quotaFor(n, levels)).forEach(([l, c]) => { sums[l] = (sums[l] || 0) + c * m; total += c * m; });
+  });
+  return total ? Object.fromEntries(Object.entries(sums).map(([k, v]) => [k, (v / total) * 100])) : null;
+}
+
 function overQuota(examJson, target) {
   if (!target || !target.levels || REPORT_ONLY.has(target.status)) return [];
   const have = share(examJson);
   if (!have) return [];
   const tol = Number.isFinite(target.tolerance_pp) ? target.tolerance_pp : 5;
-  const over = Object.keys(have).filter((k) => have[k] - (Number(target.levels[k]) || 0) > tol + 1e-9);
+  // A level the quotas themselves push past target + tol is measured from what they reach, so the tolerance still
+  // applies there; every other level keeps the design target.
+  const reach = attainable(examJson, target.levels) || {};
+  const aim = (k) => { const t = Number(target.levels[k]) || 0; return reach[k] != null && reach[k] - t > tol + 1e-9 ? reach[k] : t; };
+  const over = Object.keys(have).filter((k) => have[k] - aim(k) > tol + 1e-9);
   const out = [];
   const bySlot = new Map();
   topNodes(examJson).forEach((t) => {
@@ -86,9 +110,26 @@ function overQuota(examJson, target) {
     const cap = quotaFor(Number(n) || nodes.length, target.levels)[l] || 0;
     const mine = nodes.filter((t) => levelOf(t.item) === l);
     mine.slice(cap).forEach((t) => out.push(issue(ID, 'LEVEL_OVER', t.ref,
-      `level ${l} is ${have[l].toFixed(1)}% of marks, target ${target.levels[l]}% (tolerance ${tol} pp); slot ${slot} quota ${l} ${cap}`, true, slot)));
+      `level ${l} is ${have[l].toFixed(1)}% of marks, target ${target.levels[l]}%${aim(l) !== (Number(target.levels[l]) || 0) ? ` (slot quotas reach ${aim(l).toFixed(1)}%)` : ''} (tolerance ${tol} pp); slot ${slot} quota ${l} ${cap}`, true, slot)));
   }));
   return out;
 }
 
-module.exports = { quotaFor, leftFor, overQuota };
+/**
+ * bd-qyi45h.1 (c): one loggable line per run of the level-mix check. Per level: have (the paper's marks share),
+ * target, reach (what the slot quotas reach), each to 0.1; the tolerance, the split's status and pass (no
+ * LEVEL_OVER). Null without a split or a scorable item. Carries no person ids.
+ */
+function levelShares(examJson, target) {
+  if (!target || !target.levels) return null;
+  const have = share(examJson);
+  if (!have) return null;
+  const reach = attainable(examJson, target.levels) || {};
+  const r1 = (x) => (x == null ? null : Math.round(x * 10) / 10);
+  const levels = {};
+  Object.keys(target.levels).forEach((k) => { levels[k] = { have: r1(have[k] || 0), target: Number(target.levels[k]) || 0, reach: r1(reach[k]) }; });
+  const tol = Number.isFinite(target.tolerance_pp) ? target.tolerance_pp : 5;
+  return { levels, tolerance_pp: tol, status: target.status || null, pass: !overQuota(examJson, target).length };
+}
+
+module.exports = { quotaFor, leftFor, overQuota, attainable, levelShares };
