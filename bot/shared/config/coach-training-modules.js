@@ -24,7 +24,8 @@ const COACH_MODULES = Object.freeze([
   { n: 7, key: 'less', artifact: 'SBrvLUoSySSXCKVyshX72q', video: 'GgzCzuPjSBYNFH7qspadNy', title: { en: 'Talk less', ur: 'کم بولیں، استاد کو بولنے دیں' } },
   { n: 8, key: 'rehearse', artifact: 'MGVm5YMAdQhRCrWRWWg65C', video: 'FnhqM4ae3uV1XwwwgSYfYs', title: { en: 'Rehearse it aloud', ur: 'جانے سے پہلے زبانی پریکٹس' } },
   { n: 9, key: 'full', artifact: 'SZyvWZYrmMFn1XrhtnFGL8', video: 'MUxJFCkertstuJXnNNF9LC', title: { en: 'The full debrief', ur: 'مکمل ڈی بریف' } },
-  { n: 10, key: 'evidence', artifact: '62371mmVGLxniEHz6VGRXx', video: null, title: { en: 'No evidence, no level', ur: 'ثبوت نہیں تو لیول نہیں' } },
+  // bd-rlxkkt.13 — her video and her coach PDF (DM 11 Nov 2026); the PDF replaced the 10 Nov in-person session page
+  { n: 10, key: 'evidence', artifact: 'VYVFCCd53puenW9pHCX39M', video: '8Qtz4qeanSPKoLMiQpXnDM', title: { en: 'No evidence, no level', ur: 'ثبوت نہیں تو لیول نہیں' } },
 ]);
 
 /** The judge's rubric key → its module number. */
