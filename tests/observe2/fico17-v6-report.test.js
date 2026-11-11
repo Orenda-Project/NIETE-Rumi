@@ -152,7 +152,7 @@ describe('a broken transcript: no level from the recording, one line, the six co
   });
   test('teacher report: only the six coach rows, the line, totals over them', () => {
     const r = transformFICOToReportData(SESSION, 'Teacher A', brokenAnalysis());
-    const names = criteria(r).filter((c) => !/^B\d/.test(c.name)).map((c) => c.name);
+    const names = r.goals.filter((g) => !g.title.startsWith('Section B')).flatMap((g) => g.criteria.map((c) => c.name));
     const coach = V6.COMBINED_CODES.filter((c) => /^[1-4]$/.test(LEVELS[c])).map((c) => V6.indicator(c).name);
     expect(names.sort()).toEqual(coach.sort());
     expect(r.recordingNote).toBe(BROKEN_LINE);
