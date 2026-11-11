@@ -215,7 +215,8 @@ function buildAnalysis(form, opts = {}) {
       student_engagement: section('D', form),
       teacher_subject_knowledge: section('F', form),
     },
-    scores: {},
+    // A v6 visit's scores carry the v6 stamp (fico17-v6/stamp.js), so no cross-session average adds it to V3's.
+    scores: isV6(form) ? { rubric: V6.RUBRIC_KEY } : {},
     lp_fidelity: planFidelity(form),
     strengths: strengthsOf(form, priority),
     observe2: {

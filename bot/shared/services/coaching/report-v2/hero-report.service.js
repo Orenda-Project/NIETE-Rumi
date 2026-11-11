@@ -120,7 +120,9 @@ async function generateHeroReport(session, analysis, opts = {}) {
   // hero without the sparkline. Exclude the current session so if it's already
   // marked completed by the time this runs, we don't double-count today.
   let trend = [];
-  try {
+  // bd-ra8xu.39: a FICO17 v6 report shows no journey line. The teacher's earlier sessions are V3 percentages, and a
+  // v6 score drawn on the same line would mix two rubrics (operator, 11 Nov: never mixed).
+  if (framework !== 'fico17_v6') try {
     const raw = await loadTrendData(session.user_id, { limit: 12, locale: 'en', excludeSessionId: session.id });
     trend = raw
       .map((t) => ({ date: String(t.date || '').slice(0, 10), pct: Math.round(parseFloat(t.pct || 0)) }))
