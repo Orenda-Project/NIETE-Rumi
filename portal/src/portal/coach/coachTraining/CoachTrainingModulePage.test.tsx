@@ -76,11 +76,11 @@ describe("a module's own screen: PDF or Video", () => {
 });
 
 /**
- * bd-rlxkkt.12 — Module 10, "No evidence, no level" (the ICT HITL owner's DM, 10 Nov 2026), has its page but no video yet.
- * Its screen keeps the same two squares so nothing looks broken: PDF opens her page; Video says Coming soon and opens
- * nothing. Modules 1–9 keep their videos.
+ * bd-rlxkkt.12 — Module 10, "No evidence, no level" (the ICT HITL owner's DM, 10 Nov 2026). bd-rlxkkt.13 — her DM of
+ * 11 Nov brought its video and its coach PDF: Video is a working square now (no Coming soon) and opens her video; PDF
+ * opens her new coach page. Modules 1–9 keep their videos.
  */
-describe("Module 10: its page now, its video coming soon", () => {
+describe("Module 10: her PDF and her video (bd-rlxkkt.13)", () => {
   beforeAll(async () => { if (!i18n.isInitialized) await i18n.init({ lng: "en", resources: {} }); });
   let open: ReturnType<typeof vi.fn>;
   beforeEach(() => {
@@ -99,30 +99,29 @@ describe("Module 10: its page now, its video coming soon", () => {
     </MemoryRouter>,
   );
 
-  it("English: Module 10's title; PDF opens her page; Video reads Coming soon, is off, and opens nothing", async () => {
+  it("English: Module 10's title; PDF opens her coach page; Video is a working square and opens her video", async () => {
     await act(async () => { await i18n.changeLanguage("en"); });
     renderAt("/portal/coach/coach-training/10");
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("No evidence, no level");
     expect(screen.getByTestId("coach-training-module")).toHaveTextContent("Module 10");
     fireEvent.click(screen.getByTestId("coach-format-pdf"));
-    expect(open).toHaveBeenLastCalledWith("https://claude.ai/artifact/62371mmVGLxniEHz6VGRXx", "_blank", "noopener,noreferrer");
+    expect(open).toHaveBeenLastCalledWith("https://claude.ai/artifact/VYVFCCd53puenW9pHCX39M", "_blank", "noopener,noreferrer");
     const video = screen.getByTestId("coach-format-video");
-    expect(video).toBeDisabled();
-    expect(video).toHaveTextContent("Video");
-    expect(video).toHaveTextContent("Coming soon");
-    expect(video).toHaveAccessibleName("Video, Coming soon");
-    open.mockClear();
+    expect(video).not.toBeDisabled();
+    expect(video).not.toHaveTextContent("Coming soon");
+    expect(video).toHaveAccessibleName("Video");
     fireEvent.click(video);
-    expect(open).not.toHaveBeenCalled();
+    expect(open).toHaveBeenLastCalledWith("https://claude.ai/artifact/8Qtz4qeanSPKoLMiQpXnDM", "_blank", "noopener,noreferrer");
   });
 
-  it("Urdu: ویڈیو — جلد آ رہی ہے", async () => {
+  it("Urdu: ویڈیو, with no جلد آ رہی ہے", async () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     renderAt("/portal/coach/coach-training/10");
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("ثبوت نہیں تو لیول نہیں");
     const video = screen.getByTestId("coach-format-video");
-    expect(video).toBeDisabled();
-    expect(video).toHaveTextContent("جلد آ رہی ہے");
+    expect(video).not.toBeDisabled();
+    expect(video).toHaveTextContent("ویڈیو");
+    expect(video).not.toHaveTextContent("جلد آ رہی ہے");
     await act(async () => { await i18n.changeLanguage("en"); });
   });
 
