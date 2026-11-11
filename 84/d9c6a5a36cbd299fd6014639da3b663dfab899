@@ -1,0 +1,2 @@
+{"ts":"2026-11-11T04:55:57Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"84d9c6a5a36c","branch":"bd-snkn32.24-72134","user":""}
+{"ts":"2026-11-11T04:56:11Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.24-72134: lesson-plan spec: NOT UPDATED e2e: HEALTHY;teacher-lessons web lane spec: NOT UPDATED e2e: missing","sha":"84d9c6a5a36c","branch":"bd-snkn32.24-72134","user":""}
