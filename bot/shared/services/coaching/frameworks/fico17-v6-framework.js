@@ -132,16 +132,27 @@ ${SCHEMA}`;
   return prompt;
 }
 
+// Spec §5.5 step 1: added to the user prompt on the one retry after a reply that would not parse.
+const RETRY_NOTE = 'Your last reply was not valid JSON. Return only the JSON.';
+
+/**
+ * The per-lesson user prompt. Everything that varies by lesson lives here, never in the system prompt, so the
+ * system prompt stays one cached string per prompt_version.
+ *   metadata.transcriptQuality  the gate's assess() result; 'partial' adds its TRANSCRIPT GAPS block (spec §5.3)
+ *   metadata.retry              true on the §5.5 retry: the same prompt plus RETRY_NOTE
+ */
 function buildAnalysisPrompt(transcript, metadata = {}) {
-  const { grade, subject, duration } = metadata || {};
+  const { grade, subject, duration, transcriptQuality, retry } = metadata || {};
   const ctx = [];
   if (grade) ctx.push(`Grade: ${grade}`);
   if (subject) ctx.push(`Subject: ${subject}`);
   if (duration) ctx.push(`Recording length: ${Math.round(Number(duration) / 60)} minutes`);
-  return `${ctx.length ? `${ctx.join('\n')}\n\n` : ''}TRANSCRIPT:
+  const gaps = transcriptQuality ? require('../../observe/transcript-quality').promptGaps(transcriptQuality) : '';
+  const prompt = `${ctx.length ? `${ctx.join('\n')}\n\n` : ''}TRANSCRIPT:
 ${transcript}
-
+${gaps ? `\n${gaps}\n` : ''}
 Score Part 1 and report Part 2 for this lesson. Return only the JSON.`;
+  return retry ? `${prompt}\n\n${RETRY_NOTE}` : prompt;
 }
 
 // ─── Transcript reading ───────────────────────────────────────────────
@@ -359,4 +370,5 @@ module.exports = {
   lines,
   EVIDENCE_CODES,
   KINDS,
+  RETRY_NOTE,
 };
