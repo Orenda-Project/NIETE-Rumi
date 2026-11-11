@@ -1295,7 +1295,7 @@ only `PROPHET_RE` hit. Detection (`isReligious`) ran the raw `PROPHET_RE`, unlik
 
 Detection now skips a bare `محمد` (no honorific after it) in exactly two cases: the reviewer's own
 list (`clearedByReview`, §3.14), and a `محمد` directly after a word ending in `الدین` — the
-Arabic-style laqab (ظہیر الدین، جلال الدین، شہاب الدین محمد …) the Prophet is never named by.
+Arabic-style laqab (ظہیر الدین، جلال الدین، شہاب الدین محمد …) the Prophet is never named by. The laqab clearance is refused when the word is `یوم` (یوم الدین, the Day of Judgement), or when `محمد` is followed by the ؐ mark, `(ص)`/`(صلعم)`, or one of the Prophet's own epithets (`PROPHET_CONTINUATIONS`) — the acceptance-evaluator's three probes, each pinned as a guard.
 check 1's `isCompoundGivenName` is **deliberately not reused**: it reads `حضرت محمد مکہ میں…` as a
 compound name, and detection is the only thing that holds that sentence. Pinned, with guards for
 every real mention, in `tests/lp612/religious-detection-compound-names.test.js`.
