@@ -34,7 +34,7 @@
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
-const { logToFile, logError } = require('../../utils/logger');
+const { logToFile, logError, logWarn } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const r2 = require('../../storage/r2');
 const T = require('./web-quiz-token');
@@ -2089,7 +2089,8 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
     await lightIfFirst(c.r);
     // after the row is final, on its own: a missing column can never cost the scored row
     await TrailPage.writeConsent(c.r, consentCols);
-    if (r.failed) logError('web_quiz.ch_read_failed', { runId: c.r, reason: r.reason, run: c.r });
+    // a child's own outcome (unheard, incomplete, abandoned) is a warn; only the scorer breaking is an error (bd-ehz254.9)
+    if (r.failed) (r.reason === 'internal_error' ? logError : logWarn)('web_quiz.ch_read_failed', { runId: c.r, reason: r.reason, run: c.r });
     else logEvent('web_quiz.ch_done', { step: 'read', count: r.score.correct, wcpm: r.wcpm, stopped: r.score.stopped, costUsd: r.meta.cost_usd, run: c.r, ...(rules.record ? { ended: r.ended || null } : {}) });
     return result;
   });
