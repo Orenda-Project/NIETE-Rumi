@@ -234,6 +234,11 @@ function validate(analysis, transcript) {
 
   const levels = a.levels && typeof a.levels === 'object' ? a.levels : null;
   if (!levels) errors.push('levels missing');
+  // Design rule (bd-ra8xu.44, see fico17-v6/index.js): the six combined indicators never carry a DC level. A reply that
+  // grades one is refused outright, never stored.
+  for (const code of v6.COMBINED_CODES) {
+    if (levels && levels[code] !== undefined) errors.push(`${code}: a combined indicator has a DC level; the DC gives evidence only`);
+  }
   for (const code of v6.DC_CODES) {
     const row = levels && levels[code];
     if (!row) { errors.push(`${code}: missing from levels`); continue; }
@@ -281,6 +286,9 @@ function computeScores(analysis, _hasLp, transcript) {
   const a = analysis || {};
   Object.assign(a, v6.stamp('dc'));
   a.levels = a.levels || {};
+  // Design rule (bd-ra8xu.44): only the 11 DC indicators keep a DC level; any level for the six combined indicators is
+  // dropped here as well, so no stored v6 analysis can carry one.
+  for (const code of v6.COMBINED_CODES) delete a.levels[code];
   a.combined_evidence = a.combined_evidence || {};
   if (transcript && !a.combined_evidence.D2) {
     const d2 = countD2(transcript);
