@@ -225,6 +225,8 @@ export type SectionScores = { B: number | null; C: number | null; D: number | nu
 export type SessionReportData = {
   /** "coach": a coach observation (its scores show once `reviewed`; `nextStep` is the step agreed). */
   kind?: ScoreKind;
+  /** bd-ra8xu.43 — the rubric this session was scored with (framework + version, e.g. "FICO V3"), from what was stored. */
+  rubric?: string | null;
   coachName?: string | null;
   form?: "v3" | "observe2" | null;
   reviewed?: boolean;

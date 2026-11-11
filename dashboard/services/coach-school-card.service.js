@@ -1413,6 +1413,8 @@ async function getSession(query, coachId, sessionId, opts = {}) {
     kind: visit ? 'coach' : 'dc',
     coachName: visit ? text(row.observer_name) : null,
     form: visit ? (isFieldForm({ rubric: a.observe2 && a.observe2.rubric }) ? 'observe2' : 'v3') : null,
+    // bd-ra8xu.43: the rubric this session was scored with (framework + version), from what was stored, never the switch.
+    rubric: require('../../bot/shared/services/coaching/rubric-label').rubricLabelText({ session: row }) || null,
     reviewed,
     teacher: { teacherExtId: teacher.phone_number, name: displayNameOf(teacher) },
     date: P.pkDayOf(row.created_at),

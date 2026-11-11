@@ -60,8 +60,9 @@ describe('the module map lives in the bot too', () => {
   });
   it('bd-rlxkkt.12 — Module 10 (No evidence, no level) is no debrief behaviour\'s module, and the capstone stays 9', () => {
     const ten = M.moduleByNumber(10);
-    expect(ten).toMatchObject({ n: 10, key: 'evidence', artifact: '62371mmVGLxniEHz6VGRXx', video: null });
-    expect(M.moduleUrl(ten)).toBe('https://claude.ai/artifact/62371mmVGLxniEHz6VGRXx');
+    // bd-rlxkkt.13 — her video and coach PDF of 11 Nov
+    expect(ten).toMatchObject({ n: 10, key: 'evidence', artifact: 'VYVFCCd53puenW9pHCX39M', video: '8Qtz4qeanSPKoLMiQpXnDM' });
+    expect(M.moduleUrl(ten)).toBe('https://claude.ai/artifact/VYVFCCd53puenW9pHCX39M');
     expect(Object.values(M.BEHAVIOUR_MODULE)).not.toContain(10);
     expect(M.FULL_DEBRIEF_MODULE).toBe(9);
   });

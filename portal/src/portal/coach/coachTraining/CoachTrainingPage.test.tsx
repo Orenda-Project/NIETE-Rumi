@@ -27,27 +27,29 @@ import { COPY_MODULES } from "../../teacher/copyRegistry";
 const IDS = [
   "Kfy7kDWtaZ4gQ2wX5BHceu", "NdMiwNiFxU5vcxfj8nFGmV", "DSJ3usPDiwBEnTNc8jU4qz", "V7XLdPCcyUZu1v1PGrZF9H", "1wkxNT3zTTKSrEAwMV5VPN",
   "CaqizBAbzEiAwMdKK2mNfx", "SBrvLUoSySSXCKVyshX72q", "MGVm5YMAdQhRCrWRWWg65C", "SZyvWZYrmMFn1XrhtnFGL8",
-  // bd-rlxkkt.12 — Module 10, "No evidence, no level" (the ICT HITL owner's DM, 10 Nov 2026): her page, linked as-is
-  "62371mmVGLxniEHz6VGRXx",
+  // bd-rlxkkt.12 — Module 10, "No evidence, no level". bd-rlxkkt.13 — her coach PDF of 11 Nov (it replaced the 10 Nov
+  // in-person session page), linked as-is
+  "VYVFCCd53puenW9pHCX39M",
 ];
 
 /** bd-rlxkkt.5 — the ICT HITL owner's video lesson for each module (her DM, 5 Nov 2026), in the same order. */
 const VIDEOS = [
   "TZdNqRi29i4mw3meZqDLFj", "BcHByTAsY9Ze1g146gaerz", "Jckd2SBKn38TwCRpwVXFeb", "WFug7nbTqtZDHc4pyDvTWL", "V8Z8G4UTREoXrzvdMRHPwG",
   "8PfwS2qKp3rtuwCJ1GiwAZ", "GgzCzuPjSBYNFH7qspadNy", "FnhqM4ae3uV1XwwwgSYfYs", "MUxJFCkertstuJXnNNF9LC",
+  // bd-rlxkkt.13 — Module 10's video (her DM, 11 Nov 2026)
+  "8Qtz4qeanSPKoLMiQpXnDM",
 ];
 
 describe("the ten modules", () => {
-  it("modules 1–9 each have their video lesson as well as their module page, and the two are different pages", () => {
-    const nine = COACH_MODULES.slice(0, 9);
-    expect(nine.map((m) => videoUrl(m))).toEqual(VIDEOS.map((id) => `https://claude.ai/artifact/${id}`));
-    for (const m of nine) expect(m.video).not.toBe(m.artifact);
+  it("all ten modules have their video lesson as well as their module page, and the two are different pages", () => {
+    expect(COACH_MODULES.map((m) => videoUrl(m))).toEqual(VIDEOS.map((id) => `https://claude.ai/artifact/${id}`));
+    for (const m of COACH_MODULES) expect(m.video).not.toBe(m.artifact);
   });
 
-  it("bd-rlxkkt.12 — Module 10 has its page but no video yet (null, never a guessed link)", () => {
+  it("bd-rlxkkt.13 — Module 10 has her video and her coach PDF (11 Nov), not the in-person session page", () => {
     const ten = COACH_MODULES[9];
-    expect(ten).toMatchObject({ n: 10, key: "evidence", artifact: "62371mmVGLxniEHz6VGRXx", video: null });
-    expect(videoUrl(ten)).toBeNull();
+    expect(ten).toMatchObject({ n: 10, key: "evidence", artifact: "VYVFCCd53puenW9pHCX39M", video: "8Qtz4qeanSPKoLMiQpXnDM" });
+    expect(JSON.stringify(COACH_MODULES)).not.toContain("62371mmVGLxniEHz6VGRXx");
     expect(ten.title).toEqual({ en: "No evidence, no level", ur: "ثبوت نہیں تو لیول نہیں" });
   });
 

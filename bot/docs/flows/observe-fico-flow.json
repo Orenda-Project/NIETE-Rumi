@@ -21,6 +21,10 @@
       "id": "DOMAIN_B",
       "title": "FICO Review 1/4",
       "data": {
+        "scored_with": {
+          "type": "string",
+          "__example__": "FICO V3"
+        },
         "scale": {
           "type": "array",
           "items": {
@@ -319,6 +323,10 @@
               "fid_e_12": "${data.fe_12}"
             },
             "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.scored_with}"
+              },
               {
                 "type": "TextSubheading",
                 "text": "Measured lesson-plan fidelity",
