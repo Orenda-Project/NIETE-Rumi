@@ -224,7 +224,7 @@ async function buildGradeItems({ curriculum } = {}) {
 
 // ── subject ─────────────────────────────────────────────────────────────────
 
-async function buildSubjectItems(grade, { curriculum } = {}) {
+async function buildSubjectItems(grade, { curriculum, bookKeys } = {}) {
   const curricula = BookCurriculum.curriculaFor(curriculum);
   // PAGED, NOT UNBOUNDED. This read pulls every servable row of the grade in
   // order to count each subject's chapters and lessons, so its result set grows
@@ -238,7 +238,10 @@ async function buildSubjectItems(grade, { curriculum } = {}) {
     'subjects',
   );
   // One curriculum: the rows as read. Hers and ICT's: per subject, hers where she has any.
-  const rows = curricula.length > 1 ? BookCurriculum.preferPerKey(read, (r) => r.subject, curriculum) : read;
+  const both = curricula.length > 1 ? BookCurriculum.preferPerKey(read, (r) => r.subject, curriculum) : read;
+  // Only the ICT books on her region's list (GB: no Zarai Taleem, bd-la9f5e); no list → every book.
+  const { upperBookOffered } = require('./teacher-books.service');
+  const rows = both.filter((r) => upperBookOffered(grade, r.book_stem, bookKeys));
 
   const bySubject = new Map();
   for (const r of rows) {
