@@ -4211,11 +4211,12 @@ router.get('/classes/:classId/students', requirePortalAuth, async (req, res) => 
 
 router.post('/classes/:classId/students', requirePortalAuth, async (req, res) => {
   const userId = req.session.portalUserId;
-  const { rawText } = req.body || {};
+  const { rawText, names } = req.body || {};
 
   try {
+    // `names` is the teacher app's rows (one child each); `rawText` the older paste.
     const botRes = await callBotInternal('/api/internal/classes/students/add', {
-      userId, classId: req.params.classId, rawText,
+      userId, classId: req.params.classId, rawText, names: Array.isArray(names) ? names : undefined,
     });
     const data = botRes.data || {};
 
@@ -4250,6 +4251,37 @@ router.post('/classes/:classId/students', requirePortalAuth, async (req, res) =>
     }
     console.error('portal/classes/:id/students add error:', error.message);
     return res.status(502).json({ success: false, error: 'Could not add the students. Please try again.' });
+  }
+});
+
+// bd-mx822w — Edit a name: fix a child's name from the class page. The teacher is the SESSION's.
+// POST, not PATCH: the portal's CORS allows GET and POST only, and the Android app is cross-origin.
+router.post('/classes/:classId/students/:studentId/name', requirePortalAuth, async (req, res) => {
+  const userId = req.session.portalUserId;
+  const name = typeof (req.body || {}).name === 'string' ? req.body.name.trim() : '';
+  if (!name) return res.status(400).json({ success: false, error: 'A name is required.' });
+  try {
+    const botRes = await callBotInternal('/api/internal/classes/students/rename', {
+      userId, classId: req.params.classId, studentId: req.params.studentId, name,
+    });
+    const data = botRes.data || {};
+    if (data.success) return res.json({ success: true, studentName: data.studentName });
+    if (data.error === 'not_assigned') {
+      return res.status(403).json({ success: false, error: 'You are not assigned to this class.' });
+    }
+    if (data.error === 'not_enrolled') {
+      return res.status(404).json({ success: false, error: 'This student is not on the class.' });
+    }
+    if (data.error === 'missing_name' || data.error === 'name_too_long') {
+      return res.status(400).json({ success: false, error: data.error });
+    }
+    return res.status(502).json({ success: false, error: 'Could not save the name. Please try again.' });
+  } catch (error) {
+    if (error.code === 'not_configured') {
+      return res.status(503).json({ success: false, error: 'Classes are temporarily unavailable.' });
+    }
+    console.error('portal/classes/:id/students rename error:', error.message);
+    return res.status(502).json({ success: false, error: 'Could not save the name. Please try again.' });
   }
 });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import i18n from "i18next";
 
@@ -14,7 +14,7 @@ vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { chil
 vi.mock("../../lib/recordingSession", () => ({ useRecordingSession: () => null }));
 vi.mock("../../services/api", () => ({
   default: { get: vi.fn(() => new Promise(() => {})), post: vi.fn() },
-  classes: { list: vi.fn(), create: vi.fn(), students: vi.fn(), addStudents: vi.fn(), removeStudent: vi.fn() },
+  classes: { list: vi.fn(), create: vi.fn(), students: vi.fn(), addStudents: vi.fn(), removeStudent: vi.fn(), renameStudent: vi.fn() },
   language: { get: vi.fn(() => new Promise(() => {})), set: vi.fn() },
 }));
 vi.mock("../../lib/gradeSubjects", () => ({ loadGradeSubjects: vi.fn() }));
@@ -23,8 +23,13 @@ import "../routes";
 import { classes as classesApi } from "../../services/api";
 import { loadGradeSubjects } from "../../lib/gradeSubjects";
 import classRoutes from "./routes";
-import { CLASSES_ADD, CLASSES_HOME, classPath } from "./paths";
+import { CLASSES_ADD, CLASSES_HOME, addStudentsPath, classPath } from "./paths";
 import { CLASSES_V2_COPY_UR as U } from "./copy";
+import { beforeAll as preloadFirst } from "vitest";
+import { preloadAll } from "@/lib/lazyPage";
+
+// The pages are their own chunks (lib/lazyPage); load them first, as the other classes suites do.
+preloadFirst(() => preloadAll({ pages: true }), 120_000);
 
 const api = classesApi as unknown as Record<"list" | "students", ReturnType<typeof vi.fn>>;
 const plain = (t: string | null) => (t || "").replace(/[⁦⁩]/g, "");
@@ -65,14 +70,42 @@ describe("My Classes in Urdu", () => {
     at(classPath("c1"));
     expect(await screen.findByText("Child 1")).toBeTruthy();
     expect(plain(document.body.textContent)).toContain(U.students);
-    expect(screen.getByRole("button", { name: U.addStudents })).toBeTruthy();
+    expect(screen.getByRole("link", { name: U.addStudents })).toBeTruthy();
     expect(screen.queryByText("Students")).toBeNull();
   });
 
-  it("Add a class: the fields and Save class in Urdu", async () => {
+  it("Add students (bd-2dn4vu): name hint, Add student and Save in Urdu; no heading row, no English left", async () => {
+    at(addStudentsPath("c1"));
+    expect(await screen.findByRole("button", { name: U.addStudent })).toBeTruthy();
+    expect(screen.getAllByPlaceholderText(U.name)).toHaveLength(2);
+    // One child on the class (roll 1), so the new rows are roll 2 and 3.
+    expect(screen.getByLabelText(U.nameOfRoll(2))).toBeTruthy();
+    expect(screen.getByRole("button", { name: U.saveStudents(0) })).toBeTruthy();
+    expect(screen.queryByText("Add student")).toBeNull();
+    expect(screen.queryByText("Name")).toBeNull();
+    expect(plain(document.body.textContent)).not.toContain("رول نمبر");
+  });
+
+  it("Edit student (bd-mx822w): the row, the tray, Save and Remove student in Urdu; the child's name as it is", async () => {
+    at(classPath("c1"));
+    fireEvent.click(await screen.findByRole("button", { name: U.editNamed("Child 1") }));
+    const dialog = await screen.findByRole("dialog", { name: U.editStudent });
+    expect(within(dialog).getByRole("textbox", { name: U.nameOfRoll(1) })).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: U.save })).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: U.removeStudent })).toBeTruthy();
+    expect(screen.queryByText("Edit student")).toBeNull();
+    expect(screen.queryByText("Save")).toBeNull();
+  });
+
+  it("Add a class: the fields, the year, the no-section note and Save class in Urdu; no subjects", async () => {
     at(CLASSES_ADD);
     expect(await screen.findByRole("button", { name: U.saveClass })).toBeTruthy();
-    expect(plain(document.body.textContent)).toContain(U.section);
+    const text = plain(document.body.textContent);
+    expect(text).toContain(U.section);
+    expect(text).toContain(U.year("2026-27"));
+    expect(text).toContain(U.noSectionNote);
+    expect(text).toContain(U.choose([U.classField, U.section, U.shift].join(U.listSep)));
+    expect(text).not.toContain("مضامین");
     expect(screen.queryByText("Save class")).toBeNull();
   });
 });

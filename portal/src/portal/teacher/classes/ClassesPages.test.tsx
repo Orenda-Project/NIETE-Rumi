@@ -9,6 +9,13 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
  *
  * bd-ql2j3p — Remove class: DELETE /classes/:id (the bot decides whether that retires the class or
  * takes her off it).
+ *
+ * bd-pqx8h9 — Add a class without subjects: class, section and shift all required ("No sections: choose A"),
+ * the year shown on top; a class she is already on answers "Already on your list" instead of a silent merge;
+ * My Classes rows and the class card are titled by the class ("Grade 4-A · Morning"), never a subject.
+ *
+ * bd-mx822w — Edit a name: tap a child, the tray opens with the name box focused; Save sends
+ * POST /classes/:id/students/:sid/name { name }. Remove student lives in that tray, after asking.
  */
 
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
@@ -16,7 +23,7 @@ vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { chil
 vi.mock("../../lib/recordingSession", () => ({ useRecordingSession: () => null }));
 vi.mock("../../services/api", () => ({
   default: { get: vi.fn(() => new Promise(() => {})), post: vi.fn() },
-  classes: { list: vi.fn(), create: vi.fn(), students: vi.fn(), addStudents: vi.fn(), removeStudent: vi.fn(), removeClass: vi.fn() },
+  classes: { list: vi.fn(), create: vi.fn(), students: vi.fn(), addStudents: vi.fn(), removeStudent: vi.fn(), renameStudent: vi.fn(), removeClass: vi.fn() },
 }));
 vi.mock("../../lib/gradeSubjects", () => ({ loadGradeSubjects: vi.fn() }));
 
@@ -28,7 +35,7 @@ import { MyClassesPage } from "./MyClassesPage";
 import { ClassDetailPage } from "./ClassDetailPage";
 import { AddClassPage } from "./AddClassPage";
 import classRoutes from "./routes";
-import { CLASSES_ADD, CLASSES_HOME, CLASS_DETAIL, classPath } from "./paths";
+import { CLASSES_ADD, CLASSES_HOME, CLASS_ADD_STUDENTS, CLASS_DETAIL, addStudentsPath, classPath } from "./paths";
 import { CLASSES_V2_COPY as C } from "./copy";
 import { LESSONS_HOME } from "../lessons/paths";
 import { beforeAll as preloadFirst } from "vitest";
@@ -37,7 +44,7 @@ import { preloadAll } from "@/lib/lazyPage";
 // bd-sex15q.34 — these pages are their own chunks (lib/lazyPage); load them before stepping through them synchronously.
 preloadFirst(() => preloadAll({ pages: true }), 120_000);
 
-const api = classesApi as unknown as Record<"list" | "create" | "students" | "addStudents" | "removeStudent" | "removeClass", ReturnType<typeof vi.fn>>;
+const api = classesApi as unknown as Record<"list" | "create" | "students" | "addStudents" | "removeStudent" | "renameStudent" | "removeClass", ReturnType<typeof vi.fn>>;
 const combos = loadGradeSubjects as unknown as ReturnType<typeof vi.fn>;
 
 const LIST = {
@@ -77,18 +84,19 @@ beforeEach(() => {
 });
 
 describe("routes", () => {
-  it("registers My Classes, Add a class and Class detail under /portal/teacher/classes — no timetable", () => {
-    expect(classRoutes.map((r) => r.path)).toEqual([CLASSES_HOME, CLASSES_ADD, CLASS_DETAIL]);
+  it("registers My Classes, Add a class, Class detail and Add students under /portal/teacher/classes — no timetable", () => {
+    expect(classRoutes.map((r) => r.path)).toEqual([CLASSES_HOME, CLASSES_ADD, CLASS_DETAIL, CLASS_ADD_STUDENTS]);
     expect(CLASSES_HOME).toBe("/portal/teacher/classes");
   });
 });
 
 describe("My Classes", () => {
-  it("her classes as Grade·Subject rows linking to each class, with the count, and Add a class", async () => {
+  it("her classes as class rows (Grade 4-A · Morning, no subject) linking to each class, with the count, and Add a class", async () => {
     render(<MemoryRouter><MyClassesPage /></MemoryRouter>);
-    const row = await screen.findByText("Grade 4-A · General Science");
+    const row = await screen.findByText("Grade 4-A · Morning");
     expect(row.closest("a")?.getAttribute("href")).toBe(classPath("c1"));
-    expect(screen.getByText("Grade 5-B · Math")).toBeTruthy();
+    expect(screen.getByText("Grade 5-B · Morning")).toBeTruthy();
+    expect(screen.queryByText(/General Science|Math/)).toBeNull();
     expect(screen.getByText(C.classTeacher)).toBeTruthy();
     expect(screen.getByTestId("classes-count").textContent).toBe("2");
     expect(screen.getByRole("link", { name: C.addClass }).getAttribute("href")).toBe(CLASSES_ADD);
@@ -107,7 +115,7 @@ describe("My Classes", () => {
     api.list.mockRejectedValueOnce(new Error("502"));
     render(<MemoryRouter><MyClassesPage /></MemoryRouter>);
     fireEvent.click(await screen.findByRole("button", { name: C.tryAgain }));
-    expect(await screen.findByText("Grade 4-A · General Science")).toBeTruthy();
+    expect(await screen.findByText("Grade 4-A · Morning")).toBeTruthy();
   });
 });
 
@@ -125,6 +133,7 @@ describe("Class detail", () => {
       expect.stringContaining("Child 1"), expect.stringContaining("Child 2"), expect.stringContaining("Child 3"),
     ]);
     expect(screen.getByText("Raza Ahmed")).toBeTruthy();
+    expect(screen.queryByText(/General Science/)).toBeNull();
     expect(screen.getByTestId("students-count").textContent).toBe("3");
     expect(api.students).toHaveBeenCalledWith("c1");
   });
@@ -138,33 +147,121 @@ describe("Class detail", () => {
     expect(within(list).getAllByRole("listitem")).toHaveLength(10);
   });
 
-  it("Add students: the pasted names go to the existing route, the roster reloads, the result is said", async () => {
-    api.addStudents.mockResolvedValue({ success: true, added: 2, duplicates: 1, dropped: 0 });
+  it("Add students opens its own page; there is no paste box on the class page", async () => {
     at(classPath("c1"));
     await screen.findByRole("list", { name: C.students });
-    fireEvent.click(screen.getByRole("button", { name: C.addStudents }));
-    const dialog = await screen.findByRole("dialog");
-    fireEvent.change(within(dialog).getByLabelText(C.studentNames), { target: { value: "Sara\nOmar\nChild 1" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: C.add }));
-    await waitFor(() => expect(api.addStudents).toHaveBeenCalledWith("c1", "Sara\nOmar\nChild 1"));
-    await waitFor(() => expect(api.students).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText(C.added(2))).toBeTruthy();
-    expect(screen.getByText(C.alreadyThere(1))).toBeTruthy();
+    expect(screen.getByRole("link", { name: C.addStudents }).getAttribute("href")).toBe(addStudentsPath("c1"));
+    expect(screen.queryByRole("textbox")).toBeNull();
   });
 
-  it("Remove asks first; Keep leaves the child, Remove deletes through the existing route", async () => {
+  it("Add students page: two rows numbered after the roster, Add student adds one, X removes one, Save sends only named rows", async () => {
+    api.addStudents.mockResolvedValue({ success: true, added: 2, duplicates: 1, dropped: 0 });
+    at(addStudentsPath("c1"));
+    // STUDENTS(3) is on the class, so the new rows are roll 4 and 5. The roll is shown, never typed.
+    const first = await screen.findByLabelText(C.nameOfRoll(4));
+    expect(screen.getByLabelText(C.nameOfRoll(5))).toBeTruthy();
+    expect(screen.queryByLabelText(C.nameOfRoll(6))).toBeNull();
+    expect(screen.queryByRole("spinbutton")).toBeNull();
+    // No column heading: the number is the class page's own roll badge, and each empty box says "Name".
+    expect(screen.queryByText("Roll no")).toBeNull();
+    expect(screen.getAllByPlaceholderText(C.name)).toHaveLength(2);
+    expect(screen.getByText("4")).toBeTruthy();
+    const save = () => screen.getByRole("button", { name: /^Save/ }) as HTMLButtonElement;
+    expect(save().disabled).toBe(true);
+
+    fireEvent.change(first, { target: { value: "Sara" } });
+    expect(save().textContent).toBe(C.saveStudents(1));
+    fireEvent.click(screen.getByRole("button", { name: C.addStudent }));
+    fireEvent.change(screen.getByLabelText(C.nameOfRoll(6)), { target: { value: "  Child 1 " } });
+    // Roll 5 stays empty; removing it renumbers the row below, as the roster will.
+    fireEvent.click(screen.getByRole("button", { name: C.removeRoll(5) }));
+    expect((screen.getByLabelText(C.nameOfRoll(5)) as HTMLTextAreaElement).value).toBe("  Child 1 ");
+    expect(save().textContent).toBe(C.saveStudents(2));
+
+    fireEvent.click(save());
+    await waitFor(() => expect(api.addStudents).toHaveBeenCalledWith("c1", ["Sara", "Child 1"]));
+    expect(await screen.findByText(C.added(2))).toBeTruthy();
+    expect(screen.getByText(C.alreadyThere(1))).toBeTruthy();
+    expect(screen.getByRole("link", { name: C.back }).getAttribute("href")).toBe(classPath("c1"));
+    // Add more starts again, numbered after what was just saved.
+    api.students.mockResolvedValue({ success: true, students: STUDENTS(5) });
+    fireEvent.click(screen.getByRole("button", { name: C.addMore }));
+    expect(await screen.findByLabelText(C.nameOfRoll(6))).toBeTruthy();
+  });
+
+  it("Add students page: a failed save says so and keeps every name she typed", async () => {
+    api.addStudents.mockRejectedValue(new Error("502"));
+    at(addStudentsPath("c1"));
+    fireEvent.change(await screen.findByLabelText(C.nameOfRoll(4)), { target: { value: "Sara" } });
+    fireEvent.click(screen.getByRole("button", { name: C.saveStudents(1) }));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect((screen.getByLabelText(C.nameOfRoll(4)) as HTMLTextAreaElement).value).toBe("Sara");
+  });
+
+  it("each child is one tap target with no bin on the row; tapping opens Edit student with the name box focused, caret at the end", async () => {
+    at(classPath("c1"));
+    await screen.findByRole("list", { name: C.students });
+    expect(screen.queryByRole("button", { name: /^Remove Child/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: C.editNamed("Child 2") }));
+    const dialog = await screen.findByRole("dialog", { name: C.editStudent });
+    const box = within(dialog).getByRole("textbox", { name: C.nameOfRoll(2) }) as HTMLTextAreaElement;
+    expect(box.value).toBe("Child 2");
+    await waitFor(() => expect(document.activeElement).toBe(box));
+    expect(box.selectionStart).toBe("Child 2".length);
+  });
+
+  it("Save stays off until the name changes; Save renames through the route, the list shows the new name and Name saved", async () => {
+    api.renameStudent.mockResolvedValue({ success: true, studentName: "Child Two" });
+    at(classPath("c1"));
+    await screen.findByRole("list", { name: C.students });
+    fireEvent.click(screen.getByRole("button", { name: C.editNamed("Child 2") }));
+    const dialog = await screen.findByRole("dialog", { name: C.editStudent });
+    const box = within(dialog).getByRole("textbox", { name: C.nameOfRoll(2) });
+    const save = within(dialog).getByRole("button", { name: C.save }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.change(box, { target: { value: "  Child 2 " } });
+    expect(save.disabled).toBe(true);
+    fireEvent.change(box, { target: { value: "  " } });
+    expect(save.disabled).toBe(true);
+    fireEvent.change(box, { target: { value: " Child Two " } });
+    expect(save.disabled).toBe(false);
+    fireEvent.click(save);
+    await waitFor(() => expect(api.renameStudent).toHaveBeenCalledWith("c1", "s2", "Child Two"));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect((await screen.findByRole("status")).textContent).toContain(C.nameSaved);
+    const list = screen.getByRole("list", { name: C.students });
+    expect(within(list).getByText("Child Two")).toBeTruthy();
+    expect(within(list).queryByText("Child 2")).toBeNull();
+  });
+
+  it("a failed rename says so and keeps what she typed", async () => {
+    api.renameStudent.mockRejectedValue(new Error("502"));
+    at(classPath("c1"));
+    await screen.findByRole("list", { name: C.students });
+    fireEvent.click(screen.getByRole("button", { name: C.editNamed("Child 2") }));
+    const dialog = await screen.findByRole("dialog", { name: C.editStudent });
+    fireEvent.change(within(dialog).getByRole("textbox"), { target: { value: "Child Two" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: C.save }));
+    expect((await within(dialog).findByRole("alert")).textContent).toBe(C.saveFailed);
+    expect((within(dialog).getByRole("textbox") as HTMLTextAreaElement).value).toBe("Child Two");
+  });
+
+  it("Remove student is inside the edit tray and asks first; Keep goes back, Remove deletes through the existing route", async () => {
     api.removeStudent.mockResolvedValue({ success: true });
     at(classPath("c1"));
     await screen.findByRole("list", { name: C.students });
-    fireEvent.click(screen.getByRole("button", { name: C.removeNamed("Child 2") }));
-    let dialog = await screen.findByRole("dialog");
+    fireEvent.click(screen.getByRole("button", { name: C.editNamed("Child 2") }));
+    let dialog = await screen.findByRole("dialog", { name: C.editStudent });
+    fireEvent.click(within(dialog).getByRole("button", { name: C.removeStudent }));
+    dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: C.keep }));
     expect(api.removeStudent).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: C.removeNamed("Child 2") }));
-    dialog = await screen.findByRole("dialog");
-    fireEvent.click(within(dialog).getByRole("button", { name: C.remove }));
+    expect(within(screen.getByRole("dialog")).getByRole("textbox")).toBeTruthy();
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: C.removeStudent }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: C.remove }));
     await waitFor(() => expect(api.removeStudent).toHaveBeenCalledWith("c1", "s2"));
     await waitFor(() => expect(api.students).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("Remove class asks first; Keep leaves it, Remove deletes through the route and returns to My Classes", async () => {
@@ -183,7 +280,7 @@ describe("Class detail", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: C.remove }));
     await waitFor(() => expect(api.removeClass).toHaveBeenCalledWith("c1"));
     await waitFor(() => expect(screen.getByTestId("classes-count").textContent).toBe("1"));
-    expect(screen.queryByText("Grade 4-A · General Science")).toBeNull();
+    expect(screen.queryByText("Grade 4-A · Morning")).toBeNull();
   });
 
   it("a refused Remove class says so and stays on the class", async () => {
@@ -205,29 +302,56 @@ describe("Class detail", () => {
 });
 
 describe("Add a class", () => {
-  it("class, section, shift, subjects and class teacher from GET /classes; Save posts them and returns to My Classes", async () => {
+  it("no subjects; the year on top; class, section and shift all required; Save posts them with no subjects and returns to My Classes", async () => {
     api.create.mockResolvedValue({ success: true, class: { classId: "c9", gradeCode: "grade_4", section: "B", sessionCode: "2026-27" } });
     at(CLASSES_ADD);
     const save = await screen.findByRole("button", { name: C.saveClass });
+    expect(screen.getByText(C.year("2026-27"))).toBeTruthy();
+    expect(screen.getByText(C.noSectionNote)).toBeTruthy();
+    expect(screen.queryByRole("group", { name: /Subjects/ })).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: "Math" })).toBeNull();
     expect((save as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(C.choose([C.classField, C.section, C.shift].join(C.listSep)))).toBeTruthy();
     fireEvent.click(screen.getByRole("radio", { name: "Grade 4" }));
     fireEvent.click(screen.getByRole("radio", { name: "B" }));
+    expect((save as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(C.choose(C.shift))).toBeTruthy();
+    // A section stays chosen: tapping it again does not clear it (a section is required).
+    fireEvent.click(screen.getByRole("radio", { name: "B" }));
+    expect(screen.getByRole("radio", { name: "B" }).getAttribute("aria-checked")).toBe("true");
     fireEvent.click(screen.getByRole("radio", { name: "Evening" }));
-    fireEvent.click(screen.getByRole("checkbox", { name: "Math" }));
     fireEvent.click(screen.getByRole("checkbox", { name: C.iAmClassTeacher }));
     expect((save as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByText(/^Select/)).toBeNull();
     fireEvent.click(save);
     await waitFor(() => expect(api.create).toHaveBeenCalledWith({
-      gradeCode: "grade_4", section: "B", shiftCode: "evening", subjectCodes: ["maths"], isClassTeacher: true,
+      gradeCode: "grade_4", section: "B", shiftCode: "evening", subjectCodes: [], isClassTeacher: true,
     }));
     expect(await screen.findByRole("heading", { name: C.title })).toBeTruthy();
     await waitFor(() => expect(api.list).toHaveBeenCalledTimes(2));
+  });
+
+  it("a class she is already on: no save, Already on your list with the class, Open class and Back", async () => {
+    at(CLASSES_ADD);
+    fireEvent.click(await screen.findByRole("radio", { name: "Grade 4" }));
+    fireEvent.click(screen.getByRole("radio", { name: "A" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Morning" }));
+    fireEvent.click(screen.getByRole("button", { name: C.saveClass }));
+    expect(await screen.findByText(C.alreadyOn)).toBeTruthy();
+    expect(screen.getByText("Grade 4-A · Morning")).toBeTruthy();
+    expect(api.create).not.toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: C.openClass }).getAttribute("href")).toBe(classPath("c1"));
+    fireEvent.click(screen.getByRole("button", { name: C.back }));
+    expect(screen.getByRole("button", { name: C.saveClass })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Grade 4" }).getAttribute("aria-checked")).toBe("true");
   });
 
   it("a refused save says so and stays", async () => {
     api.create.mockRejectedValue(new Error("400"));
     at(CLASSES_ADD);
     fireEvent.click(await screen.findByRole("radio", { name: "Grade 3" }));
+    fireEvent.click(screen.getByRole("radio", { name: "A" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Morning" }));
     fireEvent.click(screen.getByRole("button", { name: C.saveClass }));
     expect(await screen.findByText(C.saveFailed)).toBeTruthy();
   });

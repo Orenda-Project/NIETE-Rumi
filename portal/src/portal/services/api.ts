@@ -1327,8 +1327,16 @@ export const classes = {
     return response.data;
   },
 
-  addStudents: async (classId: string, rawText: string): Promise<AddStudentsResponse> => {
-    const response = await api.post(`/classes/${classId}/students`, { rawText });
+  // A list is the teacher app's rows (one child each, taken as typed); a string is the older paste.
+  addStudents: async (classId: string, input: string | string[]): Promise<AddStudentsResponse> => {
+    const body = Array.isArray(input) ? { names: input } : { rawText: input };
+    const response = await api.post(`/classes/${classId}/students`, body);
+    return response.data;
+  },
+
+  // bd-mx822w — fix a child's name; the roll no and enrolment stay. POST (CORS allows GET/POST only).
+  renameStudent: async (classId: string, studentId: string, name: string): Promise<{ success: boolean; studentName: string }> => {
+    const response = await api.post(`/classes/${classId}/students/${studentId}/name`, { name });
     return response.data;
   },
 

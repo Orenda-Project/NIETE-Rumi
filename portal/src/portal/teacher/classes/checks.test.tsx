@@ -26,7 +26,7 @@ vi.mock("../../services/api", () => ({
     })),
     students: vi.fn(async () => ({ success: true, students: Array.from({ length: 9 }, (_, i) => ({
       studentId: `s${i}`, studentName: `Child ${i}`, fatherName: null, rollNumber: i + 1, enrolledOn: null })) })),
-    create: vi.fn(), addStudents: vi.fn(), removeStudent: vi.fn(),
+    create: vi.fn(), addStudents: vi.fn(), removeStudent: vi.fn(), renameStudent: vi.fn(),
   },
 }));
 vi.mock("../../lib/gradeSubjects", () => ({ loadGradeSubjects: vi.fn(async () => []) }));
@@ -34,7 +34,7 @@ vi.mock("../../lib/gradeSubjects", () => ({ loadGradeSubjects: vi.fn(async () =>
 import "../routes";
 import classRoutes from "./routes";
 import { CLASSES_V2_COPY } from "./copy";
-import { CLASSES_ADD, CLASSES_HOME, classPath } from "./paths";
+import { CLASSES_ADD, CLASSES_HOME, addStudentsPath, classPath } from "./paths";
 import { beforeAll as preloadFirst } from "vitest";
 import { preloadAll } from "@/lib/lazyPage";
 
@@ -75,7 +75,7 @@ describe("classes: copy", () => {
 describe("classes: every target is 56px or more", () => {
   it("My Classes", async () => {
     const { container } = at(CLASSES_HOME);
-    await screen.findByText("Grade 4-A · General Science");
+    await screen.findByText("Grade 4-A · Morning");
     expect(tapProblems(container)).toEqual([]);
   });
 
@@ -83,13 +83,34 @@ describe("classes: every target is 56px or more", () => {
     const { container } = at(classPath("c1"));
     await screen.findByText("Child 0");
     expect(tapProblems(container)).toEqual([]);
-    fireEvent.click(screen.getByRole("button", { name: CLASSES_V2_COPY.addStudents }));
+    fireEvent.click(screen.getByRole("button", { name: CLASSES_V2_COPY.removeClass }));
     expect(tapProblems(document.body)).toEqual([]);
   });
 
-  it("Add a class", async () => {
+  it("Class detail, the Edit student tray (bd-mx822w)", async () => {
+    at(classPath("c1"));
+    await screen.findByText("Child 0");
+    fireEvent.click(screen.getByRole("button", { name: CLASSES_V2_COPY.editNamed("Child 0") }));
+    await screen.findByRole("dialog", { name: CLASSES_V2_COPY.editStudent });
+    expect(tapProblems(document.body)).toEqual([]);
+  });
+
+  it("Add students (bd-2dn4vu), with a row added", async () => {
+    const { container } = at(addStudentsPath("c1"));
+    await screen.findByRole("button", { name: CLASSES_V2_COPY.addStudent });
+    fireEvent.click(screen.getByRole("button", { name: CLASSES_V2_COPY.addStudent }));
+    expect(tapProblems(container)).toEqual([]);
+  });
+
+  it("Add a class, and its Already on your list answer (bd-pqx8h9)", async () => {
     const { container } = at(CLASSES_ADD);
     await screen.findByRole("button", { name: CLASSES_V2_COPY.saveClass });
+    expect(tapProblems(container)).toEqual([]);
+    fireEvent.click(screen.getByRole("radio", { name: "Grade 4" }));
+    fireEvent.click(screen.getByRole("radio", { name: "A" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Morning" }));
+    fireEvent.click(screen.getByRole("button", { name: CLASSES_V2_COPY.saveClass }));
+    await screen.findByText(CLASSES_V2_COPY.alreadyOn);
     expect(tapProblems(container)).toEqual([]);
   });
 });

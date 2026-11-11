@@ -34,3 +34,45 @@ Feature: Teacher classes and attendance
     When she taps "Remove class" again and then "Remove"
     Then she is back on My Classes with one class fewer, and that class is not listed
     And no page error or 5xx happened
+
+  @TK04
+  Scenario: Teacher app v2: Add students is rows, numbered from 1, and saves each name as typed
+    Given the teacher app v2 is on and the coach app v2 is off
+    And demo teacher 03000000911 is signed in
+    And she has added a class she was not already on, with no students
+    When she opens that class and taps "Add students"
+    Then a page opens with two empty rows, roll 1 and roll 2, and no paste box
+    When she types "Ayesha" in roll 1 and "Khan, Bilal" in roll 2
+    And she taps "Add student" and types "Hira" in roll 3
+    And she taps "Save 3 students"
+    Then it says "3 students added"
+    And the class roster is Ayesha, "Khan, Bilal" and Hira as rolls 1, 2 and 3, each name exactly as typed
+    And no page error or 5xx happened
+
+  @TK05
+  Scenario: Teacher app v2: tapping a child opens Edit student; Save fixes the name and keeps the roll no
+    Given the teacher app v2 is on and the coach app v2 is off
+    And demo teacher 03000000911 is signed in
+    And she has added a class she was not already on, with one student "Fatma" as roll 1
+    When she opens that class and taps the row for "Fatma"
+    Then the Edit student tray opens with the name box focused and holding "Fatma"
+    And "Save" is off until the name changes
+    When she changes the name to "Fatima" and taps "Save"
+    Then the tray closes and it says "Name saved"
+    And the class roster is Fatima as roll 1, the same child, with no other student
+    And the row has no bin; "Remove student" is inside the tray
+    And no page error or 5xx happened
+
+  @TK06
+  Scenario: Teacher app v2: Add a class asks only class, section and shift; a class she is already on is not saved again
+    Given the teacher app v2 is on and the coach app v2 is off
+    And demo teacher 03000000911 is signed in
+    And she has added a class she was not already on
+    When she opens Add a class
+    Then there is no Subjects field, the year is shown on top, and the Section note says "No sections: select A"
+    And "Save class" is off until a class, a section and a shift are all chosen
+    When she chooses that same class, section and shift and taps "Save class"
+    Then it says "Already on your list" with that class, and no class is posted
+    When she taps "Open class"
+    Then that class's page opens
+    And no page error or 5xx happened
