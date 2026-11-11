@@ -23,9 +23,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `Profile.tsx` ← imported by `portal/src/portal/coach/profile/CoachProfile.tsx:8:0572f196` · `portal/src/portal/teacher/pages/routes.tsx:8:591421e5`
 
 ## Tests (all, generated)
-- `Home.tsx` ← `portal/src/portal/teacher/frame.ur.test.tsx` · `portal/src/portal/teacher/home/QuizTile.test.tsx` · `portal/src/portal/teacher/home/look/LookHome.test.tsx` · `portal/src/portal/teacher/pages/Home.language.test.tsx` · `portal/src/portal/teacher/pages/Home.on.test.tsx` · `portal/src/portal/teacher/pages/Home.remind.test.tsx` (+1: `python3 kg/kg.py who-reads portal/src/portal/teacher/pages/Home.tsx`)
+- `Home.tsx` ← `portal/src/portal/teacher/frame.ur.test.tsx` · `portal/src/portal/teacher/home/QuizTile.test.tsx` · `portal/src/portal/teacher/home/look/LookHome.steady.test.tsx` · `portal/src/portal/teacher/home/look/LookHome.test.tsx` · `portal/src/portal/teacher/pages/Home.language.test.tsx` · `portal/src/portal/teacher/pages/Home.on.test.tsx` (+4: `python3 kg/kg.py who-reads portal/src/portal/teacher/pages/Home.tsx`)
 - `More.tsx` ← `portal/src/portal/teacher/frame.ur.test.tsx` · `portal/src/portal/teacher/pages/More.test.tsx`
-- `Profile.tsx` ← `portal/src/portal/teacher/pages/Profile.test.tsx`
+- `Profile.tsx` ← `portal/src/portal/teacher/pages/Profile.test.tsx` · `portal/src/portal/teacher/roleSwitch/RoleSwitch.test.tsx`
 
 ## Related (all, generated)
 - docs: `portal/src/portal/teacher/CLAUDE.md`?

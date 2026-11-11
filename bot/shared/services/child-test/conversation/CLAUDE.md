@@ -1,7 +1,7 @@
 # conversation — Coach's WhatsApp side of the child test: state machine, steps, recovery sweep
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/conversation kg=9d84a56085a9 gen=a7308a69890c overflow=46 rendered=2026-11-06 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/conversation kg=762c96aecad9 gen=6903677918eb overflow=46 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `machine.js` — the state machine from list to presence to blocks
@@ -22,7 +22,7 @@ Full index: `CLAUDE.index.md`
 ## Who reads this (generated)
 - `copy.js` ← imported by `bot/shared/services/child-test/check-flow/review-v3.js:30:796122bb` · `bot/shared/services/child-test/check-flow/review-view.js:10:37ad926e` (+11)
 - `identity.js` ← imported by `bot/shared/services/child-test/check-flow/context.js:12:b9c81850` · `bot/shared/services/child-test/check-flow/review-v3.js:31:ad3926a9` (+5)
-- `gate.js` ← imported by `bot/shared/handlers/text-message.handler.js:996:83e9366e` · `bot/shared/services/child-test/app/app-api.service.js:68:61d0ef1b` (+4)
+- `gate.js` ← imported by `bot/shared/handlers/text-message.handler.js:1008:83e9366e` · `bot/shared/services/child-test/app/app-api.service.js:68:61d0ef1b` (+4)
 - … 21 more → `CLAUDE.index.md`
 
 ## Never (human)

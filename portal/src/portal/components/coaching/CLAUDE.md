@@ -1,7 +1,7 @@
 # coaching — Old-UI teacher Coaching pieces: record/send panel, lesson page, library picker
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/coaching kg=e0939dacaa9c gen=3d42434f895f overflow=21 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/coaching kg=7a0c2e14dbfc gen=b4a628020d46 overflow=22 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `CoachingHome.tsx` — older Coaching home (new UI uses newui/coaching/CoachingMain)
@@ -32,7 +32,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/components/coaching/BottomSheet.test.tsx` (BottomSheet.tsx)
 - `portal/src/portal/components/coaching/CoachingHome.live.test.tsx` (CoachingHome.tsx)
-- … 3 more → `CLAUDE.index.md`
+- … 4 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/CLAUDE.md`?

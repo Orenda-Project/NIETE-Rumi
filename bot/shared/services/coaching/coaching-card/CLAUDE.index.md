@@ -13,13 +13,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `prioritized-action.service.js` | Extracts indicators from an analysis and picks one focus tip, the weakest askable indicator, for the coaching card |
 
 ## Who reads this (all, generated)
-- `card-response.service.js` ← imported by `bot/whatsapp-bot.js:854:d77287bc`
+- `card-response.service.js` ← imported by `bot/whatsapp-bot.js:865:d77287bc`
 - `card-template.js` ← imported by `bot/shared/services/coaching/coaching-card/card-image.service.js:149:c67a4de1`
 - `commitment-card.service.js` ← imported by `bot/shared/services/coaching/report-generator.service.js:394:98589872`
 - `prioritized-action.service.js` ← imported by `bot/shared/services/coaching/next-step.js:16:c9dacf38` · `bot/shared/services/coaching/coaching-card/commitment-card.service.js:22:e5cd3ca1`
 - column `coaching_sessions.prioritized_action` (written by `card-response.service.js`) ← read by `bot/shared/services/coaching/coaching-trend.service.js:138:1f9a2623` · `bot/shared/services/coaching/report-generator.service.js:399:cfc5016d` · `bot/shared/services/coaching/thing-to-try-pick.js:62:33bc352a` · `bot/shared/services/coaching/thing-to-try.js:54:d72963d4` (+3: `python3 kg/kg.py who-reads coaching_sessions.prioritized_action`)
-- table `coaching_sessions` whole row (`*`) (written by `card-response.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:1921:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:742:d2b02c3e`? · `bot/shared/routes/observe-mewaka-endpoint.js:152:d2b02c3e`? · `bot/shared/services/coaching-orchestrator.service.js:225:d2b02c3e`? (+8: `python3 kg/kg.py who-reads coaching_sessions`)
-- table `coaching_sessions` (written by `card-response.service.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? · `bot/shared/handlers/text-message.handler.js:1920:5911672a`? · `bot/shared/handlers/voice-message.handler.js:741:5911672a`? (+85: `python3 kg/kg.py who-reads coaching_sessions`)
+- table `coaching_sessions` whole row (`*`) (written by `card-response.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:1951:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:770:d2b02c3e`? · `bot/shared/routes/observe-mewaka-endpoint.js:152:d2b02c3e`? · `bot/shared/services/coaching-orchestrator.service.js:225:d2b02c3e`? (+8: `python3 kg/kg.py who-reads coaching_sessions`)
+- table `coaching_sessions` (written by `card-response.service.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:56:4a173bcd`? · `bot/shared/handlers/text-message.handler.js:1950:5911672a`? · `bot/shared/handlers/voice-message.handler.js:769:5911672a`? (+86: `python3 kg/kg.py who-reads coaching_sessions`)
 
 ## Tests (all, generated)
 - `card-image.service.js` ← `tests/coaching/coaching-card.test.js` · `tests/coaching/coaching-flow-integration.test.js`

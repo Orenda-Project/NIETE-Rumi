@@ -31,6 +31,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `flow-response-telemetry.test.js` | Pins lp612.flow.response telemetry: each data_exchange, INIT, BACK logs outcome, items, bytes, duration (bd-oak77.26) |
 | `history-cache-hygiene.test.js` | Pins that the conversation-history cache never carries system prompts or flushed feature context (bd-njn7u Phase 2.0) |
 | `ingest-lp-v9-html.test.js` | Pins ingest-lp-v9-html: an HTML is ingested only when its PDF sha1 matches a served asset, never overwriting a script |
+| `lesson-items-lead.test.js` | (unmapped) |
 | `live-schema-limits.test.js` | Pins PostgREST db-max-rows 1000 limit: availableLessonIds and downloadedLessonIds page through whole corpus (FEAT-059) |
 | `lp-coaching-ask-worker-wiring.test.js` | Pins that the coaching_after_lp handler is registered on the sweeping main-queue worker only, not video workers |
 | `lp-context-app-opens.test.js` | Pins that chat grounding includes lessons a teacher opened only in the app viewer (niete_lp_opens), narrow and capped |

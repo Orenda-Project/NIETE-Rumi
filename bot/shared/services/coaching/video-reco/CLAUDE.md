@@ -1,7 +1,7 @@
 # video-reco — Training-video recommendation engine for coaching reports (VIDREC)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/video-reco kg=fb11bebd2c60 gen=b0a6032ddf82 overflow=125 rendered=2026-11-06 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/video-reco kg=6085f5d22522 gen=31d4e91cb5d9 overflow=125 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `engine.js` — recommendForReport pipeline
@@ -19,7 +19,7 @@ Full index: `CLAUDE.index.md`
 | … | 21 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `clip-pref.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+187)
+- table `users` (written by `clip-pref.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+192)
 - `copy.js` ← imported by `dashboard/routes/video-reco.routes.js:23:acc21039` · `dashboard/services/coaching-report-page.js:17:07c6eb0f` (+8)
 - `flags.js` ← imported by `dashboard/services/video-reco-events.js:75:f1208529` · `bot/shared/services/coaching/video-reco/arm.js:12:0666eb1f` (+6)
 - `store.js` ← imported by `bot/shared/services/coaching/report-generator.service.js:526:dfac1b4e` · `bot/shared/services/coaching/report-window-send.js:34:51417dab` (+5)

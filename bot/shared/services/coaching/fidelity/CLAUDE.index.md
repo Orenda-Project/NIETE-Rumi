@@ -22,19 +22,19 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Who reads this (all, generated)
 - `fidelity-analyzer.js` ← imported by `bot/shared/services/coaching/fidelity/fidelity-orchestrator.js:111:1a9dc13a`
-- `fidelity-orchestrator.js` ← imported by `bot/shared/services/coaching/analysis-processor.service.js:415:d298275c` · `bot/shared/services/coaching/lp-coaching/lp-step.service.js:59:7d821bd0` · `bot/shared/services/observe/observe-resume.service.js:91:2f86f565` · `bot/shared/services/observe/observe2/moments.js:268:014e6041` (+3: `python3 kg/kg.py who-reads fidelity-orchestrator.js`)
+- `fidelity-orchestrator.js` ← imported by `bot/shared/services/coaching/analysis-processor.service.js:420:d298275c` · `bot/shared/services/coaching/lp-coaching/lp-step.service.js:59:7d821bd0` · `bot/shared/services/observe/observe-resume.service.js:91:2f86f565` · `bot/shared/services/observe/observe2/moments.js:268:014e6041` (+3: `python3 kg/kg.py who-reads fidelity-orchestrator.js`)
 - `fidelity-preflight.js` ← imported by `bot/shared/services/coaching/fidelity/fidelity-orchestrator.js:25:e71f6991`
-- `fidelity-recompute.service.js` ← imported by `bot/shared/services/coaching/analysis-processor.service.js:714:a79a0eaf` · `bot/shared/services/coaching/lp-coaching/lp-list-selection.handler.js:25:1c860c44` · `bot/workers/lesson-plan-extraction.worker.js:255:9416f4f0`
+- `fidelity-recompute.service.js` ← imported by `bot/shared/services/coaching/analysis-processor.service.js:719:a79a0eaf` · `bot/shared/services/coaching/lp-coaching/lp-list-selection.handler.js:25:1c860c44` · `bot/workers/lesson-plan-extraction.worker.js:260:9416f4f0`
 - `fidelity-scorer.js` ← imported by `bot/shared/services/observe/observe-draft.service.js:235:a620f25a` · `bot/shared/services/coaching/fidelity/fidelity-orchestrator.js:112:f88d2867` · `bot/shared/services/coaching/fidelity/photo-credit-guard.js:12:8dcb83d7`
 - `fidelity-telemetry.js` ← imported by `bot/shared/services/coaching/report-generator.service.js:85:a8255ac2` · `bot/shared/services/observe/observe-debrief-guide.js:52:e2801e71`
 - `grader-photo-evidence.js` ← imported by `bot/shared/services/coaching/fidelity/fidelity-analyzer.js:30:11c5e5d6` · `bot/shared/services/coaching/fidelity/fidelity-orchestrator.js:23:51e9dbb9`
 - `grader-prompt.js` ← imported by `bot/shared/services/coaching/fidelity/fidelity-analyzer.js:29:dacc59a8`
-- `lp-fidelity-store.js` ← imported by `bot/shared/calls/call-tools.repo.js:167:4113e5d4` · `bot/shared/services/lp-context.service.js:48:c9ea5563` · `bot/shared/services/coaching/fidelity/fidelity-orchestrator.js:109:9de6ea80`
+- `lp-fidelity-store.js` ← imported by `bot/shared/calls/call-tools.repo.js:172:4113e5d4` · `bot/shared/services/lp-context.service.js:53:c9ea5563` · `bot/shared/services/coaching/fidelity/fidelity-orchestrator.js:109:9de6ea80`
 - `lp-upload-extractor.js` ← imported by `bot/shared/services/coaching/fidelity/fidelity-orchestrator.js:110:43e8f4a2`
 - `photo-credit-guard.js` ← imported by `bot/shared/services/coaching/fidelity/fidelity-orchestrator.js:24:d6b78b0d`
 - `section-b-backfill.service.js` ← imported by `bot/scripts/backfill-section-b-retranscribe.js:159:f70a1f2f`
 - `upload-extractor-prompt.js` ← imported by `bot/shared/services/coaching/fidelity/lp-upload-extractor.js:12:a1861133`
-- table `coaching_sessions` (written by `fidelity-recompute.service.js`, `section-b-backfill.service.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? · `bot/shared/handlers/text-message.handler.js:1920:5911672a`? · `bot/shared/handlers/voice-message.handler.js:741:5911672a`? (+86: `python3 kg/kg.py who-reads coaching_sessions`)
+- table `coaching_sessions` (written by `fidelity-recompute.service.js`, `section-b-backfill.service.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:56:4a173bcd`? · `bot/shared/handlers/text-message.handler.js:1950:5911672a`? · `bot/shared/handlers/voice-message.handler.js:769:5911672a`? (+87: `python3 kg/kg.py who-reads coaching_sessions`)
 - env `LP_FIDELITY_EMPTY_RETRY_EFFORT` read at `bot/shared/services/coaching/fidelity/fidelity-analyzer.js:54:b46a7780`
 - env `LP_FIDELITY_ENABLED` read at `bot/shared/services/coaching/fidelity/fidelity-orchestrator.js:64:41aed0ea`
 - env `LP_FIDELITY_MAX_TOKENS` read at `bot/shared/services/coaching/fidelity/fidelity-analyzer.js:59:311e6594`

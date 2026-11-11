@@ -7,9 +7,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `img/` | → (no door; 14 files) |
-| `v1/` | → (no door; 1311 files) |
-| `v2/` | → (no door; 1311 files) |
-| `v3/` | → (no door; 24 files) |
+| `v1/` | → (no door; 1372 files) |
+| `v2/` | → (no door; 1372 files) |
+| `v3/` | → (no door; 27 files) |
 | `v4/` | Version-4 recorded clips for the battery's spoken lines, per language → `v4/CLAUDE.md` |
 | `clips.lock.json` | sha1 of every file sw.js serves cache-first (clips, word timings, pictures, batteries) and the SESSION they were taken with |
 | `demo-battery.json` | Demo battery (coach G3 set A, ur) with welcome/audio-check lines and tasks; default form of the QA page run.html |
@@ -37,15 +37,15 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Tests (all, generated)
-- `sa-core.js` ← `bot/tests/child-test/sa-extra.test.js` · `bot/tests/child-test/sa-reading-3.test.js` · `bot/tests/child-test/sa-rulings.test.js` · `bot/tests/child-test/sa-runtime.test.js` · `dashboard/tests/sa-check-tap-early.service.test.js` · `dashboard/tests/sa-check-words-clips.service.test.js` (+61: `python3 kg/kg.py who-reads dashboard/sa/sa-core.js`)
-- `sa-engine.js` ← `dashboard/tests/sa-check-words-clips.service.test.js` · `dashboard/tests/sa-engine-back-offline.service.test.js` · `dashboard/tests/sa-engine-battery-end.service.test.js` · `dashboard/tests/sa-engine.service.test.js` · `dashboard/tests/sa-r4-cell-pace.service.test.js` · `dashboard/tests/sa-r4-coach-last-word.service.test.js` (+11: `python3 kg/kg.py who-reads dashboard/sa/sa-engine.js`)
-- `sa-mic.js` ← `dashboard/tests/sa-mic.service.test.js` · `dashboard/tests/sa-r8-cues.service.test.js`
+- `sa-core.js` ← `bot/tests/child-test/sa-extra.test.js` · `bot/tests/child-test/sa-reading-3.test.js` · `bot/tests/child-test/sa-rulings.test.js` · `bot/tests/child-test/sa-runtime.test.js` · `dashboard/tests/sa-check-tap-early.service.test.js` · `dashboard/tests/sa-check-words-clips.service.test.js` (+71: `python3 kg/kg.py who-reads dashboard/sa/sa-core.js`)
+- `sa-engine.js` ← `dashboard/tests/sa-check-words-clips.service.test.js` · `dashboard/tests/sa-engine-back-offline.service.test.js` · `dashboard/tests/sa-engine-battery-end.service.test.js` · `dashboard/tests/sa-engine.service.test.js` · `dashboard/tests/sa-r10-audio.service.test.js` · `dashboard/tests/sa-r4-cell-pace.service.test.js` (+13: `python3 kg/kg.py who-reads dashboard/sa/sa-engine.js`)
+- `sa-mic.js` ← `dashboard/tests/sa-mic.service.test.js` · `dashboard/tests/sa-r8-cues.service.test.js` · `dashboard/tests/sa-r9-audio.service.test.js`
 - `sa-offline.js` ← `dashboard/tests/sa-clip-429.service.test.js` · `dashboard/tests/sa-offline-images.service.test.js` · `dashboard/tests/sa-offline.service.test.js` · `dashboard/tests/sa-opening-gate.service.test.js` · `dashboard/tests/sa-prepare.service.test.js` · `dashboard/tests/sa-r8-offline-hunks.service.test.js` (+5: `python3 kg/kg.py who-reads dashboard/sa/sa-offline.js`)
-- `sa-page.js` ← `dashboard/tests/sa-clip-429.service.test.js` · `dashboard/tests/sa-opening-gate.service.test.js` · `dashboard/tests/sa-page.service.test.js` · `dashboard/tests/sa-r8-lang.service.test.js` · `dashboard/tests/sa-r8-offline-prep.service.test.js` · `dashboard/tests/sa-r8-passage-variant.service.test.js` (+3: `python3 kg/kg.py who-reads dashboard/sa/sa-page.js`)
-- `sa-rec.js` ← `dashboard/tests/sa-r4-cell-pace.service.test.js` · `dashboard/tests/sa-r7b-rec-discard.service.test.js` · `dashboard/tests/sa-r8-cues.service.test.js` · `dashboard/tests/sa-r8-position.service.test.js` · `dashboard/tests/sa-rec-mercy.service.test.js` · `dashboard/tests/sa-rec.service.test.js` (+1: `python3 kg/kg.py who-reads dashboard/sa/sa-rec.js`)
-- `sa-store.js` ← `dashboard/tests/sa-check-words-clips.service.test.js` · `dashboard/tests/sa-engine-back-offline.service.test.js` · `dashboard/tests/sa-engine-battery-end.service.test.js` · `dashboard/tests/sa-engine.service.test.js` · `dashboard/tests/sa-page.service.test.js` · `dashboard/tests/sa-r4-cell-pace.service.test.js` (+19: `python3 kg/kg.py who-reads dashboard/sa/sa-store.js`)
+- `sa-page.js` ← `dashboard/tests/sa-clip-429.service.test.js` · `dashboard/tests/sa-opening-gate.service.test.js` · `dashboard/tests/sa-page.service.test.js` · `dashboard/tests/sa-r10-timing.service.test.js` · `dashboard/tests/sa-r8-lang.service.test.js` · `dashboard/tests/sa-r8-offline-prep.service.test.js` (+4: `python3 kg/kg.py who-reads dashboard/sa/sa-page.js`)
+- `sa-rec.js` ← `dashboard/tests/sa-r4-cell-pace.service.test.js` · `dashboard/tests/sa-r7b-rec-discard.service.test.js` · `dashboard/tests/sa-r8-cues.service.test.js` · `dashboard/tests/sa-r8-position.service.test.js` · `dashboard/tests/sa-r9-audio.service.test.js` · `dashboard/tests/sa-rec-mercy.service.test.js` (+2: `python3 kg/kg.py who-reads dashboard/sa/sa-rec.js`)
+- `sa-store.js` ← `dashboard/tests/sa-check-words-clips.service.test.js` · `dashboard/tests/sa-engine-back-offline.service.test.js` · `dashboard/tests/sa-engine-battery-end.service.test.js` · `dashboard/tests/sa-engine.service.test.js` · `dashboard/tests/sa-page.service.test.js` · `dashboard/tests/sa-r10-audio.service.test.js` (+21: `python3 kg/kg.py who-reads dashboard/sa/sa-store.js`)
 - `sa-sync.js` ← `dashboard/tests/sa-page.service.test.js` · `dashboard/tests/sa-sync-events-first.service.test.js` · `dashboard/tests/sa-sync-skip.service.test.js` · `dashboard/tests/sa-sync.service.test.js` · `dashboard/tests/sa-two-recordings.service.test.js` · `dashboard/tests/sa-ui-handback.service.test.js`
-- `sa-ui.js` ← `bot/tests/child-test/sa-reviewed-lines.test.js` · `bot/tests/child-test/sa-tester-fixes.test.js` · `dashboard/tests/sa-check-tap-early.service.test.js` · `dashboard/tests/sa-image-unavailable.service.test.js` · `dashboard/tests/sa-opening-gate.service.test.js` · `dashboard/tests/sa-r4-coach-last-word.service.test.js` (+39: `python3 kg/kg.py who-reads dashboard/sa/sa-ui.js`)
+- `sa-ui.js` ← `bot/tests/child-test/sa-reviewed-lines.test.js` · `bot/tests/child-test/sa-tester-fixes.test.js` · `dashboard/tests/sa-check-tap-early.service.test.js` · `dashboard/tests/sa-image-unavailable.service.test.js` · `dashboard/tests/sa-opening-gate.service.test.js` · `dashboard/tests/sa-r10-hint.service.test.js` (+46: `python3 kg/kg.py who-reads dashboard/sa/sa-ui.js`)
 - `sa-voice.js` ← `dashboard/tests/sa-r8-offline-hunks.service.test.js` · `dashboard/tests/sa-ui-tester-fixes.service.test.js`
 - `sink-coach.js` ← `dashboard/tests/sa-r4-coach-last-word.service.test.js` · `dashboard/tests/sa-sink-coach.service.test.js`
 - `sink-game.js` ← `dashboard/tests/sa-game-sink-client.service.test.js`

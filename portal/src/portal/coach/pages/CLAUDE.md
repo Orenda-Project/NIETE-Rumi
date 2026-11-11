@@ -1,7 +1,7 @@
 # pages — Coach v2 page components: schedule, observe flow, people, reports
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/pages kg=42a051e0db02 gen=05fb2e5341b3 overflow=77 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/pages kg=8bfdc59dd614 gen=d7b94b6c4a29 overflow=82 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `CoachObservation.tsx` — the one observation page every report row opens
@@ -16,12 +16,12 @@ Full index: `CLAUDE.index.md`
 | `CoachBack.test.tsx` | Pins coach Back arrows: page parent, fixed parent when opened cold, Sending goes to the Visit |
 | `CoachOwnPlan.test.tsx` | Pins Their own plan picker on Check and send: file rules, Camera/Gallery/Files, Remove plan |
 | `CoachFeedback1.test.tsx` | Pins operator round 1: teacher phone in pickers, past-day booking, no AM/PM warning (bd-o15qnr.8) |
-| … | 37 more → `CLAUDE.index.md` |
+| … | 39 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `CoachPeople.tsx` ← imported by `portal/src/App.tsx:123:90c8f423` · `portal/src/portal/coach/card/harness.testdata.tsx:46:4b3728bb` (+1)
-- `CoachRecord.tsx` ← imported by `portal/src/App.tsx:132:7da3ce99` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:23:9e4007c8`
-- `CoachSchool.tsx` ← imported by `portal/src/App.tsx:126:a4567313` · `portal/src/portal/coach/card/harness.testdata.tsx:46:4b3728bb`
+- `CoachPeople.tsx` ← imported by `portal/src/App.tsx:126:90c8f423` · `portal/src/portal/coach/card/harness.testdata.tsx:46:4b3728bb` (+1)
+- `CoachRecord.tsx` ← imported by `portal/src/App.tsx:135:7da3ce99` · `portal/src/portal/teacher/principal/routes.tsx:10:d60efdfb` (+1)
+- `CoachAttach.tsx` ← imported by `portal/src/App.tsx:136:275f6ea3` · `portal/src/portal/teacher/principal/routes.tsx:11:79596b0c`
 - … 19 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -31,7 +31,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/coach/pages/CoachFeedback1.test.tsx` (CoachHome.tsx, CoachNewVisit.tsx, CoachObserve.tsx, CoachObservePick.tsx, CoachPeople.tsx, CoachReports.tsx, CoachScheduling.tsx)
 - `portal/src/portal/coach/people/checks.test.tsx` (CoachAddSchool.tsx, CoachAddTeacher.tsx, CoachEditTeacher.tsx, CoachPeople.tsx, CoachRemoveTeachers.tsx, CoachSchool.tsx, CoachTeacher.tsx)
-- … 23 more → `CLAUDE.index.md`
+- … 28 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/people/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?
+- docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/coach/people/CLAUDE.md`? · `portal/src/portal/coach/reports/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

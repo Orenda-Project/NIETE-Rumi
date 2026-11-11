@@ -1,7 +1,7 @@
 # quiz — Jest suites for the quiz stack: video/chat quiz, reports, student door, web quiz
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz kg=5438465c3b6c gen=715a7fbce1cb overflow=77 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz kg=5e220430e8b8 gen=0aac4b011c93 overflow=78 rendered=2026-11-11 kg.py=1.1.0 -->
 
 ## Entry points
 - `quiz-sources.test.js` — smallest map of quiz_source kinds (transcript, lp_v8, lp612) the rest assume
@@ -21,7 +21,7 @@ Full index: `CLAUDE.index.md`
 | `one-voice-missing-keys.test.js` | Pins read-only pre-flip check one-voice-missing-keys.js for web_quiz_one_voice: lists missing clips by id |
 | `report*` | 5 files; most used `report-delivery-send.test.js`: Pins that an accepted class report keeps its wamid in Redis report_msg:<id> for 48h when quiz_report_send_checked is on |
 | `chat-quiz-report-send-checked.test.js` | Pins quiz_report_send_checked in quiz-job-handler handleQuizReport: flag set only if WhatsApp took it, 3 tries |
-| … | 104 more → `CLAUDE.index.md` |
+| … | 105 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

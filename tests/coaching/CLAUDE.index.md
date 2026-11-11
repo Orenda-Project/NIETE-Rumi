@@ -52,6 +52,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-7beiz-dedupe-call-site.test.js` | bd-7beiz: the dedupe branch as wired in transcription-processor skips upload and transcription on a resubmission |
 | `bd-7kc2z-reflection-silent-mode.test.js` | bd-7kc2z: reflective debrief in silent (portal) mode returns the question and sends nothing to WhatsApp |
 | `bd-809g50-portal-plan-race.test.js` | bd-809g50: a portal analysis waits for the teacher's lesson-plan read to finish before grading (analysis-processor) |
+| `bd-8bdr8r.1-portal-ffmpeg.test.js` | (unmapped) |
 | `bd-8s2xb-photo-prompt-modes.test.js` | bd-8s2xb T1-T3: FICO prompt photo channel per mode (text, off, image, both) in fico-framework |
 | `bd-8s2xb-photo-surfaces.test.js` | bd-8s2xb T10-T12: photo note reaches the hero report caption and the coach draft keeps its Photo: prefix |
 | `bd-8s2xb-processor-photo-channel.test.js` | bd-8s2xb T5-T9: analysis processor downloads and describes photos, persists photo_mode and counts (analysis-processor) |
@@ -139,6 +140,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-x3k1q-session-complete-boundary.test.js` | bd-x3k1q (DC:133): coaching session announces it is complete, in the teacher's language, before the next feature speaks |
 | `bd-xc6jv-narrative-applicable.test.js` | bd-xc6jv: non-applicable indicators (maths for an Urdu lesson) are never named as weaknesses in the narrative |
 | `bd-yy4l2-hots-scorecard-derive.test.js` | bd-yy4l2: HOTS scorecard re-derives per-area scores from scrambled goalN_* slots instead of rendering 0/N (hots-adapter) |
+| `bd-zswkx-section-f-applicable.test.js` | (unmapped) |
 | `bd1sddt-skip-reflection.test.js` | bd-1sddt: skipReflection flag queues a report-only recovery for sessions stranded at the photo/LP gate |
 | `bd2413-output-language.test.js` | bd-2413 (FEAT-106): coaching output language follows preferred/locked language; off-market languages rejected |
 | `bd2414-contextual-voice-closer.test.js` | bd-2414 (FEAT-106): reflection closing voice note is a contextual acknowledgement in the teacher's language |
@@ -191,6 +193,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `framework-registry.test.js` | bd-596: framework-registry getFramework and framework-selector return the right module per framework name |
 | `framework-selection-reason.test.js` | FEAT-060 (bd-2105): selectFrameworkWithReason returns the framework plus why (user preference, region map, default) |
 | `framework-wiring.test.js` | bd-609: region to framework is env-driven (REGION_FRAMEWORK_MAP) with default fallback, wired into analysis (registry) |
+| `gb-library-pick.test.js` | (unmapped) |
 | `gender-neutral-urdu-address.test.js` | bd-gr4fy.5.12: Urdu reflective question and commitment card never put the teacher in a gendered verb form |
 | `guide-previous-focus.test.js` | Coach debrief guide opens with the previous-visit block: ask, attempt number, last lesson, hand-over (debrief-guide) |
 | `hero-narrative-corpus.test.js` | bd-1842/1843: reflective_corpus flows into the hero narrative prompt and output guards (narrative.service) |
@@ -253,6 +256,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `short-recording-tiers.test.js` | Which short recordings get length guidance (declared intent, sounds like a lesson) vs none (short-recording-guidance) |
 | `stale-sweep-single-send.test.js` | The stale-session sweep messages a teacher once even with several worker copies running (stale-session.worker) |
 | `subject-reaches-analyser.test.js` | The resolved subject reaches the analyser for uploaded and corpus LP paths and is persisted (analysis-processor) |
+| `subject-resolution-gb-ids.test.js` | (unmapped) |
 | `subject-resolution.test.js` | Pure subject resolution: canonicalSubject for prod spellings and parseCorpusLessonId grade/subject (subject-resolution) |
 | `subject-unconfirmed-render.test.js` | The subject-not-confirmed note renders inside the Section F why line in English and in RTL Urdu (hero report) |
 | `subject-unconfirmed-report-line.test.js` | When subject cannot be established the report says so: catalogue line in en/ur and attachSubjectNote on Section F |

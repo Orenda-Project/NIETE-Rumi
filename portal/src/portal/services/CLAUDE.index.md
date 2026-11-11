@@ -14,10 +14,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `api.ts` | Portal axios client: auth, language, portal, analytics, leader, coach, classes, child test namespaces |
 
 ## Who reads this (all, generated)
-- `api.ts` ← imported by `portal/src/App.tsx:35:53c61c93` · `portal/src/components/LanguageSwitcher.tsx:12:8d38d8b5` · `portal/src/portal/analytics/SchoolsAnalytics.tsx:7:d6c90125` · `portal/src/portal/analytics/views/LpTab.tsx:3:bb503092` (+180: `python3 kg/kg.py who-reads api.ts`)
+- `api.ts` ← imported by `portal/src/App.tsx:35:53c61c93` · `portal/src/components/LanguageSwitcher.tsx:12:8d38d8b5` · `portal/src/portal/analytics/SchoolsAnalytics.tsx:7:d6c90125` · `portal/src/portal/analytics/views/LpTab.tsx:3:bb503092` (+195: `python3 kg/kg.py who-reads api.ts`)
 
 ## Tests (all, generated)
-- `api.ts` ← `portal/src/portal/analytics/LpEngagement.test.tsx` · `portal/src/portal/analytics/SchoolsAnalytics.test.tsx` · `portal/src/portal/analytics/entry.test.tsx` · `portal/src/portal/analytics/views/TrainingTab.test.tsx` · `portal/src/portal/auth/analytics-login.route.test.tsx` · `portal/src/portal/coach/PendingBanner.test.tsx` (+270: `python3 kg/kg.py who-reads portal/src/portal/services/api.ts`)
+- `api.ts` ← `portal/src/portal/analytics/LpEngagement.test.tsx` · `portal/src/portal/analytics/SchoolsAnalytics.test.tsx` · `portal/src/portal/analytics/entry.test.tsx` · `portal/src/portal/analytics/views/TrainingTab.test.tsx` · `portal/src/portal/auth/analytics-login.route.test.tsx` · `portal/src/portal/coach/PendingBanner.test.tsx` (+303: `python3 kg/kg.py who-reads portal/src/portal/services/api.ts`)
 
 ## Related (all, generated)
 - docs: `docs/migration/09a-capacitor-wrapping.md`? · `portal/src/portal/CLAUDE.md`?

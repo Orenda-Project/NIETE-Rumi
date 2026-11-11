@@ -1,6 +1,6 @@
 # data — Static data the bot loads: child-test banks, LP SLO tags, Urdu term lists
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data kg=5d38b4d719a2 gen=dfcda0883c19 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data kg=402684c122e7 gen=b214f172192d overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `child-test/` — EGRA/EGMA item banks and passages
@@ -16,7 +16,7 @@
 | `video-reco-urdu-terms.v1.json` | Urdu terms the video-recommendation engine may use in teacher-facing reason lines, owned by the pedagogy panel |
 
 ## Who reads this (generated)
-- `lp612-fbise-slo-tags.json` ← imported by `bot/shared/services/lp612-fbise-tags.js:11:3246f1c6`
+- `lp612-fbise-slo-tags.json` ← imported by `bot/shared/services/lp612-fbise-tags.js:11:3246f1c6` · `bot/shared/services/lp612-own-slo.js:9:3246f1c6`
 - `video-reco-urdu-terms.v1.json` ← imported by `bot/shared/services/coaching/video-reco/urdu-terms.js:11:b8bb2c00`
 
 ## Never (human)
@@ -34,6 +34,8 @@ _None found in code comments, tests or git log for this directory._
 - `tests/coaching/video-reco/r7o-c.test.js` (video-catalog.v1.json)
 - `tests/coaching/video-reco/r7o-nfs.test.js` (video-catalog.v1.json)
 - `tests/lp612/fbise-slo-chips.test.js` (lp612-fbise-slo-tags.json)
+- `tests/lp612/own-ways.test.js` (lp612-fbise-slo-tags.json)
+- `tests/portal/lp612-own-slo-route.test.js` (lp612-fbise-slo-tags.json)
 
 ## Related (generated)
 - docs: `bot/shared/CLAUDE.md`?

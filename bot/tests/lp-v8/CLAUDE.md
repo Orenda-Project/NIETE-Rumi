@@ -1,7 +1,7 @@
 # lp-v8 — Tests for lesson-plan delivery: v8/v9 corpus, Flow, uploader, LP chat context
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/lp-v8 kg=daf98cd4aca0 gen=118ed608ea1f overflow=22 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/lp-v8 kg=895091cb51c2 gen=92264aa98f74 overflow=23 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `delivery.test.js` — deliverV8Lesson, presigned URL and sent rows
@@ -20,7 +20,7 @@ Full index: `CLAUDE.index.md`
 | `upload-writes-slide-script.test.js` | Pins that the uploader writes the slide script with the same asset row and hash in one run (PLAN R8 2.2 lane S) |
 | `delivery.test.js` | Tests deliverV8Lesson: presigned R2 URL, sent/failed rows, filename; Supabase, R2, WhatsApp mocked (bd-2054, bd-2407) |
 | `endpoint-dispatch.test.js` | Tests Pakistan LP endpoint dispatch: INIT grade picker, v8 grades 1-5 path, Oxbridge 6-10 unchanged (FEAT-059, bd-fg3p4) |
-| … | 44 more → `CLAUDE.index.md` |
+| … | 45 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

@@ -1,7 +1,7 @@
 # training — Teacher Training v2: hub, providers, levels, courses, parts, quizzes, exams, certificates
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/training kg=bf167a367cef gen=a6fa806a5fae overflow=35 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/training kg=54f043ae8661 gen=1ca932d28566 overflow=35 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `TrainingHub.tsx` — main page; `routes.tsx` — page map; `model.ts` — pure shaping of /training/* reads
@@ -14,14 +14,14 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `TrainingFrame.tsx` | Shared v2 Training page frame (TeacherPage with Training tile) plus LoadState, EmptyNote, ProviderMark and ProviderTile |
 | `copy.ts` | English and Urdu words for Training screens plus TRAINING_INNER, the reused new-UI training words, as COPY_ENTRIES |
-| `parts.tsx` | Shared v2 Training pieces: V2Row, HeroCard, dock buttons, question dots, answer choices, written box, certificate card |
 | `model.ts` | Pure Training model: TRAINING_V2_BASE, provider logos, teaching levels, course tiles and certificate shaping |
+| `parts.tsx` | Shared v2 Training pieces: V2Row, HeroCard, dock buttons, question dots, answer choices, written box, certificate card |
 | … | 17 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `copy.ts` ← imported by `portal/src/portal/coach/training/LibraryPages.tsx:15:9880e121` · `portal/src/portal/teacher/training/CertificatesPage.tsx:4:3bfefe66` (+11)
-- `TrainingFrame.tsx` ← imported by `portal/src/portal/coach/training/LibraryPages.tsx:18:18ea215e` · `portal/src/portal/teacher/training/CertificatesPage.tsx:13:5909f538` (+9)
-- `parts.tsx` ← imported by `portal/src/portal/coach/training/LibraryPages.tsx:17:40b552fe` · `portal/src/portal/teacher/training/CertificatesPage.tsx:12:a11b130a` (+6)
+- `copy.ts` ← imported by `portal/src/portal/coach/card/training.tsx:7:6f69a157` · `portal/src/portal/coach/training/LibraryPages.tsx:15:9880e121` (+12)
+- `TrainingFrame.tsx` ← imported by `portal/src/portal/coach/card/training.tsx:9:6a7c6c5a` · `portal/src/portal/coach/training/LibraryPages.tsx:18:18ea215e` (+10)
+- `model.ts` ← imported by `portal/src/portal/coach/card/training.tsx:8:b8769381` · `portal/src/portal/coach/card/types.ts:7:6254b274` (+7)
 - … 12 more → `CLAUDE.index.md`
 
 ## Never (human)

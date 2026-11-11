@@ -1,7 +1,7 @@
 # observe2 — /observe2: FICO ICT live field form, checked moments, brief and indicator levels
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe/observe2 kg=573ae8a658d6 gen=7635b686ff0a overflow=84 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe/observe2 kg=483e71a6ccec gen=12b848c5d727 overflow=84 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `start.js` — command to live form
@@ -20,9 +20,9 @@ Full index: `CLAUDE.index.md`
 | … | 14 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `coaching_sessions` (written by `capture-link.js` (+1)) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+88)
-- column `coaching_sessions.user_id` (written by `capture-link.js`) ← read by `bot/shared/calls/call-context.repo.js:65:219f5683` · `bot/shared/calls/call-tools.repo.js:52:23fca46d` (+52)
-- column `coaching_sessions.status` (written by `moments.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:52:23fca46d` (+41)
+- table `coaching_sessions` (written by `capture-link.js` (+1)) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:56:4a173bcd`? (+89)
+- column `coaching_sessions.user_id` (written by `capture-link.js`) ← read by `bot/shared/calls/call-context.repo.js:65:219f5683` · `bot/shared/calls/call-tools.repo.js:57:23fca46d` (+52)
+- column `coaching_sessions.status` (written by `moments.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:57:23fca46d` (+41)
 - … 31 more → `CLAUDE.index.md`
 
 ## Never (human)

@@ -1,7 +1,7 @@
 # report-v2 — Hero report: score view model, narrative, templates, PNG image
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-v2 kg=a7f1fcb9db12 gen=73f8bb6b44cd overflow=61 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-v2 kg=9de205d4fdc1 gen=a360b8dd701a overflow=62 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `hero-report.service.js` — the render pipeline
@@ -19,9 +19,9 @@ Full index: `CLAUDE.index.md`
 | … | 9 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `coaching_sessions` (written by `narrative-store.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+87)
-- column `coaching_sessions.analysis_data` (written by `narrative-store.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:53:c286009d` (+34)
-- table `coaching_sessions` whole row (`*`) (written by `narrative-store.js`) ← read by `bot/shared/handlers/text-message.handler.js:1921:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:742:d2b02c3e`? (+7)
+- table `coaching_sessions` (written by `narrative-store.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:56:4a173bcd`? (+88)
+- column `coaching_sessions.analysis_data` (written by `narrative-store.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:58:c286009d` (+35)
+- table `coaching_sessions` whole row (`*`) (written by `narrative-store.js`) ← read by `bot/shared/handlers/text-message.handler.js:1951:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:770:d2b02c3e`? (+7)
 - … 12 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -31,7 +31,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/coaching/bd-9h2mm-section-b-not-assessed.test.js` (hero-report.service.js, hero-report.template.js, narrative.service.js, score-adapter.service.js)
 - `tests/coaching/bd-5lrgh-lp-mismatch-reason.test.js` (hero-report.service.js, hero-report.template.js, narrative.service.js)
-- … 42 more → `CLAUDE.index.md`
+- … 43 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`?

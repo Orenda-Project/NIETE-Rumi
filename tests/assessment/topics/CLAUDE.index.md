@@ -16,6 +16,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `group.test.js` | Task 3: pins groupChapter: which rows can be topics, dispatch by subject, stable topic ids (topics/group) |
 | `headings.test.js` | Task 3: pins headingFor/skillFromLabel: skill type to teacher heading and order, per language (topics/headings) |
 | `import-cli.test.js` | Task 4: drives the topic importer CLI (bot/scripts/import-assessment-topics) with a fake Supabase and tmp CSVs |
+| `import-curriculum.test.js` | (unmapped) |
 | `matrix-rows.test.js` | Task 2: pins parseMatrixTab, one curriculum-matrix tab (2-D cell array) to day rows |
 | `migration-rls.test.js` | SQL-text test of V1.6.19: RLS enabled on assessment_topics with no policies (bot uses the service role) |
 | `migration.test.js` | SQL-text test of V1.6.18: assessment_topics table plus paper_kind on assessment_requests/assessment_papers |
@@ -39,6 +40,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `topic-stem-prompt.test.js` | (unmapped) |
 | `topic-stems-routes.test.js` | (unmapped) |
 | `topic-stems.test.js` | (unmapped) |
+| `topics-repo-curriculum.test.js` | (unmapped) |
 | `topics-route.test.js` | Task 5: pins POST /api/internal/assessment/topics returning one chapter's topics for the portal picker, repo mocked |
 | `topics.repo.test.js` | Task 5: pins topics.repo reading a chapter's assessment_topics in sort_order as camelCase, Supabase mocked |
 
@@ -49,4 +51,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/services/assessment/patterns/CLAUDE.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.md`? · `bot/shared/services/assessment/topics/CLAUDE.md`? · `tests/assessment/CLAUDE.md`?
+- docs: `bot/shared/services/assessment/topics/CLAUDE.md`? · `tests/assessment/CLAUDE.md`?

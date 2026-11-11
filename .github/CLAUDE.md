@@ -1,6 +1,6 @@
 # .github — GitHub repo config: contributing guide, issue templates, CI workflows
 
-<!-- kg:meta repo=NIETE-Rumi dir=.github kg=55a8a8335572 gen=01b34f1ac308 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=.github kg=236df1631651 gen=d716b66033b7 overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `workflows/` — all CI gates; see the branch ladder sandbox to staging to main
@@ -11,6 +11,7 @@
 | path | purpose |
 |---|---|
 | `ISSUE_TEMPLATE/` | Issue templates for bugs, feature requests and setup help → `ISSUE_TEMPLATE/CLAUDE.md` |
+| `qa-impact/` | (no description yet) → `qa-impact/CLAUDE.md` |
 | `workflows/` | CI gates and deploy jobs; branch ladder is sandbox to staging to main → `workflows/CLAUDE.md` |
 | `CONTRIBUTING.md` | Contribution guide inherited from the open-source Rumi template (fork, clone, PR steps) |
 | `rumi-logo.png` | (unmapped) |

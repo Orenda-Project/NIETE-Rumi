@@ -1,7 +1,7 @@
 # hooks — Auth hooks: the signed-in user is read once and shared
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/hooks kg=9a9932830e18 gen=af2bfccd276a overflow=104 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/hooks kg=41c99438ec17 gen=95d7d536509b overflow=117 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `AuthProvider.tsx` — reads the user once per visit above all routes
@@ -18,8 +18,8 @@ Full index: `CLAUDE.index.md`
 | `AuthProvider*` | 3 files; most used `AuthProvider.tsx`: Root provider holding the signed-in user once per visit above all routes (bd-fxk3t8) |
 
 ## Who reads this (generated)
-- `useAuth.ts` ← imported by `portal/src/portal/analytics/SchoolsAnalytics.tsx:5:9dad902b` · `portal/src/portal/auth/AnalyticsLogin.tsx:4:9dad902b` (+38)
-- `authContext.ts` ← imported by `portal/src/portal/analytics/AnalyticsOnlyGuard.tsx:3:6035b119` · `portal/src/portal/coach/card/harness.testdata.tsx:10:31538eab` (+15)
+- `useAuth.ts` ← imported by `portal/src/portal/analytics/SchoolsAnalytics.tsx:5:9dad902b` · `portal/src/portal/auth/AnalyticsLogin.tsx:4:9dad902b` (+43)
+- `authContext.ts` ← imported by `portal/src/portal/analytics/AnalyticsOnlyGuard.tsx:3:6035b119` · `portal/src/portal/coach/card/harness.testdata.tsx:10:31538eab` (+16)
 - `AuthProvider.tsx` ← imported by `portal/src/App.tsx:29:d59841bd`
 
 ## Never (human)
@@ -30,14 +30,13 @@ Full index: `CLAUDE.index.md`
 - `portal/src/portal/coach/insights/tests/routing.flagOff.test.tsx` (authContext.ts, useAuth.ts)
 - `portal/src/portal/hooks/AuthProvider.test.tsx` (AuthProvider.tsx, useAuth.ts)
 - `portal/src/portal/hooks/firstPage.test.tsx` (AuthProvider.tsx, useAuth.ts)
+- `portal/src/portal/teacher/principal/PrincipalV2Home.test.tsx` (authContext.ts, useAuth.ts)
 - `portal/src/portal/analytics/guard.test.tsx` (authContext.ts)
 - `portal/src/portal/coach/CoachGate.test.tsx` (useAuth.ts)
+- `portal/src/portal/coach/card/whereToCoach.test.tsx` (authContext.ts)
 - `portal/src/portal/coach/insights/tests/harness.tsx` (useAuth.ts)
 - `portal/src/portal/coach/insights/tests/more.flagOff.test.tsx` (useAuth.ts)
-- `portal/src/portal/coach/insights/tests/r6b_more.test.tsx` (useAuth.ts)
-- `portal/src/portal/coach/people/schoolsReady.test.tsx` (authContext.ts)
-- `portal/src/portal/coach/profile/CoachMore.test.tsx` (useAuth.ts)
-- … 104 more → `CLAUDE.index.md`
+- … 117 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/CLAUDE.md`?

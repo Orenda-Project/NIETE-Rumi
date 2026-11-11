@@ -46,6 +46,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-60161-crq-rubric-marking.test.js` | bd-60161: a CRQ is marked against its own rubric (every band described; unreachable band declared) |
 | `bd-60169-exam-autosave.test.js` | bd-60169: exam answers autosave as drafts (unmarked, unique key) and a late save cannot overwrite a graded paper |
 | `bd-60170-certificate-honesty.test.js` | bd-60170: a failed certificate insert reports issued:false, never a code for a row that does not exist |
+| `bd-9svkbb-isaps-level3-readings.test.js` | (unmapped) |
+| `bd-arghnv-3-blank-stem-never-served.test.js` | (unmapped) |
+| `bd-arghnv-4-same-programme-band-switch.test.js` | (unmapped) |
+| `bd-arghnv-certify-every-provider.test.js` | (unmapped) |
 | `bd-bos0ki-crq-rubric-reaches-grader.test.js` | bd-bos0ki: the question rubric reaches the CRQ grader on both the WhatsApp and portal background grading paths |
 | `bd-mo5pru-portal-grade-no-null-send.test.js` | bd-mo5pru: a portal-graded module exam with no phone never sends a WhatsApp to a missing recipient |
 | `bd-qd1p3-multi-program-level-exam.test.js` | bd-qd1p3: a teacher on two programs can still submit a portal level exam; one-program path unchanged |
@@ -73,6 +77,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `exam-caption-served-count.test.js` | bd-2499: the /training exam caption counts the served (capped) paper, not the whole question bank |
 | `fde-delta-sync.test.js` | bd-2528: legacy-to-Supabase delta sync migration and the training_sync_runs ledger with its retirement signal |
 | `grand-quiz-level-resolution.test.js` | bd-2392/2393: startGrandQuiz resolves the level inside the teacher's scoped catalog, not a global order_index |
+| `internal-bands-state-route.test.js` | (unmapped) |
 | `isaps-cert-module-exams-only.test.js` | Pins that the I-SAPS Level 1 certificate gates only on all module exams passed, with no unit chaining |
 | `isaps-crq-hold.test.js` | bd-hxm7a: I-SAPS written answers are graded but HELD; only an explicit true in the release setting shows results |
 | `isaps-exam-attempt-review.test.js` | bd-2exhl: submitting an I-SAPS module exam leaves in_progress at once (failed or pending_review), with a record |
@@ -89,6 +94,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `level-ready-requires-all-modules.test.js` | bd-2447: "Ready for exam" in the training Flow means every module is passed, not one per course |
 | `level-unlock-gate.test.js` | bd-2479: checkLevelUnlocked, the level-scoped gate the portal asks before courses, modules and quiz submit |
 | `locked-starts-are-gated.test.js` | bd-2451..2454: every locked /training state (grand quiz, modules) refuses the start, not only a caption |
+| `module-check-start-twice.test.js` | (unmapped) |
 | `module-cta-copy.test.js` | bd-2446: the module button copy describes what the tap does (quiz first vs video) in content-delivery |
 | `module-order-is-total.test.js` | bd-u2td8: tied order_index values still yield one deterministic module sequence in the picker |
 | `module-payload-deliverable.test.js` | Guard: every active training module resolves to deliverable media, and audio_url never holds a PDF |
@@ -112,6 +118,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `portal-quiz-multi.test.js` | bd-2138: multi-answer questions on the portal expose a multi flag (never the key) and grade by set equality |
 | `portal-quiz-per-question.test.js` | bd-klecr.6: portal module quiz one question at a time (start, answer) with a verdict after each answer |
 | `portal-quiz-questions.test.js` | Pins GET /api/portal/training/module/:id/questions: auth, 400/404, active questions served for the quiz form |
+| `portal-quiz-start-twice.test.js` | (unmapped) |
 | `portal-quiz-submit.test.js` | Pins POST /api/portal/training/module/:id/quiz-attempts: server-side grading, persistence, validation |
 | `portal-training-attempts.test.js` | Pins GET /api/portal/training/module/:id/attempts: the teacher's own module quiz attempts, empty list when none |
 | `portal-training-vendors.test.js` | Pins GET /api/portal/training/vendors: vendors the teacher's programs allow, with per-vendor rollups |

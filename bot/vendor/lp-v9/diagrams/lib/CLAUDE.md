@@ -1,7 +1,7 @@
 # lib — Shared helpers for diagram types: SVG builder, text measure, tokens, degeneracy check
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams/lib kg=76fb73484ce3 gen=71c1817a8d40 overflow=11 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams/lib kg=37eb974de979 gen=1ae50045815a overflow=11 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `svg.js` — builder every type draws with
@@ -21,7 +21,7 @@ Full index: `CLAUDE.index.md`
 
 ## Who reads this (generated)
 - `svg.js` ← imported by `bot/shared/services/quiz/transcript-quiz-figure-gates.js:17:1d566be0` · `bot/vendor/lp-v9/diagrams/types/chem_equation.js:25:2648d588` (+33)
-- `pictogram.js` ← imported by `bot/shared/services/quiz/lp-quiz-digest.service.js:270:d46a64c1` · `bot/shared/services/quiz/quiz-figure-child-view.js:22:95e7f17c` (+10)
+- `pictogram.js` ← imported by `bot/shared/services/quiz/lp-quiz-digest.service.js:272:d46a64c1` · `bot/shared/services/quiz/quiz-figure-child-view.js:22:95e7f17c` (+10)
 - `tokens.js` ← imported by `bot/shared/services/quiz/transcript-quiz-figure.js:33:d10794d8` · `bot/vendor/lp-v9/diagrams/types/flow.js:16:3e2a839f` (+6)
 - `measure.js` ← imported by `bot/vendor/lp-v9/diagrams/index.js:126:e8130734` · `bot/vendor/lp-v9/diagrams/types/numberline.js:14:3f94a543` (+2)
 - … 3 more → `CLAUDE.index.md`

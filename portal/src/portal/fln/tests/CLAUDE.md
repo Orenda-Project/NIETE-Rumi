@@ -1,7 +1,7 @@
 # tests — Tests for the FLN pages, player, gate, share and flag-off goldens
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln/tests kg=b7efe555f899 gen=d7ff6d67d1c7 overflow=20 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln/tests kg=79e281cd37e9 gen=dd00bf9e859b overflow=21 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `golden.flagOff.test.tsx` — snapshots: FLN off leaves K-5 pages byte-identical
@@ -18,11 +18,11 @@ Full index: `CLAUDE.index.md`
 | `counts.test.tsx` | Vitest (R5 Q1): band, list and plan kicker use the placement count of the grade the teacher is viewing |
 | `rootScope.test.tsx` | Vitest (R5 RT5-ROOT100VH): full-height page rule applies only to the gate root, not embedded .fln-root surfaces |
 | `hiddenBand.page.test.tsx` | Vitest (bd-4tsjcr): teacher of Grades 6-12 only gets no FLN band, page identical to switch-off; coach still gets it |
-| `low-r5.test.tsx` | Vitest for the R5 LOW batch: singular counts, no mid-word time-bar breaks, Urdu "MB" label and other QA fixes |
 | `listFixtures.ts` | Synthetic catalogue answers (levels, guide, screener, core rows, Urdu title, extended strand) for list/band/gate tests |
+| `low-r5.test.tsx` | Vitest for the R5 LOW batch: singular counts, no mid-word time-bar breaks, Urdu "MB" label and other QA fixes |
 | `ui.test.tsx` | Vitest for SoundPill and SoundTile states (idle/loading/playing/error) against a recording fake player |
 | `golden.flagOff.test.tsx` | Vitest with recorded snapshots: with FLN off, NewLessonPage and OpenPlanPage render byte-identical to pre-FLN |
-| … | 20 more → `CLAUDE.index.md` |
+| … | 21 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

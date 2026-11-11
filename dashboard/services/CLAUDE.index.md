@@ -127,17 +127,17 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `access-scope.service.js` ← imported by `dashboard/index.js:75:1e0a6ccd` · `dashboard/services/invitation.service.js:15:cfcf45a5`
 - `ama.service.js` ← imported by `dashboard/index.js:72:b5ab1a24` · `dashboard/workers/portal-sqs-worker.js:214:cc7134d2`
 - `app-feedback.client.js` ← imported by `dashboard/routes/app-feedback.routes.js:14:18615139`
-- `assessment.service.js` ← imported by `dashboard/routes/portal.routes.js:3211:19fa3ae5` · `dashboard/services/grade-subjects.service.js:142:481bd8c6`
+- `assessment.service.js` ← imported by `dashboard/routes/portal.routes.js:3213:19fa3ae5` · `dashboard/services/grade-subjects.service.js:142:481bd8c6`
 - `attendance-detail.service.js` ← imported by `dashboard/routes/portal.routes.js:170:ab4e8b67`
 - `attendance-repository.service.js` ← imported by `bot/workers/attendance-bigquery-export.worker.js:34:34f5025b` · `dashboard/routes/attendance.routes.js:38:d777d415`
 - `auth.service.js` ← imported by `dashboard/index.js:29:8ef35abd` · `dashboard/routes/settings.js:8:fffb4120`
 - `billing.service.js` ← imported by `dashboard/routes/billing.routes.js:10:ac59fdc1`
 - `byof-agent.service.js` ← imported by `dashboard/routes/byof.routes.js:11:16a032fb`
 - `byof.service.js` ← imported by `dashboard/routes/byof.routes.js:10:f7ffd89f` · `dashboard/services/byof-agent.service.js:14:236f5ba4`
-- `certificates.service.js` ← imported by `dashboard/routes/portal.routes.js:4564:987b6967`
+- `certificates.service.js` ← imported by `dashboard/routes/portal.routes.js:4566:987b6967`
 - `coach-card-token.js` ← imported by `dashboard/routes/coach-card.routes.js:19:864c80cf` · `dashboard/services/coach-visit-request.js:21:df247ede`
 - `coach-disagreement-clip.js` ← imported by `dashboard/lib/insights/clips.js:12:baa561a2` · `dashboard/routes/coach-disagreements.routes.js:23:59ca3a41` · `dashboard/routes/portal.routes.js:2372:571db6ca` · `dashboard/routes/web-quiz-story-assets.js:82:4aa7fc7d` (+1: `python3 kg/kg.py who-reads coach-disagreement-clip.js`)
-- `coach-disagreement-evidence.js` ← imported by `dashboard/services/coach-disagreements.service.js:25:05ec6692` · `dashboard/services/coach-school-card.service.js:41:7d2dd38e`
+- `coach-disagreement-evidence.js` ← imported by `dashboard/services/coach-disagreements.service.js:25:05ec6692` · `dashboard/services/coach-school-card.service.js:42:7d2dd38e`
 - `coach-disagreement-pattern.js` ← imported by `dashboard/services/coach-disagreements.service.js:26:d65ddfd0`
 - `coach-disagreement-plan.js` ← imported by `dashboard/routes/portal.routes.js:2342:6cffc86f` · `dashboard/services/coach-disagreements.service.js:27:8c18d643`
 - `coach-disagreements.service.js` ← imported by `dashboard/routes/portal.routes.js:2338:b1dd5a42`
@@ -152,7 +152,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `coach-visit-request.js` ← imported by `dashboard/routes/coach-card.routes.js:46:fc38d1ea` · `dashboard/routes/coaching-report.routes.js:31:d0d60971`
 - `coach-week.service.js` ← imported by `dashboard/routes/portal.routes.js:2419:8dddde9e`
 - `coaching-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:141:c03c726c`
-- `coaching-breakdown.service.js` ← imported by `dashboard/routes/portal.routes.js:2783:b9ac8227`
+- `coaching-breakdown.service.js` ← imported by `dashboard/routes/portal.routes.js:2785:b9ac8227`
 - `coaching-frameworks.service.js` ← imported by `dashboard/routes/portal.routes.js:147:fb9750c6` · `dashboard/services/coach-school-card.service.js:39:844e9b68` · `dashboard/services/coach-v2.service.js:23:844e9b68` · `dashboard/services/leader-observations.service.js:23:844e9b68` (+7: `python3 kg/kg.py who-reads coaching-frameworks.service.js`)
 - `coaching-observability.service.js` ← imported by `dashboard/index.js:51:7a03acff`
 - `coaching-report-page.js` ← imported by `dashboard/routes/coach-card.routes.js:21:190caeeb` · `dashboard/routes/coaching-report.routes.js:25:a05add50` · `dashboard/routes/video-reco.routes.js:26:190caeeb`
@@ -184,12 +184,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `leader-schedule-write.service.js` ← imported by `dashboard/routes/portal.routes.js:177:3962c0c3`
 - `leader-teacher-detail.service.js` ← imported by `dashboard/routes/portal.routes.js:172:dfb3f948`
 - `lp-activity.service.js` ← imported by `dashboard/routes/portal-fln.routes.js:47:6f3a367c` · `dashboard/routes/portal.routes.js:53:6f3a367c` · `dashboard/services/coach-v2.service.js:25:a12faede` · `dashboard/services/grade-subjects.service.js:140:6583d3cd` (+3: `python3 kg/kg.py who-reads lp-activity.service.js`)
-- `lp-catalogue.service.js` ← imported by `dashboard/routes/portal-teacher-lessons.routes.js:20:5d8c401d` · `dashboard/routes/portal.routes.js:2781:5d8c401d` · `dashboard/services/grade-subjects.service.js:141:01b06451`
-- `lp-engagement.service.js` ← imported by `dashboard/routes/portal.routes.js:9297:4c3828de`
+- `lp-catalogue.service.js` ← imported by `dashboard/routes/portal-teacher-lessons.routes.js:20:5d8c401d` · `dashboard/routes/portal.routes.js:2783:5d8c401d` · `dashboard/services/grade-subjects.service.js:141:01b06451`
+- `lp-engagement.service.js` ← imported by `dashboard/routes/portal.routes.js:9299:4c3828de`
 - `lp-history.service.js` ← imported by `dashboard/routes/portal-teacher-lessons.routes.js:19:5d80e1fc` · `dashboard/services/teacher-coaching.service.js:16:6a9de3e6`
 - `lp-open-survey.client.js` ← imported by `dashboard/services/lp-reader.service.js:51:a9b12197`
 - `lp-reader.service.js` ← imported by `dashboard/routes/portal-fln.routes.js:48:81842d36` · `dashboard/routes/portal.routes.js:63:81842d36`
-- `lp612.service.js` ← imported by `dashboard/routes/portal.routes.js:2970:a4b08fd4` · `dashboard/services/grade-subjects.service.js:186:769b13e4`
+- `lp612.service.js` ← imported by `dashboard/routes/portal.routes.js:2972:a4b08fd4` · `dashboard/services/grade-subjects.service.js:186:769b13e4`
 - `materialized-views.service.js` ← imported by `dashboard/database/queries.js:18:3d4e1345` · `dashboard/index.js:78:3d7a2e1b` · `dashboard/services/mv-refresh-scheduler.service.js:34:6b533c81` · `dashboard/services/retention.service.js:13:6b533c81`
 - `mv-refresh-scheduler.service.js` ← imported by `dashboard/index.js:3856:701d14a4`
 - `observations-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:142:33ff4964`
@@ -197,7 +197,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `observe-teacher-admin.client.js` ← imported by `dashboard/routes/portal.routes.js:181:b350ff3a`
 - `password-reset.service.js` ← imported by `dashboard/routes/portal.routes.js:774:428c28e7`
 - `portal-child-test.client.js` ← imported by `dashboard/routes/portal-child-test.routes.js:56:ec0733e4`
-- `portal-coaching.client.js` ← imported by `dashboard/routes/portal.routes.js:7828:e3869eed`
+- `portal-coaching.client.js` ← imported by `dashboard/routes/portal.routes.js:7830:e3869eed`
 - `progress.service.js` ← imported by `dashboard/routes/portal.routes.js:64:f5b0c126`
 - `r2.service.js` ← imported by `dashboard/index.js:88:9abc3fe3` · `dashboard/lib/media-url.js:7:a206d415` · `dashboard/routes/portal.routes.js:46:193f114b` · `dashboard/routes/web-quiz-story-assets.js:112:bacee796` (+1: `python3 kg/kg.py who-reads r2.service.js`)
 - `redis-cache.service.js` ← imported by `dashboard/services/byof-agent.service.js:15:1bd19dde`
@@ -207,11 +207,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `retention.service.js` ← imported by `dashboard/index.js:69:18ebac15`
 - `role-switch.service.js` ← imported by `dashboard/routes/portal-role-switch.routes.js:26:f107b67a`
 - `school-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:163:30146389`
-- `schools-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:140:58eeeb5b` · `dashboard/services/coach-school-card.service.js:40:5209c65f` · `dashboard/services/coaching-analytics.service.js:63:071acc09` · `dashboard/services/lp-engagement.service.js:55:18636010` (+2: `python3 kg/kg.py who-reads schools-analytics.service.js`)
+- `schools-analytics.service.js` ← imported by `dashboard/routes/portal.routes.js:140:58eeeb5b` · `dashboard/services/coach-school-card.service.js:40:5209c65f` · `dashboard/services/coaching-analytics.service.js:63:071acc09` · `dashboard/services/lp-engagement.service.js:58:18636010` (+2: `python3 kg/kg.py who-reads schools-analytics.service.js`)
 - `steps-grid.service.js` ← imported by `dashboard/services/observations-analytics.service.js:63:78aad438` · `dashboard/services/school-analytics.service.js:36:286b03de` · `dashboard/services/schools-analytics.service.js:95:794dfc45`
 - `steps-presence.service.js` ← imported by `dashboard/routes/portal.routes.js:167:69e763b3`
 - `steps-remarks.service.js` ← imported by `dashboard/routes/portal.routes.js:168:f87f3484`
-- `subject-vocabulary.service.js` ← imported by `dashboard/services/grade-subjects.service.js:32:efaeaac2` · `dashboard/services/lp-engagement.service.js:56:4feb8c0d` · `dashboard/services/lp-history.service.js:33:f04fed96` · `dashboard/services/teacher-attendance.service.js:53:4feb8c0d`
+- `subject-vocabulary.service.js` ← imported by `dashboard/services/grade-subjects.service.js:32:efaeaac2` · `dashboard/services/lp-engagement.service.js:59:4feb8c0d` · `dashboard/services/lp-history.service.js:33:f04fed96` · `dashboard/services/teacher-attendance.service.js:53:4feb8c0d`
 - `teacher-attendance.service.js` ← imported by `dashboard/routes/portal-teacher-attendance.routes.js:29:3486f1f0`
 - `teacher-coaching.service.js` ← imported by `dashboard/routes/portal-teacher-coaching.routes.js:27:5a18e3f1`
 - `teacher-home-order.service.js` ← imported by `dashboard/routes/portal-teacher-home.routes.js:47:f1a55e85`
@@ -242,14 +242,14 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - column `dashboard_users.is_active` (written by `auth.service.js`) ← read by `dashboard/services/byof.service.js:359:3df8e978`
 - column `dashboard_users.role` (written by `auth.service.js`) ← read by `dashboard/services/byof.service.js:359:3df8e978`
 - column `dashboard_users.username` (written by `auth.service.js`) ← read by `dashboard/index.js:545:f2112f9b` · `dashboard/services/byof.service.js:359:3df8e978`
-- column `teacher_attendance_records.date` (written by `attendance-repository.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:899:74eda9b1` · `bot/shared/services/attendance-register-delivery.service.js:67:5c2c47be` · `bot/shared/services/attendance-write.service.js:226:755594b8` · `bot/workers/attendance-bigquery-export.worker.js:143:052eb616`
+- column `teacher_attendance_records.date` (written by `attendance-repository.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:899:74eda9b1` · `bot/shared/services/attendance-register-delivery.service.js:67:5c2c47be` · `bot/shared/services/attendance-write.service.js:231:755594b8` · `bot/workers/attendance-bigquery-export.worker.js:143:052eb616`
 - column `teacher_attendance_records.leave_type` (written by `attendance-repository.service.js`) ← read by `bot/workers/attendance-bigquery-export.worker.js:143:052eb616`
-- column `teacher_attendance_records.school_id` (written by `attendance-repository.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:900:917b902f` · `bot/shared/services/attendance-register-delivery.service.js:68:1973a585` · `bot/shared/services/attendance-write.service.js:225:fa423b71` · `bot/workers/attendance-bigquery-export.worker.js:143:052eb616`
+- column `teacher_attendance_records.school_id` (written by `attendance-repository.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:900:917b902f` · `bot/shared/services/attendance-register-delivery.service.js:68:1973a585` · `bot/shared/services/attendance-write.service.js:230:fa423b71` · `bot/workers/attendance-bigquery-export.worker.js:143:052eb616`
 - column `teacher_attendance_records.status` (written by `attendance-repository.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:899:74eda9b1` · `bot/shared/services/attendance-register-delivery.service.js:67:5c2c47be` · `bot/workers/attendance-bigquery-export.worker.js:143:052eb616`
-- column `teacher_attendance_records.teacher_id` (written by `attendance-repository.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:899:74eda9b1` · `bot/shared/services/attendance-register-delivery.service.js:67:5c2c47be` · `bot/shared/services/attendance-write.service.js:224:ce75da8c` · `bot/workers/attendance-bigquery-export.worker.js:143:052eb616`
+- column `teacher_attendance_records.teacher_id` (written by `attendance-repository.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:899:74eda9b1` · `bot/shared/services/attendance-register-delivery.service.js:67:5c2c47be` · `bot/shared/services/attendance-write.service.js:229:ce75da8c` · `bot/workers/attendance-bigquery-export.worker.js:143:052eb616`
 - column `users.conversation_state` (written by `role-switch.service.js`) ← read by `bot/shared/services/conversation-state.service.js:94:5655e58b`
 - column `users.conversation_state_expires_at` (written by `role-switch.service.js`) ← read by `bot/shared/services/conversation-state.service.js:94:5655e58b`
-- column `users.role` (written by `role-switch.service.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:543:e1438837` · `bot/shared/handlers/observe-visit-flow.handler.js:1148:45738629` · `bot/shared/routes/attendance-marking-endpoint.js:381:10ac4b67` (+37: `python3 kg/kg.py who-reads users.role`)
+- column `users.role` (written by `role-switch.service.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:543:e1438837` · `bot/shared/handlers/observe-visit-flow.handler.js:1148:45738629` · `bot/shared/routes/attendance-marking-endpoint.js:381:10ac4b67` (+38: `python3 kg/kg.py who-reads users.role`)
 - table `dashboard_users` whole row (`*`) (written by `byof.service.js`) ← read by `dashboard/services/auth.service.js:19:d2b02c3e`?
 - table `users` whole row (`*`) (written by `password-reset.service.js`, `role-switch.service.js`) ← read by `bot/shared/database/bot-helpers.js:33:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:692:7a0c163a`? · `dashboard/routes/portal.routes.js:275:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
 - table `access_scopes` (written by `access-scope.service.js`) ← read by `dashboard/services/auth.service.js:43:2be8f4d7`?
@@ -257,10 +257,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - table `coaching_quality_metrics` (written by `coaching-useful.js`) ← read by `bot/shared/services/coaching/coaching-feedback.service.js:99:df6ad5d9`? · `bot/shared/services/coaching/coaching-helpers.service.js:115:d42443b2`? · `bot/shared/services/coaching/weekly-report/reader.js:108:527a292b`?
 - table `dashboard_users` (written by `auth.service.js`, `byof.service.js`, `invitation.service.js`) ← read by `dashboard/index.js:544:36baffc0`? · `dashboard/middleware/auth.js:76:9a69d293`? · `dashboard/middleware/rbac/feature-access.js:53:9a69d293`? · `dashboard/middleware/rbac/rbac.js:49:9a69d293`? (+5: `python3 kg/kg.py who-reads dashboard_users`)
 - table `invitations` (written by `invitation.service.js`) ← read by `dashboard/index.js:2035:535a79c0`?
-- table `teacher_attendance_records` (written by `attendance-repository.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:898:cac7d040`? · `bot/shared/services/attendance-register-delivery.service.js:66:cac7d040`? · `bot/shared/services/attendance-write.service.js:223:cac7d040`? · `bot/workers/attendance-bigquery-export.worker.js:141:cac7d040`? (+1: `python3 kg/kg.py who-reads teacher_attendance_records`)
-- table `users` (written by `password-reset.service.js`, `role-switch.service.js`, `teacher-region.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:247:774e00e5`? · `bot/shared/database/bot-helpers.js:22:61dfd735`? (+188: `python3 kg/kg.py who-reads users`)
+- table `teacher_attendance_records` (written by `attendance-repository.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:898:cac7d040`? · `bot/shared/services/attendance-register-delivery.service.js:66:cac7d040`? · `bot/shared/services/attendance-write.service.js:228:cac7d040`? · `bot/workers/attendance-bigquery-export.worker.js:141:cac7d040`? (+1: `python3 kg/kg.py who-reads teacher_attendance_records`)
+- table `users` (written by `password-reset.service.js`, `role-switch.service.js`, `teacher-region.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:247:774e00e5`? · `bot/shared/database/bot-helpers.js:22:61dfd735`? (+191: `python3 kg/kg.py who-reads users`)
 - env `ANTHROPIC_API_KEY` read at `dashboard/services/billing.service.js:11:6137f7d4` · `dashboard/services/byof-agent.service.js:22:4eda5959`
-- env `ATTENDANCE_REPO` read at `dashboard/services/attendance-repository.service.js:359:b04b8587`
+- env `ATTENDANCE_REPO` read at `dashboard/services/attendance-repository.service.js:364:b04b8587`
 - env `AXIOM_DATASET` read at `dashboard/services/telemetry.service.js:43:2d836a2a`
 - env `AXIOM_TOKEN` read at `dashboard/services/telemetry.service.js:44:b100a856`
 - env `BOT_DOMAIN` read at `dashboard/services/whatsapp-broadcast.service.js:22:ba0a0ce3`
@@ -292,7 +292,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `MV_REFRESH_INTERVAL_MS` read at `dashboard/services/mv-refresh-scheduler.service.js:73:d70ed64a`
 - env `MV_SCHEDULER_ENABLED` read at `dashboard/services/mv-refresh-scheduler.service.js:62:da51b92d`
 - env `MV_SCHEDULER_OWNER` read at `dashboard/services/mv-refresh-scheduler.service.js:67:cb289467`
-- env `NODE_ENV` read at `dashboard/services/attendance-repository.service.js:359:b04b8587` · `dashboard/services/telemetry.service.js:48:5993ad62`
+- env `NODE_ENV` read at `dashboard/services/attendance-repository.service.js:364:b04b8587` · `dashboard/services/telemetry.service.js:48:5993ad62`
 - env `NOTIFICATION_ACCESS_TOKEN` read at `dashboard/services/byof.service.js:797:aec3ddc9`
 - env `NOTIFICATION_PHONE_ID` read at `dashboard/services/byof.service.js:796:64fe0bd3`
 - env `OPENAI_API_KEY` read at `dashboard/services/billing.service.js:12:d7d391c6` · `dashboard/services/code-embedder.service.js:18:f1ad06eb` · `dashboard/services/transcript-processor.service.js:24:206dad27`
@@ -320,7 +320,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `app-feedback.client.js` ← `tests/feedback/app-feedback-routes.test.js`
 - `assessment.service.js` ← `tests/dashboard/assessment-userid-forwarding.test.js` · `tests/portal/assessment-edit-via-internal-api.test.js`
 - `attendance-detail.service.js` ← `dashboard/tests/attendance-detail.service.test.js`
-- `attendance-repository.service.js` ← `tests/attendance/attendance-repository.test.js`
+- `attendance-repository.service.js` ← `tests/attendance/attendance-repository.test.js` · `tests/identity/bd-apnnh2.15-lists-skip-retired.test.js`
 - `billing.service.js` ← `dashboard/tests/billing-service.test.js`
 - `byof-agent.service.js` ← `dashboard/tests/byof-agent.test.js`
 - `byof.service.js` ← `dashboard/tests/byof-service.test.js`
@@ -335,10 +335,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `coach-ping-page.js` ← `tests/coaching/bd-v0toag.79-neutral-question.test.js`
 - `coach-ping-reasons.js` ← `tests/coaching/bd-v0toag.38.9-agree-ping-service.test.js`
 - `coach-report.service.js` ← `tests/portal/coach-report-app.test.js`
-- `coach-school-admin.service.js` ← `tests/portal/coach-school-admin.test.js`
-- `coach-school-card.service.js` ← `tests/portal/bd-hl4a4y-card-training-route.test.js` · `tests/portal/coach-school-card-service.test.js`
+- `coach-school-admin.service.js` ← `tests/portal/bd-97daxo.22-gb-school-without-emis.test.js` · `tests/portal/coach-school-admin.test.js`
+- `coach-school-card.service.js` ← `tests/portal/bd-hl4a4y-card-training-route.test.js` · `tests/portal/coach-school-card-gb-ids.test.js` · `tests/portal/coach-school-card-service.test.js`
 - `coach-teacher-admin.service.js` ← `tests/portal/bd-o15qnr.11-edit-teacher.test.js` · `tests/portal/bd-o15qnr.13-edit-fields.test.js`
-- `coach-v2.service.js` ← `tests/portal/bd-15y1pc-one-step-model.test.js` · `tests/portal/bd-o15qnr-coach-v2-service.test.js` · `tests/portal/bd-o15qnr.10-history-reports.test.js` · `tests/portal/bd-o15qnr.13-edit-fields.test.js` · `tests/portal/bd-o15qnr.19-observation-page.test.js` · `tests/portal/bd-o15qnr.20-lp-engagement.test.js` (+4: `python3 kg/kg.py who-reads dashboard/services/coach-v2.service.js`)
+- `coach-v2.service.js` ← `tests/portal/bd-15y1pc-one-step-model.test.js` · `tests/portal/bd-97daxo.22-gb-school-without-emis.test.js` · `tests/portal/bd-o15qnr-coach-v2-service.test.js` · `tests/portal/bd-o15qnr.10-history-reports.test.js` · `tests/portal/bd-o15qnr.13-edit-fields.test.js` · `tests/portal/bd-o15qnr.19-observation-page.test.js` (+5: `python3 kg/kg.py who-reads dashboard/services/coach-v2.service.js`)
 - `coach-visit-request.js` ← `tests/coaching/bd-v0toag.38.9-agree-ping-service.test.js` · `tests/coaching/bd-v0toag.45-coach-visit-service.test.js`
 - `coach-week.service.js` ← `tests/portal/coach-week-app.test.js`
 - `coaching-analytics.service.js` ← `tests/portal/analytics-lists-v8.test.js` · `tests/portal/analytics-v8-services.test.js` · `tests/portal/coaching-analytics.service.test.js`
@@ -364,12 +364,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `leader-assignment.service.js` ← `dashboard/tests/leader-assignment.service.test.js` · `tests/observe/bd-44003-roster-scope.test.js` · `tests/portal/bd-o15qnr-visit-time.test.js` · `tests/portal/bd-o15qnr.8-coach-feedback.test.js` · `tests/portal/bd-xorfy-portal-visit-notice.test.js`
 - `leader-observations.service.js` ← `dashboard/tests/leader-observations-identity.service.test.js` · `dashboard/tests/leader-observations.service.test.js`
 - `leader-overview.service.js` ← `dashboard/tests/leader-overview.service.test.js` · `tests/portal/leader-overview-feature-totals.test.js`
-- `leader-patch.service.js` ← `dashboard/tests/leader-patch-observations.service.test.js` · `dashboard/tests/leader-patch-principal.service.test.js` · `dashboard/tests/leader-patch.service.test.js` · `dashboard/tests/leader-teacher-detail-terminal.service.test.js` · `tests/hcp/hcp-access-guard.test.js` · `tests/observe2/work-on-coaching-areas.test.js` (+12: `python3 kg/kg.py who-reads dashboard/services/leader-patch.service.js`)
-- `leader-schedule-write.service.js` ← `dashboard/tests/leader-schedule-write.service.test.js` · `tests/portal/bd-o15qnr-visit-time.test.js` · `tests/portal/bd-o15qnr.8-coach-feedback.test.js` · `tests/portal/bd-xorfy-portal-visit-notice.test.js`
+- `leader-patch.service.js` ← `dashboard/tests/leader-patch-observations.service.test.js` · `dashboard/tests/leader-patch-principal.service.test.js` · `dashboard/tests/leader-patch.service.test.js` · `dashboard/tests/leader-teacher-detail-terminal.service.test.js` · `tests/hcp/hcp-access-guard.test.js` · `tests/observe/bd-apnnh2.11-patch-skips-retired.test.js` (+14: `python3 kg/kg.py who-reads dashboard/services/leader-patch.service.js`)
+- `leader-schedule-write.service.js` ← `dashboard/tests/leader-schedule-write.service.test.js` · `tests/observe/bd-apnnh2.11-patch-skips-retired.test.js` · `tests/portal/bd-o15qnr-visit-time.test.js` · `tests/portal/bd-o15qnr.8-coach-feedback.test.js` · `tests/portal/bd-xorfy-portal-visit-notice.test.js`
 - `leader-teacher-detail.service.js` ← `dashboard/tests/leader-teacher-detail-principal.service.test.js` · `dashboard/tests/leader-teacher-detail-terminal.service.test.js` · `dashboard/tests/leader-teacher-detail.service.test.js` · `tests/portal/leader-teacher-detail-summary.test.js`
 - `lp-activity.service.js` ← `tests/portal/bd-o15qnr.20-lp-engagement.test.js` · `tests/portal/fln-readers.test.js` · `tests/portal/fln-routes.test.js` · `tests/portal/progress-counts.db.test.js`
 - `lp-catalogue.service.js` ← `tests/portal/lp-leader-bot-calls.test.js`
-- `lp-engagement.service.js` ← `tests/portal/lp-engagement.service.test.js`
+- `lp-engagement.service.js` ← `tests/identity/bd-apnnh2.16-analytics-skip-retired.test.js` · `tests/portal/lp-engagement-gb-ids.test.js` · `tests/portal/lp-engagement.service.test.js`
 - `lp-history.service.js` ← `tests/portal/bd-fmf24g.3-lp-history.test.js` · `tests/portal/fln-readers.test.js`
 - `lp-reader.service.js` ← `tests/portal/bd-33wxxi.1-principal-app-switch.test.js`
 - `lp612.service.js` ← `tests/portal/lp-leader-bot-calls.test.js`
@@ -384,13 +384,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `report-extras.js` ← `tests/portal/bd-z3cadk-report-extras.test.js`
 - `report-narrative-view.js` ← `tests/portal/bd-fmf24g.10-report-narrative-view.test.js` · `tests/portal/bd-z3cadk-report-extras.test.js`
 - `school-analytics.service.js` ← `dashboard/tests/school-analytics.service.test.js` · `tests/portal/school-analytics-observations.test.js` · `tests/portal/teacher-analytics.test.js`
-- `schools-analytics.service.js` ← `tests/portal/analytics-framework-scores.test.js` · `tests/portal/analytics-lists-v8.test.js` · `tests/portal/analytics-organization-scope.test.js` · `tests/portal/analytics-v8-services.test.js` · `tests/portal/coaching-analytics.service.test.js` · `tests/portal/lp-engagement.service.test.js` (+3: `python3 kg/kg.py who-reads dashboard/services/schools-analytics.service.js`)
+- `schools-analytics.service.js` ← `tests/identity/bd-apnnh2.16-analytics-skip-retired.test.js` · `tests/portal/analytics-framework-scores.test.js` · `tests/portal/analytics-lists-v8.test.js` · `tests/portal/analytics-organization-scope.test.js` · `tests/portal/analytics-v8-services.test.js` · `tests/portal/coaching-analytics.service.test.js` (+4: `python3 kg/kg.py who-reads dashboard/services/schools-analytics.service.js`)
 - `steps-grid.service.js` ← `tests/portal/observations-analytics.service.test.js` · `tests/portal/steps-removed.test.js`
 - `steps-presence.service.js` ← `dashboard/tests/steps-presence.service.test.js`
 - `steps-remarks.service.js` ← `dashboard/tests/steps-remarks.service.test.js` · `tests/portal/teacher-analytics.test.js`
 - `subject-vocabulary.service.js` ← `tests/portal/bd-fmf24g.3-subject-vocabulary.test.js`
 - `teacher-coaching.service.js` ← `tests/portal/bd-aqotzx-class-check-history.test.js` · `tests/portal/bd-fmf24g.4-teacher-coaching.test.js`
-- `teacher-home-order.service.js` ← `tests/portal/teacher-home-order.service.test.js`
+- `teacher-home-order.service.js` ← `tests/portal/bd-33wxxi.9.1-principal-home-card.test.js` · `tests/portal/teacher-home-order.service.test.js`
 - `teacher-notices.service.js` ← `tests/portal/bd-fmf24g.15-teacher-notices.test.js`
 - `teacher-region.service.js` ← `tests/portal/bd-rj6w0n.14.2-teacher-region.test.js`
 - `telemetry.service.js` ← `tests/lp-v8/web-lessons-portal-link.test.js` · `tests/training/web-training-portal-link.test.js`

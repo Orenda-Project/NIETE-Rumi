@@ -1,7 +1,7 @@
 # routes — Express routers: portal API, coach/teacher app APIs, child-quiz edge pages, admin routes
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/routes kg=18da26450ee4 gen=c3632cef3d47 overflow=432 rendered=2026-11-09 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/routes kg=234f9b791222 gen=e16791916b46 overflow=439 rendered=2026-11-11 kg.py=1.1.0 -->
 
 ## Entry points
 - `portal.routes.js` — main /api/portal API (9k lines)
@@ -17,7 +17,7 @@ Full index: `CLAUDE.index.md`
 | … | 68 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `coach-training-progress.routes.js` (+1)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+190)
+- table `users` (written by `coach-training-progress.routes.js` (+1)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+193)
 - `web-quiz.routes.js` ← imported by `dashboard/index.js:171:a0c5436b` · `dashboard/routes/first-touch.routes.js:23:618f2a96` (+8)
 - … 117 more → `CLAUDE.index.md`
 
@@ -30,7 +30,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `dashboard/tests/edge-relay-harness.js` (first-touch.routes.js, quiz-go.routes.js, quiz-teacher.routes.js, teacher-report.routes.js, teacher-stories.routes.js)
 - `tests/coachip/coachip-golden.test.js` (portal-child-test.routes.js, portal-coachip.routes.js, portal-fln.routes.js, portal.routes.js)
-- … 289 more → `CLAUDE.index.md`
+- … 296 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `dashboard/CLAUDE.md`? · `docs/app-funnel-telemetry.md`? · `docs/reports/bug131-phase2-portal-quiz-ui.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `docs/reports/bug131-phase4-media-complete.md`? · `tests/BASELINE.md`?

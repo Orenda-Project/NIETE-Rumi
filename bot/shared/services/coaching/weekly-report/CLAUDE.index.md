@@ -14,7 +14,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `week.js` | Pure PKT calendar for the weekly report: Monday key, Saturday send window, weekend look-back |
 
 ## Who reads this (all, generated)
-- `job.js` ← imported by `bot/workers/sqs-worker.js:2033:3f57026f`
+- `job.js` ← imported by `bot/workers/sqs-worker.js:2039:3f57026f`
 - `message.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:20:bc995631`
 - `reader.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:16:73533146`
 - `summarise.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:19:934b7eba` · `bot/shared/services/coaching/weekly-report/message.js:13:8fb51b5e`

@@ -1,7 +1,7 @@
 # helpers — Shared stubs and fixtures for quiz suites: Supabase fakes, lesson fixtures
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/quiz/helpers kg=735b5a5dc933 gen=499ab309eff4 overflow=2 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/quiz/helpers kg=481dd3854e9f gen=6be2570af3b0 overflow=2 rendered=2026-11-11 kg.py=1.1.0 -->
 
 ## Entry points
 - `memory-supabase.js` — stateful Supabase stand-in for chained services
@@ -21,8 +21,8 @@ Full index: `CLAUDE.index.md`
 | `nudge-contract-mocks.js` | Helper: in-memory teacher-nudges store with the UNIQUE (user_id, nudge_date, kind) and conditional quiz_id-null claim |
 | `lp-key-check-fixture.js` | Helper: Grade 3 Urdu singular/plural lesson fixture whose quiz keyed the lesson's own planted misconception as correct |
 | `lp-offer-scenarios.js` | Helper: the LP quiz offer's send shapes (en/ur) as shared fixtures for the golden and its guarding suite |
-| `g1-numbers-urdu-fixture.js` | Helper: synthetic Grade 1 numbers 0-4 lesson quizzed in Urdu, shaped like a sandbox quiz that failed validation |
 | `key-verify-fixture.js` | Helper: Urdu letters-lesson fixture whose sandbox quiz shipped two wrong answer keys, for key-verify tests |
+| `g1-numbers-urdu-fixture.js` | Helper: synthetic Grade 1 numbers 0-4 lesson quizzed in Urdu, shaped like a sandbox quiz that failed validation |
 | … | 2 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)

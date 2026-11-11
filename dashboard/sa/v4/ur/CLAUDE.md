@@ -1,7 +1,7 @@
 # ur — Urdu v4 spoken lines: one mp3 and one word-timing json per line, hash named
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa/v4/ur kg=833fbeb496d6 gen=6da846091597 overflow=829 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa/v4/ur kg=a61c1936819d gen=eb98ade0dffc overflow=922 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `00575d61b5fe.json` — shape {key, text, audio.url, audio.ms, words[{i,t,s_ms,e_ms}]}
@@ -14,6 +14,7 @@ Full index: `CLAUDE.index.md`
 | `0101ce91aca4.json` | Urdu word timings (30 words, 12.9s) for the v4 clip "جگنو ایک لفظ بولے گا، پھر اس لفظ وا…", read by sa-ui |
 | `017ff4964563.json` | Urdu word timings (7 words, 2.9s) for the v4 clip "اب آپ کے کوچ ہدایات دیں گے۔", read by sa-ui |
 | `02046cab3340.json` | Urdu word timings (3 words, 1.8s) for the v4 clip "بالکل ٹھیک، ۱۷۔", read by sa-ui |
+| `025a6beb6289.json` | (unmapped) |
 | `027dc9d60a58.json` | Urdu word timings (15 words, 7.0s) for the v4 clip "کہانی نیچے بھی ہے۔ پوری کہانی پڑھنے…", read by sa-ui |
 | `047e2488af57.json` | Urdu word timings (9 words, 3.6s) for the v4 clip "نمبر لکھیں، پھر صحیح کے نشان والا ب…", read by sa-ui |
 | `04b9eebc6b79.json` | Urdu word timings (8 words, 6.6s) for the v4 clip "اگلا ستارہ ہے۔ ستارہ، چوکور، ستارہ،…", read by sa-ui |
@@ -21,7 +22,8 @@ Full index: `CLAUDE.index.md`
 | `0593ec77a1df.json` | Urdu word timings (9 words, 3.4s) for the v4 clip "مثال کے طور پر، یہ بنایا ہوا لفظ ہے:", read by sa-ui |
 | `0594a34275cc.json` | Urdu word timings (7 words, 2.5s) for the v4 clip "واپسی پر بلال نے کیا جمع کیے؟", read by sa-ui |
 | `0664930a0a13.json` | Urdu word timings (1 words, 2.0s) for the v4 clip "پاگ", read by sa-ui |
-| … | 829 more → `CLAUDE.index.md` |
+| `06de98b9f1ee.json` | (unmapped) |
+| … | 922 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

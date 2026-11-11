@@ -6,8 +6,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
+| `record-sa-voice-v4-english-ops.test.js` | (unmapped) |
 | `record-sa-voice-v4-equals.test.js` | (unmapped) |
+| `record-sa-voice-v4-held-words.test.js` | (unmapped) |
 | `record-sa-voice-v4-praise.test.js` | (unmapped) |
+| `record-sa-voice-v4-relevel.test.js` | (unmapped) |
 | `record-sa-voice-v4-sounds.test.js` | (unmapped) |
 | `record-sa-voice-v4.test.js` | Pins record-sa-voice.js --set v4: whole bank re-voiced per provider into sa/v4 keys with respellings and tashdeed |
 | `sa-add-child.test.js` | Pins the sa_add_child switch: seating an off-roster child via draw.addChild, refusals, and no name in logs |
@@ -21,8 +24,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-grade-with-visit.test.js` | Pins sa_all_grades at a school with today's observe visit: the named grade is honoured, never the visit's list |
 | `sa-last-word-hint.test.js` | Pins lastWordIndex alignment, saLastWordHint and its internal route for the sa_coach_last_word suggestion |
 | `sa-practice-only.test.js` | Pins child_test_practice_only: practice coaches get only is_probable_test schools, isPracticeCoach, pilot unchanged |
+| `sa-r10-lines.test.js` | (unmapped) |
 | `sa-r8-counts-score.test.js` | Pins round 8 sa_r8_counts scoring against the counts form the phone ran, never dropping extra items |
 | `sa-r8-slice2-lines.test.js` | (unmapped) |
+| `sa-rdf-mode.test.js` | (unmapped) |
 | `sa-rdf-w3-server.test.js` | Pins RDF auto/manual server behaviour under sa_rdf_w3_forms: accepted blocks when on, refused or not_ready when off |
 | `sa-rdf-w3.test.js` | Pins the RDF auto/manual W3 form shape: task list, official items with src, one-at-a-time display, coach_text |
 | `sa-rdf.test.js` | Pins the RDF short form under sa_rdf_form: block 'rdf' accepted when on, unknown when off, not_ready without rdf[] |
@@ -35,6 +40,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-review-store.test.js` | Pins the review store (V1.7.4 child_test_sa_item_reviews): session rows read and reviewer mark upsert |
 | `sa-review.test.js` | Pins saReview read and saReviewMark write: recording links, agent marks, suspect flag, reviewer ear, admin access |
 | `sa-reviewed-lines.test.js` | Pins applyReviewed: reviewer wording laid over every form, new clip keys for changed text, committed bank carries it |
+| `sa-reviewer-answers.test.js` | (unmapped) |
+| `sa-reviewer-drafts.test.js` | (unmapped) |
 | `sa-rulings.test.js` | Pins SA design rules in the bank: 18 v3 tasks, tap first-row stops at chance, spelling task, engine lines in both... |
 | `sa-runtime.test.js` | Pins runtime batteries sa.<form>.<lang>.json validating in the engine (sa-core) with blocks, islands and stop rules |
 | `sa-same-day-reuse.test.js` | Pins sa_all_grades reuse of today's un-graded day list when the named grade matches, else a :g<N> list |
@@ -53,10 +60,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-sessions-dash-origin.test.js` | Pins saSessions origin (added vs drawn) and incomplete_move_on stop under sa_dash_filters |
 | `sa-sessions-practice-r8.test.js` | Pins round 8 saSessions practice-school flag and coach-name guard switches |
 | `sa-sessions.test.js` | Pins saSessions: every SA session per coach or admin in Results shape with school and sub-region, no child identifiers |
+| `sa-skip-instructions-kept.test.js` | (unmapped) |
 | `sa-stop-rules-gates.test.js` | Pins RWP comprehension and multiplication gates and RDF no-stop flags under sa_stop_rules (panel RULING G-12) |
 | `sa-stop-rules-ready.test.js` | Pins the sa_stop_rules deadlock fix: passage map holds only passages and no row waits on itself |
 | `sa-stop-rules.test.js` | Pins EGRA first-row rule for W3 grids and skipping comprehension after a stopped passage (sa_stop_rules) |
 | `sa-tester-fixes.test.js` | Pins external tester fixes A08/A11/A13/A14: no language mixing, maths practice, picture patterns, RDF short form |
+| `sa-v4-clip-tails.test.js` | (unmapped) |
 | `sa-voice-sustained-sounds.test.js` | Pins letter-sound clips saying each sound once (continuants held) using ffmpeg silencedetect on served clips |
 | `sa-voice-tashdeed.test.js` | Pins sa_voice_tashdeed: voice gets shadda-marked Urdu lines while screen text and clip keys stay as written |
 | `sa-voice.test.js` | Pins the SA voice manifest naming each clip once and record-sa-voice voicing only missing clips under a spend cap |

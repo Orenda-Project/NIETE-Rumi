@@ -1,7 +1,7 @@
 # coachip-ui — COACHIP design kit: chrome and primitives for the coach and RM pages
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coachip-ui kg=f9747458bbde gen=ed170d368f4a overflow=43 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coachip-ui kg=3e7fdf888c0b gen=cf4e8c438365 overflow=43 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `docs/coachip-ui.md` — rules: .cp scoping, G10 Count, who may import it
@@ -22,7 +22,7 @@ Full index: `CLAUDE.index.md`
 
 ## Who reads this (generated)
 - `Section.tsx` ← imported by `portal/src/portal/coach/insights/components/NotYetTile.tsx:3:27694826` · `portal/src/portal/coach/insights/components/PhonicsTile.tsx:6:27694826` (+11)
-- `Button.tsx` ← imported by `portal/src/portal/coach/insights/components/StepCard.tsx:11:fb2e1bbb` · `portal/src/portal/coach/insights/components/WCard.tsx:12:fb2e1bbb` (+7)
+- `Button.tsx` ← imported by `portal/src/portal/coach/insights/components/StepCard.tsx:12:fb2e1bbb` · `portal/src/portal/coach/insights/components/WCard.tsx:12:fb2e1bbb` (+7)
 - `Count.tsx` ← imported by `portal/src/portal/coach/insights/components/StatsRow.tsx:4:f8c25612` · `portal/src/portal/coach/insights/components/WCard.tsx:11:8a9e71d7` (+6)
 - … 15 more → `CLAUDE.index.md`
 

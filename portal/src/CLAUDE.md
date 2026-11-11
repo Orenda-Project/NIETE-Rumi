@@ -1,7 +1,7 @@
 # src — Portal source root: app entry, global CSS, i18n; routes and portal code live in src/portal
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src kg=80a34ea132ba gen=7bfd0dc9c077 overflow=8 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src kg=120fd2a56d16 gen=5797a719e533 overflow=9 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `App.tsx` — all routes; lazy chunks via lazyPage; portal route tables imported from ./portal
@@ -21,11 +21,10 @@ Full index: `CLAUDE.index.md`
 | `portal/` | Portal feature folders: analytics, COACHIP kit, FLN pages, teacher/coach apps → `portal/CLAUDE.md` |
 | `test/` | Vitest guards on the shipped shell: index.html, brand tokens, route chunks, boot reads → `test/CLAUDE.md` |
 | `App.tsx` | Portal root: QueryClient, router, lazy page chunks; / is marketing Index or PortalRoot by target; mounts portal routes |
-| `index.css` | Global Tailwind layers, NIETE brand tokens, Urdu Nastaliq face (Arabic-only range), Urdu leading and clip rules |
-| … | 2 more → `CLAUDE.index.md` |
+| … | 3 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `index.css` ← imported by `portal/scripts/urdu-fit/harness.tsx:9:3ba0d33b` · `portal/src/main.tsx:3:3b87cfb4` (+1)
+- `index.css` ← imported by `portal/scripts/chapter-shot/harness.tsx:9:3ba0d33b` · `portal/scripts/urdu-fit/harness.tsx:9:3ba0d33b` (+2)
 - `App.tsx` ← imported by `portal/src/main.tsx:2:2af48748`
 
 ## Never (human)

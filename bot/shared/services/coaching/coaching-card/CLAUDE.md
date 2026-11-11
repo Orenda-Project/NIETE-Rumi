@@ -1,7 +1,7 @@
 # coaching-card — Commitment card: content, HTML template and PNG render, button replies
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/coaching-card kg=a2666acdb797 gen=123c39b0fa69 overflow=24 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/coaching-card kg=a113e80f6de9 gen=84653736d31d overflow=24 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `commitment-card.service.js` — builds the card content from the reflective answer
@@ -16,8 +16,8 @@ Full index: `CLAUDE.index.md`
 | `prioritized-action.service.js` | Extracts indicators from an analysis and picks one focus tip, the weakest askable indicator, for the coaching card |
 
 ## Who reads this (generated)
-- table `coaching_sessions` (written by `card-response.service.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+87)
-- table `coaching_sessions` whole row (`*`) (written by `card-response.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:1921:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:742:d2b02c3e`? (+10)
+- table `coaching_sessions` (written by `card-response.service.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:56:4a173bcd`? (+88)
+- table `coaching_sessions` whole row (`*`) (written by `card-response.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:1951:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:770:d2b02c3e`? (+10)
 - column `coaching_sessions.prioritized_action` (written by `card-response.service.js`) ← read by `bot/shared/services/coaching/coaching-trend.service.js:138:1f9a2623` · `bot/shared/services/coaching/report-generator.service.js:399:cfc5016d` (+5)
 - `prioritized-action.service.js` ← imported by `bot/shared/services/coaching/next-step.js:16:c9dacf38` · `bot/shared/services/coaching/coaching-card/commitment-card.service.js:22:e5cd3ca1`
 - … 3 more → `CLAUDE.index.md`

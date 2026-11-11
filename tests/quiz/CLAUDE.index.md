@@ -23,9 +23,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `lp-app-opens-served-and-listed.test.js` | App-opened lesson plan: the version resolved equals the one the app served (A/B group, ch3-8 scope), plus listing rules |
 | `lp-quiz-app-open-counts.test.js` | bd-qvevax.3: a lesson plan opened in the teacher app counts as taken for the 15:00 cohort and every LP quiz door |
 | `lp-quiz-author.test.js` | R8 lane D: author pass for an lp_v8 quiz with no transcript reads the planned lesson, never invents classroom talk |
+| `lp-quiz-cache-own-lock.test.js` | (unmapped) |
 | `lp-quiz-cache.test.js` | LP quiz cache: same lesson version reuses a donor quiz's questions with no digest/author/checks; no teacher data leaks |
+| `lp-quiz-cohort-empty-day.test.js` | (unmapped) |
 | `lp-quiz-cohort-source-gate.test.js` | 15:00 offer cohort skips lessons whose served version has no slide script (no_quiz_source), same check as /quiz |
 | `lp-quiz-cohort.test.js` | R8 lane B 5.1: who is offered an LP-born quiz at 15:00 and for which lessons: cohort rule date, skips, classes |
+| `lp-quiz-digest-gb-ids.test.js` | (unmapped) |
 | `lp-quiz-digest-manipulatives.test.js` | lp_v8 digest parses slide-script manipulatives (counter/bundle/tile token rows) so the quiz can ask about what was drawn |
 | `lp-quiz-digest.test.js` | R8 lane D 3.2b: digest of a planned lesson from its slide script; never carries the lesson's own exit MCQ |
 | `lp-quiz-downstream-parity.test.js` | An lp_v8 quiz gets everything a transcript quiz gets after authoring: hand-off PDF and link, share code, report, nudges |
@@ -161,6 +164,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `transcript-quiz-duplicate-questions.test.js` | A class quiz never asks the same question twice: validator names the later copy (DUPLICATE_QUESTION), rewrite fixes it |
 | `transcript-quiz-duplicates-blank-and-postposition.test.js` | A fill-in-the-blank and a question on the same fact count as duplicates despite a postposition difference in the key |
 | `transcript-quiz-early-years-gating.test.js` | A grade 1-5 lesson is drawable in every subject (round 5): author prompt and FIGURE_REQUIRED gate no longer maths-only |
+| `transcript-quiz-enqueue-failure.test.js` | (unmapped) |
 | `transcript-quiz-failure-reasons.test.js` | Why a quiz from a coaching recording failed, said truthfully: model_failed and other distinct reasons |
 | `transcript-quiz-figure-adaptive-scale.test.js` | The phone font scale is a ceiling per spec: a dense figure scales down, a sparse one keeps the ceiling, never discarded |
 | `transcript-quiz-figure-bar-labels.test.js` | A fraction bar is labelled once, in the digits the stem uses (Latin), not twice in two digit sets |
@@ -202,6 +206,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `transcript-quiz-intro-video.test.js` | The quiz offer intro film rides the first N offers chosen by teacher language, gated by a showing count (D7) |
 | `transcript-quiz-key-truth.test.js` | A key is right by the subject, not by class talk: KEY_BY_AUTHORITY fault (Proper Fraction 4/8) named per question |
 | `transcript-quiz-key-verify-model.test.js` | The blind solve runs on its own model (quiz.keyVerify, TRANSCRIPT_QUIZ_VERIFY_MODEL) billed and failed over separately |
+| `transcript-quiz-key-verify-stable-order.test.js` | (unmapped) |
 | `transcript-quiz-key-verify.test.js` | A quiz never ships a key a blind solver disagrees with: disagreeing items are re-authored from the solver's answer |
 | `transcript-quiz-language-ask.test.js` | The teacher chooses the quiz language: yes or a /quiz pick asks first and generation waits for the answer |
 | `transcript-quiz-language.test.js` | bd-mg9c7: quiz language decided by subject in code (quizLanguageFor), canonicalSubject and teacherLanguageFor copy |
@@ -262,6 +267,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `transcript-quiz-word-blank.test.js` | A word_blank never costs the child the question: the blank is inferred from the stem when the spec names none |
 | `video-quiz-join-lock-env.test.js` | VIDEO_QUIZ_JOIN_LOCK_SECS shortens the one-join-per-minute class-link lock for test lanes; unset stays 60 s |
 | `video-quiz-report-dual-language.test.js` | bd-mg9c7.27: class report reads in the teacher's language and quotes questions in the quiz's language (dual language) |
+| `video-quiz-reuse-open-run.test.js` | (unmapped) |
 | `video-quiz-typed-letter.test.js` | A typed letter answers the quiz the child is taking, and no other quiz takes over the handset; free verdict reactions |
 | `web-quiz-config-bot-boot.test.js` | Pins that the bot logs web_quiz.config once at startServer, with resolved names, before the port is bound |
 | `web-quiz-forward-message.test.js` | The forwarded message says what the child is asked first: web link asks only the name; wa.me link keeps the old text |

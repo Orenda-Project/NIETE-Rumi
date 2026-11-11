@@ -22,11 +22,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `detector.js` ← imported by `bot/shared/services/coaching/live-moves/live-moves.service.js:19:8d400068`
 - `disagreements.js` ← imported by `dashboard/services/coaching-report-view.js:12:d63ab42f`
 - `live-key.js` ← imported by `bot/shared/services/coaching/live-moves/live-moves.service.js:18:2319e99b`
-- `live-moves.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:2938:dbdf1d67`
-- `live-record.js` ← imported by `bot/shared/services/coaching/portal-coaching.service.js:291:2229b7f6` · `bot/shared/services/coaching/live-moves/live-moves.service.js:7:2e8dfb9a`
+- `live-moves.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:3181:dbdf1d67`
+- `live-record.js` ← imported by `bot/shared/services/coaching/portal-coaching.service.js:310:2229b7f6` · `bot/shared/services/coaching/live-moves/live-moves.service.js:7:2e8dfb9a`
 - `stream-cap.js` ← imported by `bot/shared/services/coaching/live-moves/live-key.js:7:876367f7`
 - `switch.js` ← imported by `bot/shared/services/coaching/live-moves/live-moves.service.js:16:47ee8455`
-- table `coaching_sessions` (written by `live-moves.service.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? · `bot/shared/handlers/text-message.handler.js:1920:5911672a`? · `bot/shared/handlers/voice-message.handler.js:741:5911672a`? (+85: `python3 kg/kg.py who-reads coaching_sessions`)
+- table `coaching_sessions` (written by `live-moves.service.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:56:4a173bcd`? · `bot/shared/handlers/text-message.handler.js:1950:5911672a`? · `bot/shared/handlers/voice-message.handler.js:769:5911672a`? (+86: `python3 kg/kg.py who-reads coaching_sessions`)
 
 ## Tests (all, generated)
 - `card-store.js` ← `tests/coaching/live-moves/card-store.test.js`

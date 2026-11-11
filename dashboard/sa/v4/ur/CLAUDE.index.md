@@ -20,6 +20,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `01eb5cc303bf.mp3` | (unmapped) |
 | `02046cab3340.json` | Urdu word timings (3 words, 1.8s) for the v4 clip "بالکل ٹھیک، ۱۷۔", read by sa-ui |
 | `02046cab3340.mp3` | (unmapped) |
+| `025a6beb6289.json` | (unmapped) |
+| `025a6beb6289.mp3` | (unmapped) |
 | `027dc9d60a58.json` | Urdu word timings (15 words, 7.0s) for the v4 clip "کہانی نیچے بھی ہے۔ پوری کہانی پڑھنے…", read by sa-ui |
 | `027dc9d60a58.mp3` | (unmapped) |
 | `0295eb988ed2.mp3` | (unmapped) |
@@ -41,6 +43,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `05ea735c22a2.mp3` | (unmapped) |
 | `0664930a0a13.json` | Urdu word timings (1 words, 2.0s) for the v4 clip "پاگ", read by sa-ui |
 | `0664930a0a13.mp3` | (unmapped) |
+| `06de98b9f1ee.json` | (unmapped) |
+| `06de98b9f1ee.mp3` | (unmapped) |
 | `06e2b5dc4f69.mp3` | (unmapped) |
 | `070cdec9e775.json` | Urdu word timings (7 words, 2.9s) for the v4 clip "شاباش! اب واپس نقشے پر چلتے ہیں۔", read by sa-ui |
 | `070cdec9e775.mp3` | (unmapped) |
@@ -97,6 +101,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `11eeb14f17b4.mp3` | (unmapped) |
 | `12532b4f5a1e.json` | Urdu word timings (35 words, 13.5s) for the v4 clip "ایک ایک کر کے الفاظ آئیں گے۔ ہر لفظ…", read by sa-ui |
 | `12532b4f5a1e.mp3` | (unmapped) |
+| `126741e7354f.json` | (unmapped) |
+| `126741e7354f.mp3` | (unmapped) |
 | `138164509edd.json` | Urdu word timings (7 words, 2.2s) for the v4 clip "استاد نے کس چیز کی تعریف کی؟", read by sa-ui |
 | `138164509edd.mp3` | (unmapped) |
 | `141fc5bc1a84.mp3` | (unmapped) |
@@ -116,6 +122,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `1989fc2b9419.json` | Urdu word timings (11 words, 4.5s) for the v4 clip "ان دو نمبروں کو دیکھیں۔ جو نمبر بڑا…", read by sa-ui |
 | `1989fc2b9419.mp3` | (unmapped) |
 | `198c4747c3fb.mp3` | (unmapped) |
+| `19a026a58ecf.json` | (unmapped) |
+| `19a026a58ecf.mp3` | (unmapped) |
 | `19c809448e9c.mp3` | (unmapped) |
 | `1a2fa6d25baf.json` | Urdu word timings (1 words, 1.9s) for the v4 clip "بلی", read by sa-ui |
 | `1a2fa6d25baf.mp3` | (unmapped) |
@@ -159,6 +167,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `2781d88412d6.json` | Urdu word timings (4 words, 1.8s) for the v4 clip "یہ حرف بے ہے۔", read by sa-ui |
 | `2781d88412d6.mp3` | (unmapped) |
 | `281da3ead3c9.mp3` | (unmapped) |
+| `294fa62b5630.json` | (unmapped) |
 | `294fa62b5630.mp3` | (unmapped) |
 | `296d5ef99a11.json` | Urdu word timings (1 words, 2.3s) for the v4 clip "۴", read by sa-ui |
 | `296d5ef99a11.mp3` | (unmapped) |
@@ -239,20 +248,32 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `42ae94f8b893.mp3` | (unmapped) |
 | `42b1378d675e.mp3` | (unmapped) |
 | `4369ac4eb751.mp3` | (unmapped) |
+| `43aa65286101.json` | (unmapped) |
+| `43aa65286101.mp3` | (unmapped) |
 | `445dbfea21d4.mp3` | (unmapped) |
 | `44671cd1c1c2.mp3` | (unmapped) |
 | `44ba610cb66b.json` | Urdu word timings (11 words, 4.5s) for the v4 clip "بندر کے چلے جانے کے بعد ہاتھی کا دو…", read by sa-ui |
 | `44ba610cb66b.mp3` | (unmapped) |
 | `451c9b17aa42.json` | Urdu word timings (52 words, 21.8s) for the v4 clip "یہ اردو حروفِ تہجی کا صفحہ ہے۔ ہر ح…", read by sa-ui |
 | `451c9b17aa42.mp3` | (unmapped) |
+| `456001600d04.json` | (unmapped) |
+| `456001600d04.mp3` | (unmapped) |
 | `45b9ed217909.mp3` | (unmapped) |
 | `45c3258c1b15.mp3` | (unmapped) |
+| `45fa608d68b9.json` | (unmapped) |
+| `45fa608d68b9.mp3` | (unmapped) |
 | `465270611aba.json` | Urdu word timings (24 words, 9.9s) for the v4 clip "ایک ایک کر کے حروف آئیں گے۔ ہر حرف…", read by sa-ui |
 | `465270611aba.mp3` | (unmapped) |
 | `46f04c0685b9.mp3` | (unmapped) |
+| `47343008f28a.json` | (unmapped) |
+| `47343008f28a.mp3` | (unmapped) |
+| `476b234a275d.json` | (unmapped) |
+| `476b234a275d.mp3` | (unmapped) |
 | `488a1aa0ad0f.mp3` | (unmapped) |
 | `498527f00f73.mp3` | (unmapped) |
 | `49d685f98c84.mp3` | (unmapped) |
+| `4b1cd5d4af35.json` | (unmapped) |
+| `4b1cd5d4af35.mp3` | (unmapped) |
 | `4b30a374b0fb.mp3` | (unmapped) |
 | `4b4ff3f1af50.mp3` | (unmapped) |
 | `4b5203e84a14.mp3` | (unmapped) |
@@ -307,6 +328,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `5c0ba21050db.mp3` | (unmapped) |
 | `5c45784eb371.json` | Urdu word timings (1 words, 1.0s) for the v4 clip "شاباش!", read by sa-ui |
 | `5c45784eb371.mp3` | (unmapped) |
+| `5c6e52e21b6d.json` | (unmapped) |
+| `5c6e52e21b6d.mp3` | (unmapped) |
 | `5c82eca8134f.mp3` | (unmapped) |
 | `5cb23e129afb.mp3` | (unmapped) |
 | `5d37fb317fde.mp3` | (unmapped) |
@@ -347,6 +370,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `69e97332dfa3.mp3` | (unmapped) |
 | `6af7c864a85a.json` | Urdu word timings (3 words, 2.2s) for the v4 clip "بالکل ٹھیک، ۶۶۔", read by sa-ui |
 | `6af7c864a85a.mp3` | (unmapped) |
+| `6b5560e59a13.json` | (unmapped) |
+| `6b5560e59a13.mp3` | (unmapped) |
 | `6bff431c01ee.mp3` | (unmapped) |
 | `6c20f668f0fa.json` | Urdu word timings (4 words, 2.6s) for the v4 clip "پرندہ اڑ رہا ہے", read by sa-ui |
 | `6c20f668f0fa.mp3` | (unmapped) |
@@ -365,6 +390,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `6e6593b6e4a5.mp3` | (unmapped) |
 | `6ec9b6280019.mp3` | (unmapped) |
 | `6f51f697a408.mp3` | (unmapped) |
+| `70687b36d1fe.json` | (unmapped) |
+| `70687b36d1fe.mp3` | (unmapped) |
 | `7169bfbff70b.json` | Urdu word timings (18 words, 6.8s) for the v4 clip "ایک ایک کر کے نمبر آئیں گے۔ ہر نمبر…", read by sa-ui |
 | `7169bfbff70b.mp3` | (unmapped) |
 | `7177860cdb5a.mp3` | (unmapped) |
@@ -393,6 +420,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `792870e2315c.json` | Urdu word timings (30 words, 12.3s) for the v4 clip "یہ سننے کا کھیل ہے۔ جگنو ایک لفظ دو…", read by sa-ui |
 | `792870e2315c.mp3` | (unmapped) |
 | `79d5df1e06e5.mp3` | (unmapped) |
+| `7a713632e12b.json` | (unmapped) |
+| `7a713632e12b.mp3` | (unmapped) |
 | `7ab1b6f0b586.mp3` | (unmapped) |
 | `7ab7790f979d.json` | Urdu word timings (4 words, 2.1s) for the v4 clip "یہ حرف جیم ہے۔", read by sa-ui |
 | `7ab7790f979d.mp3` | (unmapped) |
@@ -439,6 +468,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `871aa3dc1d99.json` | Urdu word timings (4 words, 2.0s) for the v4 clip "جیسے، اس تصویر میں:", read by sa-ui |
 | `871aa3dc1d99.mp3` | (unmapped) |
 | `873e72f46545.mp3` | (unmapped) |
+| `87a86f6b06b8.json` | (unmapped) |
+| `87a86f6b06b8.mp3` | (unmapped) |
 | `87d07eb262ca.mp3` | (unmapped) |
 | `88681508799c.json` | Urdu word timings (3 words, 1.8s) for the v4 clip "جواب ۱۷ ہے۔", read by sa-ui |
 | `88681508799c.mp3` | (unmapped) |
@@ -455,14 +486,22 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `8b04eeb01d18.mp3` | (unmapped) |
 | `8b114a0839f3.json` | Urdu word timings (8 words, 5.2s) for the v4 clip "جیسے: لفظ "جہاز" کی ابتدائی آواز ج…", read by sa-ui |
 | `8b114a0839f3.mp3` | (unmapped) |
+| `8b2072d4361e.json` | (unmapped) |
+| `8b2072d4361e.mp3` | (unmapped) |
+| `8b3217452df8.json` | (unmapped) |
+| `8b3217452df8.mp3` | (unmapped) |
 | `8b7d8f5fb408.json` | Urdu word timings (4 words, 1.4s) for the v4 clip "بلال خوش کیوں تھا؟", read by sa-ui |
 | `8b7d8f5fb408.mp3` | (unmapped) |
+| `8c05139d277c.json` | (unmapped) |
+| `8c05139d277c.mp3` | (unmapped) |
 | `8cd14a13dc78.json` | Urdu word timings (31 words, 14.8s) for the v4 clip "ایک ایک کر کے حروف آئیں گے۔ ہر حرف…", read by sa-ui |
 | `8cd14a13dc78.mp3` | (unmapped) |
 | `8cfcfcc51c6d.mp3` | (unmapped) |
 | `8d68215d2513.mp3` | (unmapped) |
 | `8e03f0e2a78d.mp3` | (unmapped) |
 | `8ecac027d791.mp3` | (unmapped) |
+| `8f566327ac32.json` | (unmapped) |
+| `8f566327ac32.mp3` | (unmapped) |
 | `8f667466808f.json` | Urdu word timings (27 words, 10.6s) for the v4 clip "اب جمع یعنی ایڈیشن کے کچھ سوال آئیں گے۔ ہر سوال کا…", read by sa-ui |
 | `8f667466808f.mp3` | (unmapped) |
 | `8fbffef0e345.mp3` | (unmapped) |
@@ -477,6 +516,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `90a472591d42.mp3` | (unmapped) |
 | `910fef978545.mp3` | (unmapped) |
 | `917d2f2aeef4.mp3` | (unmapped) |
+| `91baa28a9446.json` | (unmapped) |
+| `91baa28a9446.mp3` | (unmapped) |
 | `91cf7c675bfc.mp3` | (unmapped) |
 | `922a4bb03af0.mp3` | (unmapped) |
 | `9293d8c5e433.mp3` | (unmapped) |
@@ -489,6 +530,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `95eb517ee531.json` | Urdu word timings (33 words, 12.6s) for the v4 clip "آپ نے ابھی جو کہانی پڑھی، اب اس کے…", read by sa-ui |
 | `95eb517ee531.mp3` | (unmapped) |
 | `960d54ad8d56.mp3` | (unmapped) |
+| `96547b089a14.json` | (unmapped) |
+| `96547b089a14.mp3` | (unmapped) |
 | `9698853de221.json` | Urdu word timings (5 words, 2.3s) for the v4 clip "شاباش! یہ حرف بے ہے۔", read by sa-ui |
 | `9698853de221.mp3` | (unmapped) |
 | `96db3fd3a768.json` | Urdu word timings (2 words, 2.2s) for the v4 clip "بلبلے پھوڑیں!", read by sa-ui |
@@ -510,12 +553,15 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `9abb568fff5c.mp3` | (unmapped) |
 | `9bcf54f3795c.json` | Urdu word timings (1 words, 0.6s) for the v4 clip "م", read by sa-ui |
 | `9bcf54f3795c.mp3` | (unmapped) |
+| `9ca512fe84f2.json` | (unmapped) |
+| `9ca512fe84f2.mp3` | (unmapped) |
 | `9cf8c79c2bea.mp3` | (unmapped) |
 | `9d64f5a6398e.mp3` | (unmapped) |
 | `9de647eb7d63.mp3` | (unmapped) |
 | `9e11e31dd0da.mp3` | (unmapped) |
 | `9e97a6dd9a20.mp3` | (unmapped) |
 | `9ee6d60780ac.mp3` | (unmapped) |
+| `9f0423e45b4a.json` | (unmapped) |
 | `9f0423e45b4a.mp3` | (unmapped) |
 | `9f4d1a34dc58.mp3` | (unmapped) |
 | `9f60ddbccccb.mp3` | (unmapped) |
@@ -549,6 +595,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `a4d5b43f37b1.mp3` | (unmapped) |
 | `a5d1f48d9b4a.mp3` | (unmapped) |
 | `a5fd073ad378.mp3` | (unmapped) |
+| `a6350109912d.json` | (unmapped) |
+| `a6350109912d.mp3` | (unmapped) |
+| `a697de3b78b5.json` | (unmapped) |
+| `a697de3b78b5.mp3` | (unmapped) |
 | `a6b047af3762.json` | Urdu word timings (21 words, 10.1s) for the v4 clip "احمد ایک تھیلے میں ۴ گیندیں ڈالتا ہ…", read by sa-ui |
 | `a6b047af3762.mp3` | (unmapped) |
 | `a6ff741e4fed.mp3` | (unmapped) |
@@ -559,6 +609,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `a848377c0f99.mp3` | (unmapped) |
 | `a926fe6be6b6.json` | Urdu word timings (5 words, 1.2s) for the v4 clip "اس حرف کا نام ہے:", read by sa-ui |
 | `a926fe6be6b6.mp3` | (unmapped) |
+| `a93ca160e28f.json` | (unmapped) |
+| `a93ca160e28f.mp3` | (unmapped) |
 | `a96c5ed97f21.json` | Urdu word timings (5 words, 2.3s) for the v4 clip "شاباش! یہ حرف جیم ہے۔", read by sa-ui |
 | `a96c5ed97f21.mp3` | (unmapped) |
 | `a9dfebcd3827.json` | Urdu word timings (14 words, 4.3s) for the v4 clip "اب کہانی کے بارے میں سوالوں کے جواب…", read by sa-ui |
@@ -567,6 +619,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `ab5476679551.mp3` | (unmapped) |
 | `ac19d85e7375.mp3` | (unmapped) |
 | `adb1a771a20c.mp3` | (unmapped) |
+| `ae20c3d37b21.json` | (unmapped) |
+| `ae20c3d37b21.mp3` | (unmapped) |
 | `ae3bcc8c0aa8.mp3` | (unmapped) |
 | `ae501622fe29.mp3` | (unmapped) |
 | `ae9266c619ab.json` | Urdu word timings (4 words, 4.2s) for the v4 clip "یہ لفظ کرسی ہے۔", read by sa-ui |
@@ -591,10 +645,15 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `b1dceb60ec85.mp3` | (unmapped) |
 | `b22287c766e9.mp3` | (unmapped) |
 | `b22c21117859.mp3` | (unmapped) |
+| `b2788a813ccd.json` | (unmapped) |
 | `b2788a813ccd.mp3` | (unmapped) |
 | `b3b9fe859315.mp3` | (unmapped) |
+| `b3f46a913cb6.json` | (unmapped) |
+| `b3f46a913cb6.mp3` | (unmapped) |
 | `b3f7b6a13fa3.mp3` | (unmapped) |
 | `b3fa4e132bd4.mp3` | (unmapped) |
+| `b467a6a91777.json` | (unmapped) |
+| `b467a6a91777.mp3` | (unmapped) |
 | `b491e4d1a48c.json` | Urdu word timings (7 words, 3.4s) for the v4 clip "لفظ "انار" کی ابتدائی آواز ا ہے۔", read by sa-ui |
 | `b491e4d1a48c.mp3` | (unmapped) |
 | `b5b18c473637.mp3` | (unmapped) |
@@ -620,9 +679,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `b97051e7bc4f.mp3` | (unmapped) |
 | `b9ab6da7f374.mp3` | (unmapped) |
 | `b9e9fa8b1eac.mp3` | (unmapped) |
+| `ba4ccaac7e62.json` | (unmapped) |
+| `ba4ccaac7e62.mp3` | (unmapped) |
 | `ba8c5161a5ed.mp3` | (unmapped) |
 | `ba9f9a10b1b5.json` | Urdu word timings (1 words, 2.0s) for the v4 clip "نَ", read by sa-ui |
 | `ba9f9a10b1b5.mp3` | (unmapped) |
+| `bb07b03351bd.json` | (unmapped) |
+| `bb07b03351bd.mp3` | (unmapped) |
 | `bb380651236e.json` | Urdu word timings (13 words, 6.1s) for the v4 clip "ترتیب کو دیکھیں اور سوال سنیں۔ جواب…", read by sa-ui |
 | `bb380651236e.mp3` | (unmapped) |
 | `bb58aef42874.json` | Urdu word timings (14 words, 6.8s) for the v4 clip "جب جگنو کہے رک جائیں، تو وہ آخری لف…", read by sa-ui |
@@ -632,6 +695,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bc8bd3d2eeba.mp3` | (unmapped) |
 | `bd4f39892f46.json` | Urdu word timings (12 words, 11.4s) for the v4 clip "ستارہ دائرہ: ایک۔ ستارہ دائرہ: دو۔…", read by sa-ui |
 | `bd4f39892f46.mp3` | (unmapped) |
+| `bd635ce0682e.json` | (unmapped) |
+| `bd635ce0682e.mp3` | (unmapped) |
 | `be7b77bd681e.json` | Urdu word timings (5 words, 1.9s) for the v4 clip "یہ بنایا ہوا لفظ ہے:", read by sa-ui |
 | `be7b77bd681e.mp3` | (unmapped) |
 | `bf4fb1d5219a.mp3` | (unmapped) |
@@ -656,6 +721,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `c4ef14398ea3.json` | Urdu word timings (3 words, 1.4s) for the v4 clip "جواب ۵ ہے۔", read by sa-ui |
 | `c4ef14398ea3.mp3` | (unmapped) |
 | `c563bf0692be.mp3` | (unmapped) |
+| `c57a404cc294.json` | (unmapped) |
+| `c57a404cc294.mp3` | (unmapped) |
 | `c59a12c3ab75.mp3` | (unmapped) |
 | `c5aaa8a6bc73.mp3` | (unmapped) |
 | `c61faa8afd86.mp3` | (unmapped) |
@@ -677,6 +744,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `cbd22a18045f.mp3` | (unmapped) |
 | `cc1046230196.json` | Urdu word timings (42 words, 16.3s) for the v4 clip "یہ ایک مختصر کہانی ہے۔ اسے اونچی آو…", read by sa-ui |
 | `cc1046230196.mp3` | (unmapped) |
+| `cd6fe511dd14.json` | (unmapped) |
+| `cd6fe511dd14.mp3` | (unmapped) |
 | `cd9a6c93f452.mp3` | (unmapped) |
 | `cdae1d85d2d0.json` | Urdu word timings (20 words, 6.8s) for the v4 clip "بس میں تین بچے ہیں۔ ایک بچہ بس سے ا…", read by sa-ui |
 | `cdae1d85d2d0.mp3` | (unmapped) |
@@ -686,6 +755,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `cf7b9ebafdc2.json` | Urdu word timings (14 words, 5.7s) for the v4 clip "شاباش! سارے کھیل ختم ہو گئے۔ اب فون…", read by sa-ui |
 | `cf7b9ebafdc2.mp3` | (unmapped) |
 | `cf86717020ec.mp3` | (unmapped) |
+| `d059e30a2a6f.json` | (unmapped) |
+| `d059e30a2a6f.mp3` | (unmapped) |
 | `d0aafce79a13.json` | Urdu word timings (25 words, 9.5s) for the v4 clip "اب جمع کے کچھ سوال آئیں گے۔ ہر سوال…", read by sa-ui |
 | `d0aafce79a13.mp3` | (unmapped) |
 | `d0cf78992a4d.mp3` | (unmapped) |
@@ -721,13 +792,20 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `d7921f029889.mp3` | (unmapped) |
 | `d79defa715fe.mp3` | (unmapped) |
 | `d79f19bf5ddd.mp3` | (unmapped) |
+| `d7ed765d5079.json` | (unmapped) |
+| `d7ed765d5079.mp3` | (unmapped) |
 | `d94c9376d4c0.mp3` | (unmapped) |
+| `d979b3efff28.json` | (unmapped) |
+| `d979b3efff28.mp3` | (unmapped) |
+| `d987570eefed.json` | (unmapped) |
+| `d987570eefed.mp3` | (unmapped) |
 | `da1779bccba8.mp3` | (unmapped) |
 | `daae12bc1243.mp3` | (unmapped) |
 | `dadcefecc2e5.mp3` | (unmapped) |
 | `db47db3e6695.json` | Urdu word timings (6 words, 2.5s) for the v4 clip "مثال کے طور پر، لفظ ہے:", read by sa-ui |
 | `db47db3e6695.mp3` | (unmapped) |
 | `dbf8cbac4e62.mp3` | (unmapped) |
+| `dc59290fb3f6.json` | (unmapped) |
 | `dc59290fb3f6.mp3` | (unmapped) |
 | `dca283bcb96b.json` | Urdu word timings (4 words, 1.4s) for the v4 clip "یہ لفظ جب ہے۔", read by sa-ui |
 | `dca283bcb96b.mp3` | (unmapped) |
@@ -735,6 +813,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `dd44a405138a.mp3` | (unmapped) |
 | `dd7fd588892e.json` | Urdu word timings (22 words, 8.7s) for the v4 clip "سلمان کے پاس کھلونا گاڑیوں کے ۲ ڈبے…", read by sa-ui |
 | `dd7fd588892e.mp3` | (unmapped) |
+| `dde3d9fcf8d1.json` | (unmapped) |
+| `dde3d9fcf8d1.mp3` | (unmapped) |
 | `de377ad82d2a.json` | Urdu word timings (13 words, 7.4s) for the v4 clip "آئیں، اونچی آواز میں جواب دینے کی م…", read by sa-ui |
 | `de377ad82d2a.mp3` | (unmapped) |
 | `e03d6162e500.mp3` | (unmapped) |
@@ -750,17 +830,22 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `e3233aafd177.mp3` | (unmapped) |
 | `e4bde5cac7b6.mp3` | (unmapped) |
 | `e4be69859dfc.mp3` | (unmapped) |
+| `e5016412498f.json` | (unmapped) |
 | `e5016412498f.mp3` | (unmapped) |
 | `e53412c9a7dd.mp3` | (unmapped) |
 | `e54dcf33874a.json` | Urdu word timings (9 words, 6.9s) for the v4 clip "کلاس صاف ہونے کے بعد استاد خوش کیوں…", read by sa-ui |
 | `e54dcf33874a.mp3` | (unmapped) |
 | `e594a80e8e68.mp3` | (unmapped) |
+| `e5df43aaf96f.json` | (unmapped) |
+| `e5df43aaf96f.mp3` | (unmapped) |
 | `e5f07a0acfc9.json` | Urdu word timings (5 words, 2.0s) for the v4 clip "عائشہ نے کیا صاف کیا؟", read by sa-ui |
 | `e5f07a0acfc9.mp3` | (unmapped) |
 | `e66fa6dbe583.json` | Urdu word timings (11 words, 5.1s) for the v4 clip "اپنا جواب اونچی آواز میں بتائیں، پھر «آگے» کا بٹن د…", read by sa-ui |
 | `e66fa6dbe583.mp3` | (unmapped) |
 | `e675754612b4.json` | Urdu word timings (1 words, 0.6s) for the v4 clip "ا", read by sa-ui |
 | `e675754612b4.mp3` | (unmapped) |
+| `e6cec8185970.json` | (unmapped) |
+| `e6cec8185970.mp3` | (unmapped) |
 | `e6f1bc786b1d.json` | Urdu word timings (3 words, 1.8s) for the v4 clip "مجھے سنائی دیا!", read by sa-ui |
 | `e6f1bc786b1d.mp3` | (unmapped) |
 | `e70695f1c041.mp3` | (unmapped) |
@@ -769,6 +854,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `e8ace1d6a8e3.mp3` | (unmapped) |
 | `e8cd79527c71.json` | Urdu word timings (12 words, 6.1s) for the v4 clip "کوئی بھی نمبر لکھیں۔ لکھ لیں تو "ہو…", read by sa-ui |
 | `e8cd79527c71.mp3` | (unmapped) |
+| `e9abbee0ff52.json` | (unmapped) |
+| `e9abbee0ff52.mp3` | (unmapped) |
 | `eb63fa786f91.mp3` | (unmapped) |
 | `eb6648a2770a.json` | Urdu word timings (27 words, 11.4s) for the v4 clip "یہ سننے کا کھیل ہے۔ جگنو ایک لفظ دو…", read by sa-ui |
 | `eb6648a2770a.mp3` | (unmapped) |
@@ -777,6 +864,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `ec11ff773996.json` | Urdu word timings (25 words, 9.0s) for the v4 clip "ایک ایک کر کے حروف آئیں گے۔ ہر حرف…", read by sa-ui |
 | `ec11ff773996.mp3` | (unmapped) |
 | `ec2a650fb462.mp3` | (unmapped) |
+| `ed4113325be4.json` | (unmapped) |
+| `ed4113325be4.mp3` | (unmapped) |
 | `ed8cd2af0747.mp3` | (unmapped) |
 | `ed90e14c2db1.mp3` | (unmapped) |
 | `ee3812977c5f.json` | Urdu word timings (3 words, 1.5s) for the v4 clip "بالکل ٹھیک، ۲۔", read by sa-ui |
@@ -797,14 +886,20 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `f0ead6164a95.mp3` | (unmapped) |
 | `f210784d7046.mp3` | (unmapped) |
 | `f250ca0b87fa.mp3` | (unmapped) |
+| `f2da929f7ed1.json` | (unmapped) |
+| `f2da929f7ed1.mp3` | (unmapped) |
 | `f384205f45a3.mp3` | (unmapped) |
 | `f38e07d61ab5.json` | Urdu word timings (3 words, 1.6s) for the v4 clip "بالکل ٹھیک، ۲۰۔", read by sa-ui |
 | `f38e07d61ab5.mp3` | (unmapped) |
 | `f3e971108427.mp3` | (unmapped) |
 | `f435b62a25b1.json` | Urdu word timings (3 words, 1.4s) for the v4 clip "جواب ۲ ہے۔", read by sa-ui |
 | `f435b62a25b1.mp3` | (unmapped) |
+| `f4b04c44c0dd.json` | (unmapped) |
+| `f4b04c44c0dd.mp3` | (unmapped) |
 | `f516f3a6f2fa.mp3` | (unmapped) |
 | `f52609e66921.mp3` | (unmapped) |
+| `f57f1e43bc4f.json` | (unmapped) |
+| `f57f1e43bc4f.mp3` | (unmapped) |
 | `f58422c66a4b.mp3` | (unmapped) |
 | `f597912f9c77.mp3` | (unmapped) |
 | `f5ddae4653f7.mp3` | (unmapped) |

@@ -30,6 +30,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `old-link-redirect.test.js` | Pins the QUIZ-<code> old-link redirect to ONE web-quiz cta_url under web_quiz_old_link_redirect, with guards |
 | `old-link-reoffer.test.js` | Pins re-offering the Start quiz button once to a child who types after the redirect, plus redirect wamid logging |
 | `one-voice-missing-keys.test.js` | Pins read-only pre-flip check one-voice-missing-keys.js for web_quiz_one_voice: lists missing clips by id |
+| `presign-public-r2-dev.test.js` | (unmapped) |
 | `quiz-column-sum-katex.test.js` | Real-KaTeX check that a textbook column sum is valid TeX and typeset as an array on the card and teacher PDF |
 | `quiz-equation-runs-katex.test.js` | Real-KaTeX check that an Urdu stem's Latin-x equation renders as one LTR expression on card and teacher PDF |
 | `quiz-picture-words.test.js` | Pins pointsAtPicture (quiz-picture-words): which stem wordings, English and Urdu, mean the stem refers to a picture |

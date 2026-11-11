@@ -1,7 +1,7 @@
 # assets — Images for the marketing site and portal chrome: logos, hero art, illustrations
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/assets kg=64c53a7ceb57 gen=c4fae55f4296 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/assets kg=00ab685efaaf gen=ef19ba5e1577 overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `niete-logo.png` — the NIETE logo (used by NotFound and portal chrome)
@@ -22,7 +22,7 @@ Full index: `CLAUDE.index.md`
 | `mountain-shot.jpg` | (unmapped) |
 
 ## Who reads this (generated)
-- `niete-logo.png` ← imported by `portal/src/pages/NotFound.tsx:3:4c106db0` · `portal/src/portal/analytics/AnalyticsFrame.tsx:4:252f2bc4` (+10)
+- `niete-logo.png` ← imported by `portal/src/pages/NotFound.tsx:3:4c106db0` · `portal/src/portal/analytics/AnalyticsFrame.tsx:4:252f2bc4` (+9)
 - `rumi-logo.png` ← imported by `portal/src/components/Navigation.tsx:5:dce9215e` · `portal/src/components/WhatsAppChat.tsx:2:dce9215e` (+2)
 - `hero-sketch-2.png` ← imported by `portal/src/components/Hero.tsx:4:df6f1936`
 - `illustration-chat.png` ← imported by `portal/src/components/AlwaysThere.tsx:1:8afd31da`

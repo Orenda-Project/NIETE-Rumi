@@ -16,16 +16,16 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `routes.tsx` | Registers lazy Observations home and visit-report pages under /portal/teacher/observations via TeacherGate |
 
 ## Who reads this (all, generated)
-- `ObservationsHome.tsx` ← imported by `portal/src/portal/teacher/observations/routes.tsx:6:af920adc`
-- `api.ts` ← imported by `portal/src/portal/teacher/observations/ObservationsHome.tsx:16:f775a727`
-- `copy.ts` ← imported by `portal/src/portal/teacher/observations/ObservationsHome.tsx:17:376d03b0`
-- `paths.ts` ← imported by `portal/src/portal/teacher/home/chips.ts:4:614029b8` · `portal/src/portal/teacher/home/look/cardWords.ts:4:55f11086` · `portal/src/portal/teacher/observations/ObservationsHome.tsx:18:93d6f216` · `portal/src/portal/teacher/observations/api.ts:8:fd15bb81` (+1: `python3 kg/kg.py who-reads paths.ts`)
+- `ObservationsHome.tsx` ← imported by `portal/src/portal/teacher/principal/PrincipalObservations.tsx:17:bc14f843` · `portal/src/portal/teacher/observations/routes.tsx:6:af920adc`
+- `api.ts` ← imported by `portal/src/portal/teacher/observations/ObservationsHome.tsx:18:f775a727`
+- `copy.ts` ← imported by `portal/src/portal/teacher/principal/PickTeacher.tsx:9:b4a946db` · `portal/src/portal/teacher/principal/PrincipalObservations.tsx:16:b4a946db` · `portal/src/portal/teacher/observations/ObservationsHome.tsx:19:376d03b0`
+- `paths.ts` ← imported by `portal/src/portal/teacher/coaching/CoachingHome.tsx:20:614029b8` · `portal/src/portal/teacher/home/chips.ts:4:614029b8` · `portal/src/portal/teacher/home/look/cardWords.ts:4:55f11086` · `portal/src/portal/teacher/principal/PickTeacher.tsx:10:224e17b0` (+4: `python3 kg/kg.py who-reads paths.ts`)
 
 ## Tests (all, generated)
 - `ObservationsHome.tsx` ← `portal/src/portal/teacher/observations/Observations.test.tsx` · `portal/src/portal/teacher/observations/observations.ur.test.tsx`
 - `api.ts` ← `portal/src/portal/teacher/observations/observations.ur.test.tsx`
 - `copy.ts` ← `portal/src/portal/teacher/observations/Observations.test.tsx` · `portal/src/portal/teacher/observations/checks.test.tsx` · `portal/src/portal/teacher/observations/observations.ur.test.tsx`
-- `paths.ts` ← `portal/src/portal/teacher/observations/Observations.test.tsx` · `portal/src/portal/teacher/observations/observations.ur.test.tsx`
+- `paths.ts` ← `portal/src/portal/teacher/observations/Observations.test.tsx` · `portal/src/portal/teacher/observations/observations.ur.test.tsx` · `portal/src/portal/teacher/principal/PrincipalObserve.test.tsx` · `portal/src/portal/teacher/principal/PrincipalV2Observe.test.tsx`
 - `routes.tsx` ← `portal/src/portal/teacher/observations/Observations.test.tsx` · `portal/src/portal/teacher/observations/observations.ur.test.tsx`
 
 ## Related (all, generated)

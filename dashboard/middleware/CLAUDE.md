@@ -1,6 +1,6 @@
 # middleware — Express middleware: session auth, request timeout, latency logging, RBAC
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/middleware kg=33e1daceef2f gen=3dbc7630c4b6 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/middleware kg=9da761a3a2c5 gen=ceba4f3b877a overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `auth.js` — requireAuth and role helpers for observability pages
@@ -17,7 +17,7 @@
 | `auth.js` | Session auth middleware for the observability dashboard (requireAuth, role checks, user locals). |
 
 ## Who reads this (generated)
-- `timeout.js` ← imported by `dashboard/index.js:20:f961953a` · `dashboard/routes/portal.routes.js:66:b7fead48` (+1)
+- `timeout.js` ← imported by `dashboard/index.js:20:f961953a` · `dashboard/routes/portal.routes.js:70:b7fead48` (+1)
 - `auth.js` ← imported by `dashboard/index.js:19:4e45b290`
 - `latency-logger.js` ← imported by `dashboard/index.js:21:93d3201a`
 

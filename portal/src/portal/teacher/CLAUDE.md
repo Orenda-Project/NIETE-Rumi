@@ -1,7 +1,7 @@
 # teacher — Teacher app v2 (portal_teacher_v2): frame, menu, route registry, Urdu/English layer
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher kg=c755cad6e758 gen=a938c484379f overflow=105 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher kg=ea814ad751d5 gen=5a20cd18a8d7 overflow=123 rendered=2026-11-11 kg.py=1.1.0 -->
 
 ## Entry points
 - `routes.tsx` — registry: globs ./*/routes.tsx into TEACHER_ROUTES; App.tsx wraps each in TeacherGate
@@ -12,14 +12,13 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| 15 sub-dirs, each with `CLAUDE.md` | `analytics/` · `assessment/` · `attendance/` · `classes/` · `coaching/` · `home/` · `icons/` · `lessons/` · `notices/` · `observations/` · `pages/` · `remind/` · `share/` · `training/` · `ui/` |
-| `i18n.ts` | Teacher v2 language layer (flat en/ur): bilingual() with a shape-typed Urdu, langOf, copyIn, untranslated() checker |
-| … | 41 more → `CLAUDE.index.md` |
+| 18 sub-dirs, each with `CLAUDE.md` | `analytics/` · `assessment/` · `attendance/` · `classes/` · `coaching/` · `home/` · `icons/` · `lessons/` · `notices/` · `observations/` · `pages/` · `principal/` · `remind/` · `roleSwitch/` · `share/` · `topicpaper/` · `training/` · `ui/` |
+| … | 46 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `i18n.ts` ← imported by `portal/src/portal/analytics/SchoolsAnalytics.tsx:8:0f66c8aa` · `portal/src/portal/auth/AnalyticsLogin.tsx:9:b07c182e` (+244)
-- `TeacherPage.tsx` ← imported by `portal/src/portal/coach/card/FeatureGridPage.tsx:2:e8f36f5c` · `portal/src/portal/coach/card/SchoolCardPage.tsx:4:e8f36f5c` (+48)
-- `routes.tsx` ← imported by `portal/src/App.tsx:16:a9c609d6` · `portal/src/portal/pages/LeaderHome.tsx:12:e4d9854a` (+32)
+- `i18n.ts` ← imported by `portal/src/portal/analytics/SchoolsAnalytics.tsx:8:0f66c8aa` · `portal/src/portal/auth/AnalyticsLogin.tsx:9:b07c182e` (+283)
+- `TeacherPage.tsx` ← imported by `portal/src/portal/coach/card/SchoolCardPage.tsx:4:fab0408f` · `portal/src/portal/coach/card/SessionReportPage.tsx:3:e8f36f5c` (+59)
+- `routes.tsx` ← imported by `portal/src/App.tsx:16:a9c609d6` · `portal/src/portal/pages/LeaderHome.tsx:12:e4d9854a` (+37)
 - … 10 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -31,7 +30,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/teacher/TeacherNavigation.coach.test.tsx` (TeacherNavigation.tsx, TeacherPage.tsx, copy.ts, menu.ts)
 - `portal/src/portal/teacher/frame.ur.test.tsx` (TeacherNavigation.tsx, TeacherPage.tsx, copy.ts, format.ts)
-- … 76 more → `CLAUDE.index.md`
+- … 93 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/CLAUDE.md`? · `portal/src/portal/teacher/pages/CLAUDE.md`? · `portal/src/portal/teacher/ui/README.md`?

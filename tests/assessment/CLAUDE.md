@@ -1,7 +1,7 @@
 # assessment — Tests for the assessment/exam generator: WhatsApp Flow, portal editor, FDE board papers
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/assessment kg=045f47e23921 gen=07faa9f194f2 overflow=260 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/assessment kg=79b7c4dceec9 gen=79827958eb85 overflow=487 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `golden.test.js` — start here: pins today's prompts, printed papers/keys, options payloads against fixtures/golden
@@ -12,14 +12,17 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `fixtures/` | → (no door; 214 files: 0 test + 214 support) |
-| `helpers/` | Shared fakes and replay helpers for the assessment tests (not test files themselves) → `helpers/CLAUDE.md` |
-| `topics/` | Tests for assessment topics: curriculum-matrix grouping, topic papers, topic answer key → `topics/CLAUDE.md` |
+| 5 sub-dirs, each with `CLAUDE.md` | `board-checks/` · `board-render/` · `board-writer/` · `helpers/` · `topics/` |
+| 4 sub-dirs without a door | `board-layout/` (3 tests) · `board-wiring/` (8 tests) · `board/` (8 tests) · `fixtures/` (540 tests) |
+| `fde-v29-oral-prep.test.js` | (unmapped) |
+| `fde-v33-mid-legend.test.js` | (unmapped) |
+| `fde-v37-science-r2.test.js` | (unmapped) |
 | `fde-edit.test.js` | Pins editing a board-pattern paper: selection keeps _layout, a changed answer drops worked scheme points (E8.1/E8.2) |
 | `assessment-chat-ack.test.js` | Pins generation and rebuild ending by closing the Flow with an in-chat acknowledgement, not a SUBMITTED screen |
-| `assessment-paper-fde.renderer.test.js` | Pins the printed board-pattern paper and marking scheme: recomputed counts, header total 100, choiceLine (fde renderer) |
 | `fde-r6s2.test.js` | Round 6 second pass: pins that appended source/chapter/level tags never print and the pages-paper covers line |
-| … | 263 more → `CLAUDE.index.md` |
+| `fde-v25-g1-pictures.test.js` | (unmapped) |
+| `fde-v34-layout.test.js` | (unmapped) |
+| … | 501 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

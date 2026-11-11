@@ -1,6 +1,6 @@
 # migration — One-off NIETE migration appliers, lesson-plan imports and surveys
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/migration kg=f41075e1d636 gen=bc59c2e502d7 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/migration kg=44ab5b6815e0 gen=fdedb8e22969 overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `apply-018-lp-v8-assets.js` — applies migration 018
@@ -19,7 +19,7 @@
 
 ## Who reads this (generated)
 - table `curriculum_lp_ast` whole row (`*`) (written by `import-tbcore-lps.js`) ← read by `bot/scripts/render/render-one-lp.js:115:d61f3f19`? · `bot/scripts/render/render-v7-lp.js:56:94380945`? (+1)
-- table `curriculum_lp_ast` (written by `import-tbcore-lps.js`) ← read by `bot/shared/services/curriculum-lp-ast.service.js:62:fe1db9e9`? · `bot/scripts/migration/survey-lp-inventory.js:37:fe1db9e9`?
+- table `curriculum_lp_ast` (written by `import-tbcore-lps.js`) ← read by `bot/shared/services/curriculum-lp-ast.service.js:67:fe1db9e9`? · `bot/scripts/migration/survey-lp-inventory.js:37:fe1db9e9`?
 - env read here: `NIETE_ENV_PATH` · `SUPABASE_DB_PASSWORD` · `SUPABASE_SERVICE_ROLE_KEY` · `SUPABASE_URL` · `TALEEMABAD_DB_HOST` · `TALEEMABAD_DB_NAME` · `TALEEMABAD_DB_PASSWORD` · `TALEEMABAD_DB_PORT` · `TALEEMABAD_DB_SCHEMA` · `TALEEMABAD_DB_USER`
 
 ## Never (human)

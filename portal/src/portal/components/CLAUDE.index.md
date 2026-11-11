@@ -102,6 +102,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `ScoreBreakdown.tsx` | Coaching score breakdown by the framework (FICO) actually assessed, in bands, replacing six OECD goal bars |
 | `ScoreIndicator.bands.test.tsx` | Pins ScoreIndicator and ScoreBreakdown showing a performance band instead of a percentage number |
 | `ScoreIndicator.tsx` | Shared score badge: renders a band for a percentage, used on dashboard, session list/report and Analytics |
+| `Skeleton.look.test.tsx` | (unmapped) |
 | `Skeleton.tsx` | bd-fxk3t8: shimmer placeholder blocks (line/chip/tile) matching index.html app-shell, shown instead of spinners |
 | `StatCard.tsx` | Shared stat tile: title, value, icon and optional trend, used on old-UI dashboards |
 | `UrduAware.tsx` | Renders text per field as RTL Urdu when it contains Urdu script (isUrdu), else normal; coaching transcripts |
@@ -148,7 +149,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `RemarksSection.tsx` ← imported by `portal/src/portal/pages/PortalCoachingAnalytics.tsx:7:db857156` · `portal/src/portal/pages/SchoolAnalytics.tsx:10:87ca9ab4`
 - `ScoreBreakdown.tsx` ← imported by `portal/src/portal/pages/PortalCoachingDetail.tsx:6:0a83fdf7`
 - `ScoreIndicator.tsx` ← imported by `portal/src/portal/pages/LeaderObservations.tsx:9:1255d77f` · `portal/src/portal/pages/LeaderTeacherDetail.tsx:9:1255d77f` · `portal/src/portal/pages/LeaderTeachers.tsx:10:1255d77f` · `portal/src/portal/pages/PortalCoaching.tsx:2:6bc5406c` (+6: `python3 kg/kg.py who-reads ScoreIndicator.tsx`)
-- `Skeleton.tsx` ← imported by `portal/src/App.tsx:30:2648ae31` · `portal/src/portal/auth/AnalyticsLogin.tsx:8:e21a4d15` · `portal/src/portal/coach/card/CoachLanding.tsx:1:c2987858` · `portal/src/portal/coach/card/frame.tsx:5:c2987858` (+26: `python3 kg/kg.py who-reads Skeleton.tsx`)
+- `Skeleton.tsx` ← imported by `portal/src/App.tsx:30:2648ae31` · `portal/src/portal/auth/AnalyticsLogin.tsx:8:e21a4d15` · `portal/src/portal/coach/card/CoachLanding.tsx:1:c2987858` · `portal/src/portal/coach/card/frame.tsx:5:c2987858` (+27: `python3 kg/kg.py who-reads Skeleton.tsx`)
 - `StatCard.tsx` ← imported by `portal/src/portal/pages/LeaderHome.tsx:7:273f3985` · `portal/src/portal/pages/LeaderTeacherDetail.tsx:6:273f3985` · `portal/src/portal/pages/PortalDashboard.tsx:16:a854d5cb`
 - `UrduAware.tsx` ← imported by `portal/src/portal/pages/PortalCoachingDetail.tsx:7:023eb6ee` · `portal/src/portal/components/ScoreBreakdown.tsx:20:8be957ab`
 - `stepMark.tsx` ← imported by `portal/src/portal/components/LessonPlanPage.tsx:2:37cb3e3d` · `portal/src/portal/components/LessonPlanViewer.tsx:6:bcbb0e1b`
@@ -180,7 +181,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `RecordingBar.tsx` ← `portal/src/portal/components/PortalLayout.newUi.test.tsx` · `portal/src/portal/newui/coaching/RecordingBar.newUi.test.tsx` · `portal/src/portal/pages/PortalCoaching.flagOff.test.tsx`
 - `ScoreBreakdown.tsx` ← `portal/src/portal/components/ScoreIndicator.bands.test.tsx`
 - `ScoreIndicator.tsx` ← `portal/src/portal/components/ScoreIndicator.bands.test.tsx`
-- `Skeleton.tsx` ← `portal/src/portal/auth/auth.skeleton.test.tsx` · `portal/src/portal/components/loadingStates.test.tsx`
+- `Skeleton.tsx` ← `portal/src/portal/auth/auth.skeleton.test.tsx` · `portal/src/portal/components/Skeleton.look.test.tsx` · `portal/src/portal/components/loadingStates.test.tsx`
 - `stepMark.tsx` ← `portal/src/portal/components/stepMark.test.tsx`
 
 ## Related (all, generated)

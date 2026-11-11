@@ -1,7 +1,7 @@
 # ui — Teacher UI kit: shared components, styles, bidi and copy defaults (see README.md)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/ui kg=a130c1d32824 gen=a21fbd9747a8 overflow=168 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/ui kg=4b8cca523bd9 gen=233108d8f4b4 overflow=172 rendered=2026-11-11 kg.py=1.1.0 -->
 
 ## Entry points
 - `README.md` — catalogue of every kit component, props and the rules; `index.ts` — barrel
@@ -15,13 +15,13 @@ Full index: `CLAUDE.index.md`
 | `styles.ts` | Shared class strings for the teacher kit (CHIP_TONE, CARD, CARD_SELECTED) in the v28 coach-v2 look |
 | `index.ts` | Barrel for the teacher UI kit behind portal_teacher_v2: every shared component, helper and style |
 | `useKitCopy.ts` | Hook returning the kit's default words in the page's language for components' copy props (bd-fmf24g.13) |
-| `copy.ts` | Teacher kit's own English and Urdu default words (TEACHER_UI) for its components' copy props |
-| … | 85 more → `CLAUDE.index.md` |
+| … | 88 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `styles.ts` ← imported by `portal/src/portal/coach/disagreements/CoachingBox.tsx:4:d8e874ab` · `portal/src/portal/coach/disagreements/DisagreementCard.tsx:6:cbd9177e` (+114)
-- `index.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:5:537d2327` · `portal/src/portal/coach/analytics/model.ts:2:0fe353a8` (+98)
-- … 52 more → `CLAUDE.index.md`
+- `styles.ts` ← imported by `portal/src/portal/coach/card/training.tsx:6:55bdb8b8` · `portal/src/portal/coach/disagreements/CoachingBox.tsx:4:d8e874ab` (+133)
+- `index.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:5:537d2327` · `portal/src/portal/coach/analytics/model.ts:2:0fe353a8` (+118)
+- `useKitCopy.ts` ← imported by `portal/src/portal/coach/card/SessionReportPage.tsx:6:98653aa9` · `portal/src/portal/coach/feedback/FeedbackPage.tsx:9:98653aa9` (+37)
+- … 53 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Kit components use start/end only, motion under motion-safe:, 56px targets (checks.test.tsx:20, :37)

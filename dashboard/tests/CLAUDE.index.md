@@ -26,6 +26,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `code-chunker.test.js` | Code Chunker Service TDD Tests for AST-based code chunking Tests function extraction, metadata, and error handling |
 | `cut-link-off-harness.js` | Harness that mounts portal-static-cache and edge-mounts with the cut-link switch off, to record or replay its golden |
 | `cut-link-page.service.test.js` | Tests quiz_cut_link_page: a cut-short or junk link on door, join and teacher pages gets an explaining page when on |
+| `database-context-pooler.service.test.js` | (unmapped) |
 | `edge-mounts-golden.service.test.js` | Pins that dashboard/routes/edge-mounts builds the golden stack (same layers, same order) and makes no network call |
 | `edge-mounts-order.service.test.js` | Pins that every edge router in edge-mounts has a page here and forwarding order does not change any answer |
 | `edge-relay-harness.js` | Harness driving every bot-relay router with a fake bot to capture response headers; used by edge-security-headers test |
@@ -100,6 +101,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-opening-gate.service.test.js` | Tests sa-offline prepareSession onLines: opening lines are reported once available before task clips (sa-page, sa-ui) |
 | `sa-page.service.test.js` | Tests sa-page: strict link read, block ordering, drain of a finished child's data after the network returns |
 | `sa-prepare.service.test.js` | Tests sa-offline prepare: clips on phone vs phone speech (tts) for a missing clip; persist granted kept |
+| `sa-r10-audio.service.test.js` | (unmapped) |
+| `sa-r10-fluency-no-practice.service.test.js` | (unmapped) |
+| `sa-r10-hint.service.test.js` | (unmapped) |
+| `sa-r10-numfit.service.test.js` | (unmapped) |
+| `sa-r10-switches.service.test.js` | (unmapped) |
+| `sa-r10-timing.service.test.js` | (unmapped) |
+| `sa-r10-urfit.service.test.js` | (unmapped) |
 | `sa-r4-cell-pace-cap.service.test.js` | Tests sa_cell_pace 10 s cap in sa-core: continuous voice moves on at 10 s; next cell gets its own 10 s |
 | `sa-r4-cell-pace.service.test.js` | Tests sa_cell_pace in sa-core/sa-engine: silent child moves at 5 s, trying child waits 3 s after last voice |
 | `sa-r4-coach-last-word.service.test.js` | Tests sa-core last-word marking: lastWord keeps how/suggested on the result; old call unchanged |
@@ -148,6 +156,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-r8-switch-hold.service.test.js` | Tests sa_r8_switch_hold: failed switch reads answer OFF without a header; ON keeps variants and v4 voice |
 | `sa-r8-switches.service.test.js` | Tests round 8 battery switches in sa-battery-switches and engine routes: ON sets battery.ui flags |
 | `sa-r8-timeup-continue.service.test.js` | Tests r8_timeup_continue in sa-core: time up on a cell continues to the next part of the same language |
+| `sa-r9-audio.service.test.js` | (unmapped) |
+| `sa-r9-comp.service.test.js` | (unmapped) |
+| `sa-r9-question-time.service.test.js` | (unmapped) |
+| `sa-r9-scroll-cue-line.service.test.js` | (unmapped) |
+| `sa-r9-scroll.service.test.js` | (unmapped) |
+| `sa-r9-skip.service.test.js` | (unmapped) |
+| `sa-r9-switches.service.test.js` | (unmapped) |
 | `sa-rdf-w3-forms.service.test.js` | Tests RDF auto/manual W3 forms on the battery route: off gives no W3 list; on gives 17 W3 tasks and coach line |
 | `sa-rec-mercy.service.test.js` | Tests sa-rec silent-mic mercy at 12 s and early_stop_silence at 20 s; a voice at 8 s triggers neither |
 | `sa-rec.service.test.js` | Tests sa-rec: recorder type choice, chunk collection, stop closes the file with duration |
@@ -515,4 +530,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/data/child-test/sa/CLAUDE.md`? · `dashboard/CLAUDE.md`? · `dashboard/lib/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/public/wq/CLAUDE.md`? · `dashboard/routes/CLAUDE.md`? · `dashboard/sa/CLAUDE.md`? · `dashboard/scripts/CLAUDE.md`? · `portal/src/lib/CLAUDE.md`?
+- docs: `bot/shared/data/child-test/sa/CLAUDE.md`? · `dashboard/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/middleware/rbac/CLAUDE.md`? · `dashboard/public/wq/CLAUDE.md`? · `dashboard/routes/CLAUDE.md`? · `dashboard/sa/CLAUDE.md`? · `dashboard/scripts/CLAUDE.md`? · `docs/testing/bd-60105-name-sweep.md`? · `portal/src/lib/CLAUDE.md`?

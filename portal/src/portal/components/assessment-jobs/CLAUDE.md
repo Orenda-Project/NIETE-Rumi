@@ -1,6 +1,6 @@
 # assessment-jobs — Page-level tracking of exam papers being generated
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/assessment-jobs kg=3917fcffa8db gen=6246b490d156 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/assessment-jobs kg=64cd143f008d gen=1f8544c69ce0 overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `usePaperJobs.ts` — polls each requested paper job; kept per user in sessionStorage
@@ -27,6 +27,7 @@
 ## Tests (generated)
 - `portal/src/portal/components/assessment-jobs/usePaperJobs.test.ts` (usePaperJobs.ts)
 - `portal/src/portal/pages/ClassicAssessment.tabs.test.tsx` (usePaperJobs.ts)
+- `portal/src/portal/teacher/assessment/fbise.pages.test.tsx` (usePaperJobs.ts)
 
 ## Related (generated)
 - (none)

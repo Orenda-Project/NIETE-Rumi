@@ -32,20 +32,20 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `group-language.js` ← imported by `bot/shared/services/assessment/topics/group.js:11:1e4723fe`
 - `group-maths.js` ← imported by `bot/shared/services/assessment/topics/group-science.js:9:4b4fc200` · `bot/shared/services/assessment/topics/group.js:12:9fd2002e`
 - `group-science.js` ← imported by `bot/shared/services/assessment/topics/group.js:13:0ed20b58`
-- `group.js` ← imported by `bot/scripts/import-assessment-topics.js:26:b675e084`
+- `group.js` ← imported by `bot/scripts/import-assessment-topics.js:31:b675e084`
 - `headings.js` ← imported by `bot/shared/services/assessment/topics/group-language.js:12:31076cfe`
-- `matrix-rows.js` ← imported by `bot/scripts/import-assessment-topics.js:25:af44f523`
+- `matrix-rows.js` ← imported by `bot/scripts/import-assessment-topics.js:30:af44f523`
 - `oral-g35.js` ← imported by `bot/shared/services/assessment/topics/topic-oral.js:11:caab0c47`
-- `page-check.js` ← imported by `bot/scripts/import-assessment-topics.js:28:3e92da3e`
-- `reconcile.js` ← imported by `bot/scripts/import-assessment-topics.js:27:ad877765` · `bot/shared/services/assessment/topics/topics.repo.js:8:8e75e826`
-- `resolve.js` ← imported by `bot/shared/routes/internal-api.routes.js:1735:cbc65cf0`
+- `page-check.js` ← imported by `bot/scripts/import-assessment-topics.js:33:3e92da3e`
+- `reconcile.js` ← imported by `bot/scripts/import-assessment-topics.js:32:ad877765` · `bot/shared/services/assessment/topics/topics.repo.js:8:8e75e826`
+- `resolve.js` ← imported by `bot/shared/routes/internal-api.routes.js:1945:cbc65cf0`
 - `short-name.js` ← imported by `bot/shared/services/assessment/topics/distinct-names.js:8:4ea89936` · `bot/shared/services/assessment/topics/group-language.js:13:22aff0f7` · `bot/shared/services/assessment/topics/group-maths.js:20:22aff0f7` · `bot/shared/services/assessment/topics/group-science.js:7:22aff0f7`
 - `stem-bank.js` ← imported by `bot/shared/services/assessment/topics/stems.js:9:f84e7b6f`
 - `stem-bank.json` ← imported by `bot/shared/services/assessment/topics/stem-bank.js:13:893f4bed`
-- `stem-prompt.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:25:c93ea675`
-- `stems.js` ← imported by `bot/shared/routes/internal-api.routes.js:1493:e3dd3ca4`
-- `topic-oral.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:765:b1d3239b`
-- `topics.repo.js` ← imported by `bot/shared/routes/internal-api.routes.js:1565:e4013beb` · `bot/shared/services/nudges/topic-end-nudge.service.js:65:96176bc6`
+- `stem-prompt.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:25:c93ea675` · `bot/shared/services/assessment/free-secondary.service.js:39:ef0762df`
+- `stems.js` ← imported by `bot/shared/routes/internal-api.routes.js:1657:e3dd3ca4`
+- `topic-oral.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:806:b1d3239b`
+- `topics.repo.js` ← imported by `bot/shared/routes/internal-api.routes.js:1767:e4013beb` · `bot/shared/services/nudges/topic-end-nudge.service.js:75:1fc5ef0e`
 
 ## Tests (all, generated)
 - `collect.js` ← `tests/assessment/topics/collect.test.js`
@@ -65,7 +65,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `stem-prompt.js` ← `tests/assessment/topics/topic-stem-prompt.test.js`
 - `stems.js` ← `tests/assessment/topics/topic-stems.test.js`
 - `topic-oral.js` ← `tests/assessment/topics/topic-oral-key.test.js` · `tests/assessment/topics/topic-oral.test.js`
-- `topics.repo.js` ← `tests/assessment/topics/topics.repo.test.js` · `tests/lp-v8/topic-end-nudge-recording.test.js` · `tests/lp-v8/topic-end-nudge.test.js`
+- `topics.repo.js` ← `tests/assessment/topics/topics-repo-curriculum.test.js` · `tests/assessment/topics/topics.repo.test.js` · `tests/lp-v8/topic-end-nudge-held.test.js` · `tests/lp-v8/topic-end-nudge-recording.test.js` · `tests/lp-v8/topic-end-nudge.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/assessment/CLAUDE.md`?
+- (none)

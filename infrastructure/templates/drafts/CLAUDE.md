@@ -1,6 +1,6 @@
 # drafts — Unsubmitted utility template drafts for the teacher-app ready fallback
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/templates/drafts kg=4b956337c07c gen=1cc041fd72a5 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/templates/drafts kg=d1cf02769768 gen=ac210e91f622 overflow=0 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `README.md` — why these are drafts and what an operator go is needed for
@@ -10,6 +10,8 @@
 | path | purpose |
 |---|---|
 | `README.md` | Explains the unsubmitted ready-fallback template drafts and that publish-templates.sh cannot send them |
+| `coach_report_ready_v1_en.json` | (unmapped) |
+| `coach_report_ready_v1_ur.json` | (unmapped) |
 | `lesson_plan_ready_v1_en.json` | Draft English UTILITY template telling a teacher their lesson plan is ready (document header); not submitted to Meta |
 | `lesson_plan_ready_v1_ur.json` | Draft Urdu UTILITY template telling a teacher their lesson plan is ready; not submitted to Meta |
 | `paper_ready_v1_en.json` | Draft English UTILITY template telling a teacher their assessment paper is ready; not submitted to Meta |

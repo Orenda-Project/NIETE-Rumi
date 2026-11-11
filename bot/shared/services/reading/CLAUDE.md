@@ -1,7 +1,7 @@
 # reading — Reading assessment: transcript, pronunciation, fluency, comprehension, PDF report
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/reading kg=2b7d68f5dfc2 gen=6157adfa862a overflow=26 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/reading kg=afc0de646e40 gen=df84acc21318 overflow=26 rendered=2026-11-10 kg.py=1.1.0 -->
 
 ## Entry points
 - `analysis.service.js` — orchestrates the whole analysis pipeline
@@ -19,9 +19,9 @@ Full index: `CLAUDE.index.md`
 | … | 7 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `reading_assessments` (written by `analysis.service.js` (+2)) ← read by `bot/shared/handlers/flow-response.handler.js:326:4337985e`? · `bot/shared/handlers/text-message.handler.js:1734:4337985e`? (+13)
-- column `reading_assessments.status` (written by `analysis.service.js` (+2)) ← read by `bot/shared/handlers/voice-message.handler.js:490:1099729a` · `bot/shared/services/context.service.js:170:a69ef692` (+5)
-- table `reading_assessments` whole row (`*`) (written by `analysis.service.js` (+2)) ← read by `bot/shared/handlers/voice-message.handler.js:517:d2b02c3e`? · `bot/shared/services/feature-registration.service.js:147:7a0c163a`? (+4)
+- table `reading_assessments` (written by `analysis.service.js` (+2)) ← read by `bot/shared/handlers/flow-response.handler.js:326:4337985e`? · `bot/shared/handlers/text-message.handler.js:1764:4337985e`? (+13)
+- column `reading_assessments.status` (written by `analysis.service.js` (+2)) ← read by `bot/shared/handlers/voice-message.handler.js:518:1099729a` · `bot/shared/services/context.service.js:175:a69ef692` (+5)
+- table `reading_assessments` whole row (`*`) (written by `analysis.service.js` (+2)) ← read by `bot/shared/handlers/voice-message.handler.js:545:d2b02c3e`? · `bot/shared/services/feature-registration.service.js:152:7a0c163a`? (+4)
 - … 26 more → `CLAUDE.index.md`
 
 ## Never (human)
