@@ -1,9 +1,9 @@
 /**
  * A region's book list also says which GRADES it has books for (bd-97daxo.4, operator 6 Nov).
  *
- * GB has books for Grades 1-5 only (its Afaq books for 6+ are not ready), so a GB teacher of Grade 6+ gets no
- * lesson plans, no question papers and no book features — and is TOLD so, politely, in her language, instead of
- * being handed ICT's books or an error. A teacher whose region names no books (every ICT teacher) is unchanged.
+ * A grade her list does not cover gets no lesson plans, no question papers and no book features, and she is TOLD
+ * so, politely, in her language, instead of an error. (GB's live list now runs to Grade 10 with ICT's 6-10 books,
+ * bd-qchgya; the fixtures below use a short GB list on purpose.) A teacher whose region names no books (every ICT teacher) is unchanged.
  */
 const TeacherBooks = require('../../bot/shared/services/teacher-books.service');
 const { resolveUx } = require('../../bot/shared/config/ux-strings');
@@ -19,6 +19,10 @@ describe('gradeCovered', () => {
     for (const g of [3, 6, 7, 9, 12]) expect(TeacherBooks.gradeCovered(g, GB)).toBe(false);
     expect(TeacherBooks.gradeCovered(7, ['grade_7_english'])).toBe(true);
     expect(TeacherBooks.gradeCovered(7, [])).toBe(false);
+    // ICT's 6-12 book stems come in two shapes (grade_9_biology, g7_physics); both name their grade (bd-qchgya).
+    expect(TeacherBooks.gradeCovered(7, ['g7_physics'])).toBe(true);
+    expect(TeacherBooks.gradeCovered(10, ['g10_english'])).toBe(true);
+    expect(TeacherBooks.gradeCovered(1, ['g10_english'])).toBe(false);
   });
 
   test('the two messages, English and Urdu (Urdu digits in Urdu prose)', () => {
@@ -88,7 +92,10 @@ describe('the WhatsApp question-paper Flow', () => {
     const state = { rows: {}, seq: 0, updates: [], settings: {}, tables: { textbooks: [] }, queued: [], redis: new Map() };
     for (const g of [1, 7]) state.tables.textbooks.push({ id: `b-${g}`, curriculum: 'ict', grade: g, subject: 'english', total_pages: 9 });
     state.tables.textbooks.push({ id: 'b-1i', curriculum: 'ict', grade: 1, subject: 'islamiat', total_pages: 9 });
-    state.tables.users = [{ id: 'gb-ur', region: 'Gilgit-Baltistan', preferred_language: 'ur' }];
+    state.tables.users = [
+      { id: 'gb-ur', region: 'Gilgit-Baltistan', preferred_language: 'ur' },
+      { id: 'gb-610', region: 'Gilgit-Baltistan', preferred_language: 'en' },
+    ];
     jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
     jest.doMock('../../bot/shared/config/supabase', () => {
       const { createMemorySupabase } = require('../fixtures/memory-supabase');
@@ -105,7 +112,7 @@ describe('the WhatsApp question-paper Flow', () => {
     }));
     jest.doMock('../../bot/shared/services/teacher-books.service', () => ({
       ...jest.requireActual('../../bot/shared/services/teacher-books.service'),
-      bookKeysForUser: jest.fn(async (id) => (id.startsWith('gb') ? GB : null)),
+      bookKeysForUser: jest.fn(async (id) => (id === 'gb-610' ? [...GB, 'grade_7_english'] : id.startsWith('gb') ? GB : null)),
     }));
     Flow = require('../../bot/shared/routes/assessment-gen-endpoint');
   });
@@ -114,5 +121,12 @@ describe('the WhatsApp question-paper Flow', () => {
     const res = await Flow.handleAssessmentGenDataExchange('gb-ur', 'CLASS', { grade: '7', trigger: 'grade_selected' }, 'tok-gb');
     expect(res.data.subjects).toEqual([]);
     expect(res.data.error).toBe(TeacherBooks.gradeNotCoveredMessage('exam', 7, 'ur'));
+  });
+
+  // bd-qchgya — once her list names ICT's Grade 7 book, Grade 7 question papers open with lesson plans.
+  test('a GB teacher whose list covers Grade 7 is offered its subjects, with no message', async () => {
+    const res = await Flow.handleAssessmentGenDataExchange('gb-610', 'CLASS', { grade: '7', trigger: 'grade_selected' }, 'tok-gb7');
+    expect(res.data.subjects.map((s) => s.id)).toEqual(['english']);
+    expect(res.data.error || '').toBe('');
   });
 });
