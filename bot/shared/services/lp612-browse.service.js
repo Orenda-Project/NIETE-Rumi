@@ -138,15 +138,18 @@ async function listGrades({ curriculum } = {}) {
 }
 
 /** Subjects within one grade, with how many lessons each holds. */
-async function listSubjects(grade, { curriculum } = {}) {
+async function listSubjects(grade, { curriculum, bookKeys } = {}) {
   const curricula = BookCurriculum.curriculaFor(curriculum);
-  const rows = curricula.length === 1
-    ? await readAll(() => servable('subject', curricula).eq('grade', grade), 'subjects')
+  const read = curricula.length === 1
+    ? await readAll(() => servable('subject, book_stem', curricula).eq('grade', grade), 'subjects')
     // Hers and ICT's together; per subject, her rows where she has any (book-curriculum.preferPerKey).
     : BookCurriculum.preferPerKey(
-      await readAll(() => servable('subject, curriculum', curricula).eq('grade', grade), 'subjects'),
+      await readAll(() => servable('subject, curriculum, book_stem', curricula).eq('grade', grade), 'subjects'),
       (r) => r.subject, curriculum,
     );
+  // Only the ICT books on her region's list (GB: no Zarai Taleem, bd-la9f5e); no list → every book.
+  const { upperBookOffered } = require('./teacher-books.service');
+  const rows = read.filter((r) => upperBookOffered(grade, r.book_stem, bookKeys));
 
   const counts = new Map();
   for (const r of rows) counts.set(r.subject, (counts.get(r.subject) || 0) + 1);

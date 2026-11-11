@@ -399,7 +399,9 @@ async function selectGrade(screenData, curriculum, gb = null, bookKeys = null, f
   // shared with the free-text router in text-message.handler so the two cannot
   // drift (bd-w36m5). It already folds in isLp612Enabled() and LP_612_ROUTE_K5.
   if (lp612ServesGrade(grade)) {
-    const items = await Lp612Catalog.buildSubjectItems(grade, ...lp612Args(curriculum));
+    // bd-la9f5e — with a region list, only the ICT 6-12 books on it (GB: no Zarai Taleem). ICT: unchanged call.
+    const args = Array.isArray(bookKeys) ? [{ ...(lp612Args(curriculum)[0] || {}), bookKeys }] : lp612Args(curriculum);
+    const items = await Lp612Catalog.buildSubjectItems(grade, ...args);
     if (items.length) {
       return {
         screen: 'SELECT_SUBJECT',
