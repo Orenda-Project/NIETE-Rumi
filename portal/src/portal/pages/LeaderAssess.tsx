@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Headphones, RefreshCw, Smartphone, WifiOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Headphones, Mic, RefreshCw, Smartphone, WifiOff } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import AssessDrain, { type Drained } from '../components/assess/AssessDrain';
 import AssessEngineSlot, { type FinishReason } from '../components/assess/AssessEngineSlot';
@@ -1023,7 +1023,16 @@ export default function LeaderAssess() {
             ))}
           </>
         )}
-        {rdfBlocks.length > 0 && !micOk && !locked && <p data-testid="assess-rdf-mic" className="text-sm text-slate-600">{copy.rdfNeedsMic}</p>}
+        {rdfBlocks.length > 0 && !micOk && !locked && (switches.rdfMicCheck ? (
+          // sa_r12_rdf_mic_check: a greyed row does nothing on a tap, so the note says why and opens the check again
+          <div data-testid="assess-rdf-mic" role="status" className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <p>{copy.rdfNeedsMic}</p>
+            <button type="button" data-testid="assess-rdf-mic-check" onClick={() => setStep({ kind: 'preflight', school: step.school })}
+              className="flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl border border-amber-300 bg-white font-medium text-slate-900">
+              <Mic className="h-4 w-4" aria-hidden /> {copy.micCheck}
+            </button>
+          </div>
+        ) : <p data-testid="assess-rdf-mic" className="text-sm text-slate-600">{copy.rdfNeedsMic}</p>)}
         {isRdf(step.block) && rdfOthers > 0 && (
           <p data-testid="assess-rdf-five" role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{copy.rdfFive}</p>
         )}
