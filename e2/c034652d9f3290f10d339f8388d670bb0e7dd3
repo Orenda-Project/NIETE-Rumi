@@ -1,2 +1,4 @@
 {"ts":"2026-11-11T14:01:39Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"e2c034652d9f","branch":"bd-9mc3nz.1-05622","user":""}
 {"ts":"2026-11-11T14:01:42Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-9mc3nz.1-05622: lesson-plan spec: NOT UPDATED e2e: missing","sha":"e2c034652d9f","branch":"bd-9mc3nz.1-05622","user":""}
+{"ts":"2026-11-11T14:01:47Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"e2c034652d9f","branch":"bd-9mc3nz.1-05622","user":""}
+{"ts":"2026-11-11T14:08:26Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (internal revision-patch parsing; the teacher sees the same lesson, only sooner — no screen, message or flow changes)","sha":"e2c034652d9f","branch":"bd-9mc3nz.1-05622","user":""}
