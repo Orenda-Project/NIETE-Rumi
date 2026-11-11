@@ -403,6 +403,14 @@ const UX_STRINGS = {
     ur: 'اس بار سبق کے اس حصے کا تجزیہ مکمل نہیں ہو سکا، اس لیے یہ اسکور میں شامل نہیں ہے۔',
   },
 
+  // ─── FICO17 v6 hero report section names (bd-ra8xu.39) ────────────────────
+  // The three v6 sections and the lesson-plan bar on a v6 /observe visit's hero card. Urdu: DRAFT, for a native
+  // speaker's check.
+  reportV6SectionTeacher: { en: 'What the teacher does', ur: 'استاد کا طریقۂ کار' },
+  reportV6SectionChildren: { en: 'What the children do', ur: 'بچوں کی شرکت' },
+  reportV6SectionSubject: { en: 'Subject knowledge', ur: 'مضمون کا علم' },
+  reportV6SectionPlan: { en: 'Following the lesson plan', ur: 'سبق کے منصوبے پر عمل' },
+
   // ─── short-recording length guidance ──────────────────────────────────────
   // Sent BEFORE the chat answer, never instead of it: a recording that is too
   // short for an analysis still gets answered. The wording says so explicitly,
