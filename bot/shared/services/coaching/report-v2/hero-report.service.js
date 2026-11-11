@@ -21,6 +21,7 @@ const { applyPhotoCaptions } = require('./photo-note');
 const { resolveReportLanguage } = require('./report-language');
 const { loadTrendData } = require('../coaching-trend.service');
 const { buildPartialNote } = require('../report-transformers/_shared');
+const { isV6Scored } = require('../frameworks/fico17-v6/stamp');
 
 /**
  * The partial-report note ("based on classroom audio analysis only…"). At delivery the session carries the
@@ -91,6 +92,50 @@ function attachSubjectNote(groups, analysis, language) {
   return groups;
 }
 
+// FICO6 r2 (spec §9.3, CONTRACTS §11.5): the v6 report lines, read from the /observe2 strings with this English
+// until a language lacks them.
+const V6_REPORT_IE = "The recording didn't cover this part of the lesson.";
+const V6_REPORT_BROKEN = "The recording couldn't be used, so this report has no levels from it.";
+const V6_RUBRIC_SECTIONS = new Set(['high_leverage_practices', 'student_engagement', 'teacher_subject_knowledge']);
+
+/**
+ * The scorecard of an /observe2 visit scored on FICO17 v6, as spec §9.3 has the teacher read it. The rules lived
+ * only in fico-report-transformer.js, which never reaches the image (redteam T4.3, T4.4):
+ * - an IE row is said once, by its v6 name, as the one line, on its section's row; an NA row is not named;
+ * - a broken recording, or a report held for a missing coach level (v6_fallback only), draws no rubric bar:
+ *   the C, D and F rows read "not assessed"; a broken one says why once, in the note under the report.
+ * Runs after the narrative's why lines, so the model cannot replace these. Mutates `groups`.
+ *
+ * @returns {null|{note: (string|null)}} null for any other analysis (v5, V3, /observe v6): nothing changed.
+ */
+function v6HeroRows(groups, analysis, language) {
+  const o2 = (analysis && analysis.observe2) || {};
+  if (o2.rubric !== 'fico17_v6') return null;
+  const V6 = require('../frameworks/fico17-v6');
+  const { observe2Strings } = require('../../observe/observe2/strings');
+  const { notAssessedWords } = require('./score-adapters/fico-adapter');
+  const S = observe2Strings(language);
+  const finals = o2.final_levels || {};
+  const broken = (o2.transcript_quality || {}).status === 'broken';
+  const held = V6.COMBINED_CODES.some((c) => !/^([1-4]|NA|IE)$/.test(String(finals[c] == null ? '' : finals[c])));
+  for (const g of (groups || [])) {
+    const key = g && (g.domainKey || g.key);
+    if (!V6_RUBRIC_SECTIONS.has(key)) continue;
+    if (broken || held) {
+      Object.assign(g, { score: null, max: null, pct: null, notAssessed: true, notAssessedWords: notAssessedWords(language) });
+      delete g.why;
+      continue;
+    }
+    const gaps = (((analysis.domains || {})[key] || {}).indicators || [])
+      .filter((ind) => ind && String(finals[ind.id]) === 'IE')
+      .map((ind) => `${ind.name}: ${S.v6_report_ie || V6_REPORT_IE}`);
+    if (!gaps.length) continue;
+    const existing = typeof g.why === 'string' ? g.why.trim() : '';
+    g.why = [existing, ...gaps].filter(Boolean).join(' ');
+  }
+  return { note: broken ? (S.v6_report_broken || V6_REPORT_BROKEN) : null };
+}
+
 /**
  * @param {object} session - coaching_sessions row (transcript_text, user_id, created_at, classroom_photos)
  * @param {object} analysis - enhancedAnalysis (framework, scores, domains, reflective_corpus, …)
@@ -121,8 +166,9 @@ async function generateHeroReport(session, analysis, opts = {}) {
   // marked completed by the time this runs, we don't double-count today.
   let trend = [];
   // bd-ra8xu.39: a FICO17 v6 report shows no journey line. The teacher's earlier sessions are V3 percentages, and a
-  // v6 score drawn on the same line would mix two rubrics (operator, 11 Nov: never mixed).
-  if (framework !== 'fico17_v6') try {
+  // v6 score drawn on the same line would mix two rubrics (operator, 11 Nov: never mixed). The stamp, not the
+  // framework: an /observe2 v6 visit is framework 'fico' (redteam T7.D6).
+  if (!isV6Scored(analysis)) try {
     const raw = await loadTrendData(session.user_id, { limit: 12, locale: 'en', excludeSessionId: session.id });
     trend = raw
       .map((t) => ({ date: String(t.date || '').slice(0, 10), pct: Math.round(parseFloat(t.pct || 0)) }))
@@ -155,6 +201,7 @@ async function generateHeroReport(session, analysis, opts = {}) {
   // bd-1t1wz: per-section "why" diagnosis lines onto the scorecard rows.
   attachDomainWhys(score.groups, narrative && narrative.domain_whys);
   attachSubjectNote(score.groups, analysis, lang);
+  const v6 = v6HeroRows(score.groups, analysis, lang);
 
   // bd-pv2tl: the teacher's own classroom photos, framed under the scorecard.
   // Non-fatal: the helper skips any broken photo and returns [] on failure.
@@ -176,7 +223,8 @@ async function generateHeroReport(session, analysis, opts = {}) {
     logToFile('hero-report: classroom photo strip failed (non-fatal)', { error: e.message });
   }
 
-  const partialNote = heroPartialNote(session, analysis);
+  const stored = heroPartialNote(session, analysis);
+  const partialNote = v6 && v6.note && !(stored || '').includes(v6.note) ? [v6.note, stored].filter(Boolean).join(' ') : stored;
   const vm = {
     language: lang,
     brand,
@@ -234,4 +282,4 @@ async function generateHeroReport(session, analysis, opts = {}) {
   return out;
 }
 
-module.exports = { generateHeroReport, attachDomainWhys, attachSubjectNote };
+module.exports = { generateHeroReport, attachDomainWhys, attachSubjectNote, v6HeroRows };
