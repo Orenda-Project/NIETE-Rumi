@@ -19,7 +19,7 @@
  * Nothing here calls a model or writes anything.
  */
 
-const { PLAIN, ROW, isCoachingFocus } = require('./fico17');
+const { ROW, isCoachingFocus } = require('./fico17');
 const { TASK } = require('./rules');
 
 const numeric = (v) => (/^[1-4]$/.test(String(v)) ? Number(v) : null);
@@ -39,7 +39,7 @@ const FOCUS_MOMENT = { wait: 'ask' };
 
 function levelPhrase(form, code, S) {
   const lv = numeric((form.final_levels || {})[code]);
-  return lv ? S.focus_atom(`${ROW[code].toLowerCase()}: ${PLAIN[code][lv - 1].toLowerCase()}`) : '';
+  return lv ? S.focus_atom(`${ROW[code].toLowerCase()}: ${require('./rubric').plainOf(form)[code][lv - 1].toLowerCase()}`) : '';
 }
 
 // The plan's steps of the given phases, each with the verdict the check left it with: the coach's, where
