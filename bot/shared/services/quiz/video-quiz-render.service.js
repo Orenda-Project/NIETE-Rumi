@@ -45,6 +45,7 @@ const { unicodeNotation } = require('./quiz-notation');
 // — carries what a phone can show ("2/9"), with each expression kept in order
 // inside an Urdu line. Dependency-free on this path: KaTeX never loads here.
 const { mathForChat } = require('./quiz-math');
+const { resolveUx } = require('../../config/ux-strings');
 const LIST_ROW_TITLE_MAX = 24;
 const LIST_ROW_DESCRIPTION_MAX = 72;  // Meta's row description cap
 const MAX_BUTTONS = 3;
@@ -469,7 +470,7 @@ function buildPhases(q, opts = {}) {
   // sound has already played.
   if (hasListen) {
     add('question', 'text', {
-      body: `🎧 ${stem}\nListen, then choose your answer.`,
+      body: `🎧 ${stem}\n${resolveUx('vqListenCue', { language: media.language })}`,
       role: 'stem_with_listen_cue',
     });
     questionAudio.forEach((url) => add('question', 'audio', { url, role: 'instruction' }));
@@ -543,7 +544,7 @@ function buildPhases(q, opts = {}) {
       // as the question image's caption.
       const said = hasListen || !!media.question_image;
       add('interaction', 'image', {
-        url: media.grid, caption: said ? 'Your options:' : stem, role: 'option_grid',
+        url: media.grid, caption: said ? resolveUx('vqYourOptions', { language: media.language }) : stem, role: 'option_grid',
       });
     }
     // R8/R15: the pictures appear in BOTH places — the grid to compare them at
@@ -551,7 +552,7 @@ function buildPhases(q, opts = {}) {
     // (RadioButtonsGroup, media-size large). Showing pictures and then asking
     // the child to answer from a text list is half the feature.
     add('interaction', 'flow', {
-      body: 'Now tap the picture you think is right.',
+      body: resolveUx('vqTapPicture', { language: media.language }),
       options: shown, optionIndices: order,
       // The Flow needs RAW BASE64 (same as the storybooks Flow's start.image);
       // a URL renders a picker with titles and no pictures. Encoded at import
@@ -684,8 +685,8 @@ function finishAnswerPhase(q, msgs, labels, order, media, answerClip) {
     add('answer', 'text', {
       body: withVerdictMark(
         unicodeNotation(fb.wrong[i]
-          || `Not quite — the answer is ${rightText}.${expl ? `\n\n${expl}` : ''}`
-             + '\n\nKeep going, mistakes help you learn!'),
+          || `${resolveUx('vqWrongFallback', { language: media.language, params: { right: rightText } })}${expl ? `\n\n${expl}` : ''}`
+             + `\n\n${resolveUx('vqKeepGoing', { language: media.language })}`),
         VERDICT_WRONG),
       role: 'feedback_incorrect', optionIndex: i,
     });

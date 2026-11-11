@@ -87,11 +87,12 @@ function docKeyFor(segmentId, lang, tv) {
 
 /**
  * The template version a PDF key was written under — the inverse of `r2KeyFor`, so the delivery
- * ledger names the exact document a teacher holds without either caller passing it. `null` for a
+ * ledger names the exact document a teacher holds without either caller passing it. GB plans live
+ * under `gb-lp/{tv}/{lang}/...` (gb-lp-serving keyFor), same shape, so both prefixes count. `null` for a
  * key of any other shape (an edit key, a foreign key).
  */
 function templateVersionOfKey(r2Key) {
-  const m = /^lp612\/([^/]+)\/(en|ur)\/[^/]+\.pdf$/.exec(String(r2Key || ''));
+  const m = /^(?:lp612|gb-lp)\/([^/]+)\/(en|ur)\/[^/]+\.pdf$/.exec(String(r2Key || ''));
   return m ? m[1] : null;
 }
 

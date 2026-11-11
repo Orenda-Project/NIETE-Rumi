@@ -1226,3 +1226,14 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When I open the lesson-plan Flow and pick a Grade 6-12 chapter
     Then the lesson screen shows the lessons exactly as before, with no "Make my own" row
     And a "Make my own" row left in my scrollback from before is refused and sends nothing
+
+  @e2e @draft @P1
+  Scenario: A Grades 1–5 lesson plan arrives with no voice note and no voice-note script lookup
+    Given the NIETE bot chat is open
+    When I take a Grades 1–5 lesson plan from the LP Flow
+    Then the chat receives the "Preparing" line and the lesson-plan PDF
+    And no lesson voice note follows it
+    And a question I type about that plan is answered without reading a voice-note script
+    # Product decision 11 Nov 2026 (bd-xxejb, bd-juo829, bd-hz6ez.12): K-5 v8 audio is not backfilled,
+    # so every send and script lookup was failing. Code switch bot/shared/config/lp-v8-voicenote.js
+    # (off; not an env flag). Unit: bot/tests/lp-v8/voicenote-off.test.js.

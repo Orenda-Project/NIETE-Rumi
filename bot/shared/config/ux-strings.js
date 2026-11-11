@@ -3618,6 +3618,16 @@ const UX_STRINGS = {
   // feedback; when she did, her sentence is used and marked instead.
   vqMultiRight: { en: 'Correct! The full answer is {right}.', ur: 'درست! پورا جواب یہ ہے: {right}۔' },
   vqMultiWrong: { en: 'Not quite — the full answer is {right}.', ur: 'بالکل نہیں — پورا جواب یہ ہے: {right}۔' },
+  // Fixed copy of the single-answer video-quiz render (it was English-only on Urdu quizzes).
+  vqListenCue: { en: 'Listen, then choose your answer.', ur: 'سنیں، پھر اپنا جواب چنیں۔' },
+  vqYourOptions: { en: 'Your options:', ur: 'آپ کے اختیارات:' },
+  vqTapPicture: { en: 'Now tap the picture you think is right.', ur: 'اب اس تصویر پر ٹیپ کریں جو آپ کے خیال میں درست ہے۔' },
+  vqWrongFallback: { en: 'Not quite — the answer is {right}.', ur: 'تقریباً! درست جواب یہ ہے: {right}۔' },
+  vqKeepGoing: { en: 'Keep going, mistakes help you learn!', ur: 'ہمت نہ ہاریں، غلطیوں سے ہی سیکھتے ہیں!' },
+  // Parent roster quiz (quiz-session.service) wrong-answer message.
+  qsNotQuite: { en: 'Not quite!', ur: 'تقریباً، دوبارہ کوشش کریں!' },
+  qsAnswerIs: { en: 'The answer is {option}: {answer}', ur: 'جواب {option} ہے: {answer}' },
+  qsKeepGoing: { en: 'Keep going — mistakes help you learn! 💪', ur: 'ہمت نہ ہاریں، غلطیوں سے ہی سیکھتے ہیں! 💪' },
   // Urdu deliberately uses the listing form ("these are right too") rather than
   // a literal translation of "you missed": every natural Urdu verb for missing
   // agrees in gender/number with the thing missed, which is unknown here and is
@@ -3774,6 +3784,11 @@ const UX_STRINGS = {
   assessmentDoneEmpty: {
     en: 'Keep at least one question on the paper.',
     ur: 'پرچے پر کم از کم ایک سوال رکھیں۔',
+  },
+  // Printed on a Grade 1-2 FDE paper still off its blueprint after one rewrite. Urdu needs fluent review.
+  assessmentOffBlueprintNote: {
+    en: 'Note: this paper does not fully match the FDE blueprint — please check it before printing.',
+    ur: 'نوٹ: یہ پرچہ FDE بلیو پرنٹ سے مکمل طور پر مطابقت نہیں رکھتا — چھاپنے سے پہلے اسے جانچ لیں۔',
   },
   // ─── child test (EGRA/EGMA five-minute test, bd-s1oo0.4) ──────────────────
   // The coach's side of the child test: the offer after /observe2, today's list,

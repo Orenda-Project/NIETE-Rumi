@@ -634,7 +634,10 @@ async function generateExam(args) {
   const honestBlooms = appliesToGrade(grade);
 
   const messages = [
-    { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) + (honestBlooms ? APPLY_NOTE : '') },
+    // bd-upejat.208: the pattern path's religious rule, on this call only (the pattern path adds its own).
+    // Islamiat is a religious subject, so it carries none.
+    { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) + (honestBlooms ? APPLY_NOTE : '')
+      + (key === 'islamiat' ? '' : `\n\n${RULE.religious}`) },
     { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, slos }) + avoidNote(avoidQuestions) },
   ];
 
@@ -672,8 +675,8 @@ async function generateExam(args) {
       { cause: err.message });
   }
 
-  const choice = response?.choices?.[0] || {};
-  const raw = choice.message?.content || '';
+  let choice = response?.choices?.[0] || {};
+  let raw = choice.message?.content || '';
 
   // This model reasons before it answers, and reasoning spends the same budget
   // as output. Hit the ceiling and the reply comes back with a null content and
@@ -686,24 +689,50 @@ async function generateExam(args) {
   }
 
   let examJson;
-  try {
-    examJson = extractJsonFromResponse(raw);
-  } catch (err) {
-    // Cut off mid-paper at the ceiling: the same answer as above, not "try again".
-    if (choice.finish_reason === 'length') {
-      logToFile('[assessment] model ran out of room', { model, usage: response.usage, partial: true });
-      throw fail('TRUNCATED', 'That was too much to write in one go — try fewer questions.',
-        { usage: response.usage });
+  // bd-xabyzv: a large paper's reply sometimes fails to parse (~4/week); it is asked once more.
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      examJson = extractJsonFromResponse(raw);
+      break;
+    } catch (err) {
+      // Cut off mid-paper at the ceiling: the same answer as above, not "try again".
+      if (choice.finish_reason === 'length') {
+        logToFile('[assessment] model ran out of room', { model, usage: response.usage, partial: true });
+        throw fail('TRUNCATED', 'That was too much to write in one go — try fewer questions.',
+          { usage: response.usage });
+      }
+      logToFile('[assessment] model returned unusable JSON', {
+        model, attempt, error: err.message, preview: raw.slice(0, 300),
+      });
+      // Only a paper that broke mid-JSON is asked again; prose (a refusal) or a billed
+      // empty reply would only run the same failure twice.
+      if (attempt >= 2 || !raw.includes('{')) {
+        throw fail('BAD_JSON', 'The question writer returned something we could not read.',
+          { cause: err.message });
+      }
+      try {
+        response = await ask();
+      } catch (askErr) {
+        logToFile('[assessment] model call failed', { model, error: askErr.message });
+        throw fail('MODEL_UNAVAILABLE', 'The question writer is unavailable right now.',
+          { cause: askErr.message });
+      }
+      choice = response?.choices?.[0] || {};
+      raw = choice.message?.content || '';
     }
-    logToFile('[assessment] model returned unusable JSON', {
-      model, error: err.message, preview: raw.slice(0, 300),
-    });
-    throw fail('BAD_JSON', 'The question writer returned something we could not read.',
-      { cause: err.message });
   }
 
   stripImageKeys(examJson);
   normaliseAnswers(examJson);
+  // bd-upejat.208: the same filter the pattern path runs; it names no item of its own for a subject it does not cover.
+  // A failed book read must not fail a paper that shipped before this filter existed: log and deliver.
+  if (key !== 'islamiat') {
+    try {
+      await religiousFilter(examJson, null, { grade, subject, allowedText: pageContent || '' });
+    } catch (err) {
+      logToFile('[assessment] religious filter skipped on regular paper', { grade, subject, error: err.message });
+    }
+  }
   // The writer tags its own questions; a bare drill tagged Apply or a one-mark opinion tagged
   // Evaluate is lowered to the level its shape supports (bloom-ceiling.js). Only ever lowers.
   const bloomsMoved = honestBlooms ? capBlooms(examJson) : [];
@@ -769,6 +798,7 @@ const { checkBlueprint, missesSplit, levelDistance, levelNote } = require('./blu
 const Reader = require('./fde-reader');
 const StemCheck = require('./fde-stem-check');
 const { writeEarlyPaper } = require('./fde-early-writer');
+const { withBlueprintRetry } = require('./fde-early-blueprint-retry');
 // Grades 9-12 board papers (bd-5jmnfj.38.24): their own writer, lookup and helpers; reachable by id only.
 const { writeBoardPaper } = require('./board-writer');
 const BoardPatterns = require('./patterns/board');
@@ -2709,7 +2739,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     throw fail('PATTERN_INELIGIBLE', 'That board pattern is not available for this grade and subject.', { pattern, grade, subject });
   }
   // Grades 1-2 (bd-5jmnfj.4): whole-book papers with pictures and an oral part, written on their own path.
-  if (def.profile === 'early') return writeEarlyPaper({ grade, subject, pattern, P, onSection, requestId }, _earlyDeps(subject));
+  if (def.profile === 'early') return withBlueprintRetry(() => writeEarlyPaper({ grade, subject, pattern, P, onSection, requestId }, _earlyDeps(subject)), logToFile); // regenerate once, then flag (bd-5jmnfj.4.13)
 
   const loaded = await _loadPatternContent({ grade, subject, P, scope, pageRanges, chapterNumber });
   const layoutScope = scope || (chapterNumber != null && !pageRanges
