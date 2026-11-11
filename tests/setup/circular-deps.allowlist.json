@@ -65,5 +65,12 @@
       "bot/shared/services/quiz/web-quiz-identity-roster.js"
     ],
     "reason": "web-quiz-identity-roster.js requires web-quiz-identity.js at load time (dedupe, resolveQuizClass, match); web-quiz-identity.js requires the roster only lazily, inside classWithList() and resolveQuizClass() under the class-rows-together switch, to start a class's children read early. The lazy require runs after both modules have loaded and sits in a try whose fallback is today's path, so no half-initialised export is ever read."
+  },
+  {
+    "cycle": [
+      "bot/shared/services/observe/observe2/start.js",
+      "bot/shared/services/observe/obs612/visit.js"
+    ],
+    "reason": "Both edges are lazy (inside functions): observe2/start.js askedLessonOrSentFde() requires obs612/visit.js to ask the lesson's class or send FDE's form, and obs612/visit.js finishObserve2() requires observe2/start.js for sendLiveForm when the coach names a grades 1-5 class. Neither module reads the other at load time, so no export is ever half-initialised."
   }
 ]

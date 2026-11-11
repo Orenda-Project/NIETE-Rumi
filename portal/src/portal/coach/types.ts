@@ -1,5 +1,7 @@
 /** bd-o15qnr — what /api/portal/coach/* answers (dashboard/services/coach-v2.service.js). */
 
+import type { Obs612Line, Obs612Summary } from "../lib/obs612";
+
 export type CoachVisit = {
   id: string;
   teacherName: string | null;
@@ -95,6 +97,8 @@ export type CoachReport = {
   step: ReportStep;
   score: number | null;
   portal: boolean;
+  /** bd-pni007 — an FDE visit: its tool, result and label (never a FICO score); null for every other row. */
+  obs612?: Obs612Line | null;
 };
 
 export type ReportsData = {
@@ -159,4 +163,6 @@ export type ObservationReport = {
   sentAt: string | null;
   caption: string | null;
   imageUrl: string | null;
+  /** bd-pni007 — an FDE visit's block (shown instead of the score); null for every other observation. */
+  obs612?: Obs612Summary | null;
 };

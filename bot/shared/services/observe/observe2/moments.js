@@ -390,6 +390,8 @@ async function runForSession(sessionId, from, deps = {}) {
   const linked = await Store.findBySession(sessionId);
   if (!linked.ok || !linked.form) return { handled: false };
   let form = linked.form;
+  // bd-pni007: an FDE (obs612) visit's form is FDE's own: no FICO moments are read for it.
+  if (require('../obs612/visit').isObs612Form(form)) return { handled: true, action: 'obs612' };
 
   if (form.moments_ready_at) {
     logToFile('[observe2] moments already stored; not read again', { sessionId, formId: form.id });

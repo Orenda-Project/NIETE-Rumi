@@ -1,0 +1,962 @@
+{
+  "family": "obs612",
+  "version": 1,
+  "label": "FDE v1",
+  "name": "Coach observation, grades 6-12",
+  "source": {
+    "publisher": "Federal Directorate of Education (FDE), Islamabad",
+    "document": "Guidelines for the new academic session 2026-27",
+    "letter": "F.1-159/2010 (Academics)",
+    "dated": "2026-04-30",
+    "annexure": "Annexure G",
+    "excerpt": "FDE_2026-27_annex-g.md"
+  },
+  "generated_by": "bot/scripts/build-obs612-rubric.js",
+  "tools": {
+    "gen": {
+      "id": "obs612-gen-v1",
+      "tool": "gen",
+      "title": "Teacher Observation Form General",
+      "fde_ref": "Annexure G, p.12",
+      "applies_to": "Any class and subject",
+      "scale": {
+        "type": "yes_no",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      "comments": "FDE prints a COMMENTS column beside every item.",
+      "scored": false,
+      "sections": [
+        {
+          "key": "env",
+          "title": "CLASSROOM ENVIRONMENT",
+          "items": [
+            {
+              "key": "env_1",
+              "n": 1,
+              "text": "Well lit and airy classroom"
+            },
+            {
+              "key": "env_2",
+              "n": 2,
+              "text": "Student strength is appropriate for classroom size"
+            },
+            {
+              "key": "env_3",
+              "n": 3,
+              "text": "Appropriate seating arrangements"
+            },
+            {
+              "key": "env_4",
+              "n": 4,
+              "text": "Soft boards are installed, and displays are appropriate"
+            },
+            {
+              "key": "env_5",
+              "n": 5,
+              "text": "Class displays are aligned with concepts"
+            },
+            {
+              "key": "env_6",
+              "n": 6,
+              "text": "Appropriate board size"
+            }
+          ]
+        },
+        {
+          "key": "delivery",
+          "title": "LESSON DELIVERY",
+          "items": [
+            {
+              "key": "delivery_1",
+              "n": 1,
+              "text": "Lesson is matched with SOW"
+            },
+            {
+              "key": "delivery_2",
+              "n": 2,
+              "text": "Introduced topic properly"
+            },
+            {
+              "key": "delivery_3",
+              "n": 3,
+              "text": "Explained concept with clarity"
+            },
+            {
+              "key": "delivery_4",
+              "n": 4,
+              "text": "Relates new ideas to the concept"
+            },
+            {
+              "key": "delivery_5",
+              "n": 5,
+              "text": "Asked open-ended questions"
+            },
+            {
+              "key": "delivery_6",
+              "n": 6,
+              "text": "Effective use of teaching aids /resources"
+            },
+            {
+              "key": "delivery_7",
+              "n": 7,
+              "text": "organized pair and group activities"
+            },
+            {
+              "key": "delivery_8",
+              "n": 8,
+              "text": "Fluency of language and voice clarity"
+            },
+            {
+              "key": "delivery_9",
+              "n": 9,
+              "text": "English used as medium of instruction"
+            },
+            {
+              "key": "delivery_10",
+              "n": 10,
+              "text": "Instructions were clear"
+            }
+          ]
+        },
+        {
+          "key": "management",
+          "title": "CLASSROOM MANAGEMENT",
+          "items": [
+            {
+              "key": "management_1",
+              "n": 1,
+              "text": "Pleasant personality and exudes confidence"
+            },
+            {
+              "key": "management_2",
+              "n": 2,
+              "text": "Involves children in learning activities"
+            },
+            {
+              "key": "management_3",
+              "n": 3,
+              "text": "Provides equal opportunities to all students"
+            },
+            {
+              "key": "management_4",
+              "n": 4,
+              "text": "Reflects positive behavior"
+            },
+            {
+              "key": "management_5",
+              "n": 5,
+              "text": "Follow classroom rules and routines"
+            },
+            {
+              "key": "management_6",
+              "n": 6,
+              "text": "Manages the time well"
+            },
+            {
+              "key": "management_7",
+              "n": 7,
+              "text": "Maintains eye contact"
+            },
+            {
+              "key": "management_8",
+              "n": 8,
+              "text": "Smooth transition of activities"
+            },
+            {
+              "key": "management_9",
+              "n": 9,
+              "text": "Appropriate movement in the class"
+            }
+          ]
+        },
+        {
+          "key": "command",
+          "title": "COMMAND ON TEACHING",
+          "items": [
+            {
+              "key": "command_1",
+              "n": 1,
+              "text": "Has good knowledge of the subject"
+            },
+            {
+              "key": "command_2",
+              "n": 2,
+              "text": "Links topic with prior knowledge"
+            },
+            {
+              "key": "command_3",
+              "n": 3,
+              "text": "Explains concept correctly"
+            },
+            {
+              "key": "command_4",
+              "n": 4,
+              "text": "Gives relevant examples"
+            },
+            {
+              "key": "command_5",
+              "n": 5,
+              "text": "Achieves SMART objectives"
+            },
+            {
+              "key": "command_6",
+              "n": 6,
+              "text": "Uses variety of activities"
+            }
+          ]
+        },
+        {
+          "key": "assessment",
+          "title": "STUDENT ASSESSMENT PROCESS",
+          "items": [
+            {
+              "key": "assessment_1",
+              "n": 1,
+              "text": "Students are assessed during and end of lesson."
+            },
+            {
+              "key": "assessment_2",
+              "n": 2,
+              "text": "A variety of assessment strategies are used."
+            }
+          ]
+        },
+        {
+          "key": "work",
+          "title": "Students' Work Management",
+          "items": [
+            {
+              "key": "work_1",
+              "n": 1,
+              "text": "Notebooks"
+            },
+            {
+              "key": "work_2",
+              "n": 2,
+              "text": "Students' diaries"
+            }
+          ]
+        }
+      ]
+    },
+    "msci": {
+      "id": "obs612-msci-v1",
+      "tool": "msci",
+      "title": "Observation Tool for Maths and Science Teachers (Grade VI- Grade VII)",
+      "fde_ref": "Annexure G, pp.13-14",
+      "applies_to": "Maths and Science, Grade VI-VII",
+      "scale": {
+        "type": "level",
+        "min": 0,
+        "max": 3,
+        "labels": [
+          "Level 0",
+          "Level 1",
+          "Level 2",
+          "Level 3"
+        ]
+      },
+      "scored": false,
+      "indicators": [
+        {
+          "key": "i1",
+          "n": 1,
+          "stage": "Before the lesson",
+          "text": "Assigning and checking written work including formative assessments (e.g. quizzes, monthly/ end of unit tests)",
+          "levels": [
+            "Does not meet level 1",
+            "Student notebooks show evidence of written work of the past 5 lessons assigned and checked by the teacher",
+            "Along with level 1, regular written feedback has been provided by the teacher. Fellow students/ mentors have been assigned to check assignments as well",
+            "Along with achieving level 2, formative (classroom) assessments have application-based questions that go beyond the simple copy/paste of the textbook"
+          ]
+        },
+        {
+          "key": "i2",
+          "n": 2,
+          "stage": "During the lesson",
+          "text": "A meticulous introduction/ opening provided based on specific Student Learning Outcomes (SLOs)",
+          "levels": [
+            "Does not meet level 1",
+            "Teacher begins with the current SLO and links it broadly to the topic.",
+            "Teacher meets level 1 and links the SLOs to activities/tasks in class, and previous lessons or other subjects",
+            "Along with level 2, introduction is provided to the topic with an exciting hook which could include either a short story, interactive activity, a fun fact or a thought-provoking question to the students"
+          ]
+        },
+        {
+          "key": "i3",
+          "n": 3,
+          "stage": "During the lesson",
+          "text": "Effective teachers' command on the content/subject",
+          "levels": [
+            "Does not meet level 1",
+            "The teacher can provide a lecture on the topic, however, she/he is unable to answer complicated questions from the students",
+            "The teacher meets level 1 and can answer questions from students, however, he/she is unable to rephrase content depending on the needs of the students",
+            "Teacher meets level 2, and is able to rephrase her/his content depending on the needs/ questions of the students. She/he can also discuss content that is not available in the textbooks"
+          ]
+        },
+        {
+          "key": "i4",
+          "n": 4,
+          "stage": "During the lesson",
+          "text": "Strong communication skills and delivery",
+          "levels": [
+            "Does not meet level 1",
+            "Audible and coherent speech is delivered",
+            "Along with level 1, the teacher has a friendly and positive body language, and engages all students through movement in class",
+            "Along with level 2, the teacher uses engaging methods of delivery such as appropriate humour or short fun activities to grab the attention of the students"
+          ]
+        },
+        {
+          "key": "i5",
+          "n": 5,
+          "stage": "During the lesson",
+          "text": "Lesson is student-centric and activity-based",
+          "levels": [
+            "Does not meet level 1",
+            "Lesson has one activity performed by the teacher and majority of the lesson is lecture-based.",
+            "Lesson includes one activity performed by students and activity is instructive and relevant to SLOs.",
+            "Lesson includes several different types of activities performed by students and activities are instructive and relevant to SLOs. These activities are a combination of group, pair or solo activities."
+          ]
+        },
+        {
+          "key": "i6",
+          "n": 6,
+          "stage": "During the lesson",
+          "text": "Use of supporting material (Visual or digital aids)",
+          "levels": [
+            "Does not meet level 1",
+            "Teacher effectively uses the black/ white board",
+            "Teacher uses a visual aid which is instructive and relevant to SLOs",
+            "Teacher uses several visual/digital aids of more than one type which are instructive and relevant to SLOs"
+          ]
+        },
+        {
+          "key": "i7",
+          "n": 7,
+          "stage": "During the lesson",
+          "text": "Connections to practical examples or knowledge content from the students' daily lives",
+          "levels": [
+            "Does not meet level 1",
+            "Teacher gives 1 example of real-life application of SLO. The example is coherent with the students' prior knowledge and has a local context.",
+            "Teacher gives 2 or more examples of real life application of SLO. Common misconceptions are dispelled.",
+            "Teacher meets level 2 and asks students for examples of real life application scenarios"
+          ]
+        },
+        {
+          "key": "i8",
+          "n": 8,
+          "stage": "During the lesson",
+          "text": "Student assessment/ questions (oral/ written) are asked",
+          "levels": [
+            "Does not meet Level 1",
+            "Teacher sets relevant questions to test understanding of only a few students.",
+            "Teacher sets relevant questions and identifies correct and incorrect answers of most students.",
+            "Teacher sets relevant questions before, during and after the lesson. She/he offers solutions for incorrect answers and positive praise for correct answers from all the students"
+          ]
+        },
+        {
+          "key": "i9",
+          "n": 9,
+          "stage": "During the lesson",
+          "text": "Wrapping up/concluding the lesson",
+          "levels": [
+            "Does not meet level 1",
+            "Teacher reiterates a broad topic covered during class and summarizes the SLOs",
+            "Teacher meets level 1, and explains the connection to upcoming topics. Homework is assigned from the textbook and written on the board",
+            "Teacher meets level 2, and assigns complementarily unofficial homework that is an inquiry-based activity outside of class"
+          ]
+        },
+        {
+          "key": "i10",
+          "n": 10,
+          "stage": "After the lesson",
+          "text": "Thinking outside the box",
+          "levels": [
+            "Does not meet level 1",
+            "An example/ activity was shared or provided that was not present in the textbook",
+            "The teacher plans an activity or shares material not found in a typical classroom (e.g science kit)",
+            "The teacher thinks beyond conventional, orthodox teaching methods to engage students with the lesson"
+          ]
+        },
+        {
+          "key": "i11",
+          "n": 11,
+          "stage": "After the lesson",
+          "text": "Classroom management and differentiated learning",
+          "levels": [
+            "Does not meet level 1",
+            "Teacher manages time well and maintains smooth transition of activities.",
+            "Teacher meets level 1 and maintains a non-hostile learning environment. Teacher interacts with majority of the students in class, creating a dialogue",
+            "Teacher modifies lessons to meet each student's individual interests, strengths, and needs (e.g those that lag behind the rest of the class)."
+          ]
+        }
+      ],
+      "student_check": {
+        "key": "students",
+        "title": "Student Assessment",
+        "instruction": "Select 5 students randomly and ask questions",
+        "instruction_as_printed": "Select 5 students randomly and ask que",
+        "levels": [
+          "Out of 5 students assessed, 1 or less student showed good understanding of the lesson taught",
+          "Out of 5 students assessed, 2 students showed good understanding of the lesson taught",
+          "Out of 5 students assessed, 3-4 students showed good understanding of the lesson taught",
+          "Out of 5 students assessed, all showed good understanding of the lesson taught"
+        ]
+      },
+      "development_plan": {
+        "key": "devplan",
+        "columns": [
+          "Development area",
+          "Current level",
+          "Teacher goal",
+          "Action plan for the teacher"
+        ]
+      }
+    },
+    "enur": {
+      "id": "obs612-enur-v1",
+      "tool": "enur",
+      "title": "CLASSROOM OBSERVATION TOOL",
+      "subtitle": "For English & Urdu Lessons (Grade VI-VIII)",
+      "fde_ref": "Annexure G, pp.15-17",
+      "applies_to": "English and Urdu, Grade VI-VIII",
+      "scale": {
+        "type": "points",
+        "min": 1,
+        "max": 4,
+        "labels": [
+          "Needs Improvement",
+          "Developing",
+          "Proficient",
+          "Excellent"
+        ]
+      },
+      "scored": true,
+      "sheets": {
+        "en": {
+          "label": "English",
+          "max": 148
+        },
+        "ur": {
+          "label": "Urdu",
+          "max": 156
+        }
+      },
+      "context": [
+        {
+          "key": "ctx_1",
+          "n": 1,
+          "label": "School"
+        },
+        {
+          "key": "ctx_2",
+          "n": 2,
+          "label": "Observer"
+        },
+        {
+          "key": "ctx_3",
+          "n": 3,
+          "label": "Teacher"
+        },
+        {
+          "key": "ctx_4",
+          "n": 4,
+          "label": "Grade/Class"
+        },
+        {
+          "key": "ctx_5",
+          "n": 5,
+          "label": "Subject",
+          "options": [
+            "English",
+            "Urdu",
+            "Bilingual"
+          ]
+        },
+        {
+          "key": "ctx_6",
+          "n": 6,
+          "label": "Lesson Topic"
+        },
+        {
+          "key": "ctx_7",
+          "n": 7,
+          "label": "Lesson Type",
+          "options": [
+            "Reading",
+            "Writing",
+            "Speaking",
+            "Listening",
+            "Grammar",
+            "Literature"
+          ]
+        },
+        {
+          "key": "ctx_8",
+          "n": 8,
+          "label": "Class Size"
+        },
+        {
+          "key": "ctx_9",
+          "n": 9,
+          "label": "Prior Learning (brief)"
+        }
+      ],
+      "sections": [
+        {
+          "key": "s2b",
+          "section": "Section 2: A. Teacher Practices",
+          "title": "B. Lesson Planning & Objectives",
+          "sheets": [
+            "en",
+            "ur"
+          ],
+          "items": [
+            {
+              "key": "s2b_1",
+              "n": 1,
+              "text": "Clear lesson objectives communicated"
+            },
+            {
+              "key": "s2b_2",
+              "n": 2,
+              "text": "Objectives appropriate for age and level"
+            },
+            {
+              "key": "s2b_3",
+              "n": 3,
+              "text": "Lesson aligned with SOW"
+            }
+          ],
+          "max": 12
+        },
+        {
+          "key": "s2c",
+          "section": "Section 2: A. Teacher Practices",
+          "title": "C. Language Instruction Quality: For English language only",
+          "sheets": [
+            "en"
+          ],
+          "items": [
+            {
+              "key": "s2c_1",
+              "n": 1,
+              "text": "Correct grammar, pronunciation, fluency"
+            },
+            {
+              "key": "s2c_2",
+              "n": 2,
+              "text": "Use of target language in classroom"
+            }
+          ],
+          "max": 8
+        },
+        {
+          "key": "s2d",
+          "section": "Section 2: A. Teacher Practices",
+          "title": "D. Language Instruction Quality: For Urdu Language only",
+          "sheets": [
+            "ur"
+          ],
+          "items": [
+            {
+              "key": "s2d_1",
+              "n": 1,
+              "text": "Correct تلفظ (pronunciation), روانی (fluency), قواعد (grammar)"
+            },
+            {
+              "key": "s2d_2",
+              "n": 2,
+              "text": "Effective use of Urdu for explanation"
+            },
+            {
+              "key": "s2d_3",
+              "n": 3,
+              "text": "Balanced use of both languages (if bilingual)"
+            },
+            {
+              "key": "s2d_4",
+              "n": 4,
+              "text": "Vocabulary development strategies (Word associations -linking known and new words, Teaching prefixes, suffixes, and root words, Word families (e.g., act, action, active), Collocations (e.g., \"make a decision\", Word forms (noun, verb, adjective), Sentence patterns and structures, etc. )"
+            }
+          ],
+          "max": 16
+        },
+        {
+          "key": "s2e",
+          "section": "Section 2: A. Teacher Practices",
+          "title": "E. Teaching Strategies Score",
+          "sheets": [
+            "en",
+            "ur"
+          ],
+          "items": [
+            {
+              "key": "s2e_1",
+              "n": 1,
+              "text": "Variety of Strategies (discussion, reading, writing, speaking, mixed strategies, brain storming, etc.)"
+            },
+            {
+              "key": "s2e_2",
+              "n": 2,
+              "text": "Use of examples and real-life connections"
+            },
+            {
+              "key": "s2e_3",
+              "n": 3,
+              "text": "Use of Differential approach for mixed ability learners (Contextual learning, Active use (speaking + writing), Repetition & recycling, Visual support, Bilingual connections (for Urdu learners)"
+            }
+          ],
+          "max": 12
+        },
+        {
+          "key": "s2f",
+          "section": "Section 2: A. Teacher Practices",
+          "title": "F. Classroom Management Score",
+          "sheets": [
+            "en",
+            "ur"
+          ],
+          "items": [
+            {
+              "key": "s2f_1",
+              "n": 1,
+              "text": "Maintains discipline respectfully"
+            },
+            {
+              "key": "s2f_2",
+              "n": 2,
+              "text": "Smooth transitions between activities"
+            },
+            {
+              "key": "s2f_3",
+              "n": 3,
+              "text": "Maximizes learning time"
+            }
+          ],
+          "max": 12
+        },
+        {
+          "key": "s2g",
+          "section": "Section 2: A. Teacher Practices",
+          "title": "G. Use of Teaching Aids Score",
+          "sheets": [
+            "en",
+            "ur"
+          ],
+          "items": [
+            {
+              "key": "s2g_1",
+              "n": 1,
+              "text": "Use of board, charts, multimedia, realia, etc."
+            },
+            {
+              "key": "s2g_2",
+              "n": 2,
+              "text": "Use of IT gadgets and online resources"
+            },
+            {
+              "key": "s2g_3",
+              "n": 3,
+              "text": "Effective and engaging use of resources"
+            }
+          ],
+          "max": 12
+        },
+        {
+          "key": "s3a",
+          "section": "Section 3: Student Engagement",
+          "title": "A. Participation",
+          "sheets": [
+            "en",
+            "ur"
+          ],
+          "items": [
+            {
+              "key": "s3a_1",
+              "n": 1,
+              "text": "Students actively respond to questions"
+            },
+            {
+              "key": "s3a_2",
+              "n": 2,
+              "text": "Equal participation (boys/girls, different abilities)"
+            }
+          ],
+          "max": 8
+        },
+        {
+          "key": "s3b",
+          "section": "Section 3: Student Engagement",
+          "title": "B. Language Use",
+          "sheets": [
+            "en",
+            "ur"
+          ],
+          "items": [
+            {
+              "key": "s3b_1",
+              "n": 1,
+              "text": "Students use English/Urdu appropriately (relevant to language being taught)"
+            },
+            {
+              "key": "s3b_2",
+              "n": 2,
+              "text": "Confidence in speaking"
+            }
+          ],
+          "max": 8
+        },
+        {
+          "key": "s3c",
+          "section": "Section 3: Student Engagement",
+          "title": "C. Collaboration",
+          "sheets": [
+            "en",
+            "ur"
+          ],
+          "items": [
+            {
+              "key": "s3c_1",
+              "n": 1,
+              "text": "Group/pair work effectiveness"
+            },
+            {
+              "key": "s3c_2",
+              "n": 2,
+              "text": "Peer interaction through activities"
+            }
+          ],
+          "max": 8
+        },
+        {
+          "key": "s3d",
+          "section": "Section 3: Student Engagement",
+          "title": "D. Interest & Motivation",
+          "sheets": [
+            "en",
+            "ur"
+          ],
+          "items": [
+            {
+              "key": "s3d_1",
+              "n": 1,
+              "text": "Students show curiosity"
+            },
+            {
+              "key": "s3d_2",
+              "n": 2,
+              "text": "On-task behavior"
+            }
+          ],
+          "max": 8
+        },
+        {
+          "key": "s4a",
+          "section": "Section 4: Language Skills Development",
+          "title": "A. Listening Skills",
+          "sheets": [
+            "en",
+            "ur"
+          ],
+          "items": [
+            {
+              "key": "s4a_1",
+              "n": 1,
+              "text": "Students understand instructions"
+            },
+            {
+              "key": "s4a_2",
+              "n": 2,
+              "text": "Respond appropriately"
+            }
+          ],
+          "max": 8
+        },
+        {
+          "key": "s4b",
+          "section": "Section 4: Language Skills Development",
+          "title": "B. Speaking Skills",
+          "sheets": [
+            "en",
+            "ur"
+          ],
+          "items": [
+            {
+              "key": "s4b_1",
+              "n": 1,
+              "text": "Students understand instructions"
+            },
+            {
+              "key": "s4b_2",
+              "n": 2,
+              "text": "Respond appropriately"
+            }
+          ],
+          "max": 8
+        },
+        {
+          "key": "s4c",
+          "section": "Section 4: Language Skills Development",
+          "title": "C. Reading Skills",
+          "sheets": [
+            "en",
+            "ur"
+          ],
+          "items": [
+            {
+              "key": "s4c_1",
+              "n": 1,
+              "text": "Fluency and comprehension"
+            },
+            {
+              "key": "s4c_2",
+              "n": 2,
+              "text": "Ability to interpret text"
+            }
+          ],
+          "max": 8
+        },
+        {
+          "key": "s4d",
+          "section": "Section 4: Language Skills Development",
+          "title": "D. Reading Skills",
+          "sheets": [
+            "en",
+            "ur"
+          ],
+          "items": [
+            {
+              "key": "s4d_1",
+              "n": 1,
+              "text": "Grammar and structure"
+            },
+            {
+              "key": "s4d_2",
+              "n": 2,
+              "text": "Creativity and coherence"
+            }
+          ],
+          "max": 8
+        },
+        {
+          "key": "s5",
+          "section": "Section 5: Assessment & Feedback",
+          "title": "Assessment & Feedback",
+          "sheets": [
+            "en",
+            "ur"
+          ],
+          "items": [
+            {
+              "key": "s5_1",
+              "n": 1,
+              "text": "Teacher checks understanding during lesson"
+            },
+            {
+              "key": "s5_2",
+              "n": 2,
+              "text": "Provides constructive feedback"
+            },
+            {
+              "key": "s5_3",
+              "n": 3,
+              "text": "Encourages self/peer assessment"
+            },
+            {
+              "key": "s5_4",
+              "n": 4,
+              "text": "Uses questioning effectively (open-ended, critical thinking)"
+            }
+          ],
+          "max": 16
+        },
+        {
+          "key": "s6",
+          "section": "Section 6: Inclusivity & Differentiation",
+          "title": "Inclusivity & Differentiation",
+          "sheets": [
+            "en",
+            "ur"
+          ],
+          "items": [
+            {
+              "key": "s6_1",
+              "n": 1,
+              "text": "Supports weak learners"
+            },
+            {
+              "key": "s6_2",
+              "n": 2,
+              "text": "Challenges high achievers"
+            },
+            {
+              "key": "s6_3",
+              "n": 3,
+              "text": "Inclusive language and behavior"
+            }
+          ],
+          "max": 12
+        }
+      ],
+      "score_rule": "Final Score (%age) = Score obtained x 100 / Total Score (148 English, 156 Urdu)",
+      "bands": [
+        {
+          "printed_range": "90–108",
+          "from": 90,
+          "below": 109,
+          "label": "Excellent",
+          "rating": 1
+        },
+        {
+          "printed_range": "70–89",
+          "from": 70,
+          "below": 90,
+          "label": "Proficient",
+          "rating": 2
+        },
+        {
+          "printed_range": "50–69",
+          "from": 50,
+          "below": 70,
+          "label": "Developing",
+          "rating": 3
+        },
+        {
+          "printed_range": "Below 50",
+          "from": 0,
+          "below": 50,
+          "label": "Needs Improvement",
+          "rating": 4
+        }
+      ],
+      "bands_apply_to": "percentage",
+      "feedback": [
+        {
+          "key": "strengths",
+          "label": "Strengths"
+        },
+        {
+          "key": "areas",
+          "label": "Areas for Improvement"
+        },
+        {
+          "key": "recommendations",
+          "label": "Recommendations"
+        },
+        {
+          "key": "timeline",
+          "label": "Timeline"
+        }
+      ],
+      "fde_notes": [
+        "Section 4 B (Speaking Skills) prints the same two items as 4 A (Listening Skills). Kept as printed.",
+        "Section 4 D is titled \"Reading Skills\" (as 4 C is), but its items (grammar and structure; creativity and coherence) are about writing. Kept as printed.",
+        "Section 7 prints score bands of 90-108, 70-89, 50-69 and below 50, which fit neither total (148 English, 156 Urdu). They are applied to the percentage."
+      ]
+    }
+  }
+}

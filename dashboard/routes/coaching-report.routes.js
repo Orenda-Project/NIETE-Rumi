@@ -74,8 +74,9 @@ async function loadReport(supabase, sessionId, userId) {
   const quizMessage = typeof meta.student_message === 'string' && meta.student_message.trim() ? meta.student_message : null;
   // Oldest first; a session with no overall score is left out of the line, never drawn as zero.
   const trend = ((past && past.data) || []).map((r) => {
-    // bd-ra8xu.38: a FICO17 v6 session is left off the V3 line, like one with no score.
-    const p = r && r.analysis_data && !require('../services/coaching-frameworks.service').isV6Scored(r.analysis_data)
+    // bd-ra8xu.38 / bd-pni007: a session on its own rubric (FICO17 v6, FDE obs612) is left off the V3 line, like one
+    // with no score.
+    const p = r && r.analysis_data && !require('../services/coaching-frameworks.service').isOwnRubric(r.analysis_data)
       && r.analysis_data.scores && r.analysis_data.scores.overall_percentage;
     return { created_at: r && r.created_at, pct: p == null || p === '' || !Number.isFinite(Number(p)) ? null : Number(p) };
   }).filter((r) => r.pct != null).reverse();
