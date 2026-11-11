@@ -83,7 +83,7 @@ async function main(argv = process.argv.slice(2)) {
   return out;
 }
 
-module.exports = { plan, verify, run, main };
+module.exports = { plan, verify, run, main, SEGMENT, LANGS };
 
 if (require.main === module) {
   main().catch((err) => {
