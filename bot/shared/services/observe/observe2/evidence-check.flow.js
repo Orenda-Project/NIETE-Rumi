@@ -18,6 +18,9 @@
  *       The six indicators the coach sets from the room (C3 C5 / C7 D3 / D4 D2): each its v6 definition, what
  *       the recording showed for it and what the coach adds, a level that starts BLANK, and a required reason
  *       (20+ characters, checked by the endpoint). D2 also takes the two child counts. A v5 visit never sees them.
+ *   MISSED   (v6 visits only, FICO6)
+ *       "Add one Rumi missed": up to two moments the coach saw that Rumi did not list, each a type, the minute and
+ *       the words; they count as confirmed moments. Between the moments screens and COMBINED_ONE.
  *   ADDED_DC_ONE, ADDED_DC_TWO   (v6 visits only)
  *       Rumi's other 11 levels, pre-selected as ADDED_* are, with the v6 titles; one box per screen for why
  *       the coach changed any (required by the endpoint only when a level was changed).
@@ -39,6 +42,7 @@
 
 const { MOMENTS, PLAIN, EXTRA, ROW, FOCUS, FOCUS_DESCRIPTION, FOCUS_ORDER, ALSO_NONE, THINKING } = require('./fico17');
 const V6 = require('../../coaching/frameworks/fico17-v6');
+const { observe2Strings } = require('./strings');
 
 const FLOW_VERSION = '7.3';
 // This check's own version, sent by the footers whose next screen's data changed (ADDED_TWO, PRIORITY):
@@ -73,7 +77,12 @@ const ADDED_SCREENS = [
 ];
 // FICO17 v6 (bd-ra8xu.38). The last moments screen posts V6_CHECK, so the endpoint knows this Flow has the v6
 // screens: a v6 visit opened on a Flow published before them runs on the v5 screens rather than break.
-const V6_CHECK = '1';
+// '2' (FICO6) brought MISSED and the reason radio on ADDED_DC_*: a v6 visit on a '1' Flow skips MISSED and its
+// changes need only the written reason, as that Flow asks.
+const V6_CHECK = '2';
+// "Add one Rumi missed" (spec §9.2, RULINGS R7): two slots, each a type, the minute and the words.
+const MISSED_SLOTS = 2;
+const MISSED_WORDS_MAX = 280;
 const COMBINED_SCREENS = [
   { id: 'COMBINED_ONE', title: 'From the room (1 of 3)', codes: ['C3', 'C5'] },
   { id: 'COMBINED_TWO', title: 'From the room (2 of 3)', codes: ['C7', 'D3'] },
@@ -179,6 +188,30 @@ function addedScreen({ id, title, codes }) {
   // The last level screen's answer is the PRIORITY screen, whose data changed with "Also work on".
   const last = id === ADDED_SCREENS[ADDED_SCREENS.length - 1].id;
   return screenWith(id, title, kids, 'Next', data, init, last ? { cv: CHECK_VERSION } : null);
+}
+
+// "Add one Rumi missed" (v6 only, between the moments and the room levels): every field optional; a slot counts
+// only with a type and words (the endpoint). The types come from the endpoint, so a new moment type never
+// changes this Flow.
+function missedScreen() {
+  const S = observe2Strings('en');
+  const data = {
+    missed_types: {
+      type: 'array',
+      items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' } } },
+      __example__: [{ id: 'open_q_one', title: 'open question' }, { id: 'probe', title: "'why' follow-up" }],
+    },
+  };
+  const kids = [{ type: 'TextBody', text: S.missed_intro }];
+  for (let i = 1; i <= MISSED_SLOTS; i += 1) {
+    kids.push(
+      { type: 'TextSubheading', text: `Moment ${i}` },
+      { type: 'Dropdown', name: `missed_${i}_type`, label: S.missed_type, required: false, 'data-source': '${data.missed_types}' },
+      { type: 'TextInput', name: `missed_${i}_min`, label: S.missed_min, 'input-type': 'number', required: false, 'helper-text': S.missed_min_help },
+      { type: 'TextArea', name: `missed_${i}_words`, label: S.missed_words, required: false, 'max-length': MISSED_WORDS_MAX, 'helper-text': S.missed_words_help },
+    );
+  }
+  return screenWith('MISSED', S.missed_title, kids, 'Next', data);
 }
 
 // One indicator the coach sets from the room (v6): name, definition + the recording's evidence + what the coach
@@ -290,9 +323,11 @@ function buildEvidenceCheckFlow() {
   routing.HEARD_EXPLAIN = ['FIDELITY', 'ADDED_ONE'];
   // FICO17 v6 (bd-ra8xu.38): appended after DONE so every v5 screen keeps its place. A v6 visit goes
   // HEARD_EXPLAIN → COMBINED_ONE..3 → FIDELITY (a graded plan) or ADDED_DC_ONE → ADDED_DC_TWO → PRIORITY.
-  const v6 = [...COMBINED_SCREENS.map(combinedScreen), ...ADDED6_SCREENS.map(added6Screen)];
+  // FICO6: MISSED after the v6 screens, HEARD_EXPLAIN → MISSED → COMBINED_ONE (a '1' check still goes straight on).
+  const v6 = [...COMBINED_SCREENS.map(combinedScreen), ...ADDED6_SCREENS.map(added6Screen), missedScreen()];
   screens.push(...v6);
-  routing.HEARD_EXPLAIN = [...routing.HEARD_EXPLAIN, 'COMBINED_ONE'];
+  routing.HEARD_EXPLAIN = [...routing.HEARD_EXPLAIN, 'COMBINED_ONE', 'MISSED'];
+  routing.MISSED = ['COMBINED_ONE'];
   routing.COMBINED_ONE = ['COMBINED_TWO'];
   routing.COMBINED_TWO = ['COMBINED_THREE'];
   routing.COMBINED_THREE = ['FIDELITY', 'ADDED_DC_ONE'];
@@ -304,5 +339,5 @@ function buildEvidenceCheckFlow() {
 
 module.exports = {
   buildEvidenceCheckFlow, SLOTS, FIDELITY_SLOTS, FIDELITY_VERDICTS, HEARD_SCREENS, ADDED_SCREENS, FLOW_VERSION, CHECK_VERSION,
-  V6_CHECK, COMBINED_SCREENS, ADDED6_SCREENS,
+  V6_CHECK, COMBINED_SCREENS, ADDED6_SCREENS, MISSED_SLOTS, MISSED_WORDS_MAX,
 };

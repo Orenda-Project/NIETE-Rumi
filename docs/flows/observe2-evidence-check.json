@@ -14,7 +14,8 @@
     "HEARD_EXPLAIN": [
       "FIDELITY",
       "ADDED_ONE",
-      "COMBINED_ONE"
+      "COMBINED_ONE",
+      "MISSED"
     ],
     "FIDELITY": [
       "ADDED_ONE",
@@ -30,6 +31,9 @@
       "DONE"
     ],
     "DONE": [],
+    "MISSED": [
+      "COMBINED_ONE"
+    ],
     "COMBINED_ONE": [
       "COMBINED_TWO"
     ],
@@ -1180,7 +1184,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "HEARD_EXPLAIN",
-                    "v6c": "1",
+                    "v6c": "2",
                     "heard_explain_1": "${form.heard_explain_1}",
                     "heard_explain_2": "${form.heard_explain_2}",
                     "heard_explain_3": "${form.heard_explain_3}",
@@ -4612,6 +4616,121 @@
                     "F3_final": "${form.F3_final}",
                     "F4_final": "${form.F4_final}",
                     "why6_two": "${form.why6_two}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "MISSED",
+      "title": "Add one Rumi missed",
+      "data": {
+        "missed_types": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "open_q_one",
+              "title": "open question"
+            },
+            {
+              "id": "probe",
+              "title": "'why' follow-up"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "missed_form",
+            "children": [
+              {
+                "type": "TextBody",
+                "text": "A moment you saw that Rumi did not list? Add up to two: what happened, the minute, and the words. It counts like a moment you confirmed. Leave empty if none."
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Moment 1"
+              },
+              {
+                "type": "Dropdown",
+                "name": "missed_1_type",
+                "label": "What happened",
+                "required": false,
+                "data-source": "${data.missed_types}"
+              },
+              {
+                "type": "TextInput",
+                "name": "missed_1_min",
+                "label": "Minute",
+                "input-type": "number",
+                "required": false,
+                "helper-text": "The minute of the lesson, if you know it"
+              },
+              {
+                "type": "TextArea",
+                "name": "missed_1_words",
+                "label": "The words",
+                "required": false,
+                "max-length": 280,
+                "helper-text": "What was said, as near as you can"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Moment 2"
+              },
+              {
+                "type": "Dropdown",
+                "name": "missed_2_type",
+                "label": "What happened",
+                "required": false,
+                "data-source": "${data.missed_types}"
+              },
+              {
+                "type": "TextInput",
+                "name": "missed_2_min",
+                "label": "Minute",
+                "input-type": "number",
+                "required": false,
+                "helper-text": "The minute of the lesson, if you know it"
+              },
+              {
+                "type": "TextArea",
+                "name": "missed_2_words",
+                "label": "The words",
+                "required": false,
+                "max-length": 280,
+                "helper-text": "What was said, as near as you can"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "MISSED",
+                    "missed_1_type": "${form.missed_1_type}",
+                    "missed_1_min": "${form.missed_1_min}",
+                    "missed_1_words": "${form.missed_1_words}",
+                    "missed_2_type": "${form.missed_2_type}",
+                    "missed_2_min": "${form.missed_2_min}",
+                    "missed_2_words": "${form.missed_2_words}"
                   }
                 }
               }

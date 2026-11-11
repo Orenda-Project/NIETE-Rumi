@@ -29,7 +29,7 @@ const Store = require('../../bot/shared/services/observe/observe2/field-form.sto
 const Check = require('../../bot/shared/routes/observe2-check-endpoint');
 const Switch = require('../../bot/shared/services/coaching/fico-rubric-switch');
 const V6 = require('../../bot/shared/services/coaching/frameworks/fico17-v6');
-const { buildEvidenceCheckFlow } = require('../../bot/shared/services/observe/observe2/evidence-check.flow');
+const { buildEvidenceCheckFlow, V6_CHECK } = require('../../bot/shared/services/observe/observe2/evidence-check.flow');
 const { buildAnalysis } = require('../../bot/shared/services/observe/observe2/analysis');
 const V5_FLOW = require('./fixtures/evidence-check-v5.json');
 
@@ -137,7 +137,7 @@ describe('the Flow', () => {
       const now = JSON.parse(JSON.stringify(byId[old.id]));
       if (old.id === 'HEARD_EXPLAIN') {
         const footer = fieldsOf(now).find((c) => c.type === 'Footer');
-        expect(footer['on-click-action'].payload.v6c).toBe('1');
+        expect(footer['on-click-action'].payload.v6c).toBe(V6_CHECK);
         delete footer['on-click-action'].payload.v6c;
       }
       expect(now).toEqual(old);

@@ -189,6 +189,12 @@ function focusOf(form, priority) {
   };
 }
 
+const LIFTED = ['transcript_quality', 'shadow_v6'];
+function liftedFromMoments(form) {
+  const rm = form.rumi_moments || {};
+  return Object.fromEntries(LIFTED.filter((k) => rm[k] != null).map((k) => [k, rm[k]]));
+}
+
 /**
  * @param {object} form observation_field_forms row after the check (final_levels, evidence_review)
  * @param {{brief?: string}} [opts] the brief as the coach received it (teacher's name, coach's language)
@@ -220,7 +226,11 @@ function buildAnalysis(form, opts = {}) {
         v6_levels: review.v6_levels || {},
         d2_counts: review.d2_counts || null,
         v6_fallback: Boolean(review.v6_fallback),
+        missed: Array.isArray(review.missed) ? review.missed : [],
       } : {}),
+      // FICO6 (CONTRACTS §3, §8): the transcript gate's verdict and the /observe2 shadow run, lifted from the moments
+      // job's record when it wrote them; a visit without them has neither key.
+      ...liftedFromMoments(form),
       rubric_version: form.rubric_version || null,
       final_levels: form.final_levels || {},
       priority,
