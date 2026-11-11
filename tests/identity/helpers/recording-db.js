@@ -56,7 +56,7 @@ function recordingDb(tables = {}) {
         }
         if (op === 'update') {
           db.writes.push({ table: name, op, patch: { ...patch }, where: where() });
-          if (db.throwWrite(name, op, patch)) throw new Error('connection reset');
+          if (db.throwWrite(name, op, patch, where())) throw new Error('connection reset');
           if (db.refuse(name, op, patch, where())) return { data: null, error: { message: `update ${name} refused` } };
           const hits = t.filter(match);
           hits.forEach((r) => Object.assign(r, patch));

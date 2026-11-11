@@ -1052,6 +1052,31 @@ const UX_STRINGS = {
     ur: 'خوش آمدید، {name}! «ٹھیک ہے» دبائیں، میں چیٹ میں آپ کا ⁦NIETE⁩ پورٹل لنک بھیج دوں گی۔',
   },
   regFormDoneButton: { en: 'Done', ur: 'ٹھیک ہے' },
+  // "Is this you?" (registration v6). Only her own first name, the school she picked and at most the last two digits
+  // of the other account's number. Urdu: name and school isolated with FSI..PDI, the digits (a piece of a phone number)
+  // with LRI..PDI; neutral forms, agreement with اکاؤنٹ or نمبر, never with her.
+  regFormItuHeading: { en: 'Is this you?', ur: 'کیا یہ آپ ہیں؟' },
+  regFormItuBody: {
+    en: 'There’s already an account for {name} at {school}, made with a number ending in {last2}. Is it yours? If it is, I’ll link it to this number.',
+    ur: '⁨{school}⁩ میں ⁨{name}⁩ کے نام سے ایک اکاؤنٹ پہلے سے موجود ہے، جو ⁦{last2}⁩ پر ختم ہونے والے نمبر سے بنا تھا۔ کیا یہ آپ کا ہے؟ اگر ہاں، تو میں اسے اس نمبر سے جوڑ دوں گی۔',
+  },
+  regFormItuBodyNoDigits: {
+    en: 'There’s already an account for {name} at {school}. Is it yours? If it is, I’ll link it to this number.',
+    ur: '⁨{school}⁩ میں ⁨{name}⁩ کے نام سے ایک اکاؤنٹ پہلے سے موجود ہے۔ کیا یہ آپ کا ہے؟ اگر ہاں، تو میں اسے اس نمبر سے جوڑ دوں گی۔',
+  },
+  regFormItuLabel: { en: 'Your answer', ur: 'آپ کا جواب' },
+  regFormItuYes: { en: 'Yes, it’s mine', ur: 'جی ہاں، یہ میرا ہے' },
+  regFormItuNo: { en: 'No, it’s someone else’s', ur: 'نہیں، یہ کسی اور کا ہے' },
+  regFormItuNotSure: { en: 'I’m not sure', ur: 'مجھے یقین نہیں' },
+  // Appended to the welcome after Finish, from the SUCCESS param `identity`.
+  regDoneClaimed: {
+    en: 'This number is now linked to your existing account.',
+    ur: 'یہ نمبر اب آپ کے پہلے والے اکاؤنٹ سے جڑ گیا ہے۔',
+  },
+  regDoneReview: {
+    en: 'I’ve asked for that account to be checked. If it’s yours, it will be linked to this number.',
+    ur: 'میں نے اس اکاؤنٹ کی جانچ کے لیے کہہ دیا ہے۔ اگر یہ آپ کا ہوا تو اسے اس نمبر سے جوڑ دیا جائے گا۔',
+  },
   // Grade and subject options the class catalog (GRADE_LABELS / SUBJECT_LABELS, seeded codes)
   // does not carry; the rest come from gradeLabelFor / subjectLabelFor.
   regGradeHigherSecondary: { en: 'Higher Secondary (11-12)', ur: 'انٹر (⁦۱۱–۱۲⁩)' },
