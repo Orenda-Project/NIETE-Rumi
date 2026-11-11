@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WAYS, isComplete, purposesFor, suggestWay, waysFor, type OwnAnswers } from './rules';
+import { GUARDRAIL_WAYS, WAYS, bandOf, isComplete, purposesFor, suggestWay, waysFor, type OwnAnswers } from './rules';
 
 /**
  * bd-snkn32 — the teaching way "Make my own" suggests from her answers (design: first match wins, the
@@ -86,11 +86,11 @@ describe('isComplete — Make my plan is only offered with every answer in', () 
 
 // bd-snkn32.4 — grades 1–5 subjects ride the address by their catalogue KEY (lp_catalog subject_key), not a name.
 describe('grades 1–5 subject keys (the product reviewer\'s check)', () => {
-  it('maths offers Things → pictures → numbers; Urdu and English in grades 1–3 offer Sounds first', () => {
+  it('maths offers Things → pictures → numbers; Urdu and English in every grade 1–5 offer Sounds first', () => {
     expect(waysFor({ grade: 3, subject: 'math' })).toContain('cpa');
     expect(waysFor({ grade: 2, subject: 'urdu' })).toContain('phonics');
     expect(waysFor({ grade: 1, subject: 'english' })).toContain('phonics');
-    expect(waysFor({ grade: 4, subject: 'urdu' })).not.toContain('phonics');
+    expect(waysFor({ grade: 4, subject: 'urdu' })).toContain('phonics');
   });
   it('the other primary subjects are neither maths nor a language', () => {
     for (const subject of ['islamiat', 'general_knowledge', 'general_knowledge_ur', 'social_studies_ur', 'social_studies_en', 'general_science']) {
@@ -101,40 +101,80 @@ describe('grades 1–5 subject keys (the product reviewer\'s check)', () => {
   });
 });
 
-// bd-snkn32.13 — phonics, counting with stones and TaRL do not fit a Grade 10 Chemistry lesson.
-describe('grades 6–12: their own ways, what the lesson is for', () => {
+// bd-snkn32.19 — one flow for grades 1–12; only the option lists differ by band (the unified spec, "Every option, by band").
+describe('bandOf — the band, from the grade once', () => {
+  it('1–5 primary, 6–8 middle, 9–12 senior', () => {
+    expect([1, 5].map(bandOf)).toEqual(['primary', 'primary']);
+    expect([6, 8].map(bandOf)).toEqual(['middle', 'middle']);
+    expect([9, 12].map(bandOf)).toEqual(['senior', 'senior']);
+  });
+});
+
+describe('grades 1–5: the guardrails stay', () => {
+  it('phonics and CPA are the guardrail ways', () => {
+    expect([...GUARDRAIL_WAYS]).toEqual(['phonics', 'cpa']);
+  });
+  it('English and Urdu offer Sounds first in grades 4 and 5 too', () => {
+    for (const grade of [4, 5]) for (const subject of ['English', 'Urdu']) expect(waysFor({ grade, subject })).toContain('phonics');
+  });
+  it('Maths offers CPA in every grade 1–5', () => {
+    for (const grade of [1, 2, 3, 4, 5]) expect(waysFor({ grade, subject: 'Mathematics' })).toContain('cpa');
+  });
+  it('no rote way exists at any grade', () => {
+    for (const w of WAYS) expect(w).not.toMatch(/rote|repeat|memor|drill/);
+  });
+});
+
+describe('grades 6–12: a secondary set, filtered by subject, never the primary list', () => {
   const PRIMARY = ['tarl', 'cpa', 'phonics', 'games', 'story'];
-  it('6–8 and 9–12 offer none of the primary ways; past-paper practice is 9–12 only', () => {
-    const middle = waysFor({ grade: 7, subject: 'Science' });
-    const senior = waysFor({ grade: 10, subject: 'Chemistry' });
-    for (const w of [...middle, ...senior]) expect(PRIMARY).not.toContain(w);
-    expect(middle).toEqual(['worked', 'numericals', 'practical', 'inquiry', 'concept_map', 'discussion', 'reading']);
-    expect(senior).toEqual([...middle, 'past_paper']);
+  it('Grade 8 Science sees no primary way', () => {
+    for (const w of waysFor({ grade: 8, subject: 'Science' })) expect(PRIMARY).not.toContain(w);
   });
-  it('more choice than primary: the whole band set whatever the subject', () => {
-    expect(waysFor({ grade: 9, subject: 'Urdu' })).toEqual(waysFor({ grade: 9, subject: 'Physics' }));
+  it('filtered by subject', () => {
+    expect(waysFor({ grade: 7, subject: 'English' })).toEqual(['reading', 'writing', 'concept_map', 'discussion']);
+    expect(waysFor({ grade: 7, subject: 'English' })).not.toContain('numericals');
+    expect(waysFor({ grade: 10, subject: 'Mathematics' })).toEqual(['worked', 'inquiry', 'concept_map', 'discussion', 'past_paper']);
+    expect(waysFor({ grade: 10, subject: 'Physics' })).toEqual(['numericals', 'practical', 'inquiry', 'concept_map', 'discussion', 'past_paper']);
+    expect(waysFor({ grade: 7, subject: 'General Science' })).toEqual(['numericals', 'practical', 'inquiry', 'concept_map', 'discussion']);
+    expect(waysFor({ grade: 10, subject: 'Biology' })).not.toContain('numericals');
+    expect(waysFor({ grade: 9, subject: 'Computer Science' })).toEqual(['worked', 'practical', 'inquiry', 'concept_map', 'discussion', 'past_paper']);
+    expect(waysFor({ grade: 9, subject: 'Pakistan Studies' })).toEqual(['inquiry', 'reading', 'concept_map', 'discussion', 'past_paper']);
   });
-  it('purposes: board exam practice only from Grade 9; none for 1–5', () => {
+  it('Model, plan, write is for English and Urdu', () => {
+    expect(waysFor({ grade: 10, subject: 'Urdu' })).toContain('writing');
+    expect(waysFor({ grade: 10, subject: 'Chemistry' })).not.toContain('writing');
+  });
+  it('exam practice from Grade 8 (FDE), board practice 9–12; none in 6–7', () => {
+    expect(waysFor({ grade: 7, subject: 'Science' })).not.toContain('past_paper');
+    // Grade 8 sends the bot's FDE code (lp612-own-ways waysOfGrade(8)); FBISE past papers are 9–12 only.
+    expect(waysFor({ grade: 8, subject: 'Science' })).toContain('exam_fde');
+    expect(waysFor({ grade: 8, subject: 'Science' })).not.toContain('past_paper');
+    expect(waysFor({ grade: 9, subject: 'Science' })).not.toContain('exam_fde');
+    expect(waysFor({ grade: 7, subject: 'Science' })).not.toContain('exam_fde');
     expect(purposesFor(4)).toEqual([]);
     expect(purposesFor(7)).toEqual(['new', 'revise', 'reteach']);
-    expect(purposesFor(11)).toEqual(['new', 'revise', 'board', 'reteach']);
+    expect(purposesFor(8)).toEqual(['new', 'revise', 'reteach', 'board']);
+    expect(purposesFor(11)).toEqual(['new', 'revise', 'reteach', 'board']);
   });
-  it('the suggestion fits the subject and the purpose', () => {
-    const g = (over: Partial<OwnAnswers>) => suggestWay(at({ grade: 10, level: 'behind', ...over })).way;
-    expect(g({ subject: 'Chemistry', purpose: 'board' })).toBe('past_paper');
-    expect(g({ subject: 'Mathematics' })).toBe('worked');
-    expect(g({ subject: 'Physics' })).toBe('numericals');
-    expect(g({ subject: 'Biology' })).toBe('practical');
-    expect(g({ subject: 'English' })).toBe('reading');
-    expect(g({ subject: 'Pakistan Studies' })).toBe('discussion');
-    expect(g({ grade: 7, subject: 'Science', purpose: 'board' })).toBe('practical');
+  it('the suggestion fits the subject, the purpose and the level, and is always on the list', () => {
+    const g = (over: Partial<OwnAnswers>) => suggestWay(at({ grade: 10, level: 'on_track', ...over }));
+    expect(g({ subject: 'Chemistry', purpose: 'board' }).way).toBe('past_paper');
+    expect(g({ grade: 8, subject: 'Science', purpose: 'board' })).toEqual({ way: 'exam_fde', why: ['board'] });
+    expect(g({ subject: 'Mathematics' }).way).toBe('worked');
+    expect(g({ subject: 'Physics' }).way).toBe('numericals');
+    expect(g({ subject: 'Biology' }).way).toBe('practical');
+    expect(g({ subject: 'English' }).way).toBe('reading');
+    expect(g({ subject: 'Pakistan Studies' }).way).toBe('reading');
+    expect(g({ subject: 'Art' }).way).toBe('discussion');
+    expect(g({ subject: 'Mathematics', level: 'behind' })).toEqual({ way: 'worked', why: ['behind', 'math'] });
+    expect(g({ subject: 'Urdu', purpose: 'reteach' })).toEqual({ way: 'reading', why: ['reteach', 'language'] });
+    for (const subject of ['English', 'Physics', 'Biology', 'History', 'Computer Science', 'Art']) {
+      for (const grade of [6, 8, 10]) expect(waysFor({ grade, subject })).toContain(g({ grade, subject }).way);
+    }
   });
   it('a 6–12 plan needs what the lesson is for; 1–5 does not', () => {
     expect(isComplete(at({ grade: 8, way: 'worked' }))).toBe(false);
     expect(isComplete(at({ grade: 8, way: 'worked', purpose: 'revise' }))).toBe(true);
     expect(isComplete(at({ grade: 4, way: 'story' }))).toBe(true);
-  });
-  it('every way is a known way', () => {
-    for (const g of [2, 7, 11]) for (const w of waysFor({ grade: g, subject: 'English' })) expect(WAYS).toContain(w);
   });
 });

@@ -20,14 +20,15 @@ import { reportChip } from "../../coach/reports/ReportRows";
 import type { CoachReport } from "../../coach/types";
 import { getPrincipalSchoolCard } from "./api";
 import { PRINCIPAL } from "./copy";
-import { principalCheckPath } from "./observe";
+import { principalVisitPath } from "./observe";
 
 /**
  * bd-33wxxi.4 — "One of my teachers" → Pick the teacher (#55, Observations A): her own school's teachers (GET
  * /principal/school/card: never herself, never another principal), A to Z, with the coach's SearchBox above the kit's
  * person rows. Line 2 is her level and when she last observed that teacher ("last observed Mon 5 Oct" / "not observed
- * yet"); an observation of hers not sent yet wears the Reports chip (Feedback Form, Debrief…). A row opens Check and send
- * for that teacher (Start recording / Upload recording) — no visit is scheduled, so nothing goes to the teacher.
+ * yet"); an observation of hers not sent yet wears the Reports chip (Feedback Form, Debrief…). A row opens that teacher's
+ * page, the coach's visit screen (bd-33wxxi.9.3: Start recording / Upload recording, the Teacher card) — no visit is
+ * scheduled, so nothing goes to the teacher.
  * Her row naming no school: "No school".
  */
 export function PickTeacher() {
@@ -67,7 +68,8 @@ export function PickTeacher() {
           title: t.name,
           extra: [levelNames(t.levels), seen].filter(Boolean).join(" · "),
           chip: last && last.step !== "sent" ? reportChip(last, R) : null,
-          to: principalCheckPath(t.teacherExtId),
+          // bd-33wxxi.9.3 — the coach's visit screen for her (Start recording / Upload recording, the Teacher card)
+          to: principalVisitPath(t.teacherExtId),
         };
       });
   }, [card, latest, q, P, R, days, today, levelNames]);

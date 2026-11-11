@@ -488,7 +488,15 @@ async function downloadFromR2(key, { bucket, abortSignal } = {}) {
     console.log(`✅ Downloaded from R2: ${key} (${buffer.length} bytes)`);
     return buffer;
   } catch (error) {
-    console.error('❌ Error downloading from R2:', error);
+    // bd-ihhkz6: a missing key is how callers probe optional objects (LP voicenote scripts, caches) —
+    // log it at warn so it stops burying real failures at error. Name the key's first segment either way.
+    const prefix = String(key || '').split('/')[0];
+    const status = error && error.$metadata && error.$metadata.httpStatusCode;
+    if ((error && error.name === 'NoSuchKey') || status === 404) {
+      console.warn('⚠️ R2 object not found:', { prefix, error: error.message });
+    } else {
+      console.error('❌ Error downloading from R2:', { prefix, name: error && error.name, status, error: error && error.message });
+    }
     throw error;
   }
 }
@@ -809,6 +817,13 @@ async function getPresignedUrl(r2Url, expiresIn = 3600, options = undefined) {
   // If it's already a presigned URL or not an R2 URL, return as-is
   if (r2Url.includes('X-Amz-Signature') || !isPermanentR2Url(r2Url)) {
     console.log(`⏭️ Skipping presign (already signed or not R2): ${r2Url.substring(0, 80)}...`);
+    return r2Url;
+  }
+
+  // bd-k7hex: Cloudflare's public bucket alias (pub-<hex>.r2.dev) — quiz audio and pictures live
+  // there. It is public by design and not our bucket, so there is nothing to sign: hand it back
+  // without the "bucket pattern not found" warn (3,449/day on prod, all quiz media).
+  if (/^https?:\/\/pub-[0-9a-f]+\.r2\.dev\//i.test(r2Url)) {
     return r2Url;
   }
 

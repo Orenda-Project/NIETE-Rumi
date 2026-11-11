@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MAX_SPAN, checkPages, fmtPg, parseLabel, parsePg } from './pages';
+import { MAX_SPAN, checkBand, checkPages, checkPages612, fmtPg, parseLabel, parsePg, pgToSend } from './pages';
 
 /** bd-snkn32.17 — the book pages of a grades 1–5 Make my own (pure): read, typed, checked like the bot checks them. */
 
@@ -45,5 +45,47 @@ describe('checkPages — what she typed', () => {
     expect(checkPages('3', String(3 + MAX_SPAN - 1), day)).not.toBeNull();
     expect(checkPages('3', String(3 + MAX_SPAN), day)).toBeNull();
     expect(checkPages('1', '20', { start: 1, end: 20 })).toEqual({ start: 1, end: 20 });
+  });
+});
+
+describe('checkPages612 — bd-snkn32.19: grades 6–12, inside the lesson or through the next one', () => {
+  const lesson = { start: 42, end: 45 };
+  const next = { start: 46, end: 48 };
+  it('any range inside the lesson, one page included', () => {
+    expect(checkPages612('42', '45', lesson, next)).toEqual({ range: { start: 42, end: 45 }, both: false });
+    expect(checkPages612('42', '42', lesson, next)).toEqual({ range: { start: 42, end: 42 }, both: false });
+    expect(checkPages612('43', '44', lesson, null)).toEqual({ range: { start: 43, end: 44 }, both: false });
+  });
+  it('ending exactly at the next lesson\'s end joins both lessons', () => {
+    expect(checkPages612('42', '48', lesson, next)).toEqual({ range: { start: 42, end: 48 }, both: true });
+    expect(checkPages612('44', '48', lesson, next)).toEqual({ range: { start: 44, end: 48 }, both: true });
+  });
+  it('refuses anything else', () => {
+    expect(checkPages612('41', '45', lesson, next)).toBeNull();
+    expect(checkPages612('42', '46', lesson, next)).toBeNull();
+    expect(checkPages612('42', '47', lesson, next)).toBeNull();
+    expect(checkPages612('42', '48', lesson, null)).toBeNull();
+    expect(checkPages612('46', '48', lesson, next)).toBeNull();
+    expect(checkPages612('45', '43', lesson, next)).toBeNull();
+    expect(checkPages612('', '45', lesson, next)).toBeNull();
+    expect(checkPages612('42', '45', null, next)).toBeNull();
+  });
+});
+
+describe('checkBand / pgToSend — one check for every band, and what rides in the address', () => {
+  const lesson = { start: 42, end: 45 };
+  const next = { start: 46, end: 48 };
+  it('grades 1–5 widen freely (never "both"); 6–12 stay inside or run to the next lesson\'s end', () => {
+    expect(checkBand(true, '42', '47', lesson, next)).toEqual({ range: { start: 42, end: 47 }, both: false });
+    expect(checkBand(false, '42', '47', lesson, next)).toBeNull();
+    expect(checkBand(false, '42', '48', lesson, next)).toEqual({ range: { start: 42, end: 48 }, both: true });
+  });
+  it('the natural range sends nothing; anything else sends her pages', () => {
+    expect(pgToSend({ range: lesson, both: false }, lesson, next)).toBeUndefined();
+    expect(pgToSend({ range: { start: 42, end: 48 }, both: true }, lesson, next)).toBeUndefined();
+    expect(pgToSend({ range: { start: 43, end: 48 }, both: true }, lesson, next)).toEqual({ start: 43, end: 48 });
+    expect(pgToSend({ range: { start: 42, end: 42 }, both: false }, lesson, next)).toEqual({ start: 42, end: 42 });
+    expect(pgToSend(null, lesson, next)).toBeUndefined();
+    expect(pgToSend({ range: lesson, both: false }, null, next)).toBeUndefined();
   });
 });

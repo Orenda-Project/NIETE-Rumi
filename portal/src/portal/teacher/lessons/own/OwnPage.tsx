@@ -3,36 +3,37 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { lessonPlans } from '../../../newui/lessons/lessonPlansApi';
 import { dataOf, useLoad } from '../../../newui/lessons/shared';
 import { teacherPath } from '../../routes';
-import { ChosenSoFar, DockButton, ListRow, StepBar } from '../../ui';
-import { FOCUS, LIST_CARD } from '../../ui/styles';
+import { DockButton, StepBar } from '../../ui';
 import { useCopy } from '../../i18n';
 import TeacherPage from '../../TeacherPage';
 import { LoadState } from '../LoadState';
 import { LESSONS } from '../copy';
 import { lessonsUrl } from '../paths';
-import { OWN, type OwnCopy } from './copy';
+import { OWN } from './copy';
 import {
-  FOCI, LEVELS, RESOURCES, SIZES, isComplete, isSecondary, purposesFor, suggestWay, waysFor, type Resource,
+  FOCI, LEVELS, RESOURCES, SIZES, isComplete, purposesFor, suggestWay, waysFor, type Resource,
 } from './rules';
 import { nextStep, ownUrl, prevStep, readOwn, stepsFor, toAnswers, type OwnAt } from './state';
 import { fetchSloMix, makeOwnPlan, ownable, useLpMakeOwn } from './api';
-import { EXTENDS, nextLesson } from './extend';
+import { nextLesson } from './extend';
 import type { Refusal } from './change';
-import { PagesBox } from './PagesBox';
-import { fmtPg, parseLabel, samePages, type PageRange } from './pages';
+import { checkBand, fmtPg, parseLabel, pgToSend, type PageRange, type PagesPick } from './pages';
+import { PagesStep, type PlanRow } from './PagesStep';
+import { MyOwnPlans } from './MyOwnPlans';
+import { RadioList, TickList } from './Options';
+import { bandWords } from './bandCopy';
+import { Check } from './Check';
 
 /**
- * bd-snkn32 — "Make my own" lesson plan (the flow draft, artifact KbsvCwJgs6QWy1DQmGjfzi, screens 3–8): one question
- * per screen, full-width rows, one sticky OK (the WhatsApp-flow form pattern), every answer in the address. Make my
- * plan hands over to the 6-12 Preparing page, whose poll, ready banner and viewer already answer her fork's id.
+ * "Make my own" lesson plan: one question per screen, one sticky OK (the WhatsApp-flow form pattern), every
+ * answer in the address. Make my plan hands over to the 6-12 Preparing page, whose poll, ready banner and viewer already
+ * answer her fork's id. Children in class is remembered on this phone. Dark unless lpMakeOwn: off, this page sends her
+ * back to Lesson Plans.
  *
- * Pages are the chapter's lessons, by their book pages — the draft's fallback where a book has no page images. Grades
- * 1–5 (bd-snkn32.4): step 1 is "Which day?", the chapter's days as the chapter page lists them (no worksheet or
- * revision: there is no day plan to rewrite); the bot rewrites that day's plan in its book's language. Children in class is remembered on this phone (the draft: "she
- * only changes it when it changes"). Dark unless lpMakeOwn: off, this page sends her back to Lesson Plans.
- *
- * bd-snkn32.13 — grades 6–12 also say what the lesson is for, pick from their band's ways, and (Grade 9–12, a lesson
- * whose FBISE SLOs mix Summative and Formative) which outcomes come first.
+ * one flow for grades 1–12 (the unified spec); only the option lists differ. Step 1 is the same picker
+ * for every band (PagesStep: the lesson, her pages, the book's text, and through-the-next-lesson at 6–12); what the
+ * lesson is for comes second, pre-picked "Teach new"; single answers are radio lists, resources a tick list; the way
+ * screen says I do → We do → You do stays. Grade 8's exam practice is named for the FDE annual exam (bandWords).
  */
 
 const SIZE_KEY = 'lp-own-size';
@@ -49,29 +50,32 @@ export function OwnPage() {
 function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const C = useCopy(OWN);
   const L = useCopy(LESSONS);
+  const w = bandWords(C, s.grade);
   const navigate = useNavigate();
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<Refusal | 'error' | null>(null);
   const [lessons, retry] = useLoad(() => lessonPlans.lessons(s.grade, s.subject, s.chapter), `l:${s.grade}:${s.subject}:${s.chapter}`);
-  const plans = (dataOf(lessons) ?? []).filter(ownable);
+  const all = dataOf(lessons) ?? [];
+  const plans: PlanRow[] = all.filter(ownable).map((l) => ({ id: l.id, number: l.number, title: l.title, pages: l.pages ?? null, lane: l.lane === 'k5' ? 'k5' : 'g612' }));
   const k5 = plans.some((l) => l.lane === 'k5');
-  const dayOf = (l: { number: number | null; title: string }) => (l.number != null ? `${C.dayN(l.number)} · ${l.title}` : l.title);
   const seg = plans.find((l) => l.id === s.seg) ?? null;
-  const next = nextLesson(dataOf(lessons) ?? [], s.seg); // bd-snkn32.14 — none on the chapter's last lesson
-  // bd-snkn32.17 — a grades 1–5 day's book pages: the day's own, hers (pg), and the next day's to extend to.
-  const dayPages = seg?.lane === 'k5' ? parseLabel(seg.pages) : null;
-  const nextSeg = seg?.lane === 'k5' ? plans[plans.indexOf(seg) + 1] : undefined;
-  const nextPages = nextSeg?.lane === 'k5' ? parseLabel(nextSeg.pages) : null;
-  const [pgEdit, setPgEdit] = useState<PageRange | null | undefined>(undefined); // undefined: not touched
-  const pgNow = pgEdit === undefined ? (s.pg ?? dayPages) : pgEdit;
-  const pgOver = { pg: pgNow && dayPages && !samePages(pgNow, dayPages) ? pgNow : undefined };
+  const next612 = nextLesson(all, s.seg); // none on the chapter's last lesson
+  const nextRow = seg?.lane === 'k5' ? plans[plans.indexOf(seg) + 1] ?? null : next612 ? plans.find((l) => l.id === next612.id) ?? null : null;
+  const lesson = seg ? parseLabel(seg.pages) : null;
+  const nextPages = nextRow ? parseLabel(nextRow.pages) : null;
+  // Her pages from the address; a 6–12 "both lessons" with no pg is the natural run to the next lesson's end.
+  const start: PageRange | null = s.pg ?? (s.ext && lesson && nextPages && seg?.lane === 'g612' ? { start: lesson.start, end: nextPages.end } : null);
+  const atStart = (): PagesPick | null => (lesson ? checkBand(seg?.lane === 'k5', String((start ?? lesson).start), String((start ?? lesson).end), lesson, nextPages) : null);
+  const [pickEdit, setPick] = useState<{ seg: string | null; pick: PagesPick | null } | null>(null);
+  const pick = pickEdit && pickEdit.seg === s.seg ? pickEdit.pick : atStart();
   const chapterUrl = lessonsUrl('lessons', { grade: s.grade, subject: s.subject, chapter: s.chapter });
   const go = (over: Partial<OwnAt>) => navigate(ownUrl({ ...s, ...over }), { replace: true });
   const askMix = s.grade >= 9 && !!s.seg;
   const [slo] = useLoad(askMix ? () => fetchSloMix(s.seg as string) : null, `slo:${askMix ? s.seg : ''}`);
   const mix = dataOf(slo);
-  const steps = stepsFor({ grade: s.grade, mixed: !!mix?.mixed });
+  const purposeNow = s.purpose ?? 'new';
+  const steps = stepsFor({ grade: s.grade, mixed: !!mix?.mixed, purpose: purposeNow });
   const back = prevStep(s.step, steps);
   const n = steps.indexOf(s.step) + 1;
   const sizeNow = s.size ?? SIZES.find((x) => x === remembered()) ?? null;
@@ -89,144 +93,82 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
     if (!seg || busy) return; // her plan's own lane (6–12 or 1–5) decides what is sent: wait for the list
     setBusy(true);
     setFailed(null);
-    const r = await makeOwnPlan(seg, toAnswers(s, note, next?.id ?? null));
+    const r = await makeOwnPlan(seg, toAnswers(s, note, next612?.id ?? null));
     setBusy(false);
     if (!r || !('renderId' in r)) { setFailed(r && 'outcome' in r ? r.outcome : 'error'); return; }
-    const id = r.renderId;
     navigate(lessonsUrl('preparing', {
-      grade: s.grade, subject: s.subject, chapter: s.chapter, lesson: s.seg, render: id, title: seg?.title ?? C.makeMyOwn,
+      grade: s.grade, subject: s.subject, chapter: s.chapter, lesson: s.seg, render: r.renderId, title: seg?.title ?? C.makeMyOwn,
     }), { replace: true });
   }
 
-  const dock = s.step === 'pages' ? ok(dayPages ? pgOver : {}, !!seg && (!dayPages || pgNow !== null))
-    : s.step === 'size' ? ok({ size: sizeNow }, !!sizeNow)
-      : s.step === 'resources' ? ok({}, true)
-        : s.step === 'level' ? ok({}, !!s.level)
-          : s.step === 'purpose' ? ok({}, !!s.purpose)
-            : s.step === 'way' ? ok({ way: wayNow }, slo.status !== 'loading') // which step is next waits for the SLO mix
-              : s.step === 'focus' ? ok({}, !!s.focus)
+  const pagesOk = !!seg && (!lesson || !!pick) && (!pick?.both || !!s.ext);
+  const dock = s.step === 'pages' ? ok({ pg: pgToSend(pick, lesson, nextPages), ext: pick?.both ? s.ext : null }, pagesOk)
+    : s.step === 'purpose' ? ok({ purpose: purposeNow }, slo.status !== 'loading') // which step is next waits for the SLO mix
+      : s.step === 'focus' ? ok({}, !!s.focus)
+        : s.step === 'size' ? ok({ size: sizeNow }, !!sizeNow)
+          : s.step === 'level' ? ok({}, !!s.level)
+            : s.step === 'resources' ? ok({}, true)
+              : s.step === 'way' ? ok({ way: wayNow }, true)
                 : <DockButton disabled={busy || !seg || !isComplete({ grade: s.grade, subject: s.subject, segment: s.seg ?? '', size: s.size, resources: s.res, level: s.level, way: s.way, purpose: s.purpose })} testId="own-make" onClick={() => { void make(); }}>{failed === 'error' ? C.tryAgain : C.makeMyPlan}</DockButton>;
 
+  const title = s.step === 'check' ? C.yourPlan : s.step === 'pages' ? (k5 ? C.day : C.whichLesson) : s.step === 'size' ? w.size : C[s.step];
+  const hints = C.purposeHints as Partial<Record<string, string>>;
+  const segName = seg ? (seg.number != null ? `${seg.lane === 'k5' ? C.dayN(seg.number) : C.lessonN(seg.number)} · ${seg.title}` : seg.title) : '—';
+  const segPages = s.pg ? C.pagesShort(fmtPg(s.pg)) : seg?.lane === 'g612' ? seg.pages : null;
+
   return (
-    <TeacherPage
-      feature="lessons"
-      crumb={C.title}
-      title={s.step === 'check' ? C.yourPlan : s.step === 'pages' && k5 ? C.day : C[s.step]}
-      backTo={back ? ownUrl({ ...s, step: back }) : chapterUrl}
-      dock={dock}
-      testId={`own-${s.step}`}
-    >
+    <TeacherPage feature="lessons" crumb={C.title} title={title} backTo={back ? ownUrl({ ...s, step: back }) : chapterUrl} dock={dock} testId={`own-${s.step}`}>
       {s.step !== 'check' ? <StepBar total={steps.length - 1} current={n} /> : null}
       {s.step === 'pages' ? (
         <>
           <LoadState status={lessons.status} empty={!plans.length} onRetry={retry} />
-          <Rows items={plans.map((l) => (l.lane === 'k5' ? { key: l.id, label: dayOf(l), subtitle: l.pages ?? undefined } : { key: l.id, label: l.pages ?? l.title, subtitle: l.pages ? l.title : undefined }))} chosen={[s.seg]} onPick={(k) => { setPgEdit(undefined); go({ seg: k, pg: undefined, ext: null }); }} />
-          {next ? <AddNext C={C} chosen={s.ext ?? null} nextLabel={next.pages ?? next.title} onPick={(ext) => go({ ext })} /> : null}
-          {dayPages ? <PagesBox key={s.seg ?? ''} C={C} start={s.pg ?? dayPages} day={dayPages} next={nextPages} onChange={setPgEdit} /> : null}
+          {plans.length ? (
+            <PagesStep
+              key={s.seg ?? ''}
+              C={C} plans={plans} seg={seg} next={nextRow} start={start} ext={s.ext ?? null}
+              onPick={(k) => { setPick(null); go({ seg: k, pg: undefined, ext: null }); }}
+              onClear={() => { setPick(null); go({ seg: null, pg: undefined, ext: null }); }}
+              onPages={(p) => setPick({ seg: s.seg, pick: p })}
+              onExt={(ext) => go({ ext })}
+            />
+          ) : null}
+          {plans.length && !s.seg ? <MyOwnPlans at={{ grade: s.grade, subject: s.subject, chapter: s.chapter }} plans={plans} /> : null}
         </>
       ) : null}
-      {s.step === 'size' ? (
-        <Rows items={SIZES.map((k) => ({ key: k, label: C.sizes[k] }))} chosen={[sizeNow]} onPick={(k) => { remember(k); go({ size: k as OwnAt['size'] }); }} />
-      ) : null}
-      {s.step === 'resources' ? (
-        <Rows
-          items={RESOURCES.map((k) => ({ key: k, label: C.resourceNames[k], subtitle: k === 'objects' ? C.objectsHint : undefined }))}
-          chosen={['textbook', ...s.res]}
-          onPick={(k) => { if (k !== 'textbook') go({ res: s.res.includes(k as Resource) ? s.res.filter((r) => r !== k) : [...s.res, k as Resource] }); }}
-        />
-      ) : null}
-      {s.step === 'level' ? (
-        <Rows items={LEVELS.map((k) => ({ key: k, label: C.levels[k] }))} chosen={[s.level]} onPick={(k) => go({ level: k as OwnAt['level'] })} />
-      ) : null}
       {s.step === 'purpose' ? (
-        <Rows items={purposesFor(s.grade).map((k) => ({ key: k, label: C.purposes[k] }))} chosen={[s.purpose]} onPick={(k) => go({ purpose: k as OwnAt['purpose'] })} />
-      ) : null}
-      {s.step === 'way' ? (
-        <Rows
-          items={[suggestion.way, ...waysFor(s).filter((w) => w !== suggestion.way)].map((k) => ({
-            key: k, label: C.ways[k], subtitle: k === suggestion.way ? C.suggested : undefined,
-          }))}
-          chosen={[wayNow]}
-          onPick={(k) => go({ way: k as OwnAt['way'] })}
-        />
+        <RadioList label={C.purpose} items={purposesFor(s.grade).map((k) => ({ key: k, label: w.purpose(k), subtitle: hints[k] }))} value={purposeNow} onPick={(k) => go({ purpose: k as OwnAt['purpose'] })} />
       ) : null}
       {s.step === 'focus' ? (
-        <Rows items={FOCI.map((k) => ({ key: k, label: C.foci[k], subtitle: (mix?.[k] ?? []).join(', ') || undefined }))} chosen={[s.focus]} onPick={(k) => go({ focus: k as OwnAt['focus'] })} />
+        <RadioList label={C.focus} items={FOCI.map((k) => ({ key: k, label: C.foci[k], subtitle: C.focusCount((mix?.[k] ?? []).length) }))} value={s.focus} onPick={(k) => go({ focus: k as OwnAt['focus'] })} />
+      ) : null}
+      {s.step === 'size' ? (
+        <RadioList label={w.size} items={SIZES.map((k) => ({ key: k, label: C.sizes[k] }))} value={sizeNow} onPick={(k) => { remember(k); go({ size: k as OwnAt['size'] }); }} />
+      ) : null}
+      {s.step === 'level' ? (
+        <RadioList label={C.level} items={LEVELS.map((k) => ({ key: k, label: C.levels[k] }))} value={s.level} onPick={(k) => go({ level: k as OwnAt['level'] })} />
+      ) : null}
+      {s.step === 'resources' ? (
+        <TickList
+          label={C.resources} allLabel={C.tickAll} locked={['textbook']} chosen={['textbook', ...s.res]}
+          items={RESOURCES.map((k) => ({ key: k, label: w.resource(k), subtitle: k === 'objects' ? w.objectsHint : undefined }))}
+          onChange={(keys) => go({ res: keys.filter((k) => k !== 'textbook') as Resource[] })}
+        />
+      ) : null}
+      {s.step === 'way' ? (
+        <>
+          {/* The guardrail sits above the options, never under the fold (the unified spec's layout rule 5). */}
+          <p className="text-[14px] font-semibold text-[#33374a]" data-testid="own-grr">{C.grrLine}</p>
+          <RadioList
+            label={C.way}
+            items={[suggestion.way, ...waysFor(s).filter((x) => x !== suggestion.way)].map((k) => ({ key: k, label: w.way(k), subtitle: k === suggestion.way ? C.suggested : undefined }))}
+            value={wayNow}
+            onPick={(k) => go({ way: k as OwnAt['way'] })}
+          />
+        </>
       ) : null}
       {s.step === 'check' ? (
-        <Check s={s} C={C} k5={k5} nextLabel={next && s.ext ? next.pages ?? next.title : null} pagesLabel={seg ? (seg.lane === 'k5' ? `${dayOf(seg)}${s.pg ? ` · ${C.pagesShort(fmtPg(s.pg))}` : ''}` : seg.pages ?? seg.title) : '—'} gradeLabel={L.grade(s.grade)} note={note} setNote={setNote} failed={failed} />
+        <Check s={s} C={C} k5={k5} nextLabel={next612 && s.ext ? next612.pages ?? next612.title : null} pagesLabel={[segName, segPages].filter(Boolean).join(' · ')} gradeLabel={L.grade(s.grade)} note={note} setNote={setNote} failed={failed} />
       ) : null}
     </TeacherPage>
-  );
-}
-
-function Rows({ items, chosen, onPick }: {
-  items: Array<{ key: string; label: string; subtitle?: string }>; chosen: Array<string | null>; onPick: (k: string) => void;
-}) {
-  if (!items.length) return null;
-  return (
-    <div className={LIST_CARD}>
-      {items.map((it, i) => (
-        <ListRow
-          key={it.key}
-          variant="row"
-          first={i === 0}
-          label={it.label}
-          subtitle={it.subtitle}
-          state={chosen.includes(it.key) ? 'selected' : 'default'}
-          onPress={() => onPick(it.key)}
-          testId={`own-opt-${it.key}`}
-        />
-      ))}
-    </div>
-  );
-}
-
-/** bd-snkn32.14 — "Add the next lesson's pages": no (the default), cover more in one period, or a double period. */
-function AddNext({ C, chosen, nextLabel, onPick }: {
-  C: OwnCopy; chosen: OwnAt['ext'] | null; nextLabel: string; onPick: (ext: OwnAt['ext'] | null) => void;
-}) {
-  return (
-    <section className="flex flex-col gap-1.5" data-testid="own-add-next">
-      <h2 className="text-[13px] font-semibold text-[#4b5563]">{C.addNext} · {nextLabel}</h2>
-      <Rows
-        items={[{ key: 'none', label: C.extendNone }, ...EXTENDS.map((k) => ({ key: k, label: C.extends[k], subtitle: C.extendHints[k] }))]}
-        chosen={[chosen ?? 'none']}
-        onPick={(k) => onPick(k === 'none' ? null : k as OwnAt['ext'])}
-      />
-    </section>
-  );
-}
-
-function Check({ s, C, k5, nextLabel, pagesLabel, gradeLabel, note, setNote, failed }: {
-  s: OwnAt; C: OwnCopy; k5: boolean; nextLabel: string | null; pagesLabel: string; gradeLabel: string; note: string; setNote: (v: string) => void; failed: Refusal | 'error' | null;
-}) {
-  const at = (step: OwnAt['step']) => ownUrl({ ...s, step });
-  return (
-    <>
-      <ChosenSoFar
-        items={[
-          { label: k5 ? C.dayLabel : C.pages, value: pagesLabel, sub: `${gradeLabel} · ${s.subject}`, to: at('pages') },
-          ...(nextLabel && s.ext ? [{ label: C.nextLesson, value: C.extends[s.ext], sub: nextLabel, to: at('pages') }] : []),
-          { label: C.size, value: s.size ? C.sizes[s.size] : '—', to: at('size') },
-          { label: C.resources, value: ['textbook', ...s.res].map((r) => C.resourceNames[r as Resource]).join(', '), to: at('resources') },
-          { label: C.level, value: s.level ? C.levels[s.level] : '—', to: at('level') },
-          ...(isSecondary(s.grade) ? [{ label: C.purposeLabel, value: s.purpose ? C.purposes[s.purpose] : '—', to: at('purpose') }] : []),
-          { label: C.way, value: s.way ? C.ways[s.way] : '—', to: at('way') },
-          ...(s.focus ? [{ label: C.focusLabel, value: C.foci[s.focus], to: at('focus') }] : []),
-        ]}
-      />
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[13px] font-semibold text-[#4b5563]">{C.note} · {C.optional}</span>
-        <textarea
-          value={note}
-          maxLength={200}
-          onChange={(e) => setNote(e.target.value)}
-          className={`min-h-[56px] rounded-2xl border border-[#e5e7eb] bg-white px-4 py-3 text-[16px] ${FOCUS}`}
-          data-testid="own-note"
-        />
-      </label>
-      {failed ? <p role="alert" className="text-[16px] font-semibold text-[#c8331f]">{failed === 'error' ? C.couldNotMake : C.refusals[failed]}</p> : null}
-    </>
   );
 }

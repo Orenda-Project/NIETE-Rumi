@@ -27,7 +27,7 @@ function Change({ c }: { c: ChangeAt }) {
   const C = useCopy(OWN);
   const navigate = useNavigate();
   const location = useLocation();
-  const [part, setPart] = useState<string | null>(null);
+  const [part, setPart] = useState<string | null>(c.part ?? null); // a section card names its section
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<Refusal | 'error' | null>(null);

@@ -1455,7 +1455,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   if (screenId === 'COVERAGE') {
     const wantsPages = data.use_pages === true || data.use_pages === 'true';
     if (wantsPages) {
-      const book = await bookFacts(state);
+      const book = await bookPages(state);
       return screen('PAGES', {
         summary: summaryOf(state),
         hint: book.totalPages
@@ -1498,21 +1498,30 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   if (screenId === 'PAGES') {
     const pageRanges = String(data.page_ranges || '').trim();
     const book = await bookFacts(state);
+    let pages;
     try {
-      const pages = BookContent.parsePageRanges(pageRanges);
-      const beyond = book.totalPages ? pages.filter((p) => p > book.totalPages) : [];
-      if (beyond.length) {
-        return screen('PAGES', {
-          summary: summaryOf(state),
-          hint: `This book has pages 1-${book.totalPages}.`,
-          error: `This book has pages 1-${book.totalPages}. You asked for ${beyond.join(', ')}.`,
-        });
-      }
+      pages = BookContent.parsePageRanges(pageRanges);
     } catch (err) {
+      const last = await BookContent.lastPrintedPage(book.id, book.totalPages);
       return screen('PAGES', {
         summary: summaryOf(state),
-        hint: book.totalPages ? `This book has pages 1-${book.totalPages}.` : '',
+        hint: last ? `This book has pages 1-${last}.` : '',
         error: 'Try something like 4-14, or 4, 9, 12.',
+      });
+    }
+    // total_pages counts page rows and runs short of the printed numbers; the real
+    // last page is looked up only when a typed page passes it (bd-ehz254.7).
+    let last = book.totalPages;
+    let beyond = last ? pages.filter((p) => p > last) : [];
+    if (beyond.length) {
+      last = await BookContent.lastPrintedPage(book.id, last);
+      beyond = pages.filter((p) => p > last);
+    }
+    if (beyond.length) {
+      return screen('PAGES', {
+        summary: summaryOf(state),
+        hint: `This book has pages 1-${last}.`,
+        error: `This book has pages 1-${last}. You asked for ${beyond.join(', ')}.`,
       });
     }
     Object.assign(state, {
@@ -1819,6 +1828,12 @@ async function bookFacts(state) {
     .eq('curriculum', curriculum).eq('grade', Number(state.grade)).eq('subject', state.subject)
     .maybeSingle();
   return { id: data?.id || null, totalPages: data?.total_pages || null };
+}
+
+/** bookFacts with the last PRINTED page, not total_pages (a page-row count that runs short; bd-ehz254.7). */
+async function bookPages(state) {
+  const book = await bookFacts(state);
+  return { ...book, totalPages: await BookContent.lastPrintedPage(book.id, book.totalPages) };
 }
 
 function questionsScreen(state, error = '') {

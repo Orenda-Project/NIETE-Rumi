@@ -222,7 +222,7 @@ describe("Where to coach, one teacher", () => {
     expect(screen.getByTestId("more-sessions")).toHaveTextContent("+ 2 more this month");
   });
 
-  it("one DC: the early-signal note; nothing at all: choose a longer period", async () => {
+  it("one DC: the early-signal note; nothing at all: select a longer period", async () => {
     net.answers.set(`/coach/teacher/${EXT}/where?period=month`, whereData({ signal: "early", sessions: { dc: 1, coach: 0 } }));
     const view = await open(`/portal/coach/teacher/${EXT}/where?period=month`);
     await waitFor(() => expect(screen.getByTestId("signal")).toHaveTextContent("Based on one session — an early signal"));
@@ -234,7 +234,7 @@ describe("Where to coach, one teacher", () => {
       period: { ...PERIOD, key: "week" },
     }));
     await open(`/portal/coach/teacher/${EXT}/where?period=week`);
-    await waitFor(() => expect(screen.getByTestId("where-empty")).toHaveTextContent("Choose a longer period to see where to coach."));
+    await waitFor(() => expect(screen.getByTestId("where-empty")).toHaveTextContent("Select a longer period to see where to coach."));
     expect(screen.queryByTestId("convo")).toBeNull();
     expect(screen.getByTestId("checkin")).toBeInTheDocument();
   });
