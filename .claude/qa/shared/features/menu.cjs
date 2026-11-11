@@ -113,6 +113,31 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
         ...Object.values(V(rr.ok && !promised, { items: brief(items), botWaitMs: rr.waitedMs })), t() - s);
   }
 
+  // ── bd-2ym4ve · one or two words with "menu" in them open the menu; "quiz menu" keeps its door (M35–M36) ──
+  // Deterministic (services/menu-request.js rewrites them to /menu before any door): no classifier turn, no cassette.
+  if (want('M35')) {
+    s = t();
+    const tries = [];
+    for (const typed of ['Menu please', 'show menu', 'menue', 'مینو']) {
+      const { rr, items } = await sentSince(typed);
+      tries.push({ typed, ok: !!(rr.ok && opensMenu(items) && !saidUnsure(items)), items: brief(items), botWaitMs: rr.waitedMs });
+    }
+    rec('M35', 'Two words with "menu", a slip of it, or the Urdu word open the menu',
+        ...Object.values(V(tries.every((x) => x.ok), { tries })), t() - s);
+  }
+
+  if (want('M36')) {
+    // "The quiz menu" = the same reply shape as "/quiz" (its buttons, link and Flow), and never the main menu's list.
+    s = t();
+    const quiz = await sentSince('/quiz');
+    const asked = await sentSince('quiz menu');
+    const shape = (items) => JSON.stringify(items.map((x) => [x.btns || [], !!x.cta, x.flow ? String(x.flow.token || '').split(':')[1] : null]));
+    const sameAsQuiz = asked.items.length > 0 && shape(asked.items) === shape(quiz.items);
+    const mainMenu = asked.items.some((x) => (x.btns || []).includes('See what I do'));
+    rec('M36', '"quiz menu" still opens the quiz menu, not the main menu',
+        ...Object.values(V(asked.rr.ok && sameAsQuiz && !mainMenu, { quiz: brief(quiz.items), asked: brief(asked.items) })), t() - s);
+  }
+
   if (want('M07', 'M08', 'M09', 'M12')) {
     // M07 — Ask Anything row opens general help  (also puts us in GENERAL_CONVERSATION for M08/09/12)
     s = t();
