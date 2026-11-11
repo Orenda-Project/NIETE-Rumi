@@ -139,6 +139,14 @@ class AnalysisProcessorService {
 
       const from = payload.from || session.users.phone_number;
 
+      // bd-pni007: an FDE (obs612) coach visit is scored by the coach on FDE's own form, never by a model. Nothing
+      // queues its analysis (transcription stops at observe/obs612/visit.afterTranscription); this guards a retry
+      // or a watchdog that does.
+      if (require('../observe/obs612/visit').isObs612Form({ rubric_version: session.framework })) {
+        logToFile('🚫 analysis skipped — an FDE (obs612) visit is scored by the coach', { coachingSessionId, framework: session.framework }, 'warn');
+        return { skipped: 'obs612' };
+      }
+
       // Update status
       await CoachingSessionService.updateStatus(coachingSessionId, 'analyzing', {
         analysis_started_at: new Date().toISOString()

@@ -24,6 +24,7 @@ import { dcSteps, toReportData } from './report';
 import { ClassCheck, Reflection, stoppedLine } from './reportLive';
 import { useDcReport } from './useDcReport';
 import { VideoRecoCard } from './VideoRecoCard';
+import { Obs612Block } from '../../components/coaching/Obs612Block';
 import { LessonQuizButton } from '../home/LessonQuizButton';
 import { usePrincipalAppState } from '../principal/usePrincipalApp';
 
@@ -243,7 +244,16 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
           {/* bd-z3cadk — a report the bot wrote no narrative for (older ones, and their repeats) would show bare score
               bars here; the WhatsApp report image is the full report, so it is shown instead. */}
           {/* bd-gzfdu9 — the recommended clip under "Try next class" (under the image when that is the report); none → as today. */}
-          {!isVisit && !detail.reportNarrative && reportImage
+          {/* bd-pni007 — an FDE visit: the report image as her coach sent it, and FDE's own result; never the FICO body
+              (its bars, score and journey would be FICO's, beside a visit scored on FDE's tool). */}
+          {detail.obs612
+            ? (
+              <div className="flex flex-col gap-3">
+                {reportImage ? <img src={reportImage} alt={C.fullReport} className="block w-full rounded-[18px] border border-[#e5e7eb] bg-white" /> : null}
+                <Obs612Block o={detail.obs612} />
+              </div>
+            )
+            : !isVisit && !detail.reportNarrative && reportImage
             ? (
               <>
                 <img src={reportImage} alt={C.fullReport} className="block w-full rounded-[18px] border border-[#e5e7eb] bg-white" />

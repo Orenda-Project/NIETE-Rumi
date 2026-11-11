@@ -516,7 +516,7 @@ const workFormScreen = (userId, offset) => _stageScreen(userId, offset, {
   fetch: (D, u, o) => D.listUnfinished(u, o),
   metaOf: (s) => ({ gate: 'finish setup', form: 'form to submit',
     retry: 'stopped - tap to retry', wait: 'analysing…', observe2: 'next step waiting',
-    observe2_form: 'recorded lesson - fill the form' })[s.resume] || 'finish setup',
+    observe2_form: 'recorded lesson - fill the form', obs612_form: 'FDE form to fill' })[s.resume] || 'finish setup',
   action: 'resume',
 });
 const debriefsScreen = (userId, offset) => _stageScreen(userId, offset, {

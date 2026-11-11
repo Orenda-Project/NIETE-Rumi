@@ -1177,7 +1177,9 @@ async function processTeacherReport(sessionId, payload = {}) {
     // bd-fmf24g.10: keep the narrative this preview was written from (non-fatal, warn on failure).
     await require('../coaching/report-v2/narrative-store').persistReportNarrative(sessionId, rendered.narrative);
     const companionText = notes ? buildCompanionText(notes, { foName }, teacherS) : null;
-    const teacherCaption = teacherS.report_caption_teacher.replace('{fo}', foName);
+    // bd-pni007: an FDE visit's report is captioned as FDE's, with no debrief conversation promised.
+    const fdeVisit = require('../coaching/frameworks/own-rubric').isObs612Scored(session.analysis_data);
+    const teacherCaption = ((fdeVisit && teacherS.report_caption_teacher_obs612) || teacherS.report_caption_teacher).replace('{fo}', foName);
 
     const reportKey = await uploadImageBuffer(png, `observe-reports/${sessionId}.png`);
     await mergeTeacherDelivery(sessionId, {
