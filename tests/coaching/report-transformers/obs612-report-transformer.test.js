@@ -13,14 +13,14 @@
  *         no narrative model call, no FICO score bars, no journey line (the teacher's FICO history never beside it).
  * The reportData transformer (report records, any PDF consumer) and the renderer registry know the three ids too.
  *
- * The rendered HTML is written to outputs/obs612-report-render/ for a person to read (PNG: run render-png.js there).
+ * Set OBS612_RENDER_OUT=<dir> to write each rendered HTML there for a person to read; a plain test run writes nothing.
  */
 
 const fs = require('fs');
 const path = require('path');
 const F = require('../../fixtures/obs612-visits');
 
-const OUT = path.join(__dirname, '..', '..', '..', 'outputs', 'obs612-report-render');
+const OUT = process.env.OBS612_RENDER_OUT || null;
 const IDS = ['obs612-enur-v1', 'obs612-msci-v1', 'obs612-gen-v1'];
 const FOOTER = "Scored by your coach on FDE's tool (Annexure G, 2026-27). Not a FICO score.";
 
@@ -130,7 +130,7 @@ describe('generateHeroReport on an FDE visit (the real generator, the page captu
     jest.doMock('../../../bot/shared/storage/r2', () => ({ downloadFromR2: jest.fn(), extractKeyFromUrl: jest.fn() }));
     ({ generateHeroReport } = require('../../../bot/shared/services/coaching/report-v2/hero-report.service'));
     ({ heroBrandFor } = require('../../../bot/shared/services/coaching/report-renderers/renderer-registry'));
-    fs.mkdirSync(OUT, { recursive: true });
+    if (OUT) fs.mkdirSync(OUT, { recursive: true });
   });
 
   async function render(analysis, name, language) {
@@ -141,7 +141,7 @@ describe('generateHeroReport on an FDE visit (the real generator, the page captu
     });
     expect(captured).toHaveLength(1);
     const { html, opts } = captured[0];
-    fs.writeFileSync(path.join(OUT, `${name}-${language}.html`), html);
+    if (OUT) fs.writeFileSync(path.join(OUT, `${name}-${language}.html`), html);
     return { out, html, opts, text: textOf(html) };
   }
 
