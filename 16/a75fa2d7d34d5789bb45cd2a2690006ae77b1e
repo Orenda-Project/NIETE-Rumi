@@ -1,2 +1,3 @@
 {"ts":"2026-11-11T05:35:38Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"16a75fa2d7d3","branch":"bd-pf8ltj-to-main","user":""}
 {"ts":"2026-11-11T06:07:36Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (pre-amend copy of 32f2d1d, a promotion pick of staging #4528; it already carries scenario @T1181, validate_specs --only training OK)","sha":"16a75fa2d7d3","branch":"bd-pf8ltj-to-main","user":""}
+{"ts":"2026-11-11T06:07:36Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-16a75fa2d7d3","sha":"16a75fa2d7d3","branch":"bd-pf8ltj-to-main","user":""}
