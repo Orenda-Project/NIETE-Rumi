@@ -2,3 +2,4 @@
 {"ts":"2026-11-11T05:43:40Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"32f2d1d76c41","branch":"bd-pf8ltj-to-main","user":""}
 {"ts":"2026-11-11T06:07:25Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (promotion pick of staging #4528; the commit already carries scenario @T1181 for bd-l9fr2, validate_specs --only training OK)","sha":"32f2d1d76c41","branch":"bd-pf8ltj-to-main","user":""}
 {"ts":"2026-11-11T06:07:25Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"880a3db2-1f76-4409-9366-1b91b95f3cbd","sha":"32f2d1d76c41","branch":"bd-pf8ltj-to-main","user":""}
+{"ts":"2026-11-11T10:08:18Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks engine=2.0.0","sha":"32f2d1d76c41","branch":"bd-pf8ltj-to-main","user":""}
