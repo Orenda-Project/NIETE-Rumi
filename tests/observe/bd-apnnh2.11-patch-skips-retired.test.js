@@ -54,7 +54,8 @@ function fakeSupabase(tables) {
           q._rows = q._rows.filter((r) => (r[col] === undefined ? null : r[col]) === val);
           return q;
         },
-        then(res) { return res({ data: q._rows, error: null }); },
+        maybeSingle() { q._single = true; return q; },
+        then(res) { return res({ data: q._single ? (q._rows[0] || null) : q._rows, error: null }); },
       };
       return q;
     },
@@ -96,6 +97,19 @@ describe('the /observe picker (bot, Supabase path)', () => {
     tables.users.find((u) => u.id === 'u9').deleted_at = null;
     const out = await listPatchViaSupabase(fakeSupabase(tables), 'c1');
     expect(out.map((p) => p.userId)).toContain('u9');
+  });
+});
+
+describe('the principal app (bot, Supabase path): her own school', () => {
+  // bd-33wxxi.4 added a sixth derivation: a principal on the principal app observes her own school's teachers.
+  it("lists her school's teachers without a retired account", async () => {
+    const tables = TABLES();
+    tables.app_settings = [{ key: 'portal_principal_app', value: true }];
+    tables.users.push({
+      id: 'p1', phone_number: '923003333333', name: 'Principal', role: 'principal', school_id: 's409',
+    });
+    const out = await listPatchViaSupabase(fakeSupabase(tables), 'p1');
+    expect(out.map((p) => p.userId).sort()).toEqual(['u1']);
   });
 });
 
