@@ -25,6 +25,14 @@ function v6Label() {
   return { id: 'fico17_v6', label: 'FICO17 v6' };
 }
 
+// bd-pni007 — FDE's grade 6-12 observation tools: 'obs612-<tool>-v<n>' (msci, enur, gen), shown as 'FDE v<n>'. The id
+// (which tool) stays in the result for debugging; the label is framework + version only, like FICO's.
+const OBS612_RX = /^obs612-(gen|msci|enur)-v(\d+)$/;
+function obs612Label(id) {
+  const m = OBS612_RX.exec(String(id || ''));
+  return m ? { id, label: `FDE v${m[2]}` } : null;
+}
+
 /** V3 or V4 under framework 'fico', by the shape the dashboard's instrument detector uses. */
 function ficoVersion(a) {
   const domains = (a && a.domains) || {};
@@ -53,6 +61,12 @@ function rubricLabelOf({ session = null, analysis = null, form = null } = {}) {
   const a = analysis || (session && session.analysis_data) || {};
   const o2 = (a && a.observe2) || null;
 
+  // 0. An FDE (obs612) visit, by its form, its analysis or its session stamp (an /observe visit's session carries the
+  //    stamp from the moment the recording lands, before the coach submits the form).
+  const fde = obs612Label(form && form.rubric_version) || obs612Label(a && a.framework) || obs612Label(a && a.rubric)
+    || obs612Label(session && session.framework);
+  if (fde) return fde;
+
   // 1. /observe2: the visit's own stamp.
   const o2rubric = (o2 && o2.rubric) || null;
   const formRubric = (form && form.rubric_version) || (o2 && o2.rubric_version) || null;
@@ -69,7 +83,7 @@ function rubricLabelOf({ session = null, analysis = null, form = null } = {}) {
 
   // 4. Everything else by name; an unknown framework is printed as stored rather than hidden.
   if (NAMES[framework]) return { id: framework, label: NAMES[framework] };
-  // A framework this helper does not know yet is printed as stored, never hidden (FDE gets its own name when it lands).
+  // A framework this helper does not know yet is printed as stored, never hidden.
   if (framework) return { id: framework, label: framework.toUpperCase() };
   return null;
 }

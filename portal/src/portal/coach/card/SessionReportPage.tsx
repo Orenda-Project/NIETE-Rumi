@@ -86,7 +86,7 @@ function SessionReport() {
       {!data && !failed && <Loading />}
       {data && (
         <>
-          {fde ? <Obs612Block o={fde} /> : (
+          {fde ? <Obs612Block o={fde} showLabel={!data?.rubric} /> : (
             <Card className="flex items-center gap-4 p-4">
               <ScoreRing value={data.overall} label={scoreWord} size={84} />
               <span className="flex flex-col gap-1">

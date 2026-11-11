@@ -8,7 +8,9 @@ import type { Obs612Summary } from "../../lib/obs612";
  * and, in very small type, the label 'FDE v1'. Every word is the API's data (FDE's tool is in English, as FDE printed
  * it); the coach's own text keeps its own direction. No FICO number, bar or trend is ever drawn beside it.
  */
-export function Obs612Block({ o, className }: { o: Obs612Summary; className?: string }) {
+// `showLabel` false where the page already prints the visit's rubric caption (the coach's session page, bd-ra8xu.43),
+// so 'FDE v1' appears once.
+export function Obs612Block({ o, className, showLabel = true }: { o: Obs612Summary; className?: string; showLabel?: boolean }) {
   return (
     <section data-testid="obs612" dir="ltr" className={cn(LIST_CARD, "flex flex-col gap-3 p-4", className)}>
       <div className="flex flex-col gap-0.5">
@@ -47,7 +49,7 @@ export function Obs612Block({ o, className }: { o: Obs612Summary; className?: st
       )}
 
       <p data-testid="obs612-footer" className="m-0 text-[12px] leading-[1.4] text-[#6b7280]">{o.footer}</p>
-      <span data-testid="obs612-label" className="text-[10px] leading-none text-[#9ca3af]">{o.label}</span>
+      {showLabel ? <span data-testid="obs612-label" className="text-[10px] leading-none text-[#9ca3af]">{o.label}</span> : null}
     </section>
   );
 }
