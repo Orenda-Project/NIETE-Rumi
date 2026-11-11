@@ -62,7 +62,9 @@ var CORE = 'sa-core-' + VERSION;
 // listen", «دبائیں» for every "press") and Urdu v4 clips re-voiced under their keys so «آواز میں» is said in full.
 // v15: round 10 release B: the English v4 clips re-made under their keys in the reviewers' picked voice (lower, calmer and
 // a little slower), their word timings scaled to match.
-var SESSION = 'sa-session-v15';
+// v16: round 12: the Urdu letter name «ثے» (said "se") re-voiced under its three keys (the letter alone and its two
+// practice answers), which the voice had read as a "t"/"th" sound; the two answers' word timings re-made.
+var SESSION = 'sa-session-v16';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
