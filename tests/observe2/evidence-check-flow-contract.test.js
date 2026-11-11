@@ -39,13 +39,18 @@ describe('the committed JSON is the generator output', () => {
 });
 
 describe('the flow is internally consistent', () => {
-  test('nine screens, forward-only, one terminal; the plan screen can be skipped', () => {
+  test('nine v5 screens then five v6 ones, forward-only, one terminal; the plan screen can be skipped', () => {
     const ids = ['HEARD_ASK', 'HEARD_WRONG', 'HEARD_WORK', 'HEARD_EXPLAIN', 'FIDELITY', 'ADDED_ONE', 'ADDED_TWO', 'PRIORITY', 'DONE'];
-    expect(flow.screens.map((s) => s.id)).toEqual(ids);
+    // FICO17 v6 (bd-ra8xu.38): the room screens and Rumi's 11, appended so every v5 screen keeps its place.
+    const v6 = ['COMBINED_ONE', 'COMBINED_TWO', 'COMBINED_THREE', 'ADDED_DC_ONE', 'ADDED_DC_TWO'];
+    expect(flow.screens.map((s) => s.id)).toEqual([...ids, ...v6]);
     ids.forEach((id, i) => {
-      if (id === 'HEARD_EXPLAIN') expect(flow.routing_model[id]).toEqual(['FIDELITY', 'ADDED_ONE']);
+      if (id === 'HEARD_EXPLAIN') expect(flow.routing_model[id]).toEqual(['FIDELITY', 'ADDED_ONE', 'COMBINED_ONE']);
+      else if (id === 'FIDELITY') expect(flow.routing_model[id]).toEqual(['ADDED_ONE', 'ADDED_DC_ONE']);
       else expect(flow.routing_model[id]).toEqual(i < ids.length - 1 ? [ids[i + 1]] : []);
     });
+    expect(flow.routing_model.COMBINED_THREE).toEqual(['FIDELITY', 'ADDED_DC_ONE']);
+    expect(flow.routing_model.ADDED_DC_TWO).toEqual(['PRIORITY']);
     expect(flow.screens.filter((s) => s.terminal).map((s) => s.id)).toEqual(['DONE']);
   });
 
@@ -65,12 +70,14 @@ describe('the flow is internally consistent', () => {
 });
 
 describe('every screen sends what the coach answered', () => {
-  test.each(['HEARD_ASK', 'HEARD_WRONG', 'HEARD_WORK', 'HEARD_EXPLAIN', 'ADDED_ONE', 'ADDED_TWO', 'PRIORITY'])('%s posts its screen id and every field it shows', (id) => {
+  test.each(['HEARD_ASK', 'HEARD_WRONG', 'HEARD_WORK', 'HEARD_EXPLAIN', 'ADDED_ONE', 'ADDED_TWO', 'PRIORITY',
+    'COMBINED_ONE', 'COMBINED_TWO', 'COMBINED_THREE', 'ADDED_DC_ONE', 'ADDED_DC_TWO'])('%s posts its screen id and every field it shows', (id) => {
     const action = footerOf(screens[id])['on-click-action'];
     expect(action.name).toBe('data_exchange');
     expect(action.payload.screen).toBe(id);
     // cv: the check's version, sent where the next screen's data changed (ADDED_TWO → PRIORITY).
-    expect(Object.keys(action.payload).filter((k) => k !== 'screen' && k !== 'cv').sort()).toEqual(fieldsShown(screens[id]));
+    // v6c: HEARD_EXPLAIN says this Flow has the v6 screens (bd-ra8xu.38).
+    expect(Object.keys(action.payload).filter((k) => !['screen', 'cv', 'v6c'].includes(k)).sort()).toEqual(fieldsShown(screens[id]));
   });
   test.each(['ADDED_TWO', 'PRIORITY'])('%s says which check it is, so a check opened on an older Flow is answered in its own shape', (id) => {
     expect(CHECK_VERSION).toMatch(/^\d+$/);
