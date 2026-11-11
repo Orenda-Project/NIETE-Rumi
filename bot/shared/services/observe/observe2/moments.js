@@ -244,6 +244,25 @@ function roomEvidence(raw, transcript) {
   return out;
 }
 
+/**
+ * v6 and shadow: how many times students spoke in each half (spec §5.6, Appendix C), counted, never asked of the
+ * model. Lines whose speaker starts "Student", split at the midpoint of the first and last timestamp; a line at the
+ * midpoint is in the first half. Null when no line is timed. Mirrors fico17-v6-framework.countD2 (the DC's count).
+ */
+function d2Turns(transcript) {
+  const ls = [];
+  for (const line of String(transcript || '').split('\n')) {
+    const m = line.trim().match(/^\[(?:(\d{1,2}):)?(\d{1,3}):(\d{2})\]\s*([A-Za-z]*)/);
+    if (m) ls.push({ sec: Number(m[1] || 0) * 3600 + Number(m[2]) * 60 + Number(m[3]), student: /^Student/i.test(m[4]) });
+  }
+  if (!ls.length) return null;
+  const secs = ls.map((l) => l.sec);
+  const mid = (Math.min(...secs) + Math.max(...secs)) / 2;
+  const turns = { first_half: 0, second_half: 0 };
+  for (const l of ls) if (l.student) turns[l.sec <= mid ? 'first_half' : 'second_half'] += 1;
+  return turns;
+}
+
 /** Rumi's own levels from its found moments, by the rule set of the visit's rubric (rules.js). */
 function rumiLevels(moments, counts, rubric) {
   return heardLevels(moments, counts, [], { rubric });
@@ -454,7 +473,7 @@ async function gradeFidelity(form, transcript, audioDurationSeconds, fidelityDep
  * row keeps the coach's blank level and its transcript-only result is IE (D2 has none). The quality is stored with no moments, and the coach is told the
  * recording couldn't be used. The check still opens: the coach sets the six room levels from what they saw.
  */
-async function brokenRecording(sessionId, form, quality) {
+async function brokenRecording(sessionId, form, quality, transcript) {
   const kept = Quality.stored(quality);
   logToFile('❌ [observe2] transcript broken: moments not read', { sessionId, formId: form.id, ...kept }, 'error');
   const because = 'the recording could not be used';
@@ -465,6 +484,7 @@ async function brokenRecording(sessionId, form, quality) {
   const stored = await Store.setMoments(form.id, {
     moments: [], counts: { closed_q: 0, praise_generic: 0 }, prompt_version: PROMPT_VERSION_V3, fidelity: null,
     room_evidence: Object.fromEntries(Object.keys(ROOM_KINDS).map((c) => [c, []])), transcript_quality: kept,
+    d2_turns: d2Turns(transcript),
   }, levels);
   if (!stored.ok) {
     logToFile('❌ [observe2] moments failed', { sessionId, formId: form.id, error: stored.error || 'moments not stored' }, 'error');
@@ -527,7 +547,7 @@ async function runForSession(sessionId, from, deps = {}) {
   // v6 only (spec §6): the transcript quality gate, before any model call. v5 visits are read as before.
   const rubric = rubricOf(form);
   const quality = rubric === V6 ? Quality.assess({ transcript, periodMinutes: form.period_minutes }) : null;
-  if (quality && quality.status === 'broken') return brokenRecording(sessionId, form, quality);
+  if (quality && quality.status === 'broken') return brokenRecording(sessionId, form, quality, transcript);
 
   try {
     // The plan's fidelity is graded from the same transcript, at the same time, by the grader /observe
@@ -559,7 +579,7 @@ async function runForSession(sessionId, from, deps = {}) {
       sessionId, formId: form.id, ...labelled.stats,
     }, labelled.stats.status === 'failed' ? 'error' : 'info');
     const { moments, counts } = normalise({ ...(raw || {}), moments: labelled.moments }, { rubric });
-    const v6 = quality ? { room_evidence: roomEvidence(raw, transcript), transcript_quality: Quality.stored(quality) } : {};
+    const v6 = quality ? { room_evidence: roomEvidence(raw, transcript), transcript_quality: Quality.stored(quality), d2_turns: d2Turns(transcript) } : {};
     if (quality) {
       logToFile('[observe2] v6 room evidence and transcript quality', {
         sessionId, formId: form.id, quality: quality.status, ...Object.fromEntries(Object.entries(v6.room_evidence).map(([c, r]) => [c, r.length])),
@@ -606,6 +626,9 @@ async function gradeAtSeal(form, deps = {}) {
     return form;
   }
   const fidelity = await gradeFidelity(form, row.transcript_text || '', row.audio_duration_seconds, deps.fidelityDeps, deps.planDeps, deps.photoDeps);
+  // Read again after the grading (a model call): the background shadow read may have stored shadow_v6 meanwhile.
+  const latest = await Store.getForm(form.id);
+  if (latest.ok && latest.form) form = latest.form;
   const { fidelity_at_seal: _waited, ...rest } = form.rumi_moments || {};
   const stored = await Store.setRumiMoments(form.id, { ...rest, fidelity });
   logToFile('[observe2] plan graded at the seal', {
@@ -633,7 +656,7 @@ async function onSealed(form, deps = {}) {
 
 module.exports = {
   PROMPT_VERSION, PROMPT_VERSION_V3, SLOTS, WHY_MAX, TYPES, GROUPS,
-  buildPrompt, promptVersionFor, normalise, roomEvidence, runForSession, openCheck, onSealed, setStatus,
+  buildPrompt, promptVersionFor, normalise, roomEvidence, d2Turns, runForSession, openCheck, onSealed, setStatus,
   // For the test that proves its default reader is /observe's (added-plan-defaults.test.js).
   __photoEvidence: photoEvidence,
 };

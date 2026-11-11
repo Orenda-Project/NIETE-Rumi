@@ -153,7 +153,8 @@ describe('runFor on a shadow visit', () => {
     expect(llm.mock.calls[0][0]).toBe(Moments.buildPrompt(OK_T, f, { lang: 'en', rubric: 'fico17_v6', gaps: '' }));
     expect(labelLlm).toHaveBeenCalledTimes(1);
     const blob = formRow(f.id).rumi_moments.shadow_v6;
-    expect(Object.keys(blob).sort()).toEqual(['at', 'counts', 'moments', 'prompt_version', 'room_evidence', 'rumi_levels', 'status', 'transcript_quality']);
+    expect(Object.keys(blob).sort()).toEqual(['at', 'counts', 'd2_turns', 'moments', 'prompt_version', 'room_evidence', 'rumi_levels', 'status', 'transcript_quality']);
+    expect(blob.d2_turns).toEqual(Moments.d2Turns(OK_T)); // FICO6 r2 (CONTRACTS §11.2)
     expect(blob).toMatchObject({ status: 'ok', prompt_version: 'observe2-moments-v3', counts: { closed_q: 3, praise_generic: 1 } });
     expect(blob.moments.map((m) => m.type)).toEqual(['open_q_one', 'reasoning', 'resource_used']); // by group, as v6 stores them
     expect(blob.room_evidence.C3.map((r) => r.id)).toEqual(['room_C3_1']);
