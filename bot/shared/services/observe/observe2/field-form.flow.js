@@ -507,7 +507,9 @@ function buildFieldFormFlow() {
       CONTINUE: ['PART_TWO', 'LESSON_PLAN', 'PHOTOS', 'AFTER', 'SEALED'],
     },
     screens: [
-      screen('PART_ONE', 'Part 1', part1, 'Part 1 done', {
+      // bd-ra8xu.43: the visit's stored rubric (framework + version), one small line atop Part 1, for debugging.
+      screen('PART_ONE', 'Part 1', [{ type: 'TextCaption', text: '${data.scored_with}' }, ...part1], 'Part 1 done', {
+        scored_with: { type: 'string', __example__: 'FICO17 v6' },
         teacher_line: { type: 'string', __example__: "Rabia's lesson · Grade 4 · Maths" },
         part_hint: { type: 'string', __example__: 'Up to and including guided practice. When the children start independent practice, tap "Part 1 done": your answers are saved then.' },
       }),
