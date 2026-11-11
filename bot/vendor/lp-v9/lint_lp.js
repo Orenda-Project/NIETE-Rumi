@@ -1840,6 +1840,9 @@ function v9Gates(doc, ctx) {
  * native-speaker review is still a hard hold, because the failure mode this gate could create —
  * "the linter passed it, ship it" — is worse than the defects it catches.
  */
+/** "…الدین " immediately before a word: an Arabic-style laqab (Zahir-ud-din), never the Prophet's. */
+const UD_DIN_TITLE_RE = /[ؠ-يٮ-ۓەۺ-ۿ]+\s*الدین[\s‌]+$/;
+
 function religiousMarks(doc, ctx) {
   const { fail, warn } = ctx;
   const HOLD = "Automated checks do NOT clear religious content: the native-speaker review remains a hard hold before any teacher delivery (brief §4c, gate G5c).";
@@ -1866,8 +1869,27 @@ function religiousMarks(doc, ctx) {
   // bd-qzitp shipped it.
   const detected = harvest(doc).filter(({ at }) =>
     !at.startsWith("/revisions") && !at.startsWith("/notes") && !at.startsWith("/provenance"));
-  const isReligious = detected.some(({ s }) => PROPHET_RE.test(s) || /ﷺ|رضی\s*اللہ|علیہ\s*السلام|سیرت|حدیث|قرآن/.test(s));
-  PROPHET_RE.lastIndex = 0;
+  // VENDOR DIVERGENCE (bd-9mc3nz, 2026-11-11; SYNC.md §3.36): a `محمد` that is plainly ANOTHER
+  // person's name is not, by itself, religious content. Production: "ظہیر الدین محمد بابر" (the
+  // Mughal emperor) made a G7 History Urdu page "religious" and check 6 refused it. Only two
+  // clearances, both narrower than check 1's: the reviewer's own list (bd-zipoe), and a `محمد`
+  // directly after an "-ud-din" title (ظہیر الدین / جلال الدین / شہاب الدین محمد …), a style
+  // the Prophet is never named by. check 1's compound-name rule is deliberately NOT reused here:
+  // it reads "حضرت محمد مکہ میں…" as a surname, and detection is what holds that sentence.
+  const prophetMention = (s) => {
+    PROPHET_RE.lastIndex = 0;
+    let m;
+    while ((m = PROPHET_RE.exec(s))) {
+      const end = m.index + m[0].length;
+      if (m[0] === "محمد" && !HONORIFIC_RE.test(s.slice(end)) &&
+          (UD_DIN_TITLE_RE.test(s.slice(0, m.index)) || clearedByReview(s, m.index))) continue;
+      PROPHET_RE.lastIndex = 0;
+      return true;
+    }
+    PROPHET_RE.lastIndex = 0;
+    return false;
+  };
+  const isReligious = detected.some(({ s }) => prophetMention(s) || /ﷺ|رضی\s*اللہ|علیہ\s*السلام|سیرت|حدیث|قرآن/.test(s));
 
   const NOT_TEACHER_FACING = /^\/human_review_reason|^\/slo\/text_verbatim|^\/sections\/[^/]+\/video\//;
   const strings = detected.filter(({ at }) => !NOT_TEACHER_FACING.test(at));
