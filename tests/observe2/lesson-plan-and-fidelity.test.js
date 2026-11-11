@@ -31,7 +31,7 @@ const Store = require('../../bot/shared/services/observe/observe2/field-form.sto
 const Form = require('../../bot/shared/routes/observe2-form-endpoint');
 const Check = require('../../bot/shared/routes/observe2-check-endpoint');
 const Moments = require('../../bot/shared/services/observe/observe2/moments');
-const { buildFieldFormFlow, FORM_VERSION } = require('../../bot/shared/services/observe/observe2/field-form.flow');
+const { buildFieldFormFlow, FORM_VERSION, switchedOptions } = require('../../bot/shared/services/observe/observe2/field-form.flow');
 const { buildEvidenceCheckFlow } = require('../../bot/shared/services/observe/observe2/evidence-check.flow');
 const { buildBrief } = require('../../bot/shared/services/observe/observe2/brief');
 const { PLAIN } = require('../../bot/shared/services/observe/observe2/fico17');
@@ -168,9 +168,10 @@ describe('the field form: a lesson-plan screen before the seal', () => {
   test('plainer wording: no "Ready before being told", no "name sticks"; the check uses the same words', () => {
     const text = JSON.stringify(flow);
     expect(text).not.toMatch(/Ready before being told|name sticks|Signal, but slow to settle/);
-    const how = comps(screens.PART_ONE).find((x) => x.name === 'p1_change_how');
-    expect(how['data-source'].map((o) => o.title)).toEqual(PLAIN.C5);
-    for (const o of how['data-source']) expect(o.description.length).toBeGreaterThan(40);
+    // The switch options come from the endpoint per visit since form version 7 (FICO6); a v5 visit's are these.
+    const how = switchedOptions({ rubric_version: 'fico-ict-17-2026-09' });
+    expect(how.map((o) => o.title)).toEqual(PLAIN.C5);
+    for (const o of how) expect(o.description.length).toBeGreaterThan(40);
   });
 });
 
@@ -389,7 +390,8 @@ describe('the check: a fidelity screen after the last moments screen', () => {
   test('HEARD_EXPLAIN goes to FIDELITY, or straight to the levels when there is no plan to check', () => {
     expect(flow.screens.map((s) => s.id).slice(0, 9)).toEqual(['HEARD_ASK', 'HEARD_WRONG', 'HEARD_WORK', 'HEARD_EXPLAIN', 'FIDELITY', 'ADDED_ONE', 'ADDED_TWO', 'PRIORITY', 'DONE']);
     // A FICO17 v6 visit may also go to its room screens, and from the plan to Rumi's 11 (bd-ra8xu.38).
-    expect(flow.routing_model.HEARD_EXPLAIN).toEqual(['FIDELITY', 'ADDED_ONE', 'COMBINED_ONE']);
+    // FICO6: or to "Add one Rumi missed" first.
+    expect(flow.routing_model.HEARD_EXPLAIN).toEqual(['FIDELITY', 'ADDED_ONE', 'COMBINED_ONE', 'MISSED']);
     expect(flow.routing_model.FIDELITY).toEqual(['ADDED_ONE', 'ADDED_DC_ONE']);
   });
 
