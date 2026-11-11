@@ -87,6 +87,8 @@ function makeRun(members) {
       if (res.record && typeof res.record === 'object') Object.assign(record, res.record);
     });
     record.hard = hardIssues.length;
+    // bd-qyi45h.1: the hard issues by check and rule code, so a failed paper names why without a log dig
+    if (hardIssues.length) record.hard_rules = hardIssues.reduce((a, i) => { const k = `${i.check} ${i.rule || '?'}`; a[k] = (a[k] || 0) + 1; return a; }, {});
     record.soft = notes.filter((n) => n.check !== 'checker_error').length;
     const refToId = new Map();
     if (hardIssues.length) {
