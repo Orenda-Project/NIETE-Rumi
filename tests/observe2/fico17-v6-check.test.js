@@ -193,7 +193,7 @@ describe('the Flow', () => {
   test('routes: moments → COMBINED → plan or the v6 levels → PRIORITY', () => {
     expect(flow.routing_model.HEARD_EXPLAIN).toEqual(expect.arrayContaining(['FIDELITY', 'ADDED_ONE', 'COMBINED_ONE']));
     expect(flow.routing_model.COMBINED_ONE).toEqual(['COMBINED_TWO']);
-    expect(flow.routing_model.COMBINED_TWO).toEqual(['COMBINED_THREE']);
+    expect(flow.routing_model.COMBINED_TWO).toEqual(['COMBINED_THREE', 'COMBINED_THREE_COUNTS']);
     expect(flow.routing_model.COMBINED_THREE).toEqual(expect.arrayContaining(['FIDELITY', 'ADDED_DC_ONE']));
     expect(flow.routing_model.FIDELITY).toEqual(expect.arrayContaining(['ADDED_ONE', 'ADDED_DC_ONE']));
     expect(flow.routing_model.ADDED_DC_ONE).toEqual(['ADDED_DC_TWO']);

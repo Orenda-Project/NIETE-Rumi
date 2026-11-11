@@ -126,8 +126,9 @@ const V6_RUBRIC_SECTIONS = new Set(['high_leverage_practices', 'student_engageme
  * Runs after the narrative's why lines, so the model cannot replace these. Mutates `groups`.
  *
  * - a section with no numeric level (every row IE, or IE and NA) reads "not assessed" with its IE lines.
- * @returns {null|{note: (string|null), noLevels: boolean}} null for any other analysis (v5, V3, /observe v6):
- *   nothing changed. noLevels: no row has a number, so the image shows no marks total.
+ * @returns {null|{note: (string|null), noLevels: boolean, broken: boolean}} null for any other analysis (v5, V3,
+ *   /observe v6): nothing changed. noLevels: no row has a number, so the image shows no marks total. noLevels or
+ *   broken: no headline percentage either (spec §9.3).
  */
 function v6HeroRows(groups, analysis, language) {
   const o2 = (analysis && analysis.observe2) || {};
@@ -165,7 +166,7 @@ function v6HeroRows(groups, analysis, language) {
   }
   // Every row not assessed: the marks under the headline would read "0/N marks", a total with nothing in it.
   const noLevels = (groups || []).length > 0 && groups.every((g) => g && g.notAssessed);
-  return { note: broken ? (S.v6_report_broken || V6_REPORT_BROKEN) : null, noLevels };
+  return { note: broken ? (S.v6_report_broken || V6_REPORT_BROKEN) : null, noLevels, broken };
 }
 
 /**
@@ -268,7 +269,8 @@ async function generateHeroReport(session, analysis, opts = {}) {
     partialNote,
     topic: heroTopic(narrative, analysis),
     date: String(session.created_at || '').slice(0, 10),
-    score: v6 && v6.noLevels ? { overall: score.overall, marks: null, max: null } : { overall: score.overall, marks: score.marks, max: score.max },
+    // v6 with no numeric level, or a broken recording: no percentage and no marks (the template draws neither).
+    score: v6 && (v6.noLevels || v6.broken) ? { overall: null, marks: null, max: null } : { overall: score.overall, marks: score.marks, max: score.max },
     groups: score.groups,
     narrative: narrative || {},
     tryNext: commitmentAction || '',

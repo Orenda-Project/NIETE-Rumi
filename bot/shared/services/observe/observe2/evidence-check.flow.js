@@ -18,6 +18,8 @@
  *       The six indicators the coach sets from the room (C3 C5 / C7 D3 / D4 D2): each its v6 definition, what
  *       the recording showed for it and what the coach adds, a level that starts BLANK, and a required reason
  *       (20+ characters, checked by the endpoint). D2 also takes the two child counts. A v5 visit never sees them.
+ *   COMBINED_THREE_COUNTS   (v6, FICO6 r2) COMBINED_THREE with D2's counts pre-filled from the live form, opened
+ *       instead of it when the form has both counts (spec §7.4).
  *   MISSED   (v6 visits only, FICO6)
  *       "Add one Rumi missed": up to two moments the coach saw that Rumi did not list, each a type, the minute and
  *       the words; they count as confirmed moments. Between the moments screens and COMBINED_ONE.
@@ -80,7 +82,8 @@ const ADDED_SCREENS = [
 // screens: a v6 visit opened on a Flow published before them runs on the v5 screens rather than break.
 // '2' (FICO6) brought MISSED and the reason radio on ADDED_DC_*: a v6 visit on a '1' Flow skips MISSED and its
 // changes need only the written reason, as that Flow asks.
-const V6_CHECK = '2';
+// '3' (FICO6 r2) brought COMBINED_THREE_COUNTS: a '2' Flow gets COMBINED_THREE with blank count boxes.
+const V6_CHECK = '3';
 // "Add one Rumi missed" (spec §9.2, RULINGS R7): two slots, each a type, the minute and the words.
 const MISSED_SLOTS = 2;
 const MISSED_WORDS_MAX = 280;
@@ -89,6 +92,11 @@ const COMBINED_SCREENS = [
   { id: 'COMBINED_TWO', title: 'From the room (2 of 3)', codes: ['C7', 'D3'] },
   { id: 'COMBINED_THREE', title: 'From the room (3 of 3)', codes: ['D4', 'D2'] },
 ];
+// COMBINED_THREE with D2's two count boxes pre-filled from the live form (spec §7.4): the children who spoke
+// (p1_spoke + p2_new) and the ones who spoke first in Part 2 (p2_new). Meta takes a number box's init value only as
+// a number and there is no empty one, so the endpoint opens this copy only when the form has both counts.
+const COMBINED_COUNTS = { id: 'COMBINED_THREE_COUNTS', of: 'COMBINED_THREE' };
+const D2_COUNT_INIT = { d2_children: 'd2_children_init', d2_quiet_later: 'd2_quiet_init' };
 const dcOnly = (codes) => codes.filter((c) => V6.isDc(c));
 const ADDED6_SCREENS = [
   {
@@ -235,8 +243,14 @@ function combinedBlock(code, data, init) {
   data[`${code}_ev`] = { type: 'string', __example__: `${ind.definition}\n\nThe recording showed nothing for this.\n\nCoach adds: ${ind.coach_adds}` };
   const kids = [{ type: 'TextSubheading', text: ind.name }, { type: 'TextBody', text: `\${data.${code}_ev}` }];
   if (code === 'D2') {
-    // No init-value: Meta takes a number there and a visit may have no count to give. What the coach typed on
-    // the live form is in the TextBody above instead (the endpoint's D2_ev).
+    // Pre-filled on COMBINED_THREE_COUNTS only (Form init-values, from numeric data); blank on COMBINED_THREE.
+    // What the coach typed on the live form is also in the TextBody above (the endpoint's D2_ev).
+    if (init) {
+      for (const [field, key] of Object.entries(D2_COUNT_INIT)) {
+        data[key] = { type: 'number', __example__: 0 };
+        init[field] = `\${data.${key}}`;
+      }
+    }
     kids.push(
       { type: 'TextInput', name: 'd2_children', label: 'Children who spoke', 'input-type': 'number', required: true, 'helper-text': 'Count each child once, whole lesson. Not chorus.' },
       { type: 'TextInput', name: 'd2_quiet_later', label: 'Quiet, then spoke', 'input-type': 'number', required: true, 'helper-text': 'Silent in the first half, spoke in the second' },
@@ -249,12 +263,12 @@ function combinedBlock(code, data, init) {
   return kids;
 }
 
-function combinedScreen({ id, title, codes }) {
+function combinedScreen({ id, title, codes }, { counts = false } = {}) {
   const data = { ...ERR };
-  const init = {};
+  const init = counts ? {} : null;
   const kids = [{ type: 'TextCaption', text: 'Set each level from what you saw in the room. Nothing is chosen for you. Every level needs a reason.' }];
   for (const code of codes) kids.push(...combinedBlock(code, data, init));
-  return screenWith(id, title, kids, 'Next', data, Object.keys(init).length ? init : null, null, true);
+  return screenWith(id, title, kids, 'Next', data, init && Object.keys(init).length ? init : null, null, true);
 }
 
 // Rumi's 11 (v6): pre-selected, v6 titles, NA and couldn't-tell kept so any pre-filled value is on the list.
@@ -348,13 +362,18 @@ function buildEvidenceCheckFlow() {
   // FICO17 v6 (bd-ra8xu.38): appended after DONE so every v5 screen keeps its place. A v6 visit goes
   // HEARD_EXPLAIN → COMBINED_ONE..3 → FIDELITY (a graded plan) or ADDED_DC_ONE → ADDED_DC_TWO → PRIORITY.
   // FICO6: MISSED after the v6 screens, HEARD_EXPLAIN → MISSED → COMBINED_ONE (a '1' check still goes straight on).
-  const v6 = [...COMBINED_SCREENS.map(combinedScreen), ...ADDED6_SCREENS.map(added6Screen), missedScreen()];
+  const counted = COMBINED_SCREENS.find((c) => c.id === COMBINED_COUNTS.of);
+  const v6 = [
+    ...COMBINED_SCREENS.map((c) => combinedScreen(c)), ...ADDED6_SCREENS.map(added6Screen), missedScreen(),
+    combinedScreen({ ...counted, id: COMBINED_COUNTS.id }, { counts: true }),
+  ];
   screens.push(...v6);
   routing.HEARD_EXPLAIN = [...routing.HEARD_EXPLAIN, 'COMBINED_ONE', 'MISSED'];
   routing.MISSED = ['COMBINED_ONE'];
   routing.COMBINED_ONE = ['COMBINED_TWO'];
-  routing.COMBINED_TWO = ['COMBINED_THREE'];
+  routing.COMBINED_TWO = ['COMBINED_THREE', COMBINED_COUNTS.id];
   routing.COMBINED_THREE = ['FIDELITY', 'ADDED_DC_ONE'];
+  routing[COMBINED_COUNTS.id] = [...routing.COMBINED_THREE];
   routing.FIDELITY = [...routing.FIDELITY, 'ADDED_DC_ONE'];
   routing.ADDED_DC_ONE = ['ADDED_DC_TWO'];
   routing.ADDED_DC_TWO = ['PRIORITY'];
@@ -363,5 +382,5 @@ function buildEvidenceCheckFlow() {
 
 module.exports = {
   buildEvidenceCheckFlow, SLOTS, FIDELITY_SLOTS, FIDELITY_VERDICTS, HEARD_SCREENS, ADDED_SCREENS, FLOW_VERSION, CHECK_VERSION,
-  V6_CHECK, COMBINED_SCREENS, ADDED6_SCREENS, MISSED_SLOTS, MISSED_WORDS_MAX, OVERRIDE_REASONS,
+  V6_CHECK, COMBINED_SCREENS, COMBINED_COUNTS, D2_COUNT_INIT, ADDED6_SCREENS, MISSED_SLOTS, MISSED_WORDS_MAX, OVERRIDE_REASONS,
 };
