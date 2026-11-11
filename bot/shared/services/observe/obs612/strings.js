@@ -75,7 +75,7 @@ const STRINGS = {
     recording_saved: (submitted) => (submitted
       ? '🎧 Recording received and kept with this visit. Your FDE form is already submitted.'
       : '🎧 Recording received and kept with this visit. Fill in the FDE form when you are ready: tap *Open FDE form*.'),
-    form_not_ready: "The FDE form isn't switched on here yet, so I can't open it. Your recording is saved. Please tell the Rumi team.",
+    form_not_ready: "The FDE form isn't switched on here yet, so I can't open it. Your recording is saved. Please tell your programme team.",
     form_failed: "I couldn't open the FDE form just now. Please send /observe again in a minute; your visit is saved.",
     gone: "That choice is from an older visit. Send /observe or /observe2 to start a new one.",
     try_again: 'Something went wrong on my side. Please tap your choice again in a minute.',
@@ -101,7 +101,7 @@ const STRINGS = {
     recording_saved: (submitted) => (submitted
       ? '🎧 ریکارڈنگ مل گئی اور اس وزٹ کے ساتھ محفوظ ہے۔ ایف ڈی ای فارم پہلے ہی جمع ہو چکا ہے۔'
       : '🎧 ریکارڈنگ مل گئی اور اس وزٹ کے ساتھ محفوظ ہے۔ جب تیار ہوں ایف ڈی ای فارم بھریں: *FDE فارم کھولیں* دبائیں۔'),
-    form_not_ready: 'ایف ڈی ای فارم ابھی یہاں چالو نہیں، اس لیے نہیں کھل سکا۔ آپ کی ریکارڈنگ محفوظ ہے۔ براہِ کرم رومی ٹیم کو بتائیں۔',
+    form_not_ready: 'ایف ڈی ای فارم ابھی یہاں چالو نہیں، اس لیے نہیں کھل سکا۔ آپ کی ریکارڈنگ محفوظ ہے۔ براہِ کرم اپنی پروگرام ٹیم کو بتائیں۔',
     form_failed: 'ابھی ایف ڈی ای فارم نہیں کھل سکا۔ ایک منٹ بعد دوبارہ ⁦/observe⁩ بھیجیں؛ آپ کا وزٹ محفوظ ہے۔',
     gone: 'یہ انتخاب پرانے وزٹ کا ہے۔ نیا وزٹ شروع کرنے کے لیے ⁦/observe⁩ یا ⁦/observe2⁩ بھیجیں۔',
     try_again: 'میری طرف کوئی مسئلہ ہوا۔ ایک منٹ بعد دوبارہ انتخاب کریں۔',
@@ -109,7 +109,8 @@ const STRINGS = {
 };
 
 function obs612Strings(lang) {
-  const l = clampLanguage(lang) === 'ur' ? 'ur' : 'en';
+  const c = clampLanguage(lang);
+  const l = STRINGS[c] ? c : 'en';
   return { ...STRINGS[l], subjects: SUBJECT_LABELS[l], tools: TOOL_NAMES[l], lang: l };
 }
 
