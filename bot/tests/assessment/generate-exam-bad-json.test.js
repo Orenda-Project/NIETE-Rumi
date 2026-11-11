@@ -37,6 +37,12 @@ describe('generateExam BAD_JSON retry', () => {
     expect(create).toHaveBeenCalledTimes(2);
   });
 
+  it('prose (a refusal) is not broken JSON: BAD_JSON at once, no second call', async () => {
+    const create = client('I am unable to help with that.', GOOD);
+    await expect(generateExam(ARGS)).rejects.toMatchObject({ code: 'BAD_JSON' });
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
   it('valid first time: one call only', async () => {
     const create = client(GOOD);
     await generateExam(ARGS);

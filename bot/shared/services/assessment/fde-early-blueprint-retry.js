@@ -5,12 +5,18 @@
  * on the paper, so the teacher checks it before printing. Wraps the writer, which stays as it is.
  */
 
-const NOTE_EN = 'Note: this paper does not fully match the FDE blueprint — please check section counts before printing.';
-const NOTE_UR = 'نوٹ: یہ پرچہ FDE بلیو پرنٹ سے مکمل طور پر مطابقت نہیں رکھتا — چھاپنے سے پہلے حصوں کی تعداد جانچ لیں۔'; // needs fluent-Urdu review
+const NOTE_EN = 'Note: this paper does not fully match the FDE blueprint — please check it before printing.';
+const NOTE_UR = 'نوٹ: یہ پرچہ FDE بلیو پرنٹ سے مکمل طور پر مطابقت نہیں رکھتا — چھاپنے سے پہلے اسے جانچ لیں۔'; // needs fluent-Urdu review
+
+// Every section carried its own level targets and met them to the mark, and the only misses are
+// whole-paper level shares: the pattern's two targets disagree, so a rewrite cannot fix it.
+const metEverySection = (bp) => (bp.problems || []).every((p) => p && p.code === 'LEVEL')
+  && (bp.sections || []).length > 0
+  && bp.sections.every((s) => s.levels && Object.values(s.levels).every((l) => l.marks === l.target));
 
 const offBlueprint = (paper) => {
   const bp = paper && paper.examJson && paper.examJson._layout && paper.examJson._layout.blueprint;
-  return !!bp && bp.ok === false;
+  return !!bp && bp.ok === false && !metEverySection(bp);
 };
 
 function flag(paper) {
