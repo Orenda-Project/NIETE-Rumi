@@ -125,6 +125,8 @@ const STRINGS = {
     v6_ev_ie: "The recording couldn't show this. Set the level from what you saw.",
     v6_ev_na_d3: 'The recording found no child-to-child talk.',
     v6_coach_adds: (text) => `Coach adds: ${text}`,
+    // D2's first line on COMBINED_THREE: the recording's Student lines per half (rumi_moments.d2_turns, CONTRACTS §11.4).
+    v6_d2_turns: (a, b) => `Student turns: ${a} in the first half, ${b} in the second.`,
     // The teacher's report for a v6 visit (spec §9.3).
     v6_report_ie: "The recording didn't cover this part of the lesson.",
     v6_report_broken: "The recording couldn't be used, so this report has no levels from it.",
@@ -236,6 +238,8 @@ const STRINGS = {
     v6_ev_ie: 'ریکارڈنگ سے یہ معلوم نہیں ہو سکا۔ لیول اپنے مشاہدے سے طے کریں۔',
     v6_ev_na_d3: 'ریکارڈنگ میں بچوں کی آپس میں کوئی بات چیت نہیں ملی۔',
     v6_coach_adds: (text) => `کوچ کا مشاہدہ: \u2068${text}\u2069`,
+    // DRAFT — native review (FICO6 r2, CONTRACTS §11.4).
+    v6_d2_turns: (a, b) => `طلبہ کی باریاں: پہلے نصف میں ${urDigits(a)}، دوسرے میں ${urDigits(b)}۔`,
     v6_report_ie: 'ریکارڈنگ میں سبق کا یہ حصہ شامل نہیں تھا۔',
     v6_report_broken: 'ریکارڈنگ استعمال نہیں ہو سکی، اس لیے اس رپورٹ میں اس سے کوئی لیول نہیں۔',
     missed_title: 'جو لمحہ رہ گیا',
