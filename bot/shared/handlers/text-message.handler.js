@@ -5,6 +5,7 @@ const { decideChildReplyLanguage } = require('../utils/child-reply-language');
 const { resolveResponseLanguage } = require('../utils/resolve-response-language');
 const { firstReplyLanguage } = require('../utils/first-reply-english-evidence');
 const { canonicalizeSlashCommand } = require('../utils/slash-command');
+const MenuRequest = require('../services/menu-request');
 const OpenAIService = require('../services/openai.service');
 const ContentService = require('../services/content.service');
 const LanguageDetectorService = require('../services/language-detector.service');
@@ -324,6 +325,12 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   if (canonicalCommand.form) {
     logToFile('inbound.slash_command_canonicalized', { raw: messageBody, command: canonicalCommand.text, form: canonicalCommand.form, userId: user?.id });
     messageBody = canonicalCommand.text;
+  } else if (MenuRequest.keywordRoutingOn() && MenuRequest.isMenuRequest(messageBody)
+    && String(messageBody).trim().toLowerCase() !== '/menu') {
+    // bd-2ym4ve — "menu", "Menu please", "show menu", "menue", «مینو»: one or two words with the menu word in them,
+    // that no other door reads, are /menu (operator, 11 Nov 2026). Same event as the slash repairs, form 'menu_word'.
+    logToFile('inbound.slash_command_canonicalized', { raw: messageBody, command: '/menu', form: 'menu_word', userId: user?.id });
+    messageBody = '/menu';
   }
 
   // Start continuous typing indicator immediately
