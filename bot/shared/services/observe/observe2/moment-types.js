@@ -124,10 +124,13 @@ const V3_LINES = {
     "- why_handed: the teacher turns a child's question into a short lesson that goes further, or asks the children to give the reason why a rule or step works",
   ],
 };
+// v3.1 (FICO6 r2): the EXPLAINING intro names what its v6 types are about; the v2 intro said only "content".
+const EXPLAIN_INTRO_V3 = 'EXPLAINING — the teacher\'s content, the books, board and objects used for it, and what the children do with the teacher\'s words and links:';
 const TYPE_GUIDE_V3 = (() => {
   const out = [];
   let skip = false;
   for (const line of TYPE_GUIDE) {
+    if (line === 'EXPLAINING — the teacher\'s content:') { out.push(EXPLAIN_INTRO_V3); continue; }
     const head = /^- (\w+):/.exec(line);
     if (head) skip = Boolean(V3_LINES[head[1]]);
     else if (!line.startsWith('  ')) skip = false;

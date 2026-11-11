@@ -257,3 +257,47 @@ describe('the moments job stores d2_turns on v6 and shadow visits, never on v5',
     expect(r.moments.map((m) => m.id)).toEqual(['ask_1']);
   });
 });
+
+// ---------------------------------------------------------------- moments prompt v3.1 (item 3: the starvation fix)
+describe('v3.1: the v6 moments prompt asks for every clear moment, the same type again included', () => {
+  const MT = require('../../bot/shared/services/observe/observe2/moment-types');
+  const { buildLabelPrompt } = require('../../bot/shared/services/observe/observe2/label-check');
+  const { parseTranscript } = require('../../bot/shared/services/observe/observe2/quote-check');
+  const T = '[00:10] Teacher (EN): Open your book to page 12.\n[00:20] Student (EN): Yes.';
+  const v6 = () => Moments.buildPrompt(T, { period_minutes: 40, rubric_version: 'fico17_v6', answers: {} }, { lang: 'en', rubric: 'fico17_v6' });
+  const v5 = () => Moments.buildPrompt(T, { period_minutes: 40, rubric_version: V5, answers: {} }, { lang: 'en' });
+
+  test('the version is observe2-moments-v3.1 on v6, v2 on v5', () => {
+    expect(Moments.PROMPT_VERSION_V3).toBe('observe2-moments-v3.1');
+    expect(Moments.promptVersionFor('fico17_v6')).toBe('observe2-moments-v3.1');
+    expect(Moments.promptVersionFor('fico17')).toBe('observe2-moments-v2');
+  });
+
+  test('HOW MANY on v6: repeats are moments, the cap is per group; "the few" is gone', () => {
+    const p = v6();
+    expect(p).toContain('the levels count how often each thing happens');
+    expect(p).toContain('when the same\ntype happens again later, list it again');
+    expect(p).toContain(`At most ${Moments.SLOTS} per group (ask, wrong, work, explain), the clearest first.`);
+    expect(p).not.toContain('per part, and only the clearest');
+    expect(p).not.toContain('pick the few MOMENTS');
+    expect(p).toContain('pick the MOMENTS that are');
+  });
+
+  test('the EXPLAINING intro on v6 names resources and the children\'s part; v5 keeps "the teacher\'s content:"', () => {
+    expect(v6()).toContain("EXPLAINING — the teacher's content, the books, board and objects used for it, and what the children do with the teacher's words and links:");
+    expect(MT.TYPE_GUIDE).toContain("EXPLAINING — the teacher's content:");
+    expect(MT.TYPE_GUIDE_V3).not.toContain("EXPLAINING — the teacher's content:");
+  });
+
+  test('the v5 prompt still says "the few" and "per part"', () => {
+    expect(v5()).toContain('pick the few MOMENTS');
+    expect(v5()).toContain(`HOW MANY: at most ${Moments.SLOTS} per part, and only the clearest.`);
+  });
+
+  test('the label check on v6 does not drop a resource as admin; v5 has no such line', () => {
+    const m = [{ moment: 'explain', type: 'resource_used', minute: '00:10', quote: 'Open your book to page 12.' }];
+    const line = 'teaches is not admin or a plain instruction: judge it by the resource types below.';
+    expect(buildLabelPrompt(m, parseTranscript(T), { lang: 'en', rubric: 'fico17_v6' })).toContain(line);
+    expect(buildLabelPrompt(m, parseTranscript(T), { lang: 'en' })).not.toContain(line);
+  });
+});
