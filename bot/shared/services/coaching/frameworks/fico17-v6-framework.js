@@ -326,7 +326,8 @@ function computeScores(analysis, _hasLp, transcript) {
 
   const dcLevels = Object.fromEntries(v6.DC_CODES.map((c) => [c, a.levels[c]]));
   const t = v6.totals(dcLevels);
-  a.scores = { overall_marks: t.marks, overall_max_marks: t.max, overall_percentage: t.percentage, counted: t.counted };
+  // rubric: the v6 stamp every cross-session reader checks (fico17-v6/stamp.js), so this never joins a V3 average.
+  a.scores = { overall_marks: t.marks, overall_max_marks: t.max, overall_percentage: t.percentage, counted: t.counted, rubric: v6.RUBRIC_KEY };
   return a;
 }
 

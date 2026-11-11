@@ -35,7 +35,10 @@ const ROW_SELECT = 'id, coaching_session_id, teacher_user_id, coach_user_id, sch
 
 const ms = (iso) => { const t = Date.parse(iso); return Number.isFinite(t) ? t : 0; };
 const num = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
+const { isV6Scored } = require('./coaching-frameworks.service');
+// bd-ra8xu.38: a FICO17 v6 score is never compared with a V3 one.
 const pctOf = (scores) => {
+  if (isV6Scored(scores)) return null;
   const p = scores && scores.overall_percentage;
   return p == null || p === '' || !Number.isFinite(Number(p)) ? null : Math.round(Number(p));
 };
@@ -124,7 +127,7 @@ async function patternFor(supabase, teacherId, sessionAt, earlier, now) {
   ]);
   const lessons = rowsOf(last).reverse().map((s) => {
     const moves = movesOf({ lp_fidelity: s.lp_fidelity });
-    const p = s.scores && num(s.scores.overall_percentage);
+    const p = s.scores && !isV6Scored(s.scores) ? num(s.scores.overall_percentage) : null;
     return { id: s.id, createdAt: s.created_at, pct: p == null ? null : p, moves: moves && moves.map((m) => ({ phase: m.phase, verdict: m.verdict })) };
   });
   const rate = recordingRate(rowsOf(recent).map((s) => s.created_at), now);
