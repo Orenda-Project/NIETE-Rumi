@@ -21,7 +21,9 @@ jest.mock('../../bot/shared/config/supabase', () => ({
 }));
 
 const Switch = require('../../bot/shared/services/coaching/fico-rubric-switch');
-const { visitRubric } = require('../../bot/shared/services/observe/observe2/rubric');
+// sandbox and staging: visitRubric ({rubricVersion, shadow}); main: the older rubricForNewVisit (the stamp alone).
+const R = require('../../bot/shared/services/observe/observe2/rubric');
+const visitRubric = R.visitRubric || (async (w) => ({ rubricVersion: await R.rubricForNewVisit(w), shadow: false }));
 const O6 = require('../../bot/shared/services/observe/observe-fico17-v6');
 
 beforeEach(() => {
