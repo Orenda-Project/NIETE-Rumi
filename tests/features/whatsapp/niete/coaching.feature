@@ -1368,3 +1368,12 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Given I am in v10 group A or B, or outside the draw
     When I get a lesson plan or a coaching report
     Then the caption and the "Quick reminder" are exactly as before
+
+  @e2e @draft @P2
+  Scenario: The chapter's close-out lessons are named for what they are in the lesson list
+    Given I am choosing which lesson my recording was for
+    When the list shows a chapter's two close-out lessons
+    Then the lesson ending in segment 995 reads "Ch<n> Assessment"
+    And the lesson ending in segment 990 reads "Ch<n> Revision"
+    # bd-nfjhgl: the two labels were swapped (curriculum convention: 995 = assessment, 990 = revision).
+    # lp-coaching/lp-selection-format.js. Unit: bot/tests/unit/lp-selection-format-segment-label.test.js.
