@@ -13,11 +13,13 @@ function memberIds(examJson) {
 }
 
 /** Of the review-flagged or key-leaking (N18, bd-qyi45h.6) ids still in `checks`, those inside a stimulus group of
- * `examJson`: dropIds takes a leaking child's whole group and the restore never refills one, so only a re-ask clears it. */
+ * `examJson`: dropIds takes a leaking child's whole group and the restore never refills one, so only a re-ask clears it.
+ * Plus every D18 item (the key stands out; bd-qyi45h.4), in a group or not: nothing after rewrite 1 re-asks it otherwise. */
 function stuck(checks, examJson) {
   const members = memberIds(examJson);
   const leaking = (r) => Object.keys(r.why || {}).filter((id) => r.why[id] === 'N18');
-  return new Set(checks.shortfall.flatMap((r) => [...Object.keys(r.review || {}), ...leaking(r)].filter((id) => members.has(id))));
+  const cue = (r) => Object.keys(r.why || {}).filter((id) => r.why[id] === 'D18');
+  return new Set(checks.shortfall.flatMap((r) => [...[...Object.keys(r.review || {}), ...leaking(r)].filter((id) => members.has(id)), ...cue(r)]));
 }
 
 /** The leaked phrases whose quoting item is in `ids`, once each, for the re-ask's "do not use" line. */
