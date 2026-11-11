@@ -1443,6 +1443,22 @@ Test: `tests/lp612/diagram-solid-bar-thermo.test.js`, which runs through `render
 skill path in §1 carries these types, take its copy and keep only the `visual_check` rows and the
 example split, unless upstream has adopted them.
 
+### 3.36 Over the TEACH cap, mistakes + differentiation go back to Reference — `lib/template.js` `flowHosts`/`buildHtml`, `render_lp.js` `renderDoc` (2026-11-11, bd-9mc3nz.2)
+
+`flowHosts` itself is a NIETE-only change (bd-a8veu.10: the two page2 groups print in the
+teaching flow, not in Reference); upstream has no such function. This entry adds an off switch.
+
+- `buildHtml(doc, { noFlowHosts: true })` makes `flowHosts` answer "no host" for both groups, so
+  both print in Reference. `buildHtml` also returns `flowHosted` (does either group print in the
+  flow in this build?).
+- `renderDoc` paints once as before. If TEACH is over its cap and `flowHosted` is true, it paints
+  once more with `noFlowHosts`, and keeps that layout only if it is over the caps by fewer pages in
+  total; otherwise it paints the first layout again so the files on disk match the report. The
+  report carries `flow_groups_moved` (and the return value `flowGroupsMoved`).
+- Why: 132 G6-12 lessons in 7 days were delivered over the cap, all in TEACH; with the two groups
+  back in Reference 72 of the 109 over-by-one lessons fit both caps (queue #57, fault 1).
+- Test: `tests/lp612/over-cap-flow-groups.test.js`.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of
