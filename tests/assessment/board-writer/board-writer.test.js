@@ -235,8 +235,8 @@ describe('hard checks after layout', () => {
         if (section.id !== 'A') return undefined;
         const { buildReply } = require('./helpers/fake-deps');
         const tree = buildReply(section.slots, { grade: 9, row: cell.row, levels: TOS.levels, style: cell.style, ur: false }, state);
-        tree['A.Q1'].forEach((q) => { q.question = `${q.question} (the answer is ${q.answer.slice(3)})`; });
-        return tree;
+        tree['A.Q1'].slice(0, 1).forEach((q) => { q.question = `${q.question} (the answer is ${q.answer.slice(3)})`; });
+        return tree; // one leak: within the bd-qyi45h.5 cap
       },
     });
     const res = await writeBoardPaper({ grade, subject: 'physics', pattern: 'p', P: cell.P, variant: cell.variant }, d).catch((e) => e);

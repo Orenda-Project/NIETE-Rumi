@@ -27,11 +27,11 @@ afterEach(() => {
   delete (globalThis as { Capacitor?: unknown }).Capacitor;
 });
 
-describe("the server's eleven failure codes become short labels", () => {
+describe("the server's twelve failure codes become short labels", () => {
   it("covers every code the old panel had a toast for", () => {
     expect([...FAILURE_CODES].sort()).toEqual([
       "BAD_JSON", "BOOK_NOT_FOUND", "CHAPTER_NOT_FOUND", "INVALID_PAGE_RANGE", "MODEL_UNAVAILABLE", "NO_CONTENT",
-      "NO_QUESTIONS", "PAGE_OUT_OF_RANGE", "RENDER_FAILED", "TRUNCATED", "UPLOAD_FAILED",
+      "NO_QUESTIONS", "PAGE_OUT_OF_RANGE", "RENDER_FAILED", "TOO_MANY_FLAWS", "TRUNCATED", "UPLOAD_FAILED",
     ]);
   });
 

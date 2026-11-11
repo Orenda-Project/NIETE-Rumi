@@ -65,3 +65,41 @@ describe('ship', () => {
     ]);
   });
 });
+
+/**
+ * bd-qyi45h.5: a last-try paper ships only while its flaws are few. More than 2 questions whose
+ * answer shows in another question (N18), or more than 20% of the paper's questions flagged (each counted once), and it
+ * fails as TOO_MANY_FLAWS, a code of its own so the teacher is told why.
+ */
+describe('overCap', () => {
+  const slots = (n) => [{ slot: 'A.Q1', generate: n - 10 }, { slot: 'B.Q2', generate: 10 }];
+  test('the paper total is the slots it generates', () => {
+    expect(LT.itemTotal(slots(89))).toBe(89);
+  });
+  test('G11 CS, 11 Nov: 11 flagged of 89 (12%) with one key leak ships', () => {
+    const ids = (p, n) => Array.from({ length: n }, (_, i) => `${p}#${i + 1}`);
+    const c = checks([row('A.Q1', 'D12', ids('A.Q1', 9)), row('A.Q2', 'D18', ['A.Q2#1']), row('B.Q2', 'N18', ['B.Q2#1'])], {});
+    expect(LT.overCap(c, slots(89))).toBeNull();
+  });
+  test('G9 Physics, 11 Nov: two key leaks is at the cap and ships', () => {
+    const c = checks([row('A.Q1', 'D18', ['A.Q1#1']), row('A.Q2', 'N18', ['A.Q2#1', 'A.Q2#2'])], {});
+    expect(LT.overCap(c, slots(68))).toBeNull();
+  });
+  test('a third key leak fails the paper', () => {
+    const c = checks([row('A.Q2', 'N18', ['A.Q2#1', 'A.Q2#2', 'A.Q2#3'])], {});
+    expect(LT.overCap(c, slots(68))).toEqual({ code: 'TOO_MANY_FLAWS', keyLeaks: 3, flagged: 3, total: 68 });
+  });
+  test('20% flagged ships; one more fails', () => {
+    const ids = (n) => Array.from({ length: n }, (_, i) => `A.Q1#${i + 1}`);
+    expect(LT.overCap(checks([row('A.Q1', 'D12', ids(10))], {}), slots(50))).toBeNull();
+    expect(LT.overCap(checks([row('A.Q1', 'D12', ids(11))], {}), slots(50))).toEqual({ code: 'TOO_MANY_FLAWS', keyLeaks: 0, flagged: 11, total: 50 });
+  });
+  test('a question flagged twice counts once', () => {
+    const ids = (n) => Array.from({ length: n }, (_, i) => `A.Q1#${i + 1}`);
+    const c = checks([row('A.Q1', 'D12', ids(10)), row('A.Q1', 'D18', ids(10))], {});
+    expect(LT.overCap(c, slots(50))).toBeNull();
+  });
+  test('the caps are 2 key leaks and 20%', () => {
+    expect([LT.CAP.keyLeaks, LT.CAP.share]).toEqual([2, 0.2]);
+  });
+});
