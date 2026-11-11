@@ -10,8 +10,10 @@
  *
  *   {"*": "current", "sihala": "v6"}            region keys are users.region lowercased ("sihala", "gilgit-baltistan")
  *   {"ict": "v6", "gb": "current"}              "ict" = every region FDE owns (organization 'niete'), "gb" = Moawin's
+ *   {"user:<users.id uuid>": "v6"}              one account only (the operator's test accounts), whatever its region
  *
- * Lookup order: the user's region, then its organization ('niete'/'ict', 'moawin'/'gb'), then "*", then OFF.
+ * Lookup order: "user:<id>", the user's region, then its organization ('niete'/'ict', 'moawin'/'gb'), then "*",
+ * then OFF.
  * An unknown value, no row, or a failed read is OFF ('current' / 'v3'). Read like ab_v10_enabled: fail closed,
  * 30 s cache (settings/switch-cache).
  *
@@ -65,8 +67,8 @@ const cache = cachedSwitch({
 });
 
 /** Pure: the value a map gives a region (and its organization, when known), else off. */
-function resolve(map, { region, organization } = {}, allowed, off) {
-  const tries = [norm(region)];
+function resolve(map, { userId, region, organization } = {}, allowed, off) {
+  const tries = [userId ? `user:${norm(String(userId))}` : '', norm(region)];
   const org = norm(organization);
   if (org) tries.push(...(ORG_ALIASES[org] || [org]));
   tries.push('*');
@@ -88,28 +90,41 @@ async function organizationFor(region) {
   }
 }
 
-function needsOrg(map, region) {
+function needsOrg(map, region, userId) {
   const keys = Object.keys(map);
   if (!keys.length) return false;
+  if (userId && map[`user:${norm(String(userId))}`] !== undefined) return false;
   if (map[norm(region)] !== undefined) return false;
   return keys.some((k) => ['niete', 'ict', 'moawin', 'gb'].includes(k));
 }
 
-/**
- * @param {{region?: string, organization?: string}} who  the user's region (users.region)
- * @returns {Promise<'current'|'v6'>}
- */
-async function coachRubric(who = {}, now = Date.now()) {
-  const { coach } = await cache.get(now);
-  const organization = who.organization || (needsOrg(coach, who.region) ? await organizationFor(who.region) : null);
-  return resolve(coach, { region: who.region, organization }, COACH_VALUES, COACH_OFF);
+async function pickFor(map, who, allowed, off) {
+  const w = who || {};
+  const organization = w.organization || (needsOrg(map, w.region, w.userId) ? await organizationFor(w.region) : null);
+  return resolve(map, { userId: w.userId, region: w.region, organization }, allowed, off);
 }
 
-/** @returns {Promise<'v3'|'shadow'|'v6'>} */
+/**
+ * @param {{userId?: string, region?: string, organization?: string}} who  the user (users.id) and region (users.region)
+ * @returns {Promise<'current'|'v6'>}  never throws; OFF on any failure
+ */
+async function coachRubric(who = {}, now = Date.now()) {
+  try {
+    const { coach } = await cache.get(now);
+    return await pickFor(coach, who, COACH_VALUES, COACH_OFF);
+  } catch (_) {
+    return COACH_OFF;
+  }
+}
+
+/** @returns {Promise<'v3'|'shadow'|'v6'>}  never throws; OFF on any failure */
 async function dcRubric(who = {}, now = Date.now()) {
-  const { dc } = await cache.get(now);
-  const organization = who.organization || (needsOrg(dc, who.region) ? await organizationFor(who.region) : null);
-  return resolve(dc, { region: who.region, organization }, DC_VALUES, DC_OFF);
+  try {
+    const { dc } = await cache.get(now);
+    return await pickFor(dc, who, DC_VALUES, DC_OFF);
+  } catch (_) {
+    return DC_OFF;
+  }
 }
 
 /** The region of a user id, for callers that hold only the id. Null on any failure (→ "*" or off). */
