@@ -456,6 +456,18 @@ async function coachingYesToday(ids, nudgeDate) {
 // ─── the build ───────────────────────────────────────────────────────────────
 
 /**
+ * bd-xxl9i — the school days whose build wrote no row. alreadyBuilt() counts
+ * the day's rows, so a day with no downloads (or every candidate filtered out
+ * before a row is scheduled) read as "not built" and re-ran the whole cohort
+ * query on every tick of every replica (staging: 770 builds on 10 Nov 2026).
+ * Per process, so each replica builds an empty day once — "at most once a day",
+ * the same as a day that wrote rows.
+ */
+const builtEmpty = new Set();
+/** Tests only: forget the empty days, so suites that reuse one date stay independent. */
+const forgetEmptyDays = () => builtEmpty.clear();
+
+/**
  * Build one school day's cohort. Safe to call on every tick and from every
  * replica.
  *
@@ -472,12 +484,13 @@ async function buildCohort({ nudgeDate, now }) {
   if (!PktTime.isSchoolDay(nudgeDate)) {
     return { inserted: 0, skipped: { not_school_day: 1 }, built: false };
   }
-  if (await alreadyBuilt(nudgeDate)) {
+  if (builtEmpty.has(nudgeDate) || await alreadyBuilt(nudgeDate)) {
     return { inserted: 0, skipped: {}, built: false };
   }
 
   const downloads = await downloadsFor(nudgeDate);
   if (!downloads.length) {
+    builtEmpty.add(nudgeDate);
     logEvent('lp_quiz.cohort_built', { nudgeDate, candidates: 0, inserted: 0 });
     return { inserted: 0, skipped: {}, built: true };
   }
@@ -514,6 +527,7 @@ async function buildCohort({ nudgeDate, now }) {
   const teachers = await teachersById(candidateIds);
   const ids = [...teachers.keys()];
   if (!ids.length) {
+    builtEmpty.add(nudgeDate);
     logEvent('lp_quiz.cohort_built', { nudgeDate, candidates: candidateIds.length, inserted: 0 });
     return { inserted: 0, skipped: {}, built: true };
   }
@@ -1207,6 +1221,7 @@ module.exports = {
   preChecks,
   sectorFor,
   buildCohort,
+  forgetEmptyDays,
   prepare,
   send,
   rowTitle,
