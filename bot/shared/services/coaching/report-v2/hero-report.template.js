@@ -119,10 +119,7 @@ function buildHeroReportHtml(vm) {
   const n = vm.narrative || {};
   const score = vm.score || {};
   const peak = (vm.trend && vm.trend.length) ? Math.max(...vm.trend.map((t) => t.pct)) : score.overall;
-  // The marks word is Urdu/Arabic script inside a Lexend line: Lexend has no such glyphs (tofu),
-  // so it gets its own span in the script font. Numerals stay in Lexend.
-  const marksWord = RTL && MARKS_WORD[lang] ? `<span class="marks-word">${MARKS_WORD[lang]}</span>` : (MARKS_WORD[lang] || '');
-  const marksLine = (score.marks != null && score.max != null) ? `${score.marks}/${score.max}${marksWord}` : '';
+  const marksLine = (score.marks != null && score.max != null) ? `${score.marks}/${score.max}${MARKS_WORD[lang] || ''}` : '';
   const moment = (n.moments || [])[0];
   const logo = (b64, cls) => b64 ? `<img class="${cls}" src="data:image/png;base64,${b64}" alt="NIETE">` : '';
 
@@ -182,7 +179,6 @@ function buildHeroReportHtml(vm) {
   .hero h1{font-family:${headFam};font-size:${RTL ? '26px' : '31px'};line-height:${RTL ? '1.6' : '1.15'};font-weight:600;flex:1;max-width:560px;margin:0}
   .hscore{flex-shrink:0;text-align:${RTL ? 'left' : 'right'};line-height:1}
   .hscore .p{font-family:'Lexend';font-weight:700;font-size:44px;letter-spacing:-.02em;margin-top:4px}
-  .marks-word{font-family:${bodyFam};letter-spacing:0}
   .hscore .s{font-family:'Lexend',${NON_LATIN},sans-serif;font-size:12.5px;color:${P.scoreSub};margin-top:6px;letter-spacing:.05em}
   .who{margin-top:14px;font-size:14px;color:${P.who}}.who b{color:#fff}
   .pad{padding:${RTL ? '14px' : '13px'} 42px}
