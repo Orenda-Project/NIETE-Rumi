@@ -1840,8 +1840,12 @@ function v9Gates(doc, ctx) {
  * native-speaker review is still a hard hold, because the failure mode this gate could create —
  * "the linter passed it, ship it" — is worse than the defects it catches.
  */
-/** "…الدین " immediately before a word: an Arabic-style laqab (Zahir-ud-din), never the Prophet's. */
-const UD_DIN_TITLE_RE = /[ؠ-يٮ-ۓەۺ-ۿ]+\s*الدین[\s‌]+$/;
+/** "…الدین " immediately before a word: an Arabic-style laqab (Zahir-ud-din), never the Prophet's.
+ *  Not "یوم الدین" (the Day of Judgement), which is a Quranic phrase, not a title. */
+const UD_DIN_TITLE_RE = /(?<![\u0620-\u064A\u066E-\u06D3\u06D5\u06FA-\u06FF])(?!یوم\s)[\u0620-\u064A\u066E-\u06D3\u06D5\u06FA-\u06FF]+\s*الدین[\s\u200c]+$/;
+/** What may NOT follow a cleared محمد: the ؐ mark, (ص)/(صلعم), or one of the Prophet's own epithets. */
+const LAQAB_DISQUALIFIER_RE = new RegExp(
+  `^(?:[\\u0610-\\u061A\\u064B-\\u065F]|\\s*\\(\\s*(?:ص|صلعم)\\s*\\)|\\s+(?:${PROPHET_CONTINUATIONS.join("|")})(?![\\u0620-\\u064A\\u066E-\\u06D3\\u06D5\\u06FA-\\u06FF]))`);
 
 function religiousMarks(doc, ctx) {
   const { fail, warn } = ctx;
@@ -1882,7 +1886,8 @@ function religiousMarks(doc, ctx) {
     while ((m = PROPHET_RE.exec(s))) {
       const end = m.index + m[0].length;
       if (m[0] === "محمد" && !HONORIFIC_RE.test(s.slice(end)) &&
-          (UD_DIN_TITLE_RE.test(s.slice(0, m.index)) || clearedByReview(s, m.index))) continue;
+          ((UD_DIN_TITLE_RE.test(s.slice(0, m.index)) && !LAQAB_DISQUALIFIER_RE.test(s.slice(end))) ||
+            clearedByReview(s, m.index))) continue;
       PROPHET_RE.lastIndex = 0;
       return true;
     }
