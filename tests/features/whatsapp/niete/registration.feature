@@ -327,3 +327,60 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
       | I need a lesson plan on fractions for class 4  |
       | لیسن پلان                                      |
     # @destructive: stamps users.registration_started_at (reset it to test again on one number).
+
+  # ═════════════ "IS THIS YOU?" (registration v6, behind registration_is_this_you_enabled) ═════════════
+  # A v6 form adds one screen after SCHOOL_PICK, only when the picked school has exactly ONE other live account with
+  # her name and that account is unused or silent for over 30 days. It shows only her own typed first name, the school
+  # and at most the last two digits of that account's number. The answer acts at Finish: Yes on an unused imported
+  # record (no history, a Meta-verified request) moves her number onto it and retires the empty account her phone
+  # made; any other Yes, and every "Not sure", asks a person to check; No changes nothing. Drafts until v6 is
+  # published on a tier and the fixtures exist (workbench n3-fixture.js); each needs the switch on for the tester.
+
+  @e2e @wip @draft @flow @P1 @destructive @R24
+  Scenario: A first-time registrant next to an unused account in her name is asked "Is this you?"
+    Given the NIETE bot chat is open
+    And I am a fresh test teacher with the "Is this you?" switch on for my account
+    And my school has one unused account in my name, made with a number ending in 47
+    When I open the registration Flow, type my name and pick that school
+    Then the next screen asks "Is this you?" with my first name, the school and the digits 47
+    And it shows nothing else about that account
+
+  @e2e @wip @draft @flow @P1 @destructive @R25
+  Scenario: Yes on an unused account links my number to it
+    Given I was asked "Is this you?" about an unused account at my school
+    When I answer "Yes, it's mine" and finish the Flow
+    Then registration completes on that account, which now opens with my number
+    And the welcome ends "This number is now linked to your existing account."
+    And the empty account my phone had just made is retired
+
+  @e2e @wip @draft @flow @P2 @R26
+  Scenario Outline: An answer that cannot be acted on safely asks for a check and moves nothing
+    Given I was asked "Is this you?" about <the account> at my school
+    When I answer "<answer>" and finish the Flow
+    Then registration completes on my own account and both accounts keep their numbers
+    And the welcome ends "I've asked for that account to be checked. If it's yours, it will be linked to this number."
+
+    Examples:
+      | the account                              | answer         |
+      | an unused account                        | I'm not sure   |
+      | an account that holds a training record  | Yes, it's mine |
+
+  @e2e @wip @draft @flow @P2 @R27
+  Scenario: No keeps both accounts
+    Given I was asked "Is this you?" about an unused account at my school
+    When I answer "No, it's someone else's" and finish the Flow
+    Then registration completes on my own account and the other account is unchanged
+    And the welcome is the usual one, with no line about another account
+
+  @e2e @wip @draft @flow @negative @P2 @R28
+  Scenario: An account used in the last 30 days is never offered
+    Given I am a fresh test teacher with the "Is this you?" switch on for my account
+    And my school has an account in my name that sent a message 3 days ago
+    When I open the registration Flow, type my name and pick that school
+    Then the next screen is the classes screen, with no "Is this you?" question
+
+  @e2e @wip @draft @flow @edge @P3 @R29
+  Scenario: A session opened on the previous form finishes without the question
+    Given I opened the registration Flow before v6 was published, and my school has an unused account in my name
+    When I pick that school and finish the Flow
+    Then the next screen after the school is the classes screen, and registration completes as before
