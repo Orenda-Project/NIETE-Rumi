@@ -121,6 +121,8 @@ function renderHeard(screenId, form) {
   const moment = MOMENT_OF[screenId];
   const list = momentsOf(form).filter((m) => m.moment === moment);
   const data = { [`${screenId.toLowerCase()}_intro`]: introFor(moment, form, list.length) };
+  // bd-ra8xu.43: the first screen's caption — the rubric this visit was stamped with, never the live switch.
+  if (screenId === 'HEARD_ASK') data.scored_with = require('../services/coaching/rubric-label').rubricLabelText({ form });
   for (let i = 1; i <= SLOTS; i += 1) {
     const k = `${screenId.toLowerCase()}_${i}`;
     const m = list[i - 1];
