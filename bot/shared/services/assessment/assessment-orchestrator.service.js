@@ -83,7 +83,8 @@ const FALLBACK_MESSAGE = 'Sorry — something went wrong making your paper. Plea
 
 /** Phone numbers and names never reach a stored error (see the column comment). */
 function safeDetail(err) {
-  return String(err?.message || '')
+  // bd-qyi45h.1: a failed board paper's `detail` (the hard rules that held it) rides beside the message
+  return [err?.message, err?.detail].filter(Boolean).map(String).join(' | ')
     .replace(/\b\d{9,15}\b/g, '[number]')
     .slice(0, 500);
 }
@@ -282,6 +283,7 @@ async function _buildPatternPaper({ job, user, paperId }) {
     logToFile('[assessment] pattern paper retried', {
       requestId, paperId, pattern, code: err.code,
       ...(Array.isArray(err.shortfall) ? { shortfall: err.shortfall } : {}),
+      ...(err.detail ? { detail: String(err.detail) } : {}),
     });
     generated = await generate();
   }
@@ -719,6 +721,7 @@ async function buildPaper(job, user = {}) {
     logToFile('[assessment] build failed', {
       userId, requestId, paperId, code, error: err.message,
       ...(Array.isArray(err.shortfall) ? { shortfall: err.shortfall } : {}),
+      ...(err.detail ? { detail: String(err.detail) } : {}),
     });
 
     // A board-pattern failure carries the paper as the model wrote it and the model's name, so the

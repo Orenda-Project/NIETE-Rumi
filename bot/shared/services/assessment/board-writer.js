@@ -24,6 +24,7 @@ const { owed } = require('./board-6-12/slot-quota');
 const MR = require('./board-6-12/mcq-review');
 const GF = require('./board-6-12/group-faults');
 const SN = require('./board-6-12/ship-notes');
+const LL = require('./board-6-12/level-log');
 
 const EXTRA = 1.25; // design_pending: the top-up asks for the shortfall plus about a quarter (round 4)
 const SHORT_MESSAGE = 'A section is still short of questions after one more try.';
@@ -40,7 +41,6 @@ async function writeBoardPaper(args, d) {
   const row = d.resolveSubject(grade, subject);
   const V = args.variant || d.variantFor(P, { grade });
   if (!V) throw d.fail('PATTERN_NO_VARIANT', 'No variant of this board pattern applies.', { pattern, grade, subject });
-
   const loaded = await d.loadPatternContent({ grade, subject, P, scope, pageRanges, chapterNumber });
   if (typeof d.ensureCurrent === 'function') await d.ensureCurrent();
   const { model, job } = d.patternModel(d.family);
@@ -48,7 +48,7 @@ async function writeBoardPaper(args, d) {
   const allSlots = V.sections.flatMap((s) => s.slots);
   const sloList = typeof d.sloList === 'function' ? d.sloList(grade, subject, chapterNumber) : undefined; // item 4: the chapter's matrix codes follow
   const usages = [];
-
+  const logSplit = LL.splitLogger(d, V, { requestId, pattern, grade, subject }); // bd-qyi45h.1: one line per check run, no person ids
   // A6b (round 9): a top-up or rewrite slot carries the levels it still owes against its full quota
   const split = SP.levelPart(V, row);
   const quotaed = (s, tree, n) => { const one = sized(s, n); const quota = split ? owed(s, tree, split.levels, one.generate) : null; return quota ? { ...one, quota } : one; };
@@ -63,7 +63,7 @@ async function writeBoardPaper(args, d) {
     // The reply is keyed by slot id (eg.format.secondary); code places it in the tree and stamps each node's slot.
     return { tree: T.fromReply(got.tree, unit.slots), usages: got.usages, elapsedMs: Date.now() - began };
   };
-  const shortError = (shortfall, examJson) => d.fail('PATTERN_SHORT_SLOT', SHORT_MESSAGE, { shortfall, examJson, model });
+  const shortError = (shortfall, examJson, detail) => d.fail('PATTERN_SHORT_SLOT', SHORT_MESSAGE, { shortfall, examJson, model, ...(detail ? { detail } : {}) });
   const mergedOf = (trees) => {
     const ex = d.mergeSections(trees);
     d.stripImageKeys(ex);
@@ -159,6 +159,7 @@ async function writeBoardPaper(args, d) {
     settleKeys(ex); // D13 key letters and numeric order are settled by code, not left to the model
     const checks = d.checks.run(ex, { P, variant: V, mode: 'board', subjectConfig: row, fresh });
     ex._layout.checks = checks.record;
+    logSplit(ex);
     return checks;
   };
   // Round 9: one review call per section, MCQs only (d.reviewMcqs); a yes on any of its five questions makes the
@@ -272,7 +273,7 @@ async function writeBoardPaper(args, d) {
       tries.push({ name: 'originals', ex: orig, checks: SN.finalSoften(MR.applyFlags(finish(orig), flags, orig), GF.memberIds(orig)) });
       const best = tries.reduce((a, b) => (b.checks.record.hard < a.checks.record.hard ? b : a));
       outcome(tries, best);
-      throw shortError(best.checks.shortfall.length ? best.checks.shortfall : T.shortfallOf(best.ex, allSlots), best.ex);
+      throw shortError(best.checks.shortfall.length ? best.checks.shortfall : T.shortfallOf(best.ex, allSlots), best.ex, LL.hardDetail(best.checks.record));
     }
     outcome(tries, tries[0]);
   }
@@ -286,8 +287,7 @@ async function writeBoardPaper(args, d) {
   };
   const questionCount = d.countQuestions(ex);
   return {
-    examJson: ex,
-    questionCount,
+    examJson: ex, questionCount,
     tokenData: { inputTokens: total.prompt_tokens, outputTokens: total.completion_tokens, totalTokens: total.total_tokens, cost: total.cost, model },
     pageReference: loaded.pageReference,
     chapterTitle: null,
