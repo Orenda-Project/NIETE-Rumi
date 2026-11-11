@@ -1098,3 +1098,12 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Given VIDEO_RECO_ENABLED is not set
     When my coaching report arrives
     Then no "watch this" message, no clip on the image, and no clip card on my report page
+
+  @e2e @draft @P2
+  Scenario: The chapter's close-out lessons are named for what they are in the lesson list
+    Given I am choosing which lesson my recording was for
+    When the list shows a chapter's two close-out lessons
+    Then the lesson ending in segment 995 reads "Ch<n> Assessment"
+    And the lesson ending in segment 990 reads "Ch<n> Revision"
+    # bd-nfjhgl: the two labels were swapped (curriculum convention: 995 = assessment, 990 = revision).
+    # lp-coaching/lp-selection-format.js. Unit: bot/tests/unit/lp-selection-format-segment-label.test.js.
