@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **FICO17 v6** observation rubric beside FICO V3, behind switches that are off by default (`fico_coach_rubric`,
+  `fico_dc_rubric`, `OBSERVE_FICO17_V6_READY`). Coach visits reach v6 for grades 1-5 only. See `docs/fico17-v6.md`.
+- The six combined indicators (C3 C5 C7 D2 D3 D4) are coach-set and never carry a Digital Coach level. The DC reports
+  evidence for them only, and the coach's level is stored beside that evidence as calibration data.
+
 ## [1.1.0] - 2026-04-03
 
 **BREAKING (vs v1.0.0):** The three-tier feature system (Minimal / Recommended /

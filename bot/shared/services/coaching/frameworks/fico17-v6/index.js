@@ -14,6 +14,16 @@
  *   DC_CODES (11)        the Digital Coach sets the level from the transcript; a coach may change it with a reason.
  *   COMBINED_CODES (6)   the coach sets the level from the room, with a written reason of at least
  *                        JUSTIFICATION_MIN characters; the DC gives evidence only (D2: turn counts only).
+ *
+ * DESIGN RULE — the six combined indicators (C3 C5 C7 D2 D3 D4) never carry a Digital Coach level, on any surface
+ * (reports, debriefs, portal, Flows, PDFs, averages), for every grade. Their levels depend on what can be seen in the
+ * room, and transcript-only scoring of them is not yet reliable enough to show. The DC therefore reports evidence
+ * for them (quotes and timestamps; student turns for D2), and the coach's level, with its written reason, is stored
+ * beside that evidence for the same visit. Those pairs are the calibration data: a DC level for these combined indicators may be
+ * introduced only after it has been checked against the coaches' levels. Enforced, not displayed-away: the prompt
+ * asks no level for them, the validator refuses a reply that gives one, the scorer drops any that arrives, and
+ * tests/coaching/fico17-v6-six-never-dc-graded.test.js fails if any DC path emits or renders one.
+ * Where the pairs live and how to query them: docs/fico17-v6.md.
  */
 
 const crypto = require('crypto');
