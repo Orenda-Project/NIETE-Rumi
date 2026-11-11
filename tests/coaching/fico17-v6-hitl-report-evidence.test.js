@@ -215,7 +215,8 @@ describe('/observe2 v6: the report rows carry what the coach confirmed or added'
   });
   test('the PDF prints the coach\'s evidence and labels the framework and version only', () => {
     const rd = transformFICOToReportData({ created_at: '2026-11-11T05:00:00Z' }, 'T', a);
-    const crit = rd.goals.flatMap((g) => g.criteria).find((c) => c.name === row('C1').name);
+    // By its name, with or without the code in front (a branch without the spec §9.3 report still prefixes it).
+    const crit = rd.goals.flatMap((g) => g.criteria).find((c) => c.name === row('C1').name || c.name === `C1 ${row('C1').name}`);
     expect(crit.evidence.startsWith(COACH_C1)).toBe(true);
     expect(rd.frameworkDisplayName).toBe('FICO17 v6');
   });
