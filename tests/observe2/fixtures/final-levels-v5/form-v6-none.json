@@ -1,0 +1,203 @@
+{
+  "name": "form-v6-none",
+  "note": "FORM_VERSION 6: no group seating, no material fits, nobody got stuck; one of each single-instance hole",
+  "captured_at": "afeab2a69b",
+  "input": {
+    "form": {
+      "fv": "6",
+      "present": "25",
+      "p1_spoke": "2",
+      "p1_picked": "hands",
+      "p1_groups": "cannot",
+      "p1_materials": "nofit",
+      "p1_change": "no",
+      "p2_spoke": "3",
+      "p2_new": "1",
+      "p2_task": "none",
+      "p2_think": [
+        "recall"
+      ],
+      "p2_change": "no",
+      "incident": "none",
+      "priority": "D2",
+      "seal_ok": true
+    },
+    "confirmed": [
+      {
+        "id": "m1",
+        "type": "open_q_one",
+        "minute": "05:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m2",
+        "type": "praise_effort",
+        "minute": "07:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m3",
+        "type": "reasoning",
+        "minute": "09:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m4",
+        "type": "hedged",
+        "minute": "11:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m5",
+        "type": "content_q",
+        "minute": "13:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m6",
+        "type": "content_q",
+        "minute": "14:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m7",
+        "type": "beyond_q",
+        "minute": "14:30",
+        "quote": "synthetic"
+      }
+    ],
+    "heardCounts": {}
+  },
+  "output": {
+    "C1": {
+      "level": 2,
+      "hole": true,
+      "because": "one open question answered by one child: the rubric gives this no level, so 2 for now",
+      "source": "heard"
+    },
+    "C2": {
+      "level": null,
+      "because": "no wrong answers confirmed: pick N/A if none happened",
+      "source": "heard"
+    },
+    "C4": {
+      "level": null,
+      "because": "no real choice confirmed: pick 1 or 2",
+      "source": "heard"
+    },
+    "C6": {
+      "level": 2,
+      "hole": true,
+      "because": "one piece of praise for effort: the rubric gives this no level, so 2 for now",
+      "source": "heard"
+    },
+    "D1": {
+      "level": 2,
+      "hole": true,
+      "because": "one child explained why: the rubric gives this no level, so 2 for now; you saw in Part 2, children repeated or copied it",
+      "source": "heard"
+    },
+    "D4": {
+      "level": 2,
+      "hole": true,
+      "because": "one unsure attempt: the rubric gives this no level, so 2 for now; you saw no work on their own in Part 2",
+      "source": "heard"
+    },
+    "D5": {
+      "level": 4,
+      "because": "a child asked a question about the content, and two questions, one going beyond the lesson",
+      "source": "heard"
+    },
+    "F1": {
+      "level": null,
+      "because": "no counting rule yet: pick from the recording's moments",
+      "source": "pick"
+    },
+    "F2": {
+      "level": null,
+      "because": "no counting rule yet: pick from the recording's moments",
+      "source": "pick"
+    },
+    "F3": {
+      "level": null,
+      "because": "no counting rule yet: pick from the recording's moments; you saw in Part 2, children repeated or copied it",
+      "source": "pick"
+    },
+    "F4": {
+      "level": null,
+      "because": "no counting rule yet: pick from the recording's moments",
+      "source": "pick"
+    },
+    "D2": {
+      "level": 2,
+      "because": "3 different children spoke (2 in Part 1, 1 more in Part 2)",
+      "source": "seen"
+    },
+    "C3": {
+      "level": 1,
+      "because": "you saw: only raised hands answered",
+      "source": "seen"
+    },
+    "C5": {
+      "level": "NA",
+      "because": "the class did not switch activity",
+      "source": "seen"
+    },
+    "C7": {
+      "level": "NA",
+      "because": "the room can't seat groups",
+      "source": "seen"
+    },
+    "C8": {
+      "level": "NA",
+      "because": "no material suits this topic",
+      "source": "seen"
+    },
+    "D3": {
+      "level": null,
+      "because": "no group work to listen to: judge from what the recording caught near the recorder",
+      "source": "heard"
+    }
+  },
+  "heard": {
+    "C1": {
+      "level": 2,
+      "hole": true,
+      "because": "one open question answered by one child: the rubric gives this no level, so 2 for now",
+      "source": "heard"
+    },
+    "C2": {
+      "level": null,
+      "because": "no wrong answers confirmed: pick N/A if none happened",
+      "source": "heard"
+    },
+    "C4": {
+      "level": null,
+      "because": "no real choice confirmed: pick 1 or 2",
+      "source": "heard"
+    },
+    "C6": {
+      "level": 2,
+      "hole": true,
+      "because": "one piece of praise for effort: the rubric gives this no level, so 2 for now",
+      "source": "heard"
+    },
+    "D1": {
+      "level": 2,
+      "hole": true,
+      "because": "one child explained why: the rubric gives this no level, so 2 for now",
+      "source": "heard"
+    },
+    "D4": {
+      "level": 2,
+      "hole": true,
+      "because": "one unsure attempt: the rubric gives this no level, so 2 for now",
+      "source": "heard"
+    },
+    "D5": {
+      "level": 4,
+      "because": "a child asked a question about the content, and two questions, one going beyond the lesson",
+      "source": "heard"
+    }
+  }
+}

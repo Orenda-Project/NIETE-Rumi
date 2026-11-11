@@ -26,6 +26,14 @@
  *
  * A result is { level, because, source, hole?, check? } where level is 1-4, 'NA', 'IE', or null
  * (null = the coach picks at the check).
+ *
+ * FICO17 v6 (spec §8.3-8.6), only when the caller passes `rubric: 'fico17_v6'` (observe2/rubric.js stamps the
+ * visit; nothing here reads the switch). The moments set ten rows (C1 C2 C4 C6 C8 D1 D5 F2 F3 F4) and F1; the
+ * coach sets the six combined rows (C3 C5 C7 D2 D3 D4) in the room, so the rules give them `level: null` and
+ * a hidden `dc_result`, what the transcript alone supports. The form's C3/C5/C7/C8/D2/D3 answers are room
+ * notes there, never a level; the think ticks still count. The N/A links (C1 = 1 → C3, D4) are applied once
+ * at Submit (applyNaLinks). Without the v6 rubric every function here returns what it always has
+ * (tests/observe2/v5-regression.test.js).
  */
 
 const { CODES, PLAIN, FOCUS, ALSO_NONE } = require('./fico17');
@@ -264,10 +272,10 @@ const ADDS = {
 };
 const LEVEL4 = { probe: 'C1', strategy: 'C2', disagree: 'C6', beyond: 'D1', beyond_q: 'D5' };
 
-function tally(confirmed, heardCounts, think = []) {
+function tally(confirmed, heardCounts, think = [], adds = ADDS) {
   const c = {}, l4 = {};
   for (const it of confirmed || []) {
-    for (const k of ADDS[it.type] || []) c[k] = (c[k] || 0) + 1;
+    for (const k of adds[it.type] || []) c[k] = (c[k] || 0) + 1;
     if (LEVEL4[it.type]) l4[LEVEL4[it.type]] = true;
   }
   // What the coach saw of the children's thinking in Part 2 (R16), counted the same way.
@@ -330,7 +338,8 @@ const HEARD_RULES = {
   },
 };
 
-function heardLevels(confirmed, heardCounts, think = []) {
+function heardLevels(confirmed, heardCounts, think = [], { rubric } = {}) {
+  if (isV6(rubric)) return heardLevelsV6(confirmed, heardCounts, think);
   const t = tally(confirmed, heardCounts, think);
   const out = {};
   for (const code of HEARD_CODES) out[code] = { ...HEARD_RULES[code](t), source: 'heard' };
@@ -339,7 +348,8 @@ function heardLevels(confirmed, heardCounts, think = []) {
 
 // ---------------------------------------------------------------- all 17
 
-function addUp({ form, confirmed, heardCounts } = {}) {
+function addUp({ form, confirmed, heardCounts, rubric, transcriptQuality = null } = {}) {
+  if (isV6(rubric)) return addUpV6({ form, confirmed, heardCounts, transcriptQuality });
   const a = form || {};
   const out = {};
   const recordingFailed = a.incident === 'tech';
@@ -363,6 +373,146 @@ function addUp({ form, confirmed, heardCounts } = {}) {
   if (a.incident === 'ridicule') out.C6 = { level: 1, because: 'you reported ridicule or humiliation, which forces 1', source: 'seen' };
   if (a.incident === 'error') out.F1 = { level: 1, because: 'you reported a wrong fact left standing, which forces 1', source: 'seen' };
   for (const code of CODES) if (!out[code]) out[code] = { level: null, because: 'not answered', source: 'pick' };
+  return out;
+}
+
+// ---------------------------------------------------------------- FICO17 v6 (spec §8.3-8.6)
+
+const V6_RUBRIC = 'fico17_v6';
+const isV6 = (rubric) => rubric === V6_RUBRIC;
+
+const HEARD_CODES_V6 = ['C1', 'C2', 'C4', 'C6', 'C8', 'D1', 'D5', 'F2', 'F3', 'F4']; // F1 in addUp
+const COMBINED_CODES_V6 = ['C3', 'C5', 'C7', 'D2', 'D3', 'D4']; // final level from the coach
+const PICK_CODES_V6 = [];
+// The form's C3/C5/C7/C8/D2/D3 answers are room notes on v6, never a level.
+const SEEN_CODES_V6 = [];
+
+// v5's counts, plus the explaining types v6 counts (spec §8.2; Appendix B's F2 and F4 rows).
+const ADDS_V6 = {
+  ...ADDS,
+  content_error: ['content_error'],
+  resource_shown: ['resource_shown'], resource_used: ['resource_used'], resource_explained: ['resource_explained'],
+  term_defined: ['term_defined'], term_not_explained: ['term_not_explained'], child_used_term: ['child_used_term'],
+  why_explained: ['why_explained'], why_handed: ['why_handed'],
+  life_link: ['life_link'], link_mentioned: ['link_mentioned'], child_builds_link: ['child_builds_link'],
+};
+
+// C1 C2 C4 C6 D1 D5 as v5 (C1 and D1 change through the v3 moment definitions, not here); D4 as v5, for its
+// dc_result only. C8 moves from the form to the moments, and the board counts as a resource (reverses D-4).
+const HEARD_RULES_V6 = {
+  C1: HEARD_RULES.C1, C2: HEARD_RULES.C2, C4: HEARD_RULES.C4, C6: HEARD_RULES.C6,
+  D1: HEARD_RULES.D1, D4: HEARD_RULES.D4, D5: HEARD_RULES.D5,
+  C8: ({ c }) => {
+    if (count(c.resource_used) >= 1) {
+      return up(count(c.resource_explained) > 0,
+        'children used a resource and it was linked to the idea',
+        'a child explained with it and the teacher built on it');
+    }
+    if (count(c.resource_shown) >= 1) return { level: 2, because: 'resources were only shown by the teacher' };
+    return { level: 1, because: 'no book, board, chart or object was mentioned' };
+  },
+  F2: ({ c }) => {
+    const w = count(c.term_defined);
+    if (w >= 2) return up(count(c.child_used_term) > 0, 'two or more subject words explained', 'a child used the term');
+    if (w === 1) return { level: 2, because: 'one subject word explained' };
+    if (count(c.term_not_explained) >= 1) return { level: 2, because: 'subject words used, not explained' };
+    return { level: 1, because: 'no subject word confirmed' };
+  },
+  F3: ({ c }) => {
+    const w = count(c.why_explained);
+    if (w >= 2) {
+      return up(count(c.why_handed) > 0,
+        'the teacher explained why it works, twice or more',
+        'the teacher handed the why to the children');
+    }
+    if (w === 1) return { level: 2, because: 'one explanation of why' };
+    return { level: 1, because: 'no explanation of why confirmed' };
+  },
+  F4: ({ c }) => {
+    if (count(c.life_link) >= 1) return up(count(c.child_builds_link) > 0, 'a link was explained', "a child built on the teacher's link");
+    if (count(c.link_mentioned) >= 1) return { level: 2, because: 'a link was mentioned, not explained' };
+    return { level: 1, because: 'no link confirmed' };
+  },
+};
+
+// F1 from the moments (Appendix B: wrong content taught → 1; neither → 3). There is no moment for a tackled
+// misconception (level 4) or the §8.4 `term_uncertain` flag (RULINGS R11); the coach's `incident = 'error'`
+// still forces 1 in addUp.
+const F1_V6 = ({ c }) => (count(c.content_error) >= 1
+  ? { level: 1, because: 'a wrong fact was confirmed and left uncorrected' }
+  : { level: 3, because: 'nothing wrong was confirmed' });
+
+const COACH_SETS = 'the coach sets this level from the room';
+
+// A combined row: never a level from the rules; `dc_result` is what the transcript alone supports, kept and
+// never shown. D4 counts hedged / unprompted as v5 does; C3 C5 C7 D3 have no counting rule on the transcript;
+// D2 counts different children, which only the coach can, so it has no dc_result.
+function combinedRow(code, t, failed) {
+  if (code === 'D2') return { level: null, because: 'the coach sets this level from the counts', source: 'coach' };
+  if (failed) return { level: null, because: `${COACH_SETS}; the recording could not show it`, source: 'coach', dc_result: 'IE' };
+  if (code === 'D4') {
+    const r = HEARD_RULES.D4(t);
+    return { level: null, because: `${COACH_SETS}; the recording: ${r.because}`, source: 'coach', dc_result: r.level == null ? null : r.level };
+  }
+  return { level: null, because: COACH_SETS, source: 'coach', dc_result: null };
+}
+
+const inOrder = (out) => Object.fromEntries(CODES.filter((code) => out[code]).map((code) => [code, out[code]]));
+
+// Rumi's levels from the moments alone (rumi_levels, spec §8.5): the ten heard rows, F1, and dc_result for
+// the combined rows. `failed`: the recording can't be used, so the combined rows' dc_result is IE.
+function heardLevelsV6(confirmed, heardCounts, think = [], failed = false) {
+  const t = tally(confirmed, heardCounts, think, ADDS_V6);
+  const out = {};
+  for (const code of HEARD_CODES_V6) out[code] = { ...HEARD_RULES_V6[code](t), source: 'heard' };
+  out.F1 = { ...F1_V6(t), source: 'heard' };
+  for (const code of COMBINED_CODES_V6) out[code] = combinedRow(code, t, failed);
+  return inOrder(out);
+}
+
+function addUpV6({ form, confirmed, heardCounts, transcriptQuality }) {
+  const a = form || {};
+  const out = {};
+  // The coach said the recording failed, or the transcript gate found it broken (spec §6.3).
+  const failed = a.incident === 'tech' || Boolean(transcriptQuality && transcriptQuality.status === 'broken');
+  const think = thinkTicks(a);
+  // As on v5, a failed recording leaves only what the coach saw: their thinking ticks still count where they can.
+  const heard = failed ? heardLevelsV6([], {}, think, true) : heardLevelsV6(confirmed, heardCounts, think);
+  const failedBecause = a.incident === 'tech' ? 'the recording failed, so nothing could be heard' : 'the recording could not be used, so nothing could be heard';
+  for (const code of [...HEARD_CODES_V6, 'F1']) {
+    const seenCounts = (THINK_COUNTS[code] || []).some((k) => think.includes(k));
+    out[code] = failed && !seenCounts ? { level: 'IE', because: failedBecause, source: 'heard' } : heard[code];
+  }
+  // What was seen at the desks speaks to C2 here; its C3 and D4 notes are the coach's own, on the room screens.
+  for (const [code, s] of Object.entries(desk(a))) if (HEARD_CODES_V6.includes(code)) out[code] = withSeen(out[code], s);
+  for (const [code, note] of Object.entries(thinking(a))) out[code] = { ...out[code], because: `${out[code].because}; you saw ${note}` };
+  for (const code of COMBINED_CODES_V6) out[code] = heard[code];
+  if (a.incident === 'ridicule') out.C6 = { level: 1, because: 'you reported ridicule or humiliation, which forces 1', source: 'seen' };
+  if (a.incident === 'error') out.F1 = { level: 1, because: 'you reported a wrong fact left standing, which forces 1', source: 'seen' };
+  return inOrder(out);
+}
+
+// The N/A links (spec §8.4, Q7), applied once, after every level is final: C1 = 1 means no questions, so C3 and
+// D4 are N/A, unless the coach set them, in which case the coach's level stands and the conflict is flagged.
+const NA_LINKED = ['C3', 'D4'];
+const NA_LINK_BECAUSE = 'no questions, so nobody could be chosen or try';
+
+/**
+ * @param {Object<string, {level: *}>} levels  { code: row }, as addUp gives or the check stores
+ * @param {Set<string>|string[]} [coachSet]    the codes the coach set
+ * @returns a new map; rows it does not change are the same objects
+ */
+function applyNaLinks(levels, coachSet = new Set()) {
+  const out = { ...(levels || {}) };
+  const c1 = out.C1 ? out.C1.level : null;
+  if (c1 !== 1 && c1 !== '1') return out;
+  const set = coachSet instanceof Set ? coachSet : new Set(coachSet || []);
+  for (const code of NA_LINKED) {
+    const row = out[code] || {};
+    out[code] = set.has(code)
+      ? { ...row, na_link_conflict: true }
+      : { ...row, level: 'NA', because: NA_LINK_BECAUSE, source: 'pipeline' };
+  }
   return out;
 }
 
@@ -471,6 +621,8 @@ function validate(screen, answers, { version } = {}) {
 
 module.exports = {
   SEEN_CODES, HEARD_CODES, PICK_CODES,
-  PICKED, GROUPS, LISTEN, MATERIALS, USED_SAID, SWITCH, TASK, TEACHER_SAID, STUCK, THINK_SAID, ADDS, LEVEL4, usedPhrase,
+  PICKED, GROUPS, LISTEN, MATERIALS, USED_SAID, SWITCH, TASK, TEACHER_SAID, STUCK, THINK_SAID, ADDS, LEVEL4, HEARD_RULES, usedPhrase,
   seenLevels, heardLevels, addUp, validate, seenNotes,
+  // FICO17 v6
+  HEARD_CODES_V6, COMBINED_CODES_V6, PICK_CODES_V6, SEEN_CODES_V6, ADDS_V6, HEARD_RULES_V6, applyNaLinks,
 };
