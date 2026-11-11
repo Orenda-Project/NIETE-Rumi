@@ -26,16 +26,20 @@ const { logToFile } = require('../utils/logger');
 const { getObservePack } = require('../services/observe/observe-framework');
 const EDITS_TTL = 7200;
 const editsKey = (sessionId) => `observe:edits:${sessionId}`;
-const packScreens = () => {
-  const pack = getObservePack();
+// bd-ra8xu.38: a visit stamped FICO17 v6 at creation (observe-fico17-v6.js) gets the v6 pack; every other
+// visit — and every call with no visit — gets the pack exactly as before.
+const ObserveV6 = require('../services/observe/observe-fico17-v6');
+const packFor = (session) => getObservePack(ObserveV6.visitFramework(session) ? { framework: ObserveV6.V6 } : undefined);
+const packScreens = (session) => {
+  const pack = packFor(session);
   return { order: pack.domainOrder, screens: pack.screenIds, last: pack.screenIds[pack.screenIds.length - 1] };
 };
-const domainKeyForScreen = (screenId) => {
-  const { order, screens } = packScreens();
+const domainKeyForScreen = (screenId, session) => {
+  const { order, screens } = packScreens(session);
   return order[screens.indexOf(screenId)];
 };
-const nextScreen = (screenId) => {
-  const { screens } = packScreens();
+const nextScreen = (screenId, session) => {
+  const { screens } = packScreens(session);
   const i = screens.indexOf(screenId);
   return i >= 0 && i < screens.length - 1 ? screens[i + 1] : 'SUCCESS';
 };
@@ -197,7 +201,8 @@ async function bufferEdits(sessionId, screenData) {
   Object.entries(screenData || {}).forEach(([k, v]) => {
     // fid_ = the v4 per-move fidelity fields (bd-c5zs1): fid_r_k verdict radios
     // and fid_e_k evidence boxes, applied by rescoreFidelityFromEdits on submit.
-    if (/^(r|ev|imp|fid)_/.test(k)) edits[k] = v;
+    // why_ / chg_ / d2_ are FICO17 v6 only (bd-ra8xu.38): a V3 form never sends them.
+    if (/^(r|ev|imp|fid|why|chg|d2)_/.test(k)) edits[k] = v;
   });
   let existing = {};
   try {
@@ -229,29 +234,52 @@ async function handleObserveMewakaRequest(decrypted) {
       // bd-59: the first domain comes from the PACK — 'introduction' is a
       // mewaka key and crashed every HOTS open (the bd-52 refactor converted
       // BACK/data_exchange to domainKeyForScreen but missed this branch).
-      const first = packScreens().screens[0];
+      const first = packScreens(session).screens[0];
       return {
         screen: first,
-        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(first), await coachLanguageIfNeeded(session)),
+        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(first, session), await coachLanguageIfNeeded(session)),
       };
     }
 
     if (action === 'BACK') {
       // FEAT-102: fall back to the pack's FIRST screen, not the mewaka 'DOMAIN_A'
       // hardcode (FICO starts at DOMAIN_B).
-      const target = packScreens().screens.includes(screen) ? screen : packScreens().screens[0];
+      const target = packScreens(session).screens.includes(screen) ? screen : packScreens(session).screens[0];
       return {
         screen: target,
-        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(target), await coachLanguageIfNeeded(session)),
+        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(target, session), await coachLanguageIfNeeded(session)),
       };
     }
 
     if (action === 'data_exchange') {
       const currentScreen = data._screen;
-      if (!packScreens().screens.includes(currentScreen)) return errorResponse('Unknown screen');
+      if (!packScreens(session).screens.includes(currentScreen)) return errorResponse('Unknown screen');
       const merged = await bufferEdits(sessionId, data);
 
-      if (currentScreen === packScreens().last) {
+      // bd-ra8xu.38 — a v6 C/D/F screen is refused until every room level has a level and a reason (≥ 20
+      // characters), D2's counts add up, and any change to a level Rumi set says why. The same screen comes
+      // back with the reasons listed at the top and the coach's own answers kept.
+      if (ObserveV6.visitFramework(session) && currentScreen !== 'DOMAIN_B') {
+        const errors = ObserveV6.validateScreen(currentScreen, data, session.analysis_data);
+        if (Object.keys(errors).length) {
+          let lang = 'en';
+          try {
+            const { languageFor } = require('../services/observe/observe-language');
+            lang = await languageFor('coach', session);
+          } catch (_) { /* English if the language cannot be read */ }
+          const S = ObserveV6.messages(lang);
+          const shown = ObserveV6.validateScreen(currentScreen, data, session.analysis_data, S);
+          logToFile('observe-form: v6 screen refused — reason or level missing', {
+            sessionId, screen: currentScreen, fields: Object.keys(shown),
+          });
+          return {
+            screen: currentScreen,
+            data: ObserveV6.buildScreenPrefill(session.analysis_data, currentScreen.slice(-1), { edits: merged, errors: shown, S }),
+          };
+        }
+      }
+
+      if (currentScreen === packScreens(session).last) {
         const applied = await ObserveDraft.applyObserverEdits(sessionId, merged);
         if (applied && applied.refused) {
           // Went terminal between the load above and the write. Do not reach
@@ -276,10 +304,10 @@ async function handleObserveMewakaRequest(decrypted) {
         };
       }
 
-      const next = nextScreen(currentScreen);
+      const next = nextScreen(currentScreen, session);
       return {
         screen: next,
-        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(next), await coachLanguageIfNeeded(session)),
+        data: ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(next, session), await coachLanguageIfNeeded(session)),
       };
     }
 

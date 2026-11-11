@@ -63,6 +63,15 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
     }
   } catch (_) { /* unbound capture — today's behavior */ }
 
+  // bd-ra8xu.38: the visit's rubric is decided ONCE, here, from the coach switch (fico_coach_rubric). Only a
+  // 'v6' answer stamps the row (below, once we know the recording is not an /observe2 visit — /observe2 keeps
+  // its own stamp on its field form); off (the default), a non-FICO deployment or any failure writes nothing.
+  // Everything later reads this stamp, never the live switch.
+  let v6Stamp = null;
+  try {
+    v6Stamp = await require('./observe-fico17-v6').decideVisitFramework({ userId: user.id, region: user.region });
+  } catch (_) { v6Stamp = null; }
+
   const { data: session, error } = await supabase
     .from('coaching_sessions')
     .insert({
@@ -105,6 +114,21 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
     logToFile('❌ observe2: linking the recording failed (capture goes on as /observe)', {
       userId: user.id, sessionId: session.id, error: err.message,
     }, 'error');
+  }
+
+  if (v6Stamp && !observe2) {
+    // Before transcription is queued, so the analysis step finds the stamp.
+    const { error: stampErr } = await supabase.from('coaching_sessions')
+      .update({ framework: v6Stamp, framework_selection_reason: 'coach_rubric_switch' })
+      .eq('id', session.id);
+    if (stampErr) {
+      logToFile('❌ observe: FICO17 v6 stamp not written — this visit stays V3', {
+        sessionId: session.id, error: stampErr.message,
+      }, 'error');
+    } else {
+      session.framework = v6Stamp;
+      logToFile('🔭 observe: visit stamped FICO17 v6 (coach switch)', { sessionId: session.id, observerId: user.id });
+    }
   }
 
   const CoachingJobQueueService = require('../coaching/coaching-job-queue.service');

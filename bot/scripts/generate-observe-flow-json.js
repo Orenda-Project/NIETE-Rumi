@@ -23,7 +23,11 @@ const path = require('path');
 // labels — a published Flow is one document, so static labels are bilingual
 // while all dynamic prefill content follows the officer's locked language).
 const { getObservePack } = require('../shared/services/observe/observe-framework.js');
-const PACK = getObservePack();
+// bd-ra8xu.38: OBSERVE_RUBRIC=fico17_v6 OBSERVE_FRAMEWORK=fico writes docs/flows/observe-fico17_v6-flow.json,
+// the review Flow for /observe visits stamped v6. Without it the output is exactly what it was.
+const PACK = getObservePack(process.env.OBSERVE_RUBRIC === 'fico17_v6' ? { framework: 'fico17_v6' } : undefined);
+const IS_V6 = PACK.key === 'fico17_v6';
+const FICO_FAMILY = PACK.key === 'fico' || IS_V6;
 const mewaka = require('../shared/services/coaching/frameworks/mewaka-framework.js');
 
 const domains = PACK.domains;
@@ -53,6 +57,23 @@ const L = PACK.key === 'hots' ? {
     heading: 'شکریہ! ✅',
     body: 'آپ کا HOTS جائزہ محفوظ ہو گیا ہے۔ اگلا قدم میں آپ کو نیچے بھیجوں گی۔',
     done: 'مکمل · Done',
+  },
+} : IS_V6 ? {
+  // bd-ra8xu.38 — FICO17 v6. Section B keeps V3's labels; C/D/F are built by v6DomainScreen below.
+  scale: PACK.scaleOptions,
+  evidence: 'Evidence',
+  evidenceHelp: (id) => `${id} — what was seen`,
+  improve: 'To improve',
+  improveHelp: (id) => `${id} — to improve`,
+  body: (i, n) => `Part ${i}/${n} — review the score & note, edit as you see fit`,
+  screenTitle: (d, i, n) => `FICO17 Review ${i}/${n}`,
+  next: 'Next',
+  submit: 'Submit observation',
+  success: {
+    title: 'Thank you',
+    heading: 'Thank you! ✅',
+    body: 'Your FICO17 observation has been saved. I will send you the next step below.',
+    done: 'Done',
   },
 } : PACK.key === 'fico' ? {
   // FEAT-102 — ICT/NIETE FICO, English officer-facing, 1-4 scale (from the pack).
@@ -141,7 +162,7 @@ function domainScreen(key, idx) {
   // the endpoint re-runs the fidelity scorer on the corrected verdicts, so
   // Section B is the coach-corrected measurement. Prefill is env-gated on
   // OBSERVE_FICO_FLOW_HAS_FIDELITY='editable', flipped with the republish.
-  if (key === 'lesson_plan_fidelity' && PACK.key === 'fico') {
+  if (key === 'lesson_plan_fidelity' && FICO_FAMILY) {
     const fidelityChildren = [
       { type: 'TextSubheading', text: 'Measured lesson-plan fidelity', visible: '${data.has_fidelity}' },
       { type: 'TextBody', text: '${data.fid_header}', visible: '${data.has_fidelity}' },
@@ -194,7 +215,7 @@ function domainScreen(key, idx) {
   // bd-c5zs1: on the fico fidelity screen the legacy B1-B10 indicator groups
   // are RETIRED — the per-move editable measurement above replaces them, same
   // as the teacher flow (D27). Every other screen keeps its indicators.
-  const retiredIndicators = key === 'lesson_plan_fidelity' && PACK.key === 'fico';
+  const retiredIndicators = key === 'lesson_plan_fidelity' && FICO_FAMILY;
   for (const ind of retiredIndicators ? [] : d.indicators) {
     const f = fid(ind.id);
     children.push({
@@ -251,7 +272,97 @@ function domainScreen(key, idx) {
   };
 }
 
-const screens = DOMAIN_ORDER.map((k, i) => domainScreen(k, i));
+// bd-ra8xu.38 — a v6 C/D/F screen. Combined indicators (C3 C5 C7 D2 D3 D4): the DC's evidence, a level the
+// coach sets (required, NEVER pre-selected) and a required reason (≥ 20 characters, checked by the endpoint);
+// D2 adds two counts. DC indicators: Rumi's level pre-filled, evidence and to-improve as V3; one "Why you
+// changed" box per screen, required by the endpoint when a pre-filled level was changed.
+function v6DomainScreen(key, idx) {
+  const v6 = require('../shared/services/coaching/frameworks/fico17-v6');
+  const O6 = require('../shared/services/observe/observe-fico17-v6');
+  const d = domains[key];
+  const letter = d.key;
+  const isLast = idx === DOMAIN_ORDER.length - 1;
+  const initValues = {};
+  const payload = { _screen: screenId(key) };
+  const data = {
+    err_v: { type: 'boolean', __example__: false },
+    err_note: { type: 'string', __example__: 'Please fix these before you go on:\n• Who got to answer: Choose a level.' },
+  };
+  const children = [
+    { type: 'TextHeading', text: `${letter}. ${d.title}` },
+    { type: 'TextBody', text: '${data.err_note}', visible: '${data.err_v}' },
+    { type: 'TextBody', text: `Part ${idx + 1}/${DOMAIN_ORDER.length} — Rumi's levels are filled in: change any you saw differently and say why. Set the room levels yourself, with a reason.` },
+  ];
+  const field = (name) => { payload[name] = `\${form.${name}}`; };
+  for (const ind of d.indicators) {
+    const code = ind.id;
+    const meta = v6.indicator(code);
+    if (v6.isCombined(code)) {
+      data[`cb_${code}`] = { type: 'string', __example__: `${meta.definition}\n\n05:10  "Ali, what do you think?"\n\nCoach adds: ${meta.coach_adds}` };
+      data[`w_${code}`] = { type: 'string', __example__: '' };
+      children.push({ type: 'TextSubheading', text: `${code} — ${meta.name}` });
+      children.push({ type: 'TextBody', text: `\${data.cb_${code}}` });
+      if (code === 'D2') {
+        children.push({
+          type: 'TextInput', name: 'd2_children', label: 'Children who spoke', 'input-type': 'number', required: true,
+          'helper-text': 'Count each child once, whole lesson. Not chorus.',
+        });
+        children.push({
+          type: 'TextInput', name: 'd2_quiet_later', label: 'Quiet, then spoke', 'input-type': 'number', required: true,
+          'helper-text': 'Silent in the first half, spoke in the second',
+        });
+        field('d2_children');
+        field('d2_quiet_later');
+      }
+      children.push({
+        type: 'RadioButtonsGroup', name: `r_${code}`, label: clipLabel(`${code} — ${meta.name}`, 30),
+        required: true, 'data-source': O6.optionsFor(code),
+      });
+      children.push({
+        type: 'TextArea', name: `why_${code}`, label: 'Why this level', required: true, 'max-length': 600,
+        'helper-text': "What you saw, and how it fits the DC's evidence",
+      });
+      initValues[`why_${code}`] = `\${data.w_${code}}`;
+      field(`r_${code}`);
+      field(`why_${code}`);
+    } else {
+      data[`s_${code}`] = { type: 'string', __example__: '2' };
+      data[`e_${code}`] = { type: 'string', __example__: 'Two open questions, each answered · 12:40 "How did you work that out?"' };
+      data[`i_${code}`] = { type: 'string', __example__: '' };
+      children.push({
+        type: 'RadioButtonsGroup', name: `r_${code}`, label: clipLabel(`${code} — ${meta.name}`, 30),
+        description: v6.clip(`${meta.name}. ${meta.definition}`, 300), required: true, 'data-source': O6.optionsFor(code),
+      });
+      children.push({ type: 'TextArea', name: `ev_${code}`, label: L.evidence, 'helper-text': `${code} — what Rumi heard; edit if needed`, required: false });
+      children.push({ type: 'TextArea', name: `imp_${code}`, label: L.improve, 'helper-text': L.improveHelp(code), required: false });
+      initValues[`r_${code}`] = `\${data.s_${code}}`;
+      initValues[`ev_${code}`] = `\${data.e_${code}}`;
+      initValues[`imp_${code}`] = `\${data.i_${code}}`;
+      field(`r_${code}`);
+      field(`ev_${code}`);
+      field(`imp_${code}`);
+    }
+  }
+  data[`wc_${letter}`] = { type: 'string', __example__: '' };
+  children.push({
+    type: 'TextArea', name: `chg_${letter}`, label: 'Why you changed', required: false, 'max-length': 600,
+    'helper-text': 'Needed if you changed a level Rumi set',
+  });
+  initValues[`chg_${letter}`] = `\${data.wc_${letter}}`;
+  field(`chg_${letter}`);
+  children.push({ type: 'Footer', label: isLast ? L.submit : L.next, 'on-click-action': { name: 'data_exchange', payload } });
+  return {
+    id: screenId(key),
+    title: L.screenTitle(d, idx + 1, DOMAIN_ORDER.length).slice(0, 30),
+    data,
+    layout: {
+      type: 'SingleColumnLayout',
+      children: [{ type: 'Form', name: `form_${letter}`, 'init-values': initValues, children }],
+    },
+  };
+}
+
+const screens = DOMAIN_ORDER.map((k, i) => (IS_V6 && k !== 'lesson_plan_fidelity' ? v6DomainScreen(k, i) : domainScreen(k, i)));
 screens.push({
   id: 'SUCCESS',
   title: L.success.title,
