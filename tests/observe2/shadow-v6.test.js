@@ -155,7 +155,7 @@ describe('runFor on a shadow visit', () => {
     const blob = formRow(f.id).rumi_moments.shadow_v6;
     expect(Object.keys(blob).sort()).toEqual(['at', 'counts', 'd2_turns', 'moments', 'prompt_version', 'room_evidence', 'rumi_levels', 'status', 'transcript_quality']);
     expect(blob.d2_turns).toEqual(Moments.d2Turns(OK_T)); // FICO6 r2 (CONTRACTS §11.2)
-    expect(blob).toMatchObject({ status: 'ok', prompt_version: 'observe2-moments-v3', counts: { closed_q: 3, praise_generic: 1 } });
+    expect(blob).toMatchObject({ status: 'ok', prompt_version: 'observe2-moments-v3.1', counts: { closed_q: 3, praise_generic: 1 } });
     expect(blob.moments.map((m) => m.type)).toEqual(['open_q_one', 'reasoning', 'resource_used']); // by group, as v6 stores them
     expect(blob.room_evidence.C3.map((r) => r.id)).toEqual(['room_C3_1']);
     expect(blob.room_evidence.C5[0]).toMatchObject({ kind: 'signal', starts: '12:50' });
@@ -199,7 +199,7 @@ describe('runFor on a shadow visit', () => {
     await (await Shadow.runFor(f, BROKEN_T, { llm })).done;
     expect(llm).not.toHaveBeenCalled();
     const blob = formRow(f.id).rumi_moments.shadow_v6;
-    expect(blob).toMatchObject({ status: 'broken', prompt_version: 'observe2-moments-v3', moments: [], room_evidence: { C3: [], C5: [], C7: [], D3: [] } });
+    expect(blob).toMatchObject({ status: 'broken', prompt_version: 'observe2-moments-v3.1', moments: [], room_evidence: { C3: [], C5: [], C7: [], D3: [] } });
     expect(blob.transcript_quality.status).toBe('broken');
     for (const [code, row] of Object.entries(blob.rumi_levels)) {
       if (COMBINED.includes(code)) expect(row).toMatchObject({ level: null, ...(code === 'D2' ? {} : { dc_result: 'IE' }) });
@@ -212,7 +212,7 @@ describe('runFor on a shadow visit', () => {
     const run = await Shadow.runFor(f, OK_T, { llm: () => Promise.reject(new Error('model down')) });
     await expect(run.done).resolves.toBeDefined();
     const blob = formRow(f.id).rumi_moments.shadow_v6;
-    expect(blob).toMatchObject({ status: 'failed', prompt_version: 'observe2-moments-v3', error: 'model down' });
+    expect(blob).toMatchObject({ status: 'failed', prompt_version: 'observe2-moments-v3.1', error: 'model down' });
     expect(blob.transcript_quality.status).toBe('ok');
     expect(blob).not.toHaveProperty('rumi_levels');
   });
@@ -273,7 +273,7 @@ describe('the moments job on a shadow visit (the hook in moments.js)', () => {
     expect(r.rumi_moments).not.toHaveProperty('room_evidence');
     expect(r.rumi_moments).not.toHaveProperty('transcript_quality');
     expect(r.rumi_levels).toEqual(Rules.heardLevels(r.rumi_moments.moments, r.rumi_moments.counts));
-    expect(r.rumi_moments.shadow_v6).toMatchObject({ status: 'ok', prompt_version: 'observe2-moments-v3' });
+    expect(r.rumi_moments.shadow_v6).toMatchObject({ status: 'ok', prompt_version: 'observe2-moments-v3.1' });
     // Nothing v6 reaches the coach: one check Flow, and no other message.
     expect(WhatsAppService.sendFlow).toHaveBeenCalledTimes(1);
     expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();

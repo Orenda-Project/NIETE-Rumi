@@ -222,8 +222,8 @@ describe('(b) a v6 visit: the v3 prompt', () => {
   });
 
   test('the version is v3, and v6 is chosen by the rubric, never by the form alone', () => {
-    expect(Moments.PROMPT_VERSION_V3).toBe('observe2-moments-v3');
-    expect(Moments.promptVersionFor(V6)).toBe('observe2-moments-v3');
+    expect(Moments.PROMPT_VERSION_V3).toBe('observe2-moments-v3.1');
+    expect(Moments.promptVersionFor(V6)).toBe('observe2-moments-v3.1');
     expect(MT.typesFor(V6)).toBe(MT.TYPES_V6);
     expect(MT.guideFor(V6)).toBe(MT.TYPE_GUIDE_V3);
     expect(Moments.buildPrompt(OK_T, form, { lang: 'en' })).not.toMatch(/^ROOM EVIDENCE/m);
@@ -266,7 +266,7 @@ describe('(d) a broken transcript on v6', () => {
     const f = formRow(id);
     expect(Object.keys(f.rumi_moments.transcript_quality).sort()).toEqual(['coverage', 'issues', 'status']);
     expect(f.rumi_moments.transcript_quality.status).toBe('broken');
-    expect(f.rumi_moments).toMatchObject({ moments: [], prompt_version: 'observe2-moments-v3', room_evidence: { C3: [], C5: [], C7: [], D3: [] } });
+    expect(f.rumi_moments).toMatchObject({ moments: [], prompt_version: 'observe2-moments-v3.1', room_evidence: { C3: [], C5: [], C7: [], D3: [] } });
     expect(f.moments_ready_at).toBeTruthy();
     // Every row IE; a combined row's transcript-only result is IE and its level stays the coach's (null).
     expect(Object.keys(f.rumi_levels)).toHaveLength(17);
@@ -304,7 +304,7 @@ describe('(e) a partial transcript on v6', () => {
     const f = formRow(id);
     expect(f.rumi_moments.transcript_quality).toEqual(Quality.stored(q));
     expect(f.rumi_moments.moments.length).toBeGreaterThan(0);
-    expect(f.rumi_moments.prompt_version).toBe('observe2-moments-v3');
+    expect(f.rumi_moments.prompt_version).toBe('observe2-moments-v3.1');
   });
 
   test('an ok transcript has no gaps block, and its quality is stored as ok', async () => {

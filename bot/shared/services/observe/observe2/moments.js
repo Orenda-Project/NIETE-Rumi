@@ -45,7 +45,9 @@ const { logToFile } = require('../../../utils/logger');
 const PROMPT_VERSION = 'observe2-moments-v2';
 // v3 (bd-qix9oh.64, spec §8): FICO17 v6 visits only. The §8.1 definitions, the §8.2 types, room evidence for
 // the indicators the coach sets, and the transcript quality gate before the call.
-const PROMPT_VERSION_V3 = 'observe2-moments-v3';
+// v3.1 (FICO6 r2): every clear moment, the same type again included. On v3 Sonnet returned about one moment per
+// type (37 over 5 replay lessons), and the v6 rules need two of a type for level 3 (C1, C6, D1, F2, F3).
+const PROMPT_VERSION_V3 = 'observe2-moments-v3.1';
 const SLOTS = 8;
 const ROOM_MAX = 5;
 const QUOTE_MAX = 280;
@@ -116,7 +118,7 @@ function buildPrompt(transcript, form, { lang, rubric = 'fico17', gaps = '' } = 
   const types = typesFor(rubric);
   const list = (g) => Object.keys(types[g]).join(', ');
   return [
-    'You are helping a coach who sat in one classroom lesson. Read its transcript and pick the few MOMENTS that are',
+    `You are helping a coach who sat in one classroom lesson. Read its transcript and pick the ${v3 ? '' : 'few '}MOMENTS that are`,
     'real evidence about the teaching and the children\'s learning. The coach confirms each one and uses it to talk',
     'with the teacher afterwards, and what the coach confirms counts toward the lesson\'s levels.',
     '',
@@ -166,8 +168,16 @@ function buildPrompt(transcript, form, { lang, rubric = 'fico17', gaps = '' } = 
     ...guideFor(rubric),
     '',
     ...(v3 ? [...roomRules(), ''] : []),
-    `HOW MANY: at most ${SLOTS} per part, and only the clearest. Fewer clear moments are better than many weak ones.`,
-    'If a part has no clear moment, return none for it.',
+    ...(v3 ? [
+      'HOW MANY: the levels count how often each thing happens: two open questions, two reasons from children, two',
+      'words explained or two explanations of why are a level above one. So list every clear moment, and when the same',
+      'type happens again later, list it again: each time is its own moment, with its own minute and words. Never stop',
+      `at one example of a type. At most ${SLOTS} per group (ask, wrong, work, explain), the clearest first. A weak moment`,
+      'is still worse than none: if a group has no clear moment, return none for it.',
+    ] : [
+      `HOW MANY: at most ${SLOTS} per part, and only the clearest. Fewer clear moments are better than many weak ones.`,
+      'If a part has no clear moment, return none for it.',
+    ]),
     '',
     'Also count, across the whole lesson: closed_q (questions with a yes/no or one-word answer, or answered in',
     'chorus) and praise_generic (lines of general praise).',
