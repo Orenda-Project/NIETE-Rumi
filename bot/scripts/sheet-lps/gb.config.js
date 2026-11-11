@@ -44,4 +44,8 @@ module.exports = {
     'Social Studies': 'social_studies_en',
     Islamiat: 'islamiat',
   },
+
+  // Grades taught from ICT's 6-12 books, every one of them, taken as is (operator, 11 Nov: "we have till grades 10.
+  // Same books as ICT"). GB has no Grades 11-12. --books adds those books to the region's list (bd-qchgya).
+  ictGrades: [6, 7, 8, 9, 10],
 };

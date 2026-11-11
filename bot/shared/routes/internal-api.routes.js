@@ -2341,7 +2341,10 @@ function lp612Route(name, handler) {
 // through her curriculum and the serving guard (lp612-gb-delivery refusesCurriculum) already allows. The WhatsApp
 // Flow's polite Grade 6+ refusal (pakistan-lp-endpoint) is unchanged: prod redirects lesson asks to the app.
 router.post('/lp612/grades', requireInternalKey, lp612Route('grades', async (Browse, req, res) => {
-  const grades = await Browse.listGrades(...curriculumArgs(await teacherCurriculum(req.body)));
+  const all = await Browse.listGrades(...curriculumArgs(await teacherCurriculum(req.body)));
+  // bd-qchgya — only the grades her region's book list covers (GB: up to 10, never 11-12). No list: every grade.
+  const [shelf] = await shelfArgs(req.body);
+  const grades = shelf ? all.filter((g) => TeacherBooks.gradeCovered(Number(g && typeof g === 'object' ? g.grade : g), shelf)) : all;
   return res.json({ success: true, grades });
 }));
 
