@@ -50,7 +50,7 @@ function fail(where, error, extra) {
 // fico_coach_rubric selects v6 for this coach. `observerRegion` is users.region when the caller has it.
 async function createForm({ observerUserId, teacherUserId = null, visitContext = {}, observerRegion }) {
   const { rubricForNewVisit } = require('./rubric');
-  const rubricVersion = await rubricForNewVisit({ observerUserId, region: observerRegion });
+  const rubricVersion = await rubricForNewVisit({ observerUserId, region: observerRegion, teacherUserId });
   const { data, error } = await supabase.from('observation_field_forms')
     .insert({
       observer_user_id: observerUserId,
