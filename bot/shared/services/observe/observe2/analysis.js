@@ -24,13 +24,17 @@
  * Nothing in here calls a model; the record and the brief are data.
  */
 
-const { CODES, PLAIN, ROW, PRIORITY, FOCUS, FOCUS_DOMAIN, PLAN_FOCUS, THINKING, isCoachingFocus, pickAlso } = require('./fico17');
+const { CODES, ROW, PRIORITY, FOCUS, FOCUS_DOMAIN, PLAN_FOCUS, THINKING, isCoachingFocus, pickAlso } = require('./fico17');
 const { buildBrief, TYPE_CODE } = require('./brief');
 const { seenNotes } = require('./rules');
 const { focusSeen, focusNext } = require('./focus-areas');
 const { observe2Strings } = require('./strings');
 
 const RUBRIC = 'fico17';
+// bd-ra8xu.38: a FICO17 v6 visit is stamped 'fico17_v6', never 'fico17', so no reader (the dashboard's
+// detectFicoInstrument, any average) treats its levels as v5's: v6 C5 is not v5 C5.
+const V6 = require('../../coaching/frameworks/fico17-v6');
+const { isV6, plainOf } = require('./rubric');
 const LEVEL_MAX = 4;
 const SECTION_B_MAX = 7 * LEVEL_MAX;
 const SECTION_OF = { C: 'high_leverage_practices', D: 'student_engagement', F: 'teacher_subject_knowledge' };
@@ -51,7 +55,7 @@ function evidenceFor(code, level, raw, form) {
   const review = form.evidence_review || {};
   const hole = (review.added_hole || {})[code];
   const kept = String(raw) === String((review.added || {})[code]);
-  const seen = hole && kept ? hole : PLAIN[code][level - 1];
+  const seen = hole && kept ? hole : plainOf(form)[code][level - 1];
   const heard = confirmedMoments(form).filter((m) => TYPE_CODE[m.type] === code).slice(0, 2)
     .map((m) => `${m.minute} "${m.quote}"`);
   // What the coach saw on the form beyond the level: the desks and the children's thinking in Part 2
@@ -67,7 +71,10 @@ function section(letter, form) {
     const evidence = evidenceFor(code, level, finals[code], form);
     // `group: 'thinking'` marks the six that score children's thinking (R16); the section sum is unchanged.
     const group = THINKING.codes.includes(code) ? { group: 'thinking' } : {};
-    return { id: code, name: ROW[code], score: level, applicable: level != null, evidence, evidence_summary: evidence, ...group };
+    // A v6 visit names each row by its v6 name and keeps who set the level (coach | rumi) and why.
+    const v6rec = isV6(form) ? ((form.evidence_review || {}).v6_levels || {})[code] : null;
+    const v6 = isV6(form) ? { name: V6.indicator(code).name, ...(v6rec ? { set_by: v6rec.set_by, because: v6rec.because || '' } : {}) } : {};
+    return { id: code, name: ROW[code], score: level, applicable: level != null, evidence, evidence_summary: evidence, ...group, ...v6 };
   });
   const judged = indicators.filter((i) => i.applicable);
   return {
@@ -113,7 +120,7 @@ function strengthsOf(form, priority) {
     .slice(0, 2)
     .map((c) => {
       const used = c === 'C8' ? seenNotes(form.answers).C8 : '';
-      return { title: ROW[c], evidence: [PLAIN[c][numeric(finals[c]) - 1], used].filter(Boolean).join('. ') };
+      return { title: ROW[c], evidence: [plainOf(form)[c][numeric(finals[c]) - 1], used].filter(Boolean).join('. ') };
     });
 }
 
@@ -171,13 +178,13 @@ function focusOf(form, priority) {
   }
   if (!priority || !PRIORITY[priority]) return null;
   const level = numeric((form.final_levels || {})[priority]);
-  const seen = level ? PLAIN[priority][level - 1] : null;
+  const seen = level ? plainOf(form)[priority][level - 1] : null;
   return {
     domain: SECTION_OF[priority[0]],
     indicator: priority,
     title: PRIORITY[priority],
     rationale: seen ? `What was seen: ${seen}` : '',
-    try_this_tomorrow: level && level < LEVEL_MAX ? PLAIN[priority][level] : '',
+    try_this_tomorrow: level && level < LEVEL_MAX ? plainOf(form)[priority][level] : '',
     lever_question: LEVER_QUESTION,
   };
 }
@@ -207,7 +214,13 @@ function buildAnalysis(form, opts = {}) {
     strengths: strengthsOf(form, priority),
     observe2: {
       form_id: form.id,
-      rubric: RUBRIC,
+      rubric: isV6(form) ? V6.RUBRIC_KEY : RUBRIC,
+      ...(isV6(form) ? {
+        prompt_version: V6.COACH_PROMPT_VERSION,
+        v6_levels: review.v6_levels || {},
+        d2_counts: review.d2_counts || null,
+        v6_fallback: Boolean(review.v6_fallback),
+      } : {}),
       rubric_version: form.rubric_version || null,
       final_levels: form.final_levels || {},
       priority,

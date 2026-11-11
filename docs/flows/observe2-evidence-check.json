@@ -13,10 +13,12 @@
     ],
     "HEARD_EXPLAIN": [
       "FIDELITY",
-      "ADDED_ONE"
+      "ADDED_ONE",
+      "COMBINED_ONE"
     ],
     "FIDELITY": [
-      "ADDED_ONE"
+      "ADDED_ONE",
+      "ADDED_DC_ONE"
     ],
     "ADDED_ONE": [
       "ADDED_TWO"
@@ -27,7 +29,23 @@
     "PRIORITY": [
       "DONE"
     ],
-    "DONE": []
+    "DONE": [],
+    "COMBINED_ONE": [
+      "COMBINED_TWO"
+    ],
+    "COMBINED_TWO": [
+      "COMBINED_THREE"
+    ],
+    "COMBINED_THREE": [
+      "FIDELITY",
+      "ADDED_DC_ONE"
+    ],
+    "ADDED_DC_ONE": [
+      "ADDED_DC_TWO"
+    ],
+    "ADDED_DC_TWO": [
+      "PRIORITY"
+    ]
   },
   "screens": [
     {
@@ -1162,6 +1180,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "HEARD_EXPLAIN",
+                    "v6c": "1",
                     "heard_explain_1": "${form.heard_explain_1}",
                     "heard_explain_2": "${form.heard_explain_2}",
                     "heard_explain_3": "${form.heard_explain_3}",
@@ -3467,6 +3486,1136 @@
                 "record_id": "${data.record_id}"
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "id": "COMBINED_ONE",
+      "title": "From the room (1 of 3)",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "C3_ev": {
+          "type": "string",
+          "__example__": "How the teacher chooses who answers: only children who put a hand up or call out, or ways of bringing in other children, such as calling different children by name, pair talk, or everyone writing an answer.\n\nThe recording showed nothing for this.\n\nCoach adds: choosing that cannot be heard (pointing, a nod, \"you tell\" with no name), and whether children who had not put a hand up were brought in. The coach sets the final level with a written justification."
+        },
+        "C5_ev": {
+          "type": "string",
+          "__example__": "How smoothly the class moves from one activity to the next: whether the teacher gives a clear signal and how long the change takes.\n\nThe recording showed nothing for this.\n\nCoach adds: how long the class actually took to settle into the next activity (chairs moved, books out, working), which the transcript times only roughly. The coach sets the final level with a written justification."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "combined_one_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "Set each level from what you saw in the room. Nothing is chosen for you. Every level needs a reason."
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Who got to answer"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.C3_ev}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cmb_C3_level",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Took whoever answered",
+                    "description": "The teacher asks the whole class and takes whoever answers. No way of choosing who answers is heard: no name called before the question, no talking in pairs, no \"everyone write\"."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Chose who answered once",
+                    "description": "The teacher uses a way of choosing who answers one time, for example calls a student by name, then goes back to taking whoever answers."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Chose who answered 2+ times",
+                    "description": "At least two times, the teacher uses a way of choosing who answers (a name called before the question, \"tell your partner\", \"everyone write your answer\", names picked at random)."
+                  },
+                  {
+                    "id": "4",
+                    "title": "2+ named children answered",
+                    "description": "Beyond level 3, the teacher calls at least two different names to answer, and each is followed by an answer."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "cmb_C3_why",
+                "label": "Why this level",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "What you saw, and how it fits the DC's evidence"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Switching activities"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.C5_ev}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cmb_C5_level",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Over 3 min, no signal",
+                    "description": "The class takes more than three minutes to change activity, and the teacher gives no clear signal."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Signal, 2-3 min",
+                    "description": "The teacher gives a signal, but the change still takes two to three minutes."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Under 2 min",
+                    "description": "The class changes activity in under two minutes of the teacher's signal."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Switched without being told",
+                    "description": "Beyond level 3, students already know what comes next and change without being told."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "No switch",
+                    "description": "The class did not change activity."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "cmb_C5_why",
+                "label": "Why this level",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "What you saw, and how it fits the DC's evidence"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "COMBINED_ONE",
+                    "cmb_C3_level": "${form.cmb_C3_level}",
+                    "cmb_C3_why": "${form.cmb_C3_why}",
+                    "cmb_C5_level": "${form.cmb_C5_level}",
+                    "cmb_C5_why": "${form.cmb_C5_why}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "COMBINED_TWO",
+      "title": "From the room (2 of 3)",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "C7_ev": {
+          "type": "string",
+          "__example__": "Whether the teacher sets real pair or group work: a task the group can only finish together, with something to make, roles and a report back. Sitting together but working alone is not group work.\n\nThe recording showed nothing for this.\n\nCoach adds: whether the groups actually worked together on one product and used the roles, which is mostly silent or too quiet for the recording. The coach sets the final level with a written justification."
+        },
+        "D3_ev": {
+          "type": "string",
+          "__example__": "Whether children talk to each other about the task, not only to the teacher: one child answers, agrees with or adds to what another said. At its strongest they give reasons to agree or disagree and reach one shared answer.\n\nThe recording showed nothing for this.\n\nCoach adds: children talking to each other about the task that the recording did not pick up, mostly during pair and group work, and whether they gave reasons or reached a shared answer. The coach sets the final level with a written justification."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "combined_two_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "Set each level from what you saw in the room. Nothing is chosen for you. Every level needs a reason."
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Group work"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.C7_ev}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cmb_C7_level",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No pair or group task",
+                    "description": "The teacher gives no pair or group task. Everyone works alone or as one class."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Groups, each works alone",
+                    "description": "The teacher puts students in pairs or groups, but each student does their own work."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Shared task, one product",
+                    "description": "The teacher gives a task that a group can only finish together, and says what the group must make."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Roles and report back",
+                    "description": "Beyond level 3, the teacher gives roles or turns inside the group, and asks the group to report back."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "No group task",
+                    "description": "Everyone worked alone or as one class."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "cmb_C7_why",
+                "label": "Why this level",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "What you saw, and how it fits the DC's evidence"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Children answering each other"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.D3_ev}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cmb_D3_level",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No child spoke to another",
+                    "description": "No student speaks to another student about the task."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Once",
+                    "description": "One time, a student answers and the teacher names a second child who agrees with the previous student's answer, or the student says I agree with her/him referring to the previously given answer by the student."
+                  },
+                  {
+                    "id": "3",
+                    "title": "2+ times",
+                    "description": "At least two times, a student answers, agrees with, or adds to what another student just said."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Reasons, one shared answer",
+                    "description": "Beyond level 3, students give a reason to agree or disagree with each other, and reach one shared answer."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "No child-to-child talk",
+                    "description": "Do not score this indicator if there are no two Student lines in a row where students talk about the topic, and the teacher never names a second child to agree with a student's answer. It is then left out of the feedback."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "cmb_D3_why",
+                "label": "Why this level",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "What you saw, and how it fits the DC's evidence"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "COMBINED_TWO",
+                    "cmb_C7_level": "${form.cmb_C7_level}",
+                    "cmb_C7_why": "${form.cmb_C7_why}",
+                    "cmb_D3_level": "${form.cmb_D3_level}",
+                    "cmb_D3_why": "${form.cmb_D3_why}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "COMBINED_THREE",
+      "title": "From the room (3 of 3)",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "D4_ev": {
+          "type": "string",
+          "__example__": "Whether children dare to answer when they are not sure: they stay silent, answer only when sure, answer while unsure, or answer unasked and try again after a wrong answer. Only the trying counts, not whether the answer is right.\n\nThe recording showed nothing for this.\n\nCoach adds: how children behave when they are unsure: whether they have a go or go quiet, put a hand up or wait for the teacher, and try again after a wrong answer. The coach sets the final level with a written justification."
+        },
+        "D2_ev": {
+          "type": "string",
+          "__example__": "How many different children speak across the lesson, and whether children silent early on speak later.\n\nThe recording showed nothing for this.\n\nCoach adds: how many different children spoke, and how many children who were quiet in the first half spoke in the second. The coach sets the final level with a written justification."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "combined_three_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "Set each level from what you saw in the room. Nothing is chosen for you. Every level needs a reason."
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Trying when unsure"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.D4_ev}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cmb_D4_level",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Silent or waited",
+                    "description": "When the teacher asks, students stay silent, say \"I do not know\", or wait for the teacher to give the answer."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Only answered when sure",
+                    "description": "Students answer only when they are sure. Nobody gives a half-sure answer; when unsure they say nothing."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Tried while unsure, 2+",
+                    "description": "At least two times, a student answers while clearly unsure, for example \"Maybe...\", \"Should I say...?\", or an answer that changes halfway."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Tried unasked or again",
+                    "description": "Beyond level 3, a student answers without being asked, or tries again after a wrong answer instead of giving up."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "cmb_D4_why",
+                "label": "Why this level",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "What you saw, and how it fits the DC's evidence"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "How many children spoke"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.D2_ev}"
+              },
+              {
+                "type": "TextInput",
+                "name": "d2_children",
+                "label": "Children who spoke",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "Count each child once, whole lesson. Not chorus."
+              },
+              {
+                "type": "TextInput",
+                "name": "d2_quiet_later",
+                "label": "Quiet, then spoke",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "Silent in the first half, spoke in the second"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "cmb_D2_level",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No child spoke",
+                    "description": "No student speaks during the lesson."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Only 1-2 children",
+                    "description": "Only the same one or two children speak."
+                  },
+                  {
+                    "id": "3",
+                    "title": "3-5 children",
+                    "description": "Three to five different children speak."
+                  },
+                  {
+                    "id": "4",
+                    "title": "6+, and 2+ quiet ones later",
+                    "description": "Six or more different children speak, and at least two children who had not spoken in the first half speak in the second half."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "cmb_D2_why",
+                "label": "Why this level",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "What you saw, and how it fits the DC's evidence"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "COMBINED_THREE",
+                    "cmb_D4_level": "${form.cmb_D4_level}",
+                    "cmb_D4_why": "${form.cmb_D4_why}",
+                    "d2_children": "${form.d2_children}",
+                    "d2_quiet_later": "${form.d2_quiet_later}",
+                    "cmb_D2_level": "${form.cmb_D2_level}",
+                    "cmb_D2_why": "${form.cmb_D2_why}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ADDED_DC_ONE",
+      "title": "Rumi's levels (1 of 2)",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "C1_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "C1_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "D1_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "D1_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "D5_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "D5_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "C2_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "C2_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "C6_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "C6_level": {
+          "type": "string",
+          "__example__": "3"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "added_dc_one_form",
+            "init-values": {
+              "C1_final": "${data.C1_level}",
+              "D1_final": "${data.D1_level}",
+              "D5_final": "${data.D5_level}",
+              "C2_final": "${data.C2_level}",
+              "C6_final": "${data.C6_level}"
+            },
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "Rumi's level for each, from your answers and the moments you confirmed. Change any you saw differently, and say why below."
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Quality of Questions Asked by the Teacher"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.C1_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "C1_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No questions, or answers given",
+                    "description": "No questions asked by the teacher, or asks the questions but gives the answers without waiting for students to answer."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Closed questions only",
+                    "description": "Teacher only asks closed questions with yes/no or one word answers."
+                  },
+                  {
+                    "id": "3",
+                    "title": "2+ open questions, waited",
+                    "description": "Teacher asks at least two open questions and waits for students to answer."
+                  },
+                  {
+                    "id": "4",
+                    "title": "A 'why', then a follow-up",
+                    "description": "Teacher asks at least one question using 'why' and then follows up on the same child's answer (why? how do you know?)."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Children's reasoning"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.D1_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "D1_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "One-word answers only",
+                    "description": "Students give only one-word answers or repeat a fact."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Longer, but only repeated",
+                    "description": "At least one answer, from any student, is longer than a phrase, but it only repeats what was already said or read, or finishes the teacher's sentence."
+                  },
+                  {
+                    "id": "3",
+                    "title": "2+ answers gave reasons",
+                    "description": "At least two answers, from any students, show reasoning in the child's own words: they say why, compare two things, use a rule on a new case, or explain a choice. Finishing the teacher's sentence, or repeating a reason the teacher already gave, does not count."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Child's own example or link",
+                    "description": "Beyond level 3, a student gives their own example, or links the idea to something else, that the teacher did not say first."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Children's own questions"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.D5_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "D5_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No question of their own",
+                    "description": "No student asks the teacher a question of their own. An unsure answer (\"Is it twelve?\") or a student repeating the teacher's question (\"Why?\") does not count."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Task questions only",
+                    "description": "Students ask only questions about the task: which page, do we write this, is it homework, may I answer, or please say it again."
+                  },
+                  {
+                    "id": "3",
+                    "title": "A question about the idea",
+                    "description": "Students ask at least one question about the idea itself: how or why something works, or what would happen in a different case."
+                  },
+                  {
+                    "id": "4",
+                    "title": "2+, one beyond the lesson",
+                    "description": "Beyond level 3, students ask at least two questions about the idea, and one of them is about something the teacher has not talked about in this lesson."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Helping when a child is wrong"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.C2_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "C2_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Wrong answer ignored",
+                    "description": "A student gives a wrong answer and the teacher ignores it, or only repeats the same explanation in the same words."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Marked wrong, reason once",
+                    "description": "The teacher says the answer is wrong, or explains again, but gives the reason for the correction at most once."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Reason given 2+ times",
+                    "description": "At least two times, the teacher gives the reason for the correction and says what was right and what to change."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Child fixed it; new way tried",
+                    "description": "Beyond level 3, the teacher asks the student or another student to fix the answer, and tries a new way (a new example, a picture, smaller steps) if they are still stuck."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Safe to be wrong"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.C6_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "C6_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Flat or dismissive",
+                    "description": "The teacher gives no encouragement. Replies to students are flat, dismissive, or only about the task."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Praise for right answers only",
+                    "description": "The teacher praises, but only for right answers or for doing as told, and only in general words."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Praised effort 2+ times",
+                    "description": "At least two times, the teacher praises a student's effort, trying, or thinking, not just a right answer."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Mistakes used, views invited",
+                    "description": "Beyond level 3, the teacher treats a wrong answer or an attempt as useful, and also invites other views."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "why6_one",
+                "label": "Why you changed",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "Needed only if you changed a level: what you saw"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ADDED_DC_ONE",
+                    "C1_final": "${form.C1_final}",
+                    "D1_final": "${form.D1_final}",
+                    "D5_final": "${form.D5_final}",
+                    "C2_final": "${form.C2_final}",
+                    "C6_final": "${form.C6_final}",
+                    "why6_one": "${form.why6_one}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ADDED_DC_TWO",
+      "title": "Rumi's levels (2 of 2)",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "C4_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "C4_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "C8_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "C8_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "F1_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "F1_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "F2_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "F2_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "F3_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "F3_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "F4_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "F4_level": {
+          "type": "string",
+          "__example__": "3"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "added_dc_two_form",
+            "init-values": {
+              "C4_final": "${data.C4_level}",
+              "C8_final": "${data.C8_level}",
+              "F1_final": "${data.F1_level}",
+              "F2_final": "${data.F2_level}",
+              "F3_final": "${data.F3_level}",
+              "F4_final": "${data.F4_level}"
+            },
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "Rumi's level for each, from your answers and the moments you confirmed. Change any you saw differently, and say why below."
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Children's choices"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.C4_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "C4_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Teacher decided everything",
+                    "description": "The teacher decides everything and asks students for no choice or idea."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Small choices only",
+                    "description": "The teacher lets students choose only small things (who goes first, which colour), and decides everything about the learning."
+                  },
+                  {
+                    "id": "3",
+                    "title": "A real choice or idea taken up",
+                    "description": "The teacher gives students at least one real choice about how to do the work or how to explain it, and lets them follow it, or takes up a child's idea."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Children led a part",
+                    "description": "Beyond level 3, the teacher hands a part of the lesson to students: a student or a group leads an activity, picks the method, or teaches the others."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Books and materials"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.C8_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "C8_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No book or object mentioned",
+                    "description": "The teacher never mentions a book, the board, a chart, or any object or picture."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Shown only, not used",
+                    "description": "The teacher mentions a book, the board, or an object only to show or tell, and does not ask students to use it."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Children used them, linked",
+                    "description": "The teacher asks students to use a book, the board, or an object themselves, and says how it connects to the idea."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Child explained with them",
+                    "description": "Beyond level 3, the teacher asks a student to explain with the book, the chart or the object, and builds on what the student says."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Accuracy of content"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.F1_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "F1_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Wrong content left standing",
+                    "description": "The teacher says something wrong and leaves it, so students are left with wrong information. Count something as wrong only if you are sure; a word that may be a transcription or translation mistake does not count."
+                  },
+                  {
+                    "id": "2",
+                    "title": "A slip not corrected",
+                    "description": "Mostly correct, but the teacher makes a small slip (a wrong rule or a wrong word) and does not correct it."
+                  },
+                  {
+                    "id": "3",
+                    "title": "All correct",
+                    "description": "Everything the teacher says is correct. When not sure, the teacher says so and does not guess."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Warned of a common mistake",
+                    "description": "Beyond level 3, the teacher warns students about a common mistake before they make it."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Subject words"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.F2_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "F2_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Everyday words only",
+                    "description": "The teacher uses everyday words only, and no subject words."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Terms used, not explained",
+                    "description": "The teacher uses some subject words but does not explain them, or mixes them up."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Terms explained 2+ times",
+                    "description": "At least two times, the teacher uses a subject word and explains what it means."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Children made to use them",
+                    "description": "Beyond level 3, the teacher makes students use the subject words, and corrects loose words by giving the right one."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Explaining why"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.F3_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "F3_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "How only, no reason",
+                    "description": "The teacher only says how to do it, and gives no reason."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Some reasons, mostly rules",
+                    "description": "The teacher gives a reason now and then, but mostly asks students to remember the rule."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Explained why 2+ times",
+                    "description": "At least two times, the teacher explains why a rule or step works, with a reason, an example, or a picture."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Went further, or children did",
+                    "description": "Beyond level 3, the teacher turns a student's question into a short lesson that goes further, or asks the children to give the reason."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Links to real life"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.F4_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "F4_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No link to life or lessons",
+                    "description": "The teacher gives no real-life example, comparison, or link to another subject or an earlier lesson."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Link mentioned, not explained",
+                    "description": "The teacher mentions a link and moves on without explaining it."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Link explained",
+                    "description": "The teacher gives a link and explains how it fits the idea."
+                  },
+                  {
+                    "id": "4",
+                    "title": "A child built on the link",
+                    "description": "Beyond level 3, a student builds on the teacher's link: they add to it, ask about it, or explain it in their own words."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "why6_two",
+                "label": "Why you changed",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "Needed only if you changed a level: what you saw"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ADDED_DC_TWO",
+                    "cv": "3",
+                    "C4_final": "${form.C4_final}",
+                    "C8_final": "${form.C8_final}",
+                    "F1_final": "${form.F1_final}",
+                    "F2_final": "${form.F2_final}",
+                    "F3_final": "${form.F3_final}",
+                    "F4_final": "${form.F4_final}",
+                    "why6_two": "${form.why6_two}"
+                  }
+                }
+              }
+            ]
           }
         ]
       }
