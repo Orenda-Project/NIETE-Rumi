@@ -250,11 +250,19 @@ class AnalysisProcessorService {
 
       // Resolve pedagogical framework for this user, capturing the selection
       // path so it can be persisted for later audit / dashboards.
-      const {
+      let {
         framework,
         frameworkKey,
         reason: frameworkSelectionReason,
       } = await selectFrameworkWithReason(session.user_id);
+      // bd-ra8xu.38 — an /observe visit stamped FICO17 v6 at creation (observe-capture, coach switch) is analysed
+      // with v6, whatever the switch says now. Unstamped sessions (every one while the switch is off) are unchanged.
+      const stampedV6 = require('../observe/observe-fico17-v6').frameworkKeyForSession(session);
+      if (stampedV6) {
+        framework = require('./frameworks/framework-registry').getFramework(stampedV6);
+        frameworkKey = stampedV6;
+        frameworkSelectionReason = 'coach_rubric_stamp';
+      }
       logToFile('Framework resolved', {
         userId: session.user_id,
         framework: framework.name,
