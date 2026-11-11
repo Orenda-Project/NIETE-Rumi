@@ -383,7 +383,11 @@ const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ 
   }
   if (clientSessionId || block) {
     // The child is present either way; a phone that cannot be matched later re-sends the outcome.
-    const kept = await saStoreOf(deps).setClient(created.session.id, { clientSessionId: clientSessionId || null, block: block || null });
+    // best-effort: a failed write (even one that throws) never refuses the child; the block is which RDF flow ran
+    let kept;
+    try {
+      kept = await saStoreOf(deps).setClient(created.session.id, { clientSessionId: clientSessionId || null, block: block || null });
+    } catch (e) { kept = { ok: false, error: e && e.message }; }
     if (!kept || !kept.ok) d.logError('child_test.sa.client_not_kept', { sessionId: created.session.id, error: kept && kept.error });
   }
   return { status: 'ok', sessionId: created.session.id, list, ...(byHistory || moved ? { block } : {}) };
