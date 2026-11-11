@@ -48,6 +48,20 @@ function confirmedMoments(form) {
   return ((form.rumi_moments && form.rumi_moments.moments) || []).filter((m) => review[`heard_${m.id}`] === 'yes');
 }
 
+// bd-ra8xu.46: the v6 moment types (moment-types TYPES_V6) and the indicator each counts for (rules.js
+// HEARD_RULES_V6), so a v6 moment the coach confirmed or added is shown on its row. v5 visits never read this.
+const TYPE_CODE_V6 = {
+  ...TYPE_CODE,
+  resource_shown: 'C8', resource_used: 'C8', resource_explained: 'C8',
+  term_not_explained: 'F2', child_used_term: 'F2', why_handed: 'F3', link_mentioned: 'F4', child_builds_link: 'F4',
+};
+
+// The moments the coach ADDED on a v6 visit ("Add one Rumi missed", evidence_review.missed): the coach's own evidence.
+function addedMoments(form) {
+  const missed = (form.evidence_review || {}).missed;
+  return isV6(form) && Array.isArray(missed) ? missed.filter((m) => m && m.quote) : [];
+}
+
 // What the level means, in the workbook's words, the confirmed moments that show it, and what the coach
 // saw on the form.
 function evidenceFor(code, level, raw, form) {
@@ -55,13 +69,23 @@ function evidenceFor(code, level, raw, form) {
   const review = form.evidence_review || {};
   const hole = (review.added_hole || {})[code];
   const kept = String(raw) === String((review.added || {})[code]);
-  const seen = hole && kept ? hole : plainOf(form)[code][level - 1];
-  const heard = confirmedMoments(form).filter((m) => TYPE_CODE[m.type] === code).slice(0, 2)
-    .map((m) => `${m.minute} "${m.quote}"`);
+  // A combined indicator's level is the coach's alone (bd-ra8xu.44): never Rumi's reason for a level.
+  const rumiReason = hole && kept && !(isV6(form) && V6.isCombined(code));
+  const seen = rumiReason ? hole : plainOf(form)[code][level - 1];
+  const typeCode = isV6(form) ? TYPE_CODE_V6 : TYPE_CODE;
+  const heard = confirmedMoments(form).filter((m) => typeCode[m.type] === code).slice(0, 2)
+    .map((m) => `${m.minute} "${m.quote}"`)
+    .concat(addedMoments(form).filter((m) => typeCode[m.type] === code)
+      .map((m) => `${m.minute != null && m.minute !== '' ? `${m.minute} ` : ''}"${m.quote}"`));
   // What the coach saw on the form beyond the level: the desks and the children's thinking in Part 2
   // (R4/R10, R16), the materials used (R17), by name.
   const noted = seenNotes(form.answers)[code];
   return [seen, heard.length ? `Heard: ${heard.join('; ')}` : '', noted || ''].filter(Boolean).join('. ');
+}
+
+// Sentences joined with ". ", without doubling a full stop the coach already wrote.
+function joinSentences(parts) {
+  return parts.filter(Boolean).reduce((out, p) => (out ? `${out}${/[.!?۔]$/.test(out) ? ' ' : '. '}${p}` : p), '');
 }
 
 function section(letter, form) {
@@ -74,7 +98,13 @@ function section(letter, form) {
     // A v6 visit names each row by its v6 name and keeps who set the level (coach | rumi) and why.
     const v6rec = isV6(form) ? ((form.evidence_review || {}).v6_levels || {})[code] : null;
     const v6 = isV6(form) ? { name: V6.indicator(code).name, ...(v6rec ? { set_by: v6rec.set_by, because: v6rec.because || '' } : {}) } : {};
-    return { id: code, name: ROW[code], score: level, applicable: level != null, evidence, evidence_summary: evidence, ...group, ...v6 };
+    // bd-ra8xu.46 (operator 11 Nov ~21:20, ~21:30): on a v6 visit the teacher reads what the coach submitted, with
+    // the coach's level. A combined indicator or a level the coach changed leads with the coach's own words, then
+    // what the coach confirmed or added for it; a level the coach kept reads as before. Rumi's unconfirmed moments
+    // and room evidence are never shown.
+    const coachSaid = v6rec && (V6.isCombined(code) || v6rec.set_by === 'coach') && v6rec.because ? String(v6rec.because).trim() : null;
+    const shown = coachSaid ? joinSentences([coachSaid, evidence]) : evidence;
+    return { id: code, name: ROW[code], score: level, applicable: level != null, evidence: shown, evidence_summary: shown, ...group, ...v6 };
   });
   const judged = indicators.filter((i) => i.applicable);
   return {
