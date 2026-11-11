@@ -16,6 +16,9 @@ const registry = {
   hots:   () => require('./hots-framework'),
   teach:  () => require('./teach-framework'),
   fico:   () => require('./fico-framework'),
+  // bd-ra8xu.38 — FICO17 v6 (17 ind, C/D/F). No region defaults to it; only the fico_dc_rubric shadow and the
+  // coach v6 paths load it by name. Never mixed with V3 'fico' in a total.
+  fico17_v6: () => require('./fico17-v6-framework'),
   mewaka: () => require('./mewaka-framework'),
 };
 

@@ -92,6 +92,7 @@ async function afterStart({ user, phoneNumber, boundTeacher, schoolExtId, teache
     observerUserId: user.id,
     teacherUserId: (teacher && teacher.user_id) || null,
     visitContext,
+    ...(user && user.region !== undefined ? { observerRegion: user.region } : {}),
   });
   if (!created.ok || !created.form) {
     await WhatsAppService.sendMessage(phoneNumber, S.record_failed);

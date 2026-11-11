@@ -46,13 +46,17 @@ function fail(where, error, extra) {
   return { ok: false, error: error && (error.message || String(error)) };
 }
 
-async function createForm({ observerUserId, teacherUserId = null, visitContext = {} }) {
+// The rubric is decided here, once per visit, from the coach switch (observe2/rubric.js, bd-ra8xu.38): v5 unless
+// fico_coach_rubric selects v6 for this coach. `observerRegion` is users.region when the caller has it.
+async function createForm({ observerUserId, teacherUserId = null, visitContext = {}, observerRegion }) {
+  const { rubricForNewVisit } = require('./rubric');
+  const rubricVersion = await rubricForNewVisit({ observerUserId, region: observerRegion });
   const { data, error } = await supabase.from('observation_field_forms')
     .insert({
       observer_user_id: observerUserId,
       teacher_user_id: teacherUserId,
       visit_context: visitContext,
-      rubric_version: RUBRIC_VERSION,
+      rubric_version: rubricVersion,
     })
     .select('*')
     .single();
