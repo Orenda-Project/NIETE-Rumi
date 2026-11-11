@@ -1,1 +1,3 @@
 {"ts":"2026-11-11T13:59:14Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"9664a6358349","branch":"bd-9mc3nz-05070","user":""}
+{"ts":"2026-11-11T13:59:26Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"9664a6358349","branch":"bd-9mc3nz-05070","user":""}
+{"ts":"2026-11-11T14:08:49Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (only the lesson-plan religious check changed; lesson-plan.feature synced in 9664a6358)","sha":"9664a6358349","branch":"bd-9mc3nz-05070","user":""}
