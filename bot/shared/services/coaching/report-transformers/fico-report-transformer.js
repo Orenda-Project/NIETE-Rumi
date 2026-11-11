@@ -106,7 +106,8 @@ function transformFICOToReportData(session, teacherName, analysis) {
     // region-routed so ICT / NIETE renders "Human Coach" while other
     // deployments (or unset regions) keep the default "Rumi Digital Coach".
     observerName: coachRoleLabelForRegion(session.users?.region),
-    frameworkDisplayName: 'FICO Framework',
+    // bd-ra8xu.46: a v6 visit is labelled with its framework and version only ("FICO17 v6", operator 11 Nov ~18:45).
+    frameworkDisplayName: v6 ? (require('../rubric-label').rubricLabelText({ session, analysis }) || 'FICO17 v6') : 'FICO Framework',
     hasLessonPlan: !!(session.lesson_plan_structured || analysis.has_lesson_plan),
     totalScore,
     maxScore: MAX_MARKS,
