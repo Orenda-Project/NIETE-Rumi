@@ -207,7 +207,9 @@ describe('the DC teacher report (built, not wired: RULINGS R12)', () => {
     expect(r.rows).toEqual([]);
     expect(r.text).toContain(BROKEN_LINE);
     for (const c of V6.DC_CODES) expect(r.text).not.toContain(V6.indicator(c).name);
-    expect(r.text).toContain('These six are scored when your coach visits');
+    // bd-ra8xu.41 (operator 11 Nov ~17:50): the six are shown with evidence, not one line; a broken recording has
+    // no evidence, so they are named as the coach's.
+    expect(r.text).toContain('Your coach sets these six in the room');
   });
   test('a partial transcript still reports its levels', () => {
     const r = buildTeacherReport(dc(), { transcriptQuality: { status: 'partial', coverage: 0.7, issues: [] } });
