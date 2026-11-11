@@ -1,2 +1,3 @@
 {"ts":"2026-11-10T15:58:52Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"96177cfb0ac7","branch":"promo-4509-staging","user":""}
 {"ts":"2026-11-10T16:01:31Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks engine=2.0.0","sha":"96177cfb0ac7","branch":"promo-4509-staging","user":""}
+{"ts":"2026-11-11T01:14:58Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks engine=2.0.0","sha":"96177cfb0ac7","branch":"promo-4509-staging","user":""}
