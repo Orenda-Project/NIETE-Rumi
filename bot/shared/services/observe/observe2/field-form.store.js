@@ -47,15 +47,16 @@ function fail(where, error, extra) {
 }
 
 // The rubric is decided here, once per visit, from the coach switch (observe2/rubric.js, bd-ra8xu.38): v5 unless
-// fico_coach_rubric selects v6 for this coach. `observerRegion` is users.region when the caller has it.
+// fico_coach_rubric selects v6 for this coach. 'shadow' stamps v5 and marks visit_context.shadow_v6 (bd-qix9oh.5).
+// `observerRegion` is users.region when the caller has it.
 async function createForm({ observerUserId, teacherUserId = null, visitContext = {}, observerRegion }) {
-  const { rubricForNewVisit } = require('./rubric');
-  const rubricVersion = await rubricForNewVisit({ observerUserId, region: observerRegion });
+  const { visitRubric } = require('./rubric');
+  const { rubricVersion, shadow } = await visitRubric({ observerUserId, region: observerRegion });
   const { data, error } = await supabase.from('observation_field_forms')
     .insert({
       observer_user_id: observerUserId,
       teacher_user_id: teacherUserId,
-      visit_context: visitContext,
+      visit_context: shadow ? { ...visitContext, shadow_v6: true } : visitContext,
       rubric_version: rubricVersion,
     })
     .select('*')
@@ -255,6 +256,19 @@ async function setRumiMoments(id, moments) {
   return { ok: true };
 }
 
+// Shadow (bd-qix9oh.5): the v6 read of the recording, merged into rumi_moments as shadow_v6. The moments, the levels
+// and moments_ready_at the coach's check reads are left as they are. Read just before the write, so the window in
+// which another rumi_moments write could be lost is one round trip.
+async function setShadowV6(id, blob) {
+  const { data, error } = await supabase.from('observation_field_forms').select('rumi_moments').eq('id', id).maybeSingle();
+  if (error) return fail('setShadowV6', error, { id });
+  if (!data) return { ok: false, error: 'no form' };
+  const { error: wErr } = await supabase.from('observation_field_forms')
+    .update({ rumi_moments: { ...(data.rumi_moments || {}), shadow_v6: blob } }).eq('id', id);
+  if (wErr) return fail('setShadowV6', wErr, { id });
+  return { ok: true };
+}
+
 // One screen of the check at a time; later screens add to what earlier ones saved.
 async function saveReview(current, patch) {
   if (!current || current.checked_at) return { ok: false, checked: Boolean(current && current.checked_at) };
@@ -281,5 +295,5 @@ module.exports = {
   TABLE, RUBRIC_VERSION, LINK_WINDOW_HOURS, PART_KEYS, pick, isHeld,
   createForm, getForm, setPeriod, markOpened, savePart, savePlan, saveUpload, savePhotoChoice, seal, setPhotos,
   findOpenFormForCapture, latestFormOf, nameTeacher, linkSession, unlinkSession, findBySession, formsForSessions,
-  setMoments, setRumiMoments, saveReview, markChecked,
+  setMoments, setRumiMoments, setShadowV6, saveReview, markChecked,
 };

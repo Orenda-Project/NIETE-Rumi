@@ -60,6 +60,19 @@ describe('resolve (pure)', () => {
   });
 });
 
+describe('the coach switch has three states (bd-qix9oh.5, spec §4.2)', () => {
+  test('COACH_VALUES is current, shadow, v6', () => {
+    expect(COACH_VALUES).toEqual(['current', 'shadow', 'v6']);
+  });
+  test('{"ict":"shadow"} resolves shadow for an ICT coach; an unknown value is still current', async () => {
+    global.__ROWS = [{ key: 'fico_coach_rubric', value: '{"ict":"shadow"}' }];
+    await expect(sw.coachRubric({ region: 'Tarnol' })).resolves.toBe('shadow');
+    await expect(sw.coachRubric({ region: 'Gilgit-Baltistan' })).resolves.toBe('current');
+    expect(resolve(asMap('shadow-v6'), {}, COACH_VALUES, 'current')).toBe('current');
+    expect(resolve(asMap({ sihala: 'v5' }), { region: 'Sihala' }, COACH_VALUES, 'current')).toBe('current');
+  });
+});
+
 describe('coachRubric / dcRubric read app_settings', () => {
   test('no rows → current / v3', async () => {
     await expect(sw.coachRubric({ userId: USER, region: 'Sihala' })).resolves.toBe('current');
