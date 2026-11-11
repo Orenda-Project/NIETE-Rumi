@@ -291,7 +291,7 @@ async function sendForm(user, to, form, { live = false } = {}) {
   const s = S(user);
   const vc = (form && form.visit_context) || {};
   const tool = O.toolOf(form && form.rubric_version);
-  const flowId = process.env[FLOW_ID_ENV];
+  const flowId = process.env.OBS612_FLOW_ID;
   if (!flowId) {
     logToFile('❌ obs612: OBS612_FLOW_ID is unset — the FDE form cannot be sent', { formId: form && form.id }, 'error');
     await WhatsAppService.sendMessage(to, s.form_not_ready);

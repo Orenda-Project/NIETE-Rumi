@@ -1944,6 +1944,10 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
         } catch (observe2Err) {
           logToFile('❌ observe2 completion handler failed', { from, error: observe2Err.message }, 'error');
         }
+      } else if (flowType === 'obs612') {
+        // bd-pni007: FDE's grade 6-12 form closed. The endpoint saved every screen and, on Submit, sent the coach's
+        // summary; this branch only claims the completion so it never lands on the generic catch-all below.
+        logToFile('📝 Detected FDE (obs612) form completion', { from, outcome: responseJson.obs612 || null, formId: responseJson.form_id || null });
       } else if (flowType === 'child_test_check') {
         // Child test: the coach's check of one child's marks. The endpoint saved each
         // block as its screen was submitted; this only confirms in one line (or says it did not save).

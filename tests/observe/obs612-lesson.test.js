@@ -233,3 +233,12 @@ describe('WhatsApp caps and the Urdu drafts', () => {
     expect(prose).not.toMatch(/(رہی|رہے) ہیں|کریں گے|کریں گی/);
   });
 });
+
+describe('the form closing (nfm_reply)', () => {
+  const { detectFlowType } = require('../../bot/shared/utils/flow-type-detector');
+  test('an FDE form completion is claimed as obs612, by its key or by its token, never the attendance fallback', () => {
+    expect(detectFlowType({ obs612: 'submitted', form_id: 'f', flow_token: 'coach-1:obs612:f' })).toBe('obs612');
+    expect(detectFlowType({ flow_token: 'coach-1:obs612:f' })).toBe('obs612');
+    expect(detectFlowType({ observe2: 'sealed', flow_token: 'coach-1:observe2-form:f' })).toBe('observe2');
+  });
+});
