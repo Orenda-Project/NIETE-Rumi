@@ -15,7 +15,7 @@
  * teacher's FICO history is never drawn beside an FDE result. Data comes from observe/obs612/view.js.
  *
  * Language (playwrite-reports skill): fonts are the hero's base64 faces (Lexend, Fraunces, Nastaliq, Naskh; the render
- * host has no system fonts). The chrome is English on every report (FEAT-106, as the hero's) and FDE's wording is
+ * host has no system fonts). The chrome is English on every report (as the hero's) and FDE's wording is
  * English as FDE printed it, so the page is an English, LTR page in every language: a report's language is its
  * CONTENT's (skill §7), and an RTL frame around FDE's English rows read right-aligned and backwards (first render,
  * 11 Nov). The coach's own sentences stay as written, each block first-strong (dir="auto", plaintext), with the
