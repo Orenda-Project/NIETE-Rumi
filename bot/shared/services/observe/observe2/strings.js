@@ -98,6 +98,13 @@ const STRINGS = {
     focus_sep: '; ',
     // A phrase that may be in another language (a plan step, the indicator phrases) as it sits in a line.
     focus_atom: (text) => text,
+    // FICO17 v6 check (bd-ra8xu.38): messages under a field the endpoint refused (spec §7.8). The check Flow is
+    // English for the pilot, so the endpoint sends these; the Urdu below is for a later Urdu Flow.
+    v6_choose_level: 'Choose a level.',
+    v6_write_why: 'Write why you chose this level.',
+    v6_check_numbers: 'Check the two numbers.',
+    v6_d2_mismatch: "Your level doesn't match the counts. Change one, or say why.",
+    v6_why_changed: (names) => `You changed ${names.join(', ')}. Write why (20+ letters).`,
   },
   ur: {
     deny_no_user: 'آپ کا اکاؤنٹ نہیں ملا۔ پہلے *register* لکھ کر بھیجیں، پھر دوبارہ \u2066/observe2\u2069 لکھیں۔',
@@ -173,6 +180,13 @@ const STRINGS = {
     // English phrases and plan steps of either language sit in an Urdu line as a first-strong isolate
     // (FSI … PDI), so their direction never leaks into the sentence around them.
     focus_atom: (text) => `\u2068${text}\u2069`,
+    // FICO17 v6 check (bd-ra8xu.38). DRAFT Urdu, machine-assisted: for a native speaker's review before any
+    // Urdu check Flow ships. Imperatives only (gender-neutral).
+    v6_choose_level: 'ایک لیول منتخب کریں۔',
+    v6_write_why: 'لکھیں کہ یہ لیول کیوں منتخب کیا۔',
+    v6_check_numbers: 'دونوں نمبر دوبارہ دیکھیں۔',
+    v6_d2_mismatch: 'لیول گنتی سے میل نہیں کھاتا۔ ایک کو بدلیں، یا وجہ لکھیں۔',
+    v6_why_changed: (names) => `آپ نے ${names.map((n) => `\u2068${n}\u2069`).join('، ')} بدلا۔ وجہ لکھیں (کم از کم ۲۰ حروف)۔`,
   },
 };
 

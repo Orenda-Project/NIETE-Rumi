@@ -387,9 +387,10 @@ describe('the check: a fidelity screen after the last moments screen', () => {
   const screens = Object.fromEntries(flow.screens.map((s) => [s.id, s]));
 
   test('HEARD_EXPLAIN goes to FIDELITY, or straight to the levels when there is no plan to check', () => {
-    expect(flow.screens.map((s) => s.id)).toEqual(['HEARD_ASK', 'HEARD_WRONG', 'HEARD_WORK', 'HEARD_EXPLAIN', 'FIDELITY', 'ADDED_ONE', 'ADDED_TWO', 'PRIORITY', 'DONE']);
-    expect(flow.routing_model.HEARD_EXPLAIN).toEqual(['FIDELITY', 'ADDED_ONE']);
-    expect(flow.routing_model.FIDELITY).toEqual(['ADDED_ONE']);
+    expect(flow.screens.map((s) => s.id).slice(0, 9)).toEqual(['HEARD_ASK', 'HEARD_WRONG', 'HEARD_WORK', 'HEARD_EXPLAIN', 'FIDELITY', 'ADDED_ONE', 'ADDED_TWO', 'PRIORITY', 'DONE']);
+    // A FICO17 v6 visit may also go to its room screens, and from the plan to Rumi's 11 (bd-ra8xu.38).
+    expect(flow.routing_model.HEARD_EXPLAIN).toEqual(['FIDELITY', 'ADDED_ONE', 'COMBINED_ONE']);
+    expect(flow.routing_model.FIDELITY).toEqual(['ADDED_ONE', 'ADDED_DC_ONE']);
   });
 
   test('twelve move slots, each the step, what happened (pre-filled) and what was seen (pre-filled)', () => {

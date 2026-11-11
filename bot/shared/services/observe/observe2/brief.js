@@ -18,10 +18,11 @@
  * label, so a note typed in English reads in its own direction inside an Urdu brief.
  */
 
-const { CODES, MOMENTS, PLAIN, ROW, PRIORITY, FOCUS, PLAN_FOCUS, THINKING, isCoachingFocus, pickAlso } = require('./fico17');
+const { CODES, MOMENTS, ROW, PRIORITY, FOCUS, PLAN_FOCUS, THINKING, isCoachingFocus, pickAlso } = require('./fico17');
 const { THINK_SAID, usedPhrase } = require('./rules');
 const { focusSeen, focusNext, FOCUS_MOMENT } = require('./focus-areas');
 const { observe2Strings } = require('./strings');
+const { plainOf } = require('./rubric');
 const { clampLanguage } = require('../../../config/ux-strings');
 
 // Which indicator a moment type speaks to, so the moment offered is about the thing to work on.
@@ -202,7 +203,7 @@ function planFocusLines(form, F) {
 function thinkingLines(form, F) {
   const finals = form.final_levels || {};
   const ticks = Object.keys(THINK_SAID).filter((k) => ((form.answers || {}).p2_think || []).includes(k));
-  const phrases = (codes) => codes.filter((c) => numeric(finals[c])).map((c) => PLAIN[c][numeric(finals[c]) - 1].toLowerCase()).join(' · ');
+  const phrases = (codes) => codes.filter((c) => numeric(finals[c])).map((c) => plainOf(form)[c][numeric(finals[c]) - 1].toLowerCase()).join(' · ');
   const teacher = phrases(THINKING.teacher);
   const children = phrases(THINKING.children);
   if (!ticks.length && !teacher && !children) return [];
@@ -239,7 +240,7 @@ function alsoSeen(form, id, F, S) {
   }
   const level = numeric((form.final_levels || {})[id]);
   const used = id === 'C8' ? usedPhrase(form.answers) : '';
-  return level ? [PLAIN[id][level - 1].toLowerCase(), used].filter(Boolean).join(': ') : '';
+  return level ? [plainOf(form)[id][level - 1].toLowerCase(), used].filter(Boolean).join(': ') : '';
 }
 
 /**
@@ -265,7 +266,7 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
   const used = usedPhrase(form.answers);
   const withUsed = (c, text) => (c === 'C8' && used ? `${text} (${used})` : text);
   if (strengths.length) {
-    for (const c of strengths) lines.push(`• ${ROW[c]}: ${withUsed(c, PLAIN[c][numeric(finals[c]) - 1])}`);
+    for (const c of strengths) lines.push(`• ${ROW[c]}: ${withUsed(c, plainOf(form)[c][numeric(finals[c]) - 1])}`);
   } else {
     lines.push(F.find_one);
   }
@@ -293,8 +294,8 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
     const hole = (review.added_hole || {})[priority];
     const kept = String(finals[priority]) === String((review.added || {})[priority]);
     if (hole && kept) lines.push(F.now(hole));
-    else if (level) lines.push(F.now(withUsed(priority, PLAIN[priority][level - 1])));
-    if (level && level < 4) lines.push(F.next(PLAIN[priority][level]));
+    else if (level) lines.push(F.now(withUsed(priority, plainOf(form)[priority][level - 1])));
+    if (level && level < 4) lines.push(F.next(plainOf(form)[priority][level]));
     const group = (MOMENTS.find((m) => m.codes.includes(priority)) || {}).id;
     const moment = confirmed.find((m) => TYPE_CODE[m.type] === priority)
       || confirmed.find((m) => m.moment === group);
