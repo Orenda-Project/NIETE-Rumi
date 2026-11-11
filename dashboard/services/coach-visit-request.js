@@ -80,8 +80,8 @@ const noteKey = (requestId, type) => {
   return `${NOTE_PREFIX}/${requestId}.${ext}`;
 };
 const pctOf = (session) => {
-  // bd-ra8xu.38: a FICO17 v6 visit has no V3 score to quote.
-  if (session && require('./coaching-frameworks.service').isV6Scored(session.analysis_data)) return 'no score';
+  // bd-ra8xu.38 / bd-pni007: a FICO17 v6 or FDE obs612 visit has no V3 score to quote.
+  if (session && require('./coaching-frameworks.service').isOwnRubric(session.analysis_data)) return 'no score';
   const p = session && session.analysis_data && session.analysis_data.scores && session.analysis_data.scores.overall_percentage;
   return p == null || p === '' || !Number.isFinite(Number(p)) ? 'no score' : `${Math.round(Number(p))}%`;
 };

@@ -2818,6 +2818,8 @@ router.get('/lesson-plans', requirePortalAuth, async (req, res) => {
 const LpCatalogue = require('../services/lp-catalogue.service');
 // The bot owns "how was she scored?" — see coaching-breakdown.service.
 const CoachingBreakdown = require('../services/coaching-breakdown.service');
+// bd-pni007 — an FDE (obs612) visit is scored on FDE's own tool: the bot's view of it (pure), never a FICO breakdown.
+const { portalSummary: obs612Summary } = require('../../bot/shared/services/observe/obs612/view');
 
 /**
  * GET /api/portal/curriculum/grades
@@ -7682,7 +7684,9 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
     // breakdown matches the rest of the page; transcript_language is an ASR label ('hindi') and only a last resort.
     const reportLanguage = (session.analysis_data && session.analysis_data.report_narrative && session.analysis_data.report_narrative._language)
       || session.voice_debrief_language || session.transcript_language || 'en';
-    const breakdown = await CoachingBreakdown.breakdown(session.analysis_data, reportLanguage);
+    // bd-pni007 — an FDE visit: its own block; the FICO breakdown would draw 0% from an adapter that knows no obs612 id.
+    const obs612 = TeacherObservation.isObservation(session) ? obs612Summary(session.analysis_data) : null;
+    const breakdown = obs612 ? null : await CoachingBreakdown.breakdown(session.analysis_data, reportLanguage);
 
     // bd-z3cadk — a repeat recording, the original report's date, and "Last time we asked" (ICT IAB row 23).
     const extras = await reportExtras(session, reportLanguage === 'ur' ? 'ur' : 'en', async (id) => {
@@ -7812,6 +7816,8 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
         // strongest-first with their indicators and evidence quotes attached;
         // null means not scored yet, never "scored zero".
         breakdown,
+        // bd-pni007 — an FDE visit's result, rows and feedback (FDE's own words); null for every other session.
+        obs612,
 
         // ── her own words ──────────────────────────────────────────────────
         reflection,

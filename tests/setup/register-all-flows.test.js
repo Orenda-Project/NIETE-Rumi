@@ -102,7 +102,7 @@ describe('register-all-flows', () => {
     // diverged and do not carry the same set of Flows (main has Pic-to-LP
     // Confirm; develop does not). Read the count off the tree you are on rather
     // than copying it across a cherry-pick.
-    it('exports an array of all 26 registerable flow configurations', () => {
+    it('exports an array of all 27 registerable flow configurations', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
       // Re-armed at 18 on 2026-09-06: the assessment REVIEW screens became their
       // own Flow. A Flow opens on screens[0], and the review screens could only
@@ -117,7 +117,8 @@ describe('register-all-flows', () => {
       // Flow (Student Join Localized), every word supplied in the quiz language.
       // Re-armed at 24 on 2026-10-05: /observe2 — the live field form and the evidence check.
       // Re-armed at 26 on 2026-10-22 (promotion of the child test): its check Flow and its review Flow.
-      expect(FLOW_CONFIGS).toHaveLength(26);
+      // Re-armed at 27 on 2026-11-11: FDE's grade 6-12 observation form (Obs 6-12 FDE Form, bd-pni007).
+      expect(FLOW_CONFIGS).toHaveLength(27);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {

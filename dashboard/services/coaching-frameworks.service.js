@@ -37,14 +37,32 @@ function isV6Scored(x) {
   return false;
 }
 
+// bd-pni007 — FDE's grade 6-12 observation tools (obs612-<tool>-v<n>) are scored apart from FICO too. The same
+// test as the bot's coaching/frameworks/own-rubric.js: is this score on a rubric of its own (v6 or obs612)?
+const OBS612_RX = /^obs612-(gen|msci|enur)-v\d+$/;
+const isOwnId = (v) => v === V6_RUBRIC || (typeof v === 'string' && OBS612_RX.test(v));
+function ownRubricOf(x) {
+  if (!x || typeof x !== 'object') return null;
+  const tries = [
+    x.rubric,
+    x.framework,
+    x.scores && typeof x.scores === 'object' ? x.scores.rubric : undefined,
+    x.observe2 && typeof x.observe2 === 'object' ? x.observe2.rubric : undefined,
+  ];
+  return tries.find(isOwnId) || null;
+}
+function isOwnRubric(x) { return ownRubricOf(x) !== null; }
+
 /**
  * Overall score / max / percentage, robust across every framework's score shape.
- * A FICO17 v6 row comes back as "no V3 score" (percentage null, maxPoints 0, rubric 'fico17_v6'): every caller
- * already skips a null percentage or a zero max, so no V3 average or total ever counts it.
+ * A row on a rubric of its own (FICO17 v6, or an FDE obs612 tool) comes back as "no V3 score" (percentage null,
+ * maxPoints 0, rubric = its id): every caller already skips a null percentage or a zero max, so no V3 average or
+ * total ever counts it.
  * @returns {{points:number, maxPoints:number, percentage:number|null, rubric?:string}}
  */
 function getOverall(analysisData) {
-  if (isV6Scored(analysisData)) return { points: 0, maxPoints: 0, percentage: null, rubric: V6_RUBRIC };
+  const own = ownRubricOf(analysisData);
+  if (own) return { points: 0, maxPoints: 0, percentage: null, rubric: own };
   const s = (analysisData && analysisData.scores) || {};
   const points = num(s.overall_marks != null ? s.overall_marks : s.grand_total);
   // overall_max_marks FIRST, and this order matters.
@@ -66,4 +84,4 @@ function getOverall(analysisData) {
   return { points: round1(points), maxPoints: round1(maxPoints), percentage: round1(percentage) };
 }
 
-module.exports = { getOverall, isV6Scored };
+module.exports = { getOverall, isV6Scored, isOwnRubric, ownRubricOf };

@@ -37,6 +37,8 @@
 // bd-33wxxi.1 — every principal check reads the role through one helper.
 const { isPrincipalRole } = require('../lib/leader-role');
 const { getOverall } = require('./coaching-frameworks.service');
+// bd-pni007 — an FDE (obs612) visit's result, rows and feedback as the portal shows them (pure).
+const { portalSummary } = require('../../bot/shared/services/observe/obs612/view');
 const { createScoreMemo } = require('./schools-analytics.service');
 const { parseLessonRef } = require('../../bot/shared/utils/lesson-ref');
 const { indicatorsOf, movesOf } = require('./coach-disagreement-evidence');
@@ -1407,9 +1409,12 @@ async function getSession(query, coachId, sessionId, opts = {}) {
   const questions = (row.conversation_state && Array.isArray(row.conversation_state.questions)) ? row.conversation_state.questions : [];
   const reviewed = visit ? REVIEWED.includes(row.status) : true;
   const pa = row.prioritized_action && typeof row.prioritized_action === 'object' ? row.prioritized_action : {};
+  // bd-pni007 — an FDE visit is scored on FDE's own tool: its block replaces the FICO numbers (none exist for it).
+  const obs612 = visit ? portalSummary(a) : null;
 
   return {
     sessionId: row.id,
+    obs612,
     kind: visit ? 'coach' : 'dc',
     coachName: visit ? text(row.observer_name) : null,
     form: visit ? (isFieldForm({ rubric: a.observe2 && a.observe2.rubric }) ? 'observe2' : 'v3') : null,
@@ -1440,7 +1445,7 @@ async function getSession(query, coachId, sessionId, opts = {}) {
         .sort((x, y) => practiceOrder(x.id) - practiceOrder(y.id))
         .map((i) => ({ id: i.id, name: i.name, section: code, score: reviewed ? i.score : null, scaleMax }));
     }),
-    lpSteps: moves ? moves.map((m) => {
+    lpSteps: moves && !obs612 ? moves.map((m) => {
       const step = stepOf(m.phase);
       return { step: step ? step.name : null, verdict: m.verdict, text: m.text, mustHappen: m.mustHappen };
     }) : null,

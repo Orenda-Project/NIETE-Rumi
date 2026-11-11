@@ -1,3 +1,5 @@
+import type { Obs612Summary } from "../lib/obs612";
+
 export interface User {
   firstName: string;
   lastName: string;
@@ -240,6 +242,8 @@ export interface SessionDetail extends CoachingSession {
   video_recommendation?: VideoRecommendation | null;
   reflection?: ReflectionEntry[];
   prioritizedAction?: PrioritizedAction | null;
+  /** bd-pni007 — an FDE visit: its block, shown instead of the FICO report body; null for every other session. */
+  obs612?: Obs612Summary | null;
   analysisData: AnalysisData;
 }
 
