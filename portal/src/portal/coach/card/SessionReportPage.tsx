@@ -182,6 +182,8 @@ function SessionReport() {
           )}
         </>
       )}
+      {/* bd-ra8xu.43: a debug id the operator asked for in very small text (not body copy): flat, never tappable, LTR. */}
+      {data?.rubric ? <p data-testid="session-rubric" dir="ltr" className="m-0 px-1 pt-2 text-end text-[10px] leading-tight text-[#9ca3af]">{data.rubric}</p> : null}
     </PeopleFrame>
   );
 }

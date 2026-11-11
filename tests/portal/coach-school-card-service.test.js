@@ -750,6 +750,13 @@ describe('the next step she was shown (v10 A/B)', () => {
     expect(JSON.stringify([scores, session])).not.toMatch(/TRY-/);
   });
 
+  // bd-ra8xu.43 (operator 11 Nov ~18:15/18:45): every observation names the rubric it was scored with, from what was
+  // stored: framework + version only.
+  test('the coach view of a session carries its stored rubric', async () => {
+    const session = await Card.getSession(db, 'coach-1', 'd1', opts());
+    expect(session.rubric).toMatch(/^FICO V[34]$/);
+  });
+
   test('a group C school: the thing to try where it has words, the action where it has none', async () => {
     tables.ab.push({ school_id: 's1', ab_group: 'C' });
     expect((await Card.getSession(db, 'coach-1', 'd5', opts())).nextStep).toBe('ACTION-d5');
