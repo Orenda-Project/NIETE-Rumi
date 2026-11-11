@@ -25,6 +25,8 @@
  *   AFTER     checked → sealed once (compare-and-set) → SEALED; then, after the response, the
  *             recording steps go to the chat and the check opens if the recording's moments are
  *             already in. (A form opened before the photo step carries its photos here: still stored.)
+ *   Both parts carry `switched`, the options of "How did the switch go?" for this visit (field-form.flow.js
+ *               switchedOptions; form version 7): v6 minutes on a FICO17 v6 visit, today's titles on any other.
  *   CONTINUE  → PART_TWO, LESSON_PLAN, PHOTOS, AFTER or SEALED, from the record (a plan whose added
  *               files never arrived goes back to LESSON_PLAN; an unanswered photo step to PHOTOS).
  *               The screen lists the notes the coach has typed so far, by part: a reopened form cannot go
@@ -44,7 +46,7 @@ const supabase = require('../config/supabase');
 const Store = require('../services/observe/observe2/field-form.store');
 const { validate } = require('../services/observe/observe2/rules');
 const {
-  FIELDS, FIELDS_V4, PREFILL, PREFILLED, PREFILLED_TYPES, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES,
+  FIELDS, FIELDS_V4, PREFILL, PREFILLED, PREFILLED_TYPES, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES, switchedOptions,
 } = require('../services/observe/observe2/field-form.flow');
 const { observe2Strings } = require('../services/observe/observe2/strings');
 const { notesSection } = require('../services/observe/observe2/brief');
@@ -132,6 +134,7 @@ async function renderPart1(form, extra = {}) {
     data: {
       teacher_line: name ? `Teacher: ${name} · ${lesson}` : `${lesson[0].toUpperCase()}${lesson.slice(1)}`,
       part_hint: after ? AFTER_HINT.part1 : PART_1_HINT,
+      switched: switchedOptions(form),
       ...NO_ERRORS,
       ...extra,
     },
@@ -168,6 +171,7 @@ function renderPart2(form, extra = {}, init = null) {
     screen: 'PART_TWO',
     data: {
       part_hint: afterLesson(form) ? AFTER_HINT.part2 : part2Hint(periodOf(form)),
+      switched: switchedOptions(form),
       ...(init ? partTwoInit(init) : {}),
       ...NO_ERRORS,
       ...extra,
@@ -470,7 +474,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
     if (step === 'LESSON_PLAN') return renderPlan(null, again, []);
     if (step.startsWith('LP_') || step.startsWith('PHOTO')) return renderAdd(step, again);
     if (step === 'AFTER') return renderAfter(null, again);
-    return { screen: 'PART_ONE', data: { teacher_line: '', part_hint: '', ...NO_ERRORS, ...again } };
+    return { screen: 'PART_ONE', data: { teacher_line: '', part_hint: '', switched: switchedOptions(null), ...NO_ERRORS, ...again } };
   }
   if (!form) {
     const gone = { error: 'This form is not available. Close it and send /observe2 in the chat.', has_error: true };
@@ -478,7 +482,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
     if (step === 'LESSON_PLAN') return renderPlan(null, gone, []);
     if (step.startsWith('LP_') || step.startsWith('PHOTO')) return renderAdd(step, gone);
     if (step === 'AFTER') return renderAfter(null, gone);
-    return { screen: 'PART_ONE', data: { teacher_line: '', part_hint: '', ...NO_ERRORS, ...gone } };
+    return { screen: 'PART_ONE', data: { teacher_line: '', part_hint: '', switched: switchedOptions(null), ...NO_ERRORS, ...gone } };
   }
 
   if (step === 'PART_ONE' || step === 'PART_TWO') {
