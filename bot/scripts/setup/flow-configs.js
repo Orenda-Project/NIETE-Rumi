@@ -301,6 +301,17 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
+    // bd-pni007 — FDE's grade 6-12 observation tools (Annexure G): ONE Flow for the three tools (Maths & Science,
+    // English & Urdu, General form), for /observe and /observe2 alike. The endpoint's INIT picks the tool from the
+    // visit's form row. Regenerate the JSON with bot/scripts/generate-obs612-flow-json.js.
+    name: 'Obs 6-12 FDE Form',
+    jsonPath: path.resolve(__dirname, '../../docs/flows/obs612-flow.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/obs612',
+    envVar: 'OBS612_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
     // Child test — the coach confirms or corrects the AI's marks for one child, one
     // pre-filled screen per block (Urdu, English, maths). Sandbox only for now: register it with
     // bot/scripts/setup/register-child-test-check-flow.js, which refuses any other account.

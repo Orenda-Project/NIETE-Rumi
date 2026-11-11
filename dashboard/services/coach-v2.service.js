@@ -21,6 +21,8 @@
  */
 
 const { getOverall } = require('./coaching-frameworks.service');
+// bd-pni007 — an FDE (obs612) visit's result as every portal surface shows it (pure; frameworks/obs612 data only).
+const { portalSummary } = require('../../bot/shared/services/observe/obs612/view');
 const { getPatchTeachers } = require('./leader-patch.service');
 const { ACTIVITY_CTE } = require('./lp-activity.service');
 // bd-o15qnr.23: "today" is the day in Pakistan, not the UTC date — overdue, Home's
@@ -89,7 +91,9 @@ const SQL = {
   COACH_SESSIONS: `
     SELECT c.id, c.user_id, c.created_at, c.status, c.debrief_status, c.audio_url,
            jsonb_build_object('scores', c.analysis_data->'scores',
-                              'teacher_delivery', c.analysis_data->'teacher_delivery') AS analysis_data,
+                              'teacher_delivery', c.analysis_data->'teacher_delivery',
+                              'obs612', jsonb_build_object('rubric_id', c.analysis_data->'obs612'->'rubric_id',
+                                                           'result', c.analysis_data->'obs612'->'result')) AS analysis_data,
            u.name           AS teacher_name,
            u.phone_number   AS teacher_phone,
            os.teacher_name  AS sched_teacher_name,
@@ -195,7 +199,9 @@ const SQL = {
     SELECT id, created_at, status, debrief_status, observation_type, user_id, observer_user_id, audio_url,
            analysis_data->'scores'                AS scores,
            analysis_data->>'executive_summary'    AS summary,
-           analysis_data->'teacher_delivery'      AS delivery
+           analysis_data->'teacher_delivery'      AS delivery,
+           analysis_data->>'framework'            AS framework,
+           analysis_data->'obs612'                AS obs612
     FROM coaching_sessions
     WHERE id = $1::uuid AND observation_type = 'leader_observation'
     LIMIT 1
@@ -403,6 +409,12 @@ function stepOf(r) {
   return 'analysing';
 }
 
+/** bd-pni007 — an FDE visit's list row: the tool, its result and the label ('FDE v1'); null for every other row. */
+function obs612Row(analysis) {
+  const s = portalSummary(analysis);
+  return s ? { label: s.label, toolName: s.toolName, result: s.result } : null;
+}
+
 function shapeReport(r, leaderUserId, teacherByUser) {
   const selfOwned = r.user_id && r.user_id === leaderUserId;
   const delivered = ((r.analysis_data || {}).teacher_delivery || {}).teacher_name;
@@ -420,6 +432,7 @@ function shapeReport(r, leaderUserId, teacherByUser) {
     step: stepOf(r),
     score: scoreOf(r),
     portal: PORTAL_KEY_RX.test(audio),
+    obs612: obs612Row(r.analysis_data),
   };
 }
 
@@ -584,6 +597,8 @@ async function getCoachObservation(query, leaderUserId, sessionId, opts = {}) {
     caption: delivery.caption || null,
     reportKey: delivery.report_key || null,
     audioKey: row.audio_url || null,
+    // bd-pni007 — an FDE visit: its result, rows and the coach's feedback (never a FICO score); null otherwise.
+    obs612: portalSummary({ framework: row.framework, obs612: row.obs612 }),
   };
 }
 

@@ -79,6 +79,7 @@ test('a teacher outside her patch is still refused', async () => {
 test('OBSERVATION_BY_ID reads the audio key; analysis_data only as slices', () => {
   const sql = SVC.SQL.OBSERVATION_BY_ID;
   expect(sql).toMatch(/\baudio_url\b/);
-  const bare = sql.replace(/analysis_data->>?'[a-z_]+'/g, '');
+  // bd-pni007: a slice key may carry digits ('obs612').
+  const bare = sql.replace(/analysis_data->>?'[a-z0-9_]+'/g, '');
   expect(bare).not.toMatch(/analysis_data/);
 });

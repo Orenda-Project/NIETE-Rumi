@@ -32,11 +32,15 @@ const periodFor = (seconds) => {
  * the coach last chose; a coach who tried /observe2 once and went back to /observe stays classic.
  * Any failed read answers false: today's routing, never a guess.
  */
+// bd-pni007: an FDE visit made in /observe has a form row too (visit_context.via 'observe'); it is an /observe visit.
+const madeByObserve = (form) => Boolean(form && form.visit_context && form.visit_context.via === 'observe');
+
 async function prefersObserve2(userId) {
   try {
     if (!isFeatureRunnable('observe2')) return false;
     const latest = await Store.latestFormOf(userId);
     if (!latest.ok || !latest.form) return false;
+    if (madeByObserve(latest.form)) return false;
     const supabase = require('../../../config/supabase');
     const { data, error } = await supabase.from('coaching_sessions')
       .select('id, created_at')
@@ -51,8 +55,8 @@ async function prefersObserve2(userId) {
     }
     const session = (data || [])[0];
     if (!session || String(session.created_at) <= String(latest.form.created_at)) return true;
-    const linked = await Store.findBySession(session.id, 'id');
-    return Boolean(linked.ok && linked.form);
+    const linked = await Store.findBySession(session.id, 'id, visit_context');
+    return Boolean(linked.ok && linked.form && !madeByObserve(linked.form));
   } catch (err) {
     logToFile('[observe2] could not tell which flow the coach uses (routing as /observe)', { userId, error: err.message }, 'error');
     return false;
