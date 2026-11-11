@@ -51,7 +51,7 @@ function fail(where, error, extra) {
 // `observerRegion` is users.region when the caller has it.
 async function createForm({ observerUserId, teacherUserId = null, visitContext = {}, observerRegion }) {
   const { visitRubric } = require('./rubric');
-  const { rubricVersion, shadow } = await visitRubric({ observerUserId, region: observerRegion });
+  const { rubricVersion, shadow } = await visitRubric({ observerUserId, region: observerRegion, teacherUserId });
   const { data, error } = await supabase.from('observation_field_forms')
     .insert({
       observer_user_id: observerUserId,

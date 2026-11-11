@@ -61,7 +61,12 @@ describe('switch OFF — /observe stays FICO V3, byte-identical', () => {
     switchMod.coachRubric.mockResolvedValueOnce('current');
     expect(await O6.decideVisitFramework({ userId: 'u1', region: 'Sihala' })).toBeNull();
     switchMod.coachRubric.mockResolvedValueOnce('v6');
-    expect(await O6.decideVisitFramework({ userId: 'u1', region: 'Sihala' })).toBe('fico17_v6');
+    // bd-ra8xu.42: grades 1-5 only — the observed teacher must be PRIMARY-only (fico17-v6-grade-gate.test.js).
+    const Grade = require('../../bot/shared/services/coaching/fico-visit-grade');
+    const spy = jest.spyOn(Grade, 'isPrimaryVisit').mockResolvedValue(true);
+    expect(await O6.decideVisitFramework({ userId: 'u1', region: 'Sihala', teacherUserId: 't1' })).toBe('fico17_v6');
+    expect(spy).toHaveBeenLastCalledWith('t1');
+    spy.mockRestore();
     expect(switchMod.coachRubric).toHaveBeenLastCalledWith({ userId: 'u1', region: 'Sihala' });
     const was = process.env.OBSERVE_FRAMEWORK;
     process.env.OBSERVE_FRAMEWORK = 'mewaka';
