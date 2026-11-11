@@ -6,6 +6,7 @@ import { useCopy, useLang } from '../../i18n';
 import { HomeGreeting, StatusChip } from '../../ui';
 import { useLanguageSwitch } from '../../useLanguageSwitch';
 import { LanguagePill } from './LanguagePill';
+import { HelpCorner } from '../../help/HelpCorner';
 import { cleanSchool, fullName, todayLabel } from '../../format';
 import { ReadyForYou } from '../../notices/ReadyForYou';
 import { noticeTracker } from '../../notices/tracker';
@@ -180,7 +181,7 @@ export function LookHome({ tiles, data, order, onGo, role, school }: LookHomePro
           school={cleanSchool(user?.schoolName)}
           brand={C.brand}
           logoAlt={C.logoAlt}
-          corner={<LanguagePill lang={switcher} />}
+          corner={<HelpCorner feature="start"><LanguagePill lang={switcher} /></HelpCorner>}
           footer={switcher.status === 'failed' ? <StatusChip text={C.more.notSaved} tone="error" className="bg-white/10 text-white" /> : role}
         />
       )}
