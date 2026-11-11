@@ -401,6 +401,12 @@ class AnalysisProcessorService {
           })
         : Promise.resolve(null);
 
+      // bd-ra8xu.38 — FICO17 v6 in the background, beside V3, only when the fico_dc_rubric switch says so (default
+      // 'v3': resolves to null, no model call, and the write below is unchanged). Never rejects; V3 drives everything
+      // the teacher sees either way. See frameworks/fico17-v6/shadow.js.
+      const ficoV6Shadow = require('./frameworks/fico17-v6/shadow');
+      const v6ShadowTask = ficoV6Shadow.start({ session, metadata, frameworkKey, transcript: session.transcript_text });
+
       const [analysisSettled, corpusSettled, fidelitySettled] = await Promise.allSettled([
         GPT5MiniService.analyzePedagogy(
           session.transcript_text,
@@ -507,6 +513,8 @@ class AnalysisProcessorService {
       const { data: fresh } = await supabase
         .from('coaching_sessions').select('analysis_data').eq('id', coachingSessionId).single();
       const liveMoves = fresh && fresh.analysis_data && fresh.analysis_data.live_moves;
+      // bd-ra8xu.38: null (switch off) adds nothing; otherwise analysis_data.shadow.fico17_v6, stored, never sent.
+      const v6Shadow = await ficoV6Shadow.settle(v6ShadowTask);
       const { data: analysisArmed } = await supabase
         .from('coaching_sessions')
         .update({
@@ -543,6 +551,7 @@ class AnalysisProcessorService {
             // bd-5knlj: non-ok statuses persist too — lp_absent vs
             // fidelity_unavailable vs never-ran were indistinguishable before.
             ...require('./fidelity/fidelity-orchestrator').fidelityPatch(lpFidelity),
+            ...ficoV6Shadow.patch(v6Shadow),
           },
           status: 'analysis_complete',
           analysis_completed_at: new Date().toISOString(),
