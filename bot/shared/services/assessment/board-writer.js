@@ -64,7 +64,7 @@ async function writeBoardPaper(args, d) {
     // The reply is keyed by slot id (eg.format.secondary); code places it in the tree and stamps each node's slot.
     return { tree: T.fromReply(got.tree, unit.slots), usages: got.usages, elapsedMs: Date.now() - began };
   };
-  const shortError = (shortfall, examJson, detail) => d.fail('PATTERN_SHORT_SLOT', SHORT_MESSAGE, { shortfall, examJson, model, ...(detail ? { detail } : {}) });
+  const shortError = (shortfall, examJson, detail, code = 'PATTERN_SHORT_SLOT') => d.fail(code, code === LT.CAP_CODE ? LT.CAP_MESSAGE : SHORT_MESSAGE, { shortfall, examJson, model, ...(detail ? { detail } : {}) });
   const mergedOf = (trees) => {
     const ex = d.mergeSections(trees);
     d.stripImageKeys(ex);
@@ -275,7 +275,7 @@ async function writeBoardPaper(args, d) {
       outcome(tries, best);
       const short = T.shortfallOf(best.ex, allSlots);
       if (!LT.canShip(best.checks, { grade, slotsShort: short })) throw shortError(best.checks.shortfall.length ? best.checks.shortfall : short, best.ex, LL.hardDetail(best.checks.record));
-      ex = best.ex; checks = LT.ship(best.checks); d.logToFile('[assessment] board paper shipped on last try', { requestId, pattern, grade, subject, rules: checks.record.shipped_last_try }); // bd-qyi45h.3
+      const over = LT.overCap(best.checks, allSlots); if (over) throw shortError(best.checks.shortfall, best.ex, JSON.stringify(over), LT.CAP_CODE); ex = best.ex; checks = LT.ship(best.checks); d.logToFile('[assessment] board paper shipped on last try', { requestId, pattern, grade, subject, rules: checks.record.shipped_last_try }); // bd-qyi45h.3
     } else outcome(tries, tries[0]);
   }
   // 4. The scheme, per the variant's style; then the record.

@@ -299,6 +299,15 @@ describe('a board-pattern paper that comes back short', () => {
     expect(mockHtmlToPdf).not.toHaveBeenCalled();
   });
 
+  test('too many flaws (bd-qyi45h.5) is made once more too; twice, the row fails with that code, which has its own message', async () => {
+    const flawed = () => Object.assign(new Error('too many flawed questions'), { code: 'TOO_MANY_FLAWS', shortfall: [] });
+    mockGeneratePatternExam.mockRejectedValueOnce(flawed()).mockRejectedValueOnce(flawed());
+    const out = await Orchestrator.buildPaper(PATTERN_JOB, {});
+    expect(out).toMatchObject({ status: 'failed', code: 'TOO_MANY_FLAWS' });
+    expect(mockGeneratePatternExam).toHaveBeenCalledTimes(2);
+    expect(Orchestrator.TEACHER_MESSAGE.TOO_MANY_FLAWS).toMatch(/questions/);
+  });
+
   test('any other code is never retried', async () => {
     mockGeneratePatternExam.mockRejectedValueOnce(Object.assign(new Error('bad json'), { code: 'BAD_JSON' }));
     const out = await Orchestrator.buildPaper(PATTERN_JOB, {});
