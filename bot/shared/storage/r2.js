@@ -488,7 +488,15 @@ async function downloadFromR2(key, { bucket, abortSignal } = {}) {
     console.log(`✅ Downloaded from R2: ${key} (${buffer.length} bytes)`);
     return buffer;
   } catch (error) {
-    console.error('❌ Error downloading from R2:', error);
+    // bd-ihhkz6: a missing key is how callers probe optional objects (LP voicenote scripts, caches) —
+    // log it at warn so it stops burying real failures at error. Name the key's first segment either way.
+    const prefix = String(key || '').split('/')[0];
+    const status = error && error.$metadata && error.$metadata.httpStatusCode;
+    if ((error && error.name === 'NoSuchKey') || status === 404) {
+      console.warn('⚠️ R2 object not found:', { prefix, error: error.message });
+    } else {
+      console.error('❌ Error downloading from R2:', { prefix, name: error && error.name, status, error: error && error.message });
+    }
     throw error;
   }
 }
