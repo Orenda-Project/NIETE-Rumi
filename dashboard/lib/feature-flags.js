@@ -206,6 +206,14 @@ const PORTAL_COACH_V2_KEY = 'portal_coach_v2';
 const PORTAL_TEACHER_V2_KEY = 'portal_teacher_v2';
 
 /**
+ * bd-ik5e8j.4 — app_settings key for the teacher app's help videos (queue #85): the "?" on a feature's page, its tray,
+ * and More → How to use. Read only with portal_teacher_v2 on. Same shape and rule as the keys above: true = everyone,
+ * a list of users.id = a pilot, "teachers" = every teacher, absent / anything else / a failed read = off. Off, every
+ * page is today's and GET /api/portal/help is 404.
+ */
+const PORTAL_HELP_VIDEOS_KEY = 'portal_help_videos';
+
+/**
  * bd-33wxxi.1 — the PRINCIPAL app, per user: app_settings key that puts a principal (users.role principal) on the
  * teacher app every teacher has (lib/teacher-app.js teacherAppOnFor: portal_teacher_v2, portal_teacher_home_card and
  * portal_teacher_home_look then answer ON for her), plus her school. Same shape and rule as the keys above: a list of
@@ -533,6 +541,7 @@ module.exports = {
   PORTAL_COACH_FULL_APP_KEY,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
+  PORTAL_HELP_VIDEOS_KEY,
   PORTAL_PRINCIPAL_APP_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,

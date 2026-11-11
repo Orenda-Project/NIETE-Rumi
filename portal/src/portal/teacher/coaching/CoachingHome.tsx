@@ -63,7 +63,7 @@ export function CoachingHomePage() {
   if (principalApp === true) return <Navigate to={OBS_HOME} replace />;
 
   return (
-    <TeacherPage feature="coaching" title={C.title} crumb={C.home} backTo={teacherPath('home')} testId="dc-home">
+    <TeacherPage feature="coaching" title={C.title} crumb={C.home} backTo={teacherPath('home')} testId="dc-home" help="coaching">
       <Link to={COACHING_NEW} className={cn('flex min-h-[112px] items-center gap-4 p-4', CARD, FOCUS)}>
         <span
           className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full"

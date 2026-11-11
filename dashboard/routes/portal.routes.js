@@ -108,6 +108,7 @@ const {
   PORTAL_TEACHER_HOME_CARD_KEY,
   PORTAL_TEACHER_HOME_ORDER_KEY,
   PORTAL_TEACHER_HOME_LOOK_KEY,
+  PORTAL_HELP_VIDEOS_KEY,
   isCoachObservationOn,
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
@@ -9176,6 +9177,7 @@ router.get('/config', async (req, res) => {
       coachFullAppRaw,
       coachReportsAppRaw,
       principalApp,
+      helpVideosRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9213,6 +9215,8 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, userId),
       // bd-33wxxi.1 — the principal app (portal_principal_app): a principal on it gets the teacher app plus her school.
       isPrincipalAppUser(supabase, userId),
+      // bd-ik5e8j.4 — the help videos ("?" + More → How to use), per user; it rides with the teacher app v2 on.
+      isFlagEnabledForUser(supabase, PORTAL_HELP_VIDEOS_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -9238,6 +9242,7 @@ router.get('/config', async (req, res) => {
         coachReportsApp: coachV2 && coachReportsAppRaw,
         roleSwitch,
         principalApp,
+        helpVideos: teacherV2 && helpVideosRaw,
       },
     });
   } catch (error) {
@@ -9264,6 +9269,7 @@ router.get('/config', async (req, res) => {
         coachFullApp: false,
         roleSwitch: false,
         principalApp: false,
+        helpVideos: false,
       },
       roleSwitchRoles: [],
     });
