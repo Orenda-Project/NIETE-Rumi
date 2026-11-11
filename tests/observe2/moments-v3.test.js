@@ -33,12 +33,14 @@ const { buildLabelPrompt } = require('../../bot/shared/services/observe/observe2
 const { parseTranscript } = require('../../bot/shared/services/observe/observe2/quote-check');
 const Quality = require('../../bot/shared/services/observe/transcript-quality');
 const { observe2Strings } = require('../../bot/shared/services/observe/observe2/strings');
+const Rules = require('../../bot/shared/services/observe/observe2/rules');
 
 const FIX = path.join(__dirname, 'fixtures/moments-v2-prompt');
 const read = (f) => fs.readFileSync(path.join(FIX, f), 'utf8');
 const V5 = 'fico-ict-17-2026-09';
 const V6 = 'fico17_v6';
 const cp = (s) => [...s].length;
+const COMBINED = ['C3', 'C5', 'C7', 'D2', 'D3', 'D4'];
 
 // §8.1, word for word: the v3 definition of each changed type.
 const DEF_81 = {
@@ -266,8 +268,12 @@ describe('(d) a broken transcript on v6', () => {
     expect(f.rumi_moments.transcript_quality.status).toBe('broken');
     expect(f.rumi_moments).toMatchObject({ moments: [], prompt_version: 'observe2-moments-v3', room_evidence: { C3: [], C5: [], C7: [], D3: [] } });
     expect(f.moments_ready_at).toBeTruthy();
-    expect(Object.keys(f.rumi_levels).length).toBeGreaterThan(0);
-    for (const row of Object.values(f.rumi_levels)) expect(row).toMatchObject({ level: 'IE', source: 'heard' });
+    // Every row IE; a combined row's transcript-only result is IE and its level stays the coach's (null).
+    expect(Object.keys(f.rumi_levels)).toHaveLength(17);
+    for (const [code, row] of Object.entries(f.rumi_levels)) {
+      if (COMBINED.includes(code)) expect(row).toMatchObject({ level: null, ...(code === 'D2' ? {} : { dc_result: 'IE' }) });
+      else expect(row).toMatchObject({ level: 'IE', source: 'heard' });
+    }
     // The coach still sets the six room levels: the check opens.
     expect(WhatsAppService.sendFlow).toHaveBeenCalledWith('923000000001', expect.objectContaining({ flowId: 'F-CHECK' }));
     expect(sessions()[0].status).toBe('observe2_checking');
@@ -343,8 +349,26 @@ describe('(f) room evidence', () => {
   });
 });
 
-describe('(g) rumi_levels on v6', () => {
-  // rules-v6 (CONTRACTS §5): heardLevels(moments, counts, [], { rubric: 'fico17_v6' }) gives C8/F2/F3/F4 from
-  // moments and dc_result on the combined rows. Until that lands moments.js already passes the rubric through.
-  test.todo('v6: rumi_levels = heardLevels(moments, counts, [], { rubric }) (C8 3 from one resource_used, D4 dc_result)');
+describe('(g) rumi_levels by the visit\'s rule set', () => {
+  test('v6: heardLevels(moments, counts, [], { rubric }), all 17 rows, C8 from the moments, dc_result on combined rows', async () => {
+    const id = await linked(OK_T);
+    await Moments.runForSession('sess-1', '923000000001', { llm: jest.fn(() => Promise.resolve(MODEL_V6)), labelLlm: jest.fn(() => Promise.resolve(KEEP_ALL)) });
+    const f = formRow(id);
+    const { moments, counts } = f.rumi_moments;
+    expect(f.rumi_levels).toEqual(Rules.heardLevels(moments, counts, [], { rubric: V6 }));
+    expect(Object.keys(f.rumi_levels)).toHaveLength(17);
+    expect(f.rumi_levels.C8).toMatchObject({ level: 3, source: 'heard' });       // one resource_used
+    for (const code of COMBINED) expect(f.rumi_levels[code].level).toBeNull();
+    expect(f.rumi_levels.D4).toHaveProperty('dc_result');
+  });
+
+  test('v5: the seven heard rows, as today', async () => {
+    const id = await linked(OK_T, { rubric: V5 });
+    await Moments.runForSession('sess-1', '923000000001', { llm: jest.fn(() => Promise.resolve({ moments: MODEL_V6.moments, counts: MODEL_V6.counts })), labelLlm: jest.fn(() => Promise.resolve(KEEP_ALL)) });
+    const f = formRow(id);
+    expect(f.rumi_levels).toEqual(Rules.heardLevels(f.rumi_moments.moments, f.rumi_moments.counts));
+    expect(Object.keys(f.rumi_levels).sort()).toEqual([...Rules.HEARD_CODES].sort());
+    // A v5 visit drops the v6-only type, as it drops any unknown type.
+    expect(f.rumi_moments.moments.some((m) => m.type === 'resource_used')).toBe(false);
+  });
 });
