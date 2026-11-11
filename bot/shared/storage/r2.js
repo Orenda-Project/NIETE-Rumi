@@ -812,6 +812,13 @@ async function getPresignedUrl(r2Url, expiresIn = 3600, options = undefined) {
     return r2Url;
   }
 
+  // bd-k7hex: Cloudflare's public bucket alias (pub-<hex>.r2.dev) — quiz audio and pictures live
+  // there. It is public by design and not our bucket, so there is nothing to sign: hand it back
+  // without the "bucket pattern not found" warn (3,449/day on prod, all quiz media).
+  if (/^https?:\/\/pub-[0-9a-f]+\.r2\.dev\//i.test(r2Url)) {
+    return r2Url;
+  }
+
   // Extract the key from the R2 URL
   // Format: https://xxx.r2.cloudflarestorage.com/bucket-name/path/to/file.ext
   const bucketName = BUCKET_NAME;
