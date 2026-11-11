@@ -216,6 +216,17 @@ async function startObserveVisit({ user, from, session, ownerUserId, boundTeache
 
 // ── /observe2: the class after the period ─────────────────────────────────────
 
+/**
+ * The FICO stamp for an /observe2 visit whose class the coach named grades 1-5. sandbox and staging have
+ * observe2/rubric.visitRubric ({rubricVersion, shadow}); main still has the older rubricForNewVisit (the stamp alone,
+ * no shadow visits). Both take lessonIsPrimary.
+ */
+async function ficoStampFor(who) {
+  const R = require('../observe2/rubric');
+  if (typeof R.visitRubric === 'function') return R.visitRubric(who);
+  return { rubricVersion: await R.rubricForNewVisit(who), shadow: false };
+}
+
 /** Has this /observe2 form had its lesson named? */
 function lessonNamed(form) {
   const vc = (form && form.visit_context) || {};
@@ -234,8 +245,7 @@ async function finishObserve2(user, from, formId, lesson) {
   const Start = require('../observe2/start');
   if (lesson.primary) {
     // Grades 1-5: FICO, as today; the coach naming the class decides the grades 1-5 gate (not the profile).
-    const { visitRubric } = require('../observe2/rubric');
-    const { rubricVersion, shadow } = await visitRubric({
+    const { rubricVersion, shadow } = await ficoStampFor({
       observerUserId: user.id, region: user.region, teacherUserId: form.teacher_user_id, lessonIsPrimary: true,
     });
     const set = await Store.setLesson(form, { rubricVersion, visitContextPatch: { grade_band: 'primary', shadow_v6: shadow || undefined } });
