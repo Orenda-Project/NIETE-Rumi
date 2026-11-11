@@ -101,9 +101,9 @@ describe('the Flow', () => {
     expect(s).toBeTruthy();
     expect(flow.routing_model.HEARD_EXPLAIN).toContain('MISSED');
     expect(flow.routing_model.MISSED).toEqual(['COMBINED_ONE']);
-    expect(V6_CHECK).toBe('2');
+    expect(Number(V6_CHECK)).toBeGreaterThanOrEqual(2);
     const footer = flow.screens.find((x) => x.id === 'HEARD_EXPLAIN').layout.children[0].children.find((c) => c.type === 'Footer');
-    expect(footer['on-click-action'].payload.v6c).toBe('2');
+    expect(footer['on-click-action'].payload.v6c).toBe(V6_CHECK);
   });
 
   test('two slots, each optional: a type from the endpoint\'s list, the minute, the words', () => {

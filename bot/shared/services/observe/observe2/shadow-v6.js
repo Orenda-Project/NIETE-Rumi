@@ -16,10 +16,13 @@
  * d2_turns (every status but a throw before the gate): the Student lines in each half, counted (moments.d2Turns).
  *
  * runFor returns at once: the read runs in the background, never throws into the moments job and never holds up
- * the check. check-v6's analysis.js copies the blob to analysis_data.observe2.shadow_v6 at check end.
+ * the check. check-v6's analysis.js copies the blob to analysis_data.observe2.shadow_v6 at check end. A read that
+ * lands after the check ended (the coach was quicker) is patched into analysis_data.observe2.shadow_v6 here, that key
+ * only, once the check has handed the visit over (fico17-v6/late-write.js; FICO6 fix-shadow, e2e 154450).
  */
 
 const Store = require('./field-form.store');
+const LateWrite = require('../../coaching/frameworks/fico17-v6/late-write');
 const { isV6, isShadow } = require('./rubric');
 const { logToFile } = require('../../../utils/logger');
 
@@ -99,11 +102,21 @@ async function work(form, transcript, deps) {
       formId: form.id, status: blob.status, stored: stored.ok, quality: blob.transcript_quality && blob.transcript_quality.status,
       moments: (blob.moments || []).length, ...(blob.error ? { error: blob.error } : {}),
     }, blob.status === 'failed' || !stored.ok ? 'error' : 'info');
+    if (stored.ok) await toCheckedSession(form.id, blob);
     return { ok: stored.ok, status: blob.status };
   } catch (err) {
     logToFile('[observe2] shadow v6 read threw', { formId: form && form.id, error: err.message }, 'error');
     return { ok: false, status: 'failed' };
   }
+}
+
+// The check ended before the read did: its hand-over lifted no shadow_v6, so it goes into the session now. A form not
+// checked yet needs nothing: the check reads the form after this write and lifts the blob itself.
+async function toCheckedSession(formId, blob) {
+  const { form } = await Store.getForm(formId); // a failed read is logged there
+  if (!form || !form.checked_at || !form.coaching_session_id) return;
+  const res = await LateWrite.patchSession(form.coaching_session_id, LateWrite.observe2ShadowV6(formId, blob), { label: 'observe2 shadow v6 after the check' });
+  logToFile('[observe2] shadow v6 read landed after the check', { formId, sessionId: form.coaching_session_id, ...res }, res.ok ? 'info' : 'warn');
 }
 
 /**

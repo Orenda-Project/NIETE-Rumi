@@ -18,7 +18,8 @@
  *
  * Only ICT's FICO self-recordings: a coach visit (leader_observation) is the coach switch's business, never this one.
  * Never throws and never delays the teacher by more than GRACE_MS after V3 is ready; a v6 failure or a slow reply is
- * recorded as status 'failed' / 'invalid' / 'timeout', never as a default level.
+ * recorded as status 'failed' / 'invalid' / 'timeout', never as a default level. A slow reply that does come is put in
+ * the timeout blob's place afterwards, marked late: true (storeLate; FICO6 fix-shadow).
  */
 
 const { logToFile } = require('../../../../utils/logger');
@@ -197,4 +198,20 @@ function patch(blob) {
   return blob.mode === 'v6' ? { dc: { fico17_v6: blob } } : { shadow: { fico17_v6: blob } };
 }
 
-module.exports = { GRACE_MS, modeFor, shadowMetadata, scoreV6, start, settle, patch };
+/**
+ * After the analysis write: when settle() stored 'timeout', waits for the read it gave up on and puts it in that
+ * place (analysis_data.shadow.fico17_v6, or dc.fico17_v6), that key only (fico17-v6/late-write.js). Never rejects.
+ * @returns {Promise<{started: boolean, ok?: boolean, written?: boolean, why?: string}>}
+ */
+async function storeLate(task, stored, sessionId, opts = {}) {
+  if (!task || !stored || stored.status !== 'timeout') return { started: false };
+  const blob = await task.catch(() => null);
+  if (!blob) return { started: true, ok: false, why: 'no result' };
+  const LateWrite = require('./late-write');
+  const key = Object.keys(patch(blob))[0];
+  const res = await LateWrite.patchSession(sessionId, LateWrite.dcFico17V6(key, stored, { ...blob, late: true }), { ...opts, label: 'DC v6 after the grace' });
+  logToFile('[fico17-v6 shadow] the read that timed out has landed', { coachingSessionId: sessionId, status: blob.status, key, ...res }, res.ok ? 'info' : 'warn');
+  return { started: true, ...res };
+}
+
+module.exports = { GRACE_MS, modeFor, shadowMetadata, scoreV6, start, settle, patch, storeLate };
