@@ -106,7 +106,9 @@ const V6_RUBRIC_SECTIONS = new Set(['high_leverage_practices', 'student_engageme
  *   the C, D and F rows read "not assessed"; a broken one says why once, in the note under the report.
  * Runs after the narrative's why lines, so the model cannot replace these. Mutates `groups`.
  *
- * @returns {null|{note: (string|null)}} null for any other analysis (v5, V3, /observe v6): nothing changed.
+ * - a section with no numeric level (every row IE, or IE and NA) reads "not assessed" with its IE lines.
+ * @returns {null|{note: (string|null), noLevels: boolean}} null for any other analysis (v5, V3, /observe v6):
+ *   nothing changed. noLevels: no row has a number, so the image shows no marks total.
  */
 function v6HeroRows(groups, analysis, language) {
   const o2 = (analysis && analysis.observe2) || {};
@@ -126,14 +128,25 @@ function v6HeroRows(groups, analysis, language) {
       delete g.why;
       continue;
     }
-    const gaps = (((analysis.domains || {})[key] || {}).indicators || [])
-      .filter((ind) => ind && String(finals[ind.id]) === 'IE')
+    const rows = (((analysis.domains || {})[key] || {}).indicators || []).filter(Boolean);
+    const gaps = rows
+      .filter((ind) => String(finals[ind.id]) === 'IE')
       .map((ind) => `${ind.name}: ${S.v6_report_ie || V6_REPORT_IE}`);
+    // No numeric level in the section (every row IE, or IE and NA): its marks are 0 of 0, which the row would draw
+    // as "0/0" over an empty bar (redteam2 2(d)). It is not assessed, like held, and says which rows weren't heard.
+    if (rows.length && !rows.some((ind) => /^[1-4]$/.test(String(finals[ind.id])))) {
+      Object.assign(g, { score: null, max: null, pct: null, notAssessed: true, notAssessedWords: notAssessedWords(language) });
+      if (gaps.length) g.why = gaps.join(' ');
+      else delete g.why;
+      continue;
+    }
     if (!gaps.length) continue;
     const existing = typeof g.why === 'string' ? g.why.trim() : '';
     g.why = [existing, ...gaps].filter(Boolean).join(' ');
   }
-  return { note: broken ? (S.v6_report_broken || V6_REPORT_BROKEN) : null };
+  // Every row not assessed: the marks under the headline would read "0/N marks", a total with nothing in it.
+  const noLevels = (groups || []).length > 0 && groups.every((g) => g && g.notAssessed);
+  return { note: broken ? (S.v6_report_broken || V6_REPORT_BROKEN) : null, noLevels };
 }
 
 /**
@@ -232,7 +245,7 @@ async function generateHeroReport(session, analysis, opts = {}) {
     partialNote,
     topic: (narrative && narrative.topic) || analysis.topic || '',
     date: String(session.created_at || '').slice(0, 10),
-    score: { overall: score.overall, marks: score.marks, max: score.max },
+    score: v6 && v6.noLevels ? { overall: score.overall, marks: null, max: null } : { overall: score.overall, marks: score.marks, max: score.max },
     groups: score.groups,
     narrative: narrative || {},
     tryNext: commitmentAction || '',
