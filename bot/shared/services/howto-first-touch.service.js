@@ -110,7 +110,10 @@ function defaultDeps() {
     caption: (lang) => require('../config/ux-strings').resolveUx('howtoFirstTouchCaption', { language: lang }),
     log: (msg, meta) => logToFile(msg, meta),
     logError: (msg, meta) => logError(msg, meta),
-    ttlMs: require('../config/app-settings-ttl').APP_SETTINGS_FLAG_TTL_MS,
+    // The one switch-cache TTL where the tier has it (sandbox, staging); main has no app-settings-ttl.js yet: 30 s there.
+    ttlMs: (() => {
+      try { return require('../config/app-settings-ttl').APP_SETTINGS_FLAG_TTL_MS; } catch (_) { return 30000; }
+    })(),
     sendTimeoutMs: SEND_TIMEOUT_MS,
   };
 }
@@ -198,8 +201,14 @@ function createHowtoFirstTouch(injected = {}) {
 let shared = null;
 /** The bot's door (whatsapp-bot.js): the one shared instance with the real reads and sends. */
 async function maybeSendHowtoFirstTouch(args) {
-  if (!shared) shared = createHowtoFirstTouch();
-  return shared.maybeSend(args);
+  try {
+    if (!shared) shared = createHowtoFirstTouch();
+    return await shared.maybeSend(args);
+  } catch (err) {
+    // Nothing here may stop her message: a failure to even build the service is logged and skipped.
+    try { require('../utils/logger').logError('❌ howto first touch: unavailable (her message goes on)', { error: err?.message }); } catch (_) { /* no logger */ }
+    return { sent: false, why: 'unavailable' };
+  }
 }
 
 module.exports = { createHowtoFirstTouch, maybeSendHowtoFirstTouch, FEATURE, SWITCH_KEY, VIDEO_KEY, SEND_TIMEOUT_MS };

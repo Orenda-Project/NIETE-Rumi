@@ -160,3 +160,18 @@ describe('howto first touch — Film 1 once per teacher', () => {
     expect(w.sends).toHaveLength(0);
   });
 });
+
+describe('howto first touch — the door never breaks a message', () => {
+  test('a missing optional config module (main has no app-settings-ttl.js) does not throw at the door', async () => {
+    let maybeSendHowtoFirstTouch;
+    jest.isolateModules(() => {
+      jest.doMock('../../shared/config/app-settings-ttl', () => { throw new Error("Cannot find module '../config/app-settings-ttl'"); });
+      jest.doMock('../../shared/config/supabase', () => ({
+        from: () => ({ select: () => ({ in: async () => ({ data: [], error: null }) }) }),
+      }));
+      ({ maybeSendHowtoFirstTouch } = require('../../shared/services/howto-first-touch.service'));
+    });
+    await expect(maybeSendHowtoFirstTouch({ user: { id: 'u1', role: 'teacher', name: 'T' }, from: '923000000009', correlationId: 'c' }))
+      .resolves.toEqual(expect.objectContaining({ sent: false }));
+  });
+});
