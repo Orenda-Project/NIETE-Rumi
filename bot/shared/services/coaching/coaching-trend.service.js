@@ -43,6 +43,8 @@ function shortLabel(isoDate, locale = 'sw') {
 function pctFromRow(row) {
   const ad = row.analysis_data;
   if (!ad || typeof ad !== 'object') return null;
+  // bd-ra8xu.38: a FICO17 v6 session is not on the V3 line (different indicators, different maximum).
+  if (require('./frameworks/fico17-v6/stamp').isV6Scored(ad)) return null;
   // Prefer scores.overall_percentage (MEWAKA / v2 canonical), then the OECD
   // shape scores.percentage (every pre-MEWAKA session stores its overall %
   // here), then any top-level overall_percentage. This keeps the sparkline
@@ -116,4 +118,4 @@ async function loadTrendData(userId, opts = {}) {
   }
 }
 
-module.exports = { loadTrendData, shortLabel };
+module.exports = { loadTrendData, shortLabel, pctFromRow };

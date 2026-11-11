@@ -231,6 +231,8 @@ function strongestAreaFromAnalysis(analysis) {
  * an explicit scores.overall_percentage; null when there is no usable score.
  */
 function overallScoreFromAnalysis(analysis) {
+  // bd-ra8xu.38: a FICO17 v6 analysis has no V3 overall (its domains use their own keys, its score its own scale).
+  if (require('../../coaching/frameworks/fico17-v6/stamp').isV6Scored(analysis)) return null;
   const ratios = Object.values(_areaRatios(analysis));
   if (ratios.length) return ratios.reduce((a, b) => a + b, 0) / ratios.length;
   const pct = analysis && analysis.scores && Number(analysis.scores.overall_percentage);
