@@ -352,7 +352,7 @@ describe('the teacher report never prints a v6 N/A or couldn\'t-tell row as 0/4'
     const names = report('fico17_v6');
     expect(names.some((n) => n.startsWith('C7 '))).toBe(false);
     expect(names.some((n) => n.startsWith('D3 '))).toBe(false);
-    expect(names.some((n) => n.startsWith('C5 '))).toBe(true);
+    expect(names).toContain('Switching activities'); // a v6 report prints names, no codes (spec §9.3)
   });
   test('v5: unchanged (every row printed, as today)', () => {
     const names = report('fico-ict-17-2026-09');
