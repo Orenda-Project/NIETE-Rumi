@@ -37,7 +37,7 @@ const Store = require('../services/observe/observe2/field-form.store');
 const { addUp } = require('../services/observe/observe2/rules');
 const { CODES, PLAN_FOCUS, FOCUS, FOCUS_ORDER, ALSO_NONE, pickAlso } = require('../services/observe/observe2/fico17');
 const {
-  SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS, COMBINED_SCREENS, ADDED6_SCREENS, MISSED_SLOTS, MISSED_WORDS_MAX,
+  SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS, COMBINED_SCREENS, ADDED6_SCREENS, MISSED_SLOTS, MISSED_WORDS_MAX, OVERRIDE_REASONS,
 } = require('../services/observe/observe2/evidence-check.flow');
 const { isV6 } = require('../services/observe/observe2/rubric');
 const MomentTypes = require('../services/observe/observe2/moment-types');
@@ -530,19 +530,40 @@ function renderAdded6(screenId, added, { errors = {}, chosen = null } = {}) {
   return { screen: screenId, data };
 }
 
+// The longest period a visit can have (field-form.store: 20-90 minutes), for a minute when the period is unknown.
+const PERIOD_MAX = 90;
+
+// Why the coach changed Rumi's levels on one screen (spec §9.1): on a check with the reasons list (v6_check 2+), a
+// reason from it and, if given, a whole minute inside the period; on every check, the note of 20+ characters.
+function overrideErrors(form, step, screenData, changed, S) {
+  const { why, kind, min } = ADDED6_OF[step];
+  const errors = {};
+  if (!changed.length) return errors;
+  if (listsReasons(form)) {
+    if (!OVERRIDE_REASONS.includes(String(screenData[kind] || ''))) errors[kind] = S.v6_pick_reason;
+    const raw = String(screenData[min] == null ? '' : screenData[min]).trim();
+    const period = wholeNumber((form && form.period_minutes)) || PERIOD_MAX;
+    const minute = wholeNumber(raw);
+    if (raw !== '' && (minute == null || minute > period)) errors[min] = S.v6_minute_range(period);
+  }
+  if (!V6.isJustified(screenData[why])) errors[why] = S.v6_why_changed(changed.map((c) => V6.indicator(c).name));
+  return errors;
+}
+const listsReasons = (form) => Number(((form && form.evidence_review) || {}).v6_check || 0) >= 2;
+
 async function onAdded6(form, step, screenData) {
   const S = observe2Strings('en');
-  const { codes, why } = ADDED6_OF[step];
+  const { codes, why, kind, min } = ADDED6_OF[step];
   const review = form.evidence_review || {};
   const prefilled = review.added || {};
   const chosen = Object.fromEntries(codes.map((c) => [c, String(screenData[`${c}_final`] == null ? '' : screenData[`${c}_final`])]));
   const changed = codes.filter((c) => (prefilled[c] || '') !== '' && chosen[c] !== String(prefilled[c]));
   const reason = String(screenData[why] || '').trim();
-  if (changed.length && !V6.isJustified(reason)) {
-    const errors = { [why]: S.v6_why_changed(changed.map((c) => V6.indicator(c).name)) };
-    return renderAdded6(step, addedLevels(form, review), { errors, chosen });
-  }
-  const patch = pickFields(screenData, codes.map((c) => `${c}_final`));
+  const errors = overrideErrors(form, step, screenData, changed, S);
+  if (Object.keys(errors).length) return renderAdded6(step, addedLevels(form, review), { errors, chosen });
+  const listed = listsReasons(form);
+  const at = new Date().toISOString();
+  const patch = pickFields(screenData, [...codes.map((c) => `${c}_final`), kind, min]);
   if (reason) patch[why] = reason;
   for (const code of codes) {
     const was = String(prefilled[code] || '');
@@ -553,6 +574,17 @@ async function onAdded6(form, step, screenData) {
       source: isChange || was === '' ? 'coach' : 'rumi',
       set_by: isChange || was === '' ? 'coach' : 'rumi',
       rumi_level: V6.normLevel(was),
+      // The change, with Rumi's level kept as `from` (spec §9.1, §13). A check without the reasons list could not ask.
+      ...(isChange ? {
+        override: {
+          from: V6.normLevel(was),
+          to: V6.normLevel(chosen[code]),
+          reason: listed ? String(screenData[kind]) : null,
+          minute: listed ? wholeNumber(screenData[min]) : null,
+          by: 'coach',
+          at,
+        },
+      } : {}),
       ...V6.stamp('coach'),
     };
   }
