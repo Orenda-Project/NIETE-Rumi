@@ -72,8 +72,10 @@ async function settle() {
 const pdfsTo = (phone) => WhatsAppService.sendDocumentByLink.mock.calls.filter((c) => c[0] === phone);
 const textsTo = (phone) => WhatsAppService.sendMessage.mock.calls.filter((c) => c[0] === phone).map((c) => c[1]);
 
-beforeAll(() => V8Catalog.__setCatalogForTests(CATALOG));
-afterAll(() => V8Catalog.__setCatalogForTests(null));
+const Voicenote = require('../../bot/shared/config/lp-v8-voicenote');
+// The K-5 voice note is off in production (11 Nov); on here so the one-bundle check still covers it.
+beforeAll(() => { V8Catalog.__setCatalogForTests(CATALOG); Voicenote.__setForTests(true); });
+afterAll(() => { V8Catalog.__setCatalogForTests(null); Voicenote.__setForTests(false); });
 
 let now;
 beforeEach(() => {
