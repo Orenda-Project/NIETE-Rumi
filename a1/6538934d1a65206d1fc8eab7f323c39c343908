@@ -1,0 +1,2 @@
+{"ts":"2026-11-11T12:01:06Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"a16538934d1a","branch":"bd-s8mi25","user":""}
+{"ts":"2026-11-11T12:01:08Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-s8mi25: lesson-plan spec: NOT UPDATED e2e: missing","sha":"a16538934d1a","branch":"bd-s8mi25","user":""}
