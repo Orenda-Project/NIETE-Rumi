@@ -47,6 +47,8 @@ const { wells, stepOf } = require('../../bot/shared/services/coaching/report-car
 // A paper's subject by its printable name (as progress.service and teacher-notices print it).
 const { subjectLabel } = require('../../bot/shared/services/assessment/assessment-vocabulary');
 const P = require('../lib/school-card-period');
+// The /observe2 field form's rubrics (fico17, fico17_v6): counted as a visit, never averaged with the FICO form's scores.
+const { isFieldFormRubric } = require('../lib/insights/field-form-rubric');
 const { karachiToday } = require('../lib/visit-time');
 
 const FEATURES = Object.freeze(['lp', 'dc', 'training', 'papers']);
@@ -59,8 +61,6 @@ const HUMAN_OBSERVATION = 'leader_observation';
 const DEAD_VISIT = Object.freeze(['cancelled', 'abandoned', 'failed', 'test_cleanup']);
 /** Reviewed by the coach: only then is a visit's score hers (coach-v2 TERMINAL_STATUSES). */
 const REVIEWED = Object.freeze(['completed', 'observer_review_complete']);
-/** The /observe2 field form's rubric: counted as a visit, never averaged with the FICO form's scores. */
-const FIELD_FORM_RUBRIC = 'fico17';
 const CD_GROUPS = Object.freeze(['C', 'D']);
 const ROSTER_ROLES = `('teacher', 'principal')`;
 
@@ -356,13 +356,13 @@ function isDcObservation(row, pct) {
  * cancelled, abandoned, failed or a test clean-up, not a self-observation, and not by a test account — the governed
  * hitl_conducted rule without its "scores present" test, so a visit still being analysed already counts.
  * Its score is the coach's reviewed score, so only a REVIEWED visit has one; a /observe2 field-form visit
- * (rubric fico17) is counted and listed but never averaged or drawn with the FICO form's scores.
+ * (rubric fico17 or fico17_v6) is counted and listed but never averaged or drawn with the FICO form's scores.
  */
 function isCoachObservation(row) {
   return !!row && row.observation_type === HUMAN_OBSERVATION && row.status != null && !DEAD_VISIT.includes(row.status)
     && row.observer_user_id !== row.user_id && row.observer_test !== true;
 }
-const isFieldForm = (info) => !!info && info.rubric === FIELD_FORM_RUBRIC;
+const isFieldForm = (info) => !!info && isFieldFormRubric(info.rubric);
 const visitScore = (row, scored) => (row && REVIEWED.includes(row.status) && scored ? round(scored.pct) : null);
 
 /**
