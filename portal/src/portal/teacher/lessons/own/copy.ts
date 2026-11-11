@@ -46,6 +46,7 @@ export const OWN_COPY = {
   level: 'Where is your class on these pages?',
   levels: { behind: 'Behind', on_track: 'On track', ahead: 'Ahead', mixed: 'Mixed' },
   way: 'Teaching way',
+  pickWays: 'Pick one or more',
   suggested: 'Suggested for your class',
   ways: {
     tarl: "Teach at each child's level", cpa: 'Things → pictures → numbers (CPA)', phonics: 'Sounds first (phonics)',
@@ -116,6 +117,8 @@ export const OWN_COPY = {
   },
   /* bd-snkn32.20 — her plans for this chapter, reopened from step 1 */
   myPlans: 'Your plans for this chapter',
+  /* bd-snkn32.5 — her plans on Lesson Plans home */
+  myOwnPlans: 'My own plans',
   changesLeft: (n: number) => (n === 0 ? 'No more changes' : n === 1 ? '1 more change' : `${n} more changes`),
   beingMade: 'Being made',
   usedBoth: "You've used both changes. To start fresh, make a new plan from the chapter.",
@@ -162,6 +165,7 @@ const OWN_COPY_UR: Words<typeof OWN_COPY> = {
   level: 'ان صفحات پر آپ کی کلاس کہاں ہے؟',
   levels: { behind: 'پیچھے', on_track: 'ساتھ ساتھ', ahead: 'آگے', mixed: 'ملی جلی' },
   way: 'پڑھانے کا طریقہ',
+  pickWays: 'ایک یا زیادہ چنیں',
   suggested: 'آپ کی کلاس کے لیے تجویز',
   ways: {
     tarl: 'ہر بچے کی سطح پر پڑھائیں', cpa: 'چیزیں ← تصویریں ← اعداد (CPA)', phonics: 'پہلے آوازیں (phonics)',
@@ -222,6 +226,7 @@ const OWN_COPY_UR: Words<typeof OWN_COPY> = {
     conclusion: 'خلاصہ', homework: 'گھر کا کام',
   },
   myPlans: 'اس باب کے آپ کے لیسن پلان',
+  myOwnPlans: 'میرے اپنے لیسن پلان',
   changesLeft: (n: number) => (n === 0 ? 'کوئی تبدیلی باقی نہیں' : n === 1 ? '1 تبدیلی باقی' : `${n} تبدیلیاں باقی`),
   beingMade: 'بن رہا ہے',
   usedBoth: 'آپ دونوں تبدیلیاں کر چکی ہیں۔ نئے سرے سے شروع کرنے کے لیے باب سے نیا لیسن پلان بنائیں۔',
