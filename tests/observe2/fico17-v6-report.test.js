@@ -9,7 +9,8 @@
  *   saying so, and still the six levels the coach set in the room;
  * - totals are over numeric levels only, with the denominator (judged rows × 4);
  * - the teacher report stays out of a send until the six coach levels exist (held).
- * A v5 visit reads exactly as before: report-v5-golden.json pins its output at origin/sandbox afeab2a69b.
+ * A v5 visit reads exactly as before: report-v5-golden.json pins its output at origin/sandbox afeab2a69b, except Section
+ * B and the total, which are fico-framework.js's and checked against it on the tree under test (RULINGS R28).
  *
  * Real: brief, focus-areas, analysis, the report transformer, the v6 rubric, the DC teacher report. Nothing here
  * touches the database or WhatsApp; the logger is the only mock.
@@ -218,6 +219,34 @@ describe('the DC teacher report (built, not wired: RULINGS R12)', () => {
 });
 
 describe('v5 reads exactly as before (golden captured at origin/sandbox afeab2a69b)', () => {
+  // RULINGS R28: Section B and the total are fico-framework.js's (applyLpFidelity), which differs between sandbox and
+  // staging (Section B max 28 vs 40) and is not this change. The golden is compared with those fields set to a
+  // marker; they are asserted separately to be exactly what applyLpFidelity gives the same record on this tree.
+  const { applyLpFidelity, getScoringConstants } = require('../../bot/shared/services/coaching/frameworks/fico-framework');
+  const { SECTION_B_MAX } = require('../../bot/shared/services/observe/observe2/analysis');
+  const MARK = '<fico-framework>';
+  const maskAnalysis = (a) => {
+    const m = JSON.parse(JSON.stringify(a));
+    m.domains.lesson_plan_fidelity = MARK;
+    m.scores = MARK;
+    return m;
+  };
+  const maskReport = (r) => {
+    const m = JSON.parse(JSON.stringify(r));
+    m.totalScore = MARK;
+    m.maxScore = MARK;
+    m.goals[0].score = MARK;
+    m.goals[0].maxScore = MARK;
+    return m;
+  };
+  // buildAnalysis's record as it is handed to applyLpFidelity: Section B unscored, no total.
+  const beforeFidelity = (a) => {
+    const m = JSON.parse(JSON.stringify(a));
+    m.domains.lesson_plan_fidelity = { indicators: [], domain_score: 0, domain_max: SECTION_B_MAX, indicators_applicable: 0 };
+    m.scores = {};
+    return m;
+  };
+
   test.each(CALLS.map(([k, o], i) => [i, k, o]))('brief %i (%s %j)', (i, k, opts) => {
     expect(buildBrief(FORMS[k], opts)).toBe(GOLDEN.briefs[i].text);
   });
@@ -228,7 +257,20 @@ describe('v5 reads exactly as before (golden captured at origin/sandbox afeab2a6
       }
     }
     const a = buildAnalysis(FORMS[k]);
-    expect(JSON.stringify(a)).toBe(JSON.stringify(GOLDEN.analyses[k]));
-    expect(JSON.stringify(transformFICOToReportData(SESSION, 'Teacher A', a))).toBe(JSON.stringify(GOLDEN.reports[k]));
+    const r = transformFICOToReportData(SESSION, 'Teacher A', a);
+    expect(JSON.stringify(maskAnalysis(a))).toBe(JSON.stringify(maskAnalysis(GOLDEN.analyses[k])));
+    expect(JSON.stringify(maskReport(r))).toBe(JSON.stringify(maskReport(GOLDEN.reports[k])));
+  });
+  test.each(Object.keys(FORMS))('Section B and the total are applyLpFidelity\'s on this tree: %s', (k) => {
+    const a = buildAnalysis(FORMS[k]);
+    const input = beforeFidelity(a);
+    const fw = applyLpFidelity(input, input.lp_fidelity);
+    expect(a.domains.lesson_plan_fidelity).toEqual(fw.domains.lesson_plan_fidelity);
+    expect(a.scores).toEqual(fw.scores);
+    const r = transformFICOToReportData(SESSION, 'Teacher A', a);
+    expect(r.goals[0].score).toBe(a.domains.lesson_plan_fidelity.domain_score || 0);
+    expect(r.goals[0].maxScore).toBe(a.domains.lesson_plan_fidelity.domain_max || getScoringConstants().domains.lesson_plan_fidelity.indicatorCount * 4);
+    expect(r.totalScore).toBe(r.goals.reduce((sum, g) => sum + g.score, 0));
+    expect(r.maxScore).toBe(getScoringConstants().maxMarks);
   });
 });
