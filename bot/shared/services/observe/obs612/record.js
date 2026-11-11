@@ -54,7 +54,8 @@ function lessonOf(form) {
   return {
     rubricId,
     tool: O.toolOf(rubricId),
-    sheet: vc.sheet === 'en' || vc.sheet === 'ur' ? vc.sheet : null,
+    // The English & Urdu tool's sheet (the subject chose it), or null for the other tools. Not a language.
+    sheet: rubricId && O.toolOf(rubricId) === 'enur' ? O.normSheet(vc.sheet) : null,
     grade: O.normGrade(vc.grade),
     subject: O.normSubject(vc.subject),
     via: vc.via === 'observe' ? 'observe' : 'observe2',
