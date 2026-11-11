@@ -139,7 +139,9 @@ function rumiEvidenceText(analysis, code) {
   const lv = ((analysis || {}).levels || {})[code] || {};
   const row = v6Row(analysis, code) || {};
   const parts = [];
-  const because = lv.because || row.evidence_summary || row.evidence || '';
+  // bd-ra8xu.46: once reviewed, row.evidence is the coach's text and Rumi's own sits in row.rumi_evidence.
+  const rowRumi = row.rumi_evidence !== undefined ? row.rumi_evidence : (row.evidence_summary || row.evidence);
+  const because = lv.because || rowRumi || '';
   if (because) parts.push(String(because));
   const ev = Array.isArray(lv.evidence) ? lv.evidence[0] : null;
   if (ev && ev.quote) parts.push(`${ev.time ? `${ev.time} ` : ''}"${clipWords(ev.quote, QUOTE_CAP)}"`);
@@ -328,11 +330,30 @@ function applyReview(v2, review, edits = {}, v1 = null) {
       row.applicable = final.level !== 'NA';
       row.set_by = final.set_by;
       if (final.because) row.because = final.because;
-      for (const [prefix, field] of [['ev_', 'evidence_sw'], ['imp_', 'improvement_sw']]) {
-        const val = edits[`${prefix}${code}`];
-        if (typeof val !== 'string') continue;
-        const orig = String(((v1 && v6Row(v1, code)) || {})[field] || '');
-        if (val !== orig) { row[field] = val; textChanged += 1; }
+      // bd-ra8xu.46 (operator 11 Nov ~21:20 and ~21:30): the HITL report shows the evidence AS THE COACH SUBMITTED
+      // IT, with the coach's level. A combined indicator's evidence is the coach's written justification (Rumi's
+      // shows above the choice, read-only, as on /observe2). One of the 11 carries the text in its Evidence box as
+      // submitted: Rumi's pre-filled text the coach kept, or the coach's edit. Rumi's own moves to rumi_evidence,
+      // kept for calibration beside analysis_data.combined_evidence; nothing Rumi wrote that the coach did not see
+      // (evidence_items) stays on the shown row.
+      const ev = edits[`ev_${code}`];
+      const coachText = v6.isCombined(code) ? (final.because || '') : (typeof ev === 'string' ? ev.trim() : null);
+      if (coachText !== null) {
+        const rumiText = rumiEvidenceText(v1 || v2, code);
+        if (row.rumi_evidence === undefined) row.rumi_evidence = row.evidence || '';
+        if (row.evidence_items !== undefined && row.rumi_evidence_items === undefined) row.rumi_evidence_items = row.evidence_items;
+        delete row.evidence_items;
+        row.evidence = coachText;
+        row.evidence_summary = coachText;
+        if (!v6.isCombined(code)) {
+          row.evidence_sw = coachText; // the narrative reads evidence_sw first
+          if (coachText !== rumiText.trim()) textChanged += 1;
+        }
+      }
+      const imp = edits[`imp_${code}`];
+      if (typeof imp === 'string') {
+        const orig = String(((v1 && v6Row(v1, code)) || {}).improvement_sw || '');
+        if (imp !== orig) { row.improvement_sw = imp; textChanged += 1; }
       }
     }
   }

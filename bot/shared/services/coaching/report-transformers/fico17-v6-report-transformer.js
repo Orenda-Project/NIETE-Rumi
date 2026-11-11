@@ -14,6 +14,7 @@
 const v6 = require('../frameworks/fico17-v6');
 const { formatDate, extractFidelity, buildPartialNote } = require('./_shared');
 const { coachRoleLabelForRegion } = require('../../../config/region-config');
+const { rubricLabelText } = require('../rubric-label');
 
 const COULDNT_TELL = "Couldn't tell from the recording.";
 
@@ -38,7 +39,11 @@ function criterionFor(code, ind) {
       photoEvidence: null, timestamp: null, setBy: coach ? 'coach' : 'rumi',
     };
   }
-  const evidence = [coachLine, (ind && ind.evidence) || null].filter(Boolean).join(' ') || 'No evidence provided';
+  // bd-ra8xu.46: the evidence as the coach submitted it, with the coach's level. A combined indicator: the coach's
+  // justification only. One of the 11: the coach's reason when the coach changed the level, then the Evidence box as
+  // submitted (Rumi's text the coach kept, or the coach's edit; observe-fico17-v6 applyReview stores it on the row).
+  const shown = v6.isCombined(code) ? [coachLine] : [coachLine, ind && ind.evidence];
+  const evidence = shown.filter(Boolean).join(' ') || 'No evidence provided';
   return {
     name: `${code} ${def.name}: ${v6.TITLES[code][lv - 1]}`,
     score: lv, max: 4, evidence, photoEvidence: null, timestamp: (ind && ind.timestamp) || null,
@@ -82,7 +87,8 @@ function transformFICO17V6ToReportData(session, teacherName, analysis) {
     subject: (session && session.lesson_plan_structured && session.lesson_plan_structured.subject) || a.subject || 'N/A',
     topic: (session && session.lesson_plan_structured && session.lesson_plan_structured.topic) || a.topic || 'N/A',
     observerName: coachRoleLabelForRegion(session && session.users && session.users.region),
-    frameworkDisplayName: 'FICO17',
+    // The framework and its version only (operator 11 Nov ~18:45), the same words as the rubric id everywhere else.
+    frameworkDisplayName: rubricLabelText({ session, analysis: a }) || 'FICO17 v6',
     hasLessonPlan: !!((session && session.lesson_plan_structured) || a.has_lesson_plan),
     totalScore,
     maxScore,
