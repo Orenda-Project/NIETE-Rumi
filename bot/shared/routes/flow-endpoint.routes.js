@@ -251,6 +251,40 @@ async function handleObserve2CheckFlow(data) {
 }
 
 /**
+ * bd-pni007 — the FDE (obs612) coach form for a grade 6-12 lesson: ONE Flow for FDE's three tools (General,
+ * Maths & Science, English & Urdu); the visit's form row decides which. flow_token =
+ * <coachUserId>:obs612:<formId>. Publish bot/docs/flows/obs612-flow.json with endpoint_uri
+ * .../api/flows/obs612 and set OBS612_FLOW_ID.
+ */
+router.post('/obs612', async (req, res) => {
+  try {
+    if (!FlowEncryptionService.isConfigured()) {
+      logToFile('Flow encryption not configured', { endpoint: 'obs612' });
+      return res.status(500).json({ error: 'Flow encryption not configured' });
+    }
+    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
+      req.body,
+      async (decryptedData) => handleObs612Flow(decryptedData)
+    );
+    res.set('Content-Type', 'text/plain');
+    res.send(encryptedResponse);
+  } catch (error) {
+    logToFile('Flow endpoint error', { endpoint: 'obs612', error: error.message }, 'error');
+    res.status(500).json({ error: error.message });
+  }
+});
+
+async function handleObs612Flow(data) {
+  const Obs612 = require('./obs612-endpoint');
+  const { action, flow_token: flowToken, screen, data: screenData } = data;
+  if (action === 'ping') return FlowEncryptionService.handlePing();
+  if (action === 'INIT' || action === 'init') return Obs612.handleObs612Init(flowToken);
+  if (action === 'data_exchange') return Obs612.handleObs612DataExchange(flowToken, screen, screenData || {});
+  logToFile('Unknown obs612 flow action', { action }, 'warn');
+  return FlowEncryptionService.createErrorResponse('Unknown action');
+}
+
+/**
  * Child test — the coach's check of the AI's marks for one child (URDU → ENGLISH → MATHS).
  * flow_token = <coachUserId>:child-test-check:<sessionId>. Publish the Flow with endpoint_uri
  * .../api/flows/child-test-check and set CHILD_TEST_CHECK_FLOW_ID.

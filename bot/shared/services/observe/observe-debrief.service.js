@@ -287,9 +287,12 @@ const STAGE_A_STATUSES = ['confirmed', 'transcribing', 'analyzing', 'analysis_st
   // message never reached the coach, this list is the only way back to the visit (5 Oct 2026).
   // observe2_moments: Rumi is reading the recording. A recording held for its form (record first) is
   // in the list from the moment it is saved, so its form can be filled meanwhile.
-  'observe2_moments', 'observe2_ready', 'observe2_checking'];
+  'observe2_moments', 'observe2_ready', 'observe2_checking',
+  // bd-pni007: an FDE (obs612) visit whose recording is in and whose FDE form the coach has not submitted yet.
+  'obs612_form'];
 
 function resumeKindFor(status, updatedAt, nowMs = Date.now()) {
+  if (status === 'obs612_form') return 'obs612_form';
   if (String(status || '').startsWith('observe2_')) return 'observe2';
   if (['awaiting_photo', 'awaiting_classroom_photo', 'awaiting_lesson_plan'].includes(status)) return 'gate';
   if (status === 'awaiting_observer_review') return 'form';
@@ -568,6 +571,15 @@ async function buildDebriefGuide(session, lang) {
   // The portal reads intro; WhatsApp sends text (renderGuideMessage).
   const brief = v2.observe2 && typeof v2.observe2.brief === 'string' ? v2.observe2.brief : '';
   if (brief) return { kind: 'observe2_brief', text: brief, intro: brief, sections: {}, outro: '' };
+
+  // bd-pni007: an FDE (obs612) visit's guide is the coach's own "For the talk with the teacher" (obs612/summary.js), as
+  // written: no model call, and never the FICO guide (its prompt reads FICO domains an FDE visit does not have).
+  if (require('../coaching/frameworks/own-rubric').isObs612Scored(v2)) {
+    const { buildTalkGuide, buildCoachSummary } = require('./obs612/summary');
+    const talk = buildTalkGuide(v2, { lang }) || buildCoachSummary(v2, { lang });
+    if (talk) return { kind: 'obs612_talk', text: talk, intro: talk, sections: {}, outro: '' };
+    return buildFallbackGuide({}, { language: lang });
+  }
 
   // Feedback-uptake loop (flag-gated): the record from BEFORE this visit (what
   // the AI coach asked, which attempt) plus THIS visit's verdict on it (written

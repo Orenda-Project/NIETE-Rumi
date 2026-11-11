@@ -23,6 +23,7 @@ const { resolveTarget } = require('../target-resolver');
 const { observe2Target, pinObserve2Horizon } = require('./observe2-horizon');
 const { buildPartialNote } = require('../report-transformers/_shared');
 const { isV6Scored } = require('../frameworks/fico17-v6/stamp');
+const { isObs612Scored } = require('../frameworks/own-rubric');
 
 /**
  * The partial-report note ("based on classroom audio analysis only…"). At delivery the session carries the
@@ -175,6 +176,9 @@ async function generateHeroReport(session, analysis, opts = {}) {
   // transcript_language has been 'hindi'/'javanese'/'sindhi' on prod (bd-bfy69).
   // resolveReportLanguage() only ever returns a language we actually offer.
   const lang = resolveReportLanguage(opts, analysis, session);
+  // bd-pni007: an FDE (obs612) visit gets FDE's own report: the coach's scores on FDE's tool, no narrative model call,
+  // no FICO score bars, and no journey line (the teacher's FICO history is never drawn beside it; own-rubric.js).
+  if (isObs612Scored(analysis)) return require('./obs612-report').generateObs612Report(session, analysis, { ...opts, language: lang });
   const framework = (analysis.framework || 'oecd').toLowerCase();
 
   const score = buildScoreViewModel(analysis, { framework, language: lang });

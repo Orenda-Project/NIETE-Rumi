@@ -63,7 +63,7 @@ async function resume(sessionId, from, user) {
   if (kind === 'retry') return _resumeRetry(s, from, user, S);
   // 'wait' too: a recording held for its /observe2 form (record first) is still being transcribed, and
   // its form can be filled meanwhile. A classic one has no form, so it gets the wait ack as before.
-  if ((kind === 'observe2' || kind === 'wait') && await _resumeObserve2(s, from, user)) return;
+  if ((kind === 'observe2' || kind === 'wait' || kind === 'obs612_form') && await _resumeObserve2(s, from, user)) return;
   return _sendButtons(from, S.resume_wait_ack, [
     { id: `observe_ok_${s.id}`, title: S.btn_ok_wait },
     { id: `observe_cancel_${s.id}`, title: S.btn_cancel_obs },
@@ -116,6 +116,14 @@ async function _resumeObserve2(s, from, user) {
   const got = await Store.findBySession(s.id);
   const form = got.ok ? got.form : null;
   if (!form || form.checked_at) return false;
+  // bd-pni007: an FDE (obs612) visit's form is FDE's own Flow, never the FICO live form.
+  const Obs612 = require('./obs612/visit');
+  if (Obs612.isObs612Form(form)) {
+    if (form.sealed_at) return false;
+    const sent = await Obs612.sendForm(user, from, form);
+    logToFile('🔁 observe-resume: FDE form re-sent', { sessionId: s.id, formId: form.id, sent: Boolean(sent) });
+    return Boolean(sent);
+  }
   if (!form.sealed_at) {
     // The recording is in (that is how this visit has a session), so the form is filled after the lesson.
     const { sendLiveForm } = require('./observe2/start');

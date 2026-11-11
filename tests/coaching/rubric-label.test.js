@@ -60,3 +60,20 @@ describe('rubricLabelOf', () => {
     expect(rubricLabelOf({ session: { framework: 'fico', analysis_data: { domains: v3Domains } } }).label).toBe('FICO V3');
   });
 });
+
+describe('FDE (obs612) visits — bd-pni007', () => {
+  test('by the session stamp, the analysis, or the /observe2 form: shown as FDE v1, the id kept for debugging', () => {
+    expect(rubricLabelOf({ session: { framework: 'obs612-msci-v1', analysis_data: { framework: 'obs612-msci-v1', rubric: 'obs612-msci-v1' } } }))
+      .toEqual({ id: 'obs612-msci-v1', label: 'FDE v1' });
+    expect(rubricLabelOf({ analysis: { framework: 'obs612-enur-v1', rubric: 'obs612-enur-v1', scores: { rubric: 'obs612-enur-v1' } } }))
+      .toEqual({ id: 'obs612-enur-v1', label: 'FDE v1' });
+    expect(rubricLabelOf({ form: { rubric_version: 'obs612-gen-v1' } })).toEqual({ id: 'obs612-gen-v1', label: 'FDE v1' });
+    // an /observe visit's session keeps its stamp even before the form is submitted (no analysis yet)
+    expect(rubricLabelOf({ session: { framework: 'obs612-gen-v1', analysis_data: null } })).toEqual({ id: 'obs612-gen-v1', label: 'FDE v1' });
+    expect(rubricLabelText({ session: { framework: 'obs612-enur-v1' } })).toBe('FDE v1');
+  });
+  test('a later FDE version is labelled by its own number; a non-id is not mistaken for FDE', () => {
+    expect(rubricLabelOf({ form: { rubric_version: 'obs612-msci-v2' } })).toEqual({ id: 'obs612-msci-v2', label: 'FDE v2' });
+    expect(rubricLabelOf({ analysis: { framework: 'obs612' } }).label).toBe('OBS612');
+  });
+});

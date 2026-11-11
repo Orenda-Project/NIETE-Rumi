@@ -14,6 +14,8 @@ const { transformTeachToReportData } = require('./teach-report-transformer');
 const { transformFICOToReportData } = require('./fico-report-transformer');
 const { transformMEWAKAToReportData } = require('./mewaka-report-transformer');
 const { transformFICO17V6ToReportData } = require('./fico17-v6-report-transformer');
+const { transformObs612ToReportData } = require('./obs612-report-transformer');
+const OBS612 = require('../frameworks/obs612');
 
 const transformers = {
   oecd: transformOECDToReportData,
@@ -23,6 +25,8 @@ const transformers = {
   // bd-ra8xu.39: a FICO17 v6 visit, never the OECD fallback.
   fico17_v6: transformFICO17V6ToReportData,
   mewaka: transformMEWAKAToReportData,   // Tanzania CPD — Playwright HTML→PDF report
+  // bd-pni007: FDE's grade 6-12 tools (obs612-msci-v1, obs612-enur-v1, obs612-gen-v1), never the OECD fallback.
+  ...Object.fromEntries(Object.values(OBS612.IDS).map((id) => [id, transformObs612ToReportData])),
 };
 
 /**

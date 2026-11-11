@@ -76,12 +76,27 @@ const heroRenderer = makeHeroRenderer();
  * DIRECTLY (the observe teacher-report path bypasses the registry), so the
  * same session can never be branded on one surface and unbranded on another.
  */
-// bd-ra8xu.39: a FICO17 v6 visit is NIETE's too.
-const HERO_BRANDS = { fico: 'niete', fico17_v6: 'niete' };
+// bd-ra8xu.39: a FICO17 v6 visit is NIETE's too. bd-pni007: so is an FDE (obs612) visit, every tool.
+const OBS612 = require('../frameworks/obs612');
+const HERO_BRANDS = { fico: 'niete', fico17_v6: 'niete', ...Object.fromEntries(Object.values(OBS612.IDS).map((id) => [id, 'niete'])) };
 
 function heroBrandFor(frameworkKey) {
   return HERO_BRANDS[String(frameworkKey || '').toLowerCase()];
 }
+
+/**
+ * bd-pni007: an FDE (obs612) visit renders FDE's own report (generateHeroReport → report-v2/obs612-report.js), on the
+ * NIETE brand. No PDFKit fallback: that layout is FICO's (a total, a %, goal bars) and would print FDE's levels and
+ * Yes counts as FICO numbers. A failure is the caller's to handle, as on the observe send path.
+ */
+const obs612Renderer = {
+  key: 'obs612',
+  async render(input) {
+    const { generateHeroReport } = require('../report-v2/hero-report.service');
+    const hero = (input && input._heroInput) || input;
+    return generateHeroReport(hero.session, hero.analysis, { ...(hero.opts || {}), brand: HERO_BRANDS[OBS612.IDS.gen] });
+  },
+};
 
 const ficoNieteHeroRenderer = makeHeroRenderer(HERO_BRANDS.fico);
 
@@ -118,6 +133,8 @@ const renderers = {
   fico:   ficoNieteHeroRenderer,
   fico17_v6: ficoNieteHeroRenderer,
   mewaka: heroRenderer,
+  // bd-pni007: the three FDE tools (this version's ids; an unknown version falls to the default like any unknown key).
+  ...Object.fromEntries(Object.values(OBS612.IDS).map((id) => [id, obs612Renderer])),
 };
 
 const DEFAULT_RENDERER = pdfkitRenderer;
