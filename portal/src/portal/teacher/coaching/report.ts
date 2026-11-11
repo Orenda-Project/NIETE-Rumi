@@ -55,6 +55,8 @@ export function toReportData(s: SessionDetail, {
   // The hero image shows the FIRST moment only; the page keeps to the image's order.
   const moment = n?.moments?.[0] ?? null;
   return {
+    // bd-ra8xu.43: the stored rubric, printed tiny under the report.
+    ...(s.rubric ? { rubric: s.rubric } : {}),
     headline: n?.headline ?? '',
     ...(n?.identity ? { identity: n.identity } : {}),
     moment: moment ? { quote: moment.quote, ...(moment.why ? { why: moment.why } : {}) } : null,

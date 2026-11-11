@@ -9,7 +9,7 @@
  * Order matters:
  *   1. /observe2 first: its sessions keep framework 'fico' with V3 domain keys, so their rubric is the observe2 stamp
  *      (analysis_data.observe2.rubric, or the visit's observation_field_forms.rubric_version).
- *   2. A FICO17 v6 analysis (framework or rubric 'fico17_v6'), with its prompt_version.
+ *   2. A FICO17 v6 analysis (framework or rubric 'fico17_v6').
  *   3. framework 'fico': V3 or V4 by shape (no version is stored; V4 has F9/F10 or a four-row Section C on 0-2).
  *   4. Any other framework by name. A self-recording scored in the background on v6 (analysis_data.shadow) is still
  *      labelled by what the teacher was scored and shown with.
@@ -19,8 +19,10 @@
 const NAMES = { oecd: 'OECD', hots: 'HOTS', teach: 'TEACH', mewaka: 'MEWAKA' };
 const V5_FORM_RUBRIC = 'fico-ict-17-2026-09';
 
-function v6Label(promptVersion) {
-  return { id: 'fico17_v6', label: promptVersion ? `FICO17 v6 · ${promptVersion}` : 'FICO17 v6' };
+// What is shown is the framework and its version only (operator 11 Nov ~18:45): no prompt version, hash, grade,
+// subject or form name. The prompt version stays in the stored record for whoever needs it.
+function v6Label() {
+  return { id: 'fico17_v6', label: 'FICO17 v6' };
 }
 
 /** V3 or V4 under framework 'fico', by the shape the dashboard's instrument detector uses. */
@@ -54,19 +56,20 @@ function rubricLabelOf({ session = null, analysis = null, form = null } = {}) {
   // 1. /observe2: the visit's own stamp.
   const o2rubric = (o2 && o2.rubric) || null;
   const formRubric = (form && form.rubric_version) || (o2 && o2.rubric_version) || null;
-  if (o2rubric === 'fico17_v6' || formRubric === 'fico17_v6') return v6Label((o2 && o2.prompt_version) || null);
+  if (o2rubric === 'fico17_v6' || formRubric === 'fico17_v6') return v6Label();
   if (o2rubric === 'fico17' || formRubric === V5_FORM_RUBRIC) return { id: 'fico17', label: 'FICO17 v5' };
 
   const framework = String((a && a.framework) || (session && session.framework) || '').toLowerCase();
 
   // 2. FICO17 v6 (an /observe v6 visit, or a DC v6 report once the DC is switched).
-  if (framework === 'fico17_v6' || (a && a.rubric === 'fico17_v6')) return v6Label((a && a.prompt_version) || null);
+  if (framework === 'fico17_v6' || (a && a.rubric === 'fico17_v6')) return v6Label();
 
   // 3. FICO V3 / V4.
   if (framework === 'fico') return ficoVersion(a);
 
   // 4. Everything else by name; an unknown framework is printed as stored rather than hidden.
   if (NAMES[framework]) return { id: framework, label: NAMES[framework] };
+  // A framework this helper does not know yet is printed as stored, never hidden (FDE gets its own name when it lands).
   if (framework) return { id: framework, label: framework.toUpperCase() };
   return null;
 }

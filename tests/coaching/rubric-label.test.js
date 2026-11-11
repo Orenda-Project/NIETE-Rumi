@@ -15,9 +15,9 @@ const v4Domains = {
 };
 
 describe('rubricLabelOf', () => {
-  test('/observe2 v6 visit: from the observe2 stamp, with the prompt version', () => {
+  test('/observe2 v6 visit: from the observe2 stamp; the label is framework + version only, no prompt version', () => {
     expect(rubricLabelOf({ analysis: { framework: 'fico', domains: v3Domains, observe2: { rubric: 'fico17_v6', prompt_version: 'fico17-v6-coach-1+3191bbae' } } }))
-      .toEqual({ id: 'fico17_v6', label: 'FICO17 v6 · fico17-v6-coach-1+3191bbae' });
+      .toEqual({ id: 'fico17_v6', label: 'FICO17 v6' });
   });
   test('/observe2 v5 visit: FICO17 v5, even though framework says fico', () => {
     expect(rubricLabelOf({ analysis: { framework: 'fico', domains: v3Domains, observe2: { rubric: 'fico17' } } })).toEqual({ id: 'fico17', label: 'FICO17 v5' });
@@ -26,9 +26,9 @@ describe('rubricLabelOf', () => {
     expect(rubricLabelOf({ form: { rubric_version: 'fico-ict-17-2026-09' } })).toEqual({ id: 'fico17', label: 'FICO17 v5' });
     expect(rubricLabelOf({ form: { rubric_version: 'fico17_v6' } })).toEqual({ id: 'fico17_v6', label: 'FICO17 v6' });
   });
-  test('/observe v6 visit: framework fico17_v6 with its prompt version', () => {
+  test('/observe v6 visit: framework fico17_v6, shown as FICO17 v6 (never the hash)', () => {
     expect(rubricLabelOf({ session: { framework: 'fico17_v6', analysis_data: { framework: 'fico17_v6', rubric: 'fico17_v6', prompt_version: 'fico17-v6-dc-1+3191bbae' } } }))
-      .toEqual({ id: 'fico17_v6', label: 'FICO17 v6 · fico17-v6-dc-1+3191bbae' });
+      .toEqual({ id: 'fico17_v6', label: 'FICO17 v6' });
   });
   test('FICO V3 and V4 told apart by shape', () => {
     expect(rubricLabelOf({ analysis: { framework: 'fico', domains: v3Domains } })).toEqual({ id: 'fico_v3', label: 'FICO V3' });
@@ -45,6 +45,16 @@ describe('rubricLabelOf', () => {
     expect(rubricLabelOf()).toBeNull();
     expect(rubricLabelText({})).toBe('');
     expect(rubricLabelText({ session: { framework: 'oecd' } })).toBe('OECD');
+  });
+  test('no label ever carries a hash, a prompt version or a colon-dot separator', () => {
+    const inputs = [
+      { analysis: { observe2: { rubric: 'fico17_v6', prompt_version: 'fico17-v6-coach-1+3191bbae' } } },
+      { analysis: { framework: 'fico17_v6', prompt_version: 'fico17-v6-dc-1+3191bbae' } },
+      { analysis: { framework: 'fico', domains: v3Domains } },
+      { form: { rubric_version: 'fico-ict-17-2026-09' } },
+    ];
+    for (const i of inputs) expect(rubricLabelOf(i).label).toMatch(/^FICO(17)? v?\w+$|^FICO V\d$/);
+    for (const i of inputs) expect(rubricLabelOf(i).label).not.toMatch(/[+·]|-v6-|\d{4}-\d{2}/);
   });
   test('the session framework is used when the analysis has none', () => {
     expect(rubricLabelOf({ session: { framework: 'fico', analysis_data: { domains: v3Domains } } }).label).toBe('FICO V3');
