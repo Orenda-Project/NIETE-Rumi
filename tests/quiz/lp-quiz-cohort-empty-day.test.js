@@ -55,7 +55,7 @@ function download(date, over = {}) {
     chapter_number: 2,
     segment_index: 1,
     status: 'sent',
-    phone: '923001112222',
+    phone: '+92300FIXTURE1',
     created_at: pkt(date, 9, 30).toISOString(),
     ...over,
   };
@@ -147,7 +147,7 @@ describe('bd-xxl9i — an empty cohort day is built once', () => {
       niete_lp_asset_sources: [{ lesson_id: 'g4_maths_c02_seg001', version_stamp: 'v8.2026-09-01', content_hash: 'hash-aaa' }],
       users: [{
         id: T1, role: 'teacher', is_test_user: false, deleted_at: null, school_id: 'school-1',
-        region: 'Sihala', phone_number: '923001112222', preferred_language: 'en',
+        region: 'Sihala', phone_number: '+92300FIXTURE1', preferred_language: 'en',
         last_message_at: pkt(NEXT, 10, 0).toISOString(),
       }],
     }), null);
