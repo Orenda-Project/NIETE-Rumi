@@ -24,7 +24,7 @@ describe('v6 teacher report (option A)', () => {
     expect(r.text).toContain('Quality of Questions Asked by the Teacher: Level 4 of 4 (Highly Effective)');
     expect(r.text).toContain(v6.levelText('C1', 4));
     expect(r.text).not.toContain('Helping when a child is wrong');
-    expect(r.text).toContain("Accuracy of content: Couldn't tell from the recording");
+    expect(r.text).toContain("Accuracy of content: The recording didn't cover this part of the lesson.");
     expect(r.rows.find((x) => x.code === 'F1').title).toBeUndefined();
   });
 
@@ -41,6 +41,14 @@ describe('v6 teacher report (option A)', () => {
     expect(r.text).toContain('یہ چھ درجے کوچ کے دورے پر دیے جاتے ہیں');
     expect(r.text).toContain('Quality of Questions Asked by the Teacher');
     expect(buildTeacherReport(levels()).draft).toBe(false);
+  });
+
+  test('a broken transcript → no level rows, the one line, still the coach line (spec §6.3, §9.3)', () => {
+    const r = buildTeacherReport(levels(), { transcriptQuality: { status: 'broken', coverage: 0.2, issues: [] } });
+    expect(r.rows).toEqual([]);
+    expect(r.text).toContain("The recording couldn't be used, so this report has no levels from it.");
+    expect(r.text).not.toContain('Level 4 of 4');
+    expect(r.text).toContain('These six are scored when your coach visits');
   });
 
   test('nothing scored → one plain line, still the coach line', () => {
