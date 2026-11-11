@@ -120,12 +120,35 @@ const ASSESSMENT_BOOK_SUBJECT = {
 function assessmentOffered(grade, subject, bookKeys) {
   if (!Array.isArray(bookKeys)) return true;
   if (!gradeCovered(grade, bookKeys)) return false;
-  if (!(Number(grade) >= 1 && Number(grade) <= 5)) return true;
+  if (Number(grade) >= 6) return upperBookOffered(grade, upperStem(grade, subject), bookKeys);
+  if (!(Number(grade) >= 1)) return true;
   const subjectKey = ASSESSMENT_BOOK_SUBJECT[String(subject || '').trim().toLowerCase()];
   if (!subjectKey) return false;
   const Catalog = require('./lp-v8-catalog.service');
   const book = Catalog.bookFor(Number(grade), subjectKey, null);
   return Boolean(book && bookKeys.includes(book.book_key || book.stem));
+}
+
+/** ICT's own 6-12 stems (grade_6_english, g7_history); a region's own books carry a prefix (nbf_snc_grade_9_...). */
+const ICT_STEM = /^(?:grade_\d{1,2}_|g\d{1,2}_)/;
+
+/**
+ * May a teacher with this list be offered this Grade 6+ book (bd-la9f5e)? An ICT book only when her list names it,
+ * so a region drops one by leaving it off (GB: no Zarai Taleem). Her own curriculum's books, Grades 1-5, a missing
+ * stem and no list all pass: those are gated elsewhere or not at all. Pure.
+ */
+function upperBookOffered(grade, stem, bookKeys) {
+  if (!Array.isArray(bookKeys) || !(Number(grade) >= 6) || !stem) return true;
+  const s = String(stem);
+  return !ICT_STEM.test(s) || bookKeys.includes(s);
+}
+
+/** The ICT book a Grade 6+ paper subject is generated from (subject-config's book_stem), or null. */
+function upperStem(grade, subject) {
+  const rows = require('./assessment/subject-config/index.js');
+  const code = String(subject || '').trim().toLowerCase();
+  const row = rows.find((r) => Number(r.grade) === Number(grade) && r.code === code);
+  return (row && row.book_stem) || null;
 }
 
 /** The book-key subject of a generator subject: `gb_g5_maths`, `gb_g5_science` (the textbooks.subject codes). */
@@ -166,15 +189,15 @@ function gradeOfKey(key) {
   const Catalog = require('./lp-v8-catalog.service');
   const book = Catalog.catalog().books.find((b) => (b.book_key || b.stem) === key);
   if (book) return Number(book.grade);
-  const m = /^(?:grade_(\d{1,2})_|[a-z]+_g(\d{1,2})_)/.exec(String(key || ''));
+  const m = /^(?:grade_(\d{1,2})_|(?:[a-z]+_)?g(\d{1,2})_)/.exec(String(key || ''));
   return m ? Number(m[1] || m[2]) : null;
 }
 
 /**
  * Does her book list cover this grade (operator, 6 Nov)? No list covers every grade, as today. A list covers
- * exactly the grades of its books: GB names Grades 1-5 books only (its Afaq books for 6+ are not ready), so a GB
- * teacher of Grade 6+ gets no lesson plans, no question papers and no book features — and is told so
- * (gradeNotCoveredMessage), never handed ICT's books instead.
+ * exactly the grades of its books. GB names its own Grades 1-5 books plus ICT's Grades 6-10 books (bd-qchgya,
+ * operator 11 Nov), so a GB teacher of Grade 11-12, or of a grade with no book on the list, gets no lesson plans,
+ * no question papers and no book features, and is told so (gradeNotCoveredMessage).
  */
 function gradeCovered(grade, bookKeys) {
   if (!Array.isArray(bookKeys)) return true;
@@ -215,6 +238,7 @@ module.exports = {
   bookKeysForUser,
   assessmentOffered,
   assessmentOfferedFor,
+  upperBookOffered,
   ownBookListed,
   gradeCovered,
   gradeNotCoveredMessage,
