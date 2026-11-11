@@ -20,19 +20,35 @@
  *                   opened on an older Flow (its `cv`, or none) gets its own screen's data, and only picks its
  *                   lists have; a sealed pick it could not show is kept as an "Also work on" at Submit.
  *   PRIORITY → DONE      the record is checked once; the brief follows in the chat.
+ *
+ * FICO17 v6 visits (rubric_version 'fico17_v6', stamped when the visit was made; bd-ra8xu.38):
+ *   HEARD_EXPLAIN → COMBINED_ONE → COMBINED_TWO → COMBINED_THREE   the coach sets C3 C5 C7 D3 D4 D2 from the room, each
+ *                   from blank with a reason of 20+ characters; D2 with the two child counts. Refused (the same
+ *                   screen, a message under the field) until each is set.
+ *   COMBINED_THREE → FIDELITY (a graded plan) or ADDED_DC_ONE → ADDED_DC_TWO → PRIORITY   Rumi's other 11 levels,
+ *                   pre-filled; a changed level needs a reason. A v6 visit opened on a Flow without the v6 screens
+ *                   (no `v6c` from HEARD_EXPLAIN) runs on the v5 screens and is marked v6_fallback.
+ *   PRIORITY        final_levels as for v5 (one string per code), plus evidence_review.v6_levels: who set each
+ *                   level (coach | rumi), why, and on which rubric.
  */
 
 const supabase = require('../config/supabase');
 const Store = require('../services/observe/observe2/field-form.store');
 const { addUp } = require('../services/observe/observe2/rules');
 const { CODES, PLAN_FOCUS, FOCUS, FOCUS_ORDER, ALSO_NONE, pickAlso } = require('../services/observe/observe2/fico17');
-const { SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS } = require('../services/observe/observe2/evidence-check.flow');
+const { SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS, COMBINED_SCREENS, ADDED6_SCREENS } = require('../services/observe/observe2/evidence-check.flow');
+const { isV6 } = require('../services/observe/observe2/rubric');
+const V6 = require('../services/coaching/frameworks/fico17-v6');
+const { observe2Strings } = require('../services/observe/observe2/strings');
 const { notesSection } = require('../services/observe/observe2/brief');
 const { logToFile } = require('../utils/logger');
 
 const HEARD_IDS = HEARD_SCREENS.map((h) => h.id);
 const MOMENT_OF = Object.fromEntries(HEARD_SCREENS.map((h) => [h.id, h.moment]));
 const ADDED_CODES = Object.fromEntries(ADDED_SCREENS.map((a) => [a.id, a.codes]));
+const COMBINED_IDS = COMBINED_SCREENS.map((c) => c.id);
+const COMBINED_CODES_OF = Object.fromEntries(COMBINED_SCREENS.map((c) => [c.id, c.codes]));
+const ADDED6_OF = Object.fromEntries(ADDED6_SCREENS.map((a) => [a.id, a]));
 
 function parseToken(flowToken) {
   const [userId, marker, recordId] = String(flowToken || '').split(':');
@@ -367,6 +383,172 @@ async function askDebrief(form, coach) {
   }
 }
 
+// ------------------------------------------------------------------ FICO17 v6 (bd-ra8xu.38)
+
+const { TYPE_CODE } = require('../services/observe/observe2/brief');
+const EV_MAX = 5;
+const EV_QUOTE = 120;
+
+// The recording's moments for one indicator, as the COMBINED screens show them: up to five, "MM:SS  "quote"",
+// leaving out any the coach said did not happen.
+function evidenceItems(form, code) {
+  const review = (form && form.evidence_review) || {};
+  return momentsOf(form)
+    .filter((m) => TYPE_CODE[m.type] === code && review[`heard_${m.id}`] !== 'no')
+    .slice(0, EV_MAX);
+}
+
+function evidenceText(form, code) {
+  const ind = V6.indicator(code);
+  const items = evidenceItems(form, code);
+  const shown = items.length
+    ? items.map((m) => `${m.minute}  "${clipCp(String(m.quote || ''), EV_QUOTE)}"`).join('\n')
+    : 'The recording showed nothing for this.';
+  return `${ind.definition}\n\n${shown}\n\nCoach adds: ${ind.coach_adds}`;
+}
+
+// D2: what the coach typed on the live form (counts, not levels), shown above the two count boxes (spec §7.4
+// pre-fills them; Meta types a number box's init-value as a number, which a visit with no count cannot give).
+function formCounts(form) {
+  const a = (form && form.answers) || {};
+  const n = (v) => (/^\d+$/.test(String(v == null ? '' : v).trim()) ? Number(String(v).trim()) : null);
+  const p1 = n(a.p1_spoke);
+  const p2new = n(a.p2_new);
+  if (p1 == null && p2new == null) return '';
+  const parts = [];
+  if (p1 != null) parts.push(`${p1} spoke in Part 1`);
+  if (p2new != null) parts.push(`${p2new} spoke for the first time in Part 2`);
+  const total = p1 != null && p2new != null ? ` (${p1 + p2new} in all)` : '';
+  return `On your form: ${parts.join(', ')}${total}.`;
+}
+
+function renderCombined(screenId, form, { errors = {} } = {}) {
+  const data = { error_messages: errors };
+  for (const code of COMBINED_CODES_OF[screenId]) {
+    const text = evidenceText(form, code);
+    const counts = code === 'D2' ? formCounts(form) : '';
+    data[`${code}_ev`] = counts ? `${text}\n\n${counts}` : text;
+  }
+  return { screen: screenId, data };
+}
+
+const wholeNumber = (v) => (/^\d+$/.test(String(v == null ? '' : v).trim()) ? Number(String(v).trim()) : null);
+
+/** D2's level from the two counts (spec §7.4). */
+function d2Expected(children, quietLater) {
+  if (children === 0) return 1;
+  if (children <= 2) return 2;
+  if (children <= 5) return 3;
+  return quietLater >= 2 ? 4 : 3;
+}
+
+function validateCombined(screenId, screenData, S) {
+  const errors = {};
+  for (const code of COMBINED_CODES_OF[screenId]) {
+    const level = V6.normLevel(screenData[`cmb_${code}_level`]);
+    const allowed = V6.levelOptions(code).map((o) => o.id);
+    if (level == null || !allowed.includes(String(level))) errors[`cmb_${code}_level`] = S.v6_choose_level;
+    if (!V6.isJustified(screenData[`cmb_${code}_why`])) errors[`cmb_${code}_why`] = S.v6_write_why;
+  }
+  if (COMBINED_CODES_OF[screenId].includes('D2')) {
+    const children = wholeNumber(screenData.d2_children);
+    const quiet = wholeNumber(screenData.d2_quiet_later);
+    if (children == null || quiet == null || quiet > children) {
+      errors.d2_children = S.v6_check_numbers;
+    } else if (!errors.cmb_D2_level && !errors.cmb_D2_why) {
+      const level = V6.normLevel(screenData.cmb_D2_level);
+      if (level !== d2Expected(children, quiet) && !/\d/.test(String(screenData.cmb_D2_why || ''))) errors.cmb_D2_why = S.v6_d2_mismatch;
+    }
+  }
+  return errors;
+}
+
+// The coach's v6 record for one combined indicator, as stored (spec §7.7).
+function combinedRecord(form, code, screenData, added) {
+  return {
+    level: V6.normLevel(screenData[`cmb_${code}_level`]),
+    because: String(screenData[`cmb_${code}_why`] || '').trim(),
+    source: 'coach',
+    set_by: 'coach',
+    // What today's rules add up to from the coach's form and confirmed moments: kept, never shown. There is no
+    // transcript-only scorer for /observe2 yet (spec Phase 1b), so this is not the DC's own level.
+    rule_result: added && added[code] ? (added[code].level == null ? null : added[code].level) : null,
+    dc_evidence_ids: evidenceItems(form, code).map((m) => m.id),
+    ...V6.stamp('coach'),
+  };
+}
+
+async function onCombined(form, step, screenData) {
+  const S = observe2Strings('en');
+  const errors = validateCombined(step, screenData, S);
+  if (Object.keys(errors).length) return renderCombined(step, form, { errors });
+  const review = form.evidence_review || {};
+  const added = addedLevels(form, review);
+  const patch = {};
+  for (const code of COMBINED_CODES_OF[step]) {
+    patch[`cmb_${code}_level`] = String(screenData[`cmb_${code}_level`]);
+    patch[`cmb_${code}_why`] = String(screenData[`cmb_${code}_why`] || '').trim();
+    patch[`v6_${code}`] = combinedRecord(form, code, screenData, added);
+  }
+  if (COMBINED_CODES_OF[step].includes('D2')) {
+    patch.d2_counts = { children: wholeNumber(screenData.d2_children), quiet_later: wholeNumber(screenData.d2_quiet_later) };
+  }
+  const saved = await Store.saveReview(form, patch);
+  const current = saved.ok ? saved.form : form;
+  const next = COMBINED_IDS.indexOf(step) + 1;
+  if (next < COMBINED_IDS.length) return renderCombined(COMBINED_IDS[next], current);
+  return gradedPlan(current) ? renderFidelity(current) : renderAdded6('ADDED_DC_ONE', addedLevels(current, current.evidence_review || {}));
+}
+
+function renderAdded6(screenId, added, { errors = {}, chosen = null } = {}) {
+  const data = { error_messages: errors };
+  for (const code of ADDED6_OF[screenId].codes) {
+    const r = (added || {})[code] || {};
+    data[`${code}_because`] = r.because || '';
+    data[`${code}_level`] = chosen && chosen[code] !== undefined ? chosen[code] : levelText(r.level);
+  }
+  return { screen: screenId, data };
+}
+
+async function onAdded6(form, step, screenData) {
+  const S = observe2Strings('en');
+  const { codes, why } = ADDED6_OF[step];
+  const review = form.evidence_review || {};
+  const prefilled = review.added || {};
+  const chosen = Object.fromEntries(codes.map((c) => [c, String(screenData[`${c}_final`] == null ? '' : screenData[`${c}_final`])]));
+  const changed = codes.filter((c) => (prefilled[c] || '') !== '' && chosen[c] !== String(prefilled[c]));
+  const reason = String(screenData[why] || '').trim();
+  if (changed.length && !V6.isJustified(reason)) {
+    const errors = { [why]: S.v6_why_changed(changed.map((c) => V6.indicator(c).name)) };
+    return renderAdded6(step, addedLevels(form, review), { errors, chosen });
+  }
+  const patch = pickFields(screenData, codes.map((c) => `${c}_final`));
+  if (reason) patch[why] = reason;
+  for (const code of codes) {
+    const was = String(prefilled[code] || '');
+    const isChange = was !== '' && chosen[code] !== was;
+    patch[`v6_${code}`] = {
+      level: V6.normLevel(chosen[code]),
+      because: isChange ? reason : '',
+      source: isChange || was === '' ? 'coach' : 'rumi',
+      set_by: isChange || was === '' ? 'coach' : 'rumi',
+      rumi_level: V6.normLevel(was),
+      ...V6.stamp('coach'),
+    };
+  }
+  const saved = await Store.saveReview(form, patch);
+  const current = saved.ok ? saved.form : form;
+  if (step === 'ADDED_DC_ONE') return renderAdded6('ADDED_DC_TWO', addedLevels(current, current.evidence_review || {}));
+  return renderPriority(current, screenData);
+}
+
+// The v6 record of every level at Submit, from what each screen saved.
+function v6Levels(review) {
+  const out = {};
+  for (const code of V6.CODES) if (review[`v6_${code}`]) out[code] = review[`v6_${code}`];
+  return out;
+}
+
 // ------------------------------------------------------------------ handlers
 
 async function handleObserve2CheckInit(flowToken) {
@@ -389,6 +571,10 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     if (step === 'HEARD_EXPLAIN' || step === 'FIDELITY') return renderAdded('ADDED_ONE', {});
     if (step === 'ADDED_ONE') return renderAdded('ADDED_TWO', {});
     if (step === 'ADDED_TWO') return renderPriority(null, screenData);
+    if (step === 'COMBINED_ONE' || step === 'COMBINED_TWO') return renderCombined(COMBINED_IDS[COMBINED_IDS.indexOf(step) + 1], null);
+    if (step === 'COMBINED_THREE') return renderAdded6('ADDED_DC_ONE', {});
+    if (step === 'ADDED_DC_ONE') return renderAdded6('ADDED_DC_TWO', {});
+    if (step === 'ADDED_DC_TWO') return renderPriority(null, screenData);
     return renderDone(null, NOT_AVAILABLE);
   }
 
@@ -398,12 +584,22 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     const current = saved.ok ? saved.form : form;
     if (idx < HEARD_IDS.length - 1) return renderHeard(HEARD_IDS[idx + 1], current);
     const added = addedLevels(current, current.evidence_review || {});
+    const v6 = isV6(current);
+    const v6Flow = v6 && String(screenData.v6c || '') !== '';
+    if (v6 && !v6Flow) {
+      logToFile('[observe2] v6 visit opened on a Flow without the v6 screens; checking on the v5 screens', { formId: current.id }, 'warn');
+    }
     await Store.saveReview(current, {
       added: Object.fromEntries(Object.entries(added).map(([c, r]) => [c, levelText(r.level)])),
       added_hole: holesOf(added),
+      ...(v6 ? { v6_fallback: !v6Flow } : {}),
     });
+    if (v6Flow) return renderCombined('COMBINED_ONE', current);
     return gradedPlan(current) ? renderFidelity(current) : renderAdded('ADDED_ONE', added);
   }
+
+  if (COMBINED_IDS.includes(step)) return onCombined(form, step, screenData);
+  if (ADDED6_OF[step]) return onAdded6(form, step, screenData);
 
   if (step === 'FIDELITY') {
     const lp = gradedPlan(form);
@@ -418,7 +614,9 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
       if (saved.ok) current = saved.form;
       logToFile('[observe2] plan steps checked', { formId: form.id, pct: fidelity.fidelity_pct, changed: fidelity.verdicts_changed });
     }
-    return renderAdded('ADDED_ONE', addedLevels(current, current.evidence_review || {}));
+    const review = current.evidence_review || {};
+    if (isV6(current) && review.v6_fallback === false) return renderAdded6('ADDED_DC_ONE', addedLevels(current, review));
+    return renderAdded('ADDED_ONE', addedLevels(current, review));
   }
 
   if (step === 'ADDED_ONE' || step === 'ADDED_TWO') {
@@ -447,6 +645,11 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     const finalLevels = {};
     for (const code of CODES) finalLevels[code] = review[`${code}_final`] || added[code] || '';
     const patch = pickFields(screenData, ['priority_final', 'why']);
+    if (isV6(form) && review.v6_fallback === false) {
+      // The six room levels are the coach's (COMBINED); the record says who set each of the 17 and why.
+      for (const code of V6.COMBINED_CODES) if (review[`cmb_${code}_level`]) finalLevels[code] = review[`cmb_${code}_level`];
+      patch.v6_levels = v6Levels(review);
+    }
     // "Also work on": as submitted on a check that has it; on the first check, the picks sealed in the form.
     // A sealed pick the check's lists could not show (a newer choice on an older check) is kept, first:
     // the coach never saw it there to drop it. Never the first pick again, never twice (fico17.pickAlso).
@@ -483,4 +686,5 @@ module.exports = {
   parseToken,
   handleObserve2CheckInit,
   handleObserve2CheckDataExchange,
+  d2Expected,
 };

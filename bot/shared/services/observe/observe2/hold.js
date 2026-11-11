@@ -74,6 +74,7 @@ async function holdRecording(user, from, { audioId, sessionId = null, durationSe
     observerUserId: user.id,
     teacherUserId: null,
     visitContext: { recorded_first: true, recorded_at: new Date().toISOString() },
+    ...(user && user.region !== undefined ? { observerRegion: user.region } : {}),
   });
   if (!created.ok || !created.form) return null;
   const form = created.form;
