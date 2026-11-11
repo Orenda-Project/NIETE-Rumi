@@ -1435,3 +1435,39 @@ describe('getPrincipalSchoolCard — a principal on the principal app sees her o
   });
 });
 
+
+describe('a FICO17 v6 field-form visit is a field-form visit (rubric fico17_v6; FICO6 R16)', () => {
+  const asV6 = () => { tables.sessions.find((s) => s.id === 'h4').analysis_data.observe2 = { rubric: 'fico17_v6' }; };
+
+  test('counted, listed as observe2, never averaged or charted with the FICO form (as fico17)', async () => {
+    asV6();
+    const card = await Card.getTeacherCard(db, 'coach-1', PHONE.t1, opts());
+    expect(card.summary.coach).toEqual({ count: 3, avg: 50, prevAvg: null });
+    const out = await Card.getTeacherScores(db, 'coach-1', PHONE.t1, 'coach', opts());
+    expect(out).toMatchObject({ kind: 'coach', count: 3, avg: 50 });
+    expect(out.series).toEqual([{ id: 'h1', date: '2026-10-26', score: 50 }]);
+    expect(out.reports.find((x) => x.id === 'h4')).toMatchObject({ score: null, form: 'observe2' });
+    const school = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    expect(school.scores.coach).toMatchObject({ count: 3, avg: 50, points: [{ id: 'h1', date: '2026-10-26', score: 50, teacherExtId: PHONE.t1 }] });
+  });
+
+  test('opens marked observe2', async () => {
+    asV6();
+    expect(await Card.getSession(db, 'coach-1', 'h4', opts())).toMatchObject({ kind: 'coach', form: 'observe2', reviewed: true });
+  });
+
+  test('every read gives what the fico17 visit gives', async () => {
+    const reads = async () => Promise.all([
+      Card.getTeacherCard(db, 'coach-1', PHONE.t1, opts()),
+      Card.getTeacherScores(db, 'coach-1', PHONE.t1, 'coach', opts()),
+      Card.getSchoolCard(db, 'coach-1', '901', opts()),
+      Card.getSchoolScores(db, 'coach-1', '901', 'coach', opts()),
+      Card.getSession(db, 'coach-1', 'h4', opts()),
+    ]);
+    const v5 = await reads();
+    tables = baseTables();
+    db = fakeDb(tables);
+    asV6();
+    expect(await reads()).toEqual(v5);
+  });
+});

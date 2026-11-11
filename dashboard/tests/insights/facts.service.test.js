@@ -212,3 +212,43 @@ describe('de-duplication on audio_hash', () => {
     expect(dup.has('c')).toBe(false);
   });
 });
+
+describe('FICO17 v6 (rubric fico17_v6) is the fico17 instrument (FICO6 R16)', () => {
+  const v6 = (scores) => ({ ...F.v3(scores), observe2: { rubric: 'fico17_v6' } });
+  const det = (ad) => facts.detectFicoInstrument(readAllowed(ad).fico);
+
+  test('detected as fico17, never as v3', () => {
+    expect(det(F.fico17({}))).toBe('fico17');
+    expect(det(v6({}))).toBe('fico17');
+  });
+
+  test('a v6 form with no domains still gets a fact, as a fico17 one does', () => {
+    const fact = (rubric) => facts.buildFicoFact({ id: 's1' }, readAllowed({ observe2: { rubric } }));
+    const f5 = fact('fico17');
+    const f6 = fact('fico17_v6');
+    expect(f5).not.toBeNull();
+    expect(f6).not.toBeNull();
+    expect({ ...f6, input_hash: null }).toEqual({ ...f5, input_hash: null });
+  });
+
+  test('the fact for a v6 form with scores is the fico17 fact', () => {
+    const f5 = facts.buildFicoFact({ id: 's1' }, readAllowed(F.fico17({ C7: 2 })));
+    const f6 = facts.buildFicoFact({ id: 's1' }, readAllowed(v6({ C7: 2 })));
+    expect(f6.instrument).toBe('fico17');
+    expect({ ...f6, input_hash: null }).toEqual({ ...f5, input_hash: null });
+  });
+
+  test('anything else on observe2.rubric is not fico17', () => {
+    expect(det({ ...F.v3({}), observe2: { rubric: 'fico17_v7' } })).toBe('fico_v3');
+    expect(det({ ...F.v3({}), observe2: { rubric: 'FICO17' } })).toBe('fico_v3');
+  });
+});
+
+describe('isFieldFormRubric: the /observe2 field-form rubrics', () => {
+  test('fico17 and fico17_v6 only', () => {
+    const { isFieldFormRubric, FIELD_FORM_RUBRICS } = require('../../lib/insights/field-form-rubric');
+    expect(FIELD_FORM_RUBRICS).toEqual(['fico17', 'fico17_v6']);
+    expect(['fico17', 'fico17_v6'].every(isFieldFormRubric)).toBe(true);
+    expect([null, undefined, '', 'fico', 'fico_v3', 'FICO17', 'fico17_v7', ' fico17', 17].some(isFieldFormRubric)).toBe(false);
+  });
+});
