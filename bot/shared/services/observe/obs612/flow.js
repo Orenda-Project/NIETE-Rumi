@@ -222,7 +222,7 @@ function pathFor(tool, sheet) {
   if (tool === 'gen') return GEN_SCREENS.map((s) => s.id);
   if (tool === 'msci') return MSCI_SCREENS.map((s) => s.id);
   if (tool === 'enur') {
-    const sh = sheet === 'ur' ? 'ur' : 'en';
+    const sh = O.normSheet(sheet);
     return ENUR_SCREENS.filter((s) => !s.sheet || s.sheet === sh).map((s) => s.id);
   }
   return [];

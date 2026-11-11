@@ -97,7 +97,7 @@ async function load(flowToken) {
   if (form.sealed_at) return { refusal: 'sealed', formId: t.formId };
   const lesson = Record.lessonOf(form);
   // record.js reads a sheet it does not know as English (frameworks/obs612 enurSections); so does the Flow.
-  const sheet = lesson.tool === 'enur' ? (lesson.sheet === 'ur' ? 'ur' : 'en') : null;
+  const sheet = lesson.tool === 'enur' ? O.normSheet(lesson.sheet) : null;
   return { form, formId: form.id, coachUserId: t.userId, lesson, tool: lesson.tool, sheet };
 }
 
