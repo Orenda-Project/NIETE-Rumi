@@ -1387,10 +1387,18 @@ async function loadVisibleLevelsWithProgress(userId) {
     const grand = (quizzes || []).find(q => q.level_id === lv.id) || null;
 
     let state;
-    if (chainLocked && !prevPassed && !isFirst) state = 'locked';
     // bd-2503 — a held certificate is terminal whether it came from passing an
     // exam or from completing every module of an exam-less level.
-    else if (passedAttempt || certifiedLevelIds.has(lv.id)) state = 'certified';
+    //
+    // bd-fj1fdi — and it is asked BEFORE the chain lock. A finished level is
+    // finished whatever comes into view below it later: niete_middle_high
+    // scopes NIETE to Skilled Practitioner + Teacher Leader, so a middle/high
+    // teacher certifies at Skilled with nothing below; adding niete_primary
+    // shows Levels 1-2, and with the lock asked first her certified level read
+    // "🔒 Locked" while its certificate still downloaded (20 on production,
+    // 11 Nov 2026). The lock only ever gates an UNfinished level.
+    if (passedAttempt || certifiedLevelIds.has(lv.id)) state = 'certified';
+    else if (chainLocked && !prevPassed && !isFirst) state = 'locked';
     else if (coursesCompleted.length === lvCourses.length && lvCourses.length > 0) state = 'ready_for_quiz';
     else if (coursesTouched.length > 0) state = 'in_progress';
     else state = 'not_started';
