@@ -16,10 +16,23 @@ const reply = (tree) => ({
 const ARGS = { grade: 5, subject: 'sst', pageContent: 'متن', pageReference: 'p.1', questionCount: 2, questionTypes: [] };
 
 describe('regular paper path: religious content', () => {
-  it('the system prompt carries the religious rule (not for Islamiat itself)', () => {
-    expect(buildSystemPrompt({ subject: 'sst' })).toMatch(/religious text/);
-    expect(buildSystemPrompt({ subject: 'eng' })).toMatch(/religious text/);
-    expect(buildSystemPrompt({ subject: 'islamiat' })).not.toMatch(/Never set an item that quotes, explains or evaluates a religious text/);
+  // The rule rides on the regular paper's call only: the pattern path already adds it itself.
+  const systemSent = async (subject) => {
+    const create = jest.fn().mockResolvedValue(reply({ unseen: { short: { questions: [PLAIN_Q] } } }));
+    getClient.mockReturnValue({ chat: { completions: { create } } });
+    await generateExam({ ...ARGS, subject });
+    return create.mock.calls[0][0].messages[0].content;
+  };
+  const RULE_TEXT = /Never set an item that quotes, explains or evaluates a religious text/;
+
+  it('the regular paper call carries the religious rule (not for Islamiat itself)', async () => {
+    expect(await systemSent('sst')).toMatch(RULE_TEXT);
+    expect(await systemSent('english')).toMatch(RULE_TEXT);
+    expect(await systemSent('islamiat')).not.toMatch(RULE_TEXT);
+  });
+
+  it('buildSystemPrompt itself is unchanged, so the pattern path does not get the rule twice', () => {
+    expect(buildSystemPrompt({ subject: 'sst' })).not.toMatch(RULE_TEXT);
   });
 
   it('a generated question naming a religious text is filtered out of the paper', async () => {
