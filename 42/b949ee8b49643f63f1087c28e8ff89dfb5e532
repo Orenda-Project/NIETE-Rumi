@@ -1,0 +1,2 @@
+{"ts":"2026-11-11T15:08:00Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan spec_sync=true","sha":"42b949ee8b49","branch":"bd-9mc3nz.2-07971","user":""}
+{"ts":"2026-11-11T15:08:21Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-9mc3nz.2-07971: training spec: NOT UPDATED e2e: HEALTHY;coaching spec: NOT UPDATED e2e: missing;observe spec: NOT UPDATED e2e: missing","sha":"42b949ee8b49","branch":"bd-9mc3nz.2-07971","user":""}
