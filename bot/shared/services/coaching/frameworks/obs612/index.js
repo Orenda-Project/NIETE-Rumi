@@ -90,6 +90,10 @@ const normGrade = (g) => {
   const n = Number(g);
   return Number.isInteger(n) && n >= 1 && n <= 12 ? n : null;
 };
+// The English & Urdu tool's sheet: 'ur' or 'en' (English is the default sheet). Not a language: the coach's language
+// never chooses it, the lesson's subject does.
+const SHEETS = ['en', 'ur'];
+const normSheet = (s) => (SHEETS.includes(s) ? s : 'en');
 const normSubject = (s) => {
   const k = String(s || '').trim().toLowerCase();
   return SUBJECT_KEYS.includes(k) ? k : null;
@@ -141,7 +145,7 @@ const STUDENTS_SHORT = ['0-1 of 5 understood', '2 of 5 understood', '3-4 of 5 un
 
 /** The English & Urdu sections a sheet uses ('en' has C, 'ur' has D). */
 function enurSections(sheet) {
-  const sh = sheet === 'ur' ? 'ur' : 'en';
+  const sh = normSheet(sheet);
   return TOOLS.enur.sections.filter((s) => s.sheets.includes(sh));
 }
 
@@ -227,7 +231,7 @@ function score(rubricId, sheet, answers = {}) {
     };
   }
   if (tool === 'enur') {
-    const sh = sheet === 'ur' ? 'ur' : 'en';
+    const sh = normSheet(sheet);
     const sections = enurSections(sh).map((s) => {
       const pts = s.items.map((i) => normAnswer('points', a[i.key])).filter((v) => v !== null).map(Number);
       return { key: s.key, title: s.title, section: s.section, score: pts.reduce((x, y) => x + y, 0), max: s.max };
@@ -270,6 +274,7 @@ module.exports = {
   toolFor,
   normGrade,
   normSubject,
+  normSheet,
   enurSections,
   requiredItems,
   normAnswer,
