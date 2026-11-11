@@ -27,7 +27,10 @@ async function printCard(html, outPdf, { pw = require('playwright-core') } = {})
     await page.emulateMedia({ media: 'print' });
     const printPx = await page.evaluate(() => { const p = document.querySelector('.page'); return p ? p.scrollHeight : null; });
     // A card longer than 2000px prints whole on one longer page rather than being dropped (sandbox, 7 Nov).
-    await page.pdf({ path: outPdf, width: '520px', height: `${Math.max(2000, printPx || 0)}px`, printBackground: true });
+    const h = Math.max(2000, printPx || 0);
+    // bd-snkn32.23: the card's CSS fixes @page at 2000px tall, which split a longer card in two; this rule comes last and wins.
+    await page.addStyleTag({ content: `@page{size:520px ${h}px;margin:0}` });
+    await page.pdf({ path: outPdf, width: '520px', height: `${h}px`, printBackground: true });
     return { printPx };
   } finally {
     await browser.close();

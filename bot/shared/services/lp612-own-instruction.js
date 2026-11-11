@@ -89,7 +89,10 @@ function parseOwnAnswers(body, ctx) {
   // by grade, so Grade 8 alone gets FDE exam practice; a segment naming no grade gets the senior set.
   const grade = gradeOf(ctx || {});
   const ways = !band ? Object.keys(WAYS) : (bandOf(grade) ? waysOfGrade(grade) : waysOfBand(band));
-  if (!ways.includes(b.way)) return bad('way is not one of the choices');
+  // bd-snkn32.24 — she may combine ways: `ways` (a list) wins over the single `way`; once each, in her order.
+  if (b.ways != null && !Array.isArray(b.ways)) return bad('ways must be a list');
+  const picked = [...new Set(Array.isArray(b.ways) ? b.ways : [b.way])];
+  if (!picked.length || picked.some((w) => !ways.includes(w))) return bad('way is not one of the choices');
   const given = b.resources == null ? [] : b.resources;
   if (!Array.isArray(given)) return bad('resources must be a list');
   if (given.some((r) => !Object.prototype.hasOwnProperty.call(RESOURCES, r))) return bad('resources has an unknown item');
@@ -98,7 +101,8 @@ function parseOwnAnswers(body, ctx) {
   const note = typeof b.note === 'string'
     ? b.note.replace(/["“”]/g, '').replace(/\s+/g, ' ').trim().slice(0, NOTE_MAX)
     : '';
-  const answers = { size: b.size, resources, level: b.level, way: b.way, note };
+  const answers = { size: b.size, resources, level: b.level, way: picked[0], note };
+  if (picked.length > 1) answers.ways = picked;
   if (!band) return { ok: true, answers };
   if (b.purpose != null) {
     // by grade too: Grade 8 has exam practice (FDE) where 6–7 do not.
@@ -136,7 +140,8 @@ function secondaryLines(a, ctx) {
  */
 function buildOwnInstruction(answers, ctx) {
   const a = answers || {};
-  const way = WAYS[a.way] || SECONDARY_WAYS[a.way];
+  const names = (a.ways || [a.way]).map((k) => WAYS[k] || SECONDARY_WAYS[k]);
+  const way = names.every(Boolean) ? names : null;
   if (!SIZES[a.size] || !LEVELS[a.level] || !way || !Array.isArray(a.resources)) {
     throw new Error('buildOwnInstruction needs answers from parseOwnAnswers');
   }
@@ -146,7 +151,7 @@ function buildOwnInstruction(answers, ctx) {
     'Rewrite this lesson for ONE teacher\'s own class. Keep the same pages, the same learning outcomes and the same layout and length.',
     `Her class: ${SIZES[a.size]}; ${LEVELS[a.level]}.`,
     `What she has: ${have}. Do not use anything else (no slates, printing or electricity unless listed).`,
-    `Teaching way: ${way}`,
+    way.length > 1 ? `Teaching ways (combine them): ${way.join(' ')}` : `Teaching way: ${way[0]}`,
     'Every part still names the book page it uses. Every part has a quick check for understanding.',
     'Activities may go beyond the book but stay rooted in the page.',
     GRR_LINE,
