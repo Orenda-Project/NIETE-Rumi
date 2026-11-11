@@ -134,7 +134,7 @@ const FLOW_CONFIGS = [
     // REGISTRATION_FLOW_ID is set. The /registration endpoint already handles
     // its screens (PERSONAL_INFO / REGION_INFO / PROFESSIONAL_INFO / ORG_DETAILS).
     name: 'Registration',
-    jsonPath: path.join(FLOWS_DIR, 'registration-flow-v5.1.json'), // v5.1: the endpoint closes the Flow (bd-x7aprz.9)
+    jsonPath: path.join(FLOWS_DIR, 'registration-flow-v6.json'), // v6: "Is this you?" after Pick your school (v5.1 kept for rollback)
     type: 'endpoint',
     endpointPath: '/api/flows/registration',
     envVar: 'REGISTRATION_FLOW_ID',
