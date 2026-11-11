@@ -76,6 +76,51 @@ describe('the v6 DC prompt (spec §5.3)', () => {
   });
 });
 
+describe('bd-qix9oh.2 — the per-lesson part of the prompt (spec §5.3 TRANSCRIPT GAPS, §5.5 step 1)', () => {
+  const gate = require('../../bot/shared/services/observe/transcript-quality');
+  const partial = { status: 'partial', coverage: 0.6, issues: [{ type: 'short', from: '24:00' }], period_minutes: 40 };
+
+  test("a 'partial' transcript puts the gate's TRANSCRIPT GAPS block in the user prompt, once", () => {
+    const user = fw.buildAnalysisPrompt(TRANSCRIPT, { duration: 2400, transcriptQuality: partial });
+    const block = gate.promptGaps(partial);
+    expect(block).toMatch(/^TRANSCRIPT GAPS:/);
+    expect(user).toContain(block);
+    expect(user.split('TRANSCRIPT GAPS:')).toHaveLength(2);
+    expect(user.split('Use "IE" for any indicator whose evidence would fall in these gaps.')).toHaveLength(2);
+  });
+
+  test("an 'ok' transcript, or none assessed, adds no gaps block: the prompt is byte-for-byte the one before the gate", () => {
+    const ok = { status: 'ok', coverage: 1, issues: [] };
+    const before = `Grade: 3\nSubject: math\nRecording length: 40 minutes\n\nTRANSCRIPT:\n${TRANSCRIPT}\n\nScore Part 1 and report Part 2 for this lesson. Return only the JSON.`;
+    expect(fw.buildAnalysisPrompt(TRANSCRIPT, { grade: 3, subject: 'math', duration: 2400, transcriptQuality: ok })).toBe(before);
+    expect(fw.buildAnalysisPrompt(TRANSCRIPT, { grade: 3, subject: 'math', duration: 2400 })).toBe(before);
+  });
+
+  test('the one retry appends the §5.5 line; the first call does not', () => {
+    const line = 'Your last reply was not valid JSON. Return only the JSON.';
+    expect(fw.RETRY_NOTE).toBe(line);
+    expect(fw.buildAnalysisPrompt(TRANSCRIPT, {})).not.toContain(line);
+    const again = fw.buildAnalysisPrompt(TRANSCRIPT, { retry: true });
+    expect(again.endsWith(line)).toBe(true);
+    expect(again.startsWith(fw.buildAnalysisPrompt(TRANSCRIPT, {}))).toBe(true);
+  });
+
+  test('prompt_version is the sha of the rubric JSON bytes, and per-lesson gaps never change it or the system prompt', () => {
+    const crypto = require('crypto');
+    const fs = require('fs');
+    const sha8 = crypto.createHash('sha256').update(fs.readFileSync(v6.RUBRIC_FILE)).digest('hex').slice(0, 8);
+    expect(v6.DC_PROMPT_VERSION).toBe(`fico17-v6-dc-1+${sha8}`);
+    const before = fw.getSystemPrompt();
+    fw.buildAnalysisPrompt(TRANSCRIPT, { transcriptQuality: partial, retry: true });
+    expect(fw.getSystemPrompt()).toBe(before);
+    expect(fw.computeScores({ levels: {}, combined_evidence: {} }).prompt_version).toBe(v6.DC_PROMPT_VERSION);
+    // A fresh load of the same JSON bytes gives the same version (it is not time or process dependent).
+    jest.isolateModules(() => {
+      expect(require('../../bot/shared/services/coaching/frameworks/fico17-v6').DC_PROMPT_VERSION).toBe(v6.DC_PROMPT_VERSION);
+    });
+  });
+});
+
 describe('validate (spec §5.5)', () => {
   test('a good reply passes', () => {
     const r = fw.validate(goodReply(), TRANSCRIPT);
@@ -93,6 +138,19 @@ describe('validate (spec §5.5)', () => {
   test('an invalid level value fails', () => {
     const a = goodReply(); a.levels.C4.result = 5;
     expect(fw.validate(a, TRANSCRIPT).ok).toBe(false);
+  });
+
+  test('bd-qix9oh.2 (RULINGS R10): "3" as a string, 0 and 5 are rejected; 3, NA and IE pass', () => {
+    for (const bad of ['3', 0, 5, 'ie', null]) {
+      const a = goodReply(); a.levels.C4.result = bad;
+      const r = fw.validate(a, TRANSCRIPT);
+      expect(r.ok).toBe(false);
+      expect(r.errors.join(' ')).toMatch(/C4: invalid result/);
+    }
+    for (const good of [3, 'NA', 'IE']) {
+      const a = goodReply(); a.levels.C4.result = good;
+      expect(fw.validate(a, TRANSCRIPT).ok).toBe(true);
+    }
   });
 
   test('a numeric result on a combined indicator fails', () => {

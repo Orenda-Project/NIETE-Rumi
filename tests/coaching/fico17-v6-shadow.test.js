@@ -152,10 +152,24 @@ describe('DC rubric switch on the self-recording pipeline', () => {
     expect(meta.photo).toBeUndefined();
   });
 
-  test("'v6' behaves as shadow for now: the teacher's report stays V3 until the operator's go", async () => {
+  test("'v6': stored under analysis_data.dc.fico17_v6 (CONTRACTS §7); the teacher's report stays V3 until the operator's go", async () => {
+    const off = JSON.parse(JSON.stringify(await runWith('v3')));
     const on = await runWith('v6');
     expect(on.framework).toBe('fico');
-    expect(on.shadow.fico17_v6.status).toBe('ok');
+    expect(on.shadow).toBeUndefined();
+    const d = on.dc.fico17_v6;
+    expect(d.status).toBe('ok');
+    expect(d.mode).toBe('v6');
+    expect(d.rubric).toBe('fico17_v6');
+    expect(d.transcript_quality).toEqual({ status: expect.any(String), coverage: expect.any(Number), issues: expect.any(Array) });
+    const { dc, ...v3Only } = on;
+    expect(JSON.parse(JSON.stringify(v3Only))).toEqual(off);
+  });
+
+  test("'shadow' never writes analysis_data.dc", async () => {
+    const on = await runWith('shadow');
+    expect(on.dc).toBeUndefined();
+    expect(on.shadow.fico17_v6.mode).toBe('shadow');
   });
 
   test('a v6 failure leaves V3 intact and records the failure, never a default level', async () => {
@@ -174,5 +188,44 @@ describe('DC rubric switch on the self-recording pipeline', () => {
     global.__DC = 'shadow';
     await AnalysisProcessor.processAnalysis(SID, { from: '92300' }).catch(() => {});
     expect(v6Calls()).toHaveLength(0);
+  });
+});
+
+describe('bd-qix9oh.2 — where the v6 blob lands (spec §4.2, §6.3; CONTRACTS §7)', () => {
+  const shadowMod = require('../../bot/shared/services/coaching/frameworks/fico17-v6/shadow');
+
+  test("patch: mode 'v6' → { dc: { fico17_v6 } }; 'shadow' → { shadow: { fico17_v6 } }; nothing → {}", () => {
+    const b6 = { status: 'ok', mode: 'v6' };
+    const bs = { status: 'ok', mode: 'shadow' };
+    expect(shadowMod.patch(b6)).toEqual({ dc: { fico17_v6: b6 } });
+    expect(shadowMod.patch(bs)).toEqual({ shadow: { fico17_v6: bs } });
+    expect(shadowMod.patch(null)).toEqual({});
+    // A blob with no mode (an old shape) stays where shadow always wrote it.
+    expect(shadowMod.patch({ status: 'timeout' })).toEqual({ shadow: { fico17_v6: { status: 'timeout' } } });
+  });
+
+  test('both keys survive the merge into the V3 write: V3\'s own analysis cannot overwrite them', () => {
+    const analysis = { framework: 'fico', dc: 'from V3?', shadow: 'from V3?' };
+    for (const blob of [{ status: 'ok', mode: 'v6' }, { status: 'ok', mode: 'shadow' }]) {
+      const merged = { ...analysis, ...shadowMod.patch(blob) };
+      const key = blob.mode === 'v6' ? 'dc' : 'shadow';
+      expect(merged[key]).toEqual({ fico17_v6: blob });
+    }
+  });
+
+  test('analysis-processor: the patch is the last spread of the analysis_data it writes, after the V3 analysis', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(path.join(__dirname, '../../bot/shared/services/coaching/analysis-processor.service.js'), 'utf8');
+    const at = src.indexOf('...ficoV6Shadow.patch(v6Shadow)');
+    expect(at).toBeGreaterThan(-1);
+    expect(src.indexOf('...ficoV6Shadow.patch(', at + 1)).toBe(-1); // one write site
+    const open = src.lastIndexOf('analysis_data: {', at);
+    const body = src.slice(open, at);
+    expect(body.indexOf('...analysisResult.analysis,')).toBeGreaterThan(-1);
+    // Nothing after the patch inside the same literal: the next non-space text closes the object.
+    expect(src.slice(at + '...ficoV6Shadow.patch(v6Shadow)'.length)).toMatch(/^,?\s*\},/);
+    // No later key in the literal is called dc or shadow.
+    expect(body).not.toMatch(/\b(dc|shadow)\s*:/);
   });
 });
