@@ -25,7 +25,16 @@ const O = require('../../coaching/frameworks/obs612');
 const { obs612View, num } = require('./view');
 const { SUBJECT_LABELS, urDigits } = require('./strings');
 const { clampLanguage } = require('../../../config/ux-strings');
-const { mergeWithinCap, FIELD_CAPS } = require('../../../utils/merge-within-cap');
+// An interactive body's cap in code points (Meta refuses the whole message over it). Kept here rather than in a shared
+// helper: this module rides to staging and main on its own, and must not depend on one only sandbox has.
+const BODY_CAP = 1024;
+/** The parts joined by a blank line when the result fits `cap` code points, else null (send them apart). */
+function joinWithinCap(parts, cap) {
+  const kept = (parts || []).map((p) => (p == null ? '' : String(p).trim())).filter(Boolean);
+  if (!kept.length) return null;
+  const joined = kept.join('\n\n');
+  return [...joined].length <= cap ? joined : null;
+}
 const { logToFile } = require('../../../utils/logger');
 
 const LRI = '⁦';
@@ -238,7 +247,7 @@ function buildSummaryMessages(sessionId, analysis, { lang, teacherName } = {}) {
   // The send flow's own ids and titles (observe_send_start_ / observe_send_later_): a tap lands in startSendFlow.
   const choice = buildSendChoiceButtons(sessionId, observeStrings(L.lang));
   const ask = L.ask(String(teacherName || '').trim());
-  const merged = mergeWithinCap([summary, ask], FIELD_CAPS.body);
+  const merged = joinWithinCap([summary, ask], BODY_CAP);
   return {
     summary,
     lead: merged ? null : summary,
