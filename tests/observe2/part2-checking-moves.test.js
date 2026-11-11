@@ -109,8 +109,8 @@ describe('Part 2 asks for them', () => {
     expect(Object.keys(TEACHER_SAID)).toEqual(expect.arrayContaining(['cfu', 'reteach']));
   });
 
-  test('the form that asks them is version 6', () => {
-    expect(FORM_VERSION).toBe('6');
+  test('the form that asks them is version 6 or later (7 brought the per-visit switch options, FICO6)', () => {
+    expect(Number(FORM_VERSION)).toBeGreaterThanOrEqual(6);
   });
 });
 
