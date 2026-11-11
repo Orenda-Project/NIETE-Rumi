@@ -745,6 +745,15 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
     // everything else. Returns false for every other handset.
     if (await StudentIngress.route({ message, messageType, messageBody, from, user })) return;
 
+    // bd-ik5e8j.5 (queue #85) — the first-touch how-to film. Here, after the user lookup and the child check and
+    // before routing by type, so every message a person sends passes it once (statuses and request_welcome never
+    // reach this line). Film 1 goes to a covered teacher on her first message, then her message is handled as
+    // today; it never throws and waits at most SEND_TIMEOUT_MS (howto-first-touch.service). Off unless the
+    // howto_first_touch switch covers her.
+    if (user) {
+      await require('./shared/services/howto-first-touch.service').maybeSendHowtoFirstTouch({ user, from, correlationId });
+    }
+
     // Route to appropriate handler based on message type
     if (messageType === 'text' && messageBody) {
       await handleTextMessage(message, from, messageBody, user);
