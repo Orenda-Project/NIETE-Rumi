@@ -405,9 +405,9 @@ function createScoreMemo({ maxEntries = 200000 } = {}) {
       const hit = map.get(id);
       return hit && hit.u === updatedAt ? hit : null;
     },
-    set(id, updatedAt, pct, sections = null) {
+    set(id, updatedAt, pct, sections = null, v6 = false) {
       if (map.size >= maxEntries) map.clear();
-      map.set(id, { u: updatedAt, pct, sections });
+      map.set(id, { u: updatedAt, pct, sections, v6 });
     },
     pending: new Map(),
     get size() { return map.size; },
@@ -645,9 +645,18 @@ function domainsOf(row) {
   return out;
 }
 
-/** A session's FICO sections: {b, c, d}, each a % or null. */
+/**
+ * A FICO17 v6 visit (scores.rubric 'fico17_v6', the stamp fico17-v6/stamp.js sets): its C and D are v6
+ * indicators, never V3 ones, so V3 and v6 never meet in one section average (FICO6 r2, redteam T7.D5).
+ */
+function isV6Row(row) {
+  const scores = row && row.scores;
+  return !!scores && typeof scores === 'object' && scores.rubric === 'fico17_v6';
+}
+
+/** A session's FICO sections: {b, c, d}, each a % or null; all null for a v6 visit. */
 function sectionsOf(row) {
-  const domains = row ? domainsOf(row) : null;
+  const domains = row && !isV6Row(row) ? domainsOf(row) : null;
   const out = {};
   for (const [k, key] of Object.entries(FICO_SECTIONS)) out[k] = sectionPct(domains, key);
   return out;
@@ -658,7 +667,7 @@ function sectionsOf(row) {
  * memo. One set-based read, then the scores of only those sessions the memo does not hold and
  * no other request is already reading. Shared by /analytics/schools and /analytics/observations.
  *
- * @returns {Promise<{sessions: Array<{id, school_id, user_id, is_test, observation_type, pct, sections}>, scoreReads: number}>}
+ * @returns {Promise<{sessions: Array<{id, school_id, user_id, is_test, observation_type, pct, sections, v6?}>, scoreReads: number}>}
  */
 async function loadCountedSessions(query, range, { memo = defaultMemo, regions = null } = {}) {
   const bounds = windowBounds(range);
@@ -681,7 +690,7 @@ async function loadCountedSessions(query, range, { memo = defaultMemo, regions =
       try {
         const scoreRes = await query(SCORES_SQL, [toRead]);
         for (const r of scoreRes.rows || []) {
-          memo.set(r.id, stamp(r.updated_at), sessionPct(r.scores), sectionsOf(r));
+          memo.set(r.id, stamp(r.updated_at), sessionPct(r.scores), sectionsOf(r), isV6Row(r));
         }
       } finally {
         if (memo.pending) for (const id of toRead) memo.pending.delete(id);
@@ -705,6 +714,8 @@ async function loadCountedSessions(query, range, { memo = defaultMemo, regions =
         observation_type: s.observation_type == null ? null : s.observation_type,
         pct: hit ? hit.pct : null,
         sections: hit && hit.sections ? hit.sections : sectionsOf(null),
+        // A v6 visit is counted apart (observations' v6_visits); the flag rides only on v6 rows.
+        ...(hit && hit.v6 ? { v6: true } : {}),
       };
     }),
     scoreReads: toRead.length,
