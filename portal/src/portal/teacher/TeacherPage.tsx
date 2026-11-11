@@ -9,6 +9,8 @@ import { useLatinAttrs } from "@/lib/textDir";
 import { BackLink } from "../lib/useBack";
 import { cn } from "@/lib/utils";
 import { FOCUS } from "./ui/styles";
+import { HelpButton } from "./help/HelpButton";
+import type { HelpFeature } from "./help/api";
 
 /**
  * bd-fmf24g.1 — the teacher v2 page frame (canvas v28), for every teacher v2 page.
@@ -28,7 +30,7 @@ import { FOCUS } from "./ui/styles";
  * The flag gate is App.tsx's (every registered route is wrapped in TeacherGate).
  */
 export default function TeacherPage({
-  title, hero, crumb, backTo, onBack, feature, chips, action, dock, bare = false, stickyHero = false, testId, children,
+  title, hero, crumb, backTo, onBack, feature, chips, action, help, dock, bare = false, stickyHero = false, testId, children,
 }: {
   /** Not needed when `hero` draws the heading. */
   title?: ReactNode;
@@ -44,6 +46,11 @@ export default function TeacherPage({
   chips?: ReactNode;
   /** A control at the end of the header (right in English, left in Urdu), inner or top-level: a coach's "New visit", an Edit. */
   action?: ReactNode;
+  /**
+   * bd-ik5e8j.4 (queue #85) — this page's how-to video: a "?" after `action` (placement A) that opens it. Drawn only
+   * when portal_help_videos is on for her; otherwise nothing, so the page is today's.
+   */
+  help?: HelpFeature;
   /** The page's bottom action(s), kept above the menu. */
   dock?: ReactNode;
   bare?: boolean;
@@ -78,6 +85,7 @@ export default function TeacherPage({
               <h1 {...ltrOf(title)} className="break-words text-[26px] font-light leading-tight tracking-[-0.01em] [overflow-wrap:anywhere]">{title}</h1>
             </div>
             {action}
+            {help ? <HelpButton feature={help} /> : null}
           </header>
         ) : hero ? (
           <div data-testid="page-hero" className={cn("-mx-4 -mt-4 min-[576px]:mx-0 min-[576px]:mt-0 min-[576px]:overflow-hidden min-[576px]:rounded-[28px]", stickyHero && "sticky top-0 z-20")}>{hero}</div>
@@ -87,6 +95,7 @@ export default function TeacherPage({
               {tile}
               <h1 {...ltrOf(title)} className="min-w-0 flex-1 break-words text-[32px] font-light leading-[1.15] tracking-[-0.015em] [overflow-wrap:anywhere]">{title}</h1>
               {action}
+              {help ? <HelpButton feature={help} /> : null}
             </div>
             {chips && <div className="flex flex-wrap gap-2">{chips}</div>}
           </header>

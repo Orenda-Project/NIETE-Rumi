@@ -1,0 +1,10 @@
+/* bd-ik5e8j.4 — the "?"'s first-time pulse: a soft ring, about 2 s, never over the tap (pointer-events: none).
+   prefers-reduced-motion users never get this element (HelpButton draws a still dot instead). */
+@keyframes niete-help-ring {
+  0% { transform: scale(0.9); opacity: 0.75; }
+  70% { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+.niete-help-ring {
+  animation: niete-help-ring 2s ease-out infinite;
+}
