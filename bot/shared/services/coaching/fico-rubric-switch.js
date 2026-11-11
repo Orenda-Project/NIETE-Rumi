@@ -3,7 +3,7 @@
  * bd-ra8xu.38 — which FICO rubric a coach visit and a self-recording use, per region. Two switches in
  * app_settings, both OFF by default. Flipping either (or back) needs no deploy.
  *
- *   fico_coach_rubric   the coach paths (/observe, /observe2):   'current' | 'v6'
+ *   fico_coach_rubric   the coach paths (/observe, /observe2):   'current' | 'shadow' | 'v6'
  *   fico_dc_rubric      the Digital Coach on self-recordings:     'v3' | 'shadow' | 'v6'
  *
  * Each value is either one string for every region, or a JSON map from region to value:
@@ -18,6 +18,8 @@
  * 30 s cache (settings/switch-cache).
  *
  * 'current' on the coach switch means what each tool scores today: /observe FICO V3, /observe2 FICO17 v5.
+ * 'shadow' on the coach switch (bd-qix9oh.5, spec §4.2): an /observe2 visit stays v5 in everything the coach and
+ * the teacher see, and its transcript is also read on v6 and stored beside it, never sent (observe2/shadow-v6.js).
  * V3 keeps scoring every self-recording whatever fico_dc_rubric says, so the v10 coaching A/B test reads the same
  * numbers it always has; 'shadow' adds a v6 score beside it that is stored and never sent.
  */
@@ -30,7 +32,7 @@ const COACH_KEY = 'fico_coach_rubric';
 const DC_KEY = 'fico_dc_rubric';
 const TTL_MS = 30 * 1000;
 
-const COACH_VALUES = ['current', 'v6'];
+const COACH_VALUES = ['current', 'shadow', 'v6'];
 const DC_VALUES = ['v3', 'shadow', 'v6'];
 const COACH_OFF = 'current';
 const DC_OFF = 'v3';
@@ -106,7 +108,7 @@ async function pickFor(map, who, allowed, off) {
 
 /**
  * @param {{userId?: string, region?: string, organization?: string}} who  the user (users.id) and region (users.region)
- * @returns {Promise<'current'|'v6'>}  never throws; OFF on any failure
+ * @returns {Promise<'current'|'shadow'|'v6'>}  never throws; OFF on any failure
  */
 async function coachRubric(who = {}, now = Date.now()) {
   try {
