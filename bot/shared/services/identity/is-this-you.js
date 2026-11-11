@@ -131,6 +131,29 @@ function claimedAlready(out, me, itu) {
   return true;
 }
 
+/** The account a claim gave her number to, from its own audit row; null when there is none. */
+async function claimedOwner(db, userId) {
+  const { data, error } = await db.from('leader_roster_audit').select('teacher_ext_id')
+    .eq('action', 'edit_phone').eq('actor_user_id', userId).eq('detail->>via', VIA)
+    .order('created_at', { ascending: false }).limit(1);
+  if (error) throw new Error(error.message || 'audit read refused');
+  return (Array.isArray(data) && data[0] && data[0].teacher_ext_id) || null;
+}
+
+/**
+ * A move that stopped after it retired HER account (the shell) and before the record took her number leaves her number
+ * on no account: her next message would make a third one. Put her account back exactly as it was. Compare-and-set on
+ * what this claim wrote, so it never undoes anything else.
+ */
+async function putBack(db, me) {
+  const { data, error } = await db.from('users')
+    .update({ phone_number: me.phone_number, deleted_at: null, deleted_reason: null, deleted_by: null })
+    .eq('id', me.id).eq('phone_number', `merged:${me.id}`).eq('deleted_by', VIA)
+    .select('id');
+  if (error) throw new Error(error.message || 'put-back refused');
+  return Array.isArray(data) && data.length === 1;
+}
+
 async function decide(out, { userId, stored, itu, signatureOk, startedAt }) {
   const db = _db();
   const C = _C();
@@ -162,13 +185,32 @@ async function decide(out, { userId, stored, itu, signatureOk, startedAt }) {
 
   const target = await C.loadTargetWithHistory(me.phone_number);           // her own account, with its history counts
   if (!target || target.id !== me.id) { out.why = 'changed'; return; }
-  const move = await C.moveNumber({ userId: c.id, fromPhone: c.phone_number, toPhone: me.phone_number, target, actor: VIA });
+  let move;
+  let failedStep = null;
+  try {
+    move = await C.moveNumber({ userId: c.id, fromPhone: c.phone_number, toPhone: me.phone_number, target, actor: VIA });
+  } catch (err) {
+    const at = (err && err.moveProgress) || {};
+    swallow('settle: the move threw', err);
+    if (at.step === 'visits' || at.step === 'reparent') {
+      // Her number already moved: the claim stands, and the audit row names the step that did not run.
+      move = { ok: true, verdict: at.verdict, retiredId: at.retiredId || null, reparent: null, visitsFailed: at.step === 'visits' };
+      failedStep = at.step;
+    } else {
+      move = { ok: false, reason: 'failed', retiredId: at.retiredId || null };
+    }
+  }
   if (!move.ok) {
     if (move.reason === 'taken') return review(out, db, ctx, 'account_has_history');
-    out.why = 'move_failed';
-    return;
+    // Retired, then the number write failed: give her account back before anything else.
+    if (move.retiredId === me.id && !(await putBack(db, me))) {
+      logToFile('⚠️ is-this-you: her account could not be put back after a failed move - a person must restore it',
+        { tk: IdentityEvents.ref(me.id) }, 'error');
+    }
+    return review(out, db, ctx, 'move_failed');
   }
-  await audit(db, me, c, 'edit_phone', { ...C.moveDetail(c.phone_number, me.phone_number, move), school_id: itu.schoolId });
+  await audit(db, me, c, 'edit_phone', { ...C.moveDetail(c.phone_number, me.phone_number, move), school_id: itu.schoolId,
+    ...(failedStep ? { failed_step: failedStep } : {}) });
   // The retired account keeps its school otherwise, and the coach's picker (patch-resolver) does not skip retired rows.
   await db.from('users').update({ school_id: null }).eq('id', me.id).eq('deleted_by', VIA);
   Object.assign(out, { ownerId: c.id, identity: 'claimed', why: null });
@@ -183,7 +225,22 @@ async function decide(out, { userId, stored, itu, signatureOk, startedAt }) {
 async function settle({ userId, stored, signatureOk, startedAt = Date.now() }) {
   const itu = stored && stored.itu;
   const out = { ownerId: userId, identity: 'none', why: null };
-  if (!itu || !itu.candidateId) return out;                             // never asked: no event
+  if (!itu || !itu.candidateId) {
+    // Never asked: nothing to do, and nothing is read. A Finish repeated after a claim finished has lost its saved form
+    // data (every live session carries v: 5); only then does her own row say whether a claim retired it, and where the
+    // rest of the sign-up belongs. No event.
+    if (stored && stored.v) return out;
+    try {
+      const me = await row(_db(), userId, ME_COLS);
+      if (me && me.deleted_by === VIA) {
+        const ownerId = await claimedOwner(_db(), userId);
+        if (ownerId) Object.assign(out, { ownerId, identity: 'claimed', why: 'already_done' });
+      }
+    } catch (err) {
+      swallow('settle: repeat', err);
+    }
+    return out;
+  }
   const redis = _redis();
   const lockId = `${userId}:${startedAt}`;
   let locked = false;

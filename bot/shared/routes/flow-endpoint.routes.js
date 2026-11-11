@@ -283,7 +283,8 @@ router.post('/registration', async (req, res) => {
     const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
       encryptedRequest,
       async (decryptedData) => {
-        return await handleRegistrationRequest(decryptedData);
+        // webhook-signature records Meta's verdict on the request; a claim acts only on a verified one.
+        return await handleRegistrationRequest(decryptedData, { signatureOk: req.webhookSignatureOk === true });
       }
     );
 
@@ -307,7 +308,7 @@ router.post('/registration', async (req, res) => {
  * @param {Object} data - Decrypted request data
  * @returns {Object} - Response to encrypt
  */
-async function handleRegistrationRequest(data) {
+async function handleRegistrationRequest(data, { signatureOk = false } = {}) {
   const { action, flow_token, screen, data: screenData } = data;
 
   logToFile('Handling registration request', {
@@ -339,7 +340,7 @@ async function handleRegistrationRequest(data) {
 
   // Handle data_exchange
   if (action === 'data_exchange') {
-    response = await handleRegistrationDataExchange(userId, screen, screenData, flow_token);
+    response = await handleRegistrationDataExchange(userId, screen, screenData, flow_token, { signatureOk });
     logToFile('📤 Returning data_exchange response', {
       screen: response?.screen,
       dataKeys: response?.data ? Object.keys(response.data) : [],
