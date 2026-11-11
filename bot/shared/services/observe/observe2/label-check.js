@@ -66,6 +66,11 @@ function buildLabelPrompt(moments, lines, { lang, rubric = 'fico17' } = {}) {
     '- relabel: the words clearly show a different type from the list below. Give that type.',
     '- drop: the words show no type in the list (a closed question, an instruction, admin, a single word, a moral),',
     '  or you cannot tell. When unsure, drop.',
+    // v6 (FICO6 r2): the resource types are instructions by their own definitions, as the v3 moments prompt says.
+    ...(rubric === 'fico17_v6' ? [
+      '  A book, the board, a chart or an object the teacher shows, or asks the children to use, for what the lesson',
+      '  teaches is not admin or a plain instruction: judge it by the resource types below.',
+    ] : []),
     '',
     'STRICT, because these two were wrong almost every time they were picked:',
     '- handover ("children led a part"): keep it only if a child runs part of the lesson for the whole class: leads',

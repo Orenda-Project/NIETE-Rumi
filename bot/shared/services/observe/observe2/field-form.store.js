@@ -249,9 +249,18 @@ async function setMoments(id, moments, levels) {
   return { ok: true };
 }
 
-// The moments' record rewritten whole (the plan graded at the seal for a recording that came first).
+// Written beside the moments by other writers (the shadow read, the v6 moments job): a rewrite that does not carry
+// one keeps the stored one (FICO6 r2 T6.1: a shadow_v6 landing while the plan was graded at the seal was lost).
+const KEPT_V6_KEYS = ['shadow_v6', 'transcript_quality', 'room_evidence', 'd2_turns'];
+
+// The moments' record rewritten (the plan graded at the seal for a recording that came first): whole, except the
+// KEPT_V6_KEYS the patch leaves out, which are taken from the row as read just before the write.
 async function setRumiMoments(id, moments) {
-  const { error } = await supabase.from('observation_field_forms').update({ rumi_moments: moments }).eq('id', id);
+  const { data, error: rErr } = await supabase.from('observation_field_forms').select('rumi_moments').eq('id', id).maybeSingle();
+  if (rErr) return fail('setRumiMoments', rErr, { id });
+  const stored = (data && data.rumi_moments) || {};
+  const kept = Object.fromEntries(KEPT_V6_KEYS.filter((k) => !(k in moments) && k in stored).map((k) => [k, stored[k]]));
+  const { error } = await supabase.from('observation_field_forms').update({ rumi_moments: { ...moments, ...kept } }).eq('id', id);
   if (error) return fail('setRumiMoments', error, { id });
   return { ok: true };
 }
