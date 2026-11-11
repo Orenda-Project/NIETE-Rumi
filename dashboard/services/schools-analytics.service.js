@@ -438,15 +438,22 @@ const present = (...xs) => xs.filter(Boolean);
 
 /**
  * Today's roster, the teacher base of every roster number: teachers with a school, test
- * accounts out. One spelling, used by the roster and by training alike.
+ * accounts out, live rows only. One spelling, used by the roster and by training alike.
+ *
+ * Live is the RDF population's test (training-levels-analytics members): deleted_at NULL and
+ * the phone not a merged: tombstone. A fold retires a teacher's spare account but keeps its
+ * school and role, so without it each fold counted the teacher twice at her school
+ * (bd-apnnh2.16).
  */
 const ROSTER_TEACHER = `u.role = 'teacher'
          AND u.school_id IS NOT NULL
-         AND u.is_test_user IS NOT TRUE`;
+         AND u.is_test_user IS NOT TRUE
+         AND u.deleted_at IS NULL
+         AND COALESCE(u.phone_number, '') NOT LIKE 'merged%'`;
 
 function schoolsSql(bounds, regionParam = null) {
-  // Every school, each with its roster in the same read: today's teachers (test accounts
-  // out), their LP opens and their training completions in the window. Opens count
+  // Every school, each with its roster in the same read: today's teachers (test and retired
+  // accounts out), their LP opens and their training completions in the window. Opens count
   // DIFFERENT plans per teacher; summed over teachers that is distinct (user, kind, ref).
   // Training counts DIFFERENT modules per teacher, so the sum is distinct (user, module).
   // A school with no teachers still comes back, with zeros.
