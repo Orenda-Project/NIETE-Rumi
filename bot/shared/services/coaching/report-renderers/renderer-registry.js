@@ -76,7 +76,8 @@ const heroRenderer = makeHeroRenderer();
  * DIRECTLY (the observe teacher-report path bypasses the registry), so the
  * same session can never be branded on one surface and unbranded on another.
  */
-const HERO_BRANDS = { fico: 'niete' };
+// bd-ra8xu.39: a FICO17 v6 visit is NIETE's too.
+const HERO_BRANDS = { fico: 'niete', fico17_v6: 'niete' };
 
 function heroBrandFor(frameworkKey) {
   return HERO_BRANDS[String(frameworkKey || '').toLowerCase()];
@@ -115,6 +116,7 @@ const renderers = {
   hots:   heroRenderer,
   teach:  heroRenderer,
   fico:   ficoNieteHeroRenderer,
+  fico17_v6: ficoNieteHeroRenderer,
   mewaka: heroRenderer,
 };
 
