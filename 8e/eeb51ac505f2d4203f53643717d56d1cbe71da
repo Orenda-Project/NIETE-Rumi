@@ -1,0 +1,2 @@
+{"ts":"2026-11-11T01:30:51Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"8eeeb51ac505","branch":"bd-hz6ez.5-60554","user":""}
+{"ts":"2026-11-11T01:30:53Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-hz6ez.5-60554: lesson-plan spec: NOT UPDATED e2e: missing","sha":"8eeeb51ac505","branch":"bd-hz6ez.5-60554","user":""}
