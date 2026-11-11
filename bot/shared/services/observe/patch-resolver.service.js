@@ -199,6 +199,10 @@ function dedupePatch(rows = []) {
  * populated, so today the link is the text `school_ext_id` = 'niete:' || emis.
  * COALESCE lets the same statement work before and after that column is
  * backfilled, so the backfill needs no second code change.
+ *
+ * bd-apnnh2.11: live accounts only. A fold retires the spare account
+ * (deleted_at set, phone 'merged:<id>') and keeps its school and role, so
+ * without the filter it comes back as a second, empty copy of the teacher.
  */
 const PATCH_SQL = `
   SELECT u.id            AS user_id,
@@ -218,6 +222,7 @@ const PATCH_SQL = `
   JOIN users u
     ON u.school_id = s.id
    AND u.role = ANY($2)
+   AND u.deleted_at IS NULL
   WHERE ls.leader_user_id = $1
 `;
 
@@ -298,7 +303,8 @@ async function ownSchoolPatch(supabase, principalId, schoolId) {
     .from('users')
     .select('id, phone_number, name, role, school_id, teacher_level')
     .eq('school_id', schoolId)
-    .in('role', ['teacher']);
+    .in('role', ['teacher'])
+    .is('deleted_at', null); // live accounts only, as every patch (bd-apnnh2.11)
   return dedupePatch((people || [])
     .filter((u) => String(u.id) !== String(principalId))
     .map((u) => shapePatchRow({ ...u, user_id: u.id, school_name: school.name, emis: school.emis })));
@@ -339,7 +345,8 @@ async function listPatchViaSupabase(supabase, leaderUserId, schoolExtId = null) 
     .from('users')
     .select('id, phone_number, name, role, school_id, teacher_level')
     .in('school_id', [...byId.keys()])
-    .in('role', [...PATCH_ROLES]);
+    .in('role', [...PATCH_ROLES])
+    .is('deleted_at', null); // live accounts only, as PATCH_SQL (bd-apnnh2.11)
 
   return dedupePatch((people || []).map((u) => {
     const s = byId.get(u.school_id) || {};
