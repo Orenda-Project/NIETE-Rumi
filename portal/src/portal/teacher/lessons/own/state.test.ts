@@ -101,3 +101,21 @@ describe('toAnswers — what Make my plan sends', () => {
     });
   });
 });
+
+/** bd-snkn32.24 — she may tick more than one teaching way; the first is still `way`. */
+describe('several teaching ways', () => {
+  it('reads a comma list in her order, once each, dropping ways off her list', () => {
+    const s = readOwn('grade=2&subject=English&chapter=c01&way=games,tarl,games,practical');
+    expect(s?.ways).toEqual(['games', 'tarl']);
+    expect(s?.way).toBe('games');
+  });
+  it('one way alone carries no list (old addresses read the same)', () => {
+    expect(readOwn('grade=2&subject=English&chapter=c01&way=tarl')?.ways).toBeUndefined();
+  });
+  it('writes the list back into the address and sends it to the bot', () => {
+    const s = readOwn('grade=2&subject=English&chapter=c01&way=games,tarl')!;
+    expect(ownUrl(s)).toContain('way=games%2Ctarl');
+    expect(toAnswers(s, '')).toMatchObject({ way: 'games', ways: ['games', 'tarl'] });
+    expect(toAnswers(readOwn('grade=2&subject=English&chapter=c01&way=tarl')!, '')).not.toHaveProperty('ways');
+  });
+});

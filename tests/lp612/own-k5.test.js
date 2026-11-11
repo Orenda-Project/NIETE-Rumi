@@ -164,3 +164,15 @@ describe('renderK5Own — the phone page', () => {
     expect(html).not.toContain('>Homework<');
   });
 });
+
+/** bd-snkn32.24 — several ways: all named for We Do and You Do; TaRL grouping when TaRL is among them. */
+describe('k5Messages — several teaching ways', () => {
+  it('names each chosen way and keeps the TaRL grouping when TaRL is one of them', () => {
+    const answers = { ...ANSWERS, way: 'phonics', ways: ['phonics', 'tarl', 'games'] };
+    const user = k5Messages({ script: script('ur'), answers, lang: 'ur', grade: 2, subject: 'urdu' })[1].content;
+    expect(user).toMatch(/Teaching ways, combined in We Do and You Do:/);
+    expect(user).toMatch(/sound/i);
+    expect(user).toMatch(/game/i);
+    expect(user).toMatch(/Group the children by level/);
+  });
+});

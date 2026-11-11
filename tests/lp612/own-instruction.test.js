@@ -94,3 +94,30 @@ describe('buildOwnInstruction', () => {
     expect(() => buildOwnInstruction({ size: 'x' })).toThrow();
   });
 });
+
+/** bd-snkn32.24 — a teacher may combine teaching ways (tester feedback: one way only was too narrow). */
+describe('several teaching ways', () => {
+  it('accepts a list of ways, in order, once each; the first is still `way`', () => {
+    const out = parseOwnAnswers({ ...good, way: 'tarl', ways: ['tarl', 'games', 'tarl', 'story'] });
+    expect(out.ok).toBe(true);
+    expect(out.answers.ways).toEqual(['tarl', 'games', 'story']);
+    expect(out.answers.way).toBe('tarl');
+  });
+  it('refuses a list with any way off her choices', () => {
+    expect(parseOwnAnswers({ ...good, ways: ['tarl', 'lecture'] }).ok).toBe(false);
+    expect(parseOwnAnswers({ ...good, ways: 'tarl' }).ok).toBe(false);
+  });
+  it('a single way alone still works, with no list', () => {
+    const out = parseOwnAnswers(good);
+    expect(out.answers.ways).toBeUndefined();
+  });
+  it('names every chosen way in the instruction, with GRR and no rote kept', () => {
+    const out = parseOwnAnswers({ ...good, ways: ['tarl', 'games'] });
+    const text = buildOwnInstruction(out.answers);
+    expect(text).toMatch(/Teaching ways \(combine them\):/);
+    expect(text).toMatch(/level/i);
+    expect(text).toMatch(/game/i);
+    expect(text).toMatch(/I do, We do and You do/);
+    expect(text).toMatch(/rote/i);
+  });
+});

@@ -11,7 +11,7 @@ import { LESSONS } from '../copy';
 import { lessonsUrl } from '../paths';
 import { OWN } from './copy';
 import {
-  FOCI, LEVELS, RESOURCES, SIZES, isComplete, purposesFor, suggestWay, waysFor, type Resource,
+  FOCI, LEVELS, RESOURCES, SIZES, isComplete, purposesFor, suggestWay, waysFor, type Resource, type Way,
 } from './rules';
 import { nextStep, ownUrl, prevStep, readOwn, stepsFor, toAnswers, type OwnAt } from './state';
 import { fetchSloMix, makeOwnPlan, ownable, useLpMakeOwn } from './api';
@@ -80,7 +80,8 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
   const n = steps.indexOf(s.step) + 1;
   const sizeNow = s.size ?? SIZES.find((x) => x === remembered()) ?? null;
   const suggestion = suggestWay({ grade: s.grade, subject: s.subject, segment: s.seg ?? '', size: s.size, resources: ['textbook', ...s.res], level: s.level, way: null, purpose: s.purpose });
-  const wayNow = s.way ?? suggestion.way;
+  // bd-snkn32.24 — she may tick several ways; untouched, the suggestion is ticked.
+  const waysNow = s.ways ?? (s.way ? [s.way] : [suggestion.way]);
 
   // Off is a real answer (back to the chapter); unknown is not, so the frame waits for /config.
   if (on === false) return <Navigate to={chapterUrl} replace />;
@@ -108,7 +109,7 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
         : s.step === 'size' ? ok({ size: sizeNow }, !!sizeNow)
           : s.step === 'level' ? ok({}, !!s.level)
             : s.step === 'resources' ? ok({}, true)
-              : s.step === 'way' ? ok({ way: wayNow }, true)
+              : s.step === 'way' ? ok({ way: waysNow[0] ?? null, ways: waysNow.length > 1 ? waysNow : undefined }, waysNow.length > 0)
                 : <DockButton disabled={busy || !seg || !isComplete({ grade: s.grade, subject: s.subject, segment: s.seg ?? '', size: s.size, resources: s.res, level: s.level, way: s.way, purpose: s.purpose })} testId="own-make" onClick={() => { void make(); }}>{failed === 'error' ? C.tryAgain : C.makeMyPlan}</DockButton>;
 
   const title = s.step === 'check' ? C.yourPlan : s.step === 'pages' ? (k5 ? C.day : C.whichLesson) : s.step === 'size' ? w.size : C[s.step];
@@ -158,11 +159,10 @@ function Own({ s, on }: { s: OwnAt; on: boolean | null }) {
         <>
           {/* The guardrail sits above the options, never under the fold (the unified spec's layout rule 5). */}
           <p className="text-[14px] font-semibold text-[#33374a]" data-testid="own-grr">{C.grrLine}</p>
-          <RadioList
-            label={C.way}
+          <TickList
+            label={C.way} allLabel={C.pickWays} locked={[]} chosen={waysNow}
             items={[suggestion.way, ...waysFor(s).filter((x) => x !== suggestion.way)].map((k) => ({ key: k, label: w.way(k), subtitle: k === suggestion.way ? C.suggested : undefined }))}
-            value={wayNow}
-            onPick={(k) => go({ way: k as OwnAt['way'] })}
+            onChange={(keys) => { const ws = keys as Way[]; if (ws.length) go({ way: ws[0] ?? null, ways: ws.length > 1 ? ws : undefined }); }}
           />
         </>
       ) : null}
