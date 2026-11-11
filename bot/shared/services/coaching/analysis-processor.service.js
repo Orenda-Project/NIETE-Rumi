@@ -619,6 +619,8 @@ class AnalysisProcessorService {
         logToFile('🚫 analysis finished but the session is over — not reopened', { coachingSessionId });
         return;
       }
+      // FICO6 fix-shadow: a v6 read slower than the grace was stored as 'timeout'; when it lands it takes that place.
+      ficoV6Shadow.storeLate(v6ShadowTask, v6Shadow, coachingSessionId).catch(() => null);
 
       // bd-pw1ccr.11: her own recording of a topic's end books the topic-end nudge (the module skips observations).
       try {
