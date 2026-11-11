@@ -2,3 +2,4 @@
 {"ts":"2026-11-11T14:10:25Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-9mc3nz-05070: training spec: NOT UPDATED e2e: HEALTHY;lesson-plan spec: NOT UPDATED e2e: HEALTHY","sha":"04ed459284ff","branch":"bd-9mc3nz-05070","user":""}
 {"ts":"2026-11-11T14:10:34Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training,lesson-plan spec_sync=true","sha":"04ed459284ff","branch":"bd-9mc3nz-05070","user":""}
 {"ts":"2026-11-11T14:10:43Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (training untouched)","sha":"04ed459284ff","branch":"bd-9mc3nz-05070","user":""}
+{"ts":"2026-11-11T14:10:51Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (tightens an internal religious-check clearance; Babur scenario in 9664a6358 still describes it)","sha":"04ed459284ff","branch":"bd-9mc3nz-05070","user":""}
