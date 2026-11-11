@@ -83,11 +83,12 @@ describe('the six §10.1 fixtures', () => {
       expect(q.issues).toEqual([{ type: 'late_start', to: '05:00' }]);
     });
 
-    test('no lines 18:00-23:00 → partial, gap 18:00-23:00', () => {
+    test('no lines 18:00-23:00 → partial, gap from the 18:00 line\'s end of speech to 23:00', () => {
+      // The 18:00 line has 27 (UR) or 22 (EN) characters: 2 s at TRANSCRIPT_CHARS_PER_SEC 16 (RULINGS R20).
       const transcript = lesson({ lang, skip: (s) => s > sec(18) && s < sec(23) });
       const q = tq.assess({ transcript, periodMinutes: 40, env: {} });
       expect(q.status).toBe('partial');
-      expect(q.issues).toEqual([{ type: 'gap', from: '18:00', to: '23:00' }]);
+      expect(q.issues).toEqual([{ type: 'gap', from: '18:02', to: '23:00' }]);
     });
   });
 
@@ -179,10 +180,11 @@ describe('coverage and boundaries', () => {
     expect(q.last_ts).toBe('27:00');
   });
 
-  test('a first line at exactly 03:00 is not a late start; a gap of exactly 3 minutes is a gap', () => {
+  test('a first line at exactly 03:00 is not a late start; 3 minutes between line starts, less the speech, is no gap', () => {
     expect(tq.assess({ transcript: lesson({ from: sec(3) }), periodMinutes: 40, env: {} }).status).toBe('ok');
+    // The 18:00 line speaks to 18:02, so 18:00-21:00 holds 2:58 of silence (the exact boundary: transcript-quality-r2).
     const q = tq.assess({ transcript: lesson({ skip: (s) => s > sec(18) && s < sec(21) }), periodMinutes: 40, env: {} });
-    expect(q.issues).toEqual([{ type: 'gap', from: '18:00', to: '21:00' }]);
+    expect(q.issues).toEqual([]);
   });
 
   test('several issues are reported in time order', () => {
@@ -191,7 +193,7 @@ describe('coverage and boundaries', () => {
     expect(q.status).toBe('partial');
     expect(q.issues).toEqual([
       { type: 'late_start', to: '05:00' },
-      { type: 'gap', from: '10:00', to: '15:00' },
+      { type: 'gap', from: '10:02', to: '15:00' },
       { type: 'short', from: '24:00' },
     ]);
   });
@@ -215,13 +217,14 @@ describe('coverage and boundaries', () => {
 
 describe('env overrides come from the env argument', () => {
   const short = lesson({ to: sec(24) });
-  test('DEFAULTS are the spec §6.4 values', () => {
+  test('DEFAULTS are the spec §6.4 values, plus the speaking rate of RULINGS R20', () => {
     expect(tq.DEFAULTS).toEqual({
       RECORDING_FULL_SHARE: 0.8,
       TRANSCRIPT_LATE_START_SEC: 180,
       TRANSCRIPT_LOOP_MINUTES: 3,
       TRANSCRIPT_GAP_MINUTES: 3,
       TRANSCRIPT_BROKEN_SHARE: 0.5,
+      TRANSCRIPT_CHARS_PER_SEC: 16,
     });
   });
 
@@ -261,16 +264,18 @@ describe('promptGaps (spec §5.3 TRANSCRIPT GAPS block)', () => {
     expect(tq.promptGaps(null)).toBe('');
   });
 
-  test('one line per issue, in the §5.3 wording, then the IE instruction', () => {
+  test('one line per issue, in the §5.3 wording, the share with no usable speech, then the IE instruction (CONTRACTS §11.1)', () => {
     const transcript = lesson({ from: sec(5), to: sec(24), skip: (s) => s > sec(10) && s < sec(15), say: urduLoop(sec(16), sec(20)) });
     const block = tq.promptGaps(tq.assess({ transcript, periodMinutes: 40, env: {} }));
     expect(block.split('\n')).toEqual([
       'TRANSCRIPT GAPS:',
       '- no speech before 05:00',
-      '- no speech from 10:00 to 15:00',
+      '- no speech from 10:02 to 15:00',
       '- the same words repeat from 16:00 to 20:00 (not real speech)',
       '- no speech after 24:00 of a 40-minute period',
-      'Use "IE" for any indicator whose evidence would fall in these gaps.',
+      'About 75% of the 40-minute period has no usable speech (gaps, loops, a late start or an early end).',
+      'For every indicator whose evidence would fall in these gaps, or whose "Couldn\'t tell" line applies because a',
+      'large part of the lesson is missing, return "IE" instead of a level. Do not guess a level from the part that remains.',
     ]);
   });
 });
