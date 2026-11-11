@@ -2447,8 +2447,15 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
         logToFile('⚠️ Unknown list item ID', { listId });
       }
     } else {
-      // A WhatsApp number change arrives as a `system` message: recorded, never answered (identity-events).
-      if (messageType === 'system') require('./shared/services/identity/identity-events').recordSystem({ message, user }).catch(() => {});
+      // A WhatsApp number change arrives as a `system` message: recorded (identity-events), then moved to the new number
+      // when its switch is on and Meta's signature verified (identity/number-change). Never answered; neither throws.
+      // Awaited, after the ack, so a deploy's drain waits for a move in flight.
+      if (messageType === 'system') {
+        const signatureOk = req.webhookSignatureOk === true;
+        await require('./shared/services/identity/identity-events').recordSystem({ message, user }).catch(() => {})
+          .then(() => require('./shared/services/identity/number-change').applyNumberChange({ message, user, signatureOk }))
+          .catch(() => {});
+      }
       // bd-fbih0: reactions/stickers get NO reply (reacting 👍 used to trigger
       // the error text); video gets an explanatory line naming the supported
       // inputs (a coach mid-photo-capture read the old generic reply as the
