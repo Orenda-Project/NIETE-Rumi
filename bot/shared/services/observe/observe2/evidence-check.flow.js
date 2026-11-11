@@ -22,8 +22,9 @@
  *       "Add one Rumi missed": up to two moments the coach saw that Rumi did not list, each a type, the minute and
  *       the words; they count as confirmed moments. Between the moments screens and COMBINED_ONE.
  *   ADDED_DC_ONE, ADDED_DC_TWO   (v6 visits only)
- *       Rumi's other 11 levels, pre-selected as ADDED_* are, with the v6 titles; one box per screen for why
- *       the coach changed any (required by the endpoint only when a level was changed).
+ *       Rumi's other 11 levels, pre-selected as ADDED_* are, with the v6 titles; per screen, why the coach changed
+ *       any: a reason from the list, the minute (optional) and a note (both needed by the endpoint only when a
+ *       level was changed; spec §9.1).
  *   ADDED_ONE, ADDED_TWO
  *       Every level, pre-selected with what the coach's sealed answers and confirmed moments add up
  *       to (rules.js). Rumi's own level is never shown. The coach changes any they disagree with.
@@ -90,9 +91,17 @@ const COMBINED_SCREENS = [
 ];
 const dcOnly = (codes) => codes.filter((c) => V6.isDc(c));
 const ADDED6_SCREENS = [
-  { id: 'ADDED_DC_ONE', title: "Rumi's levels (1 of 2)", codes: dcOnly([...MOMENT_BY_ID.ask.codes, ...MOMENT_BY_ID.wrong.codes]), why: 'why6_one' },
-  { id: 'ADDED_DC_TWO', title: "Rumi's levels (2 of 2)", codes: dcOnly([...MOMENT_BY_ID.work.codes, ...MOMENT_BY_ID.explain.codes]), why: 'why6_two' },
+  {
+    id: 'ADDED_DC_ONE', title: "Rumi's levels (1 of 2)", codes: dcOnly([...MOMENT_BY_ID.ask.codes, ...MOMENT_BY_ID.wrong.codes]),
+    why: 'why6_one', kind: 'why6_kind_one', min: 'why6_min_one',
+  },
+  {
+    id: 'ADDED_DC_TWO', title: "Rumi's levels (2 of 2)", codes: dcOnly([...MOMENT_BY_ID.work.codes, ...MOMENT_BY_ID.explain.codes]),
+    why: 'why6_two', kind: 'why6_kind_two', min: 'why6_min_two',
+  },
 ];
+// Why a level Rumi set was changed (spec §9.1), the ids stored as override.reason.
+const OVERRIDE_REASONS = ['didnt_happen', 'wrong_speaker', 'wrong_label', 'recording_missed', 'rubric_doesnt_fit'];
 const ERR = { error_messages: { type: 'object', __example__: {} } };
 const ORDER = MOMENTS.flatMap((m) => m.codes);
 const YES_NO = [{ id: 'yes', title: 'Yes, this happened' }, { id: 'no', title: 'No, or not like this' }];
@@ -245,7 +254,8 @@ function combinedScreen({ id, title, codes }) {
 
 // Rumi's 11 (v6): pre-selected, v6 titles, NA and couldn't-tell kept so any pre-filled value is on the list.
 const V6_EXTRA = [{ id: 'NA', title: 'N/A · No chance to see it' }, { id: 'IE', title: "Couldn't tell" }];
-function added6Screen({ id, title, codes, why }) {
+function added6Screen({ id, title, codes, why, kind, min }) {
+  const S = observe2Strings('en');
   const data = { ...ERR };
   const init = {};
   const kids = [{ type: 'TextCaption', text: "Rumi's level for each, from your answers and the moments you confirmed. Change any you saw differently, and say why below." }];
@@ -259,7 +269,16 @@ function added6Screen({ id, title, codes, why }) {
     );
     init[`${code}_final`] = `\${data.${code}_level}`;
   }
-  kids.push({ type: 'TextArea', name: why, label: 'Why you changed', required: false, 'max-length': 600, 'helper-text': 'Needed only if you changed a level: what you saw' });
+  // A change needs a reason from the list, the note, and optionally the minute (checked by the endpoint); no
+  // reason is chosen for the coach.
+  kids.push(
+    {
+      type: 'RadioButtonsGroup', name: kind, label: S.v6_why_kind, required: false,
+      'data-source': OVERRIDE_REASONS.map((r) => ({ id: r, title: S.v6_override_reasons[r] })),
+    },
+    { type: 'TextInput', name: min, label: S.v6_why_min, 'input-type': 'number', required: false, 'helper-text': S.v6_why_min_help },
+    { type: 'TextArea', name: why, label: 'Why you changed', required: false, 'max-length': 600, 'helper-text': 'Needed only if you changed a level: what you saw' },
+  );
   return screenWith(id, title, kids, 'Next', data, init, id === ADDED6_SCREENS[ADDED6_SCREENS.length - 1].id ? { cv: CHECK_VERSION } : null, true);
 }
 
@@ -339,5 +358,5 @@ function buildEvidenceCheckFlow() {
 
 module.exports = {
   buildEvidenceCheckFlow, SLOTS, FIDELITY_SLOTS, FIDELITY_VERDICTS, HEARD_SCREENS, ADDED_SCREENS, FLOW_VERSION, CHECK_VERSION,
-  V6_CHECK, COMBINED_SCREENS, ADDED6_SCREENS, MISSED_SLOTS, MISSED_WORDS_MAX,
+  V6_CHECK, COMBINED_SCREENS, ADDED6_SCREENS, MISSED_SLOTS, MISSED_WORDS_MAX, OVERRIDE_REASONS,
 };

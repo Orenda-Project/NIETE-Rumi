@@ -4224,6 +4224,42 @@
                 ]
               },
               {
+                "type": "RadioButtonsGroup",
+                "name": "why6_kind_one",
+                "label": "Why did it change?",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "didnt_happen",
+                    "title": "It didn't happen"
+                  },
+                  {
+                    "id": "wrong_speaker",
+                    "title": "Wrong speaker"
+                  },
+                  {
+                    "id": "wrong_label",
+                    "title": "Wrong label"
+                  },
+                  {
+                    "id": "recording_missed",
+                    "title": "Recording missed it"
+                  },
+                  {
+                    "id": "rubric_doesnt_fit",
+                    "title": "Rubric doesn't fit"
+                  }
+                ]
+              },
+              {
+                "type": "TextInput",
+                "name": "why6_min_one",
+                "label": "Minute",
+                "input-type": "number",
+                "required": false,
+                "helper-text": "The minute of the lesson it happened, if you know it"
+              },
+              {
                 "type": "TextArea",
                 "name": "why6_one",
                 "label": "Why you changed",
@@ -4243,6 +4279,8 @@
                     "D5_final": "${form.D5_final}",
                     "C2_final": "${form.C2_final}",
                     "C6_final": "${form.C6_final}",
+                    "why6_kind_one": "${form.why6_kind_one}",
+                    "why6_min_one": "${form.why6_min_one}",
                     "why6_one": "${form.why6_one}"
                   }
                 }
@@ -4594,6 +4632,42 @@
                 ]
               },
               {
+                "type": "RadioButtonsGroup",
+                "name": "why6_kind_two",
+                "label": "Why did it change?",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "didnt_happen",
+                    "title": "It didn't happen"
+                  },
+                  {
+                    "id": "wrong_speaker",
+                    "title": "Wrong speaker"
+                  },
+                  {
+                    "id": "wrong_label",
+                    "title": "Wrong label"
+                  },
+                  {
+                    "id": "recording_missed",
+                    "title": "Recording missed it"
+                  },
+                  {
+                    "id": "rubric_doesnt_fit",
+                    "title": "Rubric doesn't fit"
+                  }
+                ]
+              },
+              {
+                "type": "TextInput",
+                "name": "why6_min_two",
+                "label": "Minute",
+                "input-type": "number",
+                "required": false,
+                "helper-text": "The minute of the lesson it happened, if you know it"
+              },
+              {
                 "type": "TextArea",
                 "name": "why6_two",
                 "label": "Why you changed",
@@ -4615,6 +4689,8 @@
                     "F2_final": "${form.F2_final}",
                     "F3_final": "${form.F3_final}",
                     "F4_final": "${form.F4_final}",
+                    "why6_kind_two": "${form.why6_kind_two}",
+                    "why6_min_two": "${form.why6_min_two}",
                     "why6_two": "${form.why6_two}"
                   }
                 }
