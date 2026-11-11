@@ -127,6 +127,19 @@ async function dcRubric(who = {}, now = Date.now()) {
   }
 }
 
+/**
+ * Whether a switch has any value at all (cheap: the cached row only). Callers skip their own lookups (a user's
+ * region) when it is false, so the default-off path costs no more than one cached settings read.
+ */
+async function isAnySet(kind, now = Date.now()) {
+  try {
+    const maps = await cache.get(now);
+    return Object.keys(maps[kind === 'coach' ? 'coach' : 'dc'] || {}).length > 0;
+  } catch (_) {
+    return false;
+  }
+}
+
 /** The region of a user id, for callers that hold only the id. Null on any failure (→ "*" or off). */
 async function regionOfUser(userId) {
   if (!userId) return null;
@@ -142,5 +155,5 @@ function _resetCache() { cache.reset(); }
 
 module.exports = {
   COACH_KEY, DC_KEY, COACH_VALUES, DC_VALUES, COACH_OFF, DC_OFF,
-  asMap, resolve, coachRubric, dcRubric, regionOfUser, _resetCache,
+  asMap, resolve, coachRubric, dcRubric, isAnySet, regionOfUser, _resetCache,
 };
