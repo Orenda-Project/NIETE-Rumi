@@ -17,6 +17,8 @@ const ADAPTERS = {
   teach:  () => require('./teach-adapter').buildTeachGroups,
   fico:   () => require('./fico-adapter').buildFicoGroups,
   mewaka: () => require('./mewaka-adapter').buildMewakaGroups,
+  // bd-ra8xu.39: a visit scored on FICO17 v6 (its rows live under v6 domain keys, never V3's).
+  fico17_v6: () => require('./fico17-v6-adapter').buildFico17V6Groups,
 };
 
 /**

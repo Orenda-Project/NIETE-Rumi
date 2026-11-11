@@ -13,12 +13,15 @@ const { transformHOTSToReportData } = require('./hots-report-transformer');
 const { transformTeachToReportData } = require('./teach-report-transformer');
 const { transformFICOToReportData } = require('./fico-report-transformer');
 const { transformMEWAKAToReportData } = require('./mewaka-report-transformer');
+const { transformFICO17V6ToReportData } = require('./fico17-v6-report-transformer');
 
 const transformers = {
   oecd: transformOECDToReportData,
   hots: transformHOTSToReportData,
   teach: transformTeachToReportData,
   fico: transformFICOToReportData,
+  // bd-ra8xu.39: a FICO17 v6 visit, never the OECD fallback.
+  fico17_v6: transformFICO17V6ToReportData,
   mewaka: transformMEWAKAToReportData,   // Tanzania CPD — Playwright HTML→PDF report
 };
 
