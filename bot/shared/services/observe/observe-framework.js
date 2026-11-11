@@ -202,10 +202,69 @@ function ficoDomains() {
   return out;
 }
 
+// ── FICO17 v6 (bd-ra8xu.38) — only for a visit stamped 'fico17_v6' ─────────
+// A v6 visit is decided once, at creation, by the coach switch (observe-fico17-v6.js). The pack keeps V3's
+// Section B screen (measured lesson-plan fidelity — not one of the 17) and replaces C/D/F with the v6
+// sections, under domain keys no V3 reader knows (v6_teacher/v6_children/v6_subject), so a v6 row can
+// never be summed into a V3 total. `module` is the v6 DC framework (fico17-v6-framework.js), loaded
+// lazily so a deployment without it still serves every V3 visit.
+const FICO17_V6 = 'fico17_v6';
+let _ficoV6DomainsCache = null;
+function ficoV6Domains() {
+  if (_ficoV6DomainsCache) return _ficoV6DomainsCache;
+  const v6 = require('../coaching/frameworks/fico17-v6');
+  const out = { lesson_plan_fidelity: ficoDomains().lesson_plan_fidelity };
+  for (const section of Object.values(v6.SECTIONS)) {
+    out[section.domain] = {
+      key: section.key,
+      title: section.name,
+      title_en: section.name,
+      title_ur: section.name,
+      displayName: section.name,
+      indicators: section.codes.map((c) => ({ id: c, name: v6.indicator(c).name, kind: v6.indicator(c).kind })),
+    };
+  }
+  _ficoV6DomainsCache = out;
+  return out;
+}
+
+function ficoV6Module() {
+  return require('../coaching/frameworks/fico17-v6-framework');
+}
+
+function ficoV6Pack() {
+  const domains = ficoV6Domains();
+  const domainOrder = Object.keys(domains);
+  return {
+    key: FICO17_V6,
+    lang: 'en',
+    domains,
+    domainOrder,
+    screenIds: domainOrder.map((k) => `DOMAIN_${domains[k].key}`),
+    scaleOptions: FICO_SCALE_OPTIONS,
+    // The coach's review is scored by observe-fico17-v6.js (applyReview); this is the DC's own scoring.
+    computeScores: (analysis, ...rest) => ficoV6Module().computeScores(analysis, ...rest),
+    get module() { return ficoV6Module(); },
+    flowIdEnv: 'OBSERVE_FICO17_V6_FLOW_ID',
+  };
+}
+
+/** The rubric a getObservePack caller names: { framework } (a session row or an analysis also work). */
+function requestedFramework(opts) {
+  if (!opts || typeof opts !== 'object') return null;
+  if (opts.framework === FICO17_V6) return FICO17_V6;
+  if (opts.analysis_data && opts.analysis_data.framework === FICO17_V6) return FICO17_V6;
+  return null;
+}
+
 // ── The packs ──────────────────────────────────────────────────────────────
-function getObservePack() {
+// `opts` names the visit's stamped rubric. With no opts (every caller before v6), or any stamp but
+// 'fico17_v6', the pack is exactly what it always was.
+function getObservePack(opts) {
   const key = OBSERVE_FRAMEWORK_KEYS.includes(process.env.OBSERVE_FRAMEWORK)
     ? process.env.OBSERVE_FRAMEWORK : 'mewaka';
+
+  if (key === 'fico' && requestedFramework(opts) === FICO17_V6) return ficoV6Pack();
 
   if (key === 'fico') {
     const domains = ficoDomains();
@@ -251,4 +310,4 @@ function getObservePack() {
   };
 }
 
-module.exports = { getObservePack, OBSERVE_FRAMEWORK_KEYS };
+module.exports = { getObservePack, OBSERVE_FRAMEWORK_KEYS, FICO17_V6 };
