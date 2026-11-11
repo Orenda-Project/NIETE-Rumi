@@ -249,9 +249,9 @@ async function writeBoardPaper(args, d) {
       tries.unshift({ name: 'rewrite 2', ...got });
       ({ ex, checks } = got);
     }
-    // 3c (bd-5jmnfj.38.34): a review fault inside a kept group is re-asked up to GF.ATTEMPTS times (a fresh group is flagged ~45% per item)
+    // 3c (bd-5jmnfj.38.34): a review fault or key leak (bd-qyi45h.6) inside a kept group is re-asked up to GF.ATTEMPTS times
     for (let n = 0, stuck = GF.stuck(checks, ex); n < GF.ATTEMPTS && failing(ex, checks) && stuck.size; n += 1, stuck = GF.stuck(checks, ex)) {
-      const got = await reask(ex, stuck, checks);
+      const got = await reask(ex, stuck, checks, GF.leakPhrases(checks, stuck));
       tries.unshift({ name: `rewrite ${3 + n}`, ...got });
       ({ ex, checks } = got);
     }
