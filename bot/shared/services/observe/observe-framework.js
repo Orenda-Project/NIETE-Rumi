@@ -242,6 +242,13 @@ function ficoV6Module() {
   return require('../coaching/frameworks/fico17-v6-framework');
 }
 
+// FICO17 v6 is 1-4 whatever scale V3/V4 'fico' uses on this deployment (sandbox's V4 is 0-2), so the v6 pack
+// carries its own options, read off the v6 rubric's level labels.
+function ficoV6ScaleOptions() {
+  const { LEVEL_LABELS } = require('../coaching/frameworks/fico17-v6');
+  return [1, 2, 3, 4].map((n) => ({ id: String(n), title: `${n} · ${LEVEL_LABELS[n]}` }));
+}
+
 function ficoV6Pack() {
   const domains = ficoV6Domains();
   const domainOrder = Object.keys(domains);
@@ -251,7 +258,7 @@ function ficoV6Pack() {
     domains,
     domainOrder,
     screenIds: domainOrder.map((k) => `DOMAIN_${domains[k].key}`),
-    scaleOptions: FICO_SCALE_OPTIONS,
+    scaleOptions: ficoV6ScaleOptions(),
     // The coach's review is scored by observe-fico17-v6.js (applyReview); this is the DC's own scoring.
     computeScores: (analysis, ...rest) => ficoV6Module().computeScores(analysis, ...rest),
     get module() { return ficoV6Module(); },
