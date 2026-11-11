@@ -308,6 +308,15 @@ function fidelityFallbackCopy(lp) {
 }
 
 function buildScreenPrefill(analysis, domainKey, language) {
+  // bd-ra8xu.38 — a FICO17 v6 visit (its analysis is stamped 'fico17_v6'): the C/D/F screens come from the v6
+  // module; Section B is the editable measured fidelity, as the v6 Flow always declares it. Every other
+  // analysis takes the path below unchanged.
+  const ObserveV6 = require('./observe-fico17-v6');
+  const isV6 = ObserveV6.isV6Analysis(analysis);
+  if (isV6 && domainKey !== 'lesson_plan_fidelity') {
+    const v6dom = getObservePack({ framework: ObserveV6.V6 }).domains[domainKey];
+    return ObserveV6.buildScreenPrefill(analysis, v6dom ? v6dom.key : String(domainKey));
+  }
   const { domains } = { domains: getObservePack().domains };
   const spec = domains[domainKey];
   const stored = ((analysis || {}).domains || {})[domainKey] || {};
@@ -324,7 +333,7 @@ function buildScreenPrefill(analysis, domainKey, language) {
   // flip can't be atomic with the deploy (bd-5n1a2):
   //   'true'  → the v2 asset's single fidelity_summary blob
   //   'moves' → the v3 asset's per-move slots (scorer-faithful presentation)
-  const fidelityMode = process.env.OBSERVE_FICO_FLOW_HAS_FIDELITY;
+  const fidelityMode = isV6 ? 'editable' : process.env.OBSERVE_FICO_FLOW_HAS_FIDELITY;
   if (domainKey === 'lesson_plan_fidelity' && fidelityMode === 'true') {
     const summary = composeFidelitySummary((analysis || {}).lp_fidelity);
     data.has_fidelity = !!summary;
@@ -467,7 +476,14 @@ async function onAnalysisReady(sessionId, from) {
 
   // Read at call time (COMMITMENT_CARD_ENABLED precedent) — per-service env
   // var; constants.js caches env at first import which breaks late-set envs.
-  const OBSERVE_MEWAKA_FLOW_ID = process.env.OBSERVE_MEWAKA_FLOW_ID || '';
+  // bd-ra8xu.38: a visit stamped FICO17 v6 is reviewed on its own Flow (observe-fico17_v6-flow.json). Until
+  // that Flow is published and OBSERVE_FICO17_V6_FLOW_ID set, a v6 visit gets the text fallback — never the
+  // V3 Flow, whose screens do not match a v6 analysis.
+  const v6Visit = !!require('./observe-fico17-v6').visitFramework(session);
+  const OBSERVE_MEWAKA_FLOW_ID = (v6Visit ? process.env.OBSERVE_FICO17_V6_FLOW_ID : process.env.OBSERVE_MEWAKA_FLOW_ID) || '';
+  if (v6Visit && !OBSERVE_MEWAKA_FLOW_ID) {
+    logToFile('⚠️ observe: FICO17 v6 visit but OBSERVE_FICO17_V6_FLOW_ID is unset — text fallback', { sessionId }, 'error');
+  }
   if (OBSERVE_MEWAKA_FLOW_ID) {
     await WhatsAppService.sendFlow(recipient, {
       flowId: OBSERVE_MEWAKA_FLOW_ID,
@@ -496,12 +512,23 @@ async function applyObserverEdits(sessionId, edits) {
 
   let rescored = 0;
   let textChanged = 0;
+  // bd-ra8xu.38 — a FICO17 v6 visit: the 17 levels are stored with who set them, the reason and the
+  // rubric/prompt_version (observe-fico17-v6.js buildReview), and the scores are v6 totals only. Section B's
+  // fidelity edits below apply as for V3.
+  const ObserveV6 = require('./observe-fico17-v6');
+  const isV6 = ObserveV6.isV6Analysis(v2);
+  if (isV6) {
+    const review = ObserveV6.buildReview(v2, edits || {});
+    const counts = ObserveV6.applyReview(v2, review, edits || {}, v1);
+    rescored = counts.rescored;
+    textChanged = counts.textChanged;
+  }
   const { min: SMIN, max: SMAX } = scaleBounds(); // 1-4 for FICO, 0-3 for mewaka/hots
   const v1ById = {};
   Object.values((v1 || {}).domains || {}).forEach(d =>
     (d.indicators || []).forEach(ind => { v1ById[ind.id] = ind; }));
 
-  Object.values(v2.domains || {}).forEach(d => {
+  Object.values(isV6 ? {} : (v2.domains || {})).forEach(d => {
     (d.indicators || []).forEach(ind => {
       const f = fid(ind.id);
       const orig = v1ById[ind.id] || {};
@@ -534,7 +561,7 @@ async function applyObserverEdits(sessionId, edits) {
     fidEvidenceChanged = fidResult.evidenceChanged;
   }
 
-  getObservePack().computeScores(v2);
+  if (!isV6) getObservePack().computeScores(v2); // v6: applyReview already set the v6 totals
   reapplyFidelitySectionB(v2, sessionId);
 
   const summary = {

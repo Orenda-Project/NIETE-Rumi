@@ -1,0 +1,2008 @@
+{
+  "version": "6.3",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "DOMAIN_B": [
+      "DOMAIN_C"
+    ],
+    "DOMAIN_C": [
+      "DOMAIN_D"
+    ],
+    "DOMAIN_D": [
+      "DOMAIN_F"
+    ],
+    "DOMAIN_F": [
+      "SUCCESS"
+    ],
+    "SUCCESS": []
+  },
+  "screens": [
+    {
+      "id": "DOMAIN_B",
+      "title": "FICO17 Review 1/4",
+      "data": {
+        "scale": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "1",
+              "title": "1 · Not Observed / Emerging"
+            },
+            {
+              "id": "2",
+              "title": "2 · Developing"
+            },
+            {
+              "id": "3",
+              "title": "3 · Proficient / Effective"
+            },
+            {
+              "id": "4",
+              "title": "4 · Highly Effective"
+            }
+          ]
+        },
+        "has_fidelity": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "no_fidelity": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fid_header": {
+          "type": "string",
+          "__example__": "Measured lesson-plan fidelity: 46% (LOW) · 9 counted moves\nChange any rating you disagree with."
+        },
+        "fid_fallback": {
+          "type": "string",
+          "__example__": ""
+        },
+        "fid_scale": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "executed",
+              "title": "✓ Executed — full credit"
+            },
+            {
+              "id": "not_done",
+              "title": "✗ Not done — no credit"
+            }
+          ]
+        },
+        "mv_1": {
+          "type": "string",
+          "__example__": "1/9 · Warm-up — Plan: Read the word problem aloud"
+        },
+        "mv_1_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "fr_1": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_1": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
+        "mv_2": {
+          "type": "string",
+          "__example__": "2/9 · Warm-up — Plan: Read the word problem aloud"
+        },
+        "mv_2_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_2": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_2": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
+        "mv_3": {
+          "type": "string",
+          "__example__": "3/9 · Warm-up — Plan: Read the word problem aloud"
+        },
+        "mv_3_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_3": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_3": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
+        "mv_4": {
+          "type": "string",
+          "__example__": "4/9 · Warm-up — Plan: Read the word problem aloud"
+        },
+        "mv_4_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_4": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_4": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
+        "mv_5": {
+          "type": "string",
+          "__example__": "5/9 · Warm-up — Plan: Read the word problem aloud"
+        },
+        "mv_5_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_5": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_5": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
+        "mv_6": {
+          "type": "string",
+          "__example__": "6/9 · Warm-up — Plan: Read the word problem aloud"
+        },
+        "mv_6_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_6": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_6": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
+        "mv_7": {
+          "type": "string",
+          "__example__": "7/9 · Warm-up — Plan: Read the word problem aloud"
+        },
+        "mv_7_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_7": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_7": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
+        "mv_8": {
+          "type": "string",
+          "__example__": "8/9 · Warm-up — Plan: Read the word problem aloud"
+        },
+        "mv_8_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_8": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_8": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
+        "mv_9": {
+          "type": "string",
+          "__example__": "9/9 · Warm-up — Plan: Read the word problem aloud"
+        },
+        "mv_9_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_9": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_9": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
+        "mv_10": {
+          "type": "string",
+          "__example__": "10/9 · Warm-up — Plan: Read the word problem aloud"
+        },
+        "mv_10_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_10": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_10": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
+        "mv_11": {
+          "type": "string",
+          "__example__": "11/9 · Warm-up — Plan: Read the word problem aloud"
+        },
+        "mv_11_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_11": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_11": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        },
+        "mv_12": {
+          "type": "string",
+          "__example__": "12/9 · Warm-up — Plan: Read the word problem aloud"
+        },
+        "mv_12_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_12": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_12": {
+          "type": "string",
+          "__example__": "[02:10] Teacher reads it twice"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_B",
+            "init-values": {
+              "fid_r_1": "${data.fr_1}",
+              "fid_e_1": "${data.fe_1}",
+              "fid_r_2": "${data.fr_2}",
+              "fid_e_2": "${data.fe_2}",
+              "fid_r_3": "${data.fr_3}",
+              "fid_e_3": "${data.fe_3}",
+              "fid_r_4": "${data.fr_4}",
+              "fid_e_4": "${data.fe_4}",
+              "fid_r_5": "${data.fr_5}",
+              "fid_e_5": "${data.fe_5}",
+              "fid_r_6": "${data.fr_6}",
+              "fid_e_6": "${data.fe_6}",
+              "fid_r_7": "${data.fr_7}",
+              "fid_e_7": "${data.fe_7}",
+              "fid_r_8": "${data.fr_8}",
+              "fid_e_8": "${data.fe_8}",
+              "fid_r_9": "${data.fr_9}",
+              "fid_e_9": "${data.fe_9}",
+              "fid_r_10": "${data.fr_10}",
+              "fid_e_10": "${data.fe_10}",
+              "fid_r_11": "${data.fr_11}",
+              "fid_e_11": "${data.fe_11}",
+              "fid_r_12": "${data.fr_12}",
+              "fid_e_12": "${data.fe_12}"
+            },
+            "children": [
+              {
+                "type": "TextSubheading",
+                "text": "Measured lesson-plan fidelity",
+                "visible": "${data.has_fidelity}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.fid_header}",
+                "visible": "${data.has_fidelity}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.fid_fallback}",
+                "visible": "${data.no_fidelity}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_1}",
+                "visible": "${data.mv_1_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_1",
+                "label": "Rating — move 1",
+                "required": false,
+                "visible": "${data.mv_1_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_1",
+                "label": "Evidence",
+                "helper-text": "Move 1 — what was seen",
+                "required": false,
+                "visible": "${data.mv_1_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_2}",
+                "visible": "${data.mv_2_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_2",
+                "label": "Rating — move 2",
+                "required": false,
+                "visible": "${data.mv_2_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_2",
+                "label": "Evidence",
+                "helper-text": "Move 2 — what was seen",
+                "required": false,
+                "visible": "${data.mv_2_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_3}",
+                "visible": "${data.mv_3_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_3",
+                "label": "Rating — move 3",
+                "required": false,
+                "visible": "${data.mv_3_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_3",
+                "label": "Evidence",
+                "helper-text": "Move 3 — what was seen",
+                "required": false,
+                "visible": "${data.mv_3_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_4}",
+                "visible": "${data.mv_4_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_4",
+                "label": "Rating — move 4",
+                "required": false,
+                "visible": "${data.mv_4_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_4",
+                "label": "Evidence",
+                "helper-text": "Move 4 — what was seen",
+                "required": false,
+                "visible": "${data.mv_4_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_5}",
+                "visible": "${data.mv_5_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_5",
+                "label": "Rating — move 5",
+                "required": false,
+                "visible": "${data.mv_5_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_5",
+                "label": "Evidence",
+                "helper-text": "Move 5 — what was seen",
+                "required": false,
+                "visible": "${data.mv_5_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_6}",
+                "visible": "${data.mv_6_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_6",
+                "label": "Rating — move 6",
+                "required": false,
+                "visible": "${data.mv_6_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_6",
+                "label": "Evidence",
+                "helper-text": "Move 6 — what was seen",
+                "required": false,
+                "visible": "${data.mv_6_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_7}",
+                "visible": "${data.mv_7_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_7",
+                "label": "Rating — move 7",
+                "required": false,
+                "visible": "${data.mv_7_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_7",
+                "label": "Evidence",
+                "helper-text": "Move 7 — what was seen",
+                "required": false,
+                "visible": "${data.mv_7_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_8}",
+                "visible": "${data.mv_8_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_8",
+                "label": "Rating — move 8",
+                "required": false,
+                "visible": "${data.mv_8_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_8",
+                "label": "Evidence",
+                "helper-text": "Move 8 — what was seen",
+                "required": false,
+                "visible": "${data.mv_8_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_9}",
+                "visible": "${data.mv_9_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_9",
+                "label": "Rating — move 9",
+                "required": false,
+                "visible": "${data.mv_9_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_9",
+                "label": "Evidence",
+                "helper-text": "Move 9 — what was seen",
+                "required": false,
+                "visible": "${data.mv_9_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_10}",
+                "visible": "${data.mv_10_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_10",
+                "label": "Rating — move 10",
+                "required": false,
+                "visible": "${data.mv_10_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_10",
+                "label": "Evidence",
+                "helper-text": "Move 10 — what was seen",
+                "required": false,
+                "visible": "${data.mv_10_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_11}",
+                "visible": "${data.mv_11_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_11",
+                "label": "Rating — move 11",
+                "required": false,
+                "visible": "${data.mv_11_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_11",
+                "label": "Evidence",
+                "helper-text": "Move 11 — what was seen",
+                "required": false,
+                "visible": "${data.mv_11_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_12}",
+                "visible": "${data.mv_12_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_12",
+                "label": "Rating — move 12",
+                "required": false,
+                "visible": "${data.mv_12_v}",
+                "data-source": "${data.fid_scale}"
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_12",
+                "label": "Evidence",
+                "helper-text": "Move 12 — what was seen",
+                "required": false,
+                "visible": "${data.mv_12_v}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "B. Lesson Plan Fidelity"
+              },
+              {
+                "type": "TextBody",
+                "text": "Part 1/4 — review the score & note, edit as you see fit"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_screen": "DOMAIN_B",
+                    "fid_r_1": "${form.fid_r_1}",
+                    "fid_e_1": "${form.fid_e_1}",
+                    "fid_r_2": "${form.fid_r_2}",
+                    "fid_e_2": "${form.fid_e_2}",
+                    "fid_r_3": "${form.fid_r_3}",
+                    "fid_e_3": "${form.fid_e_3}",
+                    "fid_r_4": "${form.fid_r_4}",
+                    "fid_e_4": "${form.fid_e_4}",
+                    "fid_r_5": "${form.fid_r_5}",
+                    "fid_e_5": "${form.fid_e_5}",
+                    "fid_r_6": "${form.fid_r_6}",
+                    "fid_e_6": "${form.fid_e_6}",
+                    "fid_r_7": "${form.fid_r_7}",
+                    "fid_e_7": "${form.fid_e_7}",
+                    "fid_r_8": "${form.fid_r_8}",
+                    "fid_e_8": "${form.fid_e_8}",
+                    "fid_r_9": "${form.fid_r_9}",
+                    "fid_e_9": "${form.fid_e_9}",
+                    "fid_r_10": "${form.fid_r_10}",
+                    "fid_e_10": "${form.fid_e_10}",
+                    "fid_r_11": "${form.fid_r_11}",
+                    "fid_e_11": "${form.fid_e_11}",
+                    "fid_r_12": "${form.fid_r_12}",
+                    "fid_e_12": "${form.fid_e_12}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DOMAIN_C",
+      "title": "FICO17 Review 2/4",
+      "data": {
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Please fix these before you go on:\n• Who got to answer: Choose a level."
+        },
+        "s_C1": {
+          "type": "string",
+          "__example__": "2"
+        },
+        "e_C1": {
+          "type": "string",
+          "__example__": "Two open questions, each answered · 12:40 \"How did you work that out?\""
+        },
+        "i_C1": {
+          "type": "string",
+          "__example__": ""
+        },
+        "s_C2": {
+          "type": "string",
+          "__example__": "2"
+        },
+        "e_C2": {
+          "type": "string",
+          "__example__": "Two open questions, each answered · 12:40 \"How did you work that out?\""
+        },
+        "i_C2": {
+          "type": "string",
+          "__example__": ""
+        },
+        "cb_C3": {
+          "type": "string",
+          "__example__": "How the teacher chooses who answers: only children who put a hand up or call out, or ways of bringing in other children, such as calling different children by name, pair talk, or everyone writing an answer.\n\n05:10  \"Ali, what do you think?\"\n\nCoach adds: choosing that cannot be heard (pointing, a nod, \"you tell\" with no name), and whether children who had not put a hand up were brought in. The coach sets the final level with a written justification."
+        },
+        "w_C3": {
+          "type": "string",
+          "__example__": ""
+        },
+        "s_C4": {
+          "type": "string",
+          "__example__": "2"
+        },
+        "e_C4": {
+          "type": "string",
+          "__example__": "Two open questions, each answered · 12:40 \"How did you work that out?\""
+        },
+        "i_C4": {
+          "type": "string",
+          "__example__": ""
+        },
+        "cb_C5": {
+          "type": "string",
+          "__example__": "How smoothly the class moves from one activity to the next: whether the teacher gives a clear signal and how long the change takes.\n\n05:10  \"Ali, what do you think?\"\n\nCoach adds: how long the class actually took to settle into the next activity (chairs moved, books out, working), which the transcript times only roughly. The coach sets the final level with a written justification."
+        },
+        "w_C5": {
+          "type": "string",
+          "__example__": ""
+        },
+        "s_C6": {
+          "type": "string",
+          "__example__": "2"
+        },
+        "e_C6": {
+          "type": "string",
+          "__example__": "Two open questions, each answered · 12:40 \"How did you work that out?\""
+        },
+        "i_C6": {
+          "type": "string",
+          "__example__": ""
+        },
+        "cb_C7": {
+          "type": "string",
+          "__example__": "Whether the teacher sets real pair or group work: a task the group can only finish together, with something to make, roles and a report back. Sitting together but working alone is not group work.\n\n05:10  \"Ali, what do you think?\"\n\nCoach adds: whether the groups actually worked together on one product and used the roles, which is mostly silent or too quiet for the recording. The coach sets the final level with a written justification."
+        },
+        "w_C7": {
+          "type": "string",
+          "__example__": ""
+        },
+        "s_C8": {
+          "type": "string",
+          "__example__": "2"
+        },
+        "e_C8": {
+          "type": "string",
+          "__example__": "Two open questions, each answered · 12:40 \"How did you work that out?\""
+        },
+        "i_C8": {
+          "type": "string",
+          "__example__": ""
+        },
+        "wc_C": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_C",
+            "init-values": {
+              "r_C1": "${data.s_C1}",
+              "ev_C1": "${data.e_C1}",
+              "imp_C1": "${data.i_C1}",
+              "r_C2": "${data.s_C2}",
+              "ev_C2": "${data.e_C2}",
+              "imp_C2": "${data.i_C2}",
+              "why_C3": "${data.w_C3}",
+              "r_C4": "${data.s_C4}",
+              "ev_C4": "${data.e_C4}",
+              "imp_C4": "${data.i_C4}",
+              "why_C5": "${data.w_C5}",
+              "r_C6": "${data.s_C6}",
+              "ev_C6": "${data.e_C6}",
+              "imp_C6": "${data.i_C6}",
+              "why_C7": "${data.w_C7}",
+              "r_C8": "${data.s_C8}",
+              "ev_C8": "${data.e_C8}",
+              "imp_C8": "${data.i_C8}",
+              "chg_C": "${data.wc_C}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "C. What the teacher does"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "Part 2/4 — Rumi's levels are filled in: change any you saw differently and say why. Set the room levels yourself, with a reason."
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_C1",
+                "label": "C1 — Quality of Questions…",
+                "description": "Quality of Questions Asked by the Teacher. What kinds of questions the teacher asks, and whether they make children think. A closed question needs a yes/no or one-word answer, an open question needs a longer answer, and the strongest questions ask \"why\" and are followed up.",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No questions, or answers given",
+                    "description": "No questions asked by the teacher, or asks the questions but gives the answers without waiting for students to answer."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Closed questions only",
+                    "description": "Teacher only asks closed questions with yes/no or one word answers."
+                  },
+                  {
+                    "id": "3",
+                    "title": "2+ open questions, waited",
+                    "description": "Teacher asks at least two open questions and waits for students to answer."
+                  },
+                  {
+                    "id": "4",
+                    "title": "A 'why', then a follow-up",
+                    "description": "Teacher asks at least one question using 'why' and then follows up on the same child's answer (why? how do you know?)."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · Did not come up",
+                    "description": "What this indicator looks for did not come up in the lesson."
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell",
+                    "description": "Use when the teacher's speech is missing or garbled for a large part of the lesson, so the questions cannot be made out."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_C1",
+                "label": "Evidence",
+                "helper-text": "C1 — what Rumi heard; edit if needed",
+                "required": false
+              },
+              {
+                "type": "TextArea",
+                "name": "imp_C1",
+                "label": "To improve",
+                "helper-text": "C1 — to improve",
+                "required": false
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_C2",
+                "label": "C2 — Helping when a child is…",
+                "description": "Helping when a child is wrong. What the teacher does when a child's answer is wrong or incomplete: ignores it, says it is wrong, explains why, or helps the child fix it. It only applies when an answer was actually wrong.",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Wrong answer ignored",
+                    "description": "A student gives a wrong answer and the teacher ignores it, or only repeats the same explanation in the same words."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Marked wrong, reason once",
+                    "description": "The teacher says the answer is wrong, or explains again, but gives the reason for the correction at most once."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Reason given 2+ times",
+                    "description": "At least two times, the teacher gives the reason for the correction and says what was right and what to change."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Child fixed it; new way tried",
+                    "description": "Beyond level 3, the teacher asks the student or another student to fix the answer, and tries a new way (a new example, a picture, smaller steps) if they are still stuck."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · Did not come up",
+                    "description": "What this indicator looks for did not come up in the lesson."
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell",
+                    "description": "Use when student answers are too garbled to tell whether any of them was wrong."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_C2",
+                "label": "Evidence",
+                "helper-text": "C2 — what Rumi heard; edit if needed",
+                "required": false
+              },
+              {
+                "type": "TextArea",
+                "name": "imp_C2",
+                "label": "To improve",
+                "helper-text": "C2 — to improve",
+                "required": false
+              },
+              {
+                "type": "TextSubheading",
+                "text": "C3 — Who got to answer"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.cb_C3}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_C3",
+                "label": "C3 — Who got to answer",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Took whoever answered",
+                    "description": "The teacher asks the whole class and takes whoever answers. No way of choosing who answers is heard: no name called before the question, no talking in pairs, no \"everyone write\"."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Chose who answered once",
+                    "description": "The teacher uses a way of choosing who answers one time, for example calls a student by name, then goes back to taking whoever answers."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Chose who answered 2+ times",
+                    "description": "At least two times, the teacher uses a way of choosing who answers (a name called before the question, \"tell your partner\", \"everyone write your answer\", names picked at random)."
+                  },
+                  {
+                    "id": "4",
+                    "title": "2+ named children answered",
+                    "description": "Beyond level 3, the teacher calls at least two different names to answer, and each is followed by an answer."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "why_C3",
+                "label": "Why this level",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "What you saw, and how it fits the DC's evidence"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_C4",
+                "label": "C4 — Children's choices",
+                "description": "Children's choices. Whether children have a say in how the lesson goes: a real choice about how to do the work or explain it, the teacher taking up a child's idea, or a part of the lesson handed to them. Small choices (who goes first, which colour) are not real choices.",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Teacher decided everything",
+                    "description": "The teacher decides everything and asks students for no choice or idea."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Small choices only",
+                    "description": "The teacher lets students choose only small things (who goes first, which colour), and decides everything about the learning."
+                  },
+                  {
+                    "id": "3",
+                    "title": "A real choice or idea taken up",
+                    "description": "The teacher gives students at least one real choice about how to do the work or how to explain it, and lets them follow it, or takes up a child's idea."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Children led a part",
+                    "description": "Beyond level 3, the teacher hands a part of the lesson to students: a student or a group leads an activity, picks the method, or teaches the others."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · Did not come up",
+                    "description": "What this indicator looks for did not come up in the lesson."
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell",
+                    "description": "Use when the teacher's instructions for the tasks are missing or garbled."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_C4",
+                "label": "Evidence",
+                "helper-text": "C4 — what Rumi heard; edit if needed",
+                "required": false
+              },
+              {
+                "type": "TextArea",
+                "name": "imp_C4",
+                "label": "To improve",
+                "helper-text": "C4 — to improve",
+                "required": false
+              },
+              {
+                "type": "TextSubheading",
+                "text": "C5 — Switching activities"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.cb_C5}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_C5",
+                "label": "C5 — Switching activities",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Over 3 min, no signal",
+                    "description": "The class takes more than three minutes to change activity, and the teacher gives no clear signal."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Signal, 2-3 min",
+                    "description": "The teacher gives a signal, but the change still takes two to three minutes."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Under 2 min",
+                    "description": "The class changes activity in under two minutes of the teacher's signal."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Switched without being told",
+                    "description": "Beyond level 3, students already know what comes next and change without being told."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "No switch",
+                    "description": "The class did not change activity."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "why_C5",
+                "label": "Why this level",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "What you saw, and how it fits the DC's evidence"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_C6",
+                "label": "C6 — Safe to be wrong",
+                "description": "Safe to be wrong. Whether children feel safe to try and be wrong: how the teacher responds to their answers, whether praise is for effort or only for right answers, and whether mistakes are treated as useful.",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Flat or dismissive",
+                    "description": "The teacher gives no encouragement. Replies to students are flat, dismissive, or only about the task."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Praise for right answers only",
+                    "description": "The teacher praises, but only for right answers or for doing as told, and only in general words."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Praised effort 2+ times",
+                    "description": "At least two times, the teacher praises a student's effort, trying, or thinking, not just a right answer."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Mistakes used, views invited",
+                    "description": "Beyond level 3, the teacher treats a wrong answer or an attempt as useful, and also invites other views."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · Did not come up",
+                    "description": "What this indicator looks for did not come up in the lesson."
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell",
+                    "description": "Use when the teacher's replies to student answers are missing or garbled for a large part of the lesson."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_C6",
+                "label": "Evidence",
+                "helper-text": "C6 — what Rumi heard; edit if needed",
+                "required": false
+              },
+              {
+                "type": "TextArea",
+                "name": "imp_C6",
+                "label": "To improve",
+                "helper-text": "C6 — to improve",
+                "required": false
+              },
+              {
+                "type": "TextSubheading",
+                "text": "C7 — Group work"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.cb_C7}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_C7",
+                "label": "C7 — Group work",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No pair or group task",
+                    "description": "The teacher gives no pair or group task. Everyone works alone or as one class."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Groups, each works alone",
+                    "description": "The teacher puts students in pairs or groups, but each student does their own work."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Shared task, one product",
+                    "description": "The teacher gives a task that a group can only finish together, and says what the group must make."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Roles and report back",
+                    "description": "Beyond level 3, the teacher gives roles or turns inside the group, and asks the group to report back."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "No group task",
+                    "description": "Everyone worked alone or as one class."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "why_C7",
+                "label": "Why this level",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "What you saw, and how it fits the DC's evidence"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_C8",
+                "label": "C8 — Books and materials",
+                "description": "Books and materials. Whether books, the board, charts or objects are used for learning, and by whom: only shown by the teacher, used by the children, or used by a child to explain while the teacher builds on what the child says.",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No book or object mentioned",
+                    "description": "The teacher never mentions a book, the board, a chart, or any object or picture."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Shown only, not used",
+                    "description": "The teacher mentions a book, the board, or an object only to show or tell, and does not ask students to use it."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Children used them, linked",
+                    "description": "The teacher asks students to use a book, the board, or an object themselves, and says how it connects to the idea."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Child explained with them",
+                    "description": "Beyond level 3, the teacher asks a student to explain with the book, the chart or the object, and builds on what the student says."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · Did not come up",
+                    "description": "What this indicator looks for did not come up in the lesson."
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell",
+                    "description": "Use when the teacher's instructions are missing or garbled for a large part of the lesson."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_C8",
+                "label": "Evidence",
+                "helper-text": "C8 — what Rumi heard; edit if needed",
+                "required": false
+              },
+              {
+                "type": "TextArea",
+                "name": "imp_C8",
+                "label": "To improve",
+                "helper-text": "C8 — to improve",
+                "required": false
+              },
+              {
+                "type": "TextArea",
+                "name": "chg_C",
+                "label": "Why you changed",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "Needed if you changed a level Rumi set"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_screen": "DOMAIN_C",
+                    "r_C1": "${form.r_C1}",
+                    "ev_C1": "${form.ev_C1}",
+                    "imp_C1": "${form.imp_C1}",
+                    "r_C2": "${form.r_C2}",
+                    "ev_C2": "${form.ev_C2}",
+                    "imp_C2": "${form.imp_C2}",
+                    "r_C3": "${form.r_C3}",
+                    "why_C3": "${form.why_C3}",
+                    "r_C4": "${form.r_C4}",
+                    "ev_C4": "${form.ev_C4}",
+                    "imp_C4": "${form.imp_C4}",
+                    "r_C5": "${form.r_C5}",
+                    "why_C5": "${form.why_C5}",
+                    "r_C6": "${form.r_C6}",
+                    "ev_C6": "${form.ev_C6}",
+                    "imp_C6": "${form.imp_C6}",
+                    "r_C7": "${form.r_C7}",
+                    "why_C7": "${form.why_C7}",
+                    "r_C8": "${form.r_C8}",
+                    "ev_C8": "${form.ev_C8}",
+                    "imp_C8": "${form.imp_C8}",
+                    "chg_C": "${form.chg_C}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DOMAIN_D",
+      "title": "FICO17 Review 3/4",
+      "data": {
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Please fix these before you go on:\n• Who got to answer: Choose a level."
+        },
+        "s_D1": {
+          "type": "string",
+          "__example__": "2"
+        },
+        "e_D1": {
+          "type": "string",
+          "__example__": "Two open questions, each answered · 12:40 \"How did you work that out?\""
+        },
+        "i_D1": {
+          "type": "string",
+          "__example__": ""
+        },
+        "cb_D2": {
+          "type": "string",
+          "__example__": "How many different children speak across the lesson, and whether children silent early on speak later.\n\n05:10  \"Ali, what do you think?\"\n\nCoach adds: how many different children spoke, and how many children who were quiet in the first half spoke in the second. The coach sets the final level with a written justification."
+        },
+        "w_D2": {
+          "type": "string",
+          "__example__": ""
+        },
+        "cb_D3": {
+          "type": "string",
+          "__example__": "Whether children talk to each other about the task, not only to the teacher: one child answers, agrees with or adds to what another said. At its strongest they give reasons to agree or disagree and reach one shared answer.\n\n05:10  \"Ali, what do you think?\"\n\nCoach adds: children talking to each other about the task that the recording did not pick up, mostly during pair and group work, and whether they gave reasons or reached a shared answer. The coach sets the final level with a written justification."
+        },
+        "w_D3": {
+          "type": "string",
+          "__example__": ""
+        },
+        "cb_D4": {
+          "type": "string",
+          "__example__": "Whether children dare to answer when they are not sure: they stay silent, answer only when sure, answer while unsure, or answer unasked and try again after a wrong answer. Only the trying counts, not whether the answer is right.\n\n05:10  \"Ali, what do you think?\"\n\nCoach adds: how children behave when they are unsure: whether they have a go or go quiet, put a hand up or wait for the teacher, and try again after a wrong answer. The coach sets the final level with a written justification."
+        },
+        "w_D4": {
+          "type": "string",
+          "__example__": ""
+        },
+        "s_D5": {
+          "type": "string",
+          "__example__": "2"
+        },
+        "e_D5": {
+          "type": "string",
+          "__example__": "Two open questions, each answered · 12:40 \"How did you work that out?\""
+        },
+        "i_D5": {
+          "type": "string",
+          "__example__": ""
+        },
+        "wc_D": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_D",
+            "init-values": {
+              "r_D1": "${data.s_D1}",
+              "ev_D1": "${data.e_D1}",
+              "imp_D1": "${data.i_D1}",
+              "why_D2": "${data.w_D2}",
+              "why_D3": "${data.w_D3}",
+              "why_D4": "${data.w_D4}",
+              "r_D5": "${data.s_D5}",
+              "ev_D5": "${data.e_D5}",
+              "imp_D5": "${data.i_D5}",
+              "chg_D": "${data.wc_D}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "D. What the children do"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "Part 3/4 — Rumi's levels are filled in: change any you saw differently and say why. Set the room levels yourself, with a reason."
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_D1",
+                "label": "D1 — Children's reasoning",
+                "description": "Children's reasoning. How deep children's answers are: one word, a longer answer that only repeats what was said, or an answer that shows reasoning in the child's own words (says why, compares, uses a rule on a new case, explains a choice, gives their own example).",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "One-word answers only",
+                    "description": "Students give only one-word answers or repeat a fact."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Longer, but only repeated",
+                    "description": "At least one answer, from any student, is longer than a phrase, but it only repeats what was already said or read, or finishes the teacher's sentence."
+                  },
+                  {
+                    "id": "3",
+                    "title": "2+ answers gave reasons",
+                    "description": "At least two answers, from any students, show reasoning in the child's own words: they say why, compare two things, use a rule on a new case, or explain a choice. Finishing the teacher's sentence, or repeating a reason the teacher already gave, does not count."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Child's own example or link",
+                    "description": "Beyond level 3, a student gives their own example, or links the idea to something else, that the teacher did not say first."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · Did not come up",
+                    "description": "What this indicator looks for did not come up in the lesson."
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell",
+                    "description": "Use when student lines are missing or garbled for a large part of the lesson, so their answers cannot be read."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_D1",
+                "label": "Evidence",
+                "helper-text": "D1 — what Rumi heard; edit if needed",
+                "required": false
+              },
+              {
+                "type": "TextArea",
+                "name": "imp_D1",
+                "label": "To improve",
+                "helper-text": "D1 — to improve",
+                "required": false
+              },
+              {
+                "type": "TextSubheading",
+                "text": "D2 — How many children spoke"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.cb_D2}"
+              },
+              {
+                "type": "TextInput",
+                "name": "d2_children",
+                "label": "Children who spoke",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "Count each child once, whole lesson. Not chorus."
+              },
+              {
+                "type": "TextInput",
+                "name": "d2_quiet_later",
+                "label": "Quiet, then spoke",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "Silent in the first half, spoke in the second"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_D2",
+                "label": "D2 — How many children spoke",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No child spoke",
+                    "description": "No student speaks during the lesson."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Only 1-2 children",
+                    "description": "Only the same one or two children speak."
+                  },
+                  {
+                    "id": "3",
+                    "title": "3-5 children",
+                    "description": "Three to five different children speak."
+                  },
+                  {
+                    "id": "4",
+                    "title": "6+, and 2+ quiet ones later",
+                    "description": "Six or more different children speak, and at least two children who had not spoken in the first half speak in the second half."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "why_D2",
+                "label": "Why this level",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "What you saw, and how it fits the DC's evidence"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "D3 — Children answering each other"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.cb_D3}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_D3",
+                "label": "D3 — Children answering each…",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No child spoke to another",
+                    "description": "No student speaks to another student about the task."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Once",
+                    "description": "One time, a student answers and the teacher names a second child who agrees with the previous student's answer, or the student says I agree with her/him referring to the previously given answer by the student."
+                  },
+                  {
+                    "id": "3",
+                    "title": "2+ times",
+                    "description": "At least two times, a student answers, agrees with, or adds to what another student just said."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Reasons, one shared answer",
+                    "description": "Beyond level 3, students give a reason to agree or disagree with each other, and reach one shared answer."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "No child-to-child talk",
+                    "description": "Do not score this indicator if there are no two Student lines in a row where students talk about the topic, and the teacher never names a second child to agree with a student's answer. It is then left out of the feedback."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "why_D3",
+                "label": "Why this level",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "What you saw, and how it fits the DC's evidence"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "D4 — Trying when unsure"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.cb_D4}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_D4",
+                "label": "D4 — Trying when unsure",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Silent or waited",
+                    "description": "When the teacher asks, students stay silent, say \"I do not know\", or wait for the teacher to give the answer."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Only answered when sure",
+                    "description": "Students answer only when they are sure. Nobody gives a half-sure answer; when unsure they say nothing."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Tried while unsure, 2+",
+                    "description": "At least two times, a student answers while clearly unsure, for example \"Maybe...\", \"Should I say...?\", or an answer that changes halfway."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Tried unasked or again",
+                    "description": "Beyond level 3, a student answers without being asked, or tries again after a wrong answer instead of giving up."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "why_D4",
+                "label": "Why this level",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "What you saw, and how it fits the DC's evidence"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_D5",
+                "label": "D5 — Children's own questions",
+                "description": "Children's own questions. Whether children ask questions of their own: only about the task (which page, may I answer), or about the idea itself (how or why something works, a different case). Repeating the teacher's question or giving an unsure answer does not count.",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No question of their own",
+                    "description": "No student asks the teacher a question of their own. An unsure answer (\"Is it twelve?\") or a student repeating the teacher's question (\"Why?\") does not count."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Task questions only",
+                    "description": "Students ask only questions about the task: which page, do we write this, is it homework, may I answer, or please say it again."
+                  },
+                  {
+                    "id": "3",
+                    "title": "A question about the idea",
+                    "description": "Students ask at least one question about the idea itself: how or why something works, or what would happen in a different case."
+                  },
+                  {
+                    "id": "4",
+                    "title": "2+, one beyond the lesson",
+                    "description": "Beyond level 3, students ask at least two questions about the idea, and one of them is about something the teacher has not talked about in this lesson."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · Did not come up",
+                    "description": "What this indicator looks for did not come up in the lesson."
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell",
+                    "description": "Use when student lines are missing or garbled for a large part of the lesson."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_D5",
+                "label": "Evidence",
+                "helper-text": "D5 — what Rumi heard; edit if needed",
+                "required": false
+              },
+              {
+                "type": "TextArea",
+                "name": "imp_D5",
+                "label": "To improve",
+                "helper-text": "D5 — to improve",
+                "required": false
+              },
+              {
+                "type": "TextArea",
+                "name": "chg_D",
+                "label": "Why you changed",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "Needed if you changed a level Rumi set"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_screen": "DOMAIN_D",
+                    "r_D1": "${form.r_D1}",
+                    "ev_D1": "${form.ev_D1}",
+                    "imp_D1": "${form.imp_D1}",
+                    "d2_children": "${form.d2_children}",
+                    "d2_quiet_later": "${form.d2_quiet_later}",
+                    "r_D2": "${form.r_D2}",
+                    "why_D2": "${form.why_D2}",
+                    "r_D3": "${form.r_D3}",
+                    "why_D3": "${form.why_D3}",
+                    "r_D4": "${form.r_D4}",
+                    "why_D4": "${form.why_D4}",
+                    "r_D5": "${form.r_D5}",
+                    "ev_D5": "${form.ev_D5}",
+                    "imp_D5": "${form.imp_D5}",
+                    "chg_D": "${form.chg_D}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DOMAIN_F",
+      "title": "FICO17 Review 4/4",
+      "data": {
+        "err_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "err_note": {
+          "type": "string",
+          "__example__": "Please fix these before you go on:\n• Who got to answer: Choose a level."
+        },
+        "s_F1": {
+          "type": "string",
+          "__example__": "2"
+        },
+        "e_F1": {
+          "type": "string",
+          "__example__": "Two open questions, each answered · 12:40 \"How did you work that out?\""
+        },
+        "i_F1": {
+          "type": "string",
+          "__example__": ""
+        },
+        "s_F2": {
+          "type": "string",
+          "__example__": "2"
+        },
+        "e_F2": {
+          "type": "string",
+          "__example__": "Two open questions, each answered · 12:40 \"How did you work that out?\""
+        },
+        "i_F2": {
+          "type": "string",
+          "__example__": ""
+        },
+        "s_F3": {
+          "type": "string",
+          "__example__": "2"
+        },
+        "e_F3": {
+          "type": "string",
+          "__example__": "Two open questions, each answered · 12:40 \"How did you work that out?\""
+        },
+        "i_F3": {
+          "type": "string",
+          "__example__": ""
+        },
+        "s_F4": {
+          "type": "string",
+          "__example__": "2"
+        },
+        "e_F4": {
+          "type": "string",
+          "__example__": "Two open questions, each answered · 12:40 \"How did you work that out?\""
+        },
+        "i_F4": {
+          "type": "string",
+          "__example__": ""
+        },
+        "wc_F": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_F",
+            "init-values": {
+              "r_F1": "${data.s_F1}",
+              "ev_F1": "${data.e_F1}",
+              "imp_F1": "${data.i_F1}",
+              "r_F2": "${data.s_F2}",
+              "ev_F2": "${data.e_F2}",
+              "imp_F2": "${data.i_F2}",
+              "r_F3": "${data.s_F3}",
+              "ev_F3": "${data.e_F3}",
+              "imp_F3": "${data.i_F3}",
+              "r_F4": "${data.s_F4}",
+              "ev_F4": "${data.e_F4}",
+              "imp_F4": "${data.i_F4}",
+              "chg_F": "${data.wc_F}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "F. Subject knowledge"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.err_note}",
+                "visible": "${data.err_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "Part 4/4 — Rumi's levels are filled in: change any you saw differently and say why. Set the room levels yourself, with a reason."
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_F1",
+                "label": "F1 — Accuracy of content",
+                "description": "Accuracy of content. Whether what the teacher says about the subject is correct, and whether a wrong statement is corrected. Count something as wrong only when you are sure.",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Wrong content left standing",
+                    "description": "The teacher says something wrong and leaves it, so students are left with wrong information. Count something as wrong only if you are sure; a word that may be a transcription or translation mistake does not count."
+                  },
+                  {
+                    "id": "2",
+                    "title": "A slip not corrected",
+                    "description": "Mostly correct, but the teacher makes a small slip (a wrong rule or a wrong word) and does not correct it."
+                  },
+                  {
+                    "id": "3",
+                    "title": "All correct",
+                    "description": "Everything the teacher says is correct. When not sure, the teacher says so and does not guess."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Warned of a common mistake",
+                    "description": "Beyond level 3, the teacher warns students about a common mistake before they make it."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · Did not come up",
+                    "description": "What this indicator looks for did not come up in the lesson."
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell",
+                    "description": "Use when the teacher's speech is missing or garbled for a large part of the lesson, or the only possible errors may be transcription mistakes (a mis-heard number or term)."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_F1",
+                "label": "Evidence",
+                "helper-text": "F1 — what Rumi heard; edit if needed",
+                "required": false
+              },
+              {
+                "type": "TextArea",
+                "name": "imp_F1",
+                "label": "To improve",
+                "helper-text": "F1 — to improve",
+                "required": false
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_F2",
+                "label": "F2 — Subject words",
+                "description": "Subject words. Whether the teacher uses the subject's own words (such as \"numerator\" or \"verb\") and explains them, and whether children are made to use them.",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Everyday words only",
+                    "description": "The teacher uses everyday words only, and no subject words."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Terms used, not explained",
+                    "description": "The teacher uses some subject words but does not explain them, or mixes them up."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Terms explained 2+ times",
+                    "description": "At least two times, the teacher uses a subject word and explains what it means."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Children made to use them",
+                    "description": "Beyond level 3, the teacher makes students use the subject words, and corrects loose words by giving the right one."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · Did not come up",
+                    "description": "What this indicator looks for did not come up in the lesson."
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell",
+                    "description": "Use when the teacher's speech is missing or garbled for a large part of the lesson."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_F2",
+                "label": "Evidence",
+                "helper-text": "F2 — what Rumi heard; edit if needed",
+                "required": false
+              },
+              {
+                "type": "TextArea",
+                "name": "imp_F2",
+                "label": "To improve",
+                "helper-text": "F2 — to improve",
+                "required": false
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_F3",
+                "label": "F3 — Explaining why",
+                "description": "Explaining why. Whether the teacher explains why a rule or step works, with a reason, an example or a picture, or only says how to do it. At its strongest, the teacher turns a child's question into a short lesson or asks the children to give the reason.",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "How only, no reason",
+                    "description": "The teacher only says how to do it, and gives no reason."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Some reasons, mostly rules",
+                    "description": "The teacher gives a reason now and then, but mostly asks students to remember the rule."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Explained why 2+ times",
+                    "description": "At least two times, the teacher explains why a rule or step works, with a reason, an example, or a picture."
+                  },
+                  {
+                    "id": "4",
+                    "title": "Went further, or children did",
+                    "description": "Beyond level 3, the teacher turns a student's question into a short lesson that goes further, or asks the children to give the reason."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · Did not come up",
+                    "description": "What this indicator looks for did not come up in the lesson."
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell",
+                    "description": "Use when the teacher's speech is missing or garbled for a large part of the lesson."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_F3",
+                "label": "Evidence",
+                "helper-text": "F3 — what Rumi heard; edit if needed",
+                "required": false
+              },
+              {
+                "type": "TextArea",
+                "name": "imp_F3",
+                "label": "To improve",
+                "helper-text": "F3 — to improve",
+                "required": false
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r_F4",
+                "label": "F4 — Links to real life",
+                "description": "Links to real life. Whether the teacher links the lesson to real life, another subject or an earlier lesson, with an example or comparison, and explains the link. At its strongest, children build on the teacher's link.",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No link to life or lessons",
+                    "description": "The teacher gives no real-life example, comparison, or link to another subject or an earlier lesson."
+                  },
+                  {
+                    "id": "2",
+                    "title": "Link mentioned, not explained",
+                    "description": "The teacher mentions a link and moves on without explaining it."
+                  },
+                  {
+                    "id": "3",
+                    "title": "Link explained",
+                    "description": "The teacher gives a link and explains how it fits the idea."
+                  },
+                  {
+                    "id": "4",
+                    "title": "A child built on the link",
+                    "description": "Beyond level 3, a student builds on the teacher's link: they add to it, ask about it, or explain it in their own words."
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · Did not come up",
+                    "description": "What this indicator looks for did not come up in the lesson."
+                  },
+                  {
+                    "id": "IE",
+                    "title": "Couldn't tell",
+                    "description": "Use when the teacher's speech is missing or garbled for a large part of the lesson."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "ev_F4",
+                "label": "Evidence",
+                "helper-text": "F4 — what Rumi heard; edit if needed",
+                "required": false
+              },
+              {
+                "type": "TextArea",
+                "name": "imp_F4",
+                "label": "To improve",
+                "helper-text": "F4 — to improve",
+                "required": false
+              },
+              {
+                "type": "TextArea",
+                "name": "chg_F",
+                "label": "Why you changed",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "Needed if you changed a level Rumi set"
+              },
+              {
+                "type": "Footer",
+                "label": "Submit observation",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "_screen": "DOMAIN_F",
+                    "r_F1": "${form.r_F1}",
+                    "ev_F1": "${form.ev_F1}",
+                    "imp_F1": "${form.imp_F1}",
+                    "r_F2": "${form.r_F2}",
+                    "ev_F2": "${form.ev_F2}",
+                    "imp_F2": "${form.imp_F2}",
+                    "r_F3": "${form.r_F3}",
+                    "ev_F3": "${form.ev_F3}",
+                    "imp_F3": "${form.imp_F3}",
+                    "r_F4": "${form.r_F4}",
+                    "ev_F4": "${form.ev_F4}",
+                    "imp_F4": "${form.imp_F4}",
+                    "chg_F": "${form.chg_F}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS",
+      "title": "Thank you",
+      "terminal": true,
+      "data": {
+        "session_id": {
+          "type": "string",
+          "__example__": "00000000-0000-0000-0000-000000000000"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "Thank you! ✅"
+          },
+          {
+            "type": "TextBody",
+            "text": "Your FICO17 observation has been saved. I will send you the next step below."
+          },
+          {
+            "type": "Footer",
+            "label": "Done",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {
+                "observe_action": "submitted",
+                "session_id": "${data.session_id}"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
