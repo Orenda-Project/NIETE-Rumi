@@ -43,7 +43,9 @@
 // sa-21: round 10: the engine files of three lanes in one bump (sa-ui.js and sa.css: the hint heard once, Next at once after
 // practice, Urdu centred and whole, numbers sized to their box; sa-voice.js and sa-engine.js: clips play with no tap behind them).
 // sa-22: round 12: sa-ui.js (r12_intro_once: the Whole battery's "your turn" line said once per run).
-var VERSION = 'sa-22';
+// sa-23: round 13: sa-page.js, sa-engine.js and sa-core.js (r13_whole_stop: the Whole battery moves on to the next
+// subject when a part is not finished).
+var VERSION = 'sa-23';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.

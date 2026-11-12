@@ -12,6 +12,9 @@
  * keepOnError (opt-in, the SA routers' sa_r8_switch_hold): when keepOnError() answers true, a failed read (a throw or a
  * database error) keeps the last value read instead of OFF. No row and no client stay real reads of OFF.
  * on.state() is 'unread' before any read landed, 'held' while the last read failed, else 'fresh'.
+ *
+ * match (opt-in, a switch whose stored value picks one of several meanings, sa_r13_whole_stop): ON when match(value) is
+ * true, instead of the JSON-boolean rule. Without it the rule above is unchanged.
  */
 const KEY = 'web_quiz_brotli';
 const TTL_MS = 30 * 1000;
@@ -26,7 +29,8 @@ function isOn(value) {
  * `key` another app_settings key read by the same rule and cache (default web_quiz_brotli).
  * on.ready() resolves when the read in flight (if any) has landed (for tests).
  */
-function createBrotliFlag({ db = () => require('../config/supabase'), now = Date.now, key = KEY, keepOnError = null } = {}) {
+function createBrotliFlag({ db = () => require('../config/supabase'), now = Date.now, key = KEY, keepOnError = null, match = null } = {}) {
+  const test = typeof match === 'function' ? (v) => { try { return match(v) === true; } catch (_) { return false; } } : isOn;
   let at = -Infinity;
   let val = false;
   let reading = null;
@@ -40,7 +44,7 @@ function createBrotliFlag({ db = () => require('../config/supabase'), now = Date
       if (!client) return false;
       const { data, error } = await client.from('app_settings').select('value').eq('key', key).maybeSingle();
       if (error) return FAILED;
-      return data ? isOn(data.value) : false;
+      return data ? test(data.value) : false;
     } catch (_) {
       return FAILED;
     }
