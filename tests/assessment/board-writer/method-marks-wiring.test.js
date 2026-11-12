@@ -54,6 +54,8 @@ test('a scheme still answer-only after every rewrite ships the paper with a pape
     const got = await real(args);
     const list = got.tree && got.tree[srq.slot];
     if (Array.isArray(list) && list.length) Object.assign(list[0], { question: STEM, answer: 'v = 100/5 = 20 m/s', scheme: { points: [{ text: '20 m/s', marks: srq.marks_each }] } });
+    // bd-qyi45h.7: a rewrite asks with slack, so every replacement is answer-only too, or the extra one would ship clean
+    if (Array.isArray(list) && /REWRITE/.test(args.messages[1].content)) list.slice(1).forEach((q, i) => Object.assign(q, { question: `A made-up cart covers ${200 + 10 * i} m in 4 s. Find its speed.`, answer: `${50 + 2.5 * i} m/s`, scheme: { points: [{ text: `${50 + 2.5 * i} m/s`, marks: srq.marks_each }] } }));
     return got;
   };
   const res = await writeBoardPaper({ grade: 9, subject: 'physics', pattern: 'p', P, variant, requestId: 'r1' }, d);
