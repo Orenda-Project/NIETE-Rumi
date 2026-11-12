@@ -15,6 +15,8 @@ import { COACH_TRAINING_PATH } from "../coachTraining/modules";
 import { COACH_HOME } from "../home/copy";
 import { useCoachFeatureReady } from "../training/useCoachFullApp";
 import { ReadyReportCard } from "../report/ReadyReportCard";
+import { useChildTestSa } from "../../lib/useChildTestSa";
+import { COACH_PROFILE } from "../profile/copy";
 
 /**
  * The slim Coach Home (the School card switch on): the NIETE band (the kit's HomeGreeting, as on the full coach Home) and
@@ -24,6 +26,11 @@ import { ReadyReportCard } from "../report/ReadyReportCard";
  * bd-jjcofw — a tester with the full coach app on (portal_coach_full_app) also gets Schedule and Observe, first, as the full
  * coach Home draws them (same tiles, words and chips: this week / waiting, from GET /coach/home). Everyone else's Home is
  * exactly the three tiles above, and /coach/home is never asked for them.
+ *
+ * bd-zay62o (operator, 12 Nov 2026: "Learning Assessment needs to be a button on the main page for the coach") — a coach on
+ * portal_child_test_sa also gets the Learning assessment tile, before Coach Training, with its own art and the More row's
+ * word. The tiles then fill whole rows, so Coach Training is no longer the lone wide tile. Off, loading or unreadable:
+ * exactly the Home above. The More row stays too, where these coaches learned to find it.
  */
 
 export const courseCount = (lib: Library | null): number | null =>
@@ -45,6 +52,9 @@ export default function SlimHome() {
   const observeReady = useCoachFeatureReady("observe");
   const fullApp = scheduleReady && observeReady;
   const home = useLoad(() => (fullApp ? coach.getHome().then((r) => r.home) : Promise.resolve(null)), [fullApp]).data;
+  // The Learning assessment tile: only for a literal true (fail-closed, as the guard and the More row read it).
+  const assess = useChildTestSa() === true;
+  const P = useCopy(COACH_PROFILE);
 
   return (
     <CoachGate>
@@ -78,7 +88,9 @@ export default function SlimHome() {
               chip={courses != null ? { text: C.coursesN(courses), tone: "info" } : null} />
             <FeatureTile feature="schools" label={F.coachNav.schools} to="/portal/coach/people"
               chip={p ? { text: C.schoolsTeachers(p.schools.length, p.teachers.filter((t) => !t.isPrincipal).length), tone: "info" } : null} />
-            <FeatureTile feature="coachTraining" label={T.title} to={COACH_TRAINING_PATH} wide />
+            {assess && <FeatureTile feature="learningAssessment" label={P.assess} to="/portal/leader/assess" />}
+            {/* wide only when it would stand alone in its row (without the Learning assessment tile) */}
+            <FeatureTile feature="coachTraining" label={T.title} to={COACH_TRAINING_PATH} wide={!assess} />
           </nav>
         </FeatureMotionProvider>
       </TeacherPage>
