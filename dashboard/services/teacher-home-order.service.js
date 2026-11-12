@@ -140,6 +140,8 @@ function scoreOf(row) {
   if (!row || !row.id) return null;
   const s = (row.analysis_data && row.analysis_data.scores) || (row.scores && typeof row.scores === 'object' ? row.scores : null);
   if (!s) return null;
+  // bd-ra8xu.38 / bd-pni007: a FICO17 v6 or FDE obs612 score is not her V3 mark.
+  if (require('./coaching-frameworks.service').isOwnRubric(row.analysis_data || s)) return null;
   const raw = s.overall_marks != null ? s.overall_marks : s.grand_total;
   if (raw == null || raw === '' || !Number.isFinite(Number(raw))) return null;
   const o = getOverall({ scores: s });

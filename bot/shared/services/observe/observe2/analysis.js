@@ -24,13 +24,17 @@
  * Nothing in here calls a model; the record and the brief are data.
  */
 
-const { CODES, PLAIN, ROW, PRIORITY, FOCUS, FOCUS_DOMAIN, PLAN_FOCUS, THINKING, isCoachingFocus, pickAlso } = require('./fico17');
+const { CODES, ROW, PRIORITY, FOCUS, FOCUS_DOMAIN, PLAN_FOCUS, THINKING, isCoachingFocus, pickAlso } = require('./fico17');
 const { buildBrief, TYPE_CODE } = require('./brief');
 const { seenNotes } = require('./rules');
 const { focusSeen, focusNext } = require('./focus-areas');
 const { observe2Strings } = require('./strings');
 
 const RUBRIC = 'fico17';
+// bd-ra8xu.38: a FICO17 v6 visit is stamped 'fico17_v6', never 'fico17', so no reader (the dashboard's
+// detectFicoInstrument, any average) treats its levels as v5's: v6 C5 is not v5 C5.
+const V6 = require('../../coaching/frameworks/fico17-v6');
+const { isV6, plainOf } = require('./rubric');
 const LEVEL_MAX = 4;
 const SECTION_B_MAX = 7 * LEVEL_MAX;
 const SECTION_OF = { C: 'high_leverage_practices', D: 'student_engagement', F: 'teacher_subject_knowledge' };
@@ -44,6 +48,20 @@ function confirmedMoments(form) {
   return ((form.rumi_moments && form.rumi_moments.moments) || []).filter((m) => review[`heard_${m.id}`] === 'yes');
 }
 
+// bd-ra8xu.46: the v6 moment types (moment-types TYPES_V6) and the indicator each counts for (rules.js
+// HEARD_RULES_V6), so a v6 moment the coach confirmed or added is shown on its row. v5 visits never read this.
+const TYPE_CODE_V6 = {
+  ...TYPE_CODE,
+  resource_shown: 'C8', resource_used: 'C8', resource_explained: 'C8',
+  term_not_explained: 'F2', child_used_term: 'F2', why_handed: 'F3', link_mentioned: 'F4', child_builds_link: 'F4',
+};
+
+// The moments the coach ADDED on a v6 visit ("Add one Rumi missed", evidence_review.missed): the coach's own evidence.
+function addedMoments(form) {
+  const missed = (form.evidence_review || {}).missed;
+  return isV6(form) && Array.isArray(missed) ? missed.filter((m) => m && m.quote) : [];
+}
+
 // What the level means, in the workbook's words, the confirmed moments that show it, and what the coach
 // saw on the form.
 function evidenceFor(code, level, raw, form) {
@@ -51,13 +69,23 @@ function evidenceFor(code, level, raw, form) {
   const review = form.evidence_review || {};
   const hole = (review.added_hole || {})[code];
   const kept = String(raw) === String((review.added || {})[code]);
-  const seen = hole && kept ? hole : PLAIN[code][level - 1];
-  const heard = confirmedMoments(form).filter((m) => TYPE_CODE[m.type] === code).slice(0, 2)
-    .map((m) => `${m.minute} "${m.quote}"`);
+  // A combined indicator's level is the coach's alone (bd-ra8xu.44): never Rumi's reason for a level.
+  const rumiReason = hole && kept && !(isV6(form) && V6.isCombined(code));
+  const seen = rumiReason ? hole : plainOf(form)[code][level - 1];
+  const typeCode = isV6(form) ? TYPE_CODE_V6 : TYPE_CODE;
+  const heard = confirmedMoments(form).filter((m) => typeCode[m.type] === code).slice(0, 2)
+    .map((m) => `${m.minute} "${m.quote}"`)
+    .concat(addedMoments(form).filter((m) => typeCode[m.type] === code)
+      .map((m) => `${m.minute != null && m.minute !== '' ? `${m.minute} ` : ''}"${m.quote}"`));
   // What the coach saw on the form beyond the level: the desks and the children's thinking in Part 2
   // (R4/R10, R16), the materials used (R17), by name.
   const noted = seenNotes(form.answers)[code];
   return [seen, heard.length ? `Heard: ${heard.join('; ')}` : '', noted || ''].filter(Boolean).join('. ');
+}
+
+// Sentences joined with ". ", without doubling a full stop the coach already wrote.
+function joinSentences(parts) {
+  return parts.filter(Boolean).reduce((out, p) => (out ? `${out}${/[.!?۔]$/.test(out) ? ' ' : '. '}${p}` : p), '');
 }
 
 function section(letter, form) {
@@ -67,7 +95,16 @@ function section(letter, form) {
     const evidence = evidenceFor(code, level, finals[code], form);
     // `group: 'thinking'` marks the six that score children's thinking (R16); the section sum is unchanged.
     const group = THINKING.codes.includes(code) ? { group: 'thinking' } : {};
-    return { id: code, name: ROW[code], score: level, applicable: level != null, evidence, evidence_summary: evidence, ...group };
+    // A v6 visit names each row by its v6 name and keeps who set the level (coach | rumi) and why.
+    const v6rec = isV6(form) ? ((form.evidence_review || {}).v6_levels || {})[code] : null;
+    const v6 = isV6(form) ? { name: V6.indicator(code).name, ...(v6rec ? { set_by: v6rec.set_by, because: v6rec.because || '' } : {}) } : {};
+    // bd-ra8xu.46 (operator 11 Nov ~21:20, ~21:30): on a v6 visit the teacher reads what the coach submitted, with
+    // the coach's level. A combined indicator or a level the coach changed leads with the coach's own words, then
+    // what the coach confirmed or added for it; a level the coach kept reads as before. Rumi's unconfirmed moments
+    // and room evidence are never shown.
+    const coachSaid = v6rec && (V6.isCombined(code) || v6rec.set_by === 'coach') && v6rec.because ? String(v6rec.because).trim() : null;
+    const shown = coachSaid ? joinSentences([coachSaid, evidence]) : evidence;
+    return { id: code, name: ROW[code], score: level, applicable: level != null, evidence: shown, evidence_summary: shown, ...group, ...v6 };
   });
   const judged = indicators.filter((i) => i.applicable);
   return {
@@ -113,7 +150,7 @@ function strengthsOf(form, priority) {
     .slice(0, 2)
     .map((c) => {
       const used = c === 'C8' ? seenNotes(form.answers).C8 : '';
-      return { title: ROW[c], evidence: [PLAIN[c][numeric(finals[c]) - 1], used].filter(Boolean).join('. ') };
+      return { title: ROW[c], evidence: [plainOf(form)[c][numeric(finals[c]) - 1], used].filter(Boolean).join('. ') };
     });
 }
 
@@ -171,13 +208,13 @@ function focusOf(form, priority) {
   }
   if (!priority || !PRIORITY[priority]) return null;
   const level = numeric((form.final_levels || {})[priority]);
-  const seen = level ? PLAIN[priority][level - 1] : null;
+  const seen = level ? plainOf(form)[priority][level - 1] : null;
   return {
     domain: SECTION_OF[priority[0]],
     indicator: priority,
     title: PRIORITY[priority],
     rationale: seen ? `What was seen: ${seen}` : '',
-    try_this_tomorrow: level && level < LEVEL_MAX ? PLAIN[priority][level] : '',
+    try_this_tomorrow: level && level < LEVEL_MAX ? plainOf(form)[priority][level] : '',
     lever_question: LEVER_QUESTION,
   };
 }
@@ -202,12 +239,19 @@ function buildAnalysis(form, opts = {}) {
       student_engagement: section('D', form),
       teacher_subject_knowledge: section('F', form),
     },
-    scores: {},
+    // A v6 visit's scores carry the v6 stamp (fico17-v6/stamp.js), so no cross-session average adds it to V3's.
+    scores: isV6(form) ? { rubric: V6.RUBRIC_KEY } : {},
     lp_fidelity: planFidelity(form),
     strengths: strengthsOf(form, priority),
     observe2: {
       form_id: form.id,
-      rubric: RUBRIC,
+      rubric: isV6(form) ? V6.RUBRIC_KEY : RUBRIC,
+      ...(isV6(form) ? {
+        prompt_version: V6.COACH_PROMPT_VERSION,
+        v6_levels: review.v6_levels || {},
+        d2_counts: review.d2_counts || null,
+        v6_fallback: Boolean(review.v6_fallback),
+      } : {}),
       rubric_version: form.rubric_version || null,
       final_levels: form.final_levels || {},
       priority,

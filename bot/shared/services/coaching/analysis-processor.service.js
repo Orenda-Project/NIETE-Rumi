@@ -139,6 +139,14 @@ class AnalysisProcessorService {
 
       const from = payload.from || session.users.phone_number;
 
+      // bd-pni007: an FDE (obs612) coach visit is scored by the coach on FDE's own form, never by a model. Nothing
+      // queues its analysis (transcription stops at observe/obs612/visit.afterTranscription); this guards a retry
+      // or a watchdog that does.
+      if (require('../observe/obs612/visit').isObs612Form({ rubric_version: session.framework })) {
+        logToFile('🚫 analysis skipped — an FDE (obs612) visit is scored by the coach', { coachingSessionId, framework: session.framework }, 'warn');
+        return { skipped: 'obs612' };
+      }
+
       // Update status
       await CoachingSessionService.updateStatus(coachingSessionId, 'analyzing', {
         analysis_started_at: new Date().toISOString()
@@ -250,11 +258,19 @@ class AnalysisProcessorService {
 
       // Resolve pedagogical framework for this user, capturing the selection
       // path so it can be persisted for later audit / dashboards.
-      const {
+      let {
         framework,
         frameworkKey,
         reason: frameworkSelectionReason,
       } = await selectFrameworkWithReason(session.user_id);
+      // bd-ra8xu.38 — an /observe visit stamped FICO17 v6 at creation (observe-capture, coach switch) is analysed
+      // with v6, whatever the switch says now. Unstamped sessions (every one while the switch is off) are unchanged.
+      const stampedV6 = require('../observe/observe-fico17-v6').frameworkKeyForSession(session);
+      if (stampedV6) {
+        framework = require('./frameworks/framework-registry').getFramework(stampedV6);
+        frameworkKey = stampedV6;
+        frameworkSelectionReason = 'coach_rubric_stamp';
+      }
       logToFile('Framework resolved', {
         userId: session.user_id,
         framework: framework.name,
@@ -401,6 +417,12 @@ class AnalysisProcessorService {
           })
         : Promise.resolve(null);
 
+      // bd-ra8xu.38 — FICO17 v6 in the background, beside V3, only when the fico_dc_rubric switch says so (default
+      // 'v3': resolves to null, no model call, and the write below is unchanged). Never rejects; V3 drives everything
+      // the teacher sees either way. See frameworks/fico17-v6/shadow.js.
+      const ficoV6Shadow = require('./frameworks/fico17-v6/shadow');
+      const v6ShadowTask = ficoV6Shadow.start({ session, metadata, frameworkKey, transcript: session.transcript_text });
+
       const [analysisSettled, corpusSettled, fidelitySettled] = await Promise.allSettled([
         GPT5MiniService.analyzePedagogy(
           session.transcript_text,
@@ -507,6 +529,8 @@ class AnalysisProcessorService {
       const { data: fresh } = await supabase
         .from('coaching_sessions').select('analysis_data').eq('id', coachingSessionId).single();
       const liveMoves = fresh && fresh.analysis_data && fresh.analysis_data.live_moves;
+      // bd-ra8xu.38: null (switch off) adds nothing; otherwise analysis_data.shadow.fico17_v6, stored, never sent.
+      const v6Shadow = await ficoV6Shadow.settle(v6ShadowTask);
       const { data: analysisArmed } = await supabase
         .from('coaching_sessions')
         .update({
@@ -543,6 +567,7 @@ class AnalysisProcessorService {
             // bd-5knlj: non-ok statuses persist too — lp_absent vs
             // fidelity_unavailable vs never-ran were indistinguishable before.
             ...require('./fidelity/fidelity-orchestrator').fidelityPatch(lpFidelity),
+            ...ficoV6Shadow.patch(v6Shadow),
           },
           status: 'analysis_complete',
           analysis_completed_at: new Date().toISOString(),

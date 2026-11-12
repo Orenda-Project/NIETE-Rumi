@@ -97,12 +97,16 @@ class RealAttendanceRepository {
     this.supabase = supabase;
   }
 
+  // Live accounts only (bd-apnnh2.15): a fold retires the spare account but keeps its
+  // school and role, so without the filter it shows as a second copy of the teacher,
+  // here and in the school-wide presence rollup built from this list.
   async getTeachersBySchool(school_id) {
     const { data, error } = await this.supabase
       .from('users')
       .select('id, phone_number, role, school_id, name')
       .eq('school_id', school_id)
-      .eq('role', 'teacher');
+      .eq('role', 'teacher')
+      .is('deleted_at', null);
     if (error) throw error;
     return data || [];
   }
@@ -251,8 +255,9 @@ class MockAttendanceRepository {
     this._nextId = 1;
   }
 
+  // Live accounts only, as the Supabase repository (bd-apnnh2.15).
   async getTeachersBySchool(school_id) {
-    return this.teachers.filter((t) => t.school_id === school_id && t.role === 'teacher');
+    return this.teachers.filter((t) => t.school_id === school_id && t.role === 'teacher' && !t.deleted_at);
   }
 
   async saveAttendance({ teacher_id, school_id, date, status, leave_type, marked_by_user_id }) {

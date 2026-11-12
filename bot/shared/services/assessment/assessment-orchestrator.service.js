@@ -72,6 +72,7 @@ const TEACHER_MESSAGE = {
   TRUNCATED: 'That was a lot to write in one go. Please try again with fewer questions.',
   MODEL_UNAVAILABLE: "Sorry — we couldn't build your paper just now. Please try again in a moment.",
   BAD_JSON: "Sorry — that didn't come out right. Please try again.",
+  TOO_MANY_FLAWS: "Too many questions in this paper weren't good enough to print, so we held it back. Please try again — a new paper is written from scratch.",
   NO_QUESTIONS: "Sorry — we couldn't write questions from that chapter. Please try another.",
   RENDER_FAILED: "Sorry — we couldn't make the file. Please try again.",
   UPLOAD_FAILED: "Sorry — we couldn't save your paper. Please try again.",
@@ -279,7 +280,7 @@ async function _buildPatternPaper({ job, user, paperId }) {
   try {
     generated = await generate();
   } catch (err) {
-    if (err.code !== 'PATTERN_SHORT_SLOT' || !(await _ownsPaper(paperId))) throw err;
+    if (!['PATTERN_SHORT_SLOT', 'TOO_MANY_FLAWS'].includes(err.code) || !(await _ownsPaper(paperId))) throw err;
     logToFile('[assessment] pattern paper retried', {
       requestId, paperId, pattern, code: err.code,
       ...(Array.isArray(err.shortfall) ? { shortfall: err.shortfall } : {}),

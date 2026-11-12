@@ -5,6 +5,7 @@
  */
 
 import type { TileLevel, TileVendor } from "../../teacher/training/model";
+import type { Obs612Summary } from "../../lib/obs612";
 
 export type PeriodKey = "today" | "week" | "month";
 
@@ -225,6 +226,8 @@ export type SectionScores = { B: number | null; C: number | null; D: number | nu
 export type SessionReportData = {
   /** "coach": a coach observation (its scores show once `reviewed`; `nextStep` is the step agreed). */
   kind?: ScoreKind;
+  /** bd-ra8xu.43 — the rubric this session was scored with (framework + version, e.g. "FICO V3"), from what was stored. */
+  rubric?: string | null;
   coachName?: string | null;
   form?: "v3" | "observe2" | null;
   reviewed?: boolean;
@@ -240,4 +243,6 @@ export type SessionReportData = {
   /** One entry per plan move: `step` is its phase's name, `verdict` the fidelity check's (executed, partial, not_done …). */
   lpSteps: { step: string | null; verdict: string; text?: string | null; mustHappen?: boolean }[] | null;
   reflection: { question: string; answer: string }[];
+  /** bd-pni007 — an FDE visit: its block replaces the score, sections, practices and plan steps; null otherwise. */
+  obs612?: Obs612Summary | null;
 };

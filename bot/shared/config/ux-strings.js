@@ -105,8 +105,8 @@ const UX_STRINGS = {
     ur: 'مضمون کی تصدیق نہیں ہو سکی — زبان یا مضمون سے متعلق مخصوص شعبے کو نمبر نہیں دیے گئے۔',
   },
   // ─── a grade her region has no books for (bd-97daxo.4, operator 6 Nov 2026) ───────────────────────
-  // Gilgit-Baltistan names Grade 1-5 books only (its Afaq books for Grades 6+ are not ready), so a GB
-  // teacher who picks Grade 6+ (or a Grade 1-5 with no GB book yet) is told so, instead of being handed ICT's
+  // Gilgit-Baltistan names Grade 1-10 books only (ICT's books for 6-10, bd-qchgya), so a GB teacher who
+  // picks Grade 11-12 (or a grade with no book on her list) is told so, instead of being handed the wrong
   // books or an error. {grade} arrives in the reader's digits (Urdu digits for ur). Flow error text.
   lpGradeNotForRegionBooks: {
     en: "Lesson plans for Grade {grade} aren't available for your school yet. We'll add them as soon as they're ready.",
@@ -402,6 +402,14 @@ const UX_STRINGS = {
     en: 'This part of the lesson could not be analysed this time, so it is not counted in the score.',
     ur: 'اس بار سبق کے اس حصے کا تجزیہ مکمل نہیں ہو سکا، اس لیے یہ اسکور میں شامل نہیں ہے۔',
   },
+
+  // ─── FICO17 v6 hero report section names (bd-ra8xu.39) ────────────────────
+  // The three v6 sections and the lesson-plan bar on a v6 /observe visit's hero card. Urdu: DRAFT, for a native
+  // speaker's check.
+  reportV6SectionTeacher: { en: 'What the teacher does', ur: 'استاد کا طریقۂ کار' },
+  reportV6SectionChildren: { en: 'What the children do', ur: 'بچوں کی شرکت' },
+  reportV6SectionSubject: { en: 'Subject knowledge', ur: 'مضمون کا علم' },
+  reportV6SectionPlan: { en: 'Following the lesson plan', ur: 'سبق کے منصوبے پر عمل' },
 
   // ─── short-recording length guidance ──────────────────────────────────────
   // Sent BEFORE the chat answer, never instead of it: a recording that is too
@@ -950,6 +958,14 @@ const UX_STRINGS = {
   appLinkButtonAttendance: { en: 'Attendance', ur: 'حاضری' },
   appLinkBodyClasses: { en: 'Open your classes.', ur: 'اپنی کلاسیں کھولیں۔' },
   appLinkButtonClasses: { en: 'My classes', ur: 'میری کلاسیں' },
+  // bd-ik5e8j.5 (queue #85) — the caption on Film 1, "How to use NIETE", sent once to a teacher on her first message
+  // after howto_first_touch covers her (howto-first-touch.service). The operator's words: "This is how you use NIETE".
+  // Never "app" (the operator, 11 Nov: NIETE is used through WhatsApp). Imperative, so nothing assumes her gender; the
+  // Urdu opens with Urdu, so it needs no U+200F. A video caption: well under Meta's 1024 code points.
+  howtoFirstTouchCaption: {
+    en: 'Watch this video: how to use NIETE.',
+    ur: 'یہ ویڈیو دیکھیں: NIETE استعمال کرنے کا طریقہ۔',
+  },
   // bd-fmf24g.52 — the COACH app link (app-redirect.service COACH_LINKS): /menu → coach Home, /observe → the coach
   // app's Observe page. Same one-line rule. /menu keeps the /menu words; /observe uses the coach app's own tile
   // (portal coach copy: "Take observation" / مشاہدہ لیں). Imperatives only, so nothing assumes a gender; the Urdu
@@ -3257,6 +3273,16 @@ const UX_STRINGS = {
   // feedback; when she did, her sentence is used and marked instead.
   vqMultiRight: { en: 'Correct! The full answer is {right}.', ur: 'درست! پورا جواب یہ ہے: {right}۔' },
   vqMultiWrong: { en: 'Not quite — the full answer is {right}.', ur: 'بالکل نہیں — پورا جواب یہ ہے: {right}۔' },
+  // Fixed copy of the single-answer video-quiz render (it was English-only on Urdu quizzes).
+  vqListenCue: { en: 'Listen, then choose your answer.', ur: 'سنیں، پھر اپنا جواب چنیں۔' },
+  vqYourOptions: { en: 'Your options:', ur: 'آپ کے اختیارات:' },
+  vqTapPicture: { en: 'Now tap the picture you think is right.', ur: 'اب اس تصویر پر ٹیپ کریں جو آپ کے خیال میں درست ہے۔' },
+  vqWrongFallback: { en: 'Not quite — the answer is {right}.', ur: 'تقریباً! درست جواب یہ ہے: {right}۔' },
+  vqKeepGoing: { en: 'Keep going, mistakes help you learn!', ur: 'ہمت نہ ہاریں، غلطیوں سے ہی سیکھتے ہیں!' },
+  // Parent roster quiz (quiz-session.service) wrong-answer message.
+  qsNotQuite: { en: 'Not quite!', ur: 'تقریباً، دوبارہ کوشش کریں!' },
+  qsAnswerIs: { en: 'The answer is {option}: {answer}', ur: 'جواب {option} ہے: {answer}' },
+  qsKeepGoing: { en: 'Keep going — mistakes help you learn! 💪', ur: 'ہمت نہ ہاریں، غلطیوں سے ہی سیکھتے ہیں! 💪' },
   // Urdu deliberately uses the listing form ("these are right too") rather than
   // a literal translation of "you missed": every natural Urdu verb for missing
   // agrees in gender/number with the thing missed, which is unknown here and is
@@ -3487,6 +3513,21 @@ const UX_STRINGS = {
   shareObservation: { en: 'Observation', ur: 'مشاہدہ' },
   shareGrade: { en: 'Grade {grade}', ur: 'جماعت {grade}' },
   shareClassFallback: { en: 'Your', ur: 'آپ' },
+  // Printed on a Grade 1-2 FDE paper still off its blueprint after one rewrite. Urdu needs fluent review.
+  assessmentOffBlueprintNote: {
+    en: 'Note: this paper does not fully match the FDE blueprint — please check it before printing.',
+    ur: 'نوٹ: یہ پرچہ FDE بلیو پرنٹ سے مکمل طور پر مطابقت نہیں رکھتا — چھاپنے سے پہلے اسے جانچ لیں۔',
+  },
+  // bd-qyi45h.1: a G11/G12 Urdu board paper whose chosen pages hold no poem / no ghazal leaves those questions out;
+  // this line goes on the teacher's marking scheme (board legend) so the teacher knows why.
+  assessmentNoPoemNote: {
+    en: 'No poem in the chosen pages, so the poem questions are left out.',
+    ur: 'منتخب صفحات میں کوئی نظم نہیں، اس لیے نظم کے سوالات شامل نہیں کیے گئے۔',
+  },
+  assessmentNoGhazalNote: {
+    en: 'No ghazal in the chosen pages, so the ghazal questions are left out.',
+    ur: 'منتخب صفحات میں کوئی غزل نہیں، اس لیے غزل کے سوالات شامل نہیں کیے گئے۔',
+  },
   // ─── child test (EGRA/EGMA five-minute test, bd-s1oo0.4) ──────────────────
   // The coach's side of the child test: the offer after /observe2, today's list,
   // Present/Absent/Refused, one voice note per block, the maths strip photo.

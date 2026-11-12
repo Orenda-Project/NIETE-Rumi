@@ -18,6 +18,7 @@
 
 const { downloadFromR2 } = require('../storage/r2');
 const { logToFile } = require('../utils/logger');
+const { isLpV8VoicenoteEnabled } = require('../config/lp-v8-voicenote');
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CACHE_MAX = 200;                 // ~200 scripts × ~2 KB — bounded and tiny
@@ -36,6 +37,7 @@ function txtKeyFor(r2Key) {
  * @returns {Promise<string|null>} the spoken script, or null when unavailable
  */
 async function getVoicenoteScript(entry) {
+  if (!isLpV8VoicenoteEnabled()) return null;   // feature off (bd-xxejb): no R2 read, no log noise
   const txtKey = txtKeyFor(entry && entry.r2_key);
   if (!txtKey) return null;
 

@@ -43,6 +43,8 @@ function shortLabel(isoDate, locale = 'sw') {
 function pctFromRow(row) {
   const ad = row.analysis_data;
   if (!ad || typeof ad !== 'object') return null;
+  // bd-ra8xu.38 / bd-pni007: a FICO17 v6 or FDE obs612 session is not on the V3 line (different instrument).
+  if (require('./frameworks/own-rubric').isOwnRubric(ad)) return null;
   // Prefer scores.overall_percentage (MEWAKA / v2 canonical), then the OECD
   // shape scores.percentage (every pre-MEWAKA session stores its overall %
   // here), then any top-level overall_percentage. This keeps the sparkline
@@ -116,4 +118,4 @@ async function loadTrendData(userId, opts = {}) {
   }
 }
 
-module.exports = { loadTrendData, shortLabel };
+module.exports = { loadTrendData, shortLabel, pctFromRow };

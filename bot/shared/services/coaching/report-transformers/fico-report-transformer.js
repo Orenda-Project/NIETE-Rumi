@@ -50,6 +50,9 @@ const SECTION_TITLES = {
 function transformFICOToReportData(session, teacherName, analysis) {
   const DOMAINS = ficoFramework.getScoringConstants().domains;
   const goals = [];
+  // bd-ra8xu.38: an /observe2 visit scored on FICO17 v6 never prints an N/A or couldn't-tell row as 0/4; those
+  // rows are left out of its report (they are left out of its totals already). Every other report is unchanged.
+  const v6 = Boolean(analysis && analysis.observe2 && analysis.observe2.rubric === 'fico17_v6');
 
   for (const [sectionKey, sectionDef] of Object.entries(DOMAINS)) {
     const section = analysis.domains?.[sectionKey];
@@ -59,7 +62,7 @@ function transformFICOToReportData(session, teacherName, analysis) {
       title: SECTION_TITLES[sectionKey] || sectionDef.displayName,
       score: section.domain_score || 0,
       maxScore: section.domain_max || (sectionDef.indicatorCount * SCALE_MAX),
-      criteria: (section.indicators || []).map(ind => ({
+      criteria: (section.indicators || []).filter((ind) => !(v6 && ind && ind.applicable === false)).map(ind => ({
         // Prepend the FICO indicator code (B1, C2, D3, F8…) so trainers can
         // cross-reference the printed rubric.
         name: ind.id ? `${ind.id} ${ind.name}` : ind.name,
@@ -103,7 +106,8 @@ function transformFICOToReportData(session, teacherName, analysis) {
     // region-routed so ICT / NIETE renders "Human Coach" while other
     // deployments (or unset regions) keep the default "Rumi Digital Coach".
     observerName: coachRoleLabelForRegion(session.users?.region),
-    frameworkDisplayName: 'FICO Framework',
+    // bd-ra8xu.46: a v6 visit is labelled with its framework and version only ("FICO17 v6", operator 11 Nov ~18:45).
+    frameworkDisplayName: v6 ? (require('../rubric-label').rubricLabelText({ session, analysis }) || 'FICO17 v6') : 'FICO Framework',
     hasLessonPlan: !!(session.lesson_plan_structured || analysis.has_lesson_plan),
     totalScore,
     maxScore: MAX_MARKS,

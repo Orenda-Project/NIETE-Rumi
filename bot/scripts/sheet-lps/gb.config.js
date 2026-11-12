@@ -44,4 +44,11 @@ module.exports = {
     'Social Studies': 'social_studies_en',
     Islamiat: 'islamiat',
   },
+
+  // Grades taught from ICT's 6-12 books, every one of them, taken as is (operator, 11 Nov: "we have till grades 10.
+  // Same books as ICT"). GB has no Grades 11-12. --books adds those books to the region's list (bd-qchgya).
+  ictGrades: [6, 7, 8, 9, 10],
+  // ...except these (operator, 11 Nov: "no tarjuma and no zarai taleem needed in GB"). A book off the list is
+  // hidden from her LP menus and her paper menu (TeacherBooks.upperBookOffered, bd-la9f5e).
+  ictExclude: [/zari_taleem|zarai_taleem|tarjuma/],
 };

@@ -20,6 +20,7 @@ const { buildClassroomPhotoVm, excludedPhotoNumbers } = require('./classroom-pho
 const { applyPhotoCaptions } = require('./photo-note');
 const { resolveReportLanguage } = require('./report-language');
 const { loadTrendData } = require('../coaching-trend.service');
+const { isObs612Scored } = require('../frameworks/own-rubric');
 const { downloadFromR2, extractKeyFromUrl } = require('../../../storage/r2');
 const { htmlToImage } = require('../../../utils/html-to-pdf');
 const { logToFile } = require('../../../utils/logger');
@@ -96,6 +97,9 @@ async function generateHeroReport(session, analysis, opts = {}) {
   // transcript_language has been 'hindi'/'javanese'/'sindhi' on prod (bd-bfy69).
   // resolveReportLanguage() only ever returns a language we actually offer.
   const lang = resolveReportLanguage(opts, analysis, session);
+  // bd-pni007: an FDE (obs612) visit gets FDE's own report: the coach's scores on FDE's tool, no narrative model call,
+  // no FICO score bars, and no journey line (the teacher's FICO history is never drawn beside it; own-rubric.js).
+  if (isObs612Scored(analysis)) return require('./obs612-report').generateObs612Report(session, analysis, { ...opts, language: lang });
   const framework = (analysis.framework || 'oecd').toLowerCase();
 
   const score = buildScoreViewModel(analysis, { framework, language: lang });
@@ -105,7 +109,9 @@ async function generateHeroReport(session, analysis, opts = {}) {
   // hero without the sparkline. Exclude the current session so if it's already
   // marked completed by the time this runs, we don't double-count today.
   let trend = [];
-  try {
+  // bd-ra8xu.39: a FICO17 v6 report shows no journey line. The teacher's earlier sessions are V3 percentages, and a
+  // v6 score drawn on the same line would mix two rubrics (operator, 11 Nov: never mixed).
+  if (framework !== 'fico17_v6') try {
     const raw = await loadTrendData(session.user_id, { limit: 12, locale: 'en', excludeSessionId: session.id });
     trend = raw
       .map((t) => ({ date: String(t.date || '').slice(0, 10), pct: Math.round(parseFloat(t.pct || 0)) }))

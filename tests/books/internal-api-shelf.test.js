@@ -202,8 +202,10 @@ describe('Grade 6+ for a region whose books stop at Grade 5 (operator, 6 Nov)', 
     const chapters = await invoke('/assessment/chapters', { userId: 'gb-teacher', grade: 7, subject: 'english' });
     expect(chapters.statusCode).toBe(400);
     const Lp612 = require('../../bot/shared/services/lp612-browse.service');
+    // bd-qchgya (operator, 11 Nov: "we have till grades 10"): her list says which 6-12 grades she has. This list
+    // stops at Grade 1, so none; once it names ICT's Grade 6-10 books (sync-sheet-lps --books) those show.
     const grades = await invoke('/lp612/grades', { userId: 'gb-teacher' });
-    expect(grades.payload.grades).toEqual([{ grade: 6 }, { grade: 7 }]);
+    expect(grades.payload.grades).toEqual([]);
     const subjects = await invoke('/lp612/subjects', { userId: 'gb-teacher', grade: 7 });
     expect(subjects.payload.subjects).toEqual([{ subject: 'English' }]);
     await invoke('/lp612/grades', { userId: 'sector-teacher' });

@@ -193,13 +193,54 @@ describe('bd-5ls6qy.7 — /menu typed the way RTL text displayed it opens the me
   });
 
   test.each([
-    ['Attendance/menu'],   // a sentence, not a command
-    ['menu'],              // bare word: not a slash command (unchanged)
+    ['Attendance/menu'],   // the attendance door reads it (bd-2ym4ve keeps it there)
     ['lesson plan/'],      // not a command word
   ])('%j is NOT turned into a command', async (typed) => {
     // It falls through to the general chat, which this suite does not wire up; a throw
     // there is fine — the assertion is only that the menu door did not open.
     await handleTextMessage(MESSAGE, FROM, typed, teacher()).catch(() => {});
+    expect(MenuService.sendMenu).not.toHaveBeenCalled();
+  });
+});
+
+// bd-2ym4ve — operator, 11 Nov 2026: "If they don't use a / command, they just write menu, would it work? ...
+// If ... it's a single one or two words and it contains the word menu, the menu should open."
+describe('bd-2ym4ve — one or two words containing "menu" open the menu, the /menu door', () => {
+  const saved = process.env.MENU_KEYWORD_ROUTING;
+  afterEach(() => {
+    if (saved === undefined) delete process.env.MENU_KEYWORD_ROUTING;
+    else process.env.MENU_KEYWORD_ROUTING = saved;
+  });
+
+  test.each([
+    ['menu'], ['Menu'], ['menu?'], ['menue'], ['manu'], ['مینو'],
+    ['show menu'], ['menu please'], ['send manu'], ['مینو دکھائیں'], ['training menu'], ['/menu report'],
+  ])('%j opens the menu', async (typed) => {
+    await handleTextMessage(MESSAGE, FROM, typed, teacher());
+    expect(MenuService.sendMenu).toHaveBeenCalledTimes(1);
+    expect(MenuService.sendMenu.mock.calls[0][0]).toBe(FROM);
+  });
+
+  test('a pilot teacher on the app: "menu" gets the app link, the same door as "/menu"', async () => {
+    redirectIfFlagged.mockResolvedValue(true);
+    await handleTextMessage(MESSAGE, FROM, 'menu', teacher());
+    expect(redirectIfFlagged).toHaveBeenCalledWith('menu', expect.objectContaining({ reason: 'menu_command' }));
+    expect(MenuService.sendMenu).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['attendance menu'],                 // attendance door
+    ['coaching menu'],                   // coaching door
+    ['where is the menu'],               // a sentence: the classifier, as before
+    ['men'],                             // Roman Urdu "in", not the menu word
+  ])('%j does NOT open the main menu', async (typed) => {
+    await handleTextMessage(MESSAGE, FROM, typed, teacher()).catch(() => {});
+    expect(MenuService.sendMenu).not.toHaveBeenCalled();
+  });
+
+  test('MENU_KEYWORD_ROUTING=false puts the old behaviour back: a bare "menu" is not the command', async () => {
+    process.env.MENU_KEYWORD_ROUTING = 'false';
+    await handleTextMessage(MESSAGE, FROM, 'menu', teacher()).catch(() => {});
     expect(MenuService.sendMenu).not.toHaveBeenCalled();
   });
 });

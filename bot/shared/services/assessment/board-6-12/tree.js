@@ -221,6 +221,11 @@ function fill(first, second, want, rank = () => 0) {
       .filter((q) => { if (!(left.get(q.slot) > 0)) return false; left.set(q.slot, left.get(q.slot) - 1); return true; }));
     set(list.filter((q) => chosen.has(q)));
   });
+  // bd-qyi45h.8: a spare node keeps its old id, which a rewrite may have reused; clear it so stamp re-ids it
+  const taken = new Set(leavesOf(first || {}).map((l) => l.id));
+  eachList(first || {}, (list) => list.forEach((q) => { if (isObj(q)) taken.add(q.id); }));
+  const unId = (q) => { q.id = null; [...(q.or || []), ...(q.parts || [])].forEach((c) => { if (isObj(c)) unId(c); }); };
+  eachList(pick, (list) => list.forEach((q) => { if ([q.id, ...leavesOfNode(q).map((l) => l.id)].some((id) => id != null && taken.has(id))) unId(q); }));
   return topUp(first, pick, new Set(want.keys()));
 }
 

@@ -235,7 +235,9 @@ describe('an unwritten GB lesson is written on her tap in the app, like an ICT 6
 });
 
 describe("Grades 6-12: a GB teacher gets ICT's 6-12 shelf (GB has no 6-12 book)", () => {
+  // bd-qchgya — her book list decides which 6-12 grades she sees, so this list names ICT's Grade 6 book.
   test('grades and subjects are ICT\'s, not empty', async () => {
+    TeacherBooks.bookKeysForUser.mockImplementation(async (id) => (id === GB ? [...GB_KEYS, 'grade_6_english'] : null));
     const g = await call('/lp612/grades', { userId: GB });
     expect(g.payload.grades.map((x) => x.grade)).toContain(6);
     const s = await call('/lp612/subjects', { userId: GB, grade: 6 });

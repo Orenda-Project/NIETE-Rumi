@@ -704,6 +704,15 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
     // everything else. Returns false for every other handset.
     if (await StudentIngress.route({ message, messageType, messageBody, from, user })) return;
 
+    // bd-ik5e8j.5 (queue #85) — the first-touch how-to film. Here, after the user lookup and the child check and
+    // before routing by type, so every message a person sends passes it once (statuses and request_welcome never
+    // reach this line). Film 1 goes to a covered teacher on her first message, then her message is handled as
+    // today; it never throws and waits at most SEND_TIMEOUT_MS (howto-first-touch.service). Off unless the
+    // howto_first_touch switch covers her.
+    if (user) {
+      await require('./shared/services/howto-first-touch.service').maybeSendHowtoFirstTouch({ user, from, correlationId });
+    }
+
     // Route to appropriate handler based on message type
     if (messageType === 'text' && messageBody) {
       await handleTextMessage(message, from, messageBody, user);
@@ -1951,6 +1960,10 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
         } catch (observe2Err) {
           logToFile('❌ observe2 completion handler failed', { from, error: observe2Err.message }, 'error');
         }
+      } else if (flowType === 'obs612') {
+        // bd-pni007: FDE's grade 6-12 form closed. The endpoint saved every screen and, on Submit, sent the coach's
+        // summary; this branch only claims the completion so it never lands on the generic catch-all below.
+        logToFile('📝 Detected FDE (obs612) form completion', { from, outcome: responseJson.obs612 || null, formId: responseJson.form_id || null });
       } else if (flowType === 'child_test_check') {
         // Child test: the coach's check of one child's marks. The endpoint saved each
         // block as its screen was submitted; this only confirms in one line (or says it did not save).
@@ -2117,6 +2130,15 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
         const Observe2Start = require('./shared/services/observe/observe2/start');
         const claimed = user ? await Observe2Start.handlePeriodButton(user, from, listId) : false;
         if (!claimed) logToFile('⚠️ /observe2 period row not handled', { listId, hasUser: !!user }, 'warn');
+        ack();
+        return;
+      }
+
+      // bd-pni007 — the lesson's class and subject (FDE's grade 6-12 tools, /observe and /observe2).
+      if (listId.startsWith('o612:')) {
+        const Obs612 = require('./shared/services/observe/obs612/visit');
+        const claimed = user ? await Obs612.handleTap(user, from, listId) : false;
+        if (!claimed) logToFile('⚠️ obs612 lesson row not handled', { listId, hasUser: !!user }, 'warn');
         ack();
         return;
       }

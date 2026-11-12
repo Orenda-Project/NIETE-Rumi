@@ -324,10 +324,12 @@ async function main(argv) {
 
   if (mode === 'books') {
     const Catalog = require('../shared/services/lp-v8-catalog.service');
-    const keys = Matrix.bookKeys(m, cfg, Catalog.shelf(null));
+    const supabase = require('../shared/config/supabase');
+    // bd-qchgya — ICT's 6-12 books for the grades this region borrows (GB: 6-10).
+    const { ict612Books } = require('./sheet-lps/ict612-books');
+    const keys = Matrix.bookKeys(m, cfg, Catalog.shelf(null), await ict612Books(supabase, cfg.ictGrades || []));
     report.result = { region: cfg.region, book_keys: keys, missing_ict_books: Matrix.bookKeys.lastMissing || [] };
     if (commit) {
-      const supabase = require('../shared/config/supabase');
       const { data, error } = await supabase.from('region_features')
         .update({ book_keys: keys, updated_at: new Date().toISOString() }).eq('region', cfg.region).select('region, book_keys');
       if (error) throw new Error(`writing region_features.book_keys: ${error.message}`);

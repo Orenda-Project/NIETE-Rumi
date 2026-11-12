@@ -72,7 +72,7 @@ export function TrainingHub() {
   );
 
   return (
-    <TrainingPageV2 crumb={C.home} title={C.title} backTo={teacherPath('home')} context={context}>
+    <TrainingPageV2 crumb={C.home} title={C.title} backTo={teacherPath('home')} context={context} help="training">
       <LoadState loading={loading} failed={failed} onRetry={retry} />
 
       {nothing ? <EmptyNote>{C.nothingYet}</EmptyNote> : null}

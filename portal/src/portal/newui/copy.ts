@@ -300,6 +300,7 @@ export const ASSESSMENT_COPY = {
     TRUNCATED: 'Too many questions',
     MODEL_UNAVAILABLE: 'Busy now',
     BAD_JSON: 'Came out wrong',
+    TOO_MANY_FLAWS: 'Too many weak questions',
     NO_QUESTIONS: 'No questions written',
     RENDER_FAILED: 'File not made',
     UPLOAD_FAILED: 'Not saved',

@@ -46,18 +46,54 @@ function fail(where, error, extra) {
   return { ok: false, error: error && (error.message || String(error)) };
 }
 
-async function createForm({ observerUserId, teacherUserId = null, visitContext = {} }) {
+// The rubric is decided here, once per visit, from the coach switch (observe2/rubric.js, bd-ra8xu.38): v5 unless
+// fico_coach_rubric selects v6 for this coach. `observerRegion` is users.region when the caller has it.
+async function createForm({ observerUserId, teacherUserId = null, visitContext = {}, observerRegion }) {
+  const { rubricForNewVisit } = require('./rubric');
+  const rubricVersion = await rubricForNewVisit({ observerUserId, region: observerRegion, teacherUserId });
   const { data, error } = await supabase.from('observation_field_forms')
     .insert({
       observer_user_id: observerUserId,
       teacher_user_id: teacherUserId,
       visit_context: visitContext,
-      rubric_version: RUBRIC_VERSION,
+      rubric_version: rubricVersion,
     })
     .select('*')
     .single();
   if (error) return fail('createForm', error, { observerUserId });
   return { ok: true, form: data };
+}
+
+// bd-pni007 — an FDE (obs612) visit's form made at capture by /observe (observe/obs612/visit.js): the recording's
+// session is already known, so the row is born linked, and its rubric is the obs612 id the coach's class named.
+// It is never an /observe2 capture candidate (findOpenFormForCapture skips linked rows).
+async function createLessonForm({ observerUserId, teacherUserId = null, sessionId, rubricVersion, visitContext = {} }) {
+  const { data, error } = await supabase.from('observation_field_forms')
+    .insert({
+      observer_user_id: observerUserId,
+      teacher_user_id: teacherUserId,
+      coaching_session_id: sessionId,
+      rubric_version: rubricVersion,
+      visit_context: visitContext,
+    })
+    .select('*')
+    .single();
+  if (error) return fail('createLessonForm', error, { observerUserId, sessionId });
+  return { ok: true, form: data };
+}
+
+// bd-pni007 — the lesson the coach named on an /observe2 visit (obs612 switch on): its rubric (an obs612 id for
+// grades 6-12, the FICO stamp re-decided for grades 1-5) and the class and subject, while the form is unsealed.
+// A key patched to undefined is dropped (JSON).
+async function setLesson(current, { rubricVersion, visitContextPatch = {} } = {}) {
+  if (!current || !rubricVersion) return { ok: false };
+  const visitContext = JSON.parse(JSON.stringify({ ...(current.visit_context || {}), ...visitContextPatch }));
+  const { data, error } = await supabase.from('observation_field_forms')
+    .update({ rubric_version: rubricVersion, visit_context: visitContext })
+    .eq('id', current.id).is('sealed_at', null).select('*');
+  if (error) return fail('setLesson', error, { id: current.id });
+  if (!(data || []).length) return { ok: false, sealed: true };
+  return { ok: true, form: data[0] };
 }
 
 async function getForm(id) {
@@ -183,7 +219,7 @@ async function findOpenFormForCapture(observerUserId, now = Date.now()) {
 // The coach's newest form, whatever its state: half of "was the latest observation an /observe2 one?".
 async function latestFormOf(observerUserId) {
   const { data, error } = await supabase.from('observation_field_forms')
-    .select('id, created_at, coaching_session_id')
+    .select('id, created_at, coaching_session_id, visit_context')
     .eq('observer_user_id', observerUserId)
     .order('created_at', { ascending: false })
     .limit(1);
@@ -275,7 +311,7 @@ async function markChecked(current, finalLevels, patch) {
 
 module.exports = {
   TABLE, RUBRIC_VERSION, LINK_WINDOW_HOURS, PART_KEYS, pick, isHeld,
-  createForm, getForm, setPeriod, markOpened, savePart, savePlan, saveUpload, savePhotoChoice, seal, setPhotos,
+  createForm, createLessonForm, setLesson, getForm, setPeriod, markOpened, savePart, savePlan, saveUpload, savePhotoChoice, seal, setPhotos,
   findOpenFormForCapture, latestFormOf, nameTeacher, linkSession, unlinkSession, findBySession, formsForSessions,
   setMoments, setRumiMoments, saveReview, markChecked,
 };

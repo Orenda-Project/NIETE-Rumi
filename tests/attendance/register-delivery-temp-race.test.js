@@ -83,7 +83,8 @@ function db() {
         select: () => ({
           eq: (_col, val) => ({
             maybeSingle: async () => ({ data: PRINCIPALS[val] || null, error: null }),
-            eq: () => ({ order: async () => ({ data: [], error: null }) }),
+            // loadStaffRoster: .eq('school_id').eq('role').is('deleted_at', null).order()
+            eq: () => { const q = { is: () => q, order: async () => ({ data: [], error: null }) }; return q; },
           }),
         }),
       };

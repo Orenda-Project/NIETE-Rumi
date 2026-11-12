@@ -2341,7 +2341,10 @@ function lp612Route(name, handler) {
 // through her curriculum and the serving guard (lp612-gb-delivery refusesCurriculum) already allows. The WhatsApp
 // Flow's polite Grade 6+ refusal (pakistan-lp-endpoint) is unchanged: prod redirects lesson asks to the app.
 router.post('/lp612/grades', requireInternalKey, lp612Route('grades', async (Browse, req, res) => {
-  const grades = await Browse.listGrades(...curriculumArgs(await teacherCurriculum(req.body)));
+  const all = await Browse.listGrades(...curriculumArgs(await teacherCurriculum(req.body)));
+  // bd-qchgya — only the grades her region's book list covers (GB: up to 10, never 11-12). No list: every grade.
+  const [shelf] = await shelfArgs(req.body);
+  const grades = shelf ? all.filter((g) => TeacherBooks.gradeCovered(Number(g && typeof g === 'object' ? g.grade : g), shelf)) : all;
   return res.json({ success: true, grades });
 }));
 
@@ -2354,7 +2357,11 @@ router.post('/lp612/subjects', requireInternalKey, lp612Route('subjects', async 
   const grade = num((req.body || {}).grade);
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
 
-  const subjects = await Browse.listSubjects(grade, ...curriculumArgs(await teacherCurriculum(req.body)));
+  const opts = curriculumArgs(await teacherCurriculum(req.body))[0] || {};
+  // bd-la9f5e — with a region list, only the ICT 6-12 books on it (GB: no Zarai Taleem). ICT: unchanged call.
+  const [bookKeys] = await shelfArgs(req.body);
+  const args = bookKeys ? [{ ...opts, bookKeys }] : curriculumArgs(opts.curriculum);
+  const subjects = await Browse.listSubjects(grade, ...args);
   return res.json({ success: true, subjects });
 }));
 

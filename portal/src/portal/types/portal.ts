@@ -1,3 +1,5 @@
+import type { Obs612Summary } from "../lib/obs612";
+
 export interface User {
   firstName: string;
   lastName: string;
@@ -211,6 +213,8 @@ export interface VideoRecommendation {
 
 export interface SessionDetail extends CoachingSession {
   status?: string;
+  /** bd-ra8xu.43 — the rubric this session was scored with, from what was stored (e.g. "FICO V3"); null when none. */
+  rubric?: string | null;
   /** HER lesson recording. Present on 100% of sessions, never served before. */
   lessonAudioUrl?: string | null;
   /** The coach's spoken feedback — what the "Session Recording" player used to play. */
@@ -238,6 +242,8 @@ export interface SessionDetail extends CoachingSession {
   video_recommendation?: VideoRecommendation | null;
   reflection?: ReflectionEntry[];
   prioritizedAction?: PrioritizedAction | null;
+  /** bd-pni007 — an FDE visit: its block, shown instead of the FICO report body; null for every other session. */
+  obs612?: Obs612Summary | null;
   analysisData: AnalysisData;
 }
 
