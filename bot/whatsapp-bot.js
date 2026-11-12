@@ -125,6 +125,8 @@ async function handleBroadcastStatusWebhook(statuses) {
         await require('./shared/services/quiz/report-delivery').onFailedStatus(status);
         // Meta refused a free-form send past her 24h window (131047): the next report/quiz goes as a template. Never throws.
         await require('./shared/services/quiz/meta-window-cache.service').onFailedStatus(status);
+        // A file SHE sent that WhatsApp could not hand us (131052): one reply a day, resend as a Document. Never throws.
+        await require('./shared/services/inbound-media-failed.service').onFailedStatus(status);
         // Don't continue - let it fall through to potentially update broadcast_messages if needed
       }
 
