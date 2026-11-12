@@ -102,6 +102,14 @@
  *                           that carry it are marked test_intro.once; the words are unchanged, and a line of a part's own
  *                           (listening, every RDF part) is not marked.
  *
+ *   Round 13 (the Urdu reviewer, 12 Nov: a part the child cannot finish ends its subject), ONE app_settings row whose value
+ *   picks the meaning, read by two readers (R13_ALL, R13_EARLY), so the reviewer's answer is a data change:
+ *   sa_r13_whole_stop       "all" (or true): battery.ui.r13_whole_stop = 'all', round 7b's "not finished", a time-up included
+ *                           (a timed part whose minute ends before its last item, the story's minute); "early":
+ *                           battery.ui.r13_whole_stop = 'early', only a part the test ended early (the early-stop rule, the
+ *                           silence stop, a spoken question left unanswered). The engine applies it to the Whole battery
+ *                           only (the page's block full); RDF auto, RDF manual and the B-blocks keep their own rule.
+ *
  * Pure: applySwitches(battery, on) never changes its input.
  */
 const SWITCHES = {
@@ -136,7 +144,13 @@ const SWITCHES = {
   r10FluencyNoPractice: 'sa_r10_fluency_no_practice',
   // round 12
   r12IntroOnce: 'sa_r12_intro_once',
+  // round 13: one row, two readers (R13_ALL / R13_EARLY); the value picks the definition
+  r13WholeStopAll: 'sa_r13_whole_stop', r13WholeStopEarly: 'sa_r13_whole_stop',
 };
+/** sa_r13_whole_stop's value → which reader is ON (anything else: both OFF). */
+const R13_ALL = (v) => v === true || v === 'all';
+const R13_EARLY = (v) => v === 'early';
+const MATCH = { r13WholeStopAll: R13_ALL, r13WholeStopEarly: R13_EARLY };
 const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual', voiceGateV2: 'voice_gate_v2',
   compAllQuestions: 'comp_all_questions', cellPace: 'cell_pace',
   sectionRecording: 'section_recording', coachLastWord: 'coach_last_word', cellNextOnly: 'cell_next_only',
@@ -211,12 +225,15 @@ function applySwitches(input, on = {}) {
     return o;
   }).map(fluencyOff).map(introOnce);
   const ui = Object.keys(UI).filter((k) => on[k] === true);
+  // round 13: the Whole battery's definition of "not finished" (all wins if both readers answer ON)
+  const r13 = on.r13WholeStopAll === true ? 'all' : (on.r13WholeStopEarly === true ? 'early' : null);
+  if (r13) ui.push('r13WholeStop');
   // round 7b, the child's screens: the lines and the T clip their switches add (sa-r7a-content.js); none when OFF
   if (!ui.length) return applyR7a({ ...battery, tasks }, on);
   // round 7b, sa_silence_repeat: Jugnu's reminder line in the battery's own language
   const line = on.silenceRepeat === true ? SILENCE_LINE[battery.lang] : null;
   const lines = line ? { ...(battery.lines || {}), silence_repeat: { ...line } } : null;
-  return applyR7a({ ...battery, tasks, ...(lines ? { lines } : {}), ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => [UI[k], true])) } }, on);
+  return applyR7a({ ...battery, tasks, ...(lines ? { lines } : {}), ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => (k === 'r13WholeStop' ? ['r13_whole_stop', r13] : [UI[k], true]))) } }, on);
 }
 
-module.exports = { SWITCHES, applySwitches };
+module.exports = { SWITCHES, MATCH, R13_ALL, R13_EARLY, applySwitches };
