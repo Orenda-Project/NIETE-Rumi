@@ -146,6 +146,13 @@
     "sentinels": 0,
     "catalog": 0
   },
+  "niete:services/assessment/board-6-12/genre-presence.js": {
+    "ternaries": 0,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
   "niete:services/assessment/composition-criteria.js": {
     "ternaries": 0,
     "inlineMaps": 8,
