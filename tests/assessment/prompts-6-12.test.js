@@ -203,6 +203,10 @@ describe('r10 board section rules (bd-5jmnfj.38.30): blind-panel 2s', () => {
   it('the MCQ key does not stand out: not the longest option, no always/never', () => {
     expect(t).toMatch(/key is never the longest option[^\n]*always[^\n]*never/i);
   });
+  it('bd-qyi45h.4: all options about the same length and detail; the key never the longest or most detailed', () => {
+    expect(t).toMatch(/MCQ[^\n]*all four options about the same length and detail/i);
+    expect(t).toMatch(/key is never the longest option[^\n]*never the most detailed/i);
+  });
   it('every item of a stimulus group needs the stimulus', () => {
     expect(t).toMatch(/every item in a stimulus group needs the stimulus/i);
   });
