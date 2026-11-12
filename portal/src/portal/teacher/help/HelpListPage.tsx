@@ -12,12 +12,24 @@ import { HelpTray } from './HelpButton';
 import { useVideoName } from './names';
 import { markHelpSeen, type HelpVideo } from './api';
 import { useHelp } from './useHelp';
-import { PlayCircle } from 'lucide-react';
+import nieteLogo from '@/assets/niete-logo.png';
 
 /**
  * bd-ik5e8j.4 — More → How to use: every help video for her role, in the manifest's order (Film 1 first, then Home's
  * order). Empty until the films are uploaded: "Videos coming soon". Switch off: back to More (no dead page).
  */
+/**
+ * bd-ik5e8j.6 — each film's icon, the app's own (the operator, 12 Nov: "we need icons for these"): Film 1 (how to use
+ * NIETE) the NIETE mark from Home's band, every other film its feature's Home tile art. Decorative: the row's words
+ * name the film.
+ */
+function FilmIcon({ feature }: { feature: string }) {
+  if (feature === 'start') {
+    return <img src={nieteLogo} alt="" aria-hidden="true" data-help-art="start" className="h-[34px] w-[34px] object-contain" />;
+  }
+  return <FeatureArt feature={feature as AnyFeature} size={40} />;
+}
+
 export default function HelpListPage() {
   const C = useCopy(TEACHER_FRAME);
   const H = useCopy(HELP);
@@ -38,7 +50,7 @@ export default function HelpListPage() {
               key={`${v.feature}-${i}`}
               variant="row"
               first={i === 0}
-              glyph={v.feature === 'start' ? <PlayCircle className="h-6 w-6" aria-hidden="true" /> : <FeatureArt feature={v.feature as AnyFeature} size={30} />}
+              glyph={<FilmIcon feature={v.feature} />}
               label={name(v.feature)}
               chip={v.seconds ? { text: H.length(v.seconds), tone: 'info' } : undefined}
               onPress={() => { setOpen(v); markHelpSeen(); }}
