@@ -13,14 +13,15 @@ const megabytes = (b: number) => `${Math.max(1, Math.round(b / 1_000_000))} MB`;
 export const HELP_COPY = {
   /** The "?"'s name for a screen reader. */
   help: 'Help',
-  howTo: 'How to use',
+  /** The operator, 12 Nov 2026 (bd-ik5e8j.6): "How to Use might be a better name". */
+  howTo: 'How to Use',
   watch: 'Watch video',
   smaller: 'Play a smaller copy',
   comingSoon: 'Video coming soon',
   allComingSoon: 'Videos coming soon',
   allVideos: 'All videos',
   /** Film 1's name in the list: how to use NIETE itself. */
-  start: 'How to use NIETE',
+  start: 'How to Use NIETE',
   length: (s: number) => clock(s),
   size: (b: number) => megabytes(b),
 };
