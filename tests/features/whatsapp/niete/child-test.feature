@@ -1000,6 +1000,24 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the coach's End test or End this section is never this rule
     And with sa_incomplete_move_on off, or in RDF manual, the runner moves on as before
 
+  # Round 13b: one unanswered spoken question no longer ends the subject; N in a row do (sa_r13_oral_rule = N).
+  # @no-mock-driver: the rule runs on the child's page (a browser, not the WhatsApp bot the mock lane drives).
+  # Covered by dashboard/tests/sa-r13-oral-rule.service.test.js (the real engine, runner and UI on jsdom).
+  @e2e @wip @draft @no-mock-driver @config-gated @P1 @CT173
+  Scenario Outline: A spoken part ends the subject only after N unanswered questions in a row
+    Given sa_r13_oral_rule is 2 and a child is taking the Whole battery or RDF auto
+    When on "<part>" the questions run out with nobody pressing "I've answered" in the pattern "<pattern>"
+    Then <outcome>
+    And the stored answers still read "spoken"
+    Examples:
+      | part                | pattern                                      | outcome                                                                                       |
+      | Urdu listening      | one unanswered, then answered                | the part finishes and the next Urdu part starts; no incomplete_move_on event                  |
+      | Urdu listening      | two unanswered in a row                      | the part ends there and English starts; one incomplete_move_on event with in_a_row 2          |
+      | Urdu listening      | unanswered, answered, unanswered             | the part finishes and the next Urdu part starts                                               |
+      | Urdu listening      | the last two unanswered                      | the part finishes and the rest of Urdu is skipped                                             |
+      | the story questions | two unanswered in a row after the story ran out of time | the rest of Urdu is skipped and English starts                                     |
+      | a one-question part | its only question unanswered                 | the part finishes and the subject goes on                                                     |
+
 
 
   # ── Round 8 · offline ──
