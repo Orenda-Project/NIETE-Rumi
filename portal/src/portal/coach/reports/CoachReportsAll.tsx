@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { DateRangeBar, HistoryList, KpiTiles, type KpiItem } from "../../teacher/ui";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
 import { resolveRange } from "../../teacher/ui/range";
-import { pkToday, type DateRange } from "../../newui/range";
+import { DEFAULT_RANGE, pkToday, type DateRange } from "../../newui/range";
 import { useCopy } from "../../teacher/i18n";
 import { LESSONS } from "../../teacher/lessons/copy";
 import { dayName } from "../../teacher/lessons/days";
@@ -17,23 +17,18 @@ import { useAllReports } from "./useAllReports";
 /**
  * bd-4404s7.5 — All Observations (Blueprint Coach_ReportsAll), from Recent Observations' See all:
  *
- *   DateRangeBar  All time by default (bd-97daxo.24: a GB coach's observations copied from old Rumi sat outside This
- *                 month, so his history looked missing); pick a range and the numbers compare with the same stretch
- *                 one step back
+ *   DateRangeBar  This month by default; the numbers compare with the same stretch one step back
  *   search        kept here, under the range: narrowing a month of observations to one of ~84 teachers by buttons is
  *                 the "a little complex" case (COACH.md §0)
  *   KpiTiles      Observations, Avg. HITL Score (a percentage), Waiting for you, Sent: each counted from the
  *                 reports the server returned, none invented
  *   the list      every observation in the range by Pakistan day
  */
-/** bd-97daxo.24 — the page opens on every observation she has; the range bar narrows it. */
-const OPENS_ON: DateRange = { key: "all" };
-
 export default function CoachReportsAll() {
   const C = useCopy(REPORTS);
   const { days } = useCopy(LESSONS);
   const kit = useKitCopy();
-  const [range, setRange] = useState<DateRange>(OPENS_ON);
+  const [range, setRange] = useState<DateRange>(DEFAULT_RANGE);
   const [q, setQ] = useState("");
 
   const span = useMemo(() => resolveRange(range, pkToday(), kit.months), [range, kit]);
