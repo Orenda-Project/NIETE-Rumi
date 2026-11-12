@@ -233,7 +233,7 @@ const PINNED: Pin[] = [
   { screen: "Assessment", path: "editPaper", ur: "پرچے میں ترمیم کریں" },
   { screen: "Analytics", path: "youWerePresent", ur: "حاضر" },
   { screen: "Analytics", path: "focus", ur: "توجہ طلب" },
-  { screen: "Lesson Plans", path: "aboutTwoMinutes", ur: "تقریباً 2 منٹ" },
+  { screen: "Lesson Plans", path: "expectedWait", ur: "تقریباً 5 منٹ" },
   { screen: "kit (shared components)", path: "notify.more(4)", ur: "مزید 4" },
   { screen: "kit (shared components)", path: "notify.timeLeft(4)", ur: "تقریباً 4 منٹ باقی" },
   // PM is any time after noon: شام is wrong for a 1:30 PM class; بعد دوپہر is right for every PM hour.
