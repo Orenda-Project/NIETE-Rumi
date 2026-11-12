@@ -107,10 +107,12 @@ function recentPlans({ userId }) {
 // The debrief guide is one model call on its first open (the WhatsApp path's).
 const GUIDE_TIMEOUT_MS = 100_000;
 
-/** @param {{userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan}} args */
-function startObservation({ userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan }) {
-  return post('observe/start', { userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan });
+/** @param {{userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson}} args */
+function startObservation({ userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson }) {
+  return post('observe/start', { userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson });
 }
+/** bd-ra8xu.40 — whether Check and send asks the lesson's class (and subject): FDE's switch for this coach. */
+function observeLessonQuestion({ userId }) { return post('observe/lesson-question', { userId }); }
 /** HER recent plans — for the teacher being observed. */
 function observeRecentPlans({ userId, teacherExtId, schoolExtId }) {
   return post('observe/recent-plans', { userId, teacherExtId, schoolExtId });
@@ -146,7 +148,7 @@ function liveTaps({ userId, coachingSessionId, taps }) { return post('live/taps'
 module.exports = {
   presignUpload, startSession, submitReflection, answerClassCheck, recentPlans,
   pendingRecordings, checkDuplicate, // bd-c5reix
-  startObservation, observeRecentPlans, listObservations, observationView, getObservationDraft,
+  startObservation, observeLessonQuestion, observeRecentPlans, listObservations, observationView, getObservationDraft,
   saveObservationDraft, observationTalkGuide, startObservationTalk, retryObservationTalk,
   previewObservationReport, sendObservationReport,
   liveEligible, liveCard, liveKey, liveDetect, liveEnd, liveTaps,

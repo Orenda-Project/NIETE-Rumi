@@ -3278,8 +3278,12 @@ function portalObserveRoute(name, run) {
 router.post('/coaching/observe/start', requireInternalKey, portalObserveRoute('observe-start',
   (Svc, b) => Svc.startPortalObservation({
     userId: b.userId, teacherExtId: b.teacherExtId, schoolExtId: b.schoolExtId, key: b.key,
-    lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys, lessonPlan: b.lessonPlan,
+    lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys, lessonPlan: b.lessonPlan, lesson: b.lesson,
   })));
+
+/** POST /api/internal/coaching/observe/lesson-question  Body { userId } — does Check and send ask the class? (bd-ra8xu.40) */
+router.post('/coaching/observe/lesson-question', requireInternalKey, portalObserveRoute('observe-lesson-question',
+  (Svc, b) => Svc.lessonQuestion({ userId: b.userId })));
 
 /** POST /api/internal/coaching/observe/recent-plans  Body { userId, teacherExtId, schoolExtId? } — HER recent plans. */
 router.post('/coaching/observe/recent-plans', requireInternalKey, portalObserveRoute('observe-recent-plans',
