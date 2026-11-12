@@ -697,7 +697,7 @@ export default function LeaderAssess() {
     ...children.filter(elsewhere).map((c) => ({ drawId: c.drawId, name: firstNameOf(c, lang), state: 'other' as const })),
   ];
   const bar = (
-    <AssessVisitBar copy={copy} done={doneKids.length} total={Math.max(LIST_SIZE, children.filter((c) => !isMarkedOut(c)).length)} startedAt={startedAt} sync={sync} />
+    <AssessVisitBar copy={copy} done={doneKids.length} total={Math.max(list?.perVisit ?? LIST_SIZE, children.filter((c) => !isMarkedOut(c)).length)} startedAt={startedAt} sync={sync} />
   );
 
   const canGoBack = step.kind !== 'schools' && step.kind !== 'engine';
@@ -1034,7 +1034,7 @@ export default function LeaderAssess() {
           </div>
         ) : <p data-testid="assess-rdf-mic" className="text-sm text-slate-600">{copy.rdfNeedsMic}</p>)}
         {isRdf(step.block) && rdfOthers > 0 && (
-          <p data-testid="assess-rdf-five" role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{copy.rdfFive}</p>
+          <p data-testid="assess-rdf-five" role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{list?.perVisit && list.perVisit < LIST_SIZE ? copy.rdfFew(list.perVisit) : copy.rdfFive}</p>
         )}
         {moved && moved === step.block && (
           <p data-testid="assess-block-moved" role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{copy.blockMoved(copy.blocks[moved])}</p>
