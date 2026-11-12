@@ -39,7 +39,7 @@ describe('the v6 guide prompt (ur/en)', () => {
       });
 
       test('grounds the praise in the strongest final level', () => {
-        const line = p.split('\n').find((l) => l.includes('"went_well"') && l.includes('praise'));
+        const line = p.split('\n').find((l) => l.startsWith('- The first "went_well" item'));
         expect(line).toContain(`"${V6.indicator('C6').name}"`);
         expect(line).toContain(RUMI.C6[3]);
       });
