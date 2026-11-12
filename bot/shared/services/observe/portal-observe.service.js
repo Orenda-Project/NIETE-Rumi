@@ -595,6 +595,8 @@ async function getDraft({ userId, coachingSessionId }, deps) {
   const d = withDefaults(deps);
   const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
+  const fde = require('./obs612/portal'); // bd-ra8xu.40 — an FDE (obs612) visit: FDE's form, its own module
+  if (fde.isFdeSession(row)) return fde.portalDraft({ userId, row });
   if (!READABLE_STATUSES.includes(row.status)) return notReady('not_ready');
   const editable = EDITABLE_STATUSES.includes(row.status) && !REPORT_OUT.includes(deliveryOf(row).status);
 
@@ -766,10 +768,12 @@ function v6Refusals(analysis, edits, S) {
 }
 
 /** Apply her edits — the MEWAKA Flow's keys, through the MEWAKA Flow's save. */
-async function saveDraft({ userId, coachingSessionId, edits }, deps) {
+async function saveDraft({ userId, coachingSessionId, edits, submit = false }, deps) {
   const d = withDefaults(deps);
   const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
+  const fde = require('./obs612/portal'); // bd-ra8xu.40 — an FDE (obs612) visit: save / Submit FDE's form, no WhatsApp
+  if (fde.isFdeSession(row)) return fde.portalSave({ userId, row, edits, submit: submit === true });
   if (!EDITABLE_STATUSES.includes(row.status)) return notReady('not_ready');
   if (REPORT_OUT.includes(deliveryOf(row).status)) return notReady('report_sent');
 
