@@ -120,6 +120,7 @@ const lessonsOf = (row) => row.context.classes.flatMap((c) => c.lessons.map((l) 
 beforeEach(() => {
   jest.clearAllMocks();
   mockStore = makeStore();
+  Offer.forgetEmptyDays();   // bd-xxl9i: these tests reuse one date
   process.env.LP_QUIZ_OFFER_ENABLED = 'true';
   process.env.LP_QUIZ_OFFER_SEND_HOUR_PKT = '15';
   process.env.LP_QUIZ_OFFER_SEND_MINUTE_PKT = '0';
