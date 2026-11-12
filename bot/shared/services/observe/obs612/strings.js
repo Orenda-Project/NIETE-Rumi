@@ -53,8 +53,8 @@ const SUBJECT_LABELS = {
 const STRINGS = {
   en: {
     class_body: (name) => (name
-      ? `Which class is *${name}*'s lesson? The class and subject choose the observation form: grades 1-5 get the FICO form, as today; grades 6-12 get FDE's own tool.`
-      : "Which class is this lesson? The class and subject choose the observation form: grades 1-5 get the FICO form, as today; grades 6-12 get FDE's own tool."),
+      ? `Which class is *${name}*'s lesson? The class and subject choose the observation form: grades 6-8 get FDE's own tool; grades 1-5 and 9-12 get the FICO form.`
+      : "Which class is this lesson? The class and subject choose the observation form: grades 6-8 get FDE's own tool; grades 1-5 and 9-12 get the FICO form."),
     class_button: 'Pick the class',
     class_section: 'Class',
     grade_primary: 'Grade 1-5',
@@ -82,8 +82,8 @@ const STRINGS = {
   },
   ur: {
     class_body: (name) => (name
-      ? `*${name}* کا یہ سبق کس جماعت کا ہے؟ جماعت اور مضمون سے مشاہداتی فارم طے ہوتا ہے: جماعت ۱ تا ۵ کے لیے FICO فارم، جیسے آج ہے؛ جماعت ۶ تا ۱۲ کے لیے ایف ڈی ای کا اپنا ٹول۔`
-      : 'یہ سبق کس جماعت کا ہے؟ جماعت اور مضمون سے مشاہداتی فارم طے ہوتا ہے: جماعت ۱ تا ۵ کے لیے FICO فارم، جیسے آج ہے؛ جماعت ۶ تا ۱۲ کے لیے ایف ڈی ای کا اپنا ٹول۔'),
+      ? `*${name}* کا یہ سبق کس جماعت کا ہے؟ جماعت اور مضمون سے مشاہداتی فارم طے ہوتا ہے: جماعت ۶ تا ۸ کے لیے ایف ڈی ای کا اپنا ٹول؛ جماعت ۱ تا ۵ اور ۹ تا ۱۲ کے لیے FICO فارم۔`
+      : 'یہ سبق کس جماعت کا ہے؟ جماعت اور مضمون سے مشاہداتی فارم طے ہوتا ہے: جماعت ۶ تا ۸ کے لیے ایف ڈی ای کا اپنا ٹول؛ جماعت ۱ تا ۵ اور ۹ تا ۱۲ کے لیے FICO فارم۔'),
     class_button: 'جماعت چنیں',
     class_section: 'جماعت',
     grade_primary: 'جماعت ۱ تا ۵',

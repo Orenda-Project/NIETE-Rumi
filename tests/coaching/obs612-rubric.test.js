@@ -90,8 +90,11 @@ describe('which tool a lesson gets (operator 11 Nov defaults)', () => {
     [6, 'maths', ['msci', null]],
     [7, 'science', ['msci', null]],
     [8, 'maths', ['msci', null]], // gap: FDE prints VI-VII
-    [9, 'maths', ['gen', null]], // gap: no IX-XII tool
-    [12, 'english', ['gen', null]],
+    // bd-ra8xu.40 (operator 12 Nov ~11:00): FDE's tools are for grades 6-8 only; 9-12 stays on FICO.
+    [9, 'maths', null],
+    [12, 'english', null],
+    [10, null, null],
+    [8, 'islamiat', ['gen', null]],
     [7, 'islamiat', ['gen', null]],
     [6, 'other', ['gen', null]],
     [6, null, ['gen', null]],
