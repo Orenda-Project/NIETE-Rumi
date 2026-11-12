@@ -73,14 +73,19 @@ async function isRetired(who = {}, now = Date.now()) {
 async function announceIfRetired(user, from) {
   const who = user && user.id ? { userId: user.id, ...(user.region !== undefined ? { region: user.region } : {}) } : {};
   if (!(await isRetired(who))) return false;
-  logToFile('🔭 /observe2 retired: opening /observe', { userId: user && user.id });
+  logToFile('🔭 /observe2 retired: opening /observe', { tk: ref(user && user.id) });
   if (!user || !isSchoolLeader(user)) return true;
   try {
     await WhatsAppService.sendMessage(from, observe2Strings(observeLang(user)).retired_notice);
   } catch (err) {
-    logToFile('❌ /observe2 retired: the notice did not send (opening /observe anyway)', { userId: user.id, error: err.message }, 'error');
+    logToFile('❌ /observe2 retired: the notice did not send (opening /observe anyway)', { tk: ref(user.id), error: err.message }, 'error');
   }
   return true;
+}
+
+// A log line carries the user's pseudonymous key, never the raw id (tests/setup/log-raw-ids.test.js). No key → null.
+function ref(userId) {
+  try { return require('../../quiz/web-quiz-kid').tk(userId); } catch (_) { return null; }
 }
 
 function _resetCache() { cache.reset(); }
