@@ -50,6 +50,10 @@ const ENV_OF = Object.freeze({
 });
 /** Meta: 132001 template does not exist (in that language), 132015 paused, 132016 disabled. */
 const TEMPLATE_GONE = Object.freeze([132001, 132015, 132016]);
+// bd-9br45q: Meta's transient refusals (2 'Service temporarily unavailable', 131000 'Something went wrong') get ONE
+// more try after a short wait; every other refusal is the answer the first time.
+const TRANSIENT = Object.freeze([2, 131000]);
+const TRANSIENT_WAIT_MS = 1500;
 /** The languages each share template is approved in, by these exact codes (not en_US). */
 const LANGS = Object.freeze(['en', 'ur']);
 const FSI = '⁨';
@@ -274,6 +278,7 @@ function defaultDeps() {
     },
     item: (kind, id, userId) => resolvers[kind](userId, id),
     now: () => new Date(),
+    wait: (ms) => new Promise((r) => setTimeout(r, ms)),
     sendTemplate: (...a) => WhatsAppService.sendTemplate(...a),
   };
 }
@@ -311,8 +316,14 @@ async function attemptShare({ userId, kind, id, clip }, d, seen) {
     const lang = LANGS.includes(user.preferred_language) ? user.preferred_language : 'en';
     seen.lang = lang;
     const components = componentsFor(item, { lang, buttonToken: clip ? clip.token : null });
-    const report = {};
-    const ok = (await d.sendTemplate(user.phone_number, name, lang, components, { report })) === true;
+    let report = {};
+    let ok = (await d.sendTemplate(user.phone_number, name, lang, components, { report })) === true;
+    if (!ok && !clip && TRANSIENT.includes(Number(report.code))) { // a clip send has its own fallback (the plain report)
+      try { logEvent('share_send.retry', { kind, userId, itemRef: item.itemRef || null, code: report.code }); } catch (_) { /* logging never decides */ }
+      await (d.wait || ((ms) => new Promise((r) => setTimeout(r, ms))))(TRANSIENT_WAIT_MS);
+      report = {};
+      ok = (await d.sendTemplate(user.phone_number, name, lang, components, { report })) === true;
+    }
     // itemRef names WHAT was shared (lesson:k5:<lessonId>:<assetKind> / lesson:<segmentId>:<lang> / paper:<id> / report:<id>), so a
     // share can be matched to the lesson-open or delivery record of the same item. Ids only, never a title or a phone.
     try { logEvent(ok ? 'share_send.sent' : 'share_send.refused', { kind, userId, itemRef: item.itemRef || null, template: name, lang, code: report.code || null, ...(clip ? { button: true } : {}) }); } catch (_) { /* logging never decides */ }
@@ -388,4 +399,4 @@ async function recordLessonShare({ userId, id, seen, out, askedAt }) {
   }
 }
 
-module.exports = { sendShare, availability, itemResolvers, componentsFor, templateNameFromEnv, KINDS, ENV_OF, TEMPLATE_GONE };
+module.exports = { sendShare, availability, itemResolvers, componentsFor, templateNameFromEnv, KINDS, ENV_OF, TEMPLATE_GONE, TRANSIENT };
