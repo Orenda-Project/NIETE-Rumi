@@ -341,6 +341,11 @@ async function listPatchViaSupabase(supabase, leaderUserId, schoolExtId = null) 
   const byId = new Map((schools || []).map((s) => [s.id, s]));
   if (!byId.size) return [];
 
+  // bd-97daxo.29: the holding key each school was reached by. A school with no EMIS (GB Hoto, Deosai, the Rumi QA
+  // test schools) is keyed by its name in leader_schools, and toLeaderSourceRow falls back to this key.
+  const holdingKey = new Map();
+  for (const h of wanted) if (h && h.school_id && h.school_ext_id && !holdingKey.has(h.school_id)) holdingKey.set(h.school_id, h.school_ext_id);
+
   const { data: people } = await supabase
     .from('users')
     .select('id, phone_number, name, role, school_id, teacher_level')
@@ -350,7 +355,10 @@ async function listPatchViaSupabase(supabase, leaderUserId, schoolExtId = null) 
 
   return dedupePatch((people || []).map((u) => {
     const s = byId.get(u.school_id) || {};
-    return shapePatchRow({ ...u, user_id: u.id, school_name: s.name, emis: s.emis });
+    return {
+      ...shapePatchRow({ ...u, user_id: u.id, school_name: s.name, emis: s.emis }),
+      schoolExtId: holdingKey.get(u.school_id) || null,
+    };
   }));
 }
 
@@ -372,7 +380,10 @@ function toLeaderSourceRow(p = {}) {
     // readable, tappable row for her coach rather than a blank title.
     teacher_name: p.displayName || displayNameOf(p) || null,
     teacher_phone_e164: p.phone || null,
-    school_ext_id: p.emis ? `niete:${p.emis}` : null,
+    // bd-97daxo.29: the portal's rule (bd-97daxo.22, leader-patch): COALESCE('niete:' || emis, the coach's holding
+    // key). 'niete:' + a null EMIS left an EMIS-less school's teachers under null, so the /observe school list said
+    // "0 teachers" for GB Hoto and Deosai while tapping the school listed them.
+    school_ext_id: p.emis ? `niete:${p.emis}` : (p.schoolExtId || null),
     level: p.band ? String(p.band).toUpperCase() : null,
     is_principal: !!p.isPrincipal,
   };
