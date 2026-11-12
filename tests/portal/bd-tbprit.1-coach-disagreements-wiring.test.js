@@ -8,6 +8,7 @@ const { COACH_DISAGREEMENT_CARD_KEY } = require('../../dashboard/lib/feature-fla
 
 let settings;
 const inserted = []; // bd-whlsm0: rows the routes insert, as [table, row]
+let userRole; // bd-370733: the users row's role, when a test sets one (else there is no users row)
 function makeChain(table) {
   let key = null;
   const chain = {
@@ -16,8 +17,11 @@ function makeChain(table) {
     eq: (_col, val) => { key = val; return chain; },
     order: () => chain,
     limit: () => chain,
-    maybeSingle: async () => (table === 'app_settings' && Object.prototype.hasOwnProperty.call(settings, key)
-      ? { data: { value: settings[key] }, error: null } : { data: null, error: null }),
+    maybeSingle: async () => {
+      if (table === 'users' && userRole !== undefined) return { data: { role: userRole }, error: null };
+      return (table === 'app_settings' && Object.prototype.hasOwnProperty.call(settings, key)
+        ? { data: { value: settings[key] }, error: null } : { data: null, error: null });
+    },
   };
   chain.single = chain.maybeSingle;
   return chain;
@@ -104,8 +108,36 @@ describe('coach Report an issue wiring (bd-whlsm0)', () => {
     let sent = null;
     const res = { status() { return this; }, json(v) { sent = v; return this; }, set() { return this; } };
     inserted.length = 0;
-    await handlers[handlers.length - 1]({ coachId: 'coach-1', body: { kind: 'idea', message: ' More tiles ', page: '/portal/coach/more' } }, res);
+    userRole = 'coach';
+    try {
+      await handlers[handlers.length - 1]({ coachId: 'coach-1', body: { kind: 'idea', message: ' More tiles ', page: '/portal/coach/more' } }, res);
+    } finally { userRole = undefined; }
     expect(sent).toEqual({ success: true });
-    expect(inserted).toEqual([['coach_feedback', { user_id: 'coach-1', kind: 'idea', message: 'More tiles', page: '/portal/coach/more' }]]);
+    // bd-370733: who sent it, from users.role
+    expect(inserted).toEqual([['coach_feedback', { user_id: 'coach-1', kind: 'idea', message: 'More tiles', page: '/portal/coach/more', context: { role: 'coach' } }]]);
+  });
+
+  test('bd-370733: POST /report-issue is served for any signed-in user (the sign-in check only) into the same table', async () => {
+    const routes = loadRoutes();
+    let layer = null;
+    const walk = (stack) => stack.forEach((l) => {
+      if (l.route && l.route.path === '/report-issue' && l.route.methods.post) layer = l;
+      else if (l.handle && l.handle.stack) walk(l.handle.stack);
+    });
+    walk(routes.stack);
+    expect(layer).not.toBeNull();
+    const handlers = layer.route.stack.map((x) => x.handle);
+    // requirePortalAuth, the session user, the body parser, the store: no coach-app guard
+    expect(handlers).toHaveLength(4);
+    expect(handlers[0]).toBe(require('../../dashboard/lib/portal-auth').requirePortalAuth);
+    let sent = null;
+    const res = { status() { return this; }, json(v) { sent = v; return this; }, set() { return this; } };
+    inserted.length = 0;
+    userRole = 'teacher';
+    try {
+      await handlers[3]({ coachId: 'teacher-1', body: { kind: 'numbers', message: 'Attendance shows 0', page: '/portal/teacher/more' } }, res);
+    } finally { userRole = undefined; }
+    expect(sent).toEqual({ success: true });
+    expect(inserted).toEqual([['coach_feedback', { user_id: 'teacher-1', kind: 'numbers', message: 'Attendance shows 0', page: '/portal/teacher/more', context: { role: 'teacher' } }]]);
   });
 });

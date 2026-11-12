@@ -46,7 +46,8 @@ describe('coach Report an issue', () => {
     expect(r.status).toBe(200);
     expect(r.body).toEqual({ success: true });
     expect(r.headers['cache-control']).toBe('private, no-store');
-    expect(saved).toEqual([{ userId: 'me', kind: 'numbers', message: '8/21 does not match my visits', page: '/portal/coach/teacher/923000000001?period=month' }]);
+    // bd-370733: `role` is the reporter's (null here: this app injects no roleOf).
+    expect(saved).toEqual([{ userId: 'me', kind: 'numbers', message: '8/21 does not match my visits', page: '/portal/coach/teacher/923000000001?period=month', role: null }]);
   });
 
   it('the coach is the session user, never an id in the body', async () => {
