@@ -162,11 +162,13 @@ const CoachObservation = () => {
             // ("Class recording", Digital Coaching's), with no ring and no score line; no recording, no card.
             if (!routes.showScores) return data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} /> : null;
             // bd-pni007 — an FDE visit has no FICO score: the lesson (if recorded), then FDE's own result.
-            if (data.obs612) {
+            // bd-ra8xu.40 — before Submit there is no result yet (the visit is FDE by its rubric): the lesson alone.
+            const fdeVisit = /^obs612-/.test(String(view?.rubric?.id || ""));
+            if (data.obs612 || fdeVisit) {
               return (
                 <>
                   {data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} /> : null}
-                  <Obs612Block o={data.obs612} />
+                  {data.obs612 ? <Obs612Block o={data.obs612} /> : null}
                 </>
               );
             }
