@@ -53,6 +53,10 @@ const REPORT_OUT = ['sent', 'awaiting_teacher_tap', 'operator_review'];
 // The keys the MEWAKA Flow submits (observe-mewaka-endpoint bufferEdits), and a
 // generous cap on any one answer (the Flow's TextArea allows 600).
 const EDIT_KEY_RX = /^(r|ev|imp|fid)_[A-Za-z0-9_]+$/;
+// bd-ra8xu.40 — and on a FICO17 v6 visit, the v6 review Flow's own keys too: why_<code> (a room level's reason),
+// chg_<C|D|F> (why one of Rumi's levels was changed), d2_children / d2_quiet_later (D2's counts). A V3 save never
+// carries them (byte-identical to before).
+const V6_EDIT_KEY_RX = /^(r|ev|imp|fid|why|chg|d2)_[A-Za-z0-9_]+$/;
 const EDIT_VALUE_CAP = 2000;
 
 // The coach's list: what she started in the portal in the last fortnight.
@@ -552,6 +556,8 @@ async function observationView({ userId, coachingSessionId }, deps) {
     problem: problem || null,
     preparing: !!preparing,
     portal: isPortalSession(row),
+    // bd-ra8xu.40 — the rubric this visit was scored with (framework + version only), in very small type.
+    rubric: require('../coaching/rubric-label').rubricLabelOf({ session: row }),
     teacher,
     lesson: { topic: ad.topic || null, subject: ad.subject || null, hasLessonPlan: !!row.has_lesson_plan },
     lessonPlan: planOf(row),
@@ -595,30 +601,72 @@ async function getDraft({ userId, coachingSessionId }, deps) {
   const pack = d.pack();
   const lang = await d.languageFor('coach', row);
   const fid = d.draft.fid || ((id) => String(id).replace(/\./g, '_'));
+  // bd-ra8xu.40 — the rubric this visit was scored with, in very small type on the page (framework + version only).
+  const rubric = require('../coaching/rubric-label').rubricLabelOf({ session: row });
+  // bd-ra8xu.40 — a FICO17 v6 visit is reviewed on the v6 Flow's screens, not V3's.
+  if (require('./observe-fico17-v6').visitFramework(row)) {
+    const b = draftSection(d, pack, 'lesson_plan_fidelity', row, lang, fid);
+    return {
+      status: 'ok',
+      kind: 'fico17_v6',
+      rubric,
+      minReason: require('../coaching/frameworks/fico17-v6').JUSTIFICATION_MIN,
+      scale: [],
+      fidelityScale: d.draft.FIDELITY_VERDICT_OPTIONS || [],
+      sections: [...(b ? [b.section] : []), ...v6Sections(row.analysis_data || {})],
+      saved: row.status === 'observer_review_complete',
+      editable,
+    };
+  }
   let scale = pack.scaleOptions || null;
   const sections = pack.domainOrder.map((domainKey) => {
-    const spec = pack.domains[domainKey];
-    const prefill = d.draft.buildScreenPrefill(row.analysis_data, domainKey, lang) || {};
-    if (!scale && prefill.scale) scale = prefill.scale;
-    const head = { key: domainKey, letter: spec.key, title: spec.title };
-    if (Object.prototype.hasOwnProperty.call(prefill, 'fr_1')) {
-      // The editable Section B (OBSERVE_FICO_FLOW_HAS_FIDELITY=editable): per move.
-      const moves = [];
-      for (let k = 1; k <= (d.draft.MAX_MOVE_SLOTS || 0); k += 1) {
-        if (prefill[`mv_${k}_v`]) {
-          moves.push({ k, plan: prefill[`mv_${k}`], verdict: prefill[`fr_${k}`], evidence: prefill[`fe_${k}`] });
-        }
+    const out = draftSection(d, pack, domainKey, row, lang, fid);
+    if (!out) return null;
+    if (!scale && out.scale) scale = out.scale;
+    return out.section;
+  }).filter(Boolean);
+
+  return {
+    status: 'ok',
+    rubric,
+    scale: scale || [],
+    fidelityScale: d.draft.FIDELITY_VERDICT_OPTIONS || [],
+    sections,
+    saved: row.status === 'observer_review_complete',
+    editable,
+  };
+}
+
+/**
+ * One section of the review form with exactly what its Flow screen pre-fills (buildScreenPrefill), as the portal shows
+ * it. @returns {{section: object, scale: (Array|null)}|null}  null when the pack has no such section.
+ */
+function draftSection(d, pack, domainKey, row, lang, fid) {
+  const spec = pack.domains[domainKey];
+  if (!spec) return null;
+  const prefill = d.draft.buildScreenPrefill(row.analysis_data, domainKey, lang) || {};
+  const scale = prefill.scale || null;
+  const head = { key: domainKey, letter: spec.key, title: spec.title };
+  if (Object.prototype.hasOwnProperty.call(prefill, 'fr_1')) {
+    // The editable Section B (OBSERVE_FICO_FLOW_HAS_FIDELITY=editable): per move.
+    const moves = [];
+    for (let k = 1; k <= (d.draft.MAX_MOVE_SLOTS || 0); k += 1) {
+      if (prefill[`mv_${k}_v`]) {
+        moves.push({ k, plan: prefill[`mv_${k}`], verdict: prefill[`fr_${k}`], evidence: prefill[`fe_${k}`] });
       }
-      return { ...head, kind: 'moves', header: prefill.fid_header || '', fallback: prefill.fid_fallback || '', moves };
     }
-    // Read-only lines the Flow shows above the indicators on this screen, if any.
-    const notes = [];
-    if (prefill.has_fidelity && prefill.fidelity_summary) notes.push(prefill.fidelity_summary);
-    if (prefill.has_fidelity && prefill.fid_header) {
-      notes.push(prefill.fid_header);
-      for (let k = 1; k <= (d.draft.MAX_MOVE_SLOTS || 0); k += 1) if (prefill[`mv_${k}_v`]) notes.push(prefill[`mv_${k}`]);
-    }
-    return {
+    return { scale, section: { ...head, kind: 'moves', header: prefill.fid_header || '', fallback: prefill.fid_fallback || '', moves } };
+  }
+  // Read-only lines the Flow shows above the indicators on this screen, if any.
+  const notes = [];
+  if (prefill.has_fidelity && prefill.fidelity_summary) notes.push(prefill.fidelity_summary);
+  if (prefill.has_fidelity && prefill.fid_header) {
+    notes.push(prefill.fid_header);
+    for (let k = 1; k <= (d.draft.MAX_MOVE_SLOTS || 0); k += 1) if (prefill[`mv_${k}_v`]) notes.push(prefill[`mv_${k}`]);
+  }
+  return {
+    scale,
+    section: {
       ...head,
       kind: 'indicators',
       notes,
@@ -629,17 +677,92 @@ async function getDraft({ userId, coachingSessionId }, deps) {
           rating: prefill[`s_${f}`], evidence: prefill[`e_${f}`], improvement: prefill[`i_${f}`],
         };
       }),
+    },
+  };
+}
+
+// ── a FICO17 v6 visit's review (bd-ra8xu.40) ───────────────────────────────
+
+/**
+ * The coach's saved review as the v6 Flow's edit keys, so a saved visit re-opens on HER answers (her levels, reasons,
+ * D2 counts, change reasons, and the evidence as she submitted it), never Rumi's. null before the first save.
+ */
+function savedV6Edits(analysis) {
+  const review = analysis && analysis.fico17_v6_review;
+  if (!review || !review.levels) return null;
+  const v6 = require('../coaching/frameworks/fico17-v6');
+  const e = {};
+  for (const code of v6.CODES) {
+    const lv = review.levels[code] || {};
+    if (lv.level !== null && lv.level !== undefined) e[`r_${code}`] = String(lv.level);
+    if (v6.isCombined(code)) {
+      e[`why_${code}`] = lv.because || '';
+      continue;
+    }
+    const dom = ((analysis.domains || {})[v6.DOMAIN_OF[code]] || {}).indicators || [];
+    const row = dom.find((i) => i && i.id === code) || {};
+    // applyReview moved Rumi's text to rumi_evidence and left the coach's on the row (bd-ra8xu.46).
+    if (row.rumi_evidence !== undefined && typeof row.evidence === 'string') e[`ev_${code}`] = row.evidence;
+    if (typeof row.improvement_sw === 'string') e[`imp_${code}`] = row.improvement_sw;
+  }
+  for (const l of ['C', 'D', 'F']) e[`chg_${l}`] = (review.change_reasons || {})[l] || '';
+  const counts = review.d2_counts || null;
+  e.d2_children = counts ? String(counts.children) : '';
+  e.d2_quiet_later = counts ? String(counts.quiet_later) : '';
+  return e;
+}
+
+/**
+ * The v6 review's C/D/F sections, from the very prefill the v6 Flow serves (observe-fico17-v6.buildScreenPrefill):
+ *   one of Rumi's 11 (kind 'dc')    Rumi's level pre-filled (and kept as `rumi`, ringed on the page), Rumi's evidence
+ *                                   and "to improve" editable, 1-4 + N/A + Couldn't tell;
+ *   one of the six (kind 'combined') blank until the coach sets it from the room, the definition and Rumi's evidence
+ *                                   above it (read only), a reason; D2 also its two counts;
+ *   the section's change reason     required when one of Rumi's levels on it is changed.
+ */
+function v6Sections(analysis) {
+  const O = require('./observe-fico17-v6');
+  const v6 = require('../coaching/frameworks/fico17-v6');
+  const edits = savedV6Edits(analysis);
+  const opts = (code) => O.optionsFor(code).map((o) => ({ id: o.id, title: o.title, description: o.description || '' }));
+  return Object.values(v6.SECTIONS).map((sec) => {
+    const p = O.buildScreenPrefill(analysis, sec.key, { edits });
+    return {
+      key: sec.domain,
+      letter: sec.key,
+      title: sec.name,
+      kind: 'v6',
+      indicators: sec.codes.map((code) => {
+        const base = { id: code, field: code, name: v6.indicator(code).name, options: opts(code) };
+        if (v6.isCombined(code)) {
+          return {
+            ...base,
+            kind: 'combined',
+            body: p[`cb_${code}`] || '',
+            rating: (edits && edits[`r_${code}`]) || '',
+            why: p[`w_${code}`] || '',
+            ...(code === 'D2' ? { d2: { children: (edits && edits.d2_children) || '', quietLater: (edits && edits.d2_quiet_later) || '' } } : {}),
+          };
+        }
+        const rumi = O.rumiLevel(analysis, code);
+        return {
+          ...base,
+          kind: 'dc',
+          rumi: rumi === null ? null : String(rumi),
+          rating: p[`s_${code}`],
+          evidence: p[`e_${code}`] || '',
+          improvement: p[`i_${code}`] || '',
+        };
+      }),
+      changeReason: p[`wc_${sec.key}`] || '',
     };
   });
+}
 
-  return {
-    status: 'ok',
-    scale: scale || [],
-    fidelityScale: d.draft.FIDELITY_VERDICT_OPTIONS || [],
-    sections,
-    saved: row.status === 'observer_review_complete',
-    editable,
-  };
+/** The v6 Flow's refusals for the whole review (every C/D/F screen), as { field: message }; {} when it may be saved. */
+function v6Refusals(analysis, edits, S) {
+  const O = require('./observe-fico17-v6');
+  return O.LETTERS.reduce((all, l) => ({ ...all, ...O.validateScreen(`DOMAIN_${l}`, edits, analysis, S) }), {});
 }
 
 /** Apply her edits — the MEWAKA Flow's keys, through the MEWAKA Flow's save. */
@@ -650,9 +773,19 @@ async function saveDraft({ userId, coachingSessionId, edits }, deps) {
   if (!EDITABLE_STATUSES.includes(row.status)) return notReady('not_ready');
   if (REPORT_OUT.includes(deliveryOf(row).status)) return notReady('report_sent');
 
+  const isV6 = !!require('./observe-fico17-v6').visitFramework(row);
+  const keyRx = isV6 ? V6_EDIT_KEY_RX : EDIT_KEY_RX;
   const clean = {};
   for (const [k, v] of Object.entries(edits && typeof edits === 'object' ? edits : {})) {
-    if (EDIT_KEY_RX.test(k) && typeof v === 'string') clean[k] = v.slice(0, EDIT_VALUE_CAP);
+    if (keyRx.test(k) && typeof v === 'string') clean[k] = v.slice(0, EDIT_VALUE_CAP);
+  }
+  if (isV6) {
+    // bd-ra8xu.40 — the v6 Flow refuses a screen until its rules hold; the portal sends every screen at once, so the
+    // whole review is checked here, the reasons in the coach's language, and nothing is saved until it passes.
+    const O = require('./observe-fico17-v6');
+    const lang = await d.languageFor('coach', row);
+    const errors = v6Refusals(row.analysis_data || {}, clean, O.messages(lang));
+    if (Object.keys(errors).length) return { status: 'invalid', reason: 'v6_review', errors };
   }
   const summary = await d.draft.applyObserverEdits(coachingSessionId, clean);
   if (summary && summary.refused) return { status: 'not_ready', reason: 'terminal' };
