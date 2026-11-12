@@ -1,1 +1,2 @@
 {"ts":"2026-11-12T11:32:02Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"2f5deafb5d58","branch":"bd-9br45q-main","user":""}
+{"ts":"2026-11-12T16:02:47Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks engine=2.0.0","sha":"2f5deafb5d58","branch":"bd-9br45q-main","user":""}
