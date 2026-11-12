@@ -777,6 +777,8 @@ export type CoachFeedback = {
 
 export type CoachObservationView = {
   id: string;
+  /** bd-ra8xu.40 — the rubric this visit was scored with, framework + version only ("FICO17 v6"); absent from an older bot. */
+  rubric?: RubricLabel | null;
   createdAt: string | null;
   sessionStatus: string;
   step: ObserveStep;
@@ -808,11 +810,32 @@ export type DraftIndicator = {
   rating: string | undefined; evidence: string | undefined; improvement: string | undefined;
 };
 export type DraftMove = { k: number; plan: string; verdict: string; evidence: string };
+/** bd-ra8xu.40 — a level a FICO17 v6 indicator offers: "1".."4", "NA" or "IE", its short title and the rubric's words. */
+export type V6Option = { id: string; title: string; description?: string };
+/**
+ * bd-ra8xu.40 — one of the 17 on a FICO17 v6 review (the v6 Flow's screen, in the portal):
+ *   'dc'        one of Rumi's 11: `rumi` is his level (null when he had none), `rating` pre-filled, evidence editable;
+ *   'combined'  one of the six set from the room: `body` is the definition and Rumi's evidence (read only), blank
+ *               `rating` until set, a reason (`why`); D2 also its two counts.
+ */
+export type V6Indicator =
+  | { id: string; field: string; name: string; kind: 'dc'; options: V6Option[]; rumi: string | null; rating: string; evidence: string; improvement: string }
+  | { id: string; field: string; name: string; kind: 'combined'; options: V6Option[]; body: string; rating: string; why: string; d2?: { children: string; quietLater: string } };
 export type DraftSection =
   | { key: string; letter: string; title: string; kind: 'indicators'; notes: string[]; indicators: DraftIndicator[] }
-  | { key: string; letter: string; title: string; kind: 'moves'; header: string; fallback: string; moves: DraftMove[] };
-/** bd-15y1pc — `editable: false`: her answers, to read; the portal can no longer change them. Absent from an older bot. */
-export type ObservationDraft = { scale: DraftOption[]; fidelityScale: DraftOption[]; sections: DraftSection[]; saved: boolean; editable?: boolean };
+  | { key: string; letter: string; title: string; kind: 'moves'; header: string; fallback: string; moves: DraftMove[] }
+  | { key: string; letter: string; title: string; kind: 'v6'; indicators: V6Indicator[]; changeReason: string };
+/** The rubric a visit was scored with, framework + version only ("FICO17 v6"), shown in very small type. */
+export type RubricLabel = { id: string; label: string };
+/**
+ * bd-15y1pc — `editable: false`: her answers, to read; the portal can no longer change them. Absent from an older bot.
+ * bd-ra8xu.40 — `kind: 'fico17_v6'` for a FICO17 v6 visit (its C/D/F sections are kind 'v6', every reason at least
+ * `minReason` letters); `rubric` on every draft from a current bot.
+ */
+export type ObservationDraft = {
+  scale: DraftOption[]; fidelityScale: DraftOption[]; sections: DraftSection[]; saved: boolean; editable?: boolean;
+  kind?: 'fico17_v6'; rubric?: RubricLabel | null; minReason?: number;
+};
 
 // ── Assessment Generator types ────────────────────────────────────────────
 

@@ -185,6 +185,11 @@ const CoachObservation = () => {
               );
           })()}
 
+          {/* bd-ra8xu.40 — the rubric this visit was scored with, very small (an FDE block prints its own). */}
+          {!data.obs612 && view?.rubric?.label && (
+            <span data-testid="rubric-label" dir="ltr" className="self-end px-1 text-[10px] leading-none text-[#9ca3af]">{view.rubric.label}</span>
+          )}
+
           <LessonPlanRow lp={view?.lessonPlan} />
 
           {stopped ? (

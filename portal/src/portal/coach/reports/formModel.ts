@@ -1,4 +1,5 @@
 import type { DraftOption, DraftSection, ObservationDraft } from "../../services/api";
+import { initialV6Values } from "./v6Model";
 
 /**
  * bd-4404s7.5 — the Feedback Form's values: the SAME keys the WhatsApp review form submits, so the bot saves it through
@@ -16,6 +17,8 @@ export type Values = Record<string, string>;
 export function initialValues(draft: ObservationDraft): Values {
   const v: Values = {};
   for (const s of draft.sections) {
+    // bd-ra8xu.40 — a FICO17 v6 part: the v6 review Flow's own keys (v6Model.ts).
+    if (s.kind === "v6") { Object.assign(v, initialV6Values(s)); continue; }
     if (s.kind === "moves") {
       for (const m of s.moves) { v[`fid_r_${m.k}`] = m.verdict; v[`fid_e_${m.k}`] = m.evidence || ""; }
     } else {
