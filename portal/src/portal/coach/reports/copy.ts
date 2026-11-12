@@ -106,6 +106,43 @@ export const REPORTS_EN = {
   fixThese: "Fix these first",
   couldntTell: "Couldn't tell",
 
+  /*
+   * bd-ra8xu.40 — an FDE (obs612) visit's form (Obs612Form). FDE's own wording (its items, levels, headings and the
+   * labels it prints) comes from the API in English, as FDE printed it and as WhatsApp shows it; these words are ours.
+   */
+  fde: {
+    saveDraft: "Save draft",
+    saved: "Saved",
+    submit: "Submit",
+    submitTitle: "Submit the form",
+    noChangesAfter: "No changes after this",
+    yesSubmit: "Yes, submit",
+    submitted: "Submitted",
+    submitFailed: "Could not submit",
+    closed: "Observation cancelled",
+    missing: (n: number) => (n === 1 ? "1 answer missing" : `${n} answers missing`),
+    fixThese: "Fix the marked answers",
+    itemNo: (n: number) => `Item ${n}`,
+    comments: "Comments",
+    observations: "Observations",
+    feedbackLine: "Feedback for the teacher",
+    optional: "Optional",
+    clear: "Clear",
+    subs: { plan: "Development plan", second: "Second area, optional", feedback: "Feedback for the teacher" },
+    scoreSoFar: "Score so far",
+    rating: "Rating",
+    notScored: "Not scored",
+    /** The bot's check, by code (obs612/form-model.js checkScreen): what each refused field needs. */
+    errors: {
+      item: "Choose an answer",
+      choice: "Choose one",
+      text: "Write a few words",
+      number: "A whole number",
+      row_two: "Fill this in too",
+      same_area: "Pick another area",
+    },
+  },
+
   /* the Debrief */
   debriefTitle: "Debrief",
   aboutTenMinutes: "~10 min",
@@ -273,6 +310,40 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   sayWhyNumber: "گنتی اور سطح مختلف",
   fixThese: "پہلے یہ ٹھیک کریں",
   couldntTell: "پتا نہیں چل سکا",
+
+  // bd-ra8xu.40 — NEW and MACHINE-DRAFTED: awaits a native check (NATIVE-CHECK), like the rest of this file's Urdu.
+  // Words reused from above where they exist: محفوظ کریں، جانچتے رہیں، مشاہدات، فیڈبیک.
+  fde: {
+    saveDraft: "مسودہ محفوظ کریں",
+    saved: "محفوظ ہو گیا",
+    submit: "جمع کریں",
+    submitTitle: "فارم جمع کریں",
+    noChangesAfter: "بعد میں تبدیلی نہیں",
+    yesSubmit: "جی، جمع کریں",
+    submitted: "جمع ہو گیا",
+    submitFailed: "جمع نہیں ہو سکا",
+    closed: "مشاہدہ منسوخ",
+    missing: (n: number) => `${n} جواب باقی`,
+    fixThese: "باقی جواب مکمل کریں",
+    itemNo: (n: number) => `آئٹم ${n}`,
+    comments: "تبصرے",
+    observations: "مشاہدات",
+    feedbackLine: "استاد کے لیے فیڈبیک",
+    optional: "اختیاری",
+    clear: "ہٹائیں",
+    subs: { plan: "ترقیاتی منصوبہ", second: "دوسرا شعبہ، اختیاری", feedback: "استاد کے لیے فیڈبیک" },
+    scoreSoFar: "اب تک کا اسکور",
+    rating: "درجہ",
+    notScored: "اسکور نہیں دیا",
+    errors: {
+      item: "ایک جواب چنیں",
+      choice: "ایک چنیں",
+      text: "چند الفاظ لکھیں",
+      number: "پورا عدد لکھیں",
+      row_two: "یہ بھی بھریں",
+      same_area: "کوئی اور شعبہ چنیں",
+    },
+  },
 
   debriefTitle: "ڈی بریف",
   aboutTenMinutes: "تقریباً 10 منٹ",

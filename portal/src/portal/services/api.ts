@@ -809,6 +809,39 @@ export type ObservationDraft = {
   kind?: 'fico17_v6'; rubric?: RubricLabel | null; minReason?: number;
 };
 
+/**
+ * bd-ra8xu.40 — an FDE (obs612) visit's form, as GET/POST /leader/observe/:id/draft answer for it (`kind: 'obs612'`;
+ * a FICO draft has no `kind`). The bot's obs612/portal.js: the WhatsApp Flow's own screens, fields and options. FDE's
+ * own wording (`text`, option titles, headings, row labels) is data, in English as FDE printed it; a field's `role`
+ * and an error's code are said by the portal's copy (REPORTS.fde).
+ */
+export type Obs612Option = { id: string; title: string; description?: string };
+export type Obs612FieldRole = 'item' | 'comment' | 'observation' | 'context' | 'plan_area' | 'plan_goal' | 'plan_action' | 'feedback' | 'line' | 'other';
+export type Obs612Field = {
+  type: 'field'; name: string; role: Obs612FieldRole;
+  input: 'radio' | 'dropdown' | 'textarea' | 'textinput' | 'number';
+  kind: 'yes_no' | 'level' | 'points' | null; n: number | null; short: string | null; text: string | null;
+  options: Obs612Option[] | null; required: boolean; max: number | null;
+};
+export type Obs612Part =
+  | { type: 'heading'; text: string }
+  | { type: 'sub'; text?: string; role?: 'plan' | 'second' | 'feedback' }
+  | { type: 'context'; rows: { key: string; label: string; value: string | null }[] }
+  | { type: 'levels'; label: string; rows: { key: string; n: number; name: string; level: string | null }[] }
+  | { type: 'score'; total: number; max: number; pct: number; band: string | null }
+  | Obs612Field;
+export type Obs612ErrorCode = 'item' | 'choice' | 'text' | 'number' | 'row_two' | 'same_area';
+export type Obs612Draft = {
+  kind: 'obs612'; label: string; rubricId: string; tool: 'gen' | 'msci' | 'enur'; toolName: string; toolTitle: string;
+  sheet: string | null; grade: number | null; subject: string | null;
+  sections: { id: string; parts: Obs612Part[] }[];
+  values: Record<string, string>; errors: Record<string, Obs612ErrorCode>; missing: string[];
+  editable: boolean; sealed: boolean; submittedAt: string | null;
+  saved?: boolean; submitted?: boolean;
+};
+/** A refused Submit (HTTP 400): what is still missing, and each refused field's code. */
+export type Obs612Refusal = { status: 'invalid'; reason: 'obs612_incomplete'; missing: string[]; errors: Record<string, Obs612ErrorCode> };
+
 // ── Assessment Generator types ────────────────────────────────────────────
 
 /** A refused POST /assessment/generate: the server's code, the HTTP status, and for 429 when to try again. */
@@ -1178,6 +1211,15 @@ export const leader = {
   /** The review form's own keys: r_/ev_/imp_ per indicator, fid_r_/fid_e_ per lesson-plan move. */
   saveObservationDraft: async (id: string, edits: Record<string, string>): Promise<{ success: boolean }> => {
     const response = await api.post(`/leader/observe/${id}/draft`, { edits });
+    return response.data;
+  },
+
+  /**
+   * bd-ra8xu.40 — save an FDE (obs612) visit's form (the Flow's field names), and with `submit` submit it. Answers the
+   * form as it now stands. A Submit with anything missing is a 400 whose body is an Obs612Refusal (the answers are saved).
+   */
+  saveObs612Form: async (id: string, values: Record<string, string>, submit = false): Promise<Obs612Draft> => {
+    const response = await api.post(`/leader/observe/${id}/draft`, submit ? { edits: values, submit: true } : { edits: values });
     return response.data;
   },
 

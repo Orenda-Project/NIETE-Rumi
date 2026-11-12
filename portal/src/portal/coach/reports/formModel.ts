@@ -1,4 +1,4 @@
-import type { DraftOption, DraftSection, ObservationDraft } from "../../services/api";
+import type { DraftOption, DraftSection, Obs612Draft, ObservationDraft } from "../../services/api";
 import { initialV6Values } from "./v6Model";
 
 /**
@@ -51,6 +51,11 @@ export function titleOf(options: readonly DraftOption[], id: string | undefined)
 /** A rung's own name from its option title: "1 · Developing" → "Developing"; "— Not applicable to this lesson" → "Not applicable to this lesson". */
 export function rungName(title: string): string {
   return String(title || "").replace(/^[—–-]\s*/, "").replace(/^\d+\s*·\s*/, "").trim();
+}
+
+/** bd-ra8xu.40 — is this draft an FDE (obs612) visit's form (`kind: 'obs612'`), and not the FICO review form? */
+export function isObs612Draft(d: unknown): d is Obs612Draft {
+  return !!d && typeof d === "object" && (d as { kind?: unknown }).kind === "obs612";
 }
 
 export type { DraftSection };
