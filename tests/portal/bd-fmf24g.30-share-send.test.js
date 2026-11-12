@@ -226,10 +226,9 @@ describe('never "-": a missing title or class line falls back to a short label, 
 });
 
 describe('the paper resolver names the paper from data on every branch (the textbook chapter title)', () => {
-  const row = {
-    id: 'r1', grade_code: 'grade_4', subject_code: 'science', chapter_number: 3, question_count: 15,
-    assessment_papers: [{ status: 'ready', file_r2_key: 'papers/r1.pdf', question_count: 14 }],
-  };
+  // bd-644bcx: the id is the paper's (assessment_papers.id, what the app sends); its request rides along embedded.
+  const req = { user_id: 'u1', grade_code: 'grade_4', subject_code: 'science', chapter_number: 3, question_count: 15 };
+  const row = { id: 'r1', status: 'ready', file_r2_key: 'papers/r1.pdf', question_count: 14, assessment_requests: req };
   const db = (data) => ({
     from: () => {
       const c = { select: () => c, eq: () => c, limit: () => c, maybeSingle: async () => ({ data, error: null }) };
@@ -257,7 +256,7 @@ describe('the paper resolver names the paper from data on every branch (the text
 
   it('a paper made from pages has no chapter to look up', async () => {
     Browse.listChapters.mockClear();
-    const item = await Share.itemResolvers(db({ ...row, chapter_number: null }), { presign }).paper('u1', 'r1');
+    const item = await Share.itemResolvers(db({ ...row, assessment_requests: { ...req, chapter_number: null } }), { presign }).paper('u1', 'r1');
     expect(Browse.listChapters).not.toHaveBeenCalled();
     expect(bodyOf(Share.componentsFor(item, { lang: 'en' }))[0]).toBe('Science paper');
   });
@@ -373,7 +372,9 @@ describe('the item queries are scoped to HER (ownership is the query)', () => {
     };
     const items = Share.itemResolvers({ from: chain });
     await items.paper('u1', 'r1'); await items.lesson('u1', 'g612:render1'); await items.dc('u1', 's1'); await items.observation('u1', 's2');
-    for (const t of ['assessment_requests', 'niete_lp612_deliveries', 'coaching_sessions']) {
+    // bd-644bcx: a paper is read by its own id, owned through its request.
+    expect(seen).toContainEqual(['assessment_papers', 'assessment_requests.user_id', 'u1']);
+    for (const t of ['niete_lp612_deliveries', 'coaching_sessions']) {
       expect(seen).toContainEqual([t, 'user_id', 'u1']);
     }
   });
