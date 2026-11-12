@@ -1,2 +1,4 @@
 {"ts":"2026-11-12T16:15:31Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"7294acefc335","branch":"bd-ehz254.12-99660","user":""}
 {"ts":"2026-11-12T16:15:34Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-ehz254.12-99660: training spec: NOT UPDATED e2e: missing","sha":"7294acefc335","branch":"bd-ehz254.12-99660","user":""}
+{"ts":"2026-11-12T16:15:39Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"7294acefc335","branch":"bd-ehz254.12-99660","user":""}
+{"ts":"2026-11-12T16:25:28Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (adds status and code fields to an internal error log line in web-quiz-audio-store.js; no message, screen or flow a teacher or child sees changes)","sha":"7294acefc335","branch":"bd-ehz254.12-99660","user":""}
