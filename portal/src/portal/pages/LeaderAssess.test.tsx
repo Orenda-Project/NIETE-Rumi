@@ -1321,6 +1321,22 @@ describe("LeaderAssess", () => {
       expect(card).toHaveTextContent("RDF for five children is about 1 hour 40 minutes on one phone");
     });
 
+    it("a list drawn at 3 (sa_per_visit): a second RDF warns with the time for three children", async () => {
+      picks({ rdfForm: true });
+      api.getList.mockResolvedValue({ list: { ...LIST, perVisit: 3, children: [1, 2, 3].map((n) => child(n)), alternates: [child(4), child(5)] } });
+      await openListWithMic();
+      let card = await present("d1");
+      fireEvent.click(within(card).getByRole("radio", { name: /RDF/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Start" }));
+      const frame = await screen.findByTestId("assess-engine-frame");
+      saDone(new URL(frame.getAttribute("src") as string, "http://x").searchParams.get("s") as string);
+      await screen.findByTestId("assess-child-d1");
+      card = await present("d2");
+      fireEvent.click(within(card).getByRole("radio", { name: /RDF/ }));
+      expect(card).toHaveTextContent("RDF for three children is about 1 hour on one phone");
+      expect(card).not.toHaveTextContent("five children");
+    });
+
     it("RDF without the coach's picker: a second box next to Whole battery", async () => {
       api.getSwitches.mockResolvedValue({ ...SWITCHES_OFF, rdfForm: true });
       await openListWithMic();
