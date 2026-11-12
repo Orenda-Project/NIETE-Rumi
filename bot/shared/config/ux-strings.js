@@ -3798,6 +3798,16 @@ const UX_STRINGS = {
     en: 'Note: this paper does not fully match the FDE blueprint — please check it before printing.',
     ur: 'نوٹ: یہ پرچہ FDE بلیو پرنٹ سے مکمل طور پر مطابقت نہیں رکھتا — چھاپنے سے پہلے اسے جانچ لیں۔',
   },
+  // bd-qyi45h.1: a G11/G12 Urdu board paper whose chosen pages hold no poem / no ghazal leaves those questions out;
+  // this line goes on the teacher's marking scheme (board legend) so the teacher knows why.
+  assessmentNoPoemNote: {
+    en: 'No poem in the chosen pages, so the poem questions are left out.',
+    ur: 'منتخب صفحات میں کوئی نظم نہیں، اس لیے نظم کے سوالات شامل نہیں کیے گئے۔',
+  },
+  assessmentNoGhazalNote: {
+    en: 'No ghazal in the chosen pages, so the ghazal questions are left out.',
+    ur: 'منتخب صفحات میں کوئی غزل نہیں، اس لیے غزل کے سوالات شامل نہیں کیے گئے۔',
+  },
   // ─── child test (EGRA/EGMA five-minute test, bd-s1oo0.4) ──────────────────
   // The coach's side of the child test: the offer after /observe2, today's list,
   // Present/Absent/Refused, one voice note per block, the maths strip photo.
