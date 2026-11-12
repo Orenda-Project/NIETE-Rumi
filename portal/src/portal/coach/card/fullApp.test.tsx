@@ -69,6 +69,19 @@ describe("the Home with the switch on (Rifat): Schedule and Observe tiles beside
     expect(tiles.textContent).toContain("2 waiting");
   });
 
+  // bd-zay62o — with the Learning assessment on too: six tiles in three full rows, Learning assessment beside Coach Training.
+  it("with portal_child_test_sa on: Learning assessment joins before Coach Training, and the six fill three rows", async () => {
+    config(true);
+    net.answers.set("/config", { success: true, features: { coachV2: true, schoolCard: true, coachip: false, coachFullApp: true, childTestSa: true } });
+    await renderApp("/portal/coach");
+    const tiles = await screen.findByTestId("feature-tiles");
+    await waitFor(() => expect(Array.from(tiles.querySelectorAll("a")).map((a) => a.getAttribute("href"))).toEqual([
+      "/portal/coach/scheduling", "/portal/coach/observe", "/portal/coach/training", "/portal/coach/people",
+      "/portal/leader/assess", "/portal/coach/coach-training",
+    ]));
+    expect(Array.from(tiles.querySelectorAll("a")).filter((a) => a.className.includes("col-span-2"))).toEqual([]);
+  });
+
   it("no number yet (or /coach/home failed): the tiles still show, with no chip and never a 0", async () => {
     config(true);
     await renderApp("/portal/coach");

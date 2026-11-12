@@ -57,6 +57,8 @@ describe("FeatureArt (the 48px illustrations)", () => {
       reports: { fg: "#4d7c0f", bg: "#ecfccb" },
       // Coach Training: Training's purple on its own drawing (a debrief conversation).
       coachTraining: { fg: "#6e52e0", bg: "#eeeafd" },
+      // bd-zay62o — the coach's Learning assessment: Assessment's blue on its own drawing (a child reading a card).
+      learningAssessment: { fg: "#1d6fd8", bg: "#e3eefc" },
     });
   });
 });

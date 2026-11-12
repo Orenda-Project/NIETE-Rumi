@@ -2,8 +2,12 @@
 
 export type TeacherFeature = 'lessons' | 'coaching' | 'observations' | 'training' | 'assessment' | 'attendance' | 'classes';
 
-/** bd-4404s7.1 — the features only a coach has: Schedule (rose), Schools & teachers (teal), Reports (olive; the Observe screen's tile and the Reports headers). */
-export type CoachFeature = 'schedule' | 'schools' | 'reports' | 'coachTraining';
+/**
+ * bd-4404s7.1 — the features only a coach has: Schedule (rose), Schools & teachers (teal), Reports (olive; the Observe
+ * screen's tile and the Reports headers). bd-zay62o — and the Learning assessment (the Home tile, for a coach on
+ * portal_child_test_sa).
+ */
+export type CoachFeature = 'schedule' | 'schools' | 'reports' | 'coachTraining' | 'learningAssessment';
 
 /** Every feature the art, the glyphs and the hues cover. A teacher page uses `TeacherFeature`; a coach page may use any. */
 export type AnyFeature = TeacherFeature | CoachFeature;
@@ -33,4 +37,7 @@ export const FEATURE_HUE: Record<AnyFeature, { fg: string; bg: string }> = {
   // Coach Training: Training's purple (it is training, for the coach), on its own drawing (a debrief conversation), so it
   // is never taken for the teacher Training Library's cap.
   coachTraining: { fg: '#6e52e0', bg: '#eeeafd' },
+  // bd-zay62o — the coach's Learning assessment: Assessment's blue (it is an assessment, of children), on its own drawing
+  // (a child in front of a reading card), so it is never taken for the teacher's exam paper. As Coach Training is to Training.
+  learningAssessment: { fg: '#1d6fd8', bg: '#e3eefc' },
 };
