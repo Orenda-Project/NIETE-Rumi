@@ -18,8 +18,9 @@ export const MAX_SCREENSHOTS = 3;
 export const SCREENSHOT_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024;
 
-// Where the form is opened from (coach_feedback.page): both More pages.
-const FEEDBACK_FROM = "/portal/coach/more";
+// Where the form is opened from (coach_feedback.page): the coach's two More pages share one address; bd-370733 the
+// teacher's More passes its own.
+export const FEEDBACK_FROM = "/portal/coach/more";
 
 export type FeedbackDraft = { topic: Topic; text: string; clip: VoiceClip | null; shots: File[] };
 
@@ -36,14 +37,14 @@ async function upload(filename: string, blob: Blob, kind: "feedback_audio" | "fe
   return signed.key;
 }
 
-export async function sendFeedback(d: FeedbackDraft): Promise<{ feedbackId: string }> {
+export async function sendFeedback(d: FeedbackDraft, from: string = FEEDBACK_FROM): Promise<{ feedbackId: string }> {
   const audioKey = d.clip ? await upload(`voice${d.clip.ext}`, d.clip.blob, "feedback_audio") : undefined;
   const photoKeys: string[] = [];
   for (const f of d.shots) photoKeys.push(await upload(f.name, f, "feedback_photo"));
   const text = d.text.trim() || undefined;
   // Which browser she is in is read by the server from the request; the app only says when it IS the Android app.
   const context = Capacitor.isNativePlatform() ? { native: true } : {};
-  return portal.sendFeedback({ topic: d.topic, text, audioKey, photoKeys, page: FEEDBACK_FROM, context });
+  return portal.sendFeedback({ topic: d.topic, text, audioKey, photoKeys, page: from, context });
 }
 
 /** The line a failed send shows: the day's limit by name, "No internet" only when offline, else try again. */
