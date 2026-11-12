@@ -52,7 +52,7 @@ jest.mock('../../bot/shared/services/coaching/transcription-processor.service', 
 process.env.OBSERVE_FRAMEWORK = 'fico';
 
 const mockCoach = { row: { id: 'coach-uuid', preferred_language: 'en' } };
-const mockDb = { row: null, prior: null, lookupThrows: false, lookups: [] };
+const mockDb = { row: null, prior: null, lookupThrows: false, lookups: [], switchRows: [] };
 const mockUpdate = jest.fn((patch) => {
   if (mockDb.row) mockDb.row = { ...mockDb.row, ...patch };
   return { eq: jest.fn().mockResolvedValue({ data: null, error: null }) };
@@ -77,7 +77,9 @@ function mockMakeChain(table) {
     return Promise.resolve({ data: mockDb.row, error: null });
   };
   chain.limit = jest.fn(() => chain);
-  chain.then = (resolve) => Promise.resolve({ data: [], error: null }).then(resolve);
+  chain.then = (resolve) => Promise.resolve({
+    data: table === 'app_settings' ? mockDb.switchRows : [], error: null,
+  }).then(resolve);
   chain.update = mockUpdate;
   return chain;
 }
@@ -125,6 +127,7 @@ beforeEach(() => {
   mockDb.prior = { id: 'prior-obs', created_at: '2026-09-20T10:00:00Z' };
   mockDb.lookupThrows = false;
   mockDb.lookups = [];
+  mockDb.switchRows = [];
   mockCoach.row = { id: 'coach-uuid', preferred_language: 'en' };
   WhatsAppService.downloadMedia.mockResolvedValue(BYTES);
   TranscriptionProcessorService.transcribeWithDiarization.mockResolvedValue({
@@ -214,5 +217,33 @@ describe('a NEW recording on an observation', () => {
       { state: 'awaiting_debrief_audio', sessionId: SID, guide_snapshot: GUIDE });
     expect(debrief().audio_id).toBe('wamid.NEW');
     expect(debrief().audio_hash).toBeNull();
+  });
+});
+
+// bd-r98hph — a test account on app_settings.skip_recording_duplicate_check skips the debrief check too.
+describe('a test account on the skip switch (bd-r98hph)', () => {
+  const switchFor = (userId) => {
+    mockDb.switchRows = [{ key: 'skip_recording_duplicate_check', value: { [`user:${userId}`]: 'on' } }];
+  };
+  beforeEach(() => {
+    require('../../bot/shared/services/coaching/duplicate-check-switch')._resetCache();
+  });
+
+  test('switch on for THIS coach: an already-analysed debrief is transcribed again, nothing refused', async () => {
+    switchFor('coach-uuid');
+    await run();
+    expect(mockDb.lookups).toHaveLength(0);
+    expect(TranscriptionProcessorService.transcribeWithDiarization).toHaveBeenCalled();
+    expect(debrief().transcript).toBe(LONG_TRANSCRIPT);
+    expect(debrief().audio_hash).toBe(HASH);
+    expect(debrief().duplicate_of_session_id).toBeUndefined();
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalledWith(FROM, EN);
+  });
+
+  test('switch on for another account only: this coach is still refused', async () => {
+    switchFor('someone-else-uuid');
+    await run();
+    expect(TranscriptionProcessorService.transcribeWithDiarization).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(FROM, EN);
   });
 });
