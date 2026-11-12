@@ -37,7 +37,7 @@ const VISIT = {
   teacher: null,
   lastVisit: null,
 };
-const ASK = { ask: true, grades: [6, 7, 8, 9, 10, 11, 12], subjects: ["english", "urdu", "maths", "science", "social_studies", "islamiat", "computer", "other"] };
+const ASK = { ask: true, grades: [6, 7, 8, 9, 10, 11, 12], subjectGrades: [6, 7, 8], subjects: ["english", "urdu", "maths", "science", "social_studies", "islamiat", "computer", "other"] };
 
 const renderCheck = () => render(
   <MemoryRouter initialEntries={[`/portal/coach/visit/${VISIT_ID}/check`]}>
@@ -117,5 +117,16 @@ describe("Check and send — the lesson's class (bd-ra8xu.40)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send observation" }));
     await waitFor(() => expect(send).toHaveBeenCalled());
     expect(send.mock.calls[0][0].lesson).toEqual({ grade: 7, subject: "maths" });
+  });
+
+  // bd-ra8xu.40 (operator 12 Nov ~11:00): FDE's tools are for grades 6-8 only; grades 9-12 stay on FICO, so no subject.
+  it("FDE on, grade 10: no subject is asked, and the class alone is sent", async () => {
+    L.getObserveLessonQuestion.mockResolvedValue(ASK);
+    renderCheck();
+    await choose(/^Class,/, "Grade 10");
+    expect(screen.queryByRole("button", { name: /^Subject,/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Send observation" }));
+    await waitFor(() => expect(send).toHaveBeenCalled());
+    expect(send.mock.calls[0][0].lesson).toEqual({ grade: 10 });
   });
 });
