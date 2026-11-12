@@ -205,6 +205,14 @@ function v6SectionName(domainKey) {
   return s ? s.name : '';
 }
 
+// Staging E2E (12 Nov): with an Urdu lesson, Urdu evidence and Urdu quotes, an English report came back all in Urdu;
+// the language rule sat only at the top of the prompt. It is restated as the last line before the transcript.
+function v6LanguageLine(language) {
+  const name = LANG_NAME[language] || 'English';
+  const script = language === 'ur' ? ' (Urdu script, with the English concept names the rules above allow)' : '';
+  return `REPORT LANGUAGE: ${name}${script} — every string value (topic, affirmation, identity, each moment's title and "why", strength, horizon, journey, score framing, every domain_whys line) is written in ${name}, even though the transcript and the evidence above may be in another language. Only each moment's "quote" stays verbatim in the language actually spoken.`;
+}
+
 function buildV6Prompt(a, { transcript, language, teacherName, target: requested }) {
   const { resolveTarget, resolveIndicator, resolveStrength, v6NextLevel } = require('../target-resolver');
   // The caller's selected step when it is a levelled v6 row (the report's next step, the hero's resolved target);
@@ -270,6 +278,7 @@ SECTION LEVELS (diagnose each):
 ${v6SectionsBlock(a)}
 
 ${throughline ? `THIS LESSON'S THROUGHLINE (from prior analysis): ${throughline}\n` : ''}${corpusMoments ? `MOMENTS ALREADY SURFACED (hints — prefer these, but pull the verbatim quote from the transcript):\n${corpusMoments}\n` : ''}LESSON TOPIC: ${lessonMismatch || !a.topic ? 'take it from the TRANSCRIPT.' : a.topic}
+${v6LanguageLine(language)}
 TRANSCRIPT:
 ${String(transcript || '').slice(0, 11000)}`;
 }
