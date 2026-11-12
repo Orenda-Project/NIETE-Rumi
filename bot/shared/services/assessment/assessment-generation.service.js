@@ -23,6 +23,7 @@ const { configForRequest, ensureCurrent } = require('../../config/model-settings
 const { logToFile } = require('../../utils/logger');
 const { extractJsonFromResponse } = require('./assessment-json.util');
 const { stemsBlock, applyStems } = require('./topics/stem-prompt');
+const { seenCategoryLine, keepSeenCategories } = require('./seen-categories');
 const { capBlooms, appliesToGrade, APPLY_NOTE } = require('./bloom-ceiling');
 
 // The English-medium GK/SST prompts (bd-uam6dh) sit in their own file: ict-prompts.json is pinned key by key.
@@ -300,7 +301,7 @@ function buildUserPrompt({ grade, subject, pageContent, pageReference,
   if (contentSource === 'both') {
     items.push(`Seen questions — at most ${plan.seenTarget}, taken directly from the textbook's own `
       + 'exercises on these pages (if the pages hold fewer usable exercise questions, add unseen '
-      + 'questions instead so the total below is still met)');
+      + 'questions instead so the total below is still met)' + seenCategoryLine(questionTypes));
   } else if (contentSource === 'seen') {
     items.push(`Seen questions — exactly ${plan.seenTarget}, taken directly from the textbook's own `
       + 'exercises on these pages (objective and subjective)');
@@ -740,6 +741,9 @@ async function generateExam(args) {
   // bd-6clakk.12 — her ticked stems: a near miss is set to the stem; a question using none is logged.
   const { misses: stemMisses } = applyStems(examJson, plan.questionTypes);
   if (stemMisses.length) logToFile('[assessment] questions without a ticked stem', { misses: stemMisses });
+  // bd-ipoxhx.1 — a Both paper's book questions stay inside the categories she chose.
+  const offCategory = contentSource === 'both' ? keepSeenCategories(examJson, questionTypes) : 0;
+  if (offCategory > 0) logToFile('[assessment] dropped seen questions outside her categories', { removed: offCategory });
   const removedSeen = trimSeen(examJson, plan.seenTarget);
   if (removedSeen > 0) {
     logToFile('[assessment] trimmed seen questions to the cap', { seenTarget: plan.seenTarget, removed: removedSeen });
