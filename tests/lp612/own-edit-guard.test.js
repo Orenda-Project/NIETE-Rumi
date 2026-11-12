@@ -111,6 +111,15 @@ describe('daily limit', () => {
     expect(G.DAILY_LIMIT).toBe(5);
   });
 
+  it('sandbox has no daily limit, so testers can make as many as they need (bd-snkn32.26)', () => {
+    expect(G.dailyLimit({ RAILWAY_ENVIRONMENT_NAME: 'sandbox' })).toBe(Infinity);
+    expect(G.dailyLimit({ RAILWAY_ENVIRONMENT_NAME: 'staging' })).toBe(5);
+    expect(G.dailyLimit({ RAILWAY_ENVIRONMENT_NAME: 'production' })).toBe(5);
+    expect(G.dailyLimit({})).toBe(5);
+    expect(ask({ todayCount: 50, limit: Infinity }).ok).toBe(true);
+    expect(ask({ todayCount: 5, limit: 5 }).outcome).toBe('daily_limit');
+  });
+
   it('a Pakistan day starts at midnight in Karachi (UTC+5)', () => {
     // 10 Nov 2026 20:30 UTC is 11 Nov 01:30 in Karachi: the day began 10 Nov 19:00 UTC.
     expect(G.karachiDayStart(Date.parse('2026-11-10T20:30:00Z'))).toBe('2026-11-10T19:00:00.000Z');
