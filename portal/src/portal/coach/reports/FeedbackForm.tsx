@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { useNavigate, useParams } from "react-router-dom";
 import { leader } from "../../services/api";
-import type { DraftIndicator, DraftMove, DraftOption, DraftSection, ObservationDraft } from "../../services/api";
+import type { DraftIndicator, DraftMove, DraftOption, DraftSection, Obs612Draft, ObservationDraft } from "../../services/api";
 import { cn } from "@/lib/utils";
 import { useCopy } from "../../teacher/i18n";
 import { LoadState } from "../../teacher/lessons/LoadState";
@@ -11,12 +11,13 @@ import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
 import { BottomButton } from "../ui";
 import ReportsFrame from "./ReportsFrame";
 import { REPORTS } from "./copy";
-import { countChanges, initialValues, rungName, titleOf, type Values } from "./formModel";
+import { countChanges, initialValues, isObs612Draft, rungName, titleOf, type Values } from "./formModel";
 import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
 import { teacherNameOf, useObservationView } from "./useObservationView";
 import { PlanSource } from "../observe/PlanState";
 import { V6Part } from "./V6Parts";
 import { MIN_REASON, v6Problems, type V6Problems } from "./v6Model";
+import Obs612Form from "./Obs612Form";
 
 /**
  * bd-4404s7.5 — Feedback Form, step 2 of 5 (Blueprint Coach_FeedbackForm): the WhatsApp review form, in the portal, on the
@@ -29,6 +30,9 @@ import { MIN_REASON, v6Problems, type V6Problems } from "./v6Model";
  *
  * The Digital Coach's own rating is marked only while the draft is unsaved: once she has saved, the route returns HER
  * answers and no longer holds the Digital Coach's (see the report's gap list).
+ *
+ * bd-ra8xu.40 — an FDE (obs612) visit's draft says `kind: 'obs612'`: its form is FDE's, not this review form, and
+ * Obs612Form fills it (the FICO draft has no `kind` and is unchanged).
  */
 const AREA = "w-full rounded-xl border border-[#d1d5db] bg-white p-3 text-[16px] leading-snug text-[#1d2025]";
 
@@ -57,6 +61,7 @@ export default function FeedbackForm() {
   const { view } = useObservationView(id);
   const home = routes.observation(id);
   const [draft, setDraft] = useState<ObservationDraft | null>(null);
+  const [fde, setFde] = useState<Obs612Draft | null>(null);
   const [load, setLoad] = useState<"loading" | "error" | "ok">("loading");
   const [tick, setTick] = useState(0);
   const [start, setStart] = useState<Values>({});
@@ -75,7 +80,12 @@ export default function FeedbackForm() {
     let live = true;
     setLoad("loading");
     leader.getObservationDraft(id)
-      .then((d) => { if (live) { const v = initialValues(d); setDraft(d); setStart(v); setValues(v); setLoad("ok"); } })
+      .then((got) => {
+        if (!live) return;
+        const d: ObservationDraft | Obs612Draft = got;
+        if (isObs612Draft(d)) { setFde(d); setLoad("ok"); return; }
+        const v = initialValues(d); setDraft(d); setStart(v); setValues(v); setLoad("ok");
+      })
       .catch(() => { if (live) setLoad("error"); });
     return () => { live = false; };
   }, [id, tick]);
@@ -90,6 +100,8 @@ export default function FeedbackForm() {
   const set = (k: string) => (v: string) => setValues((cur) => ({ ...cur, [k]: v }));
   const options = useMemo(() => (draft?.scale ?? []).map((o) => ({ id: o.id, label: rungName(o.title) })), [draft]);
   const face = (rid: string) => (rid === "na" ? C.na : rid);
+
+  if (fde) return <Obs612Form id={id} draft={fde} name={name} home={home} />;
 
   const minReason = draft?.minReason ?? MIN_REASON;
   // A v6 part goes on only when its rules hold, as the v6 Flow refuses its screen; the reasons show at each field.
