@@ -127,7 +127,10 @@ async function generateHeroReport(session, analysis, opts = {}) {
     trend,
     language: lang,
     teacherName,
-    target: observe2Target(analysis) || opts.target || null,
+    // bd-ra8xu.40: a FICO17 v6 /observe visit with no selected step is written about its resolved v6 target (the
+    // lowest final level), so the horizon, the card and the debrief name the same indicator. V3 is unchanged.
+    target: observe2Target(analysis) || opts.target
+      || (require('../target-resolver').isV6Levelled(analysis) ? require('../target-resolver').resolveTarget(analysis) : null),
   });
   // /observe2: the horizon's title is the coach's pick, in its own words, set here rather than trusted
   // to the model. Before the image and before the caller stores the narrative.

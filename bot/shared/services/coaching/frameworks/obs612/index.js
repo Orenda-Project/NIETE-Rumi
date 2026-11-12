@@ -58,8 +58,13 @@ function toolById(id) {
 // The class a coach can name. 1-5 is one choice: those lessons stay on FICO.
 const GRADES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const PRIMARY_MAX_GRADE = 5;
+// bd-ra8xu.40 (operator, 12 Nov ~11:00): "For 9-12, we continue with FICO v3 right now and v6 when we turn v6 on for
+// 1-5. This FDE ones only apply to 6 7 8." FDE's tools are for grades 6-8; grades 1-5 and 9-12 follow the FICO coach
+// switch.
+const FDE_GRADES = [6, 7, 8];
+const isFdeGrade = (g) => FDE_GRADES.includes(Number(g));
 
-// The subjects a coach can name for a grade 6-12 lesson. Keys are stored in visit_context.subject.
+// The subjects a coach can name for a grade 6-8 lesson (FDE's grades). Keys are stored in visit_context.subject.
 const SUBJECTS = [
   { key: 'english', label: 'English' },
   { key: 'urdu', label: 'Urdu' },
@@ -73,10 +78,11 @@ const SUBJECTS = [
 const SUBJECT_KEYS = SUBJECTS.map((s) => s.key);
 
 /**
- * Which tool a grade 6-12 lesson gets. FDE's pack names English & Urdu for VI-VIII and Maths & Science for VI-VII
- * and nothing for IX-XII. The gaps, as the operator approved them on 11 Nov 2026 (plan #94, choice A):
+ * Which tool a grade 6-8 lesson gets. FDE's pack names English & Urdu for VI-VIII and Maths & Science for VI-VII.
+ * As the operator approved them (plan #94 choice A, 11 Nov; narrowed 12 Nov ~11:00 to grades 6-8):
  *   - grade 8 Maths or Science → the Maths & Science tool (FDE prints VI-VII);
- *   - grades 9-12, and any other subject → the General form;
+ *   - any other subject → the General form;
+ *   - grades 9-12 → no FDE tool: FICO, as grades 1-5;
  *   - one tool per visit.
  * Data, so a change is one row.
  */
@@ -100,13 +106,13 @@ const normSubject = (s) => {
 };
 
 /**
- * The obs612 tool for a lesson, or null when the lesson is not a grade 6-12 one (grades 1-5 stay on FICO, and an
- * unknown grade decides nothing).
+ * The obs612 tool for a lesson, or null when the lesson is not a grade 6-8 one (grades 1-5 and 9-12 stay on FICO, and
+ * an unknown grade decides nothing).
  * @returns {{tool: 'gen'|'msci'|'enur', rubricId: string, sheet: 'en'|'ur'|null}|null}
  */
 function toolFor(grade, subject) {
   const g = normGrade(grade);
-  if (g === null || g <= PRIMARY_MAX_GRADE) return null;
+  if (g === null || !isFdeGrade(g)) return null;
   const s = normSubject(subject);
   const route = ROUTES.find((r) => r.grades.includes(g) && s && r.subjects.includes(s));
   const tool = route ? route.tool : 'gen';
@@ -263,6 +269,8 @@ module.exports = {
   IDS,
   GRADES,
   PRIMARY_MAX_GRADE,
+  FDE_GRADES,
+  isFdeGrade,
   SUBJECTS,
   SUBJECT_KEYS,
   ROUTES,

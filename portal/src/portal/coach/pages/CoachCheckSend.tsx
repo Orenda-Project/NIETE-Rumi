@@ -3,11 +3,11 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, Camera, ChevronRight, Clock, FolderOpen, Image as ImageIcon, Library, Paperclip, RotateCcw, Send } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
 import { PhotoGrid, SectionHeading } from "../../teacher/coaching/parts";
-import { AudioCard, ListRow } from "../../teacher/ui";
+import { AudioCard, ListRow, SelectField } from "../../teacher/ui";
 import { Tray } from "../../teacher/ui/Tray";
 import { TimeStamp } from "../../teacher/ui/TimeStamp";
 import { StatusChip } from "../../teacher/ui/StatusChip";
-import { leader, type RecentLessonPlan } from "../../services/api";
+import { leader, type ObserveLesson, type ObserveLessonQuestion, type RecentLessonPlan } from "../../services/api";
 import { Card, Loading, Failed, useLoad } from "../ui";
 import { clearDraft, getDraft, setDraft, type DraftAudio } from "../observeDraft";
 import LibraryPicker, { type PickedPlan } from "../../components/coaching/LibraryPicker";
@@ -102,6 +102,30 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   const planFileInput = useRef<HTMLInputElement>(null);
   const teacherName = visit.teacherName || C.dash;
   const isShort = audio.durationMs != null && audio.durationMs < SHORT_RECORDING_SECONDS * 1000;
+  // bd-ra8xu.40 — the class taught (and, for grades 6-12, its subject), asked only while FDE's tools are on for her, as
+  // WhatsApp's visit planner asks after Start: it chooses the form the observation is stamped with. A question that
+  // cannot be read asks nothing (today's path).
+  const [question, setQuestion] = useState<ObserveLessonQuestion>({ ask: false });
+  const [grade, setGrade] = useState<string | null>(null);
+  const [subject, setSubject] = useState<string | null>(null);
+  const [lessonProblem, setLessonProblem] = useState<"class" | "subject" | null>(null);
+  useEffect(() => {
+    let live = true;
+    Promise.resolve()
+      .then(() => leader.getObserveLessonQuestion())
+      .then((q) => { if (live && q && q.ask) setQuestion(q); })
+      .catch(() => { /* not asked */ });
+    return () => { live = false; };
+  }, []);
+  // bd-ra8xu.40 (operator, 12 Nov): only FDE's grades (6-8) ask the subject; grades 9-12 are FICO lessons, the class alone.
+  // An older bot that does not say which grades: every grade 6-12 asks it, as before.
+  const needsSubject = (g: string | null) => !!g && g !== "primary" && (question.subjectGrades ? question.subjectGrades.includes(Number(g)) : true);
+  const lessonOf = (): ObserveLesson | null => {
+    if (!question.ask || !grade) return null;
+    if (grade === "primary") return { primary: true };
+    if (!needsSubject(grade)) return { grade: Number(grade) };
+    return subject ? { grade: Number(grade), subject } : null;
+  };
 
   // The recording plays from a link to the file on this phone (AudioCard plays it for real).
   const src = useMemo(() => (typeof URL.createObjectURL === "function" ? URL.createObjectURL(audio.blob) : undefined), [audio.blob]);
@@ -146,6 +170,9 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   }, []);
 
   const send = () => {
+    if (question.ask && !grade) { setLessonProblem("class"); return; }
+    if (question.ask && needsSubject(grade) && !subject) { setLessonProblem("subject"); return; }
+    const lesson = lessonOf();
     startSend({
       visitId: visit.id,
       teacherExtId: visit.teacherExtId || "",
@@ -157,6 +184,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       audio: { blob: audio.blob, filename: audio.filename },
       plan: plan ? (plan.kind === "library" ? { kind: "library", pick: plan.pick } : { kind: "file", file: plan.file }) : null,
       photos,
+      ...(lesson ? { lesson } : {}),
       // bd-33wxxi.4 — where the strip's tap and the ready banner go (the principal app's own screens, or the coach's).
       waitHref: routes.sending(visit.id),
       observationHref: (obsId) => routes.observation(obsId),
@@ -193,6 +221,24 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
           </button>
         )} />
       {isShort && <Alert>{C.shortWarning}</Alert>}
+
+      {question.ask && (
+        <>
+          <SectionHeading>{C.classAndSubject}</SectionHeading>
+          <div className="flex flex-col gap-2.5" data-testid="lesson-class">
+            <SelectField label={C.classField} title={C.classField} value={grade}
+              options={[{ value: "primary", label: C.gradePrimary }, ...(question.grades || []).map((g) => ({ value: String(g), label: C.grade(g) }))]}
+              onChange={(v) => { setGrade(v); if (!needsSubject(v)) setSubject(null); setLessonProblem(null); }} />
+            {needsSubject(grade) && (
+              <SelectField label={C.subjectField} title={C.subjectField} value={subject}
+                options={(question.subjects || []).map((k) => ({ value: k, label: (C.subjects as Record<string, string>)[k] || k }))}
+                onChange={(v) => { setSubject(v); setLessonProblem(null); }} />
+            )}
+          </div>
+          {lessonProblem === "class" && <Alert>{C.chooseClassFirst}</Alert>}
+          {lessonProblem === "subject" && <Alert>{C.chooseSubjectFirst}</Alert>}
+        </>
+      )}
 
       <SectionHeading chip={C.optional}>{C.lessonPlan}</SectionHeading>
       {plan ? (

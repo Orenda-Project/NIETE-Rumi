@@ -28,6 +28,8 @@
 const Store = require('../services/observe/obs612/store');
 const Record = require('../services/observe/obs612/record');
 const F = require('../services/observe/obs612/flow');
+// bd-ra8xu.40 — the merge, the per-screen check and Section 1's rows, shared with the portal's door to this form.
+const Model = require('../services/observe/obs612/form-model');
 const O = require('../services/coaching/frameworks/obs612');
 const { logToFile } = require('../utils/logger');
 
@@ -56,13 +58,14 @@ const DONE = {
   error: { title: 'Not saved', body: 'Something went wrong. Close this and open the form again from the chat. Your answers so far are kept.' },
 };
 
+// The check's codes (form-model.checkScreen), as the Flow says them.
 const MSG = {
   item: 'Choose an answer.',
   choice: 'Choose one.',
   text: 'Write a few words here.',
   number: 'Enter a whole number.',
-  rowTwo: 'Fill this in too, or leave the second area empty.',
-  sameArea: 'Pick an area other than the first.',
+  row_two: 'Fill this in too, or leave the second area empty.',
+  same_area: 'Pick an area other than the first.',
 };
 const fixNote = (footer) => `Some answers are missing. Fill in the ones marked below, then tap ${footer}.`;
 const SAVE_FAILED = 'Your answers were not saved: something went wrong. Tap the button again.';
@@ -104,7 +107,7 @@ async function load(flowToken) {
 const SUBJECT_OPTION = { english: 'English', urdu: 'Urdu' };
 const LEVEL_LABELS = O.TOOLS.msci.scale.labels;
 const DP_CURRENT = O.TOOLS.msci.development_plan.columns[1];
-const has = (v) => v !== undefined && v !== null && String(v).trim() !== '';
+const { has } = Model;
 
 function prefill(f, ctx, draft) {
   let v = has(draft[f.name]) ? String(draft[f.name]) : '';
@@ -118,21 +121,9 @@ function prefill(f, ctx, draft) {
 // Section 1's read-only rows (FDE's labels): school, observer, teacher, grade.
 async function contextLines(ctx) {
   const form = ctx.form;
-  const vc = form.visit_context || {};
   const got = await Store.getPeople([form.observer_user_id, form.teacher_user_id]);
   const people = got.ok ? got.people : [];
-  const coach = people.find((p) => p.id === form.observer_user_id) || {};
-  const teacher = (form.teacher_user_id && people.find((p) => p.id === form.teacher_user_id)) || {};
-  const values = {
-    ctx_1: vc.school_name || teacher.school_name,
-    ctx_2: coach.name,
-    ctx_3: vc.teacher_name || teacher.name,
-    ctx_4: ctx.lesson.grade,
-  };
-  return ['ctx_1', 'ctx_2', 'ctx_3', 'ctx_4'].map((k) => {
-    const label = O.TOOLS.enur.context.find((c) => c.key === k).label;
-    return `${label}: ${has(values[k]) ? String(values[k]).trim() : '—'}`;
-  }).join('\n');
+  return Model.contextRows(form, ctx.lesson.grade, people).map((r) => `${r.label}: ${r.value === null ? '—' : r.value}`).join('\n');
 }
 
 // The development plan's "Current level": what the coach gave each indicator.
@@ -170,50 +161,12 @@ async function renderScreen(screenId, ctx, draft, opts) {
 
 // ── save, check ───────────────────────────────────────────────────────────────
 
-const clip = (s, max) => [...s].slice(0, max).join('');
+// The saved draft with one screen's posted values on top (form-model.mergeDraft: shared with the portal).
+const mergeDraft = Model.mergeDraft;
 
-/**
- * The saved draft with one screen's posted values on top. A field the Flow did not post keeps what was saved; a
- * pre-filled field posted blank was cleared by the coach; a field never pre-filled (Class Size) posted blank keeps
- * what was saved.
- */
-function mergeDraft(saved, fields, posted) {
-  const out = { ...saved };
-  for (const f of fields) {
-    if (!Object.prototype.hasOwnProperty.call(posted, f.name)) continue;
-    let v = posted[f.name] == null ? '' : String(posted[f.name]).trim();
-    if (f.input === 'number' && /^\d+(\.0+)?$/.test(v)) v = String(parseInt(v, 10));
-    if (v === '') {
-      if (f.prefill) delete out[f.name];
-      continue;
-    }
-    out[f.name] = f.max ? clip(v, f.max) : v;
-  }
-  return out;
-}
-
-/** One screen's problems, { field: message }, from the merged draft. */
+/** One screen's problems, { field: message }, from the merged draft: form-model's codes in the Flow's words. */
 function validate(screenId, draft) {
-  const errors = {};
-  for (const f of F.fieldsOf(screenId)) {
-    const v = draft[f.name];
-    if (f.answer) {
-      if (O.normAnswer(f.answer, v) === null) errors[f.name] = MSG.item;
-      continue;
-    }
-    if (!has(v)) {
-      if (f.required) errors[f.name] = f.options ? MSG.choice : MSG.text;
-      continue;
-    }
-    if (f.options && !f.options.some((o) => o.id === String(v))) errors[f.name] = MSG.choice;
-    if (f.input === 'number' && !/^\d{1,4}$/.test(String(v))) errors[f.name] = MSG.number;
-  }
-  if (screenId === 'MSCI_PLAN') {
-    const row2 = ['dp_area_2', 'dp_goal_2', 'dp_action_2'];
-    if (row2.some((k) => has(draft[k]))) for (const k of row2) if (!has(draft[k]) && !errors[k]) errors[k] = MSG.rowTwo;
-    if (has(draft.dp_area_2) && draft.dp_area_2 === draft.dp_area && !errors.dp_area_2) errors.dp_area_2 = MSG.sameArea;
-  }
-  return errors;
+  return Object.fromEntries(Object.entries(Model.checkScreen(screenId, draft)).map(([k, code]) => [k, MSG[code]]));
 }
 
 // Where a missing answer is: "LESSON DELIVERY, Item 3 (Part 2 of 6)".

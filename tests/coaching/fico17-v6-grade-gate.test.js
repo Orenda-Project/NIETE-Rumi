@@ -33,6 +33,8 @@ beforeEach(() => {
     prim: { id: 'prim', teacher_level: ['PRIMARY'] },
     mixed: { id: 'mixed', teacher_level: ['PRIMARY', 'MIDDLE'] },
     high: { id: 'high', teacher_level: ['HIGH'] },
+    primhigh: { id: 'primhigh', teacher_level: ['PRIMARY', 'HIGH'] },
+    midhigh: { id: 'midhigh', teacher_level: ['MIDDLE', 'HIGH'] },
     none: { id: 'none', teacher_level: null },
   };
   mockSwitch = JSON.stringify({ '*': 'v6' });
@@ -42,9 +44,11 @@ beforeEach(() => {
 });
 afterAll(() => { delete process.env.OBSERVE_FICO17_V6_READY; });
 
-describe('who counts as a grades 1-5 visit', () => {
+describe('who counts as a FICO-grade visit (grades 1-5 or 9-12; never 6-8)', () => {
   test.each([
-    [['PRIMARY'], true], [['PRIMARY', 'MIDDLE'], false], [['HIGH'], false], [['MIDDLE'], false], [null, false], [[], false],
+    // bd-ra8xu.40 (operator 12 Nov ~11:00): grades 9-12 follow the FICO switch too; only 6-8 (MIDDLE) is FDE's.
+    [['PRIMARY'], true], [['HIGH'], true], [['PRIMARY', 'HIGH'], true],
+    [['PRIMARY', 'MIDDLE'], false], [['MIDDLE', 'HIGH'], false], [['MIDDLE'], false], [null, false], [[], false],
   ])('teacher_level %j → %s', (lv, want) => {
     expect(Grade.isPrimaryOnly({ teacher_level: lv })).toBe(want);
   });
@@ -55,7 +59,7 @@ describe('who counts as a grades 1-5 visit', () => {
 });
 
 describe('/observe2: the switch on v6 stamps only grades 1-5 visits', () => {
-  test.each([['prim', 'fico17_v6'], ['mixed', 'fico-ict-17-2026-09'], ['high', 'fico-ict-17-2026-09'], ['none', 'fico-ict-17-2026-09'], [null, 'fico-ict-17-2026-09']])(
+  test.each([['prim', 'fico17_v6'], ['high', 'fico17_v6'], ['primhigh', 'fico17_v6'], ['mixed', 'fico-ict-17-2026-09'], ['midhigh', 'fico-ict-17-2026-09'], ['none', 'fico-ict-17-2026-09'], [null, 'fico-ict-17-2026-09']])(
     'teacher %s → %s', async (teacher, want) => {
       const r = await visitRubric({ observerUserId: 'coach-1', region: 'Sihala', teacherUserId: teacher });
       expect(r.rubricVersion).toBe(want);
@@ -68,7 +72,7 @@ describe('/observe2: the switch on v6 stamps only grades 1-5 visits', () => {
 });
 
 describe('/observe: the switch on v6 (and the readiness flag) stamps only grades 1-5 visits', () => {
-  test.each([['prim', 'fico17_v6'], ['mixed', null], ['high', null], ['none', null], [null, null]])(
+  test.each([['prim', 'fico17_v6'], ['high', 'fico17_v6'], ['primhigh', 'fico17_v6'], ['mixed', null], ['midhigh', null], ['none', null], [null, null]])(
     'teacher %s → %s', async (teacher, want) => {
       expect(await O6.decideVisitFramework({ userId: 'coach-1', region: 'Sihala', teacherUserId: teacher })).toBe(want);
     },
