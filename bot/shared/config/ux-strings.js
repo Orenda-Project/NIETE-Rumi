@@ -4285,6 +4285,18 @@ const UX_STRINGS = {
     en: 'Please register first, then send /feedback. Type /register to start.',
     ur: 'پہلے رجسٹر کریں، پھر ⁦/feedback⁩ بھیجیں۔ شروع کرنے کے لیے ⁦/register⁩ لکھیں۔',
   },
+
+  // ── a file WhatsApp could not hand us (bd-r2uzg1.2, Meta error 131052) ───────
+  // services/inbound-media-failed.service.js — at most one a day per sender. Impersonal toward the reader in Urdu
+  // (no verb agrees with her). "Too big" is a separate line: a file over the limit fails as a Document too.
+  inboundMediaResend: {
+    en: 'Your file did not reach us: WhatsApp could not pass it on. Please send it again as a Document.',
+    ur: 'آپ کی فائل ہم تک نہیں پہنچی، واٹس ایپ اسے آگے نہیں بھیج سکا۔ براہ کرم اسے دوبارہ ڈاکیومنٹ کے طور پر بھیجیں۔',
+  },
+  inboundMediaTooBig: {
+    en: 'Your file did not reach us: it is bigger than WhatsApp allows (100 MB). Please send a shorter or smaller file.',
+    ur: 'آپ کی فائل ہم تک نہیں پہنچی، یہ واٹس ایپ کی حد سے بڑی ہے۔ براہ کرم چھوٹی فائل بھیجیں۔',
+  },
 };
 
 /**
