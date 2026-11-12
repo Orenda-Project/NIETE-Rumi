@@ -13,6 +13,11 @@ import { isBlock, type Block } from './blocks';
 
 export const VISIT_LIMIT_MS = 45 * 60 * 1000;
 
+/** The visit's time: a list drawn at another size (sa_per_visit) gets that many children's minutes; any other list 45. */
+export function visitLimitMs(perVisit: number | undefined, minutesPerChild: number): number {
+  return perVisit ? perVisit * minutesPerChild * 60 * 1000 : VISIT_LIMIT_MS;
+}
+
 export type VisitMemory = {
   startedAt: number | null;
   list: SaList | null;

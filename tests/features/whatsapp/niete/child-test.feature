@@ -1121,3 +1121,13 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When sa_per_visit is set to 3 and I open that visit's list again
     Then the same 5 children and alternates are listed
     And with sa_per_visit absent a new visit lists 5 children and 2 alternates, as today
+
+  # The visit clock follows the list (portal/src/portal/lib/assess/visitStore.ts visitLimitMs, AssessVisitBar limitMs).
+  @e2e @wip @draft @config-gated @P1 @CT177 @no-mock-driver
+  # No mock driver: as @CT175. Asserted in portal/src/portal/components/assess/AssessVisitBar.test.tsx and
+  # portal/src/portal/pages/LeaderAssess.perVisit.test.tsx.
+  Scenario: The visit clock is 20 minutes a child on a list drawn at 3, and 45 minutes on any other list
+    Given sa_per_visit is 3
+    When I open today's list at a school in the coach app
+    Then the visit bar reads "Time 00:00 / 60:00" and turns red only after 60 minutes
+    And a list drawn at 5, or before the switch, reads "/ 45:00" as today

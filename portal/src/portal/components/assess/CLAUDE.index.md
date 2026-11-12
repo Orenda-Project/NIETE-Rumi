@@ -16,7 +16,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `AssessPreflight.ios.test.tsx` | (unmapped) |
 | `AssessPreflight.test.tsx` | Pins AssessPreflight: with sa_mic_required Ready waits for a working mic or explicit continue; off = today's card |
 | `AssessPreflight.tsx` | Pre-flight card once per visit: airplane mode, headphone beep and microphone level/playback check |
-| `AssessVisitBar.tsx` | Sticky visit bar: children done of five, 45-minute timer, and per-child sync state (phone/sending/sent) |
+| `AssessVisitBar.tsx` | Sticky visit bar: children done of the list, the visit timer (45 min, or list size × 20 min under sa_per_visit), and per-child sync state (phone/sending/sent) |
 | `assessSw.test.ts` | Round 8: tests the assess-sw.js service worker (network-first online, kept page/files/reads offline) |
 | `offlineCopy.ts` | English and Urdu copy for the round-8 offline-prep pieces (OFFLINE_COPY), digits kept 0-9 |
 | `offlineReady.test.ts` | Round 8: pageUrls lists the page, reads, prepared lists and engine offline helper that Get ready must keep |
