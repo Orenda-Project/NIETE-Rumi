@@ -15,6 +15,8 @@ import { countChanges, initialValues, rungName, titleOf, type Values } from "./f
 import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
 import { teacherNameOf, useObservationView } from "./useObservationView";
 import { PlanSource } from "../observe/PlanState";
+import { V6Part } from "./V6Parts";
+import { MIN_REASON, v6Problems, type V6Problems } from "./v6Model";
 
 /**
  * bd-4404s7.5 — Feedback Form, step 2 of 5 (Blueprint Coach_FeedbackForm): the WhatsApp review form, in the portal, on the
@@ -63,6 +65,9 @@ export default function FeedbackForm() {
   const [confirm, setConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  // bd-ra8xu.40 — a FICO17 v6 part's refusals (the v6 Flow's rules), and the bot's own when it refuses a save.
+  const [problems, setProblems] = useState<V6Problems>({});
+  const [refused, setRefused] = useState<string[]>([]);
   const top = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -86,7 +91,16 @@ export default function FeedbackForm() {
   const options = useMemo(() => (draft?.scale ?? []).map((o) => ({ id: o.id, label: rungName(o.title) })), [draft]);
   const face = (rid: string) => (rid === "na" ? C.na : rid);
 
-  const go = (n: number) => { setPart(n); top.current?.scrollIntoView?.({ block: "start" }); };
+  const minReason = draft?.minReason ?? MIN_REASON;
+  // A v6 part goes on only when its rules hold, as the v6 Flow refuses its screen; the reasons show at each field.
+  const partOk = () => {
+    if (readOnly || !section || section.kind !== "v6") return true;
+    const p = v6Problems(section, values, minReason);
+    setProblems(p);
+    if (Object.keys(p).length) { top.current?.scrollIntoView?.({ block: "start" }); return false; }
+    return true;
+  };
+  const go = (n: number) => { setProblems({}); setPart(n); top.current?.scrollIntoView?.({ block: "start" }); };
   const back = () => (part > 0 ? go(part - 1) : navigate(home));
 
   const save = async () => {
@@ -96,8 +110,12 @@ export default function FeedbackForm() {
       await leader.saveObservationDraft(id, values);
       navigate(home, { replace: true });
     } catch (err) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
-      setProblem(status === 409 ? C.notEditable : C.saveFailed);
+      const res = (err as { response?: { status?: number; data?: { reason?: string; errors?: Record<string, string> } } })?.response;
+      const status = res?.status;
+      // bd-ra8xu.40 — the bot refused a v6 review with the v6 Flow's own reasons (in her language): show them.
+      const reasons = status === 400 && res?.data?.reason === "v6_review" ? Object.values(res.data.errors || {}) : [];
+      setRefused(reasons);
+      setProblem(reasons.length ? C.fixThese : status === 409 ? C.notEditable : C.saveFailed);
       setSaving(false);
       setConfirm(false);
     }
@@ -107,8 +125,8 @@ export default function FeedbackForm() {
     <>
       <BottomButton tone="outline" onClick={back}>{C.back}</BottomButton>
       {!last
-        ? <BottomButton onClick={() => go(part + 1)}>{C.next}</BottomButton>
-        : readOnly ? null : <BottomButton onClick={() => setConfirm(true)}>{C.saveForm}</BottomButton>}
+        ? <BottomButton onClick={() => { if (partOk()) go(part + 1); }}>{C.next}</BottomButton>
+        : readOnly ? null : <BottomButton onClick={() => { if (partOk()) setConfirm(true); }}>{C.saveForm}</BottomButton>}
     </>
   ) : undefined;
 
@@ -154,6 +172,9 @@ export default function FeedbackForm() {
       <div ref={top} />
       {draft && section && (
         <>
+          {draft.rubric?.label && (
+            <span data-testid="rubric-label" dir="ltr" className="self-end px-1 text-[10px] leading-none text-[#9ca3af]">{draft.rubric.label}</span>
+          )}
           <StepBar total={total} current={part + 1} label={C.partOf(part + 1, total)} />
           {!readOnly && (
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-1 text-[13px] font-semibold text-[#4b5563]" data-testid="legend">
@@ -170,13 +191,24 @@ export default function FeedbackForm() {
               {section.moves.length === 0 && section.fallback && <p className={cn(LIST_CARD, "p-3.5 text-[15px] leading-relaxed")} dir="auto">{section.fallback}</p>}
               {section.moves.map((m) => moveCard(m, section.moves.length, draft.fidelityScale))}
             </>
+          ) : section.kind === "v6" ? (
+            <V6Part section={section} values={values} start={start} set={set} readOnly={readOnly} problems={problems} minReason={minReason} />
           ) : (
             <>
               {section.notes.map((n) => <p key={n.slice(0, 40)} className="whitespace-pre-line rounded-2xl bg-[#eaf6ef] p-3.5 text-[14px] leading-relaxed text-[#2f7a52]" dir="auto">{n}</p>)}
               {section.indicators.map(indicatorCard)}
             </>
           )}
-          {problem && <div role="alert" className="rounded-2xl bg-[#fee4e2] p-4 text-[16px] font-semibold text-[#c8331f]">{problem}</div>}
+          {problem && (
+            <div role="alert" className="flex flex-col gap-1.5 rounded-2xl bg-[#fee4e2] p-4 text-[16px] font-semibold text-[#c8331f]">
+              {problem}
+              {refused.length > 0 && (
+                <ul className="m-0 flex list-disc flex-col gap-1 ps-5 text-[15px] font-normal">
+                  {refused.map((r) => <li key={r} dir="auto">{r}</li>)}
+                </ul>
+              )}
+            </div>
+          )}
         </>
       )}
 
