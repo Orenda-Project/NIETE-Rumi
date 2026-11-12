@@ -129,6 +129,12 @@ describe('ownStatus — the row in the render shape, hers only', () => {
 });
 
 describe('bd-snkn32.15 — the daily limit and changes left', () => {
+  it('on sandbox a sixth make goes through: no daily limit there (bd-snkn32.26)', async () => {
+    const { svc } = harness({ countToday: jest.fn(async () => 5), env: { RAILWAY_ENVIRONMENT_NAME: 'sandbox' } });
+    const out = await svc.requestOwn({ userId: 'u1', segmentId: SEG, answers: ANSWERS });
+    expect(out.outcome).not.toBe('daily_limit');
+  });
+
   it('a sixth make in her Pakistan day is refused before anything is written or asked for', async () => {
     const { svc, deps } = harness({ countToday: jest.fn(async () => 5) });
     const out = await svc.requestOwn({ userId: 'u1', segmentId: SEG, answers: ANSWERS });
