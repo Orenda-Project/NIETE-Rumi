@@ -57,6 +57,34 @@ describe('G11 Urdu board paper: poem / ghazal slots follow the chosen pages', ()
     expect(L.total_marks).toBe(81);
     expect(L.checks.hard).toBe(0);
   });
+  test('prose only: printed numbers run on (Q3, Q4, Q5) and the scheme legend says why', async () => {
+    const L = (await run(URDU, PROSE, ['poem', 'ghazal'])).examJson._layout;
+    const label = (id) => L.slots.find((s) => s.slot === id);
+    expect(['3.Q3', '3.Q6', '3.Q7'].map((id) => label(id).label)).toEqual(['Q3', 'Q4', 'Q5']);
+    expect(['3.Q3', '3.Q6', '3.Q7'].map((id) => label(id).label_ur)).toEqual(['سوال 3', 'سوال 4', 'سوال 5']);
+    expect(label('2.Q2d grammar').label).toBe('Q2b grammar');
+    expect(L.legend.lines_en.join(' ')).toContain('No poem in the chosen pages, so the poem questions are left out.');
+    expect(L.legend.lines_ur.join(' ')).toContain('منتخب صفحات میں کوئی غزل نہیں، اس لیے غزل کے سوالات شامل نہیں کیے گئے۔');
+    expect(L.checks.hard).toBe(0);
+  });
+  test('prose only, printed: the Urdu paper numbers run on and the Urdu scheme carries both notes', async () => {
+    const exam = (await run(URDU, PROSE, ['poem', 'ghazal'])).examJson;
+    const paper = require(`${A}assessment-paper-board.renderer`).renderBoardPaper(exam);
+    const scheme = require(`${A}assessment-scheme-board.renderer`).renderBoardScheme(exam);
+    // the printed question headings (slot head, or the bold label of a teacher-marked slot), Urdu digits as printed
+    const heads = [...paper.matchAll(/(?:<div class="slot-head"><span>|<div class="teacher-slot"><b>)(.*?)<\/(?:span><span class="ml"|b>)/g)]
+      .map((m) => m[1].replace(/<span class="num">(.*?)<\/span>/g, '$1'));
+    expect(heads.filter((h) => h.startsWith('سوال'))).toEqual(['سوال ۱', 'سوال ۳', 'سوال ۴', 'سوال ۵']);
+    expect(heads).toEqual(expect.arrayContaining(['Q۲a prose', 'Q۲b grammar']));
+    expect(scheme).toContain('منتخب صفحات میں کوئی نظم نہیں، اس لیے نظم کے سوالات شامل نہیں کیے گئے۔');
+    expect(scheme).toContain('منتخب صفحات میں کوئی غزل نہیں، اس لیے غزل کے سوالات شامل نہیں کیے گئے۔');
+    expect(paper).not.toContain('منتخب صفحات');
+  });
+  test('both present: no note, the pattern\'s own numbers', async () => {
+    const L = (await run(URDU, [PROSE, NAZM, GHAZAL].join('\n'))).examJson._layout;
+    expect(L.legend.lines_en.join(' ')).not.toContain('chosen pages');
+    expect(L.slots.find((s) => s.slot === '3.Q7').label).toBe('Q7');
+  });
   test('both present: the full paper, total 100, every slot', async () => {
     const res = await run(URDU, [PROSE, NAZM, GHAZAL].join('\n'));
     const L = res.examJson._layout;

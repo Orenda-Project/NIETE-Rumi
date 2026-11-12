@@ -78,12 +78,13 @@ describe('forContent: the variant the writer uses', () => {
     expect(V.total_marks).toBe(85);
     expect(V.exam_header.lines_en.join(' ')).toContain('Total Marks: {t:85}');
   });
-  test('prose only: both go; prose, grammar and the other slots are untouched', () => {
+  test('prose only: both go; prose, grammar and the other slots are untouched (only printed labels renumber)', () => {
     const V = GP.forContent(urdu1, 'urdu', PROSE);
     const kept = slotsOf(urdu1).filter((id) => !['2.Q2b poem', '2.Q2c ghazal', '3.Q4', '3.Q5'].includes(id));
     expect(slotsOf(V)).toEqual(kept);
     V.sections.forEach((s) => s.slots.forEach((x) => {
-      expect(x).toBe(urdu1.sections.find((o) => o.id === s.id).slots.find((o) => o.slot === x.slot));
+      const was = urdu1.sections.find((o) => o.id === s.id).slots.find((o) => o.slot === x.slot);
+      expect({ ...x, label_en: was.label_en, label_ur: was.label_ur }).toEqual(was);
     }));
     expect(V.total_marks).toBe(100 - 12 - 4 - 7 - 9);
   });
