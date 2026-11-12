@@ -175,17 +175,18 @@ const ART: Record<ArtName, ReactElement> = {
       <path className="fm-an fm-tw fm-t4" d="M42.5 2.5 43.6 5.4 46.5 6.5 43.6 7.6 42.5 10.5 41.4 7.6 38.5 6.5 41.4 5.4z" fill="#d4a017" />
     </g>
   ),
-  // bd-zay62o — the coach's Learning assessment: a child in front of a reading card (Assessment's blue, never the exam
-  // paper's page and A+ badge). The card's letter and sum draw in, the child hops, a gold sparkle twinkles. Built from the
-  // motion set's own keyframes.
+  // bd-zay62o — the coach's Learning assessment: a child in front of a reading card with an English and an Urdu letter
+  // (A and ب; Assessment's blue, never the exam paper's page and A+ badge). The letters draw in, the child hops, a gold
+  // sparkle twinkles. Built from the motion set's own keyframes.
   learningAssessment: (
     <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
       <rect x="4" y="4" width="32" height="25" rx="3" fill="#fff" />
       <path d="M7 4h26a3 3 0 0 1 3 3v3H4V7a3 3 0 0 1 3-3z" fill="#e3eefc" />
       <g fill="none" stroke="#1d6fd8" strokeWidth="2">
         <path className="fm-an fm-dr" pathLength={100} d="M9 24.5l3.5-9.5 3.5 9.5M10.3 21h4.4" />
-        <path className="fm-an fm-dr fm-t4" pathLength={100} d="M21 19.5h7M24.5 16v7" />
+        <path className="fm-an fm-dr fm-t4" pathLength={100} d="M20.5 16.5c.2 3 2 4.6 4.6 4.6h2.6c2.1 0 3.3-1.2 3.3-3.4" />
       </g>
+      <circle cx="26" cy="24.6" r="1.3" fill="#1d6fd8" stroke="none" />
       <g className="fm-an fm-hop fm-t2">
         <path d="M25 44a9 9 0 0 1 18 0z" fill="#1d6fd8" />
         <circle cx="34" cy="30" r="5" fill="#fff" />
