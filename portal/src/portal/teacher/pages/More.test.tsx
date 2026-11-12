@@ -55,14 +55,13 @@ describe("teacher v2 More", () => {
     expect(who).toHaveTextContent("IMSG I-10/1");
   });
 
-  it("exactly three things: Language, My profile, Log out (bd-fmf24g.33)", () => {
+  it("Language, My profile, Report an issue, Log out (bd-fmf24g.33; Report an issue bd-370733)", () => {
     renderMore();
     expect(screen.getAllByTestId(/^more-row-/).map((r) => r.getAttribute("data-testid"))).toEqual([
-      "more-row-language", "more-row-profile", "more-row-logout",
+      "more-row-language", "more-row-profile", "more-row-report", "more-row-logout",
     ]);
     const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(1);
-    expect(links[0]).toHaveAttribute("href", teacherPath("profile"));
+    expect(links.map((l) => l.getAttribute("href"))).toEqual([teacherPath("profile"), "/portal/teacher/more/report"]);
     for (const gone of ["Assessment", "Attendance", "My Classes", "Analytics", "Certificates"]) expect(screen.queryByText(gone)).toBeNull();
   });
 

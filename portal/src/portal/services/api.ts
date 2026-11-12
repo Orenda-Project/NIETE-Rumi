@@ -130,6 +130,11 @@ export type LiveMovesRecord = {
 };
 
 export const portal = {
+  /** bd-370733: More → Report an issue for a teacher or a principal (any signed-in user; a coach's goes to coach.reportIssue). */
+  reportIssue: async (body: { kind: 'broken' | 'numbers' | 'idea' | 'other'; message: string; page?: string }): Promise<{ success: boolean }> => {
+    const response = await api.post('/report-issue', body);
+    return response.data;
+  },
   getDashboard: async (): Promise<{
     user: User;
     stats: DashboardStats;

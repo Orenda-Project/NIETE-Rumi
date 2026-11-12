@@ -2402,10 +2402,20 @@ router.use(require('./portal-principal.routes').createPrincipalRouter({
   }));
 }
 // bd-whlsm0: a coach's "Report an issue" from the More page, stored for the session coach (coach_feedback).
+// bd-370733: and a teacher's or principal's (POST /report-issue, any signed-in user), in the same table; every row
+// records who sent it in context.role (users.role at send time; coach_feedback.context exists on all three DBs).
 router.use(require('./coach-feedback.routes').createCoachFeedbackRouter({
   guards: coachV2,
-  save: async ({ userId, kind, message, page }) => {
-    const { error } = await supabase.from('coach_feedback').insert({ user_id: userId, kind, message, page });
+  anyoneGuards: [requirePortalAuth],
+  roleOf: async (userId) => {
+    const { data, error } = await supabase.from('users').select('role').eq('id', userId).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error('no users row');
+    return data.role;
+  },
+  save: async ({ userId, kind, message, page, role }) => {
+    const { error } = await supabase.from('coach_feedback')
+      .insert({ user_id: userId, kind, message, page, context: role ? { role } : {} });
     if (error) throw new Error(error.message);
   },
 }));
