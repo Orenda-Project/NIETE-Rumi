@@ -1081,17 +1081,25 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // /observe2 — the FICO field-form pilot (live form during the lesson, then "What Rumi heard").
   // Gated in observe2/gate.js; off (false) → falls through like any text. /^\/observe\b/ below
   // does not match "/observe2", so the two commands never shadow each other.
+  // Retired (app_settings.observe2_retired, default off; observe2/retire.js): the one-line notice, then the /observe
+  // door below runs with "/observe", so the coach gets exactly what /observe opens. Visits already started are untouched.
+  let observeCommand = trimmedMessage;
   if (/^\/observe2\b/i.test(trimmedMessage)) {
-    if (await redirectToApp('observe', 'command')) return;
-    const { handleObserve2Command } = require('../services/observe/observe2/start');
-    const observe2Handled = await handleObserve2Command(user, from, trimmedMessage);
-    if (observe2Handled) return;
+    const { announceIfRetired } = require('../services/observe/observe2/retire');
+    if (await announceIfRetired(user, from)) {
+      observeCommand = '/observe';
+    } else {
+      if (await redirectToApp('observe', 'command')) return;
+      const { handleObserve2Command } = require('../services/observe/observe2/start');
+      const observe2Handled = await handleObserve2Command(user, from, trimmedMessage);
+      if (observe2Handled) return;
+    }
   }
 
-  if (/^\/observe\b/i.test(trimmedMessage)) {
+  if (/^\/observe\b/i.test(observeCommand)) {
     if (await redirectToApp('observe', 'command')) return;
     const { handleObserveCommand } = require('./observe-command.handler');
-    const observeHandled = await handleObserveCommand(user, from, trimmedMessage);
+    const observeHandled = await handleObserveCommand(user, from, observeCommand);
     if (observeHandled) return;
   }
 

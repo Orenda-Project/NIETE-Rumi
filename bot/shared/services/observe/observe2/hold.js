@@ -38,6 +38,8 @@ const madeByObserve = (form) => Boolean(form && form.visit_context && form.visit
 async function prefersObserve2(userId) {
   try {
     if (!isFeatureRunnable('observe2')) return false;
+    // /observe2 retired for this coach (observe2/retire.js): a recording starts no new /observe2 visit; /observe's path.
+    if (await require('./retire').isRetired({ userId })) return false;
     const latest = await Store.latestFormOf(userId);
     if (!latest.ok || !latest.form) return false;
     if (madeByObserve(latest.form)) return false;
