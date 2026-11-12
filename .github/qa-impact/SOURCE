@@ -1,11 +1,12 @@
-engine 2.0.0
+engine 2.1.1
 Copied from rumi-agent-home's E2E engine by .claude/qa/engine/bin/ci-copy.sh for the GitHub PR check.
 Do not edit here: change the engine, then re-run ci-copy.sh. --check says when this copy is behind.
-44da77e37ce4f391f90daf3f64fa1fbdb5dbed4ac28fd0013025f09168c4e0d7  impact.py
-521f4500ac5234501a359347c2a2c4f645689e03abacf66fb705c1faaaef8571  select_e2e.py
+8b5c7510d2541def0901898a8c223a7e90bed5e033e4843ad06e51b3da11aca6  impact.py
+48be90b110ed335751b45e2eb1dcf0672481943fd96c319487eadb0b3c0e0b05  hook_notes.py
+98b47618f0d1da01ccbfcb186646193e86cfa9d9cdb94813584524ef07404e52  select_e2e.py
 d26441e681abdcb0d36cfadffb2e14413b31aeb17d474830b5576582a7e3d4e8  spec_sync.py
 58377ceed8545dce3f5077cf84d36f6294e45177068ff0d9f31cdbb59ac7b52f  validate_specs.py
-09e643a26f865c8adc1b88e1cc9cef2d8ea48045e88e6b8b8c7bc51669b36af2  tenants_lite.py
+48ce1d5317557932d74467c9e12996b6ed100184380f060224ecdf3398ac15b2  tenants_lite.py
 70ca740751b46a08a69ab29122631ad80a7f7e2a68be6181f66d16aabce2b1ad  yaml_lite.py
 ad7de24813611f9991d369826e567f3aecb84c55cd6e0c43b4913c2ee5c50470  ledger.py
-6ef664e89d756e5e0111d845f555eed01345f063a880531cf18e734d889537ff  check-scenario-coverage.py
+7bba4cc66c107b6d691205caff007451211f0f1ce0ede07ccbb7b7040e80aefe  check-scenario-coverage.py
