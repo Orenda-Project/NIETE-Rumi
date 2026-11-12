@@ -62,3 +62,46 @@ describe("LeaderAssess: children per visit", () => {
     expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("Children done 0/5");
   });
 });
+
+// The visit clock follows the list: a list of three is 3 × 20 min = 60:00; a list with no size keeps 45:00. The
+// resume/repick sitting stays 90 minutes whatever the list.
+const MIN = 60 * 1000;
+const ago = (m: number) => new Date(Date.now() - m * MIN).toISOString();
+const timeText = () => screen.getByTestId("assess-visit-bar").querySelector("div > span:last-child") as HTMLElement;
+
+describe("LeaderAssess: the visit clock follows the list size", () => {
+  it("a list of three: / 60:00, not red at 50:00", async () => {
+    const first = { ...child(1), sessionStartedAt: ago(50) };
+    await open({ ...BASE, perVisit: 3, children: [first, child(2), child(3)], alternates: [child(4), child(5)] });
+    expect(timeText()).toHaveTextContent(/^Time 50:0\d \/ 60:00$/);
+    expect(timeText().className).not.toContain("text-red-700");
+  });
+
+  it("a list of three: red at 61:00", async () => {
+    const first = { ...child(1), sessionStartedAt: ago(61) };
+    await open({ ...BASE, perVisit: 3, children: [first, child(2), child(3)], alternates: [child(4), child(5)] });
+    expect(timeText()).toHaveTextContent(/\/ 60:00$/);
+    expect(timeText().className).toContain("text-red-700");
+  });
+
+  it("Urdu, a list of three: ۶۰:۰۰", async () => {
+    setLang("ur");
+    await open({ ...BASE, perVisit: 3, children: [1, 2, 3].map(child), alternates: [child(4), child(5)] });
+    expect(timeText()).toHaveTextContent("۶۰:۰۰");
+  });
+
+  it("a list with no size (drawn at 5, or before the switch): / 45:00, red at 50:00, as today", async () => {
+    const first = { ...child(1), sessionStartedAt: ago(50) };
+    await open({ ...BASE, children: [first, ...[2, 3, 4, 5].map(child)], alternates: [] });
+    expect(timeText()).toHaveTextContent(/\/ 45:00$/);
+    expect(timeText().className).toContain("text-red-700");
+  });
+
+  it("the sitting stays 90 minutes on a list of three (sa_resume_repick): a start 80 min ago counts, 100 min ago does not", async () => {
+    api.getSwitches.mockResolvedValue({ ...SW, resumeRepick: true });
+    const first = { ...child(1), sessionStartedAt: ago(80) };
+    const second = { ...child(2), sessionStartedAt: ago(100) };
+    await open({ ...BASE, perVisit: 3, children: [second, first, child(3)], alternates: [child(4), child(5)] }, "Bilal Testwala");
+    expect(timeText()).toHaveTextContent(/^Time 80:0\d \/ 60:00$/);
+  });
+});
