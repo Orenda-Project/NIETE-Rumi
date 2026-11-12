@@ -3278,8 +3278,12 @@ function portalObserveRoute(name, run) {
 router.post('/coaching/observe/start', requireInternalKey, portalObserveRoute('observe-start',
   (Svc, b) => Svc.startPortalObservation({
     userId: b.userId, teacherExtId: b.teacherExtId, schoolExtId: b.schoolExtId, key: b.key,
-    lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys, lessonPlan: b.lessonPlan,
+    lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys, lessonPlan: b.lessonPlan, lesson: b.lesson,
   })));
+
+/** POST /api/internal/coaching/observe/lesson-question  Body { userId } — does Check and send ask the class? (bd-ra8xu.40) */
+router.post('/coaching/observe/lesson-question', requireInternalKey, portalObserveRoute('observe-lesson-question',
+  (Svc, b) => Svc.lessonQuestion({ userId: b.userId })));
 
 /** POST /api/internal/coaching/observe/recent-plans  Body { userId, teacherExtId, schoolExtId? } — HER recent plans. */
 router.post('/coaching/observe/recent-plans', requireInternalKey, portalObserveRoute('observe-recent-plans',
@@ -3297,9 +3301,15 @@ router.post('/coaching/observe/view', requireInternalKey, portalObserveRoute('ob
 router.post('/coaching/observe/draft', requireInternalKey, portalObserveRoute('observe-draft',
   (Svc, b) => Svc.getDraft({ userId: b.userId, coachingSessionId: b.coachingSessionId })));
 
-/** POST /api/internal/coaching/observe/draft/save  Body { userId, coachingSessionId, edits } — the Flow's edit keys. */
+/**
+ * POST /api/internal/coaching/observe/draft/save  Body { userId, coachingSessionId, edits, submit? } — the Flow's edit
+ * keys. bd-ra8xu.40: `submit: true` (only that) submits an FDE (obs612) visit's form; refused while anything is missing
+ * (400 invalid, reason obs612_incomplete, with missing and errors). A FICO save is passed on as before, with no submit.
+ */
 router.post('/coaching/observe/draft/save', requireInternalKey, portalObserveRoute('observe-draft-save',
-  (Svc, b) => Svc.saveDraft({ userId: b.userId, coachingSessionId: b.coachingSessionId, edits: b.edits })));
+  (Svc, b) => Svc.saveDraft({
+    userId: b.userId, coachingSessionId: b.coachingSessionId, edits: b.edits, ...(b.submit === true ? { submit: true } : {}),
+  })));
 
 /** POST /api/internal/coaching/observe/talk/guide — the debrief guide (built once; can take a model call). */
 router.post('/coaching/observe/talk/guide', requireInternalKey, portalObserveRoute('observe-talk-guide',

@@ -162,11 +162,13 @@ const CoachObservation = () => {
             // ("Class recording", Digital Coaching's), with no ring and no score line; no recording, no card.
             if (!routes.showScores) return data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} /> : null;
             // bd-pni007 — an FDE visit has no FICO score: the lesson (if recorded), then FDE's own result.
-            if (data.obs612) {
+            // bd-ra8xu.40 — before Submit there is no result yet (the visit is FDE by its rubric): the lesson alone.
+            const fdeVisit = /^obs612-/.test(String(view?.rubric?.id || ""));
+            if (data.obs612 || fdeVisit) {
               return (
                 <>
                   {data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} /> : null}
-                  <Obs612Block o={data.obs612} />
+                  {data.obs612 ? <Obs612Block o={data.obs612} /> : null}
                 </>
               );
             }
@@ -184,6 +186,11 @@ const CoachObservation = () => {
                 </section>
               );
           })()}
+
+          {/* bd-ra8xu.40 — the rubric this visit was scored with, very small (an FDE block prints its own). */}
+          {!data.obs612 && view?.rubric?.label && (
+            <span data-testid="rubric-label" dir="ltr" className="self-end px-1 text-[10px] leading-none text-[#9ca3af]">{view.rubric.label}</span>
+          )}
 
           <LessonPlanRow lp={view?.lessonPlan} />
 

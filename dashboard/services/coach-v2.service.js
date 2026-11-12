@@ -400,7 +400,8 @@ function deliveryStatusOf(r) {
  * all predates the debrief: reviewed was the end of it then, so it stays `sent`.
  */
 function stepOf(r) {
-  if (r.status === 'awaiting_observer_review' || r.status === 'observe2_checked') return 'draft';
+  // bd-ra8xu.40 — 'obs612_form': an FDE (obs612) visit's form waits for the coach (portal-observe-step reads it so).
+  if (r.status === 'awaiting_observer_review' || r.status === 'observe2_checked' || r.status === 'obs612_form') return 'draft';
   if (r.status === 'observer_review_complete' && r.debrief_status === 'pending') return 'talk';
   if (r.status === 'observer_review_complete' && r.debrief_status === 'done') {
     return REPORT_OUT.includes(deliveryStatusOf(r)) ? 'sent' : 'report';

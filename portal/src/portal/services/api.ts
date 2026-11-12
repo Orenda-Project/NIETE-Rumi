@@ -758,6 +758,8 @@ export type CoachFeedback = {
 
 export type CoachObservationView = {
   id: string;
+  /** bd-ra8xu.40 — the rubric this visit was scored with, framework + version only ("FICO17 v6"); absent from an older bot. */
+  rubric?: RubricLabel | null;
   createdAt: string | null;
   sessionStatus: string;
   step: ObserveStep;
@@ -778,17 +780,76 @@ export type CoachObservationView = {
   };
 };
 
+/** bd-ra8xu.40 — the class of the observed lesson, named on Check and send: grades 1-5, or a grade 6-12 class and its subject. */
+export type ObserveLesson = { primary: true } | { grade: number; subject: string };
+/** bd-ra8xu.40 — ask: FDE's tools are on for her, so Check and send asks the class; the grades and subject keys to offer. */
+export type ObserveLessonQuestion = { ask: boolean; grades?: number[]; subjects?: string[] };
+
 export type DraftOption = { id: string; title: string };
 export type DraftIndicator = {
   id: string; field: string; name: string;
   rating: string | undefined; evidence: string | undefined; improvement: string | undefined;
 };
 export type DraftMove = { k: number; plan: string; verdict: string; evidence: string };
+/** bd-ra8xu.40 — a level a FICO17 v6 indicator offers: "1".."4", "NA" or "IE", its short title and the rubric's words. */
+export type V6Option = { id: string; title: string; description?: string };
+/**
+ * bd-ra8xu.40 — one of the 17 on a FICO17 v6 review (the v6 Flow's screen, in the portal):
+ *   'dc'        one of Rumi's 11: `rumi` is his level (null when he had none), `rating` pre-filled, evidence editable;
+ *   'combined'  one of the six set from the room: `body` is the definition and Rumi's evidence (read only), blank
+ *               `rating` until set, a reason (`why`); D2 also its two counts.
+ */
+export type V6Indicator =
+  | { id: string; field: string; name: string; kind: 'dc'; options: V6Option[]; rumi: string | null; rating: string; evidence: string; improvement: string }
+  | { id: string; field: string; name: string; kind: 'combined'; options: V6Option[]; body: string; rating: string; why: string; d2?: { children: string; quietLater: string } };
 export type DraftSection =
   | { key: string; letter: string; title: string; kind: 'indicators'; notes: string[]; indicators: DraftIndicator[] }
-  | { key: string; letter: string; title: string; kind: 'moves'; header: string; fallback: string; moves: DraftMove[] };
-/** bd-15y1pc — `editable: false`: her answers, to read; the portal can no longer change them. Absent from an older bot. */
-export type ObservationDraft = { scale: DraftOption[]; fidelityScale: DraftOption[]; sections: DraftSection[]; saved: boolean; editable?: boolean };
+  | { key: string; letter: string; title: string; kind: 'moves'; header: string; fallback: string; moves: DraftMove[] }
+  | { key: string; letter: string; title: string; kind: 'v6'; indicators: V6Indicator[]; changeReason: string };
+/** The rubric a visit was scored with, framework + version only ("FICO17 v6"), shown in very small type. */
+export type RubricLabel = { id: string; label: string };
+/**
+ * bd-15y1pc — `editable: false`: her answers, to read; the portal can no longer change them. Absent from an older bot.
+ * bd-ra8xu.40 — `kind: 'fico17_v6'` for a FICO17 v6 visit (its C/D/F sections are kind 'v6', every reason at least
+ * `minReason` letters); `rubric` on every draft from a current bot.
+ */
+export type ObservationDraft = {
+  scale: DraftOption[]; fidelityScale: DraftOption[]; sections: DraftSection[]; saved: boolean; editable?: boolean;
+  kind?: 'fico17_v6'; rubric?: RubricLabel | null; minReason?: number;
+};
+
+/**
+ * bd-ra8xu.40 — an FDE (obs612) visit's form, as GET/POST /leader/observe/:id/draft answer for it (`kind: 'obs612'`;
+ * a FICO draft has no `kind`). The bot's obs612/portal.js: the WhatsApp Flow's own screens, fields and options. FDE's
+ * own wording (`text`, option titles, headings, row labels) is data, in English as FDE printed it; a field's `role`
+ * and an error's code are said by the portal's copy (REPORTS.fde).
+ */
+export type Obs612Option = { id: string; title: string; description?: string };
+export type Obs612FieldRole = 'item' | 'comment' | 'observation' | 'context' | 'plan_area' | 'plan_goal' | 'plan_action' | 'feedback' | 'line' | 'other';
+export type Obs612Field = {
+  type: 'field'; name: string; role: Obs612FieldRole;
+  input: 'radio' | 'dropdown' | 'textarea' | 'textinput' | 'number';
+  kind: 'yes_no' | 'level' | 'points' | null; n: number | null; short: string | null; text: string | null;
+  options: Obs612Option[] | null; required: boolean; max: number | null;
+};
+export type Obs612Part =
+  | { type: 'heading'; text: string }
+  | { type: 'sub'; text?: string; role?: 'plan' | 'second' | 'feedback' }
+  | { type: 'context'; rows: { key: string; label: string; value: string | null }[] }
+  | { type: 'levels'; label: string; rows: { key: string; n: number; name: string; level: string | null }[] }
+  | { type: 'score'; total: number; max: number; pct: number; band: string | null }
+  | Obs612Field;
+export type Obs612ErrorCode = 'item' | 'choice' | 'text' | 'number' | 'row_two' | 'same_area';
+export type Obs612Draft = {
+  kind: 'obs612'; label: string; rubricId: string; tool: 'gen' | 'msci' | 'enur'; toolName: string; toolTitle: string;
+  sheet: string | null; grade: number | null; subject: string | null;
+  sections: { id: string; parts: Obs612Part[] }[];
+  values: Record<string, string>; errors: Record<string, Obs612ErrorCode>; missing: string[];
+  editable: boolean; sealed: boolean; submittedAt: string | null;
+  saved?: boolean; submitted?: boolean;
+};
+/** A refused Submit (HTTP 400): what is still missing, and each refused field's code. */
+export type Obs612Refusal = { status: 'invalid'; reason: 'obs612_incomplete'; missing: string[]; errors: Record<string, Obs612ErrorCode> };
 
 // ── Assessment Generator types ────────────────────────────────────────────
 
@@ -1120,8 +1181,16 @@ export const leader = {
   startObservation: async (args: {
     teacherExtId: string; schoolExtId?: string | null; key: string; lessonPlanKey?: string; photoKeys: string[];
     lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' };
+    /** bd-ra8xu.40 — the class she named (asked only while FDE's tools are on for her). */
+    lesson?: ObserveLesson;
   }): Promise<{ coachingSessionId: string }> => {
     const response = await api.post('/leader/observe/start', args);
+    return response.data;
+  },
+
+  /** bd-ra8xu.40 — whether Check and send asks the class (and, for grades 6-12, the subject): FDE's switch for her. */
+  getObserveLessonQuestion: async (): Promise<ObserveLessonQuestion> => {
+    const response = await api.get('/leader/observe/lesson-question');
     return response.data;
   },
 
@@ -1151,6 +1220,15 @@ export const leader = {
   /** The review form's own keys: r_/ev_/imp_ per indicator, fid_r_/fid_e_ per lesson-plan move. */
   saveObservationDraft: async (id: string, edits: Record<string, string>): Promise<{ success: boolean }> => {
     const response = await api.post(`/leader/observe/${id}/draft`, { edits });
+    return response.data;
+  },
+
+  /**
+   * bd-ra8xu.40 — save an FDE (obs612) visit's form (the Flow's field names), and with `submit` submit it. Answers the
+   * form as it now stands. A Submit with anything missing is a 400 whose body is an Obs612Refusal (the answers are saved).
+   */
+  saveObs612Form: async (id: string, values: Record<string, string>, submit = false): Promise<Obs612Draft> => {
+    const response = await api.post(`/leader/observe/${id}/draft`, submit ? { edits: values, submit: true } : { edits: values });
     return response.data;
   },
 

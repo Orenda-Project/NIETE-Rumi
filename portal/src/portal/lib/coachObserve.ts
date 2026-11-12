@@ -10,7 +10,7 @@
  */
 
 import { leader, portal } from "../services/api";
-import type { CoachObservationView, ObserveStep } from "../services/api";
+import type { CoachObservationView, ObserveLesson, ObserveStep } from "../services/api";
 import { sendLesson, SendError, type PlanChoice } from "./coachingSend";
 
 type EntryCopy = {
@@ -125,16 +125,18 @@ export function sendObservation(
     audio: { blob: Blob; filename: string };
     plan: PlanChoice | null;
     photos: File[];
+    /** bd-ra8xu.40 — the class she named on Check and send; absent when it was not asked. */
+    lesson?: ObserveLesson | null;
   },
   api: ObserveApi = leader,
   upload: UploadApi = portal,
   onProgress?: (pct: number) => void,
 ): Promise<{ coachingSessionId: string }> {
-  const { teacherExtId, schoolExtId, audio, plan, photos } = args;
+  const { teacherExtId, schoolExtId, audio, plan, photos, lesson } = args;
   return sendLesson({ audio, plan, photos }, {
     presignCoachingUpload: (a) => api.presignObserveUpload(a),
     uploadToR2: (url, blob, type, cb) => upload.uploadToR2(url, blob, type, cb),
-    startCoachingUpload: (start) => api.startObservation({ ...start, teacherExtId, schoolExtId: schoolExtId || null }),
+    startCoachingUpload: (start) => api.startObservation({ ...start, teacherExtId, schoolExtId: schoolExtId || null, ...(lesson ? { lesson } : {}) }),
   }, onProgress);
 }
 
