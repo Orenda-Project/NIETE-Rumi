@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, within, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
@@ -7,15 +7,12 @@ vi.mock("../CoachGate", () => ({ default: ({ children }: any) => <>{children}</>
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Hataf", role: "coach", phoneNumber: "923001234567" }, loading: false }) }));
 vi.mock("../../services/api", () => ({ coach: { getReports: vi.fn(), getPending: vi.fn() } }));
 import { coach } from "../../services/api";
-import i18n from "../../../i18n/config";
 import { resetPendingCache } from "../ui";
 import CoachReportsAll from "./CoachReportsAll";
 
 /**
  * bd-4404s7.5 — All Observations: the date range, search under it, four numbers counted from the real rows (with the
  * change against the period before), and the rows by day. Today is pinned to 2026-10-08 (Pakistan).
- * bd-97daxo.24 — it opens on All time, so a coach's older observations (a GB coach's history copied from old Rumi) are
- * there without touching the range; the range is still there to narrow it.
  */
 const C = coach as any;
 const R = (id: string, createdAt: string, extra: Record<string, unknown> = {}) => ({
@@ -50,50 +47,9 @@ beforeEach(() => {
 });
 afterEach(() => { vi.useRealTimers(); });
 
-/** The range bar, then one of its presets (the radios say their dates: "This month, 1 – 8 Oct 2026"). */
-async function pickRange(name: RegExp) {
-  fireEvent.click(await screen.findByRole("button", { name: /All time|اب تک/ }));
-  fireEvent.click(screen.getByRole("radio", { name }));
-}
-
 describe("All Observations", () => {
-  it("opens on All time: every observation, the old ones too, with the range bar still there to narrow it", async () => {
+  it("this month by default; four numbers from the rows, with the change against last month", async () => {
     renderPage();
-    expect(await screen.findByText("T old")).toBeInTheDocument(); // September, outside this month
-    const bar = screen.getByRole("button", { name: /All time/ });
-    expect(bar).toHaveTextContent("Everything so far");
-    expect(screen.getByRole("group", { name: /^4 Observations/ })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Sun 6 Sep" })).toBeInTheDocument();
-    await pickRange(/^This month/);
-    await waitFor(() => expect(screen.queryByText("T old")).toBeNull());
-    expect(screen.getByRole("button", { name: /This month/ })).toBeInTheDocument();
-  });
-
-  it("in Urdu it opens on اب تک (All time) too", async () => {
-    await act(async () => { await i18n.changeLanguage("ur"); });
-    try {
-      renderPage();
-      expect(await screen.findByText(/T old/)).toBeInTheDocument(); // the name sits in a bidi isolate in Urdu
-      const bar = screen.getByRole("button", { name: /اب تک/ });
-      expect(bar).toHaveTextContent("اب تک سب کچھ");
-    } finally {
-      await act(async () => { await i18n.changeLanguage("en"); });
-    }
-  });
-
-  it("All time asks for every page until the whole list is in", async () => {
-    C.getReports
-      .mockResolvedValueOnce(page([R("a", "2026-10-06T06:00:00Z", { score: 80 })], 3, 1))
-      .mockResolvedValueOnce(page([R("b", "2026-09-20T06:00:00Z", { score: 60 })], 3, 2))
-      .mockResolvedValueOnce(page([R("z", "2025-07-01T06:00:00Z", { score: 10 })], 3, 3));
-    renderPage();
-    expect(await screen.findByText("T z")).toBeInTheDocument(); // a year back, on page 3
-    expect(C.getReports).toHaveBeenCalledTimes(3);
-  });
-
-  it("this month: four numbers from the rows, with the change against last month", async () => {
-    renderPage();
-    await pickRange(/^This month/);
     const kpi = await screen.findByRole("group", { name: /Observations/ });
     expect(kpi).toBeInTheDocument();
     const text = document.body.textContent || "";
@@ -107,8 +63,7 @@ describe("All Observations", () => {
   it("the list holds only the range, by Pakistan day, percentages on rows; search sits under the range", async () => {
     renderPage();
     await screen.findByText("T a");
-    await pickRange(/^This month/);
-    await waitFor(() => expect(screen.queryByText("T old")).toBeNull()); // September is outside this month
+    expect(screen.queryByText("T old")).toBeNull(); // September is outside this month
     for (const day of ["Tue 6 Oct", "Mon 5 Oct", "Sun 4 Oct"]) expect(screen.getByRole("region", { name: day })).toBeInTheDocument();
     expect(screen.getByText("80%")).toBeInTheDocument();
     const search = screen.getByPlaceholderText("Name or phone");
@@ -123,17 +78,14 @@ describe("All Observations", () => {
     await waitFor(() => expect(C.getReports).toHaveBeenLastCalledWith(expect.objectContaining({ q: "hina", page: 1 })));
   });
 
-  it("this month keeps asking for pages until the period before is covered, and no further", async () => {
+  it("keeps asking for pages until the period before is covered", async () => {
+    C.getReports
+      .mockResolvedValueOnce(page([R("a", "2026-10-06T06:00:00Z", { score: 80 })], 3, 1))
+      .mockResolvedValueOnce(page([R("b", "2026-09-20T06:00:00Z", { score: 60 })], 3, 2))
+      .mockResolvedValueOnce(page([R("z", "2026-07-01T06:00:00Z", { score: 10 })], 3, 3));
     renderPage();
     await screen.findByText("T a");
-    await pickRange(/^This month/);
-    C.getReports.mockClear();
-    C.getReports
-      .mockResolvedValueOnce(page([R("a", "2026-10-06T06:00:00Z", { score: 80 })], 4, 1))
-      .mockResolvedValueOnce(page([R("b", "2026-08-20T06:00:00Z", { score: 60 })], 4, 2))
-      .mockResolvedValueOnce(page([R("z", "2026-07-01T06:00:00Z", { score: 10 })], 4, 3));
-    fireEvent.change(screen.getByPlaceholderText("Name or phone"), { target: { value: "t" } });
-    await waitFor(() => expect(C.getReports).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(C.getReports).toHaveBeenCalledTimes(3));
     expect(C.getReports).toHaveBeenNthCalledWith(2, expect.objectContaining({ page: 2 }));
   });
 
@@ -149,8 +101,6 @@ describe("All Observations", () => {
   it("nothing in the range says so", async () => {
     C.getReports.mockResolvedValue(page([R("old", "2026-01-06T06:00:00Z")], 1));
     renderPage();
-    await screen.findByText("T old");
-    await pickRange(/^This month/);
     expect(await screen.findByText("None in these dates")).toBeInTheDocument();
     expect(within(document.body).queryAllByRole("region", { name: /Oct/ })).toHaveLength(0);
   });
