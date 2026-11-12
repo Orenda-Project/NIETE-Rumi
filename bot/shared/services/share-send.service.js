@@ -110,20 +110,24 @@ function itemResolvers(supabase, { presign, k5 } = {}) {
     };
   }
   return {
+    // bd-644bcx — `id` is the PAPER's id (assessment_papers.id): what My papers lists as paper_id and the request page
+    // reads as paperId (assessment-browse.service), one per version. It was looked up as an assessment_requests.id,
+    // which never matched, so every tap answered not_found and the app showed "Not available yet".
     async paper(userId, id) {
-      const { data, error } = await supabase.from('assessment_requests')
-        .select('id, grade_code, subject_code, chapter_number, question_count, assessment_papers!inner(status, file_r2_key, question_count)')
-        .eq('id', id).eq('user_id', userId).eq('assessment_papers.status', 'ready').limit(1).maybeSingle();
+      const { data, error } = await supabase.from('assessment_papers')
+        .select('id, status, file_r2_key, question_count, '
+          + 'assessment_requests!inner(user_id, grade_code, subject_code, chapter_number, question_count)')
+        .eq('id', id).eq('assessment_requests.user_id', userId).eq('status', 'ready').limit(1).maybeSingle();
       if (error) throw new Error(error.message || 'paper read failed');
-      const p = data && first(data.assessment_papers);
-      if (!data || !p || !p.file_r2_key) return null;
-      const grade = gradeOf(data.grade_code);
-      const chapter = data.chapter_number ?? null;
+      const req = data && first(data.assessment_requests);
+      if (!data || !req || req.user_id !== userId || data.status !== 'ready' || !data.file_r2_key) return null;
+      const grade = gradeOf(req.grade_code);
+      const chapter = req.chapter_number ?? null;
       const { subjectLabel } = require('./assessment/assessment-vocabulary');
       return {
-        kind: 'paper', itemRef: `paper:${data.id}`, title: await chapterTitle(grade, data.subject_code, chapter), chapter, grade,
-        subject: data.subject_code ? subjectLabel(data.subject_code) : null,
-        questions: p.question_count ?? data.question_count ?? null, pdfUrl: await sign(p.file_r2_key),
+        kind: 'paper', itemRef: `paper:${data.id}`, title: await chapterTitle(grade, req.subject_code, chapter), chapter, grade,
+        subject: req.subject_code ? subjectLabel(req.subject_code) : null,
+        questions: data.question_count ?? req.question_count ?? null, pdfUrl: await sign(data.file_r2_key),
       };
     },
     async lesson(userId, id) {
