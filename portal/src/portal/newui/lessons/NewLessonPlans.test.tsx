@@ -520,22 +520,22 @@ describe("open — a plan not written yet: Preparing…, then it opens by itself
     expect(screen.getByTestId("newui-hero")).toBeInTheDocument();
   }
 
-  it("shows Preparing…, a countdown ring, '~2 min' and 'Opens by itself', and 'Other lessons'", async () => {
+  it("shows Preparing…, a countdown ring, '~5 min' (bd-ipoxhx.2: 297 s p95) and 'Opens by itself', and 'Other lessons'", async () => {
     routes["/lp612/status/R2"] = () => ({ success: true, state: "authoring" });
     await startNewton();
     expect(where()).toContain("view=preparing");
     expect(where()).toContain("render=R2");
     const hero = screen.getByTestId("newui-hero");
     expect(hero).toHaveTextContent("Preparing…");
-    expect(within(hero).getByRole("progressbar")).toHaveAttribute("aria-valuetext", "2:00");
-    expect(within(hero).getByText("~2 min")).toBeInTheDocument();
+    expect(within(hero).getByRole("progressbar")).toHaveAttribute("aria-valuetext", "5:00");
+    expect(within(hero).getByText("~5 min")).toBeInTheDocument();
     expect(within(hero).getByText("Opens by itself")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Other lessons" }).className).toMatch(/border-nu-button-secondary-border/);
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     expect(crumb()).toBe("Lesson Plans · Grade 9 · Physics");
     expect(title()).toBe("Newton's laws");
     await act(async () => { await vi.advanceTimersByTimeAsync(50_000); });
-    expect(within(screen.getByTestId("newui-hero")).getByRole("progressbar")).toHaveAttribute("aria-valuetext", "1:10");
+    expect(within(screen.getByTestId("newui-hero")).getByRole("progressbar")).toHaveAttribute("aria-valuetext", "4:10");
   });
 
   it("polls with the old back-off (every 3s, 6s after 30s, 12s after 2 min) and opens the viewer by itself", async () => {
@@ -572,7 +572,7 @@ describe("open — a plan not written yet: Preparing…, then it opens by itself
   it("past the expected time the ring gives way to a turning wheel; it still opens by itself", async () => {
     routes["/lp612/status/R2"] = () => ({ success: true, state: "authoring" });
     await startNewton();
-    await act(async () => { await vi.advanceTimersByTimeAsync(121_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(301_000); });
     const hero = screen.getByTestId("newui-hero");
     expect(within(hero).queryByRole("progressbar")).toBeNull();
     expect(within(hero).getByTestId("newui-hero-icon")).toBeInTheDocument();

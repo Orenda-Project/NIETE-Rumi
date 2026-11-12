@@ -195,7 +195,7 @@ export const LESSONS_COPY = {
   answerKey: 'Answer key',
   openOutside: 'Open in another app',
   preparing: 'Preparing…',
-  aboutTwoMinutes: '~2 min',
+  expectedWait: '~5 min',
   opensByItself: 'Opens by itself',
   otherLessons: 'Other lessons',
   failed: 'Failed',
