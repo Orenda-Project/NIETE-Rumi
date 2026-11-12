@@ -31,7 +31,7 @@ const path = require('path');
 const express = require('express');
 const { createBrotliFlag } = require('./web-quiz-brotli-flag');
 const { steady } = require('./sa-switch');
-const { SWITCHES, applySwitches } = require('./sa-battery-switches');
+const { SWITCHES, MATCH, applySwitches } = require('./sa-battery-switches');
 
 const KEY = 'sa_engine';
 const VOICE_V2_KEY = 'sa_voice_v2';
@@ -59,7 +59,9 @@ const R7B = ['backButton', 'endTestRestart', 'endSection', 'silenceRepeat', 'inc
   // round 10, content
   'r10FluencyNoPractice',
   // round 12 (the Whole battery's "your turn" line once per run)
-  'r12IntroOnce'];
+  'r12IntroOnce',
+  // round 13 (the Whole battery's move-on rule): one row, its value read by two readers (MATCH)
+  'r13WholeStopAll', 'r13WholeStopEarly'];
 
 /** The tashdeed takes on disk (sa/v3/ur/<12 hex>.mp3), by file name; none when the folder is missing. */
 function tashdeedTakes(dir = path.join(DIR, 'v3', 'ur')) {
@@ -130,7 +132,7 @@ function buildSaEngineRouter({ flag, on: reader = flag(KEY), practiceAllMaths: p
   const switchHold = steady(holdOn, hold);
   const takes = tashdeedTakes();
   // Round 7b (sa-battery-switches.js): one switch per item, read the same way; a reader passed in wins (tests).
-  const r7b = Object.fromEntries(R7B.map((k) => [k, steady(safe(r7bReaders[k] || flag(SWITCHES[k])), hold)]));
+  const r7b = Object.fromEntries(R7B.map((k) => [k, steady(safe(r7bReaders[k] || flag(SWITCHES[k], MATCH[k])), hold)]));
   router.use('/sa', switchHold.warm(), on.warm(), practiceAllMaths.warm(), passageRotation.warm(), voiceV2.warm(), oneAtATime.warm(), passagePunct.warm(), rdfManual.warm(),
     rdfW3Forms.warm(), voiceGateV2.warm(), compAllQuestions.warm(), cellPace.warm(), sectionRecording.warm(), coachLastWord.warm(), cellNextOnly.warm(),
     autoChildLastWord.warm(), appAsks.warm(), urFit.warm(), autoNoLastWord.warm(), voiceTashdeed.warm(), voiceV4.warm(), ...R7B.map((k) => r7b[k].warm()));
@@ -218,8 +220,8 @@ function switchesState(readers) {
 function createSaEngineRouter(opts = {}) {
   const holdOn = opts.switchHold || createBrotliFlag({ key: SWITCH_HOLD_KEY, keepOnError: () => true });
   const made = [];
-  const flag = (key) => {
-    const f = createBrotliFlag({ key, keepOnError: () => holdOn() === true });
+  const flag = (key, match) => {
+    const f = createBrotliFlag({ key, match, keepOnError: () => holdOn() === true });
     made.push(f);
     return f;
   };
