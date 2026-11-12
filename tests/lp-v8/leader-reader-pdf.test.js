@@ -100,6 +100,7 @@ beforeEach(() => {
   process.env.REGION = 'niete';
   mockEvents.length = 0;
   V10Switch._resetCache();
+  require('../../bot/shared/services/lp-v10-card.service')._resetServedLog();
   mockDb.reset({
     app_settings: [{ key: 'ab_v10_enabled', value: true }],
     niete_coaching_ab_assignment: [{ school_id: 'school-b', ab_group: 'B' }],
