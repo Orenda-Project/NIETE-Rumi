@@ -1,1 +1,2 @@
 {"ts":"2026-11-11T10:36:24Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,teacher-assessment,fde-board-pattern,portal-smoke spec_sync=true","sha":"f7cc0df9cfc8","branch":"bd-qyi45h.5-main","user":""}
+{"ts":"2026-11-12T09:32:55Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks engine=2.0.0","sha":"f7cc0df9cfc8","branch":"bd-qyi45h.5-main","user":""}
