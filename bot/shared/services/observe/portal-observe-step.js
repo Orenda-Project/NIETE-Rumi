@@ -5,7 +5,8 @@
  * through it:
  *
  *   analysing        the lesson is being transcribed and analysed
- *   draft            the draft report is ready to check (awaiting_observer_review)
+ *   draft            the draft report is ready to check (awaiting_observer_review);
+ *                    or an FDE (obs612) visit's form waits for her (bd-ra8xu.40)
  *   talk             the draft is saved; record the talk with the teacher
  *                    (problem: too_short | failed | feedback_failed | duplicate)
  *   listening        the talk is being transcribed and coached
@@ -43,6 +44,13 @@ function talkOf(od) {
 
 const STOPPED = new Set(['cancelled', 'abandoned', 'failed']);
 
+// bd-ra8xu.40 — an FDE (obs612) visit is scored by the coach on FDE's form, never by a model: its session is stamped
+// with the rubric id when the recording lands (obs612/visit.js), and the form is hers from then until she submits it.
+// After transcription it waits at 'obs612_form'; Submit moves it to observer_review_complete with the debrief done.
+const FDE_RUBRIC_RX = /^obs612-(gen|msci|enur)-v\d+$/;
+const FDE_FORM_STATUS = 'obs612_form';
+const PAST_THE_FORM = new Set(['observer_review_complete', 'completed']);
+
 /**
  * @param {{status: string, debriefStatus?: string, deliveryStatus?: string|null,
  *          sendRequested?: boolean, talk?: object, duplicate?: boolean}} s
@@ -52,7 +60,7 @@ function observeStep(s) {
   const { status, debriefStatus, deliveryStatus, sendRequested } = s || {};
   if (status === 'completed') return { step: 'done', problem: null };
   if (STOPPED.has(status)) return { step: 'stopped', problem: s.duplicate ? 'duplicate' : null };
-  if (status === 'awaiting_observer_review') return { step: 'draft', problem: null };
+  if (status === 'awaiting_observer_review' || status === FDE_FORM_STATUS) return { step: 'draft', problem: null };
   if (status !== 'observer_review_complete') return { step: 'analysing', problem: null };
 
   if (debriefStatus !== 'done') {
@@ -89,8 +97,9 @@ function stepOfRow(row) {
   const r = row || {};
   const ad = r.analysis_data || {};
   const td = ad.teacher_delivery || {};
+  const fdeFormOpen = FDE_RUBRIC_RX.test(String(r.framework || '')) && !PAST_THE_FORM.has(r.status) && !STOPPED.has(r.status);
   return observeStep({
-    status: r.status,
+    status: fdeFormOpen ? FDE_FORM_STATUS : r.status,
     debriefStatus: r.debrief_status,
     deliveryStatus: td.status || null,
     sendRequested: !!td.send_requested_at,
