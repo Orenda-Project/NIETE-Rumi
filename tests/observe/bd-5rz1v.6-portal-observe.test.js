@@ -135,6 +135,13 @@ function deps(over = {}) {
     roster: { upsertTeacher: jest.fn().mockResolvedValue(true), ...(over.roster || {}) },
     people: { teacherOf: jest.fn().mockResolvedValue({ name: 'Ayesha Bibi', phone: '923120004471' }), ...(over.people || {}) },
     state: { getState: jest.fn().mockResolvedValue(null), clearState: jest.fn().mockResolvedValue(true), ...(over.state || {}) },
+    // bd-ra8xu.40: the rubric stamp at start — off by default (no switch on), as on WhatsApp.
+    rubric: {
+      decideV6: jest.fn().mockResolvedValue(null),
+      fdeOn: jest.fn().mockResolvedValue(false),
+      createLessonForm: jest.fn().mockResolvedValue({ ok: true, form: { id: 'form-1' } }),
+      ...(over.rubric || {}),
+    },
     log: jest.fn(),
     now: () => new Date('2026-10-02T05:00:00Z'),
     newId: () => 'nonce-1',
@@ -641,5 +648,122 @@ describe('observationView — lessonPlan (bd-fmf24g.66)', () => {
   test('the older fields are untouched', async () => {
     const out = await view({ has_lesson_plan: true, lesson_plan_r2_key: OWN_KEY, lesson_plan_extraction_status: 'completed' });
     expect(out.lesson).toMatchObject({ hasLessonPlan: true });
+  });
+});
+
+
+// bd-ra8xu.40 (operator 12 Nov: "We need these on the portal as well"): an observation started from the portal gets the
+// SAME rubric stamp as one started on WhatsApp (observe-capture.startFromAudio): grades 1-5 → FICO17 v6 when the coach
+// switch says so; grades 6-12 → FDE's tool when the obs612 switch is on and the coach named the class and subject; else
+// today's rubric, with nothing written.
+describe('startPortalObservation — the rubric stamp, as on WhatsApp (bd-ra8xu.40)', () => {
+  const start = (args, d) => Svc.startPortalObservation({ userId: COACH, teacherExtId: ayesha.teacher_ext_id, schoolExtId: 'sch-1', key: KEY, ...args }, d);
+  const leaderSupabase = () => fakeSupabase({ users: () => coachRow({ region: 'sihala' }), coaching_sessions: () => null });
+  const sessionInsert = (d) => d.supabase.writes.inserts.find((w) => w.table === 'coaching_sessions').row;
+  const sessionUpdates = (d) => d.supabase.writes.updates.filter((w) => w.table === 'coaching_sessions');
+
+  test('both switches off: no stamp is written (byte-identical to before)', async () => {
+    const d = deps({ supabase: leaderSupabase() });
+    expect(await start({}, d)).toEqual({ status: 'ok', coachingSessionId: SID });
+    const row = sessionInsert(d);
+    expect(row).not.toHaveProperty('framework');
+    expect(row).not.toHaveProperty('framework_selection_reason');
+    expect(sessionUpdates(d)).toEqual([]);
+    expect(d.rubric.createLessonForm).not.toHaveBeenCalled();
+  });
+
+  test('the coach switch says v6 for a grades 1-5 teacher: the row is stamped fico17_v6 before transcription', async () => {
+    const order = [];
+    const d = deps({ supabase: leaderSupabase(), rubric: { decideV6: jest.fn(async () => { order.push('decide'); return 'fico17_v6'; }) } });
+    d.queue.queueTranscription.mockImplementation(async () => { order.push('queue'); });
+    await start({}, d);
+    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID });
+    expect(sessionInsert(d)).toMatchObject({ framework: 'fico17_v6', framework_selection_reason: 'coach_rubric_switch' });
+    expect(order).toEqual(['decide', 'queue']);
+  });
+
+  test('FDE on and the coach named grades 1-5: v6 is decided by her answer (lessonIsPrimary), no FDE form', async () => {
+    const d = deps({ supabase: leaderSupabase(), rubric: { fdeOn: jest.fn().mockResolvedValue(true), decideV6: jest.fn().mockResolvedValue('fico17_v6') } });
+    await start({ lesson: { primary: true } }, d);
+    expect(d.rubric.fdeOn).toHaveBeenCalledWith(expect.objectContaining({ id: COACH, region: 'sihala' }));
+    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID, lessonIsPrimary: true });
+    expect(sessionInsert(d)).toMatchObject({ framework: 'fico17_v6' });
+    expect(d.rubric.createLessonForm).not.toHaveBeenCalled();
+  });
+
+  test('FDE on and a grade 7 Maths lesson: FDE form row made, session stamped obs612-msci-v1, no v6 decision, no WhatsApp', async () => {
+    const order = [];
+    const d = deps({
+      supabase: leaderSupabase(),
+      rubric: {
+        fdeOn: jest.fn().mockResolvedValue(true),
+        createLessonForm: jest.fn(async () => { order.push('form'); return { ok: true, form: { id: 'form-7' } }; }),
+      },
+    });
+    d.queue.queueTranscription.mockImplementation(async () => { order.push('queue'); });
+    expect(await start({ lesson: { grade: 7, subject: 'maths' } }, d)).toEqual({ status: 'ok', coachingSessionId: SID });
+    expect(d.rubric.decideV6).not.toHaveBeenCalled();
+    expect(d.rubric.createLessonForm).toHaveBeenCalledWith({
+      observerUserId: COACH,
+      teacherUserId: TEACHER_UID,
+      sessionId: SID,
+      rubricVersion: 'obs612-msci-v1',
+      visitContext: expect.objectContaining({ grade: 7, subject: 'maths', via: 'observe', channel: 'portal', teacher_ext_id: ayesha.teacher_ext_id, school_ext_id: 'sch-1' }),
+    });
+    expect(sessionUpdates(d)).toContainEqual(expect.objectContaining({
+      patch: { framework: 'obs612-msci-v1', framework_selection_reason: 'obs612_lesson' }, filters: { id: SID },
+    }));
+    expect(order).toEqual(['form', 'queue']);
+  });
+
+  test('grade 8 English → the English & Urdu tool, its sheet kept on the form', async () => {
+    const d = deps({ supabase: leaderSupabase(), rubric: { fdeOn: jest.fn().mockResolvedValue(true) } });
+    await start({ lesson: { grade: 8, subject: 'english' } }, d);
+    const call = d.rubric.createLessonForm.mock.calls[0][0];
+    expect(call.rubricVersion).toBe('obs612-enur-v1');
+    expect(call.visitContext).toMatchObject({ grade: 8, subject: 'english', sheet: 'en' });
+  });
+
+  test('the FDE form row could not be made: the visit goes on unstamped (today\'s path), never half-FDE', async () => {
+    const d = deps({ supabase: leaderSupabase(), rubric: { fdeOn: jest.fn().mockResolvedValue(true), createLessonForm: jest.fn().mockResolvedValue({ ok: false }) } });
+    expect(await start({ lesson: { grade: 10, subject: 'islamiat' } }, d)).toEqual({ status: 'ok', coachingSessionId: SID });
+    expect(sessionUpdates(d).filter((u) => u.patch.framework)).toEqual([]);
+    expect(d.queue.queueTranscription).toHaveBeenCalled();
+  });
+
+  test('a lesson the portal sent that is not a class refuses before anything is written', async () => {
+    const d = deps({ supabase: leaderSupabase(), rubric: { fdeOn: jest.fn().mockResolvedValue(true) } });
+    expect(await start({ lesson: { grade: 'x', subject: 'maths' } }, d)).toEqual({ status: 'invalid', reason: 'bad_lesson' });
+    expect(await start({ lesson: { grade: 9, subject: 'astrology' } }, d)).toEqual({ status: 'invalid', reason: 'bad_lesson' });
+    expect(d.supabase.writes.inserts).toEqual([]);
+  });
+
+  test('FDE off: a lesson the portal sent anyway is ignored (the switch decides, as on WhatsApp)', async () => {
+    const d = deps({ supabase: leaderSupabase(), rubric: { decideV6: jest.fn().mockResolvedValue(null) } });
+    await start({ lesson: { grade: 7, subject: 'maths' } }, d);
+    expect(d.rubric.createLessonForm).not.toHaveBeenCalled();
+    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID });
+    expect(sessionInsert(d)).not.toHaveProperty('framework');
+  });
+
+  test('a stamp decision that throws costs nothing: today\'s path', async () => {
+    const d = deps({ supabase: leaderSupabase(), rubric: { decideV6: jest.fn().mockRejectedValue(new Error('boom')), fdeOn: jest.fn().mockRejectedValue(new Error('boom')) } });
+    expect(await start({}, d)).toEqual({ status: 'ok', coachingSessionId: SID });
+    expect(sessionInsert(d)).not.toHaveProperty('framework');
+  });
+});
+
+describe('lessonQuestion — whether the portal asks the class (bd-ra8xu.40)', () => {
+  test('the FDE switch on for this coach: ask, with the 6-12 grades and the subject keys', async () => {
+    const d = deps({ supabase: fakeSupabase({ users: () => coachRow({ region: 'sihala' }) }), rubric: { fdeOn: jest.fn().mockResolvedValue(true) } });
+    const out = await Svc.lessonQuestion({ userId: COACH }, d);
+    expect(out).toEqual({
+      status: 'ok', ask: true, grades: [6, 7, 8, 9, 10, 11, 12],
+      subjects: ['english', 'urdu', 'maths', 'science', 'social_studies', 'islamiat', 'computer', 'other'],
+    });
+  });
+  test('off, or not a school leader: no question', async () => {
+    expect(await Svc.lessonQuestion({ userId: COACH }, deps({ supabase: fakeSupabase({ users: () => coachRow() }) }))).toEqual({ status: 'ok', ask: false });
+    expect(await Svc.lessonQuestion({ userId: COACH }, deps({ supabase: fakeSupabase({ users: () => coachRow({ role: 'teacher' }) }), rubric: { fdeOn: jest.fn().mockResolvedValue(true) } }))).toEqual({ status: 'ok', ask: false });
   });
 });

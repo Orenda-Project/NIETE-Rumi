@@ -37,6 +37,7 @@ describe('bd-5rz1v.6 — /api/internal/coaching/observe/*', () => {
     const ok = (extra = {}) => jest.fn().mockResolvedValue({ status: 'ok', ...extra });
     svc = {
       startPortalObservation: ok({ coachingSessionId: 'cs-1' }),
+      lessonQuestion: ok({ ask: true, grades: [6], subjects: ['maths'] }),
       teacherRecentPlans: ok({ plans: [] }),
       listPortalObservations: ok({ observations: [] }),
       observationView: ok({ id: 'cs-1', step: 'draft' }),
@@ -59,8 +60,19 @@ describe('bd-5rz1v.6 — /api/internal/coaching/observe/*', () => {
     });
     expect(out).toMatchObject({ status: 200, body: { success: true, coachingSessionId: 'cs-1' } });
     expect(svc.startPortalObservation).toHaveBeenCalledWith({
-      userId: 'c1', teacherExtId: 't1', schoolExtId: 's1', key: 'k', lessonPlanKey: 'lp', photoKeys: ['p'], lessonPlan: { assetId: 'a' },
+      userId: 'c1', teacherExtId: 't1', schoolExtId: 's1', key: 'k', lessonPlanKey: 'lp', photoKeys: ['p'], lessonPlan: { assetId: 'a' }, lesson: undefined,
     });
+  });
+
+  // bd-ra8xu.40: the class the coach named on Check and send rides with the start, and the portal asks first whether to ask.
+  test('start passes the named lesson too', async () => {
+    await invoke(router, '/coaching/observe/start', { body: { userId: 'c1', teacherExtId: 't1', key: 'k', lesson: { grade: 7, subject: 'maths' } } });
+    expect(svc.startPortalObservation).toHaveBeenCalledWith(expect.objectContaining({ userId: 'c1', lesson: { grade: 7, subject: 'maths' } }));
+  });
+  test('lesson-question → lessonQuestion(userId)', async () => {
+    const out = await invoke(router, '/coaching/observe/lesson-question', { body: { userId: 'c1', extra: 'dropped' } });
+    expect(out).toMatchObject({ status: 200, body: { success: true, ask: true } });
+    expect(svc.lessonQuestion).toHaveBeenCalledWith({ userId: 'c1' });
   });
 
   test.each([
