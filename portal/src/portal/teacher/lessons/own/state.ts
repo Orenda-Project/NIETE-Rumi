@@ -1,4 +1,4 @@
-import { LESSONS_OWN } from '../paths';
+import { LESSONS_NEW, LESSONS_OWN } from '../paths';
 import {
   FOCI, LEVELS, RESOURCES, SIZES, isSecondary, purposesFor, waysFor, type Focus, type Level, type Purpose, type Resource, type Size, type Way,
 } from './rules';
@@ -11,6 +11,9 @@ import { fmtPg, parsePg, type PageRange } from './pages';
  */
 
 export { LESSONS_OWN };
+/** bd-snkn32.25 — `pick=own`: grade and subject, then a chapter, lead straight into these steps (from the main page). */
+export const OWN_PICK = 'own';
+export const OWN_START = `${LESSONS_NEW}?pick=${OWN_PICK}`;
 /** Every step there is, in the one order every grade walks ; stepsFor says which she walks. */
 export const OWN_STEPS = ['pages', 'purpose', 'focus', 'size', 'level', 'resources', 'way', 'check'] as const;
 export type OwnStep = (typeof OWN_STEPS)[number];

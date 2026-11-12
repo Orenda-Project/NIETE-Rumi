@@ -17,6 +17,7 @@ import { useLessonsLeader } from './audience';
 import { FlnBand } from '../../fln/FlnBand';
 import { RegionCard } from './RegionCard';
 import { RecentOwnPlans } from './own/RecentOwnPlans';
+import { OwnHomeCard } from './own/OwnHomeCard';
 
 /**
  * bd-fmf24g.3 — the teacher v2 Lesson Plans main page. bd-fgj73x — in the Assessment flow (AssessmentHub), the
@@ -63,6 +64,7 @@ export function LessonsHomePage() {
         <ChevronRight className="h-6 w-6 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
       </Link>
 
+      <OwnHomeCard />
       {leader ? <FlnBand /> : null}
 
       {/* bd-rj6w0n.14.2: asks once, only when nothing names her region (dark unless LP_GB_K5_ENABLED). */}
