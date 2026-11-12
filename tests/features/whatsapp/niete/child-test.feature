@@ -1101,3 +1101,23 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: With sa_r10_bigger_audio and sa_r10_practice_gap off, every clip plays on a new element as today
     Given sa_r10_bigger_audio and sa_r10_practice_gap are off
     Then the served battery has neither r10_bigger_audio nor r10_practice_gap
+
+  # Children per visit (app_settings sa_per_visit, absent = 5): bot/shared/services/child-test/app/per-visit-switch.js,
+  # draw/index.js todaysList; the visit bar in portal/src/portal/pages/LeaderAssess.tsx.
+  @e2e @wip @draft @config-gated @P1 @CT175 @no-mock-driver
+  # No mock driver: the draw runs against the database. Asserted in tests/child-test/L3/draw-per-visit.test.js,
+  # bot/tests/child-test/sa-per-visit.test.js and portal/src/portal/pages/LeaderAssess.perVisit.test.tsx.
+  Scenario: With sa_per_visit at 3, a new visit lists 3 children and 2 alternates
+    Given sa_per_visit is 3
+    When I open today's list at a school in the coach app
+    Then the list has 3 children to test and 2 alternates, and the visit bar reads "Children done 0/3"
+    When I mark a child absent
+    Then the first alternate moves onto the list and the alternates are topped up to 2
+
+  @e2e @wip @draft @negative @config-gated @P1 @CT176 @no-mock-driver
+  # No mock driver: as @CT175.
+  Scenario: A list drawn before sa_per_visit changes keeps its size, and without the switch nothing changes
+    Given a visit's list was drawn with 5 children
+    When sa_per_visit is set to 3 and I open that visit's list again
+    Then the same 5 children and alternates are listed
+    And with sa_per_visit absent a new visit lists 5 children and 2 alternates, as today

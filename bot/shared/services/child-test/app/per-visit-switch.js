@@ -29,7 +29,7 @@ async function read(at = Date.now(), client = null) {
     cache = { at, n: row ? clamp(row.value) : DEFAULT };
     return cache.n;
   } catch (err) {
-    logToFile('⚠️ sa per visit: settings lookup failed — 5', { error: err.message });
+    logToFile('⚠️ sa per visit: settings lookup failed — 5', { error: err.message }, 'warn');
     return DEFAULT;
   }
 }
