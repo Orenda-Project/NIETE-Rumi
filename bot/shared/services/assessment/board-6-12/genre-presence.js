@@ -13,6 +13,8 @@
  * fewer than MIN_PAGES distinct book pages: 1-2 pages from inside a poem/ghazal chapter often carry no marker (corpus:
  * G12 ghazal single pages miss 14/28), while every 3+ page window was read right.
  */
+const { resolveUx } = require('../../../config/ux-strings');
+
 const MIN_PAGES = 3;
 const GHAZAL = [
   /اس\s+غزل/, /(?<!\S)کی\s+غزل/, /^#\s*غزل/m, /غزل\s+(?:کے|کا)\s+مطلع/, /\(\s*(?:مقطع|مطلع)\s*\)/, /درج\s+ذیل\s+غزل/,
@@ -53,18 +55,59 @@ function retotal(header, from, to) {
   return { ...header, lines_en: swap(header.lines_en), lines_ur: swap(header.lines_ur) };
 }
 
-/** The variant with the absent genres' slots left out (Urdu only); the same object when nothing goes. */
+/**
+ * The kept slots with their printed numbers run on: a dropped whole question (Q5) moves every later one up (Q6 -> Q5),
+ * a dropped part (Q2c) moves the later parts of that question up (Q2d -> Q2c). Only label_en / label_ur change: the
+ * slot id (`slot`), which replies, checks and the scheme key on, stays the pattern's. Untouched slots are the same
+ * objects. Labels that are neither `Q<n>` nor `Q<n><letter>...` are left as they are.
+ */
+function renumber(sections, drop) {
+  let shift = 0;
+  const gone = {};
+  return sections.map((sec) => {
+    const slots = sec.slots.flatMap((s) => {
+      const whole = /^Q(\d+)$/.exec(s.label_en);
+      const part = /^Q(\d+)([a-z])(.*)$/.exec(s.label_en);
+      if (drop(s)) {
+        if (whole) shift += 1;
+        else if (part) gone[part[1]] = (gone[part[1]] || 0) + 1;
+        return [];
+      }
+      let label = s.label_en;
+      if (whole) label = `Q${+whole[1] - shift}`;
+      else if (part) label = `Q${+part[1] - shift}${String.fromCharCode(part[2].charCodeAt(0) - (gone[part[1]] || 0))}${part[3]}`;
+      if (label === s.label_en) return [s];
+      const label_ur = s.label_ur === s.label_en ? label : String(s.label_ur).replace(/\d+/, /\d+/.exec(label)[0]);
+      return [{ ...s, label_en: label, label_ur }];
+    });
+    return slots.length === sec.slots.length && slots.every((x, i) => x === sec.slots[i]) ? sec : { ...sec, slots };
+  });
+}
+
+const NOTE_KEYS = { poem: 'assessmentNoPoemNote', ghazal: 'assessmentNoGhazalNote' };
+
+/** The board legend (printed on the teacher's marking scheme) plus one line per left-out genre, poem first. */
+function withNotes(legend, has) {
+  const L = legend || {};
+  const keys = ['poem', 'ghazal'].filter((g) => !has[g]).map((g) => NOTE_KEYS[g]);
+  const lines = (lang) => [...(L[`lines_${lang}`] || []), ...keys.map((k) => resolveUx(k, { language: lang }))];
+  return { ...L, lines_en: lines('en'), lines_ur: lines('ur') };
+}
+
+/**
+ * The variant with the absent genres' slots left out (Urdu only), the rest renumbered and a note on the legend; the
+ * same object when nothing goes.
+ */
 function forContent(V, subject, content) {
   if (!V || subject !== 'urdu') return V;
   const has = presence(content);
   const drop = (s) => { const g = genreOf(s); return g != null && !has[g]; };
   if (!V.sections.some((sec) => sec.slots.some(drop))) return V;
-  const sections = V.sections.map((sec) => {
-    if (!sec.slots.some(drop)) return sec;
-    const slots = sec.slots.filter((s) => !drop(s));
-    const m4 = slots.reduce((n, s) => n + s.total_x4, 0);
+  const sections = renumber(V.sections, drop).map((sec, i) => {
+    if (sec.slots.length === V.sections[i].slots.length) return sec;
+    const m4 = sec.slots.reduce((n, s) => n + s.total_x4, 0);
     const t = totalLine(m4 / 4);
-    return { ...sec, slots, marks: m4 / 4, marks_x4: m4, marks_en: t.en, marks_ur: t.ur };
+    return { ...sec, marks: m4 / 4, marks_x4: m4, marks_en: t.en, marks_ur: t.ur };
   }).filter((sec) => sec.slots.length > 0);
   const all = sections.flatMap((s) => s.slots);
   const total4 = sections.reduce((n, s) => n + s.marks_x4, 0);
@@ -73,6 +116,7 @@ function forContent(V, subject, content) {
   return {
     ...V, sections, total_marks: total4 / 4, generated_marks: (total4 - tm4) / 4, teacher_marked_marks: tm4 / 4,
     mcq_share_x100: Math.round((10000 * mcq4) / total4), exam_header: retotal(V.exam_header, V.total_marks, total4 / 4),
+    legend: withNotes(V.legend, has),
   };
 }
 
