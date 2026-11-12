@@ -195,14 +195,14 @@ async function writeBoardPaper(args, d) {
   const pre = probeRun(ex);
   if (pre) drop(ex, hardIds(pre.run), pre.run);
   let checks = await reviewed(ex, finish(ex));
-  // 3. One targeted rewrite of the dropped items (same slot, told the used keys and the stems to avoid). Nothing new
-  // is asked for the slot, so a topped-up slot may be rewritten. Of the rewrite and the originals, fewer hard wins.
+  // 3. One targeted rewrite of the dropped items (same slot, told the used keys and the stems to avoid). A plain srq/erq
+  // slot is asked with EXTRA slack (finish() trims it; nothing restores it); MCQs and groups exactly. Fewer hard wins.
   const rewrite = async (tree, from, phrases = []) => {
     let out = tree;
     const short = T.shortfallOf(out, allSlots);
     const used = usedKeys(out);
     for (const unit of unitsOf(V)) {
-      const mine = short.filter((r) => unit.slots.some((s) => s.slot === r.slot)).map((r) => ({ ...r, write: r.need - r.have }));
+      const mine = short.filter((r) => unit.slots.some((s) => s.slot === r.slot)).map((r) => { const s = unit.slots.find((x) => x.slot === r.slot); return { ...r, write: s.type === 'mcq' || s.stimulus ? r.need - r.have : Math.ceil((r.need - r.have) * EXTRA) }; }); // bd-qyi45h.7
       if (!mine.length) continue;
       const slots = unit.slots.filter((s) => mine.some((r) => r.slot === s.slot)).map((s) => quotaed(s, out, mine.find((r) => r.slot === s.slot).write));
       const gone = dropped.slice(from).filter((x) => mine.some((r) => r.slot === x.slot));
