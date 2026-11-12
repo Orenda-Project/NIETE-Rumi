@@ -230,7 +230,7 @@ function buildV6Prompt(a, { transcript, language, teacherName, target: requested
 
 The levels and evidence below are the record of this lesson: every claim about how something went must agree with them. Use the TRANSCRIPT for her real words and moments. Find what is UNIQUELY hers — a signature move, how she talks to children, how she connects ideas — and ground every claim in something she actually did. Lead with humanity. Address her as "you".
 
-NEVER write an indicator code (a letter and a number), a section key, a snake_case token or any programmatic identifier as prose: name an indicator only in the plain words given below. Never say who set a level or wrote the evidence, and never compare two sources of a level (no "Rumi", "the AI", "the system", "the observer changed it"): these are simply this lesson's levels.
+NEVER write an indicator code (a letter and a number), a section key, a snake_case token or any programmatic identifier as prose: name an indicator only in the plain words given below. Never say who set a level or wrote the evidence, and never compare two sources of a level (no "the AI", "the app", "the system", "the observer changed it"): these are simply this lesson's levels.
 
 PLAIN LANGUAGE — avoid coach-jargon the teacher wouldn't use herself: "scaffolding", "extension", "differentiation", "formative assessment", "higher-order thinking", "metacognition", "gradual release". Especially in "horizon_note", describe the concrete move in plain words (e.g. "call a child by name before the question", "let a child explain with the chart") rather than the jargon label.
 
@@ -256,14 +256,14 @@ The selected lesson plan was for a different lesson: nowhere in this report — 
 ${strengthLine}
 ${horizonLine}
 
-domain_whys: ONE sentence per section, in the report language, in the PAST TENSE, with NO instruction verb (no "try", "should", "could", "کریں", "چاہیے") — pure diagnosis, not advice; the single next-step lives elsewhere. Follow this EXACT two-clause skeleton (bd-43497, the locked reference):
+domain_whys: ONE sentence per section, in the report language, in the PAST TENSE, with NO instruction verb (no "try", "should", "could", "کریں", "چاہیے") — pure diagnosis, not advice; the single next-step lives elsewhere. Follow this EXACT two-clause skeleton (the locked reference):
   EN: "This is strong/developing because <one concrete classroom moment> — it's not full marks because <one clear, concrete missing thing>."
   UR: «یہ اسکور اچھا/بہتر ہے کیونکہ <کلاس کا ایک ٹھوس لمحہ> — مکمل نمبر اس لیے نہیں کیونکہ <ایک واضح، ٹھوس کمی>۔»
 - ONE sentence, never a paragraph. ALWAYS name ONE concrete missing element in the second clause, taken from the section's lowest-level indicator and what its next level asks; never end vague. If (and only if) every levelled indicator in the section is at the top level, drop the second clause and just state what made it strong.
 - An indicator marked "not applicable" or "couldn't tell" is NOT a low mark: it is outside this lesson's score. Never name it as missing and never diagnose it.
 - The missing element is always something the teacher could have DONE IN THIS LESSON. NEVER name another subject as what was missing — never fault a lesson for not being a different subject. Subject knowledge is judged on THIS lesson's subject only.
 - Ground every claim in the SECTION LEVELS below or the transcript — NEVER invent an activity or moment that is not there, and NEVER contradict the recorded evidence (it is the observer's own record of this lesson).
-- LANGUAGE PURITY (bd-43497 R5): write the WHOLE line in the report language and, for Urdu, in Urdu SCRIPT — these diagnosis lines must read as clean, single-language prose (no sprinkled English pedagogy terms here, unlike the concept names elsewhere).
+- LANGUAGE PURITY: write the WHOLE line in the report language and, for Urdu, in Urdu SCRIPT — these diagnosis lines must read as clean, single-language prose (no sprinkled English pedagogy terms here, unlike the concept names elsewhere).
 SECTION LEVELS (diagnose each):
 ${v6SectionsBlock(a)}
 
