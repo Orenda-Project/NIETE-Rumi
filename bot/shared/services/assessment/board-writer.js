@@ -274,7 +274,7 @@ async function writeBoardPaper(args, d) {
       const best = tries.reduce((a, b) => (b.checks.record.hard < a.checks.record.hard ? b : a));
       outcome(tries, best);
       const short = T.shortfallOf(best.ex, allSlots);
-      if (!LT.canShip(best.checks, { grade, slotsShort: short })) throw shortError(best.checks.shortfall.length ? best.checks.shortfall : short, best.ex, LL.hardDetail(best.checks.record));
+      if (!LT.canShip(best.checks, { grade, slotsShort: short })) throw shortError(short.concat(best.checks.shortfall), best.ex, LL.hardDetail(best.checks.record));
       const over = LT.overCap(best.checks, allSlots); if (over) throw shortError(best.checks.shortfall, best.ex, JSON.stringify(over), LT.CAP_CODE); ex = best.ex; checks = LT.ship(best.checks); d.logToFile('[assessment] board paper shipped on last try', { requestId, pattern, grade, subject, rules: checks.record.shipped_last_try }); // bd-qyi45h.3
     } else outcome(tries, tries[0]);
   }

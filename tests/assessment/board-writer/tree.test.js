@@ -221,6 +221,18 @@ describe('fill (up to a count per slot, plain nodes only)', () => {
     const out = T.fill(tree(), second, new Map([['M', 2]]), (q) => (q.id === 'b' ? 1 : 0));
     expect(out.unseen.objective.MCQs.map((q) => q.id)).toEqual(['c', 'd']);
   });
+  // bd-qyi45h.8: a spare node keeps its old id, which a rewrite may since have reused; stamp re-ids it
+  test('a spare node whose id (or a branch id) is already taken comes back without ids; a free id stays', () => {
+    const first = tree(mcq('M#1', 'M'), { id: 'M#2', slot: 'M', or: [mcq('M#2/a', 'M'), mcq('M#2/b', 'M')] });
+    const or = (id, k) => ({ id, slot: 'M', or: [{ ...mcq(`${id}/a`, 'M'), question: `x${k}` }, { ...mcq(`${id}/b`, 'M'), question: `y${k}` }] });
+    const second = tree({ ...mcq('M#1', 'M'), question: 'old one' }, or('M#2', 1), mcq('M#7', 'M'));
+    const out = T.fill(first, second, new Map([['M', 3]])).unseen.objective.MCQs;
+    expect(out.map((q) => q.id)).toEqual(['M#1', 'M#2', null, null, 'M#7']);
+    expect(out[3].or.map((b) => b.id)).toEqual([null, null]);
+    T.stamp({ unseen: { objective: { MCQs: out } } }, slots(['M', 5]), (l) => l);
+    const ids = T.leavesOf({ unseen: { objective: { MCQs: out } } }).map((l) => l.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
 });
 
 describe('droppable (round 10: restore never leaves a slot short)', () => {
