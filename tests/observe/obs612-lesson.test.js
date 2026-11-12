@@ -103,12 +103,24 @@ describe('/observe2', () => {
 
   test.each([
     ['8:english', 'obs612-enur-v1', 'en'], ['6:urdu', 'obs612-enur-v1', 'ur'], ['8:science', 'obs612-msci-v1', null],
-    ['10:maths', 'obs612-gen-v1', null], ['7:islamiat', 'obs612-gen-v1', null],
+    ['7:islamiat', 'obs612-gen-v1', null], ['8:computer', 'obs612-gen-v1', null],
   ])('grade:subject %s → %s', async (gs, id, sheet) => {
     await V.handleTap(COACH, '9230', `o612:s:f:form-1:${gs}`);
     const [, patch] = Store.setLesson.mock.calls[0];
     expect(patch.rubricVersion).toBe(id);
     expect(patch.visitContextPatch.sheet).toBe(sheet);
+  });
+
+  // bd-ra8xu.40 (operator 12 Nov ~11:00): grades 9-12 stay on FICO (v6 when the coach switch says so): no subject is
+  // asked, and the named class decides the gate as grades 1-5 does.
+  test.each(['o612:g:f:form-1:10', 'o612:s:f:form-1:11:maths'])('grade 9-12 (%s): FICO\'s live form, no subject asked', async (id) => {
+    await V.handleTap(COACH, '9230', id);
+    expect(WhatsAppService.sendInteractiveMessage).not.toHaveBeenCalled();
+    expect(visitRubric).toHaveBeenCalledWith(expect.objectContaining({ observerUserId: 'coach-1', teacherUserId: 'teacher-1', lessonIsPrimary: true }));
+    const [, patch] = Store.setLesson.mock.calls[0];
+    expect(patch.rubricVersion).toBe('fico17_v6');
+    expect(patch.visitContextPatch).toMatchObject({ grade_band: 'high' });
+    expect(WhatsAppService.sendFlow.mock.calls[0][1]).toMatchObject({ flowId: 'F-FORM' });
   });
 
   test('grades 1-5: FICO\'s live form; the named class decides the grades 1-5 gate, not the profile', async () => {
