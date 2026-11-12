@@ -31,6 +31,7 @@ as each teacher commits; restore and sweep read it. No phone number is printed: 
 """
 import argparse
 import csv
+import hashlib
 import json
 import os
 import re
@@ -279,6 +280,27 @@ def read_state(cur, ids, fks, keys):
             "owned": owned_rows(cur, fks, keys, ids), "visits": load_visits(cur, ids)}
 
 
+def full_rows(conn, pp, fks):
+    """A backup of every row this teacher's write touches, whole (all columns), from the plan's own snapshot: the
+    accounts' users rows, each row to be moved, each booked visit to be moved. Kept in the private before-image beside
+    the undo list, so anything the write did to a row, not only the columns it meant to change, can be read back."""
+    groups = {("users", "id", "uuid"): set([pp["survivor"]] + pp["retired"])}
+    for (t, c, row, _owner, action) in pp.get("moves", []):
+        if action != "skip" and fks.get((t, c)):
+            groups.setdefault((t,) + tuple(fks[(t, c)]), set()).add(row)
+    if pp.get("visits"):
+        groups.setdefault(("observation_schedules", "id", "uuid"), set()).update(v["row_id"] for v in pp["visits"])
+    branches, params = [], {}
+    for i, ((t, pk, ty), ids) in enumerate(sorted(groups.items())):
+        params[f"p{i}"] = sorted(ids)
+        branches.append(sql.SQL("SELECT {tl}::text AS t, {pk}::text AS id, to_jsonb(x) AS row FROM {t} x "
+                                "WHERE {pk} = ANY(%({p})s::{ty}[])").format(
+            tl=sql.Literal(t), pk=sql.Identifier(pk), t=ident(t), p=sql.SQL(f"p{i}"), ty=sql.SQL(ty)))
+    with conn.cursor() as cur:
+        cur.execute(sql.SQL(" UNION ALL ").join(branches), params)
+        return [{"table": r["t"], "id": r["id"], "row": r["row"]} for r in cur.fetchall()]
+
+
 def stranded_rows(conn, moves, fks, refs):
     """[(table, row_id, {"ref_table.col": n})] for rows that would stay behind (a frozen form excepted) while other
     rows depend on them, counted in the caller's open snapshot, in one round trip."""
@@ -512,13 +534,17 @@ def write_private(path, payload):
     with os.fdopen(fd, "w") as f:
         json.dump(payload, f, indent=1, default=jsonable)
     os.replace(tmp, path)
+    side = path.with_name(path.name + ".sha256")
+    fd = os.open(side, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n")
 
 
 def set_entry(image, pp, status, kind="merge"):
     entry = {"pair": pp["pair"], "kind": kind, "status": status, "survivor": pp["survivor"],
              "retired": pp["retired"], "patch": pp.get("patch", {}), "final_phone": pp.get("final_phone"),
              "before": pp.get("before", {}), "visits": pp.get("visits", []), "moves": pp.get("moves", []),
-             "retire": pp.get("retire", {})}
+             "retire": pp.get("retire", {}), "rows_before": pp.get("rows_before", [])}
     image["pairs"] = [e for e in image["pairs"] if e["pair"] != pp["pair"]] + [entry]
     return entry
 
@@ -662,6 +688,7 @@ def run_merge(a, conn, out, stamp, fks, keys, refs):
                 outcome = {"pair": p["pair"], "status": "refused",
                            "why": [f"decisions changed since the review: {len(missing)} gone, {len(extra)} new"]}
                 break
+            pp["rows_before"] = full_rows(conn, pp, fks)
             set_entry(image, pp, "writing")
             write_private(image_path, image)
             try:
@@ -694,7 +721,8 @@ def run_merge(a, conn, out, stamp, fks, keys, refs):
     done = [r["pair"] for r in results if r["status"] == "committed"]
     (out / f"merge-commit-{base}.json").write_text(json.dumps(
         {"run_id": run_id, "target": a.target, "go": a.go, "committed": done, "results": results,
-         "before_image": str(image_path)}, indent=2))
+         "before_image": str(image_path),
+         "before_image_sha256": hashlib.sha256(image_path.read_bytes()).hexdigest()}, indent=2))
     print(f"committed {len(done)} of {len(pairs)} teachers (run_id {run_id}).")
     print("rows that reached a retired account during the run (each should be '-'):")
     sweep(conn, image, fks, keys, refs, commit=False, out=None, private_dir=None, stamp=stamp)
@@ -728,6 +756,7 @@ def sweep(conn, image, fks, keys, refs, commit, out, private_dir, stamp):
             conn.rollback()
             continue
         pp = {"pair": e["pair"], "survivor": e["survivor"], "retired": e["retired"], "moves": moves}
+        pp["rows_before"] = full_rows(conn, pp, fks)
         entry = set_entry(sweep_image, pp, "writing", kind="sweep")
         write_private(path, sweep_image)
         try:
@@ -767,6 +796,8 @@ def run_restore(a, conn, out, stamp, fks):
     run_id = image["run_id"] if image["kind"] == "merge" else image["of"]
     print(f"[{a.target}] restore of {image['run_id']} ({image['kind']}){'' if a.commit else ' (dry run)'}:")
     results = []
+    backup = {"restore_of": image["run_id"], "target": a.target, "pairs": []}
+    backup_path = Path(a.private_dir) / a.target / f"merge-restore-before-{stamp}.json"
     try:
         for e in reversed(image["pairs"]):
             if e.get("status") not in ("committed", "writing"):
@@ -785,6 +816,10 @@ def run_restore(a, conn, out, stamp, fks):
                 results.append({"pair": e["pair"], "status": "would restore", "steps": len(steps), "left": changed})
                 print(f"  {e['pair']}: would restore ({len(steps)} steps){note}")
                 continue
+            backup["pairs"].append({"pair": e["pair"], "rows_before": full_rows(
+                conn, {"survivor": e["survivor"], "retired": e["retired"], "moves": e["moves"],
+                       "visits": e.get("visits", [])}, fks)})
+            write_private(backup_path, backup)
             try:
                 n = apply(conn, steps, restore_verify(conn, e, run_id, back))
             except SystemExit as err:
