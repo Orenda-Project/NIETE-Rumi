@@ -6,6 +6,7 @@ import { deleteRecording } from '../../lib/recordingStore';
 import { itemId } from '../../teacher/notices/model';
 import { noticeTracker } from '../../teacher/notices/tracker';
 import { clearDraft } from '../observeDraft';
+import type { ObserveLesson } from '../../services/api';
 
 /**
  * bd-4404s7.4 — the coach's observation, sent IN THE BACKGROUND.
@@ -61,6 +62,8 @@ export interface SendArgs {
   audio: { blob: Blob; filename: string };
   plan: PlanChoice | null;
   photos: File[];
+  /** bd-ra8xu.40 — the class she named on Check and send (asked only while FDE's tools are on for her). */
+  lesson?: ObserveLesson | null;
   /** bd-33wxxi.4 — the principal app's Sending page and observation page; absent, the coach's (sendingPath, the coach's observation page). */
   waitHref?: string;
   observationHref?: (observationId: string) => string;
@@ -119,6 +122,7 @@ async function run(visitId: string): Promise<void> {
     const out = await sendObservation(
       {
         teacherExtId: args.teacherExtId, schoolExtId: args.schoolExtId, audio: args.audio, plan: args.plan, photos: args.photos,
+        ...(args.lesson ? { lesson: args.lesson } : {}),
       },
       undefined, undefined,
       (pct) => {

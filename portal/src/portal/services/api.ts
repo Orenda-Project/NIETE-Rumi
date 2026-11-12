@@ -797,6 +797,11 @@ export type CoachObservationView = {
   };
 };
 
+/** bd-ra8xu.40 — the class of the observed lesson, named on Check and send: grades 1-5, or a grade 6-12 class and its subject. */
+export type ObserveLesson = { primary: true } | { grade: number; subject: string };
+/** bd-ra8xu.40 — ask: FDE's tools are on for her, so Check and send asks the class; the grades and subject keys to offer. */
+export type ObserveLessonQuestion = { ask: boolean; grades?: number[]; subjects?: string[] };
+
 export type DraftOption = { id: string; title: string };
 export type DraftIndicator = {
   id: string; field: string; name: string;
@@ -1139,8 +1144,16 @@ export const leader = {
   startObservation: async (args: {
     teacherExtId: string; schoolExtId?: string | null; key: string; lessonPlanKey?: string; photoKeys: string[];
     lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' };
+    /** bd-ra8xu.40 — the class she named (asked only while FDE's tools are on for her). */
+    lesson?: ObserveLesson;
   }): Promise<{ coachingSessionId: string }> => {
     const response = await api.post('/leader/observe/start', args);
+    return response.data;
+  },
+
+  /** bd-ra8xu.40 — whether Check and send asks the class (and, for grades 6-12, the subject): FDE's switch for her. */
+  getObserveLessonQuestion: async (): Promise<ObserveLessonQuestion> => {
+    const response = await api.get('/leader/observe/lesson-question');
     return response.data;
   },
 
