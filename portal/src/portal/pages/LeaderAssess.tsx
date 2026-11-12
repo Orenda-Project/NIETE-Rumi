@@ -23,7 +23,7 @@ import { useSaSwitches } from '../lib/assess/switches';
 import { resultsPath } from '../lib/assess/results';
 import { sendQueued } from '../lib/assess/outbox';
 import {
-  allVisitKeys, mintId, mmss, readVisit, saveMic, visitKey, writeVisit, VISIT_LIMIT_MS, type MicCheck, type QueuedOutcome, type VisitMemory,
+  allVisitKeys, mintId, mmss, readVisit, saveMic, visitKey, visitLimitMs, writeVisit, type MicCheck, type QueuedOutcome, type VisitMemory,
 } from '../lib/assess/visitStore';
 import type { SaChild, SaList, SaOutcome, SaSchool } from '../types/childTestSa';
 
@@ -54,8 +54,8 @@ const DRAIN_EVERY_MS = 30_000;
 const TOAST_MS = 2500;
 /** A class list still not on screen this long after its read began is reported once (sa_list.slow). */
 export const LIST_SLOW_MS = 15_000;
-// a visit start older than twice the visit's 45 minutes belongs to an earlier sitting (sa_resume_repick)
-const SITTING_MS = 2 * VISIT_LIMIT_MS;
+// a visit start older than 90 minutes belongs to an earlier sitting (sa_resume_repick), whatever the list's size
+const SITTING_MS = 90 * 60 * 1000;
 const earlierSitting = (at: number) => Date.now() - at > SITTING_MS;
 // sa_all_grades: the grades a coach may name for a school's list
 const GRADE_CHOICES = [1, 2, 3, 4, 5];
@@ -697,7 +697,7 @@ export default function LeaderAssess() {
     ...children.filter(elsewhere).map((c) => ({ drawId: c.drawId, name: firstNameOf(c, lang), state: 'other' as const })),
   ];
   const bar = (
-    <AssessVisitBar copy={copy} done={doneKids.length} total={Math.max(list?.perVisit ?? LIST_SIZE, children.filter((c) => !isMarkedOut(c)).length)} startedAt={startedAt} sync={sync} />
+    <AssessVisitBar copy={copy} done={doneKids.length} total={Math.max(list?.perVisit ?? LIST_SIZE, children.filter((c) => !isMarkedOut(c)).length)} startedAt={startedAt} limitMs={visitLimitMs(list?.perVisit, RDF_MINUTES)} sync={sync} />
   );
 
   const canGoBack = step.kind !== 'schools' && step.kind !== 'engine';
