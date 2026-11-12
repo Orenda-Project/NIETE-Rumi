@@ -241,7 +241,10 @@ class TranscriptionProcessorService {
         let refused = false;
         try {
           const { findPriorLeaderObservation, refuseDuplicateObservation } = require('./audio-hash-cache');
-          const prior = await findPriorLeaderObservation(supabase, {
+          // bd-r98hph: a test account (app_settings.skip_recording_duplicate_check) may send the same recording again.
+          const skip = await require('./duplicate-check-switch').skipsCheck(session.observer_user_id);
+          if (skip) logToFile('🧪 observe: duplicate check skipped for this test account', { coachingSessionId });
+          const prior = skip ? null : await findPriorLeaderObservation(supabase, {
             observerUserId: session.observer_user_id,
             audioHash,
             excludeSessionId: coachingSessionId,
