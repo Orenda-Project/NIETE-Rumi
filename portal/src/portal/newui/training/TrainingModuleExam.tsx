@@ -49,12 +49,35 @@ type Attempt = {
   mcq_correct: number;
   mcq_served: number;
   mcq_needed: number;
-  crq: { held: boolean; score: number | null; max: number; feedback: string | null };
+  /** needed: the written answer's pass mark, from the server (bd-r2uzg1.1); absent from an older server. */
+  crq: { held: boolean; score: number | null; max: number; needed?: number; feedback: string | null };
   answers: Array<{ index: number; question_text: string; is_open_ended: boolean; options: string[]; chosen_option: string | null; answer_text: string | null }>;
 };
 type Save = 'idle' | 'saving' | 'saved' | 'error';
 
 export const LETTERS = 'ABCDEFGH';
+
+/**
+ * bd-r2uzg1.1 (ICT sheet Middle and High TT 65) — a failed sitting names the part that failed, each with its own
+ * pass mark: "MCQ 2/4 · Need 3", "Written 3/10 · Need 6", or both. Farzana had every MCQ right, failed on the written
+ * answer, and was shown "MCQ 4/4 · Need 3". Pass marks come from the server (mcq_needed, crq.needed); without
+ * crq.needed (an older server) the MCQ tally and its need are shown as before. Scores only: no answer is revealed.
+ */
+function failedChips(a: Attempt, tally: JSX.Element) {
+  const mcqNeed = <Chip>{TRAINING_COPY.need(a.mcq_needed)}</Chip>;
+  const needed = a.crq.needed;
+  const writtenKnown = !a.crq.held && a.crq.score !== null && typeof needed === 'number' && needed > 0;
+  if (!writtenKnown) return <>{tally}{mcqNeed}</>;
+  const mcqShort = a.mcq_served > 0 && a.mcq_correct < a.mcq_needed;
+  const writtenShort = (a.crq.score as number) < (needed as number);
+  if (!mcqShort && !writtenShort) return <>{tally}{mcqNeed}</>;
+  return (
+    <>
+      {mcqShort ? <>{tally}{mcqNeed}</> : null}
+      {writtenShort ? <><Chip>{TRAINING_COPY.written(a.crq.score, a.crq.max)}</Chip><Chip>{TRAINING_COPY.need(needed)}</Chip></> : null}
+    </>
+  );
+}
 
 export function useModuleExam() {
   const { courseId = '' } = useParams();
@@ -259,7 +282,7 @@ export default function TrainingModuleExam() {
     hero = latest.status === 'pending_review'
       ? <Hero title={TRAINING_COPY.beingGraded} icon={Hourglass} tone="waiting" chips={tally} live />
       : latest.status === 'failed'
-        ? <Hero title={TRAINING_COPY.notPassed} icon={XCircle} tone="neutral" chips={<>{tally}<Chip>{TRAINING_COPY.need(latest.mcq_needed)}</Chip></>} live />
+        ? <Hero title={TRAINING_COPY.notPassed} icon={XCircle} tone="neutral" chips={failedChips(latest, tally)} live />
         : <Hero title={TRAINING_COPY.passed} icon={Check} tone="done" chips={tally} live />;
   } else if (g && g.available) {
     hero = <Hero title={TRAINING_COPY.ready} icon={GraduationCap} tone="neutral" chips={<Chip icon={PenLine}>{TRAINING_COPY.writtenAnswer}</Chip>} />;

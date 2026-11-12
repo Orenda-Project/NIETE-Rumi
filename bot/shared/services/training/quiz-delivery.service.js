@@ -2878,7 +2878,7 @@ async function moduleExamAttempts({ userId, courseId }) {
   const qById = new Map((qRows || []).map(q => [q.id, q]));
 
   const { crqResultsHeld } = require('./isaps-crq-hold.rules');
-  const { MCQ_PASS_PCT } = require('./isaps-crq-paper.rules');
+  const { MCQ_PASS_PCT, CRQ_PASS_PCT } = require('./isaps-crq-paper.rules');
   const held = await crqResultsHeld(supabase);
   const crqMax = await crqPointsForLevel(course.level_id);
 
@@ -2913,6 +2913,9 @@ async function moduleExamAttempts({ userId, courseId }) {
         held,
         score: held || !crqRow ? null : (crqRow.answer_score ?? null),
         max: crqMax,
+        // bd-r2uzg1.1: the written answer's own pass mark, so a failed sitting can name the part that failed
+        // (decideIsapsModuleExamPass: earned/max >= CRQ_PASS_PCT). Not secret, so sent while results are held too.
+        needed: crqMax > 0 ? Math.ceil((crqMax * CRQ_PASS_PCT) / 100) : 0,
         feedback: held || !crqRow ? null : (crqRow.feedback_text || null),
       },
       answers,
