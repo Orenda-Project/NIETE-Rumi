@@ -89,6 +89,8 @@ export type SaList = {
   cycleId: string;
   grade: number;
   gradeFallback: boolean;
+  /** sa_per_visit: the size the list was drawn at, only when it was not 5 */
+  perVisit?: number;
   reused: boolean;
   children: SaChild[];
   alternates: SaChild[];

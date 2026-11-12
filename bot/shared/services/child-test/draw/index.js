@@ -9,8 +9,8 @@
  *            child_test_draws before any name is shown.
  *   A visit  the observed grade if it is 3 or 5, else Grade 3 and Grade 5 alternate by the school's
  *            visits this cycle. 1 returning child + new children in rank order, round-robin across the
- *            grade's sections, to 5; then 2 alternates. A child already tested in any cycle is never
- *            drawn as new again.
+ *            grade's sections, to 5 (switch sa_per_visit: the caller passes perVisit, 1–5); then 2 alternates.
+ *            A child already tested in any cycle is never drawn as new again.
  *            With sa_all_grades the caller may name any grade 1–5: that grade only, no fallback; and a child
  *            listed, not yet reached, on another of the coach's lists today is not listed again (RULING G-18).
  *   Shift    one shift per school-grade: the morning classes, or the evening ones only when the grade
@@ -47,6 +47,11 @@ const { isVisitKey, parseVisitKey, pktDate, oneVisit } = require('./visit-key');
 
 const REGION = 'ict';
 const PER_VISIT = 5;
+// switch sa_per_visit: a whole number is clamped to 1–5; anything else is PER_VISIT
+const perVisitOf = (n) => {
+  const v = typeof n === 'string' && /^\s*-?\d+\s*$/.test(n) ? Number(n) : n;
+  return Number.isInteger(v) ? Math.min(PER_VISIT, Math.max(1, v)) : PER_VISIT;
+};
 const ALTERNATES = 2;
 const RETURN_AFTER_DAYS = 42;
 const MAX_TRIES = 2;
@@ -472,6 +477,8 @@ async function listFor(visitId, extra = {}) {
   // Lists claimed since L25 are ordered room by room (section order, morning first), the returning
   // child inside their own room; a list first sent before keeps its order and its child numbers.
   const byRoom = listedHere.some((h) => h.list_order === LIST_ORDER);
+  // sa_per_visit: the size the list was drawn at, when it was not 5 (a list drawn at 5 carries no size)
+  const sized = listedHere.find((h) => Number.isInteger(h.per_visit));
   const roomRank = new Map([...classes.classes].sort((a, b) => (shiftOf(a) === 'morning' ? 0 : 1) - (shiftOf(b) === 'morning' ? 0 : 1)
     || bySectionThenId(a, b)).map((c, i) => [c.id, i]));
   const sectionOf = (d) => String((classOf.get(d.class_id) || {}).section || '');
@@ -507,6 +514,7 @@ async function listFor(visitId, extra = {}) {
     classIds: [...new Set(rows.map((d) => d.class_id))],
     classes: rooms,
     gradeFallback: listedHere.some((h) => h.grade_fallback),
+    ...(sized ? { perVisit: sized.per_visit } : {}),
     reused: false,
     children,
     alternates,
@@ -524,7 +532,7 @@ function listedExtra(ctx, base) {
 
 // ── todaysList ─────────────────────────────────────────────────────────────────────────────────
 
-async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitKey, observedGrade, grade: namedGrade, allGrades = false, now = new Date() } = {}, attempt = 0) {
+async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitKey, observedGrade, grade: namedGrade, allGrades = false, perVisit, now = new Date() } = {}, attempt = 0) {
   const named = oneVisit(givenVisitId, visitKey);
   if (!named.ok) return named;
   const visitId = named.visit; // a field form id or a visit key, from here on
@@ -571,7 +579,7 @@ async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitK
 
     const ret = await returningChild(ctx, grade, visitId, held.held);
     if (!ret.ok) {
-      if (ret.conflict && attempt < 2) return todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitKey, observedGrade, grade: namedGrade, allGrades, now }, attempt + 1);
+      if (ret.conflict && attempt < 2) return todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitKey, observedGrade, grade: namedGrade, allGrades, perVisit, now }, attempt + 1);
       return ret;
     }
     const rotation = prior.size % Math.max(1, ctx.classesByGrade.get(grade).length);
@@ -579,7 +587,9 @@ async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitK
     if (!ret.draw && !seq.length) { firstReason = firstReason || 'frame_exhausted'; continue; }
 
     const at = iso(now);
-    const extra = listedExtra(ctx, grade !== primary ? { grade_fallback: true } : {});
+    // a list drawn at another size than 5 says so on its "listed" entries (sa_per_visit); a list of 5 is as before
+    const size = perVisitOf(perVisit);
+    const extra = listedExtra(ctx, { ...(grade !== primary ? { grade_fallback: true } : {}), ...(size !== PER_VISIT ? { per_visit: size } : {}) });
     const main = [];
     if (ret.draw) {
       const c = await claim(ret.draw, 'main', visitId, at, extra);
@@ -587,14 +597,14 @@ async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitK
       if (c.won) main.push(ret.draw);
     }
     const cursor = { i: 0 };
-    const a = await claimInOrder(seq, cursor, PER_VISIT - main.length, 'main', visitId, at, extra);
+    const a = await claimInOrder(seq, cursor, size - main.length, 'main', visitId, at, extra);
     if (!a.ok) return a;
     main.push(...a.rows);
     const b = await claimInOrder(seq, cursor, ALTERNATES, 'alternate', visitId, at, extra);
     if (!b.ok) return b;
     if (!main.length) { firstReason = firstReason || 'frame_exhausted'; continue; }
     logToFile('[child-test] visit list drawn', {
-      cycleId, schoolId, visitId, coachUserId, grade, gradeFallback: grade !== primary,
+      cycleId, schoolId, visitId, coachUserId, grade, gradeFallback: grade !== primary, perVisit: size,
       main: main.map((d) => d.id), alternates: b.rows.map((d) => d.id), returning: main.some((d) => d.sample_role === 'returning'),
     });
     return listFor(visitId);
