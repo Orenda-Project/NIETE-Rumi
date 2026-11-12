@@ -951,6 +951,11 @@ async function _recordTranscriptionFailure(sessionId, from, observerDebrief, err
  * @returns {Promise<boolean>} true → the caller must not transcribe
  */
 async function _refuseIfAlreadyAnalysed(session, sessionId, from, audioHash, observerDebrief, S, opts = {}) {
+  // bd-r98hph: a test account (app_settings.skip_recording_duplicate_check) may send the same debrief again.
+  if (await require('../coaching/duplicate-check-switch').skipsCheck(session.observer_user_id)) {
+    logToFile('🧪 observe debrief: duplicate check skipped for this test account', { sessionId });
+    return false;
+  }
   let prior = null;
   try {
     const { findPriorAnalysedDebrief } = require('../coaching/audio-hash-cache');
