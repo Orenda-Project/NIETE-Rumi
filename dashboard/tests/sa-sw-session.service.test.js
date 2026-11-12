@@ -29,16 +29,16 @@ function bootWorker(existing) {
   return { listeners, kept, deleted };
 }
 
-test('the session cache is sa-session-v15 (round 10, release B: every English clip in the reviewers\' picked voice, lower and calmer)', () => {
-  expect(require('../sa/sw').SESSION).toBe('sa-session-v15');
+test('the session cache is sa-session-v16 (round 12: the Urdu letter name «ثے» re-voiced under its keys, said "se")', () => {
+  expect(require('../sa/sw').SESSION).toBe('sa-session-v16');
 });
 
-test('activate deletes every older sa-session cache (v1 to v14) and keeps v15, the current core and other caches', async () => {
+test('activate deletes every older sa-session cache (v1 to v15) and keeps v16, the current core and other caches', async () => {
   const { CORE } = require('../sa/sw');
-  const w = bootWorker(['sa-session-v1', 'sa-session-v2', 'sa-session-v3', 'sa-session-v4', 'sa-session-v5', 'sa-session-v6', 'sa-session-v7', 'sa-session-v8', 'sa-session-v9', 'sa-session-v10', 'sa-session-v11', 'sa-session-v12', 'sa-session-v13', 'sa-session-v14', 'sa-session-v15', CORE, 'sa-core-sa-3', 'sa-core-sa-4', 'sa-core-sa-5', 'sa-core-sa-14', 'wq-cache']);
+  const w = bootWorker(['sa-session-v1', 'sa-session-v2', 'sa-session-v3', 'sa-session-v4', 'sa-session-v5', 'sa-session-v6', 'sa-session-v7', 'sa-session-v8', 'sa-session-v9', 'sa-session-v10', 'sa-session-v11', 'sa-session-v12', 'sa-session-v13', 'sa-session-v14', 'sa-session-v15', 'sa-session-v16', CORE, 'sa-core-sa-3', 'sa-core-sa-4', 'sa-core-sa-5', 'sa-core-sa-14', 'wq-cache']);
   let done;
   w.listeners.activate({ waitUntil: (p) => { done = p; } });
   await done;
-  expect(w.deleted.sort()).toEqual(['sa-core-sa-14', 'sa-core-sa-3', 'sa-core-sa-4', 'sa-core-sa-5', 'sa-session-v1', 'sa-session-v2', 'sa-session-v3', 'sa-session-v4', 'sa-session-v5', 'sa-session-v6', 'sa-session-v7', 'sa-session-v8', 'sa-session-v9', 'sa-session-v10', 'sa-session-v11', 'sa-session-v12', 'sa-session-v13', 'sa-session-v14'].sort());
-  expect([...w.kept].sort()).toEqual([CORE, 'sa-session-v15', 'wq-cache'].sort());
+  expect(w.deleted.sort()).toEqual(['sa-core-sa-14', 'sa-core-sa-3', 'sa-core-sa-4', 'sa-core-sa-5', 'sa-session-v1', 'sa-session-v2', 'sa-session-v3', 'sa-session-v4', 'sa-session-v5', 'sa-session-v6', 'sa-session-v7', 'sa-session-v8', 'sa-session-v9', 'sa-session-v10', 'sa-session-v11', 'sa-session-v12', 'sa-session-v13', 'sa-session-v14', 'sa-session-v15'].sort());
+  expect([...w.kept].sort()).toEqual([CORE, 'sa-session-v16', 'wq-cache'].sort());
 });

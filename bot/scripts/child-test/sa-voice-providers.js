@@ -90,6 +90,17 @@ function withHeldWords(text, lang) {
   return String(text).replace(HELD, '$1،');
 }
 
+// A letter NAME the voice misreads is given a spelling it reads right (round 12: «ثے», said "se", came out as a "t"/"th"
+// sound, a letter not on the screen). Alone it ends in a full stop (a bare «سے» was heard as "z"). The screen keeps its text.
+const UR_NAME_SAID = Object.freeze({ 'ثے': 'سے' });
+const UR_NAMES = new RegExp(`(^|\\s)(${Object.keys(UR_NAME_SAID).join('|')})(?=$|\\s|[،۔؟!])`, 'g');
+function withLetterNames(text, lang) {
+  if (lang !== 'ur') return text;
+  const t = String(text).trim();
+  if (UR_NAME_SAID[t]) return `${UR_NAME_SAID[t]}۔`;
+  return String(text).replace(UR_NAMES, (m, pre, name) => `${pre}${UR_NAME_SAID[name]}`);
+}
+
 // A letter SOUND is voiced as a sound, never a letter name (the content owner, round 8 items 8, 10, 22; the voicenote
 // phonics grammar): a held sound is stretched (Urdu «لَ» "lllll", «نَ» "nnnnn"), a stop stays short ("tuh"), and each
 // sound gets its own [slowly]. The screen keeps its text; only what the voice is given changes.
@@ -172,4 +183,4 @@ async function synthesize(job, { env = process.env, fetchImpl = fetch, attempts 
   throw err;
 }
 
-module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withEnglishOps, withEnglishWords, withHeldWords, withSounds, isPraise, withTag, requestFor, synthesize };
+module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withEquals, withEnglishOps, withEnglishWords, withHeldWords, withLetterNames, withSounds, isPraise, withTag, requestFor, synthesize };

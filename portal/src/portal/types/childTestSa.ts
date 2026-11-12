@@ -35,6 +35,8 @@ export type SaSwitches = {
   r8FastStart?: boolean;
   /** sa_r8_ios_mic (components/assess/AssessPreflight.tsx): the mic check's AudioContext made in the tap; Play it again */
   iosMic?: boolean;
+  /** sa_r12_rdf_mic_check (pages/LeaderAssess.tsx): RDF greyed for want of a heard microphone offers the check again */
+  rdfMicCheck?: boolean;
   /** sa_resume_repick: a resumed child's part can be chosen again on the card; the visit clock skips earlier sittings */
   resumeRepick?: boolean;
   /** sa_all_grades: the coach names Grade 1–5 after the school */
