@@ -724,9 +724,18 @@ describe('startPortalObservation — the rubric stamp, as on WhatsApp (bd-ra8xu.
     expect(call.visitContext).toMatchObject({ grade: 8, subject: 'english', sheet: 'en' });
   });
 
+  // bd-ra8xu.40 (operator 12 Nov ~11:00): grades 9-12 follow the FICO switch (no subject needed, no FDE form).
+  test.each([[{ grade: 10 }], [{ grade: 12, subject: 'maths' }]])('FDE on and grade 9-12 %j: FICO, decided as a named FICO class', async (lesson) => {
+    const d = deps({ supabase: leaderSupabase(), rubric: { fdeOn: jest.fn().mockResolvedValue(true), decideV6: jest.fn().mockResolvedValue('fico17_v6') } });
+    expect(await start({ lesson }, d)).toEqual({ status: 'ok', coachingSessionId: SID });
+    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID, lessonIsPrimary: true });
+    expect(d.rubric.createLessonForm).not.toHaveBeenCalled();
+    expect(sessionInsert(d)).toMatchObject({ framework: 'fico17_v6' });
+  });
+
   test('the FDE form row could not be made: the visit goes on unstamped (today\'s path), never half-FDE', async () => {
     const d = deps({ supabase: leaderSupabase(), rubric: { fdeOn: jest.fn().mockResolvedValue(true), createLessonForm: jest.fn().mockResolvedValue({ ok: false }) } });
-    expect(await start({ lesson: { grade: 10, subject: 'islamiat' } }, d)).toEqual({ status: 'ok', coachingSessionId: SID });
+    expect(await start({ lesson: { grade: 8, subject: 'islamiat' } }, d)).toEqual({ status: 'ok', coachingSessionId: SID });
     expect(sessionUpdates(d).filter((u) => u.patch.framework)).toEqual([]);
     expect(d.queue.queueTranscription).toHaveBeenCalled();
   });
@@ -734,7 +743,8 @@ describe('startPortalObservation — the rubric stamp, as on WhatsApp (bd-ra8xu.
   test('a lesson the portal sent that is not a class refuses before anything is written', async () => {
     const d = deps({ supabase: leaderSupabase(), rubric: { fdeOn: jest.fn().mockResolvedValue(true) } });
     expect(await start({ lesson: { grade: 'x', subject: 'maths' } }, d)).toEqual({ status: 'invalid', reason: 'bad_lesson' });
-    expect(await start({ lesson: { grade: 9, subject: 'astrology' } }, d)).toEqual({ status: 'invalid', reason: 'bad_lesson' });
+    expect(await start({ lesson: { grade: 7, subject: 'astrology' } }, d)).toEqual({ status: 'invalid', reason: 'bad_lesson' });
+    expect(await start({ lesson: { grade: 7 } }, d)).toEqual({ status: 'invalid', reason: 'bad_lesson' });
     expect(d.supabase.writes.inserts).toEqual([]);
   });
 
@@ -758,7 +768,7 @@ describe('lessonQuestion — whether the portal asks the class (bd-ra8xu.40)', (
     const d = deps({ supabase: fakeSupabase({ users: () => coachRow({ region: 'sihala' }) }), rubric: { fdeOn: jest.fn().mockResolvedValue(true) } });
     const out = await Svc.lessonQuestion({ userId: COACH }, d);
     expect(out).toEqual({
-      status: 'ok', ask: true, grades: [6, 7, 8, 9, 10, 11, 12],
+      status: 'ok', ask: true, grades: [6, 7, 8, 9, 10, 11, 12], subjectGrades: [6, 7, 8],
       subjects: ['english', 'urdu', 'maths', 'science', 'social_studies', 'islamiat', 'computer', 'other'],
     });
   });

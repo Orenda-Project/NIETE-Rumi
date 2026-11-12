@@ -66,6 +66,9 @@ async function asksClass(user) {
 function lessonFrom(grade, subject) {
   const g = O.normGrade(grade);
   if (g === null || g <= O.PRIMARY_MAX_GRADE) return { primary: true, grade: null, subject: null };
+  // bd-ra8xu.40 (operator, 12 Nov ~11:00): grades 9-12 stay on FICO, as grades 1-5 (`primary` means a FICO-grade
+  // lesson; its grade is kept so /observe2 can record the band).
+  if (!O.isFdeGrade(g)) return { primary: true, grade: g, subject: null };
   const t = O.toolFor(g, subject);
   return { primary: false, grade: g, subject: O.normSubject(subject), rubricId: t.rubricId, tool: t.tool, sheet: t.sheet };
 }
@@ -78,6 +81,8 @@ function parseTap(id) {
     if (gradeRaw === 'p') return { step, kind, ref, primary: true };
     const g = O.normGrade(gradeRaw);
     if (g === null || g <= O.PRIMARY_MAX_GRADE) return null;
+    // bd-ra8xu.40: grades 9-12 are FICO lessons: no subject is asked.
+    if (!O.isFdeGrade(g)) return { step, kind, ref, primary: true, grade: g };
     return { step, kind, ref, grade: g };
   }
   const g = O.normGrade(gradeRaw);
@@ -170,9 +175,9 @@ async function finishObserve(user, from, ref, lesson) {
 function lessonOfState(st) {
   const l = st && st.obs612Lesson;
   if (!l || typeof l !== 'object') return null;
-  if (l.primary) return { primary: true, grade: null, subject: null };
-  const again = lessonFrom(l.grade, l.subject);
-  return again.primary ? null : again;
+  if (l.primary) return { primary: true, grade: O.normGrade(l.grade), subject: null };
+  // Re-read under today's rule (bd-ra8xu.40: a grade 9-12 lesson named before 12 Nov is a FICO lesson now).
+  return lessonFrom(l.grade, l.subject);
 }
 
 /**
@@ -230,7 +235,7 @@ async function ficoStampFor(who) {
 /** Has this /observe2 form had its lesson named? */
 function lessonNamed(form) {
   const vc = (form && form.visit_context) || {};
-  return isObs612Form(form) || vc.grade_band === 'primary';
+  return isObs612Form(form) || vc.grade_band === 'primary' || vc.grade_band === 'high';
 }
 
 async function finishObserve2(user, from, formId, lesson) {
@@ -248,7 +253,9 @@ async function finishObserve2(user, from, formId, lesson) {
     const { rubricVersion, shadow } = await ficoStampFor({
       observerUserId: user.id, region: user.region, teacherUserId: form.teacher_user_id, lessonIsPrimary: true,
     });
-    const set = await Store.setLesson(form, { rubricVersion, visitContextPatch: { grade_band: 'primary', shadow_v6: shadow || undefined } });
+    // bd-ra8xu.40: a grade 9-12 lesson is FICO too; its band and grade are kept ('primary' alone for grades 1-5).
+    const band = lesson.grade && lesson.grade > O.PRIMARY_MAX_GRADE ? { grade_band: 'high', grade: lesson.grade } : { grade_band: 'primary' };
+    const set = await Store.setLesson(form, { rubricVersion, visitContextPatch: { ...band, shadow_v6: shadow || undefined } });
     if (!set.ok) { await WhatsAppService.sendMessage(from, S(user).try_again); return; }
     logToFile('🔭 obs612: /observe2 lesson is grades 1-5 — FICO form', { userId: user.id, formId, rubricVersion });
     await Start.sendLiveForm(user, from, form.id, form.period_minutes, { afterLesson: Boolean(form.coaching_session_id) });
@@ -281,7 +288,7 @@ async function handleTap(user, from, id) {
       await askSubject(user, from, { kind: t.kind, ref: t.ref, grade: t.grade });
       return true;
     }
-    const lesson = t.primary ? { primary: true, grade: null, subject: null } : lessonFrom(t.grade, t.subject);
+    const lesson = t.primary ? { primary: true, grade: t.grade || null, subject: null } : lessonFrom(t.grade, t.subject);
     if (t.kind === 'o') await finishObserve(user, from, t.ref, lesson);
     else await finishObserve2(user, from, t.ref, lesson);
   } catch (err) {
