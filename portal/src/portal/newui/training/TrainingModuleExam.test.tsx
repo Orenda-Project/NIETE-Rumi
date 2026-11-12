@@ -208,6 +208,50 @@ describe("her sittings", () => {
     expect(screen.getByTestId("training-exam-earlier")).toHaveTextContent("28 Sep");
   });
 
+  // bd-r2uzg1.1 (ICT sheet Middle and High TT 65): Farzana answered every MCQ right, failed on the written answer,
+  // and the screen still said "MCQ 4/4 · Need 3". A failed sitting names the part that failed, with that part's own
+  // pass mark from the server (crq.needed); no answers are revealed.
+  it("failed on the written answer only: names the written answer and its pass mark, not the MCQs", async () => {
+    vi.mocked(api.get).mockImplementation(routes({
+      "/training/module/c-9/exam/attempts": { attempts: [attempt("failed", {
+        mcq_correct: 4, mcq_served: 4, mcq_needed: 3, crq: { held: false, score: 3, max: 10, needed: 6, feedback: "Name one strategy." },
+      })] },
+    }) as never);
+    renderAt(EXAM);
+    const hero = await heroWith("Not passed");
+    expect(within(hero).getByText("Written 3/10")).toBeInTheDocument();
+    expect(within(hero).getByText("Need 6")).toBeInTheDocument();
+    expect(within(hero).queryByText("Need 3")).not.toBeInTheDocument();
+    expect(within(hero).queryByText("MCQ 4/4")).not.toBeInTheDocument();
+  });
+
+  it("failed on the MCQs only: the MCQ tally and its pass mark, no written chip", async () => {
+    vi.mocked(api.get).mockImplementation(routes({
+      "/training/module/c-9/exam/attempts": { attempts: [attempt("failed", {
+        mcq_correct: 2, mcq_served: 4, mcq_needed: 3, crq: { held: false, score: 8, max: 10, needed: 6, feedback: null },
+      })] },
+    }) as never);
+    renderAt(EXAM);
+    const hero = await heroWith("Not passed");
+    expect(within(hero).getByText("MCQ 2/4")).toBeInTheDocument();
+    expect(within(hero).getByText("Need 3")).toBeInTheDocument();
+    expect(within(hero).queryByText("Written 8/10")).not.toBeInTheDocument();
+  });
+
+  it("failed on both: each part with its own pass mark", async () => {
+    vi.mocked(api.get).mockImplementation(routes({
+      "/training/module/c-9/exam/attempts": { attempts: [attempt("failed", {
+        mcq_correct: 1, mcq_served: 4, mcq_needed: 3, crq: { held: false, score: 2, max: 10, needed: 6, feedback: null },
+      })] },
+    }) as never);
+    renderAt(EXAM);
+    const hero = await heroWith("Not passed");
+    expect(within(hero).getByText("MCQ 1/4")).toBeInTheDocument();
+    expect(within(hero).getByText("Need 3")).toBeInTheDocument();
+    expect(within(hero).getByText("Written 2/10")).toBeInTheDocument();
+    expect(within(hero).getByText("Need 6")).toBeInTheDocument();
+  });
+
   it("passed: a green Passed, no Try again", async () => {
     vi.mocked(api.get).mockImplementation(routes({
       "/training/modules": { modules: [], exam: { ...MODULE_EXAM_GATE, available: false, cta: "✓ Passed" }, readings: null },
