@@ -76,6 +76,80 @@ function _redactScores(analysis) {
   return clone;
 }
 
+// ── FICO17 v6 (bd-ra8xu.40) ────────────────────────────────────────────
+// A v6 /observe visit has no focus_area or strengths, and its stored analysis carries what the guide must never
+// show: v6 codes (C3 is not V3 C3), every level as a number (row.result), and Rumi's own evidence beside the coach's
+// (rumi_evidence, the levels map, combined_evidence, the review record). For a v6 visit the data block is rebuilt
+// from the final levels, by section and indicator NAME, each levelled row with the evidence as the coach submitted it
+// and no level; NA / couldn't-tell rows are left out (they are not low marks, and their text is not a thing to
+// improve). The ONE improvement is the report's target and the praise its strongest final level (target-resolver),
+// so the coach's guide and the teacher's report name the same things.
+
+const _isV6 = (analysis) => require('../coaching/target-resolver').isV6Levelled(analysis);
+
+// Top-level keys of a v6 analysis that are Rumi's own record, the review record, or a rubric stamp.
+const V6_HIDDEN_KEYS = ['levels', 'combined_evidence', 'fico17_v6_review', 'rubric', 'framework', 'prompt_version', 'coach_prompt_version'];
+
+function _v6GuideData(analysis) {
+  const V6 = require('../coaching/frameworks/fico17-v6');
+  const { v6LevelOf, v6EvidenceOf } = require('../coaching/target-resolver');
+  const clone = _redactScores(analysis);
+  for (const k of V6_HIDDEN_KEYS) delete clone[k];
+  delete clone.domains;
+  const domains = (analysis && analysis.domains) || {};
+  for (const s of Object.values(V6.SECTIONS)) {
+    const rows = ((domains[s.domain] || {}).indicators) || [];
+    const shown = s.codes.map((code) => {
+      const row = rows.find((r) => r && String(r.id) === code);
+      if (typeof v6LevelOf(row) !== 'number') return null;
+      return { indicator: V6.indicator(code).name, 'what was seen': v6EvidenceOf(row) };
+    }).filter(Boolean);
+    if (shown.length) clone[s.name.toLowerCase()] = shown;
+  }
+  return clone;
+}
+
+const _clip = (s, n) => {
+  const t = String(s || '').replace(/\s+/g, ' ').trim();
+  return t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t;
+};
+
+/** The two things a v6 visit's record fixes for the notes: the ONE improvement and the praise. '' when neither. */
+function _v6FocusBlock(analysis) {
+  const { resolveTarget, resolveStrength, v6NextLevel } = require('../coaching/target-resolver');
+  const t = resolveTarget(analysis);
+  const s = resolveStrength(analysis, t);
+  if (!t && !s) return '';
+  const lines = ["THIS VISIT'S RECORD FIXES TWO THINGS (the teacher's report names the same ones; never choose others):"];
+  if (t) {
+    const next = v6NextLevel(t);
+    lines.push(`- "work_on_first" is "${t.name}".${t.rationale ? ` What the officer saw: "${_clip(t.rationale, 300)}".` : ''}${next ? ` The next step up on the rubric: "${next}".` : ''} Its "title" names this area in plain words, "seen" comes from what the officer saw, and "next_step" is one concrete move toward that next step. Conversation line 4 names this area.`);
+  }
+  if (s) {
+    lines.push(`- The first "went_well" item, and the specific praise in conversation line 1, come from "${s.name}".${s.rationale ? ` What the officer saw: "${_clip(s.rationale, 300)}".` : ''}`);
+  }
+  return `${lines.join('\n')}\n\n`;
+}
+
+/** The fallback guide's focus and strength for a v6 visit, in the shapes buildFallbackGuide reads. */
+function _v6Fallback(analysis) {
+  const { resolveTarget, resolveStrength, v6NextLevel } = require('../coaching/target-resolver');
+  const t = resolveTarget(analysis);
+  const s = resolveStrength(analysis, t);
+  return {
+    focus: t ? { title: t.name, rationale: t.rationale, try_this_tomorrow: v6NextLevel(t) || '' } : {},
+    strength: s ? { evidence: s.rationale ? `${s.name}: ${s.rationale}` : s.name } : {},
+    praise: s ? s.rationale : '',
+  };
+}
+
+// A v6 code the model still wrote ("C4"), as the indicator's name. Only on a v6 visit: elsewhere C4 is V3's.
+function _v6Names(s) {
+  if (typeof s !== 'string') return s;
+  const V6 = require('../coaching/frameworks/fico17-v6');
+  return s.replace(/\b([CDF][1-8])\b/g, (m) => (V6.indicator(m) ? V6.indicator(m).name : m));
+}
+
 // ── Plain words, never codes (ur/en) ───────────────────────────────────
 // The model copies the snake_case keys it is shown: notes on sandbox labelled their strengths "clear_objective:" and
 // "story_connection:". The ur/en data block is therefore shown with plain-word keys ("student engagement", "focus
@@ -105,20 +179,22 @@ function _plainText(s) {
 
 /**
  * Key-shaped words ("clear_objective") left in the model's notes, as plain words ("Clear objective"). Only the
- * rubric-shaped notes (ur/en); any other shape is returned as it came.
+ * rubric-shaped notes (ur/en); any other shape is returned as it came. With the visit's analysis, a FICO17 v6 visit's
+ * indicator codes ("C4") also become the indicator's name (bd-ra8xu.40); any other visit is unchanged.
  */
-function plainCodeNames(guide) {
+function plainCodeNames(guide, analysis = null) {
   if (!guide || !Array.isArray(guide.conversation)) return guide;
+  const plain = _isV6(analysis) ? (s) => _v6Names(_plainText(s)) : _plainText;
   const w = guide.work_on_first;
   return {
     ...guide,
-    intro: _plainText(guide.intro),
-    outro: _plainText(guide.outro),
-    went_well: Array.isArray(guide.went_well) ? guide.went_well.map(_plainText) : guide.went_well,
+    intro: plain(guide.intro),
+    outro: plain(guide.outro),
+    went_well: Array.isArray(guide.went_well) ? guide.went_well.map(plain) : guide.went_well,
     work_on_first: w && typeof w === 'object'
-      ? Object.fromEntries(Object.entries(w).map(([k, v]) => [k, _plainText(v)])) : w,
-    moment: guide.moment && typeof guide.moment === 'object' ? { ...guide.moment, text: _plainText(guide.moment.text) } : guide.moment,
-    conversation: guide.conversation.map(_plainText),
+      ? Object.fromEntries(Object.entries(w).map(([k, v]) => [k, plain(v)])) : w,
+    moment: guide.moment && typeof guide.moment === 'object' ? { ...guide.moment, text: plain(guide.moment.text) } : guide.moment,
+    conversation: guide.conversation.map(plain),
   };
 }
 
@@ -133,6 +209,11 @@ function buildGuidePrompt(v2Analysis, options = {}) {
   // 6-step structure, same score-redaction, same JSON contract, same rules.
   if (language === 'ur' || language === 'en') {
     const langName = language === 'ur' ? 'Urdu (اردو)' : 'English';
+    // bd-ra8xu.40: a v6 visit's data block is rebuilt from its final levels, and its record fixes the improvement
+    // and the praise. Every other visit: the block and the prompt exactly as before ('' adds nothing).
+    const v6 = _isV6(v2Analysis);
+    const shown = v6 ? _v6GuideData(v2Analysis) : data;
+    const v6Block = v6 ? _v6FocusBlock(v2Analysis) : '';
     const prevBlock = previousFocus
       ? `\nPREVIOUS VISIT (cross-session closure): last time the focus was "${previousFocus.title_sw || previousFocus.title || ''}" — the try was "${previousFocus.try_this_tomorrow_sw || previousFocus.try_this_tomorrow || ''}". Conversation line 1 MUST open by returning to that commitment ("Last time you said you would try…") before the new praise — the teacher should see their journey.\n`
       : '';
@@ -156,8 +237,8 @@ GENDER (mandatory): the officer AND the teacher may each be a man or a woman (م
 
 Return JSON EXACTLY: { "intro": "<one short opening line to the officer>", "went_well": ["<label: what the teacher did>", "<optional second>"], "work_on_first": { "title": "<a few words>", "seen": "<what you saw>", "next_step": "<one move for next time>" }, "moment": { "time": "<the time from the data, or null>", "text": "<the moment>", "answer": "right"|"partly right"|"wrong"|null }, "conversation": ["<1 specific praise>", "<2 the real moment>", "<3 the open question>", "<4 the one improvement>", "<5 the question that lets the teacher name the step>", "<6 the ask to rehearse it aloud>"], "outro": "<one short closing line: no number to hand over>" }
 
-OBSERVATION DATA (scores removed):
-${JSON.stringify(_plainKeys(data))}
+${v6Block}OBSERVATION DATA (scores removed):
+${JSON.stringify(_plainKeys(shown))}
 ${teacherContext}`;
   }
 
@@ -401,8 +482,10 @@ function _cleanField(value, fallbackText, max = 220) {
 function buildFallbackGuide(v2Analysis, options = {}) {
   const { language = 'sw' } = options;
   const a = v2Analysis || {};
-  const strength = (Array.isArray(a.strengths) && a.strengths[0]) || {};
-  const focus = a.focus_area_sw || a.focus_area || {};
+  // bd-ra8xu.40: a v6 visit has no strengths or focus_area: its strongest final level and the report's target.
+  const v6 = _isV6(a) ? _v6Fallback(a) : null;
+  const strength = v6 ? v6.strength : ((Array.isArray(a.strengths) && a.strengths[0]) || {});
+  const focus = v6 ? v6.focus : (a.focus_area_sw || a.focus_area || {});
 
   const strengthEvidence = _cleanField(
     strength.evidence_sw || strength.evidence,
@@ -445,7 +528,7 @@ function buildFallbackGuide(v2Analysis, options = {}) {
   // first, six conversation lines in rubric order (no moment: no model, no
   // moment to quote). The intros are unchanged, so a fallback stays countable.
   const seen = _cleanField(focus.rationale_sw || focus.rationale, '', 200);
-  const praise = _cleanField(strength.evidence_sw || strength.evidence, '', 120);
+  const praise = _cleanField(v6 ? v6.praise : (strength.evidence_sw || strength.evidence), '', 120);
   if (language === 'ur') {
     return {
       intro: 'استاد سے گفتگو کا خاکہ — تقریباً 15 منٹ۔ پہلے خوبیاں، بہتری کی صرف ایک بات۔',
@@ -514,7 +597,8 @@ function normaliseMomentAnswer(guide) {
 function groundMomentTime(guide, v2Analysis) {
   const m = guide && guide.moment;
   if (!m || !_filled(m.time)) return guide;
-  const seenIn = JSON.stringify(_redactScores(v2Analysis));
+  // A v6 visit's model saw the rebuilt block (bd-ra8xu.40): a time only in Rumi's own evidence was never shown.
+  const seenIn = JSON.stringify(_isV6(v2Analysis) ? _v6GuideData(v2Analysis) : _redactScores(v2Analysis));
   if (seenIn.includes(m.time.trim())) return guide;
   return { ...guide, moment: { ...m, time: null } };
 }
