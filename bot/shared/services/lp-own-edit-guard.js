@@ -15,6 +15,13 @@ const TEXT_MIN = 15;
 const TEXT_MAX = 300;
 const MAX_ROUNDS = 2;
 const DAILY_LIMIT = 5;
+
+/** Plans a teacher may make in a Pakistan day. Sandbox has no limit so testers are never stuck (bd-snkn32.26). */
+function dailyLimit(env = process.env) {
+  const names = [env.RAILWAY_ENVIRONMENT, env.RAILWAY_ENVIRONMENT_NAME].map((x) => String(x || '').toLowerCase());
+  const sandbox = names.includes('sandbox') || /-sandbox$/i.test(String(env.DEFAULT_REGION || ''));
+  return sandbox ? Infinity : DAILY_LIMIT;
+}
 const KARACHI_OFFSET_MS = 5 * 60 * 60 * 1000; // Asia/Karachi is UTC+5 all year (no DST)
 
 // Words that mark a request as only about punctuation, spelling or diacritics (English, Roman Urdu, Urdu).
@@ -137,7 +144,7 @@ const refuse = (outcome) => ({ ok: false, outcome });
  * Decide whether a change may be queued. `chain` is the root plan plus every change row under it;
  * `todayCount` is her makes + changes so far today (failed rows excluded).
  */
-function checkChange({ band, part, text, chain, todayCount }) {
+function checkChange({ band, part, text, chain, todayCount, limit }) {
   const parts = PARTS[band];
   if (!parts || !parts.includes(part)) return refuse('bad_request');
   if (typeof text !== 'string' || text.trim().length < TEXT_MIN) return refuse('too_short');
@@ -156,7 +163,7 @@ function checkChange({ band, part, text, chain, todayCount }) {
   const last = live.reduce((a, r) => (!a || r.edit_round > a.edit_round ? r : a), null);
   const prev = last && last.edit_request;
   if (prev && prev.part === part && normalise(prev.text) === normalise(clean)) return refuse('repeat');
-  if ((todayCount || 0) >= DAILY_LIMIT) return refuse('daily_limit');
+  if ((todayCount || 0) >= (limit ?? dailyLimit())) return refuse('daily_limit');
 
   return { ok: true, round: live.length + 1, part, text: clean };
 }
@@ -183,6 +190,6 @@ function statusFields(row) {
 }
 
 module.exports = {
-  PARTS, TEXT_MIN, TEXT_MAX, MAX_ROUNDS, DAILY_LIMIT,
+  PARTS, TEXT_MIN, TEXT_MAX, MAX_ROUNDS, DAILY_LIMIT, dailyLimit,
   normalise, isTinyEdit, ruleBreak, karachiDayStart, changesLeft, checkChange, bandOf, editBase, baseJsonKey, statusFields,
 };

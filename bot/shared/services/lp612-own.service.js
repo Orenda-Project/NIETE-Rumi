@@ -30,7 +30,7 @@
  */
 
 const { parseOwnAnswers } = require('./lp612-own-instruction');
-const { DAILY_LIMIT, karachiDayStart, changesLeft, bandOf } = require('./lp-own-edit-guard');
+const { dailyLimit, karachiDayStart, changesLeft, bandOf } = require('./lp-own-edit-guard');
 const { parseExtend, isAdjacentNext } = require('./lp612-own-extend');
 const { parseK5Pages } = require('./lp-k5-own-pages');
 const { check612Pages } = require('./lp612-own-pages');
@@ -117,7 +117,7 @@ function createOwnService(deps) {
     if (!ext.ok) return { outcome: 'bad_request', error: ext.error };
     if (ext.extend && lessonId) return { outcome: 'bad_request', error: 'extend is for a grades 6-12 lesson' };
     // bd-snkn32.15: five makes + changes per Pakistan day, checked before anything is written or asked for.
-    if ((await d.countToday(userId, karachiDayStart(now()))) >= DAILY_LIMIT) return { outcome: 'daily_limit' };
+    if ((await d.countToday(userId, karachiDayStart(now()))) >= dailyLimit(d.env || process.env)) return { outcome: 'daily_limit' };
     if (lessonId) return requestK5({ userId, lessonId, answers: parsed.answers, pages: answers.pages, correlationId });
     if (!(await d.segmentExists(segmentId))) return { outcome: 'not_found' };
 
