@@ -1,0 +1,2 @@
+{"ts":"2026-11-12T01:18:32Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,child-test spec_sync=true","sha":"7bafa096f689","branch":"bd-qyi45h.1-13949","user":""}
+{"ts":"2026-11-12T01:18:35Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-qyi45h.1-13949: language spec: NOT UPDATED e2e: missing","sha":"7bafa096f689","branch":"bd-qyi45h.1-13949","user":""}
