@@ -8282,11 +8282,16 @@ router.get('/leader/observe/:id/draft', ...coachObserve, (req, res) => (
   }))
 ));
 
-/** POST /api/portal/leader/observe/:id/draft  Body { edits } — save her changes (the form's r_/ev_/imp_/fid_ keys). */
+/**
+ * POST /api/portal/leader/observe/:id/draft  Body { edits, submit? } — save her changes (the form's r_/ev_/imp_/fid_
+ * keys). bd-ra8xu.40: an FDE (obs612) visit's form saves the same way, and `submit: true` submits it (400 with the
+ * missing items and field errors while anything is missing). { edits } alone is passed on as before.
+ */
 router.post('/leader/observe/:id/draft', ...coachObserve, (req, res) => {
   const edits = req.body && req.body.edits && typeof req.body.edits === 'object' ? req.body.edits : {};
+  const submit = !!req.body && req.body.submit === true;
   return relayToBot(res, 'observe-draft-save', () => PortalCoachingClient.saveObservationDraft({
-    userId: sessionCoach(req), coachingSessionId: req.params.id, edits,
+    userId: sessionCoach(req), coachingSessionId: req.params.id, edits, ...(submit ? { submit: true } : {}),
   }));
 });
 

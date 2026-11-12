@@ -120,8 +120,9 @@ function observeRecentPlans({ userId, teacherExtId, schoolExtId }) {
 function listObservations({ userId }) { return post('observe/list', { userId }); }
 function observationView({ userId, coachingSessionId }) { return post('observe/view', { userId, coachingSessionId }); }
 function getObservationDraft({ userId, coachingSessionId }) { return post('observe/draft', { userId, coachingSessionId }); }
-function saveObservationDraft({ userId, coachingSessionId, edits }) {
-  return post('observe/draft/save', { userId, coachingSessionId, edits });
+// bd-ra8xu.40 — `submit` (true only) submits an FDE (obs612) visit's form; a FICO save posts what it always posted.
+function saveObservationDraft({ userId, coachingSessionId, edits, submit }) {
+  return post('observe/draft/save', { userId, coachingSessionId, edits, ...(submit === true ? { submit: true } : {}) });
 }
 function observationTalkGuide({ userId, coachingSessionId }) {
   return post('observe/talk/guide', { userId, coachingSessionId }, GUIDE_TIMEOUT_MS);
