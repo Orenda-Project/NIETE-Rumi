@@ -45,7 +45,9 @@
 // sa-22: round 12: sa-ui.js (r12_intro_once: the Whole battery's "your turn" line said once per run).
 // sa-23: round 13: sa-page.js, sa-engine.js and sa-core.js (r13_whole_stop: the Whole battery moves on to the next
 // subject when a part is not finished).
-var VERSION = 'sa-23';
+// sa-24: round 13b: sa-engine.js and sa-core.js (r13_oral_rule: a spoken part ends its subject only after N questions in a
+// row ran out unanswered).
+var VERSION = 'sa-24';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
