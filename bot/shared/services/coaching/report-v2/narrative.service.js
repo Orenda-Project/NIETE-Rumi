@@ -151,8 +151,135 @@ function pickWeakestDomain(analysis) {
   }
 }
 
+// ── FICO17 v6 (bd-ra8xu.40) ─────────────────────────────────────────────────
+// A v6 /observe visit (or a DC v6 self-recording) has none of what the prompt below grounds the strength and horizon
+// in: no strengths, no focus_area, no executive summary, and its rows sit under v6 section keys the V3 per-section
+// block never reads. It gets its own prompt, built from the FINAL levels: each indicator in plain words with its level
+// (or "not applicable" / "couldn't tell") and the evidence as the coach submitted it. The strength is the strongest
+// final level and the horizon the report's target (target-resolver), so the pills, the card and the debrief name the
+// same things. The V3 and /observe2 prompts never reach this branch and read exactly as before.
+
+const V6_CLIP_EVIDENCE = 220;
+const V6_CLIP_FOCUS = 300;
+
+function clipText(s, n) {
+  const t = String(s || '').replace(/\s+/g, ' ').trim();
+  return t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t;
+}
+
+/** One indicator, as the model reads it: its plain name, its final level (or why it has none), its evidence. */
+function v6RowLine(row, code) {
+  const V6 = require('../frameworks/fico17-v6');
+  const { v6LevelOf, v6EvidenceOf, v6NextLevel } = require('../target-resolver');
+  const name = V6.indicator(code).name;
+  const lv = v6LevelOf(row);
+  if (lv === 'NA') return `  · ${name}: not applicable in this lesson — not a low mark; never diagnose it or name it as missing.`;
+  if (lv === 'IE') return `  · ${name}: couldn't tell from this lesson — not a low mark; never diagnose it or name it as missing.`;
+  if (typeof lv !== 'number') return `  · ${name}: no level for this lesson — not part of the score; never diagnose it or name it as missing.`;
+  const ev = clipText(v6EvidenceOf(row), V6_CLIP_EVIDENCE);
+  const levels = Object.fromEntries(V6.indicator(code).levels.map((l) => [l.n, l.text]));
+  const next = v6NextLevel({ rubric: V6.RUBRIC_KEY, rung: lv, levels });
+  return `  · ${name}: level ${lv} of 4${ev ? ` — evidence: "${ev}"` : ''}${next ? ` — the next level asks: "${clipText(next, V6_CLIP_EVIDENCE)}"` : ' — the top level'}`;
+}
+
+/** The SECTION LEVELS block: one line per section (its marks over its levelled rows), then its rows. */
+function v6SectionsBlock(a) {
+  const V6 = require('../frameworks/fico17-v6');
+  const { v6LevelOf } = require('../target-resolver');
+  return Object.values(V6.SECTIONS).map((s) => {
+    const rows = ((a.domains || {})[s.domain] || {}).indicators || [];
+    const rowOf = (code) => rows.find((r) => r && String(r.id) === code) || null;
+    const levels = s.codes.map((c) => v6LevelOf(rowOf(c))).filter((l) => typeof l === 'number');
+    if (!levels.length) {
+      return `- ${s.domain} (${s.name}): NOT ASSESSED — no indicator in this section has a level for this lesson. Do NOT diagnose it, do NOT name anything missing from it, and omit it from "domain_whys" entirely.`;
+    }
+    const marks = levels.reduce((x, y) => x + y, 0);
+    return [`- ${s.domain} (${s.name}): ${marks} of ${levels.length * 4} over ${levels.length} levelled indicator${levels.length === 1 ? '' : 's'}.`,
+      ...s.codes.map((c) => v6RowLine(rowOf(c), c))].join('\n');
+  }).join('\n');
+}
+
+function v6SectionName(domainKey) {
+  const V6 = require('../frameworks/fico17-v6');
+  const s = Object.values(V6.SECTIONS).find((x) => x.domain === domainKey);
+  return s ? s.name : '';
+}
+
+function buildV6Prompt(a, { transcript, language, teacherName, target: requested }) {
+  const { resolveTarget, resolveIndicator, resolveStrength, v6NextLevel } = require('../target-resolver');
+  // The caller's selected step when it is a levelled v6 row (the report's next step, the hero's resolved target);
+  // else the target from the levels. Re-resolved, so a caller's object never carries a V3 spec into this prompt.
+  const target = (requested && requested.indicator && resolveIndicator(a, String(requested.indicator))) || resolveTarget(a);
+  const strength = resolveStrength(a, target);
+  const pct = Math.round(parseFloat((a.scores && a.scores.overall_percentage) || 0));
+  const corpus = a.reflective_corpus || {};
+  const throughline = corpus.lesson_throughline_en || '';
+  const corpusMoments = (corpus.significant_moments || []).slice(0, 5)
+    .map((m) => `- ${m.what_happened || ''} (${m.significance_reason_en || ''})`).join('\n');
+  // bd-5lrgh, as on V3: a recording of another lesson than the selected plan never has the plan's content named.
+  const lp = a.lp_fidelity || {};
+  const lessonMismatch = !!(lp.moderators && lp.moderators.note === 'lesson_mismatch');
+
+  const strengthLine = strength
+    ? `MANDATORY strength — her strongest indicator this lesson is "${strength.name}" (level ${strength.rung} of 4, in "${v6SectionName(strength.domain)}").${strength.rationale ? ` What was seen: "${clipText(strength.rationale, V6_CLIP_FOCUS)}"` : ''} Your "strength_name" (2-4 warm words) MUST name THAT skill in plain words, and "strength_note" must celebrate it, grounded in what was seen or the matching moment in the transcript. Never take the strength from another indicator.`
+    : 'MANDATORY strength — no indicator reached level 2 in this lesson: take "strength_name" and "strength_note" from one real, specific thing she did in the transcript, without naming any indicator.';
+  const next = target ? v6NextLevel(target) : null;
+  const horizonLine = target
+    ? `MANDATORY horizon focus — the indicator to grow next is "${target.name}" (level ${target.rung} of 4, in "${v6SectionName(target.domain)}").${target.rationale ? ` What was seen: "${clipText(target.rationale, V6_CLIP_FOCUS)}"` : ''}${next ? ` The next level on the rubric asks: "${next}"` : ' It is already at the top level: frame the horizon as taking it further.'} Your "horizon_title" (2-5 words) MUST name a concrete sub-skill of THAT indicator — nothing from any other area. The "horizon_note" must reference it in plain words and point toward that next level. Do not fall back to a generic aspirational phrase.`
+    : 'MANDATORY horizon focus — no indicator has a level in this lesson: take "horizon_title" and "horizon_note" from one concrete next step the transcript supports.';
+
+  return `You are the NIETE Teaching Assistant, a warm, perceptive instructional coach. Below is the FULL TRANSCRIPT of a real lesson by ${teacherName} and the levels this lesson was given on the FICO17 v6 classroom rubric (17 indicators in three sections, each at level 1 to 4). Write the words for a CELEBRATION report that makes this teacher feel truly SEEN — not graded like a medical report.
+
+The levels and evidence below are the record of this lesson: every claim about how something went must agree with them. Use the TRANSCRIPT for her real words and moments. Find what is UNIQUELY hers — a signature move, how she talks to children, how she connects ideas — and ground every claim in something she actually did. Lead with humanity. Address her as "you".
+
+NEVER write an indicator code (a letter and a number), a section key, a snake_case token or any programmatic identifier as prose: name an indicator only in the plain words given below. Never say who set a level or wrote the evidence, and never compare two sources of a level (no "Rumi", "the AI", "the system", "the observer changed it"): these are simply this lesson's levels.
+
+PLAIN LANGUAGE — avoid coach-jargon the teacher wouldn't use herself: "scaffolding", "extension", "differentiation", "formative assessment", "higher-order thinking", "metacognition", "gradual release". Especially in "horizon_note", describe the concrete move in plain words (e.g. "call a child by name before the question", "let a child explain with the chart") rather than the jargon label.
+
+${langRules(language)}
+
+Return STRICT JSON:
+{
+ "topic":"the lesson's topic in 2-4 words (in the report language)",
+ "affirmation":"ONE short, true, specific hero sentence — what she did beautifully today. Not generic. Max 14 words.",
+ "identity":"2-3 sentences: the signature of HER teaching, grounded in the transcript. Make her see herself.",
+ "moments":[{"title":"3-5 word title","quote":"a SHORT real quote kept VERBATIM in the language actually spoken","why":"one warm sentence on why it mattered"}],
+ "strength_name":"her strongest indicator (named below), 2-4 warm words",
+ "strength_note":"one sentence celebrating it, grounded in what she did",
+ "horizon_title":"the indicator to grow next (named below), framed as an exciting next horizon, 2-5 words",
+ "horizon_note":"one warm sentence naming the growth area without making her feel deficient",
+ "journey_note":"one encouraging sentence on where her teaching is heading (no numbers)",
+ "score_framing":"one warm sentence framing overall ${pct}% as a stage in a journey, not a verdict.",
+ "domain_whys":{ "v6_teacher":"...", "v6_children":"...", "v6_subject":"..." }
+}
+moments: EXACTLY 3, the best real moments. Do NOT invent quotes — use real lines from the transcript.${lessonMismatch ? `
+The selected lesson plan was for a different lesson: nowhere in this report — strengths, horizon, moments or any line — mention, list or judge the lesson plan's content.` : ''}
+
+${strengthLine}
+${horizonLine}
+
+domain_whys: ONE sentence per section, in the report language, in the PAST TENSE, with NO instruction verb (no "try", "should", "could", "کریں", "چاہیے") — pure diagnosis, not advice; the single next-step lives elsewhere. Follow this EXACT two-clause skeleton (bd-43497, the locked reference):
+  EN: "This is strong/developing because <one concrete classroom moment> — it's not full marks because <one clear, concrete missing thing>."
+  UR: «یہ اسکور اچھا/بہتر ہے کیونکہ <کلاس کا ایک ٹھوس لمحہ> — مکمل نمبر اس لیے نہیں کیونکہ <ایک واضح، ٹھوس کمی>۔»
+- ONE sentence, never a paragraph. ALWAYS name ONE concrete missing element in the second clause, taken from the section's lowest-level indicator and what its next level asks; never end vague. If (and only if) every levelled indicator in the section is at the top level, drop the second clause and just state what made it strong.
+- An indicator marked "not applicable" or "couldn't tell" is NOT a low mark: it is outside this lesson's score. Never name it as missing and never diagnose it.
+- The missing element is always something the teacher could have DONE IN THIS LESSON. NEVER name another subject as what was missing — never fault a lesson for not being a different subject. Subject knowledge is judged on THIS lesson's subject only.
+- Ground every claim in the SECTION LEVELS below or the transcript — NEVER invent an activity or moment that is not there, and NEVER contradict the recorded evidence (it is the observer's own record of this lesson).
+- LANGUAGE PURITY (bd-43497 R5): write the WHOLE line in the report language and, for Urdu, in Urdu SCRIPT — these diagnosis lines must read as clean, single-language prose (no sprinkled English pedagogy terms here, unlike the concept names elsewhere).
+SECTION LEVELS (diagnose each):
+${v6SectionsBlock(a)}
+
+${throughline ? `THIS LESSON'S THROUGHLINE (from prior analysis): ${throughline}\n` : ''}${corpusMoments ? `MOMENTS ALREADY SURFACED (hints — prefer these, but pull the verbatim quote from the transcript):\n${corpusMoments}\n` : ''}LESSON TOPIC: ${lessonMismatch || !a.topic ? 'take it from the TRANSCRIPT.' : a.topic}
+TRANSCRIPT:
+${String(transcript || '').slice(0, 11000)}`;
+}
+
 function buildPrompt(analysis, { transcript, trend = [], language, teacherName, target: requestedTarget = null }) {
   const a = analysis || {};
+  // bd-ra8xu.40: a FICO17 v6 /observe visit (never /observe2) is written from its final levels.
+  if (require('../target-resolver').isV6Levelled(a)) {
+    return buildV6Prompt(a, { transcript, language, teacherName, target: requestedTarget });
+  }
   // bd-5lrgh (ICT sheet DC row 142): the grader judged the recording to be a different
   // lesson from the selected plan and Section B is 0. The why-writer used to be handed
   // the plan's first three moves as "missed", and explained the 0 with a lesson she never
