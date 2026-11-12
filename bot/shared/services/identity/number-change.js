@@ -365,4 +365,4 @@ async function applyNumberChange({ message, user, signatureOk } = {}) {
   }
 }
 
-module.exports = { applyNumberChange, ACTIONS, VIA };
+module.exports = { applyNumberChange, ACTIONS, VIA, utcMs };   // utcMs: one parser for the timestamp-without-zone columns

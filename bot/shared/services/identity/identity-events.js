@@ -121,6 +121,22 @@ function deletedRowResumed(userId) {
   }
 }
 
+const PEER_COLS = 'id, name, phone_number, deleted_at, registration_completed, last_message_at';
+
+/**
+ * Other live accounts at this school with this normalised name: one rule for "same name at this school", shared by
+ * the would-match count and "Is this you?". [] for no school or no name; null when the read is refused.
+ */
+async function sameNameAtSchool(supabase, { userId, schoolId, name, cols = PEER_COLS }) {
+  const want = normaliseName(name);
+  if (!schoolId || !want) return [];
+  const { data, error } = await supabase.from('users').select(cols)
+    .eq('school_id', schoolId).neq('id', userId).is('deleted_at', null);
+  if (error || !Array.isArray(data)) return null;
+  return data.filter((p) => p && p.id !== userId && !p.deleted_at
+    && isLiveNumber(p.phone_number) && normaliseName(p.name) === want);
+}
+
 /** A sign-up just finished: is there another live account with her school and her name? Never throws. */
 async function checkWouldMatch(userId, source) {
   try {
@@ -129,19 +145,10 @@ async function checkWouldMatch(userId, source) {
     const { data: me, error } = await supabase.from('users')
       .select('id, name, school_id').eq('id', userId).maybeSingle();
     if (error || !me || !me.school_id) return;
-    const name = normaliseName(me.name);
-    if (!name) return;
+    if (!normaliseName(me.name)) return;
 
-    const { data: peers, error: peersError } = await supabase.from('users')
-      .select('id, name, phone_number, deleted_at, registration_completed, last_message_at')
-      .eq('school_id', me.school_id)
-      .neq('id', userId)
-      .is('deleted_at', null);
-    if (peersError || !Array.isArray(peers)) return;
-
-    const matches = peers.filter((p) => p && p.id !== userId && !p.deleted_at
-      && isLiveNumber(p.phone_number) && normaliseName(p.name) === name);
-    if (!matches.length) return;
+    const matches = await sameNameAtSchool(supabase, { userId, schoolId: me.school_id, name: me.name });
+    if (!matches || !matches.length) return;
     StructuredLogger.logEvent('registration.would_match', {
       tk: ref(userId),
       source: source || null,
@@ -155,4 +162,5 @@ async function checkWouldMatch(userId, source) {
   }
 }
 
-module.exports = { recordSystem, deletedRowResumed, checkWouldMatch, normaliseName, numberChangeOf, ref };
+module.exports = { recordSystem, deletedRowResumed, checkWouldMatch, normaliseName, numberChangeOf, ref,
+  sameNameAtSchool, isLiveNumber };
