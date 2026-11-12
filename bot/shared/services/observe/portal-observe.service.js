@@ -76,6 +76,12 @@ function withDefaults(deps = {}) {
     roster: () => require('./observe-roster'),
     people: () => require('./observe-people'),
     state: () => require('./observe-state.service'),
+    // bd-ra8xu.40 — the rubric a visit is stamped with at start, decided exactly as observe-capture decides it.
+    rubric: () => ({
+      decideV6: require('./observe-fico17-v6').decideVisitFramework,
+      fdeOn: require('./obs612/visit').asksClass,
+      createLessonForm: require('./observe2/field-form.store').createLessonForm,
+    }),
     log: () => require('../../utils/logger').logToFile,
     now: () => () => new Date(),
     newId: () => () => crypto.randomUUID(),
@@ -96,7 +102,7 @@ const notReady = (reason) => ({ status: 'not_ready', reason });
 async function loadCoach(d, userId) {
   const { data } = await d.supabase
     .from('users')
-    .select('id, phone_number, role, name, preferred_language')
+    .select('id, phone_number, role, name, preferred_language, region')
     .eq('id', userId)
     .maybeSingle();
   return data || null;
@@ -176,6 +182,107 @@ async function resolveTeacherSafely(d, userId, teacherExtId, schoolExtId) {
   }
 }
 
+// ── the rubric a visit is stamped with (bd-ra8xu.40) ─────────────────────────
+
+/**
+ * The lesson the coach named on the portal, as obs612/visit.js lessonFrom reads a WhatsApp tap: { primary: true } for
+ * grades 1-5, or the grade 6-12 lesson with its FDE tool. undefined when none was sent; null when what was sent is not
+ * a class (refused).
+ */
+function lessonOfArg(lesson) {
+  if (lesson === undefined || lesson === null) return undefined;
+  if (typeof lesson !== 'object') return null;
+  if (lesson.primary === true) return { primary: true, grade: null, subject: null };
+  const O = require('../coaching/frameworks/obs612');
+  const g = O.normGrade(lesson.grade);
+  if (g === null || g <= O.PRIMARY_MAX_GRADE || !O.normSubject(lesson.subject)) return null;
+  // obs612/visit.js lessonFrom, from the pure rubric module (visit.js loads the database client at require time).
+  const t = O.toolFor(g, lesson.subject);
+  if (!t) return null;
+  return { primary: false, grade: g, subject: O.normSubject(lesson.subject), rubricId: t.rubricId, tool: t.tool, sheet: t.sheet };
+}
+
+/**
+ * observe-capture.startFromAudio's decision, for a portal start: grades 6-12 named with the obs612 switch on → FDE's
+ * tool; otherwise FICO17 v6 when the coach switch says so (the named grades 1-5 answer, else the teacher's profile,
+ * decides the grades 1-5 gate); otherwise nothing (today's rubric). Never throws: any failure is today's path.
+ * @returns {Promise<{v6Stamp: string|null, fdeLesson: object|null}>}
+ */
+async function decideStamp(d, coach, teacherUserId, lesson) {
+  let fdeOn = false;
+  try { fdeOn = !!(await d.rubric.fdeOn(coach)); } catch (_) { fdeOn = false; }
+  const named = fdeOn && lesson ? lesson : null;
+  if (named && !named.primary) return { v6Stamp: null, fdeLesson: named };
+  let v6Stamp = null;
+  try {
+    v6Stamp = (await d.rubric.decideV6({
+      userId: coach.id,
+      region: coach.region,
+      teacherUserId,
+      ...(named && named.primary ? { lessonIsPrimary: true } : {}),
+    })) || null;
+  } catch (_) { v6Stamp = null; }
+  return { v6Stamp, fdeLesson: null };
+}
+
+/**
+ * A grade 6-12 portal visit: its FDE form row (the coach fills it on the portal), then the session's stamp, before
+ * transcription is queued so the step after it finds the stamp (obs612/visit.afterTranscription). No WhatsApp form is
+ * sent. A form that cannot be made leaves the session unstamped: the visit goes on as today's /observe.
+ */
+async function startFdeVisit(d, { userId, session, ownerUserId, teacher, schoolExtId, lesson }) {
+  const made = await d.rubric.createLessonForm({
+    observerUserId: userId,
+    teacherUserId: ownerUserId,
+    sessionId: session.id,
+    rubricVersion: lesson.rubricId,
+    visitContext: {
+      grade: lesson.grade,
+      subject: lesson.subject,
+      sheet: lesson.sheet,
+      via: 'observe',
+      channel: 'portal',
+      ...(teacher && teacher.teacher_ext_id != null ? { teacher_ext_id: String(teacher.teacher_ext_id) } : {}),
+      ...(schoolExtId ? { school_ext_id: String(schoolExtId) } : {}),
+      ...(teacher && teacher.teacher_name ? { teacher_name: teacher.teacher_name } : {}),
+    },
+  });
+  if (!made || !made.ok || !made.form) {
+    d.log('❌ portal observe: the FDE form row was not made — the visit goes on as /observe', { coachingSessionId: session.id }, 'error');
+    return false;
+  }
+  const { error } = await d.supabase.from('coaching_sessions')
+    .update({ framework: lesson.rubricId, framework_selection_reason: 'obs612_lesson' })
+    .eq('id', session.id);
+  if (error) {
+    d.log('❌ portal observe: the FDE stamp was not written', { coachingSessionId: session.id, formId: made.form.id, error: error.message }, 'error');
+    return false;
+  }
+  d.log('🔭 portal observe: FDE visit stamped, form made', { coachingSessionId: session.id, formId: made.form.id, rubricId: lesson.rubricId });
+  return true;
+}
+
+/**
+ * Whether Check and send asks the lesson's class (and, for grades 6-12, its subject): the obs612 switch for this coach,
+ * as WhatsApp's visit planner asks it after Start. The words are the portal's; this gives the keys.
+ */
+async function lessonQuestion({ userId }, deps) {
+  if (!userId) return { status: 'invalid', reason: 'no_user' };
+  const d = withDefaults(deps);
+  const coach = await loadCoach(d, userId);
+  if (!coach || !LEADER_ROLES.includes(coach.role)) return { status: 'ok', ask: false };
+  let ask = false;
+  try { ask = !!(await d.rubric.fdeOn(coach)); } catch (_) { ask = false; }
+  if (!ask) return { status: 'ok', ask: false };
+  const O = require('../coaching/frameworks/obs612');
+  return {
+    status: 'ok',
+    ask: true,
+    grades: O.GRADES.filter((g) => g > O.PRIMARY_MAX_GRADE),
+    subjects: O.SUBJECTS.map((x) => x.key),
+  };
+}
+
 // ── start ───────────────────────────────────────────────────────────────────
 
 /**
@@ -185,10 +292,14 @@ async function resolveTeacherSafely(d, userId, teacherExtId, schoolExtId) {
  */
 async function startPortalObservation({
   userId, teacherExtId, schoolExtId = null, key, lessonPlanKey = null, lessonPlan: picked = null, photoKeys = [],
+  lesson: lessonArg = undefined,
 }, deps) {
   const photos = Array.isArray(photoKeys) ? photoKeys.filter(Boolean) : [];
   if (!userId) return { status: 'invalid', reason: 'no_user' };
   if (!teacherExtId || typeof teacherExtId !== 'string') return { status: 'invalid', reason: 'no_teacher' };
+  // bd-ra8xu.40: the class the coach named on Check and send (asked only while the obs612 switch is on for her).
+  const lesson = lessonOfArg(lessonArg);
+  if (lesson === null) return { status: 'invalid', reason: 'bad_lesson' };
 
   // Every key must be this coach's own upload, of the right kind.
   if (!isOwnPortalKey(userId, key, 'audio')) return { status: 'invalid', reason: 'not_your_upload' };
@@ -244,6 +355,9 @@ async function startPortalObservation({
     if (!libraryAsset) return { status: 'invalid', reason: 'plan_not_found' };
   }
 
+  // bd-ra8xu.40: the visit's rubric, decided ONCE here as observe-capture decides it on WhatsApp.
+  const { v6Stamp, fdeLesson } = await decideStamp(d, coach, ownerUserId, lesson);
+
   const startedAt = d.now().toISOString();
   const planKey = lessonPlanKey || libraryPdfKey;
   // Field for field what lesson-plan-processor writes (handleLessonPlanUpload,
@@ -278,6 +392,8 @@ async function startPortalObservation({
       ...(classroomPhotos.length
         ? { classroom_photos: classroomPhotos, conversation_state: { classroom_photos: classroomPhotos } }
         : {}),
+      // FICO17 v6 (the coach switch): stamped on the row itself, before transcription is queued.
+      ...(v6Stamp ? { framework: v6Stamp, framework_selection_reason: 'coach_rubric_switch' } : {}),
       created_at: startedAt,
     })
     .select()
@@ -291,6 +407,15 @@ async function startPortalObservation({
       d.log('❌ portal observe: library plan could not be linked — analysing without it', {
         coachingSessionId: session.id, assetId: libraryAsset.assetId, error: linkError && linkError.message,
       }, 'error');
+    }
+  }
+
+  // FDE (grades 6-12): its form row, then the stamp — before transcription is queued.
+  if (fdeLesson) {
+    try {
+      await startFdeVisit(d, { userId, session, ownerUserId, teacher, schoolExtId, lesson: fdeLesson });
+    } catch (err) {
+      d.log('❌ portal observe: the FDE visit did not start (goes on as /observe)', { coachingSessionId: session.id, error: err && err.message }, 'error');
     }
   }
 
@@ -316,6 +441,7 @@ async function startPortalObservation({
   d.log('🔭 portal observe: observation started from the portal', {
     coachingSessionId: session.id, observerId: userId, teacherUserId: ownerUserId,
     hasLessonPlan: !!planKey || !!libraryAsset, photos: classroomPhotos.length,
+    rubric: (fdeLesson && fdeLesson.rubricId) || v6Stamp || null,
   });
   return { status: 'ok', coachingSessionId: session.id };
 }
@@ -669,6 +795,7 @@ async function sendReport({ userId, coachingSessionId }, deps) {
 module.exports = {
   LEADER_ROLES,
   startPortalObservation,
+  lessonQuestion,
   teacherRecentPlans,
   listPortalObservations,
   observationView,

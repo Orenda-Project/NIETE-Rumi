@@ -8227,12 +8227,28 @@ router.post('/leader/observe-upload/presign', ...coachObserve, (req, res) => {
  * → 200 { coachingSessionId }   400 { reason: 'not_your_teacher' | 'plan_not_found' | … }
  */
 router.post('/leader/observe/start', ...coachObserve, (req, res) => {
-  const { teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan } = req.body || {};
+  const { teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson } = req.body || {};
   return relayToBot(res, 'observe-start', () => PortalCoachingClient.startObservation({
     userId: sessionCoach(req), teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys,
     lessonPlan: libraryPlanPick(lessonPlan),
+    lesson: observeLessonPick(lesson),
   }));
 });
+
+/**
+ * bd-ra8xu.40 — the lesson's class the coach named on Check and send ({ primary: true } for grades 1-5, or
+ * { grade, subject } for 6-12): only those fields reach the bot, which checks them. Absent → undefined.
+ */
+function observeLessonPick(lesson) {
+  if (!lesson || typeof lesson !== 'object') return undefined;
+  if (lesson.primary === true) return { primary: true };
+  return { grade: lesson.grade, subject: lesson.subject };
+}
+
+/** GET /api/portal/leader/observe/lesson-question — whether Check and send asks the class (FDE's switch for her). */
+router.get('/leader/observe/lesson-question', ...coachObserve, (req, res) => (
+  relayToBot(res, 'observe-lesson-question', () => PortalCoachingClient.observeLessonQuestion({ userId: sessionCoach(req) }))
+));
 
 /** GET /api/portal/leader/observe/recent-plans?teacherExtId=&schoolExtId= — the TEACHER's recent plans. */
 router.get('/leader/observe/recent-plans', ...coachObserve, (req, res) => (
