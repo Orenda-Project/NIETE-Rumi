@@ -16,7 +16,8 @@ import { useChildTestSa } from "../../lib/useChildTestSa";
 /**
  * bd-fmf24g.33 — the coach's More: who she is, then Language (English | اردو), My profile and Log out, as the teacher's.
  * Training is a Home tile, Certificates the Training hub's card, the child test a row on Home when her flag is on.
- * With portal_child_test_sa on, the Learning assessment is a row here too: a coach on v2 has no Home to reach it from.
+ * With portal_child_test_sa on, the Learning assessment is a row here too. Since bd-zay62o (12 Nov 2026) it is also a tile
+ * on the slim Coach Home; the row stays, where these coaches learned to find it.
  * The school count under her name is the API's (`counts.schools`); nothing is shown when it cannot say.
  */
 export default function CoachMore() {
