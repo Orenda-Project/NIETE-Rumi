@@ -85,6 +85,16 @@ describe("the observation page of an FDE visit", () => {
     expect(document.body.textContent).not.toMatch(/NaN|undefined/);
   });
 
+  // bd-ra8xu.40 — before Submit there is no FDE result yet, and an FDE visit never has an AI score: no score card.
+  it("before Submit: no FICO score card, the rubric label instead", async () => {
+    C.getObservation.mockResolvedValue({ ...OBS, step: "draft", sentAt: null, obs612: null, mine: true });
+    L.getObservation.mockResolvedValue({ id: "fde-1", step: "draft", rubric: { id: "obs612-msci-v1", label: "FDE v1" }, teacher: null, talk: { guide: null, feedback: null }, report: { imageUrl: null, caption: null } });
+    renderPage();
+    expect(await screen.findByTestId("rubric-label")).toHaveTextContent("FDE v1");
+    expect(screen.queryByTestId("score-card")).toBeNull();
+    expect(screen.queryByText("AI score")).toBeNull();
+  });
+
   it("Maths & Science: levels with no bar, and no total", async () => {
     C.getObservation.mockResolvedValue({ ...OBS, obs612: {
       ...FDE, tool: "msci", toolName: "Maths & Science tool", result: "11 levels", noTotal: true,
