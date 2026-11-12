@@ -20,6 +20,15 @@ const GLYPH: Record<GlyphName, ReactElement> = {
       <path d="M12 15h8a2 2 0 0 1 2 2v2.5a2 2 0 0 1-2 2v2l-2.5-2H12a2 2 0 0 1-2-2V17a2 2 0 0 1 2-2z" />
     </g>
   ),
+  // bd-zay62o — Learning assessment: the child in front of the reading card.
+  learningAssessment: (
+    <g fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="2" width="16" height="13" rx="2" />
+      <path d="M5 12l2-5 2 5M5.8 10.2h2.4" strokeWidth="1.6" />
+      <circle cx="17" cy="15" r="2.6" fill="currentColor" />
+      <path d="M12 22a5 5 0 0 1 10 0z" fill="currentColor" />
+    </g>
+  ),
   home: (
     <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
   ),
