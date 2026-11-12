@@ -52,6 +52,9 @@
  *                            ran out (time_up); any part EGRA's / EGMA's own early-stop rule ended (stop_rule). The true
  *                            score still comes from the recording. One incomplete_move_on event
  *                            { by: 'app', section, reason, reached, of }, only when something is skipped.
+ *   (round 13)               opts.timeup_counts with opts.incomplete (the engine, battery.ui.r13_whole_stop 'all', the Whole
+ *                            battery only): a time-up is not finished again, as round 7b defined it, over r8_timeup_continue
+ *                            and the story's voice reading; 'early' passes opts.timeup_continue instead.
  *   silence_reminder (phase) opts.silence_repeat, RDF auto only: a read-aloud part (record) whose recording ran with the
  *                            ear listening and no voice heard ends in the reminder instead of a result (one silence_repeat
  *                            event { by: 'app', attempt: 1 }); silenceRepeatDone() runs the part again from its start. Once
@@ -312,7 +315,9 @@
     var skipInstrOn = manual && !!(battery.ui && battery.ui.r9_skip_instructions === true);
     // Round 8: the story's questions by the voice heard (RDF auto, no last-word step); a time-up ends only its own part.
     var positionOn = skipLW && (!!opts.reading_position || !!(battery.ui && battery.ui.r8_reading_position === true));
-    var timeupGoesOn = incompleteOn && (!!opts.timeup_continue || !!(battery.ui && battery.ui.r8_timeup_continue === true));
+    // Round 13 (opts.timeup_counts, the Whole battery's "all"): a time-up is not finished, whatever r8_timeup_continue says
+    var timeupCounts = incompleteOn && !!opts.timeup_counts;
+    var timeupGoesOn = incompleteOn && !timeupCounts && (!!opts.timeup_continue || !!(battery.ui && battery.ui.r8_timeup_continue === true));
 
     /** sa_cell_next_only: an Urdu or English letter/word cell moves on only on Next (maths cells keep their pace). */
     function holdsCell(t) { return cellNextOnly && cellTask(t) && /^(ur|en)\./.test(String(t.id)); }
@@ -549,7 +554,7 @@
       // round 8 (r8_timeup_continue): the part's own clock ran out: that part is done, the subject goes on
       if (why === STOP.TIME_UP && timeupGoesOn) return null;
       // round 8 (r8_reading_position): the story's time-up never skips its questions; the voice heard decides them
-      if (why === STOP.TIME_UP && positionOn && t.passage && r.last_word_skipped) return null;
+      if (why === STOP.TIME_UP && positionOn && t.passage && r.last_word_skipped && !timeupCounts) return null;
       if (t.mode === 'tap' || t.mode === 'keypad' || t.mode === 'keyboard') {
         return why === STOP.TIME_UP && r.attempted < of ? { reason: 'time_up', reached: r.attempted, of: of } : null;
       }

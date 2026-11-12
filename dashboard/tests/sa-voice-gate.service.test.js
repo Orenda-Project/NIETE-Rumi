@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-22'); // sa-22: round 12, sa-ui.js (the Whole battery's "your turn" line once per run)
+    expect(sw.CORE).toBe('sa-core-sa-23'); // sa-23: round 13, sa-page.js / sa-engine.js / sa-core.js (the Whole battery's move-on rule)
   });
 });
 
