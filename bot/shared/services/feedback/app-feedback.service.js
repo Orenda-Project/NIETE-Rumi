@@ -1,7 +1,8 @@
 /**
  * bd-x1tl95 — "Send feedback", from the More page of the coach's app (it opens in WhatsApp's in-app browser
  * from /portal, and in the Android app). Coaches asked to give it by voice, so a voice message is a first-class
- * answer; she may also write, and add up to three screenshots.
+ * answer; she may also write, and add up to three screenshots. bd-370733 (12 Nov): the teacher's More has it too
+ * (teachers, and principals on the teacher app); every row records who sent it in context.role (roleOf).
  *
  * ONE FORM, ONE TABLE. "Report an issue" (bd-whlsm0) asked the same thing in words only and started coach_feedback;
  * this form took its four kinds and writes the same table (bot/database/migrations/coach_feedback.sql, then
@@ -93,6 +94,24 @@ function cleanContext(raw) {
 }
 
 /**
+ * bd-370733 — who sent it: coaches, and since 12 Nov teachers and principals (operator: "Should be for teacher as
+ * well"). Read from users.role at send time, never from the app (a tester's role switch rewrites users.role, so a later
+ * join could name the wrong one). No role recorded counts as a teacher, the app's own rule (useTeacherV2
+ * isTeacherV2For). A read that fails is null: the report is still kept, without a role.
+ */
+async function roleOf(d, userId) {
+  try {
+    const { data, error } = await d.supabase.from('users').select('role').eq('id', userId).maybeSingle();
+    if (error) throw new Error(error.message);
+    const role = data && typeof data.role === 'string' ? data.role.trim().toLowerCase() : '';
+    return role || 'teacher';
+  } catch (e) {
+    d.logWarn('⚠️ App feedback: role not read; kept without it', { error: e && e.message });
+    return null;
+  }
+}
+
+/**
  * Keep what she sent and answer.
  * @returns {{status:'ok', feedbackId} | {status:'invalid', reason, key?}}
  */
@@ -124,9 +143,10 @@ async function submitFeedback({ userId, topic, text, audioKey, photoKeys, page, 
   if (countError) throw new Error(`${TABLE} count failed: ${countError.message}`);
   if ((count || 0) >= DAILY_CAP) return { status: 'invalid', reason: 'too_many' };
 
+  const role = await roleOf(d, userId);
   const row = {
     user_id: userId, kind: topic, message: message || null, page: pageOf(page),
-    audio_key: audio, photo_keys: photos, context: cleanContext(context),
+    audio_key: audio, photo_keys: photos, context: { ...cleanContext(context), ...(role ? { role } : {}) },
   };
   const { data, error } = await d.supabase.from(TABLE).insert(row).select('id').single();
   if (error || !data) throw new Error(`${TABLE} insert failed: ${error ? error.message : 'no row'}`);
@@ -189,7 +209,7 @@ function slackText({ row, name, transcript, audioUrl, photoUrls }) {
   const ctx = row.context || {};
   const where = [row.page, ctx.browser, ctx.appBuild ? `build ${ctx.appBuild}` : null].filter(Boolean).join(' · ');
   const lines = [
-    `:speech_balloon: *App feedback* from ${name || 'a coach'} — ${TOPIC_LABEL[row.kind] || row.kind}`,
+    `:speech_balloon: *App feedback* from ${name || 'someone'}${ctx.role ? ` (${ctx.role})` : ''} — ${TOPIC_LABEL[row.kind] || row.kind}`,
   ];
   if (row.message) lines.push(`> ${row.message.replace(/\n/g, '\n> ')}`);
   if (audioUrl) lines.push(`:studio_microphone: <${audioUrl}|Voice message>${transcript ? `: “${transcript}”` : ''}`);
