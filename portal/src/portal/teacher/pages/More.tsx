@@ -1,6 +1,6 @@
 import type { ComponentType, CSSProperties, ReactNode, SVGProps } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, CircleUserRound, Languages, Loader2, LogOut, PlayCircle } from "lucide-react";
+import { ChevronRight, CircleUserRound, Languages, Loader2, LogOut, MessageSquareWarning, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../hooks/useAuth";
 import { useLogoutGuard } from "../../lib/recordingSession";
@@ -15,11 +15,14 @@ import { useLanguageSwitch } from "../useLanguageSwitch";
 import { HELP } from "../help/copy";
 import { HELP_LIST_PATH } from "../help/names";
 import { useHelpSwitch } from "../help/useHelp";
+import { COACH_PROFILE } from "../../coach/profile/copy";
+import { TEACHER_REPORT_PATH } from "../report/paths";
 
 /**
  * bd-fmf24g.33 — teacher v2 More (operator, 2026-10-10: "just Language as a toggle between English and Urdu, Profile and
  * Log Out. Rest are not needed."): who she is, then Language · My profile · Log out. Nothing is stranded: Assessment,
  * Attendance, My Classes and Analytics are Home tiles; Certificates is the Training hub's card.
+ * bd-370733 (12 Nov): Report an issue, the coach's row, sits between My profile and Log out, as on the coach's More.
  */
 type Glyph = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
 
@@ -98,6 +101,7 @@ export default function More() {
   // bd-ik5e8j.4 — How to use (portal_help_videos): a Help card between who she is and her account; off, nothing.
   const H = useCopy(HELP);
   const helpOn = useHelpSwitch();
+  const P = useCopy(COACH_PROFILE);
 
   return (
     <TeacherPage title={C.more.title} testId="teacher-more">
@@ -127,6 +131,8 @@ export default function More() {
       <Card label={C.more.account}>
         <LanguageRow />
         <RowLink id="profile" to={teacherPath("profile")} icon={CircleUserRound} label={C.more.profile} />
+        {/* bd-370733 — Report an issue, the coach's row in the coach's place (operator, 12 Nov: "Should be for teacher as well") */}
+        <RowLink id="report" to={TEACHER_REPORT_PATH} icon={MessageSquareWarning} label={P.report} />
         <button
           type="button"
           data-testid="more-row-logout"
