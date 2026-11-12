@@ -161,13 +161,23 @@ describe('moduleExamAttempts — what she submitted, for review', () => {
     const out = await QD.moduleExamAttempts({ userId: 'u1', courseId: 67 });
     const s = JSON.stringify(out);
     expect(s).not.toMatch(/correct_option|is_correct|Grader feedback/);
-    expect(out.attempts[0].crq).toEqual({ held: true, score: null, max: 10, feedback: null });
+    expect(out.attempts[0].crq).toEqual({ held: true, score: null, max: 10, needed: 6, feedback: null });
   });
 
   test('once released, the written mark and feedback are part of the review', async () => {
     seed({ status: 'passed', released: true, answers: submitted('att-1', ['1', '2', '0', '1'], 7) });
     const out = await QD.moduleExamAttempts({ userId: 'u1', courseId: 67 });
-    expect(out.attempts[0].crq).toEqual({ held: false, score: 7, max: 10, feedback: 'Grader feedback' });
+    expect(out.attempts[0].crq).toEqual({ held: false, score: 7, max: 10, needed: 6, feedback: 'Grader feedback' });
+  });
+
+  // bd-r2uzg1.1 (ICT sheet Middle and High TT 65): the written answer's own pass mark travels with the attempt, so the
+  // fail screen can name the part that failed. It comes from CRQ_PASS_PCT here; the portal never computes a pass mark.
+  test('the written answer carries its pass mark (CRQ_PASS_PCT of its max)', async () => {
+    seed({ status: 'failed', released: true, answers: submitted('att-1', ['1', '2', '0', '1'], 3) });
+    const out = await QD.moduleExamAttempts({ userId: 'u1', courseId: 67 });
+    const { CRQ_PASS_PCT } = require('../../bot/shared/services/training/isaps-crq-paper.rules');
+    expect(out.attempts[0].crq.needed).toBe(Math.ceil((10 * CRQ_PASS_PCT) / 100));
+    expect(out.attempts[0].crq.needed).toBe(6);
   });
 
   test('another teacher\'s attempts are never returned', async () => {
