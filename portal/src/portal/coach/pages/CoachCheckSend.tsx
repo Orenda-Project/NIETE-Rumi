@@ -117,9 +117,13 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       .catch(() => { /* not asked */ });
     return () => { live = false; };
   }, []);
+  // bd-ra8xu.40 (operator, 12 Nov): only FDE's grades (6-8) ask the subject; grades 9-12 are FICO lessons, the class alone.
+  // An older bot that does not say which grades: every grade 6-12 asks it, as before.
+  const needsSubject = (g: string | null) => !!g && g !== "primary" && (question.subjectGrades ? question.subjectGrades.includes(Number(g)) : true);
   const lessonOf = (): ObserveLesson | null => {
     if (!question.ask || !grade) return null;
     if (grade === "primary") return { primary: true };
+    if (!needsSubject(grade)) return { grade: Number(grade) };
     return subject ? { grade: Number(grade), subject } : null;
   };
 
@@ -167,7 +171,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
 
   const send = () => {
     if (question.ask && !grade) { setLessonProblem("class"); return; }
-    if (question.ask && grade !== "primary" && !subject) { setLessonProblem("subject"); return; }
+    if (question.ask && needsSubject(grade) && !subject) { setLessonProblem("subject"); return; }
     const lesson = lessonOf();
     startSend({
       visitId: visit.id,
@@ -224,8 +228,8 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
           <div className="flex flex-col gap-2.5" data-testid="lesson-class">
             <SelectField label={C.classField} title={C.classField} value={grade}
               options={[{ value: "primary", label: C.gradePrimary }, ...(question.grades || []).map((g) => ({ value: String(g), label: C.grade(g) }))]}
-              onChange={(v) => { setGrade(v); if (v === "primary") setSubject(null); setLessonProblem(null); }} />
-            {grade && grade !== "primary" && (
+              onChange={(v) => { setGrade(v); if (!needsSubject(v)) setSubject(null); setLessonProblem(null); }} />
+            {needsSubject(grade) && (
               <SelectField label={C.subjectField} title={C.subjectField} value={subject}
                 options={(question.subjects || []).map((k) => ({ value: k, label: (C.subjects as Record<string, string>)[k] || k }))}
                 onChange={(v) => { setSubject(v); setLessonProblem(null); }} />

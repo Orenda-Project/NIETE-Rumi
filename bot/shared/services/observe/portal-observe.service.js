@@ -199,7 +199,10 @@ function lessonOfArg(lesson) {
   if (lesson.primary === true) return { primary: true, grade: null, subject: null };
   const O = require('../coaching/frameworks/obs612');
   const g = O.normGrade(lesson.grade);
-  if (g === null || g <= O.PRIMARY_MAX_GRADE || !O.normSubject(lesson.subject)) return null;
+  if (g === null || g <= O.PRIMARY_MAX_GRADE) return null;
+  // bd-ra8xu.40 (operator, 12 Nov ~11:00): grades 9-12 stay on FICO, like grades 1-5: no subject, no FDE tool.
+  if (!O.isFdeGrade(g)) return { primary: true, grade: g, subject: null };
+  if (!O.normSubject(lesson.subject)) return null;
   // obs612/visit.js lessonFrom, from the pure rubric module (visit.js loads the database client at require time).
   const t = O.toolFor(g, lesson.subject);
   if (!t) return null;
@@ -283,6 +286,8 @@ async function lessonQuestion({ userId }, deps) {
     status: 'ok',
     ask: true,
     grades: O.GRADES.filter((g) => g > O.PRIMARY_MAX_GRADE),
+    // bd-ra8xu.40: only FDE's grades (6-8) ask the subject; grades 9-12 are FICO lessons.
+    subjectGrades: O.FDE_GRADES.slice(),
     subjects: O.SUBJECTS.map((x) => x.key),
   };
 }
