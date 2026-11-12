@@ -158,6 +158,9 @@
           // round 7b (the runner keeps each to its mode: end_section RDF manual; incomplete and silence_repeat RDF auto)
           end_section: w3.end_section === true && mode === 'proctored', incomplete: wholeStop ? true : (w3.incomplete_move_on === true && mode === 'proctored'),
           timeup_continue: wholeStop === 'early', timeup_counts: wholeStop === 'all',
+          // Round 13b (battery.ui.r13_oral_rule): N spoken questions in a row left unanswered end the subject (the runner
+          // keeps it to wherever the move-on rule runs); absent, one is enough, as before.
+          oral_in_a_row: typeof w3.r13_oral_rule === 'number' && w3.r13_oral_rule >= 2 ? w3.r13_oral_rule : null,
           silence_repeat: silenceRepeat });
         var vo = { lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); }, onSilent: function (s) { fire('silent', s); },
           // a line held by a hidden page (parked, paused, resumed, gave_up): kept on the session (voice_held)
