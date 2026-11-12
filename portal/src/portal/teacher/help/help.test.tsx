@@ -27,8 +27,9 @@ import api from '../../services/api';
 import TeacherPage from '../TeacherPage';
 import More from '../pages/More';
 import HelpListPage from './HelpListPage';
+import { ListRow } from '../ui/ListRow';
 import { resetHelp } from './api';
-import { HELP_COPY } from './copy';
+import { HELP, HELP_COPY } from './copy';
 import lessonsSrc from '../lessons/LessonsHome.tsx?raw';
 import coachingSrc from '../coaching/CoachingHome.tsx?raw';
 import trainingSrc from '../training/TrainingHub.tsx?raw';
@@ -154,5 +155,40 @@ describe('switch on', () => {
     await screen.findByTestId('help-button');
     await waitFor(() => expect(helpCalls().length).toBeGreaterThan(0));
     expect(helpCalls()[0][1]).toEqual({ params: { lang: expect.stringMatching(/^(en|ur)$/) } });
+  });
+});
+
+// bd-ik5e8j.6 — the operator on the phone, 12 Nov ~10:20: "How to Use might be a better name, And also we need icons for
+// these." On production the rows' icon boxes were EMPTY: HelpListPage passes ListRow a `glyph` that only sandbox's ListRow
+// had (bd-x1tl95), so staging/main dropped it. These pin the name, each film's icon, and ListRow's glyph slot itself.
+describe('How to Use: the name and each film\'s icon (bd-ik5e8j.6)', () => {
+  const FILMS = ['start', 'lessons', 'coaching', 'training'].map((feature) => ({ ...VIDEO, feature }));
+
+  it('the English name is "How to Use" (and Film 1 "How to Use NIETE"); the Urdu stays', () => {
+    expect(HELP_COPY.howTo).toBe('How to Use');
+    expect(HELP_COPY.start).toBe('How to Use NIETE');
+    expect(HELP.ur.howTo).toBe('استعمال کا طریقہ');
+  });
+
+  it('More\'s row reads "How to Use"', async () => {
+    render(<MemoryRouter><More /></MemoryRouter>);
+    expect((await screen.findByTestId('more-row-howto')).textContent).toContain('How to Use');
+  });
+
+  it('every film in the list has its icon: Film 1 the NIETE mark, the others their Home tile art', async () => {
+    helpAnswer = { ...helpAnswer, videos: FILMS };
+    render(<MemoryRouter><HelpListPage /></MemoryRouter>);
+    await screen.findByText('How to Use NIETE');
+    const leads = screen.getAllByTestId('listrow-lead');
+    expect(leads).toHaveLength(4);
+    expect(leads[0].querySelector('img[data-help-art="start"]')).not.toBeNull();
+    expect(leads[1].querySelector('svg[data-feature-art="lessons"]')).not.toBeNull();
+    expect(leads[2].querySelector('svg[data-feature-art="coaching"]')).not.toBeNull();
+    expect(leads[3].querySelector('svg[data-feature-art="training"]')).not.toBeNull();
+  });
+
+  it('ListRow draws a glyph in its lead box (the slot the list\'s icons ride on)', () => {
+    render(<MemoryRouter><ListRow variant="row" label="x" glyph={<i data-testid="the-glyph" />} onPress={() => undefined} /></MemoryRouter>);
+    expect(screen.getByTestId('listrow-lead').querySelector('[data-testid="the-glyph"]')).not.toBeNull();
   });
 });
