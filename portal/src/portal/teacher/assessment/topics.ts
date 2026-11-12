@@ -65,12 +65,20 @@ export function suggestTypes(subject: string | null, ticked: readonly Topic[], o
   return [...new Set(wanted)].filter((id) => ids.has(id)).slice(0, MAX_TYPES);
 }
 
-/** A topic paper's starting choices: 10 marks, no book questions, 2 of each objective type and 1 of each written one,
- *  objective ones dropping to 1 from the end until the questions fit the marks. None suggested: the default mix of 5. */
-export function topicDefaults(subject: string | null, ticked: readonly Topic[], offered: readonly OfferedType[]) {
+/** bd-pw1ccr.6 — the marks FDE gives one writing item (bot/shared/services/assessment/patterns). G1 has no composition:
+ *  its writing comes in blocks of 5 × 2 (English Complete the Sentences and This Is A, Urdu Picture Sentences). From G2 a
+ *  composition is one 10-mark item (G2 English Paragraph, Urdu Topic Sentences; G5 Paragraph Writing). */
+const WRITING = new Set([...BY_HEADING.Writing, ...BY_HEADING['تخلیقی لکھائی']]);
+const writingCount = (grade: number | null | undefined) => (grade === 1 ? TOPIC_MARKS / 2 : 1);
+
+/** A topic paper's starting choices: 10 marks, no book questions, 2 of each objective type and 1 of each written one
+ *  (a G1 writing task 5, as FDE G1 writes), dropping to 1 from the end until the questions fit the marks. None suggested:
+ *  the default mix of 5. */
+export function topicDefaults(subject: string | null, ticked: readonly Topic[], offered: readonly OfferedType[], grade?: number | null) {
   const ids = suggestTypes(subject, ticked, offered);
   const objective = new Set(offered.filter((o) => o.category === 'objective').map((o) => o.id));
-  const typeCounts: Record<string, number> = Object.fromEntries(ids.map((id) => [id, objective.has(id) ? 2 : 1]));
+  const countOf = (id: string) => (objective.has(id) ? 2 : WRITING.has(id) ? writingCount(grade) : 1);
+  const typeCounts: Record<string, number> = Object.fromEntries(ids.map((id) => [id, countOf(id)]));
   const total = () => Object.values(typeCounts).reduce((s, n) => s + n, 0);
   for (let i = ids.length - 1; i >= 0 && total() > TOPIC_MARKS; i -= 1) if (typeCounts[ids[i]] > 1) typeCounts[ids[i]] = 1;
   const counts = ids.length ? typeCounts : defaultTypeCounts([...offered], 5);
@@ -106,5 +114,5 @@ export function setTicked(p: Picks, ids: readonly string[], all: readonly Topic[
   const ticked = [...all].sort(bookOrder).filter((t) => picked.has(t.topicId));
   if (ticked.length === 0) return { topicIds: [], ...undoDefaults(p) };
   if (ticked.length === all.length) return { topicIds: null, ...undoDefaults(p) };
-  return { topicIds: ticked.map((t) => t.topicId), ...topicDefaults(p.subject, ticked, offered) };
+  return { topicIds: ticked.map((t) => t.topicId), ...topicDefaults(p.subject, ticked, offered, p.grade) };
 }
