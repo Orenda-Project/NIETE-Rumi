@@ -57,7 +57,9 @@ const R7B = ['backButton', 'endTestRestart', 'endSection', 'silenceRepeat', 'inc
   // round 10, Jugnu's voice (the reviewers' 6 Nov list, audio 3 and 4)
   'r10BiggerAudio', 'r10PracticeGap',
   // round 10, content
-  'r10FluencyNoPractice'];
+  'r10FluencyNoPractice',
+  // round 12 (the Whole battery's "your turn" line once per run)
+  'r12IntroOnce'];
 
 /** The tashdeed takes on disk (sa/v3/ur/<12 hex>.mp3), by file name; none when the folder is missing. */
 function tashdeedTakes(dir = path.join(DIR, 'v3', 'ur')) {

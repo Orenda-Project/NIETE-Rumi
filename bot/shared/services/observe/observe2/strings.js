@@ -22,6 +22,8 @@ const STRINGS = {
   en: {
     deny_no_user: 'I couldn\'t find your account. Send *register* first, then /observe2 again.',
     deny_role: '/observe2 is for coaches and school leaders.',
+    // Sent once per /observe2 while the command is retired (observe2/retire.js), right before /observe opens.
+    retired_notice: 'The /observe2 trial has ended, so I\'m opening the regular /observe for you.',
     visit_body: 'Let\'s plan the /observe2 visit. Pick a school, then a teacher.',
     visit_cta: 'Plan my visit',
     launch_failed: 'I couldn\'t open the visit planner just now. Please send /observe2 again in a minute.',
@@ -142,6 +144,7 @@ const STRINGS = {
   ur: {
     deny_no_user: 'آپ کا اکاؤنٹ نہیں ملا۔ پہلے *register* لکھ کر بھیجیں، پھر دوبارہ \u2066/observe2\u2069 لکھیں۔',
     deny_role: '\u2066/observe2\u2069 کوچز اور اسکول سربراہان کے لیے ہے۔',
+    retired_notice: '\u2066/observe2\u2069 کا تجربہ ختم ہو گیا ہے، اس لیے باقاعدہ \u2066/observe\u2069 کھول رہی ہوں۔',
     visit_body: 'آئیے \u2066/observe2\u2069 وزٹ کی منصوبہ بندی کریں۔ اسکول چنیں، پھر استاد۔',
     visit_cta: 'دورہ چنیں',
     launch_failed: 'ابھی وزٹ پلانر نہیں کھل سکا۔ ایک منٹ بعد دوبارہ \u2066/observe2\u2069 بھیجیں۔',
