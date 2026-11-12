@@ -133,3 +133,19 @@ describe('the hero report of a v6 /observe visit asks the narrative for the v6 t
     expect(html).toContain('>H<');
   });
 });
+
+// Staging E2E, 12 Nov: an English teacher's v6 report came back with every narrative line in Urdu (the lesson, the
+// coach's evidence and the quotes are Urdu; the language rule sat only near the top of a long prompt). The report
+// language is restated last, right before the transcript, so the model reads it after all the Urdu material.
+describe('the v6 prompt ends by restating the report language (bd-ra8xu.40)', () => {
+  const before = (p) => p.slice(0, p.lastIndexOf('TRANSCRIPT:')).trimEnd().split('\n').pop();
+  test('English: the last line before the transcript says every value is English, quotes verbatim', () => {
+    const last = before(prompt(reviewedV6(), { language: 'en' }));
+    expect(last).toMatch(/^REPORT LANGUAGE: English\b/);
+    expect(last).toMatch(/even (though|if) the transcript and the evidence/i);
+    expect(last).toMatch(/quote/i);
+  });
+  test('Urdu: the same line, in Urdu (Nastaliq)', () => {
+    expect(before(prompt(reviewedV6(), { language: 'ur' }))).toMatch(/^REPORT LANGUAGE: Urdu\b/);
+  });
+});
