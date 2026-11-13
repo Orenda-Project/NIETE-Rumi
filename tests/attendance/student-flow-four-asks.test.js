@@ -47,7 +47,8 @@ function db({ user = {}, lists = [], rosters = {} } = {}) {
         select: () => ({
           eq: () => ({
             maybeSingle: () => Promise.resolve({ data: { ...user, ...mockUserRow }, error: null }),
-            eq: () => ({ order: () => Promise.resolve({ data: [], error: null }) }),
+            // loadStaffRoster: .eq('school_id').eq('role').is('deleted_at', null).order()
+            eq: () => { const q = { is: () => q, order: () => Promise.resolve({ data: [], error: null }) }; return q; },
           }),
         }),
         update: (patch) => ({ eq: () => { Object.assign(mockUserRow, patch); return Promise.resolve({ error: null }); } }),

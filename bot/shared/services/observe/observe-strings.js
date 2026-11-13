@@ -154,6 +154,7 @@ const STRINGS = {
     resume_desc_wait: 'Uchambuzi unaendelea — fomu itafika hivi karibuni',
     resume_desc_observe2: 'Hatua inayofuata ya ziara inasubiri — bonyeza kuifungua',
     resume_desc_observe2_form: 'Somo limerekodiwa — bonyeza kujaza fomu',
+    resume_desc_obs612_form: 'Fomu ya FDE inasubiri — bonyeza kuijaza',
     resume_retry_ack: '🔄 Nimeanzisha tena — nitakutumia fomu ikiwa tayari.',
     resume_retry_exhausted: 'Nimejaribu mara kadhaa na hauwezi kukamilika. Rekodi yako ipo salama. Kama bado una sauti, nitumie tena — nitaanzisha uchunguzi mpya.',
     watchdog_stalled_coach: '⚠️ Uchunguzi uliorekodiwa ulisimama katikati na sikuweza kuuanzisha tena. Hakuna kilichopotea — rekodi ipo salama. Nitumie sauti tena nitaanzisha uchunguzi mpya.',
@@ -238,6 +239,7 @@ const STRINGS = {
       '🔎 Ripoti imepelekwa kwa timu ya NIETE kwa ukaguzi wa mwisho (utaratibu wa majaribio). Ikithibitishwa, itamfikia mwalimu.',
     report_caption_teacher:
       'Ripoti yako ya somo 🌱 Imeandaliwa kutokana na uchunguzi wa {fo} — pamoja na kumbukumbu za mazungumzo yenu.',
+    report_caption_teacher_obs612: 'Ripoti yako ya somo 🌱 Kutoka kwa ziara ya {fo}, kwenye zana ya uchunguzi ya FDE.',
     companion_from_label: 'Kutoka kwa',
     companion_commitment_label: 'Ahadi yako',
     companion_closing: 'Tunajivunia kazi yako. Tuko pamoja. 💛',
@@ -347,6 +349,13 @@ const STRINGS = {
     bind_row_self_dc: 'میرا اپنا سبق',
     bind_row_self_dc_desc: 'اپنی تدریس پر رائے لیں',
     flow_terminal_refused: 'یہ مشاہدہ منسوخ ہو چکا ہے، اس لیے اب یہ فارم جمع نہیں ہو سکتا۔',
+    // bd-ra8xu.38 — FICO17 v6 /observe review: why a screen will not go on. DRAFT Urdu, for native review.
+    v6_choose_level: 'ایک لیول چنیں۔',
+    v6_write_why: 'لکھیں کہ آپ نے یہ لیول کیوں چنا (کم از کم 20 حروف)۔',
+    v6_check_numbers: 'دونوں نمبر دوبارہ دیکھیں۔',
+    v6_d2_mismatch: 'آپ کا لیول گنتی سے میل نہیں کھاتا۔ ایک کو بدلیں، یا وجہ لکھیں۔',
+    v6_change_why: 'آپ نے Rumi کا دیا ہوا لیول بدلا ہے۔ وجہ لکھیں (کم از کم 20 حروف)۔',
+    v6_fix_heading: 'آگے بڑھنے سے پہلے یہ ٹھیک کریں:',
     bind_row_not_obs: 'یہ مشاہدہ نہیں',
     bind_row_not_obs_desc: 'عام پیغام کے طور پر جاری رکھیں',
     bind_ack: '✅ {name} کے مشاہدے سے جوڑ دیا — تجزیہ شروع ہے۔',
@@ -366,6 +375,7 @@ const STRINGS = {
     resume_desc_wait: 'تجزیہ جاری ہے — فارم جلد ملے گا',
     resume_desc_observe2: 'وزٹ کا اگلا مرحلہ باقی ہے — دبا کر کھولیں',
     resume_desc_observe2_form: 'سبق ریکارڈ ہو چکا ہے — دبا کر فارم بھریں',
+    resume_desc_obs612_form: 'ایف ڈی ای فارم باقی ہے — دبا کر بھریں',
     resume_retry_ack: '🔄 دوبارہ شروع کر دیا — فارم تیار ہوتے ہی بھیج دوں گی۔',
     resume_retry_exhausted: 'میں نے اسے کئی بار چلایا، لیکن یہ مکمل نہیں ہو سکا۔ ریکارڈنگ محفوظ ہے۔ اگر آڈیو اب بھی موجود ہو تو دوبارہ بھیج دیں — میں نیا مشاہدہ شروع کر دوں گی۔',
     watchdog_stalled_coach: '⚠️ جو مشاہدہ ریکارڈ ہوا تھا وہ درمیان میں رک گیا اور دوبارہ نہیں چل سکا۔ کچھ ضائع نہیں ہوا — ریکارڈنگ محفوظ ہے۔ آڈیو دوبارہ بھیج دیں، میں نیا مشاہدہ شروع کر دوں گی۔',
@@ -547,6 +557,8 @@ const STRINGS = {
     send_template_queued_fo: '📨 استاد نے حال میں مجھے پیغام نہیں بھیجا، اس لیے انہیں دعوت بھیجی ہے — ایک ٹیپ پر رپورٹ مل جائے گی۔ میں بتاؤں گی۔',
     send_operator_review_fo: '📨 رپورٹ جائزے کے لیے بھیج دی گئی ہے — منظوری پر استاد کو پہنچے گی۔',
     report_caption_teacher: '🌱 آپ کے سبق پر مبارک ہو! یہ رہی آپ کی رپورٹ۔',
+    // bd-pni007 (DRAFT for native review): an FDE visit's report, scored by the coach on FDE's own tool.
+    report_caption_teacher_obs612: '🌱 آپ کے سبق کی رپورٹ: {fo} کے وزٹ سے، ایف ڈی ای کے مشاہداتی ٹول پر۔',
     companion_from_label: 'جانب سے',
     companion_commitment_label: 'آپ کا عزم',
     companion_closing: 'ہمیں آپ کے کام پر فخر ہے۔ ہم ساتھ ہیں۔ 💛',
@@ -691,6 +703,13 @@ const STRINGS = {
     bind_row_self_dc: 'My own lesson',
     bind_row_self_dc_desc: 'Get feedback on my own teaching',
     flow_terminal_refused: 'This observation was cancelled, so the form can no longer be submitted.',
+    // bd-ra8xu.38 — FICO17 v6 /observe review: why a screen will not go on (observe-fico17-v6.js).
+    v6_choose_level: 'Choose a level.',
+    v6_write_why: 'Write why you chose this level (at least 20 characters).',
+    v6_check_numbers: 'Check the two numbers.',
+    v6_d2_mismatch: "Your level doesn't match the counts. Change one, or say why.",
+    v6_change_why: 'You changed a level Rumi set. Write why (at least 20 characters).',
+    v6_fix_heading: 'Please fix these before you go on:',
     bind_row_not_obs: 'Not an observation',
     bind_row_not_obs_desc: 'Continue as a normal message',
     bind_ack: '✅ Attached to {name}\'s observation — analysis has started.',
@@ -710,6 +729,7 @@ const STRINGS = {
     resume_desc_wait: "Analysis in progress — the form is coming soon",
     resume_desc_observe2: 'Next step of your visit is waiting — tap to open it',
     resume_desc_observe2_form: 'Recorded lesson — tap to fill the form',
+    resume_desc_obs612_form: 'FDE form to fill — tap to open it',
     resume_retry_ack: "🔄 Restarted — I'll send the form as soon as it's ready.",
     resume_retry_exhausted: "I've run this one as many times as I can and it won't go through. Your recording is saved. If you still have the audio, send it again and I'll start a fresh observation.",
     watchdog_stalled_coach: "⚠️ The observation you recorded stopped partway and I couldn't restart it. Nothing is lost — your recording is saved. Send the audio again when you can and I'll start a fresh one.",
@@ -908,6 +928,8 @@ const STRINGS = {
       '🔎 The report went to the NIETE team for a final check (pilot procedure). Once approved, it reaches the teacher.',
     report_caption_teacher:
       'Your lesson report 🌱 Prepared from {fo}\'s visit — with notes from your conversation together.',
+    // bd-pni007: an FDE visit's report. No debrief conversation is promised: the coach scored FDE's own tool.
+    report_caption_teacher_obs612: 'Your lesson report 🌱 From {fo}\'s visit, on FDE\'s observation tool.',
     companion_from_label: 'From',
     companion_commitment_label: 'Your commitment',
     // bd-2405: was 'We are proud of your work. Tuko pamoja. 💛' — the Swahili
@@ -969,6 +991,11 @@ const VISIT_CAPTURE_TEMPLATES = {
  * @param {string} lang     coach language ('ur' | anything-else→en)
  * @param {{teacherName?:string, framework?:string}} [opts]
  */
+/** The "send a recorder-app file as a Document" line of the capture prompt, alone (obs612's own prompt reuses it). */
+function visitSendAsDocument(lang) {
+  return VISIT_CAPTURE_TEMPLATES[clampLanguage(lang)].sendAsDocument;
+}
+
 function buildVisitCapturePrompt(lang, opts = {}) {
   const l = clampLanguage(lang);
   const fw = String(opts.framework || 'FICO').toUpperCase();
@@ -1119,7 +1146,7 @@ function mediaTargetString(lang, key) {
 }
 
 module.exports = {
-  observeStrings, observeLang, buildVisitCapturePrompt, buildScheduleDoneAck,
+  observeStrings, observeLang, buildVisitCapturePrompt, visitSendAsDocument, buildScheduleDoneAck,
   buildVisitCancelledAck, buildVisitRescheduledAck,
   buildMediaTargetPrompt, mediaTargetString,
 };

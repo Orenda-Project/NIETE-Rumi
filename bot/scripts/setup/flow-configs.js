@@ -134,7 +134,7 @@ const FLOW_CONFIGS = [
     // REGISTRATION_FLOW_ID is set. The /registration endpoint already handles
     // its screens (PERSONAL_INFO / REGION_INFO / PROFESSIONAL_INFO / ORG_DETAILS).
     name: 'Registration',
-    jsonPath: path.join(FLOWS_DIR, 'registration-flow-v5.1.json'), // v5.1: the endpoint closes the Flow (bd-x7aprz.9)
+    jsonPath: path.join(FLOWS_DIR, 'registration-flow-v6.json'), // v6: "Is this you?" after Pick your school (v5.1 kept for rollback)
     type: 'endpoint',
     endpointPath: '/api/flows/registration',
     envVar: 'REGISTRATION_FLOW_ID',
@@ -290,6 +290,17 @@ const FLOW_CONFIGS = [
     type: 'endpoint',
     endpointPath: '/api/flows/observe2-check',
     envVar: 'OBSERVE2_CHECK_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
+    // bd-pni007 — FDE's grade 6-12 observation tools (Annexure G): ONE Flow for the three tools (Maths & Science,
+    // English & Urdu, General form), for /observe and /observe2 alike. The endpoint's INIT picks the tool from the
+    // visit's form row. Regenerate the JSON with bot/scripts/generate-obs612-flow-json.js.
+    name: 'Obs 6-12 FDE Form',
+    jsonPath: path.resolve(__dirname, '../../docs/flows/obs612-flow.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/obs612',
+    envVar: 'OBS612_FLOW_ID',
     categories: ['OTHER'],
   },
   {

@@ -42,6 +42,7 @@ const { logToFile } = require('../../utils/logger');
 const { namedAntecedent } = require('./transcript-quiz-named-pronouns');
 const { LP_V8, SOURCE_UNUSABLE_CODE } = require('./quiz-sources');
 const Catalog = require('../lp-v8-catalog.service');
+const { parseLessonRef } = require('../../utils/lesson-ref');
 
 /**
  * The lesson's own name, as its PDF caption prints it (`lesson.topic`, falling
@@ -67,8 +68,9 @@ const Catalog = require('../lp-v8-catalog.service');
 function catalogSubject(subject, lessonId) {
   const given = canonicalSubject(subject);
   if (given !== 'other') return given;
-  const m = /^grade_\d+_(.+?)_ch\d+/.exec(String(lessonId || ''));
-  const fromId = m ? canonicalSubject(m[1].replace(/_/g, ' ')) : 'other';
+  // A K-5 plan key: ICT's grade_<n>_…, GB's gb_g<n>_… or its v10 segment id (bd-97daxo.16, lesson-ref).
+  const p = parseLessonRef(String(lessonId || ''), { kind: 'k5' });
+  const fromId = p ? canonicalSubject(p.subject.replace(/_/g, ' ')) : 'other';
   return fromId !== 'other' ? fromId : null;
 }
 

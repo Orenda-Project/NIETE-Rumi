@@ -37,7 +37,7 @@ function db(rows, error = null) {
 
 const arm = (group, plan) => ({ group, plan, report: 'today' });
 
-beforeEach(() => { jest.clearAllMocks(); mockArms.groupFor.mockResolvedValue(null); });
+beforeEach(() => { jest.clearAllMocks(); Card._resetServedLog(); mockArms.groupFor.mockResolvedValue(null); });
 
 describe('pickServed (pure)', () => {
   test('plan v10 with a card → the card', () => {

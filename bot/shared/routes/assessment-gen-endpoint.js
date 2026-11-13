@@ -37,7 +37,7 @@ const { SUBJECT_LABEL: SUBJECT_TITLE } = require('../services/assessment/assessm
 
 // Which subjects a grade is actually taught. Shared, so the Flow and the
 // portal cannot answer this differently. See assessment-vocabulary.
-const { GRADE_BANDS } = require('../services/assessment/assessment-vocabulary');
+const { GRADE_BANDS, menuTitle } = require('../services/assessment/assessment-vocabulary');
 const GradeGate = require('../services/assessment/grade-gate');
 
 const COUNT_CHOICES = [10, 15, 20, 25, 30];
@@ -97,7 +97,7 @@ function offeredBooks(columns, curriculum) {
 
 /**
  * Which grades we hold any book for, that this user is offered. Numeric order: a bare sort() puts 10 before 2.
- * A grade her region's book list does not cover (GB stops at 5) is not offered (bd-5jmnfj.38.42); no list
+ * A grade her region's book list does not cover (GB stops at 10, bd-qchgya) is not offered (bd-5jmnfj.38.42); no list
  * (ICT) keeps every grade — the portal filters the same way.
  */
 async function gradesOnOffer(userId, curriculum) {
@@ -113,8 +113,8 @@ async function gradesOnOffer(userId, curriculum) {
 
 /**
  * Which subjects we hold a book for, in this grade, that this user is offered.
- * Keyed by book (bd-97daxo.4): a G1-5 subject is offered only where the ICT book the generator reads is on her
- * region's list (teacher-books); a grade her list does not cover (GB: 6+, operator 6 Nov) offers none. No list
+ * Keyed by book (bd-97daxo.4): a G1-5 subject is offered only where the ICT book the generator reads, or her own
+ * loaded book (bd-6nskfq.1), is on her region's list (teacher-books); a grade her list does not cover (GB: 11-12) offers none. No list
  * offers everything, as before.
  */
 async function subjectsOnOffer(grade, userId, curriculum) {
@@ -125,20 +125,21 @@ async function subjectsOnOffer(grade, userId, curriculum) {
   // Two curricula can both hold a subject; she is offered it once. One curriculum: no change.
   const both = BookCurriculum.curriculaFor(curriculum).length > 1;
   const seen = new Set();
-  return (data || [])
+  const cells = (data || [])
     .map((r) => r.subject)
     .filter((s) => !both || (seen.has(s) ? false : seen.add(s)))
     .filter((s) => {
       const band = GRADE_BANDS[s];
       return !band || band.includes(Number(grade));
     })
-    .filter((s) => GradeGate.cellAllowed(grade, s, g.flag, g.kill, g.killCells, userId))
-    .filter((s) => TeacherBooks.assessmentOffered(grade, s, shelf))
-    .map((s) => ({ id: s, title: SUBJECT_TITLE[s] || s }));
+    .filter((s) => GradeGate.cellAllowed(grade, s, g.flag, g.kill, g.killCells, userId));
+  // bd-6nskfq.1 — her own loaded book (GB: gb_g5_maths + an nbf_snc textbook) is offered too.
+  const ok = await Promise.all(cells.map((s) => TeacherBooks.assessmentOfferedFor(grade, s, shelf, curriculum)));
+  return cells.filter((_, i) => ok[i]).map((s, _i, offered) => ({ id: s, title: menuTitle(s, offered) }));
 }
 
 /**
- * bd-97daxo.4 (operator, 6 Nov) — a grade her region has no books for (GB: 6+) offers no subjects; say so in her
+ * bd-97daxo.4 (operator, 6 Nov) — a grade her region has no books for (GB: 11-12) offers no subjects; say so in her
  * language rather than showing an empty list. '' (no message) for everyone else, exactly as before.
  */
 async function notCoveredError(grade, userId, subjects) {
@@ -1454,7 +1455,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   if (screenId === 'COVERAGE') {
     const wantsPages = data.use_pages === true || data.use_pages === 'true';
     if (wantsPages) {
-      const book = await bookFacts(state);
+      const book = await bookPages(state);
       return screen('PAGES', {
         summary: summaryOf(state),
         hint: book.totalPages
@@ -1497,21 +1498,30 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   if (screenId === 'PAGES') {
     const pageRanges = String(data.page_ranges || '').trim();
     const book = await bookFacts(state);
+    let pages;
     try {
-      const pages = BookContent.parsePageRanges(pageRanges);
-      const beyond = book.totalPages ? pages.filter((p) => p > book.totalPages) : [];
-      if (beyond.length) {
-        return screen('PAGES', {
-          summary: summaryOf(state),
-          hint: `This book has pages 1-${book.totalPages}.`,
-          error: `This book has pages 1-${book.totalPages}. You asked for ${beyond.join(', ')}.`,
-        });
-      }
+      pages = BookContent.parsePageRanges(pageRanges);
     } catch (err) {
+      const last = await BookContent.lastPrintedPage(book.id, book.totalPages);
       return screen('PAGES', {
         summary: summaryOf(state),
-        hint: book.totalPages ? `This book has pages 1-${book.totalPages}.` : '',
+        hint: last ? `This book has pages 1-${last}.` : '',
         error: 'Try something like 4-14, or 4, 9, 12.',
+      });
+    }
+    // total_pages counts page rows and runs short of the printed numbers; the real
+    // last page is looked up only when a typed page passes it (bd-ehz254.7).
+    let last = book.totalPages;
+    let beyond = last ? pages.filter((p) => p > last) : [];
+    if (beyond.length) {
+      last = await BookContent.lastPrintedPage(book.id, last);
+      beyond = pages.filter((p) => p > last);
+    }
+    if (beyond.length) {
+      return screen('PAGES', {
+        summary: summaryOf(state),
+        hint: `This book has pages 1-${last}.`,
+        error: `This book has pages 1-${last}. You asked for ${beyond.join(', ')}.`,
       });
     }
     Object.assign(state, {
@@ -1679,6 +1689,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     Object.assign(state, {
       outputFormat: String(data.output_format || 'pdf'),
       answerLines: data.answer_lines !== false && data.answer_lines !== 'false',
+      compact: data.save_paper === true || data.save_paper === 'true',
     });
 
     try {
@@ -1769,7 +1780,7 @@ async function rebuildFromCompletion({ flowToken, userId, user = null, onStart =
 
 // `answerKey` is no longer read: every paper gets a key and she is not asked. A
 // stale client that still posts one is ignored rather than obeyed.
-async function submitFromCompletion({ flowToken, userId, outputFormat, answerLines }) {
+async function submitFromCompletion({ flowToken, userId, outputFormat, answerLines, savePaper }) {
   const state = await readSession(flowToken);
 
   // A session that has expired or was never written cannot be completed into a
@@ -1789,6 +1800,7 @@ async function submitFromCompletion({ flowToken, userId, outputFormat, answerLin
     userId: state.userId || userId,
     outputFormat: await resolveFormat(outputFormat),
     answerLines: answerLines !== false && answerLines !== 'false',
+    compact: savePaper === true || savePaper === 'true',
   });
 
   try {
@@ -1818,6 +1830,12 @@ async function bookFacts(state) {
     .eq('curriculum', curriculum).eq('grade', Number(state.grade)).eq('subject', state.subject)
     .maybeSingle();
   return { id: data?.id || null, totalPages: data?.total_pages || null };
+}
+
+/** bookFacts with the last PRINTED page, not total_pages (a page-row count that runs short; bd-ehz254.7). */
+async function bookPages(state) {
+  const book = await bookFacts(state);
+  return { ...book, totalPages: await BookContent.lastPrintedPage(book.id, book.totalPages) };
 }
 
 function questionsScreen(state, error = '') {
@@ -2073,6 +2091,7 @@ async function submit(state) {
     // Always: the answer key stopped being her choice (bd-bfnsk).
     includeAnswerKey: true,
     answerLines: state.answerLines !== false,
+    compact: state.compact === true,
     outputFormat: state.outputFormat || 'pdf',
   });
 }

@@ -2946,3 +2946,22 @@ Feature: NIETE (ICT) Teacher Training
     But with the switch off the server's answer still wins and my quiz home opens, as before
     # go.routes.js teacherPlays: the maker prefill's grade (Grade 2 when none), one_door.practice{grade}.
     # Unit: bot/tests/first-touch/one-door-go-routes.test.js. @wip.
+
+  @e2e @quiz @wip @draft @P2 @T1181
+  Scenario: A child who sends the class quiz code again mid-quiz gets the same quiz back, not a new one
+    Given a child on a known handset has joined a class quiz from its link and answered question 1
+    When more than a minute later the child sends the same QUIZ code again
+    Then the bot sends question 2 again, with the same numbering
+    And no new quiz session is started for that child and that link, so the teacher's report counts one child
+    And "video_quiz.session_reused" is logged with the open session
+    # bd-l9fr2 (prod 5 Oct: 48 phones opened 84 sessions). video-quiz.service.js startSession reuses a share_link
+    # run only when quiz, link and child all match (video-quiz-open-run.js). Unit: tests/quiz/video-quiz-reuse-open-run.test.js.
+
+  @e2e @draft @P1
+  Scenario: A text I send while the exam checker is waiting always gets a reply
+    Given I am part-way through checking students' exam papers
+    When I type a message instead of sending a photo or tapping a button
+    Then the bot answers with the current step, as reply buttons when the step has buttons
+    And the chat never goes silent on my message
+    # bd-97daxo.8.12: button-bearing step replies went to the list sender and were dropped.
+    # exam-checker.handler.js. Unit: bot/tests/handlers/exam-checker-text-reply.test.js.

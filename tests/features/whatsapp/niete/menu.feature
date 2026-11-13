@@ -422,13 +422,40 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     Then the bot opens the Test Paper (the "Open app" button, or the assessment form when the app is off)
     And the bot does NOT reply conversationally
 
-  @e2e @menu @wip @draft @P2 @M25
+  @e2e @menu @P1 @M25
   Scenario: A bare "menu" (no slash) opens the menu
     Given the NIETE bot chat is open
     When I send "menu"
     Then the bot opens the menu (the "Open app" Home button, or the "See what I do" list)
     And the bot reply does not say it is unsure
-    # Replaces @M06.
+    # Replaces @M06. UPDATED 2026-11-11 (bd-2ym4ve): deterministic now — the text handler rewrites it to /menu
+    # before any door (services/menu-request.js), no classifier involved. Off switch: MENU_KEYWORD_ROUTING=false.
+
+  # ═══════ ADDED 2026-11-11 (bd-2ym4ve) · one or two words with "menu" in them open the menu ═══════
+  # Operator, 11 Nov 2026: "If ... it's a single one or two words and it contains the word menu, the menu should
+  # open." The doors that already read such a message keep it: the quiz menu ("quiz menu"), attendance ("attendance
+  # menu"), coaching ("coaching menu"), another /command ("/exam menu"). Three words or more go to the classifier.
+  # Unit: tests/handlers/menu-word-request.test.js; handler: bot/tests/handlers/reversed-slash-command.test.js.
+
+  @e2e @menu @edge @P1 @M35
+  Scenario Outline: Two words with "menu", a slip of it, or the Urdu word open the menu
+    Given the NIETE bot chat is open
+    When I send "<typed>"
+    Then the bot opens the menu (the "Open app" Home button, or the "See what I do" list)
+    And the bot reply does not say it is unsure
+    Examples:
+      | typed        |
+      | Menu please  |
+      | show menu    |
+      | menue        |
+      | مینو         |
+
+  @e2e @menu @negative @P2 @M36
+  Scenario: "quiz menu" still opens the quiz menu, not the main menu
+    Given the NIETE bot chat is open
+    When I send "quiz menu"
+    Then the bot opens the quiz menu (the same reply as "/quiz")
+    And the "See what I do" list is not shown
 
   @e2e @menu @negative @wip @draft @P2 @M26
   Scenario: An unknown one-word command gets "not sure" and the menu, never the AI chat

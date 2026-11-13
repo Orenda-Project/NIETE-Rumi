@@ -8,12 +8,14 @@
  * - Review chapters (GB English 'R1', GB Urdu 101 'جائزہ-۱') sit where the book puts them and read as
  *   the review they are, not "Ch R1".
  * - ICT menus are byte-identical: the hash below was taken on origin/sandbox 49416a018, before this change.
+ *   Re-pinned for bd-a3o891: Grade 4 English chapters 2-12 now carry their own titles (were Grade 2's);
+ *   a render diff showed that chapter list as the only change.
  */
 
 const Catalog = require('../../bot/shared/services/lp-v8-catalog.service');
 const { renderAll, hashOf } = require('./menu-snapshot');
 
-const ICT_MENU_HASH_49416a018 = 'cd8d16d26ca46b4aa18353fb7f6f74463b102aa1d41cd31c3637e10d41f6cf53';
+const ICT_MENU_HASH_49416a018 = '1e1809c2c9fc18d6e0b9f28d601b88df6e1ddbfb61354efb9257d54a720d756f';
 
 const lesson = (id, segmentIndex = 1, title = 'Lesson') => ({
   lesson_id: id, segment_index: segmentIndex, lp_type: 'content', day_label: `Day ${segmentIndex}`, pages_label: 'p.1',

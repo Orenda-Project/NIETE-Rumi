@@ -28,10 +28,13 @@ const MIN_WORDS = 3;
 const MINUTE_SLACK_S = 30;
 const PART_GAP_LINES = 3;
 const SHORT_OK = new Set(['praise_generic']);
-const CHILD_TYPES = new Set(['reasoning', 'long_answer', 'beyond', 'content_q', 'proc_q', 'beyond_q', 'wrong_fixed', 'hedged', 'unprompted']);
+// The last ids of each set are FICO17 v6's (moment-types.js TYPES_V6); a v5 visit never returns them.
+const CHILD_TYPES = new Set(['reasoning', 'long_answer', 'beyond', 'content_q', 'proc_q', 'beyond_q', 'wrong_fixed', 'hedged', 'unprompted',
+  'child_builds_link', 'child_used_term']);
 const TEACHER_TYPES = new Set([
   'open_q_one', 'open_q_choral', 'probe', 'wrong_reason', 'wrong_ignored', 'strategy', 'praise_effort', 'praise_generic',
   'mistake_useful', 'disagree', 'content_error', 'term_defined', 'why_explained', 'life_link',
+  'resource_shown', 'resource_used', 'resource_explained', 'why_handed', 'link_mentioned', 'term_not_explained',
 ]);
 const LINE_RX = /^\[(\d{1,3}):(\d{2})\]\s+([^:(]+?)\s*(?:\([A-Za-z-]{2,5}\))?:\s?(.*)$/;
 const PART_SPLIT = /\s+(?:—|–|--)\s+/;

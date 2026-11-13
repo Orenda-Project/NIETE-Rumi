@@ -300,11 +300,12 @@ const editPaper = (pattern: string | null) => ({
 const fixedMarks = { response: { status: 400, data: { success: false, code: 'PATTERN_FIXED_MARKS', errorCode: 'EDIT_REJECTED', error: 'Board-pattern papers fix each question\'s marks.' } } };
 
 describe('the editor on a board-pattern paper (R5-13)', () => {
-  it('pattern paper editor shows no Marks field', async () => {
+  // Remove only since PATTERN_NO_EDIT (fde.remove-only.test.tsx): a pattern paper opens no question form at all.
+  it('a pattern paper opens no question form: the link goes back to the editor', async () => {
     portal.getAssessmentEditQuestions.mockResolvedValue(editPaper('fde_g5_2027'));
     app(editQuestionPath('p-e', 'b1'));
-    expect(await screen.findByText('Question 1')).toBeTruthy();
-    expect(screen.getByDisplayValue('Question b1')).toBeTruthy();
+    expect(await screen.findByRole('checkbox', { name: C.removeQuestion('1') })).toBeTruthy();
+    expect(screen.queryByDisplayValue('Question b1')).toBeNull();
     expect(screen.queryByLabelText(C.marksLabel)).toBeNull();
   });
 
@@ -314,19 +315,8 @@ describe('the editor on a board-pattern paper (R5-13)', () => {
     expect(((await screen.findByLabelText(C.marksLabel)) as HTMLInputElement).value).toBe('5');
   });
 
-  it('PATTERN_FIXED_MARKS shows the deck\'s words in both languages', async () => {
-    portal.getAssessmentEditQuestions.mockResolvedValue(editPaper('fde_g5_2027'));
-    portal.validateAssessmentEdit.mockRejectedValue(fixedMarks);
-    const en = app(editQuestionPath('p-e', 'b1'));
-    fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.done) }));
-    expect((await screen.findByRole('alert')).textContent).toBe(C.patternFixedMarks);
+  it('PATTERN_FIXED_MARKS keeps the deck\'s words in both languages', () => {
     expect(C.patternFixedMarks).toBe('Board-pattern papers fix each question\'s marks.');
-    en.unmount();
-    await inUrdu(async () => {
-      app(editQuestionPath('p-e', 'b1'));
-      fireEvent.click(await screen.findByRole('button', { name: new RegExp(UR.done) }));
-      expect((await screen.findByRole('alert')).textContent).toBe(UR.patternFixedMarks);
-    });
     expect(UR.patternFixedMarks).toBe('FDE pattern کے پرچوں میں ہر سوال کے نمبر مقرر ہیں۔');
   });
 });

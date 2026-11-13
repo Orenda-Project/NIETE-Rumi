@@ -481,6 +481,11 @@ function isLp612RouteK5() {
   return isTrue(process.env.LP_612_ROUTE_K5);
 }
 
+// KNOWN DESIGN DEBT (Nov 2026): LP_GB_K5_ENABLED (here) and LP_GB_AUTHOR_ENABLED (gb-lp-serving.service.js)
+// are a temporary launch gate, to be retired after the GB switch: what a teacher sees should follow her
+// region's books (region_features.book_keys), not a deploy-wide flag. Do NOT add another per-region or
+// per-generation LP flag; ask the operator (Hataf) first.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 /**
  * LP_GB_K5_ENABLED — Gilgit-Baltistan K-5 books in the LP menu (bd-rj6w0n.14.4). Ships OFF, and off is
  * today exactly: no region lookup, no curriculum filter. On: a GB teacher's menu reads her nbf_snc books (ICT's where GB has none)

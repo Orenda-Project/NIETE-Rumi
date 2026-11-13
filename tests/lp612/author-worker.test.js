@@ -50,6 +50,16 @@ jest.mock('../../bot/shared/services/lp612-deliveries.store', () => ({
   record: (...a) => mockRecordDelivery(...a),
 }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
+// bd-s8mi25 — who a ready render still owes its PDF to, and the redelivery that reads it back.
+const mockOwedRemember = jest.fn();
+const mockOwedForget = jest.fn();
+jest.mock('../../bot/shared/services/lp612-owed.store', () => ({
+  remember: (...a) => mockOwedRemember(...a),
+  forget: (...a) => mockOwedForget(...a),
+  recall: jest.fn(async () => []),
+}));
+const mockRedeliverOwed = jest.fn();
+jest.mock('../../bot/workers/lp612-redeliver', () => ({ redeliverOwed: (...a) => mockRedeliverOwed(...a) }));
 jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: (...a) => mockLogEvent(...a) }));
 jest.mock('fs', () => ({
   ...jest.requireActual('fs'),
@@ -136,6 +146,7 @@ beforeEach(() => {
   mockRpc.mockReset().mockImplementation(() => Promise.resolve({ data: TWO_WAITERS, error: null }));
   mockReadFile.mockResolvedValue(Buffer.from('%PDF-1.7 fake'));
   mockRecordDelivery.mockResolvedValue(true);
+  mockRedeliverOwed.mockResolvedValue(null);
   mockUploadBuffer.mockResolvedValue('lp612/v9.1/en/seg.pdf');
   mockAuthorLessonPlan.mockResolvedValue({
     lpDoc: { lesson_id: 'x' }, lintClean: true, fails: [], warns: [], rounds: 1,
@@ -516,6 +527,27 @@ describe('at-least-once delivery is survivable', () => {
     const out = await Worker.process(JOB);
     expect(out.status).toBe('skipped');
     expect(mockAuthorLessonPlan).not.toHaveBeenCalled();
+  });
+
+  // bd-s8mi25 — killed mid-delivery: the redelivery FINISHES the job instead of skipping it.
+  test('a redelivered job for a ready row hands the owed teachers to the redelivery', async () => {
+    mockDbResults.push({ data: { id: 'render-1', status: 'ready', r2_key: 'k', waiters: [] }, error: null });
+    mockRedeliverOwed.mockResolvedValueOnce({ status: 'redelivered', delivered: 1 });
+    const out = await Worker.process(JOB);
+    expect(out).toMatchObject({ status: 'redelivered', delivered: 1 });
+    expect(mockRedeliverOwed.mock.calls[0][0]).toMatchObject({ renderId: 'render-1', lang: 'en' });
+    expect(mockAuthorLessonPlan).not.toHaveBeenCalled();
+  });
+
+  test('the claimed audience is remembered BEFORE the first send and forgotten after the loop', async () => {
+    const order = [];
+    mockOwedRemember.mockImplementation(async () => { order.push('remember'); });
+    mockDeliverRender.mockImplementation(async () => { order.push('send'); });
+    mockOwedForget.mockImplementation(async () => { order.push('forget'); });
+    seed();
+    await Worker.process(JOB);
+    expect(order).toEqual(['remember', 'send', 'send', 'forget']);
+    expect(mockOwedRemember).toHaveBeenCalledWith('render-1', TWO_WAITERS);
   });
 
   test('a job whose render row has vanished is skipped, not crashed on', async () => {

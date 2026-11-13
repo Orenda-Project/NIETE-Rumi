@@ -37,6 +37,7 @@ const { logToFile } = require('../utils/logger');
 // The semantic-event channel (feature.action.result). Additive: the prose lines below stay
 // exactly as they were — a sentence is what a human reads, an event name is what a query counts.
 const { logEvent } = require('../utils/structured-logger');
+const { isDeliverableRenderDefect } = require('./lp612-render-policy.service');
 
 // A static, literal require: the repo's unresolved-require audit reads the source text, and a
 // `require(path.join(...))` is invisible to it — a vendored file that stopped existing would
@@ -334,9 +335,11 @@ async function renderLessonPlan({
     : Object.values(byPart).reduce((a, n) => a + n, 0);
 
   if (problems.length) {
+    // A lesson whose every defect is one the delivery policy ships anyway (PAGE COUNT above all) is
+    // not an error: 131/day on prod were exactly that and buried the real failures. Others stay error.
     logToFile('lp612 render produced defects', {
       correlationId, stem, lang: lang || null, problems, pagesByPart: byPart,
-    }, 'error');
+    }, problems.every(isDeliverableRenderDefect) ? 'warn' : 'error');
     logEvent('lp612.render.failed', {
       ...trace, stem, outcome: 'failed', elapsedMs: Date.now() - startedAt,
       code: 'RENDER_DEFECTS', pageCount, problems, pagesByPart: byPart, infra: false,

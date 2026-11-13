@@ -32,6 +32,7 @@ const { isAllowedSlot, LEGACY_SLOTS: SLOTS, visitMoved, karachiToday } = require
 // multi-word name — so `name` leads and first+last is the fallback. NULLIF
 // stops a blank string from beating that fallback. Mirrors
 // patch-resolver.fullNameOf on the bot side; keep the two in step.
+// Live accounts only (bd-apnnh2.11): a retired account is in nobody's patch.
 const PATCH_SQL = `
   SELECT u.id                 AS teacher_user_id,
          u.phone_number       AS teacher_ext_id,
@@ -49,6 +50,7 @@ const PATCH_SQL = `
   JOIN users u
     ON u.school_id = s.id
    AND u.role IN ('teacher', 'principal')
+   AND u.deleted_at IS NULL
   WHERE ls.leader_user_id = $1 AND u.phone_number = $2
   LIMIT 1
 `;

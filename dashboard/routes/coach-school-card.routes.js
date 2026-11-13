@@ -26,7 +26,8 @@ const Where = require('../services/where-to-coach.service');
 const { parsePeriodKey, addDays } = require('../lib/school-card-period');
 const { karachiToday } = require('../lib/visit-time');
 
-const EMIS_RX = /^[A-Za-z0-9-]{1,32}$/;
+// bd-97daxo.22: up to 64 — a GB school without an EMIS is keyed by its name (40 characters).
+const EMIS_RX = /^[A-Za-z0-9-]{1,64}$/;
 const EXT_RX = /^\d{6,15}$/;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAY_RX = /^\d{4}-\d{2}-\d{2}$/;

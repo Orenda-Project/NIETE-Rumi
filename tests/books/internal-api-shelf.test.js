@@ -6,7 +6,7 @@
  *
  * Assessments are keyed by book: the generator reads ICT's books (English, Urdu, Maths, Science and the
  * Urdu-medium GK and Social Studies), so a GB teacher is offered a G1-5 subject only where that ICT
- * book is on her list — Islamiat. Her NBF books have no assessment content yet (separate bead).
+ * book is on her list — Islamiat — or her own NBF book is on her list AND loaded (bd-6nskfq.1, below).
  */
 const KEY = 'book-shelf-key';
 const GB_KEYS = ['gb_g1_english', 'gb_g1_urdu', 'gb_g1_maths', 'grade_1_general_knowledge_en', 'grade_1_islamiat'];
@@ -139,6 +139,54 @@ describe('assessments', () => {
   });
 });
 
+describe('assessments: her own books, once loaded (bd-6nskfq.1)', () => {
+  const nbfLoaded = new Set(['1:english', '1:maths', '5:maths']);
+  beforeEach(() => {
+    jest.resetModules();
+    process.env.INTERNAL_API_KEY = KEY;
+    jest.doMock('../../bot/shared/services/book-curriculum.service', () => ({
+      ...jest.requireActual('../../bot/shared/services/book-curriculum.service'),
+      curriculumForUser: jest.fn(async (id) => (id === 'gb-teacher' ? 'nbf_snc' : 'ict')),
+      hasTextbook: jest.fn(async (c, g, s) => c === 'nbf_snc' && nbfLoaded.has(`${g}:${s}`)),
+    }));
+    router = require('../../bot/shared/routes/internal-api.routes');
+    AssessmentBrowse = require('../../bot/shared/services/assessment/assessment-browse.service');
+  });
+
+  test('the portal offers a GB teacher her loaded own books and Islamiat, not her unloaded Urdu', async () => {
+    const { payload } = await invoke('/assessment/options', { userId: 'gb-teacher', grade: 1 });
+    expect(payload.subjects.map((s) => s.subject_key)).toEqual(['english', 'maths', 'islamiat']);
+  });
+
+  test('her English chapters are served; her unloaded Urdu is refused', async () => {
+    expect((await invoke('/assessment/chapters', { userId: 'gb-teacher', grade: 1, subject: 'english' })).statusCode).toBe(200);
+    expect((await invoke('/assessment/chapters', { userId: 'gb-teacher', grade: 1, subject: 'urdu' })).statusCode).toBe(400);
+  });
+
+  test('an ICT teacher keeps every subject', async () => {
+    const { payload } = await invoke('/assessment/options', { userId: 'sector-teacher', grade: 1 });
+    expect(payload.subjects.map((s) => s.subject_key)).toEqual(['english', 'urdu', 'maths', 'general_knowledge', 'islamiat']);
+  });
+
+  // FDE pattern papers are built from ICT's books under an "FDE pattern" header; GB has no pattern design yet, so
+  // her own NBF books never open one (design pending). Her plain paper on the same book is offered (above).
+  test('no FDE pattern paper is offered or made on her own NBF book', async () => {
+    const Flags = require('../../bot/shared/config/feature-flags');
+    Flags.isAssessmentFdePatternEnabled.mockResolvedValue(true);
+    Flags.fdePatternSubjects = jest.fn(async () => null);
+    require('../../bot/shared/services/teacher-books.service').bookKeysForUser
+      .mockImplementation(async (id) => (id === 'gb-teacher' ? ['gb_g5_maths', 'grade_5_islamiat'] : null));
+    const gb = await invoke('/assessment/options', { userId: 'gb-teacher', grade: 5, subject: 'maths' });
+    expect(gb.payload.subjects.map((s) => s.subject_key)).toContain('maths'); // her plain paper: offered
+    expect(gb.payload.patterns).toBeUndefined();
+    const made = await invoke('/assessment/create', { userId: 'gb-teacher', grade: 5, subject: 'maths', pattern: 'fde_g5_2027' });
+    expect(made.statusCode).toBe(400);
+    expect(made.payload.errorCode).toBe('NOT_ELIGIBLE');
+    const ict = await invoke('/assessment/options', { userId: 'sector-teacher', grade: 5, subject: 'maths' });
+    expect(ict.payload.patterns.map((x) => x.id)).toEqual(['fde_g5_2027']);
+  });
+});
+
 describe('Grade 6+ for a region whose books stop at Grade 5 (operator, 6 Nov)', () => {
   test('the portal offers a GB teacher only the grades her books cover; an ICT teacher keeps them all', async () => {
     AssessmentBrowse.listGrades.mockResolvedValue([1, 2, 5, 6, 7]);
@@ -148,15 +196,18 @@ describe('Grade 6+ for a region whose books stop at Grade 5 (operator, 6 Nov)', 
     expect(ict.payload.grades).toEqual([1, 2, 5]); // the G6-12 grade gate is off in this file, as before
   });
 
-  test('a GB Grade 7 paper is refused at the door; the portal 6-12 lesson lists are empty for her', async () => {
+  // Queue #71 (operator, 9 Nov: "GB should follow the currently ict 6-12 one"): the 6-12 LESSON lists are no longer
+  // empty for her — where GB has no book she gets ICT's (lp612-browse through her curriculum). Papers are unchanged.
+  test("a GB Grade 7 paper is refused at the door; the portal 6-12 lesson lists are ICT's for her", async () => {
     const chapters = await invoke('/assessment/chapters', { userId: 'gb-teacher', grade: 7, subject: 'english' });
     expect(chapters.statusCode).toBe(400);
     const Lp612 = require('../../bot/shared/services/lp612-browse.service');
+    // bd-qchgya (operator, 11 Nov: "we have till grades 10"): her list says which 6-12 grades she has. This list
+    // stops at Grade 1, so none; once it names ICT's Grade 6-10 books (sync-sheet-lps --books) those show.
     const grades = await invoke('/lp612/grades', { userId: 'gb-teacher' });
     expect(grades.payload.grades).toEqual([]);
     const subjects = await invoke('/lp612/subjects', { userId: 'gb-teacher', grade: 7 });
-    expect(subjects.payload.subjects).toEqual([]);
-    expect(Lp612.listSubjects).not.toHaveBeenCalled();
+    expect(subjects.payload.subjects).toEqual([{ subject: 'English' }]);
     await invoke('/lp612/grades', { userId: 'sector-teacher' });
     expect(Lp612.listGrades).toHaveBeenCalled();
   });

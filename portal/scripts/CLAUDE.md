@@ -3,7 +3,8 @@
 <!-- kg:meta repo=NIETE-Rumi dir=portal/scripts kg=71ac7240a83a gen=28fa28e03b12 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
-- `urdu-fit/run.mjs` — the only script here: measures Urdu clipping in headless Chromium
+- `urdu-fit/run.mjs` — measures Urdu clipping in headless Chromium
+- `chapter-shot/run.mjs` — screenshots the real teacher chapter page at phone width, API stubbed (bd-oitowp)
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
 ## Children (generated)

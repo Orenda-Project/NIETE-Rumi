@@ -138,9 +138,11 @@ describe('(a) Finish closes the Flow — the endpoint completion contract', () =
     for (const v of Object.values(params)) expect(typeof v).toBe('string');
   });
 
-  it('the configured Flow JSON is v5.1 and its SUCCESS declares extension_message_response.properties.params', () => {
+  // v6 ("Is this you?" after Pick your school) replaced v5.1 as the configured asset; it keeps v5.1's close unchanged,
+  // and v5.1 stays in the repo as the rollback asset (its own JSON suite still pins it).
+  it('the configured Flow JSON (v6) closes as v5.1 did: its SUCCESS declares extension_message_response.properties.params', () => {
     const { file, json } = configuredFlow();
-    expect(file).toBe('registration-flow-v5.1.json');
+    expect(file).toBe('registration-flow-v6.json');
     const success = json.screens.find((s) => s.id === 'SUCCESS');
     expect(success.terminal).toBe(true);
     const emr = success.data && success.data.extension_message_response;

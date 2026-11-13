@@ -59,6 +59,8 @@ export interface NoticeItem {
   /** Real upload progress, 0..1. */
   progress?: number;
   observationId?: string | null;
+  /** bd-33wxxi.4 — where the ready observation opens when it is not the coach's page (the principal app's own). */
+  openHref?: string | null;
 }
 
 /** What tracking a new job needs; the rest is the tracker's. */
@@ -83,8 +85,12 @@ export interface NewNotice {
 
 export const itemId = (kind: NoticeKind, ref: string) => `${kind}:${ref}`;
 
-/** How long each takes, as the design promises it (lp612.service.js: median 172 s; a paper about a minute). */
-export const EXPECTED_MS: Record<NoticeKind, number> = { lesson: 120_000, paper: 60_000, observation: 0 };
+/**
+ * How long each takes, as the design promises it. A 6-12 plan: 173 s median, 297 s p95 (niete-logs
+ * lp612.deliver.completed, 29 Oct–12 Nov 2026, n=789) — 2 minutes held for only 16%, so it promises 5 (bd-ipoxhx.2).
+ * A paper: about a minute.
+ */
+export const EXPECTED_MS: Record<NoticeKind, number> = { lesson: 300_000, paper: 60_000, observation: 0 };
 
 /** The first asks come quickly; after 3 minutes a slow one is asked less often. The tab hidden: not at all. */
 export const FAST_POLL_MS = 4_000;

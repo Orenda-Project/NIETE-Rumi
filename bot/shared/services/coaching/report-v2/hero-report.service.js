@@ -22,6 +22,8 @@ const { loadTrendData } = require('../coaching-trend.service');
 const { resolveTarget } = require('../target-resolver');
 const { observe2Target, pinObserve2Horizon } = require('./observe2-horizon');
 const { buildPartialNote } = require('../report-transformers/_shared');
+const { isV6Scored } = require('../frameworks/fico17-v6/stamp');
+const { isObs612Scored } = require('../frameworks/own-rubric');
 
 /**
  * The partial-report note ("based on classroom audio analysis only…"). At delivery the session carries the
@@ -109,6 +111,64 @@ function attachSubjectNote(groups, analysis, language) {
   return groups;
 }
 
+// FICO6 r2 (spec §9.3, CONTRACTS §11.5): the v6 report lines, read from the /observe2 strings with this English
+// until a language lacks them.
+const V6_REPORT_IE = "The recording didn't cover this part of the lesson.";
+const V6_REPORT_BROKEN = "The recording couldn't be used, so this report has no levels from it.";
+const V6_RUBRIC_SECTIONS = new Set(['high_leverage_practices', 'student_engagement', 'teacher_subject_knowledge']);
+
+/**
+ * The scorecard of an /observe2 visit scored on FICO17 v6, as spec §9.3 has the teacher read it. The rules lived
+ * only in fico-report-transformer.js, which never reaches the image (redteam T4.3, T4.4):
+ * - an IE row is said once, by its v6 name, as the one line, on its section's row; an NA row is not named;
+ * - a broken recording, or a report held for a missing coach level (v6_fallback only), draws no rubric bar:
+ *   the C, D and F rows read "not assessed"; a broken one says why once, in the note under the report.
+ * Runs after the narrative's why lines, so the model cannot replace these. Mutates `groups`.
+ *
+ * - a section with no numeric level (every row IE, or IE and NA) reads "not assessed" with its IE lines.
+ * @returns {null|{note: (string|null), noLevels: boolean, broken: boolean}} null for any other analysis (v5, V3,
+ *   /observe v6): nothing changed. noLevels: no row has a number, so the image shows no marks total. noLevels or
+ *   broken: no headline percentage either (spec §9.3).
+ */
+function v6HeroRows(groups, analysis, language) {
+  const o2 = (analysis && analysis.observe2) || {};
+  if (o2.rubric !== 'fico17_v6') return null;
+  const V6 = require('../frameworks/fico17-v6');
+  const { observe2Strings } = require('../../observe/observe2/strings');
+  const { notAssessedWords } = require('./score-adapters/fico-adapter');
+  const S = observe2Strings(language);
+  const finals = o2.final_levels || {};
+  const broken = (o2.transcript_quality || {}).status === 'broken';
+  const held = V6.COMBINED_CODES.some((c) => !/^([1-4]|NA|IE)$/.test(String(finals[c] == null ? '' : finals[c])));
+  for (const g of (groups || [])) {
+    const key = g && (g.domainKey || g.key);
+    if (!V6_RUBRIC_SECTIONS.has(key)) continue;
+    if (broken || held) {
+      Object.assign(g, { score: null, max: null, pct: null, notAssessed: true, notAssessedWords: notAssessedWords(language) });
+      delete g.why;
+      continue;
+    }
+    const rows = (((analysis.domains || {})[key] || {}).indicators || []).filter(Boolean);
+    const gaps = rows
+      .filter((ind) => String(finals[ind.id]) === 'IE')
+      .map((ind) => `${ind.name}: ${S.v6_report_ie || V6_REPORT_IE}`);
+    // No numeric level in the section (every row IE, or IE and NA): its marks are 0 of 0, which the row would draw
+    // as "0/0" over an empty bar (redteam2 2(d)). It is not assessed, like held, and says which rows weren't heard.
+    if (rows.length && !rows.some((ind) => /^[1-4]$/.test(String(finals[ind.id])))) {
+      Object.assign(g, { score: null, max: null, pct: null, notAssessed: true, notAssessedWords: notAssessedWords(language) });
+      if (gaps.length) g.why = gaps.join(' ');
+      else delete g.why;
+      continue;
+    }
+    if (!gaps.length) continue;
+    const existing = typeof g.why === 'string' ? g.why.trim() : '';
+    g.why = [existing, ...gaps].filter(Boolean).join(' ');
+  }
+  // Every row not assessed: the marks under the headline would read "0/N marks", a total with nothing in it.
+  const noLevels = (groups || []).length > 0 && groups.every((g) => g && g.notAssessed);
+  return { note: broken ? (S.v6_report_broken || V6_REPORT_BROKEN) : null, noLevels, broken };
+}
+
 /**
  * @param {object} session - coaching_sessions row (transcript_text, user_id, created_at, classroom_photos)
  * @param {object} analysis - enhancedAnalysis (framework, scores, domains, reflective_corpus, …)
@@ -130,6 +190,9 @@ async function generateHeroReport(session, analysis, opts = {}) {
   // transcript_language has been 'hindi'/'javanese'/'sindhi' on prod (bd-bfy69).
   // resolveReportLanguage() only ever returns a language we actually offer.
   const lang = resolveReportLanguage(opts, analysis, session);
+  // bd-pni007: an FDE (obs612) visit gets FDE's own report: the coach's scores on FDE's tool, no narrative model call,
+  // no FICO score bars, and no journey line (the teacher's FICO history is never drawn beside it; own-rubric.js).
+  if (isObs612Scored(analysis)) return require('./obs612-report').generateObs612Report(session, analysis, { ...opts, language: lang });
   const framework = (analysis.framework || 'oecd').toLowerCase();
 
   const score = buildScoreViewModel(analysis, { framework, language: lang });
@@ -139,7 +202,10 @@ async function generateHeroReport(session, analysis, opts = {}) {
   // hero without the sparkline. Exclude the current session so if it's already
   // marked completed by the time this runs, we don't double-count today.
   let trend = [];
-  try {
+  // bd-ra8xu.39: a FICO17 v6 report shows no journey line. The teacher's earlier sessions are V3 percentages, and a
+  // v6 score drawn on the same line would mix two rubrics (operator, 11 Nov: never mixed). The stamp, not the
+  // framework: an /observe2 v6 visit is framework 'fico' (redteam T7.D6).
+  if (!isV6Scored(analysis)) try {
     const raw = await loadTrendData(session.user_id, { limit: 12, locale: 'en', excludeSessionId: session.id });
     trend = raw
       .map((t) => ({ date: String(t.date || '').slice(0, 10), pct: Math.round(parseFloat(t.pct || 0)) }))
@@ -172,6 +238,7 @@ async function generateHeroReport(session, analysis, opts = {}) {
   // bd-1t1wz: per-section "why" diagnosis lines onto the scorecard rows.
   attachDomainWhys(score.groups, narrative && narrative.domain_whys);
   attachSubjectNote(score.groups, analysis, lang);
+  const v6 = v6HeroRows(score.groups, analysis, lang);
 
   // bd-pv2tl: the teacher's own classroom photos, framed under the scorecard.
   // Non-fatal: the helper skips any broken photo and returns [] on failure.
@@ -193,7 +260,8 @@ async function generateHeroReport(session, analysis, opts = {}) {
     logToFile('hero-report: classroom photo strip failed (non-fatal)', { error: e.message });
   }
 
-  const partialNote = heroPartialNote(session, analysis);
+  const stored = heroPartialNote(session, analysis);
+  const partialNote = v6 && v6.note && !(stored || '').includes(v6.note) ? [v6.note, stored].filter(Boolean).join(' ') : stored;
   const vm = {
     language: lang,
     brand,
@@ -201,7 +269,8 @@ async function generateHeroReport(session, analysis, opts = {}) {
     partialNote,
     topic: heroTopic(narrative, analysis),
     date: String(session.created_at || '').slice(0, 10),
-    score: { overall: score.overall, marks: score.marks, max: score.max },
+    // v6 with no numeric level, or a broken recording: no percentage and no marks (the template draws neither).
+    score: v6 && (v6.noLevels || v6.broken) ? { overall: null, marks: null, max: null } : { overall: score.overall, marks: score.marks, max: score.max },
     groups: score.groups,
     narrative: narrative || {},
     tryNext: commitmentAction || '',
@@ -254,5 +323,5 @@ async function generateHeroReport(session, analysis, opts = {}) {
 }
 
 module.exports = {
-  generateHeroReport, attachDomainWhys, attachSubjectNote, buildUptakeVm, tallyInWords, heroTopic,
+  generateHeroReport, attachDomainWhys, attachSubjectNote, buildUptakeVm, tallyInWords, heroTopic, v6HeroRows,
 };

@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import CoachGate from "../CoachGate";
+import { useObserveRoutes } from "../observe/observeRoutes";
 import { readPending, type Pending } from "../ui";
 import TeacherPage from "../../teacher/TeacherPage";
 import { useCopy } from "../../teacher/i18n";
@@ -49,12 +50,13 @@ export default function ReportsFrame({
   testId?: string;
   children: ReactNode;
 }) {
-  return (
-    <CoachGate>
-      <TeacherPage feature={feature} title={title} crumb={crumb} backTo={backTo} onBack={onBack} chips={chips} dock={dock} bare={bare} testId={testId}>
-        {banner && !bare ? <PendingReportsBanner /> : null}
-        {children}
-      </TeacherPage>
-    </CoachGate>
+  const routes = useObserveRoutes();
+  // bd-33wxxi.4 — the principal app's observation screens: no coach gate (TeacherGate ran), no coach pending banner.
+  const page = (
+    <TeacherPage feature={feature} title={title} crumb={crumb} backTo={backTo} onBack={onBack} chips={chips} dock={dock} bare={bare} testId={testId}>
+      {banner && !bare && routes.coachGate ? <PendingReportsBanner /> : null}
+      {children}
+    </TeacherPage>
   );
+  return routes.coachGate ? <CoachGate>{page}</CoachGate> : page;
 }

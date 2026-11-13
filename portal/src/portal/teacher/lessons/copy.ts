@@ -58,7 +58,7 @@ export const LESSONS_V2_COPY = {
   preparing: 'Being made',
   /** The waiting page's title (operator, 2026-10-08: "Please hold while we fetch your lp"). */
   pleaseHold: 'Please hold while we fetch your lesson plan',
-  aboutTwoMinutes: '~2 min',
+  expectedWait: '~5 min',
   notPrepared: "Couldn't make it",
   otherLessons: 'Other lesson plans',
   /* Digital Coaching's From the library (bd-fgj73x.5): the pages choose a plan for her lesson */
@@ -138,7 +138,7 @@ export const LESSONS_V2_COPY_UR: Words<typeof LESSONS_V2_COPY> = {
   couldNotOpen: 'کھل نہیں سکا',
   preparing: 'تیار ہو رہا ہے',
   pleaseHold: 'براہ کرم انتظار کریں، ہم آپ کا لیسن پلان لا رہے ہیں',
-  aboutTwoMinutes: 'تقریباً 2 منٹ',
+  expectedWait: 'تقریباً 5 منٹ',
   notPrepared: 'نہیں بن سکا',
   otherLessons: 'دوسرے لیسن پلان',
   choosePlan: 'لیسن پلان منتخب کریں',
@@ -195,3 +195,8 @@ export const COPY_ENTRY: CopyEntry = {
   // "Use this lesson plan" is four words in Urdu (لیسن پلان is one term).
   longOk: ['pleaseHold', 'all.whatsapp', 'startDc', 'usePlan'],
 };
+
+/** bd-snkn32 — the "Make my own" words (lessons/own/copy.ts), registered here: the registry globs only teacher/<feature>/copy.ts. */
+export { OWN_COPY_ENTRY } from './own/copy';
+import { OWN_COPY_ENTRY as OWN_ENTRY } from './own/copy';
+export const COPY_ENTRIES: readonly CopyEntry[] = [OWN_ENTRY];

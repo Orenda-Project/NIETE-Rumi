@@ -59,6 +59,8 @@ export const SCHOOL_CARD_EN = {
     // bd-17v39c.4.13 (operator, 5 Nov): training counts one way, modules completed (one row per teacher and module).
     training: (n: number) => plural(n, "module completed", "modules completed"),
     papers: (n: number) => plural(n, "assessment", "assessments"),
+    // bd-33wxxi.3 — a principal's My school (counts only): the Coach box's word after its count.
+    coach: (n: number) => plural(n, "coach observation", "coach observations"),
   },
   byN: (a: number, b: number) => `by ${a} of ${b} teachers`,
   aboutDay: (n: number) => `about ${n} a day`,
@@ -265,6 +267,8 @@ export const SCHOOL_CARD_UR: SchoolCardCopy = {
     dc: () => "ڈیجیٹل کوچنگ مشاہدات",
     training: () => "ماڈیول مکمل",
     papers: () => "پرچے",
+    // the reviewed term for coach observations (coachObsName), as the box's word
+    coach: () => "کوچ کے مشاہدات",
   },
   byN: (a, b) => `${b} میں سے ${a} ٹیچرز نے`,
   aboutDay: (n) => `روزانہ تقریباً ${n}`,

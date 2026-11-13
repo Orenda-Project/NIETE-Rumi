@@ -53,7 +53,7 @@ describe('the target', () => {
 
   test.each([
     'coach_school:', 'coach_school', 'coach_school:947/teacher', 'coach_school:../947', 'coach_school:947?x=1',
-    'coach_school:947#x', 'coach_school:947\n', 'coach_school: 947', 'coach_school:94 7', `coach_school:${'9'.repeat(33)}`,
+    'coach_school:947#x', 'coach_school:947\n', 'coach_school: 947', 'coach_school:94 7', `coach_school:${'9'.repeat(65)}`,
     'COACH_SCHOOL:947', 'coach_school:947:1', 'coach_school:%39%34', 'coach_schools:947', 'coach_schools ', 'xcoach_school:947',
     'coach_school:٩٤٧', '', null, undefined, 947, {},
   ])('%p is not a target: no page', (f) => {
@@ -61,10 +61,12 @@ describe('the target', () => {
     expect(target().coachSchoolPathFor(f)).toBeNull();
   });
 
+  // bd-97daxo.22: page keys run to 64 (a GB school without an EMIS is keyed by its name, 40 characters).
   test('coachSchoolTarget builds a target from a safe EMIS and refuses anything else', () => {
+    expect(target().coachSchoolTarget('gb-mf-community-school-hoto-mf-community')).toBe('coach_school:gb-mf-community-school-hoto-mf-community');
     expect(target().coachSchoolTarget('947')).toBe('coach_school:947');
     expect(target().coachSchoolTarget(' 947 ')).toBe('coach_school:947');
-    for (const bad of ['', null, undefined, '9/4', '947?x', 'a b', '9'.repeat(33)]) expect(target().coachSchoolTarget(bad)).toBeNull();
+    for (const bad of ['', null, undefined, '9/4', '947?x', 'a b', '9'.repeat(65)]) expect(target().coachSchoolTarget(bad)).toBeNull();
   });
 });
 

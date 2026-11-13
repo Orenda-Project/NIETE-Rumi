@@ -1,3 +1,8 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 /**
  * v10 coaching test (bd-v0toag.50.1): the v10 card for plan-arm v10 schools (B, D).
  *
@@ -15,6 +20,18 @@ const { logEvent } = require('../utils/structured-logger');
 const { groupFor } = require('./coaching/ab-v10-arms');
 
 const EVENT = 'lp.v10.plan_served';
+
+// bd-5l1dnw: the portal asks for one open's PDF two to nine times, so the event is logged once per
+// teacher + lesson + channel inside this window. The teacher still gets the plan on every ask.
+const SERVED_WINDOW_MS = 10 * 60 * 1000;
+const lastServed = new Map();
+
+function firstServeInWindow(key, now) {
+  for (const [k, t] of lastServed) if (now - t > SERVED_WINDOW_MS) lastServed.delete(k);
+  if (lastServed.has(key)) return false;
+  lastServed.set(key, now);
+  return true;
+}
 
 /** { asset, served } for a plan arm, the v9 lesson and the card. Pure. */
 function pickServed({ plan, lesson, card }) {
@@ -48,7 +65,7 @@ async function servedFor({ userId, lessonId, lesson, channel, reader = null }) {
     if (!arms) return lesson;
     const card = arms.plan === 'v10' ? await currentCard(lessonId) : null;
     const { asset, served } = pickServed({ plan: arms.plan, lesson, card });
-    if (reader !== 'leader') {
+    if (reader !== 'leader' && firstServeInWindow(`${userId}|${lessonId}|${channel}`, Date.now())) {
       logEvent(EVENT, {
         userId, lessonId, channel, group: arms.group, plan: arms.plan, served,
         cardAssetId: card ? card.id : null, lessonAssetId: lesson.id || null,
@@ -61,4 +78,8 @@ async function servedFor({ userId, lessonId, lesson, channel, reader = null }) {
   }
 }
 
-module.exports = { EVENT, pickServed, servedFor };
+module.exports = {
+  EVENT, SERVED_WINDOW_MS, pickServed, servedFor,
+  _resetServedLog: () => lastServed.clear(),
+  _servedLogSize: () => lastServed.size,
+};

@@ -672,7 +672,8 @@ class SQSCoachingWorker {
       }
 
       case 'lp612_author':
-      case 'gb_lp_author': { // bd-rj6w0n.14.16.12: a GB runtime lesson runs the same author, so the same heartbeat
+      case 'gb_lp_author': // bd-rj6w0n.14.16.12: a GB runtime lesson runs the same author, so the same heartbeat
+      case 'lp612_own': { // bd-snkn32: a teacher's Make-my-own fork can wait ~12 min for the shared plan, so the same heartbeat
         // Write a 6-12 lesson plan that has never been asked for
         // before, render it, cache it in R2 and send it.
         //
@@ -719,7 +720,9 @@ class SQSCoachingWorker {
         try {
           const AuthorWorker = jobType === 'gb_lp_author'
             ? require('./gb-lp-author.worker')
-            : require('./lp612-author.worker');
+            : jobType === 'lp612_own'
+              ? require('./lp612-own.worker')
+              : require('./lp612-author.worker');
           await AuthorWorker.process(payload);
         } finally {
           heartbeat.stop();
@@ -964,7 +967,7 @@ class SQSCoachingWorker {
    * paper simply died with its message hidden for 900 s and its row reading as busy. A paper is
    * now handed back the moment SIGTERM arrives (_handBackPapers), and its row says so.
    */
-  static LONG_JOB_TYPES = new Set(['lp612_author', 'gb_lp_author']);
+  static LONG_JOB_TYPES = new Set(['lp612_author', 'gb_lp_author', 'lp612_own']);
 
   /**
    * Hand every in-flight paper back at once: row to `queued` FIRST, then the message to

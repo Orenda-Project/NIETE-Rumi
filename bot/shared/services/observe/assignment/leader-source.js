@@ -232,6 +232,8 @@ function strongestAreaFromAnalysis(analysis) {
  * an explicit scores.overall_percentage; null when there is no usable score.
  */
 function overallScoreFromAnalysis(analysis) {
+  // bd-ra8xu.38 / bd-pni007: a FICO17 v6 or FDE obs612 analysis has no V3 overall (own keys, own scale).
+  if (require('../../coaching/frameworks/own-rubric').isOwnRubric(analysis)) return null;
   const ratios = Object.values(_areaRatios(analysis));
   if (ratios.length) return ratios.reduce((a, b) => a + b, 0) / ratios.length;
   const pct = analysis && analysis.scores && Number(analysis.scores.overall_percentage);

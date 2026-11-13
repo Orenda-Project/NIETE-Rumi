@@ -21,6 +21,8 @@
  */
 
 const { getOverall } = require('./coaching-frameworks.service');
+// bd-pni007 — an FDE (obs612) visit's result as every portal surface shows it (pure; frameworks/obs612 data only).
+const { portalSummary } = require('../../bot/shared/services/observe/obs612/view');
 const { getPatchTeachers } = require('./leader-patch.service');
 const { ACTIVITY_CTE } = require('./lp-activity.service');
 // bd-o15qnr.23: "today" is the day in Pakistan, not the UTC date — overdue, Home's
@@ -89,7 +91,9 @@ const SQL = {
   COACH_SESSIONS: `
     SELECT c.id, c.user_id, c.created_at, c.status, c.debrief_status, c.audio_url,
            jsonb_build_object('scores', c.analysis_data->'scores',
-                              'teacher_delivery', c.analysis_data->'teacher_delivery') AS analysis_data,
+                              'teacher_delivery', c.analysis_data->'teacher_delivery',
+                              'obs612', jsonb_build_object('rubric_id', c.analysis_data->'obs612'->'rubric_id',
+                                                           'result', c.analysis_data->'obs612'->'result')) AS analysis_data,
            u.name           AS teacher_name,
            u.phone_number   AS teacher_phone,
            os.teacher_name  AS sched_teacher_name,
@@ -195,7 +199,9 @@ const SQL = {
     SELECT id, created_at, status, debrief_status, observation_type, user_id, observer_user_id, audio_url,
            analysis_data->'scores'                AS scores,
            analysis_data->>'executive_summary'    AS summary,
-           analysis_data->'teacher_delivery'      AS delivery
+           analysis_data->'teacher_delivery'      AS delivery,
+           analysis_data->>'framework'            AS framework,
+           analysis_data->'obs612'                AS obs612
     FROM coaching_sessions
     WHERE id = $1::uuid AND observation_type = 'leader_observation'
     LIMIT 1
@@ -294,8 +300,10 @@ function normalisePhone(digits) {
 
 // ── teachers: the patch plus the three new numbers ──────────────────────────
 
-async function loadTeachers(query, leaderUserId, today) {
-  const patch = await getPatchTeachers(query, leaderUserId, { role: 'coach' });
+// bd-33wxxi.4 — `role` 'principal' (the principal app's observation screens) reads her own school (leader-patch's
+// principal entry, users.school_id); every coach read passes nothing and stays 'coach'.
+async function loadTeachers(query, leaderUserId, today, role = 'coach') {
+  const patch = await getPatchTeachers(query, leaderUserId, { role });
   const ids = [...new Set(patch.map((t) => t.rumiUserId).filter(Boolean))];
 
   const facts = new Map();
@@ -392,13 +400,20 @@ function deliveryStatusOf(r) {
  * all predates the debrief: reviewed was the end of it then, so it stays `sent`.
  */
 function stepOf(r) {
-  if (r.status === 'awaiting_observer_review' || r.status === 'observe2_checked') return 'draft';
+  // bd-ra8xu.40 — 'obs612_form': an FDE (obs612) visit's form waits for the coach (portal-observe-step reads it so).
+  if (r.status === 'awaiting_observer_review' || r.status === 'observe2_checked' || r.status === 'obs612_form') return 'draft';
   if (r.status === 'observer_review_complete' && r.debrief_status === 'pending') return 'talk';
   if (r.status === 'observer_review_complete' && r.debrief_status === 'done') {
     return REPORT_OUT.includes(deliveryStatusOf(r)) ? 'sent' : 'report';
   }
   if (TERMINAL_STATUSES.includes(r.status)) return 'sent';
   return 'analysing';
+}
+
+/** bd-pni007 — an FDE visit's list row: the tool, its result and the label ('FDE v1'); null for every other row. */
+function obs612Row(analysis) {
+  const s = portalSummary(analysis);
+  return s ? { label: s.label, toolName: s.toolName, result: s.result } : null;
 }
 
 function shapeReport(r, leaderUserId, teacherByUser) {
@@ -418,6 +433,7 @@ function shapeReport(r, leaderUserId, teacherByUser) {
     step: stepOf(r),
     score: scoreOf(r),
     portal: PORTAL_KEY_RX.test(audio),
+    obs612: obs612Row(r.analysis_data),
   };
 }
 
@@ -553,7 +569,7 @@ async function getCoachObservation(query, leaderUserId, sessionId, opts = {}) {
   if (!row || !row.user_id) return null;
   const step = stepOf(row);
 
-  const teachers = await loadTeachers(query, leaderUserId, today);
+  const teachers = await loadTeachers(query, leaderUserId, today, opts.role || 'coach');
   const teacher = teachers.find((t) => t.rumiUserId && t.rumiUserId === row.user_id);
   if (!teacher) return null;
 
@@ -582,6 +598,8 @@ async function getCoachObservation(query, leaderUserId, sessionId, opts = {}) {
     caption: delivery.caption || null,
     reportKey: delivery.report_key || null,
     audioKey: row.audio_url || null,
+    // bd-pni007 — an FDE visit: its result, rows and the coach's feedback (never a FICO score); null otherwise.
+    obs612: portalSummary({ framework: row.framework, obs612: row.obs612 }),
   };
 }
 
@@ -748,7 +766,7 @@ async function getCoachReports(query, leaderUserId, opts = {}) {
   const pageSize = Math.min(100, Math.max(1, Number(opts.pageSize) || 30));
   const [sessionsRes, patch] = await Promise.all([
     query(SQL.COACH_SESSIONS, [leaderUserId]),
-    getPatchTeachers(query, leaderUserId, { role: 'coach' }),
+    getPatchTeachers(query, leaderUserId, { role: opts.role || 'coach' }),
   ]);
   const teacherByUser = new Map(patch.filter((t) => t.rumiUserId).map((t) => [t.rumiUserId, {
     teacherExtId: t.teacherExtId, schoolName: t.schoolName, schoolExtId: t.emis ? `niete:${t.emis}` : null,

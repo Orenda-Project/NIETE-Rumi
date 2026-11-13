@@ -5,14 +5,16 @@
  *   identity.number_changed       WhatsApp says a teacher moved to a new number (`user_changed_number`: the sender is
  *                                 the OLD number, `system.wa_id` the new one) or to a new user id
  *                                 (`user_changed_user_id`, no number). Recorded with what a move WOULD do, using the
- *                                 coach phone edit's own read-only steps: free, shell or taken.
+ *                                 coach phone edit's own read-only steps: free, shell or taken. The move itself is
+ *                                 number-change.js, which the webhook runs after this, behind its own switch.
  *   identity.deleted_row_resumed  A soft-deleted account, found by its number, was served as live again. Once per
  *                                 account per process: the lookup runs on every message.
  *   registration.would_match      A finished sign-up sits next to another live account with the same school and the
  *                                 same name. Once per account per process: a sign-up can finish in more than one place.
  *
  * Log only: no reply, no write. Every function swallows its own failure, so a hook can never change what the teacher
- * sees, and the callers fire it without waiting. Events carry a teacher's keyed reference (`tk`, the HMAC of users.id
+ * sees, and the callers fire it without waiting (the webhook awaits recordSystem, after its ack, so the move can follow
+ * it). Events carry a teacher's keyed reference (`tk`, the HMAC of users.id
  * that every NIETE log line uses instead of the raw id), counts and verdicts: never a raw id, a phone number or a name.
  * Without the key on the service a reference is null and the event is still counted.
  */
@@ -65,6 +67,16 @@ function isLiveNumber(phone) {
   return s !== '' && !s.startsWith('retired:') && !s.startsWith('merged:');
 }
 
+/**
+ * A number-change notice: its type and the new number (digits; '' when Meta could not share it). Null for any other
+ * message. The move (number-change.js) reads the notice through this, so both agree on what a number change is.
+ */
+function numberChangeOf(message) {
+  const s = (message && message.system) || {};
+  if (!NUMBER_CHANGE_TYPES.has(s.type)) return null;
+  return { type: s.type, newPhone: digits(s.wa_id || s.new_wa_id) };
+}
+
 /** What moving to this number would do: the coach phone edit's own two read-only steps. */
 async function wouldMoveTo(phone) {
   const { loadTargetWithHistory } = require('../observe/teacher-edit-commit.service');
@@ -109,6 +121,22 @@ function deletedRowResumed(userId) {
   }
 }
 
+const PEER_COLS = 'id, name, phone_number, deleted_at, registration_completed, last_message_at';
+
+/**
+ * Other live accounts at this school with this normalised name: one rule for "same name at this school", shared by
+ * the would-match count and "Is this you?". [] for no school or no name; null when the read is refused.
+ */
+async function sameNameAtSchool(supabase, { userId, schoolId, name, cols = PEER_COLS }) {
+  const want = normaliseName(name);
+  if (!schoolId || !want) return [];
+  const { data, error } = await supabase.from('users').select(cols)
+    .eq('school_id', schoolId).neq('id', userId).is('deleted_at', null);
+  if (error || !Array.isArray(data)) return null;
+  return data.filter((p) => p && p.id !== userId && !p.deleted_at
+    && isLiveNumber(p.phone_number) && normaliseName(p.name) === want);
+}
+
 /** A sign-up just finished: is there another live account with her school and her name? Never throws. */
 async function checkWouldMatch(userId, source) {
   try {
@@ -117,19 +145,10 @@ async function checkWouldMatch(userId, source) {
     const { data: me, error } = await supabase.from('users')
       .select('id, name, school_id').eq('id', userId).maybeSingle();
     if (error || !me || !me.school_id) return;
-    const name = normaliseName(me.name);
-    if (!name) return;
+    if (!normaliseName(me.name)) return;
 
-    const { data: peers, error: peersError } = await supabase.from('users')
-      .select('id, name, phone_number, deleted_at, registration_completed, last_message_at')
-      .eq('school_id', me.school_id)
-      .neq('id', userId)
-      .is('deleted_at', null);
-    if (peersError || !Array.isArray(peers)) return;
-
-    const matches = peers.filter((p) => p && p.id !== userId && !p.deleted_at
-      && isLiveNumber(p.phone_number) && normaliseName(p.name) === name);
-    if (!matches.length) return;
+    const matches = await sameNameAtSchool(supabase, { userId, schoolId: me.school_id, name: me.name });
+    if (!matches || !matches.length) return;
     StructuredLogger.logEvent('registration.would_match', {
       tk: ref(userId),
       source: source || null,
@@ -143,4 +162,5 @@ async function checkWouldMatch(userId, source) {
   }
 }
 
-module.exports = { recordSystem, deletedRowResumed, checkWouldMatch, normaliseName };
+module.exports = { recordSystem, deletedRowResumed, checkWouldMatch, normaliseName, numberChangeOf, ref,
+  sameNameAtSchool, isLiveNumber };

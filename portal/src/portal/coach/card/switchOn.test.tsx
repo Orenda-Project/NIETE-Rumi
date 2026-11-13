@@ -106,6 +106,57 @@ describe("the gate and the menu", () => {
   });
 });
 
+// bd-zay62o — operator, 12 Nov ~11:15: "Learning Assessment needs to be a button on the main page for the coach, which is
+// right now shoved away in More." With portal_child_test_sa on for her, Home draws it as a tile like the others, with its
+// own art; the four tiles then fill two rows (Coach Training is no longer the lone wide tile). Off: exactly today's Home.
+describe("Learning assessment on Home (portal_child_test_sa)", () => {
+  const hrefs = (tiles: HTMLElement) => Array.from(tiles.querySelectorAll("a")).map((a) => a.getAttribute("href"));
+
+  it("on: a Learning assessment tile opens /portal/leader/assess, its own art, between My schools and Coach Training", async () => {
+    on({ childTestSa: true });
+    await renderApp("/portal/coach");
+    const tiles = await screen.findByTestId("feature-tiles");
+    await waitFor(() => expect(hrefs(tiles)).toEqual([
+      "/portal/coach/training", "/portal/coach/people", "/portal/leader/assess", "/portal/coach/coach-training",
+    ]));
+    const assess = tiles.querySelector('a[href="/portal/leader/assess"]') as HTMLElement;
+    expect(assess).toHaveTextContent("Learning assessment");
+    expect(assess.querySelector("svg")).toHaveAttribute("data-feature-art", "learningAssessment");
+  });
+
+  it("on: the four tiles fill two rows; no tile spans both columns", async () => {
+    on({ childTestSa: true });
+    await renderApp("/portal/coach");
+    const tiles = await screen.findByTestId("feature-tiles");
+    await waitFor(() => expect(hrefs(tiles)).toContain("/portal/leader/assess"));
+    expect(Array.from(tiles.querySelectorAll("a")).filter((a) => a.className.includes("col-span-2"))).toEqual([]);
+  });
+
+  it("in Urdu the tile is «تعلیمی جائزہ», the same word as the More row", async () => {
+    on({ childTestSa: true });
+    await renderApp("/portal/coach", "ur");
+    const tiles = await screen.findByTestId("feature-tiles");
+    await waitFor(() => expect(tiles.querySelector('a[href="/portal/leader/assess"]')).toHaveTextContent("تعلیمی جائزہ"));
+  });
+
+  it.each([false, undefined, "true"])("%s: no tile, and Coach Training stays the wide tile under the two", async (v) => {
+    on({ childTestSa: v });
+    await renderApp("/portal/coach");
+    const tiles = await screen.findByTestId("feature-tiles");
+    await new Promise((r) => setTimeout(r, 50));
+    expect(hrefs(tiles)).toEqual(["/portal/coach/training", "/portal/coach/people", "/portal/coach/coach-training"]);
+    expect(tiles.querySelector('a[href="/portal/coach/coach-training"]')!.className).toContain("col-span-2");
+  });
+
+  it("the tile's page opens for her: the guard lets /portal/leader/assess through", async () => {
+    on({ childTestSa: true });
+    await renderApp("/portal/leader/assess");
+    await waitFor(() => expect(net.calls.some((c) => c.includes("/config"))).toBe(true));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByTestId("where")).toHaveTextContent(/^\/portal\/leader\/assess$/);
+  });
+});
+
 // bd-17v39c.4.13 — the card's overview, tables and the boxes' details pages are pinned in schoolView.test.tsx; what
 // stays here is the frame around them: the header chips, the period chips, the links, Manage, loading.
 describe("the School card", () => {
@@ -607,6 +658,17 @@ describe("the coach's view of a DC report", () => {
     net.answers.set(`/coach/session/${SESSION}`, { ...SESSION_REPORT, lpSteps: null });
     await renderApp(`/portal/coach/session/${SESSION}`);
     expect(await screen.findByTestId("no-plan")).toHaveTextContent("No lesson plan linked");
+  });
+
+  // bd-ra8xu.43 (operator 11 Nov ~18:15/18:45): the stored rubric, framework + version only, in tiny muted text.
+  it("the session names the rubric it was scored with, small and muted; none stored, no line", async () => {
+    on();
+    net.answers.set(`/coach/session/${SESSION}`, { ...SESSION_REPORT, rubric: "FICO17 v6" });
+    await renderApp(`/portal/coach/session/${SESSION}`);
+    const line = await screen.findByTestId("session-rubric");
+    expect(line).toHaveTextContent(/^FICO17 v6$/);
+    expect(line).toHaveClass("text-[10px]", "text-[#9ca3af]");
+    expect(line).toHaveAttribute("dir", "ltr");
   });
 });
 

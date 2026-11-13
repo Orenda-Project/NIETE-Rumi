@@ -113,9 +113,13 @@ describe('req.portalUser is not available on requirePortalAuth routes', () => {
       src.indexOf('ASSESSMENT GENERATOR'),
       src.indexOf('TEACHER TRAINING BROWSER'));
 
-    // The four routes that need to know who she is, by their real paths.
-    // /options and /chapters are catalogue reads and deliberately do not.
+    // The routes that need to know who she is, by their real paths. The catalogue reads
+    // (/options, /chapters, /topics) pass it too since bd-5jmnfj.38.29: the bot's 6-12 grade
+    // gate admits by users.id, and without it G6-12 is hidden from every teacher on the portal.
     [
+      "'/assessment/options'",
+      "'/assessment/chapters'",
+      "'/assessment/topics'",
       "'/assessment/generate'",
       "'/assessment/status/:request_id'",
       "'/assessment/paper/:paper_id/download'",

@@ -1,3 +1,8 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 /**
  * Teacher Portal API Routes
  * Handles authentication and data access for teacher portal
@@ -101,6 +106,8 @@ const {
   PORTAL_TEACHER_HOME_CARD_KEY,
   PORTAL_TEACHER_HOME_ORDER_KEY,
   PORTAL_TEACHER_HOME_LOOK_KEY,
+  PORTAL_LP_MAKE_OWN_KEY,
+  PORTAL_HELP_VIDEOS_KEY,
   PORTAL_COACHIP_KEY,
   PORTAL_COACHIP_DECODE_KEY,
   rmSectorFor,
@@ -117,7 +124,7 @@ const {
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
-const { publicUserPayload, makeRequireLeaderRole } = require('../lib/leader-role');
+const { publicUserPayload, makeRequireLeaderRole, isPrincipalRole } = require('../lib/leader-role');
 // bd-33wxxi.1 — the teacher-app switches through one gate (a principal on the principal app is on too).
 const { teacherAppOnFor, isPrincipalAppUser } = require('../lib/teacher-app');
 // The bot's ONE definition of "registered" (pure, no requires) — bd-x7aprz.3.
@@ -2289,6 +2296,19 @@ async function requireCoachV2(req, res, next) {
 }
 const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
 
+// bd-33wxxi.4 — the two coach-app reads the observation screens need, for a principal too: a PRINCIPAL passes on the
+// principal app (portal_principal_app names her; never portal_coach_v2), everyone else on portal_coach_v2 exactly as
+// coachV2. `req.observerRole` tells the service whose teachers to read (her own school, or the coach's schools).
+async function requireCoachV2OrPrincipalApp(req, res, next) {
+  const userId = req.session && req.session.portalUserId;
+  const principal = isPrincipalRole(req.portalUser && req.portalUser.role);
+  const on = principal ? await isPrincipalAppUser(supabase, userId) : await isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, userId);
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  req.observerRole = principal ? 'principal' : 'coach';
+  return next();
+}
+const observerReads = [requirePortalAuth, requireLeaderRole, requireCoachV2OrPrincipalApp];
+
 // The coach School Card: its own switch on top of the coach app v2 chain. Off for her → 404, nothing is read.
 async function requireSchoolCard(req, res, next) {
   const on = await isFlagEnabledForUser(supabase, PORTAL_COACH_SCHOOL_CARD_KEY, req.session && req.session.portalUserId);
@@ -2305,6 +2325,12 @@ router.use(require('./coach-school-card.routes').createCoachSchoolCardRouter({
   query: (sql, params) => pool.query(sql, params),
   // bd-hl4a4y: her Training page's "Level N of M", from the bot as her own Training page reads it.
   levelStates: (userId) => TrainingRules.getLevelStates(userId),
+}));
+// bd-33wxxi.2: the principal app's school API — her OWN school's card, counts only (portal_principal_app; off → 404).
+router.use(require('./portal-principal.routes').createPrincipalRouter({
+  guards: [requirePortalAuth],
+  supabase,
+  query: (sql, params) => pool.query(sql, params),
 }));
 
 // bd-tbprit.1: the coach's disagreements (v10 coaching test) — her To do / Done and the evidence card.
@@ -2500,7 +2526,8 @@ router.get('/coach/people', ...coachV2, async (req, res) => {
 /** GET /api/portal/coach/school/:emis — one of her schools and its teachers. */
 router.get('/coach/school/:emis', ...coachV2, async (req, res) => {
   const emis = String(req.params.emis || '');
-  if (!/^[A-Za-z0-9-]{1,32}$/.test(emis)) return res.status(404).json({ success: false, error: 'Not found' });
+  // bd-97daxo.22: up to 64 — a GB school without an EMIS is keyed by its name (40 characters).
+  if (!/^[A-Za-z0-9-]{1,64}$/.test(emis)) return res.status(404).json({ success: false, error: 'Not found' });
   try {
     const out = await CoachV2.getCoachSchool(pgQuery, req.session.portalUserId, emis, { today: coachToday(req) });
     if (!out) return res.status(404).json({ success: false, error: 'Not found' });
@@ -2526,10 +2553,10 @@ router.get('/coach/teacher/:teacherExtId', ...coachV2, async (req, res) => {
  * the one the teacher received (teacher_delivery.report_key), signed here the
  * same way the teacher's own session page signs it, and so is the lesson audio.
  */
-router.get('/coach/observation/:id', ...coachV2, async (req, res) => {
+router.get('/coach/observation/:id', ...observerReads, async (req, res) => {
   if (!UUID_RX.test(String(req.params.id || ''))) return res.status(404).json({ success: false, error: 'Not found' });
   try {
-    const out = await CoachV2.getCoachObservation(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req) });
+    const out = await CoachV2.getCoachObservation(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req), role: req.observerRole });
     if (!out) return res.status(404).json({ success: false, error: 'Not found' });
     const { reportKey, audioKey, ...rest } = out;
     const imageUrl = reportKey && process.env.R2_ENDPOINT && process.env.R2_BUCKET_NAME
@@ -2595,7 +2622,8 @@ router.post('/coach/teacher/:teacherExtId/remove', ...coachV2, async (req, res) 
  *   POST /api/portal/coach/school/:emis/teachers         Body { phone, name? } — new, or a move
  *   POST /api/portal/coach/school/:emis/teachers/remove  Body { teacherExtIds[1–30], reason? }
  */
-const EMIS_RX = /^[A-Za-z0-9-]{1,32}$/;
+// bd-97daxo.22: up to 64 — a GB school without an EMIS is keyed by its name (40 characters).
+const EMIS_RX = /^[A-Za-z0-9-]{1,64}$/;
 const coachEmis = (req) => {
   const emis = String((req.params && req.params.emis) || '');
   return EMIS_RX.test(emis) ? emis : null;
@@ -2665,11 +2693,11 @@ router.get('/coach/visit/:id', ...coachV2, async (req, res) => {
 });
 
 /** GET /api/portal/coach/reports?page=&q= — waiting for her, in progress, then every observation. */
-router.get('/coach/reports', ...coachV2, async (req, res) => {
+router.get('/coach/reports', ...observerReads, async (req, res) => {
   const { page, q } = req.query || {};
   try {
     const out = await CoachV2.getCoachReports(pgQuery, req.session.portalUserId, {
-      page, q: typeof q === 'string' ? q.slice(0, 64) : undefined,
+      page, q: typeof q === 'string' ? q.slice(0, 64) : undefined, role: req.observerRole,
     });
     return res.json({ success: true, ...out });
   } catch (error) { return coachFail(res, 'reports', error); }
@@ -2756,6 +2784,8 @@ router.get('/lesson-plans', requirePortalAuth, async (req, res) => {
 const LpCatalogue = require('../services/lp-catalogue.service');
 // The bot owns "how was she scored?" — see coaching-breakdown.service.
 const CoachingBreakdown = require('../services/coaching-breakdown.service');
+// bd-pni007 — an FDE (obs612) visit is scored on FDE's own tool: the bot's view of it (pure), never a FICO breakdown.
+const { portalSummary: obs612Summary } = require('../../bot/shared/services/observe/obs612/view');
 
 /**
  * GET /api/portal/curriculum/grades
@@ -4318,6 +4348,17 @@ async function _isapsScoreSheet(userId, levelId) {
         .select('training_module_id, score, total_questions, status')
         .eq('user_id', userId).eq('quiz_kind', 'training_module').in('training_module_id', unitIds)
       : { data: [] };
+    // Ten I-SAPS units have no quick check (I-SAPS did not provide one). Watching such a unit completes it
+    // (bd-2390), so the sheet needs to know which units HAVE a check (the same stem rule the unit list and
+    // the quiz use) and which she has done, or a watched unit reads "Not taken" for ever.
+    const { data: unitQuestions } = unitIds.length
+      ? await supabase.from('training_questions').select('training_module_id, question_text')
+        .in('training_module_id', unitIds).eq('is_active', true)
+      : { data: [] };
+    const { data: unitProgress } = unitIds.length
+      ? await supabase.from('teacher_training_progress').select('module_id')
+        .eq('user_id', userId).in('module_id', unitIds)
+      : { data: [] };
     const { data: examAttempts } = await supabase.from('training_assessment_attempts')
       .select('id, grand_quiz_id, is_passed, score, total_questions, status')
       .eq('user_id', userId).eq('quiz_kind', 'grand').in('grand_quiz_id', exams.map(e => e.id));
@@ -4341,6 +4382,8 @@ async function _isapsScoreSheet(userId, levelId) {
       courses: courses || [], units: units || [], exams,
       unitAttempts: (unitAttempts || []).filter(a => a.status !== 'in_progress'),
       examAttempts: examAttempts || [], examAnswers: examAnswers || [], crqMax,
+      checkedUnitIds: [...new Set(servableQuestions(unitQuestions || []).map(q => q.training_module_id))],
+      doneUnitIds: (unitProgress || []).map(p => p.module_id),
     });
   } catch (err) {
     console.error('isaps score sheet failed:', err?.message);
@@ -7625,7 +7668,9 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
     // breakdown matches the rest of the page; transcript_language is an ASR label ('hindi') and only a last resort.
     const reportLanguage = (session.analysis_data && session.analysis_data.report_narrative && session.analysis_data.report_narrative._language)
       || session.voice_debrief_language || session.transcript_language || 'en';
-    const breakdown = await CoachingBreakdown.breakdown(session.analysis_data, reportLanguage);
+    // bd-pni007 — an FDE visit: its own block; the FICO breakdown would draw 0% from an adapter that knows no obs612 id.
+    const obs612 = TeacherObservation.isObservation(session) ? obs612Summary(session.analysis_data) : null;
+    const breakdown = obs612 ? null : await CoachingBreakdown.breakdown(session.analysis_data, reportLanguage);
 
     // bd-z3cadk — a repeat recording, the original report's date, and "Last time we asked" (ICT IAB row 23).
     const extras = await reportExtras(session, reportLanguage === 'ur' ? 'ur' : 'en', async (id) => {
@@ -7710,6 +7755,9 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
         duration: session.audio_duration_seconds,
         status: session.status,
         observation,
+        // bd-ra8xu.43 — the rubric this session was scored with, from what was stored (never the live switch), shown
+        // in very small text for debugging (operator 11 Nov ~18:15). Null when nothing was scored.
+        rubric: require('../../bot/shared/services/coaching/rubric-label').rubricLabelText({ session }) || null,
         // bd-5rz1v — the lesson page's title line; null when not found.
         topic: session.analysis_data?.topic || null,
         subject: session.analysis_data?.subject || null,
@@ -7752,6 +7800,8 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
         // strongest-first with their indicators and evidence quotes attached;
         // null means not scored yet, never "scored zero".
         breakdown,
+        // bd-pni007 — an FDE visit's result, rows and feedback (FDE's own words); null for every other session.
+        obs612,
 
         // ── her own words ──────────────────────────────────────────────────
         reflection,
@@ -8165,9 +8215,16 @@ router.post('/coaching-session/:id/reflection', requirePortalAuth, requireSelfOb
  * ------------------------------------------------------------------------- */
 
 async function requireCoachObservation(req, res, next) {
+  const userId = req.session && req.session.portalUserId;
+  // bd-33wxxi.4 — a PRINCIPAL observes from the principal app, so for her it is the principal app's switch
+  // (portal_principal_app names her), never the coach pilots: with portal_coach_observation = true any principal could
+  // otherwise drive the pipeline through the API alone. requireLeaderRole ran first and holds her users row.
+  const role = req.portalUser && req.portalUser.role;
   // bd-o15qnr: coach v2's Take observation runs on this pipeline, so either
   // pilot flag opens it (feature-flags.isCoachObservationOn).
-  const on = await isCoachObservationOn(supabase, req.session && req.session.portalUserId);
+  const on = isPrincipalRole(role)
+    ? await isPrincipalAppUser(supabase, userId)
+    : await isCoachObservationOn(supabase, userId);
   if (!on) return res.status(404).json({ success: false, error: 'Not found' });
   return next();
 }
@@ -8189,12 +8246,28 @@ router.post('/leader/observe-upload/presign', ...coachObserve, (req, res) => {
  * → 200 { coachingSessionId }   400 { reason: 'not_your_teacher' | 'plan_not_found' | … }
  */
 router.post('/leader/observe/start', ...coachObserve, (req, res) => {
-  const { teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan } = req.body || {};
+  const { teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson } = req.body || {};
   return relayToBot(res, 'observe-start', () => PortalCoachingClient.startObservation({
     userId: sessionCoach(req), teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys,
     lessonPlan: libraryPlanPick(lessonPlan),
+    lesson: observeLessonPick(lesson),
   }));
 });
+
+/**
+ * bd-ra8xu.40 — the lesson's class the coach named on Check and send ({ primary: true } for grades 1-5, or
+ * { grade, subject } for 6-12): only those fields reach the bot, which checks them. Absent → undefined.
+ */
+function observeLessonPick(lesson) {
+  if (!lesson || typeof lesson !== 'object') return undefined;
+  if (lesson.primary === true) return { primary: true };
+  return { grade: lesson.grade, subject: lesson.subject };
+}
+
+/** GET /api/portal/leader/observe/lesson-question — whether Check and send asks the class (FDE's switch for her). */
+router.get('/leader/observe/lesson-question', ...coachObserve, (req, res) => (
+  relayToBot(res, 'observe-lesson-question', () => PortalCoachingClient.observeLessonQuestion({ userId: sessionCoach(req) }))
+));
 
 /** GET /api/portal/leader/observe/recent-plans?teacherExtId=&schoolExtId= — the TEACHER's recent plans. */
 router.get('/leader/observe/recent-plans', ...coachObserve, (req, res) => (
@@ -8222,11 +8295,16 @@ router.get('/leader/observe/:id/draft', ...coachObserve, (req, res) => (
   }))
 ));
 
-/** POST /api/portal/leader/observe/:id/draft  Body { edits } — save her changes (the form's r_/ev_/imp_/fid_ keys). */
+/**
+ * POST /api/portal/leader/observe/:id/draft  Body { edits, submit? } — save her changes (the form's r_/ev_/imp_/fid_
+ * keys). bd-ra8xu.40: an FDE (obs612) visit's form saves the same way, and `submit: true` submits it (400 with the
+ * missing items and field errors while anything is missing). { edits } alone is passed on as before.
+ */
 router.post('/leader/observe/:id/draft', ...coachObserve, (req, res) => {
   const edits = req.body && req.body.edits && typeof req.body.edits === 'object' ? req.body.edits : {};
+  const submit = !!req.body && req.body.submit === true;
   return relayToBot(res, 'observe-draft-save', () => PortalCoachingClient.saveObservationDraft({
-    userId: sessionCoach(req), coachingSessionId: req.params.id, edits,
+    userId: sessionCoach(req), coachingSessionId: req.params.id, edits, ...(submit ? { submit: true } : {}),
   }));
 });
 
@@ -9143,6 +9221,8 @@ router.get('/config', async (req, res) => {
       coachFullAppRaw,
       coachReportsAppRaw,
       principalApp,
+      lpMakeOwnRaw,
+      helpVideosRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9187,6 +9267,10 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, userId),
       // bd-33wxxi.1 — the principal app (portal_principal_app): a principal on it gets the teacher app plus her school.
       isPrincipalAppUser(supabase, userId),
+      // bd-snkn32 — Make my own lesson plan, per user; it rides with the teacher app v2 on.
+      isFlagEnabledForUser(supabase, PORTAL_LP_MAKE_OWN_KEY, userId),
+      // bd-ik5e8j.4 — the help videos ("?" + More → How to use), per user; it rides with the teacher app v2 on.
+      isFlagEnabledForUser(supabase, PORTAL_HELP_VIDEOS_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -9219,6 +9303,8 @@ router.get('/config', async (req, res) => {
         coachReportsApp: coachV2 && coachReportsAppRaw,
         roleSwitch,
         principalApp,
+        lpMakeOwn: teacherV2 && lpMakeOwnRaw,
+        helpVideos: teacherV2 && helpVideosRaw,
       },
     });
   } catch (error) {
@@ -9250,6 +9336,8 @@ router.get('/config', async (req, res) => {
         coachFullApp: false,
         roleSwitch: false,
         principalApp: false,
+        lpMakeOwn: false,
+        helpVideos: false,
       },
       roleSwitchRoles: [],
     });

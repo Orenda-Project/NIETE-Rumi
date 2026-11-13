@@ -185,8 +185,10 @@ describe('applyReplacements', () => {
     expect(result.errors.some((e) => /type mismatch/.test(e))).toBe(true);
   });
 
-  test('rejects a malformed pointer (no leading slash)', () => {
-    const result = applyReplacements(clone(CLEAN_DOC), { 'page2/exam_bank': NEW_EXAM_BANK });
+  // bd-9mc3nz.1: a bare pointer naming an ALLOWED location is now applied (see
+  // targeted-revision-bare-pointers.test.js); one naming nothing is still malformed.
+  test('rejects a malformed pointer (no leading slash, names no allowed location)', () => {
+    const result = applyReplacements(clone(CLEAN_DOC), { 'page2/not_a_field': NEW_EXAM_BANK });
     expect(result.ok).toBe(false);
     expect(result.errors.some((e) => /malformed pointer/.test(e))).toBe(true);
   });

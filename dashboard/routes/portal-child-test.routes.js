@@ -154,6 +154,8 @@ const SA_SWITCHES = {
   // round 8: the microphone check on an iPhone (portal components/assess/AssessPreflight.tsx): its AudioContext is made
   // inside the tap, and the recording can be played again by a tap
   iosMic: 'sa_r8_ios_mic',
+  // round 12: the greyed RDF rows' note opens the microphone check again (portal pages/LeaderAssess.tsx)
+  rdfMicCheck: 'sa_r12_rdf_mic_check',
 };
 // Switches that are off on any host but sandbox, whatever their row says.
 const SANDBOX_ONLY = new Set(['exampleDashboard']);

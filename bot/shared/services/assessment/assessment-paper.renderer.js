@@ -20,7 +20,8 @@ const fs = require('fs');
 const path = require('path');
 const FreePrint = require('./free-secondary-print');
 const Chrome = require('./free-secondary-chrome');
-const { orderedEntries } = require('./assessment-order');
+const { orderedLists } = require('./assessment-order');
+const { compactCss } = require('./compact-print');
 
 /**
  * Fonts are base64-embedded into the HTML, not named and hoped for.
@@ -76,6 +77,7 @@ const SUBJECT_NAMES = {
   science: 'Science', gensci: 'Science',
   genk: 'General Knowledge', general_knowledge: 'General Knowledge',
   sst: 'Social Studies', social_studies: 'Social Studies',
+  general_knowledge_en: 'General Knowledge', social_studies_en: 'Social Studies',
   // G6-12 registry codes (subject-config.js).
   general_science: 'General Science', computer_science: 'Computer Science', history: 'History',
   geography: 'Geography', zarai_taleem: 'Zarai Taleem', physics: 'Physics', chemistry: 'Chemistry',
@@ -307,23 +309,9 @@ function collectQuestions(examJson) {
     if (entry.question && entry.question.removed === true) return;
     found.push(entry);
   };
-  for (const section of ['seen', 'unseen']) {
-    const branch = examJson?.[section];
-    if (!branch || typeof branch !== 'object') continue;
-    for (const [category, types] of orderedEntries(branch, 'category')) {
-      if (!types || typeof types !== 'object') continue;
-      for (const [type, entry] of orderedEntries(types, 'type')) {
-        if (Array.isArray(entry)) {
-          entry.forEach((q) => q && push({ section, category, type, question: q }));
-        } else if (entry && typeof entry === 'object') {
-          for (const [subType, list] of orderedEntries(entry, 'type')) {
-            if (Array.isArray(list)) {
-              list.forEach((q) => q && push({ section, category, type: subType, question: q }));
-            }
-          }
-        }
-      }
-    }
+  // One walk across both halves (bd-ipoxhx.3): a Both paper prints each type once.
+  for (const { section, category, type, list } of orderedLists(examJson)) {
+    list.forEach((q) => q && push({ section, category, type, question: q }));
   }
   return found;
 }
@@ -350,7 +338,7 @@ function totalMarks(questions) {
 // accepted so older callers keep working; it changes nothing here.)
 // eslint-disable-next-line no-unused-vars
 function renderPaper({ examJson, grade, subject, schoolName, pageReference,
-                       chapterTitle, includeAnswerKey = false, answerLines = true, paperKind = null }) {
+                       chapterTitle, includeAnswerKey = false, answerLines = true, paperKind = null, compact = false }) {
   // A board-pattern paper carries its layout and prints by it; read off the paper, never a flag.
   // A G9-12 board paper (bd-5jmnfj.38.24) prints by its own renderer.
   if (examJson && examJson._layout && examJson._layout.profile === 'board') return require('./assessment-paper-board.renderer').renderBoardPaper(examJson);
@@ -442,7 +430,7 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
   .answer-space { margin: 5px 0 0 ${rtl ? '0' : '18px'}; }
   .answer-line { border-bottom: 1px solid #aaa; height: ${lineMm}mm; }
   .answer { background: #eef7ee; border-${rtl ? 'right' : 'left'}: 3px solid #4a4; padding: 3px 7px; margin-top: 4px; font-size: 10.5pt; }${Chrome.css(examJson)}
-</style></head>
+</style>${compact || examJson?._print?.compact === true ? compactCss({ rtl }) : ''}</head>
 <body>
 ${schoolName ? `<div class="school">${esc(schoolName)}</div>` : ''}
 <div class="class-line">${heading}</div>

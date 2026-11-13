@@ -31,6 +31,10 @@ const LEAVE_TYPES = ['casual', 'sick', 'official'];
  * the screen that filled it is worse than no register.
  *
  * A principal never appears on their own staff list.
+ *
+ * Live accounts only (bd-apnnh2.15). A fold retires the spare account but keeps its
+ * school and role; on this roster it was a second copy of the teacher, and because
+ * marking is by exception, every staff mark wrote that copy down as present.
  */
 async function loadStaffRoster(schoolId, principalUserId) {
   if (!schoolId) return [];
@@ -39,6 +43,7 @@ async function loadStaffRoster(schoolId, principalUserId) {
     .select('id, phone_number, name')
     .eq('school_id', schoolId)
     .eq('role', 'teacher')
+    .is('deleted_at', null)
     .order('name');
   return (data || []).filter((u) => u.id !== principalUserId);
 }

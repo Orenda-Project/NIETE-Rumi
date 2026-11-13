@@ -55,9 +55,52 @@
       "id": "PART_ONE",
       "title": "Part 1",
       "data": {
+        "scored_with": {
+          "type": "string",
+          "__example__": "FICO17 v6"
+        },
         "teacher_line": {
           "type": "string",
           "__example__": "Rabia's lesson · Grade 4 · Maths"
+        },
+        "switched": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "stalled",
+              "title": "Took long, no clear signal",
+              "description": "The teacher didn't clearly say it was time to change. Children kept chatting or wandering, and the lesson stopped."
+            },
+            {
+              "id": "slow",
+              "title": "Signal given, but took long",
+              "description": "The teacher said it was time to change, but many children took more than a minute or had to be called back."
+            },
+            {
+              "id": "clear",
+              "title": "Changed within a minute",
+              "description": "The teacher said it was time to change, and nearly every child was on the new task within about a minute."
+            },
+            {
+              "id": "ahead",
+              "title": "Children knew what came next",
+              "description": "The children already knew the routine and moved to the next task on their own, without being told one by one."
+            }
+          ]
         },
         "part_hint": {
           "type": "string",
@@ -84,6 +127,10 @@
             "name": "part_one_form",
             "error-messages": "${data.error_messages}",
             "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.scored_with}"
+              },
               {
                 "type": "TextHeading",
                 "text": "Fill this in as you watch"
@@ -324,28 +371,7 @@
                     "name": "p1_change_how",
                     "label": "How did the switch go?",
                     "required": true,
-                    "data-source": [
-                      {
-                        "id": "stalled",
-                        "title": "Took long, no clear signal",
-                        "description": "The teacher didn't clearly say it was time to change. Children kept chatting or wandering, and the lesson stopped."
-                      },
-                      {
-                        "id": "slow",
-                        "title": "Signal given, but took long",
-                        "description": "The teacher said it was time to change, but many children took more than a minute or had to be called back."
-                      },
-                      {
-                        "id": "clear",
-                        "title": "Changed within a minute",
-                        "description": "The teacher said it was time to change, and nearly every child was on the new task within about a minute."
-                      },
-                      {
-                        "id": "ahead",
-                        "title": "Children knew what came next",
-                        "description": "The children already knew the routine and moved to the next task on their own, without being told one by one."
-                      }
-                    ],
+                    "data-source": "${data.switched}",
                     "description": "If the class switched more than once, pick what happened most often."
                   }
                 ],
@@ -371,7 +397,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "PART_ONE",
-                    "fv": "6",
+                    "fv": "7",
                     "prefill": "1",
                     "present": "${form.present}",
                     "p1_spoke": "${form.p1_spoke}",
@@ -396,6 +422,45 @@
       "id": "PART_TWO",
       "title": "Part 2",
       "data": {
+        "switched": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "stalled",
+              "title": "Took long, no clear signal",
+              "description": "The teacher didn't clearly say it was time to change. Children kept chatting or wandering, and the lesson stopped."
+            },
+            {
+              "id": "slow",
+              "title": "Signal given, but took long",
+              "description": "The teacher said it was time to change, but many children took more than a minute or had to be called back."
+            },
+            {
+              "id": "clear",
+              "title": "Changed within a minute",
+              "description": "The teacher said it was time to change, and nearly every child was on the new task within about a minute."
+            },
+            {
+              "id": "ahead",
+              "title": "Children knew what came next",
+              "description": "The children already knew the routine and moved to the next task on their own, without being told one by one."
+            }
+          ]
+        },
         "part_hint": {
           "type": "string",
           "__example__": "Independent practice and the wrap-up, to minute 40. Answer only for this part."
@@ -638,28 +703,7 @@
                     "name": "p2_change_how",
                     "label": "How did the switch go?",
                     "required": true,
-                    "data-source": [
-                      {
-                        "id": "stalled",
-                        "title": "Took long, no clear signal",
-                        "description": "The teacher didn't clearly say it was time to change. Children kept chatting or wandering, and the lesson stopped."
-                      },
-                      {
-                        "id": "slow",
-                        "title": "Signal given, but took long",
-                        "description": "The teacher said it was time to change, but many children took more than a minute or had to be called back."
-                      },
-                      {
-                        "id": "clear",
-                        "title": "Changed within a minute",
-                        "description": "The teacher said it was time to change, and nearly every child was on the new task within about a minute."
-                      },
-                      {
-                        "id": "ahead",
-                        "title": "Children knew what came next",
-                        "description": "The children already knew the routine and moved to the next task on their own, without being told one by one."
-                      }
-                    ],
+                    "data-source": "${data.switched}",
                     "description": "If the class switched more than once, pick what happened most often."
                   }
                 ],
@@ -685,7 +729,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "PART_TWO",
-                    "fv": "6",
+                    "fv": "7",
                     "prefill": "1",
                     "p2_spoke": "${form.p2_spoke}",
                     "p2_new": "${form.p2_new}",
@@ -850,7 +894,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "LESSON_PLAN",
-                    "fv": "6",
+                    "fv": "7",
                     "lp": "${form.lp}",
                     "lp_pick": "${form.lp_pick}",
                     "lp_how": "${form.lp_how}"
@@ -917,7 +961,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "LP_PHOTOS",
-                    "fv": "6",
+                    "fv": "7",
                     "lp_photos": "${form.lp_photos}"
                   }
                 }
@@ -988,7 +1032,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "LP_FILE",
-                    "fv": "6",
+                    "fv": "7",
                     "lp_file": "${form.lp_file}"
                   }
                 }
@@ -1051,7 +1095,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "LP_TEXT",
-                    "fv": "6",
+                    "fv": "7",
                     "lp_text": "${form.lp_text}"
                   }
                 }
@@ -1132,7 +1176,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "PHOTOS",
-                    "fv": "6",
+                    "fv": "7",
                     "photo_how": "${form.photo_how}"
                   }
                 }
@@ -1193,7 +1237,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "PHOTO_TAKE",
-                    "fv": "6",
+                    "fv": "7",
                     "photos": "${form.photos}"
                   }
                 }
@@ -1261,7 +1305,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "PHOTO_FILES",
-                    "fv": "6",
+                    "fv": "7",
                     "photo_files": "${form.photo_files}"
                   }
                 }
@@ -1820,7 +1864,7 @@
               "name": "data_exchange",
               "payload": {
                 "screen": "CONTINUE",
-                "fv": "6",
+                "fv": "7",
                 "prefill": "1"
               }
             }

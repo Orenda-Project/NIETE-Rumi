@@ -55,6 +55,7 @@ const rdfSwitch = require('./rdf-switch');
 const rdfW3Switch = require('./rdf-w3-switch');
 const resumeRepick = require('./resume-repick-switch');
 const allGradesSwitch = require('./all-grades-switch');
+const perVisitSwitch = require('./per-visit-switch');
 const stopRulesSwitch = require('./stop-rules-switch');
 const addChildSwitch = require('./add-child-switch');
 const coachLastWord = require('./coach-last-word-switch');
@@ -244,6 +245,7 @@ function shapeList(list, visit, sessions) {
     cycleId: list.cycleId,
     grade: list.grade,
     gradeFallback: !!list.gradeFallback,
+    ...(list.perVisit ? { perVisit: list.perVisit } : {}),
     reused: !!list.reused,
     children: (list.children || []).map((c) => shapeChild(c, byDraw)),
     alternates: (list.alternates || []).map((c) => shapeChild(c, byDraw)),
@@ -262,9 +264,11 @@ const dayList = (args = {}, deps = {}) => guarded('sa_day_list', async ({ userId
   if (named.bad) return { status: 'invalid', reason: 'bad_grade' };
   let visit = await visitFor(d, userId, { schoolId, visitId, grade: named.grade }, await anySchool.enabledFor(userId, deps));
   if (!visit) return { status: 'not_found' };
+  const perVisit = await perVisitSwitch.count(deps);
   const draw = (v) => d.draw.todaysList({
     coachUserId: userId, schoolId: v.schoolId, observedGrade: v.observedGrade, ...visitArgs(v),
     ...(named.grade ? { grade: named.grade, allGrades: true } : {}),
+    ...(perVisit !== perVisitSwitch.DEFAULT ? { perVisit } : {}),
   });
   let list = await draw(visit);
   // a named grade is never answered with another grade's list: the visit's list of another grade → the graded day key
@@ -383,7 +387,11 @@ const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ 
   }
   if (clientSessionId || block) {
     // The child is present either way; a phone that cannot be matched later re-sends the outcome.
-    const kept = await saStoreOf(deps).setClient(created.session.id, { clientSessionId: clientSessionId || null, block: block || null });
+    // best-effort: a failed write (even one that throws) never refuses the child; the block is which RDF flow ran
+    let kept;
+    try {
+      kept = await saStoreOf(deps).setClient(created.session.id, { clientSessionId: clientSessionId || null, block: block || null });
+    } catch (e) { kept = { ok: false, error: e && e.message }; }
     if (!kept || !kept.ok) d.logError('child_test.sa.client_not_kept', { sessionId: created.session.id, error: kept && kept.error });
   }
   return { status: 'ok', sessionId: created.session.id, list, ...(byHistory || moved ? { block } : {}) };

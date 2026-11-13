@@ -680,3 +680,20 @@ describe('an implausible read: no sticker on the card', () => {
     expect(await Ch.poll(ex.ct)).not.toHaveProperty('sticker');
   });
 });
+
+// A child's own outcome (unheard, incomplete, abandoned) is not a system fault: it logs at warn, never error.
+// Only internal_error (the scorer itself broke) stays an error line (bd-ehz254.9; prod 7 d: 31 child outcomes, 0 faults).
+describe('a failed read logs at the level of what happened', () => {
+  const { logError, logWarn } = require('../../../shared/utils/logger');
+  const named = (fn) => fn.mock.calls.filter(([n]) => n === 'web_quiz.ch_read_failed');
+  test('the wrong passage read aloud (unheard): one warn line, no error line', async () => {
+    on(V2, ...CANON_ON, PERIOD, POOL);
+    const ex = await Ch.exercise(hub(K5), 'read', D);
+    const other = { text: '', tokens: Array.from({ length: 50 }, (_, k) => ({ text: ` other${k}`, start_ms: Math.round((0.9 + k * 1.1) * 1000), end_ms: Math.round((0.9 + k * 1.1 + 0.8) * 1000), speaker: 1 })) };
+    await readWith(ex.ct, other, 0, 0);
+    expect(rowOf(ex.ct).meta.reason).toBe('unheard');
+    expect(named(logError)).toHaveLength(0);
+    expect(named(logWarn)).toHaveLength(1);
+    expect(named(logWarn)[0][1]).toMatchObject({ reason: 'unheard', run: runOf(ex.ct) });
+  });
+});

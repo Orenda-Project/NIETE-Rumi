@@ -34,6 +34,8 @@
  * has no clock of its own — `now` is injected.
  */
 
+const { parseLessonRef } = require('../../utils/lesson-ref');
+
 /**
  * Mirror of the DB `subjects` registry (the V1.1.3 seed plus V1.2.6's islamiat),
  * plus the spellings measured on real `lesson_plan_structured.subject` values that
@@ -110,7 +112,10 @@ function canonicalSubject(raw) {
 
 /**
  * The corpus key encodes both facts we want: `grade_<n>_<subject>_ch<m>_seg<k>`,
- * where the subject token may itself contain underscores (`general_science`).
+ * where the subject token may itself contain underscores (`general_science`) —
+ * and, for another region's books (bd-97daxo.16), `gb_g<n>_<subject>_ch[R]<m>_seg<k>`
+ * or the v10 segment id its app lists as the lesson (`nbf_snc_grade_<n>_<subject>.…`).
+ * Read by bot/shared/utils/lesson-ref as a K-5 plan key; an ICT 6-12 segment id is not one.
  *
  * @param {*} lessonId
  * @returns {{subject: string, grade: string}|null} null unless BOTH parse — a
@@ -118,11 +123,11 @@ function canonicalSubject(raw) {
  */
 function parseCorpusLessonId(lessonId) {
   if (typeof lessonId !== 'string') return null;
-  const m = /^grade_(\d+)_(.+?)_ch\d+_seg\d+b?$/i.exec(lessonId.trim());
-  if (!m) return null;
-  const subject = canonicalSubject(m[2].replace(/_/g, ' '));
+  const p = parseLessonRef(lessonId, { kind: 'k5' });
+  if (!p) return null;
+  const subject = canonicalSubject(p.subject.replace(/_/g, ' '));
   if (!subject) return null;
-  return { subject, grade: m[1] };
+  return { subject, grade: String(p.grade) };
 }
 
 /**

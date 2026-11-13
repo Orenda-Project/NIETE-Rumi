@@ -121,28 +121,25 @@ describe('the selection keeps the pattern (E8.1)', () => {
   });
 });
 
-describe('a changed answer drops the worked scheme points (E8.2; marks: fde-edit-marks.test.js)', () => {
+// A board-pattern question can only be removed or put back (PATTERN_NO_EDIT,
+// fde-remove-only.test.js); the scheme-dropping rule below still runs for any
+// question without a slot. Marks: fde-edit-marks.test.js.
+describe('a board-pattern question keeps its wording and answer (E8.2, remove only)', () => {
   const q2 = () => Selection.indexQuestions(EXAM).find((q) => q.question.slot === 'maths.B.Q2').question;
+  const NO_EDIT = 'Board-pattern papers can only have questions removed.';
 
-  test('answer, mark echoed: points gone, checked null, accept and common error kept', () => {
-    const before = { ...q2(), scheme: { ...q2().scheme, checked: 'ok', common_error: 'x' } };
-    const out = Edit.applyEdit(before, { marks: '5', answer: 'Seven million and more' });
-    expect(out.marks).toBe(5);
-    expect(out.scheme.points).toBeUndefined();
-    expect(out.scheme.checked).toBeNull();
-    expect(out.scheme.accept).toEqual(before.scheme.accept);
-    expect(out.scheme.common_error).toBe('x');
+  test('answer, mark echoed: refused, PATTERN_NO_EDIT', () => {
+    let err;
+    try { Edit.applyEdit(q2(), { marks: '5', answer: 'Seven million and more' }); } catch (e) { err = e; }
+    expect(err).toMatchObject({ code: 'EDIT_REJECTED', errorCode: 'PATTERN_NO_EDIT', message: NO_EDIT });
   });
 
-  test('answer: points gone, checked null', () => {
-    const out = Edit.applyEdit({ ...q2(), scheme: { ...q2().scheme, checked: 'replaced' } }, { answer: 'Seven million and more' });
-    expect(out.scheme.points).toBeUndefined();
-    expect(out.scheme.checked).toBeNull();
+  test('answer: refused', () => {
+    expect(() => Edit.applyEdit(q2(), { answer: 'Seven million and more' })).toThrow(NO_EDIT);
   });
 
-  test('wording only: the scheme is untouched', () => {
-    const out = Edit.applyEdit(q2(), { question: 'Write 7,083,451 in words.' });
-    expect(out.scheme).toEqual(q2().scheme);
+  test('wording: refused', () => {
+    expect(() => Edit.applyEdit(q2(), { question: 'Write 7,083,451 in words.' })).toThrow(NO_EDIT);
   });
 
   test('the same mark sent back is not a change', () => {
@@ -157,8 +154,13 @@ describe('a changed answer drops the worked scheme points (E8.2; marks: fde-edit
     expect(out.scheme.checked).toBeNull();
   });
 
-  test("a sub-question's own scheme (situation, comprehension) loses its points when its answer changes", () => {
-    const parent = { slot: 'english.C.Q6', question: 'Read the situation and answer.', questions: [
+  test("a board-pattern sub-question's answer is refused", () => {
+    const parent = { slot: 'english.C.Q6', question: 'Read the situation and answer.', questions: [{ question: 'Why?', answer: 'Sorry', marks: 2 }] };
+    expect(() => Edit.applyEdit(parent, { subIndex: 0, marks: '2', answer: 'I am sorry' })).toThrow(NO_EDIT);
+  });
+
+  test("a sub-question's own scheme (situation, comprehension) loses its points when its answer changes (no slot)", () => {
+    const parent = { question: 'Read the situation and answer.', questions: [
       { question: 'What should the child say?', answer: 'Sorry', marks: 2, scheme: { points: [{ text: 'an apology', marks: 2, kind: 'A' }], checked: 'ok' } },
       { question: 'Why?', answer: 'He was late', marks: 2, scheme: { points: [{ text: 'late', marks: 2, kind: 'A' }], checked: 'ok' } }] };
     const out = Edit.applyEdit(parent, { subIndex: 0, marks: '2', answer: 'I am sorry' });
@@ -240,12 +242,11 @@ describe('a removal that would empty a slot is refused', () => {
 });
 
 describe('the edit routes answer for a board-pattern paper as for a plain one (E8.5)', () => {
-  test('validate: 200 with the edited question', async () => {
+  test('validate: a wording edit answers 400 PATTERN_NO_EDIT', async () => {
     const id = idsOf(EXAM, 'maths.B.Q2')[0];
     const out = await call('/assessment/edit/validate', { userId: U, paperId: 'v1', id, edit: { question: 'Write 7,083,451 in words.' } });
-    expect(out.statusCode).toBe(200);
-    expect(out.payload).toMatchObject({ success: true, ok: true, text: 'Write 7,083,451 in words.' });
-    expect(out.payload.question.slot).toBe('maths.B.Q2');
+    expect(out.statusCode).toBe(400);
+    expect(out.payload).toMatchObject({ success: false, code: 'EDIT_REJECTED', errorCode: 'PATTERN_NO_EDIT' });
   });
 
   test('save: Remove one Q2 makes v2 with both files, the parent untouched', async () => {

@@ -24,6 +24,8 @@ const { owed } = require('./board-6-12/slot-quota');
 const MR = require('./board-6-12/mcq-review');
 const GF = require('./board-6-12/group-faults');
 const SN = require('./board-6-12/ship-notes');
+const LL = require('./board-6-12/level-log');
+const LT = require('./board-6-12/last-try');
 
 const EXTRA = 1.25; // design_pending: the top-up asks for the shortfall plus about a quarter (round 4)
 const SHORT_MESSAGE = 'A section is still short of questions after one more try.';
@@ -38,17 +40,16 @@ async function writeBoardPaper(args, d) {
   const { grade, subject, pattern, P, scope = null, pageRanges = null, chapterNumber = null, onSection = null, requestId = null } = args;
   const startedAt = Date.now();
   const row = d.resolveSubject(grade, subject);
-  const V = args.variant || d.variantFor(P, { grade });
-  if (!V) throw d.fail('PATTERN_NO_VARIANT', 'No variant of this board pattern applies.', { pattern, grade, subject });
-
   const loaded = await d.loadPatternContent({ grade, subject, P, scope, pageRanges, chapterNumber });
+  const V = require('./board-6-12/genre-presence').forContent(args.variant || d.variantFor(P, { grade }), subject, loaded.content); // bd-qyi45h.1: no poem/ghazal in the pages → those Urdu slots go
+  if (!V) throw d.fail('PATTERN_NO_VARIANT', 'No variant of this board pattern applies.', { pattern, grade, subject });
   if (typeof d.ensureCurrent === 'function') await d.ensureCurrent();
   const { model, job } = d.patternModel(d.family);
   const ownModel = d.resolveModelForJob('assessment.generate', { family: d.family }).model;
   const allSlots = V.sections.flatMap((s) => s.slots);
   const sloList = typeof d.sloList === 'function' ? d.sloList(grade, subject, chapterNumber) : undefined; // item 4: the chapter's matrix codes follow
   const usages = [];
-
+  const logSplit = LL.splitLogger(d, V, { requestId, pattern, grade, subject }); // bd-qyi45h.1: one line per check run, no person ids
   // A6b (round 9): a top-up or rewrite slot carries the levels it still owes against its full quota
   const split = SP.levelPart(V, row);
   const quotaed = (s, tree, n) => { const one = sized(s, n); const quota = split ? owed(s, tree, split.levels, one.generate) : null; return quota ? { ...one, quota } : one; };
@@ -63,7 +64,7 @@ async function writeBoardPaper(args, d) {
     // The reply is keyed by slot id (eg.format.secondary); code places it in the tree and stamps each node's slot.
     return { tree: T.fromReply(got.tree, unit.slots), usages: got.usages, elapsedMs: Date.now() - began };
   };
-  const shortError = (shortfall, examJson) => d.fail('PATTERN_SHORT_SLOT', SHORT_MESSAGE, { shortfall, examJson, model });
+  const shortError = (shortfall, examJson, detail, code = 'PATTERN_SHORT_SLOT') => d.fail(code, code === LT.CAP_CODE ? LT.CAP_MESSAGE : SHORT_MESSAGE, { shortfall, examJson, model, ...(detail ? { detail } : {}) });
   const mergedOf = (trees) => {
     const ex = d.mergeSections(trees);
     d.stripImageKeys(ex);
@@ -159,6 +160,7 @@ async function writeBoardPaper(args, d) {
     settleKeys(ex); // D13 key letters and numeric order are settled by code, not left to the model
     const checks = d.checks.run(ex, { P, variant: V, mode: 'board', subjectConfig: row, fresh });
     ex._layout.checks = checks.record;
+    logSplit(ex);
     return checks;
   };
   // Round 9: one review call per section, MCQs only (d.reviewMcqs); a yes on any of its five questions makes the
@@ -193,15 +195,14 @@ async function writeBoardPaper(args, d) {
   const pre = probeRun(ex);
   if (pre) drop(ex, hardIds(pre.run), pre.run);
   let checks = await reviewed(ex, finish(ex));
-
-  // 3. One targeted rewrite of the dropped items (same slot, told the used keys and the stems to avoid). Nothing new
-  // is asked for the slot, so a topped-up slot may be rewritten. Of the rewrite and the originals, fewer hard wins.
+  // 3. One targeted rewrite of the dropped items (same slot, told the used keys and the stems to avoid). A plain srq/erq
+  // slot is asked with EXTRA slack (finish() trims it; nothing restores it); MCQs and groups exactly. Fewer hard wins.
   const rewrite = async (tree, from, phrases = []) => {
     let out = tree;
     const short = T.shortfallOf(out, allSlots);
     const used = usedKeys(out);
     for (const unit of unitsOf(V)) {
-      const mine = short.filter((r) => unit.slots.some((s) => s.slot === r.slot)).map((r) => ({ ...r, write: r.need - r.have }));
+      const mine = short.filter((r) => unit.slots.some((s) => s.slot === r.slot)).map((r) => { const s = unit.slots.find((x) => x.slot === r.slot); return { ...r, write: s.type === 'mcq' || s.stimulus ? r.need - r.have : Math.ceil((r.need - r.have) * EXTRA) }; }); // bd-qyi45h.7
       if (!mine.length) continue;
       const slots = unit.slots.filter((s) => mine.some((r) => r.slot === s.slot)).map((s) => quotaed(s, out, mine.find((r) => r.slot === s.slot).write));
       const gone = dropped.slice(from).filter((x) => mine.some((r) => r.slot === x.slot));
@@ -248,9 +249,9 @@ async function writeBoardPaper(args, d) {
       tries.unshift({ name: 'rewrite 2', ...got });
       ({ ex, checks } = got);
     }
-    // 3c (bd-5jmnfj.38.34): a review fault inside a kept group is re-asked up to GF.ATTEMPTS times (a fresh group is flagged ~45% per item)
+    // 3c (bd-5jmnfj.38.34): a review fault or key leak (bd-qyi45h.6) inside a kept group is re-asked up to GF.ATTEMPTS times
     for (let n = 0, stuck = GF.stuck(checks, ex); n < GF.ATTEMPTS && failing(ex, checks) && stuck.size; n += 1, stuck = GF.stuck(checks, ex)) {
-      const got = await reask(ex, stuck, checks);
+      const got = await reask(ex, stuck, checks, GF.leakPhrases(checks, stuck));
       tries.unshift({ name: `rewrite ${3 + n}`, ...got });
       ({ ex, checks } = got);
     }
@@ -272,11 +273,11 @@ async function writeBoardPaper(args, d) {
       tries.push({ name: 'originals', ex: orig, checks: SN.finalSoften(MR.applyFlags(finish(orig), flags, orig), GF.memberIds(orig)) });
       const best = tries.reduce((a, b) => (b.checks.record.hard < a.checks.record.hard ? b : a));
       outcome(tries, best);
-      throw shortError(best.checks.shortfall.length ? best.checks.shortfall : T.shortfallOf(best.ex, allSlots), best.ex);
-    }
-    outcome(tries, tries[0]);
+      const short = T.shortfallOf(best.ex, allSlots);
+      if (!LT.canShip(best.checks, { grade, slotsShort: short })) throw shortError(short.concat(best.checks.shortfall), best.ex, LL.hardDetail(best.checks.record));
+      const over = LT.overCap(best.checks, allSlots); if (over) throw shortError(best.checks.shortfall, best.ex, JSON.stringify(over), LT.CAP_CODE); ex = best.ex; checks = LT.ship(best.checks); d.logToFile('[assessment] board paper shipped on last try', { requestId, pattern, grade, subject, rules: checks.record.shipped_last_try }); // bd-qyi45h.3
+    } else outcome(tries, tries[0]);
   }
-
   // 4. The scheme, per the variant's style; then the record.
   normaliseBoardScheme(ex, V.scheme_style);
   const total = d.sumUsage(usages);
@@ -286,8 +287,7 @@ async function writeBoardPaper(args, d) {
   };
   const questionCount = d.countQuestions(ex);
   return {
-    examJson: ex,
-    questionCount,
+    examJson: ex, questionCount,
     tokenData: { inputTokens: total.prompt_tokens, outputTokens: total.completion_tokens, totalTokens: total.total_tokens, cost: total.cost, model },
     pageReference: loaded.pageReference,
     chapterTitle: null,

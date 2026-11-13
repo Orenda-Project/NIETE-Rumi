@@ -869,7 +869,8 @@
               "payload": {
                 "step": "to_picker",
                 "teacher_ext_id": "${data.teacher_ext_id}",
-                "school_ext_id": "${data.school_ext_id}"
+                "school_ext_id": "${data.school_ext_id}",
+                "school_week": "1"
               }
             }
           }
@@ -899,6 +900,19 @@
         "school_ext_id": {
           "type": "string",
           "__example__": "niete:401"
+        },
+        "include_days": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri"
+          ]
         }
       },
       "layout": {
@@ -919,13 +933,7 @@
                 "mode": "single",
                 "min-date": "${data.min_date}",
                 "max-date": "${data.max_date}",
-                "include-days": [
-                  "Mon",
-                  "Tue",
-                  "Wed",
-                  "Thu",
-                  "Fri"
-                ],
+                "include-days": "${data.include_days}",
                 "required": true
               },
               {
@@ -1162,7 +1170,8 @@
                   "payload": {
                     "step": "visit_action",
                     "visit_id": "${data.visit_id}",
-                    "choice": "${form.choice}"
+                    "choice": "${form.choice}",
+                    "school_week": "1"
                   }
                 }
               }
@@ -1211,6 +1220,19 @@
               "title": "09:00"
             }
           ]
+        },
+        "include_days": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri"
+          ]
         }
       },
       "layout": {
@@ -1231,13 +1253,7 @@
                 "mode": "single",
                 "min-date": "${data.min_date}",
                 "max-date": "${data.max_date}",
-                "include-days": [
-                  "Mon",
-                  "Tue",
-                  "Wed",
-                  "Thu",
-                  "Fri"
-                ],
+                "include-days": "${data.include_days}",
                 "required": true
               },
               {

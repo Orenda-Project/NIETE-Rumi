@@ -234,6 +234,14 @@ function fakeDb(t) {
       }
       case 'roster':
         return { rows: t.users.filter((u) => params[0].includes(u.school_id) && rostered(u)) };
+      // bd-33wxxi.2 — a principal's own school (users.school_id), and the roster a TEST principal reads (test accounts in).
+      case 'principal-school': {
+        const me = t.users.find((u) => u.id === params[0] && u.role === 'principal' && !u.deleted_at);
+        const sch = me && t.schools.find((x) => x.id === me.school_id);
+        return { rows: sch ? [{ id: sch.id, name: sch.name, emis: sch.emis, school_name: null, viewer_test: me.is_test_user === true }] : [] };
+      }
+      case 'roster-with-test':
+        return { rows: t.users.filter((u) => params[0].includes(u.school_id) && ['teacher', 'principal'].includes(u.role) && !u.deleted_at) };
       case 'teacher': {
         const [coach, ext] = params;
         const ids = coachSchoolIds(coach);
@@ -740,6 +748,13 @@ describe('the next step she was shown (v10 A/B)', () => {
     const session = await Card.getSession(db, 'coach-1', 'd1', opts());
     expect(session.nextStep).toBe('ACTION-d1 next class');
     expect(JSON.stringify([scores, session])).not.toMatch(/TRY-/);
+  });
+
+  // bd-ra8xu.43 (operator 11 Nov ~18:15/18:45): every observation names the rubric it was scored with, from what was
+  // stored: framework + version only.
+  test('the coach view of a session carries its stored rubric', async () => {
+    const session = await Card.getSession(db, 'coach-1', 'd1', opts());
+    expect(session.rubric).toMatch(/^FICO V[34]$/);
   });
 
   test('a group C school: the thing to try where it has words, the action where it has none', async () => {
@@ -1357,5 +1372,115 @@ describe('the principal apart from the teachers (bd-17v39c.4.15)', () => {
     expect(dc.count).toBe(1);
     const report = await Card.getSession(db, 'coach-1', 'pd1', opts());
     expect(report).toMatchObject({ sessionId: 'pd1', kind: 'dc', teacher: { teacherExtId: PHONE.p1 } });
+  });
+});
+
+// ── bd-33wxxi.2 — the PRINCIPAL's own school: the same card, read through her users.school_id ──────────────────────
+
+describe('getPrincipalSchoolCard — a principal on the principal app sees her own school (counts only)', () => {
+  test('her school is her users.school_id: the same school, teachers and counts the coach card gives', async () => {
+    const coach = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    const mine = await Card.getPrincipalSchoolCard(db, 'up', opts());
+    // the school register's name: a coach's card shows her own leader_schools label, and a principal has none
+    expect(mine.school).toMatchObject({ emis: '901', name: 'School One (register)', teachers: coach.school.teachers });
+    expect(mine.overview).toEqual(coach.overview);
+    expect(mine.tiles).toEqual(coach.tiles);
+    expect(mine.levels).toEqual(coach.levels);
+    // the principal herself is never one of the teachers (bd-17v39c.4.15), and the test account is out
+    expect(mine.teachers.map((t) => t.teacherExtId).sort()).toEqual([PHONE.t1, PHONE.t2].sort());
+    expect(mine.teachers.map(({ id, ...row }) => row)).toEqual(coach.teachers);
+  });
+
+  test('bd-33wxxi.3 — each teacher row carries her users.id (a row opens her Analytics page); the coach card has none', async () => {
+    const coach = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    const mine = await Card.getPrincipalSchoolCard(db, 'up', opts());
+    const byExt = Object.fromEntries(mine.teachers.map((t) => [t.teacherExtId, t.id]));
+    expect(byExt).toEqual({ [PHONE.t1]: 'u1', [PHONE.t2]: 'u2' });
+    expect(coach.teachers.every((t) => !('id' in t))).toBe(true);
+  });
+
+  test('Q1: the DC and coach boxes carry counts and makers only — no average, no score, no series', async () => {
+    const coach = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    const mine = await Card.getPrincipalSchoolCard(db, 'up', opts());
+    expect(mine.scores).toEqual({
+      dc: { count: coach.scores.dc.count, makers: coach.scores.dc.makers },
+      coach: { count: coach.scores.coach.count, makers: coach.scores.coach.makers },
+    });
+    expect(JSON.stringify(mine)).not.toMatch(/"avg"|"prevAvg"|"points"|"score"/);
+  });
+
+  test('no coach-observations table on a principal\'s card', async () => {
+    const mine = await Card.getPrincipalSchoolCard(db, 'up', opts());
+    expect(mine).not.toHaveProperty('coachObservations');
+  });
+
+  test('anyone who is not a principal, or a principal with no school, reads nothing: null', async () => {
+    expect(await Card.getPrincipalSchoolCard(db, 'u1', opts())).toBeNull();
+    expect(await Card.getPrincipalSchoolCard(db, 'coach-1', opts())).toBeNull();
+    expect(await Card.getPrincipalSchoolCard(db, null, opts())).toBeNull();
+    tables.users.find((u) => u.id === 'up').school_id = null;
+    expect(await Card.getPrincipalSchoolCard(db, 'up', opts())).toBeNull();
+  });
+
+  test('a level reads that level\'s teachers, as on the coach card', async () => {
+    const coach = await Card.getSchoolCard(db, 'coach-1', '901', { ...opts(), level: 'primary' });
+    const mine = await Card.getPrincipalSchoolCard(db, 'up', { ...opts(), level: 'primary' });
+    expect(mine.level).toBe(coach.level);
+    expect(mine.teachers.map(({ id, ...row }) => row)).toEqual(coach.teachers);
+  });
+
+  test('a TEST principal (the operator\'s own test school) also sees the test accounts at her school; a real one never', async () => {
+    const real = await Card.getPrincipalSchoolCard(db, 'up', opts());
+    expect(real.teachers.map((t) => t.teacherExtId)).not.toContain(PHONE.tt);
+    tables.users.find((u) => u.id === 'up').is_test_user = true;
+    const test = await Card.getPrincipalSchoolCard(fakeDb(tables), 'up', opts());
+    expect(test.teachers.map((t) => t.teacherExtId)).toContain(PHONE.tt);
+    expect(test.school.teachers).toBe(real.school.teachers + 1);
+    // the coach card is unchanged by it
+    const coach = await Card.getSchoolCard(fakeDb(tables), 'coach-1', '901', opts());
+    expect(coach.teachers.map((t) => t.teacherExtId)).not.toContain(PHONE.tt);
+  });
+});
+
+
+describe('a FICO17 v6 field-form visit is a field-form visit (rubric fico17_v6; FICO6 R16)', () => {
+  const asV6 = () => { tables.sessions.find((s) => s.id === 'h4').analysis_data.observe2 = { rubric: 'fico17_v6' }; };
+
+  test('counted, listed as observe2, never averaged or charted with the FICO form (as fico17)', async () => {
+    asV6();
+    const card = await Card.getTeacherCard(db, 'coach-1', PHONE.t1, opts());
+    expect(card.summary.coach).toEqual({ count: 3, avg: 50, prevAvg: null });
+    const out = await Card.getTeacherScores(db, 'coach-1', PHONE.t1, 'coach', opts());
+    expect(out).toMatchObject({ kind: 'coach', count: 3, avg: 50 });
+    expect(out.series).toEqual([{ id: 'h1', date: '2026-10-26', score: 50 }]);
+    expect(out.reports.find((x) => x.id === 'h4')).toMatchObject({ score: null, form: 'observe2' });
+    const school = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    expect(school.scores.coach).toMatchObject({ count: 3, avg: 50, points: [{ id: 'h1', date: '2026-10-26', score: 50, teacherExtId: PHONE.t1 }] });
+  });
+
+  test('opens marked observe2', async () => {
+    asV6();
+    expect(await Card.getSession(db, 'coach-1', 'h4', opts())).toMatchObject({ kind: 'coach', form: 'observe2', reviewed: true });
+  });
+
+  test('every read gives what the fico17 visit gives', async () => {
+    const reads = async () => Promise.all([
+      Card.getTeacherCard(db, 'coach-1', PHONE.t1, opts()),
+      Card.getTeacherScores(db, 'coach-1', PHONE.t1, 'coach', opts()),
+      Card.getSchoolCard(db, 'coach-1', '901', opts()),
+      Card.getSchoolScores(db, 'coach-1', '901', 'coach', opts()),
+      Card.getSession(db, 'coach-1', 'h4', opts()),
+    ]);
+    const v5 = await reads();
+    tables = baseTables();
+    db = fakeDb(tables);
+    asV6();
+    const v6 = await reads();
+    // bd-ra8xu.43: the one difference is the session's own rubric label, which names what each visit was scored with.
+    expect(v5[4].rubric).toBe('FICO17 v5');
+    expect(v6[4].rubric).toBe('FICO17 v6');
+    delete v5[4].rubric;
+    delete v6[4].rubric;
+    expect(v6).toEqual(v5);
   });
 });

@@ -92,8 +92,8 @@ const LP612_ETA = Object.freeze({
 
 const UX_STRINGS = {
   // ─── a grade her region has no books for (bd-97daxo.4, operator 6 Nov 2026) ───────────────────────
-  // Gilgit-Baltistan names Grade 1-5 books only (its Afaq books for Grades 6+ are not ready), so a GB
-  // teacher who picks Grade 6+ (or a Grade 1-5 with no GB book yet) is told so, instead of being handed ICT's
+  // Gilgit-Baltistan names Grade 1-10 books only (ICT's books for 6-10, bd-qchgya), so a GB teacher who
+  // picks Grade 11-12 (or a grade with no book on her list) is told so, instead of being handed the wrong
   // books or an error. {grade} arrives in the reader's digits (Urdu digits for ur). Flow error text.
   lpGradeNotForRegionBooks: {
     en: "Lesson plans for Grade {grade} aren't available for your school yet. We'll add them as soon as they're ready.",
@@ -447,6 +447,14 @@ const UX_STRINGS = {
     en: 'This part of the lesson could not be analysed this time, so it is not counted in the score.',
     ur: 'اس بار سبق کے اس حصے کا تجزیہ مکمل نہیں ہو سکا، اس لیے یہ اسکور میں شامل نہیں ہے۔',
   },
+
+  // ─── FICO17 v6 hero report section names (bd-ra8xu.39) ────────────────────
+  // The three v6 sections and the lesson-plan bar on a v6 /observe visit's hero card. Urdu: DRAFT, for a native
+  // speaker's check.
+  reportV6SectionTeacher: { en: 'What the teacher does', ur: 'استاد کا طریقۂ کار' },
+  reportV6SectionChildren: { en: 'What the children do', ur: 'بچوں کی شرکت' },
+  reportV6SectionSubject: { en: 'Subject knowledge', ur: 'مضمون کا علم' },
+  reportV6SectionPlan: { en: 'Following the lesson plan', ur: 'سبق کے منصوبے پر عمل' },
 
   // ─── short-recording length guidance ──────────────────────────────────────
   // Sent BEFORE the chat answer, never instead of it: a recording that is too
@@ -1079,6 +1087,14 @@ const UX_STRINGS = {
   appLinkButtonAttendance: { en: 'Attendance', ur: 'حاضری' },
   appLinkBodyClasses: { en: 'Open your classes.', ur: 'اپنی کلاسیں کھولیں۔' },
   appLinkButtonClasses: { en: 'My classes', ur: 'میری کلاسیں' },
+  // bd-ik5e8j.5 (queue #85) — the caption on Film 1, "How to use NIETE", sent once to a teacher on her first message
+  // after howto_first_touch covers her (howto-first-touch.service). The operator's words: "This is how you use NIETE".
+  // Never "app" (the operator, 11 Nov: NIETE is used through WhatsApp). Imperative, so nothing assumes her gender; the
+  // Urdu opens with Urdu, so it needs no U+200F. A video caption: well under Meta's 1024 code points.
+  howtoFirstTouchCaption: {
+    en: 'Watch this video: how to use NIETE.',
+    ur: 'یہ ویڈیو دیکھیں: NIETE استعمال کرنے کا طریقہ۔',
+  },
   // bd-fmf24g.52 — the COACH app link (app-redirect.service COACH_LINKS): /menu → coach Home, /observe → the coach
   // app's Observe page. Same one-line rule. /menu keeps the /menu words; /observe uses the coach app's own tile
   // (portal coach copy: "Take observation" / مشاہدہ لیں). Imperatives only, so nothing assumes a gender; the Urdu
@@ -1159,6 +1175,31 @@ const UX_STRINGS = {
     ur: 'خوش آمدید، {name}! «ٹھیک ہے» دبائیں، میں چیٹ میں آپ کا ⁦NIETE⁩ پورٹل لنک بھیج دوں گی۔',
   },
   regFormDoneButton: { en: 'Done', ur: 'ٹھیک ہے' },
+  // "Is this you?" (registration v6). Only her own first name, the school she picked and at most the last two digits
+  // of the other account's number. Urdu: name and school isolated with FSI..PDI, the digits (a piece of a phone number)
+  // with LRI..PDI; neutral forms, agreement with اکاؤنٹ or نمبر, never with her.
+  regFormItuHeading: { en: 'Is this you?', ur: 'کیا یہ آپ ہیں؟' },
+  regFormItuBody: {
+    en: 'There’s already an account for {name} at {school}, made with a number ending in {last2}. Is it yours? If it is, I’ll link it to this number.',
+    ur: '⁨{school}⁩ میں ⁨{name}⁩ کے نام سے ایک اکاؤنٹ پہلے سے موجود ہے، جو ⁦{last2}⁩ پر ختم ہونے والے نمبر سے بنا تھا۔ کیا یہ آپ کا ہے؟ اگر ہاں، تو میں اسے اس نمبر سے جوڑ دوں گی۔',
+  },
+  regFormItuBodyNoDigits: {
+    en: 'There’s already an account for {name} at {school}. Is it yours? If it is, I’ll link it to this number.',
+    ur: '⁨{school}⁩ میں ⁨{name}⁩ کے نام سے ایک اکاؤنٹ پہلے سے موجود ہے۔ کیا یہ آپ کا ہے؟ اگر ہاں، تو میں اسے اس نمبر سے جوڑ دوں گی۔',
+  },
+  regFormItuLabel: { en: 'Your answer', ur: 'آپ کا جواب' },
+  regFormItuYes: { en: 'Yes, it’s mine', ur: 'جی ہاں، یہ میرا ہے' },
+  regFormItuNo: { en: 'No, it’s someone else’s', ur: 'نہیں، یہ کسی اور کا ہے' },
+  regFormItuNotSure: { en: 'I’m not sure', ur: 'مجھے یقین نہیں' },
+  // Appended to the welcome after Finish, from the SUCCESS param `identity`.
+  regDoneClaimed: {
+    en: 'This number is now linked to your existing account.',
+    ur: 'یہ نمبر اب آپ کے پہلے والے اکاؤنٹ سے جڑ گیا ہے۔',
+  },
+  regDoneReview: {
+    en: 'I’ve asked for that account to be checked. If it’s yours, it will be linked to this number.',
+    ur: 'میں نے اس اکاؤنٹ کی جانچ کے لیے کہہ دیا ہے۔ اگر یہ آپ کا ہوا تو اسے اس نمبر سے جوڑ دیا جائے گا۔',
+  },
   // Grade and subject options the class catalog (GRADE_LABELS / SUBJECT_LABELS, seeded codes)
   // does not carry; the rest come from gradeLabelFor / subjectLabelFor.
   regGradeHigherSecondary: { en: 'Higher Secondary (11-12)', ur: 'انٹر (⁦۱۱–۱۲⁩)' },
@@ -1736,6 +1777,20 @@ const UX_STRINGS = {
   // it is shared with, and only changeable by republishing the Flow), so a
   // number here would argue with the line directly beneath it. The estimate
   // belongs in the chat ack, where nothing contradicts it.
+  // bd-iceyyu — "Make my own" on the lesson-plan Flow (lp612-own-offer.js). Copy signed off by the product reviewer
+  // (docs/reviews/bd-iceyyu-make-my-own-bot-handoff.md). Row: title ≤30, description ≤20, metadata ≤80 code points.
+  // The row speaks the BOOK's language (like the lesson rows under it); the Flow line and the chat message, hers.
+  lpOwnRowTitle: { en: 'Make my own', ur: 'اپنا پلان بنائیں' },
+  lpOwnRowDesc: { en: '5 questions · 1 min', ur: '۵ سوال · ایک منٹ' },
+  lpOwnRowMeta: { en: 'Your plan, made for your class', ur: 'آپ کی کلاس کے لیے آپ کا اپنا پلان' },
+  lpOwnFlowAck: { en: 'Done. Tap the button in the chat to start.', ur: 'ہو گیا۔ شروع کرنے کے لیے چیٹ میں بٹن دبائیں۔' },
+  lpOwnLinkBody: {
+    en: 'Make your own plan for this chapter. 5 quick taps, about a minute. Link works for 24 hours.',
+    ur: 'اس باب کا اپنا پلان بنائیں۔ ۵ آسان سوال، تقریباً ایک منٹ۔ لنک ۲۴ گھنٹے چلے گا۔',
+  },
+  lpOwnLinkButton: { en: 'Make my own', ur: 'اپنا پلان بنائیں' },
+  lpOwnUnavailable: { en: 'Make my own is not available right now.', ur: 'اپنا پلان بنانا ابھی دستیاب نہیں۔' },
+
   lp612FlowAck: {
     en: 'Your lesson plan is being written now — I will send it to this chat as soon as it is ready.',
     ur: 'آپ کا سبق کا منصوبہ ابھی تیار کیا جا رہا ہے — تیار ہوتے ہی اسی چیٹ میں بھیج دیا جائے گا۔',
@@ -1886,6 +1941,30 @@ const UX_STRINGS = {
   lp612FeedbackReasonThanks: {
     en: 'Got it, thank you — this makes the next lesson better.',
     ur: 'سمجھ گئی، شکریہ — اس سے اگلا سبق بہتر ہوگا۔',
+  },
+
+  // ── assessment paper survey (assessment-feedback.service.js) ─────────────
+  // Same caps and Urdu voice as the LP survey above. The improve ask goes after EITHER tap: a
+  // teacher who liked the paper still knows what would make it better.
+  assessmentFeedbackAsk: {
+    en: 'Was this paper useful for your class?',
+    ur: 'کیا یہ پرچہ آپ کی کلاس کے لیے مفید رہا؟',
+  },
+  assessmentFeedbackYes: {
+    en: '👍 Yes',
+    ur: '👍 ہاں',
+  },
+  assessmentFeedbackNo: {
+    en: '👎 No',
+    ur: '👎 نہیں',
+  },
+  assessmentFeedbackAskImprove: {
+    en: 'Thank you! How can we make the paper or the experience better? (one line is enough)',
+    ur: 'شکریہ! ہم پرچے یا اسے بنانے کے تجربے کو کیسے بہتر بنا سکتے ہیں؟ (ایک سطر کافی ہے)',
+  },
+  assessmentFeedbackReasonThanks: {
+    en: 'Got it, thank you — this makes the next paper better.',
+    ur: 'سمجھ گئی، شکریہ — اس سے اگلا پرچہ بہتر ہوگا۔',
   },
 
   // ── did she actually teach it? (bd-b708h) ────────────────────────────────
@@ -3586,6 +3665,16 @@ const UX_STRINGS = {
   // feedback; when she did, her sentence is used and marked instead.
   vqMultiRight: { en: 'Correct! The full answer is {right}.', ur: 'درست! پورا جواب یہ ہے: {right}۔' },
   vqMultiWrong: { en: 'Not quite — the full answer is {right}.', ur: 'بالکل نہیں — پورا جواب یہ ہے: {right}۔' },
+  // Fixed copy of the single-answer video-quiz render (it was English-only on Urdu quizzes).
+  vqListenCue: { en: 'Listen, then choose your answer.', ur: 'سنیں، پھر اپنا جواب چنیں۔' },
+  vqYourOptions: { en: 'Your options:', ur: 'آپ کے اختیارات:' },
+  vqTapPicture: { en: 'Now tap the picture you think is right.', ur: 'اب اس تصویر پر ٹیپ کریں جو آپ کے خیال میں درست ہے۔' },
+  vqWrongFallback: { en: 'Not quite — the answer is {right}.', ur: 'تقریباً! درست جواب یہ ہے: {right}۔' },
+  vqKeepGoing: { en: 'Keep going, mistakes help you learn!', ur: 'ہمت نہ ہاریں، غلطیوں سے ہی سیکھتے ہیں!' },
+  // Parent roster quiz (quiz-session.service) wrong-answer message.
+  qsNotQuite: { en: 'Not quite!', ur: 'تقریباً، دوبارہ کوشش کریں!' },
+  qsAnswerIs: { en: 'The answer is {option}: {answer}', ur: 'جواب {option} ہے: {answer}' },
+  qsKeepGoing: { en: 'Keep going — mistakes help you learn! 💪', ur: 'ہمت نہ ہاریں، غلطیوں سے ہی سیکھتے ہیں! 💪' },
   // Urdu deliberately uses the listing form ("these are right too") rather than
   // a literal translation of "you missed": every natural Urdu verb for missing
   // agrees in gender/number with the thing missed, which is unknown here and is
@@ -3742,6 +3831,21 @@ const UX_STRINGS = {
   assessmentDoneEmpty: {
     en: 'Keep at least one question on the paper.',
     ur: 'پرچے پر کم از کم ایک سوال رکھیں۔',
+  },
+  // Printed on a Grade 1-2 FDE paper still off its blueprint after one rewrite. Urdu needs fluent review.
+  assessmentOffBlueprintNote: {
+    en: 'Note: this paper does not fully match the FDE blueprint — please check it before printing.',
+    ur: 'نوٹ: یہ پرچہ FDE بلیو پرنٹ سے مکمل طور پر مطابقت نہیں رکھتا — چھاپنے سے پہلے اسے جانچ لیں۔',
+  },
+  // bd-qyi45h.1: a G11/G12 Urdu board paper whose chosen pages hold no poem / no ghazal leaves those questions out;
+  // this line goes on the teacher's marking scheme (board legend) so the teacher knows why.
+  assessmentNoPoemNote: {
+    en: 'No poem in the chosen pages, so the poem questions are left out.',
+    ur: 'منتخب صفحات میں کوئی نظم نہیں، اس لیے نظم کے سوالات شامل نہیں کیے گئے۔',
+  },
+  assessmentNoGhazalNote: {
+    en: 'No ghazal in the chosen pages, so the ghazal questions are left out.',
+    ur: 'منتخب صفحات میں کوئی غزل نہیں، اس لیے غزل کے سوالات شامل نہیں کیے گئے۔',
   },
   // ─── child test (EGRA/EGMA five-minute test, bd-s1oo0.4) ──────────────────
   // The coach's side of the child test: the offer after /observe2, today's list,
@@ -4546,6 +4650,18 @@ const UX_STRINGS = {
   waFeedbackRegisterFirst: {
     en: 'Please register first, then send /feedback. Type /register to start.',
     ur: 'پہلے رجسٹر کریں، پھر ⁦/feedback⁩ بھیجیں۔ شروع کرنے کے لیے ⁦/register⁩ لکھیں۔',
+  },
+
+  // ── a file WhatsApp could not hand us (bd-r2uzg1.2, Meta error 131052) ───────
+  // services/inbound-media-failed.service.js — at most one a day per sender. Impersonal toward the reader in Urdu
+  // (no verb agrees with her). "Too big" is a separate line: a file over the limit fails as a Document too.
+  inboundMediaResend: {
+    en: 'Your file did not reach us: WhatsApp could not pass it on. Please send it again as a Document.',
+    ur: 'آپ کی فائل ہم تک نہیں پہنچی، واٹس ایپ اسے آگے نہیں بھیج سکا۔ براہ کرم اسے دوبارہ ڈاکیومنٹ کے طور پر بھیجیں۔',
+  },
+  inboundMediaTooBig: {
+    en: 'Your file did not reach us: it is bigger than WhatsApp allows (100 MB). Please send a shorter or smaller file.',
+    ur: 'آپ کی فائل ہم تک نہیں پہنچی، یہ واٹس ایپ کی حد سے بڑی ہے۔ براہ کرم چھوٹی فائل بھیجیں۔',
   },
 };
 

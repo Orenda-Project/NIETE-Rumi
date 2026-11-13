@@ -195,7 +195,7 @@ export const LESSONS_COPY = {
   answerKey: 'Answer key',
   openOutside: 'Open in another app',
   preparing: 'Preparing…',
-  aboutTwoMinutes: '~2 min',
+  expectedWait: '~5 min',
   opensByItself: 'Opens by itself',
   otherLessons: 'Other lessons',
   failed: 'Failed',
@@ -300,6 +300,7 @@ export const ASSESSMENT_COPY = {
     TRUNCATED: 'Too many questions',
     MODEL_UNAVAILABLE: 'Busy now',
     BAD_JSON: 'Came out wrong',
+    TOO_MANY_FLAWS: 'Too many weak questions',
     NO_QUESTIONS: 'No questions written',
     RENDER_FAILED: 'File not made',
     UPLOAD_FAILED: 'Not saved',
@@ -546,6 +547,8 @@ export const TRAINING_COPY = {
   download: 'Download',
   myScores: 'My scores',
   notTaken: 'Not taken',
+  /** My scores: a part with no quick check, not watched yet (once watched it reads Done). */
+  noQuickCheck: 'No quick check',
   written: (earned?: number | null, max?: number | null) => `Written ${earned ?? '—'}/${max ?? 0}`,
   choice: (earned?: number | null, possible?: number | null) => `MCQ ${earned ?? 0}/${possible ?? 0}`,
   /** A part (bd-5rz1v.25.2): "Part 4/7", the handout, the quick check. */

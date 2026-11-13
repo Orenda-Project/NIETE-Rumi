@@ -1,3 +1,8 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 'use strict';
 /**
  * PLAN R8 §2.2 — the slide script of the EXACT lesson version a teacher was served.
@@ -85,7 +90,7 @@ async function resolvableVersions(rows, opts = {}) {
  *
  * @param {{lessonId:string, versionStamp?:string, contentHash?:string}} key
  * @param {{client?:object}} opts
- * @returns {Promise<{slideScript:object, verified:string, assetId:string}|null>}
+ * @returns {Promise<{slideScript:object, verified:string, assetId:string, sourceUrl:string|null}|null>}
  *   null when no row matches that exact version. Throws on a DB error — an error
  *   must never be mistaken for "this lesson has no source".
  */
@@ -109,7 +114,7 @@ async function resolveSlideScript(key, opts = {}) {
   if (error) throw new Error(`${TABLE}: ${error.message || error}`);
   if (!data) return null;
 
-  return { slideScript: data.slide_script, verified: data.verified, assetId: data.asset_id };
+  return { slideScript: data.slide_script, verified: data.verified, assetId: data.asset_id, sourceUrl: data.source_url || null };
 }
 
 /**

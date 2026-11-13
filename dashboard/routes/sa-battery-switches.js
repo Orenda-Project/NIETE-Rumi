@@ -95,6 +95,28 @@
  *   sa_r10_practice_gap     audio 4 (a break before the right answer): a practice task's answers are loaded before they are
  *                           said, so the answer starts as "The answer is:" ends (brings sa_r10_bigger_audio's elements with it).
  *
+ *   Round 12 (the Urdu reviewer, 12 Nov), the Whole battery's "your turn" line, ON adds battery.ui.r12_intro_once = true:
+ *   sa_r12_intro_once       the line every Whole-battery part says on its Ready screen ("Now it is your turn. Jugnu will not
+ *                           say if an answer is right until the end.", scripts.js COMMON.test_intro) is said once per run, on
+ *                           the first Ready screen that carries it; later ones say only their begin line (sa-ui.js). The parts
+ *                           that carry it are marked test_intro.once; the words are unchanged, and a line of a part's own
+ *                           (listening, every RDF part) is not marked.
+ *
+ *   Round 13 (the Urdu reviewer, 12 Nov: a part the child cannot finish ends its subject), ONE app_settings row whose value
+ *   picks the meaning, read by two readers (R13_ALL, R13_EARLY), so the reviewer's answer is a data change:
+ *   sa_r13_whole_stop       "all" (or true): battery.ui.r13_whole_stop = 'all', round 7b's "not finished", a time-up included
+ *                           (a timed part whose minute ends before its last item, the story's minute); "early":
+ *                           battery.ui.r13_whole_stop = 'early', only a part the test ended early (the early-stop rule, the
+ *                           silence stop, a spoken question left unanswered). The engine applies it to the Whole battery
+ *                           only (the page's block full); RDF auto, RDF manual and the B-blocks keep their own rule.
+ *
+ *   Round 13b (the Urdu reviewer, 12 Nov: one unanswered spoken question must not end the subject; two in a row do), ONE
+ *   app_settings row holding an integer N, read by four readers (r13OralRule2..5, MATCH), so N is a data change:
+ *   sa_r13_oral_rule        N (2 to 5, a number or its string): battery.ui.r13_oral_rule = N. A spoken part (listening, the
+ *                           story's questions, segmentation) ends its subject only when N questions in a row ran out with
+ *                           nobody pressing "I've answered" / Next. No row, 1 or anything else: OFF (today: one is enough).
+ *                           The engine applies it wherever the move-on rule runs (sa-core.js opts.oral_in_a_row).
+ *
  * Pure: applySwitches(battery, on) never changes its input.
  */
 const SWITCHES = {
@@ -127,7 +149,21 @@ const SWITCHES = {
   // round 10 (Jugnu's voice)
   r10BiggerAudio: 'sa_r10_bigger_audio', r10PracticeGap: 'sa_r10_practice_gap',
   r10FluencyNoPractice: 'sa_r10_fluency_no_practice',
+  // round 12
+  r12IntroOnce: 'sa_r12_intro_once',
+  // round 13: one row, two readers (R13_ALL / R13_EARLY); the value picks the definition
+  r13WholeStopAll: 'sa_r13_whole_stop', r13WholeStopEarly: 'sa_r13_whole_stop',
+  // round 13b: one row, four readers (MATCH); the value is N
+  r13OralRule2: 'sa_r13_oral_rule', r13OralRule3: 'sa_r13_oral_rule', r13OralRule4: 'sa_r13_oral_rule', r13OralRule5: 'sa_r13_oral_rule',
 };
+/** sa_r13_whole_stop's value → which reader is ON (anything else: both OFF). */
+const R13_ALL = (v) => v === true || v === 'all';
+const R13_EARLY = (v) => v === 'early';
+/** sa_r13_oral_rule's value → ON for exactly N (a whole number 2..5, or its string). */
+const ORAL_N = [2, 3, 4, 5];
+const oralIs = (n) => (v) => v === n || v === String(n);
+const MATCH = { r13WholeStopAll: R13_ALL, r13WholeStopEarly: R13_EARLY,
+  ...Object.fromEntries(ORAL_N.map((n) => [`r13OralRule${n}`, oralIs(n)])) };
 const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual', voiceGateV2: 'voice_gate_v2',
   compAllQuestions: 'comp_all_questions', cellPace: 'cell_pace',
   sectionRecording: 'section_recording', coachLastWord: 'coach_last_word', cellNextOnly: 'cell_next_only',
@@ -143,9 +179,10 @@ const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManu
   r9QuestionTime: 'r9_question_time', r9CompText: 'r9_comp_text', r9ScrollCue: 'r9_scroll_cue',
   r9SkipInstructions: 'r9_skip_instructions',
   r10HintOnce: 'r10_hint_once', r10PracticeNext: 'r10_practice_next', r10UrduFit: 'r10_urdu_fit', r10NumberFit: 'r10_number_fit',
-  r10BiggerAudio: 'r10_bigger_audio', r10PracticeGap: 'r10_practice_gap' };
+  r10BiggerAudio: 'r10_bigger_audio', r10PracticeGap: 'r10_practice_gap', r12IntroOnce: 'r12_intro_once' };
 const { applyR7a } = require('./sa-r7a-content');
 const { withCounts } = require('../../bot/shared/services/child-test/sa/counts');
+const { COMMON } = require('../../bot/shared/services/child-test/sa/scripts');
 
 const W3_KEYS = ['rdf_auto', 'rdf_manual', 'rdf_variants', 'rdf_w3_absent'];
 // Round 7b (sa_silence_repeat): Jugnu's reminder, voiced in both sets (dashboard/sa/v1|v2/<lang>/<key>.mp3, keyed as the bank
@@ -163,6 +200,13 @@ function withoutFluencyPractice(task) {
   return { ...task, practice: [], ...(task.script ? { script } : {}) };
 }
 
+/** Round 12, sa_r12_intro_once: the part's test_intro marked once when it is the common "your turn" line in `lang`. */
+function withIntroOnce(task, lang) {
+  const ti = task && task.script && task.script.test_intro;
+  if (!ti || !COMMON.test_intro[lang] || ti.text !== COMMON.test_intro[lang]) return task;
+  return { ...task, script: { ...task.script, test_intro: { ...ti, once: true } } };
+}
+
 /** OFF: the battery less everything the W3 forms added. */
 function withoutW3(battery) {
   if (!battery.rdf_auto && !battery.tasks.some((t) => t.w3)) return battery;
@@ -178,6 +222,7 @@ function applySwitches(input, on = {}) {
   // round 8, sa_r8_counts: the RDF forms' counts (only W3 tasks carry them, so nothing changes without sa_rdf_w3_forms)
   const battery = on.r8Counts === true ? withCounts(w3) : w3;
   const fluencyOff = (t) => (on.r10FluencyNoPractice === true ? withoutFluencyPractice(t) : t);
+  const introOnce = (t) => (on.r12IntroOnce === true ? withIntroOnce(t, battery.lang) : t);
   const tasks = battery.tasks.map((t) => {
     const demo = !!(t.script && t.script.demo_item);
     if (!t.practice_v2 && !demo && !t.variants) return t;
@@ -191,14 +236,20 @@ function applySwitches(input, on = {}) {
     }
     delete o.practice_v2;
     return o;
-  }).map(fluencyOff);
+  }).map(fluencyOff).map(introOnce);
   const ui = Object.keys(UI).filter((k) => on[k] === true);
+  // round 13: the Whole battery's definition of "not finished" (all wins if both readers answer ON)
+  const r13 = on.r13WholeStopAll === true ? 'all' : (on.r13WholeStopEarly === true ? 'early' : null);
+  if (r13) ui.push('r13WholeStop');
+  // round 13b: how many spoken questions in a row left unanswered end the subject (the smallest N read ON)
+  const oralN = ORAL_N.find((n) => on[`r13OralRule${n}`] === true) || null;
+  if (oralN) ui.push('r13OralRule');
   // round 7b, the child's screens: the lines and the T clip their switches add (sa-r7a-content.js); none when OFF
   if (!ui.length) return applyR7a({ ...battery, tasks }, on);
   // round 7b, sa_silence_repeat: Jugnu's reminder line in the battery's own language
   const line = on.silenceRepeat === true ? SILENCE_LINE[battery.lang] : null;
   const lines = line ? { ...(battery.lines || {}), silence_repeat: { ...line } } : null;
-  return applyR7a({ ...battery, tasks, ...(lines ? { lines } : {}), ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => [UI[k], true])) } }, on);
+  return applyR7a({ ...battery, tasks, ...(lines ? { lines } : {}), ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => (k === 'r13WholeStop' ? ['r13_whole_stop', r13] : k === 'r13OralRule' ? ['r13_oral_rule', oralN] : [UI[k], true]))) } }, on);
 }
 
-module.exports = { SWITCHES, applySwitches };
+module.exports = { SWITCHES, MATCH, R13_ALL, R13_EARLY, applySwitches };

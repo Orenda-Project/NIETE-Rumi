@@ -225,7 +225,7 @@ describe("sa_r8_offline_prep", () => {
     expect(prep.mock.calls[0][0]).toEqual(["sa.coach.G3.A.ur", "sa.coach.G3.A.en"]);
     expect(JSON.parse(window.localStorage.getItem("assess:r8:prep") as string)).toMatchObject({ ok: true, forms: ["sa.coach.G3.A.ur", "sa.coach.G3.A.en"] });
     // the page itself is kept too, with the list read it made, so a reloaded tab opens at the school
-    expect(keepPage).toHaveBeenCalledWith(["/api/portal/leader/child-test/sa/list?schoolId=s2&visitId=v2"]);
+    expect(keepPage).toHaveBeenCalledWith(["/api/portal/leader/child-test/sa/list?schoolId=s2&visitId=v2"], expect.any(Object));
     expect(dropPage).not.toHaveBeenCalled();
   });
 
@@ -265,7 +265,7 @@ describe("sa_r8_offline_prep", () => {
     expect(api.getList.mock.calls.map((c: any[]) => c[2])).toEqual([2, 4]);
     expect(prep.mock.calls[0][0]).toEqual(["sa.coach.G2.A.ur", "sa.coach.G2.A.en", "sa.coach.G4.A.ur", "sa.coach.G4.A.en"]);
     expect(JSON.parse(window.localStorage.getItem("assess:r8:list:s2:4") as string).grade).toBe(4);
-    expect(keepPage).toHaveBeenCalledWith(["/api/portal/leader/child-test/sa/list?schoolId=s2&visitId=v2&grade=2", "/api/portal/leader/child-test/sa/list?schoolId=s2&visitId=v2&grade=4"]);
+    expect(keepPage).toHaveBeenCalledWith(["/api/portal/leader/child-test/sa/list?schoolId=s2&visitId=v2&grade=2", "/api/portal/leader/child-test/sa/list?schoolId=s2&visitId=v2&grade=4"], expect.any(Object));
   });
 
   it("ON: the page is kept before the lists are read (a list that never answers still leaves the page openable offline)", async () => {

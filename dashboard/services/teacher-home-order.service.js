@@ -1,3 +1,8 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 'use strict';
 /**
  * Teacher Home card — the teacher Home's per-teacher tile order and its ONE card, as pure functions plus the reads behind them.
@@ -135,6 +140,8 @@ function scoreOf(row) {
   if (!row || !row.id) return null;
   const s = (row.analysis_data && row.analysis_data.scores) || (row.scores && typeof row.scores === 'object' ? row.scores : null);
   if (!s) return null;
+  // bd-ra8xu.38 / bd-pni007: a FICO17 v6 or FDE obs612 score is not her V3 mark.
+  if (require('./coaching-frameworks.service').isOwnRubric(row.analysis_data || s)) return null;
   const raw = s.overall_marks != null ? s.overall_marks : s.grand_total;
   if (raw == null || raw === '' || !Number.isFinite(Number(raw))) return null;
   const o = getOverall({ scores: s });
@@ -154,11 +161,13 @@ const isoOf = (v) => (Number.isFinite(toMs(v)) ? new Date(toMs(v)).toISOString()
  * @param {number|null} p.lpCount      lesson_plans ever (null when the read failed: rung 5 cannot fire on a failure)
  * @param {string|null} [p.quizHome]   the signed quiz home path (defaults to bot.path)
  * @param {boolean} [p.isCoach]        a coach / principal: never rungs 1 and 3
+ * @param {boolean} [p.firstPlan]      false: never rung 5 (a principal on the principal app, bd-33wxxi.9.1: her Home does
+ *                                     not lead with "Make your first lesson plan"); default true
  * @param {string|number|Date} p.now
  * @returns {null|{kind, title, played?, from?, score?, max?, at?, href, id?}}  score = the marks, max beside it (both
  *          null when the row has no usable marks)
  */
-function pickCard({ bot = null, coach = null, observation = null, lastPlan = null, lpCount = null, quizHome, isCoach = false, now = new Date() } = {}) {
+function pickCard({ bot = null, coach = null, observation = null, lastPlan = null, lpCount = null, quizHome, isCoach = false, firstPlan = true, now = new Date() } = {}) {
   const t = toMs(now);
   const home = quizHome !== undefined ? quizHome : (bot && typeof bot.path === 'string' ? bot.path : null);
   const quizOk = !isCoach && typeof home === 'string' && home.length > 0;
@@ -202,8 +211,8 @@ function pickCard({ bot = null, coach = null, observation = null, lastPlan = nul
       score: s ? s.marks : null, max: s ? s.max : null, at: isoOf(observation.created_at), href: '/portal/teacher/observations', id: String(observation.id),
     };
   }
-  // 5 — first plan: none ever (a failed count is not zero).
-  if (lpCount === 0) return { kind: 'first_plan', title: '', href: '/portal/teacher/lessons' };
+  // 5 — first plan: none ever (a failed count is not zero). Never for a principal on the principal app (firstPlan false).
+  if (firstPlan !== false && lpCount === 0) return { kind: 'first_plan', title: '', href: '/portal/teacher/lessons' };
   return null;
 }
 

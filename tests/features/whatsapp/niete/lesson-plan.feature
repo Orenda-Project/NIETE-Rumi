@@ -187,6 +187,19 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # decide is still withheld, which is the scenario below.
 
   @e2e @content-driven @P1
+  Scenario: A history plan naming Zahiruddin Muhammad Babur is delivered in Urdu, not swapped for English
+    Given the NIETE bot chat is open on a teacher whose language is Urdu
+    And I have opened the LP Flow
+    When I complete it for "grade_7_history.c05.p081-082" (The Mughal Empire) and choose Urdu
+    Then a lesson-plan PDF is delivered to the chat
+    And the plan is in Urdu, with no note that it was sent in English instead
+    # bd-9mc3nz. Production 2026-11-11: the Urdu page set Babur's name as «ظہیر الدین محمد بابر», the
+    # religious gate's DETECTION counted that محمد as the Prophet, check 6 refused the page for lacking
+    # the human-review hold, and the teacher got English. A محمد straight after an "-ud-din" title is a
+    # ruler's laqab, never the Prophet; every real mention is still held (religious-detection-compound-
+    # names.test.js pins the guards).
+
+  @e2e @content-driven @P1
   Scenario: An English-medium plan naming the Quaid is delivered, because the same review cleared the Latin spelling
     Given the NIETE bot chat is open
     And the G5c review has decided "Muhammad Ali Jinnah" is an ordinary person, and the bare name "Muhammad" is the Prophet
@@ -1189,3 +1202,38 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the session records not_lesson_plan or a failed status for the app to show
     And no "doesn't look like a lesson plan" or "couldn't read the file" message is sent to the teacher
     And a teacher who uploaded her own plan on WhatsApp is still told, as before
+
+  # ─────────────── Make my own, a hand-off to the portal (bd-iceyyu, app_settings portal_lp_make_own) ───────────────
+  # Operator, 9 Nov: WhatsApp messages cost money since 1 Oct, so the five questions are the portal's; the bot sends
+  # ONE link. Unit: tests/lp612/bd-iceyyu-own-offer.test.js, bd-iceyyu-endpoint-own.test.js, bd-iceyyu-catalog-lead.test.js.
+  # Flow screens render only on a real phone: sandbox, operator's number, flag on.
+
+  @e2e @config-gated @flow @P1
+  Scenario: With Make my own on for me, a Grades 6-12 chapter opens with Make my own first, and one tap sends one link
+    Given "portal_lp_make_own" is true, "teachers", or lists me, and I am on the teacher app
+    When I open the lesson-plan Flow and pick a Grade 6-12 grade, subject and chapter
+    Then the first row on the chapter's lesson screen is "Make my own" ("اپنا پلان بنائیں" on an Urdu book), above the lessons
+    And the screen never shows more than 20 rows, and every lesson is still reachable through "More lessons"
+    When I tap "Make my own"
+    Then the Flow closes saying the button is in the chat
+    And I get exactly ONE message in my language with a "Make my own" button
+    When I tap the button
+    Then the portal's Make my own opens signed in, on that chapter, at its first question
+
+  @e2e @config-gated @negative @flow @P1
+  Scenario: With Make my own off or not for me, the chapter's lesson screen is exactly as before
+    Given "portal_lp_make_own" is absent, false, or a list without me, or I am not on the teacher app
+    When I open the lesson-plan Flow and pick a Grade 6-12 chapter
+    Then the lesson screen shows the lessons exactly as before, with no "Make my own" row
+    And a "Make my own" row left in my scrollback from before is refused and sends nothing
+
+  @e2e @draft @P1
+  Scenario: A Grades 1–5 lesson plan arrives with no voice note and no voice-note script lookup
+    Given the NIETE bot chat is open
+    When I take a Grades 1–5 lesson plan from the LP Flow
+    Then the chat receives the "Preparing" line and the lesson-plan PDF
+    And no lesson voice note follows it
+    And a question I type about that plan is answered without reading a voice-note script
+    # Product decision 11 Nov 2026 (bd-xxejb, bd-juo829, bd-hz6ez.12): K-5 v8 audio is not backfilled,
+    # so every send and script lookup was failing. Code switch bot/shared/config/lp-v8-voicenote.js
+    # (off; not an env flag). Unit: bot/tests/lp-v8/voicenote-off.test.js.

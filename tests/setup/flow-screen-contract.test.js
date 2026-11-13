@@ -31,6 +31,7 @@ const PAIRS = [
   ['bot/shared/routes/student-quiz-flow-endpoint.js', 'docs/flows/student-quiz-flow.json'],
   ['bot/shared/routes/observe2-form-endpoint.js', 'docs/flows/observe2-field-form.json'],
   ['bot/shared/routes/observe2-check-endpoint.js', 'docs/flows/observe2-evidence-check.json'],
+  ['bot/shared/routes/obs612-endpoint.js', 'bot/docs/flows/obs612-flow.json'],
 ];
 
 describe('flow screen contract', () => {

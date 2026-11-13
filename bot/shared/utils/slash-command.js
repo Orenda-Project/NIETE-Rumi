@@ -13,7 +13,9 @@
  * teacher who copies an isolated command (the LRI/PDI come along with the copy).
  *
  * Only a WHOLE message that is one known command word is rewritten. "Attendance/menu" and a bare
- * "menu" are not commands and pass through unchanged.
+ * "menu" are not commands and pass through unchanged here. (bd-2ym4ve: a bare "menu", and one or
+ * two words containing it, are the menu's own keyword door — services/menu-request.js, called by
+ * the text handler right after this.)
  *
  * bd-xw56ed — and a slip of the finger is the command too. Production, 20 Oct 2026: "/assesments"
  * then "/assesment", both answered by the general AI chat. Rather than list typos, a one-word
@@ -133,4 +135,5 @@ function canonicalizeSlashCommand(text) {
   return { text, form: null };
 }
 
-module.exports = { canonicalizeSlashCommand, COMMANDS };
+// OTHER_COMMANDS: read by services/menu-request.js (bd-2ym4ve) — a message carrying one of these is that door's.
+module.exports = { canonicalizeSlashCommand, COMMANDS, OTHER_COMMANDS };

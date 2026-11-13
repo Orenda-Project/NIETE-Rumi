@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useObserveRoutes } from "../observe/observeRoutes";
 import { Link, useParams } from "react-router-dom";
 import { useBack } from "../../lib/useBack";
 import { AlertTriangle, ChevronRight, MapPin } from "lucide-react";
@@ -6,6 +7,7 @@ import { coach, leader } from "../../services/api";
 import type { CoachObservationView } from "../../services/api";
 import { useCopy } from "../../teacher/i18n";
 import { LESSONS } from "../../teacher/lessons/copy";
+import { COACHING } from "../../teacher/coaching/copy";
 import { dayName, pkDayOf, pkToday } from "../../teacher/lessons/days";
 import { LoadState } from "../../teacher/lessons/LoadState";
 import { PageChip } from "../../teacher/TeacherPage";
@@ -19,8 +21,9 @@ import { Card, useLoad } from "../ui";
 import ReportsFrame from "../reports/ReportsFrame";
 import { REPORTS } from "../reports/copy";
 import { pkTime } from "../reports/data";
-import { OBSERVATION_STEPS, observationPath } from "../reports/paths";
+import { OBSERVATION_STEPS } from "../reports/paths";
 import { LessonPlanRow } from "../observe/PlanState";
+import { Obs612Block } from "../../components/coaching/Obs612Block";
 
 /**
  * bd-o15qnr.19 / bd-4404s7.5 — the one v2 observation page (Blueprint Coach_Observation and _Sent), opened from
@@ -65,10 +68,12 @@ const HER_STEPS = ["draft", "talk", "feedback", "report"];
 
 const CoachObservation = () => {
   const C = useCopy(REPORTS);
+  const { stepRecording } = useCopy(COACHING);
   const kit = useKitCopy();
   const bidi = useBidi();
   const { days } = useCopy(LESSONS);
   const { id = "" } = useParams();
+  const routes = useObserveRoutes();
   // bd-jjcofw.9 — a fresh read of both answers on every tick: while the Digital Coach works, and when she comes back.
   const [tick, setTick] = useState(0);
   const { data, failed, reload } = useLoad(() => coach.getObservation(id), [id, tick]);
@@ -93,7 +98,7 @@ const CoachObservation = () => {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
-  const back = useBack("/portal/coach/reports");
+  const back = useBack(routes.reports);
   const name = data?.teacher?.name || view?.teacher?.name || C.dash;
   const first = name.split(/\s+/)[0] || name;
   const stopped = view?.step === "stopped";
@@ -134,7 +139,7 @@ const CoachObservation = () => {
 
   const time = data ? pkTime(data.date) : null;
   const dock = dockStep ? (
-    <Link to={observationPath(id, dockStep)} data-testid="obs-dock"
+    <Link to={routes.observation(id, dockStep)} data-testid="obs-dock"
       className={cn("flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white", FOCUS)}>
       {labels[at]}<ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
     </Link>
@@ -153,6 +158,20 @@ const CoachObservation = () => {
       {data && (
         <>
           {(() => {
+            // bd-33wxxi.6 — no scores (the principal app, #55 Q1): the lesson still plays, under its own word
+            // ("Class recording", Digital Coaching's), with no ring and no score line; no recording, no card.
+            if (!routes.showScores) return data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} /> : null;
+            // bd-pni007 — an FDE visit has no FICO score: the lesson (if recorded), then FDE's own result.
+            // bd-ra8xu.40 — before Submit there is no result yet (the visit is FDE by its rubric): the lesson alone.
+            const fdeVisit = /^obs612-/.test(String(view?.rubric?.id || ""));
+            if (data.obs612 || fdeVisit) {
+              return (
+                <>
+                  {data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} /> : null}
+                  {data.obs612 ? <Obs612Block o={data.obs612} /> : null}
+                </>
+              );
+            }
             const ring = <ScoreRing value={score} label={C.dcScore} />;
             const sub = allDone && data.score != null ? C.finalScore(C.pct(data.score)) : C.draftBeforeCheck;
             return data.audioUrl
@@ -167,6 +186,11 @@ const CoachObservation = () => {
                 </section>
               );
           })()}
+
+          {/* bd-ra8xu.40 — the rubric this visit was scored with, very small (an FDE block prints its own). */}
+          {!data.obs612 && view?.rubric?.label && (
+            <span data-testid="rubric-label" dir="ltr" className="self-end px-1 text-[10px] leading-none text-[#9ca3af]">{view.rubric.label}</span>
+          )}
 
           <LessonPlanRow lp={view?.lessonPlan} />
 
@@ -185,9 +209,9 @@ const CoachObservation = () => {
             <>
               <h2 className="mx-1 mt-2 text-[22px] font-semibold leading-[1.2]">{C.whatYouMade}</h2>
               <div className={LIST_CARD} data-testid="what-you-made">
-                <ListRow icon="file" label={C.stepForm} subtitle={C.formRowSub} variant="row" first to={observationPath(id, "form")} />
-                {view?.talk.guide && <ListRow icon="file" label={C.stepDebrief} subtitle={C.debriefRowSub} variant="row" first={false} to={observationPath(id, "debrief")} />}
-                {view?.talk.feedback && <ListRow icon="file" label={C.stepFeedback} subtitle={C.feedbackRowSub} variant="row" first={false} to={observationPath(id, "feedback")} />}
+                <ListRow icon="file" label={C.stepForm} subtitle={C.formRowSub} variant="row" first to={routes.observation(id, "form")} />
+                {view?.talk.guide && <ListRow icon="file" label={C.stepDebrief} subtitle={C.debriefRowSub} variant="row" first={false} to={routes.observation(id, "debrief")} />}
+                {view?.talk.feedback && <ListRow icon="file" label={C.stepFeedback} subtitle={C.feedbackRowSub} variant="row" first={false} to={routes.observation(id, "feedback")} />}
               </div>
             </>
           )}

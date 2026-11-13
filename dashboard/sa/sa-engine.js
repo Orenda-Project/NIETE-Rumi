@@ -146,6 +146,9 @@
         // the passage as printed, and RDF manual (the page passes manual for block rdf_manual; coach mode only).
         var w3 = battery.ui || {};
         var manual = mode === 'proctored' && opts.manual === true;
+        // Round 13 (battery.ui.r13_whole_stop): the Whole battery's own move-on rule, 'all' (a time-up is not finished) or
+        // 'early' (a time-up is finished); only a proctored Whole-battery run (the page's whole), never coach-led.
+        var wholeStop = mode === 'proctored' && !manual && opts.whole === true && (w3.r13_whole_stop === 'all' || w3.r13_whole_stop === 'early') ? w3.r13_whole_stop : null;
         runner = core.createRunner({ battery: battery, now: now, session_id: sessionId, resume: resume, onEvent: onEvent, audio_check: !resume && opts.audio_check !== false, warmup: !resume && opts.warmup !== false,
           dev_tools: devTools, mic: deps.micState || micState, mic_check: mode === 'game', oral_practice: opts.oral_practice !== false, keypad_warmup: opts.keypad_warmup !== false,
           one_at_a_time: w3.one_at_a_time === true, manual: manual, comp_all_questions: w3.comp_all_questions === true,
@@ -153,7 +156,11 @@
           // sa_auto_no_last_word (round 7): RDF auto ends the passage on "I'm done" / time up, with no last-word step.
           skip_last_word: w3.auto_no_last_word === true && mode === 'proctored' && !manual,
           // round 7b (the runner keeps each to its mode: end_section RDF manual; incomplete and silence_repeat RDF auto)
-          end_section: w3.end_section === true && mode === 'proctored', incomplete: w3.incomplete_move_on === true && mode === 'proctored',
+          end_section: w3.end_section === true && mode === 'proctored', incomplete: wholeStop ? true : (w3.incomplete_move_on === true && mode === 'proctored'),
+          timeup_continue: wholeStop === 'early', timeup_counts: wholeStop === 'all',
+          // Round 13b (battery.ui.r13_oral_rule): N spoken questions in a row left unanswered end the subject (the runner
+          // keeps it to wherever the move-on rule runs); absent, one is enough, as before.
+          oral_in_a_row: typeof w3.r13_oral_rule === 'number' && w3.r13_oral_rule >= 2 ? w3.r13_oral_rule : null,
           silence_repeat: silenceRepeat });
         var vo = { lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); }, onSilent: function (s) { fire('silent', s); },
           // a line held by a hidden page (parked, paused, resumed, gave_up): kept on the session (voice_held)

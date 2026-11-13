@@ -59,7 +59,11 @@ export function formsFor(grades: number[], langs: Lang[] = LANGS): string[] {
 }
 
 export type Progress = { done: number; total: number; bytes: number };
-export type PrepResult = { ok: boolean; total: number; cached: number; missing: number; bytes: number; why?: string };
+/** forms: the engine's per-battery answer (dashboard/sa/sa-offline.js prepVisit), when it gives one */
+export type PrepResult = {
+  ok: boolean; total: number; cached: number; missing: number; bytes: number; why?: string;
+  forms?: Array<{ form: string; ok: boolean; files: number; missing: number }>;
+};
 export type CheckResult = { ready: boolean; total: number; cached: number; why?: string };
 
 export type Part = { block: string; seed: string };
@@ -150,8 +154,11 @@ function postAsk(w: ServiceWorker, msg: unknown, waitMs = 60_000): Promise<{ ok:
   });
 }
 
-/** sa_r8_offline_prep: register the page's worker and keep the page, its files and these reads. Never throws. */
-export async function keepPageOffline(lists: string[]): Promise<boolean> {
+/**
+ * sa_r8_offline_prep: register the page's worker and keep the page, its files and these reads. Never throws.
+ * out.missing: what the worker could not keep (for the Get ready report).
+ */
+export async function keepPageOffline(lists: string[], out?: { missing?: string[] }): Promise<boolean> {
   try {
     const nav = navigator.serviceWorker;
     if (!nav) return false;
@@ -170,6 +177,7 @@ export async function keepPageOffline(lists: string[]): Promise<boolean> {
     }
     if (!w) return false;
     const r = await postAsk(w, { type: 'warm', urls: pageUrls(lists) });
+    if (out && r) out.missing = r.missing || [];
     return !!r?.ok;
   } catch { return false; }
 }

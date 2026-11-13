@@ -42,7 +42,12 @@
 // the page offline gets it only through this bump).
 // sa-21: round 10: the engine files of three lanes in one bump (sa-ui.js and sa.css: the hint heard once, Next at once after
 // practice, Urdu centred and whole, numbers sized to their box; sa-voice.js and sa-engine.js: clips play with no tap behind them).
-var VERSION = 'sa-21';
+// sa-22: round 12: sa-ui.js (r12_intro_once: the Whole battery's "your turn" line said once per run).
+// sa-23: round 13: sa-page.js, sa-engine.js and sa-core.js (r13_whole_stop: the Whole battery moves on to the next
+// subject when a part is not finished).
+// sa-24: round 13b: sa-engine.js and sa-core.js (r13_oral_rule: a spoken part ends its subject only after N questions in a
+// row ran out unanswered).
+var VERSION = 'sa-24';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -60,7 +65,11 @@ var CORE = 'sa-core-' + VERSION;
 // reviewers' Section 11 edits, "my friend" / «پیارے دوست», operations named in English); a kept copy would play the old one.
 // v14: round 10 release A: the reviewers' 6 Nov corrections in the battery files («جزیرہ», «ہر جواب», "Jugnu will just
 // listen", «دبائیں» for every "press") and Urdu v4 clips re-voiced under their keys so «آواز میں» is said in full.
-var SESSION = 'sa-session-v14';
+// v15: round 10 release B: the English v4 clips re-made under their keys in the reviewers' picked voice (lower, calmer and
+// a little slower), their word timings scaled to match.
+// v16: round 12: the Urdu letter name «ثے» (said "se") re-voiced under its three keys (the letter alone and its two
+// practice answers), which the voice had read as a "t"/"th" sound; the two answers' word timings re-made.
+var SESSION = 'sa-session-v16';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;

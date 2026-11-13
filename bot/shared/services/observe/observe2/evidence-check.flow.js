@@ -14,6 +14,19 @@
  *       way, partly, not done, couldn't tell), with what was seen. The coach changes any they saw
  *       differently and the same scorer re-scores it, as in /observe's Section B. Otherwise the last
  *       moments screen goes straight to the levels.
+ *   COMBINED_ONE, COMBINED_TWO, COMBINED_THREE   (FICO17 v6 visits only, bd-ra8xu.38)
+ *       The six indicators the coach sets from the room (C3 C5 / C7 D3 / D4 D2): each its v6 definition, what
+ *       the recording showed for it and what the coach adds, a level that starts BLANK, and a required reason
+ *       (20+ characters, checked by the endpoint). D2 also takes the two child counts. A v5 visit never sees them.
+ *   COMBINED_THREE_COUNTS   (v6, FICO6 r2) COMBINED_THREE with D2's counts pre-filled from the live form, opened
+ *       instead of it when the form has both counts (spec §7.4).
+ *   MISSED   (v6 visits only, FICO6)
+ *       "Add one Rumi missed": up to two moments the coach saw that Rumi did not list, each a type, the minute and
+ *       the words; they count as confirmed moments. Between the moments screens and COMBINED_ONE.
+ *   ADDED_DC_ONE, ADDED_DC_TWO   (v6 visits only)
+ *       Rumi's other 11 levels, pre-selected as ADDED_* are, with the v6 titles; per screen, why the coach changed
+ *       any: a reason from the list, the minute (optional) and a note (both needed by the endpoint only when a
+ *       level was changed; spec §9.1).
  *   ADDED_ONE, ADDED_TWO
  *       Every level, pre-selected with what the coach's sealed answers and confirmed moments add up
  *       to (rules.js). Rumi's own level is never shown. The coach changes any they disagree with.
@@ -31,6 +44,8 @@
  */
 
 const { MOMENTS, PLAIN, EXTRA, ROW, FOCUS, FOCUS_DESCRIPTION, FOCUS_ORDER, ALSO_NONE, THINKING } = require('./fico17');
+const V6 = require('../../coaching/frameworks/fico17-v6');
+const { observe2Strings } = require('./strings');
 
 const FLOW_VERSION = '7.3';
 // This check's own version, sent by the footers whose next screen's data changed (ADDED_TWO, PRIORITY):
@@ -63,10 +78,43 @@ const ADDED_SCREENS = [
   { id: 'ADDED_ONE', title: 'Added up: asking, wrong', codes: [...MOMENT_BY_ID.ask.codes, ...MOMENT_BY_ID.wrong.codes] },
   { id: 'ADDED_TWO', title: 'Added up: working, explaining', codes: [...MOMENT_BY_ID.work.codes, ...MOMENT_BY_ID.explain.codes] },
 ];
+// FICO17 v6 (bd-ra8xu.38). The last moments screen posts V6_CHECK, so the endpoint knows this Flow has the v6
+// screens: a v6 visit opened on a Flow published before them runs on the v5 screens rather than break.
+// '2' (FICO6) brought MISSED and the reason radio on ADDED_DC_*: a v6 visit on a '1' Flow skips MISSED and its
+// changes need only the written reason, as that Flow asks.
+// '3' (FICO6 r2) brought COMBINED_THREE_COUNTS: a '2' Flow gets COMBINED_THREE with blank count boxes.
+const V6_CHECK = '3';
+// "Add one Rumi missed" (spec §9.2, RULINGS R7): two slots, each a type, the minute and the words.
+const MISSED_SLOTS = 2;
+const MISSED_WORDS_MAX = 280;
+const COMBINED_SCREENS = [
+  { id: 'COMBINED_ONE', title: 'From the room (1 of 3)', codes: ['C3', 'C5'] },
+  { id: 'COMBINED_TWO', title: 'From the room (2 of 3)', codes: ['C7', 'D3'] },
+  { id: 'COMBINED_THREE', title: 'From the room (3 of 3)', codes: ['D4', 'D2'] },
+];
+// COMBINED_THREE with D2's two count boxes pre-filled from the live form (spec §7.4): the children who spoke
+// (p1_spoke + p2_new) and the ones who spoke first in Part 2 (p2_new). Meta takes a number box's init value only as
+// a number and there is no empty one, so the endpoint opens this copy only when the form has both counts.
+const COMBINED_COUNTS = { id: 'COMBINED_THREE_COUNTS', of: 'COMBINED_THREE' };
+const D2_COUNT_INIT = { d2_children: 'd2_children_init', d2_quiet_later: 'd2_quiet_init' };
+const dcOnly = (codes) => codes.filter((c) => V6.isDc(c));
+const ADDED6_SCREENS = [
+  {
+    id: 'ADDED_DC_ONE', title: "Rumi's levels (1 of 2)", codes: dcOnly([...MOMENT_BY_ID.ask.codes, ...MOMENT_BY_ID.wrong.codes]),
+    why: 'why6_one', kind: 'why6_kind_one', min: 'why6_min_one',
+  },
+  {
+    id: 'ADDED_DC_TWO', title: "Rumi's levels (2 of 2)", codes: dcOnly([...MOMENT_BY_ID.work.codes, ...MOMENT_BY_ID.explain.codes]),
+    why: 'why6_two', kind: 'why6_kind_two', min: 'why6_min_two',
+  },
+];
+// Why a level Rumi set was changed (spec §9.1), the ids stored as override.reason.
+const OVERRIDE_REASONS = ['didnt_happen', 'wrong_speaker', 'wrong_label', 'recording_missed', 'rubric_doesnt_fit'];
+const ERR = { error_messages: { type: 'object', __example__: {} } };
 const ORDER = MOMENTS.flatMap((m) => m.codes);
 const YES_NO = [{ id: 'yes', title: 'Yes, this happened' }, { id: 'no', title: 'No, or not like this' }];
 
-function screenWith(id, title, children, footerLabel, data, initValues, extraPayload) {
+function screenWith(id, title, children, footerLabel, data, initValues, extraPayload, withErrors) {
   const fields = [];
   const collect = (list) => list.forEach((c) => {
     if (c.name) fields.push(c.name);
@@ -79,6 +127,7 @@ function screenWith(id, title, children, footerLabel, data, initValues, extraPay
     type: 'Form',
     name: `${id.toLowerCase()}_form`,
     ...(initValues ? { 'init-values': initValues } : {}),
+    ...(withErrors ? { 'error-messages': '${data.error_messages}' } : {}),
     children: [...children, { type: 'Footer', label: footerLabel, 'on-click-action': { name: 'data_exchange', payload } }],
   };
   return { id, title, data, layout: { type: 'SingleColumnLayout', children: [form] } };
@@ -96,6 +145,11 @@ function heardScreen({ id, title, moment }) {
     { type: 'TextHeading', text: MOMENT_BY_ID[moment].question },
     { type: 'TextBody', text: `\${data.${intro}}` },
   ];
+  // bd-ra8xu.43: the visit's stored rubric (framework + version), one small line atop the first screen, for debugging.
+  if (id === 'HEARD_ASK') {
+    data.scored_with = { type: 'string', __example__: 'FICO17 v6' };
+    kids.unshift({ type: 'TextCaption', text: '${data.scored_with}' });
+  }
   for (let i = 1; i <= SLOTS; i += 1) {
     const k = `${id.toLowerCase()}_${i}`;
     data[`${k}_t`] = { type: 'string', __example__: '12:41 · open question' };
@@ -106,7 +160,7 @@ function heardScreen({ id, title, moment }) {
       visible: `\${data.${k}_v}`, required: false, 'data-source': YES_NO,
     });
   }
-  return screenWith(id, title, kids, 'Next', data);
+  return screenWith(id, title, kids, 'Next', data, null, id === 'HEARD_EXPLAIN' ? { v6c: V6_CHECK } : null);
 }
 
 function fidelityScreen() {
@@ -156,6 +210,95 @@ function addedScreen({ id, title, codes }) {
   // The last level screen's answer is the PRIORITY screen, whose data changed with "Also work on".
   const last = id === ADDED_SCREENS[ADDED_SCREENS.length - 1].id;
   return screenWith(id, title, kids, 'Next', data, init, last ? { cv: CHECK_VERSION } : null);
+}
+
+// "Add one Rumi missed" (v6 only, between the moments and the room levels): every field optional; a slot counts
+// only with a type and words (the endpoint). The types come from the endpoint, so a new moment type never
+// changes this Flow.
+function missedScreen() {
+  const S = observe2Strings('en');
+  const data = {
+    missed_types: {
+      type: 'array',
+      items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' } } },
+      __example__: [{ id: 'open_q_one', title: 'open question' }, { id: 'probe', title: "'why' follow-up" }],
+    },
+  };
+  const kids = [{ type: 'TextBody', text: S.missed_intro }];
+  for (let i = 1; i <= MISSED_SLOTS; i += 1) {
+    kids.push(
+      { type: 'TextSubheading', text: `Moment ${i}` },
+      { type: 'Dropdown', name: `missed_${i}_type`, label: S.missed_type, required: false, 'data-source': '${data.missed_types}' },
+      { type: 'TextInput', name: `missed_${i}_min`, label: S.missed_min, 'input-type': 'number', required: false, 'helper-text': S.missed_min_help },
+      { type: 'TextArea', name: `missed_${i}_words`, label: S.missed_words, required: false, 'max-length': MISSED_WORDS_MAX, 'helper-text': S.missed_words_help },
+    );
+  }
+  return screenWith('MISSED', S.missed_title, kids, 'Next', data);
+}
+
+// One indicator the coach sets from the room (v6): name, definition + the recording's evidence + what the coach
+// adds (one TextBody from the endpoint), the level with no init-value, the reason.
+function combinedBlock(code, data, init) {
+  const ind = V6.indicator(code);
+  data[`${code}_ev`] = { type: 'string', __example__: `${ind.definition}\n\nThe recording showed nothing for this.\n\nCoach adds: ${ind.coach_adds}` };
+  const kids = [{ type: 'TextSubheading', text: ind.name }, { type: 'TextBody', text: `\${data.${code}_ev}` }];
+  if (code === 'D2') {
+    // Pre-filled on COMBINED_THREE_COUNTS only (Form init-values, from numeric data); blank on COMBINED_THREE.
+    // What the coach typed on the live form is also in the TextBody above (the endpoint's D2_ev).
+    if (init) {
+      for (const [field, key] of Object.entries(D2_COUNT_INIT)) {
+        data[key] = { type: 'number', __example__: 0 };
+        init[field] = `\${data.${key}}`;
+      }
+    }
+    kids.push(
+      { type: 'TextInput', name: 'd2_children', label: 'Children who spoke', 'input-type': 'number', required: true, 'helper-text': 'Count each child once, whole lesson. Not chorus.' },
+      { type: 'TextInput', name: 'd2_quiet_later', label: 'Quiet, then spoke', 'input-type': 'number', required: true, 'helper-text': 'Silent in the first half, spoke in the second' },
+    );
+  }
+  kids.push(
+    { type: 'RadioButtonsGroup', name: `cmb_${code}_level`, label: 'Level', required: true, 'data-source': V6.levelOptions(code) },
+    { type: 'TextArea', name: `cmb_${code}_why`, label: 'Why this level', required: true, 'max-length': 600, 'helper-text': "What you saw, and how it fits the DC's evidence" },
+  );
+  return kids;
+}
+
+function combinedScreen({ id, title, codes }, { counts = false } = {}) {
+  const data = { ...ERR };
+  const init = counts ? {} : null;
+  const kids = [{ type: 'TextCaption', text: 'Set each level from what you saw in the room. Nothing is chosen for you. Every level needs a reason.' }];
+  for (const code of codes) kids.push(...combinedBlock(code, data, init));
+  return screenWith(id, title, kids, 'Next', data, init && Object.keys(init).length ? init : null, null, true);
+}
+
+// Rumi's 11 (v6): pre-selected, v6 titles, NA and couldn't-tell kept so any pre-filled value is on the list.
+const V6_EXTRA = [{ id: 'NA', title: 'N/A · No chance to see it' }, { id: 'IE', title: "Couldn't tell" }];
+function added6Screen({ id, title, codes, why, kind, min }) {
+  const S = observe2Strings('en');
+  const data = { ...ERR };
+  const init = {};
+  const kids = [{ type: 'TextCaption', text: "Rumi's level for each, from your answers and the moments you confirmed. Change any you saw differently, and say why below." }];
+  for (const code of codes) {
+    data[`${code}_because`] = { type: 'string', __example__: 'Two open questions, each answered by one child.' };
+    data[`${code}_level`] = { type: 'string', __example__: '3' };
+    kids.push(
+      { type: 'TextSubheading', text: V6.indicator(code).name },
+      { type: 'TextCaption', text: `\${data.${code}_because}` },
+      { type: 'RadioButtonsGroup', name: `${code}_final`, label: 'Level', required: true, 'data-source': [...V6.levelOptions(code), ...V6_EXTRA] },
+    );
+    init[`${code}_final`] = `\${data.${code}_level}`;
+  }
+  // A change needs a reason from the list, the note, and optionally the minute (checked by the endpoint); no
+  // reason is chosen for the coach.
+  kids.push(
+    {
+      type: 'RadioButtonsGroup', name: kind, label: S.v6_why_kind, required: false,
+      'data-source': OVERRIDE_REASONS.map((r) => ({ id: r, title: S.v6_override_reasons[r] })),
+    },
+    { type: 'TextInput', name: min, label: S.v6_why_min, 'input-type': 'number', required: false, 'helper-text': S.v6_why_min_help },
+    { type: 'TextArea', name: why, label: 'Why you changed', required: false, 'max-length': 600, 'helper-text': 'Needed only if you changed a level: what you saw' },
+  );
+  return screenWith(id, title, kids, 'Next', data, init, id === ADDED6_SCREENS[ADDED6_SCREENS.length - 1].id ? { cv: CHECK_VERSION } : null, true);
 }
 
 function priorityScreen() {
@@ -216,7 +359,28 @@ function buildEvidenceCheckFlow() {
   screens.forEach((s, i) => { routing[s.id] = i < screens.length - 1 ? [screens[i + 1].id] : []; });
   // No plan picked, or none graded: the last moments screen goes straight to the levels.
   routing.HEARD_EXPLAIN = ['FIDELITY', 'ADDED_ONE'];
+  // FICO17 v6 (bd-ra8xu.38): appended after DONE so every v5 screen keeps its place. A v6 visit goes
+  // HEARD_EXPLAIN → COMBINED_ONE..3 → FIDELITY (a graded plan) or ADDED_DC_ONE → ADDED_DC_TWO → PRIORITY.
+  // FICO6: MISSED after the v6 screens, HEARD_EXPLAIN → MISSED → COMBINED_ONE (a '1' check still goes straight on).
+  const counted = COMBINED_SCREENS.find((c) => c.id === COMBINED_COUNTS.of);
+  const v6 = [
+    ...COMBINED_SCREENS.map((c) => combinedScreen(c)), ...ADDED6_SCREENS.map(added6Screen), missedScreen(),
+    combinedScreen({ ...counted, id: COMBINED_COUNTS.id }, { counts: true }),
+  ];
+  screens.push(...v6);
+  routing.HEARD_EXPLAIN = [...routing.HEARD_EXPLAIN, 'COMBINED_ONE', 'MISSED'];
+  routing.MISSED = ['COMBINED_ONE'];
+  routing.COMBINED_ONE = ['COMBINED_TWO'];
+  routing.COMBINED_TWO = ['COMBINED_THREE', COMBINED_COUNTS.id];
+  routing.COMBINED_THREE = ['FIDELITY', 'ADDED_DC_ONE'];
+  routing[COMBINED_COUNTS.id] = [...routing.COMBINED_THREE];
+  routing.FIDELITY = [...routing.FIDELITY, 'ADDED_DC_ONE'];
+  routing.ADDED_DC_ONE = ['ADDED_DC_TWO'];
+  routing.ADDED_DC_TWO = ['PRIORITY'];
   return { version: FLOW_VERSION, data_api_version: '3.0', routing_model: routing, screens };
 }
 
-module.exports = { buildEvidenceCheckFlow, SLOTS, FIDELITY_SLOTS, FIDELITY_VERDICTS, HEARD_SCREENS, ADDED_SCREENS, FLOW_VERSION, CHECK_VERSION };
+module.exports = {
+  buildEvidenceCheckFlow, SLOTS, FIDELITY_SLOTS, FIDELITY_VERDICTS, HEARD_SCREENS, ADDED_SCREENS, FLOW_VERSION, CHECK_VERSION,
+  V6_CHECK, COMBINED_SCREENS, COMBINED_COUNTS, D2_COUNT_INIT, ADDED6_SCREENS, MISSED_SLOTS, MISSED_WORDS_MAX, OVERRIDE_REASONS,
+};

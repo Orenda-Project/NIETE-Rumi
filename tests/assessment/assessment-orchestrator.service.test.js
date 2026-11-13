@@ -199,6 +199,17 @@ describe('when a step fails she is told, in words she can act on', () => {
     expect(String(final.error_detail || '')).not.toContain('923001234567');
   });
 
+  it('stores an error detail (the hard rules of a failed board paper) beside the message (bd-qyi45h.1)', async () => {
+    happyPath();
+    mockGenerateExam.mockRejectedValue(Object.assign(new Error('A section is still short of questions after one more try.'),
+      { code: 'MODEL_UNAVAILABLE', detail: 'hard rules: D12 LEVEL_OVER x4; checks: blueprint-qa=4' }));
+    await Orchestrator.process(JOB);
+    const updates = mockDbCalls.filter((c) => c.table === 'assessment_papers' && c.op === 'update');
+    const final = updates[updates.length - 1].payload;
+    expect(final.error_detail).toContain('short of questions');
+    expect(final.error_detail).toContain('D12 LEVEL_OVER x4');
+  });
+
   it('says nothing to a teacher we cannot identify, and does not generate', async () => {
     mockDbResults.push({ data: null, error: null });   // user lookup finds nobody
     const out = await Orchestrator.process(JOB);

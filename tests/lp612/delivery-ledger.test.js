@@ -121,6 +121,12 @@ test('the template version comes from the ONE key shape r2KeyFor writes', () => 
   expect(Serving.templateVersionOfKey('something/else.pdf')).toBeNull();
 });
 
+test('a GB plan key (gb-lp/{tv}/{lang}/{segment}.pdf) names its template version too, so GB deliveries are ledgered', () => {
+  expect(Serving.templateVersionOfKey('gb-lp/gb_k5_v10/ur/gb_k5_math.c01.p001.pdf')).toBe('gb_k5_v10');
+  expect(Serving.templateVersionOfKey('gb-lp/gb_k5_v10/fr/x.pdf')).toBeNull();
+  expect(Serving.templateVersionOfKey('other/gb_k5_v10/ur/x.pdf')).toBeNull();
+});
+
 test('once the migration lands the ledger starts recording again — no restart needed', async () => {
   mockMissingTable = true;
   mockSendDocumentByLink.mockResolvedValue(true);

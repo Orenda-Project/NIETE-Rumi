@@ -8,23 +8,23 @@ import { teacherPath } from '../routes';
 import { LeaveNote, StatusChip } from '../ui';
 import { NOTICES } from '../notices/copy';
 import { noticeTracker } from '../notices/tracker';
+import { EXPECTED_MS, itemId } from '../notices/model';
 import { FOCUS, OUTLINE_WIDE } from '../ui/styles';
 import { LESSONS } from './copy';
 import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
 import { LESSONS_VIEWER, lessonsUrl, openUrl, readAt, type LessonsAt } from './paths';
 import { dcFor, useOpenLesson } from './useOpenLesson';
+import { ownChangeAt } from './own/change';
 
 /**
  * bd-fmf24g.3 — a grades 6–12 plan being written (v28 canvas LessonPreparing): a countdown ring over
- * "Preparing", "~2 min". When it is written the viewer opens by itself, IN PLACE
+ * "Preparing", "~5 min". When it is written the viewer opens by itself, IN PLACE
  * of this page (Back goes to the lessons, not here). Failed: Try again, or Other lessons.
  * The poll and its back-off are today's Lesson Plans' (newui PreparingPage): a dropped poll is not a
  * failed plan — it is written on a worker whether or not this phone can reach us — so it keeps asking.
  */
 
-/** The wait the design promises ("~2 min"). Past it, the ring gives way to a wheel. */
-const EXPECTED_MS = 120_000;
 /** Responsive at first, then fewer asks for a slow one. */
 const nextPollMs = (waited: number) => (waited < 30_000 ? 3_000 : waited < 120_000 ? 6_000 : 12_000);
 
@@ -68,8 +68,12 @@ function Preparing({ at }: { at: AtRender }) {
   const otherLessons = chapter ? lessonsUrl('lessons', { ...at, chapter }) : teacherPath('lessons');
   const { open, busy } = useOpenLesson();
   const [failed, setFailed] = useState(false);
-  const [startedAt] = useState(() => Date.now());
-  const [now, setNow] = useState(startedAt);
+  // bd-ipoxhx.2 — the clock runs from when she first asked for this plan (the shell's tracker holds it), not from
+  // when this page mounted: coming back carries on the countdown instead of starting again at the top.
+  const [startedAt] = useState(
+    () => noticeTracker.getItems().find((i) => i.id === itemId('lesson', at.render))?.startedAt ?? Date.now(),
+  );
+  const [now, setNow] = useState(() => Date.now());
   const lessonRef = useRef(lesson);
   lessonRef.current = lesson;
 
@@ -102,7 +106,13 @@ function Preparing({ at }: { at: AtRender }) {
         if (!live) return;
         if (s.state === 'ready') {
           void openPlan(s.source, lessonRef.current?.title ?? at.title ?? C.planFallback, {
-            replace: true, page: LESSONS_VIEWER, state: { dc: dcFor({ id: at.lesson, lane: 'g612' }, at) },
+            replace: true,
+            page: LESSONS_VIEWER,
+            state: {
+              dc: dcFor({ id: at.lesson, lane: 'g612' }, at),
+              // bd-snkn32.15 — her own plan: the viewer offers Change this plan with what is left.
+              ...(s.own ? { own: ownChangeAt(at, s.own, lessonRef.current?.title ?? at.title) } : {}),
+            },
           });
           return;
         }
@@ -118,7 +128,7 @@ function Preparing({ at }: { at: AtRender }) {
   }, [at.render]);
 
   const elapsed = now - startedAt;
-  const left = EXPECTED_MS - elapsed;
+  const left = EXPECTED_MS.lesson - elapsed;
 
   return (
     <TeacherPage feature="lessons" crumb={C.grade(at.grade)} title={title} backTo={otherLessons}>
@@ -140,10 +150,10 @@ function Preparing({ at }: { at: AtRender }) {
           </>
         ) : (
           <>
-            {left > 0 ? <Ring value={elapsed / EXPECTED_MS} text={clock(left)} /> : null}
+            {left > 0 ? <Ring value={elapsed / EXPECTED_MS.lesson} text={clock(left)} /> : null}
             <p className="text-[22px] font-light text-[#1d2025]">{C.pleaseHold}</p>
             <div className="flex flex-wrap justify-center gap-1.5">
-              <StatusChip text={C.aboutTwoMinutes} tone="waiting" />
+              <StatusChip text={C.expectedWait} tone="waiting" />
             </div>
             {/* bd-fmf24g.15 — "You can leave. We'll tell you here." */}
             <LeaveNote text={N.leave} />

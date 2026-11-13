@@ -1,4 +1,6 @@
-import { useMemo } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
+import { useAuth } from '../../hooks/useAuth';
+import { usePrincipalApp } from '../principal/usePrincipalApp';
 import { CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
@@ -17,6 +19,9 @@ import { loadVisitReports, loadVisits, reportGroups } from './api';
 import { OBSERVATIONS } from './copy';
 import { OBS_HOME } from './paths';
 
+// bd-33wxxi.4 — the principal app's Observations is its own chunk: a teacher's Observations loads nothing more.
+const PrincipalObservations = lazy(() => import('../principal/PrincipalObservations').then((m) => ({ default: m.PrincipalObservations })));
+
 /**
  * bd-fmf24g.4 — the teacher v2 Observations page (v28 canvas Observations).
  *
@@ -30,6 +35,25 @@ import { OBS_HOME } from './paths';
  */
 export function ObservationsHomePage() {
   const C = useCopy(OBSERVATIONS);
+  const { user } = useAuth();
+  // bd-33wxxi.4 — a principal on the principal app: her Observations (My own lesson / One of my teachers, the ones she
+  // made, then this page's own sections). Everyone else: exactly this page.
+  if (usePrincipalApp(user)) {
+    return <Suspense fallback={null}><PrincipalObservations /></Suspense>;
+  }
+  return (
+    <TeacherPage feature="observations" title={C.title} crumb={C.home} backTo={teacherPath('home')} testId="obs-home">
+      <ObservationsAboutMe />
+    </TeacherPage>
+  );
+}
+
+/**
+ * bd-33wxxi.4 — the page's sections as one piece (lifted out of ObservationsHomePage unchanged), so the principal app's
+ * Observations draws the same Next visit, In progress and Reports about HER, after the observations she makes.
+ */
+export function ObservationsAboutMe() {
+  const C = useCopy(OBSERVATIONS);
   const { bands } = useCopy(COACHING);
   const { days } = useCopy(LESSONS);
   const [visitsLoad, retryVisits] = useLoad(() => loadVisits(), 'obs:visits');
@@ -41,7 +65,7 @@ export function ObservationsHomePage() {
   const next = visits?.next ?? null;
 
   return (
-    <TeacherPage feature="observations" title={C.title} crumb={C.home} backTo={teacherPath('home')} testId="obs-home">
+    <>
       <SectionHeading>{C.nextVisit}</SectionHeading>
       {visits ? (
         <section aria-label={C.nextVisit} className={cn(CARD, 'flex min-h-[76px] items-center gap-3 px-3 py-2.5')}>
@@ -85,7 +109,7 @@ export function ObservationsHomePage() {
           <LoadState status={reportsLoad.status} empty={false} onRetry={retryReports} />
         )}
       </div>
-    </TeacherPage>
+    </>
   );
 }
 

@@ -47,9 +47,18 @@ PUBLISHED — see the WhatsApp Flows skill once it lands.)
 | PERSONAL_INFO | name + language (static, bilingual) | `name`, `country='PK'`, `organization` only if empty, language via `setUserLanguage` (locked) |
 | ROLE_SCHOOL | role (Teacher / Principal) + one school search box | `role` through [registration-roles.js](../../../bot/shared/config/registration-roles.js) `roleToWrite` |
 | SCHOOL_PICK | up to 10 matches + "My school isn't here" | `school_id` + `region` (the school's sector), only for a real non-test school |
-| TEACHING | grades + subjects (optional) | `grades_taught`, `subjects_taught`, `registration_completed` |
+| IS_THIS_YOU (v6 only) | "Is this you?" about ONE other live account at that school with her name, unused or silent over 30 days: her typed first name, the school, at most the last two digits of its number | nothing; the answer is acted on at Finish |
+| TEACHING | grades + subjects (optional) | `grades_taught`, `subjects_taught`, `registration_completed` (on the claimed account after a claim) |
 | SUCCESS | — | flat params (`registration_action: 'complete'`) → the chat welcome with an "Open portal" `/go` button |
 
+- **v6 ("Is this you?")**: [registration-flow-v6.json](../../../docs/flows/registration-flow-v6.json) is v5.1 plus
+  IS_THIS_YOU, behind `registration_is_this_you_enabled` (off by default; a JSON list of `users.id` turns it on for
+  testers). v6 requests carry `form_rev: "6"`; a v5.1 session in flight never sees the question. At Finish
+  ([is-this-you.js](../../../bot/shared/services/identity/is-this-you.js) `settle`): Yes on an unused import with no
+  history, on a Meta-verified request, moves her number onto it through the coach edit's `moveNumber`
+  (actor `registration_claim`) and retires her new empty account; any other Yes and every Not sure writes one
+  `edit_phone_escalated` review row; No changes nothing. SUCCESS carries `identity` and the welcome adds one line.
+  Rollback: republish registration-flow-v5.1.json, or turn the switch off.
 - **Roles**: the form may grant only `FORM_ROLES` (teacher, principal). An admin-set coach/AEO is not asked
   and is never overwritten. Change what the form may grant in that one file.
 - **School**: chosen from `schools` by [school-search.service.js](../../../bot/shared/services/schools/school-search.service.js)

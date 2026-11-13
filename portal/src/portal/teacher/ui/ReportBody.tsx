@@ -48,6 +48,9 @@ export interface ReportData {
   lastAsked?: { text: string; status: string; tone?: 'done' | 'waiting' | 'info'; line?: string } | null;
   tryNext?: string | null;
   debrief?: { heading: string; initials?: string; note?: string; commitment?: string; closing?: string } | null;
+  /** bd-ra8xu.43 — the rubric this report was scored with (framework + version only, e.g. "FICO17 v6", "FICO V3"), from the
+   *  stored session, printed tiny under the report for debugging (operator 11 Nov). No rubric, no line. */
+  rubric?: string | null;
 }
 
 export interface ReportBodyProps {
@@ -248,6 +251,8 @@ export function ReportBody({ data: d, copy, className, afterTryNext }: ReportBod
         </span>
         <span>{words.madeFor(first)}</span>
       </div>
+      {/* bd-ra8xu.43: a debug id the operator asked for in very small text (not body copy): flat, never tappable, LTR. */}
+      {d.rubric ? <p data-testid="report-rubric" dir="ltr" className="m-0 px-1 text-end text-[10px] leading-tight text-[#9ca3af]">{d.rubric}</p> : null}
     </div>
   );
 }

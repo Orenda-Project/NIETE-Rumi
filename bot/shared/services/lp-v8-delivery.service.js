@@ -1,3 +1,8 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 'use strict';
 /**
  * Deliver one v8 lesson plan.
@@ -28,6 +33,7 @@ const Lifecycle = require('./lesson-plan-lifecycle.service');
 const AppOpens = require('./quiz/lp-app-opens.store');
 const V10Card = require('./lp-v10-card.service');
 const ThingToTry = require('./coaching/thing-to-try');
+const { isLpV8VoicenoteEnabled } = require('../config/lp-v8-voicenote');
 
 const LP_VARIANT = 'niete_v8_segment';
 const { ERROR_CODES } = Lifecycle.LIFECYCLE;
@@ -233,6 +239,7 @@ async function sendAnswerKeyIfAny({ userId, lessonId, phone, book, chapter, cont
  * @returns {Promise<boolean>} true only if WhatsApp accepted the voice message
  */
 async function sendVoicenoteIfAny({ userId, lessonId, phone, asset }) {
+  if (!isLpV8VoicenoteEnabled()) return false;             // feature off (bd-xxejb)
   if (!asset || !asset.r2_key) return false;
   const oggKey = String(asset.r2_key).replace(/\.pdf$/i, '.ogg');
   if (oggKey === asset.r2_key) return false;               // not a .pdf key — nothing to derive

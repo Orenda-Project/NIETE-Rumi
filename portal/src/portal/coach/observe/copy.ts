@@ -139,6 +139,18 @@ export const OBSERVE_COPY = {
   sendObservation: 'Send observation',
   noRecording: 'No recording yet',
   grade: (g = 0) => `Grade ${g}`,
+  /* bd-ra8xu.40 — the class taught (and, for grades 6-12, its subject), asked while FDE's tools are on for her: it
+     chooses the observation form, as WhatsApp's visit planner asks after Start */
+  classAndSubject: 'Class and subject',
+  classField: 'Class',
+  subjectField: 'Subject',
+  gradePrimary: 'Grade 1-5',
+  chooseClassFirst: 'Choose the class first',
+  chooseSubjectFirst: 'Choose the subject first',
+  subjects: {
+    english: 'English', urdu: 'Urdu', maths: 'Maths', science: 'Science', social_studies: 'Social Studies',
+    islamiat: 'Islamiat', computer: 'Computer', other: 'Other',
+  },
 
   /* sending, in the background */
   sending: 'Sending',
@@ -275,6 +287,16 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   sendObservation: 'مشاہدہ بھیجیں',
   noRecording: 'ابھی کوئی ریکارڈنگ نہیں',
   grade: (g = 0) => `جماعت ${g}`,
+  classAndSubject: 'جماعت اور مضمون',
+  classField: 'جماعت',
+  subjectField: 'مضمون',
+  gradePrimary: 'جماعت ۱ تا ۵',
+  chooseClassFirst: 'پہلے جماعت چنیں',
+  chooseSubjectFirst: 'پہلے مضمون چنیں',
+  subjects: {
+    english: 'انگریزی', urdu: 'اردو', maths: 'ریاضی', science: 'سائنس', social_studies: 'معاشرتی علوم',
+    islamiat: 'اسلامیات', computer: 'کمپیوٹر', other: 'کوئی اور',
+  },
 
   sending: 'بھیجا جا رہا ہے',
   leaveSub: 'مشاہدہ پس منظر میں بھیجا جاتا رہے گا۔',

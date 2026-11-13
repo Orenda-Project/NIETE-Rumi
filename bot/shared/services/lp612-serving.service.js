@@ -1,3 +1,9 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Here: the GB hook forks into niete_gb_lp_renders, a copy of this lane's table; extend this table instead.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 /**
  * What happens between the tap and the PDF, for grades 6-12.
  *
@@ -81,11 +87,12 @@ function docKeyFor(segmentId, lang, tv) {
 
 /**
  * The template version a PDF key was written under — the inverse of `r2KeyFor`, so the delivery
- * ledger names the exact document a teacher holds without either caller passing it. `null` for a
+ * ledger names the exact document a teacher holds without either caller passing it. GB plans live
+ * under `gb-lp/{tv}/{lang}/...` (gb-lp-serving keyFor), same shape, so both prefixes count. `null` for a
  * key of any other shape (an edit key, a foreign key).
  */
 function templateVersionOfKey(r2Key) {
-  const m = /^lp612\/([^/]+)\/(en|ur)\/[^/]+\.pdf$/.exec(String(r2Key || ''));
+  const m = /^(?:lp612|gb-lp)\/([^/]+)\/(en|ur)\/[^/]+\.pdf$/.exec(String(r2Key || ''));
   return m ? m[1] : null;
 }
 

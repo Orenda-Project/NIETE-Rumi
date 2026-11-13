@@ -175,7 +175,7 @@ export function WeekBody({ w, C, lang }: { w: CoachWeek; C: CoachReportCopy; lan
           ) : null}
           {f.nextName ? <p className="m-0 mt-3 text-[15px] leading-[1.45] text-[#374151]"><b className="font-semibold text-[#1d2025]">{C.afterThat}</b> {C.thenNext(pick(f.nextName, lang))}</p> : null}
           {mod ? <Link to={modulePath(mod)} data-testid="week-open-module" className={cn(PRIMARY_WIDE, "mt-3 text-center leading-tight", FOCUS)}>{C.openModule(mod.n, lang === "ur" ? mod.title.ur : mod.title.en)}</Link> : null}
-          <Link to={COACH_TRAINING_PATH} className={cn(OUTLINE_WIDE, "mt-2", FOCUS)}>{C.allModules}</Link>
+          <Link to={COACH_TRAINING_PATH} data-testid="week-all-modules" className={cn(OUTLINE_WIDE, "mt-2", FOCUS)}>{C.allModules(COACH_MODULES.length)}</Link>
         </section>
       ) : null}
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useObserveRoutes } from "../observe/observeRoutes";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { Check } from "lucide-react";
 import { leader } from "../../services/api";
@@ -14,7 +15,7 @@ import { ShareActions } from "../../teacher/ui/ShareActions";
 import { Initials, useLoad } from "../ui";
 import ReportsFrame from "./ReportsFrame";
 import { REPORTS } from "./copy";
-import { OBSERVATION_STEPS, SCREEN_STEP, observationPath } from "./paths";
+import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
 import { firstNameOf, teacherNameOf, useObservationView } from "./useObservationView";
 import { useBack } from "../../lib/useBack";
 
@@ -39,8 +40,9 @@ export default function SendReport() {
   const C = useCopy(REPORTS);
   const { days } = useCopy(LESSONS);
   const { id = "" } = useParams();
+  const routes = useObserveRoutes();
   const { view, status, reload } = useObservationView(id);
-  const back = useBack(observationPath(id));
+  const back = useBack(routes.observation(id));
   // The observation row: the score and the day, for the preview's header (a failed read just leaves the header out).
   const { data: row } = useLoad(() => coach.getObservation(id), [id]);
   const [busy, setBusy] = useState(false);
@@ -73,7 +75,7 @@ export default function SendReport() {
   };
 
   // Not at this step yet (or it is not hers): the observation page says where it is.
-  if (view && ["analysing", "draft", "talk", "listening"].includes(view.step)) return <Navigate to={observationPath(id)} replace />;
+  if (view && ["analysing", "draft", "talk", "listening"].includes(view.step)) return <Navigate to={routes.observation(id)} replace />;
 
   const making = step === "feedback" || (step === "report" && view?.preparing) || step === "sending";
   const ready = step === "report" && !view?.preparing && view?.problem !== "send_failed";
@@ -104,7 +106,7 @@ export default function SendReport() {
       {ready && view && (
         <>
           <h2 className="mx-1 mt-1 text-[22px] font-semibold leading-[1.2]">{C.preview}</h2>
-          {row && (row.score ?? row.dcScore) != null && (
+          {routes.showScores && row && (row.score ?? row.dcScore) != null && (
             <section data-testid="send-score" className={cn(LIST_CARD, "flex items-center gap-3.5 p-3.5")}>
               <ScoreRing value={row.score ?? row.dcScore ?? null} label={C.dcScore} />
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -138,7 +140,7 @@ export default function SendReport() {
         <div data-testid="send-sent" className={cn(LIST_CARD, "flex flex-col items-center gap-3 p-5 text-center")}>
           <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#2f7a52] text-white"><Check className="h-10 w-10" strokeWidth={2.6} aria-hidden="true" /></span>
           <span className="text-[22px] font-semibold" dir="auto">{C.sentTitle(first)}</span>
-          <Link to={observationPath(id)} className={cn("flex min-h-[56px] items-center justify-center rounded-2xl bg-[#33374a] px-6 text-[16px] font-semibold text-white", FOCUS)}>{C.openReport}</Link>
+          <Link to={routes.observation(id)} className={cn("flex min-h-[56px] items-center justify-center rounded-2xl bg-[#33374a] px-6 text-[16px] font-semibold text-white", FOCUS)}>{C.openReport}</Link>
         </div>
       )}
     </ReportsFrame>

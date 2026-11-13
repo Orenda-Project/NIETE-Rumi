@@ -32,6 +32,19 @@ const TOPIC_GLYPH: Record<Topic, typeof Lightbulb> = { broken: TriangleAlert, nu
 const MORE = "/portal/coach/more";
 
 export default function FeedbackPage() {
+  return (
+    <CoachGate>
+      <FeedbackForm more={MORE} testId="coach-feedback" />
+    </CoachGate>
+  );
+}
+
+/**
+ * bd-370733 — the form itself, for whoever's More opened it: the coach's (above, behind CoachGate) and the teacher's
+ * (teacher/feedback, behind TeacherGate: teachers, and principals on the teacher app). `more` is where Back and Done
+ * go and the address the send names; the server records who sent it.
+ */
+export function FeedbackForm({ more, testId }: { more: string; testId: string }) {
   const C = useCopy(FEEDBACK) as FeedbackCopy;
   const kit = useKitCopy();
   const navigate = useNavigate();
@@ -71,7 +84,7 @@ export default function FeedbackPage() {
     setSending(true);
     setError(null);
     try {
-      await sendFeedback({ topic, text, clip: hasClip ? voice.clip : null, shots });
+      await sendFeedback({ topic, text, clip: hasClip ? voice.clip : null, shots }, more);
       setStep("sent");
     } catch (e) {
       setError(failureText(e, C));
@@ -84,50 +97,48 @@ export default function FeedbackPage() {
   const dock = step === 1 ? <BottomButton onClick={() => setStep(2)} disabled={!topic}>{C.next}</BottomButton>
     : step === 2 ? <BottomButton onClick={() => setStep(3)} disabled={!said || recording}>{C.next}</BottomButton>
       : step === 3 ? <BottomButton onClick={() => { void send(); }} disabled={sending}>{sending ? `${C.sending}…` : C.send}</BottomButton>
-        : <BottomButton onClick={() => navigate(MORE, { replace: true })}>{C.done}</BottomButton>;
+        : <BottomButton onClick={() => navigate(more, { replace: true })}>{C.done}</BottomButton>;
 
   return (
-    <CoachGate>
-      <TeacherPage title={C.title} backTo={back ? undefined : MORE} onBack={back} dock={dock} testId="coach-feedback">
-        <div ref={root} className="flex flex-col gap-4">
-          {step !== "sent" && <StepBar total={3} current={step} label={kit.stepOf(step, 3)} />}
+    <TeacherPage title={C.title} backTo={back ? undefined : more} onBack={back} dock={dock} testId={testId}>
+      <div ref={root} className="flex flex-col gap-4">
+        {step !== "sent" && <StepBar total={3} current={step} label={kit.stepOf(step, 3)} />}
 
-          {step === 1 && (
-            <section aria-label={C.topic} className="flex flex-col gap-2.5">
-              <h2 className="mx-1 text-sm font-semibold text-[#4b5563]">{C.topic}</h2>
-              {TOPICS.map((t) => {
-                const Glyph = TOPIC_GLYPH[t];
-                return (
-                  <ListRow key={t} label={C[t]} glyph={<Glyph className="h-6 w-6" strokeWidth={2} aria-hidden="true" />}
-                    state={topic === t ? "selected" : "default"} onPress={() => setTopic(t)} testId={`feedback-topic-${t}`} />
-                );
-              })}
-            </section>
-          )}
+        {step === 1 && (
+          <section aria-label={C.topic} className="flex flex-col gap-2.5">
+            <h2 className="mx-1 text-sm font-semibold text-[#4b5563]">{C.topic}</h2>
+            {TOPICS.map((t) => {
+              const Glyph = TOPIC_GLYPH[t];
+              return (
+                <ListRow key={t} label={C[t]} glyph={<Glyph className="h-6 w-6" strokeWidth={2} aria-hidden="true" />}
+                  state={topic === t ? "selected" : "default"} onPress={() => setTopic(t)} testId={`feedback-topic-${t}`} />
+              );
+            })}
+          </section>
+        )}
 
-          {(step === 2 || step === 3) && topic && (
-            <ChosenSoFar items={[
-              { label: C.topic, value: C[topic], onChange: () => setStep(1) },
-              ...(step === 3 ? [{ label: C.yourFeedback, value: text.trim() || C.voiceNote, onChange: () => setStep(2) }] : []),
-            ]} />
-          )}
+        {(step === 2 || step === 3) && topic && (
+          <ChosenSoFar items={[
+            { label: C.topic, value: C[topic], onChange: () => setStep(1) },
+            ...(step === 3 ? [{ label: C.yourFeedback, value: text.trim() || C.voiceNote, onChange: () => setStep(2) }] : []),
+          ]} />
+        )}
 
-          {step === 2 && <TellUs C={C} voice={voice} text={text} setText={setText} />}
+        {step === 2 && <TellUs C={C} voice={voice} text={text} setText={setText} />}
 
-          {step === 3 && <Screenshots C={C} shots={shots} setShots={setShots} />}
+        {step === 3 && <Screenshots C={C} shots={shots} setShots={setShots} />}
 
-          {step === "sent" && (
-            <section aria-live="polite" className={cn(CARD, "flex flex-col items-center gap-2 px-5 py-8 text-center")}>
-              <CircleCheck className="h-12 w-12 text-[#2f7a52]" strokeWidth={2} aria-hidden="true" />
-              <h2 className="text-[20px] font-bold text-[#1d2025]">{C.thanks}</h2>
-              <p className="text-[16px] text-[#4b5563]">{C.gotIt}</p>
-            </section>
-          )}
+        {step === "sent" && (
+          <section aria-live="polite" className={cn(CARD, "flex flex-col items-center gap-2 px-5 py-8 text-center")}>
+            <CircleCheck className="h-12 w-12 text-[#2f7a52]" strokeWidth={2} aria-hidden="true" />
+            <h2 className="text-[20px] font-bold text-[#1d2025]">{C.thanks}</h2>
+            <p className="text-[16px] text-[#4b5563]">{C.gotIt}</p>
+          </section>
+        )}
 
-          {error && <p role="alert" className="mx-1 text-[15px] font-semibold text-[#c8331f]">{error}</p>}
-        </div>
-      </TeacherPage>
-    </CoachGate>
+        {error && <p role="alert" className="mx-1 text-[15px] font-semibold text-[#c8331f]">{error}</p>}
+      </div>
+    </TeacherPage>
   );
 }
 

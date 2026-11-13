@@ -46,4 +46,49 @@ function orderedEntries(obj, level) {
     .map((x) => x.entry);
 }
 
-module.exports = { orderedEntries };
+const SECTIONS = ['seen', 'unseen'];
+const _sameType = (name) => String(name || '').trim().toLowerCase();
+
+/**
+ * Every question list on the paper, in print order, across BOTH halves (bd-ipoxhx.3).
+ *
+ * A "Both" paper keeps the book's questions under `seen` and the new ones under `unseen`. Walking each
+ * half on its own printed MCQs, Brief Answers, then MCQs and Brief Answers again. One order spans the
+ * halves instead: category, then type, then one group per type name (the book's questions first inside
+ * it). Each list keeps its path, so ids (`seen.objective.MCQs.0`) mean what they always meant.
+ *
+ * Returns [{ section, category, type, path, list }]; `type` is the sub-type where a type nests lists.
+ */
+function orderedLists(examJson) {
+  const slots = [];
+  SECTIONS.forEach((section, s) => {
+    const branch = examJson?.[section];
+    if (!branch || typeof branch !== 'object') return;
+    for (const [category, types] of Object.entries(branch)) {
+      if (!types || typeof types !== 'object') continue;
+      for (const [type, entry] of orderedEntries(types, 'type')) {
+        const base = { section, s, category, top: type };
+        if (Array.isArray(entry)) slots.push({ ...base, type, path: [section, category, type], list: entry });
+        else if (entry && typeof entry === 'object') {
+          for (const [subType, list] of orderedEntries(entry, 'type')) {
+            if (Array.isArray(list)) slots.push({ ...base, type: subType, path: [section, category, type, subType], list });
+          }
+        }
+      }
+    }
+  });
+  const firstSeen = new Map();
+  slots.forEach((x, i) => {
+    x.i = i;
+    const key = `${_categoryRank(x.category)}|${_sameType(x.top)}`;
+    if (!firstSeen.has(key)) firstSeen.set(key, i);
+    x.group = firstSeen.get(key);
+  });
+  return slots
+    .sort((a, b) => _categoryRank(a.category) - _categoryRank(b.category)
+      || _typeRank(a.top) - _typeRank(b.top)
+      || a.group - b.group || a.s - b.s || a.i - b.i)
+    .map(({ section, category, type, path, list }) => ({ section, category, type, path, list }));
+}
+
+module.exports = { orderedEntries, orderedLists };

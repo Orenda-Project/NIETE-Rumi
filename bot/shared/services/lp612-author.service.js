@@ -1,3 +1,8 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 /**
  * lp612-author.service — segment -> lp_doc (schema 3.0), through the v9 revision ladder.
  *
@@ -1154,11 +1159,22 @@ function applyReplacements(doc, replace) {
   const errors = [];
   const planned = [];
 
-  for (const [pointer, value] of Object.entries(replace)) {
+  const seen = new Set();
+  for (const [raw, value] of Object.entries(replace)) {
+    // bd-9mc3nz.1: the model often writes `sections/0` for `/sections/0`. Rejecting it threw away a
+    // valid patch and forced a full rewrite (19 of 31 rejections in 7 days on prod; one pushed a G10
+    // Islamiat lesson past AUTHOR_TIMEOUT). A bare pointer is read with its "/" ONLY when that names
+    // an allowed location; every rule below still applies to it.
+    const pointer = typeof raw === 'string' && !raw.startsWith('/') && allowed.has(`/${raw}`) ? `/${raw}` : raw;
     if (typeof pointer !== 'string' || !pointer.startsWith('/')) {
       errors.push(`malformed pointer: ${pointer}`);
       continue;
     }
+    if (seen.has(pointer)) {
+      errors.push(`pointer named twice: ${pointer}`);
+      continue;
+    }
+    seen.add(pointer);
     if (!allowed.has(pointer)) {
       errors.push(`pointer not in the allowed list: ${pointer}`);
       continue;

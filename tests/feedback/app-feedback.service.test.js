@@ -12,7 +12,7 @@ const UID = '11111111-2222-4333-8444-555555555555';
 const AUDIO = `feedback_audio/${UID}/2026-10/portal_a1.webm`;
 const SHOT = (n) => `feedback_images/${UID}/portal_s${n}.png`;
 
-function fakeDb({ recent = 0, user = { name: 'Ayesha Khan' } } = {}) {
+function fakeDb({ recent = 0, user = { name: 'Ayesha Khan', role: 'coach' } } = {}) {
   const calls = { inserts: [], updates: [] };
   const supabase = {
     from(table) {
@@ -75,7 +75,9 @@ describe('app feedback — submitFeedback', () => {
     expect(db.calls.inserts).toEqual([{
       table: 'coach_feedback',
       row: {
-        user_id: UID, kind: 'broken', message: 'Schools will not open', page: null, audio_key: null, photo_keys: [], context: {},
+        user_id: UID, kind: 'broken', message: 'Schools will not open', page: null, audio_key: null, photo_keys: [],
+        // bd-370733: who sent it, read from users.role by the server
+        context: { role: 'coach' },
       },
     }]);
     // Transcription and Slack wait until she has her answer.
@@ -155,13 +157,13 @@ describe('app feedback — submitFeedback', () => {
       userId: UID, topic: 'broken', text: 'x',
       context: { surface: 'coach_more', browser: 'whatsapp-iab', appBuild: 1216, phone: '0300' },
     }, d);
-    expect(db.calls.inserts[0].row.context).toEqual({ browser: 'whatsapp-iab', appBuild: 1216 });
+    expect(db.calls.inserts[0].row.context).toEqual({ browser: 'whatsapp-iab', appBuild: 1216, role: 'coach' });
 
     const again = deps();
     await Svc.submitFeedback({
       userId: UID, topic: 'broken', text: 'x', context: { browser: 'netscape', appBuild: 'x' },
     }, again.d);
-    expect(again.db.calls.inserts[0].row.context).toEqual({});
+    expect(again.db.calls.inserts[0].row.context).toEqual({ role: 'coach' });
   });
 
   test('no user is refused before anything is read', async () => {

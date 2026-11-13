@@ -58,6 +58,10 @@ npm run simulate          # CLI simulator (test without WhatsApp)
 4. **Background jobs go through the pluggable queue** — `QUEUE_DRIVER` selects SQS (default) or BullMQ/Redis
 5. **Feature gating is presence-based** — a feature is on iff its env keys are present
    (`bot/shared/config/feature-availability.js`); there is no `RUMI_TIER`
+5a. **Lesson plans are known design debt (Nov 2026)** — ~20 tables, one set per product generation. Do not
+   add another per-region or per-generation LP table or env flag: extend the existing table with the book as
+   the separator, say so in the PR, and ask the operator (Hataf) first. See
+   `docs/lesson-plan-data-model-debt.md` (follow-up `bd-42mo0w`, audit planned).
 6. **Branches: `sandbox` → cherry-pick → `staging` → `main`** — work lands on `sandbox` first,
    is cherry-picked with `-x` to `staging` (the promotion gate, cut from `main`), and reaches `main`
    either as a PR from `staging` itself or as a `git cherry-pick -x` of one feature's staging merge

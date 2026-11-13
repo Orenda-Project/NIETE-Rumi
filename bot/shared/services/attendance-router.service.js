@@ -49,25 +49,9 @@ const { logToFile } = require('../utils/logger');
 const MAX_BUTTONS = 3;
 const MAX_ROWS = 10;
 
-// Deliberately tight. The old detector matched loose substrings, so "I need the
-// student list for my LP" dropped the teacher into attendance. Everything here is
-// either an explicit word for attendance or a slash command.
-const KEYWORDS = [
-  'attendance', '/attendance', 'roll call',
-  'حاضری', 'hazri', 'haazri', 'haziri', 'hajri',
-];
-
-function detect(message) {
-  if (!message || typeof message !== 'string') return { detected: false };
-  const lower = message.toLowerCase().trim();
-  for (const kw of KEYWORDS) {
-    // Word-boundary match, so a keyword inside a longer sentence still counts
-    // ("mark attendance please") but an unrelated phrase does not.
-    const re = new RegExp(`(^|[^a-z])${kw.replace('/', '\\/')}([^a-z]|$)`, 'i');
-    if (re.test(lower)) return { detected: true, keyword: kw };
-  }
-  return { detected: false };
-}
+// The keywords and their matcher live in attendance-keywords.js (pure, no database client) so the menu keyword
+// door can ask whether attendance takes a message (bd-2ym4ve). Re-exported below, unchanged.
+const { KEYWORDS, detect } = require('./attendance-keywords');
 
 async function loadUser(userId) {
   const { data } = await supabase

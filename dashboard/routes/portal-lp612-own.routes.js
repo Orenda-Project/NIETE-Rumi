@@ -1,0 +1,225 @@
+'use strict';
+/**
+ * bd-snkn32 — "Make my own" lesson plan, from the teacher app. Mounted at /api/portal by dashboard/index.js beside the
+ * other teacher modules (portal-share.routes.js's pattern).
+ *
+ *   POST /api/portal/lp612/own  { segment_id | lesson_id, answers: { size, resources, level, way, note } }
+ *     (bd-snkn32.4: lesson_id is a grades 1–5 day, rewritten from its own plan in its book's language)
+ *     → 202 { success, state: 'authoring', renderId }   her fork's id, polled on the SAME /lp612/status/:id and
+ *                                                        /lp612/file/:id as any 6-12 lesson (the bot answers it)
+ *
+ *   POST /api/portal/lp612/own/:ownId/change  { part, text }   (bd-snkn32.15: up to two changes per plan)
+ *     → 202 { success, state: 'authoring', renderId }   the changed plan's id, polled the same way
+ *     → 409 { success: false, outcome }                 a refusal she is told about (too_short, too_small, repeat,
+ *                                                        in_flight, cap_reached, daily_limit, grr, rote); no row,
+ *                                                        no model call
+ *
+ * Dark unless portal_teacher_v2 AND portal_lp_make_own are on for her: 404, the bot never asked. The user is ALWAYS
+ * the session's. The bot holds every rule (codes checked, shared plan asked for, fork queued); this only passes on its
+ * answer. A bot that cannot be reached is 502, never a plan.
+ */
+const express = require('express');
+const supabase = require('../config/supabase');
+const { PORTAL_TEACHER_V2_KEY, PORTAL_LP_MAKE_OWN_KEY, isFlagEnabledForUser } = require('../lib/feature-flags');
+const { teacherAppOnFor } = require('../lib/teacher-app');
+const { requirePortalAuth } = require('../lib/portal-auth');
+
+const router = express.Router();
+const PASS_ON = new Set([400, 403, 404]);
+const REFUSALS = new Set(['too_short', 'too_small', 'repeat', 'in_flight', 'cap_reached', 'daily_limit', 'grr', 'rote']);
+const TEXT_LIMIT = 2000;
+
+function botConfig() {
+  const baseUrl = (process.env.MAIN_BOT_URL || '').replace(/\/$/, '');
+  const apiKey = process.env.INTERNAL_API_KEY || '';
+  if (!baseUrl || !apiKey) throw new Error('LP 6-12 API is not configured (MAIN_BOT_URL / INTERNAL_API_KEY)');
+  return { baseUrl, headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' } };
+}
+
+/** Pass on the bot's answer: queued, a known refusal, or a 400/403/404. Anything else throws (→ 502). */
+function answer(res, r, label) {
+  if (r.status === 202 && r.data && r.data.success && r.data.renderId) {
+    return res.status(202).json({ success: true, state: 'authoring', renderId: r.data.renderId });
+  }
+  if (r.status === 409 && r.data && REFUSALS.has(r.data.outcome)) {
+    return res.status(409).json({ success: false, outcome: r.data.outcome });
+  }
+  if (PASS_ON.has(r.status)) return res.status(r.status).json({ success: false, error: 'Could not make that plan' });
+  throw new Error(`${label} failed (HTTP ${r.status})`);
+}
+
+async function requireMakeOwn(req, res, next) {
+  const userId = req.session.portalUserId;
+  let on = false;
+  try {
+    on = (await teacherAppOnFor(supabase, PORTAL_TEACHER_V2_KEY, userId))
+      && (await isFlagEnabledForUser(supabase, PORTAL_LP_MAKE_OWN_KEY, userId));
+  } catch (_) { on = false; }
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  return next();
+}
+
+router.post('/lp612/own', requirePortalAuth, requireMakeOwn, async (req, res) => {
+  const b = req.body || {};
+  const segmentId = typeof b.segment_id === 'string' ? b.segment_id.trim() : '';
+  const lessonId = typeof b.lesson_id === 'string' ? b.lesson_id.trim() : '';
+  const id = segmentId || lessonId;
+  if (!id || (segmentId && lessonId) || id.length > 200 || !b.answers || typeof b.answers !== 'object' || Array.isArray(b.answers)) {
+    return res.status(400).json({ success: false, error: 'segment_id or lesson_id, and answers, are required' });
+  }
+  try {
+    const axios = require('axios');
+    const { baseUrl, headers } = botConfig();
+    const r = await axios.post(`${baseUrl}/api/internal/lp612/own`, {
+      userId: req.session.portalUserId, ...(segmentId ? { segmentId } : { lessonId }), answers: b.answers,
+    }, { headers, timeout: 20000, validateStatus: () => true });
+    return answer(res, r, 'lp612/own');
+  } catch (error) {
+    console.error('❌ Portal lp612/own failed', { error: error && error.message });
+    return res.status(502).json({ success: false, error: 'Could not make your plan' });
+  }
+});
+
+router.post('/lp612/own/:ownId/change', requirePortalAuth, requireMakeOwn, async (req, res) => {
+  const b = req.body || {};
+  const ownId = String(req.params.ownId || '');
+  const part = typeof b.part === 'string' ? b.part.trim() : '';
+  const text = typeof b.text === 'string' ? b.text : '';
+  if (!ownId || ownId.length > 200 || !part || part.length > 40 || !text.trim() || text.length > TEXT_LIMIT) {
+    return res.status(400).json({ success: false, error: 'part and text are required' });
+  }
+  try {
+    const axios = require('axios');
+    const { baseUrl, headers } = botConfig();
+    const r = await axios.post(`${baseUrl}/api/internal/lp612/own/${encodeURIComponent(ownId)}/change`, {
+      userId: req.session.portalUserId, part, text,
+    }, { headers, timeout: 20000, validateStatus: () => true });
+    return answer(res, r, 'lp612/own change');
+  } catch (error) {
+    console.error('❌ Portal lp612/own change failed', { error: error && error.message });
+    return res.status(502).json({ success: false, error: 'Could not change your plan' });
+  }
+});
+
+/**
+ * bd-snkn32.13 — GET /api/portal/lp612/own/slo/:segmentId → { success, mixed, summative, formative }. The form asks
+ * "which learning outcomes first?" only for a lesson whose FBISE SLOs mix Summative and Formative. Read from the
+ * bot's own map (no bot round trip: it is a file in this deploy), so the form and the instruction agree.
+ */
+router.get('/lp612/own/slo/:segmentId', requirePortalAuth, requireMakeOwn, (req, res) => {
+  const { sloMix } = require('../../bot/shared/services/lp612-own-slo');
+  const mix = sloMix(String(req.params.segmentId || '').slice(0, 200));
+  return res.json({ success: true, mixed: !!mix, summative: mix ? mix.summative : [], formative: mix ? mix.formative : [] });
+});
+
+/**
+ * GET /api/portal/lp612/own/pages?lesson_id|segment_id&from&to → { success, loaded,
+ * pages: [{ page, text }], missing }: her book's page text, from the bot (GET /api/internal/lp612/own/pages). Text
+ * only; loaded:false means the book is not imported (the portal says so, never a stand-in). Bot 400/404 pass on,
+ * anything else or no bot is 502.
+ */
+router.get('/lp612/own/pages', requirePortalAuth, requireMakeOwn, async (req, res) => {
+  const q = req.query || {};
+  const one = (v) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : undefined);
+  const lessonId = one(q.lesson_id);
+  const segmentId = one(q.segment_id);
+  if (!lessonId === !segmentId) return res.status(400).json({ success: false, error: 'segment_id or lesson_id is required' });
+  const params = { ...(lessonId ? { lesson_id: lessonId } : { segment_id: segmentId }) };
+  if (one(q.from)) params.from = one(q.from).slice(0, 4);
+  if (one(q.to)) params.to = one(q.to).slice(0, 4);
+  try {
+    const axios = require('axios');
+    const { baseUrl, headers } = botConfig();
+    const r = await axios.get(`${baseUrl}/api/internal/lp612/own/pages`, { params, headers, timeout: 20000, validateStatus: () => true });
+    if (r.status === 200 && r.data && r.data.success) {
+      const pages = (Array.isArray(r.data.pages) ? r.data.pages : []).map((p) => ({ page: p.page, text: p.text }));
+      return res.json({ success: true, loaded: !!r.data.loaded, pages, missing: Array.isArray(r.data.missing) ? r.data.missing : [] });
+    }
+    if (r.status === 400 || r.status === 404) return res.status(r.status).json({ success: false, error: 'Could not find those pages' });
+    throw new Error(`lp612/own/pages failed (HTTP ${r.status})`);
+  } catch (error) {
+    console.error('❌ Portal lp612/own/pages failed', { error: error && error.message });
+    return res.status(502).json({ success: false, error: 'Could not read the book' });
+  }
+});
+
+/**
+ * bd-snkn32.20 — GET /api/portal/lp612/own/mine?keys=<lesson ids> → { success, plans }: "Your plans for this
+ * chapter", from the bot (GET /api/internal/lp612/own/mine). Always the SESSION's user. Declared before /:ownId.
+ */
+const MINE_FIELDS = ['ownId', 'rootId', 'lesson', 'band', 'status', 'changesLeft', 'round', 'createdAt'];
+router.get('/lp612/own/mine', requirePortalAuth, requireMakeOwn, async (req, res) => {
+  const keys = typeof (req.query || {}).keys === 'string' ? req.query.keys.trim().slice(0, 4000) : '';
+  if (!keys) return res.status(400).json({ success: false, error: 'keys is required' });
+  try {
+    const axios = require('axios');
+    const { baseUrl, headers } = botConfig();
+    const r = await axios.get(`${baseUrl}/api/internal/lp612/own/mine`, {
+      params: { userId: req.session.portalUserId, keys }, headers, timeout: 20000, validateStatus: () => true,
+    });
+    if (r.status === 200 && r.data && r.data.success) {
+      const plans = (Array.isArray(r.data.plans) ? r.data.plans : [])
+        .map((p) => Object.fromEntries(MINE_FIELDS.map((f) => [f, p && p[f]])));
+      return res.json({ success: true, plans });
+    }
+    if (r.status === 400) return res.status(400).json({ success: false, error: 'keys is required' });
+    throw new Error(`lp612/own/mine failed (HTTP ${r.status})`);
+  } catch (error) {
+    console.error('❌ Portal lp612/own/mine failed', { error: error && error.message });
+    return res.status(502).json({ success: false, error: 'Could not list your plans' });
+  }
+});
+
+/**
+ * bd-snkn32.5 — GET /api/portal/lp612/own/recent → { success, plans }: "My own plans" on Lesson Plans home, from the
+ * bot (GET /api/internal/lp612/own/recent): her recent plans across lessons, each with where it lives. SESSION user.
+ */
+const RECENT_FIELDS = [...MINE_FIELDS, 'grade', 'subject', 'chapter', 'title'];
+router.get('/lp612/own/recent', requirePortalAuth, requireMakeOwn, async (req, res) => {
+  try {
+    const axios = require('axios');
+    const { baseUrl, headers } = botConfig();
+    const r = await axios.get(`${baseUrl}/api/internal/lp612/own/recent`, {
+      params: { userId: req.session.portalUserId }, headers, timeout: 20000, validateStatus: () => true,
+    });
+    if (r.status === 200 && r.data && r.data.success) {
+      const plans = (Array.isArray(r.data.plans) ? r.data.plans : [])
+        .map((p) => Object.fromEntries(RECENT_FIELDS.map((f) => [f, p && p[f]])));
+      return res.json({ success: true, plans });
+    }
+    throw new Error(`lp612/own/recent failed (HTTP ${r.status})`);
+  } catch (error) {
+    console.error('❌ Portal lp612/own/recent failed', { error: error && error.message });
+    return res.status(502).json({ success: false, error: 'Could not list your plans' });
+  }
+});
+
+/**
+ * GET /api/portal/lp612/own/:ownId/sections →{ success, band, changed,
+ * sections: [{ part, text, before? }] }: her ready plan as section cards, from the bot
+ * (GET /api/internal/lp612/own/:ownId/sections). Always the SESSION's user. Bot 404 passes on; anything else is 502.
+ */
+router.get('/lp612/own/:ownId/sections', requirePortalAuth, requireMakeOwn, async (req, res) => {
+  const ownId = String(req.params.ownId || '').trim().slice(0, 200);
+  const str = (v) => (typeof v === 'string' ? v : undefined);
+  try {
+    const axios = require('axios');
+    const { baseUrl, headers } = botConfig();
+    const r = await axios.get(`${baseUrl}/api/internal/lp612/own/${encodeURIComponent(ownId)}/sections`, {
+      params: { userId: req.session.portalUserId }, headers, timeout: 20000, validateStatus: () => true,
+    });
+    if (r.status === 200 && r.data && r.data.success) {
+      const sections = (Array.isArray(r.data.sections) ? r.data.sections : [])
+        .filter((x) => x && str(x.part) && str(x.text))
+        .map((x) => ({ part: x.part, text: x.text.slice(0, TEXT_LIMIT * 4), ...(str(x.before) ? { before: x.before.slice(0, TEXT_LIMIT * 4) } : {}) }));
+      return res.json({ success: true, band: r.data.band === 'k5' ? 'k5' : 'g612', changed: str(r.data.changed) || null, sections });
+    }
+    if (r.status === 404) return res.status(404).json({ success: false, error: 'Could not find that plan' });
+    throw new Error(`lp612/own/sections failed (HTTP ${r.status})`);
+  } catch (error) {
+    console.error('❌ Portal lp612/own/sections failed', { error: error && error.message });
+    return res.status(502).json({ success: false, error: 'Could not read your plan' });
+  }
+});
+
+module.exports = router;

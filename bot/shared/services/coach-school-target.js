@@ -15,7 +15,8 @@
  */
 
 /** `coach_school:` + the EMIS, nothing else. */
-const COACH_SCHOOL_TARGET = /^coach_school:([A-Za-z0-9-]{1,32})$/;
+// bd-97daxo.22: up to 64 — a GB school without an EMIS is keyed by its name (40 characters).
+const COACH_SCHOOL_TARGET = /^coach_school:([A-Za-z0-9-]{1,64})$/;
 
 /** My schools. One fixed string, compared whole. */
 const COACH_SCHOOLS = 'coach_schools';

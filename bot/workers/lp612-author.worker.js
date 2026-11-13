@@ -1,3 +1,8 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 /**
  * The job that writes a 6-12 lesson nobody has asked for before.
  *
@@ -53,6 +58,8 @@ const Serving = require('../shared/services/lp612-serving.service');
 const Lp612Lifecycle = require('../shared/services/lp612-lifecycle.service');
 // bd-5rz1v.21 — a portal waiter's claim on the render she waited for (see the waiter loop).
 const Deliveries = require('../shared/services/lp612-deliveries.store');
+const Owed = require('../shared/services/lp612-owed.store');
+const { redeliverOwed } = require('./lp612-redeliver');
 const {
   resolveAuthorModel, authorTierFor, authorRounds, authorTimeoutMs, overlayTimeoutMs,
   overlayPassOff,
@@ -592,6 +599,12 @@ async function process(payload) {
   // Idempotency. SQS is at-least-once; a redelivered job for a render that has
   // already finished must not author the lesson a second time.
   if (render.status !== 'authoring') {
+    // bd-s8mi25 — UNLESS a run that reached `ready` died before its last send. It claimed (and so
+    // emptied) the waiter list, so the only record of who is still owed the PDF is lp612-owed.
+    if (render.status === 'ready') {
+      const finished = await redeliverOwed({ renderId, segmentId, lang, templateVersion, correlationId }, { loadSegment });
+      if (finished) return finished;
+    }
     logToFile('LP 6-12 worker: render not in flight, skipping', {
       renderId, status: render.status, correlationId,
     });
@@ -1491,6 +1504,9 @@ async function process(payload) {
     // locked statement, and it runs AFTER the status flip so a join arriving now is refused
     // ('not_authoring') and re-decided into a cache hit rather than dropped.
     const waiters = await claimWaiters(renderId, snapshot);
+    // bd-s8mi25 — the claim just emptied the row's list; until the loop below ends, this is the
+    // only record of who is owed the PDF if the container dies mid-send.
+    await Owed.remember(renderId, waiters);
     // When the document became ready — the generated_at of every waiter's lifecycle row.
     const readyAt = new Date().toISOString();
 
@@ -1585,6 +1601,8 @@ async function process(payload) {
         });
       }
     }
+
+    await Owed.forget(renderId);
 
     logToFile('LP 6-12 worker: lesson authored and delivered', {
       renderId,

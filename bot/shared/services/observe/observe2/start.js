@@ -92,6 +92,7 @@ async function afterStart({ user, phoneNumber, boundTeacher, schoolExtId, teache
     observerUserId: user.id,
     teacherUserId: (teacher && teacher.user_id) || null,
     visitContext,
+    ...(user && user.region !== undefined ? { observerRegion: user.region } : {}),
   });
   if (!created.ok || !created.form) {
     await WhatsAppService.sendMessage(phoneNumber, S.record_failed);
@@ -190,8 +191,30 @@ async function handlePeriodButton(user, from, buttonId) {
     await WhatsAppService.sendMessage(from, S.try_again);
     return true;
   }
+  if (await askedLessonOrSentFde(user, from, { ...form, period_minutes: parsed.minutes })) return true;
   await sendLiveForm(user, from, form.id, parsed.minutes);
   return true;
+}
+
+/**
+ * bd-pni007 — FDE's grade 6-12 tools (obs612_coach on for this coach): the lesson's class is asked before any form,
+ * and a visit already named for grades 6-12 gets FDE's form, never the FICO one. @returns {Promise<boolean>}
+ * handled (false: the FICO live form as today — the switch is off, or the lesson was named grades 1-5).
+ */
+async function askedLessonOrSentFde(user, from, form, { afterLesson = false } = {}) {
+  try {
+    const Obs612 = require('../obs612/visit');
+    if (Obs612.isObs612Form(form)) {
+      await Obs612.sendForm(user, from, form, { live: !afterLesson && !form.coaching_session_id });
+      return true;
+    }
+    if (Obs612.lessonNamed(form) || !(await Obs612.asksClass(user))) return false;
+    const teacherName = (form.visit_context && form.visit_context.teacher_name) || null;
+    return Boolean(await Obs612.askClass(user, from, { kind: 'f', ref: form.id, teacherName }));
+  } catch (err) {
+    logToFile('❌ /observe2: the FDE lesson step failed — FICO form instead', { userId: user && user.id, formId: form && form.id, error: err.message }, 'error');
+    return false;
+  }
 }
 
 /**
@@ -216,6 +239,7 @@ async function handleFillButton(user, from, buttonId) {
     await WhatsAppService.sendMessage(from, S.form_gone);
     return true;
   }
+  if (await askedLessonOrSentFde(user, from, form, { afterLesson: Boolean(form.coaching_session_id) })) return true;
   await sendLiveForm(user, from, form.id, form.period_minutes, { afterLesson: Boolean(form.coaching_session_id) });
   return true;
 }

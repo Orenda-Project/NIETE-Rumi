@@ -52,6 +52,15 @@
  *                            ran out (time_up); any part EGRA's / EGMA's own early-stop rule ended (stop_rule). The true
  *                            score still comes from the recording. One incomplete_move_on event
  *                            { by: 'app', section, reason, reached, of }, only when something is skipped.
+ *   (round 13)               opts.timeup_counts with opts.incomplete (the engine, battery.ui.r13_whole_stop 'all', the Whole
+ *                            battery only): a time-up is not finished again, as round 7b defined it, over r8_timeup_continue
+ *                            and the story's voice reading; 'early' passes opts.timeup_continue instead.
+ *   (round 13b)              opts.oral_in_a_row = N (2+) with opts.incomplete (the engine, battery.ui.r13_oral_rule): a
+ *                            spoken part ends its subject only when N questions IN A ROW ran out with nobody pressing
+ *                            "I've answered" / Next. An answered question (or Back) starts the count again, and so does
+ *                            every part. Below N the part goes on and is finished; at N it ends there (time_up) and the
+ *                            rest of the subject is skipped. The answers keep today's values ('spoken'); the
+ *                            incomplete_move_on event adds in_a_row: N.
  *   silence_reminder (phase) opts.silence_repeat, RDF auto only: a read-aloud part (record) whose recording ran with the
  *                            ear listening and no voice heard ends in the reminder instead of a result (one silence_repeat
  *                            event { by: 'app', attempt: 1 }); silenceRepeatDone() runs the part again from its start. Once
@@ -312,7 +321,11 @@
     var skipInstrOn = manual && !!(battery.ui && battery.ui.r9_skip_instructions === true);
     // Round 8: the story's questions by the voice heard (RDF auto, no last-word step); a time-up ends only its own part.
     var positionOn = skipLW && (!!opts.reading_position || !!(battery.ui && battery.ui.r8_reading_position === true));
-    var timeupGoesOn = incompleteOn && (!!opts.timeup_continue || !!(battery.ui && battery.ui.r8_timeup_continue === true));
+    // Round 13 (opts.timeup_counts, the Whole battery's "all"): a time-up is not finished, whatever r8_timeup_continue says
+    var timeupCounts = incompleteOn && !!opts.timeup_counts;
+    var timeupGoesOn = incompleteOn && !timeupCounts && (!!opts.timeup_continue || !!(battery.ui && battery.ui.r8_timeup_continue === true));
+    // Round 13b (opts.oral_in_a_row): how many spoken questions in a row left unanswered end the subject (null: one, as before)
+    var oralRun = incompleteOn && typeof opts.oral_in_a_row === 'number' && opts.oral_in_a_row >= 2 ? opts.oral_in_a_row : null;
 
     /** sa_cell_next_only: an Urdu or English letter/word cell moves on only on Next (maths cells keep their pace). */
     function holdsCell(t) { return cellNextOnly && cellTask(t) && /^(ur|en)\./.test(String(t.id)); }
@@ -503,7 +516,9 @@
       ev('task_end', { task_id: t.id, value: r });
       st = { phase: 'task_end', task_id: t.id, result: r };
       if (gap && restOfSection(t).length) {
-        ev('incomplete_move_on', { task_id: t.id, value: { by: 'app', section: sectionOf(t), reason: gap.reason, reached: gap.reached, of: gap.of } });
+        var mv = { by: 'app', section: sectionOf(t), reason: gap.reason, reached: gap.reached, of: gap.of };
+        if (gap.in_a_row) mv.in_a_row = gap.in_a_row;
+        ev('incomplete_move_on', { task_id: t.id, value: mv });
         skipRest(t, STOP.SKIPPED_INCOMPLETE);
       }
     }
@@ -546,15 +561,21 @@
       if (why === STOP.FIRST_LINE || why === STOP.CONSECUTIVE) return { reason: 'stop_rule', reached: r.attempted, of: of };
       if (t.mode === 'record' && why === STOP.SILENCE) return { reason: 'silence', reached: null, of: of };
       if (why !== STOP.COMPLETE && why !== STOP.TIME_UP) return null;
+      // round 13b (oral_in_a_row): N spoken questions in a row ran out, whatever ended the part
+      if (oralRun && t.mode === 'oral' && (s.oral_run || 0) >= oralRun) {
+        return { reason: 'time_up', reached: Math.max(0, r.attempted - (s.oral_timeouts || 0)), of: of, in_a_row: s.oral_run };
+      }
       // round 8 (r8_timeup_continue): the part's own clock ran out: that part is done, the subject goes on
       if (why === STOP.TIME_UP && timeupGoesOn) return null;
       // round 8 (r8_reading_position): the story's time-up never skips its questions; the voice heard decides them
-      if (why === STOP.TIME_UP && positionOn && t.passage && r.last_word_skipped) return null;
+      if (why === STOP.TIME_UP && positionOn && t.passage && r.last_word_skipped && !timeupCounts) return null;
       if (t.mode === 'tap' || t.mode === 'keypad' || t.mode === 'keyboard') {
         return why === STOP.TIME_UP && r.attempted < of ? { reason: 'time_up', reached: r.attempted, of: of } : null;
       }
       if (t.mode === 'oral') {
         var unanswered = s.oral_timeouts || 0;
+        // round 13b: fewer than N in a row is finished; only the part's own clock reads as before
+        if (oralRun) return why === STOP.TIME_UP ? { reason: 'time_up', reached: Math.max(0, r.attempted - unanswered), of: of } : null;
         return why === STOP.TIME_UP || unanswered ? { reason: 'time_up', reached: Math.max(0, r.attempted - unanswered), of: of } : null;
       }
       if (t.mode !== 'record') return null;
@@ -798,6 +819,7 @@
         var t = task();
         if (st.phase !== 'running' || t.mode === 'record') return undefined;
         var it = st.items[st.item_i];
+        st.oral_run = 0; // round 13b: an answered question starts the count again
         ev(t.mode === 'keypad' || t.mode === 'keyboard' ? t.mode + '_submit' : 'tap', { task_id: st.task_id, item_id: it.id, value: value });
         return score(it, value);
       },
@@ -811,6 +833,7 @@
       skip: function () {
         var t = task();
         if (st.phase !== 'running' || t.mode === 'record') return undefined;
+        st.oral_run = 0; // round 13b: Next pressed is not a question left to run out
         return score(st.items[st.item_i], t.mode === 'oral' ? 'skipped' : 'skipped');
       },
       /** One at a time: the cell on show is passed (how: 'tap', or 'auto' when the page moves it on). */
@@ -871,7 +894,10 @@
         if (tmo && waited >= tmo * 1000) {
           // sa_incomplete_move_on: a spoken question that ran out of time was left unanswered (its answer reads 'spoken')
           if (incompleteOn && t.mode === 'oral') st.oral_timeouts = (st.oral_timeouts || 0) + 1;
+          // round 13b: one more in a row; at N the part ends here (unless that was its last question, which ends it anyway)
+          if (oralRun && t.mode === 'oral') st.oral_run = (st.oral_run || 0) + 1;
           score(st.items[st.item_i], t.mode === 'oral' ? 'spoken' : 'timeout');
+          if (oralRun && t.mode === 'oral' && st.oral_run >= oralRun && st.phase === 'running') finish(STOP.TIME_UP);
           return null;
         }
         if (t.replay_at_s && !st.replayed && waited >= t.replay_at_s * 1000) {
@@ -911,6 +937,7 @@
         if (t.mode === 'record' || st.item_i <= 0 || !st.answers.length) return false;
         var from = st.item_i;
         st.answers.pop();
+        st.oral_run = 0; // round 13b: the question asked again starts the count again
         if (st.rec_marks && st.rec_marks.length) st.rec_marks.pop();
         st.attempted = 0; st.correct = 0; st.incorrect = 0; st.streak = 0; st.first_line_correct = 0;
         st.answers.forEach(function (a) { tally(t, a.ok); });

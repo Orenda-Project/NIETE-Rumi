@@ -83,7 +83,8 @@ function buildEditAuditRow(actorId, person, action, detail) {
  * of upcoming visits → BRIEF → start) · SELECT_SCHOOL/SELECT_TEACHER (Dropdown
  * pickers — WhatsApp's dropdown sheet gives native client-side search; no
  * pagination needed, 200-option cap ≥ the 160-teacher max) → BRIEF_SCHEDULE →
- * SCHEDULE_PICKER (CalendarPicker Mon–Fri + slot Dropdown) → CONFIRM_SCHEDULED
+ * SCHEDULE_PICKER (CalendarPicker of the school's week — Mon–Sat in Gilgit-Baltistan, Mon–Fri elsewhere,
+ * bd-97daxo.30 — + slot Dropdown) → CONFIRM_SCHEDULED
  * → SCHEDULE loop, or step:'done' → SUCCESS close (the localized chat ack is
  * sent by flow-response.handler off the completion params).
  *
@@ -523,7 +524,7 @@ const workFormScreen = (userId, offset) => _stageScreen(userId, offset, {
   fetch: (D, u, o) => D.listUnfinished(u, o),
   metaOf: (s) => ({ gate: 'finish setup', form: 'form to submit',
     retry: 'stopped - tap to retry', wait: 'analysing…', observe2: 'next step waiting',
-    observe2_form: 'recorded lesson - fill the form' })[s.resume] || 'finish setup',
+    observe2_form: 'recorded lesson - fill the form', obs612_form: 'FDE form to fill' })[s.resume] || 'finish setup',
   action: 'resume',
 });
 const debriefsScreen = (userId, offset) => _stageScreen(userId, offset, {
@@ -668,6 +669,20 @@ async function _teacherAndSchoolNames(userId, teacherExtId, schoolExtId) {
   return { teacherName, schoolName };
 }
 
+/**
+ * bd-97daxo.30 — the visit school's week on a date picker: Mon-Sat for a Gilgit-Baltistan school, Mon-Fri elsewhere.
+ *
+ * Only for a published Flow that reads it. The new Flow's buttons that open SCHEDULE_PICKER / SCHEDULE_EDIT send
+ * school_week '1' and the screens declare include_days; the Flow published before it does neither, keeps its fixed
+ * Mon-Fri and must not be sent a key it does not declare. Meta serves the old JSON until the asset is republished,
+ * which is only allowed after this endpoint is live, so both arrive for a while.
+ */
+async function _withSchoolWeek(data, screenData, userId, schoolExtId) {
+  if (!screenData || String(screenData.school_week || '') !== '1') return data;
+  const { schoolWeekFor } = require('../services/observe/school-week');
+  return { ...data, include_days: await schoolWeekFor(userId, schoolExtId) };
+}
+
 async function pickerScreen(userId, screenData) {
   const teacherExtId = screenData && screenData.teacher_ext_id;
   const schoolExtId = screenData && screenData.school_ext_id;
@@ -677,13 +692,13 @@ async function pickerScreen(userId, screenData) {
   try { await ObserveState.setState(userId, 'awaiting_pick', { schoolExtId, teacherExtId, origin: 'new' }); } catch (_) {}
   return {
     screen: 'SCHEDULE_PICKER',
-    data: {
+    data: await _withSchoolWeek({
       recap: clip(`${teacherName}${schoolName ? ` - ${schoolName}` : ''}`, 80),
       min_date: today.toISOString().slice(0, 10),
       max_date: max.toISOString().slice(0, 10),
       teacher_ext_id: String(teacherExtId || ''),
       school_ext_id: String(schoolExtId || ''),
-    },
+    }, screenData, userId, schoolExtId),
   };
 }
 
@@ -939,13 +954,13 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       if (target === 'SCHEDULE_EDIT') {
         const today = new Date();
         const max = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000);
-        return { screen: 'SCHEDULE_EDIT', data: {
+        return { screen: 'SCHEDULE_EDIT', data: await _withSchoolWeek({
           visit_id: String(row.id),
           summary: visitSummary(row),
           min_date: today.toISOString().slice(0, 10),
           max_date: max.toISOString().slice(0, 10),
           slots: _scheduleStore().SLOTS.map((x) => ({ id: String(x), title: String(x) })),
-        } };
+        }, screenData, userId, row.school_ext_id) };
       }
       try { await ObserveState.setState(userId, 'awaiting_pick', { schoolExtId: row.school_ext_id, teacherExtId: row.teacher_ext_id, origin: 'schedule' }); } catch (_) {}
       return briefScreen(userId, { teacher_ext_id: row.teacher_ext_id, school_ext_id: row.school_ext_id, origin: 'schedule' }, 'BRIEF');

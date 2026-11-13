@@ -588,7 +588,9 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
 
     // Only an explicit 'no' says the school is missing (a footer-posted payload may not carry it).
     const schoolLinked = !(isV5 && responseJson.school_linked === 'no');
-    await sendRegistrationWelcome({ userId, phoneNumber, language: registrationLanguage, name: greetName, schoolLinked });
+    // v6: what "Is this you?" did at Finish. Only the two known values add a line; anything else is today's welcome.
+    const identity = ['claimed', 'review'].includes(responseJson.identity) ? responseJson.identity : null;
+    await sendRegistrationWelcome({ userId, phoneNumber, language: registrationLanguage, name: greetName, schoolLinked, identity });
 
     logToFile('✅ Registration completed via flow', { userId, version: isV5 ? 5 : 4, role, country, organization: resolvedOrg });
     return true;
@@ -626,9 +628,11 @@ function registrationPayload(responseJson) {
  * link, never a broken one. A send that fails is retried as plain text: the account is already
  * registered, so a failed greeting must never turn into "something went wrong".
  */
-async function sendRegistrationWelcome({ userId, phoneNumber, language, name, schoolLinked }) {
+async function sendRegistrationWelcome({ userId, phoneNumber, language, name, schoolLinked, identity = null }) {
   const params = { name: name || '🙂' };
-  const noSchool = schoolLinked ? '' : `\n\n${resolveUx('regDoneNoSchool', { language })}`;
+  const IDENTITY_KEYS = { claimed: 'regDoneClaimed', review: 'regDoneReview' };
+  const noSchool = (schoolLinked ? '' : `\n\n${resolveUx('regDoneNoSchool', { language })}`)
+    + (IDENTITY_KEYS[identity] ? `\n\n${resolveUx(IDENTITY_KEYS[identity], { language })}` : '');
   const plain = `${resolveUx('regDoneChatNoLink', { language, params })}${noSchool}`;
   try {
     const { signAppLink } = require('../services/app-login-link');
@@ -870,6 +874,12 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
 
     const framework = ((getObservePack().key) || 'fico').toUpperCase();
     const teacherName = result && result.boundTeacher && result.boundTeacher.teacher_name;
+    // bd-pni007: with FDE's grade 6-12 tools on for this coach (obs612_coach), the lesson's class (and subject) is
+    // asked first; the capture prompt follows the answer. Off (the default): today's capture prompt, unchanged.
+    try {
+      const Obs612 = require('../services/observe/obs612/visit');
+      if (user && await Obs612.asksClass(user) && await Obs612.askForObserve(user, phoneNumber, { teacherName })) return true;
+    } catch (_) { /* today's capture prompt */ }
     await WhatsAppService.sendMessage(
       phoneNumber,
       buildVisitCapturePrompt(observeLang(user || {}), { teacherName, framework })
@@ -1127,6 +1137,7 @@ async function handleAssessmentFlowCompletion(responseJson, from, user, opts = {
         userId: user?.id,
         outputFormat: responseJson?.output_format,
         answerLines: responseJson?.answer_lines,
+        savePaper: responseJson?.save_paper,
       });
     } catch (err) {
       logToFile('[assessment] submit from completion threw', { error: err?.message });

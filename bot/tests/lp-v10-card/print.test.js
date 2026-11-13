@@ -39,6 +39,20 @@ test('a card longer than 2000px prints whole on one longer page', async () => {
   expect(Math.round(pdf.getPage(0).getSize().height)).toBe(Math.round(2941 * 0.75));
 }, 60000);
 
+// bd-snkn32.23 — the card's own CSS fixes @page at 520x2000; a longer card was cut into two pages with a big blank
+// in We Do. It still prints on one page as long as the card.
+test('a card longer than 2000px with the card @page rule still prints on one page', async () => {
+  if (!canLaunch) return;
+  const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'v10print-')), 'tallcss.pdf');
+  const html = '<html><head><style>@page{size:520px 2000px;margin:0}</style></head><body style="margin:0">'
+    + '<div class="page"><div style="height:1900px">a</div><div style="height:900px;break-inside:avoid">b</div></div></body></html>';
+  const { printPx } = await printCard(html, out);
+  expect(printPx).toBe(2800);
+  const pdf = await PDFDocument.load(fs.readFileSync(out));
+  expect(pdf.getPageCount()).toBe(1);
+  expect(Math.round(pdf.getPage(0).getSize().height)).toBe(Math.round(2800 * 0.75));
+}, 60000);
+
 test('a page with no .page reports no height, so the caller refuses it', async () => {
   if (!canLaunch) return;
   const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'v10print-')), 'x.pdf');

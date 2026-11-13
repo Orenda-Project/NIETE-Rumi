@@ -905,7 +905,7 @@ async function runTopUp(api, {
         if (!ask2.length) break;
         // eslint-disable-next-line no-await-in-loop
         const kv = await api.verifyKeys({
-          questions: qs, indices: ask2, language, grade, subject: digest.subject, digest, lessonSummary, quizId, withLesson,
+          questions: qs, indices: ask2, language, grade, subject: digest.subject, digest, lessonSummary, withLesson,
         });
         record.cost_usd += Number(kv.costUsd) || 0;
         kv.verdicts.filter((v) => KeyVerify.FLAGGED.has(v.verdict)).forEach((v) => bad.add(v.index));
@@ -1846,7 +1846,7 @@ async function runKeyVerify(api, {
     return message;
   };
   const solve = (qs, indices = null, withLesson = true, again = false) => api.verifyKeys({
-    questions: qs, indices, language, grade, subject: digest.subject, digest, lessonSummary, quizId, withLesson, again,
+    questions: qs, indices, language, grade, subject: digest.subject, digest, lessonSummary, withLesson, again,
   });
   const flagged = (v) => KeyVerify.FLAGGED.has(v.verdict);
   /**

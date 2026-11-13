@@ -1,3 +1,8 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 'use strict';
 /**
  * Teacher Home card — the teacher Home's ONE card, its scores row and its per-teacher tile order. Mounted at /api/portal by
@@ -36,7 +41,7 @@ const {
   PORTAL_SELF_OBSERVATION_KEY, PORTAL_TEACHER_HOME_QUIZ_TILE_KEY,
 } = require('../lib/feature-flags');
 // bd-33wxxi.1 — the teacher-app switches go through one gate: a principal on the principal app is on too.
-const { teacherAppOnFor } = require('../lib/teacher-app');
+const { teacherAppOnFor, isPrincipalAppUser } = require('../lib/teacher-app');
 const telemetry = require('../services/telemetry.service');
 const TeacherObservation = require('../lib/teacher-observation');
 const Order = require('../services/teacher-home-order.service');
@@ -150,8 +155,10 @@ router.get('/me/home', requirePortalAuth, requireTeacherV2, requireHomeCard, asy
       isFlagEnabledForUser(supabase, PORTAL_SELF_OBSERVATION_KEY, userId).catch(() => false),
       // the "Quizzes" tile (portal_teacher_home_quiz_tile; a failed read = no tile)
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_QUIZ_TILE_KEY, userId).catch(() => false),
+      // bd-33wxxi.9.1 — a principal on the principal app: no first-plan card (a failed read = as for anyone else)
+      isPrincipalAppUser(supabase, userId).catch(() => false),
     ]);
-    const [user, orderOn, counts, bot, coachRow, obsRow, lpCount, lastPlan, selfObservation, quizTileOn] = settled.map(valueOf);
+    const [user, orderOn, counts, bot, coachRow, obsRow, lpCount, lastPlan, selfObservation, quizTileOn, principalApp] = settled.map(valueOf);
 
     const isCoach = Order.isCoachRole(user && user.role);
     const lang = langOf(user && user.preferred_language);
@@ -160,7 +167,7 @@ router.get('/me/home', requirePortalAuth, requireTeacherV2, requireHomeCard, asy
     const observation = asSession(obsRow);
     let card = null;
     try {
-      card = Order.pickCard({ bot, coach, observation, lastPlan, lpCount, quizHome, isCoach, now: nowMs });
+      card = Order.pickCard({ bot, coach, observation, lastPlan, lpCount, quizHome, isCoach, firstPlan: principalApp !== true, now: nowMs });
     } catch (_) { card = null; }
     let order = fixed;
     if (orderOn === true && counts) {

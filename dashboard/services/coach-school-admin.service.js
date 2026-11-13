@@ -29,7 +29,8 @@ const SEARCH_MIN = 2;      // one letter matches most of the district
 const SEARCH_CAP = 20;     // a readable list; type more to narrow it
 const REMOVE_MAX = 30;     // the bot's own batch cap (observe-teacher-admin REMOVE_BATCH_MAX)
 const REASON_MAX = 200;
-const SCHOOL_KEY_RX = /^[a-z_]+:[A-Za-z0-9-]{1,32}$/;
+// bd-97daxo.22: up to 64 — a GB school without an EMIS is keyed by its name (40 characters).
+const SCHOOL_KEY_RX = /^[a-z_]+:[A-Za-z0-9-]{1,64}$/;
 
 const refuse = (status, reason) => ({ status, data: { success: false, reason } });
 const notFound = () => refuse(404, 'not_found');

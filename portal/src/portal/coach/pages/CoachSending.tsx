@@ -7,6 +7,7 @@ import { StatusChip } from "../../teacher/ui/StatusChip";
 import { OBSERVE } from "../observe/copy";
 import { failureWords, lengthShort, planKindLabel } from "../observe/format";
 import ObservePage from "../observe/ObservePage";
+import { useObserveRoutes } from "../observe/observeRoutes";
 import { retrySend, useSendJob } from "../observe/sender";
 
 /**
@@ -24,7 +25,8 @@ const CoachSending = () => {
   const L = useCopy(NOTICES);
   const { id = "" } = useParams();
   const job = useSendJob(id);
-  if (!job) return <Navigate to={`/portal/coach/visit/${id}`} replace />;
+  const routes = useObserveRoutes();
+  if (!job) return <Navigate to={routes.visit(id)} replace />;
 
   const failed = job.state === "failed";
   const sent = job.state === "sent";
@@ -33,9 +35,9 @@ const CoachSending = () => {
   const caption = failed ? C.couldntSend : sent ? C.sent : C.sending;
 
   return (
-    <ObservePage banner={false} title={C.observationOf(job.teacherName)} crumb={C.checkAndSend} backTo={`/portal/coach/visit/${id}`} feature="observations"
+    <ObservePage banner={false} title={C.observationOf(job.teacherName)} crumb={C.checkAndSend} backTo={routes.visit(id)} feature="observations"
       dock={sent ? (
-        <Link replace to={`/portal/coach/observation/${job.observationId}`}
+        <Link replace to={routes.observation(job.observationId || "")}
           className="flex h-14 flex-1 items-center justify-center rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.openObservation}</Link>
       ) : failed ? (
         <button type="button" onClick={() => retrySend(id)}
@@ -43,7 +45,7 @@ const CoachSending = () => {
           <RotateCcw className="h-5 w-5" aria-hidden="true" />{C.tryAgain}
         </button>
       ) : (
-        <Link replace to="/portal/coach/reports"
+        <Link replace to={routes.reports}
           className="flex h-14 flex-1 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025]">{C.goToReports}</Link>
       )}>
       <div className="flex flex-col items-center gap-[22px] pt-6">

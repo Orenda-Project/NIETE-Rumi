@@ -10,6 +10,7 @@
  * the services are never mocked. Default period: This month (Rifat's review pick 1B, 5 Nov).
  */
 const Where = require('../../dashboard/services/where-to-coach.service');
+const Card = require('../../dashboard/services/coach-school-card.service');
 const { createCoachSchoolCardRouter } = require('../../dashboard/routes/coach-school-card.routes');
 
 const TODAY = '2026-10-28'; // a Wednesday
@@ -344,5 +345,30 @@ describe('the routes (inside the School card router, so behind its switch)', () 
     expect(body.period.key).toBe('month');
     expect((await call('/coach/school/9%2001/first')).code).toBe(404);
     expect((await call(`/coach/teacher/${ph(9)}/where`)).code).toBe(404);
+  });
+});
+
+describe('a FICO17 v6 field-form visit is a field-form visit (rubric fico17_v6; FICO6 R16)', () => {
+  // A fresh score memo per read: the service's default one is keyed by session and would hand back h3 as first read.
+  const fresh = () => ({ ...month, memo: Card.createMemo() });
+  const asV6 = (t) => {
+    const h3 = t.sessions.find((s) => s.id === 'h3');
+    h3.analysis_data.observe2 = { rubric: 'fico17_v6' };
+    return t;
+  };
+
+  test('never one of her reviewed FICO-form observations: the engine reads 1, as with fico17', async () => {
+    const out = await Where.getWhereToCoach(fakeDb(asV6(tables())).query, 'coach-1', ph(1), fresh());
+    expect(out.sessions).toEqual({ dc: 3, coach: 1 });
+    expect(out.sections.find((s) => s.code === 'D')).toMatchObject({ agreeLow: true });
+  });
+
+  test('the whole page is the same as for the fico17 visit, and who to coach first too', async () => {
+    const v5 = await Where.getWhereToCoach(fakeDb(tables()).query, 'coach-1', ph(1), fresh());
+    const v6 = await Where.getWhereToCoach(fakeDb(asV6(tables())).query, 'coach-1', ph(1), fresh());
+    expect(v6).toEqual(v5);
+    const f5 = await Where.getCoachFirst(fakeDb(tables()).query, 'coach-1', '901', fresh());
+    const f6 = await Where.getCoachFirst(fakeDb(asV6(tables())).query, 'coach-1', '901', fresh());
+    expect(f6).toEqual(f5);
   });
 });

@@ -1,3 +1,8 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 'use strict';
 /**
  * bd-fmf24g.30 — "Send on WhatsApp" from a portal screen (the ShareActions kit button). ONE entry, `sendShare`,
@@ -45,6 +50,10 @@ const ENV_OF = Object.freeze({
 });
 /** Meta: 132001 template does not exist (in that language), 132015 paused, 132016 disabled. */
 const TEMPLATE_GONE = Object.freeze([132001, 132015, 132016]);
+// bd-9br45q: Meta's transient refusals (2 'Service temporarily unavailable', 131000 'Something went wrong') get ONE
+// more try after a short wait; every other refusal is the answer the first time.
+const TRANSIENT = Object.freeze([2, 131000]);
+const TRANSIENT_WAIT_MS = 1500;
 /** The languages each share template is approved in, by these exact codes (not en_US). */
 const LANGS = Object.freeze(['en', 'ur']);
 const FSI = '⁨';
@@ -106,20 +115,24 @@ function itemResolvers(supabase, { presign, k5 } = {}) {
     };
   }
   return {
+    // bd-644bcx — `id` is the PAPER's id (assessment_papers.id): what My papers lists as paper_id and the request page
+    // reads as paperId (assessment-browse.service), one per version. It was looked up as an assessment_requests.id,
+    // which never matched, so every tap answered not_found and the app showed "Not available yet".
     async paper(userId, id) {
-      const { data, error } = await supabase.from('assessment_requests')
-        .select('id, grade_code, subject_code, chapter_number, question_count, assessment_papers!inner(status, file_r2_key, question_count)')
-        .eq('id', id).eq('user_id', userId).eq('assessment_papers.status', 'ready').limit(1).maybeSingle();
+      const { data, error } = await supabase.from('assessment_papers')
+        .select('id, status, file_r2_key, question_count, '
+          + 'assessment_requests!inner(user_id, grade_code, subject_code, chapter_number, question_count)')
+        .eq('id', id).eq('assessment_requests.user_id', userId).eq('status', 'ready').limit(1).maybeSingle();
       if (error) throw new Error(error.message || 'paper read failed');
-      const p = data && first(data.assessment_papers);
-      if (!data || !p || !p.file_r2_key) return null;
-      const grade = gradeOf(data.grade_code);
-      const chapter = data.chapter_number ?? null;
+      const req = data && first(data.assessment_requests);
+      if (!data || !req || req.user_id !== userId || data.status !== 'ready' || !data.file_r2_key) return null;
+      const grade = gradeOf(req.grade_code);
+      const chapter = req.chapter_number ?? null;
       const { subjectLabel } = require('./assessment/assessment-vocabulary');
       return {
-        kind: 'paper', itemRef: `paper:${data.id}`, title: await chapterTitle(grade, data.subject_code, chapter), chapter, grade,
-        subject: data.subject_code ? subjectLabel(data.subject_code) : null,
-        questions: p.question_count ?? data.question_count ?? null, pdfUrl: await sign(p.file_r2_key),
+        kind: 'paper', itemRef: `paper:${data.id}`, title: await chapterTitle(grade, req.subject_code, chapter), chapter, grade,
+        subject: req.subject_code ? subjectLabel(req.subject_code) : null,
+        questions: data.question_count ?? req.question_count ?? null, pdfUrl: await sign(data.file_r2_key),
       };
     },
     async lesson(userId, id) {
@@ -269,6 +282,7 @@ function defaultDeps() {
     },
     item: (kind, id, userId) => resolvers[kind](userId, id),
     now: () => new Date(),
+    wait: (ms) => new Promise((r) => setTimeout(r, ms)),
     sendTemplate: (...a) => WhatsAppService.sendTemplate(...a),
   };
 }
@@ -306,8 +320,14 @@ async function attemptShare({ userId, kind, id, clip }, d, seen) {
     const lang = LANGS.includes(user.preferred_language) ? user.preferred_language : 'en';
     seen.lang = lang;
     const components = componentsFor(item, { lang, buttonToken: clip ? clip.token : null });
-    const report = {};
-    const ok = (await d.sendTemplate(user.phone_number, name, lang, components, { report })) === true;
+    let report = {};
+    let ok = (await d.sendTemplate(user.phone_number, name, lang, components, { report })) === true;
+    if (!ok && !clip && TRANSIENT.includes(Number(report.code))) { // a clip send has its own fallback (the plain report)
+      try { logEvent('share_send.retry', { kind, userId, itemRef: item.itemRef || null, code: report.code }); } catch (_) { /* logging never decides */ }
+      await (d.wait || ((ms) => new Promise((r) => setTimeout(r, ms))))(TRANSIENT_WAIT_MS);
+      report = {};
+      ok = (await d.sendTemplate(user.phone_number, name, lang, components, { report })) === true;
+    }
     // itemRef names WHAT was shared (lesson:k5:<lessonId>:<assetKind> / lesson:<segmentId>:<lang> / paper:<id> / report:<id>), so a
     // share can be matched to the lesson-open or delivery record of the same item. Ids only, never a title or a phone.
     try { logEvent(ok ? 'share_send.sent' : 'share_send.refused', { kind, userId, itemRef: item.itemRef || null, template: name, lang, code: report.code || null, ...(clip ? { button: true } : {}) }); } catch (_) { /* logging never decides */ }
@@ -383,4 +403,4 @@ async function recordLessonShare({ userId, id, seen, out, askedAt }) {
   }
 }
 
-module.exports = { sendShare, availability, itemResolvers, componentsFor, templateNameFromEnv, KINDS, ENV_OF, TEMPLATE_GONE };
+module.exports = { sendShare, availability, itemResolvers, componentsFor, templateNameFromEnv, KINDS, ENV_OF, TEMPLATE_GONE, TRANSIENT };

@@ -1443,6 +1443,37 @@ Test: `tests/lp612/diagram-solid-bar-thermo.test.js`, which runs through `render
 skill path in §1 carries these types, take its copy and keep only the `visual_check` rows and the
 example split, unless upstream has adopted them.
 
+### 3.36 An "-ud-din" `محمد` is not religious content — `lint_lp.js` `religiousMarks` detection (2026-11-11, bd-9mc3nz)
+
+Production, 2026-11-11, render `0c9fe2dd`, `grade_7_history.c05.p081-082` (The Mughal Empire): the
+Urdu overlay set "Zahiruddin Muhammad Babur" as `ظہیر الدین محمد بابر`, and the merged page failed
+check 6 alone ("carries religious content but does not set needs_human_review"), so a teacher who
+asked for Urdu got English. The stored English lesson has no religious content; Babur's name is its
+only `PROPHET_RE` hit. Detection (`isReligious`) ran the raw `PROPHET_RE`, unlike check 1.
+
+Detection now skips a bare `محمد` (no honorific after it) in exactly two cases: the reviewer's own
+list (`clearedByReview`, §3.14), and a `محمد` directly after a word ending in `الدین` — the
+Arabic-style laqab (ظہیر الدین، جلال الدین، شہاب الدین محمد …) the Prophet is never named by. The laqab clearance is refused when the word is `یوم` (یوم الدین, the Day of Judgement), or when `محمد` is followed by the ؐ mark, `(ص)`/`(صلعم)`, or one of the Prophet's own epithets (`PROPHET_CONTINUATIONS`) — the acceptance-evaluator's three probes, each pinned as a guard.
+check 1's `isCompoundGivenName` is **deliberately not reused**: it reads `حضرت محمد مکہ میں…` as a
+compound name, and detection is the only thing that holds that sentence. Pinned, with guards for
+every real mention, in `tests/lp612/religious-detection-compound-names.test.js`.
+
+### 3.37 Over the TEACH cap, mistakes + differentiation go back to Reference — `lib/template.js` `flowHosts`/`buildHtml`, `render_lp.js` `renderDoc` (2026-11-11, bd-9mc3nz.2)
+
+`flowHosts` itself is a NIETE-only change (bd-a8veu.10: the two page2 groups print in the
+teaching flow, not in Reference); upstream has no such function. This entry adds an off switch.
+
+- `buildHtml(doc, { noFlowHosts: true })` makes `flowHosts` answer "no host" for both groups, so
+  both print in Reference. `buildHtml` also returns `flowHosted` (does either group print in the
+  flow in this build?).
+- `renderDoc` paints once as before. If TEACH is over its cap and `flowHosted` is true, it paints
+  once more with `noFlowHosts`, and keeps that layout only if it is over the caps by fewer pages in
+  total; otherwise it paints the first layout again so the files on disk match the report. The
+  report carries `flow_groups_moved` (and the return value `flowGroupsMoved`).
+- Why: 132 G6-12 lessons in 7 days were delivered over the cap, all in TEACH; with the two groups
+  back in Reference 72 of the 109 over-by-one lessons fit both caps (queue #57, fault 1).
+- Test: `tests/lp612/over-cap-flow-groups.test.js`.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of

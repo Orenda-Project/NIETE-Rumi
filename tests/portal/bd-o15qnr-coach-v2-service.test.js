@@ -430,7 +430,8 @@ describe('Class R — no bare analysis_data: only the slices the numbers need', 
   test.each(['TEACHER_FACTS', 'COACH_SESSIONS', 'TEACHER_HISTORY'])('%s selects slices only', (key) => {
     const sql = SVC.SQL[key];
     expect(sql).toMatch(/analysis_data->'scores'/);
-    const bare = sql.replace(/analysis_data->'[a-z_]+'/g, '').replace(/AS analysis_data/g, '');
+    // bd-pni007: COACH_SESSIONS also reads an FDE visit's obs612 rubric id and result (a slice key with digits).
+    const bare = sql.replace(/analysis_data->'[a-z0-9_]+'/g, '').replace(/AS analysis_data/g, '');
     expect(bare).not.toMatch(/analysis_data/);
   });
 });

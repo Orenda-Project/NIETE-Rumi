@@ -91,21 +91,22 @@ const FIXED = {
 };
 
 describe('an echoed mark is not an edit', () => {
-  test('urdu Q4: the 1.25 mark sent back with a new answer is taken, and the mark stays 1.25', () => {
+  test('urdu Q4: the 1.25 mark sent back alone is taken, and the mark stays 1.25', () => {
     const items = inSlot(URDU, 'urdu.C.Q4');
     expect(items.length).toBeGreaterThan(0);
     for (const { question } of items) {
       expect(question.marks).toBe(1.25);
-      const out = Edit.applyEdit(question, { marks: '1.25', answer: 'نیا جواب' });
-      expect(out.marks).toBe(1.25);
-      expect(out.answer).toBe('نیا جواب');
+      expect(Edit.applyEdit(question, { marks: '1.25' })).toEqual(question);
     }
   });
 
-  test('urdu Q4: the 1.25 mark sent back with a wording change leaves the scheme as it was', () => {
+  test('urdu Q4: the 1.25 mark sent back with a new answer or wording is refused (PATTERN_NO_EDIT)', () => {
     const { question } = inSlot(URDU, 'urdu.C.Q4')[0];
-    const out = Edit.applyEdit(question, { marks: '1.25', question: `${question.question} ` + 'ـ' });
-    expect(out.scheme).toEqual(question.scheme);
+    for (const edit of [{ marks: '1.25', answer: 'نیا جواب' }, { marks: '1.25', question: `${question.question} ` + 'ـ' }]) {
+      let err;
+      try { Edit.applyEdit(question, edit); } catch (e) { err = e; }
+      expect(err).toMatchObject({ code: 'EDIT_REJECTED', errorCode: 'PATTERN_NO_EDIT' });
+    }
   });
 
   test('every item of every fixture survives the round trip fieldsFor → applyEdit', () => {
@@ -140,8 +141,7 @@ describe('a changed mark on a board-pattern question is refused (PATTERN_FIXED_M
     const parent = { slot: 'english.C.Q6', question: 'Read the situation and answer.', questions: [
       { question: 'What should the child say?', answer: 'Sorry', marks: 2 }] };
     expect(() => Edit.applyEdit(parent, { subIndex: 0, marks: '3' })).toThrow(FIXED.error);
-    expect(Edit.applyEdit(parent, { subIndex: 0, marks: '2', answer: 'I am sorry' }).questions[0])
-      .toEqual({ question: 'What should the child say?', answer: 'I am sorry', marks: 2 });
+    expect(Edit.applyEdit(parent, { subIndex: 0, marks: '2' })).toEqual(parent);
   });
 
   test('validate answers 400 PATTERN_FIXED_MARKS', async () => {
@@ -164,12 +164,12 @@ describe('a changed mark on a board-pattern question is refused (PATTERN_FIXED_M
     expect(mockRenders).toHaveLength(0);
   });
 
-  test('save: an Urdu Q4 answer edit with the 1.25 mark echoed makes v2 at 100 marks', async () => {
+  test('save: an Urdu Q4 item with only its 1.25 mark echoed makes v2 at 100 marks', async () => {
     mockDb.tables.assessment_requests = [{ ...REQ, subject_code: 'urdu' }];
     mockDb.tables.assessment_papers = [paper({ exam_json: URDU })];
     const { id } = inSlot(URDU, 'urdu.C.Q4')[0];
     const out = await call('/assessment/edit/save', {
-      userId: U, parentId: 'v1', changes: { edits: [{ id, edit: { marks: '1.25', answer: 'نیا جواب' } }] },
+      userId: U, parentId: 'v1', changes: { edits: [{ id, edit: { marks: '1.25' } }] },
     });
     expect(out.statusCode).toBe(200);
     expect(out.payload).toMatchObject({ success: true, status: 'ready', version: 2, marks: 100 });

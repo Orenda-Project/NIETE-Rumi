@@ -1,4 +1,5 @@
-import type { DraftOption, DraftSection, ObservationDraft } from "../../services/api";
+import type { DraftOption, DraftSection, Obs612Draft, ObservationDraft } from "../../services/api";
+import { initialV6Values } from "./v6Model";
 
 /**
  * bd-4404s7.5 — the Feedback Form's values: the SAME keys the WhatsApp review form submits, so the bot saves it through
@@ -16,6 +17,8 @@ export type Values = Record<string, string>;
 export function initialValues(draft: ObservationDraft): Values {
   const v: Values = {};
   for (const s of draft.sections) {
+    // bd-ra8xu.40 — a FICO17 v6 part: the v6 review Flow's own keys (v6Model.ts).
+    if (s.kind === "v6") { Object.assign(v, initialV6Values(s)); continue; }
     if (s.kind === "moves") {
       for (const m of s.moves) { v[`fid_r_${m.k}`] = m.verdict; v[`fid_e_${m.k}`] = m.evidence || ""; }
     } else {
@@ -48,6 +51,11 @@ export function titleOf(options: readonly DraftOption[], id: string | undefined)
 /** A rung's own name from its option title: "1 · Developing" → "Developing"; "— Not applicable to this lesson" → "Not applicable to this lesson". */
 export function rungName(title: string): string {
   return String(title || "").replace(/^[—–-]\s*/, "").replace(/^\d+\s*·\s*/, "").trim();
+}
+
+/** bd-ra8xu.40 — is this draft an FDE (obs612) visit's form (`kind: 'obs612'`), and not the FICO review form? */
+export function isObs612Draft(d: unknown): d is Obs612Draft {
+  return !!d && typeof d === "object" && (d as { kind?: unknown }).kind === "obs612";
 }
 
 export type { DraftSection };

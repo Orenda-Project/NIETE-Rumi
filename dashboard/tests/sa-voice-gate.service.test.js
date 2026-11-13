@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-21'); // sa-21: round 10, the engine files (sa-ui.js, sa.css, sa-voice.js, sa-engine.js)
+    expect(sw.CORE).toBe('sa-core-sa-24'); // sa-24: round 13b, sa-engine.js / sa-core.js (N spoken questions in a row)
   });
 });
 

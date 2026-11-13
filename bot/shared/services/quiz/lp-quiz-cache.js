@@ -1,3 +1,9 @@
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Here: lp_v8 and lp612 key a lesson differently because identity depends on the generation; no third shape.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 'use strict';
 /**
  * THE LESSON-PLAN QUIZ CACHE — a quiz written from a lesson PLAN is the same
@@ -242,15 +248,23 @@ function redis() {
 }
 const lockName = (key) => `lpquizcache:${key}`;
 
+// A lock this same quiz already holds: renew it and take it back. `lock:` is acquireLock's own key prefix.
+const REENTER_SCRIPT = `if redis.call("get", KEYS[1]) == ARGV[1] then
+  redis.call("expire", KEYS[1], ARGV[2]) return 1 else return 0 end`;
+
 /**
- * Take the author's lock on `key`.
+ * Take the author's lock on `key`. A lock held under this same quizId is the job's own earlier
+ * attempt (a worker died mid-author and SQS redelivered the job): it is taken back, never waited on.
  * @returns {Promise<'acquired'|'held'|'unavailable'>}
  */
 async function acquire(key, quizId) {
   try {
     const r = redis();
     if (!r.isAvailable()) return 'unavailable';
-    return (await r.acquireLock(lockName(key), String(quizId), LOCK_TTL_SECONDS)) ? 'acquired' : 'held';
+    const id = String(quizId);
+    if (await r.acquireLock(lockName(key), id, LOCK_TTL_SECONDS)) return 'acquired';
+    const mine = await r.evalScript(REENTER_SCRIPT, [`lock:${lockName(key)}`], [id, LOCK_TTL_SECONDS]);
+    return mine === 1 ? 'acquired' : 'held';
   } catch (_) {
     return 'unavailable';
   }

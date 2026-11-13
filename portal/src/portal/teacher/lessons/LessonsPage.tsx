@@ -13,6 +13,11 @@ import TeacherPage from '../TeacherPage';
 import { lessonsUrl, readAt, type LessonsAt } from './paths';
 import { useOpenLesson } from './useOpenLesson';
 import { Steps } from './Steps';
+import { lazy, Suspense } from 'react';
+import { useLpMakeOwn } from './own/flag';
+
+// bd-snkn32 — the Make my own row's code loads only for a teacher it is on for (the page's own bytes stay as they were).
+const OwnRow = lazy(() => import('./own/OwnRow').then((m) => ({ default: m.OwnRow })));
 import { attachToDc, DC_PICK, PICK_DEPTH, type PickTarget } from '../coaching/libraryPick';
 
 /**
@@ -53,6 +58,7 @@ function Lessons({ at }: { at: LessonsAt & { chapter: string } }) {
   const navigate = useNavigate();
   const location = useLocation();
   const picking = at.pick === DC_PICK;
+  const ownOn = useLpMakeOwn() === true;
 
   if (picking) {
     const plans = list.filter((l) => l.kind !== 'worksheet' && l.kind !== 'revision');
@@ -92,25 +98,34 @@ function Lessons({ at }: { at: LessonsAt & { chapter: string } }) {
     );
   }
 
+  const plans = list.length ? (
+    <div className={LIST_CARD}>
+      {list.map((l, i) => (
+        <ListRow
+          key={l.id}
+          variant="row"
+          first={i === 0}
+          {...lead(l, C)}
+          subtitle={C.crumb(l.pages, l.part != null ? C.part(l.part) : null) || undefined}
+          state={l.sent ? 'used' : 'default'}
+          onPress={() => { if (!busy) void open(l, at, { crumb }); }}
+        />
+      ))}
+    </div>
+  ) : null;
+
   return (
     <TeacherPage feature="lessons" crumb={subject ?? undefined} title={chapter?.title ?? ''} backTo={lessonsUrl('chapters', at)}>
       <Steps n={3} />
       <LoadState status={lessons.status} empty={!list.length} onRetry={retry} />
-      {list.length ? (
-        <div className={LIST_CARD}>
-          {list.map((l, i) => (
-            <ListRow
-              key={l.id}
-              variant="row"
-              first={i === 0}
-              {...lead(l, C)}
-              subtitle={C.crumb(l.pages, l.part != null ? C.part(l.part) : null) || undefined}
-              state={l.sent ? 'used' : 'default'}
-              onPress={() => { if (!busy) void open(l, at, { crumb }); }}
-            />
-          ))}
-        </div>
-      ) : null}
+      {/* bd-oitowp — Make my own FIRST, above the ready plans, and drawn in the same frame as them (one Suspense whose
+          fallback is the loading state), so the plans never jump down. Flag off: exactly the page as before. */}
+      {ownOn ? (
+        <Suspense fallback={lessons.status === 'ok' ? <LoadState status="loading" empty={false} onRetry={retry} /> : null}>
+          <OwnRow at={at} list={list} />
+          {plans}
+        </Suspense>
+      ) : plans}
     </TeacherPage>
   );
 }

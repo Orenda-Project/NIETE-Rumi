@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+// KNOWN DESIGN DEBT (Nov 2026): lesson plans are spread over ~20 tables, one set per product generation
+// (K-5 v8/v9, 6-12, GB, legacy). Do NOT add another per-region or per-generation LP table, cache or env
+// flag: extend the existing table with the book as the separator, say so in the PR, and ask the operator
+// (Hataf) before any new LP table.
+// Why, target model, follow-up (audit planned): docs/lesson-plan-data-model-debt.md
 'use strict';
 /**
  * Sync a region's lesson plans from its curriculum sheet (bd-97daxo.14). Today: Gilgit-Baltistan, from Amena's
@@ -319,10 +324,12 @@ async function main(argv) {
 
   if (mode === 'books') {
     const Catalog = require('../shared/services/lp-v8-catalog.service');
-    const keys = Matrix.bookKeys(m, cfg, Catalog.shelf(null));
+    const supabase = require('../shared/config/supabase');
+    // bd-qchgya — ICT's 6-12 books for the grades this region borrows (GB: 6-10).
+    const { ict612Books } = require('./sheet-lps/ict612-books');
+    const keys = Matrix.bookKeys(m, cfg, Catalog.shelf(null), await ict612Books(supabase, cfg.ictGrades || []));
     report.result = { region: cfg.region, book_keys: keys, missing_ict_books: Matrix.bookKeys.lastMissing || [] };
     if (commit) {
-      const supabase = require('../shared/config/supabase');
       const { data, error } = await supabase.from('region_features')
         .update({ book_keys: keys, updated_at: new Date().toISOString() }).eq('region', cfg.region).select('region, book_keys');
       if (error) throw new Error(`writing region_features.book_keys: ${error.message}`);

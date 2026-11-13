@@ -72,6 +72,7 @@ const TEACHER_MESSAGE = {
   TRUNCATED: 'That was a lot to write in one go. Please try again with fewer questions.',
   MODEL_UNAVAILABLE: "Sorry — we couldn't build your paper just now. Please try again in a moment.",
   BAD_JSON: "Sorry — that didn't come out right. Please try again.",
+  TOO_MANY_FLAWS: "Too many questions in this paper weren't good enough to print, so we held it back. Please try again — a new paper is written from scratch.",
   NO_QUESTIONS: "Sorry — we couldn't write questions from that chapter. Please try another.",
   RENDER_FAILED: "Sorry — we couldn't make the file. Please try again.",
   UPLOAD_FAILED: "Sorry — we couldn't save your paper. Please try again.",
@@ -83,7 +84,8 @@ const FALLBACK_MESSAGE = 'Sorry — something went wrong making your paper. Plea
 
 /** Phone numbers and names never reach a stored error (see the column comment). */
 function safeDetail(err) {
-  return String(err?.message || '')
+  // bd-qyi45h.1: a failed board paper's `detail` (the hard rules that held it) rides beside the message
+  return [err?.message, err?.detail].filter(Boolean).map(String).join(' | ')
     .replace(/\b\d{9,15}\b/g, '[number]')
     .slice(0, 500);
 }
@@ -278,10 +280,11 @@ async function _buildPatternPaper({ job, user, paperId }) {
   try {
     generated = await generate();
   } catch (err) {
-    if (err.code !== 'PATTERN_SHORT_SLOT' || !(await _ownsPaper(paperId))) throw err;
+    if (!['PATTERN_SHORT_SLOT', 'TOO_MANY_FLAWS'].includes(err.code) || !(await _ownsPaper(paperId))) throw err;
     logToFile('[assessment] pattern paper retried', {
       requestId, paperId, pattern, code: err.code,
       ...(Array.isArray(err.shortfall) ? { shortfall: err.shortfall } : {}),
+      ...(err.detail ? { detail: String(err.detail) } : {}),
     });
     generated = await generate();
   }
@@ -569,7 +572,7 @@ async function buildPaper(job, user = {}) {
   const {
     userId, requestId, grade, subject, chapterNumber, pageRanges,
     questionTypes = [], contentSource = 'unseen', questionCount, totalMarks = null, seenCount = null,
-    outputFormat = 'pdf', answerLines = true, pattern = null, scope = null,
+    outputFormat = 'pdf', answerLines = true, pattern = null, scope = null, compact = false,
     // The teacher's curriculum (bd-97daxo.4): set by the request only when it is not ICT, so an ICT
     // job reads its ICT book exactly as before.
     curriculum = undefined,
@@ -642,6 +645,8 @@ async function buildPaper(job, user = {}) {
     const versioned = await isAssessmentVersionsEnabled();
     if (isTopic) generated.examJson._topics = topics;
     if (oral) generated.examJson._oral = oral;
+    // "Save paper" rides on the paper itself, so every edit and re-render prints it the same way.
+    if (compact) generated.examJson._print = { compact: true };
     await _patchPaper(paperId, {
       exam_json: generated.examJson,
       ...(versioned ? {} : { original_exam_json: generated.examJson }),
@@ -719,6 +724,7 @@ async function buildPaper(job, user = {}) {
     logToFile('[assessment] build failed', {
       userId, requestId, paperId, code, error: err.message,
       ...(Array.isArray(err.shortfall) ? { shortfall: err.shortfall } : {}),
+      ...(err.detail ? { detail: String(err.detail) } : {}),
     });
 
     // A board-pattern failure carries the paper as the model wrote it and the model's name, so the
@@ -918,6 +924,14 @@ async function process(job) {
       } catch (err) {
         logToFile('[assessment] could not offer the review', { userId, paperId, error: err.message });
       }
+    }
+
+    // "Was this paper useful? How can we make it better?" — 30s later, once per paper. An
+    // addition like the review offer: it can never turn a delivered paper into a failure.
+    try {
+      require('./assessment-feedback.service').scheduleAssessmentFeedback({ paperId, userId, phone });
+    } catch (err) {
+      logToFile('[assessment] could not schedule the survey', { paperId, error: err.message });
     }
 
     logToFile('[assessment] delivered', {

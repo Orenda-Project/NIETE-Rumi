@@ -63,6 +63,30 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
     }
   } catch (_) { /* unbound capture — today's behavior */ }
 
+  // bd-ra8xu.38: the visit's rubric is decided ONCE, here, from the coach switch (fico_coach_rubric). Only a
+  // 'v6' answer stamps the row (below, once we know the recording is not an /observe2 visit — /observe2 keeps
+  // its own stamp on its field form); off (the default), a non-FICO deployment or any failure writes nothing.
+  // Everything later reads this stamp, never the live switch.
+  // bd-pni007: the lesson's class, when the coach named it after Start (FDE's grade 6-12 tools, obs612_coach on).
+  // Grades 6-12: this visit is FDE's (stamped below, its form sent at once). Grades 1-5: FICO, and the named class
+  // decides the grades 1-5 gate instead of the profile. Not named (the switch off, no answer): today's path.
+  let lesson = null;
+  try { lesson = require('./obs612/visit').lessonOfState(st); } catch (_) { lesson = null; }
+  const fdeLesson = lesson && !lesson.primary && !(st && st.origin === 'observe2') ? lesson : null;
+
+  let v6Stamp = null;
+  try {
+    if (!fdeLesson) {
+      v6Stamp = await require('./observe-fico17-v6').decideVisitFramework({
+        userId: user.id,
+        region: user.region,
+        // The observed teacher, when the visit picker bound one (grades 1-5 gate); an unbound capture has none.
+        teacherUserId: ownerUserId !== user.id ? ownerUserId : null,
+        ...(lesson && lesson.primary ? { lessonIsPrimary: true } : {}),
+      });
+    }
+  } catch (_) { v6Stamp = null; }
+
   const { data: session, error } = await supabase
     .from('coaching_sessions')
     .insert({
@@ -107,6 +131,34 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
     }, 'error');
   }
 
+  if (v6Stamp && !observe2) {
+    // Before transcription is queued, so the analysis step finds the stamp.
+    const { error: stampErr } = await supabase.from('coaching_sessions')
+      .update({ framework: v6Stamp, framework_selection_reason: 'coach_rubric_switch' })
+      .eq('id', session.id);
+    if (stampErr) {
+      logToFile('❌ observe: FICO17 v6 stamp not written — this visit stays V3', {
+        sessionId: session.id, error: stampErr.message,
+      }, 'error');
+    } else {
+      session.framework = v6Stamp;
+      logToFile('🔭 observe: visit stamped FICO17 v6 (coach switch)', { sessionId: session.id, observerId: user.id });
+    }
+  }
+
+  // bd-pni007: a grade 6-12 /observe lesson is FDE's: the session is stamped with its rubric id and gets its own
+  // form row, and the FDE form goes to the coach now (no model scores it). Before transcription is queued, so the
+  // step after transcription finds the stamp. A failure leaves the visit on today's /observe path.
+  let fdeVisit = null;
+  if (fdeLesson && !observe2) {
+    try {
+      const started = await require('./obs612/visit').startObserveVisit({ user, from, session, ownerUserId, boundTeacher, lesson: fdeLesson });
+      fdeVisit = started.ok ? started : null;
+    } catch (err) {
+      logToFile('❌ observe: the FDE visit did not start (goes on as /observe)', { sessionId: session.id, error: err.message }, 'error');
+    }
+  }
+
   const CoachingJobQueueService = require('../coaching/coaching-job-queue.service');
   await CoachingJobQueueService.queueTranscription(session.id, { from, audioId });
 
@@ -139,16 +191,22 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
   // observation should wait on a human tap first.
   // A held /observe2 recording (record first, fill the form afterwards) offers its form instead of
   // "okay": the coach fills it now or later.
-  const firstButton = observe2 && observe2.held
-    ? { id: require('./observe2/start').fillButtonId(observe2.form.id), title: require('./observe2/strings').observe2Strings(lang).btn_fill_form }
+  // bd-pni007: an /observe2 visit on FDE's form: the recording is kept with it, and the form is FDE's.
+  const fdeObserve2 = observe2 && require('./obs612/visit').isObs612Form(observe2.form);
+  const firstButton = observe2 && (observe2.held || fdeObserve2)
+    ? { id: require('./observe2/start').fillButtonId(observe2.form.id), title: fdeObserve2 ? require('./obs612/strings').obs612Strings(lang).form_cta : require('./observe2/strings').observe2Strings(lang).btn_fill_form }
     : { id: `observe_ok_${session.id}`, title: S.btn_ok_wait };
-  await WhatsAppService.sendInteractiveButtons(from, {
-    body: observe2 ? observe2.ack : `${S.audio_received}\n\n${S.capture_next_hint || ''}`.trim(),
-    buttons: [
-      { id: firstButton.id, title: [...firstButton.title].slice(0, 20).join('') },
-      { id: `observe_cancel_${session.id}`, title: S.btn_cancel_obs.slice(0, 20) },
-    ],
-  });
+  // An /observe FDE visit was acknowledged by its form (startObserveVisit): no second message.
+  if (!fdeVisit) {
+    await WhatsAppService.sendInteractiveButtons(from, {
+      body: fdeObserve2 ? require('./obs612/strings').obs612Strings(lang).recording_saved(Boolean(observe2.form.sealed_at))
+        : observe2 ? observe2.ack : `${S.audio_received}\n\n${S.capture_next_hint || ''}`.trim(),
+      buttons: [
+        { id: firstButton.id, title: [...firstButton.title].slice(0, 20).join('') },
+        { id: `observe_cancel_${session.id}`, title: S.btn_cancel_obs.slice(0, 20) },
+      ],
+    });
+  }
 
   // bd-2668: an UNBOUND capture records no teacher, so the pending-debrief list
   // can only show a date and the portal shows "Unassigned" (66 of 85 live

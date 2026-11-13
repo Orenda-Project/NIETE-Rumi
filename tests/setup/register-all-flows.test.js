@@ -112,14 +112,15 @@ describe('register-all-flows', () => {
     // Re-armed at 25 on 2026-11-04, when staging was merged back: Student Join, the legacy
     // join Flow STUDENT_JOIN_FLOW_ID still serves, had only ever been published by hand;
     // staging registered it on 2026-09-06 and this tree now does too.
+    // Re-armed at 26 on 2026-11-11: FDE's grade 6-12 observation form (Obs 6-12 FDE Form, bd-pni007).
     //
     // THE NUMBER DIFFERS BY BRANCH, deliberately. The branches do not carry the
     // same set of Flows (staging still has Pic-to-LP Confirm, which this tree
     // removed with the pic-to-LP feature). Read the count off the tree you are on
     // rather than copying it across a cherry-pick.
-    it('exports an array of all 25 registerable flow configurations (25th: Student Join)', () => {
+    it('exports an array of all 26 registerable flow configurations (26th: Obs 6-12 FDE Form)', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
-      expect(FLOW_CONFIGS).toHaveLength(25);
+      expect(FLOW_CONFIGS).toHaveLength(26);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {

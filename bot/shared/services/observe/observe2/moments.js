@@ -20,6 +20,8 @@
  *   observe2_checking       the check was sent
  *   (then)                  the check hands the visit to /observe's debrief: observer_review_complete
  *   observe2_no_timestamps  the transcript has no [MM:SS] timings, so no moment can be placed
+ *   observe2_broken         a v6 visit whose transcript the quality gate calls broken: no model call, every
+ *                           heard row IE, the coach told; the check still opens for the six room levels
  *   observe2_failed         the model call or the write failed, or the reply was cut off at the output
  *                           limit twice (logged at error)
  */
@@ -27,7 +29,9 @@
 const supabase = require('../../../config/supabase');
 const WhatsAppService = require('../../whatsapp.service');
 const Store = require('./field-form.store');
-const { heardLevels } = require('./rules');
+const { heardLevels, COMBINED_CODES_V6 } = require('./rules');
+const { isV6 } = require('./rubric');
+const Quality = require('../transcript-quality');
 const { checkQuotes } = require('./quote-check');
 const { checkLabels } = require('./label-check');
 const { JOB, unwrap, cutOff } = require('./llm-reply');
@@ -39,12 +43,22 @@ const { logToFile } = require('../../../utils/logger');
 // v2 (bd-eal7zn.3): evidence first, what is never a moment, question — answer quotes, no stretched types,
 // and a "why" per moment. v1 filled a 25-type menu "of different types where possible".
 const PROMPT_VERSION = 'observe2-moments-v2';
+// v3 (bd-qix9oh.64, spec §8): FICO17 v6 visits only. The §8.1 definitions, the §8.2 types, room evidence for
+// the indicators the coach sets, and the transcript quality gate before the call.
+// v3.1 (FICO6 r2): every clear moment, the same type again included. On v3 Sonnet returned about one moment per
+// type (37 over 5 replay lessons), and the v6 rules need two of a type for level 3 (C1, C6, D1, F2, F3).
+const PROMPT_VERSION_V3 = 'observe2-moments-v3.1';
 const SLOTS = 8;
+const ROOM_MAX = 5;
 const QUOTE_MAX = 280;
 const WHY_MAX = 120;
 const TIMED_RX = /\[\d{1,3}:\d{2}\]/;
 
-const { TYPES, GROUPS, GROUP_OF, TYPE_GUIDE } = require('./moment-types');
+const { TYPES, GROUPS, ROOM_KINDS, typesFor, groupOfFor, guideFor } = require('./moment-types');
+
+const V6 = 'fico17_v6';
+const rubricOf = (form) => (isV6(form) ? V6 : 'fico17');
+const promptVersionFor = (rubric) => (rubric === V6 ? PROMPT_VERSION_V3 : PROMPT_VERSION);
 
 const seconds = (mmss) => { const [m, s] = String(mmss).split(':').map(Number); return m * 60 + s; };
 const clip = (text, max) => { const cps = [...text]; return cps.length > max ? `${cps.slice(0, max - 1).join('')}…` : text; };
@@ -79,12 +93,32 @@ function whyRules(lang) {
   return rules;
 }
 
-function buildPrompt(transcript, form, { lang } = {}) {
+// v3 only: the transcript evidence for C3, C5, C7 and D3, which the coach levels from the room (spec §5.6).
+function roomRules() {
+  const k = ROOM_KINDS;
+  return [
+    'ROOM EVIDENCE (separate from the moments: nothing here is confirmed or counted, the coach sees it while',
+    'setting four levels from what they saw in the room). List what the transcript shows, at most 5 per code:',
+    `- C3 who answers (${k.C3.join(', ')}): the teacher names a child before the question, says "tell your partner",`,
+    '  "everyone write your answer", or picks names at random.',
+    `- C5 switching activities (${k.C5.join(', ')}): the teacher's signal to change activity; add "starts": "MM:SS"`,
+    '  when the next activity can be heard starting.',
+    `- C7 group work (${k.C7.join(', ')}): the teacher puts children in pairs or groups, sets one task for the`,
+    '  group, says what the group must make, gives roles, or asks the group to report back.',
+    `- D3 children answering each other (${k.D3.join(', ')}): a Student line that answers, agrees with or adds to`,
+    '  the Student line before it, or the teacher names a second child to agree with an answer.',
+    'Quote the words exactly, as for a moment. If the transcript shows none for a code, give none.',
+  ];
+}
+
+function buildPrompt(transcript, form, { lang, rubric = 'fico17', gaps = '' } = {}) {
   const period = Number(form && form.period_minutes) || 40;
   const half = Math.round(period / 2);
-  const list = (g) => Object.keys(TYPES[g]).join(', ');
+  const v3 = rubric === V6;
+  const types = typesFor(rubric);
+  const list = (g) => Object.keys(types[g]).join(', ');
   return [
-    'You are helping a coach who sat in one classroom lesson. Read its transcript and pick the few MOMENTS that are',
+    `You are helping a coach who sat in one classroom lesson. Read its transcript and pick the ${v3 ? '' : 'few '}MOMENTS that are`,
     'real evidence about the teaching and the children\'s learning. The coach confirms each one and uses it to talk',
     'with the teacher afterwards, and what the coach confirms counts toward the lesson\'s levels.',
     '',
@@ -99,8 +133,13 @@ function buildPrompt(transcript, form, { lang } = {}) {
     'to the children. It must be clear from the words alone: if it needs explaining, it is not a moment.',
     '',
     'NEVER A MOMENT (skip these even when a type below seems to fit):',
-    '- names, roll-call, greetings; "sit down", "be quiet", "stand up"; "open page 83", "take out your copies",',
-    '  books, homework and other admin;',
+    ...(v3 ? [
+      '- names, roll-call, greetings; "sit down", "be quiet", "stand up"; "take out your copies", homework and other',
+      '  admin. A book, the board, a chart or an object used for what the lesson teaches is not admin: see the resource types;',
+    ] : [
+      '- names, roll-call, greetings; "sit down", "be quiet", "stand up"; "open page 83", "take out your copies",',
+      '  books, homework and other admin;',
+    ]),
     '- discipline, threats and rewards ("no football tomorrow"), unless a child is shamed or mocked for an',
     '  answer: that is evidence, under WRONG ANSWERS;',
     '- a child asking to answer or to go ("shall I tell?", "my turn", "I have done it");',
@@ -116,7 +155,8 @@ function buildPrompt(transcript, form, { lang } = {}) {
     '- Otherwise quote one line, cut to the whole sentence that shows the moment, never a fragment.',
     '- Keep each part short: the one or two sentences that show the moment, never a whole long turn.',
     '- A type that a child does (reasoning, long_answer, beyond, content_q, proc_q, beyond_q, wrong_fixed, hedged,',
-    '  unprompted) quotes the child\'s own words; a type the teacher does quotes the teacher.',
+    ...(v3 ? ['  unprompted, child_builds_link, child_used_term) quotes the child\'s own words; a type the teacher does quotes the teacher.']
+      : ['  unprompted) quotes the child\'s own words; a type the teacher does quotes the teacher.']),
     '- "minute" is the [MM:SS] of the line the quote starts in.',
     '',
     'WHY',
@@ -125,19 +165,33 @@ function buildPrompt(transcript, form, { lang } = {}) {
     'TYPES. Use a type only when the words clearly show exactly that. Most lessons have none of several types:',
     'return none rather than stretch a type to fit.',
     '',
-    ...TYPE_GUIDE,
+    ...guideFor(rubric),
     '',
-    `HOW MANY: at most ${SLOTS} per part, and only the clearest. Fewer clear moments are better than many weak ones.`,
-    'If a part has no clear moment, return none for it.',
+    ...(v3 ? [...roomRules(), ''] : []),
+    ...(v3 ? [
+      'HOW MANY: the levels count how often each thing happens: two open questions, two reasons from children, two',
+      'words explained or two explanations of why are a level above one. So list every clear moment, and when the same',
+      'type happens again later, list it again: each time is its own moment, with its own minute and words. Never stop',
+      `at one example of a type. At most ${SLOTS} per group (ask, wrong, work, explain), the clearest first. A weak moment`,
+      'is still worse than none: if a group has no clear moment, return none for it.',
+    ] : [
+      `HOW MANY: at most ${SLOTS} per part, and only the clearest. Fewer clear moments are better than many weak ones.`,
+      'If a part has no clear moment, return none for it.',
+    ]),
     '',
     'Also count, across the whole lesson: closed_q (questions with a yes/no or one-word answer, or answered in',
     'chorus) and praise_generic (lines of general praise).',
     '',
     `The lesson is ${period} minutes; Part 1 is minute 0 to ${half}, Part 2 is minute ${half} to ${period}.`,
     '',
+    // The quality gate's gaps (transcript-quality.promptGaps), on a v6 visit whose transcript is partial.
+    ...(v3 && gaps ? [gaps, 'Pick no moment and no room evidence from inside these gaps.', ''] : []),
     'Return JSON only, in this shape:',
     '{"moments":[{"moment":"ask|wrong|work|explain","type":"<one type above>","minute":"MM:SS","quote":"<the words>","why":"<one sentence>"}],',
-    ' "counts":{"closed_q":0,"praise_generic":0}}',
+    ...(v3 ? [
+      ' "counts":{"closed_q":0,"praise_generic":0},',
+      ' "room":[{"code":"C3|C5|C7|D3","kind":"<one kind above>","minute":"MM:SS","quote":"<the words>","starts":"MM:SS, C5 only, when heard"}]}',
+    ] : [' "counts":{"closed_q":0,"praise_generic":0}}']),
     `Allowed types — ask: ${list('ask')}; wrong: ${list('wrong')}; work: ${list('work')}; explain: ${list('explain')}.`,
     '',
     'TRANSCRIPT:',
@@ -146,11 +200,13 @@ function buildPrompt(transcript, form, { lang } = {}) {
 }
 
 /** Keep only what the check can show: known types, real minutes, a quote and its why; SLOTS per group. */
-function normalise(raw) {
+function normalise(raw, { rubric = 'fico17' } = {}) {
+  const types = typesFor(rubric);
+  const groupOf = groupOfFor(rubric);
   const byGroup = Object.fromEntries(GROUPS.map((g) => [g, []]));
   for (const m of Array.isArray(raw && raw.moments) ? raw.moments : []) {
     const type = String((m && m.type) || '');
-    const group = GROUP_OF[type];
+    const group = groupOf[type];
     const minuteRaw = String((m && m.minute) || '').trim().replace(/^\[|\]$/g, '');
     const quote = String((m && m.quote) || '').trim();
     if (!group || !/^\d{1,3}:\d{2}$/.test(minuteRaw) || !quote) continue;
@@ -162,10 +218,64 @@ function normalise(raw) {
   for (const g of GROUPS) {
     byGroup[g].slice(0, SLOTS)
       .sort((a, b) => seconds(a.minute) - seconds(b.minute))
-      .forEach((m, i) => moments.push({ id: `${g}_${i + 1}`, ...m, label: TYPES[g][m.type] }));
+      .forEach((m, i) => moments.push({ id: `${g}_${i + 1}`, ...m, label: types[g][m.type] }));
+  }
+  // v6 adds eight explain types on the same eight slots (spec §8.2: raise SLOTS only if replay shows overflow).
+  if (rubric === V6) {
+    const over = Object.fromEntries(GROUPS.filter((g) => byGroup[g].length > SLOTS).map((g) => [g, byGroup[g].length - SLOTS]));
+    if (Object.keys(over).length) logToFile('[observe2] v6 moments over the slots: the rest dropped', { slots: SLOTS, ...over }, 'warn');
   }
   const counts = raw && raw.counts ? raw.counts : {};
   return { moments, counts: { closed_q: whole(counts.closed_q), praise_generic: whole(counts.praise_generic) } };
+}
+
+/**
+ * v6: the room evidence the COMBINED screens show (CONTRACTS §4.3). Known code and kind, a real minute, words
+ * the transcript holds (quote-check.js, as for moments), the first ROOM_MAX per code, then by minute, with
+ * stable ids room_<code>_<n>. Never a moment: no confirm screen and no rule reads it.
+ */
+function roomEvidence(raw, transcript) {
+  const items = Array.isArray(raw && raw.room) ? raw.room : [];
+  const mmss = (v) => {
+    const t = String(v || '').trim().replace(/^\[|\]$/g, '');
+    if (!/^\d{1,3}:\d{2}$/.test(t)) return null;
+    const [mm, ss] = t.split(':');
+    return `${mm.padStart(2, '0')}:${ss}`;
+  };
+  const out = {};
+  for (const [code, kinds] of Object.entries(ROOM_KINDS)) {
+    const asked = items
+      .filter((r) => r && r.code === code && kinds.includes(r.kind) && mmss(r.minute) && String(r.quote || '').trim())
+      .map((r) => ({ type: r.kind, minute: mmss(r.minute), quote: String(r.quote).trim(), starts: code === 'C5' ? mmss(r.starts) : null }));
+    out[code] = checkQuotes(asked, transcript).moments.slice(0, ROOM_MAX)
+      .sort((a, b) => seconds(a.minute) - seconds(b.minute))
+      .map((r, i) => ({ id: `room_${code}_${i + 1}`, kind: r.type, minute: r.minute, quote: clip(r.quote, QUOTE_MAX), ...(r.starts ? { starts: r.starts } : {}) }));
+  }
+  return out;
+}
+
+/**
+ * v6 and shadow: how many times students spoke in each half (spec §5.6, Appendix C), counted, never asked of the
+ * model. Lines whose speaker starts "Student", split at the midpoint of the first and last timestamp; a line at the
+ * midpoint is in the first half. Null when no line is timed. Mirrors fico17-v6-framework.countD2 (the DC's count).
+ */
+function d2Turns(transcript) {
+  const ls = [];
+  for (const line of String(transcript || '').split('\n')) {
+    const m = line.trim().match(/^\[(?:(\d{1,2}):)?(\d{1,3}):(\d{2})\]\s*([A-Za-z]*)/);
+    if (m) ls.push({ sec: Number(m[1] || 0) * 3600 + Number(m[2]) * 60 + Number(m[3]), student: /^Student/i.test(m[4]) });
+  }
+  if (!ls.length) return null;
+  const secs = ls.map((l) => l.sec);
+  const mid = (Math.min(...secs) + Math.max(...secs)) / 2;
+  const turns = { first_half: 0, second_half: 0 };
+  for (const l of ls) if (l.student) turns[l.sec <= mid ? 'first_half' : 'second_half'] += 1;
+  return turns;
+}
+
+/** Rumi's own levels from its found moments, by the rule set of the visit's rubric (rules.js). */
+function rumiLevels(moments, counts, rubric) {
+  return heardLevels(moments, counts, [], { rubric });
 }
 
 // The moments reply's output budget. Almost all of it is the model's reasoning: the JSON is ~2,000
@@ -231,10 +341,11 @@ async function coachOf(form) {
   return data;
 }
 
-async function tell(form, key) {
+async function tell(form, key, fallback) {
   const coach = await coachOf(form);
   if (!coach) return false;
-  return WhatsAppService.sendMessage(coach.phone_number, observe2Strings(coach.preferred_language)[key]);
+  const S = observe2Strings(coach.preferred_language);
+  return WhatsAppService.sendMessage(coach.phone_number, S[key] || S[fallback]);
 }
 
 /** Send the check to the coach. @returns {Promise<boolean>} */
@@ -367,6 +478,37 @@ async function gradeFidelity(form, transcript, audioDurationSeconds, fidelityDep
   }
 }
 
+/**
+ * v6, a transcript the quality gate calls broken (spec §6.3): no model call. Every heard row is IE; a combined
+ * row keeps the coach's blank level and its transcript-only result is IE (D2 has none). The quality is stored with no moments, and the coach is told the
+ * recording couldn't be used. The check still opens: the coach sets the six room levels from what they saw.
+ */
+async function brokenRecording(sessionId, form, quality, transcript) {
+  const kept = Quality.stored(quality);
+  logToFile('❌ [observe2] transcript broken: moments not read', { sessionId, formId: form.id, ...kept }, 'error');
+  const because = 'the recording could not be used';
+  const levels = Object.fromEntries(Object.entries(rumiLevels([], {}, V6)).map(([code, row]) => {
+    if (!COMBINED_CODES_V6.includes(code)) return [code, { level: 'IE', because, source: 'heard' }];
+    return [code, 'dc_result' in row ? { ...row, dc_result: 'IE' } : row];
+  }));
+  const stored = await Store.setMoments(form.id, {
+    moments: [], counts: { closed_q: 0, praise_generic: 0 }, prompt_version: PROMPT_VERSION_V3, fidelity: null,
+    room_evidence: Object.fromEntries(Object.keys(ROOM_KINDS).map((c) => [c, []])), transcript_quality: kept,
+    d2_turns: d2Turns(transcript),
+  }, levels);
+  if (!stored.ok) {
+    logToFile('❌ [observe2] moments failed', { sessionId, formId: form.id, error: stored.error || 'moments not stored' }, 'error');
+    await setStatus(sessionId, 'observe2_failed');
+    await tell(form, 'moments_failed');
+    return { handled: true, action: 'failed' };
+  }
+  await setStatus(sessionId, 'observe2_broken');
+  // moments_broken arrives with check-v6's strings (CONTRACTS §6.5); until then the failure words.
+  await tell(form, 'moments_broken', 'moments_failed');
+  const again = await Store.getForm(form.id);
+  return finish(sessionId, (again.ok && again.form) || form);
+}
+
 async function finish(sessionId, form) {
   if (!form.sealed_at) {
     await setStatus(sessionId, 'observe2_ready');
@@ -390,6 +532,8 @@ async function runForSession(sessionId, from, deps = {}) {
   const linked = await Store.findBySession(sessionId);
   if (!linked.ok || !linked.form) return { handled: false };
   let form = linked.form;
+  // bd-pni007: an FDE (obs612) visit's form is FDE's own: no FICO moments are read for it.
+  if (require('../obs612/visit').isObs612Form(form)) return { handled: true, action: 'obs612' };
 
   if (form.moments_ready_at) {
     logToFile('[observe2] moments already stored; not read again', { sessionId, formId: form.id });
@@ -412,6 +556,11 @@ async function runForSession(sessionId, from, deps = {}) {
     return { handled: true, action: 'untimed' };
   }
 
+  // v6 only (spec §6): the transcript quality gate, before any model call. v5 visits are read as before.
+  const rubric = rubricOf(form);
+  const quality = rubric === V6 ? Quality.assess({ transcript, periodMinutes: form.period_minutes }) : null;
+  if (quality && quality.status === 'broken') return brokenRecording(sessionId, form, quality, transcript);
+
   try {
     // The plan's fidelity is graded from the same transcript, at the same time, by the grader /observe
     // uses. It never fails the moments: the orchestrator returns a status instead of throwing. The plan
@@ -421,12 +570,13 @@ async function runForSession(sessionId, from, deps = {}) {
     const lang = await coachLanguage(form);
     const llm = deps.llm || defaultLlm;
     const [raw, fidelity] = await Promise.all([
-      readMoments(buildPrompt(transcript, form, { lang }), form, llm),
+      readMoments(buildPrompt(transcript, form, { lang, rubric, gaps: quality ? Quality.promptGaps(quality) : '' }), form, llm),
       sealed ? gradeFidelity(form, transcript, row && row.audio_duration_seconds, deps.fidelityDeps, deps.planDeps, deps.photoDeps) : null,
     ]);
     // Every quote is checked against the transcript before the coach sees it (quote-check.js); what was
     // dropped, repaired or re-timed is counted, stored and logged on its own line.
-    const known = (Array.isArray(raw && raw.moments) ? raw.moments : []).filter((m) => m && GROUP_OF[m.type]);
+    const groupOf = groupOfFor(rubric);
+    const known = (Array.isArray(raw && raw.moments) ? raw.moments : []).filter((m) => m && groupOf[m.type]);
     const checked = checkQuotes(known, transcript);
     const { stats } = checked;
     logToFile('[observe2] moments checked against the transcript', {
@@ -435,16 +585,25 @@ async function runForSession(sessionId, from, deps = {}) {
     // A second look at each label against its words (label-check.js, bd-eal7zn.8), on the moments call's
     // own seam: the same job and model. A failed check leaves the moments as the quote check left them.
     const labelLlm = deps.labelLlm || (deps.llm ? llm : (p, o) => defaultLlm(p, { ...o, label: 'observe2.moments.labels' }));
-    const labelled = await checkLabels(checked.moments, { transcript, lang, llm: labelLlm });
+    const labelled = await checkLabels(checked.moments, { transcript, lang, llm: labelLlm, rubric });
     stats.labels = labelled.stats;
     logToFile('[observe2] moment labels checked', {
       sessionId, formId: form.id, ...labelled.stats,
     }, labelled.stats.status === 'failed' ? 'error' : 'info');
-    const { moments, counts } = normalise({ ...(raw || {}), moments: labelled.moments });
+    const { moments, counts } = normalise({ ...(raw || {}), moments: labelled.moments }, { rubric });
+    const v6 = quality ? { room_evidence: roomEvidence(raw, transcript), transcript_quality: Quality.stored(quality), d2_turns: d2Turns(transcript) } : {};
+    if (quality) {
+      logToFile('[observe2] v6 room evidence and transcript quality', {
+        sessionId, formId: form.id, quality: quality.status, ...Object.fromEntries(Object.entries(v6.room_evidence).map(([c, r]) => [c, r.length])),
+      });
+    }
     const stored = await Store.setMoments(form.id, {
-      moments, counts, prompt_version: PROMPT_VERSION, verified: stats, fidelity, ...(sealed ? {} : { fidelity_at_seal: true }),
-    }, heardLevels(moments, counts));
+      moments, counts, prompt_version: promptVersionFor(rubric), verified: stats, fidelity, ...(sealed ? {} : { fidelity_at_seal: true }), ...v6,
+    }, rumiLevels(moments, counts, rubric));
     if (!stored.ok) throw new Error(stored.error || 'moments not stored');
+    // Shadow visits only (fico_coach_rubric = shadow, shadow-v6.js): the v6 read of the same transcript, stored
+    // beside these moments and never shown. It runs in the background: it never throws here or holds up the check.
+    await require('./shadow-v6').runFor(form, transcript, { llm, labelLlm, lang }).catch(() => null);
     const again = await Store.getForm(form.id);
     form = (again.ok && again.form) || form;
     // Sealed while the moments were being read: onSealed found no moments then, so grade it here.
@@ -479,6 +638,9 @@ async function gradeAtSeal(form, deps = {}) {
     return form;
   }
   const fidelity = await gradeFidelity(form, row.transcript_text || '', row.audio_duration_seconds, deps.fidelityDeps, deps.planDeps, deps.photoDeps);
+  // Read again after the grading (a model call): the background shadow read may have stored shadow_v6 meanwhile.
+  const latest = await Store.getForm(form.id);
+  if (latest.ok && latest.form) form = latest.form;
   const { fidelity_at_seal: _waited, ...rest } = form.rumi_moments || {};
   const stored = await Store.setRumiMoments(form.id, { ...rest, fidelity });
   logToFile('[observe2] plan graded at the seal', {
@@ -505,8 +667,8 @@ async function onSealed(form, deps = {}) {
 }
 
 module.exports = {
-  PROMPT_VERSION, SLOTS, WHY_MAX, TYPES, GROUPS,
-  buildPrompt, normalise, runForSession, openCheck, onSealed, setStatus,
+  PROMPT_VERSION, PROMPT_VERSION_V3, SLOTS, WHY_MAX, TYPES, GROUPS,
+  buildPrompt, promptVersionFor, normalise, roomEvidence, d2Turns, runForSession, openCheck, onSealed, setStatus,
   // For the test that proves its default reader is /observe's (added-plan-defaults.test.js).
   __photoEvidence: photoEvidence,
 };

@@ -49,13 +49,20 @@ function findRoute(router, method, path) {
   throw new Error(`no ${method} ${path}`);
 }
 
+/**
+ * The v2 gate each route has. bd-33wxxi.4 (#55 P3): /coach/reports is also the principal app's list of the observations
+ * she made, so its gate is requireCoachV2OrPrincipalApp — a coach still needs portal_coach_v2, a principal needs
+ * portal_principal_app (pinned below).
+ */
+const GATE_OF = (path) => (path === '/coach/reports' ? 'requireCoachV2OrPrincipalApp' : 'requireCoachV2');
+
 /** Run the route from its v2 gate onward (auth + leader role are the shared, tested middlewares). */
-async function call(path, { params = {}, query = {}, userId = 'coach-1' } = {}) {
+async function call(path, { params = {}, query = {}, userId = 'coach-1', role = 'coach' } = {}) {
   const routes = loadRoutes();
   const stack = findRoute(routes, 'get', path);
-  const gateAt = stack.findIndex((h) => h.name === 'requireCoachV2');
-  if (gateAt < 0) throw new Error(`${path} has no requireCoachV2`);
-  const req = { params, query, body: {}, session: { portalUserId: userId }, portalUser: { role: 'coach' } };
+  const gateAt = stack.findIndex((h) => h.name === GATE_OF(path));
+  if (gateAt < 0) throw new Error(`${path} has no ${GATE_OF(path)}`);
+  const req = { params, query, body: {}, session: { portalUserId: userId }, portalUser: { role } };
   let statusCode = 200;
   let payload = null;
   const res = { status(c) { statusCode = c; return this; }, json(b) { payload = b; return this; } };
@@ -87,7 +94,7 @@ afterAll(() => jest.resetModules());
 describe('every /coach route is behind portal_coach_v2', () => {
   test.each(PATHS)('%s: auth, leader role, then the v2 gate', (path) => {
     const stack = findRoute(loadRoutes(), 'get', path);
-    expect(stack.map((h) => h.name).slice(0, 3)).toEqual(['requirePortalAuth', 'requireLeaderRole', 'requireCoachV2']);
+    expect(stack.map((h) => h.name).slice(0, 3)).toEqual(['requirePortalAuth', 'requireLeaderRole', GATE_OF(path)]);
   });
 
   test.each(PATHS)('%s answers 404 with the flag off, and never queries', async (path) => {
@@ -99,6 +106,15 @@ describe('every /coach route is behind portal_coach_v2', () => {
   test('a pilot that names someone else: 404', async () => {
     settings.portal_coach_v2 = ['coach-2'];
     expect((await call('/coach/home')).statusCode).toBe(404);
+  });
+
+  // bd-33wxxi.8 — the principal app's side of /coach/reports' gate: her switch, never the coach's.
+  // (Her side when the switch names her is pinned in tests/portal/bd-33wxxi.4-principal-observation-reads.test.js.)
+  test('/coach/reports for a principal the principal app does not name: 404 even with portal_coach_v2 on, no query', async () => {
+    settings.portal_coach_v2 = true;
+    const off = await call('/coach/reports', { userId: 'principal-1', role: 'principal' });
+    expect(off.statusCode).toBe(404);
+    expect(poolQuery).not.toHaveBeenCalled();
   });
 });
 

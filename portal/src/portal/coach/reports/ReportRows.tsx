@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { HistoryRow, StepBar, type ChipData, type HistoryGroup, type HistoryItem } from "../../teacher/ui";
 import { useCopy } from "../../teacher/i18n";
 import type { CoachReport } from "../types";
+import { obs612Line } from "../../lib/obs612";
 import { REPORTS, type ReportsCopy } from "./copy";
 import { pkTime, stepIndex, type DayGroup } from "./data";
 
@@ -19,21 +20,24 @@ export function reportChip(r: CoachReport, C: ReportsCopy): ChipData {
 }
 
 /** One report as a HistoryRow's props (the school on line 2, the time above the name). */
-export function reportItem(r: CoachReport, C: ReportsCopy): HistoryItem {
+export function reportItem(r: CoachReport, C: ReportsCopy, href: (r: Pick<CoachReport, "id">) => string = reportHref): HistoryItem {
   return {
     id: r.id,
     lead: "person",
     title: r.teacherName || C.dash,
-    extra: r.schoolName || undefined,
+    // bd-pni007 — an FDE visit: its tool, result and label 'FDE v1' on the second line (it has no FICO score).
+    extra: [r.schoolName, r.obs612 ? obs612Line(r.obs612) : null].filter(Boolean).join(" · ") || undefined,
     time: pkTime(r.createdAt),
     chip: reportChip(r, C),
-    to: reportHref(r),
+    to: href(r),
   };
 }
 
 /** The day groups HistoryList takes: `dayName` is the screen's words ("Today", "Mon 5 Oct"). */
-export function reportGroups(groups: DayGroup[], dayName: (day: string) => string, C: ReportsCopy): HistoryGroup[] {
-  return groups.map((g) => ({ day: dayName(g.day), items: g.items.map((r) => reportItem(r, C)) }));
+export function reportGroups(
+  groups: DayGroup[], dayName: (day: string) => string, C: ReportsCopy, href: (r: Pick<CoachReport, "id">) => string = reportHref,
+): HistoryGroup[] {
+  return groups.map((g) => ({ day: dayName(g.day), items: g.items.map((r) => reportItem(r, C, href)) }));
 }
 
 /** The four labelled segments under a waiting / in-progress card: the kit's StepBar, filled through the current stage. */

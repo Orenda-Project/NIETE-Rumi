@@ -21,7 +21,13 @@
  * is set), a teacher is never looked up at all: the menu costs exactly the reads it did before.
  */
 
-const { logToFile } = require('../utils/logger');
+// The bot logger loads pino, which the portal service does not install, and the portal reads this file too (FLN access,
+// dashboard/lib/fln-access.js): the logger is required only when a line is written, and one that cannot load is skipped.
+function logToFile(...args) {
+  try {
+    require('../utils/logger').logToFile(...args);
+  } catch (_) { /* the portal process: no bot logger */ }
+}
 const { getUserRegion } = require('../utils/region');
 const { regionKey } = require('./region-registry');
 
@@ -99,19 +105,23 @@ const ASSESSMENT_BOOK_SUBJECT = {
   general_science: 'general_science',
   general_knowledge: 'general_knowledge_ur',
   social_studies: 'social_studies_ur',
+  // The English-medium books (bd-uam6dh): GB's shelf, and ICT's when she teaches from them.
+  general_knowledge_en: 'general_knowledge',
+  social_studies_en: 'social_studies_en',
   islamiat: 'islamiat',
 };
 
 /**
  * May a teacher with this book list be offered an assessment on (grade, subject)? Assessments are keyed by
  * book: yes when she has no list, for Grades 6-12 (her list is a Grade 1-5 list), or when the ICT book the
- * generator reads is on her list. GB's NBF books have no assessment content yet, so their subjects are not
- * offered (separate bead). Pure and synchronous.
+ * generator reads is on her list. Her region's own books (GB's NBF books) are offered by assessmentOfferedFor,
+ * which also checks the book is loaded. Pure and synchronous.
  */
 function assessmentOffered(grade, subject, bookKeys) {
   if (!Array.isArray(bookKeys)) return true;
   if (!gradeCovered(grade, bookKeys)) return false;
-  if (!(Number(grade) >= 1 && Number(grade) <= 5)) return true;
+  if (Number(grade) >= 6) return upperBookOffered(grade, upperStem(grade, subject), bookKeys);
+  if (!(Number(grade) >= 1)) return true;
   const subjectKey = ASSESSMENT_BOOK_SUBJECT[String(subject || '').trim().toLowerCase()];
   if (!subjectKey) return false;
   const Catalog = require('./lp-v8-catalog.service');
@@ -119,20 +129,75 @@ function assessmentOffered(grade, subject, bookKeys) {
   return Boolean(book && bookKeys.includes(book.book_key || book.stem));
 }
 
+/** ICT's own 6-12 stems (grade_6_english, g7_history); a region's own books carry a prefix (nbf_snc_grade_9_...). */
+const ICT_STEM = /^(?:grade_\d{1,2}_|g\d{1,2}_)/;
+
+/**
+ * May a teacher with this list be offered this Grade 6+ book (bd-la9f5e)? An ICT book only when her list names it,
+ * so a region drops one by leaving it off (GB: no Zarai Taleem). Her own curriculum's books, Grades 1-5, a missing
+ * stem and no list all pass: those are gated elsewhere or not at all. Pure.
+ */
+function upperBookOffered(grade, stem, bookKeys) {
+  if (!Array.isArray(bookKeys) || !(Number(grade) >= 6) || !stem) return true;
+  const s = String(stem);
+  return !ICT_STEM.test(s) || bookKeys.includes(s);
+}
+
+/** The ICT book a Grade 6+ paper subject is generated from (subject-config's book_stem), or null. */
+function upperStem(grade, subject) {
+  const rows = require('./assessment/subject-config/index.js');
+  const code = String(subject || '').trim().toLowerCase();
+  const row = rows.find((r) => Number(r.grade) === Number(grade) && r.code === code);
+  return (row && row.book_stem) || null;
+}
+
+/** The book-key subject of a generator subject: `gb_g5_maths`, `gb_g5_science` (the textbooks.subject codes). */
+const OWN_BOOK_SUBJECT = { math: 'maths', general_science: 'science' };
+
+/**
+ * Does her list name her region's OWN book for this grade and subject — a `<prefix>_g<N>_<subject>` key such as
+ * `gb_g5_maths` (bd-6nskfq.1)? Pure. Says nothing about whether that book is loaded.
+ */
+function ownBookListed(grade, subject, bookKeys) {
+  if (!Array.isArray(bookKeys)) return false;
+  const s = String(subject || '').trim().toLowerCase();
+  const re = new RegExp(`^[a-z]+_g${Number(grade)}_${OWN_BOOK_SUBJECT[s] || s}$`);
+  return bookKeys.some((k) => re.test(String(k)));
+}
+
+/**
+ * assessmentOffered, plus her own curriculum's book (bd-6nskfq.1): a G1-5 subject is also offered when her list
+ * names her own book for it AND her curriculum (not ICT) holds that textbook — the generator then reads her book
+ * (book-curriculum). A listed book that is not loaded offers nothing, so she is never handed ICT's book under her
+ * own book's name; a failed read offers nothing for the same reason. An ICT teacher costs no read.
+ */
+async function assessmentOfferedFor(grade, subject, bookKeys, curriculum, { client } = {}) {
+  if (assessmentOffered(grade, subject, bookKeys)) return true;
+  const BookCurriculum = require('./book-curriculum.service');
+  const c = BookCurriculum.normalise(curriculum);
+  if (c === BookCurriculum.ICT || !ownBookListed(grade, subject, bookKeys)) return false;
+  try {
+    return await BookCurriculum.hasTextbook(c, grade, subject, { client });
+  } catch (err) {
+    logToFile('[teacher-books] textbooks unreadable — subject not offered', { grade, subject, curriculum: c, error: err && err.message });
+    return false;
+  }
+}
+
 /** The grade a book key is for: the catalog's own grade, else the key's `grade_7_` / `gb_g7_` prefix. */
 function gradeOfKey(key) {
   const Catalog = require('./lp-v8-catalog.service');
   const book = Catalog.catalog().books.find((b) => (b.book_key || b.stem) === key);
   if (book) return Number(book.grade);
-  const m = /^(?:grade_(\d{1,2})_|[a-z]+_g(\d{1,2})_)/.exec(String(key || ''));
+  const m = /^(?:grade_(\d{1,2})_|(?:[a-z]+_)?g(\d{1,2})_)/.exec(String(key || ''));
   return m ? Number(m[1] || m[2]) : null;
 }
 
 /**
  * Does her book list cover this grade (operator, 6 Nov)? No list covers every grade, as today. A list covers
- * exactly the grades of its books: GB names Grades 1-5 books only (its Afaq books for 6+ are not ready), so a GB
- * teacher of Grade 6+ gets no lesson plans, no question papers and no book features — and is told so
- * (gradeNotCoveredMessage), never handed ICT's books instead.
+ * exactly the grades of its books. GB names its own Grades 1-5 books plus ICT's Grades 6-10 books (bd-qchgya,
+ * operator 11 Nov), so a GB teacher of Grade 11-12, or of a grade with no book on the list, gets no lesson plans,
+ * no question papers and no book features, and is told so (gradeNotCoveredMessage).
  */
 function gradeCovered(grade, bookKeys) {
   if (!Array.isArray(bookKeys)) return true;
@@ -172,6 +237,9 @@ module.exports = {
   bookKeysForRegion,
   bookKeysForUser,
   assessmentOffered,
+  assessmentOfferedFor,
+  upperBookOffered,
+  ownBookListed,
   gradeCovered,
   gradeNotCoveredMessage,
   languageForUser,

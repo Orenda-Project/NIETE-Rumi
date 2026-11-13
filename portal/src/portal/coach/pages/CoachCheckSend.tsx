@@ -3,11 +3,11 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, Camera, ChevronRight, Clock, FolderOpen, Image as ImageIcon, Library, Paperclip, RotateCcw, Send } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
 import { PhotoGrid, SectionHeading } from "../../teacher/coaching/parts";
-import { AudioCard, ListRow } from "../../teacher/ui";
+import { AudioCard, ListRow, SelectField } from "../../teacher/ui";
 import { Tray } from "../../teacher/ui/Tray";
 import { TimeStamp } from "../../teacher/ui/TimeStamp";
 import { StatusChip } from "../../teacher/ui/StatusChip";
-import { coach, leader, type RecentLessonPlan } from "../../services/api";
+import { leader, type ObserveLesson, type ObserveLessonQuestion, type RecentLessonPlan } from "../../services/api";
 import { Card, Loading, Failed, useLoad } from "../ui";
 import { clearDraft, getDraft, setDraft, type DraftAudio } from "../observeDraft";
 import LibraryPicker, { type PickedPlan } from "../../components/coaching/LibraryPicker";
@@ -19,7 +19,8 @@ import { withDuration } from "../../lib/webmDuration";
 import { OBSERVE, type ObserveCopy } from "../observe/copy";
 import { lengthShort, planKindLabel } from "../observe/format";
 import ObservePage from "../observe/ObservePage";
-import { sendingPath, startSend, useSendJob } from "../observe/sender";
+import { useObserveRoutes } from "../observe/observeRoutes";
+import { startSend, useSendJob } from "../observe/sender";
 import { lessonFilename } from "./CoachRecord";
 import type { CoachVisit } from "../types";
 
@@ -84,6 +85,7 @@ function SheetRow({ icon, label, onClick }: { icon: ReactNode; label: string; on
 const planSub = (p: RecentLessonPlan, C: ObserveCopy) => [p.grade != null ? C.grade(Number(p.grade)) : null, p.subject].filter(Boolean).join(" · ");
 
 function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
+  const routes = useObserveRoutes();
   const C = useCopy(OBSERVE);
   const navigate = useNavigate();
   const [stage, setStage] = useState<Stage>("check");
@@ -100,6 +102,30 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   const planFileInput = useRef<HTMLInputElement>(null);
   const teacherName = visit.teacherName || C.dash;
   const isShort = audio.durationMs != null && audio.durationMs < SHORT_RECORDING_SECONDS * 1000;
+  // bd-ra8xu.40 — the class taught (and, for grades 6-12, its subject), asked only while FDE's tools are on for her, as
+  // WhatsApp's visit planner asks after Start: it chooses the form the observation is stamped with. A question that
+  // cannot be read asks nothing (today's path).
+  const [question, setQuestion] = useState<ObserveLessonQuestion>({ ask: false });
+  const [grade, setGrade] = useState<string | null>(null);
+  const [subject, setSubject] = useState<string | null>(null);
+  const [lessonProblem, setLessonProblem] = useState<"class" | "subject" | null>(null);
+  useEffect(() => {
+    let live = true;
+    Promise.resolve()
+      .then(() => leader.getObserveLessonQuestion())
+      .then((q) => { if (live && q && q.ask) setQuestion(q); })
+      .catch(() => { /* not asked */ });
+    return () => { live = false; };
+  }, []);
+  // bd-ra8xu.40 (operator, 12 Nov): only FDE's grades (6-8) ask the subject; grades 9-12 are FICO lessons, the class alone.
+  // An older bot that does not say which grades: every grade 6-12 asks it, as before.
+  const needsSubject = (g: string | null) => !!g && g !== "primary" && (question.subjectGrades ? question.subjectGrades.includes(Number(g)) : true);
+  const lessonOf = (): ObserveLesson | null => {
+    if (!question.ask || !grade) return null;
+    if (grade === "primary") return { primary: true };
+    if (!needsSubject(grade)) return { grade: Number(grade) };
+    return subject ? { grade: Number(grade), subject } : null;
+  };
 
   // The recording plays from a link to the file on this phone (AudioCard plays it for real).
   const src = useMemo(() => (typeof URL.createObjectURL === "function" ? URL.createObjectURL(audio.blob) : undefined), [audio.blob]);
@@ -111,7 +137,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       forgetRecording(audio.recordingId);
     }
     clearDraft(visit.id);
-    navigate(`/portal/coach/visit/${visit.id}/${audio.recordingId ? "record" : "attach"}`, { replace: true });
+    navigate(audio.recordingId ? routes.record(visit.id) : routes.attach(visit.id), { replace: true });
   };
 
   const loadTheirRecent = useCallback(
@@ -144,6 +170,9 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   }, []);
 
   const send = () => {
+    if (question.ask && !grade) { setLessonProblem("class"); return; }
+    if (question.ask && needsSubject(grade) && !subject) { setLessonProblem("subject"); return; }
+    const lesson = lessonOf();
     startSend({
       visitId: visit.id,
       teacherExtId: visit.teacherExtId || "",
@@ -155,11 +184,16 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       audio: { blob: audio.blob, filename: audio.filename },
       plan: plan ? (plan.kind === "library" ? { kind: "library", pick: plan.pick } : { kind: "file", file: plan.file }) : null,
       photos,
+      ...(lesson ? { lesson } : {}),
+      // bd-33wxxi.4 — where the strip's tap and the ready banner go (the principal app's own screens, or the coach's).
+      waitHref: routes.sending(visit.id),
+      observationHref: (obsId) => routes.observation(obsId),
     });
-    navigate(sendingPath(visit.id), { replace: true }); // Check and send is done: Back from Sending is never this page (it would bounce straight on)
+    navigate(routes.sending(visit.id), { replace: true }); // Check and send is done: Back from Sending is never this page (it would bounce straight on)
   };
 
-  const crumb = <>{teacherName} · <TimeStamp time={visit.scheduledSlot} size={13} /></>;
+  // A visit without a time (the principal app's picked teacher, bd-33wxxi.4) shows the name alone, never "Name ·".
+  const crumb = <>{teacherName}{visit.scheduledSlot && <> · <TimeStamp time={visit.scheduledSlot} size={13} /></>}</>;
 
   if (stage === "library") {
     return (
@@ -172,7 +206,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   }
 
   return (
-    <ObservePage banner={false} title={C.checkAndSend} crumb={crumb} backTo={`/portal/coach/visit/${visit.id}`} feature="observations"
+    <ObservePage banner={false} title={C.checkAndSend} crumb={crumb} backTo={routes.visit(visit.id)} feature="observations"
       dock={(
         <button type="button" onClick={send}
           className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">
@@ -187,6 +221,24 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
           </button>
         )} />
       {isShort && <Alert>{C.shortWarning}</Alert>}
+
+      {question.ask && (
+        <>
+          <SectionHeading>{C.classAndSubject}</SectionHeading>
+          <div className="flex flex-col gap-2.5" data-testid="lesson-class">
+            <SelectField label={C.classField} title={C.classField} value={grade}
+              options={[{ value: "primary", label: C.gradePrimary }, ...(question.grades || []).map((g) => ({ value: String(g), label: C.grade(g) }))]}
+              onChange={(v) => { setGrade(v); if (!needsSubject(v)) setSubject(null); setLessonProblem(null); }} />
+            {needsSubject(grade) && (
+              <SelectField label={C.subjectField} title={C.subjectField} value={subject}
+                options={(question.subjects || []).map((k) => ({ value: k, label: (C.subjects as Record<string, string>)[k] || k }))}
+                onChange={(v) => { setSubject(v); setLessonProblem(null); }} />
+            )}
+          </div>
+          {lessonProblem === "class" && <Alert>{C.chooseClassFirst}</Alert>}
+          {lessonProblem === "subject" && <Alert>{C.chooseSubjectFirst}</Alert>}
+        </>
+      )}
 
       <SectionHeading chip={C.optional}>{C.lessonPlan}</SectionHeading>
       {plan ? (
@@ -246,7 +298,8 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
 const CoachCheckSend = () => {
   const C = useCopy(OBSERVE);
   const { id = "" } = useParams();
-  const { data, failed, reload } = useLoad(() => coach.getVisit(id), [id]);
+  const routes = useObserveRoutes();
+  const { data, failed, reload } = useLoad(() => routes.loadVisit(id), [id]);
   const [audio, setAudio] = useState<DraftAudio | null>(() => getDraft(id));
   const [looked, setLooked] = useState(() => getDraft(id) != null);
   const job = useSendJob(id);
@@ -274,21 +327,21 @@ const CoachCheckSend = () => {
   }, [audio, visit, id, C]);
 
   // Being sent already: that is the page to be on.
-  if (job?.state === "sending") return <Navigate to={sendingPath(id)} replace />;
-  if (visit && (visit.status !== "upcoming" || !visit.teacherExtId)) return <Navigate to={`/portal/coach/visit/${id}`} replace />;
+  if (job?.state === "sending") return <Navigate to={routes.sending(id)} replace />;
+  if (visit && (visit.status !== "upcoming" || !visit.teacherExtId)) return <Navigate to={routes.visit(id)} replace />;
   if (visit && audio) return <CheckSend visit={visit} audio={audio} />;
 
   return (
-    <ObservePage banner={false} title={C.checkAndSend} backTo={`/portal/coach/visit/${id}`} feature="observations"
-      crumb={visit ? <>{visit.teacherName || C.dash} · <TimeStamp time={visit.scheduledSlot} size={13} /></> : undefined}>
+    <ObservePage banner={false} title={C.checkAndSend} backTo={routes.visit(id)} feature="observations"
+      crumb={visit ? <>{visit.teacherName || C.dash}{visit.scheduledSlot && <> · <TimeStamp time={visit.scheduledSlot} size={13} /></>}</> : undefined}>
       {failed && <Failed onRetry={reload} />}
       {(!data || !looked) && !failed && <Loading />}
       {visit && looked && !audio && (
         <Card className="flex flex-col gap-3 p-4">
           <h2 className="text-xl font-light">{C.noRecording}</h2>
           <div className="[display:grid] grid-cols-2 gap-2.5">
-            <Link to={`/portal/coach/visit/${id}/record`} className="flex h-14 items-center justify-center rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.startRecording}</Link>
-            <Link to={`/portal/coach/visit/${id}/attach`} className="flex h-14 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025]">{C.uploadRecording}</Link>
+            <Link to={routes.record(id)} className="flex h-14 items-center justify-center rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.startRecording}</Link>
+            <Link to={routes.attach(id)} className="flex h-14 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025]">{C.uploadRecording}</Link>
           </div>
         </Card>
       )}

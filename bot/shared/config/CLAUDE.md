@@ -1,7 +1,7 @@
 # config — Configuration, feature flags, language registry, model registry, copy catalogs
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/config kg=07b7f57ca270 gen=4c15914ec27d overflow=944 rendered=2026-11-06 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/config kg=08d75505dd80 gen=70217ecd6b66 overflow=952 rendered=2026-11-09 kg.py=1.1.0 -->
 
 ## Entry points
 - `languages.js` — Urdu/English registry all lists derive from
@@ -19,22 +19,22 @@ Full index: `CLAUDE.index.md`
 | … | 40 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `supabase.js` ← imported by `bot/scripts/apply-lp612-figure-notes.js:28:bdc9e340` · `bot/scripts/assessment/backfill-paper-versions.js:101:eb082fc4` (+454)
-- `ux-strings.js` ← imported by `bot/scripts/import-lp612-segments.js:31:244271c0` · `bot/shared/handlers/account-state-reply.js:34:90174631` (+221)
-- `languages.js` ← imported by `bot/shared/handlers/flow-response.handler.js:56:28620c16` · `bot/shared/routes/internal-api.routes.js:2676:15fe99b4` (+40)
-- … 74 more → `CLAUDE.index.md`
+- `supabase.js` ← imported by `bot/scripts/apply-lp612-figure-notes.js:28:bdc9e340` · `bot/scripts/assessment/backfill-paper-versions.js:101:eb082fc4` (+459)
+- `ux-strings.js` ← imported by `bot/scripts/import-lp612-segments.js:36:244271c0` · `bot/shared/handlers/account-state-reply.js:34:90174631` (+223)
+- … 75 more → `CLAUDE.index.md`
 
 ## Never (human)
 - supabase.js exits 78 when DB env is missing; keep that boot gate (supabase.js:8)
 - tts-voices.js does not route voices; VOICE_MODELS in utils/constants.js does (tts-voices.js:4)
 - feature-flags.js is fail-closed (feature-flags.js:2); model-settings is fail-safe
+- Never add a per-region or per-generation lesson-plan table or env flag; extend the existing one, book as separator (docs/lesson-plan-data-model-debt.md)
 <!-- read: map-read-niete-bot 2026-10-29 -->
 
 ## Tests (generated)
 - `tests/menu/menu-role-layouts.test.js` (languages.js, menu-gates.js, role-features.js, ux-strings.js)
 - `tests/language/urdu-gender-neutral-copy.test.js` (coaching-card.config.js, coaching-messages.js, ux-strings.js)
-- … 870 more → `CLAUDE.index.md`
+- … 877 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `digital-coach`? · `registration`? · `setup`?
-- docs: `.github/CONTRIBUTING.md`? · `AGENTS.md`? · `CLAUDE.md`? · `bot/shared/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/agent-customization.md`? (+8)
+- docs: `.github/CONTRIBUTING.md`? · `AGENTS.md`? · `CLAUDE.md`? · `bot/shared/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/agent-customization.md`? (+9)

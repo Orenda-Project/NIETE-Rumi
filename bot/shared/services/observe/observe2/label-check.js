@@ -11,7 +11,7 @@
  *
  * One batched call per visit, through the moments call's own seam (its job, observe2.moments, and its model): each moment's
  * quote, its claimed type, the lines around it in the transcript, and the type definitions the moments
- * prompt uses (moment-types.js). The reply is keep, relabel (to one of the existing types) or drop, and
+ * prompt uses (moment-types.js; a FICO17 v6 visit judges by the v3 types and definitions). The reply is keep, relabel (to one of the existing types) or drop, and
  * the code enforces it:
  *
  *   kept             the verdict was keep (or a relabel to the type it already had)
@@ -25,7 +25,7 @@
  * moments go to the coach as the quote check left them, and the failure is logged at error by the caller.
  */
 
-const { TYPES, GROUP_OF, TYPE_GUIDE } = require('./moment-types');
+const { typesFor, groupOfFor, guideFor } = require('./moment-types');
 const { parseTranscript, speakerAllows, rolesOf, contextOf, clock } = require('./quote-check');
 const { clampLanguage } = require('../../../config/ux-strings');
 const { JOB, unwrap, cutOff } = require('./llm-reply');
@@ -34,7 +34,7 @@ const { getLanguage } = require('../../../config/languages');
 const MAX_TOKENS = 16000;
 const WHY_MAX = 120;
 const LINE_MAX = 400;
-const LABEL_OF = Object.fromEntries(Object.values(TYPES).flatMap((g) => Object.entries(g)));
+const labelsOf = (rubric) => Object.fromEntries(Object.values(typesFor(rubric)).flatMap((g) => Object.entries(g)));
 
 const clip = (text, max) => { const cps = [...String(text || '')]; return cps.length > max ? `${cps.slice(0, max - 1).join('')}…` : cps.join(''); };
 
@@ -44,8 +44,9 @@ function contextLines(quote, lines) {
   return around.map((l) => `[${clock(l.sec)}] ${l.speaker}: ${clip(l.rawWords.join(' '), LINE_MAX)}`);
 }
 
-function buildLabelPrompt(moments, lines, { lang } = {}) {
+function buildLabelPrompt(moments, lines, { lang, rubric = 'fico17' } = {}) {
   const L = getLanguage(clampLanguage(lang));
+  const LABEL_OF = labelsOf(rubric);
   const why = [
     `For a relabel, also give "why": one short sentence, at most 15 words, in ${L.languageDescription}, on what the`,
     'moment shows about the teaching or the children\'s learning. Say "the teacher", "the child" or "the children";',
@@ -65,6 +66,11 @@ function buildLabelPrompt(moments, lines, { lang } = {}) {
     '- relabel: the words clearly show a different type from the list below. Give that type.',
     '- drop: the words show no type in the list (a closed question, an instruction, admin, a single word, a moral),',
     '  or you cannot tell. When unsure, drop.',
+    // v6 (FICO6 r2): the resource types are instructions by their own definitions, as the v3 moments prompt says.
+    ...(rubric === 'fico17_v6' ? [
+      '  A book, the board, a chart or an object the teacher shows, or asks the children to use, for what the lesson',
+      '  teaches is not admin or a plain instruction: judge it by the resource types below.',
+    ] : []),
     '',
     'STRICT, because these two were wrong almost every time they were picked:',
     '- handover ("children led a part"): keep it only if a child runs part of the lesson for the whole class: leads',
@@ -75,7 +81,7 @@ function buildLabelPrompt(moments, lines, { lang } = {}) {
     '  picking which of two words to say, or homework is never this.',
     '',
     'THE TYPES',
-    ...TYPE_GUIDE,
+    ...guideFor(rubric),
     '',
     ...why,
     '',
@@ -99,10 +105,11 @@ const fresh = (checked) => ({ status: 'ok', checked, kept: 0, relabelled: 0, dro
 
 /**
  * @param {Array} moments  as the quote check left them ({moment, type, minute, quote, why})
- * @param {{transcript: string, lang?: string, llm: Function}} opts  llm: (prompt, {maxTokens, job}) => completeJson reply
+ * @param {{transcript: string, lang?: string, llm: Function, rubric?: string}} opts  llm: (prompt, {maxTokens, job}) => completeJson reply;
+ *   rubric 'fico17' (v5, default) or 'fico17_v6'
  * @returns {Promise<{moments: Array, stats: object}>}
  */
-async function checkLabels(moments, { transcript, lang, llm } = {}) {
+async function checkLabels(moments, { transcript, lang, llm, rubric = 'fico17' } = {}) {
   const list = Array.isArray(moments) ? moments : [];
   if (!list.length) return { moments: list, stats: { ...fresh(0), status: 'skipped' } };
   const lines = parseTranscript(transcript);
@@ -110,7 +117,7 @@ async function checkLabels(moments, { transcript, lang, llm } = {}) {
 
   let result;
   try {
-    const reply = unwrap(await llm(buildLabelPrompt(list, lines, { lang }), { maxTokens: MAX_TOKENS, job: JOB }));
+    const reply = unwrap(await llm(buildLabelPrompt(list, lines, { lang, rubric }), { maxTokens: MAX_TOKENS, job: JOB }));
     if (cutOff(reply, MAX_TOKENS)) return failed(`cut_off at the output limit (${reply.finishReason || 'token count'})`);
     result = reply.result;
   } catch (err) {
@@ -118,6 +125,7 @@ async function checkLabels(moments, { transcript, lang, llm } = {}) {
   }
   if (!result || !Array.isArray(result.verdicts)) return failed('unreadable: no verdicts in the reply');
 
+  const GROUP_OF = groupOfFor(rubric);
   const byN = new Map();
   for (const v of result.verdicts) if (v && Number.isInteger(Number(v.n))) byN.set(Number(v.n), v);
   const stats = fresh(list.length);

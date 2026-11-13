@@ -117,6 +117,7 @@ function buildHeroReportHtml(vm) {
   const T = (s) => wrapLatin(esc(s));
 
   const n = vm.narrative || {};
+  // overall null (a v6 record with no numeric level, or a broken recording): no percentage is drawn anywhere.
   const score = vm.score || {};
   const peak = (vm.trend && vm.trend.length) ? Math.max(...vm.trend.map((t) => t.pct)) : score.overall;
   const marksLine = (score.marks != null && score.max != null) ? `${score.marks}/${score.max}${MARKS_WORD[lang] || ''}` : '';
@@ -245,7 +246,7 @@ function buildHeroReportHtml(vm) {
         <div class="hrow"><div class="eyebrow">${T(C.celebrate)}</div>${logo(A.logoWhite, 'logo')}</div>
         <div class="headline">
           <h1>${T(n.affirmation || '')}</h1>
-          <div class="hscore"><div class="p">${score.overall}%</div>${marksLine ? `<div class="s">${marksLine}</div>` : ''}</div>
+          ${score.overall == null ? '' : `<div class="hscore"><div class="p">${score.overall}%</div>${marksLine ? `<div class="s">${marksLine}</div>` : ''}</div>`}
         </div>
         <div class="who"><b>${esc(vm.teacherName || '')}</b>${vm.topic ? ` &nbsp;·&nbsp; ${T(vm.topic)}` : ''}${vm.date ? ` &nbsp;·&nbsp; ${esc(vm.date)}` : ''}</div>
       </div>
@@ -253,7 +254,7 @@ function buildHeroReportHtml(vm) {
     ${n.identity ? `<div class="pad" style="padding-bottom:0"><div class="identity">${T(n.identity)}</div></div>` : ''}
     <div class="cols">
       <div class="col-l">
-        <div class="label">${T(C.scores)} &nbsp; <span class="ov">${score.overall}%</span></div>
+        <div class="label">${T(C.scores)}${score.overall == null ? '' : ` &nbsp; <span class="ov">${score.overall}%</span>`}</div>
         ${scorecard}
       </div>
       <div class="col-r">

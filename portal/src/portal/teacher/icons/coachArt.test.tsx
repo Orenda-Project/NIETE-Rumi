@@ -19,7 +19,18 @@ describe("coach feature colours and art", () => {
     const art = (f: "coachTraining" | "training") => render(<FeatureArt feature={f} />).container.querySelector("svg")!.innerHTML;
     expect(art("coachTraining")).not.toEqual(art("training"));
   });
-  it.each(["schedule", "schools", "reports", "coachTraining"] as const)("%s: a 48-unit ink-outlined drawing", (f) => {
+  // bd-zay62o — the coach's Learning assessment tile: Assessment's blue (it is an assessment, of children), on its own
+  // drawing (a child reading a card), so it is never taken for the teacher's exam paper.
+  it("Learning assessment: Assessment's blue, but its own drawing, never the exam paper's", () => {
+    expect(FEATURE_HUE.learningAssessment).toEqual(FEATURE_HUE.assessment);
+    const art = (f: "learningAssessment" | "assessment") => render(<FeatureArt feature={f} />).container.querySelector("svg")!.innerHTML;
+    expect(art("learningAssessment")).not.toEqual(art("assessment"));
+  });
+  it("Learning assessment moves on the shared timer like the others (and is still under reduced motion: FeatureArt's rule)", () => {
+    const { container } = render(<FeatureMotionProvider><FeatureArt feature="learningAssessment" size={80} motion /></FeatureMotionProvider>);
+    expect(container.querySelectorAll('svg[data-feature-art="learningAssessment"] .fm-an').length).toBeGreaterThan(0);
+  });
+  it.each(["schedule", "schools", "reports", "coachTraining", "learningAssessment"] as const)("%s: a 48-unit ink-outlined drawing", (f) => {
     const { container } = render(<FeatureArt feature={f} />);
     const svg = container.querySelector("svg")!;
     expect(svg).toHaveAttribute("viewBox", "0 0 48 48");
@@ -27,7 +38,7 @@ describe("coach feature colours and art", () => {
     expect(svg.querySelector("g")).toHaveAttribute("stroke", "#33374a");
     expect(svg.innerHTML).toContain(FEATURE_HUE[f].fg);
   });
-  it.each(["schedule", "schools", "reports", "coachTraining"] as const)("%s: a still menu glyph in currentColor", (f) => {
+  it.each(["schedule", "schools", "reports", "coachTraining", "learningAssessment"] as const)("%s: a still menu glyph in currentColor", (f) => {
     const { container } = render(<FeatureGlyph name={f} />);
     const svg = container.querySelector("svg")!;
     expect(svg).toHaveAttribute("data-glyph", f);

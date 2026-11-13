@@ -165,6 +165,7 @@ export const TRAINING_INNER_UR: TrainingWords = {
   download: 'ڈاؤن لوڈ',
   myScores: 'میرے اسکور',
   notTaken: 'نہیں دیا',
+  noQuickCheck: 'فوری جانچ نہیں',
   written: (earned?: number | null, max?: number | null) => `تحریری ${earned ?? '—'}/${max ?? 0}`,
   choice: (earned?: number | null, possible?: number | null) => `معروضی ${earned ?? 0}/${possible ?? 0}`,
   part: (n?: number, total?: number) => `حصہ ${n ?? 0}/${total ?? 0}`,

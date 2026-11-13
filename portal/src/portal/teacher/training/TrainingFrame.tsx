@@ -4,6 +4,7 @@ import { useCopy } from '../i18n';
 import { cn } from '@/lib/utils';
 import { TrainingFrameContext, type TrainingFrameProps } from '../../newui/training/frame';
 import TeacherPage from '../TeacherPage';
+import type { HelpFeature } from '../help/api';
 import { CARD, FOCUS } from '../ui/styles';
 import { TRAINING } from './copy';
 import { SkeletonList } from '../../components/Skeleton';
@@ -15,10 +16,10 @@ import type { CourseTile } from './model';
  * header (`context`, the teaching level on the main page), then the column.
  */
 export function TrainingPageV2({
-  crumb, title, backTo, onBack, right, context, dock, testId, children,
-}: TrainingFrameProps & { context?: ReactNode; dock?: ReactNode; testId?: string }) {
+  crumb, title, backTo, onBack, right, context, dock, testId, help, children,
+}: TrainingFrameProps & { context?: ReactNode; dock?: ReactNode; testId?: string; help?: HelpFeature }) {
   return (
-    <TeacherPage feature="training" crumb={crumb} title={title} backTo={backTo} onBack={onBack} action={right} chips={context} dock={dock} testId={testId}>
+    <TeacherPage feature="training" crumb={crumb} title={title} backTo={backTo} onBack={onBack} action={right} chips={context} dock={dock} testId={testId} help={help}>
       {children}
     </TeacherPage>
   );

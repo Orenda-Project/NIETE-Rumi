@@ -224,6 +224,21 @@ describe('reading the matrix', () => {
       'grade_1_general_knowledge_en', 'grade_1_islamiat', 'grade_4_social_studies_en',
     ]);
   });
+
+  // bd-qchgya (operator, 11 Nov): GB teaches ICT's Grade 6-10 books, all of them, and has no Grades 11-12.
+  test("GB's list adds every ICT 6-12 book of Grades 6-10, and none of 11-12", async () => {
+    expect(GB.ictGrades).toEqual([6, 7, 8, 9, 10]);
+    const m = await readMatrix({ english: englishRows() });
+    const ict612 = [
+      { stem: 'grade_6_english', grade: 6 }, { stem: 'g7_physics', grade: 7 }, { stem: 'grade_10_english', grade: 10 },
+      { stem: 'grade_11_physics', grade: 11 }, { stem: 'grade_12_physics', grade: 12 },
+    ];
+    expect(Matrix.bookKeys(m, GB, [], ict612)).toEqual([
+      'gb_g1_english', 'gb_g2_urdu', 'gb_g4_science', 'grade_6_english', 'g7_physics', 'grade_10_english',
+    ]);
+    // A region config without ictGrades takes none of them.
+    expect(Matrix.bookKeys(m, { ...GB, ictGrades: undefined }, [], ict612)).toEqual(['gb_g1_english', 'gb_g2_urdu', 'gb_g4_science']);
+  });
 });
 
 describe('planning against what is on record', () => {

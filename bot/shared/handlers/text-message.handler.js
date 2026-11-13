@@ -5,6 +5,7 @@ const { decideChildReplyLanguage } = require('../utils/child-reply-language');
 const { resolveResponseLanguage } = require('../utils/resolve-response-language');
 const { firstReplyLanguage } = require('../utils/first-reply-english-evidence');
 const { canonicalizeSlashCommand } = require('../utils/slash-command');
+const MenuRequest = require('../services/menu-request');
 const OpenAIService = require('../services/openai.service');
 const ContentService = require('../services/content.service');
 const LanguageDetectorService = require('../services/language-detector.service');
@@ -351,9 +352,10 @@ function holdTypingWhileReasonPending(user) {
       const Lp612FeedbackService = require('../services/lp612-feedback.service');
       // FX6 (bd-w2daa.28): the coaching-report survey's window too — its reason is answered by 🙏 alone.
       const CoachingFeedbackService = require('../services/coaching/coaching-feedback.service');
+      const AssessmentFeedbackService = require('../services/assessment/assessment-feedback.service');
       const keys = [
         LpFeedbackService.REDIS_REASON_KEY(user.id), Lp612FeedbackService.REDIS_REASON_KEY(user.id),
-        CoachingFeedbackService.REDIS_REASON_KEY(user.id),
+        CoachingFeedbackService.REDIS_REASON_KEY(user.id), AssessmentFeedbackService.REDIS_REASON_KEY(user.id),
       ];
       const open = await Promise.all(keys.map((k) => Promise.resolve(redisService.get(k)).catch(() => null)));
       if (!done && open.some(Boolean)) release = InboundTyping.hold();
@@ -376,6 +378,12 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   if (canonicalCommand.form) {
     logToFile('inbound.slash_command_canonicalized', { raw: messageBody, command: canonicalCommand.text, form: canonicalCommand.form, userId: user?.id });
     messageBody = canonicalCommand.text;
+  } else if (MenuRequest.keywordRoutingOn() && MenuRequest.isMenuRequest(messageBody)
+    && String(messageBody).trim().toLowerCase() !== '/menu') {
+    // bd-2ym4ve — "menu", "Menu please", "show menu", "menue", «مینو»: one or two words with the menu word in them,
+    // that no other door reads, are /menu (operator, 11 Nov 2026). Same event as the slash repairs, form 'menu_word'.
+    logToFile('inbound.slash_command_canonicalized', { raw: messageBody, command: '/menu', form: 'menu_word', userId: user?.id });
+    messageBody = '/menu';
   }
 
   // Start continuous typing indicator immediately
@@ -701,6 +709,17 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
       logToFile('LP 6-12 feedback: consumeReasonIfPending error (non-fatal)', {
         error: lp612FbErr.message, userId: user.id,
       });
+    }
+    // The assessment survey's "how can we make it better?" — same reason: her own tap opened it.
+    try {
+      const AssessmentFeedbackService = require('../services/assessment/assessment-feedback.service');
+      const consumed = await AssessmentFeedbackService.consumeReasonIfPending(user.id, from, messageBody, { messageId: message && message.id });
+      if (consumed) {
+        logToFile('Assessment feedback: idea captured, short-circuiting text handler');
+        return;
+      }
+    } catch (asmtFbErr) {
+      logToFile('Assessment feedback: consumeReasonIfPending error (non-fatal)', { error: asmtFbErr.message });
     }
   }
   // Not a 👎 reason: a reply is coming — let "typing…" go up (at once if its deadline passed).
@@ -1062,17 +1081,25 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // /observe2 — the FICO field-form pilot (live form during the lesson, then "What Rumi heard").
   // Gated in observe2/gate.js; off (false) → falls through like any text. /^\/observe\b/ below
   // does not match "/observe2", so the two commands never shadow each other.
+  // Retired (app_settings.observe2_retired, default off; observe2/retire.js): the one-line notice, then the /observe
+  // door below runs with "/observe", so the coach gets exactly what /observe opens. Visits already started are untouched.
+  let observeCommand = trimmedMessage;
   if (/^\/observe2\b/i.test(trimmedMessage)) {
-    if (await redirectToApp('observe', 'command')) return;
-    const { handleObserve2Command } = require('../services/observe/observe2/start');
-    const observe2Handled = await handleObserve2Command(user, from, trimmedMessage);
-    if (observe2Handled) return;
+    const { announceIfRetired } = require('../services/observe/observe2/retire');
+    if (await announceIfRetired(user, from)) {
+      observeCommand = '/observe';
+    } else {
+      if (await redirectToApp('observe', 'command')) return;
+      const { handleObserve2Command } = require('../services/observe/observe2/start');
+      const observe2Handled = await handleObserve2Command(user, from, trimmedMessage);
+      if (observe2Handled) return;
+    }
   }
 
-  if (/^\/observe\b/i.test(trimmedMessage)) {
+  if (/^\/observe\b/i.test(observeCommand)) {
     if (await redirectToApp('observe', 'command')) return;
     const { handleObserveCommand } = require('./observe-command.handler');
-    const observeHandled = await handleObserveCommand(user, from, trimmedMessage);
+    const observeHandled = await handleObserveCommand(user, from, observeCommand);
     if (observeHandled) return;
   }
 

@@ -254,7 +254,8 @@ async function restartAttempt(sessionId, { clientSessionId, block = null, at = n
   const moved = had.map((e, i) => ({ ...e, seq: i - had.length - 1 }));
   dev.events = moved.concat([{ seq: -1, type: 'restart', task_id: null, at, data: { by: 'coach', prev: s.client_session_id || null, attempt } }]);
   delete dev.last_seq;
-  if (block) dev.block = block; else delete dev.block;
+  // the part the new attempt runs; a restart that names none keeps the session's (which RDF flow ran is read from it)
+  if (block) dev.block = block;
   const { error } = await supabase.from(SESSIONS).update({ device: dev, client_session_id: clientSessionId || null }).eq('id', sessionId);
   if (error) return fail('restartAttempt', error, { sessionId });
   return { ok: true, attempt };

@@ -21,6 +21,9 @@
  * content is NEVER stored — the .txt and the moves resolve fresh by these keys.
  */
 
+// bd-xxejb: the v8 voice note is off by default; these tests cover the flag-on behaviour.
+require('../../shared/config/lp-v8-voicenote').__setForTests(true);
+
 /* eslint-disable global-require */
 
 // ─── shared mocks ───────────────────────────────────────────────────────────

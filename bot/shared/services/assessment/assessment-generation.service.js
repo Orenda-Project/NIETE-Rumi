@@ -23,9 +23,12 @@ const { configForRequest, ensureCurrent } = require('../../config/model-settings
 const { logToFile } = require('../../utils/logger');
 const { extractJsonFromResponse } = require('./assessment-json.util');
 const { stemsBlock, applyStems } = require('./topics/stem-prompt');
+const { seenCategoryLine, keepSeenCategories } = require('./seen-categories');
 const { capBlooms, appliesToGrade, APPLY_NOTE } = require('./bloom-ceiling');
+const { standardMarks } = require('./standard-marks');
 
-const PROMPTS = require('./ict-prompts.json');
+// The English-medium GK/SST prompts (bd-uam6dh) sit in their own file: ict-prompts.json is pinned key by key.
+const PROMPTS = { ...require('./ict-prompts.json'), ...require('./gk-sst-en-prompts.json') };
 
 /** One question, one answer: what this family should run right now. */
 function familyModel(family) {
@@ -76,6 +79,9 @@ const CANON = {
   science: 'science', gensci: 'science',
   genk: 'genk', general_knowledge: 'genk',
   sst: 'sst', social_studies: 'sst',
+  // The English-medium books (bd-uam6dh): English prompt, English model, not in URDU_MEDIUM.
+  general_knowledge_en: 'genk_en',
+  social_studies_en: 'sst_en',
 };
 
 const SYSTEM_PROMPT = {
@@ -86,6 +92,8 @@ const SYSTEM_PROMPT = {
   sst: 'eg.ict.sst.system',
   islamiat: 'eg.ict.islamiat.system',
   genk: 'eg.ict.genk.system',
+  genk_en: 'eg.ict.genk_en.system',
+  sst_en: 'eg.ict.sst_en.system',
 };
 
 // Which output-format prompt a subject gets. Not arbitrary:
@@ -278,9 +286,13 @@ ${list}
  * What to make, in the words the prompts expect. Objective and subjective are
  * listed separately because that is the shape of the tree the model returns.
  */
+// bd-ipoxhx.7 (AG row 21) — the marks teachers expect; standardMarks() also enforces them after generation.
+const STANDARD_MARKS_LINE = '• Marks: every objective question is 1 mark each (a matching question 1 mark per pair); '
+  + 'short / brief answers 2-3 marks; long questions and written work 5-10 marks';
+
 function buildUserPrompt({ grade, subject, pageContent, pageReference,
                            contentSource, questionCount, questionTypes = [], totalMarks = null,
-                           seenCount = null, slos = null }) {
+                           seenCount = null, slos = null, standardMarks: askStandard = true }) {
   const plan = planCounts({ contentSource, questionCount, questionTypes, seenCount });
   const objective = plan.questionTypes.filter((q) => q.category === 'objective');
   const subjective = plan.questionTypes.filter((q) => q.category !== 'objective');
@@ -294,7 +306,7 @@ function buildUserPrompt({ grade, subject, pageContent, pageReference,
   if (contentSource === 'both') {
     items.push(`Seen questions — at most ${plan.seenTarget}, taken directly from the textbook's own `
       + 'exercises on these pages (if the pages hold fewer usable exercise questions, add unseen '
-      + 'questions instead so the total below is still met)');
+      + 'questions instead so the total below is still met)' + seenCategoryLine(questionTypes));
   } else if (contentSource === 'seen') {
     items.push(`Seen questions — exactly ${plan.seenTarget}, taken directly from the textbook's own `
       + 'exercises on these pages (objective and subjective)');
@@ -324,7 +336,7 @@ ${items.map((i) => `• ${i}`).join('\n')}
 • For UNSEEN questions: Create new questions based on concepts from the textbook
 • The paper carries no pictures. Do NOT include any question that needs a picture, illustration or diagram to answer (e.g. "write the name of each object under its picture", "look at the picture and…", "colour the…"). Rewrite it so it can be answered from text alone, or leave it out${drawIt ? `
 ${DRAW_IT_LINE}` : ''}
-• Include proper marks allocation for each question
+${askStandard ? STANDARD_MARKS_LINE : '• Include proper marks allocation for each question'}
 • Maintain grade-appropriate language and difficulty
 • Return output in the JSON format specified in the system prompt
 • Where a question type specifies an exact count (e.g. "5 MCQs"), generate EXACTLY that many questions for that type — no more, no less
@@ -628,7 +640,10 @@ async function generateExam(args) {
   const honestBlooms = appliesToGrade(grade);
 
   const messages = [
-    { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) + (honestBlooms ? APPLY_NOTE : '') },
+    // bd-upejat.208: the pattern path's religious rule, on this call only (the pattern path adds its own).
+    // Islamiat is a religious subject, so it carries none.
+    { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) + (honestBlooms ? APPLY_NOTE : '')
+      + (key === 'islamiat' ? '' : `\n\n${RULE.religious}`) },
     { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, slos }) + avoidNote(avoidQuestions) },
   ];
 
@@ -666,8 +681,8 @@ async function generateExam(args) {
       { cause: err.message });
   }
 
-  const choice = response?.choices?.[0] || {};
-  const raw = choice.message?.content || '';
+  let choice = response?.choices?.[0] || {};
+  let raw = choice.message?.content || '';
 
   // This model reasons before it answers, and reasoning spends the same budget
   // as output. Hit the ceiling and the reply comes back with a null content and
@@ -680,24 +695,50 @@ async function generateExam(args) {
   }
 
   let examJson;
-  try {
-    examJson = extractJsonFromResponse(raw);
-  } catch (err) {
-    // Cut off mid-paper at the ceiling: the same answer as above, not "try again".
-    if (choice.finish_reason === 'length') {
-      logToFile('[assessment] model ran out of room', { model, usage: response.usage, partial: true });
-      throw fail('TRUNCATED', 'That was too much to write in one go — try fewer questions.',
-        { usage: response.usage });
+  // bd-xabyzv: a large paper's reply sometimes fails to parse (~4/week); it is asked once more.
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      examJson = extractJsonFromResponse(raw);
+      break;
+    } catch (err) {
+      // Cut off mid-paper at the ceiling: the same answer as above, not "try again".
+      if (choice.finish_reason === 'length') {
+        logToFile('[assessment] model ran out of room', { model, usage: response.usage, partial: true });
+        throw fail('TRUNCATED', 'That was too much to write in one go — try fewer questions.',
+          { usage: response.usage });
+      }
+      logToFile('[assessment] model returned unusable JSON', {
+        model, attempt, error: err.message, preview: raw.slice(0, 300),
+      });
+      // Only a paper that broke mid-JSON is asked again; prose (a refusal) or a billed
+      // empty reply would only run the same failure twice.
+      if (attempt >= 2 || !raw.includes('{')) {
+        throw fail('BAD_JSON', 'The question writer returned something we could not read.',
+          { cause: err.message });
+      }
+      try {
+        response = await ask();
+      } catch (askErr) {
+        logToFile('[assessment] model call failed', { model, error: askErr.message });
+        throw fail('MODEL_UNAVAILABLE', 'The question writer is unavailable right now.',
+          { cause: askErr.message });
+      }
+      choice = response?.choices?.[0] || {};
+      raw = choice.message?.content || '';
     }
-    logToFile('[assessment] model returned unusable JSON', {
-      model, error: err.message, preview: raw.slice(0, 300),
-    });
-    throw fail('BAD_JSON', 'The question writer returned something we could not read.',
-      { cause: err.message });
   }
 
   stripImageKeys(examJson);
   normaliseAnswers(examJson);
+  // bd-upejat.208: the same filter the pattern path runs; it names no item of its own for a subject it does not cover.
+  // A failed book read must not fail a paper that shipped before this filter existed: log and deliver.
+  if (key !== 'islamiat') {
+    try {
+      await religiousFilter(examJson, null, { grade, subject, allowedText: pageContent || '' });
+    } catch (err) {
+      logToFile('[assessment] religious filter skipped on regular paper', { grade, subject, error: err.message });
+    }
+  }
   // The writer tags its own questions; a bare drill tagged Apply or a one-mark opinion tagged
   // Evaluate is lowered to the level its shape supports (bloom-ceiling.js). Only ever lowers.
   const bloomsMoved = honestBlooms ? capBlooms(examJson) : [];
@@ -705,7 +746,13 @@ async function generateExam(args) {
   // bd-6clakk.12 — her ticked stems: a near miss is set to the stem; a question using none is logged.
   const { misses: stemMisses } = applyStems(examJson, plan.questionTypes);
   if (stemMisses.length) logToFile('[assessment] questions without a ticked stem', { misses: stemMisses });
+  // bd-ipoxhx.1 — a Both paper's book questions stay inside the categories she chose.
+  const offCategory = contentSource === 'both' ? keepSeenCategories(examJson, questionTypes) : 0;
+  if (offCategory > 0) logToFile('[assessment] dropped seen questions outside her categories', { removed: offCategory });
   const removedSeen = trimSeen(examJson, plan.seenTarget);
+  // bd-ipoxhx.7 — standard marks before the budget is measured, so an inflated MCQ never costs a question.
+  const marksStandardised = standardMarks(examJson);
+  if (marksStandardised > 0) logToFile('[assessment] set marks to the standard', { changed: marksStandardised });
   if (removedSeen > 0) {
     logToFile('[assessment] trimmed seen questions to the cap', { seenTarget: plan.seenTarget, removed: removedSeen });
   }
@@ -763,6 +810,7 @@ const { checkBlueprint, missesSplit, levelDistance, levelNote } = require('./blu
 const Reader = require('./fde-reader');
 const StemCheck = require('./fde-stem-check');
 const { writeEarlyPaper } = require('./fde-early-writer');
+const { withBlueprintRetry } = require('./fde-early-blueprint-retry');
 // Grades 9-12 board papers (bd-5jmnfj.38.24): their own writer, lookup and helpers; reachable by id only.
 const { writeBoardPaper } = require('./board-writer');
 const BoardPatterns = require('./patterns/board');
@@ -2703,7 +2751,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     throw fail('PATTERN_INELIGIBLE', 'That board pattern is not available for this grade and subject.', { pattern, grade, subject });
   }
   // Grades 1-2 (bd-5jmnfj.4): whole-book papers with pictures and an oral part, written on their own path.
-  if (def.profile === 'early') return writeEarlyPaper({ grade, subject, pattern, P, onSection, requestId }, _earlyDeps(subject));
+  if (def.profile === 'early') return withBlueprintRetry(() => writeEarlyPaper({ grade, subject, pattern, P, onSection, requestId }, _earlyDeps(subject)), logToFile); // regenerate once, then flag (bd-5jmnfj.4.13)
 
   const loaded = await _loadPatternContent({ grade, subject, P, scope, pageRanges, chapterNumber });
   const layoutScope = scope || (chapterNumber != null && !pageRanges

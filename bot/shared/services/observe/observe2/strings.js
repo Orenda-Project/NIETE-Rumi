@@ -22,6 +22,8 @@ const STRINGS = {
   en: {
     deny_no_user: 'I couldn\'t find your account. Send *register* first, then /observe2 again.',
     deny_role: '/observe2 is for coaches and school leaders.',
+    // Sent once per /observe2 while the command is retired (observe2/retire.js), right before /observe opens.
+    retired_notice: 'The /observe2 trial has ended, so I\'m opening the regular /observe for you.',
     visit_body: 'Let\'s plan the /observe2 visit. Pick a school, then a teacher.',
     visit_cta: 'Plan my visit',
     launch_failed: 'I couldn\'t open the visit planner just now. Please send /observe2 again in a minute.',
@@ -98,10 +100,51 @@ const STRINGS = {
     focus_sep: '; ',
     // A phrase that may be in another language (a plan step, the indicator phrases) as it sits in a line.
     focus_atom: (text) => text,
+    // FICO17 v6 check (bd-ra8xu.38): messages under a field the endpoint refused (spec §7.8). The check Flow is
+    // English for the pilot, so the endpoint sends these; the Urdu below is for a later Urdu Flow.
+    v6_choose_level: 'Choose a level.',
+    v6_write_why: 'Write why you chose this level.',
+    v6_check_numbers: 'Check the two numbers.',
+    v6_d2_mismatch: "Your level doesn't match the counts. Change one, or say why.",
+    v6_why_changed: (names) => `You changed ${names.join(', ')}. Write why (20+ letters).`,
+    // FICO6 (CONTRACTS §6.5). Why Rumi's level changed (spec §9.1): the radio's label, its five reasons, the refusals.
+    v6_why_kind: 'Why did it change?',
+    v6_pick_reason: 'Pick a reason for the change.',
+    v6_override_reasons: {
+      didnt_happen: "It didn't happen",
+      wrong_speaker: 'Wrong speaker',
+      wrong_label: 'Wrong label',
+      recording_missed: 'Recording missed it',
+      rubric_doesnt_fit: "Rubric doesn't fit",
+    },
+    v6_why_min: 'Minute',
+    v6_why_min_help: 'The minute of the lesson it happened, if you know it',
+    v6_minute_range: (max) => `A whole minute from 0 to ${max}.`,
+    // A recording the transcript gate found unusable (spec §6.3): the moments job tells the coach.
+    moments_broken: "The recording couldn't be used. Set the six room levels from what you saw.",
+    // What the recording gave for one room indicator, on the COMBINED screens (spec §7.2).
+    v6_ev_none: 'The recording showed nothing for this.',
+    v6_ev_ie: "The recording couldn't show this. Set the level from what you saw.",
+    v6_ev_na_d3: 'The recording found no child-to-child talk.',
+    v6_coach_adds: (text) => `Coach adds: ${text}`,
+    // D2's first line on COMBINED_THREE: the recording's Student lines per half (rumi_moments.d2_turns, CONTRACTS §11.4).
+    v6_d2_turns: (a, b) => `Student turns: ${a} in the first half, ${b} in the second.`,
+    // The teacher's report for a v6 visit (spec §9.3).
+    v6_report_ie: "The recording didn't cover this part of the lesson.",
+    v6_report_broken: "The recording couldn't be used, so this report has no levels from it.",
+    // "Add one Rumi missed" (spec §9.2): the screen's title and each slot's labels (labels within 20 code points).
+    missed_title: 'Add one Rumi missed',
+    missed_intro: 'A moment you saw that Rumi did not list? Add up to two: what happened, the minute, and the words. It counts like a moment you confirmed. Leave empty if none.',
+    missed_type: 'What happened',
+    missed_min: 'Minute',
+    missed_min_help: 'The minute of the lesson, if you know it',
+    missed_words: 'The words',
+    missed_words_help: 'What was said, as near as you can',
   },
   ur: {
     deny_no_user: 'آپ کا اکاؤنٹ نہیں ملا۔ پہلے *register* لکھ کر بھیجیں، پھر دوبارہ \u2066/observe2\u2069 لکھیں۔',
     deny_role: '\u2066/observe2\u2069 کوچز اور اسکول سربراہان کے لیے ہے۔',
+    retired_notice: '\u2066/observe2\u2069 کا تجربہ ختم ہو گیا ہے، اس لیے باقاعدہ \u2066/observe\u2069 کھول رہی ہوں۔',
     visit_body: 'آئیے \u2066/observe2\u2069 وزٹ کی منصوبہ بندی کریں۔ اسکول چنیں، پھر استاد۔',
     visit_cta: 'دورہ چنیں',
     launch_failed: 'ابھی وزٹ پلانر نہیں کھل سکا۔ ایک منٹ بعد دوبارہ \u2066/observe2\u2069 بھیجیں۔',
@@ -173,6 +216,42 @@ const STRINGS = {
     // English phrases and plan steps of either language sit in an Urdu line as a first-strong isolate
     // (FSI … PDI), so their direction never leaks into the sentence around them.
     focus_atom: (text) => `\u2068${text}\u2069`,
+    // FICO17 v6 check (bd-ra8xu.38). DRAFT Urdu, machine-assisted: for a native speaker's review before any
+    // Urdu check Flow ships. Imperatives only (gender-neutral).
+    v6_choose_level: 'ایک لیول منتخب کریں۔',
+    v6_write_why: 'لکھیں کہ یہ لیول کیوں منتخب کیا۔',
+    v6_check_numbers: 'دونوں نمبر دوبارہ دیکھیں۔',
+    v6_d2_mismatch: 'لیول گنتی سے میل نہیں کھاتا۔ ایک کو بدلیں، یا وجہ لکھیں۔',
+    v6_why_changed: (names) => `آپ نے ${names.map((n) => `\u2068${n}\u2069`).join('، ')} بدلا۔ وجہ لکھیں (کم از کم ۲۰ حروف)۔`,
+    // DRAFT — native review (FICO6, CONTRACTS §6.5; RULINGS R17). Imperatives and impersonal forms only.
+    v6_why_kind: 'یہ کیوں بدلا؟',
+    v6_pick_reason: 'تبدیلی کی وجہ منتخب کریں۔',
+    v6_override_reasons: {
+      didnt_happen: 'ایسا نہیں ہوا',
+      wrong_speaker: 'بولنے والا غلط',
+      wrong_label: 'لمحے کا نام غلط',
+      recording_missed: 'ریکارڈنگ میں نہیں آیا',
+      rubric_doesnt_fit: 'روبرک پر پورا نہیں اترتا',
+    },
+    v6_why_min: 'منٹ',
+    v6_why_min_help: 'سبق کا وہ منٹ جب یہ ہوا، اگر معلوم ہو',
+    v6_minute_range: (max) => `۰ سے ${urDigits(max)} تک کا پورا منٹ لکھیں۔`,
+    moments_broken: 'ریکارڈنگ استعمال نہیں ہو سکی۔ کمرے کے چھ لیولز اپنے مشاہدے سے طے کریں۔',
+    v6_ev_none: 'ریکارڈنگ میں اس کے لیے کچھ نہیں ملا۔',
+    v6_ev_ie: 'ریکارڈنگ سے یہ معلوم نہیں ہو سکا۔ لیول اپنے مشاہدے سے طے کریں۔',
+    v6_ev_na_d3: 'ریکارڈنگ میں بچوں کی آپس میں کوئی بات چیت نہیں ملی۔',
+    v6_coach_adds: (text) => `کوچ کا مشاہدہ: \u2068${text}\u2069`,
+    // DRAFT — native review (FICO6 r2, CONTRACTS §11.4).
+    v6_d2_turns: (a, b) => `طلبہ کی باریاں: پہلے نصف میں ${urDigits(a)}، دوسرے میں ${urDigits(b)}۔`,
+    v6_report_ie: 'ریکارڈنگ میں سبق کا یہ حصہ شامل نہیں تھا۔',
+    v6_report_broken: 'ریکارڈنگ استعمال نہیں ہو سکی، اس لیے اس رپورٹ میں اس سے کوئی لیول نہیں۔',
+    missed_title: 'جو لمحہ رہ گیا',
+    missed_intro: 'کوئی لمحہ جو آپ نے دیکھا مگر فہرست میں نہیں؟ دو تک شامل کریں: کیا ہوا، منٹ، اور الفاظ۔ یہ تصدیق شدہ لمحے کی طرح گنا جائے گا۔ نہ ہو تو خالی چھوڑ دیں۔',
+    missed_type: 'کیا ہوا',
+    missed_min: 'منٹ',
+    missed_min_help: 'سبق کا منٹ، اگر معلوم ہو',
+    missed_words: 'الفاظ',
+    missed_words_help: 'جو کہا گیا، جتنا قریب ہو سکے',
   },
 };
 

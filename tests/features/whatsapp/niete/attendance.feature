@@ -327,6 +327,22 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # student: handleVerificationResponse:963 'edit' → re-send marking Flow with
     # prefilledAbsent. principal: handleVerification:275 'edit' → back to marking.
 
+  @e2e @wip @new @edge @destructive @P2
+  Scenario: A teacher whose old account was merged appears once on my staff register
+    Given the NIETE bot chat is open on a PRINCIPAL account whose school has teachers
+    And a teacher at my school had her old account merged into her current one
+    When I open my staff register and save it with everyone present
+    Then she appears once on the register
+    And her attendance is saved once, on her current account
+    # ADDED 2026-11-10 (bd-apnnh2.15). The rule of observe.feature @OBS76: a merged account is in nobody's list.
+    # The retired account (users.deleted_at set, its number merged:<id>) keeps its school and role, so the staff
+    # register (attendance-write loadStaffRoster) listed it as a second copy of her, and because marking is by
+    # exception, saving the register marked that copy present too. The same list feeds the voice roll-call and
+    # the monthly register. The other lists of a school's teachers skip it as well: the class-teacher picker on
+    # /roster (roster-flow-endpoint teachersFor) and the principal's teacher attendance on the portal
+    # (attendance-repository getTeachersBySchool). Unit: tests/identity/bd-apnnh2.15-lists-skip-retired.test.js.
+    # No driver: attendance has none yet (every scenario here is @wip @draft), so it is hand-driven by name.
+
   # ═════════════════════════════════ NEGATIVE ══════════════════════════════════
 
   @e2e @wip @voice @negative @P2

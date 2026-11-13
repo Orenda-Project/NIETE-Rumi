@@ -10,15 +10,28 @@ const Lib = require('../../dashboard/services/where-to-coach.library');
 const SETTINGS = require('../../dashboard/data/where-to-coach/settings.json');
 const { getScoringConstants } = require('../../bot/shared/services/coaching/frameworks/fico-framework');
 
-// FICO v3 (production, origin/main fico-framework.js): C1-C12, D1-D7, F1-F8.
+// FICO v3 (production and staging, origin/main fico-framework.js, scale 1-4): C1-C12, D1-D7, F1-F8.
 const range = (p, n) => Array.from({ length: n }, (_, i) => `${p}${i + 1}`);
 const V3 = [...range('C', 12), ...range('D', 7), ...range('F', 8)];
-// FICO v4 (sandbox): read from the deployed framework, sections C, D and F (B is the plan steps).
-const V4 = Object.entries(getScoringConstants().domains)
-  .filter(([k]) => k !== 'lesson_plan_fidelity')
-  .flatMap(([, d]) => d.indicators.map((i) => i.id));
+// FICO v4 (sandbox fico-framework.js, scale 0-2): C1-C4, D1-D5, F1-F10. Pinned, not read from the deployed
+// framework: staging and production still deploy v3, so a read there would hand v3's ids to the v4 tips
+// (bd-17v39c.4.14.11, seen in the staging carry).
+const V4 = [...range('C', 4), ...range('D', 5), ...range('F', 10)];
 
 const words = (x) => typeof x === 'string' && x.trim().length > 0;
+
+// Whichever FICO this tier deploys, every practice it scores in C, D and F has tips under the framework its scale names
+// (settings.frameworkByScale), and that framework's pinned list above is exactly the deployed one.
+test('the deployed framework: every C/D/F practice it scores has tips, under the framework its scale names', () => {
+  const deployed = getScoringConstants();
+  const fw = SETTINGS.frameworkByScale[String(deployed.scaleMax)];
+  expect(['fico_v3', 'fico_v4']).toContain(fw);
+  const ids = Object.entries(deployed.domains)
+    .filter(([k]) => k !== 'lesson_plan_fidelity')
+    .flatMap(([, d]) => d.indicators.map((i) => i.id));
+  expect(ids).toEqual(fw === 'fico_v3' ? V3 : V4);
+  for (const id of ids) expect(Lib.suggestionsFor(fw, id)).not.toBeNull();
+});
 
 describe.each([['fico_v3', V3], ['fico_v4', V4]])('%s', (fw, ids) => {
   test.each(ids)('%s has Look for and Try this in English and Urdu', (id) => {

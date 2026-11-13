@@ -1,0 +1,212 @@
+{
+  "name": "form-v4-none",
+  "note": "FORM_VERSION 4: Part 2 asks the Part 1 questions again; nothing to report",
+  "captured_at": "afeab2a69b",
+  "input": {
+    "form": {
+      "fv": "4",
+      "present": "34",
+      "p1_spoke": "5",
+      "p1_picked": "once",
+      "p1_groups": "none",
+      "p1_materials": "teacher",
+      "p1_change": "yes",
+      "p1_change_how": "slow",
+      "p2_spoke": "7",
+      "p2_new": "3",
+      "p2_picked": "often",
+      "p2_groups": "combine",
+      "p2_listen": [
+        "turns",
+        "often"
+      ],
+      "p2_materials": "children",
+      "p2_change": "yes",
+      "p2_change_how": "clear",
+      "incident": "none",
+      "priority": "C1",
+      "seal_ok": true
+    },
+    "confirmed": [
+      {
+        "id": "m1",
+        "type": "open_q_one",
+        "minute": "03:10",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m2",
+        "type": "open_q_one",
+        "minute": "08:40",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m3",
+        "type": "probe",
+        "minute": "08:55",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m4",
+        "type": "wrong_reason",
+        "minute": "12:02",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m5",
+        "type": "praise_effort",
+        "minute": "14:30",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m6",
+        "type": "choice",
+        "minute": "20:15",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m7",
+        "type": "term_defined",
+        "minute": "22:00",
+        "quote": "synthetic"
+      },
+      {
+        "id": "m8",
+        "type": "why_explained",
+        "minute": "25:40",
+        "quote": "synthetic"
+      }
+    ],
+    "heardCounts": {
+      "closed_q": 14,
+      "praise_generic": 6
+    }
+  },
+  "output": {
+    "C1": {
+      "level": 4,
+      "because": "two or more open questions, each answered by one child, and a \"why\" question with a follow-up",
+      "source": "heard"
+    },
+    "C2": {
+      "level": 2,
+      "because": "the reason was given on one wrong answer",
+      "source": "heard"
+    },
+    "C4": {
+      "level": 3,
+      "because": "a real choice was offered and acted on",
+      "source": "heard"
+    },
+    "C6": {
+      "level": 2,
+      "hole": true,
+      "because": "one piece of praise for effort: the rubric gives this no level, so 2 for now",
+      "source": "heard"
+    },
+    "D1": {
+      "level": 1,
+      "because": "no answer longer than a phrase confirmed",
+      "source": "heard"
+    },
+    "D4": {
+      "level": null,
+      "because": "no unsure attempt confirmed: pick 1 or 2",
+      "source": "heard"
+    },
+    "D5": {
+      "level": 1,
+      "because": "no child asked a question",
+      "source": "heard"
+    },
+    "F1": {
+      "level": null,
+      "because": "no counting rule yet: pick from the recording's moments",
+      "source": "pick"
+    },
+    "F2": {
+      "level": null,
+      "because": "no counting rule yet: pick from the recording's moments",
+      "source": "pick"
+    },
+    "F3": {
+      "level": null,
+      "because": "no counting rule yet: pick from the recording's moments",
+      "source": "pick"
+    },
+    "F4": {
+      "level": null,
+      "because": "no counting rule yet: pick from the recording's moments",
+      "source": "pick"
+    },
+    "D2": {
+      "level": 4,
+      "because": "8 different children spoke, 3 of them for the first time in Part 2",
+      "source": "seen"
+    },
+    "C3": {
+      "level": 3,
+      "because": "you saw: quiet children picked often (in Part 2)",
+      "source": "seen"
+    },
+    "C5": {
+      "level": 2,
+      "because": "you saw: signal given, but took long, the weaker of the two parts",
+      "source": "seen"
+    },
+    "C7": {
+      "level": 3,
+      "because": "you saw: made one thing together (in Part 2)",
+      "source": "seen"
+    },
+    "C8": {
+      "level": 3,
+      "because": "you saw: children used them (in Part 2)",
+      "source": "seen"
+    },
+    "D3": {
+      "level": 3,
+      "because": "you ticked: each spoke, no one replied; they replied to each other often",
+      "source": "seen",
+      "hole": false
+    }
+  },
+  "heard": {
+    "C1": {
+      "level": 4,
+      "because": "two or more open questions, each answered by one child, and a \"why\" question with a follow-up",
+      "source": "heard"
+    },
+    "C2": {
+      "level": 2,
+      "because": "the reason was given on one wrong answer",
+      "source": "heard"
+    },
+    "C4": {
+      "level": 3,
+      "because": "a real choice was offered and acted on",
+      "source": "heard"
+    },
+    "C6": {
+      "level": 2,
+      "hole": true,
+      "because": "one piece of praise for effort: the rubric gives this no level, so 2 for now",
+      "source": "heard"
+    },
+    "D1": {
+      "level": 1,
+      "because": "no answer longer than a phrase confirmed",
+      "source": "heard"
+    },
+    "D4": {
+      "level": null,
+      "because": "no unsure attempt confirmed: pick 1 or 2",
+      "source": "heard"
+    },
+    "D5": {
+      "level": 1,
+      "because": "no child asked a question",
+      "source": "heard"
+    }
+  }
+}

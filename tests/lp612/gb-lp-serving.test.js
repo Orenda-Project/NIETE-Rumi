@@ -192,8 +192,25 @@ describe('dark stages stay dark', () => {
     expect(mockDbCalls).toHaveLength(0);
     expect(mockQueueJob).not.toHaveBeenCalled();
   });
-  test('a portal ask is design pending, with no send', async () => {
-    expect((await GbLane.requestLesson({ ...REQ, surface: 'portal' })).outcome).toBe('gb_design_pending');
-    expect(mockDbCalls).toHaveLength(0);
+});
+
+// Queue #71 — "GB follows ICT 6-12": the app asks on GB's lane like a 6-12 lesson, and is never sent anything.
+describe('an app (portal) ask', () => {
+  const APP = { ...REQ, phone: undefined, surface: 'portal' };
+  test('a written lesson answers its render, with no send', async () => {
+    mockDbResults.push({ data: { id: 'gb-r1', status: 'ready', r2_key: `gb-lp/gb_k5_v9/ur/${SEG.segment_id}.pdf` }, error: null });
+    expect(await GbLane.requestLesson(APP)).toEqual({ outcome: 'cache_hit', renderId: 'gb-r1', r2Key: `gb-lp/gb_k5_v9/ur/${SEG.segment_id}.pdf` });
+    expect(mockDeliverRender).not.toHaveBeenCalled();
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+  test('an unwritten lesson is claimed and queued with a phone-less waiter, with no send', async () => {
+    mockDbResults.push({ data: null, error: null }, { data: { id: 'gb-new' }, error: null });
+    const out = await GbLane.requestLesson({ ...APP, phone: '920000000000' });
+    expect(out).toEqual({ outcome: 'queued', renderId: 'gb-new' });
+    const insert = mockDbCalls.find((c) => c.op === 'insert');
+    expect(insert.table).toBe('niete_gb_lp_renders');
+    expect(insert.payload.waiters).toEqual([expect.objectContaining({ user_id: 'user-1', phone: null, surface: 'portal' })]);
+    expect(mockQueueJob).toHaveBeenCalledWith(SEG.segment_id, 'gb_lp_author', expect.objectContaining({ renderId: 'gb-new' }), expect.anything());
+    expect(mockSendMessage).not.toHaveBeenCalled();
   });
 });

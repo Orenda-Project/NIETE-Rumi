@@ -402,6 +402,9 @@ equal 56px choices (1 2 3 4 N/A), the picked one indigo; arrow keys move the pic
 `options?: [{ id, label? }]` (bd-4404s7.5) draws the scale the bot's review form actually has instead of 1 to 4: `id` is the face (`na` is drawn N/A), `label` the rung's
 name, spoken only ("1, Developing"); `value`, `dcValue` and `onChange` then carry the id string. The live FICO scale is **0 Not observed · 1 Developing · 2 Proficient · N/A**
 (bot `fico-framework` `SCALE_MAX = 2`; the draft route returns it as `scale`), so the Feedback Form passes it. Without `options` nothing changes.
+bd-ra8xu.40: an option may also carry `text` (drawn instead of the id, e.g. "N/A" for `NA`) and `description`; `stacked` draws one full-width
+56px row per rung with its text, label and description (a rubric whose levels are described in words: FICO17 v6, as the WhatsApp form lists
+them). Picked indigo, the Digital Coach's ringed green, the same radiogroup and keys as the squares.
 
 ### `SlotGroup`
 | Prop | Type | Default |

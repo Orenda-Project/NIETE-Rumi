@@ -1,12 +1,12 @@
 'use strict';
 /**
- * bd-rlxkkt.9 — Coach Training progress: which of the nine coaching modules a coach has marked done (the ICT HITL
+ * bd-rlxkkt.9 — Coach Training progress: which of the Coach Training modules (ten since bd-rlxkkt.12) a coach has marked done (the ICT HITL
  * owner, 6 Nov 2026: "when a coach completes a module she should get the complete option here").
  *
  *   GET /coach/coach-training/progress          → { success, done: { <module key>: <ISO time she marked it> } }
  *   PUT /coach/coach-training/progress/:key     body { done: true | false } → the same shape after the change
  *
- * WHERE IT IS KEPT: users.preferences.coach_training_done (jsonb that already exists, default {}). The nine modules are
+ * WHERE IT IS KEPT: users.preferences.coach_training_done (jsonb that already exists, default {}). The modules are
  * pages outside the portal, not rows in training_modules, so teacher_training_progress (module_id → training_modules)
  * cannot hold them, and they need no table of their own. Other features keep their own keys in the same column
  * (observe_teachers, video_clips, observe_onboarding_arm), so a write is a read-merge-write of THIS key only.
@@ -17,8 +17,8 @@
  */
 const express = require('express');
 
-/** The Coach Training page's nine module keys, in order (portal coachTraining/modules.ts; a test pins the two). */
-const MODULE_KEYS = Object.freeze(['praise', 'moment', 'asked', 'one', 'moves', 'own', 'less', 'rehearse', 'full']);
+/** The Coach Training page's module keys, in order (portal coachTraining/modules.ts; a test pins the two). */
+const MODULE_KEYS = Object.freeze(['praise', 'moment', 'asked', 'one', 'moves', 'own', 'less', 'rehearse', 'full', 'evidence']);
 const PREF_KEY = 'coach_training_done';
 
 const failed = (res, where, err) => {
@@ -26,7 +26,7 @@ const failed = (res, where, err) => {
   return res.status(500).json({ success: false, error: 'Could not save this.' });
 };
 
-/** Only the nine known modules, each with a string time. */
+/** Only the known modules, each with a string time. */
 function doneOf(preferences) {
   const raw = preferences && typeof preferences === 'object' ? preferences[PREF_KEY] : null;
   const out = {};

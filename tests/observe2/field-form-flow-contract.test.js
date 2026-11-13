@@ -11,7 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const { buildFieldFormFlow, FIELDS, FORM_VERSION } = require('../../bot/shared/services/observe/observe2/field-form.flow');
+const { buildFieldFormFlow, FIELDS, FORM_VERSION, switchedOptions } = require('../../bot/shared/services/observe/observe2/field-form.flow');
 const { PICKED, GROUPS, LISTEN, MATERIALS, SWITCH, TASK, TEACHER_SAID, STUCK } = require('../../bot/shared/services/observe/observe2/rules');
 const { CODES, FOCUS, FOCUS_ORDER, FOCUS_DESCRIPTION, PLAN_FOCUS, PLAIN } = require('../../bot/shared/services/observe/observe2/fico17');
 
@@ -147,7 +147,16 @@ describe('the form agrees with the rules module', () => {
     expect(ids('PART_ONE', 'p1_groups')).toEqual(Object.keys(GROUPS).sort());
     expect(ids('PART_ONE', 'p1_listen')).toEqual(Object.keys(LISTEN).sort());
     expect(ids('PART_ONE', 'p1_materials')).toEqual(Object.keys(MATERIALS).sort());
-    expect(ids('PART_ONE', 'p1_change_how')).toEqual(Object.keys(SWITCH).sort());
+    // The switch options come from the endpoint per visit (form version 7): the ids are its list's, v5 or v6.
+    expect(byName(screens.PART_ONE, 'p1_change_how')['data-source']).toBe('${data.switched}');
+    for (const rubric of ['fico-ict-17-2026-09', 'fico17_v6']) {
+      const list = switchedOptions({ rubric_version: rubric });
+      expect(list.map((o) => o.id)).toEqual(Object.keys(SWITCH));
+      for (const o of list) {
+        expect(cp(o.title)).toBeLessThanOrEqual(30);
+        expect(cp(o.description)).toBeLessThanOrEqual(300);
+      }
+    }
   });
   // R4/R10 (FICO pilot sheet): Part 2 is the children working on their own and the wrap-up. It no
   // longer asks who was picked, about group work or materials (those are Part 1's), and every answer
@@ -158,7 +167,7 @@ describe('the form agrees with the rules module', () => {
     expect(ids('PART_TWO', 'p2_task')).toEqual(Object.keys(TASK).sort());
     expect(ids('PART_TWO', 'p2_teacher')).toEqual(Object.keys(TEACHER_SAID).sort());
     expect(ids('PART_TWO', 'p2_stuck')).toEqual(Object.keys(STUCK).sort());
-    expect(ids('PART_TWO', 'p2_change_how')).toEqual(Object.keys(SWITCH).sort());
+    expect(byName(screens.PART_TWO, 'p2_change_how')['data-source']).toBe('${data.switched}');
   });
   test('"When the work got hard" reads as D4\'s four levels, word for word', () => {
     const levelled = byName(screens.PART_TWO, 'p2_stuck')['data-source'].filter((o) => typeof STUCK[o.id] === 'number');

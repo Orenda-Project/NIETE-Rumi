@@ -26,8 +26,8 @@ next Claude Code session in the clone does the work.
 
 Modes, per question, from --freshness / --proof (or the QA_SPEC_FRESHNESS /
 QA_E2E_PROOF env vars):  off | warn | block.  `warn` reports and exits 0;
-`block` exits 1 on `stale` / `missing`. The pre-push hook uses warn unless
-QA_HOOKS_STRICT=1.
+`block` exits 1 on `stale` / `missing`. The pre-push hook uses block (bd-jbj2w9);
+QA_HOOKS_SOFT=1 makes one push warn instead.
 
 An undecidable range (unknown sha, shallow clone) is REPORTED and exits 0: it is
 not evidence against the PR.
@@ -294,7 +294,7 @@ def ledger_regression(repo, rng):
 
 def _empty(base, head, error=""):
     return {"base": base, "head": head, "range": None, "error": error, "paths": [],
-            "features": [], "commands": [], "fallback": False, "unmapped": [],
+            "features": [], "commands": [], "fallback": False, "unmapped": [], "unowned": [],
             "full_suite": None, "per_feature": {}, "cassette_misses": {},
             "web_features": [], "web_per_feature": {},
             "verdict": {"spec_freshness": "n/a", "e2e_proof": "n/a", "web_e2e_proof": "n/a"}}
@@ -323,7 +323,8 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
 
     paths = changed_paths(repo, rng)
     try:
-        fmap = se.load_map(map_path, agents_dir)
+        # the manifest of the repo under analysis, not whatever CLAUDE_PROJECT_DIR names (its coverage: decides)
+        fmap = se.load_map(map_path, agents_dir, manifest=_lm)
         order = se.load_feature_order(agents_dir)
         sel = se.select(paths, fmap, order)
         if target_branch:
@@ -400,10 +401,17 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
                 "not-needed" if spec_status == "none-needed" else "missing"),
             "passed": summ.get("passed"), "total": summ.get("total"),
         }
+    _missing_reasons(repo, rng, res)
     if res["web_features"]:
         res["verdict"]["web_e2e_proof"] = _proof_verdict(res["web_per_feature"].values())
     pf = res["per_feature"]
     statuses = [v["spec_status"] for v in pf.values()] + [w["spec_status"] for w in res["web_per_feature"].values()]
+    # A `coverage: strict` repo (bd-8x4vmn.1): runtime code no feature owns is a spec nobody has written yet, so it
+    # counts like a stale one — unless the PR declares it (`Spec-Sync: none-needed (<why>)`).
+    if _lm.coverage == "strict" and seld["unmapped"]:
+        res["unowned"] = list(seld["unmapped"])
+        res["unowned_declared"] = tr.get("*") if "*" in tr else ""
+        statuses.append("none-needed" if "*" in tr else "stale")
     if statuses:
         res["verdict"]["spec_freshness"] = "stale" if "stale" in statuses else "synced"
     if pf:
@@ -411,6 +419,36 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
         if required:
             res["verdict"]["e2e_proof"] = _proof_verdict(required)
     return res
+
+
+def _missing_reasons(repo, rng, res):
+    """WHY each missing E2E run is missing (bd-9157r.13.7) — the cell used to say only "missing". A feature with no
+    @mock-lane driver cannot be run by anyone, so that comes first; otherwise the reason is what the PR's commits'
+    hook notes say (hook_notes.py: refs/notes/qa-remote/* that qa-impact.yml fetches, plus this clone's own notes).
+    Never fails the analysis: a reason it cannot work out is simply not shown."""
+    missing = [n for n, v in res["per_feature"].items() if v.get("e2e_proof") == "missing"]
+    web_missing = [n for n, v in (res.get("web_per_feature") or {}).items() if v.get("e2e_proof") == "missing"]
+    if not missing and not web_missing:
+        return
+    try:
+        import hook_notes
+        commits = hook_notes.commits_in(repo, rng)
+        by_commit = hook_notes.events_by_commit(repo, commits)
+    except Exception:  # noqa: BLE001 — a reason is a nicety; the verdict stands without it
+        return
+    try:
+        mock_set = mock_feature_set()
+    except Exception:  # noqa: BLE001
+        mock_set = None
+    for n in missing:
+        if mock_set is not None and n not in mock_set:
+            why = "not on the mock lane (no `@mock-lane` driver), so no run can record it"
+        else:
+            why = hook_notes.why_no_run(by_commit, n)
+        res["per_feature"][n]["e2e_reason"] = why
+    for n in web_missing:   # the portal lane has no @mock-lane marker; its reason is the notes' alone
+        res["web_per_feature"][n]["e2e_reason"] = hook_notes.why_no_run(by_commit, n)
+    res["hook_notes"] = {"commits": len(commits), "with_notes": sum(1 for c in commits if by_commit.get(c))}
 
 
 def _proof_verdict(feats):
@@ -583,6 +621,8 @@ def _web_markdown(res, proof="warn"):
         cell = "%s %s" % (_icon(w["e2e_proof"]), _shown(w["e2e_proof"]))
         if w.get("total"):
             cell += " — %s/%s" % (w.get("passed"), w["total"])
+        elif w.get("e2e_reason"):
+            cell += " — %s" % w["e2e_reason"]
         L.append("| **%s** (%d scenarios) | %s | %s | %s |" % (name, w["scenario_count"], via or "—", spec, cell))
     v = res["verdict"].get("web_e2e_proof", "n/a")
     L += ["", "**Web E2E proof: %s** (mode: %s)" % (_shown(v), proof), ""]
@@ -604,6 +644,25 @@ def _web_markdown(res, proof="warn"):
     return L
 
 
+def _unowned_markdown(res):
+    """The strict-coverage block (bd-8x4vmn.1): runtime code no feature owns changed, so its spec does not exist yet."""
+    if not res.get("unowned"):
+        return []
+    files = res["unowned"]
+    shown = ", ".join("`%s`" % u for u in files[:8]) + (" and %d more" % (len(files) - 8) if len(files) > 8 else "")
+    L = ["### Code no feature owns",
+         "This repo is `coverage: strict`: every runtime file belongs to a feature with a `.feature` spec. "
+         "This range changed %d that no feature owns: %s." % (len(files), shown), ""]
+    if res.get("unowned_declared"):
+        L += ["Declared none-needed in the PR: %s" % res["unowned_declared"], ""]
+    else:
+        L += ["In Claude Code, in this clone, run `/sync-specs`: it adds each file to the feature that owns it in "
+              "`feature-map.yaml` (a new feature when none does) and creates or updates that feature's `.feature`.",
+              "If the change alters no teacher-visible behaviour, declare it in a commit trailer or the PR body:", "",
+              "```", "Spec-Sync: none-needed (<why>)", "```", ""]
+    return L
+
+
 def render_markdown(res, freshness="warn", proof="warn"):
     L = [_M["marker"], "## QA impact — Gherkin sync + targeted E2E", ""]
     eng = res.get("engine") or {}
@@ -616,6 +675,10 @@ def render_markdown(res, freshness="warn", proof="warn"):
     if res.get("error"):
         L += ["⚠️ Could not analyse this range: %s" % res["error"], ""]
         return "\n".join(L)
+    if not res["features"] and res.get("unowned") and not res.get("web_features"):
+        L += ["Range `%s`" % res["range"], "",
+              "**Spec freshness: %s** (mode: %s)" % (res["verdict"]["spec_freshness"], freshness), ""]
+        return "\n".join(L + _unowned_markdown(res))
     if not res["features"]:
         if res.get("web_features"):
             L += ["Range `%s` — no WhatsApp-bot feature affected." % res["range"], "",
@@ -654,6 +717,10 @@ def render_markdown(res, freshness="warn", proof="warn"):
             name, f["scenario_count"], via, spec, proof_cell, cassette_cell))
     L += ["", "**Spec freshness: %s** (mode: %s) · **E2E proof: %s** (mode: %s)" % (
         v["spec_freshness"], freshness, _shown(v["e2e_proof"]), proof), ""]
+    hn = res.get("hook_notes")
+    if hn and v.get("e2e_proof") == "missing":
+        L += ["<sub>Why a run is missing comes from the hook notes each author's machine publishes (`refs/qa-hooks/*`): "
+              "%d of this PR's %d commit(s) have one.</sub>" % (hn["with_notes"], hn["commits"]), ""]
     regressed = regressed_features(res)
     if regressed:
         L += ["**❌ New regressions in %s** — a scenario broke that is not a documented known finding "
@@ -662,8 +729,8 @@ def render_markdown(res, freshness="warn", proof="warn"):
     elif _any_regression_verdict(res):
         L += ["**✅ No new regressions** — every recorded FAIL is a documented known finding, so a "
               "CRITICAL status here is expected debt, not a break this range introduced.", ""]
-    if v["spec_freshness"] == "stale":
-        stale = [n for n, f in res["per_feature"].items() if f["spec_status"] == "stale"]
+    stale = [n for n, f in res["per_feature"].items() if f["spec_status"] == "stale"]
+    if stale:
         L += ["### Sync the specs first",
               "Own files of **%s** changed but the matching `.feature` did not. In Claude Code, in this clone:" % ", ".join(stale),
               "", "```", "/sync-specs %s" % " ".join(stale), "```",
@@ -671,6 +738,7 @@ def render_markdown(res, freshness="warn", proof="warn"):
               "`python3 .claude/qa/engine/bin/validate_specs.py --only %s`." % ",".join(stale), "",
               "If the change genuinely alters no teacher-visible behaviour, say so where this check can read it — a commit trailer",
               "or a line in the PR body:", "", "```", "Spec-Sync: %s=none-needed (<why>)" % ",".join(stale), "```", ""]
+    L += _unowned_markdown(res)
     # The how-to-drive block is a fix instruction: show it ONLY when something is actionable — a stale
     # spec, an un-recorded E2E run, or missing cassettes. On a fully-green range the developer already
     # drove it (that is what "recorded" means), so the block is noise — collapse it to one line.
@@ -691,7 +759,7 @@ def render_text(res, freshness="warn", proof="warn"):
     """Terminal form for the pre-push hook. Empty when there is nothing to say."""
     if res.get("error"):
         return "qa: could not analyse the pushed range — %s" % res["error"]
-    if not res["features"] and not res.get("web_features"):
+    if not res["features"] and not res.get("web_features") and not res.get("unowned"):
         return ""
     v = res["verdict"]
     L = ["┌ QA · pushing %s → touches: %s" % (res["range"], ", ".join(
@@ -705,12 +773,12 @@ def render_text(res, freshness="warn", proof="warn"):
         why = " (%s)" % f["e2e_reason"] if f.get("e2e_reason") else ""
         L.append("│   %-13s spec: %-12s e2e: %s%s%s" % (
             name, _SPEC_SHORT.get(f["spec_status"], f["spec_status"]), f["e2e_proof"], why, extra))
-    if v["spec_freshness"] == "stale":
-        stale = [n for n, f in res["per_feature"].items() if f["spec_status"] == "stale"]
+    stale = [n for n, f in res["per_feature"].items() if f["spec_status"] == "stale"]
+    if stale:
         L.append("│ specs STALE for %s → in Claude Code: /sync-specs %s" % (", ".join(stale), " ".join(stale)))
         L.append("│   or declare it: commit trailer  Spec-Sync: %s=none-needed (<why>)" % ",".join(stale))
         if freshness == "block":
-            L.append("│ QA_HOOKS_STRICT=1 is set: this push is BLOCKED until the specs are synced or declared.")
+            L.append("│ BLOCKED until the specs are synced (committed) or declared. Warn only, this push: QA_HOOKS_SOFT=1")
     mock_set = mock_feature_set()
     feats = res["features"]
     mock = [f for f in feats if f in mock_set]
@@ -743,6 +811,11 @@ def render_text(res, freshness="warn", proof="warn"):
     if res["verdict"].get("web_e2e_proof") == "missing":
         L.append("│ web lane (portal, headless — tests this commit):")
         L.append("│   bash .claude/qa/engine/bin/commit-e2e.sh %s" % (res.get("head") or "HEAD")[:12])
+    if res.get("unowned"):
+        L.append("│ code NO FEATURE OWNS (coverage: strict): %s" % ", ".join(res["unowned"][:5])
+                 + (" +%d more" % (len(res["unowned"]) - 5) if len(res["unowned"]) > 5 else ""))
+        L.append("│   → in Claude Code: /sync-specs (maps it to a feature and creates its .feature), "
+                 "or Spec-Sync: none-needed (<why>)")
     L.append("└ re-run any time: npm run qa:impact")
     return "\n".join(L)
 

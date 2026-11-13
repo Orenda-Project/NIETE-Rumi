@@ -40,6 +40,8 @@
  */
 
 const { FOCUS, FOCUS_DESCRIPTION, FOCUS_ORDER, ALSO_NONE, PLAIN } = require('./fico17');
+const V6 = require('../../coaching/frameworks/fico17-v6');
+const { isV6 } = require('./rubric');
 
 const FLOW_VERSION = '7.3';
 // This form's own version, sent by the footers whose answer depends on it: 4 brought the photo step
@@ -48,7 +50,9 @@ const FLOW_VERSION = '7.3';
 // sends an older one, or none, and the endpoint keeps it on its own routes and checks. Version 6 changes
 // no route or check: the two ticks are only added, an older Flow cannot send them, and "While they worked,
 // the teacher" sits inside an If, so it is never pre-filled and a newer tick never reaches an older list.
-const FORM_VERSION = '6';
+// 7 takes the switch options from the endpoint (FICO17 v6, spec §7.5): the same four ids, titled in v6 minutes on a
+// v6 visit and as before on any other. An older Flow keeps its own titles; the ids, and so the levels, are the same.
+const FORM_VERSION = '7';
 const VERSIONED = new Set(['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'PHOTO_TAKE', 'PHOTO_FILES']);
 // Part 2 comes back with what was saved for it (Form init-values; pilot sheet R13). The screens that lead
 // to Part 2 send this marker, and only then does the endpoint add Part 2's init values: a form opened on
@@ -108,6 +112,13 @@ const SWITCHED = [
   opt('clear', PLAIN.C5[2], 'The teacher said it was time to change, and nearly every child was on the new task within about a minute.'),
   opt('ahead', PLAIN.C5[3], 'The children already knew the routine and moved to the next task on their own, without being told one by one.'),
 ];
+// A FICO17 v6 visit (spec §7.5): the same ids, slowest first, titled in v6 minutes; the description is v6 C5's level.
+const SWITCHED_V6_TITLES = ['Over 3 min, no clear signal', '2-3 min after the signal', 'Under 2 min after the signal', 'Moved without being told'];
+/** The switch options the endpoint sends this visit's form (`${data.switched}`): v6 minutes on a v6 visit, else today's. */
+function switchedOptions(form) {
+  if (!isV6(form)) return SWITCHED;
+  return SWITCHED.map((o, i) => opt(o.id, SWITCHED_V6_TITLES[i], V6.clip(V6.levelText('C5', i + 1), 300)));
+}
 // "What was used?" (R17): the kind of materials, named on C8's line; who used them still sets the level.
 // The ids are rules.js's USED_SAID.
 const USED = [
@@ -193,7 +204,7 @@ function switchQuestions(p, description) {
     {
       type: 'If',
       condition: `\${form.${p}_change} == 'yes'`,
-      then: [radio(`${p}_change_how`, 'How did the switch go?', SWITCHED, 'If the class switched more than once, pick what happened most often.')],
+      then: [radio(`${p}_change_how`, 'How did the switch go?', '${data.switched}', 'If the class switched more than once, pick what happened most often.')],
       else: [],
     },
   ];
@@ -334,6 +345,12 @@ function screen(id, title, children, footerLabel, extraData) {
 // "Work on first": the 17 in the order of the four moments with the coaching focus areas beside the ones they
 // belong with, then the lesson's structure: the plan's own steps (R14), the warm-up, the closure (R20, R21).
 // A line under the choices coaches could not recognise by the title alone.
+// "How did the switch go?" in both parts: the endpoint's switchedOptions(form).
+const SWITCHED_DATA = {
+  type: 'array',
+  items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' } } },
+  __example__: SWITCHED,
+};
 const FOCUS_LIST = FOCUS_ORDER.map((c) => opt(c, FOCUS[c], FOCUS_DESCRIPTION[c]));
 const ALSO_LIST = [opt(ALSO_NONE, 'Nothing else'), ...FOCUS_LIST];
 
@@ -507,11 +524,15 @@ function buildFieldFormFlow() {
       CONTINUE: ['PART_TWO', 'LESSON_PLAN', 'PHOTOS', 'AFTER', 'SEALED'],
     },
     screens: [
-      screen('PART_ONE', 'Part 1', part1, 'Part 1 done', {
+      // bd-ra8xu.43: the visit's stored rubric (framework + version), one small line atop Part 1, for debugging.
+      screen('PART_ONE', 'Part 1', [{ type: 'TextCaption', text: '${data.scored_with}' }, ...part1], 'Part 1 done', {
+        scored_with: { type: 'string', __example__: 'FICO17 v6' },
         teacher_line: { type: 'string', __example__: "Rabia's lesson · Grade 4 · Maths" },
+        switched: SWITCHED_DATA,
         part_hint: { type: 'string', __example__: 'Up to and including guided practice. When the children start independent practice, tap "Part 1 done": your answers are saved then.' },
       }),
       screen('PART_TWO', 'Part 2', part2, 'Part 2 done', {
+        switched: SWITCHED_DATA,
         part_hint: { type: 'string', __example__: 'Independent practice and the wrap-up, to minute 40. Answer only for this part.' },
       }),
       screen('LESSON_PLAN', 'Lesson plan', plan, 'Next', {
@@ -560,5 +581,5 @@ const { PREFILLED, PREFILLED_TYPES, PREFILLED_ARRAYS } = prefilledFields();
 
 module.exports = {
   buildFieldFormFlow, FIELDS, FIELDS_V4, FLOW_VERSION, FORM_VERSION, PREFILL, PREFILLED, PREFILLED_TYPES, PREFILLED_ARRAYS,
-  MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES, LP_TEXT_MIN,
+  MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES, LP_TEXT_MIN, switchedOptions,
 };

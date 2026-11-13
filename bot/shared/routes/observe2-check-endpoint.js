@@ -20,19 +20,46 @@
  *                   opened on an older Flow (its `cv`, or none) gets its own screen's data, and only picks its
  *                   lists have; a sealed pick it could not show is kept as an "Also work on" at Submit.
  *   PRIORITY → DONE      the record is checked once; the brief follows in the chat.
+ *
+ * FICO17 v6 visits (rubric_version 'fico17_v6', stamped when the visit was made; bd-ra8xu.38):
+ *   HEARD_EXPLAIN → COMBINED_ONE → COMBINED_TWO → COMBINED_THREE   the coach sets C3 C5 C7 D3 D4 D2 from the room, each
+ *                   from blank with a reason of 20+ characters; D2 with the two child counts. Refused (the same
+ *                   screen, a message under the field) until each is set.
+ *                   COMBINED_THREE_COUNTS stands in for COMBINED_THREE when the form has both child counts and
+ *                   the Flow has it (v6c 3): the count boxes start from the form (spec §7.4); the level stays blank.
+ *   COMBINED_THREE → FIDELITY (a graded plan) or ADDED_DC_ONE → ADDED_DC_TWO → PRIORITY   Rumi's other 11 levels,
+ *                   pre-filled; a changed level needs a reason. A v6 visit opened on a Flow without the v6 screens
+ *                   (no `v6c` from HEARD_EXPLAIN) runs on the v5 screens and is marked v6_fallback.
+ *   PRIORITY        final_levels as for v5 (one string per code), plus evidence_review.v6_levels: who set each
+ *                   level (coach | rumi), why, and on which rubric.
  */
 
 const supabase = require('../config/supabase');
 const Store = require('../services/observe/observe2/field-form.store');
-const { addUp } = require('../services/observe/observe2/rules');
+const Rules = require('../services/observe/observe2/rules');
+
+const { addUp } = Rules;
 const { CODES, PLAN_FOCUS, FOCUS, FOCUS_ORDER, ALSO_NONE, pickAlso } = require('../services/observe/observe2/fico17');
-const { SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS } = require('../services/observe/observe2/evidence-check.flow');
+const {
+  SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS, COMBINED_SCREENS, COMBINED_COUNTS, D2_COUNT_INIT, ADDED6_SCREENS, MISSED_SLOTS,
+  MISSED_WORDS_MAX, OVERRIDE_REASONS,
+} = require('../services/observe/observe2/evidence-check.flow');
+const { isV6 } = require('../services/observe/observe2/rubric');
+const MomentTypes = require('../services/observe/observe2/moment-types');
+const V6 = require('../services/coaching/frameworks/fico17-v6');
+const { observe2Strings } = require('../services/observe/observe2/strings');
 const { notesSection } = require('../services/observe/observe2/brief');
 const { logToFile } = require('../utils/logger');
 
 const HEARD_IDS = HEARD_SCREENS.map((h) => h.id);
 const MOMENT_OF = Object.fromEntries(HEARD_SCREENS.map((h) => [h.id, h.moment]));
 const ADDED_CODES = Object.fromEntries(ADDED_SCREENS.map((a) => [a.id, a.codes]));
+const COMBINED_IDS = COMBINED_SCREENS.map((c) => c.id);
+const COMBINED_CODES_OF = Object.fromEntries(COMBINED_SCREENS.map((c) => [c.id, c.codes]));
+// COMBINED_THREE_COUNTS is COMBINED_THREE with D2's counts pre-filled: same codes, same place in the walk.
+const combinedBase = (id) => (id === COMBINED_COUNTS.id ? COMBINED_COUNTS.of : id);
+COMBINED_CODES_OF[COMBINED_COUNTS.id] = COMBINED_CODES_OF[COMBINED_COUNTS.of];
+const ADDED6_OF = Object.fromEntries(ADDED6_SCREENS.map((a) => [a.id, a]));
 
 function parseToken(flowToken) {
   const [userId, marker, recordId] = String(flowToken || '').split(':');
@@ -100,6 +127,8 @@ function renderHeard(screenId, form) {
   const moment = MOMENT_OF[screenId];
   const list = momentsOf(form).filter((m) => m.moment === moment);
   const data = { [`${screenId.toLowerCase()}_intro`]: introFor(moment, form, list.length) };
+  // bd-ra8xu.43: the first screen's caption — the rubric this visit was stamped with, never the live switch.
+  if (screenId === 'HEARD_ASK') data.scored_with = require('../services/coaching/rubric-label').rubricLabelText({ form });
   for (let i = 1; i <= SLOTS; i += 1) {
     const k = `${screenId.toLowerCase()}_${i}`;
     const m = list[i - 1];
@@ -154,10 +183,13 @@ function renderPriority(form, screenData) {
   };
 }
 
-function renderAdded(screenId, added) {
+// A v6 visit on a Flow without the v6 screens (v6_fallback): the six room levels are the coach's to set, so their rows
+// start blank and give no reason; what the rules add up to for them is the hidden transcript-only result (CONTRACTS
+// §11.4). A v5 visit shows every row as before.
+function renderAdded(screenId, added, form = null) {
   const data = {};
   for (const code of ADDED_CODES[screenId]) {
-    const r = (added || {})[code] || {};
+    const r = (isV6(form) && V6.isCombined(code) ? null : (added || {})[code]) || {};
     data[`${code}_because`] = r.because || '';
     data[`${code}_level`] = levelText(r.level);
   }
@@ -252,17 +284,34 @@ const NOT_AVAILABLE = {
   next_line: 'This check is not available. Send /observe2 in the chat to start a new visit.',
 };
 
-// The levels the sealed answers and the confirmed moments add up to, with the reason for each.
+// The levels the sealed answers and the confirmed moments add up to, with the reason for each. On a v6 visit the
+// moments the coach added (MISSED) count with the confirmed ones, and the rules run on the v6 rubric with the
+// transcript's quality (rules-v6; an older rules.js ignores both). A v5 visit calls addUp exactly as before.
 function addedLevels(form, review) {
-  const confirmed = momentsOf(form).filter((m) => review[`heard_${m.id}`] === 'yes');
+  const v6 = isV6(form);
+  const confirmed = [
+    ...momentsOf(form).filter((m) => review[`heard_${m.id}`] === 'yes'),
+    ...(v6 && Array.isArray(review.missed) ? review.missed : []),
+  ];
   const counts = (form.rumi_moments && form.rumi_moments.counts) || {};
-  const all = addUp({ form: form.answers || {}, confirmed, heardCounts: counts });
+  const all = addUp({
+    form: form.answers || {}, confirmed, heardCounts: counts,
+    ...(v6 ? { rubric: V6.RUBRIC_KEY, transcriptQuality: (form.rumi_moments && form.rumi_moments.transcript_quality) || null } : {}),
+  });
   const out = {};
   for (const [code, r] of Object.entries(all)) {
     out[code] = { level: r.level == null ? null : r.level, because: r.because || '', hole: Boolean(r.hole) };
+    if (v6) out[code].dc_result = dcResultOf(r);
   }
   return out;
 }
+
+// A combined row's transcript-only result (CONTRACTS §5): rules-v6's dc_result; before it, the level the rules
+// give the row, so the record is never empty.
+const dcResultOf = (r) => {
+  const v = r.dc_result !== undefined ? r.dc_result : r.level;
+  return v == null ? null : v;
+};
 
 // For the brief: what was seen behind a level the rule only puts in place "for now".
 const holesOf = (added) => Object.fromEntries(Object.entries(added).filter(([, r]) => r.hole).map(([c, r]) => [c, String(r.because).split(':')[0]]));
@@ -361,6 +410,330 @@ async function askDebrief(form, coach) {
   }
 }
 
+// ------------------------------------------------------------------ FICO17 v6 (bd-ra8xu.38)
+
+const { TYPE_CODE } = require('../services/observe/observe2/brief');
+const EV_MAX = 5;
+const EV_QUOTE = 120;
+
+// What the recording gave for one indicator, as the COMBINED screens show it (spec §7.2): the room evidence the
+// moments job found for it (rumi_moments.room_evidence, CONTRACTS §4.3) and the moments that count for it (D4: the
+// unsure answers), leaving out any the coach said did not happen; up to five, "MM:SS  "quote"". None when the
+// recording could not show the indicator (the transcript gate's `broken`, a failed recording, or a transcript-only
+// result of IE) or, for D3, found no child-to-child talk (NA): the screen says which instead.
+function unusable(form) {
+  const q = form && form.rumi_moments && form.rumi_moments.transcript_quality;
+  return Boolean((q && q.status === 'broken') || (form && form.answers && form.answers.incident === 'tech'));
+}
+
+function shownEvidence(form, code, added) {
+  const dc = ((added || {})[code] || {}).dc_result;
+  if (dc === 'IE' || unusable(form)) return { items: [], line: 'v6_ev_ie' };
+  if (dc === 'NA' && code === 'D3') return { items: [], line: 'v6_ev_na_d3' };
+  const review = (form && form.evidence_review) || {};
+  const room = (((form && form.rumi_moments) || {}).room_evidence || {})[code];
+  const items = [
+    ...(Array.isArray(room) ? room : []),
+    ...momentsOf(form).filter((m) => TYPE_CODE[m.type] === code && review[`heard_${m.id}`] !== 'no'),
+  ].slice(0, EV_MAX);
+  return { items, line: items.length ? null : 'v6_ev_none' };
+}
+
+// D2: the Student lines the recording has in each half of the lesson (rumi_moments.d2_turns, spec §5.6, counted in
+// code by the moments job; CONTRACTS §11.2), or null: none counted, or a recording that could not be used.
+function d2Turns(form) {
+  const t = form && form.rumi_moments && form.rumi_moments.d2_turns;
+  const whole = (v) => Number.isInteger(v) && v >= 0;
+  return t && whole(t.first_half) && whole(t.second_half) && !unusable(form) ? t : null;
+}
+
+function evidenceText(form, code, added) {
+  const S = observe2Strings('en');
+  const ind = V6.indicator(code);
+  const { items, line } = shownEvidence(form, code, added);
+  // D2 opens with the turns per half when the recording counted them; they are what it showed, so no "nothing" line.
+  const turns = code === 'D2' ? d2Turns(form) : null;
+  const shown = line ? (turns && line === 'v6_ev_none' ? '' : S[line]) : items.map((m) => `${m.minute}  "${clipCp(String(m.quote || ''), EV_QUOTE)}"`).join('\n');
+  return [turns ? S.v6_d2_turns(turns.first_half, turns.second_half) : '', ind.definition, shown, S.v6_coach_adds(ind.coach_adds)]
+    .filter(Boolean).join('\n\n');
+}
+
+const wholeNumber = (v) => (/^\d+$/.test(String(v == null ? '' : v).trim()) ? Number(String(v).trim()) : null);
+
+// D2: what the coach typed on the live form (counts, not levels), shown above the two count boxes (spec §7.4
+// pre-fills them on COMBINED_THREE_COUNTS; a visit without both counts gets the blank boxes and this line).
+function formCounts(form) {
+  const a = (form && form.answers) || {};
+  const n = (v) => (/^\d+$/.test(String(v == null ? '' : v).trim()) ? Number(String(v).trim()) : null);
+  const p1 = n(a.p1_spoke);
+  const p2new = n(a.p2_new);
+  if (p1 == null && p2new == null) return '';
+  const parts = [];
+  if (p1 != null) parts.push(`${p1} spoke in Part 1`);
+  if (p2new != null) parts.push(`${p2new} spoke for the first time in Part 2`);
+  const total = p1 != null && p2new != null ? ` (${p1 + p2new} in all)` : '';
+  return `On your form: ${parts.join(', ')}${total}.`;
+}
+
+// D2's counts as typed on the live form, as numbers for the pre-filled boxes (spec §7.4): the children who spoke
+// (p1_spoke + p2_new) and those who spoke first in Part 2 (p2_new). Null unless both are whole numbers.
+function formCountsInit(form) {
+  const a = (form && form.answers) || {};
+  const p1 = wholeNumber(a.p1_spoke);
+  const p2new = wholeNumber(a.p2_new);
+  return p1 == null || p2new == null ? null : { d2_children: p1 + p2new, d2_quiet_later: p2new };
+}
+
+// The screen after COMBINED_TWO: the pre-filled copy when the form has both counts and the Flow has that screen
+// (v6_check 3+, posted from HEARD_EXPLAIN); else COMBINED_THREE with blank boxes, as a '2' Flow knows it.
+function renderThird(form) {
+  const v6Check = Number(((form && form.evidence_review) || {}).v6_check || 0);
+  const counts = v6Check >= 3 ? formCountsInit(form) : null;
+  return counts ? renderCombined(COMBINED_COUNTS.id, form, { counts }) : renderCombined(COMBINED_COUNTS.of, form);
+}
+
+function renderCombined(screenId, form, { errors = {}, counts = null } = {}) {
+  const data = { error_messages: errors };
+  if (screenId === COMBINED_COUNTS.id) {
+    const init = counts || formCountsInit(form) || {};
+    for (const [field, key] of Object.entries(D2_COUNT_INIT)) data[key] = init[field] == null ? 0 : init[field];
+  }
+  const added = form ? addedLevels(form, form.evidence_review || {}) : {};
+  for (const code of COMBINED_CODES_OF[screenId]) {
+    const text = evidenceText(form, code, added);
+    const counts = code === 'D2' ? formCounts(form) : '';
+    data[`${code}_ev`] = counts ? `${text}\n\n${counts}` : text;
+  }
+  return { screen: screenId, data };
+}
+
+
+/** D2's level from the two counts (spec §7.4). */
+function d2Expected(children, quietLater) {
+  if (children === 0) return 1;
+  if (children <= 2) return 2;
+  if (children <= 5) return 3;
+  return quietLater >= 2 ? 4 : 3;
+}
+
+function validateCombined(screenId, screenData, S) {
+  const errors = {};
+  for (const code of COMBINED_CODES_OF[screenId]) {
+    const level = V6.normLevel(screenData[`cmb_${code}_level`]);
+    const allowed = V6.levelOptions(code).map((o) => o.id);
+    if (level == null || !allowed.includes(String(level))) errors[`cmb_${code}_level`] = S.v6_choose_level;
+    if (!V6.isJustified(screenData[`cmb_${code}_why`])) errors[`cmb_${code}_why`] = S.v6_write_why;
+  }
+  if (COMBINED_CODES_OF[screenId].includes('D2')) {
+    const children = wholeNumber(screenData.d2_children);
+    const quiet = wholeNumber(screenData.d2_quiet_later);
+    if (children == null || quiet == null || quiet > children) {
+      errors.d2_children = S.v6_check_numbers;
+    } else if (!errors.cmb_D2_level && !errors.cmb_D2_why) {
+      const level = V6.normLevel(screenData.cmb_D2_level);
+      if (level !== d2Expected(children, quiet) && !/\d/.test(String(screenData.cmb_D2_why || ''))) errors.cmb_D2_why = S.v6_d2_mismatch;
+    }
+  }
+  return errors;
+}
+
+// The coach's v6 record for one combined indicator, as stored (spec §7.7).
+function combinedRecord(form, code, screenData, added) {
+  return {
+    level: V6.normLevel(screenData[`cmb_${code}_level`]),
+    because: String(screenData[`cmb_${code}_why`] || '').trim(),
+    source: 'coach',
+    set_by: 'coach',
+    // The transcript-only result (spec §8.4, kept, never shown): rules-v6's dc_result; until it lands, what the
+    // rules add up to for the row (addedLevels). D2 has none (its counts are stored instead).
+    dc_result: code === 'D2' || !(added && added[code]) ? null : added[code].dc_result,
+    dc_evidence_ids: [...shownEvidence(form, code, added).items.map((m) => m.id), ...(code === 'D2' && d2Turns(form) ? ['d2_turns'] : [])],
+    ...V6.stamp('coach'),
+  };
+}
+
+async function onCombined(form, step, screenData) {
+  const S = observe2Strings('en');
+  const errors = validateCombined(step, screenData, S);
+  if (Object.keys(errors).length) {
+    // Back to the pre-filled screen with the coach's own numbers, not the form's.
+    const typed = { d2_children: wholeNumber(screenData.d2_children), d2_quiet_later: wholeNumber(screenData.d2_quiet_later) };
+    const counts = typed.d2_children != null && typed.d2_quiet_later != null ? typed : null;
+    return renderCombined(step, form, { errors, counts });
+  }
+  const review = form.evidence_review || {};
+  const added = addedLevels(form, review);
+  const patch = {};
+  for (const code of COMBINED_CODES_OF[step]) {
+    patch[`cmb_${code}_level`] = String(screenData[`cmb_${code}_level`]);
+    patch[`cmb_${code}_why`] = String(screenData[`cmb_${code}_why`] || '').trim();
+    patch[`v6_${code}`] = combinedRecord(form, code, screenData, added);
+  }
+  if (COMBINED_CODES_OF[step].includes('D2')) {
+    patch.d2_counts = { children: wholeNumber(screenData.d2_children), quiet_later: wholeNumber(screenData.d2_quiet_later) };
+  }
+  const saved = await Store.saveReview(form, patch);
+  const current = saved.ok ? saved.form : form;
+  const next = COMBINED_IDS.indexOf(combinedBase(step)) + 1;
+  if (COMBINED_IDS[next] === COMBINED_COUNTS.of) return renderThird(current);
+  if (next < COMBINED_IDS.length) return renderCombined(COMBINED_IDS[next], current);
+  return gradedPlan(current) ? renderFidelity(current) : renderAdded6('ADDED_DC_ONE', addedLevels(current, current.evidence_review || {}));
+}
+
+function renderAdded6(screenId, added, { errors = {}, chosen = null } = {}) {
+  const data = { error_messages: errors };
+  for (const code of ADDED6_OF[screenId].codes) {
+    const r = (added || {})[code] || {};
+    data[`${code}_because`] = r.because || '';
+    data[`${code}_level`] = chosen && chosen[code] !== undefined ? chosen[code] : levelText(r.level);
+  }
+  return { screen: screenId, data };
+}
+
+// The longest period a visit can have (field-form.store: 20-90 minutes), for a minute when the period is unknown.
+const PERIOD_MAX = 90;
+
+// Why the coach changed Rumi's levels on one screen (spec §9.1): on a check with the reasons list (v6_check 2+), a
+// reason from it and, if given, a whole minute inside the period; on every check, the note of 20+ characters.
+function overrideErrors(form, step, screenData, changed, S) {
+  const { why, kind, min } = ADDED6_OF[step];
+  const errors = {};
+  if (!changed.length) return errors;
+  if (listsReasons(form)) {
+    if (!OVERRIDE_REASONS.includes(String(screenData[kind] || ''))) errors[kind] = S.v6_pick_reason;
+    const raw = String(screenData[min] == null ? '' : screenData[min]).trim();
+    const period = wholeNumber((form && form.period_minutes)) || PERIOD_MAX;
+    const minute = wholeNumber(raw);
+    if (raw !== '' && (minute == null || minute > period)) errors[min] = S.v6_minute_range(period);
+  }
+  if (!V6.isJustified(screenData[why])) errors[why] = S.v6_why_changed(changed.map((c) => V6.indicator(c).name));
+  return errors;
+}
+const listsReasons = (form) => Number(((form && form.evidence_review) || {}).v6_check || 0) >= 2;
+
+async function onAdded6(form, step, screenData) {
+  const S = observe2Strings('en');
+  const { codes, why, kind, min } = ADDED6_OF[step];
+  const review = form.evidence_review || {};
+  const prefilled = review.added || {};
+  const chosen = Object.fromEntries(codes.map((c) => [c, String(screenData[`${c}_final`] == null ? '' : screenData[`${c}_final`])]));
+  const changed = codes.filter((c) => (prefilled[c] || '') !== '' && chosen[c] !== String(prefilled[c]));
+  const reason = String(screenData[why] || '').trim();
+  const errors = overrideErrors(form, step, screenData, changed, S);
+  if (Object.keys(errors).length) return renderAdded6(step, addedLevels(form, review), { errors, chosen });
+  const listed = listsReasons(form);
+  const at = new Date().toISOString();
+  const patch = pickFields(screenData, [...codes.map((c) => `${c}_final`), kind, min]);
+  if (reason) patch[why] = reason;
+  for (const code of codes) {
+    const was = String(prefilled[code] || '');
+    const isChange = was !== '' && chosen[code] !== was;
+    patch[`v6_${code}`] = {
+      level: V6.normLevel(chosen[code]),
+      because: isChange ? reason : '',
+      source: isChange || was === '' ? 'coach' : 'rumi',
+      set_by: isChange || was === '' ? 'coach' : 'rumi',
+      rumi_level: V6.normLevel(was),
+      // The change, with Rumi's level kept as `from` (spec §9.1, §13). A check without the reasons list could not ask.
+      ...(isChange ? {
+        override: {
+          from: V6.normLevel(was),
+          to: V6.normLevel(chosen[code]),
+          reason: listed ? String(screenData[kind]) : null,
+          minute: listed ? wholeNumber(screenData[min]) : null,
+          by: 'coach',
+          at,
+        },
+      } : {}),
+      ...V6.stamp('coach'),
+    };
+  }
+  const saved = await Store.saveReview(form, patch);
+  const current = saved.ok ? saved.form : form;
+  if (step === 'ADDED_DC_ONE') return renderAdded6('ADDED_DC_TWO', addedLevels(current, current.evidence_review || {}));
+  return renderPriority(current, screenData);
+}
+
+// The v6 record of every level at Submit, from what each screen saved.
+function v6Levels(review) {
+  const out = {};
+  for (const code of V6.CODES) if (review[`v6_${code}`]) out[code] = review[`v6_${code}`];
+  return out;
+}
+
+// The N/A links (spec §8.4, Q7): when C1 is 1 (no real questions), C3 and D4 are NA, unless the coach set them,
+// when the coach's level stands and the row says so (na_link_conflict). Pure; rows not touched are returned as
+// they were. rules-v6 owns the rule (CONTRACTS §5): its export is used once it exists, this copy until then.
+const NA_LINKED = ['C3', 'D4'];
+function localApplyNaLinks(levels, coachSet = new Set()) {
+  const out = { ...levels };
+  if (V6.normLevel(((levels || {}).C1 || {}).level) !== 1) return out;
+  for (const code of NA_LINKED) {
+    const r = out[code] || {};
+    out[code] = coachSet.has(code)
+      ? { ...r, na_link_conflict: true }
+      : { ...r, level: 'NA', because: 'no questions, so nobody could be chosen or try', source: 'pipeline' };
+  }
+  return out;
+}
+const applyNaLinks = (levels, coachSet) => (typeof Rules.applyNaLinks === 'function' ? Rules.applyNaLinks : localApplyNaLinks)(levels, coachSet);
+
+// Submit on a v6 visit: the v6 record of the 17, with the N/A links applied once to the final levels.
+function linkedV6(review, finalLevels) {
+  const record = v6Levels(review);
+  const coachSet = new Set(V6.COMBINED_CODES.filter((c) => review[`cmb_${c}_level`]));
+  const rows = Object.fromEntries(V6.CODES.map((c) => [c, { level: V6.normLevel(finalLevels[c]) }]));
+  const linked = applyNaLinks(rows, coachSet);
+  for (const code of NA_LINKED) {
+    const r = linked[code] || {};
+    if (r.na_link_conflict) record[code] = { ...(record[code] || {}), na_link_conflict: true };
+    else if (r.level !== rows[code].level) {
+      finalLevels[code] = String(r.level);
+      record[code] = { ...(record[code] || {}), level: r.level, because: r.because };
+    }
+  }
+  return record;
+}
+
+// ------------------------------------------------------------------ MISSED (FICO6, spec §9.2)
+
+// The types a coach can add, as "What happened" lists them: v6's when moments-v6 has them, else today's.
+function missedTypes() {
+  const types = MomentTypes.TYPES_V6 || MomentTypes.TYPES;
+  return Object.values(types).flatMap((g) => Object.entries(g).map(([id, title]) => ({ id, title: clipCp(String(title), 30) })));
+}
+
+function renderMissed() {
+  return { screen: 'MISSED', data: { missed_types: missedTypes() } };
+}
+
+/** The slots that count (a known type and words), as moments the coach confirmed (CONTRACTS §6.3). */
+function missedOf(screenData) {
+  const known = new Set(missedTypes().map((t) => t.id));
+  const out = [];
+  for (let i = 1; i <= MISSED_SLOTS; i += 1) {
+    const type = String(screenData[`missed_${i}_type`] || '').trim();
+    const quote = [...String(screenData[`missed_${i}_words`] || '').trim()].slice(0, MISSED_WORDS_MAX).join('');
+    if (!known.has(type) || !quote) continue;
+    out.push({ id: `missed_${i}`, type, minute: wholeNumber(screenData[`missed_${i}_min`]), quote, source: 'coach', confirmed: true });
+  }
+  return out;
+}
+
+async function onMissed(form, screenData) {
+  const missed = missedOf(screenData);
+  const saved = await Store.saveReview(form, { missed });
+  const current = saved.ok ? saved.form : form;
+  // Rumi's pre-filled levels now count the added moments too.
+  const added = addedLevels(current, current.evidence_review || {});
+  const again = await Store.saveReview(current, {
+    added: Object.fromEntries(Object.entries(added).map(([c, r]) => [c, levelText(r.level)])),
+    added_hole: holesOf(added),
+  });
+  logToFile('[observe2] coach-added moments saved', { formId: form.id, count: missed.length });
+  return renderCombined('COMBINED_ONE', again.ok ? again.form : current);
+}
+
 // ------------------------------------------------------------------ handlers
 
 async function handleObserve2CheckInit(flowToken) {
@@ -383,6 +756,11 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     if (step === 'HEARD_EXPLAIN' || step === 'FIDELITY') return renderAdded('ADDED_ONE', {});
     if (step === 'ADDED_ONE') return renderAdded('ADDED_TWO', {});
     if (step === 'ADDED_TWO') return renderPriority(null, screenData);
+    if (step === 'MISSED') return renderCombined('COMBINED_ONE', null);
+    if (step === 'COMBINED_ONE' || step === 'COMBINED_TWO') return renderCombined(COMBINED_IDS[COMBINED_IDS.indexOf(step) + 1], null);
+    if (combinedBase(step) === 'COMBINED_THREE') return renderAdded6('ADDED_DC_ONE', {});
+    if (step === 'ADDED_DC_ONE') return renderAdded6('ADDED_DC_TWO', {});
+    if (step === 'ADDED_DC_TWO') return renderPriority(null, screenData);
     return renderDone(null, NOT_AVAILABLE);
   }
 
@@ -392,12 +770,25 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     const current = saved.ok ? saved.form : form;
     if (idx < HEARD_IDS.length - 1) return renderHeard(HEARD_IDS[idx + 1], current);
     const added = addedLevels(current, current.evidence_review || {});
+    const v6 = isV6(current);
+    const v6Flow = v6 && String(screenData.v6c || '') !== '';
+    const v6Check = v6Flow ? Number(screenData.v6c) || 1 : 0;
+    if (v6 && !v6Flow) {
+      logToFile('[observe2] v6 visit opened on a Flow without the v6 screens; checking on the v5 screens', { formId: current.id }, 'warn');
+    }
     await Store.saveReview(current, {
       added: Object.fromEntries(Object.entries(added).map(([c, r]) => [c, levelText(r.level)])),
       added_hole: holesOf(added),
+      ...(v6 ? { v6_fallback: !v6Flow } : {}),
+      ...(v6Flow ? { v6_check: v6Check } : {}),
     });
-    return gradedPlan(current) ? renderFidelity(current) : renderAdded('ADDED_ONE', added);
+    if (v6Flow) return v6Check >= 2 ? renderMissed() : renderCombined('COMBINED_ONE', current);
+    return gradedPlan(current) ? renderFidelity(current) : renderAdded('ADDED_ONE', added, current);
   }
+
+  if (step === 'MISSED') return isV6(form) ? onMissed(form, screenData) : renderAdded('ADDED_ONE', addedLevels(form, form.evidence_review || {}));
+  if (COMBINED_IDS.includes(combinedBase(step))) return onCombined(form, step, screenData);
+  if (ADDED6_OF[step]) return onAdded6(form, step, screenData);
 
   if (step === 'FIDELITY') {
     const lp = gradedPlan(form);
@@ -412,14 +803,16 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
       if (saved.ok) current = saved.form;
       logToFile('[observe2] plan steps checked', { formId: form.id, pct: fidelity.fidelity_pct, changed: fidelity.verdicts_changed });
     }
-    return renderAdded('ADDED_ONE', addedLevels(current, current.evidence_review || {}));
+    const review = current.evidence_review || {};
+    if (isV6(current) && review.v6_fallback === false) return renderAdded6('ADDED_DC_ONE', addedLevels(current, review));
+    return renderAdded('ADDED_ONE', addedLevels(current, review), current);
   }
 
   if (step === 'ADDED_ONE' || step === 'ADDED_TWO') {
     const keys = ADDED_CODES[step].map((c) => `${c}_final`);
     const saved = await Store.saveReview(form, pickFields(screenData, keys));
     const current = saved.ok ? saved.form : form;
-    if (step === 'ADDED_ONE') return renderAdded('ADDED_TWO', addedLevels(current, current.evidence_review || {}));
+    if (step === 'ADDED_ONE') return renderAdded('ADDED_TWO', addedLevels(current, current.evidence_review || {}), current);
     return renderPriority(current, screenData);
   }
 
@@ -441,6 +834,11 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     const finalLevels = {};
     for (const code of CODES) finalLevels[code] = review[`${code}_final`] || added[code] || '';
     const patch = pickFields(screenData, ['priority_final', 'why']);
+    if (isV6(form) && review.v6_fallback === false) {
+      // The six room levels are the coach's (COMBINED); the record says who set each of the 17 and why.
+      for (const code of V6.COMBINED_CODES) if (review[`cmb_${code}_level`]) finalLevels[code] = review[`cmb_${code}_level`];
+      patch.v6_levels = linkedV6(review, finalLevels);
+    }
     // "Also work on": as submitted on a check that has it; on the first check, the picks sealed in the form.
     // A sealed pick the check's lists could not show (a newer choice on an older check) is kept, first:
     // the coach never saw it there to drop it. Never the first pick again, never twice (fico17.pickAlso).
@@ -477,4 +875,8 @@ module.exports = {
   parseToken,
   handleObserve2CheckInit,
   handleObserve2CheckDataExchange,
+  d2Expected,
+  // For tests: the screens' evidence text and the N/A links rule, as the endpoint uses them.
+  _evidenceText: evidenceText,
+  _applyNaLinks: applyNaLinks,
 };

@@ -16,6 +16,8 @@ import { recentGroups } from './recent';
 import { useLessonsLeader } from './audience';
 import { FlnBand } from '../../fln/FlnBand';
 import { RegionCard } from './RegionCard';
+import { RecentOwnPlans } from './own/RecentOwnPlans';
+import { OwnHomeCard } from './own/OwnHomeCard';
 
 /**
  * bd-fmf24g.3 — the teacher v2 Lesson Plans main page. bd-fgj73x — in the Assessment flow (AssessmentHub), the
@@ -45,7 +47,7 @@ export function LessonsHomePage() {
   const groups = useMemo(() => recentGroups(plans.filter((p) => p.tag !== 'preparing'), undefined, C), [plans, C]);
 
   return (
-    <TeacherPage feature="lessons" crumb={leader ? undefined : C.home} title={C.title} backTo={leader ? undefined : teacherPath('home')}>
+    <TeacherPage feature="lessons" crumb={leader ? undefined : C.home} title={C.title} backTo={leader ? undefined : teacherPath('home')} help="lessons">
       <Link to={LESSONS_NEW} className={cn('flex min-h-[112px] items-center gap-4 p-4', CARD, FOCUS)}>
         <span
           className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full"
@@ -62,6 +64,7 @@ export function LessonsHomePage() {
         <ChevronRight className="h-6 w-6 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
       </Link>
 
+      <OwnHomeCard />
       {leader ? <FlnBand /> : null}
 
       {/* bd-rj6w0n.14.2: asks once, only when nothing names her region (dark unless LP_GB_K5_ENABLED). */}
@@ -80,6 +83,9 @@ export function LessonsHomePage() {
           </section>
         </>
       )}
+
+      {/* bd-snkn32.5 — her own Make my own plans, so they open from the portal too, not only from WhatsApp. */}
+      {leader ? null : <RecentOwnPlans />}
 
       {leader ? null : (
         <div className="mt-3.5">
