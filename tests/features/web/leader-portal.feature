@@ -189,3 +189,11 @@ Feature: School leader (principal) portal
     When the coach taps "Start"
     Then the test opens as it does without the switch, and the part downloads behind it (the next child starts from the phone)
     And with no signal and the part not on the phone, the coach sees "Jugnu's voice is not on this phone yet…" before the test
+
+  @LP29 @config-gated
+  Scenario: Learning assessment: the practice school is first in the school list (sa_r19_practice_first)
+    Given sa_r19_practice_first is on and the coach is linked to the practice school and to their own schools
+    When they open /portal/leader/assess
+    Then the practice school is the first school, above today's visit and above schools earlier in the alphabet
+    And with no signal, the schools saved on the phone keep the practice school first
+    And with the switch off, today's visit is first and the other schools follow by name, as before

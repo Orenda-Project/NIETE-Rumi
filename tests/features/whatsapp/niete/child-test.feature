@@ -1130,3 +1130,14 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When I open today's list at a school in the coach app
     Then the visit bar reads "Time 00:00 / 60:00" and turns red only after 60 minutes
     And a list drawn at 5, or before the switch, reads "/ 45:00" as today
+
+  # Round 19: the practice school first (app_settings sa_r19_practice_first, default OFF). Asserted in
+  # bot/tests/child-test/sa-practice-first.test.js (listSchools and conversation/context.js coachSchools).
+  @e2e @wip @draft @config-gated @P1 @CT178 @no-mock-driver
+  # No mock driver: as @CT175.
+  Scenario: With sa_r19_practice_first on, the practice school comes first in the coach's school lists
+    Given sa_r19_practice_first is on and the coach is linked to the SIM practice school and to two of their own schools
+    When I send /egra with no visit today
+    Then the school picker lists the SIM practice school first, then the coach's schools by name
+    And the coach app's Learning assessment lists the SIM school first, marked practice, above today's visit
+    And with the switch absent both lists are in today's order: today's visit first, then by name
