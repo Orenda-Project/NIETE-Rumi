@@ -127,13 +127,22 @@ function reviewFlowId() {
 
 async function _patchPaper(paperId, patch) {
   if (!paperId) return;
-  try {
-    await supabase.from('assessment_papers')
-      .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq('id', paperId);
-  } catch (err) {
+  // bd-qyi45h.12: supabase-js resolves { error } rather than throwing, so a lost write used to vanish and a failed
+  // paper stayed `generating` for ever. A write that errors is logged and tried once more after a short pause.
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    let error;
+    try {
+      const res = await supabase.from('assessment_papers')
+        .update({ ...patch, updated_at: new Date().toISOString() })
+        .eq('id', paperId);
+      error = res && res.error ? res.error.message || String(res.error) : null;
+    } catch (err) {
+      error = err.message;
+    }
+    if (!error) return;
     // Losing the record must not lose the paper she is waiting for.
-    logToFile('[assessment] could not update paper row', { paperId, error: err.message });
+    logToFile('[assessment] could not update paper row', { paperId, attempt, status: patch.status, error });
+    if (attempt === 1) await new Promise((r) => setTimeout(r, 500));
   }
 }
 
