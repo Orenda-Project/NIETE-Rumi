@@ -369,8 +369,9 @@ describe("LeaderAssessResults: the child's level per subject (round 20)", () => 
     expect(ur).toHaveTextContent("اردو");
     expect(ur).toHaveTextContent("جانے پہچانے الفاظ");
     expect(ur).toHaveTextContent("حروف");
-    expect(ur).toHaveTextContent("رک گیا: کوئی جواب نہیں");
-    expect(ur).toHaveTextContent("آخری حصہ: جانے پہچانے الفاظ");
+    expect(ur).toHaveTextContent("ٹیسٹ رک گیا: کوئی جواب نہیں");
+    expect(ur).toHaveTextContent("کہاں تک پہنچا: جانے پہچانے الفاظ");
+    expect(ur.textContent).not.toMatch(/آخری حصہ/);
     const ma = screen.getByTestId("result-level-ma");
     expect(ma).toHaveTextContent("سطح: تفریق اور ضرب (مزید نمبر آنے ہیں)");
     expect(ma).toHaveTextContent("کوچ نے ختم کیا");
