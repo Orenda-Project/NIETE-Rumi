@@ -86,7 +86,7 @@ describe('v6 visit', () => {
   });
 
   test('B → the Section C intro (13 Nov: one indicator per screen); the old DOMAIN_C still serves Rumi\'s levels', async () => {
-    const res = await handleObserveMewakaRequest({ action: 'data_exchange', flow_token: TOKEN, data: { _screen: 'DOMAIN_B' } });
+    const res = await handleObserveMewakaRequest({ action: 'data_exchange', flow_token: TOKEN, data: { _screen: 'DOMAIN_B', v6f: '2' } });
     expect(res.screen).toBe('INTRO_C');
     const old = await handleObserveMewakaRequest({ action: 'BACK', flow_token: TOKEN, screen: 'DOMAIN_C' });
     expect(old.screen).toBe('DOMAIN_C');

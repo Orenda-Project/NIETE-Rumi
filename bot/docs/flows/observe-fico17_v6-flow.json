@@ -651,7 +651,7 @@
               },
               {
                 "type": "TextBody",
-                "text": "Part 1/4 — review the score & note, edit as you see fit"
+                "text": "Lesson-plan steps: change any you saw differently. Then the 17 indicators, one per screen."
               },
               {
                 "type": "Footer",
@@ -660,6 +660,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "_screen": "DOMAIN_B",
+                    "v6f": "2",
                     "fid_r_1": "${form.fid_r_1}",
                     "fid_e_1": "${form.fid_e_1}",
                     "fid_r_2": "${form.fid_r_2}",

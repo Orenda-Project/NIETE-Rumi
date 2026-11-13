@@ -176,7 +176,7 @@ describe('the /observe v6 Flow JSON: 22 screens, one indicator each', () => {
 
 describe('the /observe v6 endpoint walks the 22 screens', () => {
   test('B → the Section C intro (no input), in the coach\'s language', async () => {
-    const res = await post({ _screen: 'DOMAIN_B' });
+    const res = await post({ _screen: 'DOMAIN_B', v6f: O6.FORM_VERSION });
     expect(res.screen).toBe('INTRO_C');
     expect(res.data.heading).toContain('What the teacher does');
     expect(res.data.list).toContain('C1');
@@ -255,7 +255,7 @@ describe('the /observe v6 endpoint walks the 22 screens', () => {
     edits.chg_C1 = 'She asked why and then followed it up.';
     edits.r_C2 = '3'; // Rumi had N/A: no reason needed
     edits.r_D5 = '1'; // Rumi had Couldn't tell
-    for (const id of O6.SCREENS.slice(0, -1)) await post({ _screen: id, ...edits });
+    for (const id of O6.SCREENS.slice(0, -1)) await post({ _screen: id, v6f: O6.FORM_VERSION, ...edits });
     const res = await post({ _screen: 'IND_F_FOUR', ...edits });
     expect(res.screen).toBe('SUCCESS');
     const written = mockUpdates.find((u) => u.analysis_data && u.status === 'observer_review_complete');
@@ -272,6 +272,16 @@ describe('the /observe v6 endpoint walks the 22 screens', () => {
 });
 
 describe('a form opened on the old 5-screen Flow still goes through', () => {
+  test('its Section B (no v6f marker) goes on to DOMAIN_C, the screen that Flow has', async () => {
+    const res = await post({ _screen: 'DOMAIN_B' });
+    expect(res.screen).toBe('DOMAIN_C');
+  });
+
+  test('the new Flow\'s Section B carries the marker', () => {
+    const b = FLOW.screens.find((x) => x.id === 'DOMAIN_B');
+    expect(JSON.stringify(b)).toContain(`"v6f":"${O6.FORM_VERSION}"`);
+  });
+
   test('the old DOMAIN_C screen is still accepted and goes on to DOMAIN_D', async () => {
     const res = await post({
       _screen: 'DOMAIN_C', r_C1: '2', r_C2: '2', r_C4: '2', r_C6: '2', r_C8: '2',

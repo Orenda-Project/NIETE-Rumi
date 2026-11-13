@@ -51,7 +51,7 @@ const isV6Visit = (session) => !!ObserveV6.visitFramework(session);
 const v6Knows = (screenId) => ObserveV6.SCREENS.includes(screenId) || ObserveV6.LEGACY_SCREENS.includes(screenId);
 const knowsScreen = (screenId, session) => (isV6Visit(session) ? v6Knows(screenId) : packScreens(session).screens.includes(screenId));
 const isLast = (screenId, session) => (isV6Visit(session) ? ObserveV6.isLastScreen(screenId) : screenId === packScreens(session).last);
-const nextFor = (screenId, session) => (isV6Visit(session) ? ObserveV6.nextScreenOf(screenId) : nextScreen(screenId, session));
+const nextFor = (screenId, session, posted) => (isV6Visit(session) ? ObserveV6.nextScreenOf(screenId, posted) : nextScreen(screenId, session));
 
 /**
  * Statuses past which an observation is closed. A stale Flow submit must not
@@ -328,7 +328,7 @@ async function handleObserveMewakaRequest(decrypted) {
         };
       }
 
-      return serve(nextFor(currentScreen, session));
+      return serve(nextFor(currentScreen, session, data));
     }
 
     return errorResponse('Unsupported action');

@@ -65,7 +65,7 @@ const L = PACK.key === 'hots' ? {
   evidenceHelp: (id) => `${id} — what was seen`,
   improve: 'To improve',
   improveHelp: (id) => `${id} — to improve`,
-  body: (i, n) => `Part ${i}/${n} — review the score & note, edit as you see fit`,
+  body: () => 'Lesson-plan steps: change any you saw differently. Then the 17 indicators, one per screen.',
   // 13 Nov: one title on all 21 screens; where the coach is shows in each screen's own caption.
   screenTitle: () => 'FICO17 review · جائزہ',
   next: 'Next',
@@ -147,7 +147,9 @@ function domainScreen(key, idx) {
         : `${d.displayName || d.title_en} · sehemu ${idx + 1}/${DOMAIN_ORDER.length} — hakiki alama na maoni, badilisha unavyoona inafaa.` },
   ];
   const initValues = {};
-  const payload = { _screen: screenId(key) };
+  // v6 (13 Nov): Section B of the one-indicator-per-screen Flow says which Flow it is, so a coach still on the old
+  // 5-screen Flow (opened before the republish, or the window between deploy and republish) keeps its old screens.
+  const payload = { _screen: screenId(key), ...(IS_V6 ? { v6f: require('../shared/services/observe/observe-fico17-v6').FORM_VERSION } : {}) };
   const data = {
     ...(idx === 0 ? { scored_with: { type: 'string', __example__: 'FICO V3' } } : {}),
     scale: {

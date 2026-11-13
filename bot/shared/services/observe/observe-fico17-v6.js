@@ -210,6 +210,8 @@ const screenOf = (code) => {
   return i < 0 ? null : `IND_${letter}_${NUMBER_WORDS[i]}`;
 };
 const SCREENS = ['DOMAIN_B', ...LETTERS.flatMap((l) => [`INTRO_${l}`, ...codesOn(l).map(screenOf)])];
+// Posted by this Flow's Section B (v6f): a Section B without it is the old 5-screen Flow, which goes on to DOMAIN_C.
+const FORM_VERSION = '2';
 const LEGACY_SCREENS = ['DOMAIN_B', ...LETTERS.map((l) => `DOMAIN_${l}`)];
 
 /** What a v6 screen id is: { kind: 'b' | 'intro' | 'ind' | 'legacy' | null, letter?, code? }. */
@@ -236,10 +238,14 @@ function codesFor(screenId) {
   return [];
 }
 
-/** The screen after this one: the new path, or the old Flow's own next for its DOMAIN_C/D/F; 'SUCCESS' at the end. */
-function nextScreenOf(screenId) {
+/**
+ * The screen after this one: the new path, or the old Flow's own next for its DOMAIN_C/D/F; 'SUCCESS' at the end.
+ * `posted` is what the screen sent: Section B of the old Flow carries no v6f, and goes on to DOMAIN_C.
+ */
+function nextScreenOf(screenId, posted = null) {
   const info = screenInfo(screenId);
-  const list = info.kind === 'legacy' ? LEGACY_SCREENS : SCREENS;
+  const oldFlow = info.kind === 'legacy' || (info.kind === 'b' && posted && String(posted.v6f || '') !== FORM_VERSION);
+  const list = oldFlow ? LEGACY_SCREENS : SCREENS;
   const i = list.indexOf(screenId);
   return i >= 0 && i < list.length - 1 ? list[i + 1] : 'SUCCESS';
 }
@@ -567,7 +573,7 @@ function messages(lang) {
 
 module.exports = {
   READY_ENV, isReady,
-  V6, FLOW_ID_ENV, MSG_EN, DC_NA_OPTION, LETTERS, SCREENS, LEGACY_SCREENS, COACH_IDS, LEGACY_IDS,
+  V6, FLOW_ID_ENV, MSG_EN, DC_NA_OPTION, LETTERS, SCREENS, LEGACY_SCREENS, COACH_IDS, LEGACY_IDS, FORM_VERSION,
   decideVisitFramework, visitFramework, frameworkKeyForSession, isV6Analysis,
   optionsFor, rumiLevel, rumiNumeric, prefillLevel, combinedBody, buildScreenPrefill, validateScreen, d2Expected,
   buildReview, applyReview, messages,
