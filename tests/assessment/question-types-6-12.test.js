@@ -238,7 +238,8 @@ describe('grades 1-5 are untouched', () => {
     const enAlias = /^ {4}general_knowledge_en: 'general_knowledge', social_studies_en: 'social_studies',\n/gm;
     expect((src.match(enAlias) || []).length).toBe(1);
     const base = crypto.createHash('sha256').update(src.replace(guard, '').replace(enAlias, '')).digest('hex');
-    expect(base).toBe('1f8d468ad80e0b9fda267879005274c4855626d46fbad82cb0e5a5085f1de2b7');
+    // bd-ipoxhx.10: Label the Diagram is drawn now and offered again (NEEDS_PRINTED_PICTURE lost it).
+    expect(base).toBe('3d241201deabe0168d5058b27f8e523d162624f9bac3fbfd4a14e8eac416f110');
   });
 
   it('the 6-12 module answers nothing for grade <= 5', () => {
