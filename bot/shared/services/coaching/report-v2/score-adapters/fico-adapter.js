@@ -52,7 +52,8 @@ function notAssessedWords(language) {
  * Both halves are required. The flag alone is not enough: a flagged grading can still
  * carry partial credit, and a line saying "LP Fidelity is 0%" beside a non-zero bar is
  * a second contradiction on the same row. This is report text only — it never changes
- * a score, it only decides how a 0 is explained.
+ * a score. Since 13 Nov (bd-r2uzg1.12) it only keeps a 0 that may not be hers off the
+ * report's "next horizon"; Section B's why-line is the model's, as on production.
  */
 function isLessonMismatch(a) {
   const lp = a && a.lp_fidelity;
@@ -60,13 +61,6 @@ function isLessonMismatch(a) {
   const b = a.domains && a.domains.lesson_plan_fidelity;
   if (!b || b.assessed === false) return false;
   return b.domain_score === 0;
-}
-
-// Written in code, not by the narrative model, for the same reason as NOT_ASSESSED_WHY:
-// handed the plan's moves, the model explained the 0 with a lesson she never taught.
-function lessonMismatchWhy(language) {
-  const { resolveUx } = require('../../../../config/ux-strings');
-  return resolveUx('reportLpMismatch', { language });
 }
 
 function buildFicoGroups(a, language) {
@@ -96,9 +90,10 @@ function buildFicoGroups(a, language) {
     }
     const score = d.domain_score ?? d.area_score ?? 0;
     const max = d.domain_max ?? d.area_max ?? def.indicatorCount * SCALE_MAX;
-    const mismatchRow = mismatch && sectionKey === 'lesson_plan_fidelity'
-      ? { lessonMismatch: true, why: lessonMismatchWhy(language) }
-      : {};
+    // bd-r2uzg1.12: no code-written "does not match" line any more. The operator (13 Nov): "I dont know how
+    // reliably we can tell if the lesson was mismatched" — the score and the model's why stay as on production,
+    // and lesson-mismatch-note.js adds one soft line after it.
+    const mismatchRow = mismatch && sectionKey === 'lesson_plan_fidelity' ? { lessonMismatch: true } : {};
     return {
       ...mismatchRow,
       // Use the sheet's section letter (B/C/D/F) as the group key — trainers
