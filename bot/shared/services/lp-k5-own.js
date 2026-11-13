@@ -38,9 +38,6 @@ const { EDIT_GROWTH: MAX_GROWTH, MAKE_GROWTH } = require('./lp-own-fit');
 /** bd-snkn32.27 — the board, in either language: a plan for a teacher with no board must not use one. */
 const BOARD = /\b(?:black|white|chalk)?board\b|بورڈ|تختہ سیاہ/i;
 
-/** bd-snkn32.28 — pair or group work, in either language; "Group 1:" level labels (TaRL) are not group work. */
-const TOGETHER = /\b(?:in|into) (?:pairs|groups)\b|\bgroup work\b|\bpair work\b|\bwork together\b|\b(?:with|and) (?:a |your |their )?(?:partner|neighbou?r)s?\b|جوڑی|گروپ میں|گروہ میں|مل کر|ساتھی کے ساتھ/i;
-
 const isLanguage = (subject) => /^(urdu|english)\b/i.test(String(subject || '').trim());
 const isEarly = (grade) => Number(grade) >= 1 && Number(grade) <= 3;
 
@@ -94,11 +91,32 @@ function k5Messages({ script, answers, lang, grade, subject, dayPages = null, bo
   return [{ role: 'system', content: system(lang) }, { role: 'user', content: lines.join('\n') }];
 }
 
+/**
+ * bd-snkn32.44 — a reply whose object closed one brace early (`…]}},"materials":…`, G4 English ch7, both rounds):
+ * the text with that closing brace taken out, or null when the object did not close early. No model call.
+ */
+function closedEarly(text) {
+  let depth = 0; let inStr = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inStr) { if (c === '\\') i++; else if (c === '"') inStr = false; continue; }
+    if (c === '"') inStr = true;
+    else if (c === '{' || c === '[') depth++;
+    else if (c === '}' || c === ']') {
+      depth--;
+      if (depth === 0) return c === '}' && text.slice(i + 1).trim() ? text.slice(0, i) + text.slice(i + 1) : null;
+    }
+  }
+  return null;
+}
+
 /** The model's reply as a plan object, or null. */
 function parseK5Reply(content) {
   const text = String(content || '').replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
   const obj = (o) => (o && typeof o === 'object' && !Array.isArray(o) ? o : null);
-  try { return obj(JSON.parse(text)); } catch (_) { /* a trailing comma, a raw newline: repair */ }
+  try { return obj(JSON.parse(text)); } catch (_) { /* a trailing comma, a raw newline, a brace too many: repair */ }
+  const early = closedEarly(text);
+  if (early) { try { return obj(JSON.parse(early)); } catch (_) { /* not that either */ } }
   if (!jsonrepair || !/^\s*\{/.test(text)) return null;
   try { return obj(JSON.parse(jsonrepair(text))); } catch (_) { return null; }
 }
@@ -148,8 +166,9 @@ function checkK5Rewrite(orig, next, { lang, resources, size } = {}) {
     if (used) reasons.push(`uses a board she does not have ("${used.slice(0, 60)}"): use the book page instead`);
   }
   if (Array.isArray(resources)) {
-    const shared = strings(next.youDo || {}).find((s) => TOGETHER.test(s));
-    if (shared) reasons.push(`You Do has pair or group work ("${shared.slice(0, 60)}"): in You Do each child works alone; keep pairs and groups in We Do`);
+    // bd-snkn32.28 / .44 — the whole line and the words that matched go back, so the repair round can fix that line.
+    const shared = strings(next.youDo || {}).find((s) => P.together(s));
+    if (shared) reasons.push(`You Do has pair or group work ("${shared.slice(0, 200)}", the words "${P.together(shared)}"): in You Do each child works alone in her book or copy, with no partner or group talk; keep pairs and groups in We Do`);
   }
   if (lang === 'ur') {
     const said = SECTIONS.flatMap((k) => strings(next[k] || {})).filter((s) => s.trim().length > 12);

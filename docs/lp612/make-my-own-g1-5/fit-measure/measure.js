@@ -20,7 +20,8 @@ const CAP = Number(process.env.CAP || (MODE === 'before' ? 22 : 8));
 const CONC = 4;
 // REPLAY=0: "after" pays for its own round 1 too (an independent sample, same days and classes).
 const REPLAY = process.env.REPLAY !== '0';
-const OUT = MODE === 'after' && !REPLAY ? 'after-live' : MODE;
+// OUT=<name> writes results-<name>.json (bd-snkn32.44 re-measure: OUT=after-44, the same replay against the new gate).
+const OUT = process.env.OUT || (MODE === 'after' && !REPLAY ? 'after-live' : MODE);
 if (!['before', 'after'].includes(MODE)) throw new Error('mode: before | after');
 
 // A fixed, seeded draw: 3 candidate days per grade × subject (English, Urdu, Maths), the same draw every run.
