@@ -1187,7 +1187,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then above the task cards each subject (Urdu, English, Maths) reads "Reached: <the last part the child did>" and "Level: <level>"
     And a spoken part not scored yet reads "Waiting for scores", or the level so far with "more to come"
     And a subject a silence stop ended reads "Stopped: no answer", and one the coach ended reads "Stopped by the coach"
-    And in Urdu the same lines are in Urdu script, with the approved Urdu words: "کہاں تک پہنچا" for Reached, "ٹیسٹ رک گیا: کوئی جواب نہیں" for a silence stop, and "اعداد کی پہچان" for the maths Numbers level
+    And in Urdu the same lines are in Urdu script, with the approved Urdu words: "ٹیسٹ کہاں تک پہنچا" for Reached, "ٹیسٹ رک گیا: کوئی جواب نہیں" for a silence stop, and "اعداد کی پہچان" for the maths Numbers level
     And with sa_r20_level off the Results are exactly as before
 
   @e2e @wip @draft @config-gated @P1 @CT183 @no-mock-driver

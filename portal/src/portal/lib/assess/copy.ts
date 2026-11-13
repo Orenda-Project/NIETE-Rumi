@@ -430,7 +430,7 @@ const ur: Copy = {
     level: {
       title: "ہر مضمون میں سطح",
       subjects: { ur: "اردو", en: "انگریزی", ma: "ریاضی" },
-      reached: "کہاں تک پہنچا",
+      reached: "ٹیسٹ کہاں تک پہنچا",
       level: "سطح",
       waiting: "نمبروں کا انتظار ہے",
       more: "مزید نمبر آنے ہیں",
