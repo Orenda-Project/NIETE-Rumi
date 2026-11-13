@@ -72,6 +72,8 @@ export type Picks = {
   /** null = no limit. */
   marks: number | null;
   answerLines: boolean;
+  /** bd-ipoxhx.5 — "Save paper": a tighter A4 page. Absent or false = the ordinary page. */
+  compact?: boolean;
   /** The FDE door (or the side-door card) asked for a board-pattern paper: the pattern id, kept across Class. */
   patternIntent?: string | null;
   /** 'fde' = the board pattern; 'own' = the teacher's own paper after picking it; null = a plain New paper. */
@@ -260,6 +262,8 @@ export type V2Spec = {
   totalMarks: number | null;
   answerLines: boolean;
   outputFormat: 'pdf';
+  /** Save paper is on. Absent = the ordinary page (today's request). */
+  compact?: true;
   /** A topic paper: the ticked topics of its one chapter. Absent = the whole chapter (today's request). */
   topicIds?: string[];
   /** bd-pw1ccr.1 — made from the A/B report button. Absent = any other paper. */
@@ -321,6 +325,7 @@ export function toSpec(p: Picks): V2Spec | FdeSpec {
     outputFormat: 'pdf',
     ...(onTopics ? { topicIds: [...(p.topicIds as string[])] } : {}),
     ...(p.origin === 'report' ? { origin: 'report' as const } : {}),
+    ...(p.compact ? { compact: true as const } : {}),
   };
 }
 
@@ -337,6 +342,7 @@ export type AnySpec = {
   questionTypes?: Array<string | { id: string; count: number }>;
   totalMarks?: number | null;
   answerLines?: boolean;
+  compact?: boolean;
   pattern?: string | null;
   scope?: 'fde' | null;
   topicIds?: string[] | null;
@@ -384,6 +390,7 @@ export function fromSpec(spec: AnySpec, subjectName: string | null): Picks {
     typesSeeded: typed || source === 'seen',
     marks: spec.totalMarks ?? null,
     answerLines: spec.answerLines !== false,
+    ...(spec.compact === true ? { compact: true } : {}),
     ...(spec.topicIds?.length ? { topicScope: 'topics' as const, topicIds: [...spec.topicIds] } : {}),
     ...(pattern ? {
       style: 'fde' as const, pattern, patternIntent: pattern,
