@@ -21,6 +21,7 @@ const path = require('path');
 const FreePrint = require('./free-secondary-print');
 const Chrome = require('./free-secondary-chrome');
 const { orderedEntries } = require('./assessment-order');
+const { compactCss } = require('./compact-print');
 
 /**
  * Fonts are base64-embedded into the HTML, not named and hoped for.
@@ -351,7 +352,7 @@ function totalMarks(questions) {
 // accepted so older callers keep working; it changes nothing here.)
 // eslint-disable-next-line no-unused-vars
 function renderPaper({ examJson, grade, subject, schoolName, pageReference,
-                       chapterTitle, includeAnswerKey = false, answerLines = true, paperKind = null }) {
+                       chapterTitle, includeAnswerKey = false, answerLines = true, paperKind = null, compact = false }) {
   // A board-pattern paper carries its layout and prints by it; read off the paper, never a flag.
   // A G9-12 board paper (bd-5jmnfj.38.24) prints by its own renderer.
   if (examJson && examJson._layout && examJson._layout.profile === 'board') return require('./assessment-paper-board.renderer').renderBoardPaper(examJson);
@@ -443,7 +444,7 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
   .answer-space { margin: 5px 0 0 ${rtl ? '0' : '18px'}; }
   .answer-line { border-bottom: 1px solid #aaa; height: ${lineMm}mm; }
   .answer { background: #eef7ee; border-${rtl ? 'right' : 'left'}: 3px solid #4a4; padding: 3px 7px; margin-top: 4px; font-size: 10.5pt; }${Chrome.css(examJson)}
-</style></head>
+</style>${compact ? compactCss({ rtl }) : ''}</head>
 <body>
 ${schoolName ? `<div class="school">${esc(schoolName)}</div>` : ''}
 <div class="class-line">${heading}</div>
