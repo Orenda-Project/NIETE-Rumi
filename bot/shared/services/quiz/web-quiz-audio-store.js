@@ -111,13 +111,17 @@ async function recordingAllowed({ db, quizId, logEvent, logError, now = Date.now
   let recordedToday = 0;
   try {
     const counted = db.from('quizzes').select('id', { count: 'exact', head: true });
-    const { count, error } = await (countOne
+    const { count, error, status } = await (countOne
       ? counted.or(`meta->web->>audio_day.eq.${day},meta->web_one->>audio_day.eq.${day}`)
       : counted.eq('meta->web->>audio_day', day));
-    if (error) throw new Error(error.message || 'count failed');
+    // A head:true count that fails has no body, so its message is empty: the status and code are the cause (bd-ehz254.12).
+    if (error) throw Object.assign(new Error(error.message || 'count failed'), { status, code: error.code || null });
     recordedToday = Number(count) || 0;
   } catch (error) {
-    logError('web_quiz_audio.settings_failed', { event: 'web_quiz_audio.settings_failed', quizId, error: String(error.message || error).slice(0, 200) });
+    logError('web_quiz_audio.settings_failed', {
+      event: 'web_quiz_audio.settings_failed', quizId, step: 'count', status: error.status || null, code: error.code || null,
+      error: String(error.message || error).slice(0, 200),
+    });
     return { ok: true, day };
   }
   if (recordedToday >= cap) {
