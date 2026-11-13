@@ -4348,6 +4348,17 @@ async function _isapsScoreSheet(userId, levelId) {
         .select('training_module_id, score, total_questions, status')
         .eq('user_id', userId).eq('quiz_kind', 'training_module').in('training_module_id', unitIds)
       : { data: [] };
+    // Ten I-SAPS units have no quick check (I-SAPS did not provide one). Watching such a unit completes it
+    // (bd-2390), so the sheet needs to know which units HAVE a check (the same stem rule the unit list and
+    // the quiz use) and which she has done, or a watched unit reads "Not taken" for ever.
+    const { data: unitQuestions } = unitIds.length
+      ? await supabase.from('training_questions').select('training_module_id, question_text')
+        .in('training_module_id', unitIds).eq('is_active', true)
+      : { data: [] };
+    const { data: unitProgress } = unitIds.length
+      ? await supabase.from('teacher_training_progress').select('module_id')
+        .eq('user_id', userId).in('module_id', unitIds)
+      : { data: [] };
     const { data: examAttempts } = await supabase.from('training_assessment_attempts')
       .select('id, grand_quiz_id, is_passed, score, total_questions, status')
       .eq('user_id', userId).eq('quiz_kind', 'grand').in('grand_quiz_id', exams.map(e => e.id));
@@ -4371,6 +4382,8 @@ async function _isapsScoreSheet(userId, levelId) {
       courses: courses || [], units: units || [], exams,
       unitAttempts: (unitAttempts || []).filter(a => a.status !== 'in_progress'),
       examAttempts: examAttempts || [], examAnswers: examAnswers || [], crqMax,
+      checkedUnitIds: [...new Set(servableQuestions(unitQuestions || []).map(q => q.training_module_id))],
+      doneUnitIds: (unitProgress || []).map(p => p.module_id),
     });
   } catch (err) {
     console.error('isaps score sheet failed:', err?.message);
