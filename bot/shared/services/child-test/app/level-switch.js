@@ -2,7 +2,7 @@
 /**
  * Round 20, the child's level per subject on Results and the results dashboard (app_settings `sa_r20_level`, default
  * OFF): ON, saResults and every saSessions row's results carry `levels` (sa/level.js): per subject where the child
- * reached, the level (placeholder words and cut-offs awaiting reviewer approval) and why the subject stopped. OFF, the
+ * reached, the level (the words and cut-offs sent for review) and why the subject stopped. OFF, the
  * answers are exactly as before.
  *
  *   on()       30 s cache, JSON `true` only, fails closed (no row, any other value or a read error is off)

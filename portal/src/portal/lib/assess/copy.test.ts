@@ -88,6 +88,18 @@ describe("assess copy", () => {
     expect(COPY.en.results.scoredLater).toBe("Recording kept, scored later");
   });
 
+  // Round 20: the level words and labels exactly as sent to the content owner for review (Urdu in Urdu script).
+  it("results level: the words and labels as reviewed, English and Urdu", () => {
+    const en = COPY.en.results.level;
+    const ur = COPY.ur.results.level;
+    expect(en.words).toEqual({ beginner: "Beginner", letters: "Letters", words: "Words", story: "Story", comprehension: "Understands the story", numbers: "Numbers", comparing: "Compare numbers", add: "Add", sub_mul: "Subtract and multiply" });
+    expect(ur.words).toEqual({ beginner: "ابتدائی", letters: "حروف", words: "الفاظ", story: "کہانی", comprehension: "کہانی کی سمجھ", numbers: "نمبر پہچاننا", comparing: "نمبروں کا موازنہ", add: "جمع", sub_mul: "تفریق اور ضرب" });
+    expect([en.title, en.reached, en.level, en.more, en.stops.no_answer, en.stops.coach]).toEqual(
+      ["Level in each subject", "Reached", "Level", "more to come", "Stopped: no answer", "Stopped by the coach"]);
+    expect([ur.title, ur.reached, ur.level, ur.more, ur.stops.no_answer, ur.stops.coach]).toEqual(
+      ["ہر مضمون میں سطح", "آخری حصہ", "سطح", "مزید نمبر آنے ہیں", "رک گیا: کوئی جواب نہیں", "کوچ نے ختم کیا"]);
+  });
+
   it("buttons stay short (≤ 24 code points)", () => {
     for (const lang of ["ur", "en"] as const) {
       const c = COPY[lang];
