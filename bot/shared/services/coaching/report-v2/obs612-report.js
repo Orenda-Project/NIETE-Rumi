@@ -92,7 +92,7 @@ function buildObs612ReportVm(session, analysis, opts = {}) {
 function caption(vm) {
   const C = CAPTION[vm.language] || CAPTION.en;
   const v = vm.view;
-  const subject = v ? subjectIn(v, vm.language === 'ur' ? 'ur' : 'en') : null;
+  const subject = v ? subjectIn(v, clampLanguage(vm.language, ['en', 'ur'])) : null;
   const parts = [C.head, v && v.grade ? C.grade(v.grade) : null, subject, vm.date].filter(Boolean);
   return parts.join(' · ');
 }
@@ -296,7 +296,7 @@ function subjectIn(v, lang) {
  */
 function buildObs612HeroVm(session, analysis, opts = {}) {
   const base = buildObs612ReportVm(session, analysis, opts);
-  const lang = base.language === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(base.language, ['en', 'ur']);
   const H = HERO[lang];
   const v = base.view;
   const vm = {
