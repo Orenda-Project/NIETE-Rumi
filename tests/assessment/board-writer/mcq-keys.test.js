@@ -50,4 +50,22 @@ describe('settleKeys', () => {
     settleKeys(ex);
     expect(ex).toEqual(copy);
   });
+
+  test('a key that only a fixed item after it would make a run of four is moved before it (bd-qyi45h.11)', () => {
+    const items = [0, 1, 2].map((i) => mcq(`m${i}`, 's', 'C', opts(i)));
+    items.push(mcq('n', 's', 'C) 12 cm', ['A) 4 cm', 'B) 8 cm', 'C) 12 cm', 'D) 16 cm']));
+    const ex = section(items);
+    expect(rules(ex)).toContain('KEY_RUN');
+    settleKeys(ex);
+    expect(rules(ex)).toEqual([]);
+    expect(ex.unseen.objective.mcq[3]).toMatchObject({ answer: 'C) 12 cm' });
+  });
+
+  test('a moved key does not land on the letter a fixed run after it carries (bd-qyi45h.11)', () => {
+    const num = (id, k) => mcq(id, 's', k, ['A) 4 cm', 'B) 8 cm', 'C) 12 cm', 'D) 16 cm']);
+    const items = [num('a0', 'A'), num('a1', 'A'), num('a2', 'A'), mcq('m', 's', 'A', opts(1)), num('b0', 'B'), num('b1', 'B'), num('b2', 'B')];
+    const ex = section(items);
+    settleKeys(ex);
+    expect(rules(ex)).toEqual([]);
+  });
 });
