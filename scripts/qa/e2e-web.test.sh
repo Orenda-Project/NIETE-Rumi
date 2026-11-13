@@ -123,7 +123,7 @@ chk "W13 no feature → portal-smoke (the fallback)" \
     "$(bash "$SH" --print-plan 2>&1 | sed -nE 's/^FEATURE=//p')" "portal-smoke"
 nfeat=$(ls "$ROOT/.claude/qa/web/features/"*.cjs | wc -l | tr -d ' ')
 pa=$(bash "$SH" all --print-plan 2>&1)
-chk "W13b all → one plan per web feature" "$(printf '%s\n' "$pa" | grep -c '^FEATURE=')" "$nfeat"
+chk "W13b all → every web feature planned" "$(printf '%s\n' "$pa" | sed -nE 's/^FEATURE=//p' | sort -u | grep -c .)" "$nfeat"
 chk "W13c all runs in parallel" "$(printf '%s\n' "$pa" | grep -c '^PARALLEL=')" "1"
 chk "W13d all keeps --only per feature" \
     "$(bash "$SH" all --only 'portal-login=PL01' --print-plan 2>&1 | sed -nE 's/^ONLY=(.+)$/\1/p')" "PL01"
@@ -171,6 +171,44 @@ grep -qE '^ +E2E_NO_COMMIT=1 bash "\$0" "\$f" --slot "\$s" --run-id' "$SH" && ok
   || no "W17g real child launch" "$(grep -n 'bash "\$0" "\$f" --slot "\$s"' "$SH")"
 chk "W17h commit-ledger-row.sh is called twice in all: the single-run record + the parallel parent" \
     "$(grep -c 'bash "\$REPO/.claude/qa/engine/bin/commit-ledger-row.sh"' "$SH")" "2"
+
+# W18 — SHARDS (bd-a7upa5): a long feature runs as several children side by side, each a contiguous slice of its
+# scenarios in run order. web-quiz-child-page (261 scenarios) took 3h59m of a 4h03m `all` in ONE slot; E2E_WEB_SHARDS
+# (default web-quiz-child-page=4) splits it. A shard is its own stack: own slot, ports, run dir and database.
+chk "W18 --shard k/n reaches the run" "$(bash "$SH" portal-login --shard 2/4 --print-plan 2>&1 | sed -nE 's/^SHARD=//p')" "2/4"
+bash "$SH" portal-login --shard 5/4 --print-plan >/dev/null 2>&1; chk "W18b a shard past n is refused" "$?" "2"
+bash "$SH" portal-login --shard x --print-plan >/dev/null 2>&1; chk "W18c a malformed shard is refused" "$?" "2"
+chk "W18d all: web-quiz-child-page runs as 4 shards" \
+    "$(printf '%s\n' "$pa" | awk '/^FEATURE=/{f=$0} /^SHARD=/{if (f=="FEATURE=web-quiz-child-page") print $0}' | tr '\n' ' ')" \
+    "SHARD=1/4 SHARD=2/4 SHARD=3/4 SHARD=4/4 "
+chk "W18e all: no other feature is sharded" \
+    "$(printf '%s\n' "$pa" | awk '/^FEATURE=/{f=$0} /^SHARD=./{if (f!="FEATURE=web-quiz-child-page") print f}' | grep -c .)" "0"
+chk "W18f all: the shards start first (longest work first)" \
+    "$(printf '%s\n' "$pa" | sed -nE 's/^FEATURE=//p' | head -4 | sort -u)" "web-quiz-child-page"
+chk "W18g all: every shard has its own run dir" \
+    "$(printf '%s\n' "$pa" | sed -nE 's#^RUN_DIR=.*/(.*)$#\1#p' | sort -u | grep -c .)" "$((nfeat + 3))"
+chk "W18h E2E_WEB_SHARDS=web-quiz-child-page=1 turns sharding off" \
+    "$(E2E_WEB_SHARDS='web-quiz-child-page=1' bash "$SH" all --print-plan 2>&1 | grep -c '^FEATURE=web-quiz-child-page$')" "1"
+chk "W18i E2E_WEB_SHARDS shards any feature" \
+    "$(E2E_WEB_SHARDS='portal-login=2' bash "$SH" portal-login,teacher-lessons --print-plan 2>&1 | grep -c '^FEATURE=')" "3"
+chk "W18j a sharded feature on its own runs its shards in parallel" \
+    "$(bash "$SH" web-quiz-child-page --print-plan 2>&1 | sed -nE 's/^SHARD=(.+)$/\1/p' | tr '\n' ' ')" "1/4 2/4 3/4 4/4 "
+chk "W18k --only is a short run: not sharded" \
+    "$(bash "$SH" web-quiz-child-page --only WQ01,WQ02 --print-plan 2>&1 | grep -c '^FEATURE=')" "1"
+chk "W18l --slot pins one run: not sharded" \
+    "$(bash "$SH" web-quiz-child-page --slot 6 --print-plan 2>&1 | grep -c '^FEATURE=')" "1"
+# the runner's own slice: the shards cover every scenario exactly once, in run order, sizes within one of each other
+cover=$(cd "$ROOT" && node -e "
+const { pick } = require('./.claude/qa/web/web-runner.cjs');
+const all = require('./.claude/qa/web/features/web-quiz-child-page.cjs').scenarios;
+const parts = [1,2,3,4].map((k) => pick(all, [], k + '/4'));
+const ids = parts.flat().map((s) => s.id), sizes = parts.map((p) => p.length);
+const inOrder = ids.join() === all.map((s) => s.id).join();
+console.log(inOrder && Math.max(...sizes) - Math.min(...sizes) <= 1 ? 'covered' : 'bad ' + sizes);
+" 2>&1)
+chk "W18m the 4 shards cover every scenario once, in order, evenly" "$cover" "covered"
+chk "W18n --only then --shard: the slice is of the picked ids" \
+    "$(cd "$ROOT" && node -e "const {pick}=require('./.claude/qa/web/web-runner.cjs');const a=['A','B','C','D','E'].map(id=>({id}));console.log(pick(a,['B','C','D'],'2/2').map(s=>s.id).join())" 2>&1)" "C,D"
 
 # W5 — wired into npm, like e2e:mock.
 chk "W5 npm run e2e:web" "$(node -p "require('$ROOT/package.json').scripts['e2e:web']" 2>/dev/null)" "bash scripts/qa/e2e-web.sh"
