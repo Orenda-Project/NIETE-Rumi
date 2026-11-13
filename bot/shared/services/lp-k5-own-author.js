@@ -23,7 +23,7 @@ async function rewriteK5({ script, answers, edit, lang, grade, subject, dayPages
     });
     const content = (res && res.choices && res.choices[0] && res.choices[0].message.content) || '';
     const next = parseK5Reply(content);
-    const reasons = next ? checkK5Rewrite(script, next, { lang }) : ['the reply was not a JSON plan'];
+    const reasons = next ? checkK5Rewrite(script, next, { lang, resources: !edit && answers ? answers.resources : undefined }) : ['the reply was not a JSON plan'];
     if (!reasons.length) return { script: next, model: useModel, rounds: round };
     log('LP K-5 own: rewrite refused', { round, reasons });
     messages.push({ role: 'assistant', content }, { role: 'user', content: `Refused: ${reasons.join('; ')}. Send the whole plan again, fixed.` });

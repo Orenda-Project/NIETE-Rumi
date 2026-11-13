@@ -17,7 +17,7 @@
  * (hook/Opening → I Do → We Do → You Do → wrap/Check) are fixed. A plan missing any of them, or with one that has no
  * text in it, is refused — the parent before the rewrite (the worker), the rewrite before it is printed (this gate).
  */
-const { SIZES, RESOURCES, LEVELS, WAYS } = require('./lp612-own-instruction');
+const { SIZES, RESOURCES, LEVELS, WAYS, MATERIALS_LINE } = require('./lp612-own-instruction');
 const { GRR_LINE, ROTE_LINE, bookLine } = require('./lp612-own-ways');
 const { pagesLine } = require('./lp-k5-own-pages');
 
@@ -29,6 +29,9 @@ const SECTIONS = ['hook', 'iDo', 'weDo', 'youDo', 'wrap'];
 const NOT_READY_UR = 'یہ حصہ ابھی تیار نہیں ہوا';
 /** Longer than this × her day plan is refused: she reads it on a phone before class. */
 const MAX_GROWTH = 1.3;
+
+/** bd-snkn32.27 — the board, in either language: a plan for a teacher with no board must not use one. */
+const BOARD = /\b(?:black|white|chalk)?board\b|بورڈ|تختہ سیاہ/i;
 
 const isLanguage = (subject) => /^(urdu|english)\b/i.test(String(subject || '').trim());
 const isEarly = (grade) => Number(grade) >= 1 && Number(grade) <= 3;
@@ -59,8 +62,10 @@ function k5Messages({ script, answers, lang, grade, subject, dayPages = null, bo
   const have = a.resources.map((r) => RESOURCES[r]).filter(Boolean).join(', ');
   const lines = [
     `Her class: ${SIZES[a.size]}; ${LEVELS[a.level]}. Grade ${grade}.`,
-    'Class size: with a big class use choral answers, fingers or slates for the checks, and pairs; no activity needs every child to come to the board.',
+    // bd-snkn32.27 — only what she has: no slates (ICT works in the book), the board only when she has one.
+    `Class size: with a big class use choral answers and fingers for the checks, and pairs${a.resources.includes('board') ? '; no activity needs every child to come to the board' : ''}.`,
     `What she has: ${have}. Use nothing else. With no board, point to the picture on the book page instead.`,
+    MATERIALS_LINE,
     'Level: behind means start from the skill they need first, in smaller steps; ahead means add a stretch task; mixed means a two-level You Do.',
     ways.length > 1
       ? `Teaching ways, combined in We Do and You Do: ${ways.map((k) => WAYS[k]).join(' ')}`
@@ -114,7 +119,7 @@ function missingGrr(script) {
 }
 
 /** Reasons to refuse the rewrite; [] passes. */
-function checkK5Rewrite(orig, next, { lang } = {}) {
+function checkK5Rewrite(orig, next, { lang, resources } = {}) {
   if (!next || typeof next !== 'object') return ['no plan'];
   const reasons = missingGrr(next).map((k) => `section ${k} is missing or empty`);
   const steps = next.iDo && next.iDo.steps;
@@ -126,6 +131,10 @@ function checkK5Rewrite(orig, next, { lang } = {}) {
   if (om.day != null && nm.day !== om.day) reasons.push('the day changed');
   const all = strings(next);
   if (all.some((s) => s.includes(NOT_READY_UR))) reasons.push('a part says it is not ready');
+  if (Array.isArray(resources) && !resources.includes('board')) {
+    const used = SECTIONS.flatMap((k) => strings(next[k] || {})).find((s) => BOARD.test(s));
+    if (used) reasons.push(`uses a board she does not have ("${used.slice(0, 60)}"): use the book page instead`);
+  }
   if (lang === 'ur') {
     const said = SECTIONS.flatMap((k) => strings(next[k] || {})).filter((s) => s.trim().length > 12);
     const english = said.filter((s) => !urduEnough(s));
