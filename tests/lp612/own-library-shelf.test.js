@@ -1,9 +1,10 @@
 'use strict';
 /**
- * bd-snkn32.42 — the library and the teacher shelf list an own plan only when the AI reviewer passed it AND a person
+ * bd-snkn32.42 — under the 'ai_and_person' rule, the library and the teacher shelf list an own plan only when the AI reviewer passed it AND a person
  * approved it. The shelf is one chapter's lessons; it and the open never carry her user id or her answers.
  */
 const { createOwnLibrary, SOURCES } = require('../../bot/shared/services/lp612-own-library');
+const PERSON = async () => 'ai_and_person'; // bd-snkn32.46: the person-approval rule, now a switch (default 'ai')
 
 function fakeFrom(result) {
   const calls = { eq: [], is: [] };
@@ -21,7 +22,7 @@ function fakeFrom(result) {
 
 test('the library lists only approved plans', async () => {
   const f = fakeFrom({ data: [{ id: 'o1', user_id: 'u', answers: {} }], error: null });
-  const out = await createOwnLibrary({ from: f.from, log: jest.fn() }).listLibraryOwnPlans();
+  const out = await createOwnLibrary({ from: f.from, log: jest.fn(), rule: PERSON }).listLibraryOwnPlans();
   expect(f.calls.eq).toEqual(expect.arrayContaining([['library_eligible', true], ['library_decision', 'approved'], ['status', 'ready']]));
   expect(out).toEqual([{ id: 'o1', source: 'teacher', tag: SOURCES.teacher }]);
 });
@@ -32,7 +33,7 @@ test('the shelf asks for approved, passed, ready plans on these lessons only, ne
     { id: 'o2', segment_id: 'seg-7', lesson_id: null, lang: 'ur' },
   ];
   const f = fakeFrom({ data: rows, error: null });
-  const out = await createOwnLibrary({ from: f.from, log: jest.fn() }).listShelf({ keys: ['G4_eng_ch1_d1', 'seg-7', 'bad key!'] });
+  const out = await createOwnLibrary({ from: f.from, log: jest.fn(), rule: PERSON }).listShelf({ keys: ['G4_eng_ch1_d1', 'seg-7', 'bad key!'] });
   expect(f.calls.table).toBe('niete_lp612_own_plans');
   expect(f.calls.select).not.toMatch(/user_id|answers/);
   expect(f.calls.eq).toEqual(expect.arrayContaining([['library_eligible', true], ['library_decision', 'approved'], ['status', 'ready']]));
@@ -47,7 +48,7 @@ test('the shelf asks for approved, passed, ready plans on these lessons only, ne
 
 test('no usable lesson: nothing, and nothing read', async () => {
   const f = fakeFrom({ data: [], error: null });
-  const lib = createOwnLibrary({ from: f.from, log: jest.fn() });
+  const lib = createOwnLibrary({ from: f.from, log: jest.fn(), rule: PERSON });
   expect(await lib.listShelf({ keys: [] })).toEqual([]);
   expect(await lib.listShelf({ keys: ['a b'] })).toEqual([]);
   expect(f.calls.table).toBeUndefined();
@@ -56,7 +57,7 @@ test('no usable lesson: nothing, and nothing read', async () => {
 test('a shelf read error is an empty shelf, never a throw', async () => {
   const log = jest.fn();
   const f = fakeFrom({ data: null, error: { message: 'x' } });
-  expect(await createOwnLibrary({ from: f.from, log }).listShelf({ keys: ['s1'] })).toEqual([]);
+  expect(await createOwnLibrary({ from: f.from, log, rule: PERSON }).listShelf({ keys: ['s1'] })).toEqual([]);
   expect(log).toHaveBeenCalled();
 });
 
@@ -67,7 +68,7 @@ const READY = {
 
 test('an approved plan opens for anyone, in the render row shape, without her id', async () => {
   const f = fakeFrom({ data: READY, error: null });
-  const out = await createOwnLibrary({ from: f.from, log: jest.fn() }).shelfStatus('o1');
+  const out = await createOwnLibrary({ from: f.from, log: jest.fn(), rule: PERSON }).shelfStatus('o1');
   expect(f.calls.eq).toEqual([['id', 'o1']]);
   expect(f.calls.select).not.toMatch(/user_id|answers/);
   expect(out).toEqual({
@@ -83,11 +84,11 @@ test.each([
   ['not ready', { status: 'authoring' }],
 ])('%s: does not open', async (_n, patch) => {
   const f = fakeFrom({ data: { ...READY, ...patch }, error: null });
-  expect(await createOwnLibrary({ from: f.from, log: jest.fn() }).shelfStatus('o1')).toBeNull();
+  expect(await createOwnLibrary({ from: f.from, log: jest.fn(), rule: PERSON }).shelfStatus('o1')).toBeNull();
 });
 
 test('no id, no row, or a read error: does not open', async () => {
-  const lib = (r) => createOwnLibrary({ from: fakeFrom(r).from, log: jest.fn() });
+  const lib = (r) => createOwnLibrary({ from: fakeFrom(r).from, log: jest.fn(), rule: PERSON });
   expect(await lib({ data: READY, error: null }).shelfStatus('')).toBeNull();
   expect(await lib({ data: null, error: null }).shelfStatus('o1')).toBeNull();
   expect(await lib({ data: null, error: { message: 'x' } }).shelfStatus('o1')).toBeNull();
