@@ -25,7 +25,12 @@ async function printCard(html, outPdf, { pw = require('playwright-core') } = {})
     const page = await browser.newPage({ viewport: { width: 520, height: 2000 } });
     await page.goto(`file://${file}`, { waitUntil: 'load' });
     await page.emulateMedia({ media: 'print' });
-    const printPx = await page.evaluate(() => { const p = document.querySelector('.page'); return p ? p.scrollHeight : null; });
+    // bd-snkn32.38: scrollHeight rounds a fractional height down (2214.25 → 2214); a page that short pushed the last line
+    // onto a near-blank second page. Take the box's real height, rounded up.
+    const printPx = await page.evaluate(() => {
+      const p = document.querySelector('.page');
+      return p ? Math.max(p.scrollHeight, Math.ceil(p.getBoundingClientRect().height)) : null;
+    });
     // A card longer than 2000px prints whole on one longer page rather than being dropped (sandbox, 7 Nov).
     const h = Math.max(2000, printPx || 0);
     // bd-snkn32.23: the card's CSS fixes @page at 2000px tall, which split a longer card in two; this rule comes last and wins.
