@@ -122,7 +122,8 @@ export const REPORTS_EN = {
     closed: "Observation cancelled",
     missing: (n: number) => (n === 1 ? "1 answer missing" : `${n} answers missing`),
     fixThese: "Fix the marked answers",
-    itemNo: (n: number) => `Item ${n}`,
+    // FDE's own number for an item (operator 13 Nov: no "Item N"); FDE's words for the item sit right under it.
+    itemNo: (n: number) => `${n}`,
     comments: "Comments",
     observations: "Observations",
     feedbackLine: "Feedback for the teacher",
@@ -325,7 +326,7 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
     closed: "مشاہدہ منسوخ",
     missing: (n: number) => `${n} جواب باقی`,
     fixThese: "باقی جواب مکمل کریں",
-    itemNo: (n: number) => `آئٹم ${n}`,
+    itemNo: (n: number) => String(n).replace(/[0-9]/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]),
     comments: "تبصرے",
     observations: "مشاہدات",
     feedbackLine: "استاد کے لیے فیڈبیک",

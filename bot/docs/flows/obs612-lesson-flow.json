@@ -1,0 +1,367 @@
+{
+  "version": "7.0",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "CLASS": [
+      "GRADE"
+    ],
+    "GRADE": [
+      "SUBJECT",
+      "SUCCESS"
+    ],
+    "SUBJECT": [
+      "SUCCESS"
+    ],
+    "SUCCESS": []
+  },
+  "screens": [
+    {
+      "id": "CLASS",
+      "title": "Plan my visit · وزٹ پلان",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Which class is Ms Nadia's lesson?"
+        },
+        "lbl": {
+          "type": "string",
+          "__example__": "Class"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "primary",
+              "title": "Primary",
+              "description": "Grades 1 to 5 · FICO form"
+            },
+            {
+              "id": "middle",
+              "title": "Middle",
+              "description": "Grades 6 to 8 · FDE's own tool"
+            },
+            {
+              "id": "high",
+              "title": "High",
+              "description": "Grades 9 to 12 · FICO form"
+            }
+          ]
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Continue"
+        },
+        "note": {
+          "type": "string",
+          "__example__": "The class and subject choose the observation form."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "class_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.note}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "band",
+                "label": "${data.lbl}",
+                "required": true,
+                "data-source": "${data.options}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "class",
+                    "band": "${form.band}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "GRADE",
+      "title": "Plan my visit · وزٹ پلان",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Which grade?"
+        },
+        "lbl": {
+          "type": "string",
+          "__example__": "Grade"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "6",
+              "title": "Grade 6"
+            },
+            {
+              "id": "7",
+              "title": "Grade 7"
+            },
+            {
+              "id": "8",
+              "title": "Grade 8"
+            }
+          ]
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Continue"
+        },
+        "band_name": {
+          "type": "string",
+          "__example__": "Middle"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "grade_form",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.band_name}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "grade",
+                "label": "${data.lbl}",
+                "required": true,
+                "data-source": "${data.options}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "grade",
+                    "grade": "${form.grade}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUBJECT",
+      "title": "Plan my visit · وزٹ پلان",
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "Which subject?"
+        },
+        "lbl": {
+          "type": "string",
+          "__example__": "Subject"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "english",
+              "title": "English"
+            },
+            {
+              "id": "urdu",
+              "title": "Urdu"
+            },
+            {
+              "id": "maths",
+              "title": "Maths"
+            },
+            {
+              "id": "science",
+              "title": "Science",
+              "description": "General science, physics, chemistry, biology"
+            },
+            {
+              "id": "social_studies",
+              "title": "Social Studies"
+            },
+            {
+              "id": "islamiat",
+              "title": "Islamiat"
+            },
+            {
+              "id": "computer",
+              "title": "Computer"
+            },
+            {
+              "id": "other",
+              "title": "Other"
+            }
+          ]
+        },
+        "next_label": {
+          "type": "string",
+          "__example__": "Start the visit"
+        },
+        "grade_name": {
+          "type": "string",
+          "__example__": "Grade 7"
+        },
+        "grade": {
+          "type": "string",
+          "__example__": "7"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "subject_form",
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "${data.grade_name}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "subject",
+                "label": "${data.lbl}",
+                "required": true,
+                "data-source": "${data.options}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.next_label}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "step": "subject",
+                    "grade": "${data.grade}",
+                    "subject": "${form.subject}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS",
+      "title": "Plan my visit · وزٹ پلان",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "extension_message_response": {
+          "type": "object",
+          "properties": {
+            "params": {
+              "type": "object",
+              "properties": {
+                "obs612_lesson": {
+                  "type": "string"
+                },
+                "tap": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "__example__": {
+            "params": {
+              "obs612_lesson": "named",
+              "tap": "o612:s:o:abc123:7:science"
+            }
+          }
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "✅"
+          },
+          {
+            "type": "Footer",
+            "label": "Done",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {
+                "obs612_lesson": "named"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

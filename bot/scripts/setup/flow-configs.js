@@ -312,6 +312,28 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
+    // bd-ra8xu.50 — the FICO17 v6 coach's own copy of the /observe2 check: level names with the rubric's text, no
+    // N/A or Couldn't tell, no D2 count boxes. Sent only for a v6 visit; the shared check is untouched. Same endpoint.
+    // Regenerate the JSON with bot/scripts/generate-observe2-flow-json.js.
+    name: 'Observe2 Check v6 Coach',
+    jsonPath: path.join(FLOWS_DIR, 'observe2-evidence-check-v6.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/observe2-check',
+    envVar: 'OBSERVE2_CHECK_V6_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
+    // bd-ra8xu.50 — "Plan my visit": the lesson's class → grade → subject, sent instead of the two chat lists to a
+    // coach with obs612_coach on (the shared visit Flow is untouched). Regenerate the JSON with
+    // bot/scripts/generate-obs612-flow-json.js (it writes both FDE Flows).
+    name: 'Obs 6-12 Lesson Class',
+    jsonPath: path.resolve(__dirname, '../../docs/flows/obs612-lesson-flow.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/obs612-lesson',
+    envVar: 'OBS612_LESSON_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
     // Child test — the coach confirms or corrects the AI's marks for one child, one
     // pre-filled screen per block (Urdu, English, maths). Sandbox only for now: register it with
     // bot/scripts/setup/register-child-test-check-flow.js, which refuses any other account.

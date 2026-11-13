@@ -59,14 +59,15 @@ const L = PACK.key === 'hots' ? {
     done: 'مکمل · Done',
   },
 } : IS_V6 ? {
-  // bd-ra8xu.38 — FICO17 v6. Section B keeps V3's labels; C/D/F are built by v6DomainScreen below.
+  // bd-ra8xu.38 — FICO17 v6. Section B keeps V3's labels; the rest are built by v6Screens below.
   scale: PACK.scaleOptions,
   evidence: 'Evidence',
   evidenceHelp: (id) => `${id} — what was seen`,
   improve: 'To improve',
   improveHelp: (id) => `${id} — to improve`,
-  body: (i, n) => `Part ${i}/${n} — review the score & note, edit as you see fit`,
-  screenTitle: (d, i, n) => `FICO17 Review ${i}/${n}`,
+  body: () => 'Lesson-plan steps: change any you saw differently. Then the 17 indicators, one per screen.',
+  // 13 Nov: one title on all 21 screens; where the coach is shows in each screen's own caption.
+  screenTitle: () => 'FICO17 review · جائزہ',
   next: 'Next',
   submit: 'Submit observation',
   success: {
@@ -146,7 +147,9 @@ function domainScreen(key, idx) {
         : `${d.displayName || d.title_en} · sehemu ${idx + 1}/${DOMAIN_ORDER.length} — hakiki alama na maoni, badilisha unavyoona inafaa.` },
   ];
   const initValues = {};
-  const payload = { _screen: screenId(key) };
+  // v6 (13 Nov): Section B of the one-indicator-per-screen Flow says which Flow it is, so a coach still on the old
+  // 5-screen Flow (opened before the republish, or the window between deploy and republish) keeps its old screens.
+  const payload = { _screen: screenId(key), ...(IS_V6 ? { v6f: require('../shared/services/observe/observe-fico17-v6').FORM_VERSION } : {}) };
   const data = {
     ...(idx === 0 ? { scored_with: { type: 'string', __example__: 'FICO V3' } } : {}),
     scale: {
@@ -276,99 +279,121 @@ function domainScreen(key, idx) {
   };
 }
 
-// bd-ra8xu.38 — a v6 C/D/F screen. Combined indicators (C3 C5 C7 D2 D3 D4): the DC's evidence, a level the
-// coach sets (required, NEVER pre-selected) and a required reason (≥ 20 characters, checked by the endpoint);
-// D2 adds two counts. DC indicators: Rumi's level pre-filled, evidence and to-improve as V3; one "Why you
-// changed" box per screen, required by the endpoint when a pre-filled level was changed.
-function v6DomainScreen(key, idx) {
-  const v6 = require('../shared/services/coaching/frameworks/fico17-v6');
-  const O6 = require('../shared/services/observe/observe-fico17-v6');
-  const d = domains[key];
-  const letter = d.key;
-  const isLast = idx === DOMAIN_ORDER.length - 1;
-  const initValues = {};
-  const payload = { _screen: screenId(key) };
-  const data = {
-    ...(idx === 0 ? { scored_with: { type: 'string', __example__: 'FICO17 v6' } } : {}),
-    err_v: { type: 'boolean', __example__: false },
-    err_note: { type: 'string', __example__: 'Please fix these before you go on:\n• Who got to answer: Choose a level.' },
-  };
-  const children = [
-    { type: 'TextHeading', text: `${letter}. ${d.title}` },
-    { type: 'TextBody', text: '${data.err_note}', visible: '${data.err_v}' },
-    { type: 'TextBody', text: `Part ${idx + 1}/${DOMAIN_ORDER.length} — Rumi's levels are filled in: change any you saw differently and say why. Set the room levels yourself, with a reason.` },
-  ];
-  if (idx === 0) children.unshift({ type: 'TextCaption', text: '${data.scored_with}' });
-  const field = (name) => { payload[name] = `\${form.${name}}`; };
-  for (const ind of d.indicators) {
-    const code = ind.id;
-    const meta = v6.indicator(code);
-    if (v6.isCombined(code)) {
-      data[`cb_${code}`] = { type: 'string', __example__: `${meta.definition}\n\n05:10  "Ali, what do you think?"\n\nCoach adds: ${meta.coach_adds}` };
-      data[`w_${code}`] = { type: 'string', __example__: '' };
-      children.push({ type: 'TextSubheading', text: `${code} — ${meta.name}` });
-      children.push({ type: 'TextBody', text: `\${data.cb_${code}}` });
-      if (code === 'D2') {
-        children.push({
-          type: 'TextInput', name: 'd2_children', label: 'Children who spoke', 'input-type': 'number', required: true,
-          'helper-text': 'Count each child once, whole lesson. Not chorus.',
-        });
-        children.push({
-          type: 'TextInput', name: 'd2_quiet_later', label: 'Quiet, then spoke', 'input-type': 'number', required: true,
-          'helper-text': 'Silent in the first half, spoke in the second',
-        });
-        field('d2_children');
-        field('d2_quiet_later');
-      }
-      children.push({
-        type: 'RadioButtonsGroup', name: `r_${code}`, label: clipLabel(`${code} — ${meta.name}`, 30),
-        required: true, 'data-source': O6.optionsFor(code),
-      });
-      children.push({
-        type: 'TextArea', name: `why_${code}`, label: 'Why this level', required: true, 'max-length': 600,
-        'helper-text': "What you saw, and how it fits the DC's evidence",
-      });
-      initValues[`why_${code}`] = `\${data.w_${code}}`;
-      field(`r_${code}`);
-      field(`why_${code}`);
-    } else {
-      data[`s_${code}`] = { type: 'string', __example__: '2' };
-      data[`e_${code}`] = { type: 'string', __example__: 'Two open questions, each answered · 12:40 "How did you work that out?"' };
-      data[`i_${code}`] = { type: 'string', __example__: '' };
-      children.push({
-        type: 'RadioButtonsGroup', name: `r_${code}`, label: clipLabel(`${code} — ${meta.name}`, 30),
-        description: v6.clip(`${meta.name}. ${meta.definition}`, 300), required: true, 'data-source': O6.optionsFor(code),
-      });
-      children.push({ type: 'TextArea', name: `ev_${code}`, label: L.evidence, 'helper-text': `${code} — what Rumi heard; edit if needed`, required: false });
-      children.push({ type: 'TextArea', name: `imp_${code}`, label: L.improve, 'helper-text': L.improveHelp(code), required: false });
-      initValues[`r_${code}`] = `\${data.s_${code}}`;
-      initValues[`ev_${code}`] = `\${data.e_${code}}`;
-      initValues[`imp_${code}`] = `\${data.i_${code}}`;
-      field(`r_${code}`);
-      field(`ev_${code}`);
-      field(`imp_${code}`);
-    }
-  }
-  data[`wc_${letter}`] = { type: 'string', __example__: '' };
-  children.push({
-    type: 'TextArea', name: `chg_${letter}`, label: 'Why you changed', required: false, 'max-length': 600,
-    'helper-text': 'Needed if you changed a level Rumi set',
-  });
-  initValues[`chg_${letter}`] = `\${data.wc_${letter}}`;
-  field(`chg_${letter}`);
-  children.push({ type: 'Footer', label: isLast ? L.submit : L.next, 'on-click-action': { name: 'data_exchange', payload } });
+// ── FICO17 v6 coach form, one indicator per screen (operator 13 Nov) ─────────
+// DOMAIN_B, then per section a no-input intro and one screen per indicator (observe-fico17-v6.js SCREENS). Every
+// word on these screens is ${data.*} from the endpoint in the coach's language (English, or the Urdu draft), and the
+// level choices are the endpoint's too (the level name, the rubric sheet's text under it; no N/A, no Couldn't tell).
+const V6_STR = (example) => ({ type: 'string', __example__: example });
+const V6_TITLE = 'FICO17 review · جائزہ';
+
+function v6IntroScreen(letter) {
+  const id = `INTRO_${letter}`;
   return {
-    id: screenId(key),
-    title: L.screenTitle(d, idx + 1, DOMAIN_ORDER.length).slice(0, 30),
-    data,
+    id,
+    title: V6_TITLE,
+    data: {
+      heading: V6_STR('Section C · What the teacher does'),
+      count_line: V6_STR('8 indicators, one per screen.'),
+      list: V6_STR('C1  Quality of Questions Asked by the Teacher\nC3  Who got to answer  (room)'),
+      note: V6_STR('Rumi has set the level for 5 of them from the recording: check each one.'),
+      next_label: V6_STR('Start Section C'),
+    },
     layout: {
       type: 'SingleColumnLayout',
-      children: [{ type: 'Form', name: `form_${letter}`, 'init-values': initValues, children }],
+      children: [
+        { type: 'TextHeading', text: '${data.heading}' },
+        { type: 'TextBody', text: '${data.count_line}' },
+        { type: 'TextBody', text: '${data.list}' },
+        { type: 'TextBody', text: '${data.note}' },
+        { type: 'Footer', label: '${data.next_label}', 'on-click-action': { name: 'data_exchange', payload: { _screen: id } } },
+      ],
     },
   };
 }
 
-const screens = DOMAIN_ORDER.map((k, i) => (IS_V6 && k !== 'lesson_plan_fidelity' ? v6DomainScreen(k, i) : domainScreen(k, i)));
+function v6IndicatorScreen(code) {
+  const v6 = require('../shared/services/coaching/frameworks/fico17-v6');
+  const O6 = require('../shared/services/observe/observe-fico17-v6');
+  const id = O6.screenOf(code);
+  const meta = v6.indicator(code);
+  const combined = v6.isCombined(code);
+  const data = {
+    progress: V6_STR('Section C · 1 of 8'),
+    heading: V6_STR(`${code} · ${meta.name}`),
+    definition: V6_STR(meta.definition),
+    err_v: { type: 'boolean', __example__: false },
+    err_note: V6_STR('Please fix these before you go on:\n• Choose a level.'),
+    opts: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' } } }, __example__: v6.coachLevelOptions(code, 'en') },
+    lbl_level: V6_STR(combined ? 'Level · you choose' : 'Level'),
+    next_label: V6_STR('Next'),
+    init: { type: 'object', __example__: combined ? { [`why_${code}`]: '' } : { [`r_${code}`]: '2', [`ev_${code}`]: '', [`imp_${code}`]: '', [`chg_${code}`]: '' } },
+  };
+  const kids = [
+    { type: 'TextCaption', text: '${data.progress}' },
+    { type: 'TextHeading', text: '${data.heading}' },
+    { type: 'TextBody', text: '${data.definition}' },
+    { type: 'TextBody', text: '${data.err_note}', visible: '${data.err_v}' },
+  ];
+  const payload = { _screen: id, [`r_${code}`]: `\${form.r_${code}}` };
+  if (combined) {
+    Object.assign(data, {
+      from_rec: V6_STR('From the recording'),
+      evidence: V6_STR('05:10  "Ali, what do you think?"'),
+      coach_adds: V6_STR(`Coach adds: ${meta.coach_adds}`),
+      lbl_why: V6_STR('Why this level'),
+      help_why: V6_STR('At least 20 characters: what you saw in the room.'),
+    });
+    kids.push(
+      { type: 'TextSubheading', text: '${data.from_rec}' },
+      { type: 'TextBody', text: '${data.evidence}' },
+      { type: 'TextBody', text: '${data.coach_adds}' },
+      { type: 'RadioButtonsGroup', name: `r_${code}`, label: '${data.lbl_level}', required: true, 'data-source': '${data.opts}' },
+      { type: 'TextArea', name: `why_${code}`, label: '${data.lbl_why}', required: true, 'max-length': 600, 'helper-text': '${data.help_why}' },
+    );
+    payload[`why_${code}`] = `\${form.why_${code}}`;
+  } else {
+    Object.assign(data, {
+      rumi_note: V6_STR('Rumi chose Developing from the recording. Change it if you saw something different.'),
+      lbl_ev: V6_STR('Evidence'),
+      help_ev: V6_STR('What Rumi heard; edit if needed'),
+      lbl_imp: V6_STR('To improve'),
+      help_imp: V6_STR('What the teacher could do next time'),
+      lbl_chg: V6_STR('Why you changed'),
+      help_chg: V6_STR("Only if you changed Rumi's level (20+ characters)."),
+    });
+    kids.push(
+      { type: 'TextBody', text: '${data.rumi_note}' },
+      { type: 'RadioButtonsGroup', name: `r_${code}`, label: '${data.lbl_level}', required: true, 'data-source': '${data.opts}' },
+      { type: 'TextArea', name: `ev_${code}`, label: '${data.lbl_ev}', required: false, 'max-length': 600, 'helper-text': '${data.help_ev}' },
+      { type: 'TextArea', name: `imp_${code}`, label: '${data.lbl_imp}', required: false, 'max-length': 600, 'helper-text': '${data.help_imp}' },
+      { type: 'TextArea', name: `chg_${code}`, label: '${data.lbl_chg}', required: false, 'max-length': 600, 'helper-text': '${data.help_chg}' },
+    );
+    for (const f of ['ev', 'imp', 'chg']) payload[`${f}_${code}`] = `\${form.${f}_${code}}`;
+  }
+  kids.push({ type: 'Footer', label: '${data.next_label}', 'on-click-action': { name: 'data_exchange', payload } });
+  return {
+    id,
+    title: V6_TITLE,
+    data,
+    layout: {
+      type: 'SingleColumnLayout',
+      children: [{ type: 'Form', name: `form_${code}`, 'init-values': '${data.init}', children: kids }],
+    },
+  };
+}
+
+function v6Screens() {
+  const O6 = require('../shared/services/observe/observe-fico17-v6');
+  return O6.SCREENS.map((id) => {
+    if (id === 'DOMAIN_B') return domainScreen('lesson_plan_fidelity', 0);
+    const info = O6.screenInfo(id);
+    return info.kind === 'intro' ? v6IntroScreen(info.letter) : v6IndicatorScreen(info.code);
+  });
+}
+
+const screens = IS_V6
+  ? v6Screens()
+  : DOMAIN_ORDER.map((k, i) => domainScreen(k, i));
 screens.push({
   id: 'SUCCESS',
   title: L.success.title,
@@ -395,12 +420,18 @@ screens.push({
 
 // forward-only routing model (bd-1248)
 const routing_model = {};
-DOMAIN_ORDER.forEach((k, i) => {
-  routing_model[screenId(k)] = [i < DOMAIN_ORDER.length - 1 ? screenId(DOMAIN_ORDER[i + 1]) : 'SUCCESS'];
-});
+if (IS_V6) {
+  const ids = screens.map((s) => s.id);
+  ids.forEach((id, i) => { routing_model[id] = [i < ids.length - 1 ? ids[i + 1] : 'SUCCESS']; });
+} else {
+  DOMAIN_ORDER.forEach((k, i) => {
+    routing_model[screenId(k)] = [i < DOMAIN_ORDER.length - 1 ? screenId(DOMAIN_ORDER[i + 1]) : 'SUCCESS'];
+  });
+}
 routing_model.SUCCESS = [];
 
-const flow = { version: '6.3', data_api_version: '3.0', routing_model, screens };
+// v6 (13 Nov): Flow JSON 7.0, as the FDE form already live on this deployment (Footer outside a Form on the intros).
+const flow = { version: IS_V6 ? '7.0' : '6.3', data_api_version: '3.0', routing_model, screens };
 
 const out = path.join(__dirname, `../docs/flows/observe-${PACK.key}-flow.json`);
 fs.writeFileSync(out, JSON.stringify(flow, null, 2) + '\n');
