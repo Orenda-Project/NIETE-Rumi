@@ -942,6 +942,73 @@ describe('the class roster', () => {
   });
 });
 
+describe('fixing a child\'s name (bd-mx822w)', () => {
+  async function aClassWith(name = 'Fatma Noor') {
+    const { class: cls } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_4', section: 'A',
+      sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: TEACHER, subjectCodes: ['maths'] });
+    const { student } = await svc.addStudent({ classId: cls.id, teacherUserId: TEACHER, studentName: name, rollNumber: 3 });
+    return { cls, student };
+  }
+
+  it('changes the name only: same child, same roll no, same enrolment', async () => {
+    const { cls, student } = await aClassWith();
+    const res = await svc.renameStudent({ classId: cls.id, teacherUserId: TEACHER, studentId: student.id, name: '  Fatima Noor ' });
+
+    expect(res).toEqual({ renamed: true, studentName: 'Fatima Noor' });
+    expect(mockDb._tables.students).toHaveLength(1);
+    expect(mockDb._tables.students[0].student_name).toBe('Fatima Noor');
+    expect(mockDb._tables.class_enrollments).toHaveLength(1);
+    expect(mockDb._tables.class_enrollments[0]).toMatchObject({ student_id: student.id, roll_number: 3, is_active: true });
+    const seen = await svc.listStudents({ classId: cls.id, teacherUserId: TEACHER });
+    expect(seen.map((s) => [s.studentName, s.rollNumber])).toEqual([['Fatima Noor', 3]]);
+  });
+
+  it('any teacher on the class may fix it; a stranger may not', async () => {
+    const { cls, student } = await aClassWith();
+    await expect(svc.renameStudent({ classId: cls.id, teacherUserId: 'stranger', studentId: student.id, name: 'X' }))
+      .resolves.toMatchObject({ error: 'not_assigned' });
+    await svc.assignTeacher({ classId: cls.id, teacherUserId: OTHER_TEACHER, subjectCodes: ['urdu'] });
+    await expect(svc.renameStudent({ classId: cls.id, teacherUserId: OTHER_TEACHER, studentId: student.id, name: 'Fatima' }))
+      .resolves.toMatchObject({ renamed: true });
+    expect(mockDb._tables.students[0].student_name).toBe('Fatima');
+  });
+
+  it('never renames a child who is not on this class (another class, or removed)', async () => {
+    const { cls, student } = await aClassWith();
+    const { class: other } = await svc.createClass({
+      schoolId: SCHOOL, gradeCode: 'grade_5', section: 'A', sessionCode: '2026-2027', teacherUserId: TEACHER,
+    });
+    await svc.assignTeacher({ classId: other.id, teacherUserId: TEACHER, subjectCodes: ['maths'] });
+    await expect(svc.renameStudent({ classId: other.id, teacherUserId: TEACHER, studentId: student.id, name: 'X' }))
+      .resolves.toMatchObject({ error: 'not_enrolled' });
+
+    await svc.removeStudent({ classId: cls.id, teacherUserId: TEACHER, studentId: student.id });
+    await expect(svc.renameStudent({ classId: cls.id, teacherUserId: TEACHER, studentId: student.id, name: 'X' }))
+      .resolves.toMatchObject({ error: 'not_enrolled' });
+    expect(mockDb._tables.students[0].student_name).toBe('Fatma Noor');
+  });
+
+  it('refuses an empty name or one over 100 characters, and leaves the old one', async () => {
+    const { cls, student } = await aClassWith();
+    await expect(svc.renameStudent({ classId: cls.id, teacherUserId: TEACHER, studentId: student.id, name: '   ' }))
+      .resolves.toMatchObject({ error: 'missing_name' });
+    await expect(svc.renameStudent({ classId: cls.id, teacherUserId: TEACHER, studentId: student.id, name: 'a'.repeat(101) }))
+      .resolves.toMatchObject({ error: 'name_too_long' });
+    await expect(svc.renameStudent({ classId: cls.id, teacherUserId: TEACHER, studentId: student.id, name: 'a'.repeat(100) }))
+      .resolves.toMatchObject({ renamed: true });
+  });
+
+  it('a failed write says so', async () => {
+    const { cls, student } = await aClassWith();
+    mockDb._failOn('students', 'write boom');
+    await expect(svc.renameStudent({ classId: cls.id, teacherUserId: TEACHER, studentId: student.id, name: 'Fatima' }))
+      .resolves.toMatchObject({ error: 'update_failed' });
+  });
+});
+
 describe('adding a whole class at once', () => {
   // The attendance flow carries this lesson in its own source: the version it
   // replaced added one student per screen round-trip, "which is why no class was
@@ -1041,6 +1108,42 @@ describe('adding a whole class at once', () => {
     const cls = await aClass();
     const res = await svc.addStudents({ classId: cls.id, teacherUserId: 'stranger', rawText: 'Ayesha Bibi' });
     expect(res).toMatchObject({ error: 'not_assigned' });
+    expect(mockDb._tables.students).toHaveLength(0);
+  });
+
+  // The portal's add-students screen sends one name per row, not a paste. A row is
+  // already one child, so nothing in it is parsed: a comma stays in the name rather
+  // than becoming a father's name, and a leading number is part of what she typed.
+  it('takes a list of names exactly as typed, one child per row', async () => {
+    const cls = await aClass();
+    const res = await svc.addStudents({
+      classId: cls.id, teacherUserId: TEACHER,
+      names: ['Ayesha Bibi', '  Khan, Bilal  ', '7up Ali'],
+    });
+
+    expect(res.error).toBeUndefined();
+    expect(res.added).toBe(3);
+    const kids = mockDb._tables.students;
+    expect(kids.map((k) => k.student_name).sort()).toEqual(['7up Ali', 'Ayesha Bibi', 'Khan, Bilal']);
+    expect(kids.every((k) => k.father_name === null)).toBe(true);
+  });
+
+  it('numbers a list of names after the roster already there, skipping blank rows', async () => {
+    const cls = await aClass();
+    await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, rawText: 'Ayesha Bibi' });
+    const res = await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, names: ['Bilal Ahmed', '', '   ', 'ayesha bibi', 'Fatima Noor'] });
+
+    expect(res.added).toBe(2);
+    expect(res.duplicates).toBe(1);
+    const roll = (await svc.listStudents({ classId: cls.id, teacherUserId: TEACHER }))
+      .map((s) => [s.studentName, s.rollNumber]);
+    expect(roll).toEqual([['Ayesha Bibi', 1], ['Bilal Ahmed', 2], ['Fatima Noor', 3]]);
+  });
+
+  it('rejects a list with no names in it', async () => {
+    const cls = await aClass();
+    const res = await svc.addStudents({ classId: cls.id, teacherUserId: TEACHER, names: ['', '  '] });
+    expect(res).toMatchObject({ error: 'no_names' });
     expect(mockDb._tables.students).toHaveLength(0);
   });
 });

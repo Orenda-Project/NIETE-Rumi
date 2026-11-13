@@ -1,8 +1,9 @@
 import type { TeacherRoute } from '../routes';
 import { AddClassPage } from './AddClassPage';
+import { AddStudentsPage } from './AddStudentsPage';
 import { ClassDetailPage } from './ClassDetailPage';
 import { MyClassesPage } from './MyClassesPage';
-import { CLASSES_ADD, CLASSES_HOME, CLASS_DETAIL } from './paths';
+import { CLASSES_ADD, CLASSES_HOME, CLASS_ADD_STUDENTS, CLASS_DETAIL } from './paths';
 
 /**
  * bd-fmf24g.8 — the teacher v2 My Classes pages (each flag-gated by App's TeacherGate). With the main page
@@ -12,6 +13,7 @@ const routes: TeacherRoute[] = [
   { path: CLASSES_HOME, element: <MyClassesPage /> },
   { path: CLASSES_ADD, element: <AddClassPage /> },
   { path: CLASS_DETAIL, element: <ClassDetailPage /> },
+  { path: CLASS_ADD_STUDENTS, element: <AddStudentsPage /> },
 ];
 
 export default routes;

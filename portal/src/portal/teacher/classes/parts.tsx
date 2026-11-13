@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { School } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FOCUS } from '../ui/styles';
 import { CLASSES } from './copy';
@@ -55,4 +56,13 @@ export function LoadFailed({ onRetry }: { onRetry: () => void }) {
 /** A quiet card for "nothing here yet". */
 export function EmptyCard({ children }: { children: ReactNode }) {
   return <p className="rounded-2xl border border-dashed border-[#d1d5db] bg-white p-5 text-center text-[15px] text-[#6b7280]">{children}</p>;
+}
+
+/** bd-pqx8h9 — a class's tile: its grade number, or a school icon for early years (no number to show). */
+export function ClassTile({ grade }: { grade: number | null }) {
+  return (
+    <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-[#eef2ff] text-[18px] font-extrabold tabular-nums text-[#33374a]">
+      {grade ?? <School className="h-6 w-6" />}
+    </span>
+  );
 }
