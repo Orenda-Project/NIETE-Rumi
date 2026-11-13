@@ -86,7 +86,7 @@ async function attachOwnPlan(sessionId, ownId, deps = {}) {
   const resolveKey = deps.resolveKey || OwnPlans.resolveKey;
   const queueExtraction = deps.queueExtraction
     || ((sid, meta) => require('../coaching-job-queue.service').queueLessonPlanExtraction(sid, meta));
-  const publicUrl = deps.publicUrl || ((k) => require('../../r2.service').buildR2PublicUrl(k));
+  const publicUrl = deps.publicUrl || ((k) => require('../../../storage/r2').buildR2PublicUrl(k));
 
   const { data: session } = await supabase
     .from('coaching_sessions').select('user_id').eq('id', sessionId).maybeSingle();
