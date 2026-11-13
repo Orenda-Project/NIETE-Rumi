@@ -107,6 +107,9 @@ const {
   PORTAL_TEACHER_HOME_ORDER_KEY,
   PORTAL_TEACHER_HOME_LOOK_KEY,
   PORTAL_LP_MAKE_OWN_KEY,
+  PORTAL_LP_OWN_SHELF_KEY,
+  PORTAL_LP_OWN_REVIEWERS_KEY,
+  isUserListedInFlag,
   PORTAL_HELP_VIDEOS_KEY,
   PORTAL_COACHIP_KEY,
   PORTAL_COACHIP_DECODE_KEY,
@@ -9223,6 +9226,8 @@ router.get('/config', async (req, res) => {
       principalApp,
       lpMakeOwnRaw,
       helpVideosRaw,
+      lpOwnShelfRaw,
+      lpOwnReviewer,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9271,6 +9276,9 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_LP_MAKE_OWN_KEY, userId),
       // bd-ik5e8j.4 — the help videos ("?" + More → How to use), per user; it rides with the teacher app v2 on.
       isFlagEnabledForUser(supabase, PORTAL_HELP_VIDEOS_KEY, userId),
+      // bd-snkn32.42 — the "Made by a teacher" shelf (rides with the teacher app v2) and its reviewers (list-only).
+      isFlagEnabledForUser(supabase, PORTAL_LP_OWN_SHELF_KEY, userId),
+      isUserListedInFlag(supabase, PORTAL_LP_OWN_REVIEWERS_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -9305,6 +9313,8 @@ router.get('/config', async (req, res) => {
         principalApp,
         lpMakeOwn: teacherV2 && lpMakeOwnRaw,
         helpVideos: teacherV2 && helpVideosRaw,
+        lpOwnShelf: teacherV2 && lpOwnShelfRaw,
+        lpOwnReviewer,
       },
     });
   } catch (error) {
@@ -9338,6 +9348,8 @@ router.get('/config', async (req, res) => {
         principalApp: false,
         lpMakeOwn: false,
         helpVideos: false,
+        lpOwnShelf: false,
+        lpOwnReviewer: false,
       },
       roleSwitchRoles: [],
     });

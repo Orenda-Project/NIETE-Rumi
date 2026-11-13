@@ -346,3 +346,36 @@ Feature: Teacher lesson plans
     And she has picked a lesson and "Cover more in one period"
     When she picks a different lesson
     Then "No, just these pages" is chosen again, so a choice made for one lesson never rides on another
+
+  # bd-snkn32.42 — "Made by a teacher": a teacher's own plan is listed for others only when the AI reviewer passed it
+  # AND a person approved it. Behind app_settings `portal_lp_own_shelf` (the shelf) and `portal_lp_own_reviewers` (a
+  # list of user ids who may approve). Hand-written like the blocks above (@draft: the demo stack cannot set either key).
+  # Proof: portal/src/portal/teacher/lessons/shelf/*.test.tsx, tests/lp612/own-approval.test.js,
+  # tests/portal/lp612-shelf-route.test.js. Carry this block over on a regenerate.
+
+  @SHF01 @draft @config-gated
+  Scenario: A reviewer approves an AI-passed plan, and it appears under "Made by a teacher"
+    Given portal_lp_own_reviewers lists demo teacher 03000000939 and portal_lp_own_shelf is on for her
+    And a teacher's own plan on a chapter's lesson passed the AI reviewer
+    When she opens /portal/teacher/lessons/check
+    Then the plan shows its lesson, its score, the checks rated below 3, the checks not assessed at its grade, and Open the PDF
+    When she taps Approve
+    Then the card reads "Approved"
+    When she opens that chapter's lesson plans
+    Then "Made by a teacher" follows the ready plans and lists the plan by its lesson, never by who made it
+    When she taps it
+    Then it opens on Preparing and then the viewer, as her own plans do
+
+  @SHF02 @draft @config-gated
+  Scenario: A rejection needs a reason, and a rejected plan is never listed
+    Given portal_lp_own_reviewers lists demo teacher 03000000939
+    When she opens /portal/teacher/lessons/check and taps Reject on a plan
+    Then "Reject this plan" is disabled until she writes a reason
+    When she writes a reason and sends it
+    Then the card reads "Rejected" and the plan does not appear under "Made by a teacher"
+
+  @SHF03 @draft @config-gated
+  Scenario: Someone not listed cannot reach the check
+    Given portal_lp_own_reviewers does not list demo teacher 03000000911
+    When she opens /portal/teacher/lessons/check
+    Then she lands on Lesson Plans, and the review API answers 404
