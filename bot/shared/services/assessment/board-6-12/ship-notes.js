@@ -6,6 +6,7 @@
  */
 const MR = require('./mcq-review');
 const MM = require('../board-checks/method-marks');
+const LT = require('./last-try');
 
 const SHIPPED = [{ check: MM.id, name: MM.name, msg: MM.MSG }];
 
@@ -35,4 +36,20 @@ function finalSoften(checks, groups) {
   return checks;
 }
 
-module.exports = { SHIPPED, release, finalSoften };
+/**
+ * bd-qyi45h.13: the try a still-failing paper keeps. Every try gets the same final soften first (a rewrite's held
+ * review flags used to count as hard, so an over-cap restore beat a rewrite that could ship). Then: a clean try, else
+ * one that ships on the last try within the cap, else the fewest hard issues; the earlier try wins a tie.
+ */
+function pickLast(tries, { grade, slots, shortOf, groupsOf }) {
+  tries.forEach((t) => finalSoften(t.checks, groupsOf(t.ex)));
+  const rank = (t) => {
+    const short = shortOf(t.ex);
+    if (!t.checks.shortfall.length && !short.length) return 0;
+    return LT.canShip(t.checks, { grade, slotsShort: short }) && !LT.overCap(t.checks, slots) ? 1 : 2;
+  };
+  const ranked = tries.map((t) => ({ t, r: rank(t) }));
+  return ranked.reduce((a, b) => (b.r < a.r || (b.r === a.r && b.t.checks.record.hard < a.t.checks.record.hard) ? b : a)).t;
+}
+
+module.exports = { SHIPPED, release, finalSoften, pickLast };
