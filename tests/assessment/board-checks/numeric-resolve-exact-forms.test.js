@@ -33,3 +33,15 @@ describe('a degrees-minutes-seconds key is not one number', () => {
     expect(hard(run(num('180 - 65', '125°', 3)))).toEqual(['NUMERIC_MISMATCH']);
   });
 });
+
+describe('a power-of-ten key is a number, not a unit power', () => {
+  // bd-qyi45h.14: G11 Physics B.Q1-Q7#6/b, key "approximately 10^22 operations", read as 10
+  test('"10^22" and "1.5 × 10^-3 m" are read whole', () => {
+    expect(hard(run(num('10^22', 'Number of operations = 10^5 s / 10^-17 s = 10^22 operations.\nA supercomputer can perform approximately 10^22 operations in one day.', 1)))).toEqual([]);
+    expect(hard(run(num('3 / 2000', 'd = 1.5 × 10^-3 m', 2, 'm')))).toEqual([]);
+  });
+  test('a wrong power of ten is still a hard mismatch; m/s^2 is still a unit', () => {
+    expect(hard(run(num('10^22', 'about 10^21 operations', 1)))).toEqual(['NUMERIC_MISMATCH']);
+    expect(hard(run(num('(16-4)/3', '4 m/s^2', 1, 'm/s^2')))).toEqual([]);
+  });
+});

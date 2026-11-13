@@ -85,8 +85,10 @@ function lastNumber(text) {
  */
 function finalAnswers(text) {
   const lines = String(text == null ? '' : text).split('\n').map((l) => l.trim()).filter(Boolean);
-  const last = (lines[lines.length - 1] || '').replace(/\^\s*[-+]?\d+(?:\.\d+)?/g, '');
-  const out = [];
+  const raw = lines[lines.length - 1] || '';
+  const last = raw.replace(/\^\s*[-+]?\d+(?:\.\d+)?/g, '');
+  // bd-qyi45h.14: a power of ten ("10^22", "1.5 × 10^-3") is the answer number, not a unit power
+  const out = [...raw.matchAll(/(?:(\d+(?:\.\d+)?)\s*[×x*]\s*)?\b10\s*\^\s*([-+]?\d+)/g)].map((m) => (m[1] ? parseFloat(m[1]) : 1) * 10 ** Number(m[2]));
   const re = /=\s*(-?\d+(?:,\d{3})*(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?)/g;
   let m;
   while ((m = re.exec(last))) { const n = T.parseNumber(m[1].replace(/\s+/g, '')); if (n !== null && Number.isFinite(n)) out.push(n); }
