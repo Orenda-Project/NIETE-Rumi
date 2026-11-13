@@ -1,0 +1,2 @@
+{"ts":"2026-11-13T11:49:20Z","hook":"post-commit","event":"armed","switch":"","detail":"features=coaching spec_sync=true","sha":"9c395b3f8c10","branch":"bd-snkn32.45-69662","user":""}
+{"ts":"2026-11-13T11:49:21Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: coaching owe their Gherkin","sha":"9c395b3f8c10","branch":"bd-snkn32.45-69662","user":""}
