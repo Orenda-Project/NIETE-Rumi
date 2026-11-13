@@ -426,19 +426,19 @@ const ur: Copy = {
     how5: "یہ ⁨EGRA⁩ کے فی منٹ حروف یا الفاظ (⁨clpm, cwpm⁩) نہیں، جن کے نمبر بچے کو بلند آواز سے پڑھتے ہوئے سن کر لگتے ہیں۔",
     how6: "بول کر دیے گئے جوابات ریکارڈ ہو کر محفوظ رہتے ہیں۔ ان کے نمبر بعد میں ریکارڈنگ سے لگتے ہیں۔",
     how7: "سوال جلد رک جاتا ہے اگر پہلی لائن زیادہ تر غلط ہو، کئی جواب لگاتار غلط ہوں، یا ⁦۲۰⁩ سیکنڈ خاموشی رہے۔",
-    // Round 20: the level words as sent for review (same keys as the English).
+    // Round 20: the level words as approved by the content owner on 13 Nov (same keys as the English).
     level: {
       title: "ہر مضمون میں سطح",
       subjects: { ur: "اردو", en: "انگریزی", ma: "ریاضی" },
-      reached: "آخری حصہ",
+      reached: "کہاں تک پہنچا",
       level: "سطح",
       waiting: "نمبروں کا انتظار ہے",
       more: "مزید نمبر آنے ہیں",
       nothing: "کوئی حصہ نہیں کیا گیا",
-      stops: { no_answer: "رک گیا: کوئی جواب نہیں", coach: "کوچ نے ختم کیا" },
+      stops: { no_answer: "ٹیسٹ رک گیا: کوئی جواب نہیں", coach: "کوچ نے ختم کیا" },
       words: {
         beginner: "ابتدائی", letters: "حروف", words: "الفاظ", story: "کہانی", comprehension: "کہانی کی سمجھ",
-        numbers: "نمبر پہچاننا", comparing: "نمبروں کا موازنہ", add: "جمع", sub_mul: "تفریق اور ضرب",
+        numbers: "اعداد کی پہچان", comparing: "نمبروں کا موازنہ", add: "جمع", sub_mul: "تفریق اور ضرب",
       },
     },
   },
