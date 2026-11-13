@@ -3,3 +3,4 @@
 {"ts":"2026-11-11T01:14:58Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks engine=2.0.0","sha":"96177cfb0ac7","branch":"promo-4509-staging","user":""}
 {"ts":"2026-11-12T09:33:05Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks engine=2.0.0","sha":"96177cfb0ac7","branch":"promo-4509-staging","user":""}
 {"ts":"2026-11-13T07:12:48Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.1.1","sha":"96177cfb0ac7","branch":"promo-4509-staging","user":""}
+{"ts":"2026-11-13T07:12:49Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.1.1","sha":"96177cfb0ac7","branch":"promo-4509-staging","user":""}
