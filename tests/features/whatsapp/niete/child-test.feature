@@ -1158,7 +1158,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
       | 1 | silent                     | the rest of Urdu is skipped after that one part, with in a row 1                                                          |
       | 2 | voice heard, then time up  | the part is finished and the subject goes on (time-up stays finished)                                                     |
 
-  @e2e @wip @draft @negative @no-mock-driver @config-gated @P1 @CT180
+  @e2e @wip @draft @negative @no-mock-driver @config-gated @P1 @CT184
   Scenario: The silence stop never fires without evidence, in RDF manual, or with the switch off
     Given a child is taking RDF auto
     When the phone's ear could not listen, or the test is coach-led (RDF manual), or sa_r20_silence_stop has no row
