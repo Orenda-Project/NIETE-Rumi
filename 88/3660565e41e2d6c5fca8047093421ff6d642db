@@ -1,1 +1,2 @@
 {"ts":"2026-11-13T06:12:58Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"883660565e41","branch":"fix/bd-a3o891-g4-english-titles","user":""}
+{"ts":"2026-11-13T07:12:08Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=- engine=2.1.1","sha":"883660565e41","branch":"fix/bd-a3o891-g4-english-titles","user":""}
