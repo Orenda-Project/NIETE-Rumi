@@ -149,6 +149,32 @@ describe("I-SAPS — assessed per module", () => {
     expect(await screen.findByTestId("level-certificate-download")).toBeInTheDocument();
   });
 
+  it("My scores: a watched unit with no quick check reads Done, not Not taken", async () => {
+    // Ten I-SAPS units have no quick-check questions (I-SAPS did not provide them). Watching one completes it;
+    // the sheet used to say "Not taken" for ever (ICT sheet, Middle and High TT 76-77).
+    vi.mocked(api.get).mockImplementation(trainingGet({
+      "/training/level/9/certificate": certificate({ scores: { modules: [{
+        course_id: 69, title: "Module 3 - Classroom Management", exam: null,
+        units: [
+          { id: 453, title: "Unit 301", best_pct: 75, has_check: true, done: true },
+          { id: 454, title: "Unit 302", best_pct: null, has_check: false, done: true },
+          { id: 455, title: "Unit 303", best_pct: null, has_check: false, done: false },
+          { id: 456, title: "Unit 304", best_pct: null, has_check: true, done: false },
+          { id: 457, title: "Unit 305", best_pct: null },
+        ],
+      }] } }),
+    }) as never);
+    renderAt(ISAPS);
+    fireEvent.click(await screen.findByTestId("level-scores"));
+    expect(within(await screen.findByTestId("score-unit-453")).getByText("75%")).toBeInTheDocument();
+    expect(within(screen.getByTestId("score-unit-454")).getByText("Done")).toBeInTheDocument();
+    expect(within(screen.getByTestId("score-unit-454")).queryByText("Not taken")).not.toBeInTheDocument();
+    expect(within(screen.getByTestId("score-unit-455")).getByText("No quick check")).toBeInTheDocument();
+    // A unit WITH a quick check she has not taken still says so; so does an older server's row.
+    expect(within(screen.getByTestId("score-unit-456")).getByText("Not taken")).toBeInTheDocument();
+    expect(within(screen.getByTestId("score-unit-457")).getByText("Not taken")).toBeInTheDocument();
+  });
+
   it("every exam passed but the level below has no certificate: names it, and offers no Receive", async () => {
     // bd-arghnv.2 — I-SAPS locks the certificate, not the level.
     vi.mocked(api.get).mockImplementation(trainingGet({
