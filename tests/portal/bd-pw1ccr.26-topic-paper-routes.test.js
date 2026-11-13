@@ -9,6 +9,7 @@
  * session's user.
  */
 const TEACHER = '6f1c2a7e-0b8d-4c55-9a51-2d7f0e3b9c10';
+const SUPABASE = { portal: true };
 const HELD = { topicId: 'b', topicName: 'Plurals', grade: 1, subject: 'english', chapter: 4 };
 
 function findRoute(router, method, path) {
@@ -43,24 +44,22 @@ async function invoke(method, path, { userId = TEACHER, query = {}, body = {} } 
 
 const ROUTES = [['get', '/me/topic-paper'], ['post', '/me/topic-paper/opened']];
 
-let svc; let store; let flags;
+let svc; let flags;
 beforeEach(() => {
   jest.resetModules();
   jest.spyOn(console, 'error').mockImplementation(() => {});
   flags = { topic_nudge_portal_card_enabled: true, topic_end_nudge_enabled: true };
-  svc = { heldTopicNudge: jest.fn(async () => HELD) };
-  store = { skipPendingForTopic: jest.fn(async () => 1) };
+  svc = { heldTopicNudge: jest.fn(async () => HELD), skipHeldTopicNudge: jest.fn(async () => 1) };
   jest.doMock('../../dashboard/services/held-topic-nudge.service', () => svc);
-  jest.doMock('../../bot/shared/services/nudges/teacher-nudges.store', () => store);
   jest.doMock('../../dashboard/config/database', () => ({ query: jest.fn() }));
-  jest.doMock('../../dashboard/config/supabase', () => ({}));
+  jest.doMock('../../dashboard/config/supabase', () => SUPABASE);
   jest.doMock('../../dashboard/lib/feature-flags', () => ({
     isFlagEnabledForUser: jest.fn(async (_s, key) => Boolean(flags[key])),
   }));
 });
 afterEach(() => { jest.restoreAllMocks(); });
 
-const asked = () => svc.heldTopicNudge.mock.calls.length + store.skipPendingForTopic.mock.calls.length > 0;
+const asked = () => svc.heldTopicNudge.mock.calls.length + svc.skipHeldTopicNudge.mock.calls.length > 0;
 const BODY = { body: { topicId: 'b' } };
 
 test.each(ROUTES)('%s %s signed out: 401, nothing asked', async (m, p) => {
@@ -96,13 +95,14 @@ test('GET with nothing held: held null; a database failure: 502', async () => {
 test('POST opened skips her pending retries for that topic as card_used', async () => {
   const r = await invoke('post', '/me/topic-paper/opened', { body: { topicId: 'b', userId: 'someone-else' } });
   expect(r).toEqual({ statusCode: 200, payload: { success: true, skipped: 1 } });
-  expect(store.skipPendingForTopic).toHaveBeenCalledWith({ userId: TEACHER, kind: 'topic_end_nudge', topicId: 'b', reason: 'card_used' });
+  // bd-pw1ccr.39: through the portal's own Supabase client, never the bot store (the portal can't load it)
+  expect(svc.skipHeldTopicNudge).toHaveBeenCalledWith(SUPABASE, TEACHER, 'b');
 });
 
 test('POST opened: no topic is 400; a failure is 502', async () => {
   expect((await invoke('post', '/me/topic-paper/opened', { body: {} })).statusCode).toBe(400);
   expect((await invoke('post', '/me/topic-paper/opened', { body: { topicId: 7 } })).statusCode).toBe(400);
-  store.skipPendingForTopic.mockRejectedValueOnce(new Error('down'));
+  svc.skipHeldTopicNudge.mockRejectedValueOnce(new Error('down'));
   expect((await invoke('post', '/me/topic-paper/opened', BODY)).statusCode).toBe(502);
 });
 
