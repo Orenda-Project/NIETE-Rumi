@@ -152,18 +152,19 @@ describe('DC rubric switch on the self-recording pipeline', () => {
     expect(meta.photo).toBeUndefined();
   });
 
-  test("'v6': stored under analysis_data.dc.fico17_v6 (CONTRACTS §7); the teacher's report stays V3 until the operator's go", async () => {
+  test("'v6': the read is stored under analysis_data.dc.fico17_v6 (CONTRACTS §7); an ok read moves the report to v6 (bd-ra8xu.52), V3 kept under v3_fico", async () => {
     const off = JSON.parse(JSON.stringify(await runWith('v3')));
     const on = await runWith('v6');
-    expect(on.framework).toBe('fico');
     expect(on.shadow).toBeUndefined();
     const d = on.dc.fico17_v6;
     expect(d.status).toBe('ok');
     expect(d.mode).toBe('v6');
     expect(d.rubric).toBe('fico17_v6');
     expect(d.transcript_quality).toEqual({ status: expect.any(String), coverage: expect.any(Number), issues: expect.any(Array) });
-    const { dc, ...v3Only } = on;
-    expect(JSON.parse(JSON.stringify(v3Only))).toEqual(off);
+    // operator 14 Nov ~01:10 ("Yes", Qurat's DC report on v6): the report's analysis is v6; fico17-v6-dc-report-on-v6.test.js
+    expect(on.framework).toBe('fico17_v6');
+    expect(on.scores.rubric).toBe('fico17_v6');
+    expect(JSON.parse(JSON.stringify(on.v3_fico.scores))).toEqual(off.scores);
   });
 
   test("'shadow' never writes analysis_data.dc", async () => {
@@ -213,7 +214,7 @@ describe('bd-qix9oh.2 — where the v6 blob lands (spec §4.2, §6.3; CONTRACTS 
     }
   });
 
-  test('analysis-processor: the patch is the last spread of the analysis_data it writes, after the V3 analysis', () => {
+  test('analysis-processor: the patch is the last spread of the analysis_data it writes, after the report analysis (V3, or v6 under bd-ra8xu.52)', () => {
     const fs = require('fs');
     const path = require('path');
     const src = fs.readFileSync(path.join(__dirname, '../../bot/shared/services/coaching/analysis-processor.service.js'), 'utf8');
@@ -222,7 +223,7 @@ describe('bd-qix9oh.2 — where the v6 blob lands (spec §4.2, §6.3; CONTRACTS 
     expect(src.indexOf('...ficoV6Shadow.patch(', at + 1)).toBe(-1); // one write site
     const open = src.lastIndexOf('analysis_data: {', at);
     const body = src.slice(open, at);
-    expect(body.indexOf('...analysisResult.analysis,')).toBeGreaterThan(-1);
+    expect(body.indexOf('...reportAnalysis,')).toBeGreaterThan(-1);
     // Nothing after the patch inside the same literal: the next non-space text closes the object.
     expect(src.slice(at + '...ficoV6Shadow.patch(v6Shadow)'.length)).toMatch(/^,?\s*\},/);
     // No later key in the literal is called dc or shadow.

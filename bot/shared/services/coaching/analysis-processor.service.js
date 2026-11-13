@@ -529,13 +529,25 @@ class AnalysisProcessorService {
       const { data: fresh } = await supabase
         .from('coaching_sessions').select('analysis_data').eq('id', coachingSessionId).single();
       const liveMoves = fresh && fresh.analysis_data && fresh.analysis_data.live_moves;
-      // bd-ra8xu.38: null (switch off) adds nothing; otherwise analysis_data.shadow.fico17_v6, stored, never sent.
-      const v6Shadow = await ficoV6Shadow.settle(v6ShadowTask);
+      // bd-ra8xu.38: null (switch off) adds nothing; otherwise analysis_data.shadow.fico17_v6 ('shadow', never sent) or
+      // analysis_data.dc.fico17_v6 ('v6'). 'v6' waits longer: the report is built from it.
+      const v6Shadow = await ficoV6Shadow.settle(v6ShadowTask, ficoV6Shadow.graceFor(v6ShadowTask));
+      // bd-ra8xu.52 (operator 14 Nov ~01:10): fico_dc_rubric 'v6' + an ok v6 read → the teacher's DC report is built
+      // from the v6 analysis (framework 'fico17_v6'), V3 kept whole under v3_fico. Anything else → null: V3, as before.
+      const v6Report = ficoV6Shadow.teacherFacing(v6Shadow, analysisResult.analysis, session.transcript_text);
+      const reportAnalysis = v6Report ? { ...v6Report, v3_fico: analysisResult.analysis } : analysisResult.analysis;
+      if (v6Report) {
+        logToFile('[fico17-v6] DC report on FICO17 v6 for this teacher (fico_dc_rubric v6); V3 kept under v3_fico', {
+          coachingSessionId, overall: v6Report.scores && v6Report.scores.overall_marks, max: v6Report.scores && v6Report.scores.overall_max_marks,
+        });
+      } else if (v6Shadow && v6Shadow.mode === 'v6') {
+        logToFile('[fico17-v6] fico_dc_rubric is v6 but the v6 read is not ok — this report stays V3', { coachingSessionId, status: v6Shadow.status }, 'warn');
+      }
       const { data: analysisArmed } = await supabase
         .from('coaching_sessions')
         .update({
           analysis_data: {
-            ...analysisResult.analysis,
+            ...reportAnalysis,
             ...(liveMoves ? { live_moves: liveMoves } : {}),
             ...(reflectiveCorpus ? { reflective_corpus: reflectiveCorpus } : {}),
             // bd-gr48y: persist the photo read so report transformers can flag
@@ -575,8 +587,8 @@ class AnalysisProcessorService {
           gpt5_input_tokens: analysisResult.usage.input_tokens,
           gpt5_output_tokens: analysisResult.usage.output_tokens,
           gpt5_cached_tokens: analysisResult.usage.cached_tokens,
-          framework: frameworkKey,
-          framework_selection_reason: frameworkSelectionReason,
+          framework: v6Report ? v6Report.framework : frameworkKey,
+          framework_selection_reason: v6Report ? 'dc_rubric_v6' : frameworkSelectionReason,
         })
         .eq('id', coachingSessionId)
         .not('status', 'in', TERMINAL_IN_FILTER)
