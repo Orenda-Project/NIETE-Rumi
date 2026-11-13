@@ -136,6 +136,22 @@ export type SaTaskResult = {
   secondVoice?: boolean;
 };
 
+/** Round 20 level vocabulary (placeholders awaiting reviewer approval): reading and maths ladders, plus Beginner. */
+export type SaLevel = "beginner" | "letters" | "words" | "story" | "comprehension" | "numbers" | "comparing" | "add_sub" | "multiply";
+
+/**
+ * Round 20 (server switch sa_r20_level): one subject's line. `reached` is the last part the child did (not skipped);
+ * `level` the highest rung met (null while the first is waiting for its score); `pending` more scores may raise it;
+ * `stop` why the subject ended: no answer (silence) or the coach.
+ */
+export type SaSubjectLevel = {
+  subject: "ur" | "en" | "ma";
+  reached: { taskId: string; title: { en: string | null; ur: string | null } | null } | null;
+  level: SaLevel | null;
+  pending: boolean;
+  stop: "no_answer" | "coach" | null;
+};
+
 /** GET …/sa/session/:id/results (switch sa_results_view; 404 when off or not this coach's session). No names. */
 export type SaResults = {
   session: {
@@ -150,6 +166,8 @@ export type SaResults = {
     lang: "ur" | "en" | null;
   };
   tasks: SaTaskResult[];
+  /** round 20: present only when the server's sa_r20_level is ON */
+  levels?: SaSubjectLevel[];
 };
 
 /** The six skips and stops the dashboard audits (round 7b; the bot's STOP_TYPES). */

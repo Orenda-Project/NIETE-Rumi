@@ -11,6 +11,8 @@ import { masked, NO_SECTOR, pktWhen, secondVoiceCount, toDashStudents, withPract
 import type { SaDashboardSession } from '../types/childTestSa';
 import { applyFilter, groupBy, headline, ORF_BANDS, summariseTask, type Filter } from '../lib/assess/cohortStats';
 import { GRADES, rwpOrf } from '../lib/assess/rwpNorms';
+import { COPY } from '../lib/assess/copy';
+import { hasLevels, subjectsIn, typicalLevel } from '../lib/assess/levels';
 
 /**
  * The results dashboard (/portal/leader/assess/dashboard): the example, sandbox only, or this tier's real sessions.
@@ -111,6 +113,9 @@ export default function LeaderAssessDashboard() {
   const h = useMemo(() => headline(rows), [rows]);
   const groups = useMemo(() => groupBy(rows, filter.sector ? 'school' : 'sector'), [rows, filter.sector]);
   const voices = useMemo(() => (isLive ? secondVoiceCount(rows) : 0), [isLive, rows]);
+  // round 20 (server switch sa_r20_level): a Level column per subject, only when the sessions carry level lines
+  const levelSubjects = useMemo(() => (isLive && hasLevels(cohort.map((s) => s.results)) ? subjectsIn(cohort.map((s) => s.results)) : []), [isLive, cohort]);
+  const levelWords = COPY[lang].results.level.words;
   const filtersOn = isLive && dashOn;
   // every coach in the data, by name (a coach's own view has one: no picker)
   const coaches = useMemo(() => {
@@ -506,6 +511,7 @@ export default function LeaderAssessDashboard() {
                   <th className="py-1 text-end font-medium">{c.colOrf}</th>
                   <th className="py-1 text-end font-medium">{c.colZero}</th>
                   <th className="py-1 text-end font-medium">{c.colMaths}</th>
+                  {levelSubjects.map((sub) => <th key={sub} data-testid={`dash-col-level-${sub}`} className="py-1 ps-2 text-end font-medium">{c.colLevel[sub]}</th>)}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -523,6 +529,10 @@ export default function LeaderAssessDashboard() {
                     <td className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : one(g.h.orfMedian[read])}</td>
                     <td className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : pct(g.h.orfZero[read])}</td>
                     <td className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : pct(g.h.mathsAllMet)}</td>
+                    {levelSubjects.map((sub) => {
+                      const typical = hide(g.n) ? null : typicalLevel(rows.filter((s) => (filter.sector ? s.schoolId : s.sector) === g.key).map((s) => s.results), sub);
+                      return <td key={sub} data-testid={`dash-level-${sub}`} className="py-2 ps-2 text-end">{typical ? levelWords[typical] : '–'}</td>;
+                    })}
                   </tr>
                 ))}
               </tbody>
