@@ -105,7 +105,26 @@ const PER_CHILD = [
   /ایک ایک کر کے/,
   /ہر (?:بچے|طالب علم) (?:کی|کا|سے)\s*(?:کاپی|کام)?\s*(?:چیک|سنیں|دیکھیں)/,
 ];
-const SLATE = /\bslates?\b|سلیٹ|تختی/i;
+/** An Urdu letter (not its punctuation, ۔ ، ؛): JS's \b does not see Urdu words, so a boundary is "no letter here". */
+const UR = '[\\u0621-\\u064A\\u0671-\\u06D3]';
+// bd-snkn32.43 — "تختی" is also a clay tablet in a book (G4 Urdu ch9, Mohenjo-daro): it is a slate only in use (on it,
+// held up, wiped, her own). "slate(s)" and "سلیٹ" mean only the slate.
+const SLATE = new RegExp(`\\bslates?\\b|سلیٹ|(?<!${UR})تختی(?:اں|وں)?\\s*(?:پر|پہ|پے|اوپر|اٹھا|دکھا|صاف|مٹا)|(?:اپنی|اپنے)\\s+تختی`, 'i');
+
+// bd-snkn32.44 — pair, group or peer work in either language. Precise on purpose: the old pattern matched "مل کر"
+// inside "مکمل کریں" / "شامل کر", a maths question ("packed in groups of 2") and rhyming pairs (ہم آواز جوڑیاں), and
+// refused 9 of 60 days in which each child worked alone. "مل کر" counts only with an instruction (…یں) in its clause.
+const TOGETHER = new RegExp([
+  '(?<!\\b(?:not|never|no)\\s)(?<!\\b(?:packed|put|arranged|sorted|grouped|split|divided|shared|placed|tied|stacked|counted|bundled)\\s)\\b(?:in|into) (?:pairs|groups)\\b',
+  '\\bgroup work\\b', '\\bpair work\\b', '\\bwork together\\b', '\\bturn and talk\\b', '\\bthink[- ]pair[- ]share\\b',
+  '\\b(?:with|and|to|tell|ask|show)\\s+(?:a |your |their |the )?(?:partner|neighbou?r|desk-?mate)s?\\b',
+  '\\bthe (?:child|person|student) next to (?:you|them|her|him)\\b',
+  'جوڑی(?:وں)?\\s*(?:میں|بنا)', `(?<!${UR})(?:اپنی|اپنے) جوڑی`, 'گروپ میں', 'گروہ میں',
+  `(?<!${UR})مل\\s*کر[^۔،؛:.!?]*?(?:یں)(?!${UR})`, `(?<!${UR})ساتھی (?:کے ساتھ|کو|سے)`,
+].join('|'), 'i');
+
+/** The pair/group words in one line, or null. */
+const together = (s) => { const m = String(s || '').match(TOGETHER); return m ? m[0] : null; };
 
 const inParts = (script, re) => SECTIONS.flatMap((k) => strings((script || {})[k] || {})).filter((x) => re.some((r) => r.test(x)));
 
@@ -114,4 +133,4 @@ const perChildChecks = (script) => inParts(script, PER_CHILD);
 /** Slates: ICT classes work in the book. */
 const slates = (script) => inParts(script, [SLATE]);
 
-module.exports = { LOAD, IDO_STEPS, SECTIONS, periodOf, timingLine, timingProblems, loadLine, overLoad, perChildChecks, slates };
+module.exports = { LOAD, IDO_STEPS, SECTIONS, periodOf, timingLine, timingProblems, loadLine, overLoad, perChildChecks, slates, together };
