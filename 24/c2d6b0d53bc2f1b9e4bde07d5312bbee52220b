@@ -1,2 +1,3 @@
 {"ts":"2026-11-11T01:14:49Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current engine=2.0.0","sha":"24c2d6b0d53b","branch":"bd-snkn32.15-91612","user":""}
 {"ts":"2026-11-12T09:32:58Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current engine=2.0.0","sha":"24c2d6b0d53b","branch":"bd-snkn32.15-91612","user":""}
+{"ts":"2026-11-13T07:12:37Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.1.1","sha":"24c2d6b0d53b","branch":"bd-snkn32.15-91612","user":""}
