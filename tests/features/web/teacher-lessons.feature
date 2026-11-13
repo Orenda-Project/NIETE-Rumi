@@ -253,6 +253,23 @@ Feature: Teacher lesson plans
     When she sets the pages back to a valid range, answers the rest and reaches the check screen
     Then the check screen shows the day with her pages, and the plan she gets names those pages in its header
 
+  # bd-snkn32.39 — testers (13 Nov): "the first screen should clearly separate ready-made lesson plans from Make my
+  # own". Written by hand like the blocks above; the web driver has no code for it yet (@draft): the demo stack cannot
+  # turn portal_lp_make_own on. Pinned by StartChoice.test.tsx (portal). Carry this block over on a regenerate.
+
+  @OWN02 @draft @config-gated
+  Scenario: The Lesson Plans first screen offers ready-made plans and Make my own as two separate choices
+    Given portal_teacher_v2 and portal_lp_make_own are true
+    And demo teacher 03000000911 is signed in
+    When she opens /portal/teacher/lessons
+    Then the first screen shows "Ready-made lesson plans" with "Open a plan already written for your chapter"
+    And below it a separate card "Make my own" with "Make a plan for your own class, in about 1 minute"
+    When she taps "Ready-made lesson plans"
+    Then the grade and subject steps open, as "New lesson plan" did before
+    When she goes back and taps "Make my own"
+    Then the Make my own steps open
+    And with portal_lp_make_own false, or for a coach, the screen shows the single "New lesson plan" card as before
+
   # bd-snkn32.13 — "Make my own" for grades 6–12: what the lesson is for, the band's teaching ways, and (Grade 9–12, a
   # lesson whose FBISE SLOs mix Summative and Formative) which outcomes come first. Written by hand like the blocks
   # above; the web driver has no code for them yet (@draft): the demo stack carries no 6–12 catalogue to walk.
