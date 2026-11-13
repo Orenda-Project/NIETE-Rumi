@@ -1537,10 +1537,20 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   Scenario: A coach sends the observation with a plan the teacher made herself
     Given a coach in the portal_coach_v2 pilot is on Check and send for a teacher who made a plan with Make my own
     When the coach opens "Their recent plans"
-    Then the teacher's ready plan is listed beside her downloads as "Made by her" with its grade, subject and chapter
+    Then the teacher's ready plan is listed beside her downloads as "Made by the teacher" (Urdu "ٹیچر کا بنایا ہوا") with its grade, subject and chapter
     And a plan of hers that failed or is still being written, or another teacher's plan, is not listed
     When the coach picks it and sends the observation
     Then her plan's PDF is the observation's lesson plan, read like an attached plan, and the lesson-plan part is scored from it
+
+  # bd-snkn32.45 — the same own plans on the WhatsApp /observe lesson-plan list.
+  # Unit: tests/coaching/bd-snkn32.45-whatsapp-own-plans.test.js (lp-own-plans, lp-own-selection.handler).
+  @e2e @P1
+  Scenario: A coach on WhatsApp picks the plan the teacher made with Make my own
+    Given a coach observing on WhatsApp reaches the lesson-plan list for a teacher who made a plan with Make my own
+    Then her ready plan is a row marked "Made by the teacher" (Urdu "ٹیچر کا بنایا ہوا") with its grade, subject and chapter, newest first among at most 8 plans
+    And a plan of hers that failed or is still being written, or another teacher's plan, is not listed
+    When the coach taps it and answers "Yes" to "Do you want to proceed?"
+    Then her plan's PDF is the observation's lesson plan, read like an attached plan, and the analysis starts
 
   # bd-fmf24g.66 — the plan the coach attached is read by a job that runs at the same time as the analysis.
   # Unit: tests/coaching/bd-fmf24g.66-late-plan-recompute.test.js (analysis-processor _recomputeIfPlanLanded).

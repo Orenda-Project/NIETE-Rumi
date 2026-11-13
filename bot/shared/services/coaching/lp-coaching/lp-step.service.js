@@ -54,12 +54,16 @@ function withLead(lpPrompt, leadText) {
   return { prompt: { ...lpPrompt, body: join(lpPrompt.body) }, merged: true };
 }
 
+// Her downloads (fidelity-gated) plus her ready own plans (bd-snkn32.45), newest first within 8 rows.
 async function _recentLpsFor(ownerUserId) {
   try {
-    const { isFidelityEnabled } = require('../fidelity/fidelity-orchestrator');
-    if (!isFidelityEnabled() || !ownerUserId) return [];
-    const { getRecentFidelityLps } = require('./recent-fidelity-lps.service');
-    return await getRecentFidelityLps(ownerUserId);
+    if (!ownerUserId) return [];
+    const downloads = async (uid) => {
+      const { isFidelityEnabled } = require('../fidelity/fidelity-orchestrator');
+      if (!isFidelityEnabled()) return [];
+      return require('./recent-fidelity-lps.service').getRecentFidelityLps(uid);
+    };
+    return await require('./lp-own-plans').recentWithOwn(ownerUserId, { downloads });
   } catch (e) {
     logToFile('[lp-fidelity] recent LP fetch failed (Yes/No fallback)', { error: e.message });
     return [];
@@ -209,4 +213,4 @@ async function resendLpPromptIfWaiting(user, from) {
   return true;
 }
 
-module.exports = { advanceToLessonPlanStep, resendLpList, resendLpPromptIfWaiting, LP_REPROMPT_WINDOW_MS, withLead };
+module.exports = { advanceToLessonPlanStep, resendLpList, resendLpPromptIfWaiting, LP_REPROMPT_WINDOW_MS, withLead, _recentLpsFor };
