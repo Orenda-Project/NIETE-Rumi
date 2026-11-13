@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { Check, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { urduAttrs } from '@/lib/textDir';
 import type { AddKind, EditFields } from '../../services/api';
 import { FOCUS } from '../ui/styles';
 import { ASSESSMENT } from './copy';
@@ -14,6 +15,11 @@ import { showAnswerBox, showCorrect, type FormValues } from './editForm';
  * ./editForm's.
  */
 
+/** bd-r2uzg1.13 — the boxes of an Urdu paper's question: what she types is the paper's Urdu, drawn in Nastaliq whatever
+ *  the app's language (the labels around them are the app's words and stay in its font). */
+const UrduBoxes = createContext(false);
+const boxAttrs = (urdu: boolean) => (urdu ? urduAttrs(true) : {});
+
 const BOX = 'w-full rounded-2xl border-[1.5px] border-[#d1d5db] bg-white px-3.5 py-3 text-[16px] leading-relaxed text-[#1d2025] focus:border-[#33374a] focus:outline-none';
 
 function Field({ label, htmlFor, children }: { label: ReactNode; htmlFor: string; children: ReactNode }) {
@@ -26,12 +32,15 @@ function Field({ label, htmlFor, children }: { label: ReactNode; htmlFor: string
 }
 
 function Text({ id, value, onChange, rows = 3, label }: { id?: string; value: string; onChange: (v: string) => void; rows?: number; label?: string }) {
-  return <textarea id={id} aria-label={label} rows={rows} value={value} onChange={(e) => onChange(e.target.value)} className={cn(BOX, 'min-h-[96px] resize-none')} />;
+  const urdu = useContext(UrduBoxes);
+  return <textarea id={id} aria-label={label} rows={rows} value={value} onChange={(e) => onChange(e.target.value)} className={cn(BOX, 'min-h-[96px] resize-none')} {...boxAttrs(urdu)} />;
 }
 
 function Line({ id, value, onChange, label, numeric }: { id?: string; value: string; onChange: (v: string) => void; label?: string; numeric?: boolean }) {
+  const urdu = useContext(UrduBoxes) && !numeric;
   return (
     <input
+      {...boxAttrs(urdu)}
       id={id}
       aria-label={label}
       value={value}
@@ -86,7 +95,7 @@ export function QuestionForm({
   const optionalQuestion = !!kind && (shape === 'columns' || shape === 'words' || shape === 'comprehension');
   const setSlot = (i: number, v: string) => set({ slots: values.slots.map((s, j) => (j === i ? v : s)) });
 
-  return (
+  const form = (
     <div dir={rtl ? 'rtl' : 'ltr'} className="flex flex-col gap-3">
       {(shape === 'passage' || shape === 'comprehension') && (
         <Field label={C.passage} htmlFor="aq-passage"><Text id="aq-passage" rows={5} value={values.passage} onChange={(v) => set({ passage: v })} /></Field>
@@ -211,4 +220,5 @@ export function QuestionForm({
       )}
     </div>
   );
+  return <UrduBoxes.Provider value={rtl}>{form}</UrduBoxes.Provider>;
 }
