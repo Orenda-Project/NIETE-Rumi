@@ -15,6 +15,7 @@ const {
 } = require('./lp612-own-ways');
 const { pagesLine612 } = require('./lp612-own-pages');
 const { sloMix, sloCodes } = require('./lp612-own-slo');
+const { loadLine } = require('./lp-own-period');
 
 const NOTE_MAX = 200;
 const FOCI = ['summative', 'formative'];
@@ -154,8 +155,11 @@ function buildOwnInstruction(answers, ctx) {
   const secondary = secondaryBand(ctx);
   const have = a.resources.map((r) => (secondary ? RESOURCES_612 : RESOURCES)[r]).join(', ');
   const lines = [
-    'Rewrite this lesson for ONE teacher\'s own class. Keep the same pages, the same learning outcomes and the same layout and length.',
+    'Rewrite this lesson for ONE teacher\'s own class. Keep the same pages, the same learning outcomes and the same layout, and make it no longer than the lesson you were given.',
     `Her class: ${SIZES[a.size]}; ${LEVELS[a.level]}.`,
+    // bd-snkn32.30 — one period, and a load that shrinks with her class (tester: "cannot be covered in one class").
+    'It must fit ONE class period: keep `period_minutes` as it is, and give the opening, I do, We do, You do and the check minutes that add up to exactly `period_minutes`.',
+    loadLine(a.size),
     `What she has: ${have}. Do not use anything else (no slates, printing or electricity unless listed).`,
     MATERIALS_LINE,
     way.length > 1 ? `Teaching ways (combine them): ${way.join(' ')}` : `Teaching way: ${way[0]}`,

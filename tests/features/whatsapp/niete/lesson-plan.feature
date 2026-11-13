@@ -1227,6 +1227,17 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the lesson screen shows the lessons exactly as before, with no "Make my own" row
     And a "Make my own" row left in my scrollback from before is refused and sends nothing
 
+  @e2e @config-gated @P1
+  Scenario: A Make my own plan for a class of more than 70 fits one period with less to do
+    Given "portal_lp_make_own" is on for me and my Grades 1-5 day plan states its period in minutes
+    When I make my own plan for a class of more than 70 with only the textbook
+    Then the opening, I Do, We Do, You Do and the check each have minutes that add up to exactly that period
+    And You Do is still each child working alone in the book, with at most 2 questions
+    And there is at most one exit check and one homework task, and every check is whole-class, never child by child
+    And the plan has no slates and no more words than my day plan, and keeps its diagrams
+    # bd-snkn32.30 (G3 English tester: "cannot be covered in one class … large number of students").
+    # Unit: tests/lp612/own-period.test.js, tests/lp612/own-fits-one-period.test.js.
+
   @e2e @draft @P1
   Scenario: A Grades 1–5 lesson plan arrives with no voice note and no voice-note script lookup
     Given the NIETE bot chat is open
