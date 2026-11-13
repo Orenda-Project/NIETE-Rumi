@@ -2164,6 +2164,8 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     // Every paper gets a key; the portal no longer offers the choice (bd-bfnsk).
     includeAnswerKey: true,
     answerLines: body.answerLines !== false,
+    // bd-ipoxhx.5 — Save paper; only a tick sends it, so every other request is unchanged.
+    ...(body.compact === true ? { compact: true } : {}),
     outputFormat: body.outputFormat || 'pdf',
     ...(byTopics ? { paperKind: 'topic', scope: topicScope.scope } : {}),
     ...(origin ? { origin } : {}),
