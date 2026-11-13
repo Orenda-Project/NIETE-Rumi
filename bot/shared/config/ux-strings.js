@@ -434,6 +434,15 @@ const UX_STRINGS = {
     ur: 'مضمون کی تصدیق نہیں ہو سکی — زبان یا مضمون سے متعلق مخصوص شعبے کو نمبر نہیں دیے گئے۔',
   },
 
+  // bd-r2uzg1.12 (ICT sheet DC row 142, plan #10): follows Section B's why-line when the grader read the recording
+  // as a different lesson from the chosen plan (lesson-mismatch-note.js). Soft on purpose — the operator, 13 Nov:
+  // "I dont know how reliably we can tell if the lesson was mismatched." English is the operator's wording. Urdu:
+  // gender-neutral (نے past tense, subjunctive پڑھائیں, respectful کریں), no digits or Latin, so the RTL why-line has
+  // nothing to reorder; DRAFT for a native speaker's check. Never the word "app". A report line, not a WhatsApp field.
+  reportLpMismatchSoft: {
+    en: 'Perhaps the lesson plan you chose was for a different lesson? Next time, pick the plan for the lesson you are teaching.',
+    ur: 'شاید آپ نے جو لیسن پلان منتخب کیا تھا وہ کسی اور سبق کا تھا؟ اگلی بار اسی سبق کا لیسن پلان منتخب کریں جو آپ پڑھائیں۔',
+  },
   // A FICO section the analysis came back without, even after one retry: not assessed, never 0.
   reportSectionNotAnalysed: {
     en: 'This part of the lesson could not be analysed this time, so it is not counted in the score.',
