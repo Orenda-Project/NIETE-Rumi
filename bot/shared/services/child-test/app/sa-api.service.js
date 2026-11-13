@@ -6,7 +6,7 @@
  * (headphones on). This service is the bot side of that page, next to app-api.service.js (the
  * coach-recorded test) and reusing its gate, identity checks and the same draw and store:
  *
- *   listSchools   the coach's schools, today's observe visit first
+ *   listSchools   the coach's schools, today's observe visit first (sa_r19_practice_first ON: the practice school above it)
  *   dayList       draw.todaysList for one school — on today's observe visit when there is one, else
  *                 on the day key day:<coach>:<school>:<PKT date> (draw/visit-key.js)
  *   dayOutcome    present / absent / refused; present opens an app-channel session marked SA_MARK
@@ -64,6 +64,7 @@ const anySchool = require('./any-school-switch');
 const endTestRestart = require('./end-test-restart-switch');
 const dashFilters = require('./dash-filters-switch');
 const hidePractice = require('./hide-practice-switch');
+const practiceFirst = require('./practice-first-switch');
 const coachNameGuard = require('./coach-name-guard-switch');
 const { lastWordIndex } = require('../sa/last-word-hint');
 const { isSetAside } = require('../sa/set-aside');
@@ -128,6 +129,12 @@ const listSchools = (args = {}, deps = {}) => guarded('sa_list_schools', async (
   const ids = [...new Set([...visitOf.keys(), ...linked.keys(), ...(live || []).map((s) => s.id)])].filter((id) => allowedSchool(d, id));
   const named = live || (ids.length ? await rows(d.supabase.from('schools').select('id, name, emis, region').in('id', ids)) : []);
   const schoolOf = new Map(named.map((s) => [s.id, s]));
+  // sa_r19_practice_first: the practice (is_probable_test) schools, looked up by id (an any-school user's `named` is the
+  // live list, which has none of them)
+  const practiceIds = (await practiceFirst.enabled(deps)) && ids.length
+    ? new Set((await rows(d.supabase.from('schools').select('id, is_probable_test').in('id', ids).eq('is_probable_test', true)))
+      .filter((s) => s && s.is_probable_test === true).map((s) => s.id))
+    : null;
   const schools = ids.map((id) => {
     const v = visitOf.get(id);
     const s = schoolOf.get(id);
@@ -139,9 +146,11 @@ const listSchools = (args = {}, deps = {}) => guarded('sa_list_schools', async (
       visitId: v ? v.visitId : null,
       observedGrade: v ? v.observedGrade : null,
       visitToday: !!v,
+      ...(practiceIds ? { practice: practiceIds.has(id) } : {}),
     };
   });
-  schools.sort((a, b) => (b.visitToday - a.visitToday) || String(a.name || '').localeCompare(String(b.name || '')));
+  schools.sort((a, b) => (practiceIds ? b.practice - a.practice : 0) || (b.visitToday - a.visitToday)
+    || String(a.name || '').localeCompare(String(b.name || '')));
   return { status: 'ok', schools };
 })(args, deps);
 

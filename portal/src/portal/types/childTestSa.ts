@@ -12,6 +12,8 @@ export type SaSchool = {
   region?: string | null;
   /** sa_all_grades: the grade the coach named for this school's list (1–5); absent = today's grade rotation */
   grade?: number;
+  /** sa_r19_practice_first: a practice (test) school, listed first; absent with the switch off */
+  practice?: boolean;
 };
 
 export type SaOutcome = "present" | "absent" | "refused";
