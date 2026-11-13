@@ -1175,7 +1175,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And with sa_r20_auto_end_section off, RDF auto shows no End this section button, as today
 
   # Round 20, the child's level per subject (app_settings sa_r20_level, absent = OFF): bot/shared/services/child-test/sa/level.js
-  # (level words and cut-offs as sent for review: story 20 words; maths Numbers, Compare numbers, Add, Subtract and multiply),
+  # (level words and cut-offs as approved by the content owner on 13 Nov: story 20 words; maths Numbers, Compare numbers, Add, Subtract and multiply),
   # app/level-switch.js, app/sa-api.service.js saResults /
   # saSessions; portal/src/portal/pages/LeaderAssessResults.tsx and LeaderAssessDashboard.tsx.
   @e2e @wip @draft @config-gated @P1 @CT182 @no-mock-driver
@@ -1187,7 +1187,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then above the task cards each subject (Urdu, English, Maths) reads "Reached: <the last part the child did>" and "Level: <level>"
     And a spoken part not scored yet reads "Waiting for scores", or the level so far with "more to come"
     And a subject a silence stop ended reads "Stopped: no answer", and one the coach ended reads "Stopped by the coach"
-    And in Urdu the same lines are in Urdu script
+    And in Urdu the same lines are in Urdu script, with the approved Urdu words: "کہاں تک پہنچا" for Reached, "ٹیسٹ رک گیا: کوئی جواب نہیں" for a silence stop, and "اعداد کی پہچان" for the maths Numbers level
     And with sa_r20_level off the Results are exactly as before
 
   @e2e @wip @draft @config-gated @P1 @CT183 @no-mock-driver
