@@ -1053,7 +1053,8 @@ export default function LeaderAssess() {
     content = (
       <AssessEngineSlot sessionId={step.sessionId} firstName={firstNameOf(step.child, lang)} lang={lang}
         grade={step.child.grade || list?.grade || 3} block={step.block} onFinished={finished} handbackV2={switches.handbackV2} voiceGateV2={switches.voiceGateV2}
-        endTestRestart={switches.endTestRestart === true} endSection={switches.endSection === true} />
+        endTestRestart={switches.endTestRestart === true} endSection={switches.endSection === true}
+        autoEndSection={switches.r20AutoEndSection === true} />
     );
   } else {
     // this phone's outcomes, plus the server's for children this phone has no record of (a reload mid-visit)
