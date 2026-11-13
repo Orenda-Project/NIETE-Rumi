@@ -3,7 +3,7 @@
  * it. generateHeroReport hands an FDE analysis here, so every caller (the observe send preview, the renderer registry)
  * gets this page and never the FICO hero.
  *
- *   enur  the % big, the band, "109 of 148 · FDE: score × 100 ÷ 148", one bar per section (score / max) under FDE's
+ *   enur  the % big, the band (on FDE's 108 scale), "109 of 148 · 79.5 of 108 on FDE's scale", one bar per section (score / max) under FDE's
  *         section headings, then Section 8 (Strengths / Areas for Improvement / Recommendations / Timeline)
  *   msci  one row per indicator "<n> · <short name>   Level N" with FDE's full wording and the level's descriptor below,
  *         "5 students checked: 3-4 of 5 understood", the development plan "<area>: Level 0 → Level 1. <action>",
@@ -33,7 +33,8 @@ const CHROME = {
   eyebrow: "Classroom observation · FDE's tool",
   sections: 'Section by section',
   indicators: 'Indicator by indicator',
-  formula: (total, max) => `${total} of ${max} · FDE: score × 100 ÷ ${max}`,
+  // Section 7 (13 Nov): FDE's bands are on a 108-point score; the lesson's total is scaled to it.
+  formula: (total, max, on108) => `${total} of ${max} · ${on108} of 108 on FDE's scale (score × 108 ÷ ${max})`,
   yesOn: (yes, of) => `Yes on ${yes} of ${of}`,
   genNoScore: 'FDE gives no score for this form.',
   noTotal: 'FDE gives no total for this tool.',
@@ -119,10 +120,11 @@ function buildObs612ReportHtml(vm) {
     body = `<div class="block"><div class="nt">${E(C.missing)}</div></div>`;
   } else if (v.tool === 'enur') {
     const e = v.enur;
-    score = `<div class="hscore"><div class="p num">${esc(`${num(e.pct)}%`)}</div>${e.band ? `<div class="band">${E(e.band)}</div>` : ''}<div class="s num">${esc(C.formula(e.total, e.max))}</div></div>`;
+    score = `<div class="hscore"><div class="p num">${esc(`${num(e.pct)}%`)}</div>${e.band ? `<div class="band">${E(e.band)}</div>` : ''}<div class="s num">${esc(C.formula(e.total, e.max, num(e.score_108)))}</div></div>`;
     let lastHead = null;
     const rows = e.sections.map((s) => {
-      const head = s.section && s.section !== lastHead ? `<div class="sub">${E(s.section)}</div>` : '';
+      // FDE prints "Section 2: A. Teacher Practices" (its parts are B-G): shown without the "A." (operator 13 Nov).
+      const head = s.section && s.section !== lastHead ? `<div class="sub">${E(String(s.section).replace(/^(Section \d+:)\s*A\.\s*/, '$1 '))}</div>` : '';
       lastHead = s.section;
       return `${head}<div class="sc-row"><div class="sc-h"><span class="sc-n">${E(s.title)}</span><span class="sc-s num">${esc(`${s.score}/${s.max}`)}</span></div>`
         + `<div class="pbar"><div class="pfill" style="width:${Math.max(0, Math.min(100, s.pct || 0))}%;background:${barColor(s.pct || 0, P)}"></div></div></div>`;

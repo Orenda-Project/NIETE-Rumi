@@ -74,6 +74,14 @@ const ADDED_SCREENS = [
 // FICO17 v6 (bd-ra8xu.38). The last moments screen posts V6_CHECK, so the endpoint knows this Flow has the v6
 // screens: a v6 visit opened on a Flow published before them runs on the v5 screens rather than break.
 const V6_CHECK = '1';
+// '4' (13 Nov, operator): the coach's own copy of the check, for FICO17 v6 visits only (observe2-evidence-check-v6.json,
+// OBSERVE2_CHECK_V6_FLOW_ID): every level the coach chooses is the level's name with the rubric's text under it
+// (V6.coachLevelOptions), no N/A and no Couldn't tell, and D2 has no count boxes. The shared check Flow above is
+// built and served exactly as before.
+const COACH_CHECK = '4';
+// Set only while buildEvidenceCheckFlow({ coach2: true }) runs.
+let COACH2 = false;
+const coachOptions = (code) => V6.coachLevelOptions(code, 'en');
 const COMBINED_SCREENS = [
   { id: 'COMBINED_ONE', title: 'From the room (1 of 3)', codes: ['C3', 'C5'] },
   { id: 'COMBINED_TWO', title: 'From the room (2 of 3)', codes: ['C7', 'D3'] },
@@ -134,7 +142,7 @@ function heardScreen({ id, title, moment }) {
       visible: `\${data.${k}_v}`, required: false, 'data-source': YES_NO,
     });
   }
-  return screenWith(id, title, kids, 'Next', data, null, id === 'HEARD_EXPLAIN' ? { v6c: V6_CHECK } : null);
+  return screenWith(id, title, kids, 'Next', data, null, id === 'HEARD_EXPLAIN' ? { v6c: COACH2 ? COACH_CHECK : V6_CHECK } : null);
 }
 
 function fidelityScreen() {
@@ -192,7 +200,7 @@ function combinedBlock(code, data, init) {
   const ind = V6.indicator(code);
   data[`${code}_ev`] = { type: 'string', __example__: `${ind.definition}\n\nThe recording showed nothing for this.\n\nCoach adds: ${ind.coach_adds}` };
   const kids = [{ type: 'TextSubheading', text: ind.name }, { type: 'TextBody', text: `\${data.${code}_ev}` }];
-  if (code === 'D2') {
+  if (code === 'D2' && !COACH2) {
     // No init-value: Meta takes a number there and a visit may have no count to give. What the coach typed on
     // the live form is in the TextBody above instead (the endpoint's D2_ev).
     kids.push(
@@ -201,7 +209,7 @@ function combinedBlock(code, data, init) {
     );
   }
   kids.push(
-    { type: 'RadioButtonsGroup', name: `cmb_${code}_level`, label: 'Level', required: true, 'data-source': V6.levelOptions(code) },
+    { type: 'RadioButtonsGroup', name: `cmb_${code}_level`, label: 'Level', required: true, 'data-source': COACH2 ? coachOptions(code) : V6.levelOptions(code) },
     { type: 'TextArea', name: `cmb_${code}_why`, label: 'Why this level', required: true, 'max-length': 600, 'helper-text': "What you saw, and how it fits the DC's evidence" },
   );
   return kids;
@@ -227,7 +235,7 @@ function added6Screen({ id, title, codes, why }) {
     kids.push(
       { type: 'TextSubheading', text: V6.indicator(code).name },
       { type: 'TextCaption', text: `\${data.${code}_because}` },
-      { type: 'RadioButtonsGroup', name: `${code}_final`, label: 'Level', required: true, 'data-source': [...V6.levelOptions(code), ...V6_EXTRA] },
+      { type: 'RadioButtonsGroup', name: `${code}_final`, label: 'Level', required: true, 'data-source': COACH2 ? coachOptions(code) : [...V6.levelOptions(code), ...V6_EXTRA] },
     );
     init[`${code}_final`] = `\${data.${code}_level}`;
   }
@@ -261,7 +269,17 @@ function priorityScreen() {
   }, { cv: CHECK_VERSION });
 }
 
-function buildEvidenceCheckFlow() {
+/** The check Flow. `coach2`: the v6 coach's own copy (COACH_CHECK above); without it, the shared Flow as before. */
+function buildEvidenceCheckFlow({ coach2 = false } = {}) {
+  COACH2 = Boolean(coach2);
+  try {
+    return buildCheck();
+  } finally {
+    COACH2 = false;
+  }
+}
+
+function buildCheck() {
   const done = {
     id: 'DONE',
     title: 'Done',
@@ -309,5 +327,5 @@ function buildEvidenceCheckFlow() {
 
 module.exports = {
   buildEvidenceCheckFlow, SLOTS, FIDELITY_SLOTS, FIDELITY_VERDICTS, HEARD_SCREENS, ADDED_SCREENS, FLOW_VERSION, CHECK_VERSION,
-  V6_CHECK, COMBINED_SCREENS, ADDED6_SCREENS,
+  V6_CHECK, COACH_CHECK, COMBINED_SCREENS, ADDED6_SCREENS,
 };

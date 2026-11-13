@@ -102,7 +102,7 @@ describe('register-all-flows', () => {
     // diverged and do not carry the same set of Flows (main has Pic-to-LP
     // Confirm; develop does not). Read the count off the tree you are on rather
     // than copying it across a cherry-pick.
-    it('exports an array of all 27 registerable flow configurations', () => {
+    it('exports an array of all 29 registerable flow configurations', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
       // Re-armed at 18 on 2026-09-06: the assessment REVIEW screens became their
       // own Flow. A Flow opens on screens[0], and the review screens could only
@@ -118,7 +118,8 @@ describe('register-all-flows', () => {
       // Re-armed at 24 on 2026-10-05: /observe2 — the live field form and the evidence check.
       // Re-armed at 26 on 2026-10-22 (promotion of the child test): its check Flow and its review Flow.
       // Re-armed at 27 on 2026-11-11: FDE's grade 6-12 observation form (Obs 6-12 FDE Form, bd-pni007).
-      expect(FLOW_CONFIGS).toHaveLength(27);
+      // Re-armed at 29 on 2026-11-13: Observe2 Check v6 Coach and Obs 6-12 Lesson Class (bd-ra8xu.50).
+      expect(FLOW_CONFIGS).toHaveLength(29);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {
@@ -134,11 +135,12 @@ describe('register-all-flows', () => {
       // apart by the flow token's `:assessment-review:` marker. What must stay
       // unique is the (endpointPath, envVar) pair — a copy-pasted entry reusing
       // an envVar is the failure this guard exists for, and that is covered
-      // above.
+      // above. The /observe2 check is the second: the shared check and the FICO17 v6 coach's own copy (bd-ra8xu.50)
+      // share its endpoint, which tells them apart by the check version the copy posts (v6c 4).
       const shared = FLOW_CONFIGS.filter((f) => f.endpointPath)
         .reduce((m, f) => m.set(f.endpointPath, (m.get(f.endpointPath) || 0) + 1), new Map());
       const overloaded = [...shared].filter(([, n]) => n > 1).map(([p]) => p);
-      expect(overloaded).toEqual(['/api/flows/assessment-gen']);
+      expect(overloaded).toEqual(['/api/flows/assessment-gen', '/api/flows/observe2-check']);
     });
 
     it('includes Reading Assessment as a navigate type with no endpointPath', () => {
