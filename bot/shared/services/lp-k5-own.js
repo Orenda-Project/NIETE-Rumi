@@ -16,6 +16,9 @@
  * THE GRADUAL RELEASE NEVER GOES (bd-snkn32.12). Her answers change the strategy INSIDE each part; the parts themselves
  * (hook/Opening → I Do → We Do → You Do → wrap/Check) are fixed. A plan missing any of them, or with one that has no
  * text in it, is refused — the parent before the rewrite (the worker), the rewrite before it is printed (this gate).
+ *
+ * HARD vs SOFT (bd-snkn32.40). This gate holds the hard rules only. Minutes, class-size caps and length are fixed in
+ * code after the reply (lp-own-fit); they never refuse and never cost another model call.
  */
 const { SIZES, RESOURCES, LEVELS, WAYS, MATERIALS_LINE } = require('./lp612-own-instruction');
 const { GRR_LINE, ROTE_LINE, YOU_DO_LINE, bookLine } = require('./lp612-own-ways');
@@ -29,10 +32,8 @@ try { ({ jsonrepair } = require('jsonrepair')); } catch (_) { /* strict parse on
 const SECTIONS = ['hook', 'iDo', 'weDo', 'youDo', 'wrap'];
 /** The placeholder some stored Urdu parts carry; a rewrite must drop the part instead (the reviewer's rule). */
 const NOT_READY_UR = 'یہ حصہ ابھی تیار نہیں ہوا';
-/** A change ("Change this plan") longer than this × her day plan is refused: she reads it on a phone before class. */
-const MAX_GROWTH = 1.3;
-/** bd-snkn32.30 — a make may not carry more words than her day plan: "text can be less", never more. */
-const MAKE_GROWTH = 1;
+/** Longer than this × her day plan (a change 1.3x, a make 1x) is warned about, never refused (bd-snkn32.40, lp-own-fit). */
+const { EDIT_GROWTH: MAX_GROWTH, MAKE_GROWTH } = require('./lp-own-fit');
 
 /** bd-snkn32.27 — the board, in either language: a plan for a teacher with no board must not use one. */
 const BOARD = /\b(?:black|white|chalk)?board\b|بورڈ|تختہ سیاہ/i;
@@ -129,8 +130,8 @@ function missingGrr(script) {
   });
 }
 
-/** Reasons to refuse the rewrite; [] passes. */
-function checkK5Rewrite(orig, next, { lang, resources, size, period } = {}) {
+/** Reasons to refuse the rewrite (the hard rules); [] passes. */
+function checkK5Rewrite(orig, next, { lang, resources, size } = {}) {
   if (!next || typeof next !== 'object') return ['no plan'];
   const reasons = missingGrr(next).map((k) => `section ${k} is missing or empty`);
   const steps = next.iDo && next.iDo.steps;
@@ -155,18 +156,12 @@ function checkK5Rewrite(orig, next, { lang, resources, size, period } = {}) {
     const english = said.filter((s) => !urduEnough(s));
     if (said.length && english.length > said.length * 0.2) reasons.push('not in Urdu: an Urdu book\'s plan must be Urdu');
   }
-  // bd-snkn32.30 — a make (size given) must fit one period and her class: clocked parts, the load, whole-class checks.
-  reasons.push(...P.timingProblems(next, period));
+  // bd-snkn32.40 — only the HARD rules refuse. The period, her class size's caps and the length are fixed (or warned
+  // about) in code after the reply (lp-own-fit.fitK5); a per-child check goes back once (lp-own-fit.repairOnly).
   if (P.LOAD[size]) {
-    reasons.push(...P.overLoad(next, size));
-    const one = size !== 'up30' && P.perChildChecks(next)[0];
-    if (one) reasons.push(`a teacher check on each child ("${one.slice(0, 60)}"): in a big class check the whole class at once (choral, fingers, books up)`);
     const slate = P.slates(next)[0];
     if (slate) reasons.push(`uses slates ("${slate.slice(0, 60)}"): the children work in the book`);
   }
-  // A make is measured in the words she reads (a `minutes` number is not text); a change keeps the JSON rule.
-  const len = P.LOAD[size] ? (o) => strings(o).join('').length : (o) => JSON.stringify(o).length;
-  if (len(next) > len(orig) * (P.LOAD[size] ? MAKE_GROWTH : MAX_GROWTH)) reasons.push('too long for a phone: longer than her day plan');
   return reasons;
 }
 
