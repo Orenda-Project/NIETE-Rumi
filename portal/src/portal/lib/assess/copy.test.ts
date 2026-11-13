@@ -97,7 +97,7 @@ describe("assess copy", () => {
     expect([en.title, en.reached, en.level, en.more, en.stops.no_answer, en.stops.coach]).toEqual(
       ["Level in each subject", "Reached", "Level", "more to come", "Stopped: no answer", "Stopped by the coach"]);
     expect([ur.title, ur.reached, ur.level, ur.more, ur.stops.no_answer, ur.stops.coach]).toEqual(
-      ["ہر مضمون میں سطح", "کہاں تک پہنچا", "سطح", "مزید نمبر آنے ہیں", "ٹیسٹ رک گیا: کوئی جواب نہیں", "کوچ نے ختم کیا"]);
+      ["ہر مضمون میں سطح", "ٹیسٹ کہاں تک پہنچا", "سطح", "مزید نمبر آنے ہیں", "ٹیسٹ رک گیا: کوئی جواب نہیں", "کوچ نے ختم کیا"]);
   });
 
   it("buttons stay short (≤ 24 code points)", () => {
