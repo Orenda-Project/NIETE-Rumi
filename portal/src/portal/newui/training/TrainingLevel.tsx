@@ -193,8 +193,19 @@ type CertState = {
   exams_done?: number;
   /** I-SAPS (bd-arghnv.2): the level below, when its certificate must come first; null otherwise. */
   needs_previous?: string | null;
-  scores?: { modules: Array<{ course_id: number; title: string; units: Array<{ id: number; title: string; best_pct: number | null }>; exam: ExamMarks | null }> } | null;
+  scores?: { modules: Array<{ course_id: number; title: string; units: ScoreUnit[]; exam: ExamMarks | null }> } | null;
 };
+
+/** One unit on My scores. `has_check: false`: the unit has no quick check (ten I-SAPS units), so it is done once
+ *  watched and shows Done, never a score it cannot have. An older server sends neither field: read as before. */
+type ScoreUnit = { id: number; title: string; best_pct: number | null; has_check?: boolean; done?: boolean };
+
+/** What a unit's row says on My scores, and whether it is muted. */
+function unitScore(u: ScoreUnit, T: TrainingWords): { value: string; muted: boolean } {
+  if (u.best_pct !== null && u.best_pct !== undefined) return { value: T.pct(u.best_pct), muted: false };
+  if (u.has_check === false) return u.done ? { value: T.done, muted: false } : { value: T.noQuickCheck, muted: true };
+  return { value: T.notTaken, muted: true };
+}
 
 /** bd-fmf24g.13 — `words`: the teacher v2's translation of TRAINING_COPY (English when left out). */
 export function LevelCertificate({ levelId, onIssued, words }: { levelId: number; onIssued: () => void; words?: TrainingWords }) {
@@ -284,9 +295,10 @@ export function LevelCertificate({ levelId, onIssued, words }: { levelId: number
                   ) : <Chip>{T.notTaken}</Chip>}
                 </span>
                 <List>
-                  {m.units.map((u) => (
-                    <Row key={u.id} title={u.title} tile="quiet" icon={BookOpen} value={u.best_pct === null ? T.notTaken : T.pct(u.best_pct)} valueMuted={u.best_pct === null} />
-                  ))}
+                  {m.units.map((u) => {
+                    const s = unitScore(u, T);
+                    return <Row key={u.id} title={u.title} tile="quiet" icon={BookOpen} value={s.value} valueMuted={s.muted} testId={`score-unit-${u.id}`} />;
+                  })}
                 </List>
               </section>
             ))}
