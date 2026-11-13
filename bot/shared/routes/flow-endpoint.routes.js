@@ -274,6 +274,43 @@ router.post('/obs612', async (req, res) => {
   }
 });
 
+/**
+ * bd-ra8xu.50 — "Plan my visit": the lesson's class → grade → subject (obs612/lesson-flow.js), sent instead of the two
+ * chat lists to a coach with obs612_coach on. flow_token = <coachUserId>:o612lesson:<o|f>:<ref>. Publish
+ * bot/docs/flows/obs612-lesson-flow.json with endpoint_uri .../api/flows/obs612-lesson and set OBS612_LESSON_FLOW_ID.
+ */
+router.post('/obs612-lesson', async (req, res) => {
+  try {
+    if (!FlowEncryptionService.isConfigured()) {
+      logToFile('Flow encryption not configured', { endpoint: 'obs612-lesson' });
+      return res.status(500).json({ error: 'Flow encryption not configured' });
+    }
+    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
+      req.body,
+      async (decryptedData) => {
+        if (decryptedData && decryptedData.action === 'ping') return FlowEncryptionService.handlePing();
+        const LessonFlow = require('../services/observe/obs612/lesson-flow');
+        return LessonFlow.handleRequest(decryptedData, {
+          userLang: async (userId) => {
+            const { data: u } = await supabase.from('users').select('preferred_language').eq('id', userId).maybeSingle();
+            return require('../services/observe/observe-strings').observeLang(u || {});
+          },
+          teacherName: async (t) => {
+            if (t.kind !== 'o') return null;
+            const st = await require('../services/observe/observe-state.service').getState(t.userId);
+            return (st && st.obs612Ask === t.ref && st.obs612Teacher) || null;
+          },
+        });
+      }
+    );
+    res.set('Content-Type', 'text/plain');
+    res.send(encryptedResponse);
+  } catch (error) {
+    logToFile('Flow endpoint error', { endpoint: 'obs612-lesson', error: error.message }, 'error');
+    res.status(500).json({ error: error.message });
+  }
+});
+
 async function handleObs612Flow(data) {
   const Obs612 = require('./obs612-endpoint');
   const { action, flow_token: flowToken, screen, data: screenData } = data;

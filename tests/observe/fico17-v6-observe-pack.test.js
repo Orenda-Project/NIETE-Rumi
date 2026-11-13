@@ -113,40 +113,33 @@ describe('the v6 /observe Flow JSON', () => {
   const form = (s) => s.layout.children[0];
   const screen = (id) => flow.screens.find((s) => s.id === id);
 
-  test('B/C/D/F + SUCCESS, forward-only', () => {
-    expect(flow.screens.map((s) => s.id)).toEqual(['DOMAIN_B', 'DOMAIN_C', 'DOMAIN_D', 'DOMAIN_F', 'SUCCESS']);
-    expect(flow.routing_model.DOMAIN_F).toEqual(['SUCCESS']);
+  // 13 Nov (operator): one indicator per screen with a no-input intro per section; the level choices are sent by the
+  // endpoint (level names + sheet text, no N/A or Couldn't tell). Full walk: fico17-v6-coach-form.test.js.
+  test('B, the three section intros and the 17 indicator screens, + SUCCESS, forward-only', () => {
+    const O6 = require('../../bot/shared/services/observe/observe-fico17-v6');
+    expect(flow.screens.map((s) => s.id)).toEqual([...O6.SCREENS, 'SUCCESS']);
+    expect(flow.routing_model.IND_F_FOUR).toEqual(['SUCCESS']);
   });
 
-  test('combined levels: required, no init-value; a required reason box', () => {
+  test('combined levels: required, nothing pre-selected by the Flow; a required reason box; no D2 counts', () => {
+    const O6 = require('../../bot/shared/services/observe/observe-fico17-v6');
     for (const code of v6.COMBINED_CODES) {
-      const s = screen(`DOMAIN_${code[0]}`);
+      const s = screen(O6.screenOf(code));
       const radio = comps(s).find((c) => c.name === `r_${code}`);
-      expect(radio).toBeTruthy();
-      expect(radio.required).toBe(true);
-      expect(form(s)['init-values'][`r_${code}`]).toBeUndefined();
+      expect(radio).toMatchObject({ required: true, 'data-source': '${data.opts}' });
+      expect(form(s)['init-values']).toBe('${data.init}');
       const why = comps(s).find((c) => c.name === `why_${code}`);
-      expect(why.type).toBe('TextArea');
-      expect(why.required).toBe(true);
+      expect(why).toMatchObject({ type: 'TextArea', required: true });
     }
-    const d = comps(screen('DOMAIN_D'));
-    expect(d.find((c) => c.name === 'd2_children')).toMatchObject({ type: 'TextInput', 'input-type': 'number', required: true });
-    expect(d.find((c) => c.name === 'd2_quiet_later')).toMatchObject({ type: 'TextInput', 'input-type': 'number', required: true });
+    expect(JSON.stringify(flow)).not.toMatch(/d2_children|d2_quiet_later/);
   });
 
-  test('C5 offers the timed options', () => {
-    const radio = comps(screen('DOMAIN_C')).find((c) => c.name === 'r_C5');
-    expect(radio['data-source'].map((o) => o.title)).toEqual([...v6.TITLES.C5, 'No switch']);
-  });
-
-  test('DC levels are pre-filled from Rumi; each screen has a "Why you changed" box', () => {
+  test('DC levels: the endpoint pre-fills them; each indicator screen has its own "Why you changed" box', () => {
+    const O6 = require('../../bot/shared/services/observe/observe-fico17-v6');
     for (const code of v6.DC_CODES) {
-      const s = screen(`DOMAIN_${code[0]}`);
-      expect(form(s)['init-values'][`r_${code}`]).toBe(`\${data.s_${code}}`);
-    }
-    for (const id of ['DOMAIN_C', 'DOMAIN_D', 'DOMAIN_F']) {
-      const chg = comps(screen(id)).find((c) => c.name === `chg_${id.slice(-1)}`);
-      expect(chg).toMatchObject({ type: 'TextArea', required: false });
+      const s = screen(O6.screenOf(code));
+      expect(form(s)['init-values']).toBe('${data.init}');
+      expect(comps(s).find((c) => c.name === `chg_${code}`)).toMatchObject({ type: 'TextArea', required: false });
     }
   });
 

@@ -135,6 +135,12 @@ function detectFlowType(responseJson) {
     return 'observe_visit';
   }
 
+  // 0.2a bd-ra8xu.50 — "Plan my visit": the lesson's class, grade and subject (obs612/lesson-flow.js). Completes with
+  //      { obs612_lesson: 'named', tap: 'o612:…' }; the token marker <userId>:o612lesson:… is matched too.
+  if (responseJson.obs612_lesson !== undefined || String(responseJson.flow_token || '').includes(':o612lesson:')) {
+    return 'obs612_lesson';
+  }
+
   // 0.2b bd-pni007 — FDE's grade 6-12 form (obs612, /observe and /observe2). Completes with a flat `obs612` key
   //      (submitted | already | closed | refused | error); the token marker <userId>:obs612:<formId> is matched too.
   if (responseJson.obs612 !== undefined || String(responseJson.flow_token || '').includes(':obs612:')) {

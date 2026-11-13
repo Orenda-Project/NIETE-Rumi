@@ -51,6 +51,27 @@ cross join (values ('C3'),('C5'),('C7'),('D2'),('D3'),('D4')) as c(code)
 where s.framework = 'fico17_v6' and s.status = 'observer_review_complete';
 ```
 
+## The rubric's words: workbook → binding text → JSON
+
+The rubric's words come from the rubric workbook ("FICO17 v6 - what changed", tabs Indicators and Rubric old vs
+new). `bot/shared/services/coaching/frameworks/fico17-v6/fico17_v6.source.csv` is that workbook's text, one row per
+indicator level. `tests/coaching/fico17-v6-sheet.test.js` lists every difference between it and the JSON. When the
+workbook changes: export both tabs to CSV, rewrite `fico17_v6.source.csv` (code, scored_by, name, definition, level,
+level_text, example), run the test, carry each difference into `FICO17_v6_rubric.appendix-a.md`, re-run
+`bot/scripts/build-fico17-v6-rubric.js`, and run the test again. The workbook has no level names and no Urdu: the
+level names come from the binding text, and the Urdu is `fico17_v6.ur.json` (a reviewed draft).
+
+## What the coach chooses from
+
+On every coach path (the `/observe` review Flow, the `/observe2` check, the portal) a level is chosen from four:
+the level's name (Not Observed, Developing, Proficient, Highly Effective) with the rubric's level text under it, in
+the coach's language (`coachLevelOptions`). There is no N/A and no Couldn't tell for the coach, and D2 has no count
+boxes; the Digital Coach keeps its own options (`levelOptions`). Reviews made this way carry the stamp
+`fico17-v6-coach-2`. An older review that saved N/A or Couldn't tell keeps that one choice on its list, so it still
+shows. The `/observe` review is one indicator per screen (a no-input intro opens each section); the `/observe2`
+check's v6 screens are its own Flow (`observe2-evidence-check-v6.json`, `OBSERVE2_CHECK_V6_FLOW_ID`), so the check
+every other visit opens is unchanged.
+
 ## Switches (all off by default)
 
 - `app_settings.fico_coach_rubric`: coach visits on v6, per region / `ict` / `gb` / `user:<id>`. Only visits to a
