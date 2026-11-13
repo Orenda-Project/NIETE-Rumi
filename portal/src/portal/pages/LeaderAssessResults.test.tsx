@@ -297,3 +297,54 @@ describe("LeaderAssessResults", () => {
     expect(within(tap).getByText("How it ended").className).toContain("shrink-0");
   });
 });
+
+// Round 20 (sa_r20_level on the server): one line per subject on top — how far the child reached, the level (placeholder
+// words) and why the subject stopped. Only when the answer carries `levels`; without it the page is as before.
+describe("LeaderAssessResults: the child's level per subject (round 20)", () => {
+  const LEVELS = [
+    { subject: "ur", reached: { taskId: "ur.words4", title: { en: "Familiar words", ur: "جانے پہچانے الفاظ" } }, level: "letters", pending: false, stop: "no_answer" },
+    { subject: "en", reached: { taskId: "en.letter_sounds5", title: null }, level: null, pending: true, stop: null },
+    { subject: "ma", reached: { taskId: "ma.add2i", title: { en: "Addition", ur: "جمع" } }, level: "comparing", pending: true, stop: "coach" },
+  ];
+
+  it("no levels in the answer: no level lines at all", async () => {
+    renderAt();
+    await screen.findByTestId("result-task-ur.letters");
+    expect(screen.queryByTestId("results-levels")).toBeNull();
+    expect(screen.queryByText(/Reached/)).toBeNull();
+  });
+
+  it("English: Reached, Level and the stop per subject; pending says scores are still coming", async () => {
+    api.getResults.mockResolvedValue({ ...RESULTS, levels: LEVELS });
+    renderAt();
+    const ur = await screen.findByTestId("result-level-ur");
+    expect(ur).toHaveTextContent("Urdu");
+    expect(ur).toHaveTextContent("Reached: Familiar words");
+    expect(ur).toHaveTextContent("Level: Letters");
+    expect(ur).toHaveTextContent("Stopped: no answer");
+    const en = screen.getByTestId("result-level-en");
+    expect(en).toHaveTextContent("Reached: en.letter_sounds5");
+    expect(en).toHaveTextContent("Level: Waiting for scores");
+    expect(en.textContent).not.toMatch(/Stopped/);
+    const ma = screen.getByTestId("result-level-ma");
+    expect(ma).toHaveTextContent("Level: Comparing / missing number (more scores to come)");
+    expect(ma).toHaveTextContent("Stopped by the coach");
+    // the lines sit above the task cards
+    const levels = screen.getByTestId("results-levels");
+    expect(levels.compareDocumentPosition(screen.getByTestId("result-task-ur.letters")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("Urdu: the same lines in Nastaliq script", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    api.getResults.mockResolvedValue({ ...RESULTS, levels: LEVELS });
+    renderAt();
+    const ur = await screen.findByTestId("result-level-ur");
+    expect(ur).toHaveTextContent("اردو");
+    expect(ur).toHaveTextContent("جانے پہچانے الفاظ");
+    expect(ur).toHaveTextContent("حروف");
+    expect(ur).toHaveTextContent("رک گیا: کوئی جواب نہیں");
+    expect(screen.getByTestId("result-level-ma")).toHaveTextContent("کوچ نے یہ مضمون ختم کیا");
+    // no Roman Urdu: a subject line whose part has an Urdu title carries no Latin letter
+    expect(ur.textContent).not.toMatch(/[A-Za-z]/);
+  });
+});

@@ -1171,3 +1171,28 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then the part on show ends as end_section, the rest of its subject is skipped (skipped_end_section), and the test goes on at the next subject
     And one end_section event is kept with by coach
     And with sa_r20_auto_end_section off, RDF auto shows no End this section button, as today
+
+  # Round 20, the child's level per subject (app_settings sa_r20_level, absent = OFF): bot/shared/services/child-test/sa/level.js
+  # (placeholder level words and cut-offs awaiting reviewer approval), app/level-switch.js, app/sa-api.service.js saResults /
+  # saSessions; portal/src/portal/pages/LeaderAssessResults.tsx and LeaderAssessDashboard.tsx.
+  @e2e @wip @draft @config-gated @P1 @CT182 @no-mock-driver
+  # No mock driver: the results read the database. Asserted in bot/tests/child-test/sa-r20-level.test.js and
+  # portal/src/portal/pages/LeaderAssessResults.test.tsx.
+  Scenario: A session's Results show, per subject, where the child reached, the level, and why the subject stopped
+    Given sa_r20_level is on and a child finished an RDF auto battery
+    When the coach opens that session's Results
+    Then above the task cards each subject (Urdu, English, Maths) reads "Reached: <the last part the child did>" and "Level: <level>"
+    And a spoken part not scored yet reads "Waiting for scores", or the level so far with "more scores to come"
+    And a subject a silence stop ended reads "Stopped: no answer", and one the coach ended reads "Stopped by the coach"
+    And in Urdu the same lines are in Urdu script
+    And with sa_r20_level off the Results are exactly as before
+
+  @e2e @wip @draft @config-gated @P1 @CT183 @no-mock-driver
+  # No mock driver: as @CT182. Asserted in bot/tests/child-test/sa-r20-level.test.js and
+  # portal/src/portal/pages/LeaderAssessDashboard.test.tsx.
+  Scenario: The results dashboard's sub-region and school table gains a Level column per subject
+    Given sa_r20_level is on and the live results dashboard is on
+    When the user opens the results dashboard
+    Then the sub-region table has an "Urdu level", "English level" and "Maths level" column with each row's typical level
+    And a row of fewer than 5 children shows "–" in those columns
+    And with sa_r20_level off the table has no level columns
