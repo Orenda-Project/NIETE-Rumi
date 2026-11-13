@@ -239,7 +239,10 @@ async function tell(form, key) {
 
 /** Send the check to the coach. @returns {Promise<boolean>} */
 async function openCheck(form) {
-  const flowId = process.env.OBSERVE2_CHECK_FLOW_ID;
+  // 13 Nov: a FICO17 v6 visit gets the coach's own copy of the check (level names, no N/A or Couldn't tell, no D2
+  // count boxes) once it is published here; every other visit, and a v6 one until then, the shared check as before.
+  const v6Copy = form && form.rubric_version === 'fico17_v6' ? process.env.OBSERVE2_CHECK_V6_FLOW_ID : '';
+  const flowId = v6Copy || process.env.OBSERVE2_CHECK_FLOW_ID;
   if (!flowId) {
     logToFile('[observe2] the check cannot open: OBSERVE2_CHECK_FLOW_ID is not set', { formId: form.id }, 'error');
     return false;
