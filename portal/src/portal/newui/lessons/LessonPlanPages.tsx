@@ -228,8 +228,11 @@ function ReadyCard({ lesson, grade, subject }: { lesson: LpLesson; grade: number
 
 /* ── Preparing (a plan not written yet) ──────────────────────────────────── */
 
-/** The wait the operator's design promises ("~2 min"). Past it, the ring gives way to a wheel. */
-const EXPECTED_MS = 120_000;
+/**
+ * The wait it promises ("~5 min"). Past it, the ring gives way to a wheel. bd-ipoxhx.2: a 6-12 plan takes 173 s at the
+ * median and 297 s at p95 (niete-logs, 29 Oct–12 Nov 2026); the 2 minutes once promised held for only 16% of them.
+ */
+const EXPECTED_MS = 300_000;
 
 /** The Curriculum page's back-off: responsive at first, then fewer asks for a slow one. */
 const nextPollMs = (waited: number) => (waited < 30_000 ? 3_000 : waited < 120_000 ? 6_000 : 12_000);
@@ -306,7 +309,7 @@ export function PreparingPage({ at }: { at: AtRender }) {
               : { icon: Loader2, spinning: true, tone: 'waiting' as const })}
             chips={(
               <>
-                <Chip tone="waiting" icon={Clock}>{LESSONS_COPY.aboutTwoMinutes}</Chip>
+                <Chip tone="waiting" icon={Clock}>{LESSONS_COPY.expectedWait}</Chip>
                 <Chip icon={BookOpen}>{LESSONS_COPY.opensByItself}</Chip>
               </>
             )}
