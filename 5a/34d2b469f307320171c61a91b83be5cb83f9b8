@@ -1,2 +1,3 @@
 {"ts":"2026-11-13T08:37:47Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"5a34d2b469f3","branch":"bd-snkn32.30-55206","user":""}
 {"ts":"2026-11-13T08:37:48Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: lesson-plan owe their Gherkin","sha":"5a34d2b469f3","branch":"bd-snkn32.30-55206","user":""}
+{"ts":"2026-11-13T08:44:05Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-snkn32.30-55206: lesson-plan spec: NOT UPDATED e2e: missing (the run was refused: the scenarios for this change were not written first (SPEC FIRST))","sha":"5a34d2b469f3","branch":"bd-snkn32.30-55206","user":""}
