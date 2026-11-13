@@ -1,1 +1,2 @@
 {"ts":"2026-11-13T04:47:33Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"d71e301c1412","branch":"bd-ipoxhx.3-staging","user":""}
+{"ts":"2026-11-13T07:12:22Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.1.1","sha":"d71e301c1412","branch":"bd-ipoxhx.3-staging","user":""}
