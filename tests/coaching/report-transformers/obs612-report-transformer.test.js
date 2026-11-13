@@ -3,14 +3,15 @@
  * bd-pni007 — the teacher's report for an FDE (obs612) visit: FDE's own result on FDE's own tool, scored by the coach.
  *
  * What the teacher receives when the coach confirms the send is generateHeroReport's image (observe-send preview →
- * deliver). For an FDE visit that call renders FDE's report, never the FICO hero:
- *   enur  % big, the band, "109 of 148 · FDE: score × 100 ÷ 148", one bar per section (score/max), Strengths / Areas
- *         for Improvement / Recommendations (Section 8);
- *   msci  one row per indicator "<n> · <short name>  Level N" with FDE's full wording below, "5 students checked:
- *         3-4 of 5 understood", the development plan "<area>: Level 0 → Level 1. <action>", and NO total;
- *   gen   "<Section> x of n Yes" per section, the feedback line, no score;
- *   all   footer "Scored by your coach on FDE's tool (Annexure G, 2026-27). Not a FICO score." and the label "FDE v1";
- *         no narrative model call, no FICO score bars, no journey line (the teacher's FICO history never beside it).
+ * deliver). Since bd-ra8xu.51 (Rifat, 13 Nov) an FDE visit gets the FICO teacher report's page, built from FDE's own
+ * scores and the coach's Section 8 notes only (the detail is in obs612-hero-report.test.js):
+ *   enur  FDE's % big, the band, 109/148 marks and "79.5 of 108 on FDE's scale", a score row per part (3A., 5., …),
+ *         the strongest part + the coach's strengths, the weakest part + the areas, the recommendations as the one
+ *         thing to try;
+ *   msci  a row per indicator out of 3, the development plan as the horizon and the thing to try, and NO total;
+ *   gen   "x/n" per section, the feedback line, no score;
+ *   all   footer "Scored by your coach on FDE's tool (Annexure G, 2026-27). Not a FICO score." (Urdu on an Urdu page);
+ *         no narrative model call, no FICO journey (the teacher's FICO history never beside it).
  * The reportData transformer (report records, any PDF consumer) and the renderer registry know the three ids too.
  *
  * Set OBS612_RENDER_OUT=<dir> to write each rendered HTML there for a person to read; a plain test run writes nothing.
@@ -145,83 +146,84 @@ describe('generateHeroReport on an FDE visit (the real generator, the page captu
     return { out, html, opts, text: textOf(html) };
   }
 
+  const FOOTER_UR = 'یہ FICO اسکور نہیں';
   const common = ({ out, html, opts, text }) => {
     expect(out.narrative).toBeNull();
     expect(Buffer.isBuffer(out.png)).toBe(true);
     expect(opts).toMatchObject({ selector: '.report', width: 794 });
-    expect(text).toContain(FOOTER);
-    expect(text).toContain('FDE v1');
+    expect(html).toContain('class="hero"');
     expect(text).toContain('Ayesha Khan');
     expect(text).not.toMatch(/\bNaN\b|\bundefined\b|\bnull\b/);
-    expect(text.replace(FOOTER, '')).not.toMatch(/FICO/);
-    expect(text).not.toMatch(/celebration|journey|Your next horizon/i);
+    const rest = text.replace(FOOTER, '').replace(/آپ کے کوچ نے[^۔]*۔ یہ FICO اسکور نہیں۔/, '');
+    expect(rest).not.toMatch(/FICO/);
+    expect(text).not.toMatch(/journey/i);
     expect(html).toContain('#47BA7D'); // the NIETE palette
   };
 
-  test('English & Urdu tool, en: the %, the band, FDE\'s arithmetic, a bar per section, Section 8', async () => {
+  test('English & Urdu tool, en: the %, the band, FDE\'s arithmetic, a row per part, Section 8', async () => {
     const r = await render(F.enur(), 'enur', 'en');
     common(r);
-    expect(r.text).toContain('73.6%');
+    expect(r.text).toContain(FOOTER);
+    expect(r.text).toContain('74%');
     expect(r.text).toContain('Proficient');
-    expect(r.text).toContain("109 of 148 · 79.5 of 108 on FDE's scale (score × 108 ÷ 148)");
-    expect(r.text).toContain('Section 2: Teacher Practices');
-    expect(r.text).not.toContain('Section 2: A.');
-    expect(r.text).toContain('D. Writing Skills');
-    expect(r.text).toMatch(/D\. Interest & Motivation 8\/8/);
-    expect(r.text).toMatch(/C\. Reading Skills 4\/8/);
-    expect((r.html.match(/class="pbar"/g) || []).length).toBe(15);
-    for (const h of ['Strengths', 'Areas for Improvement', 'Recommendations']) expect(r.text).toContain(h);
+    expect(r.text).toContain('109/148');
+    expect(r.text).toContain("79.5 of 108 on FDE's scale");
+    expect(r.text).toMatch(/3D\. Interest & Motivation 8\/8/);
+    expect(r.text).toMatch(/4C\. Reading Skills 4\/8/);
+    expect(r.text).toContain('4D. Writing Skills');
+    expect(r.text).toContain('5. Assessment & Feedback');
     expect(r.text).toContain('Ask two why-questions after each paragraph.');
     expect(r.out.caption).toMatch(/Grade 7/);
   });
 
-  test('Maths & Science tool, en: a row per indicator with FDE\'s wording, the students, the plan, no total', async () => {
+  test('Maths & Science tool, en: a row per indicator out of 3, the plan, no total', async () => {
     const r = await render(F.msci(), 'msci', 'en');
     common(r);
-    expect(r.text).toMatch(/1 · Written work checked Level 2/);
-    expect(r.text).toMatch(/9 · Wrapping up the lesson Level 0/);
-    expect(r.text).toContain('Assigning and checking written work including formative assessments');
-    expect(r.text).toContain('5 students checked: 3-4 of 5 understood');
-    expect(r.text).toContain('Wrapping up the lesson: Level 0 → Level 1. Close with a two-minute summary and homework on the board.');
-    expect(r.text).toContain('FDE gives no total for this tool.');
-    expect(r.text).not.toMatch(/\d\s*%|\/\s*33\b/);
-    expect(r.html).not.toContain('class="pbar"');
+    expect(r.text).toContain(FOOTER);
+    expect(r.text).toMatch(/1\. Written work checked 2\/3/);
+    expect(r.text).toMatch(/9\. Wrapping up the lesson 0\/3/);
+    expect(r.text).toContain('From Level 0 to Level 1.');
+    expect(r.text).toContain('Close with a two-minute summary and homework on the board.');
+    expect(r.text).toContain("FDE's tool gives levels, not a total.");
+    expect(r.text).not.toMatch(/\d\s*%/);
+    expect(r.html).not.toMatch(/class="hscore"/);
   });
 
-  test('General form, en: "x of n Yes" per section, the feedback line, no score', async () => {
+  test('General form, en: "x/n" per section, the feedback line, no score', async () => {
     const r = await render(F.gen(), 'gen', 'en');
     common(r);
-    expect(r.text).toMatch(/CLASSROOM ENVIRONMENT 6 of 6 Yes/);
-    expect(r.text).toMatch(/STUDENT ASSESSMENT PROCESS 0 of 2 Yes/);
+    expect(r.text).toContain(FOOTER);
+    expect(r.text).toMatch(/CLASSROOM ENVIRONMENT 6\/6/);
+    expect(r.text).toMatch(/STUDENT ASSESSMENT PROCESS 0\/2/);
     expect(r.text).toContain('A good start: add pair work, and check answers at the end.');
     expect(r.text).toContain('Yes on 29 of 35');
     expect(r.text).not.toMatch(/\d\s*%/);
   });
 
-  // An Urdu teacher: the page is FDE's English tool, so it stays an English LTR page (a report's language is its
-  // content's); the coach's Urdu words render RTL in their own first-strong block, on the embedded Nastaliq face.
+  // An Urdu teacher gets the FICO report's Urdu page: right to left, Nastaliq first, FICO's English chrome (FEAT-106),
+  // the coach's Urdu words as the body, an Urdu footnote, an Urdu caption.
   const URDU = {
     enur: { fb_strengths: 'واضح مقاصد، اور ہر طالب علم کے ساتھ نرم لہجہ۔' },
     msci: { dp_action: 'آخر میں دو منٹ کا خلاصہ کریں اور ہوم ورک بورڈ پر لکھیں۔', obs_i9: 'گھنٹی مثال کے دوران بج گئی۔' },
     gen: { fb_line: 'اچھا آغاز: جوڑیوں میں کام شامل کریں، اور آخر میں جوابات دیکھیں۔' },
   };
-  test.each(['enur', 'msci', 'gen'])('%s, ur: FDE\'s English page, the coach\'s Urdu in its own RTL block, Nastaliq embedded', async (tool) => {
+  test.each(['enur', 'msci', 'gen'])('%s, ur: the FICO Urdu page, the coach\'s Urdu words, an Urdu footnote', async (tool) => {
     const analysis = tool === 'enur' ? F.enur({ over: URDU.enur }) : F[tool](URDU[tool]);
     const r = await render(analysis, tool, 'ur');
     common(r);
-    expect(r.html).toContain('<html dir="ltr" lang="en">');
-    const urdu = Object.values(URDU[tool])[0];
-    expect(r.html).toContain(`<div class="own" dir="auto">${urdu}</div>`);
-    expect(r.html).toMatch(/\.own\{[^}]*unicode-bidi:plaintext/);
-    expect(r.html).toMatch(/@font-face\{font-family:'NastaliqUrdu';font-weight:400;src:url\(data:font\/ttf;base64,[A-Za-z0-9+/]{100,}/);
+    expect(r.html).toContain('dir="rtl"');
+    expect(r.html).toMatch(/font-family:'NastaliqUrdu','NaskhArabic'/);
+    expect(r.text).toContain(Object.values(URDU[tool])[0]);
+    expect(r.text).toContain(FOOTER_UR);
+    expect(r.text).not.toContain(FOOTER);
     expect(r.out.caption).toMatch(/[؀-ۿ]/);
   });
 
   test('an analysis stamped FDE but missing its answers still renders an FDE page, never 0% or FICO bars', async () => {
     const r = await render({ framework: 'obs612-gen-v1', rubric: 'obs612-gen-v1', scores: { rubric: 'obs612-gen-v1' } }, 'gen-bare', 'en');
     expect(r.text).toContain(FOOTER);
-    expect(r.text).toContain('General form');
     expect(r.text).not.toMatch(/\b0%|\bNaN\b|\bundefined\b/);
+    expect(r.html).not.toMatch(/class="hscore"/);
   });
 
   test('no narrative model call and no FICO journey read, for any FDE report', () => {
