@@ -20,7 +20,7 @@ const fs = require('fs');
 const path = require('path');
 const FreePrint = require('./free-secondary-print');
 const Chrome = require('./free-secondary-chrome');
-const { orderedEntries } = require('./assessment-order');
+const { orderedLists } = require('./assessment-order');
 
 /**
  * Fonts are base64-embedded into the HTML, not named and hoped for.
@@ -308,23 +308,9 @@ function collectQuestions(examJson) {
     if (entry.question && entry.question.removed === true) return;
     found.push(entry);
   };
-  for (const section of ['seen', 'unseen']) {
-    const branch = examJson?.[section];
-    if (!branch || typeof branch !== 'object') continue;
-    for (const [category, types] of orderedEntries(branch, 'category')) {
-      if (!types || typeof types !== 'object') continue;
-      for (const [type, entry] of orderedEntries(types, 'type')) {
-        if (Array.isArray(entry)) {
-          entry.forEach((q) => q && push({ section, category, type, question: q }));
-        } else if (entry && typeof entry === 'object') {
-          for (const [subType, list] of orderedEntries(entry, 'type')) {
-            if (Array.isArray(list)) {
-              list.forEach((q) => q && push({ section, category, type: subType, question: q }));
-            }
-          }
-        }
-      }
-    }
+  // One walk across both halves (bd-ipoxhx.3): a Both paper prints each type once.
+  for (const { section, category, type, list } of orderedLists(examJson)) {
+    list.forEach((q) => q && push({ section, category, type, question: q }));
   }
   return found;
 }
