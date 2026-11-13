@@ -25,6 +25,7 @@ const { extractJsonFromResponse } = require('./assessment-json.util');
 const { stemsBlock, applyStems } = require('./topics/stem-prompt');
 const { seenCategoryLine, keepSeenCategories } = require('./seen-categories');
 const { capBlooms, appliesToGrade, APPLY_NOTE } = require('./bloom-ceiling');
+const { standardMarks } = require('./standard-marks');
 
 // The English-medium GK/SST prompts (bd-uam6dh) sit in their own file: ict-prompts.json is pinned key by key.
 const PROMPTS = { ...require('./ict-prompts.json'), ...require('./gk-sst-en-prompts.json') };
@@ -285,9 +286,13 @@ ${list}
  * What to make, in the words the prompts expect. Objective and subjective are
  * listed separately because that is the shape of the tree the model returns.
  */
+// bd-ipoxhx.7 (AG row 21) — the marks teachers expect; standardMarks() also enforces them after generation.
+const STANDARD_MARKS_LINE = '• Marks: every objective question is 1 mark each (a matching question 1 mark per pair); '
+  + 'short / brief answers 2-3 marks; long questions and written work 5-10 marks';
+
 function buildUserPrompt({ grade, subject, pageContent, pageReference,
                            contentSource, questionCount, questionTypes = [], totalMarks = null,
-                           seenCount = null, slos = null }) {
+                           seenCount = null, slos = null, standardMarks: askStandard = true }) {
   const plan = planCounts({ contentSource, questionCount, questionTypes, seenCount });
   const objective = plan.questionTypes.filter((q) => q.category === 'objective');
   const subjective = plan.questionTypes.filter((q) => q.category !== 'objective');
@@ -331,7 +336,7 @@ ${items.map((i) => `• ${i}`).join('\n')}
 • For UNSEEN questions: Create new questions based on concepts from the textbook
 • The paper carries no pictures. Do NOT include any question that needs a picture, illustration or diagram to answer (e.g. "write the name of each object under its picture", "look at the picture and…", "colour the…"). Rewrite it so it can be answered from text alone, or leave it out${drawIt ? `
 ${DRAW_IT_LINE}` : ''}
-• Include proper marks allocation for each question
+${askStandard ? STANDARD_MARKS_LINE : '• Include proper marks allocation for each question'}
 • Maintain grade-appropriate language and difficulty
 • Return output in the JSON format specified in the system prompt
 • Where a question type specifies an exact count (e.g. "5 MCQs"), generate EXACTLY that many questions for that type — no more, no less
@@ -745,6 +750,9 @@ async function generateExam(args) {
   const offCategory = contentSource === 'both' ? keepSeenCategories(examJson, questionTypes) : 0;
   if (offCategory > 0) logToFile('[assessment] dropped seen questions outside her categories', { removed: offCategory });
   const removedSeen = trimSeen(examJson, plan.seenTarget);
+  // bd-ipoxhx.7 — standard marks before the budget is measured, so an inflated MCQ never costs a question.
+  const marksStandardised = standardMarks(examJson);
+  if (marksStandardised > 0) logToFile('[assessment] set marks to the standard', { changed: marksStandardised });
   if (removedSeen > 0) {
     logToFile('[assessment] trimmed seen questions to the cap', { seenTarget: plan.seenTarget, removed: removedSeen });
   }
