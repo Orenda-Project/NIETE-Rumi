@@ -13,6 +13,7 @@ vi.mock("../services/api", () => ({ childTestSa: { getResults: vi.fn() } }));
 import { childTestSa } from "../services/api";
 import LeaderAssessResults from "./LeaderAssessResults";
 import { resultsPath } from "../lib/assess/results";
+import { COPY } from "../lib/assess/copy";
 
 const api = childTestSa as any;
 const SID = "cccccccc-0000-4000-8000-000000000003";
@@ -256,6 +257,32 @@ describe("LeaderAssessResults", () => {
     renderAt();
     const dev = await screen.findByTestId("result-task-ma.number_id");
     expect(within(dev).getByText("چھوڑ دیا گیا (سینڈ باکس جمپ)")).toBeTruthy();
+  });
+
+  // End this section: the part on show ends as end_section, the parts after it in that section as skipped_end_section.
+  const END_SECTION_TASKS = [
+    { taskId: "en.letter_names5", mode: "record", attempted: 3, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, stopReason: "end_section", recording: "scored_later", score: null },
+    { taskId: "en.words4", mode: "record", attempted: null, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, stopReason: "skipped_end_section", recording: "none", score: null },
+  ];
+
+  it("End this section reads as words, never its code: the part ended by the coach, the parts after it skipped (EN + UR)", async () => {
+    api.getResults.mockResolvedValue({ ...RESULTS, tasks: END_SECTION_TASKS });
+    const en = renderAt();
+    const ended = await screen.findByTestId("result-task-en.letter_names5");
+    expect(within(ended).getByText("Ended by the coach")).toBeTruthy();
+    const after = screen.getByTestId("result-task-en.words4");
+    expect(within(after).getByText("Skipped")).toBeTruthy();
+    expect(within(after).queryByText("Attempted")).toBeNull();
+    for (const card of [ended, after]) expect(card.textContent).not.toMatch(/end_section/);
+    en.unmount();
+
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    renderAt();
+    const endedUr = await screen.findByTestId("result-task-en.letter_names5");
+    expect(within(endedUr).getByText(COPY.ur.results.stops.coach_end)).toBeTruthy();
+    const afterUr = screen.getByTestId("result-task-en.words4");
+    expect(within(afterUr).getByText(COPY.ur.results.stops.skipped_level2)).toBeTruthy();
+    for (const card of [endedUr, afterUr]) expect(card.textContent).not.toMatch(/end_section/);
   });
 
   it("Urdu: a scored task's numbers are labelled in Urdu, never the scorer's keys (0 raw keys on the page)", async () => {
