@@ -241,3 +241,42 @@ describe("LeaderAssessDashboard on real sessions (sa_real_dashboard)", () => {
     expect(live.textContent).toMatch(/۵/);
   });
 });
+
+// Round 20 (sa_r20_level on the server): when the sessions carry `levels`, the sub-region / school table gains a Level
+// column per subject — the typical (middle) level of the children in that row; masked under 5 like every other cell.
+describe("LeaderAssessDashboard: a Level column per subject (round 20)", () => {
+  const withLevels = (n: number, sector: string, schoolId: string, ur: string | null, ma: string | null) => many(n, sector, schoolId).map((s) => ({
+    ...s,
+    results: { ...s.results, levels: [
+      { subject: "ur", reached: { taskId: "ur.words4", title: null }, level: ur, pending: false, stop: null },
+      { subject: "ma", reached: { taskId: "ma.add2i", title: null }, level: ma, pending: false, stop: null },
+    ] },
+  }));
+
+  it("no levels in the sessions: no level columns", async () => {
+    api.getSwitches.mockResolvedValue({ realDashboard: true });
+    api.getSessions.mockResolvedValue({ sessions: many(6, "Urban-I", "a") });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    expect(screen.queryByTestId("dash-col-level-ur")).toBeNull();
+    expect(screen.queryByTestId("dash-level-ur")).toBeNull();
+  });
+
+  it("levels: a column per subject with the row's typical level; under 5 children masked", async () => {
+    api.getSwitches.mockResolvedValue({ realDashboard: true });
+    const urban = [...withLevels(3, "Urban-I", "a", "words", "numbers"), ...withLevels(2, "Urban-I", "a", "story", "beginner"), ...withLevels(1, "Urban-I", "a", null, null)];
+    api.getSessions.mockResolvedValue({ sessions: [...urban, ...withLevels(2, "Sihala", "c", "letters", "multiply")] });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    expect(screen.getByTestId("dash-col-level-ur")).toHaveTextContent("Urdu level");
+    expect(screen.getByTestId("dash-col-level-ma")).toHaveTextContent("Maths level");
+    expect(screen.queryByTestId("dash-col-level-en")).toBeNull();
+    const rows = within(screen.getByTestId("dash-groups")).getAllByTestId("dash-group-row");
+    const urbanRow = rows.find((r) => r.getAttribute("data-key") === "Urban-I") as HTMLElement;
+    expect(within(urbanRow).getByTestId("dash-level-ur")).toHaveTextContent("Words");
+    expect(within(urbanRow).getByTestId("dash-level-ma")).toHaveTextContent("Numbers");
+    const sihala = rows.find((r) => r.getAttribute("data-key") === "Sihala") as HTMLElement;
+    expect(within(sihala).getByTestId("dash-level-ur")).toHaveTextContent("–");
+    expect(sihala.textContent).not.toMatch(/Letters|Multiply/);
+  });
+});
