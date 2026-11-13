@@ -373,6 +373,34 @@ Feature: NIETE (ICT) Teacher Training
     # Only lessons whose served version has a slide script are listed (niete_lp_asset_sources). In Urdu the
     # labels read «سبق کے منصوبے سے» and «کلاس کی ریکارڈنگ سے». @wip.
 
+  # ── a recording whose quiz is held for its subject (bd-37q6ye) ───────────────────────────
+  # The offer skips a recording's quiz when its subject is not cleared for quizzes yet (Islamiat,
+  # until the religious review clears it). Before the fix /quiz listed it as "no quiz yet" and a
+  # tap re-made it with no subject check: 7 such quizzes reached children (6 Islamiat). Needs a
+  # recorded Islamiat lesson on the driver number whose quiz the offer skipped. @wip until seeded.
+
+  @e2e @quiz @wip @draft @P1 @T1182
+  Scenario: A recording held for its subject is listed as under review and tapping it makes no quiz
+    Given the NIETE bot chat is open and I recorded an Islamiat lesson whose quiz was held back because the subject is still under review
+    When I send "/quiz"
+    Then that recording's row says "Under review", not that it has no quiz yet
+    When I tap that recording's row
+    Then the bot says quizzes for this subject are still being reviewed, so it can't make one from this recording yet, and to send /quiz for my other lessons
+    And no quiz is made and nothing is sent to the class
+    # transcript-quiz-list quizState 'held' (tqRowHeld) + handleListPick → tqRecordingHeld; claimForGeneration
+    # refuses a held quiz on every door. Urdu: «زیرِ نظرثانی». A recording skipped for any other reason
+    # (too short) is still offered to make, as before. tests/quiz/transcript-quiz-subject-held.test.js. @wip.
+
+  @e2e @quiz @flow @wip @draft @P1 @T1183
+  Scenario: In the /quiz Flow a recording held for its subject offers nothing to make
+    Given the NIETE bot chat is open and I recorded an Islamiat lesson whose quiz was held back because the subject is still under review
+    When I open that lesson in the /quiz Flow
+    Then its status reads "Under review" and there is no button to make the quiz in any language
+    And the Flow closes telling me quizzes for this subject are still being reviewed and my other lessons are ready to quiz
+    And no quiz is made
+    # transcript-quiz-flow-endpoint actionsFor({state:'held'}) → [], flowStatus → tqFlowStatusHeld, DONE copy
+    # tqFlowDoneHeldHead/Body; startTranscriptLesson via 'flow' returns outcome 'held'. @wip.
+
   @e2e @quiz @wip @draft @config-gated @P1
   Scenario: /quiz lists a lesson plan I read in the teacher app
     Given the NIETE bot chat is open on a teacher who read a Grade 1-5 lesson plan in the teacher app this week and never received it on WhatsApp

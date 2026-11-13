@@ -100,6 +100,7 @@ function flowStatus(quiz, language, counts) {
     // Nothing made yet, whatever was offered: the words of a lesson with no quiz.
     case 'offered': return resolveUx('tqFlowStatusNone', { language });
     case 'making': return resolveUx('tqFlowStatusMaking', { language });
+    case 'held': return resolveUx('tqFlowStatusHeld', { language });
     case 'sent': return resolveUx('tqFlowStatusSent', { language, params: { started: c.started } });
     case 'report_sent': return resolveUx('tqFlowStatusReport', { language, params: { finished: c.finished } });
     case 'failed': return resolveUx('tqFlowStatusFailed', { language });
@@ -488,7 +489,7 @@ function doneAction(language) {
  * screen instead (lessonScreenFrom).
  */
 function actionsFor({ state, quiz, session, language, finished = 0, lesson = null }) {
-  if (state === 'making') return [];
+  if (state === 'making' || state === 'held') return [];
   const list = baseActions({ state, quiz, session, language, finished, lesson });
   return list.length ? list : [doneAction(language)];
 }
@@ -598,7 +599,7 @@ function lessonScreenFrom({ teacher, session, quiz, students, language, extra = 
   // wrong" while this endpoint logs a clean response. A lesson with nothing to
   // choose therefore never gets this screen — the terminal one instead.
   if (!actions.length) {
-    return doneScreen('wait', language, { userId: teacher?.id || null, quizId: quiz?.id || null, state });
+    return doneScreen(state === 'held' ? 'held' : 'wait', language, { userId: teacher?.id || null, quizId: quiz?.id || null, state });
   }
 
   return {
@@ -633,6 +634,7 @@ const DONE_COPY = {
   link: ['tqFlowDoneLinkHead', 'tqFlowDoneLinkBody'],
   make: ['tqFlowDoneMakeHead', 'tqFlowDoneMakeBody'],
   wait: ['tqFlowDoneWaitHead', 'tqFlowDoneWaitBody'],
+  held: ['tqFlowDoneHeldHead', 'tqFlowDoneHeldBody'],
 };
 
 function doneScreen(kind, language, meta = {}) {
@@ -738,7 +740,7 @@ async function stepAction(teacher, screenData) {
   });
 
   if (!submitted && !available.length) {
-    return doneScreen('wait', language, { userId: teacher.id });
+    return doneScreen(state === 'held' ? 'held' : 'wait', language, { userId: teacher.id });
   }
 
   // A submit carrying no choice is not a teacher changing their mind — in

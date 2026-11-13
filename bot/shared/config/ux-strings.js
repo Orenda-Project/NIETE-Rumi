@@ -2602,6 +2602,12 @@ const UX_STRINGS = {
     en: 'That quiz is still being made — it will arrive here shortly.',
     ur: 'وہ quiz ابھی تیار ہو رہا ہے — تھوڑی دیر میں یہیں آئے گا۔',
   },
+  // A recording whose quiz is held for its subject (Islamiat, until the religious review
+  // clears it) tapped in /quiz. "Not yet", as lp612Held says it.
+  tqRecordingHeld: {
+    en: 'Quizzes for this subject are still being reviewed, so I can’t make one from this recording yet. Send /quiz to see your other lessons.',
+    ur: 'اس مضمون کے quiz ابھی نظرثانی کے مرحلے میں ہیں، اس لیے اس ریکارڈنگ سے فی الحال quiz نہیں بن سکتا۔ اپنے باقی اسباق دیکھنے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
   tqCouldNotMake: {
     en: 'I couldn’t make a good quiz from this lesson’s recording — the transcript didn’t carry enough of what was taught clearly. Try /quiz after your next lesson.',
     ur: 'اس سبق کی ریکارڈنگ سے اچھا quiz نہیں بن سکا — transcript میں پڑھایا ہوا مواد کافی واضح نہیں تھا۔ اگلے سبق کے بعد ⁦/quiz⁩ آزمائیں۔',
@@ -2792,6 +2798,8 @@ const UX_STRINGS = {
   // offered (not answered, or waiting for its language): tqRowNoQuiz here,
   // tqFlowStatusNone in the Flow, the same words.
   tqRowNoQuiz: { en: 'No quiz yet', ur: 'ابھی quiz نہیں' },
+  // A recording held for its subject; tqFlowStatusHeld in the Flow, the same words.
+  tqRowHeld: { en: 'Under review', ur: 'زیرِ نظرثانی' },
   // WHERE a row in /quiz came from — first in the list row's description and in
   // the Flow item's metadata line, on every row. Noun phrases, so no verb can
   // agree with anyone. «سبق کے منصوبے» is the catalog's own phrase for a lesson
@@ -2909,6 +2917,7 @@ const UX_STRINGS = {
 
   // The lesson row's status, in the 20-code-point description slot.
   tqFlowStatusNone: { en: 'No quiz yet', ur: 'ابھی quiz نہیں' },
+  tqFlowStatusHeld: { en: 'Under review', ur: 'زیرِ نظرثانی' },
   tqFlowStatusMaking: { en: 'Being made…', ur: 'تیار ہو رہا ہے…' },
   tqFlowStatusSent: { en: '{started} started', ur: '\u200F{started} نے شروع' },
   tqFlowStatusReport: { en: 'Report sent · {finished}', ur: 'رپورٹ بھیجی · {finished}' },
@@ -3118,6 +3127,11 @@ const UX_STRINGS = {
     ur: 'تقریباً ایک منٹ۔ quiz اور آگے بھیجنے والا پیغام آپ کی chat میں آ جائے گا۔',
   },
   tqFlowDoneWaitHead: { en: 'Still being made', ur: 'ابھی تیار ہو رہا ہے' },
+  tqFlowDoneHeldHead: { en: 'Under review', ur: 'زیرِ نظرثانی' },
+  tqFlowDoneHeldBody: {
+    en: 'Quizzes for this subject are still being reviewed. Your other lessons are ready to quiz.',
+    ur: 'اس مضمون کے quiz ابھی نظرثانی کے مرحلے میں ہیں۔ باقی اسباق کے quiz حاضر ہیں۔',
+  },
   tqFlowDoneWaitBody: {
     en: 'About a minute. The quiz will arrive in your chat with the message to forward.',
     ur: 'تقریباً ایک منٹ۔ quiz آگے بھیجنے والے پیغام کے ساتھ آپ کی chat میں آ جائے گا۔',
