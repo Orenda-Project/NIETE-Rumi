@@ -23,6 +23,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { assertProductionCertificateEnv } = require('./lib/certificate-issuing-env');
 
 const TARGET_REFS = {
   sandbox: 'olvritwoqujtjvwfulbh',
@@ -95,6 +96,12 @@ async function main(argv) {
 
   const ref = assertTargetRef(args.target, process.env.SUPABASE_URL);
   assertKeyRef(args.target, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  // It issues certificates: against production, a non-production NODE_ENV stamps every PDF
+  // 'NOT A REAL CERTIFICATE' (17 Oct 2026, bd-r2uzg1.16). Refused even on a dry run, so the
+  // mistake surfaces before the go, not after.
+  assertProductionCertificateEnv({
+    supabaseUrl: process.env.SUPABASE_URL, nodeEnv: process.env.NODE_ENV, script: 'release-isaps-held-attempts.js',
+  });
   process.stderr.write(`[release-isaps] target=${args.target} ref=${ref} mode=${args.apply ? 'APPLY' : 'dry-run'}\n`);
 
   // Only now is anything that connects loaded.
