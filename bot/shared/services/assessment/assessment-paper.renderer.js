@@ -22,6 +22,7 @@ const FreePrint = require('./free-secondary-print');
 const Chrome = require('./free-secondary-chrome');
 const { orderedLists } = require('./assessment-order');
 const { compactCss } = require('./compact-print');
+const Diagram = require('./paper-diagram');
 
 /**
  * Fonts are base64-embedded into the HTML, not named and hoped for.
@@ -287,7 +288,12 @@ function renderQuestion(question, number, questionType, opts) {
     out.push(`<div class="passage">${escMultiline(question.passage)}</div>`);
   } else {
     out.push(`<p><b>${number}.</b> ${esc(question.question)} ${marks}</p>`);
-    if (answerLines) out.push(ruledLines(answerLinesFor(questionType, question)));
+    // bd-ipoxhx.10: a mind map, flow chart or labelling figure is drawn, and the child writes on it.
+    const fig = Diagram.figureFor(questionType, question, { rtl: opts.rtl });
+    if (fig) {
+      out.push(`<div class="diagram" style="margin:6px auto;max-width:150mm;break-inside:avoid">${fig.svg}</div>`);
+      if (fig.bank) out.push(`<div class="bank" style="border:1px solid #000;padding:4px 10px;margin:4px 0 0;display:inline-block">${fig.bank.map(esc).join(' &nbsp;·&nbsp; ')}</div>`);
+    } else if (answerLines) out.push(ruledLines(answerLinesFor(questionType, question)));
   }
 
   if (answer) out.push(answer);
@@ -346,7 +352,7 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
   const lineMm = lineHeightMm(grade);
   const questions = collectQuestions(examJson);
   const rtl = isRtl(subject);
-  const opts = { includeAnswerKey: false, answerLines, marksWord: Chrome.marksWord(examJson) };
+  const opts = { includeAnswerKey: false, answerLines, marksWord: Chrome.marksWord(examJson), rtl };
   const L = Chrome.labelsFor(examJson);
 
   const body = [];
@@ -508,7 +514,9 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
     } else if (question && Array.isArray(question.words) && question.words.length && !question.answer) {
       answer = dash;
     } else {
-      answer = question && question.answer ? escMultiline(question.answer) : dash;
+      const fig = Diagram.figureFor(type, question, { rtl: isRtl(subject) });
+      const text = (fig && fig.answer) || (question && question.answer);
+      answer = text ? escMultiline(text) : dash;
       answer += FreePrint.markingHtml(question, esc);
       answer += FreePrint.levelHtml(examJson, question, esc);
     }

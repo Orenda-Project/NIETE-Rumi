@@ -1,5 +1,8 @@
 /**
- * The two question types that only work with a picture printed on the paper are no longer offered.
+ * Picture Description needs a photo printed on the paper, so it is no longer offered.
+ *
+ * bd-ipoxhx.10: Label the Diagram was hidden here too, until the paper learned to draw its figure
+ * (paper-diagram.js). It is offered again; this file now pins Picture Description alone.
  *
  * The paper carries no pictures: the user prompt tells the model so, and the renderer has nothing
  * to draw one with. "Label the Diagram" and "Picture Description" were still offered anyway, so a
@@ -24,8 +27,8 @@ const QuestionTypes = require('../../bot/shared/services/assessment/question-typ
 const idsFor = (subject, grade) => QuestionTypes.forSubject(subject, grade).map((t) => t.id);
 
 describe('forSubject', () => {
-  test.each([4, 5])('hides Label the Diagram for science G%i', (grade) => {
-    expect(idsFor('science', grade)).not.toContain('Label the Diagram');
+  test.each([4, 5])('offers Label the Diagram again for science G%i: the paper draws it', (grade) => {
+    expect(idsFor('science', grade)).toContain('Label the Diagram');
   });
 
   test.each([
@@ -43,8 +46,7 @@ describe('forSubject', () => {
 
   test('removes nothing else: every other catalogue type is still offered', () => {
     const { CATALOGUE } = QuestionTypes;
-    const science = [...CATALOGUE.science.objective, ...CATALOGUE.science.subjective]
-      .filter((id) => id !== 'Label the Diagram');
+    const science = [...CATALOGUE.science.objective, ...CATALOGUE.science.subjective];
     expect(idsFor('science', 5)).toEqual(science);
     const english35 = [...CATALOGUE.english.objective, ...CATALOGUE.english.subjectiveByGrade['3-5']]
       .filter((id) => id !== 'Picture Description');
@@ -114,13 +116,22 @@ describe('POST /api/internal/assessment/create', () => {
 
   const BASE = { userId: 'teacher-1', grade: 5, subject: 'science', chapterNumbers: [1], questionCount: 6 };
 
-  test('400s Label the Diagram, a form loaded before the change still posting it', async () => {
-    const { statusCode, payload } = await invoke('/assessment/create', {
+  test('accepts Label the Diagram again (bd-ipoxhx.10: the paper draws it)', async () => {
+    const { statusCode } = await invoke('/assessment/create', {
       ...BASE,
       questionTypes: [{ id: 'MCQs', count: 4, category: 'objective' }, { id: 'Label the Diagram', count: 2, category: 'subjective' }],
     });
+    expect(statusCode).toBe(202);
+    expect(created.questionTypes.map((t) => t.id)).toEqual(['MCQs', 'Label the Diagram']);
+  });
+
+  test('400s Picture Description, a form loaded before the change still posting it', async () => {
+    const { statusCode, payload } = await invoke('/assessment/create', {
+      ...BASE, subject: 'english',
+      questionTypes: [{ id: 'MCQs', count: 4, category: 'objective' }, { id: 'Picture Description', count: 2, category: 'subjective' }],
+    });
     expect(statusCode).toBe(400);
-    expect(payload.error).toBe('Label the Diagram is not a question type for this subject.');
+    expect(payload.error).toBe('Picture Description is not a question type for this subject.');
     expect(created).toBeNull();
   });
 
