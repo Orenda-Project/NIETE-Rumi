@@ -64,8 +64,11 @@ function extremes(rows, valueOf, n = 2) {
 }
 
 function enurView(o, r) {
+  // A part's title is the rubric's current wording for its key (13 Nov: 4 D reads "Writing Skills"), so a visit saved
+  // before a correction reads the same as a new one; the stored title only when the key is unknown.
+  const titleOf = (s) => (O.TOOLS.enur.sections.find((d) => d.key === s.key) || {}).title || s.title;
   const sections = (r.sections || []).map((s) => ({
-    key: s.key, title: s.title, section: s.section, score: s.score, max: s.max, pct: pctOf(s.score, s.max),
+    key: s.key, title: titleOf(s), section: s.section, score: s.score, max: s.max, pct: pctOf(s.score, s.max),
   }));
   // Section 7 (operator 13 Nov): the band is read on FDE's 108-point scale (total × 108 ÷ the sheet's total). Read again
   // here, so a visit saved before the rule changed shows the same band as a new one.

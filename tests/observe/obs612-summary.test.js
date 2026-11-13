@@ -262,3 +262,20 @@ describe('the debrief entry on an FDE row (observe-debrief buildDebriefGuide)', 
     expect(llm.completeJson).toHaveBeenCalled();
   });
 });
+
+// bd-ra8xu.50: a visit saved before 13 Nov keeps "D. Reading Skills" and a %-band in its stored result; it reads with
+// today's wording and FDE's 108-point band.
+describe('a visit saved before the 13 Nov corrections', () => {
+  const { obs612View } = require('../../bot/shared/services/observe/obs612/view');
+  test('4 D reads Writing Skills; the band is read on the 108-point score', () => {
+    const analysis = JSON.parse(JSON.stringify(F.enur()));
+    const res = analysis.obs612.result;
+    const d = res.sections.find((s) => s.key === 's4d');
+    d.title = 'D. Reading Skills';
+    res.band = { label: 'Proficient', rating: 2, printed_range: '70–89' };
+    delete res.score_108;
+    const v = obs612View(analysis);
+    expect(v.enur.sections.find((s) => s.key === 's4d').title).toBe('D. Writing Skills');
+    expect(v.enur.score_108).toBe(Math.round((res.total * 1080) / res.max) / 10);
+  });
+});
