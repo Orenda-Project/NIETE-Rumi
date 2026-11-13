@@ -17,7 +17,7 @@ function client(...answers) {
 test('a good first answer is taken, on its own job', async () => {
   const c = client({ ...SCRIPT, weDo: { action: 'Floor number line game' } });
   const out = await rewriteK5({ script: SCRIPT, answers: ANSWERS, lang: 'en', grade: 3, subject: 'math', client: c, model: 'm' });
-  expect(out).toEqual({ script: expect.objectContaining({ weDo: { action: 'Floor number line game' } }), model: 'm', rounds: 1 });
+  expect(out).toEqual({ script: expect.objectContaining({ weDo: { action: 'Floor number line game' } }), model: 'm', rounds: 1, fixes: [], warnings: [] });
   expect(c.create.mock.calls[0][0].job).toBe(JOB);
 });
 
@@ -42,4 +42,47 @@ test('bd-snkn32.15: a change sends her one change, not the class answers, and th
   const user = c.create.mock.calls[0][0].messages[1].content;
   expect(user).toMatch(/Change only the weDo part/);
   expect(user).toMatch(/pair game with stones/);
+});
+
+// bd-snkn32.40 — a teacher checking each child in a big class goes back once; it is never the last word on its own.
+describe('one-by-one checks in a class over 30', () => {
+  const BIG = { ...ANSWERS, size: 'over70' };
+  const perChild = { ...SCRIPT, youDo: { action: 'Check each child\'s copy one by one.' } };
+  const call = (c) => rewriteK5({ script: SCRIPT, answers: BIG, lang: 'en', grade: 3, subject: 'math', client: c, model: 'm' });
+
+  test('round 1: sent back with the reason; a fixed round 2 is taken', async () => {
+    const c = client(perChild, SCRIPT);
+    const out = await call(c);
+    expect(out.rounds).toBe(2);
+    expect(out.warnings).toEqual([]);
+    const second = c.create.mock.calls[1][0].messages;
+    expect(second[second.length - 1].content).toMatch(/each child/);
+  });
+
+  test('still there in round 2: accepted with a warning, not refused', async () => {
+    const out = await call(client(perChild, perChild));
+    expect(out.script.youDo.action).toMatch(/one by one/);
+    expect(out.warnings.join(' ')).toMatch(/each child/);
+  });
+
+  test('round 2 breaks a hard rule: round 1\'s plan is kept, with the warning', async () => {
+    const out = await call(client(perChild, { ...SCRIPT, goal: 'moved' }));
+    expect(out.script.goal).toBe(SCRIPT.goal);
+    expect(out.rounds).toBe(2);
+    expect(out.warnings.join(' ')).toMatch(/each child/);
+  });
+
+  test('a small class is never sent back for it', async () => {
+    const c = client(perChild);
+    const out = await rewriteK5({ script: SCRIPT, answers: ANSWERS, lang: 'en', grade: 3, subject: 'math', client: c, model: 'm' });
+    expect(out.rounds).toBe(1);
+    expect(c.create).toHaveBeenCalledTimes(1);
+  });
+});
+
+test('bd-snkn32.40: a change much longer than the plan is kept with a warning, one call', async () => {
+  const c = client({ ...SCRIPT, weDo: { action: 'w'.repeat(3000) } });
+  const out = await rewriteK5({ script: SCRIPT, edit: { part: 'we_do', text: 'longer' }, lang: 'en', grade: 3, subject: 'math', client: c, model: 'm' });
+  expect(c.create).toHaveBeenCalledTimes(1);
+  expect(out.warnings.join(' ')).toMatch(/longer/);
 });

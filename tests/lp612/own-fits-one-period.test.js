@@ -43,28 +43,21 @@ describe('K-5 request: the period, the load for her class size, whole-class chec
   });
 });
 
-describe('K-5 gate on a make', () => {
+describe('K-5 gate on a make: only the hard rules refuse (bd-snkn32.40: the soft ones are fixed in lp-own-fit)', () => {
   const opts = { lang: 'en', resources: ['textbook'], size: 'over70', period: 30 };
   it('a plan that fits the period and the class passes', () => {
     expect(checkK5Rewrite(day(), fitting(), opts)).toEqual([]);
   });
-  it('unclocked parts, or minutes over the period, are refused', () => {
-    expect(checkK5Rewrite(day(), day(), opts).join(' ')).toMatch(/minutes/);
-    const over = fitting(); over.youDo.minutes = 20;
-    expect(checkK5Rewrite(day(), over, opts).join(' ')).toMatch(/41.*30/);
-  });
-  it('too many activities for a class of 70+ are refused', () => {
-    const s = fitting(); s.youDo.problems = [1, 2, 3].map((n) => ({ prompt: `Q${n}` }));
-    expect(checkK5Rewrite(day(), s, opts).join(' ')).toMatch(/youDo.*problems/);
-  });
-  it('a per-child teacher check in a big class is refused', () => {
-    const s = fitting(); s.youDo.action = 'Walk round and check each child\'s copy.';
-    expect(checkK5Rewrite(day(), s, opts).join(' ')).toMatch(/each child/);
-  });
-  it('a make may not carry more words than her day plan (text can be less, never more)', () => {
+  it('unclocked parts, minutes over the period, too many activities or more words are no longer refusals', () => {
+    expect(checkK5Rewrite(day(), day(), opts)).toEqual([]);
+    const over = fitting(); over.youDo.minutes = 20; over.youDo.problems = [1, 2, 3].map((n) => ({ prompt: `Q${n}` }));
+    over.weDo.action += ' Then every child reads the whole page aloud again, slowly.';
+    expect(checkK5Rewrite(day(), over, opts)).toEqual([]);
     expect(MAKE_GROWTH).toBeLessThanOrEqual(1);
-    const long = fitting(); long.weDo.action += ' Then every child reads the whole page aloud again, slowly.';
-    expect(checkK5Rewrite(day(), long, opts).join(' ')).toMatch(/too long/);
+  });
+  it('a per-child teacher check is not a gate refusal (it is a repair-round reason only: lp-own-fit.repairOnly)', () => {
+    const s = fitting(); s.youDo.action = 'Walk round and check each child\'s copy.';
+    expect(checkK5Rewrite(day(), s, opts)).toEqual([]);
   });
   it('slates are refused in a make', () => {
     const s = fitting(); s.weDo.action = 'Children write it on slates.';
@@ -72,12 +65,15 @@ describe('K-5 gate on a make', () => {
   });
 });
 
-test('rewriteK5 holds a make to her period and class size (the gate is told both)', async () => {
-  const create = jest.fn().mockResolvedValue({ choices: [{ message: { content: JSON.stringify(day()) } }] });
+test('rewriteK5 fixes the period and the load in code: one model call, a plan that fits', async () => {
+  const reply = day(); reply.youDo.problems = [1, 2, 3].map((n) => ({ prompt: `Q${n}` }));
+  const create = jest.fn().mockResolvedValue({ choices: [{ message: { content: JSON.stringify(reply) } }] });
   const out = await rewriteK5({ script: day(), answers: BIG, lang: 'en', grade: 3, subject: 'english', client: { chat: { completions: { create } } }, model: 'm' });
-  expect(out).toBeNull();
-  const last = create.mock.calls[1][0].messages.slice(-1)[0].content;
-  expect(last).toMatch(/minutes/);
+  expect(create).toHaveBeenCalledTimes(1);
+  const s = out.script;
+  expect(['hook', 'iDo', 'weDo', 'youDo', 'wrap'].reduce((a, k) => a + s[k].minutes, 0)).toBe(30);
+  expect(s.youDo.problems).toHaveLength(LOAD.over70.problems);
+  expect(out.fixes.join(' ')).toMatch(/minutes/);
 });
 
 describe('6-12 instruction', () => {
