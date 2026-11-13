@@ -12,6 +12,7 @@ import LibraryPicker, { type PickedPlan } from '../components/coaching/LibraryPi
 import CoachRecorder, { minutesText } from '../components/coaching/coach/CoachRecorder';
 import SendLessonSheet from '../components/coaching/SendLessonSheet';
 import { leader, portal } from '../services/api';
+import { downloadsOnly } from '../lib/observeRecentPlans';
 import type { LeaderPatchTeacher, LeaderScheduledObservation } from '../types/portal';
 import { acceptFor, checkFile, formatSize, MAX_PHOTOS, readAudioDuration, SHORT_RECORDING_SECONDS } from '../lib/coachingUpload';
 import { canRecordHere } from '../lib/recordingSupport';
@@ -326,7 +327,7 @@ const LeaderObserveRecord = () => {
   }, []);
 
   const loadHerRecent = useCallback(
-    () => (teacher ? leader.getObserveRecentPlans(teacher.teacherExtId, teacher.schoolExtId) : Promise.resolve({ plans: [] })),
+    () => (teacher ? leader.getObserveRecentPlans(teacher.teacherExtId, teacher.schoolExtId).then(downloadsOnly) : Promise.resolve({ plans: [] })),
     [teacher],
   );
 

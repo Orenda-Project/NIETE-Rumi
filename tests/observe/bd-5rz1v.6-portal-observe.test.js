@@ -108,6 +108,8 @@ function deps(over = {}) {
       recent: jest.fn().mockResolvedValue([{ asset_id: 'a1', lesson_id: 'g4-math-ch5-d2', topic: 'Fractions', grade: 4, subject: 'Maths' }]),
       ...(over.library || {}),
     },
+    // bd-snkn32.41: her own Make my own plans — none unless a test gives some.
+    ownPlans: { list: jest.fn().mockResolvedValue([]), resolveKey: jest.fn().mockResolvedValue(null), ...(over.ownPlans || {}) },
     draft: over.draft || {
       buildScreenPrefill: jest.fn((analysis, key) => (key === 'lesson_plan_fidelity'
         ? { scale: [{ id: '0', title: '0 · Not observed' }], has_fidelity: true, no_fidelity: false, fid_header: 'Measured 75%', fid_fallback: '', mv_1: 'Fold paper', mv_1_v: true, fr_1: 'executed', fe_1: 'She folded it', mv_2: '', mv_2_v: false, fr_2: 'not_adjudicable', fe_2: '' }
