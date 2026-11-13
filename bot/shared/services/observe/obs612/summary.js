@@ -41,7 +41,8 @@ const LRI = '⁦';
 const FSI = '⁨';
 const PDI = '⁩';
 const ltr = (s) => `${LRI}${s}${PDI}`;
-const own = (s) => `${FSI}${s}${PDI}`;
+// A coach's own words, first-strong isolated; a held-down-key run broken up so it cannot read as broken script.
+const own = (s) => `${FSI}${require('./view').readableNote(s)}${PDI}`;
 const asIs = (s) => String(s);
 
 // Coach-written text is quoted, never rewritten; a very long note is cut so the summary stays one readable message.
