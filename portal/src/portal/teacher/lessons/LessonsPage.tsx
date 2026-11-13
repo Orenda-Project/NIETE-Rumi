@@ -15,9 +15,12 @@ import { useOpenLesson } from './useOpenLesson';
 import { Steps } from './Steps';
 import { lazy, Suspense } from 'react';
 import { useLpMakeOwn } from './own/flag';
+import { useLpOwnShelf } from './shelf/flag';
 
 // bd-snkn32 — the Make my own row's code loads only for a teacher it is on for (the page's own bytes stay as they were).
 const OwnRow = lazy(() => import('./own/OwnRow').then((m) => ({ default: m.OwnRow })));
+// bd-snkn32.42 — "Made by a teacher" loads only where portal_lp_own_shelf is on for her.
+const ShelfPlans = lazy(() => import('./shelf/ShelfPlans').then((m) => ({ default: m.ShelfPlans })));
 import { attachToDc, DC_PICK, PICK_DEPTH, type PickTarget } from '../coaching/libraryPick';
 
 /**
@@ -59,6 +62,7 @@ function Lessons({ at }: { at: LessonsAt & { chapter: string } }) {
   const location = useLocation();
   const picking = at.pick === DC_PICK;
   const ownOn = useLpMakeOwn() === true;
+  const shelfOn = useLpOwnShelf() === true;
 
   if (picking) {
     const plans = list.filter((l) => l.kind !== 'worksheet' && l.kind !== 'revision');
@@ -126,6 +130,7 @@ function Lessons({ at }: { at: LessonsAt & { chapter: string } }) {
           {plans}
         </Suspense>
       ) : plans}
+      {shelfOn && lessons.status === 'ok' ? <Suspense fallback={null}><ShelfPlans at={at} list={list} /></Suspense> : null}
     </TeacherPage>
   );
 }

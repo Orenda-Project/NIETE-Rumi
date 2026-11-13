@@ -73,8 +73,8 @@ describe('GET /config — the flag reads run together', () => {
     await done;
 
     // Every read in main's /config Promise.all, help videos, coach reports in the app, the principal app (bd-33wxxi.1) and
-    // Make my own lesson plan (bd-snkn32) included.
-    expect(started).toBe(20);
+    // Make my own lesson plan (bd-snkn32) with its shelf and reviewer reads (bd-snkn32.42) included.
+    expect(started).toBe(22);
     expect(payload.features).toMatchObject({
       assessmentGenerator: true,
       assessmentEditing: true,

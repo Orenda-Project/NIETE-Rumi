@@ -8,9 +8,11 @@ import { OpenPlanPage } from './OpenPlanPage';
 import { ChangePage } from './own/ChangePage';
 import { OwnPage } from './own/OwnPage';
 import { PreparingPage } from './PreparingPage';
+import { ReviewPage } from './shelf/ReviewPage';
 import { ViewerPage } from './ViewerPage';
 import { LESSONS_ALL, LESSONS_HOME, LESSONS_NEW, LESSONS_OPEN, LESSONS_OWN, LESSONS_VIEWER } from './paths';
 import { LESSONS_CHANGE } from './own/change';
+import { LESSONS_CHECK } from './shelf/flag';
 
 /**
  * bd-fmf24g.3 — the teacher v2 Lesson Plans pages (each one flag-gated by App's TeacherGate). The main
@@ -34,6 +36,8 @@ const routes: TeacherRoute[] = [
   { path: LESSONS_OWN, element: <OwnPage /> },
   // bd-snkn32.15 — Change this plan: hers too.
   { path: LESSONS_CHANGE, element: <ChangePage /> },
+  // bd-snkn32.42 — the staff check before a teacher's plan is listed (only for portal_lp_own_reviewers; 404 for the rest).
+  { path: LESSONS_CHECK, element: <ReviewPage />, leaders: true },
 ];
 
 export default routes;

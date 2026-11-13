@@ -14,7 +14,7 @@
  *
  * Dependencies are injected (createOwnReviewer) so it is testable without Supabase, R2 or a model.
  */
-const { gateV2, parseReview, reviewMessages } = require('./lp612-own-review');
+const { gateV2, parseReview, reviewMessages, applyBand } = require('./lp612-own-review');
 
 const OWN_TABLE = 'niete_lp612_own_plans';
 const REVIEW_JOB = 'lp.ownReview';
@@ -29,14 +29,14 @@ function planKeyFor(row) {
 function createOwnReviewer(deps) {
   const d = deps;
 
-  async function score(messages) {
+  async function score(messages, band) {
     const res = await d.client.chat.completions.create({
       model: d.model, job: REVIEW_JOB, temperature: 0, messages,
       max_completion_tokens: 4000, response_format: { type: 'json_object' }, reasoning: { enabled: false },
     });
     const items = parseReview(res && res.choices && res.choices[0] && res.choices[0].message.content);
     if (!items) throw new Error('the reply had no ratings');
-    return items;
+    return applyBand(items, band);
   }
 
   async function review(ownId, correlationId = null) {
@@ -46,10 +46,12 @@ function createOwnReviewer(deps) {
       const key = planKeyFor(row);
       if (!key) return null;
       const plan = await d.readPlan(key);
-      const messages = reviewMessages({ plan, lang: row.lang });
-      const items = await score(messages);
+      // bd-snkn32.42 — a grades 1-5 row (lesson_id) is read as a G1-5 script: 2I and 1D are not assessable there.
+      const band = row.lesson_id ? 'k5' : 'g612';
+      const messages = reviewMessages({ plan, lang: row.lang, band });
+      const items = await score(messages, band);
       let g = gateV2(items);
-      if (g.rescore) g = gateV2(items, await score(messages));
+      if (g.rescore) g = gateV2(items, await score(messages, band));
       const fields = {
         review_score: Math.round(g.pct * 10) / 10,
         review_pass: g.pass,
