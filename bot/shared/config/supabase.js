@@ -15,7 +15,7 @@
  * instead of a 12-line node stack at line 9.
  */
 
-require('dotenv').config();
+const dotenvResult = require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 const { actorFetch } = require('../utils/actor-context');
 
@@ -48,6 +48,9 @@ if (!supabaseUrl || !supabaseServiceRoleKey) {
   process.stderr.write(message);
   process.exit(78); // sysexits.h EX_CONFIG — "configuration error"
 }
+
+// A local .env must declare its target; a production one needs RUMI_ALLOW_PROD=1 per run.
+require('./env-target-guard').assertEnvTarget({ fileVars: dotenvResult && dotenvResult.parsed });
 
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: {
