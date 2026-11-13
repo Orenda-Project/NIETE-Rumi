@@ -143,7 +143,8 @@ async function generateExam(args) {
     { role: 'system', content: system },
     { role: 'user', content: Gen.buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource,
       questionCount: sizedCount + pool.extra, questionTypes: pool.types,
-      totalMarks: totalMarks == null ? totalMarks : totalMarks + pool.extra, seenCount, slos }) },
+      totalMarks: totalMarks == null ? totalMarks : totalMarks + pool.extra, seenCount, slos,
+      standardMarks: false }) }, // 6-12 sizes its own marks (Rules.sizeTypes)
   ];
   logToFile('[assessment] generating (grades 6-12 free)', {
     grade, subject, base, model, converted: sized.converted, light: sized.light, types: plan.questionTypes.map((q) => `${q.count} ${q.id}`),
