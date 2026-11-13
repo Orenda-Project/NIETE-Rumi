@@ -298,13 +298,13 @@ describe("LeaderAssessResults", () => {
   });
 });
 
-// Round 20 (sa_r20_level on the server): one line per subject on top — how far the child reached, the level (placeholder
-// words) and why the subject stopped. Only when the answer carries `levels`; without it the page is as before.
+// Round 20 (sa_r20_level on the server): one line per subject on top — how far the child reached, the level (the words
+// sent for review) and why the subject stopped. Only when the answer carries `levels`; without it the page is as before.
 describe("LeaderAssessResults: the child's level per subject (round 20)", () => {
   const LEVELS = [
     { subject: "ur", reached: { taskId: "ur.words4", title: { en: "Familiar words", ur: "جانے پہچانے الفاظ" } }, level: "letters", pending: false, stop: "no_answer" },
     { subject: "en", reached: { taskId: "en.letter_sounds5", title: null }, level: null, pending: true, stop: null },
-    { subject: "ma", reached: { taskId: "ma.add2i", title: { en: "Addition", ur: "جمع" } }, level: "comparing", pending: true, stop: "coach" },
+    { subject: "ma", reached: { taskId: "ma.mul2i", title: { en: "Multiplication", ur: "ضرب" } }, level: "sub_mul", pending: true, stop: "coach" },
   ];
 
   it("no levels in the answer: no level lines at all", async () => {
@@ -327,7 +327,7 @@ describe("LeaderAssessResults: the child's level per subject (round 20)", () => 
     expect(en).toHaveTextContent("Level: Waiting for scores");
     expect(en.textContent).not.toMatch(/Stopped/);
     const ma = screen.getByTestId("result-level-ma");
-    expect(ma).toHaveTextContent("Level: Comparing / missing number (more scores to come)");
+    expect(ma).toHaveTextContent("Level: Subtract and multiply (more to come)");
     expect(ma).toHaveTextContent("Stopped by the coach");
     // the lines sit above the task cards
     const levels = screen.getByTestId("results-levels");
@@ -343,7 +343,11 @@ describe("LeaderAssessResults: the child's level per subject (round 20)", () => 
     expect(ur).toHaveTextContent("جانے پہچانے الفاظ");
     expect(ur).toHaveTextContent("حروف");
     expect(ur).toHaveTextContent("رک گیا: کوئی جواب نہیں");
-    expect(screen.getByTestId("result-level-ma")).toHaveTextContent("کوچ نے یہ مضمون ختم کیا");
+    expect(ur).toHaveTextContent("آخری حصہ: جانے پہچانے الفاظ");
+    const ma = screen.getByTestId("result-level-ma");
+    expect(ma).toHaveTextContent("سطح: تفریق اور ضرب (مزید نمبر آنے ہیں)");
+    expect(ma).toHaveTextContent("کوچ نے ختم کیا");
+    expect(ma.textContent).not.toMatch(/یہ مضمون/);
     // no Roman Urdu: a subject line whose part has an Urdu title carries no Latin letter
     expect(ur.textContent).not.toMatch(/[A-Za-z]/);
   });

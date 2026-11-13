@@ -265,7 +265,7 @@ describe("LeaderAssessDashboard: a Level column per subject (round 20)", () => {
   it("levels: a column per subject with the row's typical level; under 5 children masked", async () => {
     api.getSwitches.mockResolvedValue({ realDashboard: true });
     const urban = [...withLevels(3, "Urban-I", "a", "words", "numbers"), ...withLevels(2, "Urban-I", "a", "story", "beginner"), ...withLevels(1, "Urban-I", "a", null, null)];
-    api.getSessions.mockResolvedValue({ sessions: [...urban, ...withLevels(2, "Sihala", "c", "letters", "multiply")] });
+    api.getSessions.mockResolvedValue({ sessions: [...urban, ...withLevels(2, "Sihala", "c", "letters", "sub_mul")] });
     renderPage();
     await screen.findByTestId("dash-live");
     expect(screen.getByTestId("dash-col-level-ur")).toHaveTextContent("Urdu level");
@@ -277,6 +277,21 @@ describe("LeaderAssessDashboard: a Level column per subject (round 20)", () => {
     expect(within(urbanRow).getByTestId("dash-level-ma")).toHaveTextContent("Numbers");
     const sihala = rows.find((r) => r.getAttribute("data-key") === "Sihala") as HTMLElement;
     expect(within(sihala).getByTestId("dash-level-ur")).toHaveTextContent("–");
-    expect(sihala.textContent).not.toMatch(/Letters|Multiply/);
+    expect(sihala.textContent).not.toMatch(/Letters|Subtract and multiply/);
+  });
+
+  it("the maths ladder as reviewed: Add sits below Subtract and multiply", async () => {
+    api.getSwitches.mockResolvedValue({ realDashboard: true });
+    const tarnol = [...withLevels(3, "Tarnol", "d", "comprehension", "sub_mul"), ...withLevels(2, "Tarnol", "d", "story", "add")];
+    const nilore = [...withLevels(3, "Nilore", "b", "words", "add"), ...withLevels(2, "Nilore", "b", "words", "comparing")];
+    api.getSessions.mockResolvedValue({ sessions: [...tarnol, ...nilore] });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    const rows = within(screen.getByTestId("dash-groups")).getAllByTestId("dash-group-row");
+    const row = (key: string) => rows.find((r) => r.getAttribute("data-key") === key) as HTMLElement;
+    // the lower middle of 5: Tarnol add, add, sub_mul, sub_mul, sub_mul → Subtract and multiply; Nilore comparing ×2, add ×3 → Add
+    expect(within(row("Tarnol")).getByTestId("dash-level-ma")).toHaveTextContent("Subtract and multiply");
+    expect(within(row("Tarnol")).getByTestId("dash-level-ur")).toHaveTextContent("Understands the story");
+    expect(within(row("Nilore")).getByTestId("dash-level-ma")).toHaveTextContent(/^Add$/);
   });
 });
