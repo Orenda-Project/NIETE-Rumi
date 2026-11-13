@@ -1,0 +1,2 @@
+{"ts":"2026-11-13T12:14:27Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"cf4930f9ce4b","branch":"bd-ipoxhx.8-10-main-r2","user":""}
+{"ts":"2026-11-13T12:14:28Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"cf4930f9ce4b","branch":"bd-ipoxhx.8-10-main-r2","user":""}
