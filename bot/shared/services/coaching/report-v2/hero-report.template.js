@@ -117,6 +117,8 @@ function buildHeroReportHtml(vm) {
   const T = (s) => wrapLatin(esc(s));
 
   const n = vm.narrative || {};
+  // overall null (an FDE tool with no total): no percentage is drawn anywhere. The footnote box (vm.partialNote, FDE
+  // only) adds its rule and its block only when there is a note, so a FICO page's HTML is byte for byte as before.
   const score = vm.score || {};
   const peak = (vm.trend && vm.trend.length) ? Math.max(...vm.trend.map((t) => t.pct)) : score.overall;
   const marksLine = (score.marks != null && score.max != null) ? `${score.marks}/${score.max}${MARKS_WORD[lang] || ''}` : '';
@@ -225,9 +227,14 @@ function buildHeroReportHtml(vm) {
   .journey{padding:14px 42px 0}.j-cap{font-size:12.5px;color:${P.note};line-height:${RTL ? '1.7' : '1.5'};margin-top:2px}
   .try{margin:16px 42px 0;background:${P.tryGrad};color:#fff;border-radius:16px;padding:18px 24px}
   .try .label{color:${P.tryLabel};opacity:1;margin-bottom:6px}
-  .try-text{font-family:${headFam};font-size:17px;line-height:${RTL ? '1.7' : '1.4'}}
+  .try-text{font-family:${headFam};font-size:17px;line-height:${RTL ? '1.7' : '1.4'}}${vm.partialNote ? `
+  .pnote{margin:12px 42px 0;padding:10px 14px;border-radius:8px;background:${P.footBorder};color:${P.note};font-size:12.5px;line-height:${RTL ? '1.7' : '1.5'}}` : ''}
   .foot{display:flex;align-items:center;justify-content:space-between;padding:16px 42px 24px;margin-top:14px;border-top:1px solid ${P.footBorder};color:${P.faint};font-size:12px}
-  .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${P.deep};font-size:15px;font-family:'Lexend'}.brand img{width:30px}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${P.deep};font-size:15px;font-family:'Lexend'}.brand img{width:30px}${vm.breakLongWords ? `
+  /* bd-ra8xu.51 (FDE report only): a coach's note is typed by hand and can be one long run with no space (a held-down
+     key); Nastaliq draws such a run as a slanting cascade that leaves its box. Let it break, and keep it inside. */
+  .hero h1,.identity,.sh h3,.sh .nt,.try-text,.sc-n{overflow-wrap:anywhere;word-break:break-word}
+  .sh,.try,.identity{overflow:hidden}` : ''}
   </style></head><body>
   <div class="report">
     <div class="hero">${vm.photoB64 ? `<img class="bg" src="data:image/jpeg;base64,${vm.photoB64}">` : ''}
@@ -235,7 +242,7 @@ function buildHeroReportHtml(vm) {
         <div class="hrow"><div class="eyebrow">${T(C.celebrate)}</div>${logo(A.logoWhite, 'logo')}</div>
         <div class="headline">
           <h1>${T(n.affirmation || '')}</h1>
-          <div class="hscore"><div class="p">${score.overall}%</div>${marksLine ? `<div class="s">${marksLine}</div>` : ''}</div>
+          ${score.overall == null ? '' : `<div class="hscore"><div class="p">${score.overall}%</div>${marksLine ? `<div class="s">${marksLine}</div>` : ''}</div>`}
         </div>
         <div class="who"><b>${esc(vm.teacherName || '')}</b>${vm.topic ? ` &nbsp;·&nbsp; ${T(vm.topic)}` : ''}${vm.date ? ` &nbsp;·&nbsp; ${esc(vm.date)}` : ''}</div>
       </div>
@@ -243,7 +250,7 @@ function buildHeroReportHtml(vm) {
     ${n.identity ? `<div class="pad" style="padding-bottom:0"><div class="identity">${T(n.identity)}</div></div>` : ''}
     <div class="cols">
       <div class="col-l">
-        <div class="label">${T(C.scores)} &nbsp; <span class="ov">${score.overall}%</span></div>
+        <div class="label">${T(C.scores)}${score.overall == null ? '' : ` &nbsp; <span class="ov">${score.overall}%</span>`}</div>
         ${scorecard}
       </div>
       <div class="col-r">
@@ -255,7 +262,8 @@ function buildHeroReportHtml(vm) {
     ${(vm.classroomPhotos && vm.classroomPhotos.length) ? `<div class="photos"><div class="label">${T(C.classroom)}</div><div class="pgrid">${vm.classroomPhotos.slice(0, 2).map((p) => `<div class="pframe"><img src="${p.src}" alt="classroom photo">${p.caption ? `<div class="pcap">${esc(p.caption)}</div>` : ''}</div>`).join('')}</div></div>` : ''}
     ${(vm.trend && vm.trend.length >= 2) ? `<div class="journey"><div class="label">${T(C.journey(vm.trend.length))}</div>${ltrTrend(vm.trend, peak, P)}<div class="j-cap">${T(n.journey_note || '')}</div></div>` : ''}
     ${vm.tryNext ? `<div class="try"><div class="label">${T(C.trynext)}</div><div class="try-text">${T(vm.tryNext)}</div></div>` : ''}${vm.videoStrip ? require('../video-reco/strip').stripHtml(vm.videoStrip, { language: vm.language, T, width: 794 }) : ''}
-    <div class="foot"><div class="brand">${logo(A.logoNavy, '')}NIETE</div><div>${T(C.made(vm.teacherName || ''))}</div></div>
+    ${vm.partialNote ? `<div class="pnote">${T(vm.partialNote)}</div>
+    ` : ''}<div class="foot"><div class="brand">${logo(A.logoNavy, '')}NIETE</div><div>${T(C.made(vm.teacherName || ''))}</div></div>
   </div>
   </body></html>`;
 }

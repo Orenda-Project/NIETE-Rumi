@@ -24,7 +24,7 @@
  */
 
 const O = require('../frameworks/obs612');
-const { obs612View, num, FDE_FOOTNOTE } = require('../../observe/obs612/view');
+const { obs612View, num, FDE_FOOTNOTE, FDE_FOOTNOTE_UR, readableNote } = require('../../observe/obs612/view');
 const { clampLanguage } = require('../../../config/ux-strings');
 const { fontFaces, esc } = require('./hero-report.template');
 const { PALETTES } = require('./hero-report.style');
@@ -53,7 +53,7 @@ const CHROME = {
 // The caption that rides with the image, in the teacher's language (Urdu: DRAFT for native review).
 const CAPTION = {
   en: { head: '📋 Your observation report · FDE\'s tool', grade: (g) => `Grade ${g}` },
-  ur: { head: '📋 آپ کی مشاہداتی رپورٹ · ایف ڈی ای کا ٹول', grade: (g) => `جماعت ${g}` },
+  ur: { head: '📋 آپ کی مشاہداتی رپورٹ · ایف ڈی ای کا ٹول', grade: (g) => `جماعت ${String(g).replace(/[0-9]/g, (d) => String.fromCharCode(0x06F0 + Number(d)))}` },
 };
 
 const ASSET = (p) => {
@@ -92,7 +92,8 @@ function buildObs612ReportVm(session, analysis, opts = {}) {
 function caption(vm) {
   const C = CAPTION[vm.language] || CAPTION.en;
   const v = vm.view;
-  const parts = [C.head, v && v.grade ? C.grade(v.grade) : null, v && v.subjectLabel, vm.date].filter(Boolean);
+  const subject = v ? subjectIn(v, clampLanguage(vm.language, ['en', 'ur'])) : null;
+  const parts = [C.head, v && v.grade ? C.grade(v.grade) : null, subject, vm.date].filter(Boolean);
   return parts.join(' · ');
 }
 
@@ -241,17 +242,144 @@ function buildObs612ReportHtml(vm) {
   </body></html>`;
 }
 
+// ── The FICO teacher report's page, for an FDE visit (bd-ra8xu.51) ──────────────
+// Rifat, 13 Nov (pre-approved by the operator): the teacher gets the report we send after a FICO observation, in the
+// same format, design and order: the score, the scorecard, then the teacher's strength, the area to improve and one
+// focus for the next lesson. Written to the teacher. Built from the coach's FDE scores and own notes only: no model
+// writes a word of it, and no FICO journey is drawn (an FDE score is never put beside FICO history). The page is the
+// FICO hero template (hero-report.template.js); only its view model is FDE's.
+
+// Our own lines on the page, in the teacher's language (Urdu: DRAFT for native review; Urdu digits).
+const HERO = {
+  en: {
+    affirm: (band) => (band ? `Your lesson, as your coach scored it on FDE's tool: ${band}` : "Your lesson, as your coach scored it on FDE's tool"),
+    rating: (on108, band) => `FDE's rating: ${band}, ${on108} of 108 on FDE's scale.`,
+    by: (t) => `By: ${t}`,
+    noTotal: "FDE's tool gives levels, not a total.",
+    yesOf: (yes, of) => `Yes on ${yes} of ${of}`,
+    planGoal: (from, to) => `From Level ${from} to Level ${to}.`,
+    grade: (g) => `Grade ${g}`,
+    footnote: FDE_FOOTNOTE,
+  },
+  ur: {
+    affirm: (band) => (band ? `آپ کا سبق، کوچ نے ایف ڈی ای کے ٹول پر جانچا: ${band}` : 'آپ کا سبق، کوچ نے ایف ڈی ای کے ٹول پر جانچا'),
+    rating: (on108, band) => `ایف ڈی ای کی درجہ بندی: ${band}، ایف ڈی ای کے پیمانے پر ۱۰۸ میں سے ${urDigitsOf(on108)}۔`,
+    by: (t) => `کب تک: ${t}`,
+    noTotal: 'ایف ڈی ای کا ٹول درجے دیتا ہے، کل نمبر نہیں۔',
+    yesOf: (yes, of) => `${urDigitsOf(of)} میں سے ${urDigitsOf(yes)} ہاں`,
+    planGoal: (from, to) => `درجہ ${urDigitsOf(from)} سے درجہ ${urDigitsOf(to)} تک۔`,
+    grade: (g) => `جماعت ${urDigitsOf(g)}`,
+    footnote: FDE_FOOTNOTE_UR,
+  },
+};
+function urDigitsOf(n) { return String(n).replace(/[0-9]/g, (d) => String.fromCharCode(0x06F0 + Number(d))); }
+const pct = (a, b) => (b > 0 ? Math.round((a * 100) / b) : 0);
+const joinNote = (...parts) => parts.map((x) => (x == null ? '' : String(x).trim())).filter(Boolean).join(' ');
+// A part's name with FDE's own section number, so Section 3's A and Section 4's A cannot be confused on a flat
+// scorecard: "3A. Participation", "4D. Writing Skills"; a section that is one block: "5. Assessment & Feedback".
+function partName(s) {
+  const n = (/^Section (\d+)/.exec(s.section || '') || [])[1];
+  if (!n) return s.title;
+  const m = /^([A-Z])\.\s*(.*)$/.exec(s.title || '');
+  return m ? `${n}${m[1]}. ${m[2]}` : `${n}. ${s.title}`;
+}
+
+/** The lesson's subject in the report's language (Urdu: the Urdu name), else as stored. */
+function subjectIn(v, lang) {
+  const { SUBJECT_LABELS } = require('../../observe/obs612/strings');
+  return (SUBJECT_LABELS[lang] || {})[v.subject] || v.subjectLabel || null;
+}
+
 /**
- * Render the FDE report: { png, caption, narrative: null, partialNote: null } — the shape generateHeroReport returns.
+ * The FICO hero page's view model for an FDE visit (buildHeroReportHtml). Pure.
+ * @param {object} session   coaching_sessions row (created_at)
+ * @param {object} analysis  the FDE visit's analysis_data
+ * @param {{language?: string, teacherName?: string, brand?: string}} [opts]
+ */
+function buildObs612HeroVm(session, analysis, opts = {}) {
+  const base = buildObs612ReportVm(session, analysis, opts);
+  const lang = clampLanguage(base.language, ['en', 'ur']);
+  const H = HERO[lang];
+  const v = base.view;
+  const vm = {
+    language: base.language,
+    brand: base.brand,
+    teacherName: base.teacherName,
+    // An ISO date after Urdu words reorders (13-11-2026): isolated left to right on an Urdu page.
+    date: lang === 'ur' && base.date ? `\u2066${base.date}\u2069` : base.date,
+    topic: v ? [v.grade ? H.grade(v.grade) : null, subjectIn(v, lang)].filter(Boolean).join(' · ') : '',
+    score: { overall: null, marks: null, max: null },
+    groups: [],
+    narrative: {},
+    tryNext: '',
+    trend: [],
+    classroomPhotos: [],
+    photoB64: '',
+    partialNote: H.footnote,
+    breakLongWords: true,
+  };
+  if (!v) return vm;
+  const top = (v.strongest || [])[0] || null;
+  const low = (v.lowest || [])[0] || null;
+  const fb = v.feedback || {};
+  if (v.tool === 'enur') {
+    const e = v.enur;
+    vm.score = { overall: Math.round(e.pct), marks: e.total, max: e.max };
+    vm.groups = e.sections.map((s) => ({ name: partName(s), score: s.score, max: s.max, pct: pct(s.score, s.max) }));
+    vm.narrative = {
+      affirmation: H.affirm(e.band),
+      identity: e.band ? H.rating(num(e.score_108), e.band) : '',
+      strength_name: top ? partName(top) : '',
+      strength_note: readableNote(fb.strengths || ''),
+      horizon_title: low ? partName(low) : '',
+      horizon_note: readableNote(fb.areas || ''),
+    };
+    vm.tryNext = readableNote(joinNote(fb.recommendations, fb.timeline ? H.by(fb.timeline) : ''));
+    return vm;
+  }
+  if (v.tool === 'msci') {
+    const m = v.msci;
+    vm.groups = m.indicators.map((i) => ({ name: `${i.n}. ${i.short}`, score: i.level === null ? 0 : i.level, max: 3, pct: pct(i.level || 0, 3) }));
+    const plan = (v.plan || [])[0] || null;
+    const focus = plan ? m.indicators.find((i) => i.key === plan.area) : low;
+    vm.narrative = {
+      affirmation: H.affirm(null),
+      identity: H.noTotal,
+      strength_name: top ? `${top.n}. ${top.short}` : '',
+      strength_note: readableNote(top ? (top.observation || top.levelText || '') : ''),
+      horizon_title: focus ? `${focus.n}. ${focus.short}` : '',
+      horizon_note: plan && plan.current !== null && plan.goal !== null ? H.planGoal(plan.current, plan.goal) : (focus ? (focus.observation || '') : ''),
+    };
+    vm.tryNext = readableNote(plan ? plan.action || '' : '');
+    return vm;
+  }
+  const g = v.gen;
+  vm.groups = g.sections.map((s) => ({ name: s.title, score: s.yes, max: s.of, pct: pct(s.yes, s.of) }));
+  vm.narrative = {
+    affirmation: H.affirm(null),
+    identity: H.yesOf(g.yes, g.of),
+    strength_name: top ? top.title : '',
+    strength_note: '',
+    horizon_title: low ? low.title : '',
+    horizon_note: low && low.noItems && low.noItems.length ? low.noItems.join('; ') : '',
+  };
+  vm.tryNext = readableNote(fb.line || '');
+  return vm;
+}
+
+/**
+ * Render the FDE report: { png, caption, narrative: null, partialNote } — the shape generateHeroReport returns.
+ * The page is the FICO teacher report's (bd-ra8xu.51); the caption stays FDE's own, in the teacher's language.
  * @param {object} session
  * @param {object} analysis
  * @param {{language?: string, teacherName?: string, brand?: string}} [opts]
  */
 async function generateObs612Report(session, analysis, opts = {}) {
   const { htmlToImage } = require('../../../utils/html-to-pdf');
-  const vm = buildObs612ReportVm(session, analysis, opts);
-  const png = await htmlToImage(buildObs612ReportHtml(vm), { selector: '.report', width: 794, deviceScaleFactor: 2 });
-  return { png, caption: caption(vm), narrative: null, partialNote: null };
+  const { buildHeroReportHtml } = require('./hero-report.template');
+  const vm = buildObs612HeroVm(session, analysis, opts);
+  const png = await htmlToImage(buildHeroReportHtml(vm), { selector: '.report', width: 794, deviceScaleFactor: 2 });
+  return { png, caption: caption(buildObs612ReportVm(session, analysis, opts)), narrative: null, partialNote: vm.partialNote };
 }
 
-module.exports = { generateObs612Report, buildObs612ReportVm, buildObs612ReportHtml, caption, CHROME };
+module.exports = { generateObs612Report, buildObs612ReportVm, buildObs612HeroVm, buildObs612ReportHtml, caption, CHROME, HERO };
